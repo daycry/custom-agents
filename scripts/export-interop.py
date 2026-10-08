@@ -21,13 +21,13 @@ Qué se genera (y por qué ese formato, verificado en la doc oficial de cada her
   Las `skills/` NO se copian: el manifiesto apunta a `./skills/` y Codex las lee tal cual
   (el `SKILL.md` del plugin ya cumple su frontmatter: `name` + `description`).
 
-  OpenCode (opencode.ai/docs, 2026-09-08)
-    interop/opencode/opencode.json     `instructions` + permisos de la herramienta `skill`.
+  OpenCode V2 (opencode.ai/v2/docs/build/plugins, 2026-10-08)
+    interop/opencode/opencode.json     `plugins` con un paquete local; preserva permisos del consumidor.
     interop/opencode/agents/<n>.md     agentes (`mode`, `temperature`, `permission`).
     interop/opencode/commands/<n>.md   comandos (`$ARGUMENTS` funciona igual).
-    interop/opencode/plugins/…js       copia de `hooks/opencode-plugin.js` (adaptador de hooks).
-    interop/opencode/custom-agents-index.md   índice de piezas (`skill-index.py`) para `instructions`:
-                                       OpenCode no tiene hook de SessionStart que inyecte contexto.
+    interop/opencode/plugins/custom-agents/   paquete V2 de `hooks/opencode-plugin.js`.
+    interop/opencode/custom-agents-index.md   snapshot consultable del índice de piezas.
+                                       El hook nativo `session.context` inyecta el contexto actual.
   Las `skills/` NO se traducen: su `SKILL.md` ya vale para los dos runtimes (`name` + `description`
   es exactamente lo que ambos exigen). Quien las pone en su sitio es el instalador
   (`install/install.mjs`: `.opencode/skills/` u `.codex/plugins/…/skills/`), no este script.
@@ -451,25 +451,19 @@ def opencode_comando(nombre, bloque, cuerpo):
 
 
 def opencode_config():
-    """`interop/opencode/opencode.json`. `instructions` es el sustituto del hook `SessionStart`
-    que OpenCode no tiene: inyecta el índice de piezas (y el CLAUDE.md del proyecto) en cada
-    sesión. `permission.skill` deja pasar las skills del plugin."""
+    """Registro V2 del paquete local; el contexto llega por hook sin grants globales."""
     return json_txt({
         "$schema": "https://opencode.ai/config.json",
-        "instructions": [
-            ".opencode/custom-agents-index.md",
-            "CLAUDE.md",
-        ],
-        "permission": {"skill": {"*": "allow"}},
+        "plugins": ["./.opencode/plugins/custom-agents"],
     })
 
 
 def opencode_indice(root):
-    """Snapshot del índice de piezas (`skill-index.py`) como fichero de `instructions`.
+    """Snapshot consultable del índice de piezas (`skill-index.py`).
 
-    OpenCode no tiene un hook que inyecte contexto al arrancar, así que lo que en Claude Code
-    hace `hooks/session-context.sh` (parte 1: el índice) aquí es un fichero estático que
-    `--check` mantiene al día. Lo dinámico (roadmap, journal, memoria) no viaja: se pide a mano.
+    `--check` mantiene este fichero estático al día como referencia consultable.
+    El adaptador V2 inyecta el índice y las fuentes dinámicas (roadmap, journal,
+    memoria) mediante session.context, reutilizando hooks/session-context.sh.
     """
     texto = ""
     try:
@@ -483,8 +477,8 @@ def opencode_indice(root):
         texto = _indice_fallback(root)
     return ("<!-- %s desde las piezas del repo — no lo edites a mano. -->\n\n" % MARCA
             + "# custom-agents — índice de piezas\n\n"
-            + "Este fichero lo lee OpenCode como `instructions` (sustituto del hook `SessionStart`\n"
-              "de Claude Code). Antes de improvisar, comprueba si aplica una de estas piezas: las\n"
+            + "Snapshot consultable del catálogo. OpenCode V2 recibe el contexto mediante el hook\n"
+              "nativo de sesión, no mediante `instructions`. Comprueba si aplica una de estas piezas: las\n"
               "skills se invocan con la herramienta `skill`, los agentes con `task`.\n\n"
             + texto.rstrip("\n") + "\n")
 
@@ -533,8 +527,11 @@ def generar(root):
     out["interop/opencode/custom-agents-index.md"] = opencode_indice(root)
     # El adaptador de hooks de OpenCode es CÓDIGO fuente (vive en hooks/, con el resto de hooks);
     # aquí solo viaja su copia, para que el árbol de interop sea completo y copiable de una vez.
-    out["interop/opencode/plugins/custom-agents-hooks.js"] = leer(
+    out["interop/opencode/plugins/custom-agents/index.js"] = leer(
         os.path.join(root, "hooks", "opencode-plugin.js"))
+    out["interop/opencode/plugins/custom-agents/package.json"] = json_txt({
+        "name": "custom-agents-hooks", "type": "module", "main": "index.js",
+    })
     return dict(sorted(out.items()))
 
 

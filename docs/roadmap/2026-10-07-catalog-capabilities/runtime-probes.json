@@ -13,11 +13,6 @@
     "warming_enabled": false,
     "reference_corpus_code_executed": false
   },
-  "current_adapter": {
-    "sha256": "1092f3b894c5ee208d4eb9a46ed76361015180632207ec7edf630dcd4cb65bf9",
-    "load_status": "failed",
-    "reason": "Plugin must export a default definition with an id and an effect or setup function."
-  },
   "positive_control": {
     "id": "custom-agents-contract-probe",
     "load_status": "active",
@@ -46,5 +41,43 @@
   "shutdown": {
     "process_terminal": true,
     "exit_code": 0
-  }
+  },
+  "baseline_adapter": {
+    "sha256": "1092f3b894c5ee208d4eb9a46ed76361015180632207ec7edf630dcd4cb65bf9",
+    "load_status": "failed",
+    "reason": "Plugin must export a default definition with an id and an effect or setup function."
+  },
+  "current_adapter": {
+    "observed_on": "2026-10-08",
+    "sha256": "0694cd50de08a4fbd2a10a3713b62f1264c9d1042e1b8522bd6e02c79e424383",
+    "load_status": "active",
+    "transport_version": 2
+  },
+  "transport_validation": {
+    "observed_on": "2026-10-08",
+    "runtime_version": "2.0.12",
+    "own_temporary_project": true,
+    "own_configuration_and_xdg_roots": true,
+    "inherited_provider_credentials": false,
+    "held_prompts": 2,
+    "active_loops": 2,
+    "loopback_model_requests": 4,
+    "external_provider_requests": 0,
+    "native_prompt_capture": true,
+    "private_turn_excluded": true,
+    "native_context_dispatch": true,
+    "native_write_dispatch": true,
+    "native_terminal_capture": true,
+    "native_replay_next_session": true,
+    "reference_corpus_code_executed": false,
+    "process_terminal": true,
+    "server_exit_code": 0,
+    "limits": {
+      "guard_dispatch_tested": false,
+      "native_command_dispatch_tested": false,
+      "consumer_mcp_connections_tested": false,
+      "cross_runtime_guard_parity_tested": false
+    }
+  },
+  "observation_scope": "Top-level isolation, positive_control, config, readiness, limits and shutdown describe the 2026-10-07 baseline. Current native dispatch evidence is in transport_validation."
 }

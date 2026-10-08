@@ -998,14 +998,14 @@ def test_gap_a2_codex_y_opencode_tienen_su_fila_de_registro(tmp_path, monkeypatc
 
     # OpenCode: el adaptador dado de alta en `plugin` de `opencode.json`
     (proj / "opencode.json").write_text(json.dumps(
-        {"plugin": ["./.opencode/plugins/custom-agents-hooks.js"]}), encoding="utf-8")
+        {"plugins": ["./.opencode/plugins/custom-agents"]}), encoding="utf-8")
     oc = fila(diag(proj, plug), "registro en OpenCode")
-    assert oc["estado"] == doctor.OK and "custom-agents-hooks.js" in oc["detalle"]
+    assert oc["estado"] == doctor.OK and "custom-agents" in oc["detalle"]
 
     # copiado pero sin alta: ⚠️ con el comando que lo arregla
-    (proj / "opencode.json").write_text(json.dumps({"plugin": ["otro.js"]}), encoding="utf-8")
-    (proj / ".opencode" / "plugins").mkdir(parents=True)
-    (proj / ".opencode" / "plugins" / "custom-agents-hooks.js").write_text("//", encoding="utf-8")
+    (proj / "opencode.json").write_text(json.dumps({"plugins": ["otro.js"]}), encoding="utf-8")
+    (proj / ".opencode" / "plugins" / "custom-agents").mkdir(parents=True)
+    (proj / ".opencode" / "plugins" / "custom-agents" / "index.js").write_text("//", encoding="utf-8")
     oc = fila(diag(proj, plug), "registro en OpenCode")
     assert oc["estado"] == doctor.AVISO and oc["arreglo"]
 
@@ -1191,30 +1191,30 @@ def test_gap_i2_11_la_fila_informativa_de_codex_nombra_lo_detectado(tmp_path, mo
 
 
 def test_gap_i2_3_el_alta_de_opencode_se_compara_por_ruta_resuelta_no_por_nombre(tmp_path, monkeypatch):
-    """Casar por basename daba OK a cualquier `custom-agents-hooks.js` de cualquier sitio, y
+    """Casar por basename daba OK a cualquier `custom-agents` de cualquier sitio, y
     `status` (ruta exacta) decia lo contrario sobre el MISMO `opencode.json`."""
     _cfg_vacio(tmp_path, monkeypatch)
     proj = proyecto(tmp_path)
     plug = plugin(tmp_path)
-    (proj / ".opencode" / "plugins").mkdir(parents=True)
-    (proj / ".opencode" / "plugins" / "custom-agents-hooks.js").write_text("//", encoding="utf-8")
+    (proj / ".opencode" / "plugins" / "custom-agents").mkdir(parents=True)
+    (proj / ".opencode" / "plugins" / "custom-agents" / "index.js").write_text("//", encoding="utf-8")
 
     # mismo nombre, otra carpeta: NO es el adaptador instalado
     (proj / "opencode.json").write_text(json.dumps(
-        {"plugin": ["./vendor/custom-agents-hooks.js"]}), encoding="utf-8")
+        {"plugins": ["./vendor/custom-agents"]}), encoding="utf-8")
     oc = fila(diag(proj, plug), "registro en OpenCode")
     assert oc["estado"] == doctor.AVISO and "NO es el adaptador instalado" in oc["detalle"]
     assert oc["arreglo"]
 
     # escalar: `status` no lo cuenta como alta (`json-array`), asi que `/doctor` tampoco
     (proj / "opencode.json").write_text(json.dumps(
-        {"plugin": "./.opencode/plugins/custom-agents-hooks.js"}), encoding="utf-8")
+        {"plugins": "./.opencode/plugins/custom-agents"}), encoding="utf-8")
     oc = fila(diag(proj, plug), "registro en OpenCode")
     assert oc["estado"] == doctor.AVISO and "no es una lista" in oc["detalle"] and oc["arreglo"]
 
     # la ruta que escribe el instalador (relativa al fichero de config): OK
     (proj / "opencode.json").write_text(json.dumps(
-        {"plugin": ["./.opencode/plugins/custom-agents-hooks.js"]}), encoding="utf-8")
+        {"plugins": ["./.opencode/plugins/custom-agents"]}), encoding="utf-8")
     assert fila(diag(proj, plug), "registro en OpenCode")["estado"] == doctor.OK
 
 
@@ -1320,13 +1320,13 @@ def test_doctor_y_status_coinciden_tambien_en_opencode(tmp_path, monkeypatch, ca
     cfg = _cfg_vacio(tmp_path, monkeypatch)
     proj = proyecto(tmp_path)
     plug = plugin(tmp_path)
-    (proj / ".opencode" / "plugins").mkdir(parents=True)
-    (proj / ".opencode" / "plugins" / "custom-agents-hooks.js").write_text("//", encoding="utf-8")
-    spec = {"alta-exacta": ["./.opencode/plugins/custom-agents-hooks.js"],
-            "mismo-nombre-otra-ruta": ["./vendor/custom-agents-hooks.js"],
-            "escalar": "./.opencode/plugins/custom-agents-hooks.js",
+    (proj / ".opencode" / "plugins" / "custom-agents").mkdir(parents=True)
+    (proj / ".opencode" / "plugins" / "custom-agents" / "index.js").write_text("//", encoding="utf-8")
+    spec = {"alta-exacta": ["./.opencode/plugins/custom-agents"],
+            "mismo-nombre-otra-ruta": ["./vendor/custom-agents"],
+            "escalar": "./.opencode/plugins/custom-agents",
             "sin-plugin": []}[caso]
-    (proj / "opencode.json").write_text(json.dumps({"plugin": spec}), encoding="utf-8")
+    (proj / "opencode.json").write_text(json.dumps({"plugins": spec}), encoding="utf-8")
 
     doctor_activo = fila(diag(proj, plug), "registro en OpenCode")["estado"] == doctor.OK
     assert doctor_activo == activo, f"{caso}: /doctor dice {doctor_activo}"

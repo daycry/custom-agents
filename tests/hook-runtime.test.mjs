@@ -4,7 +4,8 @@ import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { CustomAgentsHooks } from '../hooks/opencode-plugin.js';
+import plugin from '../hooks/opencode-plugin.js';
+import { opencodeContext, until } from './helpers/opencode-context.mjs';
 
 const root = resolve('.');
 const runner = join(root, 'hooks', 'run-hook.mjs');
@@ -32,12 +33,15 @@ test('SessionStart injects JSON context through Git Bash and native Python', () 
 
 test('OpenCode session.idle uses the shared runner and persists an envelope', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'custom-agents-opencode-'));
+  let cleanup;
   try {
     mkdirSync(join(dir, 'docs', 'roadmap'), { recursive: true });
-    const hooks = await CustomAgentsHooks({ directory: dir, worktree: dir });
-    await hooks.event({ event: { type: 'session.idle', properties: { sessionID: 'opencode-hook-test' } } });
+    const ctx = opencodeContext(dir);
+    cleanup = await plugin.setup(ctx);
+    ctx.emit({ type: 'session.idle', location: ctx.location, data: { sessionID: 'opencode-hook-test' } });
+    await until(() => existsSync(join(dir, '.claude', 'journal', 'outbox')) && readdirSync(join(dir, '.claude', 'journal', 'outbox')).some(f => f.endsWith('.json')));
     assert.equal(readdirSync(join(dir, '.claude', 'journal', 'outbox')).filter(f => f.endsWith('.json')).length, 1);
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('native capture and SessionEnd persist UTF8 data inside 3s', () => {

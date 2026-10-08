@@ -228,7 +228,7 @@ def build_inventory(root, *, project=None, home=None, runtime='all', cwd=None,
     data['tools'] = sorted({tool for entry in data['agents'] for tool in entry['tools']})
     data['hooks'] = _hooks(root, data['warnings'])
     data['counts'] = {kind: len(data[kind]) for kind in ('agents', 'skills', 'commands', 'tools', 'hooks')}
-    data['runtimes'] = {runtime: _presence(root, relative) for runtime, relative in {'claude': 'hooks/hooks.json', 'codex': 'interop/codex/hooks.json', 'opencode': 'interop/opencode/plugins/custom-agents-hooks.js'}.items()}
+    data['runtimes'] = {runtime: _presence(root, relative) for runtime, relative in {'claude': 'hooks/hooks.json', 'codex': 'interop/codex/hooks.json', 'opencode': 'interop/opencode/plugins/custom-agents/index.js'}.items()}
     data['memory'] = {'approved_directory': _presence(root, 'docs/knowledge/approved'), 'graphify_artifact': _presence(root, 'graphify-out/graph.json')}
     data['workflow'] = _workflow(root, data['warnings'])
     if project is not None:

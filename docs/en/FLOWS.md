@@ -337,6 +337,9 @@ flowchart LR
     H1 -->|"systemMessage (debounced)"| U(["👀 user<br/>📋 slug · T-04/12 (33%) · fase 2/4 · en curso T-05"])
     SA["subagent finishes"] --> H2["SubagentStop hook<br/>subagent-progress.sh"]
     H2 -->|"systemMessage: active initiatives"| U
+    OC["OpenCode V2: session.context"] --> H3
+    OCP["OpenCode V2: session.prompt"] --> H5
+    OCI["OpenCode V2: session.execution<br/>succeeded · failed · interrupted"] --> H4
     SS["session: startup · resume · compact"] --> H3["SessionStart hook<br/>session-context.sh"]
     H3 -->|"additionalContext: piece index (≤ 45 lines, hash-cached)<br/>+ resume ≤ 15 lines (in-progress task)<br/>+ journal ≤ 25 lines (startup · resume only)"| C(["🧠 Claude's context"])
     UP["user turn"] --> H5["UserPromptSubmit hook<br/>user-prompt-capture.sh (timeout 5)"]

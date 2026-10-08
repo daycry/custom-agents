@@ -2,7 +2,7 @@
 // ni una lectura de disco fuera de `detect()` y de la detección de CLIs en el `PATH`. Así el plan
 // se puede imprimir (`--dry-run`), comparar y testear sin tocar nada.
 //
-// Un plan es una lista de pasos. Seis tipos, y ninguno más:
+// Un plan es una lista de pasos:
 //   { type: "copy",  from, to }      copia un fichero o un árbol (recursivo)
 //   { type: "write", to, content }   escribe un fichero generado por el instalador
 //   { type: "merge", to, merge }     fusiona claves en un JSON del usuario SIN pisar lo suyo
@@ -12,6 +12,7 @@
 //                                    apunta cuáles para poder quitarlas al desinstalar)
 //   { type: "toml-set", to, tabla, clave, valor }   pone una clave en una tabla de un TOML,
 //                                    sin reescribir ninguna otra línea del fichero
+//   { type: "retire", to, sha256, config } retira un artefacto conocido sin cambios locales
 //
 // Además, cada proveedor declara con `registro(scope, dir)` DÓNDE mira uno si quiere saber si el
 // runtime tiene el plugin dado de alta de verdad. Son descriptores (fichero + qué buscar), no
@@ -449,11 +450,11 @@ function marketplaceCodex(mktRoot, plugin, version) {
 
 // --------------------------------------------------------------------------- OpenCode
 
-/** Nombre del fichero del adaptador de hooks de OpenCode (el que carga sus eventos). */
-export const ADAPTADOR_OPENCODE = "custom-agents-hooks.js"
+/** Paquete local del adaptador V2, registrado como directorio. */
+export const ADAPTADOR_OPENCODE = "custom-agents"
 
 /**
- * Cómo se declara el adaptador en `plugin` de `opencode.json`. **Un spec con forma de ruta se
+ * Cómo se declara el adaptador en `plugins` de `opencode.json`. Un spec con forma de ruta se
  * resuelve contra la carpeta del fichero de config que lo declara** (`config/plugin.ts`,
  * `resolvePluginSpec`), no contra el directorio de trabajo:
  *
@@ -463,9 +464,8 @@ export const ADAPTADOR_OPENCODE = "custom-agents-hooks.js"
  *   · scope `user` → config y adaptador comparten carpeta (`~/.config/opencode/`); se escribe la
  *     ruta ABSOLUTA, siempre con `/` (un `\` en un JSON hay que escaparlo y confunde al leerlo).
  *
- * Registrarlo NO lo carga dos veces aunque OpenCode también autodescubra `{plugin,plugins}/*.js`
- * de esa misma carpeta: dedupe por URL de fichero (`deduplicatePluginOrigins`). Se declara igual
- * para que el registro sea COMPROBABLE (`/doctor` y `status` lo leen) y no dependa de un barrido.
+ * V2 exige un directorio para rutas configuradas y deduplica el entrypoint descubierto.
+ * El registro es comprobable por status/doctor; su presencia no acredita despacho.
  */
 export function rutaPluginOpencode(base, scope) {
   return scope === "user"
@@ -488,7 +488,16 @@ const opencode = {
       ? join(base, "custom-agents-index.md").split(/[\\/]/).join("/")
       : ".opencode/custom-agents-index.md"
     const adaptador = rutaPluginOpencode(base, scope)
+    const anterior = scope === "user"
+      ? join(base, "plugins", "custom-agents-hooks.js").split(/[\\/]/).join("/")
+      : "./.opencode/plugins/custom-agents-hooks.js"
     return [
+      {
+        type: "retire", to: join(base, "plugins", "custom-agents-hooks.js"),
+        // SHA-256 del adaptador propio publicado, normalizado a LF. No se borra código editado.
+        sha256: ["1092f3b894c5ee208d4eb9a46ed76361015180632207ec7edf630dcd4cb65bf9"],
+        config: { to: cfg, remove: { plugin: [anterior], plugins: [anterior], instructions: [idxRel] } },
+      },
       ...PAYLOAD_COMUN.map((p) => ({ type: "copy", from: p, to: join(base, p) })),
       { type: "copy", from: "interop/opencode/agents", to: join(base, "agents") },
       { type: "copy", from: "interop/opencode/commands", to: join(base, "commands") },
@@ -507,25 +516,14 @@ const opencode = {
         from: "interop/opencode/custom-agents-index.md",
         to: join(base, "custom-agents-index.md"),
       },
-      // Config del usuario: se FUSIONA. `instructions` se une sin duplicar.
-      //
-      // `permission` va en `onlyIfMissing` A PROPÓSITO: en OpenCode «gana la última regla que
-      // casa», así que añadir `skill: {"*": "allow"}` DESPUÉS de un `"internal-*": "deny"` del
-      // usuario le abriría en silencio una skill que había cerrado. Si ya tiene política de
-      // permisos, se respeta entera y el instalador solo lo dice; si no tiene ninguna, se deja
-      // la mínima para que las skills del plugin carguen sin preguntar.
+      // El contexto V2 llega por hook; no se añaden instrucciones ni grants a la config ajena.
       {
         type: "merge",
         to: cfg,
         merge: {
           $schema: "https://opencode.ai/config.json",
-          instructions: [idxRel],
-          plugin: [adaptador],
-          permission: { skill: { "*": "allow" } },
+          plugins: [adaptador],
         },
-        onlyIfMissing: ["permission"],
-        nota: "si `permission` ya existía, tu política manda: comprueba que las skills `custom-agents` "
-              + "no caigan en un `deny` (OpenCode aplica la ÚLTIMA regla que casa).",
       },
     ]
   },
@@ -534,15 +532,15 @@ const opencode = {
   registro: (scope, dir) => [
     { fichero: scope === "user" ? join(GLOBAL_DIR.opencode, "opencode.json") : join(dir, "opencode.json"),
       tipo: "json-array",
-      ruta: "plugin",
+      ruta: "plugins",
       valor: rutaPluginOpencode(scope === "user" ? GLOBAL_DIR.opencode : join(dir, ".opencode"), scope) },
   ],
-  // `plugin` se queda en `opencode.json` al desinstalar (es config del usuario, como
-  // `instructions`), pero el fichero al que apunta SÍ se borra: hay que decírselo, porque un spec
+  // `plugins` se queda en `opencode.json` al desinstalar (es config del usuario),
+  // pero el paquete al que apunta SÍ se borra: hay que decírselo, porque un spec
   // de ruta que no existe hace que OpenCode publique un «Failed to load plugin» al arrancar.
-  notaDesinstalar: (scope, dir) => "tu `opencode.json` conserva `instructions` y `plugin` "
+  notaDesinstalar: (scope, dir) => "tu `opencode.json` conserva `plugins` "
     + `(\`${rutaPluginOpencode(scope === "user" ? GLOBAL_DIR.opencode : join(dir, ".opencode"), scope)}\`): `
-    + "es tuyo y no lo toco, pero el adaptador ya no está — quita esa entrada de `plugin` o "
+    + "es tuyo y no lo toco, pero el adaptador ya no está — quita esa entrada de `plugins` o "
     + "OpenCode se quejará al arrancar de un plugin que no puede cargar",
 }
 

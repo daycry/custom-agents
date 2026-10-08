@@ -350,7 +350,7 @@ def test_missing_redactor_does_not_emit_metadata(panel, bundle, monkeypatch, cap
 
 
 def test_opencode_presence_uses_exporter_path(panel, bundle):
-    write(bundle, 'interop/opencode/plugins/custom-agents-hooks.js', '// generated')
+    write(bundle, 'interop/opencode/plugins/custom-agents/index.js', '// generated')
     assert panel.build_inventory(bundle)['runtimes']['opencode'] == 'present'
 
 

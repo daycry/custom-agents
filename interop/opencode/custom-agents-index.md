@@ -2,8 +2,8 @@
 
 # custom-agents — índice de piezas
 
-Este fichero lo lee OpenCode como `instructions` (sustituto del hook `SessionStart`
-de Claude Code). Antes de improvisar, comprueba si aplica una de estas piezas: las
+Snapshot consultable del catálogo. OpenCode V2 recibe el contexto mediante el hook
+nativo de sesión, no mediante `instructions`. Comprueba si aplica una de estas piezas: las
 skills se invocan con la herramienta `skill`, los agentes con `task`.
 
 Plugin custom-agents — índice de piezas. Antes de cualquier tarea comprueba si aplica una de estas piezas.

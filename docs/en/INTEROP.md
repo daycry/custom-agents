@@ -49,7 +49,7 @@ those files:
 |---|---|---|
 | **Claude Code** | with `--mode plugin` nothing is copied into your project: the package goes to the plugin cache | `claude plugin marketplace add` + `claude plugin install` if the CLI is on your PATH; otherwise the same registry written directly: `plugins/known_marketplaces.json`, `plugins/installed_plugins.json` and `enabledPlugins` in `settings.json` (user scope), or `.claude/settings.json` with `extraKnownMarketplaces` (project scope) |
 | **Codex** | plugin in `~/.codex/plugins/custom-agents/`, `.toml` agents and prompts | `codex plugin marketplace add` if the CLI is on your PATH (and is ≥ 0.128.0), plus `[plugins."custom-agents@daycry"] enabled = true` and `[features] hooks = true` in the scope's `config.toml`, which is what Codex reads at startup |
-| **OpenCode** | agents, commands, skills, kits and the hook adapter under `plugins/` | `plugin: ["./.opencode/plugins/custom-agents-hooks.js"]` in `opencode.json` (absolute path in user scope), appended to whatever you already had |
+| **OpenCode** | agents, commands, skills, kits and the hook adapter under `plugins/` | `plugins: ["./.opencode/plugins/custom-agents"]` in `opencode.json` (absolute path in user scope), appended to whatever you already had |
 
 **The runtime's official CLI is always the preferred route.** The fallback — writing the registry
 ourselves — exists because `claude` is not on everyone's PATH (desktop install on Windows, npm shims
@@ -68,7 +68,7 @@ npx @daycry/custom-agents status   # per runtime and scope: manifest + "register
 ```
 
 `status` does not trust the manifest: it reads the very files the runtime reads
-(`installed_plugins.json` / `enabledPlugins`, Codex's `config.toml`, `plugin` in `opencode.json`).
+(`installed_plugins.json` / `enabledPlugins`, Codex's `config.toml`, `plugins` in `opencode.json`).
 That is why it can say "registered: yes" with no manifest (you installed it with the runtime's CLI)
 and "no" with one (`--mode copy`). For Claude Code it reads `enabledPlugins` in **all four** settings
 files of the documented stack (`settings-reference#enabledplugins`: "Scope: Any file") and resolves
@@ -108,7 +108,7 @@ Five guarantees, each with a test in `tests/installer.test.mjs`:
 | **Skills** (24) | `.claude/skills/` | the plugin's `skills/` (the manifest points there) | `.opencode/skills/` — *or* `.claude/skills/`, which it reads natively |
 | **Agents** (10) | `agents/*.md` | `.codex/agents/*.toml` (generated) | `.opencode/agents/*.md` (generated) |
 | **Commands** (13) | `commands/*.md` (`/name`) | `~/.codex/prompts/*.md` (`/prompts:name`) | `.opencode/commands/*.md` (`/name`) |
-| **Hooks** | `hooks/hooks.json` | `interop/codex/hooks.json` (subset) | `.opencode/plugins/custom-agents-hooks.js` (JS adapter) |
+| **Hooks** | `hooks/hooks.json` | `interop/codex/hooks.json` (subset) | `.opencode/plugins/custom-agents` (JS adapter) |
 | **Kits** (`agent-kits/`) | `.claude/agent-kits/` | inside the plugin | `.opencode/agent-kits/` |
 | **Manifest** (`plugin.json`, where the version comes from) | inside the installed plugin (`.claude-plugin/`) | `.codex-plugin/plugin.json` | `.claude-plugin/plugin.json` — what `/doctor` reads to report the version (with a fallback to Codex's) |
 | **Status line** | opt-in in `/setup` | — | — |
@@ -164,20 +164,51 @@ lost or substituted, and it is stated here.
 
 | Capability | Claude Code | Codex | OpenCode |
 |---|---|---|---|
-| **Plugin registration** (what makes it load) | ✅ `installed_plugins.json` + `enabledPlugins`, via the CLI or written by the installer — ⚠️ with `--mode copy` there is no registration: the bundle sits in `.claude/` and the runtime never learns about it (`/doctor` flags it) | ⚠️ `enabled = true` in `config.toml` is written by the installer, but the **marketplace** needs `codex plugin marketplace add`: without the CLI on your PATH the command is printed and it stays half-done until you run it | ✅ `plugin` in `opencode.json`; OpenCode also auto-discovers `plugins/*.js` and, per its own code (`deduplicatePluginOrigins` dedupes by file URL), registering it should not load it twice — **still to be confirmed on a real OpenCode** (the initiative's M-01 checklist) |
+| **Plugin registration** (what makes it load) | ✅ `installed_plugins.json` + `enabledPlugins`, via the CLI or written by the installer — ⚠️ with `--mode copy` there is no registration: the bundle sits in `.claude/` and the runtime never learns about it (`/doctor` flags it) | ⚠️ `enabled = true` in `config.toml` is written by the installer, but the **marketplace** needs `codex plugin marketplace add`: without the CLI on your PATH the command is printed and it stays half-done until you run it | V2 local package in `plugins` of `opencode.json`; `status` and `/doctor` check the declaration, not execution |
 | On-demand skills | ✅ Skill tool | ✅ `$name` or activation by `description` | ✅ `skill` tool |
 | Commands | ✅ `/name` | ⚠️ `/prompt:name` (**or** `/prompts:name`), **only under `~/.codex/`** (Codex has no per-project prompts) and marked *deprecated* by OpenAI in favour of skills | ✅ `/name` |
 | Delegating to an agent by name | ✅ Agent tool, with per-invocation `model` | ⚠️ in natural language; Codex **does not auto-invoke** custom agents, you must ask | ✅ `task` tool |
 | Progress notice when the ledger is edited | ✅ `PostToolUse` | ✅ `PostToolUse` for `apply_patch`, with paths extracted from the patch | ✅ `tool.execute.after` |
-| Context at session start | ✅ `SessionStart` (index + roadmap + journal + memory) | ✅ `SessionStart` (`startup\|resume\|clear\|compact`) | ⚠️ static index in `instructions`; no dynamic session context |
-| Session journal | ✅ `SessionEnd`, 5 s timeout | ✅ `SessionEnd`, 3 s timeout, shell-form Node launcher | ⚠️ captures on `session.idle`; materialized through `journal.py replay` |
-| Capturing the user's turn | ✅ `UserPromptSubmit` | ✅ `UserPromptSubmit` | ❌ no documented event → the journal keeps its deterministic half (git + ledger) |
+| Context at session start | ✅ `SessionStart` (index + roadmap + journal + memory) | ✅ `SessionStart` (`startup\|resume\|clear\|compact`) | Native `session.context` hook: current index, roadmap, journal and memory in outgoing context |
+| Session journal | `SessionEnd`, 5 s declared; native budget still needs validation | `SessionEnd`, 3 s export with shell-form Node launcher; native dispatch still pending | `session.execution.succeeded/failed/interrupted`; bounded replay on the next context |
+| Capturing the user's turn | ✅ `UserPromptSubmit` | ✅ `UserPromptSubmit` | `session.prompt`, before admission: provisional request with `<private>` exclusion |
 | Subagent finished | ✅ `SubagentStop` | ✅ `SubagentStop` | ❌ no equivalent event |
-| **Per-agent guard hook** (`implementer`, `architect`) | ✅ real `deny` via the frontmatter's `hooks:` (`ADR-007`) | ❌ no per-agent hook exists → the agent **self-checks** with `guardrail-check.py` (the preamble tells it so and hands it the command) | ❌ same as Codex; `permission` bounds tools, not paths |
+| **Per-agent guard** (`implementer`, `architect`) | Plugin agents ignore `hooks:`; native adaptation pending | Prompt self-check; native dispatch pending | Prompt self-check; native dispatch pending |
 | Read-only `reviewer` | ✅ no Write/Edit in `tools` | ✅ `sandbox_mode = "read-only"` | ✅ `permission.edit: deny` |
 | Roadmap status line | ✅ opt-in | ❌ | ❌ |
-| **Graph memory** (`graphiti` capability, opt-in) | ✅ `/doctor` checks it live through its adapter | ✅ same: the adapter talks HTTP to the endpoint declared in `taxonomy.json`, not to the runtime's MCP | ✅ same; with no context hook, its state only shows up when you run `/doctor` |
-| OpenCode's `permission` | — | — | ⚠️ the installer **leaves it alone** when it already exists: OpenCode applies "the last matching rule", so adding `skill: {"*": "allow"}` after a `deny` of yours would open it back up. If you have your own policy, check that the `custom-agents` skills do not fall into a `deny`. |
+| **Graph memory** (`graphiti` capability, opt-in) | ✅ `/doctor` checks it live through its adapter | ✅ same: the adapter talks HTTP to the endpoint declared in `taxonomy.json`, not to the runtime's MCP | Same opt-in adapter; installing activates no backend |
+| OpenCode permissions | — | — | The installer preserves `permission`/`permissions` and adds no global grants. |
+
+### OpenCode V2 transport
+
+The adapter ships as `.opencode/plugins/custom-agents/` with `index.js` and `package.json`,
+using native `session`, `tool` and `event` domains. The context hook injects at most 10,000
+characters without changing persisted history. It checks the actual session location
+before reads or writes; events from other projects or workspaces are discarded.
+Informational hooks warn on failure and continue.
+
+Write notifications use normalized targets and original paths from the native
+diff, so moving a document preserves its deletion notification. Read-only
+continuations reuse context in an ephemeral cache for one session, for at most
+30 seconds. Prompts, completed tools that may change state, and execution ends
+invalidate it; reuse first compares configuration, logs/queue, roadmap and memory
+metadata. Links, errors, oversized trees or a custom queue disable caching. The
+shared service still composes context. Cleanup aborts the subscription, terminates
+owned processes and waits for them to close.
+
+The journal keeps its shared policy: capture only in projects with `docs/roadmap`,
+`docs/knowledge` or `.claude/dev.json`, respecting session and turn opt-outs. V2 local
+streams omit `location`; `session.get` verifies project and workspace before writing.
+Events carrying a foreign location are discarded.
+
+An update retires the old file only when it matches a known copy (including CRLF/LF
+variations) and removes only its owned references. Modified copies are preserved with a
+pending migration warning. Consumer instructions and permissions are preserved. The
+static index remains consultable; V2 does not load it through `instructions`.
+
+Contract: [V2 plugins](https://opencode.ai/v2/docs/build/plugins/) and
+[V1 migration](https://opencode.ai/v2/docs/build/plugins/migrate-v1), verified on 2026-10-08.
+Native guard validation across all three runtimes remains open in the roadmap.
 
 ### Portable hook startup
 
@@ -190,9 +221,11 @@ SessionEnd and UserPromptSubmit call `journal.py` directly, without Bash. Other 
 Bash with a `python3` adapter for the selected interpreter. Missing tools produce a stderr warning
 and exit 0. The implementer and architect guards remain scoped to their agents.
 
-Codex caps SessionEnd at 3 s; the exporter adjusts it while preserving Claude Code's 5 s.
-The capture process has an internal 2.2 s limit. OpenCode captures on session.idle and needs manual
-replay to materialize the journal. Start a new session after updating a plugin; payload tests do not
+Codex caps SessionEnd at 3 s; the exporter adjusts that timeout. Our Claude Code
+registration declares 5 s; its effective native shutdown budget still needs
+validation (a declaration does not prove that the runtime applies it).
+The capture process has an internal 2.2 s limit. OpenCode V2 captures on execution end and materializes
+with bounded replay in the next `session.context`. Start a new session after updating a plugin; payload tests do not
 replace checking event delivery within each application.
 Contracts checked on 2026-10-06: [Codex](https://learn.chatgpt.com/docs/hooks),
 [Claude Code](https://code.claude.com/docs/en/hooks), [OpenCode](https://opencode.ai/docs/plugins/).
@@ -205,21 +238,20 @@ The three gaps that matter most:
   namespace — because Claude Code only reads `hooks/hooks.json` inside a plugin. `/doctor` says so
   in the "hooks registrados" row (⚠️, not ✅) and `status` in "registered: no".
 
-- **The `implementer` guardrail is not enforced outside Claude Code.** It is a `PreToolUse` `deny`
-  scoped to a single agent, and that only exists here. In Codex and OpenCode the agent is instructed
-  to check it itself (`guardrail-check.py pre-tool --agent implementer`) before a destructive git
-  command or before writing into `docs/roadmap/` outside `tasks.md`. That is a prompt rule, not a
-  barrier: in those runtimes, review the diff.
+- **Native guards remain pending.** `guardrail-check.py` decides restrictions by role,
+  but testing its launcher does not prove that a runtime supplies agent identity and
+  applies `deny`. Claude plugin agents ignore `hooks:`; adaptation remains open in the roadmap.
 - **Events differ across runtimes.** Codex supplies apply_patch changes in `tool_input.command`;
   the launcher converts them to `edits[].file_path` for the shell hooks. Linter notices are wrapped
-  in `systemMessage`, which OpenCode can also display.
+  in `systemMessage`; OpenCode V2 stores them in `result.metadata.customAgentsMessages`,
+  preserving tool content without promising a UI toast.
 
 ---
 
 ## 5. Keeping it in sync
 
 ```bash
-python3 scripts/export-interop.py            # regenerate the 48 interop files
+python3 scripts/export-interop.py            # regenerate the interop files
 python3 scripts/export-interop.py --check    # do they reflect the repo's pieces? (CI and release.py)
 python3 scripts/export-interop.py --list     # which files it generates
 python3 -m pytest -q tests/test_export_interop.py

@@ -129,7 +129,7 @@ PLAYWRIGHT_REL = os.path.join(".claude", "tool-cache", "qa", "node_modules", "@p
 PLUGIN_NOMBRE = "custom-agents"
 PLUGIN_PREFIJO = PLUGIN_NOMBRE + "@"
 MARKETPLACE = "daycry"           # el marketplace que publica ESTE plugin
-ADAPTADOR_OPENCODE = "custom-agents-hooks.js"   # el que registra `plugin` de `opencode.json`
+ADAPTADOR_OPENCODE = "custom-agents"   # paquete V2 registrado en `plugins` de `opencode.json`
 ARREGLO_INSTALAR = ("npx @daycry/custom-agents install -p claude-code  (o, dentro de Claude Code, "
                     "`/plugin marketplace add daycry/custom-agents` + `/plugin install custom-agents`)")
 
@@ -874,7 +874,7 @@ def _bloque_registro_codex(project, clave_cc):
 
 
 def _resolver_spec_opencode(spec, cfg_path):
-    """Ruta a la que apunta un spec de `plugin`. **Un spec con forma de ruta se resuelve contra la
+    """Ruta a la que apunta un spec de `plugins`. **Un spec con forma de ruta se resuelve contra la
     carpeta del fichero de config que lo declara** (`config/plugin.ts`, `resolvePluginSpec`), que
     es justo lo que escribe el instalador (`rutaPluginOpencode`)."""
     if not isinstance(spec, str) or not spec:
@@ -886,11 +886,11 @@ def _resolver_spec_opencode(spec, cfg_path):
 
 
 def _bloque_registro_opencode(project):
-    """Fila «registro en OpenCode»: el adaptador de hooks dado de alta en `plugin` de
-    `opencode.json` (OpenCode también autodescubre `plugins/*.js`; el alta es lo comprobable).
+    """Fila «registro en OpenCode»: el adaptador de hooks dado de alta en `plugins` de
+    `opencode.json` (OpenCode también autodescubre paquetes locales; el alta es lo comprobable).
 
     Se compara la RUTA RESUELTA contra la que escribe el instalador, no el nombre del fichero:
-    casar por basename daba ✅ a cualquier `custom-agents-hooks.js` de cualquier sitio, y `status`
+    casar por basename daba ✅ a cualquier `custom-agents` de cualquier sitio, y `status`
     —que compara la ruta exacta— decía lo contrario sobre el MISMO `opencode.json`.
     """
     fuentes = [(os.path.join(_opencode_home(), "opencode.json"), "user", _opencode_home()),
@@ -899,7 +899,7 @@ def _bloque_registro_opencode(project):
     altas, ajenas, copiado, errores = [], [], [], []
     for path, scope, base in fuentes:
         esperado = os.path.join(base, "plugins", ADAPTADOR_OPENCODE)
-        if os.path.isfile(esperado):
+        if os.path.isfile(os.path.join(esperado, "index.js")):
             copiado.append(base)
         datos, err = _leer_json(path)
         if err:
@@ -909,10 +909,10 @@ def _bloque_registro_opencode(project):
             continue
         if not isinstance(datos, dict):
             continue
-        nodo = datos.get("plugin")
+        nodo = datos.get("plugins")
         if nodo is not None and not isinstance(nodo, list):
             # `status` solo cuenta una lista (descriptor `json-array`): un escalar no es el alta.
-            errores.append(f"{path}: `plugin` no es una lista, así que el alta no se puede comprobar")
+            errores.append(f"{path}: `plugins` no es una lista, así que el alta no se puede comprobar")
             continue
         for e in (nodo or []):
             if _misma_ruta(_resolver_spec_opencode(e, path), esperado):
@@ -921,24 +921,24 @@ def _bloque_registro_opencode(project):
                 ajenas.append((path, scope, e, esperado))
     if altas:
         return [linea(OK, "registro en OpenCode",
-                      " · ".join(f"`{e}` en `plugin` de {p} (scope {s})" for p, s, e in altas))]
+                      " · ".join(f"`{e}` en `plugins` de {p} (scope {s})" for p, s, e in altas))]
     if errores:
         return [linea(AVISO, "registro en OpenCode", " · ".join(errores),
                       "corrige tu `opencode.json` (es tuyo, no del plugin): tiene que ser JSON válido "
-                      "y `plugin`, una lista de specs")]
+                      "y `plugins`, una lista de specs")]
     if ajenas:
         p, s, e, esperado = ajenas[0]
         return [linea(AVISO, "registro en OpenCode",
-                      f"`plugin` de {p} (scope {s}) declara `{e}`, que resuelve a "
+                      f"`plugins` de {p} (scope {s}) declara `{e}`, que resuelve a "
                       f"{_resolver_spec_opencode(e, p)} y NO es el adaptador instalado ({esperado}): "
-                      f"OpenCode carga otro fichero, o ninguno",
-                      "npx @daycry/custom-agents install -p opencode  (deja en `plugin` la ruta del "
+                      f"OpenCode declara otro paquete, o ninguno",
+                      "npx @daycry/custom-agents install -p opencode  (deja en `plugins` la ruta del "
                       "adaptador que instala)")]
     if copiado:
         return [linea(AVISO, "registro en OpenCode",
                       f"el adaptador está en {os.path.join(copiado[0], 'plugins', ADAPTADOR_OPENCODE)} pero "
-                      f"no aparece en `plugin` de ningún `opencode.json`: el alta comprobable no está",
-                      "npx @daycry/custom-agents install -p opencode  (añade el adaptador a `plugin` "
+                      f"no aparece en `plugins` de ningún `opencode.json`: el alta comprobable no está",
+                      "npx @daycry/custom-agents install -p opencode  (añade el adaptador a `plugins` "
                       "de tu `opencode.json`)")]
     if detectados:
         return [linea(INFO, "registro en OpenCode",

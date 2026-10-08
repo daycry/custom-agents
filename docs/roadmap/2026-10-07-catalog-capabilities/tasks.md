@@ -174,7 +174,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Estado**: en-progreso
 - **Descripción**: Implementar mecanismos reales por contrato y versión para Claude/Codex/OpenCode, incluido soporte V2; probar identidad, concurrencia y degradación.
 - **Dependencias**: T-02/T-08.
-- **Archivos**: `hooks/**`, `interop/**`, `agent-kits/shared/**`, `scripts/**`, `tests/**`, `agents/**`, `docs/**`
+- **Archivos**: `hooks/**`, `interop/**`, `agent-kits/shared/**`, `scripts/**`, `install/**`, `tests/**`, `agents/**`, `docs/**`
 - **Verificación**: Bloque de checkpoint implementado y revisado: opt-out coherente, rotación atómica/lectura acotada, CLI portable y reclamación exclusiva con identidad comprobada y errores de transacción visibles. QA final Windows: 200 passed/12 skipped; Linux: 212 passed. Launcher: 12 passed tras las correcciones. Cobertura ejecutable añadida combinada Windows/Linux: 50/53, 94,34%. Evidencia y límites en el segundo intento de revisión. Guardias por rol y carga/despacho nativos pendientes; no se da T-09 por completada.
 - **RED del bloque de checkpoint (2026-10-08)**: `test_journal.py -k 'capture_respeta_journal_en_forma_objeto or rotar_fallo_conserva_checkpoint or rotar_lee_solo_cola'`: 4 failed/1 passed, 150 deselected. `{activo: false}` creó un log; los fallos simulados de fsync/replace no conservaron el original; la rotación leyó el archivo completo (`read(-1)`). Evidencia obtenida antes de modificar producción.
 - **RED de compatibilidad Windows (2026-10-08)**: `test_journal.py -x -q`: 1 failed/4 passed; `test_write_sin_rastro_del_plugin_no_escribe_nada` recibió `docs\knowledge\journal\2026-10-08-sesion.md` en vez de la ruta relativa con `/`. Se amplía el bloque para normalizar la salida CLI, sin cambiar rutas internas.
@@ -368,3 +368,158 @@ contenido/nombres de los diez archivos públicos sin marca de origen.
 Jira evento revision/actor reviewer/intento 2: ops=[], disabled; sin envíos.
 Este checkpoint se publica en feat/catalog-capabilities; el SHA final se
 contrasta con origin después del push, sin merge ni release.
+
+## Bloque de transporte OpenCode V2 — T-02, T-06, T-08, T-09, T-14, T-15
+
+Implementación acotada al adaptador informativo y su distribución; las guardias
+nativas y el resto del catálogo permanecen en-progreso. Diseño previo en design.md.
+La comparación dirigida del adaptador del corpus descubre el mismo contrato V1
+incompatible; no se ejecuta ni incorpora su código. Commands/dashboard siguen
+pendientes de comparación detallada; las skills continúan aplazadas.
+
+Evidencia RED anterior a producción, 2026-10-08:
+
+- tests/opencode-plugin.test.mjs: seis fallos por ausencia de default id/setup.
+- Instalador: dos fallos por registro sin plugins nativo y dos por ausencia de
+  retirarArtefacto; export: un fallo por ausencia del paquete V2 generado.
+- Doctor: tres fallos (estado info/aviso frente a registro V2 esperado) al cambiar
+  únicamente las fixtures antes del lector.
+- Diagnóstico stderr: falla la expectativa de aviso; el adaptador absorbía el error.
+- Cierre nativo: el modelo local termina correctamente, pero no aparece envelope.
+  Fixture session.execution.succeeded falla dos veces con «Adapter effect was not
+  observed», con ubicación explícita y sin ella, antes de modificar producción.
+  El stream local observado entrega eventos terminales sin location. La corrección
+  usa session.get para verificar siempre la ubicación y mantiene rechazo de eventos
+  explícitamente ajenos; no reutiliza el directorio de instancia a ciegas.
+
+Verificación parcial antes de revisión: Python Windows 241 passed/2 skipped;
+launchers/adaptador 20 passed; instalador dirigido 9 passed y casos de retirada
+3 passed. La primera ejecución Node completa tuvo tres fallos por arrancar antes
+de regenerar el nuevo paquete; los tres pasan después de generar. No se oculta
+ese fallo ni se presenta como una suite completa verde. Linter: cero errores/tres
+avisos históricos. Export-interop: 55 archivos generados. Alcance contra 057e26e:
+cero fuera/cero avisos; settings ajenos excluidos y conservados.
+
+Prueba nativa en OpenCode 2.0.12: paquete instalado active, prompt UTF-8 y exclusión
+private observados, contexto y herramienta write despachados por el runtime,
+cierre terminal con envelope. Dos respuestas SSE del modelo simulado propio en
+loopback; cero solicitudes a proveedores externos, sin credenciales heredadas.
+Replay nativo en una nueva sesión, cobertura final y revisión independiente en curso.
+
+## Revisión de dos lentes — intento 1: transporte OpenCode V2
+
+Scope-check contra 057e26e: cero fuera/cero avisos; configuración ajena excluida.
+Selector: C=false, D=true por callbacks esperados en el camino del modelo.
+A/B/D independientes; fallback de herramienta genérica porque Agent(reviewer)
+no está disponible. No se ejecutó código del corpus ni se enviaron mensajes externos.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A-1 | Minor | Docstring del índice describe transporte V1 | T-15 | Corregido; pendiente revalidación | Docstring V2 actualizado; prosa/config, TDD n/a |
+| B-1 | Important | Cleanup resuelve antes de close con stdout excesivo/timeout | T-09 | Corregido; pendiente revalidación | Se espera close y terminación del árbol propio; test verde Windows |
+| B-2 | Important | Patches indentados válidos pierden post-hooks | T-09 | Corregido; pendiente revalidación | Targets del resultado nativo; fallback trim; patch indentado y write normalizado verdes |
+| D-1 | Important | Composición completa en cada continuación | T-09 | Corregido; pendiente revalidación | Caché efímera acotada; 50 iniciativas: 7890/5915/64/38/32/31 ms, medianas calientes 7506 → 38 ms |
+
+RED adicional antes de corregir: native applied falla para patch indentado;
+unchanged context falla por devolver context 2 en la segunda llamada. La garantía
+de cleanup ya tiene rojo reproducido. Diseño ampliado antes de producción;
+correcciones y revalidación independientes pendientes, sin deuda aceptada.
+
+GREEN dirigido tras las correcciones: adaptador Windows 11 passed/0 failed.
+Prueba nativa 2.0.12 posterior: active, dos loops y cuatro requests al modelo
+propio en loopback, replay en segunda sesión observado, cero proveedores externos,
+servidor terminado exit 0. La prueba propia de caché se amplía con TTL, cambios
+concurrentes y colas personalizadas antes de QA final. Segunda revisión y cobertura
+siguen pendientes; ningún criterio global se marca completado.
+
+## Revisión de dos lentes — intento 2: transporte OpenCode V2
+
+A/B/D frescas revalidan las correcciones con la tabla completa del intento 1.
+A: cero gaps. B: B-1/B-2 corregidos, un Important nuevo. D: D-1 corregido,
+sin hallazgos nuevos; fixture independiente 50 iniciativas × 8 archivos produce
+5986/5978/151/175/158/193 ms, mediana caliente 166,5 ms (~45× menos que 7506 ms).
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A-1 | Minor | Docstring V1 | T-15 | Verificado por A | export-interop --check 55 al día |
+| B-1 | Important | Cleanup anterior a close | T-09 | Verificado por A/B | Windows cinco dirigidos verdes; Linux cinco dirigidos verdes |
+| B-2 | Important | Patches indentados pierden avisos | T-09 | Verificado por A/B | Patch indentado y input write distinto de target nativo verdes |
+| D-1 | Important | Contexto completo repetido | T-09 | Verificado por A/D | Caché/invalidez/TTL/concurrencia probados y benchmark independiente |
+| B-3 | Important | Move desde docs pierde origen eliminado | T-09 | Pendiente | B contrasta native output=false frente a fallback=true; RED native move out falla antes de modificar producción |
+
+Se conserva el destino normalizado y se añade el origen absoluto del diff
+nativo FileDiff.Info.patch: el runtime lo compone con la ruta original incluso
+cuando files[].file y applied[].target describen el destino. No se usa el cuerpo
+de la herramienta como una decisión nueva ni se publica documentación. Diseño
+ampliado antes de esta corrección; intento 3 será solo sobre B-3 y criterios afectados.
+
+B-3 corregido con la ruta del origen desde el diff nativo; GREEN native move out.
+El contraste de generación de caché se hace después de esperar su firma final,
+manteniendo la garantía frente a invalidaciones durante esa espera; GREEN de
+mutación concurrente. Suite Node completa previa a estas últimas líneas: 139
+passed/0 failed; QA de adaptador final y nueva prueba nativa en curso. No se
+reanuda el catálogo de skills ni se consideran comparados commands/dashboard.
+
+## Revisión de dos lentes — intento 3: transporte OpenCode V2
+
+A/B/D de contexto fresco, tabla anterior completa y solo B-3/criterios afectados.
+C sigue false según selector; D conserva la revisión de las últimas líneas.
+Cero Critical/Important/Minor pendientes en este bloque, sin deuda aceptada.
+
+| Criterio corregido | Veredicto | Evidencia independiente |
+|---|---|---|
+| B-3: move conserva origen y destino | ✓ | A Windows 2 passed; B Linux 2 passed; fuente oficial patchFile/fileDiff compone header con absolute original; test dedicado verde |
+| Invalidación durante la firma final | ✓ | A/B verifican contraste de generation posterior al await; mutación concurrente verde |
+| Coste de extracción y caché | ✓ | D: tres dirigidos verdes; extracción en 400 diffs/26,3 MB mediana 1,010 ms; no se añade recorrido a la firma |
+| Docs y fuente única | ✓ | A: ES/EN/diseño coherentes; export-interop --check, 55 al día |
+
+QA final del bloque, 2026-10-08:
+
+- Python Windows 3.13: doctor/export/panel, 241 passed/2 skipped, 166,59 s;
+  skips por bit ejecutable y symlinks no disponibles en Windows. Node 23.8:
+  suite completa de adaptador/launcher/instalador, 139 passed/0 failed antes
+  de las últimas líneas del move y guardado de caché; adaptador/launcher
+  completos después de ellas, 25 passed/0 failed/0 skipped. Los módulos del
+  instalador no cambiaron entre esas dos ejecuciones.
+- Python encoding/índice de roadmap: 512 passed/0 failed, 128,56 s, antes del
+  registro final. qa-gate VERDE: 917 ejecuciones passed, cero failed/flaky/
+  interrupted, dos skipped; normalización de casos JUnit reales, incluidas
+  las repeticiones dirigidas del adaptador, no una ejecución de Playwright.
+- Cobertura del diff contra 057e26e: 299/306 = 97,71% (umbral ≥90%). c8 10.1.3
+  mide líneas V8 de JS; coverage.py, líneas ejecutables Python. Cinco módulos
+  de fixture son copias byte a byte del adaptador: se unen sus rangos V8
+  manteniendo offsets y contrastando el SHA, sin atribuir cobertura al probe
+  nativo Bun. Export index.js idéntico a la fuente, comprobado, no contado
+  por duplicado. Líneas ausentes se conservan, incluida terminación POSIX
+  no instrumentada en Windows.
+- Pruebas dirigidas propias Linux/WSL con Node 23.8.0 aislado, checksum de
+  SHASUMS256 oficial: cuatro passed (cleanup de árbol, stdout excesivo,
+  caché/concurrencia), más dos finales independientes de B para move y
+  concurrencia. No instalación global ni ejecución del corpus.
+- Native OpenCode 2.0.12 después de la última corrección: active, dos loops,
+  cuatro requests al modelo propio en loopback y dos prompts retenidos;
+  captura UTF-8/private, contexto, write, cierre y replay de segunda sesión
+  observados. Cero proveedores externos, sin credenciales heredadas, servidor
+  terminado exit 0. runtime-probes.json separa la evidencia nueva del baseline.
+- Migración CLI real en proyecto temporal propio: copia V1 conocida retirada,
+  entrada antigua del manifiesto eliminada, contenido/config/permissions ajenos
+  preservados, paquete V2 idéntico, segunda instalación idempotente. La primera
+  fixture usó «./.opencode» para instructions, distinto del valor histórico
+  «.opencode»; su conservación fue correcta. Fixture corregida al registro real.
+- Linter: cero errores/tres avisos históricos. Skills permanecen aplazadas.
+  Guardias/presupuestos nativos Claude/Codex y comparación detallada de
+  commands/dashboard siguen abiertos; ningún task global se cierra por este
+  bloque. No se activan backends ni se publica conocimiento de tareas abiertas.
+
+Evidencias brutas locales ignoradas: opencode-v2-{python,node,adapter-final,docs}.xml,
+opencode-v2-{qa-input,test-summary,diff-coverage,coverage-identity}.json,
+opencode-v2-transport-probe.json y opencode-v2-migration-probe.json en
+scratchpad/.venv. La cobertura deriva de c8/coverage.py oficiales; las fichas
+públicas no incluyen rutas/credenciales de consumidores. Publicación en la
+rama autorizada después de los últimos checks; sin merge ni release.
+
+Checks del registro final: ledger-lint cero incoherencias/cero avisos;
+test_roadmap_index 50 passed; export-interop --check 55 al día; diff --check
+limpio. Scope-check: 28 archivos propios/cero fuera/cero avisos, settings ajenos
+excluidos y conservados. Scan de esos contenidos/nombres sin marca del corpus.
+El SHA publicado se contrasta con origin después del push a feat/catalog-capabilities.

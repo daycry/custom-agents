@@ -1,0 +1,5 @@
+{
+  "name": "custom-agents-hooks",
+  "type": "module",
+  "main": "index.js"
+}

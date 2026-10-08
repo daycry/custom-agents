@@ -47,6 +47,17 @@ def _mod():
 MOD = _mod()
 
 
+def test_opencode_exporta_paquete_nativo_y_config_sin_instructions():
+    plan = MOD.generar(ROOT)
+    package = json.loads(plan['interop/opencode/plugins/custom-agents/package.json'])
+    assert package['type'] == 'module' and package['main'] == 'index.js'
+    assert 'interop/opencode/plugins/custom-agents/index.js' in plan
+    assert 'interop/opencode/plugins/custom-agents-hooks.js' not in plan
+    config = json.loads(plan['interop/opencode/opencode.json'])
+    assert config['plugins'] == ['./.opencode/plugins/custom-agents']
+    assert 'instructions' not in config
+
+
 def test_exportacion_detecta_artefactos_ausentes_y_modificados(tmp_path, capsys):
     plan = {'interop/codex/hooks.json': '{"hooks": {}}\n', 'interop/opencode/opencode.json': '{}\n'}
     assert MOD.escribir(str(tmp_path), plan, quiet=True) == 0
@@ -274,13 +285,13 @@ def test_opencode_agentes_frontmatter():
 def test_opencode_config_valida():
     cfg = json.loads(leer("interop/opencode/opencode.json"))
     assert cfg["$schema"] == "https://opencode.ai/config.json"
-    # El índice de piezas es el sustituto del hook SessionStart: tiene que estar en instructions.
-    assert any("custom-agents-index" in i for i in cfg["instructions"])
+    assert cfg["plugins"] == ["./.opencode/plugins/custom-agents"]
+    assert "instructions" not in cfg
 
 
 def test_opencode_adaptador_de_hooks_es_copia_fiel():
     """El .js de interop es copia EXACTA de su fuente en hooks/ (una sola fuente de verdad)."""
-    assert leer("interop/opencode/plugins/custom-agents-hooks.js") == leer("hooks/opencode-plugin.js")
+    assert leer("interop/opencode/plugins/custom-agents/index.js") == leer("hooks/opencode-plugin.js")
 
 
 def test_generados_llevan_marca():

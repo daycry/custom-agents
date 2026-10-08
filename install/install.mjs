@@ -21,10 +21,10 @@
 
 import {
   readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, statSync, rmSync, readdirSync, rmdirSync,
-  renameSync, chmodSync, realpathSync,
+  renameSync, chmodSync, realpathSync, lstatSync, unlinkSync,
 } from "node:fs"
 import { createHash } from "node:crypto"
-import { dirname, join, resolve, relative, sep } from "node:path"
+import { dirname, join, resolve, relative, sep, isAbsolute } from "node:path"
 import { fileURLToPath } from "node:url"
 import { createInterface, emitKeypressEvents } from "node:readline"
 import { execFileSync } from "node:child_process"
@@ -253,6 +253,64 @@ function escribirJson(p, obj, bom = false) {
   } catch (e) {
     throw new Error(`no puedo escribir ${p}: ${e.message}`)
   }
+}
+
+/** Retira únicamente una copia conocida; las modificaciones locales se conservan. */
+export function retirarArtefacto(paso, destino, dryRun = false) {
+  const raiz = resolve(destino)
+  const dentro = (p) => {
+    const r = relative(raiz, resolve(p))
+    if (!r || isAbsolute(r) || r === ".." || r.startsWith(`..${sep}`)) {
+      throw new Error(`ruta fuera del destino: ${p}`)
+    }
+    // También se verifica el padre existente: una junction no amplía el destino autorizado.
+    let padre = dirname(resolve(p))
+    while (!existsSync(padre)) padre = dirname(padre)
+    if (existsSync(raiz)) {
+      const real = relative(realpathSync(raiz), realpathSync(padre))
+      if (isAbsolute(real) || real === ".." || real.startsWith(`..${sep}`)) {
+        throw new Error(`ruta fuera del destino real: ${p}`)
+      }
+    }
+  }
+  dentro(paso.to)
+  let original = null
+  try { original = lstatSync(paso.to) } catch (e) { if (e.code !== "ENOENT") throw e }
+  if (original) {
+    if (!original.isFile() || original.isSymbolicLink() || original.nlink > 1) {
+      throw new Error(`artefacto no regular en el destino: ${paso.to}`)
+    }
+    const texto = readFileSync(paso.to, "utf8").replace(/\r\n/g, "\n")
+    const hash = createHash("sha256").update(texto).digest("hex")
+    if (!(paso.sha256 || []).includes(hash)) return false
+  }
+  let config = null
+  if (paso.config) {
+    // La configuración de proyecto está en la raíz, fuera de .opencode. Su único
+    // destino permitido es opencode.json junto al directorio de instalación.
+    const esperado = join(dirname(raiz), "opencode.json")
+    const global = join(raiz, "opencode.json")
+    if (![esperado, global].includes(resolve(paso.config.to))) throw new Error("config fuera del destino")
+    if (existsSync(paso.config.to)) {
+      const st = lstatSync(paso.config.to)
+      if (!st.isFile() || st.isSymbolicLink() || st.nlink > 1) throw new Error("config no regular")
+      config = leerJsonEstricto(paso.config.to)
+      for (const [k, valores] of Object.entries(paso.config.remove || {})) {
+        if (Array.isArray(config.valor[k])) config.valor[k] = config.valor[k].filter(v => !valores.includes(v))
+      }
+    }
+  }
+  if (dryRun) return true
+  // Validar y escribir la configuración precede a borrar: un JSON inválido conserva la copia.
+  if (config) escribirJson(paso.config.to, config.valor, config.bom)
+  if (original) {
+    const ahora = lstatSync(paso.to)
+    if (ahora.dev !== original.dev || ahora.ino !== original.ino || ahora.size !== original.size || ahora.mtimeMs !== original.mtimeMs) {
+      throw new Error("el artefacto cambió durante la retirada")
+    }
+    unlinkSync(paso.to)
+  }
+  return true
 }
 
 /** Fusión conservadora: lo que ya existe MANDA. Devuelve [resultado, claves añadidas]. */
@@ -1032,6 +1090,7 @@ function ejecutar(provider, opts) {
     modo: opts.modo, source: opts.source,
   })
   const escritos = []
+  const retirados = new Set()
   const registro = []   // lo que no es un fichero nuestro: comandos y claves de configuración
   const avisos = []
   let n = 0
@@ -1065,7 +1124,7 @@ function ejecutar(provider, opts) {
       modo: opts.modo,
       installedAt: new Date().toISOString(),
       ...(estado === "completo" ? {} : { estado, error: String(error?.message || error) }),
-      files: [...new Set([...(manPrevio?.files || []), ...escritos.map((f) => f.split(sep).join("/"))])].sort(),
+      files: [...new Set([...(manPrevio?.files || []).filter(f => !retirados.has(f)), ...escritos.map((f) => f.split(sep).join("/"))])].sort(),
       registro: fusionarRegistro(manPrevio?.registro || [], registro),
     })
   }
@@ -1101,7 +1160,14 @@ function ejecutar(provider, opts) {
 
   function ejecutarPlan() {
   for (const paso of plan) {
-    if (paso.type === "copy") {
+    if (paso.type === "retire") {
+      if (retirarArtefacto(paso, provider.destino(opts.scope, opts.dir, opts.modo), opts.dryRun)) {
+        retirados.add(paso.to.split(sep).join("/"))
+        say(`  ${ARROW} ${rel(paso.to)} ${dim("(retirada de copia conocida)")}`)
+      } else {
+        avisos.push(`${rel(paso.to)} tiene cambios locales: conservado; migración pendiente de revisión`)
+      }
+    } else if (paso.type === "copy") {
       const abs = join(ROOT, paso.from)
       if (!existsSync(abs)) {
         avisos.push(`no encuentro ${paso.from} en el paquete — paso omitido`)

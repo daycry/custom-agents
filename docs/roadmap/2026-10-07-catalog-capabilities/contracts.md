@@ -39,7 +39,7 @@ actual se registra en [tasks.md](tasks.md); las primeras fichas están en
 [comparisons/skills-foundations.md](comparisons/skills-foundations.md).
 No se ejecuta código de origen.
 
-## Prueba nativa OpenCode 2.0.12
+## Prueba nativa inicial OpenCode 2.0.12
 
 Fuente oficial fijada al tag de la versión instalada, commit
 `2670273ff17da96f85c5826ced57aa1b368754fa`. Se leyeron los esquemas de config,
@@ -55,7 +55,7 @@ ni warming. El proceso terminó con exit 0. No se ejecutó código del corpus.
 
 Resultados observados:
 
-- Una copia byte a byte del adaptador actual, SHA-256
+- Una copia byte a byte del adaptador V1 anterior, SHA-256
   `1092f3b894c5ee208d4eb9a46ed76361015180632207ec7edf630dcd4cb65bf9`,
   queda en estado failed: falta la definición default con id y setup/effect.
 - El control positivo propio con id y setup carga como active, ejecuta setup y
@@ -65,6 +65,19 @@ Resultados observados:
   command/commands se normalizan a commands; permission a reglas permissions;
   el MCP V1 a mcp.servers y enabled:false a disabled:true. La compatibilidad de
   configuración no traduce el export de hooks V1 a V2.
+
+### Transporte V2 validado el 2026-10-08
+
+La distribución instalada ahora carga como active. SHA-256 de fuente/export
+ejecutados: `0694cd50de08a4fbd2a10a3713b62f1264c9d1042e1b8522bd6e02c79e424383`.
+Una fixture propia crea dos sesiones con ejecución, usando cuatro respuestas
+del modelo simulado en loopback; no se solicita ningún proveedor externo ni
+se heredan credenciales. Hay otros dos prompts retenidos sin ejecución.
+Se observan captura UTF-8, exclusión private, contexto, write, cierre terminal
+y replay del journal en la segunda sesión. El servidor termina exit 0.
+La evidencia actual está en transport_validation de runtime-probes.json; el
+resultado inicial conserva sus límites y fecha. Estas pruebas no acreditan
+guardias nativas, despacho de comandos ni conexiones MCP de consumidores.
 - La primera lectura del inventario puede estar vacía durante activación. La
   prueba espera la activación nativa mediante integration.list antes del veredicto;
   las observaciones tempranas vacías no se clasifican como fallos del plugin.

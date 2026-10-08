@@ -9,11 +9,13 @@
 
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, chmodSync } from "node:fs"
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, chmodSync, symlinkSync, linkSync } from "node:fs"
 import { tmpdir, homedir } from "node:os"
 import { join, dirname, resolve, delimiter } from "node:path"
 import { fileURLToPath } from "node:url"
 import { execFileSync } from "node:child_process"
+import { createHash } from 'node:crypto'
+import * as installerModule from '../install/install.mjs'
 
 import {
   parseArgs, fusionar, ficherosDe, leerRegistro, mismaRuta,
@@ -189,7 +191,7 @@ test("cada proveedor declara lo mínimo y produce un plan no vacío", () => {
     const plan = buildPlan(p, { root: ROOT, dir: "/proy", scope: "project", version: "9.9.9" })
     assert.ok(plan.length, `${p.id}: plan vacío`)
     for (const paso of plan) {
-      assert.ok(["copy", "merge", "write", "exec", "json-set", "toml-set"].includes(paso.type),
+      assert.ok(["copy", "merge", "write", "exec", "json-set", "toml-set", "retire"].includes(paso.type),
         `${p.id}: paso raro ${paso.type}`)
       if (paso.type === "exec") assert.ok(paso.cmd && Array.isArray(paso.args), `${p.id}: exec sin comando`)
       else assert.ok(paso.to, `${p.id}: paso sin destino`)
@@ -213,14 +215,15 @@ test("Codex: agentes en .codex/agents, prompts en CODEX_HOME y marketplace con p
   assert.match(mkt.merge.plugins[0].source.path, /^\.\//, "source.path relativo a la raíz del marketplace")
 })
 
-test("OpenCode: config en la raíz del proyecto y permission en onlyIfMissing", () => {
+test("OpenCode V2: config en raíz, directorio nativo y sin grants ni instructions añadidos", () => {
   const plan = buildPlan(getProvider("opencode"), { root: ROOT, dir: join("/proy"), scope: "project", version: "9.9.9" })
   const merge = plan.find((s) => s.type === "merge")
   assert.match(merge.to, /[\\/]opencode\.json$/)
   assert.ok(!merge.to.includes(".opencode"), "el config de proyecto va en la RAÍZ, no en .opencode/")
-  assert.deepEqual(merge.onlyIfMissing, ["permission"],
-    "permission no se puede fusionar: en OpenCode gana la última regla que casa")
-  assert.ok(merge.merge.instructions.some((i) => i.includes("custom-agents-index")))
+  assert.ok(Array.isArray(merge.merge.plugins))
+  assert.equal(merge.merge.permission, undefined)
+  assert.equal(merge.merge.permissions, undefined)
+  assert.equal(merge.merge.instructions, undefined)
 })
 
 test("OpenCode: el adaptador se REGISTRA en `plugin` con la ruta que resuelve al fichero copiado", () => {
@@ -228,7 +231,7 @@ test("OpenCode: el adaptador se REGISTRA en `plugin` con la ruta que resuelve al
     const plan = buildPlan(getProvider("opencode"), { root: ROOT, dir: "/proy", scope, version: "9.9.9" })
     const copia = plan.find((s) => s.type === "copy" && String(s.to).endsWith(ADAPTADOR_OPENCODE))
     const merge = plan.find((s) => s.type === "merge")
-    const spec = merge.merge.plugin
+    const spec = merge.merge.plugins
     assert.equal(spec.length, 1, `${scope}: una sola entrada`)
     assert.ok(!spec[0].includes("\\"), `${scope}: la ruta del JSON va con "/"`)
     // OpenCode resuelve un spec con forma de ruta contra la CARPETA DEL CONFIG que lo declara:
@@ -249,19 +252,20 @@ test("OpenCode: `plugin` se une sin duplicar y conserva el del usuario; uninstal
     cli(["install", "-p", "opencode", "--dir", proj, "-q"])
     const esperada = rutaPluginOpencode(join(proj, ".opencode"), "project")
     const uno = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
-    assert.deepEqual(uno.plugin, ["otro", esperada], "el `plugin` previo del usuario manda y el nuestro se añade")
+    assert.deepEqual(uno.plugin, ["otro"], "se conserva la configuración previa del usuario")
+    assert.deepEqual(uno.plugins, [esperada])
 
     // reinstalar no duplica
     cli(["install", "-p", "opencode", "--dir", proj, "-q"])
     const dos = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
-    assert.deepEqual(dos.plugin, uno.plugin, "reinstalar duplicó la entrada de `plugin`")
+    assert.deepEqual(dos.plugins, uno.plugins, "reinstalar duplicó la entrada")
 
     // el fichero registrado existe de verdad (si no, OpenCode falla al arrancar)
     assert.ok(existsSync(resolve(proj, esperada)), "`plugin` apunta a un fichero que no está")
 
     const out = cli(["uninstall", "-p", "opencode", "--dir", proj])
     const tras = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
-    assert.deepEqual(tras.plugin, uno.plugin, "uninstall tocó una config que es del usuario")
+    assert.deepEqual(tras.plugins, uno.plugins, "uninstall tocó una config que es del usuario")
     assert.match(out, /plugin/, "hay que avisar de que la entrada de `plugin` queda colgando")
   } finally {
     rmSync(proj, { recursive: true, force: true })
@@ -285,6 +289,55 @@ test("ficherosDe enumera árboles y excluye caché de python", () => {
 
 // ------------------------------------------------------------------ end to end
 
+test('retirar artefacto conocido conserva config ajena y es idempotente y dry-run seguro', () => {
+  const dir = tmpProj()
+  try {
+    const old = join(dir, 'adapter.js'), config = join(dir, 'opencode.json')
+    const body = 'known owned adapter\n'
+    writeFileSync(old, body.replaceAll('\n', '\r\n'))
+    writeFileSync(config, JSON.stringify({ plugin: ['old-owned', 'other'], instructions: ['own-index', 'AGENTS.md'], permissions: [{ effect: 'deny' }] }))
+    const step = { to: old, sha256: [createHash('sha256').update(body).digest('hex')], config: { to: config, remove: { plugin: ['old-owned'], instructions: ['own-index'] } } }
+    installerModule.retirarArtefacto(step, dir, true)
+    assert.ok(existsSync(old))
+    assert.equal(JSON.parse(readFileSync(config)).plugin.length, 2)
+    assert.equal(installerModule.retirarArtefacto(step, dir, false), true)
+    assert.equal(existsSync(old), false)
+    assert.deepEqual(JSON.parse(readFileSync(config)), { plugin: ['other'], instructions: ['AGENTS.md'], permissions: [{ effect: 'deny' }] })
+    assert.equal(installerModule.retirarArtefacto(step, dir, false), true)
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('retirar preserva un artefacto modificado y rechaza rutas fuera del destino', () => {
+  const dir = tmpProj()
+  try {
+    const old = join(dir, 'adapter.js')
+    writeFileSync(old, 'local changes')
+    const step = { to: old, sha256: ['not-the-hash'] }
+    assert.equal(installerModule.retirarArtefacto(step, dir, false), false)
+    assert.equal(readFileSync(old, 'utf8'), 'local changes')
+    assert.throws(() => installerModule.retirarArtefacto({ ...step, to: resolve(dir, '..', 'outside') }, dir, false), /destino|scope|fuera/i)
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('retirar rechaza junctions y enlaces duros y conserva copia ante config inválida', () => {
+  const dir = tmpProj(), outside = tmpProj()
+  try {
+    const body = 'owned\n', hash = createHash('sha256').update(body).digest('hex')
+    const target = join(outside, 'old.js'); writeFileSync(target, body)
+    const junction = join(dir, 'linked')
+    symlinkSync(outside, junction, process.platform === 'win32' ? 'junction' : 'dir')
+    assert.throws(() => installerModule.retirarArtefacto({ to: join(junction, 'old.js'), sha256: [hash] }, dir), /destino real/)
+    assert.equal(readFileSync(target, 'utf8'), body)
+    const hard = join(dir, 'hard.js'); linkSync(target, hard)
+    assert.throws(() => installerModule.retirarArtefacto({ to: hard, sha256: [hash] }, dir), /no regular/)
+    const own = join(dir, 'old.js'); writeFileSync(own, body)
+    const cfg = join(dir, 'opencode.json'); writeFileSync(cfg, '{broken')
+    assert.throws(() => installerModule.retirarArtefacto({ to: own, sha256: [hash], config: { to: cfg, remove: { plugin: ['old'] } } }, dir), /JSON/)
+    assert.equal(readFileSync(own, 'utf8'), body)
+    assert.equal(readFileSync(cfg, 'utf8'), '{broken')
+  } finally { rmSync(dir, { recursive: true, force: true }); rmSync(outside, { recursive: true, force: true }) }
+})
+
 test("install → idempotente → uninstall preciso", () => {
   const proj = tmpProj()
   try {
@@ -294,7 +347,7 @@ test("install → idempotente → uninstall preciso", () => {
     assert.equal(man.provider, "opencode")
     assert.ok(man.files.length > 100, "el manifiesto debe listar lo instalado")
     assert.ok(existsSync(join(proj, ".opencode", "agents", "reviewer.md")))
-    assert.ok(existsSync(join(proj, ".opencode", "plugins", "custom-agents-hooks.js")))
+    assert.ok(existsSync(join(proj, ".opencode", "plugins", ADAPTADOR_OPENCODE, "index.js")))
     assert.ok(existsSync(join(proj, "opencode.json")))
     // El manifiesto viaja también: `/doctor` lee `<raíz>/.claude-plugin/plugin.json` para decir la
     // versión instalada y OpenCode no tiene otro origen (sin él salía «sin campo `version`» con el
@@ -307,8 +360,8 @@ test("install → idempotente → uninstall preciso", () => {
     const man2 = JSON.parse(readFileSync(join(proj, ".opencode", MANIFEST), "utf8"))
     assert.deepEqual(man2.files, man.files, "reinstalar cambió la lista de ficheros")
     const cfg = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
-    const idx = cfg.instructions.filter((i) => i.includes("custom-agents-index"))
-    assert.equal(idx.length, 1, "instructions duplicado al reinstalar")
+    assert.equal(cfg.instructions, undefined, "V2 no carga instructions: el contexto llega por hook")
+    assert.equal(cfg.plugins.length, 1)
 
     // 3) un fichero ajeno en una carpeta nuestra debe sobrevivir
     const ajeno = join(proj, ".opencode", "plugins", "mi-plugin.js")
@@ -348,8 +401,7 @@ test("no pisa el bloque permission del usuario y lo avisa", () => {
     const cfg = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
     assert.deepEqual(cfg.permission, previo.permission, "se tocó la política de permisos del usuario")
     assert.ok(cfg.instructions.includes("AGENTS.md"), "se perdió una instruction del usuario")
-    assert.equal(cfg.instructions.length, 2)
-    assert.match(out, /permission/, "el cambio omitido tiene que anunciarse")
+    assert.equal(cfg.instructions.length, 1)
   } finally {
     rmSync(proj, { recursive: true, force: true })
   }
@@ -2055,15 +2107,15 @@ test("gap B-5: fusionar una lista sobre un valor del usuario no lo hace desapare
   assert.deepEqual(drenarAvisosEscritura(), [])
 })
 
-test("gap B-5: instalar en OpenCode conserva el `plugin` escalar del usuario y lo avisa", () => {
+test("OpenCode V2: conserva config heredada escalar y registra el paquete en plugins", () => {
   const proj = tmpProj()
   try {
     writeFileSync(join(proj, "opencode.json"), JSON.stringify({ plugin: "mi-plugin.js" }))
     const salida = cli(["install", "-p", "opencode", "-y", "--dir", proj])
     const cfg = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
-    assert.deepEqual(cfg.plugin, ["mi-plugin.js", rutaPluginOpencode(join(proj, ".opencode"), "project")],
+    assert.equal(cfg.plugin, "mi-plugin.js",
       "el plugin del usuario no desaparece, y va el primero")
-    assert.match(salida, /no era una lista/, "y se le dice lo que ha pasado con su clave")
+    assert.deepEqual(cfg.plugins, [rutaPluginOpencode(join(proj, ".opencode"), "project")])
   } finally {
     rmSync(proj, { recursive: true, force: true })
   }

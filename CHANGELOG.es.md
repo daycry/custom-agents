@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — Transporte OpenCode V2
+
+- Sustituir el adaptador V1 incompatible por un paquete local nativo con captura de peticiones, contexto acotado y captura durable al terminar la ejecución. Conservar permisos e instrucciones del usuario; retirar solo copias antiguas conocidas sin modificaciones. La validación de guardias nativas sigue abierta.
+
 ### Fixed — Integridad del checkpoint de sesión
 
 - Respetar el objeto journal desactivado al capturar turnos, rotar logs atómicamente con lectura acotada y serializar la reclamación de la cola entre consumidores. Las rutas de la CLI del journal usan `/` también en Windows. La validación del despacho nativo sigue en curso.

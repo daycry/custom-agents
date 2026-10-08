@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed ? OpenCode V2 transport
+
+- Replace the incompatible V1 adapter with a native local package for prompt capture, bounded session context and durable execution-end capture. Preserve consumer permissions and instructions; retire only known unchanged legacy copies. Native guard validation remains open.
+
 ### Fixed — Session checkpoint integrity
 
 - Honor the disabled journal object during prompt capture, rotate logs atomically with bounded reads, and serialize queue claims across consumers. Journal CLI paths use `/` on Windows as well. Native runtime dispatch validation remains in progress.
