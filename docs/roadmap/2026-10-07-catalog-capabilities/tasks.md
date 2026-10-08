@@ -1432,3 +1432,20 @@ globales. Tampoco se cierran T-02/T-05/T-06/T-08/T-09/T-11/T-13/T-14/T-15 global
 o la eficacia de memoria. El 2026-10-08 el usuario solicita explícitamente
 hacer los commits, push de la rama y **parar al acabar este bloque**. No se
 inicia la siguiente fase ni se reanudan las 214 skills pendientes.
+
+### Publicación verificada de los Bloques 5/6
+
+Implementación y documentación: commit
+`363d0c95ca4069ec1a51af8c4dc6a944197b67cc`, 41 archivos propios.
+Push a `feat/catalog-capabilities` exit 0; `git ls-remote --heads origin`
+confirma exactamente ese SHA. Tras el push, `export-interop.py --check` sigue
+en exit 0 con 56 archivos al día. Solo permanece sin seguimiento el
+`.claude/settings.json` ajeno; no se leyó, modificó ni incluyó en el commit.
+Scan de 869 archivos públicos: cero nombres/referencias prohibidos. Scope:
+41 propios en alcance, settings ajeno excluido, cero fuera y cero avisos.
+Linter cero errores/tres avisos históricos; ledger cero incoherencias/cero avisos.
+
+Este registro se incorpora en un commit documental separado. Se conserva la
+instrucción de detener el objetivo tras publicar, con pendientes globales
+documentados, sin iniciar otra fase. El panel local actualizado está generado
+fuera de Git; no contiene fixtures de extensiones ni configura el consumidor.
