@@ -55,3 +55,11 @@ La preparación ha realizado cero consultas de memoria, ingestas, inferencias
 y cambios Docker. No decide conservar tres, dos, uno o ningún componente.
 La consulta local acotada sirve de control; la decisión final exige resultados
 y evaluación humana además de contratos técnicos.
+
+## Ejecución posterior separada
+
+Esta preparación conserva sus límites históricos. El bloque17 ejecutó después
+los [experimentos funcionales](memory-functional-results.md), con resultados,
+errores preservados, modelos efectivos, contadores y fuentes sintéticas públicas.
+No se atribuyen sus consultas/ingestas a las comprobaciones metadata anteriores.
+La decisión de prioridad y la implementación restante se describen en ese informe.

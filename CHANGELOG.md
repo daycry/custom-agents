@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — Synthetic memory evaluation
+
+- Document native document retrieval, temporal fact retrieval and AST code-context experiments against a local control. Publish synthetic sources, questions, response evidence and limits; define the next opt-in integration contract without enabling consumer services.
+
 ### Added — Bounded canonical memory queries
 
 - Share bounded legacy/approved snapshots between CLI and served-panel Search, Show and Relations. Preserve full IDs, knowledge versions, evidence, collisions and partial reads; portable exports include transitive Python helpers without executing them.

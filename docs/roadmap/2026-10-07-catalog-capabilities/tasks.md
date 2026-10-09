@@ -3296,3 +3296,97 @@ backends, no acredita eficacia comparada, UX de servicios ni hosts nativos.
 Las pruebas funcionales separadas del bloque17 no se contabilizan como QA16.
 T-07/T-08/T-11/T-13/T-14/T-15 y el objetivo global siguen abiertos; las
 nuevas skills permanecen aplazadas en79/293 evaluadas y214 pendientes.
+
+## Bloque17 — Resultados funcionales y contrato de integración
+
+T-07/T-11/T-13/T-14/T-15 continúan abiertas. Esta entrega experimental publica
+[fuentes/preguntas sintéticas](testing/fixtures/memory-benchmark/README.md),
+[evidencia](testing/memory-benchmark-evidence.json),
+[respuestas documentales](testing/memory-documental-answers.json),
+[hechos temporales](testing/memory-temporal-facts.json) y
+[conclusiones](comparisons/memory-functional-results.md). TDD n/a: documentación
+y evidencia histórica propia; los cuatro Python de la fixture son fuentes de
+prueba, no un nuevo ejecutor o código de producto. No se vuelve a contabilizar QA16.
+
+Control local:12/12 preguntas con fuentes esperadas en top5,21 resultados
+parciales/21 completos y cero generación. Kwipu:41/42 respuestas core y36/42
+con hechos completos/atribuciones respaldadas,6/6 abstenciones, dos atribuciones
+incorrectas;375 source_nodes con99 filenames nulos, sin enlace baseline completo.
+Graphify:3/4 preguntas estructurales soportadas,9/9 repeticiones de esas tres;
+93 ocurrencias/16 referencias distintas verificadas, sin PATH ni vigencia verificada.
+Graphiti:4 episodios completos/12 búsquedas,0/9 valores numéricos esperados en
+hechos y corte histórico violado3/3. Las tres repeticiones son recuperación sobre
+una única ingesta; no se mide exactitud de respuestas generadas.
+
+Revisiones independientes de control local, Kwipu, Graphify y Graphiti recalculan
+métricas y hashes; la temporal contrastó doce búsquedas,83 hashes y trece fuentes.
+Recursos Kwipu retirados, label actual
+vacío; Graphiti registra cleanup exacto y ocho contenedores originales activos.
+Los errores de harness antes de inferencia permanecen separados de fallos nativos.
+El coste monetario, restauración, escritura interrumpida, UX y corpus real siguen
+desconocidos. El LLM medido es cloud aunque embeddings y endpoints sean locales.
+
+Decisión: base local y prioridad Kwipu/Graphify opcionales. Graphiti fuera de la
+combinación recomendada por defecto, con capacidad existente opt-in y aceptación
+temporal pendiente. No se cambia configuración del consumidor ni se elimina su
+servicio. El [contrato siguiente](comparisons/memory-read-integration-contract.md)
+define enlaces canónicos, respuesta sin autoridad, permisos antes de red,
+selectores exactos y recibos de bytes ligados a artefactos. Todavía no implementado.
+
+[Binding documental separado](testing/memory-documental-binding.json): dos
+canónicos exportados por el adaptador real conservan ID/version/hash/project/scope
+en2/2 chunks persistidos y GET nativo HTTP200;11 entidades excluidas. Snapshot
+nativo/HTTP idénticos,7367 bytes. Ingesta adicional:2 LLM cloud+4 embeddings locales;
+lectura posterior:0 inferencias/queries/constructores. Nueve fuentes y ocho archivos
+del almacén conservaron hashes; recurso propio retirado. Fallos previos del harness
+se conservan. Esta aceptación de metadata no valida routing, respuestas, el enlace
+baseline de375 nodos o lectura integrada del producto.
+
+Puertas de esta entrega: revisión A/B del alcance/documentación/evidencia sin
+gaps y nueve checks readonly exit0 sobre snapshot propio. Ninguna tarea global
+se cierra ni se inventan tokens/horas; skills79/293 y214 pendientes siguen aplazadas.
+
+## Revisión de dos lentes — intento 1: Bloque17 (T-07/T-11/T-13/T-14/T-15) — evaluación y contrato de lectura
+
+Lentes A+B por subagentes genéricos: la herramienta no permite seleccionar el
+reviewer nativo. La revisión inicial recorrió34 piezas,42 respuestas documentales
+y12 recuperaciones temporales; el addendum leyó todos los nuevos hunks y el
+binding real. Resultado fusionado:0 Critical,0 Important,0 Minor. No se reabren
+aprobaciones sin evidencia nueva. Esta revisión acepta documentación y evidencia
+experimental, sin aceptar la lectura del bloque18 ni completar tareas globales.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| — | — | Sin gaps introducidos | T-07/T-11/T-13/T-14/T-15 | No requerida | Revisión A+B inicial y addendum contra artefactos reales |
+
+C/D no aplican: selector automático sobre diff documental, ambas false, sin
+motivos ni avisos. No se presenta como revisión de seguridad del futuro lector.
+Alcance:36 archivos propios dentro del plan,0 fuera,0 avisos; una configuración
+Jira sintética queda excluida por default, sin globs de usuario. Nunca se abre
+configuración del consumidor ni memoria real para estos controles.
+
+Checks exit0: scope, selección de lentes, lint, evals, export-interop --check,
+ledger-lint,50 tests del índice del roadmap y dos ejemplos CLI reales sobre la
+fixture propia. Export:58 archivos al día. Lint:0 errores y3 avisos genéricos
+preexistentes. No se repite QA16 como evidencia nueva de producto; cobertura y
+TDD de producto no aplican a esta entrega documental.
+
+Publicación:958 hashes del snapshot intactos,117 enlaces locales válidos,
+29 enlaces al consumidor excluidos antes de acceder,0 nombres/referencias
+prohibidos. Los23 archivos de fixture conservaron exactamente sus bytes al
+checkout con core.autocrlf=true. Se contrastaron doce documentos,42 textos
+documentales,12 payloads temporales y2 bindings nativos completos.
+
+Hashes SHA-256 de evidencia retenida:
+
+- Manifest del alcance revisado: `4e636c5489158af283d9979a288e938ec737fd54571488a4dcfd3157625b40f8`.
+- Addendum A: `b1cb769564896f2a348bb478fb26a8fae73f581cb08cfab8c9751ad3f341bdc3`.
+- Addendum B: `ce3c769fbf67deaebad0876739c4c8dde05f7365f5978daa5815794acc7fea8b`.
+- Checks readonly: `e73a44f93305a900869c23db3de4bded8cd403aea1133c84be8a380d4ffd969f`.
+- Control de publicación: `ea455bf02c7d7db3f4f94599dace8c7f92f635cee97ad327079b5430089cd5bd`.
+
+No se publican operaciones Jira ni se infiere su configuración real desde una
+fixture desactivada. La traza final conserva abiertas continuidad nativa,
+consulta documental autorizada, identidad/vigencia AST, UX, restore y el resto
+del roadmap. La decisión de prioridad Kwipu/Graphify opcionales mantiene siempre
+la fuente local y no cambia servicios/configuraciones del consumidor.

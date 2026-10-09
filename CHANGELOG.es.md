@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added — Evaluación sintética de memoria
+
+- Documentar experimentos nativos de consulta documental, hechos temporales y contexto AST frente al control local. Publicar fuentes, preguntas, respuestas y límites; definir el siguiente contrato opt-in sin activar servicios del consumidor.
+
 ### Added — Consulta canónica de memoria acotada
 
 - Compartir snapshots acotados de legado/aprobado entre CLI y Buscar, Ver y Relaciones del panel servido. Conservar IDs completos, versiones, evidencia, colisiones y lecturas parciales; los exports portables incluyen helpers Python transitivos sin ejecutarlos.

@@ -1,0 +1,98 @@
+[
+  {
+    "project": "Atlas",
+    "root": "atlas-control",
+    "sources": [
+      {
+        "fixture_id": "D001",
+        "sha256": "c13c865e2d42ea1df7465d51a0ed9d24fe8aafc347d605a6c18fa4bd4c394620",
+        "canonical_id": "custom.DECISION.D001",
+        "version": 1,
+        "path": "atlas-control/docs/knowledge/approved/adr/D001.md"
+      },
+      {
+        "fixture_id": "D002",
+        "sha256": "3cf8d98e35b312ff9e53e5364de956cc0910cdce3856636778bd825f4efabece",
+        "canonical_id": "custom.DECISION.D002",
+        "version": 2,
+        "path": "atlas-control/docs/knowledge/approved/adr/D002.md"
+      },
+      {
+        "fixture_id": "D003",
+        "sha256": "bf8fea1fb7f809ccd0cac972b04c4b5e2db2666e4830104d8ad9458ed2026e95",
+        "canonical_id": "custom.DECISION.D003",
+        "version": 1,
+        "path": "atlas-control/docs/knowledge/approved/adr/D003.md"
+      },
+      {
+        "fixture_id": "D004",
+        "sha256": "d546a784fe3f7747c3f25bf201db2b4a99fa57fb66928ca71347fb220924b047",
+        "canonical_id": "custom.DECISION.D004",
+        "version": 1,
+        "path": "atlas-control/docs/knowledge/approved/adr/D004.md"
+      },
+      {
+        "fixture_id": "D005",
+        "sha256": "1cf11cdc45a86e6ba8e43e1a94d29177fb2ca48aa710cf678f1b747e6b102128",
+        "canonical_id": "custom.DECISION.D005",
+        "version": 1,
+        "path": "atlas-control/docs/knowledge/approved/adr/D005.md"
+      },
+      {
+        "fixture_id": "D006",
+        "sha256": "29d6a113d6394b0a93d866bb4622b10da581256cf8185429bbf3ee2a21a9fc99",
+        "canonical_id": "custom.DECISION.D006",
+        "version": 1,
+        "path": "atlas-control/docs/knowledge/approved/adr/D006.md"
+      },
+      {
+        "fixture_id": "D007",
+        "sha256": "b53e19332557b4b2b84d6afed5e0049594c64240f2986845f706507c95acb990",
+        "canonical_id": "custom.DECISION.D007",
+        "version": 1,
+        "path": "atlas-control/docs/knowledge/approved/adr/D007.md"
+      },
+      {
+        "fixture_id": "D009",
+        "sha256": "f5dd60289785fd70907703ce5b54fb575431189f7f15b65bfbb573f5e340425f",
+        "canonical_id": "custom.DECISION.D009",
+        "version": 1,
+        "path": "atlas-control/docs/knowledge/approved/adr/D009.md"
+      },
+      {
+        "fixture_id": "D010",
+        "sha256": "c4a5b9869dc041bd2cc4fa61e7dd3233aa999640e8c757c49cf0c022fa8cfeb7",
+        "canonical_id": "custom.DECISION.D010",
+        "version": 1,
+        "path": "atlas-control/docs/knowledge/approved/adr/D010.md"
+      },
+      {
+        "fixture_id": "D011",
+        "sha256": "8b676cc40144599d4c86e787eec971e3471a391acb14a93f5fc842c9b07fc0b4",
+        "canonical_id": "custom.DECISION.D011",
+        "version": 1,
+        "path": "atlas-control/docs/knowledge/approved/adr/D011.md"
+      },
+      {
+        "fixture_id": "D012",
+        "sha256": "4c0b330d8e096a4d66b0c176ae401a2fdf45c92b3c6b45265c6c301b0bd8595a",
+        "canonical_id": "custom.DECISION.D012",
+        "version": 1,
+        "path": "atlas-control/docs/knowledge/approved/adr/D012.md"
+      }
+    ]
+  },
+  {
+    "project": "Boreal",
+    "root": "boreal-control",
+    "sources": [
+      {
+        "fixture_id": "D008",
+        "sha256": "e7ce8a7a6af1935b238d0735a16c7a39d7032dce82e553feffd957ad6f3f47c8",
+        "canonical_id": "custom.DECISION.D008",
+        "version": 1,
+        "path": "boreal-control/docs/knowledge/approved/adr/D008.md"
+      }
+    ]
+  }
+]

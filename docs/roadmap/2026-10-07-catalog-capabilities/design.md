@@ -863,3 +863,26 @@ y controles de comillas simples/dobles, listas reales y `#` literal. Después
 corregir el scanner compartido y comprobar la regresión del lector/cache.
 El cuarto ciclo autorizado por el orquestador es adicional y acotado: no
 reabre criterios aprobados sin evidencia nueva ni sustituye QA o benchmark.
+
+### Resultado del bloque17 y diseño de la siguiente lectura
+
+Los [resultados funcionales](comparisons/memory-functional-results.md) miden
+separadamente recuperación local, respuestas documentales, contexto AST y
+hechos temporales con fuentes sintéticas propias. No se mezclan sus denominadores
+ni se comparan latencias de búsqueda con generación. La memoria local queda
+canónica; se priorizan Kwipu y Graphify opcionales. La prueba Graphiti no
+demuestra utilidad temporal adicional y su corte superior falla; mantener su
+capacidad opt-in no acredita ese contrato ni modifica consumidores.
+
+El [contrato del bloque18](comparisons/memory-read-integration-contract.md)
+amplía los dueños existentes: lectura opcional en markdown-export/router y
+selectores/recibos de inputs en code-context. Respuesta generada y contexto
+estructural no heredan aprobación. Routing/manifest/canon preceden a red;
+snapshot previo/posterior detecta cambios sin certificar atomicidad. Los recibos
+solo verifican bytes del conjunto declarado, ligados al artefacto por su productor.
+El lector no extrae ni fabrica recibos para grafos antiguos.
+
+Primero verificar propagación del export real a snapshot, después RED/implementación
+de lectura y de selectores/vigencia. La aceptación nativa, QA y revisión de esos
+cambios siguen pendientes. No se crean skills, agentes ni servicios obligatorios;
+las tareas globales conservan sus estados y todos sus criterios restantes.

@@ -26,6 +26,19 @@ La [evidencia de implementación](../testing/memory-query-evidence.json) separa
 cohortes, fallos preservados y límites. Esta entrega parcial no demuestra mejor
 calidad de recuperación ni completa la selección de componentes.
 
+Actualización del bloque17: los
+[resultados funcionales separados](memory-functional-results.md) prueban el
+lector local, respuestas Kwipu, extracción AST y recuperación nativa Graphiti
+sobre fuentes sintéticas propias. La dirección elegida prioriza Kwipu y
+Graphify opcionales, con autorización y citas/vigencia verificables antes de
+servirlos. Graphiti queda fuera de la combinación recomendada por defecto:
+el ensayo no demuestra ventaja temporal y devuelve hechos posteriores al
+corte histórico solicitado. Su capacidad existente permanece opt-in para
+proyectos que la requieran; no se modifica configuración de consumidores.
+La memoria local sigue siendo el origen canónico. Esta decisión de prioridad
+no declara implementados los contratos de lectura pendientes ni superioridad
+general, y no convierte la lectura documental inicial en un benchmark.
+
 ## Comparación con la memoria de referencia y la propia
 
 La referencia comparada está fijada a `ef648e01899ba3e8dc6371642deaaf64b4477775`.
@@ -198,7 +211,7 @@ autorización, procedencia, filtros y motivos del respaldo local. La
 conserva autoridad de publicación y routing. La integración mantendrá esos dueños,
 con una salida común para comandos y dashboard; no invocará backends desde polling.
 
-## Qué experimentos permiten elegir tres, dos, uno o ninguno
+## Preparación inicial de experimentos, anterior al bloque17
 
 **Decisión de arquitectura propuesta, todavía sin benchmark:** mantener la base
 local como control; probar Kwipu primero para conocimiento documental de humanos
@@ -233,5 +246,7 @@ La [preparación del benchmark](memory-benchmark-preparation.md) contrasta versi
 y aislamiento del despliegue. La revisión Graphiti instalada difiere de la documental;
 se necesitan instancias/almacenes propios antes de probar ingesta y recuperación.
 
-Esta entrega prepara evaluación y cierra consultas locales. No activa servicios,
-mide costes, acredita UX ni decide mantener un backend por pruebas de esquema.
+Aquella entrega preparó evaluación y cerró consultas locales, sin activar
+servicios, medir costes o acreditar UX. Los resultados actuales se conservan
+en el [informe funcional separado](memory-functional-results.md); los siguientes
+cambios siguen el [contrato de integración](memory-read-integration-contract.md).

@@ -261,3 +261,21 @@ inferencia cloud por defecto; health y modelos disponibles no acreditan
 recuperación ni la configuración efectiva. La selección final de componentes
 depende de benchmark sintético aislado y pruebas de autoridad, persistencia
 y reconstrucción; no se decide una sustitución por leer un README.
+
+## Resultado experimental y siguiente integración
+
+El bloque17 ejecuta y publica los
+[experimentos sintéticos](comparisons/memory-functional-results.md), separados
+de las comprobaciones iniciales de metadata. La memoria local sigue canónica;
+la prioridad elegida es Kwipu documental y Graphify estructural, opcionales.
+Graphiti no entra en la combinación recomendada por defecto porque el ensayo
+no demuestra mejora temporal y devuelve hechos posteriores al corte solicitado.
+Su capacidad existente sigue opt-in, sin modificar consumidores, y necesita
+aceptación de filtros/procedencia antes de anunciar memoria histórica.
+
+La siguiente implementación sigue el
+[contrato de lectura](comparisons/memory-read-integration-contract.md): fuentes
+documentales enlazadas a canon, respuestas generadas sin autoridad, selección
+inequívoca de símbolos y vigencia por bytes del artefacto/inputs declarados.
+El diseño no es implementación; continuidad nativa, restore, corpus real,
+aprendizaje y UX siguen pendientes. No se añaden skills ni consultas automáticas.

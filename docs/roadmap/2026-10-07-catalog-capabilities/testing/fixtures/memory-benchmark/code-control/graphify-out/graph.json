@@ -1,0 +1,212 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {
+    "schema_version": 1
+  },
+  "nodes": [
+    {
+      "id": "src_gateway_accept",
+      "label": "accept()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": null,
+      "file_type": "code",
+      "norm_label": "accept()",
+      "source_file": "src/gateway.py",
+      "source_location": "L4"
+    },
+    {
+      "id": "src_policy_deadline",
+      "label": "deadline()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": null,
+      "file_type": "code",
+      "norm_label": "deadline()",
+      "source_file": "src/policy.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_storage_append",
+      "label": "append()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": null,
+      "file_type": "code",
+      "norm_label": "append()",
+      "source_file": "src/storage.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_unused_deadline",
+      "label": "deadline()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": null,
+      "file_type": "code",
+      "norm_label": "deadline()",
+      "source_file": "src/unused.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_gateway",
+      "label": "gateway.py",
+      "_origin": "ast",
+      "community": null,
+      "file_type": "code",
+      "norm_label": "gateway.py",
+      "source_file": "src/gateway.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_policy",
+      "label": "policy.py",
+      "_origin": "ast",
+      "community": null,
+      "file_type": "code",
+      "norm_label": "policy.py",
+      "source_file": "src/policy.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_storage",
+      "label": "storage.py",
+      "_origin": "ast",
+      "community": null,
+      "file_type": "code",
+      "norm_label": "storage.py",
+      "source_file": "src/storage.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_unused",
+      "label": "unused.py",
+      "_origin": "ast",
+      "community": null,
+      "file_type": "code",
+      "norm_label": "unused.py",
+      "source_file": "src/unused.py",
+      "source_location": "L1"
+    }
+  ],
+  "links": [
+    {
+      "source": "src_gateway_accept",
+      "target": "src_policy_deadline",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "src/gateway.py",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "src_gateway_accept",
+      "target": "src_storage_append",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "src/gateway.py",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "src_gateway",
+      "target": "src_policy_deadline",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/gateway.py",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_gateway",
+      "target": "src_storage_append",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/gateway.py",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "src_gateway",
+      "target": "src_policy",
+      "relation": "imports_from",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/gateway.py",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_gateway",
+      "target": "src_storage",
+      "relation": "imports_from",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/gateway.py",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "src_gateway",
+      "target": "src_gateway_accept",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/gateway.py",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "src_policy",
+      "target": "src_policy_deadline",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/policy.py",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_storage",
+      "target": "src_storage_append",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/storage.py",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_unused",
+      "target": "src_unused_deadline",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/unused.py",
+      "source_location": "L1",
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": []
+}
