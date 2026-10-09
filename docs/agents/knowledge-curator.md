@@ -105,8 +105,10 @@ Ver `agent-kits/knowledge-curator/README.md` para el detalle del contrato y
 
 ## 5. Guardrails
 
-- **Un rol, un dueño** (`ADR-011`, `docs/agents/ROLES.md`): único escritor de
-  `docs/knowledge/candidates/**` y `docs/knowledge/approved/**`.
+- **Propuestas y decisiones tienen dueños distintos.** `documenter` y el usuario
+  proponen en `docs/knowledge/candidates/pending/`. El Curator decide, mueve y actualiza
+  esos candidatos; es el único escritor de `docs/knowledge/approved/**`.
+  `curator-gate.py` valida el contrato y no mueve archivos.
 - **El gate decide el contrato, el agente decide el juicio.** Nunca aprueba con `errores != []`.
 - **Sin exportación ni roadmap.** Fuera de `docs/knowledge/**`, no toca nada.
 

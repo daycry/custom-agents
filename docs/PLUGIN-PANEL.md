@@ -4,7 +4,8 @@
 
 El comando `/plugin-catalog` usa plugin-panel para mostrar agentes, skills,
 comandos, tools declaradas y hooks globales. La búsqueda y los filtros funcionan
-en un HTML autónomo. El progreso de iniciativas sigue en roadmap-dashboard.
+en un HTML autónomo. El modo servido añade progreso local; cartera detallada,
+evaluaciones y presupuestos siguen en roadmap-dashboard.
 
 Los hooks se agrupan por **runtime y evento**, con una tarjeta por grupo.
 `PostToolUse` conserva tres handlers en cada runtime. El contador HTML mide
@@ -44,7 +45,46 @@ python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --
 En una instalación, localiza la skill en las raíces del runtime. El script
 identifica el bundle por su propia ubicación. `--root <bundle>` permite inspeccionar
 otro catálogo; no importa código del catálogo inspeccionado. Python nativo funciona
-en Windows; no necesita WSL, Tkinter, paquetes Python adicionales ni servidor.
+en Windows; no necesita WSL, Tkinter o paquetes Python adicionales. La
+exportación autónoma no necesita servidor.
+
+## Dashboard local con actualización
+
+```powershell
+python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --serve
+```
+
+Abre la URL de acceso que entrega el proceso y detén el servidor con Ctrl+C
+o su handle de lanzamiento. La URL contiene una capacidad privada: no la
+publiques ni la guardes en Git, documentación, memoria o registros. Cada
+arranque crea otra. Solo escucha en 127.0.0.1; puerto libre automático o
+`--port 8765`. No sirve archivos arbitrarios del proyecto.
+
+Requiere proyecto y excluye HTML/JSON y raíces personales. Las declaraciones
+de proyecto se leen para la instantánea inicial. Catálogo y diagnóstico quedan
+fijados al arranque; Progreso relee ledgers cada cinco segundos, con botón de
+actualización, búsqueda y filtro de estado. Las respuestas comparten una lectura
+durante dos segundos. La pestaña oculta suspende peticiones; cada consulta vence
+a los cuatro segundos. Un fallo conserva la vista y su fecha anterior con aviso.
+
+El parser canónico calcula conteos y fase desde `tasks.md`. Fecha de lectura y
+SHA-256 identifican texto UTF-8 sin BOM, incluyendo saltos de línea; no autentican
+al autor ni demuestran ejecución de agentes. No consulta journal, usage-meter,
+búsquedas de memoria o backends, ni escribe estados.
+
+La lectura rechaza redirecciones y cambios durante el acceso. Límites: 128
+entradas, 256 KiB por ledger, 1 MiB acumulado, 64 iniciativas, ocho tareas visibles
+por iniciativa y 64 KiB JSON. Lectura incompleta, ledger ilegible, estado
+desconocido o recorte se indican como parciales. Texto redactado y acotado;
+sin cuerpos, verificaciones libres o rutas absolutas.
+
+Página/API requieren capacidad y Host exacto; Origin, si aparece, debe ser el
+propio. Rechaza cross-site, métodos mutables, query y rutas libres. Sin cookies
+ni logs de acceso; CSP con nonce, conexión al mismo origen, no-store, no-referrer
+y marcos prohibidos. La capacidad no aísla frente a procesos del mismo usuario.
+Aprobar planes y acciones de memoria aún requieren sus consumidores y pruebas.
+
+## Extensiones en exportación autónoma
 
 Para incluir piezas propias, usa `--project <raíz>` y el runtime real en
 `--runtime claude-code|codex|opencode`. `--cwd <paquete>` inspecciona skills de

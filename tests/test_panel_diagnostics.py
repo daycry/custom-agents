@@ -15,7 +15,7 @@ def test_plugin_catalog_index_retains_optional_diagnostic_flag():
     index = load('diagnostic_hint_index', 'agent-kits/shared/skill-index.py')
     command = (ROOT/'commands/plugin-catalog.md').read_text(encoding='utf8')
     hint = re.search(r'^argument-hint: (.*)$', command, re.M).group(1)
-    assert index.hint_corto(hint) == '[ruta de salida HTML] [--diagnostics-report informe.json]'
+    assert index.hint_corto(hint) == '[ruta de salida HTML] [--diagnostics-report informe.json] [--serve] [--port PUERTO]'
 
 
 def load(name, relative):

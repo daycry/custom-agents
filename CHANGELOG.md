@@ -9,6 +9,14 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — Local operational dashboard
+
+- Add explicit loopback serving with capability access and a bounded canonical-ledger progress view, polling, filters and visible read freshness. Keep catalog snapshots and live ledger reads distinct; no automatic runtime or memory actions.
+
+### Fixed — Diagnostic filenames
+
+- Preserve configuration filenames and validation fields when doctor reports long absolute paths, with redaction before truncation and an opaque fallback when the redactor is unavailable.
+
 ### Added — Explicit panel diagnostics
 
 - Import an explicitly selected portable doctor snapshot into the capability panel, with scope binding, UTC date, public check labels and priority references. Keep private details in doctor and distinguish missing, rejected, old and truncated snapshots from live hook execution.

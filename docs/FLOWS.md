@@ -517,6 +517,12 @@ flowchart LR
     Doctor[Doctor explícito con --panel-json] --> Proyeccion[Informe portable con fecha y alcance]
     Proyeccion -->|selección explícita| Panel
     Panel --> Vista[HTML y JSON con fuentes y límites]
+    Panel -->|--serve explícito| Servidor[Servidor loopback con acceso privado]
+    Ledger[Ledger canónico tasks.md] --> Lector[local-read acotado]
+    Lector --> Resumen[progress-report sobre texto]
+    Resumen --> Redactor[Redactor canónico y campos públicos]
+    Redactor --> Servidor
+    Servidor --> Progreso[Vista de progreso con fecha de lectura]
 ```
 
 El panel no ejecuta doctor ni los hooks. Presencia y presupuestos declarados

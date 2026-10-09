@@ -6,14 +6,16 @@ description: >
   runtime y memoria; incluye extensiones propias de proyecto y usuario,
   personas y MCP con origen y conflictos; admite un diagnóstico portable de
   doctor indicado explícitamente, con fecha y alcance. HTML autónomo con búsqueda y filtros, JSON determinista,
-  sin servidor ni cambios de configuración. Úsala cuando el usuario diga
+  con modo --serve explícito para progreso actualizado del ledger, sin cambios
+  de configuración. Úsala cuando el usuario diga
   "panel de capacidades", "control panel del plugin" o "explora el catálogo del plugin".
 ---
 
 # Plugin panel
 
 Presenta el bundle y las extensiones del proyecto seleccionado. El estado de las iniciativas lo muestra
-la skill roadmap-dashboard; este panel muestra capacidades.
+la skill roadmap-dashboard; este panel muestra capacidades y, en modo servido,
+una vista acotada del ledger local.
 
 1. Localiza esta skill en las raíces del bundle del runtime actual.
 2. Ejecuta scripts/build_panel.py con Python nativo, `--root <bundle>` y
@@ -22,8 +24,13 @@ la skill roadmap-dashboard; este panel muestra capacidades.
    Añade `--json` si necesitas inventario estructurado.
    Para un informe ya generado y seleccionado explícitamente, añade
    `--diagnostics-report <informe.json>` junto a `--project <misma-raíz>`.
+   Para actualización automática solicitada, sustituye HTML/JSON por `--serve`,
+   con proyecto obligatorio; `--port` es opcional. Lee el contrato de servidor
+   en la referencia de uso antes de lanzarlo. No se inicia en un inventario estático.
 3. Entrega el HTML y resume sus avisos. Un archivo presente no acredita que
    el hook se haya ejecutado ni que un servicio esté sano.
+   En modo servido entrega la URL privada de ese proceso y conserva su handle;
+   no persistas la URL ni presentes los estados del ledger como agentes vivos.
 
 El inventario extrae frontmatters públicos y declaraciones de hooks por runtime.
 Claude/Codex leen sus registros; OpenCode aporta un JSON acotado que gobierna el

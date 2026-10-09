@@ -198,7 +198,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 
 ### T-11 — Agentes, comandos y handoffs coherentes
 
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Descripción**: Integrar procedimientos útiles y despacho en roles/ciclos propios; compartir selección y conservar puertas, artefactos y extensiones del proyecto.
 - **Dependencias**: Diseño y despacho pertinentes de T-08/T-09; comandos requieren su comparación T-05. T-10 solo para consumidores de skills concretas; no bloquea el resto de comandos.
 - **Archivos**: `agents/**`, `commands/**`, `agent-kits/**`, `interop/**`, `evals/**`, `tests/**`, `docs/**`
@@ -2810,3 +2810,176 @@ y estados de ausencia/rechazo. El HTML no ejecuta doctor ni verifica hooks
 nativos; carga/ejecución continúan desconocidas. Servidor local, observación
 de agentes, acciones operativas y aprobación visual siguen pendientes.
 T-08/T-11/T-13/T-14/T-15 globales permanecen abiertas; nuevas skills aplazadas.
+
+## Bloque 15 — comandos, dashboard y contrato de consulta de memoria
+
+Prioridad ratificada: revisión de comandos, dashboard y memoria. Diseño previo
+en design.md, con responsabilidades y archivos acotados; no nuevas skills ni
+ampliación de hooks. Trabajo paralelo: transporte/proyección, UI, corrección
+de doctor y revisión de memoria pública, sin consultar configs o servicios reales.
+
+RED: tests/test_panel_server.py, 34 errores por módulo serve_panel.py ausente,
+antes de crearlo. Fixture propia y JUnit privado preservado. UI: 17 failed/
+1 passed por render_html(live=True) ausente antes de modificar el renderer.
+Estas pruebas no representan QA final ni aceptación nativa de agentes.
+
+La revisión dirigida de memoria detecta lectura de corpus/caché al consultar,
+fallback de journal que no debe presentarse como salud y ausencia de benchmark
+de mejora con backend. No se ejecutan consultas, sincronizaciones o candidatas
+durante polling. Consulta explícita local acotada será el siguiente contrato;
+ningún servicio reemplaza la memoria canónica sin evidencia de utilidad.
+
+Contrato dirigido de memoria en comparisons/memory-command-contract.md:
+operaciones locales/externas, efectos de consulta, degradación y reconstrucción
+separados. Se corrige la contradicción documental del Curator: los productores
+proponen en pending; el curador decide y mueve candidatos y escribe approved.
+No se añaden servicios, índices, consultas ni conexiones. T-07 sigue abierta.
+
+Corrección de doctor: ocho regresiones RED fallan antes del cambio y GREEN
+pasan; suite aislada 220 passed/1 skip, con config, homes y Git propios.
+Saneador replicado idéntico, redacción antes de compactar la ruta y campo
+independiente. UI: 29 tests finales GREEN en harness DOM/fetch/timers Node,
+sin atribuir ese harness a Edge. Transporte: 34 RED por módulo ausente;
+43 GREEN tras CLI y rechazo opaco de capacidad no ASCII. Regresión adicional
+nonregular: RED 1 failed → GREEN dirigido 9 passed. Combinación actual
+servidor/UI/diagnóstico/catálogo: 177 passed/2 skips. Snapshot final, revisión,
+Edge y QA multiplataforma siguen pendientes antes de publicar este bloque.
+
+## Revisión de dos lentes — intento 1: Bloque 15 (T-11/T-13/T-15) — parcialidad de la proyección
+
+Snapshot público: 913 archivos, 30 propios, scope 30/30 sin exclusiones.
+Lentes A+B+C+D de contexto fresco, fallback genérico y tier informativo;
+C y D activadas mediante fixture propia explícita, sin leer dev.json real.
+A y B reproducen los mismos dos gaps Important; C y D sin hallazgos.
+Exports independientes de A: exit 0, 58 al día. Los hashes del snapshot
+se conservan; ese snapshot anterior no incorpora las correcciones.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1/B1 | Important | Recorte de título sin parcialidad | T-13 | Corregido; pendiente revalidación | Regresión dedicada RED antes del fix; clean añade text_budget tras redacción y antes del recorte |
+| A2/B2 | Important | Estado desconocido de tarea omitido sin parcialidad | T-13 | Corregido; pendiente revalidación | Regresión dedicada RED antes del fix; parser canónico detecta unknown_task_state |
+
+Dos regresiones nuevas: RED 2 failed/44 deselected → GREEN 2 passed/44
+deselected. La revisión previa aprueba alcance, dueños, comando, transporte,
+polling, docs y contratos; no concede QA final. Se revalidan las correcciones
+y las nuevas evidencias documentales como intento 2/3 antes de publicar.
+
+Jira-flow gaps por intento 1, actor reviewer, invocado sobre fixture propia
+desactivada: exit 0, ops vacío. No se consultan cuentas ni configuración reales.
+
+### Contraste de memoria y despliegue existente
+
+El usuario confirma tres componentes distintos: Kwipu, Graphiti y Graphify;
+autoriza revisar documentación del despliegue existente y pide comparar
+también recuperación y aprendizaje de la referencia original. Las lecturas
+previas no consultaron servicios reales; este contraste posterior realiza
+únicamente inventario Docker y health/modelos acotados de loopback.
+
+Lectura de cinco documentos de arquitectura, política, referencia y pruebas,
+sin abrir env, secretos, corpus, almacenamiento, logs ni perfiles. El inventario
+muestra ocho contenedores en ejecución. A 2026-10-09T13:39:21.512086+00:00,
+Kwipu bridge y Graphiti health devuelven 200, y Ollama ofrece modelos cloud
+y un modelo local pequeño. La documentación configura cloud por defecto;
+esa configuración descrita y el inventario no prueban el modelo efectivo
+de una consulta. Ninguna respuesta de recuperación o ingestión se ejecutó.
+
+Los health no acreditan utilidad, aislamiento, durabilidad ni reconstrucción.
+El benchmark posterior usará corpus sintético propio, comparará control local
+con los componentes pertinentes y medirá citas, precisión, latencia, versiones
+y recuperación tras fallos. No migra ni elimina datos existentes. La decisión
+de conservar tres, dos, uno o ninguno requiere esa evidencia; T-07 permanece
+abierta y la memoria Markdown canónica conserva su autoridad.
+
+## Revisión de dos lentes — intento 2: Bloque 15 (T-11/T-13/T-15) — correcciones aceptadas
+
+Snapshot de 917 archivos públicos, 34 propios, scope completo sin exclusiones.
+A+B+C+D nuevas, fallback genérico y tier informativo, con tabla previa completa.
+A/B aceptan ambos gaps; C/D sin hallazgos. A verifica independientemente export
+--check exit 0, 58 al día, y 44 hashes de comparación de memoria. B ejecuta
+dos regresiones y nueve escenarios adicionales propios, todos aprobados.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1/B1 | Important | Recorte silencioso | T-13 | Corregido y aceptado | text_budget antes del recorte; límite, redacción y reducción de longitud comprobados |
+| A2/B2 | Important | Estado desconocido silencioso | T-13 | Corregido y aceptado | Parser canónico del mismo texto; desconocido/ausente/normalizado comprobados |
+
+D mide el coste de la segunda pasada del parser: mediana de 64 iniciativas
+972 KiB pasa de 580 a 943 ms; cuatro ledgers/16.000 tareas, de 342 a 695 ms.
+Máximo posterior medido 1,25 s, por debajo del plazo UI de cuatro segundos;
+coste acotado y lineal, sin inferir latencia universal. Hashes intactos.
+
+Primera QA completa: Windows 1112 passed/9 skips y Linux 1119 passed/2 skips;
+qa-gate exit 0 en ambas. Cobertura del diff 212/236, 89,83%, **rechazada** por
+umbral de 90%. Se añade prueba significativa del arranque/parada: carga helper
+real, comunica URL al operador, captura interrupción y comprueba socket/puerto
+cerrados. Prueba dirigida: 1 passed/46 deselected; no cambio de producción ni
+RED inventado para comportamiento existente. Test-plan incorpora L-01–L-06.
+
+Edge real: los seis callbacks públicos y sus assertions pasan mediante API
+Playwright, sin bypass CSP/reintentos. Cuatro cohortes del runner CLI fallan
+al arrancar el navegador antes de página, con cinco casos sin ejecutar cada
+una; permanecen rechazadas y separadas, sin atribuir causa única a los probes.
+Servidor propio cerrado. Ese resultado no acredita agentes vivos ni hooks.
+
+Un lanzamiento posterior de QA se adelantó a terminar la copia pública y
+rechazó ambas plataformas sin ejecutar tests. Se preserva como error del
+harness, sin contarlo como fallo funcional. Nueva copia completada antes de
+lanzar las plataformas; suite completa con prueba añadida en ejecución.
+Se revisan únicamente test adicional, test-plan y trazas como intento 3/3.
+Código de producción, UI, comando y exports aceptados permanecen idénticos.
+
+Jira por intento 2: plan revision sobre fixture propia desactivada, actor
+reviewer, exit 0 y ops vacío. Se comprueba con la traza del intento incluida;
+no se accede a configuración ni cuentas reales.
+
+## Revisión de dos lentes — intento 3: Bloque 15 (T-11/T-13/T-15) — verificación del ciclo de vida
+
+Scope 35/35, snapshot de 917 archivos públicos. Cuatro lentes nuevas con
+tabla previa completa, fallback genérico y tier informativo. Solo tres deltas
+frente al intento 2: test añadido, test-plan y traza. Ninguna función previa
+modificada; producción, assets, comando y exports conservan sus hashes.
+
+| Criterio | Veredicto | Evidencia |
+|---|---|---|
+| Test adicional significativo y sin alterar pruebas previas | ✓ A/B | Helper real, servidor propio, interrupción y socket/puerto cerrados; AST previo idéntico |
+| Plan y trazas conservan resultados rechazados y pendientes | ✓ A/B | L-01–L-06, cobertura 89,83% rechazada y harness sin casos diferenciados |
+| Nuevos efectos/claims de seguridad | ✓ C | Sin hallazgos; no reabre aprobaciones sin evidencia nueva |
+| Coste de prueba adicional | ✓ D | Un servidor/una sonda con timeout de 1 s; producción y benchmark D2 idénticos |
+| Exportación independiente | ✓ A | Exit 0, 58 ficheros al día, homes/stubs/config propios |
+
+Cero Critical/Important/Minor pendientes. Hashes antes/después 917/917 en
+todas las lentes. No se afirma eficacia de memoria ni aceptación nativa.
+
+### Entrega parcial del bloque 15 — QA aceptada
+
+[Evidencia ejecutada](panel-live-evidence.json): Windows **1113 passed/9
+skips**, Linux **1120 passed/2 skips**, cero fallos/flaky; qa-gate exit 0 en
+ambas. Nueva copia terminó antes de ejecutar la suite completa; los rechazos
+previos se conservan separados. Cobertura de diff oficial **225/236,
+95,34%**, base ada60e2 y mínimo 90%; incluye todas las sentencias del transporte
+nuevo. La cobertura Python no se atribuye al JavaScript.
+
+Edge real: seis callbacks públicos mediante API Playwright, cero fallos,
+reintentos o bypass CSP, qa-gate 0; cuatro fallos previos del runner CLI
+conservados. No se declara CLI verde. Node DOM/fetch/timers queda como suite
+unitaria distinta. Servidor de prueba propio cerrado, código/hash coincidentes.
+Lint: diez agentes, cero errores/tres avisos existentes de nombres; evals:
+52 piezas/188 casos, cero errores. Export --check: 58 al día. Ledger: cero
+incoherencias/cero avisos. No se leen settings ajenos ni corpus real.
+
+Entrega: modo --serve explícito y vista de progreso del ledger con polling,
+frescura, parcialidad, filtros y fallos; corrección de errores largos doctor;
+contrato de consulta y comparación de tres componentes de memoria. Son
+declaraciones del ledger, no ejecución actual de agentes. La comparación
+verifica 44 hashes/rangos y 26 enlaces, incluidos nueve documentos de
+despliegue, sin consultas ni benchmark de backend. Health/modelos solo
+acreditan disponibilidad observada y no configuración efectiva o utilidad.
+
+Siguiente entrega: consulta local acotada y benchmark sintético para elegir
+componentes; después observaciones por runtime y revisión visual de planes
+consumible desde comandos. T-07/T-08/T-11/T-13/T-14/T-15 globales siguen
+abiertas; nuevas skills y ampliación de hooks continúan aplazadas.
+
+Jira por intento 3: plan revision, actor reviewer, sobre fixture propia
+desactivada; exit 0 y ops vacío. Las tres trazas quedan registradas sin
+publicación externa ni lectura de configuración real.

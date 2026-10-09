@@ -5,7 +5,12 @@
       "id": "plugin-panel-extensions-literal",
       "prompt": "incluye extensiones propias de proyecto y usuario",
       "trigger": "literal",
-      "expect": { "activates": true, "mentions": ["project-pieces"] }
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "project-pieces"
+        ]
+      }
     },
     {
       "id": "plugin-panel-literal",
@@ -26,6 +31,17 @@
         "activates": true,
         "mentions": [
           "plugin-panel"
+        ]
+      }
+    },
+    {
+      "id": "skill-plugin-panel-served",
+      "prompt": "Quiero el panel con progreso actualizado del ledger local.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "--serve"
         ]
       }
     },

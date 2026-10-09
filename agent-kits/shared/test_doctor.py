@@ -2117,6 +2117,65 @@ def test_linea_capacidad_taxonomy_invalida_reporta_fichero_y_campo():
     assert "taxonomy.json" in l["arreglo"]
 
 
+@pytest.mark.parametrize("filename,field", [("taxonomy.json", "categories"),
+                                           ("training.json", "id_prefix")])
+def test_config_error_long_absolute_path_keeps_file_and_field(tmp_path, filename, field):
+    project = tmp_path / ("project-" + "a" * 80) / ("package-" + "b" * 80)
+    project.mkdir(parents=True)
+    directory = project / ".claude" / "knowledge-services"
+    directory.mkdir(parents=True)
+    config = {"version": 1, "categories": []} if filename == "taxonomy.json" else {
+        "version": 1, "enabled": True, "root": "../store"}
+    target = directory / filename
+    target.write_text(json.dumps(config), encoding="utf8")
+    assert target.is_absolute() and len(str(target)) > doctor._SANEADO_TOPE_CHARS
+    before = target.read_bytes()
+    rows = doctor.bloque_capacidades(None, str(project))["lineas"]
+    identifier = "knowledge-gate" if filename == "taxonomy.json" else "training"
+    [row] = [row for row in rows if row["que"] == identifier]
+    assert row["estado"] == doctor.ERROR
+    assert filename in row["detalle"] and field in row["detalle"]
+    assert filename in row["arreglo"]
+    assert len(row["detalle"]) <= 2 * doctor._SANEADO_TOPE_CHARS + 2
+    assert target.read_bytes() == before and not (project / "store").exists()
+
+
+@pytest.mark.parametrize("separator,prefix", [("/", "/owned"), ("\\", "C:\\owned")])
+@pytest.mark.parametrize("health_error", [True, False])
+def test_config_error_long_path_in_detail_keeps_backend_field(separator, prefix, health_error):
+    path = separator.join([prefix, "p" * 240, "taxonomy.json"])
+    detail = path + ": `backends.selected` debe ser un objeto"
+    cap = _cap(config_path=path, health={"estado": "error", "fichero": path,
+                                        "detalle": detail} if health_error else None)
+    entries = {"selected": doctor._EntradaInvalida(detail)}
+    row = doctor._linea_capacidad(".", cap, None, None, entradas=entries)
+    assert row["estado"] == doctor.ERROR
+    assert "taxonomy.json" in row["detalle"] and "backends.selected" in row["detalle"]
+    assert "taxonomy.json" in row["arreglo"]
+    assert len(row["detalle"]) <= 2 * doctor._SANEADO_TOPE_CHARS + 2
+
+
+def test_config_error_redacts_before_path_compaction_and_control_cleanup():
+    secret = "sk-" + "a" * 32
+    path = "/owned/" + secret + "/" + "p" * 220 + "/taxonomy.json"
+    cap = _cap(config_path=path, health={"estado": "error", "fichero": path,
+        "detalle": "token=" + secret + "\x1b[31m\u202e\n categories: no válido"})
+    row = doctor._linea_capacidad(".", cap, None, None)
+    text = json.dumps(row, ensure_ascii=False)
+    assert secret not in text and "[secreto redactado]" in text
+    assert "categories" in row["detalle"] and "taxonomy.json" in row["arreglo"]
+    assert not any(control in text for control in ("\\u001b", "\u202e", "\\n"))
+
+
+def test_config_error_missing_redactor_is_opaque(monkeypatch, tmp_path):
+    monkeypatch.setattr(doctor, "HERE", str(tmp_path / "missing-toolkit"))
+    cap = _cap(config_path="PRIVATE_FILE", health={"estado": "error", "detalle": "PRIVATE_DETAIL"})
+    row = doctor._linea_capacidad(".", cap, None, None)
+    text = json.dumps(row, ensure_ascii=False)
+    assert row["estado"] == doctor.ERROR and row["arreglo"]
+    assert "PRIVATE_FILE" not in text and "PRIVATE_DETAIL" not in text
+
+
 def test_linea_capacidad_activa_sin_backend_usa_el_texto_generico_de_la_propia_capacidad():
     l = doctor._linea_capacidad(".", _cap(doctor_txt="x: activa, sin comprobacion de red"), None, None)
     assert l["estado"] == doctor.INFO

@@ -650,3 +650,65 @@ al hash de contenido. El consumidor común reconocerá pendiente, entregada y
 consumida, confirmación idempotente y conflictos de versión. La UI solo sustituye
 puertas de confirmación existentes o una revisión solicitada. No crea permisos
 nativos ni invalidará autorizaciones previas válidas mediante preguntas repetidas.
+
+## Bloque 15 — comandos y transporte del dashboard
+
+Prioridad confirmada por el usuario: comandos, dashboard y memoria; nuevas
+skills y ampliación de hooks continúan aplazadas. Se compara servidor de
+archivos, runner externo y transporte propio: se elige transporte propio
+sin servir archivos arbitrarios ni introducir otra base de trabajo.
+
+Modo `--serve` explícito de plugin-catalog, independiente de exportar HTML/JSON,
+con proyecto obligatorio y bind fijo 127.0.0.1. Puerto efímero por defecto;
+capacidad aleatoria por proceso en prefijo de URL, sin cookies, query, logs
+de acceso o persistencia. Host exacto con puerto, Origin propio cuando exista,
+rechazo de cross-site y métodos mutables. Solo página y api/progress; ninguna
+ruta de proyecto elegida por HTTP. CSP HTTP con nonce, conexión al mismo origen,
+sin marcos, formularios o base externa; respuestas no-store y no-referrer.
+
+Catálogo y diagnóstico permanecen fijados al arranque. El progreso se lee con
+local-read y progress-report.resumir(text=...), sin activas/session/resume,
+meter o journal. Límites: 128 entradas, 256 KiB por ledger, 1 MiB acumulado,
+64 iniciativas, ocho tareas visibles por iniciativa y 64 KiB de respuesta.
+Texto redactado antes del recorte, solo campos admitidos; ninguna ruta absoluta,
+cuerpo, verificación libre o métrica ausente convertida en cero. Fuente y hash
+de contenido, fecha de lectura y parcialidad explícitas. Estado declarado
+del ledger no prueba ejecución de agentes. Polling cinco segundos sin solapar,
+plazo cuatro segundos, pausa en pestaña oculta y actualización manual.
+
+La corrección de doctor conserva el nombre de archivo en errores largos
+sin alterar el saneador replicado de 200 caracteres. Se prueba sobre las
+ramas reales taxonomy/training, con redacción anterior al recorte.
+
+Memoria: no llamar knowledge-find/journal.status/candidatas desde polling.
+Sus lectores y degradaciones requieren contrato acotado antes de consumo web.
+La siguiente entrega será consulta local explícita, con IDs/versiones/evidencia,
+sin escritura de índice ni red; benchmark local antes de comparar backend.
+El conocimiento aprobado, continuidad y contexto estructural conservan sus
+dueños. Revisión visual y acciones mutables se integran después del transporte.
+
+Archivos de este bloque: scripts/plantilla/assets de plugin-panel; tests
+panel_server/panel_live_ui; doctor/test_doctor; comando plugin-catalog y sus
+exports; evals existentes; documentación ES/EN, contratos, changelogs y ledger.
+Los primeros tests se escriben antes de producción. Servidor y productores
+no se declaran entregados hasta revisión independiente y QA de transporte/UI.
+
+### Evaluación de componentes de memoria existentes
+
+Comparar las capacidades de memoria de la referencia original y del plugin
+con Kwipu, Graphiti y Graphify sobre revisiones fijadas. Distinguir búsqueda,
+continuidad, aprendizaje propuesto, conocimiento aprobado y contexto de código;
+ningún score o grafo sustituye la autoridad del Knowledge Gate.
+
+El despliegue Docker del usuario ya existe. Su documentación y health se
+revisan sin abrir credenciales, corpus o almacenamiento ni reiniciar servicios.
+Pruebas posteriores usan namespace/corpus sintético propio y límites de lectura,
+sin cambiar los datos existentes. Cloud descrito por defecto requiere distinguir
+modelo efectivo, ubicación de inferencia y privacidad del contenido evaluado.
+Disponibilidad y documentación no equivalen a recuperación verificada.
+
+Comparar control local, Kwipu para lectura humana/agentes, Graphiti para
+relaciones temporales y Graphify para contexto estructural. Medir citas/ID,
+versión, autoridad, calidad de recuperación, latencia, aislamiento, fallos,
+persistencia y reconstrucción antes de decidir componentes retenidos. Una
+comparación documental no declara consulta integrada ni eficacia de backend.

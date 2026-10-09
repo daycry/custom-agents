@@ -241,3 +241,23 @@ también el rechazo previo y su contraste causal. Es una entrega parcial de
 T-13/T-15: no activa servicios ni convierte el informe histórico en actividad
 actual. La siguiente implementación integra servidor local y vistas canónicas;
 después, observación por runtime y revisión visual consumible desde comandos.
+
+Prioridad ratificada por el usuario: revisión de comandos, dashboard y memoria.
+El bloque 15 implementa transporte de lectura y progreso local, y corrige el
+nombre de archivo en errores largos de doctor; requiere QA y revisión antes
+del push. La [consulta de memoria](comparisons/memory-command-contract.md)
+queda acotada como siguiente entrega explícita: nada de búsquedas, generación
+de candidatas o sincronización automática desde polling. Se conserva la
+separación continuidad/conocimiento/contexto estructural. Benchmark local y
+comparación opt-in de backend continúan pendientes; no se reclama utilidad
+demostrada por los tests de contratos. Nuevas skills y ampliación de hooks
+permanecen aplazadas conforme a la prioridad actual.
+
+El contraste de memoria incluye explícitamente Kwipu, Graphiti y Graphify,
+frente al control local y a la recuperación/aprendizaje de referencia. Hay
+despliegue Docker existente: documentación autorizada y health acotados ya
+comprobados, sin consultas o cambios de datos. La documentación describe
+inferencia cloud por defecto; health y modelos disponibles no acreditan
+recuperación ni la configuración efectiva. La selección final de componentes
+depende de benchmark sintético aislado y pruebas de autoridad, persistencia
+y reconstrucción; no se decide una sustitución por leer un README.

@@ -5,7 +5,12 @@
       "id": "catalog-extensions-literal",
       "prompt": "incluye extensiones de proyecto y usuario",
       "trigger": "literal",
-      "expect": { "activates": true, "mentions": ["plugin-panel"] }
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "plugin-panel"
+        ]
+      }
     },
     {
       "id": "catalog-literal",
@@ -26,6 +31,17 @@
         "activates": true,
         "mentions": [
           "plugin-panel"
+        ]
+      }
+    },
+    {
+      "id": "command-plugin-catalog-served",
+      "prompt": "Abre un dashboard local con progreso actualizado desde el ledger.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "--serve"
         ]
       }
     },

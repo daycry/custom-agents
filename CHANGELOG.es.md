@@ -9,6 +9,14 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added — Dashboard operativo local
+
+- Añadir servidor loopback explícito con capacidad de acceso y vista acotada del ledger canónico, actualización, filtros y frescura visible. Distinguir catálogo al arranque de lecturas actualizadas; sin acciones automáticas de runtime o memoria.
+
+### Fixed — Nombres de archivo en diagnóstico
+
+- Conservar nombres de configuración y campos de validación en errores de doctor con rutas absolutas largas, con redacción anterior al recorte y fallback opaco si falta el redactor.
+
 ### Added — Diagnóstico explícito en el panel
 
 - Importar una instantánea portable de doctor seleccionada explícitamente, con alcance, fecha UTC, etiquetas públicas y referencias de prioridades. Mantener el detalle privado en doctor y diferenciar informes ausentes, rechazados, antiguos o recortados de la ejecución real de hooks.

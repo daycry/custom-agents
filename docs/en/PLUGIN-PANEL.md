@@ -29,7 +29,8 @@ and focus; Sources stays reachable on mobile.
 
 The plugin-catalog command uses plugin-panel to explore agents, skills, commands,
 declared tools and global hooks. Search and filters run in a standalone HTML
-file. Initiative progress remains in roadmap-dashboard.
+file. Served mode adds local progress; portfolio details, evaluations and
+budgets remain in roadmap-dashboard.
 
 From a checkout:
 
@@ -42,7 +43,46 @@ python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --
 Installed bundles resolve the skill through their runtime roots. The generator
 finds its own bundle; `--root <bundle>` inspects another catalog without importing
 its code. Native Python supports Windows without WSL, Tkinter, extra Python
-packages or a server.
+packages. Standalone export needs no server.
+
+## Local dashboard with refresh
+
+```powershell
+python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --serve
+```
+
+Open the access URL printed by the process; stop it with Ctrl+C or its launch
+handle. The URL contains a private process capability: keep it out of Git,
+documentation, memory and logs. Every launch creates a new one. Binding is
+fixed to 127.0.0.1, with an ephemeral port or an explicit `--port 8765`.
+The server never serves arbitrary project files.
+
+Requires a project and excludes HTML/JSON export and personal roots. Project
+declarations are read for the initial snapshot. Catalog and diagnostics stay
+fixed at startup; Progress polls ledgers every five seconds, with manual refresh,
+search and state filters. Responses share a two-second read cache. Hidden tabs
+pause polling; requests expire after four seconds. Failure preserves the last
+view and its original date, with an explicit freshness warning.
+
+The canonical parser derives task counts and phase from `tasks.md`. Read date
+and SHA-256 identify decoded UTF-8 text without BOM, including line endings;
+they do not authenticate authors or prove agents are running. No journal,
+usage-meter, memory search or backend queries, or state writes.
+
+Reads reject redirected or changed paths. Limits: 128 entries, 256 KiB per ledger,
+1 MiB cumulative, 64 initiatives, eight visible active tasks per initiative and
+64 KiB JSON. Incomplete reads, unreadable ledgers, unknown states and truncation
+remain partial. Text is redacted and bounded; bodies, free-form verification
+and absolute paths are excluded.
+
+Page/API require the capability and exact Host; any Origin must match the server.
+Cross-site requests, mutable methods, queries and arbitrary paths are rejected.
+No cookies or access logs; nonce CSP, same-origin connections, no-store,
+no-referrer and no framing. The capability does not isolate other processes
+owned by the same user. Plan approval and memory actions still need their
+consumers and tests.
+
+## Standalone extension export
 
 Include your components with `--project <root>` and the actual session runtime
 in `--runtime claude-code|codex|opencode`. `--cwd <package>` inspects its skill

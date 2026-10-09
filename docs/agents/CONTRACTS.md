@@ -5,7 +5,7 @@
 ficheros y marcadores se cruzan, y —lo importante— **qué puerta ejecutable lo comprueba**. Nace del
 §8-bis de `docs/roadmap/2026-09-09-plugin-refactor/analysis.md`, que verificó **diez huecos de
 contrato** (E1–E10) en un solo día de uso real: ninguno era un fallo de una pieza, todos eran un
-acuerdo entre piezas que nadie comprobaba. La matriz tiene **treinta y dos** aristas porque a esos diez se
+acuerdo entre piezas que nadie comprobaba. La matriz tiene **treinta y siete** aristas porque a esos diez se
 suman **E11**, que no es un hueco verificado sino la **propuesta C-14 aceptada** por el usuario en la
 puerta del plan (2026-09-10), y **E12**, el acoplamiento entre kits que NACIÓ en esta iniciativa
 (T-13 hizo que `agent-kits/qa` cargue `agent-kits/shared/scope-check.py`): una arista nueva se
@@ -26,6 +26,9 @@ sin red, delegación de index/schema y reglas de taxonomía local compartidas.
 **E29**–**E32** nacen en el Bloque 14: proyección portable de doctor, validación
 del informe en el panel, lectura acotada y redacción canónica antes de exportar.
 
+**E33**–**E37** nacen en el Bloque 15: activación explícita del servidor,
+render servido y proyección acotada desde lectura, parser y redactor canónicos.
+
 La regla que ordena el fichero: **una arista sin puerta ejecutable se rompe en silencio**. Por eso
 la columna «Puerta» nunca va vacía; cuando la puerta aún no existe, la celda dice qué tarea la trae
 o que la decisión fue no ponerla.
@@ -38,7 +41,7 @@ o que la decisión fue no ponerla.
 
 ---
 
-## 1. Las veintiocho aristas E1–E28
+## 1. Las treinta y siete aristas E1–E37
 
 Columnas fijas y parseables (`scripts/lint_plugin.py` las lee — ver §3): **Arista · Invocador · Invocado ·
 Flags/entrada · Exit codes/salida · Ficheros · Marcadores · Puerta · Piezas que describen**.
@@ -78,6 +81,11 @@ Flags/entrada · Exit codes/salida · Ficheros · Marcadores · Puerta · Piezas
 | E30 · panel valida diagnóstico seleccionado | `skills/plugin-panel/scripts/build_panel.py` | `agent-kits/shared/diagnostic-report.py` | JSON estricto y proyecto explícito mediante `--diagnostics-report` | estado aceptado/incompleto o rechazo opaco; fecha histórica y alcance antes de rendering | informe seleccionado, sin descubrimiento o doctor automático | claves exactas, conteos recalculados, futuro rechazado, antigüedad >24 h | `python3 -m pytest -q tests/test_panel_diagnostics.py agent-kits/shared/test_diagnostic_report.py` | `commands/plugin-catalog.md`, `skills/plugin-panel/SKILL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md` |
 | E31 · panel lee informe acotado | `skills/plugin-panel/scripts/build_panel.py` | `agent-kits/shared/local-read.py` | archivo regular seleccionado, máximo 65.536 bytes | texto UTF-8 sin BOM o código de ausencia/límite/acceso/cambio; no sigue redirecciones | lector del bundle, informe externo solo como datos | identidad de archivo/ancestros; hash del texto UTF-8 decodificado | `python3 -m pytest -q agent-kits/shared/test_local_read.py tests/test_panel_diagnostics.py` | `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `agent-kits/shared/README.md` |
 | E32 · doctor redacta export portable | `agent-kits/shared/doctor.py` | `agent-kits/shared/redact.py` | JSON serializado de la proyección pública | texto por redactor canónico; helper ausente devuelve aviso opaco y exit 2 | módulo confiable del bundle, salidas anteriores conservadas | ninguna copia de reglas o código del proyecto | `python3 -m pytest -q agent-kits/shared/test_doctor.py -k panel_json` | `commands/doctor.md`, `agent-kits/shared/README.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md` |
+| E33 · catálogo activa transporte explícito | `skills/plugin-panel/scripts/build_panel.py` | `skills/plugin-panel/scripts/serve_panel.py` | `--serve --project` y puerto opcional; sin exports o fuentes personales | URL privada por proceso; loopback fijo y cierre por handle | inventario al arranque, ningún estado nuevo de tareas | módulo del bundle; rutas HTTP fijas, Host/Origin/capacidad, no logs | `python3 -m pytest -q tests/test_panel_server.py` | `commands/plugin-catalog.md`, `skills/plugin-panel/SKILL.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md` |
+| E34 · servidor renderiza superficie propia | `skills/plugin-panel/scripts/serve_panel.py` | `skills/plugin-panel/scripts/build_panel.py` | inventario existente y `render_html(live=True)` | página con Progreso, CSP HTTP nonce y polling relativo | plantilla/assets empaquetados, sin ejecución del catálogo inspeccionado | offline conserva conexiones bloqueadas; fallo del asset explícito | `python3 -m pytest -q tests/test_panel_live_ui.py tests/test_panel_server.py` | `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md` |
+| E35 · servidor lee ledger acotado | `skills/plugin-panel/scripts/serve_panel.py` | `agent-kits/shared/local-read.py` | roadmap fijo; 128 entradas, 256 KiB por archivo y 1 MiB acumulado | texto UTF-8 o estados opacos; ausencia/parcialidad distinguidas | solo tasks.md de carpetas de iniciativas; no rutas del cliente | identidad de ancestros/archivo, no redirecciones; JSON máximo 64 KiB | `python3 -m pytest -q tests/test_panel_server.py agent-kits/shared/test_local_read.py` | `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/PLUGIN-PANEL.md` |
+| E36 · servidor resume estado canónico | `skills/plugin-panel/scripts/serve_panel.py` | `agent-kits/shared/progress-report.py` | `resumir(relative, text=contenido)` | conteos/fase/tareas declaradas; no inferencia de agentes vivos | parser de ledger existente, sin activas/session/resume | 64 iniciativas y ocho tareas visibles; fecha/hash de lectura; ninguna consulta de memoria | `python3 -m pytest -q tests/test_panel_server.py agent-kits/shared/test_progress_report.py` | `docs/FLOWS.md`, `docs/en/FLOWS.md`, `commands/plugin-catalog.md` |
+| E37 · servidor redacta proyección | `skills/plugin-panel/scripts/serve_panel.py` | `agent-kits/shared/redact.py` | textos seleccionados del resumen, antes de recortar | solo campos públicos acotados; helper ausente deja estado unavailable | redactor canónico de bundle, sin duplicar reglas | controles eliminados, títulos 160 caracteres, sin cuerpo/ruta absoluta | `python3 -m pytest -q tests/test_panel_server.py` | `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md` |
 
 **Cómo leer el estado de una fila.** «CERRADO en T-XX» = la puerta existe hoy y se puede ejecutar.
 «lo cierra T-XX» = la arista está descrita y la puerta llega en esa tarea de
@@ -112,7 +120,7 @@ las aristas de arriba: sin puerta, son prosa que se olvida. Una fila por regla, 
 
 ## 3. Cómo se lee y cómo se mantiene
 
-**Cómo se lee.** Busca la arista por su identificador (`E1`…`E28`) o por la pieza que vas a tocar en
+**Cómo se lee.** Busca la arista por su identificador (`E1`…`E37`) o por la pieza que vas a tocar en
 la columna «Invocador»/«Invocado». La columna **«Piezas que describen»** es la lista que hay que
 meter en el campo `- **Archivos**:` de la tarea que toque esa pieza: es exactamente lo que faltaba
 en el hueco E3, y lo que `planner` copia de aquí al planificar.

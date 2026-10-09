@@ -54,3 +54,33 @@ y regresiones de progreso/journal/hooks. Windows valida los doubles reparse;
 Linux ejecuta también los casos de enlaces nativos. Exports y evals verifican
 la fachada común; estas pruebas no acreditan aceptación de hosts nativos.
 Resultados y cobertura medida en `work-resume-evidence.json` tras la QA.
+
+## Bloque 15 — Transporte y progreso del panel
+
+- **L-01 [GWT]** Dada una solicitud explícita de servir el panel, el comando
+  exige proyecto y separa exportación de servidor; crea únicamente un puerto
+  loopback propio y lo cierra al interrumpir la ejecución. La URL de acceso
+  solo se comunica al operador y no se escribe en el proyecto.
+- **L-02 [GWT]** Dadas peticiones con capacidad, Host, Origin, método o ruta
+  incorrectos, el servidor rechaza el acceso sin servir archivos del proyecto.
+  La página válida aplica nonce CSP y las consultas omiten cookies.
+- **L-03 [GWT]** Dados ledgers válidos, desconocidos, malformados, enlaces
+  o presupuestos agotados, la proyección reutiliza lectura/parser/redactor
+  canónicos y declara parcialidad sin afirmar actividad de agentes.
+- **L-04 [GWT]** Dado un cambio de ledger, polling actualiza conteos y hash.
+  Ante fallo HTTP/esquema conserva la vista y fecha anteriores; la pausa por
+  visibilidad y el plazo impiden consultas solapadas.
+- **L-05 [GWT]** Dados escritorio, teclado y móvil, navegación, filtros y
+  controles de progreso permanecen utilizables. El HTML offline conserva
+  su comportamiento sin fetch HTTP ni vista operativa activa.
+- **L-06 [GWT]** Dado un error doctor con ruta larga y texto sensible, conserva
+  nombre de archivo y campo tras redacción; dependencia ausente produce
+  diagnóstico opaco, sin modificar el saneador replicado.
+
+Suites: `test_panel_server.py`, `test_panel_live_ui.py`, `test_doctor.py`
+y regresiones de catálogo/diagnóstico/lectura/progreso/exports. Los seis casos
+reales de `testing/panel-live.spec.cjs` cubren CSP/navegación, polling,
+fallos HTTP/esquema, teclado/móvil, offline y parcialidad. Su ejecución por
+API real de Playwright se distingue del runner CLI rechazado antes de abrir
+la página. Resultados, cobertura y límites se registran en la evidencia de
+este bloque después de completar sus puertas, sin atribuir aceptación nativa.

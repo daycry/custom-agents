@@ -637,7 +637,7 @@ def _extensions_html(data):
             + '<span class="section-pill">' + str(total) + ' declaraciones</span></div>' + controls + body + '</section>')
 
 
-def render_html(data):
+def render_html(data, *, live=False):
     counts = {**data['counts'], 'hooks': len({(hook.get('runtime', 'unknown'), hook['event']) for hook in data['hooks']})}
     labels = {'agents': 'Agentes', 'skills': 'Skills', 'commands': 'Comandos', 'tools': 'Herramientas', 'hooks': 'Registros de hook'}
     stats = ''.join(f'<div class="stat"><strong>{count}</strong><span>{labels[kind]}</span></div>' for kind, count in counts.items())
@@ -652,9 +652,29 @@ def render_html(data):
         template = _read(TEMPLATE.parent, TEMPLATE)
     except (OSError, UnicodeError, ValueError):
         raise ValueError('bundled panel template unavailable') from None
+    operations, live_script = '', ''
+    if live:
+        try:
+            live_script = '<script>' + _read(TEMPLATE.parent, TEMPLATE.parent / 'panel-live.js') + '</script>'
+        except (OSError, UnicodeError, ValueError):
+            raise ValueError('bundled live panel asset unavailable') from None
+        operations = '''<section id="operations"><div class="section-head"><div><h2>Progreso del proyecto</h2>
+<p>Ledger recién leído: los estados de las tareas no demuestran agentes vivos. Catálogo y diagnóstico permanecen fijados al arranque.</p></div><span class="section-pill">Lectura local · cada 5 s</span></div>
+<div class="controls"><div class="search-wrap"><input id="progress-search" type="search" placeholder="Buscar iniciativas o tareas" aria-label="Buscar progreso"></div>
+<select id="progress-state" aria-label="Estado de iniciativa"><option value="all">Todos los estados</option><option value="borrador">Borrador</option><option value="en-progreso">En progreso</option><option value="en-revision">En revisión</option><option value="completado">Completado</option><option value="cancelado">Cancelado</option><option value="unknown">Sin estado reconocido</option></select>
+<button id="progress-refresh" type="button">Actualizar ahora</button></div>
+<p id="progress-status" role="status" aria-live="polite">Consultando el ledger seleccionado…</p><p id="progress-freshness">Sin lectura disponible todavía.</p>
+<p id="progress-results" aria-live="polite"></p><div id="progress-cards" class="grid"></div></section>'''
     values = {'STATS': stats, 'CARDS': _cards(data), 'WORKFLOW': _workflow_html(data), 'NOTES': notes, 'FLOW': _flow_html(data), 'EXTENSIONS': _extensions_html(data),
-              'DIAGNOSTICS': _diagnostics_html(data.get('diagnostics', {'status': 'not_provided'}))}
-    return MARKER + re.sub(r'@@(STATS|CARDS|WORKFLOW|NOTES|FLOW|EXTENSIONS|DIAGNOSTICS)@@', lambda match: values[match.group(1)], template)
+              'DIAGNOSTICS': _diagnostics_html(data.get('diagnostics', {'status': 'not_provided'})),
+              'OPERATIONS': operations, 'LIVE_SCRIPT': live_script,
+              'LIVE_NAV': '<a href="#operations"><span class="nav-dot"></span>Progreso</a>' if live else '',
+              'CONNECT_CSP': "; connect-src 'self'" if live else '',
+              'SIDEBAR_NOTE': 'Servidor local de lectura. El progreso refleja tareas declaradas, sin dirigir agentes.' if live else 'Explora definiciones sin iniciar servicios ni modificar la configuración.',
+              'REFRESH_NOTE': 'Catálogo y diagnóstico fijados al arranque; progreso local con actualización periódica.' if live else 'Regenera el archivo para actualizarlo.',
+              'PROGRESS_NOTE': 'Los presupuestos y la cartera detallada se consultan en el dashboard del roadmap.' if live else 'El progreso de iniciativas se consulta en el dashboard del roadmap.',
+              'SNAPSHOT_NOTE': 'Catálogo al iniciar' if live else 'Instantánea local'}
+    return MARKER + re.sub(r'@@(STATS|CARDS|WORKFLOW|NOTES|FLOW|EXTENSIONS|DIAGNOSTICS|OPERATIONS|LIVE_SCRIPT|LIVE_NAV|CONNECT_CSP|SIDEBAR_NOTE|REFRESH_NOTE|PROGRESS_NOTE|SNAPSHOT_NOTE)@@', lambda match: values[match.group(1)], template)
 
 
 
@@ -676,11 +696,21 @@ def _write_html(path, text):
             os.unlink(temporary)
 
 
+def _load_server():
+    path = Path(__file__).resolve().parent / 'serve_panel.py'
+    spec = importlib.util.spec_from_file_location('panel_local_server', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', default=str(Path(__file__).resolve().parents[3]))
     parser.add_argument('--html')
     parser.add_argument('--json', action='store_true')
+    parser.add_argument('--serve', action='store_true', help='explicit loopback dashboard with canonical ledger refresh')
+    parser.add_argument('--port', type=int, help='local server port; default ephemeral; only with --serve')
     parser.add_argument('--project', help='project root to inspect for local extensions')
     parser.add_argument('--cwd', help='task package within the project root')
     parser.add_argument('--home', help='user root to inspect')
@@ -689,10 +719,20 @@ def main(argv=None):
     parser.add_argument('--user-root', action='append', default=[], metavar='RUNTIME=PATH')
     parser.add_argument('--diagnostics-report', help='explicit portable doctor JSON snapshot; requires --project for scope')
     args = parser.parse_args(argv)
+    if args.serve and (not args.project or args.html or args.json or args.home or args.user_root):
+        parser.error('--serve requires --project and excludes --html, --json, --home and --user-root')
+    if args.port is not None and (not args.serve or not 0 <= args.port <= 65535):
+        parser.error('--port requires --serve and a value from 0 to 65535')
     try:
         data = build_inventory(args.root, project=args.project, home=args.home,
-                               runtime=args.runtime, cwd=args.cwd, include_user=not args.project_only,
+                               runtime=args.runtime, cwd=args.cwd, include_user=not (args.project_only or args.serve),
                                user_roots=args.user_root, diagnostics_report=args.diagnostics_report)
+        if args.serve:
+            try:
+                server = _load_server()
+            except (OSError, ValueError, ImportError, AttributeError, SyntaxError):
+                raise ValueError('bundled panel server unavailable') from None
+            return server.run(args.project, data, port=args.port or 0)
         if args.html:
             _write_html(args.html, render_html(data))
         if args.json or not args.html:

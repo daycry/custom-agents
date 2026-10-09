@@ -514,6 +514,12 @@ flowchart LR
     Doctor[Explicit doctor with --panel-json] --> Projection[Portable report with date and scope]
     Projection -->|explicit selection| Panel
     Panel --> View[HTML and JSON with sources and limits]
+    Panel -->|explicit --serve| Server[Loopback server with private access]
+    Ledger[Canonical tasks.md ledger] --> Reader[Bounded local-read]
+    Reader --> Summary[progress-report over supplied text]
+    Summary --> Redactor[Canonical redactor and public fields]
+    Redactor --> Server
+    Server --> Progress[Progress view with read date]
 ```
 
 The panel executes neither doctor nor hooks. Source presence and declared budgets

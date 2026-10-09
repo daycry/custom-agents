@@ -1665,6 +1665,27 @@ def _sanear_detalle(texto):
 # --8<-- fin sanear_detalle (funcion)
 
 
+def _config_error_parts(fichero, detalle):
+    """Keep the file's tail and validation field under separate bounded budgets."""
+    try:
+        path = os.path.join(HERE, "redact.py")
+        spec = importlib.util.spec_from_file_location("doctor_config_redact", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        name = _CONTROL_O_ANSI_RE.sub(" ", module.redactar(str(fichero)))
+        message = _CONTROL_O_ANSI_RE.sub(" ", module.redactar(str(detalle)))
+    except (OSError, ImportError, AttributeError, SyntaxError, TypeError, ValueError):
+        return "configuración", "detalle no disponible: redactor ausente"
+    compact = name if len(name) <= _SANEADO_TOPE_CHARS else "…" + name[-(_SANEADO_TOPE_CHARS - 1):]
+    # Backend validation may include the same absolute path before the field.
+    # It is displayed separately, so it must not consume the field's budget.
+    if name and message.startswith(name + ":"):
+        message = message[len(name) + 1:].lstrip()
+    elif name:
+        message = message.replace(name, compact)
+    return _sanear_detalle(compact), _sanear_detalle(message)
+
+
 CAPACIDAD_TIMEOUT_MS_TOPE = 2000  # gap 94: ninguna comprobación de red individual pasa de esto
 CAPACIDADES_PRESUPUESTO_S = 5.0  # gap 94: tope TOTAL del bloque completo, no solo por capacidad
 _CAPACIDAD_TOPE_MS_MINIMO = 300  # gap 133 (fix3, knowledge-services): nunca recortar `tope_ms`
@@ -1874,16 +1895,16 @@ def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD
         # multi-backend pero no ESTA rama, que interpola crudos el `detalle` de validación de
         # `taxonomy.json` y su `fichero` — los dos vienen del proyecto, no del plugin (probe: 711
         # caracteres con ESC/RLO/C1 en la línea de /doctor).
-        detalle = _sanear_detalle(salud.get("detalle", "") if isinstance(salud, dict) else "")
-        fichero = _sanear_detalle(
-            (salud.get("fichero") if isinstance(salud, dict) else None) or cap.get("config_path") or "?")
+        fichero, detalle = _config_error_parts(
+            (salud.get("fichero") if isinstance(salud, dict) else None) or cap.get("config_path") or "?",
+            salud.get("detalle", "") if isinstance(salud, dict) else "")
         return linea(ERROR, cap["id"], f"{fichero}: {detalle}", f"corrige `{fichero}`")
     if entradas is None:
         entradas = _leer_backend_entries(project, cap)
     for entrada in entradas.values():
         if isinstance(entrada, _EntradaInvalida):                               # #179
-            fichero = _sanear_detalle(cap.get("config_path") or "?")
-            return linea(ERROR, cap["id"], _sanear_detalle(entrada.detalle), f"corrige `{fichero}`")
+            fichero, detalle = _config_error_parts(cap.get("config_path") or "?", entrada.detalle)
+            return linea(ERROR, cap["id"], f"{fichero}: {detalle}", f"corrige `{fichero}`")
     if not cap.get("enabled"):
         return linea(INFO, cap["id"], "desactivado", "opcional: sigue el `setup_step` del registro si quieres activarla")
     if backends_mod is not None:
