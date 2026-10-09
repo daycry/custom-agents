@@ -221,7 +221,7 @@ def test_el_esquema_json_es_contrato(proyecto):
     """Lo consumen `task-brief.py` (T-05) y `session-context.sh` (T-06): cambiarlo rompe dos piezas."""
     code, out, _ = run("--area", "estimacion", "--json", "--root", str(proyecto))
     data = json.loads(out)
-    assert set(data) - {"indice_motivo"} == {"version", "indice", "corpus", "consulta", "total", "aciertos"}, \
+    assert set(data) - {"indice_motivo", "corpus_read"} == {"version", "indice", "corpus", "consulta", "total", "aciertos"}, \
         "`indice_motivo` es la única clave opcional (solo con `indice: degradado`)"
     assert data["version"] == 1 and data["corpus"] == "proyecto"          # `corpus`/`origen`: T-16 (la doctrina se distingue)
     assert data["indice"] in {"construido", "reconstruido", "cache", "degradado"}
@@ -483,7 +483,7 @@ def test_related_json_es_estructurado(proyecto):
     code, out, _ = _related(proyecto, "ADR-002", "--json")
     data = json.loads(out)
     assert code == 0
-    assert set(data) - {"indice_motivo"} == {"version", "indice", "corpus", "entrada", "relaciones"}
+    assert set(data) - {"indice_motivo", "corpus_read"} == {"version", "indice", "corpus", "entrada", "relaciones"}
     assert data["entrada"]["id"] == "ADR-002"
     assert list(data["relaciones"]) == ["sucesion", "iniciativa", "area"]
     suc = data["relaciones"]["sucesion"]
@@ -569,7 +569,7 @@ def test_show_imprime_la_entrada_completa_tal_cual(proyecto):
 
 def test_show_json_envuelve_el_contenido_con_su_ficha(proyecto):
     data = _consulta_json(proyecto, "--show", "LES-001")
-    assert set(data) - {"indice_motivo"} == {"version", "indice", "corpus", "origen", "id", "tipo", "estado", "estado_detalle",
+    assert set(data) - {"indice_motivo", "corpus_read"} == {"version", "indice", "corpus", "origen", "id", "tipo", "estado", "estado_detalle",
                                              "area", "titular", "ruta", "contenido"}
     assert data["id"] == "LES-001" and data["ruta"] == "docs/knowledge/lessons/LES-001-evaluator-revision-cara.md"
     assert data["contenido"] == ENTRADAS["lessons/LES-001-evaluator-revision-cara.md"]
@@ -651,7 +651,7 @@ def test_claude_no_escribible_degrada_a_recorrido_plano_con_los_mismos_aciertos(
     assert [a["id"] for a in data["aciertos"]] == [a["id"] for a in ref["aciertos"]]
     assert [a["linea"] for a in data["aciertos"]] == [a["linea"] for a in ref["aciertos"]]
     code, out, err = run("consola cp1252", "--root", str(proyecto))
-    assert code == 0 and out.startswith("GOT-001 · ") and err == "", "y sin ruido en la salida humana"
+    assert code == 0 and out.startswith("GOT-001 · ") and "lectura parcial" in err, "la omision de config se declara"
 
 
 def test_sqlite_sin_fts5_degrada_a_recorrido_plano(proyecto, monkeypatch, capsys):
@@ -764,7 +764,7 @@ def test_enrutado_combina_claves_y_puntua_iniciativa_por_encima_de_area(proyecto
 def test_enrutado_respeta_limit_tipo_y_el_esquema_de_la_capa_1(proyecto):
     d = _enrutado(proyecto, "--tipo-tarea", "devops", "--tipo", "gotcha", "--limit", "1")
     assert [a["id"] for a in d["aciertos"]] == ["GOT-001"] and d["total"] == 1
-    assert set(d) - {"indice_motivo"} == {"version", "indice", "corpus", "consulta", "total", "aciertos"}
+    assert set(d) - {"indice_motivo", "corpus_read"} == {"version", "indice", "corpus", "consulta", "total", "aciertos"}
     assert list(d["aciertos"][0]) == ["id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "linea",
                                       "puntuacion", "iniciativa", "fecha", "origen"], "mismo esquema por acierto que la capa 1"
     assert set(d["consulta"]) == {"texto", "area", "tipo", "limit", "contexto", "tipo_tarea", "iniciativa", "claves"}
@@ -915,6 +915,25 @@ def test_f3fix4_gap150_el_filtro_area_encuentra_la_entrada_con_tags_en_bloque(tm
     (tmp_path / "docs" / "knowledge" / "README.md").write_text("# fixture\n", encoding="utf-8")
     code, out, err = run("--area", "publicacion-atomica", "--json", "--root", str(tmp_path))
     assert code == 0, err
-    # el `id` que sirve el indice local es el corto (`GOT-012`); lo que prueba este test es que
-    # el `--area` del tag en lista de bloque la ENCUENTRA.
-    assert [a["id"] for a in json.loads(out)["aciertos"]] == ["GOT-012"], out
+    # El ID declarado se conserva completo; el tag de area permite encontrarlo.
+    assert [a["id"] for a in json.loads(out)["aciertos"]] == ["custom-agents.GOT-012"], out
+
+
+def test_bounded_view_cli_never_creates_index(proyecto):
+    code, out, err = run("--view", "--show", "ADR-001", "--root", str(proyecto))
+    assert code == 0, err
+    data = json.loads(out)
+    assert data["source"] == "canonical_knowledge" and data["selected"]["id"] == "ADR-001"
+    assert not _indice(proyecto).exists()
+
+
+def test_bounded_corpus_read_is_visible_and_oversize_not_cached(proyecto):
+    p = proyecto / "docs/knowledge/adr/ADR-001-guardia-solo-agente.md"
+    p.write_bytes(b"x" * (256 * 1024 + 1))
+    code, out, err = run("--json", "--root", str(proyecto))
+    assert code == 0
+    data = json.loads(out)
+    assert not data["corpus_read"]["complete"]
+    assert "read_too_large" in data["corpus_read"]["issues"]
+    assert data["indice"] == "degradado" and not _indice(proyecto).exists()
+    assert "lectura parcial" in err

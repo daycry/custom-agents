@@ -1,0 +1,633 @@
+{
+  "schema_version": 1,
+  "block": 16,
+  "base_commit": "21092c2e3c4dbb690ca5a31183a044b67053321c",
+  "status": "delivered_partial_global_integration_open",
+  "original_tdd_reports": [
+    {
+      "label": "reader_initial",
+      "report_sha256": "fc0644c717c6e85696794276df819f459e4b27c5bb63681a8f4ca2e770e1c35f",
+      "cases": 24,
+      "passed": 0,
+      "failed": 1,
+      "errors": 23,
+      "skipped": 0
+    },
+    {
+      "label": "bridge_initial",
+      "report_sha256": "fc83a1ac53d37a7a98d05d07a5e5714cd57002ef5deb94bf10b2625eb5440266",
+      "cases": 18,
+      "passed": 5,
+      "failed": 13,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "bridge_shape",
+      "report_sha256": "d7b32c6fb96aa79a29ab6503d582012d1a16438c331b254f9e9524f63eb1ba8c",
+      "cases": 3,
+      "passed": 0,
+      "failed": 3,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "bridge_dns",
+      "report_sha256": "d79385f22e23ebad07527e74253befed33c1db4ad798ef28fe8fecb17fb89bb3",
+      "cases": 2,
+      "passed": 0,
+      "failed": 2,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "portable_transitive_helpers",
+      "report_sha256": "4f73f4c06ced88012720a69c5a45a9a531c86e022f395642293b4840030b046e",
+      "cases": 5,
+      "passed": 0,
+      "failed": 5,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "ui_initial",
+      "report_sha256": "ef43eacc00de7af1f5fdf01510d9f46acdc1b7918189b5484090dcd976612dbd",
+      "cases": 35,
+      "passed": 0,
+      "failed": 35,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "ui_literal_identity",
+      "report_sha256": "a9309c84f952804653cb8f51c5574c5166379702e7d2d9b7bd2107268993014f",
+      "cases": 1,
+      "passed": 0,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "transport_initial",
+      "report_sha256": "62189f78875c643f8741ac6d3691b2b88728a2920677eec4326e896f60a0929d",
+      "cases": 39,
+      "passed": 3,
+      "failed": 36,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "transport_body_deadline",
+      "report_sha256": "5739622a742ecd5d0f98c1e90de37c138f3b5dfc11ba39271519d1d16377d5a5",
+      "cases": 1,
+      "passed": 0,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "ui_exact_versions",
+      "report_sha256": "87887131576ae919ae5a19b8a775606425da1ccfa06db178c222383f2daf7b36",
+      "cases": 2,
+      "passed": 0,
+      "failed": 2,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "ui_scan_budget",
+      "report_sha256": "047fe1bfef58c0eea0c9e9d7f790f4c822af9b72fd3e1a4d824f9eb34752abde",
+      "cases": 1,
+      "passed": 0,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "reader_optional_helper_versions_probe",
+      "report_sha256": "dc8d5a291d8a4839528952e6abc722d151d1b38f2406f532ce627d2f1151054a",
+      "cases": 13,
+      "passed": 2,
+      "failed": 11,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "reader_enumeration_budget",
+      "report_sha256": "25ae106283c57671bae795cd1678b42f02eb5183d25762cc4c368f3e00c39a03",
+      "cases": 1,
+      "passed": 0,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "reader_opaque_relation_identity",
+      "report_sha256": "9009502e249d37814981c1d052b7999abb54ad24fb645f3d92a1b92917083fc0",
+      "cases": 3,
+      "passed": 0,
+      "failed": 3,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "reader_structured_relations",
+      "report_sha256": "a36c7495bfeb8dbd62c696d8e411fe4885222ca50b7ed916053ca2f406c23489",
+      "cases": 7,
+      "passed": 4,
+      "failed": 3,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "reader_literal_whitespace",
+      "report_sha256": "b1d3a3b654039af4feacf82eae4467b399331d957102ce5a754a10b0361150a8",
+      "cases": 1,
+      "passed": 0,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "reader_literal_unicode",
+      "report_sha256": "db492d9242e06dff94ba100c487c3825db5d7173391c34daf51557ca2cdb1ced",
+      "cases": 1,
+      "passed": 0,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "bridge_tls_remaining_deadline",
+      "report_sha256": "1ec12057eaae7d01793d6d23e5e6bd02b6497f007bab8f907ef43f8aece53c50",
+      "cases": 1,
+      "passed": 0,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "canonical_redaction_cpu",
+      "report_sha256": "707888a94cb3dc660598f48215d2d4074097f7c43e609040102d7876ba5321ea",
+      "cases": 4,
+      "passed": 1,
+      "failed": 3,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "reader_quoted_scalar_identity",
+      "report_sha256": "e73608781609fae9bc86a0699710ba57aab145463a58229fe13723bb32ec266f",
+      "cases": 12,
+      "passed": 3,
+      "failed": 9,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "reader_quoted_list_identity",
+      "report_sha256": "8fde19606896ddf5732edf78f1a981fa6daef68885530bbd6d77b3f4e336b060",
+      "cases": 4,
+      "passed": 2,
+      "failed": 2,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "reader_single_quote_backslash",
+      "report_sha256": "7cfde459657d501b3985b0691f679add358d47988ab9c03d7deb3d7e409dac03",
+      "cases": 2,
+      "passed": 0,
+      "failed": 2,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "label": "reader_quote_delimiter_parity",
+      "report_sha256": "6a5515660e54393a08c361c18277ef2526eb5c0759e0f4457a5708b323598ea2",
+      "cases": 54,
+      "passed": 24,
+      "failed": 30,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "claims_scope": "Block16 implementation and its isolated tests only; separate Block17 functional experiments are reported independently.",
+  "claims": {
+    "canonical_queries": "CLI and served-panel explicit search/show/related share bounded local snapshots",
+    "backend_retrieval_quality_measured": false,
+    "backend_ingestion_performed": false,
+    "backend_component_selection_final": false,
+    "native_host_acceptance": false,
+    "consumer_config_or_corpus_read_by_tests": false,
+    "automatic_memory_queries": false
+  },
+  "limits": {
+    "entries": 256,
+    "enumerations": 256,
+    "files": 128,
+    "file_bytes": 262144,
+    "cumulative_bytes_including_probe": 2097152,
+    "approved_depth": 8,
+    "results_or_relations": 20,
+    "request_bytes": 4096,
+    "response_bytes": 65536,
+    "selected_body_characters": 12000,
+    "version_decimal_digits": 4300,
+    "http_bridge_health_or_error_bytes": 65536,
+    "http_bridge_snapshot_bytes": 2097152,
+    "http_bridge_json_depth": 64
+  },
+  "source_hashes": {
+    "agent-kits/shared/copias.json": "e8d6b16977cfdcae8b625525a016ef920dbf31d09897894bbf219b2242068cca",
+    "agent-kits/shared/journal.py": "bd23a9f357a38ed091f2f3a58aa3364d1d53c3ee152398b2ee70f74b4ca718b4",
+    "agent-kits/shared/knowledge-find.py": "ac191a40590c7ae2c5051ec9e61165b8f9aa198892382a1e1df65806320a70ba",
+    "agent-kits/shared/knowledge-local.py": "028ccb2e7a1acdbbfec5b1dc5d072da0f7e9128396d984321478d8f4e980ac8f",
+    "agent-kits/shared/knowledge-view.py": "6940a7f9f048805594c20fb1364a55151af26bbe6c3224a703cf2eb9702f044b",
+    "agent-kits/shared/redact.py": "4e9131368fd2471dcb2e3a2e91f6b0dc00555354487b6308194be05e4c4d5907",
+    "agent-kits/shared/test_journal.py": "b7a17e094f9833add6ffd7cbadd8de75ad0df5520d9c90a8b23050c492300d14",
+    "agent-kits/shared/test_knowledge_local.py": "84ee8e492db76cbaf5fd93dc18b8dc05a76e7ae2b051cfe31448cabafe999955",
+    "agent-kits/shared/test_knowledge_view.py": "003b381aa2b965f0f62b5063d5ace64623d46d41a270da260ac6abbf09bb7074",
+    "agent-kits/shared/test_redact.py": "0d92ac886977f29ac44fe3819f328e307a31385b2a9d965194682e502d2d47f5",
+    "scripts/export-skills.py": "ca179e182d0e2c3110f2e7e8ae862a04af8e3ab27c79d860dc9548b7c0eb9353",
+    "skills/knowledge-services/backends/markdown_export.py": "d9fd51452ce2b58a8abf6106828f5978c63de311b0728531096907be6716a775",
+    "skills/knowledge-services/scripts/test_backend_markdown_http.py": "ae1b99bf832019f546dcf10c03a51d5393561f3f2a87000896a32307ed1979f3",
+    "skills/plugin-panel/references/panel-memory.js": "a04de2483130469dda89c58a291a056548f199f0cf4ec7df48540bfd37f6f4a4",
+    "skills/plugin-panel/references/panel.html": "6b83afdd3728c7d16d24a488755e1f899409dbbab499f742959bd22fabc04166",
+    "skills/plugin-panel/scripts/build_panel.py": "ca952d00eaf0f2cb39fb0fdd42536702378d0044b20ffe5f48ea33da4e8ca7ef",
+    "skills/plugin-panel/scripts/serve_panel.py": "7343c47a75a04fda7db0468dd8ccd349ad7c1f95c12d0c0a4a951428f5ca070c",
+    "tests/test_export_skills.py": "50930c04fc1e38f23803f5a047291505a9ef585d5d84f2297e37cd7024f9614c",
+    "tests/test_knowledge_approved_retrieval.py": "1a3a112064daac40c2abb555e1b93f7daf515337413f08e7a0761e6a300bf94e",
+    "tests/test_knowledge_find.py": "4831565f3d0b49c1c6e9e957319dd1e8de51b9d9ebf7545d6c4a45345bb3dcd0",
+    "tests/test_panel_memory_server.py": "a211f2092951e4521d0e3355dc1f4b702138948258147c617153889da0626830",
+    "tests/test_panel_memory_ui.py": "5b00c337129bb0a25791ea60c988183be4529d7a7c9090735c13a88610e29643"
+  },
+  "final_qa": {
+    "windows": {
+      "expected": 2070,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 42,
+      "gate_exit_code": 0,
+      "report_sha256": "b3f0b7bb9e5f91a7cfb2f39e5ca619db0834f1611de4d9999a278664600369aa",
+      "cohort": "4"
+    },
+    "linux": {
+      "expected": 2090,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 22,
+      "gate_exit_code": 0,
+      "report_sha256": "044a0be2ba35e75b401781959e4c37494d8d53ba63e7b9d93483b24af57fae01",
+      "cohort": "4q"
+    },
+    "windows_test_addendum": {
+      "passed": 1,
+      "cohort": "qa-guard-directed",
+      "report_sha256": "e3a49c9fe9d094346f5f94ef3948a7b5dafa6ec9bb0470e7e246cd8bc8ed0c63",
+      "reason": "Test guard only; all product source bytes identical to approved Windows full QA cohort 4. Separate result, not added to full-suite counts."
+    },
+    "journal_standalone_test_addendum": {
+      "product_sources_unchanged": true,
+      "source_cohort": "4r",
+      "full_qa_cohorts": {
+        "windows": "4",
+        "linux": "4q"
+      },
+      "coverage_method": "Official Coverage.py combine of preserved Windows4 baseline plus standalone journal functional tests; official paths aliases between byte-identical product trees4/4r. No rewritten code filenames or copied redactor bodies.",
+      "initial_diff_coverage_sha256": "eff6ab3c0cc705f9b0e1425c8fa5406f811cac534e121cb909146d048e918448",
+      "original_coverage_data_sha256": "f4b004b7d35c43e88022eb36b889a346bc7e92e0c10751768033e399a3a2ac8f",
+      "container_removed": true,
+      "windows": {
+        "passed": 20,
+        "failed": 0,
+        "skipped": 0,
+        "tests": [
+          "test_standalone_fallback_pem_marker_semantics[before -----BEGIN RSA PRIVATE KEY-----\\nowned-key-material\\n-----END EC PRIVATE KEY----- after-before [secreto redactado] after]",
+          "test_standalone_fallback_pem_marker_semantics[-----BEGIN PRIVATE KEY-----a-----BEGIN EC PRIVATE KEY-----b-----END PRIVATE KEY-----tail-[secreto redactado]tail]",
+          "test_standalone_fallback_pem_marker_semantics[-----BEGIN PRIVATE KEY-----a-----END PRIVATE KEY----- -----BEGIN DSA PRIVATE KEY-----b-----END DSA PRIVATE KEY------[secreto redactado] [secreto redactado]]",
+          "test_standalone_fallback_pem_marker_semantics[-----BEGIN PRIVATE KEY-----unfinished -----BEGIN EC PRIVATE KEY-----unfinished------BEGIN PRIVATE KEY-----unfinished -----BEGIN EC PRIVATE KEY-----unfinished]",
+          "test_standalone_fallback_pem_marker_semantics[-----BEGIN private key-----not a valid marker-----END private key-----------BEGIN private key-----not a valid marker-----END private key-----]",
+          "test_standalone_fallback_assignments_preserve_precision[api_key=Abcdef1234-api_key=[secreto redactado]]",
+          "test_standalone_fallback_assignments_preserve_precision[Password=\"Abcdef1234\" after-Password=\"[secreto redactado]\" after]",
+          "test_standalone_fallback_assignments_preserve_precision[contrase\\xf1a: Abcdef1234 pwd=Other5678-contrase\\xf1a: [secreto redactado] pwd=[secreto redactado]]",
+          "test_standalone_fallback_assignments_preserve_precision[token=short password=lettersOnly pwd=1234567890 clave: FTS5-token=short password=lettersOnly pwd=1234567890 clave: FTS5]",
+          "test_standalone_fallback_assignments_preserve_precision[token=token=token=token=-token=token=token=token=]",
+          "test_standalone_fallback_assignments_preserve_precision[token=token=Abcdef1234 end-token=[secreto redactado] end]",
+          "test_standalone_fallback_assignments_preserve_precision[token_hint=Abcdef1234 password=abc token=Abcdef1234 password=-token_hint=Abcdef1234 password=abc token=[secreto redactado] password=]",
+          "test_standalone_fallback_assignments_preserve_precision[{\"token\":\"a\\\\\"b c\", \"password_hint\":\"unchanged\"}-{\"token\":\"[secreto redactado]\", \"password_hint\":\"unchanged\"}]",
+          "test_standalone_fallback_known_secrets[use ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123-use [secreto redactado]]",
+          "test_standalone_fallback_known_secrets[Bearer AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-Bearer [secreto redactado]]",
+          "test_standalone_fallback_known_secrets[eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dGVzdF9zaWduYXR1cmVfMTIzNDU2Nzg5MA-[secreto redactado]]",
+          "test_standalone_fallback_capture_redacts_before_clip[pem]",
+          "test_standalone_fallback_capture_redacts_before_clip[api]",
+          "test_standalone_fallback_capture_redacts_before_clip[unterminated-pem]",
+          "test_standalone_fallback_selection_preserves_unicode_identity"
+        ],
+        "report_sha256": "fac5a9c12216e02da28bad130603c892e0645888fee6f3c62e13be8deeb94294"
+      },
+      "linux": {
+        "passed": 20,
+        "failed": 0,
+        "skipped": 0,
+        "tests": [
+          "test_standalone_fallback_pem_marker_semantics[before -----BEGIN RSA PRIVATE KEY-----\\nowned-key-material\\n-----END EC PRIVATE KEY----- after-before [secreto redactado] after]",
+          "test_standalone_fallback_pem_marker_semantics[-----BEGIN PRIVATE KEY-----a-----BEGIN EC PRIVATE KEY-----b-----END PRIVATE KEY-----tail-[secreto redactado]tail]",
+          "test_standalone_fallback_pem_marker_semantics[-----BEGIN PRIVATE KEY-----a-----END PRIVATE KEY----- -----BEGIN DSA PRIVATE KEY-----b-----END DSA PRIVATE KEY------[secreto redactado] [secreto redactado]]",
+          "test_standalone_fallback_pem_marker_semantics[-----BEGIN PRIVATE KEY-----unfinished -----BEGIN EC PRIVATE KEY-----unfinished------BEGIN PRIVATE KEY-----unfinished -----BEGIN EC PRIVATE KEY-----unfinished]",
+          "test_standalone_fallback_pem_marker_semantics[-----BEGIN private key-----not a valid marker-----END private key-----------BEGIN private key-----not a valid marker-----END private key-----]",
+          "test_standalone_fallback_assignments_preserve_precision[api_key=Abcdef1234-api_key=[secreto redactado]]",
+          "test_standalone_fallback_assignments_preserve_precision[Password=\"Abcdef1234\" after-Password=\"[secreto redactado]\" after]",
+          "test_standalone_fallback_assignments_preserve_precision[contrase\\xf1a: Abcdef1234 pwd=Other5678-contrase\\xf1a: [secreto redactado] pwd=[secreto redactado]]",
+          "test_standalone_fallback_assignments_preserve_precision[token=short password=lettersOnly pwd=1234567890 clave: FTS5-token=short password=lettersOnly pwd=1234567890 clave: FTS5]",
+          "test_standalone_fallback_assignments_preserve_precision[token=token=token=token=-token=token=token=token=]",
+          "test_standalone_fallback_assignments_preserve_precision[token=token=Abcdef1234 end-token=[secreto redactado] end]",
+          "test_standalone_fallback_assignments_preserve_precision[token_hint=Abcdef1234 password=abc token=Abcdef1234 password=-token_hint=Abcdef1234 password=abc token=[secreto redactado] password=]",
+          "test_standalone_fallback_assignments_preserve_precision[{\"token\":\"a\\\\\"b c\", \"password_hint\":\"unchanged\"}-{\"token\":\"[secreto redactado]\", \"password_hint\":\"unchanged\"}]",
+          "test_standalone_fallback_known_secrets[use ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123-use [secreto redactado]]",
+          "test_standalone_fallback_known_secrets[Bearer AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-Bearer [secreto redactado]]",
+          "test_standalone_fallback_known_secrets[eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dGVzdF9zaWduYXR1cmVfMTIzNDU2Nzg5MA-[secreto redactado]]",
+          "test_standalone_fallback_capture_redacts_before_clip[pem]",
+          "test_standalone_fallback_capture_redacts_before_clip[api]",
+          "test_standalone_fallback_capture_redacts_before_clip[unterminated-pem]",
+          "test_standalone_fallback_selection_preserves_unicode_identity"
+        ],
+        "report_sha256": "4efbb773a28b5da0bd6cfbfbd69ad60d3b5d15c65552d896c8ce7f1132a218be"
+      },
+      "initial_combine_warning_preserved": "Coverage database stem shared the coverage.ini/json/log artifact prefix, which report auto-combine interpreted as inputs; failed/misclassified harness attempts preserved. Fresh directed dataset and pristine baseline combined by exactly two file paths; report uses a dedicated database name, zero final warnings. Product unchanged.",
+      "final_combine_warnings": 0,
+      "combine_recovery": {
+        "directed_passed": 20,
+        "source_product_unchanged": true,
+        "combine_log_sha256": "cf89d404d137a76d6c09fa6197749ae42976e2cacd583604428c4c156a23c6d4",
+        "report_sha256": "9dfd4d4884266450f03a52e0c5030025b6f4b3724d8e3e292640e01df17628a4",
+        "baseline_original_sha256": "f4b004b7d35c43e88022eb36b889a346bc7e92e0c10751768033e399a3a2ac8f",
+        "coverage_json_sha256": "143c36bfefa3175b04d71541ad538a23412b70ab34f7a2d6e5b10ef22c1eea8f"
+      }
+    },
+    "journal_module_regression": {
+      "passed": 170,
+      "skipped": 10,
+      "failed": 0,
+      "platform": "Windows",
+      "source_sha256": "bd23a9f357a38ed091f2f3a58aa3364d1d53c3ee152398b2ee70f74b4ca718b4",
+      "result_sha256": "015f5f214084d9ffbf49f9149c705900cd7882b4513117f594db7c9057318f74",
+      "log_sha256": "bbe688fb0e88b93a776c420238d77f71432c654c09d38e4a5ebcabd32edfb51c",
+      "long_path_harness_failure_preserved": {
+        "failed": 10,
+        "passed": 161,
+        "skipped": 9,
+        "changed": "Only owned temporary root/HOME shortened; tests and product hashes identical."
+      }
+    },
+    "original_linux_failure_preserved": {
+      "cohort": "4",
+      "failed": 1,
+      "cause": "Overbroad test import guard blocked pure urllib.parse used by pathlib; product unchanged, test corrected and independently reviewed.",
+      "report_sha256": "5e4b9e989d9c9e75564a519441358b05c7268f415411b00595b7518920c9c0c0"
+    }
+  },
+  "browser": {
+    "mode": "real_playwright_api_public_callbacks",
+    "runner_cli": false,
+    "retries": 0,
+    "browser_version": "154.0.8037.98",
+    "browser": "Chrome",
+    "passed": 7,
+    "failed": 0,
+    "callbacks_executed": 7,
+    "bypass_csp": false,
+    "qa_gate_exit_code": 0,
+    "server_closed": true,
+    "synthetic_project_and_homes": true,
+    "real_backend_contacted": false,
+    "source_hashes": {
+      "skills/plugin-panel/scripts/serve_panel.py": "7343c47a75a04fda7db0468dd8ccd349ad7c1f95c12d0c0a4a951428f5ca070c",
+      "skills/plugin-panel/scripts/build_panel.py": "ca952d00eaf0f2cb39fb0fdd42536702378d0044b20ffe5f48ea33da4e8ca7ef",
+      "skills/plugin-panel/references/panel.html": "6b83afdd3728c7d16d24a488755e1f899409dbbab499f742959bd22fabc04166",
+      "skills/plugin-panel/references/panel-live.js": "fa9c1fba9c06b79d8b8106512a16525afd2e0cba37f322765aa9431837fb72ea",
+      "skills/plugin-panel/references/panel-memory.js": "a04de2483130469dda89c58a291a056548f199f0cf4ec7df48540bfd37f6f4a4",
+      "agent-kits/shared/knowledge-view.py": "6940a7f9f048805594c20fb1364a55151af26bbe6c3224a703cf2eb9702f044b",
+      "agent-kits/shared/knowledge-find.py": "ac191a40590c7ae2c5051ec9e61165b8f9aa198892382a1e1df65806320a70ba",
+      "agent-kits/shared/knowledge-local.py": "028ccb2e7a1acdbbfec5b1dc5d072da0f7e9128396d984321478d8f4e980ac8f",
+      "agent-kits/shared/local-read.py": "0921b6bbf628ac46c5f60d8cb6c4fe0bb467f5c9573abd7b9f16cc6f63326180",
+      "agent-kits/shared/redact.py": "4e9131368fd2471dcb2e3a2e91f6b0dc00555354487b6308194be05e4c4d5907",
+      "docs/roadmap/2026-10-07-catalog-capabilities/testing/panel-memory.spec.cjs": "700e98da468404e2eb46edc6f05c423db1f2aa628190ebb134c9cf127425ce5f"
+    },
+    "cases": [
+      {
+        "id": "M-01",
+        "status": "passed",
+        "duration_ms": 6038
+      },
+      {
+        "id": "M-02",
+        "status": "passed",
+        "duration_ms": 2989
+      },
+      {
+        "id": "M-03",
+        "status": "passed",
+        "duration_ms": 4520
+      },
+      {
+        "id": "M-04",
+        "status": "passed",
+        "duration_ms": 2007
+      },
+      {
+        "id": "M-05",
+        "status": "passed",
+        "duration_ms": 2260
+      },
+      {
+        "id": "M-06",
+        "status": "passed",
+        "duration_ms": 2726
+      },
+      {
+        "id": "M-07",
+        "status": "passed",
+        "duration_ms": 887
+      }
+    ],
+    "screenshots": [
+      {
+        "name": "memory-desktop.png",
+        "sha256": "5956e5c7af0910fb7f3012948ce7c4a7bca6f347db5392e9b93b76d351f5a20c"
+      },
+      {
+        "name": "memory-mobile.png",
+        "sha256": "fb7874c6366f16c8199111b30177af1243d9a69308202a6bd8d9212d3be9593a"
+      }
+    ],
+    "private_report_sha256": "a935eae8e377d3883c2375c4aea24fb36c3ab94fc3e5341c9afcfa49b8843c0d",
+    "limitations": "Synthetic served and offline panel in Chrome; two Edge launches failed before any callback and do not count as validation. No native host acceptance or backend retrieval-quality claim."
+  },
+  "diff_coverage": {
+    "method": "Coverage.py executable statements intersected with added Git diff lines vs 21092c2; new knowledge-view includes every executable statement. JavaScript/browser separate.",
+    "covered": 764,
+    "total": 835,
+    "percent": 91.5,
+    "files": [
+      {
+        "file": "agent-kits/shared/journal.py",
+        "covered": 46,
+        "total": 46,
+        "uncovered_lines": []
+      },
+      {
+        "file": "agent-kits/shared/knowledge-find.py",
+        "covered": 151,
+        "total": 173,
+        "uncovered_lines": [
+          837,
+          838,
+          839,
+          848,
+          850,
+          863,
+          1575,
+          1576,
+          1589,
+          1590,
+          1599,
+          1725,
+          1726,
+          1727,
+          1728,
+          1729,
+          1730,
+          1733,
+          1734,
+          1735,
+          1736,
+          1737
+        ]
+      },
+      {
+        "file": "agent-kits/shared/knowledge-local.py",
+        "covered": 39,
+        "total": 47,
+        "uncovered_lines": [
+          351,
+          352,
+          371,
+          372,
+          376,
+          382,
+          389,
+          392
+        ]
+      },
+      {
+        "file": "agent-kits/shared/knowledge-view.py",
+        "covered": 230,
+        "total": 259,
+        "uncovered_lines": [
+          101,
+          102,
+          105,
+          106,
+          114,
+          158,
+          159,
+          165,
+          166,
+          167,
+          188,
+          189,
+          235,
+          236,
+          238,
+          239,
+          254,
+          255,
+          256,
+          258,
+          259,
+          304,
+          305,
+          315,
+          316,
+          317,
+          318,
+          320,
+          321
+        ]
+      },
+      {
+        "file": "agent-kits/shared/redact.py",
+        "covered": 46,
+        "total": 46,
+        "uncovered_lines": []
+      },
+      {
+        "file": "scripts/export-skills.py",
+        "covered": 8,
+        "total": 10,
+        "uncovered_lines": [
+          173,
+          174
+        ]
+      },
+      {
+        "file": "skills/knowledge-services/backends/markdown_export.py",
+        "covered": 169,
+        "total": 177,
+        "uncovered_lines": [
+          402,
+          417,
+          420,
+          502,
+          786,
+          787,
+          1162,
+          1163
+        ]
+      },
+      {
+        "file": "skills/plugin-panel/scripts/build_panel.py",
+        "covered": 4,
+        "total": 4,
+        "uncovered_lines": []
+      },
+      {
+        "file": "skills/plugin-panel/scripts/serve_panel.py",
+        "covered": 71,
+        "total": 73,
+        "uncovered_lines": [
+          42,
+          251
+        ]
+      }
+    ]
+  },
+  "independent_review": {
+    "attempt": 4,
+    "lenses": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "critical": 0,
+    "important": 0,
+    "minor": 0,
+    "qa_test_addendum": true,
+    "reports_sha256": {
+      "A": "3e7707372d43e5e1c8cb1f930b52fd4eab1d41bc7788b3016a8842688daafd93",
+      "B": "6524d9881716a4e1a0830b6473e957acbeedab4565e04a122478165167cbe826",
+      "C": "1bb619ffc0ee47fb34f86a0942e1cab64e1e1526eadd40934a28bf6f515f2808",
+      "D": "fd50f8a0db4647ac531b266ace79d8295ff30e8e6eee6b25a22309199090ebc5"
+    },
+    "qa_addendum_reports_sha256": {
+      "A": "e5ac1980f43aaf9beeece2eac3e087a63359af70e761463baf6fd95c43a55be9",
+      "B": "f0ae88d7a457d6f2ee4abed303076fa552364ce7a0c6cb566e8f69d3f1855d79"
+    },
+    "coverage_addendum_reports_sha256": {
+      "A": "ee92010ebc8215d32e89d0d2bc14b469699c0f3267bd8b9a595d011822266dba",
+      "B": "98bb2eb5203ff0a8be24eeec2558c577cd66ec5840a333d6d31e4ed2cbe64573"
+    }
+  }
+}

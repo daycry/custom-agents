@@ -520,6 +520,11 @@ flowchart LR
     Summary --> Redactor[Canonical redactor and public fields]
     Redactor --> Server
     Server --> Progress[Progress view with read date]
+    Action[Explicit Search Show Relations] --> Query[knowledge-view local query]
+    Corpus[Canonical legacy and approved] --> Snapshot[Bounded snapshot and local approved validation]
+    Snapshot --> Query
+    Query -->|parser ranking relations and redaction| Server
+    Server --> Memory[View with state version evidence and source]
 ```
 
 The panel executes neither doctor nor hooks. Source presence and declared budgets

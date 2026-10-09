@@ -9,6 +9,18 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — Bounded canonical memory queries
+
+- Share bounded legacy/approved snapshots between CLI and served-panel Search, Show and Relations. Preserve full IDs, knowledge versions, evidence, collisions and partial reads; portable exports include transitive Python helpers without executing them.
+
+### Fixed — Document bridge HTTP bounds
+
+- Bound response bytes, JSON nesting and cumulative request time, with private IP pinning, redirect cleanup and preserved HTTPS verification. Publication remains owned by the existing adapter.
+
+### Fixed — Bounded redaction work
+
+- Scan PEM markers and secret assignments in linear time before clipping memory text. Preserve canonical redaction semantics and the journal's declared standalone fallback.
+
 ### Added — Local operational dashboard
 
 - Add explicit loopback serving with capability access and a bounded canonical-ledger progress view, polling, filters and visible read freshness. Keep catalog snapshots and live ledger reads distinct; no automatic runtime or memory actions.

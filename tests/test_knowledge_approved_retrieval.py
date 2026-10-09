@@ -321,9 +321,13 @@ def test_hook_style_approved_retrieval_cannot_import_network_modules(consumer):
         "import sys, runpy\n"
         "class NoNetworkImports:\n"
         " def find_spec(self, fullname, path=None, target=None):\n"
-        "  if fullname.split('.')[0] in ('urllib', 'socket', 'requests') or fullname == 'http.client':\n"
+        "  if fullname.split('.')[0] in ('socket', 'requests') or fullname == 'http.client' or (fullname.startswith('urllib.') and fullname != 'urllib.parse'):\n"
         "   raise AssertionError('network-capable import: ' + fullname)\n"
         "sys.meta_path.insert(0, NoNetworkImports())\n"
+        "def no_network_operations(event, args):\n"
+        " if event.startswith('socket.') or event in ('urllib.Request', 'http.client.connect', 'http.client.send'):\n"
+        "  raise AssertionError('network operation: ' + event)\n"
+        "sys.addaudithook(no_network_operations)\n"
         "sys.argv = sys.argv[1:]\n"
         "runpy.run_path(sys.argv[0], run_name='__main__')\n"
     )
@@ -338,6 +342,7 @@ def test_hook_style_approved_retrieval_cannot_import_network_modules(consumer):
     data = json.loads(result.stdout)
     assert {item["id"] for item in data["aciertos"]} == {ENTRY_ID, PEER_ID}, data
     assert "network-capable import" not in result.stderr
+    assert "network operation" not in result.stderr
 
 
 def test_portable_export_closes_local_helper_dependencies():

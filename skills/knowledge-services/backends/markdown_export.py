@@ -112,6 +112,7 @@ import contextlib
 import hashlib
 import http.client
 import ipaddress
+import io
 import json
 import os
 import re
@@ -148,6 +149,11 @@ _DNS_CACHE_TTL_S_LENTO = 5  # gap 138: el caso "colgado" (agotó _DNS_TIMEOUT_S)
                             # TTL corto para no perforar el `join()` en cada llamada consecutiva,
                             # pero se reintenta pronto (podría ser un pico transitorio del DNS)
 _MAX_REDIRECCIONES = 5  # gap 137: tope de saltos de una cadena de redirección HTTP
+_HEALTH_MAX_BYTES = 64 * 1024
+_SNAPSHOT_MAX_BYTES = 2 * 1024 * 1024
+_ERROR_MAX_BYTES = 64 * 1024
+_JSON_MAX_DEPTH = 64
+_HTTP_READ_CHUNK = 16 * 1024
 
 REMEDIO = "reindexar: `build_view` + reiniciar `kwipu`, `kwipu-bridge`, `kwipu-mcp`"
 
@@ -271,7 +277,7 @@ def _resolver_host_con_tope(host, timeout_s=_DNS_TIMEOUT_S):
     return ip
 
 
-def _host_permitido(url):
+def _host_permitido(url, _deadline=None):
     """Invariante de seguridad del plugin (gap 97, CWE-918): solo hosts locales/privados, mismo
     criterio que `agent-kits/nemesis/tools/lib-guardrail.sh`. Se resuelve el hostname (con tope y
     caché, gap 117) y se comprueba la IP resultante; si no resuelve, se rechaza (fail-closed)."""
@@ -290,7 +296,8 @@ def _host_permitido(url):
     try:
         ip = ipaddress.ip_address(host)
     except ValueError:
-        resuelto = _resolver_host_con_tope(host)
+        remaining = min(_DNS_TIMEOUT_S, _remaining(_deadline)) if _deadline is not None else _DNS_TIMEOUT_S
+        resuelto = _resolver_host_con_tope(host, remaining)
         if resuelto is None:
             return False
         try:
@@ -313,7 +320,160 @@ class _SinRedireccionAutomatica(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def _urlopen_local(url, timeout_s):
+class _HTTPBudgetError(ValueError):
+    """An incomplete response cannot establish health or graph verification."""
+
+
+def _remaining(deadline):
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("HTTP time budget exhausted")
+    return remaining
+
+
+class _DeadlineReader(io.RawIOBase):
+    """Give every socket receive the remaining total budget, including header reads.
+
+    HTTPResponse owns a standard socket file. Its raw stream is transferred to
+    this wrapper before any read; closing the replacement closes that same file.
+    No background worker or global socket mutation is involved.
+    """
+
+    def __init__(self, raw, sock, deadline):
+        super().__init__()
+        self.raw, self.sock, self.deadline = raw, sock, deadline
+
+    def readable(self):
+        return True
+
+    def readinto(self, buffer):
+        self.sock.settimeout(_remaining(self.deadline))
+        return self.raw.readinto(buffer)
+
+    def close(self):
+        try:
+            self.raw.close()
+        finally:
+            super().close()
+
+
+def _deadline_opener(deadline, address=None):
+    class TLSConnection(http.client.HTTPSConnection):
+        def connect(self):
+            # TCP and TLS share one budget: TCP may have consumed most of the
+            # socket timeout set by pinned_connect. Recompute before handshake.
+            http.client.HTTPConnection.connect(self)
+            server_hostname = self._tunnel_host or self.host
+            self.sock.settimeout(_remaining(deadline))
+            self.sock = self._context.wrap_socket(self.sock, server_hostname=server_hostname)
+
+    class Response(http.client.HTTPResponse):
+        def __init__(self, sock, *args, **kwargs):
+            super().__init__(sock, *args, **kwargs)
+            self.fp = io.BufferedReader(_DeadlineReader(self.fp.detach(), sock, deadline))
+
+    def connection(kind, *args, **kwargs):
+        result = kind(*args, **kwargs)
+        result.response_class = Response
+        if address is not None:
+            def pinned_connect(target, timeout=None, source_address=None):
+                return socket.create_connection((address, target[1]),
+                                                _remaining(deadline), source_address)
+            result._create_connection = pinned_connect
+        return result
+
+    class HTTP(urllib.request.HTTPHandler):
+        def http_open(self, req):
+            return self.do_open(lambda *a, **kw: connection(http.client.HTTPConnection, *a, **kw), req)
+
+    class HTTPS(urllib.request.HTTPSHandler):
+        def __init__(self):
+            # A plain HTTP check must not pay for loading the platform TLS trust
+            # store. Preserve urllib's default certificate validation for HTTPS.
+            urllib.request.AbstractHTTPHandler.__init__(self)
+            self._context = None
+
+        def https_open(self, req):
+            if self._context is None:
+                urllib.request.HTTPSHandler.__init__(self)
+            _remaining(deadline)
+            kwargs = {"context": self._context}
+            if hasattr(self, "_check_hostname"):
+                kwargs["check_hostname"] = self._check_hostname
+            return self.do_open(lambda *a, **kw: connection(TLSConnection, *a, **kw),
+                                req, **kwargs)
+
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}),
+                                       _SinRedireccionAutomatica, HTTP, HTTPS)
+
+
+def _pinned_address(url, deadline):
+    host = urllib.parse.urlsplit(url).hostname
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        resolved = _resolver_host_con_tope(host, min(_DNS_TIMEOUT_S, _remaining(deadline)))
+        if resolved is None:
+            raise TimeoutError("HTTP DNS budget exhausted or host unresolved")
+        address = ipaddress.ip_address(resolved)
+    if not (address.is_loopback or address.is_private):
+        raise _RedireccionNoPermitida(url)
+    return str(address)
+
+
+def _read_http_body(response, limit, deadline):
+    """Read at most limit+1 bytes; one receive per read1, under the same deadline."""
+    chunks, total = [], 0
+    read = getattr(response, "read1", response.read)
+    while True:
+        _remaining(deadline)
+        chunk = read(min(_HTTP_READ_CHUNK, limit + 1 - total))
+        _remaining(deadline)
+        if not chunk:
+            if getattr(response, "length", None) not in (None, 0):
+                raise _HTTPBudgetError("incomplete HTTP body")
+            return b"".join(chunks)
+        total += len(chunk)
+        if total > limit:
+            raise _HTTPBudgetError("HTTP byte budget exceeded")
+        chunks.append(chunk)
+
+
+def _parse_http_json(body, deadline=None):
+    # Scan nesting outside strings BEFORE json.loads: deep input must not reach
+    # Python's recursion limit. Byte budgets are enforced before this scan.
+    text = body.decode("utf-8")
+    depth, quoted, escaped = 0, False, False
+    for position, char in enumerate(text):
+        if deadline is not None and position % _HTTP_READ_CHUNK == 0:
+            _remaining(deadline)
+        if quoted:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                quoted = False
+        elif char == '"':
+            quoted = True
+        elif char in "[{":
+            depth += 1
+            if depth > _JSON_MAX_DEPTH:
+                raise _HTTPBudgetError("JSON depth budget exceeded")
+        elif char in "]}":
+            depth -= 1
+    def invalid_constant(_value):
+        raise ValueError("invalid JSON constant")
+
+    if deadline is not None:
+        _remaining(deadline)
+    result = json.loads(text, parse_constant=invalid_constant)
+    if deadline is not None:
+        _remaining(deadline)
+    return result
+
+
+def _urlopen_local(url, timeout_s, _deadline=None):
     """Sigue redirecciones a mano (gap 137, ver `_SinRedireccionAutomatica`): revalida CADA salto
     contra `_host_permitido` ANTES de seguirlo (gap 112 — un bridge local comprometido no puede
     usar un `302` para hablar con un host público), acota el número de saltos a
@@ -322,31 +482,31 @@ def _urlopen_local(url, timeout_s):
     heredar `timeout_s` completo en cada salto. Usa un `opener` nuevo por llamada: es barato (sin
     estado que compartir) y evita cualquier fuga de configuración entre llamadas de
     `health()`/`verify()` en el mismo proceso."""
-    opener = urllib.request.build_opener(_SinRedireccionAutomatica)
-    deadline = time.time() + timeout_s
+    deadline = _deadline if _deadline is not None else time.monotonic() + timeout_s
     url_actual = url
     saltos = 0
     while True:
-        if not _host_permitido(url_actual):
+        if not _host_permitido(url_actual, _deadline=deadline):
             raise _RedireccionNoPermitida(url_actual)
-        restante = deadline - time.time()
-        if restante <= 0:
-            raise TimeoutError(
-                f"tiempo agotado (presupuesto total {timeout_s:.3f}s) siguiendo la cadena de "
-                f"redirecciones hacia `{url_actual}`")
+        address = _pinned_address(url_actual, deadline)
+        opener = _deadline_opener(deadline, address)
+        restante = _remaining(deadline)
         try:
             return opener.open(url_actual, timeout=restante)
         except urllib.error.HTTPError as e:
             if e.code not in (301, 302, 303, 307, 308):
                 raise
-            newurl = e.headers.get("Location") if e.headers else None
-            if not newurl:
-                raise
-            saltos += 1
-            if saltos > _MAX_REDIRECCIONES:
-                raise _RedireccionNoPermitida(
-                    urllib.parse.urljoin(url_actual, newurl)) from e
-            url_actual = urllib.parse.urljoin(url_actual, newurl)
+            try:
+                newurl = e.headers.get("Location") if e.headers else None
+                if not newurl:
+                    raise
+                saltos += 1
+                if saltos > _MAX_REDIRECCIONES:
+                    raise _RedireccionNoPermitida(
+                        urllib.parse.urljoin(url_actual, newurl)) from e
+                url_actual = urllib.parse.urljoin(url_actual, newurl)
+            finally:
+                e.close()
 
 
 def _export_dir_resuelto(cfg):
@@ -619,12 +779,17 @@ def health(cfg):
     url = health_cfg.get("url")
     if not url:
         return {"estado": "off", "detalle": "sin `health.url` configurada"}
-    if not _host_permitido(url):
-        return {"estado": "error", "detalle": f"host no local/privado, rechazado: {url}"}
     timeout_s = _timeout_s(health_cfg)
+    deadline = time.monotonic() + timeout_s
     try:
-        with _urlopen_local(url, timeout_s) as resp:
-            cuerpo = resp.read()
+        allowed = _host_permitido(url, _deadline=deadline)
+    except TimeoutError:
+        return {"estado": "off", "detalle": "HTTP time budget exhausted"}
+    if not allowed:
+        return {"estado": "error", "detalle": f"host no local/privado, rechazado: {url}"}
+    try:
+        with _urlopen_local(url, timeout_s, _deadline=deadline) as resp:
+            cuerpo = _read_http_body(resp, _HEALTH_MAX_BYTES, deadline)
     except _RedireccionNoPermitida as e:
         # gap 180: `e.url` viene del cabecera `Location` del servidor (no confiable) — se sanea
         # ANTES de anteponer el prefijo de confianza, igual que en el resto de ramas (gap 182).
@@ -633,7 +798,7 @@ def health(cfg):
     except urllib.error.HTTPError as e:
         # gap 180: `cuerpo_err` es JSON ya parseado, pero sus valores de cadena vienen del
         # servidor tal cual (CRLF/ANSI, sin tope) — se sanea su representación antes de embeberla.
-        cuerpo_err = _cuerpo_json_o_none(e)
+        cuerpo_err = _cuerpo_json_o_none(e, deadline)
         detalle = f"HTTP {e.code} de {url}" + (f": {_sanear_detalle(cuerpo_err)}" if cuerpo_err else "")
         return {"estado": "degradado" if 500 <= e.code < 600 else "error", "detalle": detalle}
     except (urllib.error.URLError, TimeoutError, OSError) as e:
@@ -650,6 +815,8 @@ def health(cfg):
         # se come parte del tope o lo desplaza fuera de los 200 caracteres.
         return {"estado": "error",
                 "detalle": f"respuesta no HTTP de {url}: {type(e).__name__}: {_sanear_detalle(e)}"}
+    except _HTTPBudgetError as e:
+        return {"estado": "error", "detalle": str(e)}
     except ValueError as e:
         # gap 184: un `Location` mal formado (p. ej. `http://[` con un corchete de IPv6 sin
         # cerrar) hace que `urllib.parse.urljoin`/`urlsplit`, dentro de `_urlopen_local`, lancen
@@ -659,8 +826,9 @@ def health(cfg):
         return {"estado": "error",
                 "detalle": f"URL o redirección mal formada en {url}: {_sanear_detalle(e)}"}
     try:
-        datos = json.loads(cuerpo.decode("utf-8"))
-    except (ValueError, UnicodeDecodeError) as e:
+        datos = _parse_http_json(cuerpo, deadline)
+        _remaining(deadline)
+    except (ValueError, UnicodeDecodeError, RecursionError, TimeoutError) as e:
         return {"estado": "error", "detalle": f"respuesta no es JSON válido: {e}"}
     if not isinstance(datos, dict):
         return {"estado": "error", "detalle": "respuesta JSON no es un objeto"}
@@ -677,11 +845,18 @@ def health(cfg):
     return {"estado": "error", "detalle": detalle}
 
 
-def _cuerpo_json_o_none(http_error):
+def _cuerpo_json_o_none(http_error, deadline=None):
     try:
-        return json.loads(http_error.read().decode("utf-8"))
+        if deadline is None:
+            deadline = time.monotonic() + 0.8
+        body = _read_http_body(http_error, _ERROR_MAX_BYTES, deadline)
+        result = _parse_http_json(body, deadline)
+        _remaining(deadline)
+        return result
     except Exception:  # noqa: BLE001 — el cuerpo de un HTTPError es best-effort
         return None
+    finally:
+        http_error.close()
 
 
 def plan(entries, cfg, force=False):
@@ -981,15 +1156,32 @@ def verify(cfg):
         return {"ok": False, "desfase": [{"knowledge_id": None,
                 "motivo": "sin `health.url` configurada, no se puede localizar `/graph/snapshot`",
                 "remedio": REMEDIO}]}
-    if not _host_permitido(health_url):
+    deadline = time.monotonic() + timeout_s
+    try:
+        allowed = _host_permitido(health_url, _deadline=deadline)
+    except TimeoutError:
+        return {"ok": False, "desfase": [{"knowledge_id": None,
+                "motivo": "HTTP time budget exhausted", "remedio": REMEDIO}]}
+    if not allowed:
         return {"ok": False, "desfase": [{"knowledge_id": None,
                 "motivo": f"host no local/privado, rechazado: {health_url}",
                 "remedio": REMEDIO}]}
     snapshot_url = _base_url_snapshot(health_url) + "/graph/snapshot"
     try:
-        with _urlopen_local(snapshot_url, timeout_s) as resp:
-            cuerpo = resp.read()
-        snapshot = json.loads(cuerpo.decode("utf-8"))
+        with _urlopen_local(snapshot_url, timeout_s, _deadline=deadline) as resp:
+            cuerpo = _read_http_body(resp, _SNAPSHOT_MAX_BYTES, deadline)
+        snapshot = _parse_http_json(cuerpo, deadline)
+        _remaining(deadline)
+        if not isinstance(snapshot, dict) or not isinstance(snapshot.get("nodes"), list):
+            raise ValueError("invalid JSON snapshot: expected object with nodes array")
+        for node in snapshot["nodes"]:
+            if not isinstance(node, dict):
+                raise ValueError("invalid JSON snapshot node")
+            if node.get("type") == "chunk" and (
+                    not isinstance(node.get("file_name"), str) or not node["file_name"] or
+                    ("hash" in node and not isinstance(node["hash"], str))):
+                raise ValueError("invalid JSON snapshot chunk")
+        _remaining(deadline)
     except _RedireccionNoPermitida as e:
         # gap 180: `e.url` viene de un cabecera `Location` no confiable — se sanea antes del
         # prefijo propio, igual que en `health()`.
@@ -997,13 +1189,15 @@ def verify(cfg):
                 "motivo": f"redirección a host no local/privado, rechazada: {_sanear_detalle(e.url)}",
                 "remedio": REMEDIO}]}
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError,
-            ValueError, UnicodeDecodeError, http.client.HTTPException) as e:
+            ValueError, UnicodeDecodeError, RecursionError, http.client.HTTPException) as e:
         # gap 155: `http.client.HTTPException` (respuesta no HTTP de un host local permitido)
         # no es subclase de `OSError`; se captura explícitamente, igual que en `health()`.
         # gap 176 (CWE-117): mismo saneado que en `health()` — el mensaje de excepción puede
         # traer bytes crudos del servidor (CRLF, ANSI) que acaban impresos por `/doctor`.
         # gap 182: el tope de 200 se aplica SOLO a `{e}` (lo no confiable) para no comerse el
         # prefijo propio (`no se pudo conectar a {snapshot_url}: {type(e).__name__}: `).
+        if isinstance(e, urllib.error.HTTPError):
+            e.close()
         return {"ok": False, "desfase": [{"knowledge_id": None,
                 "motivo": f"no se pudo conectar a {snapshot_url}: {type(e).__name__}: "
                           f"{_sanear_detalle(e)}",

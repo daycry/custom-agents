@@ -14,8 +14,17 @@ su publicación no demuestra que funcionen mejor en nuestro proyecto.
 
 La [dirección aceptada](../operational-priorities.md) mantiene Markdown local
 como origen canónico. El [contrato de comandos y panel](memory-command-contract.md)
-define la consulta explícita y acotada pendiente. Esta comparación añade selección
+define la consulta explícita y acotada. Esta comparación añade selección
 de componentes; no cierra T-07, T-11 o T-13 ni añade nuevas skills.
+
+Actualización del bloque16: la consulta común está implementada y validada
+por revisión A/B/C/D, QA Windows/Linux y siete casos reales del panel en Chrome.
+El cuarto pase acotado cerró el defecto de comillas; un addendum A/B corrigió
+únicamente el guard de red del test Linux. CLI y panel comparten snapshot,
+búsqueda, ID, relaciones, procedencia y diagnósticos de parcialidad.
+La [evidencia de implementación](../testing/memory-query-evidence.json) separa
+cohortes, fallos preservados y límites. Esta entrega parcial no demuestra mejor
+calidad de recuperación ni completa la selección de componentes.
 
 ## Comparación con la memoria de referencia y la propia
 
@@ -29,8 +38,8 @@ MCP ni pruebas y no infiere eficacia de sus ejemplos.
 | Continuidad | Resumen de sesión, coincidencia de repositorio y envoltura histórica al reanudar; posible resumen con modelo | Journal separado y reanudación con estados y evidencia | Los tres deben complementar la continuidad sin repetir acciones antiguas. |
 | Aprendizaje | Observaciones por proyecto, patrones con confianza y evolución a componentes | Propuestas del journal y decisión del curador antes de aprobar | Recuperar mejor no sustituye aprobar patrones o instrucciones. |
 | Memoria explícita | Markdown por proyecto/equipo/usuario, ID, estado, procedencia y destinos; confianza admitida `unreviewed` | Conocimiento aprobado versionado, candidatos y memoria episódica distintos | Kwipu y Graphiti deben resolver citas al ID/versión/estado propios. |
-| Recuperación | Scoring léxico local; CLI y MCP usan el mismo vault; límites de archivos/bytes y diagnósticos de truncamiento | Búsqueda local, router por intent y respaldo; el camino ordinario aún lee el corpus entero | Kwipu puede añadir recuperación semántica; Graphiti relaciones e historial; Graphify estructura de código. |
-| Uso humano | CLI y Markdown legible; el ejemplo de conformidad no acredita UX | Documentos y estado del panel; consulta común todavía pendiente | Kwipu ofrece exploración documental; Graphify navegación de código; Graphiti necesita presentación propia. |
+| Recuperación | Scoring léxico local; CLI y MCP usan el mismo vault; límites de archivos/bytes y diagnósticos de truncamiento | Búsqueda local y router por intent con respaldo; snapshot común acotado validado por QA de implementación | Kwipu puede añadir recuperación semántica; Graphiti relaciones e historial; Graphify estructura de código. |
+| Uso humano | CLI y Markdown legible; el ejemplo de conformidad no acredita UX | Documentos, estado y consulta explícita del panel; búsqueda/ID/relaciones compartidas validadas en Chrome | Kwipu ofrece exploración documental; Graphify navegación de código; Graphiti necesita presentación propia. |
 
 `R01` limita el escaneo a 5.000 entradas y 16 MiB; `R02` limita documento y cuerpo.
 La búsqueda exige estado activo, pero no aprobación: `R02` solo admite confianza
@@ -145,7 +154,7 @@ El lector propio no valida toda esa compatibilidad por aceptar nodos y citas.
 
 | Componente | Persistencia y reconstrucción observadas | Costes que exige medir |
 |---|---|---|
-| Base local propia | Markdown canónico y caché SQLite reconstruible; journal separado. La consulta ordinaria puede reconstruir la caché. | Latencia, contexto entregado y lectura total; consulta web acotada todavía pendiente. |
+| Base local propia | Markdown canónico y caché SQLite reconstruible; journal separado. Consulta ordinaria con snapshot acotado y caché solo completa; `--view`/panel sin caché. | Calidad de recuperación, latencia, contexto entregado y UX humana todavía sin medir. |
 | Kwipu | Índice derivado con generaciones, lock y revisión. Cambios o borrados provocan reconstrucción por lote en el código actual. | Extracción y respuestas con modelo, embeddings, CPU/GPU/RAM, almacenamiento, duración de rebuild y mantenimiento de watcher/bridge/UI. |
 | Graphiti | Base de grafos, episodios y relaciones derivadas; publicación propia con manifiesto. `rebuild` propio vacía el grupo antes de republicar. | Base de datos, extracción/deducción, embeddings, cola, copias/restauración, llamadas y costes del proveedor real. |
 | Graphify | Grafo JSON y productos exportables; escritura atómica y actualización desde fuentes. El artefacto puede quedar atrasado. | Extracción AST y almacenamiento; extracción semántica de documentos si se usa; compatibilidad, reconstrucción y vigencia. |
@@ -175,8 +184,12 @@ No instalaremos su skill o hooks para descubrir un artefacto existente.
 
 El [contrato local](memory-command-contract.md) identifica lectura íntegra del
 corpus, caché implícita y estados degradados que el panel no debe pintar saludables.
-También hay `resp.read()` sin tope en `markdown_export.health` y `verify`.
-Antes de ampliar ese adaptador, acotaremos respuesta, parsing y presupuesto total.
+El bloque 16 añade snapshot común acotado y consulta explícita CLI/panel.
+También cierra los `resp.read()` sin tope de `markdown_export.health` y `verify`:
+health/error 64 KiB, snapshot 2 MiB, JSON de 64 niveles y plazo monotónico
+compartido entre DNS, conexión, redirecciones y respuesta. La IP privada queda
+fijada por salto; Host/SNI y validación HTTPS se conservan. El resolver de sistema
+preexistente puede seguir tras vencer la espera; no se afirma cancelación del kernel.
 La salud del bridge no demuestra inferencia local ni calidad de recuperación.
 
 El [router propio](../../../../agent-kits/shared/knowledge-find.py) conserva
@@ -216,5 +229,9 @@ mediante plan de migración y verificación. Conservaremos memoria canónica y d
 del usuario; la retirada no borrará su servicio o almacenamiento externo. Si no
 permanece ninguno, comandos y dashboard seguirán ofreciendo la memoria local.
 
-Esta entrega define la evaluación y gaps de integración. No activa servicios,
+La [preparación del benchmark](memory-benchmark-preparation.md) contrasta versiones
+y aislamiento del despliegue. La revisión Graphiti instalada difiere de la documental;
+se necesitan instancias/almacenes propios antes de probar ingesta y recuperación.
+
+Esta entrega prepara evaluación y cierra consultas locales. No activa servicios,
 mide costes, acredita UX ni decide mantener un backend por pruebas de esquema.

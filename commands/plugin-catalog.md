@@ -4,7 +4,8 @@ description: >
   comandos, herramientas declaradas y hooks; incluye extensiones de proyecto y usuario,
   personas y MCP con fuentes y conflictos. Usa plugin-panel; no configura
   servicios ni ejecuta hooks. El modo --serve abre un dashboard local con
-  progreso actualizado desde el ledger, sin dirigir agentes ni conectar memoria.
+  progreso actualizado desde el ledger y consulta local de memoria bajo demanda,
+  sin dirigir agentes ni conectar backends.
 argument-hint: "[ruta de salida HTML] [--diagnostics-report informe.json] [--serve] [--port PUERTO]"
 ---
 
@@ -31,7 +32,10 @@ Entrega la URL solo al usuario. Catálogo y diagnóstico quedan fijados al
 arranque; Progreso relee ledgers con límites cada cinco segundos. La UI permite
 filtrar y actualizar, e identifica lecturas parciales y datos anteriores tras
 un fallo. Una tarea en progreso no demuestra que un agente esté ejecutándose.
-Este modo no escribe tareas ni consulta journal, índices o backends de memoria.
+Memoria permite Buscar, Ver y Relaciones mediante acciones explícitas. Conserva
+ID completo, estado, versión, evidencia y fuente; las lecturas parciales y
+colisiones permanecen visibles. No hay consultas de memoria automáticas.
+Este modo no escribe tareas ni consulta journal, cachés o backends de memoria.
 
 ```bash
 PANEL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/plugin-panel/scripts/build_panel.py' 2>/dev/null | head -1)"

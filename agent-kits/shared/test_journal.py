@@ -822,6 +822,132 @@ def test_redacta_secretos_evidentes_en_el_log_y_en_la_entrada_sin_falsos_positiv
     assert r["resumen"] == f"clave: {journal.REDACTADO}"
 
 
+@pytest.fixture
+def standalone_fallback_journal(tmp_path, monkeypatch):
+    """Import the real source while only its optional redact sibling is unavailable."""
+    home = tmp_path / "owned-home"
+    home.mkdir()
+    proj = tmp_path / "owned-project"
+    (proj / "docs" / "knowledge").mkdir(parents=True)
+    for name in ("HOME", "USERPROFILE", "CODEX_HOME", "CLAUDE_CONFIG_DIR", "XDG_CONFIG_HOME"):
+        monkeypatch.setenv(name, str(home))
+    monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    monkeypatch.setenv("PYTHONDONTWRITEBYTECODE", "1")
+    monkeypatch.chdir(proj)
+    redact_path = os.path.normcase(os.path.abspath(os.path.join(HERE, "redact.py")))
+    real_isfile = os.path.isfile
+
+    def without_redact(path):
+        if os.path.normcase(os.path.abspath(path)) == redact_path:
+            return False
+        return real_isfile(path)
+
+    with monkeypatch.context() as missing_helper:
+        missing_helper.setattr(os.path, "isfile", without_redact)
+        own_spec = importlib.util.spec_from_file_location("owned_journal_standalone_fallback", SCRIPT)
+        module = importlib.util.module_from_spec(own_spec)
+        own_spec.loader.exec_module(module)
+    assert module._redact_mod is None
+    assert module.redactar.__globals__ is module.__dict__
+    assert os.path.normcase(module.redactar.__code__.co_filename) == os.path.normcase(SCRIPT)
+    return module, proj
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("before -----BEGIN RSA PRIVATE KEY-----\nowned-key-material\n-----END EC PRIVATE KEY----- after",
+     "before [secreto redactado] after"),
+    ("-----BEGIN PRIVATE KEY-----a-----BEGIN EC PRIVATE KEY-----b-----END PRIVATE KEY-----tail",
+     "[secreto redactado]tail"),
+    ("-----BEGIN PRIVATE KEY-----a-----END PRIVATE KEY----- "
+     "-----BEGIN DSA PRIVATE KEY-----b-----END DSA PRIVATE KEY-----",
+     "[secreto redactado] [secreto redactado]"),
+    ("-----BEGIN PRIVATE KEY-----unfinished -----BEGIN EC PRIVATE KEY-----unfinished",
+     "-----BEGIN PRIVATE KEY-----unfinished -----BEGIN EC PRIVATE KEY-----unfinished"),
+    ("-----BEGIN private key-----not a valid marker-----END private key-----",
+     "-----BEGIN private key-----not a valid marker-----END private key-----"),
+])
+def test_standalone_fallback_pem_marker_semantics(standalone_fallback_journal, text, expected):
+    module, _proj = standalone_fallback_journal
+    assert module.redactar(text) == expected
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("api_key=Abcdef1234", "api_key=[secreto redactado]"),
+    ('Password="Abcdef1234" after', 'Password="[secreto redactado]" after'),
+    ("contraseña: Abcdef1234 pwd=Other5678", "contraseña: [secreto redactado] pwd=[secreto redactado]"),
+    ("token=short password=lettersOnly pwd=1234567890 clave: FTS5",
+     "token=short password=lettersOnly pwd=1234567890 clave: FTS5"),
+    ("token=token=token=token=", "token=token=token=token="),
+    ("token=token=Abcdef1234 end", "token=[secreto redactado] end"),
+    ("token_hint=Abcdef1234 password=abc token=Abcdef1234 password=",
+     "token_hint=Abcdef1234 password=abc token=[secreto redactado] password="),
+    ('{"token":"a\\\"b c", "password_hint":"unchanged"}',
+     '{"token":"[secreto redactado]", "password_hint":"unchanged"}'),
+])
+def test_standalone_fallback_assignments_preserve_precision(standalone_fallback_journal, text, expected):
+    module, _proj = standalone_fallback_journal
+    assert module.redactar(text) == expected
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("use ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123", "use [secreto redactado]"),
+    ("Bearer AbCdEfGhIjKlMnOpQrStUvWxYz0123456789", "Bearer [secreto redactado]"),
+    ("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dGVzdF9zaWduYXR1cmVfMTIzNDU2Nzg5MA",
+     "[secreto redactado]"),
+])
+def test_standalone_fallback_known_secrets(standalone_fallback_journal, text, expected):
+    module, proj = standalone_fallback_journal
+    path = module.capture(str(proj), {"session_id": "owned-secret-session", "prompt": text})
+    assert path is not None
+    assert module.capturas(str(proj), "owned-secret-session") == [expected]
+    with open(path, encoding="utf-8") as captured:
+        assert json.loads(captured.read())["prompt"] == expected
+
+
+@pytest.mark.parametrize("secret_kind", ["pem", "api", "unterminated-pem"])
+def test_standalone_fallback_capture_redacts_before_clip(standalone_fallback_journal, secret_kind):
+    module, proj = standalone_fallback_journal
+    limit = module.CAPTURA_MAX_CHARS
+    if secret_kind == "unterminated-pem":
+        prefix = "-----BEGIN PRIVATE KEY-----\n"
+        prefix += "x" * (limit - len(prefix) - 7) + " "
+        prompt = prefix + "sk-" + "A" * 30 + " tail"
+        redacted = prefix + module.REDACTADO + " tail"
+    else:
+        value = ("-----BEGIN PRIVATE KEY-----\n" + "A" * (limit + 100) +
+                 "\n-----END PRIVATE KEY-----") if secret_kind == "pem" else "sk-" + "A" * (limit + 100)
+        suffix = " visible " + "z" * limit
+        prompt = "pre " + value + suffix
+        redacted = "pre " + module.REDACTADO + suffix
+    expected = redacted[:limit].rstrip() + " …[recortado]"
+    path = module.capture(str(proj), {"session_id": "owned-clipped-session", "prompt": prompt})
+    assert path is not None
+    assert module.capturas(str(proj), "owned-clipped-session") == [expected]
+    assert "sk-" not in expected and "A" * 20 not in expected
+    if secret_kind != "unterminated-pem":
+        assert " visible " in expected and module.REDACTADO in expected
+
+
+def test_standalone_fallback_selection_preserves_unicode_identity(standalone_fallback_journal):
+    module, proj = standalone_fallback_journal
+    sid = "sesión-東京-📌"
+    entry = dict(fecha="2026-10-09", session_id=sid, iniciativa="revisión-útil",
+                 resumen="Decidimos usar password=Abcdef1234",
+                 decisiones=["Usar token=Other5678"], pendientes=[], ficheros_tocados=[],
+                 tareas_cambiadas=[], marcadores_cerrados=[])
+    path = module.write(str(proj), entry, fuente="manual")
+    result = module.select_entries(str(proj), session_id=sid)
+    assert result["status"] == "ok" and result["complete"] is True
+    selected = result["entries"][0]
+    assert selected["entry"] == os.path.basename(path)
+    assert selected["session_id"] == sid and selected["iniciativa"] == "revisión-útil"
+    assert selected["identity_resolvable"] is True
+    assert selected["resumen"] == "Decidimos usar password=[secreto redactado]"
+    assert selected["decisiones"] == ["Usar token=[secreto redactado]"]
+    visible = module.selected_text(result)
+    assert sid in visible and "Abcdef1234" not in visible and "Other5678" not in visible
+
+
 def test_capture_siembra_gitignore_en_claude_idempotente_y_respetando_lo_que_habia(tmp_path):
     """Gap 2 (consumidores): `*.log` solo está en el .gitignore de ESTE repo; en un proyecto consumidor el log
     entraría en git. `capture` deja `.claude/.gitignore` con `session-prompts-*.log`."""

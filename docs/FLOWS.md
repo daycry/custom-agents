@@ -523,6 +523,11 @@ flowchart LR
     Resumen --> Redactor[Redactor canónico y campos públicos]
     Redactor --> Servidor
     Servidor --> Progreso[Vista de progreso con fecha de lectura]
+    Accion[Buscar Ver Relaciones explícitos] --> Consulta[knowledge-view consulta local]
+    Corpus[Legado y aprobado canónicos] --> Snapshot[Snapshot acotado y aprobación local]
+    Snapshot --> Consulta
+    Consulta -->|parser ranking relaciones y redacción| Servidor
+    Servidor --> Memoria[Vista con estado versión evidencia y fuente]
 ```
 
 El panel no ejecuta doctor ni los hooks. Presencia y presupuestos declarados

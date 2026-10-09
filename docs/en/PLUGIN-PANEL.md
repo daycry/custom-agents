@@ -29,7 +29,7 @@ and focus; Sources stays reachable on mobile.
 
 The plugin-catalog command uses plugin-panel to explore agents, skills, commands,
 declared tools and global hooks. Search and filters run in a standalone HTML
-file. Served mode adds local progress; portfolio details, evaluations and
+file. Served mode adds local progress and memory queries; portfolio details, evaluations and
 budgets remain in roadmap-dashboard.
 
 From a checkout:
@@ -66,8 +66,9 @@ view and its original date, with an explicit freshness warning.
 
 The canonical parser derives task counts and phase from `tasks.md`. Read date
 and SHA-256 identify decoded UTF-8 text without BOM, including line endings;
-they do not authenticate authors or prove agents are running. No journal,
-usage-meter, memory search or backend queries, or state writes.
+they do not authenticate authors or prove agents are running. Progress polling
+performs no journal, usage-meter, memory or backend queries, or state writes.
+Memory is read only after an explicit action.
 
 Reads reject redirected or changed paths. Limits: 128 entries, 256 KiB per ledger,
 1 MiB cumulative, 64 initiatives, eight visible active tasks per initiative and
@@ -76,11 +77,47 @@ remain partial. Text is redacted and bounded; bodies, free-form verification
 and absolute paths are excluded.
 
 Page/API require the capability and exact Host; any Origin must match the server.
-Cross-site requests, mutable methods, queries and arbitrary paths are rejected.
+Cross-site requests, queries and arbitrary paths are rejected. POST is accepted
+only for local memory queries, with no writing operations.
 No cookies or access logs; nonce CSP, same-origin connections, no-store,
 no-referrer and no framing. The capability does not isolate other processes
-owned by the same user. Plan approval and memory actions still need their
-consumers and tests.
+owned by the same user. Plan approval and memory publication/rebuild still
+need their consumers and tests.
+
+## Local memory queries
+
+Served mode adds Memory with Search, Show entry and Relations. Each explicit
+action uses `knowledge-view.py`; loading the page or refreshing Progress does
+not trigger memory searches. Cards retain full ID, type, state, knowledge version,
+evidence and source path. Proposed and obsolete entries retain their state.
+Bodies are returned only on Show; an ID collision never selects an entry.
+
+Reads share parsers, ranking, relations and approved validation with
+`knowledge-find.py`. Cumulative limits: 256 directory entries, 128 files, 256 KiB
+per file, 2 MiB read and depth eight. Queries allow 1,000 characters, IDs 256,
+20 results/relations, bodies 12,000 characters and JSON responses 64 KiB.
+Truncation, invalid corpus and incomplete reads remain partial; missing,
+ambiguous and unavailable are distinct. Redaction precedes clipping;
+paths and hashes do not prove approval.
+
+Versions above JavaScript's safe integer range use exact decimal strings, up
+to 4,300 digits. Invalid versions remain unknown with a partial result. Alongside
+directory entries, enumeration calls are limited to 256; `scans` accounts for
+this work even when directories are empty. The reader's probe byte is reserved
+within the cumulative read budget.
+
+Only UTF-8 JSON on the fixed private `api/memory` route is accepted, with a
+4 KiB request limit and a cumulative three-second body deadline. Duplicate keys,
+unknown selectors and other methods are rejected. The UI omits cookies, sets a
+six-second query deadline and prevents overlapping requests. Failure preserves
+the previous view/date with a warning; results, bodies and relations retain their
+own freshness. No adapters, candidates, journal, cache or indexes are loaded.
+Standalone HTML retains its inventory without these queries.
+
+CLI usage: `knowledge-find.py --root <project> --view <query>`,
+`--view --show <ID>` or `--view --related <ID>`. Output uses version 1 and source
+`canonical_knowledge`. Ordinary CLI queries also use the bounded snapshot and
+declare `corpus_read`; partial corpora are never cached as complete indexes.
 
 ## Standalone extension export
 

@@ -652,10 +652,11 @@ def render_html(data, *, live=False):
         template = _read(TEMPLATE.parent, TEMPLATE)
     except (OSError, UnicodeError, ValueError):
         raise ValueError('bundled panel template unavailable') from None
-    operations, live_script = '', ''
+    operations, memory, live_script = '', '', ''
     if live:
         try:
             live_script = '<script>' + _read(TEMPLATE.parent, TEMPLATE.parent / 'panel-live.js') + '</script>'
+            live_script += '<script>' + _read(TEMPLATE.parent, TEMPLATE.parent / 'panel-memory.js') + '</script>'
         except (OSError, UnicodeError, ValueError):
             raise ValueError('bundled live panel asset unavailable') from None
         operations = '''<section id="operations"><div class="section-head"><div><h2>Progreso del proyecto</h2>
@@ -665,16 +666,27 @@ def render_html(data, *, live=False):
 <button id="progress-refresh" type="button">Actualizar ahora</button></div>
 <p id="progress-status" role="status" aria-live="polite">Consultando el ledger seleccionado…</p><p id="progress-freshness">Sin lectura disponible todavía.</p>
 <p id="progress-results" aria-live="polite"></p><div id="progress-cards" class="grid"></div></section>'''
+        memory = '''<section id="memory-query"><div class="section-head"><div><h2>Consulta tu conocimiento</h2>
+<p>Busca en la memoria local del proyecto. El cuerpo y las relaciones se leen solo cuando los seleccionas.</p></div><span class="section-pill">Consulta explícita · local</span></div>
+<form id="memory-form" class="controls"><div class="search-wrap"><input id="memory-text" type="search" placeholder="¿Qué necesitas recordar?" aria-label="Buscar conocimiento"></div>
+<input id="memory-area" type="text" placeholder="Área opcional" aria-label="Área de conocimiento">
+<input id="memory-type" type="text" list="memory-types" placeholder="Tipo opcional" aria-label="Tipo de conocimiento"><datalist id="memory-types"><option value="adr">Decisiones</option><option value="gotcha">Gotchas</option><option value="leccion">Lecciones</option></datalist>
+<button id="memory-search" type="submit">Buscar</button></form>
+<p id="memory-status" role="status" aria-live="polite">Sin consultas realizadas. Pulsa Buscar para leer la memoria local.</p>
+<p id="memory-freshness">Sin lectura disponible todavía.</p><p id="memory-results-date"></p>
+<div id="memory-results" class="grid"></div><div id="memory-selected" tabindex="-1" aria-label="Entrada seleccionada"></div>
+<div id="memory-related" tabindex="-1" aria-label="Relaciones del conocimiento"></div>
+<p class="filter-note">Estados y evidencia declarados conservan su procedencia. Una cita o un hash no prueban aprobación humana; los límites de lectura se muestran en cada consulta.</p></section>'''
     values = {'STATS': stats, 'CARDS': _cards(data), 'WORKFLOW': _workflow_html(data), 'NOTES': notes, 'FLOW': _flow_html(data), 'EXTENSIONS': _extensions_html(data),
               'DIAGNOSTICS': _diagnostics_html(data.get('diagnostics', {'status': 'not_provided'})),
-              'OPERATIONS': operations, 'LIVE_SCRIPT': live_script,
-              'LIVE_NAV': '<a href="#operations"><span class="nav-dot"></span>Progreso</a>' if live else '',
+              'OPERATIONS': operations, 'MEMORY_QUERY': memory, 'LIVE_SCRIPT': live_script,
+              'LIVE_NAV': '<a href="#operations"><span class="nav-dot"></span>Progreso</a><a href="#memory-query"><span class="nav-dot"></span>Memoria</a>' if live else '',
               'CONNECT_CSP': "; connect-src 'self'" if live else '',
               'SIDEBAR_NOTE': 'Servidor local de lectura. El progreso refleja tareas declaradas, sin dirigir agentes.' if live else 'Explora definiciones sin iniciar servicios ni modificar la configuración.',
               'REFRESH_NOTE': 'Catálogo y diagnóstico fijados al arranque; progreso local con actualización periódica.' if live else 'Regenera el archivo para actualizarlo.',
               'PROGRESS_NOTE': 'Los presupuestos y la cartera detallada se consultan en el dashboard del roadmap.' if live else 'El progreso de iniciativas se consulta en el dashboard del roadmap.',
               'SNAPSHOT_NOTE': 'Catálogo al iniciar' if live else 'Instantánea local'}
-    return MARKER + re.sub(r'@@(STATS|CARDS|WORKFLOW|NOTES|FLOW|EXTENSIONS|DIAGNOSTICS|OPERATIONS|LIVE_SCRIPT|LIVE_NAV|CONNECT_CSP|SIDEBAR_NOTE|REFRESH_NOTE|PROGRESS_NOTE|SNAPSHOT_NOTE)@@', lambda match: values[match.group(1)], template)
+    return MARKER + re.sub(r'@@(STATS|CARDS|WORKFLOW|NOTES|FLOW|EXTENSIONS|DIAGNOSTICS|OPERATIONS|MEMORY_QUERY|LIVE_SCRIPT|LIVE_NAV|CONNECT_CSP|SIDEBAR_NOTE|REFRESH_NOTE|PROGRESS_NOTE|SNAPSHOT_NOTE)@@', lambda match: values[match.group(1)], template)
 
 
 

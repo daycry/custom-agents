@@ -2983,3 +2983,316 @@ abiertas; nuevas skills y ampliación de hooks continúan aplazadas.
 Jira por intento 3: plan revision, actor reviewer, sobre fixture propia
 desactivada; exit 0 y ops vacío. Las tres trazas quedan registradas sin
 publicación externa ni lectura de configuración real.
+
+## Bloque 16 — Recuperación acotada y preparación del benchmark
+
+Base publicada 21092c2. La entrega anterior es progreso: código, QA,
+comparación y evidencia publicados; objetivo global sin completar. Se
+revalida worktree: únicamente settings ajeno no seguido, sin leerlo.
+
+Diseño previo en design.md: consulta CLI/panel sobre snapshot común, parsers
+y autoridad existentes, límites acumulados y estados explícitos. Cerrar
+lecturas HTTP sin tope del adaptador documental. Paralelo independiente:
+lector/validación/ranking local, HTTP acotado y metadata/aislamiento del
+benchmark; el servidor/UI integra el contrato común. No nuevas skills/hooks,
+consulta al corpus real, credenciales, reconstrucción o migración de servicios.
+T-07/T-11/T-13/T-14/T-15 globales permanecen abiertas. Las mediciones de
+calidad y decisión final de componentes siguen exigidas después del lector.
+
+### Implementación dirigida del bloque 16
+
+El snapshot común reemplaza la lectura íntegra de la CLI ordinaria y sirve
+`--view`/panel sin caché. Comparte parsers/ranking/relaciones y validación pura
+de aprobados; declara corpus_read, límites y colisiones. Índice v5 reconstruye
+IDs legados completos y metadata disponible. Módulos ausentes o approved
+inválido conservan diagnóstico y legado, sin afirmar salud o aprobación humana.
+
+La UI ofrece Buscar/Ver/Relaciones explícitos. El único POST aceptado es
+api/memory con JSON 4 KiB, Host/Origin/capacidad y plazo de cuerpo acumulado.
+No consulta memoria al cargar/pollear progreso; no invoca backends o journal.
+La frescura se conserva por vista y los cuerpos solo viajan al pedir Ver.
+IDs son selectores literales, incluso con caracteres usados en rutas, sin
+usarlos para construir rutas o ejecutar código.
+
+TDD y regresiones dirigidas en fixtures propias: lector **214 passed/2
+skips**; bridge **96 passed/1 skip y seis subtests**; export **74 passed**;
+UI RED35 y RED adicional de identidad literal, luego GREEN dirigido; transporte
+RED36/3 controles, deadline RED separado y **156 passed** al integrar UI.
+No son QA final ni medición de eficacia. Se conserva un fallo inicial de
+invocación (ruta inexistente) y una ejecución con assets a medio editar como
+errores de harness/estado incoherente, sin contarlos como verde.
+
+HTTP del bridge acota health/error 64 KiB, snapshot 2 MiB y JSON de 64 niveles;
+deadline compartido, IP privada fijada, proxies desactivados y TLS conservado.
+Writer/routing y saneador replicado intactos. El cierre portable usa constantes
+AST de Python, incluye helpers transitivos con ambas comillas y no los ejecuta.
+
+La preparación del benchmark contrasta documentación/metadata existentes y
+crea fuentes/preguntas propias. No hay ingesta, consultas o inferencia, ni
+cambios Docker. Graphiti instalado declara otro commit y rutas de grupo con
+límites estáticos; Kwipu no ofrece namespace HTTP. La selección final sigue
+abierta y el experimento necesita almacenamiento/instancias propios.
+
+Aristas E25 actualizada y E38–E42 declaradas con puertas. Diagramas, contrato,
+comando, skill y docs ES/EN se actualizan en el mismo bloque. Las tareas globales
+permanecen abiertas; revisión fresca, QA final y push siguen pendientes.
+
+## Revisión de dos lentes — intento 1: Bloque 16 (T-11/T-13/T-14/T-15) — correcciones requeridas
+
+Lentes A+B+C+D de contexto fresco por subagentes genéricos: reviewer no
+callable. Tier frontmatter opus/high informativo, sin override. Snapshot
+inmutable de 928 archivos públicos, 40 propios; alcance 40/40 sin exclusiones
+o avisos. C/D siempre por fixture propia, sin leer dev/settings del consumidor.
+Cada lente recorrió todo el diff y archivos nuevos, y confirmó 928 hashes
+antes/después. Export independiente de A: exit 0, 58 ficheros al día.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1 | Important | Helper aprobado ausente pierde legado válido | T-11/T-13 | Implementado, revisión pendiente: carga opcional tras legado, diagnóstico parcial | Fixture de helper ausente conserva ADR-001 y declara approved_helper_unavailable |
+| A2 | Important | RED lector/HTTP/export no registrado en ledger | T-14/T-15 | Corregido: registrar rojos originales, sin recrearlos tras producción | Bloque RED siguiente y reportes originales conservados |
+| A3 | Important | Dependencia descriptiva E25/E28 no actualizada | T-15 | Corregido: README de backends describe snapshot, corpus_read y caché parcial | skills/knowledge-services/backends/README.md, recuperación local compartida |
+| B1 | Important | Sucesor prefijado se reduce y puede elegir otro ID corto | T-11/T-13 | Implementado, revisión pendiente: identidad literal íntegra y relaciones inversas | RED de namespaces, ID opaco, alias corto ajeno y selectores malformados |
+| B2 | Important | TLS conserva timeout anterior a conexión TCP | T-11/T-14 | Corregido, revisión pendiente: recalcular antes de handshake | RED real 355,9 ms para 200 ms; GREEN dirigido y 97 pass/1 skip/seis subtests |
+| B3 | Important | Versión int Python incompatible con UI segura | T-13/T-14 | Implementado, revisión pendiente: positiva exacta, decimal cuando supera entero JS seguro | Versiones -1 y 9007199254740993; RED UI2 → GREEN2 para representación exacta |
+| D1 | Important | PEM incompleto provoca redacción cuadrática en show | T-13/T-14 | Implementado, revisión pendiente: barrido canónico lineal antes de recortar | RED3 de PEM/asignación/show; GREEN253/11 skips en regresión sintética con fixture corta |
+
+Sin Critical/Minor ni hallazgos C. La observación D de 3.000 carpetas válidas
+produjo 3.004 listados con solo una entrada contabilizada. Se acepta como
+corrección adicional del presupuesto de metadata: máximo 256 listados,
+contador scans y parcialidad; no se atribuye a D un grado que no emitió.
+Reservar también el byte de sonda dentro del acumulado del lector.
+
+No hay QA final, E2E o porcentaje del bloque todavía. Calidad de recuperación,
+persistencia y elección de componentes siguen sin medir; tareas globales abiertas.
+
+### RED original del bloque 16 — evidencia preservada
+
+- **RED:** lector nuevo y validación pura: una aserción falló y 23 casos
+  dieron error porque el módulo/API aún no existía; 2026-10-09. Después se
+  implementaron snapshot y extracción de aprobación, con controles sintéticos.
+- **RED:** bridge HTTP: 13 fallos de 18 controles por bytes, profundidad,
+  cierre y plazo; forma inválida3/3 y DNS2/2 separados; 2026-10-09.
+- **RED:** export portable: cinco fallos funcionales de cierre transitivo
+  y ejecución mínima; 2026-10-09. El primer intento falló en setup por ruta
+  larga y no constituye evidencia funcional; se conserva separado.
+- **RED:** UI35 por ausencia de acciones/asset; literalID1 por vetos de
+  caracteres incompatibles; transporte36/3 controles y deadline separado;
+  2026-10-09. Los errores de conexión Windows por payload no leído se
+  conservaron y la prueba de rechazo temprano pasó a enviar solo headers.
+
+Los reportes originales se conservan privados; la evidencia pública final
+registrará hashes y recuentos, excluyendo paths, cuerpos y capacidades de acceso.
+
+Jira del intento 1: ejecutado sobre una copia propia del ledger y configuración
+explícitamente desactivada; exit 0, `ops: []`. No se leyó configuración del
+consumidor ni se publicó ningún mensaje externo.
+
+RED adicional de revisión, 2026-10-09: UI2 para versión decimal exacta y
+validación de versiones; UI1 para contador de listados fuera de presupuesto.
+Sus reportes se preservaron antes de cambiar los respectivos controladores.
+El rango descriptivo `imports_de_cabecera` del exportador se actualiza en
+`agent-kits/shared/copias.json` tras el nuevo import AST; no añade una copia.
+
+Corrección del redactor: RED válido con PEM/asignaciones/show acotados agotó
+un plazo de tres segundos antes del cambio. GREEN dirigido27, fallback real1
+y copia exacta1; regresión redactor/journal/view253 passed/11 skips. Un primer
+run obtuvo ocho Git128 por longitud de ruta en la fixture; se conserva como
+fallo del harness y se repitió con basetemp propio corto, sin alterar asserts.
+JSON entrecomillado adverso ya pasaba y su regex permanece igual.
+
+RED de corrección del lector, 2026-10-09: once fallos/dos controles por helper,
+versiones, IDs y sonda; metadata1, ID opaco3, parser3, espacio literal1 y Unicode1.
+Los reportes originales y hashes se registran en
+`testing/memory-query-evidence.json`; conservar IDs literales también impide
+seleccionar otra entrada al quitar espacios o usar mayúsculas ASCII únicamente.
+La comparación de igualdad usa casefold Unicode compartido con la CLI.
+
+RED del residual B1 en el segundo pase, 2026-10-09: nueve fallos y tres
+controles por escalares entrecomillados, IDs con `#` o comilla interna,
+referencias sin resolver y caché v4. La causa se verificó antes de corregir:
+el parser quitaba las comillas y reinterpretaba el escalar como lista.
+Las listas reales, la sucesión inversa y la caché son parte de la regresión.
+
+## Revisión de dos lentes — intento 2: Bloque 16 (T-11/T-13/T-14/T-15) — residual de identidad
+
+Lentes frescas A+B+C+D, fallback genérico sin override. Snapshot inmutable de
+929 archivos públicos y 46 propios, alcance46/46 sin avisos/exclusiones;
+las cuatro lentes confirmaron todos los hashes antes/después. A ejecutó
+lint/evals/export/ledger con exit0; export58 ficheros al día. C sin hallazgos.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1 | Important previo | Helper aprobado ausente pierde legado | T-11/T-13 | Corregido y verificado | A ejecutó dos bundles propios sin local/taxonomy: ADR-001 conservado y parcialidad |
+| A2 | Important previo | RED original ausente del ledger | T-14/T-15 | Corregido y verificado | Ledger registra rojos originales y hashes de reportes |
+| A3 | Important previo | README descriptivo de backends desactualizado | T-15 | Corregido y verificado | A confirma dependencia descriptiva actualizada en este bloque |
+| B1 | Important | Escalar entrecomillado se interpreta como lista | T-11/T-13 | En corrección: preservar tipo de declaración e ID literal | `[ADR-002]` eligió ADR-002 ajeno como ok/completo; target ausente también se acortó |
+| B2 | Important previo | Timeout TLS calculado antes de TCP | T-11/T-14 | Corregido y verificado | TCP130/200 ms deja70 ms para TLS en probe independiente |
+| B3 | Important previo | Versiones Python/UI incompatibles | T-13/T-14 | Corregido y verificado | -1 parcial/null y entero grande decimal exacto; versión fuera de presupuesto diagnosticada |
+| D1 | Important previo | Redactor cuadrático bloquea servidor | T-13/T-14 | Corregido y verificado | PEM261k ~32 ms; HTTP POST/GET ~233/240 ms; fallback real y scans256 probados |
+| A4 | Minor | E25 conserva marcador índice v3 | T-15 | Corregido, revisión pendiente: E25 ahora v5 | La corrección de identidad invalida relaciones cacheadas y declara índice5 |
+
+Fusión: cero Critical, un Important residual B1 y un Minor documental A4;
+ningún rebate. Lo aprobado se conserva, salvo evidencia nueva. Las mediciones
+de D son sintéticas y no acreditan eficacia de recuperación ni throughput real.
+La corrección compartida del escalar cerró RED9/3 controles → GREEN12 y
+regresión255 passed/2 skips; el tipo literal de cada item de lista recibe
+comprobación adicional antes de congelar el tercer pase. QA final pendiente.
+
+Jira del intento2 ejecutado en fixture propia con configuración explícitamente
+desactivada: exit0, `ops: []`, ninguna publicación externa. RED adicional de
+items entrecomillados, 2026-10-09: dos fallos y dos controles; GREEN combinado
+22 passed conserva escalares/items/listas, inversas, caché y anotaciones
+históricas. Cada item literal sin destino conserva su ID completo.
+
+## Revisión de dos lentes — intento 3: Bloque 16 (T-11/T-13/T-14/T-15) — cierre de comilla pendiente
+
+Lentes frescas A+B+C+D por fallback genérico, sin override. Snapshot inmutable
+de 929 archivos públicos y 46 propios; alcance46/46 sin avisos/exclusiones.
+Las cuatro lentes confirmaron todos los hashes antes/después. A comprobó
+export58 con exit0 y delta22 passed. C no encontró defectos; D confirmó
+comportamiento lineal del parser y mantiene D1 cerrado. No es QA final.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1/A2/A3 | Important previos | Helper, RED y dependencia descriptiva | T-11/T-13/T-14/T-15 | Aprobaciones conservadas | Sin evidencia nueva que las reabra |
+| B1 | Important previo | Identidad literal de escalares/items | T-11/T-13 | Corregido y verificado en escenarios previos | B ejecutó 40 controles de resolución, ausencia, inversas y caché5 |
+| B2/B3 | Important previos | Deadline TLS y versión exacta | T-11/T-13/T-14 | Aprobaciones conservadas | Sin delta de comportamiento que las reabra |
+| D1 | Important previo | Redactor cuadrático | T-13/T-14 | Aprobación conservada | Sin cambio del redactor; parser260 KiB ~23 ms y lista12.000items ~59 ms |
+| A4 | Minor previo | Marcador de índice desactualizado | T-15 | Corregido y verificado | E25 y código declaran versión5 |
+| B4 | Important nuevo | Barra literal impide cierre de comilla simple antes de comentario | T-11/T-13 | Pendiente de corrección acotada | `sucesor: 'ADR-002\\' # comentario` no resuelve el destino literal y pierde la inversa |
+
+Fusión: cero Critical, un Important nuevo B4, cero Minor pendientes; sin
+rebates. El orquestador verificó el scanner y la regla de escalares simples
+de YAML1.2.2: la barra inversa no escapa la comilla simple. No se acepta como
+deuda ni se declara aprobado el tercer intento.
+
+Decisión explícita del orquestador tras alcanzar el máximo ordinario de tres
+intentos: continuar con un único ciclo adicional acotado al cierre de comillas
+del parser plano, sus controles y documentación. El usuario ya ha autorizado
+corregir gaps y tomar decisiones técnicas; no se requiere otra autorización.
+Se conserva toda la traza y las aprobaciones anteriores; una revisión fresca
+validará el delta antes de QA. Las tareas globales permanecen abiertas.
+
+Jira del intento3 ejecutado sobre fixture propia con configuración desactivada:
+exit0, `ops: []`, sin lectura de configuración real ni publicación externa.
+
+RED de B4 antes de producción, 2026-10-09: dos fallos de referencia presente
+y ausente; 30 fallos y 24 controles para delimitadores escalares/listas.
+Corrección mínima en ambos scanners con contador lineal de barras: las simples
+delimitan con barra literal y las dobles respetan paridad. GREEN56 dirigido;
+regresión view/local145 passed/1 skip, find66 passed y check-ignore original
+aislado1 passed; caché/inversa y limitación previa3 passed. El primer fallo de
+Git fue del stub del harness y se conserva, sin atribuirlo al código.
+Los reportes RED y hashes se añaden a `testing/memory-query-evidence.json`.
+Los comentarios exteriores de cada línea en listas de bloque siguen siendo
+una limitación previa del parser plano; esta corrección no promete YAML completo.
+Revisión adicional y QA final aún pendientes; no se declara aprobado B4.
+
+## Revisión de dos lentes — intento 4: Bloque 16 (T-11/T-13/T-14/T-15) — ciclo adicional acotado aprobado
+
+El ciclo adicional decidido por el orquestador conserva el tercer intento con
+su gap. Lentes frescas A+B+C+D por fallback genérico, sin override. Snapshot
+inmutable929 público/46 propio y alcance46/46 limpio; las cuatro lentes
+confirmaron929 hashes antes/después. Todo el diff y los once nuevos se leyeron
+íntegros. No se reabre ninguna aprobación sin evidencia nueva.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1/A2/A3 | Important previos | Helper, RED y dependencia descriptiva | T-11/T-13/T-14/T-15 | Cierres conservados | A confirma continuidad completa y export independiente58/exit0 |
+| B1 | Important previo | Identidad literal y listas | T-11/T-13 | Cierre conservado | Controles previos e inversas conservados; A78 dirigidos y B118 propios |
+| B2/B3 | Important previos | Deadline TLS y versión exacta | T-11/T-13/T-14 | Cierres conservados | Sin nueva evidencia que reabra transporte/versiones |
+| D1 | Important previo | Redactor cuadrático | T-13/T-14 | Cierre conservado | Sin delta del redactor; no se repite el benchmark anterior |
+| A4 | Minor previo | Marcador de índice | T-15 | Cierre conservado | Documentación y código siguen en índice5 |
+| B4 | Important previo | Cierre de comilla tras barra literal | T-11/T-13 | Corregido y verificado | B118/118 propios: presente/ausente, paridad, listas, inversas y caché; C283 controles del delta |
+
+Fusión: cero Critical/Important/Minor pendientes, sin rebates ni deuda aceptada.
+C no encuentra vulnerabilidades introducidas o reabiertas; D no encuentra
+degradación material: scalar260 KiB ~53 ms, lista260 KiB ~79 ms y24.000items
+~100 ms en sus fixtures. Esas mediciones no acreditan calidad de recuperación.
+La revisión está aprobada; QA final, cobertura y browser son la siguiente puerta.
+Las tareas globales, aceptación nativa y selección de componentes siguen abiertas.
+
+Jira del intento4 sobre fixture desactivada: exit0, `ops: []`, sin publicación.
+
+### Addendum de QA del ciclo4 — parser estándar sin capacidad de red
+
+La primera QA Linux de este bloque obtuvo2089 passed/22 skips/seis subtests y
+un fallo en el guard existente de imports. Su veto de todo `urllib` bloquea
+el parser puro `urllib.parse` importado por `pathlib` en Python3.11; el camino
+local degrada correctamente cuando el harness impide cargar su lector.
+El informe y RED originales se conservan: no se convierte esa ejecución en verde.
+
+B investigó de forma independiente en la misma imagen fijada, con contenedor
+propio etiquetado y red desactivada: stack exacto desde `knowledge-view.py:10`
+hasta `pathlib.py:14`; `urllib` padre vacío y `urllib.parse` sin socket/HTTP.
+Permitir únicamente ese parser conserva los dos IDs aprobados esperados y
+lectura completa, con cero eventos socket; un control separado confirma que
+el auditor bloquea crear sockets. Se acepta como falso positivo del guard,
+no como defecto del código de recuperación ni como relajación del acceso a red.
+
+Ajuste únicamente de test: admitir `urllib.parse` y su paquete padre vacío,
+seguir vetando socket/requests/HTTP y otros submódulos urllib, y añadir auditor
+de operaciones de red. Las aserciones funcionales de IDs permanecen iguales.
+Este addendum mantiene aprobado el código del ciclo4; requiere revisión A/B
+del test y nueva QA sobre snapshot fresco, antes del cierre parcial y push.
+
+### Addendum de cobertura del ciclo4 — journal sin helper compartido
+
+QA completa: Windows4 obtuvo2070 passed/42 skips/seis subtests y Linux4q
+obtuvo2090 passed/22 skips/seis subtests; las cohortes permanecen separadas.
+La primera medición del diff frente a21092c2 obtuvo726/835 sentencias
+ejecutables cubiertas, 86,95%, por debajo del mínimo90%. Se conserva ese
+resultado y no se declara la puerta de cobertura aprobada.
+
+El hueco principal son las funciones de redacción de respaldo del journal,
+que no se ejecutan cuando viaja el helper canónico. Se añaden únicamente
+tests funcionales en `agent-kits/shared/test_journal.py`: importan el archivo
+real con ausencia simulada de ese helper, sin copiar el redactor ni cambiar
+filenames de código. Comprueban captura persistida, redacción antes de
+recorte, PEM/asignaciones y selección con identidad Unicode, sobre proyecto
+y homes propios. Dirigido inicial20 passed; un fallo de fixture anterior
+se conserva y no se presenta como RED de producción. El producto no cambia.
+
+Siguiente puerta: revisión A/B de este addendum y dirigidos Windows/Linux.
+Coverage.py combinará la batería Windows4 conservada y estos dirigidos con
+aliases oficiales de rutas entre árboles de producto idénticos, verificados
+por hash. No se suman los dirigidos dos veces a los conteos de suites ni se
+atribuye cobertura del helper canónico al cuerpo de respaldo sin ejecutarlo.
+
+### Cierre parcial del bloque16 — QA y consulta local
+
+A/B aprobaron el addendum test-only, cero gaps nuevos; ambos snapshots
+conservan929 hashes y el producto es idéntico. B ejecutó el test congelado
+en Python3.11.16 propio y once controles del guard extraído: parser permitido,
+seis imports de transporte y cuatro operaciones de red rechazados.
+
+A/B aprobaron también los20 tests del fallback real del journal. Dirigidos
+Windows/Linux20 passed cada uno, separados de las baterías completas.
+Regresión del módulo Windows170 passed/10 skips con rutas propias cortas;
+la primera ejecución con paths largos10 failed/161 passed/9 skips permanece
+registrada. Solo se acortó el root/HOME del harness, sin modificar producto
+ni tests entre ambas ejecuciones.
+
+QA Windows del snapshot4:2070 passed/42 skips y seis subtests passed;
+pytest, cobertura, lint, evals, export58 y ledger exit0. El test corregido
+recibe un dirigido Windows separado1 passed; no se suma dos veces a la suite.
+QA Linux del snapshot4q:2090 passed/22 skips y seis subtests passed, con
+pytest/export58 exit0 en contenedor propio sin red, retirado. Lint/evals/ledger
+se verifican aparte sobre snapshot4q y de nuevo tras la actualización documental.
+El Linux4 original con un fallo permanece registrado, sin convertirlo en verde.
+
+Cobertura de sentencias ejecutables añadidas frente a21092c2: 764/835 (91.5%), medida con Coverage.py Windows; scripts JavaScript tienen
+controles propios y browser separado. qa-gate exit0 para ambas cohortes.
+
+Browser real Chrome: siete callbacks públicos M-01–M-07 passed, cero fallos,
+cero retries y CSP activa; API Playwright real, no runner CLI. Se revisaron
+capturas escritorio/móvil sobre proyecto sintético y se cerró el servidor
+propio sin cambios de fuentes. Dos arranques Edge fallaron antes de ejecutar
+casos; Edge no queda validado. No se atribuye actividad viva de agentes.
+
+Resultado: bloque16 entregado parcialmente; fuentes/evidencia/contratos
+coherentes para búsqueda, entrada y relaciones locales explícitas. No activa
+backends, no acredita eficacia comparada, UX de servicios ni hosts nativos.
+Las pruebas funcionales separadas del bloque17 no se contabilizan como QA16.
+T-07/T-08/T-11/T-13/T-14/T-15 y el objetivo global siguen abiertos; las
+nuevas skills permanecen aplazadas en79/293 evaluadas y214 pendientes.

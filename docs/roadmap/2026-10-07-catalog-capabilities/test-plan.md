@@ -84,3 +84,40 @@ fallos HTTP/esquema, teclado/móvil, offline y parcialidad. Su ejecución por
 API real de Playwright se distingue del runner CLI rechazado antes de abrir
 la página. Resultados, cobertura y límites se registran en la evidencia de
 este bloque después de completar sus puertas, sin atribuir aceptación nativa.
+
+## Bloque 16 — Consulta de memoria y HTTP acotados
+
+- **M-01 [GWT]** Dados legado y aprobados sintéticos, CLI y panel conservan
+  IDs completos, estado, versión, evidencia, fuentes y relaciones usando reglas
+  comunes. Colisiones no seleccionan una entrada ni un sucesor arbitrarios.
+- **M-02 [GWT]** Dados muchos archivos, bytes, profundidad, enlaces, datos
+  inválidos o lecturas fallidas, el snapshot detiene lecturas al agotar su
+  presupuesto y declara parcialidad. Una caché completa anterior no oculta
+  el resultado parcial; un índice antiguo se reconstruye con metadata actual.
+  Los listados también se limitan a 256 y la sonda cabe en los 2 MiB.
+- **M-03 [GWT]** Dados selectores inválidos y solicitudes HTTP no autorizadas,
+  el transporte no invoca la consulta. JSON duplicado, profundo, no UTF-8,
+  sobredimensionado y un cuerpo lento reciben rechazo; no hay paths libres.
+- **M-04 [GWT]** Dado el panel servido, solo Buscar/Ver/Relaciones envían
+  consultas. Fallos conservan la vista/fecha anterior con aviso. Las nuevas
+  búsquedas despejan la selección previa; Unicode, texto sensible, móvil y
+  teclado permanecen utilizables. Las versiones grandes conservan su decimal
+  exacto y la UI valida el contador de listados. El HTML offline conserva cero consultas.
+- **M-05 [GWT]** Dadas respuestas grandes, JSON inválido, redirecciones,
+  errores y DNS/cuerpos lentos del bridge documental propio, bytes/niveles/
+  plazo se acotan, recursos se cierran y Host/SNI/TLS quedan conservados.
+  El handshake usa el tiempo restante después de conectar TCP.
+- **M-06 [GWT]** Dada una instalación portable mínima, los helpers Python
+  transitivos se incluyen con ambas comillas, sin ejecutar código/comentarios,
+  y la consulta funciona sin escribir caché.
+- **M-07 [GWT]** Dado un documento acotado con miles de marcadores PEM sin
+  cierre o asignaciones repetidas, la redacción termina con trabajo lineal
+  antes de recortar. El fallback standalone del journal conserva el mismo
+  comportamiento y los secretos posteriores se redactan antes del recorte.
+
+Suites: `test_knowledge_view.py`, `test_knowledge_local.py`, recuperación/router
+existentes, `test_panel_memory_server.py`, `test_panel_memory_ui.py`,
+`test_backend_markdown_http.py` y export portable. Windows/Linux usan fuentes,
+almacenes, homes y servidores propios. Contratos técnicos y UI real se registran
+separados de calidad de recuperación y aceptación de hosts nativos. El plan del
+benchmark no acredita ejecución de ingesta, persistencia o eficacia.

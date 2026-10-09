@@ -5,8 +5,10 @@ usuario es comandos, dashboard y memoria; las nuevas skills permanecen aplazadas
 El [ledger](../tasks.md) conserva el progreso y la
 [dirección de memoria](../operational-priorities.md) conserva las decisiones previas.
 
-Este documento distingue código existente de implementación futura. La revisión
+La revisión documental del bloque 15
 no ejecutó consultas, benchmarks, hooks, imports ni operaciones de memoria.
+El bloque 16 implementa el snapshot y la consulta local sobre fixtures propias;
+la calidad de recuperación y selección de componentes siguen sin medir.
 No leyó configuración, memoria o credenciales del consumidor ni conectó servicios.
 Leer funciones y contratos no acredita utilidad, aprobación humana o fiabilidad nativa.
 T-07, T-11 y T-13 permanecen abiertas.
@@ -20,7 +22,8 @@ aprobado. El dashboard presenta sus resultados; no crea otro almacén de tareas 
 | Operación y dueño actual | Lectura | Escritura local | Red | Límite para la integración |
 |---|---|---|---|---|
 | `progress-report.py resume` y `journal.py select_entries` | Ledger y journal seleccionados con lector acotado | No | No | La retoma distingue estado actual e historial; no acredita actividad de agentes. |
-| `knowledge-find.py` sin `--intent` | Corpus legado y aprobado; consulta, relaciones o entrada por ID | Puede reconstruir SQLite por defecto | No | `--no-index` evita la caché, pero no acota por sí solo la lectura del corpus. |
+| `knowledge-find.py` sin `--intent` | Snapshot acotado legado/aprobado; consulta, relaciones o entrada por ID | Puede reconstruir SQLite por defecto, solo con corpus completo | No | Declara `corpus_read`; una lectura parcial no se sirve desde caché como completa. |
+| `knowledge-find.py --view` y panel servido | Proyección común de consulta, entrada y relaciones | No | No | `knowledge-view.py` valida selectores y acota lectura/salida; acción explícita, sin caché o backend. |
 | `knowledge-find.py --intent` | Consulta autorizada por backend; respaldo local con motivo | Puede reconstruir la caché local | Posible | La autorización de lectura y el fallo del backend permanecen explícitos. |
 | `journal.py status` | Cola, backoff, último dead-letter y recuperación en dry-run | No según su contrato | No | Un resultado degradado no demuestra salud aunque traiga ceros o campos `ok`. |
 | `journal.py candidatas` | Decisiones y pendientes de entradas del journal | No | No | Recorre el journal y propone por repetición; no aprueba ni mide calidad. |
@@ -46,7 +49,7 @@ La tabla describe los caminos leídos, no concede permisos a un endpoint web.
 Los adaptadores de terceros pueden ejecutar código; el futuro servidor no los
 importará por descubrir una declaración o actualizar una vista.
 
-## Qué falta antes de exponer memoria interactiva
+## Hallazgos documentales del bloque 15
 
 | Hallazgo | Función y líneas leídas | Decisión |
 |---|---|---|
@@ -57,7 +60,7 @@ importará por descubrir una declaración o actualizar una vista.
 | La reconciliación es interna al adaptador Graphiti | `graphiti.py`: `_reconciliar_publicado`, 1844–1892; recuperación de `.pending` en `apply`, 1391–1398. | No crear una acción pública que llame al helper privado. Usar el dueño `knowledge-sync.py` para operaciones soportadas. |
 | La documentación mezclaba autoría de propuestas y aprobación | `docs/agents/knowledge-curator.md`: §4 y §5. | Documenter/usuario proponen; Curator decide y mueve candidatos, y escribe aprobados. El gate valida sin mover. |
 
-Estas líneas corresponden a las fuentes inspeccionadas en este bloque. Las
+Estas líneas corresponden a la base 21092c2 inspeccionada en el bloque 15. Las
 funciones identifican el contrato cuando otros cambios desplazan su ubicación.
 La corrección de §5 aclara documentación; no añade enforcement ni otro productor.
 
@@ -88,28 +91,28 @@ con el grupo propio y después republica. Un fallo puede dejar el grupo sin comp
 La UI futura distinguirá reconstrucción, sincronización, verificación y consulta.
 No presentará reconstrucción como remedio automático al cargar el panel.
 
-## Próxima entrega: consulta local explícita y acotada
+## Bloque 16: consulta local explícita y acotada
 
-**Implementación futura.** Consolidar consulta desde comandos y dashboard con el
-lector y buscador propios. No añadir una skill, un backend o una segunda memoria.
-La actualización pasiva del dashboard solo consume resultados o proyecciones
-explícitas; no ejecuta consultas, replay, recuperación ni operaciones externas.
+`knowledge-view.py` comparte snapshot acotado, aprobación local y parsers/ranking/
+relaciones existentes. `knowledge-find.py --view` y el panel servido usan su salida;
+la CLI ordinaria también cierra la lectura íntegra anterior. No añade otra memoria.
+El polling de progreso no ejecuta búsquedas, replay ni operaciones externas.
 
-La consulta mantendrá las tres capas existentes: aciertos compactos, relaciones y
-entrada seleccionada por ID. Conservará ID completo, versión del conocimiento,
+La consulta conserva las tres capas existentes: aciertos compactos, relaciones y
+entrada seleccionada por ID. Conserva ID completo, versión del conocimiento,
 estado, evidencia disponible y ruta. Distinguirá conocimiento aprobado, propuestas,
 entradas obsoletas e historial sin promoverlos por aparecer en un resultado.
 
-El servicio local impondrá presupuestos de archivos, bytes y resultados antes de
-leer. Compartirá los parsers y criterios existentes, con lector acotado y rechazo
-de enlaces. Mostrará ausencia, corpus incompleto, archivo ilegible, fallo y consulta
-sin aciertos como estados diferentes. No responderá con un vacío saludable ante fallo.
+Los presupuestos se aplican antes de leer: 256 entradas, 128 archivos, 256 KiB por
+archivo, 2 MiB acumulados y profundidad ocho. Salida de 20 resultados/relaciones y
+64 KiB JSON; cuerpo solo al pedir Ver, hasta 12.000 caracteres. Ausencia, corpus
+incompleto, archivo ilegible, fallo y colisión tienen estados explícitos.
 
-La salida destinada al panel aplicará el redactor canónico y una proyección mínima.
+La salida destinada al panel aplica el redactor canónico y una proyección mínima.
 Una ruta o un hash son identificadores de procedencia; no prueban autenticidad ni
 aprobación. Los cuerpos solo viajarán tras selección explícita y con límites declarados.
 
-| Criterio de aceptación futuro | Evidencia requerida |
+| Criterio de aceptación | Evidencia requerida |
 |---|---|
 | Consulta local sin efectos | Fixture propia: cero red, cero escrituras y corpus/configuración intactos. |
 | Lectura acotada | Fixtures grandes, muchos archivos, enlaces y archivos ilegibles; presupuesto y parcialidad visibles. |
@@ -124,5 +127,5 @@ Primero medirá la base local. Un experimento Graphiti posterior usará las mism
 preguntas y un servicio explícitamente habilitado para medir utilidad, contexto y
 coste real. Las fixtures o esquemas no justificarán una migración por sí solos.
 
-La entrega documental no ejecuta esa medición ni cierra la captura nativa pendiente.
+La consulta y sus pruebas de contrato no sustituyen esa medición ni cierran captura nativa.
 No cambia los permisos de memoria, activa servicios o da por terminado T-07/T-11/T-13.

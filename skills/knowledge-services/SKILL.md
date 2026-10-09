@@ -47,6 +47,7 @@ no habilita ni configura ningún servicio externo.
 | `agent-kits/shared/knowledge-schema.py` | Taxonomía del proyecto (`taxonomy.json`), fail-closed. |
 | `agent-kits/shared/knowledge-index.py` | Índice de `approved/`. |
 | `agent-kits/shared/knowledge-local.py` + `knowledge-taxonomy-local.py` | Lectores compartidos sin red: corpus aprobado y reglas locales de taxonomía. |
+| `agent-kits/shared/knowledge-view.py` | Snapshot acotado y consulta local compartidos por CLI/panel; validación aprobada pura sobre textos ya leídos, sin caché o backends. |
 | `agent-kits/shared/outbox.py` | Staging/dead-letter reutilizado (CA-15), nunca reimplementado aquí. |
 | `agent-kits/shared/capabilities.py` | Registro de capacidades opcionales (`/setup`, `/doctor`, T-09). |
 

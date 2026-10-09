@@ -3,6 +3,18 @@
 Detalle de las derivaciones y algoritmos del único adaptador real de esta iniciativa (T-08).
 Léelo al tocar `markdown_export.py` o al depurar un desfase entre `approved/` y Kwipu.
 
+## Presupuesto HTTP
+
+Salud y errores admiten hasta 64 KiB; snapshot hasta 2 MiB y JSON hasta 64
+niveles, sin constantes no finitas. El plazo monotónico incluye espera DNS,
+conexión, cinco redirecciones máximas y lectura/parsing. Cada salto fija una IP
+permitida conservando Host/SNI y verificación TLS; no usa proxies del entorno.
+El handshake TLS recibe el plazo restante después de conectar TCP, sin reiniciar
+el presupuesto de la petición.
+Respuestas, redirecciones y errores se cierran. La espera del resolver existente
+vence con el presupuesto, pero no cancela una resolución pendiente del kernel.
+El writer, routing y publicación conservan su contrato independiente.
+
 ## Frontmatter exportado (CA-17)
 
 Cada Markdown en `export_dir` lleva:

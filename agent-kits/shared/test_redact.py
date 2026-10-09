@@ -7,6 +7,10 @@ Extraído de `journal.py:redactar` (única fuente): mismos casos de redacción q
 password… = valor`, sin falsos positivos evidentes."""
 import importlib.util
 import os
+from pathlib import Path
+import subprocess
+import sys
+import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "redact.py")
@@ -45,6 +49,129 @@ def test_solo_stdlib():
         assert prohibido not in src
 
 
+@pytest.mark.parametrize('case', ['pem', 'assignment', 'quoted_json', 'show'])
+def test_bounded_memory_inputs_redact_without_superlinear_delay(tmp_path, case):
+    """A pathological owned input cannot occupy the serial memory endpoint."""
+    pem = '-----BEGIN PRIVATE KEY-----\nx' * 9000
+    payload = {'pem': pem, 'assignment': 'token=' * 43000,
+               'quoted_json': '"token":"' + '\\a' * 125000}.get(case, pem)
+    own = tmp_path / 'owned'
+    own.mkdir()
+    fixture = own / 'input.txt'
+    fixture.write_text(payload, encoding='utf8', newline='')
+    root = own / 'project'
+    entry = root / 'docs/knowledge/adr/ADR-001.md'
+    if case == 'show':
+        entry.parent.mkdir(parents=True)
+        entry.write_text('---\nid: ADR-001\nestado: aceptada\ntitulo: Owned\narea: Cache\n---\n' + payload,
+                         encoding='utf8', newline='')
+        assert entry.stat().st_size <= 256 * 1024
+    for variable in ('HOME','USERPROFILE','PROGRAMDATA','APPDATA','LOCALAPPDATA','TEMP','TMP',
+                     'CODEX_HOME','CLAUDE_CONFIG_DIR','XDG_CONFIG_HOME'):
+        (own / variable.lower()).mkdir()
+    env = {'PATH': os.environ.get('PATH',''), 'SystemRoot': os.environ.get('SystemRoot','C:/Windows'),
+           'PYTHONDONTWRITEBYTECODE':'1','PYTEST_DISABLE_PLUGIN_AUTOLOAD':'1','PYTHONIOENCODING':'utf8',
+           **{name:str(own / name.lower()) for name in ('HOME','USERPROFILE','PROGRAMDATA','APPDATA',
+                'LOCALAPPDATA','TEMP','TMP','CODEX_HOME','CLAUDE_CONFIG_DIR','XDG_CONFIG_HOME')}}
+    program = '''import importlib.util,pathlib,sys,time
+script,fixture,case,root=sys.argv[1:]
+spec=importlib.util.spec_from_file_location('owned_redactor',script)
+module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+started=time.monotonic()
+if case=='show':
+    result=module.query(root,operation='show',id='ADR-001')
+    assert result['selected']['id']=='ADR-001' and len(result['selected']['texto'])<=12000
+    assert result['status']=='partial' and 'text_budget' in result['issues']
+else:
+    text=pathlib.Path(fixture).read_text(encoding='utf8')
+    assert module.redactar(text)==text
+print(round(time.monotonic()-started,4))
+'''
+    script = str(Path(HERE) / ('knowledge-view.py' if case == 'show' else 'redact.py'))
+    try:
+        result = subprocess.run([sys.executable,'-X','utf8','-B','-c',program,script,str(fixture),case,str(root)],
+                                cwd=own,env=env,capture_output=True,encoding='utf8',errors='replace',timeout=3)
+    except subprocess.TimeoutExpired:
+        pytest.fail('owned bounded input exceeded 3s redaction deadline: ' + case)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert float(result.stdout.strip()) < 1.5
+
+
+@pytest.mark.parametrize('text', [
+    'before -----BEGIN PRIVATE KEY-----\ndata\n-----END PRIVATE KEY----- after',
+    '-----BEGIN RSA PRIVATE KEY-----x-----END OPENSSH PRIVATE KEY-----',
+    '-----BEGIN  PRIVATE KEY-----x-----END EC PRIVATE KEY-----',
+    '-----BEGIN PRIVATE KEY-----a-----BEGIN EC PRIVATE KEY-----b-----END PRIVATE KEY-----c-----END EC PRIVATE KEY-----',
+    '-----BEGIN PRIVATE KEY-----x-----END PRIVATE KEY----- -----BEGIN DSA PRIVATE KEY-----y-----END DSA PRIVATE KEY-----',
+    '-----END PRIVATE KEY----- -----BEGIN PRIVATE KEY-----unterminated',
+    '-----BEGIN private key-----unchanged-----END private key-----',
+    '-----BEGIN RSA2 PRIVATE KEY-----unchanged-----END RSA2 PRIVATE KEY-----',
+    '-----BEGIN PRIVATE KEY-----unfinished -----BEGIN EC PRIVATE KEY-----x-----END EC PRIVATE KEY-----',
+])
+def test_linear_pem_preserves_previous_marker_semantics(text):
+    import re
+    previous = re.compile(r'-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----', re.S)
+    assert redact.redactar(text) == previous.sub(redact.REDACTADO, text)
+
+
+def test_linear_assignment_preserves_previous_precision_and_greedy_values():
+    import random
+    import re
+    previous = re.compile(r'(?i)(?P<pre>\b(?:' + redact._CLAVES_SENSIBLES + r')\b\s*[:=]\s*["\']?)'
+                          r'(?P<sec>(?=[^\s"\']*[A-Za-z])(?=[^\s"\']*[0-9!@#$%^&*])[^\s"\']{8,})')
+    rng = random.Random(20261009)
+    keys = ['token','secret','api_key','password','pwd','contraseña','Password','token_hint']
+    values = ['abcdef1234','abcdefghi','token=token=','token=123','İıſK1111','áéíóú1234','abcdefgh١٢٣٤',
+              '1234567890','a!bcdefgh','a=bcdefgh','abc','\\abc123456','abcDEF$%&*','""abc12345']
+    for _ in range(500):
+        text = ''.join(rng.choice(keys) + rng.choice(['=',' = ',':\n','="',"='"]) +
+                       rng.choice(values) + rng.choice([' ','\n',';','/']) for _ in range(8))
+        expected = previous.sub(lambda match: match['pre'] + redact.REDACTADO, text)
+        assert redact.redactar(text) == expected, repr(text)
+
+
+def test_unterminated_pem_preserves_content_but_later_secret_is_redacted_before_clip():
+    secret = 'sk-' + 'A' * 30
+    text = '-----BEGIN PRIVATE KEY-----\n' + 'x' * 11965 + ' ' + secret + ' suffix'
+    result = redact.redactar(text)
+    assert result.startswith('-----BEGIN PRIVATE KEY-----\n')
+    assert secret not in result and redact.REDACTADO in result
+    assert 'sk-' not in result[:12000]
+
+
+def test_journal_standalone_backup_has_helpers_in_its_own_globals():
+    import re
+    source = Path(HERE,'journal.py').read_text(encoding='utf8')
+    start = source.index('# --8<-- redact (redactar + constantes)')
+    end = source.index('# --8<-- fin redact (redactar + constantes)',start)
+    namespace = {'re':re}
+    exec(compile(source[start:end],'owned_journal_backup','exec'),namespace)
+    text = '-----BEGIN RSA PRIVATE KEY-----x-----END EC PRIVATE KEY----- token=abc1234567'
+    assert namespace['redactar'](text) == redact.redactar(text)
+
+
+def test_journal_real_fallback_without_redact_module(tmp_path):
+    """The shipped backup executes in journal's globals when its sibling is absent."""
+    bundle = tmp_path / 'owned-journal'
+    bundle.mkdir()
+    for filename in ('journal.py', 'journal-capture.py'):
+        (bundle / filename).write_bytes(Path(HERE, filename).read_bytes())
+    assert not (bundle / 'redact.py').exists()
+    spec = importlib.util.spec_from_file_location('owned_journal_fallback', bundle / 'journal.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module._redact_mod is None
+    assert module._capture_mod is not None
+    assert module.redactar.__globals__ is module.__dict__
+    for text in (
+        '-----BEGIN RSA PRIVATE KEY-----x-----END EC PRIVATE KEY----- token=abc1234567',
+        '-----BEGIN PRIVATE KEY-----\nx' * 9000,
+        'token=' * 43000,
+        '{"token":"a\\\"b c"}',
+    ):
+        assert module.redactar(text) == redact.redactar(text)
+
+
 def test_139_redacta_el_par_json_de_una_clave_sensible():
     """#139 (training-data-services fix2, CWE-312): la forma JSON `"password": "…"` no casaba con
     `password=`/`password:` (la comilla de cierre de la clave va antes de los dos puntos)."""
@@ -77,9 +204,6 @@ def test_139_es_clave_sensible():
 # subprocess`— lo mide: su CLI solo lo ejercitaban subprocesos (`test_journal.py`). Estos tests lo llaman
 # EN PROCESO; los helpers vienen de `test_journal.py`, cargado por ruta (sus tests no se recogen aqui).
 import json  # noqa: E402
-import sys  # noqa: E402
-
-import pytest  # noqa: E402,F401
 
 _TJ_SPEC = importlib.util.spec_from_file_location("test_journal_helpers_178", os.path.join(HERE, "test_journal.py"))
 _tj = importlib.util.module_from_spec(_TJ_SPEC)

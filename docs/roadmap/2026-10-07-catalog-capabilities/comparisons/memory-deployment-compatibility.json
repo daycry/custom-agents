@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "purpose": "synthetic_memory_benchmark_preparation",
+  "observed_at": "2026-10-09T14:20:00.301279+00:00",
+  "existing_memory_queries": 0,
+  "ingestion_operations": 0,
+  "provider_inference_calls": 0,
+  "docker_mutations": 0,
+  "response_budget_bytes": 65536,
+  "metadata_redirects_or_cookies": false,
+  "kwipu": {
+    "health": "ok",
+    "configured_models": {
+      "status": "ok",
+      "llm_model": "gpt-oss:120b-cloud",
+      "embed_model": "nomic-embed-text"
+    },
+    "query_fields": [
+      "q"
+    ],
+    "namespace_selector_available": false,
+    "image_source_revision": "unknown",
+    "benchmark_requirement": "new_owned_sources_and_store_with_proven_config_overrides"
+  },
+  "graphiti": {
+    "health": "healthy",
+    "image_label_revision": "11538f6d45561bcce9a4400b374fb2dc533dccb6",
+    "documentary_revision": "1026ae7ae25e7e4cfcc1c7ebe00347b8a90f52a0",
+    "image_contents_attested": false,
+    "effective_model": "unknown",
+    "metadata_properties": {
+      "add_memory": [
+        "group_id",
+        "reference_time"
+      ],
+      "search_memory_facts": [
+        "group_ids",
+        "valid_at_after",
+        "valid_at_before",
+        "invalid_at_after",
+        "invalid_at_before"
+      ],
+      "get_episodes": [
+        "group_ids",
+        "max_episodes"
+      ],
+      "delete_episode": [
+        "uuid"
+      ],
+      "get_episode_entities": [
+        "episode_uuids"
+      ],
+      "clear_graph": [
+        "group_ids"
+      ]
+    },
+    "source_scope_limit": "Installed default-driver routes lack explicit per-group physical-graph resolution; no runtime reproduction attempted.",
+    "benchmark_requirement": "new_owned_instance_database_and_storage; default-group test and cross-group compatibility separate",
+    "mcp_framework_version": "1.29.1"
+  },
+  "graphify": {
+    "producer_execution": "not_performed",
+    "benchmark_requirement": "reviewed_pinned_AST_producer_with_owned_sources_and_artifact"
+  },
+  "primary_source_reading": [
+    {
+      "repository": "getzep/graphiti",
+      "revision": "11538f6d45561bcce9a4400b374fb2dc533dccb6",
+      "source": "mcp_server/src/graphiti_mcp_server.py",
+      "sha256": "2d8dfbb210cdd84f598e3beb99c5fa205005f109db86554a0f0a8d407d996ef2",
+      "read_ranges": [
+        [
+          685,
+          708
+        ],
+        [
+          741,
+          781
+        ],
+        [
+          992,
+          1062
+        ]
+      ],
+      "execution_status": "not_executed"
+    },
+    {
+      "repository": "getzep/graphiti",
+      "revision": "11538f6d45561bcce9a4400b374fb2dc533dccb6",
+      "source": "graphiti_core/nodes.py",
+      "sha256": "529eb74b7c93e7551f6287b1a7bf6818d31fd045623b3260967dad573e4d801c",
+      "read_ranges": [
+        [
+          420,
+          474
+        ]
+      ],
+      "execution_status": "not_executed"
+    },
+    {
+      "repository": "getzep/graphiti",
+      "revision": "11538f6d45561bcce9a4400b374fb2dc533dccb6",
+      "source": "graphiti_core/utils/maintenance/graph_data_operations.py",
+      "sha256": "ab5d375738fdd5e8a3aa39242d8dc9b7b281dd0bedb05cd8a7659548582106cb",
+      "read_ranges": [
+        [
+          34,
+          64
+        ]
+      ],
+      "execution_status": "not_executed"
+    },
+    {
+      "repository": "getzep/graphiti",
+      "revision": "11538f6d45561bcce9a4400b374fb2dc533dccb6",
+      "source": "graphiti_core/driver/falkordb_driver.py",
+      "sha256": "865dbc577fb58400c465f4f93c386651d65f7654925681f0f7934014cd695610",
+      "read_ranges": [
+        [
+          128,
+          178
+        ],
+        [
+          232,
+          246
+        ],
+        [
+          331,
+          350
+        ]
+      ],
+      "execution_status": "not_executed"
+    }
+  ],
+  "prepared_fixture": {
+    "synthetic_documents": 12,
+    "scoped_inputs": {
+      "Atlas": 11,
+      "Boreal": 1
+    },
+    "document_questions": 14,
+    "code_sources": 4,
+    "code_questions": 4,
+    "lifecycle_scenarios": 6,
+    "duplicate_id_fixture": true,
+    "human_ux_measured": false
+  },
+  "selection": "undecided",
+  "quality_latency_cost_persistence_results": "not_measured"
+}

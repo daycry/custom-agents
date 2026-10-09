@@ -201,7 +201,7 @@ PESO_CUERPO = 1
 CUERPO_REPETIDO = 3            # apariciones en el cuerpo a partir de las cuales suma un PESO_CUERPO más
 BONUS_TODAS_EN_CAMPOS = 3      # todas las raíces de la consulta casan en ID/titular/área
 INDICE_NOMBRE = "knowledge-index.sqlite"   # en <root>/.claude/ (+ .gitignore)
-INDICE_VERSION = "2"                        # approved metadata adds cache columns; old caches rebuild
+INDICE_VERSION = "5"                        # quoted scalar identity changes parsed relations; old caches rebuild
 CAMPOS = ("id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "ruta_corta", "iniciativa",
           "fecha", "sucesores", "sustituye", "texto", "version", "evidencia", "enlaces", "category")
 
@@ -297,7 +297,31 @@ def estado_corto(estado):
 
 # ------------------------------------------------------------------ lectura del corpus
 
-def frontmatter(text):
+def _frontmatter_value(value):
+    """Preserve a flat quoted scalar and remove comments only outside quotes."""
+    value = value.strip()
+    quote, leading = None, True
+    backslashes = 0
+    for i, char in enumerate(value):
+        # Backslashes are literal in single quotes; only double quotes use escapes.
+        if char in ("'", '"') and (char == "'" or backslashes % 2 == 0):
+            if quote == char:
+                quote = None
+            elif quote is None and leading:
+                quote = char
+        if quote is None and char == "#" and (i == 0 or value[i - 1].isspace()):
+            value = value[:i].rstrip()
+            break
+        if quote is None and char in "[,":
+            leading = True
+        elif not char.isspace():
+            leading = False
+        backslashes = backslashes + 1 if char == "\\" else 0
+    quoted = len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"')
+    return (value[1:-1] if quoted else value), quoted
+
+
+def frontmatter(text, declarations=None):
     """{clave: valor} del frontmatter YAML plano + cuerpo. Nunca lanza; sin frontmatter → ({}, text)."""
     if not text.startswith("---"):
         return {}, text
@@ -310,10 +334,15 @@ def frontmatter(text):
             continue
         if raw[0] not in " \t" and ":" in raw:
             key, val = raw.split(":", 1)
-            key, val = key.strip(), val.split(" #", 1)[0].strip() if not val.strip().startswith("#") else ""
-            out[key] = val.strip("\"'")
+            key = key.strip()
+            val, quoted = _frontmatter_value(val)
+            out[key] = val
+            if declarations is not None:
+                declarations[key] = {"literal": val} if quoted else val
         elif key and raw[0] in " \t":
             out[key] = (out.get(key, "") + " " + raw.strip()).strip()
+            if declarations is not None:
+                declarations[key] = out[key]
     cuerpo = text[end + 4:]
     return out, cuerpo[cuerpo.find("\n") + 1:] if "\n" in cuerpo else ""
 
@@ -416,8 +445,86 @@ def iniciativa_de(fm, fila):
     return ""
 
 
+_RELATION_ID_RE = re.compile(
+    r"(?<![\w./\\:-])((?:[\w-]+\.)*(?:ADR|GOT|LES)-\d{3}(?:[.-][\w-]+)*)"
+    r"(?![\w/\\:-]|\.[\w./\\-])", re.IGNORECASE)
+
+
 def _ids_en(texto):
-    return [f"{a}-{b}" for a, b in ID_RE.findall(texto or "")]
+    """Keep complete declared IDs; route-like tokens never become short aliases."""
+    return [match.group(1) for match in _RELATION_ID_RE.finditer(texto or "")]
+
+
+
+def _relation_values(value, preserve_kind=False):
+    """Parse explicit scalar/inline/block relation declarations, preserving labels.
+
+    A declared identity is a label, never a filesystem path. Quoted comma/dash
+    characters do not split a label; prose scanning belongs to legacy states.
+    """
+    if isinstance(value, dict):
+        literal = value["literal"]
+        return [value if preserve_kind else literal] if literal else []
+    literal = value or ""
+    value = literal.strip()
+    if not value:
+        return []
+    inline = value.startswith("[") and value.endswith("]")
+    block = value.startswith("- ")
+    if not inline and not block:
+        return [literal]
+    value = value[1:-1] if inline else value
+    out, part, quote = [], [], None
+    leading = True
+    backslashes = 0
+    i = 0
+    def emit():
+        nonlocal leading
+        piece = "".join(part).strip()
+        quoted = len(piece) >= 2 and piece[0] == piece[-1] and piece[0] in ("'", '"')
+        if quoted:
+            piece = piece[1:-1]
+        if piece:
+            out.append({"literal": piece} if quoted and preserve_kind else piece)
+        part.clear()
+        leading = True
+    while i < len(value):
+        char = value[i]
+        if char in ("'", '"') and (char == "'" or backslashes % 2 == 0):
+            if quote == char: quote = None
+            elif quote is None and leading: quote = char
+        separator = quote is None and (
+            (inline and char == ",") or
+            (block and value[i:i+2] == "- " and (i == 0 or value[i-1].isspace())))
+        if separator:
+            emit()
+            backslashes = 0
+            i += 2 if block else 1
+            continue
+        part.append(char)
+        if not char.isspace(): leading = False
+        backslashes = backslashes + 1 if char == "\\" else 0
+        i += 1
+    emit()
+    return out
+
+
+def _declared_relation_ids(values, known_ids=None):
+    """Preserve complete declared labels, with explicit old annotation compatibility."""
+    known_ids = known_ids or set()
+    out = []
+    for value in values:
+        for declaration in _relation_values(value, preserve_kind=True):
+            literal = isinstance(declaration, dict)
+            label = declaration["literal"] if literal else declaration
+            if label.casefold() in known_ids:
+                out.append(label)
+            elif not literal and re.fullmatch(r"(?:ADR|GOT|LES)-\d{3}\s+\([^)]*\)", label, re.IGNORECASE):
+                # Only the historical short-ID annotation form is interpreted as prose.
+                out.append(label.split()[0])
+            else:
+                out.append(label)
+    return out
 
 
 _PREFIJO_TAG_AREA = "area:"
@@ -451,19 +558,34 @@ def _area_de_tags(tags):
 
 def leer_entrada(carpeta, tipo, fichero, text, filas_por_ruta):
     ruta_rel = f"{carpeta}/{fichero}"
-    fm, cuerpo = frontmatter(text)
+    declarations = {}
+    fm, cuerpo = frontmatter(text, declarations)
     fila = filas_por_ruta.get(ruta_rel, {})
     m = ID_RE.search(fm.get("id", "")) or ID_RE.search(fichero)
-    id_ = f"{m.group(1)}-{m.group(2)}" if m else fichero[:-3]
+    id_ = fm.get("id") or (f"{m.group(1)}-{m.group(2)}" if m else fichero[:-3])
     estado_detalle = (fm.get("estado") or fila.get("estado") or "").strip()
     titular = fila.get("titular_indice") or fm.get("titulo") or _titular_del_cuerpo(cuerpo) or fichero[:-3]
-    sucesores = _ids_en(" ".join(fm.get(k, "") for k in ("sucesor", "sustituida_por", "sustituida-por",
-                                                             "reemplazada_por", "sucesora")))
+    relation_fields = {
+        "sucesores": [declarations.get(k, "") for k in ("sucesor", "sustituida_por", "sustituida-por", "reemplazada_por", "sucesora")],
+        "sustituye": [declarations.get(k, "") for k in ("sustituye", "sustituye_a", "reemplaza", "predecesora")],
+    }
+    sucesores = _declared_relation_ids(relation_fields["sucesores"])
     if estado_corto(estado_detalle) == "obsoleta":
         sucesores += [i for i in _ids_en(estado_detalle) if i != id_ and i not in sucesores]
-    sustituye = _ids_en(" ".join(fm.get(k, "") for k in ("sustituye", "sustituye_a", "reemplaza", "predecesora")))
+    sustituye = _declared_relation_ids(relation_fields["sustituye"])
+    version = None
+    version_invalid = False
+    if "version" in fm:
+        try:
+            version = int(fm["version"])
+            if version <= 0:
+                version, version_invalid = None, True
+        except (TypeError, ValueError): version_invalid = True
     return {
         "id": id_,
+        "version": version, "_legacy_version_invalid": version_invalid,
+        "_relation_fields": relation_fields,
+        "evidencia": fm.get("evidencia"), "category": fm.get("category"),
         "tipo": tipo,
         "estado": estado_corto(estado_detalle),
         "estado_detalle": estado_detalle,
@@ -480,56 +602,24 @@ def leer_entrada(carpeta, tipo, fichero, text, filas_por_ruta):
     }
 
 
+class CorpusFiles(list):
+    """Source tuples with bounded-read provenance; remains list compatible."""
+    def __init__(self, values=(), corpus_read=None):
+        super().__init__(values)
+        self.corpus_read = corpus_read or {"complete": False, "issues": ["reader_unavailable"], "budget": {"files": 0, "bytes": 0, "entries": 0}}
+
+
 def ficheros_corpus(root):
-    """[(ruta relativa a docs/knowledge, bytes)] del corpus en orden fijo: README.md primero y luego
-    `adr/`, `gotchas/`, `lessons/` por nombre. [] si no hay `docs/knowledge/`. Ficheros ilegibles se saltan."""
-    base = os.path.join(root, "docs", "knowledge")
-    if not os.path.isdir(base):
-        return []
-    out = []
-    readme = os.path.join(base, "README.md")
-    if os.path.isfile(readme):
-        try:
-            with open(readme, "rb") as f:
-                out.append(("README.md", f.read()))
-        except OSError:
-            pass
-    for carpeta, _tipo in CARPETAS:
-        d = os.path.join(base, carpeta)
-        if not os.path.isdir(d):
-            continue
-        for fn in sorted(os.listdir(d)):
-            if fn.endswith(".md") and fn.lower() != "readme.md":
-                try:
-                    with open(os.path.join(d, fn), "rb") as f:
-                        out.append((f"{carpeta}/{fn}", f.read()))
-                except OSError:
-                    continue
-    out.extend(_ficheros_approved(root))
-    return out
-
-
-def _ficheros_approved(root):
-    """Validated local snapshot; service configuration never loads backend code here."""
-    if not os.path.isdir(os.path.join(root, "docs", "knowledge", "approved")):
-        return []
+    """Common bounded canonical snapshot, without opening caches or services."""
     try:
-        reader = _cargar_modulo(os.path.join(HERE, "knowledge-local.py"), "kf_local")
-        config, _origin, _path, errors = reader._TAXONOMY.cargar_taxonomia(root)
-        records = {}
-        if not errors:
-            records, errors = reader.build_index(root, config=config, include_source=True)
-        if errors:
-            reason = _sanear_detalle(errors[0].get("mensaje"))
-            print(f"knowledge-find: approved no válido ({len(errors)} error(es)): {reason}; se sirve legado", file=sys.stderr)
-            records = {}
-        snapshot = {"config": config, "entries": records}
-        files = [("__approved_meta__.json", json.dumps(snapshot, ensure_ascii=False, sort_keys=True).encode("utf-8"))]
-        files.extend((meta["ruta_rel"], meta["texto"].encode("utf-8")) for meta in records.values())
-        return files
-    except Exception as exc:  # optional local corpus: a partial kit preserves legacy retrieval
-        print(f"knowledge-find: approved no disponible: {_sanear_detalle(exc)}; se sirve legado", file=sys.stderr)
-        return []
+        reader = _cargar_modulo(os.path.join(HERE, "knowledge-view.py"), "kf_view")
+        snap = reader.snapshot(root)
+        if not snap["corpus_read"]["complete"]:
+            print("knowledge-find: lectura parcial del corpus local (legacy/approved/taxonomy)", file=sys.stderr)
+        return CorpusFiles(snap["files"], snap["corpus_read"])
+    except Exception:
+        print("knowledge-find: lector local no disponible", file=sys.stderr)
+        return CorpusFiles()
 
 
 def _entrada_approved(root_rel, meta):
@@ -584,6 +674,16 @@ def parsear_corpus(ficheros):
             out.append(_entrada_approved(rel, approved_by_path[rel]))
         else:
             out.append(leer_entrada(carpeta, tipo_de[carpeta], fn, _texto(data), filas_por_ruta))
+    known_ids = {entry["id"].casefold() for entry in out}
+    for entry in out:
+        fields = entry.get("_relation_fields")
+        if fields is None: continue
+        entry["sucesores"] = _declared_relation_ids(fields["sucesores"], known_ids)
+        entry["sustituye"] = _declared_relation_ids(fields["sustituye"], known_ids)
+        if entry["estado"] == "obsoleta":
+            entry["sucesores"] += [identifier for identifier in _ids_en(entry["estado_detalle"])
+                                    if identifier.casefold() != entry["id"].casefold()
+                                    and identifier not in entry["sucesores"]]
     return out
 
 
@@ -731,23 +831,36 @@ def construir_indice(path, entradas, h):
 def abrir_corpus(root, usar_indice=True):
     """(entradas, ruta_del_indice_o_None, {"indice": …[, "indice_motivo": …]}). Nunca lanza."""
     ficheros = ficheros_corpus(root)
+    read_info = {"corpus_read": ficheros.corpus_read}
+    parsed = parsear_corpus(ficheros)
+    if any(e.get("_legacy_version_invalid") for e in parsed):
+        read_info["corpus_read"]["complete"] = False
+        read_info["corpus_read"]["issues"].append("version_invalid")
+        print("knowledge-find: version no valida en corpus legado", file=sys.stderr)
+    identities = Counter(e["id"].casefold() for e in parsed)
+    if any(count > 1 for count in identities.values()):
+        read_info["corpus_read"]["complete"] = False
+        read_info["corpus_read"]["issues"].append("identity_collision")
+        print("knowledge-find: identidad ambigua en corpus local", file=sys.stderr)
+    if not ficheros.corpus_read["complete"]:
+        return parsed, None, dict(read_info, indice="degradado", indice_motivo="lectura parcial del corpus")
     if not ficheros:
-        return [], None, {"indice": "degradado", "indice_motivo": "sin docs/knowledge/"}
+        return [], None, dict(read_info, indice="degradado", indice_motivo="sin docs/knowledge/")
     if not usar_indice:
-        return parsear_corpus(ficheros), None, {"indice": "degradado", "indice_motivo": "--no-index"}
+        return parsed, None, dict(read_info, indice="degradado", indice_motivo="--no-index")
     try:
         if not fts5_disponible():
-            return parsear_corpus(ficheros), None, {"indice": "degradado", "indice_motivo": "sqlite3 sin FTS5"}
+            return parsed, None, dict(read_info, indice="degradado", indice_motivo="sqlite3 sin FTS5")
         path = ruta_indice(root)
         h = hash_corpus(ficheros)
         entradas, estado = leer_indice(path, h)
         if entradas is not None:
-            return entradas, path, {"indice": estado}
-        entradas = parsear_corpus(ficheros)
+            return entradas, path, dict(read_info, indice=estado)
+        entradas = parsed
         construir_indice(path, entradas, h)
-        return entradas, path, {"indice": estado}
+        return entradas, path, dict(read_info, indice=estado)
     except Exception as e:  # noqa: BLE001 — el índice nunca bloquea ni cambia el exit code
-        return parsear_corpus(ficheros), None, {"indice": "degradado", "indice_motivo": f"{type(e).__name__}: {e}"}
+        return parsed, None, dict(read_info, indice="degradado", indice_motivo="indice no disponible")
 
 
 def candidatos_fts(path, toks):
@@ -989,8 +1102,8 @@ def resolver_root(arg_root):
 # ------------------------------------------------------------------ capa 2: grafo curado
 
 def buscar_id(entradas, id_):
-    id_n = (id_ or "").strip().upper()
-    return next((e for e in entradas if e["id"].upper() == id_n), None)
+    id_n = (id_ or "").casefold()
+    return next((e for e in entradas if e["id"].casefold() == id_n), None)
 
 
 def _area_significativa(area):
@@ -1001,23 +1114,26 @@ def _relaciones_sucesion(entradas, e):
     """`sustituida por` (sucesores declarados en `e` o quien declara `sustituye: e`) y `sustituye a`
     (lo que `e` declara sustituir, o quien declara a `e` como su `sucesor`). `entrada` es None si el
     ID no está en el corpus."""
-    por_id = {x["id"]: x for x in entradas}
+    identities = Counter(x["id"].casefold() for x in entradas)
+    por_id = {x["id"].casefold(): x for x in entradas if identities[x["id"].casefold()] == 1}
     suc, vistos = [], set()
 
     def add(rel, id_):
-        if (rel, id_) in vistos or id_ == e["id"]:
+        normalized = id_.casefold()
+        if (rel, normalized) in vistos or normalized == e["id"].casefold():
             return
-        vistos.add((rel, id_))
-        suc.append((rel, por_id.get(id_), id_))
+        vistos.add((rel, normalized))
+        target = por_id.get(normalized)
+        suc.append((rel, target, target["id"] if target is not None else id_))
 
     for id_ in e["sucesores"]:
         add("sustituida por", id_)
     for id_ in e["sustituye"]:
         add("sustituye a", id_)
     for x in entradas:
-        if e["id"] in x["sustituye"]:
+        if e["id"].casefold() in {identifier.casefold() for identifier in x["sustituye"]}:
             add("sustituida por", x["id"])
-        if e["id"] in x["sucesores"]:
+        if e["id"].casefold() in {identifier.casefold() for identifier in x["sucesores"]}:
             add("sustituye a", x["id"])
     suc.sort(key=lambda t: (0 if t[0] == "sustituida por" else 1, _numero(t[2]), t[2]))
     return suc
@@ -1415,6 +1531,7 @@ def _construir_parser():
     ap.add_argument("--tipo", default="", help="adr | gotcha | lesson (y sinónimos)")
     ap.add_argument("--limit", type=_limit, default=LIMIT_DEFAULT, help=f"aciertos máximos (default {LIMIT_DEFAULT}; 0 = sin tope; negativo = error)")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--view", action="store_true", help="vista local acotada JSON, sin indice ni servicios")
     ap.add_argument("--root", help="raíz del proyecto (default: $CLAUDE_PROJECT_DIR → cwd)")
     ap.add_argument("--intent", type=_intent, default=None,
                     help="intent DECLARADO de la consulta (p. ej. `temporal`): si algún backend habilitado "
@@ -1455,6 +1572,8 @@ def _modo_show(args, indice, corpus, e):
             data["knowledge_version"] = e["version"]
         if e.get("evidencia"):
             data["evidencia"] = e["evidencia"]
+        if indice.get("corpus_read"):
+            data["corpus_read"] = indice["corpus_read"]
         if indice.get("indice_motivo"):
             data["indice_motivo"] = indice["indice_motivo"]
         print(json.dumps(data, ensure_ascii=False))
@@ -1467,6 +1586,8 @@ def _modo_related(args, entradas, indice, corpus, e):
     if args.json:
         data = json_related(e, rel, indice)
         data["corpus"] = corpus
+        if indice.get("corpus_read"):
+            data["corpus_read"] = indice["corpus_read"]
         print(json.dumps(data, ensure_ascii=False))
     else:
         sys.stdout.write(texto_related(e, rel))
@@ -1475,7 +1596,7 @@ def _modo_related(args, entradas, indice, corpus, e):
 def _despachar_id(args, entradas, indice, root, corpus):
     """Capas 2 y 3 (`--related`/`--show`): resuelve el ID y despacha. Devuelve el exit code."""
     id_ = args.related or args.show
-    if sum(e["id"].upper() == id_.strip().upper() for e in entradas) > 1:
+    if sum(e["id"].casefold() == id_.casefold() for e in entradas) > 1:
         print(f"knowledge-find: ID ambiguo `{_sanear_detalle(id_)}` entre corpus locales; no se elige una entrada", file=sys.stderr)
         return 1
     e = buscar_id(entradas, id_)
@@ -1528,6 +1649,8 @@ def _imprimir_resultado(args, indice, corpus, consulta, total, aciertos, router=
                               "backend": router["backend"],
                               "descartados": router.get("descartados", 0),
                               "motivo": router.get("motivo", "")}
+        if indice.get("corpus_read"):
+            data["corpus_read"] = indice["corpus_read"]
         if indice.get("indice_motivo"):
             data["indice_motivo"] = indice["indice_motivo"]
         print(json.dumps(data, ensure_ascii=False))
@@ -1598,6 +1721,20 @@ def main(argv=None):
     if error is not None:
         return error
     root = resolver_root(args.root)
+    if args.view:
+        if args.intent or args.doctrina or args.backends_dir or _entradas_enrutado(args):
+            print("knowledge-find: --view solo admite consulta local", file=sys.stderr)
+            return 2
+        try:
+            view = _cargar_modulo(os.path.join(HERE, "knowledge-view.py"), "kf_view_cli")
+            result = view.query(root, operation="show" if args.show else "related" if args.related else "search",
+                                id=args.show or args.related or "", text=" ".join(args.texto),
+                                area=args.area, tipo=args.tipo, limit=args.limit)
+        except Exception:
+            print("knowledge-find: vista local no disponible", file=sys.stderr)
+            return 1
+        print(json.dumps(result, ensure_ascii=False))
+        return 2 if result["status"] == "invalid_request" else 1 if result["status"] in ("ambiguous", "unavailable") else 0
     texto = " ".join(args.texto)
     corpus = "doctrina" if args.doctrina else "proyecto"
     entradas, path, indice = _abrir_corpus_o_doctrina(args, root)

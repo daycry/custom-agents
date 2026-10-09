@@ -712,3 +712,154 @@ relaciones temporales y Graphify para contexto estructural. Medir citas/ID,
 versión, autoridad, calidad de recuperación, latencia, aislamiento, fallos,
 persistencia y reconstrucción antes de decidir componentes retenidos. Una
 comparación documental no declara consulta integrada ni eficacia de backend.
+
+## Bloque 16 — Consulta común y acotada de memoria
+
+La memoria de referencia ofrece un vault común para CLI/MCP y límites de
+escaneo. Nuestro Knowledge Gate conserva una autoridad distinta. Consolidar
+lectura/ranking/relaciones existentes antes de integrar recuperación externa;
+no crear otra memoria, nueva skill o aprobación por score.
+
+`knowledge-view.py` será el lector/proyector compartido de consulta local.
+Usará `local-read.py`, parsers/ranking/relaciones de `knowledge-find.py` y
+validación canónica de metadatos aprobados de `knowledge-local.py`. Extraer
+validación de un snapshot de textos desde el índice existente, sin duplicar
+sus reglas ni llamar a walk/build_index desde la web. La taxonomía local
+se lee acotada y se valida sin importar adaptadores; ausencia usa el default
+canónico. No se lee configuración nativa, journal, caché o corpus candidato.
+
+Cerrar también la lectura íntegra de `ficheros_corpus`/aprobados en la consulta
+ordinaria: reutilizar el mismo snapshot acotado, conservar degradación y
+hacer visible `corpus_read` en salidas existentes. Un snapshot parcial no
+se guarda ni se presenta como índice completo. La nueva vista explícita
+de CLI omite toda caché; show/related no resuelven colisiones por primer ID.
+Los estados/procedencia legados y aprobados permanecen diferenciados.
+
+Presupuestos iniciales: 256 entradas de directorio acumuladas, 128 archivos,
+256 KiB por archivo, 2 MiB de lectura acumulada, profundidad ocho para carpetas
+aprobadas declaradas; máximo 20 aciertos, ID 256 caracteres, consulta 1.000,
+cuerpo seleccionado 12.000 y respuesta 64 KiB. Cada omisión, enlace, corrupción,
+fallo, estado/identidad no resoluble o presupuesto agotado es explícito. No se
+recorta un ID para usarlo como selector. Identidad de fuente/hash es procedencia,
+no autenticación ni prueba de aprobación humana.
+
+Contrato público versión 1, source `canonical_knowledge`, `observed_at` UTC,
+`operation: search|show|related`, `status: ok|partial|not_found|unavailable|
+ambiguous|invalid_request`, `complete`, `issues` con códigos opacos. `entries`
+contiene como máximo veinte resultados compactos: ID completo, tipo, estado,
+titular/área, versión disponible, evidencia declarada, category, origen
+`legacy|approved`, ruta relativa y hash del texto. `selected` es null o esa
+entrada con cuerpo explícito acotado; `related` es null o grupos canónicos
+sucesion/iniciativa/area/enlaces. `budget` declara archivos/bytes/entradas
+leídos; no convierte corpus incompleto en ausencia sana. Redactor canónico
+antes de truncar o enviar cualquier texto controlado por el consumidor.
+
+El panel ofrece búsqueda, selección y relaciones mediante acción explícita.
+No busca al cargar, al filtrar catálogo o por polling de progreso. Única
+ruta POST `api/memory`, mismo prefijo privado/Host/Origin/CSP/no-cookies que
+el transporte actual, body JSON acotado a 4 KiB, sin campos de rutas, root,
+backend, comando o configuración. Rechazo de campos duplicados/desconocidos,
+UTF-8/JSON inválidos y tipos ajenos. Lectura de body con plazo acumulado;
+plazo de petición UI, exclusión de solapamientos y estados de error visibles.
+Ningún cuerpo viaja antes de seleccionar show. Solo texto en DOM, con teclado
+y móvil; catálogo offline mantiene cero consultas/red. POST sirve una consulta
+y no autoriza escrituras, sincronizaciones, índices o ejecución de adaptadores.
+
+El adaptador documental acota health, snapshot y cuerpos de error antes de
+parsear. Mantener contratos de estado/verificación, routing y writer propios;
+agotamiento de bytes/plazo o JSON excesivo no acredita salud/completitud.
+Cerrar sockets en todos los caminos; saneador replicado permanece idéntico.
+
+Preparar en paralelo benchmark sintético y verificar metadata/protocolo del
+despliegue actual, sin consultar datos existentes. No habilitar una consulta
+en web por descubrir un backend. Namespace/almacén aislado, modelo efectivo,
+compatibilidad, citas/versiones/vigencia y recuperación tras fallos preceden
+a decidir Kwipu/Graphiti/Graphify. Si un servicio no permite aislamiento,
+usar instancia temporal propia con componentes existentes; nunca reconstruir
+su índice general para medir. Lecturas de metadata no son resultados de calidad.
+
+Archivos: knowledge-view/test_knowledge_view nuevos; knowledge-find y pruebas,
+knowledge-local y pruebas para parser de snapshot; markdown_export y pruebas;
+servidor/renderer/assets/tests del panel; comando existente y exports/evals
+si cambia su contrato; matriz/flujo/docs ES/EN/changelogs y roadmap. TDD antes
+de nuevos scripts y regresiones de límites antes de cambiar producción.
+
+### Ajustes tras revisión independiente del bloque 16
+
+Las fixtures de revisión exigen conservar legado ante ausencia del helper
+aprobado, IDs de relaciones íntegros y versiones interoperables. Mantener
+enteros positivos seguros; versiones mayores se proyectan como decimal exacto
+de hasta 4.300 dígitos, sin convertirlas a Number. Metadatos inválidos quedan
+desconocidos con parcialidad, sin inutilizar los demás aciertos.
+
+Además de entradas/bytes, acotar a 256 llamadas de listado acumuladas: una
+carpeta vacía/inexistente consume trabajo aunque no devuelva nombres. Reservar
+el byte de sonda del lector dentro del presupuesto acumulado y detener acceso
+al agotarlo. La proyección declara scans para distinguir llamadas y entradas.
+
+Recalcular el timeout de socket inmediatamente antes del handshake TLS, tras
+conectar TCP, con el mismo deadline. La redacción completa sigue precediendo
+el recorte; cerrar el coste cuadrático de PEM incompletos en el redactor
+canónico mediante barrido lineal de marcadores. Actualizar su copia declarada
+de journal y probar compatibilidad de secretos completos/incompletos y fallbacks.
+No crear un redactor alternativo para el panel ni afirmar cancelación de I/O.
+
+### Ajuste de identidad tras el segundo pase
+
+Conservar el tipo de declaración de una relación antes de perder las comillas
+del frontmatter: un escalar entrecomillado como `[ADR-002]` o `- ADR-002`
+es un ID literal; una lista inline/de bloque expresa varios IDs. No interpretar
+el escalar como lista, exista o no su destino. La conservación de identidad
+se aplica a referencias resueltas, no resueltas, inversas y a la caché ordinaria.
+Añadir casos RED contra la selección del ID corto ajeno y contra referencias
+sin resolver, manteniendo las listas reales y las anotaciones históricas.
+Al leer el escalar plano, reconocer el delimitador antes de los comentarios:
+un `#` dentro de comillas pertenece al ID y se elimina solo la pareja exterior
+de comillas. Conservar el tipo literal también evita reinterpretarlo como
+anotación histórica. Este ajuste no introduce un parser YAML completo.
+Los items entrecomillados de una lista conservan también su tipo literal;
+la lista no convierte su contenido en anotación histórica.
+
+## Bloque 17 — Experimento funcional de memoria
+
+El usuario autoriza probar el uso real aprovechando el despliegue existente,
+priorizando la combinación documental/estructura de código. La memoria local
+sigue siendo el control y la fuente canónica. No activar tres backends en
+cada tarea ni escoger por health o número de funciones.
+
+Ejecutar con las fuentes sintéticas ya preparadas y almacenes físicos propios:
+Kwipu no tiene namespace de consulta; su indexer/bridge experimental usarán
+directorios exclusivos, nunca el índice existente. Reutilizar imágenes fijadas
+y el endpoint de modelos ya disponible sin reiniciar servicios, descargar
+modelos, leer secretos o cambiar configuración del despliegue. Graphify usará
+un productor AST fijado y revisado, en entorno privado, sin instalar skills o
+hooks en los hosts del usuario ni ejecutar una pasada semántica implícita.
+
+Medir aciertos citados, abstenciones, aislamiento, vigente/obsoleto, latencia,
+tokens/contexto, recursos y persistencia/actualización. Conservar preguntas y
+fuentes comunes con el control local; separar tareas documentales de las de
+código. Los errores de ingesta, cuotas o producer se registran como resultado,
+sin convertir salud/fixtures de esquema en calidad. El coste monetario será
+desconocido si el proveedor no entrega una medición verificable.
+
+Los contenedores/puertos/almacenes de prueba serán propios, etiquetados y
+registrados antes de usarlos; solo se detendrán o retirarán esos recursos.
+No copiar datos del usuario, leer logs de los servicios existentes, usar clear
+sobre grafos compartidos o modificar el Source Manager. Las conclusiones pueden
+descartar componentes: la selección final se apoya en utilidad adicional y coste
+de operación, con la memoria local disponible sin Docker.
+
+### Corrección acotada de delimitadores del lector local
+
+Respetar el cierre de comillas del frontmatter plano: una barra inversa dentro
+de comillas simples es contenido literal; no impide cerrar el escalar antes
+de un comentario externo. En comillas dobles, distinguir barra escapada y
+comilla escapada por paridad, sin un escaneo retrospectivo cuadrático. Mantener
+el contenido de IDs opacos y la distinción entre escalar literal y lista real;
+no añadir un parser YAML completo ni reinterpretar IDs existentes.
+
+Primero reproducir B4 con destino presente/ausente, inversa y comentario,
+y controles de comillas simples/dobles, listas reales y `#` literal. Después
+corregir el scanner compartido y comprobar la regresión del lector/cache.
+El cuarto ciclo autorizado por el orquestador es adicional y acotado: no
+reabre criterios aprobados sin evidencia nueva ni sustituye QA o benchmark.

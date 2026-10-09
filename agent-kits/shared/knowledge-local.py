@@ -270,16 +270,13 @@ def build_index(root=None, config=None, include_source=False):
         if os.path.normcase(os.path.realpath(base)) != os.path.normcase(canonical):
             return {}, [_error("approved resuelve fuera del árbol canónico", base, "$")]
     carpetas = _carpetas_declaradas(config)
-    categorias_validas = {cat.get("key") for cat in (config.get("categories") or []) if cat.get("key")}
-
-    indice = {}
     errores = []
-    vistos_en = {}  # id -> primera ruta donde se vio (para el mensaje de duplicado)
     # gap 30: dos `folder` declarados pueden anidarse legalmente segun `_folder_seguro`
     # (`"adr"` y `"adr/legacy"`); sin dedupe, `os.walk` visitaba el MISMO fichero fisico dos
     # veces (una por carpeta) y el chequeo de `id` duplicado (mas abajo) lo reportaba como error
     # contra si mismo. Se deduplica por `os.path.realpath`, no por ruta cruda.
     rutas_vistas_real = set()
+    sources = []
 
     # gap 38 (fix4): procesar los `folder` MAS ANIDADOS primero (mas segmentos `/`) para que, con
     # `"adr"` y `"adr/legacy"` declarados, el fichero fisico que vive bajo `adr/legacy/` se asigne
@@ -334,70 +331,84 @@ def build_index(root=None, config=None, include_source=False):
                 # de tumbar `build_index` entero con un traceback.
                 errores.append(_error(f"no se pudo leer con codificacion utf-8: {e}", ruta, "encoding"))
                 continue
-            fm = _frontmatter(texto)
-            id_ = fm.get("id")
-            if not id_:
-                errores.append(_error("falta `id` en el frontmatter", ruta, "id"))
-                continue
-            if not isinstance(id_, str) or not _ID_VALIDO_RE.match(id_):
-                # gap 96 (CWE-22): sin este chequeo, un `id` con `../` o separadores de ruta
-                # (`/`, `\`) llega intacto a cualquier adaptador que componga
-                # `<export_dir>/<id>.<ext>` y escribe fuera de `export_dir`.
-                errores.append(_error(
-                    f"`id` (`{id_}`) no cumple la forma `[A-Za-z0-9._-]+` (sin `/`, `\\` ni rutas)",
-                    ruta, "id"))
-                continue
-            if id_ in indice:
-                errores.append(_error(
-                    f"id duplicado `{id_}` (ya declarado en `{vistos_en[id_]}`)", ruta, "id"))
-                continue
-            if "version" not in fm:
-                errores.append(_error("falta `version` en el frontmatter", ruta, "version"))
+            sources.append((ruta, folder, texto))
+
+    parsed, validation_errors = index_snapshot(sources, config, include_source=include_source, root=root)
+    return parsed, errores + validation_errors
+
+
+def index_snapshot(sources, config, include_source=False, root="."):
+    """Validate already-read (path, declared folder, text) snapshots without I/O.
+
+    The full index and bounded retrieval use these same metadata/link rules.
+    """
+    categorias_validas = {cat.get("key") for cat in (config.get("categories") or []) if cat.get("key")}
+    indice, errores, vistos_en = {}, [], {}
+    for ruta, folder, texto in sources:
+        fm = _frontmatter(texto)
+        id_ = fm.get("id")
+        if not id_:
+            errores.append(_error("falta `id` en el frontmatter", ruta, "id"))
+            continue
+        if not isinstance(id_, str) or not _ID_VALIDO_RE.match(id_):
+            # gap 96 (CWE-22): sin este chequeo, un `id` con `../` o separadores de ruta
+            # (`/`, `\`) llega intacto a cualquier adaptador que componga
+            # `<export_dir>/<id>.<ext>` y escribe fuera de `export_dir`.
+            errores.append(_error(
+                f"`id` (`{id_}`) no cumple la forma `[A-Za-z0-9._-]+` (sin `/`, `\\` ni rutas)",
+                ruta, "id"))
+            continue
+        if id_ in indice:
+            errores.append(_error(
+                f"id duplicado `{id_}` (ya declarado en `{vistos_en[id_]}`)", ruta, "id"))
+            continue
+        if "version" not in fm:
+            errores.append(_error("falta `version` en el frontmatter", ruta, "version"))
+            version = None
+        else:
+            try:
+                version = int(fm["version"])
+            except (TypeError, ValueError):
+                errores.append(_error("`version` debe ser un entero", ruta, "version"))
                 version = None
-            else:
-                try:
-                    version = int(fm["version"])
-                except (TypeError, ValueError):
-                    errores.append(_error("`version` debe ser un entero", ruta, "version"))
-                    version = None
-            enlaces = fm.get("enlaces") or []
-            if isinstance(enlaces, str):
-                enlaces = [enlaces]
-            errores.extend(_validar_frontmatter_forma(fm, ruta, categorias_validas))
-            if include_source:
-                # Retrieval labels must be scalar; full indexing keeps its existing shape policy.
-                for campo in ("area", "titulo", "iniciativa", "fecha", "fuente", "evidencia"):
-                    if campo in fm and not isinstance(fm[campo], str):
-                        errores.append(_error(f"metadato local `{campo}` debe ser una cadena", ruta, campo))
-                if "tags" in fm and (not isinstance(fm["tags"], list)
-                                     or not all(isinstance(tag, str) for tag in fm["tags"])):
-                    errores.append(_error("metadato local `tags` debe ser una lista de cadenas", ruta, "tags"))
-            cuerpo = _FRONTMATTER_RE.sub("", texto, count=1).strip()
-            fuentes = fm.get("fuentes") or []
-            if isinstance(fuentes, str):
-                fuentes = [fuentes]
-            tags = fm.get("tags") or []
-            if isinstance(tags, str):
-                tags = [tags]
-            indice[id_] = {
-                "ruta": ruta, "version": version, "folder": folder, "enlaces": enlaces,
-                # gap 104 (rendimiento): el frontmatter YA se parseó y el cuerpo YA se leyó para
-                # construir este índice — se guardan aquí para que `knowledge-sync.py` (y
-                # cualquier otro consumidor) NUNCA tenga que reabrir el fichero solo para
-                # recuperar `category`/`evidencia`/`fuentes`/`tags`/`cuerpo` (antes: 1000 open()
-                # para 500 entradas indexadas con 10 enrutadas; ahora, 500 — uno por entrada).
-                "category": fm.get("category"), "evidencia": fm.get("evidencia"),
-                "fuentes": fuentes, "tags": tags, "cuerpo": cuerpo,
-                # gap 110 (revision de dos lentes, intento 2 fix2): `resumen` explicito del
-                # frontmatter, si el autor lo escribio - se propaga tal cual hasta el adaptador
-                # (`markdown_export._cuerpo_segun_modo`), que ya lo usaba pero nunca lo recibia
-                # porque ni el indice ni `knowledge-sync.py` lo extraian.
-                "resumen": fm.get("resumen"),
-            }
-            if include_source:
-                indice[id_].update(frontmatter=fm, texto=texto,
-                                  ruta_rel=os.path.relpath(ruta, os.path.join(root, "docs", "knowledge")).replace("\\", "/"))
-            vistos_en[id_] = ruta
+        enlaces = fm.get("enlaces") or []
+        if isinstance(enlaces, str):
+            enlaces = [enlaces]
+        errores.extend(_validar_frontmatter_forma(fm, ruta, categorias_validas))
+        if include_source:
+            # Retrieval labels must be scalar; full indexing keeps its existing shape policy.
+            for campo in ("area", "titulo", "iniciativa", "fecha", "fuente", "evidencia"):
+                if campo in fm and not isinstance(fm[campo], str):
+                    errores.append(_error(f"metadato local `{campo}` debe ser una cadena", ruta, campo))
+            if "tags" in fm and (not isinstance(fm["tags"], list)
+                                 or not all(isinstance(tag, str) for tag in fm["tags"])):
+                errores.append(_error("metadato local `tags` debe ser una lista de cadenas", ruta, "tags"))
+        cuerpo = _FRONTMATTER_RE.sub("", texto, count=1).strip()
+        fuentes = fm.get("fuentes") or []
+        if isinstance(fuentes, str):
+            fuentes = [fuentes]
+        tags = fm.get("tags") or []
+        if isinstance(tags, str):
+            tags = [tags]
+        indice[id_] = {
+            "ruta": ruta, "version": version, "folder": folder, "enlaces": enlaces,
+            # gap 104 (rendimiento): el frontmatter YA se parseó y el cuerpo YA se leyó para
+            # construir este índice — se guardan aquí para que `knowledge-sync.py` (y
+            # cualquier otro consumidor) NUNCA tenga que reabrir el fichero solo para
+            # recuperar `category`/`evidencia`/`fuentes`/`tags`/`cuerpo` (antes: 1000 open()
+            # para 500 entradas indexadas con 10 enrutadas; ahora, 500 — uno por entrada).
+            "category": fm.get("category"), "evidencia": fm.get("evidencia"),
+            "fuentes": fuentes, "tags": tags, "cuerpo": cuerpo,
+            # gap 110 (revision de dos lentes, intento 2 fix2): `resumen` explicito del
+            # frontmatter, si el autor lo escribio - se propaga tal cual hasta el adaptador
+            # (`markdown_export._cuerpo_segun_modo`), que ya lo usaba pero nunca lo recibia
+            # porque ni el indice ni `knowledge-sync.py` lo extraian.
+            "resumen": fm.get("resumen"),
+        }
+        if include_source:
+            indice[id_].update(frontmatter=fm, texto=texto,
+                              ruta_rel=os.path.relpath(ruta, os.path.join(root, "docs", "knowledge")).replace("\\", "/"))
+        vistos_en[id_] = ruta
 
     # Enlaces rotos: se resuelven una vez que TODO el índice está construido (un enlace puede
     # citar una entrada de otra carpeta que aún no se había escaneado).

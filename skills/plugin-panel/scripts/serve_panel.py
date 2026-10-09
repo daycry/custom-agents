@@ -1,4 +1,4 @@
-"""Explicit loopback transport for the panel; no runtime or memory execution."""
+"""Explicit loopback transport for local ledger and canonical memory reads."""
 from datetime import datetime, timezone
 import hashlib
 import hmac
@@ -16,6 +16,8 @@ MAX_FILE_BYTES = 256 * 1024
 MAX_READ_BYTES = 1024 * 1024
 MAX_INITIATIVES = 64
 MAX_RESPONSE_BYTES = 65536
+MAX_REQUEST_BYTES = 4096
+BODY_TIMEOUT = 3
 STATES = {'borrador', 'en-progreso', 'en-revision', 'completado', 'cancelado'}
 
 
@@ -34,6 +36,19 @@ def _load_shared(filename):
 
 def _load_builder():
     return _load('panel_service_builder', HERE / 'build_panel.py')
+
+
+def _load_memory():
+    return _load_shared('knowledge-view.py')
+
+
+def _unavailable_memory(operation):
+    return {'version': 1, 'source': 'canonical_knowledge',
+            'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+            'operation': operation if operation in ('search', 'show', 'related') else '',
+            'status': 'unavailable', 'complete': False,
+            'issues': ['reader_unavailable'], 'entries': [], 'selected': None,
+            'related': None, 'budget': {'files': 0, 'bytes': 0, 'entries': 0}}
 
 
 def _encoded(value):
@@ -145,6 +160,18 @@ class PanelServer(HTTPServer):
             self._snapshot_at = now
         return self._snapshot
 
+    def memory(self, payload):
+        try:
+            helper = _load_memory()
+            if not helper.valid_request(**payload):
+                return 400, b'Panel request unavailable.'
+            body = _encoded(helper.query(self.project, **payload))
+            if len(body) > MAX_RESPONSE_BYTES:
+                raise ValueError('response budget')
+            return 200, body
+        except Exception:
+            return 200, _encoded(_unavailable_memory(payload.get('operation', 'search')))
+
 
 class PanelHandler(BaseHTTPRequestHandler):
     server_version = 'CustomAgentsPanel'
@@ -169,7 +196,7 @@ class PanelHandler(BaseHTTPRequestHandler):
     def send_error(self, code, message=None, explain=None):
         self._reply(code)
 
-    def _allowed(self):
+    def _allowed(self, *, body=False):
         origin = f'http://127.0.0.1:{self.server.server_port}'
         if self.headers.get_all('Host') != [origin.removeprefix('http://')]:
             self._reply(403); return False
@@ -182,19 +209,22 @@ class PanelHandler(BaseHTTPRequestHandler):
         if self.headers.get_all('Transfer-Encoding') is not None:
             self._reply(400); return False
         lengths = self.headers.get_all('Content-Length')
-        if lengths is not None and lengths != ['0']:
+        if not body and lengths is not None and lengths != ['0']:
             self._reply(400); return False
         return True
 
-    def do_GET(self):
-        if not self._allowed():return
+    def _route(self):
         if not self.path.startswith('/') or any(c in self.path for c in ('?', '%', '\\', '#')):
-            self._reply(404); return
+            return None
         parts = self.path.split('/')
         if (len(parts) < 3 or re.fullmatch(r'[A-Za-z0-9_-]{43}', parts[1]) is None
                 or not hmac.compare_digest(parts[1], self.server.capability)):
-            self._reply(404); return
-        route = '/'.join(parts[2:])
+            return None
+        return '/'.join(parts[2:])
+
+    def do_GET(self):
+        if not self._allowed():return
+        route = self._route()
         if route == '':
             self._reply(200, self.server.page, 'text/html; charset=utf-8')
         elif route == 'api/progress':
@@ -205,12 +235,56 @@ class PanelHandler(BaseHTTPRequestHandler):
     do_HEAD = do_GET
 
     def do_POST(self):
+        if not self._allowed(body=True): return
+        route = self._route()
+        if route is None:
+            self._reply(404); return
+        if route != 'api/memory':
+            self._reply(405); return
+        lengths = self.headers.get_all('Content-Length')
+        if lengths is None or len(lengths) != 1 or re.fullmatch(r'[0-9]{1,8}', lengths[0]) is None:
+            self._reply(400); return
+        size = int(lengths[0])
+        if size > MAX_REQUEST_BYTES:
+            self._reply(413); return
+        if size == 0:
+            self._reply(400); return
+        types = self.headers.get_all('Content-Type')
+        if types is None or len(types) != 1 or re.fullmatch(r'application/json(?:\s*;\s*charset=utf-8)?', types[0], re.I) is None:
+            self._reply(415); return
+        deadline = time.monotonic() + BODY_TIMEOUT
+        chunks = []; remaining = size
+        try:
+            while remaining:
+                timeout = deadline - time.monotonic()
+                if timeout <= 0: raise TimeoutError
+                self.connection.settimeout(timeout)
+                chunk = self.rfile.read1(remaining)
+                if not chunk: raise ValueError('incomplete body')
+                chunks.append(chunk); remaining -= len(chunk)
+            if time.monotonic() > deadline: raise TimeoutError
+            def unique(pairs):
+                value = {}
+                for key, item in pairs:
+                    if key in value: raise ValueError('duplicate field')
+                    value[key] = item
+                return value
+            def constant(value): raise ValueError('nonfinite number')
+            payload = json.loads(b''.join(chunks).decode('utf8'), object_pairs_hook=unique, parse_constant=constant)
+        except (OSError, ValueError, RecursionError):
+            self._reply(400); return
+        if type(payload) is not dict or set(payload) - {'operation', 'text', 'id', 'area', 'tipo', 'limit'}:
+            self._reply(400); return
+        code, body = self.server.memory(payload)
+        self._reply(code, body, 'application/json; charset=utf-8' if code == 200 else 'text/plain; charset=utf-8')
+
+    def _reject_method(self):
         self._reply(405)
 
-    do_PUT = do_POST
-    do_DELETE = do_POST
-    do_PATCH = do_POST
-    do_OPTIONS = do_POST
+    do_PUT = _reject_method
+    do_DELETE = _reject_method
+    do_PATCH = _reject_method
+    do_OPTIONS = _reject_method
 
 
 def create_server(project, inventory, *, port=0):

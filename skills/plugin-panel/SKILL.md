@@ -6,7 +6,8 @@ description: >
   runtime y memoria; incluye extensiones propias de proyecto y usuario,
   personas y MCP con origen y conflictos; admite un diagnóstico portable de
   doctor indicado explícitamente, con fecha y alcance. HTML autónomo con búsqueda y filtros, JSON determinista,
-  con modo --serve explícito para progreso actualizado del ledger, sin cambios
+  con modo --serve explícito para progreso actualizado del ledger y consulta
+  local de memoria bajo demanda, sin cambios
   de configuración. Úsala cuando el usuario diga
   "panel de capacidades", "control panel del plugin" o "explora el catálogo del plugin".
 ---
@@ -15,7 +16,7 @@ description: >
 
 Presenta el bundle y las extensiones del proyecto seleccionado. El estado de las iniciativas lo muestra
 la skill roadmap-dashboard; este panel muestra capacidades y, en modo servido,
-una vista acotada del ledger local.
+una vista acotada del ledger local y de memoria canónica.
 
 1. Localiza esta skill en las raíces del bundle del runtime actual.
 2. Ejecuta scripts/build_panel.py con Python nativo, `--root <bundle>` y
@@ -39,8 +40,10 @@ Agrupa runtime y evento, conserva handlers y fuente, y distingue timeout de
 registro y supervisión del adapter. Carga y ejecución quedan sin verificar.
 Las funciones informativas provienen de cabeceras de handlers reconocidos.
 Muestra herramientas declaradas por los agentes, sin afirmar acceso a ellas
-en esta sesión. De memoria solo muestra presencia de directorio aprobado y
-artefacto Graphify; no lee entradas, grafos, transcripciones ni credenciales.
+en esta sesión. El inventario de memoria muestra presencia de directorio aprobado
+y artefacto Graphify. En modo servido, Buscar, Ver y Relaciones leen entradas
+locales explícitamente mediante `knowledge-view.py`, sin caché o backends.
+No consulta grafos, transcripciones ni credenciales.
 Usa el redactor del bundle. Sin él, avisa y no emite metadatos; continúa la tarea.
 No sigue enlaces simbólicos. Solo reemplaza HTML reconocido como suyo.
 

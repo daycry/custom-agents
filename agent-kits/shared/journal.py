@@ -215,18 +215,73 @@ def _load_module(name, filename):
 REDACTADO = "[secreto redactado]"
 _CLAVES_SENSIBLES = r"api[_-]?key|secret[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|pwd|clave|contrase[ñn]a"
 _CLAVE_SENSIBLE_RE = re.compile(r"(?i)(?:" + _CLAVES_SENSIBLES + r")")
+_PEM_BEGIN_RE = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")
+_PEM_END_RE = re.compile(r"-----END [A-Z ]*PRIVATE KEY-----")
+_ASIGNACION_RE = re.compile(r"(?i)\b(?:" + _CLAVES_SENSIBLES + r")\b\s*[:=]\s*[\"']?")
+_ASIGNACION_FIN_RE = re.compile(r"[\s\"']")
+_ASIGNACION_LETRA_RE = re.compile(r"[A-Za-z]", re.I)
+_ASIGNACION_VARIADA_RE = re.compile(r"[0-9!@#$%^&*]")
 _SECRETOS_RE = (
-    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
     re.compile(r"\b(?:sk-ant-|sk-|ghp_|gho_|ghu_|ghs_|ghr_|github_pat_|xox[baprs]-|glpat-|AKIA|ASIA)[A-Za-z0-9_\-]{16,}"),
     re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
     re.compile(r"(?i)(?P<pre>\bbearer\s+)(?P<sec>[A-Za-z0-9._~+/=\-]{20,})"),
-    re.compile(r"(?i)(?P<pre>\b(?:" + _CLAVES_SENSIBLES + r")\b\s*[:=]\s*[\"']?)"
-               r"(?P<sec>(?=[^\s\"']*[A-Za-z])(?=[^\s\"']*[0-9!@#$%^&*])[^\s\"']{8,})"),
     # par clave-valor JSON (o repr de Python) con la clave sensible ENTRECOMILLADA: el valor entero, sea
     # cual sea su forma (#139 de training-data-services: `"password": "…"` no casaba con `password=`)
     re.compile(r"(?i)(?P<pre>(?P<q>[\"'])(?:" + _CLAVES_SENSIBLES + r")(?P=q)\s*:\s*(?P<q2>[\"']))"
                r"(?P<sec>(?:\\.|(?!(?P=q2))[^\\])+)(?=(?P=q2))"),
 )
+
+
+def _redactar_pem(texto):
+    """First valid BEGIN through the next valid END, independently of family.
+
+    An unterminated block remains intact. Search its missing END only once,
+    rather than retrying the entire remaining body at every nested BEGIN.
+    """
+    partes, cursor = [], 0
+    while True:
+        inicio = _PEM_BEGIN_RE.search(texto, cursor)
+        if inicio is None:
+            break
+        fin = _PEM_END_RE.search(texto, inicio.end())
+        if fin is None:
+            break
+        partes.extend((texto[cursor:inicio.start()], REDACTADO))
+        cursor = fin.end()
+    partes.append(texto[cursor:])
+    return "".join(partes)
+
+
+def _redactar_asignaciones(texto):
+    """Preserve the original >=8, letter and diverse-character classification.
+
+    Cache each whitespace/quote-delimited value's end and last qualifying
+    characters. Repeated sensitive prefixes inside a failed candidate reuse
+    that scan instead of rescanning the remaining suffix quadratically.
+    """
+    partes, cursor, posicion = [], 0, 0
+    token_fin = -1
+    ultima_letra = ultimo_variado = -1
+    while True:
+        prefijo = _ASIGNACION_RE.search(texto, posicion)
+        if prefijo is None:
+            break
+        inicio = prefijo.end()
+        if inicio >= token_fin:
+            fin = _ASIGNACION_FIN_RE.search(texto, inicio)
+            token_fin = fin.start() if fin else len(texto)
+            ultima_letra = ultimo_variado = -1
+            for match in _ASIGNACION_LETRA_RE.finditer(texto, inicio, token_fin):
+                ultima_letra = match.start()
+            for match in _ASIGNACION_VARIADA_RE.finditer(texto, inicio, token_fin):
+                ultimo_variado = match.start()
+        if token_fin - inicio >= 8 and ultima_letra >= inicio and ultimo_variado >= inicio:
+            partes.extend((texto[cursor:prefijo.start()], prefijo.group(), REDACTADO))
+            cursor = posicion = token_fin
+        else:
+            posicion = inicio
+    partes.append(texto[cursor:])
+    return "".join(partes)
 
 
 def es_clave_sensible(clave):
@@ -237,9 +292,11 @@ def es_clave_sensible(clave):
 
 def redactar(texto):
     """Sustituye los secretos evidentes (_SECRETOS_RE) por REDACTADO conservando el prefijo (`token=`, `Bearer `)."""
-    texto = str(texto)
-    for pat in _SECRETOS_RE:
+    texto = _redactar_pem(str(texto))
+    for pat in _SECRETOS_RE[:-1]:
         texto = pat.sub(lambda m: (m.group("pre") if "pre" in m.groupdict() else "") + REDACTADO, texto)
+    texto = _redactar_asignaciones(texto)
+    texto = _SECRETOS_RE[-1].sub(lambda m: m.group("pre") + REDACTADO, texto)
     return texto
 # --8<-- fin redact (redactar + constantes)
 

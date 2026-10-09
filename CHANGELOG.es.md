@@ -9,6 +9,18 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added — Consulta canónica de memoria acotada
+
+- Compartir snapshots acotados de legado/aprobado entre CLI y Buscar, Ver y Relaciones del panel servido. Conservar IDs completos, versiones, evidencia, colisiones y lecturas parciales; los exports portables incluyen helpers Python transitivos sin ejecutarlos.
+
+### Fixed — Límites HTTP del bridge documental
+
+- Acotar bytes de respuesta, profundidad JSON y plazo acumulado, con IP privada fijada, cierre de redirecciones y verificación HTTPS conservada. La publicación sigue siendo del adaptador existente.
+
+### Fixed — Trabajo acotado de redacción
+
+- Recorrer marcadores PEM y asignaciones de secretos en tiempo lineal antes de recortar la memoria. Conservar la semántica del redactor canónico y el respaldo standalone declarado del journal.
+
 ### Added — Dashboard operativo local
 
 - Añadir servidor loopback explícito con capacidad de acceso y vista acotada del ledger canónico, actualización, filtros y frescura visible. Distinguir catálogo al arranque de lecturas actualizadas; sin acciones automáticas de runtime o memoria.

@@ -292,6 +292,16 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
   bloque `entity_types` para el `config.yaml` del servidor + el `entity_map` para
   `taxonomy.json`, sin aplicar nada ni tocar la red.
 
+## Recuperación local compartida
+
+`knowledge-find.py` usa el snapshot acotado de `knowledge-view.py` para legado
+y aprobado. Este valida textos ya leídos mediante `knowledge-local.index_snapshot`,
+sin cargar adaptadores. La CLI ordinaria declara `corpus_read` y solo conserva
+la caché cuando el corpus es completo; `--view` y la consulta explícita del
+panel no usan caché. Un fallo o una identidad ambigua conserva su diagnóstico.
+La lectura por `--intent` mantiene la autorización del router y el respaldo
+local con su motivo; estos límites no activan consultas externas.
+
 ## Adaptador de fixture (CA-12)
 
 `evals/fixtures/knowledge-services/backend_test.py` implementa el contrato completo de forma

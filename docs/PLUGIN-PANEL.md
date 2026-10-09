@@ -4,7 +4,7 @@
 
 El comando `/plugin-catalog` usa plugin-panel para mostrar agentes, skills,
 comandos, tools declaradas y hooks globales. La búsqueda y los filtros funcionan
-en un HTML autónomo. El modo servido añade progreso local; cartera detallada,
+en un HTML autónomo. El modo servido añade progreso y consulta local de memoria; cartera detallada,
 evaluaciones y presupuestos siguen en roadmap-dashboard.
 
 Los hooks se agrupan por **runtime y evento**, con una tarjeta por grupo.
@@ -69,8 +69,8 @@ a los cuatro segundos. Un fallo conserva la vista y su fecha anterior con aviso.
 
 El parser canónico calcula conteos y fase desde `tasks.md`. Fecha de lectura y
 SHA-256 identifican texto UTF-8 sin BOM, incluyendo saltos de línea; no autentican
-al autor ni demuestran ejecución de agentes. No consulta journal, usage-meter,
-búsquedas de memoria o backends, ni escribe estados.
+al autor ni demuestran ejecución de agentes. La actualización de Progreso no consulta journal, usage-meter, memoria o
+backends, ni escribe estados. Memoria se consulta solo por una acción explícita.
 
 La lectura rechaza redirecciones y cambios durante el acceso. Límites: 128
 entradas, 256 KiB por ledger, 1 MiB acumulado, 64 iniciativas, ocho tareas visibles
@@ -79,10 +79,47 @@ desconocido o recorte se indican como parciales. Texto redactado y acotado;
 sin cuerpos, verificaciones libres o rutas absolutas.
 
 Página/API requieren capacidad y Host exacto; Origin, si aparece, debe ser el
-propio. Rechaza cross-site, métodos mutables, query y rutas libres. Sin cookies
+propio. Rechaza cross-site, query y rutas libres; admite POST solo para la
+consulta local de memoria, sin operaciones de escritura. Sin cookies
 ni logs de acceso; CSP con nonce, conexión al mismo origen, no-store, no-referrer
 y marcos prohibidos. La capacidad no aísla frente a procesos del mismo usuario.
-Aprobar planes y acciones de memoria aún requieren sus consumidores y pruebas.
+Aprobar planes y publicar/reconstruir memoria aún requieren sus consumidores
+y pruebas.
+
+## Consulta local de memoria
+
+En modo servido, Memoria permite Buscar, Ver entrada y Relaciones. Cada acción
+usa `knowledge-view.py`; abrir el panel o actualizar Progreso no dispara búsquedas.
+Las tarjetas conservan ID completo, tipo, estado, versión, evidencia y ruta.
+Propuestas y entradas obsoletas conservan su estado. El cuerpo solo se entrega
+al pedir Ver; una colisión no selecciona una entrada automáticamente.
+
+La lectura comparte parsers, ranking, relaciones y validación de aprobados con
+`knowledge-find.py`. Límites acumulados: 256 entradas de directorio, 128 archivos,
+256 KiB por archivo, 2 MiB de lectura y profundidad ocho. Consulta de hasta
+1.000 caracteres, ID de hasta 256, 20 resultados/relaciones, cuerpo hasta 12.000
+caracteres y respuesta JSON de 64 KiB. Recorte, corpus inválido o lectura
+incompleta son parciales; ausencia, ambigüedad y fallo tienen estados explícitos.
+El redactor se aplica antes del recorte; ruta/hash no prueban aprobación.
+
+Las versiones mayores que el entero seguro de JavaScript se muestran como
+decimal exacto, hasta 4.300 dígitos. Versiones inválidas se declaran desconocidas
+con parcialidad. Además de entradas, se acotan 256 llamadas de listado; `scans`
+contabiliza ese trabajo incluso si las carpetas están vacías. El byte de sonda
+del lector se reserva dentro del acumulado de lectura.
+
+El servidor admite solo JSON UTF-8 en la ruta fija privada `api/memory`, con
+solicitud máxima de 4 KiB y plazo acumulado de cuerpo de tres segundos. Rechaza
+claves duplicadas, selectores desconocidos y otros métodos. La UI omite cookies,
+limita cada consulta a seis segundos y no solapa solicitudes. Ante fallo conserva
+la vista/fecha previa con aviso; los resultados, cuerpos y relaciones tienen
+frescura propia. No carga adaptadores, candidatos, journal ni cachés o índices.
+El HTML autónomo conserva inventario y no incorpora estas consultas.
+
+Desde CLI: `knowledge-find.py --root <proyecto> --view <consulta>`,
+`--view --show <ID>` o `--view --related <ID>`. La salida usa versión 1 y fuente
+`canonical_knowledge`. La consulta CLI ordinaria también lee el snapshot acotado
+y declara `corpus_read`; un corpus parcial no se guarda como índice completo.
 
 ## Extensiones en exportación autónoma
 
