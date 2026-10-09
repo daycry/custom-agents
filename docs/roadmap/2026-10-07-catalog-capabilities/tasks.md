@@ -1993,3 +1993,17 @@ Publicación: los dos JSON públicos se escriben con LF para que sus hashes
 coincidan con los blobs Git. La proyección nativa privada conserva CRLF y
 hash propio; su copia pública sólo normaliza finales de línea, con datos JSON
 idénticos. La evidencia separa ambos hashes y no afirma igualdad de bytes.
+
+### Checkpoint de entrega del bloque 9
+
+Commit funcional/documental `e488f23f03eef1f3fc84bc0e5183a279310f4863`:
+trece archivos, decisiones explícitas, 75 casos nuevos, evidencia de QA y
+aviso nativo. Los JSON publicados conservan LF y sus hashes coinciden con
+Git; código/tests siguen idénticos a las fuentes verificadas. Este segundo
+commit registra el checkpoint antes de publicar ambos en la rama autorizada.
+No PR, merge, release ni modificación de settings del consumidor.
+
+Pendiente de la iniciativa: fiabilidad del arranque de guardia y cierre bajo
+carga nativa, retoma de comandos, controles de panel y medición de memoria
+opcional. Las nuevas skills permanecen aplazadas. El bloque de entrega de
+decisiones queda validado; la iniciativa y T-02/T-09/T-14/T-15 siguen abiertas.
