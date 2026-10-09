@@ -178,7 +178,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Descripción**: Implementar mecanismos reales por contrato y versión para Claude/Codex/OpenCode, incluido soporte V2; probar identidad, concurrencia y degradación.
 - **Dependencias**: T-02/T-08.
 - **Archivos**: `hooks/**`, `interop/**`, `agent-kits/shared/**`, `scripts/**`, `install/**`, `tests/**`, `agents/**`, `docs/**`
-- **Verificación**: Checkpoint, cierre e instalación de bloques anteriores conservan sus fichas por snapshot. El bloque publicado 8b51edd corrige los permisos de reviewer y acredita mecanismos nativos. El bloque local actual conecta normalización, dispatcher, IDs propios y migración; tests dirigidos verdes, aceptación nativa final y revisión independientes en progreso. La primera distribución con PreToolUse de 5 s falló por timeout y se conserva como RED real; registro de 10 s en validación. T-09 permanece abierta.
+- **Verificación**: Dispatcher, IDs exactos, transporte de decisiones y correcciones de rama/preflight verificados en los bloques 3–10; `2a010a2` publicado. QA Windows/Linux y ocho ejecuciones nativas en hook-reliability-qa-evidence.json y hook-native-acceptance-evidence.json. Bloque 11 contrasta publicación canónica OpenCode con siete casos y recuperación de una copia del checkpoint; hook-canonical-capture-evidence.json conserva hashes y límites. Pendientes: bypass de verificación Git, demás reglas/capacidades y aceptación ampliada de carga/TUI. T-09 sigue abierta.
 - **RED del bloque de checkpoint (2026-10-08)**: `test_journal.py -k 'capture_respeta_journal_en_forma_objeto or rotar_fallo_conserva_checkpoint or rotar_lee_solo_cola'`: 4 failed/1 passed, 150 deselected. `{activo: false}` creó un log; los fallos simulados de fsync/replace no conservaron el original; la rotación leyó el archivo completo (`read(-1)`). Evidencia obtenida antes de modificar producción.
 - **RED de compatibilidad Windows (2026-10-08)**: `test_journal.py -x -q`: 1 failed/4 passed; `test_write_sin_rastro_del_plugin_no_escribe_nada` recibió `docs\knowledge\journal\2026-10-08-sesion.md` en vez de la ruta relativa con `/`. Se amplía el bloque para normalizar la salida CLI, sin cambiar rutas internas.
 - **RED de reclamación exclusiva (2026-10-08)**: probe propio con trazas de `os.replace` reprodujo dos movimientos exitosos del mismo origen en Windows (iteración 2); el test de 100 reclamaciones concurrentes falló en la iteración 1 con dos ganadores. El test de cerrojo no disponible también falló: entregó el item en vez de mantenerlo pendiente. Se serializa la transacción de reclamación con cerrojo de SO no bloqueante; pendientes intactos si no se obtiene.
@@ -236,7 +236,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Descripción**: Verificar aceptación completa y eficacia observable por escenario, carga nativa, regresiones, cobertura y revisión independiente por fase.
 - **Dependencias**: Verificar cada bloque entregado de T-09/T-11/T-12/T-13; aceptación global tras T-09/T-10/T-11/T-12/T-13, sin cerrar por una entrega parcial.
 - **Archivos**: `tests/**`, `evals/**`, `docs/roadmap/2026-10-07-catalog-capabilities/**`
-- **Verificación**: Cada bloque conserva su QA y fuente fijada al final del ledger; terminal-qa-evidence.json corresponde al snapshot previo. Bloque actual: RED/GREEN del campo Codex ignorado, 78 tests export/roadmap y cobertura oficial del exporter. Las pruebas nativas de identidad son evidencia separada, no se suman como unit tests. Pendientes para la iniciativa: integración del despacho por rol, demás escenarios/capacidades, UI Edge y aceptación completa.
+- **Verificación**: Cada bloque conserva su QA por snapshot al final del ledger. Bloque 10: Windows Node 166/Python 287 y Linux Node 154 + 12 skips/Python 287, cuatro qa-gates GREEN y cobertura de diff con método explícito. Bloque 11: 16 controles del observador estricto, siete capturas canónicas nativas y recuperación sobre copia aislada. Las ejecuciones nativas y los casos por plataforma no se suman como unit tests. Pendientes: nuevos escenarios/capacidades de T-09/T-11/T-13, UI Edge y aceptación global.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
@@ -246,7 +246,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Descripción**: Retirar recursos y callers sustituidos, refrescar dependencias/manifiestos/exports y docs ES/EN; comprobar referencias y nombres públicos.
 - **Dependencias**: Verificación del bloque pertinente de T-14 para docs/exports de cada entrega; aceptación global tras completar T-14.
 - **Archivos**: `skills/**`, `agents/**`, `commands/**`, `agent-kits/**`, `scripts/**`, `interop/**`, `.codex-plugin/**`, `.agents/plugins/**`, `.claude-plugin/**`, `docs/**`, `README.md`, `README.es.md`, `CLAUDE.md`, `tests/**`, `evals/**`
-- **Verificación**: Cada bloque conserva gates de linter, exports, alcance y referencias en su revisión al final del ledger. El actual corrige productor, instrucciones dependientes y documentación ES/EN de reviewer, sin añadir aliases ni retirar personalizaciones. Continúan pendientes la migración de IDs del bloque 3, restantes recursos y aceptación global de limpieza/distribución.
+- **Verificación**: Cada bloque conserva gates de lint del bundle público, exports, alcance y referencias. `2a010a2`: catorce archivos propios, fuentes/tests/JSON idénticos a sus blobs publicados, export 56 al día y cero referencias públicas prohibidas. El lint local por defecto distingue el error YAML de una nota anterior ignorada, ajena al bundle. Bloque 11 actualiza verificación y evidencias sin cambiar producción. Siguen pendientes recursos restantes y aceptación global de limpieza/distribución.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
@@ -2209,3 +2209,95 @@ excluidos antes de leer. Escaneo de 882 archivos públicos: cero referencias o
 nombres prohibidos. Producción y tests conservan los hashes del QA final.
 Destino autorizado: commit y push a `feat/catalog-capabilities`, sin integración
 en main ni publicación de versión. La nota local GOT-019 queda fuera de Git.
+
+## Bloque 11 — Publicación canónica de la captura (2026-10-09)
+
+Retoma del objetivo activo tras entregar `2a010a2`; prioridad de hooks y skills
+aplazadas conservadas. El caso temporal de OpenCode se investiga antes de
+cambiar producción. El bundle y sus presupuestos mantienen sus bytes.
+
+La auditoría de sólo lectura confirma: el observador privado abría también
+`.tmp-*` mediante `glob('*.json')`. La matriz anterior acredita seis capturas
+canónicas y una temporal completa, no siete publicaciones atómicas. El JSON
+anterior conserva ese límite; sus resultados históricos no se sobrescriben.
+
+Hipótesis competidoras: terminación del hook durante flush/fsync/close/rename;
+o fallo de rename y limpieza por un lector Windows sin permiso de borrado.
+El observador incorrecto podría interferir con el escritor. El temporal por
+sí solo no distingue estas causas; la salida natural del servidor tampoco
+acredita salida natural de todos sus hooks hijos. Un OSError de fsync aislado
+no explica falta de rename, porque el escritor degrada y sigue publicando.
+
+Dos trabajos independientes en paralelo, sólo en fixtures privadas propias:
+criterio canónico estricto con RED previo, y probes atómicos de las dos
+hipótesis con controles. El criterio excluye temporales antes de abrirlos,
+exige `<event_id>.json`, schema/secuencia/raíz correctos y observación con
+servidor vivo; contempla outbox/processing/done. Una matriz nativa corregida
+se permite sólo tras preparar y auditar ese criterio. No se incrementan
+timeouts, se retira fsync ni se promocionan temporales arbitrarios por su JSON.
+
+### Resultado medido
+
+[Evidencia de publicación canónica](hook-canonical-capture-evidence.json),
+SHA-256 `effb1eac12de8b778e0cd7259e3a979e0599189b3987cfb7e7628f0ce111840b`.
+Caracterización del observador anterior: 16 controles, ocho fallos y un error;
+incluye aceptación indebida de temporal completo y lectura de nombre no
+publicado. Observador estricto: los mismos 16 controles pasan, sin lanzar
+runtime; su función coincide por AST con la embebida en el helper nuevo.
+
+Probe de lector Windows: un handle propio sin FILE_SHARE_DELETE provoca error
+32 en rename y limpieza, dejando un temporal completo. Control de fallo de
+rename con limpieza disponible: ningún temporal; control de OSError en fsync:
+publicación canónica y marcador degradado. Probe independiente de hard stop:
+worker propio bloqueado tras flush, terminado por su handle Popen y confirmado
+terminal; temporal completo sin publicación. Liberar la barrera publica.
+El worker usa el intérprete base fijado para evitar matar sólo el redirector
+venv; no cambia la selección de producción ni mide el launcher. El probe de
+launcher queda preparado, no ejecutado. Ambos mecanismos son reproducibles;
+ninguno queda demostrado como causa histórica del caso anterior.
+
+La única cohorte nativa nueva usa OpenCode 2.0.12 y la misma fuente congelada
+de 879 archivos del QA previo. Siete casos exit 0 en 135.055 ms, siete nombres
+canónicos en outbox observados con servidor vivo, schema 1, secuencia entera
+positiva y sesión raíz correcta. Cuerpos exportados completos y 94 hashes de
+fuente actual/congelada/instalada coinciden. Deny/allow por rol, control raíz,
+planner y agente homónimo del consumidor conservan sus efectos. Salida natural
+del servidor, sin limpieza forzada ni Authorization del proveedor; sin hooks
+observadores adicionales. No se repiten Codex/Claude ni se cambian sus evidencias.
+
+Una copia aislada del checkpoint sintético del planner anterior permite
+`journal.py recover --session-id <id propio> --budget-ms 3000 --max 1`:
+exit 0, una candidata/una recuperada en 511 ms. Entrada `fuente: recover`,
+`cierre: recuperado_sin_cierre`, sesión coincidente; originales y checkpoint
+de copia conservan su hash. No se renombra/promociona el temporal anterior ni
+se convierte recuperación en cierre observado. Se usa recuperación explícita
+de una sesión conocida como terminada, sin saltar la guarda de sesiones vivas
+en la recuperación implícita.
+
+No hay fix de producción en este bloque: el defecto probado era del criterio
+de aceptación privado y queda corregido en una fixture nueva, conservando la
+anterior. TDD de producción y alta de memoria técnica no aplican. Cambios
+públicos: evidencia, diseño y estado verificable del ledger; ninguna skill,
+agente, comando, backend, instalación del usuario o configuración ajena cambia.
+La iniciativa permanece abierta. Siguiente integración de hooks: preservar
+verificación de commit frente a bypass, bajo `guardrails.git` e IDs protegidos.
+
+## Revisión de dos lentes — intento 1: bloque 11
+
+A+B frescas en paralelo, fallback a reviewer genérico por disponibilidad;
+tiering del frontmatter opus/high, sin override. A verifica conformidad y
+evidencia por criterio; B contrasta hashes/AST, siete capturas físicas y dos
+errores nativos de guardia en SQLite propio de sólo lectura. Ambas: cero
+Critical/Important/Minor. C/D no activadas por selector de tres archivos
+documentales explícitos, cero avisos. Jira revisión: exit 0, desactivado,
+`ops: []`; no publicación externa.
+
+Lint del bundle público con documentación actualizada: exit 0/cero errores,
+los cuatro avisos ya descritos; no se afirma lint local por defecto verde.
+Ledger: cero incoherencias/cero avisos. Export --check: 56 al día. Alcance
+base 2a010a2: tres archivos propios, cero fuera/cero avisos; settings ajenos
+excluidos antes de leer. Escaneo de 883 archivos públicos: cero referencias
+o nombres prohibidos. No se repiten suites de producción para este diff
+documental: los 94 archivos nativos y la fuente del QA conservan su hash,
+con excepción esperada del propio diseño/ledger que describen este bloque.
+Se permite commit/push acotado a la rama autorizada; la iniciativa queda abierta.

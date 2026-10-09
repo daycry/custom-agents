@@ -1,0 +1,284 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-10-09",
+  "base_commit": "2a010a218d586798125a7b9fbc66a8c07a8a0310",
+  "scope": "Strict canonical capture observation, isolated competing atomic-write mechanisms, and recovery of a copied synthetic checkpoint.",
+  "production_changed": false,
+  "source_manifest_sha256": "d928d1af878e029832ec2595f9634a2972c3b2a03c8ad4c0e488564c7d5f7490",
+  "helper_sha256": {
+    "opencode-canonical.py": "9c8abfc411f7125072444a6c21286c030f3193a2c3c5ce292ad83f0fd8ec94c2",
+    "canonical_observer.py": "ab9f9c488841564b403fbf3a15e156f48318a0af0de54ea38762db8801cf9945",
+    "test_canonical_observer.py": "a3b81ae79f0c3e44dcd15e7bee4a8c954efff7761a87dd9f10518bdd2f9deb31"
+  },
+  "observer_characterization": {
+    "old_scanner": {
+      "tests": 16,
+      "failures": 8,
+      "errors": 1,
+      "exit_code": 1,
+      "log_sha256": "19610e7953b01abdc397fa95ed3438bc1a8154f904b39f298cdbe0025b9b46a3"
+    },
+    "strict_scanner": {
+      "tests": 16,
+      "passed": 16,
+      "failures": 0,
+      "errors": 0,
+      "exit_code": 0,
+      "log_sha256": "237b9c647f6d6e01ed4a5fa6802daf0308a9aa63cab653b53f85bc6a1e82e97c"
+    },
+    "native_launched_by_observer_tests": false,
+    "temporary_names_rejected_before_read": true,
+    "embedded_observer_matches_tested_module": true
+  },
+  "native": {
+    "runtime": "OpenCode",
+    "version": "2.0.12",
+    "native_sha256": "58d550b26e9241759a6906c65f1e0605eaf512d63cbaf6d8eb472375b9311c95",
+    "execution": {
+      "exit_code": 0,
+      "duration_ms": 135055,
+      "helper_sha256": "9c8abfc411f7125072444a6c21286c030f3193a2c3c5ce292ad83f0fd8ec94c2"
+    },
+    "cohort_cap": 1,
+    "result_sha256": "544022b47b14174e84fc42449393e9e5876132c3eba07ba74de4465d27a39bde",
+    "distribution_manifest_sha256": "c3b54f7e15b696f824c0627e33e6781cdfe69aea300d13579bb0081e48d66aed",
+    "distribution_files": 94,
+    "current_frozen_installed_source_hashes_match": true,
+    "full_exported_role_bodies_verified": true,
+    "cases": [
+      {
+        "agent": "own-root",
+        "expected_exists": true,
+        "exists": true,
+        "outcome": "succeeded",
+        "canonical_capture_before_server_exit": true,
+        "queue_phase": "outbox"
+      },
+      {
+        "agent": "custom-agents-implementer",
+        "expected_exists": false,
+        "exists": false,
+        "outcome": "succeeded",
+        "canonical_capture_before_server_exit": true,
+        "queue_phase": "outbox"
+      },
+      {
+        "agent": "custom-agents-implementer",
+        "expected_exists": true,
+        "exists": true,
+        "outcome": "succeeded",
+        "canonical_capture_before_server_exit": true,
+        "queue_phase": "outbox"
+      },
+      {
+        "agent": "custom-agents-architect",
+        "expected_exists": false,
+        "exists": false,
+        "outcome": "succeeded",
+        "canonical_capture_before_server_exit": true,
+        "queue_phase": "outbox"
+      },
+      {
+        "agent": "custom-agents-architect",
+        "expected_exists": true,
+        "exists": true,
+        "outcome": "succeeded",
+        "canonical_capture_before_server_exit": true,
+        "queue_phase": "outbox"
+      },
+      {
+        "agent": "custom-agents-planner",
+        "expected_exists": true,
+        "exists": true,
+        "outcome": "succeeded",
+        "canonical_capture_before_server_exit": true,
+        "queue_phase": "outbox"
+      },
+      {
+        "agent": "architect",
+        "expected_exists": true,
+        "exists": true,
+        "outcome": "succeeded",
+        "canonical_capture_before_server_exit": true,
+        "queue_phase": "outbox"
+      }
+    ],
+    "captures": [
+      {
+        "payload_sha256": "e4bafa00e6c04ea505a777fbe5ebc9ade7e9dcb2da5851070353c75b741c95bc",
+        "canonical_name_matches_event_id": true,
+        "schema_version": 1,
+        "positive_integer_sequence": true,
+        "root_session_match": true,
+        "native_alive_at_observation": true,
+        "queue_phase": "outbox"
+      },
+      {
+        "payload_sha256": "8ee55524f7c7f3341a1d18b2a8712e1532ef194398d5d82ee3ec31f75697f7c2",
+        "canonical_name_matches_event_id": true,
+        "schema_version": 1,
+        "positive_integer_sequence": true,
+        "root_session_match": true,
+        "native_alive_at_observation": true,
+        "queue_phase": "outbox"
+      },
+      {
+        "payload_sha256": "7510476b068e8bc7af9a8fa98b4287a09efd73b836c49ff05f581ee0f3605ffd",
+        "canonical_name_matches_event_id": true,
+        "schema_version": 1,
+        "positive_integer_sequence": true,
+        "root_session_match": true,
+        "native_alive_at_observation": true,
+        "queue_phase": "outbox"
+      },
+      {
+        "payload_sha256": "d5b534c8f3a34014c3f18de1e6ef1a6dd442261329acb2e7557e3ba0daeef0da",
+        "canonical_name_matches_event_id": true,
+        "schema_version": 1,
+        "positive_integer_sequence": true,
+        "root_session_match": true,
+        "native_alive_at_observation": true,
+        "queue_phase": "outbox"
+      },
+      {
+        "payload_sha256": "ace6d32838a70cae8c6199a89d5f22087ae13743dab4564c2ae2f50b295400fe",
+        "canonical_name_matches_event_id": true,
+        "schema_version": 1,
+        "positive_integer_sequence": true,
+        "root_session_match": true,
+        "native_alive_at_observation": true,
+        "queue_phase": "outbox"
+      },
+      {
+        "payload_sha256": "be661d14288276c59a109c1393f0109af54ffc9614f1c5f82404e0e503d8ded3",
+        "canonical_name_matches_event_id": true,
+        "schema_version": 1,
+        "positive_integer_sequence": true,
+        "root_session_match": true,
+        "native_alive_at_observation": true,
+        "queue_phase": "outbox"
+      },
+      {
+        "payload_sha256": "2b15dfad416887642dc2e06d5ab8ee9c594ee9c0d3267a812cd049a75446ddf1",
+        "canonical_name_matches_event_id": true,
+        "schema_version": 1,
+        "positive_integer_sequence": true,
+        "root_session_match": true,
+        "native_alive_at_observation": true,
+        "queue_phase": "outbox"
+      }
+    ],
+    "natural_server_exit": true,
+    "process_exit": 0,
+    "forced_cleanup": false,
+    "provider_authorization_present": false,
+    "provider_endpoint": "Owned loopback synthetic model fixture",
+    "extra_tool_observers": false,
+    "capture_trigger": "OpenCode execution/idle stream; no native SessionEnd teardown claim"
+  },
+  "atomic_mechanisms": {
+    "reader_and_controls": {
+      "reader_no_share_delete": {
+        "result": "expected-oserror",
+        "observed_errors": [
+          {
+            "operation": "replace",
+            "winerror": 32
+          },
+          {
+            "operation": "exception_cleanup_remove",
+            "winerror": 32
+          }
+        ],
+        "owned_handle_closed": true,
+        "canonical": false,
+        "temporary_count": 1,
+        "complete_temporary_count": 1
+      },
+      "replace_failure_cleanup_control": {
+        "result": "expected-oserror",
+        "canonical": false,
+        "temporary_count": 0,
+        "complete_temporary_count": 0
+      },
+      "fsync_oserror_control": {
+        "degraded_marker": true,
+        "canonical": true,
+        "temporary_count": 0,
+        "complete_temporary_count": 0
+      },
+      "elapsed_ms": 365,
+      "interpretation": "Measured owned synthetic mechanisms only; no attribution to prior retained temporary files."
+    },
+    "hard_stop_and_control": {
+      "scope": "Synthetic hard stop of an owned direct-interpreter worker; excludes launcher budget and prior-run attribution.",
+      "hard_stop": {
+        "barrier_confirmed": true,
+        "trace": [
+          "BARRIER_AFTER_FLUSH_BEFORE_FSYNC"
+        ],
+        "barrier_ms": 231,
+        "terminal_ms": 274,
+        "terminal_confirmed_by_owned_popen_wait": true,
+        "returncode": 1,
+        "temporary_count": 1,
+        "complete_temporary_count": 1,
+        "canonical_count": 0,
+        "stderr_empty": true
+      },
+      "released_fsync_control": {
+        "barrier_confirmed": true,
+        "trace": [
+          "BARRIER_AFTER_FLUSH_BEFORE_FSYNC",
+          "PUBLISHED"
+        ],
+        "barrier_ms": 226,
+        "terminal_ms": 241,
+        "terminal_confirmed_by_owned_popen_wait": true,
+        "returncode": 0,
+        "temporary_count": 0,
+        "complete_temporary_count": 0,
+        "canonical_count": 1,
+        "stderr_empty": true
+      }
+    },
+    "artifact_sha256": {
+      "atomic-result.json": "858d10097cadeaa7f02fe1f954f7945fd270c52664578442c65f8307201aee6a",
+      "hard-stop-result.json": "d310215f6859f44fdca40151a139e1641d5c86a1dd58e4c85394ba6eb61365aa",
+      "worker-interpreter-pin.json": "dcf52cddc849080701d3f42bb7be21ef9cbec097f8a8469b5f0373d772ce3d0e"
+    },
+    "worker_interpreter": {
+      "resolution": "sys._base_executable from selected root venv",
+      "sha256": "62ebc90a2884bb63a0cd67e789cafdd51e771eee043587e2354327b4ccc9bb05",
+      "production_selection_changed": false,
+      "redirector_approach_rejected": "Termination of only the virtualenv redirector handle would not prove terminal state of the actual blocked worker."
+    },
+    "launcher_probe_executed": false,
+    "historical_cause_attributed": false
+  },
+  "recovery_copy": {
+    "exit_code": 0,
+    "duration_ms": 511,
+    "copied_synthetic_checkpoint_sha256": "673748b88e8db61e43f452dbad38e3fe7cebe4f03e3fd9df46fe697853e2a202",
+    "original_result_sha256": "f1d4ef27704a96ab8c352c881a4d3874a4aea14fb07ffa26b988f5a4cad235ab",
+    "original_checkpoint_and_result_unchanged": true,
+    "recovered": 1,
+    "candidates": 1,
+    "entry_sha256": "a796bcbbe27856b1941e0228e4dbb563bdeef2e3d06b89a7eca86eae79daf830",
+    "entry_session_match": true,
+    "entry_closure": "recuperado_sin_cierre",
+    "entry_source": "recover",
+    "entry_turns": "1",
+    "copy_checkpoint_unchanged": true,
+    "scope": "Explicit forced recovery of the known terminated synthetic session, on an isolated copy only; no temporary promotion or observed-closure claim."
+  },
+  "limits": [
+    "The previous native matrix is preserved with six canonical captures and one temporary; the corrected seven-case matrix is a separate cohort.",
+    "The scanner fix is in private validation fixtures. No production writer, fsync ordering, interpreter selection or timeout budget changed.",
+    "Both reader interference and forced termination can leave a complete temporary; neither is proven as the cause of the previous case.",
+    "The direct synthetic worker uses the pinned base interpreter to terminate its owned Popen handle, not the virtualenv redirector; this does not measure launcher or native timing.",
+    "Copied checkpoint recovery preserves the original and labels the entry recovered without observed closure; it does not promote the temporary envelope.",
+    "OpenCode capture runs on execution/idle; no native SessionEnd teardown, production TUI soak, global network capture or universal latency guarantee is implied.",
+    "Other runtime acceptance and four OpenCode child cases remain separate evidence in the preceding block. No initiative closure is implied."
+  ]
+}

@@ -455,3 +455,26 @@ natural. OpenCode captura al quedar execution/idle con servidor vivo; una
 captura sigue temporal al observarse. Ese contrato no acredita SessionEnd
 nativo de teardown, publicación canónica ni replay completo de ese caso.
 La iniciativa y tareas globales permanecen abiertas para las fases restantes.
+
+## Bloque 11: aceptación de publicación canónica
+
+El observador privado del bloque 10 aceptaba JSON visible en `.tmp-*`. La
+publicación atómica exige nombre `<event_id>.json`; el observador corregido
+excluye temporales antes de abrirlos y contempla outbox/processing/done para
+no confundir materialización diferida con ausencia. Comprueba schema/secuencia,
+ID raíz y servidor vivo; no infiere salida de hooks hijos por la del servidor.
+
+La [evidencia canónica](hook-canonical-capture-evidence.json) acredita siete
+publicaciones de una nueva matriz OpenCode, manteniendo el histórico anterior
+de seis canónicas/una temporal. Los 94 archivos distribuidos conservan hashes
+actuales y el escritor mantiene flush → fsync → close → rename. Dos mecanismos
+sintéticos explican cómo puede quedar un temporal completo: hard stop previo
+al rename o sharing violation por lector Windows. La reproducción de ambos
+no atribuye ninguno al caso histórico y no justifica alterar fsync/timeouts.
+
+La recuperación del checkpoint anterior, sólo en una copia aislada, verifica
+la ruta existente `recuperado_sin_cierre`; no promociona JSON temporal ni
+afirma cierre observado. La nueva cohorte verifica publicación canónica durante
+execution/idle, no SessionEnd nativo de teardown, replay completo de todas
+las sesiones o fiabilidad universal de carga/TUI. La corrección es del criterio
+privado de validación; producción permanece idéntica al bloque entregado.
