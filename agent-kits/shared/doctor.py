@@ -76,7 +76,8 @@ línea ⚠️/❌, el **arreglo sugerido** en llano:
 lectura, así que se puede lanzar sin miedo tantas veces como haga falta.
 
 Uso:
-  doctor.py [--root DIR] [--plugin-root DIR] [--json] [--verbose|--all] [--hoy AAAA-MM-DD]
+  doctor.py [--root DIR] [--plugin-root DIR] [--json|--panel-json] [--verbose|--all] [--hoy AAAA-MM-DD]
+  --panel-json: proyección portable acotada para el panel, con fecha y alcance; omite datos libres.
   (`--hoy` fija la fecha de referencia de la antigüedad de CALIBRATION.md; default: hoy. Para tests.)
 Exit:
   0  sin ❌ (los ⚠️/ℹ️ no bloquean: el plugin degrada, no rompe)
@@ -85,6 +86,7 @@ Exit:
 """
 import argparse
 import datetime
+import importlib.util
 import json
 import os
 import re
@@ -2589,7 +2591,9 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="diagnóstico determinista de la instalación del plugin")
     ap.add_argument("--root", default=".", help="proyecto a diagnosticar (default: cwd)")
     ap.add_argument("--plugin-root", default=None, help="raíz del plugin (default: autodetección)")
-    ap.add_argument("--json", action="store_true")
+    output = ap.add_mutually_exclusive_group()
+    output.add_argument("--json", action="store_true")
+    output.add_argument("--panel-json", action="store_true", help="proyección portable sin detalles privados para el panel")
     ap.add_argument("--verbose", "--all", dest="verbose", action="store_true",
                     help="incluye las capacidades opcionales desactivadas sin su fichero de config")
     ap.add_argument("--hoy", default=None, help="fecha de referencia AAAA-MM-DD para la antigüedad de CALIBRATION.md (tests)")
@@ -2610,6 +2614,20 @@ def main(argv=None):
         return 2
 
     inf = diagnostico(args.root, args.plugin_root, hoy, verbose=args.verbose)
+    if args.panel_json:
+        try:
+            path = os.path.join(HERE, 'diagnostic-report.py')
+            spec = importlib.util.spec_from_file_location('doctor_diagnostic_report', path)
+            projection = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(projection)
+            redact_spec = importlib.util.spec_from_file_location('doctor_panel_redact', os.path.join(HERE, 'redact.py'))
+            redactor = importlib.util.module_from_spec(redact_spec)
+            redact_spec.loader.exec_module(redactor)
+            print(redactor.redactar(json.dumps(projection.project(inf), ensure_ascii=False, indent=2)))
+        except (OSError, ValueError, TypeError, KeyError, ImportError, AttributeError, SyntaxError):
+            print('doctor: portable panel report unavailable', file=sys.stderr)
+            return 2
+        return inf["exit"]
     print(json.dumps(inf, ensure_ascii=False, indent=2) if args.json else render_md(inf))
     return inf["exit"]
 

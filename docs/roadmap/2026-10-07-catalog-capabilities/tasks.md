@@ -218,7 +218,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 
 ### T-13 — Funciones operativas del panel nativo
 
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Descripción**: Incorporar funciones útiles del control panel comparado al panel propio, con fuentes, métricas observadas y guardias declaradas/contrastadas diferenciadas.
 - **Dependencias**: Comparación/diseño T-06/T-08 y contratos de los componentes mostrados de T-09/T-11/T-12; T-10 solo para altas concretas. No espera a todas las piezas opcionales.
 - **Archivos**: `skills/plugin-panel/**`, `commands/plugin-catalog.md`, `interop/**`, `evals/**`, `tests/**`, `docs/**`
@@ -245,7 +245,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Estado**: en-progreso
 - **Descripción**: Retirar recursos y callers sustituidos, refrescar dependencias/manifiestos/exports y docs ES/EN; comprobar referencias y nombres públicos.
 - **Dependencias**: Verificación del bloque pertinente de T-14 para docs/exports de cada entrega; aceptación global tras completar T-14.
-- **Archivos**: `skills/**`, `agents/**`, `commands/**`, `agent-kits/**`, `scripts/**`, `interop/**`, `.codex-plugin/**`, `.agents/plugins/**`, `.claude-plugin/**`, `docs/**`, `README.md`, `README.es.md`, `CLAUDE.md`, `tests/**`, `evals/**`
+- **Archivos**: `skills/**`, `agents/**`, `commands/**`, `agent-kits/**`, `scripts/**`, `interop/**`, `.codex-plugin/**`, `.agents/plugins/**`, `.claude-plugin/**`, `.gitignore`, `package.json`, `docs/**`, `README.md`, `README.es.md`, `CLAUDE.md`, `tests/**`, `evals/**`
 - **Verificación**: Cada bloque conserva gates de lint del bundle público, exports, alcance y referencias. `2a010a2`: catorce archivos propios, fuentes/tests/JSON idénticos a sus blobs publicados, export 56 al día y cero referencias públicas prohibidas. El lint local por defecto distingue el error YAML de una nota anterior ignorada, ajena al bundle. Bloque 11 actualiza verificación y evidencias sin cambiar producción. Siguen pendientes recursos restantes y aceptación global de limpieza/distribución.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
@@ -2654,3 +2654,159 @@ T-08/T-11/T-14/T-15 y la iniciativa global siguen abiertos por sus otros
 criterios. Nuevas skills permanecen aplazadas en 79/293. Próximas puertas:
 controles del panel y medición del backend opcional. Se prepara commit/push
 de esta entrega en feat/catalog-capabilities y se detiene el trabajo del bloque.
+
+## Bloque 14 — Diagnóstico explícito en el panel (2026-10-09)
+
+La continuación del objetivo retoma la siguiente puerta documentada, sin
+reabrir la incorporación de skills. Base publicada `2610a27`, worktree sin
+cambios públicos. Auditoría independiente confirma navegación, filtros y
+etapas existentes, y detecta el gap de diagnóstico fechado con alcance y
+remedio. Suite panel propia: 84 passed/2 skips; no aceptación de navegador
+por esa auditoría. Comparación pertinente y contrato se completan antes del
+código; diseño en el bloque 14 de design.md. T-08/T-13/T-14/T-15 permanecen
+abiertas. No se leen configuraciones o memoria del consumidor ni se activan
+servicios para esta investigación.
+
+Se añade .gitignore al alcance T-15 para excluir únicamente /panel.html, la
+instantánea local solicitada por el usuario; la plantilla empaquetada sigue
+versionada. No se cambian exclusiones del consumidor ni se omite código.
+
+TDD bloque 14: proyección nueva RED 25 fallos por módulo ausente → GREEN 25;
+control de etiquetas públicas exactas añadido → 26. Fachada --panel-json RED
+1 failed/1 passed/208 deselected (opción ausente; el segundo caso ya exigía
+rechazo de modos simultáneos) → GREEN dirigido 28 passed/208 deselected.
+Entrada del panel RED inicial 13 failed/2 errores: los errores son IDs de
+parámetros demasiado largos para fixtures Windows. Con IDs explícitos y raíces
+sintéticas correctas, RED 14 failed por API/lector ausentes → GREEN 14.
+Se conserva la ausencia de efectos y no se confunde este GREEN dirigido con QA.
+
+Comparación pertinente completada por rangos: cinco recursos revalidados, sin
+ejecución externa. R-949360f20153 admite avisos por observaciones omitidas sin
+impedir ready; no se traslada ese agregado. Dependencias fuera del contrato
+seleccionado siguen pendientes, sin cerrar evaluación global. Registro en
+comparisons/panel-diagnostics.md y su evidencia de lectura. Auditoría AST propia:
+49 títulos literales únicos y 42 callsites dinámicos; etiquetas exactas públicas
+permitidas, datos libres excluidos y referencia de remedio conservada en doctor.
+
+GREEN dirigido de proyección/panel/regresiones actuales: 124 passed/2 skips
+Windows en 12,19 s. No es QA final; faltan escenarios de límites adicionales,
+revisión, exports/documentación finales y navegador Edge. La vista local pedida
+por el usuario se genera sin informe, sin inspeccionar configuraciones privadas;
+Diagnóstico muestra ausencia de informe y no inventa resultados.
+
+La comprobación de distribución detecta package.json con conteos anteriores
+(9 agentes/12 comandos/17 skills) y coste siempre medido. T-15 incluye ahora
+package.json: su descripción pasa a capacidades estables, sin cifras o medición
+no acreditadas; no cambia versión, dependencias, permisos ni ejecutables.
+
+Regresión dirigida ampliada: 250 passed/1 skip en productor/doctor/lector,
+antes de los seis controles adicionales de límites y helper ausente. Edge
+H01–H09/D01–D07: RED 14/16; D07 reproduce fragmento repetido sin hashchange,
+y D01 falla antes de ejecutar la página por arranque transitorio del navegador.
+Se conserva ese rechazo. Corregido el click al mismo fragmento con navegación
+nativa y clicks modificados intactos: GREEN 16/16, cero skips/reintentos/flaky.
+Edge 154.0.4258.62 y Playwright 1.63.0, fixtures públicas y homes propias,
+cero peticiones HTTP(S), hashes y capturas privados preservados. No es
+aceptación de hooks nativos ni informe de diagnóstico real del consumidor.
+
+El usuario amplía T-13 al seguimiento e interacción operativos. Comparación
+en comparisons/panel-activity.md: 14 recursos con hashes/rangos revalidados,
+sin ejecución externa. El panel de origen usa polling, procesos gestionados
+y algunas acciones de memoria/tablero; no descubre todos los subagentes ni
+expone control de pausa/arranque desde esos endpoints. T-13 pasa a en-progreso
+por sus entregas parciales; no se marca completada. Servidor local,
+observación por runtime y acciones canónicas quedan como siguientes bloques,
+sin atribuir esas capacidades al HTML actual. Se investiga también la
+aprobación visual de planes por petición posterior del usuario.
+
+Esa comparación queda documentada en comparisons/panel-plan-review.md:
+20 fuentes de comando, recurso, servidor, persistencia, consumidor y test de
+integración leídas sin ejecución. La UI de origen sí tiene aprobar/pedir cambios,
+comentarios y recarga; los otros comandos conversacionales no se cuentan como
+otra UI. Se elige integrar experiencia sobre el servidor propio con versión
+por contenido y consumo confirmado. Función propia aún pendiente; no se
+añade ninguna skill ni se reclama evaluación completa de esas piezas.
+
+Fachada portable y degradación dirigida: 3 passed/208 deselected. Exportación
+actual comprobada con --check: exit 0, 58 ficheros al día. Diagramas ES/EN
+actualizados para la importación explícita, sin diagnóstico automático.
+
+## Revisión de dos lentes — intento 1: Bloque 14 (T-13/T-15) — diagnóstico y comparación operativa
+
+Snapshot público de 36 archivos propios, base 2610a27, scope canónico 36/36
+sin exclusiones. Lentes A+B+C+D por revisores genéricos de contexto fresco;
+reviewer por nombre no disponible. Tier del bundle opus/high informativo,
+sin override por invocación. Selector canónico sobre lista propia: C siempre
+con fixture suministrada por privacidad de export; D auto por rutas y
+concatenaciones. No se lee dev.json real. B/C sin defectos/hallazgos; D valida
+carga máxima de 512 filas y ocho bloques sin degradación material. A confirma
+alcance, pruebas y verificación parcial, pero requiere dos correcciones.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1 | Important | La nueva exportación doctor omite redactor canónico | T-13 | Corregido; pendiente revalidación | Test dedicado RED 1 failed/211 deselected → GREEN 4 passed/208 deselected; redactor ausente añade rechazo opaco |
+| A2 | Important | Nuevas aristas sin matriz de contratos | T-15 | Corregido; pendiente revalidación | E29–E32 añadidas con gates ejecutables; TDD n/a: tabla documental; no existe espejo EN de esa matriz |
+| A3 | Minor | Hint del índice pierde flag y opcionalidad | T-15 | Corregido; pendiente revalidación | Test dedicado RED 1 failed/19 deselected → GREEN 1 passed/19 deselected; exports regenerados, 58 escritos |
+
+Export --check independiente A: exit 0, 58 al día, antes del ajuste de hint.
+Jira-flow gaps invocado sobre fixture propia explícitamente desactivada:
+exit 0, ops vacío; nada publicado, sin consultar config ni cuenta reales.
+Todos los rechazos y reportes de lentes se conservan privados. El diff corregido
+se revisa como intento 2/3; la QA final sigue pendiente, no se declara cierre.
+
+## Revisión de dos lentes — intento 2: Bloque 14 (T-13/T-15) — revalidación de correcciones
+
+Snapshot público de 37 archivos propios, scope 37/37 sin exclusiones. Cuatro
+lentes nuevas, fallback genérico y tier informativo, con tabla previa completa;
+se reevalúan diez archivos corregidos y no se reabren aprobados sin evidencia.
+A aprueba A1/A2/A3, B/C/D sin defectos/hallazgos. Export --check independiente
+exit 0, 58 al día; cinco tests dirigidos y límite máximo de proyección comprobados.
+Redacción del JSON máximo añade unos 8,6 ms por export CLI en probe aislado;
+no es medida de latencia nativa ni medición de tokens. Sin gaps pendientes.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1 | Important | Exportación sin redactor | T-13 | Corregido y aceptado | Invocación de redact.py y tests dedicados de uso/ausencia; JSON límite válido |
+| A2 | Important | Aristas sin matriz | T-15 | Corregido y aceptado | E29–E32 con entradas, salidas, límites y gates ejecutables |
+| A3 | Minor | Hint pierde flag y opcionalidad | T-15 | Corregido y aceptado | Test dedicado y export --check independiente, 58 al día |
+
+Se corrige únicamente una línea vacía final en el documento EN antes de la
+QA. Código, tests y generados aceptados se mantienen. Se prepara snapshot
+final de QA, homes propios, Git sintético y contenedor Linux sin red; no se
+declara QA verde antes de ejecutarla ni aceptación nativa de hooks por esta UI.
+
+La primera QA Windows conserva 998 passed/9 skips/2 failures. Dos tests del
+diagnóstico general pierden taxonomy.json/training.json por truncamiento de
+ruta a 200 caracteres con basetemp largo. Comparación causal de cuatro cohortes:
+base publicada y código actual fallan ambos con rutas largas y pasan ambos
+con tempfile propio corto. AST de los tres métodos pertinentes coincide;
+campo id_prefix se conserva. No es regresión de la proyección portable.
+Se ajusta únicamente basetemp del harness Windows a una carpeta nueva propia
+y se repite la misma suite completa, sin retirar casos. La limitación previa
+del detalle general queda pendiente para el bloque de comandos; los rechazos
+no se suman a QA verde ni se etiquetan flaky. Linux: 1007 passed/2 skips y
+export --check 0; código/tests/generados idénticos al futuro rerun Windows.
+
+### Entrega parcial del bloque 14 — QA aceptada
+
+[Evidencia ejecutada](panel-diagnostics-evidence.json): Windows 1000 passed/
+9 skips y Linux 1007 passed/2 skips; ambas puertas qa-gate exit 0, sin fallos
+ni flaky. Windows conserva la misma selección de 1009 casos con basetemp
+propio corto. Las cuatro cohortes causales y el primer rechazo quedan
+separados de los resultados aceptados. Los hashes de código, tests y
+generados coinciden entre las copias Windows/Linux; las diferencias posteriores
+son trazas documentales. No se afirma que la limitación anterior esté resuelta.
+
+Cobertura del diff oficial: 187/196 sentencias ejecutables, 95,41%, base
+2610a27; gate mínimo 90%. Edge: 16/16, cero skips/reintentos/flaky; fixtures
+propias y cero solicitudes HTTP(S). Lint: 10 agentes, cero errores y tres
+avisos existentes de nombres; evals: 52 piezas y 186 casos, cero errores;
+export --check: 58 al día; ledger: cero incoherencias/cero avisos. Los dos
+pases de revisión quedan aceptados, sin gaps de este diff.
+
+Entrega: exportación doctor --panel-json redactada e importación explícita
+--diagnostics-report, diagnóstico histórico filtrable, prioridades navegables
+y estados de ausencia/rechazo. El HTML no ejecuta doctor ni verifica hooks
+nativos; carga/ejecución continúan desconocidas. Servidor local, observación
+de agentes, acciones operativas y aprobación visual siguen pendientes.
+T-08/T-11/T-13/T-14/T-15 globales permanecen abiertas; nuevas skills aplazadas.

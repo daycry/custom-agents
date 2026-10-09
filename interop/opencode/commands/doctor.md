@@ -11,6 +11,14 @@ description: "Diagnóstico de la instalación del plugin en este proyecto — he
 
 # /doctor — ¿está todo en su sitio?
 
+`--panel-json` solicita una proyección portable para plugin-panel; es excluyente
+con `--json`. Conserva fecha UTC, alcance por clave de ruta, estados, títulos
+públicos permitidos y referencias de prioridades. Excluye rutas, detalles y
+arreglos libres; estos siguen en las salidas habituales. Exit 1 puede acompañar
+un JSON válido con errores encontrados; exit 2 indica que no se pudo producir
+la proyección. Usa el diagnóstico actual, incluidas las comprobaciones de
+capacidades opt-in ya activadas; el panel nunca lo ejecuta por su cuenta.
+
 Primera parada cuando algo "no salta": el hook que no aparece, la statusline que no se ve, el
 coste que sale a 0, la skill que no encuentra su script. Comprueba la instalación **sin tocar
 nada**: cada línea lleva su veredicto y, si algo falla, **qué comando lo arregla**.

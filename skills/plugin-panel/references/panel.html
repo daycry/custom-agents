@@ -18,8 +18,9 @@ main{width:100%;max-width:1500px;margin:auto;padding:28px 40px 50px}.topbar{disp
 .flow-detail{margin-top:15px;padding-top:14px;border-top:1px solid #a799ff22}.flow-detail[hidden]{display:none}.flow-role-links{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px;font-size:12px;color:var(--mint)}.flow-steps button:hover{border-color:var(--accent)}
 #extensions{margin-top:44px}.extension-controls{flex-wrap:wrap}.extension-controls .search-wrap{flex-basis:240px}.extension-controls select{min-width:150px;flex:1}.extension-status{display:inline-block;padding:5px 8px;border:1px solid #82b8ff30;border-radius:7px;font-size:10px;color:#a9c8ef;margin:4px 5px 4px 0}.extension-card .extension-conflict{border-left:2px solid #f6c380;padding-left:10px;color:#edc991;font-size:12px}.extension-card .extension-conflict code{display:inline;margin:0;font-size:inherit}.extension-runtime{font-size:11px!important;color:var(--mint)!important}.extension-id{user-select:all;color:var(--mint)!important}.extension-empty{color:var(--muted);font-size:13px;line-height:1.8}.extension-warnings{margin-top:22px;color:var(--muted);font-size:12px;overflow-wrap:anywhere}.extension-warnings li{margin:8px 0}#extension-results{color:var(--muted);font-size:12px;margin:16px 3px 20px}@media(max-width:760px){.sidebar,.sidebar nav{flex-wrap:wrap}.extension-controls .search-wrap{flex-basis:auto;width:100%}#extensions{margin-top:35px}}
 .skip-link{position:absolute;top:10px;left:10px;transform:translateY(-200%);background:var(--mint);color:#101725;padding:12px;border-radius:8px;z-index:10}.skip-link:focus{transform:none}.navigation-status:empty{display:none}.navigation-status,.filter-note{font-size:12px;color:var(--muted);line-height:1.7}.controls{flex-wrap:wrap}.controls .search-wrap{min-width:200px}.hook-link{display:inline-block;color:var(--mint);margin-top:10px;text-decoration:underline}
+#diagnostics{margin-top:44px}.diagnostic-notice{padding:15px 18px;border:1px solid #f6c38044;border-radius:12px;color:#f6c380;background:#f6c3800b;font-size:13px;line-height:1.7}.diagnostic-provenance,#diagnostics>p{font-size:12px;line-height:1.8;color:var(--muted)}.diagnostic-source{margin:18px 0;font-size:12px;overflow-wrap:anywhere}.diagnostic-source summary,.diagnostic-priorities a{color:var(--mint)}.diagnostic-source code{display:block;margin-top:12px;font-size:11px}.diagnostic-priorities{padding-left:22px;font-size:13px;line-height:1.9}.diagnostic-priorities li{padding:8px 0;color:var(--muted)}.diagnostic-block{padding:18px 20px;background:#121a2c;border:1px solid var(--border);border-radius:14px;margin:12px 0}.diagnostic-block summary{font-size:14px;color:var(--text)}.diagnostic-block ul{padding:0;list-style:none;margin-bottom:0}.diagnostic-row{display:flex;flex-wrap:wrap;gap:10px;padding:14px 0;border-top:1px solid var(--border);font-size:12px}.diagnostic-row strong{flex:1;min-width:180px}.diagnostic-row small{width:100%;color:var(--muted)}.diagnostic-badge{color:var(--muted)}.diagnostic-row[data-state="error"] .diagnostic-badge{color:#ffb0bd}.diagnostic-row[data-state="aviso"] .diagnostic-badge{color:#f6c380}.diagnostic-row[data-state="ok"] .diagnostic-badge{color:var(--mint)}.diagnostic-row[hidden],.diagnostic-block[hidden]{display:none}@media(max-width:760px){.sidebar nav{flex-wrap:wrap;justify-content:flex-end}.diagnostic-block{padding:16px}.diagnostic-row strong{min-width:130px}}
 </style></head><body>
-<a class="skip-link" href="#main">Saltar al contenido</a><div class="shell"><aside class="sidebar"><a class="brand" href="#catalog"><span class="brand-icon">ca</span><span>custom-agents<small>CONTROL PANEL</small></span></a><div class="nav-label">TU ESPACIO DE TRABAJO</div><nav aria-label="Secciones"><a href="#catalog"><span class="nav-dot"></span>Catálogo</a><a href="#extensions"><span class="nav-dot"></span>Extensiones</a><a href="#workflow"><span class="nav-dot"></span>Workflow</a><a href="#source-notes"><span class="nav-dot"></span>Fuentes</a></nav><div class="sidebar-note"><strong>Local. Autónomo. Tu plugin.</strong>Explora definiciones sin iniciar servicios ni modificar la configuración.</div></aside>
+<a class="skip-link" href="#main">Saltar al contenido</a><div class="shell"><aside class="sidebar"><a class="brand" href="#catalog"><span class="brand-icon">ca</span><span>custom-agents<small>CONTROL PANEL</small></span></a><div class="nav-label">TU ESPACIO DE TRABAJO</div><nav aria-label="Secciones"><a href="#catalog"><span class="nav-dot"></span>Catálogo</a><a href="#extensions"><span class="nav-dot"></span>Extensiones</a><a href="#diagnostics"><span class="nav-dot"></span>Diagnóstico</a><a href="#workflow"><span class="nav-dot"></span>Workflow</a><a href="#source-notes"><span class="nav-dot"></span>Fuentes</a></nav><div class="sidebar-note"><strong>Local. Autónomo. Tu plugin.</strong>Explora definiciones sin iniciar servicios ni modificar la configuración.</div></aside>
 <main id="main" tabindex="-1"><p id="navigation-status" class="navigation-status" role="status" aria-live="polite"></p><div class="topbar"><span>Workspace / Capacidades</span><span class="snapshot"><i aria-hidden="true"></i>Instantánea local</span></div>
 <header class="hero"><div><div class="eyebrow">CONOCE LO QUE PUEDES CONSTRUIR</div><h1>Un plugin.<br><span>Todas tus capacidades.</span></h1><p>Encuentra el agente adecuado, explora sus guías y entiende cómo encaja cada pieza en tu flujo de trabajo.</p><div class="hero-links"><a href="#catalog">Explorar catálogo ↗</a><a href="#workflow">Ver el workflow →</a></div></div><div class="flow-preview"><strong>De la idea a la entrega</strong><p>Roles con responsabilidades propias y una selección de guías compartida.</p>@@FLOW@@</div></header>
 <section class="stats" aria-label="Inventario de capacidades">@@STATS@@</section>
@@ -27,6 +28,7 @@ main{width:100%;max-width:1500px;margin:auto;padding:28px 40px 50px}.topbar{disp
 <div class="controls"><div class="search-wrap"><input id="search" type="search" placeholder="¿Qué necesitas hacer?" aria-label="Buscar capacidades"></div><select id="kind" aria-label="Tipo de capacidad"><option value="all">Todas las capacidades</option><option value="agents">Agentes</option><option value="skills">Skills</option><option value="commands">Comandos</option><option value="tools">Herramientas</option><option value="hooks">Hooks</option></select><select id="hook-runtime" aria-label="Runtime de hooks"><option value="all">Hooks de todos los runtimes</option><option value="claude-code">Claude Code</option><option value="codex">Codex</option><option value="opencode">OpenCode</option></select></div>
 <p class="filter-note">El filtro de runtime afecta a los registros de hooks; el resto del catálogo conserva sus declaraciones.</p><p id="results" aria-live="polite"></p><div class="grid">@@CARDS@@</div></section>
 @@EXTENSIONS@@
+@@DIAGNOSTICS@@
 @@WORKFLOW@@
 <details id="source-notes"><summary>Fuentes de runtime y memoria · ver presencia y avisos</summary><p>La presencia de un archivo no acredita ejecución, acceso ni salud del servicio.</p><pre>@@NOTES@@</pre></details>
 <footer>Catálogo local · Regenera el archivo para actualizarlo. Las guardias globales aplican políticas a identidades de rol concretas; su declaración no acredita ejecución. Los ciclos se definen en los comandos. El progreso de iniciativas se consulta en el dashboard del roadmap.</footer></main></div>
@@ -34,6 +36,21 @@ main{width:100%;max-width:1500px;margin:auto;padding:28px 40px 50px}.topbar{disp
 function connectFilters(sectionId,searchId,resultId,filters,label){const section=document.getElementById(sectionId),search=document.getElementById(searchId),result=document.getElementById(resultId),cards=[...section.querySelectorAll('.card')];const controls=filters.map(([id,attribute])=>[document.getElementById(id),attribute]);function filter(){let count=0;const query=search.value.toLocaleLowerCase();for(const card of cards){const visible=controls.every(([control,attribute])=>control.value==='all'||(sectionId==='catalog'&&attribute==='runtime'&&card.dataset.kind!=='hooks')||card.dataset[attribute]===control.value)&&card.textContent.toLocaleLowerCase().includes(query);card.hidden=!visible;if(visible)count++;}result.textContent=count+' '+label+' visibles';}search.addEventListener('input',filter);for(const [control] of controls)control.addEventListener('change',filter);filter();}
 connectFilters('catalog','search','results',[['kind','kind'],['hook-runtime','runtime']],'capacidades');
 connectFilters('extensions','extension-search','extension-results',[['extension-kind','kind'],['extension-scope','scope'],['extension-runtime','runtime']],'declaraciones');
+function filterDiagnostics(){
+ const control=document.getElementById('diagnostic-state');if(!control)return;
+ const query=document.getElementById('diagnostic-search').value.toLocaleLowerCase();let count=0;
+ for(const block of document.querySelectorAll('.diagnostic-block')){
+  let matches=0;for(const row of block.querySelectorAll('.diagnostic-row')){
+   const match=(control.value==='all'||row.dataset.state===control.value)&&row.textContent.toLocaleLowerCase().includes(query);
+   row.hidden=!match;if(match){matches++;count++;}
+  }block.hidden=matches===0;
+ }
+ document.getElementById('diagnostic-results').textContent=count+' comprobaciones coincidentes';
+}
+if(document.getElementById('diagnostic-state')){
+ document.getElementById('diagnostic-state').addEventListener('change',filterDiagnostics);
+ document.getElementById('diagnostic-search').addEventListener('input',filterDiagnostics);filterDiagnostics();
+}
 const navigation=[...document.querySelectorAll('.sidebar nav a')];
 function syncNavigation(){
  const status=document.getElementById('navigation-status');let id;
@@ -42,13 +59,19 @@ function syncNavigation(){
  if(id&&!target||id===null){status.textContent='Destino no disponible en esta instantánea.';}else{status.textContent='';}
  const isRole=id?.startsWith('role-')&&target?.classList.contains('workflow-role');
  const isHook=id?.startsWith('hook-')&&target?.closest('[data-kind="hooks"]');
- const section=isRole?'#workflow':isHook?'#catalog':'#'+id;
+ const isDiagnostic=target?.classList.contains('diagnostic-row');
+ const section=isRole?'#workflow':isHook?'#catalog':isDiagnostic?'#diagnostics':'#'+id;
  const selected=navigation.find(link=>link.hash===section)||navigation[0];
  for(const link of navigation){if(link===selected)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');}
  if(isHook){document.getElementById('search').value='';document.getElementById('kind').value='hooks';document.getElementById('hook-runtime').value=isHook.dataset.runtime;document.getElementById('kind').dispatchEvent(new Event('change'));}
+ if(isDiagnostic){document.getElementById('diagnostic-state').value='all';document.getElementById('diagnostic-search').value='';filterDiagnostics();target.closest('details').open=true;}
  if(target){const details=target.matches('details')?target:target.querySelector('details');if(details)details.open=true;target.setAttribute('tabindex','-1');target.focus({preventScroll:true});}
 }
 window.addEventListener('hashchange',syncNavigation);syncNavigation();
+document.addEventListener('click',event=>{
+ const link=event.target.closest('a[href^="#"]');
+ if(link&&!event.defaultPrevented&&event.button===0&&!event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&!link.hasAttribute('download')&&(!link.target||link.target==='_self')&&link.hash===location.hash)syncNavigation();
+});
 const stages=[...document.querySelectorAll('.flow-steps button')],stagePanels=[...document.querySelectorAll('.flow-detail')];
 for(const button of stages)button.addEventListener('click',()=>{for(const stage of stages)stage.setAttribute('aria-pressed',String(stage===button));for(const panel of stagePanels)panel.hidden=panel.id!==button.getAttribute('aria-controls');});
 </script></body></html>

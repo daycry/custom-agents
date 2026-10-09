@@ -30,6 +30,66 @@ doctor = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(doctor)
 _NATIVE_CODEX_QUERY = doctor._estado_codex_nativo
 
+
+def test_panel_json_is_explicit_and_uses_portable_contract(monkeypatch, tmp_path, capsys):
+    source = {'proyecto': str(tmp_path), 'bloques': [{'clave': 'plugin', 'titulo': 'PRIVATE',
+              'lineas': [{'estado': 'error', 'que': 'registro en Codex', 'detalle': 'SECRET', 'arreglo': 'PRIVATE COMMAND'}]}],
+              'acciones_prioritarias': {'acciones': [{'bloque': 'plugin', 'linea': 1}]}, 'exit': 1}
+    calls = []
+    monkeypatch.setattr(doctor, 'diagnostico', lambda *a, **k: calls.append(a) or source)
+    assert doctor.main(['--root', str(tmp_path), '--panel-json']) == 1
+    output = capsys.readouterr().out
+    report = json.loads(output)
+    assert report['producer'] == 'doctor' and report['summary']['error'] == 1
+    assert report['checked_at'].endswith('Z') and len(calls) == 1
+    assert 'SECRET' not in output and 'PRIVATE' not in output and str(tmp_path) not in output
+
+
+def test_json_modes_are_mutually_exclusive(tmp_path):
+    with pytest.raises(SystemExit) as result:
+        doctor.main(['--root', str(tmp_path), '--json', '--panel-json'])
+    assert result.value.code == 2
+
+
+def test_panel_json_missing_helper_is_opaque_and_does_not_break_normal_json(monkeypatch, tmp_path, capsys):
+    source = {'proyecto': str(tmp_path), 'bloques': [],
+              'acciones_prioritarias': {'acciones': []}, 'exit': 0}
+    monkeypatch.setattr(doctor, 'diagnostico', lambda *a, **k: source)
+    monkeypatch.setattr(doctor, 'HERE', str(tmp_path/'PRIVATE_MISSING_HELPER'))
+    assert doctor.main(['--root', str(tmp_path), '--panel-json']) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ''
+    assert captured.err.strip() == 'doctor: portable panel report unavailable'
+    assert doctor.main(['--root', str(tmp_path), '--json']) == 0
+    assert json.loads(capsys.readouterr().out) == source
+
+
+def test_panel_json_uses_canonical_redactor_before_export(monkeypatch, tmp_path, capsys):
+    toolkit = tmp_path/'trusted-kit'; toolkit.mkdir()
+    shutil.copyfile(os.path.join(HERE, 'diagnostic-report.py'), toolkit/'diagnostic-report.py')
+    (toolkit/'redact.py').write_text(
+        "def redactar(text):\n    return text.replace('registro en Codex', 'git')\n", encoding='utf8')
+    source = {'proyecto': str(tmp_path), 'bloques': [{'clave': 'plugin', 'lineas': [
+        {'estado': 'error', 'que': 'registro en Codex'}]}],
+        'acciones_prioritarias': {'acciones': [{'bloque': 'plugin', 'linea': 1}]}, 'exit': 1}
+    monkeypatch.setattr(doctor, 'diagnostico', lambda *a, **k: source)
+    monkeypatch.setattr(doctor, 'HERE', str(toolkit))
+    assert doctor.main(['--root', str(tmp_path), '--panel-json']) == 1
+    output = json.loads(capsys.readouterr().out)
+    assert output['blocks'][0]['rows'][0]['label'] == 'git'
+
+
+def test_panel_json_missing_redactor_does_not_export(monkeypatch, tmp_path, capsys):
+    toolkit = tmp_path/'trusted-kit'; toolkit.mkdir()
+    shutil.copyfile(os.path.join(HERE, 'diagnostic-report.py'), toolkit/'diagnostic-report.py')
+    source = {'proyecto': str(tmp_path), 'bloques': [],
+              'acciones_prioritarias': {'acciones': []}, 'exit': 0}
+    monkeypatch.setattr(doctor, 'diagnostico', lambda *a, **k: source)
+    monkeypatch.setattr(doctor, 'HERE', str(toolkit))
+    assert doctor.main(['--root', str(tmp_path), '--panel-json']) == 2
+    captured = capsys.readouterr()
+    assert captured.out == '' and captured.err.strip() == 'doctor: portable panel report unavailable'
+
 ICONOS = {v: k for k, v in doctor.ICONO.items()}
 
 

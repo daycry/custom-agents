@@ -208,3 +208,36 @@ aceptación nativa pendiente ni cambia el contrato de captura.
 Después quedan los controles del panel y la medición del backend opcional.
 Una entrega parcial no completa una tarea global. Nuevas skills siguen
 aplazadas en 79/293, con 214 pendientes.
+
+## Panel operativo y revisión visual
+
+Dirección del usuario del 2026-10-09: acercar el dashboard al seguimiento e
+interacción operativos. La comparación [de actividad](comparisons/panel-activity.md)
+confirma polling y sesiones del runner, con acciones de memoria y tablero;
+no demuestra descubrimiento automático de todos los subagentes nativos.
+La [revisión de planes](comparisons/panel-plan-review.md) confirma una UI real
+con comentarios, aprobación y solicitud de cambios consumidos por el agente.
+
+Tras cerrar diagnóstico explícito: servidor local y proyección del ledger;
+observaciones opt-in por runtime y cronología; revisión visual con decisiones
+versionadas; acciones de memoria/tablero por sus dueños existentes. Se puede
+investigar cada contrato en paralelo, conservando esa dependencia de integración.
+No se confunde actualización del ledger con ejecución actual ni se introduce
+otra base de tareas/planes. T-08/T-11/T-13 siguen abiertas; ninguna de estas
+ampliaciones operativas se declara entregada por documentar su diseño.
+
+La QA del bloque 14 identifica además una limitación previa del diagnóstico
+general: rutas largas se recortan antes del nombre de archivo en errores de
+capacidad. Base y código actual reproducen el mismo resultado. El diagnóstico
+portable no exporta esos detalles. Corregir la presentación de ese mensaje
+pertenece al siguiente bloque de comandos, con test de ruta larga propio;
+no se cierra ese criterio por usar fixtures cortas en la QA dirigida.
+
+El bloque 14 entrega ya diagnóstico explícito en el panel, con informe
+portable redactado y validación de proyecto, fecha y límites. La
+[QA propia](panel-diagnostics-evidence.json) conserva Windows 1000 passed/
+9 skips, Linux 1007 passed/2 skips, Edge 16/16 y cobertura del diff 95,41%;
+también el rechazo previo y su contraste causal. Es una entrega parcial de
+T-13/T-15: no activa servicios ni convierte el informe histórico en actividad
+actual. La siguiente implementación integra servidor local y vistas canónicas;
+después, observación por runtime y revisión visual consumible desde comandos.

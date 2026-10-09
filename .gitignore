@@ -109,3 +109,5 @@ CONTINUE-HERE.local.md
 # Traspaso de sesion (CONTINUE-HERE): solo local, acumula rutas y datos de la maquina.
 /CONTINUE-HERE.md
 /CONTINUE-HERE.local.md
+# Instantánea HTML local generada por plugin-panel; la plantilla sí se versiona.
+/panel.html

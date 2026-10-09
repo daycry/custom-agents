@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-09T12:16:21.4598897Z",
+  "execution": "not executed; source reading only",
+  "consumer_data_access": "none",
+  "global_dashboard_evaluation_complete": false,
+  "resources": [
+    {
+      "id": "R-09d91020bb19",
+      "sha256": "8b743a1b80d9adbeb273c4ea67b5823a432d7c3855d648a9ba641c4dcb113ec8",
+      "line_count": 415,
+      "read_ranges": [
+        [
+          33,
+          77
+        ],
+        [
+          162,
+          340
+        ]
+      ]
+    },
+    {
+      "id": "R-c8c82b0ac61c",
+      "sha256": "0ecf96121ebf4da473f9f24010c29d4daaecb926bd597605fdec68814a3bc61a",
+      "line_count": 681,
+      "read_ranges": [
+        [
+          9,
+          112
+        ],
+        [
+          154,
+          204
+        ],
+        [
+          571,
+          681
+        ]
+      ]
+    },
+    {
+      "id": "R-4d520fb19258",
+      "sha256": "91a71f073e0358678d8e5357b28b22fca396ee996ae8152b5410c58f06c1e5ed",
+      "line_count": 798,
+      "read_ranges": [
+        [
+          447,
+          523
+        ],
+        [
+          610,
+          657
+        ],
+        [
+          659,
+          789
+        ]
+      ]
+    },
+    {
+      "id": "R-184a32b0e1b5",
+      "sha256": "1ad71814702e9bcfeb87c49e61fd30173b628d61f1a852506c1ec295772f6509",
+      "line_count": 134,
+      "read_ranges": [
+        1,
+        134
+      ]
+    },
+    {
+      "id": "R-2169b7ad85cf",
+      "sha256": "d43b6b19924b0d8e51384a91fc99008d9e759ea237ebb2e7dec4f653e97f1ce5",
+      "line_count": 359,
+      "read_ranges": [
+        [
+          1,
+          30
+        ],
+        [
+          85,
+          142
+        ],
+        [
+          243,
+          348
+        ]
+      ]
+    },
+    {
+      "id": "R-eb81734c4b22",
+      "sha256": "2c2a07631930713a55b18c6e24f92eec22b020e12253f0e2464dea1d19340374",
+      "line_count": 358,
+      "read_ranges": [
+        246,
+        350
+      ]
+    },
+    {
+      "id": "R-7754e063e597",
+      "sha256": "d26b12a896d361e27411910bb40e423cb1e84fc6b3b8ba3227f00b6d84ae9b4f",
+      "line_count": 275,
+      "read_ranges": [
+        58,
+        116
+      ]
+    },
+    {
+      "id": "R-87f94b578cce",
+      "sha256": "66567d72cb54425c1c1a371d6a0634a008db165025c11248ab073ade95979196",
+      "line_count": 380,
+      "read_ranges": [
+        137,
+        247
+      ]
+    },
+    {
+      "id": "R-1d2b20d8c957",
+      "sha256": "6f6b12b4226d994bb02f279fa146a6d079238ec143bd8ae9a9cec84d753c37bc",
+      "line_count": 8176,
+      "read_ranges": [
+        [
+          2385,
+          2423
+        ],
+        [
+          3080,
+          3163
+        ],
+        [
+          3279,
+          3305
+        ]
+      ]
+    },
+    {
+      "id": "R-7fb9a92af3c0",
+      "sha256": "c78b8ba985fefbca95db970da8da50465f634895e0ea688b45d688f70d4abfdd",
+      "line_count": 279,
+      "read_ranges": [
+        [
+          1,
+          25
+        ],
+        [
+          136,
+          278
+        ]
+      ]
+    },
+    {
+      "id": "R-c01714e02ad5",
+      "sha256": "bfc86bea11715af50f0f0a099bd38b5ad50c16ca937eb47ac8bb29d1bfb071e9",
+      "line_count": 142,
+      "read_ranges": [
+        1,
+        142
+      ]
+    },
+    {
+      "id": "R-d82cc926e4eb",
+      "sha256": "99bf23b96dfea69ccfc3f1f57bf470c31003a075319559416985edb98b968ca7",
+      "line_count": 328,
+      "read_ranges": [
+        [
+          1,
+          40
+        ],
+        [
+          281,
+          328
+        ]
+      ]
+    },
+    {
+      "id": "R-7b761940e6db",
+      "sha256": "686e865a6a2ffc35d15ac932f52d181b059e06daf06b7dd0bc3174402b94c813",
+      "line_count": 955,
+      "read_ranges": [
+        1,
+        141
+      ]
+    },
+    {
+      "id": "R-f6f183c8c355",
+      "sha256": "7bb16ba78a196e0d77b793c9497541446f6bd1c8e8757278ba3156e2314de810",
+      "line_count": 1323,
+      "read_ranges": [
+        [
+          18,
+          98
+        ],
+        [
+          475,
+          496
+        ]
+      ]
+    }
+  ],
+  "limits": "Directed live panel, producer and action contracts; no upstream execution or native acceptance. Fleet design is a draft, not a shipped feature."
+}

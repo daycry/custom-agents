@@ -352,6 +352,37 @@ def _load_pieces():
     return module
 
 
+def _load_shared(filename):
+    path = Path(__file__).resolve().parents[3] / 'agent-kits/shared' / filename
+    spec = importlib.util.spec_from_file_location('panel_' + filename.replace('-', '_'), path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _diagnostics(path, project):
+    if path is None:
+        return {'status': 'not_provided'}
+    try:
+        contract = _load_shared('diagnostic-report.py')
+        reader = _load_shared('local-read.py')
+    except (OSError, ValueError, ImportError, AttributeError, SyntaxError):
+        return {'status': 'reader_unavailable'}
+    target = Path(os.path.abspath(path))
+    result = reader.read_text(target.parent, target.name, max_bytes=contract.MAX_BYTES)
+    if result['status'] != 'ok':
+        return {'status': result['status']}
+    try:
+        report = json.loads(result['text'], object_pairs_hook=_unique_object,
+                            parse_constant=lambda value: (_ for _ in ()).throw(ValueError('constant')))
+        projection = contract.consume(report, project=project)
+    except (ValueError, TypeError, RecursionError):
+        return {'status': 'incompatible'}
+    projection['source_sha256'] = hashlib.sha256(result['text'].encode('utf-8')).hexdigest()
+    projection['digest_method'] = 'decoded-utf8-text'
+    return projection
+
+
 def _extensions(project, home, runtime, cwd, include_user, user_roots):
     try:
         module = _load_pieces()
@@ -366,7 +397,7 @@ def _extensions(project, home, runtime, cwd, include_user, user_roots):
 
 
 def build_inventory(root, *, project=None, home=None, runtime='all', cwd=None,
-                    include_user=True, user_roots=None):
+                    include_user=True, user_roots=None, diagnostics_report=None):
     if REDACTOR is None:
         raise ValueError('bundled redactor unavailable')
     root = Path(root).resolve()
@@ -387,9 +418,66 @@ def build_inventory(root, *, project=None, home=None, runtime='all', cwd=None,
     data['runtimes'] = {runtime: _presence(root, relative) for runtime, relative in {'claude': 'hooks/hooks.json', 'codex': 'interop/codex/hooks.json', 'opencode': 'interop/opencode/plugins/custom-agents/index.js'}.items()}
     data['memory'] = {'approved_directory': _presence(root, 'docs/knowledge/approved'), 'graphify_artifact': _presence(root, 'graphify-out/graph.json')}
     data['workflow'] = _workflow(root, data['warnings'])
+    data['diagnostics'] = _diagnostics(diagnostics_report, project)
+    if data['diagnostics']['status'] not in ('not_provided', 'accepted'):
+        data['warnings'].append('Diagnostic snapshot: ' + data['diagnostics']['status'])
     if project is not None:
         data['extensions'] = _extensions(project, home, runtime, cwd, include_user, user_roots)
     return _redact_values(data)
+
+
+DIAGNOSTIC_BLOCKS = {'herramientas': 'Herramientas', 'plugin': 'Plugin', 'configs': 'Configuración',
+                     'estado': 'Estado del trabajo', 'capacidades': 'Capacidades opcionales',
+                     'memoria': 'Memoria técnica', 'journal': 'Journal', 'version': 'Versión'}
+DIAGNOSTIC_STATES = {'ok': 'Correcto en la comprobación', 'aviso': 'Advertencia',
+                     'error': 'Error', 'info': 'Informativo'}
+
+
+def _diagnostics_html(result):
+    esc = html.escape
+    intro = ('<section id="diagnostics"><div class="section-head"><div><h2>Diagnóstico</h2>'
+             '<p>Instantánea importada de doctor; no acredita carga ni ejecución de hooks.</p></div>'
+             '<span class="section-pill">Consulta explícita</span></div>')
+    messages = {'not_provided': 'Sin diagnóstico importado. Obtén una proyección con doctor --panel-json y selecciónala al generar el panel.',
+                'scope_unbound': 'Falta un proyecto explícito para ligar el diagnóstico.',
+                'scope_mismatch': 'El diagnóstico pertenece a otra ruta de proyecto; no se adopta.',
+                'future_timestamp': 'La fecha del diagnóstico está en el futuro; revisa el reloj y vuelve a comprobar.',
+                'incompatible': 'El informe no cumple el contrato portable de doctor.',
+                'reader_unavailable': 'Falta el lector o el contrato del informe.',
+                'not_found': 'El fichero indicado no existe.',
+                'too_large': 'El informe supera el límite de lectura de 64 KiB.',
+                'invalid_encoding': 'El informe no tiene codificación UTF-8 válida.'}
+    if 'report' not in result:
+        return intro + '<p class="diagnostic-notice" role="status">' + esc(messages.get(result['status'], 'No se pudo leer el informe indicado.')) + '</p><p>Los datos del catálogo permanecen independientes. Consulta /doctor para obtener el detalle y el arreglo sugerido.</p></section>'
+    report = result['report']
+    old = result.get('age_status') == 'old_snapshot'
+    notice = ('Instantánea anterior a 24 horas: vuelve a comprobar el estado.' if old else
+              'Instantánea histórica: una fecha reciente tampoco prueba el estado actual.')
+    if not report['complete']:
+        notice += ' Informe recortado: recuentos parciales y prioridades omitidas.'
+    body = '<p class="diagnostic-notice" role="status">' + esc(notice) + '</p>'
+    body += '<p class="diagnostic-provenance">Productor declarado: doctor · Fecha UTC: <time>' + esc(report['checked_at']) + '</time> · Alcance: coincide con la ruta del proyecto indicado.</p>'
+    body += '<details class="diagnostic-source"><summary>Identidad del contenido importado</summary><code>SHA-256 (texto UTF-8 decodificado): ' + esc(result['source_sha256']) + '</code><p>El hash identifica contenido; no autentica su productor ni certifica que siga vigente.</p></details>'
+    if report['priorities']:
+        body += '<h3>Acciones prioritarias</h3><ol class="diagnostic-priorities">'
+        by_id = {block['id']: block for block in report['blocks']}
+        for action in report['priorities']:
+            key, ordinal = action['block'], action['row']
+            row = by_id[key]['rows'][ordinal-1]
+            label = row['label'] or 'Comprobación ' + str(ordinal)
+            body += '<li><a href="#diagnostic-' + key + '-' + str(ordinal) + '">' + esc(DIAGNOSTIC_BLOCKS[key] + ' · ' + label) + '</a> · ' + esc(DIAGNOSTIC_STATES[row['state']]) + '. Consulta /doctor, bloque ' + esc(DIAGNOSTIC_BLOCKS[key]) + ', fila ' + str(ordinal) + ' para el detalle y arreglo sugerido.</li>'
+        body += '</ol>'
+    else:
+        body += '<p>No hay prioridades exportadas. Esto no certifica salud, readiness ni ausencia de problemas no comprobados.</p>'
+    body += '<div class="controls"><div class="search-wrap"><input id="diagnostic-search" type="search" aria-label="Buscar comprobaciones" placeholder="Buscar en el diagnóstico"></div><select id="diagnostic-state" aria-label="Severidad de diagnóstico"><option value="all">Todas las comprobaciones</option><option value="error">Errores</option><option value="aviso">Advertencias</option><option value="info">Informativas</option><option value="ok">Correctas en la comprobación</option></select></div><p id="diagnostic-results" role="status" aria-live="polite"></p>'
+    for block in report['blocks']:
+        key = block['id']
+        body += '<details class="diagnostic-block"><summary>' + esc(DIAGNOSTIC_BLOCKS[key]) + ' · ' + str(len(block['rows'])) + ' comprobaciones</summary><ul>'
+        for ordinal, row in enumerate(block['rows'], 1):
+            label = row['label'] or 'Comprobación ' + str(ordinal)
+            body += '<li class="diagnostic-row" id="diagnostic-' + key + '-' + str(ordinal) + '" data-state="' + row['state'] + '"><strong>' + esc(label) + '</strong><span class="diagnostic-badge">' + esc(DIAGNOSTIC_STATES[row['state']]) + '</span><small>' + esc(DIAGNOSTIC_BLOCKS[key]) + ' · fila ' + str(ordinal) + '</small></li>'
+        body += '</ul></details>'
+    return intro + body + '<p>Los detalles y arreglos libres permanecen en /doctor. El panel no los ejecuta, no comprueba backends y no recalifica las declaraciones del catálogo.</p></section>'
 
 
 def _workflow(root, warnings):
@@ -555,7 +643,8 @@ def render_html(data):
     stats = ''.join(f'<div class="stat"><strong>{count}</strong><span>{labels[kind]}</span></div>' for kind, count in counts.items())
     sources = {'runtimes': data['runtimes'], 'memory': data['memory'], 'warnings': data['warnings'],
                'hook_sources': data.get('hook_sources', {}), 'hook_handlers': data['counts']['hooks'],
-               'hook_groups': counts['hooks']}
+               'hook_groups': counts['hooks'],
+               'diagnostics': {key: value for key, value in data.get('diagnostics', {}).items() if key != 'report'}}
     if 'extensions' in data:
         sources['extensions'] = {key: data['extensions'][key] for key in ('registry_status', 'warnings', 'orphans')}
     notes = html.escape(json.dumps(sources, ensure_ascii=False, indent=2))
@@ -563,8 +652,9 @@ def render_html(data):
         template = _read(TEMPLATE.parent, TEMPLATE)
     except (OSError, UnicodeError, ValueError):
         raise ValueError('bundled panel template unavailable') from None
-    values = {'STATS': stats, 'CARDS': _cards(data), 'WORKFLOW': _workflow_html(data), 'NOTES': notes, 'FLOW': _flow_html(data), 'EXTENSIONS': _extensions_html(data)}
-    return MARKER + re.sub(r'@@(STATS|CARDS|WORKFLOW|NOTES|FLOW|EXTENSIONS)@@', lambda match: values[match.group(1)], template)
+    values = {'STATS': stats, 'CARDS': _cards(data), 'WORKFLOW': _workflow_html(data), 'NOTES': notes, 'FLOW': _flow_html(data), 'EXTENSIONS': _extensions_html(data),
+              'DIAGNOSTICS': _diagnostics_html(data.get('diagnostics', {'status': 'not_provided'}))}
+    return MARKER + re.sub(r'@@(STATS|CARDS|WORKFLOW|NOTES|FLOW|EXTENSIONS|DIAGNOSTICS)@@', lambda match: values[match.group(1)], template)
 
 
 
@@ -597,11 +687,12 @@ def main(argv=None):
     parser.add_argument('--runtime', choices=('claude-code', 'codex', 'opencode', 'all'), default='all')
     parser.add_argument('--project-only', action='store_true')
     parser.add_argument('--user-root', action='append', default=[], metavar='RUNTIME=PATH')
+    parser.add_argument('--diagnostics-report', help='explicit portable doctor JSON snapshot; requires --project for scope')
     args = parser.parse_args(argv)
     try:
         data = build_inventory(args.root, project=args.project, home=args.home,
                                runtime=args.runtime, cwd=args.cwd, include_user=not args.project_only,
-                               user_roots=args.user_root)
+                               user_roots=args.user_root, diagnostics_report=args.diagnostics_report)
         if args.html:
             _write_html(args.html, render_html(data))
         if args.json or not args.html:

@@ -564,3 +564,89 @@ tras contrastar las fuentes; consultar la vista no concede autorización nueva.
 Los consumidores dirigidos usan el selector común; la inyección automática
 se adapta cuando conserva estos límites, sin convertir el hook completo
 (que tiene replay previo) en una operación de sólo lectura.
+
+## Bloque 14: diagnóstico explícito en el panel
+
+Base publicada `2610a27`. La comparación de paneles identifica como criterio
+útil conservar resultado, fuente, alcance y fecha; el agregado de readiness
+externo permite avisos por comprobaciones omitidas y no acredita publicación.
+No se traslada ese agregado ni el backend del control plane. El diagnóstico
+propio sigue siendo responsabilidad de doctor, no del catálogo.
+
+Doctor ofrecerá una proyección portable versionada bajo `--panel-json`, además
+de sus salidas existentes. Un módulo puro compartido definirá la forma, la
+identidad del alcance y sus límites. La proyección conserva fecha UTC de
+comprobación, estados de filas por bloque público, referencias de hasta tres
+acciones prioritarias y una recomendación de consultar doctor. No publica
+rutas, detalles, arreglos libres, cuerpos ni valores de configuración. Los
+resultados no se convierten en un score de salud o de readiness.
+Las etiquetas son una allowlist exacta de 49 títulos públicos de doctor;
+una etiqueta dinámica desconocida se muestra por su ordinal de fila. El panel
+remite al bloque/fila de doctor para el detalle y arreglo concreto, conservando
+ese dueño en vez de copiar datos privados o instrucciones de shell.
+
+El panel consumirá únicamente un fichero indicado por `--diagnostics-report`;
+no ejecutará doctor ni buscará informes automáticamente. Requiere proyecto
+explícito y compara la clave derivada de su ruta absoluta normalizada, sin
+afirmar identidad física del filesystem. No mostrará un informe de otro
+alcance como diagnóstico local. Fuente SHA-256 y fecha identifican la
+instantánea; no prueban autenticidad ni vigencia del estado actual.
+
+Ausencia, lectura fallida, formato incompatible, alcance no ligado/diferente,
+fecha futura y datos incompletos serán estados explícitos. Más de 24 horas
+se etiquetará como antiguo, conservando la instantánea histórica; una fecha
+reciente tampoco acredita estado vivo. JSON estricto, enums y números acotados,
+topes de filas/bytes y lector local común preceden a la composición.
+
+La sección Diagnóstico será accesible por menú, fragmento y teclado, con
+filtro por severidad y acciones textuales; sin botones de ejecución. Fuentes
+del inventario, hooks, carga y ejecución mantienen sus contratos independientes.
+El catálogo sigue utilizable sin informe o con un informe rechazado.
+
+Criterios antes de cerrar el bloque: productor portable y entrada opt-in
+probados con fixtures propias; rechazo de metadatos/rutas hostiles y scope
+incorrecto; límites y antigüedad explícitos; cero diagnóstico automático;
+privacidad por allowlist; navegación/filtros/foco/móvil en Edge; revisión,
+qa-gate, exports y documentación bilingüe. La iniciativa global sigue abierta.
+
+## Siguiente bloque: panel operativo local
+
+La petición del usuario amplía T-13 a seguimiento e interacción, comparados
+en comparisons/panel-activity.md. El HTML autónomo sigue siendo el catálogo
+portable; un modo operativo explícito servirá datos actualizados desde
+127.0.0.1. No habrá servidor automático al cargar la skill ni red en hooks.
+
+Se elige polling de cinco segundos, sin peticiones solapadas, suspendido en
+pestañas ocultas, con refresh manual y fecha de la última respuesta aceptada.
+Ante timeout o desconexión se conservará el dato anterior marcado como antiguo.
+Se limitarán las rutas HTTP, métodos y tamaño de respuestas. Host/Origin y
+acceso del navegador local requieren validación; no se servirá el árbol del
+proyecto ni se aceptarán rutas o comandos libres de una petición.
+
+La primera proyección reutilizará lectura acotada y parser canónico del ledger.
+Estado, fase y asignación de tarea seguirán siendo declaraciones del ledger.
+Historial de journal será opcional, explícito y redactado mediante el selector
+existente. No se leerán logs de prompts, transcripciones ni envelopes completos.
+Sin observaciones compatibles el estado de ejecución será desconocido.
+
+Después se definirá observación opt-in compartida para los tres runtimes:
+recibos de evento acotados, IDs opacos, fecha, rol reconocido, clase de herramienta
+y resultado declarado. El registro operativo no será otra base de tareas o
+memoria. Una respuesta terminada no implica muerte del agente y una observación
+antigua no mantiene un agente marcado como vivo. Productores, concurrencia,
+retención y degradación tendrán QA nativa propia antes de mostrar ejecución.
+
+Las acciones mutables del panel delegarán en los dueños canónicos de tareas,
+planes y memoria. Requerirán identidad del artefacto/versión, detección de
+conflictos y evidencia del resultado, con pruebas de las puertas existentes.
+La investigación de aprobación visual de planes precede a elegir ese contrato.
+Este diseño fija secuencia; ninguna de estas capacidades se declara entregada.
+
+La comparación posterior confirma revisión visual de planes implementada,
+con anotaciones, aprobar/pedir cambios, recarga, SSE hacia navegador y long-poll
+hacia el agente: comparisons/panel-plan-review.md. Se elige adaptar esa experiencia
+al mismo servidor, manteniendo el plan/ledger canónicos y una decisión ligada
+al hash de contenido. El consumidor común reconocerá pendiente, entregada y
+consumida, confirmación idempotente y conflictos de versión. La UI solo sustituye
+puertas de confirmación existentes o una revisión solicitada. No crea permisos
+nativos ni invalidará autorizaciones previas válidas mediante preguntas repetidas.

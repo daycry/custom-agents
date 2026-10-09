@@ -93,6 +93,47 @@ La comparación y decisiones están en
 [decisiones de arquitectura y memoria](roadmap/2026-10-06-capability-foundation/comparison.md).
 El panel es una implementación propia con stdlib.
 
+## Diagnóstico importado
+
+El panel puede consumir un informe **seleccionado explícitamente**. Primero
+solicita a doctor `--panel-json` con la raíz del proyecto y conserva su salida
+en un fichero elegido. Después pasa `--diagnostics-report <informe.json>` y
+`--project <misma-raíz>` a build_panel. El panel no ejecuta doctor, busca informes
+ni comprueba servicios. Doctor conserva las comprobaciones de capacidades
+opt-in activas y puede consultar sus backends cuando se solicita el diagnóstico.
+Su exit 1 indica errores encontrados y puede acompañar una proyección válida;
+exit 2 indica fallo de uso/proyección. No uses el JSON general de doctor: incluye
+detalles privados y se rechaza en esta entrada.
+
+Doctor pasa la proyección por el redactor común antes de exportarla. Si falta
+el contrato o el redactor empaquetado, devuelve un aviso opaco y exit 2.
+
+La proyección tiene versión 1, productor declarado doctor, fecha UTC, clave SHA-256
+de la ruta absoluta normalizada y filas por bloque. Esa clave liga la misma
+escritura de ruta según el sistema operativo; no certifica identidad física,
+anonimato ni procedencia del proceso. Cambiar de ruta exige otra comprobación.
+La fuente visible es SHA-256 del texto UTF-8 decodificado (sin BOM), no de sus
+bytes originales. Identifica el contenido importado, sin autenticar el productor.
+
+El formato admite ocho bloques públicos, hasta **512 filas** y **64 KiB** de
+entrada. Solo exporta severidad, etiquetas públicas exactas y hasta tres
+referencias de acciones prioritarias. Nombres privados/desconocidos usan el
+ordinal de fila; detalles, rutas y arreglos libres permanecen en doctor. Las
+prioridades enlazan la comprobación y remiten al bloque/fila de doctor para su
+detalle y remedio. Ningún enlace ejecuta comandos ni modifica instalaciones.
+
+La fecha pertenece a una instantánea histórica, incluso cuando es reciente.
+Más de 24 horas se etiqueta como antigua; una fecha futura se rechaza. Ausencia,
+formato incompatible, scope sin ligar/diferente, fallo de lectura y recorte son
+estados distintos. Un informe parcial muestra recuentos parciales y omite
+prioridades. Sin informe no se inventan ceros, readiness, tasas o salud.
+
+Diagnóstico tiene filtro de severidad, búsqueda, fragmentos y foco de teclado.
+El inventario y sus filtros siguen independientes. Una comprobación correcta
+no cambia `load_status` o `execution_status` de los hooks. Regenera el HTML para
+actualizarlo; no es un servicio vivo. En el checkout, /panel.html es un artefacto
+local excluido de Git; la plantilla empaquetada sigue versionada.
+
 La sección «Guides by role» lee el registro de capacidades del bundle
 inspeccionado y relaciona guías con roles. No suma esas filas a las tarjetas ni
 afirma que las guías se hayan aplicado. Un registro ausente/inválido deja el

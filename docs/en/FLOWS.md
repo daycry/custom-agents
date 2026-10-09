@@ -511,6 +511,8 @@ flowchart LR
     Catalog[OpenCode adapter JSON catalog] --> Adapter[OpenCode registration and supervision]
     Catalog --> Panel
     Roles[Central role map] --> Panel
+    Doctor[Explicit doctor with --panel-json] --> Projection[Portable report with date and scope]
+    Projection -->|explicit selection| Panel
     Panel --> View[HTML and JSON with sources and limits]
 ```
 

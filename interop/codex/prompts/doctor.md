@@ -1,6 +1,6 @@
 ---
 description: "Diagnóstico de la instalación del plugin en este proyecto — herramientas (python3, git, jq, node, Playwright), plugin y hooks registrados, statusline, configs de .claude (rates, dev, jira, confluence) y estado del trabajo (marcadores de medición huérfanos, iniciativas en progreso, memoria técnica —curadas, índice, FTS5, journal, calibración—, evals), con veredicto ✅/⚠️/❌ y el arreglo concreto de cada línea. Solo lee; no toca nada. Sin red salvo la comprobación en vivo de capacidades opcionales activadas en `taxonomy.json`, acotada a hosts locales/privados y a un tope total de tiempo (p. ej. `kwipu` o la memoria de grafo `graphiti`). Úsalo cuando el usuario diga \"¿está bien instalado?\", \"diagnostica el plugin\", \"por qué no funciona el hook\", \"comprueba mi configuración\", \"doctor\"."
-argument-hint: "(opcional) --json para la salida en JSON · --verbose para ver también las capacidades opt-in sin configurar"
+argument-hint: "(opcional) --json · --panel-json para el panel · --verbose para las capacidades opt-in sin configurar"
 ---
 <!-- GENERADO por scripts/export-interop.py desde commands/doctor.md — no lo edites a mano.
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
@@ -11,6 +11,14 @@ argument-hint: "(opcional) --json para la salida en JSON · --verbose para ver t
 > Las skills se invocan mencionándolas con `$nombre`. Todo lo demás (puertas, artefactos, ledger) no cambia.
 
 # /doctor — ¿está todo en su sitio?
+
+`--panel-json` solicita una proyección portable para plugin-panel; es excluyente
+con `--json`. Conserva fecha UTC, alcance por clave de ruta, estados, títulos
+públicos permitidos y referencias de prioridades. Excluye rutas, detalles y
+arreglos libres; estos siguen en las salidas habituales. Exit 1 puede acompañar
+un JSON válido con errores encontrados; exit 2 indica que no se pudo producir
+la proyección. Usa el diagnóstico actual, incluidas las comprobaciones de
+capacidades opt-in ya activadas; el panel nunca lo ejecuta por su cuenta.
 
 Primera parada cuando algo "no salta": el hook que no aparece, la statusline que no se ve, el
 coste que sale a 0, la skill que no encuentra su script. Comprueba la instalación **sin tocar

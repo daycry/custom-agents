@@ -93,3 +93,41 @@ are separate from catalog cards and do not prove that guides were applied.
 An absent/invalid registry leaves the catalog usable with an explicit limitation.
 `/work-context` selects from the same registry by role/phase/stack/area using the
 task's package manifests.
+## Imported diagnostics
+
+The panel can consume an **explicitly selected** report. Request doctor
+`--panel-json` for the project root and save its output to a chosen file, then
+pass `--diagnostics-report <report.json>` and `--project <same-root>` to build_panel.
+The panel never runs doctor, discovers reports or checks services. An explicitly
+requested doctor run retains checks of active opt-in capabilities and may contact
+their backends. Exit 1 can accompany a valid report containing findings; exit 2
+means usage/projection failure. General doctor JSON contains private details and
+is rejected by this input.
+
+Doctor applies the shared redactor before exporting this projection. A missing
+bundled contract or redactor yields an opaque warning and exit 2.
+
+Version 1 declares doctor as producer and includes UTC time, a SHA-256 key of
+the normalized absolute project path and rows by public block. This binds path
+spelling according to the operating system; it does not prove physical identity,
+anonymity or process provenance. A moved project needs another check. The visible
+source hash covers decoded UTF-8 text without BOM, rather than original file bytes;
+it identifies content without authenticating its producer.
+
+The contract allows eight public blocks, at most **512 rows** and **64 KiB** of
+input. Only severity, exact public labels and up to three priority references are
+exported. Private or unknown labels fall back to row ordinals. Details, paths and
+free-form remedies remain in doctor. Priority links point to checks and refer to
+doctor's block/row for details and remedies; they never execute commands.
+
+Every report is a historical snapshot. Reports older than 24 hours are labelled
+old; future timestamps are rejected. Missing input, incompatible format, unbound
+or mismatched scope, read failure and truncation are distinct. Partial reports
+show partial counts and omit priorities. Missing evidence does not become zero,
+readiness, execution rates or health.
+
+Diagnostics provides severity filtering, search, fragments and keyboard focus.
+Inventory filters remain independent. A successful check never upgrades hook
+`load_status` or `execution_status`. Regenerate HTML to update it; this is not a
+live service. The checkout's /panel.html is ignored as a local generated artifact;
+the packaged template remains versioned.

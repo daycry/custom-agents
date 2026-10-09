@@ -299,6 +299,7 @@ SCRIPTS = descubrir()
 # no-ASCII en el fuente. `test_los_exentos_de_simbolos_lo_estan_por_medicion` comprueba que la
 # exención sigue siendo cierta ejecutando el modo declarado.
 SIN_SIMBOLOS_EN_LA_SALIDA = {
+    'agent-kits/shared/diagnostic-report.py': 'sin `__main__`: contrato puro de proyección, no imprime al arrancar',
     "agent-kits/shared/knowledge-local.py": "sin `__main__`: módulo de lectura local, no imprime al arrancar",
     "agent-kits/shared/knowledge-taxonomy-local.py": "sin `__main__`: módulo de taxonomía local, no imprime al arrancar",
     "agent-kits/shared/journal-capture.py":
@@ -371,6 +372,8 @@ def _modos():
     release = ('{"tag_name":"v1.0.0","body":"Arreglos 🐛 y mejoras 👍","assets":'
                '[{"name":"tool_linux_amd64.tar.gz","browser_download_url":"https://x/y"}]}')
     return {
+        'agent-kits/shared/diagnostic-report.py':
+            [('importar sin CLI', lambda w: [], (0,), None)],
         "agent-kits/shared/knowledge-local.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         "agent-kits/shared/knowledge-taxonomy-local.py":
@@ -399,7 +402,8 @@ def _modos():
             [("veredicto", lambda w: [os.path.join(w, "results.json")], (0, 1), None)],
         "agent-kits/shared/doctor.py":
             [("informe", lambda w: ["--root", "."], (0, 1), None),
-             ("json", lambda w: ["--root", ".", "--json"], (0, 1), None)],
+             ("json", lambda w: ["--root", ".", "--json"], (0, 1), None),
+             ("portable JSON", lambda w: ["--root", w, "--panel-json"], (0, 1), None)],
         "agent-kits/shared/guardrail-check.py":
             [("deny", lambda w: ["pre-tool", "--project-dir", "."], (0,), deny)],
         "agent-kits/shared/journal.py":

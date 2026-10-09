@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — Explicit panel diagnostics
+
+- Import an explicitly selected portable doctor snapshot into the capability panel, with scope binding, UTC date, public check labels and priority references. Keep private details in doctor and distinguish missing, rejected, old and truncated snapshots from live hook execution.
+
 ### Added — Directed work resume
 
 - Add `/work-resume` as a read-only facade over the current ledger and selected journal history. Share bounded local reads and exact selection across manual and startup history views; show ambiguous identities, invalid records and incomplete searches without substituting another session. Preserve legacy unknown runtimes and distinguish historical quotations from current task state and QA evidence.

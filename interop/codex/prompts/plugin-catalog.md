@@ -1,6 +1,6 @@
 ---
 description: "Explora el catálogo del plugin en un control panel HTML local: agentes, skills, comandos, herramientas declaradas y hooks; incluye extensiones de proyecto y usuario, personas y MCP con fuentes y conflictos. Usa plugin-panel; no configura servicios ni ejecuta hooks."
-argument-hint: "(opcional) ruta de salida HTML"
+argument-hint: "[ruta de salida HTML] [--diagnostics-report informe.json]"
 ---
 <!-- GENERADO por scripts/export-interop.py desde commands/plugin-catalog.md — no lo edites a mano.
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
@@ -14,6 +14,10 @@ argument-hint: "(opcional) ruta de salida HTML"
 
 Usa la skill **plugin-panel**. La ruta de salida es **$ARGUMENTS** o una ruta
 local acordada para el artefacto. El script no reemplaza archivos ajenos.
+Si los argumentos incluyen `--diagnostics-report`, separa esa opción de la ruta
+de salida y pásala al generador con la raíz explícita del mismo proyecto. Usa
+una lista de argumentos, sin interpolar texto del usuario en shell ni eval.
+No ejecutes doctor ni busques informes automáticamente para completar la vista.
 
 ```bash
 PANEL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/plugin-panel/scripts/build_panel.py' 2>/dev/null | head -1)"
@@ -34,3 +38,6 @@ Entrega el fichero generado y distingue catálogo, presencia de fuente y
 ejecución real. Explica los grupos de hooks por runtime/evento, sus handlers,
 fuentes y presupuestos; el timeout de registro y la supervisión del adapter
 son contratos distintos. Una declaración no acredita carga ni ejecución. Para progreso de iniciativas usa roadmap-dashboard.
+El diagnóstico importado es una instantánea histórica: explica fecha, alcance,
+formato rechazado, antigüedad o recorte. No cambia los estados de los hooks.
+Para el detalle y los arreglos conserva /doctor como dueño de la comprobación.

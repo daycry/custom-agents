@@ -4,6 +4,7 @@ Fragmentos de prompt que usan **varios** agentes y que deben tener **una única 
 
 | Fragmento | Qué contiene | Lo usan |
 |-----------|--------------|---------|
+| `diagnostic-report.py` | Contrato puro de proyección portable del diagnóstico: estados y etiquetas públicas acotadas, alcance, fecha y prioridades sin detalles privados | `doctor.py --panel-json`, plugin-panel |
 | `capability-check.md`, `capability-route.py`, `capability-catalog.json` | Selección común por rol/fase/stack/área; manifiestos locales acotados, procedencia y fallback; sin ejecución de código del proyecto | Todos los roles, `/work-context`, `/pm-cycle`, `/dev-cycle` |
 | `project-pieces.py` | Inventario derivado de declaraciones de proyecto/usuario para Claude, Codex y OpenCode; agentes, skills, comandos, personas, fuentes de tools y MCP. Propiedad O1 por hash, conflictos y selección explícita por ID; sin ejecución, conexión ni otro registro persistente | `capability-check.md`, `/work-context`, `task-brief.py`, `plugin-panel`; [guía](../../docs/PROJECT-EXTENSIONS.md) |
 | `code-context.py` | Consulta stdlib de AST citado en un grafo local existente: límites, fuentes dentro del paquete, cobertura/frescura no verificadas; sin extracción ni promoción de conocimiento | `architect`, `implementer`, `reviewer`, `qa`, paso `knowledge-check.md` |

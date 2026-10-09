@@ -4,7 +4,8 @@ description: >
   Genera un control panel local del catálogo de custom-agents: agentes, skills,
   comandos, herramientas declaradas, hooks globales y presencia de fuentes de
   runtime y memoria; incluye extensiones propias de proyecto y usuario,
-  personas y MCP con origen y conflictos. HTML autónomo con búsqueda y filtros, JSON determinista,
+  personas y MCP con origen y conflictos; admite un diagnóstico portable de
+  doctor indicado explícitamente, con fecha y alcance. HTML autónomo con búsqueda y filtros, JSON determinista,
   sin servidor ni cambios de configuración. Úsala cuando el usuario diga
   "panel de capacidades", "control panel del plugin" o "explora el catálogo del plugin".
 ---
@@ -19,6 +20,8 @@ la skill roadmap-dashboard; este panel muestra capacidades.
    `--html <salida>`. Para el proyecto actual añade `--project <raíz>` y
    `--cwd <paquete>` si está anidado; fija `--runtime` según la sesión.
    Añade `--json` si necesitas inventario estructurado.
+   Para un informe ya generado y seleccionado explícitamente, añade
+   `--diagnostics-report <informe.json>` junto a `--project <misma-raíz>`.
 3. Entrega el HTML y resume sus avisos. Un archivo presente no acredita que
    el hook se haya ejecutado ni que un servicio esté sano.
 
@@ -33,6 +36,12 @@ en esta sesión. De memoria solo muestra presencia de directorio aprobado y
 artefacto Graphify; no lee entradas, grafos, transcripciones ni credenciales.
 Usa el redactor del bundle. Sin él, avisa y no emite metadatos; continúa la tarea.
 No sigue enlaces simbólicos. Solo reemplaza HTML reconocido como suyo.
+
+Diagnóstico consume exclusivamente la proyección `doctor --panel-json`, no su
+JSON general. No ejecuta doctor ni descubre informes. Conserva fuente, fecha,
+alcance y estados históricos; rechaza formatos privados/incompatibles y otro
+proyecto. Carga y ejecución de hooks continúan sin verificar. Detalles y arreglos
+libres permanecen en doctor; el panel solo ofrece referencias y recomendaciones.
 
 El lector compartido `agent-kits/shared/project-pieces.py` inventaría declaraciones
 sin ejecutar piezas ni conectar MCP. Usa `--project-only` para excluir fuentes

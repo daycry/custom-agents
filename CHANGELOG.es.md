@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added — Diagnóstico explícito en el panel
+
+- Importar una instantánea portable de doctor seleccionada explícitamente, con alcance, fecha UTC, etiquetas públicas y referencias de prioridades. Mantener el detalle privado en doctor y diferenciar informes ausentes, rechazados, antiguos o recortados de la ejecución real de hooks.
+
 ### Added — Retoma dirigida del trabajo
 
 - Añadir `/work-resume` como fachada de solo lectura sobre el ledger actual y el historial seleccionado del journal. Compartir lectura local acotada y selección exacta entre la vista manual y el historial de arranque; mostrar identidades ambiguas, registros inválidos y búsquedas incompletas sin sustituir la sesión. Conservar runtimes antiguos desconocidos y distinguir citas históricas del estado actual de tareas y de la evidencia QA.
