@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — Optional visual plan review
+
+- Review an explicitly selected plan as a complete redacted text view with section comments and durable version/gate receipts. The common CLI validates and acknowledges the decision before an authorized workflow continues; prior conversational approval and local fallback remain available.
+
 ### Fixed — Portable code receipt validation
 
 - Reject case-colliding and artifact-aliased receipt paths before reading source files on every platform. Exercise UTF-8 context payloads in console checks and keep the knowledge-services description within the OpenCode limit.

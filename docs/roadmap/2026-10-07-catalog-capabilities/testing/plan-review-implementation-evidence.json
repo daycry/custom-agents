@@ -1,0 +1,692 @@
+{
+  "schema_version": 1,
+  "block": 19,
+  "status": "accepted_partial_implementation",
+  "base_commit": "87a493c0f82895519a950fa66cadccd4cf77df61",
+  "source_hashes_scope": "Raw integrated working-tree source bytes; component checkpoints use their own explicitly bound source versions.",
+  "source_sha256": {
+    "agent-kits/shared/plan-review.py": "ec5262c5be99fce72ef65faca58a443c3e5d53a2f9bdb4695815492ab7190f5d",
+    "agent-kits/shared/local-read.py": "eee670d4c2e43a84724bc72de413a15379cd6681af20875ea3f091f9ef9dca65",
+    "agent-kits/shared/redact.py": "4e9131368fd2471dcb2e3a2e91f6b0dc00555354487b6308194be05e4c4d5907",
+    "agent-kits/shared/test_plan_review.py": "c9614e39cf7cb1f57fe60c91963125bfcb92273971b4e4bd0de52c388f5e8c9d",
+    "skills/plugin-panel/scripts/serve_panel.py": "5b0c653483a6529b0813a83e1d3834fecb5c44cd985ef710da2d12cb9573dd2a",
+    "skills/plugin-panel/scripts/build_panel.py": "a4f1fb69115bbccd1179cd4caba1ca1b056cf850ddb5c3fd83ab11e9cab10e3d",
+    "skills/plugin-panel/references/panel-review.js": "d23143f7da55deed1de1a725fec9676b5f0c5963552fb80112f393fac2e1d34a",
+    "skills/plugin-panel/references/panel.html": "88aae52801ce884c4f1d59252247d0e2488cf05179a38132143f7979dcba7c4c",
+    "tests/test_panel_review_server.py": "a321c3ea3774c2d3e9b0d97f5ffd8e8bfb3f76cf2b26f2a57ee0dcbe4838efea",
+    "tests/test_panel_review_ui.py": "4f18ec7552e3e2f7524ef8e4e126de2a80ebc2cd25fe23c93e7642aebad6e741"
+  },
+  "implemented": [
+    "common receipt owner and CLI",
+    "explicit review transport",
+    "text-only section comments and version-bound decision",
+    "durable receive and idempotent ack",
+    "optional existing workflow gate",
+    "common native command projections"
+  ],
+  "author_checkpoints": {
+    "owner": {
+      "tests_passed": 46,
+      "platform": "windows",
+      "RED_assertions": 35,
+      "harness_errors_excluded_from_RED": 2,
+      "intermediate_fsync_failures_preserved": 3,
+      "covered_executable_lines": 384,
+      "executable_lines": 398,
+      "coverage_percent": 96.4824120603015,
+      "subprocess_coverage_assumed": false,
+      "coverage_tool": "coverage.py 7.16.2",
+      "report_sha256": "3fc70ce082247bf2e26808253a49f4bbb7b115955d54ee570ac175bbf49dc23f",
+      "evidence_sha256": "36fa7a60d015be0d553e4b0c088939a7ef9d88675e6f317f3f70364c83fe787f"
+    },
+    "panel_before_close_correction": {
+      "new_tests_passed": 95,
+      "unchanged_regressions_passed": 160,
+      "new_test_cohorts": {
+        "server": 60,
+        "UI": 35,
+        "UI_Node_scenarios": 24
+      },
+      "report_sha256": "6e3fa3e720a4cf7a165875e30b65dde3af3102aca2c4acdaf430136cadfe15da",
+      "source_manifest_sha256": "70fcdcbe773a4cb59e85ac3dcdf02b99878f0c6329a6789cc766e9e679fbc475",
+      "coverage_tool": "coverage.py 7.16.2",
+      "changed_executable_lines": {
+        "covered": 131,
+        "total": 134
+      },
+      "whole_builder_statement_coverage": {
+        "covered": 229,
+        "total": 571
+      },
+      "results_log_provenance": "Author summary of tool output; not a captured combined stdout stream.",
+      "integrated_whole_file_coverage_gate_accepted": false
+    },
+    "close_correction": {
+      "RED_failed": 5,
+      "GREEN_passed": 40,
+      "UI_Node_scenarios": 29,
+      "scope": [
+        "skills/plugin-panel/references/panel-review.js",
+        "tests/test_panel_review_ui.py"
+      ],
+      "report_sha256": "8af5566c0216b4585908795d6f2cd1da71f5a5a47ef47c452989a83df48f0a00",
+      "RED_captured_stdout_sha256": "6561d7793dfe264c9a11ff5e352194df75f82c3b0ddd02187b66c02d5dc886dd",
+      "GREEN_captured_stdout_sha256": "a48bf03986c4c8b517ae6a2991cc4229007033a12eb9c581ed8056016cef0fde",
+      "prior_handoff_preserved": true
+    },
+    "docs": {
+      "TDD": "n/a: prose/config",
+      "report_sha256": "e36e81c56b2602880f664b77c962f57f5dc3ee8f29463bd6d0c0577928fe577e",
+      "author_files": 12,
+      "ROOT_followup": "Explicit CLI open obtains IDs/version before starting the server."
+    }
+  },
+  "counts_not_additive": "UI checkpoints overlap, component suites are separate, and prior results are not final integrated QA.",
+  "independent_review": {
+    "attempt": 1,
+    "lenses": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "manifest_sha256": "b5af9f839c90f6851d9ddee55cc9b8aa3160efcd73a3e183d113a09ef37048b7",
+    "reports_sha256": {
+      "A": "459d8eb30d3e4425467bdb7405a0803c330fa334e4aed1e20b256ea5f055f892",
+      "B": "0e3b697575b59f62a8173440319cd13ff2d4d8d171e2a1be97e43623d3aed7cd",
+      "C": "1ed2e19586fe52ea1a6934ef5ebae6f0b820f7173c0465dee9c2f31a600dd19a",
+      "D": "8f1808bda26b55317b645597c38cd0e28089a7a6bdd7ade547edc9ea396e4670"
+    },
+    "B_serialization_addendum_sha256": "1d7ad940c51f7c7cf2fce8521d1f117bef5e3c20cc988fce5de6f4eb30abfe78",
+    "deduplicated_counts": {
+      "critical": 0,
+      "important": 3,
+      "minor": 0
+    },
+    "gaps": [
+      {
+        "id": "A1",
+        "grade": "Important",
+        "reason": "RED trace missing from canonical ledger",
+        "correction": "Existing attributed RED records copied to ledger",
+        "status": "corrected_pending_independent_validation"
+      },
+      {
+        "id": "A2",
+        "grade": "Important",
+        "reason": "Interop check output missing from block19 ledger",
+        "correction": "Actual exit0/58-file check bound to frozen source recorded",
+        "status": "corrected_pending_independent_validation"
+      },
+      {
+        "id": "BC1",
+        "grade": "Important",
+        "reason": "Redaction before sanitization can expose text and invalidate durable comments",
+        "correction": "Controls normalized before the canonical redactor in view and comments; 10 dedicated RED/GREEN cases",
+        "status": "corrected_pending_independent_validation"
+      }
+    ],
+    "security_report_method": "Independent static replacement for interrupted initial C report; prior synthetic evidence attributed, no new active probes",
+    "fallback": "Generic subagents; native reviewer not available; no project model override",
+    "QA_accepted": false,
+    "macro_closed": false
+  },
+  "platform_QA": null,
+  "browser_acceptance": null,
+  "native_host_acceptance": null,
+  "publication": null,
+  "macro_complete": false,
+  "remaining": [
+    "independent review of complete integrated diff",
+    "Windows and Linux integrated QA and both official coverage gates",
+    "actual browser interaction",
+    "native host acceptance distinguished from three CLI runtime labels",
+    "portable package dependency check",
+    "publication and global integration requirements"
+  ],
+  "initial_RED_observations": {
+    "owner": [
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_raw_view_and_sections_bind_exact_full_redacted_content",
+        "reason": "unavailable/missing_owner antes de existir el dueño",
+        "date": "2026-10-09",
+        "failure_count": 1,
+        "capture_sha256": "088ff631e43a3d0bd5bdd9f69ce7c4aca1ed511d34b6b959998b5c4328abe394"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_plan_failures_never_create_authorizing_state",
+        "reason": "unavailable/missing_owner antes de existir el dueño",
+        "date": "2026-10-09",
+        "failure_count": 3,
+        "capture_sha256": "cc106d6f41125e996d8a5fb4aa0bf8bd7d4393e94e76e0de6e185c30a4b29329"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_selection_scope_rejected_before_state",
+        "reason": "unavailable/missing_owner antes de existir el dueño",
+        "date": "2026-10-09",
+        "failure_count": 4,
+        "capture_sha256": "5eccc5e008692d08d8eb42bba5f09419d8c9cebee07b2f3cf672ae41a2dc3f56"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_comments_cas_and_sealed_decision",
+        "reason": "unavailable/missing_owner antes de existir el dueño",
+        "date": "2026-10-09",
+        "failure_count": 1,
+        "capture_sha256": "52acd28cf9b41d97420ddb0bf025c52cb3e8ba88306ba6ae307b3c29b7cef4b3"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_invalid_comments_never_freeze_decision",
+        "reason": "unavailable/missing_owner antes de existir el dueño",
+        "date": "2026-10-09",
+        "failure_count": 3,
+        "capture_sha256": "0a3d76c2c4b5dbef4e0f6dbf3a20d1e7c1f28f1caccf301d30089a180a94ee3a"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_receive_keeps_delivery_until_revalidated_idempotent_ack_and_restart",
+        "reason": "unavailable/missing_owner antes de existir el dueño",
+        "date": "2026-10-09",
+        "failure_count": 1,
+        "capture_sha256": "9b758394c4a513e47f834703f86e4195678fccea857909d45d38b25c9585b9b0"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_changed_plan_blocks_each_decision_boundary_and_retains_old_record",
+        "reason": "unavailable/missing_owner antes de existir el dueño",
+        "date": "2026-10-09",
+        "failure_count": 3,
+        "capture_sha256": "6770e9acb0a1b64d27070dd528ddd5e2385aac96f82f51d1e48e8ee47e299fb6"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_gate_and_ack_identity_are_not_interchangeable",
+        "reason": "unavailable/missing_owner antes de existir el dueño",
+        "date": "2026-10-09",
+        "failure_count": 1,
+        "capture_sha256": "628cdf0c1f0ea9c49cc210d2dd7edd30d36c853fd3bf41952f3d3ae5d7bea01d"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_poll_is_read_only_and_unknown_id_has_no_state_effect",
+        "reason": "unavailable/missing_owner antes de existir el dueño",
+        "date": "2026-10-09",
+        "failure_count": 1,
+        "capture_sha256": "b344db228a640872d493cea52e38a5fd8d35be794410e23e69fd7ae51c2b8d7c"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_existing_unowned_state_and_foreign_record_are_preserved",
+        "reason": "unavailable/missing_owner antes de existir el dueño",
+        "date": "2026-10-09",
+        "failure_count": 1,
+        "capture_sha256": "ca6097d2a1c669f2d6355afc85e2835aebc381e45180301bc277e57d321f8817"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_state_scope_deadline_and_link_rejections",
+        "reason": "unavailable/missing_owner antes de existir el dueño",
+        "date": "2026-10-09",
+        "failure_count": 1,
+        "capture_sha256": "813bdf0bbf4f4762eb3282d45908e4dd81b6c82e53807f98db0f8efceb9ad21d"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_deadline_at_commit_and_fsync_failure_do_not_claim_success",
+        "reason": "unavailable/missing_owner antes de existir el dueño",
+        "date": "2026-10-09",
+        "failure_count": 1,
+        "capture_sha256": "8bf1bc4c730d7c1df2819c6ea90d2a598b9649959cd9addfc006857c5c452b91"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_record_and_response_budgets_do_not_truncate_or_drop_prior_receipt",
+        "reason": "unavailable/missing_owner antes de existir el dueño",
+        "date": "2026-10-09",
+        "failure_count": 1,
+        "capture_sha256": "6d82b1535fd03da513576064810e40550234c34f5f5f747b78cdd900958ef0d9"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_common_cli_pipeline_and_registration_are_runtime_independent",
+        "reason": "unavailable/missing_owner antes de existir el dueño",
+        "date": "2026-10-09",
+        "failure_count": 3,
+        "capture_sha256": "e285b1e8b97f09e2d6e4303a3b7afa87e50f326a9ad8178326abbeaff2b157c6"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_corrupted_nested_state_cannot_be_served_or_consumed",
+        "reason": "aceptó estado anidado inválido",
+        "date": "2026-10-09",
+        "failure_count": 5,
+        "capture_sha256": "3d98e47ea69a35dc3a722ac3d68fd91f9749b614300c88f80c5485fe062db70a"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_directory_creation_race_never_adopts_foreign_state",
+        "reason": "creó marker en un directorio aparecido durante la carrera",
+        "date": "2026-10-09",
+        "failure_count": 1,
+        "capture_sha256": "3bc6b3c2cbf72d57aa17d45c3cea798815f3b0c65226649ba155790374fd4bea"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_foreign_record_in_owned_namespace_is_not_adopted_by_new_open",
+        "reason": "no rechazó el recibo ajeno del namespace",
+        "date": "2026-10-09",
+        "failure_count": 1,
+        "capture_sha256": "2eb9d182ca6ee83c52f4d2e5053a2bdfac9f11321fb2e567f358e917562e8676"
+      },
+      {
+        "test": "agent-kits/shared/test_plan_review.py::test_unavailable_plan_serves_history_readonly_and_never_consumes",
+        "reason": "devolvió review nulo en lugar de conservar hechos históricos",
+        "date": "2026-10-09",
+        "failure_count": 3,
+        "capture_sha256": "3938ff94b059afb20e93a07ea988f9934c74cecb95b9c31bea04b2d034c7a78e"
+      }
+    ],
+    "owner_harness_errors_excluded": 2,
+    "panel_provenance": "Author transcript summary of completed tool output, not captured combined stdout",
+    "panel_ledger_sha256": "ba5e729f73de6acf1bb1043b82612544cf0cbf27e54729e3521152b5fe82f44c",
+    "close_RED_captured_stdout_sha256": "6561d7793dfe264c9a11ff5e352194df75f82c3b0ddd02187b66c02d5dc886dd",
+    "panel_identity_clarification": "Canonical ledger resolves author shorthand to existing pytest module/test/Node scenario identities. Provenance remains author tool-output summaries; no rerun or new RED attributed."
+  },
+  "normalization_correction": {
+    "RED": {
+      "cases": 10,
+      "failed": 10,
+      "errors": 0,
+      "skipped": 0,
+      "owner_sha256": "536931b06e6ce0689d7434c0392e4f1517bdcf2ad7281d379d4f3d9ddbaefaff",
+      "stdout_sha256": "731bfd7f9734ac7c475686ec013b03e061661ded001ab2aee20af4029ac27c06"
+    },
+    "GREEN": {
+      "cases": 10,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "stdout_sha256": "0cf6945260bd24175ebe24b530f0581bb9e4a9c72944ed3af4989ba06b5326f5"
+    },
+    "neighbor_checkpoint": {
+      "passed": 156,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "stdout_sha256": "c07d25766b23724c598bff4f7f81e2e78608ab4304d7d46f96afbf103f1076ca",
+      "platform": "Windows",
+      "QA_accepted": false
+    },
+    "source_sha256": {
+      "agent-kits/shared/plan-review.py": "ec5262c5be99fce72ef65faca58a443c3e5d53a2f9bdb4695815492ab7190f5d",
+      "agent-kits/shared/test_plan_review.py": "c9614e39cf7cb1f57fe60c91963125bfcb92273971b4e4bd0de52c388f5e8c9d",
+      "tests/test_panel_review_server.py": "a321c3ea3774c2d3e9b0d97f5ffd8e8bfb3f76cf2b26f2a57ee0dcbe4838efea"
+    }
+  },
+  "independent_review_attempt_2": {
+    "attempt": 2,
+    "accepted": true,
+    "manifest_sha256": "1764fcaa55ddfd015419fa1a74a4c78a7cb8a10f1b48a35b725a3d286bbf84ce",
+    "diff_sha256": "84d89fed1281c2f9d849a402f847d3d6be89a48a854d592e310109c3d4068ffc",
+    "public_files": 978,
+    "changed_files": 28,
+    "reports": {
+      "A": {
+        "sha256": "ba214354ce861d4ac1bc9112756706d0b99cc4d37636b136e053fc947a6c2f2b"
+      },
+      "B": {
+        "sha256": "822d0eda7139984c76db91fc9904ba2581960797b5afcd6e9d904423c65864fc"
+      },
+      "C": {
+        "sha256": "5b3789ef06269709a0f9e65d1cbe8bf7ee8ce0c9f52d3e51a5d414c2d0b0c824"
+      },
+      "D": {
+        "sha256": "852a1377a4514eb899a9148be78fb474dfc124b6859db9e1f5b1e4fb45b0c5d5"
+      }
+    },
+    "pending_counts": {
+      "Critical": 0,
+      "Important": 0,
+      "Minor": 0
+    },
+    "corrected_validated": [
+      "A1",
+      "A2",
+      "BC1"
+    ],
+    "rebates": [],
+    "review_is_QA": false,
+    "source_intact": true,
+    "interop_check": {
+      "exit_code": 0,
+      "stdout": "export-interop --check: 58 ficheros al día",
+      "stderr": "",
+      "producer": "independent lens A, own environment"
+    },
+    "B_checkpoint": {
+      "passed": 14,
+      "deselected": 38,
+      "independent_probes_passed": 12,
+      "scope": "owner correction only; not final QA"
+    },
+    "Jira_event": {
+      "fixture": "OWN disabled config only",
+      "ops": [],
+      "external_writes": 0,
+      "consumer_config_read": false,
+      "previous_missing_batch_harness_error_preserved": true
+    }
+  },
+  "browser_acceptance_attempt": {
+    "accepted": false,
+    "status": "blocked_before_UI",
+    "browser": "Edge",
+    "navigation_error": "net::ERR_BLOCKED_BY_CLIENT",
+    "visible_message": "Microsoft Edge ha bloqueado esta página",
+    "UI_scenarios_executed": 0,
+    "protection_changed": false,
+    "owned_server_closed": true,
+    "source_intact": true,
+    "private_evidence_sha256": "e075d6e8f82240796a9ca6e1a99ff5daaf6f1d81849cb83156b489dca6ce70f2",
+    "limit": "Actual interaction remains pending; Node scenarios and HTTP tests cannot replace browser acceptance"
+  },
+  "final_QA_execution": {
+    "status": "accepted_incremental_platform_QA",
+    "source_manifest_sha256": "834bb1e2050939a9ca6336cd9923e65fe58d0ced1209169e9b2ba2491b7d3d62",
+    "platforms": [
+      "Windows",
+      "Linux"
+    ],
+    "modules": 42,
+    "cohorts": 3,
+    "production_python_files": 3,
+    "mean_file_minimum": 90,
+    "aggregate_executable_changed_lines_minimum": 90,
+    "accepted": true,
+    "browser_native_acceptance_separate": true,
+    "original_results": {
+      "Windows": {
+        "passed": 2678,
+        "failed": 4,
+        "skipped": 43,
+        "status": "NO-PASS",
+        "junit_sha256": {
+          "local-state": "256799f2ccab5ce857d55846a34795718e563834139544d0729e429188705fe6",
+          "router-code": "912408a2e3e153c10bb101d2c41ad7794973f697373c199342bf5929bdcc6a7e",
+          "documental-panel": "b746c05bb1a437b9e31b9d3259edd3b1e8dc901adaf44a571a4140da56ea8ffb"
+        },
+        "runner_failure": {
+          "type": "AssertionError",
+          "message": "Unauthorized native CLI invocations recorded",
+          "qa_passed": false
+        },
+        "blocked_native_fixture_attempts": 6,
+        "native_execution": false,
+        "failure_sha256": "7be73a85b7854256fa87f8a4e5f94b450c37ca48d283629e8a88317f1f5dc6b3",
+        "native_guard_log_sha256": "2a5481e3f73cb946ca5270bbe6135989d602e375b596b38218147796af62d9d7"
+      },
+      "Linux": {
+        "passed": 2698,
+        "failed": 4,
+        "skipped": 23,
+        "status": "NO-PASS",
+        "junit_sha256": {
+          "local-state": "e6223e477b1bbe2c02215912c64cd22cce6350a7e4ddb6c6fcbc08835dd088b9",
+          "router-code": "ecb1eeede66cab56f494c6831e81cfce98931519ad20e64994fb7ff1ba497156",
+          "documental-panel": "fec9eaf23cacfe4b33b88db583f032bc88c8982b8abb9ec4378b9d561a59a0d8"
+        },
+        "runner_failure": {
+          "type": "AssertionError",
+          "message": "Selected module has no JUnit cases: tests/test_mermaid_blocks.py",
+          "qa_passed": false
+        },
+        "blocked_native_fixture_attempts": 0,
+        "native_execution": false,
+        "failure_sha256": "d197de3c63f54e9617a811e35c961732c5e11fefe81d73f34b627d42d9744304",
+        "native_guard_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "repair_source_manifest_sha256": "834bb1e2050939a9ca6336cd9923e65fe58d0ced1209169e9b2ba2491b7d3d62",
+    "original_final_gates_executed": false,
+    "original_failures_preserved": true,
+    "repair_runner_sha256": "349014078051da28600152686c36022cb820aa242f5157d382940dec7a03dda8",
+    "repair_recipe_sha256": "1225502c57d4d4cb9e1ce9ef7b856b19fee29daa9c2b76c84fcfbe71d4ac71e0",
+    "repair_pointer_sha256": "2f3b060278dcd43ea3975a0ba025b8579e02285c0a1a450638e3449f0d4ee5d7",
+    "executed_selection": "530 console case IDs and defective/missing auxiliary checks; original unaffected JUnit and official coverage retained with explicit bindings",
+    "real_native_cli_execution": false,
+    "repair_preflight": {
+      "Windows_exit_code": 1,
+      "Linux_exit_code": 1,
+      "executed_tests": 0,
+      "created_containers": 0,
+      "cause": "Required Node binary directory also contains opencode and opencode.cmd",
+      "assertion": "AssertionError: Host CLI present in required bin; use OWN absolute-tool shims instead",
+      "native_cli_executed": false,
+      "private_tool_result_sha256": "00ba29f2f5a361d4a34983463dc075edeabb8f070e1dd223c25289a6264ffdf9",
+      "failure_preserved": true
+    },
+    "node_binding": {
+      "source_sha256": "8a0e6be40de816f334e65eb2de19d4a9b833c413eb866015eac19dceca9c3edf",
+      "copy_sha256": "8a0e6be40de816f334e65eb2de19d4a9b833c413eb866015eac19dceca9c3edf",
+      "source_unchanged": true,
+      "tool_directory_isolated": true
+    },
+    "node_isolated_terminal": {
+      "Windows_exit_code": 0,
+      "Linux_exit_code": 1,
+      "Linux_console_exit_code": 0,
+      "ROOT_QA_accepted": false,
+      "cause": "CRLF shebang in Windows-written OWN Linux stub prevents guard execution",
+      "Linux_owned_cleanup_confirmed": true,
+      "private_terminal_result_sha256": "71f540c542d05f0cd889de51769c6f09a3ca3cb1dae96b5a04235a999f1a84cc",
+      "failure_preserved": true
+    },
+    "Linux_LF_runner_sha256": "b5dbcbedb5db0edc94d88d583806cd22c8904949133dd41c7ddba0d68f20d76e",
+    "Linux_LF_pointer_sha256": "51cdf42e13161bd3a159be9a2ab27d3e464bcb5b32952358f2dee81c408eedb7",
+    "Windows_runner_sha256": "349014078051da28600152686c36022cb820aa242f5157d382940dec7a03dda8",
+    "Windows_retention_bridge_verified": true,
+    "artifact_verifier_sha256": "020fd4370de91804c0cc81ee1905387f2a3ab8ad791de1a147f73635bac93c5c",
+    "artifact_verifier_output_sha256": "fe6c13c76aa1dd7dc6ac58b6209614027ea3545594c7daf2c2a90c7b343a4ed0",
+    "ROOT_acceptance_receipt_sha256": "8168de7023e9fc6685d61ca9a56e525a4c6b6966ac2f005e3ab572facd5489fc",
+    "accepted_incremental_results": {
+      "windows": {
+        "status": "artifact_consistency_verified_not_QA_acceptance",
+        "artifact_index_sha256": "67d48c2f56102a503bfe080bc7b191ae6d76f7bcc04fa60325f4e4dacc3eb449",
+        "artifacts": 70,
+        "public_sources": 978,
+        "selected_sources": 42,
+        "junit_modules": 41,
+        "console_cases_replaced_not_added": 530,
+        "Node_cases": 29,
+        "raw_subtests_separate_not_added": 45,
+        "mocked_calls": 6,
+        "unique_junit_counts": {
+          "passed": 2682,
+          "failed": 0,
+          "skipped": 43
+        },
+        "auxiliary_gate_entries": 10,
+        "official_gate_counts_including_auxiliaries": {
+          "passed": 2692,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 43,
+          "interrupted": 0
+        },
+        "coverage_mean3_unrounded": 96.31596814342258,
+        "changed_lines_covered": 515,
+        "changed_lines_executable": 532,
+        "changed_lines_percent_unrounded": 96.80451127819549,
+        "original_NO_PASS_preserved": true,
+        "pre_gate_results_hash": "exact serialized prefix reconstructed from sealed final results, no old file edits"
+      },
+      "linux": {
+        "status": "artifact_consistency_verified_not_QA_acceptance",
+        "artifact_index_sha256": "96935b6a0060372e2786fef044c1a62f56c18b7df3254c50f15a0dbc305faabf",
+        "artifacts": 133,
+        "public_sources": 978,
+        "selected_sources": 42,
+        "junit_modules": 41,
+        "console_cases_replaced_not_added": 530,
+        "Node_cases": 29,
+        "raw_subtests_separate_not_added": 45,
+        "mocked_calls": 6,
+        "unique_junit_counts": {
+          "passed": 2702,
+          "failed": 0,
+          "skipped": 23
+        },
+        "auxiliary_gate_entries": 14,
+        "official_gate_counts_including_auxiliaries": {
+          "passed": 2716,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 23,
+          "interrupted": 0
+        },
+        "coverage_mean3_unrounded": 96.62560154100005,
+        "changed_lines_covered": 518,
+        "changed_lines_executable": 532,
+        "changed_lines_percent_unrounded": 97.36842105263158,
+        "original_NO_PASS_preserved": true,
+        "pre_gate_results_hash": "exact serialized prefix reconstructed from sealed final results, no old file edits"
+      }
+    },
+    "native_cli_executed": false,
+    "real_browser_acceptance": false,
+    "macro_closure_authorized": false,
+    "denominator_notes": [
+      "2725 unique JUnit cases per OS; all530 console IDs replaced, not added.",
+      "45 raw subtests retained separately;29 Node cases are already in JUnit.",
+      "Official gate counts include10/14 auxiliary entries; not additional unique pytest cases."
+    ],
+    "limits": [
+      "Original snapshots are posthoc; no claim of atomic original-run monitoring.",
+      "Browser/native-host acceptance, consumer state and later publication metadata bridge remain outside this verifier.",
+      "Original NO-PASS and subsequent harness failures remain immutable history.",
+      "Runtime labels in six portable CLI cases do not demonstrate actual Claude/Codex/OpenCode hosts.",
+      "Publication still requires final five-file metadata/prose bridge and explicit staging."
+    ]
+  },
+  "encoding_registration_regression": {
+    "platform": "Linux",
+    "stdout_sha256": "3ae32f6fa41748d5d593d04cd691df559633342720d128f354c996692ffbd4aa",
+    "source_test_before_sha256": "a7ee3fe49647365c9d31abf1119a3da98a10c0c5e5b9c9adf79ef878a7ccc8e2",
+    "RED": [
+      {
+        "test": "tests/test_console_encoding.py::test_arranca_sin_reventar_en_consola_no_utf8[agent-kits/shared/plan-review.py-cp1252]",
+        "reason": "AssertionError: el nuevo CLI no declara modo en MODOS",
+        "date": "2026-10-10"
+      },
+      {
+        "test": "tests/test_console_encoding.py::test_arranca_sin_reventar_en_consola_no_utf8[agent-kits/shared/plan-review.py-ascii]",
+        "reason": "AssertionError: el nuevo CLI no declara modo en MODOS",
+        "date": "2026-10-10"
+      },
+      {
+        "test": "tests/test_console_encoding.py::test_la_salida_sigue_siendo_utf8_no_interrogantes[agent-kits/shared/plan-review.py-cp1252]",
+        "reason": "KeyError: 'agent-kits/shared/plan-review.py'",
+        "date": "2026-10-10"
+      },
+      {
+        "test": "tests/test_console_encoding.py::test_la_salida_sigue_siendo_utf8_no_interrogantes[agent-kits/shared/plan-review.py-ascii]",
+        "reason": "KeyError: 'agent-kits/shared/plan-review.py'",
+        "date": "2026-10-10"
+      }
+    ],
+    "cohort": {
+      "failed": 4,
+      "passed": 1027,
+      "skipped": 21,
+      "subtests_passed_separate": 39
+    },
+    "correction_integrated": true,
+    "QA_accepted": false,
+    "source_test_after_sha256": "ebe068feac00f1306978c543050e8c0fe35ef334685a8d56a1a9856eabfbca17",
+    "author_report_sha256": "83764b23d2dfb0384c3c7b62f843195e73484ffdb9827680607f0233170c7a68",
+    "author_GREEN": {
+      "targeted_passed": 4,
+      "whole_console_module_passed": 530,
+      "stdout_sha256": "cd221e07f1f1e4f7f2db47140105f122b9f91ac6c68d33d906279186eda29724",
+      "platform": "Windows",
+      "QA_accepted": false
+    },
+    "correction": "Operational open over owned Unicode plan; no exclusions, no owner code change"
+  },
+  "independent_review_attempt_3": {
+    "attempt": 3,
+    "manifest_sha256": "834bb1e2050939a9ca6336cd9923e65fe58d0ced1209169e9b2ba2491b7d3d62",
+    "diff_sha256": "5259c025108e39b807fb3f8b3d90d682cc19d3efe18c97623258d759cfb011a7",
+    "delta_sha256": "ebfd96ad961d8d4e5658d716c42fc79e92028554dd6366ff4176d8b9de3eb297",
+    "gates_sha256": "c967475f94ec2910a24d26a76ae210bc494d612cc9ae9bc8e952ff8fa06ee273",
+    "public_files": 978,
+    "changed_files": 29,
+    "counts": {
+      "Critical": 0,
+      "Important": 0,
+      "Minor": 0
+    },
+    "corrected_validated": [
+      "A1",
+      "A2",
+      "BC1",
+      "console-registration"
+    ],
+    "rebates": [],
+    "accepted": true,
+    "reports": {
+      "A": {
+        "sha256": "4782d3e17b55866498438dce451de82486f0cc79023f047c589aa4921eb0edc8"
+      },
+      "B": {
+        "sha256": "b06660722c14d0db09332a602da105a57be63fbdd65e8d7a6302bb572060e487"
+      },
+      "C": {
+        "sha256": "2e3a9222d655fb92744508a918aeb6e560bb051f605ddd0644356bce77b25ae6"
+      },
+      "D": {
+        "sha256": "4294b9e20be4e7c1f30999fb4c85f58f556d2bfa0deb830d8f67da1f68749db2"
+      }
+    },
+    "review_is_QA": false,
+    "source_intact": true,
+    "Jira_event": {
+      "exit_code": 0,
+      "ops": [],
+      "fixture": "OWN disabled",
+      "stdout_sha256": "6a946c3fa6a690ce2f112293593f78e69ac1329c2078d0764af8ee13bc9f5f35",
+      "external_writes": 0,
+      "consumer_config_read": false
+    }
+  },
+  "post_review_documentation_check": {
+    "finding_grade": "Minor",
+    "finding": "Relative panel documentation links in two generated commands resolved to absent runtime directories",
+    "status": "corrected",
+    "canonical_source_policy": "Original command body remains identical across runtime exports",
+    "correction": "Explicit plugin-root documentation reference; no runtime instruction or exporter change",
+    "reviewed_functional_contract_unchanged": true,
+    "paths": {
+      "commands/dev-cycle.md": {
+        "before_sha256": "4e683d16b99a5fcc2250fc01210c1b8cd1cdc5ca296409baf549eaa3756b0b79",
+        "after_sha256": "6795a402b1ac80692fbe4403455c81a0053ab8f4f03d1966bd0ce482a70fd6d9",
+        "functional_contract_sha256": "7924bf50a9e52991343eaab92ae4a8256903311b95605499e0172acb0fada161"
+      },
+      "interop/codex/prompts/dev-cycle.md": {
+        "before_sha256": "c5f298decbd944c1c355f6219500a00d6164b8fa9fb92d4269ba74dc87beead6",
+        "after_sha256": "8900d3ce2579f13158db18d739113a0c751569f8f4caf374b4da1702c02712fd",
+        "functional_contract_sha256": "00f1efdfa05acaa77f05dc52c5baf2bda9ed29661f64bdef0b01920494bfdaae"
+      },
+      "interop/opencode/commands/dev-cycle.md": {
+        "before_sha256": "5b3a95d7813bccbcc80da35e2664c5dd0763f987da24e763deea765046da6712",
+        "after_sha256": "7fb7b9fa86405be57c72100e7a8cd73baeef100ec64948fb54cc4a0b0d7c6310",
+        "functional_contract_sha256": "00f1efdfa05acaa77f05dc52c5baf2bda9ed29661f64bdef0b01920494bfdaae"
+      }
+    },
+    "original_link_check": {
+      "resolved": 70,
+      "checked": 72,
+      "missing": 2,
+      "preserved": true
+    },
+    "corrected_link_check": {
+      "resolved": 69,
+      "checked": 69,
+      "missing": 0,
+      "explicit_plugin_root_references": 3,
+      "target_exists": true
+    },
+    "export_generate_exit_code": 0,
+    "export_check_exit_code": 0,
+    "report_sha256": "d3eba315bbc52619bb9159a19ae2ffb7a7c633cea7be3f107fe4689786db641d",
+    "QA_accepted": false,
+    "macro_complete": false
+  }
+}

@@ -341,3 +341,192 @@ Entrega publicada en `feat/catalog-capabilities`, commit `ded934a70e56508601006a
 El cierre público conservó 971 archivos, 43 cambios, 214 enlaces locales válidos y 32 destinos del consumidor excluidos antes de leer. La revisión independiente de documentación no dejó gaps; informe SHA `2df7ed67848727ef8e278688f43772bae3e4f1f1a520e79888bfbc18500e5d20`. El historial archivado permanece intacto. El lector real del panel reconoce nuevamente la iniciativa y sus 16 tareas: muestra hasta ocho activas y declara `task_budget` cuando corresponde.
 
 Esta publicación cierra el bloque de implementación, no las tareas macro ni la integración global. Restauración, corpus grandes, continuidad, aprendizaje y las capacidades restantes del panel y comandos siguen pendientes.
+
+## Bloque19 — integración de revisión visual en curso
+
+El [contrato](comparisons/plan-review-integration-contract.md) concreta el diseño elegido de revisión de planes. Alcance: dueño compartido, transporte/UI opt-in y consumo desde la puerta «OK del plan». Las skills y la ampliación de hooks permanecen aplazadas.
+
+La implementación se prepara en fuentes propias aisladas. El candidato del dueño conserva 35 assertions RED previas a sus comportamientos y 46 pruebas GREEN en Windows. Coverage.py mide 384/398 líneas ejecutables, 96.48241206030151%, sin atribuir cobertura de subprocesos. Dos errores del harness por nombres de parámetros demasiado grandes no cuentan como RED. Los tres fallos intermedios de fsync en Windows permanecen en la evidencia y motivaron la corrección del descriptor.
+
+El candidato del panel y la actualización de comandos/documentación avanzan en paralelo. Ningún resultado individual acepta todavía el bloque. Quedan unión real de UI/CLI/puerta, Linux, interacción en navegador, callers de los tres runtimes, revisión independiente y QA del código integrado. No se cierra ninguna tarea macro.
+
+La consolidación aplica fuentes exactas del dueño, transporte/UI y doce archivos de comando/documentación. La comprobación previa a la integración detectó un envío POST en curso que podía acompañarse de un banner incorrecto; cinco RED reales preceden la corrección. La UI corregida pasa 40 casos, incluidos 29 escenarios Node, y conserva el handoff anterior. Estos checkpoints se solapan y no son QA del conjunto.
+
+El comando obtiene ID/versión con `open` antes de iniciar el servidor y registra el runtime actual. Codex y OpenCode regeneran sus proyecciones comunes. La [evidencia de candidatos](testing/plan-review-implementation-evidence.json) conserva límites, fuentes y resultados por componente; revisión independiente, plataformas, navegador y publicación permanecen pendientes.
+
+## Bloque19 — regresiones de normalización antes de corregir
+
+RED: `agent-kits/shared/test_plan_review.py::test_gap_b1_c1_sanitized_plan_is_redacted_before_display` falló porque la vista mostraba un token sintético ensamblado al retirar controles; dos casos · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_gap_b1_c1_comment_roundtrip_keeps_receipts_readable` falló con `unavailable/invalid_state` después de guardar o sellar comentarios aceptados; cuatro casos · 2026-10-09.
+
+RED: `tests/test_panel_review_server.py::test_gap_b1_c1_http_comments_do_not_reveal_tokens_or_poison_state` falló porque la respuesta HTTP contenía el token sintético saneado sin redactar; cuatro casos · 2026-10-09.
+
+Los diez fallos son assertions de regresión en una copia propia, sin errores de colección ni skips. El dueño mantenía su SHA previo `536931b06e6ce0689d7434c0392e4f1517bdcf2ad7281d379d4f3d9ddbaefaff`; stdout RED SHA `731bfd7f9734ac7c475686ec013b03e061661ded001ab2aee20af4029ac27c06`. Esta evidencia precede la corrección y no acepta QA del conjunto.
+
+## Revisión de dos lentes — intento 1: Bloque19 (T-11/T-13/T-14/T-15) — correcciones pendientes de validación
+
+Lentes A+B+C+D sobre 28 archivos y 978 hashes de fuente. C usa el informe estático independiente de reemplazo; su primer informe fue interrumpido por un filtro automático. B conserva un addendum del error de serialización. Tres gaps Important tras fusionar la misma raíz B/C; no hay Critical ni Minor. Ningún resultado de revisión acepta QA.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1 | Important | Faltaba traza RED canónica | T-11/T-13/T-14 | Registrar las observaciones previas existentes, con procedencia | RED por criterio abajo; 35 assertions del dueño, dos errores de harness excluidos; pendiente de validar |
+| A2 | Important | Faltaba salida del check de interop | T-11/T-15 | Registrar exit y stdout del check real | `export-interop --check: 58 ficheros al día`, exit 0; pendiente de validar |
+| BC1 | Important | El saneado posterior a redacción exponía texto y volvía inválido el recibo | T-11/T-13/T-14 | Sanear controles antes de redactar vista y comentarios | Diez RED/GREEN dedicados y 156 vecinos GREEN en Windows; pendiente de validar |
+
+### Observaciones RED previas a la creación y endurecimiento del dueño
+
+RED: `agent-kits/shared/test_plan_review.py::test_raw_view_and_sections_bind_exact_full_redacted_content` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_plan_failures_never_create_authorizing_state` falló con unavailable/missing_owner antes de existir el dueño; 3 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_selection_scope_rejected_before_state` falló con unavailable/missing_owner antes de existir el dueño; 4 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_comments_cas_and_sealed_decision` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_invalid_comments_never_freeze_decision` falló con unavailable/missing_owner antes de existir el dueño; 3 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_receive_keeps_delivery_until_revalidated_idempotent_ack_and_restart` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_changed_plan_blocks_each_decision_boundary_and_retains_old_record` falló con unavailable/missing_owner antes de existir el dueño; 3 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_gate_and_ack_identity_are_not_interchangeable` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_poll_is_read_only_and_unknown_id_has_no_state_effect` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_existing_unowned_state_and_foreign_record_are_preserved` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_state_scope_deadline_and_link_rejections` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_deadline_at_commit_and_fsync_failure_do_not_claim_success` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_record_and_response_budgets_do_not_truncate_or_drop_prior_receipt` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_common_cli_pipeline_and_registration_are_runtime_independent` falló con unavailable/missing_owner antes de existir el dueño; 3 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_corrupted_nested_state_cannot_be_served_or_consumed` falló con aceptó estado anidado inválido; 5 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_directory_creation_race_never_adopts_foreign_state` falló con creó marker en un directorio aparecido durante la carrera; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_foreign_record_in_owned_namespace_is_not_adopted_by_new_open` falló con no rechazó el recibo ajeno del namespace; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_unavailable_plan_serves_history_readonly_and_never_consumes` falló con devolvió review nulo en lugar de conservar hechos históricos; 3 caso(s) · 2026-10-09.
+
+### Observaciones RED del panel y cierre
+
+Los ocho registros siguientes conservan el resumen del autor de sus salidas de herramientas; no se presentan como un stream stdout capturado.
+
+RED: tests/test_panel_review_server.py::test_review_open_and_get_delegate_without_browser_paths failed TypeError create_server() unexpected keyword review_selection · 2026-10-09. Test expresses missing opt-in transport API, production still exact base.
+
+RED: tests/test_panel_review_ui.py::test_review_is_explicit_live_only failed TypeError render_html() unexpected keyword review_enabled · 2026-10-09. Product unchanged before test.
+
+RED: tests/test_panel_review_ui.py::test_review_controller[missing_canonical_history] failed generic unavailable discarded historic consumed receipt · 2026-10-09. Owner contract refinement notified before product adaptation.
+
+RED: tests/test_panel_review_ui.py::test_cli_explicit_gate_selection (None/requested-review/plan-ok) failed missing gate_key and argparse unknownflag · 2026-10-09. Parent authorized minimal --review-gate-key extension.
+
+RED: tests/test_panel_review_server.py::test_comment_budget_maps_to_413_without_owner 2 cases failed 400 != 413 · 2026-10-09. Budget HTTP mapping correction before product fix.
+
+RED: tests/test_panel_review_ui.py::test_review_controller[multiple_comments_same_section_preserved] failed dropping existing-two on save · 2026-10-09. Sharedowner permits unique IDs on one section; transport/UI must preserve rows.
+
+RED: tests/test_panel_review_ui.py::test_review_controller[poll_keeps_comment_editing] failed textarea.disabled true during GETstatus · 2026-10-09. Poll would blur focused editable comment every5s; keep editing while readpoll in-flight, mutatingbuttons disabled.
+
+RED: tests/test_panel_review_ui.py::test_review_controller[unavailable_cannot_enable_current_view] failed enabling approval for contradictory unavailable/current envelope · 2026-10-09. UI must reject incoherent display projection, no receipt-state implementation.
+
+RED: `tests/test_panel_review_ui.py::test_review_controller[close_blocked_during_submit]` falló con `close.disabled false != true` · 2026-10-09.
+
+RED: `tests/test_panel_review_ui.py::test_review_controller[close_blocked_during_comments]` falló con `close.disabled false != true` · 2026-10-09.
+
+RED: `tests/test_panel_review_ui.py::test_review_controller[close_blocked_during_refresh_post]` falló con `close.disabled false != true` · 2026-10-09.
+
+RED: `tests/test_panel_review_ui.py::test_review_controller[close_preserves_sealed_changes_consumed]` falló porque el banner «cerrada sin decidir» descartaba hechos de la decisión sellada · 2026-10-09.
+
+RED: `tests/test_panel_review_ui.py::test_review_controller[close_during_get_preserves_later_known_decision]` falló porque el banner «cerrada sin decidir» descartaba hechos de la decisión sellada · 2026-10-09.
+
+El stdout capturado de estos cinco casos tiene SHA `6561d7793dfe264c9a11ff5e352194df75f82c3b0ddd02187b66c02d5dc886dd`. Los GREEN de componente se solapan y no se suman como QA final.
+
+### Check real y siguiente puerta
+
+`python3 scripts/export-interop.py --check` se ejecutó en la fuente integrada congelada del intento 1: exit 0, stdout `export-interop --check: 58 ficheros al día`, stderr vacío. ROOT y la lente A lo ejecutaron por separado; los 978 hashes permanecieron intactos. Los hashes y límites de los informes figuran en la [evidencia del bloque](testing/plan-review-implementation-evidence.json).
+
+TDD n/a: incorporación de trazas/documentación de A1/A2. La corrección de BC1 tiene sus diez RED antes del cambio y diez GREEN después; la suite vecina pasa 156 casos sin fallos. Falta el segundo pase independiente y QA Windows/Linux, navegador, callers y paquete portable. Todas las tareas macro conservan su estado.
+
+## Revisión de dos lentes — intento 2: Bloque19 (T-11/T-13/T-14/T-15) — implementación aceptada
+
+2026-10-10. Lentes A/B/C/D independientes de contexto fresco, fallback genérico porque el revisor nativo no está disponible. Los informes conservan los criterios aprobados del primer pase y revisan los cinco archivos corregidos; no hay rebatidos. Fuente sellada: 978 archivos públicos, 28 en el diff; manifest SHA `1764fcaa55ddfd015419fa1a74a4c78a7cb8a10f1b48a35b725a3d286bbf84ce`, diff SHA `84d89fed1281c2f9d849a402f847d3d6be89a48a854d592e310109c3d4068ffc`. Los hashes antes/después coinciden. Los tres Important anteriores quedan corregidos y validados; 0 Critical, 0 Important y 0 Minor pendientes.
+
+| Hallazgo anterior | Validación independiente |
+|---|---|
+| A1: trazas RED canónicas | A valida identidades, errores, fecha y procedencia individual; conserva la distinción entre capturas y resumen atribuido del autor. |
+| A2: evidencia interop | A ejecuta un check propio: exit 0, stdout `export-interop --check: 58 ficheros al día`, stderr vacío; 978 hashes intactos. |
+| BC1: saneado antes de redacción | B valida la corrección con 14 pruebas del dueño y 12 probes independientes; C la valida estáticamente con CWE-180/200. No se suma este checkpoint a QA. D conserva su aprobación de rendimiento sin repetir por rutina el benchmark. |
+
+Los SHA de los cuatro informes están en la [evidencia del bloque](testing/plan-review-implementation-evidence.json). El evento de revisión se comprobó en configuración Jira OWN desactivada: exit 0, ops vacías y cero escrituras externas; el error anterior de harness sin `--batch` se conserva. No se leyó configuración consumidora.
+
+QA Windows/Linux está en ejecución sobre la misma fuente revisada: 42 módulos en tres cohortes, dueño/servidor/builder completos, dos gates Coverage.py ≥90% sin redondear y qa-gate oficial desde JUnit real. Esto no declara su resultado. La prueba de navegador abrió la URL loopback sintética, pero Edge mostró «Microsoft Edge ha bloqueado esta página», `ERR_BLOCKED_BY_CLIENT`; cero escenarios UI ejecutados. Se cerraron la pestaña propia y el servidor registrado sin cambiar protecciones. La interacción real y los callers nativos siguen pendientes; todas las tareas macro conservan su estado.
+
+TDD n/a: registro de revisión y resultados de infraestructura, sin cambio de código de producto.
+
+### QA: registro de consola pendiente
+
+La cohorte router/code de Linux terminó con 4 fallos, 1027 passes, 21 skips y 39 subtests reportados por separado. Los cuatro fallos detectan la ausencia del modo del nuevo CLI en la batería de codificación; no se eliminan ni excluyen. Stdout capturado SHA `3ae32f6fa41748d5d593d04cd691df559633342720d128f354c996692ffbd4aa`. La ejecución completa sigue en curso y no tiene aceptación QA.
+
+RED: `tests/test_console_encoding.py::test_arranca_sin_reventar_en_consola_no_utf8[agent-kits/shared/plan-review.py-cp1252]` falló con AssertionError: el nuevo CLI no declara modo en MODOS · 2026-10-10.
+
+RED: `tests/test_console_encoding.py::test_arranca_sin_reventar_en_consola_no_utf8[agent-kits/shared/plan-review.py-ascii]` falló con AssertionError: el nuevo CLI no declara modo en MODOS · 2026-10-10.
+
+RED: `tests/test_console_encoding.py::test_la_salida_sigue_siendo_utf8_no_interrogantes[agent-kits/shared/plan-review.py-cp1252]` falló con KeyError: 'agent-kits/shared/plan-review.py' · 2026-10-10.
+
+RED: `tests/test_console_encoding.py::test_la_salida_sigue_siendo_utf8_no_interrogantes[agent-kits/shared/plan-review.py-ascii]` falló con KeyError: 'agent-kits/shared/plan-review.py' · 2026-10-10.
+
+
+### Corrección del registro de consola
+
+Se integra únicamente `tests/test_console_encoding.py`: añade el modo operacional `open` sobre un plan sintético Unicode y su state-root propio. La ayuda del CLI es ASCII, por eso no sustituye la prueba. No se cambia el dueño ni se excluye ningún caso. Antes del cambio, el autor reproduce los cuatro RED sobre la misma fuente; después, los cuatro casos pasan y la batería completa de consola pasa 530 casos en Windows. Es un checkpoint del autor, sin aceptación QA global ni suma con los casos anteriores. Stdout de la batería SHA `cd221e07f1f1e4f7f2db47140105f122b9f91ac6c68d33d906279186eda29724`; informe SHA `83764b23d2dfb0384c3c7b62f843195e73484ffdb9827680607f0233170c7a68`.
+
+La primera ejecución Linux conserva sus fallos y el cleanup del contenedor OWN confirmado. El auxiliar de comando falla por el alias privado `utf8-sig`; el recolector se detiene porque `test_mermaid_blocks.py` es una guarda CLI sin casos pytest. Se preparan correcciones privadas y una ejecución explícita de esa guarda, manteniendo las otras 41 selecciones pytest y los 29 escenarios Node obligatorios. No se borran ni convierten los resultados anteriores en verdes. Falta el tercer pase sobre este delta y QA reparada; navegador y callers siguen pendientes.
+
+## Revisión de dos lentes — intento 3: Bloque19 (T-11/T-13/T-14/T-15) — sin gaps pendientes
+
+2026-10-10. Lentes A+B+C+D de contexto fresco, fallback genérico por revisor nativo no disponible, sin override de modelo. Se conservan todos los criterios y aprobaciones anteriores; el delta revisado contiene registro de consola y dos archivos de evidencia. Los otros 975 archivos, incluida toda producción, conservan sus bytes. Fuente sellada: 978 archivos, 29 en el diff; manifest `834bb1e2050939a9ca6336cd9923e65fe58d0ced1209169e9b2ba2491b7d3d62`, diff `5259c025108e39b807fb3f8b3d90d682cc19d3efe18c97623258d759cfb011a7`. ROOT verifica informes, artefactos declarados y coincidencia de fuente con el árbol. Resultado: 0 Critical, 0 Important, 0 Minor pendientes; ningún gap rebatido o convertido en deuda.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1 | Important histórico | Trazas RED canónicas | T-11/T-13/T-14 | Corregida en R2, conservada | A mantiene IDs, errores, fechas y procedencias individuales. |
+| A2 | Important histórico | Prueba de exports en ledger | T-11/T-15 | Corregida en R2, conservada | A3 ejecuta check propio: exit 0, stdout `export-interop --check: 58 ficheros al día`, stderr vacío; 978 hashes intactos. |
+| BC1 | Important histórico | Normalización después de redacción | T-11/T-13 | Corregida en R2, conservada | Dueño y regresiones mantienen bytes aprobados; B/C no encuentran evidencia de reapertura. |
+| Consola | Fallo QA de registro | Cuatro casos cp1252/ascii sin modo para el dueño | T-11/T-14/T-15 | Registro operacional con fixture Unicode propia | A valida traza RED previa y límites; B verifica cuatro casos y dos probes de pipes, sin sustituir QA. C/D no encuentran vulnerabilidad o carga nueva. |
+
+Los SHA de A/B/C/D están en la [evidencia del bloque](testing/plan-review-implementation-evidence.json). Los siete gates previos pasan; no son aceptación de QA, navegador ni callers nativos. Ninguna tarea macro cambia de estado. TDD n/a para este registro de resultados; el RED/GREEN del registro de consola permanece separado.
+
+### QA original terminada — resultados conservados como NO-PASS
+
+| Plataforma | Passed | Failed | Skipped | Subtests separados |
+|---|---:|---:|---:|---:|
+| Windows | 2678 | 4 | 43 | 45 |
+| Linux | 2698 | 4 | 23 | 45 |
+
+Las dos ejecuciones originales terminaron con exit 1. Los cuatro fallos de consola son reales y preceden la corrección revisada. Además, el checker privado usó un alias de codec inválido y la selección incluyó Mermaid, script standalone sin casos pytest: falta su ejecución CLI, no se omite su guard. Windows detectó seis consultas de registro de Codex que el stub OWN bloqueó con exit 97; Linux no tuvo intentos. No se ejecutó el CLI real ni se accedió al registro consumidor. La causa estática liga tres modos de doctor por dos codecs y diferente materialización del CODEX_HOME temporal; los logs originales no permiten atribución individual por PID.
+
+Los runners se detuvieron antes de qa-gate, los gates finales de cobertura y los hashes posteriores. Existen CoverageJSON y JUnit reales, pero no se atribuye al primer intento verificación que no ejecutó. Los checks portable pasaron con seis casos por plataforma sobre CLI común y etiquetas de runtime; no prueban tres hosts nativos. El contenedor Linux propio fue retirado por ID con ausencia confirmada. Los seis XML, logs, fallos y pruebas auxiliares permanecen intactos.
+
+La siguiente ejecución repara sólo consola y auxiliares defectuosos/faltantes, con agregación explícita de procedencias y conservación de resultados originales. La producción no ha cambiado. La aceptación de navegador y de callers nativos permanece pendiente; no se convierten Node/HTTP o etiquetas de runtime en evidencia equivalente.
+
+Evento revisión3 sobre fixture Jira OWN desactivada: exit 0, ops vacías, cero escrituras externas. Stdout SHA `6a946c3fa6a690ce2f112293593f78e69ac1329c2078d0764af8ee13bc9f5f35`; ledger propio SHA `08cb5e81daebd124ddb58c5e8adfaa30b6c091ae51ec293eb9627f4207a2a8ad`.
+
+### Bloque19 — referencia documental de los comandos
+
+La comprobación independiente del puente documental detectó un Minor: el enlace relativo al panel era válido en el comando canónico, pero apuntaba a carpetas inexistentes en las dos proyecciones generadas. Se conserva el resultado original 70/72. La política de exports conserva el cuerpo canónico sin transformar rutas; por eso se sustituyó una única línea de documentación por la referencia explícita a `docs/PLUGIN-PANEL.md` en la documentación del plugin, y se regeneraron las dos copias. No se modificó el exporter ni ninguna instrucción del workflow.
+
+La comparación de bytes verifica una única sustitución por archivo y el contrato funcional de revisión visual idéntico. Generación y check de exports: exit 0; enlaces restantes 69/69, más tres referencias explícitas al documento existente. El recuento baja en tres porque se retiraron el enlace canónico válido y las dos copias inválidas. El informe inicial y sus fallos permanecen intactos. Esta corrección de prosa no reabre la implementación aceptada ni acredita QA, navegador, callers nativos o cierre macro. TDD n/a: prosa y proyecciones generadas.
+
+QA incremental iniciada Windows/Linux sobre fuente834 aceptada, en destinos OWN nuevos. Se ejecutan consola completa de 530 IDs y auxiliares defectuosos/faltantes; se retienen JUnit/coverage/portable válidos con cierre de dependencias y sustitución explícita por IDs. Stub de registro Codex cerrado y sintético, con manifest real/argv/cwd/hash/PID; no hay CLI nativo real. Runner SHA `d91d1ae2da7e250ce5e69d52e93bbfbff31c9eeaeb036fbfbc018ad7782924f1`; receta SHA `1225502c57d4d4cb9e1ce9ef7b856b19fee29daa9c2b76c84fcfbe71d4ac71e0`. La ejecución está en curso y todavía no se declara verde. El puente documental posterior de cinco archivos queda separado de la fuente QA sellada.
+
+La primera repetición incremental terminó con exit 1 en ambas plataformas antes de tests o creación de contenedor: el PATH necesario de Node contiene también un CLI OpenCode real y el preflight estricto lo rechazó. Cero pruebas ejecutadas y cero CLI nativos lanzados. Se conservan los resultados terminales y las copias/hashes previos; al ocurrir antes del try/finally del runner, la traza se atribuye al tool y no a un log generado por el runner. Se prepara un OWN nuevo con Node existente copiado y ligado por hash a un bin aislado; no se amplía PATH ni se elimina el guard. No es un fallo nuevo del producto ni aceptación QA.
+
+Nueva QA incremental iniciada Windows/Linux con copia OWN byte exacta del Node existente en directorio aislado; el rechazo previo del PATH y los fallos originales quedan conservados. Se mantiene la misma selección, fuente834, receta y guard estricto. Runner SHA `349014078051da28600152686c36022cb820aa242f5157d382940dec7a03dda8`; receta SHA `1225502c57d4d4cb9e1ce9ef7b856b19fee29daa9c2b76c84fcfbe71d4ac71e0`. Handles reales observados; ninguna aceptación QA se declara mientras están en curso. El puente documental posterior sigue separado.
+
+La QA Node aislada termina Windows exit 0 (veredicto del runner, pendiente de comprobación ROOT) y Linux exit 1 tras consola completa exit 0 y auxiliares exit 0. El assert de fixture cerrada detecta cero llamadas: el stub Linux escrito desde Windows conserva shebang CRLF y no puede ejecutar `/bin/sh`; no se retira ese assert. Se conserva el fallo, los hashes y la retirada por identidad del contenedor propio. Se prepara únicamente corrección LF del harness para Linux, con candidata Windows retenida bajo puente explícito del cambio de rama; aún no hay aceptación QA global.
+
+Corrección auxiliar LF adoptada en OWN nuevo y QA Linux iniciada con handle real1422. La comparación reversible demuestra que sólo cambian escritor/assert del stub Linux y nombre del contenedor propio; cuerpo Windows, fuente834, receta y proofs siguen exactos. Se retiene la candidata Windows terminal0 sin repetición rutinaria, pendiente de verificador completo por plataforma. Runner Linux SHA `b5dbcbedb5db0edc94d88d583806cd22c8904949133dd41c7ddba0d68f20d76e`; pointer SHA `51cdf42e13161bd3a159be9a2ab27d3e464bcb5b32952358f2dee81c408eedb7`. Se conserva el assert de llamadas CLOSED y toda evidencia NO-PASS previa.
+
+QA de implementación del Bloque19 aceptada por ROOT tras comprobar íntegramente artefactos, procedencia y gate oficial de ambos OS sobre fuente834: Windows2682 passed/0 failed/43 skipped y Linux2702 passed/0 failed/23 skipped;2725 casos JUnit únicos por OS. Los530 casos de consola sustituyen sus mismos IDs anteriores;45 subtests crudos van aparte y29 casos Node ya están incluidos. El gate oficial incluye10/14 auxiliares adicionales y sale VERDE. Coverage oficial retenida bajo hashes/diff idénticos: media3 Windows96.31596814342258% y Linux96.62560154100005%;líneas ejecutables cambiadas515/532 y518/532, con umbral calculado sin redondeo. Seis llamadas mock cerradas por OS y cero CLI nativos reales. Windows se retiene con puente de harness que sólo modifica LF/nombre de contenedor en rama Linux; original NO-PASS, preflight y fallo shebang quedan intactos. Cleanup Linux por ID/imagen/label/network y ausencia verificados. Recibo QA SHA `8168de7023e9fc6685d61ca9a56e525a4c6b6966ac2f005e3ab572facd5489fc`; verificador SHA `020fd4370de91804c0cc81ee1905387f2a3ab8ad791de1a147f73635bac93c5c`. Navegador real, tres hosts nativos, cobertura macro y cierre global siguen pendientes; el puente final documental/metadatos se valida por separado antes de publicación.

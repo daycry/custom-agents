@@ -651,6 +651,12 @@ consumida, confirmación idempotente y conflictos de versión. La UI solo sustit
 puertas de confirmación existentes o una revisión solicitada. No crea permisos
 nativos ni invalidará autorizaciones previas válidas mediante preguntas repetidas.
 
+El [contrato de integración visual](comparisons/plan-review-integration-contract.md)
+concreta esta decisión en el bloque 19. El dueño compartido conserva el recibo;
+el navegador no recibe ni confirma consumo en nombre del workflow.
+El transporte usa consultas de estado acotadas, sin SSE ni long-poll adicionales.
+La aceptación requiere unir UI, CLI y puerta de comando sobre la misma versión.
+
 ## Bloque 15 — comandos y transporte del dashboard
 
 Prioridad confirmada por el usuario: comandos, dashboard y memoria; nuevas

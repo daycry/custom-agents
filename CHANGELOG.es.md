@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added — Revisión visual opcional de planes
+
+- Revisar un plan seleccionado explícitamente como vista textual íntegra redactada, con comentarios por sección y recibos durables de versión/puerta. El CLI común valida y confirma consumo antes de continuar el workflow autorizado; se conservan el OK conversacional previo y el fallback local.
+
 ### Fixed — Validación portable de recibos de código
 
 - Rechazar rutas de recibos que colisionan por mayúsculas o apuntan al artefacto antes de leer fuentes en cualquier plataforma. Probar payloads UTF-8 de contexto en las comprobaciones de consola y ajustar la descripción de knowledge-services al límite de OpenCode.

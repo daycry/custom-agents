@@ -80,11 +80,86 @@ sin cuerpos, verificaciones libres o rutas absolutas.
 
 Página/API requieren capacidad y Host exacto; Origin, si aparece, debe ser el
 propio. Rechaza cross-site, query y rutas libres; admite POST solo para la
-consulta local de memoria, sin operaciones de escritura. Sin cookies
+consulta local de memoria y la revisión de planes seleccionada explícitamente.
+La revisión sólo escribe sus propios recibos y comentarios locales. Sin cookies
 ni logs de acceso; CSP con nonce, conexión al mismo origen, no-store, no-referrer
 y marcos prohibidos. La capacidad no aísla frente a procesos del mismo usuario.
-Aprobar planes y publicar/reconstruir memoria aún requieren sus consumidores
-y pruebas.
+Consumir una decisión de plan requiere el CLI común y el workflow autorizado.
+Publicar/reconstruir memoria conserva sus consumidores y pruebas.
+
+## Revisar un plan en la puerta existente
+
+La revisión visual es opcional. Sustituye el «OK del plan» pendiente de `/dev-cycle`
+cuando se pide expresamente. Un OK conversacional suficiente permite continuar sin
+abrir este canal ni confirmar otra vez.
+
+```powershell
+python skills/plugin-panel/scripts/build_panel.py --serve --project . --review-initiative docs/roadmap/<fecha>-<slug> --review-state-root ./.claude/plan-review --review-gate-key plan-ok
+```
+
+Selecciona la ruta exacta de la iniciativa; sólo se revisa `improvement-plan.md`.
+`--review-initiative` y `--review-state-root` van juntos. El builder usa
+`requested-review` por defecto; `/dev-cycle` debe seleccionar `plan-ok`.
+Una decisión de revisión general no autoriza esa puerta. El modo servido excluye
+`--html`, `--json`, `--home` y `--user-root`. El HTML autónomo no abre revisión ni escribe estado.
+
+El workflow ejecuta primero `plan-review.py open` para obtener el ID y la versión,
+con `gate-key: plan-ok` y su runtime actual. Después abre el servidor, que recupera
+el mismo recibo. Conserva el handle y la URL privada; el usuario puede decidir
+mientras el consumidor espera sin confundir `waiting` con aprobación.
+
+La vista presenta todo el Markdown como texto, dividido por secciones e identificado
+por SHA de bytes originales y SHA de vista. Los títulos repetidos tienen IDs distintos.
+Secretos redactados y controles saneados se indican en pantalla. Aprobar la vista
+no aprueba los valores ocultos. Texto, enlaces, imágenes y HTML no ejecutan instrucciones
+ni cargan recursos externos. Un plan ilegible, vacío, parcial o fuera de límites
+deshabilita la decisión; nunca se aprueba un prefijo recortado.
+
+| Acción | Resultado |
+|---|---|
+| Guardar comentarios | Guarda el borrador redactado por sección antes de decidir |
+| Aprobar la vista | Fija `approve` para esa versión; admite cero comentarios |
+| Pedir cambios | Fija `request_changes`; exige al menos un comentario no vacío |
+| Cargar versión actual | Abre explícitamente la versión actual; no transfiere comentarios |
+| Cerrar sin decidir | Cierra la interfaz y conserva borrador/recibo; no crea decisión |
+| Volver a la revisión | Recupera la interfaz sin registrar otra decisión |
+
+La decisión pasa por `pendiente` → `entregada` → `consumida` bajo el dueño común
+`agent-kits/shared/plan-review.py`. Enviar una decisión la mantiene pendiente;
+`receive` la entrega y `ack` confirma consumo durable. El panel no inicia agentes,
+modifica plan/tasks ni hace receive/ack por HTTP. La inscripción de un consumidor
+es histórica: muestra «sin consumidor registrado» o «actividad desconocida».
+
+GET de vista/estado y POST de comentarios/submit/refresh sólo aceptan IDs registrados
+por esta instancia. No aceptan raíces, paths, artefactos o comandos libres.
+El estado `.claude/plan-review/` pertenece al proyecto y es compartido por los tres
+runtimes; no es configuración exclusiva de Claude. Exclúyelo de Git; el dueño no
+adopta un directorio ajeno ni elimina decisiones para liberar espacio.
+
+Límites: plan 256 KiB, 128 secciones, 64 recibos, solicitudes 16 KiB y respuesta
+JSON 512 KiB. Hasta 20 comentarios, 2.000 caracteres cada uno y 10 KiB UTF-8
+acumulados; el exceso se rechaza sin truncar. El plazo acumulado es tres segundos;
+lock presupuestado hasta 100 ms. El polling de estado cada cinco segundos admite
+una petición activa y se detiene al ocultar/cerrar; aborta la petición a los cuatro segundos.
+Los límites propios de Memoria y Progreso permanecen separados.
+
+Cambiar bytes o transformador produce `version_changed`; el recibo anterior se
+conserva y los botones quedan deshabilitados hasta la selección explícita vigente.
+El workflow valida puerta, versión y decisión, hace ack y relee antes de trabajar.
+Un recibo consumido vigente permite retoma sin nueva confirmación. La entrega puede
+repetirse; el consumo del recibo es idempotente, los efectos externos no lo son por contrato.
+En la retoma, el workflow consulta ledger/plan vigentes: ack no prueba trabajo terminado
+tras un crash. Retoma lo pendiente y evita relanzar planner si ya atendió los cambios.
+Un recibo obsoleto conserva evidencia histórica, sin repetir su decisión sobre otro plan.
+Los hashes/capacidad no autentican a una persona. Relecturas y locks no ofrecen
+atomicidad con el workflow, detección ABA ni garantías universales ante pérdida de energía.
+El fallback usa la autorización conversacional existente, sin inventar aprobación.
+
+El bundle común necesita `plan-review.py`, `local-read.py` y `redact.py`.
+La revisión en «solo skills» requiere que el export incluya esas tres dependencias
+declaradas desde plugin-panel. La comprobación del paquete pertenece a QA;
+sin cualquiera de ellas, el canal queda indisponible.
+El [comando](../commands/dev-cycle.md) describe receive/ack y la vuelta autorizada al planner.
 
 ## Consulta local de memoria
 

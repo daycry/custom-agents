@@ -7,7 +7,7 @@ description: >
   personas y MCP con origen y conflictos; admite un diagnóstico portable de
   doctor indicado explícitamente, con fecha y alcance. HTML autónomo con búsqueda y filtros, JSON determinista,
   con modo --serve explícito para progreso actualizado del ledger y consulta
-  local de memoria bajo demanda, sin cambios
+  local de memoria bajo demanda y revisión visual opcional de un plan, sin cambios
   de configuración. Úsala cuando el usuario diga
   "panel de capacidades", "control panel del plugin" o "explora el catálogo del plugin".
 ---
@@ -28,6 +28,9 @@ una vista acotada del ledger local y de memoria canónica.
    Para actualización automática solicitada, sustituye HTML/JSON por `--serve`,
    con proyecto obligatorio; `--port` es opcional. Lee el contrato de servidor
    en la referencia de uso antes de lanzarlo. No se inicia en un inventario estático.
+   Para una revisión solicitada, añade `--review-initiative <ruta-relativa-exacta>`
+   y `--review-state-root <proyecto/.claude/plan-review>` en modo servido.
+   Lee la puerta de revisión en la misma referencia antes de abrirla.
 3. Entrega el HTML y resume sus avisos. Un archivo presente no acredita que
    el hook se haya ejecutado ni que un servicio esté sano.
    En modo servido entrega la URL privada de ese proceso y conserva su handle;
@@ -62,6 +65,12 @@ conexión ni permiso. Un lector ausente deja el bundle visible con aviso.
 La selección para tareas sigue `agent-kits/shared/capability-check.md`; este panel
 no escribe el ledger ni adopta componentes. Los datos de conexión y cuerpos
 privados se omiten; propiedad por hash y disponibilidad son estados distintos.
+
+La revisión visual delega recibos en `agent-kits/shared/plan-review.py`, con
+`local-read.py` y `redact.py` del mismo kit. El navegador anota y envía una decisión;
+el consumidor CLI recibe y confirma su consumo para la versión exacta del plan.
+Una autorización previa válida permite continuar sin otra confirmación.
+Cerrar la vista conserva el borrador y no decide.
 
 | Recurso | Cuándo leerlo |
 |---|---|

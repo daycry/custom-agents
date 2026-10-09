@@ -637,7 +637,7 @@ def _extensions_html(data):
             + '<span class="section-pill">' + str(total) + ' declaraciones</span></div>' + controls + body + '</section>')
 
 
-def render_html(data, *, live=False):
+def render_html(data, *, live=False, review_enabled=False):
     counts = {**data['counts'], 'hooks': len({(hook.get('runtime', 'unknown'), hook['event']) for hook in data['hooks']})}
     labels = {'agents': 'Agentes', 'skills': 'Skills', 'commands': 'Comandos', 'tools': 'Herramientas', 'hooks': 'Registros de hook'}
     stats = ''.join(f'<div class="stat"><strong>{count}</strong><span>{labels[kind]}</span></div>' for kind, count in counts.items())
@@ -652,7 +652,7 @@ def render_html(data, *, live=False):
         template = _read(TEMPLATE.parent, TEMPLATE)
     except (OSError, UnicodeError, ValueError):
         raise ValueError('bundled panel template unavailable') from None
-    operations, memory, live_script = '', '', ''
+    operations, memory, review, live_script = '', '', '', ''
     if live:
         try:
             live_script = '<script>' + _read(TEMPLATE.parent, TEMPLATE.parent / 'panel-live.js') + '</script>'
@@ -677,16 +677,31 @@ def render_html(data, *, live=False):
 <div id="memory-results" class="grid"></div><div id="memory-selected" tabindex="-1" aria-label="Entrada seleccionada"></div>
 <div id="memory-related" tabindex="-1" aria-label="Relaciones del conocimiento"></div>
 <p class="filter-note">Estados y evidencia declarados conservan su procedencia. Una cita o un hash no prueban aprobación humana; los límites de lectura se muestran en cada consulta.</p></section>'''
+        if review_enabled:
+            try:
+                live_script += '<script>' + _read(TEMPLATE.parent, TEMPLATE.parent / 'panel-review.js') + '</script>'
+            except (OSError, UnicodeError, ValueError):
+                raise ValueError('bundled review panel asset unavailable') from None
+            review = '''<section id="plan-review" data-review-id=""><div class="section-head"><div><h2>Revisa el plan seleccionado</h2>
+<p>Lee la vista completa, comenta sus secciones y decide. El recibo se consume desde el workflow autorizado.</p></div><span class="section-pill">Revisión explícita · local</span></div>
+<p id="review-status" role="status" aria-live="polite">Consultando la revisión seleccionada…</p>
+<p id="review-metadata"></p><pre id="review-version"></pre><div id="review-sections"></div>
+<div class="review-actions"><button id="review-save" type="button" disabled>Guardar comentarios</button>
+<button id="review-approve" type="button" disabled>Aprobar la vista</button><button id="review-changes" type="button" disabled>Pedir cambios</button>
+<button id="review-refresh" type="button" disabled>Cargar versión actual</button><button id="review-close" type="button">Cerrar sin decidir</button>
+<button id="review-open" type="button" hidden>Volver a la revisión</button></div>
+<p class="filter-note">Cerrar conserva el borrador y no crea una decisión. Este panel no inicia agentes ni acredita QA.</p></section>'''
     values = {'STATS': stats, 'CARDS': _cards(data), 'WORKFLOW': _workflow_html(data), 'NOTES': notes, 'FLOW': _flow_html(data), 'EXTENSIONS': _extensions_html(data),
               'DIAGNOSTICS': _diagnostics_html(data.get('diagnostics', {'status': 'not_provided'})),
-              'OPERATIONS': operations, 'MEMORY_QUERY': memory, 'LIVE_SCRIPT': live_script,
-              'LIVE_NAV': '<a href="#operations"><span class="nav-dot"></span>Progreso</a><a href="#memory-query"><span class="nav-dot"></span>Memoria</a>' if live else '',
+              'OPERATIONS': operations, 'MEMORY_QUERY': memory, 'PLAN_REVIEW': review, 'LIVE_SCRIPT': live_script,
+              'LIVE_NAV': ('<a href="#operations"><span class="nav-dot"></span>Progreso</a><a href="#memory-query"><span class="nav-dot"></span>Memoria</a>'
+                           + ('<a href="#plan-review"><span class="nav-dot"></span>Plan</a>' if review_enabled else '')) if live else '',
               'CONNECT_CSP': "; connect-src 'self'" if live else '',
               'SIDEBAR_NOTE': 'Servidor local de lectura. El progreso refleja tareas declaradas, sin dirigir agentes.' if live else 'Explora definiciones sin iniciar servicios ni modificar la configuración.',
               'REFRESH_NOTE': 'Catálogo y diagnóstico fijados al arranque; progreso local con actualización periódica.' if live else 'Regenera el archivo para actualizarlo.',
               'PROGRESS_NOTE': 'Los presupuestos y la cartera detallada se consultan en el dashboard del roadmap.' if live else 'El progreso de iniciativas se consulta en el dashboard del roadmap.',
               'SNAPSHOT_NOTE': 'Catálogo al iniciar' if live else 'Instantánea local'}
-    return MARKER + re.sub(r'@@(STATS|CARDS|WORKFLOW|NOTES|FLOW|EXTENSIONS|DIAGNOSTICS|OPERATIONS|MEMORY_QUERY|LIVE_SCRIPT|LIVE_NAV|CONNECT_CSP|SIDEBAR_NOTE|REFRESH_NOTE|PROGRESS_NOTE|SNAPSHOT_NOTE)@@', lambda match: values[match.group(1)], template)
+    return MARKER + re.sub(r'@@(STATS|CARDS|WORKFLOW|NOTES|FLOW|EXTENSIONS|DIAGNOSTICS|OPERATIONS|MEMORY_QUERY|PLAN_REVIEW|LIVE_SCRIPT|LIVE_NAV|CONNECT_CSP|SIDEBAR_NOTE|REFRESH_NOTE|PROGRESS_NOTE|SNAPSHOT_NOTE)@@', lambda match: values[match.group(1)], template)
 
 
 
@@ -723,6 +738,9 @@ def main(argv=None):
     parser.add_argument('--json', action='store_true')
     parser.add_argument('--serve', action='store_true', help='explicit loopback dashboard with canonical ledger refresh')
     parser.add_argument('--port', type=int, help='local server port; default ephemeral; only with --serve')
+    parser.add_argument('--review-initiative', help='exact initiative relative path; explicit review only with --serve')
+    parser.add_argument('--review-state-root', help='explicit owner state root; requires --review-initiative')
+    parser.add_argument('--review-gate-key', choices=('requested-review', 'plan-ok'), help='review gate; default requested-review; requires explicit review selection')
     parser.add_argument('--project', help='project root to inspect for local extensions')
     parser.add_argument('--cwd', help='task package within the project root')
     parser.add_argument('--home', help='user root to inspect')
@@ -735,6 +753,9 @@ def main(argv=None):
         parser.error('--serve requires --project and excludes --html, --json, --home and --user-root')
     if args.port is not None and (not args.serve or not 0 <= args.port <= 65535):
         parser.error('--port requires --serve and a value from 0 to 65535')
+    if (args.review_initiative is not None or args.review_state_root is not None or args.review_gate_key is not None) and (
+            not args.serve or not args.project or not args.review_initiative or not args.review_state_root):
+        parser.error('--review-initiative and --review-state-root require each other, --serve and explicit --project')
     try:
         data = build_inventory(args.root, project=args.project, home=args.home,
                                runtime=args.runtime, cwd=args.cwd, include_user=not (args.project_only or args.serve),
@@ -744,7 +765,9 @@ def main(argv=None):
                 server = _load_server()
             except (OSError, ValueError, ImportError, AttributeError, SyntaxError):
                 raise ValueError('bundled panel server unavailable') from None
-            return server.run(args.project, data, port=args.port or 0)
+            selection = {'initiative': args.review_initiative, 'state_root': args.review_state_root,
+                         'gate_key': args.review_gate_key or 'requested-review'} if args.review_initiative else None
+            return server.run(args.project, data, port=args.port or 0, review_selection=selection)
         if args.html:
             _write_html(args.html, render_html(data))
         if args.json or not args.html:

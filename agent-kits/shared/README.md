@@ -4,6 +4,7 @@ Fragmentos de prompt que usan **varios** agentes y que deben tener **una única 
 
 | Fragmento | Qué contiene | Lo usan |
 |-----------|--------------|---------|
+| `plan-review.py` | Dueño stdlib de revisión explícita de `improvement-plan.md`: bytes/vista ligados a versión, comentarios redactados y recibos `pendiente` → `entregada` → `consumida`. CLI común receive/ack idempotentes; puerta y versión exactas, sin ejecutar workflow ni escribir plan/tasks | `/dev-cycle` y panel opt-in de Claude/Codex/OpenCode; [guía](../../docs/PLUGIN-PANEL.md) |
 | `diagnostic-report.py` | Contrato puro de proyección portable del diagnóstico: estados y etiquetas públicas acotadas, alcance, fecha y prioridades sin detalles privados | `doctor.py --panel-json`, plugin-panel |
 | `capability-check.md`, `capability-route.py`, `capability-catalog.json` | Selección común por rol/fase/stack/área; manifiestos locales acotados, procedencia y fallback; sin ejecución de código del proyecto | Todos los roles, `/work-context`, `/pm-cycle`, `/dev-cycle` |
 | `project-pieces.py` | Inventario derivado de declaraciones de proyecto/usuario para Claude, Codex y OpenCode; agentes, skills, comandos, personas, fuentes de tools y MCP. Propiedad O1 por hash, conflictos y selección explícita por ID; sin ejecución, conexión ni otro registro persistente | `capability-check.md`, `/work-context`, `task-brief.py`, `plugin-panel`; [guía](../../docs/PROJECT-EXTENSIONS.md) |
@@ -56,3 +57,11 @@ Si un agente no encuentra el fragmento (instalación parcial), usa el fallback d
 **Portabilidad (distribution T-01).** `scripts/export-skills.py` copia al paquete portable «solo skills» SOLO los fragmentos de esta carpeta que las skills citan (`agent-kits/shared/<x>` o `$SHAREDKIT/<x>` en su texto, con cierre: `scope-check.py` arrastra `ledger-lint.py`, `knowledge-write.md` arrastra `templates/`), conservando la ruta `agent-kits/shared/` para que los `-path '*agent-kits/shared/…'` sigan casando. Si añades aquí un fichero que una skill necesita, cítalo por su ruta en la skill (así viaja); lo que solo usan agentes no viaja y no hace falta que lo haga.
 
 La tabla de **transiciones de estado** de la cadena spec→evaluación→plan NO vive aquí: su única fuente es la **regla 7 de `docs/CONVENTIONS.md`** (los commands remiten a ella).
+
+La revisión visual necesita el dueño común `plan-review.py` y sus helpers directos
+`local-read.py` y `redact.py`. El bundle común conserva esos archivos juntos.
+El export «solo skills» debe cerrar las dependencias declaradas desde plugin-panel;
+su inclusión requiere comprobar el paquete, sin asumirla por la documentación.
+Si falta algún helper, la revisión queda indisponible y conserva el OK conversacional.
+El estado del proyecto `.claude/plan-review/` es compartido por los tres runtimes,
+excluido de Git y distinto de configuración, progreso o actividad de agentes.

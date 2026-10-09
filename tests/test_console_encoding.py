@@ -388,6 +388,12 @@ def _modos():
             [("etiqueta UTF-8 del grafo", lambda w: ["--project", os.path.join(w, "code-context"),
                                                     "--graph", "graph.json", "--symbol", "procesar_pedido"], (0,), None),
              ("sin grafo", lambda w: ["--project", w, "--symbol", "missing"], (2,), None)],
+        # `open` imprime las secciones UTF-8 del plan sintético; su ayuda y los errores son ASCII.
+        # Tanto el plan como los recibos quedan en un subárbol propio del taller.
+        "agent-kits/shared/plan-review.py":
+            [("plan UTF-8", lambda w: ["open", "--project", os.path.join(w, "plan-review"),
+                                     "--state-root", os.path.join(w, "plan-review", ".claude", "plan-review"),
+                                     "--initiative", "docs/roadmap/2026-10-09-consola"], (0,), None)],
         "agent-kits/shared/capability-route.py":
             [("catalogo JSON", lambda w: ["--check", "--json"], (0,), None),
              ("seleccion local", lambda w: ["--project", w, "--stack", "python", "--json"], (0,), None)],
@@ -554,6 +560,9 @@ def taller(tmp_path_factory):
         "id": "pedido", "label": "procesar_pedido() — Facturación 🐛", "_origin": "ast",
         "file_type": "code", "source_file": "worker.py", "source_location": "L1",
     }], "links": []}, ensure_ascii=False), encoding="utf-8")
+    plan = w / "plan-review" / "docs" / "roadmap" / "2026-10-09-consola" / "improvement-plan.md"
+    plan.parent.mkdir(parents=True)
+    plan.write_text("# Revisión del plan 🐛\n\nTexto mínimo de consola.\n", encoding="utf-8")
     (w / "requirements.txt").write_text("requests==2.0.0\n", encoding="utf-8")
     extensions = w / "extensions" / ".claude" / "agents"
     extensions.mkdir(parents=True)

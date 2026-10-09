@@ -18,6 +18,8 @@ MAX_INITIATIVES = 64
 MAX_RESPONSE_BYTES = 65536
 MAX_REQUEST_BYTES = 4096
 BODY_TIMEOUT = 3
+MAX_REVIEW_REQUEST_BYTES = 16 * 1024
+MAX_REVIEW_RESPONSE_BYTES = 512 * 1024
 STATES = {'borrador', 'en-progreso', 'en-revision', 'completado', 'cancelado'}
 
 
@@ -40,6 +42,66 @@ def _load_builder():
 
 def _load_memory():
     return _load_shared('knowledge-view.py')
+
+
+def _load_review():
+    return _load_shared('plan-review.py')
+
+
+def _review_failure(reason='reader_unavailable'):
+    return {'schema_version': 1, 'status': 'unavailable', 'reason': reason, 'review': None}
+
+
+def _review_code(result):
+    if result.get('status') in ('version_changed', 'conflict'):
+        return 409
+    reason = result.get('reason') or ''
+    if reason in ('invalid_input', 'invalid_comments', 'comments_required', 'invalid_version'):
+        return 400
+    if reason.endswith('_budget'):
+        return 413
+    return 200 if result.get('status') in ('ok', 'waiting') else 503
+
+
+def _review_payload_error(operation, payload, review_id):
+    """Validate transport shapes; the owner checks section membership and CAS."""
+    if type(payload) is not dict:
+        return 400
+    if operation == 'refresh':
+        return None if set(payload) == {'review_id'} and payload['review_id'] == review_id else 400
+    fields = {'version', 'comments', 'expected_revision'}
+    if operation == 'submit':
+        fields.add('choice')
+        if payload.get('choice') not in ('approve', 'request_changes'):
+            return 400
+    if set(payload) != fields or type(payload['expected_revision']) is not int or payload['expected_revision'] < 0:
+        return 400
+    version = payload['version']
+    if (type(version) is not dict or set(version) != {'raw_sha256', 'view_sha256', 'view_version'}
+            or version['view_version'] != 'plan-text-v1'
+            or any(type(version[key]) is not str or re.fullmatch('[a-f0-9]{64}', version[key]) is None
+                   for key in ('raw_sha256', 'view_sha256'))):
+        return 400
+    comments = payload['comments']
+    if type(comments) is not list:
+        return 400
+    if len(comments) > 20:
+        return 413
+    identities = set(); total = 0
+    for row in comments:
+        if type(row) is not dict or set(row) != {'comment_id', 'section_id', 'text'}:
+            return 400
+        if (type(row['comment_id']) is not str or re.fullmatch('[A-Za-z0-9_-]{1,64}', row['comment_id']) is None
+                or row['comment_id'] in identities or type(row['section_id']) is not str
+                or re.fullmatch('[a-f0-9]{64}', row['section_id']) is None
+                or type(row['text']) is not str):
+            return 400
+        if len(row['text']) > 2000:
+            return 413
+        identities.add(row['comment_id'])
+        try: total += len(row['text'].encode('utf8'))
+        except UnicodeError: return 400
+    return None if total <= 10 * 1024 else 413
 
 
 def _unavailable_memory(operation):
@@ -172,6 +234,49 @@ class PanelServer(HTTPServer):
         except Exception:
             return 200, _encoded(_unavailable_memory(payload.get('operation', 'search')))
 
+    def review(self, operation, review_id, payload, deadline):
+        """Only the common owner reads or changes durable review state."""
+        try:
+            if time.monotonic() >= deadline:
+                raise TimeoutError
+            helper = self.review_owner
+            args = {'state_root': self.review_selection['state_root'], 'deadline': deadline}
+            if operation == 'refresh':
+                result = helper.open_review(self.project, self.review_selection['initiative'],
+                    gate_key=self.review_selection.get('gate_key', 'requested-review'),
+                    consumer=self.review_selection.get('consumer'), **args)
+            elif operation in ('view', 'status'):
+                function = helper.get_view if operation == 'view' else helper.get_status
+                result = function(self.project, review_id, **args)
+            else:
+                call_args = (self.project, review_id, payload['version'])
+                if operation == 'comments':
+                    result = helper.save_comments(*call_args, payload['comments'],
+                        expected_revision=payload['expected_revision'], **args)
+                else:
+                    result = helper.submit_decision(*call_args, payload['choice'], payload['comments'],
+                        expected_revision=payload['expected_revision'], **args)
+            body = _encoded(result)
+            if time.monotonic() >= deadline:
+                raise TimeoutError
+            if len(body) > MAX_REVIEW_RESPONSE_BYTES:
+                return 413, _encoded(_review_failure('response_budget'))
+            if operation == 'refresh':
+                self.register_review(result)
+            return _review_code(result), body
+        except Exception:
+            return 503, _encoded(_review_failure())
+
+    def register_review(self, result):
+        review = result.get('review') if type(result) is dict else None
+        if (result.get('status') in ('ok', 'waiting') and type(review) is dict
+                and type(review.get('review_id')) is str
+                and re.fullmatch('[a-f0-9]{64}', review['review_id']) is not None
+                and len(self.review_ids) < 64):
+            self.review_ids.add(review['review_id'])
+            return review['review_id']
+        return ''
+
 
 class PanelHandler(BaseHTTPRequestHandler):
     server_version = 'CustomAgentsPanel'
@@ -222,37 +327,50 @@ class PanelHandler(BaseHTTPRequestHandler):
             return None
         return '/'.join(parts[2:])
 
+    def _review_route(self, route, operations):
+        if not route or self.server.review_selection is None:
+            return None
+        match = re.fullmatch(r'api/review/([a-f0-9]{64})/([a-z]+)', route)
+        if match and match[1] in self.server.review_ids and match[2] in operations:
+            return match[1], match[2]
+        return None
+
     def do_GET(self):
+        deadline = time.monotonic() + BODY_TIMEOUT
         if not self._allowed():return
         route = self._route()
         if route == '':
             self._reply(200, self.server.page, 'text/html; charset=utf-8')
         elif route == 'api/progress':
             self._reply(200, self.server.snapshot(), 'application/json; charset=utf-8')
+        elif (review := self._review_route(route, ('view', 'status'))) is not None:
+            code, body = self.server.review(review[1], review[0], None, deadline)
+            self._reply(code, body, 'application/json; charset=utf-8')
         else:
             self._reply(404)
 
     do_HEAD = do_GET
 
     def do_POST(self):
+        deadline = time.monotonic() + BODY_TIMEOUT
         if not self._allowed(body=True): return
         route = self._route()
         if route is None:
             self._reply(404); return
-        if route != 'api/memory':
+        review = self._review_route(route, ('comments', 'submit', 'refresh'))
+        if route != 'api/memory' and review is None:
             self._reply(405); return
         lengths = self.headers.get_all('Content-Length')
         if lengths is None or len(lengths) != 1 or re.fullmatch(r'[0-9]{1,8}', lengths[0]) is None:
             self._reply(400); return
         size = int(lengths[0])
-        if size > MAX_REQUEST_BYTES:
+        if size > (MAX_REVIEW_REQUEST_BYTES if review else MAX_REQUEST_BYTES):
             self._reply(413); return
         if size == 0:
             self._reply(400); return
         types = self.headers.get_all('Content-Type')
         if types is None or len(types) != 1 or re.fullmatch(r'application/json(?:\s*;\s*charset=utf-8)?', types[0], re.I) is None:
             self._reply(415); return
-        deadline = time.monotonic() + BODY_TIMEOUT
         chunks = []; remaining = size
         try:
             while remaining:
@@ -273,6 +391,12 @@ class PanelHandler(BaseHTTPRequestHandler):
             payload = json.loads(b''.join(chunks).decode('utf8'), object_pairs_hook=unique, parse_constant=constant)
         except (OSError, ValueError, RecursionError):
             self._reply(400); return
+        if review is not None:
+            error = _review_payload_error(review[1], payload, review[0])
+            if error is not None:
+                self._reply(error); return
+            code, body = self.server.review(review[1], review[0], payload, deadline)
+            self._reply(code, body, 'application/json; charset=utf-8'); return
         if type(payload) is not dict or set(payload) - {'operation', 'text', 'id', 'area', 'tipo', 'limit'}:
             self._reply(400); return
         code, body = self.server.memory(payload)
@@ -287,16 +411,35 @@ class PanelHandler(BaseHTTPRequestHandler):
     do_OPTIONS = _reject_method
 
 
-def create_server(project, inventory, *, port=0):
+def create_server(project, inventory, *, port=0, review_selection=None):
     """Return an owned stoppable HTTPServer; start only at the caller's request."""
     if type(port) is not int or not 0 <= port <= 65535:
         raise ValueError('invalid panel port')
+    if review_selection is not None and (type(review_selection) is not dict
+            or set(review_selection) - {'initiative', 'state_root', 'gate_key', 'consumer'}
+            or not {'initiative', 'state_root'} <= set(review_selection)):
+        raise ValueError('invalid review selection')
     builder = _load_builder()
-    page = builder.render_html(inventory, live=True)
+    page = builder.render_html(inventory, live=True, review_enabled=review_selection is not None)
     nonce = secrets.token_urlsafe(24)
     page = page.replace('<script>', '<script nonce="' + nonce + '">')
     server = PanelServer(('127.0.0.1', port), PanelHandler)
     server.project = project
+    server.review_selection = dict(review_selection) if review_selection is not None else None
+    server.review_ids = set(); server.review_owner = None
+    review_id = ''
+    if review_selection is not None:
+        try:
+            server.review_owner = _load_review()
+            deadline = time.monotonic() + BODY_TIMEOUT
+            opened = server.review_owner.open_review(project, review_selection['initiative'],
+                state_root=review_selection['state_root'], gate_key=review_selection.get('gate_key', 'requested-review'),
+                consumer=review_selection.get('consumer'), deadline=deadline)
+            if time.monotonic() < deadline and len(_encoded(opened)) <= MAX_REVIEW_RESPONSE_BYTES:
+                review_id = server.register_review(opened)
+        except Exception:
+            pass  # Optional UI remains unavailable; no invented decision.
+    page = page.replace('data-review-id=""', 'data-review-id="' + review_id + '"')
     server.capability = secrets.token_urlsafe(32)
     server.access_prefix = '/' + server.capability + '/'
     server.page = page.encode('utf8')
@@ -306,8 +449,8 @@ def create_server(project, inventory, *, port=0):
     return server
 
 
-def run(project, inventory, *, port=0):
-    server = create_server(project, inventory, port=port)
+def run(project, inventory, *, port=0, review_selection=None):
+    server = create_server(project, inventory, port=port, review_selection=review_selection)
     try:
         print(json.dumps({'status': 'serving', 'url': f'http://127.0.0.1:{server.server_port}' + server.access_prefix,
                           'catalog': 'startup_snapshot', 'progress': 'canonical_ledger'}), flush=True)

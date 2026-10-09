@@ -58,6 +58,7 @@ desktop.ini
 # plugin (solo `journal.py purge --confirm` la borra). No confundir con docs/knowledge/journal/,
 # que SÍ se versiona (memoria del proyecto).
 .claude/journal/
+.claude/plan-review/
 # Debounce del hook de progreso (última línea emitida + cerrojo flock; live-visibility, debt-cleanup).
 .claude/.progress-last
 .claude/.progress-last.lock

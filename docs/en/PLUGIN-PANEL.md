@@ -78,11 +78,86 @@ and absolute paths are excluded.
 
 Page/API require the capability and exact Host; any Origin must match the server.
 Cross-site requests, queries and arbitrary paths are rejected. POST is accepted
-only for local memory queries, with no writing operations.
+for local memory queries and an explicitly selected plan review.
+Review writes only its own local receipts and comments.
 No cookies or access logs; nonce CSP, same-origin connections, no-store,
 no-referrer and no framing. The capability does not isolate other processes
-owned by the same user. Plan approval and memory publication/rebuild still
-need their consumers and tests.
+owned by the same user. Consuming a plan decision requires the common CLI and
+an authorized workflow. Memory publication/rebuild retain their consumers and tests.
+
+## Review a plan at the existing gate
+
+Visual review is optional. When explicitly requested, it replaces the pending
+plan approval in `/dev-cycle`. Sufficient approval already given in conversation
+lets the workflow continue without opening this channel or asking again.
+
+```powershell
+python skills/plugin-panel/scripts/build_panel.py --serve --project . --review-initiative docs/roadmap/<date>-<slug> --review-state-root ./.claude/plan-review --review-gate-key plan-ok
+```
+
+Select the exact initiative path; only `improvement-plan.md` is reviewed.
+`--review-initiative` and `--review-state-root` are paired. The builder defaults
+to `requested-review`; `/dev-cycle` must select `plan-ok`. A general review decision
+cannot authorize that gate. Served mode excludes `--html`, `--json`, `--home` and
+`--user-root`. Standalone HTML neither opens review nor writes its state.
+
+The workflow first runs `plan-review.py open` to obtain the review ID and version,
+using `gate-key: plan-ok` and its current runtime. It then starts the server,
+which recovers that same receipt. Keep the server handle and private URL while
+the user reviews; a waiting consumer must never interpret `waiting` as approval.
+
+The view displays all Markdown as text, split into sections and bound to original
+byte and view hashes. Repeated headings have separate IDs. Redacted secrets and
+sanitized controls are indicated. Approval covers the displayed view, excluding
+hidden values. Text, links, images and HTML cannot execute instructions or load
+external resources. Unreadable, empty, partial or oversized plans disable decisions;
+no clipped prefix can be approved.
+
+| Action | Result |
+|---|---|
+| Save comments | Saves the redacted section drafts before a decision |
+| Approve the view | Seals `approve` for that version; comments are optional |
+| Request changes | Seals `request_changes`; needs at least one nonempty comment |
+| Load current version | Explicitly opens the current version without transferring comments |
+| Close without deciding | Closes the UI and preserves drafts/receipts without a decision |
+| Return to review | Reopens the UI without submitting another decision |
+
+The common owner `agent-kits/shared/plan-review.py` maintains machine states
+`pendiente` → `entregada` → `consumida`. Submission leaves the decision pending;
+`receive` delivers it and `ack` records durable consumption. The panel never starts
+agents, changes plan/tasks or performs receive/ack over HTTP. Consumer registration
+is historical: the UI reports no registration or unknown activity.
+
+GET view/status and POST comments/submit/refresh accept only IDs registered by
+this server instance. No free-form roots, paths, artifacts or commands are accepted.
+Project state under `.claude/plan-review/` is shared by all three runtimes; it is
+not Claude-only personal configuration. Exclude it from Git. The owner neither
+adopts an unrelated directory nor evicts decisions to make room.
+
+Limits: 256 KiB plans, 128 sections, 64 receipts, 16 KiB requests and 512 KiB JSON
+responses. Up to 20 comments, 2,000 characters each and 10 KiB cumulative UTF-8
+text; excess is rejected without clipping. Operations share a three-second deadline
+and a lock budget of up to 100 ms. Status polling runs every five seconds with
+one active request, pauses on hide/close and aborts after four seconds.
+Memory and Progress retain their separate limits.
+
+Changed bytes or transformer produce `version_changed`, retain the old receipt
+and disable decisions until the current version is explicitly selected.
+The workflow validates gate, version and choice, acknowledges, then rereads before
+starting work. A current consumed receipt permits resume without another confirmation.
+Delivery may repeat; receipt consumption is idempotent, external effects have no such guarantee.
+On resume the workflow checks the current ledger/plan: ack does not prove work
+finished before a crash. Resume pending work without restarting planner for changes
+already addressed. A stale receipt remains historical and cannot replay its decision on another plan.
+Hashes and the capability do not authenticate a person. Rereads and locks provide
+no workflow transaction, ABA detection or universal power-loss durability.
+Fallback uses existing conversational authorization without inventing approval.
+
+The common bundle needs `plan-review.py`, `local-read.py` and `redact.py`.
+Skills-only review requires the export to include all three dependencies declared
+from plugin-panel. Package verification belongs to QA; any missing dependency
+leaves this channel unavailable.
+The [command](../../commands/dev-cycle.md) describes receive/ack and the authorized return to planner.
 
 ## Local memory queries
 

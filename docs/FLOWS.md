@@ -207,7 +207,17 @@ flowchart TD
     AD -->|no| D["planner<br/>improvement-plan + tasks.md"]
     C -->|no-go| X(["parar"])
     D --> E["opt-in: volcar plan a Jira<br/>jira-sync: 1 issue por tarea"]
-    E --> H["implementer<br/>tarea a tarea<br/>(dev.json opt-in: TDD ·<br/>worktree · subagentes frescos)<br/>P5: gate de cobertura skill unit-tests<br/>(coverage-gate.py --changed-only)"]
+    E --> PO{"¿OK conversacional<br/>suficiente?"}
+    PO -->|sí: sin nueva confirmación| H
+    PO -->|no| RV{"¿revisión visual<br/>solicitada?"}
+    RV -->|no| CO["OK conversacional existente"]
+    CO -->|autorizado| H
+    RV -->|sí| PV["Vista y comentarios del plan<br/>gate plan-ok · versión exacta"]
+    PV --> RC["CLI receive → validar puerta/versión/choice<br/>ack → relectura vigente"]
+    RC -->|approve consumida y vigente| H
+    RC -->|request_changes consumida<br/>planner ya autorizado| D
+    RC -.->|waiting / cambio / conflicto<br/>sin trabajo por esa decisión| PV
+    H["implementer<br/>tarea a tarea<br/>(dev.json opt-in: TDD ·<br/>worktree · subagentes frescos)<br/>P5: gate de cobertura skill unit-tests<br/>(coverage-gate.py --changed-only)"]
     H --> SC{"scope-check.py<br/>ficheros cambiados ⊆<br/>Archivos del ledger?"}
     SC -.->|"exit 1: gap Important<br/>(sin gastar revisores)"| H
     SC -->|exit 0| R["🔍 skill adversarial-review<br/>lentes A+B → agente reviewer<br/>(solo lectura, tier model-tier.py)<br/>+ C seguridad + D rendimiento<br/>(condicionales: review-lens-select.py)<br/>(fusión + dedupe)"]
@@ -228,6 +238,16 @@ flowchart TD
 ```
 
 `tasks.md` es el **ledger canónico** de progreso de todo el ciclo.
+
+La revisión visual sustituye el OK pendiente y no reabre una autorización previa.
+`plan-review.py` es el dueño común de recibos; el panel sólo presenta y transporta.
+Receive/ack son CLI, nunca HTTP. Un recibo consumido vigente permite retoma sin
+nueva señal ni confirmación; no acredita efectos externos ni actividad de agentes.
+La retoma contrasta ledger/plan vigentes: ack no prueba trabajo terminado tras un crash.
+Continúa lo pendiente sin repetir una petición de cambios ya atendida por planner.
+Cerrar no decide. Si cambia el plan, selecciona explícitamente su nueva versión.
+Un fallo del canal opcional conserva el OK conversacional o la autorización previa.
+[Vista, límites y persistencia](PLUGIN-PANEL.md).
 
 ## 4 · Jira (opt-in) — volcado del plan al crearlo
 

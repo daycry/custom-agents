@@ -5,7 +5,7 @@
 ficheros y marcadores se cruzan, y —lo importante— **qué puerta ejecutable lo comprueba**. Nace del
 §8-bis de `docs/roadmap/2026-09-09-plugin-refactor/analysis.md`, que verificó **diez huecos de
 contrato** (E1–E10) en un solo día de uso real: ninguno era un fallo de una pieza, todos eran un
-acuerdo entre piezas que nadie comprobaba. La matriz tiene **cuarenta y siete** aristas porque a esos diez se
+acuerdo entre piezas que nadie comprobaba. La matriz tiene **cincuenta y dos** aristas porque a esos diez se
 suman **E11**, que no es un hueco verificado sino la **propuesta C-14 aceptada** por el usuario en la
 puerta del plan (2026-09-10), y **E12**, el acoplamiento entre kits que NACIÓ en esta iniciativa
 (T-13 hizo que `agent-kits/qa` cargue `agent-kits/shared/scope-check.py`): una arista nueva se
@@ -38,6 +38,10 @@ canónica antes de red, consulta documental con respuesta sin autoridad y el par
 productor/consumidor de recibos AST. La aceptación de estas aristas no cierra
 las tareas globales de integración.
 
+**E48**–**E52** declaran el Bloque 19: selección explícita de revisión visual,
+lectura/redacción por helpers comunes, transporte al dueño y consumo CLI en
+la puerta existente. Su declaración no acredita QA, navegador o plataformas completados.
+
 La regla que ordena el fichero: **una arista sin puerta ejecutable se rompe en silencio**. Por eso
 la columna «Puerta» nunca va vacía; cuando la puerta aún no existe, la celda dice qué tarea la trae
 o que la decisión fue no ponerla.
@@ -50,7 +54,7 @@ o que la decisión fue no ponerla.
 
 ---
 
-## 1. Las cuarenta y dos aristas E1–E42
+## 1. Las cincuenta y dos aristas E1–E52
 
 Columnas fijas y parseables (`scripts/lint_plugin.py` las lee — ver §3): **Arista · Invocador · Invocado ·
 Flags/entrada · Exit codes/salida · Ficheros · Marcadores · Puerta · Piezas que describen**.
@@ -106,6 +110,11 @@ Flags/entrada · Exit codes/salida · Ficheros · Marcadores · Puerta · Piezas
 | E45 · lectura documental enlaza fuentes actuales | `agent-kits/shared/knowledge-find.py` | `skills/knowledge-services/backends/markdown_export.py` | contexto interno, manifest/export, health y snapshots acotados, POST explícito | source_nodes ligados a ID/versión/hash/project/scope; respuesta no verificada, sin autoridad ni citas por afirmación; fallo vuelve a local | todos los chunks y canon antes/después; sin persistir consulta ni reindexar | autorización exige binding completo; estabilidad observada no acredita atomicidad | `python3 -m pytest -q skills/knowledge-services/scripts/test_backend_markdown_read.py tests/test_knowledge_router_read.py` | `skills/knowledge-services/references/kwipu-adapter.md`, `docs/README.md`, `docs/en/README.md` |
 | E46 · productor AST llama extractor explícito | `agent-kits/shared/code-context-build.py` | paquete Graphify externo elegido por `--graphify-root` | inputs relativos explícitos; artefacto y recibo inexistentes antes de importar; APIs extract/build/export | creación exclusiva del grafo y después del recibo de SHA-256; `publish_failed` puede dejar artefacto sin recibo | inputs declarados y destinos nuevos propios; nueva build requiere destino nuevo | sin overwrite ni borrado de finales al fallar; cleanup solo staging propio; sin instalación/descargas; librería externa confiable; guard observado no es sandbox | `python3 -m pytest -q tests/test_code_context_build.py` | `docs/CODE_CONTEXT.md`, `docs/en/CODE_CONTEXT.md`, `docs/WORK-CONTEXT.md`, `docs/en/WORK-CONTEXT.md` |
 | E47 · lector AST comprueba recibo y bytes | `agent-kits/shared/code-context.py` | `agent-kits/shared/local-read.py` | artefacto, recibo estricto y todos los inputs declarados; selector exacto o símbolo heredado | hashes originales desde descriptor estable; stale/incomplete suprimen contexto; sin recibo declara no verificado | 128 inputs, 1 MiB por input, 8 MiB total incluida sonda | alcance declared-inputs; sin cobertura global, autenticación o garantía ABA | `python3 -m pytest -q tests/test_code_selectors.py tests/test_code_receipts.py tests/test_code_context.py agent-kits/shared/test_local_read.py` | `docs/CODE_CONTEXT.md`, `docs/en/CODE_CONTEXT.md`, `agent-kits/shared/README.md` |
+| E48 · builder selecciona revisión explícita | `skills/plugin-panel/scripts/build_panel.py` | `skills/plugin-panel/scripts/serve_panel.py` | `--serve --project`, iniciativa exacta y state-root emparejados; `--review-gate-key` requested-review por defecto, plan-ok en dev-cycle | selección fija del servidor; estático/offline no abre revisión ni escribe estado | sólo improvement-plan.md de la iniciativa elegida y estado propio del proyecto | sin descubrimiento de última iniciativa ni raíces personales en serve | Puerta pendiente: integración builder/servidor y QA del Bloque19 | `commands/dev-cycle.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md` |
+| E49 · dueño lee plan y recibos acotados | `agent-kits/shared/plan-review.py` | `agent-kits/shared/local-read.py` | proyecto, iniciativa, state-root y gate explícitos; bytes originales con digest e identidad | vista íntegra o unavailable/version_changed; sin aprobar prefijos | plan 256 KiB, 128 secciones, 64 records; ancestros/archivos regulares propios | raw_sha256 original y view_sha256 ligados a versión; no garantía ABA | Puerta pendiente: suite del dueño y QA del Bloque19 | `agent-kits/shared/README.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md` |
+| E50 · dueño redacta vista y comentarios | `agent-kits/shared/plan-review.py` | `agent-kits/shared/redact.py` | Markdown completo como texto y comentarios por section_id exacto | vista determinista, redacted/controls_sanitized; sin helper, unavailable | hasta 20 comentarios, 2000 caracteres cada uno y 10 KiB UTF-8 acumulados; no copia del plan al estado | versión plan-text-v1 incluye digest del transformador; aprobación no cubre valores ocultos | Puerta pendiente: suite del dueño y QA del Bloque19 | `agent-kits/shared/README.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md` |
+| E51 · panel transporta operaciones al dueño común | `skills/plugin-panel/scripts/serve_panel.py` y panel-review.js | `agent-kits/shared/plan-review.py` | selección fija e IDs registrados; GET view/status, POST comments/submit/refresh; CAS y raw/view exactos | conflicto/versión/unavailable explícitos; cerrar UI no decide; no receive/ack HTTP | estado local .claude/plan-review compartido por tres runtimes; request 16 KiB, response 512 KiB, deadline total 3 s | capacidad/Host/Origin; texto sin ejecución/recursos externos; consumer_registration histórico, no actividad | Puerta pendiente: integración HTTP/UI y QA del Bloque19 | `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md` |
+| E52 · dev-cycle consume la puerta existente | `commands/dev-cycle.md` | `agent-kits/shared/plan-review.py` | CLI receive/ack con review_id, gate plan-ok, raw/view y decision_id/delivery_id; relectura vigente antes de trabajo | 0 ok/waiting, 2 conflicto/versión, 3 unavailable; exit0 solo no aprueba; ack exitoso precede trabajo autorizado | recibos propios pendiente/entregada/consumida; no writes de plan/tasks por el dueño | choice approve/request_changes, versión/puerta exactas; retry consumido idempotente sin nueva señal, no exactly-once de efectos | Puerta pendiente: integración receive/ack/retoma y QA del Bloque19 | `commands/dev-cycle.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md` |
 
 **Cómo leer el estado de una fila.** «CERRADO en T-XX» = la puerta existe hoy y se puede ejecutar.
 «lo cierra T-XX» = la arista está descrita y la puerta llega en esa tarea de
@@ -140,7 +149,7 @@ las aristas de arriba: sin puerta, son prosa que se olvida. Una fila por regla, 
 
 ## 3. Cómo se lee y cómo se mantiene
 
-**Cómo se lee.** Busca la arista por su identificador (`E1`…`E42`) o por la pieza que vas a tocar en
+**Cómo se lee.** Busca la arista por su identificador (`E1`…`E52`) o por la pieza que vas a tocar en
 la columna «Invocador»/«Invocado». La columna **«Piezas que describen»** es la lista que hay que
 meter en el campo `- **Archivos**:` de la tarea que toque esa pieza: es exactamente lo que faltaba
 en el hueco E3, y lo que `planner` copia de aquí al planificar.

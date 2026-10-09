@@ -121,3 +121,43 @@ existentes, `test_panel_memory_server.py`, `test_panel_memory_ui.py`,
 almacenes, homes y servidores propios. Contratos técnicos y UI real se registran
 separados de calidad de recuperación y aceptación de hosts nativos. El plan del
 benchmark no acredita ejecución de ingesta, persistencia o eficacia.
+
+## Bloque 19 — Revisión visual y recibos de plan
+
+- **V-01 [GWT]** Dada una iniciativa seleccionada explícitamente, el dueño abre
+  únicamente su plan completo y liga el recibo a bytes originales, vista y puerta.
+  BOM, CRLF, títulos repetidos y fences conservan identidades reproducibles.
+- **V-02 [GWT]** Dado estado ajeno, enlazado, malformado o bloqueado,
+  ningún actor adopta, reemplaza o borra contenido ajeno.
+  Fallos de fsync, plazos y límites no habilitan continuidad.
+- **V-03 [GWT]** Dados comentarios y dos pestañas, CAS conserva el borrador vigente.
+  Una decisión queda sellada; repetirla conserva IDs y contradecirla produce conflicto.
+  Pedir cambios exige comentarios y la versión exacta de sus secciones.
+- **V-04 [GWT]** Dadas respuestas perdidas o un reinicio después de persistir,
+  receive y ack recuperan el mismo recibo y sus IDs.
+  Polling no entrega ni borra decisiones; estado consumido permite retomar la misma puerta.
+- **V-05 [GWT]** Dado un plan editado o indisponible, la revisión conserva hechos históricos
+  y deshabilita la decisión vigente. Recargar abre otra versión sin transferir comentarios.
+  Restaurar bytes idénticos puede coincidir; no se prueba prevención de ABA.
+- **V-06 [GWT]** Dadas peticiones HTTP no autorizadas, rutas libres o JSON fuera de contrato,
+  el servidor rechaza antes de llamar al dueño.
+  Receive y ack nunca están disponibles por HTTP; memoria y progreso conservan sus límites.
+- **V-07 [GWT]** Dado texto no confiable, Unicode, teclado y pantalla móvil,
+  la UI presenta texto, labels y foco sin ejecutar recursos del documento.
+  Cerrar no decide; polling no solapa peticiones ni borra comentarios o foco.
+- **V-08 [GWT]** Dada la puerta «OK del plan» en cada runtime,
+  el consumidor valida versión, puerta y elección, confirma ack y revalida antes del trabajo.
+  Una autorización suficiente anterior evita otra confirmación.
+  Falta de decisión o ack no inventa aprobación; pedir cambios vuelve al planner autorizado.
+
+Suites previstas: `test_plan_review.py`, `test_panel_review_server.py`,
+`test_panel_review_ui.py` y regresiones de lectura, servidor, memoria, catálogo,
+exports y comandos. Las pruebas del CLI común con tres etiquetas de runtime
+no acreditan ejecución de los tres hosts nativos.
+
+La evidencia separará RED/GREEN de autor, revisión independiente, QA Windows/Linux,
+interacción real del navegador y ejecución de callers nativos.
+Coverage.py medirá la media de archivos Python de producción cambiados y las líneas
+ejecutables añadidas/cambiadas; ambos gates exigen ≥90%, sin redondear para aceptar.
+No se atribuye cobertura de subprocesos no instrumentados.
+El código del navegador exige pruebas propias; la cobertura Python no lo valida.

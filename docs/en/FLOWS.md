@@ -205,7 +205,17 @@ flowchart TD
     AD -->|no| D["planner<br/>improvement-plan + tasks.md"]
     C -->|no-go| X(["stop"])
     D --> E["opt-in: push plan to Jira<br/>jira-sync: 1 issue per task"]
-    E --> H["implementer<br/>task by task<br/>(dev.json opt-in: TDD ·<br/>worktree · fresh subagents)<br/>P5: coverage gate, unit-tests skill<br/>(coverage-gate.py --changed-only)"]
+    E --> PO{"Sufficient approval<br/>already in conversation?"}
+    PO -->|yes: no new confirmation| H
+    PO -->|no| RV{"Visual review<br/>requested?"}
+    RV -->|no| CO["Existing conversational approval"]
+    CO -->|authorized| H
+    RV -->|yes| PV["Plan view and section comments<br/>plan-ok gate · exact version"]
+    PV --> RC["CLI receive → validate gate/version/choice<br/>ack → current reread"]
+    RC -->|approve consumed and current| H
+    RC -->|request_changes consumed<br/>planner already authorized| D
+    RC -.->|waiting / changed / conflict<br/>no work from this decision| PV
+    H["implementer<br/>task by task<br/>(dev.json opt-in: TDD ·<br/>worktree · fresh subagents)<br/>P5: coverage gate, unit-tests skill<br/>(coverage-gate.py --changed-only)"]
     H --> SC{"scope-check.py<br/>changed files ⊆<br/>ledger's Archivos?"}
     SC -.->|"exit 1: Important gap<br/>(no reviewers spent)"| H
     SC -->|exit 0| R["🔍 skill adversarial-review<br/>lenses A+B → reviewer agent<br/>(read-only, tier from model-tier.py)<br/>+ C security + D performance<br/>(conditional: review-lens-select.py)<br/>(merge + dedupe)"]
@@ -226,6 +236,16 @@ flowchart TD
 ```
 
 `tasks.md` is the **canonical ledger** of progress for the whole cycle.
+
+Visual review replaces pending plan approval without reopening prior authorization.
+`plan-review.py` owns the common receipts; the panel only presents and transports.
+Receive/ack use the CLI, never HTTP. A current consumed receipt supports resume
+without another signal or confirmation; it proves neither external effects nor agent activity.
+Resume checks the current ledger/plan: ack cannot prove work finished before a crash.
+Continue pending work without replaying changes already addressed by planner.
+Closing makes no decision. Changed plans require explicitly selecting the new version.
+Failure of this optional channel preserves conversational approval or prior authorization.
+[View, limits and persistence](PLUGIN-PANEL.md).
 
 ## 4 · Jira (opt-in) — pushing the plan when it is created
 
