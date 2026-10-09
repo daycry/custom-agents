@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — Guardias de verificación de commits Git
+
+- Ampliar la regla compartida `git` para IDs propios exactos de implementer y architect en Claude, Codex y OpenCode. Denegar commits que desactivan la verificación o sustituyen explícitamente `core.hooksPath`, incluidas formas reconocidas de entorno literal y wrappers. Conservar `--verify` posterior, mensajes, rutas, amend ordinario y desactivación por proyecto; documentar los límites del parser.
+
 ### Fixed — Guardias de rama y trabajo al arrancar hooks
 
 - Conservar la protección de rama antes del primer commit dentro del presupuesto existente. Omitir procesos de negocio PostToolUse para ediciones reconocidas fuera del alcance de cada handler y conservar el tratamiento de entradas desconocidas; mantener los timeouts de guardia y captura.

@@ -11,7 +11,7 @@ cierra T-06 ni demuestra eficacia o integración de sus políticas.
 |---|---|---|
 | R-a48aec12c9dd:1–91; R-fe000d2a37ea:1–18 | Registro previo global en un runtime; el segundo adaptador registra solo inicio de sesión | No acredita paridad ni selección por rol. Conectar nuestra política única a metadata nativa de cada runtime, con IDs exactos y límites verificados |
 | R-77bd5a7d0997:1–42; R-efb8d4bfbbf4:22–52,123–173 | Cadena ordenada de políticas y perfiles de activación | Mantener configuración por regla y decisiones del evaluador existente; no duplicar servicios ni ampliar deny global al resto de agentes |
-| R-424b793579f1:134–253,291–744; R-6c19f2bf0c4c:1–406 | Detección de bypass de verificación Git, overrides de hooksPath, configuración literal por entorno y wrappers | Incorporar como siguiente bloque de endurecimiento, limitado a IDs protegidos y con tests positivos/negativos. No está implementado ahora |
+| R-424b793579f1:134–253,291–744; R-6c19f2bf0c4c:1–406 | Detección de bypass de verificación Git, overrides de hooksPath, configuración literal por entorno y wrappers | Implementado en la regla compartida `git` para IDs propios exactos de implementer y architect. Reconoce flags efectivos de commit, overrides explícitos y wrappers literales; preserva mensajes, rutas, `--verify` posterior y opt-out. Límites y entrega del bloque 12 en [design.md](../design.md) |
 | R-b1af87280da8:23–229 | Protección de configuración de calidad e ignore existentes; creación inicial permitida | Candidato opt-in sujeto al contrato de calidad del proyecto y excepciones autorizadas. No bloquear cambios legítimos por defecto. El lector solo toma path superior aunque el matcher incluye MultiEdit; nuestra integración debe recorrer todos los targets |
 | R-391f040a5518:1513–1529,1802–1809,1863–1912 | Marca paths antes del primer deny, permite retry sin validar hechos y omite comprobación de archivos de todos los subagentes | Descartar esas semánticas: un retry no concede autorización y la política por rol debe persistir dentro del subagente |
 | R-391f040a5518:970–1122,1240–1309,1914–1954 | Clasificación ampliada de Git, shell, SQL y PowerShell | Evaluar cobertura adicional después de conectar identidad. El helper PowerShell solo se ha leído parcialmente; no se promete análisis completo ni se copia el parser |
@@ -21,14 +21,21 @@ cierra T-06 ni demuestra eficacia o integración de sus políticas.
 El diseño de identidad está en [design.md](../design.md), bloque 3. Las
 [pruebas nativas propias](../native-role-contract-evidence.json) prueban el
 mecanismo del host; no son pruebas de ejecución de estas piezas de origen.
-Las decisiones anteriores describen destinos y requisitos pendientes, no
-altas de skills, agentes o comandos. No se incorporan paquetes técnicos.
+La fila de verificación Git describe la implementación propia del bloque 12.
+Las demás decisiones conservan sus destinos y requisitos pendientes. No
+se dan de alta skills, agentes, comandos ni paquetes técnicos en este bloque.
 
-La dirección técnica delegada permite priorizar protección frente a bypass
-de verificación Git después del dispatcher. La protección de configuración
-de calidad queda como candidato opcional hasta definir alcance y excepciones
-por proyecto. Se preserva la política actual de degradación; cualquier cambio
-del comportamiento ante input incompleto requiere una decisión y tests propios.
+La protección de verificación Git reutiliza el dispatcher y el evaluador
+existentes; no añade una política global para agentes ajenos. La gramática
+literal no expande variables ni analiza scripts, aliases o configuración
+Git externa. El dispatcher reconoce la tool PowerShell; sus asignaciones y
+scripts quedan fuera de esa gramática. Conserva el límite de recursión de
+shell y el opt-out por regla.
+La protección de configuración de calidad queda como candidato opcional hasta
+definir alcance y excepciones por proyecto. La política de degradación se
+preserva; cambiar el tratamiento de input incompleto requiere una decisión
+y tests propios. La revisión y aceptación de este bloque se registran en
+el ledger, sin extrapolar las pruebas anteriores del host a esta regla nueva.
 
 Lectura pendiente: R-e6c33a7553a7, líneas 251–1883; solo 1–250 y 1884–2096
 se han revisado. Quedan 24 cuerpos inmediatos sin leer y 16 descendientes

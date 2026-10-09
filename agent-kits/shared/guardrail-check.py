@@ -31,7 +31,8 @@ Reglas (cada una desactivable en `.claude/dev.json` → `"guardrails": {…}`):
                  cierre de cada iniciativa actualiza) → permitido. `CALIBRATION.md`, `DRIFT.md` y
                  `BACKLOG.md` siguen deny POR DISEÑO: los escriben /retro, /spec-drift y /pm-backlog,
                  que son comandos (no pasan por este hook), no el implementer.
-  git            Bash: `git push --force|-f|--force-with-lease` → deny; `git branch -D` → deny;
+  git            Bash: `git commit --no-verify|-n` y overrides explícitos de core.hooksPath en commit → deny;
+                 `git push --force|-f|--force-with-lease` → deny; `git branch -D` → deny;
                  `git checkout|switch main|master` → deny solo si la rama actual es una feature;
                  `rm -rf` sobre `/`, `~`, `.git`, `.` → deny; refspec `+rama` en push = force;
                  se analizan también las cadenas de `sh -c "…"`/`bash -c '…'`. Todo lo demás permitido.
@@ -229,39 +230,221 @@ def current_branch(project_dir, timeout=5):
 
 
 def _segmentos(command):
-    """Trocea por `;`, `&&`, `||`, `|` RESPETANDO comillas (shlex con punctuation_chars): así
-    `sh -c 'cd x && rm -rf .'` es UN segmento cuyo argumento se analiza aparte (intento 2)."""
-    try:
-        lex = shlex.shlex(command, posix=True, punctuation_chars=";&|")
-        lex.whitespace_split = True
-        toks = list(lex)
-    except ValueError:
-        toks = command.split()
-    out, cur = [], []
-    for t in toks:
-        if t and set(t) <= set(";&|"):
-            if cur:
+    """Literal shell words and command boundaries, retaining quoted punctuation as data.
+
+    No expansion, substitution or execution. Newlines outside quotes separate commands;
+    escaped newlines continue the same command. Invalid quoting cannot execute as given.
+    """
+    out, cur, word = [], [], []
+    quote, started, i = None, False, 0
+    while i < len(command):
+        char = command[i]
+        if char == "\\" and quote is None and i + 1 == len(command):
+            return out  # Keep already complete commands; this final word is incomplete.
+        if char == "\\" and quote != "'" and i + 1 < len(command):
+            following = command[i + 1]
+            if following == "\n":
+                i += 2
+                continue
+            if quote is None or following in '\\"$`':
+                word.append(following)
+                started = True
+                i += 2
+                continue
+        if quote:
+            if char == quote:
+                quote = None
+            else:
+                word.append(char)
+        elif char in "\"'":
+            quote, started = char, True
+        elif char == "#" and not started:
+            newline = command.find("\n", i)
+            i = len(command) if newline < 0 else newline
+            continue
+        elif char in " \t\r\n;&|":
+            if started:
+                cur.append("".join(word))
+                word, started = [], False
+            if char in "\n;&|" and cur:
                 out.append(cur)
-            cur = []
+                cur = []
         else:
-            cur.append(t)
+            word.append(char)
+            started = True
+        i += 1
+    if quote:
+        return out
+    if started:
+        cur.append("".join(word))
     if cur:
         out.append(cur)
     return out
 
 
-def _es_git(toks, sub):
-    """toks = ['git', <opciones globales…>, sub, …] → índice del subcomando o -1."""
-    if not toks or os.path.basename(toks[0]) != "git":
-        return -1
+_ASSIGNMENT_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=(.*)\Z", re.DOTALL)
+_GIT_GLOBAL_VALUES = frozenset(("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"))
+# Unique value-option prefixes in Git's commit parser; --fi and --t are ambiguous.
+_COMMIT_LONG_VALUES = {
+    "--m": "--message", "--fil": "--file", "--reu": "--reuse-message",
+    "--ree": "--reedit-message", "--fix": "--fixup", "--sq": "--squash",
+    "--au": "--author", "--da": "--date", "--te": "--template",
+    "--tr": "--trailer", "--c": "--cleanup", "--pathspec-fr": "--pathspec-from-file",
+}
+
+
+def _program_name(token):
+    name = token.replace("\\", "/").rsplit("/", 1)[-1].lower()
+    return name[:-4] if name.endswith(".exe") else name
+
+
+def _literal_invocation(toks, inherited=None):
+    """Unwrap only literal assignment/env/command/exec prefixes; never evaluate shell text."""
+    bindings = dict(inherited or {})
+    i = 0
+    while i < len(toks):
+        assignment = _ASSIGNMENT_RE.fullmatch(toks[i])
+        if assignment:
+            bindings[assignment[1]] = assignment[2]
+            i += 1
+        elif _program_name(toks[i]) in ("env", "command", "exec"):
+            wrapper = _program_name(toks[i])
+            i += 1
+            while i < len(toks) and toks[i].startswith("-") and toks[i] != "--":
+                option = toks[i]
+                if wrapper == "env" and option in ("-", "-i", "--ignore-environment"):
+                    bindings.clear()
+                elif wrapper == "env" and option in ("-u", "--unset") and i + 1 < len(toks):
+                    i += 1
+                    bindings.pop(toks[i], None)
+                elif wrapper == "env" and option.startswith("--unset="):
+                    bindings.pop(option.split("=", 1)[1], None)
+                elif wrapper == "env" and option in ("-C", "--chdir") and i + 1 < len(toks):
+                    i += 1  # Directory changes do not change verification flags.
+                elif wrapper == "env" and option.startswith("--chdir="):
+                    pass
+                elif wrapper == "command" and option == "-p":
+                    pass
+                elif wrapper in ("env", "exec") and not option.startswith("--"):
+                    offset = 1
+                    valid = True
+                    while offset < len(option):
+                        flag = option[offset]
+                        if (wrapper == "env" and flag == "i") or (wrapper == "exec" and flag == "c"):
+                            bindings.clear()
+                        elif wrapper == "exec" and flag == "l":
+                            pass
+                        elif (wrapper == "env" and flag in "uC") or (wrapper == "exec" and flag == "a"):
+                            value = option[offset + 1:]
+                            if not value:
+                                if i + 1 >= len(toks):
+                                    valid = False
+                                    break
+                                i += 1
+                                value = toks[i]
+                            if wrapper == "env" and flag == "u":
+                                bindings.pop(value, None)
+                            break
+                        else:
+                            valid = False
+                            break
+                        offset += 1
+                    if not valid:
+                        break
+                else:
+                    break  # Unknown syntax is outside this literal grammar.
+                i += 1
+            if i < len(toks) and toks[i] == "--":
+                i += 1
+        else:
+            break
+    return toks[i:], bindings
+
+
+def _git_invocation(toks):
+    """Locate the Git subcommand and explicit hooksPath overrides, consuming global values."""
+    if not toks or _program_name(toks[0]) != "git":
+        return -1, False
     i = 1
+    hooks_override = False
     while i < len(toks) and toks[i].startswith("-"):
-        # opciones globales con valor: -C <dir>, -c <k=v>
-        if toks[i] in ("-C", "-c") and i + 1 < len(toks):
+        option = toks[i]
+        config = None
+        if option in _GIT_GLOBAL_VALUES:
+            if i + 1 >= len(toks):
+                return -1, False
+            if option in ("-c", "--config-env"):
+                config = toks[i + 1]
             i += 2
         else:
+            if option.startswith("-c") and not option.startswith("--"):
+                config = option[2:]
+            elif option.startswith("--config-env="):
+                config = option.split("=", 1)[1]
             i += 1
-    return i if i < len(toks) and toks[i] == sub else -1
+        if config is not None and config.split("=", 1)[0].lower() == "core.hookspath":
+            hooks_override = True
+    return (i if i < len(toks) else -1), hooks_override
+
+
+def _es_git(toks, sub):
+    """Index of a recognized Git subcommand, or -1."""
+    i, _override = _git_invocation(toks)
+    return i if i >= 0 and toks[i] == sub else -1
+
+
+def _env_hooks_override(bindings):
+    try:
+        parameters = shlex.split(bindings.get("GIT_CONFIG_PARAMETERS", ""))
+    except ValueError:
+        parameters = []
+    if any(p.split("=", 1)[0].lower() == "core.hookspath" for p in parameters):
+        return True
+    value = bindings.get("GIT_CONFIG_COUNT", "").lstrip(" \t\r\n\v\f")
+    if not re.fullmatch(r"\+?[0-9]+", value):
+        return False
+    value = value.lstrip("+").lstrip("0") or "0"
+    if len(value) > 10:
+        return False  # Invalid Git counters do not execute the commit.
+    count = int(value)
+    if count > 2147483647:
+        return False
+    # Scan supplied keys, never a range controlled by the environment counter.
+    for key, value in bindings.items():
+        match = re.fullmatch(r"GIT_CONFIG_KEY_(0|[1-9][0-9]{0,9})", key)
+        if match and int(match[1]) < count and value.lower() == "core.hookspath":
+            return True
+    return False
+
+
+def _commit_skips_verification(args):
+    skips = False
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token == "--":
+            break
+        if len(token) >= len("--no-veri") and "--no-verify".startswith(token):
+            skips = True
+        elif (len(token) >= len("--veri") and "--verify".startswith(token)) or (
+                len(token) >= len("--no-no-veri") and "--no-no-verify".startswith(token)):
+            skips = False
+        elif any(
+                token.startswith(prefix) and option.startswith(token)
+                for prefix, option in _COMMIT_LONG_VALUES.items()):
+            i += 1
+        elif token.startswith("-") and not token.startswith("--"):
+            for offset, flag in enumerate(token[1:], 1):
+                if flag == "n":
+                    skips = True
+                elif flag in "mFCct":
+                    if offset == len(token) - 1:
+                        i += 1
+                    break
+                elif flag in "Su":
+                    break  # Optional short values attach to this same token.
+        i += 1
+    return skips
 
 
 _SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
@@ -272,7 +455,7 @@ def _subcomandos_shell(toks):
     (también en clusters `-lc`, `-ec`) y los argumentos de `eval`."""
     if not toks:
         return []
-    prog = os.path.basename(toks[0])
+    prog = _program_name(toks[0])
     if prog == "eval":
         return [" ".join(toks[1:])] if len(toks) > 1 else []
     if prog in _SHELLS:
@@ -282,20 +465,29 @@ def _subcomandos_shell(toks):
     return []
 
 
-def check_git(command, branch, _depth=0):
+def check_git(command, branch, _depth=0, _env=None):
     """Razón de deny o None. `branch` = rama actual (None si no hay git).
     Recursivo SOLO sobre lo que una shell ejecutaría (`sh -c "git push --force"`, `bash -c '…'`,
     `eval "…"`); un mensaje de commit con «rm -rf .» dentro es texto y no se analiza."""
     if _depth > 3:
         return None
     for toks in _segmentos(command):
+        toks, bindings = _literal_invocation(toks, _env)
         # Solo se recurre en el argumento de `sh|bash|zsh|dash -c` y en el de `eval` — NO en tokens
         # arbitrarios (`git commit -m "rm -rf . en el mensaje"` es texto, no un comando; regresión
         # cazada en la revisión, intento 2).
         for sub in _subcomandos_shell(toks):
-            razon = check_git(sub, branch, _depth + 1)
+            razon = check_git(sub, branch, _depth + 1, bindings)
             if razon:
                 return razon
+        i, hooks_override = _git_invocation(toks)
+        if i >= 0 and toks[i] == "commit":
+            if hooks_override or _env_hooks_override(bindings):
+                return ("`git commit` con override de core.hooksPath bloqueado: conserva los hooks "
+                        "de verificación del proyecto; un cambio de ruta requiere revisión explícita.")
+            if _commit_skips_verification(toks[i + 1:]):
+                return ("`git commit` sin verificación bloqueado: conserva pre-commit y commit-msg; "
+                        "corrige el fallo de los hooks en vez de omitirlos con --no-verify/-n.")
         i = _es_git(toks, "push")
         if i >= 0:
             for t in toks[i + 1:]:

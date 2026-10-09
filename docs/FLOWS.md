@@ -381,10 +381,36 @@ flowchart LR
     W --> G["guardrail-check.py pre-tool<br/>(dev.json → guardrails)"]
     G -->|"docs/roadmap/** ≠ tasks.md<br/>docs/security-scan/**"| D(["❌ deny + razón:<br/>«solo tasks.md; el plan lo cambia planner»"])
     G -->|"HEAD en main/master<br/>+ escritura fuera del ledger"| D2(["❌ deny: «trabaja en feature/<slug>»"])
-    G -->|"git push --force · branch -D<br/>checkout main desde feature<br/>rm -rf / ~ .git"| D3(["❌ deny + cómo proceder"])
+    G -->|"git push --force · branch -D<br/>checkout main desde feature<br/>rm -rf / ~ .git<br/>commit sin verify / override core.hooksPath"| D3(["❌ deny + cómo proceder"])
     G -->|"todo lo demás"| A(["✅ sin deny, exit 0<br/>(flujo normal de permisos)"])
     D & D2 & D3 -.->|"lee la razón, cambia de fichero/rama"| T
 ```
+
+La regla `git` protege los IDs propios exactos de `implementer` y `architect`.
+Consume valores de opciones, incluidos prefijos largos unívocos, y respeta
+`--` antes de rutas; no trata mensajes como flags. `--verify` o
+`--no-no-verify` posterior restaura la verificación y `--amend` por sí
+solo pasa esta comprobación. Un override de `core.hooksPath` requiere revisión
+explícita; cambiar su ruta no siempre implica desactivar hooks.
+
+La gramática reconoce asignaciones literales y wrappers `env -i` o
+`--ignore-environment`; `-u NAME`, `-uNAME` o `--unset=NAME`; `-C DIR` o
+`--chdir=DIR`; `command -p`; `exec -a NAME`, `-c` o `-l`. Analiza opciones
+Git `-c` y `--config-env`, `GIT_CONFIG_COUNT` con sus claves y
+`GIT_CONFIG_PARAMETERS`. Compara el nombre base del ejecutable sin distinguir
+mayúsculas, incluidos nombres Windows con `.exe`.
+
+Cada orden conserva su propia decisión, también entre líneas. Comillas,
+comentarios y continuaciones escapadas mantienen la separación entre flags
+y texto. Se admiten clusters soportados y valores cortos pegados en wrappers,
+como `exec -cl` y `env -C.`.
+
+La recursión existente de shell `-c` y `eval` termina en profundidad 3.
+No expande variables, resuelve aliases, abre scripts ni inspecciona
+configuración Git externa. El dispatcher reconoce la tool PowerShell;
+sus asignaciones y scripts quedan fuera de la gramática literal. No es
+un sandbox; configurar
+`{"guardrails": {"git": false}}` en `.claude/dev.json` desactiva la regla.
 
 ## 6d · El tercer bucle — especialización por proyecto (`/specialize`, opt-in)
 

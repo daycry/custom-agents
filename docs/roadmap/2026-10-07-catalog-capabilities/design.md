@@ -478,3 +478,53 @@ afirma cierre observado. La nueva cohorte verifica publicación canónica durant
 execution/idle, no SessionEnd nativo de teardown, replay completo de todas
 las sesiones o fiabilidad universal de carga/TUI. La corrección es del criterio
 privado de validación; producción permanece idéntica al bloque entregado.
+
+## Bloque 12: conservar la verificación de commits
+
+`agent-kits/shared/guardrail-check.py` amplía la regla existente `git`.
+El dispatcher conserva los IDs propios exactos de `implementer` y `architect`
+en Claude, Codex y OpenCode. No cambia los permisos de agentes ajenos ni
+añade registros, agentes, skills o servicios. Configurar
+`{"guardrails": {"git": false}}` en el proyecto conserva el opt-out.
+
+El evaluador deniega `git commit` cuando sus flags efectivos desactivan
+pre-commit y commit-msg mediante `--no-verify`/`-n`. Reconoce abreviaturas
+unívocas y clusters cortos. Un `--verify` o `--no-no-verify` posterior restaura
+la verificación. Consume argumentos de opciones, incluidos prefijos largos
+unívocos, y respeta `--` antes de las rutas, por lo
+que mensajes y pathspecs no se convierten en comandos. `--amend` por sí solo
+no desactiva la verificación.
+
+Un override explícito de `core.hooksPath` durante el commit también produce
+deny, mediante `-c`, `--config-env` o configuración literal por entorno.
+La regla no afirma que cada ruta alternativa desactive los hooks: exige
+revisión explícita para cambiar la cadena de verificación del proyecto.
+`GIT_CONFIG_COUNT` se interpreta con sus claves suministradas;
+`GIT_CONFIG_PARAMETERS` se analiza como pares literales. El parser no recorre
+un rango proporcional al contador ni ejecuta los valores.
+
+La gramática consume asignaciones iniciales y wrappers `env`, `command` y
+`exec`. `env -i`/`--ignore-environment` elimina los bindings heredados;
+`env -u NAME`, `-uNAME` o `--unset=NAME` elimina la variable indicada.
+`env -C DIR` y `--chdir=DIR` consumen el directorio del wrapper. `command -p`
+y `exec -a NAME` conservan la detección del comando efectivo; `exec -c`
+elimina el entorno heredado y `-l` conserva el comando. La comparación del
+nombre base ignora mayúsculas y contempla nombres Windows con `.exe`.
+Esa normalización también alcanza las comprobaciones Git destructivas existentes.
+
+El scanner literal conserva comillas, comentarios y continuaciones escapadas.
+Separa cada orden por sus operadores y saltos de línea fuera de comillas:
+un flag de una orden posterior no restaura la verificación de la anterior.
+Los wrappers consumen clusters soportados y valores cortos pegados, como
+`exec -cl`, `env -iu NAME` y `env -C.`. Un fragmento final incompleto no
+elimina las órdenes completas ya reconocidas.
+
+La recursión existente de shell `-c` y `eval` conserva profundidad máxima 3
+y propaga los bindings literales. El evaluador no expande variables ni
+resuelve aliases; tampoco abre scripts ni consulta configuración Git externa.
+El dispatcher reconoce la tool PowerShell, pero sus asignaciones y scripts
+quedan fuera de la gramática literal. No acredita un sandbox ni cobertura
+universal de shell/PowerShell. Los tests
+positivos y negativos están en `agent-kits/shared/test_git_verification.py`.
+El ledger registra QA, revisión y aceptación propias de este bloque; la
+evidencia nativa de bloques anteriores no valida automáticamente esta regla.

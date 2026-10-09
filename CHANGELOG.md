@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — Git commit verification guards
+
+- Extend the shared `git` rule for exact owned implementer and architect IDs in Claude, Codex and OpenCode. Deny commits that disable verification or explicitly override `core.hooksPath`, including recognized literal environment and wrapper forms. Preserve later `--verify`, commit messages, path arguments, ordinary amend and per-project opt-out; document the parser's limits.
+
 ### Fixed — Branch guards and hook startup work
 
 - Preserve branch protection before the first commit within the existing query budget. Skip PostToolUse business processes for recognized edits outside each handler's scope while retaining unknown-input handling; keep guard and capture timeouts unchanged.

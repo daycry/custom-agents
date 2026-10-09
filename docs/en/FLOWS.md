@@ -381,10 +381,35 @@ flowchart LR
     W --> G["guardrail-check.py pre-tool<br/>(dev.json → guardrails)"]
     G -->|"docs/roadmap/** ≠ tasks.md<br/>docs/security-scan/**"| D(["❌ deny + reason:<br/>«only tasks.md; planner changes the plan»"])
     G -->|"HEAD on main/master<br/>+ write outside the ledger"| D2(["❌ deny: «work on feature/<slug>»"])
-    G -->|"git push --force · branch -D<br/>checkout main from a feature<br/>rm -rf / ~ .git"| D3(["❌ deny + how to proceed"])
+    G -->|"git push --force · branch -D<br/>checkout main from a feature<br/>rm -rf / ~ .git<br/>commit without verify / core.hooksPath override"| D3(["❌ deny + how to proceed"])
     G -->|"everything else"| A(["✅ no deny, exit 0<br/>(normal permission flow)"])
     D & D2 & D3 -.->|"read the reason, switch file/branch"| T
 ```
+
+The `git` rule protects exact owned `implementer` and `architect` IDs.
+It consumes option values, including unique long-option prefixes, and respects
+`--` before paths; messages are not flags. A later `--verify` or
+`--no-no-verify` restores verification, and `--amend` alone passes
+this check. An explicit `core.hooksPath` override requires review; changing
+the path does not always disable hooks.
+
+The grammar recognizes literal assignments and wrappers `env -i` or
+`--ignore-environment`; `-u NAME`, `-uNAME` or `--unset=NAME`; `-C DIR` or
+`--chdir=DIR`; `command -p`; `exec -a NAME`, `-c` or `-l`. It parses Git
+options `-c` and `--config-env`, `GIT_CONFIG_COUNT` with its keys and
+`GIT_CONFIG_PARAMETERS`. Executable basename matching ignores case and
+handles Windows names ending in `.exe`.
+
+Each command retains its own decision, including across lines. Quoting,
+comments and escaped line continuations keep flags separate from text.
+Wrappers accept supported short option clusters and attached values,
+such as `exec -cl` and `env -C.`.
+
+Existing shell `-c` and `eval` recursion stops at depth 3. It does not expand
+variables, resolve aliases, open scripts or inspect external Git configuration.
+The dispatcher recognizes the PowerShell tool, but PowerShell assignments
+and scripts fall outside the literal grammar. This is not a sandbox; setting
+`{"guardrails": {"git": false}}` in `.claude/dev.json` disables the rule.
 
 ## 6d · The third loop — project specialization (`/specialize`, opt-in)
 

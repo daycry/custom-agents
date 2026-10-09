@@ -36,16 +36,46 @@ fallando o criterios sin cumplir.
 
 ## Guardrails deterministas (hook de guardia con alcance del agente)
 
-Sus reglas duras no dependen de la prosa: el frontmatter `hooks:` de `agents/implementer.md`
-registra un hook `PreToolUse` (`hooks/implementer-guardrail.sh` → `agent-kits/shared/guardrail-check.py`,
-con tests) que solo corre mientras trabaja este agente — nunca es global, porque `planner`/`evaluator`
-escriben en `docs/roadmap/` legítimamente (ADR-007). Deniega, con la razón y cómo proceder:
+Sus reglas duras usan `agent-kits/shared/guardrail-check.py`. El dispatcher
+`agent-kits/shared/native-guardrail.py` selecciona los IDs propios exactos de
+`implementer` y `architect` en Claude, Codex y OpenCode. No restringe agentes
+ajenos por parecido del nombre. Claude ignora hooks del frontmatter de agentes
+de plugin; una copia local conserva `hooks/implementer-guardrail.sh`.
+El registro global no convierte las reglas del implementer en reglas para
+`planner`/`evaluator`, que escriben en `docs/roadmap/` legítimamente.
+Las reglas del implementer deniegan con una razón y cómo proceder:
 
 | Regla (`dev.json` → `guardrails`) | Qué bloquea |
 |---|---|
 | `alcance` | Write/Edit/MultiEdit/NotebookEdit sobre `docs/roadmap/**` que no sea `tasks.md` (incl. `testing/`, de qa) y sobre `docs/security-scan/**`; rutas case-insensitive (`Docs/Roadmap/…` también). `docs/knowledge/**` se permite (ADR). En la raíz de `docs/roadmap/` solo se permite `README.md` (índice de iniciativas, que el cierre de cada iniciativa actualiza); `CALIBRATION.md`, `DRIFT.md` y `BACKLOG.md` quedan bloqueados **por diseño**: los escriben `/retro`, `/spec-drift` y `/pm-backlog`, que son comandos y no pasan por este hook. |
 | `ramaPrincipal` | Escrituras fuera del ledger con HEAD en `main`/`master` («trabaja en `feature/<slug>`»). Sin git → no aplica. |
-| `git` | `git push --force|-f|--force-with-lease`, `git branch -D`, `git checkout|switch main|master` desde una rama de trabajo, `rm -rf` de `/`, `~`, `.git`. Todo lo demás pasa. |
+| `git` | `git push --force|-f|--force-with-lease`, refspec `+rama`, `git branch -D`, `git checkout|switch main|master` desde una rama de trabajo y `rm -rf` de `/`, `~`, `.git` o `.`. También `git commit` con verificación desactivada (`--no-verify`/`-n`) o un override explícito de `core.hooksPath`. |
+
+La regla `git` también protege al `architect`. El parser consume valores de
+opciones de commit, incluidos prefijos largos unívocos, y respeta `--` antes
+de las rutas: un mensaje con `-n` no es un flag ejecutable. Un `--verify` o
+`--no-no-verify` posterior restaura la verificación;
+`--amend` por sí solo no la desactiva. Un override de `core.hooksPath` durante
+el commit requiere revisión explícita, incluso si apunta a otra carpeta válida.
+
+Cada orden conserva su propia decisión, también entre líneas. La puntuación
+entre comillas es texto; los comentarios no aportan flags. Un salto de línea
+escapado conserva la orden. Los wrappers reconocen clusters de sus flags
+soportados y valores pegados, como `exec -cl` y `env -C.`.
+
+El parser reconoce asignaciones literales y estos wrappers: `env -i` o
+`--ignore-environment`; `-u NAME`, `-uNAME` o `--unset=NAME`; `-C DIR` o
+`--chdir=DIR`; `command -p`; `exec -a NAME`, `-c` o `-l`. Analiza opciones
+Git `-c` y `--config-env`, `GIT_CONFIG_COUNT` con sus claves y
+`GIT_CONFIG_PARAMETERS`. La comparación del nombre base del ejecutable ignora
+mayúsculas y contempla nombres Windows con `.exe`.
+
+Conserva la recursión existente de shell `-c` y `eval`, hasta profundidad 3.
+No expande variables, resuelve aliases, abre scripts ni inspecciona
+configuración Git externa. El dispatcher reconoce la tool PowerShell, pero
+sus asignaciones y scripts quedan fuera de esta gramática literal. No
+constituye un sandbox. `{"git": false}` desactiva esta regla en
+`.claude/dev.json` → `guardrails`.
 
 Degradación: sin `python3` el hook avisa una vez (`systemMessage`) y no bloquea; un error interno
 del script permite (nunca bloqueo fantasma). Desactivación: `.claude/dev.json` →

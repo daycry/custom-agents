@@ -2301,3 +2301,159 @@ o nombres prohibidos. No se repiten suites de producción para este diff
 documental: los 94 archivos nativos y la fuente del QA conservan su hash,
 con excepción esperada del propio diseño/ledger que describen este bloque.
 Se permite commit/push acotado a la rama autorizada; la iniciativa queda abierta.
+
+## Bloque 12 — Preservar la verificación de commit (2026-10-09)
+
+Base publicada y contrastada con remoto `ddb06dc`; la retoma del objetivo
+autoriza continuar integración de hooks. El contraste de política previo
+identifica bypass de verificación Git como siguiente destino de T-09.
+Se reutilizan `guardrail-check.py`, dispatcher e IDs exactos; ninguna skill,
+registro de hooks, protocolo nativo ni permiso de agentes ajenos se añade.
+
+Regla bajo `guardrails.git`: no omitir verificación de commit con flags
+efectivos `--no-verify`/`-n`, también en amend; no sustituir core.hooksPath
+por argumento/configuración de entorno explícita en la invocación de commit.
+La ruta alternativa no acredita que preserve los hooks del proyecto. Mensajes,
+valores de opciones, pathspec tras `--`, amend normal y otras operaciones Git
+no disparan esta regla. `--verify` posterior restaura verificación. El opt-out
+Git y la selección de identidades actuales se conservan.
+
+El parser existente se amplía para asignaciones literales iniciales, `env`
+con asignaciones, wrappers `command`/`exec` y recursión shell `-c` ya existente.
+No evalúa variables, aliases ni scripts arbitrarios, ni lee configuración
+externa para inferir intención. Consumir valores de opciones evita confundir
+texto con flags. La misma normalización preserva guardias existentes al usar
+esos wrappers. Archivos iniciales: shared lector/tests, docs del contrato y
+este diseño/ledger; el alcance de T-09 incluye shared/tests/docs.
+
+Tests contractuales nuevos en `test_git_verification.py` preceden a producción:
+roles implementer/architect en Claude Bash/PowerShell, Codex Bash y OpenCode
+shell; valores/pathspec/mensajes, opt-out, identidades ajenas y push previo.
+
+**RED antes de modificar producción:** `pytest -q --tb=no
+agent-kits/shared/test_git_verification.py`, 2026-10-09:
+156 failed/66 passed, 2,41 s. Los 152 casos de commit protegidos y los cuatro
+wrappers de push entregan permiso; controles, opt-out e identidades ajenas
+conservan permiso. La suite no ejecuta comandos Git ni lee config del consumidor;
+config/roles/rama están inyectados. Documentación oficial de
+[git-commit](https://git-scm.com/docs/git-commit) y
+[git](https://git-scm.com/docs/git), consultada 2026-10-09, confirma opciones
+de verificación, valores de mensaje y overrides globales. No constituye QA.
+
+Contraste preparatorio con Git 2.53.0.windows.2 en repositorio sintético propio,
+config global/sistema vacía y hook local marcador/rechazo: baseline ejecuta
+el hook; `--no-verify` lo omite. Commits sintéticos autorizados con
+`--no-verify --mess --verify`, `--trail --verify` y `--pathspec-fr --verify`
+también lo omiten: ese último token era un valor, no restauración.
+No se ejecutan commits de prueba en el repo de trabajo. `--no-no-verify`
+y su prefijo único restauran el hook; `--no-v`/`--no-ver` son ambiguos con
+`--no-verbose`. El prefijo efectivo comienza en `--no-veri`.
+
+**RED ampliación:** 33 failed/24 passed (222 deselected), 0,67 s, antes
+de implementar wrappers/entorno ampliados. **RED semántica Git real:**
+12 failed/1 passed (279 deselected), 0,12 s, opciones abreviadas con valor,
+ambigüedad y ceros iniciales; 11 failed/1 passed (292 deselected), 0,14 s,
+wrappers y ejecutables Windows; 2 failed (304 deselected), 0,09 s,
+restauración por doble negación; 4 failed/20 passed (286 deselected),
+0,20 s, prefijos mínimos de reuse/pathspec; 1 failed/11 passed
+(317 deselected), 0,13 s, cleanup abreviado; 2 failed/3 passed
+(329 deselected), 0,10 s, contador fuera del rango válido de Git.
+Cada corrección de producción sigue a su rojo. El contraste corrige
+también expectativas sobre abreviaturas inválidas de la fixture inicial.
+
+**GREEN de desarrollo:** 316 casos puros pasan (18 de transporte
+deseleccionados), 3,02 s. El launcher real había pasado sus 18 casos
+en los tres runtimes y ambos roles, dentro de una suite de 329 en
+28,87 s, antes de añadir los cinco controles de contador. Una fixture
+inicial sin Git produjo diagnósticos `branch-unavailable`: se corrige la
+fixture con repo sintético unborn y entorno Git aislado, sin cambiar
+la producción ni ocultar el diagnóstico. No constituye aceptación CLI
+de los hosts ni cierra T-09/T-14/T-15. Faltan revisión y QA del diff final.
+
+Puerta previa del diff base `ddb06dc`: API canónica de scope-check con
+15 archivos propios explícitos, cero fuera/cero excluidos/cero avisos.
+Fuente pública congelada de 884 archivos; configuración del consumidor,
+knowledge ignorado y fixtures privadas excluidos antes de leer. Selector
+`--root <fuente pública> --files <15 propios> --json`: C/D false,
+cero avisos. Tier reviewer: opus/high del frontmatter; el tool de sesión
+requiere fallback genérico, modelo heredado sin override. Dos lentes frescas
+en paralelo. `scripts/export-interop.py --check`: exit 0,
+`export-interop --check: 56 ficheros al día`; `ledger-lint.py`: exit 0,
+cero incoherencias/cero avisos. Registro/fuentes nativas no se editan a mano.
+
+## Revisión de dos lentes — intento 1: bloque 12 (T-09)
+
+Lentes A+B frescas en paralelo, fallback genérico. A: todos los criterios
+aplican/pasan, sin gaps; verifica por sí misma export --check (56 al día).
+B: dos Important reproducidos con commits en repo sintético aislado y
+hook marcador/rechazo. No quedan rebatidos ni deuda aceptada.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B12-1 | Important | Un `--verify` de otra línea restauraba el primer commit; quoted `;`/`&&` perdían su condición de texto | T-09 | Scanner literal conserva límites, comillas, comentarios y continuación escapada; nunca mezcla estado entre órdenes | RED dedicado 7 failed/7 passed, 0,11 s antes del fix; pruebas de mensaje quoted y comandos separados |
+| B12-2 | Important | `env -C.`, `exec -cl`, `env -iu X` abandonaban normalización | T-09 | Consumir clusters de flags soportados y valores cortos pegados | Mismo RED dedicado; reproducción B con omisión del hook sintético |
+
+El contraste del fix añade RED 2 failed/14 passed, 0,15 s: backslash
+escapado al final y primera orden completa seguida de comilla incompleta.
+Se conserva la orden completa y no se analiza el fragmento incompleto.
+RED 1 failed, 0,08 s para `env -` que limpia entorno como `env -i`.
+El scanner no expande comandos/variables; mantiene el alcance literal
+declarado y la recursión anterior. Próximo pase: re-evaluar estos cambios,
+sin reabrir aprobados salvo evidencia nueva. QA final aún pendiente.
+
+GREEN tras el fix del intento 1: `pytest -q --tb=short -p no:cacheprovider
+-k 'not real_launcher' test_git_verification.py test_guardrail_check.py
+test_native_guardrail.py` (rutas completas bajo `agent-kits/shared/`):
+598 passed/18 deselected en 14,87 s, 2026-10-09. Segunda fuente congelada
+pública conserva los 15 propios, scope API 0/cero fuera/cero avisos;
+selector C/D false/cero avisos. Jira intento 1: exit 0, desactivado,
+`ops: []`, sin publicación externa. El QA final ejecutará también transporte.
+
+## Revisión de dos lentes — intento 2: bloque 12 (T-09)
+
+A+B frescas en paralelo, fallback genérico, modelo heredado. A: tabla de
+criterios del fix completa, todos ✓; export --check independiente sobre
+fuente congelada y repo vivo, exit 0/56 al día. B: sin defectos, ejecuta
+333 casos puros/18 deseleccionados sobre la fuente congelada y 15 controles
+independientes de tokenizer/wrappers. C/D false por selector explícito.
+Resultado: cero Critical/Important/Minor; B12-1/B12-2 corregidos y revalidados.
+La fuente congelada no contiene el GREEN 598 pegado después en este ledger:
+A lo señala como límite de snapshot; se conserva ese orden temporal y la
+salida ejecutada, sin atribuirle evidencia que no leyó. Ninguna tarea global
+se cierra ni se afirma aceptación CLI nueva. Siguiente puerta: QA final.
+
+QA final del bloque 12, 2026-10-09, fuente pública congelada de 884 archivos:
+
+| Entorno | Python | Node | qa-gate |
+|---|---|---|---|
+| Windows | 638 passed, cero skips | 166 passed, cero skips | Ambas suites exit 0/VERDE |
+| Linux aislado | 638 passed, cero skips | 154 passed/12 skips exclusivos de Windows | Ambas suites exit 0/VERDE |
+
+Cero unexpected/flaky en los cuatro reportes JUnit, sin reintentos.
+Los 18 casos de launcher real pasan en cada entorno con ambos roles y los
+tres runtimes. Ejecutan el evaluador y transportan deny/continue; los payloads
+de commit no se ejecutan. No se repite aceptación CLI de hosts ni se extrapola
+la anterior a la política nueva. Linux: imagen fija, red none, init y retirada
+del único contenedor propio; shell LF igual a blobs base y permisos 0755 en
+el tar, el resto idéntico al snapshot Windows.
+
+Coverage.py oficial sobre statements añadidos frente a `ddb06dc`:
+166/179, **92,74 %**, supera 90 %. Lint del bundle público: cero errores,
+cuatro avisos previos (tres nombres genéricos y modo ejecutable del JSON en
+snapshot Windows). No se afirma lint local por defecto verde: se mantiene
+el límite de memoria ignorada descrito en el bloque 10. Evals: 51 piezas,
+182 casos, cero errores. Export --check: 56 al día. Jira intento 2: exit 0,
+desactivado, `ops: []`, sin publicación externa.
+
+Evidencia pública: [hook-git-verification-evidence.json](hook-git-verification-evidence.json).
+Los hashes fijan el lector, tests, launcher, dispatcher, mapa de IDs y prompts
+generados. La documentación de límites del scanner se completa tras el pase
+sin alterar código o tests medidos. Skills nuevas permanecen pausadas;
+T-09/T-14/T-15 e iniciativa conservan sus estados abiertos.
+
+Comprobación final de documentación pública actualizada: lint/ledger/export
+exit 0; alcance 16 archivos propios, cero fuera/cero excluidos/cero avisos.
+Escaneo de 885 archivos públicos: cero referencias y nombres prohibidos.
+Código, tests y prompts generados mantienen los bytes medidos por QA.
+Se autoriza la entrega acotada por commit/push a `feat/catalog-capabilities`;
+no se publica release ni se integra la rama principal en este bloque.
