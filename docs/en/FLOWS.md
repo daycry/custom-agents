@@ -370,11 +370,14 @@ flowchart LR
 > Claude ignores hook frontmatter in plugin agents; local copies retain their wrapper.
 > The map does not prove prompt origin or an effective sandbox. ADR-023 and CONVENTIONS
 > rule 8; opt-out in `.claude/dev.json`.
+> The launcher validates one bounded structured response. Without a valid
+> evaluation, it warns through the native channel and retains normal permissions.
+> Complete denials survive later failures; startup under load remains under diagnosis.
 
 ```mermaid
 flowchart LR
     T["owned implementer attempts a mutation<br/>Claude · Codex · OpenCode"] --> W["pre-tool dispatcher<br/>native-guardrail.py + ID map"]
-    W -->|"no Python"| M(["degradation diagnostic<br/>+ exit 0: never blocks"])
+    W -->|"no Python / timeout without decision<br/>missing or invalid response"| M(["Claude/Codex systemMessage<br/>OpenCode diagnostic<br/>exit 0 + normal permissions"])
     W --> G["guardrail-check.py pre-tool<br/>(dev.json → guardrails)"]
     G -->|"docs/roadmap/** ≠ tasks.md<br/>docs/security-scan/**"| D(["❌ deny + reason:<br/>«only tasks.md; planner changes the plan»"])
     G -->|"HEAD on main/master<br/>+ write outside the ledger"| D2(["❌ deny: «work on feature/<slug>»"])

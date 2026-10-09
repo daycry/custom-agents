@@ -176,3 +176,26 @@ comprobación de relaciones completas; el lector y el scanner permanecen intacto
 El [contraste causal](memory-contract-test-diagnosis-evidence.json) conserva
 los intentos rechazados y distingue cada entorno. No valida toda la suite
 del repositorio ni mide eficacia de recuperación o cierre nativo bajo carga.
+
+## Entregas posteriores y siguiente puerta
+
+El bloque 8 incorporó memoria aprobada a la recuperación local, conservando
+ID, versión, evidencia y autoridad tanto en caché como en lectura plana y
+respaldo local. [Evidencia de recuperación](memory-approved-retrieval-evidence.json).
+Los cuatro [cierres con carga](session-closure-load-evidence.json) conservan
+una pérdida de guardia y un cierre de 3.075 ms registrado como completed:
+no acreditan una latencia universal ni resolver la degradación bajo carga.
+
+El bloque 9 hace explícita la entrega de decisiones y los fallos del evaluador
+en los tres runtimes, preservando los bloqueos completos y corrigiendo el
+límite Unicode. [QA y diagnóstico](guard-delivery-evidence.json) y
+[aviso nativo Codex](guard-warning-native-evidence.json) separan tests del
+launcher, comparación de arranque y fixture con demora deliberada. No cambia
+intérprete, presupuestos, políticas de permisos ni conexiones de memoria.
+
+La siguiente puerta de hooks sigue siendo aislar la variabilidad de arranque
+en el despacho nativo con hijos y comprobar cierre durable bajo esas mismas
+condiciones. Después continúan la retoma de sólo lectura, los controles del
+panel y la medición del backend opcional. No se salta esa dependencia ni se
+marca completa una tarea global por un bloque parcial. Nuevas skills siguen
+aplazadas en 79/293, con 214 pendientes.

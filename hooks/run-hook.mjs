@@ -14,6 +14,41 @@ const runtime = process.argv[3] || '--runtime=claude';
 const warn = message => process.stderr.write(`custom-agents hooks: ${message}\n`);
 const windows = process.platform === 'win32';
 const env = { ...process.env, CLAUDE_PLUGIN_ROOT: root, PYTHONIOENCODING: 'utf-8:replace' };
+const guard = hook === 'native-guardrail';
+const guardMessage = 'custom-agents: role guard unavailable; normal permissions continue';
+const guardDiagnostics = new Set(['input-unrecognized', 'role-map-unavailable', 'guardrails-disabled',
+  'branch-unavailable', 'evaluator-unavailable', 'input-too-large', 'input-invalid-json', 'input-unavailable']);
+let guardEmitted = false;
+
+function emitGuard(result) {
+  if (guardEmitted) return;
+  guardEmitted = true;
+  const value = result || { decision: 'continue', role: null, reason: null, diagnostic: 'guard-unavailable' };
+  if (runtime === '--runtime=opencode') {
+    process.stdout.write(JSON.stringify(value) + '\n');
+    return;
+  }
+  const output = {};
+  if (value.decision === 'deny') output.hookSpecificOutput = { hookEventName: 'PreToolUse',
+    permissionDecision: 'deny', permissionDecisionReason: value.reason };
+  if (value.diagnostic) output.systemMessage = value.diagnostic === 'guardrails-disabled'
+    ? 'custom-agents: role guards disabled by project configuration' : guardMessage;
+  if (Object.keys(output).length) process.stdout.write(JSON.stringify(output) + '\n');
+}
+
+function guardResult(output) {
+  try {
+    const value = JSON.parse(output);
+    if (!value || typeof value !== 'object' || Array.isArray(value)
+      || !['deny', 'continue'].includes(value.decision)
+      || ![null, 'implementer', 'architect'].includes(value.role)
+      || !(value.diagnostic === null || guardDiagnostics.has(value.diagnostic))) return null;
+    if (value.decision === 'deny') {
+      if (!value.role || typeof value.reason !== 'string' || !value.reason.trim() || [...value.reason].length > 2048) return null;
+    } else if (value.reason !== null) return null;
+    return { decision: value.decision, role: value.role, reason: value.reason, diagnostic: value.diagnostic };
+  } catch { return null; }
+}
 
 function candidates(names) {
   return (env.PATH || env.Path || '').split(delimiter).filter(Boolean).flatMap(dir =>
@@ -44,15 +79,14 @@ async function main() {
     warn('unknown runtime'); return;
   }
   const py = python();
-  if (!py) { warn('Python unavailable; hook skipped'); return; }
+  if (!py) { warn('Python unavailable; hook skipped'); if (guard) emitGuard(); return; }
   let command, args;
-  const guard = hook === 'native-guardrail';
   // Capture and native guards use contained Python without shell startup.
   if (guard || hook === 'session-journal.sh' || hook === 'user-prompt-capture.sh') {
     command = py.command;
     args = guard
       ? [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'native-guardrail.py'),
-        '--runtime', runtime.slice('--runtime='.length), '--output', runtime === '--runtime=opencode' ? 'structured' : 'native']
+        '--runtime', runtime.slice('--runtime='.length), '--output', 'structured']
       : hook === 'session-journal.sh'
       ? [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'journal-capture.py')]
       : [...py.args, join(root, 'agent-kits', 'shared', 'journal.py'), 'capture'];
@@ -93,7 +127,7 @@ async function main() {
   await new Promise(resolve => {
     const inheritedGroup = !windows && runtime === '--runtime=opencode' && env.CUSTOM_AGENTS_HOOK_OWN_GROUP === '1';
     const child = spawn(command, args, { env, windowsHide: true, detached: !windows && !inheritedGroup, stdio: ['pipe', 'pipe', 'pipe'] });
-    let timedOut = false, jobHandle, stopping;
+    let timedOut = false, jobHandle, stopping, supervisionFailed = false, outputOverflow = false;
     const abandon = () => {
       child.kill('SIGKILL');
       child.stdout.destroy(); child.stderr.destroy(); child.stdin.destroy();
@@ -135,7 +169,15 @@ async function main() {
       void stop();
     }, guard ? 4500 : hook === 'session-journal.sh' ? (runtime === '--runtime=claude' ? 800 : 2200) : 20000);
     let output = '';
-    if (post) {
+    if (guard) {
+      let bytes = 0;
+      child.stdout.setEncoding('utf8');
+      child.stdout.on('data', chunk => {
+        bytes += Buffer.byteLength(chunk, 'utf8');
+        if (bytes > 16384) { outputOverflow = true; output = ''; void stop(); }
+        else if (!outputOverflow) output += chunk;
+      });
+    } else if (post) {
       child.stdout.setEncoding('utf8');
       child.stdout.on('data', chunk => { output += chunk; });
     } else child.stdout.pipe(process.stdout);
@@ -143,7 +185,7 @@ async function main() {
       let header = '', pendingHeader = true;
       child.stderr.setEncoding('utf8');
       child.stderr.on('data', chunk => {
-        if (!pendingHeader) { process.stderr.write(chunk); return; }
+        if (!pendingHeader) { if (!guard) process.stderr.write(chunk); return; }
         header += chunk;
         const end = header.indexOf('\n');
         if (end < 0 && header.length <= 512) return;
@@ -152,18 +194,26 @@ async function main() {
           const control = JSON.parse(header.slice(0, end));
           if (control.owner !== process.pid || !/^[1-9][0-9]{0,19}$/.test(control.customAgentsJob)) throw Error();
           jobHandle = control.customAgentsJob;
-          if (header.slice(end + 1)) process.stderr.write(header.slice(end + 1));
-        } catch { warn('process supervision unavailable; hook skipped'); void stop(); }
+          if (!guard && header.slice(end + 1)) process.stderr.write(header.slice(end + 1));
+        } catch { supervisionFailed = true; warn('process supervision unavailable; hook skipped'); void stop(); }
         header = '';
       });
-    } else child.stderr.pipe(process.stderr);
+    } else if (guard) child.stderr.resume();
+    else child.stderr.pipe(process.stderr);
     child.stdin.on('error', () => {});
     if (post) child.stdin.end(input, 'utf8');
     else process.stdin.pipe(child.stdin);
-    child.on('error', error => { warn(error.message); clearTimeout(timer); resolve(); });
+    child.on('error', error => { warn(guard ? 'role guard could not start' : error.message);
+      if (guard) emitGuard(); clearTimeout(timer); resolve(); });
     child.on('exit', () => { clearTimeout(timer); void stop(); });
     child.on('close', async code => {
       await stopping;
+      if (guard) {
+        const result = !outputOverflow && !supervisionFailed && (!windows || jobHandle) ? guardResult(output) : null;
+        // A complete denial must never become permission to continue because
+        // cleanup or the remaining evaluator lifetime exceeded its budget.
+        emitGuard(result && (result.decision === 'deny' || (!timedOut && code === 0)) ? result : null);
+      }
       if (post && output.trim()) {
         let message = output.trim();
         try { message = output.trim().split('\n').map(line => JSON.parse(line).systemMessage).filter(Boolean).join('\n'); }
@@ -179,4 +229,7 @@ async function main() {
   });
 }
 
-main().catch(error => warn(error.message)); // Informational hooks always exit 0.
+main().catch(error => {
+  warn(guard ? 'role guard unavailable' : error.message);
+  if (guard && ['--runtime=claude', '--runtime=codex', '--runtime=opencode'].includes(runtime)) emitGuard();
+}); // Informational hooks always exit 0.

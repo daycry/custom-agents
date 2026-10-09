@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — Entrega de decisiones de guardia
+
+- Validar resultados estructurados acotados antes de la entrega nativa. Hacer visibles las evaluaciones ausentes o inválidas en Claude, Codex y OpenCode conservando permisos normales; preservar bloqueos completos ante fallos posteriores del evaluador o de limpieza. Mantener los presupuestos y el diagnóstico de arranque bajo carga abierto.
+
 ### Fixed — Recuperación de memoria aprobada
 
 - Incluir Markdown aprobado válido en búsqueda local, vista completa, relaciones declaradas y respaldo del backend. Conservar IDs completos, versiones y evidencia en caché y recorrido plano; compartir taxonomía local y lector aprobado sin cargar servicios de red. Diagnosticar corpus inválidos, IDs ambiguos y rutas fuera de carpetas declaradas.

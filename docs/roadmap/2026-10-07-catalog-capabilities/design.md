@@ -361,3 +361,27 @@ forma/carpeta/estado no demuestra que una aprobación humana o semántica ocurri
 El límite entre propuestas, validación legada y escritura del Curator sigue
 como auditoría de gobierno pendiente. La extracción incluye distribución y
 registro de copias; tests RED preceden a producción y gate de diff ≥90 %.
+
+## Bloque 9: entrega explícita de decisiones de guardia
+
+Base `f3e594a`. Se retoma el trabajo autorizado con nuevas skills aplazadas.
+El fallo bajo carga sigue abierto: el replay directo deniega, pero un arranque
+que agota el presupuesto puede entregar stdout vacío. Ese vacío actualmente
+es indistinguible de una evaluación que permite continuar en Claude/Codex.
+
+El launcher pedirá el resultado estructurado existente al evaluador en los
+tres runtimes, con lectura acotada y validación antes de convertir al formato
+nativo. Un `continue` válido sin diagnóstico sigue silencioso; un `deny`
+completo conserva su bloqueo incluso si luego vence el presupuesto. Falta de
+Python, spawn fallido, supervisión inválida, resultado ausente/incorrecto o
+timeout sin decisión completa producen un diagnóstico estable sin payload:
+`systemMessage` sin decisión en Claude/Codex y `continue` con diagnóstico en
+OpenCode. No se inventan permisos `allow` ni `deny` durante la degradación.
+
+Los presupuestos y el aislamiento de procesos no cambian. Una entrega visible
+no acredita eficacia bajo carga ni confianza de instalación. La comparación
+privada acotada de venv/base conserva todos los resultados y no modifica la
+selección de Python sin evidencia causal. Tests RED preceden al código; se
+verifican salida parcial, bloqueo completo seguido de timeout, salida excesiva,
+errores de arranque y controles de permiso normal. Revisión independiente y QA
+Windows/Linux antes de commit y push del bloque.

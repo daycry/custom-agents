@@ -2,7 +2,7 @@
 tasks: catalog-capabilities
 estado: en-progreso
 creado: 2026-10-07
-actualizado: 2026-10-08
+actualizado: 2026-10-09
 verificacion: obligatoria
 changelog: Changed
 ---
@@ -1865,3 +1865,131 @@ Este registro de entrega se incorpora en un segundo commit documental.
 Al verificar su push, se detiene el trabajo a petición del usuario. No se
 declara completa la iniciativa: quedan los pendientes y límites registrados
 arriba, sin comenzar otra fase ni añadir skills nuevas.
+
+## Bloque 9 — Entrega de guardia y diagnóstico acotado (2026-10-09)
+
+El usuario reanudó el trabajo pendiente. Base `f3e594a`; T-02/T-09/T-14/T-15
+siguen abiertas y nuevas skills aplazadas. El diseño de este bloque separa
+entrega explícita de decisiones y eficacia bajo carga.
+
+**RED real antes del código:**
+`node --test --test-name-pattern='spawn failure|empty successful evaluator|evaluated denial' tests/hook-guard-delivery.test.mjs`
+terminó con 8 failed/1 passed. Python ausente/spawn fallido y respuesta vacía
+produjeron `Unexpected end of JSON input` en los tres runtimes; Claude/Codex
+no convirtieron el resultado estructurado al deny nativo esperado. Los fixtures
+solo contienen payloads propios. Primer verde de desarrollo: 39/39 casos de
+entrega; ampliación de casos adversos y QA final en progreso.
+
+El launcher pide `--output structured`, acota stdout a 16 KiB, valida un único
+objeto y entrega como máximo una respuesta. Una decisión de bloqueo completa
+se conserva incluso ante timeout o salida fallida posterior; una continuación
+necesita terminar normalmente. Supervisión inválida invalida ambas. Errores,
+ausencia o resultado incompleto degradan con aviso estable, sin revelar payload
+ni diagnóstico libre del proceso y sin conceder permisos adicionales.
+
+Scope-check inicial base f3e594a: 8 archivos propios en alcance, cero fuera/cero avisos;
+settings ajenos excluidos por defecto. Selector con `--files` explícitos: A+B,
+C/D false, cero avisos; no inspecciona settings ajenos. Exportador comprobado:
+56 archivos al día. Tier reviewer frontmatter opus/high; el runtime ofrece
+subagentes genéricos como fallback de revisión, sin override de modelo.
+
+Comparación privada acotada: cuatro pares, dos de arranque Python y dos del
+launcher real instrumentado. Venv 116,8/102,8 ms frente a base 83,1/66,2 ms;
+launcher venv 854,2/819,6 frente a base 740,8/708,9 ms. Los cuatro guards
+produjeron deny/exit 0. El snapshot de ascendencia sólo ocurrió en venv y
+tardó aproximadamente 10–11 ms. No hubo carga impuesta ni despacho nativo
+Codex, y no se reprodujo el fallo de 4.500 ms: no justifica cambiar intérprete
+o presupuesto. `analysis-v2.json` sustituye un campo derivado incorrecto del
+análisis inicial; se conservan ambos y no se usa el inicial como evidencia.
+
+## Revisión de dos lentes — intento 1: bloque 9
+
+A+B en paralelo, contexto fresco; C/D no activadas por selector explícito.
+A: nueve criterios conformes, export --check exit 0/56 archivos al día.
+B encontró un Important reproducible; no otros defectos.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Razón deny válida con caracteres suplementarios rechazada por límite UTF-16 | T-09 | Contar puntos de código como el evaluador Python; pendiente segunda revisión | RED: 3 failed/0 passed en `supplementary Unicode` antes del fix; evaluador real del revisor deny con 1.189 puntos/2.189 unidades |
+
+Jira deshabilitado: no se publican operaciones externas. Desarrollo ampliado
+antes de este fix: 72 passed (69 nuevos + 3 adaptador), cero fallos, 115,86 s.
+Estos resultados no constituyen QA de la corrección Unicode.
+
+## Revisión de dos lentes — intento 2: bloque 9
+
+A+B frescas revalidaron el delta Unicode y conservaron los criterios aprobados:
+cero Critical/Important/Minor. Ambas ejecutaron independientemente seis casos
+de frontera Unicode, todos verdes; A comprobó export --check exit 0/56 archivos.
+El Important del intento 1 queda corregido. Jira `revision`, intento 2: exit 0,
+`jira: desactivado`, `ops: []`. No se cierra ninguna tarea global.
+
+### QA final del bloque 9
+
+Fuentes congeladas: 876 archivos, manifest
+`614ea558238b5131fe1f0f055b4786ccad124e9822d58363fcf3f8e780b614bf`.
+Launcher `0b6b2f8a16721ef742e2c4bf3d6bb4bef9e4868e1e38f9f8b420c98b85bd0077`;
+test de entrega `3454698bc9a0ea5051327362af94f80e775cc1f0e2f6ea6d454c28d8baffd49c`.
+El gate de alcance antes de QA comprendía diez archivos propios, cero fuera,
+sin avisos y settings ajenos excluidos. Evidencia y prioridades amplían sólo docs.
+
+| Plataforma | Runner | Resultado final |
+|---|---|---|
+| Windows, Node 23.8.0 / Python 3.13 | Node, cuatro suites | 115 passed, cero fallos/skips |
+| Windows | pytest, cinco suites | 276 passed, cero fallos/skips |
+| Linux, imagen propia Python 3.11.16 / Node 22.23.3 | Node, cuatro suites | 103 passed, 12 skips de casos exclusivos de Windows |
+| Linux | pytest, cinco suites | 276 passed, cero fallos/skips |
+
+JUnit real convertido al formato del qa-gate: VERDE en las cuatro cohortes.
+Las identidades de casos no se suman entre plataformas como casos únicos.
+Cobertura V8: 51/55 líneas añadidas significativas, 92,73 %. Proyección de
+rangos oficiales al primer offset UTF-16 de cada línea, no cobertura de
+sentencias/ramas Istanbul; denominador/método/líneas descubiertas preservados.
+No se repite para inflar el resultado tras superar el gate del diff ≥90 %.
+
+La primera tanda Linux no ejecutó tests por el entrypoint heredado del helper.
+La segunda conservó 92 passed/11 failed/12 skipped con checkout shell Windows;
+la tercera, con LF canónico, 102 passed/1 failed/12 skipped. El único fallo
+restante estaba en el oráculo de existencia de PID de limpieza, línea 271,
+sin init en el contenedor. La cuarta usó init y pasó ambos runners, pero falló
+la copia de symlinks de fixtures a Windows. La quinta conserva los informes
+JUnit finales, exportando sólo artefactos necesarios. Todas permanecen privadas.
+Los ocho shell normalizados coinciden exactamente con los blobs Git de la base
+y con `.gitattributes`; los demás bytes, incluido launcher, coinciden con
+Windows. Linux usa red none, HOME/Git propios y verifica los 876 hashes antes
+de ejecutar. No se oculta un fallo del runner como test omitido.
+
+Lint del snapshot: cero errores/cuatro avisos (tres nombres históricos y uno
+por Git vacío/mode NTFS del JSON). Lint del árbol real: cero errores/tres avisos
+históricos. Evals: 51 piezas, 182 casos, cero errores. Interop: 56 al día;
+ledger-lint: cero incoherencias/cero avisos.
+
+Prueba nativa Codex 0.161.0: una cohorte raíz propia con los seis eventos,
+proveedor loopback sin Authorization y un guard privado retrasado ocho segundos.
+PreToolUse plugin completed, 5.719 ms; entrada `warning` con el aviso exacto
+del launcher; parche permitido bajo permisos normales. 328 archivos de
+distribución/cache verificados, una sustitución explícita del negocio y ningún
+instrumento en producción. Salida natural 0, sin cleanup forzado. Esta prueba
+acredita entregar el aviso, no eficacia del evaluador/hijos ni cierre bajo carga.
+
+Evidencia pública: [guard-delivery-evidence.json](guard-delivery-evidence.json)
+y [guard-warning-native-evidence.json](guard-warning-native-evidence.json).
+El gotcha Unicode GOT-018 y su fila del índice nacieron localmente como
+propuesta. Dos auditorías independientes finales validaron los cuatro campos,
+fuentes, RED/GREEN, casos finales y correspondencia del índice, sin hallazgos;
+se acepta sólo esta entrada propia con la traza de revisión del intento 2.
+`docs/knowledge/` sigue fuera de Git por la política del repositorio.
+No se promociona memoria anterior ni se publica a un backend.
+
+Auditorías documentales A/B finales: cero discrepancias. Verificados los cuatro
+JUnit/gates, manifests, ocho excepciones LF, 146 muestras V8, denominador y
+hashes públicos/privados de la prueba nativa y comparación de arranque. No
+ejecutaron suites ni leyeron payloads/protocolos crudos, settings o memoria ajena.
+Scan final: 878 archivos públicos, cero referencias/nombres prohibidos; fuentes
+de launcher/test siguen idénticas al snapshot. Scope final: trece archivos
+propios, cero fuera/cero avisos, settings excluidos antes de leer. Diff limpio.
+
+Publicación: los dos JSON públicos se escriben con LF para que sus hashes
+coincidan con los blobs Git. La proyección nativa privada conserva CRLF y
+hash propio; su copia pública sólo normaliza finales de línea, con datos JSON
+idénticos. La evidencia separa ambos hashes y no afirma igualdad de bytes.

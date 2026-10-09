@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — Guard decision delivery
+
+- Validate bounded structured guard results before native delivery. Make missing or invalid evaluations visible in Claude, Codex and OpenCode while retaining normal permissions; preserve complete denials across later evaluator or cleanup failures. Keep runtime budgets unchanged and the startup-under-load diagnosis open.
+
 ### Fixed — Approved memory retrieval
 
 - Include valid approved Markdown in local search, complete-entry views, declared relations and backend fallback. Preserve namespaced IDs, knowledge versions and evidence across the cache and plain reader; share local taxonomy and approved parsing without loading network services. Diagnose invalid corpora, ambiguous IDs and paths outside declared folders.

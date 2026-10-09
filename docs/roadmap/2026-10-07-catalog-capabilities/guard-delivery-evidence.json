@@ -1,0 +1,551 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-10-09",
+  "scope": "bounded guard decision delivery; startup-under-load diagnosis remains open",
+  "production_launcher_sha256": "0b6b2f8a16721ef742e2c4bf3d6bb4bef9e4868e1e38f9f8b420c98b85bd0077",
+  "test_sha256": "3454698bc9a0ea5051327362af94f80e775cc1f0e2f6ea6d454c28d8baffd49c",
+  "windows_source_files": 876,
+  "windows_source_manifest_sha256": "614ea558238b5131fe1f0f055b4786ccad124e9822d58363fcf3f8e780b614bf",
+  "linux_source_manifest_sha256": "99a1aba460851072a900ae3c953ec0c37e00cd5001551bb50b2d98a51576b205",
+  "linux_checkout_representation": {
+    "changed_shell_eol": [
+      "hooks/implementer-guardrail.sh",
+      "hooks/ledger-lint-warn.sh",
+      "hooks/progress-line.sh",
+      "hooks/session-context.sh",
+      "hooks/session-journal.sh",
+      "hooks/subagent-progress.sh",
+      "hooks/user-prompt-capture.sh",
+      "statusline/roadmap-statusline.sh"
+    ],
+    "proof": "All normalized shell bytes equal Git f3e594a blobs; existing .gitattributes requires eol=lf. All other bytes equal Windows frozen snapshot. No production logic changes."
+  },
+  "linux_image_id": "sha256:ee6b1d8543257a61226665c0c2168c3b565885c8af50b846f2d46b19aa0630ac",
+  "network_scope": "Linux network none; native provider owned loopback without authorization",
+  "source_excludes": "Consumer settings and real docs/knowledge excluded before reading/copying; all tests use owned fixtures",
+  "qa": [
+    {
+      "platform": "Windows",
+      "report": "node.xml",
+      "report_sha256": "569531758e983e5cea92f474e4790b19c7cbc7eb2f19fd4f23d32e16e1998b1b",
+      "counts": {
+        "passed": 115,
+        "failed": 0,
+        "error": 0,
+        "skipped": 0
+      },
+      "parameterized_cases": 115,
+      "skips": [],
+      "qa_gate": {
+        "verdict": "VERDE",
+        "counts": {
+          "passed": 115,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 0,
+          "interrupted": 0
+        },
+        "flaky_sin_justificar": [],
+        "flaky_justificados": {},
+        "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+      }
+    },
+    {
+      "platform": "Windows",
+      "report": "python.xml",
+      "report_sha256": "2c4f1ec152b4d48c97e7f13d6bf4ab970c5d7c2580079f16745cb58bb9893a28",
+      "counts": {
+        "passed": 276,
+        "failed": 0,
+        "error": 0,
+        "skipped": 0
+      },
+      "parameterized_cases": 276,
+      "skips": [],
+      "qa_gate": {
+        "verdict": "VERDE",
+        "counts": {
+          "passed": 276,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 0,
+          "interrupted": 0
+        },
+        "flaky_sin_justificar": [],
+        "flaky_justificados": {},
+        "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+      }
+    },
+    {
+      "platform": "Linux",
+      "report": "node.xml",
+      "report_sha256": "ca25a4a6dd96db9aa0d7dd6ee53d627665c24fdb3c3a65e633561eebac46e3ed",
+      "counts": {
+        "passed": 103,
+        "failed": 0,
+        "error": 0,
+        "skipped": 12
+      },
+      "parameterized_cases": 115,
+      "skips": [
+        {
+          "name": "claude: failed containment visibly degrades",
+          "classname": "test",
+          "status": "skipped",
+          "skip_reason": "true"
+        },
+        {
+          "name": "claude: unconfirmed supervisor cannot supply a denial",
+          "classname": "test",
+          "status": "skipped",
+          "skip_reason": "true"
+        },
+        {
+          "name": "claude: denial is retained when cleanup confirmation expires",
+          "classname": "test",
+          "status": "skipped",
+          "skip_reason": "true"
+        },
+        {
+          "name": "codex: failed containment visibly degrades",
+          "classname": "test",
+          "status": "skipped",
+          "skip_reason": "true"
+        },
+        {
+          "name": "codex: unconfirmed supervisor cannot supply a denial",
+          "classname": "test",
+          "status": "skipped",
+          "skip_reason": "true"
+        },
+        {
+          "name": "codex: denial is retained when cleanup confirmation expires",
+          "classname": "test",
+          "status": "skipped",
+          "skip_reason": "true"
+        },
+        {
+          "name": "opencode: failed containment visibly degrades",
+          "classname": "test",
+          "status": "skipped",
+          "skip_reason": "true"
+        },
+        {
+          "name": "opencode: unconfirmed supervisor cannot supply a denial",
+          "classname": "test",
+          "status": "skipped",
+          "skip_reason": "true"
+        },
+        {
+          "name": "opencode: denial is retained when cleanup confirmation expires",
+          "classname": "test",
+          "status": "skipped",
+          "skip_reason": "true"
+        },
+        {
+          "name": "forced termination of the Windows launcher closes its descendant job",
+          "classname": "test",
+          "status": "skipped",
+          "skip_reason": "true"
+        },
+        {
+          "name": "unavailable Windows supervision skips business code without exposing its payload",
+          "classname": "test",
+          "status": "skipped",
+          "skip_reason": "true"
+        },
+        {
+          "name": "malformed Windows job confirmation is rejected before forwarding diagnostics",
+          "classname": "test",
+          "status": "skipped",
+          "skip_reason": "true"
+        }
+      ],
+      "qa_gate": {
+        "verdict": "VERDE",
+        "counts": {
+          "passed": 103,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 12,
+          "interrupted": 0
+        },
+        "flaky_sin_justificar": [],
+        "flaky_justificados": {},
+        "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+      }
+    },
+    {
+      "platform": "Linux",
+      "report": "python.xml",
+      "report_sha256": "638a25c91ca087efdd201ae2f972c3270475b5b9ed63f98ad093aa026b895eae",
+      "counts": {
+        "passed": 276,
+        "failed": 0,
+        "error": 0,
+        "skipped": 0
+      },
+      "parameterized_cases": 276,
+      "skips": [],
+      "qa_gate": {
+        "verdict": "VERDE",
+        "counts": {
+          "passed": 276,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 0,
+          "interrupted": 0
+        },
+        "flaky_sin_justificar": [],
+        "flaky_justificados": {},
+        "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+      }
+    }
+  ],
+  "coverage": {
+    "method": "Native V8 block counts projected to first non-whitespace UTF-16 offset of added significant lines; comments and delimiter-only lines excluded. Smallest covering range wins; any owned byte-identical launcher sample may cover a line. This is a line-range projection, not Istanbul statement or branch coverage.",
+    "launcher_sha256": "0b6b2f8a16721ef742e2c4bf3d6bb4bef9e4868e1e38f9f8b420c98b85bd0077",
+    "considered_lines": [
+      17,
+      18,
+      19,
+      20,
+      21,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      82,
+      89,
+      130,
+      172,
+      173,
+      174,
+      175,
+      176,
+      177,
+      178,
+      180,
+      188,
+      197,
+      198,
+      201,
+      202,
+      206,
+      207,
+      211,
+      212,
+      215,
+      232,
+      233,
+      234,
+      235
+    ],
+    "covered_lines": [
+      17,
+      18,
+      19,
+      20,
+      21,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      82,
+      89,
+      130,
+      172,
+      173,
+      174,
+      175,
+      176,
+      177,
+      178,
+      180,
+      188,
+      197,
+      198,
+      201,
+      206,
+      207,
+      211,
+      212,
+      215,
+      232
+    ],
+    "uncovered_lines": [
+      202,
+      233,
+      234,
+      235
+    ],
+    "covered": 51,
+    "total": 55,
+    "percent": 92.73,
+    "sample_count": 146
+  },
+  "coverage_report_sha256": "bcc8b20af4b0ab8f527a66414b7644e2afcf39eeec9ed76b793254e0af09f7b0",
+  "coverage_limit": "V8 line-range projection; does not establish Istanbul statement/branch coverage or a per-platform global percentage",
+  "native_warning_evidence": "guard-warning-native-evidence.json",
+  "native_warning_evidence_sha256": "e7822f748e9a0fcd534d580b580eb4ab94b70925e9f03f513208d3c0ba6387cf",
+  "native_warning_private_projection_sha256": "41816ed3b9d15e668f1f76da7d7f8a8a965258473c273a9398313a9338ed5545",
+  "public_projection_representation": "JSON artifacts are canonical LF to match Git blob bytes; private native projection has CRLF. Native JSON data is unchanged; public and private byte hashes are distinct.",
+  "startup_comparison": {
+    "analysis_sha256": "044d1cbb2810336a5d79593715903a8c263a75ae7d7359f589be1050406ea37e",
+    "bounded_pairs": 4,
+    "results": [
+      {
+        "pair": 1,
+        "variant": "venv",
+        "mode": "direct",
+        "duration_ms": 116.7763,
+        "returncode": 0,
+        "caller_to_first_script_entry_ms": 81.0828,
+        "script_import_ms": 26.9904
+      },
+      {
+        "pair": 1,
+        "variant": "base",
+        "mode": "direct",
+        "duration_ms": 83.1093,
+        "returncode": 0,
+        "caller_to_first_script_entry_ms": 36.1214,
+        "script_import_ms": 39.9629
+      },
+      {
+        "pair": 2,
+        "variant": "base",
+        "mode": "direct",
+        "duration_ms": 66.1976,
+        "returncode": 0,
+        "caller_to_first_script_entry_ms": 28.229,
+        "script_import_ms": 31.0191
+      },
+      {
+        "pair": 2,
+        "variant": "venv",
+        "mode": "direct",
+        "duration_ms": 102.7649,
+        "returncode": 0,
+        "caller_to_first_script_entry_ms": 66.0601,
+        "script_import_ms": 28.0647
+      },
+      {
+        "pair": 3,
+        "variant": "venv",
+        "mode": "launcher",
+        "duration_ms": 854.204,
+        "returncode": 0,
+        "decision": "deny",
+        "node": {
+          "node-ready_to_spawn-request_ms": 2.1625,
+          "spawn-request_to_spawn-event_ms": 46.6361,
+          "spawn-event_to_job-header_ms": 150.8775,
+          "job-header_to_business-stdout_ms": 36.7873,
+          "cleanup-request_to_cleanup-close_ms": 166.7557,
+          "node-ready_to_business-close_ms": 268.7322
+        },
+        "supervisor": [
+          {
+            "operation": "run",
+            "owner_validation": "process-ancestry-snapshot",
+            "supervisor-script-entry_to_supervisor-module-ready_ms": 27.2364,
+            "snapshot-entry_to_snapshot-complete_ms": 10.2554,
+            "attach-entry_to_attach-complete_ms": 32.1843
+          },
+          {
+            "operation": "close",
+            "owner_validation": "process-ancestry-snapshot",
+            "supervisor-script-entry_to_supervisor-module-ready_ms": 30.0194,
+            "snapshot-entry_to_snapshot-complete_ms": 10.1232,
+            "close-job-entry_to_close-job-complete_ms": 23.5781
+          }
+        ]
+      },
+      {
+        "pair": 3,
+        "variant": "base",
+        "mode": "launcher",
+        "duration_ms": 740.7613,
+        "returncode": 0,
+        "decision": "deny",
+        "node": {
+          "node-ready_to_spawn-request_ms": 2.4894,
+          "spawn-request_to_spawn-event_ms": 30.9225,
+          "spawn-event_to_job-header_ms": 94.4777,
+          "job-header_to_business-stdout_ms": 39.9298,
+          "cleanup-request_to_cleanup-close_ms": 130.8063,
+          "node-ready_to_business-close_ms": 193.0753
+        },
+        "supervisor": [
+          {
+            "operation": "close",
+            "owner_validation": "direct",
+            "supervisor-script-entry_to_supervisor-module-ready_ms": 35.87,
+            "close-job-entry_to_close-job-complete_ms": 16.1609
+          },
+          {
+            "operation": "run",
+            "owner_validation": "direct",
+            "supervisor-script-entry_to_supervisor-module-ready_ms": 27.4334,
+            "attach-entry_to_attach-complete_ms": 17.0542
+          }
+        ]
+      },
+      {
+        "pair": 4,
+        "variant": "base",
+        "mode": "launcher",
+        "duration_ms": 708.8626,
+        "returncode": 0,
+        "decision": "deny",
+        "node": {
+          "node-ready_to_spawn-request_ms": 2.0679,
+          "spawn-request_to_spawn-event_ms": 28.8353,
+          "spawn-event_to_job-header_ms": 95.4124,
+          "job-header_to_business-stdout_ms": 33.638,
+          "cleanup-request_to_cleanup-close_ms": 129.0469,
+          "node-ready_to_business-close_ms": 184.474
+        },
+        "supervisor": [
+          {
+            "operation": "run",
+            "owner_validation": "direct",
+            "supervisor-script-entry_to_supervisor-module-ready_ms": 31.3449,
+            "attach-entry_to_attach-complete_ms": 12.9756
+          },
+          {
+            "operation": "close",
+            "owner_validation": "direct",
+            "supervisor-script-entry_to_supervisor-module-ready_ms": 33.9806,
+            "close-job-entry_to_close-job-complete_ms": 13.4281
+          }
+        ]
+      },
+      {
+        "pair": 4,
+        "variant": "venv",
+        "mode": "launcher",
+        "duration_ms": 819.6225,
+        "returncode": 0,
+        "decision": "deny",
+        "node": {
+          "node-ready_to_spawn-request_ms": 2.1051,
+          "spawn-request_to_spawn-event_ms": 41.9097,
+          "spawn-event_to_job-header_ms": 137.6111,
+          "job-header_to_business-stdout_ms": 38.2112,
+          "cleanup-request_to_cleanup-close_ms": 180.5954,
+          "node-ready_to_business-close_ms": 255.0296
+        },
+        "supervisor": [
+          {
+            "operation": "close",
+            "owner_validation": "process-ancestry-snapshot",
+            "supervisor-script-entry_to_supervisor-module-ready_ms": 33.6921,
+            "snapshot-entry_to_snapshot-complete_ms": 10.173,
+            "close-job-entry_to_close-job-complete_ms": 26.2278
+          },
+          {
+            "operation": "run",
+            "owner_validation": "process-ancestry-snapshot",
+            "supervisor-script-entry_to_supervisor-module-ready_ms": 30.924,
+            "snapshot-entry_to_snapshot-complete_ms": 10.996,
+            "attach-entry_to_attach-complete_ms": 26.1421
+          }
+        ]
+      }
+    ],
+    "limits": [
+      "No native Codex dispatch and no forced system/CPU load.",
+      "Two direct and two launcher pairs are descriptive samples, not a population estimate.",
+      "Fixture instrumentation changes launcher and supervisor bytes; manifest records exact original and fixture hashes.",
+      "Direct caller and child monotonic clocks use the same Python implementation; Node stage deltas are calculated within its own clock only.",
+      "The historical 4500ms startup failure was not reproduced; this comparison cannot establish its cause.",
+      "Interpreter choice, PATH or timeout changes are not justified by this evidence."
+    ]
+  },
+  "review": {
+    "attempt_1": "A approved; B Important Unicode length mismatch; RED 3 failed before fix",
+    "attempt_2": "Fresh A+B approved; independent Unicode tests 6 passed; C/D not selected",
+    "global_tasks_closed": false
+  },
+  "preserved_rejected_harness_runs": [
+    {
+      "cohort": "linux-01",
+      "issue": "Inherited Python entrypoint treated sleep as a script; no tests executed"
+    },
+    {
+      "cohort": "linux-02",
+      "node_counts": {
+        "passed": 92,
+        "failed": 11,
+        "skipped": 12
+      },
+      "issue": "Raw Windows shell checkout line endings and non-reaping PID1"
+    },
+    {
+      "cohort": "linux-03",
+      "node_counts": {
+        "passed": 102,
+        "failed": 1,
+        "skipped": 12
+      },
+      "issue": "Process existence oracle timed out at opencode-plugin.test.mjs:271 without init; final container uses init"
+    },
+    {
+      "cohort": "linux-04",
+      "node_exit": 0,
+      "python_exit": 0,
+      "issue": "Tests passed; copying fixture symlinks to Windows failed; not accepted as final artifact cohort"
+    }
+  ],
+  "limits": [
+    "No proof of guard evaluator reliability under native child load",
+    "No universal SessionEnd latency guarantee",
+    "No changes to runtime budgets or interpreter selection",
+    "New skill integration remains paused",
+    "No native trust persistence proof from the owned bypass fixture"
+  ]
+}

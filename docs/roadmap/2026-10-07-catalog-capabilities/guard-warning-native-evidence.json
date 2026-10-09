@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "scope": "native-warning-delivery-only",
+  "cohort_id": "root-1791524248133525800",
+  "runtime": "Codex 0.161.0",
+  "native_sha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
+  "provider_scope": "owned-loopback-stub",
+  "provider_requests_by_role": {
+    "root": 2
+  },
+  "provider_authorization_present": false,
+  "natural_process_exit": 0,
+  "forced_cleanup": false,
+  "trust_bypass_is_consumer_trust_proof": false,
+  "fixture_hook_trust_bypass": true,
+  "consumer_state_mutated": false,
+  "source_frozen_snapshot": "guard-delivery-09/final-01",
+  "source_manifest_file_count": 328,
+  "all_distribution_and_cache_bytes_match_manifest": true,
+  "all_unmodified_bytes_match_frozen_source": true,
+  "fixture_business_replacements": [
+    {
+      "source": "agent-kits/shared/native-guardrail.py",
+      "sha256": "d8ab9be5a6075aa9e54be820cb3bd0654367ea5ac4b46446634dab1993edd7a7",
+      "bytes": 280,
+      "unmodified_source_sha256": "17fcd2ba07097e84287fbb3ffb8d53677dadf5285681e213dd50d35ae2d869e0",
+      "private_fixture_business_replacement": true,
+      "fixture_business_delay_seconds": 8
+    }
+  ],
+  "production_instrumentation": false,
+  "all_distributed_hook_events": [
+    "SessionStart",
+    "UserPromptSubmit",
+    "SubagentStop",
+    "SessionEnd",
+    "PreToolUse",
+    "PostToolUse"
+  ],
+  "owned_observer_hook_events": [
+    "SessionEnd",
+    "PreToolUse",
+    "SubagentStart",
+    "SubagentStop"
+  ],
+  "guard_business_delay_seconds": 8,
+  "guard_launcher_business_budget_ms": 4500,
+  "guard_business_started_in_supervised_interpreter": true,
+  "guard_business_process_terminated_after_completion": true,
+  "native_pretool_results": [
+    {
+      "eventName": "preToolUse",
+      "source": "user",
+      "status": "completed",
+      "durationMs": 1080,
+      "entries": []
+    },
+    {
+      "eventName": "preToolUse",
+      "source": "plugin",
+      "status": "completed",
+      "durationMs": 5719,
+      "entries": [
+        {
+          "kind": "warning",
+          "text": "custom-agents: role guard unavailable; normal permissions continue"
+        }
+      ]
+    }
+  ],
+  "normal_permissions_tool_result": {
+    "role": "root",
+    "path": "docs/roadmap/main/spec.md",
+    "expected_exists": true,
+    "exists": true
+  },
+  "observed_warning_matches_launcher_system_message": true,
+  "native_guard_deny_invented": false,
+  "claims_not_supported": [
+    "guard-evaluator-reliability-under-load",
+    "child-role-enforcement-under-load",
+    "consumer-native-trust-persistence",
+    "session-end-reliability-under-load"
+  ],
+  "private_artifacts": {
+    "probe-source.py": {
+      "sha256": "ade216b58f53975697e77ab0a8542b09f07c815940b76711ba2d0eb62baaa21e",
+      "bytes": 18672
+    },
+    "source-provenance.json": {
+      "sha256": "37ec2b69ae34d694bb1780808e8afac9f34407fecb0b7a56c2c1d97381740683",
+      "bytes": 58755
+    },
+    "installation.json": {
+      "sha256": "44c4a8b8e86d433727fb6a0dd868907725a528e911b55be88623f2238fa21fc1",
+      "bytes": 1379
+    },
+    "summary.json": {
+      "sha256": "d04e6216d31e0a26bee320c2a32393b03526f6173a5cae28f44a53b63178bd3c",
+      "bytes": 3011
+    },
+    "protocol.json": {
+      "sha256": "c21a71302dd1c64bed5f31ca96abfd463e95010b3029a7202915ed3399c14390",
+      "bytes": 77830
+    },
+    "requests.json": {
+      "sha256": "2356316b9cb121689405431ab81e5ee02a08a4b55876c39f37e8cc72f46e2517",
+      "bytes": 141145
+    },
+    "guard-started.json": {
+      "sha256": "03f810ed1c59760209de36a12114a39e2070b4893d3f744c3acd505998cb8951",
+      "bytes": 49
+    },
+    "stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  },
+  "evidence_builder_sha256": "b2ca2d41cfe3b827d1e0b80725f58193bbefc1cf2212d2bc1788e4c448946480"
+}
