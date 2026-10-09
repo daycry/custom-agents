@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-10-09",
+  "scope": "Two diagnostic cohorts over e7160f4; not acceptance of the subsequent production changes.",
+  "cohort_cap": 2,
+  "comparison_sha256": "81a2052d2b5070c019d681a8bb21dc974f9258bed53df0c26d717140d286d953",
+  "unmodified_frozen_manifest_sha256": "053cba46dafb7a69e7b52e0d688e0465bea764379454100268935aa2ff40e51f",
+  "executed_instrumented_source_identical": true,
+  "controlled_change": "Only timing and observer storage moves to owned TEMP. Project, HOME, cache, interpreter, hook registrations and budgets remain unchanged.",
+  "cohorts": [
+    {
+      "run": "children-1791533730943761400",
+      "trace_storage": "OneDrive-workspace",
+      "natural_exit_code": 0,
+      "source_and_cache_files_verified": 328,
+      "source_manifest_sha256": "3783e6c0c3cd7e58b4396b32a4f139e419909d257e0a83581537106445b82839",
+      "all_hooks_registered": [
+        "PostToolUse",
+        "PreToolUse",
+        "SessionEnd",
+        "SessionStart",
+        "SubagentStop",
+        "UserPromptSubmit"
+      ],
+      "instrumented_plugin_code_executed": true,
+      "reference_source_executed": false,
+      "provider_authorization_present": false,
+      "root_guard": {
+        "native_status": "completed",
+        "native_duration_ms": 9221,
+        "warning_present": true,
+        "node_duration_ms": 7625,
+        "cleanup_duration_ms": 3004
+      },
+      "protected_and_allowed_paths_as_expected": true,
+      "child_provider_requests": {
+        "implementer": 3,
+        "architect": 3
+      },
+      "session_end_status": "completed",
+      "session_end_native_duration_ms": 2724,
+      "valid_root_envelope_observed_before_natural_exit": true,
+      "post_hook_count": 9,
+      "post_cleanup_deadline_expirations": 8,
+      "timing_invalid_rows": 0,
+      "accepted_projection_sha256": "dd1aab28e4aa3d0f3648e5465f4ee49847ae729260372c54d7022a3ff140573f"
+    },
+    {
+      "run": "children-1791534008169771900",
+      "trace_storage": "own-TEMP",
+      "natural_exit_code": 0,
+      "source_and_cache_files_verified": 328,
+      "source_manifest_sha256": "3783e6c0c3cd7e58b4396b32a4f139e419909d257e0a83581537106445b82839",
+      "all_hooks_registered": [
+        "PostToolUse",
+        "PreToolUse",
+        "SessionEnd",
+        "SessionStart",
+        "SubagentStop",
+        "UserPromptSubmit"
+      ],
+      "instrumented_plugin_code_executed": true,
+      "reference_source_executed": false,
+      "provider_authorization_present": false,
+      "root_guard": {
+        "native_status": "completed",
+        "native_duration_ms": 2936,
+        "warning_present": false,
+        "node_duration_ms": 989,
+        "cleanup_duration_ms": 338
+      },
+      "protected_and_allowed_paths_as_expected": true,
+      "child_provider_requests": {
+        "implementer": 3,
+        "architect": 3
+      },
+      "session_end_status": "completed",
+      "session_end_native_duration_ms": 2538,
+      "valid_root_envelope_observed_before_natural_exit": true,
+      "post_hook_count": 9,
+      "post_cleanup_deadline_expirations": 4,
+      "timing_invalid_rows": 0,
+      "accepted_projection_sha256": "9727fc6899aa7e49f37043506c2eb1c3598bbd767e1aff51630440574c30f41b"
+    }
+  ],
+  "limits": [
+    "Both own repositories are unborn HEAD: rev-parse --abbrev-ref HEAD fails128 although symbolic-ref returns feature/native-guard; allowed implementer branch-unavailable cannot be attributed to native load.",
+    "One sequential observation per storage arm; machine scheduling, Node/native process startup, source/home/cache synced I/O and process shutdown are not isolated. Timing writes may block after timestamp capture; storage control is diagnostic, not proof of sole cause.",
+    "A trace timestamp precedes completion of its synchronous write. SystemExit handling is not process exit.",
+    "Codex native duration includes shell creation; its command timeout starts after process creation.",
+    "Residual cleanup confirmation timeouts remain in the TEMP control. No timeout or interpreter change is justified by this contrast."
+  ],
+  "rejected_projections": {
+    "analysis.json": "Ambiguous stage names between modules; retained privately.",
+    "analysis-v2.json": "A reused PID was associated outside the owning Node lifecycle; retained privately.",
+    "analysis-v3.json": "Accepted: module and lifecycle associations are bounded."
+  },
+  "cleanup_redirector_probe": {
+    "result_sha256": "7a12090b7f85cac878150a2567978d4ff97c93c1fadf7659ab4b2b562d659497",
+    "launcher_unchanged": true,
+    "delay_seconds": 5,
+    "cleanup_budget_ms": 500,
+    "natural_node_exit_code": 0,
+    "cleanup_alive_at_node_exit": false,
+    "identity_birth_image_verified": true,
+    "denial_preserved": true,
+    "limit": "One isolated owned observation did not reproduce an orphan; it is not a universal process-cleanup proof."
+  }
+}

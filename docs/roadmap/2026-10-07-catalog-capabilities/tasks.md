@@ -2007,3 +2007,205 @@ Pendiente de la iniciativa: fiabilidad del arranque de guardia y cierre bajo
 carga nativa, retoma de comandos, controles de panel y medición de memoria
 opcional. Las nuevas skills permanecen aplazadas. El bloque de entrega de
 decisiones queda validado; la iniciativa y T-02/T-09/T-14/T-15 siguen abiertas.
+
+## Bloque 10 — Aislamiento causal de latencia de hooks (2026-10-09)
+
+El usuario autoriza el punto 1: hooks bajo carga. Base `e7160f4`, alcance inicial
+de investigación: fixtures privadas y este diseño/ledger. Nuevas skills y otras
+fases aplazadas. No se tocan settings del consumidor, instalaciones reales,
+credenciales ni memoria anterior. Durante el diagnóstico inicial, producción
+conserva sus bytes y presupuestos; las correcciones posteriores se detallan abajo.
+
+Dos comprobaciones independientes en paralelo: réplica nativa Codex completa y
+auditoría de fuentes del launcher/supervisor/captura y contrato nativo pinned.
+Las trazas se separan por proceso y módulo para eliminar corrupción por escrituras
+concurrentes; el coste de escribir la propia traza permanece como hipótesis.
+Límite de contraste inicial: dos cohortes, con los datos de la primera antes
+de elegir la segunda. Los resultados y los errores del reducer se conservan;
+una proyección corregida recibe versión nueva, sin sustituir la original.
+
+La aceptación exige efecto de guardia por rol, control permitido y envelope
+correcto antes de salida natural. `completed` no basta para acreditar captura;
+la duración nativa y su timeout tienen instantes iniciales diferentes.
+No se cierra T-02/T-09/T-14/T-15 ni la iniciativa por este diagnóstico.
+
+**RED: antes de modificar el lector de rama**, `pytest` sobre
+`test_guardrail_check.py` y `test_native_guardrail.py` con `-k unborn`:
+8 failed, 254 deselected, 7,57 s, 2026-10-09. En main y feature sin commits,
+`current_branch` devolvió None y los tres evaluadores entregaron
+`branch-unavailable`. Esto omite protección de main aunque el HEAD simbólico
+sea válido. Scope añadido: `agent-kits/shared/guardrail-check.py` y los dos
+tests citados; consulta alternativa dentro del mismo presupuesto, sin cambiar
+timeouts ni selección de Python.
+
+GREEN de desarrollo del detector: 12 passed, 253 deselected, 8,58 s. Incluye
+los ocho casos RED, timeout original, presupuesto restante/exhausto, HEAD
+detached y ausencia de repositorio. No constituye todavía QA del bundle.
+
+**RED antes del preflight:** `node --test tests/hook-post-preflight.test.mjs`
+exit 1, 2026-10-09. Los casos de edición no aplicable fallaron al exigir stderr
+vacío: el launcher intentó arrancar Python ausente y emitió `ENOENT`, por ejemplo
+al editar `src/app.py` para `mark-docs-pending.sh`. Los controles aplicables y de
+entrada desconocida conservaron el intento de ejecución. Scope añadido:
+`hooks/run-hook.mjs`, `tests/hook-post-preflight.test.mjs`, documentación de
+hooks ES/EN y changelogs; la forma exportada de registros no cambia.
+
+Primer GREEN de desarrollo preflight: 42 passed, cero fallos, 38,35 s.
+RED adicional de ruta multilínea: tres fallos reales en Claude/Codex/OpenCode,
+`tasks.md\nsrc/app.py` se saltó como no aplicable pese a que el shell descompone
+líneas. Esas rutas pasan a entrada desconocida y mantienen el camino anterior.
+
+GREEN de ruta multilínea: tres passed, cero fallos, 2,47 s. Puerta previa a
+revisión: scope-check base e7160f4 exit 0, once archivos propios en alcance,
+cero fuera/cero avisos; settings ajenos excluidos por defecto antes de leer.
+Selector con once `--files` propios explícitos: C/D false, cero avisos. Export
+--check exit 0, 56 archivos al día. Registros generados sin delta: los scripts
+compartidos se distribuyen directamente. T-09 declara `interop/**`.
+
+## Revisión de dos lentes — intento 1: bloque 10
+
+A+B en paralelo, contexto fresco, subagentes genéricos por disponibilidad del
+runtime; reviewer frontmatter opus/high, sin override. A aprobó los ocho criterios
+de conformidad y ejecutó export --check exit 0/56 archivos. C/D no activadas por
+selector explícito. B encontró un Important reproducible, ningún otro defecto.
+QA/cobertura/aceptación nativa del nuevo diff siguen pendientes.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B-1 | Important | Regex JS omite ledger/progreso en carpeta con U+2028/U+2029 que acepta el glob shell | T-09 | Corregido por comparación literal; pendiente segunda revisión | Reproducción B y RED seis failed/cero passed; mismos seis GREEN en los tres runtimes |
+
+Jira gaps intento 1: exit 0, desactivado, `ops: []`. RED dedicado B-1:
+`node --test --test-name-pattern='[\u2028\u2029]' tests/hook-post-preflight.test.mjs`
+seis failed/cero passed, antes de cambiar producción. Una selección previa con
+`.*` seleccionó otros nueve casos ASCII/multilínea verdes, sin seleccionar los
+Unicode: no se usa como evidencia del gap. La fixture del test ahora deja PATH
+propio sin Bash además de Python ausente para que el oráculo de intento de
+dependencias sea portable a Linux, sin ejecutar negocio ni modificar su contrato.
+
+GREEN B-1: seis passed/cero fallos, 3,53 s. Se conservan presupuestos, separación
+de handlers y fuente shell de negocio. La segunda revisión fresca está en curso.
+
+## Revisión de dos lentes — intento 2: bloque 10
+
+A+B frescas conservaron los ocho criterios aprobados y verificaron B-1 corregido;
+cero Critical/Important/Minor. A ejecutó export --check exit 0/56 al día y
+selección Unicode exacta seis passed/cero fallos. Una selección inicial propia
+de A ejecutó el archivo completo (51/0); no se presenta como selección Unicode
+ni QA. B ejecutó 51/51 y nueve controles adicionales Unicode no aplicable/CR
+desconocido en los tres runtimes, todos verdes. Sin reapertura de lo aprobado.
+Se permite pasar a QA del snapshot y aceptación nativa; ninguna tarea global
+se cierra en este pase. Jira por intento 2 se verifica antes de QA.
+
+Jira revisión intento 2: exit 0, desactivado, `ops: []`. Snapshot inicial QA:
+879 archivos, manifest `c5991285c0ca83e4e7d22f0fda45d77e06c0efb89edc0d50899614e741917d8d`.
+Node Windows terminó exit 0 en 261.407 ms. Python conservó 286 passed/1 failed:
+el test nuevo de ausencia de repo encontró el Git del workspace padre al usar
+basetemp dentro de él. Es un defecto de aislamiento de fixture, no una regresión
+del lector. La prueba acota descubrimiento con GIT_CEILING_DIRECTORIES propio;
+la primera cohorte se conserva. Producción y tests Node no cambian. Se repite
+Python y se valida Linux con esa fixture, sin repetir Node Windows ya verde.
+
+### Resultado del diagnóstico y límites
+
+La [proyección del diagnóstico](hook-load-diagnosis-evidence.json) conserva las
+dos cohortes instrumentadas y sus límites. Al mover únicamente las escrituras
+de trazas/observador a TEMP propio, la guardia raíz pasó de 9.221 ms con aviso a
+2.936 ms sin aviso. El evaluador había entregado stdout completo a los 381 ms
+en la primera cohorte; ese instante no acredita la salida del proceso. Los
+PostToolUse que alcanzaron el deadline de limpieza bajaron de 8/9 a 4/9.
+Persisten latencias y confusores: una observación por variante no demuestra
+una causa única ni un arreglo universal. El probe aislado de limpieza no
+reprodujo la hipótesis de proceso huérfano. No se aumenta ningún timeout ni
+se cambia el intérprete por estas mediciones. SessionEnd dejó envelope raíz
+válido antes de salida natural en ambas cohortes instrumentadas.
+
+SHA-256 de la proyección del diagnóstico:
+`0fb7cb439efb1aaefbc33e70a3c003672c09f6095ddc8fdc9193adeec48ae491`.
+Las proyecciones privadas anteriores con colisión de etiquetas/asociación de
+PID quedan conservadas y rechazadas; la aceptada delimita cada ciclo de proceso.
+
+### QA del diff final
+
+La [evidencia de QA](hook-reliability-qa-evidence.json) identifica el snapshot
+final de 879 archivos, manifest
+`d928d1af878e029832ec2595f9634a2972c3b2a03c8ad4c0e488564c7d5f7490`.
+Windows: Node 166 passed/cero fallos/cero skips; Python 287 passed/cero fallos.
+Linux: Node 154 passed/cero fallos/12 skips exclusivos de Windows; Python
+287 passed/cero fallos. Cuatro JUnit reales dan qa-gate GREEN. Los casos no
+se suman entre plataformas. Node Windows se reutiliza sólo tras comprobar
+identidad de todos los bytes de producción y tests Node; el único delta del
+segundo snapshot es la fixture Python y este ledger. Linux usa los ocho shell
+con LF canónico de Git, sin otras diferencias respecto al snapshot Windows.
+
+Cobertura de líneas añadidas: V8 37/37 (100 %, unión de 197 muestras), una
+proyección de rangos nativos que no representa statements/branches de Istanbul;
+Coverage.py 7/7 statements ejecutables añadidos (100 %). Ambos gates de diff
+superan 90 %. Lint/evals/export/ledger exit 0; 51 piezas/182 casos de activación,
+56 archivos interop al día. El snapshot congelado añade un aviso de modo JSON
+por su Git vacío/NTFS a los tres nombres genéricos previos; no se cambia chmod.
+
+SHA-256 de la proyección de QA:
+`a2c03816127d74dd1871829f6af1884cabf1fbc14b9c1bb505b3c49c6b5a31f5`.
+
+### Aceptación nativa del bundle sin instrumentar
+
+La [evidencia nativa](hook-native-acceptance-evidence.json) usa ese snapshot,
+binarios Windows pinned y proveedor sintético loopback sin Authorization.
+Ocho ejecuciones seriales finalizaron exit 0, sin limpieza forzada, cambios
+de fuentes ni hooks observadores adicionales. Las versiones son Codex 0.161.0,
+Claude 2.1.287 y OpenCode 2.0.12; hashes de binarios/helpers/resultados en JSON.
+
+- Codex: una raíz con implementer y architect reales, cuerpos TOML completos
+  reconocidos e identidades nativas distintas. Cinco decisiones de guardia
+  coinciden con el efecto esperado (dos bloqueos, tres permitidas). SessionEnd
+  nativo al archivar deja envelope schema 1, secuencia entera positiva e ID raíz
+  correcto, observado antes de la salida natural del app-server.
+- Claude: cinco procesos propios separados (raíz y deny/allow de cada rol),
+  cuerpos exportados completos y deny nativo en los dos casos protegidos.
+  Cada caso deja captura raíz válida antes de la salida natural. Esta matriz
+  no demuestra ejecución simultánea de ambos roles.
+- OpenCode: siete casos directos y cuatro raíces con un hijo real cada una;
+  parentID/agente/outcome correctos, cuerpos completos, escrituras protegidas
+  impedidas y controles permitidos. La captura se observa durante execution/idle,
+  con servidor vivo: no equivale a un evento nativo SessionEnd en teardown.
+  Una captura aún tenía nombre temporal al observarse; no se acredita publicación
+  canónica ni replay completado de ese caso.
+
+La ausencia de Authorization del proveedor es una comprobación medida; no se
+afirma captura global de tráfico saliente. Estos casos reproducibles acreditan
+el contrato ejercitado, no un soak test de TUI en producción ni una garantía
+de latencia bajo cualquier carga. T-02/T-09/T-14/T-15 y la iniciativa siguen
+abiertas; las siguientes fases y skills permanecen aplazadas.
+
+### Contraste factual final y estado de entrega
+
+Dos auditorías independientes finales verificaron hashes, JUnit, reutilización
+de Node, EOL Linux, método de cobertura y límites del diagnóstico/nativos;
+cero hallazgos pendientes en el diff. El contraste OpenCode de sólo lectura
+añade cuatro registros nativos de guardia `executed:false`/error con alcance
+correcto. Diez capturas conservan nombre canónico y una, temporal completo;
+el JSON explicita la frontera de publicación/replay. SHA-256 nativo final:
+`3cdab6f57c4af3458ee52a796a94128640ca46996158f715d0af39f590b41e67`.
+La corrección de aislamiento de fixture y la nota GOT-019 propia también
+fueron contrastadas; sólo esa nueva nota/fila local pasa a aceptada, sin
+publicación de memoria ni incorporación a Git.
+
+El lint por defecto del workspace devolvió exit 1 por un escalar YAML con
+`: ` en una nota local anterior GOT-018, ignorada por Git y ajena al diff;
+no se modifica esa memoria. Esto no se presenta como lint local verde.
+El bundle público congelado excluye memoria local/config/fixtures antes de
+leer y conserva lint exit 0. El ledger actualizado da cero incoherencias/cero
+avisos y export --check conserva 56 archivos al día.
+
+Se entrega este diff acotado de hooks con sus evidencias. Quedan abiertas
+la extrapolación de carga/TUI y publicación canónica del caso temporal de
+OpenCode; no se atribuye cierre completo de fiabilidad ni de T-09. Comandos,
+dashboard, memoria opcional y las nuevas skills no avanzan en este bloque.
+
+Puerta final del código público: lint del snapshot con documentación actualizada
+exit 0/cero errores/cuatro avisos descritos, scope-check base e7160f4 exit 0:
+catorce archivos propios en alcance, cero fuera/cero avisos; settings ajenos
+excluidos antes de leer. Escaneo de 882 archivos públicos: cero referencias o
+nombres prohibidos. Producción y tests conservan los hashes del QA final.
+Destino autorizado: commit y push a `feat/catalog-capabilities`, sin integración
+en main ni publicación de versión. La nota local GOT-019 queda fuera de Git.

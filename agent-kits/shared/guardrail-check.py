@@ -55,6 +55,7 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -208,9 +209,17 @@ def check_alcance(rel):
 # ------------------------------------------------------------------- git ----
 def current_branch(project_dir, timeout=5):
     """Nombre de la rama o None si no hay git / no se puede saber."""
+    started = time.monotonic()
     try:
         r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=project_dir or None,
                            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
+        if r.returncode != 0:
+            remaining = timeout - (time.monotonic() - started)
+            if remaining <= 0:
+                return None
+            # HEAD is a valid symbolic branch even before its first commit.
+            r = subprocess.run(["git", "symbolic-ref", "--quiet", "--short", "HEAD"], cwd=project_dir or None,
+                               capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=remaining)
     except (OSError, subprocess.SubprocessError):
         return None
     if r.returncode != 0:

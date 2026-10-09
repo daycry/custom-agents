@@ -47,6 +47,23 @@ def test_native_protected_identity_denies_forbidden_write(runtime, tool, inputs)
 
 
 @pytest.mark.parametrize("runtime", ["claude", "codex", "opencode"])
+@pytest.mark.parametrize("branch", ["main", "feature/first-task"])
+def test_unborn_branch_is_evaluated_without_degradation(runtime, branch, tmp_path):
+    subprocess.run(["git", "init", "-q", "-b", branch], cwd=tmp_path, check=True,
+                   capture_output=True)
+    tool, inputs = {
+        "claude": ("Write", {"file_path": "src/app.py", "content": "x"}),
+        "codex": ("apply_patch", {"command": "*** Begin Patch\n*** Add File: src/app.py\n+x\n*** End Patch"}),
+        "opencode": ("write", {"filePath": "src/app.py", "content": "x"}),
+    }[runtime]
+    result = load_module().evaluate(event(runtime, "implementer", tool, inputs), runtime,
+                                    str(tmp_path), roles=ROLES,
+                                    cfg={"alcance": True, "git": True, "ramaPrincipal": True})
+    assert result["diagnostic"] is None
+    assert result["decision"] == ("deny" if branch == "main" else "continue")
+
+
+@pytest.mark.parametrize("runtime", ["claude", "codex", "opencode"])
 @pytest.mark.parametrize("identity", [None, "implementer", "architect", "consumer-agent", "custom-agents-planner"])
 def test_unprotected_identity_does_not_query_config_or_branch(runtime, identity, monkeypatch, tmp_path):
     module = load_module()

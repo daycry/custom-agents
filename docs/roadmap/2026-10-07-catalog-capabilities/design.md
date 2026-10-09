@@ -385,3 +385,73 @@ selección de Python sin evidencia causal. Tests RED preceden al código; se
 verifican salida parcial, bloqueo completo seguido de timeout, salida excesiva,
 errores de arranque y controles de permiso normal. Revisión independiente y QA
 Windows/Linux antes de commit y push del bloque.
+
+## Bloque 10: aislamiento de latencia y cierre de hooks
+
+Base `e7160f4`. El usuario autoriza continuar con el punto de hooks bajo carga;
+las nuevas skills y las demás fases siguen aplazadas. Se reproduce el flujo
+raíz + implementer + architect con todos los eventos, instalación y HOME propios,
+modelo sintético loopback sin credenciales y presupuestos sin modificar.
+
+Cada proceso/módulo escribe una traza separada. Se conservan los resultados
+nativos, escrituras protegidas/permitidas y el envelope anterior a la salida
+natural. La instrumentación no acredita latencia del bundle sin instrumentos.
+El contraste inicial permite dos cohortes: primero la réplica instrumentada
+en el workspace; después, si sus etapas lo justifican, un control cambiando
+únicamente el destino de las trazas y del observador a un TEMP privado.
+Proyecto, HOME, cache, fuente, intérprete y presupuestos mantienen su política.
+
+Los relojes se distinguen: la duración nativa incluye creación del shell; el
+timeout nativo empieza después de crearlo. La entrada de `SystemExit` en el
+supervisor tampoco acredita la terminación del proceso. Una respuesta completa,
+un estado `completed` y una captura durable son evidencias distintas.
+
+No se incrementan timeouts ni se selecciona Python base sin un contraste causal.
+Una optimización de handlers que no correspondan al archivo editado necesita
+tests RED y preservar el tratamiento de entradas desconocidas. Sólo se presenta
+como solución de la latencia que las pruebas demuestren que resuelve.
+
+### Guardia de rama antes del primer commit
+
+El repositorio sintético tiene HEAD simbólico válido pero todavía sin commit.
+`rev-parse --abbrev-ref HEAD` falla en ese estado: el lector pierde una rama
+existente y omite la protección de main/master. La corrección mantiene la
+consulta actual y, cuando falla sin agotar el presupuesto, consulta el HEAD
+simbólico con el tiempo restante. No cambia el resultado de HEAD detached,
+ni duplica el presupuesto, ni confunde ausencia de Git con una rama permitida.
+Se validan main y feature sin commits en el evaluador compartido de los tres
+runtimes. El detector y sus tests amplían el alcance de este bloque.
+
+### Aplicabilidad de PostToolUse antes de arrancar dependencias
+
+El launcher reconocerá rutas canónicas de Write/Edit/MultiEdit y la normalización
+existente de apply_patch antes de seleccionar Python. Para payloads reconocidos,
+cada handler conserva los mismos patrones y exclusiones de su script shell:
+documentación, ledger y progreso. Si no hay ninguna ruta aplicable, termina sin
+arrancar supervisor/Bash/Python. Payloads incompletos o desconocidos conservan
+la ejecución anterior; no se añade una decisión de guardia en PostToolUse.
+No se agregan los handlers ni se copian sus responsabilidades de negocio.
+La optimización elimina procesos sin trabajo útil; no se presenta como prueba
+de una causa única del timeout histórico.
+
+### Resultado verificado y frontera de esta entrega
+
+El diff resuelve lectura de rama sin commits y evita dependencias en handlers
+PostToolUse reconocidos sin trabajo. La comparación instrumentada cambia sólo
+el destino de las escrituras de trazas/observador: mejora la guardia raíz,
+pero conserva latencia residual y no demuestra una causa única del timeout.
+No justifica cambiar intérprete, presupuestos o política de limpieza.
+
+QA Windows/Linux y aceptación nativa sin instrumentar quedan identificadas en
+[evidencia de QA](hook-reliability-qa-evidence.json),
+[diagnóstico](hook-load-diagnosis-evidence.json) y
+[aceptación nativa](hook-native-acceptance-evidence.json). Codex ejercita raíz y
+dos hijos; Claude, cinco procesos separados; OpenCode, siete casos directos
+y cuatro raíces con un hijo cada una. Son fixtures con dispatch real y modelo
+loopback, sin extrapolación a latencia universal ni soak test de TUI.
+
+Codex y Claude observan captura raíz válida de SessionEnd antes de salida
+natural. OpenCode captura al quedar execution/idle con servidor vivo; una
+captura sigue temporal al observarse. Ese contrato no acredita SessionEnd
+nativo de teardown, publicación canónica ni replay completo de ese caso.
+La iniciativa y tareas globales permanecen abiertas para las fases restantes.

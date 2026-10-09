@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — Guardias de rama y trabajo al arrancar hooks
+
+- Conservar la protección de rama antes del primer commit dentro del presupuesto existente. Omitir procesos de negocio PostToolUse para ediciones reconocidas fuera del alcance de cada handler y conservar el tratamiento de entradas desconocidas; mantener los timeouts de guardia y captura.
+
 ### Fixed — Entrega de decisiones de guardia
 
 - Validar resultados estructurados acotados antes de la entrega nativa. Hacer visibles las evaluaciones ausentes o inválidas en Claude, Codex y OpenCode conservando permisos normales; preservar bloqueos completos ante fallos posteriores del evaluador o de limpieza. Mantener los presupuestos y el diagnóstico de arranque bajo carga abierto.

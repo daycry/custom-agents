@@ -1,0 +1,305 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-10-09",
+  "scope": "Branch lookup before the first commit and recognized PostToolUse applicability; no native runtime acceptance is implied by unit QA.",
+  "source_files": 879,
+  "source_manifest_sha256": "d928d1af878e029832ec2595f9634a2972c3b2a03c8ad4c0e488564c7d5f7490",
+  "launcher_sha256": "7b05e444a5b441f575f5d3ab49ccc16128534c0f3645ebba782254ef9a3a8fc1",
+  "branch_reader_sha256": "eaa42a880177c59df8da2cbff3ea53ca0e684b1eef4d3026bf30adc468b6a173",
+  "preflight_tests_sha256": "8330234a347e915d4e1742ce9485eb84c98f616fa07cf290d67c34b047ac58d3",
+  "windows_node_source_manifest_sha256": "c5991285c0ca83e4e7d22f0fda45d77e06c0efb89edc0d50899614e741917d8d",
+  "source_delta_before_python_rerun": [
+    "agent-kits/shared/test_guardrail_check.py",
+    "docs/roadmap/2026-10-07-catalog-capabilities/tasks.md"
+  ],
+  "windows_node_reused_after_identical_production_and_node_test_bytes": true,
+  "cohorts": [
+    {
+      "platform": "Windows",
+      "runner": "node",
+      "junit_sha256": "6a8a140f47ab0346b777ceef5f85986fc442d31c15ff7f23c0f62c9928de5046",
+      "counts": {
+        "passed": 166,
+        "failed": 0,
+        "error": 0,
+        "skipped": 0
+      },
+      "skips": [],
+      "qa_gate": {
+        "verdict": "VERDE",
+        "counts": {
+          "passed": 166,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 0,
+          "interrupted": 0
+        },
+        "flaky_sin_justificar": [],
+        "flaky_justificados": {},
+        "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+      }
+    },
+    {
+      "platform": "Windows",
+      "runner": "python",
+      "junit_sha256": "6b0bfeefe23bea534fc31730c05c80716625385e6ecbe993076d49122b7bec67",
+      "counts": {
+        "passed": 287,
+        "failed": 0,
+        "error": 0,
+        "skipped": 0
+      },
+      "skips": [],
+      "qa_gate": {
+        "verdict": "VERDE",
+        "counts": {
+          "passed": 287,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 0,
+          "interrupted": 0
+        },
+        "flaky_sin_justificar": [],
+        "flaky_justificados": {},
+        "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+      }
+    },
+    {
+      "platform": "Linux",
+      "runner": "node",
+      "junit_sha256": "14635b826bcd3f305f4d379b0d47fd89205b9ccc8e555587be5300a5df0ec980",
+      "counts": {
+        "passed": 154,
+        "failed": 0,
+        "error": 0,
+        "skipped": 12
+      },
+      "skips": [
+        {
+          "name": "claude: failed containment visibly degrades",
+          "classname": "test",
+          "status": "skipped"
+        },
+        {
+          "name": "claude: unconfirmed supervisor cannot supply a denial",
+          "classname": "test",
+          "status": "skipped"
+        },
+        {
+          "name": "claude: denial is retained when cleanup confirmation expires",
+          "classname": "test",
+          "status": "skipped"
+        },
+        {
+          "name": "codex: failed containment visibly degrades",
+          "classname": "test",
+          "status": "skipped"
+        },
+        {
+          "name": "codex: unconfirmed supervisor cannot supply a denial",
+          "classname": "test",
+          "status": "skipped"
+        },
+        {
+          "name": "codex: denial is retained when cleanup confirmation expires",
+          "classname": "test",
+          "status": "skipped"
+        },
+        {
+          "name": "opencode: failed containment visibly degrades",
+          "classname": "test",
+          "status": "skipped"
+        },
+        {
+          "name": "opencode: unconfirmed supervisor cannot supply a denial",
+          "classname": "test",
+          "status": "skipped"
+        },
+        {
+          "name": "opencode: denial is retained when cleanup confirmation expires",
+          "classname": "test",
+          "status": "skipped"
+        },
+        {
+          "name": "forced termination of the Windows launcher closes its descendant job",
+          "classname": "test",
+          "status": "skipped"
+        },
+        {
+          "name": "unavailable Windows supervision skips business code without exposing its payload",
+          "classname": "test",
+          "status": "skipped"
+        },
+        {
+          "name": "malformed Windows job confirmation is rejected before forwarding diagnostics",
+          "classname": "test",
+          "status": "skipped"
+        }
+      ],
+      "qa_gate": {
+        "verdict": "VERDE",
+        "counts": {
+          "passed": 154,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 12,
+          "interrupted": 0
+        },
+        "flaky_sin_justificar": [],
+        "flaky_justificados": {},
+        "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+      }
+    },
+    {
+      "platform": "Linux",
+      "runner": "python",
+      "junit_sha256": "9dd56619031858946844d90527a1c2456bbd13260a7e8f486218f6c2cd06bd77",
+      "counts": {
+        "passed": 287,
+        "failed": 0,
+        "error": 0,
+        "skipped": 0
+      },
+      "skips": [],
+      "qa_gate": {
+        "verdict": "VERDE",
+        "counts": {
+          "passed": 287,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 0,
+          "interrupted": 0
+        },
+        "flaky_sin_justificar": [],
+        "flaky_justificados": {},
+        "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+      }
+    }
+  ],
+  "case_identities_not_summed_across_platforms": true,
+  "diff_coverage": {
+    "node": {
+      "method": "Native V8 block counts projected to first non-whitespace UTF-16 offset of added significant lines; comments and delimiter-only lines excluded. Smallest covering range wins; any owned byte-identical launcher sample may cover a line. This is a line-range projection, not Istanbul statement or branch coverage.",
+      "covered": 37,
+      "total": 37,
+      "percent": 100.0,
+      "considered_lines": [
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        84,
+        85,
+        86,
+        87,
+        88,
+        91,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125
+      ],
+      "uncovered_lines": [],
+      "sample_count": 197
+    },
+    "python": {
+      "method": "Coverage.py official executable statements intersected with added Git diff lines; direct canonical Python module only.",
+      "covered": 7,
+      "total": 7,
+      "percent": 100.0,
+      "considered_lines": [
+        58,
+        212,
+        216,
+        217,
+        218,
+        219,
+        221
+      ],
+      "uncovered_lines": []
+    }
+  },
+  "coverage_artifacts_sha256": {
+    "node": "eb754572453262219aa1825a75c459167b4cf9c81871d3bae50822279d80b4d5",
+    "python": "3539bdc93e8066a2efc3f8b2b62cc019cddf0220d26e323cdeb1cb47ab8a561e"
+  },
+  "linux": {
+    "image_sha256": "ee6b1d8543257a61226665c0c2168c3b565885c8af50b846f2d46b19aa0630ac",
+    "network": "none",
+    "init": true,
+    "manifest_sha256": "6844dc13b9c5aa47d24ddbd28e875be2462bbf7911f9d9f103a57d7232c7331a",
+    "shell_eol": {
+      "changed_shell_eol": [
+        "hooks/implementer-guardrail.sh",
+        "hooks/ledger-lint-warn.sh",
+        "hooks/progress-line.sh",
+        "hooks/session-context.sh",
+        "hooks/session-journal.sh",
+        "hooks/subagent-progress.sh",
+        "hooks/user-prompt-capture.sh",
+        "statusline/roadmap-statusline.sh"
+      ],
+      "proof": "All normalized shell bytes equal Git e7160f4 blobs; existing .gitattributes requires eol=lf. All other bytes equal Windows frozen snapshot. No production logic changes."
+    }
+  },
+  "preserved_unsuccessful_runs": [
+    {
+      "platform": "Windows",
+      "runner": "Python",
+      "passed": 286,
+      "failed": 1,
+      "reason": "The no-repository fixture discovered the parent workspace Git repository. GIT_CEILING_DIRECTORIES now isolates only that fixture; production stayed identical."
+    },
+    {
+      "stage": "Second-snapshot reuse assertion",
+      "executed_tests": false,
+      "reason": "The helper expected an untracked documentary projection among frozen source files. The source freezer intentionally includes tracked files and the new preflight test only; exact delta is the fixture and ledger."
+    }
+  ],
+  "checks": {
+    "lint_errors": 0,
+    "frozen_lint_warnings": 4,
+    "eval_pieces": 51,
+    "eval_cases": 182,
+    "eval_errors": 0,
+    "interop_files_current": 56,
+    "ledger_errors": 0,
+    "lint_warning_limit": "Three existing generic command names; the frozen empty Git/NTFS snapshot reports a JSON executable-mode warning. No source chmod change."
+  },
+  "review": {
+    "attempts": 2,
+    "last_critical": 0,
+    "last_important": 0,
+    "last_minor": 0,
+    "corrected": "JS dot excluded valid U+2028/U+2029 path segments; literal prefix/suffix matching has dedicated RED/GREEN."
+  },
+  "limits": [
+    "Native V8 range projection is not Istanbul statement or branch coverage.",
+    "Python coverage uses official executable statements on added diff lines, not global project coverage.",
+    "Linux uses canonical Git LF shell bytes; all other source bytes equal the Windows snapshot.",
+    "Native concurrent runtime behavior is assessed separately. No global initiative closure is claimed."
+  ]
+}

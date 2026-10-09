@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — Branch guards and hook startup work
+
+- Preserve branch protection before the first commit within the existing query budget. Skip PostToolUse business processes for recognized edits outside each handler's scope while retaining unknown-input handling; keep guard and capture timeouts unchanged.
+
 ### Fixed — Guard decision delivery
 
 - Validate bounded structured guard results before native delivery. Make missing or invalid evaluations visible in Claude, Codex and OpenCode while retaining normal permissions; preserve complete denials across later evaluator or cleanup failures. Keep runtime budgets unchanged and the startup-under-load diagnosis open.

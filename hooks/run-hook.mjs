@@ -73,10 +73,56 @@ function python() {
   return null;
 }
 
+function postPaths(payload) {
+  const value = payload?.tool_input;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const paths = [];
+  if ('file_path' in value) {
+    if (typeof value.file_path !== 'string' || !value.file_path || /[\r\n]/.test(value.file_path)) return null;
+    paths.push(value.file_path);
+  }
+  if ('edits' in value) {
+    if (!Array.isArray(value.edits)) return null;
+    for (const edit of value.edits) {
+      if (!edit || typeof edit.file_path !== 'string' || !edit.file_path || /[\r\n]/.test(edit.file_path)) return null;
+      paths.push(edit.file_path);
+    }
+  }
+  return paths.length ? paths : null;
+}
+
+function postApplies(paths) {
+  return paths.some(path => {
+    const value = path.replaceAll('\\', '/');
+    if (hook === 'mark-docs-pending.sh') return value.includes('docs/')
+      && !value.includes('docs/security-scan/') && !value.includes('docs/confluence/');
+    return value.includes('docs/roadmap/') && value.endsWith('tasks.md');
+  });
+}
+
 async function main() {
   if (!known.has(hook)) { warn('unknown hook'); return; }
   if (!['--runtime=claude', '--runtime=codex', '--runtime=opencode'].includes(runtime)) {
     warn('unknown runtime'); return;
+  }
+  const post = ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh'].includes(hook);
+  let input;
+  if (post) {
+    process.stdin.setEncoding('utf8');
+    input = '';
+    for await (const chunk of process.stdin) input += chunk;
+    try {
+      const payload = JSON.parse(input);
+      let paths;
+      if (payload.tool_name === 'apply_patch' && typeof payload.tool_input?.command === 'string') {
+        const normalized = [...payload.tool_input.command.matchAll(/^\*\*\* (?:Add File: |Update File: |Delete File: |Move to: )([^\r\n]+)$/gm)]
+          .map(match => match[1].replaceAll('\\', '/'));
+        payload.tool_input = { edits: [...new Set(normalized)].map(file_path => ({ file_path })) };
+        input = JSON.stringify(payload);
+        paths = normalized.length ? normalized : null;
+      } else paths = postPaths(payload);
+      if (paths && !postApplies(paths)) return;
+    } catch { /* Unknown input keeps the shell hook's existing degradation. */ }
   }
   const py = python();
   if (!py) { warn('Python unavailable; hook skipped'); if (guard) emitGuard(); return; }
@@ -102,22 +148,6 @@ async function main() {
     }
     args = [join(here, 'runtime-entry.sh'), hook];
     if (hook === 'session-context.sh') args.push(runtime);
-  }
-  const post = ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh'].includes(hook);
-  let input;
-  if (post) {
-    process.stdin.setEncoding('utf8');
-    input = '';
-    for await (const chunk of process.stdin) input += chunk;
-    try {
-      const payload = JSON.parse(input);
-      if (payload.tool_name === 'apply_patch' && typeof payload.tool_input?.command === 'string') {
-        const paths = [...payload.tool_input.command.matchAll(/^\*\*\* (?:Add File: |Update File: |Delete File: |Move to: )([^\r\n]+)$/gm)]
-          .map(match => match[1].replaceAll('\\', '/'));
-        payload.tool_input = { edits: [...new Set(paths)].map(file_path => ({ file_path })) };
-        input = JSON.stringify(payload);
-      }
-    } catch { /* malformed input remains informational; shell hooks degrade */ }
   }
   if (windows) {
     const mode = guard || ['session-journal.sh', 'user-prompt-capture.sh'].includes(hook) ? 'python' : 'exec';

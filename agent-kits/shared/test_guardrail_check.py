@@ -334,6 +334,58 @@ def test_branch_query_accepts_hook_budget_and_degrades_on_timeout(monkeypatch):
     assert gc.current_branch(PROJ, timeout=0.5) is None
 
 
+def test_unborn_main_keeps_principal_branch_protection(tmp_path):
+    _git(str(tmp_path), "init", "-q", "-b", "main")
+    assert gc.current_branch(str(tmp_path)) == "main"
+    code, output, _ = run_cli(json.dumps(write(str(tmp_path / "src/app.py"))), str(tmp_path))
+    assert code == 0 and "feature/<slug>" in output
+
+
+def test_unborn_feature_keeps_checkout_main_protection(tmp_path):
+    _git(str(tmp_path), "init", "-q", "-b", "feature/first-task")
+    assert gc.current_branch(str(tmp_path)) == "feature/first-task"
+    code, output, _ = run_cli(json.dumps(bash("git checkout main")), str(tmp_path))
+    assert code == 0 and "feature/first-task" in output
+
+
+def test_symbolic_branch_fallback_uses_only_remaining_budget(monkeypatch):
+    from types import SimpleNamespace
+    clock = iter([20.0, 20.35])
+    monkeypatch.setattr(gc, "time", SimpleNamespace(monotonic=lambda: next(clock)))
+    calls = []
+    def query(command, **kwargs):
+        calls.append((command, kwargs["timeout"]))
+        return subprocess.CompletedProcess(command, 128 if len(calls) == 1 else 0,
+                                           "" if len(calls) == 1 else "main\n", "")
+    monkeypatch.setattr(gc.subprocess, "run", query)
+    assert gc.current_branch(PROJ, timeout=0.5) == "main"
+    assert calls[0][1] == 0.5
+    assert 0 < calls[1][1] < 0.151
+    assert calls[1][0] == ["git", "symbolic-ref", "--quiet", "--short", "HEAD"]
+
+
+def test_exhausted_branch_budget_does_not_launch_fallback(monkeypatch):
+    from types import SimpleNamespace
+    clock = iter([20.0, 20.5])
+    monkeypatch.setattr(gc, "time", SimpleNamespace(monotonic=lambda: next(clock)))
+    calls = []
+    def query(command, **kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 128, "", "")
+    monkeypatch.setattr(gc.subprocess, "run", query)
+    assert gc.current_branch(PROJ, timeout=0.5) is None
+    assert len(calls) == 1
+
+
+def test_detached_head_and_missing_repository_keep_existing_results(tmp_path, monkeypatch):
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
+    assert gc.current_branch(str(tmp_path)) is None
+    _git(str(tmp_path), "init", "-q", "-b", "feature/detached-test")
+    _git(str(tmp_path), "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-qm", "owned fixture")
+    _git(str(tmp_path), "checkout", "--detach", "-q")
+    assert gc.current_branch(str(tmp_path)) == "HEAD"
+
+
 def test_config_hook_limit_does_not_accept_oversized_optout(tmp_path):
     folder = tmp_path / ".claude"
     folder.mkdir()

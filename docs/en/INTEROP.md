@@ -236,6 +236,10 @@ V2 supports write/edit/patch/shell (`path`, `oldString`/`newString`, `patchText`
 Unrecognized input or input above 64 KiB continues with diagnostics; arbitrary
 indirect shell/MCP writes are not comprehensively inspected.
 
+Branch lookup also recognizes symbolic HEAD before the first commit: main/master
+remains protected and a feature retains branch-switch rules. The fallback uses
+only the remaining budget; missing Git and errors retain existing diagnostics.
+
 Native evaluation has a 4.5 s internal budget; Claude/Codex before-tool registrations
 declare 10 s and OpenCode waits up to 10.5 s including startup and cleanup. The
 first 5 s registration discarded a valid deny because of total Windows latency;
@@ -286,6 +290,12 @@ the before-tool guard also uses isolated Python without Bash. UserPromptSubmit
 invokes `journal.py capture`, without Bash. Other hooks run through
 Bash with a `python3` adapter for the selected interpreter. Missing tools produce a stderr warning
 and exit 0. The implementer and architect guards remain scoped to their agents.
+
+The three PostToolUse handlers check recognized paths before starting dependencies.
+Code edits skip documentation business code; specs and designs skip tasks.md lint
+and progress. Script patterns and exclusions remain unchanged. Incomplete or
+unknown input and multiline paths keep the existing execution path. Handlers
+remain independent.
 
 Codex caps SessionEnd at 3 s; the exporter adjusts that timeout. Claude Code has
 1.5 s by default even though this plugin declares 5 s. The internal child deadline

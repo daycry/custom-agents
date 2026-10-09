@@ -240,6 +240,11 @@ como Bash; OpenCode V2 admite write/edit/patch/shell (`path`, `oldString`/`newSt
 `patchText`). Entrada no reconocida o mayor de 64 KiB continúa con diagnóstico;
 no inspecciona toda escritura indirecta desde shell o MCP.
 
+La consulta de rama reconoce también HEAD simbólico antes del primer commit:
+main/master conserva su protección y una feature conserva las reglas de cambio
+de rama. La consulta alternativa usa sólo el presupuesto restante; ausencia de
+Git y errores siguen degradando con el diagnóstico existente.
+
 La evaluación nativa usa presupuesto interno de 4,5 s; registros previos Claude/
 Codex declaran 10 s y OpenCode espera hasta 10,5 s incluyendo arranque y cleanup.
 El primer registro de 5 s descartó un deny válido por tiempo total de Windows;
@@ -291,6 +296,12 @@ la guardia previa también usa Python aislado sin Bash. UserPromptSubmit llama
 a `journal.py capture`, sin Bash. Los demás hooks
 usan Bash con un adaptador `python3` al intérprete seleccionado. Si falta una herramienta,
 se avisa por stderr y se continúa con exit 0. Las guardias de implementer y architect conservan su alcance por agente.
+
+Los tres handlers PostToolUse comprueban las rutas reconocidas antes de arrancar
+dependencias. Una edición de código no lanza el negocio de documentación; una
+spec o un diseño no lanza lint/progreso de tasks.md. Se mantienen los patrones
+y exclusiones de los scripts; entradas incompletas, desconocidas o con rutas
+multilínea conservan la ejecución anterior. Los handlers siguen independientes.
 
 Codex limita SessionEnd a 3 s; el exportador ajusta ese timeout. Claude Code dispone
 de 1,5 s por defecto, aunque nuestro plugin declare 5 s. El deadline interno del
