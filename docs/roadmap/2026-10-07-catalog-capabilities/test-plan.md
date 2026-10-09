@@ -31,3 +31,26 @@ Las pruebas usan proyectos temporales propios. Antes de una prueba nativa se
 contrasta el contrato y la versión; no se ejecutan servicios del consumidor ni
 se altera su configuración. Escenarios concretos por capacidad se añaden a las
 fichas y al informe QA antes de afirmar cobertura. El plan no acredita ejecución.
+
+## Bloque 13 — Retoma dirigida
+
+- **R-01 [GWT]** Dado un único ledger activo y journals de varias iniciativas,
+  `resume` muestra el estado vigente y solo cita el historial seleccionado.
+  Con varios ledgers activos muestra ambigüedad, sin elegir por orden de disco.
+- **R-02 [GWT]** Dadas identidades exactas, desconocidas, repetidas o ausentes,
+  los filtros combinados conservan su significado y no sustituyen una elección
+  fallida por otra sesión. Runtime heredado permanece desconocido.
+- **R-03 [GWT]** Dados archivos malformados, tipos YAML ajenos, UTF-8 inválido,
+  enlaces, cambios observables o presupuestos agotados, el lector y selector
+  devuelven estados explícitos sin filtrar excepciones ni afirmar ausencia.
+- **R-04 [GWT]** Dado texto Unicode o sensible, la proyección respeta los topes,
+  redacta la salida y declara si la identidad proyectada ya no es resoluble.
+- **R-05 [GWT]** Dadas fixtures sintéticas completas o instalación parcial,
+  API/CLI conservan el proyecto intacto y no llaman a meter, replay, Git o
+  backends. El hook conserva su contrato separado y usa historial dirigido.
+
+Suites: `test_local_read.py`, `test_journal_selection.py`, `test_work_resume.py`
+y regresiones de progreso/journal/hooks. Windows valida los doubles reparse;
+Linux ejecuta también los casos de enlaces nativos. Exports y evals verifican
+la fachada común; estas pruebas no acreditan aceptación de hosts nativos.
+Resultados y cobertura medida en `work-resume-evidence.json` tras la QA.

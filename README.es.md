@@ -22,10 +22,10 @@
 [![SDD](https://img.shields.io/badge/metodolog%C3%ADa-Spec--Driven-2ea44f.svg)](docs/FLOWS.md)
 [![Agentes](https://img.shields.io/badge/agentes-10-0ea5e9.svg)](docs/README.md)
 [![Skills](https://img.shields.io/badge/skills-27-0ea5e9.svg)](docs/README.md)
-[![Comandos](https://img.shields.io/badge/comandos-14-0ea5e9.svg)](docs/README.md)
+[![Comandos](https://img.shields.io/badge/comandos-15-0ea5e9.svg)](docs/README.md)
 [![Skills portables](https://img.shields.io/badge/skills%20portables-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/INSTALL.md#usar-las-skills-fuera-de-claude-code-paquete-portable)
 
-De la idea al código probado y documentado: `requisitos → presupuesto → plan → implementación → revisión adversarial → E2E → docs`, con **puertas de control** en cada paso, **coste real medido en tokens** y aprendizaje que calibra las siguientes estimaciones. Diez agentes, catorce comandos, autosuficiente (sin dependencias de otros plugins) — y funciona en **tres runtimes**: Claude Code, Codex y OpenCode.
+De la idea al código probado y documentado: `requisitos → presupuesto → plan → implementación → revisión adversarial → E2E → docs`, con **puertas de control** en cada paso, **coste real medido en tokens** y aprendizaje que calibra las siguientes estimaciones. Diez agentes, quince comandos, autosuficiente (sin dependencias de otros plugins) — y funciona en **tres runtimes**: Claude Code, Codex y OpenCode.
 
 > **Cómo se teclean los comandos.** En Claude Code instalado como plugin, el nombre real lleva el
 > espacio de nombres del plugin: **`/custom-agents:dev-cycle`**, `/custom-agents:retro`,
@@ -65,7 +65,7 @@ Casi todo el utillaje alrededor de los agentes de código responde a *cómo* esc
 | **Confluence bidireccional** (opt-in) | `docs/` ⇄ Confluence, idempotente, con **alcance de publicación curado** (`exclude` opt-out sobre `include: ["**/*.md"]`, `confluence-scope.py`) para que un PM sin git vea siempre el estado actual — nunca el tablero de ejecución del roadmap |
 | **Cadena spec → eval → plan → tasks** | Una carpeta por iniciativa, artefactos enlazados en ambos sentidos y `tasks.md` como **ledger canónico** validado por `ledger-lint.py` |
 | **Memoria técnica que sobrevive al chat** | `docs/knowledge/` recoge decisiones de diseño, trampas comprobadas y lecciones de proceso. `knowledge-find.py` recupera ADR/gotchas/lecciones legados y entradas válidas de `approved/`, conservando ID, versión y evidencia en JSON; el respaldo local también funciona al fallar una lectura autorizada del backend. Consultar no aprueba entradas ni activa servicios |
-| **Journal de sesión (memoria episódica, sin MCP)** | `SessionEnd` solo persiste un envelope local (sin git/IA/red durante la captura; el tiempo total del hook incluye también el arranque del launcher/shell y depende del contrato del runtime y del entorno); la entrada determinista en `docs/knowledge/journal/` (iniciativa activa, ficheros tocados, tareas que cambiaron de estado, marcadores del meter; idempotente por `session_id`) se materializa después en `SessionStart` o a demanda (`journal.py replay`/`recover`), y `SessionStart` reinyecta la última — retomas con *qué pasó*, no solo con *qué tarea está abierta*. `/doctor` muestra el estado de la cola (outbox/processing/done/dead-letter). Excluido de Confluence; sin resumen por IA salvo que lo actives |
+| **Journal de sesión (memoria episódica, sin MCP)** | `SessionEnd` solo persiste un envelope local (sin git/IA/red durante la captura; el tiempo total del hook incluye también el arranque del launcher/shell y depende del contrato del runtime y del entorno); la entrada determinista en `docs/knowledge/journal/` (iniciativa activa, ficheros tocados, tareas que cambiaron de estado, marcadores del meter; idempotente por `session_id`) se materializa después en `SessionStart` o a demanda (`journal.py replay`/`recover`). Startup/resume selecciona historial mediante el resolver del ledger actual; `/work-resume` ofrece selección manual exacta con ambigüedad y límites visibles. `/doctor` muestra el estado de la cola (outbox/processing/done/dead-letter). Excluido de Confluence; sin resumen por IA salvo que lo actives |
 | **Salud del código medida** | `code-health.py` (skill `code-health`): duplicados por shingles de tokens con pares `fichero:línea`, funciones largas/anidamiento, hotspots (`git log` × tamaño) y TODO/FIXME envejecidos — Markdown o JSON, `--baseline` para ver si mejora; `evaluator` lo usa para fundamentar el riesgo, `planner` para abrir deuda medida |
 | **Actualizar dependencias como spec, no como apuesta** | `deps-inventory.py` (skill `dependency-upgrade`): 7 manifiestos + lockfiles, declarada/bloqueada/latest (solo del `outdated` oficial, nunca inventado), saltos patch/minor/major; la skill lee el changelog upstream de cada major y redacta la spec `upgrade-<paquete>` para `evaluator` → `planner`. Las vulnerabilidades siguen siendo de `nemesis` |
 | **Constitución del proyecto con enforcement** | Principios permanentes que leen todos los agentes que escriben — y la revisión convierte una violación en un gap de corrección con cita de línea |
@@ -106,7 +106,7 @@ npx @daycry/custom-agents            # menú interactivo; marca los runtimes que
 
 | Runtime | Instalación | Qué obtienes |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 10 agentes, 14 comandos, 27 skills, hooks y statusline |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 10 agentes, 15 comandos, 27 skills, hooks y statusline |
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (o el instalador) | Skills, agentes como `.toml`, comandos como `/prompt:<nombre>` (a veces `/prompts:<nombre>`), hooks de sesión |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agentes, comandos y adaptador de hooks |
 
@@ -206,7 +206,7 @@ flowchart LR
 ```
 
 <details>
-<summary><b>Los 10 agentes y los 14 comandos</b> (clic para desplegar)</summary>
+<summary><b>Los 10 agentes y los 15 comandos</b> (clic para desplegar)</summary>
 
 | Agente | Qué hace |
 |--------|----------|
@@ -238,6 +238,7 @@ flowchart LR
 | `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
 | `/plugin-catalog` | Busca capacidades del bundle y extensiones de proyecto/usuario, con fuentes y conflictos. |
 | `/work-context` | Guías pertinentes y extensiones seleccionadas explícitamente para la tarea. |
+| `/work-resume` | Ledger actual e historial de sesión seleccionado en un dossier acotado de solo lectura. [Selección y límites](docs/WORK-RESUME.md). |
 | `/doctor` | Diagnóstico determinista de la instalación: herramientas, plugin/hooks, statusline, configs de `.claude/`, estado del trabajo — veredicto ✅/⚠️/❌ con el arreglo por línea, solo lectura, sin red. |
 
 Tus agentes, skills, personas, fuentes de tools y MCP permanecen en las carpetas

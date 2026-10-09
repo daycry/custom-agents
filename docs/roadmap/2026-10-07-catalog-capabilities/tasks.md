@@ -2457,3 +2457,200 @@ Escaneo de 885 archivos públicos: cero referencias y nombres prohibidos.
 Código, tests y prompts generados mantienen los bytes medidos por QA.
 Se autoriza la entrega acotada por commit/push a `feat/catalog-capabilities`;
 no se publica release ni se integra la rama principal en este bloque.
+
+## Bloque 13 — Retoma dirigida (2026-10-09)
+
+Base publicada `03e520b`, remoto comprobado en el bloque anterior. Se retoma
+la secuencia de comandos sobre la comparación semántica C079/C085/C087 y
+sus recursos ya fijados. Las nuevas skills siguen aplazadas. Diseño y alcance
+en el bloque 13 de design.md; T-08/T-11/T-14/T-15 permanecen abiertos.
+
+Auditoría propia en paralelo, sólo fuentes públicas: journal parse/entradas/latest
+no filtran ni acotan la lectura y confunden fallos con ausencia; el encabezado
+de latest no sanea todos los escalares. Progress tiene dueño de cálculo vigente,
+pero su modo session consulta usage-state mediante subprocess y no sirve como
+compositor puramente de lectura. Runtime no figura en las entradas escritas,
+y write usa solo session_id; el nuevo filtro no debe inventar procedencia ni
+afirmar separación de captura. No se leyeron diarios/config del consumidor,
+no se ejecutó código de origen ni se conectaron servicios.
+
+Primero se prueba e implementa lectura local acotada común; después selección
+y composición por sus dueños, fachada y consumidores/export. Sin fixtures
+de selección ni QA todavía, no se declara integración ni cierre del bloque.
+
+TDD del bloque 13, fuentes propias y fixtures sintéticas, 2026-10-09:
+
+| Puerta | RED anterior a implementación | GREEN dirigido |
+|---|---|---|
+| Lector regular UTF-8 | 31 errores: módulo todavía ausente | 28 passed/3 skips Windows |
+| Listado acotado y errores opacos | 25 failed/28 passed/6 skips | 53 passed/6 skips |
+| Cambios observables durante lectura/listado | 2 failed/53 passed/6 skips | 55 passed/6 skips |
+| Selección exacta de journal | 29 failed: API ausente | 29 passed |
+| Presupuesto UTF-8 de salida | 1 failed/38 passed: 53.245 bytes frente a 12.000 | Proyección acotada por bytes escapados |
+| Identidad transformada frente a detalle truncado | 2 failed/39 passed: metadato ausente | Identidad resoluble declarada por proyección |
+| Compositor del ledger | 24 failed: API/CLI ausentes | 24 passed |
+| Filtros/candidatos/formato de identidad | 4 failed/24 passed | 28 passed |
+| CLI de historial, identidad y lectura real | 7 failed/34 passed | 41 passed |
+| Sesión/entrada explícita ausente con ledger | 1 failed/41 passed | 42 passed |
+| UTF-8 escapado inválido e instalación parcial | 2 failed/84 passed | 86 passed |
+| Inyección automática por iniciativa | 2 failed/62 deselected | 4 passed/60 deselected incluyendo dos regresiones existentes |
+
+Los seis skips del lector en Windows corresponden a creación de symlinks
+nativos sin privilegio; los tags reparse y cloud se prueban con doubles.
+La QA Linux comprobará esos enlaces nativos. Las dos pruebas existentes de
+materialización incorporan una decisión sintética: un placeholder generado
+sin contenido ya no cuenta como historial sustantivo implícito.
+
+Verificación dirigida conjunta antes de revisión: 167 passed/6 skips
+(lector, selector, compositor y progreso existente, 6,30 s). El pase posterior
+del selector/compositor, con los dos controles nuevos de Unicode/bundle,
+da 86 passed (2,17 s). Export --check: exit 0, 58 al día. Evals estáticos:
+52 piezas/186 casos/cero errores. No se acredita aceptación CLI nativa ni
+QA final del bloque mediante estos resultados parciales.
+
+## Revisión de dos lentes — intento 1: bloque 13 (T-11/T-14/T-15)
+
+Lentes frescas A+B+C en paralelo; D entra al quedar libre un slot (límite
+de tres revisores simultáneos). Fallback genérico, modelo heredado; tier
+de reviewer opus/high informativo. Scope API: 30 propios/cero fuera/cero
+avisos, sin config del consumidor. Selector explícito activa C/D; su modo
+`--files` también cita patrones previos fuera del diff, que no se atribuyen
+al cambio. C no encuentra vulnerabilidades introducidas. A/B/D encuentran:
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A13-1 | Important | Dos exports omiten la última instrucción de selección sin filtros | T-15 | Regenerar desde comando definitivo | --check RED exit 1, dos DESINCRONIZADO; tras export GREEN 58 al día |
+| A13-2 | Important | Segunda proyección pierde flags de recorte UTF-8/identidad | T-11 | Comparar valor proyectado y recalcular metadatos de cada historia | RED de proyección: 80 caracteres → 53 sin aviso; ID 150 →120 conservando identidad resoluble |
+| B13-1/D13-1 | Important | Lecturas UTF-8 inválidas descuentan cero del presupuesto | T-11 | Contabilizar bytes también en fallo y reservar lectura fallida | D confirma 128×256 KiB =32 MiB por corpus frente a 1 MiB; no afirma 64 MiB en un único resume |
+| B13-2 | Important | Nulos, números y sintaxis YAML ajena se aceptan como IDs | T-11 | Validar escalares del subconjunto antes de parse_entry | Reproducciones null/true/123/nested: value/\|; tests de tipo/sintaxis |
+| A13-3 | Minor | README badges 15 pero párrafo anuncia 14 | T-15 | Corregir cantidades en ambos idiomas | Lectura factual A y recuento commands/ |
+
+Todos los gaps se confirman contra código y fixtures propias; no hay rebates
+ni deuda aceptada. RED conjunto antes del fix: 13 failed/141 passed/6 skips
+(2,95 s). El primer GREEN detecta un fixture previo cuyo `bytes: 0` ya no
+describe lectura descartada; se actualiza a los cinco bytes observados,
+conservando `changed_path` y ausencia de texto. El lector reserva además la
+asignación si read falla a mitad: nunca devuelve un consumo cero ficticio.
+Las docs explican el byte adicional de detección de crecimiento.
+
+Siguiente pase limitado al fix, sin reabrir aprobados salvo evidencia nueva.
+La QA y publicación siguen pendientes; estados globales intactos.
+
+GREEN tras el fix del intento 1: lector/selector/compositor/progreso existente,
+183 passed/6 skips en 6,86 s. Export --check: exit 0, 58 al día. README anuncia
+15 comandos tanto en badge como en párrafo, en ambos idiomas. Jira plan por
+intento 1: primer uso sin --batch rechazado con exit 2; uso corregido con
+--batch, exit 0/ops vacío sobre fixture propia desactivada, configuración y
+estado explícitos aislados. No se consulta el Jira del consumidor ni se
+publica externamente. La fuente del segundo pase se congela con esta traza.
+
+## Revisión de dos lentes — intento 2: bloque 13 (T-11/T-14/T-15)
+
+A+B+C frescas en paralelo, D al liberar slot, fallback genérico heredado.
+A revalida export58 y flags de proyección. C: sin hallazgos, 39 passed/122
+deselected de controles de corrección. D reproduce ambos corpus con lectura
+real: 128 archivos UTF-8 inválidos de 256 KiB producen cuatro lecturas y
+1.048.576 bytes descontados/leídos; ya no 32 MiB. Una excepción parcial
+reserva la asignación y el cambio posterior también descuenta bytes.
+B: 155 passed/6 skips, conserva un residual de la misma familia B13-2:
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B13-2 residual | Important | Comentario o indicadores YAML aceptados como ID | T-11 | Restringir texto plano heredado y rechazar tipos numéricos alternativos | RED 12 failed/56 passed (2,90 s), # comment/- item/? key y variantes de tipos; texto simple UUID/Unicode conservado |
+| A13-3 residual | Minor | Cuatro recuentos del README aún dicen 14 | T-15 | Corregir tablas/resúmenes en ambos idiomas | README:109/209 de ambos; catálogo conserva las 15 filas |
+
+No se reabren aprobados sin evidencia nueva: ambos residuales pertenecen a
+correcciones incompletas del intento 1. Las docs fijan el subconjunto de
+frontmatter admitido, sin anunciar un parser YAML general. GREEN del selector
+tras el fix residual: 68 passed (1,81 s). Tercer pase acotado a estos fixes;
+la QA sigue pendiente y la iniciativa abierta.
+
+Jira plan del intento 2: exit 0/ops vacío con --batch, sobre configuración
+y estado sintéticos explícitos; sin lectura del consumidor ni publicación.
+
+## Revisión de dos lentes — intento 3: bloque 13 (T-11/T-14/T-15)
+
+A+B+C en paralelo y D después por capacidad, todas frescas, fallback genérico
+heredado. A: criterios del residual ✓, 68 passed independientes y export
+--check exit 0/58 al día; cantidades 15 coherentes en los dos README.
+B: sin defectos, 68 pruebas y ocho controles adicionales render→parse
+con identidad, Unicode, comillas, saltos de línea y puntuación canónica.
+C: sin hallazgos introducidos. D: sin hallazgos; escalares hasta 256 KiB,
+128 nombres y tipos numéricos hostiles conservan el presupuesto de 1 MiB,
+cuatro lecturas reales y estado incomplete. No infiere latencia sin medirla.
+
+Los cuatro Important y el Minor del intento 1 quedan corregidos/revalidados,
+incluidos los residuales del intento 2; cero gaps pendientes, ningún rebate
+ni deuda. Se conserva cada alcance de revisión: el tercero solo reevalúa los
+fixes y no reabre aprobados sin evidencia nueva. La QA corre después de esta
+puerta sobre una copia pública, con código/tests/generados idénticos a la
+fuente del intento 3. T-08/T-11/T-14/T-15 y objetivo global siguen abiertos.
+
+Jira intento 3: exit 0/ops vacío con fixture sintética desactivada explícita;
+sin configurar servicios ni publicar. La QA inicial Linux no se acepta:
+34 failed/594 passed/8 skips en 53,94 s. Treinta y dos fallos de consola
+proceden de un índice Git vacío en el harness; la suite descubre fuentes
+por `git ls-files`. Dos fallos reales de distribución detectan /work-resume
+ausente en descripciones canónicas. Se registra en plugin/marketplace y se
+regeneran los manifiestos derivados: solo cambia la descripción, no permisos,
+versión, rutas, hooks ni dependencias. Test_manifests dirigido: 4 passed.
+
+El harness corregido crea un Git propio e indexa exclusivamente el snapshot
+público en ambos entornos; no usa el índice del workspace como inventario.
+Se conservan las ejecuciones rechazadas y se repiten las suites completas.
+Las fuentes de comportamiento mantienen los hashes revisados del intento 3.
+La doc de convenciones retira cantidades volátiles del exportador y conserva
+el contrato de las seis raíces, en ambos idiomas.
+
+QA Windows inicial rechazada: 36 failed/576 passed/24 skips; comparte los
+32 fallos de inventario y dos de manifiestos de Linux. Los otros dos son del
+harness: índice sin modos ejecutables y fixture sin Git que asciende al Git
+del workspace (solo metadatos, sin leer configuración del consumidor). La
+segunda ejecución Windows se interrumpe al detectar ese aislamiento pendiente.
+El harness fija GIT_CEILING_DIRECTORIES y verifica que una fixture sin Git no
+puede ascender, mientras el Git propio del snapshot sí ofrece su inventario.
+
+Segundo Linux rechazado: 16 failed/1031 passed. Con el inventario completo
+aparecen modos de consola ausentes para dos módulos puros y el adaptador de
+guardrail nativo, añadidos en bloques previos. Se declaran imports sin CLI
+para los módulos (sin exigirles una salida inexistente) y una denegación
+nativa real con emoji para el adaptador, conservando la comprobación UTF-8.
+Los cuatro fallos restantes de scope-check necesitan HEAD: el harness crea
+un commit sintético en su Git propio, sin hooks ni configuración personal.
+Estas correcciones solo afectan pruebas y harness; el comportamiento revisado
+de la retoma dirigida permanece idéntico. Se conservan todos los informes
+rechazados; no se clasifican como flaky ni como aceptación nativa.
+
+Verificación independiente acotada de QA: sin gates debilitados ni cambios de
+producción. Ambos módulos puros dan exit 0/salida vacía en cp1252 y ASCII;
+el adaptador nativo deniega realmente la escritura sintética, conserva UTF-8
+con emoji y no modifica el proyecto. El ceiling impide la búsqueda del Git
+padre. No constituye un cuarto pase formal de comportamiento.
+
+QA final aceptada sobre snapshot público de 895 archivos:
+
+| Entorno/suite | Passed | Skipped | Unexpected/flaky | qa-gate |
+|---|---:|---:|---:|---:|
+| Windows Python | 1031 | 16 | 0/0 | 0 |
+| Windows Node | 37 | 0 | 0/0 | 0 |
+| Linux Python | 1047 | 0 | 0/0 | 0 |
+| Linux Node | 34 | 3 | 0/0 | 0 |
+
+Los skips de plataforma constan con motivo en la evidencia; los enlaces
+nativos se ejecutan en Linux. Windows Python: 336,42 s; Linux Python: 72,30 s.
+Cobertura oficial Coverage.py de sentencias ejecutables añadidas frente a
+03e520b, incluyendo todo el lector nuevo: 473/523 =90,44 %, supera el 90 %.
+Lint/ledger/evals/export: exit 0; 52 piezas/186 casos/cero errores y 58 exports
+al día. El código, tests y prompts medidos mantienen sus hashes. Git, homes
+y fixtures propios, config global/system desactivada, ceiling y Linux sin red.
+
+Evidencia pública: [work-resume-evidence.json](work-resume-evidence.json).
+Escenarios del bloque en test-plan.md; docs bilingües en WORK-RESUME.md.
+La entrega completa este bloque de retoma local; no acredita aceptación nueva
+de hosts nativos, cierre general bajo carga ni sandbox atómico. Runtime
+heredado desconocido y contrato de captura permanecen explícitos.
+
+T-08/T-11/T-14/T-15 y la iniciativa global siguen abiertos por sus otros
+criterios. Nuevas skills permanecen aplazadas en 79/293. Próximas puertas:
+controles del panel y medición del backend opcional. Se prepara commit/push
+de esta entrega en feat/catalog-capabilities y se detiene el trabajo del bloque.

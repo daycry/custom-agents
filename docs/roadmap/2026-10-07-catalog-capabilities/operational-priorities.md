@@ -193,9 +193,18 @@ límite Unicode. [QA y diagnóstico](guard-delivery-evidence.json) y
 launcher, comparación de arranque y fixture con demora deliberada. No cambia
 intérprete, presupuestos, políticas de permisos ni conexiones de memoria.
 
-La siguiente puerta de hooks sigue siendo aislar la variabilidad de arranque
-en el despacho nativo con hijos y comprobar cierre durable bajo esas mismas
-condiciones. Después continúan la retoma de sólo lectura, los controles del
-panel y la medición del backend opcional. No se salta esa dependencia ni se
-marca completa una tarea global por un bloque parcial. Nuevas skills siguen
+Los bloques 10–12 entregaron ajustes de arranque, captura canónica y preservación
+de verificación Git; sus evidencias y límites están en el ledger. La aceptación
+global del despacho y cierre nativos sigue abierta. El bloque 13 aborda la retoma
+dirigida como consulta local independiente: no añade captura, permisos ni backends
+y no necesita atribuir fiabilidad nueva a los hooks. Sus puertas de lectura,
+selección y composición se validan por separado antes de publicar.
+
+La retoma dirigida ya tiene [QA y evidencia propia](work-resume-evidence.json):
+Windows y Linux, selección exacta, ledger vigente, historial citado y lectura
+acotada. `/work-resume` y sus exports comparten el compositor. No sustituye la
+aceptación nativa pendiente ni cambia el contrato de captura.
+
+Después quedan los controles del panel y la medición del backend opcional.
+Una entrega parcial no completa una tarea global. Nuevas skills siguen
 aplazadas en 79/293, con 214 pendientes.

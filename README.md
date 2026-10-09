@@ -22,10 +22,10 @@
 [![SDD](https://img.shields.io/badge/methodology-Spec--Driven-2ea44f.svg)](docs/en/FLOWS.md)
 [![Agents](https://img.shields.io/badge/agents-10-0ea5e9.svg)](docs/en/README.md)
 [![Skills](https://img.shields.io/badge/skills-27-0ea5e9.svg)](docs/en/README.md)
-[![Commands](https://img.shields.io/badge/commands-14-0ea5e9.svg)](docs/en/README.md)
+[![Commands](https://img.shields.io/badge/commands-15-0ea5e9.svg)](docs/en/README.md)
 [![Portable skills](https://img.shields.io/badge/portable%20skills-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/en/INSTALL.md#using-the-skills-outside-claude-code-portable-package)
 
-From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Ten agents, fourteen commands, self-contained (no dependencies on other plugins) — and it runs in **three runtimes**: Claude Code, Codex and OpenCode.
+From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Ten agents, fifteen commands, self-contained (no dependencies on other plugins) — and it runs in **three runtimes**: Claude Code, Codex and OpenCode.
 
 > **How you type the commands.** Installed as a plugin, the real name carries the plugin
 > namespace: **`/custom-agents:dev-cycle`**, `/custom-agents:retro`, `/custom-agents:doctor`…
@@ -65,7 +65,7 @@ Most tooling around coding agents answers *how* to write the code. This plugin a
 | **Bidirectional Confluence** (opt-in) | `docs/` ⇄ Confluence, idempotent, with a **curated publish scope** (opt-out `exclude` over `include: ["**/*.md"]`, `confluence-scope.py`) so a PM without git always sees the current state — never the roadmap's execution board |
 | **spec → eval → plan → tasks chain** | One folder per initiative, artifacts linked both ways, `tasks.md` as the **canonical ledger** validated by `ledger-lint.py` |
 | **Technical memory that outlives a chat** | `docs/knowledge/` captures design decisions, proven traps and process lessons. `knowledge-find.py` retrieves legacy ADR/gotchas/lessons and valid `approved/` entries, preserving identity, knowledge version and evidence in JSON; local fallback also works when an authorized backend read fails. Retrieval does not approve entries or activate services |
-| **Session journal (episodic memory, no MCP)** | `SessionEnd` only persists a local envelope (no git/AI/network during capture; total hook time also includes launcher/shell startup and depends on the runtime contract and environment); the deterministic entry under `docs/knowledge/journal/` (active initiative, files touched, tasks whose state changed, meter markers; idempotent by `session_id`) is materialized afterwards on `SessionStart` or on demand (`journal.py replay`/`recover`), and `SessionStart` re-injects the latest one — you resume with *what happened*, not only *which task is open*. `/doctor` shows the queue's state (outbox/processing/done/dead-letter). Excluded from Confluence; no AI summary unless you opt in |
+| **Session journal (episodic memory, no MCP)** | `SessionEnd` only persists a local envelope (no git/AI/network during capture; total hook time also includes launcher/shell startup and depends on the runtime contract and environment); the deterministic entry under `docs/knowledge/journal/` (active initiative, files touched, tasks whose state changed, meter markers; idempotent by `session_id`) is materialized afterwards on `SessionStart` or on demand (`journal.py replay`/`recover`). Startup/resume selects history through the current ledger resolver; `/work-resume` provides an exact manual selection with ambiguity and read limits visible. `/doctor` shows the queue's state (outbox/processing/done/dead-letter). Excluded from Confluence; no AI summary unless you opt in |
 | **Measured code health** | `code-health.py` (skill `code-health`): duplicates by token shingles with `file:line` pairs, long functions/nesting, hotspots (`git log` × size) and aged TODO/FIXME — Markdown or JSON, `--baseline` to see better/worse; `evaluator` uses it to ground risk, `planner` to open measured debt |
 | **Dependency upgrades as a spec, not a gamble** | `deps-inventory.py` (skill `dependency-upgrade`): 7 manifests + lockfiles, declared/locked/latest (only from the official `outdated`, never invented), patch/minor/major jumps; the skill reads each major's upstream changelog and writes the `upgrade-<package>` spec for `evaluator` → `planner`. Vulnerabilities stay with `nemesis` |
 | **Project constitution with enforcement** | Permanent principles that every writing agent reads — and the review turns a violation into a correction gap with a line citation |
@@ -106,7 +106,7 @@ npx @daycry/custom-agents            # interactive menu; marks the runtimes it d
 
 | Runtime | Install | What you get |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 14 commands, 27 skills, hooks, status line |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 15 commands, 27 skills, hooks, status line |
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, commands as `/prompt:<name>` (sometimes `/prompts:<name>`), session hooks |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agents, commands, hook adapter |
 
@@ -206,7 +206,7 @@ flowchart LR
 ```
 
 <details>
-<summary><b>The 10 agents and the 14 commands</b> (click to expand)</summary>
+<summary><b>The 10 agents and the 15 commands</b> (click to expand)</summary>
 
 | Agent | What it does |
 |--------|----------|
@@ -238,6 +238,7 @@ flowchart LR
 | `/confluence-pull` | Confluence → local `docs/` (PM without git). |
 | `/plugin-catalog` | Search bundle capabilities and your project/user extensions, with sources and conflicts. |
 | `/work-context` | Relevant guides and explicitly selected extensions for the task. |
+| `/work-resume` | Current ledger and selected session history in a bounded read-only dossier. [Selection and limits](docs/en/WORK-RESUME.md). |
 | `/doctor` | Deterministic install diagnosis: tools, plugin/hooks, statusline, `.claude/` configs, work state — ✅/⚠️/❌ verdict with the fix per line, read-only, no network. |
 
 Your agents, skills, personas, tool sources and MCP remain in native project/user

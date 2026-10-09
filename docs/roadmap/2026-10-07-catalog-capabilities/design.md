@@ -528,3 +528,39 @@ universal de shell/PowerShell. Los tests
 positivos y negativos están en `agent-kits/shared/test_git_verification.py`.
 El ledger registra QA, revisión y aceptación propias de este bloque; la
 evidencia nativa de bloques anteriores no valida automáticamente esta regla.
+
+## Bloque 13: retoma dirigida sobre las fuentes canónicas
+
+Base `03e520b`. Se integra el criterio de selección explícita, procedencia y
+estado vigente de [commands-session-continuity.md](comparisons/commands-session-continuity.md).
+Journal conserva lectura, selección y citas históricas; progress conserva
+el cálculo de progreso desde `tasks.md` y compone la vista. La fachada
+`work-resume` ofrece esa vista bajo demanda, sin otra cadena ni almacén.
+
+Un lector local compartido acota bytes antes de parsear y valida la raíz,
+ancestros y archivo. Rechaza symlinks/junctions y tipos no regulares; acepta
+placeholders cloud que no redirigen. Comprueba identidad antes de leer el
+descriptor, conserva códigos de ausencia, acceso, formato y límite, y no
+escribe ni ejecuta código del proyecto. Cada consumidor aplica su esquema.
+
+El selector admite nombre de entrada, iniciativa, session_id y runtime exactos.
+Una elección explícita ausente, inválida o ambigua no se sustituye por otra
+sesión. La exploración tiene tope de archivos y bytes; una búsqueda incompleta
+no acredita ausencia ni recencia global. Las entradas antiguas sin runtime
+conservan ese dato desconocido y no satisfacen un filtro runtime explícito.
+No se infiere runtime por ID ni fuente. Separar captura por runtime y cambiar
+la clave de escritura requieren otro contrato; este lector no acredita ese cambio.
+
+La resolución de iniciativa admite carpeta exacta o slug inequívoco bajo el
+roadmap de la raíz elegida; con varias coincidencias presenta candidatos.
+El progreso y tareas vigentes proceden del ledger actual. Journal aporta
+fecha, sesión, fuente, cierre y citas, con saneamiento/redacción y topes de
+salida. Un test citado no equivale a ejecutarlo hoy. No inventa campos de
+fallos, bloqueos o próximo paso que el esquema no haya capturado.
+
+La composición no llama al modo session actual, usage-meter, replay/recover,
+Git, inferencia o backends. El caller puede continuar el trabajo autorizado
+tras contrastar las fuentes; consultar la vista no concede autorización nueva.
+Los consumidores dirigidos usan el selector común; la inyección automática
+se adapta cuando conserva estos límites, sin convertir el hook completo
+(que tiene replay previo) en una operación de sólo lectura.

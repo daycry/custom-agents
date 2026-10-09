@@ -17,6 +17,7 @@ flowchart TD
     PM --> P3["/confluence-pull<br/>docs sin git"]
     DEV(["👩‍💻 Dev / equipo"]) --> D1["/dev-cycle<br/>construye"]
     DEV --> D2["/retro<br/>aprende"]
+    DEV --> D3["/work-resume<br/>ledger actual + historial seleccionado"]
     DIR(["👔 Dirección"]) --> V1["/roadmap-brief<br/>one-pager PDF"]
     TODOS(["👀 Cualquiera"]) --> V0["/doctor<br/>¿está bien instalado?"]
     TODOS --> V2["/roadmap-status<br/>dashboard"]
@@ -55,6 +56,29 @@ flowchart LR
   Ledger --> Pruebas[QA]
   Pruebas --> Memoria[Knowledge Gate]
 ```
+
+## Retoma dirigida sobre registros existentes
+
+`/work-resume` llama a `progress-report.py resume` y muestra primero el ledger
+actual. El selector de `journal.py` aporta después el historial de la identidad
+solicitada. Una selección explícita fallida no toma otra sesión. Ambigüedad,
+registro ilegible y recorrido incompleto conservan su propio estado.
+[Selección, límites y lectura](WORK-RESUME.md).
+
+```mermaid
+flowchart LR
+  Selector[Iniciativa · sesión · runtime · fichero exacto] --> Resume[progress-report resume]
+  Tasks[(tasks.md actual)] --> Resume
+  Journal[(Journal local)] --> Select[journal: selección acotada]
+  Select --> Resume
+  Resume --> View[Ledger primero · citas históricas después]
+  View -.-> Decision[El usuario elige cómo continuar]
+```
+
+Startup/resume usa el mismo compositor con `--history-only`; compact omite el
+historial. Replay y el bloque de progreso siguen separados: el hook completo
+conserva operaciones de recuperación. El dossier manual no ejecuta recuperación,
+meter, Git ni backends, y no crea otro ciclo o almacén.
 
 ## 1 · La cadena completa de una iniciativa
 
@@ -352,7 +376,7 @@ flowchart LR
     OB -->|"journal.py replay --budget-ms 300 --max 3<br/>(claim → materializa con git/log/IA opt-in → done/dead-letter)"| H3
     LOG -->|"journal.py recover<br/>(sin envelope, sin sesión viva, ventana → recuperado_sin_cierre)"| H3
     H3 -->|"journal.py write (idempotente por session_id, atómico)"| J[("docs/knowledge/journal/<br/>AAAA-MM-DD-slug.md")]
-    J -->|"journal.py latest --n 2"| H3
+    J -->|"progress-report.py resume --history-only<br/>(selección por ledger, sin recuperación)"| H3
     OB -.->|"journal.py status<br/>(pendientes · huérfanas · dead-letter)"| DOC["/doctor<br/>sección Journal"]
     FM[("frontmatters<br/>commands · skills · agents")] --> SI["skill-index.py<br/>(dev.json sesion.indice)"]
     SI --> H3

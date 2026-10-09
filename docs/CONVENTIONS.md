@@ -90,7 +90,7 @@ Notas:
   # luego usa "$MIKIT/tools/..." , "$MIKIT/templates/..." , etc.
   ```
 
-  **Seis raíces, dos por runtime** (`docs/INTEROP.md`): `.claude` (Claude Code: proyecto y, en `$HOME`, tanto usuario `~/.claude/` como el caché de plugins `~/.claude/plugins/…`), `.codex` (Codex: `.codex/plugins/<plugin>/`, `~/.codex/plugins/cache/…`) y OpenCode (`.opencode/` en proyecto, `~/.config/opencode/` en global — su directorio global NO es `~/.opencode`). Ni Codex ni OpenCode buscan kits en `.claude/`, así que sin sus raíces un plugin instalado ahí no encuentra su toolkit. El **orden** es el que manda: las tres raíces de proyecto primero, después las de usuario → el proyecto gana si hay varias copias (misma precedencia que Claude Code). Este `find` lo mantienen sincronizado los ficheros generados por `scripts/export-interop.py`; si añades un runtime, la raíz se añade **en todas** las piezas (hoy 88 ocurrencias en 56 ficheros).
+  **Seis raíces, dos por runtime** (`docs/INTEROP.md`): `.claude` (Claude Code: proyecto y, en `$HOME`, tanto usuario `~/.claude/` como el caché de plugins `~/.claude/plugins/…`), `.codex` (Codex: `.codex/plugins/<plugin>/`, `~/.codex/plugins/cache/…`) y OpenCode (`.opencode/` en proyecto, `~/.config/opencode/` en global — su directorio global NO es `~/.opencode`). Ni Codex ni OpenCode buscan kits en `.claude/`, así que sin sus raíces un plugin instalado ahí no encuentra su toolkit. El **orden** es el que manda: las tres raíces de proyecto primero, después las de usuario → el proyecto gana si hay varias copias (misma precedencia que Claude Code). Este `find` lo mantienen sincronizado los ficheros generados por `scripts/export-interop.py`; si añades un runtime, la raíz se añade **en todas** las piezas.
 - Skills compartidas: invócalas con la herramienta Skill (por nombre). Si necesitas leer un fichero suyo, resuélvelo igual: `find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/<skill>/...'`.
 
 ## 6. Checklist para añadir un agente nuevo
@@ -350,6 +350,14 @@ lo que "ya no hay que volver a descubrir" cada vez, generalizando el patrón de 
   exit 0. La doc oficial de hooks (2026-09-03) sigue sin permitir que los hooks `prompt`/`agent` devuelvan
   texto, y en `SessionEnd` toda salida se ignora: la restricción es cierta y se conserva — lo que se revisó
   el 2026-09-08 es la conclusión: el hook `command` no devuelve, **escribe** (ADR-010 §Revisión).
+- **Retoma dirigida:** `/work-resume` usa `progress-report.py resume`: ledger actual
+  primero, historial seleccionado con el lector acotado de `journal.py` después.
+  `SessionStart` usa `resume --history-only` en startup/resume (≤ 25 líneas), sin
+  historial en compact. La selección implícita exige una única iniciativa
+  `en-progreso`; varias son ambiguas y, si no hay ninguna, no toma el journal global.
+  La vista manual no ejecuta replay, meter, Git ni backends. El bloque de progreso
+  y la recuperación del hook conservan sus métodos separados; el hook entero
+  sigue teniendo operaciones de recuperación. [Contrato de lectura](WORK-RESUME.md).
 - **Nota (D2):** la sección "Notas de implementación" de la plantilla `agent-kits/planner/templates/tasks.md`
   se retiró (iniciativa `knowledge-capture`, tarea T-14) — el registro cualitativo de una
   iniciativa vive en `docs/knowledge/`, no en un cajón de sastre al final del ledger.

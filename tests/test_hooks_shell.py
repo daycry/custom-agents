@@ -429,6 +429,7 @@ def test_session_journal_sin_claude_project_dir_no_aborta_bajo_set_u(tmp_path):
 def test_session_context_reinyecta_journal_en_resume_no_en_compact(tmp_path):
     proj, _ = proyecto(tmp_path)
     env = env_de(proj, tmp_path)
+    _log_prompts(proj, 's1')  # Substantive recorded decision, not a generated placeholder.
     hook("session-journal.sh", session_end(proj), env)
     replay(proj, env)
     for src in ("startup", "resume"):
@@ -441,6 +442,37 @@ def test_session_context_reinyecta_journal_en_resume_no_en_compact(tmp_path):
         assert ctx.index("Ledger canónico") < ctx.index("Journal de sesión")        # roadmap antes, journal después
     rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "compact"}, env)
     assert rc == 0 and "Journal de sesión" not in un_json(out)["hookSpecificOutput"]["additionalContext"]
+
+
+def _owned_history(proj, name, initiative, summary):
+    path = proj / 'docs' / 'knowledge' / 'journal' / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = {'fecha': '2026-10-09', 'session_id': name, 'iniciativa': initiative,
+            'resumen': summary, 'fuente': 'manual', 'cierre': 'materializado'}
+    path.write_text('---\n' + '\n'.join(k + ': ' + json.dumps(v) for k, v in data.items())
+                    + '\n---\n', encoding='utf8')
+
+
+def test_session_context_history_uses_current_initiative_not_latest_global(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    _owned_history(proj, 'a-demo.md', 'demo', 'History for selected work')
+    _owned_history(proj, 'z-other.md', 'other', 'UNRELATED HISTORY MUST NOT APPEAR')
+    rc, out, _ = hook('session-context.sh', {'hook_event_name': 'SessionStart', 'source': 'resume'}, env_de(proj, tmp_path))
+    context = un_json(out)['hookSpecificOutput']['additionalContext']
+    assert rc == 0 and 'History for selected work' in context
+    assert 'UNRELATED HISTORY MUST NOT APPEAR' not in context
+
+
+def test_session_context_ambiguous_initiative_does_not_inject_arbitrary_history(tmp_path):
+    proj, led = proyecto(tmp_path)
+    second = proj / 'docs/roadmap/2026-10-09-other/tasks.md'
+    second.parent.mkdir(parents=True)
+    second.write_bytes(led.read_bytes())
+    _owned_history(proj, 'history.md', 'demo', 'ARBITRARY HISTORY MUST NOT APPEAR')
+    rc, out, _ = hook('session-context.sh', {'hook_event_name': 'SessionStart', 'source': 'startup'}, env_de(proj, tmp_path))
+    context = un_json(out)['hookSpecificOutput']['additionalContext']
+    assert rc == 0 and 'ARBITRARY HISTORY MUST NOT APPEAR' not in context
+    assert 'Journal: ambiguous' in context
 
 
 # --------------------------------------------------------- reconciliación presupuestada (T-05) ----
@@ -460,9 +492,10 @@ def _log_prompts(proj, sid, mtime_hace_min=None):
 def test_session_context_drena_la_outbox_antes_de_componer_el_contexto(tmp_path):
     """gap 13: nadie invocaba `replay` fuera de una prueba manual — `session-context.sh` lo hace
     ahora ANTES de componer el contexto (T-05): un envelope pendiente al arrancar/retomar se
-    materializa y solo entonces (3) lo reinyecta `journal.py latest` (CA-08)."""
+    materializa y solo entonces (3) lo selecciona el compositor dirigido (CA-08)."""
     proj, _ = proyecto(tmp_path)
     env = env_de(proj, tmp_path)
+    _log_prompts(proj, 's1')
     hook("session-journal.sh", session_end(proj), env)
     assert len(outbox_pendientes(proj)) == 1
     rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env)

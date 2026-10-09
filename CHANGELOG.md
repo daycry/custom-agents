@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — Directed work resume
+
+- Add `/work-resume` as a read-only facade over the current ledger and selected journal history. Share bounded local reads and exact selection across manual and startup history views; show ambiguous identities, invalid records and incomplete searches without substituting another session. Preserve legacy unknown runtimes and distinguish historical quotations from current task state and QA evidence.
+
 ### Fixed — Git commit verification guards
 
 - Extend the shared `git` rule for exact owned implementer and architect IDs in Claude, Codex and OpenCode. Deny commits that disable verification or explicitly override `core.hooksPath`, including recognized literal environment and wrapper forms. Preserve later `--verify`, commit messages, path arguments, ordinary amend and per-project opt-out; document the parser's limits.

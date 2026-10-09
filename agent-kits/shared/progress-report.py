@@ -62,19 +62,14 @@ norm_estado = _ll.norm_estado
 
 
 def fmt_horas(horas):
-    """Horas decimales → 'XhYm' (mismo formato que usage-meter.py fmt). Copia local mínima
-    para no depender del meter en runtime; si el meter está, se prefiere su implementación."""
-    try:
-        um = _load_module("usage_meter", "usage-meter.py")
-        return um.fmt_horas(horas)
-    except Exception:  # noqa: BLE001 — degradación: formato local
-        total_min = round(float(horas) * 60)
-        h, m = divmod(total_min, 60)
-        if h and m:
-            return f"{h}h {m}m"
-        if h:
-            return f"{h}h"
-        return f"{m}m"
+    """Formato puro de horas; resumir un ledger no carga el meter ni su estado."""
+    total_min = round(float(horas) * 60)
+    h, m = divmod(total_min, 60)
+    if h and m:
+        return f"{h}h {m}m"
+    if h:
+        return f"{h}h"
+    return f"{m}m"
 
 
 # ------------------------------------------------------------------ núcleo
@@ -93,12 +88,14 @@ def nombre_fase(nombre):
     return (m.group(1) if m else nombre).strip()
 
 
-def resumir(path):
-    """Lee y resume un ledger. Lanza ValueError si es ilegible o no tiene tareas."""
-    try:
-        text = open(path, encoding="utf-8-sig", errors="replace").read()   # tolera BOM
-    except OSError as e:
-        raise ValueError(f"no se puede leer: {e}") from e
+def resumir(path, *, text=None):
+    """Resume un ledger; con texto suministrado no accede al sistema de archivos."""
+    if text is None:
+        try:
+            with open(path, encoding="utf-8-sig", errors="replace") as source:
+                text = source.read()   # tolera BOM para los consumidores históricos
+        except OSError as e:
+            raise ValueError(f"no se puede leer: {e}") from e
     parsed = parse_ledger(text)
     tareas = parsed["tareas"]
     if not tareas:
@@ -203,6 +200,213 @@ def marcadores_huerfanos(root="."):
         return None
 
 
+# ------------------------------------------------------------------ retoma dirigida, solo lectura
+
+_RESUME_SCAN = 128
+_RESUME_BYTES = 1024 * 1024
+_HISTORY_FIELDS = ("entry", "fecha", "session_id", "runtime", "iniciativa", "resumen",
+                   "fuente", "cierre", "resumen_por", "decisiones", "pendientes",
+                   "ficheros_tocados", "tareas_cambiadas", "marcadores_cerrados",
+                   "materializado_en", "derivados_en", "output_truncated", "identity_resolvable")
+
+
+def _initiative_name(value):
+    return (isinstance(value, str) and bool(value) and value not in (".", "..")
+            and not any(c in value for c in "/\\:\x00"))
+
+
+def _resume_result(status, *, ledger=None, history=None, candidates=None, issues=None):
+    return {"status": status, "ledger": ledger, "history": history or [],
+            "candidates": candidates or [], "issues": issues or [], "output_truncated": False}
+
+
+def _public_resume(result, journal):
+    """Proyección pública con vocabulario fijo y presupuesto independiente de la entrada."""
+    truncated = False
+    def clean(value, limit=160):
+        nonlocal truncated
+        if isinstance(value, str):
+            projected = journal.public_text(value, limit=limit)
+            truncated |= projected != value
+            return projected
+        if isinstance(value, list):
+            if len(value) > 4:
+                truncated = True
+            return [clean(item, limit) for item in value[:4]]
+        if isinstance(value, dict):
+            return {key: clean(item, limit) for key, item in value.items()}
+        return value
+    ledger = result.get("ledger")
+    if ledger:
+        ledger = dict(ledger)
+        truncated |= len(ledger["en_progreso"]) > 4
+        ledger["en_progreso"] = ledger["en_progreso"][:4]
+        result["ledger"] = clean(ledger)
+    entries = result["history"]
+    truncated |= len(entries) > 2 or any(entry.get("output_truncated") for entry in entries)
+    result["history"] = []
+    for entry in entries[:2]:
+        visible = {k: entry[k] for k in _HISTORY_FIELDS if k in entry}
+        projected = clean(visible, 120)
+        projected['output_truncated'] = bool(entry.get('output_truncated') or projected != visible)
+        projected['identity_resolvable'] = bool(entry.get('identity_resolvable') and
+            all(projected.get(k) == entry.get(k) for k in ('entry', 'session_id', 'iniciativa')))
+        truncated |= projected['output_truncated']
+        result['history'].append(projected)
+    for field in ("candidates", "issues"):
+        values = result[field]
+        truncated |= len(values) > 16
+        result[field] = [clean(value, 100) for value in values[:16]]
+    result["output_truncated"] = truncated
+    # Escaped strings and multibyte text consume more JSON bytes than characters.
+    # If the projection still exceeds its budget, retain the current ledger and
+    # report that historical detail and candidate labels were omitted.
+    if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > 12000:
+        result["history"] = []
+        result["candidates"] = result["candidates"][:4]
+        result["issues"] = [{"status": "output_budget"}]
+        result["output_truncated"] = True
+    return result
+
+
+def _resume_ledger(root, initiative, reader):
+    """Resuelve carpeta exacta o slug único sin elegir dentro de un scan incompleto."""
+    def read(folder, *, max_bytes=256 * 1024):
+        relative = "docs/roadmap/" + folder + "/tasks.md"
+        result = reader.read_text(root, relative, max_bytes=max_bytes)
+        if result["status"] != "ok":
+            return result["status"], None, result.get("bytes", 0)
+        try:
+            summary = resumir(relative, text=result["text"])
+        except (ValueError, TypeError, KeyError, OverflowError):
+            return "malformed", None, result["bytes"]
+        return "ok", summary, result["bytes"]
+
+    # An exact dated folder is independent of unrelated ledger failures.
+    if initiative is not None and re.match(r"^\d{4}-\d{2}-\d{2}-.+", initiative):
+        status, summary, _ = read(initiative)
+        return status, summary, [], [] if status == "ok" else [{"entry": initiative, "status": status}]
+    listing = reader.list_names(root, "docs/roadmap", max_entries=_RESUME_SCAN)
+    if listing["status"] != "ok" or not listing["complete"]:
+        status = "incomplete" if listing["status"] == "incomplete" else listing["status"]
+        return status, None, [], [{"status": status, "scope": "roadmap"}]
+    matches, issues = [], []
+    remaining = _RESUME_BYTES
+    for folder in listing["names"]:
+        if not _initiative_name(folder):
+            issues.append({"entry": folder, "status": "invalid_path"})
+            continue
+        if remaining <= 0:
+            issues.append({"status": "scan_budget"})
+            break
+        status, summary, size = read(folder, max_bytes=min(256 * 1024, remaining))
+        remaining -= size
+        if status in ("not_found", "not_regular"):
+            continue  # This roadmap entry has no ledger.
+        if status != "ok":
+            issues.append({"entry": folder, "status": status})
+            continue
+        matches_selection = (summary["slug"] == initiative if initiative is not None
+                             else summary["estado"] == "en-progreso")
+        if matches_selection:
+            matches.append((folder, summary))
+    candidates = [folder for folder, _ in matches]
+    if issues:
+        return "incomplete", None, candidates, issues
+    if len(matches) > 1:
+        return "ambiguous", None, candidates, []
+    if not matches:
+        return "not_found", None, [], [{"scope": "roadmap", "status": "no_matching_ledger"}]
+    return "ok", matches[0][1], [], []
+
+
+def resume(root, *, initiative=None, session_id=None, runtime=None, entry=None):
+    """Compose current ledger and quoted history without usage state or subprocesses.
+
+    Explicit selections never fall back to a different initiative or journal entry.
+    Historical claims remain evidence from their recorded session, not current QA.
+    """
+    try:
+        journal = _load_module("resume_journal", "journal.py")
+        reader = _load_module("resume_local_read", "local-read.py")
+    except (ImportError, OSError, SyntaxError):
+        return _resume_result('reader_unavailable', issues=[{'status': 'incomplete_bundle'}])
+    def finish(status, **kwargs):
+        return _public_resume(_resume_result(status, **kwargs), journal)
+    if initiative is not None and (not _initiative_name(initiative)
+                                  or journal.public_text(initiative, limit=4096) != initiative):
+        return finish("invalid_selection", issues=[{"status": "invalid_initiative"}])
+    selected_history = None
+    if initiative is None and (session_id is not None or entry is not None):
+        selected_history = journal.select_entries(root, initiative=initiative, session_id=session_id,
+                                                  runtime=runtime, entry=entry)
+        if selected_history["status"] != "ok" or not selected_history["complete"]:
+            return finish(selected_history["status"], candidates=selected_history["candidates"],
+                          issues=selected_history["issues"])
+        if initiative is None:
+            if any(e.get("identity_resolvable") is False
+                   or ("identity_resolvable" not in e and e.get("output_truncated"))
+                   for e in selected_history["entries"]):
+                return finish("initiative_unknown", history=selected_history["entries"],
+                              issues=[{"status": "historical_identity_truncated"}])
+            names = {e.get("iniciativa") for e in selected_history["entries"] if e.get("iniciativa")}
+            if len(names) != 1:
+                return finish("initiative_unknown" if not names else "ambiguous",
+                              history=selected_history["entries"], candidates=sorted(names),
+                              issues=[{"status": "history_does_not_identify_one_initiative"}])
+            initiative = next(iter(names))
+            if not _initiative_name(initiative):
+                return finish("invalid_selection", issues=[{"status": "invalid_historical_initiative"}])
+    status, summary, candidates, issues = _resume_ledger(root, initiative, reader)
+    if summary is None:
+        return finish(status, candidates=candidates, issues=issues,
+                      history=selected_history["entries"] if selected_history else None)
+    selected_history = selected_history or journal.select_entries(root, initiative=summary["slug"],
+                                                                  session_id=session_id, runtime=runtime, entry=entry)
+    history_status = selected_history["status"]
+    issues.extend(selected_history["issues"])
+    history_absent = history_status in ("empty", "not_found")
+    if history_absent:
+        issues.append({"scope": "history", "status": history_status})
+        if session_id is None and entry is None:
+            # A ledger remains useful without history. An explicitly requested
+            # session or file that is missing retains its failure status.
+            history_status = "ok"
+    if not selected_history["complete"] and history_status == "ok" and not history_absent:
+        history_status = "incomplete"
+    return finish(history_status, ledger=summary, history=selected_history["entries"],
+                  candidates=selected_history["candidates"], issues=issues)
+
+
+def resume_text(result):
+    """Compact rendering; journal text is explicitly quoted as historical evidence."""
+    out = ["Retoma dirigida · estado: " + result["status"]]
+    summary = result.get("ledger")
+    if summary:
+        out.extend(["Ledger vigente: " + summary["path"], linea(summary)])
+        for task in summary["en_progreso"]:
+            out.append("En progreso: " + task["id"] + " " + task["titulo"])
+    if result["candidates"]:
+        references = [value.get("entry", "?") if isinstance(value, dict) else str(value)
+                      for value in result["candidates"]]
+        out.append("Selecciona una referencia exacta: " + ", ".join(references))
+    for entry in result["history"]:
+        out.append("Historial citado (no acredita QA vigente): " + entry.get("entry", "?")
+                   + " · " + entry.get("fecha", "?") + " · sesión " + entry.get("session_id", "?"))
+        for field in ("runtime", "fuente", "resumen", "cierre", "decisiones", "pendientes"):
+            if entry.get(field):
+                value = entry[field]
+                out.append("> " + field + ": " + ("; ".join(value) if isinstance(value, list) else str(value)))
+    for issue in result["issues"]:
+        out.append("Aviso: " + (issue.get("status", "unknown") if isinstance(issue, dict) else str(issue)))
+    if result["output_truncated"]:
+        out.append("Salida resumida: detalles omitidos por el presupuesto de presentación.")
+    text = "\n".join(out[:31])
+    if len(out) > 31 or len(text) > 5950:
+        text = text[:5950] + "\nSalida truncada por el presupuesto de presentación."
+    return text
+
+
 # ------------------------------------------------------------------ CLI
 
 def cmd_line(args):
@@ -256,8 +460,22 @@ def cmd_session(args):
                    + (" …" if len(huerf) > 5 else ""))
     rel = os.path.relpath(rs[0]["path"], args.root) if len(rs) == 1 \
         else os.path.join("docs", "roadmap", "<…>", "tasks.md")
+    rel = rel.replace("\\", "/")
     out.append(f"Ledger canónico: {rel} — retoma desde la tarea en-progreso")
     print("\n".join(out[:15]))
+    return 0
+
+
+def cmd_resume(args):
+    result = resume(args.root, initiative=args.initiative, session_id=args.session_id,
+                    runtime=args.runtime, entry=args.entry)
+    if args.history_only:
+        if result["status"] == "ok" and not result["history"]:
+            return 0
+        journal = _load_module("resume_render_journal", "journal.py")
+        print(journal.selected_text({"status": result["status"], "entries": result["history"]}))
+    else:
+        print(json.dumps(result, ensure_ascii=False) if args.json else resume_text(result))
     return 0
 
 
@@ -278,6 +496,17 @@ def main(argv=None):
     sp = sub.add_parser("session", help="bloque de contexto de sesión (≤15 líneas)")
     sp.add_argument("--root", default=".")
     sp.set_defaults(fn=cmd_session)
+
+    sp = sub.add_parser("resume", help="retoma dirigida, de solo lectura, desde ledger e historial")
+    sp.add_argument("--root", default=".")
+    sp.add_argument("--initiative")
+    sp.add_argument("--session-id")
+    sp.add_argument("--runtime")
+    sp.add_argument("--entry")
+    output = sp.add_mutually_exclusive_group()
+    output.add_argument("--json", action="store_true")
+    output.add_argument("--history-only", action="store_true", help="solo contexto histórico acotado")
+    sp.set_defaults(fn=cmd_resume)
 
     args = p.parse_args(argv)
     return args.fn(args)

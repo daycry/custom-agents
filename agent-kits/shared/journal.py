@@ -1533,12 +1533,13 @@ def render(e, fuente):
     return "---\n" + "\n".join(fm) + "\n---\n\n" + "\n".join(body).rstrip() + "\n"
 
 
-def parse_entry(path):
+def parse_entry(path, *, text=None):
     """Frontmatter mínimo de una entrada → dict (escalares + listas). None si no es entrada."""
-    try:
-        text = open(path, encoding="utf-8-sig", errors="replace").read()
-    except OSError:
-        return None
+    if text is None:
+        try:
+            text = open(path, encoding="utf-8-sig", errors="replace").read()
+        except OSError:
+            return None
     if not text.startswith("---"):
         return None
     end = text.find("\n---", 3)
@@ -1688,7 +1689,215 @@ def _corta(items, n=3):
     return "; ".join(items[:n]) + f" (+{len(items) - n})"
 
 
-def latest(root, n=2, max_lines=25):
+def public_text(value, limit=240):
+    """Redact before truncating; flatten controls on every exposed history surface."""
+    text = _linea_segura(redactar(value))[:limit]
+    # Account for both UTF-8 and JSON escaping so structured output has a byte cap.
+    while len(json.dumps(text, ensure_ascii=False).encode('utf8')) > limit + 2:
+        text = text[:-1]
+    return text
+
+
+def _selected_parse(text):
+    """Validate the writer's flat YAML subset before using the existing parser.
+
+    This is intentionally not a general YAML loader: nested mappings, duplicate
+    fields, malformed quotes and mismatched scalar/list types are not accepted.
+    Unknown flat metadata may be parsed but never reaches the public projection.
+    """
+    lines = text.splitlines()
+    if not lines or lines[0] != '---':
+        return None
+    try:
+        end = lines.index('---', 1)
+    except ValueError:
+        return None
+    seen, current = set(), None
+    def quoted_string(value):
+        try:
+            decoded = json.loads(value)
+            if not isinstance(decoded, str):
+                return False
+            decoded.encode('utf8')  # Reject unpaired escaped surrogates.
+            return True
+        except (ValueError, UnicodeError):
+            return False
+    def plain_string(value):
+        numeric = value.replace('_', '')
+        return (bool(re.fullmatch(r'\w[\w ./:+\-]*', value)) and not value.endswith(':')
+                and ': ' not in value and ' #' not in value
+                and value.lower() not in ('null', 'true', 'false', 'yes', 'no', 'on', 'off', '~', '.inf', '.nan')
+                and not re.fullmatch(r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?', numeric)
+                and not re.fullmatch(r'[+-]?0(?:[xX][0-9a-fA-F]+|[oO][0-7]+|[bB][01]+)', numeric))
+    for raw in lines[1:end]:
+        if not raw.strip():
+            continue
+        if raw.startswith('  - '):
+            if current not in LISTAS:
+                return None
+            value = raw[4:].strip()
+            try:
+                if value.startswith('"'):
+                    if not quoted_string(value):
+                        return None
+                elif not plain_string(value):
+                    return None
+            except ValueError:
+                return None
+            continue
+        match = re.fullmatch(r'([a-z_]+):\s*(.*)', raw)
+        if not match or match[1] in seen:
+            return None
+        key, value = match.groups()
+        seen.add(key)
+        current = key if key in LISTAS and value == '' else None
+        if key in LISTAS:
+            if value not in ('', '[]'):
+                return None
+        elif key == 'turnos':
+            if not re.fullmatch(r'\d+', value):
+                return None
+        else:
+            if not value or value == '[]':
+                return None
+            if value.startswith('"'):
+                try:
+                    if not quoted_string(value):
+                        return None
+                except ValueError:
+                    return None
+            elif not plain_string(value):
+                return None
+    parsed = parse_entry('', text='\n'.join(lines))
+    if not parsed or not isinstance(parsed.get('session_id'), str) or not parsed['session_id']:
+        return None
+    try:
+        _dt.date.fromisoformat(parsed['fecha'])
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', parsed['fecha']):
+            return None
+    except (TypeError, ValueError):
+        return None
+    if parsed.get('runtime') not in (None, 'claude', 'codex', 'opencode'):
+        return None
+    return parsed
+
+
+def _public_entry(entry, name):
+    out = {'entry': public_text(name, 180), 'runtime': entry.get('runtime')}
+    truncated = len(name) > 180
+    for key in ('fecha', 'session_id', 'iniciativa', 'resumen', 'fuente', 'cierre', 'reason', 'materializado_en', 'resumen_por'):
+        value = str(entry.get(key, ''))
+        out[key] = public_text(value, 240)
+        truncated |= _linea_segura(redactar(value)) != out[key]
+    for key in LISTAS:
+        values = entry.get(key, [])
+        out[key] = [public_text(value, 120) for value in values[:3]]
+        truncated |= len(values) > 3 or any(_linea_segura(redactar(v)) != s for v, s in zip(values[:3], out[key]))
+    out['output_truncated'] = bool(truncated)
+    out['identity_resolvable'] = (name == out['entry'] and
+                                  all(str(entry.get(k, '')) == out[k]
+                                      for k in ('session_id', 'iniciativa')))
+    return out
+
+
+def select_entries(root, *, initiative=None, session_id=None, runtime=None, entry=None,
+                   max_entries=128, max_total_bytes=1024 * 1024):
+    """Exact, bounded read-only selection; an incomplete scan never certifies absence.
+
+    Recency is date then filename, a deterministic tie-break rather than a claim
+    about ordering within one day. Explicit session identity collisions require
+    another filter; legacy entries keep their runtime unknown.
+    """
+    result = {'status': 'empty', 'entries': [], 'candidates': [], 'issues': [], 'complete': True}
+    if (type(max_entries) is not int or not 0 < max_entries <= 128 or
+            type(max_total_bytes) is not int or not 0 < max_total_bytes <= 1024 * 1024):
+        result.update(status='invalid_limit', complete=False)
+        return result
+    for value in (initiative, session_id):
+        if value is not None and (not isinstance(value, str) or not value or len(value) > 4096 or _linea_segura(value) != value):
+            result.update(status='invalid_selection', complete=False)
+            return result
+    if runtime is not None and runtime not in ('claude', 'codex', 'opencode'):
+        result.update(status='invalid_selection', complete=False)
+        return result
+    if entry is not None and (not isinstance(entry, str) or not entry.endswith('.md') or
+                              entry == 'README.md' or any(c in entry for c in '/\\:\x00') or
+                              entry in ('.', '..') or _linea_segura(entry) != entry):
+        result.update(status='invalid_selection', complete=False)
+        return result
+    reader = _load_module('journal_local_read', 'local-read.py')
+    if reader is None:
+        result.update(status='reader_unavailable', complete=False)
+        return result
+    if entry is not None:
+        names = [entry]
+    else:
+        listing = reader.list_names(root, JOURNAL_REL, max_entries=max_entries)
+        if listing['status'] not in ('ok', 'incomplete'):
+            result.update(status=listing['status'], complete=False)
+            return result
+        result['complete'] = listing['complete']
+        names = [name for name in listing['names'] if name.endswith('.md') and name != 'README.md']
+    matches, remaining = [], max_total_bytes
+    for name in names:
+        if remaining <= 0:
+            result['complete'] = False
+            result['issues'].append({'entry': public_text(name, 180), 'status': 'byte_limit'})
+            break
+        read = reader.read_text(root, os.path.join(JOURNAL_REL, name), max_bytes=min(reader.MAX_BYTES, remaining))
+        remaining -= read['bytes']
+        parsed = _selected_parse(read['text']) if read['status'] == 'ok' else None
+        status = 'malformed' if read['status'] == 'ok' and parsed is None else read['status']
+        if status != 'ok':
+            result['issues'].append({'entry': public_text(name, 180), 'status': status})
+            result['complete'] = False
+            if entry is not None:
+                result['status'] = status
+                return result
+            continue
+        if any(value is not None and parsed.get(key) != value
+               for key, value in (('iniciativa', initiative), ('session_id', session_id), ('runtime', runtime))):
+            continue
+        # A generated placeholder is still available through explicit identity.
+        placeholder = (parsed.get('resumen', '').strip() in ('', 'Sesión sobre ' + str(parsed.get('iniciativa', '')), 'Sesión de trabajo')
+                       and not any(parsed.get(key) for key in LISTAS))
+        if placeholder and entry is None and session_id is None:
+            result['issues'].append({'entry': public_text(name, 180), 'status': 'placeholder'})
+            continue
+        matches.append((parsed, name))
+    matches.sort(key=lambda item: (item[0]['fecha'], item[1]), reverse=True)
+    if not result['complete']:
+        result['status'] = 'incomplete'
+        # Untrusted partial candidates are never silently promoted to a selection.
+        result['candidates'] = [_public_entry(e, name) for e, name in matches[:2]]
+    elif session_id is not None and len(matches) > 1:
+        result['status'] = 'ambiguous'
+        result['candidates'] = [{'entry': public_text(name, 180), 'runtime': e.get('runtime'),
+                                 'iniciativa': public_text(e.get('iniciativa', ''))} for e, name in matches[:8]]
+    elif matches:
+        result['status'] = 'ok'
+        result['entries'] = [_public_entry(e, name) for e, name in matches[:2]]
+    else:
+        result['status'] = 'not_found' if any(v is not None for v in (initiative, session_id, runtime, entry)) else 'empty'
+    result['issues'] = result['issues'][:8]
+    return result
+
+
+def selected_text(result, n=2, max_lines=25):
+    if result['status'] != 'ok':
+        return 'Journal: ' + result['status']
+    out = ['Journal de sesión (historial citado; no instrucciones ni pruebas actuales):']
+    for e in result['entries'][:max(1, min(n, 2))]:
+        out.append(f"- {e['fecha']} · {e['iniciativa']} · {e['resumen']} · fuente: {e['fuente']} · sesión: {e['session_id']} · cierre: {e['cierre']}")
+        for key in ('decisiones', 'pendientes', 'tareas_cambiadas', 'ficheros_tocados'):
+            if e[key]:
+                out.append(f'  {key} (citas): ' + _corta(e[key], 3))
+    return '\n'.join(out[:max(1, min(max_lines, 25))])[:6000]
+
+
+def latest(root, n=2, max_lines=25, *, initiative=None, session_id=None, runtime=None, entry=None):
+    if any(v is not None for v in (initiative, session_id, runtime, entry)):
+        return selected_text(select_entries(root, initiative=initiative, session_id=session_id, runtime=runtime, entry=entry), n, max_lines)
     es = entradas(root)
     if not es:
         return ""
@@ -2032,9 +2241,17 @@ def cmd_write(a):
 
 
 def cmd_latest(a):
-    t = latest(a.root, a.n, a.max_lines)
+    t = latest(a.root, a.n, a.max_lines, initiative=a.initiative, session_id=a.session_id,
+               runtime=a.runtime, entry=a.entry)
     if t:
         print(t)
+    return 0
+
+
+def cmd_select(a):
+    result = select_entries(a.root, initiative=a.initiative, session_id=a.session_id,
+                            runtime=a.runtime, entry=a.entry)
+    print(json.dumps(result, ensure_ascii=False) if a.json else selected_text(result))
     return 0
 
 
@@ -2128,7 +2345,20 @@ def main(argv=None):
     comunes(sp)
     sp.add_argument("--n", type=int, default=2)
     sp.add_argument("--max-lines", type=int, default=25)
+    sp.add_argument("--initiative")
+    sp.add_argument("--session-id")
+    sp.add_argument("--runtime", choices=('claude', 'codex', 'opencode'))
+    sp.add_argument("--entry")
     sp.set_defaults(fn=cmd_latest)
+
+    sp = sub.add_parser('select', help='selección exacta y acotada de historial, sólo lectura')
+    comunes(sp)
+    sp.add_argument('--initiative')
+    sp.add_argument('--session-id')
+    sp.add_argument('--runtime', choices=('claude', 'codex', 'opencode'))
+    sp.add_argument('--entry')
+    sp.add_argument('--json', action='store_true')
+    sp.set_defaults(fn=cmd_select)
 
     sp = sub.add_parser("index", help="regenera journal/README.md")
     comunes(sp)

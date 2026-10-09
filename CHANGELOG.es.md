@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added — Retoma dirigida del trabajo
+
+- Añadir `/work-resume` como fachada de solo lectura sobre el ledger actual y el historial seleccionado del journal. Compartir lectura local acotada y selección exacta entre la vista manual y el historial de arranque; mostrar identidades ambiguas, registros inválidos y búsquedas incompletas sin sustituir la sesión. Conservar runtimes antiguos desconocidos y distinguir citas históricas del estado actual de tareas y de la evidencia QA.
+
 ### Fixed — Guardias de verificación de commits Git
 
 - Ampliar la regla compartida `git` para IDs propios exactos de implementer y architect en Claude, Codex y OpenCode. Denegar commits que desactivan la verificación o sustituyen explícitamente `core.hooksPath`, incluidas formas reconocidas de entorno literal y wrappers. Conservar `--verify` posterior, mensajes, rutas, amend ordinario y desactivación por proyecto; documentar los límites del parser.

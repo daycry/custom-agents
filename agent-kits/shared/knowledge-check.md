@@ -92,8 +92,10 @@ protege la inversión de `2026-08-10-token-diet`). `$SHAREDKIT` es el kit locali
 Es la bitácora cronológica que deja el hook `SessionEnd` (`agent-kits/shared/journal.py`): qué pasó en
 la última sesión, qué ficheros se tocaron, qué tareas cambiaron de estado, qué quedó pendiente. No es
 doctrina (no está curada ni validada) y NO sustituye a `adr/`/`gotchas/`/`lessons/`. `evaluator`,
-`planner` y `architect` abren **solo la última entrada** (`journal.py latest --n 1`, o el fichero más
-reciente de la carpeta) y **solo si su `iniciativa:` coincide con la iniciativa en la que trabajan** —
+`planner` y `architect` consultan **solo la última entrada de su iniciativa**
+(`journal.py latest --n 1 --initiative <slug-exacto>`, pasando el valor como argumento,
+sin interpolarlo en shell). El selector común informa ausencia, ambigüedad o lectura
+incompleta sin sustituir la selección por otra sesión —
 para retomar el hilo (pendientes, decisiones apuntadas), nunca para leer el histórico entero. Al
 arrancar/retomar la sesión ya viene inyectada por `session-context.sh` — igual que los aciertos de
 memoria del **área de la iniciativa activa** (bloque «Memoria técnica del área activa»); si los ves en

@@ -299,6 +299,8 @@ SCRIPTS = descubrir()
 # no-ASCII en el fuente. `test_los_exentos_de_simbolos_lo_estan_por_medicion` comprueba que la
 # exención sigue siendo cierta ejecutando el modo declarado.
 SIN_SIMBOLOS_EN_LA_SALIDA = {
+    "agent-kits/shared/knowledge-local.py": "sin `__main__`: módulo de lectura local, no imprime al arrancar",
+    "agent-kits/shared/knowledge-taxonomy-local.py": "sin `__main__`: módulo de taxonomía local, no imprime al arrancar",
     "agent-kits/shared/journal-capture.py":
         "valid SessionEnd payloads persist an envelope without emitting context; limit warnings are ASCII",
     "agent-kits/nemesis/tools/pick_asset.py":
@@ -369,6 +371,14 @@ def _modos():
     release = ('{"tag_name":"v1.0.0","body":"Arreglos 🐛 y mejoras 👍","assets":'
                '[{"name":"tool_linux_amd64.tar.gz","browser_download_url":"https://x/y"}]}')
     return {
+        "agent-kits/shared/knowledge-local.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
+        "agent-kits/shared/knowledge-taxonomy-local.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
+        "agent-kits/shared/native-guardrail.py":
+            [("deny nativo con emoji", lambda w: ["--runtime", "claude", "--project-dir", w], (0,),
+              '{"agent_type":"custom-agents:implementer","tool_name":"Write","tool_input":'
+              '{"file_path":"docs/roadmap/2026-09-03-x/spec.md","content":"👍 ok"}}')],
         "skills/outcome-evals/scripts/report_outcomes.py":
             [("resultados JSON", lambda w: [os.path.join(w, "outcomes.json")], (0,), None)],
         "agent-kits/shared/code-context.py":

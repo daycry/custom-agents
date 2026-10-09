@@ -90,7 +90,7 @@ Notes:
   # then use "$MIKIT/tools/..." , "$MIKIT/templates/..." , etc.
   ```
 
-  **Six roots, two per runtime** (`docs/en/INTEROP.md`): `.claude` (Claude Code: project and, under `$HOME`, both user scope `~/.claude/` and the plugin cache `~/.claude/plugins/…`), `.codex` (Codex: `.codex/plugins/<plugin>/`, `~/.codex/plugins/cache/…`) and OpenCode (`.opencode/` per project, `~/.config/opencode/` globally — its global directory is NOT `~/.opencode`). Neither Codex nor OpenCode looks for kits under `.claude/`, so without their roots a plugin installed there cannot find its toolkit. **Order** is what matters: the three project roots first, then the user ones → the project wins if there are multiple copies (same precedence as Claude Code). This `find` is kept in sync by the files `scripts/export-interop.py` generates; if you add a runtime, its root is added to **every** piece (today 88 occurrences across 56 files).
+  **Six roots, two per runtime** (`docs/en/INTEROP.md`): `.claude` (Claude Code: project and, under `$HOME`, both user scope `~/.claude/` and the plugin cache `~/.claude/plugins/…`), `.codex` (Codex: `.codex/plugins/<plugin>/`, `~/.codex/plugins/cache/…`) and OpenCode (`.opencode/` per project, `~/.config/opencode/` globally — its global directory is NOT `~/.opencode`). Neither Codex nor OpenCode looks for kits under `.claude/`, so without their roots a plugin installed there cannot find its toolkit. **Order** is what matters: the three project roots first, then the user ones → the project wins if there are multiple copies (same precedence as Claude Code). This `find` is kept in sync by the files `scripts/export-interop.py` generates; if you add a runtime, its root is added to **every** piece.
 - Shared skills: invoke them with the Skill tool (by name). If you need to read one of their files, resolve it the same way: `find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/<skill>/...'`.
 
 ## 6. Checklist for adding a new agent
@@ -348,6 +348,14 @@ have to be re-discovered", generalizing the bookend pattern from `agents/nemesis
   `avisos`, exit 0. The official hooks docs (2026-09-03) still do not let `prompt`/`agent` hooks return text,
   and on `SessionEnd` every output is ignored: the restriction is true and stays — what was revised on
   2026-09-08 is the conclusion: the `command` hook does not return, it **writes** (ADR-010 §Revisión).
+- **Directed resume:** `/work-resume` uses `progress-report.py resume`: current ledger
+  first, history selected through the bounded `journal.py` reader next.
+  `SessionStart` uses `resume --history-only` at startup/resume (≤ 25 lines), with
+  no history on compact. Implicit selection requires one `en-progreso` initiative;
+  several are ambiguous, and zero active initiatives cannot select global history.
+  The manual view runs no replay, meter, Git or backends. The hook's progress and
+  recovery blocks retain separate methods; the complete hook still performs recovery.
+  [Read contract](WORK-RESUME.md).
 - **Note (D2):** the "Notas de implementación" section of the planner's
   `agent-kits/planner/templates/tasks.md` template was retired (`knowledge-capture` initiative,
   task T-14) — an initiative's qualitative record now lives in `docs/knowledge/`, not in a

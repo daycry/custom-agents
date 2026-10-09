@@ -1,0 +1,363 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-09",
+  "block": 13,
+  "base_commit": "03e520b8b40fb4e9700c812476805ecbb6858a1a",
+  "capability": "Directed read-only resume from current ledger and selected local journal.",
+  "runtimes": [
+    "claude",
+    "codex",
+    "opencode"
+  ],
+  "source": {
+    "files": 895,
+    "manifest_sha256": "190f5e11fc0367f6e3fb7f5c6e2030fbcd6511c13eb78cd2846512af56f4f6ed",
+    "production_and_test_sha256": {
+      "agent-kits/shared/journal.py": "45794372ea22fcc72e55a97717216cdef1a505400087b098f08bb33aea1a6d76",
+      "agent-kits/shared/knowledge-check.md": "c5eedd9a16dcdec6187b018b0e59c54246573d7dba7af9c0cd72c1a5af173166",
+      "agent-kits/shared/local-read.py": "0921b6bbf628ac46c5f60d8cb6c4fe0bb467f5c9573abd7b9f16cc6f63326180",
+      "agent-kits/shared/progress-report.py": "73f1ea72458f926bf8107c119ca2175b057e469a9b6dbbf5b05089cd42e0f0b2",
+      "agent-kits/shared/test_journal_selection.py": "fff3737e7ad0cd8af32f5d53f3f2d247e0c2baf765da0876066d7788c56efe87",
+      "agent-kits/shared/test_local_read.py": "7f63f588f0d671102087ac92f0a3f927e0ed905a5383080576e232cec6f7ea21",
+      "agent-kits/shared/test_work_resume.py": "736780c466e87012a803b3db2465ee7dba362ebef94eff8e32bfcf5ce0480921",
+      "commands/work-resume.md": "7a19504d5f9ae692a873604c4a70b02ef74aaea35e3f8bdfc66cb891bb2e3f7a",
+      "evals/cases/command-work-resume.json": "f13abc86923fde1d71b1949e236ac1efac85b41b71e2bcf6acb66bc608e4a0e4",
+      "hooks/session-context.sh": "74e6c204058f604490a1fdc6894d1270400cc1a29b380bd24d75086a1b2c85e8",
+      "interop/codex/prompts/work-resume.md": "830cbbd240293f320df269a690d2bd0e0073a99141644350bf8d486fe7a0d2fc",
+      "interop/opencode/commands/work-resume.md": "6240f95c886056f7aadbe301d194ddee810d933a82f67fa6bcdbe239143880f6",
+      "interop/opencode/custom-agents-index.md": "ec98662656466cd345dcfdfc94f13e1ba254db3f7d09f3e1af4a494c1486d26c",
+      "tests/test_console_encoding.py": "aa73939f438471a0a1dbb9f27a42a2727d533d8c935f831dc4dd932335b48bc6",
+      "tests/test_hooks_shell.py": "a3c06b786e6e9f6fc0f5242e27795081b8f15d98cdfbd210baf8a07c11893ebe"
+    },
+    "scope": "Public snapshot only; consumer config, ignored knowledge and private fixtures excluded before file reads.",
+    "linux_shell_normalization": "CRLF to LF only; executable archive mode 0755."
+  },
+  "review": {
+    "attempts": 3,
+    "lenses": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "pending": {
+      "Critical": 0,
+      "Important": 0,
+      "Minor": 0
+    },
+    "behavioral_files_unchanged_since_attempt_3": 14,
+    "qa_followup": "Independent bounded verification of console modes and owned harness isolation; no fourth behavioral review.",
+    "qa_followup_evidence": [
+      {
+        "piece": "knowledge-local.py",
+        "encoding": "cp1252",
+        "exit_code": 0,
+        "stdout_bytes": 0,
+        "stderr_bytes": 0
+      },
+      {
+        "piece": "knowledge-taxonomy-local.py",
+        "encoding": "cp1252",
+        "exit_code": 0,
+        "stdout_bytes": 0,
+        "stderr_bytes": 0
+      },
+      {
+        "piece": "native-guardrail.py",
+        "encoding": "cp1252",
+        "exit_code": 0,
+        "decision": "deny",
+        "utf8_non_ascii": true,
+        "stderr_bytes": 0,
+        "project_unchanged": true
+      },
+      {
+        "piece": "knowledge-local.py",
+        "encoding": "ascii",
+        "exit_code": 0,
+        "stdout_bytes": 0,
+        "stderr_bytes": 0
+      },
+      {
+        "piece": "knowledge-taxonomy-local.py",
+        "encoding": "ascii",
+        "exit_code": 0,
+        "stdout_bytes": 0,
+        "stderr_bytes": 0
+      },
+      {
+        "piece": "native-guardrail.py",
+        "encoding": "ascii",
+        "exit_code": 0,
+        "decision": "deny",
+        "utf8_non_ascii": true,
+        "stderr_bytes": 0,
+        "project_unchanged": true
+      },
+      {
+        "nongit_fixture_stays_nongit": true
+      }
+    ]
+  },
+  "qa": {
+    "reports": {
+      "windows-python": {
+        "expected": 1031,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 16,
+        "gate_exit_code": 0,
+        "report_sha256": "56c21897cbacd859ad235f60c66618dd64de87d27240c961956e994e0c0289e5"
+      },
+      "windows-node": {
+        "expected": 37,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 0,
+        "gate_exit_code": 0,
+        "report_sha256": "14a460008c54904d1a008523b3bf606a1f1b5abfa55c3fd6ceee67f4de53f391"
+      },
+      "linux-python": {
+        "expected": 1047,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 0,
+        "gate_exit_code": 0,
+        "report_sha256": "1d095c3d018099b54f0fcfd1942e93e0dff9a456c3045ba7ad341735eb94de97"
+      },
+      "linux-node": {
+        "expected": 34,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 3,
+        "gate_exit_code": 0,
+        "report_sha256": "9288d4f7cbd07cff870b7c718cc4d20a2aadec2998b2410a0231e29778a34e66"
+      }
+    },
+    "diff_coverage": {
+      "method": "Coverage.py executable statements intersected with added Git diff lines vs 03e520b; new bounded reader includes all executable statements.",
+      "covered": 473,
+      "total": 523,
+      "percent": 90.44,
+      "files": [
+        {
+          "file": "agent-kits/shared/local-read.py",
+          "covered": 136,
+          "total": 144,
+          "uncovered_lines": [
+            21,
+            57,
+            59,
+            93,
+            95,
+            123,
+            159,
+            161
+          ]
+        },
+        {
+          "file": "agent-kits/shared/journal.py",
+          "covered": 165,
+          "total": 190,
+          "uncovered_lines": [
+            1541,
+            1542,
+            1710,
+            1713,
+            1714,
+            1720,
+            1737,
+            1742,
+            1745,
+            1746,
+            1758,
+            1759,
+            1767,
+            1768,
+            1773,
+            1777,
+            1781,
+            1830,
+            1831,
+            1844,
+            1845,
+            1846,
+            1888,
+            1894,
+            2244
+          ]
+        },
+        {
+          "file": "agent-kits/shared/progress-report.py",
+          "covered": 172,
+          "total": 189,
+          "uncovered_lines": [
+            97,
+            98,
+            234,
+            265,
+            266,
+            267,
+            268,
+            297,
+            298,
+            300,
+            301,
+            305,
+            359,
+            376,
+            401,
+            406,
+            463
+          ]
+        }
+      ]
+    },
+    "skipped_reasons": {
+      "windows": {
+        "python": {
+          "native symlink privilege unavailable: 1314": 6,
+          "permisos POSIX": 1,
+          "symlinks no soportados en este entorno": 3,
+          "flock es POSIX; en Windows el equivalente es msvcrt": 3,
+          "time.tzset no existe en Windows": 2,
+          "requiere git real, no Windows": 1
+        },
+        "node": {}
+      },
+      "linux": {
+        "python": {},
+        "node": {
+          "Windows-only: forced termination of the Windows launcher closes its descendant job": 1,
+          "Windows-only: unavailable Windows supervision skips business code without exposing its payload": 1,
+          "Windows-only: malformed Windows job confirmation is rejected before forwarding diagnostics": 1
+        }
+      }
+    },
+    "windows_jobs": [
+      {
+        "name": "python",
+        "exit_code": 0,
+        "duration_ms": 337932
+      },
+      {
+        "name": "coverage",
+        "exit_code": 0,
+        "duration_ms": 2384
+      },
+      {
+        "name": "node",
+        "exit_code": 0,
+        "duration_ms": 87722
+      },
+      {
+        "name": "lint",
+        "exit_code": 0,
+        "duration_ms": 2361
+      },
+      {
+        "name": "evals",
+        "exit_code": 0,
+        "duration_ms": 244
+      },
+      {
+        "name": "export",
+        "exit_code": 0,
+        "duration_ms": 238
+      },
+      {
+        "name": "ledger",
+        "exit_code": 0,
+        "duration_ms": 122
+      }
+    ],
+    "linux_jobs": [
+      {
+        "name": "python",
+        "exit_code": 0,
+        "duration_ms": 72964
+      },
+      {
+        "name": "node",
+        "exit_code": 0,
+        "duration_ms": 18533
+      }
+    ],
+    "linux_runtime": {
+      "image_id": "sha256:ee6b1d8543257a61226665c0c2168c3b565885c8af50b846f2d46b19aa0630ac",
+      "network": "none",
+      "init": true
+    },
+    "evals": {
+      "pieces": 52,
+      "cases": 186,
+      "errors": 0
+    },
+    "interop_exports_current": 58,
+    "isolation": "Owned homes, fixtures and Git indexes/commits; Git global/system configuration disabled; ancestor discovery blocked by ceiling; Linux network none.",
+    "rejected_runs": [
+      {
+        "platform": "linux",
+        "run": 1,
+        "failed": 34,
+        "passed": 594,
+        "skipped": 8,
+        "cause": "Empty owned Git index (32); missing command in canonical manifest descriptions (2)."
+      },
+      {
+        "platform": "windows",
+        "run": 1,
+        "failed": 36,
+        "passed": 576,
+        "skipped": 24,
+        "cause": "Same index/manifest gaps plus shell index modes and non-Git fixture ancestor discovery. Only Git metadata observed from workspace; no consumer configuration read."
+      },
+      {
+        "platform": "windows",
+        "run": 2,
+        "status": "interrupted",
+        "cause": "Stopped owned execution to apply verified ancestor-discovery isolation."
+      },
+      {
+        "platform": "linux",
+        "run": 2,
+        "failed": 16,
+        "passed": 1031,
+        "skipped": 0,
+        "cause": "Undeclared inherited console modes (12) and owned Git HEAD not committed (4)."
+      }
+    ]
+  },
+  "limits": {
+    "directory_entries": 128,
+    "file_bytes": 262144,
+    "corpus_bytes": 1048576,
+    "corpora": [
+      "roadmap",
+      "journal"
+    ],
+    "text_lines": 32,
+    "text_characters": 6000,
+    "json_bytes": 12000,
+    "growth_probe_extra_byte_per_file": 1
+  },
+  "acceptance": {
+    "api_cli_synthetic": true,
+    "shell_and_node_transports": true,
+    "native_hosts_new_acceptance": false,
+    "global_initiative_complete": false,
+    "new_skills_paused": true,
+    "unknown_legacy_runtime_preserved": true,
+    "capture_identity_contract_changed": false,
+    "whole_session_start_read_only": false,
+    "atomic_filesystem_sandbox": false
+  },
+  "public_delivery": {
+    "files_scanned": 896,
+    "scope_files": 37,
+    "scope_outside": 0,
+    "brand_matches": 0,
+    "readme_commands": 15,
+    "local_doc_links_valid": 5
+  }
+}
