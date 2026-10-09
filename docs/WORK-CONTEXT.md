@@ -46,17 +46,26 @@ del agente a partir de un check de activación ni inventa consumo.
 relaciones AST EXTRACTED con extremos y citas válidos. Acepta links o edges.
 No incluye nodos semánticos/reflexiones como conocimiento aprobado.
 
-Solo lee el artefacto: máximo 8 MiB, 20.000 nodos, 50.000 relaciones, profundidad
-32; resultado de 1–50 nodos (default 6), una vecindad, truncado explícito.
-No abre el contenido de archivos citados ni sigue symlinks/junctions. Las fuentes
-deben existir dentro del paquete. Un artefacto grande/incompatible degrada con
-exit 2 y conserva búsqueda rg/memoria local. No acredita cobertura completa ni
-frescura: comprueba el código vigente antes de aplicar una relación.
+Acota el artefacto a 8 MiB, 20.000 nodos, 50.000 relaciones y profundidad 32;
+devuelve 1–50 nodos (default 6), una vecindad y recortes explícitos. `--symbol`
+conserva búsqueda por texto; `--node-id` o `--source-file` con `--label` seleccionan
+identidades exactas. No sigue symlinks/junctions ni convierte un ID ambiguo en match.
+
+Sin recibo, declara frescura no verificada. Con un recibo ligado al SHA-256 del
+artefacto, lee y verifica los bytes de todos sus inputs declarados: máximo 128
+archivos, 1 MiB por input y 8 MiB acumulados, incluyendo sondas. Un cambio suprime
+el contexto; una lectura incompleta declara parcialidad. No acredita cobertura
+del repositorio, identidad del productor ni semántica. El productor explícito
+`code-context-build.py` prepara el par AST/recibo con Graphify externo elegido por
+el caller, sin instalarlo. Véase [el contrato completo](CODE_CONTEXT.md).
 
 Graphify es un extractor externo opcional; ninguna dependencia, hook, servicio
-o instalación global se añade por usar el lector. Si se prepara un grafo code-only,
-usa un destino nuevo: una reconstrucción sobre un grafo previo puede conservar
-su capa semántica. Evita instalar hooks obligatorios que sustituyan este workflow.
+o instalación global se añade por usar el lector. El productor genera un artefacto
+AST y un recibo en destinos nuevos; rechaza cualquiera existente antes de importar el extractor.
+Los crea exclusivamente, artefacto primero y recibo al final; el par no es atómico.
+Un fallo de publicación puede dejar el artefacto sin recibo. No borra ni reemplaza
+destinos finales al fallar; la siguiente build requiere un destino nuevo.
+Evita instalar hooks obligatorios que sustituyan este workflow.
 El piloto y su alcance están en el [informe](roadmap/2026-10-06-workflow-integration/testing/structural-pilot.md).
 
 Journal mantiene continuidad de sesión, approved mantiene conocimiento gobernado

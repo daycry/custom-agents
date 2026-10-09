@@ -69,8 +69,10 @@ def test_missing_malformed_and_oversized_graphs_do_not_fake_empty_results(projec
     with pytest.raises(ValueError):
         context.query_graph(project, path, 'worker')
     path.write_bytes(b' ' * (context.MAX_BYTES + 1))
-    with pytest.raises(ValueError):
-        context.query_graph(project, path, 'worker')
+    unavailable = context.query_graph(project, path, 'worker')
+    assert unavailable['status'] == 'verification-unavailable'
+    assert unavailable['completeness'] == 'partial' and unavailable['reason'] == 'verification-budget'
+    assert unavailable['nodes'] == unavailable['edges'] == []
 
 
 def test_cli_reports_unavailable_and_valid_context(project, capsys):
@@ -117,8 +119,9 @@ def test_duplicate_nodes_and_uncited_relations_do_not_invent_context(project):
     data['links'].append(dict(data['links'][0], source_location='not-a-line'))
     graph.write_text(json.dumps(data), encoding='utf-8')
     result = context.query_graph(project, graph, 'process_order')
-    assert len(result['nodes']) == 2 and len(result['edges']) == 1
-    assert len(result['warnings']) == 2
+    assert result['nodes'] == [] and result['edges'] == []
+    assert result['status'] == 'no-match-in-artifact'
+    assert sum('excluded' in warning for warning in result['warnings']) == 2
     assert 'FAKE DUPLICATE' not in json.dumps(result)
 
 

@@ -65,6 +65,7 @@ Most tooling around coding agents answers *how* to write the code. This plugin a
 | **Bidirectional Confluence** (opt-in) | `docs/` ⇄ Confluence, idempotent, with a **curated publish scope** (opt-out `exclude` over `include: ["**/*.md"]`, `confluence-scope.py`) so a PM without git always sees the current state — never the roadmap's execution board |
 | **spec → eval → plan → tasks chain** | One folder per initiative, artifacts linked both ways, `tasks.md` as the **canonical ledger** validated by `ledger-lint.py` |
 | **Technical memory that outlives a chat** | `docs/knowledge/` captures design decisions, proven traps and process lessons. `knowledge-find.py` retrieves legacy ADR/gotchas/lessons and valid `approved/` entries, preserving identity, knowledge version and evidence in JSON; local fallback also works when an authorized backend read fails. Retrieval does not approve entries or activate services |
+| **Cited local AST context** | `code-context.py` selects an exact node ID, an exact file/label pair, or a legacy symbol from an existing artifact. A producer-bound receipt can verify declared input bytes; context stays unapproved, coverage unknown. The optional `code-context-build.py` requires an explicitly trusted external Graphify library and never installs it |
 | **Session journal (episodic memory, no MCP)** | `SessionEnd` only persists a local envelope (no git/AI/network during capture; total hook time also includes launcher/shell startup and depends on the runtime contract and environment); the deterministic entry under `docs/knowledge/journal/` (active initiative, files touched, tasks whose state changed, meter markers; idempotent by `session_id`) is materialized afterwards on `SessionStart` or on demand (`journal.py replay`/`recover`). Startup/resume selects history through the current ledger resolver; `/work-resume` provides an exact manual selection with ambiguity and read limits visible. `/doctor` shows the queue's state (outbox/processing/done/dead-letter). Excluded from Confluence; no AI summary unless you opt in |
 | **Measured code health** | `code-health.py` (skill `code-health`): duplicates by token shingles with `file:line` pairs, long functions/nesting, hotspots (`git log` × size) and aged TODO/FIXME — Markdown or JSON, `--baseline` to see better/worse; `evaluator` uses it to ground risk, `planner` to open measured debt |
 | **Dependency upgrades as a spec, not a gamble** | `deps-inventory.py` (skill `dependency-upgrade`): 7 manifests + lockfiles, declared/locked/latest (only from the official `outdated`, never invented), patch/minor/major jumps; the skill reads each major's upstream changelog and writes the `upgrade-<package>` spec for `evaluator` → `planner`. Vulnerabilities stay with `nemesis` |
@@ -83,6 +84,27 @@ Most tooling around coding agents answers *how* to write the code. This plugin a
 > **Portable skills:** the skills (not the agents, commands or hooks) also work **outside Claude Code** — Codex, Copilot, Cursor and any `AGENTS.md` reader — via `python3 scripts/export-skills.py` or the `custom-agents-skills-portable-<version>.zip` attached to every Release ([how](docs/en/INSTALL.md#using-the-skills-outside-claude-code-portable-package)).
 
 > Self-contained: no dependency on other plugins. `tasks.md` is the canonical ledger for whoever implements — any other tool's own log is a mirror, never the source; and it [coexists](docs/en/observability.md) with live session monitors.
+
+## Local memory and explicit external reads
+
+Local memory works without Docker or a service. The panel and hooks keep their local
+readers; they do not start a stack or poll an external backend.
+
+Kwipu's `markdown-export` adapter can serve an explicit `knowledge-find.py --intent`
+request when the backend, `read.enabled` and that intent are enabled. Canonical entries,
+routing, full-scope filters, manifest and snapshot bindings gate the query before inference.
+Every chunk must match the authorized projection. An incompatible or changing source
+returns local fallback with a reason.
+
+The generated answer remains `no_verificada`, with `autoridad: ninguna` and
+`citas_por_afirmacion: false`. Its `source_nodes` identify retrieved sources; they do
+not prove each claim or approve the answer. See the [Kwipu read contract](skills/knowledge-services/references/kwipu-adapter.md#cómo-habilitar-la-lectura-documental).
+
+AST queries use a separate local artifact. The optional producer declares inputs and
+publishes an artifact-bound receipt; the reader rehashes every declared input per query.
+`verified-declared-inputs` proves observed byte agreement only. It does not authenticate
+the producer, find new files, establish global coverage or verify semantics.
+See [selectors, receipts and portable dependencies](docs/en/CODE_CONTEXT.md).
 
 ## What makes it different
 

@@ -9,6 +9,15 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — Validación portable de recibos de código
+
+- Rechazar rutas de recibos que colisionan por mayúsculas o apuntan al artefacto antes de leer fuentes en cualquier plataforma. Probar payloads UTF-8 de contexto en las comprobaciones de consola y ajustar la descripción de knowledge-services al límite de OpenCode.
+
+### Added — Lectura documental opcional y recibos de código explícitos
+
+- Autorizar consultas documentales por intent explícito contra aprobados, exports y chunks nativos vigentes. Rechazar enlaces desactualizados y conservar el respaldo local; las respuestas generadas permanecen no verificadas y sin autoridad.
+- Añadir selectores AST exactos y recibos de bytes de los inputs declarados, con productor explícito sobre Graphify externo elegido por el caller. Lecturas parciales y cambios suprimen contexto; los recibos no acreditan cobertura del repositorio ni identidad del productor.
+
 ### Added — Evaluación sintética de memoria
 
 - Documentar experimentos nativos de consulta documental, hechos temporales y contexto AST frente al control local. Publicar fuentes, preguntas, respuestas y límites; definir el siguiente contrato opt-in sin activar servicios del consumidor.

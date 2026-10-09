@@ -238,38 +238,7 @@ def _construir_entradas_enrutadas(ki, ks, root, config, backend_id, indice):
     Devuelve `(entradas, errores, omitidas_por_routing)`: `omitidas_por_routing` es la lista de
     `id` que existen en `approved/` pero no llegaron al adaptador por falta de `routing` (gap 84:
     visibilidad de por qué una entrada "no se publicó", en vez de desaparecer en silencio)."""
-    valor_por_categoria = {
-        cat.get("key"): valor
-        for cat, valor in ks.categorias_por_backend_con_valor(config, backend_id)
-    }
-    entradas = []
-    errores = []
-    omitidas_por_routing = []
-    for id_ in sorted(indice):
-        meta = indice[id_]
-        categoria_key = meta.get("category")
-        valor = valor_por_categoria.get(categoria_key, False)
-        if not valor:
-            omitidas_por_routing.append(id_)
-            continue  # fail-closed: categoría sin routing para este backend, o routing false
-        entradas.append({
-            "id": id_,
-            "version": meta["version"],
-            "folder": meta["folder"],
-            "enlaces": meta["enlaces"],
-            "category": categoria_key,
-            "evidencia": meta.get("evidencia"),
-            "fuentes": meta.get("fuentes") or [],
-            "tags": meta.get("tags") or [],
-            "modo": "resumen" if valor == "summary" else "completo",
-            "cuerpo": meta.get("cuerpo") or "",
-            # gap 110 (revision de dos lentes, intento 2 fix2): propaga el `resumen:` explicito
-            # del frontmatter (ya lo extrae `build_index()`) hasta el adaptador, que lo prefiere
-            # sobre el primer parrafo automatico cuando `modo == "resumen"`.
-            "resumen": meta.get("resumen"),
-            "ruta": meta["ruta"],
-        })
-    return entradas, errores, omitidas_por_routing
+    return ks.entradas_enrutadas(config, backend_id, indice)
 
 
 def _construir_parser():

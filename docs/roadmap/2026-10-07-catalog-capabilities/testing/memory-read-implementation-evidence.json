@@ -1,0 +1,3661 @@
+{
+  "schema_version": 2,
+  "block": 18,
+  "status": "accepted_partial_implementation_pending_publication",
+  "base_commit": "ca38d4a2810d2b379ce76dfe6d80a9212489f4b9",
+  "implemented": [
+    "pure shared publication/read routing and strict policy",
+    "bounded original byte hashes and canonical context",
+    "opt-in document adapter and intent router",
+    "exact AST selectors and receipt consumer",
+    "explicit native AST receipt producer"
+  ],
+  "commands": [
+    {
+      "run": "aae35d7a7da7",
+      "tests": [
+        "agent-kits/shared/test_knowledge_routing.py::test_routing_selection_is_pure_preserves_summary_and_excludes_private"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "2d01ec14f296df54865fd3ca3f03de7d3cd46e3f4a77bd795b88f8cf58829655",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "8ca1e6989e5b",
+      "tests": [
+        "agent-kits/shared/test_knowledge_routing.py::test_routing_selection_is_pure_preserves_summary_and_excludes_private"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "20ee3f7b7e36d0f92a6c8c7a068f6ae5d7546cd4a3fd061d2250832019002977",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "04f522f1cd51",
+      "tests": [
+        "agent-kits/shared/test_knowledge_routing.py::test_invalid_routing_cannot_authorize_any_entry"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "87c0491b5ecbdffb93d8ced605173bcf7013072d87de43bdcc8a447c4090eccd",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "d8565af40190",
+      "tests": [
+        "agent-kits/shared/test_knowledge_routing.py",
+        "skills/knowledge-services/scripts/test_knowledge_sync.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "eea4cf15029d4f1d5476f92a1c8b871c0726c46949c4697d2ad939e7caa61d2f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "b9289934399b",
+      "tests": [
+        "agent-kits/shared/test_knowledge_routing.py",
+        "agent-kits/shared/test_knowledge_schema.py",
+        "agent-kits/shared/test_knowledge_local.py",
+        "skills/knowledge-services/scripts/test_knowledge_sync.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "06a75c0aabfe5cbb9593bbfbdd407f38b1a7564805166fd65526ccfba13e3429",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "c6357cd4e6b2",
+      "tests": [
+        "agent-kits/shared/test_local_read.py::test_optional_digest_uses_original_bom_and_crlf_bytes_on_same_read"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "75085ce9355c410a6142abe56c6e6972389dde04becb08ef012643cf3210774a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "f53065eef9a0",
+      "tests": [
+        "agent-kits/shared/test_local_read.py",
+        "agent-kits/shared/test_knowledge_view.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "0470bc19ed2e9379c340d7f239ba7dc491bd451c27951d470fc45e60f77b1ea8",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "7c0cc452d344",
+      "tests": [
+        "agent-kits/shared/test_local_read.py::test_invalid_digest_flag_is_rejected_before_file_access"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "7792e839d3e490ccd4b16f7ddb9db3f062884bcb720cbe73b012aaefe3d66f8d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "c18076e2a23b",
+      "tests": [
+        "agent-kits/shared/test_local_read.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "c896a6693658e0c912183082cad68be2e8742736a9f6f0704f99abeba266d1f3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "c5c86ae81475",
+      "tests": [
+        "agent-kits/shared/test_local_read.py::test_binary_reader_preserves_raw_bytes_and_stable_descriptor_identity",
+        "agent-kits/shared/test_local_read.py::test_binary_identity_detects_hardlink_alias_without_following_a_link",
+        "agent-kits/shared/test_local_read.py::test_binary_options_are_strict_and_fail_before_io"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "1de4f9bd86ceb9aa351b235c0a106d3fd98bcc5a53939be2695096364b80e72b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "a20e5e193b51",
+      "tests": [
+        "agent-kits/shared/test_local_read.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "db136882ff0cf0bcc9353d1d0a1c7c278a6a76365ecf01ad5aadda1560e338d6",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "9c2f4e63ba8e",
+      "tests": [
+        "agent-kits/shared/test_knowledge_routing.py::test_taxonomy_routing_rejects_numeric_boolean_aliases"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "d2fc86eaaec843304a764466ca712113ecbf451ced8f44f6a08a511254e27b61",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "96b36a26302c",
+      "tests": [
+        "agent-kits/shared/test_knowledge_routing.py",
+        "agent-kits/shared/test_knowledge_schema.py",
+        "agent-kits/shared/test_knowledge_local.py",
+        "skills/knowledge-services/scripts/test_knowledge_sync.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "141449d0cbcde2f32ecffb5359c640ab724056f75a4cd4deb2c5bd8c954769f6",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "9b9f11d0edde",
+      "tests": [
+        "agent-kits/shared/test_knowledge_routing.py::test_documental_read_defaults_disabled_and_accepts_explicit_bounded_policy",
+        "agent-kits/shared/test_knowledge_routing.py::test_documental_read_rejects_invalid_or_unbounded_options",
+        "agent-kits/shared/test_knowledge_routing.py::test_documental_read_router_is_strict"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "4473ec0af01a6e8a5c75193d5461ce311212c9e050f847f7fa9ffbfc017cb0cd",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "12448340bcde",
+      "tests": [
+        "agent-kits/shared/test_knowledge_routing.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "1a8be161fadf663f5b14150f726d227163e6c9f0445441810563d92c6ead8470",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "3d7b698ee36a",
+      "tests": [
+        "agent-kits/shared/test_knowledge_routing.py::test_complete_schema_applies_shared_documental_read_policy"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "a033396fbf435604032bde6d99b7810c442b467a366e1c7b2bb6b1489291b6ae",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "8a2e6e37a09f",
+      "tests": [
+        "agent-kits/shared/test_knowledge_routing.py",
+        "agent-kits/shared/test_knowledge_schema.py",
+        "agent-kits/shared/test_knowledge_local.py",
+        "skills/knowledge-services/scripts/test_knowledge_sync.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "41e54b2ca1527c4a8d88515533a7f3eb9ac3e023d840b380ff1e407e8d21de0f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "9c4e6c09219b",
+      "tests": [
+        "agent-kits/shared/test_knowledge_view.py::test_snapshot_opt_in_digests_bind_original_bytes_without_extra_reads",
+        "agent-kits/shared/test_knowledge_view.py::test_snapshot_digest_option_rejects_non_boolean_before_io"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "cdbc94f3fa55d851bb7e35d7e7ef3756fb75255894d972dc996c3ade77787def",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "c9f743d2a92d",
+      "tests": [
+        "agent-kits/shared/test_local_read.py",
+        "agent-kits/shared/test_knowledge_view.py"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "dc5a2483e09b14f109bab43609e1a7bb82fdb59a63be2351b6e9d04b66639e69",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "ffcfd120009e",
+      "tests": [
+        "agent-kits/shared/test_knowledge_read_context.py"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "c6490afc116bbd4a0d8a027d213b065b8292c7c78e4ad71aa5ca840e3ae8e16e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "2220634c373e",
+      "tests": [
+        "agent-kits/shared/test_knowledge_read_context.py"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "d70bff229d669e80881b6b269fa9b8390ba499e5bb5ae22efc3846304cad9df3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "02fbf4cf85db",
+      "tests": [
+        "agent-kits/shared/test_local_read.py",
+        "agent-kits/shared/test_knowledge_view.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "bfe264bfa98ed1125ced43a1e8c5497464e2c5ec897e9b6fe9eab061b1d11264",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "8c0dedffdda8",
+      "tests": [
+        "agent-kits/shared/test_local_read.py::test_empty_binary_disappearance_after_open_is_instability"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "7dbc57bc287c73d937c9a0d8effb5787e374723187f9357e4aaf4394b5db0094",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "fc14f4a388bd",
+      "tests": [
+        "agent-kits/shared/test_local_read.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "c6e79080c05d91e1043166687129f122b9dee46dd8b6116a4a1f1b72e5220ffe",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "49567c019353",
+      "tests": [
+        "agent-kits/shared/test_knowledge_read_context.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "9b678c8e93fc719ac69644237b898c6678ee66257515a8bf2ef119a3e2120bba",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "18eb024f067b",
+      "tests": [
+        "agent-kits/shared/test_knowledge_read_context.py::test_missing_helper_degrades_instead_of_raising",
+        "agent-kits/shared/test_knowledge_read_context.py::test_remote_root_rejects_before_loading_or_probing_reader",
+        "agent-kits/shared/test_knowledge_read_context.py::test_refresh_rechecks_actual_policy_and_never_resets_deadline",
+        "agent-kits/shared/test_knowledge_read_context.py::test_callback_observes_all_routed_meta_even_without_filters"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "9c4f195433002260759d0359713a4942934170c9c60ef4a8fdae4a00b8547d63",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "3be3e758c604",
+      "tests": [
+        "agent-kits/shared/test_knowledge_read_context.py",
+        "agent-kits/shared/test_knowledge_routing.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "4ddbd22ff875f12f80774af3857e9304d1dfde11fe991cbe821b51d0f0585de6",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "5c97cf0bd03c",
+      "tests": [
+        "tests/test_code_selectors.py::test_node_id_selects_exact_case_sensitive_identity_and_one_hop",
+        "tests/test_code_receipts.py::test_legacy_auto_absent_is_warned_but_context_remains"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "94a2ef56626009624f51c4d5e3eb03d85ae86a7c1b4a9fe748e8d9e0a8cc531e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "afc2dde49592",
+      "tests": [
+        "skills/knowledge-services/scripts/test_backend_markdown_read.py::test_native_chunks_null_citations_and_unverified_answer"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "3d471a7681cb3d089707a4359f73afccdc720483480b4c31d140df927e0c2c8e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "3866488a8f8b",
+      "tests": [
+        "tests/test_code_context.py",
+        "tests/test_code_selectors.py",
+        "tests/test_code_receipts.py",
+        "skills/knowledge-services/scripts/test_backend_markdown_read.py"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "7bfdbd45421c46a7ea3e399f18b6710721bc2859f42cba20c99ff6b6282d4c21",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "8cbad0a1ea0c",
+      "tests": [
+        "tests/test_code_receipts.py::test_initial_graph_read_failure_is_partial_without_context"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "615086cdd5763ba6f8342810dce37582eff4457afe451ea7225e75853db09c3b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "75fa346cf7c9",
+      "tests": [
+        "tests/test_code_context.py::test_actual_structural_pilot_has_three_stack_citations"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "6a2cadadee24ba45fd3b15c75d70bcf039db761118695fc33a7217a6977a4076",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "200b2512a526",
+      "tests": [
+        "tests/test_code_context.py",
+        "tests/test_code_selectors.py",
+        "tests/test_code_receipts.py"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "e2083de1031e051e3848cd73ba8fcd81492c0dde4eec1def547542abcfce7805",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "962291acd832",
+      "tests": [
+        "tests/test_code_context.py",
+        "tests/test_code_selectors.py",
+        "tests/test_code_receipts.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "e731a89852251e6cffd6d8cc59ec1b83d15fbd1aa0ebfd523211b57b24dff163",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "12de63e25e72",
+      "tests": [
+        "skills/knowledge-services/scripts/test_backend_markdown_read.py::test_shared_reader_overflow_guard_never_exceeds_local_read_budget"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "fdd023806decdb7b1a1d669481f31a427fb24af1318f7d2f9069934de21127ff",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "c9fd285cfcc6",
+      "tests": [
+        "skills/knowledge-services/scripts/test_backend_markdown_read.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "4685da11efc5c877b3655f35ef4bc6d18091010788039e4afc04624c2ee85229",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "688ab1e6ae56",
+      "tests": [
+        "tests/test_code_context_build.py::ProducerTests::test_explicit_build_receipt_covers_all_inputs"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "90007fbb430afd1bb8b76702ce9094d0191416dc3851ea1e3139d2cf7ba21bc7",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "3b85ab8e427f",
+      "tests": [
+        "tests/test_code_context_build.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "7e395e3ab4d7477ffb88d2929d4264483ec313168a024547eb45f3615e00ae71",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "ab0eeeeb0ca2",
+      "tests": [
+        "agent-kits/shared/test_local_read.py",
+        "agent-kits/shared/test_knowledge_view.py",
+        "agent-kits/shared/test_knowledge_local.py",
+        "agent-kits/shared/test_knowledge_schema.py",
+        "agent-kits/shared/test_knowledge_routing.py",
+        "agent-kits/shared/test_knowledge_read_context.py",
+        "tests/test_code_context.py",
+        "tests/test_code_selectors.py",
+        "tests/test_code_receipts.py",
+        "tests/test_code_context_build.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "019ab2b3f8913154e29a0d0ca1e7607037a576e2d99fd4ecf91d51728aa99636",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "de14e6a52039",
+      "tests": [
+        "skills/knowledge-services/scripts/test_backend_markdown_read.py",
+        "skills/knowledge-services/scripts/test_backend_markdown_export.py",
+        "skills/knowledge-services/scripts/test_knowledge_sync.py",
+        "tests/test_knowledge_services.py"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "a2779ad453168efb28a05c610fe2762589ebfdff917891d4efa48b248bec1e24",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "c3752646d3c7",
+      "tests": [
+        "agent-kits/shared/test_knowledge_routing.py::test_documental_explicit_limit_keys_match_runtime_adapter"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "ca81b9674df498e5722ca21949a4dffbcfc676526815626ba2860cc54008e02c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "dd8abeca9bfa",
+      "tests": [
+        "agent-kits/shared/test_knowledge_routing.py",
+        "agent-kits/shared/test_knowledge_schema.py",
+        "agent-kits/shared/test_knowledge_read_context.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "3c6fa1b8df223ed827e59bc6bc20df596f312e878c847eb343d2a1236fb4f685",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "ece55478e30e",
+      "tests": [
+        "skills/knowledge-services/scripts/test_knowledge_sync.py::test_drenaje_de_envelope_propio_reencolado_agota_intentos_y_va_a_dead_letter"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "e232b009c8b279a968fb83127164a50cacb1547adcab91b45906a159e7a7ff1f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "ff0d30d21681",
+      "tests": [
+        "tests/test_knowledge_router_read.py::test_documentary_routing_has_canonical_context_before_adapter_without_group"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "24fefa5f4f8b623000b576c91f661087f923dcb9edf5853fcbb2cda753324cf7",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "e9d7187d0deb",
+      "tests": [
+        "tests/test_knowledge_router_read.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "1ecf4ea9154f114a50dc16b2214bea687111921b62155b4ae8cbdab79ed7e8e9",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "78d04b9cfb39",
+      "tests": [
+        "tests/test_knowledge_router_read.py",
+        "-k",
+        "deadline_includes_final_normalization or adapter_score_is_preserved"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "8d3bf93f13d21f9704c76195e343e33b0056316ec159f05503acb0ba0ef7056a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "eccce206e0bc",
+      "tests": [
+        "tests/test_knowledge_router_read.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "0cbb37e4fbc8c5214571b7245b9c2b7582eb81bc98bf435f74d2d7874b7d26d7",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "3503750b4452",
+      "tests": [
+        "agent-kits/shared/test_knowledge_view.py",
+        "agent-kits/shared/test_knowledge_read_context.py",
+        "-k",
+        "snapshot_deadline or stops_new_local_io"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "d0a30872d9700897887075a0536b8766c479b6faf69f81b974aa9a9a80fb1cd3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "22685ede779a",
+      "tests": [
+        "agent-kits/shared/test_knowledge_view.py",
+        "agent-kits/shared/test_knowledge_read_context.py",
+        "tests/test_knowledge_router_read.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "33d0851d6607131600b8a4a8947003a794e8935a2757e0134953c8528caa835c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "75dbbc1acba0",
+      "tests": [
+        "tests/test_code_context_build.py::ProducerTests::test_preexisting_destinations_refused_before_api_import",
+        "tests/test_code_context_build.py::ProducerTests::test_supports_exception_degrades_before_extraction",
+        "tests/test_code_context_build.py::ProducerTests::test_compatible_native_api_missing_support_helper_degrades"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "4f5a0306981a23e09a32f2dcdc8b0d78edc1135673b8619c7dc55d8e3b3a347b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "b03daf38773f",
+      "tests": [
+        "tests/test_code_context_build.py",
+        "tests/test_code_context.py",
+        "tests/test_code_selectors.py",
+        "tests/test_code_receipts.py",
+        "tests/test_knowledge_router_read.py",
+        "agent-kits/shared/test_knowledge_read_context.py",
+        "agent-kits/shared/test_knowledge_view.py"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "bba1191311e608acffd26aff333219948cb9da3fbc4bcef1a3ac388517fb0669",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "cohorts": [
+    {
+      "run": "962291acd832",
+      "passed": 131,
+      "skipped": 0,
+      "subtests": 0,
+      "scope": "final code consumer"
+    },
+    {
+      "run": "c9fd285cfcc6",
+      "passed": 55,
+      "skipped": 0,
+      "subtests": 0,
+      "scope": "final document adapter"
+    },
+    {
+      "run": "3b85ab8e427f",
+      "passed": 24,
+      "skipped": 0,
+      "subtests": 18,
+      "scope": "initial code producer before review fixes"
+    },
+    {
+      "run": "ab0eeeeb0ca2",
+      "passed": 533,
+      "skipped": 7,
+      "subtests": 18,
+      "scope": "intermediate local/schema/code before max_ parity fix and router"
+    },
+    {
+      "run": "dd8abeca9bfa",
+      "passed": 160,
+      "skipped": 0,
+      "subtests": 0,
+      "scope": "final policy/schema/context after max_ parity fix"
+    },
+    {
+      "run": "e9d7187d0deb",
+      "passed": 49,
+      "skipped": 1,
+      "subtests": 0,
+      "scope": "final router with two real synthetic HTTP loopback cases, no native Docker"
+    },
+    {
+      "run": "fcdf60e36225",
+      "passed": 202,
+      "skipped": 1,
+      "subtests": 6,
+      "scope": "clean public adapter/publication/sync, before router integration",
+      "manifest_sha256": "bf5b4cf612b8575c128578193a1bd7219e87b966f400cd9e3b4502f18be8c4de",
+      "stdout_sha256": "50a8546287b0728e1588ffe77646c633c433b022a082101cb1772b49058e025a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "run": "eccce206e0bc",
+      "passed": 53,
+      "skipped": 1,
+      "scope": "router after final normalization deadline and score fixes"
+    },
+    {
+      "run": "22685ede779a",
+      "passed": 221,
+      "skipped": 2,
+      "scope": "reader/context/router after propagated snapshot deadline; overlapping cohorts"
+    },
+    {
+      "run": "b03daf38773f",
+      "passed": 387,
+      "skipped": 2,
+      "subtests": 21,
+      "scope": "producer safety/compatibility fixes plus code consumer/router/context/view; overlapping cohorts"
+    }
+  ],
+  "counts_not_additive": true,
+  "source_sha256": {
+    "agent-kits/shared/code-context-build.py": "2d67c8f9cca9020927c0ad08b4e55103c7a9a8d6d5226ac8b029d252e1d0a12c",
+    "agent-kits/shared/code-context.py": "8e7286951ee86519869358154e6c355de90e7f05e8b7654a5376f085819d2b36",
+    "agent-kits/shared/knowledge-find.py": "a64ebe5414305176a7eccff18d4ccd5d5e90a2e3a06d768a99ae5a416e3d001e",
+    "agent-kits/shared/knowledge-read-context.py": "7f18effd1c5673eb23dec99ad55d0ec40a7527b605c80f4b03ceda5be12c9fa7",
+    "agent-kits/shared/knowledge-schema.py": "3aaadc6034e4f36fe8cfed47325be46f7f5b07397185d0c5161d78a7f01fe0d5",
+    "agent-kits/shared/knowledge-taxonomy-local.py": "66661afb593c653a0d44851d619463cf19a790f900dfc3fdc0f896e6dd335315",
+    "agent-kits/shared/knowledge-view.py": "8c60e914896c9fe5bf7e74a2f50e51eaf0893b5b82d7e76b19f5763b4b608281",
+    "agent-kits/shared/local-read.py": "eee670d4c2e43a84724bc72de413a15379cd6681af20875ea3f091f9ef9dca65",
+    "agent-kits/shared/schemas/taxonomy.schema.json": "d34935525f267e48148e89a3604752372c9931db018b0c2dea43cfe4fdaea1bf",
+    "agent-kits/shared/test_knowledge_read_context.py": "79127a68a96b04178a36b5690e6f921d7f123bb1b45d6f3279f520320892a1dc",
+    "agent-kits/shared/test_knowledge_routing.py": "7eca052596c76bcbc86cc51566ca195669c550ef1ab126fe477e91753db34188",
+    "agent-kits/shared/test_knowledge_view.py": "5e5b7099024530f3619caa9f7d732ef53ac353898364cf6b7dcb33480edba414",
+    "agent-kits/shared/test_local_read.py": "31ff04a54b6649b13cc2aebd47687e81a60fef7181b5f18f8002ce62425fd2c9",
+    "skills/knowledge-services/backends/markdown_export.py": "28041abb45c8834ff2d452a352c511cae16170b18ffffc960e06f2f57a2f2aeb",
+    "skills/knowledge-services/scripts/knowledge-sync.py": "670306384f5068f76d59bc19d13fc4e6dff64815993078c77ad192433eac4ece",
+    "skills/knowledge-services/scripts/test_backend_markdown_read.py": "642ab5c960415574386d08d277ca815a0bc5dd5af5d6b3c197d63244e4c5cea6",
+    "tests/test_code_context.py": "1ae27f9a2f173d47c7401243e8de78088ce62d87d084504cd903de6f9a2b1901",
+    "tests/test_code_context_build.py": "cce3653bdb4b0a8e839cda0a05f07c509330d220c4e03d15dd0abb0471bd9882",
+    "tests/test_code_receipts.py": "c2e4ca102e885f272522683b3184c93d75c4474b5903ac860df2931ee673697c",
+    "tests/test_code_selectors.py": "3b9e84da0b8b32bc860e3dad4639227a8dca5fd372dd5088451113ededb63273",
+    "tests/test_knowledge_router_read.py": "39a2d9cc6de90f5f38c0b8e0d9f39f845ac0fb2c71c88a4f87e3aa604f901a43"
+  },
+  "source_hashes_scope": "current tree; older RED/GREEN and native runs used explicit earlier checkpoints, not these current hashes",
+  "preserved_failures": [
+    "Windows test compared path stat with descriptor fstat; harness corrected",
+    "legacy view mock omitted optional argument; default API retains omitted keyword",
+    "actual boolean equality and version-zero context failures fixed",
+    "unstable fixture read did not reproduce; cause unknown, guard retained",
+    "oversize assertion updated to new explicit partial diagnostic contract",
+    "long Windows sync temp failure no longer reproduces with short own temp",
+    "unowned bytecode UTF8 error in legacy hook scan; clean public freeze excluded it before read",
+    "native bridge readiness RemoteDisconnected before model/query calls; exact cleanup and GET harness fix",
+    "QA public nested fixture rejected before tests; exact manifest allowlist fixed without relaxing root exclusions",
+    "Linux own-container absence parser rejected Docker JSON empty array before tests; exact NoSuch parser fixed",
+    "native router preflight case-sensitive NoSuch parser rejected lowercase message before resource creation; new owner harness fixed",
+    "Linux final QA observed four test failures and both coverage gates below 90; preserved, corrections pending"
+  ],
+  "native_acceptance": {
+    "documental": {
+      "summary_sha256": "20ded28b9b64b31e26a7bce7800a921ebfe7d1277b25efc3dd04efa622b3c3f8",
+      "manifest_sha256": "2f4d668cb4e6bd4d6c5b6102bb82b618010073247f97ffa5797b6a4e8310c67e",
+      "code_checkpoint_sha256": {
+        "skills/knowledge-services/backends/markdown_export.py": "28041abb45c8834ff2d452a352c511cae16170b18ffffc960e06f2f57a2f2aeb",
+        "skills/knowledge-services/backends/__init__.py": "ae83c1e3c09ad96b052e94f3d575d13face020042154271c69581dea43151bd6",
+        "agent-kits/shared/knowledge-read-context.py": "582497815e56c399879bcd387d0a7f9f242d71189b6e4f4baccb190a4f27de3b",
+        "agent-kits/shared/knowledge-view.py": "02aa2147252846d137e4ccb14cfaa72a1270f65ceabe5d9bd8c5735fb78e4519",
+        "agent-kits/shared/knowledge-local.py": "028ccb2e7a1acdbbfec5b1dc5d072da0f7e9128396d984321478d8f4e980ac8f",
+        "agent-kits/shared/knowledge-taxonomy-local.py": "66661afb593c653a0d44851d619463cf19a790f900dfc3fdc0f896e6dd335315",
+        "agent-kits/shared/local-read.py": "eee670d4c2e43a84724bc72de413a15379cd6681af20875ea3f091f9ef9dca65",
+        "agent-kits/shared/redact.py": "4e9131368fd2471dcb2e3a2e91f6b0dc00555354487b6308194be05e4c4d5907",
+        "agent-kits/shared/templates/taxonomy.json": "14b258e192a112910a33935794677bab5d941220d3d34e14eef075a4e07b4b4b"
+      },
+      "native_selected_modules_sha256": {
+        "kwipu_config.py": "2672eba9543e3b56bcfe82b13113faa4be97f857dbd732bbda9ff516c0fd057f",
+        "geode_graph.py": "db784f38a552fb11dd1c52215b7e3666e1e3c4766799499f5d78da8ff3880b22",
+        "kwipu_storage.py": "2d81e5f691305b0c7bd7dcfa370cbfc0a7a02e2a7e6de700f12bdd6cab2f3afd",
+        "bridge__query.py": "8e375ebe0b24f1a4a57d26de5e6c8be355892bca43c09f17222d21e4600eabf0",
+        "bridge__app.py": "4afde13a5a2caf86bbb354d85a4444fca718b6ccbbe6f73d17249b15b7644efd",
+        "bridge__config.py": "e5b3314048fac314df25cd1cf08883372e17cbbb936264a29edc58e81120eeb6",
+        "bridge__graph.py": "ca6d20594f10359ec8276934ee817f0234e2ce88b5e87fdeb3b9a56c92f5d61c",
+        "bridge__models.py": "cf84e3b29552418fde187c086d08f2edddfd224318ec17a9666a3369070f3752",
+        "lang_config.py": "1e15a48d3d95982211a58955f1019a7b8f05edc411dd9724e170846b9a18d1d6"
+      },
+      "checks": {
+        "real_gate": true,
+        "two_actual_http_queries": true,
+        "two_labels_observed": true,
+        "expected_canonical_hits": true,
+        "source_nodes_joined": true,
+        "unverified_no_authority": true,
+        "stale_gates_before_any_http_or_inference": true,
+        "storage_no_query_persistence": true,
+        "cleanup_exact": true,
+        "canon_and_exports_restored": true,
+        "thinking_false": true
+      },
+      "counts": {
+        "llm": 2,
+        "embedding": 2,
+        "metadata": 4,
+        "denied": 0
+      },
+      "models": [
+        "gpt-oss:120b-cloud",
+        "nomic-embed-text"
+      ],
+      "queries": 2,
+      "llm_locality": "approved cloud inference through existing local Ollama",
+      "embedding_locality": "existing local model",
+      "retrieval_precision": "not measured; both chunks returned for both queries",
+      "provider_tokens": {
+        "prompt": 1684,
+        "evaluation": 602,
+        "embedding_prompt": 50
+      },
+      "monetary_cost": "not measured",
+      "stale_gates": [
+        {
+          "case": "canonical-edit-before-query",
+          "gate": {
+            "puede": false,
+            "razon": "canon_cambiado"
+          },
+          "query": {
+            "aciertos": [],
+            "descartados": 0,
+            "motivo": "canon_cambiado"
+          },
+          "before": {
+            "proxy": {
+              "llm": 2,
+              "embedding": 2,
+              "metadata": 4,
+              "denied": 0
+            },
+            "bridge_queries": 2,
+            "http_post_queries": 2
+          },
+          "after": {
+            "proxy": {
+              "llm": 2,
+              "embedding": 2,
+              "metadata": 4,
+              "denied": 0
+            },
+            "bridge_queries": 2,
+            "http_post_queries": 2
+          }
+        },
+        {
+          "case": "old-projection-before-query",
+          "gate": {
+            "puede": false,
+            "razon": "manifest_desfasado"
+          },
+          "query": {
+            "aciertos": [],
+            "descartados": 0,
+            "motivo": "manifest_desfasado"
+          },
+          "before": {
+            "proxy": {
+              "llm": 2,
+              "embedding": 2,
+              "metadata": 4,
+              "denied": 0
+            },
+            "bridge_queries": 2,
+            "http_post_queries": 2
+          },
+          "after": {
+            "proxy": {
+              "llm": 2,
+              "embedding": 2,
+              "metadata": 4,
+              "denied": 0
+            },
+            "bridge_queries": 2,
+            "http_post_queries": 2
+          }
+        }
+      ],
+      "router_in_this_native_run": false,
+      "limitations": [
+        "Two synthetic questions only; each native retrieval cites both chunks, not a precision benchmark",
+        "Labels are fixture observations; generated answer remains no_verificada with no authority and no per-claim citation guarantee",
+        "Native D001 citation file_name is null; actual node ID join against pre/post snapshot supplies its canonical binding",
+        "Observed stable hashes and context, not atomicity or proof of producer identity/semantics",
+        "Read native persisted store only; no new ingest or native code changes",
+        "Code9 selected runtime modules hash-asserted in container before serving; copied source9 unchanged. Container post-shutdown source bytes were not recaptured",
+        "First OWN startup failed transient RemoteDisconnected with zero provider/query calls; evidence retained and exact cleanup; only GET readiness harness amended",
+        "No router/knowledge-find integration in this QA; direct prepare + actual adapter tested"
+      ]
+    },
+    "code_context": {
+      "summary_sha256": "c4433d715bf6748065b93724f36f66dd80bdd54def16ae84c80385a2e071a427",
+      "native_pin": "5b74d7d74911cf435c8f1636b6f96ea202cc6246",
+      "consumer_sha256": {
+        "code-context.py": "f9f42bef05a32e41dda4b3be40400fadc71b9b7827c55151c0e6de2b506d5796",
+        "capability-route.py": "a56b51900407e1262e394a67fe38086920d29efba446c31c83c7d0797b714c8c",
+        "redact.py": "4e9131368fd2471dcb2e3a2e91f6b0dc00555354487b6308194be05e4c4d5907",
+        "local-read.py": "eee670d4c2e43a84724bc72de413a15379cd6681af20875ea3f091f9ef9dca65"
+      },
+      "input_artifact_sha256": {
+        "gateway.py": "de8de46dab9f0c5c16df7e27996e5ea0e9dd0e118d6e96bf435fc09f308b0aab",
+        "policy.py": "bddc4e6dad3b1941c016275b45daab241d5bcd370458263864a1eb0d91bd1586",
+        "storage.py": "6a1aa0b925fd2f8b0ea86eb5595f213d8830062f5f7e58f560163fdb9400bd08",
+        "unused.py": "03ecaf965c681031b55dc5f0944ef0477661808d8e77dbb33d17f4ac4cbc9473",
+        "audited/graph.json": "2ae7b5fff5ed204d74482456b1f7f266327ddc30604b3af1fb9b4f71faaf3b99",
+        "audited/graph.json.sources.json": "20b71393d7a51babc3a2239227566abe524e22124dd4ce679a77e70fcc5e338e"
+      },
+      "producer": {
+        "status": "ok",
+        "artifact": "audited/graph.json",
+        "receipt": "audited/graph.json.sources.json",
+        "scope": "declared-inputs",
+        "inputs": 4,
+        "producer_authenticated": false,
+        "global_coverage": "unknown",
+        "pair_atomic": false
+      },
+      "native_nodes": 8,
+      "native_edges": 7,
+      "producer_checkpoint_sha256": "3441af42dcf98b76ac3c7bb16bb6927977ec33c6f308e2afe57a37d97d6d995a",
+      "queries": [
+        {
+          "stage": "native-exact-copy",
+          "selector": "node-id",
+          "arguments": {
+            "node_id": "gateway"
+          },
+          "result": {
+            "version": 1,
+            "artifact_sha256": "2ae7b5fff5ed204d74482456b1f7f266327ddc30604b3af1fb9b4f71faaf3b99",
+            "coverage": "unknown",
+            "freshness": "verified-declared-inputs",
+            "knowledge_status": "unapproved-context",
+            "directed": false,
+            "verification": {
+              "state": "hashes-match",
+              "scope": "declared-inputs",
+              "authenticated": false,
+              "total_inputs": 4,
+              "checked_inputs": 4,
+              "bytes_read": 193,
+              "complete": true,
+              "reason": null,
+              "manifest_sha256": "20b71393d7a51babc3a2239227566abe524e22124dd4ce679a77e70fcc5e338e"
+            },
+            "selector": {
+              "kind": "node-id"
+            },
+            "selection": "exact",
+            "completeness": "complete",
+            "reason": null,
+            "status": "matches",
+            "truncated": false,
+            "nodes": [
+              {
+                "id": "gateway",
+                "label": "gateway.py",
+                "source_file": "gateway.py",
+                "source_location": "L1"
+              },
+              {
+                "id": "gateway_run",
+                "label": "run()",
+                "source_file": "gateway.py",
+                "source_location": "L3"
+              },
+              {
+                "id": "policy",
+                "label": "policy.py",
+                "source_file": "policy.py",
+                "source_location": "L1"
+              },
+              {
+                "id": "policy_evaluate",
+                "label": "evaluate()",
+                "source_file": "policy.py",
+                "source_location": "L1"
+              }
+            ],
+            "edges": [
+              {
+                "source": "gateway",
+                "target": "gateway_run",
+                "relation": "contains",
+                "source_file": "gateway.py",
+                "source_location": "L3"
+              },
+              {
+                "source": "gateway",
+                "target": "policy",
+                "relation": "imports_from",
+                "source_file": "gateway.py",
+                "source_location": "L1"
+              },
+              {
+                "source": "gateway",
+                "target": "policy_evaluate",
+                "relation": "imports",
+                "source_file": "gateway.py",
+                "source_location": "L1"
+              }
+            ],
+            "warnings": []
+          }
+        },
+        {
+          "stage": "native-exact-copy",
+          "selector": "source-label",
+          "arguments": {
+            "source_file": "gateway.py",
+            "label": "gateway.py"
+          },
+          "result": {
+            "version": 1,
+            "artifact_sha256": "2ae7b5fff5ed204d74482456b1f7f266327ddc30604b3af1fb9b4f71faaf3b99",
+            "coverage": "unknown",
+            "freshness": "verified-declared-inputs",
+            "knowledge_status": "unapproved-context",
+            "directed": false,
+            "verification": {
+              "state": "hashes-match",
+              "scope": "declared-inputs",
+              "authenticated": false,
+              "total_inputs": 4,
+              "checked_inputs": 4,
+              "bytes_read": 193,
+              "complete": true,
+              "reason": null,
+              "manifest_sha256": "20b71393d7a51babc3a2239227566abe524e22124dd4ce679a77e70fcc5e338e"
+            },
+            "selector": {
+              "kind": "source-label"
+            },
+            "selection": "exact",
+            "completeness": "complete",
+            "reason": null,
+            "status": "matches",
+            "truncated": false,
+            "nodes": [
+              {
+                "id": "gateway",
+                "label": "gateway.py",
+                "source_file": "gateway.py",
+                "source_location": "L1"
+              },
+              {
+                "id": "gateway_run",
+                "label": "run()",
+                "source_file": "gateway.py",
+                "source_location": "L3"
+              },
+              {
+                "id": "policy",
+                "label": "policy.py",
+                "source_file": "policy.py",
+                "source_location": "L1"
+              },
+              {
+                "id": "policy_evaluate",
+                "label": "evaluate()",
+                "source_file": "policy.py",
+                "source_location": "L1"
+              }
+            ],
+            "edges": [
+              {
+                "source": "gateway",
+                "target": "gateway_run",
+                "relation": "contains",
+                "source_file": "gateway.py",
+                "source_location": "L3"
+              },
+              {
+                "source": "gateway",
+                "target": "policy",
+                "relation": "imports_from",
+                "source_file": "gateway.py",
+                "source_location": "L1"
+              },
+              {
+                "source": "gateway",
+                "target": "policy_evaluate",
+                "relation": "imports",
+                "source_file": "gateway.py",
+                "source_location": "L1"
+              }
+            ],
+            "warnings": []
+          }
+        },
+        {
+          "stage": "own-input-edited",
+          "selector": "node-id",
+          "arguments": {
+            "node_id": "gateway"
+          },
+          "result": {
+            "version": 1,
+            "artifact_sha256": "2ae7b5fff5ed204d74482456b1f7f266327ddc30604b3af1fb9b4f71faaf3b99",
+            "coverage": "unknown",
+            "freshness": "stale",
+            "knowledge_status": "unapproved-context",
+            "directed": false,
+            "verification": {
+              "state": "stale",
+              "scope": "declared-inputs",
+              "authenticated": false,
+              "total_inputs": 4,
+              "checked_inputs": 4,
+              "bytes_read": 220,
+              "complete": true,
+              "reason": "declared-input-changed-or-missing",
+              "manifest_sha256": "20b71393d7a51babc3a2239227566abe524e22124dd4ce679a77e70fcc5e338e"
+            },
+            "selector": {
+              "kind": "node-id"
+            },
+            "selection": "exact",
+            "completeness": "complete",
+            "reason": "declared-input-changed-or-missing",
+            "status": "artifact-stale",
+            "truncated": false,
+            "nodes": [],
+            "edges": [],
+            "warnings": [
+              "declared-input verification did not permit context"
+            ]
+          }
+        },
+        {
+          "stage": "own-input-edited",
+          "selector": "source-label",
+          "arguments": {
+            "source_file": "gateway.py",
+            "label": "gateway.py"
+          },
+          "result": {
+            "version": 1,
+            "artifact_sha256": "2ae7b5fff5ed204d74482456b1f7f266327ddc30604b3af1fb9b4f71faaf3b99",
+            "coverage": "unknown",
+            "freshness": "stale",
+            "knowledge_status": "unapproved-context",
+            "directed": false,
+            "verification": {
+              "state": "stale",
+              "scope": "declared-inputs",
+              "authenticated": false,
+              "total_inputs": 4,
+              "checked_inputs": 4,
+              "bytes_read": 220,
+              "complete": true,
+              "reason": "declared-input-changed-or-missing",
+              "manifest_sha256": "20b71393d7a51babc3a2239227566abe524e22124dd4ce679a77e70fcc5e338e"
+            },
+            "selector": {
+              "kind": "source-label"
+            },
+            "selection": "exact",
+            "completeness": "complete",
+            "reason": "declared-input-changed-or-missing",
+            "status": "artifact-stale",
+            "truncated": false,
+            "nodes": [],
+            "edges": [],
+            "warnings": [
+              "declared-input verification did not permit context"
+            ]
+          }
+        },
+        {
+          "stage": "own-input-restored",
+          "selector": "node-id",
+          "arguments": {
+            "node_id": "gateway"
+          },
+          "result": {
+            "version": 1,
+            "artifact_sha256": "2ae7b5fff5ed204d74482456b1f7f266327ddc30604b3af1fb9b4f71faaf3b99",
+            "coverage": "unknown",
+            "freshness": "verified-declared-inputs",
+            "knowledge_status": "unapproved-context",
+            "directed": false,
+            "verification": {
+              "state": "hashes-match",
+              "scope": "declared-inputs",
+              "authenticated": false,
+              "total_inputs": 4,
+              "checked_inputs": 4,
+              "bytes_read": 193,
+              "complete": true,
+              "reason": null,
+              "manifest_sha256": "20b71393d7a51babc3a2239227566abe524e22124dd4ce679a77e70fcc5e338e"
+            },
+            "selector": {
+              "kind": "node-id"
+            },
+            "selection": "exact",
+            "completeness": "complete",
+            "reason": null,
+            "status": "matches",
+            "truncated": false,
+            "nodes": [
+              {
+                "id": "gateway",
+                "label": "gateway.py",
+                "source_file": "gateway.py",
+                "source_location": "L1"
+              },
+              {
+                "id": "gateway_run",
+                "label": "run()",
+                "source_file": "gateway.py",
+                "source_location": "L3"
+              },
+              {
+                "id": "policy",
+                "label": "policy.py",
+                "source_file": "policy.py",
+                "source_location": "L1"
+              },
+              {
+                "id": "policy_evaluate",
+                "label": "evaluate()",
+                "source_file": "policy.py",
+                "source_location": "L1"
+              }
+            ],
+            "edges": [
+              {
+                "source": "gateway",
+                "target": "gateway_run",
+                "relation": "contains",
+                "source_file": "gateway.py",
+                "source_location": "L3"
+              },
+              {
+                "source": "gateway",
+                "target": "policy",
+                "relation": "imports_from",
+                "source_file": "gateway.py",
+                "source_location": "L1"
+              },
+              {
+                "source": "gateway",
+                "target": "policy_evaluate",
+                "relation": "imports",
+                "source_file": "gateway.py",
+                "source_location": "L1"
+              }
+            ],
+            "warnings": []
+          }
+        },
+        {
+          "stage": "own-input-restored",
+          "selector": "source-label",
+          "arguments": {
+            "source_file": "gateway.py",
+            "label": "gateway.py"
+          },
+          "result": {
+            "version": 1,
+            "artifact_sha256": "2ae7b5fff5ed204d74482456b1f7f266327ddc30604b3af1fb9b4f71faaf3b99",
+            "coverage": "unknown",
+            "freshness": "verified-declared-inputs",
+            "knowledge_status": "unapproved-context",
+            "directed": false,
+            "verification": {
+              "state": "hashes-match",
+              "scope": "declared-inputs",
+              "authenticated": false,
+              "total_inputs": 4,
+              "checked_inputs": 4,
+              "bytes_read": 193,
+              "complete": true,
+              "reason": null,
+              "manifest_sha256": "20b71393d7a51babc3a2239227566abe524e22124dd4ce679a77e70fcc5e338e"
+            },
+            "selector": {
+              "kind": "source-label"
+            },
+            "selection": "exact",
+            "completeness": "complete",
+            "reason": null,
+            "status": "matches",
+            "truncated": false,
+            "nodes": [
+              {
+                "id": "gateway",
+                "label": "gateway.py",
+                "source_file": "gateway.py",
+                "source_location": "L1"
+              },
+              {
+                "id": "gateway_run",
+                "label": "run()",
+                "source_file": "gateway.py",
+                "source_location": "L3"
+              },
+              {
+                "id": "policy",
+                "label": "policy.py",
+                "source_file": "policy.py",
+                "source_location": "L1"
+              },
+              {
+                "id": "policy_evaluate",
+                "label": "evaluate()",
+                "source_file": "policy.py",
+                "source_location": "L1"
+              }
+            ],
+            "edges": [
+              {
+                "source": "gateway",
+                "target": "gateway_run",
+                "relation": "contains",
+                "source_file": "gateway.py",
+                "source_location": "L3"
+              },
+              {
+                "source": "gateway",
+                "target": "policy",
+                "relation": "imports_from",
+                "source_file": "gateway.py",
+                "source_location": "L1"
+              },
+              {
+                "source": "gateway",
+                "target": "policy_evaluate",
+                "relation": "imports",
+                "source_file": "gateway.py",
+                "source_location": "L1"
+              }
+            ],
+            "warnings": []
+          }
+        }
+      ],
+      "no_source_mutation": true,
+      "limits": [
+        "only declared inputs; repository coverage unknown",
+        "no producer authentication or semantic approval",
+        "stable observed hashes, not atomicity or ABA prevention",
+        "native Python accepted; missing JavaScript grammar not installed",
+        "definition_file positive binding unit-tested, absent from native fixture"
+      ]
+    },
+    "code_producer_after_review_fixes": {
+      "summary_sha256": "99e2c104b9e63a603d20f0e0d1fd07a342f4754134ba129024f851638c40c41d",
+      "code_checkpoint_sha256": {
+        "agent-kits/shared/code-context-build.py": "0534e0ae95f5585d14e2fd216eeebe10dc1e6bebd320290653e4360f10085d96",
+        "tests/test_code_context_build.py": "bdb3b1c29108f067ba1bdc47c57bb15fcc70bfb2e7696434622f5d559d8d7f97"
+      },
+      "helper_sha256": "eee670d4c2e43a84724bc72de413a15379cd6681af20875ea3f091f9ef9dca65",
+      "native_pin": "5b74d7d74911cf435c8f1636b6f96ea202cc6246",
+      "source_files": 94,
+      "source_reference_equal_before_after": true,
+      "protected_base_equal_before_after": true,
+      "inputs": 4,
+      "input_bytes": 193,
+      "nodes": 8,
+      "edges": 7,
+      "graph_sha256": "2ae7b5fff5ed204d74482456b1f7f266327ddc30604b3af1fb9b4f71faaf3b99",
+      "receipt_sha256": "20b71393d7a51babc3a2239227566abe524e22124dd4ce679a77e70fcc5e338e",
+      "input_sha256": {
+        "gateway.py": "de8de46dab9f0c5c16df7e27996e5ea0e9dd0e118d6e96bf435fc09f308b0aab",
+        "policy.py": "bddc4e6dad3b1941c016275b45daab241d5bcd370458263864a1eb0d91bd1586",
+        "storage.py": "6a1aa0b925fd2f8b0ea86eb5595f213d8830062f5f7e58f560163fdb9400bd08",
+        "unused.py": "03ecaf965c681031b55dc5f0944ef0477661808d8e77dbb33d17f4ac4cbc9473"
+      },
+      "observed_edit": "inputs_changed; no artifact/receipt; source restored",
+      "native_js": "dispatch supported; installed grammar unavailable; exit2; no output",
+      "cli_existing_target": 1,
+      "cli_missing_optional_dependency": 2,
+      "sockets": 0,
+      "subprocesses": 0,
+      "denied": 0,
+      "limits": [
+        "Declared bytes only; no new-file discovery",
+        "Unauthenticated producer and no semantic authority",
+        "No atomic multi-file snapshot, pair publication or ABA guarantee",
+        "Partial final artifact retained on publication failure; new destination needed",
+        "JavaScript native parser dependency absent; no install/download"
+      ],
+      "role": "implementer functional QA checkpoint; subsequent review attempt 2 accepted separately"
+    },
+    "documental_router_final": {
+      "summary_sha256": "92c17357263dce154ce2397c3205dea73fa61c4777d0a6ac00c22c2f8f6f6326",
+      "source_manifest_sha256": "c3425e58637128f9c262ca22cbdf07dd3ac03656c751786af328f93609c52710",
+      "code_checkpoint_sha256": {
+        "skills/knowledge-services/backends/markdown_export.py": "28041abb45c8834ff2d452a352c511cae16170b18ffffc960e06f2f57a2f2aeb",
+        "skills/knowledge-services/backends/__init__.py": "ae83c1e3c09ad96b052e94f3d575d13face020042154271c69581dea43151bd6",
+        "agent-kits/shared/knowledge-read-context.py": "7f18effd1c5673eb23dec99ad55d0ec40a7527b605c80f4b03ceda5be12c9fa7",
+        "agent-kits/shared/knowledge-view.py": "8c60e914896c9fe5bf7e74a2f50e51eaf0893b5b82d7e76b19f5763b4b608281",
+        "agent-kits/shared/knowledge-local.py": "028ccb2e7a1acdbbfec5b1dc5d072da0f7e9128396d984321478d8f4e980ac8f",
+        "agent-kits/shared/knowledge-taxonomy-local.py": "66661afb593c653a0d44851d619463cf19a790f900dfc3fdc0f896e6dd335315",
+        "agent-kits/shared/local-read.py": "eee670d4c2e43a84724bc72de413a15379cd6681af20875ea3f091f9ef9dca65",
+        "agent-kits/shared/redact.py": "4e9131368fd2471dcb2e3a2e91f6b0dc00555354487b6308194be05e4c4d5907",
+        "agent-kits/shared/templates/taxonomy.json": "14b258e192a112910a33935794677bab5d941220d3d34e14eef075a4e07b4b4b",
+        "agent-kits/shared/knowledge-find.py": "a64ebe5414305176a7eccff18d4ccd5d5e90a2e3a06d768a99ae5a416e3d001e"
+      },
+      "harness_code_sha256": {
+        "execute.py": "d960438654763c8197926c5f66bc37e5f5d0fe26058d38f568cff58a1129d114",
+        "router_qa.py": "8ed7891f695cde0c79854e37d04b88558419e970b7d0544db827f4280e028625",
+        "proxy/proxy.py": "3225a156abf9f867c58957dd6b89730bdd252225df50de983e6e123b39852da6",
+        "state/bridge_runner.py": "26bdc1af84fff99b18916805d476884499febfe81d1b52730b831a10cc624f49"
+      },
+      "counts": {
+        "query_POST": 2,
+        "llm": 2,
+        "embedding": 2,
+        "proxy_metadata": 5,
+        "preflight_tags_metadata": 1,
+        "metadata_total": 6,
+        "denied": 0,
+        "POST_retries": 0
+      },
+      "models": {
+        "llm": "gpt-oss:120b-cloud",
+        "thinking": false,
+        "llm_locality": "approved existing cloud model through local Ollama",
+        "embedding": "nomic-embed-text",
+        "embedding_locality": "existing local model",
+        "new_downloads": 0,
+        "new_installs": 0,
+        "ingest_or_reindex": 0
+      },
+      "observed_usage": [
+        {
+          "category": "embedding",
+          "model": "nomic-embed-text",
+          "think": null,
+          "status": 200,
+          "prompt_eval_count": 25,
+          "eval_count": null,
+          "elapsed_ms": 1018.3551329973852
+        },
+        {
+          "category": "llm",
+          "model": "gpt-oss:120b-cloud",
+          "think": false,
+          "status": 200,
+          "prompt_eval_count": 842,
+          "eval_count": 201,
+          "elapsed_ms": 1098.4055589942727
+        },
+        {
+          "category": "embedding",
+          "model": "nomic-embed-text",
+          "think": null,
+          "status": 200,
+          "prompt_eval_count": 25,
+          "eval_count": null,
+          "elapsed_ms": 222.83354500541463
+        },
+        {
+          "category": "llm",
+          "model": "gpt-oss:120b-cloud",
+          "think": false,
+          "status": 200,
+          "prompt_eval_count": 842,
+          "eval_count": 125,
+          "elapsed_ms": 700.2282760076923
+        }
+      ],
+      "monetary_cost_eur": "unknown; token counters are native metrics, not a price quote",
+      "queries": [
+        {
+          "case": "query-1",
+          "expected_label": "Saffron",
+          "expected_id": "bindingfixture.DECISION.D001",
+          "label_observed": true,
+          "latency_ms": 5065.78,
+          "single_deadline": 120999.7550396,
+          "deadline_observations": 14,
+          "fingerprints": [
+            "9ae17dddb511e005b2fffd334aa7db3192f59ed1b39c31c2fede992d56c3a6c7"
+          ],
+          "hits": [
+            {
+              "id": "bindingfixture.DECISION.D002",
+              "version": 11,
+              "puntuacion": 0.5548078729485779
+            },
+            {
+              "id": "bindingfixture.DECISION.D001",
+              "version": 7,
+              "puntuacion": 1.7711236945698448
+            }
+          ],
+          "source_bindings": [
+            {
+              "node_id": "7680c74d-94ac-4dde-93e5-6dd40aadac8e",
+              "file_name": "bindingfixture.DECISION.D002.md",
+              "score": 0.5548078729485779,
+              "canonical_id": "bindingfixture.DECISION.D002",
+              "knowledge_version": 11,
+              "canonical_path": "docs/knowledge/approved/decision/D002.md",
+              "canonical_sha256": "defaced22da1e91e41be0242178ec2827ee2a678960c11583642bedc6a654866",
+              "projection_hash": "eebbb14462ddc6d840b8082e49292949fec52873f63c8db87d002c911c39d674",
+              "projection_filename": "bindingfixture.DECISION.D002.md",
+              "project": "bindingfixture",
+              "scope": "project",
+              "category": "DECISION",
+              "estado": "aprobado",
+              "evidencia": "validated_case",
+              "modo": "completo"
+            },
+            {
+              "node_id": "25822953-d117-4c2a-b100-789409459169",
+              "file_name": "bindingfixture.DECISION.D001.md",
+              "score": 1.7711236945698448,
+              "canonical_id": "bindingfixture.DECISION.D001",
+              "knowledge_version": 7,
+              "canonical_path": "docs/knowledge/approved/decision/D001.md",
+              "canonical_sha256": "54a4f039a4a563bd7a7b52f867b361da42ccbc4f2a2f130c886d56360866f20f",
+              "projection_hash": "984f8fd1d6c993659354f4a304c55e21969a02eab569ff24733f158f04dae120",
+              "projection_filename": "bindingfixture.DECISION.D001.md",
+              "project": "bindingfixture",
+              "scope": "project",
+              "category": "DECISION",
+              "estado": "aprobado",
+              "evidencia": "validated_case",
+              "modo": "completo"
+            }
+          ],
+          "raw_native_citations": [
+            {
+              "node_id": "7680c74d-94ac-4dde-93e5-6dd40aadac8e",
+              "file_name": "bindingfixture.DECISION.D002.md",
+              "score": 0.5548078729485779
+            },
+            {
+              "node_id": "25822953-d117-4c2a-b100-789409459169",
+              "file_name": null,
+              "score": 1.7711236945698448
+            }
+          ],
+          "native_cited_files": [
+            "bindingfixture.DECISION.D002.md"
+          ],
+          "verification": "no_verificada",
+          "authority": "ninguna",
+          "per_claim_citations": false
+        },
+        {
+          "case": "query-2",
+          "expected_label": "Cobalt",
+          "expected_id": "bindingfixture.DECISION.D002",
+          "label_observed": true,
+          "latency_ms": 2857.14,
+          "single_deadline": 121005.1193674,
+          "deadline_observations": 14,
+          "fingerprints": [
+            "9ae17dddb511e005b2fffd334aa7db3192f59ed1b39c31c2fede992d56c3a6c7"
+          ],
+          "hits": [
+            {
+              "id": "bindingfixture.DECISION.D002",
+              "version": 11,
+              "puntuacion": 0.5511404692131141
+            },
+            {
+              "id": "bindingfixture.DECISION.D001",
+              "version": 7,
+              "puntuacion": 1.7711236945698448
+            }
+          ],
+          "source_bindings": [
+            {
+              "node_id": "7680c74d-94ac-4dde-93e5-6dd40aadac8e",
+              "file_name": "bindingfixture.DECISION.D002.md",
+              "score": 0.5511404692131141,
+              "canonical_id": "bindingfixture.DECISION.D002",
+              "knowledge_version": 11,
+              "canonical_path": "docs/knowledge/approved/decision/D002.md",
+              "canonical_sha256": "defaced22da1e91e41be0242178ec2827ee2a678960c11583642bedc6a654866",
+              "projection_hash": "eebbb14462ddc6d840b8082e49292949fec52873f63c8db87d002c911c39d674",
+              "projection_filename": "bindingfixture.DECISION.D002.md",
+              "project": "bindingfixture",
+              "scope": "project",
+              "category": "DECISION",
+              "estado": "aprobado",
+              "evidencia": "validated_case",
+              "modo": "completo"
+            },
+            {
+              "node_id": "25822953-d117-4c2a-b100-789409459169",
+              "file_name": "bindingfixture.DECISION.D001.md",
+              "score": 1.7711236945698448,
+              "canonical_id": "bindingfixture.DECISION.D001",
+              "knowledge_version": 7,
+              "canonical_path": "docs/knowledge/approved/decision/D001.md",
+              "canonical_sha256": "54a4f039a4a563bd7a7b52f867b361da42ccbc4f2a2f130c886d56360866f20f",
+              "projection_hash": "984f8fd1d6c993659354f4a304c55e21969a02eab569ff24733f158f04dae120",
+              "projection_filename": "bindingfixture.DECISION.D001.md",
+              "project": "bindingfixture",
+              "scope": "project",
+              "category": "DECISION",
+              "estado": "aprobado",
+              "evidencia": "validated_case",
+              "modo": "completo"
+            }
+          ],
+          "raw_native_citations": [
+            {
+              "node_id": "7680c74d-94ac-4dde-93e5-6dd40aadac8e",
+              "file_name": "bindingfixture.DECISION.D002.md",
+              "score": 0.5511404692131141
+            },
+            {
+              "node_id": "25822953-d117-4c2a-b100-789409459169",
+              "file_name": null,
+              "score": 1.7711236945698448
+            }
+          ],
+          "native_cited_files": [
+            "bindingfixture.DECISION.D002.md"
+          ],
+          "verification": "no_verificada",
+          "authority": "ninguna",
+          "per_claim_citations": false
+        }
+      ],
+      "negatives": [
+        {
+          "case": "canonical-edit-before-post",
+          "router": {
+            "intent": "explain",
+            "origen": "local",
+            "backend": null,
+            "motivo": "`documental` no autoriza la lectura: manifest_desfasado"
+          },
+          "before": {
+            "proxy": {
+              "llm": 1,
+              "embedding": 1,
+              "metadata": 3,
+              "denied": 0
+            },
+            "bridge_queries": 1,
+            "http_post_queries": 1
+          },
+          "after": {
+            "proxy": {
+              "llm": 1,
+              "embedding": 1,
+              "metadata": 3,
+              "denied": 0
+            },
+            "bridge_queries": 1,
+            "http_post_queries": 1
+          },
+          "zero_new_post_and_models": true
+        },
+        {
+          "case": "old-projection-before-post",
+          "router": {
+            "intent": "explain",
+            "origen": "local",
+            "backend": null,
+            "motivo": "`documental` no autoriza la lectura: manifest_desfasado"
+          },
+          "before": {
+            "proxy": {
+              "llm": 1,
+              "embedding": 1,
+              "metadata": 3,
+              "denied": 0
+            },
+            "bridge_queries": 1,
+            "http_post_queries": 1
+          },
+          "after": {
+            "proxy": {
+              "llm": 1,
+              "embedding": 1,
+              "metadata": 3,
+              "denied": 0
+            },
+            "bridge_queries": 1,
+            "http_post_queries": 1
+          },
+          "zero_new_post_and_models": true
+        }
+      ],
+      "native_selected_modules_sha256": {
+        "kwipu_config.py": "2672eba9543e3b56bcfe82b13113faa4be97f857dbd732bbda9ff516c0fd057f",
+        "geode_graph.py": "db784f38a552fb11dd1c52215b7e3666e1e3c4766799499f5d78da8ff3880b22",
+        "kwipu_storage.py": "2d81e5f691305b0c7bd7dcfa370cbfc0a7a02e2a7e6de700f12bdd6cab2f3afd",
+        "bridge__query.py": "8e375ebe0b24f1a4a57d26de5e6c8be355892bca43c09f17222d21e4600eabf0",
+        "bridge__app.py": "4afde13a5a2caf86bbb354d85a4444fca718b6ccbbe6f73d17249b15b7644efd",
+        "bridge__config.py": "e5b3314048fac314df25cd1cf08883372e17cbbb936264a29edc58e81120eeb6",
+        "bridge__graph.py": "ca6d20594f10359ec8276934ee817f0234e2ce88b5e87fdeb3b9a56c92f5d61c",
+        "bridge__models.py": "cf84e3b29552418fde187c086d08f2edddfd224318ec17a9666a3369070f3752",
+        "lang_config.py": "1e15a48d3d95982211a58955f1019a7b8f05edc411dd9724e170846b9a18d1d6"
+      },
+      "native_pre_post_match": true,
+      "preservation": {
+        "store_unchanged": true,
+        "original_store_unchanged": true,
+        "prior_checkpoint_unchanged": true,
+        "previous_attempt_unchanged": true,
+        "fixture_restored": true,
+        "source_closure_unchanged": true,
+        "harness_code_unchanged": true,
+        "native_pre_matched": true,
+        "native_post_matched": true
+      },
+      "cleanup": {
+        "exact_resources_removed": 3,
+        "all_absence_confirmed": true,
+        "no_new_volumes": true
+      },
+      "protected_prior_files": 66,
+      "protected_first_attempt_files": 43,
+      "protected_fixture_files": 15,
+      "store_files_original_and_copy": 8,
+      "prior_attempt_result": "invalid preflight, preserved; NoSuch capitalization harness issue;0models/0queries/0resources",
+      "limits": [
+        "Synthetic native scope only; no benchmark superiority or objective-global completion",
+        "Both native replies reference both chunks; expected labels observed, no retrieval precision or semantic correctness proof",
+        "D001 raw file_name null is joined by exact persisted snapshot node ID to canonical/project projection",
+        "Scores preserve actual native values, not semantic confidence",
+        "Generated output remains no_verificada/ninguna/citas_por_afirmacion false",
+        "Binding/fingerprints establish observed stability, no transaction or ABA guarantee",
+        "Nine selected native source hashes measured pre/post; no whole-image source audit",
+        "No source code or original/copied storage changed; own taxonomy endpoint configured explicitly"
+      ],
+      "role": "native functional QA, not independent review or global benchmark acceptance"
+    },
+    "code_portable_current": {
+      "report_sha256": "73fef7e212a6b890f6c2cade1344927187e5468eed3b730ede87c08ee8bb4300",
+      "summary_sha256": "993060f734e9e3834e54e134952afa22880cdeca107922ae7e43b7f61e904113",
+      "manifest_sha256": "c1c8d5deb38c8fa0ea83d3c00fe53c35f26607aa7baae5eecc7edd168bf02e14",
+      "evidence_files_checked": 26,
+      "source_closure_sha256": {
+        "agent-kits/shared/code-context-build.py": "2d67c8f9cca9020927c0ad08b4e55103c7a9a8d6d5226ac8b029d252e1d0a12c",
+        "agent-kits/shared/code-context.py": "8e7286951ee86519869358154e6c355de90e7f05e8b7654a5376f085819d2b36",
+        "agent-kits/shared/capability-route.py": "a56b51900407e1262e394a67fe38086920d29efba446c31c83c7d0797b714c8c",
+        "agent-kits/shared/local-read.py": "eee670d4c2e43a84724bc72de413a15379cd6681af20875ea3f091f9ef9dca65",
+        "agent-kits/shared/redact.py": "4e9131368fd2471dcb2e3a2e91f6b0dc00555354487b6308194be05e4c4d5907"
+      },
+      "native_pin": "5b74d7d74911cf435c8f1636b6f96ea202cc6246",
+      "inputs": 4,
+      "input_bytes": 193,
+      "nodes": 8,
+      "edges": 7,
+      "artifact_sha256": "2ae7b5fff5ed204d74482456b1f7f266327ddc30604b3af1fb9b4f71faaf3b99",
+      "receipt_sha256": "20b71393d7a51babc3a2239227566abe524e22124dd4ce679a77e70fcc5e338e",
+      "positive_sources": 4,
+      "positive_queries": 12,
+      "positive_selectors": [
+        {
+          "source": "gateway.py",
+          "node_id": "gateway_run",
+          "results": [
+            {
+              "selector": {
+                "kind": "node-id"
+              },
+              "status": "matches",
+              "freshness": "verified-declared-inputs",
+              "checked_inputs": 4
+            },
+            {
+              "selector": {
+                "kind": "source-label"
+              },
+              "status": "matches",
+              "freshness": "verified-declared-inputs",
+              "checked_inputs": 4
+            },
+            {
+              "selector": {
+                "kind": "symbol"
+              },
+              "status": "matches",
+              "freshness": "verified-declared-inputs",
+              "checked_inputs": 4
+            }
+          ]
+        },
+        {
+          "source": "policy.py",
+          "node_id": "policy_evaluate",
+          "results": [
+            {
+              "selector": {
+                "kind": "node-id"
+              },
+              "status": "matches",
+              "freshness": "verified-declared-inputs",
+              "checked_inputs": 4
+            },
+            {
+              "selector": {
+                "kind": "source-label"
+              },
+              "status": "matches",
+              "freshness": "verified-declared-inputs",
+              "checked_inputs": 4
+            },
+            {
+              "selector": {
+                "kind": "symbol"
+              },
+              "status": "matches",
+              "freshness": "verified-declared-inputs",
+              "checked_inputs": 4
+            }
+          ]
+        },
+        {
+          "source": "storage.py",
+          "node_id": "storage_save",
+          "results": [
+            {
+              "selector": {
+                "kind": "node-id"
+              },
+              "status": "matches",
+              "freshness": "verified-declared-inputs",
+              "checked_inputs": 4
+            },
+            {
+              "selector": {
+                "kind": "source-label"
+              },
+              "status": "matches",
+              "freshness": "verified-declared-inputs",
+              "checked_inputs": 4
+            },
+            {
+              "selector": {
+                "kind": "symbol"
+              },
+              "status": "matches",
+              "freshness": "verified-declared-inputs",
+              "checked_inputs": 4
+            }
+          ]
+        },
+        {
+          "source": "unused.py",
+          "node_id": "unused_marker",
+          "results": [
+            {
+              "selector": {
+                "kind": "node-id"
+              },
+              "status": "matches",
+              "freshness": "verified-declared-inputs",
+              "checked_inputs": 4
+            },
+            {
+              "selector": {
+                "kind": "source-label"
+              },
+              "status": "matches",
+              "freshness": "verified-declared-inputs",
+              "checked_inputs": 4
+            },
+            {
+              "selector": {
+                "kind": "symbol"
+              },
+              "status": "matches",
+              "freshness": "verified-declared-inputs",
+              "checked_inputs": 4
+            }
+          ]
+        }
+      ],
+      "stale_suppressed_context": true,
+      "restore_verified": true,
+      "audit": {
+        "socket_events": 0,
+        "process_events": 0,
+        "denied": []
+      },
+      "preservation": {
+        "helper94_equal_reference_before_after": true,
+        "prior104_equal_reference_before_after": true,
+        "freeze_manifest_unchanged": true,
+        "freeze_three_copied_helpers_unchanged": true,
+        "root_four_readonly_files_unchanged": true,
+        "write_containment": true,
+        "no_external_calls": true
+      },
+      "protected_helper_files": 94,
+      "protected_prior_files": 104,
+      "historical_checkpoint_preserved": true,
+      "driver_exit": 0,
+      "limits": [
+        "This replaces current AST functional evidence for producer2d67/consumer8e728; prior proofs remain unchanged and historical.",
+        "AST closure has five files. The ten-file documentary routing closure is separate and is not exercised here.",
+        "AST labels and citations remain unapproved context. Delimiter text has no instructional or semantic authority; documentary delimiter guarantees are not tested by this AST check.",
+        "Configured bounds are unchanged: 128 declared inputs; 1 MiB per input; 8 MiB aggregate including overflow probes; 512 KiB receipt; 8 MiB graph; 20,000 nodes/50,000 edges. This four-source acceptance does not stress those limits.",
+        "No global gate, semantic correctness, authentication, atomic publication, atomic source snapshot, repository coverage or ABA guarantee is established."
+      ],
+      "native_js": "Existing grammar-unavailable case remains historical; optional JavaScript run not repeated and no dependency installed.",
+      "role": "owned native functional QA, not independent review or global QA"
+    }
+  },
+  "local_memory_requires_external_services": false,
+  "documental_read_default_enabled": false,
+  "independent_product_review": "attempt_3_accepted_and_same_code_platform_QA_accepted",
+  "platform_corrections_after_QA": {
+    "status": "integrated_review_3_accepted_final_QA_pending",
+    "patch_sha256": "8aa92d3559f799fd90a61556f44212baec24a0f14264b07f9740d897cbc0233c",
+    "files": {
+      "CHANGELOG.es.md": {
+        "before_sha256": "5f59fccc4018c99cdde3358dd927600f7f90fbcf0245a593f019732f8e3b53aa",
+        "after_sha256": "fd5dffef53397e2c4c2140dcd5efdcf5c7f96d92abe4e722c178cd5b72cea3a0"
+      },
+      "CHANGELOG.md": {
+        "before_sha256": "69f75b2a4865d42af4d49d3bc7345af49250ef9bca25ba6f992a06a5acb3e7b8",
+        "after_sha256": "c555236d16a3816a5a09fe1f71451d69c9f97da161cda0d28aad15063d36fe0f"
+      },
+      "agent-kits/shared/code-context.py": {
+        "before_sha256": "f9f42bef05a32e41dda4b3be40400fadc71b9b7827c55151c0e6de2b506d5796",
+        "after_sha256": "8e7286951ee86519869358154e6c355de90e7f05e8b7654a5376f085819d2b36"
+      },
+      "docs/CODE_CONTEXT.md": {
+        "before_sha256": "8b11e3c11c92f32c5dce520bdcae1baf28706ffcf5805ac47c52618b9721d9b1",
+        "after_sha256": "e63e4f6b02ce05787b0004c1a15f1643b9c715b6b85dd018b7948ee82eadde1c"
+      },
+      "docs/en/CODE_CONTEXT.md": {
+        "before_sha256": "28a5a1594fd961e5a71cee885d4020db2d9eff59d701d1e1ee569c89261997dd",
+        "after_sha256": "334cdb567d779fbee3dad0b7000900da90b808d066069d6ac9b9d6bf4adcc6f4"
+      },
+      "skills/knowledge-services/SKILL.md": {
+        "before_sha256": "6004a1ca29b6ae1cab67371008245da384dc3a162d52ba52d999df0e838ab559",
+        "after_sha256": "0030950575f3f288f2af93ac84461baee154975c3f88c26ae57e335276ba6814"
+      },
+      "tests/test_code_receipts.py": {
+        "before_sha256": "7e429955306695bb14d3c6de83d5cd3b50d85f8c82286ffc8aaadd347751e30b",
+        "after_sha256": "c2e4ca102e885f272522683b3184c93d75c4474b5903ac860df2931ee673697c"
+      },
+      "tests/test_console_encoding.py": {
+        "before_sha256": "ac510c568342ca9a2e2e1f158056784959db8e222cc9441c4c01e86dffd76c4c",
+        "after_sha256": "a7ee3fe49647365c9d31abf1119a3da98a10c0c5e5b9c9adf79ef878a7ccc8e2"
+      }
+    },
+    "description": {
+      "before": 1148,
+      "after": 960,
+      "all_triggers_preserved": true
+    },
+    "own_selected_suites": {
+      "windows": {
+        "passed": 758,
+        "skipped": 9
+      },
+      "linux": {
+        "passed": 767,
+        "skipped": 0
+      }
+    },
+    "qa_approval": false,
+    "producer_portable_identity_alignment": "integrated after meaningful Linux RED and coordinated GREEN",
+    "limits": [
+      "selected owned suites, not final platform QA",
+      "the native AST reader acceptance used the previous explicit consumer checkpoint"
+    ],
+    "final_QA_of_integrated_current_tree_accepted": true
+  },
+  "coordinated_producer_and_test_corrections": {
+    "status": "integrated_review_3_accepted_final_QA_pending",
+    "tests_patch_sha256": "9963e8028feb1911f68402a814370b82e16a93e53d17f713d84e0722de0d9e23",
+    "tests": {
+      "tests/test_code_context_build.py": {
+        "base_sha256": "bdb3b1c29108f067ba1bdc47c57bb15fcc70bfb2e7696434622f5d559d8d7f97",
+        "new_sha256": "cce3653bdb4b0a8e839cda0a05f07c509330d220c4e03d15dd0abb0471bd9882"
+      },
+      "agent-kits/shared/test_knowledge_read_context.py": {
+        "base_sha256": "11b11eccba101871a1c5eecf1e78266128759e2da0378f4dbe2c49d594781ac6",
+        "new_sha256": "79127a68a96b04178a36b5690e6f921d7f123bb1b45d6f3279f520320892a1dc"
+      },
+      "skills/knowledge-services/scripts/test_backend_markdown_read.py": {
+        "base_sha256": "d6a201835c0eb89c604c8c2e8337c837a35701a4ffc66063e279f0cb56ab225e",
+        "new_sha256": "642ab5c960415574386d08d277ca815a0bc5dd5af5d6b3c197d63244e4c5cea6"
+      }
+    },
+    "runtime_sha256": {
+      "tests/test_code_context_build.py": "cce3653bdb4b0a8e839cda0a05f07c509330d220c4e03d15dd0abb0471bd9882",
+      "agent-kits/shared/test_knowledge_read_context.py": "79127a68a96b04178a36b5690e6f921d7f123bb1b45d6f3279f520320892a1dc",
+      "skills/knowledge-services/scripts/test_backend_markdown_read.py": "642ab5c960415574386d08d277ca815a0bc5dd5af5d6b3c197d63244e4c5cea6",
+      "agent-kits/shared/code-context-build.py": "2d67c8f9cca9020927c0ad08b4e55103c7a9a8d6d5226ac8b029d252e1d0a12c",
+      "agent-kits/shared/knowledge-read-context.py": "7f18effd1c5673eb23dec99ad55d0ec40a7527b605c80f4b03ceda5be12c9fa7",
+      "skills/knowledge-services/backends/markdown_export.py": "28041abb45c8834ff2d452a352c511cae16170b18ffffc960e06f2f57a2f2aeb"
+    },
+    "producer_patch_sha256": "bcf3d8e7fe791f42d8e461a90b11db88c90cc881f5bc9da5f4ba29aef973c248",
+    "producer": {
+      "agent-kits/shared/code-context-build.py": {
+        "before_sha256": "0534e0ae95f5585d14e2fd216eeebe10dc1e6bebd320290653e4360f10085d96",
+        "after_sha256": "2d67c8f9cca9020927c0ad08b4e55103c7a9a8d6d5226ac8b029d252e1d0a12c"
+      }
+    },
+    "producer_RED": {
+      "platform": "Linux",
+      "failed": 3,
+      "passed": 1,
+      "deselected": 43,
+      "product_sha256": "0534e0ae95f5585d14e2fd216eeebe10dc1e6bebd320290653e4360f10085d96",
+      "passed_outer_case_is_not_RED": true
+    },
+    "selected_suites": {
+      "Windows": {
+        "passed": 180,
+        "subtests": 39
+      },
+      "Linux_producer_only": {
+        "passed": 44,
+        "skipped": 1,
+        "subtests": 39
+      }
+    },
+    "dribble_cause_sha256": "76cd07cf041fd9390c6b35ad69a51044f570b0b7c8784cc4d6320452b003c945",
+    "dribble_change": "transport timeout measured after owned bridge readiness; separate total deadline test prevents all transport",
+    "transport_deadline_ms": 100,
+    "measured_timeout_ms_range": [
+      104,
+      106
+    ],
+    "positive_POSTs_per_transport_probe": 1,
+    "total_deadline_expiry_case_POSTs": 0,
+    "subset_coverage_sha256": "8509b588a0aa4d99e00baf306476414a41b0ed6e5f660fa5c12ba4d2a2f0bca9",
+    "global_coverage_status": "not remeasured; static trace union is not QA evidence",
+    "qa_approval": false,
+    "final_QA_of_integrated_current_tree_accepted": true
+  },
+  "platform_QA_after_review_attempt_2": {
+    "source_manifest_sha256": "c3425e58637128f9c262ca22cbdf07dd3ac03656c751786af328f93609c52710",
+    "verified_contract_trace": {
+      "status": "verified_original_QA_NO_PASS_contract_trace",
+      "manifest_sha256": "c3425e58637128f9c262ca22cbdf07dd3ac03656c751786af328f93609c52710",
+      "original_facts_sha256": "0bc22a7860ecea7f3ddb77dea98410d104c1e5b56469bc4b85f6612f291ebd3b",
+      "original_report_sha256": "259e5fc2d31d7306cc972c73f38eaaf27fd709c51f49539df87fd0d33caf513b",
+      "contract_case_rows_checked": 1266,
+      "distinct_JUnit_files_checked": 6,
+      "contracts": {
+        "E43": {
+          "windows": {
+            "counts": {
+              "passed": 59,
+              "failed": 0,
+              "skipped": 0
+            },
+            "representative_cases": [
+              {
+                "identity": "agent-kits.shared.test_knowledge_routing::test_routing_selection_is_pure_preserves_summary_and_excludes_private",
+                "module": "test_knowledge_routing",
+                "status": "passed",
+                "xml": "local-state.xml",
+                "case_index": 911,
+                "xml_sha256": "f73d7236e63038fca9e5fafe791f26d180f3a91b81b0a8a6a19f30eb34ad173c"
+              }
+            ]
+          },
+          "linux": {
+            "counts": {
+              "passed": 59,
+              "failed": 0,
+              "skipped": 0
+            },
+            "representative_cases": [
+              {
+                "identity": "agent-kits.shared.test_knowledge_routing::test_routing_selection_is_pure_preserves_summary_and_excludes_private",
+                "module": "test_knowledge_routing",
+                "status": "passed",
+                "xml": "local-state.xml",
+                "case_index": 911,
+                "xml_sha256": "25bb7991f3b70fdf21db6654b46e735619720de8d783bba4820386b64055280f"
+              }
+            ]
+          }
+        },
+        "E44": {
+          "windows": {
+            "counts": {
+              "passed": 221,
+              "failed": 0,
+              "skipped": 2
+            },
+            "representative_cases": [
+              {
+                "identity": "agent-kits.shared.test_knowledge_view::test_invalid_snapshot_deadline_rejects_before_loading[True]",
+                "module": "test_knowledge_view",
+                "status": "passed",
+                "xml": "local-state.xml",
+                "case_index": 375,
+                "xml_sha256": "f73d7236e63038fca9e5fafe791f26d180f3a91b81b0a8a6a19f30eb34ad173c"
+              },
+              {
+                "identity": "agent-kits.shared.test_knowledge_view::test_omitted_sources_are_partial[redirect]",
+                "module": "test_knowledge_view",
+                "status": "skipped",
+                "xml": "local-state.xml",
+                "case_index": 401,
+                "xml_sha256": "f73d7236e63038fca9e5fafe791f26d180f3a91b81b0a8a6a19f30eb34ad173c"
+              }
+            ]
+          },
+          "linux": {
+            "counts": {
+              "passed": 223,
+              "failed": 0,
+              "skipped": 0
+            },
+            "representative_cases": [
+              {
+                "identity": "agent-kits.shared.test_knowledge_view::test_invalid_snapshot_deadline_rejects_before_loading[True]",
+                "module": "test_knowledge_view",
+                "status": "passed",
+                "xml": "local-state.xml",
+                "case_index": 375,
+                "xml_sha256": "25bb7991f3b70fdf21db6654b46e735619720de8d783bba4820386b64055280f"
+              }
+            ]
+          }
+        },
+        "E45": {
+          "windows": {
+            "counts": {
+              "passed": 107,
+              "failed": 1,
+              "skipped": 1
+            },
+            "representative_cases": [
+              {
+                "identity": "tests.test_knowledge_router_read::test_documentary_routing_has_canonical_context_before_adapter_without_group",
+                "module": "test_knowledge_router_read",
+                "status": "passed",
+                "xml": "router-code.xml",
+                "case_index": 185,
+                "xml_sha256": "7f7457517b97602a3243b511855f579a53672faf65a7452e359cf805c633df61"
+              },
+              {
+                "identity": "tests.test_knowledge_router_read::test_taxonomy_symlink_is_not_read",
+                "module": "test_knowledge_router_read",
+                "status": "skipped",
+                "xml": "router-code.xml",
+                "case_index": 236,
+                "xml_sha256": "7f7457517b97602a3243b511855f579a53672faf65a7452e359cf805c633df61"
+              },
+              {
+                "identity": "skills.knowledge-services.scripts.test_backend_markdown_read::test_post_transport_is_bounded_closed_and_never_redirects[dribble]",
+                "module": "test_backend_markdown_read",
+                "status": "failed",
+                "xml": "documental-panel.xml",
+                "case_index": 225,
+                "xml_sha256": "8d68798f494628775ab3c1af2d1839391ffa50f1579639ed22f9e443ece2353e"
+              }
+            ]
+          },
+          "linux": {
+            "counts": {
+              "passed": 109,
+              "failed": 0,
+              "skipped": 0
+            },
+            "representative_cases": [
+              {
+                "identity": "tests.test_knowledge_router_read::test_documentary_routing_has_canonical_context_before_adapter_without_group",
+                "module": "test_knowledge_router_read",
+                "status": "passed",
+                "xml": "router-code.xml",
+                "case_index": 185,
+                "xml_sha256": "c6267393b9fcc78fdb10835e05ed9310a20f7481defd0d251b961d21085995cc"
+              }
+            ]
+          }
+        },
+        "E46": {
+          "windows": {
+            "counts": {
+              "passed": 35,
+              "failed": 0,
+              "skipped": 0
+            },
+            "representative_cases": [
+              {
+                "identity": "tests.test_code_context_build.ProducerTests::test_bom_is_included_in_declared_raw_digest",
+                "module": "test_code_context_build",
+                "status": "passed",
+                "xml": "router-code.xml",
+                "case_index": 386,
+                "xml_sha256": "7f7457517b97602a3243b511855f579a53672faf65a7452e359cf805c633df61"
+              }
+            ]
+          },
+          "linux": {
+            "counts": {
+              "passed": 34,
+              "failed": 0,
+              "skipped": 1
+            },
+            "representative_cases": [
+              {
+                "identity": "tests.test_code_context_build.ProducerTests::test_bom_is_included_in_declared_raw_digest",
+                "module": "test_code_context_build",
+                "status": "passed",
+                "xml": "router-code.xml",
+                "case_index": 386,
+                "xml_sha256": "c6267393b9fcc78fdb10835e05ed9310a20f7481defd0d251b961d21085995cc"
+              },
+              {
+                "identity": "tests.test_code_context_build.ProducerTests::test_windows_case_alias_inputs_rejected_before_open",
+                "module": "test_code_context_build",
+                "status": "skipped",
+                "xml": "router-code.xml",
+                "case_index": 420,
+                "xml_sha256": "c6267393b9fcc78fdb10835e05ed9310a20f7481defd0d251b961d21085995cc"
+              }
+            ]
+          }
+        },
+        "E47": {
+          "windows": {
+            "counts": {
+              "passed": 201,
+              "failed": 0,
+              "skipped": 6
+            },
+            "representative_cases": [
+              {
+                "identity": "agent-kits.shared.test_local_read::test_invalid_encoding_still_accounts_for_read_bytes",
+                "module": "test_local_read",
+                "status": "passed",
+                "xml": "local-state.xml",
+                "case_index": 248,
+                "xml_sha256": "f73d7236e63038fca9e5fafe791f26d180f3a91b81b0a8a6a19f30eb34ad173c"
+              },
+              {
+                "identity": "agent-kits.shared.test_local_read::test_symlink_is_rejected_before_opening_external_sentinel[file]",
+                "module": "test_local_read",
+                "status": "skipped",
+                "xml": "local-state.xml",
+                "case_index": 280,
+                "xml_sha256": "f73d7236e63038fca9e5fafe791f26d180f3a91b81b0a8a6a19f30eb34ad173c"
+              }
+            ]
+          },
+          "linux": {
+            "counts": {
+              "passed": 206,
+              "failed": 1,
+              "skipped": 0
+            },
+            "representative_cases": [
+              {
+                "identity": "agent-kits.shared.test_local_read::test_invalid_encoding_still_accounts_for_read_bytes",
+                "module": "test_local_read",
+                "status": "passed",
+                "xml": "local-state.xml",
+                "case_index": 248,
+                "xml_sha256": "25bb7991f3b70fdf21db6654b46e735619720de8d783bba4820386b64055280f"
+              },
+              {
+                "identity": "tests.test_code_receipts::test_strict_schema_and_citation_coverage_fail_closed[case-collision]",
+                "module": "test_code_receipts",
+                "status": "failed",
+                "xml": "router-code.xml",
+                "case_index": 320,
+                "xml_sha256": "c6267393b9fcc78fdb10835e05ed9310a20f7481defd0d251b961d21085995cc"
+              }
+            ]
+          }
+        }
+      },
+      "counts_overlap_not_additive": true,
+      "QA_accepted": false
+    },
+    "linux": {
+      "verdict": "NO-PASS",
+      "evidence_sha256": {
+        "verdict.json": "bd9e667e1659f7ae238466bc28eb0e1562c83c33bbbbe81a1ca10b89eed2b899",
+        "changed-coverage-gate.json": "e2c732a1b050e0cc82b580cd71985f664f571919540d878807044a6014999eb0",
+        "uncovered-lines.json": "323ce384c99b2b1816d0725c3670fa50b86cc7c75959d6fe06af184f778b54af"
+      },
+      "cohorts": [
+        {
+          "name": "local-state",
+          "passed": 953,
+          "failed": 0,
+          "skipped": 1,
+          "exit": 0
+        },
+        {
+          "name": "router-code",
+          "passed": 1004,
+          "failed": 4,
+          "skipped": 21,
+          "subtests": 21,
+          "exit": 1
+        },
+        {
+          "name": "documental-panel",
+          "passed": 497,
+          "failed": 0,
+          "skipped": 1,
+          "subtests": 6,
+          "exit": 0
+        }
+      ],
+      "coverage": {
+        "minimum": 90,
+        "metric": "mean coverage percent of explicit changed Python files",
+        "value": 89.58859975135722,
+        "file_gate_passed": false,
+        "changed_lines": {
+          "minimum": 90,
+          "metric": "aggregate executable added/changed lines",
+          "executable": 1332,
+          "covered": 1198,
+          "value": 89.93993993993993,
+          "passed": false
+        },
+        "passed": false,
+        "files": [
+          {
+            "path": "agent-kits/shared/code-context-build.py",
+            "percent_covered": 85.60885608856088,
+            "summary": {
+              "covered_lines": 232,
+              "num_statements": 271,
+              "percent_covered": 85.60885608856088,
+              "percent_covered_display": "86",
+              "missing_lines": 39,
+              "excluded_lines": 0,
+              "percent_statements_covered": 85.60885608856088,
+              "percent_statements_covered_display": "86"
+            },
+            "changed_lines": {
+              "executable": 271,
+              "covered": 232,
+              "percent": 85.60885608856088
+            }
+          },
+          {
+            "path": "agent-kits/shared/code-context.py",
+            "percent_covered": 96.14035087719299,
+            "summary": {
+              "covered_lines": 274,
+              "num_statements": 285,
+              "percent_covered": 96.14035087719299,
+              "percent_covered_display": "96",
+              "missing_lines": 11,
+              "excluded_lines": 0,
+              "percent_statements_covered": 96.14035087719299,
+              "percent_statements_covered_display": "96"
+            },
+            "changed_lines": {
+              "executable": 208,
+              "covered": 200,
+              "percent": 96.15384615384616
+            }
+          },
+          {
+            "path": "agent-kits/shared/knowledge-find.py",
+            "percent_covered": 81.20539254559873,
+            "summary": {
+              "covered_lines": 1024,
+              "num_statements": 1261,
+              "percent_covered": 81.20539254559873,
+              "percent_covered_display": "81",
+              "missing_lines": 237,
+              "excluded_lines": 0,
+              "percent_statements_covered": 81.20539254559873,
+              "percent_statements_covered_display": "81"
+            },
+            "changed_lines": {
+              "executable": 250,
+              "covered": 225,
+              "percent": 90.0
+            }
+          },
+          {
+            "path": "agent-kits/shared/knowledge-read-context.py",
+            "percent_covered": 88.9908256880734,
+            "summary": {
+              "covered_lines": 97,
+              "num_statements": 109,
+              "percent_covered": 88.9908256880734,
+              "percent_covered_display": "89",
+              "missing_lines": 12,
+              "excluded_lines": 0,
+              "percent_statements_covered": 88.9908256880734,
+              "percent_statements_covered_display": "89"
+            },
+            "changed_lines": {
+              "executable": 109,
+              "covered": 97,
+              "percent": 88.9908256880734
+            }
+          },
+          {
+            "path": "agent-kits/shared/knowledge-schema.py",
+            "percent_covered": 90.05847953216374,
+            "summary": {
+              "covered_lines": 308,
+              "num_statements": 342,
+              "percent_covered": 90.05847953216374,
+              "percent_covered_display": "90",
+              "missing_lines": 34,
+              "excluded_lines": 0,
+              "percent_statements_covered": 90.05847953216374,
+              "percent_statements_covered_display": "90"
+            },
+            "changed_lines": {
+              "executable": 3,
+              "covered": 3,
+              "percent": 100.0
+            }
+          },
+          {
+            "path": "agent-kits/shared/knowledge-taxonomy-local.py",
+            "percent_covered": 91.74311926605505,
+            "summary": {
+              "covered_lines": 200,
+              "num_statements": 218,
+              "percent_covered": 91.74311926605505,
+              "percent_covered_display": "92",
+              "missing_lines": 18,
+              "excluded_lines": 0,
+              "percent_statements_covered": 91.74311926605505,
+              "percent_statements_covered_display": "92"
+            },
+            "changed_lines": {
+              "executable": 56,
+              "covered": 54,
+              "percent": 96.42857142857143
+            }
+          },
+          {
+            "path": "agent-kits/shared/knowledge-view.py",
+            "percent_covered": 89.56834532374101,
+            "summary": {
+              "covered_lines": 249,
+              "num_statements": 278,
+              "percent_covered": 89.56834532374101,
+              "percent_covered_display": "90",
+              "missing_lines": 29,
+              "excluded_lines": 0,
+              "percent_statements_covered": 89.56834532374101,
+              "percent_statements_covered_display": "90"
+            },
+            "changed_lines": {
+              "executable": 35,
+              "covered": 35,
+              "percent": 100.0
+            }
+          },
+          {
+            "path": "agent-kits/shared/local-read.py",
+            "percent_covered": 97.57575757575758,
+            "summary": {
+              "covered_lines": 161,
+              "num_statements": 165,
+              "percent_covered": 97.57575757575758,
+              "percent_covered_display": "98",
+              "missing_lines": 4,
+              "excluded_lines": 0,
+              "percent_statements_covered": 97.57575757575758,
+              "percent_statements_covered_display": "98"
+            },
+            "changed_lines": {
+              "executable": 28,
+              "covered": 28,
+              "percent": 100.0
+            }
+          },
+          {
+            "path": "skills/knowledge-services/backends/markdown_export.py",
+            "percent_covered": 89.87090367428004,
+            "summary": {
+              "covered_lines": 905,
+              "num_statements": 1007,
+              "percent_covered": 89.87090367428004,
+              "percent_covered_display": "90",
+              "missing_lines": 102,
+              "excluded_lines": 0,
+              "percent_statements_covered": 89.87090367428004,
+              "percent_statements_covered_display": "90"
+            },
+            "changed_lines": {
+              "executable": 371,
+              "covered": 323,
+              "percent": 87.06199460916442
+            }
+          },
+          {
+            "path": "skills/knowledge-services/scripts/knowledge-sync.py",
+            "percent_covered": 85.12396694214875,
+            "summary": {
+              "covered_lines": 206,
+              "num_statements": 242,
+              "percent_covered": 85.12396694214875,
+              "percent_covered_display": "85",
+              "missing_lines": 36,
+              "excluded_lines": 0,
+              "percent_statements_covered": 85.12396694214875,
+              "percent_statements_covered_display": "85"
+            },
+            "changed_lines": {
+              "executable": 1,
+              "covered": 1,
+              "percent": 100.0
+            }
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "isolation",
+          "exit_code": 0
+        },
+        {
+          "name": "local-state",
+          "exit_code": 0
+        },
+        {
+          "name": "router-code",
+          "exit_code": 1
+        },
+        {
+          "name": "documental-panel",
+          "exit_code": 0
+        },
+        {
+          "name": "coverage-json",
+          "exit_code": 0
+        },
+        {
+          "name": "lint",
+          "exit_code": 0
+        },
+        {
+          "name": "evals",
+          "exit_code": 0
+        },
+        {
+          "name": "export",
+          "exit_code": 0
+        },
+        {
+          "name": "ledger",
+          "exit_code": 0
+        },
+        {
+          "name": "runtime-source-hashes",
+          "exit_code": 0
+        }
+      ],
+      "failure_scopes": [
+        "receipt case-collision behavior differs by platform",
+        "knowledge-services description exceeds 1024 characters",
+        "two encoding scenarios use ASCII-only no-graph output"
+      ],
+      "limits": [
+        "cohorts are overlapping and not additive",
+        "macro test-plan coverage not established by coverage-check",
+        "native acceptance is a separate cohort, not platform QA approval"
+      ]
+    },
+    "windows": {
+      "verdict": "NO-PASS",
+      "evidence_sha256": {
+        "verdict.json": "8993283bcda480099d906d991114bc2224b770f71313fbe4fe14e4e86a9b39d1",
+        "changed-coverage-gate.json": "cdb26d27afaa3f8778a3fac66fab8db053a88a02d4bfa6150e00f69d2645eb78",
+        "uncovered-lines.json": "04570856b50fc0658acc2834ac5504e6ca81cd766346c47ae70df67bdcd26acc"
+      },
+      "cohorts": [
+        {
+          "name": "local-state",
+          "passed": 935,
+          "failed": 0,
+          "skipped": 19,
+          "exit": 0
+        },
+        {
+          "name": "router-code",
+          "passed": 1005,
+          "failed": 3,
+          "skipped": 21,
+          "subtests": 21,
+          "exit": 1
+        },
+        {
+          "name": "documental-panel",
+          "passed": 494,
+          "failed": 1,
+          "skipped": 3,
+          "subtests": 6,
+          "exit": 1
+        }
+      ],
+      "coverage": {
+        "minimum": 90,
+        "metric": "mean coverage percent of explicit changed Python files",
+        "value": 89.34617550893297,
+        "file_gate_passed": false,
+        "changed_lines": {
+          "minimum": 90,
+          "metric": "aggregate executable added/changed lines",
+          "executable": 1332,
+          "covered": 1198,
+          "value": 89.93993993993993,
+          "passed": false
+        },
+        "passed": false,
+        "files": [
+          {
+            "path": "agent-kits/shared/code-context-build.py",
+            "percent_covered": 85.60885608856088,
+            "summary": {
+              "covered_lines": 232,
+              "num_statements": 271,
+              "percent_covered": 85.60885608856088,
+              "percent_covered_display": "86",
+              "missing_lines": 39,
+              "excluded_lines": 0,
+              "percent_statements_covered": 85.60885608856088,
+              "percent_statements_covered_display": "86"
+            },
+            "changed_lines": {
+              "executable": 271,
+              "covered": 232,
+              "percent": 85.60885608856088
+            }
+          },
+          {
+            "path": "agent-kits/shared/code-context.py",
+            "percent_covered": 96.14035087719299,
+            "summary": {
+              "covered_lines": 274,
+              "num_statements": 285,
+              "percent_covered": 96.14035087719299,
+              "percent_covered_display": "96",
+              "missing_lines": 11,
+              "excluded_lines": 0,
+              "percent_statements_covered": 96.14035087719299,
+              "percent_statements_covered_display": "96"
+            },
+            "changed_lines": {
+              "executable": 208,
+              "covered": 200,
+              "percent": 96.15384615384616
+            }
+          },
+          {
+            "path": "agent-kits/shared/knowledge-find.py",
+            "percent_covered": 81.20539254559873,
+            "summary": {
+              "covered_lines": 1024,
+              "num_statements": 1261,
+              "percent_covered": 81.20539254559873,
+              "percent_covered_display": "81",
+              "missing_lines": 237,
+              "excluded_lines": 0,
+              "percent_statements_covered": 81.20539254559873,
+              "percent_statements_covered_display": "81"
+            },
+            "changed_lines": {
+              "executable": 250,
+              "covered": 225,
+              "percent": 90.0
+            }
+          },
+          {
+            "path": "agent-kits/shared/knowledge-read-context.py",
+            "percent_covered": 88.9908256880734,
+            "summary": {
+              "covered_lines": 97,
+              "num_statements": 109,
+              "percent_covered": 88.9908256880734,
+              "percent_covered_display": "89",
+              "missing_lines": 12,
+              "excluded_lines": 0,
+              "percent_statements_covered": 88.9908256880734,
+              "percent_statements_covered_display": "89"
+            },
+            "changed_lines": {
+              "executable": 109,
+              "covered": 97,
+              "percent": 88.9908256880734
+            }
+          },
+          {
+            "path": "agent-kits/shared/knowledge-schema.py",
+            "percent_covered": 90.05847953216374,
+            "summary": {
+              "covered_lines": 308,
+              "num_statements": 342,
+              "percent_covered": 90.05847953216374,
+              "percent_covered_display": "90",
+              "missing_lines": 34,
+              "excluded_lines": 0,
+              "percent_statements_covered": 90.05847953216374,
+              "percent_statements_covered_display": "90"
+            },
+            "changed_lines": {
+              "executable": 3,
+              "covered": 3,
+              "percent": 100.0
+            }
+          },
+          {
+            "path": "agent-kits/shared/knowledge-taxonomy-local.py",
+            "percent_covered": 91.74311926605505,
+            "summary": {
+              "covered_lines": 200,
+              "num_statements": 218,
+              "percent_covered": 91.74311926605505,
+              "percent_covered_display": "92",
+              "missing_lines": 18,
+              "excluded_lines": 0,
+              "percent_statements_covered": 91.74311926605505,
+              "percent_statements_covered_display": "92"
+            },
+            "changed_lines": {
+              "executable": 56,
+              "covered": 54,
+              "percent": 96.42857142857143
+            }
+          },
+          {
+            "path": "agent-kits/shared/knowledge-view.py",
+            "percent_covered": 89.56834532374101,
+            "summary": {
+              "covered_lines": 249,
+              "num_statements": 278,
+              "percent_covered": 89.56834532374101,
+              "percent_covered_display": "90",
+              "missing_lines": 29,
+              "excluded_lines": 0,
+              "percent_statements_covered": 89.56834532374101,
+              "percent_statements_covered_display": "90"
+            },
+            "changed_lines": {
+              "executable": 35,
+              "covered": 35,
+              "percent": 100.0
+            }
+          },
+          {
+            "path": "agent-kits/shared/local-read.py",
+            "percent_covered": 95.15151515151516,
+            "summary": {
+              "covered_lines": 157,
+              "num_statements": 165,
+              "percent_covered": 95.15151515151516,
+              "percent_covered_display": "95",
+              "missing_lines": 8,
+              "excluded_lines": 0,
+              "percent_statements_covered": 95.15151515151516,
+              "percent_statements_covered_display": "95"
+            },
+            "changed_lines": {
+              "executable": 28,
+              "covered": 28,
+              "percent": 100.0
+            }
+          },
+          {
+            "path": "skills/knowledge-services/backends/markdown_export.py",
+            "percent_covered": 89.87090367428004,
+            "summary": {
+              "covered_lines": 905,
+              "num_statements": 1007,
+              "percent_covered": 89.87090367428004,
+              "percent_covered_display": "90",
+              "missing_lines": 102,
+              "excluded_lines": 0,
+              "percent_statements_covered": 89.87090367428004,
+              "percent_statements_covered_display": "90"
+            },
+            "changed_lines": {
+              "executable": 371,
+              "covered": 323,
+              "percent": 87.06199460916442
+            }
+          },
+          {
+            "path": "skills/knowledge-services/scripts/knowledge-sync.py",
+            "percent_covered": 85.12396694214875,
+            "summary": {
+              "covered_lines": 206,
+              "num_statements": 242,
+              "percent_covered": 85.12396694214875,
+              "percent_covered_display": "85",
+              "missing_lines": 36,
+              "excluded_lines": 0,
+              "percent_statements_covered": 85.12396694214875,
+              "percent_statements_covered_display": "85"
+            },
+            "changed_lines": {
+              "executable": 1,
+              "covered": 1,
+              "percent": 100.0
+            }
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "local-state",
+          "exit_code": 0
+        },
+        {
+          "name": "router-code",
+          "exit_code": 1
+        },
+        {
+          "name": "documental-panel",
+          "exit_code": 1
+        },
+        {
+          "name": "coverage-json",
+          "exit_code": 0
+        },
+        {
+          "name": "lint",
+          "exit_code": 0
+        },
+        {
+          "name": "evals",
+          "exit_code": 0
+        },
+        {
+          "name": "export",
+          "exit_code": 0
+        },
+        {
+          "name": "ledger",
+          "exit_code": 0
+        }
+      ],
+      "failure_scopes": [
+        "knowledge-services description exceeds 1024 characters",
+        "two encoding scenarios use ASCII-only no-graph output",
+        "dribble fixture requires a POST after preflight has exhausted the shared deadline"
+      ],
+      "limits": [
+        "cohorts are overlapping and not additive",
+        "fixture cause investigation and correction are separate owned runs",
+        "native acceptance is a separate cohort, not platform QA approval"
+      ]
+    },
+    "product_source_unchanged_while_original_QA_runs": true
+  },
+  "review_attempt_2": {
+    "manifest_sha256": "c3425e58637128f9c262ca22cbdf07dd3ac03656c751786af328f93609c52710",
+    "counts": {
+      "critical": 0,
+      "important": 0,
+      "minor": 0
+    },
+    "lenses": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "reports_sha256": {
+      "A": "3e669ac16270aa2967967c496ac58b27d1e6d0a681a879828474e803273b898d",
+      "B": "e8f0bdcb1e93640943c67126b219e47950add0bff1d35c9354facb5071ad9b09",
+      "C": "a1eff49f80e2d92aa0d3ef309239648b04e7c077c76c8ab86ba80e115eb39db6",
+      "D": "954c241c7e04000e5f857f532e92ef06414a781e7dbead3477b05fd8d94323ba"
+    },
+    "previous_approvals_preserved": true,
+    "all_previous_gaps": "corrected",
+    "qa_approval": false,
+    "global_tasks_closed": false
+  },
+  "review_attempt_1": {
+    "manifest_sha256": "8f15b4f5d986272737edba1b9a8789e2023be48f3d5829f02bb560a0ac73041c",
+    "counts": {
+      "critical": 1,
+      "important": 3,
+      "minor": 2
+    },
+    "lenses": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "reports_sha256": {
+      "A": "49b1ebe3cbc5e8b3879fd230466f1238d7b60d371ed9b94ea124826af1246fb5",
+      "B": "76bd8f8eee04d15efefda0fcd981352eedaa9e11ffc74a22c2c907f42409b647",
+      "C": "8ebd206191c0ece45294660c54d5cb06118a4754b99083d1a08b9d076121b2cb",
+      "D": "b1304d626ec24486a137a597508ed9058b710a630e0ade3c67c808e4b02243f0"
+    },
+    "fix_status": {
+      "A1": "implemented_GREEN_revalidation_pending",
+      "A2": "implemented_revalidation_pending",
+      "A3": "documentation_fixed_revalidation_pending",
+      "B1": "implemented_revalidation_pending",
+      "B2": "implemented_GREEN_revalidation_pending",
+      "D1": "implemented_GREEN_revalidation_pending"
+    }
+  },
+  "remaining": [
+    "final documentation/publication checks",
+    "global integration requirements including restore, large corpus, continuity, learning and remaining panel/commands"
+  ],
+  "review_attempt_3": {
+    "manifest_sha256": "0ebbb8313c63897d549d015590c22e4047a74e2293946f104412a5ed3e61334e",
+    "counts": {
+      "critical": 0,
+      "important": 0,
+      "minor": 0
+    },
+    "lenses": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "reports_sha256": {
+      "A": "928b11c378de87c970b5222ba6cb0810bff4a091a2a547b60109b94cf592c973",
+      "B": "0a282ae3c290c4862bb42d39247b791dfb75bf716861942b4676606a0c99737b",
+      "C": "70ab48dee42d341117e239500890488d345dbb982bacccb671cb888354ac079e",
+      "D": "0ab37da41c2702f1fde3133607bd1bdadc21f9206eea8c011b98671c96d56c03"
+    },
+    "previous_approvals_preserved": true,
+    "delta_files": 14,
+    "delta_lines": 2411,
+    "qa_approval": false,
+    "global_tasks_closed": false,
+    "same_code_and_tests_final_QA_accepted": true
+  },
+  "platform_QA_after_review_attempt_3": {
+    "manifest_sha256": "0ebbb8313c63897d549d015590c22e4047a74e2293946f104412a5ed3e61334e",
+    "facts_sha256": "a81d9c399df7f5f0209f974aebaa1ad61a156151775f4172d61974bd20f9541e",
+    "report_sha256": "086a0ebda26896cdbdc6bbcdd61b076a8ab710efb285aee1b0603d0be7ccda5f",
+    "handoff_sha256": "94f985dd8bfd661b4d5bc6503053d0c7829e3421732c118735f3dcfc6d133d46",
+    "sealed_artifacts_checked": 172,
+    "original_NO_PASS_artifacts_preserved": 21,
+    "platforms": {
+      "windows": {
+        "cohorts": [
+          {
+            "name": "local-state",
+            "counts": {
+              "passed": 956,
+              "failed": 0,
+              "skipped": 19
+            },
+            "xml_sha256": "539b6afecdc9d36a355c587b1f708b59e444a6d6ce49161528704301ca6f6d3c"
+          },
+          {
+            "name": "router-code",
+            "counts": {
+              "passed": 1023,
+              "failed": 0,
+              "skipped": 21
+            },
+            "xml_sha256": "991089d31fcfd2bdbc988c2589c60946eae1070af347af42b21029a136d3b918"
+          },
+          {
+            "name": "documental-panel",
+            "counts": {
+              "passed": 539,
+              "failed": 0,
+              "skipped": 3
+            },
+            "xml_sha256": "b2595a41d6107763289428ac45cfa453bce8e9b5f29562f423173ca02af11fb5"
+          }
+        ],
+        "JUnit": {
+          "passed": 2518,
+          "failed": 0,
+          "skipped": 43
+        },
+        "CLI": {
+          "passed": 6,
+          "failed": 0
+        },
+        "coverage": {
+          "minimum": 90,
+          "metric": "mean coverage percent of explicit changed Python files",
+          "value": 91.127209834166,
+          "file_gate_passed": true,
+          "changed_lines": {
+            "minimum": 90,
+            "metric": "aggregate executable added/changed lines",
+            "executable": 1333,
+            "covered": 1255,
+            "value": 94.14853713428357,
+            "passed": true
+          },
+          "passed": true,
+          "files": [
+            {
+              "path": "agent-kits/shared/code-context-build.py",
+              "percent_covered": 90.03690036900369,
+              "summary": {
+                "covered_lines": 244,
+                "num_statements": 271,
+                "percent_covered": 90.03690036900369,
+                "percent_covered_display": "90",
+                "missing_lines": 27,
+                "excluded_lines": 0,
+                "percent_statements_covered": 90.03690036900369,
+                "percent_statements_covered_display": "90"
+              },
+              "changed_lines": {
+                "executable": 271,
+                "covered": 244,
+                "percent": 90.03690036900369
+              }
+            },
+            {
+              "path": "agent-kits/shared/code-context.py",
+              "percent_covered": 96.15384615384616,
+              "summary": {
+                "covered_lines": 275,
+                "num_statements": 286,
+                "percent_covered": 96.15384615384616,
+                "percent_covered_display": "96",
+                "missing_lines": 11,
+                "excluded_lines": 0,
+                "percent_statements_covered": 96.15384615384616,
+                "percent_statements_covered_display": "96"
+              },
+              "changed_lines": {
+                "executable": 209,
+                "covered": 201,
+                "percent": 96.17224880382776
+              }
+            },
+            {
+              "path": "agent-kits/shared/knowledge-find.py",
+              "percent_covered": 81.20539254559873,
+              "summary": {
+                "covered_lines": 1024,
+                "num_statements": 1261,
+                "percent_covered": 81.20539254559873,
+                "percent_covered_display": "81",
+                "missing_lines": 237,
+                "excluded_lines": 0,
+                "percent_statements_covered": 81.20539254559873,
+                "percent_statements_covered_display": "81"
+              },
+              "changed_lines": {
+                "executable": 250,
+                "covered": 225,
+                "percent": 90.0
+              }
+            },
+            {
+              "path": "agent-kits/shared/knowledge-read-context.py",
+              "percent_covered": 99.08256880733946,
+              "summary": {
+                "covered_lines": 108,
+                "num_statements": 109,
+                "percent_covered": 99.08256880733946,
+                "percent_covered_display": "99",
+                "missing_lines": 1,
+                "excluded_lines": 0,
+                "percent_statements_covered": 99.08256880733946,
+                "percent_statements_covered_display": "99"
+              },
+              "changed_lines": {
+                "executable": 109,
+                "covered": 108,
+                "percent": 99.08256880733946
+              }
+            },
+            {
+              "path": "agent-kits/shared/knowledge-schema.py",
+              "percent_covered": 90.05847953216374,
+              "summary": {
+                "covered_lines": 308,
+                "num_statements": 342,
+                "percent_covered": 90.05847953216374,
+                "percent_covered_display": "90",
+                "missing_lines": 34,
+                "excluded_lines": 0,
+                "percent_statements_covered": 90.05847953216374,
+                "percent_statements_covered_display": "90"
+              },
+              "changed_lines": {
+                "executable": 3,
+                "covered": 3,
+                "percent": 100.0
+              }
+            },
+            {
+              "path": "agent-kits/shared/knowledge-taxonomy-local.py",
+              "percent_covered": 91.74311926605505,
+              "summary": {
+                "covered_lines": 200,
+                "num_statements": 218,
+                "percent_covered": 91.74311926605505,
+                "percent_covered_display": "92",
+                "missing_lines": 18,
+                "excluded_lines": 0,
+                "percent_statements_covered": 91.74311926605505,
+                "percent_statements_covered_display": "92"
+              },
+              "changed_lines": {
+                "executable": 56,
+                "covered": 54,
+                "percent": 96.42857142857143
+              }
+            },
+            {
+              "path": "agent-kits/shared/knowledge-view.py",
+              "percent_covered": 89.56834532374101,
+              "summary": {
+                "covered_lines": 249,
+                "num_statements": 278,
+                "percent_covered": 89.56834532374101,
+                "percent_covered_display": "90",
+                "missing_lines": 29,
+                "excluded_lines": 0,
+                "percent_statements_covered": 89.56834532374101,
+                "percent_statements_covered_display": "90"
+              },
+              "changed_lines": {
+                "executable": 35,
+                "covered": 35,
+                "percent": 100.0
+              }
+            },
+            {
+              "path": "agent-kits/shared/local-read.py",
+              "percent_covered": 95.15151515151516,
+              "summary": {
+                "covered_lines": 157,
+                "num_statements": 165,
+                "percent_covered": 95.15151515151516,
+                "percent_covered_display": "95",
+                "missing_lines": 8,
+                "excluded_lines": 0,
+                "percent_statements_covered": 95.15151515151516,
+                "percent_statements_covered_display": "95"
+              },
+              "changed_lines": {
+                "executable": 28,
+                "covered": 28,
+                "percent": 100.0
+              }
+            },
+            {
+              "path": "skills/knowledge-services/backends/markdown_export.py",
+              "percent_covered": 93.14796425024826,
+              "summary": {
+                "covered_lines": 938,
+                "num_statements": 1007,
+                "percent_covered": 93.14796425024826,
+                "percent_covered_display": "93",
+                "missing_lines": 69,
+                "excluded_lines": 0,
+                "percent_statements_covered": 93.14796425024826,
+                "percent_statements_covered_display": "93"
+              },
+              "changed_lines": {
+                "executable": 371,
+                "covered": 356,
+                "percent": 95.95687331536388
+              }
+            },
+            {
+              "path": "skills/knowledge-services/scripts/knowledge-sync.py",
+              "percent_covered": 85.12396694214875,
+              "summary": {
+                "covered_lines": 206,
+                "num_statements": 242,
+                "percent_covered": 85.12396694214875,
+                "percent_covered_display": "85",
+                "missing_lines": 36,
+                "excluded_lines": 0,
+                "percent_statements_covered": 85.12396694214875,
+                "percent_statements_covered_display": "85"
+              },
+              "changed_lines": {
+                "executable": 1,
+                "covered": 1,
+                "percent": 100.0
+              }
+            }
+          ]
+        },
+        "checks": [
+          {
+            "name": "local-state",
+            "exit_code": 0
+          },
+          {
+            "name": "router-code",
+            "exit_code": 0
+          },
+          {
+            "name": "documental-panel",
+            "exit_code": 0
+          },
+          {
+            "name": "coverage-json",
+            "exit_code": 0
+          },
+          {
+            "name": "lint",
+            "exit_code": 0
+          },
+          {
+            "name": "evals",
+            "exit_code": 0
+          },
+          {
+            "name": "export",
+            "exit_code": 0
+          },
+          {
+            "name": "ledger",
+            "exit_code": 0
+          }
+        ],
+        "evidence_sha256": {
+          "verdict.json": "05c3f7d981f2f69aed1805612bade218923ae5cec8f075d5a7092d2b98c09c3b",
+          "coverage.json": "1833565e3a278a2f2df6365e15d82a615cbae027fc76faa1a46230769a248df2",
+          "changed-coverage-gate.json": "7b4776d627227c45b3b5eb2006bf843af557867849375cbecdc341090a2881e4",
+          "uncovered-lines.json": "c7e216b6052cff23e4a0ba8fe4b942aab8320497a34aee64f54e2c688528b119",
+          "qa-gate.json": "921646de9e04d33062826f5b07fe758b1169235ae7d13c6f92337c52cb65e00c",
+          "normalization-counts.json": "20f299ec6e27811dd5e96dd284a230dfd0528df27edb6d35d6e0db06b0e168b2",
+          "source-hashes-before.json": "a19d291611dfb21b59b297e5cde75fae78ebdbb0d90431e7598f4e7d73a16ae1",
+          "source-hashes-after.json": "a19d291611dfb21b59b297e5cde75fae78ebdbb0d90431e7598f4e7d73a16ae1",
+          "raw/qa-gate-trace.json": "cfe71eb576b6cfe00417e23854d62b92a5f4d33ac1a9f157fcfd36d17d14143a"
+        }
+      },
+      "linux": {
+        "cohorts": [
+          {
+            "name": "local-state",
+            "counts": {
+              "passed": 974,
+              "failed": 0,
+              "skipped": 1
+            },
+            "xml_sha256": "6466afcdc33b35369b6ee19f7b630c09ddb690b04b05778dda39bcc2d1d789e8"
+          },
+          {
+            "name": "router-code",
+            "counts": {
+              "passed": 1023,
+              "failed": 0,
+              "skipped": 21
+            },
+            "xml_sha256": "deac290e48cbc50cf6f9cd0a88dfc217466051687635f5c0043eaef12a7d360c"
+          },
+          {
+            "name": "documental-panel",
+            "counts": {
+              "passed": 541,
+              "failed": 0,
+              "skipped": 1
+            },
+            "xml_sha256": "4a1fcc8003ef14dd48abcf4dfd78150a7172c3b806b5cf67e46a443d7f7f9f09"
+          }
+        ],
+        "JUnit": {
+          "passed": 2538,
+          "failed": 0,
+          "skipped": 23
+        },
+        "CLI": {
+          "passed": 8,
+          "failed": 0
+        },
+        "coverage": {
+          "minimum": 90,
+          "metric": "mean coverage percent of explicit changed Python files",
+          "value": 91.37956456318409,
+          "file_gate_passed": true,
+          "changed_lines": {
+            "minimum": 90,
+            "metric": "aggregate executable added/changed lines",
+            "executable": 1333,
+            "covered": 1255,
+            "value": 94.14853713428357,
+            "passed": true
+          },
+          "passed": true,
+          "files": [
+            {
+              "path": "agent-kits/shared/code-context-build.py",
+              "percent_covered": 90.03690036900369,
+              "summary": {
+                "covered_lines": 244,
+                "num_statements": 271,
+                "percent_covered": 90.03690036900369,
+                "percent_covered_display": "90",
+                "missing_lines": 27,
+                "excluded_lines": 0,
+                "percent_statements_covered": 90.03690036900369,
+                "percent_statements_covered_display": "90"
+              },
+              "changed_lines": {
+                "executable": 271,
+                "covered": 244,
+                "percent": 90.03690036900369
+              }
+            },
+            {
+              "path": "agent-kits/shared/code-context.py",
+              "percent_covered": 96.15384615384616,
+              "summary": {
+                "covered_lines": 275,
+                "num_statements": 286,
+                "percent_covered": 96.15384615384616,
+                "percent_covered_display": "96",
+                "missing_lines": 11,
+                "excluded_lines": 0,
+                "percent_statements_covered": 96.15384615384616,
+                "percent_statements_covered_display": "96"
+              },
+              "changed_lines": {
+                "executable": 209,
+                "covered": 201,
+                "percent": 96.17224880382776
+              }
+            },
+            {
+              "path": "agent-kits/shared/knowledge-find.py",
+              "percent_covered": 81.20539254559873,
+              "summary": {
+                "covered_lines": 1024,
+                "num_statements": 1261,
+                "percent_covered": 81.20539254559873,
+                "percent_covered_display": "81",
+                "missing_lines": 237,
+                "excluded_lines": 0,
+                "percent_statements_covered": 81.20539254559873,
+                "percent_statements_covered_display": "81"
+              },
+              "changed_lines": {
+                "executable": 250,
+                "covered": 225,
+                "percent": 90.0
+              }
+            },
+            {
+              "path": "agent-kits/shared/knowledge-read-context.py",
+              "percent_covered": 99.08256880733946,
+              "summary": {
+                "covered_lines": 108,
+                "num_statements": 109,
+                "percent_covered": 99.08256880733946,
+                "percent_covered_display": "99",
+                "missing_lines": 1,
+                "excluded_lines": 0,
+                "percent_statements_covered": 99.08256880733946,
+                "percent_statements_covered_display": "99"
+              },
+              "changed_lines": {
+                "executable": 109,
+                "covered": 108,
+                "percent": 99.08256880733946
+              }
+            },
+            {
+              "path": "agent-kits/shared/knowledge-schema.py",
+              "percent_covered": 90.05847953216374,
+              "summary": {
+                "covered_lines": 308,
+                "num_statements": 342,
+                "percent_covered": 90.05847953216374,
+                "percent_covered_display": "90",
+                "missing_lines": 34,
+                "excluded_lines": 0,
+                "percent_statements_covered": 90.05847953216374,
+                "percent_statements_covered_display": "90"
+              },
+              "changed_lines": {
+                "executable": 3,
+                "covered": 3,
+                "percent": 100.0
+              }
+            },
+            {
+              "path": "agent-kits/shared/knowledge-taxonomy-local.py",
+              "percent_covered": 91.74311926605505,
+              "summary": {
+                "covered_lines": 200,
+                "num_statements": 218,
+                "percent_covered": 91.74311926605505,
+                "percent_covered_display": "92",
+                "missing_lines": 18,
+                "excluded_lines": 0,
+                "percent_statements_covered": 91.74311926605505,
+                "percent_statements_covered_display": "92"
+              },
+              "changed_lines": {
+                "executable": 56,
+                "covered": 54,
+                "percent": 96.42857142857143
+              }
+            },
+            {
+              "path": "agent-kits/shared/knowledge-view.py",
+              "percent_covered": 89.56834532374101,
+              "summary": {
+                "covered_lines": 249,
+                "num_statements": 278,
+                "percent_covered": 89.56834532374101,
+                "percent_covered_display": "90",
+                "missing_lines": 29,
+                "excluded_lines": 0,
+                "percent_statements_covered": 89.56834532374101,
+                "percent_statements_covered_display": "90"
+              },
+              "changed_lines": {
+                "executable": 35,
+                "covered": 35,
+                "percent": 100.0
+              }
+            },
+            {
+              "path": "agent-kits/shared/local-read.py",
+              "percent_covered": 97.57575757575758,
+              "summary": {
+                "covered_lines": 161,
+                "num_statements": 165,
+                "percent_covered": 97.57575757575758,
+                "percent_covered_display": "98",
+                "missing_lines": 4,
+                "excluded_lines": 0,
+                "percent_statements_covered": 97.57575757575758,
+                "percent_statements_covered_display": "98"
+              },
+              "changed_lines": {
+                "executable": 28,
+                "covered": 28,
+                "percent": 100.0
+              }
+            },
+            {
+              "path": "skills/knowledge-services/backends/markdown_export.py",
+              "percent_covered": 93.24726911618669,
+              "summary": {
+                "covered_lines": 939,
+                "num_statements": 1007,
+                "percent_covered": 93.24726911618669,
+                "percent_covered_display": "93",
+                "missing_lines": 68,
+                "excluded_lines": 0,
+                "percent_statements_covered": 93.24726911618669,
+                "percent_statements_covered_display": "93"
+              },
+              "changed_lines": {
+                "executable": 371,
+                "covered": 356,
+                "percent": 95.95687331536388
+              }
+            },
+            {
+              "path": "skills/knowledge-services/scripts/knowledge-sync.py",
+              "percent_covered": 85.12396694214875,
+              "summary": {
+                "covered_lines": 206,
+                "num_statements": 242,
+                "percent_covered": 85.12396694214875,
+                "percent_covered_display": "85",
+                "missing_lines": 36,
+                "excluded_lines": 0,
+                "percent_statements_covered": 85.12396694214875,
+                "percent_statements_covered_display": "85"
+              },
+              "changed_lines": {
+                "executable": 1,
+                "covered": 1,
+                "percent": 100.0
+              }
+            }
+          ]
+        },
+        "checks": [
+          {
+            "name": "isolation",
+            "exit_code": 0
+          },
+          {
+            "name": "local-state",
+            "exit_code": 0
+          },
+          {
+            "name": "router-code",
+            "exit_code": 0
+          },
+          {
+            "name": "documental-panel",
+            "exit_code": 0
+          },
+          {
+            "name": "coverage-json",
+            "exit_code": 0
+          },
+          {
+            "name": "lint",
+            "exit_code": 0
+          },
+          {
+            "name": "evals",
+            "exit_code": 0
+          },
+          {
+            "name": "export",
+            "exit_code": 0
+          },
+          {
+            "name": "ledger",
+            "exit_code": 0
+          },
+          {
+            "name": "runtime-source-hashes",
+            "exit_code": 0
+          }
+        ],
+        "evidence_sha256": {
+          "verdict.json": "717b2746737bc6463621499a17d6ff8644c91695750058aec86f217f5906d2ac",
+          "coverage.json": "ea3f0a4fa493f0d192082d19907e2287fc1a09503e68a4027f156c2b304cca97",
+          "changed-coverage-gate.json": "a856a2327ccc54d1cc57806e3025143d90662b27fd74f056ab27b2b6191768ba",
+          "uncovered-lines.json": "c044dd952dacc7c5541d98d83638cf5fcb9426d49edc8690e9590d2162b05cfb",
+          "qa-gate.json": "412e75e2f119859e72bd27ffe6ef605b2f06cfb95d0ca980d9878faef353cde0",
+          "normalization-counts.json": "5622112c2f1f26dae32e887a609a65a71419eb810e8f9332e2fbd1acdfb7ac92",
+          "source-hashes-before.json": "a19d291611dfb21b59b297e5cde75fae78ebdbb0d90431e7598f4e7d73a16ae1",
+          "source-hashes-after.json": "a19d291611dfb21b59b297e5cde75fae78ebdbb0d90431e7598f4e7d73a16ae1",
+          "raw/qa-gate-trace.json": "045e8714ce2273ce9eed92ef0d0b4117298c4ad68aebaf87a25daa7578c15f78"
+        }
+      }
+    },
+    "contracts": {
+      "E43": {
+        "windows": {
+          "counts": {
+            "passed": 59,
+            "failed": 0,
+            "skipped": 0
+          },
+          "representative_cases": [
+            {
+              "identity": "agent-kits.shared.test_knowledge_routing::test_routing_selection_is_pure_preserves_summary_and_excludes_private",
+              "module": "test_knowledge_routing",
+              "status": "passed",
+              "xml": "local-state.xml",
+              "case_index": 911,
+              "xml_sha256": "539b6afecdc9d36a355c587b1f708b59e444a6d6ce49161528704301ca6f6d3c"
+            }
+          ]
+        },
+        "linux": {
+          "counts": {
+            "passed": 59,
+            "failed": 0,
+            "skipped": 0
+          },
+          "representative_cases": [
+            {
+              "identity": "agent-kits.shared.test_knowledge_routing::test_routing_selection_is_pure_preserves_summary_and_excludes_private",
+              "module": "test_knowledge_routing",
+              "status": "passed",
+              "xml": "local-state.xml",
+              "case_index": 911,
+              "xml_sha256": "6466afcdc33b35369b6ee19f7b630c09ddb690b04b05778dda39bcc2d1d789e8"
+            }
+          ]
+        }
+      },
+      "E44": {
+        "windows": {
+          "counts": {
+            "passed": 242,
+            "failed": 0,
+            "skipped": 2
+          },
+          "representative_cases": [
+            {
+              "identity": "agent-kits.shared.test_knowledge_view::test_invalid_snapshot_deadline_rejects_before_loading[True]",
+              "module": "test_knowledge_view",
+              "status": "passed",
+              "xml": "local-state.xml",
+              "case_index": 375,
+              "xml_sha256": "539b6afecdc9d36a355c587b1f708b59e444a6d6ce49161528704301ca6f6d3c"
+            },
+            {
+              "identity": "agent-kits.shared.test_knowledge_view::test_omitted_sources_are_partial[redirect]",
+              "module": "test_knowledge_view",
+              "status": "skipped",
+              "xml": "local-state.xml",
+              "case_index": 401,
+              "xml_sha256": "539b6afecdc9d36a355c587b1f708b59e444a6d6ce49161528704301ca6f6d3c"
+            }
+          ]
+        },
+        "linux": {
+          "counts": {
+            "passed": 244,
+            "failed": 0,
+            "skipped": 0
+          },
+          "representative_cases": [
+            {
+              "identity": "agent-kits.shared.test_knowledge_view::test_invalid_snapshot_deadline_rejects_before_loading[True]",
+              "module": "test_knowledge_view",
+              "status": "passed",
+              "xml": "local-state.xml",
+              "case_index": 375,
+              "xml_sha256": "6466afcdc33b35369b6ee19f7b630c09ddb690b04b05778dda39bcc2d1d789e8"
+            }
+          ]
+        }
+      },
+      "E45": {
+        "windows": {
+          "counts": {
+            "passed": 152,
+            "failed": 0,
+            "skipped": 1
+          },
+          "representative_cases": [
+            {
+              "identity": "tests.test_knowledge_router_read::test_documentary_routing_has_canonical_context_before_adapter_without_group",
+              "module": "test_knowledge_router_read",
+              "status": "passed",
+              "xml": "router-code.xml",
+              "case_index": 185,
+              "xml_sha256": "991089d31fcfd2bdbc988c2589c60946eae1070af347af42b21029a136d3b918"
+            },
+            {
+              "identity": "tests.test_knowledge_router_read::test_taxonomy_symlink_is_not_read",
+              "module": "test_knowledge_router_read",
+              "status": "skipped",
+              "xml": "router-code.xml",
+              "case_index": 236,
+              "xml_sha256": "991089d31fcfd2bdbc988c2589c60946eae1070af347af42b21029a136d3b918"
+            }
+          ]
+        },
+        "linux": {
+          "counts": {
+            "passed": 153,
+            "failed": 0,
+            "skipped": 0
+          },
+          "representative_cases": [
+            {
+              "identity": "tests.test_knowledge_router_read::test_documentary_routing_has_canonical_context_before_adapter_without_group",
+              "module": "test_knowledge_router_read",
+              "status": "passed",
+              "xml": "router-code.xml",
+              "case_index": 185,
+              "xml_sha256": "deac290e48cbc50cf6f9cd0a88dfc217466051687635f5c0043eaef12a7d360c"
+            }
+          ]
+        }
+      },
+      "E46": {
+        "windows": {
+          "counts": {
+            "passed": 45,
+            "failed": 0,
+            "skipped": 0
+          },
+          "representative_cases": [
+            {
+              "identity": "tests.test_code_context_build.ProducerTests::test_bom_is_included_in_declared_raw_digest",
+              "module": "test_code_context_build",
+              "status": "passed",
+              "xml": "router-code.xml",
+              "case_index": 389,
+              "xml_sha256": "991089d31fcfd2bdbc988c2589c60946eae1070af347af42b21029a136d3b918"
+            }
+          ]
+        },
+        "linux": {
+          "counts": {
+            "passed": 44,
+            "failed": 0,
+            "skipped": 1
+          },
+          "representative_cases": [
+            {
+              "identity": "tests.test_code_context_build.ProducerTests::test_bom_is_included_in_declared_raw_digest",
+              "module": "test_code_context_build",
+              "status": "passed",
+              "xml": "router-code.xml",
+              "case_index": 389,
+              "xml_sha256": "deac290e48cbc50cf6f9cd0a88dfc217466051687635f5c0043eaef12a7d360c"
+            },
+            {
+              "identity": "tests.test_code_context_build.ProducerTests::test_windows_case_alias_inputs_rejected_before_open",
+              "module": "test_code_context_build",
+              "status": "skipped",
+              "xml": "router-code.xml",
+              "case_index": 433,
+              "xml_sha256": "deac290e48cbc50cf6f9cd0a88dfc217466051687635f5c0043eaef12a7d360c"
+            }
+          ]
+        }
+      },
+      "E47": {
+        "windows": {
+          "counts": {
+            "passed": 204,
+            "failed": 0,
+            "skipped": 6
+          },
+          "representative_cases": [
+            {
+              "identity": "agent-kits.shared.test_local_read::test_invalid_encoding_still_accounts_for_read_bytes",
+              "module": "test_local_read",
+              "status": "passed",
+              "xml": "local-state.xml",
+              "case_index": 248,
+              "xml_sha256": "539b6afecdc9d36a355c587b1f708b59e444a6d6ce49161528704301ca6f6d3c"
+            },
+            {
+              "identity": "agent-kits.shared.test_local_read::test_symlink_is_rejected_before_opening_external_sentinel[file]",
+              "module": "test_local_read",
+              "status": "skipped",
+              "xml": "local-state.xml",
+              "case_index": 280,
+              "xml_sha256": "539b6afecdc9d36a355c587b1f708b59e444a6d6ce49161528704301ca6f6d3c"
+            }
+          ]
+        },
+        "linux": {
+          "counts": {
+            "passed": 210,
+            "failed": 0,
+            "skipped": 0
+          },
+          "representative_cases": [
+            {
+              "identity": "agent-kits.shared.test_local_read::test_invalid_encoding_still_accounts_for_read_bytes",
+              "module": "test_local_read",
+              "status": "passed",
+              "xml": "local-state.xml",
+              "case_index": 248,
+              "xml_sha256": "6466afcdc33b35369b6ee19f7b630c09ddb690b04b05778dda39bcc2d1d789e8"
+            }
+          ]
+        }
+      }
+    },
+    "contract_case_rows_checked": 1422,
+    "distinct_JUnit_files_checked": 6,
+    "counts_overlap_not_additive": true,
+    "cleanup": {
+      "container_id": "842558f622f4b66f868d755c089014832a9e9ffa70e17b63c2a3303bd044276d",
+      "passed": true,
+      "removed": true,
+      "postinspect_absence_confirmed": true
+    },
+    "limits": [
+      "no native/model/browser calls in platform QA",
+      "native integration checkpoints remain separate",
+      "changed-file arithmetic mean; not every file above90",
+      "macro test-plan coverage not proven"
+    ],
+    "QA_accepted": true,
+    "macro_closure_authorized": false
+  }
+}

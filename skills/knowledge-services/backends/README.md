@@ -1,6 +1,6 @@
 # Contrato de adaptador (`backends/<type>.py`)
 
-`knowledge-sync.py` (T-07) es el único núcleo: carga un adaptador por `type` (declarado en
+`knowledge-sync.py` (T-07) es el núcleo de publicación: carga un adaptador por `type` (declarado en
 `.claude/knowledge-services/taxonomy.json` → `backends.<id>.type`) y le pasa SOLO las entradas de
 `docs/knowledge/approved/` que ya pasaron el filtro de `routing` (fail-closed, CA-09/CA-11). El
 núcleo **nunca** menciona un backend concreto; añadir uno nuevo es un fichero nuevo en este
@@ -11,7 +11,7 @@ tocar `knowledge-sync.py` ni `backends/__init__.py`.
 
 | Adaptador | Publicación y verificación | Consulta desde el plugin |
 |---|---|---|
-| `markdown-export` (Kwipu) | Exporta Markdown y manifiesto propios; consulta salud/snapshot del bridge para verificar. Nombra el reindexado externo sin ejecutarlo. | No expone `consultar` ni `puede_leer`; la consulta del grafo pertenece al stack externo. |
+| `markdown-export` (Kwipu) | Exporta Markdown y manifiesto propios; consulta salud/snapshot del bridge para verificar. Nombra el reindexado externo sin ejecutarlo. | Expone `puede_leer` y `consultar` opcionales. `knowledge-find.py --intent` exige backend habilitado, `read.enabled: true`, intent autorizado y contexto canónico completo antes de red/inferencia. Un rechazo o fallo vuelve a local. |
 | `graphiti` | Publica y verifica episodios mediante MCP. `off` evita conexiones y rechaza escrituras; `shadow` (default) permite sincronizar, sin autorizar consultas. | `read` permite solicitar lectura mediante `knowledge-find.py --intent`; exige backend habilitado, intent declarado como `true`, grupo propio efectivo, `health` sano y `verify` completo sin desfase. Un rechazo o fallo degrada a la búsqueda local con motivo. |
 
 Instalar el plugin no activa estos servicios. La publicación sigue limitada a las entradas
@@ -44,6 +44,11 @@ o semántica; esta lectura no promueve entradas ni cambia la política del Curat
 Los backends siguen siendo proyecciones opcionales. Una lectura externa autorizada conserva
 versiones válidas; errores o respuestas incompatibles degradan a la recuperación local con
 motivo. El versionado del Markdown en Git depende de la política del proyecto consumidor.
+
+La lectura documental de Kwipu distingue aciertos canónicos de `respuesta_generada`.
+Esta última declara `verificacion: no_verificada`, `autoridad: ninguna` y
+`citas_por_afirmacion: false`. Sus `source_nodes` son fuentes recuperadas vinculadas;
+no acreditan cada afirmación ni convierten el texto generado en conocimiento aprobado.
 
 ## Nombre de fichero
 
@@ -78,6 +83,33 @@ Además de las 6 obligatorias, un adaptador puede exponer estas; el núcleo las 
 | `consultar` | `(cfg, consulta) -> {"aciertos": [...], "descartados": int, "motivo": str}` | el router de `knowledge-find.py --intent` (T-07, CA-12) | **es lo que hace ENRUTABLE a un backend**: un adaptador sin `consultar` puede publicar pero nunca servir una consulta. `consulta` = `{"intent", "texto", "limit", "area", "tipo", "claves", "iniciativa"}`; devuelve `aciertos` (lista), `descartados` (int, lo que se descartó fail-closed) y `motivo` (str); cada acierto tiene que traer `id`, `estado`, `evidencia` y `ruta` canónica (el núcleo descarta, fail-closed, el que no las traiga) y `motivo` NO VACÍO con 0 aciertos significa «no pude servir» → el núcleo degrada a local con ese motivo a la vista (nunca lanza, igual que `health`) |
 | `modo` | `(cfg) -> "off"\|"shadow"\|"read"` | `capabilities.py` (estado de la capacidad, sin red) | `modo(cfg)`: el adaptador es la fuente única del enum y del default de `mode`; quien lo necesite lo pregunta en vez de reimplementarlo |
 | `proponer_config` | `(taxonomy, cfg) -> dict` | `knowledge-sync.py --propose-config` | el adaptador sabe proponer su propia configuración a partir de la taxonomía del proyecto |
+
+`consultar` puede añadir el campo genérico opcional `respuesta_generada`. El router
+valida su forma y los bindings; no añade autoridad ni un contrato de citas por afirmación.
+Los adaptadores que implementan solo las seis funciones siguen siendo compatibles.
+
+## Qué autoriza la lectura documental de Kwipu
+
+`agent-kits/shared/knowledge-read-context.py` prepara el contexto desde la política
+y el corpus actual. Exige `routing` y filtros sobre todo el conjunto publicado.
+El protocolo nativo de consulta no restringe fuentes: un filtro que excluya alguna
+entrada enrutada rechaza la lectura antes de consultar el servicio.
+
+El adaptador compara canon, proyección y manifiesto propio. Después exige salud sana
+y un snapshot completo con cinco metadatos por chunk: ID, versión, hash, proyecto y scope.
+Todos los chunks deben corresponder al conjunto autorizado. Un filename nulo solo se
+resuelve mediante ese binding; entidades, basenames o `fm.id` aislado no sustituyen el ID.
+
+Cada consulta comparte un plazo monotónico para autorización, HTTP y revalidación.
+Los límites acotan cuerpos, respuesta y fuentes. El lector refresca canon y snapshot;
+un cambio, truncado o fuente irresoluble suprime la respuesta y conserva fallback local.
+La coincidencia observada no garantiza atomicidad multiarchivo ni detecta cambios ABA.
+Configuración y presupuesto exactos: [adaptador Kwipu](../references/kwipu-adapter.md#cómo-habilitar-la-lectura-documental).
+
+Conserva en el bundle portable `agent-kits/shared/local-read.py`,
+`agent-kits/shared/knowledge-read-context.py`, `agent-kits/shared/knowledge-taxonomy-local.py`
+y los lectores locales existentes junto al router.
+Instalaciones parciales degradan a local; el panel y los hooks no activan esta ruta.
 
 ## Carga y validación
 

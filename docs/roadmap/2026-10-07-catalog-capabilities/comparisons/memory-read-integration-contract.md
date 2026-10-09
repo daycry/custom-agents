@@ -1,9 +1,20 @@
 # Contrato de la siguiente integración de memoria
 
-Diseño del bloque18, todavía sin implementar ni aceptar mediante QA. Se deriva
+Contrato del bloque18, con revisión y QA de implementación aceptadas. Se deriva
 de los [resultados funcionales](memory-functional-results.md) y amplía las piezas
 existentes. La memoria local, captura de sesión y curación conservan sus contratos;
 los requisitos de continuidad nativa pendientes siguen en el ledger global.
+
+Implementación aplicada al árbol: selección pura compartida, contexto canónico,
+adaptador documental opt-in, router por intent, selectores AST exactos, consumidor
+de recibos y productor explícito. La [evidencia parcial](../testing/memory-read-implementation-evidence.json)
+separa RED/GREEN, HTTP loopback y aceptación nativa. Los siguientes apartados
+conservan los requisitos del contrato. El tercer pase A/B/C/D no deja gaps nuevos
+o reabiertos; la QA final pasa en Windows y Linux sobre el mismo código y pruebas.
+Las dos métricas oficiales superan el 90% en ambas plataformas, sin redondear para
+aceptar. Los checkpoints nativos documental y AST son evidencias funcionales
+separadas. Ningún servicio del consumidor se activa automáticamente y esta entrega
+parcial no cierra la integración global.
 
 ## Consulta documental opcional
 
@@ -102,6 +113,13 @@ debe observar esos bytes antes y después de extraer y publicar el sidecar solo
 tras export exitoso. No crear un recibo de archivos actuales para legitimar
 un artefacto antiguo. Commit, mtime o el indicador `directed` no prueban vigencia.
 
+El productor exige destinos nuevos para artefacto y recibo. Rechaza cualquiera
+existente antes de importar el extractor o extraer. Publica con creación exclusiva
+`os.link`, artefacto primero y recibo al final, sin fallback de sobrescritura.
+Un fallo de publicación devuelve `publish_failed` y puede dejar el artefacto sin recibo.
+No elimina ni reemplaza destinos finales al fallar; limpia solo staging propio.
+La siguiente build necesita un destino nuevo. El par no es atómico ni evita cambios ABA.
+
 | Condición | Resultado requerido |
 |---|---|
 | Artefacto antiguo sin sidecar automático | Contexto legacy permitido, vigencia sin verificar y aviso |
@@ -138,6 +156,7 @@ operación explícita del productor externo, separada de consulta.
    esa utilidad; no activarlo como requisito general para completar los dos anteriores.
 
 Todos los escenarios de pruebas usan proyectos y servicios propios. Los RED
-propuestos todavía no se han ejecutado: este diseño no es evidencia de implementación.
+y aceptaciones observados figuran en la evidencia de implementación y el ledger;
+este contrato expresa requisitos y no sustituye sus salidas ni la QA final.
 Los casos de restore, escritura interrumpida, corpus grande, UX y aprendizaje
 continúan pendientes y no se cierran por aceptar una interfaz de lectura.

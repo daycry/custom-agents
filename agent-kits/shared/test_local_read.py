@@ -1,5 +1,6 @@
 """Local resume readers never traverse redirected paths or read unbounded files."""
 import importlib.util
+import hashlib
 import os
 from pathlib import Path
 import stat
@@ -31,6 +32,105 @@ def test_failed_read_charges_allocation_without_echoing_exception(tmp_path, read
         'status': 'unreadable', 'text': None, 'bytes': 9}
 
 SCRIPT = Path(__file__).with_name('local-read.py')
+
+
+def test_binary_reader_preserves_raw_bytes_and_stable_descriptor_identity(tmp_path, reader, monkeypatch):
+    raw = b'\xff\x00\xef\xbb\xbf\r\n'
+    target = tmp_path / 'artifact.bin'
+    target.write_bytes(raw)
+    assert callable(getattr(reader, 'read_bytes', None)), 'binary bounded reader is absent'
+    descriptor_observations = []
+    original = reader.os.fstat
+    def observe(descriptor):
+        information = original(descriptor)
+        descriptor_observations.append(information)
+        return information
+    monkeypatch.setattr(reader.os, 'fstat', observe)
+    result = reader.read_bytes(tmp_path, 'artifact.bin', include_digest=True, include_identity=True)
+    observed = descriptor_observations[-1]
+    assert result == {
+        'status': 'ok', 'data': raw, 'bytes': len(raw),
+        'sha256': hashlib.sha256(raw).hexdigest(),
+        'identity': (observed.st_dev, observed.st_ino, stat.S_IFMT(observed.st_mode)),
+        'generation': (observed.st_size, observed.st_mtime_ns, observed.st_ctime_ns),
+    }
+    assert reader.read_bytes(tmp_path, 'artifact.bin') == {
+        'status': 'ok', 'data': raw, 'bytes': len(raw)}
+    assert reader.read_text(tmp_path, 'artifact.bin')['status'] == 'invalid_encoding'
+
+
+def test_binary_identity_detects_hardlink_alias_without_following_a_link(tmp_path, reader):
+    original = tmp_path / 'original.bin'
+    original.write_bytes(b'owned')
+    os.link(original, tmp_path / 'alias.bin')
+    assert callable(getattr(reader, 'read_bytes', None)), 'binary bounded reader is absent'
+    first = reader.read_bytes(tmp_path, 'original.bin', include_identity=True)
+    second = reader.read_bytes(tmp_path, 'alias.bin', include_identity=True)
+    assert first['status'] == second['status'] == 'ok'
+    assert first['identity'] == second['identity']
+
+
+def test_empty_binary_disappearance_after_open_is_instability(tmp_path, reader, monkeypatch):
+    target = tmp_path / 'empty.bin'
+    target.write_bytes(b'')
+    original_stat, original_fdopen = reader.os.lstat, reader.os.fdopen
+    read_finished = False
+    def observe(path, *args, **kwargs):
+        if read_finished and Path(path) == target:
+            raise FileNotFoundError('PRIVATE_RACE_SENTINEL')
+        return original_stat(path, *args, **kwargs)
+    class RemovedHandle:
+        def __init__(self, handle): self.handle = handle
+        def __enter__(self): return self
+        def __exit__(self, *args): self.handle.close()
+        def fileno(self): return self.handle.fileno()
+        def read(self, limit):
+            nonlocal read_finished
+            data = self.handle.read(limit)
+            read_finished = True
+            return data
+    monkeypatch.setattr(reader.os, 'lstat', observe)
+    monkeypatch.setattr(reader.os, 'fdopen', lambda *args, **kwargs: RemovedHandle(original_fdopen(*args, **kwargs)))
+    assert reader.read_bytes(tmp_path, 'empty.bin', include_identity=True) == {
+        'status': 'changed_path', 'data': None, 'bytes': 0}
+
+
+@pytest.mark.parametrize('option', ['include_digest', 'include_identity'])
+@pytest.mark.parametrize('value', [1, 'true', None])
+def test_binary_options_are_strict_and_fail_before_io(tmp_path, reader, monkeypatch, option, value):
+    assert callable(getattr(reader, 'read_bytes', None)), 'binary bounded reader is absent'
+    monkeypatch.setattr(reader.os, 'lstat', lambda *args: pytest.fail('invalid options must not stat'))
+    assert reader.read_bytes(tmp_path, 'artifact.bin', **{option: value}) == {
+        'status': 'invalid_options', 'data': None, 'bytes': 0}
+
+
+def test_optional_digest_uses_original_bom_and_crlf_bytes_on_same_read(tmp_path, reader, monkeypatch):
+    raw = b'\xef\xbb\xbfDecision\r\n'
+    (tmp_path / 'entry.md').write_bytes(raw)
+    opened = []
+    original = reader.os.fdopen
+    def record(*args, **kwargs):
+        opened.append(args[0])
+        return original(*args, **kwargs)
+    monkeypatch.setattr(reader.os, 'fdopen', record)
+    result = reader.read_text(tmp_path, 'entry.md', include_digest=True)
+    assert result['status'] == 'ok' and result['text'] == 'Decision\r\n'
+    assert result['bytes'] == len(raw)
+    assert result['sha256'] == hashlib.sha256(raw).hexdigest()
+    assert result['sha256'] != hashlib.sha256(result['text'].encode('utf-8')).hexdigest()
+    assert len(opened) == 1
+    assert reader.read_text(tmp_path, 'entry.md') == {
+        'status': 'ok', 'text': 'Decision\r\n', 'bytes': len(raw)}
+
+
+@pytest.mark.parametrize('value', [1, 'true', None])
+def test_invalid_digest_flag_is_rejected_before_file_access(tmp_path, reader, monkeypatch, value):
+    (tmp_path / 'entry.md').write_bytes(b'owned')
+    def forbidden(*args, **kwargs):
+        raise AssertionError('invalid options must not access files')
+    monkeypatch.setattr(reader.os, 'open', forbidden)
+    result = reader.read_text(tmp_path, 'entry.md', include_digest=value)
+    assert result == {'status': 'invalid_options', 'text': None, 'bytes': 0}
 
 
 @pytest.fixture

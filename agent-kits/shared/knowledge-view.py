@@ -7,8 +7,10 @@ project code, adapters, native configuration, journals or cache indexes.
 import hashlib
 import importlib.util
 import json
+import math
 from pathlib import Path
 import re
+import time
 from datetime import datetime, timezone
 
 HERE = Path(__file__).resolve().parent
@@ -55,20 +57,39 @@ def valid_request(operation='search', text='', id='', area='', tipo='', limit=10
                  or (operation != 'search' and _valid_id(id) and not text and not area and not tipo)))
 
 
-def snapshot(root):
+def snapshot(root, *, include_digests=False, deadline=None):
     """Return bounded source tuples plus explicit completeness and read accounting.
 
     Approved validation is fail closed for that tree; valid legacy entries remain
     available. Source tuples preserve exact decoded text and relative identity.
     """
-    reader = _load('local-read.py')
     budget = {'files': 0, 'bytes': 0, 'entries': 0, 'scans': 0}
+    if (type(include_digests) is not bool or (deadline is not None and
+            (type(deadline) not in (int, float) or not math.isfinite(deadline)))):
+        return {'files': [], 'corpus_read': {
+            'complete': False, 'issues': ['invalid_options'], 'budget': budget}}
+    source_digests = {}
+    def result(files, issues):
+        value = {'files': files, 'corpus_read': {'complete': not issues, 'issues': issues, 'budget': budget}}
+        if include_digests:
+            value['source_digests'] = source_digests
+        return value
     issues = []
     read_status = {}
     def issue(code):
         if code not in issues: issues.append(code)
 
+    def expired():
+        if deadline is not None and time.monotonic() >= deadline:
+            issue('read_deadline')
+            return True
+        return False
+
+    if expired(): return result([], issues)
+    reader = _load('local-read.py')
+
     def exhausted():
+        if expired(): return True
         if budget['files'] >= MAX_FILES:
             issue('file_budget')
             return True
@@ -78,20 +99,19 @@ def snapshot(root):
         return False
 
     def read(relative, optional=False):
-        if budget['files'] >= MAX_FILES:
-            issue('file_budget')
-            return None
+        if exhausted(): return None
         remaining = MAX_BYTES - budget['bytes']
-        if remaining <= 1:
-            issue('byte_budget')
-            return None
         budget['files'] += 1
-        result = reader.read_text(root, relative, max_bytes=min(MAX_FILE_BYTES, remaining - 1))
-        budget['bytes'] += result['bytes']
-        read_status[relative] = result['status']
-        if result['status'] == 'ok': return result['text']
-        if not (optional and result['status'] == 'not_found'):
-            issue('read_' + result['status'])
+        options = {'include_digest': True} if include_digests else {}
+        observed = reader.read_text(root, relative, max_bytes=min(MAX_FILE_BYTES, remaining - 1), **options)
+        budget['bytes'] += observed['bytes']
+        read_status[relative] = observed['status']
+        if observed['status'] == 'ok':
+            if include_digests:
+                source_digests[relative] = observed['sha256']
+            return observed['text']
+        if not (optional and observed['status'] == 'not_found'):
+            issue('read_' + observed['status'])
         return None
 
     def scan(relative, optional=False, classify=False):
@@ -128,6 +148,7 @@ def snapshot(root):
                 text = read('docs/knowledge/' + folder + '/' + name)
                 if text is not None: files.append((folder + '/' + name, text.encode('utf-8')))
 
+    if expired(): return result(files, issues)
     try:
         local = _load('knowledge-local.py')
         taxonomy = local._TAXONOMY
@@ -135,7 +156,7 @@ def snapshot(root):
             json.loads(json.dumps(taxonomy._TAXONOMY_FALLBACK)), str(root))
     except Exception:
         issue('approved_helper_unavailable')
-        return {'files': files, 'corpus_read': {'complete': False, 'issues': issues, 'budget': budget}}
+        return result(files, issues)
     taxonomy_text = read('.claude/knowledge-services/taxonomy.json', optional=True)
     taxonomy_failed = False
     if taxonomy_text is not None:
@@ -188,14 +209,16 @@ def snapshot(root):
                 issue('scan_budget')
                 break
             walk('docs/knowledge/approved/' + folder, folder, folder.count('/') + 1)
+        if expired(): return result(files, issues)
         records, errors = local.index_snapshot(sources, config, include_source=True, root=str(root))
+        if expired(): return result(files, issues)
         if errors:
             issue('approved_invalid')
             records = {}
         if sources:
             files.append(('__approved_meta__.json', json.dumps({'config': config, 'entries': records}, ensure_ascii=False, sort_keys=True).encode('utf-8')))
             files.extend((meta['ruta_rel'], meta['texto'].encode('utf-8')) for meta in records.values())
-    return {'files': files, 'corpus_read': {'complete': not issues, 'issues': issues, 'budget': budget}}
+    return result(files, issues)
 
 
 def query(root, operation='search', text='', id='', area='', tipo='', limit=10):

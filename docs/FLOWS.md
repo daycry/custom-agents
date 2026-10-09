@@ -57,6 +57,52 @@ flowchart LR
   Pruebas --> Memoria[Knowledge Gate]
 ```
 
+## Memoria local, lectura documental y contexto AST
+
+`knowledge-find.py` recupera memoria local sin Docker. Un `--intent` explícito
+puede solicitar lectura documental autorizada de `markdown-export`.
+El router exige backend, `read.enabled`, intent, canon completo, routing y filtros
+de todo el conjunto publicado antes de importar el adaptador o transmitir la pregunta.
+
+```mermaid
+flowchart LR
+    Peticion[Consulta manual] --> Local[Legado y approved locales]
+    Peticion -.->|intent explícito| Canon[Backend y read habilitados<br/>intent routing filtros canon manifiesto]
+    Canon --> Binding[Salud sana y snapshot completo<br/>todos los chunks vinculados]
+    Binding --> Consulta[Query con plazo único y cuerpos acotados]
+    Consulta --> Refresh[Revalidación de canon y snapshot]
+    Refresh --> Generada[Fuentes vinculadas<br/>respuesta no verificada sin autoridad]
+    Canon -.->|rechazo| Local
+    Binding -.->|rechazo| Local
+    Consulta -.->|fallo| Local
+    Refresh -.->|cambio o salida incompatible| Local
+```
+
+El binding exige ID, versión, hash, proyecto y scope del chunk contra canon,
+proyección y manifiesto propios. `source_nodes` son fuentes recuperadas, sin citas
+por afirmación. La estabilidad observada no garantiza atomicidad ni detecta ABA.
+Detalle y opt-in: [adaptador Kwipu](../skills/knowledge-services/references/kwipu-adapter.md#cómo-habilitar-la-lectura-documental).
+
+```mermaid
+flowchart LR
+    Manual[Producción AST manual explícita] --> Producer[code-context-build<br/>biblioteca externa confiada y inputs declarados]
+    Producer --> Par[Grafo local y recibo de bytes]
+    Par --> Reader[code-context<br/>rehash de todos los inputs y selector]
+    Reader --> Contexto[AST citado no aprobado<br/>coverage unknown]
+    Reader -.->|stale inválido o no disponible| Vacio[Contexto vacío y diagnóstico]
+```
+
+La consulta AST no importa al productor ni instala Graphify. Un recibo válido
+solo acredita `verified-declared-inputs`, sin autenticación de productor ni cobertura
+global o semántica. El productor exige destinos nuevos para artefacto y recibo antes
+de importar el extractor. Los crea exclusivamente, sin sobrescribir; el par no es atómico.
+Si falla el recibo, puede quedar el artefacto sin él: no borra destinos finales al fallar
+y la siguiente build requiere otro destino. No garantiza detección de cambios ABA.
+Selectores, CLI y dependencias: [CODE_CONTEXT](CODE_CONTEXT.md).
+
+El panel y los hooks mantienen su lectura local. Abrirlos no activa estas consultas,
+no inicia servicios y no añade polling de backends.
+
 ## Retoma dirigida sobre registros existentes
 
 `/work-resume` llama a `progress-report.py resume` y muestra primero el ledger

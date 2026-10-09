@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Bounded read-only access to regular UTF-8 project files for local views."""
 import ntpath
+import hashlib
 import os
 from pathlib import Path
 import stat
@@ -72,12 +73,18 @@ def _unchanged(snapshots):
     return True
 
 
-def read_text(root, relative, *, max_bytes=MAX_BYTES):
+def read_bytes(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, include_identity=False):
     """Return an explicit status; never echo exception text, write files or follow redirects.
 
-    UTF-8 errors and oversized files remain distinct from absence. File and parent
-    identity checks run before reading the descriptor; regular-file reads are bounded.
+    File and parent identity checks run before reading the descriptor; reads are
+    bounded. Optional digest, identity and generation refer to that descriptor.
+    These observations do not establish an atomic snapshot across multiple files.
     """
+    def _result(status, data=None, size=0):
+        return {'status': status, 'data': data, 'bytes': size}
+
+    if type(include_digest) is not bool or type(include_identity) is not bool:
+        return _result('invalid_options')
     if type(max_bytes) is not int or max_bytes <= 0:
         return _result('invalid_limit')
     try:
@@ -85,6 +92,7 @@ def read_text(root, relative, *, max_bytes=MAX_BYTES):
     except (TypeError, ValueError, OSError):
         return _result('invalid_path')
     fd = None
+    descriptor_opened = False
     read_cost = 0
     try:
         # Distinguish a missing root from a missing entry without following root links.
@@ -103,6 +111,7 @@ def read_text(root, relative, *, max_bytes=MAX_BYTES):
             return _result('too_large')
         flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_BINARY', 0)
         fd = os.open(target, flags)
+        descriptor_opened = True
         opened = os.fstat(fd)
         if _identity(opened) != _identity(info) or not _unchanged(snapshots):
             return _result('changed_path')
@@ -121,13 +130,15 @@ def read_text(root, relative, *, max_bytes=MAX_BYTES):
                 return _result('changed_path', size=read_cost)
         if len(raw) > max_bytes:
             return _result('too_large', size=read_cost)
-        try:
-            text = raw.decode('utf-8-sig')
-        except UnicodeDecodeError:
-            return _result('invalid_encoding', size=read_cost)
-        return _result('ok', text, len(raw))
+        result = _result('ok', raw, len(raw))
+        if include_digest:
+            result['sha256'] = hashlib.sha256(raw).hexdigest()
+        if include_identity:
+            result['identity'] = _identity(after)
+            result['generation'] = _generation(after)
+        return result
     except FileNotFoundError:
-        return _result('not_found', size=read_cost)
+        return _result('changed_path' if descriptor_opened else 'not_found', size=read_cost)
     except _ReadStatus as exc:
         return _result(str(exc), size=read_cost)
     except (OSError, ValueError):
@@ -135,6 +146,21 @@ def read_text(root, relative, *, max_bytes=MAX_BYTES):
     finally:
         if fd is not None:
             os.close(fd)
+
+
+def read_text(root, relative, *, max_bytes=MAX_BYTES, include_digest=False):
+    """Decode the same bounded, validated bytes without changing their optional digest."""
+    raw = read_bytes(root, relative, max_bytes=max_bytes, include_digest=include_digest)
+    if raw['status'] != 'ok':
+        return _result(raw['status'], size=raw['bytes'])
+    try:
+        text = raw['data'].decode('utf-8-sig')
+    except UnicodeDecodeError:
+        return _result('invalid_encoding', size=raw['bytes'])
+    result = _result('ok', text, raw['bytes'])
+    if include_digest:
+        result['sha256'] = raw['sha256']
+    return result
 
 
 def list_names(root, relative, *, max_entries=128):

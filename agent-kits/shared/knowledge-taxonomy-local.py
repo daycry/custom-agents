@@ -302,7 +302,7 @@ def validar(config, fichero="taxonomy.json", backend_validator=None):
                             errores.append(_error(
                                 f"`routing` cita el backend `{bid}`, no declarado en `backends` (fail-closed)",
                                 fichero, campo_r))
-                        if valor not in ROUTING_VALORES:
+                        if type(valor) is not bool and not (type(valor) is str and valor == "summary"):
                             errores.append(_error(
                                 f"{campo_r} debe ser true, false o \"summary\"", fichero, campo_r))
             # Sin `routing` declarado: fail-closed, no es un error de esquema (CA-09), solo
@@ -363,5 +363,89 @@ def categorias_por_backend_con_valor(config, backend_id):
         if valor:
             out.append((cat, valor))
     return out
+
+
+DOCUMENTAL_READ_LIMITS = {
+    "timeout_ms": (5000, 30000),
+    "max_request_bytes": (8192, 65536),
+    "max_answer_chars": (4096, 65536),
+    "max_source_nodes": (64, 1024),
+    "max_response_bytes": (262144, 2097152),
+    "max_snapshot_bytes": (2097152, 2097152),
+}
+
+
+def documental_read_options(config, fichero="taxonomy.json", campo="config"):
+    """Validate opt-in documental limits and router without loading service code."""
+    errors = []
+    def error(path):
+        errors.append(_error("opción de lectura documental inválida", fichero, campo + "." + path))
+    if not isinstance(config, dict):
+        error("read")
+        return None, errors
+    read = config.get("read", {})
+    if not isinstance(read, dict):
+        error("read")
+        return None, errors
+    for key in read:
+        if key not in DOCUMENTAL_READ_LIMITS and key != "enabled":
+            error("read")
+    enabled = read.get("enabled", False)
+    if type(enabled) is not bool:
+        error("read.enabled")
+    options = {"enabled": enabled}
+    for key, (default, cap) in DOCUMENTAL_READ_LIMITS.items():
+        value = read.get(key, default)
+        if type(value) is not int or not 1 <= value <= cap:
+            error("read." + key)
+        options[key] = value
+    router = config.get("router", {})
+    if not isinstance(router, dict):
+        error("router")
+    else:
+        if any(key not in ("intents", "default") for key in router):
+            error("router")
+        if "default" in router and not isinstance(router["default"], str):
+            error("router.default")
+        intents = router.get("intents", {})
+        if not isinstance(intents, dict):
+            error("router.intents")
+        elif any(not isinstance(key, str) or re.fullmatch(r"[a-z][a-z0-9_-]*", key) is None
+                 or type(value) is not bool for key, value in intents.items()):
+            error("router.intents")
+    return (None if errors else options), errors
+
+
+def entradas_enrutadas(config, backend_id, indice):
+    """Select already-validated approved records without files, adapters or effects.
+
+    Publication and explicit retrieval use the same routing and summary modes.
+    Returns entries, errors and IDs excluded by routing, in deterministic order.
+    """
+    errores = []
+    for index, category in enumerate(config.get("categories") or []):
+        value = (category.get("routing") or {}).get(backend_id, False)
+        if type(value) is not bool and not (type(value) is str and value == "summary"):
+            errores.append(_error("routing debe ser true, false o summary", "taxonomy.json",
+                                  f"categories[{index}].routing.{backend_id}"))
+    if errores:
+        return [], errores, sorted(indice)
+    valores = {cat.get("key"): valor
+               for cat, valor in categorias_por_backend_con_valor(config, backend_id)}
+    entradas, omitidas = [], []
+    for identifier in sorted(indice):
+        meta = indice[identifier]
+        valor = valores.get(meta.get("category"), False)
+        if not valor:
+            omitidas.append(identifier)
+            continue
+        entradas.append({
+            "id": identifier, "version": meta["version"], "folder": meta["folder"],
+            "enlaces": meta["enlaces"], "category": meta.get("category"),
+            "evidencia": meta.get("evidencia"), "fuentes": meta.get("fuentes") or [],
+            "tags": meta.get("tags") or [], "modo": "resumen" if valor == "summary" else "completo",
+            "cuerpo": meta.get("cuerpo") or "", "resumen": meta.get("resumen"), "ruta": meta["ruta"],
+        })
+    return entradas, [], omitidas
 
 

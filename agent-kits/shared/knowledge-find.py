@@ -119,6 +119,8 @@ import os
 import re
 import sqlite3
 import sys
+import math
+import time
 import unicodedata
 from collections import Counter
 
@@ -1265,31 +1267,43 @@ def _cargar_modulo(ruta, nombre):
 
 
 def taxonomia(root):
-    """`(config, motivo_o_None)` leída de `<root>/.claude/knowledge-services/taxonomy.json` con
-    `json` y nada más. NUNCA lanza: sin fichero, con JSON roto o con una forma inesperada devuelve
-    `(None, motivo)` y la consulta se atiende en local.
+    """Read bounded, duplicate-free JSON through the shared local descriptor reader.
 
-    Decisión del implementer (T-07, el plan no lo fijaba): aquí NO se carga `knowledge-schema.py`
-    para validar la taxonomía, aunque sea el validador canónico. Este script lo invoca el hook
-    `SessionStart` (`session-context.sh`) y el invariante del plan es que ningún hook alcance
-    código con capacidad de red; `knowledge-schema.py` importa `urllib` (solo para PARSEAR URLs,
-    pero el guardarraíl estático de `tests/test_knowledge_services.py` sigue las invocaciones de
-    forma transitiva y no distingue el submódulo de parseo de `urllib` del de peticiones, con la allowlist vacía a
-    propósito). El router no necesita validar: exige `enabled: true`, `type` y
-    `router.intents.<intent> is True` — una taxonomía inválida no enruta, no enruta mal. La
-    validación completa (y la derivación de `group_id`) siguen donde estaban: `knowledge-sync.py`,
-    `capabilities.py` y `/doctor`; un backend sin `group_id` declarado no lee (su adaptador lo
-    rechaza) y se degrada a local con motivo."""
-    ruta = os.path.join(root or ".", ".claude", "knowledge-services", "taxonomy.json")
-    if not os.path.isfile(ruta):
-        return None, f"no hay `{os.path.join('.claude', 'knowledge-services', 'taxonomy.json')}`"
+    Policy errors return fixed reasons and keep the query local. This loader imports
+    only the standard-library file reader, so local views and SessionStart cannot
+    reach a network-capable adapter. Documentary reads have separate strict policy
+    and complete-corpus checks; historical adapters retain their group gate.
+    """
     try:
-        with open(ruta, encoding="utf-8") as f:
-            config = json.load(f)
-    except (OSError, ValueError) as e:
-        return None, f"no se pudo leer `{ruta}`: {type(e).__name__}: {e}"
+        reader = _cargar_modulo(os.path.join(HERE, "local-read.py"), "kf_policy_read")
+        observed = reader.read_text(root or ".", ".claude/knowledge-services/taxonomy.json", max_bytes=256 * 1024)
+        if observed.get("status") != "ok":
+            return None, "taxonomia_no_disponible"
+        text = observed["text"]
+        depth, quoted, escaped = 0, False, False
+        for char in text:
+            if quoted:
+                if escaped: escaped = False
+                elif char == "\\": escaped = True
+                elif char == '"': quoted = False
+            elif char == '"': quoted = True
+            elif char in "[{":
+                depth += 1
+                if depth > 64: raise ValueError("json_depth")
+            elif char in "]}": depth -= 1
+        def pairs(items):
+            result = {}
+            for key, value in items:
+                if key in result: raise ValueError("duplicate_key")
+                result[key] = value
+            return result
+        def nonfinite(_value):
+            raise ValueError("nonfinite_json")
+        config = json.loads(text, object_pairs_hook=pairs, parse_constant=nonfinite)
+    except Exception:  # noqa: BLE001 — optional policy never exposes raw file/error text
+        return None, "taxonomia_json_invalido"
     if not isinstance(config, dict):
-        return None, f"`{ruta}` no es un objeto JSON"
+        return None, "taxonomia_json_invalido"
     return config, None
 
 
@@ -1314,7 +1328,7 @@ def backends_para_intent(config, intent):
     return elegidos
 
 
-def acierto_remoto(bruto, backend_id):
+def acierto_remoto(bruto, backend_id, identidad_completa=False):
     """Normaliza un acierto servido por un backend al mismo diccionario que usa el corpus local
     (para que `linea_compacta`/`acierto_json` no distingan el origen), o `None` si le falta alguna
     de las `CLAVES_ACIERTO_REMOTO`."""
@@ -1350,6 +1364,9 @@ def acierto_remoto(bruto, backend_id):
     }
     if bruto.get("version") is not None:
         result["version"] = bruto["version"]
+    if identidad_completa:
+        # Generated bindings cannot survive shortening an ID or canonical path.
+        result["id"], result["ruta"] = bruto["id"], bruto["ruta"]
     return result
 
 
@@ -1372,7 +1389,7 @@ def filtrar_remotos(aciertos, tipo="", area=""):
     return out
 
 
-def _aciertos_del_backend(respuesta, backend_id, limit, tipo="", area=""):
+def _aciertos_del_backend(respuesta, backend_id, limit, tipo="", area="", identidad_completa=False):
     """`(aciertos, descartados, filtrados)` a partir de lo que devuelve `consultar` del adaptador
     (una lista de aciertos, o un dict con la clave `aciertos`), ya post-filtrados por `tipo`/`area`
     (gap #104). `limit` 0 = sin tope (el adaptador ya trae el suyo).
@@ -1386,7 +1403,7 @@ def _aciertos_del_backend(respuesta, backend_id, limit, tipo="", area=""):
         brutos = []
     aciertos, descartados = [], 0
     for bruto in brutos:
-        normalizado = acierto_remoto(bruto, backend_id)
+        normalizado = acierto_remoto(bruto, backend_id, identidad_completa=identidad_completa)
         if normalizado is None:
             descartados += 1
         else:
@@ -1399,6 +1416,167 @@ def _aciertos_del_backend(respuesta, backend_id, limit, tipo="", area=""):
     return aciertos, descartados, filtrados
 
 
+class _GeneratedInvalid(ValueError):
+    pass
+
+
+def _config_privada(value, depth=0):
+    if depth > 64:
+        return True
+    if isinstance(value, dict):
+        return any(not isinstance(key, str) or key.startswith("_") or
+                   _config_privada(item, depth + 1) for key, item in value.items())
+    if isinstance(value, list):
+        return any(_config_privada(item, depth + 1) for item in value)
+    return False
+
+
+def _generado_seguro(text, redact):
+    if not isinstance(text, str):
+        raise _GeneratedInvalid()
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+    text = "".join(char for char in text if (char in "\n\t" or ord(char) >= 32) and
+                   not 127 <= ord(char) <= 159 and char not in
+                   "\u061c\u200e\u200f\u2028\u2029\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069")
+    return redact(text).strip()
+
+
+def _identidad_generada(value, cap, redact):
+    if (not isinstance(value, str) or not value or len(value) > cap or
+            _generado_seguro(value, redact) != value):
+        raise _GeneratedInvalid()
+    return value
+
+
+def _version_generada(value):
+    if type(value) is int and 0 < value <= 10 ** 18:
+        return value
+    if isinstance(value, str) and re.fullmatch(r"[1-9][0-9]{0,18}", value):
+        return int(value)
+    raise _GeneratedInvalid()
+
+
+def _normalizar_respuesta_generada(respuesta, cfg, context=None):
+    """Generic bounded output, with exact identities and no normative authority."""
+    value = respuesta.get("respuesta_generada")
+    expected = {"texto", "verificacion", "autoridad", "citas_por_afirmacion", "source_nodes", "generation_consistency"}
+    if (not isinstance(value, dict) or set(value) != expected or value.get("verificacion") != "no_verificada" or
+            value.get("autoridad") != "ninguna" or value.get("citas_por_afirmacion") is not False or
+            value.get("generation_consistency") != "observed_stable_not_atomic"):
+        raise _GeneratedInvalid()
+    redact = _cargar_modulo(os.path.join(HERE, "redact.py"), "kf_generated_redact").redactar
+    read = cfg.get("read") if isinstance(cfg.get("read"), dict) else {}
+    limits = {}
+    for key, default, cap in (("max_answer_chars", 4096, 65536), ("max_source_nodes", 64, 1024),
+                              ("max_response_bytes", 262144, 2097152)):
+        bound = read.get(key, default)
+        if type(bound) is not int or not 0 < bound <= cap: raise _GeneratedInvalid()
+        limits[key] = bound
+    if not isinstance(value.get("texto"), str) or len(value["texto"]) > limits["max_answer_chars"]:
+        raise _GeneratedInvalid()
+    text = _generado_seguro(value["texto"], redact)
+    if not text or len(text) > limits["max_answer_chars"]: raise _GeneratedInvalid()
+    raw_hits = respuesta.get("aciertos")
+    if not isinstance(raw_hits, list) or not raw_hits or len(raw_hits) > 2048:
+        raise _GeneratedInvalid()
+    hit_map = {}
+    for hit in raw_hits:
+        if not isinstance(hit, dict) or hit.get("estado") != "aprobado": raise _GeneratedInvalid()
+        id_ = _identidad_generada(hit.get("id"), 512, redact)
+        if id_ in hit_map: raise _GeneratedInvalid()
+        _identidad_generada(hit.get("ruta"), 4096, redact)
+        _version_generada(hit.get("version"))
+        if "puntuacion" in hit and (type(hit["puntuacion"]) not in (int, float) or
+                                     not math.isfinite(hit["puntuacion"])):
+            raise _GeneratedInvalid()
+        hit_map[id_] = hit
+    raw_sources = value.get("source_nodes")
+    if not isinstance(raw_sources, list) or not 0 < len(raw_sources) <= limits["max_source_nodes"]:
+        raise _GeneratedInvalid()
+    required = {"node_id", "file_name", "score", "canonical_id", "knowledge_version", "canonical_path",
+                "canonical_sha256", "projection_hash", "project", "scope", "category"}
+    optional = {"projection_filename", "estado", "evidencia", "modo"}
+    node_ids, documents, filenames, sources = set(), {}, {}, []
+    local = {entry["id"]: entry for entry in context["entries"]} if context else None
+    for source in raw_sources:
+        if not isinstance(source, dict) or not required.issubset(source) or set(source) - (required | optional):
+            raise _GeneratedInvalid()
+        clean = dict(source)
+        for key, cap in (("node_id", 512), ("canonical_id", 512), ("canonical_path", 4096),
+                         ("project", 512), ("category", 128)):
+            _identidad_generada(source.get(key), cap, redact)
+        node_id, id_, path = source["node_id"], source["canonical_id"], source["canonical_path"]
+        if (node_id in node_ids or id_ not in hit_map or source.get("scope") != "project" or
+                not path.startswith("docs/knowledge/approved/") or "\\" in path or ":" in path or
+                any(part in ("", ".", "..") for part in path.split("/"))):
+            raise _GeneratedInvalid()
+        node_ids.add(node_id)
+        version = source["knowledge_version"]
+        if type(version) is not int or _version_generada(version) != _version_generada(hit_map[id_].get("version")):
+            raise _GeneratedInvalid()
+        if path != hit_map[id_].get("ruta"): raise _GeneratedInvalid()
+        for key in ("canonical_sha256", "projection_hash"):
+            if not isinstance(source.get(key), str) or not re.fullmatch(r"[a-f0-9]{64}", source[key]):
+                raise _GeneratedInvalid()
+        name = source.get("file_name")
+        if name is not None:
+            _identidad_generada(name, 1024, redact)
+            if "/" in name or "\\" in name: raise _GeneratedInvalid()
+        if "projection_filename" in source:
+            _identidad_generada(source["projection_filename"], 1024, redact)
+            if name is not None and name != source["projection_filename"]: raise _GeneratedInvalid()
+        for candidate in (name, source.get("projection_filename")):
+            if candidate is not None:
+                if id_ in filenames and filenames[id_] != candidate: raise _GeneratedInvalid()
+                filenames[id_] = candidate
+        if "category" in hit_map[id_] and hit_map[id_]["category"] != source["category"]:
+            raise _GeneratedInvalid()
+        score = source.get("score")
+        if score is not None and (type(score) not in (int, float) or not math.isfinite(score)):
+            raise _GeneratedInvalid()
+        if "estado" in source and source["estado"] != "aprobado": raise _GeneratedInvalid()
+        if "modo" in source and source["modo"] not in ("completo", "resumen"): raise _GeneratedInvalid()
+        if "evidencia" in source: _identidad_generada(source["evidencia"], 128, redact)
+        identity = tuple(source[key] for key in ("canonical_path", "knowledge_version", "canonical_sha256",
+                          "projection_hash", "project", "scope", "category"))
+        if id_ in documents and documents[id_] != identity: raise _GeneratedInvalid()
+        documents[id_] = identity
+        if local is not None:
+            entry = local.get(id_)
+            if (entry is None or entry["canonical_path"] != path or entry["version"] != version or
+                    entry["canonical_sha256"] != source["canonical_sha256"] or
+                    entry["category"] != source["category"] or
+                    source["project"] != id_.split(".", 1)[0] or
+                    (name is not None and name != id_ + ".md") or
+                    ("projection_filename" in source and source["projection_filename"] != id_ + ".md")):
+                raise _GeneratedInvalid()
+        sources.append(clean)
+    if set(documents) != set(hit_map): raise _GeneratedInvalid()
+    result = {"texto": text, "verificacion": "no_verificada", "autoridad": "ninguna",
+              "citas_por_afirmacion": False, "source_nodes": sources,
+              "generation_consistency": "observed_stable_not_atomic"}
+    if len(json.dumps(result, ensure_ascii=False, allow_nan=False).encode("utf-8")) > limits["max_response_bytes"]:
+        raise _GeneratedInvalid()
+    return result
+
+
+def _documental_prepare(root, bid, intent, cfg, filters, deadline):
+    canonical = {}
+    def accept(meta, requested):
+        entry = _entrada_approved(meta["ruta_rel"], meta)
+        if not filtrar_remotos([entry], tipo=requested.get("tipo", ""), area=requested.get("area", "")):
+            return False
+        if ((requested.get("claves") or requested.get("iniciativa")) and
+                puntuacion_enrutado(entry, requested.get("claves") or [], requested.get("iniciativa") or "") <= 0):
+            return False
+        canonical[entry["id"]] = entry
+        return True
+    module = _cargar_modulo(os.path.join(HERE, "knowledge-read-context.py"), "kf_read_context")
+    result = module.prepare(root, bid, intent, expected_config=cfg, filters=filters,
+                            accept_entry=accept, deadline=deadline)
+    return result, dict(canonical)
+
+
 def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo="",
                      directorios=None, config=None, claves=None, iniciativa=""):
     """Aplica el router a `intent`. Devuelve `(aciertos, info)`:
@@ -1406,7 +1584,12 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
       - `aciertos` es `None` si hay que caer al camino local de siempre (el router no resuelve la
         consulta local: la deja íntegra a `buscar()`/`buscar_enrutado()`).
     `info` = `{"intent", "origen": "local"|"backend", "backend": id|None, "motivo"[, "descartados"]}`."""
+    started = time.monotonic()
+    read_deadline = None
     info = {"intent": intent, "origen": "local", "backend": None, "motivo": ""}
+    if not isinstance(intent, str) or not re.fullmatch(r"[a-z][a-z0-9_-]*", intent):
+        info["motivo"] = "intent_no_explicito"
+        return None, info
     if config is None:
         config, motivo = taxonomia(root)
         if config is None:
@@ -1430,9 +1613,46 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
         # Gap #97 (Critical): al adaptador le llega la config EFECTIVA -la declarada mas los
         # defaults derivados-, nunca la cruda de `taxonomy.json`. Sin `group_id` efectivo no se
         # consulta a ciegas: es la clave que acota la lectura al grupo del propio proyecto.
-        cfg = _config_con_group_id(cfg_backend, root)
-        cfg["_root"] = os.path.abspath(root or ".")   # el adaptador resuelve sus rutas contra esto
-        if not cfg.get("group_id"):
+        if _config_privada(cfg_backend):
+            motivos.append(f"`{bid}`: configuracion_privada_no_admitida")
+            continue
+        context, canonical = None, {}
+        if tipo_backend == "markdown-export":
+            read = cfg_backend.get("read")
+            if not isinstance(read, dict) or read.get("enabled") is not True:
+                motivos.append(f"`{bid}`: read_disabled")
+                continue
+            timeout = read.get("timeout_ms", 5000)
+            if type(timeout) is not int or not 0 < timeout <= 30000:
+                motivos.append(f"`{bid}`: read_config_invalida")
+                continue
+            if read_deadline is None:
+                read_deadline = started + timeout / 1000.0
+            try:
+                prepared, canonical = _documental_prepare(root, bid, intent, cfg_backend,
+                    {"tipo": tipo or "", "area": area or "", "iniciativa": iniciativa or "", "claves": list(claves or [])},
+                    read_deadline)
+                context = prepared.get("context")
+                if prepared.get("status") != "ok" or not isinstance(context, dict):
+                    motivos.append(f"`{bid}`: autorizacion_documental_no_disponible")
+                    continue
+                if (context.get("backend_id") != bid or context.get("backend_enabled") is not True or
+                        context.get("intent") != intent or not callable(context.get("refresh")) or
+                        context.get("root") != os.path.realpath(root or ".") or
+                        set(canonical) != {entry["id"] for entry in context["entries"]}):
+                    motivos.append(f"`{bid}`: contexto_documental_invalido")
+                    continue
+            except Exception:  # noqa: BLE001 — fail closed before importing the adapter
+                motivos.append(f"`{bid}`: autorizacion_documental_no_disponible")
+                continue
+            cfg = dict(cfg_backend)
+            cfg["_read_context"] = context
+            cfg["_backend_id"] = bid
+            cfg["_root"] = context["root"]
+        else:
+            cfg = _config_con_group_id(cfg_backend, root)
+            cfg["_root"] = os.path.abspath(root or ".")
+        if tipo_backend != "markdown-export" and not cfg.get("group_id"):
             motivos.append(f"`{bid}`: sin `group_id` efectivo (no esta declarado en "
                            f"`taxonomy.json` y no se pudo derivar del directorio del proyecto)")
             continue
@@ -1461,6 +1681,9 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
             razon = permiso.get("razon") if isinstance(permiso, dict) else permiso
             motivos.append(f"`{bid}` no autoriza la lectura: {_sanear_detalle(razon)}")
             continue
+        if context is not None and time.monotonic() >= read_deadline:
+            motivos.append(f"`{bid}`: read_deadline")
+            continue
         try:
             respuesta = consultar(cfg, {"intent": intent, "texto": texto, "limit": limit,
                                         "area": area, "tipo": tipo, "claves": list(claves or []),
@@ -1468,8 +1691,45 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
         except Exception as e:  # noqa: BLE001 — un adaptador que lanza no tumba la consulta
             motivos.append(f"`{bid}`: `consultar` falló: {type(e).__name__}: {e}")
             continue
+        if context is not None and time.monotonic() >= read_deadline:
+            motivos.append(f"`{bid}`: read_deadline")
+            continue
+        generated = None
+        if context is not None and isinstance(respuesta, dict) and respuesta.get("aciertos"):
+            try:
+                brutos = respuesta["aciertos"]
+                if not isinstance(brutos, list) or len(brutos) > 2048: raise _GeneratedInvalid()
+                local_hits = []
+                for raw in brutos:
+                    if not isinstance(raw, dict) or raw.get("id") not in canonical: raise _GeneratedInvalid()
+                    local = canonical[raw["id"]]
+                    if (raw.get("ruta") != local["ruta"] or raw.get("estado") != "aprobado" or
+                            _version_generada(raw.get("version")) != local["version"] or
+                            ("category" in raw and raw["category"] != local["category"])):
+                        raise _GeneratedInvalid()
+                    score = raw.get("puntuacion", raw.get("score", 0))
+                    if type(score) not in (int, float) or not math.isfinite(score): raise _GeneratedInvalid()
+                    local_hits.append(dict(local, puntuacion=score))
+                respuesta = dict(respuesta, aciertos=local_hits)
+            except Exception:  # noqa: BLE001 — never promote remote metadata to local authority
+                motivos.append(f"`{bid}`: enlace_canonico_invalido")
+                continue
+        if isinstance(respuesta, dict) and "respuesta_generada" in respuesta:
+            try:
+                generated = _normalizar_respuesta_generada(respuesta, cfg, context)
+            except Exception:  # noqa: BLE001 — suppress whole response on any invalid envelope
+                motivos.append(f"`{bid}`: respuesta_generada_invalida")
+                continue
         aciertos, descartados, filtrados = _aciertos_del_backend(respuesta, bid, limit,
-                                                                 tipo=tipo, area=area)
+            tipo=tipo, area=area, identidad_completa=generated is not None or context is not None)
+        if generated is not None and (descartados or filtrados):
+            motivos.append(f"`{bid}`: fuentes_generadas_fuera_de_filtro")
+            continue
+        if generated is not None:
+            redact = _cargar_modulo(os.path.join(HERE, "redact.py"), "kf_hit_redact").redactar
+            for hit in aciertos:
+                for field in ("estado_detalle", "area", "titular", "evidencia", "iniciativa", "fecha", "tipo"):
+                    hit[field] = _generado_seguro(hit[field], redact)
         # Gap #123 (Minor, CWE-117/74): el `motivo` del adaptador era el UNICO campo de origen
         # backend que el nucleo NO saneaba, y fix1 lo convirtio en salida (stderr y `--json`).
         motivo_backend = _sanear_detalle(
@@ -1493,9 +1753,14 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
         # id/estado/evidencia/ruta) y `filtrados` (lo que se llevo el post-filtro `--tipo`/`--area`
         # del usuario, que SI traia las cuatro claves) se fusionaban en un solo contador que el
         # mensaje atribuia entero al adaptador. Se publica el total (compatibilidad) y el desglose.
+        if context is not None and time.monotonic() >= read_deadline:
+            motivos.append(f"`{bid}`: read_deadline")
+            continue
         info.update({"origen": "backend", "backend": bid,
                      "descartados": descartados + filtrados, "sin_terna": descartados,
                      "filtrados": filtrados, "motivo": motivo_backend})
+        if generated is not None:
+            info["respuesta_generada"] = generated
         return aciertos, info
 
     info["motivo"] = "; ".join(motivos)
@@ -1649,6 +1914,12 @@ def _imprimir_resultado(args, indice, corpus, consulta, total, aciertos, router=
                               "backend": router["backend"],
                               "descartados": router.get("descartados", 0),
                               "motivo": router.get("motivo", "")}
+            if router.get("respuesta_generada") is not None:
+                data["respuesta_generada"] = router["respuesta_generada"]
+                redact = _cargar_modulo(os.path.join(HERE, "redact.py"), "kf_query_display_redact").redactar
+                data["consulta"] = dict(consulta)
+                if "texto" in consulta:
+                    data["consulta"]["texto"] = _generado_seguro(consulta["texto"], redact)
         if indice.get("corpus_read"):
             data["corpus_read"] = indice["corpus_read"]
         if indice.get("indice_motivo"):
@@ -1657,6 +1928,9 @@ def _imprimir_resultado(args, indice, corpus, consulta, total, aciertos, router=
     else:
         for a in aciertos:
             print(linea_compacta(a))
+        if router is not None and router.get("respuesta_generada") is not None:
+            print("\nRespuesta generada no verificada (sin autoridad; sin citas por afirmacion):")
+            print(router["respuesta_generada"]["texto"])
 
 
 def _imprimir_consulta_router(args, indice, corpus, texto_router, claves_router, enrutado, aciertos_backend, router):

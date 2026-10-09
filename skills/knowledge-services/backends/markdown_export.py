@@ -113,7 +113,9 @@ import hashlib
 import http.client
 import ipaddress
 import io
+import importlib.util
 import json
+import math
 import os
 import re
 import socket
@@ -121,6 +123,7 @@ import sys
 import tempfile
 import threading
 import time
+from pathlib import Path
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -407,7 +410,7 @@ def _deadline_opener(deadline, address=None):
                                        _SinRedireccionAutomatica, HTTP, HTTPS)
 
 
-def _pinned_address(url, deadline):
+def _pinned_address(url, deadline, strict=False):
     host = urllib.parse.urlsplit(url).hostname
     try:
         address = ipaddress.ip_address(host)
@@ -416,7 +419,7 @@ def _pinned_address(url, deadline):
         if resolved is None:
             raise TimeoutError("HTTP DNS budget exhausted or host unresolved")
         address = ipaddress.ip_address(resolved)
-    if not (address.is_loopback or address.is_private):
+    if not (address.is_loopback or address.is_private) or (strict and not _read_address_allowed(address)):
         raise _RedireccionNoPermitida(url)
     return str(address)
 
@@ -439,7 +442,7 @@ def _read_http_body(response, limit, deadline):
         chunks.append(chunk)
 
 
-def _parse_http_json(body, deadline=None):
+def _parse_http_json(body, deadline=None, strict=False):
     # Scan nesting outside strings BEFORE json.loads: deep input must not reach
     # Python's recursion limit. Byte budgets are enforced before this scan.
     text = body.decode("utf-8")
@@ -467,13 +470,23 @@ def _parse_http_json(body, deadline=None):
 
     if deadline is not None:
         _remaining(deadline)
-    result = json.loads(text, parse_constant=invalid_constant)
+    def pairs(items):
+        result = {}
+        for key, value in items:
+            if key in result:
+                raise ValueError("duplicate JSON key")
+            result[key] = value
+        return result
+
+    result = json.loads(text, parse_constant=invalid_constant,
+                        object_pairs_hook=pairs if strict else None)
     if deadline is not None:
         _remaining(deadline)
     return result
 
 
-def _urlopen_local(url, timeout_s, _deadline=None):
+def _urlopen_local(url, timeout_s, _deadline=None, data=None,
+                   _allow_redirects=True, _strict_addresses=False):
     """Sigue redirecciones a mano (gap 137, ver `_SinRedireccionAutomatica`): revalida CADA salto
     contra `_host_permitido` ANTES de seguirlo (gap 112 — un bridge local comprometido no puede
     usar un `302` para hablar con un host público), acota el número de saltos a
@@ -488,15 +501,21 @@ def _urlopen_local(url, timeout_s, _deadline=None):
     while True:
         if not _host_permitido(url_actual, _deadline=deadline):
             raise _RedireccionNoPermitida(url_actual)
-        address = _pinned_address(url_actual, deadline)
+        address = (_pinned_address(url_actual, deadline, strict=True) if _strict_addresses else
+                   _pinned_address(url_actual, deadline))
         opener = _deadline_opener(deadline, address)
         restante = _remaining(deadline)
         try:
-            return opener.open(url_actual, timeout=restante)
+            request = (urllib.request.Request(url_actual, data=data,
+                       headers={"Content-Type": "application/json", "Accept": "application/json"},
+                       method="POST") if data is not None else url_actual)
+            return opener.open(request, timeout=restante)
         except urllib.error.HTTPError as e:
             if e.code not in (301, 302, 303, 307, 308):
                 raise
             try:
+                if data is not None or not _allow_redirects:
+                    raise _RedireccionNoPermitida(url_actual) from e
                 newurl = e.headers.get("Location") if e.headers else None
                 if not newurl:
                     raise
@@ -1227,3 +1246,454 @@ def verify(cfg):
         "ok": not desfase, "desfase": desfase,
         "comparacion": "hash" if comparacion_hash_disponible else "nombre",
     }
+
+
+# Strong read authorization deliberately does not reuse historical verify().
+_READ_LIMITS = {
+    "timeout_ms": (5000, 30000), "max_request_bytes": (8192, 65536),
+    "max_answer_chars": (4096, 65536), "max_source_nodes": (64, 1024),
+    "max_response_bytes": (262144, 2097152), "max_snapshot_bytes": (2097152, 2097152),
+}
+_READ_LOCAL_BYTES = 16 * 1024 * 1024
+_READ_FILE_BYTES = 2 * 1024 * 1024
+_READ_MAX_ENTRIES = 2048
+_READ_MAX_NODES = 20000
+_READ_MAX_LINKS = 100000
+_READ_FILTER_KEYS = {"tipo", "area", "iniciativa", "claves"}
+_READ_LOCAL_READER = None
+
+
+class _ReadRejected(ValueError):
+    pass
+
+
+def _read_address_allowed(address):
+    """Only loopback, RFC1918 or IPv6 ULA; never metadata or transition ranges."""
+    if address.is_loopback:
+        return True
+    if address.version == 4:
+        return any(address in ipaddress.ip_network(net) for net in
+                   ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
+    return (address in ipaddress.ip_network("fc00::/7") and
+            not address.ipv4_mapped and not address.sixtofour and not address.teredo)
+
+
+def _read_text(value, limit=4096):
+    if (not isinstance(value, str) or not value or len(value) > limit or
+            any(ord(c) < 32 or 127 <= ord(c) <= 159 or c in
+                "\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
+                for c in value)):
+        raise _ReadRejected("binding_incompleto")
+    return value
+
+
+def _read_version(value):
+    if type(value) is int and value > 0:
+        return value
+    if isinstance(value, str) and re.fullmatch(r"[1-9][0-9]{0,18}", value):
+        return int(value)
+    raise _ReadRejected("binding_incompleto")
+
+
+def _read_options(cfg):
+    read = cfg.get("read", {})
+    if not isinstance(read, dict) or set(read) - ({"enabled"} | set(_READ_LIMITS)):
+        raise _ReadRejected("config_read_invalida")
+    if type(read.get("enabled", False)) is not bool:
+        raise _ReadRejected("config_read_invalida")
+    if read.get("enabled") is not True:
+        raise _ReadRejected("read_disabled")
+    limits = {}
+    for key, (default, cap) in _READ_LIMITS.items():
+        value = read.get(key, default)
+        if type(value) is not int or not 0 < value <= cap:
+            raise _ReadRejected("config_read_invalida")
+        limits[key] = value
+    return limits
+
+
+def _read_filters(ctx, query=None):
+    filters = ctx.get("filters", {})
+    if not isinstance(filters, dict) or set(filters) - _READ_FILTER_KEYS:
+        raise _ReadRejected("filters_invalidos")
+    for key, value in filters.items():
+        if key == "claves":
+            if not isinstance(value, list) or len(value) > 128:
+                raise _ReadRejected("filters_invalidos")
+            for item in value:
+                _read_text(item, 512)
+        elif value is not None and value != "":
+            _read_text(value, 512)
+    if any(filters.values()) and ctx.get("filters_authorized") is not True:
+        raise _ReadRejected("filters_no_autorizados")
+    if query is not None:
+        for key in _READ_FILTER_KEYS:
+            if key in query and query[key] not in (None, "", []) and query[key] != filters.get(key):
+                raise _ReadRejected("filters_no_autorizados")
+    return filters
+
+
+def _read_url(cfg):
+    health = cfg.get("health")
+    if not isinstance(health, dict):
+        raise _ReadRejected("health_url_invalida")
+    url = _read_text(health.get("url"), 4096)
+    parts = urllib.parse.urlsplit(url)
+    if (parts.scheme not in ("http", "https") or not parts.hostname or
+            parts.username is not None or parts.password is not None or
+            parts.query or parts.fragment or parts.port == 0 or
+            not parts.path.rstrip("/").endswith("/health")):
+        raise _ReadRejected("health_url_invalida")
+    try:
+        address = ipaddress.ip_address(parts.hostname)
+    except ValueError:
+        address = None
+    if address is not None and not _read_address_allowed(address):
+        raise _ReadRejected("health_url_invalida")
+    return url
+
+
+def _read_file(root, relative, budget, deadline):
+    """Reuse the shared stable descriptor reader; preserve its raw-byte digest."""
+    global _READ_LOCAL_READER
+    _remaining(deadline)
+    if budget[0] <= 1:
+        raise _ReadRejected("limite_corpus_local")
+    if _READ_LOCAL_READER is None:
+        path = Path(__file__).resolve().parents[3] / "agent-kits" / "shared" / "local-read.py"
+        if not path.is_file():
+            raise _ReadRejected("lector_local_no_disponible")
+        spec = importlib.util.spec_from_file_location("documentary_local_read", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _READ_LOCAL_READER = mod.read_text
+    result = _READ_LOCAL_READER(root, _read_text(relative),
+                              max_bytes=min(_READ_FILE_BYTES, budget[0]) - 1, include_digest=True)
+    budget[0] -= result.get("bytes", 0)
+    if (result.get("status") != "ok" or not isinstance(result.get("text"), str) or
+            not isinstance(result.get("sha256"), str) or
+            not re.fullmatch(r"[a-f0-9]{64}", result["sha256"])):
+        raise _ReadRejected("lectura_local_inestable")
+    _remaining(deadline)
+    return result["text"], result["sha256"]
+
+
+def _read_local(cfg, query=None, context=None):
+    """Revalidate the core-owned full allowlist against canon, manifest and export."""
+    if not isinstance(cfg, dict):
+        raise _ReadRejected("contexto_read_invalido")
+    limits = _read_options(cfg)
+    ctx = context if context is not None else cfg.get("_read_context")
+    if not isinstance(ctx, dict) or not callable(ctx.get("refresh")):
+        raise _ReadRejected("contexto_read_invalido")
+    root = _read_text(ctx.get("root"))
+    if (not os.path.isabs(root) or os.path.normcase(root) != os.path.normcase(os.path.realpath(root)) or
+            os.path.normcase(root) != os.path.normcase(os.path.realpath(cfg.get("_root", "")))):
+        raise _ReadRejected("contexto_read_invalido")
+    backend = _read_text(ctx.get("backend_id"), 512)
+    if backend != cfg.get("_backend_id") or ctx.get("backend_enabled") is not True:
+        raise _ReadRejected("backend_no_autorizado")
+    intent = _read_text(ctx.get("intent"), 128)
+    router = cfg.get("router")
+    if (not isinstance(router, dict) or set(router) - {"intents", "default"} or
+            ("default" in router and not isinstance(router["default"], str))):
+        raise _ReadRejected("intent_no_autorizado")
+    intents = router.get("intents")
+    if (not isinstance(intents, dict) or any(not isinstance(k, str) or type(v) is not bool
+                                           for k, v in intents.items()) or intents.get(intent) is not True):
+        raise _ReadRejected("intent_no_autorizado")
+    fingerprint = ctx.get("fingerprint")
+    if not isinstance(fingerprint, str) or not re.fullmatch(r"[a-f0-9]{64}", fingerprint):
+        raise _ReadRejected("contexto_read_invalido")
+    deadline = ctx.get("deadline")
+    if type(deadline) not in (int, float) or not math.isfinite(deadline):
+        raise _ReadRejected("contexto_read_invalido")
+    if _remaining(deadline) > limits["timeout_ms"] / 1000.0:
+        raise _ReadRejected("deadline_read_invalido")
+    filters = _read_filters(ctx, query)
+    url = _read_url(cfg)
+    entries = ctx.get("entries")
+    if not isinstance(entries, list) or not 0 < len(entries) <= _READ_MAX_ENTRIES:
+        raise _ReadRejected("allowlist_incompleta")
+    export = _export_dir_resuelto(cfg)
+    if os.path.commonpath([root, export]) != root:
+        raise _ReadRejected("export_fuera_de_root")
+    relative_export = os.path.relpath(export, root).replace(os.sep, "/")
+    if os.path.lexists(os.path.join(export, MANIFEST_PENDING_NOMBRE)):
+        raise _ReadRejected("publicacion_incompleta")
+    budget = [_READ_LOCAL_BYTES]
+    manifest_text, manifest_sha = _read_file(root, relative_export + "/" + MANIFEST_NOMBRE, budget, deadline)
+    manifest = _parse_http_json(manifest_text.encode("utf-8"), deadline, strict=True)
+    if (not isinstance(manifest, dict) or type(manifest.get("version")) is not int or
+            manifest["version"] != MANIFEST_VERSION or not isinstance(manifest.get("entries"), dict)):
+        raise _ReadRejected("manifest_invalido")
+    bindings = {}
+    local_hashes = []
+    for entry in entries:
+        _remaining(deadline)
+        if not isinstance(entry, dict) or entry.get("estado") != "aprobado":
+            raise _ReadRejected("canon_no_aprobado")
+        id_ = _read_text(entry.get("id"), 512)
+        if id_ in bindings or not re.fullmatch(r"[A-Za-z0-9._-]+", id_):
+            raise _ReadRejected("allowlist_incompleta")
+        version = entry.get("version")
+        if type(version) is not int or not 0 < version <= 10 ** 18:
+            raise _ReadRejected("binding_incompleto")
+        category = _read_text(entry.get("category"), 128)
+        evidence = _read_text(entry.get("evidencia"), 128)
+        folder = _read_text(entry.get("folder"), 128)
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", folder) or entry.get("modo") not in ("completo", "resumen"):
+            raise _ReadRejected("binding_incompleto")
+        canonical_path = _read_text(entry.get("canonical_path"))
+        if (not canonical_path.startswith("docs/knowledge/approved/" + folder + "/") or
+                not canonical_path.endswith(".md") or canonical_path != entry.get("ruta")):
+            raise _ReadRejected("ruta_no_canonica")
+        canonical, canonical_sha = _read_file(root, canonical_path, budget, deadline)
+        raw = entry.get("canonical_text")
+        if (not isinstance(raw, str) or canonical != raw or
+                entry.get("canonical_sha256") != canonical_sha):
+            raise _ReadRejected("canon_cambiado")
+        if not isinstance(entry.get("cuerpo"), str):
+            raise _ReadRejected("binding_incompleto")
+        body = _cuerpo_segun_modo(entry)
+        projected, projection_hash = _render_markdown({"knowledge_id": id_, "version": version,
+            "category": category, "cuerpo": body, "project": _proyecto_de(id_),
+            "confidence": _confianza_de(evidence)})
+        filename = _slug_fichero(id_)
+        expected = {"ruta_relativa": filename, "hash": projection_hash,
+                    "version": version, "category": category}
+        manifest_entry = manifest["entries"].get(id_)
+        if manifest_entry != expected or type(manifest_entry.get("version")) is not int:
+            raise _ReadRejected("manifest_desfasado")
+        exported, export_sha = _read_file(root, relative_export + "/" + filename, budget, deadline)
+        if exported not in (projected, projected.replace("\n", "\r\n")):
+            raise _ReadRejected("proyeccion_desfasada")
+        binding = {"canonical_id": id_, "knowledge_version": version,
+                   "canonical_path": canonical_path, "canonical_sha256": canonical_sha,
+                   "projection_hash": projection_hash, "projection_filename": filename,
+                   "project": _proyecto_de(id_), "scope": "project", "category": category,
+                   "estado": "aprobado", "evidencia": evidence, "modo": entry["modo"]}
+        bindings[id_] = {"binding": binding, "entry": dict(entry)}
+        local_hashes.append([id_, canonical_sha, export_sha])
+    if set(manifest["entries"]) != set(bindings):
+        raise _ReadRejected("allowlist_manifest_discrepante")
+    digest = hashlib.sha256(json.dumps({"fingerprint": fingerprint, "backend": backend,
+        "intent": intent, "filters": filters, "router": router, "read": cfg["read"],
+        "health": cfg["health"], "export": export, "manifest": manifest_sha,
+        "files": sorted(local_hashes), "bindings": [bindings[k]["binding"] for k in sorted(bindings)]},
+        sort_keys=True, ensure_ascii=True).encode()).hexdigest()
+    _remaining(deadline)
+    return ctx, limits, url, bindings, digest, deadline
+
+
+def _read_json(url, deadline, cap, data=None):
+    try:
+        with _urlopen_local(url, _remaining(deadline), _deadline=deadline, data=data,
+                            _allow_redirects=False, _strict_addresses=True) as response:
+            if response.getcode() != 200:
+                raise _ReadRejected("http_read_error")
+            body = _read_http_body(response, cap, deadline)
+    except urllib.error.HTTPError as error:
+        error.close()
+        raise _ReadRejected("http_read_error") from error
+    result = _parse_http_json(body, deadline, strict=True)
+    if not isinstance(result, dict) or result.get("schema_version") != "1.0":
+        raise _ReadRejected("schema_read_invalido")
+    return result
+
+
+def _read_snapshot(base, limits, deadline, bindings):
+    snapshot = _read_json(base + "/graph/snapshot?include_chunks=true&min_degree=0&drop_noisy=false",
+                          deadline, limits["max_snapshot_bytes"])
+    nodes, links, stats = snapshot.get("nodes"), snapshot.get("links"), snapshot.get("stats")
+    if (not isinstance(nodes, list) or not isinstance(links, list) or not isinstance(stats, dict) or
+            len(nodes) > _READ_MAX_NODES or len(links) > _READ_MAX_LINKS):
+        raise _ReadRejected("snapshot_incompleto")
+    for key, expected in (("kept_nodes", len(nodes)), ("kept_links", len(links)),
+                          ("skipped_noisy", 0), ("skipped_malformed_nodes", 0),
+                          ("skipped_malformed_relations", 0)):
+        if type(stats.get(key)) is not int or stats[key] != expected:
+            raise _ReadRejected("snapshot_incompleto")
+    if type(stats.get("total_nodes_raw")) is not int or stats["total_nodes_raw"] != len(nodes):
+        raise _ReadRejected("snapshot_incompleto")
+    seen, chunk_bindings, covered = set(), {}, set()
+    for node in nodes:
+        _remaining(deadline)
+        if not isinstance(node, dict):
+            raise _ReadRejected("binding_incompleto")
+        node_id = _read_text(node.get("id"), 512)
+        if node_id in seen or node.get("type") not in ("chunk", "entity"):
+            raise _ReadRejected("binding_incompleto")
+        seen.add(node_id)
+        if node["type"] == "entity":
+            continue
+        fm = node.get("fm")
+        if not isinstance(fm, dict):
+            raise _ReadRejected("binding_incompleto")
+        id_ = _read_text(fm.get("knowledge_id"), 512)
+        if id_ not in bindings or ("id" in fm and fm["id"] != id_):
+            raise _ReadRejected("binding_incompleto")
+        binding = bindings[id_]["binding"]
+        for field, local in (("hash", "projection_hash"), ("project", "project"), ("scope", "scope")):
+            if fm.get(field) != binding[local]:
+                raise _ReadRejected("binding_incompleto")
+        if _read_version(fm.get("version")) != binding["knowledge_version"]:
+            raise _ReadRejected("binding_incompleto")
+        if "category" in fm and fm["category"] != binding["category"]:
+            raise _ReadRejected("binding_incompleto")
+        if "hash" in node and node["hash"] != binding["projection_hash"]:
+            raise _ReadRejected("binding_incompleto")
+        if node.get("file_name") not in (None, binding["projection_filename"]):
+            raise _ReadRejected("binding_incompleto")
+        chunk_bindings[node_id] = binding
+        covered.add(id_)
+    if covered != set(bindings):
+        raise _ReadRejected("binding_incompleto")
+    for link in links:
+        if (not isinstance(link, dict) or not isinstance(link.get("source"), str) or
+                not isinstance(link.get("target"), str) or link["source"] not in seen or
+                link["target"] not in seen):
+            raise _ReadRejected("snapshot_incompleto")
+    digest = hashlib.sha256(json.dumps(snapshot, sort_keys=True, ensure_ascii=True).encode()).hexdigest()
+    _remaining(deadline)
+    return chunk_bindings, digest
+
+
+def _read_health(url, deadline):
+    result = _read_json(url, deadline, _HEALTH_MAX_BYTES)
+    if result.get("status") != "ok":
+        raise _ReadRejected("health_no_sano")
+    for key in ("property_graph", "ollama"):
+        if key in result and (not isinstance(result[key], dict) or result[key].get("status") != "ok"):
+            raise _ReadRejected("health_no_sano")
+
+
+def _read_refresh(cfg, before, query=None):
+    ctx, _, _, _, digest, deadline = before
+    fresh = ctx["refresh"]()
+    after = _read_local(cfg, query, context=fresh)
+    if after[4] != digest or after[5] != deadline:
+        raise _ReadRejected("contexto_cambiado")
+    return after
+
+
+def _read_redactor():
+    # Reuse existing deterministic redaction; an incomplete bundle degrades locally.
+    path = Path(__file__).resolve().parents[3] / "agent-kits" / "shared" / "redact.py"
+    if not path.is_file():
+        raise _ReadRejected("redactor_no_disponible")
+    spec = importlib.util.spec_from_file_location("documentary_read_redactor", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.redactar
+
+
+def _read_safe_text(text, redact):
+    if not isinstance(text, str):
+        raise _ReadRejected("texto_read_invalido")
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+    text = "".join(c for c in text if (c in "\n\t" or ord(c) >= 32) and
+                   not 127 <= ord(c) <= 159 and c not in
+                   "\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069")
+    return redact(text).strip()
+
+
+def _read_failure(error):
+    # Never echo URLs, questions, transport exceptions or server text.
+    if isinstance(error, _ReadRejected):
+        return str(error)
+    if isinstance(error, TimeoutError):
+        return "deadline_read_agotado"
+    return "lectura_documental_no_disponible"
+
+
+def puede_leer(cfg):
+    """Optional strong read gate. Name-only verify never establishes authority."""
+    try:
+        before = _read_local(cfg)
+        _, limits, url, bindings, _, deadline = before
+        _read_health(url, deadline)
+        _read_snapshot(_base_url_snapshot(url), limits, deadline, bindings)
+        _read_refresh(cfg, before)
+        return {"puede": True}
+    except Exception as error:  # noqa: BLE001 — optional read always degrades locally
+        return {"puede": False, "razon": _read_failure(error)}
+
+
+def consultar(cfg, consulta):
+    """Read-only native query; suppress the whole output on any failed join."""
+    empty = {"aciertos": [], "descartados": 0}
+    try:
+        if not isinstance(consulta, dict):
+            raise _ReadRejected("consulta_invalida")
+        before = _read_local(cfg, consulta)
+        _, limits, url, bindings, _, deadline = before
+        redact = _read_redactor()
+        raw = consulta.get("texto")
+        if not isinstance(raw, str) or len(raw.encode("utf-8")) > limits["max_request_bytes"]:
+            raise _ReadRejected("limite_consulta")
+        text = _read_safe_text(raw, redact)
+        if not text:
+            raise _ReadRejected("consulta_sin_texto")
+        payload = json.dumps({"q": text}, ensure_ascii=False).encode("utf-8")
+        if len(payload) > limits["max_request_bytes"]:
+            raise _ReadRejected("limite_consulta")
+        _read_health(url, deadline)
+        base = _base_url_snapshot(url)
+        chunks, snapshot_digest = _read_snapshot(base, limits, deadline, bindings)
+        _read_refresh(cfg, before, consulta)
+        response = _read_json(base + "/query", deadline, limits["max_response_bytes"], data=payload)
+        after_chunks, after_digest = _read_snapshot(base, limits, deadline, bindings)
+        if after_digest != snapshot_digest or after_chunks != chunks:
+            raise _ReadRejected("snapshot_cambiado")
+        _read_refresh(cfg, before, consulta)
+        answer_text = response.get("answer")
+        if not isinstance(answer_text, str) or len(answer_text) > limits["max_answer_chars"]:
+            raise _ReadRejected("limite_respuesta")
+        citations = response.get("citations")
+        if not isinstance(citations, list) or not citations or len(citations) > limits["max_source_nodes"]:
+            raise _ReadRejected("sin_fuentes_resolubles")
+        sources, hits, seen = [], {}, set()
+        for citation in citations:
+            _remaining(deadline)
+            if not isinstance(citation, dict):
+                raise _ReadRejected("fuente_no_resoluble")
+            node_id = _read_text(citation.get("node_id"), 512)
+            if node_id in seen or node_id not in chunks:
+                raise _ReadRejected("fuente_no_resoluble")
+            seen.add(node_id)
+            binding = chunks[node_id]
+            filename = citation.get("file_name")
+            if filename is not None and filename != binding["projection_filename"]:
+                raise _ReadRejected("fuente_no_resoluble")
+            score = citation.get("score")
+            if score is not None and (type(score) not in (int, float) or not math.isfinite(score)):
+                raise _ReadRejected("score_invalido")
+            sources.append({"node_id": node_id, "file_name": binding["projection_filename"],
+                            "score": score, **binding})
+            id_ = binding["canonical_id"]
+            entry = bindings[id_]["entry"]
+            if id_ not in hits:
+                hits[id_] = {"id": id_, "version": entry["version"], "category": entry["category"],
+                    "folder": entry["folder"], "estado": "aprobado", "evidencia": entry["evidencia"],
+                    "ruta": entry["canonical_path"],
+                    "titulo": _read_safe_text(entry.get("titulo") or id_, redact),
+                    "tags": [_read_safe_text(tag, redact) for tag in entry.get("tags") or []],
+                    "score": score}
+        cited_ids, cited_files = response.get("cited_node_ids"), response.get("cited_files")
+        if (not isinstance(cited_ids, list) or any(not isinstance(x, str) for x in cited_ids) or
+                len(cited_ids) != len(set(cited_ids)) or set(cited_ids) != seen or
+                not isinstance(cited_files, list) or any(not isinstance(x, str) for x in cited_files) or
+                not set(cited_files).issubset({s["file_name"] for s in sources})):
+            raise _ReadRejected("fuente_no_resoluble")
+        safe_answer = _read_safe_text(answer_text, redact)
+        if not safe_answer or len(safe_answer) > limits["max_answer_chars"]:
+            raise _ReadRejected("limite_respuesta")
+        _read_refresh(cfg, before, consulta)
+        _remaining(deadline)
+        return {"aciertos": list(hits.values()), "descartados": 0, "motivo": "",
+                "respuesta_generada": {"texto": safe_answer, "verificacion": "no_verificada",
+                    "autoridad": "ninguna", "citas_por_afirmacion": False, "source_nodes": sources,
+                    "generation_consistency": "observed_stable_not_atomic"}}
+    except Exception as error:  # noqa: BLE001 — no retry or partial answer on any error
+        return dict(empty, motivo=_read_failure(error))

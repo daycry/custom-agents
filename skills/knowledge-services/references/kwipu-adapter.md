@@ -1,7 +1,153 @@
 # Adaptador Kwipu (`backends/markdown_export.py`, `type: "markdown-export"`)
 
 Detalle de las derivaciones y algoritmos del único adaptador real de esta iniciativa (T-08).
-Léelo al tocar `markdown_export.py` o al depurar un desfase entre `approved/` y Kwipu.
+Léelo al tocar `markdown_export.py`, depurar un desfase o habilitar lectura documental opt-in.
+
+## Cómo habilitar la lectura documental
+
+`markdown-export` conserva sus seis funciones de publicación. Añade las opcionales
+`puede_leer(cfg)` y `consultar(cfg, consulta)` para `knowledge-find.py --intent`.
+La recuperación Markdown local sigue funcionando sin Docker ni el bridge.
+El panel y los hooks no invocan estas funciones ni arrancan servicios.
+
+La lectura exige tres autorizaciones booleanas exactas: backend habilitado,
+`config.read.enabled: true` e intent declarado como `true` en `config.router.intents`.
+El nombre del intent admite `[a-z][a-z0-9_-]*`; `evidencia` es un ejemplo, no un vocabulario fijo.
+
+Este fragmento de `taxonomy.json` mantiene el servicio y la lectura apagados.
+No añade endpoint o modelo por defecto:
+
+```json
+{
+  "backends": {
+    "kwipu": {
+      "type": "markdown-export",
+      "enabled": false,
+      "config": {
+        "export_dir": ".claude/knowledge-services/kwipu-export",
+        "read": {"enabled": false},
+        "router": {"intents": {"evidencia": false}}
+      }
+    }
+  }
+}
+```
+
+Para habilitar la consulta, el operador cambia esos tres valores y proporciona
+`config.health.url` del bridge que ya administra. La URL termina en `/health`;
+el adaptador deriva las rutas de snapshot y query. No admite credenciales en URL
+ni direcciones externas: solo loopback, RFC1918 o IPv6 ULA, con comprobación DNS.
+El operador también declara `routing.kwipu` por categoría y publica la proyección actual.
+Ni configurar ni consultar inicia contenedores, ingesta o reindexación.
+
+Localiza `knowledge-find.py` con las seis raíces de instalación:
+
+```bash
+SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+python3 "$SHAREDKIT/knowledge-find.py" --root . --intent evidencia --json "regla de diseño"
+```
+
+Sin `--intent`, la consulta sigue local. Un intent no autorizado, backend apagado
+o lectura incompatible mantiene la búsqueda local con un motivo visible.
+
+## Qué comprueba antes de inferir
+
+El router prepara un contexto interno con `knowledge-read-context.py`.
+No acepta callbacks o contextos de autorización dentro de JSON de configuración.
+Lee la taxonomía y el corpus canónico completos dentro de sus límites.
+Selecciona solo entradas aprobadas enrutadas y conserva ID, versión, ruta y SHA originales.
+
+Los filtros de tipo, área, iniciativa y claves deben aceptar todo el conjunto enrutado.
+El protocolo nativo solo recibe el texto de pregunta y no permite limitar sus fuentes.
+Si algún input publicado queda fuera del filtro, el router vuelve a local antes de importar
+el adaptador o transmitir la pregunta. Un truncado canónico tampoco abre esa puerta.
+
+El adaptador vuelve a comprobar canon, proyección exacta y manifiesto publicado propio.
+Un `manifest.pending.json`, hash/versión distinto o entrada extra rechaza la lectura.
+Las carpetas/rutas canónicas deben cumplir los guardrails locales del adaptador;
+una proyección no compatible conserva fallback local.
+
+`puede_leer` exige salud sana y bindings del snapshot completo.
+Esta puerta no reutiliza el `verify()` histórico por nombre: presencia de un basename
+o salud sana por sí solas no acreditan identidad ni contenido.
+
+Solicita `/graph/snapshot?include_chunks=true&min_degree=0&drop_noisy=false`.
+Las estadísticas deben confirmar que no faltan nodos, arcos o registros descartados.
+Cada chunk debe corresponder al conjunto autorizado mediante estos cinco campos `fm`:
+
+| Campo del snapshot | Binding comprobado |
+|---|---|
+| `knowledge_id` | ID canónico aprobado completo. |
+| `version` | Versión del conocimiento, no la del envelope HTTP. |
+| `hash` | Hash semántico de la proyección propia. |
+| `project` | Proyecto derivado del ID completo. |
+| `scope` | `project`, alcance de esta proyección. |
+
+Todos los chunks deben quedar vinculados y todas las entradas deben tener chunk.
+Un chunk ajeno o irresoluble rechaza la consulta completa antes de `POST /query`.
+Las entidades no sustituyen chunks. `fm.id` aislado o un basename nunca reconstruyen el binding.
+`file_name: null` es admisible solo cuando `node_id` resuelve a un chunk ya vinculado.
+
+`consultar` revalida canon antes de inferir. Después compara otro snapshot y refresca
+la autorización canónica. Un cambio o respuesta incompatible suprime toda la salida
+externa; no sirve una respuesta parcial ni reintenta inferencia para obtener aceptación.
+
+## Qué significan la respuesta y sus fuentes
+
+La salida separa aciertos canónicos de `respuesta_generada`:
+
+| Campo | Significado |
+|---|---|
+| `texto` | Texto generado saneado, dentro del límite. |
+| `verificacion` | `no_verificada`. |
+| `autoridad` | `ninguna`. |
+| `citas_por_afirmacion` | `false`. |
+| `source_nodes` | Fuentes recuperadas con node ID, ID/ruta canónicos, versión, hashes, proyecto, scope y estado aprobado local. |
+| `generation_consistency` | `observed_stable_not_atomic`. |
+
+Los `source_nodes` acreditan el join observado con fuentes recuperadas.
+No prueban apoyo de cada afirmación, exactitud de la respuesta ni aprobación humana.
+El estado aprobado pertenece al canon local; la generación no lo hereda.
+Filename nulo, IDs de entidades, listas discrepantes o fuentes no resolubles no generan citas ficticias.
+
+La estabilidad se observa antes y después de la consulta. No autentica al servidor,
+demuestra qué leyó el modelo ni garantiza atomicidad o detección de cambios ABA.
+El lector no ejecuta instrucciones de la respuesta ni la incorpora a `approved/`.
+
+## Qué presupuesto comparte una consulta documental
+
+Las claves siguientes pertenecen a `config.read`. Todos los valores son enteros positivos;
+los máximos son topes y pueden reducirse. Los booleanos no cuentan como enteros.
+
+| Clave | Por defecto | Máximo |
+|---|---|---|
+| `timeout_ms` | 5.000 ms | 30.000 ms |
+| `max_request_bytes` | 8.192 bytes | 65.536 bytes |
+| `max_answer_chars` | 4.096 caracteres | 65.536 caracteres |
+| `max_source_nodes` | 64 | 1.024 |
+| `max_response_bytes` | 256 KiB | 2 MiB |
+| `max_snapshot_bytes` | 2 MiB | 2 MiB |
+
+El plazo monotónico es único: autorización local, DNS, conexión/TLS, cuerpos, parsing,
+query y revalidaciones consumen el mismo presupuesto. La lectura fuerte rechaza
+redirecciones y proxies del entorno; cada conexión fija una dirección permitida.
+Respuestas y errores se cierran. No reinicia el plazo por IP, fase o refresco.
+
+El adaptador acota además el corpus local a 16 MiB acumulados por validación, 2 MiB por archivo,
+2.048 entradas, 20.000 nodos y 100.000 arcos del snapshot. El helper reserva su byte
+de detección de exceso. Ventana incompleta, permisos o inestabilidad conservan el motivo
+y degradan a local. Estos controles no garantizan que una resolución pendiente del kernel se cancele.
+
+Conserva en el bundle portable `agent-kits/shared/local-read.py`,
+`agent-kits/shared/knowledge-read-context.py`, `agent-kits/shared/knowledge-taxonomy-local.py`,
+`agent-kits/shared/knowledge-view.py`, `agent-kits/shared/knowledge-local.py`
+y `agent-kits/shared/redact.py`, junto al router y al adaptador.
+Una dependencia parcial no autoriza lectura externa.
+Para contexto de código sin modelo, consulta [CODE_CONTEXT](../../../docs/CODE_CONTEXT.md).
+
+La comprobación nativa acotada observó dos consultas documentales reales y bloqueó
+una edición canónica y una proyección antigua sin inferencia adicional.
+No acredita exactitud de respuestas, recall, precisión de citas ni QA final de release.
 
 ## Presupuesto HTTP
 

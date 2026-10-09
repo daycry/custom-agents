@@ -19,6 +19,23 @@ def view():
     return load('knowledge-view')
 
 
+@pytest.mark.parametrize('deadline', [True, '100', float('inf'), float('nan')])
+def test_invalid_snapshot_deadline_rejects_before_loading(view, tmp_path, monkeypatch, deadline):
+    monkeypatch.setattr(view, '_load', lambda *_: pytest.fail('invalid deadline must not load a reader'))
+    result = view.snapshot(tmp_path, deadline=deadline)
+    assert result['files'] == [] and result['corpus_read']['issues'] == ['invalid_options']
+
+
+def test_expired_snapshot_deadline_stops_before_loading(view, tmp_path, monkeypatch):
+    import time
+    monkeypatch.setattr(time, 'monotonic', lambda: 100.0)
+    monkeypatch.setattr(view, '_load', lambda *_: pytest.fail('expired deadline must not load a reader'))
+    result = view.snapshot(tmp_path, include_digests=True, deadline=99.0)
+    assert result['files'] == [] and result['source_digests'] == {}
+    assert result['corpus_read']['issues'] == ['read_deadline']
+    assert result['corpus_read']['budget'] == {'files': 0, 'bytes': 0, 'entries': 0, 'scans': 0}
+
+
 def entry(root, name='ADR-001', *, folder='adr', state='aceptada', title='Cache segura', body='cache local', approved=False, extra=''):
     rel = 'docs/knowledge/' + ('approved/' if approved else '') + folder + '/' + name + '.md'
     target = root / rel
@@ -40,6 +57,27 @@ def test_search_shared_ranking_compact_and_no_write(view, tmp_path):
     assert data['selected'] is None and data['related'] is None
     assert data['budget']['bytes'] > 0
     assert before == sorted(str(p.relative_to(tmp_path)) for p in tmp_path.rglob('*'))
+
+
+def test_snapshot_opt_in_digests_bind_original_bytes_without_extra_reads(view, tmp_path):
+    import hashlib
+    target = entry(tmp_path, 'project.DECISION.one', approved=True, state='aprobado')
+    raw = b'\xef\xbb\xbf' + target.read_bytes().replace(b'\n', b'\r\n')
+    target.write_bytes(raw)
+    baseline = view.snapshot(tmp_path)
+    observed = view.snapshot(tmp_path, include_digests=True)
+    assert observed['corpus_read']['complete']
+    assert observed['source_digests'][target.relative_to(tmp_path).as_posix()] == hashlib.sha256(raw).hexdigest()
+    assert observed['corpus_read']['budget'] == baseline['corpus_read']['budget']
+    assert 'source_digests' not in baseline and target.read_bytes() == raw
+
+
+@pytest.mark.parametrize('flag', [1, 'true', None])
+def test_snapshot_digest_option_rejects_non_boolean_before_io(view, tmp_path, monkeypatch, flag):
+    monkeypatch.setattr(view, '_load', lambda *args: pytest.fail('invalid flags must not load readers'))
+    result = view.snapshot(tmp_path, include_digests=flag)
+    assert not result['corpus_read']['complete'] and result['files'] == []
+    assert result['corpus_read']['issues'] == ['invalid_options']
 
 
 def test_show_and_related_same_source(view, tmp_path):

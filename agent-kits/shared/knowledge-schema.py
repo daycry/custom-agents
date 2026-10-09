@@ -70,7 +70,8 @@ def __getattr__(name):
     """Forward compatibility attributes to the sole local owner, without copied bindings/data."""
     if name in {"_TAXONOMY_FALLBACK", "_folder_seguro", "_slug_kebab",
                 "_con_id_prefix_por_defecto", "backend_ids_declarados",
-                "categorias_por_backend", "categorias_por_backend_con_valor"}:
+                "categorias_por_backend", "categorias_por_backend_con_valor", "entradas_enrutadas",
+                "documental_read_options", "DOCUMENTAL_READ_LIMITS"}:
         if _LOCAL is None:
             raise KnowledgeLocalNoDisponible(_LOCAL_ERROR)
         return getattr(_LOCAL, name)
@@ -635,6 +636,9 @@ def validar(config, fichero="taxonomy.json"):
 
 
 def _validar_backend_declarado(bcfg, campo, fichero, errores):
+    if bcfg.get("type") == "markdown-export":
+        _, read_errors = _LOCAL.documental_read_options(bcfg.get("config", {}), fichero, campo + ".config")
+        errores.extend(read_errors)
     if bcfg.get("type") != "graphiti":
         return
     for clave in bcfg:

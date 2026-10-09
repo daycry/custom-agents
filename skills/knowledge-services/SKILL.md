@@ -2,14 +2,14 @@
 name: knowledge-services
 description: >
   Publica `docs/knowledge/approved/` a backends externos (Kwipu y Graphiti) por
-  config de proyecto (`taxonomy.json`), sin acoplar el plugin a ninguno — `knowledge-sync.py
-  --backend <id> [--dry-run|--check|--rebuild]` carga un adaptador por `type` (6 funciones:
-  `health/plan/apply/verify/rebuild/revoke`), aplica `routing` ANTES de construir entradas
-  (fail-closed) y usa `outbox.py` para staging/dead-letter — un fallo de `apply()` nunca borra la
-  publicación anterior. Adaptador Kwipu (`markdown-export`): un Markdown por entrada con el
-  frontmatter del Knowledge Gate (`project`/`scope`/`category`/`source`/`confidence`/
-  `knowledge_id`/`version`/`hash`) + `manifest.json`; `verify` NOMBRA el reindexado sin
-  ejecutarlo. Úsala cuando el usuario diga "sincroniza el conocimiento con Kwipu", "publica
+  config de proyecto (`taxonomy.json`). `knowledge-sync.py --backend <id>
+  [--dry-run|--check|--rebuild]` carga el adaptador por `type`, aplica `routing` antes de
+  construir entradas (fail-closed) y usa `outbox.py` para staging/dead-letter; un fallo de
+  `apply()` conserva la publicación anterior. Kwipu (`markdown-export`) genera un Markdown
+  por entrada con frontmatter del Knowledge Gate y `manifest.json`; `verify` nombra el
+  reindexado sin ejecutarlo. La lectura documental opcional usa `knowledge-find.py --intent`, con backend,
+  `read.enabled` e intent habilitados; devuelve fuentes vinculadas y respuesta no verificada.
+  Úsala cuando el usuario diga "sincroniza el conocimiento con Kwipu", "publica
   docs/knowledge en el grafo", "exporta approved a Kwipu", "por qué Kwipu no ve esta entrada",
   "añade un backend de knowledge-services", o al activar la capacidad `kwipu` desde `/setup`.
 ---
@@ -28,8 +28,9 @@ no habilita ni configura ningún servicio externo.
 - Para curar o aprobar conocimiento: eso es `knowledge-curator` (`curator-gate.py`) sobre
   `docs/knowledge/candidates/`. Esta skill solo lee `approved/`, nunca escribe ahí.
 - Para consultar conocimiento: usa `agent-kits/shared/knowledge-find.py`. Su router por `--intent`
-  puede consultar Graphiti si está autorizado en modo `read`; la consulta de Kwipu pertenece
-  al stack externo porque `markdown-export` solo publica y verifica, sin funciones de lectura.
+  puede consultar Graphiti en modo `read` o Kwipu mediante lectura documental opt-in.
+  El router exige autorización explícita y conserva el respaldo local con su motivo.
+  Lee `references/kwipu-adapter.md` solo al configurar o depurar la lectura documental.
 - Para reindexar Kwipu de verdad (`build_view`, reiniciar contenedores): esta skill **nombra** el
   remedio (`verify`), nunca lo ejecuta — es responsabilidad del stack externo (CA-16).
 - Sin `taxonomy.json` con `backends.<id>.enabled: true`, no hay nada que sincronizar: `/doctor`
@@ -48,6 +49,7 @@ no habilita ni configura ningún servicio externo.
 | `agent-kits/shared/knowledge-index.py` | Índice de `approved/`. |
 | `agent-kits/shared/knowledge-local.py` + `knowledge-taxonomy-local.py` | Lectores compartidos sin red: corpus aprobado y reglas locales de taxonomía. |
 | `agent-kits/shared/knowledge-view.py` | Snapshot acotado y consulta local compartidos por CLI/panel; validación aprobada pura sobre textos ya leídos, sin caché o backends. |
+| `agent-kits/shared/knowledge-read-context.py` + `agent-kits/shared/local-read.py` | Autorización canónica y lectura estable acotada para el opt-in documental; dependencias del bundle portable. |
 | `agent-kits/shared/outbox.py` | Staging/dead-letter reutilizado (CA-15), nunca reimplementado aquí. |
 | `agent-kits/shared/capabilities.py` | Registro de capacidades opcionales (`/setup`, `/doctor`, T-09). |
 
@@ -99,6 +101,12 @@ Añadir un backend nuevo: un fichero `backends/<type>.py` con las 6 funciones �
   a reencolado con backoff (`outbox.py`) y solo escala a `dead-letter` al agotar los reintentos —
   no se reintenta dentro de la misma corrida, sí en la siguiente (drenaje antes del sync fresco).
 - **`verify` nombra, no ejecuta** (CA-16): el reindexado real es del stack, nunca de este plugin.
+- **Lectura opt-in separada de publicar**: backend habilitado, `read.enabled: true` e intent
+  declarado como `true`. Canon, routing, filtros y manifiesto preceden a la red/inferencia.
+  El snapshot debe vincular todos los chunks antes de consultar; incoherencias vuelven a local.
+- **Respuesta generada sin autoridad**: `source_nodes` identifica fuentes recuperadas, no citas
+  por afirmación. El lector no aprueba ni ejecuta instrucciones de esa respuesta.
+- **Local sin Docker**: panel y hooks mantienen lectura local; no consultan ni arrancan servicios.
 - **Sin dependencias externas**: todo el código de esta skill es stdlib puro.
 
 ## Qué NO hace

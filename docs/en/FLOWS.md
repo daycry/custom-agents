@@ -56,6 +56,52 @@ flowchart LR
   QA --> Memory[Knowledge Gate]
 ```
 
+## Local memory, documentary reads and AST context
+
+`knowledge-find.py` retrieves local memory without Docker. An explicit `--intent`
+can request an authorized documentary read from `markdown-export`.
+The router requires backend, `read.enabled`, intent, a complete canonical corpus,
+routing and filters for the entire published set before importing the adapter or transmitting the question.
+
+```mermaid
+flowchart LR
+    Request[Manual query] --> Local[Local legacy and approved]
+    Request -.->|explicit intent| Canon[Backend and read enabled<br/>intent routing filters canon manifest]
+    Canon --> Binding[Healthy service and complete snapshot<br/>every chunk bound]
+    Binding --> Query[Query with one deadline and bounded bodies]
+    Query --> Refresh[Revalidate canon and snapshot]
+    Refresh --> Generated[Bound sources<br/>unverified answer without authority]
+    Canon -.->|rejection| Local
+    Binding -.->|rejection| Local
+    Query -.->|failure| Local
+    Refresh -.->|change or incompatible output| Local
+```
+
+Binding checks chunk ID, version, hash, project and scope against the owned
+canonical corpus, projection and manifest. `source_nodes` are retrieved sources,
+without citations per claim. Observed stability does not guarantee atomicity or detect ABA.
+Details and opt-in: [Kwipu adapter](../../skills/knowledge-services/references/kwipu-adapter.md#cómo-habilitar-la-lectura-documental).
+
+```mermaid
+flowchart LR
+    Manual[Explicit manual AST production] --> Producer[code-context-build<br/>trusted external library and declared inputs]
+    Producer --> Pair[Local graph and byte receipt]
+    Pair --> Reader[code-context<br/>rehash every input and apply selector]
+    Reader --> Context[Quoted unapproved AST<br/>coverage unknown]
+    Reader -.->|stale invalid or unavailable| Empty[Empty context and diagnostics]
+```
+
+AST queries do not import the producer or install Graphify. A valid receipt
+establishes only `verified-declared-inputs`, without producer authentication or global
+or semantic coverage. The producer requires new artifact and receipt destinations before
+importing the extractor. Exclusive creation never overwrites a target; the pair is not atomic.
+Receipt failure may leave the artifact behind: failure cleanup never deletes final destinations
+and the next build needs a new destination. This does not guarantee ABA detection.
+Selectors, CLI and dependencies: [CODE_CONTEXT](CODE_CONTEXT.md).
+
+The panel and hooks retain local reading. Opening them does not activate these
+queries, start services or add backend polling.
+
 ## Directed resume from existing records
 
 `/work-resume` calls `progress-report.py resume` and shows the current ledger first.

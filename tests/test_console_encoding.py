@@ -385,7 +385,9 @@ def _modos():
         "skills/outcome-evals/scripts/report_outcomes.py":
             [("resultados JSON", lambda w: [os.path.join(w, "outcomes.json")], (0,), None)],
         "agent-kits/shared/code-context.py":
-            [("sin grafo", lambda w: ["--project", w, "--symbol", "missing"], (2,), None)],
+            [("etiqueta UTF-8 del grafo", lambda w: ["--project", os.path.join(w, "code-context"),
+                                                    "--graph", "graph.json", "--symbol", "procesar_pedido"], (0,), None),
+             ("sin grafo", lambda w: ["--project", w, "--symbol", "missing"], (2,), None)],
         "agent-kits/shared/capability-route.py":
             [("catalogo JSON", lambda w: ["--check", "--json"], (0,), None),
              ("seleccion local", lambda w: ["--project", w, "--stack", "python", "--json"], (0,), None)],
@@ -544,6 +546,14 @@ def taller(tmp_path_factory):
     (w / "src").mkdir()
     (w / "native-capture" / "docs" / "roadmap").mkdir(parents=True)
     (w / "src" / "a.py").write_text("def f():\n    return 1\n" * 3, encoding="utf-8")
+    # El error sin grafo es ASCII legítimo. Ejercita el payload real que imprime ensure_ascii=False.
+    code = w / "code-context"
+    code.mkdir()
+    (code / "worker.py").write_text("def procesar_pedido():\n    return 1\n", encoding="utf-8")
+    (code / "graph.json").write_text(json.dumps({"nodes": [{
+        "id": "pedido", "label": "procesar_pedido() — Facturación 🐛", "_origin": "ast",
+        "file_type": "code", "source_file": "worker.py", "source_location": "L1",
+    }], "links": []}, ensure_ascii=False), encoding="utf-8")
     (w / "requirements.txt").write_text("requests==2.0.0\n", encoding="utf-8")
     extensions = w / "extensions" / ".claude" / "agents"
     extensions.mkdir(parents=True)
@@ -682,6 +692,18 @@ def test_la_salida_sigue_siendo_utf8_no_interrogantes(rel, encoding, taller):
         f"o que el modo declarado en MODOS ya no pasa por la ruta que imprime. Arregla lo primero, o "
         f"cambia el modo por uno que sí imprima.\nstdout={r.stdout[:300]!r}\nstderr={r.stderr[:300]!r}")
     salida.decode("utf-8")   # UTF-8 válido: si hubiera degradado a `?` o a cp1252, esto no cuadraría
+
+
+@pytest.mark.parametrize("encoding", ENCODINGS)
+def test_code_context_preserva_etiqueta_utf8_del_payload(encoding, taller):
+    """El JSON debe preservar la etiqueta no ASCII, además de ser UTF-8 válido."""
+    import json
+    _etiqueta, args, exits, stdin = MODOS['agent-kits/shared/code-context.py'][0]
+    result = _ejecutar('agent-kits/shared/code-context.py', args(taller), stdin, encoding)
+    assert result.returncode in exits
+    payload = json.loads(result.stdout.decode('utf-8'))
+    assert payload['status'] == 'matches'
+    assert payload['nodes'][0]['label'] == 'procesar_pedido() — Facturación 🐛'
 
 
 @pytest.mark.parametrize("encoding", ENCODINGS)

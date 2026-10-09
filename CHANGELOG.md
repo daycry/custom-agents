@@ -9,6 +9,15 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — Portable code receipt validation
+
+- Reject case-colliding and artifact-aliased receipt paths before reading source files on every platform. Exercise UTF-8 context payloads in console checks and keep the knowledge-services description within the OpenCode limit.
+
+### Added — Optional document reads and explicit code receipts
+
+- Authorize document queries by explicit intent against current approved sources, exports and native chunks. Reject stale bindings and preserve local fallback; generated answers remain unverified and have no authority.
+- Add exact AST selectors and byte receipts for declared inputs, plus an explicit producer using caller-selected external Graphify. Partial reads and changed inputs suppress context; receipts establish no repository coverage or producer authentication.
+
 ### Added — Synthetic memory evaluation
 
 - Document native document retrieval, temporal fact retrieval and AST code-context experiments against a local control. Publish synthetic sources, questions, response evidence and limits; define the next opt-in integration contract without enabling consumer services.
