@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "block": 18,
-  "status": "accepted_partial_implementation_pending_publication",
+  "status": "accepted_partial_implementation",
   "base_commit": "ca38d4a2810d2b379ce76dfe6d80a9212489f4b9",
   "implemented": [
     "pure shared publication/read routing and strict policy",
@@ -627,7 +627,7 @@
     "tests/test_code_selectors.py": "3b9e84da0b8b32bc860e3dad4639227a8dca5fd372dd5088451113ededb63273",
     "tests/test_knowledge_router_read.py": "39a2d9cc6de90f5f38c0b8e0d9f39f845ac0fb2c71c88a4f87e3aa604f901a43"
   },
-  "source_hashes_scope": "current tree; older RED/GREEN and native runs used explicit earlier checkpoints, not these current hashes",
+  "source_hashes_scope": "SHA-256 of raw tested working-tree/frozen source bytes; older RED/GREEN and native runs used explicit earlier checkpoints. Git normalized CRLF to LF for the explicitly listed publication paths; published blob hashes are separate.",
   "preserved_failures": [
     "Windows test compared path stat with descriptor fstat; harness corrected",
     "legacy view mock omitted optional argument; default API retains omitted keyword",
@@ -2796,7 +2796,6 @@
     }
   },
   "remaining": [
-    "final documentation/publication checks",
     "global integration requirements including restore, large corpus, continuity, learning and remaining panel/commands"
   ],
   "review_attempt_3": {
@@ -3657,5 +3656,60 @@
     ],
     "QA_accepted": true,
     "macro_closure_authorized": false
+  },
+  "publication": {
+    "payload_commit": "ded934a70e56508601006a06d52550cbfb7da019",
+    "branch": "feat/catalog-capabilities",
+    "remote_payload_commit_observed": "ded934a70e56508601006a06d52550cbfb7da019",
+    "published_changed_files_checked": 43,
+    "published_source_blob_sha256": {
+      "agent-kits/shared/code-context-build.py": "2d67c8f9cca9020927c0ad08b4e55103c7a9a8d6d5226ac8b029d252e1d0a12c",
+      "agent-kits/shared/code-context.py": "8e7286951ee86519869358154e6c355de90e7f05e8b7654a5376f085819d2b36",
+      "agent-kits/shared/knowledge-find.py": "f78c47bfdb7cbe1b354cfe3c00bd03ba4b477f6a98981a1e96f579358bde12bc",
+      "agent-kits/shared/knowledge-read-context.py": "7f18effd1c5673eb23dec99ad55d0ec40a7527b605c80f4b03ceda5be12c9fa7",
+      "agent-kits/shared/knowledge-schema.py": "f444ddb9b5c818779f723f72f9ccf80fe6dc93ef5eec5aec2cf2de60e4995571",
+      "agent-kits/shared/knowledge-taxonomy-local.py": "5dc1ad5800449e81942d55eb3d20dbd0e901a4dd2b37d80fd020a967823f98ec",
+      "agent-kits/shared/knowledge-view.py": "8c60e914896c9fe5bf7e74a2f50e51eaf0893b5b82d7e76b19f5763b4b608281",
+      "agent-kits/shared/local-read.py": "eee670d4c2e43a84724bc72de413a15379cd6681af20875ea3f091f9ef9dca65",
+      "agent-kits/shared/schemas/taxonomy.schema.json": "d34935525f267e48148e89a3604752372c9931db018b0c2dea43cfe4fdaea1bf",
+      "agent-kits/shared/test_knowledge_read_context.py": "79127a68a96b04178a36b5690e6f921d7f123bb1b45d6f3279f520320892a1dc",
+      "agent-kits/shared/test_knowledge_routing.py": "7eca052596c76bcbc86cc51566ca195669c550ef1ab126fe477e91753db34188",
+      "agent-kits/shared/test_knowledge_view.py": "5e5b7099024530f3619caa9f7d732ef53ac353898364cf6b7dcb33480edba414",
+      "agent-kits/shared/test_local_read.py": "31ff04a54b6649b13cc2aebd47687e81a60fef7181b5f18f8002ce62425fd2c9",
+      "skills/knowledge-services/backends/markdown_export.py": "33d5353ae8630f4878d48b292bdaf44ee4bfa754a5189398e4958171a831b667",
+      "skills/knowledge-services/scripts/knowledge-sync.py": "247b0b2b7c96603030682e6a437713b5a860e111cd707106c568d679ed069774",
+      "skills/knowledge-services/scripts/test_backend_markdown_read.py": "642ab5c960415574386d08d277ca815a0bc5dd5af5d6b3c197d63244e4c5cea6",
+      "tests/test_code_context.py": "1ae27f9a2f173d47c7401243e8de78088ce62d87d084504cd903de6f9a2b1901",
+      "tests/test_code_context_build.py": "cce3653bdb4b0a8e839cda0a05f07c509330d220c4e03d15dd0abb0471bd9882",
+      "tests/test_code_receipts.py": "c2e4ca102e885f272522683b3184c93d75c4474b5903ac860df2931ee673697c",
+      "tests/test_code_selectors.py": "3b9e84da0b8b32bc860e3dad4639227a8dca5fd372dd5088451113ededb63273",
+      "tests/test_knowledge_router_read.py": "39a2d9cc6de90f5f38c0b8e0d9f39f845ac0fb2c71c88a4f87e3aa604f901a43"
+    },
+    "text_EOL_normalized_by_Git": [
+      "README.es.md",
+      "README.md",
+      "agent-kits/shared/README.md",
+      "agent-kits/shared/knowledge-find.py",
+      "agent-kits/shared/knowledge-schema.py",
+      "agent-kits/shared/knowledge-taxonomy-local.py",
+      "docs/agents/CONTRACTS.md",
+      "skills/knowledge-services/SKILL.md",
+      "skills/knowledge-services/backends/README.md",
+      "skills/knowledge-services/backends/markdown_export.py",
+      "skills/knowledge-services/references/kwipu-adapter.md",
+      "skills/knowledge-services/scripts/knowledge-sync.py",
+      "tests/test_console_encoding.py"
+    ],
+    "normalization_check": "All 43 published blobs equal raw tested/frozen bytes or only CRLF-to-LF normalization; Python AST and JSON values agree.",
+    "final_publication_checks": {
+      "public_files": 971,
+      "changed_files": 43,
+      "local_links_checked": 214,
+      "consumer_links_skipped_before_read": 32,
+      "missing_links": 0,
+      "prohibited_names_or_references": 0
+    },
+    "metadata_review_sha256": "2df7ed67848727ef8e278688f43772bae3e4f1f1a520e79888bfbc18500e5d20",
+    "global_integration_complete": false
   }
 }

@@ -332,4 +332,12 @@ Las regresiones de servidor/controles del panel están incluidas. No hubo nueva 
 - Evidencia final: `a81d9c399df7f5f0209f974aebaa1ad61a156151775f4172d61974bd20f9541e`.
 - Handoff sellado: `94f985dd8bfd661b4d5bc6503053d0c7829e3421732c118735f3dcfc6d133d46`.
 
-Aceptada la implementación parcial del bloque: lectura documental explícita, selección pura, contexto canónico/deadline, selectores AST, recibos y productor sobre destinos nuevos. La memoria local conserva su disponibilidad sin servicios externos. Queda publicación de la rama; T-07/T-11/T-13/T-14/T-15 siguen abiertas por restore, corpus grandes, continuidad/aprendizaje y demás capacidades. No se declara superioridad experimental, autenticación del productor, atomicidad del par ni prevención de ABA.
+Aceptada la implementación parcial del bloque: lectura documental explícita, selección pura, contexto canónico/deadline, selectores AST, recibos y productor sobre destinos nuevos. La memoria local conserva su disponibilidad sin servicios externos. Publicada la entrega de implementación en la rama; T-07/T-11/T-13/T-14/T-15 siguen abiertas por restore, corpus grandes, continuidad/aprendizaje y demás capacidades. No se declara superioridad experimental, autenticación del productor, atomicidad del par ni prevención de ABA.
+
+## Bloque18 — publicación comprobada
+
+Entrega publicada en `feat/catalog-capabilities`, commit `ded934a70e56508601006a06d52550cbfb7da019`; el SHA remoto observado coincide. Se comprobaron los 43 blobs publicados. Git normalizó CRLF a LF en 13 archivos; los hashes de bytes de la fuente probada se conservan y la evidencia distingue los hashes de blobs publicados. La única diferencia de esos archivos es el fin de línea; los AST de Python y los valores JSON coinciden.
+
+El cierre público conservó 971 archivos, 43 cambios, 214 enlaces locales válidos y 32 destinos del consumidor excluidos antes de leer. La revisión independiente de documentación no dejó gaps; informe SHA `2df7ed67848727ef8e278688f43772bae3e4f1f1a520e79888bfbc18500e5d20`. El historial archivado permanece intacto. El lector real del panel reconoce nuevamente la iniciativa y sus 16 tareas: muestra hasta ocho activas y declara `task_budget` cuando corresponde.
+
+Esta publicación cierra el bloque de implementación, no las tareas macro ni la integración global. Restauración, corpus grandes, continuidad, aprendizaje y las capacidades restantes del panel y comandos siguen pendientes.
