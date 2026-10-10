@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "block": 20,
-  "status": "block20_only_ROOT_qa_accepted_final_documentation_and_publication_pending",
+  "status": "block20_only_qa_and_static_checks_accepted_implementation_publication_observed",
   "integrated_acceptance": "PASS_Block20_only",
   "historical_integrated_acceptance": {
     "value": "UNKNOWN",
@@ -83,10 +83,7 @@
       "status": "NO-PASS"
     }
   ],
-  "remaining": [
-    "final documentation and metadata static validation",
-    "explicit branch commit and push"
-  ],
+  "remaining": [],
   "windows_qa": {
     "root_verified": true,
     "scope": "Windows frozen R2 cohort only",
@@ -281,7 +278,7 @@
     "linux_corrective_receipt_sha256": "924702a0e036de50387c78720f8a539d074268eaf8ac98fd6a5addbfab08b072",
     "source_manifest_sha256": "a07a9ee3c6caa4a9d5db84d023940a5b436ecb366bd65b26acfc41b346000837",
     "global_acceptance": false,
-    "publication_observed": false,
+    "publication_observed": true,
     "initiative_macro_states_changed": false,
     "previous_block_19_acceptance_changed": false,
     "native_three_host_compatibility_claimed": false,
@@ -341,6 +338,81 @@
       "readonly_core_autocrlf_true_probe_exit": 0,
       "readonly_probe_changed_files": 18,
       "public_source_mutations_from_probe": 0
+    },
+    {
+      "attempt": 4,
+      "exit": 0,
+      "classification": "explicit18 public source static checks accepted",
+      "official_gates_executed": 5,
+      "publication_ready_receipt_sha256": "6487a748212e007e205d814e9e0b631df269135b098e7947bb88fbca0e7688d1",
+      "source_manifest_sha256": "d828550347c7947f6ecbcf0c88a930b6767c0531d4c1b73949d884f28c11596d",
+      "source_files": 985,
+      "code_test_gold_files_unchanged_from_review": 7,
+      "source_before_after_equal": true,
+      "macro_ledger_T01_T16_prefix_equal_BASE": true,
+      "global_acceptance": false
     }
-  ]
+  ],
+  "historical_remaining_before_publication": [
+    "final documentation and metadata static validation",
+    "explicit branch commit and push"
+  ],
+  "remaining_scope": "Block20 implementation acceptance and first publication only; documentary closure publication is verified separately; initiative acceptance remains open",
+  "implementation_publication": {
+    "observed": true,
+    "commit": "1f47fbf61261f4bb62282d0e9a8252a80d7bb6c2",
+    "branch": "feat/catalog-capabilities",
+    "remote_url": "https://github.com/daycry/custom-agents.git",
+    "remote_head_observed": "1f47fbf61261f4bb62282d0e9a8252a80d7bb6c2",
+    "verified_date": "2026-10-10",
+    "files": [
+      "tests/test_memory_local_recovery.py",
+      "tests/test_memory_local_recovery_protocol.py",
+      "tests/memory_local_recovery_support/child.py",
+      "tests/memory_local_recovery_support/protocol.py",
+      "tests/memory_local_recovery_support/fixture-gold.json",
+      "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/memory-local-recovery-contract.md",
+      "docs/roadmap/2026-10-07-catalog-capabilities/testing/memory-local-recovery-review-evidence.json",
+      "agent-kits/shared/knowledge-local.py",
+      "tests/test_knowledge_approved_retrieval.py",
+      "docs/roadmap/2026-10-07-catalog-capabilities/tasks.md",
+      "docs/roadmap/2026-10-07-catalog-capabilities/improvement-plan.md",
+      "CHANGELOG.md",
+      "CHANGELOG.es.md",
+      "docs/PLUGIN-PANEL.md",
+      "docs/en/PLUGIN-PANEL.md",
+      "docs/WORK-RESUME.md",
+      "docs/en/WORK-RESUME.md",
+      "docs/agents/knowledge-curator.md"
+    ],
+    "static_receipt_sha256": "6487a748212e007e205d814e9e0b631df269135b098e7947bb88fbca0e7688d1",
+    "static_gates": {
+      "plugin-lint": {
+        "exit": 0,
+        "stdout_sha256": "225fa34fed67b50b05dc5f83490c6a596c515e13f9538c0ef0afdd423d9354af",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "interop": {
+        "exit": 0,
+        "stdout_sha256": "d8473f36704a8a67a1422468df8d5b5e80dcd38f5aa77400fa4448a0932e7950",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "evals-static": {
+        "exit": 0,
+        "stdout_sha256": "86f39cbd02976305b8bd32c0fae83c14d0c7067301f36baa53a04cf720630f14",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "scope": {
+        "exit": 0,
+        "stdout_sha256": "d1b1b44f7e24499cd6d710d52eee87e9524bf9a42635ce84df7abafd181e70a0",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ledger": {
+        "exit": 0,
+        "stdout_sha256": "4515b817666c9fc338a5ed921d1a3cd8610358cd9f17b086f6002cd2512afe46",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "global_acceptance": false
+  }
 }
