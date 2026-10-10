@@ -660,3 +660,94 @@ El tercer preflight terminó exit 1 antes de los cinco gates: el índice Git nue
 2026-10-10. El cuarto preflight termina exit 0: lint de plugin, interop, evals estáticas, scope exacto de 18 archivos y ledger pasan sus cinco gates. Conserva 985 fuentes antes/después, siete archivos de código/test/Gold iguales a R2, prefijo de las dieciséis macros intacto y cero referencias de origen en los 18 archivos examinados. Lint conserva cuatro avisos existentes; no se ocultan ni se convierten en errores. Recibo estático SHA `6487a748212e007e205d814e9e0b631df269135b098e7947bb88fbca0e7688d1`; manifiesto actual SHA `d828550347c7947f6ecbcf0c88a930b6767c0531d4c1b73949d884f28c11596d`.
 
 Commit de implementación `1f47fbf61261f4bb62282d0e9a8252a80d7bb6c2` publicado en `feat/catalog-capabilities`: push real seguido de comprobación remota devuelve ese mismo HEAD. Este cierre documental registra la primera publicación ya observada; su propio push se verifica posteriormente. Bloque20 aceptado y entregado; no declara cierre global, cambia estados macro, reabre QA19 ni acredita los tres clientes nativos, escala o eficacia comparativa. Las skills siguen aplazadas. TDD n/a: documentación de evidencia observada.
+
+### BLOQUE21 — Caller portable de revisión visual y aceptación nativa
+
+2026-10-10. Publicación del cierre documental del Bloque20 verificada en el remoto mediante HEAD `bd0ffb0a59f117cca30e968da4ceb0e4411a3783`. Es la base de esta entrega T-05/T-11/T-13/T-14/T-15, sin modificar las dieciséis macros ni reabrir QA19/20. Sigue el [contrato de caller portable](comparisons/plan-review-portable-caller-contract.md), conservando owner, estado y puerta plan-ok existentes.
+
+El caller anterior sólo mostraba Bash y buscaba dueño/builder por separado. Las recetas nuevas permiten Bash/PowerShell con Python explícito real, seis raíces con precedencia, bundle común y rechazo de ambigüedad. Open precede su validación; el servidor conserva un handle separado. Receive, ack y view mantienen las validaciones de puerta, versión y consumo anteriores; no se interpretan comentarios como shell ni se inicia trabajo porque un proceso sale0.
+
+RED: los diez casos iniciales fallaron por falta de recetas ejecutables únicas en el comando canónico, exit1/JUnit SHA `221fb016ab393890ca996e1413de52b41d77f9db8cca3378516a5ea5f321efb0` · 2026-10-10. GREEN: esos diez pasan tras el cambio, exit0/JUnit SHA `d327a0b5df17f42ed83ff5b68b63ac998c1f44ca73c37453b76b8e30e34197f6`. La ampliación a seis raíces y fallo de open termina24 passed/0 failed/0 skipped en Windows: doce Bash real y doce PowerShell, sin hosts nativos, navegador o modelos. JUnit SHA `beff581c108f8a291b0a0d39d87898c85ec5e534a7317a0b9a4e3c1200560e11`; el auxiliar conservó metadata expected10 del piloto, pero colección/JUnit reales tienen24, declarado sin alterar el intent original.
+
+La [evidencia del caller](testing/plan-review-portable-caller-evidence.json) separa esta prueba con recorder sintético de owner/servidor/UI reales, carga/expansión por cliente y continuidad de agentes. Faltan congelación/revisión independiente, checks integrados y escenarios reales pendientes; no se suman etiquetas runtime a pruebas de shell para declararlos hechos. Scope previsto: comando canónico y sus dos proyecciones, test de recetas, documentación del panel/flujo y changelogs EN/ES, contrato/evidencia y esta traza. Las skills siguen aplazadas; T-16 y aceptación global permanecen abiertos.
+
+## Revisión de dos lentes — intento 1: Bloque21 (T-11/T-13/T-14/T-15) — corregir retoma entre runtimes
+
+Lentes A+B de contexto fresco, fallback genérico sin override de modelo; selector C/D false por diff real de14 archivos, sin avisos. Scope0/interop0 (58 archivos al día)/ledger0 previos; fuente988 y diff completos estables. A:0 gaps; B:1 Important. Report A SHA `54d558e1581b6f415972b8d9e68bda1332089c179fc333e63de1a4559c94d12c`, receipt `d086b732df62d8260377f48b1189c5c76c6419571271401d0afa7f1d83dfd11c`; report B SHA `2f6aeb6e7428c409cc97d39e979e73f5afde5c1d087de5bf60a1f894577c2a01`, receipt `d8f1909453f47627da5c4b67635407d1c5e47f8d6ffc95ba72ec9807c0f0dc8a`.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B1 | Important | Caller exige consumidor actual al reabrir recibo histórico | T-11/T-13/T-14 | Validar selección/puerta/versión; tratar registro de consumidor como histórico, sin exigir coincidencia en retoma | Reproducción ROOT: codex→claude-code y panel sin registro→caller mantienen mismo ID, versión completa/current y consumidor anterior/null. SHA `d48e5f7f607b7af74ce1a1fb40a32f8e30e85aa1a2c8ca4d7692e2f4365730ae`; owner intacto. |
+
+La corrección cambia sólo la regla de validación del caller y su contrato/proyecciones, no actualiza el consumidor guardado ni crea otro registro de estado. La siguiente revisión verificará esta corrección; máximo3 intentos. La aprobación de QA, UI y clientes nativos no se deduce de esta revisión.
+
+### Comprobación real de navegador del Bloque21
+
+El dueño real abre una revisión sintética propia con vista completa/current y el builder real inicia servidor loopback con PID/handle propio. Un primer launcher privado termina antes de navegar porque stdin era EOF en pipes; conserva ese fallo y cierre de su servidor por handle. La nueva ejecución con PTY conserva handle vivo. Edge rechaza la navegación a ese servidor con `net::ERR_BLOCKED_BY_CLIENT`; el árbol visible dice «Microsoft Edge ha bloqueado esta página». Cero escenarios UI ejecutados, ninguna decisión emitida. Se conserva el bloqueo sin cambiar Host/Origin/CSP/capacidad ni protecciones. El servidor propio se detuvo por su handle y se verificó ausencia del PID; su exit1 por terminación explícita no se presenta como salida natural0. La pestaña de prueba fue cerrada; no se tocaron pestañas del usuario, servicios Docker ni corpus/configuraciones consumidoras.
+
+
+## Revisión de dos lentes — intento 2: Bloque21 (T-11/T-13/T-14/T-15) — prueba dedicada pendiente
+
+2026-10-10. A+B frescos, fallback genérico sin override; scope0/exact14, selectorC/D false, interop0/58 y ledger0. Fuente988 y diff completos idénticos antes/después. A2:0 Critical/1 Important/0 Minor; B2:sin defectos. El comportamiento de B1 concuerda con el dueño, pero la constitución:13 exige una prueba dedicada que nombre y compruebe cada gap corregido. No hay rebatidos ni deuda; las aceptaciones anteriores y macros se conservan.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A2-1 | Important | B1 figura corregido sin regresión dedicada de la regla actual | T-11/T-13/T-14 | Validador de apertura ejecutable sin estado; pruebas B1 sobre dueño real y transporte shell | Informes A2/B2 y hashes completos en la evidencia; pendiente revisión3. |
+
+Fusión ROOT tras leer informes completos y contrastar hashes:1 Important pendiente. Se mantiene máximo3 intentos. La fuente R2 no se modifica; no se aprueban QA, UI, clientes nativos ni publicación.
+
+### Regresión dedicada y validación ejecutable preparadas
+
+RED: `tests/test_plan_review_open.py::test_B1_resume_validates_real_owner_historical_consumer[codex]` y `[None]` fallaron con «B1 requires executable opening validation», dentro de23 failed/0 errors/exit1 · 2026-10-10. JUnit SHA `d0f2af3a476de23200c01d3241cb38ebc679df697f39412c616fe39f2ed1a155`. Un primer intento conservado produjo22 failed/2 errors por IDs pytest de tamaño excesivo para rutas Windows; se acotaron los IDs del test, sin cambiar producto ni oráculos.
+
+El nuevo `agent-kits/shared/plan-review-open.py` valida JSON acotado, envelope, selección, puerta, hashes/vista/current y devuelve sólo IDs/versión con approval_granted=false. No escribe estado ni cambia el dueño. Las dos recetas lo ejecutan antes de servir; PowerShell conserva/restaura OutputEncoding al transportar Unicode por stdin. La búsqueda exige dueño/validador/builder co-locales; no completa una instalación parcial desde otra fuente.
+
+GREEN de autor:49 passed/0 failed/0 skipped Windows,23 de validador y26 shell (13 Bash/13 PowerShell). Los dos B1 ejecutan cuatro aperturas reales en fixtures propias: Codex→Claude y panelnull→Claude; conservan ID/versión/primerconsumidor y bytes del estado durante validación. Dos negativos shell impiden serve ante exit0 del dueño con otra puerta. JUnit SHA `726a0359cde74df563e06cef932a4e20aa69f6b085c0cb05121cdccff09bc2a9`. Fuente/receta/IDs conservados antes/después; cero modelos/hosts/UI. No sustituye QA integrada ni prueba obediencia de agente.
+
+El preflight Linux R2 no ejecutó pytest ni creó contenedores: se detuvo antes del arranque porque cambió la fuente para corregir A2-1. Imagen QA20 exacta disponible, diagnóstico retenido sin afirmar PASS/SKIP Linux. El siguiente ensayo debe corresponder al bundle nuevo. Contrato/evidencia/descriptores se actualizan juntos; exports, revisión3, checks integrados, UI/carga/continuidad nativa y push continúan pendientes.
+
+
+## Revisión de dos lentes — intento 3: Bloque21 (T-11/T-13/T-14/T-15) — límites JSON pendientes
+
+2026-10-10. A+B+D frescos, fallback genérico sin override; scope0/exact16, interop0/58, ledger0 y fuente990/diff íntegros. C=false; D=true por heurística regex-en-bucle, descartada por D con evidencia de compilaciones fuera del bucle. A3 acepta A2-1 y conserva B1; B3 introduce1 Important/1 Minor, D0. ROOT leyó los tres informes completos, verificó hashes y reprodujo ambos casos. No hay rebatidos ni deuda.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B3-1 | Important | 1e999 llega como infinito en metadata ignorada y valida ok | T-11/T-14 | parse_float comprueba finitud antes de aceptar el número | Probe real:782 bytes/exit0/statusok; pendiente validación correctiva. |
+| B3-2 | Minor | JSON muy profundo termina sin envelope | T-11/T-14 | RecursionError devuelve unavailable/exit2, conservando rechazo | Probe real:12000 niveles/24001 bytes/exit1/RecursionError, sin aprobación ni serve. |
+
+La reproducción ROOT sobre R3 intacto y los informes quedan ligados por SHA en la evidencia. El primer probe de2000 niveles devolvió unavailable; se conserva el fallo de su assert privado, sin convertir esa entrada en una reproducción positiva. La reserva siguiente falló por sintaxis del auxiliar antes de ejecutarse; un OWN nuevo conservó intenciones/terminales de los dos probes reales. No hubo mutación de estado, modelos, hosts ni UI.
+
+### Decisión del orquestador tras el límite del ciclo inicial
+
+El ciclo inicial concluye sus tres intentos con B3-1 pendiente y no se declara aprobado. Bajo la delegación del usuario para decisiones técnicas y revisión independiente, ROOT decide continuar con un ciclo correctivo acotado a un solo pase A+B+D sobre estos dos casos reproducidos. Será ciclo2/intento1, cuarto pase acumulado explícito; no reinicia ni oculta los tres resultados anteriores. No reabre criterios aprobados, QA19/20, macros ni catálogo de skills.
+
+RED: `tests/test_plan_review_open.py::test_B3_json_boundaries_fail_closed[overflow_positive]`, `[overflow_negative]` y `[depth]` fallaron en la implementación R3,3 failed/23 deselected/exit1 · 2026-10-10. JUnit SHA `3b84c5758629a3a61f37149f3414dfee932fc4d72df8a7b8c33a7f11761bf77e`. GREEN de autor tras parse_float finito y captura RecursionError:52 passed/0 failed/0 skipped Windows (26 validador/26 shell), JUnit SHA `87f4f2f00852a1a37dc95fa6ba7bd14b64365c575efffa032b09c105e8ae23ab`; mismos IDs/fuente/fixtures y cero modelos/hosts/UI. La revisión correctiva y los checks finales siguen pendientes; no se publicará como aceptado con un Important abierto.
+
+
+## Revisión de dos lentes — ciclo correctivo 2, intento 1 de 1: Bloque21
+
+2026-10-10. Cuarto pase acumulado explícito después de los tres intentos iniciales, cuyo historial permanece intacto. A+B+D de contexto fresco, fallback genérico sin override; C=false y D=true por la misma señal heurística, descartada con evidencia estática. ROOT leyó los tres informes íntegros y verificó sus SHA, recibos y fuente990 antes/después:0 Critical/0 Important/0 Minor. B3-1 y B3-2 corregidos y aceptados; B1/A2-1 conservados. Sin rebatidos ni deuda.
+
+Lente A: informe SHA `2d691b32cdfb5d0054d501cc8c10c947948f2866280dfb3f4f85f61222dce848`, recibo `f9c7a3f15055df87bcffb11895eab3eafafdca024ae961cfdfe8ec7153b0e5ca`.
+
+Lente B: informe SHA `b5e2fab162dadb03f6a353f6cdc4b1903f04c00f180bfd1000584703ad85dde3`, recibo `9aec586ac7c1a472744cff67247823a8df2616127fb16fa232cf99ca5f031361`.
+
+Lente D: informe SHA `7d518b2502adef0862adbc6472037640569174e7309c0434c7e751cf57f77f82`, recibo `3f99402314f52a9959e36450f7295d500acb87c6ab23aaabf98b8e7f08e46033`.
+
+Fusión ROOT SHA `8ead037e75b9bc9e4ec74557a6e17d47c1fb0bd89415ccbc97379a83a4d58b4b`; fuente de revisión `edfef7a43df7d19115bd935e804455f9333964df7506c16b7f07391c49401bd9`. Esta aceptación corresponde a revisión del código congelado; no acredita QA visual, clientes nativos ni cierre global.
+
+### Aceptación acotada de Windows
+
+ROOT verificó los siete inputs del GREEN final contra la fuente revisada y los52 casos únicos de JUnit, más una colección independiente sin ejecutar de nuevo las pruebas. Resultado52 passed/0 failed/0 skipped;26 del validador,13 Bash y13 PowerShell. El qa-gate oficial aplicado a esos resultados reales convertidos terminó exit0/VERDE, SHA `a2b547b43ddf08c5879ee0361450fe77ad940fda64ba98e77a728a63a32d6c4e`. Recibo de aceptación SHA `f999c30eb5aa789a2df726b0740180e31caed6ed8ba82ea2dee7f9dc6166ffd2`. La conversión es de pruebas unitarias/shell y no se presenta como Playwright o aceptación de navegador.
+
+El ensayo Linux del bundle final está en preparación; no se acredita todavía PASS ni SKIP. Los checks estáticos previos pasan con fuente990, exports58 y53 enlaces válidos; el lint de aquella copia aislada emitió5 avisos, uno por no resolver Git en PATH y recurrir a os.access para hooks/hooks.json. El índice ROOT confirma modo100644; los checks finales expondrán Git en el entorno propio para medir ese criterio correctamente. No cambia producto para ocultar el aviso. UI real de Edge, carga/continuidad nativa, comprobaciones finales y publicación permanecen pendientes. No cambia ninguna de las16 macros ni QA19/20, y el catálogo de skills permanece aplazado.
+
+
+### Aceptación acotada de Linux y comprobaciones finales del Bloque21
+
+Linux final:39 passed/13 skipped/0 failed/0 errors, pytest exit0. Los26 casos del validador y13 Bash pasan; los13 PowerShell se omiten por ejecutable ausente y no acreditan aceptación de ese shell en Linux. ROOT contrastó190 artefactos por bytes/SHA, los52 IDs de colección/JUnit, siete inputs ligados a GREEN/revisión y43 hijos registrados terminados. Sólo el contenedor propio fue retirado y su ausencia exacta se verificó. JUnit SHA `2520a688498ce712cb21ad6307905473b0cebefa9fe1039a564d0f9a814da38f`; recibo ROOT `108959646c1948a1ef1481392454555f1bd36d46d2f9748db725c65982537035`; qa-gate oficial exit0/VERDE, SHA `bb9859f3985b0465d212264c4d05bb2d2de3b8c1c77129a0b7bbd242a39cac62`. No se ejecutaron de nuevo las pruebas ni contenedores al verificar.
+
+Se conservan dos fallos de auxiliares privados: el primer check estático intentó crear un directorio de entorno ya existente; el primer verificador Linux esperaba la frase Docker No such object y el artefacto real decía No such container para el CID exacto. Correcciones sólo del transporte/verificador, sin cambios en producto/oráculos ni repetición de pruebas. Los checks estáticos recuperados pasan:scope0/exact16, exports0/58, ledger0, evals0 y lint0 errores/4 avisos,53 enlaces válidos y16 estados macro sin cambios. La diferencia respecto a los5 avisos iniciales es la resolución real de Git para comprobar el modo100644 de hooks/hooks.json.
+
+Checkpoint estático fuente SHA `1002b0c7c74b3ee83d636f65fffa1f5c4b8957a3e2717fef4ecd193fddd764bb`; recibo `f475a5c14b39222918b809afd818b5099c2aace4a1e495c0db23cce03a16b164`. Código, recetas, tests y proyecciones idénticos a la revisión correctiva; sólo tasks/evidence añaden resultados observados. Se acepta esta entrega portable, sin aceptar UI de Edge, carga/continuidad real en tres clientes, QA global o tareas macro. Se verificará el cierre documental y el push en la rama autorizada antes de registrarlos como observados.

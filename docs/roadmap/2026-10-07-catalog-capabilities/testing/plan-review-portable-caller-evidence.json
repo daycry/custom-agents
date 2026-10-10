@@ -1,0 +1,486 @@
+{
+  "schema": 1,
+  "block": 21,
+  "status": "portable_implementation_review_and_windows_linux_cohorts_accepted_publication_and_native_ui_pending",
+  "base": "bd0ffb0a59f117cca30e968da4ceb0e4411a3783",
+  "owner_changed": false,
+  "server_changed": false,
+  "source_command_sha256": "e172834756271da2d77653bdfff53bd42c1d960edb2033cd2c66d74f8df9a9ef",
+  "test_source_sha256": "1fdf6399de0956c2d997d23f5c9c6b45e71a535313162494e6e4b621c41b589f",
+  "author_shell_runs": [
+    {
+      "stage": "RED",
+      "exit": 1,
+      "unique_cases": 10,
+      "passed": 0,
+      "failed": 10,
+      "cause": "canonical command lacks unique executable prepare/open/serve recipes for each shell",
+      "junit_sha256": "221fb016ab393890ca996e1413de52b41d77f9db8cca3378516a5ea5f321efb0"
+    },
+    {
+      "stage": "initial GREEN",
+      "exit": 0,
+      "unique_cases": 10,
+      "passed": 10,
+      "failed": 0,
+      "junit_sha256": "d327a0b5df17f42ed83ff5b68b63ac998c1f44ca73c37453b76b8e30e34197f6"
+    },
+    {
+      "stage": "expanded scenarios",
+      "exit": 0,
+      "unique_cases": 24,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "bash_cases": 12,
+      "powershell_cases": 12,
+      "os": "Windows",
+      "junit_sha256": "beff581c108f8a291b0a0d39d87898c85ec5e534a7317a0b9a4e3c1200560e11",
+      "historical_runner_expected_count": 10,
+      "runner_count_note": "the private runner retained its initial expected-count metadata; actual collection and JUnit contain 24 cases, not 10",
+      "native_hosts_executed": 0,
+      "real_ui_scenarios": 0,
+      "model_calls": 0
+    }
+  ],
+  "scope": "read-only opening validation and literal shell transports with isolated fixtures; no native agent or browser acceptance",
+  "scenarios": [
+    "same complete owner and builder bundle",
+    "project precedence over global bundle",
+    "partial bundle cannot be mixed with a different builder",
+    "all six discovery roots",
+    "spaces and Unicode preserved as literal argv",
+    "ambiguous root does not open or serve",
+    "invalid runtime does not open or serve",
+    "failed open never starts server",
+    "B1 cross-runtime and initially unregistered real-owner openings",
+    "exit-zero invalid open cannot start either shell server",
+    "bounded strict JSON rejects duplicate keys, nonfinite values and invalid bindings",
+    "validation outputs only IDs/version, never approval or plan/comments"
+  ],
+  "independent_review": {
+    "accepted": true,
+    "scope": "corrective independent review only",
+    "cycle": 2,
+    "attempt": 1,
+    "maximum_attempts": 1,
+    "cumulative_attempt": 4,
+    "lenses": [
+      "A",
+      "B",
+      "D"
+    ],
+    "critical": 0,
+    "important": 0,
+    "minor": 0,
+    "corrected": [
+      "B3-1",
+      "B3-2"
+    ],
+    "prior_approved_preserved": [
+      "B1",
+      "A2-1"
+    ],
+    "reports": {
+      "A": {
+        "report_sha256": "2d691b32cdfb5d0054d501cc8c10c947948f2866280dfb3f4f85f61222dce848",
+        "receipt_sha256": "f9c7a3f15055df87bcffb11895eab3eafafdca024ae961cfdfe8ec7153b0e5ca"
+      },
+      "B": {
+        "report_sha256": "b5e2fab162dadb03f6a353f6cdc4b1903f04c00f180bfd1000584703ad85dde3",
+        "receipt_sha256": "9aec586ac7c1a472744cff67247823a8df2616127fb16fa232cf99ca5f031361"
+      },
+      "D": {
+        "report_sha256": "7d518b2502adef0862adbc6472037640569174e7309c0434c7e751cf57f77f82",
+        "receipt_sha256": "3f99402314f52a9959e36450f7295d500acb87c6ab23aaabf98b8e7f08e46033"
+      }
+    },
+    "source_manifest_sha256": "edfef7a43df7d19115bd935e804455f9333964df7506c16b7f07391c49401bd9",
+    "source_files": 990,
+    "root_matches_review_source": true,
+    "global_acceptance": false,
+    "qa_acceptance": false,
+    "native_acceptance": false,
+    "ui_acceptance": false
+  },
+  "integrated_qa": {
+    "scope": "Windows opening validator/Bash/PowerShell and Linux opening validator/Bash cohorts only",
+    "windows": {
+      "root_verified": true,
+      "unique_cases": 52,
+      "passed": 52,
+      "failed": 0,
+      "skipped": 0,
+      "validation_cases": 26,
+      "bash_cases": 13,
+      "powershell_cases": 13,
+      "junit_sha256": "87f4f2f00852a1a37dc95fa6ba7bd14b64365c575efffa032b09c105e8ae23ab",
+      "verifier_sha256": "4267c3be82ff0f5d92372ebb7d8b0b8d495922f9945a32de198c52ebf9320a8c",
+      "qa_gate_exit": 0,
+      "qa_gate_stdout_sha256": "a2b547b43ddf08c5879ee0361450fe77ad940fda64ba98e77a728a63a32d6c4e",
+      "acceptance_receipt_sha256": "f999c30eb5aa789a2df726b0740180e31caed6ed8ba82ea2dee7f9dc6166ffd2",
+      "source_before_after_equal": true,
+      "tests_rerun_by_verifier": 0
+    },
+    "linux": {
+      "accepted": true,
+      "scope": "retained Linux52 opening validator/Bash cohort only",
+      "unique_cases": 52,
+      "passed": 39,
+      "failed": 0,
+      "skipped": 13,
+      "validation_passed": 26,
+      "bash_passed": 13,
+      "powershell_passed": 0,
+      "collection_ids_equal_junit": true,
+      "artifacts_verified": 190,
+      "artifact_index_sha256": "2f51a5ce6746c0e426a3c5afd10347c5033fd9607eb2ac59a23276ea3a2e82b3",
+      "source_inputs_verified": 7,
+      "source_before_after_equal": true,
+      "registered_children_terminal": 43,
+      "own_container_absence_verified": true,
+      "junit_sha256": "2520a688498ce712cb21ad6307905473b0cebefa9fe1039a564d0f9a814da38f",
+      "linux_receipt_sha256": "0603b98d541b3c876bbff5785bbce9855df61f6439b88fe104d747c74ef50ff2",
+      "qa_gate_exit": 0,
+      "qa_gate_stdout_sha256": "bb9859f3985b0465d212264c4d05bb2d2de3b8c1c77129a0b7bbd242a39cac62",
+      "tests_rerun": 0,
+      "native_hosts": 0,
+      "ui_scenarios": 0,
+      "global_acceptance": false,
+      "root_receipt_sha256": "108959646c1948a1ef1481392454555f1bd36d46d2f9748db725c65982537035"
+    },
+    "global_acceptance": false,
+    "native_hosts_executed": 0,
+    "ui_scenarios": 0,
+    "coverage_percentage": null,
+    "coverage_note": "No coverage measurement for this cohort; test counts are not a percentage."
+  },
+  "native_command_loading": null,
+  "native_agent_continuation": null,
+  "real_browser_acceptance": null,
+  "publication_observed": false,
+  "remaining": [
+    "final documentary checks and explicit branch publication",
+    "actual browser scenarios",
+    "native loading and continuation evidence for three clients"
+  ],
+  "prior_block_19_acceptance_changed": false,
+  "prior_block_20_acceptance_changed": false,
+  "macro_states_changed": false,
+  "global_acceptance": false,
+  "historical_source_command_sha256": "cd28356a0fd7cabfb5019cc802658a94bd8d21a0a08f770458ba927b1cde85e1",
+  "review_history": [
+    {
+      "attempt": 1,
+      "maximum_attempts": 3,
+      "lenses": [
+        "A",
+        "B"
+      ],
+      "selector_c": false,
+      "selector_d": false,
+      "critical": 0,
+      "important": 1,
+      "minor": 0,
+      "source_manifest_sha256": "3f32143b658f8856e59ddde6619368c12f94f04de019021dcec39dc9885da5ca",
+      "review_diff_sha256": "e4c937ea82ad6a5e4c5ceeb92f0723e87608fef7dc7eaccdb1a269afb41338a9",
+      "reports": {
+        "a_report": "54d558e1581b6f415972b8d9e68bda1332089c179fc333e63de1a4559c94d12c",
+        "a_receipt": "d086b732df62d8260377f48b1189c5c76c6419571271401d0afa7f1d83dfd11c",
+        "b_report": "2f6aeb6e7428c409cc97d39e979e73f5afde5c1d087de5bf60a1f894577c2a01",
+        "b_receipt": "d8f1909453f47627da5c4b67635407d1c5e47f8d6ffc95ba72ec9807c0f0dc8a"
+      },
+      "gap": {
+        "id": "B1",
+        "severity": "Important",
+        "cause": "current caller incorrectly requires historical first-consumer registration to match the current runtime",
+        "reproduction_cases": 2,
+        "actual_owner_calls": 4,
+        "reproduction_sha256": "d48e5f7f607b7af74ce1a1fb40a32f8e30e85aa1a2c8ca4d7692e2f4365730ae",
+        "status": "corrected; independent review 2 pending"
+      },
+      "source_before_after_equal": true
+    },
+    {
+      "attempt": 2,
+      "maximum_attempts": 3,
+      "lenses": [
+        "A",
+        "B"
+      ],
+      "selector_c": false,
+      "selector_d": false,
+      "critical": 0,
+      "important": 1,
+      "minor": 0,
+      "source_manifest_sha256": "67546ec78cb595332977cf02c27ce91f87c054495c64650a5c0231d054f73db6",
+      "review_diff_sha256": "177391fd45c1029897690001cb661bb53df4a06cfd8adcadadd30410cfd81743",
+      "reports": {
+        "a_report": "defc9d84a57bb220322618df209b4de8c6ef7dcd446f8bf8bb1e28d10d6ad9b7",
+        "a_receipt": "e34c1b8a6f74785c7da3a699eb38c4a22ebc5ca82589d27dae4c8bc42f258422",
+        "b_report": "06c0a5ebe7141283c4eade1372aec05f87e643fb81a529668cabeab6377de976",
+        "b_receipt": "0cf214f717f51acf58e35f0ce1e621dd3421c38dca2269641850e33b0e547b13"
+      },
+      "gap": {
+        "id": "A2-1",
+        "severity": "Important",
+        "cause": "B1 correction lacks named dedicated regression required by CONSTITUTION line13",
+        "status": "dedicated executable validation and tests prepared; independent review3 pending"
+      },
+      "source_before_after_equal": true
+    },
+    {
+      "attempt": 3,
+      "maximum_attempts": 3,
+      "lenses": [
+        "A",
+        "B",
+        "D"
+      ],
+      "selector_c": false,
+      "selector_d": true,
+      "critical": 0,
+      "important": 1,
+      "minor": 1,
+      "source_manifest_sha256": "f6d72ea398c462cf50817d0a8650befecdc9efec76a9eab27fa689580699757a",
+      "review_diff_sha256": "b3e6ec36189055939e6b33e319d888b500f45e8c01644f7bf855ed40d4796b12",
+      "reports": {
+        "A": "31dbb43967151f1cc012c53297edb38ea346f7681aac0dcc03baa03fc8270635",
+        "A_integrity": "d77c0980b562cbc8c02adf2676c2e6ecd1be979e653fb537ddbf26063a9155e4",
+        "B": "e4c3ca6663be3e6f20cbd04b09720aba761a259200110c50839df50309e238fb",
+        "B_integrity": "de060b8b8317c2695a49c7715d3e95f84eb9598454319c9c4d8ae8d07ed2e46a",
+        "D": "d7cd17011cb8a5532b4d03c440fe9063da4dcca794029055a3b5de335ff19807",
+        "D_integrity": "0c09999a64a1dec27636727fb7e89d034c430e09c4b0d0c09fb7fd7139d4a966"
+      },
+      "prior_gaps": {
+        "B1": "dedicated regression accepted",
+        "A2-1": "corrected; A3 accepted"
+      },
+      "gaps": [
+        {
+          "id": "B3-1",
+          "severity": "Important",
+          "cause": "overflow numeric exponent becomes nonfinite in ignored metadata",
+          "status": "corrected; bounded corrective review pending"
+        },
+        {
+          "id": "B3-2",
+          "severity": "Minor",
+          "cause": "deep JSON raises uncaught RecursionError; fails closed without JSON diagnostic",
+          "status": "corrected; bounded corrective review pending"
+        }
+      ],
+      "root_reproduction_sha256": "ac2af9a2e5a7f853e3bb0d157d8733e22c7143fb7b6dcf94d149b9103f299368",
+      "source_before_after_equal": true
+    }
+  ],
+  "real_browser_checkpoint": {
+    "status": "blocked_before_ui",
+    "browser": "Edge extension",
+    "navigation_error": "net::ERR_BLOCKED_BY_CLIENT",
+    "scenarios_executed": 0,
+    "decisions_issued": 0,
+    "receipt_sha256": "a42f4d39cbf78391cdd105e33a6c41e3453c22b487137228695ef02970f08176",
+    "source_manifest_sha256": "3f32143b658f8856e59ddde6619368c12f94f04de019021dcec39dc9885da5ca",
+    "actual_owner_open": true,
+    "actual_server_started": true,
+    "own_server_handle_stopped": true,
+    "server_exit": 1,
+    "server_exit_reason": "explicit termination by own handle; not natural success",
+    "known_server_pids_absent_verified": true,
+    "own_tab_closed": true,
+    "security_protections_changed": false,
+    "prior_launcher_failure_retained": "stdin EOF before navigation; own server stopped",
+    "native_hosts_executed": 0,
+    "accepted": false
+  },
+  "historical_recipe_binding": {
+    "six_executable_recipes_unchanged_from_author_runs": true,
+    "correction_scope": "validation prose outside the executable recipe blocks",
+    "recipes": [
+      {
+        "step": "open",
+        "shell": "bash",
+        "sha256": "6b6cee9a461005783a17b8e2513db04bed31d2d49a79ad9ae3928272040deaf6"
+      },
+      {
+        "step": "open",
+        "shell": "powershell",
+        "sha256": "ad5ea9f7036bae56973926ddc11a5c5629c1db93043689e553eaf490c9b1a6aa"
+      },
+      {
+        "step": "prepare",
+        "shell": "bash",
+        "sha256": "a4f3f709595a9a4154eb3787f354a76b80e0436be167828871afa99616c35bbc"
+      },
+      {
+        "step": "prepare",
+        "shell": "powershell",
+        "sha256": "f6a78b54d7c9691e47184bb551bc3dd84a00412c3045e968b9fb36d6aa14b0d4"
+      },
+      {
+        "step": "serve",
+        "shell": "bash",
+        "sha256": "44592fb35879174935c2c83b042184132fdc8ae1d9993454f92336e8d473a564"
+      },
+      {
+        "step": "serve",
+        "shell": "powershell",
+        "sha256": "3ba8fc90922aab611941284eda977f0d2389dcc7f353dfb2b7a3d853971ddecb"
+      }
+    ]
+  },
+  "historical_test_source_sha256": "8784883bc1fb3ff0722e9a1fbace20c58aa17f3b890aaec916b3c8f2e804339c",
+  "validator_source_sha256": "c9e76a67d37665ac808fc784d9fdc91f10d6757d37841e785fe2409478d419a1",
+  "validator_test_source_sha256": "184553a5a291202932fdd6f6d08276cc18f6d51fa02b8753a062789f44c3603e",
+  "validation_regression": {
+    "author_checkpoint_only": true,
+    "RED": {
+      "unique_cases": 23,
+      "failed": 23,
+      "passed": 0,
+      "exit": 1,
+      "cause": "opening validator absent",
+      "junit_sha256": "d0f2af3a476de23200c01d3241cb38ebc679df697f39412c616fe39f2ed1a155"
+    },
+    "GREEN": {
+      "unique_cases": 49,
+      "passed": 49,
+      "failed": 0,
+      "skipped": 0,
+      "exit": 0,
+      "os": "Windows",
+      "validation_cases": 23,
+      "shell_cases": 26,
+      "bash_cases": 13,
+      "powershell_cases": 13,
+      "junit_sha256": "726a0359cde74df563e06cef932a4e20aa69f6b085c0cb05121cdccff09bc2a9",
+      "source_manifest_sha256": "162e4986f70808e2f14bbddbf5589a1c5d58a879801be27669d916d38f4b8cc6",
+      "source_before_after_equal": true,
+      "real_owner_B1_cases": 2,
+      "actual_owner_calls": 4,
+      "native_hosts_executed": 0,
+      "real_ui_scenarios": 0,
+      "model_calls": 0
+    },
+    "prior_failed_runner_retained": {
+      "pytest_summary": "22 failed, 2 errors",
+      "cause": "oversized generated pytest parameter IDs exceed Windows path limits; compact explicit IDs fix test transport only",
+      "junit_sha256": "cf9e8a44c149cb1dbde06e60b5c5ff36b2171de7fd3a8039c8c31bbc12b94ee5"
+    },
+    "scope": "B1 real-owner reopen fixtures, read-only opening validator and both shell transports; no agent workflow or browser acceptance"
+  },
+  "corrective_cycle": {
+    "cycle": 2,
+    "attempt": 1,
+    "maximum_attempts": 1,
+    "cumulative_attempt": 4,
+    "orchestrator_decision": "continue with bounded correction of the two reproduced JSON boundaries; preserve all three original attempts and approved criteria",
+    "independent_review": {
+      "accepted": true,
+      "scope": "corrective independent review only",
+      "cycle": 2,
+      "attempt": 1,
+      "maximum_attempts": 1,
+      "cumulative_attempt": 4,
+      "lenses": [
+        "A",
+        "B",
+        "D"
+      ],
+      "critical": 0,
+      "important": 0,
+      "minor": 0,
+      "corrected": [
+        "B3-1",
+        "B3-2"
+      ],
+      "prior_approved_preserved": [
+        "B1",
+        "A2-1"
+      ],
+      "reports": {
+        "A": {
+          "report_sha256": "2d691b32cdfb5d0054d501cc8c10c947948f2866280dfb3f4f85f61222dce848",
+          "receipt_sha256": "f9c7a3f15055df87bcffb11895eab3eafafdca024ae961cfdfe8ec7153b0e5ca"
+        },
+        "B": {
+          "report_sha256": "b5e2fab162dadb03f6a353f6cdc4b1903f04c00f180bfd1000584703ad85dde3",
+          "receipt_sha256": "9aec586ac7c1a472744cff67247823a8df2616127fb16fa232cf99ca5f031361"
+        },
+        "D": {
+          "report_sha256": "7d518b2502adef0862adbc6472037640569174e7309c0434c7e751cf57f77f82",
+          "receipt_sha256": "3f99402314f52a9959e36450f7295d500acb87c6ab23aaabf98b8e7f08e46033"
+        }
+      },
+      "source_manifest_sha256": "edfef7a43df7d19115bd935e804455f9333964df7506c16b7f07391c49401bd9",
+      "source_files": 990,
+      "root_matches_review_source": true,
+      "global_acceptance": false,
+      "qa_acceptance": false,
+      "native_acceptance": false,
+      "ui_acceptance": false
+    },
+    "RED": {
+      "unique_cases": 3,
+      "failed": 3,
+      "passed": 0,
+      "deselected": 23,
+      "exit": 1,
+      "junit_sha256": "3b84c5758629a3a61f37149f3414dfee932fc4d72df8a7b8c33a7f11761bf77e"
+    },
+    "GREEN": {
+      "unique_cases": 52,
+      "passed": 52,
+      "failed": 0,
+      "skipped": 0,
+      "exit": 0,
+      "os": "Windows",
+      "validation_cases": 26,
+      "shell_cases": 26,
+      "bash_cases": 13,
+      "powershell_cases": 13,
+      "junit_sha256": "87f4f2f00852a1a37dc95fa6ba7bd14b64365c575efffa032b09c105e8ae23ab",
+      "source_manifest_sha256": "9582c6902ffba435cc8966a1f0243b04e3d1afe3e208ee4f90c9ada8e99b4ca1",
+      "source_before_after_equal": true,
+      "model_calls": 0,
+      "native_hosts_executed": 0,
+      "real_ui_scenarios": 0
+    }
+  },
+  "corrective_resolution": {
+    "B3-1": "corrected; cycle2 independent A+B accepted",
+    "B3-2": "corrected; cycle2 independent A+B accepted",
+    "B1": "prior approval preserved",
+    "A2-1": "prior approval preserved"
+  },
+  "static_checkpoint": {
+    "scope": "accepted review/Windows metadata before final Linux documentary update",
+    "source_manifest_sha256": "1002b0c7c74b3ee83d636f65fffa1f5c4b8957a3e2717fef4ecd193fddd764bb",
+    "review_diff_sha256": "2483f149f03240701e7296d139e220497d4a0975c34b2b9ba041f9b462285736",
+    "static_receipt_sha256": "f475a5c14b39222918b809afd818b5099c2aace4a1e495c0db23cce03a16b164",
+    "scope_exit": 0,
+    "interop_check_exit": 0,
+    "ledger_exit": 0,
+    "lint_exit": 0,
+    "evals_exit": 0,
+    "lint_errors": 0,
+    "lint_warnings": 4,
+    "links_checked": 53,
+    "macro_prefix_unchanged": true,
+    "approved_product_and_projections_unchanged": true
+  },
+  "private_verifier_corrections": [
+    {
+      "cause": "static environment directories already created by freeze; reran only static checks in new child directory",
+      "product_tests_rerun": 0,
+      "failed_artifacts_retained": true
+    },
+    {
+      "cause": "Docker exact-CID absence says No such container; private verifier expected No such object",
+      "product_tests_rerun": 0,
+      "docker_calls_rerun": 0,
+      "failed_artifacts_retained": true
+    }
+  ]
+}

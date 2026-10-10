@@ -11,6 +11,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed — Invocación portable de revisión visual de planes
+
+- Invocar la puerta existente de revisión desde Bash o PowerShell con argumentos literales, Python real y dueño/panel del mismo bundle. Separar apertura, vida del servidor y consumo de decisión; una instalación ambigua o apertura fallida no inicia el servidor de revisión.
+
 ### Fixed — Enlaces entrecomillados de conocimiento local
 
 - Normalizar comillas coincidentes de forma común en listas simples inline y en bloques; los enlaces mal formados siguen sujetos a validación. Añadir pruebas sintéticas de recuperación local aceptadas para la selección congelada del Bloque20 en Windows y Linux. Rechazar raíces y ancestros enlazados antes de que el backup o restauración sintéticos modifiquen una fixture.

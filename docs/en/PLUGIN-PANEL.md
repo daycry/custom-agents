@@ -91,6 +91,13 @@ Visual review is optional. When explicitly requested, it replaces the pending
 plan approval in `/dev-cycle`. Sufficient approval already given in conversation
 lets the workflow continue without opening this channel or asking again.
 
+The [`/dev-cycle`](../../commands/dev-cycle.md) caller includes Bash and
+PowerShell recipes. Use a real Python executable and owner/validator/builder from the same
+bundle; multiple complete copies without active source provenance are ambiguous.
+Validate `open` before starting a separately held server, and validate ack before
+rereading the current view. These recipes alone do not establish native command
+loading or real browser interaction.
+
 ```powershell
 python skills/plugin-panel/scripts/build_panel.py --serve --project . --review-initiative docs/roadmap/<date>-<slug> --review-state-root ./.claude/plan-review --review-gate-key plan-ok
 ```

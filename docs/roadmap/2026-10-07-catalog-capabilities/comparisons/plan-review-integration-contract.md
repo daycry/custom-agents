@@ -1,7 +1,10 @@
 # Cómo se revisa un plan desde el panel
 
 Contrato del bloque 19, derivado de [design.md](../design.md) y de la
-[comparación funcional](panel-plan-review.md). Implementación y aceptación pendientes.
+[comparación funcional](panel-plan-review.md). La implementación común y su QA
+están publicadas; la aceptación de navegador y callers nativos conserva sus
+pendientes separados. El [caller portable](plan-review-portable-caller-contract.md)
+completa la invocación sin reabrir esa QA.
 Este bloque une el panel con la puerta «OK del plan» de `/dev-cycle`.
 No amplía las skills ni los hooks aplazados.
 

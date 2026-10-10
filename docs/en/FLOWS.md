@@ -210,7 +210,8 @@ flowchart TD
     PO -->|no| RV{"Visual review<br/>requested?"}
     RV -->|no| CO["Existing conversational approval"]
     CO -->|authorized| H
-    RV -->|yes| PV["Plan view and section comments<br/>plan-ok gate · exact version"]
+    RV -->|yes| PB["Bash or PowerShell caller<br/>real Python · common bundle · validated open"]
+    PB --> PV["Plan view and section comments<br/>separately held server<br/>plan-ok gate · exact version"]
     PV --> RC["CLI receive → validate gate/version/choice<br/>ack → current reread"]
     RC -->|approve consumed and current| H
     RC -->|request_changes consumed<br/>planner already authorized| D

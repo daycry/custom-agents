@@ -11,6 +11,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed — Portable visual plan review caller
+
+- Invoke the existing plan-review gate from Bash or PowerShell using literal arguments, a real Python executable and a common owner/panel bundle. Keep opening, server lifetime and decision consumption separate; ambiguous installations and failed opening do not start a review server.
+
 ### Fixed — Quoted local knowledge links
 
 - Normalize matching quotes consistently in simple inline and block lists; malformed link values remain subject to validation. Add synthetic local-memory recovery drills accepted for the frozen Block20 selection on Windows and Linux. Reject linked roots and ancestors before synthetic backup or restore changes any fixture.

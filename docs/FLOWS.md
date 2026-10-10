@@ -212,7 +212,8 @@ flowchart TD
     PO -->|no| RV{"¿revisión visual<br/>solicitada?"}
     RV -->|no| CO["OK conversacional existente"]
     CO -->|autorizado| H
-    RV -->|sí| PV["Vista y comentarios del plan<br/>gate plan-ok · versión exacta"]
+    RV -->|sí| PB["Caller Bash o PowerShell<br/>Python real · bundle común · open validado"]
+    PB --> PV["Vista y comentarios del plan<br/>servidor con handle separado<br/>gate plan-ok · versión exacta"]
     PV --> RC["CLI receive → validar puerta/versión/choice<br/>ack → relectura vigente"]
     RC -->|approve consumida y vigente| H
     RC -->|request_changes consumida<br/>planner ya autorizado| D

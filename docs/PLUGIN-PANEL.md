@@ -93,6 +93,13 @@ La revisión visual es opcional. Sustituye el «OK del plan» pendiente de `/dev
 cuando se pide expresamente. Un OK conversacional suficiente permite continuar sin
 abrir este canal ni confirmar otra vez.
 
+El caller de [`/dev-cycle`](../commands/dev-cycle.md) incluye recetas Bash y
+PowerShell. Usa un Python real y dueño/validador/builder del mismo bundle; varias copias
+completas sin procedencia activa son ambiguas. Valida `open` antes de iniciar
+el servidor con handle separado, y valida ack antes de releer la vista vigente.
+Estas recetas no acreditan por sí solas carga del comando por un cliente nativo
+ni interacción real del navegador.
+
 ```powershell
 python skills/plugin-panel/scripts/build_panel.py --serve --project . --review-initiative docs/roadmap/<fecha>-<slug> --review-state-root ./.claude/plan-review --review-gate-key plan-ok
 ```
