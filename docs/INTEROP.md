@@ -47,7 +47,7 @@ sin él no hay hooks, ni statusline, ni namespace de comandos. El instalador esc
 | Runtime | Qué se copia | Qué se **registra** (y dónde) |
 |---|---|---|
 | **Claude Code** | con `--mode plugin` no copia nada en tu proyecto: el paquete va al caché de plugins | `claude plugin marketplace add` + `claude plugin install` si tienes la CLI en el PATH; si no, el mismo registro a mano: `plugins/known_marketplaces.json`, `plugins/installed_plugins.json` y `enabledPlugins` de `settings.json` (scope user) o `.claude/settings.json` con `extraKnownMarketplaces` (scope project) |
-| **Codex** | bundle bajo `.codex/plugins/custom-agents/` del scope, agentes `.toml` y prompts | caché mediante `codex plugin add` (CLI ≥ 0.161.0); registro `marketplaces.daycry`, `plugins."custom-agents@daycry".enabled` y `features.hooks` en el config del scope después del éxito |
+| **Codex** | bundle bajo `.codex/plugins/custom-agents/` del scope, agentes `.toml` y adaptadores de comandos | caché mediante `codex plugin add` (CLI ≥ 0.161.0); registro `marketplaces.daycry`, `plugins."custom-agents@daycry".enabled` y `features.hooks` en el config del scope después del éxito |
 | **OpenCode** | agentes, comandos, skills, kits y el adaptador de hooks en `plugins/` | `plugins: ["./.opencode/plugins/custom-agents"]` en `opencode.json` (ruta absoluta en scope user), añadido a lo que ya tuvieras |
 
 **La vía preferida siempre es la CLI oficial del runtime.** El respaldo —escribir el registro
@@ -132,9 +132,9 @@ Cinco garantías del instalador, con test cada una en `tests/installer.test.mjs`
 
 | Pieza del plugin | Claude Code | Codex | OpenCode |
 |---|---|---|---|
-| **Skills** (24) | `.claude/skills/` | `skills/` del plugin (el manifiesto apunta ahí) | `.opencode/skills/` — *o* `.claude/skills/`, que lee de forma nativa |
+| **Skills canónicas** | `.claude/skills/` | `skills/` del plugin (primera raíz del manifiesto) | `.opencode/skills/` — *o* `.claude/skills/`, que lee de forma nativa |
 | **Agentes** (10) | `agents/*.md` | `.codex/agents/*.toml` (generado) | `.opencode/agents/*.md` (generado) |
-| **Comandos** (13) | `commands/*.md` (`/nombre`) | `~/.codex/prompts/*.md` (`/prompt:nombre`, a veces `/prompts:nombre`) | `.opencode/commands/*.md` (`/nombre`) |
+| **Comandos canónicos** | `commands/*.md` (`/nombre`) | adaptadores en `interop/codex/command-skills/` del plugin (`$custom-agents:custom-agents-<nombre>`) | `.opencode/commands/*.md` (`/nombre`) |
 | **Hooks** | `hooks/hooks.json` | `interop/codex/hooks.json` (subconjunto) | `.opencode/plugins/custom-agents` (adaptador JS) |
 | **Kits** (`agent-kits/`) | `.claude/agent-kits/` | dentro del plugin | `.opencode/agent-kits/` |
 | **Manifiesto** (`plugin.json`, de donde sale la versión) | dentro del plugin instalado (`.claude-plugin/`) | `.codex-plugin/plugin.json` | `.claude-plugin/plugin.json` — lo que `/doctor` lee para decir la versión (con fallback al de Codex) |
@@ -144,6 +144,23 @@ El formato de cada destino está verificado contra la doc oficial de su herramie
 `developers.openai.com/codex` y `learn.chatgpt.com/docs`; OpenCode: `opencode.ai/docs`,
 consultadas el 2026-09-08). Las **skills no se traducen**: su frontmatter (`name` + `description`)
 es exactamente lo que exigen los tres runtimes.
+
+### Transporte nativo de comandos en Codex
+
+El manifiesto declara dos raíces: `./skills/` para las capacidades canónicas y
+`./interop/codex/command-skills/` para los adaptadores generados. Invoca
+`$custom-agents:custom-agents-dev-cycle <argumentos>` o selecciona el adaptador en
+`/skills`. El prefijo del adaptador evita colisiones con capacidades como
+`confluence-pull`. Su mapa exige leer `references/command.md` completa antes de
+actuar; el cuerpo canónico y sus recetas shell permanecen literales. Los argumentos
+son texto del mensaje invocante, sin sustitución del compositor de prompts.
+
+La metadata declara `allow_implicit_invocation: false`. La prueba aislada con
+Codex0.161.0 acredita discovery de ambas raíces; la inyección de cuerpo se ensayó
+con una fixture distinta. Ninguna acredita por sí sola lectura de la referencia,
+ejecución del workflow ni cumplimiento de esa policy. La actualización conserva
+los prompts personales antiguos y libera su propiedad del manifiesto del
+instalador; no los elimina. No se escriben nuevos prompts globales al instalar.
 
 ### Cómo se traduce un agente
 
@@ -194,7 +211,7 @@ sustituye, y aquí está dicho.
 |---|---|---|---|
 | **Registro del plugin** (qué lo hace cargar) | ✅ `installed_plugins.json` + `enabledPlugins`, por CLI o escrito por el instalador — ⚠️ con `--mode copy` no hay registro: el bundle está en `.claude/` y el runtime no se entera (`/doctor` lo marca) | CLI nativa ≥0.161.0: caché validada antes de declarar marketplace y activación. En modo proyecto, registro preparado en un `CODEX_HOME` privado y configuración local; `status` y `/doctor` separan declaración, listado nativo y ejecución | Paquete local V2 en `plugins` de `opencode.json`; `status` y `/doctor` comprueban la declaración, no la ejecución |
 | Skills bajo demanda | ✅ herramienta Skill | ✅ `$nombre` o activación por `description` | ✅ herramienta `skill` |
-| Comandos | ✅ `/nombre` | ⚠️ `/prompt:nombre` (**o** `/prompts:nombre`), **solo en `~/.codex/`** (Codex no tiene prompts por proyecto) y marcados como *deprecated* por OpenAI en favor de skills | ✅ `/nombre` |
+| Comandos | ✅ `/nombre` | Adaptador nativo explícito `$custom-agents:custom-agents-<nombre>`; argumentos del mensaje, dentro del plugin del scope | ✅ `/nombre` |
 | Delegar en un agente por nombre | Agent con `subagent_type: custom-agents:<rol>` | `spawn_agent` con `agent_type: custom-agents-<rol>`; el modelo decide cuándo delegar | V2 `subagent` con `agent: custom-agents-<rol>` |
 | Aviso de progreso al editar el ledger | ✅ `PostToolUse` | ✅ `PostToolUse` para `apply_patch`, con rutas extraídas del parche | ✅ `tool.execute.after` |
 | Contexto al arrancar la sesión | ✅ `SessionStart` (índice + roadmap + journal + memoria) | ✅ `SessionStart` (`startup\|resume\|clear\|compact`) | Hook nativo `session.context`: índice actual, roadmap, journal y memoria en el contexto de salida |
@@ -211,7 +228,7 @@ sustituye, y aquí está dicho.
 
 Los agentes canónicos conservan `agents/<rol>.md`. Los exports nativos usan
 `.codex/agents/custom-agents-<rol>.toml` y
-`.opencode/agents/custom-agents-<rol>.md`; el contexto de sesión y los prompts
+`.opencode/agents/custom-agents-<rol>.md`; el contexto de sesión y los comandos
 generados usan esos mismos IDs desde `agent-kits/shared/native-roles.json`.
 Un agente personalizado con otro ID conserva sus permisos habituales. El ID
 identifica el rol para el runtime, pero no acredita la procedencia del prompt:

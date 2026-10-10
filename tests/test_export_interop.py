@@ -183,7 +183,7 @@ def test_cubre_todas_las_piezas():
     comandos = [f[:-3] for f in sorted(os.listdir(os.path.join(ROOT, "commands"))) if f.endswith(".md")]
     faltan = [r for n in agentes for r in (f"interop/codex/agents/custom-agents-{n}.toml",
                                            f"interop/opencode/agents/custom-agents-{n}.md") if r not in plan]
-    faltan += [r for n in comandos for r in (f"interop/codex/prompts/{n}.md",
+    faltan += [r for n in comandos for r in (f"interop/codex/command-skills/custom-agents-{n}/SKILL.md",
                                              f"interop/opencode/commands/{n}.md") if r not in plan]
     assert not faltan, "piezas sin traducir: %s" % faltan
 
@@ -208,9 +208,11 @@ def test_codex_manifiesto_apunta_a_lo_que_existe():
     m = json.loads(leer(".codex-plugin/plugin.json"))
     assert m["name"] == "custom-agents"
     for clave in ("skills", "hooks"):
-        destino = m[clave].lstrip("./")
-        assert os.path.exists(os.path.join(ROOT, destino.replace("/", os.sep))), \
-            "plugin.json `%s` apunta a %s, que no existe" % (clave, m[clave])
+        destinos = m[clave] if isinstance(m[clave], list) else [m[clave]]
+        for destino in destinos:
+            assert destino.startswith('./')
+            assert os.path.exists(os.path.join(ROOT, destino[2:].replace("/", os.sep))), \
+                "plugin.json `%s` apunta a %s, que no existe" % (clave, destino)
     # La versión no puede divergir del manifiesto de Claude Code (los bumpea `release.py` juntos).
     assert m["version"] == json.loads(leer(".claude-plugin/plugin.json"))["version"]
     assert m["interface"]["displayName"]

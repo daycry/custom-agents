@@ -11,6 +11,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Changed — Transporte nativo de comandos Codex
+
+- Generar adaptadores explícitos dentro del plugin desde los workflows canónicos, conservando sus cuerpos completos y sintaxis shell literal. Mantener las skills canónicas en su propia raíz del manifiesto. Instalar adaptadores en el scope elegido y conservar los prompts personales existentes retirando la propiedad obsoleta del instalador.
+
 ### Fixed — Invocación portable de revisión visual de planes
 
 - Invocar la puerta existente de revisión desde Bash o PowerShell con argumentos literales, Python real y dueño/panel del mismo bundle. Separar apertura, vida del servidor y consumo de decisión; una instalación ambigua o apertura fallida no inicia el servidor de revisión.

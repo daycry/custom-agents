@@ -29,7 +29,10 @@
     "code-review",
     "evals"
   ],
-  "skills": "./skills/",
+  "skills": [
+    "./skills/",
+    "./interop/codex/command-skills/"
+  ],
   "hooks": "./interop/codex/hooks.json",
   "interface": {
     "displayName": "Custom Agents — budgeted SDD lifecycle",

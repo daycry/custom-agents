@@ -758,3 +758,77 @@ Checkpoint estático fuente SHA `1002b0c7c74b3ee83d636f65fffa1f5c4b8957a3e2717fe
 ROOT observó y verificó el push normal del commit `b5932849649db8294bdbe9053c64ae53d496dd2a` a feat/catalog-capabilities; HEAD remoto coincide. Recibo SHA `b7829dce6afb8f0f8d6a3bb99897da5aa177bbcebd1803fbb0bae3a034cb5c33`. Antes de publicar, los cinco gates estáticos pasaron sobre fuente990 y los16 archivos explícitos:scope, exports, ledger, lint y evals;53 enlaces válidos, código/proyecciones idénticos a revisión y estados macro conservados. Fuente final SHA `aa1826dc6a5ca833a405908b6037aa4aa5e9cc2367c4e568ed729aea2e7cd131`; recibo estático `37799fca2384e1b8dbcb4f19c1007cf549ef3e9a0a38514e65e51830cc137d9a`.
 
 Esta publicación entrega la validación de apertura y las recetas portables aceptadas en Windows/Linux; no cierra UI real, carga/continuidad de agentes en tres clientes ni el objetivo global. El navegador Edge conserva su bloqueo sin escenarios aceptados. El cierre documental toca sólo tasks/evidence, pasa sus comprobaciones propias y se publica después de observar la implementación; su propio push se verificará tras ejecutarlo. QA19/20 y16 tareas macro permanecen iguales; skills aplazadas.
+
+## Transporte nativo de comandos — Bloque22 en preparación
+
+2026-10-10. T-08/T-09/T-11/T-14/T-15 conservan sus estados. El catálogo de nuevas skills permanece aplazado; los adaptadores generados sólo transportan los workflows de `commands/`. El [contrato](comparisons/codex-command-transport-contract.md) conserva dueño, puertas y argumentos del mensaje invocante.
+
+RED: `tests/test_codex_command_transport.py` falló en sus cinco casos iniciales contra el exporter sin modificar: manifiesto con una sola raíz, adaptador ausente (dos variantes), generación de prompts personales y retirada ausente. Resultado5 failed/0 errors/exit1 · 2026-10-10. JUnit SHA `7b4e9b10233e4793c84416dc51be0d5d28e1369695d54f389af56bb7da8c6d5e`; fuente992 antes/después idéntica, SHA de manifiesto `3bc7de62bd95649c7e73bae0c1029c4dd876c0ab2de33cb94937c086a3fe2b35`. Cero modelos/clientes nativos en este RED. Se añaden negativos de nombres, colisión por nombre declarado y retirada precisa antes de implementar.
+
+La prueba nativa aislada de Codex0.161.0 descubre ambas raíces del plugin desde su caché, con pluginId propio no nulo y SHA iguales a la fuente. El primer filtro privado esperaba nombres sin namespace y dio falso negativo; el reanálisis conserva los mismos frames sin repetir Codex. El nombre real incluye namespace del plugin. Esta observación no acredita inyección, lectura de la referencia ni ejecución del workflow; la verificación ROOT y evidencia pública completa siguen pendientes.
+
+RED ampliado:12 failed/0 errors/1 skipped/exit1,13 casos totales · 2026-10-10. Los negativos de nombres, colisión por `name` declarado y retirada de adaptadores fallan en la fuente previa; el caso de symlink se omite por permiso Windows y no acredita ese guard. JUnit SHA `77df7b04df03eae9ccf99ee11fdc6fdb3867b5c5f8d5c488a36bbd935260c4ce`; fuente992 idéntica antes/después, SHA `0129c6235f5de849a3f60d05c15d2271de55035922d7cba3616d101dfe889165`. ROOT verifica por bytes los cinco pares fuente/caché y los tres frames de entrada/salida de discovery nativo. No ejecuta otro Codex para reanalizar. Implementación y GREEN pendientes.
+
+GREEN inicial de exporter/transporte:47 passed/0 failed/1 skipped Windows; JUnit SHA `1c9290e6f4ad7c073006cd4f6d1687e7e29ea2d174805b78b87f6dfce99c3511`. Generación/check aislados exit0; se adoptan88 outputs,45 archivos de adaptador nuevos y15 prompts antiguos propios retirados con bytes/hash/cabecera verificados. La documentación ES/EN corrige invocación con namespace. Un ajuste posterior cualifica también las skills canónicas en los preámbulos; requiere GREEN final y regeneración antes de revisar.
+
+RED del instalador:3 failed/0 passed/exit1, antes de modificar providers/install; JUnit SHA `898f9ec7a31293f0f65aaa6124646546d0ee6450687e480fce09699a212a13f1`. La primera GREEN falla porque faltaba el árbol generado aún no adoptado; se conserva sin cambiar el oráculo. Tras adoptarlo pasan3/3, más11 regresiones seleccionadas. La migración conserva bytes de prompts globales anteriores y retira sólo su propiedad del manifiesto, sin barrer el home; no existe hash antiguo fiable para eliminarlos. La verificación ROOT y revisión fresca siguen pendientes.
+
+Inyección nativa de fixture observada y verificada por ROOT: una petición incorpora el cuerpo literal completo y Unicode/dólares, ausentes del stdin. Cinco frames enviados,14 recibidos, un POST al proveedor pasivo propio400, cero inferencias/toolcalls, turno failed y recursos propios terminados. El primer ensayo se detuvo por un warning de metadata de modelo sintético; el segundo admite sólo ese warning exacto en OWN nuevo. Se conservan además dos fallos del verificador privado ROOT (Unicode por stdin y ruta de instructionSources), corregidos sólo en el oráculo sin repetir Codex. [Evidencia acotada](testing/codex-command-transport-evidence.json): no acredita carga del adaptador real, lectura de referencias, obediencia, workflow, UI o QA global. Las16 macros y skills aplazadas se conservan.
+
+
+## Revisión de dos lentes — intento 1: Bloque22 (T-09/T-11/T-14/T-15)
+
+2026-10-10. A+B+D de contexto fresco, fallback genérico sin override; C=false/D=true. Fuente1023 y diff73 conservados por los revisores, exports88 idénticos. ROOT leyó los informes completos y verificó sus SHA y recibos:1 Critical/1 Important/0 Minor. No hay rebatidos ni aceptación.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Critical | B-01: cambio de CODEX_HOME conserva claims externos y uninstall borra bytes personales | T-09/T-15 | Corregido y aceptado en intento2: liberar claims externos con límite del bundle explícito | RED1/GREEN1 y regresiones12; conserva históricos editados y ownership interno |
+| 2 | Important | A22-1: índices ES/EN muestran invocación antigua no instalada | T-11/T-15 | Corregido y aceptado en intento2: invocación nativa cualificada en ambos índices | RED6P2F/GREEN8P de los ocho documentos con nombres resolubles |
+
+RED dedicado B-01: `Codex command adapters: B01 ...` falla en la implementación revisada:1 failed/exit1, JUnit SHA `ead5bbd5408e4d202550f1ec1b0a9223925f870268cc9593fc33386b7735d22a`. Prueba con upgrade/uninstall reales, homes propios A/B y CLI simulado; cero modelos/consumers reales. Producción permanece idéntica tras el RED.
+
+Informes A/B/D SHA: `4f3754e2726240f7a37926cc11c531717a3f0b5beef4e7dc8336e216c841961b`, `f23389791daf6b4addfc93ccbf0068bb76a8db25214542afd48a70154c80340e`, `6ec6b19fef5283764adf1f4cd69f1f52970f6b6e49077695b19b03d7a805d8ec`. Fusión ROOT SHA `5980e7e457d6bece289fcf4f905568eeaf80ebac856e1d6d75c84dfd489daa7f`. La siguiente revisión será intento2 de3; no se publica con Critical/Important abiertos ni se cambian las16 macros.
+
+
+RED dedicado A22-1: las ocho páginas se comprueban contra adaptadores realmente generados;6 passed/2 failed/exit1 en la fuente revisada. Fallan exclusivamente docs/README.md y docs/en/README.md antes de corregirlos. JUnit SHA `5fd16259ba62f92fb7a6ae26473fd1e141f07569ed37d29bf629d51fdb70b006`. Las correcciones ES/EN sustituyen los ejemplos antiguos por invocación con namespace nativo; GREEN y revisión correctiva pendientes.
+
+
+GREEN dedicado A22-1:8 passed/0 failed/exit0, mismos ocho documentos/IDs y adaptadores generados; JUnit SHA `8204900710d109246c01c74da5a3101386b6c3880e07e42d36b2f7c00558c67d`. Ambos índices ES/EN corregidos. Esta prueba de documentación no sustituye la revisión fresca ni prueba ejecución nativa del comando.
+
+
+GREEN dedicado B-01:1 passed/0 failed/exit0; JUnit SHA `7fac2f3687f93361b8c5fc0c1e8806a2d59e13c9efccba77437765fb97bd4da5`. Regresiones pertinentes del instalador:12 passed/0 skipped/exit0, JUnit SHA `14a4d2f6ce84435b80a58de7f5bcb85c1cd88f8f04401c8eb8c4c3def92b8288`. ROOT verifica todos los hashes de artefactos y los tres inputs contra producción, recibo SHA `c65876705608025786591df932737e41d3834eb1db3e7bba15d74acc341cb9a1`. El límite del bundle es explícito y los registros externos ambiguos se liberan sin leer ni borrar sus bytes; la prueba conserva prompts históricos editados y la desinstalación interna. La revisión2 y QA congelada siguen pendientes.
+
+
+## Revisión de dos lentes — intento 2: Bloque22 (T-09/T-11/T-14/T-15)
+
+2026-10-10. Segundo pase de un máximo de3; A+B+D frescos, fallback genérico sin override. C=false/D=true. ROOT lee tres informes completos y verifica hashes/recibos/fuente1023/diff75 y probe directo:1 Critical/1 Important/0 Minor. B-01/A22-1 corregidos y conservados; no hay rebatidos ni aceptación.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Critical | B22-2: uninstall directo legado elimina prompts externos editados | T-09/T-15 | Corregido y aceptado en intento3: liberar claims antes de contar/borrar/podar | Probe real exit0/legacy_exists=false y fuente intacta |
+| 2 | Important | A22-2: cabecera y tabla nuevas no las leen brief/Jira | T-11/T-14/T-15 | Corregido y aceptado en intento3: cabecera canónica, seis columnas y # numérico | Header no casa; tabla4 columnas/ID no numérico omite ambas filas |
+
+El borrado directo era previo al diff; B22-2 incumple la nueva garantía contractual sin precondición de upgrade. A22-2 se limita a la nueva sección Bloque22; aviso histórico Bloque21 conservado. Informes A/B/D SHA `9c905b549e4e7cbaa56462a3dc65ce5dd5e19591d6766daa22054dc46abd3a85`, `0eacf79739b78a83091e04168d1a0448fc2d62980aae469b96a4c4234a19f16e`, `8e48460ac420b2a653a68f0353c378ec96bc965814499513912e0d6b3ee3a809`; fusión ROOT SHA `4a53d226fef1b64e52aa5385c699c25a679e02a906f951d59e6bacdedaa4b0ca`. Se conservan dos fallos del verificador privado: ruta relativa de recibo y conteo del padre Node frente a hojas JUnit; corregidos sin repetir pruebas ni alterar producto.
+
+RED dedicado B22-2: project y user fallan al conservar bytes externos tras uninstall directo. JUnit:2 hojas fallidas; Node:3 fallos contando padre+dos subtests; exit1, JUnit SHA `4afdeacbcb9c29dfea18fa8cdac6b8313906fe02b9795f5b8fcad8dfabc66800`. Dry-run previo conserva bytes/manifiesto. Producción intacta; GREEN y revisión3 pendientes. QA final no iniciada; publicación pendiente.
+
+
+RED dedicado A22-2:2 failed/exit1, JUnit SHA `fe13d69cae6a8968b0bdcf7f784f91e54cbd274f030b63cc60c74ba38a6b6f4d`. Primer caso demuestra cabecera invisible; segundo corrige sólo la cabecera en memoria y demuestra las filas omitidas. Ambos usan el parser canónico real y la sección nueva del ledger, sin reabrir avisos históricos. Corrección: cabecera canónica, seis columnas y # numérico con tarea/evidencia; estados previos aceptados en intento2 conservados. GREEN pendiente.
+
+
+GREEN dedicado A22-2:2 passed/exit0 sobre el mismo parser canónico, JUnit SHA `0ea9896810368729c7cd12070673a0ab4f4cab3a60d65eaa12afe62b2940ac1b`. La cabecera y las dos filas con tarea/grado/gap vuelven a ser consumibles; el contador máximo3 y veredictos previos permanecen. GREEN dedicado B22-2:2 hojas JUnit/3 contando padre Node,0 failed/exit0, SHA `47d6601824d49dc60e3bc271f9c0a6df09a693a834363ad0af4527cfb9b07b27`; regresiones seleccionadas:14 hojas JUnit/15 Node,0 failed/exit0, SHA `a7ea7ed816ec702ec66be1d0c19e0f1d96804c2afd0d16e62db6b0abe0e49954`. ROOT verifica hashes de todos los artefactos y tres inputs, recibo SHA `dc277409e329e459fac1a97bc10a1f3ee0bf364b671760d6cc36db106cb8f216`. El filtro se aplica antes de contar dry-run/borrar/podar y no lee ni borra bytes externos. Revisión3 y QA congelada pendientes.
+
+
+## Revisión de dos lentes — intento 3: Bloque22 (T-09/T-11/T-14/T-15)
+
+2026-10-10. Tercer pase de un máximo de3; A+B+D de contexto fresco, fallback genérico sin override; C=false/D=true. ROOT leyó íntegros los tres informes y verificó sus recibos, todos los hashes declarados y fuente1023 intacta:0 Critical/0 Important/0 Minor. B22-2/A22-2 corregidos y aceptados; B-01/A22-1 conservados. Sin rebatidos ni deuda. Se acepta exclusivamente el diff75 del código/documentos congelados, no la continuidad nativa, UI, integración global o tareas macro.
+
+Informes A/B/D SHA `68105e3944d3d34489c522fd7da9852c807881d98299d770c1d1c23199a33e9f`, `89b2e64ebf9d39bc99d6c11a608c9302bf8127b365200465ac57df1abc502fe0`, `38f65fa8295b85368bff1fb958bd02cfcfe1c8854333608e0171e990f82897f5`; recibos `ffa913cf796507a6fb8a849f161ef1dc31c7f4a0aa0bcace3e8b78c79857f8eb`, `16bb8e8cae451b3ab2f906cf76b55fd0b423a7422efb6ad4788d75d7328eb3f8`, `433c9d1d12e7868c1646990708ed503d8d70b03e90dd0efc2d9dfe986dc1d620`. Fusión ROOT SHA `a74bd1c4543d815857f85e8d02d0ad36345b4e54f6f07a958c7ec24d709d050a`; fuente `d0b95ef1f9166a71e509db77ac95efdf63094af9e098b464782d257460d49539`, diff `b762855ccefdf09db2da0e337c1b6f9cff3c77f4aa532c8b70c1455761354914`. Export propio A exit0/88; probe independiente B project/user conserva bytes externos históricos/actuales/personales y limita dry-run/retiro al bundle. Los fallos privados de conteo rename/path, import aislado e inventario por cwd se conservan; se corrigieron sólo auxiliares propios, sin repetir probes ni cambiar producto.
+
+### QA congelada acotada del Bloque22
+
+Windows:57 passed/1 skipped Python y14 hojas passed/0 skipped Node;0 failed/errors, ambos procesos exit0. JUnit SHA `cc9dbcfb05d8ee3dbd4d783394c78c1708b659584d7df97403c8b8a8e5761338` y `d6fa184f329dbe00244a5da3e27b58e4e4ea62f158cf5eb41160064c11d906ba`. El skip de enlace simbólico por permisos no acredita ese guard en Windows. Linux:58 passed/0 skipped/failed/errors, exit0; JUnit SHA `c8463b73636961b92f17a13ac41408cb1d351b1c67ef53b5b1a73678c834993d`. Incluye el caso de symlink; no se ejecutó el instalador Node en Linux. ROOT verificó los58 IDs Python iguales entre plataformas, colección real y reportes por caso Linux, fuente1023 intacta y procesos registrados terminados. El contenedor exclusivamente propio, sin red, se retiró y su ausencia exacta se observó; no se tocaron servicios del usuario.
+
+qa-gate oficial sobre resultados reales convertidos:Windows VERDE/exit0 con71 passed/1 skipped, SHA `b35b3e5ba6f4481dc0b240f53654c35e0db4e0bff599107a2614c5041c3d114d`; Linux VERDE/exit0 con58 passed/0 skipped, SHA `f56efab6c9168c38397da371da99ac516ae7461d77b701f2668fb7b9b743eac5`. La conversión JUnit es de pruebas unitarias/instalador y no se presenta como Playwright ni aceptación de navegador. Recibo de verificación ROOT SHA `4149b37ddbd52a921cb47ad50da5756683c1cce8b60f58d107fffc6c0c7a0259`. Se conserva el fallo inicial del verificador que exigía un log de subprocess opcional: no hubo eventos de subprocess en las dos pruebas Linux; se corrigió únicamente el lector, sin repetir QA.
+
+Código, tests, recetas y proyecciones quedan ligados a revisión3. Se preparan comprobaciones documentales finales y push en la rama autorizada. Carga del adaptador real, lectura completa de referencia, workflow/plan UI y continuidad en tres clientes siguen pendientes; no se inventa cobertura ni aceptación global. Las16 macros, QA19/20/21 y catálogo de skills aplazado se conservan.

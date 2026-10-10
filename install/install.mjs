@@ -1553,6 +1553,30 @@ export function fusionarRegistro(previo, nuevo) {
   return orden.map((k) => por.get(k))
 }
 
+/** Libera sólo inventario legado; no enumera, lee ni borra prompts personales.
+ * Los manifiestos antiguos no registran sus hashes: incluso una copia generada
+ * puede haber sido editada, por lo que la actualización conserva todos sus bytes.
+ * CODEX_HOME puede haber cambiado; los claims externos ambiguos se liberan,
+ * pero el límite explícito del bundle conserva todo su inventario interno.
+ */
+export function liberarPromptsLegacyCodex(previo, home = codexHome(), bundleRoot) {
+  if (previo?.plugin !== PLUGIN || previo?.provider !== 'codex' || !Array.isArray(previo.files)
+      || previo.files.length > 10000 || typeof home !== 'string' || !isAbsolute(home)
+      || typeof bundleRoot !== 'string' || !isAbsolute(bundleRoot)) return []
+  const normal = path => process.platform === 'win32' ? resolve(path).toLowerCase() : resolve(path)
+  const roots = new Set(['prompts','prompt'].map(folder=>normal(join(home,folder))))
+  const bundle = normal(bundleRoot), prefix = bundle.endsWith(sep) ? bundle : bundle + sep
+  return previo.files.filter(file=>{
+    if (typeof file !== 'string' || !isAbsolute(file) || !/\.md$/.test(file)) return false
+    const parts = file.split(/[\\/]/)
+    if (parts.some(part=>part==='..' || part==='.') || parts.at(-1).includes(':')) return false
+    const path = normal(file)
+    if (path===bundle || path.startsWith(prefix)) return false
+    const parent = normal(dirname(file))
+    return roots.has(parent) || ['prompts','prompt'].includes(parent.split(/[\\/]/).at(-1))
+  })
+}
+
 function ejecutar(provider, opts) {
   const plan = buildPlan(provider, {
     root: ROOT, dir: opts.dir, scope: opts.scope, version: VERSION,
@@ -1573,6 +1597,13 @@ function ejecutar(provider, opts) {
   // desinstalar se quedarían ahí para siempre.
   const manPrevio = leerJson(join(provider.destino(opts.scope, opts.dir, opts.modo),
     manifiestoDe(provider, opts.modo)))
+  if (provider.id === 'codex') {
+    const legados = liberarPromptsLegacyCodex(manPrevio,codexHome(),provider.destino(opts.scope,opts.dir,opts.modo))
+    for (const file of legados) {retirados.add(file);delete nativeAgents[file]}
+    if (legados.length) avisos.push(`${legados.length} prompt(s) legado(s) conservado(s) fuera del bundle: `
+      + 'se libera su inventario; el instalador ya no los modifica ni los borra al desinstalar. '
+      + 'Los comandos nuevos viajan como adaptadores de skills dentro del plugin.')
+  }
   const creadosAntes = new Set((manPrevio?.registro || [])
     .filter((e) => e["json-set"] && e.creado).map((e) => e["json-set"]))
   const padresAntes = new Map((manPrevio?.registro || [])
@@ -2067,9 +2098,12 @@ function manifiestosVivos(p, scope, dir) {
 function deshacerInstalacion(p, dest, file, man, opts) {
   // Un manifiesto sin `files` (viejo o a medio escribir) se deshace igual: sus apuntes de
   // configuración SÍ se pueden quitar y el fichero se retira. Nunca un `TypeError`.
-  const files = Array.isArray(man.files) ? man.files : []
+  const legados = new Set(p.id === 'codex' ? liberarPromptsLegacyCodex(man,codexHome(),dest) : [])
+  const files = Array.isArray(man.files) ? man.files.filter(f=>!legados.has(f)) : []
   say(`\n${bold(p.label)} ${dim(`(v${man.version}, ${man.scope}${man.modo ? ", " + man.modo : ""}` +
       `${man.estado ? ", " + man.estado : ""})`)}`)
+  if (legados.size) say(`  ${WARN} ${dim(`${legados.size} prompt(s) legado(s) externo(s) conservado(s): ` +
+    'se excluyen del borrado y de la poda; sus bytes no se modifican.')}`)
   if (opts.dryRun) {
     say(`  ${ARROW} borraría ${files.length} fichero(s) bajo ${rel(dest)}` +
         (man.registro?.length ? ` y desharía ${man.registro.length} apunte(s) de configuración` : ""))

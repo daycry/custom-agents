@@ -342,11 +342,11 @@ const claudeCode = {
 const codex = {
   id: "codex",
   label: "Codex",
-  blurb: "plugin + agentes `.toml` + comandos como prompts",
+  blurb: "plugin + agentes `.toml` + adaptadores nativos de comandos",
   detect: () => existsSync(GLOBAL_DIR.codex),
   hint: "Comprueba la caché nativa con `codex plugin list --marketplace daycry --available --json`.",
   // En Codex el plugin vive en su propia carpeta y el marketplace lo declara. Los agentes son
-  // TOML en `agents/`, y los prompts SOLO existen en CODEX_HOME (no hay prompts por proyecto).
+  // TOML en `agents/`; los adaptadores de comandos viajan dentro del plugin como skills.
   plan({ root, dir, scope, version }) {
     const base = scope === "user" ? GLOBAL_DIR.codex : join(dir, ".codex")
     const plugin = join(base, "plugins", "custom-agents")
@@ -356,25 +356,9 @@ const codex = {
       ...PAYLOAD_COMUN.map((p) => ({ type: "copy", from: p, to: join(plugin, p) })),
       { type: "copy", from: ".codex-plugin", to: join(plugin, ".codex-plugin") },
       { type: "copy", from: "interop/codex/hooks.json", to: join(plugin, "interop", "codex", "hooks.json") },
+      { type: "copy", from: "interop/codex/command-skills", to: join(plugin, "interop", "codex", "command-skills") },
       { type: "copy", from: "interop/codex/agents", to: join(base, "agents"),
         nativeAgents: {runtime:"codex", scope, projectDir:dir, base, agentDirs:[join(GLOBAL_DIR.codex,'agents')], configs:[config, join(GLOBAL_DIR.codex,"config.toml")]} },
-      // Los prompts (`/prompts:<n>`) solo se leen desde CODEX_HOME: Codex no tiene prompts por
-      // proyecto. Se avisa siempre, porque con `--scope project` es lo ÚNICO que sale del proyecto.
-      {
-        type: "copy",
-        from: "interop/codex/prompts",
-        to: join(GLOBAL_DIR.codex, "prompts"),
-        aviso: scope === "project"
-          ? `los comandos van a ${join(GLOBAL_DIR.codex, "prompts")} (fuera del proyecto): Codex solo lee prompts de CODEX_HOME`
-          : null,
-      },
-      // Algunas instalaciones de Codex usan `prompt:` en lugar de `prompts:`; copiamos ambos para
-      // que el comando siga disponible sin depender del nombre exacto del provider.
-      {
-        type: "copy",
-        from: "interop/codex/prompts",
-        to: join(GLOBAL_DIR.codex, "prompt"),
-      },
       {
         type: "merge",
         to: join(mktRoot, "plugins", "marketplace.json"),
@@ -432,7 +416,7 @@ const codex = {
   },
   destino: (scope, dir) =>
     join(scope === "user" ? GLOBAL_DIR.codex : join(dir, ".codex"), "plugins", "custom-agents"),
-  restart: "Reinicia Codex (los skills y prompts se leen al arrancar la sesión).",
+  restart: "Reinicia Codex para cargar las skills y los adaptadores de comandos del plugin.",
   // This descriptor proves the explicit declaration in this scope. Native cache state is queried separately.
   registro: (scope, dir) => [
     { fichero: join(scope === "user" ? GLOBAL_DIR.codex : join(dir, ".codex"), "config.toml"),

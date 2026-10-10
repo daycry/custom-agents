@@ -1,0 +1,7 @@
+# GENERADO por scripts/export-interop.py desde commands/pm-cycle.md — no lo edites a mano.
+# Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`.
+interface:
+  display_name: "/pm-cycle"
+  short_description: "Comando explícito de custom-agents"
+policy:
+  allow_implicit_invocation: false

@@ -29,8 +29,9 @@ De la idea al código probado y documentado: `requisitos → presupuesto → pla
 
 > **Cómo se teclean los comandos.** En Claude Code instalado como plugin, el nombre real lleva el
 > espacio de nombres del plugin: **`/custom-agents:dev-cycle`**, `/custom-agents:retro`,
-> `/custom-agents:doctor`… En Codex aparece como prompt sin namespace (`/prompt:dev-cycle`, y a
-> veces también `/prompts:dev-cycle`). En OpenCode es `/dev-cycle`.
+> `/custom-agents:doctor`… En Codex usa el adaptador nativo generado
+> **`$custom-agents:custom-agents-dev-cycle`**, seguido de sus argumentos, o selecciónalo en `/skills`.
+> En OpenCode es `/dev-cycle`.
 > `/custom-agents:doctor` te dice cuál aplica en una instalación de Claude Code.
 
 ```mermaid
@@ -109,7 +110,7 @@ npx @daycry/custom-agents            # menú interactivo; marca los runtimes que
 | Runtime | Instalación | Qué obtienes |
 |---|---|---|
 | **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 10 agentes, 15 comandos, 27 skills, hooks y statusline |
-| **Codex** | `codex plugin marketplace add daycry/custom-agents` (o el instalador) | Skills, agentes como `.toml`, comandos como `/prompt:<nombre>` (a veces `/prompts:<nombre>`), hooks de sesión |
+| **Codex** | `codex plugin marketplace add daycry/custom-agents` (o el instalador) | Skills, agentes como `.toml`, adaptadores de comandos generados (`$custom-agents:custom-agents-<nombre>`), hooks de sesión |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agentes, comandos y adaptador de hooks |
 
 El instalador **da de alta el plugin en cada runtime**, no se limita a copiar ficheros: registro de

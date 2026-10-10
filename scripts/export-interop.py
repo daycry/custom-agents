@@ -17,9 +17,9 @@ Qué se genera (y por qué ese formato, verificado en la doc oficial de cada her
     .agents/plugins/marketplace.json   marketplace local/remoto que lista este plugin.
     interop/codex/hooks.json           hooks con los eventos y matchers que Codex SÍ dispara.
     interop/codex/agents/<n>.toml      agentes custom (`name`/`description`/`developer_instructions`).
-    interop/codex/prompts/<n>.md       comandos como prompts (`/prompts:<n>`, `$ARGUMENTS`).
-  Las `skills/` NO se copian: el manifiesto apunta a `./skills/` y Codex las lee tal cual
-  (el `SKILL.md` del plugin ya cumple su frontmatter: `name` + `description`).
+    interop/codex/command-skills/      transporte nativo generado de `commands/*.md`.
+  Las `skills/` canónicas NO se duplican: son la primera raíz del manifiesto. La segunda
+  raíz contiene sólo mapas/referencias de comandos generados, con invocación explícita.
 
   OpenCode V2 (opencode.ai/v2/docs/build/plugins, 2026-10-08)
     interop/opencode/opencode.json     `plugins` con un paquete local; preserva permisos del consumidor.
@@ -49,6 +49,7 @@ import argparse
 import json
 import os
 import re
+import stat
 import sys
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
@@ -77,7 +78,7 @@ HERR_ESCRITURA = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 # Lo ÚNICO que se añade al cuerpo de una pieza. Tres traducciones y una honestidad.
 PRE_AGENTE_CODEX = """> **Adaptación a Codex** (fichero generado; la fuente es `agents/{nombre}.md`).
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en Codex se
->   menciona `$X` (o se deja que Codex la active por su `description`). Las skills del plugin se
+>   menciona `$custom-agents:X` (o se deja que Codex la active por su `description`). Las skills del plugin se
 >   cargan desde el propio plugin.
 > - **Delegar en otro agente:** usa `spawn_agent` con `agent_type` igual al ID nativo del rol
 >   (por ejemplo `custom-agents-reviewer`) si la sesión ofrece esta herramienta.
@@ -138,7 +139,8 @@ DELEGAR = {
     "OpenCode": "usa `subagent` con el campo `agent` igual al ID nativo, definido en `.opencode/agents/`.",
 }
 SKILLS_EN = {
-    "Codex": "mencionándolas con `$nombre`",
+    "Codex": "mencionándolas con `$custom-agents:nombre` para las skills de este plugin; "
+             "conserva el nombre nativo de las skills del consumidor",
     "OpenCode": 'con la herramienta `skill` (`skill({ name: "nombre" })`)',
 }
 
@@ -282,7 +284,7 @@ def codex_plugin_json(root):
         # Punteros relativos a la raíz del plugin. `skills/` se lee TAL CUAL (el frontmatter
         # `name` + `description` del plugin ya es el que Codex exige). `hooks` apunta al fichero
         # adaptado, no al global: Codex no dispara los mismos eventos que Claude Code.
-        "skills": "./skills/",
+        "skills": ["./skills/", "./interop/codex/command-skills/"],
         "hooks": "./interop/codex/hooks.json",
         "interface": {
             "displayName": src["displayName"],
@@ -440,19 +442,55 @@ def codex_agente(nombre, bloque, cuerpo, mapping=None):
     return "\n".join(lineas) + "\n"
 
 
-def codex_prompt(nombre, bloque, cuerpo, mapping=None):
+def codex_command_skill(nombre, bloque, cuerpo, mapping=None):
+    """Short explicit native map plus complete unchanged canonical command body."""
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", nombre) or len(nombre) > 50:
+        raise ValueError("invalid command name: %r" % nombre)
+    name = "custom-agents-" + nombre
+    description = campo(bloque, "description")
+    if not description.strip() or not cuerpo.strip():
+        raise ValueError("command %s requires description and body" % nombre)
     pre = PRE_COMANDO.format(runtime="Codex", nombre=nombre,
                              delegar=DELEGAR["Codex"], skills=SKILLS_EN["Codex"],
                              delegaciones=delegaciones("codex", mapping))
-    # Description ENTRECOMILLADA (json.dumps): varias llevan `: ` dentro y un escalar plano de YAML
-    # con `: ` es inválido — GitHub lo pinta como «Error in user YAML: mapping values not allowed in
-    # this context» y el lector de frontmatter de Codex podría tropezar igual.
-    pares = [("description", json.dumps(campo(bloque, "description"), ensure_ascii=False))]
     hint = campo(bloque, "argument-hint")
-    if hint:
-        pares.append(("argument-hint", json.dumps(hint, ensure_ascii=False)))
-    return (fm_yaml(pares) + cabecera("html", "commands/%s.md" % nombre)
-            + "\n" + pre + "\n" + cuerpo.lstrip("\n"))
+    header = cabecera("html", "commands/%s.md" % nombre)
+    wrapper = (fm_yaml([("name", name),
+                       ("description", json.dumps(description, ensure_ascii=False))])
+               + header + "\n# Comando /" + nombre + "\n\n"
+               + "Invocación explícita: `$custom-agents:" + name + " <argumentos>`.\n"
+               + ("Argumentos esperados: `" + hint + "`.\n" if hint else "")
+               + "\n1. Lee íntegramente `references/command.md`, relativa a esta skill, antes de actuar.\n"
+               + "   Si no puedes leerla completa, comunica la limitación y no improvises el workflow.\n"
+               + "2. Sigue su adaptación Codex y el comando canónico con sus dueños, puertas y ledger.\n"
+               + "3. En su prosa, `$ARGUMENTS` representa los argumentos del mensaje invocante.\n"
+               + "   No hay sustitución del compositor de prompts; conserva literalmente los dólares\n"
+               + "   de las recetas y resuelve sus variables sólo al ejecutar la shell correspondiente.\n"
+               + "\n| Referencia | Cuándo leerla |\n|---|---|\n"
+               + "| [Comando completo](references/command.md) | Siempre, antes de ejecutar el comando |\n")
+    policy = (cabecera("toml", "commands/%s.md" % nombre)
+              + "interface:\n  display_name: " + json.dumps("/" + nombre, ensure_ascii=False)
+              + "\n  short_description: \"Comando explícito de custom-agents\"\n"
+              + "policy:\n  allow_implicit_invocation: false\n")
+    return {"SKILL.md": wrapper, "agents/openai.yaml": policy,
+            "references/command.md": header + "\n" + pre + "\n" + cuerpo}
+
+
+def _command_skill_names(root, commands):
+    """Validate the single native skill namespace before generating any outputs."""
+    names = set()
+    for directory in sorted(os.listdir(os.path.join(root, "skills"))):
+        path = os.path.join(root, "skills", directory, "SKILL.md")
+        if os.path.isfile(path):
+            name = campo(partir_frontmatter(leer(path))[0], "name")
+            if not name or name in names:
+                raise ValueError("missing or duplicate canonical skill name: %s" % directory)
+            names.add(name)
+    for nombre, _, _ in commands:
+        name = "custom-agents-" + nombre
+        if name in names:
+            raise ValueError("native command skill collision: %s" % name)
+        names.add(name)
 
 
 # --- OpenCode -----------------------------------------------------------------------------------
@@ -562,6 +600,8 @@ def _indice_fallback(root):
 def generar(root):
     """{ruta relativa: contenido} de TODO lo que este script produce. Orden fijo."""
     out = {}
+    commands = piezas(root, "commands")
+    _command_skill_names(root, commands)
     mapping = native_roles(root)
     out["agent-kits/shared/native-roles.json"] = json_txt(mapping)
     out[".codex-plugin/plugin.json"] = codex_plugin_json(root)
@@ -570,8 +610,9 @@ def generar(root):
     for nombre, bloque, cuerpo in piezas(root, "agents"):
         out["interop/codex/agents/%s.toml" % mapping["runtimes"]["codex"][nombre]] = codex_agente(nombre, bloque, cuerpo, mapping)
         out["interop/opencode/agents/%s.md" % mapping["runtimes"]["opencode"][nombre]] = opencode_agente(nombre, bloque, cuerpo, mapping)
-    for nombre, bloque, cuerpo in piezas(root, "commands"):
-        out["interop/codex/prompts/%s.md" % nombre] = codex_prompt(nombre, bloque, cuerpo, mapping)
+    for nombre, bloque, cuerpo in commands:
+        for relative, content in codex_command_skill(nombre, bloque, cuerpo, mapping).items():
+            out["interop/codex/command-skills/custom-agents-%s/%s" % (nombre, relative)] = content
         out["interop/opencode/commands/%s.md" % nombre] = opencode_comando(nombre, bloque, cuerpo, mapping)
     out["interop/opencode/opencode.json"] = opencode_config()
     out["interop/opencode/custom-agents-index.md"] = opencode_indice(root)
@@ -590,14 +631,14 @@ def obsoletos(root, plan):
     out = []
     for runtime, extension, estilo in (("codex", ".toml", "toml"), ("opencode", ".md", "html")):
         folder = os.path.join(root, "interop", runtime, "agents")
-        if not os.path.isdir(folder):
+        if not _regular_export_path(root, folder, directory=True):
             continue
         for filename in sorted(os.listdir(folder)):
             relative = f"interop/{runtime}/agents/{filename}"
             if relative in plan or not filename.endswith(extension):
                 continue
             path = os.path.join(folder, filename)
-            if not os.path.isfile(path) or os.path.islink(path):
+            if not _regular_export_path(root, path):
                 continue
             text = leer(path)
             if estilo == "html":
@@ -609,7 +650,50 @@ def obsoletos(root, plan):
             role = match.group(1)
             if filename in (role + extension, "custom-agents-" + role + extension):
                 out.append(relative)
-    return out
+    prompts = os.path.join(root, "interop", "codex", "prompts")
+    if _regular_export_path(root, prompts, directory=True):
+        for filename in sorted(os.listdir(prompts)):
+            relative = "interop/codex/prompts/" + filename
+            path = os.path.join(prompts, filename)
+            if relative in plan or not filename.endswith(".md") or not _regular_export_path(root, path):
+                continue
+            _, text = partir_frontmatter(leer(path))
+            if text.startswith(cabecera("html", "commands/%s" % filename)):
+                out.append(relative)
+    adapters = os.path.join(root, "interop", "codex", "command-skills")
+    if _regular_export_path(root, adapters, directory=True):
+        for directory in sorted(os.listdir(adapters)):
+            if not re.fullmatch(r"custom-agents-[a-z0-9]+(?:-[a-z0-9]+)*", directory):
+                continue
+            name = directory[len("custom-agents-"):]
+            for filename, style in (("SKILL.md", "html"), ("agents/openai.yaml", "toml"),
+                                    ("references/command.md", "html")):
+                relative = "interop/codex/command-skills/%s/%s" % (directory, filename)
+                path = os.path.join(root, relative)
+                if relative in plan or not _regular_export_path(root, path):
+                    continue
+                _, text = partir_frontmatter(leer(path))
+                if text.startswith(cabecera(style, "commands/%s.md" % name)):
+                    out.append(relative)
+    return sorted(out)
+
+
+def _regular_export_path(root, path, directory=False):
+    """Do not read or retire exports through linked parents or shared hardlinks."""
+    base = os.path.abspath(root)
+    absolute = os.path.abspath(path)
+    if os.path.commonpath((base, absolute)) != base:
+        return False
+    current = base
+    for part in os.path.relpath(absolute, base).split(os.sep):
+        current = os.path.join(current, part)
+        try:
+            info = os.lstat(current)
+        except OSError:
+            return False
+        if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400):
+            return False
+    return stat.S_ISDIR(info.st_mode) if directory else stat.S_ISREG(info.st_mode) and info.st_nlink == 1
 
 
 def escribir(root, plan, quiet=False):

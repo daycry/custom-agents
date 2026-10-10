@@ -6,8 +6,8 @@ Repository of **custom agents** with their skills and toolkits. It runs in **Cla
 
 > **How you type the commands.** In Claude Code plugin mode, commands use namespace:
 > **`/custom-agents:dev-cycle`**, `/custom-agents:roadmap-metrics`, `/custom-agents:retro`…
-> In Codex they are prompt commands without namespace (`/prompt:dev-cycle`, or `/prompts:dev-cycle`
-> depending on provider), and in OpenCode they are short (`/dev-cycle`).
+> In Codex invoke the native adapter `$custom-agents:custom-agents-dev-cycle <arguments>`;
+> in OpenCode invoke the short command (`/dev-cycle`).
 > This index uses the short form for brevity.
 
 ```mermaid
@@ -80,7 +80,7 @@ They drive the chain by invoking agents **by name** and with control gates, over
 
 > **How to type them.** In Claude Code plugin mode, the real name carries the plugin namespace:
 > **`/custom-agents:dev-cycle`**, `/custom-agents:pm-cycle`, `/custom-agents:doctor`… In Codex they
-> are prompt commands without namespace (`/prompt:dev-cycle` or `/prompts:dev-cycle`), and in OpenCode
+> use native adapters (`$custom-agents:custom-agents-dev-cycle <arguments>`), and in OpenCode
 > they are short (`/dev-cycle`). This table and the rest of this document use the short form for brevity;
 > `/custom-agents:doctor` indicates the Claude Code plugin form.
 

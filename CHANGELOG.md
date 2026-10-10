@@ -11,6 +11,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Changed — Native Codex command transport
+
+- Generate explicit command adapters inside the plugin from canonical workflows, preserving their full bodies and literal shell syntax. Keep canonical skills in their own manifest root. Install adapters within the selected scope and preserve existing personal prompts while releasing obsolete installer ownership.
+
 ### Fixed — Portable visual plan review caller
 
 - Invoke the existing plan-review gate from Bash or PowerShell using literal arguments, a real Python executable and a common owner/panel bundle. Keep opening, server lifetime and decision consumption separate; ambiguous installations and failed opening do not start a review server.

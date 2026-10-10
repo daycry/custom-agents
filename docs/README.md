@@ -6,8 +6,8 @@ Repositorio de **agentes custom** con sus skills y toolkits. Funciona en **Claud
 
 > **Cómo se teclean los comandos.** En Claude Code instalado como plugin, el nombre real lleva el
 > espacio de nombres: **`/custom-agents:dev-cycle`**, `/custom-agents:roadmap-metrics`,
-> `/custom-agents:retro`… En Codex aparece como prompt sin namespace (`/prompt:dev-cycle` o
-> `/prompts:dev-cycle`), y en OpenCode como comando corto (`/dev-cycle`).
+> `/custom-agents:retro`… En Codex se invoca el adaptador nativo
+> `$custom-agents:custom-agents-dev-cycle <argumentos>`, y en OpenCode el comando corto (`/dev-cycle`).
 > Este índice usa la forma corta por brevedad (detalle en «Comandos»).
 
 ```mermaid
@@ -78,7 +78,7 @@ Dirigen la cadena invocando a los agentes **por nombre** y con puertas de contro
 
 > **Cómo se teclean.** Instalado como plugin (marketplace o `npx @daycry/custom-agents install`), en
 > Claude Code el nombre real lleva el espacio de nombres: **`/custom-agents:dev-cycle`**, `/custom-agents:pm-cycle`,
-> `/custom-agents:doctor`… En Codex aparece sin namespace como `/prompt:dev-cycle` (o `/prompts:dev-cycle`)
+> `/custom-agents:doctor`… En Codex se invoca `$custom-agents:custom-agents-dev-cycle <argumentos>`
 > y en OpenCode como `/dev-cycle`. `/custom-agents:doctor` te dice cuál aplica en un entorno de plugin de Claude Code.
 
 | Comando | Rol | Alcance | Cierre |

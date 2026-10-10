@@ -1,0 +1,331 @@
+{
+  "schema_version": 1,
+  "block": 22,
+  "status": "scoped_review_and_frozen_unit_qa_accepted_native_integration_pending",
+  "source_of_truth": "commands/*.md",
+  "canonical_skills_duplicated": false,
+  "new_catalogue_skills_added": false,
+  "manifest_skill_roots": [
+    "./skills/",
+    "./interop/codex/command-skills/"
+  ],
+  "command_adapters": 15,
+  "generated_files": 88,
+  "obsolete_owned_prompt_exports_retired": 15,
+  "native_invocation": "$custom-agents:custom-agents-dev-cycle <arguments>",
+  "windows_author_tests": {
+    "selection": [
+      "tests/test_codex_command_transport.py",
+      "tests/test_export_interop.py"
+    ],
+    "passed": 47,
+    "skipped": 1,
+    "skip_reason": "directory symlink creation unavailable",
+    "failed": 0,
+    "junit_sha256": "1c9290e6f4ad7c073006cd4f6d1687e7e29ea2d174805b78b87f6dfce99c3511",
+    "scope": "historical first implementation before qualified canonical skill preamble adjustment; final frozen QA recorded separately"
+  },
+  "native_two_root_discovery": {
+    "binary_version": "0.161.0",
+    "binary_sha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
+    "separate_synthetic_plugin": true,
+    "cached_roots_discovered": 2,
+    "matching_non_null_plugin_id": true,
+    "source_cache_pairs_verified": 5,
+    "root_verified": true,
+    "input_frames": 3,
+    "output_frames": 3,
+    "report_sha256": "d9943ae1c130345d00fdff6ff55c023193c9d01caec59a09f95e60cfecec9630",
+    "raw_stdout_sha256": "9b924f57ad1ab51e34eab4c5f4183d99df9600ae2b4211e033b08f98039dbc72",
+    "preserved_failures": [
+      "unsupported strict-config flag for plugin CLI",
+      "classifier expected unqualified skill names"
+    ],
+    "policy_enforcement_proven": false,
+    "workflow_execution_proven": false
+  },
+  "native_body_injection": {
+    "separate_synthetic_repository_skill": true,
+    "root_verified": true,
+    "input_frames": 5,
+    "output_frames": 14,
+    "requests": 1,
+    "entire_literal_body_in_native_request": true,
+    "body_manually_forwarded": false,
+    "unicode_and_dollar_sentinel_preserved": true,
+    "instruction_sources_observed": [],
+    "passive_provider_http_status": 400,
+    "native_turn_status": "failed",
+    "native_server_requests": 0,
+    "model_inferences": 0,
+    "all_owned_resources_terminal": true,
+    "report_sha256": "b54707f2ced71c4230116c833f223b12e620979887d82c7769b09e24e663380f",
+    "request_body_sha256": "192883aaeb6e55129cf2c44ae488b84db9160ac890f8745aaff5ae0bae2ad677",
+    "preserved_failures": [
+      "unclassified fixture model metadata warning",
+      "private verifier Unicode stdin encoding",
+      "private verifier instructionSources field path"
+    ],
+    "os_access_audit_performed": false,
+    "product_reference_read_proven": false,
+    "workflow_execution_proven": false
+  },
+  "installer_author_tests": {
+    "reported_passed": 11,
+    "junit_sha256": "7021a177dc348efceb71d1001b7f1bbc3e39005d65b8b337f54ac5a042183207",
+    "root_verification_pending": false,
+    "scope": "initial selected 11 tests, before corrective B01 change"
+  },
+  "independent_review": {
+    "attempts": [
+      {
+        "attempt": 1,
+        "critical": 1,
+        "important": 1,
+        "minor": 0,
+        "accepted": false,
+        "findings": [
+          {
+            "id": "B-01",
+            "severity": "Critical",
+            "status": "corrected_accepted_in_attempt_2"
+          },
+          {
+            "id": "A22-1",
+            "severity": "Important",
+            "status": "corrected_accepted_in_attempt_2"
+          }
+        ],
+        "report_sha256": {
+          "A": "4f3754e2726240f7a37926cc11c531717a3f0b5beef4e7dc8336e216c841961b",
+          "B": "f23389791daf6b4addfc93ccbf0068bb76a8db25214542afd48a70154c80340e",
+          "D": "6ec6b19fef5283764adf1f4cd69f1f52970f6b6e49077695b19b03d7a805d8ec"
+        },
+        "fusion_sha256": "5980e7e457d6bece289fcf4f905568eeaf80ebac856e1d6d75c84dfd489daa7f"
+      },
+      {
+        "attempt": 2,
+        "critical": 1,
+        "important": 1,
+        "minor": 0,
+        "accepted": false,
+        "previous_findings_accepted": [
+          "B-01",
+          "A22-1"
+        ],
+        "findings": [
+          {
+            "id": "B22-2",
+            "severity": "Critical",
+            "status": "corrected_accepted_in_attempt_3",
+            "basis": "new explicit contract, previous rmSync"
+          },
+          {
+            "id": "A22-2",
+            "severity": "Important",
+            "status": "corrected_accepted_in_attempt_3"
+          }
+        ],
+        "fusion_sha256": "4a53d226fef1b64e52aa5385c699c25a679e02a906f951d59e6bacdedaa4b0ca",
+        "report_sha256": {
+          "A": "9c905b549e4e7cbaa56462a3dc65ce5dd5e19591d6766daa22054dc46abd3a85",
+          "B": "0eacf79739b78a83091e04168d1a0448fc2d62980aae469b96a4c4234a19f16e",
+          "D": "8e48460ac420b2a653a68f0353c378ec96bc965814499513912e0d6b3ee3a809"
+        }
+      },
+      {
+        "attempt": 3,
+        "critical": 0,
+        "important": 0,
+        "minor": 0,
+        "accepted": true,
+        "findings": [],
+        "previous_findings_accepted": [
+          "B-01",
+          "A22-1",
+          "B22-2",
+          "A22-2"
+        ],
+        "report_sha256": {
+          "A": "68105e3944d3d34489c522fd7da9852c807881d98299d770c1d1c23199a33e9f",
+          "B": "89b2e64ebf9d39bc99d6c11a608c9302bf8127b365200465ac57df1abc502fe0",
+          "D": "38f65fa8295b85368bff1fb958bd02cfcfe1c8854333608e0171e990f82897f5"
+        },
+        "receipt_sha256": {
+          "A": "ffa913cf796507a6fb8a849f161ef1dc31c7f4a0aa0bcace3e8b78c79857f8eb",
+          "B": "16bb8e8cae451b3ab2f906cf76b55fd0b423a7422efb6ad4788d75d7328eb3f8",
+          "D": "433c9d1d12e7868c1646990708ed503d8d70b03e90dd0efc2d9dfe986dc1d620"
+        },
+        "fusion_sha256": "a74bd1c4543d815857f85e8d02d0ad36345b4e54f6f07a958c7ec24d709d050a",
+        "source_manifest_sha256": "d0b95ef1f9166a71e509db77ac95efdf63094af9e098b464782d257460d49539",
+        "diff_sha256": "b762855ccefdf09db2da0e337c1b6f9cff3c77f4aa532c8b70c1455761354914",
+        "scope": "immutable Block22 code and documents; not native/UI/global acceptance"
+      }
+    ],
+    "accepted": true,
+    "maximum_attempts": 3
+  },
+  "linux_tests": {
+    "passed": 58,
+    "skipped": 0,
+    "failed": 0,
+    "errors": 0,
+    "junit_sha256": "c8463b73636961b92f17a13ac41408cb1d351b1c67ef53b5b1a73678c834993d",
+    "scope": "two Python unit files only; no Linux Node installer suite"
+  },
+  "branch_publication": "pending",
+  "remaining": [
+    "native actual command adapter discovery and injection",
+    "complete command reference reading and workflow continuity",
+    "three client integration and actual plan review UI",
+    "global integration acceptance"
+  ],
+  "macro_states_changed": false,
+  "global_acceptance": false,
+  "dedicated_regressions": {
+    "A22-1": {
+      "red": {
+        "passed": 6,
+        "failed": 2,
+        "exit": 1,
+        "junit_sha256": "5fd16259ba62f92fb7a6ae26473fd1e141f07569ed37d29bf629d51fdb70b006"
+      },
+      "green": {
+        "passed": 8,
+        "failed": 0,
+        "exit": 0,
+        "junit_sha256": "8204900710d109246c01c74da5a3101386b6c3880e07e42d36b2f7c00558c67d"
+      }
+    },
+    "B-01": {
+      "red": {
+        "passed": 0,
+        "failed": 1,
+        "exit": 1,
+        "junit_sha256": "ead5bbd5408e4d202550f1ec1b0a9223925f870268cc9593fc33386b7735d22a"
+      },
+      "green": {
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "exit": 0,
+        "junit_sha256": "7fac2f3687f93361b8c5fc0c1e8806a2d59e13c9efccba77437765fb97bd4da5"
+      }
+    },
+    "B22-2": {
+      "red": {
+        "junit_leaf_failed": 2,
+        "node_failed_parent_included": 3,
+        "scopes": [
+          "project",
+          "user"
+        ],
+        "exit": 1,
+        "junit_sha256": "4afdeacbcb9c29dfea18fa8cdac6b8313906fe02b9795f5b8fcad8dfabc66800"
+      },
+      "green": {
+        "junit_leaf_passed": 2,
+        "node_passed_parent_included": 3,
+        "failed": 0,
+        "skipped": 0,
+        "exit": 0,
+        "junit_sha256": "47d6601824d49dc60e3bc271f9c0a6df09a693a834363ad0af4527cfb9b07b27"
+      }
+    },
+    "A22-2": {
+      "red": {
+        "failed": 2,
+        "passed": 0,
+        "exit": 1,
+        "junit_sha256": "fe13d69cae6a8968b0bdcf7f784f91e54cbd274f030b63cc60c74ba38a6b6f4d"
+      },
+      "green": {
+        "passed": 2,
+        "failed": 0,
+        "exit": 0,
+        "junit_sha256": "0ea9896810368729c7cd12070673a0ab4f4cab3a60d65eaa12afe62b2940ac1b"
+      }
+    }
+  },
+  "installer_corrective_author_tests": {
+    "passed": 12,
+    "failed": 0,
+    "skipped": 0,
+    "exit": 0,
+    "junit_sha256": "14a4d2f6ce84435b80a58de7f5bcb85c1cd88f8f04401c8eb8c4c3def92b8288",
+    "root_verified": true,
+    "scope": "historical corrective author tests, fake CLI and own homes"
+  },
+  "corrective_author_evidence_root_receipt_sha256": "c65876705608025786591df932737e41d3834eb1db3e7bba15d74acc341cb9a1",
+  "preserved_private_failures": [
+    "relative receipt path resolution",
+    "Node parent count vs JUnit leaf count",
+    "review A rename-aware sections vs old/new path union",
+    "review B finalizer isolated import",
+    "review D inventory exclusion cwd",
+    "ROOT QA verifier expected optional subprocess log although no subprocess events occurred"
+  ],
+  "installer_final_author_tests": {
+    "junit_leaf_passed": 14,
+    "node_passed_parent_included": 15,
+    "failed": 0,
+    "skipped": 0,
+    "exit": 0,
+    "junit_sha256": "a7ea7ed816ec702ec66be1d0c19e0f1d96804c2afd0d16e62db6b0abe0e49954",
+    "root_verified": true,
+    "scope": "historical final corrective author tests, fake CLI and own homes; final frozen QA recorded separately"
+  },
+  "installer_final_author_root_receipt_sha256": "dc277409e329e459fac1a97bc10a1f3ee0bf364b671760d6cc36db106cb8f216",
+  "frozen_qa": {
+    "root_verified": true,
+    "root_receipt_sha256": "4149b37ddbd52a921cb47ad50da5756683c1cce8b60f58d107fffc6c0c7a0259",
+    "source_manifest_sha256": "d0b95ef1f9166a71e509db77ac95efdf63094af9e098b464782d257460d49539",
+    "windows_python": {
+      "passed": 57,
+      "skipped": 1,
+      "junit_sha256": "cc9dbcfb05d8ee3dbd4d783394c78c1708b659584d7df97403c8b8a8e5761338"
+    },
+    "windows_node_leaf": {
+      "passed": 14,
+      "skipped": 0,
+      "junit_sha256": "d6fa184f329dbe00244a5da3e27b58e4e4ea62f158cf5eb41160064c11d906ba"
+    },
+    "linux_python": {
+      "passed": 58,
+      "skipped": 0,
+      "junit_sha256": "c8463b73636961b92f17a13ac41408cb1d351b1c67ef53b5b1a73678c834993d"
+    },
+    "python_case_ids_identical_cross_platform": true,
+    "linux_actual_collection_and_case_reports_verified": true,
+    "container_owned_terminal_removed_absent": true,
+    "linux_node_suite_run": false,
+    "linux_audited_subprocess_events": 0,
+    "scope": "two Python unit files and selected Windows installer tests; no browser/native/global acceptance",
+    "qa_gate": {
+      "windows": {
+        "exit": 0,
+        "sha256": "b35b3e5ba6f4481dc0b240f53654c35e0db4e0bff599107a2614c5041c3d114d",
+        "counts": {
+          "passed": 71,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 1,
+          "interrupted": 0
+        },
+        "unique_leaf_cases": 72
+      },
+      "linux": {
+        "exit": 0,
+        "sha256": "f56efab6c9168c38397da371da99ac516ae7461d77b701f2668fb7b9b743eac5",
+        "counts": {
+          "passed": 58,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 0,
+          "interrupted": 0
+        },
+        "unique_leaf_cases": 58
+      }
+    }
+  }
+}

@@ -9,7 +9,7 @@ model_reasoning_effort = "high"
 developer_instructions = '''
 > **Adaptación a Codex** (fichero generado; la fuente es `agents/evaluator.md`).
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en Codex se
->   menciona `$X` (o se deja que Codex la active por su `description`). Las skills del plugin se
+>   menciona `$custom-agents:X` (o se deja que Codex la active por su `description`). Las skills del plugin se
 >   cargan desde el propio plugin.
 > - **Delegar en otro agente:** usa `spawn_agent` con `agent_type` igual al ID nativo del rol
 >   (por ejemplo `custom-agents-reviewer`) si la sesión ofrece esta herramienta.
