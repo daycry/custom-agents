@@ -173,7 +173,21 @@
     "junit_sha256": "c8463b73636961b92f17a13ac41408cb1d351b1c67ef53b5b1a73678c834993d",
     "scope": "two Python unit files only; no Linux Node installer suite"
   },
-  "branch_publication": "pending",
+  "branch_publication": {
+    "status": "implementation_commit_observed_remote_verified",
+    "branch": "feat/catalog-capabilities",
+    "commit": "c03f5ff34aa65881998758546ccbabb46921f7b3",
+    "parent": "7ed9d50aff766e58dfc01ecec6dd3a9b4694f403",
+    "remote_head": "c03f5ff34aa65881998758546ccbabb46921f7b3",
+    "receipt_sha256": "de8363ac00e57aa01195b3f5247e04b595ae49696e9d1529424ed972d2344520",
+    "final_source_manifest_sha256": "e34c9b5ee649c256374b90464eeefbc07a939950a63fda359754294f95610cde",
+    "static_receipt_sha256": "e49eacd9e43901e985afb7d1acfb70207e0f48251d34909e5e76d408b8dd7f40",
+    "scope": "Block22 command transport implementation; no native/UI/global acceptance",
+    "preserved_push_failures": [
+      "isolated Git configuration omitted credential helper: exit128",
+      "manager had no noninteractive cached credentials: exit128"
+    ]
+  },
   "remaining": [
     "native actual command adapter discovery and injection",
     "complete command reference reading and workflow continuity",
@@ -263,7 +277,9 @@
     "review A rename-aware sections vs old/new path union",
     "review B finalizer isolated import",
     "review D inventory exclusion cwd",
-    "ROOT QA verifier expected optional subprocess log although no subprocess events occurred"
+    "ROOT QA verifier expected optional subprocess log although no subprocess events occurred",
+    "final readonly documentary checkpoint regex escaping and repair syntax",
+    "file-only review fixture omitted original install.mjs executable mode; prior ROOT mode100755 preserved"
   ],
   "installer_final_author_tests": {
     "junit_leaf_passed": 14,
@@ -327,5 +343,15 @@
         "unique_leaf_cases": 58
       }
     }
+  },
+  "final_documentary_checkpoint": {
+    "source_manifest_sha256": "e34c9b5ee649c256374b90464eeefbc07a939950a63fda359754294f95610cde",
+    "report_sha256": "e7aadbb8bccb2f23a01437c2f431360aadfb4ea7b1e8956da5e33633c6bff2dd",
+    "receipt_sha256": "b6c5cd3f806b3a6739140dc0dc25079e2e675d13ffd9f0693bb35eb436210441",
+    "local_new_changed_links_valid": 18,
+    "broken": 0,
+    "macro_states_unchanged": 16,
+    "historical_qa_prefix_unchanged": true,
+    "root_verified": true
   }
 }
