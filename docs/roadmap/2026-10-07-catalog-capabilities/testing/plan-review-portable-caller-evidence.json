@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "block": 21,
-  "status": "portable_implementation_review_and_windows_linux_cohorts_accepted_publication_and_native_ui_pending",
+  "status": "portable_implementation_review_windows_linux_and_branch_publication_observed_native_ui_pending",
   "base": "bd0ffb0a59f117cca30e968da4ceb0e4411a3783",
   "owner_changed": false,
   "server_changed": false,
@@ -158,9 +158,8 @@
   "native_command_loading": null,
   "native_agent_continuation": null,
   "real_browser_acceptance": null,
-  "publication_observed": false,
+  "publication_observed": true,
   "remaining": [
-    "final documentary checks and explicit branch publication",
     "actual browser scenarios",
     "native loading and continuation evidence for three clients"
   ],
@@ -482,5 +481,55 @@
       "docker_calls_rerun": 0,
       "failed_artifacts_retained": true
     }
-  ]
+  ],
+  "implementation_publication": {
+    "publication_observed": true,
+    "commit": "b5932849649db8294bdbe9053c64ae53d496dd2a",
+    "remote_head": "b5932849649db8294bdbe9053c64ae53d496dd2a",
+    "branch": "feat/catalog-capabilities",
+    "files": 16,
+    "normal_push": true,
+    "global_acceptance": false,
+    "receipt_sha256": "b7829dce6afb8f0f8d6a3bb99897da5aa177bbcebd1803fbb0bae3a034cb5c33"
+  },
+  "final_delivery_static_checks": {
+    "verified": true,
+    "scope": "final implementation delivery before observed-publication documentary update",
+    "changed_files": [
+      "CHANGELOG.es.md",
+      "CHANGELOG.md",
+      "agent-kits/shared/plan-review-open.py",
+      "commands/dev-cycle.md",
+      "docs/FLOWS.md",
+      "docs/PLUGIN-PANEL.md",
+      "docs/en/FLOWS.md",
+      "docs/en/PLUGIN-PANEL.md",
+      "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/plan-review-integration-contract.md",
+      "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/plan-review-portable-caller-contract.md",
+      "docs/roadmap/2026-10-07-catalog-capabilities/tasks.md",
+      "docs/roadmap/2026-10-07-catalog-capabilities/testing/plan-review-portable-caller-evidence.json",
+      "interop/codex/prompts/dev-cycle.md",
+      "interop/opencode/commands/dev-cycle.md",
+      "tests/test_plan_review_caller.py",
+      "tests/test_plan_review_open.py"
+    ],
+    "source_manifest_sha256": "aa1826dc6a5ca833a405908b6037aa4aa5e9cc2367c4e568ed729aea2e7cd131",
+    "review_diff_sha256": "13016019fa899ddfdd3fb490d53b492be5ede3f47fceedf0a076ad534dfc8a2a",
+    "static_receipt_sha256": "37799fca2384e1b8dbcb4f19c1007cf549ef3e9a0a38514e65e51830cc137d9a",
+    "source_before_after_equal": true,
+    "approved_product_and_projections_unchanged": true,
+    "metadata_delta": [
+      "docs/roadmap/2026-10-07-catalog-capabilities/tasks.md",
+      "docs/roadmap/2026-10-07-catalog-capabilities/testing/plan-review-portable-caller-evidence.json"
+    ],
+    "scope_exit": 0,
+    "interop_check_exit": 0,
+    "ledger_exit": 0,
+    "lint_exit": 0,
+    "evals_exit": 0,
+    "global_acceptance": false,
+    "receipt_sha256": "b674bcfd695208c26e8fc69f05aac86fdb51540dcec113d5910a4f267461f88d",
+    "lint_warnings": 4,
+    "links_checked": 53
+  }
 }
