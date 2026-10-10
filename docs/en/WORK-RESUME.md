@@ -80,6 +80,10 @@ values is accepted. General YAML, nested maps, aliases and blocks are not interp
 
 ## What the command runs
 
+Opening the view neither replays events nor restores a backup. The
+[local recovery contract](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-local-recovery-contract.md)
+defines capture confirmation and the evidence required to recover pending sessions.
+
 It runs only the Python compositor. It uses no meter, replay/recover, Git, backends,
 network or materialization processes, and reads no raw transcripts to fill gaps.
 Automatic capture and recovery retain their own hook contracts. At startup/resume,

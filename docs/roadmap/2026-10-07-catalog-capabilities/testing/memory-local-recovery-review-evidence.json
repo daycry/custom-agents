@@ -1,0 +1,346 @@
+{
+  "schema": 1,
+  "block": 20,
+  "status": "block20_only_ROOT_qa_accepted_final_documentation_and_publication_pending",
+  "integrated_acceptance": "PASS_Block20_only",
+  "historical_integrated_acceptance": {
+    "value": "UNKNOWN",
+    "status": "review_2_accepted_windows_qa_accepted_linux_pending",
+    "scope": "Historical checkpoint before corrective ROOT verification and Block20-only acceptance"
+  },
+  "source_manifest_sha256": "a07a9ee3c6caa4a9d5db84d023940a5b436ecb366bd65b26acfc41b346000837",
+  "review_diff_sha256": "062cf5ae13446fd683ab989a4ff638a0800b93317f2877f1247561951ddebed3",
+  "source_files": 985,
+  "changed_files": 18,
+  "review": {
+    "attempt": 2,
+    "maximum_attempts": 3,
+    "lenses": [
+      "A",
+      "B"
+    ],
+    "fallback": "generic reviewer; native reviewer unavailable",
+    "model_override": false,
+    "selector_c": false,
+    "selector_d": false,
+    "critical": 0,
+    "important": 0,
+    "minor": 0,
+    "reports": {
+      "A": "4efaa888be2b84bcb0f72997c89aee1adea78a24198b59d975cb3fb5012d1667",
+      "A_integrity": "9eb90e470555dc338585b1f58ce45aedf2f71120dd02a820a19351fce1d91ccd",
+      "B": "25097c584fdddd5ae678b4835d9baae9952ca290d1a63b7cda38e872c22a3f14",
+      "B_integrity": "962e38ef5045c7c7bbbf3414760a527678983eee89bf716407f6c33b4919606f"
+    },
+    "source_before_after_equal": true,
+    "product_tests": 0
+  },
+  "gaps": [
+    {
+      "id": "A1",
+      "severity": "Important",
+      "file": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/memory-local-recovery-contract.md",
+      "line_at_review": 50,
+      "cause": "420-second admission deadline described without distinguishing total duration",
+      "status": "corrected; independent_review_2_accepted"
+    },
+    {
+      "id": "AB1",
+      "merged": [
+        "A2",
+        "B1"
+      ],
+      "severity": "Important",
+      "file": "tests/memory_local_recovery_support/protocol.py",
+      "line_at_review": 34,
+      "cause": "resolve-before-reject hides linked roots, dangling targets and linked ancestors inside OWN",
+      "status": "corrected; independent_review_2_accepted",
+      "applies_to": "synthetic test support; no product backup CLI"
+    }
+  ],
+  "parser_regression": {
+    "identities": 13,
+    "red_failed": 6,
+    "red_passed": 7,
+    "green_passed": 13,
+    "author_checkpoint_only": true,
+    "red_junit_sha256": "bec970d45bab216aebe71e025ce9dd0f3430b587883a810f96987ed9c2fe9a78",
+    "green_final_junit_sha256": "eef0f24d7551ad3f9d58ac479c0ec31330b6acdf3ee0d21ed154aa295bd18d45"
+  },
+  "previous_drills_retained": [
+    {
+      "cohort": "Windows identity failure",
+      "passed": 0,
+      "failed": 12,
+      "classification_sha256": "892b2501c7b24eae1bc024e8f3077c2247aba7c41cd60f953f492a48fbc4c304",
+      "status": "NO-PASS"
+    },
+    {
+      "cohort": "Windows launcher correction",
+      "passed": 2,
+      "failed": 10,
+      "classification_sha256": "40882051ba546650e7c34e0ca0f233b1b5e5dbde21be5823db90e5af8cfbe6c4",
+      "status": "NO-PASS"
+    }
+  ],
+  "remaining": [
+    "final documentation and metadata static validation",
+    "explicit branch commit and push"
+  ],
+  "windows_qa": {
+    "root_verified": true,
+    "scope": "Windows frozen R2 cohort only",
+    "unique_cases": 528,
+    "passed": 514,
+    "failed": 0,
+    "skipped": 14,
+    "mandatory_recovery_passed": 12,
+    "mandatory_protocol_passed": 6,
+    "mandatory_skipped": 0,
+    "source_before_after_equal": true,
+    "source_files": 985,
+    "child_processes_verified": 70,
+    "observed_cuts_verified": 5,
+    "manifest_fault_verified": 1,
+    "official_qa_gate": "VERDE",
+    "official_qa_gate_exit": 0,
+    "owner_coverage": {
+      "file": "agent-kits/shared/knowledge-local.py",
+      "covered": 212,
+      "executable": 235,
+      "changed_covered": 7,
+      "changed_executable": 7,
+      "minimum_percent": 90,
+      "rounding_used": false
+    },
+    "junit_sha256": "b4fd95d44aafb48ff7b462125dc0cd9e8047ce7c06ee88310baf4f9381be8d7c",
+    "collection_sha256": "135f24919e9b5d2edb6daa0898b41359ef4f3222e8ee6dd0a18199035cccce7c",
+    "coverage_json_sha256": "a89bb559d47212484173b87f7816d2db8145369057db6de5f2b29e8d7bff711e",
+    "verifier_sha256": "5e240839268f53d2fa4859d8c5939140bdc0e688d5ca7f2c3b50f09f55fa8173",
+    "verification_receipt_sha256": "1926ac57e71cb1a25e8a9927dfc1b37c8e5d2bc6469bea0204256fed6a30f6b7",
+    "global_acceptance": false
+  },
+  "linux_diagnosis": {
+    "root_readonly_probe_verified": true,
+    "previous_sys_execution_terminal": true,
+    "previous_sys_execution_passed": 516,
+    "previous_sys_execution_failed": 12,
+    "previous_sys_execution_skipped": 0,
+    "previous_sys_execution_unique_cases": 528,
+    "recovery_cases": 12,
+    "recovery_passed": 4,
+    "recovery_failed": 8,
+    "protocol_passed": 2,
+    "protocol_failed": 4,
+    "neighbors_passed": 510,
+    "neighbors_failed": 0,
+    "cleanup_identity_and_absence_verified": true,
+    "source_and_recipe_proofs_unchanged": true,
+    "host_artifact_index": "failed on an inaccessible native symlink; raw outputs retained",
+    "failed_backups": 8,
+    "copied_files_observed": 124,
+    "same_bytes_and_sha256_and_mode": true,
+    "sources_stable_during_probe": true,
+    "differing_fields": [
+      "mtime_ns"
+    ],
+    "copy_times_observed": "source timestamps truncated to whole seconds",
+    "probe_receipt_sha256": "76c59b8757a411a24d5c08c939f74a3dcfda3b8a9a10f9117ab7c9cf4739eb1b",
+    "primitive_reproduction": {
+      "executed": true,
+      "bind_natural_timestamp_copies": 4,
+      "bind_natural_timestamp_copies_failed": 4,
+      "differing_fields": [
+        "mtime_ns"
+      ],
+      "native_exact_copies": 12,
+      "native_controlled_time_requests_preserved": 8,
+      "native_mode_requests_preserved": 12,
+      "source_inventory_stable": true,
+      "cleanup_identity_and_absence_verified": true,
+      "receipt_sha256": "d896c198e8a09fe7fc420b07337db1c69b52efabbaecf02b80f387192e3a7ddd",
+      "initial_preflight_failure_retained": true,
+      "product_tests_executed": 0
+    },
+    "limitation": "Primitive metadata reproduction isolates shared-filesystem behavior; no historical inventory or acceptance of the native recovery suite yet",
+    "original_failures_retained": true,
+    "linux_acceptance": "UNKNOWN"
+  },
+  "macro_states_changed": false,
+  "previous_block_19_acceptance_changed": false,
+  "protocol_regression": {
+    "author_checkpoint_only": true,
+    "identities": 6,
+    "red_failed": 6,
+    "green_passed": 6,
+    "source_before_after_equal": true,
+    "native_operations": 12,
+    "native_operations_exit0": true,
+    "manifest_sha256": "d31e847d73a8814d2c0113e8fb1b489d520963b550a5c2b2f0c71539c9aba4e2",
+    "report_sha256": "65950bcada27291161bc34a1f2f5f849201cde6774a3eb42f9ebc43df594ff0b",
+    "patch_sha256": "6311b759f6dbeb6f540bbec91b7c843101f68fc3066cd3d9ee820e3bc03c6f2c",
+    "protocol_sha256": "3b24ca556c281cbbd6f0b38b60cfdf4ed5a803d66e6df77da7425df52cbc2d5f",
+    "test_sha256": "165b21c72db91fea95582b7b9a4980f421eccaa3acba18d6b2521d93d97b827a",
+    "red_junit_sha256": "b30090d9c71dfdccf03989975a059a925d9f254bf7a5fb85e124cdd81836d68f",
+    "green_junit_sha256": "03f7822f233c60e8b3ae61eb61d43a173d7ba82a2edd9be48b5f78462aee9c59"
+  },
+  "linux_native_checkpoint": {
+    "status": "NO-PASS; corrective ROOT artifact verification pending",
+    "identities": 528,
+    "passed": 528,
+    "failed": 0,
+    "skipped": 0,
+    "mandatory_recovery_passed": 12,
+    "mandatory_protocol_passed": 6,
+    "neighbor_passed": 510,
+    "original_qa_gate_exit": 1,
+    "original_host_verdict_sha256": "a5e8dcaef0417428a0be2b8fece66ab344d2595923ca8ff27762f5ab336d24b0",
+    "original_gate_input_sha256": "91d1ca3eb4a96c0b42cfa9be91c386697118088a664371e932499e60aa096bdb",
+    "cause": "Private evidence collector counts pytest's current symlink together with the real session directory",
+    "actual_session_directory": "memory-local-recovery0",
+    "actual_alias": "memory-local-recoverycurrent",
+    "original_failure_retained": true,
+    "product_or_test_changes": false,
+    "test_rerun_for_corrective_verification": false,
+    "archive_verified_before_cleanup": true,
+    "archive_sha256": "1e2b9fee3fbbc3bd6315af5e3ef5cc4188da45fead2234ec90e0c1bbbb47346b",
+    "archive_manifest_sha256": "e7320fc98c4239fb3f65465f7170e0d332b58cbdcef5ee36d7b287742d9ad833",
+    "archive_entries": 8820,
+    "archive_regular_files": 3999,
+    "archive_regular_bytes": 12031578,
+    "archive_extracted": false,
+    "cleanup_identity_and_absence_verified": true,
+    "cleanup_sha256": "5718cd59ef7c295756e0cdc4a6d0a6b16c6abb7fd9bbb52bd5dfdb8bf82f8073",
+    "source_985_before_after_equal": true,
+    "sealed_proofs_before_after_equal": true,
+    "junit_sha256": {
+      "recovery": "6821fdc4075639dd1b0d8e7501bb6169ea017730475c0bdf2f373cc0ab16794d",
+      "neighbors": "014a3a31773fdd6a5a404c1a1572abba9248cc92de22b2f28261c3dfc6da1767",
+      "protocol": "0e4f2eff9e0ee6f868182fcd0b504b95ffa926a8e8975869b4d825697e73ada7"
+    },
+    "integrated_acceptance": "UNKNOWN"
+  },
+  "linux_qa_corrective": {
+    "root_verified": true,
+    "scope": "Retained Linux Block20 runtime artifacts and NEW official gate only",
+    "verified_linux_runtime_artifacts": true,
+    "unique_cases": 528,
+    "passed": 528,
+    "failed": 0,
+    "skipped": 0,
+    "mandatory_recovery_passed": 12,
+    "mandatory_protocol_passed": 6,
+    "mandatory_skipped": 0,
+    "neighbor_passed": 510,
+    "child_processes_verified": 70,
+    "observed_cuts_verified": 5,
+    "manifest_fault_verified": 1,
+    "acknowledgments_verified": 10,
+    "snapshots_verified": 9,
+    "intact_snapshots": 8,
+    "controlled_tampered_snapshots": 1,
+    "posix_protocol_symlinks": 6,
+    "source_files": 985,
+    "source_before_after_equal": true,
+    "source_manifest_sha256": "a07a9ee3c6caa4a9d5db84d023940a5b436ecb366bd65b26acfc41b346000837",
+    "official_qa_gate": "VERDE",
+    "official_qa_gate_exit": 0,
+    "owner_coverage": {
+      "file": "agent-kits/shared/knowledge-local.py",
+      "covered": 212,
+      "executable": 235,
+      "changed_covered": 7,
+      "changed_executable": 7,
+      "minimum_percent": 90,
+      "rounding_used": false,
+      "isolated_children_inferred_covered": false
+    },
+    "verification_receipt_sha256": "924702a0e036de50387c78720f8a539d074268eaf8ac98fd6a5addbfab08b072",
+    "new_gate_input_sha256": "11ea4c501210e41ad1504e72100c8cd433656afa253369f1810e022b9fb287d4",
+    "new_gate_stdout_sha256": "7f6a9b5cac5255a9481fd8d3cb72ce8801b7106339ea632406950dfde4be1acc",
+    "new_gate_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "official_gate_script_sha256": "276f2ae90aa12111c6f5ddac2678c5ac930d97c16f7606e5bc6292f5c0e6a23b",
+    "archive_sha256": "1e2b9fee3fbbc3bd6315af5e3ef5cc4188da45fead2234ec90e0c1bbbb47346b",
+    "archive_manifest_sha256": "e7320fc98c4239fb3f65465f7170e0d332b58cbdcef5ee36d7b287742d9ad833",
+    "archive_extracted": false,
+    "historical_host_passed": false,
+    "historical_qa_gate_exit": 1,
+    "original_qa_gate_input_sha256": "91d1ca3eb4a96c0b42cfa9be91c386697118088a664371e932499e60aa096bdb",
+    "original_host_verdict_sha256": "a5e8dcaef0417428a0be2b8fece66ab344d2595923ca8ff27762f5ab336d24b0",
+    "original_negative_runs_preserved": true,
+    "corrective_test_reruns": 0,
+    "product_or_test_changes": false,
+    "global_acceptance": false
+  },
+  "block20_qa_acceptance": {
+    "accepted": true,
+    "scope": "Block20 only",
+    "root_acceptance_receipt_sha256": "2908cafc8e0cc6be599b0b0ffe01d304f514f8dc172d598358a3de9bfd545761",
+    "detailed_acceptance_receipt_sha256": "3ddeb5bf89562e3fced0e7edd6e9f66761822d1a118883870d364f9508a07e95",
+    "windows_receipt_sha256": "1926ac57e71cb1a25e8a9927dfc1b37c8e5d2bc6469bea0204256fed6a30f6b7",
+    "linux_corrective_receipt_sha256": "924702a0e036de50387c78720f8a539d074268eaf8ac98fd6a5addbfab08b072",
+    "source_manifest_sha256": "a07a9ee3c6caa4a9d5db84d023940a5b436ecb366bd65b26acfc41b346000837",
+    "global_acceptance": false,
+    "publication_observed": false,
+    "initiative_macro_states_changed": false,
+    "previous_block_19_acceptance_changed": false,
+    "native_three_host_compatibility_claimed": false,
+    "large_corpus_or_head_to_head_effectiveness_claimed": false
+  },
+  "review_history": [
+    {
+      "attempt": 1,
+      "maximum_attempts": 3,
+      "lenses": [
+        "A",
+        "B"
+      ],
+      "fallback": "generic reviewer; native reviewer unavailable",
+      "model_override": false,
+      "selector_c": false,
+      "selector_d": false,
+      "critical": 0,
+      "important": 2,
+      "minor": 0,
+      "reports": {
+        "A": "c6bd82c8f3709dd416c9a5a5eb3541835231b9a9bb9d91e4f8ce255b44d684d2",
+        "A_integrity": "4a9bdd4a676b6d1f5205bdcf8a7f6fb10c64ac1867a585d2ff9325f772aef3a8",
+        "B": "e3f77c7063fac27415056de18e0d6335bf7f7fd7406c90e99933c28ee6f0a940",
+        "B_integrity": "fbb83d9beda01228cdb7181a632531e45ddff8ee526fb7adc5e319adc22a0fd9"
+      },
+      "source_before_after_equal": true,
+      "product_tests": 0
+    }
+  ],
+  "static_publication_history": [
+    {
+      "attempt": 1,
+      "exit": 1,
+      "classification": "historical changelog links to non-distributed consumer corpus directories",
+      "broken_links": 28,
+      "official_gates_executed": 0,
+      "failure_sha256": "b19a110d03553499a344d586705818f444d1d163719fae2b1959066e894a99d3"
+    },
+    {
+      "attempt": 2,
+      "exit": 1,
+      "classification": "private Windows alternates writer used CRLF; Git retained carriage return in object-store path",
+      "official_gates_executed": 0,
+      "failure_sha256": "f4abaa588749bc49749bd2ded6a9cf48b247521356c5ac2c7aec0d950759efce",
+      "alternates_sha256": "60d64081532de55f9e907cd37fbca74d1072f115eab0e4ffcb287d9944709843",
+      "CRLF_observed": true,
+      "LF_only_trimmed_path_exists": false,
+      "CRLF_trimmed_path_exists": true
+    },
+    {
+      "attempt": 3,
+      "exit": 1,
+      "classification": "private fresh Git index compared unnormalized CRLF worktree files under isolated Git config",
+      "official_gates_executed": 0,
+      "failure_sha256": "797ecbde2a689c3cf2b4e8921efa4485f8ec34353b3cfc31b92d0a89723057c8",
+      "readonly_core_autocrlf_true_probe_exit": 0,
+      "readonly_probe_changed_files": 18,
+      "public_source_mutations_from_probe": 0
+    }
+  ]
+}

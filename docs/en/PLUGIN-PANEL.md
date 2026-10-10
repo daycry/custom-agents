@@ -161,6 +161,10 @@ The [command](../../commands/dev-cycle.md) describes receive/ack and the authori
 
 ## Local memory queries
 
+Queries preserve each entry's authority: proposals and legacy entries do not
+become approved knowledge. The [local recovery contract](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-local-recovery-contract.md)
+separates session preservation and restoration from query evaluation.
+
 Served mode adds Memory with Search, Show entry and Relations. Each explicit
 action uses `knowledge-view.py`; loading the page or refreshing Progress does
 not trigger memory searches. Cards retain full ID, type, state, knowledge version,

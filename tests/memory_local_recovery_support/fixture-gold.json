@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "synthetic_only": true,
+  "human_approval": false,
+  "training_gold": false,
+  "projects": {
+    "atlas": {"prefix": "fixture-a", "word": "AtlasOwnWord", "current": "fixture-a.DECISION.current", "peer": "fixture-a.GOTCHA.peer"},
+    "boreal": {"prefix": "fixture-b", "word": "BorealForeignWord", "current": "fixture-b.DECISION.current", "peer": "fixture-b.GOTCHA.peer"}
+  },
+  "taxonomy": {
+    "version": 1,
+    "utility_scoring": false,
+    "categories": [
+      {"key": "DECISION", "folder": "adr", "min_evidence": "synthetic_test_only", "routing": {}},
+      {"key": "GOTCHA", "folder": "gotchas", "min_evidence": "synthetic_test_only", "routing": {}}
+    ],
+    "backends": {},
+    "evidence_levels": ["synthetic_test_only"],
+    "denylist": []
+  },
+  "expected": {
+    "legacy_accepted": {"id": "ADR-101", "estado": "aceptada", "origen": "legacy", "version": 3},
+    "legacy_proposal": {"id": "GOT-102", "estado": "propuesta", "origen": "legacy", "version": 1},
+    "legacy_obsolete": {"id": "ADR-103", "estado": "obsoleta", "origen": "legacy", "version": 1},
+    "current_version": 7,
+    "candidate_word": "ForbiddenCandidateWord",
+    "pending_quote": "Pendiente: Revisar restauración sintética Atlas",
+    "private_word": "PrivateFixtureSentinel"
+  },
+  "questions": [
+    {"operation": "search", "text": "AtlasOwnWord", "expected_ids": ["fixture-a.DECISION.current", "ADR-101", "ADR-103"]},
+    {"operation": "show", "id": "fixture-a.DECISION.current", "expected_version": 7, "expected_origin": "approved"},
+    {"operation": "related", "id": "fixture-a.DECISION.current", "expected_link": "fixture-a.GOTCHA.peer"},
+    {"operation": "search", "text": "ForbiddenCandidateWord", "expected_ids": []},
+    {"operation": "search", "text": "BorealForeignWord", "expected_ids": []}
+  ]
+}

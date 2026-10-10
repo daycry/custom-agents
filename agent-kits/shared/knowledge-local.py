@@ -28,6 +28,18 @@ _LISTA_RE = re.compile(r"^\[(.*)\]$")
 _ITEM_BLOQUE_RE = re.compile(r"^-\s*(.+)$")
 
 
+def _normalizar_item_lista(valor):
+    """YAML-simple: trim outer whitespace and remove one matching quote pair.
+
+    Preserve inner whitespace and malformed/unmatched quotes for fail-closed
+    validation. This does not decode escapes or commas inside quoted scalars.
+    """
+    valor = valor.strip()
+    if len(valor) >= 2 and valor[0] in ('"', "'") and valor[-1] == valor[0]:
+        return valor[1:-1]
+    return valor
+
+
 def _recortar_comentario_inline(contenido):
     """Recorta el comentario inline (si lo hay) de un item de lista en bloque (gap 172/173,
     revisión de dos lentes Fase 4 intento 2). Reglas, por orden:
@@ -62,11 +74,12 @@ def _recortar_comentario_inline(contenido):
 
 
 def _frontmatter(texto):
-    """Parser mínimo de frontmatter YAML-simple: escalares, listas `[a, b]` de una línea y listas
-    en bloque (`enlaces:` seguido de líneas `  - X`, gap 9 — el `knowledge-curator`/documenter
-    suele emitir listas en bloque, no inline). Replicado deliberadamente en vez de importar el
-    parser de knowledge-find.py (mismo criterio standalone que arriba, pero ese script cubre
-    muchos más casos que no necesitamos aquí)."""
+    """Owner del frontmatter YAML-simple compartido con el índice y la lectura local.
+
+    Admite escalares, listas inline separadas por coma y listas en bloque. Los items
+    de ambas listas normalizan un par de comillas simples o dobles emparejadas;
+    no interpreta escapes ni comas dentro de escalares entrecomillados. No es YAML completo.
+    """
     m = _FRONTMATTER_RE.match(texto)
     if not m:
         return {}
@@ -86,7 +99,7 @@ def _frontmatter(texto):
         if valor:
             ml = _LISTA_RE.match(valor)
             if ml:
-                datos[clave] = [v.strip() for v in ml.group(1).split(",") if v.strip()]
+                datos[clave] = [_normalizar_item_lista(v) for v in ml.group(1).split(",") if v.strip()]
             else:
                 datos[clave] = valor.strip('"').strip("'")
             i += 1
@@ -143,7 +156,7 @@ def _frontmatter(texto):
             # un `#` pegado al valor sin espacio delante (`https://a#frag`, `C#`, `ADR-001#sec`)
             # tampoco se recorta.
             valor_item = _recortar_comentario_inline(contenido_item)
-            items.append(valor_item.strip().strip('"').strip("'"))
+            items.append(_normalizar_item_lista(valor_item))
             j += 1
         if items:
             datos[clave] = items

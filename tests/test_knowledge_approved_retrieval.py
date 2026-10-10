@@ -18,6 +18,62 @@ ENTRY_ID = "fixture.ADR-200"
 PEER_ID = "fixture.ADR-201"
 
 
+@pytest.fixture
+def quoted_links_view():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("quoted_links_public_view", SCRIPT.with_name("knowledge-view.py"))
+    view = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(view)
+    return view
+
+
+def _quoted_links_canon(project):
+    return {p.relative_to(project).as_posix():
+            (p.read_bytes(), p.stat().st_mtime_ns, p.stat().st_mode)
+            for p in project.rglob("*") if p.is_file()}
+
+
+@pytest.mark.parametrize("links", [
+    '["fixture.ADR-201", "fixture.ADR-202"]',
+    "['fixture.ADR-201', 'fixture.ADR-202']",
+    '[  "fixture.ADR-201"  , fixture.ADR-202  ]',
+    '[ fixture.ADR-201 , fixture.ADR-202 ]',
+    '\n  - "fixture.ADR-201"\n  - \'fixture.ADR-202\'',
+], ids=["double", "single", "mixed-whitespace", "plain", "block-control"])
+def test_quoted_links_regression_same_identity_related_and_readonly(consumer, quoted_links_view, links):
+    project, _home, path, text = consumer
+    _write_entry(project, "fixture.ADR-202", version=5)
+    path.write_text(text.replace("---\n\n", "enlaces: " + links + "\n---\n\n", 1), encoding="utf-8")
+    before = _quoted_links_canon(project)
+    shown = quoted_links_view.query(project, operation="show", id=ENTRY_ID)
+    assert shown["status"] == "ok" and shown["complete"], shown
+    assert (shown["selected"]["id"], shown["selected"]["version"], shown["selected"]["origen"]) == (ENTRY_ID, 7, "approved")
+    related = quoted_links_view.query(project, operation="related", id=ENTRY_ID)
+    assert related["status"] == "ok" and related["complete"], related
+    assert {(e["id"], e["version"], e["origen"]) for e in related["related"]["enlaces"]} == {
+        (PEER_ID, 3, "approved"), ("fixture.ADR-202", 5, "approved")}
+    assert _quoted_links_canon(project) == before
+
+
+@pytest.mark.parametrize("links", [
+    '["fixture.UNKNOWN-999"]', "['fixture.UNKNOWN-999']",
+    '["fixture.ADR-201]', '["fixture.ADR-201\']',
+    '\n  - "fixture.ADR-201', '\n  - "fixture.ADR-201\'',
+    '\n  - "fixture.ADR-201""', '[" fixture.ADR-201 "]',
+], ids=["unknown-double", "unknown-single", "unmatched-inline", "mismatched-inline",
+        "unmatched-block", "mismatched-block", "extra-quote-block", "quoted-inner-whitespace"])
+def test_quoted_links_regression_unknown_or_malformed_fail_closed(consumer, quoted_links_view, links):
+    project, _home, path, text = consumer
+    path.write_text(text.replace("---\n\n", "enlaces: " + links + "\n---\n\n", 1), encoding="utf-8")
+    before = _quoted_links_canon(project)
+    for operation in ("show", "related"):
+        result = quoted_links_view.query(project, operation=operation, id=ENTRY_ID)
+        assert result["status"] == "partial" and not result["complete"], result
+        assert result["selected"] is None and result["related"] is None
+        assert "approved_invalid" in result["issues"]
+    assert _quoted_links_canon(project) == before
+
+
 def _write_entry(project, entry_id=ENTRY_ID, version=7, folder="adr", body=None):
     path = project / "docs/knowledge/approved" / folder / (entry_id + ".md")
     path.parent.mkdir(parents=True, exist_ok=True)

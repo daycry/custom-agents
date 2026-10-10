@@ -163,6 +163,10 @@ El [comando](../commands/dev-cycle.md) describe receive/ack y la vuelta autoriza
 
 ## Consulta local de memoria
 
+Consultar conserva la autoridad de cada entrada: una propuesta o una entrada
+heredada no equivale a un aprobado. El [contrato de recuperación local](roadmap/2026-10-07-catalog-capabilities/comparisons/memory-local-recovery-contract.md)
+separa la conservación de sesiones y la restauración de las pruebas de consulta.
+
 En modo servido, Memoria permite Buscar, Ver entrada y Relaciones. Cada acción
 usa `knowledge-view.py`; abrir el panel o actualizar Progreso no dispara búsquedas.
 Las tarjetas conservan ID completo, tipo, estado, versión, evidencia y ruta.

@@ -33,6 +33,12 @@ flowchart LR
 
 ## 2. Cómo funciona
 
+Los enlaces YAML simples admiten listas en bloques e inline, con o sin comillas
+coincidentes en sus valores. Conservan los mismos IDs y la validación de evidencia
+y relaciones. Las comillas mal formadas no se corrigen para aceptar un enlace.
+El [contrato de recuperación local](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-local-recovery-contract.md)
+incluye su regresión y conserva la separación entre autoridad heredada y aprobación.
+
 Carga la taxonomía del proyecto (`.claude/knowledge-services/taxonomy.json`, o el default del
 plugin) con `agent-kits/shared/knowledge-schema.py` y el índice de lo ya aprobado con
 `agent-kits/shared/knowledge-index.py`. Decide la **categoría exacta** de cada candidato (un

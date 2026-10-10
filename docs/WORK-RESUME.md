@@ -81,6 +81,10 @@ YAML ni valores tipados. No interpreta YAML general, mapas anidados, alias ni bl
 
 ## Qué ejecuta el comando
 
+Abrir la vista no ejecuta replay ni restaura una copia. El
+[contrato de recuperación local](roadmap/2026-10-07-catalog-capabilities/comparisons/memory-local-recovery-contract.md)
+explica la confirmación de capturas y la evidencia para recuperar sesiones pendientes.
+
 Solo ejecuta el compositor Python. No usa meter, replay/recover, Git, backends,
 red ni procesos de materialización; no lee transcripciones crudas para rellenar
 huecos. La captura y la recuperación automáticas siguen su propio contrato de hooks.

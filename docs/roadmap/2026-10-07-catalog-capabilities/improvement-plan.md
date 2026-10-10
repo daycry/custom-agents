@@ -46,3 +46,14 @@ T-14 separa pruebas de activación, comportamiento y carga real del runtime.
 T-16 verifica el primer push de entrega y después publica el cierre documental,
 para registrar evidencia observada y evitar afirmaciones de publicación futura.
 Las pruebas y decisiones pendientes no se convierten en deuda automáticamente.
+
+
+## Cómo verificar conservación y recuperación local
+
+El BLOQUE20 aplica el [contrato de recuperación local](comparisons/memory-local-recovery-contract.md) a las macros existentes T-07/T-08/T-09/T-11/T-13/T-14/T-15. T-16 conserva el cierre global pendiente. La selección exige doce casos N01–N09 y una regresión RED/GREEN del parser para enlaces inline entrecomillados.
+
+Primero congelar contrato, fuentes, fixture y receta. Corregir el parser con evidencia del autor; después revisar el diff y ejecutar QA integrada Windows/Linux. Conservar fallos previos, identidad de hijos, barreras, manifiestos y hashes antes/después. La cobertura oficial del diff y qa-gate mantienen sus puertas existentes.
+
+Antes de la QA integrada, la aceptación permanecía `UNKNOWN` hasta revisar la evidencia real; el recibo ROOT actual acepta únicamente el Bloque20. No cambia los estados macro ni añade comandos de backup, hooks, backends o dependencias. Los resultados de consulta publicados siguen siendo evidencia de su experimento original; no acreditan restauración ni cortes de sesión.
+
+QA del Bloque20 aceptada por ROOT únicamente para la selección congelada sintética Windows/Linux, según la [evidencia de revisión y QA](testing/memory-local-recovery-review-evidence.json). La verificación correctiva Linux conserva el gate 1 original y aplica un nuevo gate 0 a los mismos artefactos, sin repetir tests. Los doce casos de recuperación y seis guardias pasan sin skips en ambos OS; fuente 985, coverage 212/235 y diff 7/7 permanecen comprobados. No cambia ninguna macro, QA19 ni cierre global; publicación, tres hosts nativos, escala y eficacia comparativa siguen pendientes.

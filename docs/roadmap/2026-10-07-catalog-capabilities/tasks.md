@@ -530,3 +530,127 @@ La QA Node aislada termina Windows exit 0 (veredicto del runner, pendiente de co
 Corrección auxiliar LF adoptada en OWN nuevo y QA Linux iniciada con handle real1422. La comparación reversible demuestra que sólo cambian escritor/assert del stub Linux y nombre del contenedor propio; cuerpo Windows, fuente834, receta y proofs siguen exactos. Se retiene la candidata Windows terminal0 sin repetición rutinaria, pendiente de verificador completo por plataforma. Runner Linux SHA `b5dbcbedb5db0edc94d88d583806cd22c8904949133dd41c7ddba0d68f20d76e`; pointer SHA `51cdf42e13161bd3a159be9a2ab27d3e464bcb5b32952358f2dee81c408eedb7`. Se conserva el assert de llamadas CLOSED y toda evidencia NO-PASS previa.
 
 QA de implementación del Bloque19 aceptada por ROOT tras comprobar íntegramente artefactos, procedencia y gate oficial de ambos OS sobre fuente834: Windows2682 passed/0 failed/43 skipped y Linux2702 passed/0 failed/23 skipped;2725 casos JUnit únicos por OS. Los530 casos de consola sustituyen sus mismos IDs anteriores;45 subtests crudos van aparte y29 casos Node ya están incluidos. El gate oficial incluye10/14 auxiliares adicionales y sale VERDE. Coverage oficial retenida bajo hashes/diff idénticos: media3 Windows96.31596814342258% y Linux96.62560154100005%;líneas ejecutables cambiadas515/532 y518/532, con umbral calculado sin redondeo. Seis llamadas mock cerradas por OS y cero CLI nativos reales. Windows se retiene con puente de harness que sólo modifica LF/nombre de contenedor en rama Linux; original NO-PASS, preflight y fallo shebang quedan intactos. Cleanup Linux por ID/imagen/label/network y ausencia verificados. Recibo QA SHA `8168de7023e9fc6685d61ca9a56e525a4c6b6966ac2f005e3ab572facd5489fc`; verificador SHA `020fd4370de91804c0cc81ee1905387f2a3ab8ad791de1a147f73635bac93c5c`. Navegador real, tres hosts nativos, cobertura macro y cierre global siguen pendientes; el puente final documental/metadatos se valida por separado antes de publicación.
+
+
+## BLOQUE20 — conservación y recuperación de memoria local
+
+Contrato propuesto: [memoria local y recuperación](comparisons/memory-local-recovery-contract.md). Define doce oráculos N01–N09: conservación canónica y colas, caché ausente/corrupta, cuatro fronteras de corte, reintento de manifiesto, restauración quiescente, autoridad, lectura offline y scope/redacción. Añade la regresión del parser para enlaces inline entrecomillados, sin sustituir la fixture por bloques.
+
+Evidencia de aceptación: `UNKNOWN`. Preservar cada ejecución fallida y su clasificación, fuente/Gold/recipe/harness, JUnit y auditorías. El RED/GREEN del autor acredita la regresión específica; ROOT requiere ejecución congelada Windows/Linux y puertas pertinentes antes de aceptar el bloque. Ningún resultado anterior se reutiliza como PASS de recuperación.
+
+| Macro existente | Trabajo del bloque |
+|---|---|
+| T-07 | Documentar límites de persistencia y recuperación frente a eficacia de consulta ya medida. |
+| T-08 | Mantener corpus y colas locales como autoridad; caché reconstruible y contrato de publicación/idempotencia. |
+| T-09 | Verificar captura confirmada, barreras y cleanup por identidad, sin añadir hooks o hosts. |
+| T-11 | Conservar handoffs y aprobación actuales; legacy, propuesta y aprobado mantienen estados distintos. |
+| T-13 | Vincular la guía de consulta a conservación/recuperación y estados parciales; consultar no restaura. |
+| T-14 | Revisar regresión y doce casos obligatorios, cobertura oficial del diff y qa-gate; guardar fallos de infraestructura aparte. |
+| T-15 | Integrar contrato y enlaces breves en guías propietarias; verificar enlaces y exportaciones afectadas. |
+| T-16 | Incorporar evidencia sólo tras aceptación real del bloque; mantener pendiente el cierre de la iniciativa. |
+
+Esta inserción no crea una tarea macro ni modifica los dieciséis campos `Estado`, dependencias o porcentajes. Mantener sólo T-01 completado y conservar todos los pendientes nativos, de escala y aprendizaje restantes.
+
+### Corrección del lector y preparación reproducible
+
+2026-10-10. Se integra la normalización compartida de listas YAML simples: retira una sola pareja de comillas coincidentes y conserva valores mal formados para su rechazo. No añade un parser YAML completo. La fixture entrecomillada original se conserva.
+
+El autor observó 6 failed/7 passed antes del cambio y 13 passed después sobre los mismos IDs. El pase final de documentación volvió a ejecutar esos 13 IDs; no se suma como 26 pruebas distintas ni acepta QA global. JUnit RED SHA `bec970d45bab216aebe71e025ce9dd0f3430b587883a810f96987ed9c2fe9a78`; JUnit final GREEN SHA `eef0f24d7551ad3f9d58ac479c0ec31330b6acdf3ee0d21ed154aa295bd18d45`. ROOT verificó artefactos y adoptó los dos archivos exactos del autor.
+
+RED: `tests/test_knowledge_approved_retrieval.py::test_quoted_links_regression_same_identity_related_and_readonly[double]` falló con AssertionError: show devolvió partial en lugar de ok · 2026-10-10 (ejecución del autor, JUnit conservado).
+
+RED: `tests/test_knowledge_approved_retrieval.py::test_quoted_links_regression_same_identity_related_and_readonly[single]` falló con AssertionError: show devolvió partial en lugar de ok · 2026-10-10 (ejecución del autor, JUnit conservado).
+
+RED: `tests/test_knowledge_approved_retrieval.py::test_quoted_links_regression_same_identity_related_and_readonly[mixed-whitespace]` falló con AssertionError: show devolvió partial en lugar de ok · 2026-10-10 (ejecución del autor, JUnit conservado).
+
+RED: `tests/test_knowledge_approved_retrieval.py::test_quoted_links_regression_unknown_or_malformed_fail_closed[unmatched-block]` falló con AssertionError: show aceptó comillas mal formadas y devolvió ok en lugar de partial · 2026-10-10 (ejecución del autor, JUnit conservado).
+
+RED: `tests/test_knowledge_approved_retrieval.py::test_quoted_links_regression_unknown_or_malformed_fail_closed[mismatched-block]` falló con AssertionError: show aceptó comillas mal formadas y devolvió ok en lugar de partial · 2026-10-10 (ejecución del autor, JUnit conservado).
+
+RED: `tests/test_knowledge_approved_retrieval.py::test_quoted_links_regression_unknown_or_malformed_fail_closed[extra-quote-block]` falló con AssertionError: show aceptó comillas mal formadas y devolvió ok en lugar de partial · 2026-10-10 (ejecución del autor, JUnit conservado).
+
+El primer drill Windows terminó 12 failed antes de ejecutar producto por identidad del launcher venv. La corrección usa el intérprete base y mantiene PID/ppid/nonce estrictos. El segundo terminó 2 passed/10 failed: siete por clasificación del argv Git auditado en Windows y tres por corpus aprobado parcial causado por enlaces entrecomillados. Ambos resultados NO-PASS permanecen conservados. El probe stdlib bloqueó las cuatro llamadas antes de crear procesos y distinguió las dos consultas Git exactas de las dos ajenas.
+
+La batería pública copia sólo quince inputs de producto declarados a un directorio pytest propio, sin configuración o memoria del consumidor. Conserva doce IDs, nueve grupos, Gold, barreras y límites; registra el argv auditado y exige corpus completo al reconstruir la caché. Está preparada, todavía sin ejecución ni aceptación Windows/Linux. Revisión independiente, cobertura oficial, qa-gate y documentación humana final siguen pendientes. No se reabre QA19 ni cambia ningún estado macro.
+
+
+## Revisión de dos lentes — intento 1: Bloque20 (T-08/T-09/T-14/T-15) — dos gaps pendientes
+
+2026-10-10. Lentes A+B de contexto fresco, fallback genérico por revisor nativo no disponible, sin override. Selector sobre el diff real: C=false/D=false, sin avisos. Scope oficial exit0:16 archivos en alcance, cero fuera/exclusiones del usuario/avisos. Ledger-lint:0 incoherencias/0 avisos. Fuente983 y diff sellados; ambos revisores comprobaron983 hashes antes/después. No ejecutaron pruebas ni producto. Se conservan QA19 y todos los criterios aprobados anteriores; no se cierra ninguna macro.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1 | Important | El contrato no distingue el plazo de admisión de420s de una duración total | T-09/T-14/T-15 | Se aclaran admisión, barrera25s, finalización30s y recogida5s; pendiente validación independiente | Contrato:50 y harness:257/290/312/419 en fuente revisada. |
+| AB1 (A2/B1) | Important | Resolver antes de rechazar oculta raíces/ancestros enlazados y destinos colgantes dentro de OWN | T-08/T-09/T-14 | Corrección y regresión del soporte sintético en curso; no se afirma fallo de backup de producto | protocol.py:34/132/184; ningún caso nuevo ejecutado aún. |
+
+Fusión ROOT tras leer ambos informes completos y verificar sus hashes:0 Critical,2 Important,0 Minor; no hay rebatidos ni deuda aceptada. Los informes y límites quedan en la [evidencia del bloque](testing/memory-local-recovery-review-evidence.json). El fallo del auxiliar ROOT que esperaba una lista de exclusiones, en lugar del objeto vacío oficial, se conserva: scope había salido0; no fue un gap del producto ni una prueba ejecutada. Su finalizador verificó nuevamente fuente, diff y salidas oficiales. El intento de registro del revisor A dejó un directorio vacío; se conserva y no se usó para evidencia ni producto.
+
+La revisión sigue acotada a tres intentos para este bloque. La corrección del parser mantiene su GREEN de autor separado; las doce pruebas integradas y los gates de cobertura/QA continúan pendientes. TDD n/a: registro de revisión y precisión documental del plazo; la regresión del protocolo debe observar RED antes de corregirlo.
+
+Evento `gaps`, intento1, actor reviewer, sobre copia de ledger y configuración Jira sintética desactivada: exit0, ops vacías y cero escrituras externas. Stdout SHA `4670c8e70e35284c0d4d764edd464ad73279c3f0d9f2885623a3e6e7976fcdae`. No se leyó configuración consumidora.
+
+### Correcciones preparadas para revisión 2
+
+2026-10-10. ROOT adoptó el rechazo léxico de enlaces/reparse points antes de resolver raíces, hojas y ancestros en el soporte de backup/restauración sintético. No se añade un CLI de backup de producto. Se conserva la contención posterior y todos los oráculos/budgets. La precisión documental distingue el plazo de admisión de420s de la duración total. Ambos gaps esperan revisión independiente; la tabla anterior conserva el estado observado en intento1.
+
+RED: `tests/test_memory_local_recovery_protocol.py::test_reject_path_alias_before_mutation[source-leaf]` falló con AssertionError: alias operation changed source/backup/destination/staging/link evidence · 2026-10-10.
+
+RED: `tests/test_memory_local_recovery_protocol.py::test_reject_path_alias_before_mutation[source-ancestor]` falló con AssertionError: alias operation changed source/backup/destination/staging/link evidence · 2026-10-10.
+
+RED: `tests/test_memory_local_recovery_protocol.py::test_reject_path_alias_before_mutation[snapshot-leaf]` falló con AssertionError: alias operation changed source/backup/destination/staging/link evidence · 2026-10-10.
+
+RED: `tests/test_memory_local_recovery_protocol.py::test_reject_path_alias_before_mutation[snapshot-ancestor]` falló con AssertionError: alias operation changed source/backup/destination/staging/link evidence · 2026-10-10.
+
+RED: `tests/test_memory_local_recovery_protocol.py::test_reject_path_alias_before_mutation[target-dangling-leaf]` falló con AssertionError: alias operation changed source/backup/destination/staging/link evidence · 2026-10-10.
+
+RED: `tests/test_memory_local_recovery_protocol.py::test_reject_path_alias_before_mutation[target-ancestor]` falló con AssertionError: alias operation changed source/backup/destination/staging/link evidence · 2026-10-10.
+
+Autor:6 failed antes/6 passed después, mismos IDs y bytes; doce junctions nativas creadas con exit0. Cada GREEN rechaza antes de mutar y mantiene idéntico el árbol completo de fixture. ROOT verificó124 artefactos y fuente983 intacta, JUnit, registros/argv/PID y árboles de ambos pases. JUnit RED SHA `b30090d9c71dfdccf03989975a059a925d9f254bf7a5fb85e124cdd81836d68f`; GREEN SHA `03f7822f233c60e8b3ae61eb61d43a173d7ba82a2edd9be48b5f78462aee9c59`. Este checkpoint no acepta las doce pruebas de recuperación ni QA global. POSIX sigue sin ejecutar; macros y QA19 intactos.
+
+
+## Revisión de dos lentes — intento 2: Bloque20 (T-08/T-09/T-14/T-15) — sin gaps pendientes
+
+2026-10-10. A+B frescos, fallback genérico sin override. Ambos informes completos y sus verificaciones se contrastaron por ROOT; fuente985 idéntica antes/después, FULL18 diff, scope/selector/ledger oficiales exit0 y cero avisos/exclusiones. C=false/D=false. Se conserva el traspaso R1 íntegro, sin reabrir aprobados, sin rebatidos ni deuda.
+
+| # | Grado previo | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1 | Important | Plazo de admisión ambiguo | T-09/T-14/T-15 | Corregido: contrato precisa420s de admisión y25/30/5 propios; no promete duración total | A2 contrato:50–55, harness:257/290/312/377/405/419. |
+| AB1 (A2/B1) | Important | Alias oculto por resolve anterior al rechazo | T-08/T-09/T-14 | Corregido: lstat léxico de hojas y ancestros antes de resolve; seis regresiones dedicadas preservan árbol completo | A2/B2 protocol:34–49; test_protocol:102–156; RED/GREEN de autor conservados. |
+
+Fusión actual:0 Critical/0 Important/0 Minor. Recibo de revisión SHA `5138f50080b1692824607fb4cb3639b23d656820f2f590c8164728a71b428608`. La aceptación integrada sigue UNKNOWN: faltan Windows/Linux, cobertura oficial y qa-gate. No se ejecutaron pruebas de producto durante revisión. Los estados macro y QA19 permanecen intactos. TDD n/a: esta traza de revisión.
+
+Evento revision/intento2/reviewer en ledger OWN y configuración Jira sintética desactivada: exit0, ops vacías, cero escrituras externas; stdout SHA `1fe31f91295d3d44feca55cd302ee205d555208176ae133ce7bfb0d1095568c2`. Ninguna configuración consumidora leída.
+
+### QA Windows aceptada; diagnóstico Linux abierto
+
+2026-10-10. ROOT verificó la cohorte Windows congelada R2:528 IDs únicos,514 passed/0 failed/14 skipped. Los doce casos de recuperación y seis guardias de rutas pasaron sin skips. Se contrastaron fuente985, receta, revisión, JUnit, colección, setenta hijos, cinco cortes observados, fallo de manifiesto y auditorías contra los artefactos reales. Cobertura oficial del lector cambiado:212/235 líneas ejecutables y7/7 cambiadas, ambas por encima del umbral90% sin redondeo. El qa-gate oficial salió VERDE, exit0. Recibo Windows SHA `1926ac57e71cb1a25e8a9927dfc1b37c8e5d2bc6469bea0204256fed6a30f6b7`; no acredita Linux ni aceptación integrada.
+
+La ejecución Linux con captura FD terminó antes de recoger casos por ENOENT al truncar el temporal de pytest; sus tres cohortes vacías y cleanup verificado se conservan. Una nueva ejecución con captura sys mantiene fuente, Gold y oráculos intactos. Su cohorte de recuperación terminó4 passed/8 failed: los ocho fallos ocurrieron al verificar la copia, antes de restaurar; las otras cohortes aún estaban en curso al registrar este checkpoint.
+
+Un probe ROOT de sólo lectura dentro del contenedor propio confirmó124 archivos con bytes/SHA256/modos iguales y fuentes estables durante la observación, pero fechas de copia truncadas a segundos enteros. Recibo diagnóstico SHA `76c59b8757a411a24d5c08c939f74a3dcfda3b8a9a10f9117ab7c9cf4739eb1b`. Es una observación posterior de fixtures, no el inventario histórico ni una reproducción sobre filesystem nativo. Se conserva cada fallo y se prepara esa reproducción mínima antes de otra batería Linux. No se redondean expectativas ni se cambia el producto para ocultar diferencias de infraestructura. La aceptación integrada sigue UNKNOWN; QA19 y los dieciséis estados macro permanecen intactos. TDD n/a: registro de evidencia observada.
+
+La ejecución sys terminó con528 IDs:516 passed/12 failed/0 skipped. Los510 vecinos pasaron; fallaron ocho casos de recuperación y cuatro guardias al preparar su copia, todos en el mismo oráculo de metadatos. Cobertura212/235 y7/7 cambió correctamente, pero no convierte los fallos en aceptación. Fuente985/proofs permanecieron idénticos y el contenedor propio fue retirado por identidad con ausencia verificada. El índice final del harness host falló después de esos recibos al acceder a un symlink nativo desde Windows; se conservan XML, logs, fixtures y fallo original sin afirmar un índice completo.
+
+La reproducción mínima ROOT conserva exactamente bytes y modos: cuatro copias con fecha natural pierden su fracción de segundo en el bind Windows; doce copias en tmpfs nativo conservan el inventario exacto, incluidas ocho solicitudes de fecha controlada y doce de modo. No ejecuta producto ni sustituye pruebas de recuperación. Recibo SHA `d896c198e8a09fe7fc420b07337db1c69b52efabbaecf02b80f387192e3a7ddd`; cleanup exacto y ausencia verificados. Un primer guard del auxiliar exigió tmpfs en `Mounts`, aunque Docker lo declara en `HostConfig.Tmpfs`; se conserva el fallo previo a start y se reanudó el mismo contenedor OWN registrado tras verificar ambas representaciones. No hubo ejecución previa del probe ni reinicio de pytest.
+
+La nueva receta privada conserva los oráculos y separa runtime Linux nativo de outputs durables del host. Requiere revisión independiente, precondición de filesystem y archivo completo verificado antes del cleanup. Su preparación no acepta el bloque ni modifica producto, Gold, QA19 o estados macro.
+
+La receta privada V5 fue aceptada estáticamente por A+B y ROOT selló su adopción y la precondición real de filesystem. La ejecución nativa terminó con528 passed/0 failed/0 skipped: doce de recuperación, seis guardias y510 vecinos. El gate original salió1 por el recolector privado: su glob contó tanto el directorio real `memory-local-recovery0` como el alias symlink `memory-local-recoverycurrent` de pytest. El manifiesto archivado confirma ambas rutas. Este resultado original permanece NO-PASS; no se corrigen retrospectivamente su gate ni su verdict.
+
+Antes del cleanup se verificó independientemente el archivo completo:8820 entradas,3999 archivos regulares y12031578 bytes, sin extracción y con grafo de enlaces/framing validados. Archivo SHA `1e2b9fee3fbbc3bd6315af5e3ef5cc4188da45fead2234ec90e0c1bbbb47346b`; manifiesto SHA `e7320fc98c4239fb3f65465f7170e0d332b58cbdcef5ee36d7b287742d9ad833`. Cleanup por identidad y ausencia verificados; fuente985 y pruebas de cierre intactas. Se prepara una verificación ROOT correctiva sobre esos mismos artefactos, con selección del directorio real y comprobación completa de hijos, antes de aplicar un nuevo gate oficial. No se repiten tests, no se cambia producto/Gold y la aceptación integrada sigue UNKNOWN.
+
+### QA correctiva Linux y aceptación ROOT únicamente del Bloque20
+
+2026-10-10. La verificación ROOT correctiva terminó exit 0 sobre los mismos artefactos terminales archivados, sin repetir producto ni tests: 528 IDs únicos, 528 passed/0 failed/0 skipped; doce casos de recuperación, seis guardias y 510 vecinos. Comprueba 70 hijos, cinco cortes, un fallo de manifiesto, diez ACK y nueve snapshots (ocho íntegros y uno alterado de forma controlada), además de seis symlinks POSIX de las guardias. Fuente 985 y proofs antes/después siguen exactos. Coverage oficial conserva 212/235 líneas ejecutables y 7/7 cambiadas, con umbral 90% calculado sin redondeo y sin inferir cobertura de hijos aislados.
+
+El NUEVO qa-gate oficial usa input SHA `11ea4c501210e41ad1504e72100c8cd433656afa253369f1810e022b9fb287d4` y termina VERDE/exit 0; stdout SHA `7f6a9b5cac5255a9481fd8d3cb72ce8801b7106339ea632406950dfde4be1acc`. Recibo correctivo SHA `924702a0e036de50387c78720f8a539d074268eaf8ac98fd6a5addbfab08b072`. No cambia el gate 1, el verdict NO-PASS ni los UNKNOWN históricos del recolector original; tampoco los dos primeros fallos Linux o sus probes.
+
+ROOT acepta únicamente el Bloque20 mediante recibo de publicación SHA `2908cafc8e0cc6be599b0b0ffe01d304f514f8dc172d598358a3de9bfd545761`, ligado a la aceptación detallada SHA `3ddeb5bf89562e3fced0e7edd6e9f66761822d1a118883870d364f9508a07e95`, R2/fuente 985 y los receipts Windows/Linux reales. Windows se retiene514 passed/0 failed/14 skipped; los 18 casos obligatorios pasaron sin skips en ambos OS, sin sumar cohortes ni repetir Windows. Los dieciséis estados macro y QA19 permanecen intactos; cierre global, tres hosts nativos, escala y eficacia comparativa conservan sus pendientes. La validación documental/metadatos final y commit/push de la rama siguen pendientes. TDD n/a: puente documental de resultados y aceptación, sin algoritmo público nuevo.
+
+### Puente documental de publicación: enlaces históricos
+
+El primer preflight de publicación terminó exit 1 antes de ejecutar los cinco gates estáticos. Detectó 28 enlaces históricos del changelog a directorios de conocimiento no versionados en la distribución (14 por idioma). Se conservan el fallo y su informe; no se leyó configuración ni corpus. Los IDs ADR/LES/GOT permanecen como referencias textuales, con una nota de distribución. Esta corrección documental conserva los siete archivos de código/test/Gold de R2 y no reabre QA19/QA20. La siguiente validación usa un OWN nuevo y el mismo auxiliar sellado; no se convierte el primer resultado en verde.
+
+El segundo preflight terminó exit 1 en la preparación Git aislada, antes de los cinco gates oficiales. El escritor privado de alternates generó CRLF y Git conservó el carriage return como parte de la ruta de objects: los bytes terminan en 0d0a; recortar sólo LF no encuentra la ruta, recortar CRLF sí. Se conserva la salida terminal y el OWN completo. La corrección privada escribe bytes UTF-8 con LF literal y ruta POSIX, sin cambiar checks, producto, tests, Gold o receipts de QA. El gate de publicación aún requiere una ejecución nueva real sobre la fuente actual.
+
+El tercer preflight terminó exit 1 antes de los cinco gates: el índice Git nuevo del OWN comparó archivos CRLF sin la conversión de texto. Una comprobación de status en ese mismo OWN, con core.autocrlf=true y configuración global/system NUL, devuelve exactamente los 18 archivos esperados; no modifica la fuente pública. La corrección privada configura la conversión exclusivamente en el Git local del OWN, conservando hashes crudos, filtros, exact18 y ROOT intactos. Los tres preflights originales siguen como fallos históricos, distintos de la QA de recuperación ya aceptada.
