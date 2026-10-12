@@ -26,13 +26,13 @@ nada mas. La decision (aprobar, pedir cambios, rechazar) y el traslado a `approv
     puede validar la categoria (fallo cerrado).
   - `candidates/pending/caso-<slug ASCII>-<10 hex>.md` (#126: el sufijo es el sha256 del
     `case_id@v<NNN>` EXACTO, asi que dos casos que solo difieren en no-ASCII o en mayusculas no
-    comparten nombre) se crea con `O_EXCL` (nunca sobrescribe) y se comprueba despues con el contrato
-    G4 del recorder (#121): `realpath` igual al esperado, mismo fichero, un solo nombre; si un tercero
-    sustituyo `pending/` por un enlace entre la preparacion y la creacion, el aviso NOMBRA donde quedo
-    el candidato (solo si es el creado) y no se borra nada. Si ese nombre ya existe en `pending/`,
-    `needs_changes/`, `rejected/` o bajo `approved/` -> exit 1 (ya propuesto; un rechazado no se
-    re-propone). Cada directorio de `docs/knowledge/candidates/pending` que exista no puede ser un
-    enlace (nunca se escribe a traves de uno); los que faltan se crean con `os.mkdir`.
+    comparten nombre) lo crea exclusivamente `agent-kits/shared/knowledge-curation.py`, con
+    slug acotado a 128 caracteres de nombre total y el nombre historico reservado como alias
+    de comparacion cuando difiere (sin cambiar la referencia completa ni nombres ordinarios),
+    redaccion del texto completo, cerrojo cooperante, comprobaciones de enlaces y sin sobrescribir.
+    Un nombre existente en cualquier estado o approved no se re-propone. Sin servicio compartido
+    se informa pendiente (exit 2); nunca se recupera el writer directo como fallback. Las
+    verificaciones no son un sandbox frente a renombres hostiles concurrentes durante IO.
   - Anti-leakage: el puente va en UNA direccion (caso -> candidato); nada de `docs/knowledge/`
     alimenta el case store ni el dataset.
 
@@ -47,7 +47,6 @@ import hashlib
 import importlib.util
 import os
 import re
-import stat
 import sys
 
 # Consola no UTF-8 (Windows cp1252) o tuberias: reconfigurar ANTES de leer/imprimir (GOT-005).
@@ -76,13 +75,12 @@ rec = asm.rec
 cs = asm.cs
 Rechazo = rec.Rechazo
 EVIDENCIA = "validated_case"
-CARPETAS_CANDIDATOS = ("pending", "needs_changes", "rejected")
 MAX_TEXTO = 500
 _TAG = re.compile(r"[^:\s,\[\]]+:[^\s,\[\]]+")
 
 
 class KnowledgeServicesNoDisponible(Exception):
-    """`agent-kits/shared/knowledge-schema.py` no esta: no se puede validar la categoria (exit 2)."""
+    """Dependencia compartida ausente o persistencia no verificable (exit 2)."""
 
 
 def _dirs_shared():
@@ -111,6 +109,34 @@ def categorias(raiz):
     return [c.get("key") for c in config.get("categories") or () if isinstance(c, dict)]
 
 
+def _servicio_curacion():
+    """Carga el unico writer compartido; una instalacion parcial no habilita otro writer."""
+    for directorio in _dirs_shared():
+        ruta = os.path.join(directorio, "knowledge-curation.py")
+        if os.path.isfile(ruta):
+            try:
+                servicio = _cargar(ruta, "tds_knowledge_curation")
+            except (ImportError, OSError, SyntaxError, ValueError):
+                raise KnowledgeServicesNoDisponible(
+                    "knowledge-curation.py no disponible: reinstala el bundle completo; propuesta pendiente") from None
+            if callable(getattr(servicio, "propose", None)):
+                return servicio
+            break
+    raise KnowledgeServicesNoDisponible(
+        "no se encuentra knowledge-curation.py con API propose: reinstala el bundle completo; propuesta pendiente")
+
+
+def _motivo_servicio(resultado):
+    if resultado.get("status") == "name_already_reserved":
+        return "ese nombre ya se propuso en candidates o approved; nunca se sobrescribe ni se re-propone un candidato"
+    mensajes = []
+    for item in (resultado.get("errores") or []) + (resultado.get("avisos") or []):
+        mensaje = item.get("mensaje", "") if isinstance(item, dict) else str(item)
+        if mensaje:
+            mensajes.append(_una_linea(rec.redactar_estructura(mensaje)))
+    return "; ".join(mensajes) or "el servicio de curacion no confirma la propuesta; pendiente"
+
+
 def _una_linea(texto):
     """Texto libre en UNA linea imprimible (sin saltos ni controles), acotado a `MAX_TEXTO`."""
     plano = texto if isinstance(texto, str) else asm.dd._plano(texto)
@@ -122,28 +148,19 @@ def _valor_tag(v):
     return re.sub(r"[\s,\[\]:]+", "-", str(v)) or "-"
 
 
-def _nombre_candidato(ref):
-    """#126: slug ASCII del `case_id@v<NNN>` + sufijo de 10 hex del sha256 de la referencia EXACTA."""
+def _nombre_historico(ref):
+    """Nombre anterior sin truncar, usado solo para reservar propuestas historicas."""
     sufijo = hashlib.sha256(ref.encode("utf-8")).hexdigest()[:10]
     return "caso-" + re.sub(r"[^A-Za-z0-9._-]", "-", ref.replace("@", "-")) + f"-{sufijo}.md"
 
 
-class _CanonPending:
-    """El contrato G4 de `_verificar_creado` (#121) para el buzon: `igual(ruta)` compara el `realpath`
-    del candidato con la ruta esperada bajo `pending/` (igualdad, no contencion)."""
-
-    def __init__(self, raiz, esperado):
-        self.raiz, self.esperado = raiz, esperado
-
-    def igual(self, ruta):
-        try:
-            r = os.path.realpath(ruta)
-        except (OSError, ValueError):
-            return False, None
-        return os.path.normcase(r) == os.path.join(self.esperado, os.path.normcase(os.path.basename(ruta))), r
-
-    def rel(self, ruta):
-        return rec._texto_ruta(os.path.relpath(ruta, self.raiz).replace(os.sep, "/"))
+def _nombre_candidato(ref):
+    """Slug ASCII portable <=128; el sufijo conserva la identidad de la referencia completa."""
+    historico = _nombre_historico(ref)
+    if len(historico) <= 128:
+        return historico
+    sufijo = historico[-14:]  # '-' + 10 hex + '.md'; no deriva del slug truncado
+    return historico[:128 - len(sufijo)] + sufijo
 
 
 def _texto_candidato(ref, caso, categoria, titulo, tags):
@@ -165,38 +182,8 @@ def _texto_candidato(ref, caso, categoria, titulo, tags):
     return ("\n".join(lineas) + "\n").encode("utf-8")
 
 
-def _preparar_pending(raiz):
-    """`<raiz>/docs/knowledge/candidates/pending`, creando con `os.mkdir` lo que falte; ningun componente
-    que ya exista puede ser un enlace y el resultado tiene que ser EXACTAMENTE la ruta esperada."""
-    actual = raiz
-    for parte in ("docs", "knowledge", "candidates", "pending"):
-        actual = os.path.join(actual, parte)
-        if os.path.lexists(actual):
-            st = os.lstat(actual)
-            if rec._motivo_enlace(actual, actual) or not stat.S_ISDIR(st.st_mode):
-                raise Rechazo(f"{rec._texto_ruta(os.path.relpath(actual, raiz))}: no es un directorio real "
-                              "(enlace u otra cosa); el puente no escribe a traves de el")
-        else:
-            os.mkdir(actual)
-    esperado = os.path.normcase(os.path.join(os.path.realpath(raiz), "docs", "knowledge", "candidates", "pending"))
-    if os.path.normcase(os.path.realpath(actual)) != esperado:
-        raise Rechazo("docs/knowledge/candidates/pending no es la ruta esperada (enlace en la ruta); no se escribe nada")
-    return actual, esperado
-
-
-def _ya_propuesto(raiz, nombre):
-    base = os.path.join(raiz, "docs", "knowledge")
-    for carpeta in CARPETAS_CANDIDATOS:
-        if os.path.lexists(os.path.join(base, "candidates", carpeta, nombre)):
-            return f"candidates/{carpeta}/{nombre}"
-    for d, _dirs, ficheros in os.walk(os.path.join(base, "approved")):
-        if nombre in ficheros:
-            return os.path.relpath(os.path.join(d, nombre), base).replace(os.sep, "/")
-    return None
-
-
 def proponer(config, raiz_proyecto, case_id, version, categoria, titulo=None, tags=()):
-    """Crea el candidato (ver docstring del modulo). Devuelve `{ruta, ref, categoria, avisos}`."""
+    """Crea el candidato. Devuelve `{ruta, sha256, ref, categoria, avisos}` del servicio."""
     raiz = rec._raiz(raiz_proyecto)
     rec.config_activa(config, raiz)                                     # #125: `enabled: true` obligatorio
     if config.get("bridge_to_curator") is not True:
@@ -229,22 +216,27 @@ def proponer(config, raiz_proyecto, case_id, version, categoria, titulo=None, ta
     if estado == "sin":
         avisos.append(asm.AVISO_SIN_HASH.format(ref=rec._texto_ruta(ref)).replace("se exporta", "se propone"))
     nombre = _nombre_candidato(ref)
-    previo = _ya_propuesto(raiz, nombre)
-    if previo:
-        raise Rechazo(f"{rec._texto_ruta(ref)} ya se propuso ({rec._texto_ruta(previo)}): nunca se sobrescribe ni se "
-                      "re-propone un candidato")
-    pending, esperado = _preparar_pending(raiz)
-    ruta = os.path.join(pending, nombre)
-    try:
-        f = open(ruta, "xb")
-    except FileExistsError:
-        raise Rechazo(f"candidates/pending/{rec._texto_ruta(nombre)} ya existe: nunca se sobrescribe") from None
-    with f:
-        st = os.fstat(f.fileno())
-        f.write(_texto_candidato(ref, caso, categoria, titulo, tags))
-    # #121: contrato G4 del recorder (igualdad con la ruta esperada; nombra donde quedo SOLO si es el creado)
-    rec._verificar_creado(_CanonPending(raiz, esperado), ruta, st, "el puente")
-    return {"ruta": ruta, "ref": ref, "categoria": categoria, "avisos": avisos}
+    historico = _nombre_historico(ref)
+    servicio = _servicio_curacion()
+    resultado, codigo = servicio.propose(raiz, nombre,
+        _texto_candidato(ref, caso, categoria, titulo, tags).decode("utf-8"), producer="training-data-services",
+        reserved_aliases=(historico,) if historico != nombre else ())
+    if codigo == 1:
+        raise Rechazo(_motivo_servicio(resultado))
+    if codigo != 0:
+        raise KnowledgeServicesNoDisponible(_motivo_servicio(resultado))
+    relativa = "docs/knowledge/candidates/pending/" + nombre
+    if resultado.get("ruta") != relativa:
+        raise KnowledgeServicesNoDisponible("knowledge-curation.py no confirma la ruta pending esperada; pendiente")
+    sha256 = resultado.get("sha256")
+    if not isinstance(sha256, str) or not re.fullmatch(r"[a-fA-F0-9]{64}", sha256):
+        raise KnowledgeServicesNoDisponible("knowledge-curation.py no confirma el SHA256 del candidato; pendiente")
+    for aviso in resultado.get("avisos") or []:
+        texto = aviso.get("mensaje", "") if isinstance(aviso, dict) else str(aviso)
+        if texto:
+            avisos.append(_una_linea(rec.redactar_estructura(texto)))
+    ruta = os.path.join(raiz, *relativa.split("/"))
+    return {"ruta": ruta, "sha256": sha256, "ref": ref, "categoria": categoria, "avisos": avisos}
 
 
 def _tag(valor):
@@ -282,7 +274,7 @@ def main(argv=None):
         print(f"aviso: {rec._texto_seguro(a)}", file=sys.stderr)
     rel = os.path.relpath(r["ruta"], raiz).replace(os.sep, "/")
     print(f"OK candidato {rec._texto_ruta(rel)} ({r['categoria']}, desde {r['ref']}): pendiente de knowledge-curator "
-          "(curator-gate.py); no se ha aprobado nada")
+          f"(curator-gate.py); SHA256 {r['sha256']}; no se ha aprobado nada")
     return 0
 
 

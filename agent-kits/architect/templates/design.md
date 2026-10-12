@@ -7,7 +7,7 @@ actualizado: "{{FECHA}}"
 spec: spec.md                 # enlace hacia atrás (misma carpeta)
 evaluacion: "{{EVALUACION}}"    # evaluation.md | n/a
 plan: pendiente               # improvement-plan.md cuando el planner lo cree
-adr: "{{ADR}}"                  # docs/knowledge/adr/ADR-NNN-<slug>.md | n/a (no cruzó el umbral)
+adr: "{{ADR}}"                  # ruta candidates/pending devuelta por propose | pendiente (sin servicio) | n/a (no cruzó el umbral); SHA en handoff a Curator
 opcion_elegida: "{{OPCION}}"    # pendiente | O1 | O2 | O3 — se fija SOLO tras la validación del usuario (pasada 2 / diálogo manual)
 generacion:
   fuente: "{{FUENTE}}"          # medido | estimado (usage-meter.py)

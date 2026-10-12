@@ -21,6 +21,9 @@ generacion:               # coste real de producir ESTE documento — lo rellena
   inicio: {{ISO-8601}}    # fechas = CONTEXTO informativo; NUNCA se usan para calcular horas
   fin: {{ISO-8601}}
   fuente: medido          # medido (tokens de la transcripción) | estimado (degradación)
+  # Si close devuelve fuente_id, ventana_id y revision_medicion, copia los tres
+  # campos sin modificarlos. Omítelos si no aparecen; no inventes placeholders.
+  # Conserva también medicion_persistida como booleano si aparece, junto con sus avisos.
   tokens_reales: { entrada: {{N}}, salida: {{N}}, cache_creacion: {{N}}, cache_lectura: {{N}} }
   eur: {{N.NN | null}}    # null + aviso si precioTokens no es fiable (ejecuta rates-verify)
   horas_ia: {{N.NN}}      # tokens facturables ÷ ratio (tokens = medida; horas = derivadas)

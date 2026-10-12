@@ -164,7 +164,11 @@ Política **opt-out** (`include: ["**/*.md"]` + `exclude`). Fuera: `docs/securit
 negociable**, `confluence-scope.py --check`), `docs/en/**`, `docs/examples/**`, `docs/agents/**`,
 `atlassian-connector-notes.md`, `improvement-plan.md`/`tasks.md`/`test-plan.md` (D1), `docs/knowledge/journal/**` (bitácora de sesión, no decisión), `**/testing/**` (D4),
 `docs/confluence/**` (staged, D5), `**/node_modules/**`. **Dentro:** `spec.md`, `evaluation.md`,
-`design.md` (decisión de arquitectura, `architect`), `retro.md` y `docs/knowledge/**` (menos `journal/`). Tabla completa con razones, consecuencias y el contrato de la carpeta
+`design.md` (decisión de arquitectura, no aprobación de memoria), `retro.md`, legado ADR/GOT/LES
+con su estado original y approved válido. **Journal y candidates se omiten**, también en staging
+y fallback a docs. El recorrido fuerza exclusión de ambos incluso con include explícito y
+mayúsculas; el default también los excluye. La fuente está en revisión, sin aceptación de
+publicación externa/nativa. Si no se verifica la omisión, informa publicación de memoria pendiente. Tabla completa con razones, consecuencias y el contrato de la carpeta
 staged → `references/config-and-policy.md`.
 
 ## Reglas

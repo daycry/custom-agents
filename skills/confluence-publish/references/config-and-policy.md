@@ -43,7 +43,8 @@ estas exclusiones:
 | `docs/agents/**` | Ídem: documentación de cómo está hecho cada agente, no de qué hace el proyecto. |
 | `docs/**/atlassian-connector-notes.md` | Notas de trabajo sobre el propio conector Atlassian. |
 | `docs/roadmap/**/improvement-plan.md`, `tasks.md`, `test-plan.md` | Tablero de **ejecución** (plan y ledger): su sitio es el repo y Jira, no Confluence (D1). Confluence guarda la **decisión** (`spec.md`), el **presupuesto** (`evaluation.md`), la **arquitectura** (`design.md`, agente `architect` — se publica, no está en el `exclude`) y el **resultado** (`retro.md`) de cada iniciativa — no el plan detallado ni el progreso tarea a tarea. |
-| `docs/knowledge/journal/**` | **Bitácora de sesión** generada por el hook `SessionEnd` (`agent-kits/shared/journal.py`, iniciativa `memory-health`): cronológica y **no curada** — es lo que pasó en cada sesión, no una decisión. La memoria **curada** de `docs/knowledge/` (`adr/`, `gotchas/`, `lessons/`) sí se publica; lo del journal que merezca doctrina se promueve allí primero (regla 10 de CONVENTIONS). |
+| `docs/knowledge/journal/**` | Bitácora episódica, no conocimiento curado; exclusión forzada por código, también con include explícito y diferencias de mayúsculas. |
+| `docs/knowledge/candidates/**` | Propuestas, cambios/rechazos e intenciones/recibos del servicio; exclusión forzada por código, incluso con include explícito, mayúsculas y staging. |
 | `**/testing/**` | El informe de `qa` (`report.md`/`report.pdf`, `screenshots/`, `raw/`) embebe capturas que el conector no puede adjuntar (saldrían rotas). Queda **solo-local** (D4); sigue disponible completo en el repo. |
 | `docs/confluence/**` | La propia carpeta **staged** generada por `--stage` (D5) — se autoexcluye SIEMPRE (por código, no por config) para que un `--stage` no se anide dentro del anterior. |
 | `**/node_modules/**` | Dependencias, nunca documentación. |
@@ -54,13 +55,19 @@ ese disparo refresca lo demás que haya cambiado bajo `docs/` (típicamente `das
 ledger en sí. Un proyecto que quiera verlo publicado tiene que añadirlo a `include` a mano; no es
 opción de primera clase (D2: sin presets de audiencia).
 
-**`docs/knowledge/**` SÍ se publica** (memoria técnica del proyecto —
-`2026-08-20-knowledge-capture`), **salvo `docs/knowledge/journal/**`** (bitácora de sesión, excluida arriba): el resto no está en el `exclude`, así que entra en el espejo como
-cualquier otra documentación de **decisión/resultado** — igual que `spec.md`/`evaluation.md`/
-`retro.md` por iniciativa. Contiene ADR (`adr/`), trampas comprobadas (`gotchas/`) y lecciones de
-proceso (`lessons/`) — un fichero por entrada; a diferencia de `tasks.md`, no es tablero de ejecución, así que no cae en
-la exclusión D1. Verificable con `confluence-scope.py --status`: un fichero de ejemplo bajo
-`docs/knowledge/` aparece **en alcance**, no en la lista de excluidos.
+**Memoria publicable:** legado ADR/GOT/LES conservando su estado/autoridad original y
+`docs/knowledge/approved/**` válido. Publicar legado no lo convierte en aprobado. Journal y
+candidates son episodios/propuestas, no corpus curado; no se publican como tal.
+
+**Exclusión mecánica de memoria (Bloque 23, fuente en revisión):** el default de
+`assets/confluence.example.json` y `ALWAYS_EXCLUDE` incluyen journal y candidates. El recorrido
+de `confluence-scope.py` fuerza su exclusión antes de include, con rutas comparadas sin distinguir
+mayúsculas; staging tampoco los copia y sí conserva approved válido. `check_invariants` conserva
+su sonda security-scan: no es una evaluación semántica de conocimiento. La skill omite ambos
+árboles en previsualización/publicación, también al degradar a docs; si no verifica esa omisión,
+informa publicación de memoria pendiente. La corrección de fuente no acredita publicación real
+en Confluence, aceptación nativa ni aprobación de la iniciativa. Contrato:
+[propuesta/curación](../../../docs/roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).
 
 **Stubs `gotchas.md`/`LESSONS.md` (`knowledge-split`): no requieren caso especial.** Solo existen
 en este repo (que no publica — no hay `confluence.json` propio) y en proyectos que ya tenían el

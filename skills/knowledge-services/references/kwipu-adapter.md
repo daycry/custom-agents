@@ -264,7 +264,11 @@ resultó tener dos Critical — pérdida de datos en el rollback y borrado de fi
    proyectos, o `export_dir: "docs"`, ya no puede perder nada que no sea suyo) — y ejecuta los
    `revoke` (solo ficheros que estaban en el manifiesto PROPIO, `os.remove` best-effort; nunca
    borra un fichero que `apply()` no escribió él mismo).
-4. Renombra `manifest.pending.json` -> `manifest.json` (atómico) y borra el staging.
+4. Renombra `manifest.pending.json` -> `manifest.json` y borra el staging. Sólo Windows
+   reintenta errores 5/32/33, hasta cuatro intentos y con esperas de 20/40/80 ms; antes de cada
+   intento comprueba que las identidades observadas de ambos archivos no hayan cambiado.
+   Archivos no regulares o con varios enlaces se rechazan. Estas observaciones bajo el lock
+   cooperativo no proporcionan CAS frente a escritores externos ni un plazo duro del sistema.
 
 **Caminos de fallo:**
 
@@ -277,6 +281,10 @@ resultó tener dos Critical — pérdida de datos en el rollback y borrado de fi
   corrida lo usa como manifiesto objetivo en `plan()`: los ficheros cuyo hash en disco ya coincide
   con el objetivo son `sin_cambios`, el resto vuelve a ser `upsert` — la publicación interrumpida
   se completa sola, sin recuperación manual ni reintento dentro de la misma corrida.
+- Fallo al finalizar el manifiesto: archivos publicados o revocados ya pueden estar visibles.
+  Se conserva `manifest.pending.json` para la próxima corrida; no se revierte el lote. Un bloqueo
+  persistente o cambio de identidad rechaza la finalización. El CLI informa posible publicación
+  parcial y muestra `--outbox-status`; nunca garantiza que todo el estado anterior siga intacto.
 - `verify()` con `manifest.pending.json` presente devuelve `ok: False,
   razon: "publicacion_incompleta"` antes que cualquier otra comprobación.
 

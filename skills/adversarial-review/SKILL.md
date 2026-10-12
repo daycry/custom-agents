@@ -145,13 +145,11 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente 
   y qué lentes corrieron (A+B, o A+B+C/D con sus motivos).
 - **Con ledger, además:** sección **`## Revisión de dos lentes — intento N: …`** al final de
   `tasks.md` (tabla `# · Grado · Gap · Tarea · Corrección · Evidencia`; ver
-  `docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md` como referencia de formato) y, al
-  cerrar el bucle **sin gaps de corrección pendientes** (0 gaps, todos rebatidos con evidencia, o
-  aceptados como deuda por el usuario), **promoción** de las entradas `docs/knowledge/` que la
-  iniciativa escribió con `estado: propuesta` → `estado: aceptada (validada: revisión de dos
-  lentes, AAAA-MM-DD, intento N)` (formato único de `"$SHAREDKIT/knowledge-write.md"` §Autoría).
-  Si el 3.º intento sigue con gaps sin resolver, quedan en `propuesta`. `ledger-lint.py` exit 0
-  tras escribir.
+  `docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md` como referencia de formato).
+  Al cerrar el bucle sin gaps pendientes, la revisión queda como evidencia para Curator;
+  **no** promueve estados de memoria ni aprueba candidatos. Con gaps tras el 3.º intento,
+  conserva la evidencia y las propuestas pendientes sin alterar el legado.
+  `ledger-lint.py` exit 0 tras escribir.
 - **Jira — lo publica ESTA skill, POR CADA intento (dueño único; solo si `.claude/jira.json`
   `enabled` Y el plan se volcó).** Nada más escribir la sección del intento en `tasks.md`, ejecuta
   `python3 "$JF" plan --ledger <tasks.md> --event revision|gaps --actor reviewer --task T-XX[,T-YY]
@@ -167,9 +165,9 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente 
   líneas: veredicto, nº de gaps por grado, lentes que corrieron, ruta del ledger actualizado,
   siguiente paso). El detalle vive en el ledger.
 
-> **Compatibilidad de la etiqueta.** La sección del ledger y el promotor de `docs/knowledge/` siguen
-> llamándose **«Revisión de dos lentes»** aunque corran C y/o D (`/retro` y `knowledge-write.md` lo buscan
-> literal); anota en el texto qué corrió de verdad (p. ej. "lentes: A+B+C", "A+B+D" o "A+B+C+D").
+> **Compatibilidad de la etiqueta.** La sección del ledger sigue llamándose
+> **«Revisión de dos lentes»** aunque corran C y/o D; anota qué corrió de verdad
+> (p. ej. "lentes: A+B+C", "A+B+D" o "A+B+C+D"). No es una aprobación de memoria.
 
 ## Scripts propios
 
@@ -186,7 +184,7 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente 
 
 - No implementa ni corrige: devuelve gaps; corrige el `implementer` (o quien pidió la revisión).
 - No da el verde de pruebas (`qa`/`qa-gate.py`) ni audita seguridad completa (`nemesis`).
-- No toca `docs/roadmap/` salvo la sección de revisión del `tasks.md`, ni `docs/knowledge/` salvo el `estado` de lo que promueve.
+- No toca `docs/roadmap/` salvo la sección de revisión del `tasks.md`; no muta `docs/knowledge/` ni promueve conocimiento. Curator juzga y el servicio persiste.
 - No imputa horas: el worklog `[revisión]` por intento es del orquestador (`/dev-cycle`).
 - No decide qué hacer al 3.º intento con gaps: lo devuelve al orquestador/usuario.
 

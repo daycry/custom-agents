@@ -8,10 +8,11 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = dirname(here);
 const known = new Set(['session-journal.sh', 'user-prompt-capture.sh', 'session-context.sh',
   'subagent-progress.sh', 'mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh',
-  'implementer-guardrail.sh', 'architect-guardrail.sh', 'native-guardrail']);
+  'implementer-guardrail.sh', 'architect-guardrail.sh', 'native-guardrail', 'agent-activity']);
 const hook = process.argv[2];
 const runtime = process.argv[3] || '--runtime=claude';
-const warn = message => process.stderr.write(`custom-agents hooks: ${message}\n`);
+const activity = hook === 'agent-activity';
+const warn = message => { if (!activity) process.stderr.write(`custom-agents hooks: ${message}\n`); };
 const windows = process.platform === 'win32';
 const env = { ...process.env, CLAUDE_PLUGIN_ROOT: root, PYTHONIOENCODING: 'utf-8:replace' };
 const guard = hook === 'native-guardrail';
@@ -128,15 +129,19 @@ async function main() {
   if (!py) { warn('Python unavailable; hook skipped'); if (guard) emitGuard(); return; }
   let command, args;
   // Capture and native guards use contained Python without shell startup.
-  if (guard || hook === 'session-journal.sh' || hook === 'user-prompt-capture.sh') {
+  if (guard || activity || hook === 'session-journal.sh' || hook === 'user-prompt-capture.sh') {
     command = py.command;
-    args = guard
+    args = activity
+      ? [...py.args, '-I', '-S', ...(!windows ? ['-X', 'utf8', '-B'] : []), join(root, 'agent-kits', 'shared', 'agent-activity-store.py'),
+        '--runtime', runtime.slice('--runtime='.length), '--root', env.CLAUDE_PROJECT_DIR || process.cwd()]
+      : guard
       ? [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'native-guardrail.py'),
         '--runtime', runtime.slice('--runtime='.length), '--output', 'structured']
       : hook === 'session-journal.sh'
       ? [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'journal-capture.py')]
       : [...py.args, join(root, 'agent-kits', 'shared', 'journal.py'), 'capture'];
     if (guard) args.push('--project-dir', env.CLAUDE_PROJECT_DIR || process.cwd());
+    else if (activity) { /* The activity root is explicit above. */ }
     else if (env.CLAUDE_PROJECT_DIR) args.push('--root', env.CLAUDE_PROJECT_DIR);
   } else {
     command = windows ? candidates(['bash.exe'])[0] : 'bash';
@@ -150,8 +155,8 @@ async function main() {
     if (hook === 'session-context.sh') args.push(runtime);
   }
   if (windows) {
-    const mode = guard || ['session-journal.sh', 'user-prompt-capture.sh'].includes(hook) ? 'python' : 'exec';
-    args = [...py.args, '-I', '-S', join(here, 'runtime-supervisor.py'), 'run', String(process.pid), mode, command, ...args];
+    const mode = guard || activity || ['session-journal.sh', 'user-prompt-capture.sh'].includes(hook) ? 'python' : 'exec';
+    args = [...py.args, '-I', '-S', ...(activity ? ['-X', 'utf8', '-B'] : []), join(here, 'runtime-supervisor.py'), 'run', String(process.pid), mode, command, ...args];
     command = py.command;
   }
   await new Promise(resolve => {
@@ -197,7 +202,7 @@ async function main() {
       // This is the child budget. Native guard registrations also leave room
       // for launcher startup and confirmed tree cleanup. Capture does no deferred work.
       void stop();
-    }, guard ? 4500 : hook === 'session-journal.sh' ? (runtime === '--runtime=claude' ? 800 : 2200) : 20000);
+    }, guard ? 4500 : activity ? 2000 : hook === 'session-journal.sh' ? (runtime === '--runtime=claude' ? 800 : 2200) : 20000);
     let output = '';
     if (guard) {
       let bytes = 0;
@@ -210,12 +215,13 @@ async function main() {
     } else if (post) {
       child.stdout.setEncoding('utf8');
       child.stdout.on('data', chunk => { output += chunk; });
-    } else child.stdout.pipe(process.stdout);
+    } else if (activity) child.stdout.resume();
+    else child.stdout.pipe(process.stdout);
     if (windows) {
       let header = '', pendingHeader = true;
       child.stderr.setEncoding('utf8');
       child.stderr.on('data', chunk => {
-        if (!pendingHeader) { if (!guard) process.stderr.write(chunk); return; }
+        if (!pendingHeader) { if (!guard && !activity) process.stderr.write(chunk); return; }
         header += chunk;
         const end = header.indexOf('\n');
         if (end < 0 && header.length <= 512) return;
@@ -224,11 +230,11 @@ async function main() {
           const control = JSON.parse(header.slice(0, end));
           if (control.owner !== process.pid || !/^[1-9][0-9]{0,19}$/.test(control.customAgentsJob)) throw Error();
           jobHandle = control.customAgentsJob;
-          if (!guard && header.slice(end + 1)) process.stderr.write(header.slice(end + 1));
+          if (!guard && !activity && header.slice(end + 1)) process.stderr.write(header.slice(end + 1));
         } catch { supervisionFailed = true; warn('process supervision unavailable; hook skipped'); void stop(); }
         header = '';
       });
-    } else if (guard) child.stderr.resume();
+    } else if (guard || activity) child.stderr.resume();
     else child.stderr.pipe(process.stderr);
     child.stdin.on('error', () => {});
     if (post) child.stdin.end(input, 'utf8');

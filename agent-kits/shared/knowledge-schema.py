@@ -93,7 +93,7 @@ _BACKEND_CLAVES = ("type", "enabled", "config")
 _GRAPHITI_CONFIG_CLAVES = (
     "mode", "endpoint", "group_id", "allow_remote", "provider", "entity_map",
     "relations", "router", "telemetria", "health", "timeout_ms", "concurrency",
-    "episode_body_max_kb", "max_respuesta_kb", "max_episodes",
+    "episode_body_max_kb", "max_respuesta_kb", "max_episodes", "transition_relations", "transition_excluded_entity_types",
 )
 _GRAPHITI_PROVIDER_CLAVES = ("llm", "model", "embedder", "embedder_model", "base_url", "api_key_env")
 _GRAPHITI_ROUTER_CLAVES = ("intents", "default")
@@ -265,6 +265,22 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
             errores.append(_error(
                 f"clave desconocida `{clave}` en `config` de `type: \"graphiti\"`",
                 fichero, f"{campo_c}.{clave}"))
+
+    if "transition_relations" in config:
+        relation_mode = config["transition_relations"]
+        if type(relation_mode) is not str or relation_mode not in ("episode", "triplet"):
+            errores.append(_error(
+                "`transition_relations` debe ser episode o triplet", fichero,
+                f"{campo_c}.transition_relations"))
+
+    if 'transition_excluded_entity_types' in config:
+        excluded = config['transition_excluded_entity_types']
+        if not (type(excluded) is list and len(excluded) <= 128 and all(
+                type(name) is str and 0 < len(name) <= 256 and name == name.strip()
+                and name.isprintable() for name in excluded)):
+            errores.append(_error(
+                '`transition_excluded_entity_types` debe ser una lista de hasta 128 nombres validos',
+                fichero, f'{campo_c}.transition_excluded_entity_types'))
 
     allow_remote_declarado = config.get("allow_remote")
     if "allow_remote" in config and not isinstance(allow_remote_declarado, bool):

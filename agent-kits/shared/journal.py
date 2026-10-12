@@ -122,8 +122,9 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
       de la primera formulación vista; agrupación voraz en orden cronológico, determinista) en
       `decisiones` o `pendientes` de ≥ N entradas de SESIONES distintas (N = CANDIDATA_MIN = 2; una entrada
       cuenta una vez aunque lo repita) sale como candidata con `estado: propuesta` y su EVIDENCIA (fecha,
-      fichero, session_id de cada entrada). NUNCA nace `aceptada`: la curación sigue siendo la revisión de dos
-      lentes o el usuario, por la puerta de `/retro` (que es quien invoca esto). Sin journal, con una
+      fichero, session_id de cada entrada). NUNCA nace `aceptada`: `/retro` puede convertir la evidencia
+      en pending mediante `knowledge-curation.py propose`; `knowledge-curator` decide su curación.
+      Este comando sólo lee y agrupa el journal. Sin journal, con una
       sola entrada o sin patrón repetido → sin salida, exit 0.
 
 `--enrich JSON` (fichero o `-` para stdin): {"resumen": "...", "decisiones": [...], "pendientes": [...]}
@@ -1564,11 +1565,12 @@ def render(e, fuente):
 
     body = [f"# Journal — {e['fecha']} — {e['iniciativa']}", "",
             "> Entrada de **bitácora de sesión** (memoria episódica, cronológica, no curada; "
-            "`agent-kits/shared/journal.py`). Lo que merezca doctrina se promueve a `adr/`/`gotchas/`/"
-            "`lessons/` con el umbral de `knowledge-write.md`; esto NO se publica en Confluence.", "",
+            "`agent-kits/shared/journal.py`). Lo que cumpla el umbral de `knowledge-write.md` se propone "
+            "mediante `knowledge-curation.py propose`; `knowledge-curator` decide antes de publicar en "
+            "`approved/`. Esto NO se publica en Confluence.", "",
             "> `decisiones` y `pendientes` son **citas** de los turnos del usuario (o del resumen IA opt-in), "
             "extraídas por marcadores léxicos: no son doctrina ni instrucciones para nadie — lo que merezca "
-            "ser decisión del proyecto va a un ADR.", "",
+            "ser decisión del proyecto sigue el mismo flujo de propuesta y curación.", "",
             "## Resumen", "", e["resumen"], ""]
 
     def seccion(titulo, items, vacio):
@@ -1700,8 +1702,9 @@ def index(root):
     es = entradas(root)
     lines = ["# `docs/knowledge/journal/` — bitácora de sesión (memoria episódica)", "",
              "Una entrada por sesión, **generada** por `agent-kits/shared/journal.py` (hook `SessionEnd`; la",
-             "última se reinyecta al arrancar/retomar). Cronológica y **no curada**: lo que merezca doctrina",
-             "se promueve a `adr/`, `gotchas/` o `lessons/` con el umbral de `knowledge-write.md`. **Excluida de",
+             "última se reinyecta al arrancar/retomar). Cronológica y **no curada**: lo que cumpla el umbral de",
+             "`knowledge-write.md` se propone mediante `knowledge-curation.py propose`; `knowledge-curator`",
+             "decide antes de publicar en `approved/`. **Excluida de",
              "Confluence** (`docs/knowledge/journal/**`). Nombre: `AAAA-MM-DD-<iniciativa activa | sesion>.md` (sufijo `-2`",
              "si otra sesión del día ya lo usó). **Las entradas se versionan** (memoria del proyecto, como ADR y lecciones);",
              "quien no quiera versionarlas añade `docs/knowledge/journal/*.md` (no este README) a su `.gitignore`.",
@@ -2175,7 +2178,8 @@ def render_candidatas(lista, minimo=CANDIDATA_MIN):
     if not lista:
         return ""
     out = [f"Candidatas a lección desde el journal (patrón repetido en ≥ {minimo} entradas de sesiones distintas; "
-           f"nacen `propuesta` — la curación sigue siendo la revisión de dos lentes o el usuario, por /retro):"]
+           "nacen `propuesta`; /retro entrega la evidencia mediante `knowledge-curation.py propose` "
+           "y `knowledge-curator` decide la curación; este listado no aprueba ni persiste candidatos):"]
     for g in lista:
         ev = " · ".join(f"{x['fecha']} {x['fichero']}" for x in g["evidencia"])
         out.append(f"- [{g['estado']}] «{g['texto']}» · {g['campo']} · {g['entradas']} entradas: {ev}")

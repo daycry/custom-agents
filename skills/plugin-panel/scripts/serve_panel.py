@@ -196,6 +196,40 @@ def progress_snapshot(project):
     return result
 
 
+ACTIVITY_REASONS = frozenset(('disabled', 'invalid_config', 'state_missing',
+    'unowned_state', 'invalid_state', 'unsafe_state', 'state_busy',
+    'deadline_exceeded', 'state_budget', 'durability_degraded', 'invalid_input',
+    'input_budget', 'project_mismatch', 'unsupported_event', 'invalid_identity',
+    'role_map_unavailable', 'quota_exceeded', 'revision_exhausted', 'invalid_clock'))
+
+
+def _unavailable_activity(reason='reader_unavailable', status='unavailable'):
+    return {'schema_version': 1, 'status': status, 'reason': reason,
+        'complete': False, 'collection_complete': False, 'observations': []}
+
+
+def activity_snapshot(project):
+    """Read the opt-in owner's snapshot, without interpreting absence as coverage."""
+    try:
+        snapshot = _load_shared('agent-activity-store.py').snapshot(project)
+        if (type(snapshot) is not dict or set(snapshot) !=
+                {'status', 'reason', 'records', 'collection_complete'}
+                or snapshot['collection_complete'] is not False):
+            return _unavailable_activity('invalid_snapshot', 'invalid_snapshot')
+        if snapshot['status'] == 'unavailable':
+            reason = snapshot['reason']
+            if type(reason) is not str or reason not in ACTIVITY_REASONS or snapshot['records'] != []:
+                return _unavailable_activity('invalid_snapshot', 'invalid_snapshot')
+            return _unavailable_activity(reason)
+        if snapshot['status'] != 'ok' or snapshot['reason'] is not None:
+            return _unavailable_activity('invalid_snapshot', 'invalid_snapshot')
+        result = _load_shared('agent-activity.py').project_activity(snapshot['records'], now=time.time())
+        return {**result, 'reason': None if result['status'] == 'ok' else 'invalid_snapshot',
+            'collection_complete': False}
+    except Exception:
+        return _unavailable_activity()
+
+
 class PanelServer(HTTPServer):
     """Serial handlers bound concurrency; a stalled socket expires in three seconds."""
     request_queue_size = 8
@@ -221,6 +255,15 @@ class PanelServer(HTTPServer):
                     'issues': [{'status': 'read_failed'}]})
             self._snapshot_at = now
         return self._snapshot
+
+    def activity(self):
+        try:
+            body = _encoded(activity_snapshot(self.project))
+            if len(body) > MAX_RESPONSE_BYTES:
+                return _encoded(_unavailable_activity('response_budget'))
+            return body
+        except Exception:
+            return _encoded(_unavailable_activity())
 
     def memory(self, payload):
         try:
@@ -343,6 +386,8 @@ class PanelHandler(BaseHTTPRequestHandler):
             self._reply(200, self.server.page, 'text/html; charset=utf-8')
         elif route == 'api/progress':
             self._reply(200, self.server.snapshot(), 'application/json; charset=utf-8')
+        elif route == 'api/activity':
+            self._reply(200, self.server.activity(), 'application/json; charset=utf-8')
         elif (review := self._review_route(route, ('view', 'status'))) is not None:
             code, body = self.server.review(review[1], review[0], None, deadline)
             self._reply(code, body, 'application/json; charset=utf-8')

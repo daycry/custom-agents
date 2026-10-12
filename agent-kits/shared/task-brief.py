@@ -1328,7 +1328,7 @@ def presupuesto_persona(out, persona_insert_idx, tipo, persona_ruta, persona_con
         bloque = _persona_delimitada(tipo, persona_contenido, ruta_aviso, tope_cuerpo)
     if bloque:
         out[persona_insert_idx:persona_insert_idx] = bloque
-    return out, resto
+    return out, resto + 1  # Include the CLI terminating newline.
 
 
 def _presupuesto_auxiliar(out, persona_insert_idx, tipo, persona_ruta, persona_contenido, carpeta):
@@ -1455,9 +1455,9 @@ def main(argv=None):
     out, resto_sin_persona = presupuesto_persona(
         out, persona_insert_idx, tipo, persona_ruta, persona_contenido, args.carpeta)
 
-    texto = "\n".join(out)
+    texto = "\n".join(out) + "\n"
     _avisa_si_excede_tope(tid, texto, resto_sin_persona)
-    print(texto)
+    print(texto, end="")
     return 0
 
 

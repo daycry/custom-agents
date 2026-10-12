@@ -23,7 +23,7 @@ Qué se genera (y por qué ese formato, verificado en la doc oficial de cada her
 
   OpenCode V2 (opencode.ai/v2/docs/build/plugins, 2026-10-08)
     interop/opencode/opencode.json     `plugins` con un paquete local; preserva permisos del consumidor.
-    interop/opencode/agents/<n>.md     agentes (`mode`, `temperature`, `permission`).
+    interop/opencode/agents/<n>.md     agentes (`mode`, `permissions`); modelo y parámetros heredados.
     interop/opencode/commands/<n>.md   comandos (`$ARGUMENTS` funciona igual).
     interop/opencode/plugins/custom-agents/   paquete V2 de `hooks/opencode-plugin.js`.
     interop/opencode/custom-agents-index.md   snapshot consultable del índice de piezas.
@@ -69,9 +69,6 @@ DOC = "docs/INTEROP.md"
 # para haiku/sonnet/opus, así que el agente HEREDA el modelo de la sesión padre (comportamiento
 # documentado) y el tiering se declara solo como esfuerzo de razonamiento.
 EFFORT_CODEX = {"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"}
-# Capa de modelo → `temperature` de OpenCode. Toda pieza de este plugin es analítica (decidir,
-# planificar, auditar), y la doc de OpenCode sitúa ese trabajo en 0.0-0.2.
-TEMP_OPENCODE = {"opus": 0.1, "sonnet": 0.2, "haiku": 0.2, "inherit": 0.2}
 HERR_ESCRITURA = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 
 # --- Preámbulos de adaptación ------------------------------------------------------------------
@@ -90,7 +87,7 @@ PRE_AGENTE_CODEX = """> **Adaptación a Codex** (fichero generado; la fuente es 
 
 PRE_AGENTE_OPENCODE = """> **Adaptación a OpenCode** (fichero generado; la fuente es `agents/{nombre}.md`).
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en OpenCode se
->   usa la herramienta `skill` (`skill({{ name: "X" }})`). OpenCode las descubre en
+>   usa la herramienta `skill` (`skill({{ id: "X" }})`). OpenCode las descubre en
 >   `.opencode/skills/<nombre>/SKILL.md` (y también en `.claude/skills/`, por compatibilidad).
 > - **Delegar en otro agente:** herramienta `subagent` con `agent: "custom-agents-reviewer"`.
 >   {delegaciones}
@@ -127,7 +124,7 @@ GUARDRAIL_SOLO_LECTURA = {
               "Una sesión padre con permisos de escritura también permite escribir al subagente. "
               "Si hace falta cambiar algo, devuelve el gap al implementador."),
     "OpenCode": ("tu responsabilidad es revisar sin modificar archivos; el agente declara "
-                 "`permission.edit: deny`. Esto restringe las herramientas de edición sujetas a "
+                 "una regla en `permissions` con `action: edit` y `effect: deny`. Esto restringe las herramientas de edición sujetas a "
                  "ese permiso, no toda posible escritura desde una shell. Si hace falta cambiar "
                  "algo, devuelve el gap al implementador."),
 }
@@ -141,7 +138,7 @@ DELEGAR = {
 SKILLS_EN = {
     "Codex": "mencionándolas con `$custom-agents:nombre` para las skills de este plugin; "
              "conserva el nombre nativo de las skills del consumidor",
-    "OpenCode": 'con la herramienta `skill` (`skill({ name: "nombre" })`)',
+    "OpenCode": 'con la herramienta `skill` (`skill({ id: "nombre" })`)',
 }
 
 
@@ -216,6 +213,16 @@ def guardrail_de(nombre, tools, runtime, mapping=None):
     if nombre in GUARDRAIL_CON_HOOK:
         mapping = mapping or native_roles(ROOT_DEFAULT)
         return GUARDRAIL_CON_HOOK[nombre].format(native_id=mapping["runtimes"][runtime.lower()][nombre])
+    if nombre == 'knowledge-curator':
+        shared = ('decide la curación y persiste exclusivamente mediante el servicio compartido '
+                  '`knowledge-curation.py apply` o `recover` desde Bash, tras validar propuesta, '
+                  'evidencia y conflictos. No edita candidatos ni approved directamente. ')
+        if runtime == 'Codex':
+            return shared + ('Hereda los permisos del padre; su TOML no impone un sandbox independiente. '
+                             'El servicio valida la persistencia, no autentica el rol nativo.')
+        return shared + ('Declara una regla `edit` con efecto `deny` en `permissions` y conserva el permiso de shell. '
+                         'Ese permiso de edición no confina toda escritura desde shell; '
+                         'el servicio no autentica el rol nativo.')
     return GUARDRAIL_NINGUNO if (set(tools) & HERR_ESCRITURA) else GUARDRAIL_SOLO_LECTURA[runtime]
 
 
@@ -323,7 +330,7 @@ def codex_marketplace_json(root):
 
 _ARG_SEGURO_RE = re.compile(r"^[A-Za-z0-9_${}/.\-]+$")
 _COMANDOS_SHELL_TRADUCIBLES = ("bash", "sh")
-_HOOK_RUNTIME_TARGETS = ("native-guardrail", "session-context.sh", "session-journal.sh",
+_HOOK_RUNTIME_TARGETS = ("native-guardrail", "agent-activity", "session-context.sh", "session-journal.sh",
                          "user-prompt-capture.sh", "subagent-progress.sh", "mark-docs-pending.sh",
                          "ledger-lint-warn.sh", "progress-line.sh")
 
@@ -391,7 +398,7 @@ def codex_hooks_json(root):
     """
     src = json.loads(leer(os.path.join(root, "hooks", "hooks.json")))["hooks"]
     out = {}
-    for evento in ("SessionStart", "UserPromptSubmit", "SubagentStop", "SessionEnd", "PreToolUse", "PostToolUse"):
+    for evento in ("SessionStart", "UserPromptSubmit", "SubagentStart", "SubagentStop", "SessionEnd", "PreToolUse", "PostToolUse"):
         grupos = []
         for g in src.get(evento, []):
             ng = {}
@@ -496,7 +503,7 @@ def _command_skill_names(root, commands):
 # --- OpenCode -----------------------------------------------------------------------------------
 
 def permisos_opencode(tools):
-    """`tools` de Claude Code → `permission` de OpenCode. Traducción literal de lo DECLARADO:
+    """`tools` de Claude Code → acciones y efectos de `permissions` de OpenCode. Traducción de lo DECLARADO:
     sin Write/Edit se declara `edit: deny`; la shell conserva su permiso independiente."""
     t = set(tools)
     return {
@@ -518,8 +525,8 @@ def opencode_agente(nombre, bloque, cuerpo, mapping=None):
         ("description", json.dumps(campo(bloque, "description"), ensure_ascii=False)),
         # Todas las piezas del plugin son subagentes: las despacha un orquestador por nombre.
         ("mode", "subagent"),
-        ("temperature", TEMP_OPENCODE.get(campo(bloque, "model"), 0.2)),
-        ("permission", permisos_opencode(tools)),
+        ("permissions", json.dumps([{"action": action, "resource": "*", "effect": effect}
+                                   for action, effect in permisos_opencode(tools).items()], ensure_ascii=False)),
     ]
     return (fm_yaml(pares) + cabecera("html", "agents/%s.md" % nombre)
             + "\n" + pre + "\n" + cuerpo.lstrip("\n"))

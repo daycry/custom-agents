@@ -4,7 +4,12 @@ Fragmentos de prompt que usan **varios** agentes y que deben tener **una única 
 
 | Fragmento | Qué contiene | Lo usan |
 |-----------|--------------|---------|
+| `codex-plugin-state.mjs` | Lectura acotada del estado nativo de `custom-agents@daycry`; JSON saneado. El plazo de 3.000 ms incluye arranque de worker y CLI; una respuesta tardía es `unknown` con `cli-timeout`, seguida de limpieza acotada | Instalador y diagnóstico de Codex; tests de estado nativo y de plazo vencido |
 | `plan-review.py` | Dueño stdlib de revisión explícita de `improvement-plan.md`: bytes/vista ligados a versión, comentarios redactados y recibos `pendiente` → `entregada` → `consumida`. CLI común receive/ack idempotentes; puerta y versión exactas, sin ejecutar workflow ni escribir plan/tasks | `/dev-cycle` y panel opt-in de Claude/Codex/OpenCode; [guía](../../docs/PLUGIN-PANEL.md) |
+| `agent-activity-store.py` | Dueño opt-in de metadatos cerrados en `.claude/agent-activity/`: `sesion.actividad: true`, máximo 64 observaciones/64 KiB por snapshot, `.gitignore` propio antes de publicar. `snapshot` sólo lee, sin crear, locks, purga o recuperación; colección siempre incompleta, sin prompts/transcripciones/toolargs | Captura informativa nativa y GET del panel; [guía](../../docs/PLUGIN-PANEL.md) |
+| `native-roles.json` | Mapa central de IDs nativos declarados. `capture` lee `agent-kits/shared/native-roles.json`; el export solo skills necesita esa referencia explícita porque el cierre AST sólo descubre nombres `*.py`. `snapshot` no lee el mapa; incluirlo no registra hooks ni autentica actores | Productor `agent-activity-store.py` y selección nativa del bundle |
+| `agent-activity.py` | Proyección pura del snapshot completo: señales de inicio/fin de respuesta/fin de ejecución/idle; TTL60, futuro o caducado → unknown. No prueba procesos vivos, destrucción ni identidad autenticada | Dueño de actividad y panel servido |
+| `local-state.py` | StateIO stdlib compartido: rutas/archivos seguros, lectura acotada, escritura/CAS, locks y sync con callbacks del dueño. No decide aprobación, captura, config o autoridad de tareas | `plan-review.py`, `agent-activity-store.py`; dependencia explícita de plugin-panel |
 | `diagnostic-report.py` | Contrato puro de proyección portable del diagnóstico: estados y etiquetas públicas acotadas, alcance, fecha y prioridades sin detalles privados | `doctor.py --panel-json`, plugin-panel |
 | `capability-check.md`, `capability-route.py`, `capability-catalog.json` | Selección común por rol/fase/stack/área; manifiestos locales acotados, procedencia y fallback; sin ejecución de código del proyecto | Todos los roles, `/work-context`, `/pm-cycle`, `/dev-cycle` |
 | `project-pieces.py` | Inventario derivado de declaraciones de proyecto/usuario para Claude, Codex y OpenCode; agentes, skills, comandos, personas, fuentes de tools y MCP. Propiedad O1 por hash, conflictos y selección explícita por ID; sin ejecución, conexión ni otro registro persistente | `capability-check.md`, `/work-context`, `task-brief.py`, `plugin-panel`; [guía](../../docs/PROJECT-EXTENSIONS.md) |
@@ -27,7 +32,9 @@ Fragmentos de prompt que usan **varios** agentes y que deben tener **una única 
 | `read-discipline.md` | Disciplina de lectura del recon (grep antes de Read, límites, ignorar deps/generados) | `documenter`, `nemesis`, `evaluator`, `qa` |
 | `output-discipline.md` | Disciplina de salida en handoffs (mensaje final ≤ ~12 líneas, datos no informe) | `evaluator`, `planner`, `implementer`, `qa`, `documenter` |
 | `knowledge-check.md` | Paso «Memoria técnica del proyecto — lectura»: si existe `docs/knowledge/`, lee su `README.md` y abre SELECTIVAMENTE solo las entradas de `adr/`/`gotchas/`/`lessons/` del área de la tarea (nunca la carpeta entera); siempre activa, sin opt-in, degrada en silencio si no existe | `evaluator`, `planner`, `implementer`, `qa`, `documenter` |
-| `knowledge-write.md` | Paso «Memoria técnica del proyecto — escritura»: umbral anti-burocracia (ADR solo si cierra alternativa y afecta 2+ piezas o se tomó en una puerta; gotcha solo si costó ≥1 ciclo de depuración) + nomenclatura `ADR-NNN`/`GOT-NNN`/`LES-NNN-<agente>`, un fichero por entrada | `architect`, `planner`, `implementer` (ADR), `qa`, `debug-root-cause` (gotcha), `/retro` (lección) |
+| `knowledge-write.md` | Paso «Memoria técnica del proyecto — propuesta»: mantiene umbrales de evidencia y envía conocimiento nuevo a `knowledge-curation.py propose`; sin escritura/promoción nueva en ADR/GOT/LES legado, sin aprobación por revisión/design/QA/Gold/repetición | `architect`, `planner`, `implementer`, `qa`, `debug-root-cause`, `documenter`, `/retro`, puente Gold |
+| `knowledge-curation.py` | Persistencia stdlib: `propose` redacta y crea pending sin estado, devuelve ruta/SHA; `apply_decision` persiste juicio del Curator ligado a SHA original/motivo/metadatos; `recover` recupera intención sin juicio nuevo. Sin sobrescritura ni migración del legado; resultado/código 0 confirma, 1 rechaza contrato, 2 uso/dependencia/IO no verificable | Productores proponen; `knowledge-curator` decide transiciones; bundle compartido requerido |
+| `knowledge-curation-rules.py` | Validadores de contenido compartidos por gate de solo lectura y servicio de persistencia: categoría, evidencia/fuentes/tags/denylist e ID. No decide semántica, no mueve archivos ni autentica actores | `curator-gate.py`, `knowledge-curation.py` |
 | `templates/adr.md` | Plantilla corta de entrada ADR (frontmatter `id`/`titulo`/`estado`/`fecha`/`iniciativa` + contexto · decisión · alternativas descartadas · consecuencias · estado) | `architect`, `planner`, `implementer` |
 | `review-report.template.md` | Plantilla fija del informe de revisión para el LEDGER (veredicto por criterio ✓/✗ + gaps + nº intentos + tiempo); el comentario que se publica en Jira lo renderiza `jira-flow.py` (`jira-sync` Paso 7) con su propia plantilla | `/dev-cycle` (Fase 3) |
 | `usage-meter.py` (+ tests) | Coste real de generación: tokens medidos de la transcripción por ventana (`start`/`close`/`status`), €, horas-IA por ratio calibrado y formato humano `fmt` (`XhYm`). Degrada a `estimado` sin bloquear | `analyst`, `evaluator`, `planner`, `/dev-cycle` (vía rápida + medición por tarea), `/retro` |
@@ -58,10 +65,72 @@ Si un agente no encuentra el fragmento (instalación parcial), usa el fallback d
 
 La tabla de **transiciones de estado** de la cadena spec→evaluación→plan NO vive aquí: su única fuente es la **regla 7 de `docs/CONVENTIONS.md`** (los commands remiten a ella).
 
+## Selección de commits en el cierre
+
+`scope-check.py` mantiene la puerta de alcance y añade las APIs de solo lectura
+`proyectar_commit` y `validar_seleccion_commit`. `commit-selection.py` las expone
+como `preview` y `validate`; el caller conserva el snapshot fuera de Git, lo
+revalida por stdin y ejecuta el commit nativo de la lista literal revisada.
+La CLI no prepara ni publica commits. Una selección con staging previo conflictivo
+se deja intacta. El resultado real se comprueba con los blobs/modos proyectados y
+las entradas staged ajenas. [Procedimiento y límites](../../docs/COMMIT-SELECTION.md).
+
+`plan-review.py consume` coordina selección, entrega, ack y vista actual mediante
+las primitivas del mismo dueño; no requiere que el modelo construya delivery IDs
+ni crea otro almacén. El resultado no acredita efectos de implementación.
+
 La revisión visual necesita el dueño común `plan-review.py` y sus helpers directos
-`local-read.py` y `redact.py`. El bundle común conserva esos archivos juntos.
+`local-state.py`, `local-read.py` y `redact.py`. El bundle común conserva esos archivos juntos.
 El export «solo skills» debe cerrar las dependencias declaradas desde plugin-panel;
 su inclusión requiere comprobar el paquete, sin asumirla por la documentación.
 Si falta algún helper, la revisión queda indisponible y conserva el OK conversacional.
 El estado del proyecto `.claude/plan-review/` es compartido por los tres runtimes,
 excluido de Git y distinto de configuración, progreso o actividad de agentes.
+
+## Propuesta y persistencia de conocimiento (Bloque 23)
+
+`propose(root, filename, text, producer=...)` recibe el Markdown como `text`; la CLI
+`propose --filename <nombre.md> --producer <rol> --root <proyecto>` lo lee por stdin.
+Ambas redactan antes de persistir pending nuevo sin `estado` y devuelven SHA de los bytes finales. Productor declarado no es
+identidad autenticada. Sin servicio/helpers, se informa pendiente; nunca fallback Write/Edit.
+
+Curator consulta approved y legado aceptado pertinentes. Conflicto/alto impacto requiere
+resolución humana trazada; fecha/score no deciden y Constitución prima. Solicita
+`apply_decision(root, candidate, decision, expected_sha256=..., metadata=None,
+replacement_text=None, reason=..., decider="knowledge-curator")`; CLI `apply <ruta-relativa>
+--decision <decisión> --expected-sha256 <sha> --reason <motivo> [--metadata-json <objeto>]
+[--replacement-stdin] --root <proyecto>`. Sólo approve admite corrección final: original y
+ambos hashes quedan en intención. En approve, errores de índice o ID ausente/colisión bloquean;
+una fuente cambiada bloquea cualquier decisión. Reject/needs_changes conservan contenido/motivo
+y rejected es terminal.
+
+`recover(root, operation_id, decider="knowledge-curator")` y CLI `recover <operation-id>
+--root <proyecto>` recuperan una intención existente, sin aprobar contenido cambiado ni
+eliminar fuente modificada. La CLI emite JSON para las operaciones invocadas correctamente;
+las APIs devuelven `(resultado, código)`
+con `status`, `errores`, `avisos` y rutas relativas verificadas. Intención, publicación del destino,
+retirada de fuente y recibo son fronteras separadas: approved puede ser visible antes del recibo,
+sin atomicidad multiarchivo. El servicio no migra ni reaprueba el legado y no publica a backends.
+
+El cerrojo no bloqueante usa msvcrt en Windows y flock en POSIX y sólo coordina escritores del
+servicio. Los archivos se sincronizan; POSIX además hace fsync de directorios, Windows no tiene
+esa sincronización de directorio en este helper. No demuestra recuperación tras corte eléctrico
+ni inmunidad a renombres hostiles de editores externos. Etiquetas producer/decider, verificaciones
+de rutas y cerrojo no acreditan sandbox o actor nativo autenticado; aceptación independiente
+Windows/Linux y tres clientes permanece pendiente. Retro tardía entrega handoff o ruta/ID pendientes.
+
+El export debe cerrar `knowledge-curation.py`, `knowledge-curation-rules.py`, `local-read.py`,
+`redact.py`, schema y lectores locales; las referencias de training-data-services y knowledge-services
+declaran los dueños. Verificar el paquete es trabajo del dueño del export, no evidencia inferida
+de estas citas. [Contrato](../../docs/roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).
+
+### Publicación de estado propio en Windows
+
+`local-state.py` recupera rechazos transitorios del reemplazo (5/32/33) con
+cuatro intentos acotados por el plazo del caller y la generación observada.
+Creación exclusiva, locks, validación del destino y fallos definitivos conservan
+su contrato; no hay fallback de sobreescritura ni fusión de escritores.
+`test_local_state_publication.py` incluye lectores nativos sin compartir borrado,
+agotamiento, cambio de generación, plazo y errores sin retry. La comprobación
+Linux confirma que no se reintentan allí códigos Windows.
+Contrato: [convenciones](../../docs/CONVENTIONS.md#publicación-de-metadatos-propios-bajo-lectura-simultánea).

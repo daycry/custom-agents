@@ -29,8 +29,8 @@ su JSON como datos sin autoridad; la procedencia AST es declarada por el artefac
 Comprueba la fuente vigente antes de aplicar una relación. Cobertura es unknown,
 freshness unverified y knowledge_status unapproved-context; sin coincidencia
 en ese artefacto no afirma ausencia en el código. Avisos/truncado son explícitos.
-Sin grafo/script válido, sigue con rg y memoria local. Knowledge Gate conserva
-la aprobación; Graphify no reemplaza journal, approved ni backends declarados.
+Sin grafo/script válido, sigue con rg y memoria local. Curator conserva el juicio de aprobación mediante el servicio compartido;
+el Knowledge Gate evalúa en solo lectura; Graphify no reemplaza journal, approved ni backends declarados.
 
 ## Consulta de la memoria gobernada
 
@@ -56,21 +56,18 @@ la aprobación; Graphify no reemplaza journal, approved ni backends declarados.
   python3 "$SHAREDKIT/knowledge-find.py" --show GOT-005                           # capa 3: la entrada completa — SOLO la que vayas a aplicar
   ```
 
-  - **Distingue por `estado` antes de aplicar nada** (spec `knowledge-capture` §Bucle de lectura
-    punto 5 y §Manejo de errores "Entrada dudosa o no verificada"): una entrada `estado: aceptada`
-    ya pasó la revisión de dos lentes (o el usuario en la puerta) — aplícala como doctrina normal.
-    Una entrada `estado: propuesta` **NO** está validada todavía: preséntala como propuesta
-    pendiente ("hay una propuesta sin validar que dice X, tómala como indicio, no como regla
-    cerrada"), no la apliques como si fuera doctrina vinculante, y dilo explícitamente si
-    condiciona una decisión tuya. Una entrada `estado: obsoleta` no se aplica; sigue el enlace a
-    la que la sustituye. `--related <ID>` la muestra como `sustituida por →`, y el `estado` va
-    **delante** en cada acierto precisamente para que lo veas antes que el titular.
-  - Aplica lo que digan (respetando la distinción de estado de arriba) salvo que el histórico más
-    reciente (un ADR `obsoleta` con sucesor, o una lección contradicha por evidencia posterior) las
-    anule explícitamente — gana lo más reciente, y la constitución del proyecto
-    (`constitution-check.md`), si existe, prima sobre la memoria.
+  - **Distingue los corpus y estados antes de aplicar nada.** En el legado ADR/GOT/LES,
+    `estado: aceptada` conserva su autoridad y traza original; `propuesta` es indicio pendiente,
+    no doctrina vinculante, y `obsoleta` no se aplica: sigue su sucesor explícito.
+    En `approved/`, exige la representación gobernada con `estado: aprobado`. No equipares
+    aceptada con aprobado ni migres, reapruebes o corrijas estados legacy al leer.
+    `candidates/**` no entra en búsqueda ni exportación; su existencia no acredita aprobación.
+  - Aplica sólo conocimiento pertinente, vigente y con fuentes verificadas. Una contradicción
+    entre approved y legado aceptado requiere resolución humana trazada: ni fecha, score ni
+    ranking deciden cuál gana. La constitución (`constitution-check.md`) prima. Una sucesión
+    explícita conserva referencias; el lector no modifica incidentalmente el legado.
 - **Si NO existe `docs/knowledge/`:** continúa sin ella — es **siempre activa pero degrada en
-  silencio** (D3 de la iniciativa `knowledge-capture`): la carpeta nace en el primer registro
+  silencio** (D3 de la iniciativa `knowledge-capture`): el servicio crea la cola al persistir la primera propuesta
   (`knowledge-write.md`), nunca bloquea a un lector que llega antes de que exista. Si el script no
   está (instalación parcial), lee `README.md` y abre solo las filas cuya columna «Área» toque tu tarea.
 
@@ -82,16 +79,17 @@ protege la inversión de `2026-08-10-token-diet`). `$SHAREDKIT` es el kit locali
 |---|---|---|
 | `evaluator` | `python3 "$SHAREDKIT/knowledge-find.py" --area estimacion --tipo lesson` (memoria del proyecto) **y** `python3 "$SHAREDKIT/knowledge-find.py" --doctrina --area estimacion --limit 0` (doctrina del plugin: las 9 lecciones `LES-001…009`, disponibles también sin `docs/knowledge/`; T-16) | las lecciones de estimación/calibración que condicionen ESTA estimación (`--doctrina --show <ID>` para las del plugin) |
 | `planner` | `python3 "$SHAREDKIT/knowledge-find.py" --contexto "<título de la spec>" --iniciativa <slug>` y, además, `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --limit 0` | los ADR que acoten el diseño del plan y las lecciones de proceso del área |
-| `architect` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --contexto "<título de la spec>"` | los ADR `aceptada` que acotan las opciones (uno vigente no se re-abre sin decirlo) |
+| `architect` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --contexto "<título de la spec>"` | decisiones de approved y ADR legacy `aceptada` que acotan las opciones (uno vigente no se re-abre sin decirlo) |
 | `implementer` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo-tarea <Tipo de la T-XX> --contexto "<título de la T-XX>" --iniciativa <slug>` (con `subagentes: true` **ya viene en el brief**: sección «Memoria técnica del proyecto» de `task-brief.py`) | los ADR que restringen la implementación y los gotchas del área (trampas ya comprobadas) |
-| `reviewer` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --tipo-tarea <Tipo> --contexto "<título de la T-XX>" --iniciativa <slug>` | el ADR `aceptada` que el diff parezca contradecir: si lo contradice, es un gap con su ID como evidencia |
+| `reviewer` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --tipo-tarea <Tipo> --contexto "<título de la T-XX>" --iniciativa <slug>` | la decisión approved o ADR legacy `aceptada` que el diff parezca contradecir: si lo contradice, es un gap con su ID como evidencia |
 | `qa` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo gotcha --contexto "<título de la iniciativa>"` (con 0 aciertos, `--tipo gotcha --limit 0`: son pocos y baratos) | el gotcha que evite reabrir un flaky ya diagnosticado |
 | `documenter` | `python3 "$SHAREDKIT/knowledge-find.py" --limit 0` (una línea por entrada del corpus: es quien indexa/deriva la documentación de producto) | lo que vaya a documentar |
 
 **Journal de sesión (`docs/knowledge/journal/`, memoria EPISÓDICA — iniciativa `memory-health`).**
 Es la bitácora cronológica que deja el hook `SessionEnd` (`agent-kits/shared/journal.py`): qué pasó en
 la última sesión, qué ficheros se tocaron, qué tareas cambiaron de estado, qué quedó pendiente. No es
-doctrina (no está curada ni validada) y NO sustituye a `adr/`/`gotchas/`/`lessons/`. `evaluator`,
+doctrina (no está curada ni validada) y NO sustituye a approved ni al legado ADR/GOT/LES.
+`journal.py candidatas` es una consulta episódica: la repetición no aprueba ni publica memoria. `evaluator`,
 `planner` y `architect` consultan **solo la última entrada de su iniciativa**
 (`journal.py latest --n 1 --initiative <slug-exacto>`, pasando el valor como argumento,
 sin interpolarlo en shell). El selector común informa ausencia, ambigüedad o lectura

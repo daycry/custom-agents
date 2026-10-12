@@ -15,7 +15,8 @@ const hookCatalog = JSON.parse(`{
     {"id":"prompt","domain":"session","native_event":"prompt","event":"UserPromptSubmit","handlers":["user-prompt-capture.sh"],"timeout_ms":20000,"behavior":"informative","activation":"Text prompt in the current project location"},
     {"id":"context","domain":"session","native_event":"context","event":"SessionStart","handlers":["session-context.sh"],"timeout_ms":20000,"behavior":"informative","activation":"System context array in the current project location; unchanged context may reuse its cache"},
     {"id":"post","domain":"tool","native_event":"execute.after","event":"PostToolUse","handlers":["mark-docs-pending.sh","ledger-lint-warn.sh","progress-line.sh"],"timeout_ms":20000,"behavior":"informative","activation":"Completed writing tool in the current project location","tools":["edit","write","patch","multiedit","apply_patch"]},
-    {"id":"capture","domain":"event","native_events":["session.execution.succeeded","session.execution.failed","session.execution.interrupted","session.idle"],"idle_status_event":"session.status","idle_status":"idle","event":"SessionEnd","handlers":["session-journal.sh"],"timeout_ms":20000,"behavior":"informative","activation":"Execution/idle stream observation in the current project location; not a teardown hook"}
+    {"id":"capture","domain":"event","native_events":["session.execution.succeeded","session.execution.failed","session.execution.interrupted","session.idle"],"idle_status_event":"session.status","idle_status":"idle","event":"SessionEnd","handlers":["session-journal.sh"],"timeout_ms":20000,"behavior":"informative","activation":"Execution/idle stream observation in the current project location; not a teardown hook"},
+    {"id":"activity","domain":"event","native_events":["session.execution.started","session.execution.succeeded","session.execution.failed","session.execution.interrupted","session.idle"],"idle_status_event":"session.status","idle_status":"idle","event":"ActivityObserved","handlers":["agent-activity"],"timeout_ms":2500,"behavior":"informative","activation":"Opt-in execution start/end and idle observations after exact project location verification; not liveness or teardown"}
   ]
 }`);
 // custom-agents hook-catalog:end
@@ -122,7 +123,8 @@ export default {
           stopping = new Promise(resolveStop => {
             if (!child?.pid) return resolveStop();
             if (process.platform === 'win32') {
-              execFile('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true }, () => resolveStop());
+              const taskkill = join(process.env.SystemRoot || process.env.WINDIR || 'C:\\Windows', 'System32', 'taskkill.exe');
+              execFile(taskkill, ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true }, () => resolveStop());
             } else {
               try { process.kill(-child.pid, 'SIGKILL'); } catch { try { child.kill('SIGKILL'); } catch {} }
               resolveStop();
@@ -256,13 +258,19 @@ export default {
     const events = (async () => {
       try {
         for await (const event of ctx.event.subscribe({ signal: controller.signal })) {
-          const idle = bindings.capture.native_events.includes(event.type)
-            || (event.type === bindings.capture.idle_status_event && event.data?.status?.type === bindings.capture.idle_status);
+          const matches = binding => binding.native_events.includes(event.type)
+            || (event.type === binding.idle_status_event && event.data?.status?.type === binding.idle_status);
+          const activity = matches(bindings.activity), capture = matches(bindings.capture);
           // V2's local stream omits location; session.get remains authoritative in every case.
-          if (!idle || (event.location && !sameLocation(event.location, location))) continue;
+          if ((!activity && !capture) || (event.location && !sameLocation(event.location, location))) continue;
           try {
             const cwd = await project(event.data?.sessionID);
-            if (cwd) { invalidate(); await run(bindings.capture.handlers[0], {
+            if (cwd) { invalidate();
+              // Only metadata crosses this boundary; no prompt, response, error or transcript.
+              if (activity) await run(bindings.activity.handlers[0], { type: event.type,
+                data: { sessionID: event.data.sessionID,
+                  ...(event.type === 'session.status' ? { status: { type: event.data.status.type } } : {}) }, cwd });
+              if (capture) await run(bindings.capture.handlers[0], {
               hook_event_name: 'SessionEnd', session_id: event.data.sessionID, reason: 'other', cwd,
             }); invalidate(); }
           } catch { warn(); }

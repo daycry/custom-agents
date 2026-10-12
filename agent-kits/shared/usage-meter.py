@@ -47,9 +47,12 @@ o <slug>/T-03). `close` emite JSON por stdout; quien llama lo vuelca al bloque
 
 import argparse
 import json
+import hashlib
 import os
 import re
 import sys
+import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -65,6 +68,7 @@ DEFAULT_STATE = ".claude/usage-state.json"
 # horas: depende de la longitud de sesión, no del trabajo del artefacto).
 DEFAULT_RATIO = 300_000
 RATES_MAX_AGE_DAYS = 90
+_STATE_WINDOWS = os.name == "nt"
 
 
 # ---------------------------------------------------------------- utilidades
@@ -182,18 +186,47 @@ def _load_state(path, avisos=None):
     return limpio
 
 
+def _replace_state_file(source, target):
+    """Bound replacement attempts for Windows access/sharing errors only."""
+    for attempt in range(4):
+        try:
+            os.replace(source, target)
+            return
+        except OSError as error:
+            if (not _STATE_WINDOWS or getattr(error, "winerror", None) not in (5, 32, 33)
+                    or attempt == 3):
+                raise
+            time.sleep(.02 * (2 ** attempt))
+
+
 def _save_state(path, state, avisos=None):
-    """Escritura atómica (temp + replace). Si falla, avisa y NO rompe el cierre."""
+    """Replace a whole snapshot; unique owned temporary, no merge or writer lock.
+
+    Failure preserves the previous state and remains visible without blocking.
+    """
+    temporary_owned = False
+    tmp = None
     try:
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_suffix(p.suffix + ".tmp")
-        with open(tmp, "w", encoding="utf-8") as f:
+        tmp = p.with_name(f"{p.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+        with open(tmp, "x", encoding="utf-8") as f:
+            temporary_owned = True
             json.dump(state, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, p)
+        _replace_state_file(tmp, p)
+        temporary_owned = False
+        return True
     except OSError as e:
         if avisos is not None:
             avisos.append(f"no se pudo guardar el state: {e}")
+        return False
+    finally:
+        if temporary_owned:
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                if avisos is not None:
+                    avisos.append("no se pudo retirar el temporal propio del state")
 
 
 def _rel_key(f, tdir):
@@ -484,7 +517,8 @@ def cmd_start(args):
     tdir = args.transcript_dir or _project_transcript_dir()
     state = _load_state(args.state, avisos)
     marcador = {"version": 2, "inicio": _now_iso(), "transcriptDir": str(tdir) if tdir else None,
-                "offsets": _snapshot_offsets(tdir)}
+                "offsets": _snapshot_offsets(tdir), "ventana_id": "win-" + uuid.uuid4().hex,
+                "revision_medicion": 0}
     if not tdir:
         marcador["aviso"] = "transcripciones no localizadas; close degradará a fuente=estimado"
     state[args.artefacto] = marcador
@@ -495,6 +529,26 @@ def cmd_start(args):
         salida["avisos"] = avisos
     print(json.dumps(salida, ensure_ascii=False))
     return 0
+
+
+def _identidad_medicion(marcador, tdir, avisos):
+    """Opaque source and window identity; revision orders whole cumulative snapshots.
+
+    These identifiers are local provenance, not authentication or proof of complete
+    transcripts. Old markers receive an identity on their first measured close.
+    """
+    ventana = marcador.get("ventana_id")
+    revision = marcador.get("revision_medicion", 0)
+    valida = (isinstance(ventana, str) and re.fullmatch(r"win-[0-9a-f]{32}", ventana)
+              and type(revision) is int and 0 <= revision < 2**63 - 1)
+    if not valida:
+        if ventana is not None or "revision_medicion" in marcador:
+            avisos.append("identidad de medición inválida o agotada; se inicia otra identidad local")
+        ventana, revision = "win-" + uuid.uuid4().hex, 0
+    source = os.path.normcase(str(Path(tdir).resolve()))
+    fuente = hashlib.sha256(("custom-agents:usage-meter:transcripts:v1\0" + source).encode("utf-8")).hexdigest()
+    return {"fuente_id": "src-" + fuente, "ventana_id": ventana,
+            "revision_medicion": revision + 1}
 
 
 def cmd_close(args):
@@ -576,7 +630,17 @@ def cmd_close(args):
                           "nota": "estima tokens/horas a juicio y márcalo como estimado"})
     if marcador:
         marcador["ultimoCierre"] = fin  # el marcador se conserva: re-close = misma ventana actualizada
-        _save_state(args.state, state, avisos)
+        identidad = None
+        if resultado["fuente"] == "medido":
+            identidad = _identidad_medicion(marcador, tdir, avisos)
+            marcador.update(identidad)
+        persisted = _save_state(args.state, state, avisos)
+        if identidad:
+            resultado["medicion_persistida"] = persisted
+        if identidad and persisted:
+            resultado.update(identidad)
+        elif identidad:
+            avisos.append("medición sin identidad persistida; no acredita deduplicación entre snapshots")
     if avisos:
         resultado["avisos"] = avisos
     print(json.dumps(resultado, ensure_ascii=False, indent=2))

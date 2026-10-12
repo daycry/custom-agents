@@ -1053,26 +1053,30 @@ def linea_compacta(e, ancho=LINEA_MAX):
     # el LLM del grafo a partir de lo ingerido), y esta linea va a stdout y al contexto del
     # agente: se sanea SIEMPRE (controles/ANSI/bidi/C1 + tope) antes de componerla.
     id_, estado = _sanear_detalle(e["id"]), _sanear_detalle(e["estado"] or "?")
+    prefijo = ()
+    if e.get("contenido_derivado") is True:
+        prefijo = ("derivado sin autoridad",)
+        estado = "fuente " + estado
     area = re.sub(r"\s+", " ", _sanear_detalle(e.get("area") or "—")).strip()
     titular = re.sub(r"\s+", " ", _sanear_detalle(e.get("titular") or "—")).strip()
     ruta = _sanear_detalle(e.get("ruta_corta") or e.get("ruta") or "")
     carpeta = ruta.split("/", 1)[0] if "/" in ruta else ""
 
     def compone(a, t, r):
-        return SEP.join((id_, estado, a, t, r))
+        return SEP.join(prefijo + (id_, estado, a, t, r))
 
     if len(compone(area, titular, ruta)) <= ancho:
         return compone(area, titular, ruta)
-    fijo = len(SEP.join((id_, estado, area, "", ruta)))
+    fijo = len(compone(area, "", ruta))
     if ancho - fijo >= TITULAR_MIN:
         return compone(area, recorta(titular, ancho - fijo), ruta)
     ruta = f"{carpeta}/{id_}-…" if carpeta else f"{id_}-…"
-    fijo = len(SEP.join((id_, estado, area, "", ruta)))
+    fijo = len(compone(area, "", ruta))
     if ancho - fijo >= TITULAR_MIN_DURO:
         return compone(area, recorta(titular, ancho - fijo), ruta)
-    base = len(SEP.join((id_, estado, "", "", ruta)))
+    base = len(compone("", "", ruta))
     area = recorta(area, max(6, ancho - base - TITULAR_MIN_DURO))
-    fijo = len(SEP.join((id_, estado, area, "", ruta)))
+    fijo = len(compone(area, "", ruta))
     return compone(area, recorta(titular, max(1, ancho - fijo)), ruta)[:ancho]
 
 
@@ -1091,6 +1095,10 @@ def acierto_json(e):
         salida["version"] = e["version"]
     if e.get("category"):
         salida["category"] = e["category"]
+    if e.get("contenido_derivado") is True:
+        salida.update(CONTENIDO_DERIVADO)
+        if e.get("uuid"):
+            salida["uuid"] = e["uuid"]
     return salida
 
 
@@ -1328,12 +1336,32 @@ def backends_para_intent(config, intent):
     return elegidos
 
 
+CONTENIDO_DERIVADO = {"contenido_derivado": True, "autoridad": "ninguna",
+                      "verificacion": "no_verificada", "citas_por_afirmacion": False}
+
+
 def acierto_remoto(bruto, backend_id, identidad_completa=False):
     """Normaliza un acierto servido por un backend al mismo diccionario que usa el corpus local
     (para que `linea_compacta`/`acierto_json` no distingan el origen), o `None` si le falta alguna
     de las `CLAVES_ACIERTO_REMOTO`."""
     if not isinstance(bruto, dict):
         return None
+    derivado = bool(set(bruto) & CONTENIDO_DERIVADO.keys())
+    if derivado:
+        if (bruto.get("contenido_derivado") is not True or bruto.get("autoridad") != "ninguna"
+                or bruto.get("verificacion") != "no_verificada" or bruto.get("citas_por_afirmacion") is not False):
+            return None
+        try:
+            redact = _cargar_modulo(os.path.join(HERE, "redact.py"), "kf_derived_identity_redact").redactar
+            _identidad_generada(bruto.get("id"), 512, redact)
+            _identidad_generada(bruto.get("ruta"), 4096, redact)
+        except (ValueError, TypeError):
+            return None
+        identidad_completa = True
+        uid = bruto.get("uuid")
+        if uid is not None and (not isinstance(uid, str) or not 0 < len(uid) <= 200
+                                or _sanear_detalle(uid) != uid):
+            return None
     version = bruto.get("version")
     if version is not None:
         if isinstance(version, bool) or not isinstance(version, (int, str)):
@@ -1367,6 +1395,10 @@ def acierto_remoto(bruto, backend_id, identidad_completa=False):
     if identidad_completa:
         # Generated bindings cannot survive shortening an ID or canonical path.
         result["id"], result["ruta"] = bruto["id"], bruto["ruta"]
+    if derivado:
+        result.update(CONTENIDO_DERIVADO)
+        if bruto.get("uuid"):
+            result["uuid"] = bruto["uuid"]
     return result
 
 

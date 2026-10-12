@@ -13,8 +13,8 @@ Uso:
   (sin --agent: $CLAUDE_AGENT_NAME si existe, si no `implementer`)
 
 Modo `architect` (parity-core T-fix1, wrapper hooks/architect-guardrail.sh; enmienda a ADR-007):
-  alcance        permitido SOLO `docs/roadmap/<inic>/design.md`, `docs/knowledge/adr/**` y
-                 `docs/knowledge/README.md`; `spec.md`/`improvement-plan.md` de la iniciativa SOLO con
+  alcance        permitido SOLO `docs/roadmap/<inic>/design.md`; memoria mediante servicio,
+                 sin Write/Edit directo. `spec.md`/`improvement-plan.md` de la iniciativa SOLO con
                  la herramienta Edit y si `old_string`/`new_string` contienen `design:` o `design.md`
                  (el enlace de la regla 7) — un Write completo o un Edit sin esa marca → deny. Riesgo
                  asumido y documentado: un Edit que incluya `design:` junto a otros cambios pasa (el
@@ -25,7 +25,8 @@ Modo `architect` (parity-core T-fix1, wrapper hooks/architect-guardrail.sh; enmi
 Reglas (cada una desactivable en `.claude/dev.json` → `"guardrails": {…}`):
   alcance        Write/Edit/MultiEdit/NotebookEdit sobre docs/roadmap/** que no sea `tasks.md`
                  (incl. testing/**, que es de qa) → deny. docs/security-scan/** → deny.
-                 docs/knowledge/** → permitido (ADR del implementer). Rutas CASE-INSENSITIVE
+                 docs/knowledge/** → deny en herramientas directas; conocimiento nuevo mediante
+                 knowledge-curation.py. Rutas CASE-INSENSITIVE
                  (`Docs/Roadmap/x/Spec.md` también deny: Windows/macOS no distinguen mayúsculas).
                  Excepción en la raíz de docs/roadmap/: `README.md` (índice de iniciativas, que el
                  cierre de cada iniciativa actualiza) → permitido. `CALIBRATION.md`, `DRIFT.md` y
@@ -161,13 +162,22 @@ def _inic_fichero(rel):
     return partes[0], partes[1].lower()
 
 
+def _memory_write_reason(rel):
+    """Memory persistence belongs to its services, including legacy trees."""
+    if re.search(r"(?:^|/)docs/knowledge(?:/|$)", rel, re.I):
+        return (f"«{rel}»: la memoria no se modifica con Write/Edit directo. "
+                "Propón conocimiento nuevo con knowledge-curation.py y knowledge-write.md; "
+                "el journal y los índices los persisten sus servicios. Conserva el legado.")
+    return None
+
+
 def check_alcance_architect(rel, tool, tool_input):
-    """Razón de deny o None — alcance del `architect` (solo diseño, ADR e índice de knowledge)."""
-    low = rel.lower()
+    """Razón de deny o None — alcance del `architect` (diseño/enlaces; memoria mediante servicio)."""
     if _SECSCAN_RE.search(rel):
         return f"«{rel}» está bajo docs/security-scan/ (propiedad de nemesis): el architect no escribe ahí."
-    if re.search(r"(?:^|/)docs/knowledge/(adr/[^/]+|readme\.md)$", low):
-        return None
+    memory_reason = _memory_write_reason(rel)
+    if memory_reason:
+        return memory_reason
     inic, fn = _inic_fichero(rel)
     if inic and fn == "design.md":
         return None
@@ -181,7 +191,7 @@ def check_alcance_architect(rel, tool, tool_input):
         return (f"«{rel}»: el architect solo toca el enlace `design:`/`design.md` de spec/plan (regla 7 de "
                 f"CONVENTIONS); ese Edit no lo contiene — deja la observación en «Preguntas abiertas» de design.md.")
     return (f"«{rel}» está fuera del alcance del architect: escribe SOLO docs/roadmap/<inic>/design.md, el enlace "
-            f"`design:` en spec/plan (Edit) y docs/knowledge/adr/ + README.md. Ni código, ni tasks.md, ni "
+            f"`design:` en spec/plan (Edit). Ni código, ni tasks.md, ni "
             f"evaluation.md — anótalo en «Preguntas abiertas» de design.md y sigue.")
 
 
@@ -190,6 +200,9 @@ def check_alcance(rel):
     if _SECSCAN_RE.search(rel):
         return (f"«{rel}» está bajo docs/security-scan/ (propiedad de nemesis): el implementer "
                 f"no escribe ahí — deja el hallazgo en tasks.md y sigue.")
+    memory_reason = _memory_write_reason(rel)
+    if memory_reason:
+        return memory_reason
     m = _ROADMAP_RE.search(rel)
     if m and not es_ledger(rel):
         if "/testing/" in ("/" + m.group(1)).lower():

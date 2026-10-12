@@ -7,6 +7,8 @@
  const metadata = document.getElementById('review-metadata');
  const versionText = document.getElementById('review-version');
  const sections = document.getElementById('review-sections');
+ const feedback = document.getElementById('review-feedback');
+ const feedbackHistory = document.getElementById('review-feedback-history');
  const buttons = Object.fromEntries(['save','approve','changes','refresh','close','open'].map(name => [name, document.getElementById('review-'+name)]));
  const hex = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
  const date = value => typeof value === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(value) && Number.isFinite(Date.parse(value));
@@ -15,6 +17,32 @@
  const sameVersion = (a,b) => a.raw_sha256 === b.raw_sha256 && a.view_sha256 === b.view_sha256 && a.view_version === b.view_version;
  const commentValid = row => object(row) && typeof row.comment_id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(row.comment_id) && hex(row.section_id) && typeof row.text === 'string' && [...row.text].length <= 2000;
  const commentsValid = rows => Array.isArray(rows) && rows.length <= 20 && rows.every(commentValid) && new Set(rows.map(row => row.comment_id)).size === rows.length && rows.reduce((n,row) => n+new TextEncoder().encode(row.text).length,0) <= 10240;
+ const keys = (value,names) => object(value) && Object.keys(value).sort().join(',') === names.split(',').sort().join(',');
+ const bytes = value => new TextEncoder().encode(value).length;
+ const producerValid = value => keys(value,'caller_id,runtime,actor_id,identity_basis') && typeof value.caller_id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value.caller_id) && ['claude-code','codex','opencode'].includes(value.runtime) && (value.actor_id === null || hex(value.actor_id)) && value.identity_basis === 'declared';
+ const flagsValid = value => keys(value,'redacted,controls_sanitized') && typeof value.redacted === 'boolean' && typeof value.controls_sanitized === 'boolean';
+ const noteValid = (value,verification=false) => typeof value === 'string' && (verification || !!value.trim()) && [...value].length <= (verification ? 500 : 1000) && bytes(value) <= (verification ? 1024 : 2048);
+ function feedbackValid(value,comments) {
+  if (!keys(value,'schema_version,results,verifications') || value.schema_version !== 1 || !Array.isArray(value.results) || value.results.length > 40 || !Array.isArray(value.verifications) || value.verifications.length > 40 || !commentsValid(comments)) return false;
+  const ids = new Set(), latest = new Map(), counts = new Map(), results = new Map(), verified = new Set();
+  for (const row of value.results) {
+   if (!keys(row,'result_id,comment_id,section_id,supersedes_result_id,disposition,response_text,text_flags,producer,recorded_at,artifact_observation') || !hex(row.result_id) || ids.has(row.result_id) || !comments.some(c => c.comment_id === row.comment_id && c.section_id === row.section_id) || !['addressed','not_applied','needs_clarification'].includes(row.disposition) || !noteValid(row.response_text) || !flagsValid(row.text_flags) || !producerValid(row.producer) || !date(row.recorded_at)) return false;
+   const observation = row.artifact_observation;
+   if (!keys(observation,'status,version,observed_at') || !date(observation.observed_at) || !['available','unavailable'].includes(observation.status) || (observation.status === 'available' ? !versionValid(observation.version) : observation.version !== null)) return false;
+   if ((counts.get(row.comment_id) || 0) >= 2 || row.supersedes_result_id !== (latest.get(row.comment_id) || null)) return false;
+   ids.add(row.result_id); latest.set(row.comment_id,row.result_id); counts.set(row.comment_id,(counts.get(row.comment_id) || 0)+1); results.set(row.result_id,row);
+  }
+  for (const row of value.verifications) {
+   const result = results.get(row.result_id);
+   if (!keys(row,'verification_id,result_id,comment_id,section_id,assessment,note,text_flags,basis,producer,recorded_at') || !hex(row.verification_id) || ids.has(row.verification_id) || !result || verified.has(row.result_id) || row.comment_id !== result.comment_id || row.section_id !== result.section_id || !['confirmed','not_confirmed'].includes(row.assessment) || row.basis !== 'human_instruction_declared' || !noteValid(row.note,true) || !flagsValid(row.text_flags) || !producerValid(row.producer) || !date(row.recorded_at)) return false;
+   ids.add(row.verification_id); verified.add(row.result_id);
+  }
+  return value.results.reduce((n,r) => n+bytes(r.response_text),0) <= 16384 && value.verifications.reduce((n,r) => n+bytes(r.note),0) <= 4096;
+ }
+ function historyValid(value,currentId) {
+  if (value === null) return true;
+  return keys(value,'schema_version,complete,reviews') && value.schema_version === 1 && typeof value.complete === 'boolean' && Array.isArray(value.reviews) && value.reviews.length <= 8 && bytes(JSON.stringify(value)) <= 65536 && new Set(value.reviews.map(r => r.review_id)).size === value.reviews.length && value.reviews.every(row => keys(row,'review_id,version,created_at,revision,state,decision_id,delivery_id,consumed_at,comments,feedback') && hex(row.review_id) && row.review_id !== currentId && versionValid(row.version) && date(row.created_at) && Number.isSafeInteger(row.revision) && row.revision >= 0 && row.state === 'consumida' && hex(row.decision_id) && hex(row.delivery_id) && date(row.consumed_at) && feedbackValid(row.feedback,row.comments));
+ }
  function reviewValid(value) {
   if (!object(value)) return false;
   const unavailable = value.validity === 'unavailable';
@@ -24,10 +52,13 @@
   if (value.decision !== null && (!object(value.decision) || !hex(value.decision.decision_id) || !['approve','request_changes'].includes(value.decision.choice) || !commentsValid(value.decision.comments) || !date(value.decision.submitted_at))) return false;
   if (value.validity === 'current' && !sameVersion(value.version,value.current_version)) return false;
   if (value.sections !== undefined && (!Array.isArray(value.sections) || (unavailable ? value.sections.length !== 0 : value.sections.length < 1) || value.sections.length > 128 || !value.sections.every(row => object(row) && hex(row.section_id) && typeof row.title === 'string' && typeof row.text === 'string' && Number.isInteger(row.level) && row.level >= 0 && row.level <= 6) || new Set(value.sections.map(row => row.section_id)).size !== value.sections.length)) return false;
+  if (value.feedback !== undefined && (!feedbackValid(value.feedback,value.decision ? value.decision.comments : []) || ((value.feedback.results.length || value.feedback.verifications.length) && (value.state !== 'consumida' || !object(value.ack) || !object(value.delivery) || value.ack.decision_id !== value.decision.decision_id || value.ack.delivery_id !== value.delivery.delivery_id)))) return false;
+  if (value.feedback_history !== undefined && !historyValid(value.feedback_history,value.review_id)) return false;
   return true;
  }
  let reviewId = root.dataset.reviewId;
  let current = null, inputs = [], blocked = true, closed = false, active = null, activeOperation = null, poll = null;
+ let feedbackSnapshot = null, historySnapshot = null;
  function clearPoll() { if (poll !== null) clearTimeout(poll); poll = null; }
  function postActive() { return !!active && ['comments','submit','refresh'].includes(activeOperation); }
  function closedMessage() {
@@ -57,10 +88,65 @@
   else if (review.validity === 'unavailable') status.textContent = 'Plan canónico no disponible. Recibo histórico: '+review.state+'. No permite continuar ni decidir sobre una vista ausente.';
   else if (review.validity === 'version_changed') status.textContent = 'La versión ha cambiado. El borrador de esta pestaña queda invalidado. Carga la versión actual explícitamente.'+(review.decision ? ' Recibo histórico: '+review.state+'.' : '');
   else if (blocked) status.textContent = 'Conflicto: otra pestaña cambió el borrador. Carga la revisión actual antes de decidir.';
-  else if (review.state === 'consumida') status.textContent = 'Decisión consumida por el workflow. Se conserva el recibo histórico.';
+  else if (review.state === 'consumida') status.textContent = 'Decisión consumida por el workflow. El ack acredita recepción; no acredita que los comentarios estén atendidos.';
   else if (review.state === 'entregada') status.textContent = 'Decisión entregada; pendiente de confirmación de consumo.';
   else if (review.decision) status.textContent = (review.decision.choice === 'approve' ? 'Vista aprobada.' : 'Cambios solicitados.')+' Decisión pendiente de consumo.';
   else status.textContent = 'Versión actual disponible. Comenta las secciones y decide sobre esta vista.';
+ }
+ function textNode(tag,text) { const node = document.createElement(tag); node.textContent = text; return node; }
+ function producerText(producer) {
+  return producer.runtime+' · '+producer.caller_id+' · '+(producer.actor_id === null ? 'Actor desconocido' : 'Actor declarado: '+producer.actor_id)+' · Identidad declarada; no acredita una persona ni presencia nativa.';
+ }
+ function resultNodes(value,comments) {
+  if (!comments.length) return [textNode('p','Sin comentarios sellados en esta decisión.')];
+  return comments.flatMap(comment => {
+   const responses = value.results.filter(row => row.comment_id === comment.comment_id);
+   if (!responses.length) {
+    const card = document.createElement('article');
+    card.append(textNode('h4','Comentario '+comment.comment_id+' · Sin respuesta declarada'),textNode('p',comment.text));
+    return [card];
+   }
+   return responses.map(row => {
+   const card = document.createElement('article');
+   const superseded = value.results.some(other => other.supersedes_result_id === row.result_id);
+   const disposition = {addressed:'Atendido (declarado)',not_applied:'No aplicado (declarado)',needs_clarification:'Necesita aclaración (declarado)'}[row.disposition];
+   card.append(textNode('h4','Comentario '+row.comment_id+' · '+disposition+(superseded ? ' · Resultado reemplazado' : '')));
+   card.append(textNode('p',comment.text),textNode('pre',row.response_text));
+   card.append(textNode('p','Registrado: '+row.recorded_at+' · '+producerText(row.producer)));
+   card.append(textNode('p',row.artifact_observation.status === 'available' ? 'Versión observada: '+row.artifact_observation.version.raw_sha256+' · '+row.artifact_observation.observed_at+'. No prueba el efecto del cambio.' : 'Plan no disponible al registrar este resultado · '+row.artifact_observation.observed_at+'.'));
+   const annotation = value.verifications.find(v => v.result_id === row.result_id);
+   if (annotation) {
+    card.append(textNode('p','Anotación humana opcional: '+(annotation.assessment === 'confirmed' ? 'confirmada' : 'no confirmada')+' (declarada) · '+annotation.recorded_at+'. No crea una puerta ni acredita identidad humana.'));
+    card.append(textNode('p',producerText(annotation.producer)));
+    if (annotation.note) card.append(textNode('pre',annotation.note));
+   } else card.append(textNode('p','Sin verificación humana anotada. La respuesta puede entregarse sin esta anotación.'));
+   return card;
+   });
+  });
+ }
+ function renderFeedback(review) {
+  const comments = review.decision ? review.decision.comments : [];
+  const snapshot = JSON.stringify([review.review_id,review.feedback,comments]);
+  if (feedback && feedbackSnapshot !== snapshot) {
+   feedback.replaceChildren(...(review.feedback === undefined ? [textNode('p','Resultados no disponibles en este bundle.')] : resultNodes(review.feedback,comments)));
+   feedbackSnapshot = snapshot;
+  }
+  const history = review.feedback_history;
+  const previous = JSON.stringify([review.review_id,history]);
+  if (feedbackHistory && historySnapshot !== previous) {
+   const nodes = [];
+   if (history === null || history === undefined) nodes.push(textNode('p','Historial de resultados no disponible en esta proyección.'));
+   else {
+    if (!history.complete) nodes.push(textNode('p','Historial incompleto por límite de lectura; puede haber más resultados.'));
+    for (const row of history.reviews) {
+     const card = document.createElement('section');
+     card.append(textNode('h3','Versión histórica · Revisión '+row.review_id),textNode('p','Raw SHA-256: '+row.version.raw_sha256+' · Vista SHA-256: '+row.version.view_sha256+' · Consumida: '+row.consumed_at));
+     card.append(...resultNodes(row.feedback,row.comments)); nodes.push(card);
+    }
+    if (!history.reviews.length && history.complete) nodes.push(textNode('p','Sin resultados de otras versiones registrados.'));
+   }
+   feedbackHistory.replaceChildren(...nodes); historySnapshot = previous;
+  }
  }
  function render(review) {
   inputs = []; sections.replaceChildren();
@@ -108,6 +194,7 @@
   current = review;
   if (review.validity === 'unavailable') { inputs = []; sections.replaceChildren(); }
   if (review.sections && !changed) render(review);
+  renderFeedback(review);
   summary(review);
  }
  async function request(operation,payload) {
@@ -122,7 +209,7 @@
    });
    const data = await response.json(); accept(data,operation);
   } catch {
-   blocked = true; status.textContent = closed ? closedMessage() : 'No se pudo actualizar la revisión. Carga la versión actual antes de decidir.';
+   blocked = true; status.textContent = closed ? closedMessage() : 'No se pudo actualizar la revisión. Se conserva la última vista recibida; carga la versión actual antes de decidir.';
   } finally {
    clearTimeout(timeout); active = null; activeOperation = null; controls(); schedule();
   }

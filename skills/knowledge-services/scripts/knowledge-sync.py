@@ -408,6 +408,19 @@ def main(argv=None):
               if args.json else f"rebuild: {resultado}")
         return 0
 
+    # El replay puede cambiar el destino; el plan fresco debe observar esa publicación.
+    if not args.dry_run:
+        dir_outbox = os.path.join(args.root, ".claude", "knowledge-services", "_sync-outbox", args.backend)
+        # gap 128 (Critical, fix3): ANTES de escribir el envelope fresco, drena lo que ya estuviera
+        # pendiente de ESTE backend con backoff vencido (un fallo de `apply()` de una corrida anterior,
+        # gap 116) — sin esto, un envelope reencolado no se volvía a aplicar NUNCA, solo se le "cedía
+        # el paso" indefinidamente sin llegar a `MAX_INTENTOS`.
+        if os.path.isdir(dir_outbox):
+            drenados, fallidos_drenaje, _cedidos = _drenar_outbox_propia(ob, adaptador, cfg, dir_outbox, args.backend)
+            if drenados or fallidos_drenaje:
+                print(f"knowledge-sync: drenaje de la outbox propia — {drenados} completado(s), "
+                      f"{fallidos_drenaje} reencolado(s)/dead-letter", file=sys.stderr)
+
     try:
         ops = adaptador.plan(entradas, cfg)
     except Exception as e:  # noqa: BLE001 - gap 90
@@ -422,19 +435,9 @@ def main(argv=None):
                    + json.dumps(ops, ensure_ascii=False, indent=2))
         return 0
 
-    # Publicación real: staging (idempotente por clave) + apply. Un error de apply() nunca borra
-    # la publicación anterior: se manda a dead-letter y el CLI sale con 1, sin tocar `apply()` de
-    # nuevo dentro de esta misma corrida (CA-15).
-    dir_outbox = os.path.join(args.root, ".claude", "knowledge-services", "_sync-outbox", args.backend)
+    # Staging idempotente por clave y apply. Un fallo puede dejar una publicación parcial;
+    # la outbox conserva el envelope para recuperación, sin repetir el apply fresco aquí.
     _asegurar_gitignore_local(dir_outbox)
-    # gap 128 (Critical, fix3): ANTES de escribir el envelope fresco, drena lo que ya estuviera
-    # pendiente de ESTE backend con backoff vencido (un fallo de `apply()` de una corrida anterior,
-    # gap 116) — sin esto, un envelope reencolado no se volvía a aplicar NUNCA, solo se le "cedía
-    # el paso" indefinidamente sin llegar a `MAX_INTENTOS`.
-    drenados, fallidos_drenaje, _cedidos = _drenar_outbox_propia(ob, adaptador, cfg, dir_outbox, args.backend)
-    if drenados or fallidos_drenaje:
-        print(f"knowledge-sync: drenaje de la outbox propia — {drenados} completado(s), "
-              f"{fallidos_drenaje} reencolado(s)/dead-letter", file=sys.stderr)
     clave = f"sync-{int(time.time() * 1000)}"
     ob.escribir(dir_outbox, clave, {"backend": args.backend, "type": tipo, "ops": ops})
     # gap 91: `reclamar` devuelve el PRIMERO pendiente alfabéticamente, no necesariamente el que
@@ -465,7 +468,8 @@ def main(argv=None):
         # transitorio — red intermitente al bridge — y no merece perder el envelope al primer golpe).
         veredicto = ob.reencolar_o_dead_letter(item, _causa(e), backoff=True)  # gap #72
         print(f"knowledge-sync: apply() del adaptador `{tipo}` falló: {_causa(e)}"
-              f" (publicación anterior intacta; envelope: {veredicto})", file=sys.stderr)
+              f" (la publicación puede haberse aplicado parcialmente; envelope: {veredicto}; "
+              "consulta --outbox-status y verifica el backend antes de reintentar)", file=sys.stderr)
         return 1
     manifiesto = resultado if isinstance(resultado, dict) else {"resultado": str(resultado)}
     ob.completar(item, manifiesto=manifiesto)

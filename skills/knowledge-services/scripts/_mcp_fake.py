@@ -12,10 +12,12 @@ por proceso.
 No contiene tests (el nombre empieza por `_`, asi que pytest no lo recolecta). Sin red real: sirve
 las fixtures capturadas del stack en `127.0.0.1:0`.
 """
+import copy
 import json
 import os
 import sys
 import threading
+import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -123,6 +125,22 @@ class _ServidorMCPFalso(BaseHTTPRequestHandler):
                 self._responder_json(cuerpo)
                 return
             manejador = self.respuestas_tools.get(nombre)
+            if manejador is None and nombre == "add_memory":
+                if argumentos.get("uuid") is not None:
+                    resultado = {"isError": True, "structuredContent": {"result": {"error": "supplied episode UUID does not exist"}}}
+                else:
+                    type(self).episodios.append({"uuid": str(uuid.uuid4()), "name": argumentos["name"],
+                        "group_id": argumentos["group_id"], "content": argumentos["episode_body"],
+                        "source": argumentos["source"], "source_description": argumentos["source_description"]})
+                    resultado = {"isError": False, "structuredContent": {"result": {"message": "Episode queued for processing"}}}
+                self._responder_json({"jsonrpc": "2.0", "id": id_, "result": resultado})
+                return
+            if manejador is None and nombre == "get_episodes":
+                grupos = argumentos.get("group_ids", [])
+                episodios = [copy.deepcopy(value) for value in type(self).episodios if value["group_id"] in grupos]
+                resultado = {"isError": False, "structuredContent": {"result": {"episodes": episodios[:argumentos.get("max_episodes", 20)]}}}
+                self._responder_json({"jsonrpc": "2.0", "id": id_, "result": resultado})
+                return
             resultado = manejador(argumentos) if callable(manejador) else (
                 manejador if manejador is not None else {"content": [], "structuredContent": {"ok": True}})
             self._responder_json({"jsonrpc": "2.0", "id": id_, "result": resultado})
@@ -165,6 +183,7 @@ class _ServidorMCPContext:
     def __enter__(self):
         atributos = dict(self._atributos)
         atributos["llamadas"] = []
+        atributos["episodios"] = []
         handler = type("Handler", (_ServidorMCPFalso,), atributos)
         self.httpd = HTTPServer(("127.0.0.1", 0), handler)
         self.handler_cls = handler
@@ -184,6 +203,10 @@ class _ServidorMCPContext:
     @property
     def llamadas(self):
         return self.handler_cls.llamadas
+
+    @property
+    def episodios(self):
+        return copy.deepcopy(self.handler_cls.episodios)
 
 
 def _entrada(id_="mem.gotchas.graphiti-timeout", version=1, category="GOTCHA",

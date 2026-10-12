@@ -1,0 +1,27 @@
+{
+  "aciertos": [
+    {
+      "id": "owned63.gotcha.lyra",
+      "version": "2",
+      "estado": "aprobado",
+      "evidencia": "validated_case",
+      "ruta": "docs/knowledge/approved/gotchas/lyra.md",
+      "categoria": "GOTCHA",
+      "tipo": "gotchas",
+      "area": "testing",
+      "titular": "Project Lyra stores technical documentation in Aurora.",
+      "uuid": "989a7ce7-f30c-44cd-894f-01741e17ba20",
+      "fuente": "hecho",
+      "fact": "Project Lyra stores technical documentation in Aurora.",
+      "valid_at": "2026-10-12T02:14:14.518917Z",
+      "invalid_at": null,
+      "contenido_derivado": true,
+      "autoridad": "ninguna",
+      "verificacion": "no_verificada",
+      "citas_por_afirmacion": false
+    }
+  ],
+  "descartados": 0,
+  "fuera_de_ventana": 0,
+  "motivo": ""
+}

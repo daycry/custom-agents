@@ -141,7 +141,7 @@ def _catalog(root, kind, warnings):
 
 HOOK_HANDLERS = frozenset(('native-guardrail', 'mark-docs-pending.sh', 'ledger-lint-warn.sh',
                          'progress-line.sh', 'subagent-progress.sh', 'session-context.sh',
-                         'session-journal.sh', 'user-prompt-capture.sh'))
+                         'session-journal.sh', 'user-prompt-capture.sh', 'agent-activity'))
 RUNTIME_NAMES = {'claude-code': 'claude', 'codex': 'codex', 'opencode': 'opencode'}
 HOOK_SOURCES = {'claude-code': 'hooks/hooks.json', 'codex': 'interop/codex/hooks.json',
                 'opencode': 'hooks/opencode-plugin.js'}
@@ -173,6 +173,9 @@ def _handler_metadata(root, script, group, metadata):
         if script == 'native-guardrail':
             fields = {'title': 'Guardia de roles',
                       'description': 'Aplica las políticas centrales del implementer y architect cuando coincide su identidad nativa. El nombre no acredita procedencia del prompt ni un sandbox universal.'}
+        elif script == 'agent-activity':
+            fields = {'title': 'Señales recientes de actividad',
+                      'description': 'Observaciones de sesión opt-in; no acreditan liveness ni teardown.'}
         else:
             try:
                 for line in _read(root, root / 'hooks' / script).splitlines()[:8]:
@@ -254,9 +257,11 @@ def _opencode_bindings(text):
     bindings = catalog.get('bindings')
     expected = {'guard': ('tool', 'PreToolUse', 'guard'), 'prompt': ('session', 'UserPromptSubmit', 'informative'),
                 'context': ('session', 'SessionStart', 'informative'), 'post': ('tool', 'PostToolUse', 'informative'),
-                'capture': ('event', 'SessionEnd', 'informative')}
+                'capture': ('event', 'SessionEnd', 'informative'),
+                'activity': ('event', 'ActivityObserved', 'informative')}
     allowed_handlers = {'guard': {'native-guardrail'}, 'prompt': {'user-prompt-capture.sh'},
                         'context': {'session-context.sh'}, 'capture': {'session-journal.sh'},
+                        'activity': {'agent-activity'},
                         'post': {'mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh'}}
     if not isinstance(bindings, list) or len(bindings) != len(expected):
         raise ValueError('invalid binding list')
@@ -271,17 +276,27 @@ def _opencode_bindings(text):
         handlers = binding.get('handlers')
         if not isinstance(handlers, list) or not 1 <= len(handlers) <= 8 or any(type(item) is not str or item not in HOOK_HANDLERS for item in handlers) or len(set(handlers)) != len(handlers):
             raise ValueError('invalid binding handlers')
-        if any(handler not in allowed_handlers[identifier] for handler in handlers) or identifier != 'post' and len(handlers) != 1:
+        if set(handlers) != allowed_handlers[identifier]:
             raise ValueError('invalid callback handler')
         if not _positive_number(binding.get('timeout_ms')):
             raise ValueError('invalid adapter budget')
-        names = binding.get('native_events') if identifier == 'capture' else [binding.get('native_event')]
+        stream = identifier in ('capture', 'activity')
+        names = binding.get('native_events') if stream else [binding.get('native_event')]
         if not isinstance(names, list) or not 1 <= len(names) <= 16 or any(type(name) is not str or not re.fullmatch(r'[a-z][a-z0-9.-]{0,99}', name) for name in names):
             raise ValueError('invalid native events')
         if type(binding.get('activation')) is not str or len(binding['activation']) > 300:
             raise ValueError('invalid activation')
-        if identifier == 'capture' and (not isinstance(binding.get('idle_status_event'), str) or not re.fullmatch(r'[a-z][a-z0-9.-]{0,99}', binding['idle_status_event']) or binding.get('idle_status') != 'idle'):
-            raise ValueError('invalid idle binding')
+        if stream:
+            expected_events = ['session.execution.succeeded', 'session.execution.failed',
+                               'session.execution.interrupted', 'session.idle']
+            if identifier == 'activity':
+                expected_events.insert(0, 'session.execution.started')
+            if names != expected_events:
+                raise ValueError('invalid execution/idle stream binding')
+            if binding.get('idle_status_event') != 'session.status' or binding.get('idle_status') != 'idle':
+                raise ValueError('invalid idle binding')
+        if identifier == 'activity' and binding['timeout_ms'] != 2500:
+            raise ValueError('invalid activity supervision budget')
         if identifier == 'post' and (not isinstance(binding.get('tools'), list) or not 1 <= len(binding['tools']) <= 32 or any(type(tool) is not str or not re.fullmatch(r'[a-z][a-z0-9_]{0,63}', tool) for tool in binding['tools'])):
             raise ValueError('invalid tool activation')
     return bindings
@@ -653,12 +668,20 @@ def render_html(data, *, live=False, review_enabled=False):
     except (OSError, UnicodeError, ValueError):
         raise ValueError('bundled panel template unavailable') from None
     operations, memory, review, live_script = '', '', '', ''
+    activity = '<section id="activity"><h2>Señales de actividad</h2><p>Sin servicio: este archivo estático no consulta señales de actividad.</p></section>'
     if live:
         try:
             live_script = '<script>' + _read(TEMPLATE.parent, TEMPLATE.parent / 'panel-live.js') + '</script>'
             live_script += '<script>' + _read(TEMPLATE.parent, TEMPLATE.parent / 'panel-memory.js') + '</script>'
         except (OSError, UnicodeError, ValueError):
             raise ValueError('bundled live panel asset unavailable') from None
+        activity = '''<section id="activity"><div class="section-head"><div><h2>Señales de actividad</h2>
+<p>Señales nativas recientes, separadas del progreso declarado. Un fin de respuesta o ejecución no acredita presencia ni destrucción.</p></div><span class="section-pill">Lectura local · cada 5 s</span></div>
+<button id="activity-refresh" type="button">Actualizar señales</button>
+<p id="activity-status" role="status" aria-live="polite">Consultando señales…</p>
+<p id="activity-freshness">Sin lectura disponible todavía.</p>
+<p id="activity-coverage">collection_complete: false · Colección incompleta; no representa todos los agentes o sesiones.</p>
+<div id="activity-cards" class="grid" aria-live="polite"></div></section>'''
         operations = '''<section id="operations"><div class="section-head"><div><h2>Progreso del proyecto</h2>
 <p>Ledger recién leído: los estados de las tareas no demuestran agentes vivos. Catálogo y diagnóstico permanecen fijados al arranque.</p></div><span class="section-pill">Lectura local · cada 5 s</span></div>
 <div class="controls"><div class="search-wrap"><input id="progress-search" type="search" placeholder="Buscar iniciativas o tareas" aria-label="Buscar progreso"></div>
@@ -690,18 +713,27 @@ def render_html(data, *, live=False, review_enabled=False):
 <button id="review-approve" type="button" disabled>Aprobar la vista</button><button id="review-changes" type="button" disabled>Pedir cambios</button>
 <button id="review-refresh" type="button" disabled>Cargar versión actual</button><button id="review-close" type="button">Cerrar sin decidir</button>
 <button id="review-open" type="button" hidden>Volver a la revisión</button></div>
+<section aria-labelledby="review-feedback-title"><h3 id="review-feedback-title">Respuestas a tus comentarios</h3>
+<p>El ack confirma recepción. La atención declarada y la anotación humana opcional se muestran por separado.</p>
+<div id="review-feedback" aria-live="polite"></div></section>
+<section aria-labelledby="review-history-title"><h3 id="review-history-title">Respuestas de versiones anteriores</h3>
+<div id="review-feedback-history" aria-live="polite"></div></section>
 <p class="filter-note">Cerrar conserva el borrador y no crea una decisión. Este panel no inicia agentes ni acredita QA.</p></section>'''
+        try:
+            live_script += '<script>' + _read(TEMPLATE.parent, TEMPLATE.parent / 'panel-activity.js') + '</script>'
+        except (OSError, UnicodeError, ValueError):
+            activity = '<section id="activity"><h2>Señales de actividad</h2><p>Señales no disponibles: falta el recurso local de esta vista.</p></section>'
     values = {'STATS': stats, 'CARDS': _cards(data), 'WORKFLOW': _workflow_html(data), 'NOTES': notes, 'FLOW': _flow_html(data), 'EXTENSIONS': _extensions_html(data),
               'DIAGNOSTICS': _diagnostics_html(data.get('diagnostics', {'status': 'not_provided'})),
-              'OPERATIONS': operations, 'MEMORY_QUERY': memory, 'PLAN_REVIEW': review, 'LIVE_SCRIPT': live_script,
-              'LIVE_NAV': ('<a href="#operations"><span class="nav-dot"></span>Progreso</a><a href="#memory-query"><span class="nav-dot"></span>Memoria</a>'
+              'OPERATIONS': operations, 'ACTIVITY': activity, 'MEMORY_QUERY': memory, 'PLAN_REVIEW': review, 'LIVE_SCRIPT': live_script,
+              'LIVE_NAV': ('<a href="#activity"><span class="nav-dot"></span>Actividad</a><a href="#operations"><span class="nav-dot"></span>Progreso</a><a href="#memory-query"><span class="nav-dot"></span>Memoria</a>'
                            + ('<a href="#plan-review"><span class="nav-dot"></span>Plan</a>' if review_enabled else '')) if live else '',
               'CONNECT_CSP': "; connect-src 'self'" if live else '',
               'SIDEBAR_NOTE': 'Servidor local de lectura. El progreso refleja tareas declaradas, sin dirigir agentes.' if live else 'Explora definiciones sin iniciar servicios ni modificar la configuración.',
               'REFRESH_NOTE': 'Catálogo y diagnóstico fijados al arranque; progreso local con actualización periódica.' if live else 'Regenera el archivo para actualizarlo.',
               'PROGRESS_NOTE': 'Los presupuestos y la cartera detallada se consultan en el dashboard del roadmap.' if live else 'El progreso de iniciativas se consulta en el dashboard del roadmap.',
               'SNAPSHOT_NOTE': 'Catálogo al iniciar' if live else 'Instantánea local'}
-    return MARKER + re.sub(r'@@(STATS|CARDS|WORKFLOW|NOTES|FLOW|EXTENSIONS|DIAGNOSTICS|OPERATIONS|MEMORY_QUERY|PLAN_REVIEW|LIVE_SCRIPT|LIVE_NAV|CONNECT_CSP|SIDEBAR_NOTE|REFRESH_NOTE|PROGRESS_NOTE|SNAPSHOT_NOTE)@@', lambda match: values[match.group(1)], template)
+    return MARKER + re.sub(r'@@(STATS|CARDS|WORKFLOW|NOTES|FLOW|EXTENSIONS|DIAGNOSTICS|OPERATIONS|ACTIVITY|MEMORY_QUERY|PLAN_REVIEW|LIVE_SCRIPT|LIVE_NAV|CONNECT_CSP|SIDEBAR_NOTE|REFRESH_NOTE|PROGRESS_NOTE|SNAPSHOT_NOTE)@@', lambda match: values[match.group(1)], template)
 
 
 

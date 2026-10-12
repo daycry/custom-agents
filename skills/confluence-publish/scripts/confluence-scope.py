@@ -5,7 +5,8 @@ publicación en Confluence (skill `confluence-publish`). Es la **fuente de
 verdad** del alcance: la skill lo invoca en vez de reinterpretar los
 patrones `include`/`exclude` por su cuenta, para que la semántica de glob
 nunca diverja entre "lo que dice el verificador" y "lo que de verdad se
-publica" (riesgo señalado en `evaluation.md`).
+publica" (riesgo señalado en `evaluation.md`). Candidates y journal quedan
+fuera del alcance incluso si la config los incluye: no son conocimiento curado.
 
 Subcomandos (exactamente uno por invocación):
   --check   Verifica las invariantes NO NEGOCIABLES de la config resuelta
@@ -79,8 +80,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_ASSET = SCRIPT_DIR.parent / "assets" / "confluence.example.json"
 
 # Exclusión NO negociable, SIEMPRE activa aunque falte de la config del
-# proyecto: la carpeta staged se autoexcluye (D5, spec confluence-policy).
-ALWAYS_EXCLUDE = ["docs/confluence/**"]
+# proyecto: staging no se anida; candidates y journal no se publican.
+ALWAYS_EXCLUDE = ["docs/confluence/**", "docs/knowledge/candidates/**",
+                  "docs/knowledge/journal/**"]
 
 # Nombre RESERVADO del fichero de aviso del staging. Nunca es un fichero
 # canónico real: se excluye del alcance en CUALQUIER carpeta bajo docs/ (no
@@ -263,6 +265,13 @@ def resolve_scope(root, publish, docs_dirname="docs", out_dir=None):
         return en_alcance, excluidos
     for f in iter_md_files(docs_root):
         rel = rel_from_root(f, root)
+        # Memory queues and episodic notes never become curated publication.
+        # Case folding also protects Windows projects with noncanonical casing.
+        private_memory = next((p for p in ALWAYS_EXCLUDE[1:]
+                               if glob_match(p, rel.casefold())), None)
+        if private_memory:
+            excluidos.append((rel, private_memory))
+            continue
         if f.name == STAGE_MARKER_NAME:
             excluidos.append((rel, f"nombre reservado ({STAGE_MARKER_NAME})"))
             continue

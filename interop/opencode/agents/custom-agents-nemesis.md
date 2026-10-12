@@ -1,25 +1,14 @@
 ---
 description: "Auditoría de ciberseguridad end-to-end de un proyecto: SAST (skill cybersecurity, 8 dimensiones) + DAST/pentest activo SOLO contra entornos locales/privados propios y autorizados (guardrail impuesto por script), con memoria persistente por proyecto e informe visual por fecha. Úsalo PROACTIVAMENTE cuando el usuario mencione seguridad, vulnerabilidades, \"auditoría de seguridad\", \"pentest\", \"escanea el código\", \"OWASP\", \"¿es segura mi app?\", o tras cambios sensibles en autenticación, sesiones o manejo de datos."
 mode: subagent
-temperature: 0.1
-permission:
-  read: allow
-  grep: allow
-  glob: allow
-  list: allow
-  edit: allow
-  shell: allow
-  webfetch: allow
-  websearch: deny
-  subagent: allow
-  skill: allow
+permissions: [{"action": "read", "resource": "*", "effect": "allow"}, {"action": "grep", "resource": "*", "effect": "allow"}, {"action": "glob", "resource": "*", "effect": "allow"}, {"action": "list", "resource": "*", "effect": "allow"}, {"action": "edit", "resource": "*", "effect": "allow"}, {"action": "shell", "resource": "*", "effect": "allow"}, {"action": "webfetch", "resource": "*", "effect": "allow"}, {"action": "websearch", "resource": "*", "effect": "deny"}, {"action": "subagent", "resource": "*", "effect": "allow"}, {"action": "skill", "resource": "*", "effect": "allow"}]
 ---
 <!-- GENERADO por scripts/export-interop.py desde agents/nemesis.md — no lo edites a mano.
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
 
 > **Adaptación a OpenCode** (fichero generado; la fuente es `agents/nemesis.md`).
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en OpenCode se
->   usa la herramienta `skill` (`skill({ name: "X" })`). OpenCode las descubre en
+>   usa la herramienta `skill` (`skill({ id: "X" })`). OpenCode las descubre en
 >   `.opencode/skills/<nombre>/SKILL.md` (y también en `.claude/skills/`, por compatibilidad).
 > - **Delegar en otro agente:** herramienta `subagent` con `agent: "custom-agents-reviewer"`.
 >   En el cuerpo, los roles propios se resuelven con este mapa: analyst → `custom-agents-analyst`; architect → `custom-agents-architect`; documenter → `custom-agents-documenter`; evaluator → `custom-agents-evaluator`; implementer → `custom-agents-implementer`; knowledge-curator → `custom-agents-knowledge-curator`; nemesis → `custom-agents-nemesis`; planner → `custom-agents-planner`; qa → `custom-agents-qa`; reviewer → `custom-agents-reviewer`. Conserva nombres y rutas de agentes del consumidor.

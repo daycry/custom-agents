@@ -41,7 +41,8 @@ de dominio (métricas, simulación, herramientas) es del proyecto consumidor.
 | `scripts/case-recorder.py` | Recorder (API importable + CLI `record` · `set-status` · `index` · `list`; todos aceptan `--config <training.json>` y `--project-root <dir>`). Graba cada intento como versión inmutable `cases/<family>.<variant>/v<NNN>/`. La redacción la delega en `agent-kits/shared/redact.py` (fuente única); sin él se niega a grabar. Un caso `corrected` exige que la versión que corrige exista y sea `failure` o `corrected`. |
 | `scripts/dedup.py` | Near-duplicates deterministas (shingles de palabras + Jaccard, sin embeddings ni red; boilerplate por frecuencia documental con 20 casos o más; índice PPJoin, no todos los pares; muestreo por valor declarado por encima de 10⁷ shingles). `shingles` es copia declarada de `code-health` (`agent-kits/shared/copias.json`). |
 | `scripts/dataset-assembler.py` | Ensamblador en dos pasadas en streaming: solo Gold leído de `validation.json` en disco y atado a su contenido (`content_hash`), benchmark por familia COMPLETA declarada con `--benchmark` (sin ella, exit 1), near-duplicates que cruzan excluidos del lado de train, `exports/<export_id>/` con `train.jsonl`/`benchmark.jsonl` (chat, redactados, con procedencia) y `manifest.json` el último; nunca sobrescribe ni borra. Tras cada ensamblado real deja la marca `exports/.ultimo.json` (firma de la entrada); `--estado [--json]`, solo lectura: la frescura sin tope (exit 0/1/2). |
-| `scripts/propose-from-case.py` | Puente opt-in (`bridge_to_curator`): un caso Gold → UN candidato en `docs/knowledge/candidates/pending/` con la forma de `curator-gate.py`; nunca aprueba ni sobrescribe. |
+| `scripts/propose-from-case.py` | Puente opt-in (`bridge_to_curator`): un caso Gold aporta evidencia y solicita `propose` al servicio compartido; no duplica IO, no aprueba ni escribe directamente candidates/approved/legado. |
+| `agent-kits/shared/knowledge-curation.py` + `agent-kits/shared/knowledge-curation-rules.py` | Servicio y reglas de propuesta/persistencia compartidos, requeridos en el cierre del bundle portable. Propose redacta y devuelve ruta/SHA; Curator juzga y solicita apply ligado al SHA. Sin bundle se informa pendiente, sin Write/Edit alternativo. |
 | `assets/` | Plantillas del case store: `training.example.json`, ejemplo completo `case-store-example/` (caso con par fallo → corrección) y `README.md` con la estructura y cada fichero de versión (`metadata.json`, `validation.json`, `cases_index.jsonl`…). Ubicación: `docs/knowledge/adr/ADR-019-case-store-fuera-de-docs-knowledge.md`. |
 | Capacidad `training` | Entrada de `agent-kits/shared/capabilities.py`: `deshabilitado` sin fichero, `error` con fichero y campo si la config es inválida, `declarado`/`ok` según exista `root`. Sin red. |
 
@@ -82,7 +83,8 @@ externas (`graphify`): `references/case-schema.md`.
    `exports/<export_id>/` (solo Gold, benchmark por familia completa, near-duplicates, manifiesto con
    hashes). Lee `references/dataset.md` al llegar aquí.
 7. **Proponer** (opcional) un caso Gold al Curator: `scripts/propose-from-case.py <case_id>
-   <versión> --category <KEY>` → `docs/knowledge/candidates/pending/` (`references/dataset.md`).
+   <versión> --category <KEY>` → servicio `propose` → pending + SHA (`references/dataset.md`).
+   Gold/revisión/QA no aprueban conocimiento; el gate valida contenido y Curator conserva el juicio.
 
 ## Referencias (bajo demanda)
 

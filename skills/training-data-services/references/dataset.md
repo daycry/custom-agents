@@ -225,17 +225,35 @@ python3 scripts/propose-from-case.py <case_id> <versión> --category <KEY> [--ti
 - Solo con la capacidad activa (`enabled: true`) y `bridge_to_curator: true` en `training.json` (si
   no, exit 1) y solo desde un caso **Gold** leído del disco igual que en el ensamblador, atado a su
   contenido (`content_hash`; si no casa, exit 1; sin él, aviso).
-- Escribe UN candidato nuevo en `docs/knowledge/candidates/pending/caso-<case_id>-v<NNN>-<10 hex>.md`
+- Solicita al servicio `agent-kits/shared/knowledge-curation.py` (`propose`) UN candidato nuevo
+  en `docs/knowledge/candidates/pending/caso-<case_id>-v<NNN>-<10 hex>.md`
   (el sufijo, del hash de la referencia exacta: dos casos que solo difieren en acentos o mayúsculas
   no comparten nombre) con el frontmatter que pide `curator-gate.py`: `category` (de
   `.claude/knowledge-services/taxonomy.json` o de la plantilla por defecto), `evidencia:
   validated_case`, `fuentes`, `source_cases` y `tags` `clave:valor`; sin `estado`. El cuerpo: petición
-  y nota del revisor en una línea cada una, **redactadas al escribir** (el candidato se versiona en
-  Git), nunca la trayectoria; un `--tag` que parezca un secreto se rechaza.
-- **Nunca aprueba**: no escribe en `approved/` ni pone `estado: aprobado`; decide `knowledge-curator`
-  con `curator-gate.py`. Nunca sobrescribe (`O_EXCL`) ni re-propone un nombre que ya esté en
-  `pending/`, `needs_changes/`, `rejected/` o `approved/`; un `pending/` enlazado → exit 1, y si se
-  sustituye por un enlace durante la creación, el aviso nombra dónde quedó el candidato (nada se borra).
+  y nota del revisor en una línea cada una, nunca la trayectoria; un `--tag` que parezca un secreto
+  se rechaza. El servicio redacta el texto completo antes de persistir y devuelve ruta/SHA;
+  el versionado en Git depende de la política del proyecto.
+- **Nunca aprueba**: el bridge prepara evidencia; Gold no autoriza escritura en approved.
+  Curator decide categoría/suficiencia y resuelve conflictos/alto impacto con usuario, consultando
+  approved y legado aceptado pertinentes. El gate valida contenido sin persistir; `apply_decision`
+  del servicio exige SHA original y motivo; approve requiere metadatos finales. El bridge no duplica cerrojos,
+  creación, movimientos ni borrado de candidatos y no usa Write/Edit como fallback.
+  La reserva de nombres/no sobrescritura en pending/needs_changes/rejected/approved y comprobación
+  de rutas pertenecen al servicio; sin él/helpers se informa pendiente, no éxito aparente.
 - Anti-leakage: el puente va en una sola dirección; nada de `docs/knowledge/` alimenta el case store
-  ni el dataset. Exit 0 creado · 1 rechazo · 2 uso, taxonomía ilegible, sin `knowledge-schema.py` o sin
-  `redact.py`.
+  ni el dataset. El servicio devuelve `(resultado, código)`: 0 operación confirmada, 1 contrato
+  rechazado, 2 uso/dependencia/IO no verificable; JSON con status/errores/avisos y rutas verificadas.
+
+El servicio usa intención y recibo ligados a bytes, decisión y política/taxonomía. Sólo approve
+admite `replacement_text` (CLI `--replacement-stdin`), conservando original y ambos hashes;
+`recover` no aprueba cambios ni elimina fuente modificada. Publicar destino, retirar fuente y
+registrar recibo son fronteras separadas; approved puede aparecer antes del recibo final, sin
+transacción multiarchivo atómica. No migra ni reaprueba legado y no exporta candidatos.
+
+El cerrojo del servicio es cooperativo (msvcrt Windows/flock POSIX), no excluye editores externos.
+Sincroniza archivos y en POSIX directorios; el helper no hace fsync de directorio en Windows.
+No garantiza supervivencia a corte eléctrico o renombres hostiles. Producer/decider son etiquetas,
+no autenticación nativa ni sandbox. Aceptación Windows/Linux y de clientes permanece pendiente.
+Los requisitos de IO del case store/export se conservan en su capa, sin reutilizarlos como una
+segunda implementación de persistencia de memoria. [Contrato de curación](../../../docs/roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).

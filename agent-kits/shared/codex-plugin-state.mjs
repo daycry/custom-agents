@@ -56,7 +56,9 @@ export function runCodexQuery(args, {cwd,timeout=CODEX_QUERY_TIMEOUT_MS,env=proc
   }
 }
 
-function queryWorker(timeout) {
+function queryWorker(deadline) {
+  deadline=Math.min(deadline,Date.now()+CODEX_QUERY_TIMEOUT_MS)
+  const timeout=deadline-Date.now()
   if(timeout<=0) {process.exitCode=124;return}
   let command
   try {command=executable(process.env)} catch {process.exitCode=127;return}
@@ -70,16 +72,16 @@ function queryWorker(timeout) {
     options.windowsVerbatimArguments=true
   }
   const child=spawn(command,args,options)
-  let chunks=[],size=0,finished=false
+  let chunks=[],size=0,finished=false,timer
   const finish=(status,kill=false)=>{
     if(finished) return
+    if(status===0 && Date.now()>=deadline) {status=124;kill=true}
     finished=true;clearTimeout(timer)
     if(kill) terminateProcessTree(child.pid)
     child.stdout.destroy()
     if(status===0) process.stdout.write(Buffer.concat(chunks),()=>process.exit(0))
     else process.exit(status)
   }
-  const timer=setTimeout(()=>finish(124,true),timeout)
   child.stdout.on('data',chunk=>{
     size+=chunk.length
     if(size>4*1024*1024) finish(125,true)
@@ -87,6 +89,10 @@ function queryWorker(timeout) {
   })
   child.on('error',()=>finish(126,true))
   child.on('close',status=>finish(status===0 ? 0 : 126))
+  // Native spawn can block synchronously; it must consume the original budget.
+  const remaining=deadline-Date.now()
+  if(remaining<=0) {finish(124,true);return}
+  timer=setTimeout(()=>finish(124,true),remaining)
 }
 
 export function parseCodexPluginState(raw) {
@@ -118,7 +124,7 @@ export function queryCodexPlugin({cwd,runner=runCodexQuery,timeout=CODEX_QUERY_T
 
 if(process.argv[1] && resolve(process.argv[1])===HELPER) {
   const args=process.argv.slice(2)
-  if(args.length===2 && args[0]==='--query-worker' && /^\d{1,16}$/.test(args[1])) queryWorker(Math.min(CODEX_QUERY_TIMEOUT_MS,Number(args[1])-Date.now()))
+  if(args.length===2 && args[0]==='--query-worker' && /^\d{1,16}$/.test(args[1])) queryWorker(Number(args[1]))
   else {
     const valid=args.length===0 || args.length===2 && args[0]==='--project' && Boolean(args[1])
     console.log(JSON.stringify(valid ? queryCodexPlugin({cwd:args.length ? resolve(args[1]) : process.cwd()}) : unknown('invalid-arguments')))

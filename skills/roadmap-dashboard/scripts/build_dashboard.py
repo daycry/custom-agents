@@ -119,10 +119,15 @@ def _gen_tokens_reales(v, lines, i, indent):
 
 def _gen_valor(k, v):
     """Valor de una clave `generacion:` que NO es `tokens_reales`."""
+    if k == "medicion_persistida":
+        return {"true": True, "false": False}.get(v.lower())
     if k in ("eur", "horas_ia", "ratio_usado"):
         # numérico solo si el valor EMPIEZA por número (evita "verificar 2026" → 2026)
         mnum = re.match(r"~?\s*(-?[\d]+(?:[.,]\d+)?)", v)
         return float(mnum.group(1).replace(",", ".")) if mnum else None
+    if k == "revision_medicion":
+        return (int(v) if re.fullmatch(r"[1-9][0-9]{0,18}", v)
+                and int(v) <= 2**63 - 1 else None)
     v = v.strip("'\"")
     return None if v.lower() in ("", "null", "~", "none") else v
 
@@ -691,9 +696,62 @@ def contar_fuentes(inits):
     return {"estimados": estimados, "medidos": medidos, "otros": otros, "total": total}
 
 
+_IDENTIDAD_GENERACION = ("fuente_id", "ventana_id", "revision_medicion")
+
+
+def _identidad_generacion(g):
+    """Validate comparable local metadata; never authenticate a producer."""
+    source, window, revision = (g.get(key) for key in _IDENTIDAD_GENERACION)
+    if (g.get("fuente") == "medido" and isinstance(g.get("tokens_reales"), dict)
+            and isinstance(source, str) and re.fullmatch(r"src-[0-9a-f]{64}", source)
+            and isinstance(window, str) and re.fullmatch(r"win-[0-9a-f]{32}", window)
+            and type(revision) is int and 1 <= revision <= 2**63 - 1):
+        return source, window, revision
+    return None
+
+
+def _seleccionar_snapshots_generacion(gen):
+    """Keep the latest whole revision per identified source/window, without writes.
+
+    Legacy data has no reliable source/window binding: retain its exact-copy
+    compatibility, without inferring cumulative revisions from similar dates.
+    """
+    selected, groups, warnings = [], {}, []
+    for g in gen.values():
+        if not isinstance(g, dict):
+            warnings.append("bloque de generación no verificable")
+            continue
+        if (g.get("fuente") == "medido" and "medicion_persistida" in g
+                and g["medicion_persistida"] is not True):
+            warnings.append("medición sin persistencia acreditada; ventana sin sumar")
+            continue
+        identity = _identidad_generacion(g)
+        if identity:
+            groups.setdefault(identity[:2], []).append((identity[2], g))
+        elif g.get("fuente") == "medido" and ("medicion_persistida" in g
+                or any(key in g for key in _IDENTIDAD_GENERACION)):
+            warnings.append("identidad de medición incompleta o inválida; ventana sin sumar")
+        else:
+            selected.append(g)
+    metric_fields = ("fuente", "inicio", "fin", "tokens_reales", "horas_ia", "eur",
+                     "ratio_usado", "ratio_origen")
+    for snapshots in groups.values():
+        revision = max(item[0] for item in snapshots)
+        latest = [g for rev, g in snapshots if rev == revision]
+        values = tuple(latest[0].get(key) for key in metric_fields)
+        if any(tuple(g.get(key) for key in metric_fields) != values for g in latest[1:]):
+            warnings.append("revisiones de medición contradictorias; ventana sin sumar")
+        else:
+            selected.append(latest[0])
+    return selected, warnings
+
+
 def _clave_ventana_generacion(g, t):
+    identity = _identidad_generacion(g)
+    if identity:
+        return ("identificada", *identity[:2])
     clave = None
-    if isinstance(t, dict) and g.get("inicio") and g.get("fin"):
+    if g.get("fuente") == "medido" and isinstance(t, dict) and g.get("inicio") and g.get("fin"):
         clave = (g.get("inicio"), g.get("fin"), g.get("horas_ia"),
                  tuple(sorted(t.items())))
     return clave
@@ -716,7 +774,8 @@ def _proceso_gen_stats(gen):
     """Acumula tokens/horas/€ de un `generacion` dict, deduplicando ventanas compartidas.
     Una MISMA ventana de medición puede estar declarada en dos artefactos (el planner mide
     improvement-plan.md + tasks.md juntos y escribe el mismo bloque en los dos). Se cuenta
-    UNA vez: dedupe por (inicio, fin, tokens). Solo se deduplica una medición REAL idéntica
+    UNA vez: identidad de fuente/ventana y última revisión completa cuando están
+    disponibles; legacy por (inicio, fin, tokens). Solo se deduplica una medición REAL idéntica
     (mismos tokens, misma ventana y mismas horas): los bloques `estimado` comparten fechas
     de referencia pero son estimaciones distintas por artefacto y deben sumarse."""
     toks = horas = docs_con_tokens = 0
@@ -724,7 +783,10 @@ def _proceso_gen_stats(gen):
     eur_ok = True
     fuentes = set()
     vistas = set()
-    for g in gen.values():
+    ventanas = 0
+    selected, avisos = _seleccionar_snapshots_generacion(gen)
+    fuentes.update(g.get("fuente") or "?" for g in gen.values() if isinstance(g, dict))
+    for g in selected:
         t = g.get("tokens_reales")
         clave = _clave_ventana_generacion(g, t)
         duplicada = clave is not None and clave in vistas
@@ -733,11 +795,14 @@ def _proceso_gen_stats(gen):
         fuentes.add(g.get("fuente") or "?")
         if duplicada:
             continue  # ventana compartida ya contada
+        ventanas += 1
         toks, horas, docs_con_tokens, eur, eur_ok = _sumar_generacion(
             g, t, toks, horas, docs_con_tokens, eur, eur_ok)
-    ventanas = len(vistas) or len(gen)
+    if avisos:
+        eur_ok = False
     return {"toks": toks, "horas": horas, "eur": eur, "eur_ok": eur_ok,
-            "fuentes": fuentes, "ventanas": ventanas, "docs_con_tokens": docs_con_tokens}
+            "fuentes": fuentes, "ventanas": ventanas, "docs_con_tokens": docs_con_tokens,
+            "parcial": bool(avisos), "avisos": avisos}
 
 
 def _proceso_fila(r):
@@ -749,10 +814,12 @@ def _proceso_fila(r):
     fuente = "medido" if s["fuentes"] == {"medido"} else "/".join(sorted(s["fuentes"]))
     eur_cell = f"{s['eur']:.2f} €" if s["eur_ok"] else "⚠️ verificar"
     # sin NINGÚN dato de tokens → '—', no un 0 inventado (regla C-04)
-    compartida = " · ventana compartida" if s["ventanas"] < len(gen) else ""
+    compartida = " · ventana compartida" if not s["parcial"] and s["ventanas"] < len(gen) else ""
     tok_cell = (f"{_miles(s['toks'])} tok ({s['docs_con_tokens']}/{len(gen)} docs con medida, "
                 f"{fuente}{compartida})"
                 if s["docs_con_tokens"] else f"— (sin tokens; {len(gen)} docs, {fuente})")
+    if s["parcial"]:
+        tok_cell += " · datos parciales ⚠️"
     fila = (f"| {md_cell(r['titulo'])} | {tok_cell} "
             f"| {_xhym(s['horas']) if s['horas'] else '—'} | {eur_cell} | "
             f"{', '.join(sorted(gen))} |")
@@ -796,9 +863,11 @@ def render_proceso_md(inits):
     del coste de implementación. Sin bloque → 'sin datos' (nunca 0 inventado)."""
     out = ["## 🧾 Coste de proceso (generación de artefactos)", "",
            "> Lo que costó **producir** spec / evaluación / plan / tasks "
-           "(tokens reales de `usage-meter`; horas = tokens × ratio calibrado; "
+           "(tokens reales de `usage-meter`; horas = tokens ÷ ratio calibrado; "
            "fechas solo contexto). Separado del coste de implementación de arriba.", ""]
     rows, tot_tok, tot_h, tot_eur, con_datos, eur_incompleto = _totales_de_proceso(inits)
+    avisos = sorted({warning for r in inits for warning in
+                     _proceso_gen_stats(r.get("generacion") or {})["avisos"]})
     out += ["| Iniciativa | Tokens facturables | Horas-IA | Coste | Artefactos medidos |",
             "|---|---|---|---|---|"]
     out += rows
@@ -807,7 +876,8 @@ def render_proceso_md(inits):
             tot_eur_cell = "⚠️ verificar"
         else:
             tot_eur_cell = f"{tot_eur:.2f} €" + (" (parcial ⚠️)" if eur_incompleto else "")
-        out.append(f"| **TOTAL ({con_datos} con datos)** | "
+        parcial = "; parcial" if avisos else ""
+        out.append(f"| **TOTAL ({con_datos} con datos{parcial})** | "
                    f"**{_miles(tot_tok) + ' tok' if tot_tok else '—'}** | "
                    f"**{_xhym(tot_h) if tot_h else '—'}** | **{tot_eur_cell}** | |")
     else:
@@ -817,6 +887,8 @@ def render_proceso_md(inits):
     # E7: cuántos de estos números son una MEDIDA y cuántos una estimación con formato de medida.
     # Va después de la tabla, no dentro: es un juicio sobre la tabla entera, no sobre una fila.
     out += _fuentes_de_proceso(inits)
+    if avisos:
+        out += ["", "> ⚠️ Coste de proceso parcial: " + "; ".join(avisos) + "."]
     return "\n".join(out)
 
 

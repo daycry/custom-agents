@@ -7,7 +7,8 @@ description: >
   personas y MCP con origen y conflictos; admite un diagnóstico portable de
   doctor indicado explícitamente, con fecha y alcance. HTML autónomo con búsqueda y filtros, JSON determinista,
   con modo --serve explícito para progreso actualizado del ledger y consulta
-  local de memoria bajo demanda y revisión visual opcional de un plan, sin cambios
+  local de memoria bajo demanda, señales recientes de actividad opt-in y revisión
+  visual opcional de un plan, sin cambios
   de configuración. Úsala cuando el usuario diga
   "panel de capacidades", "control panel del plugin" o "explora el catálogo del plugin".
 ---
@@ -16,7 +17,7 @@ description: >
 
 Presenta el bundle y las extensiones del proyecto seleccionado. El estado de las iniciativas lo muestra
 la skill roadmap-dashboard; este panel muestra capacidades y, en modo servido,
-una vista acotada del ledger local y de memoria canónica.
+una vista acotada del ledger local, memoria canónica y señales recientes de actividad.
 
 1. Localiza esta skill en las raíces del bundle del runtime actual.
 2. Ejecuta scripts/build_panel.py con Python nativo, `--root <bundle>` y
@@ -69,11 +70,33 @@ privados se omiten; propiedad por hash y disponibilidad son estados distintos.
 La revisión visual delega recibos en `agent-kits/shared/plan-review.py`, con
 `local-read.py` y `redact.py` del mismo kit. El navegador anota y envía una decisión;
 el consumidor CLI recibe y confirma su consumo para la versión exacta del plan.
+Consumo no acredita atención: la UI distingue respuestas declaradas y verificación
+humana comunicada, opcional y no autenticada. Sus notas/historial se leen del dueño;
+result/verify-result sólo se registran por CLI, sin nueva puerta ni escritor browser.
 Una autorización previa válida permite continuar sin otra confirmación.
 Cerrar la vista conserva el borrador y no decide.
+
+Actividad en modo servido es una lectura opt-in de señales recientes, separada
+del ledger: hasta 64 observaciones, 64 KiB por snapshot/respuesta y caducidad de
+60 segundos, también al fallar HTTP. GET `api/activity` es sólo lectura; no inicia
+agentes ni prueba presencia o destrucción. El HTML estático explica la ausencia
+de servicio. La guía documenta `sesion.actividad: true`, desactivado por defecto,
+y el estado local excluido de Git por su propio `.gitignore`.
+
+El cierre portable requiere referencias explícitas a
+`agent-kits/shared/agent-activity-store.py`, `agent-kits/shared/agent-activity.py`,
+`agent-kits/shared/local-state.py` y `agent-kits/shared/local-read.py`. La revisión
+comparte StateIO y además necesita `agent-kits/shared/plan-review.py` y
+`agent-kits/shared/redact.py`. El export debe conservar estos helpers juntos; exportar sólo skills no
+registra hooks ni acredita captura nativa. El productor `capture` además necesita
+`agent-kits/shared/native-roles.json`, mapa central de IDs nativos declarados;
+`export-skills` debe incluir también este JSON. El snapshot no lee ese mapa.
+Si falta un helper de actividad, deja sus señales
+indisponibles; las otras vistas conservan sus propios contratos.
 
 | Recurso | Cuándo leerlo |
 |---|---|
 | [Uso y límites](../../docs/PLUGIN-PANEL.md) | Al explicar inventario, exportación y diferencias con el roadmap |
 | [Extensiones propias](../../docs/PROJECT-EXTENSIONS.md) | Carpetas nativas, selección por ID, personas y disponibilidad |
 | [Plantilla local](references/panel.html) | Presentación HTML empaquetada; el generador la usa sin cargar recursos de red |
+| [Vista de actividad](references/panel-activity.js) | Al mantener la vista servida de señales, sus metadatos y caducidad local |

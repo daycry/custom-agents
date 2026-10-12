@@ -17,11 +17,15 @@
 #              reason: clear|resume|logout|prompt_input_exit|other }
 #   stdout → se IGNORA («Output and exit code are ignored, except terminalSequence»): SessionEnd
 #            no puede bloquear ni inyectar contexto; por eso el hook solo escribe a disco.
-#   tiempo → todos los hooks de SessionEnd comparten un presupuesto de 1,5 s que sube hasta el
-#            `timeout` por hook (máx. 60 s) → hooks.json declara `timeout: 5` (era 45: el trabajo
-#            pesado —git, IA, log de prompts— ya no corre aquí, corre en `replay`) y pasa a EXEC
-#            FORM (`command: node`, `args: [launcher, script]`) para que el runtime no tenga que
-#            tokenizar una línea de shell en el camino más corto posible.
+#   tiempo → SessionEnd tiene un presupuesto global de 1,5 s por defecto. El `timeout`
+#            declarado por un hook de plugin NO eleva ese presupuesto; `timeout: 5` en
+#            hooks.json es una declaración por hook, no evidencia de cinco segundos efectivos.
+#            Los timeouts de settings pueden elevarlo (máx. 60 s); una variable de entorno
+#            explícita también lo cambia. No configuramos esa variable automáticamente.
+#            EXEC FORM (`command: node`, `args: [launcher, script]`) está soportada desde
+#            Claude Code 2.1.139 y evita tokenizar una línea de shell.
+#            Referencia interna: skills/plugin-dev/references/claude-code-contracts.md
+#            SessionEnd y command-hook-fields, verificada 2026-10-11. El respeto del límite requiere medición.
 #
 # Prueba manual:
 #   echo '{"hook_event_name":"SessionEnd","session_id":"s1","reason":"other","cwd":"'"$PWD"'"}' | bash hooks/session-journal.sh

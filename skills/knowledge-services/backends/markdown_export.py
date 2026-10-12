@@ -122,6 +122,7 @@ import socket
 import sys
 import tempfile
 import threading
+import stat
 import time
 from pathlib import Path
 import urllib.error
@@ -1036,6 +1037,39 @@ def apply(ops, cfg):
         }
 
 
+def _manifest_signature(path):
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        return None
+    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+        raise ConfigInvalida("manifiesto no regular o enlazado; publicación pendiente")
+    return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns
+
+
+def _retryable_manifest_error(error):
+    return os.name == "nt" and getattr(error, "winerror", None) in (5, 32, 33)
+
+
+def _finalizar_manifest(pending_path, manifest_path):
+    """Hasta cuatro intentos; preservar fuentes/destino observados bajo el lock propio.
+
+    Las identidades observadas no constituyen CAS frente a escritores externos.
+    """
+    expected = _manifest_signature(pending_path), _manifest_signature(manifest_path)
+    for attempt in range(4):
+        observed = _manifest_signature(pending_path), _manifest_signature(manifest_path)
+        if observed != expected:
+            raise ConfigInvalida("manifiesto cambiado durante la finalización; publicación pendiente")
+        try:
+            os.replace(pending_path, manifest_path)
+            return
+        except OSError as error:
+            if not _retryable_manifest_error(error) or attempt == 3:
+                raise
+            time.sleep(0.02 * 2 ** attempt)
+
+
 def _publicar_por_fichero(staging_dir, export_dir, rutas_upsert, ids_a_revocar,
                            manifest_previo_efectivo):
     """El paso (4)-(5) del diario (ver docstring del módulo): publica cada `upsert` con UN
@@ -1065,7 +1099,7 @@ def _publicar_por_fichero(staging_dir, export_dir, rutas_upsert, ids_a_revocar,
     pending_path = os.path.join(export_dir, MANIFEST_PENDING_NOMBRE)
     manifest_path = os.path.join(export_dir, MANIFEST_NOMBRE)
     try:
-        os.replace(pending_path, manifest_path)
+        _finalizar_manifest(pending_path, manifest_path)
     except OSError as e:
         raise ConfigInvalida(
             f"no se pudo finalizar la publicación (`{pending_path}` -> `{manifest_path}`): "

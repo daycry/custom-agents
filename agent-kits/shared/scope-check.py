@@ -52,13 +52,17 @@ Exit: 0 nada fuera de alcance · 1 hay ficheros fuera (con --warn-only siempre 0
       no es el mismo).
 """
 import argparse
+import base64
+import hashlib
 import importlib.util
 import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
+from pathlib import Path
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -452,6 +456,299 @@ def info_de_exclusion(quien, excluir_usuario):
             f"recuento (no cuentan para el exit code; entre paréntesis, el glob de usuario que los "
             f"excluyó): {detalle}. No es un gap: comprueba que es EXACTAMENTE lo que querías "
             f"excluir."]
+
+
+# --------------------------------------------------- commit projection ----
+def _commit_git(root, *args, data=None, filters=(), check=True):
+    """Byte reads only; never refresh the index or invoke configured transformers."""
+    env = dict(os.environ, GIT_OPTIONAL_LOCKS="0", GIT_TERMINAL_PROMPT="0")
+    overrides = ["-c", "core.fsmonitor=false"]
+    for name in filters:
+        for option, value in (("clean", ""), ("process", ""), ("smudge", ""), ("required", "false")):
+            overrides.extend(["-c", f"filter.{name}.{option}={value}"])
+    result = subprocess.run(["git", *overrides, "--literal-pathspecs", *args],
+                            cwd=root, env=env, input=data, capture_output=True, timeout=20)
+    if check and result.returncode:
+        raise RuntimeError(result.stderr.decode("utf-8", errors="replace").strip())
+    return result.stdout
+
+
+COMMIT_FILE_BYTES = 8 * 1024 * 1024
+COMMIT_TOTAL_BYTES = 32 * 1024 * 1024
+_COMMIT_READER = None
+
+
+def _commit_reader():
+    global _COMMIT_READER
+    if _COMMIT_READER is None:
+        spec = importlib.util.spec_from_file_location("commit_local_read", os.path.join(HERE, "local-read.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _COMMIT_READER = module
+    return _COMMIT_READER
+
+
+def _commit_paths(root, seleccion, check_files=True):
+    if not isinstance(seleccion, list) or not seleccion:
+        raise ValueError("selección vacía o inválida")
+    base = Path(os.path.abspath(root))
+    seen = set()
+    for path in seleccion:
+        if (not isinstance(path, str) or not path or "\0" in path or "\\" in path or ":" in path
+                or path.startswith(("/", ":")) or re.match(r"^[A-Za-z]:", path)
+                or any(part in ("", ".", "..") for part in path.split("/"))
+                or path.split("/")[0].lower() == ".git"):
+            raise ValueError("ruta relativa literal inválida")
+        key = os.path.normcase(path)
+        target = base / path
+        if key in seen:
+            raise ValueError("ruta duplicada")
+        if check_files:
+            try:
+                info, _ = _commit_reader()._checked(base, target)
+                if stat.S_ISDIR(info.st_mode):
+                    raise ValueError("directorio seleccionado")
+            except FileNotFoundError:
+                pass  # A tracked deletion is a legitimate literal selection.
+        seen.add(key)
+    return base
+
+
+def _commit_records(raw, tree=False):
+    records = {}
+    for record in raw.split(b"\0"):
+        if not record:
+            continue
+        info, path = record.split(b"\t", 1)
+        fields = info.decode("ascii").split()
+        name = path.decode("utf-8", errors="surrogateescape")
+        mode, oid, stage = (fields[0], fields[2], "0") if tree else fields
+        records.setdefault(name, []).append({"mode": mode, "blob": oid, "stage": stage})
+    return records
+
+
+def _commit_digest(snapshot):
+    body = {k: v for k, v in snapshot.items() if k != "snapshot_id"}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, ensure_ascii=True,
+                                    separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest()
+
+
+def proyectar_commit(root, seleccion):
+    """Project an exact literal selection, without staging or writing objects.
+
+    Custom filters are deliberately unsupported; their commands are disabled for
+    every child read, including paths outside the selection. Snapshot integrity
+    does not authenticate an actor or lock out concurrent editors.
+    """
+    base = _commit_paths(root, seleccion)
+    configured = _commit_git(base, "config", "--null", "--get-regexp", r"^filter\.", check=False)
+    filters = sorted({r.split(b"\n", 1)[0].decode("utf-8").rsplit(".", 1)[0][7:]
+                      for r in configured.split(b"\0") if r})
+    def read(*args, data=None, check=True):
+        return _commit_git(base, *args, data=data, filters=filters, check=check)
+    head = read("rev-parse", "HEAD").strip().decode("ascii")
+    index_path = Path(os.fsdecode(read("rev-parse", "--git-path", "index").strip()))
+    if not index_path.is_absolute():
+        index_path = base / index_path
+    index_sha = hashlib.sha256(index_path.read_bytes()).hexdigest()
+    index = _commit_records(read("ls-files", "--stage", "-z"))
+    tree = _commit_records(read("ls-tree", "-r", "-z", "HEAD"), tree=True)
+    others = [os.fsdecode(p) for p in read("ls-files", "--others", "--exclude-standard", "-z").split(b"\0") if p]
+    paths = sorted(set(index) | set(tree) | set(others) | set(seleccion))
+    attrs = read("check-attr", "-z", "--stdin", "filter", "working-tree-encoding",
+                 data=b"".join(os.fsencode(p) + b"\0" for p in paths)).split(b"\0")
+    unsupported = {}
+    for i in range(0, len(attrs) - 1, 3):
+        path, attr, value = attrs[i:i+3]
+        if value not in (b"unspecified", b"unset"):
+            unsupported[os.fsdecode(path)] = "custom_filter_unsupported" if attr == b"filter" else "encoding_unsupported"
+    selected, conflicts, limits, staged, changed = [], [], [], [], set(others)
+    safe_patch, native_names, consumed = [], [], 0
+    local = _commit_reader()
+    core_filemode = read("config", "--bool", "--get", "core.filemode", check=False).strip() == b"true"
+    for path in paths:
+        h = (tree.get(path) or [None])[0]
+        entries = index.get(path, [])
+        entry = entries[0] if len(entries) == 1 and entries[0]["stage"] == "0" else None
+        intent = False
+        if entry and h is None:
+            debug = read("ls-files", "--debug", "-z", "--", path)
+            flags = re.search(rb"flags: ([0-9a-fA-F]+)", debug)
+            intent = bool(flags and int(flags[1], 16) & 0x20000000)
+        target = base / path
+        staged_difference = not intent and (entry != h or bool(entries) and entry is None)
+        if staged_difference and entries:
+            staged.extend({"path": path, **e} for e in entries)
+        elif h and not entries:
+            staged.append({"path": path, "blob": None, "mode": None, "stage": "0"})
+        if staged_difference or h is None:
+            changed.add(path)
+        if path in unsupported:
+            (conflicts if path in seleccion else limits).append({"path": path, "code": unsupported[path]})
+        if path not in seleccion:
+            # Metadata only. Git supplies changed names; Python never opens an
+            # unselected body, nor hashes it to infer ownership/content.
+            if path in index and path not in unsupported:
+                try:
+                    info, _ = local._checked(base, target)
+                    if stat.S_ISREG(info.st_mode) and info.st_nlink == 1:
+                        native_names.append(path)
+                    else:
+                        limits.append({"path": path, "code": "unselected_unavailable"})
+                        changed.add(path)
+                except FileNotFoundError:
+                    changed.add(path)
+                except (OSError, ValueError):
+                    limits.append({"path": path, "code": "unselected_unavailable"})
+                    changed.add(path)
+            continue
+        if staged_difference:
+            conflicts.append({"path": path, "code": "staged_conflict"})
+        if h is None and entry is None:
+            conflicts.append({"path": path, "code": "new_unregistered"})
+        raw, sha, blob, mode, info, blocked = None, None, None, None, None, False
+        try:
+            info, _ = local._checked(base, target)
+            if not stat.S_ISREG(info.st_mode):
+                conflicts.append({"path": path, "code": "selected_unavailable"}); blocked = True
+            elif info.st_nlink != 1:
+                conflicts.append({"path": path, "code": "selected_hardlink"}); blocked = True
+        except FileNotFoundError:
+            pass
+        except (OSError, ValueError):
+            conflicts.append({"path": path, "code": "selected_unavailable"}); blocked = True
+        if entry and entry["mode"] not in ("100644", "100755"):
+            conflicts.append({"path": path, "code": "file_type_unsupported"}); blocked = True
+        # Budget both observed worktree bytes and the HEAD side of its patch.
+        head_size = int(read("cat-file", "-s", h["blob"]).strip()) if h else 0
+        size = info.st_size if info else 0
+        if max(size, head_size) > COMMIT_FILE_BYTES or consumed + size + head_size > COMMIT_TOTAL_BYTES:
+            conflicts.append({"path": path, "code": "selected_too_large"}); blocked = True
+        if info and not blocked:
+            observed = local.read_bytes(base, path, max_bytes=min(COMMIT_FILE_BYTES, COMMIT_TOTAL_BYTES-consumed-head_size),
+                                        include_digest=True, include_identity=True)
+            consumed += observed['bytes'] + head_size
+            if observed['status'] != 'ok':
+                code = "selected_too_large" if observed['status'] == 'too_large' else "selected_unavailable"
+                conflicts.append({"path": path, "code": code}); blocked = True
+            else:
+                after, _ = local._checked(base, target)
+                # Compare generations within the same stat API. On Windows,
+                # descriptor and path ctime need not represent the same clock.
+                if (after.st_nlink != 1 or local._identity(after) != observed['identity']
+                        or local._generation(after) != local._generation(info)
+                        or local._generation(after)[:2] != observed['generation'][:2]):
+                    conflicts.append({"path": path, "code": "selected_unavailable"}); blocked = True
+                else:
+                    raw, sha = observed['data'], observed['sha256']
+                    mode = ("100755" if core_filemode and after.st_mode & 0o100 else "100644")
+                    if not core_filemode and entry:
+                        mode = entry['mode']
+                    if path not in unsupported:
+                        blob = read("hash-object", "--path=" + path, "--stdin", data=raw).strip().decode("ascii")
+        elif not info and not blocked:
+            consumed += head_size
+        if not blocked and path not in unsupported:
+            safe_patch.append(path)
+        selected.append({"path": path, "estado": "eliminado" if info is None else "nuevo" if h is None else "modificado",
+                         "head_blob": h["blob"] if h else None, "index_blob": entry["blob"] if entry else None,
+                         "head_mode": h["mode"] if h else None, "index_mode": entry["mode"] if entry else None,
+                         "worktree_mode": mode, "worktree_sha256": sha, "blob_commit": blob})
+    selected.sort(key=lambda row: seleccion.index(row["path"]))
+    # Keep argv bounded on Windows; each batch is literal names only. Filters
+    # are disabled, unsafe filesystem entries excluded before native diff.
+    batch, batch_bytes = [], 0
+    for path in native_names + [None]:
+        size = len(os.fsencode(path)) + 3 if path is not None else 0
+        if batch and (path is None or batch_bytes + size > 6000):
+            changed.update(os.fsdecode(p) for p in read("diff", "--no-ext-diff", "--no-textconv", "--name-only", "-z", "HEAD", "--", *batch).split(b"\0") if p)
+            batch, batch_bytes = [], 0
+        if path is not None:
+            batch.append(path); batch_bytes += size
+    patch = read("diff", "--no-ext-diff", "--no-textconv", "--binary", "HEAD", "--", *safe_patch) if safe_patch else b""
+    try:
+        display, lossless = patch.decode("utf-8"), True
+    except UnicodeDecodeError:
+        display, lossless = patch.decode("utf-8", errors="backslashreplace"), False
+    snapshot = {"schema_version": 1, "head": head, "index_sha256": index_sha,
+                "seleccionados": selected, "no_seleccionados": sorted(changed - set(seleccion)),
+                "staged_ajenos": [row for row in staged if row["path"] not in seleccion],
+                "conflictos": conflicts, "limites": limits, "patch": display,
+                "patch_base64": base64.b64encode(patch).decode("ascii"),
+                "patch_sha256": hashlib.sha256(patch).hexdigest(), "patch_display_lossless": lossless}
+    snapshot["snapshot_id"] = _commit_digest(snapshot)
+    return snapshot
+
+
+def validar_seleccion_commit(root, snapshot):
+    """Re-read the boundary; malformed/tampered snapshots never become a new choice."""
+    invalid = {"valido": False, "motivos": [{"code": "invalid_snapshot"}]}
+    try:
+        required = {"schema_version", "head", "index_sha256", "seleccionados", "no_seleccionados",
+                    "staged_ajenos", "conflictos", "limites", "patch", "patch_base64",
+                    "patch_sha256", "patch_display_lossless", "snapshot_id"}
+        if not isinstance(snapshot, dict) or set(snapshot) != required or type(snapshot["schema_version"]) is not int or snapshot["schema_version"] != 1:
+            return invalid
+        def digest_value(value, lengths=(64,)):
+            return isinstance(value, str) and len(value) in lengths and re.fullmatch(r"[0-9a-f]+", value) is not None
+        if not digest_value(snapshot["head"], (40, 64)) or not all(digest_value(snapshot[field]) for field in ("index_sha256", "patch_sha256", "snapshot_id")):
+            return invalid
+        if not isinstance(snapshot["seleccionados"], list) or not snapshot["seleccionados"]:
+            return invalid
+        row_keys = {"path", "estado", "head_blob", "index_blob", "head_mode", "index_mode",
+                    "worktree_mode", "worktree_sha256", "blob_commit"}
+        for row in snapshot["seleccionados"]:
+            if not isinstance(row, dict) or set(row) != row_keys or row["estado"] not in ("nuevo", "modificado", "eliminado"):
+                return invalid
+            if any(row[field] is not None and not digest_value(row[field], (40, 64)) for field in ("head_blob", "index_blob", "blob_commit")):
+                return invalid
+            if row["worktree_sha256"] is not None and not digest_value(row["worktree_sha256"]):
+                return invalid
+            if any(row[field] is not None and not re.fullmatch(r"[0-7]{6}", row[field]) for field in ("head_mode", "index_mode", "worktree_mode")):
+                return invalid
+        if _commit_digest(snapshot) != snapshot["snapshot_id"]:
+            return invalid
+        patch = base64.b64decode(snapshot["patch_base64"], validate=True)
+        try:
+            display, lossless = patch.decode("utf-8"), True
+        except UnicodeDecodeError:
+            display, lossless = patch.decode("utf-8", errors="backslashreplace"), False
+        if hashlib.sha256(patch).hexdigest() != snapshot["patch_sha256"] or display != snapshot["patch"] or type(snapshot["patch_display_lossless"]) is not bool or lossless != snapshot["patch_display_lossless"]:
+            return invalid
+        paths = [row["path"] for row in snapshot["seleccionados"]]
+        _commit_paths(root, paths, check_files=False)
+        if not all(isinstance(snapshot[field], list) for field in ("no_seleccionados", "staged_ajenos", "conflictos", "limites")):
+            return invalid
+        if not all(isinstance(path, str) for path in snapshot["no_seleccionados"]):
+            return invalid
+        if not all(isinstance(row, dict) and isinstance(row.get("code"), str) and isinstance(row.get("path"), str) for row in snapshot["conflictos"] + snapshot["limites"]):
+            return invalid
+        if not all(isinstance(row, dict) and set(row) == {"path", "mode", "blob", "stage"}
+                   and isinstance(row["path"], str) and row["stage"] in ("0", "1", "2", "3")
+                   and (row["blob"] is None or digest_value(row["blob"], (40, 64)))
+                   and (row["mode"] is None or re.fullmatch(r"[0-7]{6}", row["mode"]))
+                   for row in snapshot["staged_ajenos"]):
+            return invalid
+    except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
+        return invalid
+    try:
+        current = proyectar_commit(root, paths)
+    except ValueError:
+        return {"valido": False, "motivos": [{"code": "selected_unavailable"}]}
+    except (OSError, RuntimeError, subprocess.SubprocessError):
+        return {"valido": False, "motivos": [{"code": "projection_unavailable"}]}
+    reasons = list(current["conflictos"])
+    for field, code in (("head", "head_changed"), ("index_sha256", "index_changed")):
+        if current[field] != snapshot[field]:
+            reasons.append({"code": code})
+    for old, now in zip(snapshot["seleccionados"], current["seleccionados"]):
+        if old != now:
+            reasons.append({"code": "selected_changed", "path": old["path"]})
+    if current["patch_sha256"] != snapshot["patch_sha256"] and not any(r["code"] == "selected_changed" for r in reasons):
+        reasons.append({"code": "selected_changed"})
+    if any(current[field] != snapshot[field] for field in ("staged_ajenos", "no_seleccionados", "limites", "conflictos")):
+        reasons.append({"code": "view_changed"})
+    return {"valido": not reasons, "motivos": reasons}
 
 
 def main():

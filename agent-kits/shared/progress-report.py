@@ -36,11 +36,15 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
+# Project-local kits must remain read-only even when the caller omits Python -B.
+sys.dont_write_bytecode = True
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LINEA_NEUTRA = "roadmap: sin iniciativas en progreso"
@@ -215,9 +219,11 @@ def _initiative_name(value):
             and not any(c in value for c in "/\\:\x00"))
 
 
-def _resume_result(status, *, ledger=None, history=None, candidates=None, issues=None):
+def _resume_result(status, *, ledger=None, history=None, candidates=None, issues=None, curation=None, reviews=None):
     return {"status": status, "ledger": ledger, "history": history or [],
-            "candidates": candidates or [], "issues": issues or [], "output_truncated": False}
+            "candidates": candidates or [], "issues": issues or [], "output_truncated": False,
+            "curation": curation if curation is not None else {'status': 'unselected', 'references': []},
+            "reviews": reviews if reviews is not None else {'status': 'unselected', 'reviews': [], 'reviews_omitted': 0}}
 
 
 def _public_resume(result, journal):
@@ -257,6 +263,24 @@ def _public_resume(result, journal):
         values = result[field]
         truncated |= len(values) > 16
         result[field] = [clean(value, 100) for value in values[:16]]
+    curation = result.get('curation', {'status': 'unselected', 'references': []})
+    projected_refs = []
+    identity_keys = ('candidate', 'expected_sha256', 'operation_id', 'operation_path',
+                     'receipt_path', 'receipt_sha256', 'target', 'target_sha256')
+    for reference in curation['references'][:8]:
+        projected = clean(reference, 256)
+        identity_ok = all(projected.get(key) == reference.get(key) for key in identity_keys)
+        projected['identity_resolvable'] = identity_ok
+        if not identity_ok:
+            for key in identity_keys:
+                projected.pop(key, None)
+            projected['reason'] = 'identity_projection_changed'
+        projected_refs.append(projected)
+    result['curation'] = dict(curation, references=projected_refs)
+    omitted = len(curation['references']) - len(projected_refs)
+    if omitted:
+        result['curation']['references_omitted'] = omitted
+        truncated = True
     result["output_truncated"] = truncated
     # Escaped strings and multibyte text consume more JSON bytes than characters.
     # If the projection still exceeds its budget, retain the current ledger and
@@ -266,7 +290,93 @@ def _public_resume(result, journal):
         result["candidates"] = result["candidates"][:4]
         result["issues"] = [{"status": "output_budget"}]
         result["output_truncated"] = True
+    # A whole prefix retains each visible reference's exact executable identity.
+    # Recheck the final serialization, including the omission counter itself.
+    while len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > 12000 and projected_refs:
+        projected_refs.pop()
+        omitted += 1
+        result['curation']['references_omitted'] = omitted
+        result['output_truncated'] = True
+    review_rows = result['reviews']['reviews']
+    result['output_truncated'] |= bool(result['reviews']['reviews_omitted'])
+    while len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > 12000 and review_rows:
+        review_rows.pop()
+        result['reviews']['reviews_omitted'] += 1
+        result['output_truncated'] = True
+    _, text_truncated = _resume_text_lines(result)
+    result['output_truncated'] |= text_truncated
     return result
+
+
+def _resume_curation(root, text):
+    """Read only explicit ledger associations; operation validation belongs to its owner."""
+    blocks, capture, fence, comment = [], None, None, False
+    for line in text.splitlines():
+        if comment:
+            comment = '-->' not in line
+            continue
+        if fence is None and '<!--' in line:
+            comment = '-->' not in line.split('<!--', 1)[1]
+            continue
+        match = re.match(r'^ {0,3}(`{3,}|~{3,})', line)
+        if fence is not None:
+            close = re.fullmatch(r' {0,3}(`{3,}|~{3,})[ \t]*', line)
+            if close and close.group(1)[0] == fence[0] and len(close.group(1)) >= len(fence):
+                if capture is not None:
+                    if line != '```':
+                        return {'status': 'corrupt', 'references': []}
+                    blocks.append('\n'.join(capture))
+                fence, capture = None, None
+            elif capture is not None:
+                capture.append(line)
+            continue
+        if match:
+            fence = match.group(1)
+            if line == '```curation-refs-v1':
+                capture = []
+    if capture is not None or len(blocks) > 1:
+        return {'status': 'corrupt', 'references': []}
+    if not blocks:
+        return {'status': 'not_registered', 'references': []}
+    if len(blocks[0].encode('utf-8')) > 8192:
+        return {'status': 'corrupt', 'references': []}
+    def pairs(items):
+        result = {}
+        for key, value in items:
+            if key in result:
+                raise ValueError('duplicate key')
+            result[key] = value
+        return result
+    try:
+        refs = json.loads(blocks[0], object_pairs_hook=pairs)
+        if not isinstance(refs, list) or len(refs) > 8:
+            raise ValueError('invalid references')
+        seen = set()
+        for ref in refs:
+            if (not isinstance(ref, dict) or not {'candidate', 'sha256'} <= set(ref)
+                    or not set(ref) <= {'candidate', 'sha256', 'operation_id'}
+                    or not isinstance(ref['candidate'], str) or len(ref['candidate']) > 256
+                    or ref['candidate'] in seen
+                    or not isinstance(ref['sha256'], str) or not re.fullmatch(r'[a-f0-9]{64}', ref['sha256'])
+                    or ('operation_id' in ref and (not isinstance(ref['operation_id'], str)
+                        or not re.fullmatch(r'[a-f0-9]{64}', ref['operation_id'])))):
+                raise ValueError('invalid reference')
+            seen.add(ref['candidate'])
+    except (ValueError, TypeError, KeyError, RecursionError):
+        return {'status': 'corrupt', 'references': []}
+    try:
+        service = _load_module('resume_curation', 'knowledge-curation.py')
+    except (ImportError, OSError, SyntaxError):
+        return {'status': 'unknown', 'reason': 'service_unavailable', 'references': []}
+    try:
+        for ref in refs:
+            service._candidate(ref['candidate'])
+    except (service._Failure, ValueError, TypeError, AttributeError):
+        return {'status': 'corrupt', 'references': []}
+    budget = {'remaining': 1024 * 1024}
+    results = [service.inspect_reference(root, ref['candidate'], ref['sha256'],
+        operation_id=ref.get('operation_id'), _budget=budget) for ref in refs]
+    return {'status': 'ok', 'references': results}
 
 
 def _resume_ledger(root, initiative, reader):
@@ -280,6 +390,7 @@ def _resume_ledger(root, initiative, reader):
             summary = resumir(relative, text=result["text"])
         except (ValueError, TypeError, KeyError, OverflowError):
             return "malformed", None, result["bytes"]
+        summary['_curation_text'] = result['text']
         return "ok", summary, result["bytes"]
 
     # An exact dated folder is independent of unrelated ledger failures.
@@ -320,7 +431,34 @@ def _resume_ledger(root, initiative, reader):
     return "ok", matches[0][1], [], []
 
 
-def resume(root, *, initiative=None, session_id=None, runtime=None, entry=None):
+def _resume_reviews(root, ledger_path, *, deadline=None):
+    """Only the exact ledger-selected initiative; no global or historical fallback."""
+    try:
+        owner = _load_module('resume_plan_review', 'plan-review.py')
+        return owner.list_reminders(root, ledger_path.rsplit('/', 1)[0],
+                                    state_root=os.path.join(root, '.claude', 'plan-review'), deadline=deadline)
+    except (ImportError, OSError, SyntaxError, AttributeError):
+        return {'status': 'unavailable', 'reason': 'helper_unavailable', 'complete': False,
+                'reviews': [], 'reviews_omitted': 0, 'approval_granted': False}
+
+
+def _review_text_lines(result):
+    if result['status'] in ('unselected', 'not_registered'):
+        return []
+    lines = ['Revisiones observadas (no acredita aprobación): ' + result['status']]
+    if result.get('reason'):
+        lines.append('Revisiones: ' + result['reason'])
+    for row in result['reviews']:
+        lines.append('Revisión ' + row['review_id'] + ' · ' + row['gate_key'] + ' · ' + row['state']
+                     + ' · ' + row['version_status'] + ' · decisión registrada: '
+                     + ('sí' if row['decision_recorded'] else 'no')
+                     + f" · comentarios/respuestas: {row['comments_recorded']}/{row['comments_with_result']}")
+    if result['reviews_omitted']:
+        lines.append(f"Revisiones: {result['reviews_omitted']} referencias omitidas por presupuesto de presentación.")
+    return lines
+
+
+def resume(root, *, initiative=None, session_id=None, runtime=None, entry=None, _history_only=False):
     """Compose current ledger and quoted history without usage state or subprocesses.
 
     Explicit selections never fall back to a different initiative or journal entry.
@@ -361,6 +499,10 @@ def resume(root, *, initiative=None, session_id=None, runtime=None, entry=None):
     if summary is None:
         return finish(status, candidates=candidates, issues=issues,
                       history=selected_history["entries"] if selected_history else None)
+    ledger_text = summary.pop('_curation_text')
+    curation = ({'status': 'unselected', 'references': []} if _history_only
+                else _resume_curation(root, ledger_text))
+    reviews = None if _history_only else _resume_reviews(root, summary['path'])
     selected_history = selected_history or journal.select_entries(root, initiative=summary["slug"],
                                                                   session_id=session_id, runtime=runtime, entry=entry)
     history_status = selected_history["status"]
@@ -375,36 +517,70 @@ def resume(root, *, initiative=None, session_id=None, runtime=None, entry=None):
     if not selected_history["complete"] and history_status == "ok" and not history_absent:
         history_status = "incomplete"
     return finish(history_status, ledger=summary, history=selected_history["entries"],
-                  candidates=selected_history["candidates"], issues=issues)
+                   candidates=selected_history["candidates"], issues=issues, curation=curation, reviews=reviews)
+
+
+def _resume_text_lines(result):
+    """Bound whole lines/groups, reserving space for truthful omission notices."""
+    out = ["Retoma dirigida · estado: " + result["status"]]
+    truncated = bool(result['output_truncated'])
+    def append(lines):
+        nonlocal truncated
+        if len(out) + len(lines) > 30 or len('\n'.join(out + lines)) > 5800:
+            truncated = True
+            return False
+        out.extend(lines)
+        return True
+    summary = result.get("ledger")
+    if summary:
+        append(["Ledger vigente: " + summary["path"], linea(summary)])
+        for task in summary["en_progreso"]:
+            append(["En progreso: " + task["id"] + " " + task["titulo"]])
+    if result["candidates"]:
+        references = [value.get("entry", "?") if isinstance(value, dict) else str(value)
+                      for value in result["candidates"]]
+        append(["Selecciona una referencia exacta: " + ", ".join(references)])
+    review_lines = _review_text_lines(result.get('reviews', {'status': 'unselected', 'reviews': [], 'reviews_omitted': 0}))
+    if review_lines and not append(review_lines):
+        append(['Revisiones: referencias omitidas por presupuesto de presentación.'])
+    curation = result.get('curation', {'status': 'unselected', 'references': []})
+    omitted = curation.get('references_omitted', 0)
+    if curation['status'] not in ('unselected', 'not_registered'):
+        heading = append(['Curación observada (no acredita QA ni autoridad vigente): ' + curation['status']])
+        for index, ref in enumerate(curation['references']):
+            if not ref.get('identity_resolvable', True):
+                lines = ['Curación: identidad no mostrable; referencia omitida.']
+            else:
+                lines = [ref['status'] + ' · ' + ref['candidate'],
+                         'SHA esperado: ' + ref['expected_sha256']]
+                if ref.get('operation_id'):
+                    lines.append('Operación: ' + ref['operation_id'])
+                if ref.get('receipt_sha256'):
+                    lines.append('SHA recibo: ' + ref['receipt_sha256'])
+            if not heading or not append(lines):
+                omitted += len(curation['references']) - index
+                truncated = True
+                break
+    for entry in result["history"]:
+        if not append(["Historial citado (no acredita QA vigente): " + entry.get("entry", "?")
+                       + " · " + entry.get("fecha", "?") + " · sesión " + entry.get("session_id", "?")]):
+            break
+        for field in ("runtime", "fuente", "resumen", "cierre", "decisiones", "pendientes"):
+            if entry.get(field):
+                value = entry[field]
+                append(["> " + field + ": " + ("; ".join(value) if isinstance(value, list) else str(value))])
+    for issue in result["issues"]:
+        append(["Aviso: " + (issue.get("status", "unknown") if isinstance(issue, dict) else str(issue))])
+    if omitted:
+        out.append(f'Curación: {omitted} referencias omitidas por presupuesto de presentación.')
+    if truncated:
+        out.append("Salida resumida: detalles omitidos por el presupuesto de presentación.")
+    return out, truncated
 
 
 def resume_text(result):
     """Compact rendering; journal text is explicitly quoted as historical evidence."""
-    out = ["Retoma dirigida · estado: " + result["status"]]
-    summary = result.get("ledger")
-    if summary:
-        out.extend(["Ledger vigente: " + summary["path"], linea(summary)])
-        for task in summary["en_progreso"]:
-            out.append("En progreso: " + task["id"] + " " + task["titulo"])
-    if result["candidates"]:
-        references = [value.get("entry", "?") if isinstance(value, dict) else str(value)
-                      for value in result["candidates"]]
-        out.append("Selecciona una referencia exacta: " + ", ".join(references))
-    for entry in result["history"]:
-        out.append("Historial citado (no acredita QA vigente): " + entry.get("entry", "?")
-                   + " · " + entry.get("fecha", "?") + " · sesión " + entry.get("session_id", "?"))
-        for field in ("runtime", "fuente", "resumen", "cierre", "decisiones", "pendientes"):
-            if entry.get(field):
-                value = entry[field]
-                out.append("> " + field + ": " + ("; ".join(value) if isinstance(value, list) else str(value)))
-    for issue in result["issues"]:
-        out.append("Aviso: " + (issue.get("status", "unknown") if isinstance(issue, dict) else str(issue)))
-    if result["output_truncated"]:
-        out.append("Salida resumida: detalles omitidos por el presupuesto de presentación.")
-    text = "\n".join(out[:31])
-    if len(out) > 31 or len(text) > 5950:
-        text = text[:5950] + "\nSalida truncada por el presupuesto de presentación."
-    return text
+    return '\n'.join(_resume_text_lines(result)[0])
 
 
 # ------------------------------------------------------------------ CLI
@@ -462,13 +638,30 @@ def cmd_session(args):
         else os.path.join("docs", "roadmap", "<…>", "tasks.md")
     rel = rel.replace("\\", "/")
     out.append(f"Ledger canónico: {rel} — retoma desde la tarea en-progreso")
+    # Resolve with the bounded reader. The legacy progress scan never supplies
+    # review identities, and multiple active initiatives cannot select a receipt.
+    try:
+        reader = _load_module('session_review_reader', 'local-read.py')
+        status, summary, _, _ = _resume_ledger(args.root, None, reader)
+        review_lines = _review_text_lines(_resume_reviews(args.root, summary['path'],
+            deadline=time.monotonic() + 0.75)) if summary else (
+            ['Revisiones: selección de iniciativa ' + status] if status != 'not_found' else [])
+    except (ImportError, OSError, SyntaxError):
+        review_lines = ['Revisiones: lector no disponible']
+    if review_lines:
+        # Keep complete IDs. Reserve one line for omissions, rather than cutting
+        # a reference in half or silently hiding an open review.
+        visible = review_lines[:3]
+        if len(review_lines) > 3:
+            visible = review_lines[:2] + ['Revisiones: detalles omitidos; consulta /work-resume.']
+        out = out[:15-len(visible)] + visible
     print("\n".join(out[:15]))
     return 0
 
 
 def cmd_resume(args):
     result = resume(args.root, initiative=args.initiative, session_id=args.session_id,
-                    runtime=args.runtime, entry=args.entry)
+                    runtime=args.runtime, entry=args.entry, _history_only=args.history_only)
     if args.history_only:
         if result["status"] == "ok" and not result["history"]:
             return 0

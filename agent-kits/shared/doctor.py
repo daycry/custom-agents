@@ -114,7 +114,7 @@ BACKTICK_RE = re.compile(r"`([^`]+)`")
 DEV_BOOLES = ("tdd", "worktree", "subagentes", "constitucion", "statusline")
 DEV_LENTES = ("auto", "siempre", "nunca")
 DEV_GUARDRAIL_REGLAS = ("alcance", "ramaPrincipal", "git")
-DEV_SESION_CLAVES = ("indice", "journal", "memoria", "captura", "resumen")   # memoria: bloque (4) de session-context.sh (T-06);
+DEV_SESION_CLAVES = ("indice", "journal", "memoria", "captura", "resumen", "actividad")   # memoria: bloque (4) de session-context.sh (T-06);
                                                                               # captura/resumen: log crudo del turno y resumen por IA opt-in (memory-retrieval T-11/T-13)
 DEV_CLAVES = set(DEV_BOOLES) | {"guardrails", "revision", "sesion", "modelos", "tests"}
 
@@ -1257,13 +1257,13 @@ def _dev_valida_revision(rev):
 
 
 def _dev_valida_sesion(ses):
-    """Líneas de `sesion` (índice, journal, memoria, captura, resumen)."""
+    """Líneas de `sesion` (índice, journal, memoria, captura, resumen, actividad)."""
     ls = []
     if ses is None:
         return ls
     if not isinstance(ses, dict):
         ls.append(linea(ERROR, "dev.json `sesion`", f"{ses!r} no es un objeto",
-                        "usa `{\"indice\": true, \"journal\": true, \"memoria\": true, \"captura\": true, \"resumen\": false}`"))
+                        "usa `{\"indice\": true, \"journal\": true, \"memoria\": true, \"captura\": true, \"resumen\": false, \"actividad\": false}`"))
         return ls
     for sk in sorted(ses):
         if sk not in DEV_SESION_CLAVES:

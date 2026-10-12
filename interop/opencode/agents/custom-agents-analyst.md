@@ -1,25 +1,14 @@
 ---
 description: "Experto en TOMA DE REQUERIMIENTOS y DESCUBRIMIENTO. Conversa con el humano para convertir una idea o petición vaga en una especificación sólida, eligiendo la técnica adecuada según el caso (entrevista dirigida, ejemplos concretos, user stories, escenarios, contraejemplos \"¿y si…?\"). Puerta de entrada ÚNICA a spec.md — absorbe el paso de descubrimiento previo a evaluar (ADR-011: retira la skill discovery, redundante). El formato de salida es SIEMPRE el mismo: la plantilla spec.md de la cadena (docs/roadmap/<fecha>-<slug>/spec.md), con alcance in/out, criterios de aceptación, restricciones, datos y supuestos/incógnitas. Itera hasta que el usuario APRUEBA los requerimientos (spec → aprobada) y hace handoff a evaluator. No estima, no planifica, no implementa. Úsalo cuando el usuario diga \"toma de requisitos\", \"ayúdame a definir esto\", \"no sé bien lo que necesito\", \"prepara los requerimientos\", \"afinar la idea\", \"discovery\", \"prepara la spec\", \"define bien esto antes de presupuestar\", o cuando /pm-cycle reciba un objetivo poco definido."
 mode: subagent
-temperature: 0.2
-permission:
-  read: allow
-  grep: allow
-  glob: allow
-  list: allow
-  edit: allow
-  shell: allow
-  webfetch: allow
-  websearch: allow
-  subagent: deny
-  skill: allow
+permissions: [{"action": "read", "resource": "*", "effect": "allow"}, {"action": "grep", "resource": "*", "effect": "allow"}, {"action": "glob", "resource": "*", "effect": "allow"}, {"action": "list", "resource": "*", "effect": "allow"}, {"action": "edit", "resource": "*", "effect": "allow"}, {"action": "shell", "resource": "*", "effect": "allow"}, {"action": "webfetch", "resource": "*", "effect": "allow"}, {"action": "websearch", "resource": "*", "effect": "allow"}, {"action": "subagent", "resource": "*", "effect": "deny"}, {"action": "skill", "resource": "*", "effect": "allow"}]
 ---
 <!-- GENERADO por scripts/export-interop.py desde agents/analyst.md — no lo edites a mano.
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
 
 > **Adaptación a OpenCode** (fichero generado; la fuente es `agents/analyst.md`).
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en OpenCode se
->   usa la herramienta `skill` (`skill({ name: "X" })`). OpenCode las descubre en
+>   usa la herramienta `skill` (`skill({ id: "X" })`). OpenCode las descubre en
 >   `.opencode/skills/<nombre>/SKILL.md` (y también en `.claude/skills/`, por compatibilidad).
 > - **Delegar en otro agente:** herramienta `subagent` con `agent: "custom-agents-reviewer"`.
 >   En el cuerpo, los roles propios se resuelven con este mapa: analyst → `custom-agents-analyst`; architect → `custom-agents-architect`; documenter → `custom-agents-documenter`; evaluator → `custom-agents-evaluator`; implementer → `custom-agents-implementer`; knowledge-curator → `custom-agents-knowledge-curator`; nemesis → `custom-agents-nemesis`; planner → `custom-agents-planner`; qa → `custom-agents-qa`; reviewer → `custom-agents-reviewer`. Conserva nombres y rutas de agentes del consumidor.

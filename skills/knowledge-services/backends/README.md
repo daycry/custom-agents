@@ -41,6 +41,11 @@ entre legado y aprobado hace fallar `--show`/`--related` en vez de elegir el pri
 `candidates/` no participa. Validar carpeta, forma y estado no acredita aprobación humana
 o semántica; esta lectura no promueve entradas ni cambia la política del Curator.
 
+El lector común conserva etiquetas de contenido derivado y UUID en JSON, con ID y ruta
+exactos dentro de sus límites. La línea compacta antepone «derivado sin autoridad» para
+que el recorte no elimine esa distinción en CLI o briefs. Contratos incompletos o
+identidades inseguras se descartan; aprobado describe la fuente, no el texto derivado.
+
 Los backends siguen siendo proyecciones opcionales. Una lectura externa autorizada conserva
 versiones válidas; errores o respuestas incompatibles degradan a la recuperación local con
 motivo. El versionado del Markdown en Git depende de la política del proyecto consumidor.
@@ -49,6 +54,20 @@ La lectura documental de Kwipu distingue aciertos canónicos de `respuesta_gener
 Esta última declara `verificacion: no_verificada`, `autoridad: ninguna` y
 `citas_por_afirmacion: false`. Sus `source_nodes` son fuentes recuperadas vinculadas;
 no acreditan cada afirmación ni convierten el texto generado en conocimiento aprobado.
+
+## Errores MCP y confirmación de publicación
+
+El cliente Graphiti decodifica `ErrorResponse` aunque el transporte devuelva
+`isError: false`. Un campo `error` en la salida tipada provoca `ErrorMCP` con
+diagnóstico saneado; una respuesta de éxito se conserva. Esta comprobación
+cubre el envelope `structuredContent.result` y el JSON de contenido textual.
+
+Aceptar una solicitud en cola no confirma que el episodio exista. La prueba real
+de creación encontró un rechazo posterior al enviar el UUID calculado para una
+entrada nueva: Graphiti 0.30.1 intenta recuperar un episodio existente cuando se
+le pasa UUID. La creación actual omite ese campo y exige lectura de UUID/contenido.
+La reconstrucción aún requiere aceptación real. Health sano y la suite sintética no
+cierran esa aceptación. [Evidencia](../../../docs/roadmap/2026-10-07-catalog-capabilities/testing/graphiti-error44-evidence.json).
 
 ## Nombre de fichero
 
@@ -62,7 +81,7 @@ fixtures de test pueden usar además `backend_<type>.py` (p. ej. `backend_test.p
 |---|---|---|---|
 | `health` | `(cfg) -> {"estado": "off"\|"sano"\|"degradado"\|"error", "detalle": str}` | Salud/desfase de red **sin publicar nada**; nunca lanza — cualquier fallo de red/parseo degrada a un `estado` del enum, nunca a una excepción. | Solo lectura (red permitida) |
 | `plan` | `(entries, cfg) -> ops` | Calcula las operaciones IDEMPOTENTES a partir de `entries` (YA filtradas por `routing`; el adaptador nunca decide enrutado). Repetir `plan` con las mismas `entries` produce el mismo `ops`. | Ninguno (puro) |
-| `apply` | `(ops, cfg) -> result` | Ejecuta `ops` publicando FICHERO A FICHERO desde un staging HERMANO al destino, con un diario (`manifest.pending.json` → publica → `manifest.json`) que hace segura la reanudación tras un fallo a mitad — nunca un intercambio del árbol entero (perdería ficheros ajenos al manifiesto propio). Si falla a medias, la publicación ANTERIOR debe seguir intacta y nunca se borra nada que `apply()` no controle; el `knowledge-sync.py` que lo invoca reencola con backoff (nunca dead-letter directo por un solo fallo) y drena la outbox propia ANTES de cada sync fresco — ver `references/kwipu-adapter.md` para el algoritmo de referencia. | Escritura atómica por fichero |
+| `apply` | `(ops, cfg) -> result` | Ejecuta `ops` publicando FICHERO A FICHERO desde un staging HERMANO al destino, con un diario (`manifest.pending.json` → publica → `manifest.json`) que hace segura la reanudación tras un fallo a mitad — nunca un intercambio del árbol entero (perdería ficheros ajenos al manifiesto propio). Si falla a medias, pueden quedar archivos ya actualizados o revocados: el diario permite completar el objetivo pendiente, sin rollback global. Nunca se borra nada que `apply()` no controle; el `knowledge-sync.py` que lo invoca reencola con backoff (nunca dead-letter directo por un solo fallo) y drena la outbox propia ANTES de cada sync fresco — ver `references/kwipu-adapter.md` para el algoritmo de referencia. | Escritura atómica por fichero |
 | `verify` | `(cfg) -> {"ok": bool, "desfase": [...]}` | Compara el manifiesto publicado contra la fuente/destino real. Si hay desfase, **nombra el remedio en `detalle`/`desfase` sin ejecutarlo** (CA-16: el reindexado, si aplica, es responsabilidad del stack externo). | Solo lectura (red permitida) |
 | `rebuild` | `(entries, cfg) -> result` | Reconstruye la proyección ENTERA desde `entries` (todas las ya enrutadas, no una lista parcial) — mismo resultado que borrar la publicación y repetir `plan`+`apply` desde cero, pero sin pasar por el staging de `knowledge-sync.py` (el propio adaptador es responsable de que sea seguro). | Escritura completa |
 | `revoke` | `(knowledge_id, cfg) -> result` | Invalida/tombstone una entrada que salió de `approved/`. Puede ser un no-op DECLARADO (una función que exista y no haga nada), pero tiene que existir. | Escritura puntual (o ninguno) |
@@ -73,6 +92,11 @@ existir; el enrutado sigue siendo responsabilidad exclusiva del núcleo — `reb
 qué entra, solo cómo se materializa.
 
 ## Funciones OPCIONALES del contrato
+
+La lectura se invoca mediante `consultar(cfg, consulta)`: `cfg` contiene la
+configuración del backend y `consulta` describe la petición ya autorizada por
+el router. Esta función opcional devuelve resultados; no publica ni aprueba
+conocimiento. La tabla siguiente define su forma y los controles del caller.
 
 Además de las 6 obligatorias, un adaptador puede exponer estas; el núcleo las pide con
 `getattr(...)` y, si no están, sigue sin ellas (nunca son un requisito de carga).
@@ -129,200 +153,114 @@ es "el campo `resumen` del frontmatter si existe, si no el primer párrafo del c
 adaptador nuevo puede definir otro criterio, pero tiene que documentarlo — nunca ignorar `modo` y
 publicar siempre el cuerpo completo.
 
-## Adaptador `graphiti` (ADR-018, T-04/T-05/T-06)
+## Adaptador `graphiti`
 
-Segundo adaptador real del contrato: publica hacia un servidor Graphiti MCP (protocolo
-streamable-HTTP, `POST <endpoint>/mcp`, JSON-RPC) resuelto en `backends/graphiti.py`, con las
-funciones de proveedor (`none`/`ollama`/`openai`/`anthropic`) en `graphiti_providers.py` — añadir
-un proveedor nuevo es una función nueva ahí, sin tocar `graphiti.py` (ver su docstring para la
-decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente).
+Cliente MCP streamable-HTTP de stdlib, con inicialización y sesión. La configuración
+del servidor decide extracción, modelos y embeddings; `graphiti_providers.py` orienta
+esa extracción sin llamar a modelos desde el plugin. Un proveedor conserva nombre,
+grupo y procedencia; un episodio nuevo no declara UUID remoto.
 
-- **Contrato de salida de un proveedor** (gap #46, ampliado por el #154 en la revisión de la
-  Fase 4): lo que devuelve la función de proveedor se valida ANTES de llamar a `add_memory`, y la
-  operación cae a `fallidos`/dead-letter sin gastar la llamada de red si (a) falta o viene vacío
-  cualquiera de `uuid`, `name`, `episode_body`, `group_id`, `source` o `source_description`; (b)
-  pierde o vacía algún campo que `_episodio_upsert` había construido; o (c) cambia la **identidad**
-  del episodio (`uuid`/`name`/`group_id`). Un proveedor ORIENTA la extracción (instrucciones,
-  `source`): no re-nombra ni re-identifica el episodio. El `uuid` es el caso que motivó el
-  endurecimiento: el manifiesto lo recalcula con `_uuid_episodio`, así que un episodio publicado
-  con otro `uuid` (o sin él) quedaría vivo en el grafo y fuera del manifiesto — `revoke` no podría
-  invalidarlo, que es justo lo que CA-14 prohíbe.
-- **Idempotencia**: manifiesto local propio (`graphiti-manifest.json` bajo
-  `.claude/knowledge-services/`, patrón diario `.pending` → publicado, igual que
-  `markdown_export.py`) con ids de episodio deterministas (`uuid5(group_id:knowledge_id:version)`)
-  — repetir `apply()` con el mismo estado no crea duplicados.
-- **`mode`** (fix1 revisión Fase 2, gap #35, CA-10): `off` corta ANTES de abrir red — `health`
-  informa `{"estado": "off"}` sin conectar y `apply`/`rebuild`/`revoke` rechazan con
-  `ConfigInvalida`; `shadow` (default) escribe pero nunca lee (`plan`/`apply` no dependen de una
-  lectura previa); `read` exige `health` sano Y `verify` sin desfase antes de autorizar una
-  lectura (`puede_leer(cfg)`, que el router de `knowledge-find.py --intent` consume antes
-  de cada consulta enrutada, junto con `consultar(cfg, consulta)`).
-- **`rebuild`** es el ÚNICO camino que llama a `clear_graph`, acotado al `group_id` propio, y
-  reproduce el mismo manifiesto que la sincronización incremental (uuid5 determinista). **Deuda
-  aceptada (gap #40/#60):** `rebuild` solo reconstruye el estado VIGENTE desde `entries` — la
-  traza histórica de sucesión (tombstones y relaciones `SUPERSEDES` de versiones ya superadas)
-  NO se reproduce tras un `--rebuild`; la invalidación de lo que sigue vigente en el momento del
-  rebuild sí es correcta. Reproducir el historial completo requeriría que el manifiesto conservara
-  las versiones superadas (`status: superseded`) y usar `graphiti_model.cadena_supersedes`, fuera
-  del alcance acotado de esta iniciativa.
-- **`provider.model`** es OBLIGATORIO cuando `provider.llm` no es `none` (gap #37): sin él,
-  `graphiti_providers.py` no tiene ningún modelo cableado por defecto (CA-09), así que la config
-  debe declararlo explícitamente. **`endpoint`/`health.url`** nunca pueden llevar userinfo
-  (`usuario:token@host`, gap #43): usa `provider.api_key_env` para credenciales. **Literales
-  IPv4-mapeados en IPv6** (`::ffff:169.254.169.254`, etc.) se normalizan SIEMPRE antes de
-  clasificarlos como locales/privados/prohibidos (gap #53), tanto en el adaptador como en el
-  esquema. **`episode_body_max_kb`** (opcional, entero > 0, default 512 KiB) acota el tamaño del
-  `episode_body` enviado a `add_memory`; por encima del tope se trunca con un marcador y `apply()`
-  añade un aviso en el resultado (gap #64).
-- **`revoke`** nunca llama a `delete_episode`: escribe un episodio tombstone
-  (`<id>@tombstone`) y, si hay una versión previa, una relación `SUPERSEDES` hacia su uuid
-  (con los CUATRO campos que exige el contrato real de la tool: `source_node_name`/
-  `target_node_name` son OBLIGATORIOS según el `required` del `tools/list` capturado, y los
-  `*_uuid` viajan además como refuerzo — gap #69, el arbitraje anterior de #40/#56 «solo `*_uuid`»
-  era incompleto y hacía fallar TODO camino de sucesión contra el servidor real); un
-  cambio de `version` en `apply()` emite un tombstone+`SUPERSEDES` hacia la versión anterior
-  (CA-11, sucesión observable) — con OTRO nombre de episodio: `<id>@<version>@superseded`, que
-  invalida solo esa versión, frente al `<id>@tombstone` del revoke, que invalida la entrada
-  entera. Compartir nombre hacía que toda entrada que hubiera subido de versión se sirviera como
-  `invalidado`, también en su versión vigente (gap #96 de la revisión de la Fase 3).
-- **Lectura enrutada** (`consultar`, T-07): la vigencia la decide el `status` del bloque de
-  procedencia del episodio servido (sin `status` no hay acierto: no se rellena con `aprobado`)
-  más los dos tombstones de arriba; la `ruta` servida tiene que ser relativa y caer bajo
-  `docs/knowledge/` (fail-closed, gap #106) y TODO texto de origen servidor —`summary`/`fact`,
-  que genera el LLM de Graphiti a partir de lo ingerido— sale saneado (sin control/ANSI/bidi,
-  tope de 200 caracteres, gap #98). Los filtros `tipo`/`area` los aplica el NÚCLEO como
-  post-filtro, pero el adaptador tiene que servirle el vocabulario que el núcleo entiende
-  (gap #117, fix2 de la Fase 3): además de `categoria` (la clave de taxonomía, `DECISION`/
-  `GOTCHA`/…), cada acierto trae **`tipo`** —el `categories[].folder` DECLARADO en
-  `taxonomy.json` (`adr`/`gotchas`/`lessons`), que es justo lo que `knowledge-find.tipo_normalizado`
-  traduce al tipo local— y **`area`** (los `tags` `area:<valor>` de la entrada). Los dos viajan en
-  el bloque de procedencia del episodio (`local_folder`, `area`); para un grafo publicado ANTES de
-  fix2, el `tipo` se deriva de la propia `source_path` (`docs/knowledge/approved/<folder>/…`) y el
-  `area` queda vacía hasta republicar. Ninguna equivalencia categoría→tipo se cablea en el núcleo
-  ni en el adaptador: sale de la taxonomía y del frontmatter del proyecto.
-- **Ventana de procedencia de `consultar`** (gap #121): `search_nodes`/`search_memory_facts`
-  buscan en TODO el grafo, pero la procedencia solo se puede leer con `get_episodes`, que es una
-  ventana de los MÁS RECIENTES y **no tiene cursor de paginación** en el contrato real (solo
-  acepta `group_ids` y `max_episodes`; no hay ninguna herramienta que devuelva un episodio por
-  `uuid`). Por eso la ventana arranca pequeña y se amplía ×4 hasta resolver todos los aciertos,
-  hasta que el servidor devuelva menos de lo pedido, o hasta el tope (`max_episodes`, como mucho
-  2000 por consulta). Lo que siga sin resolver NO desaparece: sale como `fuera_de_ventana`
-  (contador propio, distinto de `descartados`) y en el `motivo`, que nombra la palanca que de
-  verdad existe en cada caso (fix3 de la Fase 3): `max_respuesta_kb` si quien cortó fue el tope de
-  lectura (gap #134 — y la ventana que no cabe ya no tira lo que la anterior había resuelto),
-  `max_episodes` si la ventana llegó al tope CONFIGURADO, y **ninguna** si quien corta es el tope
-  duro de 2000 episodios por consulta, que ninguna clave sube (gap #136). Dos reglas más de fix3:
-  la ventana solo se amplía por nombres con forma de episodio propio (`<id>@<version>`), no por las
-  entidades que cita `search_memory_facts` —`source_node_name`/`target_node_name` los extrae el LLM
-  y nunca estarán en `get_episodes`, así que esperarlos ampliaba la ventana en TODA consulta (gap
-  #135)—; y si la respuesta trae episodios de OTRO `group_id` (el servidor no respetó el filtro), la
-  ventana no se da por completa: lo no resuelto es `fuera_de_ventana`, no un descarte (gap #146).
-- **Topes de recursos** (`max_respuesta_kb`, `max_episodes` — gap #70, lente D): cada respuesta
-  MCP se lee POR TROZOS con un tope duro (`max_respuesta_kb`, entero > 0, default **8192 KiB =
-  8 MiB**); pasarse es un `ErrorMCP` explícito, nunca un `MemoryError` (que además ya se captura
-  en `health`/`verify`/`puede_leer`, funciones que por contrato no lanzan). La ventana de
-  `get_episodes` que barre `verify()` se amplía como mucho hasta `max_episodes` (entero > 0,
-  default 5000). **Escenario de carga de referencia:** con 500 entradas publicadas y ~15 000
-  episodios en el grupo, `verify()` hacía hasta 4 barridos de 1000/4000/5000/5000 episodios
-  (~31 MB transferidos, ~35 MB de pico) para devolver un booleano; con `max_episodes: 2000` ese
-  peor caso baja a ~4 MB por barrido, y `puede_leer()` —que el router llama por
-  consulta— reutiliza el resultado de `verify()` cacheado en proceso durante 5 s en vez de barrer
-  el grafo en cada consulta. Ajusta `max_episodes` por encima del número de episodios que
-  esperas en el grupo si `verify()` empieza a reportar desfases falsos.
-  **Los dos topes se cruzan** (gap #120, fix2 de la Fase 3): con los DEFAULTS, la ampliación de la
-  ventana llegaba a 4000 episodios ≈ 12,5 MiB, por encima de `max_respuesta_kb` (8 MiB) — `verify`
-  fallaba, `puede_leer` daba false y TODA consulta enrutada degradaba a local con 0 aciertos. La
-  regla de coherencia es `max_episodes × tamaño_medio_de_episodio ≤ max_respuesta_kb` (con ~3 KiB
-  por episodio: **`max_respuesta_kb` ≈ 3 × `max_episodes`**, en KiB). Como `get_episodes` no
-  pagina, la «página» es la propia ventana: cuando una ampliación NO cabe en el tope de lectura se
-  conserva el resultado de la última que sí cupo y la ventana se declara **incompleta**. En ese
-  caso `verify()` NO llama desfase a lo que no ha podido mirar (misma distinción del gap #67):
-  publica `no_verificado: N` con un `aviso` que lo dice; y `apply()` no promueve nada
-  (`confirmacion_posible` false), para no despublicar por no haber mirado.
-  **Los TRES veredictos de `verify()`** (gap #133, fix3 de la Fase 3 — antes eran dos y el tercero
-  se disfrazaba del primero): el resultado trae `estado` con `ok` · `incompleto` · `desfase`
-  (`no_verificable` cuando ni se pudo preguntar: `mode: off`, sin `group_id`, respuesta ilegible).
-  `ok: true` queda RESERVADO a la verificación COMPLETA y sin desfase; `incompleto` publica
-  `no_verificado: N`, `aviso` y `remedio`, y **no autoriza lectura** (`puede_leer` en false: CA-10
-  sigue pidiendo `verify` sin desfase, y «no he podido mirarlo» no es «no hay desfase»).
-  `knowledge-sync.py --check` lo imprime y sale ≠ 0; `/doctor` lo pinta ⚠️ con el conteo y el aviso
-  —también cuando el veredicto es `ok` pero trae aviso, que es por donde viaja el remedio
-  `--rebuild` de la migración de abajo—. El cuarto veredicto, `no_verificable`, sale como ℹ️ con su
-  `razon` (no es un desfase: es que no se pudo verificar).
-  **El umbral de `/doctor` es OTRO** (gap #148, fix4 de la Fase 3): `/doctor` es un DIAGNÓSTICO
-  rápido y recorta `max_episodes` a **200** (`CAPACIDAD_VENTANA_TOPE`, gap #119) antes de llamar al
-  adaptador, así que en un grupo con más entradas publicadas que esa ventana el veredicto
-  `incompleto` es SUYO, no del backend: subír los topes de `taxonomy.json` no lo cambia (los pisa).
-  Por eso `verify()` publica `total` (entradas del manifiesto) junto a `no_verificado` cuando el
-  veredicto es `incompleto`: con `total` > la ventana que el llamador impuso, la fila de `/doctor`
-  es ℹ️ «verificación acotada a 200 de N entrada(s)» y manda a la verificación COMPLETA
-  (`knowledge-sync.py --backend <id> --check`), diciendo además que un desfase fuera de esa ventana
-  no se ve desde ahí. El ⚠️ se reserva a lo que SÍ es del backend: `desfase`, o `incompleto` cuando
-  el manifiesto sí cabía en la ventana que se le pasó.
-  **Umbral con los DEFAULTS** (gap #140): la regla de coherencia de arriba, con los defaults
-  (`max_respuesta_kb` 8192 KiB y ~3 KiB por episodio), cubre unos **2 700 episodios del grupo**.
-  Por encima, la verificación sale `incompleto` —y con `mode: read` la lectura enrutada queda
-  cerrada— salvo que las entradas publicadas caigan dentro de la ventana de los más recientes (el
-  caso nominal justo después de publicar). Las tres palancas, en orden de preferencia: (1) publicar
-  en un `group_id` PROPIO del proyecto, para que el grupo no acumule episodios de otras ingestas;
-  (2) subir `max_respuesta_kb` a ≈ 3 × el número de episodios del grupo (en KiB); (3) subir
-  `max_episodes` hasta ese mismo número (tope duro 5000). Los defaults no se suben a ciegas:
-  `max_respuesta_kb` es el guardarraíl de memoria del proceso.
-- **Migración de grafos publicados antes de la separación `@superseded`/`@tombstone`** (gap #126):
-  hasta fix1 de la Fase 3, la sucesión de versión emitía `<id>@tombstone`, el MISMO nombre que usa
-  el revoke; el lector de hoy interpreta ese sufijo como «entrada invalidada entera». Un grafo
-  publicado desde la rama antes de `59d9e35` (ningún release contiene esos commits) hay que
-  **republicarlo**: `knowledge-sync.py --backend <id> --rebuild`. `verify()` lo detecta y lo
-  NOMBRA —tombstone de una entrada que el manifiesto da por vigente ⇒ `aviso` con el remedio—,
-  nunca lo ejecuta por su cuenta (CA-16).
-- **Cambio de `group_id`** (gap #73): el manifiesto pertenece a UN grupo. Si `taxonomy.json` cambia
-  `group_id`, la base de comparación pasa a estar VACÍA (todo `upsert` contra el grupo nuevo), se
-  avisa en el resultado de `apply()` y el manifiesto anterior se conserva como
-  `graphiti-manifest.archivado-<group_id-viejo-saneado>-<huella>.json` para poder revocar a mano
-  lo que quedó en el grupo viejo (el adaptador NUNCA revoca en un grupo que ya no es el suyo). El
-  prefijo `archivado-` y la huella del `group_id` crudo evitan que ese fichero choque con el
-  marcador `graphiti-manifest.pending.json` o con el de otro grupo que sanee igual (gap #91); si
-  ya existe, el nuevo se numera (`-2`, `-3`…) en vez de sobrescribirlo.
-- **`.pending` heredado** (gaps #54/#67/#68/#79): un `.pending` de una corrida cortada se
-  CONFIRMA contra el servidor (`get_episodes`) antes de promoverlo a publicado, **siempre** —
-  también cuando la corrida actual trae operaciones nuevas. Lo que el servidor no reconoce se
-  quita del manifiesto y `plan()` lo vuelve a proponer como `upsert` en la siguiente pasada
-  (reintentar de más nunca pierde datos; promover de más, sí) — salvo que la entrada ya no esté en
-  `approved/`: entonces su `revoke` se emite IGUALMENTE (tombstone + `SUPERSEDES`) con el nombre y
-  el `uuid` reconstruidos del manifiesto heredado, y `revocados` solo cuenta lo que de verdad se
-  envió al servidor (gap #89). El aviso del resultado distingue los tres casos (se republica /
-  se revoca igualmente / sin operación en esta corrida). Si NO se puede preguntar al
-  servidor (caído, timeout, respuesta ilegible), `apply()` no toca nada —ni el `.pending` ni el
-  publicado— y devuelve `{"aplicados": 0, "pendiente_sin_confirmar": true, "avisos": [...]}`.
-  La confirmación exige que el `uuid` coincida **cuando `get_episodes` lo devuelve**; si el
-  servidor no devuelve `uuid`, la confirmación es solo por nombre (`<id>@<version>`): límite
-  conocido, un servidor hostil podría afirmar tener un episodio que no tiene.
-- **Guardarraíl de red** (fix1, gap #34): todo host con nombre se resuelve SIEMPRE (nunca hay
-  atajo por sufijo/literal) y TODAS sus direcciones deben ser loopback/privadas; link-local
-  (`169.254.0.0/16`, `fe80::/10`), direcciones no especificadas y los prefijos de TRANSICIÓN IPv6
-  6to4 (`2002::/16`) y Teredo (`2001:0::/32`) —que CPython clasifica como privados y envuelven una
-  IPv4 arbitraria, p. ej. `2002:a9fe:a9fe::1` = `169.254.169.254`— se rechazan SIEMPRE, incluso
-  con `allow_remote: true`, en el adaptador Y en el validador estático (gaps #71/#75, copia
-  declarada `direccion_prohibida_siempre` en `copias.json`); de una redirección solo se siguen
-  307/308 (≤ 3 saltos, revalidando el host en CADA salto y sin reenviar `Mcp-Session-Id` si
-  cambia el esquema, el host **o el puerto** respecto al salto anterior — gap #78) — 301/302/303
-  son error. El presupuesto de `timeout_ms` es ÚNICO para toda la petición: se reparte entre las
-  IPs candidatas y los saltos, nunca se multiplica por ellos (gap #83). La función
-  `_sanear_detalle` (copia declarada de `markdown_export.py`, ADR-016) sanea cualquier texto crudo
-  del servidor antes de exponerlo en un mensaje.
-- **`telemetria`** (bool) se traduce a la variable de entorno `GRAPHITI_TELEMETRY_ENABLED` que lee
-  el SDK/servidor antes de abrir la primera conexión de cada llamada pública (`health`/`apply`/
-  `rebuild`; `revoke` la aplica transitivamente al llamar a `apply` internamente).
-- **`concurrency`** (validado por el esquema) queda RESERVADO — el servidor de referencia impone
-  `SEMAPHORE_LIMIT: 1`, así que `apply()` sigue secuencial a propósito; el coste de una conexión +
-  resolución DNS por operación se mitiga con una caché de resolución de TTL corto, no con paralelismo.
-- **`knowledge-sync.py --backend <id> --propose-config`**: el núcleo llama a la función
-  **opcional** `proponer_config(taxonomy, cfg)` del adaptador (séptima función del contrato, la
-  única no obligatoria) y, si existe, imprime su clave `texto` tal cual (o el JSON completo con
-  `--json`); si el adaptador no la define, lo dice y sale con 2. El núcleo NO nombra ningún
-  backend concreto (gap #77, invariante del plan y CA-12). En `graphiti.py` la propuesta es el
-  bloque `entity_types` para el `config.yaml` del servidor + el `entity_map` para
-  `taxonomy.json`, sin aplicar nada ni tocar la red.
+Lee [publicación y recuperación](../../../docs/knowledge-services-graphiti.md) para
+la confirmación asíncrona, recibos, versiones y elección de `transition_relations`.
+El valor predeterminado `episode` confirma relaciones documentales en el grupo propio.
+`triplet` requiere un servidor cuya escritura entre entidades esté aislada por grupo;
+la firma MCP con `group_id` no demuestra ese aislamiento. Los UUID de episodios y
+entidades tienen responsabilidades distintas.
+
+- **Publicación**: el UUID real y el hash del cuerpo enviado se vinculan después de
+  leer el episodio persistido. El manifiesto pendiente guarda progreso; una respuesta
+  de encolado no autoriza commit. El recibo conserva incertidumbre tras perder una
+  respuesta, sin reenvío automático. Los límites suman episodios y relaciones.
+- **Marcadores de control**: sucesión y retirada no heredan episodios previos. Excluyen
+  `Entity` y los tipos que el proyecto declare en `transition_excluded_entity_types`,
+  con instrucciones de no extraer entidades de dominio. La configuración debe incluir
+  todos los tipos personalizados del servidor; el SDK sigue usando el modelo para la
+  extracción inicial. Las entradas de conocimiento conservan su extracción habitual.
+- **Versiones**: sucesión y retirada usan marcadores por versión. La retirada vincula
+  grupo, versión, UUID y hash; una operación antigua no retira una generación nueva.
+  Las identidades retenidas sirven para retirar episodios fuera de la ventana de
+  observación. Los marcadores legacy de invalidación completa conservan su significado.
+- **Modos**: `off` evita conexiones y rechaza escrituras; `shadow` permite sincronizar,
+  sin autorizar consultas; `read` exige salud, intent habilitado y verificación completa.
+  Los recibos pendientes bloquean lectura externa antes de aceptar caché o un manifiesto
+  vacío. La memoria local permanece disponible sin Docker.
+- **Lectura enrutada**: `consultar` exige procedencia y estado del episodio, aplica
+  invalidaciones y devuelve rutas relativas bajo `docs/knowledge/`. El texto remoto se
+  sanea y limita. `tipo` sale de la carpeta de taxonomía; `area`, de los tags del corpus.
+  Una categoría no se convierte en tipo mediante equivalencias cableadas. El legado
+  puede derivar carpeta de `source_path`, sin inventar un área ausente.
+- **Ventanas**: `get_episodes` carece de cursor. La consulta amplía la ventana hasta
+  resolver procedencia o alcanzar sus límites; lo no resuelto se cuenta como
+  `fuera_de_ventana`. `verify` distingue `ok`, `incompleto`, `desfase` y `no_verificable`.
+  Solo una verificación completa y sin desfase autoriza lectura externa. La comprobación
+  limitada de manifiestos legacy no se convierte automáticamente en `verified_readback`.
+- **Recursos**: `max_respuesta_kb` limita cada respuesta por lectura en bloques
+  (predeterminado 8192 KiB); `max_episodes` limita la observación (predeterminado 5000).
+  La consulta tiene además un máximo de 2000 episodios; `/doctor` impone una ventana
+  diagnóstica de 200. Una ventana que no cabe conserva lo ya observado y se declara
+  incompleta. Aumentar episodios sin ajustar el límite de respuesta no resuelve ese caso.
+  El presupuesto de red se reparte entre IP y redirecciones, sin multiplicarlo.
+- **Red**: se resuelven todos los hosts con nombre y se comprueban todas sus IP.
+  Se rechazan credenciales embebidas, link-local, direcciones no especificadas y
+  encapsulados 6to4/Teredo, incluso con `allow_remote`. Los IPv4 mapeados se normalizan.
+  Solo se siguen 307/308, hasta tres saltos, comprobando cada destino; la sesión MCP
+  no se reenvía si cambia esquema, host o puerto. Los errores remotos se sanean.
+- **Configuración**: `provider.model` es obligatorio si `llm` no es `none`; no hay
+  modelo predeterminado del proyecto. `episode_body_max_kb` limita el cuerpo enviado
+  y devuelve aviso de truncado. `concurrency` está reservado; la publicación es secuencial.
+  `telemetria` ajusta el entorno de este proceso, sin reconfigurar un servidor remoto.
+  `router.default` está reservado; un rechazo sigue hacia búsqueda local.
+- **Generaciones publicadas**: `graphiti_scope.py` resuelve el grupo lógico y el grupo
+  físico confirmado sin activar descriptores pendientes. El adaptador vuelve a comprobar
+  la selección bajo bloqueo antes de publicar; una selección obsoleta no se archiva ni
+  resucita. `graphiti_rebuild.py` guarda snapshots y progreso, construye y verifica otro
+  grupo antes del cambio publicado y conserva grupos anteriores o abandonados. Los UUID
+  nuevos se vinculan al historial y los reintentos no reenvían solicitudes inciertas.
+  Puede reparar pérdidas remotas desde copias propias vinculadas por identidad y hash
+  o fuentes canónicas exactas; nunca inventa contenido histórico.
+- **Grupos**: cambiar el grupo archiva el manifiesto anterior con nombre y huella
+  propios, sin sobrescribir archivos ni revocar datos de otro grupo. Los envíos pendientes
+  conservan endpoint y grupo; cambiar endpoint no permite adoptar silenciosamente su identidad.
+- **Propuesta**: `proponer_config` ofrece tipos del servidor y mapa de taxonomía,
+  sin aplicar cambios ni abrir red. El sincronizador llama a este contrato opcional
+  sin conocer el tipo concreto del backend.
+
+El plan recupera envíos retirados antes de confirmarse mediante `retire_submission`,
+con nombre, grupo y hash vinculados al recibo propio. Solo una lectura exacta permite
+confirmar su UUID y registrar una retirada por versión; la identidad retirada se conserva
+en el manifiesto antes de podar el recibo. La incertidumbre mantiene cerrada la lectura externa.
+
+`recover_transition` confirma intenciones registradas antes de enviar marcadores y
+reconstruye su cuerpo remoto. Reutiliza relaciones confirmadas, conserva identidades
+superadas y difiere operaciones dependientes tras un fallo. Un recibo no amplía el modo
+de representación permitido por la configuración actual. El escritor del manifiesto
+reutiliza `local-state.py`, sus comprobaciones de identidad y reintentos Windows acotados;
+la publicación mantiene su presupuesto y cada manifiesto tiene un límite de 8 MiB.
+
+`verify` incluye marcadores e identidades retiradas aunque no queden entradas vigentes.
+Exige nombre único, grupo, UUID y contenido exactos; comprueba intención/hash antes de
+abrir red y verifica las aristas históricas mediante consultas acotadas. Las ventanas
+incompletas y respuestas fuera del grupo no autorizan lectura. `historico_verificado`
+cuenta identidades históricas; `total` incluye las identidades vigentes e históricas esperadas.
+
+Reconstrucción, historial y vínculo semántico de fuentes se comprobaron con fixtures
+reales en un servidor compatible temporal. Siguen pendientes despliegue, workflows
+nativos, utilidad comparativa y aceptación global. Las pruebas focales no los cierran.
+
+`graphiti_provenance.py` vincula UUID nativos con las fuentes vigentes publicadas.
+Un nombre coincidente de Entity no sustituye la pertenencia verificada. Un resultado
+que cita UUID y nombre exactos del episodio publicado conserva su vínculo directo.
+Los hechos modernos requieren referencias explícitas; todo texto extraído declara
+falta de autoridad. IDs y rutas de origen se validan completos, con topes de 512 y
+4096 caracteres, antes de normalizarlos; nunca se recortan para hacerlos admisibles.
+Los hechos declaran episodios de origen; las entidades requieren pertenencia obtenida
+con `get_episode_entities` por episodio. El vínculo exige grupo, UUID, contenido,
+versión e ID coherentes. Referencias desconocidas, ambiguas o solo retiradas se descartan.
+Las ventanas por UUID y la consulta de pertenencia están acotadas. Una consulta
+incompleta, un límite o una fuente vigente no observada impiden atribuir procedencia
+inequívoca a una entidad; los hechos verificados por separado se conservan. El texto extraído
+declara contenido derivado, sin autoridad ni verificación de cada afirmación; no se
+convierte automáticamente en conocimiento aprobado.
 
 ## Recuperación local compartida
 

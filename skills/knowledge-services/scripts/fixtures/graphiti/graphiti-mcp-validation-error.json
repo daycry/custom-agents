@@ -1,0 +1,14 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"error\": \"Invalid reference_time: Invalid isoformat string: 'invalid-reference-time'\"\n}"
+    }
+  ],
+  "structuredContent": {
+    "result": {
+      "error": "Invalid reference_time: Invalid isoformat string: 'invalid-reference-time'"
+    }
+  },
+  "isError": false
+}

@@ -1,25 +1,14 @@
 ---
 description: "Evalúa y presupuesta una especificación antes de construirla: esfuerzo (horas), coste económico (horas×tarifa + tokens de IA, en EUR) y consumo de tokens por característica, con complejidad, riesgos e incógnitas; si hay varias características, tabla comparativa y orden recomendado (quick wins vs. costosas). Si la especificación llega por el prompt, crea primero la spec y luego la evalúa. Hace handoff a planner para ejecutar lo aprobado. Úsalo cuando el usuario diga \"presupuesta esto\", \"cuánto costaría\", \"evalúa esta spec\", \"estima el esfuerzo/coste\", \"¿merece la pena?\", o cuando /pm-cycle o /dev-cycle necesiten presupuestar una iniciativa."
 mode: subagent
-temperature: 0.1
-permission:
-  read: allow
-  grep: allow
-  glob: allow
-  list: allow
-  edit: allow
-  shell: allow
-  webfetch: deny
-  websearch: deny
-  subagent: deny
-  skill: allow
+permissions: [{"action": "read", "resource": "*", "effect": "allow"}, {"action": "grep", "resource": "*", "effect": "allow"}, {"action": "glob", "resource": "*", "effect": "allow"}, {"action": "list", "resource": "*", "effect": "allow"}, {"action": "edit", "resource": "*", "effect": "allow"}, {"action": "shell", "resource": "*", "effect": "allow"}, {"action": "webfetch", "resource": "*", "effect": "deny"}, {"action": "websearch", "resource": "*", "effect": "deny"}, {"action": "subagent", "resource": "*", "effect": "deny"}, {"action": "skill", "resource": "*", "effect": "allow"}]
 ---
 <!-- GENERADO por scripts/export-interop.py desde agents/evaluator.md — no lo edites a mano.
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
 
 > **Adaptación a OpenCode** (fichero generado; la fuente es `agents/evaluator.md`).
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en OpenCode se
->   usa la herramienta `skill` (`skill({ name: "X" })`). OpenCode las descubre en
+>   usa la herramienta `skill` (`skill({ id: "X" })`). OpenCode las descubre en
 >   `.opencode/skills/<nombre>/SKILL.md` (y también en `.claude/skills/`, por compatibilidad).
 > - **Delegar en otro agente:** herramienta `subagent` con `agent: "custom-agents-reviewer"`.
 >   En el cuerpo, los roles propios se resuelven con este mapa: analyst → `custom-agents-analyst`; architect → `custom-agents-architect`; documenter → `custom-agents-documenter`; evaluator → `custom-agents-evaluator`; implementer → `custom-agents-implementer`; knowledge-curator → `custom-agents-knowledge-curator`; nemesis → `custom-agents-nemesis`; planner → `custom-agents-planner`; qa → `custom-agents-qa`; reviewer → `custom-agents-reviewer`. Conserva nombres y rutas de agentes del consumidor.

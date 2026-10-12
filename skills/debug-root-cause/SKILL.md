@@ -46,13 +46,13 @@ cosa.
 Con la Fase 4 completa (fix aplicado, no propuesto), comprueba el umbral de
 `"$SHAREDKIT/knowledge-write.md"`: si esta causa raíz
 costó **≥1 ciclo de depuración** (llegaste a esta skill) o **rompió/casi rompió una garantía del
-producto**, escribe un gotcha en un fichero nuevo `docs/knowledge/gotchas/GOT-NNN-<slug>.md` con los 4 campos — **síntoma** (de la
-Fase 1), **causa raíz** (de la Fase 3, la hipótesis probada), **qué hacer en su lugar**, y
-**evidencia** (enlace/referencia al test de regresión de esta misma fase) — y actualiza el índice
-`docs/knowledge/README.md` en el mismo cambio. Si no cruza el umbral (fix trivial, o causa ya
-documentada en un gotcha existente — enlázalo, no dupliques), **no escribas nada**: decláralo así
-en la evidencia de cierre. Si `docs/knowledge/` no existe, créala en este primer registro; si el
-fragmento no está disponible, no bloquea: sigue sin escribir gotcha.
+producto**, propón un gotcha mediante `knowledge-curation.py propose`, productor
+`debug-root-cause`, según el fragmento compartido: **síntoma** (Fase 1), **causa raíz**
+(hipótesis probada de Fase 3), **qué hacer en su lugar** y **evidencia** (test de regresión).
+No incluyas `estado`; conserva ruta pending/SHA para Curator. No crees GOT legacy ni índice
+manual. Si no cruza el umbral, o la causa ya está documentada, enlaza la entrada existente
+sin duplicar y decláralo en el cierre. Sin fragmento/servicio, informa propuesta pendiente
+de persistir en la evidencia de cierre y continúa, nunca fallback Write/Edit de memoria.
 
 ## Integración con /dev-cycle (gancho del 3.er rojo)
 
@@ -72,7 +72,7 @@ completas. Resultado del gancho:
 
 En el gancho, el cierre de Fase 4 (memoria técnica) **solo aplica cuando la Fase 4 se completa de
 verdad** (el usuario decidió "seguir con el fix" y el fix quedó aplicado con su test). Con
-diagnóstico parcial, o con Fase 4 detenida en "fix propuesto sin aplicar", no se escribe gotcha —
+diagnóstico parcial, o con Fase 4 detenida en "fix propuesto sin aplicar", no se propone gotcha —
 no hay causa raíz probada en la mano, solo hipótesis vivas o un fix sin confirmar.
 
 Si el usuario elige "seguir con el fix", aplicarlo (Fase 4) abre un ciclo de qa nuevo con el
