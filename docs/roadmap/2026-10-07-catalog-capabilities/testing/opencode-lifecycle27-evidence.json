@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "observed_on": "2026-10-11",
+  "input_manifest_sha256": "830a94eb3b723412e42798c117ece1de19156c9fe938cf5debd844f4c9994383",
+  "receipts": {
+    "red": {
+      "supervisor_pid": 37576,
+      "exit": 1,
+      "cleanup_pid": 21716,
+      "receipt_sha256": "70c3ac258e609082877a098afbb0a752188bc1a34c41d1954af5efabe759e269"
+    },
+    "green": {
+      "supervisor_pid": 35708,
+      "exit": 0,
+      "cleanup_pid": 30544,
+      "receipt_sha256": "7aaf069b2095a12f5535c470738eb15482e7f1b6b8a9856af0a5668fe55c6150"
+    },
+    "wrapperred02": {
+      "supervisor_pid": 24592,
+      "exit": 1,
+      "cleanup_pid": 34776,
+      "receipt_sha256": "b380425c4085d4c6fe46a1e5ad406a92ad0bff50aba4a4ced1def49c2c68a8f1"
+    },
+    "wrappergreen02": {
+      "supervisor_pid": 20028,
+      "exit": 0,
+      "cleanup_pid": 38152,
+      "receipt_sha256": "0e293ed7987b39bcb33fa0ac9b6c307f35b9951810bcf2479bc93bd613336e05"
+    },
+    "integration": {
+      "supervisor_pid": 24964,
+      "exit": 0,
+      "cleanup_pid": 6328,
+      "receipt_sha256": "94ad3d5cd76e8fa57f7eb9fdb7028d9c9d7b209c5c26458d616e1f3a903ab38e"
+    }
+  },
+  "windows_module": {
+    "commands": [
+      {
+        "name": "export",
+        "exit": 0,
+        "pid": 25820
+      },
+      {
+        "name": "export-check",
+        "exit": 0,
+        "pid": 29952
+      },
+      {
+        "name": "lint",
+        "exit": 0,
+        "pid": 30532
+      },
+      {
+        "name": "opencode-module",
+        "exit": 0,
+        "pid": 36548
+      }
+    ],
+    "tap_summary": {
+      "tests": 20,
+      "pass": 20,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "changed_source_files": [
+      "hooks/opencode-plugin.js",
+      "interop/opencode/plugins/custom-agents/index.js",
+      "tests/opencode-plugin.test.mjs"
+    ],
+    "additional_fixture_caches": [
+      "agent-kits/shared/__pycache__/journal-capture.cpython-313.pyc",
+      "agent-kits/shared/__pycache__/outbox.cpython-313.pyc",
+      "agent-kits/shared/__pycache__/redact.cpython-313.pyc"
+    ],
+    "base_candidate_preserved": true,
+    "whole_opencode_module_accepted": true,
+    "global_QA_accepted": false,
+    "root_promoted": false
+  },
+  "controlled_cause": "Without System32 in PATH, bare taskkill is unavailable. Stop resolves but child completion remains pending; absolute system taskkill settles the same real teardown case.",
+  "permanent_regression": "Windows teardown completes when PATH omits system tools; independent child test runner executes the real cleanup test, with a bounded owned-tree fallback.",
+  "fixture_correction": "Record only the capture handler, as the adjacent runtime test already does. Independent activity must not overwrite the capture assertion file.",
+  "history": {
+    "windows_node_first": {
+      "pid": 21796,
+      "exit": 1,
+      "timed_out": true,
+      "source_canonical_files_preserved": true,
+      "changed_or_removed": [],
+      "additional_files": [
+        "agent-kits/shared/__pycache__/guardrail-check.cpython-313.pyc",
+        "agent-kits/shared/__pycache__/journal-capture.cpython-313.pyc",
+        "agent-kits/shared/__pycache__/outbox.cpython-313.pyc",
+        "agent-kits/shared/__pycache__/redact.cpython-313.pyc"
+      ],
+      "complete_tree_preserved": false
+    },
+    "windows_node_second": {
+      "pid": 30028,
+      "exit": 1,
+      "timed_out": true,
+      "source_canonical_files_preserved": true,
+      "changed_or_removed": [],
+      "additional_files": [
+        "agent-kits/shared/__pycache__/guardrail-check.cpython-313.pyc",
+        "agent-kits/shared/__pycache__/journal-capture.cpython-313.pyc",
+        "agent-kits/shared/__pycache__/outbox.cpython-313.pyc",
+        "agent-kits/shared/__pycache__/redact.cpython-313.pyc"
+      ],
+      "complete_tree_preserved": false
+    },
+    "linux_node": {
+      "driver_exit_code": 1,
+      "node": {
+        "exit_code": 1,
+        "tap_summary": {
+          "tests": 327,
+          "suites": 0,
+          "pass": 311,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 15,
+          "todo": 0
+        },
+        "test_file_count": 8,
+        "node_version": "v22.23.3",
+        "source_preserved": true,
+        "node_suite_accepted": false,
+        "global_QA_accepted": false
+      },
+      "container_owned_removed_and_absent": true,
+      "container_id": "659bd6a93a565997d29934e1cfe85ed18536c4c5b7537b16f180e02a5f55a818",
+      "source_and_tools_preserved": true,
+      "global_QA_accepted": false
+    },
+    "native_extension_probe": {
+      "proven": true,
+      "receipt_sha256": "5b447eb7e4b29c9d136f8f965862c827b2e654d720974301b4a3e7349ddcab84"
+    },
+    "native_system_path_probe": {
+      "native_discovery_cause_proven": true,
+      "requests_sent": "taskkill help only",
+      "results": [
+        {
+          "mode": "restricted",
+          "exit": 0,
+          "result": "ENOENT"
+        },
+        {
+          "mode": "system",
+          "exit": 0,
+          "result": "available"
+        }
+      ],
+      "historical_hang_cause_proven": false,
+      "product_code_changed": false
+    },
+    "controller_preflights": "Two pin preparation failures occurred before any test; retained in OWN.",
+    "wrapper_first": "Inherited NODE_TEST_CONTEXT suppressed child reporting; retained failing execution was not accepted as a product regression."
+  },
+  "global_QA_accepted": false,
+  "root_promoted": false,
+  "pending": [
+    "Whole Node suite on both platforms over the corrected source",
+    "Python full QA and dashboard direct parent coverage",
+    "Historical Windows fixture diagnosis",
+    "Native workflows and real UI",
+    "Compared resource closure and independent final review",
+    "Technical memory proposal handoff after required review",
+    "Promotion, commits and ordinary branch push"
+  ]
+}

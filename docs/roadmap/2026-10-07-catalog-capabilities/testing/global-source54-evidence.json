@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "tested_source54_manifest_sha256": "878974bbb8fd56b39bd5da46a6845244d3dcd0b6bede9bfbb6f9c5ef1cb151bf",
+  "cases_per_platform": 7296,
+  "changed_python_sources": 33,
+  "scope_regenerated_against_real_baseline": true,
+  "baseline_commit": "3be4821377d8d3dbb34e454a838b42314352c23e",
+  "test_only_mcp_helper_exclusion_reviewed": true,
+  "later_task_brief_fix_included": true,
+  "windows": {
+    "counts": {
+      "cases": 7296,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 99,
+      "passed": 7197
+    },
+    "changed_statement_percent": 91.1557912914765,
+    "collection_preserved": true,
+    "source_preserved": true,
+    "dashboard_direct_passed": true,
+    "job_cleanup_confirmed": true,
+    "result_sha256": "592e121edea5a3e57b1069eddab8acd2c7db2f882e772dbfd3f35b5bd1b83b04"
+  },
+  "linux": {
+    "counts": {
+      "cases": 7296,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 61,
+      "passed": 7235
+    },
+    "changed_statement_percent": 91.26680646355001,
+    "collection_preserved": true,
+    "source_preserved": true,
+    "dashboard_direct_passed": true,
+    "native_filesystem_modes_verified": true,
+    "owned_container_removed": true,
+    "result_sha256": "64a8c3b06101c1af3b5be8fc563cc564d662c5e31c32ad25f8c982b04bffec2b"
+  },
+  "node": {
+    "counts": {
+      "tests": 330,
+      "suites": 0,
+      "pass": 330,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "test_files": 9,
+    "test_concurrency": 2,
+    "source_preserved": true,
+    "result_sha256": "e734ba667c25dacd5c907ff06dc78f51ab6941c482212e002dd956120636c5ed",
+    "official_v8_samples": 422
+  },
+  "dom": {
+    "counts": {
+      "cases": 76,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 76
+    },
+    "scenarios": 61,
+    "source_preserved": true,
+    "not_additional_to_full_python_counts": true,
+    "result_sha256": "417cffda1dabb62ee02a4c74698cd7f75932ab9dad7d8be5b0f092fb5dfafe88",
+    "browser_interaction_accepted": false
+  },
+  "python_coverage_provider": "Coverage.py 7.16.2 official parent CTracer",
+  "python_child_coverage_attributed": false,
+  "python_percentage_is_statement_weighted_across_33_changed_sources": true,
+  "current_core_source54_qa_accepted": true,
+  "runtime_workflow_continuity_accepted": false,
+  "human_ui_accepted": false,
+  "independent_review_accepted": false,
+  "global_product_accepted": false
+}

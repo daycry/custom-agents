@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "recorded_utc": "2026-10-12T01:19:42.212879+00:00",
+  "tested_plugin_manifest_sha256": "f99b6b06d8f8281abbd1129165d1ce98e86b78383b47db4f19a069bc3fde9771",
+  "compatible_official_revision": "0a3b1711b018e5590cf5c44a3ee3e67d6733ee13",
+  "compatible_image_id": "sha256:7c14d5f84ef1b74b317b05b7d16df52cae73f28b89b5da56d90dd4d5c9e71522",
+  "graphiti_core_version": "0.30.2",
+  "mcp_version": "2.2.0",
+  "original_server_read_routing_failure": {
+    "physical_episodes": 3,
+    "mcp_episodes": 0,
+    "graphiti_core_version": "0.30.1"
+  },
+  "generation_rebuild_acceptance_on_compatible_sidecar": true,
+  "actual_creation_requests": 6,
+  "duplicate_creations": 0,
+  "old_group_readable_during_build": true,
+  "cut_recovery_and_historical_uuid_binding_verified": true,
+  "semantic_read_acceptance": false,
+  "semantic_gap": "Native facts cite episode UUIDs; adapter matches names and discards valid results",
+  "actual_semantic_results_discarded": 4,
+  "all_owned_test_graphs_and_sidecar_removed": true,
+  "current_service_replaced": false,
+  "global_product_accepted": false,
+  "root_promoted": false,
+  "original_harness_optional_field_failure_preserved": true,
+  "native_client_acceptance": false,
+  "committed": false,
+  "pushed": false
+}

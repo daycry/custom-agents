@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "observed_on": "2026-10-11",
+  "input_manifest_sha256": "ca7b66f64537925bc92e8e2d33d9f2144e9fe0ff7721e199d86af2bee1a1be16",
+  "full03": {
+    "windows": {
+      "counts": {
+        "passed": 6905,
+        "failed": 6,
+        "errors": 0,
+        "skipped": 98
+      },
+      "pytest_exit": 1,
+      "coverage_mean_percent": 88.73729125827417,
+      "coverage_changed_percent": 89.99208860759494,
+      "coverage_accepted": false,
+      "child_audit_complete": true,
+      "source_and_dependencies_revalidated": true,
+      "terminal_sha256": "ccc5b7ffb64d95adcbe2e5e91648a5feeff25cc503c3515edb8057796207a1e8"
+    },
+    "linux": {
+      "counts": {
+        "passed": 6955,
+        "failed": 2,
+        "errors": 0,
+        "skipped": 52
+      },
+      "pytest_exit": 1,
+      "coverage_mean_percent": 88.92924124314693,
+      "coverage_changed_percent": 90.18987341772151,
+      "coverage_accepted": false,
+      "child_audit_complete": true,
+      "source_and_dependencies_revalidated": true,
+      "terminal_sha256": "65c8fa287db357d1a243bc0b69224e7aef14cad6b91289307bd565b0902ec3f6"
+    }
+  },
+  "global_accepted": false,
+  "root_promoted": false,
+  "boundary_fix": {
+    "pytest_exit": 0,
+    "native_resume_status": "ok",
+    "native_resume_readonly": true,
+    "structured_reviews": 23,
+    "selection_groups": 20,
+    "attempts": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "brief_and_jira_decisions_preserved": true,
+    "proposal_sha256": "e95173f0e17cc526746079b8584b588057e6789035e3163b587273548dcfab04",
+    "proposal_bytes": 223016,
+    "fixture_source_hashes_preserved": true,
+    "live_QA_source_hashes_preserved": true,
+    "global_acceptance": false
+  },
+  "boundary_runner_sha256": "9b4b7b2353f1b13e72ac3d3bfeb17b239c05310e6da235ddc340b8b82e0f8f74",
+  "dashboard_direct_measurement": {
+    "official_provider": "Coverage.py 7.16.2 CTracer",
+    "measurement": "direct parent only",
+    "standalone_suite_unchanged": true,
+    "source_hashes_preserved": true,
+    "covered": 443,
+    "statements": 566,
+    "percent": 78.26855123674912,
+    "child_coverage_attributed": false,
+    "full_QA_results_unchanged": true,
+    "global_acceptance": false
+  },
+  "node_static": {
+    "checks": [
+      {
+        "name": "lint",
+        "pid": 24032,
+        "exit": 0
+      },
+      {
+        "name": "evals",
+        "pid": 436,
+        "exit": 0
+      },
+      {
+        "name": "interop",
+        "pid": 25388,
+        "exit": 0
+      },
+      {
+        "name": "release-consistency",
+        "pid": 37388,
+        "exit": 0
+      },
+      {
+        "name": "capture-benchmark",
+        "pid": 36656,
+        "exit": 0
+      },
+      {
+        "name": "node",
+        "pid": 21248,
+        "exit": 1
+      }
+    ],
+    "node_status": "incomplete_driver_timeout",
+    "node_deadline_seconds": 330,
+    "node_concurrency": 1,
+    "ci_default_concurrency_used": false,
+    "node_timeout_traceback_retained": true,
+    "owned_job_cleanup_verified": true,
+    "source_hashes_verified_after_timeout": true,
+    "source_count": 1078,
+    "runtime_artifacts": [
+      "agent-kits/shared/__pycache__/journal-capture.cpython-313.pyc",
+      "agent-kits/shared/__pycache__/outbox.cpython-313.pyc",
+      "agent-kits/shared/__pycache__/redact.cpython-313.pyc"
+    ],
+    "complete_tree_preserved": false,
+    "python_syntax_files": 229,
+    "json_files": 183,
+    "global_acceptance": false,
+    "node_suite_passed": false
+  },
+  "feedback_diagnosis": {
+    "operations": 60,
+    "unavailable": 0,
+    "timing_instrumented": true,
+    "historical_cause_proven": false
+  },
+  "case_recorder_fixture": {
+    "original_v001_regular_directory": true,
+    "original_validation_status": "pending",
+    "renamed_v001_aparte_absent": true,
+    "substitution_did_not_complete": true,
+    "underlying_os_error_not_captured": true
+  },
+  "pending": [
+    "Windows failures require diagnosis, not replacement by isolated greens",
+    "Coverage must directly measure the unchanged dashboard suite on each platform",
+    "Node suite incomplete after sequential driver timeout",
+    "Native workflow acceptance, actual UI, remaining resources and independent review"
+  ]
+}

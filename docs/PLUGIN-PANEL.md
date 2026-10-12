@@ -4,7 +4,7 @@
 
 El comando `/plugin-catalog` usa plugin-panel para mostrar agentes, skills,
 comandos, tools declaradas y hooks globales. La búsqueda y los filtros funcionan
-en un HTML autónomo. El modo servido añade progreso y consulta local de memoria; cartera detallada,
+en un HTML autónomo. El modo servido añade progreso, consulta local de memoria y señales recientes de actividad opt-in; cartera detallada,
 evaluaciones y presupuestos siguen en roadmap-dashboard.
 
 Los hooks se agrupan por **runtime y evento**, con una tarjeta por grupo.
@@ -20,6 +20,11 @@ activación y comportamiento. Claude lee `hooks/hooks.json`; Codex lee
 en `hooks/opencode-plugin.js`: ese catálogo gobierna el adapter y no se importa
 como código JavaScript. `hook_sources` describe cada fuente como declarada,
 ausente o inválida; una fuente fallida no se sustituye por otro runtime.
+
+El catálogo OpenCode conserva seis bindings y ocho acciones. `ActivityObserved`
+identifica la captura informativa `agent-activity`, con supervisión declarada de
+2500 ms; el lector exige sus eventos terminales y inputs de idle exactos. La fila
+es una declaración del adapter, no prueba de opt-in, carga o ejecución efectiva.
 
 El timeout de Claude/Codex tiene unidad segundos y procedencia de registro.
 OpenCode muestra milisegundos de supervisión del adapter; su captura por stream
@@ -87,6 +92,75 @@ y marcos prohibidos. La capacidad no aísla frente a procesos del mismo usuario.
 Consumir una decisión de plan requiere el CLI común y el workflow autorizado.
 Publicar/reconstruir memoria conserva sus consumidores y pruebas.
 
+## Señales recientes de actividad
+
+En el modo `--serve`, Actividad está separada de Progreso. Su lectura no inicia
+agentes ni convierte estados del ledger en presencia real. El productor común
+`agent-kits/shared/agent-activity-store.py` sólo persiste metadatos cerrados; el
+lector usa su `snapshot(project)` y la proyección pura `agent-activity.py`.
+
+La captura requiere el opt-in booleano `sesion.actividad: true` en el
+`.claude/dev.json` del proyecto. Ausencia o `false` la desactiva. Para activarla
+manualmente, combina esta clave con la configuración existente, sin sustituirla:
+
+```json
+{"sesion": {"actividad": true}}
+```
+
+Abrir el panel o ejecutar setup no crea ni activa esa configuración. El productor
+es dueño de `.claude/agent-activity/` y crea primero su `.gitignore` con `*` y salto
+de línea para excluir los archivos nuevos de ese estado local de Git. El lector
+no crea, bloquea, purga, migra ni recupera estado; un directorio ajeno, parcial o
+inválido queda indisponible, sin adoptarlo. La regla de ignore no retira archivos
+ya rastreados de Git.
+
+Hay hasta 64 observaciones. El snapshot JSON y la respuesta HTTP tienen cada
+uno un límite de 64 KiB. `complete` describe la validación de ese snapshot;
+`collection_complete: false` permanece visible: no representa todas las sesiones
+o agentes. Las tarjetas muestran runtime/rol declarados, fuente, estado y fecha;
+las claves seudónimas quedan internas. No se conservan prompts, transcripciones,
+argumentos de herramientas ni rutas crudas del consumidor en este estado.
+
+| Estado | Qué describe |
+|---|---|
+| `recent_start` | Señal reciente de inicio |
+| `recent_response_end` | Fin reciente de una respuesta |
+| `recent_execution_end` | Fin reciente de una ejecución |
+| `recent_idle` | Señal reciente de inactividad de sesión |
+| `unknown` | Señal caducada, reloj futuro o frescura desconocida |
+
+Una señal no demuestra un proceso vivo, destrucción de agente, identidad
+autenticada ni cobertura completa. La frescura caduca a los 60 segundos. La UI
+acumula edad monotónica desde la recepción y la compara con la edad anunciada;
+refrescar el mismo evento/revisión no la rejuvenece. Un fallo HTTP conserva vista
+y fecha, pero las señales siguen caducando. Una fecha futura queda desconocida.
+
+`GET api/activity` usa la misma capacidad y guardias Host/Origin del servidor;
+es sólo lectura, con respuesta acotada y sin ruta libre. POST conserva el rechazo
+405 existente. Hay una petición activa, timeout de cuatro segundos y polling
+cada cinco segundos después de resolverla. Ocultar la pestaña aborta y pausa;
+al volver, la vista aplica caducidad antes de consultar. El HTML estático explica
+que no hay servicio de señales. Si falta el JS de actividad, sólo esa sección
+queda indisponible; las otras vistas conservan su comportamiento.
+
+El export «solo skills» necesita referencias explícitas a
+`agent-kits/shared/agent-activity-store.py`, `agent-kits/shared/agent-activity.py`,
+`agent-kits/shared/local-state.py` y `agent-kits/shared/local-read.py` en la skill.
+El productor `capture` también lee el mapa central
+`agent-kits/shared/native-roles.json`: se declara explícitamente para que el
+paquete incluya el JSON, aunque la lectura `snapshot` no lo usa.
+Ese paquete no registra hooks nativos; incluir helpers y mapa no demuestra captura.
+La proyección/HTTP/DOM tienen pruebas focales; interacción real de navegador,
+carga de hooks y aceptación nativa requieren su propia evidencia.
+
+Referencias oficiales consultadas el **2026-10-10**:
+
+- [Claude Code: SubagentStart/SubagentStop](https://code.claude.com/docs/en/hooks): señales de subagente; el fin de respuesta no acredita destrucción.
+- [Codex: hooks](https://developers.openai.com/codex/hooks/): eventos y payload nativo de subagentes; la documentación no acredita su carga en esta sesión.
+- [OpenCode V2.0.12: cierre de ejecución](https://github.com/anomalyco/opencode/blob/2670273ff17da96f85c5826ced57aa1b368754fa/packages/core/src/session/execution.ts#L118-L150): emite un terminal `session.execution.succeeded/failed/interrupted`; su [proyector](https://github.com/anomalyco/opencode/blob/2670273ff17da96f85c5826ced57aa1b368754fa/packages/core/src/session/projector.ts#L403-L434) deriva idle/outcome desde ese evento.
+  La captura conserva `execution_finished`, sin convertirlo en una observación independiente `session_idle` ni en teardown. `session.idle`/`session.status` siguen como inputs de compatibilidad, sin afirmar emisión por esta versión.
+  La aceptación nativa requiere su propia evidencia y correlación exacta; la lectura del contrato no acredita captura completa.
+
 ## Revisar un plan en la puerta existente
 
 La revisión visual es opcional. Sustituye el «OK del plan» pendiente de `/dev-cycle`
@@ -131,6 +205,22 @@ deshabilita la decisión; nunca se aprueba un prefijo recortado.
 | Cerrar sin decidir | Cierra la interfaz y conserva borrador/recibo; no crea decisión |
 | Volver a la revisión | Recupera la interfaz sin registrar otra decisión |
 
+El workflow usa `plan-review.py consume` con proyecto, state-root, iniciativa,
+review_id, puerta y la tupla raw/view. El dueño valida selección/vista antes de
+entregar, confirma los IDs reales y relee la versión antes de devolver `consumida`.
+No lanza roles ni acredita efectos. `waiting` conserva la ausencia de decisión;
+una versión obsoleta no se consume. Un ack fallido conserva la entrega para retry;
+un cambio posterior al ack devuelve `version_changed` con el consumo histórico.
+El plazo común de tres segundos cubre toda la operación. La vista final no es una
+transacción con trabajo posterior ni garantiza detectar ABA.
+
+Una revisión obsoleta conserva la decisión histórica, pero no aprueba el plan
+actual. `receive` devuelve `version_changed` y código 2 sin consumirla. Una nueva
+revisión se abre con `open` para la versión actual y requiere su propia decisión;
+no se actualizan los hashes del recibo antiguo. El consumo válido sigue
+`receive → validación → ack → validación → view`, antes de actuar. La autorización
+conversacional suficiente sigue su vía existente.
+
 La decisión pasa por `pendiente` → `entregada` → `consumida` bajo el dueño común
 `agent-kits/shared/plan-review.py`. Enviar una decisión la mantiene pendiente;
 `receive` la entrega y `ack` confirma consumo durable. El panel no inicia agentes,
@@ -162,11 +252,108 @@ Los hashes/capacidad no autentican a una persona. Relecturas y locks no ofrecen
 atomicidad con el workflow, detección ABA ni garantías universales ante pérdida de energía.
 El fallback usa la autorización conversacional existente, sin inventar aprobación.
 
-El bundle común necesita `plan-review.py`, `local-read.py` y `redact.py`.
-La revisión en «solo skills» requiere que el export incluya esas tres dependencias
+El bundle común necesita `plan-review.py`, `local-state.py`, `local-read.py` y `redact.py`.
+La revisión en «solo skills» requiere que el export incluya esas cuatro dependencias
 declaradas desde plugin-panel. La comprobación del paquete pertenece a QA;
 sin cualquiera de ellas, el canal queda indisponible.
 El [comando](../commands/dev-cycle.md) describe receive/ack y la vuelta autorizada al planner.
+
+### Ver qué ocurrió con los comentarios
+
+«Consumo confirmado» significa ack; no significa que se atendió el comentario.
+Resultados muestra la respuesta declarada: `addressed` (atención declarada),
+`not_applied` (no aplicado con motivo) o `needs_clarification` (aclaración necesaria).
+La verificación `confirmed`/`not_confirmed` muestra una observación humana ya
+comunicada. No autentica a esa persona ni concede aprobación, QA o permiso nuevo.
+Sin respuesta o verificación, el panel indica su ausencia. No abre un chat ni
+solicita otra confirmación para continuar trabajo autorizado.
+
+El consumidor registra la respuesta por CLI tras ack de esa decisión; el navegador
+lee resultados/historial y no envía result/verify-result/receive/ack por HTTP.
+También puede responder comentarios de approve; sin comentarios no crea filas.
+La nota se muestra como texto inerte. Al editar el plan, la respuesta sigue ligada
+a la revisión consumida antigua; la nueva vista no hereda atención ni aprobación.
+Historial de respuestas distingue versiones y mantiene resultados reemplazados.
+Polling conserva borradores/foco; un fallo conserva la fecha anterior con aviso.
+
+### Registrar una respuesta desde el workflow
+
+Reutiliza las variables del caller de `/dev-cycle` y el dueño del mismo bundle.
+Conserva review_id, version, gate_key, decision_id y delivery_id de la decisión
+consumida; CommentId procede de decision.comments. ReviewRevision es el entero
+`review.revision` leído de ese registro antes de una operación nueva. Una vista
+histórica version_changed/unavailable puede aportar ese registro; nunca autoriza
+trabajo sobre el plan nuevo. Genera ResultId una sola vez (64 hex minúsculas) y
+conserva ID y payload si pierdes la respuesta. ReviewRuntime es el runtime actual.
+
+```powershell
+$OutputEncoding = [Text.UTF8Encoding]::new($false)
+$ResultRequest = @{
+  version = @{raw_sha256=$RawSha256; view_sha256=$ViewSha256; view_version='plan-text-v1'}
+  gate_key = 'plan-ok'; decision_id = $DecisionId; delivery_id = $DeliveryId
+  comment_id = $CommentId; result_id = $ResultId; expected_revision = $ReviewRevision
+  disposition = 'addressed'; response_text = 'Separé consumo y atención del comentario.'
+  supersedes_result_id = $null
+  producer = @{caller_id='dev-cycle'; runtime=$ReviewRuntime; actor_id=$null}
+}
+$ResultRequest | ConvertTo-Json -Depth 4 -Compress | & $ReviewPython @ReviewPythonArgs $PlanReview result @ReviewScope --review-id $ReviewId --json
+```
+
+En Bash, selecciona un JSON UTF-8 con esas mismas once claves; RESULT_REQUEST
+representa su ruta elegida. La nota se pasa como dato, nunca se evalúa como shell.
+
+```bash
+"$REVIEW_PYTHON" "${REVIEW_PYTHON_ARGS[@]}" "$PLANREVIEW" result "${REVIEW_SCOPE[@]}" --review-id "$REVIEW_ID" --json < "$RESULT_REQUEST"
+```
+
+`producer` contiene exactamente caller_id (1–128 letras ASCII/dígitos/_/-),
+runtime (`claude-code|codex|opencode`) y actor_id (null o 64 hex minúsculas opacos).
+No envíes identity_basis, nombres humanos, fechas, flags, section_id u observaciones
+de artefacto: los calcula el dueño. No se exige coincidir con el primer consumidor.
+
+Para una observación humana explícita ya recibida, conserva sus vínculos y añade
+un VerificationId nuevo elegido una vez. Relee ReviewRevision para esa operación.
+No generes una verificación automáticamente desde los cambios o pruebas.
+
+```powershell
+$VerifyRequest = @{
+  version=$ResultRequest.version; gate_key=$ResultRequest.gate_key
+  decision_id=$DecisionId; delivery_id=$DeliveryId; comment_id=$CommentId
+  result_id=$ResultId; verification_id=$VerificationId; expected_revision=$ReviewRevision
+  assessment='confirmed'; note='Observación humana ya comunicada sobre esta respuesta.'
+  producer=@{caller_id='dev-cycle'; runtime=$ReviewRuntime; actor_id=$null}
+}
+$VerifyRequest | ConvertTo-Json -Depth 4 -Compress | & $ReviewPython @ReviewPythonArgs $PlanReview verify-result @ReviewScope --review-id $ReviewId --json
+```
+
+Las once claves de verify-result sustituyen disposition/response_text/supersedes_result_id
+por verification_id/assessment/note. Assessment también admite not_confirmed; note
+puede estar vacía. En Bash usa el mismo CLI verify-result y su JSON por stdin.
+La anotación es opcional; no constituye otra puerta ni requisito de entrega.
+
+Exit 0/status ok confirma persistencia de feedback: review null, approval_granted
+false y feedback_receipt con operación/IDs/versión vinculados. No lo pases al
+validador de open ni lo uses como autorización. Exit 2 indica conflicto y exit3
+indisponibilidad. Retry con los mismos IDs y contenido conserva fecha/observación,
+aunque la revisión actual del registro haya avanzado. revision_conflict exige
+releer/reconciliar; operation_conflict no permite sobrescribir. Una corrección
+usa otro result_id y supersedes_result_id del último resultado (máximo dos por
+comentario). Cada resultado admite una verificación; una sustituida sigue histórica.
+
+El campo `feedback_receipt.revision` refleja la revisión actual del registro al
+responder. Un reintento posterior a otra operación puede devolver un número
+mayor que el primer recibo; los IDs, `recorded_at` y la fila persistida se conservan.
+
+
+Solicitud 16 KiB; respuesta no vacía hasta 1000 caracteres/2048 bytes UTF-8; nota
+hasta 500/1024. Exceso y presupuestos de filas/registro se rechazan sin recorte.
+Historial contiene hasta 8 revisiones/64 KiB, sólo filas completas del mismo scope,
+iniciativa y puerta. Incompleto no significa vacío. Un bundle antiguo sin extensión
+muestra resultados no disponibles; una extensión inválida no se trata como ausencia.
+El dueño nuevo lee record schemas 1/2 sin migrar por consultar; la primera mutación
+válida de feedback puede actualizar legacy a 2. Usa dueño/server/UI del mismo bundle;
+no se promete escritura simultánea de binarios antiguos y nuevos. El envelope sigue 1.
+Estas instrucciones no acreditan interacción V01–V08 ni aceptación nativa.
 
 ## Consulta local de memoria
 

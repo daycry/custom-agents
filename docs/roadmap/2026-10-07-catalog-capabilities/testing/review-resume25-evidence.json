@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-11",
+  "status": "candidate_verification_incomplete",
+  "global_accepted": false,
+  "root_promoted": false,
+  "independent_review_complete": false,
+  "base_manifest_sha256": "04603ce434af81de0dbf99d18a0b1319d2e70d4e78d47e5d7891600f11ca813f",
+  "tested_sources": {
+    "agent-kits/shared/plan-review.py": "d9f53de131f7b9268c7fa0ff9a1d776a80aba0c346ef79d89b665d7766f79d49",
+    "agent-kits/shared/progress-report.py": "b9db9a9314a9019398ff77a5dcea9cddf03a64bc74da815b866994fbcb35c036",
+    "agent-kits/shared/test_review_resume.py": "afbc7ca7b5eea7196380bfa44b8eeee30c261a78bd858cf261605c0184e4cae1"
+  },
+  "stages": {
+    "red": {
+      "tests": 12,
+      "passed": 0,
+      "failed": 12,
+      "errors": 0,
+      "skipped": 0,
+      "new_tests": 12,
+      "new_passed": 0,
+      "failed_cases": [
+        "test_absent_store_is_explicit_and_not_created",
+        "test_open_submitted_delivered_consumed_remain_distinct_without_side_effects",
+        "test_stale_version_visible_and_missing_artifact_not_presented_current",
+        "test_exact_initiative_filter_and_foreign_root_marker_rejected",
+        "test_invalid_inventory_never_looks_empty[malformed]",
+        "test_invalid_inventory_never_looks_empty[unknown_leaf]",
+        "test_invalid_inventory_never_looks_empty[oversized]",
+        "test_reader_detects_changed_record_between_inventory_observations",
+        "test_bounded_projection_reports_exact_omission_count",
+        "test_resume_and_session_expose_reminders_without_consuming_or_approving",
+        "test_ambiguous_resume_does_not_pick_any_review",
+        "test_partial_owner_bundle_degrades_without_private_error"
+      ],
+      "junit_sha256": "4fb4c353f0e333f67847b56ab4218a0331e5fa7b9c2acf9cc5530e09901a4672"
+    },
+    "green": {
+      "tests": 298,
+      "passed": 294,
+      "failed": 3,
+      "errors": 1,
+      "skipped": 0,
+      "new_tests": 12,
+      "new_passed": 12,
+      "failed_cases": [
+        "test_feedback_response_is_immutable_declared_and_not_approval",
+        "test_feedback_rejected_mutations_keep_exact_bytes[changes1-invalid_feedback]",
+        "test_feedback_rejected_mutations_keep_exact_bytes[changes9-feedback_text_budget]"
+      ],
+      "junit_sha256": "f28640eee7b2d63774082beb080d39e6bb248105e7a210f7859e7e7674c1d08a"
+    },
+    "final": {
+      "tests": 300,
+      "passed": 298,
+      "failed": 2,
+      "errors": 0,
+      "skipped": 0,
+      "new_tests": 14,
+      "new_passed": 13,
+      "failed_cases": [
+        "test_current_review_precedes_stale_records_and_session_declares_omissions",
+        "test_f21_history_actual_65536_bytes_whole_rows[plus1]"
+      ],
+      "junit_sha256": "fd2a653df3a2fbfdddfcefc144384124859a86388de2be95823a6c72b8ff132b"
+    },
+    "final02": {
+      "tests": 300,
+      "passed": 295,
+      "failed": 5,
+      "errors": 0,
+      "skipped": 0,
+      "new_tests": 14,
+      "new_passed": 14,
+      "failed_cases": [
+        "test_gap_b1_c1_comment_roundtrip_keeps_receipts_readable[submit-bidi]",
+        "test_feedback_rejected_mutations_keep_exact_bytes[changes9-feedback_text_budget]",
+        "test_history_is_bounded_whole_rows_sorted_and_has_no_other_gate",
+        "test_f21_feedback_aggregate_boundaries[plus1-results-40]",
+        "test_interrupted_operation_visible_and_explicit_recovery_receipt[prepared]"
+      ],
+      "junit_sha256": "b4daaf71230701569c1a9935ca238834ec7c75ad558533cbf0681f10edb5b6d6"
+    },
+    "final03": {
+      "tests": 91,
+      "passed": 90,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0,
+      "new_tests": 18,
+      "new_passed": 17,
+      "failed_cases": [
+        "test_feedback_counts_are_record_observations_and_superseded_results_do_not_count_twice"
+      ],
+      "junit_sha256": "98ce41bb87db8ea0c51bc5f0b2ba916613dc6faf5a44bf6616a6af24d667dacf"
+    }
+  },
+  "final_receipt_sha256": "7650c3169fc00b690291710ba5c2a1cfa74707e05a9e86cc494512fc52cfd0e3",
+  "execution_binding_sha256": "b1f9ed35192d213518cbafd2eb09f4cfa22e2248e25da702c5423ecf95873e46",
+  "coverage": {
+    "changed_covered": 83,
+    "changed_total": 87,
+    "changed_percent": 95.40229885057471,
+    "changed_gate_90_without_rounding": true,
+    "coverage_scope": "parent only; two changed files relative to working18"
+  },
+  "export_check": {
+    "exit_code": 0,
+    "generated_files": 88
+  },
+  "lint": {
+    "exit_code": 0,
+    "errors": 0,
+    "warnings": 9
+  },
+  "baseline_diagnosis": {
+    "first_receipt_sha256": "712fc1a087e9c8b3f0c010af8b58ceee2ba89a982ceefd482e6c1d3f897f05fb",
+    "second_receipt_sha256": "ca0c3dd04e93847295d2fa54ad9e800020a09371318a4183fbb064f15453336a",
+    "completed_before_failure": [
+      71,
+      2
+    ],
+    "reader_status": "changed_path",
+    "observed_change": "descriptor metadata timestamp changed; identity, size and mtime unchanged",
+    "writer_identified": false,
+    "historical_failures_cause_proven": false,
+    "reader_guards_relaxed": false
+  },
+  "limits": [
+    "No actual model attention or approval established",
+    "No native workflow acceptance for these changes",
+    "Broad regression remains red; do not replace it with focal coverage",
+    "Real visual QA and independent review pending"
+  ]
+}

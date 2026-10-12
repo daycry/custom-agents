@@ -22,8 +22,10 @@ impone nombres de carpeta.
   escrito a mano.
 - **Propone conocimiento (opcional, buzón — T-05, `ADR-018`)**: si al documentar detecta una
   decisión, patrón, gotcha o lección con evidencia real que no esté ya en
-  `docs/knowledge/approved/`, **crea** un fichero nuevo en `docs/knowledge/candidates/pending/`
-  con `category`/`evidencia`/`fuentes`/`tags`. Sin candidato que proponer no hay fallo.
+  `docs/knowledge/approved/`, propone con `agent-kits/shared/knowledge-curation.py propose`
+  (`--producer documenter`, Markdown por stdin y salida JSON); el servicio redacta y crea
+  pending nuevo sin `estado`, devolviendo ruta/SHA. Sin candidato no hay fallo; sin servicio
+  informa pendiente y no usa Write/Edit alternativo.
 
 ## Qué NO hace
 
@@ -31,7 +33,7 @@ impone nombres de carpeta.
 - No gestiona `docs/roadmap/**` (es de `planner`/`evaluator`/`qa`): solo lo enlaza.
 - No toca `docs/security-scan/**` (datos sensibles de `nemesis`).
 - **No aprueba ni mueve** un candidato de conocimiento a `approved/`/`needs_changes/`/`rejected/`,
-  ni escribe el campo `estado`: eso es exclusivo de `knowledge-curator` (ADR-018, un rol un dueño).
+  ni escribe el campo `estado`: Curator decide y el servicio `apply` persiste con SHA original, motivo y metadatos. No modifica legado ni candidatos existentes.
 
 ## Estructura: derivada, no fija
 
@@ -49,7 +51,9 @@ Antes de documentar (siempre activa, sin opt-in), si existe `docs/knowledge/` le
 Tras escribir en `docs/`, invoca la skill compartida `confluence-publish` para reflejar los
 cambios en Confluence. Es **opcional**: la primera vez se pregunta si se quiere sincronizar y la
 decisión se guarda en `.claude/confluence.json` (`enabled: true/false`). Nunca sincroniza
-`docs/security-scan/`.
+`docs/security-scan/`. Candidatos y journal no se publican como conocimiento curado;
+la exclusión de Confluence fuerza ambos árboles, incluso con include explícito y mayúsculas,
+también en staging. La fuente está en revisión; no acredita publicación externa ni aceptación global.
 
 ## Dependencias
 
@@ -79,3 +83,6 @@ solo mapas/referencias pertinentes. Stack-practices consolida PHP/CodeIgniter,
 Python y React. Los métodos, artefactos y puertas del rol conservan su dueño.
 Sin selector o guía disponible, avisa del límite y continúa con el contrato de
 la tarea; no confundas selección con ejecución, tools o permisos.
+
+Conflictos con approved o legado aceptado y alto impacto requieren resolución humana trazada;
+fecha, revisión/QA/Gold no aprueban memoria. [Contrato de curación](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).

@@ -1,0 +1,154 @@
+{
+    "schema_version":  1,
+    "date":  "2026-10-10",
+    "status":  "linux_passed_windows_failed",
+    "global_product_accepted":  false,
+    "collected_ids_per_platform":  6612,
+    "production":  [
+                       {
+                           "path":  "agent-kits/knowledge-curator/curator-gate.py",
+                           "sha256":  "83a9f04b7b88cb85811633f02285134ce8e5b9ad645c1b9cead13dfcee81b5f6"
+                       },
+                       {
+                           "path":  "agent-kits/shared/journal.py",
+                           "sha256":  "5615c49e63c8439d0ce6c74daa7e241f42d9a9b4b3b4c2e738a96ba538b01331"
+                       },
+                       {
+                           "path":  "agent-kits/shared/knowledge-curation-rules.py",
+                           "sha256":  "5941572eaa1f46e9d8aa413c33bc037f8211675c0019b512abc95b820bf09cda"
+                       },
+                       {
+                           "path":  "agent-kits/shared/knowledge-curation.py",
+                           "sha256":  "fec158686c05964a7e405604af051b2081b7ed36d2543332eb5d72cd4f809781"
+                       },
+                       {
+                           "path":  "agent-kits/shared/plan-review.py",
+                           "sha256":  "6ecc5c43806395dfea5ba992379f72a1b0462199aaf53c8bc38814a0ed66ade1"
+                       },
+                       {
+                           "path":  "agent-kits/shared/progress-report.py",
+                           "sha256":  "ca5b71cb7f6a960d7b9aaa5c8cc78228a19640fdc3333ca975790fd27259f73d"
+                       },
+                       {
+                           "path":  "evals/run.py",
+                           "sha256":  "6e4c048e35178d89c7c6aaaded7ea90a3a359e8f516476b69b7828ae90170000"
+                       },
+                       {
+                           "path":  "scripts/export-interop.py",
+                           "sha256":  "24d422a1b059994654dd6c3b2add8b975f6226d81a4036173eca196f47d1db0c"
+                       },
+                       {
+                           "path":  "skills/confluence-publish/scripts/confluence-scope.py",
+                           "sha256":  "ea503652a97c443fee6d3d00bb3660269186824fac854bd3340c595a573b58f5"
+                       },
+                       {
+                           "path":  "skills/plugin-panel/scripts/build_panel.py",
+                           "sha256":  "46774c04d88d8a42aeaa65c09e313d3eb450f703a6d8668c73422a71a6ac8b01"
+                       },
+                       {
+                           "path":  "skills/training-data-services/scripts/propose-from-case.py",
+                           "sha256":  "de08a50f64c317f1b731d602e7b781d6b7f9220c6a47028bfd700d1bd81b107e"
+                       }
+                   ],
+    "linux":  {
+                  "coverage_mean_percent":  93.14066946512294,
+                  "tracer":  "coverage.CTracer",
+                  "coverage":  "7.16.2",
+                  "registered_children":  2963,
+                  "changed_lines_total":  383,
+                  "pending_children":  0,
+                  "owned_container_removed_and_absent":  true,
+                  "source_and_dependencies_unchanged":  true,
+                  "skipped":  44,
+                  "errors":  0,
+                  "minimum_percent":  90,
+                  "changed_lines_covered":  355,
+                  "coverage_scope":  "parent-only",
+                  "passed":  6568,
+                  "coverage_changed_percent":  92.689295039164492,
+                  "failed":  0,
+                  "qa_gate_exit":  0,
+                  "pytest_exit":  0,
+                  "terminal_children":  2963,
+                  "pytest":  "9.1.1"
+              },
+    "windows":  {
+                    "observed_secondary_error":  "TypeError after fixture discarded setup response",
+                    "status":  "failed",
+                    "final_result":  {
+                                         "coverage_mean_percent":  93.2487649955366,
+                                         "changed_lines_total":  1149,
+                                         "pending_children":  0,
+                                         "coverage":  "7.16.2",
+                                         "registered_children":  2966,
+                                         "coverage_pass":  true,
+                                         "tracer":  "coverage.CTracer",
+                                         "source_and_dependencies_unchanged":  true,
+                                         "skipped":  92,
+                                         "errors":  0,
+                                         "minimum_percent":  90,
+                                         "changed_lines_covered":  1069,
+                                         "coverage_scope":  "parent-only",
+                                         "passed":  6519,
+                                         "coverage_changed_percent":  93.03742384682333,
+                                         "failed":  1,
+                                         "qa_gate_exit":  1,
+                                         "pytest_exit":  1,
+                                         "terminal_children":  2966,
+                                         "pytest":  "8.4.2"
+                                     },
+                    "initial_operation_failure_cause":  "unknown",
+                    "failed_nodeid":  "agent-kits/shared/test_plan_review_feedback_contract.py::test_f21_feedback_aggregate_boundaries[exact-verifications-40]"
+                },
+    "limits":  [
+                   "Real browser interaction remains unverified.",
+                   "Native capture evidence is reported separately.",
+                   "Historical failures are preserved; current passes do not prove their original cause.",
+                   "All skipped cases retain their recorded reasons; private-corpus checks and platform-specific contracts are not claimed tested where unavailable."
+               ],
+    "setup_response_diagnostic":  {
+                                      "test_path":  "agent-kits/shared/test_plan_review_feedback_contract.py",
+                                      "test_sha256":  "6cab556c714e1daf07c298e044e4dfb73588cfd3016e0a354562ad9f987362b1",
+                                      "full_run_superseded":  false,
+                                      "red_cases":  3,
+                                      "product_modified":  false,
+                                      "limitations":  [
+                                                          "The first diagnostic GREEN attempt exposed pytest assertion rewriting; explicit exception preserves the exact stage and response.",
+                                                          "An initial focused invocation failed before the case because the owned basetemp parent was absent; the corrected harness ran the case once.",
+                                                          "The original operational failure is not reproduced or attributed; full Windows QA remains failed."
+                                                      ],
+                                      "status":  "diagnostic_guard_validated_original_cause_unknown",
+                                      "green_cases":  3,
+                                      "original_singleton_passed":  true
+                                  },
+    "activity_io_regression":  {
+                                   "scope":  "New shared local metadata I/O and plan-review extraction in isolated candidate; activity projection plus four plan-review suites",
+                                   "status":  "regression_passed_reviewed",
+                                   "tests":  212,
+                                   "passed":  211,
+                                   "skipped":  1,
+                                   "failed":  0,
+                                   "errors":  0,
+                                   "duration_seconds":  73.797,
+                                   "python_exit":  0,
+                                   "direct_child_launches":  51,
+                                   "direct_child_terminals":  51,
+                                   "forced_cleanup":  0,
+                                   "job_total_processes":  52,
+                                   "job_active_after_close":  0,
+                                   "cleanup_exit":  0,
+                                   "input_pins_checked":  16,
+                                   "input_hash_differences":  0,
+                                   "correctness_review_findings":  0,
+                                   "first_execution":  "Preserved incomplete run stopped at the executor 60-second limit; no complete JUnit or final direct-child audit",
+                                   "corrected_executor_limit_seconds":  180,
+                                   "product_deadlines_changed":  false,
+                                   "original_windows_full_qa_replaced":  false,
+                                   "original_windows_failure_cause_proven":  false,
+                                   "global_acceptance":  false,
+                                   "new_source_bindings":  {
+                                                               "agent-kits/shared/local-state.py":  "e56afd127b99c335f09e239e4272b0d8ba27a4c2feebe46b500bfec67879a490",
+                                                               "agent-kits/shared/plan-review.py":  "fadd605254592d5f4ae82bef3db69b0d384a790fe15091b3c1715d02f494e46f"
+                                                           }
+                               }
+}

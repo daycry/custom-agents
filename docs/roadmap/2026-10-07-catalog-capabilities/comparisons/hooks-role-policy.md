@@ -42,3 +42,16 @@ se han revisado. Quedan 24 cuerpos inmediatos sin leer y 16 descendientes
 identificados por metadata del catálogo, sin hash local comprobado. Los
 registros diferencian esos límites de los 19 cuerpos completos. La tarea de
 hooks, tools y workflows y su comparación global continúan abiertas.
+
+
+## Sesiones y continuidad — lectura posterior, 2026-10-11
+
+Tres cuerpos adicionales completos y con hash comprobado: R-5f85c39068f7 (226 líneas),
+R-03b492bcef1e (68) y R-115137fae3ce (148). La contabilidad actual es 22 cuerpos completos
+y un helper parcial, con 22 inmediatos y 15 descendientes pendientes. Dos descendientes
+pendientes tienen ahora hash local comprobado, pero siguen sin lectura semántica completa.
+Los conteos anteriores describen el checkpoint previo y se conservan.
+[Comparación y destinos](hook-session-continuity.md). El reemplazo del estado del medidor
+incorpora temporales exclusivos y reintentos Windows acotados con pruebas propias; los
+callers del servidor de revisión y la continuidad nativa siguen pendientes. No se ejecutó
+código de referencia, no se incorporó su caché global ni se cierra T-06.

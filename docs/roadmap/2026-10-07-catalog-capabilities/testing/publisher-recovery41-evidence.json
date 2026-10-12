@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "base_candidate_manifest_sha256": "c5d1fb53aa82d6d4052846ae77c4fa0946339cfd1d1d1bb8f9760bd38535d19d",
+  "fixed_stage_manifest_sha256": "288eabe5fa871f783d157c0caa7f54b2416539d086f8b762c7b85f0f84f05e4c",
+  "production_sha256": {
+    "skills/knowledge-services/scripts/knowledge-sync.py": "3a1498c67f31bad5af27395e07b0c9d15a001457f7e4233526b0b290d9722140",
+    "skills/knowledge-services/backends/markdown_export.py": "2326d8074f68d504cad4eca00a6afaba6aabe110009ce6ff8f13d5d7d1b68732"
+  },
+  "replay": {
+    "root_cause": "Outbox replay changed target state after fresh operations were calculated",
+    "fix": "Drain an existing own outbox before fresh planning; create a new outbox only after successful planning",
+    "withdrawn_and_superseded_projection_regressions_accepted": true
+  },
+  "manifest_finalization": {
+    "reproduction": "Owned native Windows CreateFile reader without FILE_SHARE_DELETE causes final rename failure; reader releases immediately after first denied rename",
+    "fix": "At most four final-manifest rename attempts for Windows errors 5/32/33, with unchanged observed source/target metadata identities",
+    "identity_limit": "Observed metadata checks under cooperative lock are not compare-and-swap against external writers",
+    "RED": {
+      "tests": 6,
+      "expected_failures": 2,
+      "real_native_WinError5": true,
+      "backend_unchanged_before_RED": true,
+      "backend_sha256": "33d5353ae8630f4878d48b292bdaf44ee4bfa754a5189398e4958171a831b667",
+      "junit_sha256": "861f4ed3353ff390d3740918a80afa73d5542f627990ae8a3185cfa92110e1da",
+      "test_sha256": "ef18e61b60a9f81da47661415fb13ae27a083e1bb1af22d5cd8f118a6f8c4a0c",
+      "historical_uncontrolled_failure_cause_proven": false
+    },
+    "historical_uncontrolled_WinError5_process_identified": false
+  },
+  "partial_publication": {
+    "RED": {
+      "expected_failures": 1,
+      "cases": 1,
+      "sync_unchanged_before_RED": true,
+      "sync_sha256": "aa10630d5a137ad45bbaa2377fbd48436867c7185d9c409d93a4e5b9b397670f",
+      "test_sha256": "60f1f8dc050287a01e45b041303f4494b60d049ec0b6232eba847181eb820f38",
+      "junit_sha256": "9880302a3bd29821fc52f238d1d4f27575960854853f36cc3d8468502d680800",
+      "real_partial_projection_observed": true,
+      "canonical_and_unowned_preserved": true
+    },
+    "scenario": "Second real Markdown replacement denied after first entry was published; original manifest retained and pending goal persisted",
+    "recovery": "Next fresh sync completes remaining entry from pending goal; canonical and unowned files preserved",
+    "fix": "Report possible partial publication with envelope status and --outbox-status instead of promising previous publication intact",
+    "prior_fixture_test_update": "Only its misleading message assertion was changed; outbox/done/dead-letter assertions preserved"
+  },
+  "module_QA": {
+    "windows": {
+      "pytest_exit": 0,
+      "cases": 109,
+      "failures": 0,
+      "errors": 0,
+      "skips": 1,
+      "coverage_version": "7.16.2",
+      "official_parent_CTracer": true,
+      "production_sha256": "3a1498c67f31bad5af27395e07b0c9d15a001457f7e4233526b0b290d9722140",
+      "global_product_accepted": false
+    },
+    "linux": {
+      "pytest_exit": 0,
+      "full_module_accepted": true,
+      "cases": 109,
+      "failures": 0,
+      "errors": 0,
+      "skips": 1,
+      "coverage_version": "7.16.2",
+      "official_parent_CTracer": true,
+      "production_sha256": "3a1498c67f31bad5af27395e07b0c9d15a001457f7e4233526b0b290d9722140",
+      "global_product_accepted": false
+    }
+  },
+  "coverage": {
+    "windows": {
+      "skills/knowledge-services/scripts/knowledge-sync.py": {
+        "changed_percent": 100.0,
+        "changed_executable_lines": [
+          418,
+          419,
+          420,
+          421,
+          424,
+          425,
+          426,
+          427,
+          442,
+          475
+        ],
+        "changed_missing_lines": [],
+        "whole_owner_percent": 84.01639344262296,
+        "official_parent_CTracer": true,
+        "children_attributed": false,
+        "global_coverage_gate_satisfied": false
+      },
+      "skills/knowledge-services/backends/markdown_export.py": {
+        "changed_percent": 95.23809523809524,
+        "changed_executable_lines": [
+          125,
+          1044,
+          1045,
+          1046,
+          1047,
+          1050,
+          1051,
+          1054,
+          1059,
+          1060,
+          1061,
+          1062,
+          1063,
+          1064,
+          1065,
+          1066,
+          1067,
+          1068,
+          1069,
+          1070,
+          1073
+        ],
+        "changed_missing_lines": [
+          1046
+        ],
+        "whole_owner_percent": 59.553831231813774,
+        "official_parent_CTracer": true,
+        "children_attributed": false,
+        "global_coverage_gate_satisfied": false
+      }
+    },
+    "linux": {
+      "skills/knowledge-services/scripts/knowledge-sync.py": {
+        "changed_percent": 100.0,
+        "changed_executable_lines": [
+          418,
+          419,
+          420,
+          421,
+          424,
+          425,
+          426,
+          427,
+          442,
+          475
+        ],
+        "changed_missing_lines": [],
+        "whole_owner_percent": 84.01639344262296,
+        "official_parent_CTracer": true,
+        "children_attributed": false,
+        "global_coverage_gate_satisfied": false
+      },
+      "skills/knowledge-services/backends/markdown_export.py": {
+        "changed_percent": 95.23809523809524,
+        "changed_executable_lines": [
+          125,
+          1044,
+          1045,
+          1046,
+          1047,
+          1050,
+          1051,
+          1054,
+          1059,
+          1060,
+          1061,
+          1062,
+          1063,
+          1064,
+          1065,
+          1066,
+          1067,
+          1068,
+          1069,
+          1070,
+          1073
+        ],
+        "changed_missing_lines": [
+          1046
+        ],
+        "whole_owner_percent": 59.553831231813774,
+        "official_parent_CTracer": true,
+        "children_attributed": false,
+        "global_coverage_gate_satisfied": false
+      }
+    }
+  },
+  "rollback_guaranteed": false,
+  "scope": "Publisher and Markdown projection modules with synthetic corpus, real filesystem/outbox and controlled denied replacement; native Windows sharing reader in preceding stage",
+  "historical_failures_preserved": true,
+  "native_backend_handoff_accepted": false,
+  "container_owned_removed_and_absent": true,
+  "owned_jobs_terminal": true,
+  "cleanup_confirmed": true,
+  "integration_candidate_promoted": false,
+  "root_promoted": false,
+  "global_product_accepted": false,
+  "receipts": {
+    "green/result.json": "168a15de7df444c2642640f6342fdadc57200f439b1e54325ba8ab3f8221a7b6",
+    "green/junit.xml": "b00ed43ca5b6138899c4b8a8ca2a7ec8cc11eabed7a7ec33a4db0a7b68b7ed47",
+    "linux/payload-output/result.json": "60cadf989ed6bba715e2bdecbbc032c251cc7e4739dd4529a90f90dfd0a719b3",
+    "linux/payload-output/junit.xml": "f37e39dff683c0b10482ca335ddcb97a0971ae7423a03daf5c70ae8a9d7ad1b5",
+    "linux/native-container-evidence.json": "f1f5c1346403e9f5c455e6ea46f895e647773d4b5ebcf66c57f3ebfb5d8de58a"
+  },
+  "prior_evidence_sha256": "6e24f73189e6403a613302441b982be758d5962feb92a000332ffea8f99f4a60"
+}

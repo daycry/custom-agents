@@ -3559,3 +3559,2288 @@ Las regresiones de servidor/controles del panel están incluidas. No hubo nueva 
 - Handoff sellado: `94f985dd8bfd661b4d5bc6503053d0c7829e3421732c118735f3dcfc6d133d46`.
 
 Aceptada la implementación parcial del bloque: lectura documental explícita, selección pura, contexto canónico/deadline, selectores AST, recibos y productor sobre destinos nuevos. La memoria local conserva su disponibilidad sin servicios externos. Queda publicación de la rama; T-07/T-11/T-13/T-14/T-15 siguen abiertas por restore, corpus grandes, continuidad/aprendizaje y demás capacidades. No se declara superioridad experimental, autenticación del productor, atomicidad del par ni prevención de ABA.
+
+
+## Continuación del historial operativo
+
+Los siguientes registros mantienen los bytes originales del ledger antes de su
+reorganización del 2026-10-11. Sus resultados pertenecen al snapshot indicado;
+el estado actual sigue en [tasks.md](tasks.md). Las tablas y resúmenes de revisión
+necesarios para los comandos se conservan también en el ledger.
+
+## Revisión de dos lentes — intento 3: Bloque18 (T-07/T-11/T-13/T-14/T-15) — sin gaps nuevos o reabiertos
+
+Cuatro lentes A+B+C+D de contexto fresco revisaron íntegro el delta de14 archivos/2411 líneas. Se conservaron la tabla completa de20 criterios y las aprobaciones anteriores; ningún gap de producto fue rebatido. Resultado fusionado:0 Critical,0 Important,0 Minor pendientes. Fuente pública congelada:970 archivos,42 cambios; manifest `0ebbb8313c63897d549d015590c22e4047a74e2293946f104412a5ed3e61334e`. Los hashes de producción y pruebas actuales coinciden con esa fuente.
+
+A:34 pruebas/18 subtests y dos payloads UTF-8 exactos; B:76 pruebas/18 subtests; C y D revisión estática. Son cohortes separadas y no se suman. D conserva D1 corregido porque seis módulos pertinentes siguen idénticos. Q1–Q4 conformes; las adiciones Q5 son pertinentes, pero la cobertura final sigue pendiente.
+
+- A: `928b11c378de87c970b5222ba6cb0810bff4a091a2a547b60109b94cf592c973`.
+- B: `0a282ae3c290c4862bb42d39247b791dfb75bf716861942b4676606a0c99737b`.
+- C: `70ab48dee42d341117e239500890488d345dbb982bacccb671cb888354ac079e`.
+- D: `0ab37da41c2702f1fde3133607bd1bdadc21f9206eea8c011b98671c96d56c03`.
+
+Aceptación de revisión, no verde QA. Se preservan los fallos Windows/Linux y los dos gates originales inferiores al90%. Los checkpoints nativos actuales documental y AST siguen siendo pruebas funcionales separadas. Quedan QA completa en ambas plataformas, las dos métricas oficiales>=90% y publicación. Ninguna tarea macro se cierra por esta revisión.
+
+
+Evento de revisión3 ejecutado sobre fixture propia Jira desactivada: exit0,0 operaciones; no se consultó configuración del consumidor ni se publicaron mensajes. Stdout SHA `637579da152352acacb582fde8ae1032ab614bf5ddec25a32b0133caeef6c50f`; ledger propio SHA `ffe1859b2444e8d8757703a76ad94b4337858ecd7288a5a86e56b0badd50ebfa`.
+
+
+## Bloque18 — QA final aceptada y cierre de implementación
+
+Tras el tercer pase independiente sin gaps nuevos o reabiertos, ambas ejecuciones finales terminaron con exit 0, conservando los mismos handles y sin reinicios. La raíz comprobó 172 artefactos sellados y 1.422 filas E43–E47 contra identidad, índice, estado y SHA de seis JUnit reales. Los 21 artefactos originales NO-PASS permanecen intactos.
+
+| Plataforma/cohorte | Passed | Failed | Skipped | Subtests raw |
+|---|---:|---:|---:|---:|
+| windows/local-state | 956 | 0 | 19 | 0 |
+| windows/router-code | 1023 | 0 | 21 | 39 |
+| windows/documental-panel | 539 | 0 | 3 | 6 |
+| linux/local-state | 974 | 0 | 1 | 0 |
+| linux/router-code | 1023 | 0 | 21 | 39 |
+| linux/documental-panel | 541 | 0 | 1 | 6 |
+
+Totales JUnit: Windows 2.518 passed/0 failed/43 skipped; Linux 2.538/0/23. CLI auxiliares: 6 Windows y 8 Linux; los qa-gates incluyen esas CLI y son VERDE. Subtests, plataformas y cohortes históricas no se suman como casos únicos.
+
+| Plataforma | Media de los diez archivos cambiados | Ejecutables añadidas/cambiadas | Gates |
+|---|---:|---:|---|
+| windows | 91.127209834166% | 1255/1333 = 94.14853713428357% | PASS ambos ≥90% |
+| linux | 91.37956456318409% | 1255/1333 = 94.14853713428357% | PASS ambos ≥90% |
+
+Coverage.py oficial y diff OWN del snapshot revisado; sin redondeo para aceptar, sin cambiar selección/umbrales ni asumir cobertura de hijos. Es media por archivo, no afirmación de que cada archivo individual supere el 90%. Lint/evals/export/ledger pasan. coverage-check auxilia solo: defined/referenced vacíos no acreditan cobertura del test-plan macro ni cierran tareas.
+
+Las regresiones de servidor/controles del panel están incluidas. No hubo nueva navegación ni Playwright; Chrome7 anterior sigue siendo checkpoint histórico. Las aceptaciones nativas documental de diez módulos y AST portátil de cinco módulos son evidencia separada vinculada al código actual; no se repitieron modelos durante QA. Los 970 hashes de fuente y copias se conservaron. El contenedor propio Linux fue retirado por ID tras comprobar identidad, con ausencia final confirmada.
+
+- Manifest de revisión y QA: `0ebbb8313c63897d549d015590c22e4047a74e2293946f104412a5ed3e61334e`.
+- Informe final: `086a0ebda26896cdbdc6bbcdd61b076a8ab710efb285aee1b0603d0be7ccda5f`.
+- Evidencia final: `a81d9c399df7f5f0209f974aebaa1ad61a156151775f4172d61974bd20f9541e`.
+- Handoff sellado: `94f985dd8bfd661b4d5bc6503053d0c7829e3421732c118735f3dcfc6d133d46`.
+
+Aceptada la implementación parcial del bloque: lectura documental explícita, selección pura, contexto canónico/deadline, selectores AST, recibos y productor sobre destinos nuevos. La memoria local conserva su disponibilidad sin servicios externos. Publicada la entrega de implementación en la rama; T-07/T-11/T-13/T-14/T-15 siguen abiertas por restore, corpus grandes, continuidad/aprendizaje y demás capacidades. No se declara superioridad experimental, autenticación del productor, atomicidad del par ni prevención de ABA.
+
+## Bloque18 — publicación comprobada
+
+Entrega publicada en `feat/catalog-capabilities`, commit `ded934a70e56508601006a06d52550cbfb7da019`; el SHA remoto observado coincide. Se comprobaron los 43 blobs publicados. Git normalizó CRLF a LF en 13 archivos; los hashes de bytes de la fuente probada se conservan y la evidencia distingue los hashes de blobs publicados. La única diferencia de esos archivos es el fin de línea; los AST de Python y los valores JSON coinciden.
+
+El cierre público conservó 971 archivos, 43 cambios, 214 enlaces locales válidos y 32 destinos del consumidor excluidos antes de leer. La revisión independiente de documentación no dejó gaps; informe SHA `2df7ed67848727ef8e278688f43772bae3e4f1f1a520e79888bfbc18500e5d20`. El historial archivado permanece intacto. El lector real del panel reconoce nuevamente la iniciativa y sus 16 tareas: muestra hasta ocho activas y declara `task_budget` cuando corresponde.
+
+Esta publicación cierra el bloque de implementación, no las tareas macro ni la integración global. Restauración, corpus grandes, continuidad, aprendizaje y las capacidades restantes del panel y comandos siguen pendientes.
+
+## Bloque19 — integración de revisión visual en curso
+
+El [contrato](comparisons/plan-review-integration-contract.md) concreta el diseño elegido de revisión de planes. Alcance: dueño compartido, transporte/UI opt-in y consumo desde la puerta «OK del plan». Las skills y la ampliación de hooks permanecen aplazadas.
+
+La implementación se prepara en fuentes propias aisladas. El candidato del dueño conserva 35 assertions RED previas a sus comportamientos y 46 pruebas GREEN en Windows. Coverage.py mide 384/398 líneas ejecutables, 96.48241206030151%, sin atribuir cobertura de subprocesos. Dos errores del harness por nombres de parámetros demasiado grandes no cuentan como RED. Los tres fallos intermedios de fsync en Windows permanecen en la evidencia y motivaron la corrección del descriptor.
+
+El candidato del panel y la actualización de comandos/documentación avanzan en paralelo. Ningún resultado individual acepta todavía el bloque. Quedan unión real de UI/CLI/puerta, Linux, interacción en navegador, callers de los tres runtimes, revisión independiente y QA del código integrado. No se cierra ninguna tarea macro.
+
+La consolidación aplica fuentes exactas del dueño, transporte/UI y doce archivos de comando/documentación. La comprobación previa a la integración detectó un envío POST en curso que podía acompañarse de un banner incorrecto; cinco RED reales preceden la corrección. La UI corregida pasa 40 casos, incluidos 29 escenarios Node, y conserva el handoff anterior. Estos checkpoints se solapan y no son QA del conjunto.
+
+El comando obtiene ID/versión con `open` antes de iniciar el servidor y registra el runtime actual. Codex y OpenCode regeneran sus proyecciones comunes. La [evidencia de candidatos](testing/plan-review-implementation-evidence.json) conserva límites, fuentes y resultados por componente; revisión independiente, plataformas, navegador y publicación permanecen pendientes.
+
+## Bloque19 — regresiones de normalización antes de corregir
+
+RED: `agent-kits/shared/test_plan_review.py::test_gap_b1_c1_sanitized_plan_is_redacted_before_display` falló porque la vista mostraba un token sintético ensamblado al retirar controles; dos casos · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_gap_b1_c1_comment_roundtrip_keeps_receipts_readable` falló con `unavailable/invalid_state` después de guardar o sellar comentarios aceptados; cuatro casos · 2026-10-09.
+
+RED: `tests/test_panel_review_server.py::test_gap_b1_c1_http_comments_do_not_reveal_tokens_or_poison_state` falló porque la respuesta HTTP contenía el token sintético saneado sin redactar; cuatro casos · 2026-10-09.
+
+Los diez fallos son assertions de regresión en una copia propia, sin errores de colección ni skips. El dueño mantenía su SHA previo `536931b06e6ce0689d7434c0392e4f1517bdcf2ad7281d379d4f3d9ddbaefaff`; stdout RED SHA `731bfd7f9734ac7c475686ec013b03e061661ded001ab2aee20af4029ac27c06`. Esta evidencia precede la corrección y no acepta QA del conjunto.
+
+## Revisión de dos lentes — intento 1: Bloque19 (T-11/T-13/T-14/T-15) — correcciones pendientes de validación
+
+Lentes A+B+C+D sobre 28 archivos y 978 hashes de fuente. C usa el informe estático independiente de reemplazo; su primer informe fue interrumpido por un filtro automático. B conserva un addendum del error de serialización. Tres gaps Important tras fusionar la misma raíz B/C; no hay Critical ni Minor. Ningún resultado de revisión acepta QA.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1 | Important | Faltaba traza RED canónica | T-11/T-13/T-14 | Registrar las observaciones previas existentes, con procedencia | RED por criterio abajo; 35 assertions del dueño, dos errores de harness excluidos; pendiente de validar |
+| A2 | Important | Faltaba salida del check de interop | T-11/T-15 | Registrar exit y stdout del check real | `export-interop --check: 58 ficheros al día`, exit 0; pendiente de validar |
+| BC1 | Important | El saneado posterior a redacción exponía texto y volvía inválido el recibo | T-11/T-13/T-14 | Sanear controles antes de redactar vista y comentarios | Diez RED/GREEN dedicados y 156 vecinos GREEN en Windows; pendiente de validar |
+
+### Observaciones RED previas a la creación y endurecimiento del dueño
+
+RED: `agent-kits/shared/test_plan_review.py::test_raw_view_and_sections_bind_exact_full_redacted_content` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_plan_failures_never_create_authorizing_state` falló con unavailable/missing_owner antes de existir el dueño; 3 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_selection_scope_rejected_before_state` falló con unavailable/missing_owner antes de existir el dueño; 4 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_comments_cas_and_sealed_decision` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_invalid_comments_never_freeze_decision` falló con unavailable/missing_owner antes de existir el dueño; 3 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_receive_keeps_delivery_until_revalidated_idempotent_ack_and_restart` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_changed_plan_blocks_each_decision_boundary_and_retains_old_record` falló con unavailable/missing_owner antes de existir el dueño; 3 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_gate_and_ack_identity_are_not_interchangeable` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_poll_is_read_only_and_unknown_id_has_no_state_effect` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_existing_unowned_state_and_foreign_record_are_preserved` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_state_scope_deadline_and_link_rejections` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_deadline_at_commit_and_fsync_failure_do_not_claim_success` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_record_and_response_budgets_do_not_truncate_or_drop_prior_receipt` falló con unavailable/missing_owner antes de existir el dueño; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_common_cli_pipeline_and_registration_are_runtime_independent` falló con unavailable/missing_owner antes de existir el dueño; 3 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_corrupted_nested_state_cannot_be_served_or_consumed` falló con aceptó estado anidado inválido; 5 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_directory_creation_race_never_adopts_foreign_state` falló con creó marker en un directorio aparecido durante la carrera; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_foreign_record_in_owned_namespace_is_not_adopted_by_new_open` falló con no rechazó el recibo ajeno del namespace; 1 caso(s) · 2026-10-09.
+
+RED: `agent-kits/shared/test_plan_review.py::test_unavailable_plan_serves_history_readonly_and_never_consumes` falló con devolvió review nulo en lugar de conservar hechos históricos; 3 caso(s) · 2026-10-09.
+
+### Observaciones RED del panel y cierre
+
+Los ocho registros siguientes conservan el resumen del autor de sus salidas de herramientas; no se presentan como un stream stdout capturado.
+
+RED: tests/test_panel_review_server.py::test_review_open_and_get_delegate_without_browser_paths failed TypeError create_server() unexpected keyword review_selection · 2026-10-09. Test expresses missing opt-in transport API, production still exact base.
+
+RED: tests/test_panel_review_ui.py::test_review_is_explicit_live_only failed TypeError render_html() unexpected keyword review_enabled · 2026-10-09. Product unchanged before test.
+
+RED: tests/test_panel_review_ui.py::test_review_controller[missing_canonical_history] failed generic unavailable discarded historic consumed receipt · 2026-10-09. Owner contract refinement notified before product adaptation.
+
+RED: tests/test_panel_review_ui.py::test_cli_explicit_gate_selection (None/requested-review/plan-ok) failed missing gate_key and argparse unknownflag · 2026-10-09. Parent authorized minimal --review-gate-key extension.
+
+RED: tests/test_panel_review_server.py::test_comment_budget_maps_to_413_without_owner 2 cases failed 400 != 413 · 2026-10-09. Budget HTTP mapping correction before product fix.
+
+RED: tests/test_panel_review_ui.py::test_review_controller[multiple_comments_same_section_preserved] failed dropping existing-two on save · 2026-10-09. Sharedowner permits unique IDs on one section; transport/UI must preserve rows.
+
+RED: tests/test_panel_review_ui.py::test_review_controller[poll_keeps_comment_editing] failed textarea.disabled true during GETstatus · 2026-10-09. Poll would blur focused editable comment every5s; keep editing while readpoll in-flight, mutatingbuttons disabled.
+
+RED: tests/test_panel_review_ui.py::test_review_controller[unavailable_cannot_enable_current_view] failed enabling approval for contradictory unavailable/current envelope · 2026-10-09. UI must reject incoherent display projection, no receipt-state implementation.
+
+RED: `tests/test_panel_review_ui.py::test_review_controller[close_blocked_during_submit]` falló con `close.disabled false != true` · 2026-10-09.
+
+RED: `tests/test_panel_review_ui.py::test_review_controller[close_blocked_during_comments]` falló con `close.disabled false != true` · 2026-10-09.
+
+RED: `tests/test_panel_review_ui.py::test_review_controller[close_blocked_during_refresh_post]` falló con `close.disabled false != true` · 2026-10-09.
+
+RED: `tests/test_panel_review_ui.py::test_review_controller[close_preserves_sealed_changes_consumed]` falló porque el banner «cerrada sin decidir» descartaba hechos de la decisión sellada · 2026-10-09.
+
+RED: `tests/test_panel_review_ui.py::test_review_controller[close_during_get_preserves_later_known_decision]` falló porque el banner «cerrada sin decidir» descartaba hechos de la decisión sellada · 2026-10-09.
+
+El stdout capturado de estos cinco casos tiene SHA `6561d7793dfe264c9a11ff5e352194df75f82c3b0ddd02187b66c02d5dc886dd`. Los GREEN de componente se solapan y no se suman como QA final.
+
+### Check real y siguiente puerta
+
+`python3 scripts/export-interop.py --check` se ejecutó en la fuente integrada congelada del intento 1: exit 0, stdout `export-interop --check: 58 ficheros al día`, stderr vacío. ROOT y la lente A lo ejecutaron por separado; los 978 hashes permanecieron intactos. Los hashes y límites de los informes figuran en la [evidencia del bloque](testing/plan-review-implementation-evidence.json).
+
+TDD n/a: incorporación de trazas/documentación de A1/A2. La corrección de BC1 tiene sus diez RED antes del cambio y diez GREEN después; la suite vecina pasa 156 casos sin fallos. Falta el segundo pase independiente y QA Windows/Linux, navegador, callers y paquete portable. Todas las tareas macro conservan su estado.
+
+## Revisión de dos lentes — intento 2: Bloque19 (T-11/T-13/T-14/T-15) — implementación aceptada
+
+2026-10-10. Lentes A/B/C/D independientes de contexto fresco, fallback genérico porque el revisor nativo no está disponible. Los informes conservan los criterios aprobados del primer pase y revisan los cinco archivos corregidos; no hay rebatidos. Fuente sellada: 978 archivos públicos, 28 en el diff; manifest SHA `1764fcaa55ddfd015419fa1a74a4c78a7cb8a10f1b48a35b725a3d286bbf84ce`, diff SHA `84d89fed1281c2f9d849a402f847d3d6be89a48a854d592e310109c3d4068ffc`. Los hashes antes/después coinciden. Los tres Important anteriores quedan corregidos y validados; 0 Critical, 0 Important y 0 Minor pendientes.
+
+| Hallazgo anterior | Validación independiente |
+|---|---|
+| A1: trazas RED canónicas | A valida identidades, errores, fecha y procedencia individual; conserva la distinción entre capturas y resumen atribuido del autor. |
+| A2: evidencia interop | A ejecuta un check propio: exit 0, stdout `export-interop --check: 58 ficheros al día`, stderr vacío; 978 hashes intactos. |
+| BC1: saneado antes de redacción | B valida la corrección con 14 pruebas del dueño y 12 probes independientes; C la valida estáticamente con CWE-180/200. No se suma este checkpoint a QA. D conserva su aprobación de rendimiento sin repetir por rutina el benchmark. |
+
+Los SHA de los cuatro informes están en la [evidencia del bloque](testing/plan-review-implementation-evidence.json). El evento de revisión se comprobó en configuración Jira OWN desactivada: exit 0, ops vacías y cero escrituras externas; el error anterior de harness sin `--batch` se conserva. No se leyó configuración consumidora.
+
+QA Windows/Linux está en ejecución sobre la misma fuente revisada: 42 módulos en tres cohortes, dueño/servidor/builder completos, dos gates Coverage.py ≥90% sin redondear y qa-gate oficial desde JUnit real. Esto no declara su resultado. La prueba de navegador abrió la URL loopback sintética, pero Edge mostró «Microsoft Edge ha bloqueado esta página», `ERR_BLOCKED_BY_CLIENT`; cero escenarios UI ejecutados. Se cerraron la pestaña propia y el servidor registrado sin cambiar protecciones. La interacción real y los callers nativos siguen pendientes; todas las tareas macro conservan su estado.
+
+TDD n/a: registro de revisión y resultados de infraestructura, sin cambio de código de producto.
+
+### QA: registro de consola pendiente
+
+La cohorte router/code de Linux terminó con 4 fallos, 1027 passes, 21 skips y 39 subtests reportados por separado. Los cuatro fallos detectan la ausencia del modo del nuevo CLI en la batería de codificación; no se eliminan ni excluyen. Stdout capturado SHA `3ae32f6fa41748d5d593d04cd691df559633342720d128f354c996692ffbd4aa`. La ejecución completa sigue en curso y no tiene aceptación QA.
+
+RED: `tests/test_console_encoding.py::test_arranca_sin_reventar_en_consola_no_utf8[agent-kits/shared/plan-review.py-cp1252]` falló con AssertionError: el nuevo CLI no declara modo en MODOS · 2026-10-10.
+
+RED: `tests/test_console_encoding.py::test_arranca_sin_reventar_en_consola_no_utf8[agent-kits/shared/plan-review.py-ascii]` falló con AssertionError: el nuevo CLI no declara modo en MODOS · 2026-10-10.
+
+RED: `tests/test_console_encoding.py::test_la_salida_sigue_siendo_utf8_no_interrogantes[agent-kits/shared/plan-review.py-cp1252]` falló con KeyError: 'agent-kits/shared/plan-review.py' · 2026-10-10.
+
+RED: `tests/test_console_encoding.py::test_la_salida_sigue_siendo_utf8_no_interrogantes[agent-kits/shared/plan-review.py-ascii]` falló con KeyError: 'agent-kits/shared/plan-review.py' · 2026-10-10.
+
+
+### Corrección del registro de consola
+
+Se integra únicamente `tests/test_console_encoding.py`: añade el modo operacional `open` sobre un plan sintético Unicode y su state-root propio. La ayuda del CLI es ASCII, por eso no sustituye la prueba. No se cambia el dueño ni se excluye ningún caso. Antes del cambio, el autor reproduce los cuatro RED sobre la misma fuente; después, los cuatro casos pasan y la batería completa de consola pasa 530 casos en Windows. Es un checkpoint del autor, sin aceptación QA global ni suma con los casos anteriores. Stdout de la batería SHA `cd221e07f1f1e4f7f2db47140105f122b9f91ac6c68d33d906279186eda29724`; informe SHA `83764b23d2dfb0384c3c7b62f843195e73484ffdb9827680607f0233170c7a68`.
+
+La primera ejecución Linux conserva sus fallos y el cleanup del contenedor OWN confirmado. El auxiliar de comando falla por el alias privado `utf8-sig`; el recolector se detiene porque `test_mermaid_blocks.py` es una guarda CLI sin casos pytest. Se preparan correcciones privadas y una ejecución explícita de esa guarda, manteniendo las otras 41 selecciones pytest y los 29 escenarios Node obligatorios. No se borran ni convierten los resultados anteriores en verdes. Falta el tercer pase sobre este delta y QA reparada; navegador y callers siguen pendientes.
+
+## Revisión de dos lentes — intento 3: Bloque19 (T-11/T-13/T-14/T-15) — sin gaps pendientes
+
+2026-10-10. Lentes A+B+C+D de contexto fresco, fallback genérico por revisor nativo no disponible, sin override de modelo. Se conservan todos los criterios y aprobaciones anteriores; el delta revisado contiene registro de consola y dos archivos de evidencia. Los otros 975 archivos, incluida toda producción, conservan sus bytes. Fuente sellada: 978 archivos, 29 en el diff; manifest `834bb1e2050939a9ca6336cd9923e65fe58d0ced1209169e9b2ba2491b7d3d62`, diff `5259c025108e39b807fb3f8b3d90d682cc19d3efe18c97623258d759cfb011a7`. ROOT verifica informes, artefactos declarados y coincidencia de fuente con el árbol. Resultado: 0 Critical, 0 Important, 0 Minor pendientes; ningún gap rebatido o convertido en deuda.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1 | Important histórico | Trazas RED canónicas | T-11/T-13/T-14 | Corregida en R2, conservada | A mantiene IDs, errores, fechas y procedencias individuales. |
+| A2 | Important histórico | Prueba de exports en ledger | T-11/T-15 | Corregida en R2, conservada | A3 ejecuta check propio: exit 0, stdout `export-interop --check: 58 ficheros al día`, stderr vacío; 978 hashes intactos. |
+| BC1 | Important histórico | Normalización después de redacción | T-11/T-13 | Corregida en R2, conservada | Dueño y regresiones mantienen bytes aprobados; B/C no encuentran evidencia de reapertura. |
+| Consola | Fallo QA de registro | Cuatro casos cp1252/ascii sin modo para el dueño | T-11/T-14/T-15 | Registro operacional con fixture Unicode propia | A valida traza RED previa y límites; B verifica cuatro casos y dos probes de pipes, sin sustituir QA. C/D no encuentran vulnerabilidad o carga nueva. |
+
+Los SHA de A/B/C/D están en la [evidencia del bloque](testing/plan-review-implementation-evidence.json). Los siete gates previos pasan; no son aceptación de QA, navegador ni callers nativos. Ninguna tarea macro cambia de estado. TDD n/a para este registro de resultados; el RED/GREEN del registro de consola permanece separado.
+
+### QA original terminada — resultados conservados como NO-PASS
+
+| Plataforma | Passed | Failed | Skipped | Subtests separados |
+|---|---:|---:|---:|---:|
+| Windows | 2678 | 4 | 43 | 45 |
+| Linux | 2698 | 4 | 23 | 45 |
+
+Las dos ejecuciones originales terminaron con exit 1. Los cuatro fallos de consola son reales y preceden la corrección revisada. Además, el checker privado usó un alias de codec inválido y la selección incluyó Mermaid, script standalone sin casos pytest: falta su ejecución CLI, no se omite su guard. Windows detectó seis consultas de registro de Codex que el stub OWN bloqueó con exit 97; Linux no tuvo intentos. No se ejecutó el CLI real ni se accedió al registro consumidor. La causa estática liga tres modos de doctor por dos codecs y diferente materialización del CODEX_HOME temporal; los logs originales no permiten atribución individual por PID.
+
+Los runners se detuvieron antes de qa-gate, los gates finales de cobertura y los hashes posteriores. Existen CoverageJSON y JUnit reales, pero no se atribuye al primer intento verificación que no ejecutó. Los checks portable pasaron con seis casos por plataforma sobre CLI común y etiquetas de runtime; no prueban tres hosts nativos. El contenedor Linux propio fue retirado por ID con ausencia confirmada. Los seis XML, logs, fallos y pruebas auxiliares permanecen intactos.
+
+La siguiente ejecución repara sólo consola y auxiliares defectuosos/faltantes, con agregación explícita de procedencias y conservación de resultados originales. La producción no ha cambiado. La aceptación de navegador y de callers nativos permanece pendiente; no se convierten Node/HTTP o etiquetas de runtime en evidencia equivalente.
+
+Evento revisión3 sobre fixture Jira OWN desactivada: exit 0, ops vacías, cero escrituras externas. Stdout SHA `6a946c3fa6a690ce2f112293593f78e69ac1329c2078d0764af8ee13bc9f5f35`; ledger propio SHA `08cb5e81daebd124ddb58c5e8adfaa30b6c091ae51ec293eb9627f4207a2a8ad`.
+
+### Bloque19 — referencia documental de los comandos
+
+La comprobación independiente del puente documental detectó un Minor: el enlace relativo al panel era válido en el comando canónico, pero apuntaba a carpetas inexistentes en las dos proyecciones generadas. Se conserva el resultado original 70/72. La política de exports conserva el cuerpo canónico sin transformar rutas; por eso se sustituyó una única línea de documentación por la referencia explícita a `docs/PLUGIN-PANEL.md` en la documentación del plugin, y se regeneraron las dos copias. No se modificó el exporter ni ninguna instrucción del workflow.
+
+La comparación de bytes verifica una única sustitución por archivo y el contrato funcional de revisión visual idéntico. Generación y check de exports: exit 0; enlaces restantes 69/69, más tres referencias explícitas al documento existente. El recuento baja en tres porque se retiraron el enlace canónico válido y las dos copias inválidas. El informe inicial y sus fallos permanecen intactos. Esta corrección de prosa no reabre la implementación aceptada ni acredita QA, navegador, callers nativos o cierre macro. TDD n/a: prosa y proyecciones generadas.
+
+QA incremental iniciada Windows/Linux sobre fuente834 aceptada, en destinos OWN nuevos. Se ejecutan consola completa de 530 IDs y auxiliares defectuosos/faltantes; se retienen JUnit/coverage/portable válidos con cierre de dependencias y sustitución explícita por IDs. Stub de registro Codex cerrado y sintético, con manifest real/argv/cwd/hash/PID; no hay CLI nativo real. Runner SHA `d91d1ae2da7e250ce5e69d52e93bbfbff31c9eeaeb036fbfbc018ad7782924f1`; receta SHA `1225502c57d4d4cb9e1ce9ef7b856b19fee29daa9c2b76c84fcfbe71d4ac71e0`. La ejecución está en curso y todavía no se declara verde. El puente documental posterior de cinco archivos queda separado de la fuente QA sellada.
+
+La primera repetición incremental terminó con exit 1 en ambas plataformas antes de tests o creación de contenedor: el PATH necesario de Node contiene también un CLI OpenCode real y el preflight estricto lo rechazó. Cero pruebas ejecutadas y cero CLI nativos lanzados. Se conservan los resultados terminales y las copias/hashes previos; al ocurrir antes del try/finally del runner, la traza se atribuye al tool y no a un log generado por el runner. Se prepara un OWN nuevo con Node existente copiado y ligado por hash a un bin aislado; no se amplía PATH ni se elimina el guard. No es un fallo nuevo del producto ni aceptación QA.
+
+Nueva QA incremental iniciada Windows/Linux con copia OWN byte exacta del Node existente en directorio aislado; el rechazo previo del PATH y los fallos originales quedan conservados. Se mantiene la misma selección, fuente834, receta y guard estricto. Runner SHA `349014078051da28600152686c36022cb820aa242f5157d382940dec7a03dda8`; receta SHA `1225502c57d4d4cb9e1ce9ef7b856b19fee29daa9c2b76c84fcfbe71d4ac71e0`. Handles reales observados; ninguna aceptación QA se declara mientras están en curso. El puente documental posterior sigue separado.
+
+La QA Node aislada termina Windows exit 0 (veredicto del runner, pendiente de comprobación ROOT) y Linux exit 1 tras consola completa exit 0 y auxiliares exit 0. El assert de fixture cerrada detecta cero llamadas: el stub Linux escrito desde Windows conserva shebang CRLF y no puede ejecutar `/bin/sh`; no se retira ese assert. Se conserva el fallo, los hashes y la retirada por identidad del contenedor propio. Se prepara únicamente corrección LF del harness para Linux, con candidata Windows retenida bajo puente explícito del cambio de rama; aún no hay aceptación QA global.
+
+Corrección auxiliar LF adoptada en OWN nuevo y QA Linux iniciada con handle real1422. La comparación reversible demuestra que sólo cambian escritor/assert del stub Linux y nombre del contenedor propio; cuerpo Windows, fuente834, receta y proofs siguen exactos. Se retiene la candidata Windows terminal0 sin repetición rutinaria, pendiente de verificador completo por plataforma. Runner Linux SHA `b5dbcbedb5db0edc94d88d583806cd22c8904949133dd41c7ddba0d68f20d76e`; pointer SHA `51cdf42e13161bd3a159be9a2ab27d3e464bcb5b32952358f2dee81c408eedb7`. Se conserva el assert de llamadas CLOSED y toda evidencia NO-PASS previa.
+
+QA de implementación del Bloque19 aceptada por ROOT tras comprobar íntegramente artefactos, procedencia y gate oficial de ambos OS sobre fuente834: Windows2682 passed/0 failed/43 skipped y Linux2702 passed/0 failed/23 skipped;2725 casos JUnit únicos por OS. Los530 casos de consola sustituyen sus mismos IDs anteriores;45 subtests crudos van aparte y29 casos Node ya están incluidos. El gate oficial incluye10/14 auxiliares adicionales y sale VERDE. Coverage oficial retenida bajo hashes/diff idénticos: media3 Windows96.31596814342258% y Linux96.62560154100005%;líneas ejecutables cambiadas515/532 y518/532, con umbral calculado sin redondeo. Seis llamadas mock cerradas por OS y cero CLI nativos reales. Windows se retiene con puente de harness que sólo modifica LF/nombre de contenedor en rama Linux; original NO-PASS, preflight y fallo shebang quedan intactos. Cleanup Linux por ID/imagen/label/network y ausencia verificados. Recibo QA SHA `8168de7023e9fc6685d61ca9a56e525a4c6b6966ac2f005e3ab572facd5489fc`; verificador SHA `020fd4370de91804c0cc81ee1905387f2a3ab8ad791de1a147f73635bac93c5c`. Navegador real, tres hosts nativos, cobertura macro y cierre global siguen pendientes; el puente final documental/metadatos se valida por separado antes de publicación.
+
+
+## BLOQUE20 — conservación y recuperación de memoria local
+
+Contrato propuesto: [memoria local y recuperación](comparisons/memory-local-recovery-contract.md). Define doce oráculos N01–N09: conservación canónica y colas, caché ausente/corrupta, cuatro fronteras de corte, reintento de manifiesto, restauración quiescente, autoridad, lectura offline y scope/redacción. Añade la regresión del parser para enlaces inline entrecomillados, sin sustituir la fixture por bloques.
+
+Evidencia de aceptación: `UNKNOWN`. Preservar cada ejecución fallida y su clasificación, fuente/Gold/recipe/harness, JUnit y auditorías. El RED/GREEN del autor acredita la regresión específica; ROOT requiere ejecución congelada Windows/Linux y puertas pertinentes antes de aceptar el bloque. Ningún resultado anterior se reutiliza como PASS de recuperación.
+
+| Macro existente | Trabajo del bloque |
+|---|---|
+| T-07 | Documentar límites de persistencia y recuperación frente a eficacia de consulta ya medida. |
+| T-08 | Mantener corpus y colas locales como autoridad; caché reconstruible y contrato de publicación/idempotencia. |
+| T-09 | Verificar captura confirmada, barreras y cleanup por identidad, sin añadir hooks o hosts. |
+| T-11 | Conservar handoffs y aprobación actuales; legacy, propuesta y aprobado mantienen estados distintos. |
+| T-13 | Vincular la guía de consulta a conservación/recuperación y estados parciales; consultar no restaura. |
+| T-14 | Revisar regresión y doce casos obligatorios, cobertura oficial del diff y qa-gate; guardar fallos de infraestructura aparte. |
+| T-15 | Integrar contrato y enlaces breves en guías propietarias; verificar enlaces y exportaciones afectadas. |
+| T-16 | Incorporar evidencia sólo tras aceptación real del bloque; mantener pendiente el cierre de la iniciativa. |
+
+Esta inserción no crea una tarea macro ni modifica los dieciséis campos `Estado`, dependencias o porcentajes. Mantener sólo T-01 completado y conservar todos los pendientes nativos, de escala y aprendizaje restantes.
+
+### Corrección del lector y preparación reproducible
+
+2026-10-10. Se integra la normalización compartida de listas YAML simples: retira una sola pareja de comillas coincidentes y conserva valores mal formados para su rechazo. No añade un parser YAML completo. La fixture entrecomillada original se conserva.
+
+El autor observó 6 failed/7 passed antes del cambio y 13 passed después sobre los mismos IDs. El pase final de documentación volvió a ejecutar esos 13 IDs; no se suma como 26 pruebas distintas ni acepta QA global. JUnit RED SHA `bec970d45bab216aebe71e025ce9dd0f3430b587883a810f96987ed9c2fe9a78`; JUnit final GREEN SHA `eef0f24d7551ad3f9d58ac479c0ec31330b6acdf3ee0d21ed154aa295bd18d45`. ROOT verificó artefactos y adoptó los dos archivos exactos del autor.
+
+RED: `tests/test_knowledge_approved_retrieval.py::test_quoted_links_regression_same_identity_related_and_readonly[double]` falló con AssertionError: show devolvió partial en lugar de ok · 2026-10-10 (ejecución del autor, JUnit conservado).
+
+RED: `tests/test_knowledge_approved_retrieval.py::test_quoted_links_regression_same_identity_related_and_readonly[single]` falló con AssertionError: show devolvió partial en lugar de ok · 2026-10-10 (ejecución del autor, JUnit conservado).
+
+RED: `tests/test_knowledge_approved_retrieval.py::test_quoted_links_regression_same_identity_related_and_readonly[mixed-whitespace]` falló con AssertionError: show devolvió partial en lugar de ok · 2026-10-10 (ejecución del autor, JUnit conservado).
+
+RED: `tests/test_knowledge_approved_retrieval.py::test_quoted_links_regression_unknown_or_malformed_fail_closed[unmatched-block]` falló con AssertionError: show aceptó comillas mal formadas y devolvió ok en lugar de partial · 2026-10-10 (ejecución del autor, JUnit conservado).
+
+RED: `tests/test_knowledge_approved_retrieval.py::test_quoted_links_regression_unknown_or_malformed_fail_closed[mismatched-block]` falló con AssertionError: show aceptó comillas mal formadas y devolvió ok en lugar de partial · 2026-10-10 (ejecución del autor, JUnit conservado).
+
+RED: `tests/test_knowledge_approved_retrieval.py::test_quoted_links_regression_unknown_or_malformed_fail_closed[extra-quote-block]` falló con AssertionError: show aceptó comillas mal formadas y devolvió ok en lugar de partial · 2026-10-10 (ejecución del autor, JUnit conservado).
+
+El primer drill Windows terminó 12 failed antes de ejecutar producto por identidad del launcher venv. La corrección usa el intérprete base y mantiene PID/ppid/nonce estrictos. El segundo terminó 2 passed/10 failed: siete por clasificación del argv Git auditado en Windows y tres por corpus aprobado parcial causado por enlaces entrecomillados. Ambos resultados NO-PASS permanecen conservados. El probe stdlib bloqueó las cuatro llamadas antes de crear procesos y distinguió las dos consultas Git exactas de las dos ajenas.
+
+La batería pública copia sólo quince inputs de producto declarados a un directorio pytest propio, sin configuración o memoria del consumidor. Conserva doce IDs, nueve grupos, Gold, barreras y límites; registra el argv auditado y exige corpus completo al reconstruir la caché. Está preparada, todavía sin ejecución ni aceptación Windows/Linux. Revisión independiente, cobertura oficial, qa-gate y documentación humana final siguen pendientes. No se reabre QA19 ni cambia ningún estado macro.
+
+
+## Revisión de dos lentes — intento 1: Bloque20 (T-08/T-09/T-14/T-15) — dos gaps pendientes
+
+2026-10-10. Lentes A+B de contexto fresco, fallback genérico por revisor nativo no disponible, sin override. Selector sobre el diff real: C=false/D=false, sin avisos. Scope oficial exit0:16 archivos en alcance, cero fuera/exclusiones del usuario/avisos. Ledger-lint:0 incoherencias/0 avisos. Fuente983 y diff sellados; ambos revisores comprobaron983 hashes antes/después. No ejecutaron pruebas ni producto. Se conservan QA19 y todos los criterios aprobados anteriores; no se cierra ninguna macro.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1 | Important | El contrato no distingue el plazo de admisión de420s de una duración total | T-09/T-14/T-15 | Se aclaran admisión, barrera25s, finalización30s y recogida5s; pendiente validación independiente | Contrato:50 y harness:257/290/312/419 en fuente revisada. |
+| AB1 (A2/B1) | Important | Resolver antes de rechazar oculta raíces/ancestros enlazados y destinos colgantes dentro de OWN | T-08/T-09/T-14 | Corrección y regresión del soporte sintético en curso; no se afirma fallo de backup de producto | protocol.py:34/132/184; ningún caso nuevo ejecutado aún. |
+
+Fusión ROOT tras leer ambos informes completos y verificar sus hashes:0 Critical,2 Important,0 Minor; no hay rebatidos ni deuda aceptada. Los informes y límites quedan en la [evidencia del bloque](testing/memory-local-recovery-review-evidence.json). El fallo del auxiliar ROOT que esperaba una lista de exclusiones, en lugar del objeto vacío oficial, se conserva: scope había salido0; no fue un gap del producto ni una prueba ejecutada. Su finalizador verificó nuevamente fuente, diff y salidas oficiales. El intento de registro del revisor A dejó un directorio vacío; se conserva y no se usó para evidencia ni producto.
+
+La revisión sigue acotada a tres intentos para este bloque. La corrección del parser mantiene su GREEN de autor separado; las doce pruebas integradas y los gates de cobertura/QA continúan pendientes. TDD n/a: registro de revisión y precisión documental del plazo; la regresión del protocolo debe observar RED antes de corregirlo.
+
+Evento `gaps`, intento1, actor reviewer, sobre copia de ledger y configuración Jira sintética desactivada: exit0, ops vacías y cero escrituras externas. Stdout SHA `4670c8e70e35284c0d4d764edd464ad73279c3f0d9f2885623a3e6e7976fcdae`. No se leyó configuración consumidora.
+
+### Correcciones preparadas para revisión 2
+
+2026-10-10. ROOT adoptó el rechazo léxico de enlaces/reparse points antes de resolver raíces, hojas y ancestros en el soporte de backup/restauración sintético. No se añade un CLI de backup de producto. Se conserva la contención posterior y todos los oráculos/budgets. La precisión documental distingue el plazo de admisión de420s de la duración total. Ambos gaps esperan revisión independiente; la tabla anterior conserva el estado observado en intento1.
+
+RED: `tests/test_memory_local_recovery_protocol.py::test_reject_path_alias_before_mutation[source-leaf]` falló con AssertionError: alias operation changed source/backup/destination/staging/link evidence · 2026-10-10.
+
+RED: `tests/test_memory_local_recovery_protocol.py::test_reject_path_alias_before_mutation[source-ancestor]` falló con AssertionError: alias operation changed source/backup/destination/staging/link evidence · 2026-10-10.
+
+RED: `tests/test_memory_local_recovery_protocol.py::test_reject_path_alias_before_mutation[snapshot-leaf]` falló con AssertionError: alias operation changed source/backup/destination/staging/link evidence · 2026-10-10.
+
+RED: `tests/test_memory_local_recovery_protocol.py::test_reject_path_alias_before_mutation[snapshot-ancestor]` falló con AssertionError: alias operation changed source/backup/destination/staging/link evidence · 2026-10-10.
+
+RED: `tests/test_memory_local_recovery_protocol.py::test_reject_path_alias_before_mutation[target-dangling-leaf]` falló con AssertionError: alias operation changed source/backup/destination/staging/link evidence · 2026-10-10.
+
+RED: `tests/test_memory_local_recovery_protocol.py::test_reject_path_alias_before_mutation[target-ancestor]` falló con AssertionError: alias operation changed source/backup/destination/staging/link evidence · 2026-10-10.
+
+Autor:6 failed antes/6 passed después, mismos IDs y bytes; doce junctions nativas creadas con exit0. Cada GREEN rechaza antes de mutar y mantiene idéntico el árbol completo de fixture. ROOT verificó124 artefactos y fuente983 intacta, JUnit, registros/argv/PID y árboles de ambos pases. JUnit RED SHA `b30090d9c71dfdccf03989975a059a925d9f254bf7a5fb85e124cdd81836d68f`; GREEN SHA `03f7822f233c60e8b3ae61eb61d43a173d7ba82a2edd9be48b5f78462aee9c59`. Este checkpoint no acepta las doce pruebas de recuperación ni QA global. POSIX sigue sin ejecutar; macros y QA19 intactos.
+
+
+## Revisión de dos lentes — intento 2: Bloque20 (T-08/T-09/T-14/T-15) — sin gaps pendientes
+
+2026-10-10. A+B frescos, fallback genérico sin override. Ambos informes completos y sus verificaciones se contrastaron por ROOT; fuente985 idéntica antes/después, FULL18 diff, scope/selector/ledger oficiales exit0 y cero avisos/exclusiones. C=false/D=false. Se conserva el traspaso R1 íntegro, sin reabrir aprobados, sin rebatidos ni deuda.
+
+| # | Grado previo | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1 | Important | Plazo de admisión ambiguo | T-09/T-14/T-15 | Corregido: contrato precisa420s de admisión y25/30/5 propios; no promete duración total | A2 contrato:50–55, harness:257/290/312/377/405/419. |
+| AB1 (A2/B1) | Important | Alias oculto por resolve anterior al rechazo | T-08/T-09/T-14 | Corregido: lstat léxico de hojas y ancestros antes de resolve; seis regresiones dedicadas preservan árbol completo | A2/B2 protocol:34–49; test_protocol:102–156; RED/GREEN de autor conservados. |
+
+Fusión actual:0 Critical/0 Important/0 Minor. Recibo de revisión SHA `5138f50080b1692824607fb4cb3639b23d656820f2f590c8164728a71b428608`. La aceptación integrada sigue UNKNOWN: faltan Windows/Linux, cobertura oficial y qa-gate. No se ejecutaron pruebas de producto durante revisión. Los estados macro y QA19 permanecen intactos. TDD n/a: esta traza de revisión.
+
+Evento revision/intento2/reviewer en ledger OWN y configuración Jira sintética desactivada: exit0, ops vacías, cero escrituras externas; stdout SHA `1fe31f91295d3d44feca55cd302ee205d555208176ae133ce7bfb0d1095568c2`. Ninguna configuración consumidora leída.
+
+### QA Windows aceptada; diagnóstico Linux abierto
+
+2026-10-10. ROOT verificó la cohorte Windows congelada R2:528 IDs únicos,514 passed/0 failed/14 skipped. Los doce casos de recuperación y seis guardias de rutas pasaron sin skips. Se contrastaron fuente985, receta, revisión, JUnit, colección, setenta hijos, cinco cortes observados, fallo de manifiesto y auditorías contra los artefactos reales. Cobertura oficial del lector cambiado:212/235 líneas ejecutables y7/7 cambiadas, ambas por encima del umbral90% sin redondeo. El qa-gate oficial salió VERDE, exit0. Recibo Windows SHA `1926ac57e71cb1a25e8a9927dfc1b37c8e5d2bc6469bea0204256fed6a30f6b7`; no acredita Linux ni aceptación integrada.
+
+La ejecución Linux con captura FD terminó antes de recoger casos por ENOENT al truncar el temporal de pytest; sus tres cohortes vacías y cleanup verificado se conservan. Una nueva ejecución con captura sys mantiene fuente, Gold y oráculos intactos. Su cohorte de recuperación terminó4 passed/8 failed: los ocho fallos ocurrieron al verificar la copia, antes de restaurar; las otras cohortes aún estaban en curso al registrar este checkpoint.
+
+Un probe ROOT de sólo lectura dentro del contenedor propio confirmó124 archivos con bytes/SHA256/modos iguales y fuentes estables durante la observación, pero fechas de copia truncadas a segundos enteros. Recibo diagnóstico SHA `76c59b8757a411a24d5c08c939f74a3dcfda3b8a9a10f9117ab7c9cf4739eb1b`. Es una observación posterior de fixtures, no el inventario histórico ni una reproducción sobre filesystem nativo. Se conserva cada fallo y se prepara esa reproducción mínima antes de otra batería Linux. No se redondean expectativas ni se cambia el producto para ocultar diferencias de infraestructura. La aceptación integrada sigue UNKNOWN; QA19 y los dieciséis estados macro permanecen intactos. TDD n/a: registro de evidencia observada.
+
+La ejecución sys terminó con528 IDs:516 passed/12 failed/0 skipped. Los510 vecinos pasaron; fallaron ocho casos de recuperación y cuatro guardias al preparar su copia, todos en el mismo oráculo de metadatos. Cobertura212/235 y7/7 cambió correctamente, pero no convierte los fallos en aceptación. Fuente985/proofs permanecieron idénticos y el contenedor propio fue retirado por identidad con ausencia verificada. El índice final del harness host falló después de esos recibos al acceder a un symlink nativo desde Windows; se conservan XML, logs, fixtures y fallo original sin afirmar un índice completo.
+
+La reproducción mínima ROOT conserva exactamente bytes y modos: cuatro copias con fecha natural pierden su fracción de segundo en el bind Windows; doce copias en tmpfs nativo conservan el inventario exacto, incluidas ocho solicitudes de fecha controlada y doce de modo. No ejecuta producto ni sustituye pruebas de recuperación. Recibo SHA `d896c198e8a09fe7fc420b07337db1c69b52efabbaecf02b80f387192e3a7ddd`; cleanup exacto y ausencia verificados. Un primer guard del auxiliar exigió tmpfs en `Mounts`, aunque Docker lo declara en `HostConfig.Tmpfs`; se conserva el fallo previo a start y se reanudó el mismo contenedor OWN registrado tras verificar ambas representaciones. No hubo ejecución previa del probe ni reinicio de pytest.
+
+La nueva receta privada conserva los oráculos y separa runtime Linux nativo de outputs durables del host. Requiere revisión independiente, precondición de filesystem y archivo completo verificado antes del cleanup. Su preparación no acepta el bloque ni modifica producto, Gold, QA19 o estados macro.
+
+La receta privada V5 fue aceptada estáticamente por A+B y ROOT selló su adopción y la precondición real de filesystem. La ejecución nativa terminó con528 passed/0 failed/0 skipped: doce de recuperación, seis guardias y510 vecinos. El gate original salió1 por el recolector privado: su glob contó tanto el directorio real `memory-local-recovery0` como el alias symlink `memory-local-recoverycurrent` de pytest. El manifiesto archivado confirma ambas rutas. Este resultado original permanece NO-PASS; no se corrigen retrospectivamente su gate ni su verdict.
+
+Antes del cleanup se verificó independientemente el archivo completo:8820 entradas,3999 archivos regulares y12031578 bytes, sin extracción y con grafo de enlaces/framing validados. Archivo SHA `1e2b9fee3fbbc3bd6315af5e3ef5cc4188da45fead2234ec90e0c1bbbb47346b`; manifiesto SHA `e7320fc98c4239fb3f65465f7170e0d332b58cbdcef5ee36d7b287742d9ad833`. Cleanup por identidad y ausencia verificados; fuente985 y pruebas de cierre intactas. Se prepara una verificación ROOT correctiva sobre esos mismos artefactos, con selección del directorio real y comprobación completa de hijos, antes de aplicar un nuevo gate oficial. No se repiten tests, no se cambia producto/Gold y la aceptación integrada sigue UNKNOWN.
+
+### QA correctiva Linux y aceptación ROOT únicamente del Bloque20
+
+2026-10-10. La verificación ROOT correctiva terminó exit 0 sobre los mismos artefactos terminales archivados, sin repetir producto ni tests: 528 IDs únicos, 528 passed/0 failed/0 skipped; doce casos de recuperación, seis guardias y 510 vecinos. Comprueba 70 hijos, cinco cortes, un fallo de manifiesto, diez ACK y nueve snapshots (ocho íntegros y uno alterado de forma controlada), además de seis symlinks POSIX de las guardias. Fuente 985 y proofs antes/después siguen exactos. Coverage oficial conserva 212/235 líneas ejecutables y 7/7 cambiadas, con umbral 90% calculado sin redondeo y sin inferir cobertura de hijos aislados.
+
+El NUEVO qa-gate oficial usa input SHA `11ea4c501210e41ad1504e72100c8cd433656afa253369f1810e022b9fb287d4` y termina VERDE/exit 0; stdout SHA `7f6a9b5cac5255a9481fd8d3cb72ce8801b7106339ea632406950dfde4be1acc`. Recibo correctivo SHA `924702a0e036de50387c78720f8a539d074268eaf8ac98fd6a5addbfab08b072`. No cambia el gate 1, el verdict NO-PASS ni los UNKNOWN históricos del recolector original; tampoco los dos primeros fallos Linux o sus probes.
+
+ROOT acepta únicamente el Bloque20 mediante recibo de publicación SHA `2908cafc8e0cc6be599b0b0ffe01d304f514f8dc172d598358a3de9bfd545761`, ligado a la aceptación detallada SHA `3ddeb5bf89562e3fced0e7edd6e9f66761822d1a118883870d364f9508a07e95`, R2/fuente 985 y los receipts Windows/Linux reales. Windows se retiene514 passed/0 failed/14 skipped; los 18 casos obligatorios pasaron sin skips en ambos OS, sin sumar cohortes ni repetir Windows. Los dieciséis estados macro y QA19 permanecen intactos; cierre global, tres hosts nativos, escala y eficacia comparativa conservan sus pendientes. La validación documental/metadatos final y commit/push de la rama siguen pendientes. TDD n/a: puente documental de resultados y aceptación, sin algoritmo público nuevo.
+
+### Puente documental de publicación: enlaces históricos
+
+El primer preflight de publicación terminó exit 1 antes de ejecutar los cinco gates estáticos. Detectó 28 enlaces históricos del changelog a directorios de conocimiento no versionados en la distribución (14 por idioma). Se conservan el fallo y su informe; no se leyó configuración ni corpus. Los IDs ADR/LES/GOT permanecen como referencias textuales, con una nota de distribución. Esta corrección documental conserva los siete archivos de código/test/Gold de R2 y no reabre QA19/QA20. La siguiente validación usa un OWN nuevo y el mismo auxiliar sellado; no se convierte el primer resultado en verde.
+
+El segundo preflight terminó exit 1 en la preparación Git aislada, antes de los cinco gates oficiales. El escritor privado de alternates generó CRLF y Git conservó el carriage return como parte de la ruta de objects: los bytes terminan en 0d0a; recortar sólo LF no encuentra la ruta, recortar CRLF sí. Se conserva la salida terminal y el OWN completo. La corrección privada escribe bytes UTF-8 con LF literal y ruta POSIX, sin cambiar checks, producto, tests, Gold o receipts de QA. El gate de publicación aún requiere una ejecución nueva real sobre la fuente actual.
+
+El tercer preflight terminó exit 1 antes de los cinco gates: el índice Git nuevo del OWN comparó archivos CRLF sin la conversión de texto. Una comprobación de status en ese mismo OWN, con core.autocrlf=true y configuración global/system NUL, devuelve exactamente los 18 archivos esperados; no modifica la fuente pública. La corrección privada configura la conversión exclusivamente en el Git local del OWN, conservando hashes crudos, filtros, exact18 y ROOT intactos. Los tres preflights originales siguen como fallos históricos, distintos de la QA de recuperación ya aceptada.
+
+### Publicación observada de la implementación del Bloque20
+
+2026-10-10. El cuarto preflight termina exit 0: lint de plugin, interop, evals estáticas, scope exacto de 18 archivos y ledger pasan sus cinco gates. Conserva 985 fuentes antes/después, siete archivos de código/test/Gold iguales a R2, prefijo de las dieciséis macros intacto y cero referencias de origen en los 18 archivos examinados. Lint conserva cuatro avisos existentes; no se ocultan ni se convierten en errores. Recibo estático SHA `6487a748212e007e205d814e9e0b631df269135b098e7947bb88fbca0e7688d1`; manifiesto actual SHA `d828550347c7947f6ecbcf0c88a930b6767c0531d4c1b73949d884f28c11596d`.
+
+Commit de implementación `1f47fbf61261f4bb62282d0e9a8252a80d7bb6c2` publicado en `feat/catalog-capabilities`: push real seguido de comprobación remota devuelve ese mismo HEAD. Este cierre documental registra la primera publicación ya observada; su propio push se verifica posteriormente. Bloque20 aceptado y entregado; no declara cierre global, cambia estados macro, reabre QA19 ni acredita los tres clientes nativos, escala o eficacia comparativa. Las skills siguen aplazadas. TDD n/a: documentación de evidencia observada.
+
+### BLOQUE21 — Caller portable de revisión visual y aceptación nativa
+
+2026-10-10. Publicación del cierre documental del Bloque20 verificada en el remoto mediante HEAD `bd0ffb0a59f117cca30e968da4ceb0e4411a3783`. Es la base de esta entrega T-05/T-11/T-13/T-14/T-15, sin modificar las dieciséis macros ni reabrir QA19/20. Sigue el [contrato de caller portable](comparisons/plan-review-portable-caller-contract.md), conservando owner, estado y puerta plan-ok existentes.
+
+El caller anterior sólo mostraba Bash y buscaba dueño/builder por separado. Las recetas nuevas permiten Bash/PowerShell con Python explícito real, seis raíces con precedencia, bundle común y rechazo de ambigüedad. Open precede su validación; el servidor conserva un handle separado. Receive, ack y view mantienen las validaciones de puerta, versión y consumo anteriores; no se interpretan comentarios como shell ni se inicia trabajo porque un proceso sale0.
+
+RED: los diez casos iniciales fallaron por falta de recetas ejecutables únicas en el comando canónico, exit1/JUnit SHA `221fb016ab393890ca996e1413de52b41d77f9db8cca3378516a5ea5f321efb0` · 2026-10-10. GREEN: esos diez pasan tras el cambio, exit0/JUnit SHA `d327a0b5df17f42ed83ff5b68b63ac998c1f44ca73c37453b76b8e30e34197f6`. La ampliación a seis raíces y fallo de open termina24 passed/0 failed/0 skipped en Windows: doce Bash real y doce PowerShell, sin hosts nativos, navegador o modelos. JUnit SHA `beff581c108f8a291b0a0d39d87898c85ec5e534a7317a0b9a4e3c1200560e11`; el auxiliar conservó metadata expected10 del piloto, pero colección/JUnit reales tienen24, declarado sin alterar el intent original.
+
+La [evidencia del caller](testing/plan-review-portable-caller-evidence.json) separa esta prueba con recorder sintético de owner/servidor/UI reales, carga/expansión por cliente y continuidad de agentes. Faltan congelación/revisión independiente, checks integrados y escenarios reales pendientes; no se suman etiquetas runtime a pruebas de shell para declararlos hechos. Scope previsto: comando canónico y sus dos proyecciones, test de recetas, documentación del panel/flujo y changelogs EN/ES, contrato/evidencia y esta traza. Las skills siguen aplazadas; T-16 y aceptación global permanecen abiertos.
+
+## Revisión de dos lentes — intento 1: Bloque21 (T-11/T-13/T-14/T-15) — corregir retoma entre runtimes
+
+Lentes A+B de contexto fresco, fallback genérico sin override de modelo; selector C/D false por diff real de14 archivos, sin avisos. Scope0/interop0 (58 archivos al día)/ledger0 previos; fuente988 y diff completos estables. A:0 gaps; B:1 Important. Report A SHA `54d558e1581b6f415972b8d9e68bda1332089c179fc333e63de1a4559c94d12c`, receipt `d086b732df62d8260377f48b1189c5c76c6419571271401d0afa7f1d83dfd11c`; report B SHA `2f6aeb6e7428c409cc97d39e979e73f5afde5c1d087de5bf60a1f894577c2a01`, receipt `d8f1909453f47627da5c4b67635407d1c5e47f8d6ffc95ba72ec9807c0f0dc8a`.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B1 | Important | Caller exige consumidor actual al reabrir recibo histórico | T-11/T-13/T-14 | Validar selección/puerta/versión; tratar registro de consumidor como histórico, sin exigir coincidencia en retoma | Reproducción ROOT: codex→claude-code y panel sin registro→caller mantienen mismo ID, versión completa/current y consumidor anterior/null. SHA `d48e5f7f607b7af74ce1a1fb40a32f8e30e85aa1a2c8ca4d7692e2f4365730ae`; owner intacto. |
+
+La corrección cambia sólo la regla de validación del caller y su contrato/proyecciones, no actualiza el consumidor guardado ni crea otro registro de estado. La siguiente revisión verificará esta corrección; máximo3 intentos. La aprobación de QA, UI y clientes nativos no se deduce de esta revisión.
+
+### Comprobación real de navegador del Bloque21
+
+El dueño real abre una revisión sintética propia con vista completa/current y el builder real inicia servidor loopback con PID/handle propio. Un primer launcher privado termina antes de navegar porque stdin era EOF en pipes; conserva ese fallo y cierre de su servidor por handle. La nueva ejecución con PTY conserva handle vivo. Edge rechaza la navegación a ese servidor con `net::ERR_BLOCKED_BY_CLIENT`; el árbol visible dice «Microsoft Edge ha bloqueado esta página». Cero escenarios UI ejecutados, ninguna decisión emitida. Se conserva el bloqueo sin cambiar Host/Origin/CSP/capacidad ni protecciones. El servidor propio se detuvo por su handle y se verificó ausencia del PID; su exit1 por terminación explícita no se presenta como salida natural0. La pestaña de prueba fue cerrada; no se tocaron pestañas del usuario, servicios Docker ni corpus/configuraciones consumidoras.
+
+
+## Revisión de dos lentes — intento 2: Bloque21 (T-11/T-13/T-14/T-15) — prueba dedicada pendiente
+
+2026-10-10. A+B frescos, fallback genérico sin override; scope0/exact14, selectorC/D false, interop0/58 y ledger0. Fuente988 y diff completos idénticos antes/después. A2:0 Critical/1 Important/0 Minor; B2:sin defectos. El comportamiento de B1 concuerda con el dueño, pero la constitución:13 exige una prueba dedicada que nombre y compruebe cada gap corregido. No hay rebatidos ni deuda; las aceptaciones anteriores y macros se conservan.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A2-1 | Important | B1 figura corregido sin regresión dedicada de la regla actual | T-11/T-13/T-14 | Validador de apertura ejecutable sin estado; pruebas B1 sobre dueño real y transporte shell | Informes A2/B2 y hashes completos en la evidencia; pendiente revisión3. |
+
+Fusión ROOT tras leer informes completos y contrastar hashes:1 Important pendiente. Se mantiene máximo3 intentos. La fuente R2 no se modifica; no se aprueban QA, UI, clientes nativos ni publicación.
+
+### Regresión dedicada y validación ejecutable preparadas
+
+RED: `tests/test_plan_review_open.py::test_B1_resume_validates_real_owner_historical_consumer[codex]` y `[None]` fallaron con «B1 requires executable opening validation», dentro de23 failed/0 errors/exit1 · 2026-10-10. JUnit SHA `d0f2af3a476de23200c01d3241cb38ebc679df697f39412c616fe39f2ed1a155`. Un primer intento conservado produjo22 failed/2 errors por IDs pytest de tamaño excesivo para rutas Windows; se acotaron los IDs del test, sin cambiar producto ni oráculos.
+
+El nuevo `agent-kits/shared/plan-review-open.py` valida JSON acotado, envelope, selección, puerta, hashes/vista/current y devuelve sólo IDs/versión con approval_granted=false. No escribe estado ni cambia el dueño. Las dos recetas lo ejecutan antes de servir; PowerShell conserva/restaura OutputEncoding al transportar Unicode por stdin. La búsqueda exige dueño/validador/builder co-locales; no completa una instalación parcial desde otra fuente.
+
+GREEN de autor:49 passed/0 failed/0 skipped Windows,23 de validador y26 shell (13 Bash/13 PowerShell). Los dos B1 ejecutan cuatro aperturas reales en fixtures propias: Codex→Claude y panelnull→Claude; conservan ID/versión/primerconsumidor y bytes del estado durante validación. Dos negativos shell impiden serve ante exit0 del dueño con otra puerta. JUnit SHA `726a0359cde74df563e06cef932a4e20aa69f6b085c0cb05121cdccff09bc2a9`. Fuente/receta/IDs conservados antes/después; cero modelos/hosts/UI. No sustituye QA integrada ni prueba obediencia de agente.
+
+El preflight Linux R2 no ejecutó pytest ni creó contenedores: se detuvo antes del arranque porque cambió la fuente para corregir A2-1. Imagen QA20 exacta disponible, diagnóstico retenido sin afirmar PASS/SKIP Linux. El siguiente ensayo debe corresponder al bundle nuevo. Contrato/evidencia/descriptores se actualizan juntos; exports, revisión3, checks integrados, UI/carga/continuidad nativa y push continúan pendientes.
+
+
+## Revisión de dos lentes — intento 3: Bloque21 (T-11/T-13/T-14/T-15) — límites JSON pendientes
+
+2026-10-10. A+B+D frescos, fallback genérico sin override; scope0/exact16, interop0/58, ledger0 y fuente990/diff íntegros. C=false; D=true por heurística regex-en-bucle, descartada por D con evidencia de compilaciones fuera del bucle. A3 acepta A2-1 y conserva B1; B3 introduce1 Important/1 Minor, D0. ROOT leyó los tres informes completos, verificó hashes y reprodujo ambos casos. No hay rebatidos ni deuda.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B3-1 | Important | 1e999 llega como infinito en metadata ignorada y valida ok | T-11/T-14 | parse_float comprueba finitud antes de aceptar el número | Probe real:782 bytes/exit0/statusok; pendiente validación correctiva. |
+| B3-2 | Minor | JSON muy profundo termina sin envelope | T-11/T-14 | RecursionError devuelve unavailable/exit2, conservando rechazo | Probe real:12000 niveles/24001 bytes/exit1/RecursionError, sin aprobación ni serve. |
+
+La reproducción ROOT sobre R3 intacto y los informes quedan ligados por SHA en la evidencia. El primer probe de2000 niveles devolvió unavailable; se conserva el fallo de su assert privado, sin convertir esa entrada en una reproducción positiva. La reserva siguiente falló por sintaxis del auxiliar antes de ejecutarse; un OWN nuevo conservó intenciones/terminales de los dos probes reales. No hubo mutación de estado, modelos, hosts ni UI.
+
+### Decisión del orquestador tras el límite del ciclo inicial
+
+El ciclo inicial concluye sus tres intentos con B3-1 pendiente y no se declara aprobado. Bajo la delegación del usuario para decisiones técnicas y revisión independiente, ROOT decide continuar con un ciclo correctivo acotado a un solo pase A+B+D sobre estos dos casos reproducidos. Será ciclo2/intento1, cuarto pase acumulado explícito; no reinicia ni oculta los tres resultados anteriores. No reabre criterios aprobados, QA19/20, macros ni catálogo de skills.
+
+RED: `tests/test_plan_review_open.py::test_B3_json_boundaries_fail_closed[overflow_positive]`, `[overflow_negative]` y `[depth]` fallaron en la implementación R3,3 failed/23 deselected/exit1 · 2026-10-10. JUnit SHA `3b84c5758629a3a61f37149f3414dfee932fc4d72df8a7b8c33a7f11761bf77e`. GREEN de autor tras parse_float finito y captura RecursionError:52 passed/0 failed/0 skipped Windows (26 validador/26 shell), JUnit SHA `87f4f2f00852a1a37dc95fa6ba7bd14b64365c575efffa032b09c105e8ae23ab`; mismos IDs/fuente/fixtures y cero modelos/hosts/UI. La revisión correctiva y los checks finales siguen pendientes; no se publicará como aceptado con un Important abierto.
+
+
+## Revisión de dos lentes — intento 1: Bloque21 · ciclo correctivo 2 (1 de 1; cuarto pase acumulado)
+
+2026-10-10. Cuarto pase acumulado explícito después de los tres intentos iniciales, cuyo historial permanece intacto. A+B+D de contexto fresco, fallback genérico sin override; C=false y D=true por la misma señal heurística, descartada con evidencia estática. ROOT leyó los tres informes íntegros y verificó sus SHA, recibos y fuente990 antes/después:0 Critical/0 Important/0 Minor. B3-1 y B3-2 corregidos y aceptados; B1/A2-1 conservados. Sin rebatidos ni deuda.
+
+Lente A: informe SHA `2d691b32cdfb5d0054d501cc8c10c947948f2866280dfb3f4f85f61222dce848`, recibo `f9c7a3f15055df87bcffb11895eab3eafafdca024ae961cfdfe8ec7153b0e5ca`.
+
+Lente B: informe SHA `b5e2fab162dadb03f6a353f6cdc4b1903f04c00f180bfd1000584703ad85dde3`, recibo `9aec586ac7c1a472744cff67247823a8df2616127fb16fa232cf99ca5f031361`.
+
+Lente D: informe SHA `7d518b2502adef0862adbc6472037640569174e7309c0434c7e751cf57f77f82`, recibo `3f99402314f52a9959e36450f7295d500acb87c6ab23aaabf98b8e7f08e46033`.
+
+Fusión ROOT SHA `8ead037e75b9bc9e4ec74557a6e17d47c1fb0bd89415ccbc97379a83a4d58b4b`; fuente de revisión `edfef7a43df7d19115bd935e804455f9333964df7506c16b7f07391c49401bd9`. Esta aceptación corresponde a revisión del código congelado; no acredita QA visual, clientes nativos ni cierre global.
+
+### Aceptación acotada de Windows
+
+ROOT verificó los siete inputs del GREEN final contra la fuente revisada y los52 casos únicos de JUnit, más una colección independiente sin ejecutar de nuevo las pruebas. Resultado52 passed/0 failed/0 skipped;26 del validador,13 Bash y13 PowerShell. El qa-gate oficial aplicado a esos resultados reales convertidos terminó exit0/VERDE, SHA `a2b547b43ddf08c5879ee0361450fe77ad940fda64ba98e77a728a63a32d6c4e`. Recibo de aceptación SHA `f999c30eb5aa789a2df726b0740180e31caed6ed8ba82ea2dee7f9dc6166ffd2`. La conversión es de pruebas unitarias/shell y no se presenta como Playwright o aceptación de navegador.
+
+El ensayo Linux del bundle final está en preparación; no se acredita todavía PASS ni SKIP. Los checks estáticos previos pasan con fuente990, exports58 y53 enlaces válidos; el lint de aquella copia aislada emitió5 avisos, uno por no resolver Git en PATH y recurrir a os.access para hooks/hooks.json. El índice ROOT confirma modo100644; los checks finales expondrán Git en el entorno propio para medir ese criterio correctamente. No cambia producto para ocultar el aviso. UI real de Edge, carga/continuidad nativa, comprobaciones finales y publicación permanecen pendientes. No cambia ninguna de las16 macros ni QA19/20, y el catálogo de skills permanece aplazado.
+
+
+### Aceptación acotada de Linux y comprobaciones finales del Bloque21
+
+Linux final:39 passed/13 skipped/0 failed/0 errors, pytest exit0. Los26 casos del validador y13 Bash pasan; los13 PowerShell se omiten por ejecutable ausente y no acreditan aceptación de ese shell en Linux. ROOT contrastó190 artefactos por bytes/SHA, los52 IDs de colección/JUnit, siete inputs ligados a GREEN/revisión y43 hijos registrados terminados. Sólo el contenedor propio fue retirado y su ausencia exacta se verificó. JUnit SHA `2520a688498ce712cb21ad6307905473b0cebefa9fe1039a564d0f9a814da38f`; recibo ROOT `108959646c1948a1ef1481392454555f1bd36d46d2f9748db725c65982537035`; qa-gate oficial exit0/VERDE, SHA `bb9859f3985b0465d212264c4d05bb2d2de3b8c1c77129a0b7bbd242a39cac62`. No se ejecutaron de nuevo las pruebas ni contenedores al verificar.
+
+Se conservan dos fallos de auxiliares privados: el primer check estático intentó crear un directorio de entorno ya existente; el primer verificador Linux esperaba la frase Docker No such object y el artefacto real decía No such container para el CID exacto. Correcciones sólo del transporte/verificador, sin cambios en producto/oráculos ni repetición de pruebas. Los checks estáticos recuperados pasan:scope0/exact16, exports0/58, ledger0, evals0 y lint0 errores/4 avisos,53 enlaces válidos y16 estados macro sin cambios. La diferencia respecto a los5 avisos iniciales es la resolución real de Git para comprobar el modo100644 de hooks/hooks.json.
+
+Checkpoint estático fuente SHA `1002b0c7c74b3ee83d636f65fffa1f5c4b8957a3e2717fef4ecd193fddd764bb`; recibo `f475a5c14b39222918b809afd818b5099c2aace4a1e495c0db23cce03a16b164`. Código, recetas, tests y proyecciones idénticos a la revisión correctiva; sólo tasks/evidence añaden resultados observados. Se acepta esta entrega portable, sin aceptar UI de Edge, carga/continuidad real en tres clientes, QA global o tareas macro. Se verificará el cierre documental y el push en la rama autorizada antes de registrarlos como observados.
+
+
+### Publicación observada de la implementación portable del Bloque21
+
+ROOT observó y verificó el push normal del commit `b5932849649db8294bdbe9053c64ae53d496dd2a` a feat/catalog-capabilities; HEAD remoto coincide. Recibo SHA `b7829dce6afb8f0f8d6a3bb99897da5aa177bbcebd1803fbb0bae3a034cb5c33`. Antes de publicar, los cinco gates estáticos pasaron sobre fuente990 y los16 archivos explícitos:scope, exports, ledger, lint y evals;53 enlaces válidos, código/proyecciones idénticos a revisión y estados macro conservados. Fuente final SHA `aa1826dc6a5ca833a405908b6037aa4aa5e9cc2367c4e568ed729aea2e7cd131`; recibo estático `37799fca2384e1b8dbcb4f19c1007cf549ef3e9a0a38514e65e51830cc137d9a`.
+
+Esta publicación entrega la validación de apertura y las recetas portables aceptadas en Windows/Linux; no cierra UI real, carga/continuidad de agentes en tres clientes ni el objetivo global. El navegador Edge conserva su bloqueo sin escenarios aceptados. El cierre documental toca sólo tasks/evidence, pasa sus comprobaciones propias y se publica después de observar la implementación; su propio push se verificará tras ejecutarlo. QA19/20 y16 tareas macro permanecen iguales; skills aplazadas.
+
+## Transporte nativo de comandos — Bloque22 en preparación
+
+2026-10-10. T-08/T-09/T-11/T-14/T-15 conservan sus estados. El catálogo de nuevas skills permanece aplazado; los adaptadores generados sólo transportan los workflows de `commands/`. El [contrato](comparisons/codex-command-transport-contract.md) conserva dueño, puertas y argumentos del mensaje invocante.
+
+RED: `tests/test_codex_command_transport.py` falló en sus cinco casos iniciales contra el exporter sin modificar: manifiesto con una sola raíz, adaptador ausente (dos variantes), generación de prompts personales y retirada ausente. Resultado5 failed/0 errors/exit1 · 2026-10-10. JUnit SHA `7b4e9b10233e4793c84416dc51be0d5d28e1369695d54f389af56bb7da8c6d5e`; fuente992 antes/después idéntica, SHA de manifiesto `3bc7de62bd95649c7e73bae0c1029c4dd876c0ab2de33cb94937c086a3fe2b35`. Cero modelos/clientes nativos en este RED. Se añaden negativos de nombres, colisión por nombre declarado y retirada precisa antes de implementar.
+
+La prueba nativa aislada de Codex0.161.0 descubre ambas raíces del plugin desde su caché, con pluginId propio no nulo y SHA iguales a la fuente. El primer filtro privado esperaba nombres sin namespace y dio falso negativo; el reanálisis conserva los mismos frames sin repetir Codex. El nombre real incluye namespace del plugin. Esta observación no acredita inyección, lectura de la referencia ni ejecución del workflow; la verificación ROOT y evidencia pública completa siguen pendientes.
+
+RED ampliado:12 failed/0 errors/1 skipped/exit1,13 casos totales · 2026-10-10. Los negativos de nombres, colisión por `name` declarado y retirada de adaptadores fallan en la fuente previa; el caso de symlink se omite por permiso Windows y no acredita ese guard. JUnit SHA `77df7b04df03eae9ccf99ee11fdc6fdb3867b5c5f8d5c488a36bbd935260c4ce`; fuente992 idéntica antes/después, SHA `0129c6235f5de849a3f60d05c15d2271de55035922d7cba3616d101dfe889165`. ROOT verifica por bytes los cinco pares fuente/caché y los tres frames de entrada/salida de discovery nativo. No ejecuta otro Codex para reanalizar. Implementación y GREEN pendientes.
+
+GREEN inicial de exporter/transporte:47 passed/0 failed/1 skipped Windows; JUnit SHA `1c9290e6f4ad7c073006cd4f6d1687e7e29ea2d174805b78b87f6dfce99c3511`. Generación/check aislados exit0; se adoptan88 outputs,45 archivos de adaptador nuevos y15 prompts antiguos propios retirados con bytes/hash/cabecera verificados. La documentación ES/EN corrige invocación con namespace. Un ajuste posterior cualifica también las skills canónicas en los preámbulos; requiere GREEN final y regeneración antes de revisar.
+
+RED del instalador:3 failed/0 passed/exit1, antes de modificar providers/install; JUnit SHA `898f9ec7a31293f0f65aaa6124646546d0ee6450687e480fce09699a212a13f1`. La primera GREEN falla porque faltaba el árbol generado aún no adoptado; se conserva sin cambiar el oráculo. Tras adoptarlo pasan3/3, más11 regresiones seleccionadas. La migración conserva bytes de prompts globales anteriores y retira sólo su propiedad del manifiesto, sin barrer el home; no existe hash antiguo fiable para eliminarlos. La verificación ROOT y revisión fresca siguen pendientes.
+
+Inyección nativa de fixture observada y verificada por ROOT: una petición incorpora el cuerpo literal completo y Unicode/dólares, ausentes del stdin. Cinco frames enviados,14 recibidos, un POST al proveedor pasivo propio400, cero inferencias/toolcalls, turno failed y recursos propios terminados. El primer ensayo se detuvo por un warning de metadata de modelo sintético; el segundo admite sólo ese warning exacto en OWN nuevo. Se conservan además dos fallos del verificador privado ROOT (Unicode por stdin y ruta de instructionSources), corregidos sólo en el oráculo sin repetir Codex. [Evidencia acotada](testing/codex-command-transport-evidence.json): no acredita carga del adaptador real, lectura de referencias, obediencia, workflow, UI o QA global. Las16 macros y skills aplazadas se conservan.
+
+
+## Revisión de dos lentes — intento 1: Bloque22 (T-09/T-11/T-14/T-15)
+
+2026-10-10. A+B+D de contexto fresco, fallback genérico sin override; C=false/D=true. Fuente1023 y diff73 conservados por los revisores, exports88 idénticos. ROOT leyó los informes completos y verificó sus SHA y recibos:1 Critical/1 Important/0 Minor. No hay rebatidos ni aceptación.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Critical | B-01: cambio de CODEX_HOME conserva claims externos y uninstall borra bytes personales | T-09/T-15 | Corregido y aceptado en intento2: liberar claims externos con límite del bundle explícito | RED1/GREEN1 y regresiones12; conserva históricos editados y ownership interno |
+| 2 | Important | A22-1: índices ES/EN muestran invocación antigua no instalada | T-11/T-15 | Corregido y aceptado en intento2: invocación nativa cualificada en ambos índices | RED6P2F/GREEN8P de los ocho documentos con nombres resolubles |
+
+RED dedicado B-01: `Codex command adapters: B01 ...` falla en la implementación revisada:1 failed/exit1, JUnit SHA `ead5bbd5408e4d202550f1ec1b0a9223925f870268cc9593fc33386b7735d22a`. Prueba con upgrade/uninstall reales, homes propios A/B y CLI simulado; cero modelos/consumers reales. Producción permanece idéntica tras el RED.
+
+Informes A/B/D SHA: `4f3754e2726240f7a37926cc11c531717a3f0b5beef4e7dc8336e216c841961b`, `f23389791daf6b4addfc93ccbf0068bb76a8db25214542afd48a70154c80340e`, `6ec6b19fef5283764adf1f4cd69f1f52970f6b6e49077695b19b03d7a805d8ec`. Fusión ROOT SHA `5980e7e457d6bece289fcf4f905568eeaf80ebac856e1d6d75c84dfd489daa7f`. La siguiente revisión será intento2 de3; no se publica con Critical/Important abiertos ni se cambian las16 macros.
+
+
+RED dedicado A22-1: las ocho páginas se comprueban contra adaptadores realmente generados;6 passed/2 failed/exit1 en la fuente revisada. Fallan exclusivamente docs/README.md y docs/en/README.md antes de corregirlos. JUnit SHA `5fd16259ba62f92fb7a6ae26473fd1e141f07569ed37d29bf629d51fdb70b006`. Las correcciones ES/EN sustituyen los ejemplos antiguos por invocación con namespace nativo; GREEN y revisión correctiva pendientes.
+
+
+GREEN dedicado A22-1:8 passed/0 failed/exit0, mismos ocho documentos/IDs y adaptadores generados; JUnit SHA `8204900710d109246c01c74da5a3101386b6c3880e07e42d36b2f7c00558c67d`. Ambos índices ES/EN corregidos. Esta prueba de documentación no sustituye la revisión fresca ni prueba ejecución nativa del comando.
+
+
+GREEN dedicado B-01:1 passed/0 failed/exit0; JUnit SHA `7fac2f3687f93361b8c5fc0c1e8806a2d59e13c9efccba77437765fb97bd4da5`. Regresiones pertinentes del instalador:12 passed/0 skipped/exit0, JUnit SHA `14a4d2f6ce84435b80a58de7f5bcb85c1cd88f8f04401c8eb8c4c3def92b8288`. ROOT verifica todos los hashes de artefactos y los tres inputs contra producción, recibo SHA `c65876705608025786591df932737e41d3834eb1db3e7bba15d74acc341cb9a1`. El límite del bundle es explícito y los registros externos ambiguos se liberan sin leer ni borrar sus bytes; la prueba conserva prompts históricos editados y la desinstalación interna. La revisión2 y QA congelada siguen pendientes.
+
+
+## Revisión de dos lentes — intento 2: Bloque22 (T-09/T-11/T-14/T-15)
+
+2026-10-10. Segundo pase de un máximo de3; A+B+D frescos, fallback genérico sin override. C=false/D=true. ROOT lee tres informes completos y verifica hashes/recibos/fuente1023/diff75 y probe directo:1 Critical/1 Important/0 Minor. B-01/A22-1 corregidos y conservados; no hay rebatidos ni aceptación.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Critical | B22-2: uninstall directo legado elimina prompts externos editados | T-09/T-15 | Corregido y aceptado en intento3: liberar claims antes de contar/borrar/podar | Probe real exit0/legacy_exists=false y fuente intacta |
+| 2 | Important | A22-2: cabecera y tabla nuevas no las leen brief/Jira | T-11/T-14/T-15 | Corregido y aceptado en intento3: cabecera canónica, seis columnas y # numérico | Header no casa; tabla4 columnas/ID no numérico omite ambas filas |
+
+El borrado directo era previo al diff; B22-2 incumple la nueva garantía contractual sin precondición de upgrade. A22-2 se limita a la nueva sección Bloque22; aviso histórico Bloque21 conservado. Informes A/B/D SHA `9c905b549e4e7cbaa56462a3dc65ce5dd5e19591d6766daa22054dc46abd3a85`, `0eacf79739b78a83091e04168d1a0448fc2d62980aae469b96a4c4234a19f16e`, `8e48460ac420b2a653a68f0353c378ec96bc965814499513912e0d6b3ee3a809`; fusión ROOT SHA `4a53d226fef1b64e52aa5385c699c25a679e02a906f951d59e6bacdedaa4b0ca`. Se conservan dos fallos del verificador privado: ruta relativa de recibo y conteo del padre Node frente a hojas JUnit; corregidos sin repetir pruebas ni alterar producto.
+
+RED dedicado B22-2: project y user fallan al conservar bytes externos tras uninstall directo. JUnit:2 hojas fallidas; Node:3 fallos contando padre+dos subtests; exit1, JUnit SHA `4afdeacbcb9c29dfea18fa8cdac6b8313906fe02b9795f5b8fcad8dfabc66800`. Dry-run previo conserva bytes/manifiesto. Producción intacta; GREEN y revisión3 pendientes. QA final no iniciada; publicación pendiente.
+
+
+RED dedicado A22-2:2 failed/exit1, JUnit SHA `fe13d69cae6a8968b0bdcf7f784f91e54cbd274f030b63cc60c74ba38a6b6f4d`. Primer caso demuestra cabecera invisible; segundo corrige sólo la cabecera en memoria y demuestra las filas omitidas. Ambos usan el parser canónico real y la sección nueva del ledger, sin reabrir avisos históricos. Corrección: cabecera canónica, seis columnas y # numérico con tarea/evidencia; estados previos aceptados en intento2 conservados. GREEN pendiente.
+
+
+GREEN dedicado A22-2:2 passed/exit0 sobre el mismo parser canónico, JUnit SHA `0ea9896810368729c7cd12070673a0ab4f4cab3a60d65eaa12afe62b2940ac1b`. La cabecera y las dos filas con tarea/grado/gap vuelven a ser consumibles; el contador máximo3 y veredictos previos permanecen. GREEN dedicado B22-2:2 hojas JUnit/3 contando padre Node,0 failed/exit0, SHA `47d6601824d49dc60e3bc271f9c0a6df09a693a834363ad0af4527cfb9b07b27`; regresiones seleccionadas:14 hojas JUnit/15 Node,0 failed/exit0, SHA `a7ea7ed816ec702ec66be1d0c19e0f1d96804c2afd0d16e62db6b0abe0e49954`. ROOT verifica hashes de todos los artefactos y tres inputs, recibo SHA `dc277409e329e459fac1a97bc10a1f3ee0bf364b671760d6cc36db106cb8f216`. El filtro se aplica antes de contar dry-run/borrar/podar y no lee ni borra bytes externos. Revisión3 y QA congelada pendientes.
+
+
+## Revisión de dos lentes — intento 3: Bloque22 (T-09/T-11/T-14/T-15)
+
+2026-10-10. Tercer pase de un máximo de3; A+B+D de contexto fresco, fallback genérico sin override; C=false/D=true. ROOT leyó íntegros los tres informes y verificó sus recibos, todos los hashes declarados y fuente1023 intacta:0 Critical/0 Important/0 Minor. B22-2/A22-2 corregidos y aceptados; B-01/A22-1 conservados. Sin rebatidos ni deuda. Se acepta exclusivamente el diff75 del código/documentos congelados, no la continuidad nativa, UI, integración global o tareas macro.
+
+Informes A/B/D SHA `68105e3944d3d34489c522fd7da9852c807881d98299d770c1d1c23199a33e9f`, `89b2e64ebf9d39bc99d6c11a608c9302bf8127b365200465ac57df1abc502fe0`, `38f65fa8295b85368bff1fb958bd02cfcfe1c8854333608e0171e990f82897f5`; recibos `ffa913cf796507a6fb8a849f161ef1dc31c7f4a0aa0bcace3e8b78c79857f8eb`, `16bb8e8cae451b3ab2f906cf76b55fd0b423a7422efb6ad4788d75d7328eb3f8`, `433c9d1d12e7868c1646990708ed503d8d70b03e90dd0efc2d9dfe986dc1d620`. Fusión ROOT SHA `a74bd1c4543d815857f85e8d02d0ad36345b4e54f6f07a958c7ec24d709d050a`; fuente `d0b95ef1f9166a71e509db77ac95efdf63094af9e098b464782d257460d49539`, diff `b762855ccefdf09db2da0e337c1b6f9cff3c77f4aa532c8b70c1455761354914`. Export propio A exit0/88; probe independiente B project/user conserva bytes externos históricos/actuales/personales y limita dry-run/retiro al bundle. Los fallos privados de conteo rename/path, import aislado e inventario por cwd se conservan; se corrigieron sólo auxiliares propios, sin repetir probes ni cambiar producto.
+
+### QA congelada acotada del Bloque22
+
+Windows:57 passed/1 skipped Python y14 hojas passed/0 skipped Node;0 failed/errors, ambos procesos exit0. JUnit SHA `cc9dbcfb05d8ee3dbd4d783394c78c1708b659584d7df97403c8b8a8e5761338` y `d6fa184f329dbe00244a5da3e27b58e4e4ea62f158cf5eb41160064c11d906ba`. El skip de enlace simbólico por permisos no acredita ese guard en Windows. Linux:58 passed/0 skipped/failed/errors, exit0; JUnit SHA `c8463b73636961b92f17a13ac41408cb1d351b1c67ef53b5b1a73678c834993d`. Incluye el caso de symlink; no se ejecutó el instalador Node en Linux. ROOT verificó los58 IDs Python iguales entre plataformas, colección real y reportes por caso Linux, fuente1023 intacta y procesos registrados terminados. El contenedor exclusivamente propio, sin red, se retiró y su ausencia exacta se observó; no se tocaron servicios del usuario.
+
+qa-gate oficial sobre resultados reales convertidos:Windows VERDE/exit0 con71 passed/1 skipped, SHA `b35b3e5ba6f4481dc0b240f53654c35e0db4e0bff599107a2614c5041c3d114d`; Linux VERDE/exit0 con58 passed/0 skipped, SHA `f56efab6c9168c38397da371da99ac516ae7461d77b701f2668fb7b9b743eac5`. La conversión JUnit es de pruebas unitarias/instalador y no se presenta como Playwright ni aceptación de navegador. Recibo de verificación ROOT SHA `4149b37ddbd52a921cb47ad50da5756683c1cce8b60f58d107fffc6c0c7a0259`. Se conserva el fallo inicial del verificador que exigía un log de subprocess opcional: no hubo eventos de subprocess en las dos pruebas Linux; se corrigió únicamente el lector, sin repetir QA.
+
+Código, tests, recetas y proyecciones quedan ligados a revisión3. Se preparan comprobaciones documentales finales y push en la rama autorizada. Carga del adaptador real, lectura completa de referencia, workflow/plan UI y continuidad en tres clientes siguen pendientes; no se inventa cobertura ni aceptación global. Las16 macros, QA19/20/21 y catálogo de skills aplazado se conservan.
+
+
+### Publicación observada del transporte de comandos del Bloque22
+
+ROOT observó el commit `c03f5ff34aa65881998758546ccbabb46921f7b3` y su push normal a feat/catalog-capabilities; HEAD remoto coincide. Recibo SHA `de8363ac00e57aa01195b3f5247e04b595ae49696e9d1529424ed972d2344520`. El índice incluyó sólo las90 identidades de ruta del diff75 revisado; el índice quedó vacío y los1023 hashes públicos permanecieron iguales. Código/tests/proyecciones son idénticos a revisión3; sólo tres documentos registraron revisión/QA posteriores. Fuente final SHA `e34c9b5ee649c256374b90464eeefbc07a939950a63fda359754294f95610cde`, recibo estático `e49eacd9e43901e985afb7d1acfb70207e0f48251d34909e5e76d408b8dd7f40`:scope exact75 sin avisos/exclusiones, exports88, ledger0 incoherencias/1 aviso histórico, lint0 errores/8 avisos conocidos y evals0 (52 archivos/188 casos de validación).
+
+Checkpoint documental independiente conforme:18 enlaces nuevos/cambiados válidos,16 estados y prefijo histórico QA19/20/21 intactos; recibo SHA `b6c5cd3f806b3a6739140dc0dc25079e2e675d13ffd9f0693bb35eb436210441`. Se conservan fallos privados de regex/reparación y comparación de modo: la copia de sólo archivos había perdido100755 de install.mjs, pero ROOT conserva el modo anterior verificado y todos los blobs coinciden. Dos pushes iniciales exit128 por autenticación no disponible en el entorno aislado permanecen registrados; el push normal final usó el helper de credenciales GitHub CLI ya configurado, sin leer/imprimir tokens ni cambiar configuración/iniciar sesión. No se cambió producto ni se repitió QA.
+
+Esta publicación entrega los15 adaptadores generados de comandos Codex y preserva prompts externos durante actualización/desinstalación, incluidos homes históricos. No incorpora nuevas skills del catálogo. El cierre documental de tasks/evidence registra únicamente hechos ya observados y se publica con comprobaciones propias; su push se verifica después. Carga real del adaptador, lectura de referencia, workflow/UI y tres clientes siguen pendientes. No cambian las16 macros ni QA19/20/21 y no se concede aceptación global.
+
+## Bloque23 — Curación única de memoria (T-07/T-08/T-11/T-14/T-15)
+
+2026-10-10. Trabajo en progreso desde HEAD publicado `3be4821`. Tres auditorías
+de contexto independiente sobre fuente pública congelada1023 identifican dos
+contratos activos de promoción y una contradicción de ownership de candidates.
+ROOT leyó informes completos: contratos24 archivos, productores deterministas y
+callers181 inputs; integridad del snapshot sin diferencias. Son auditorías
+estáticas, no pruebas nuevas ni aceptación del producto.
+
+Informes SHA `5c64593e86eec597fc560c122d8ee755dcec6283515871030dca7e4b4c1d4f5f`,
+`6ca340e64d6a29a64b69587d8a6b129bf069c33ffffd227a0d3f4b89ee32a18e` y
+`5ae884143c56c9e902f269c508b7141e1ed83d1e9fcd0aed8da59be2a0579494`.
+La [curación única](comparisons/memory-curation-contract.md) fija corte
+prospectivo, proponentes/decisor/persistencia, SHA obligatorio, recuperación y
+handoff tardío de retro. No migra ni borra memoria del consumidor ni añade skills.
+Servicio, RED, actualización de todos los callers, revisión y QA pendientes.
+Las16 macros y las aceptaciones anteriores permanecen; objetivo global activo.
+
+RED: `test_memory_curation_scope.py` falló con siete AssertionError el
+2026-10-10: candidates/journal entraban en el alcance y en staging aunque
+no estuvieran curados. Fuente anterior congelada + test nuevo,7 failed/0
+passed/exit1; JUnit SHA `50e4cf6daf12b3749c2f1edf16a2685c1af96571d7a8336fc6fccce3acbf8581`.
+Se probaron también mayúsculas de Windows y conservación de approved/originales.
+Corrección mecánica posterior al RED: exclusión incondicional de ambos árboles
+en el resolvedor común y defaults; GREEN/regresiones en curso, sin publicación
+real a Confluence ni datos del consumidor.
+
+GREEN de alcance Confluence:32 passed/0 failed/exit0, incluidos los7 casos
+nuevos y25 regresiones. Dos ejecuciones anteriores conservaron fallos de
+infraestructura: faltaban Node y después Git Bash en PATH aislado. Se corrigió
+sólo la receta, manteniendo fuente y oráculos; no se ocultó fallo del producto.
+
+RED: `test_knowledge_curation.py` falla con78 errores de capacidad ausente
+(loader lazy con assert, sin fake writer); los3 casos nuevos del puente fallan
+porque todavía persiste directamente y no delega. Cohorte total:3 failed,
+25 passed,78 errors/exit1 el2026-10-10, antes de crear el servicio o cambiar
+el puente. El rojo incluye el requisito de representación corregida de
+needs_changes ligada al SHA original. Implementación autorizada tras esta
+evidencia; las pruebas de enlaces siguen sujetas a permisos OS y nunca
+acreditan un sandbox nativo universal.
+
+Primera ejecución de implementación:203 passed/2 failed/2 skipped/0 errors,
+exit1. JUnit SHA `6b74e918ea9398037a8d331f281f2443928831e52c4bda7b3c47f5d3dfa42aa0`.
+La recuperación en `prepared` detectó una representación distinta: el registro
+JSON ordenaba metadata y el render inicial conservaba su orden de inserción.
+La corrección ordena las claves de frontmatter antes de renderizar; no debilita
+la verificación SHA. El puente conservaba la colisión, pero había perdido el
+diagnóstico humano español; se traduce `name_already_reserved` sin cambiar su
+test. Ambos fallos y la fuente congelada se conservan. Los dos skips corresponden
+a enlaces simbólicos de archivo no permitidos en este Windows, no a guards
+validados. Nueva ejecución sobre otra fuente congelada en curso; no hay
+aceptación, commit o push del Bloque23 todavía.
+
+GREEN posterior a ambas correcciones:205 passed/0 failed/0 errors/2 skipped,
+exit0 en las mismas cinco suites, sobre fuente congelada nueva (manifiesto SHA
+`d19748d7aac530a84ee28e851f16ae7219ef54caecd16523ff98f98a7429678d`).
+JUnit SHA `97e5760ec4ac046c2972f8c077ce8b56608dd6f1d71d0ca38076581af09cc733`.
+Proceso exacto observado terminado. Incluye recuperación prepared, diagnóstico
+del puente, gate existente y alcance Confluence; conserva los dos skips de
+enlaces de archivo. Esta evidencia unitaria acotada no sustituye revisión
+fresca, QA final Windows/Linux, regeneración ni aceptación en tres clientes.
+
+RED: `test_journal_curation_handoff.py` falló con tres AssertionError el
+2026-10-10 sobre el journal anterior congelado: candidatos, entradas e índice
+todavía dirigían a promoción legacy o revisión/retro como decisor.3 failed/0
+passed/exit1; JUnit SHA `bfd69bfc9177e36432d6e9e663c3f2843c597018bfd8ebe641681a7aa032a4d5`.
+Los oráculos conservan datos, estado propuesta, evidencia y ausencia de escritura
+en candidates/approved. Corrección del texto generado posterior al rojo.
+
+GREEN journal:173 passed/0 failed/10 skipped, exit0. Los tres casos nuevos
+pasan junto a la suite anterior de journal; JUnit SHA
+`721d01eb14b0e9b49f1d91c86d325eb82591be834a9059eb9b16746480a58eb6`.
+Los skips no acreditan sus escenarios Windows. Sólo cambian orientación textual
+y comentarios del journal; estados, extracción, fuentes y operaciones conservan
+su contrato. Regeneración y revisión fresca del conjunto pendientes.
+
+Preparación de revisión1:fuente1029 congelada,65 archivos cambiados, scope-check
+oficial exit0 sin fuera/avisos/exclusiones. Exportador generó88 archivos de
+Codex/OpenCode desde fuentes canónicas en copia propia; --check exit0 y copia
+de proyecciones a ROOT por rutas explícitas verificadas. Diff SHA
+`dec90289f1e8428d494ca2d5c0ad9bbf578bba7950b099ce0669cf1cacdc7cb6`,
+manifiesto SHA `669cbcf220f38c6d3d93140e5ca7bd37166f0f6329d90aff8fdbad1e551c3410`.
+Selector C=false/D=false sin avisos; lentes frescas A+B en paralelo, sin
+aceptación concedida. ROOT mantiene HEAD3be4821, índice vacío y modo100755
+de install.mjs; sólo tasks cambia después de congelar para registrar evidencia.
+
+Checks sobre la fuente:portable200 archivos/0 problemas; las seis dependencias
+directas reales del servicio viajan idénticas a la fuente. Se conserva el fallo
+del auxiliar que exigía por error knowledge-services.py; el AST confirma
+knowledge-schema.py, sin cambio de producto ni repetición de tests. Lint0
+errores/9avisos (8históricos y uno nuevo de consola del módulo de reglas, bajo
+revisión), evals52 archivos/188 casos/0errores, ledger0incoherencias/1aviso
+histórico. Los1029 hashes congelados permanecen intactos; sin referencias
+públicas prohibidas en la selección. No hay QA final, commit o push todavía.
+
+Probe CLI portable propio:propose/apply/recover terminaron exit0 con stdout JSON
+válido y stderr vacío. Corpus sintético UTF-8 con emoji, propuesta sin approved,
+publicación ligada al SHA y recover idempotente byte a byte; configuración y
+evidencia iniciales permanecieron idénticas. Recibo SHA
+`b0ca07f09ca71870e60d0357547326c88629ceb2648b5ca979866756e6a5ad69`.
+Sin clientes, inferencias, red o credenciales; no cuenta como aceptación nativa.
+ROOT verificó los16 documentos/8 artefactos del primer autor y los12 prompts/5
+artefactos del segundo contra baseline y ROOT; informe de seis docs adicionales
+pendiente. Son verificaciones de autoría, no aceptación de revisión.
+
+Revisión1 en curso: A señala integración de consola pendiente para ambos módulos
+nuevos; B reproduce bloqueo de recover por nlink2 al interrumpir publicación de
+intención/recibo, diagnóstico de categoría sin redacción y regresión de nombres
+largos válidos del bridge. También señala contradicción de instrucciones del
+Curator en las proyecciones. Informes completos, arbitraje, regresiones dedicadas
+y corrección pendientes; ningún hallazgo se declara corregido ni se concede QA.
+
+## Revisión de dos lentes — intento 1: Bloque23 (T-07/T-08/T-11/T-14/T-15) — corregir cinco Important
+
+Lentes frescas A+B por subagentes genéricos; reviewer nativo no disponible.
+Selector oficial C=false/D=false, sin avisos. ROOT leyó ambos informes completos,
+contrastó los cinco hallazgos con fuente/reproducciones y los aceptó sin rebate.
+0 Critical/5 Important/0 Minor. A aporta conformidad; sus ✓ no anulan los
+defectos concretos reproducidos por B. Ninguna macro se cierra.
+
+Tabla completa de criterios A sobre la fuente de revisión1:
+
+| Criterio | Veredicto A | Evidencia / límite |
+|---|---|---|
+| Tareas hechas y criterios | ✓ | Sólo T-01 completada; no cambia su verificación. |
+| Alcance del plan | ✓ | 65 rutas declaradas; scope sin exclusiones, avisos ni fuera. |
+| Tests y oráculos reales | ✗ | IO real; falta consola obligatoria A23-1. |
+| Constitución explícita | ✓ | Ownership/stdlib/redacción y límites declarados. |
+| Verificaciones de tareas cerradas | ✓ | Ninguna macro nueva completada. |
+| Generado / E2 | ✓ | Check propio A PID32344, exit0, 88 al día; sin cliente nativo. |
+| Descriptores / E3 | ✓ | ROLES/CONTRACTS/E13/E14/E22/E53/E54 y espejos actualizados. |
+| OpenAPI | n/a | No spec OpenAPI modificada. |
+| Docs-style como gate de prosa | n/a | Bloque de persistencia con pruebas; no prosa exclusiva. |
+| Corte prospectivo/legado | ✓ | Sin migración, reaprobación ni borrado. |
+| Persistencia compartida/juicio Curator | ✓ | Productores proponen; Curator decide; servicio persiste. |
+| Propuesta redactada/portable/exclusiva | ✓ | Límites, SHA y reserva; B3 detecta compatibilidad larga. |
+| SHA/metadatos finales | ✓ | Índice/ID/versión/taxonomía; B4 detecta secreto en diagnóstico. |
+| needs_changes/reject/replacement | ✓ | Original ligado a SHA y rechazado terminal. |
+| Gate puro/reglas comunes | ✓ | Sin mutación; gate0 no es transición. |
+| Intención/recibo/recover | ✓ | Cortes de checkpoint; B1 detecta corte interno de enlaces. |
+| Concurrencia/IO/OS | ✓ | Cooperantes y límites; skips Windows no acreditan guards. |
+| Productores/fallback/retro tardía | ✓ | Handoff o pendiente visible, sin autoaprobación. |
+| Bridge Gold/store | ✓ | Gold/config/hash; B3 prueba ID válido máximo no cubierto. |
+| Journal episódico | ✓ | Estado/fuentes y ausencia de promoción automática. |
+| Confluence y staging | ✓ | Exclusión antes de include; sin publicación real. |
+| Honestidad RED/GREEN/QA | ✓ | Fallos/skips preservados; aceptación final pendiente. |
+| Consola de piezas nuevas | ✗ | Snippet y MODOS ausentes A23-1. |
+| Rama/publicación/macros | ✓ | Sin PR/release/main ni cierre global declarado. |
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A23-1 | Important | Consola: snippet rules y MODOS ausentes | T-11/T-14/T-15 | Snippet literal, módulo puro medido y stdin/JSON/emoji reales cp1252/ascii; pendiente revisión2 | RED11 fallos; GREEN20 sin skips. |
+| B23-1 | Important | recover bloqueado con nlink2 de intención/recibo tras enlace antes de limpieza | T-08/T-14 | Registro liga staging e identidad; sólo limpia el enlace exacto validado, rechaza ajenos; pendiente revisión2 | RED dos cortes internos; GREEN con recuperación doble y contraejemplos ajenos. |
+| B23-2 | Important | Curator generado ordena no escribir y derivar al implementador | T-11/T-15 | Exportador declara persistencia por servicio/Bash y límites reales; edición directa denegada; pendiente revisión2 | RED Codex/OpenCode; GREEN y 88 exports al día. |
+| B23-3 | Important | Gold válido de nombre histórico157 excede destino128 | T-08/T-14 | Slug acotado/hash completo, aliases sólo comparación en cuatro árboles; ruta/SHA real en handoff; pendiente revisión2 | RED seis bridge y contrato aliases; GREEN nombres ordinarios/Gold/store intactos. |
+| B23-4 | Important | Categoría/ID inválidos muestran secreto en errores | T-08/T-14 | Redactor compartido en diagnóstico; sin él nunca emite bytes crudos; pendiente revisión2 | RED categoría/ID; GREEN mismos códigos y corpus intacto. |
+
+Informes A SHA `783b6438705d714eb9f0ba690b7a9b596a68bf5b0f83107741410fef51e7b1f8`,
+B SHA `923072cb0ae7bf37026b20285e801638d71c10eeb7c9bc6e8696206733d1cfe8`.
+ROOT verificó recibos y sus 12/9 artefactos; los1029 hashes de la fuente siguen
+idénticos al manifiesto congelado. Verificó además los seis docs adicionales
+(baseline/ROOT y siete artefactos), puente corregido y dos fuentes de consola.
+Esto acredita autoría/evidencia, no aceptación. Jira no se ejecuta: el fixture
+de verificación no tiene integración activa ni issues volcados; no se consultan
+configuraciones del consumidor.
+
+RED consola:11 failed/5 passed/exit1, JUnit SHA
+`537a39e6c2c770316a88f45026f85c4772364d4a7db200b066eacf5676b5c0fb`.
+RED bridge:6 failed/exit1, JUnit SHA
+`30088abf11e7afaa6a797756a379a14c2d5e26d3b03bc92c03699bfc37ef9f9d`.
+RED core/export:16 failed/2 passed/exit1; procesos exactos terminados y logs
+preservados antes de modificar producto. Los dos verdes de contraejemplo
+comprueban que no se adopten enlaces ajenos; no son fallos ocultados.
+
+GREEN corregido:264 passed/2 skipped/exit0 (servicio, gate anterior, bridge,
+scope y exportador), JUnit SHA
+`39514b187a5fbcf5ff6d2bda101d1388cef17d289cca1c9b1b1902dd119f0dda`.
+Consola:20 passed/0 skipped/exit0, JUnit SHA
+`1aa166a3c0a01230d4d25de30e1a4df5f22d95646a3e3dc71d08daf3c480c424`.
+Los dos skips conservan los casos de symlink de archivo no disponibles en
+Windows. Fuentes/oráculos congelados y ejecución OWN, sin corpus, red, modelos,
+auth ni Docker del usuario. Exportador canónico escrito/check88 exit0 en esa
+copia; trasladar proyecciones y preparar revisión2 todavía pendientes al
+registrar esta evidencia. No hay QA final, commit ni push del bloque23.
+
+## Revisión de dos lentes — intento 2: Bloque23 (T-07/T-08/T-11/T-14/T-15) — corregir un Important de rendimiento
+
+Contexto fresco A+B+D, selector C=false/D=true. Revisor genérico; tier
+opus/high comunicado desde frontmatter, sin override ni configuración consumidora.
+Fuente inmutable1029, diff68/6577; ROOT leyó informes completos y verificó
+23/88/119 artefactos, recibos, entradas y todos los hashes de la fuente.
+El primer verificador auxiliar ROOT falló al tratar SHA null de archivos
+nuevos como hashes de baseline; corregido a comprobar ausencia exacta. No
+ejecutó producto ni altera dictámenes. A y B:0/0/0; D:0 Critical/1 Important/0 Minor.
+ROOT acepta D23-1: el coste está reproducido y nace de recargar contenidos
+históricos completos bajo el cerrojo. Los cinco Important previos quedan
+corregidos; no se reabren conformidades aprobadas ni hay hallazgos rebatidos.
+Ninguna macro se cierra y QA no comienza con un Important pendiente.
+
+Tabla completa A del intento2 (referencias relativas a su fuente congelada,
+sin convertir pruebas comunicadas en QA propia del revisor):
+
+| Criterio | ✓/✗ | Evidencia y límite |
+|---|---|---|
+| T-XX hechas y criterios | ✓ | `docs/roadmap/2026-10-07-catalog-capabilities/tasks.md:46–56`: sólo T-01 completada, tres criterios y verificación corpus preservados. T-02…T-16 abiertas/borrador; no se reacepta comparación global. |
+| Alcance del plan | ✓ | `tasks.md:204,248,281,292`: Archivos cubre servicio/kits/callers/docs/tests/interop. ROOT comunica scope oficial68/0fuera/0avisos/0excluidos. Las68 rutas verificadas implementan o describen curación; la aclaración F2 sólo retira falsa entrega de memoria/especialización. |
+| Tests y oráculos reales | ✓ | `agent-kits/shared/test_knowledge_curation.py:106–194,195–702`: IO real, cortes/contraejemplos, redacción, aliases y estado legado. Bridge `skills/training-data-services/scripts/test_propose_from_case.py:603–701`; consola `tests/test_console_encoding.py:730–770`; export `tests/test_export_interop.py:51–62`. A23-1 subsanado sin fake writer ni exclusión genérica. |
+| Constitución explícita | ✓ | `docs/CONSTITUTION.md:10–13,17–21,36–40`: scripts/tests/RED, regresiones dedicadas, fuente generada, stdlib, propietario del juicio, redactor compartido y no mutación ajena. `tasks.md:1024` en adelante preserva RED correctivo y GREEN; no exige PR/main/release excluidos por autorización vigente. |
+| Verificación declarada de tareas cerradas | ✓ | `tasks.md:52` conserva ejecución T-01; no macro nueva completada. `tasks.md:846` en adelante conserva estado B23 en progreso, evidencias y pendientes; no ejecuté verificaciones faltantes para tapar cierre. |
+| Generado al día / E2 | ✓ | Comprobación A propia en copia OWN exacta: PID30224, Python absoluto `-I -X utf8 -B scripts/export-interop.py --check`, exit0, stdout `export-interop --check: 88 ficheros al día`, stderr vacío. `interop/**` declarado en T-11/T-15; ROOT conserva evidencia previa. Falta traza final del intento2 por revisión en curso, sin macro cerrada. |
+| Descriptores actualizados / E3 | ✓ | `docs/agents/CONTRACTS.md:76–77,85,118–119`: E13/E14/E22/E53/E54 describen servicio, juicio, SHA y fronteras. `docs/agents/ROLES.md:30–43,89`; docs de seis agentes, CONVENTIONS/FLOWS/SPECIALIZATION ES/EN, skills/kits y comando retro actualizados en el mismo diff. |
+| API OpenAPI | ✓ (n/a) | Ninguna spec OpenAPI en las68 rutas. No se ejecutó openapi-lint. |
+| Docs-style | ✓ (n/a como gate de prosa) | Bloque de servicio/persistencia con pruebas y descriptores, no iniciativa exclusivamente de prosa. Espejos preservan sentido y tokens; no se reporta estilo. |
+| T-07 corte prospectivo / legacy | ✓ | `agent-kits/shared/knowledge-write.md:65–89`, `knowledge-check.md:59–71`, contrato `comparisons/memory-curation-contract.md:98–114` bajo roadmap. No migración/reaprobación/borrado ni accepted=approved. `test_knowledge_curation.py:597–610` conserva bytes/IDs/estados/journal/README. |
+| T-08 persistencia compartida / juicio Curator | ✓ | `knowledge-curation.py:450,551,611`; `agents/knowledge-curator.md:37–46,79–141`: propose productores, Curator semántica, servicio bytes. Gate/design/QA/revisión/Gold/repetición no aprueban por sí solos. Sin agente/skill nuevo. |
+| Propuesta redactada, portable y exclusiva | ✓ | `knowledge-curation.py:78–85,153–164,195–204,450–475`: 128 destino, aliases<=8/255 sólo comparación, cuatro estados/approved casefold y reserva bajo cerrojo. `test_knowledge_curation.py:170–194,195–266` reserva históricos sin escritura por alias y preserva redacción/SHA. |
+| SHA original y metadata final | ✓ | `knowledge-curation.py:404–443,551–571`: ID/prefijo, categoría exacta, versión1, índice/colisión y SHA fuente. `_caught:66–76` redacta diagnóstico antes de devolución, fallback sin bytes crudos. Tests dedicados `test_knowledge_curation.py:157–167` cubren categoría e ID sensibles con mismo status/código y árbol intacto. |
+| needs_changes/reject/replacement | ✓ | Servicio `:560–576,589–607`; tests `:364–429`: original/contenido/motivo y SHA conservados, rechazo terminal, sólo approve corrección final, nunca edición de approved. |
+| Gate puro / reglas compartidas | ✓ | `agent-kits/knowledge-curator/curator-gate.py:152–172` delega mismas reglas usadas por servicio `:421–435`. `test_knowledge_curation.py:613–619` comprueba gate sin mutación; gate0 no significa transición. |
+| Intención / recibo / recover | ✓ | Servicio `:299–340,477–496,499–548`: staging/identidad exactos ligados al registro, hash de intención, lectura links controlada y limpieza sólo verificable. Tests `:106–153` cortan el enlace real operations/receipts, recover doble y rechazo de hardlink ajeno sin mutación; `:456–524` conserva cortes/reintentos/cambios/ajenos. No garantiza corte eléctrico. |
+| Concurrencia / IO / OS | ✓ | Servicio `:109–147,166–204,207–290`; tests `:526–595,633–702`: cerrojo cooperante de proceso, redirected/hardlinks/scan incompleto, fuente ajena conservada. Los dos skips Windows de symlink no prueban esos guards; POSIX/native pendientes. |
+| T-11 productores / fallback / retro tardía | ✓ | Architect/planner/implementer/qa/documenter/debug-root-cause/retro/bridge delegan sin writer fallback. `commands/dev-cycle.md:400–428`; `commands/retro.md:24–34`: handoff tardío o pendiente/ruta/ID visible, cierre retro no aprueba memoria. |
+| Bridge Gold / nombres / SHA / store | ✓ | `propose-from-case.py:172–187,210–267,307–309`: nombre histórico ordinario igual, sólo truncado slug largo conservando hash/ref íntegros; aliases reservan históricos157, sin ampliar destino128. API/CLI conserva SHA real; `test_propose_from_case.py:603–701` prueba dos Gold máximos, cuatro estados, duplicado/store/config intactos y handoff SHA. Hash ausente/cambiado conserva tratamiento `:239–243` y pruebas `:417–438`. |
+| Journal episódico sin promoción | ✓ | `journal.py:1565–1574,1702–1711,2178–2184`; `test_journal_curation_handoff.py:18–52`: sólo cambia orientación generada, conserva fuentes/estado y no escribe candidates/approved. RED/GREEN histórico se conserva, no nueva aceptación QA. |
+| Confluence excluye journal/candidates y staging | ✓ | `confluence-scope.py:83–85,268–275`; defaults/skill/policy y `test_memory_curation_scope.py:21–58`: exclusión antes de include, casing y staging, approved/originales intactos. Sin conexión/publicación externa. |
+| T-14 honestidad RED/GREEN/QA | ✓ | `tasks.md:863` en adelante conserva fallos, REDs y GREEN205/2skips, journal173/10skips, nuevos RED11/6/16 y GREEN264/2symlinkskips + consola20sin skips. Evidencia comunicada/ledger, no tests propios A ni QA completa, eficacia/escala/UX/native/global. |
+| T-15 consola obligatoria nueva | ✓ | A23-1 corregido: rules `:6–8` incorpora snippet literal al arrancar; service `:20–22` conserva suyo. `test_console_encoding.py:305–306,383–392` declara pureza nominal medible/MODOS para ambos; `:730–770` oráculos reales cp1252/ascii, error noASCII JSON y stdin UTF8/emoji/bytes/SHA éxito. El criterio canónico `:169–179,269–292,639–722` se conserva. |
+| Rama / publicación / macros | ✓ | `tasks.md:14–24,1035–1046`: no PR/main/release ni B23 publicado/aceptado, sólo T-01 cerrada. Autorización normal commit/push rama no obliga PR/release. Comparación restante, skills aplazadas y objetivo global activos. |
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A23-1 | Important | Consola de nuevas piezas | T-11/T-14/T-15 | Corregido, confirmado A2; criterio conservado | Snippet/MODOS y oráculos reales, check88 propio. |
+| B23-1 | Important | Corte entre enlace y limpieza de registros | T-08/T-14 | Corregido, confirmado B2 | Dos cortes reales y recover doble; enlaces ajenos rechazados. |
+| B23-2 | Important | Curator generado incompatible con su persistencia | T-11/T-15 | Corregido, confirmado B2 | Dos proyecciones completas y otras14 equivalencias verificadas. |
+| B23-3 | Important | Nombre Gold largo y SHA en handoff | T-08/T-14 | Corregido, confirmado B2 | Gold máximo real, aliases cuatro estados y store intacto. |
+| B23-4 | Important | Secreto en diagnóstico de metadatos | T-08/T-14 | Corregido, confirmado B2 | Mismos códigos, secreto omitido y dependencia ausente segura. |
+| D23-1 | Important | Cada apply recarga todos los payloads de intenciones cerradas | T-08/T-14/T-15 | Directorios ligados a la ruta del candidato; recover enumera nombres y valida único registro; pendiente GREEN y revisión3 | D:1/201/801 históricos,2/202/802 lecturas y0,139/0,703/2,031s. RED ROOT abajo. |
+
+Informe A SHA `563f74c78e101812bb5185e55153d10d6e8f47d123c73c64a2b956e1c24c4b74`,
+B SHA `32ce3dfd3d81cb4171965ea0fda00994ac0330556c8812a20db6cd3a6becb210`,
+D SHA `d4f9684a7761c34b0305dbdc23a7e1b5b20c9e60709d8ba89727d4e0b4056e24`.
+D conserva fixture sintético, cuatro procesos exactos exit0 y fallos auxiliares;
+la extrapolación del lote20 no se presenta como medida. El cambio evita leer
+payloads ajenos; no promete tiempo constante, historial ilimitado ni aceptación
+nativa. Conserva recibos, hashes, redacción, recuperación y registros históricos.
+
+RED: `test_review_d23_d1_apply_does_not_reload_unrelated_completed_history`
+falló con cuatro lecturas ajenas; el contraejemplo de ID duplicado también
+falló · 2026-10-10. PID11080 exit1,2 failed/5 passed/101 deselected; JUnit SHA
+`884dd5e900eda5b2647aa268392eb753a89c727645eb21ae33f934823f1cfb87`.
+Los cuatro tests B1 pasan antes del cambio con localización independiente del
+layout, manteniendo la interrupción del enlace real y los enlaces ajenos.
+Contrato actualizado antes de implementar; formato prospectivo no publicado,
+sin migración del corpus legado. Fuentes y oráculos congelados en OWN, sin
+consumer settings, red/modelos/auth ni Docker. GREEN, revisión3, QA,
+commit y push pendientes al registrar esta fusión.
+
+Dirección del usuario del2026-10-10: completar capacidades prioritarias
+(comandos, dashboard, memoria y compatibilidad), continuar hasta terminar,
+y retomar la ampliación de skills después. No se añaden skills en este bloque.
+
+GREEN correctivo D23-1: PID32360 exit0,267 passed/2 skipped; JUnit SHA
+`fa4f357e07ca5eca3bf16028b4e4aef8775486edc9870b05b074a7c2512f21c4`.
+El oráculo dedicado observa cero lecturas de payloads históricos ajenos,
+conserva sus bytes y recupera cada ID de manera idempotente. Los ID duplicados
+y las intenciones fuera de directorio se rechazan sin mutación. Los cuatro
+cortes/contraejemplos B1 se mantienen. Consola PID30188 exit0,20 passed sin
+skips; JUnit SHA `ee4b7b465408ae5140905bd274e321132169c8fdd1d731bc0c738732a472945e`.
+Dos skips de symlink de archivo Windows documentados; no se acreditan esos
+guards. Exportador escrito/check88 exit0 sólo en copia OWN. Pendiente revisión3
+independiente de la corrección, QA Windows/Linux y publicación de la rama.
+
+## Revisión de dos lentes — intento 3: Bloque23 (T-07/T-08/T-11/T-14/T-15) — sin gaps pendientes
+
+Lentes A+B+D, C=false/D=true; contexto fresco, fallback genérico reviewer
+con tier opus/high frontmatter y sin override consumidor. Scope oficial68,
+0 fuera/avisos/excluidos; fuente inmutable1029, diff68/6740 líneas. ROOT leyó
+completos los tres informes, verificó recibos/90+362+112 artefactos, entradas
+y hashes1029. Los seis Important están corregidos; 0 Critical/Important/Minor.
+No rebatidos ni criterios reabiertos. B3 conserva23 sondas, sin sumar la
+cohorte anterior de21; A ejecutó check88 propio PID17500 exit0.
+Revisión aceptada como puerta previa de este bloque, no QA ni cierre macro.
+
+Tabla completa A3 (referencias relativas a la fuente congelada revisión3):
+
+| Criterio | ✓/✗ | Evidencia y límite |
+|---|---|---|
+| T-XX hechas y criterios | ✓ | `docs/roadmap/2026-10-07-catalog-capabilities/tasks.md:46–56`: T-01 conserva sus tres criterios y verificación; única macro completada. `tasks.md:33–40`:1/16; no acepta comparación global. |
+| Alcance del plan | ✓ | `tasks.md:204,238,248,258` declara agentes/comandos/kits/scripts/tests/skills/docs/interop/changelogs. ROOT scope PID33736 exit0:68 en alcance,0 fuera/avisos/excluidos. `diff-audit.json` reconstruye esas68 rutas; corrección y contrato/oráculos permanecen en ese alcance. |
+| Tests y oráculos reales | ✓ | `agent-kits/shared/test_knowledge_curation.py:105–205`: cuatro B1 siguen interrumpiendo `os.link` real y rechazando enlace ajeno; D23-1 observa `_read` real, conserva cada byte histórico y recupera cada ID; misplaced/duplicate compara árbol antes/después. `tests/test_console_encoding.py:730–770` conserva oráculos reales Unicode. No fake writer para verde. |
+| Constitución explícita | ✓ | `docs/CONSTITUTION.md:10–13,17–21,36–40`: stdlib, dueño único, TDD/regresión dedicada, fuente generada, redactor/no mutación ajena. `tasks.md:1091–1100,1106–1115` conserva RED antes del cambio y GREEN posterior sin QA. `_load_operation:495–506` liga ruta antes de limpiar staging propio. |
+| Verificación de tareas cerradas | ✓ | `tasks.md:52` conserva evidencia ejecutada T-01. Las demás tareas permanecen abiertas; `tasks.md:1106–1115` conserva verificación acotada y pendientes explícitos. No ejecuto una verificación faltante para tapar cierre. |
+| Generado al día / E2 | ✓ | Check propio en copia OWN exacta1029: Python PID17500, `-I -X utf8 -B scripts/export-interop.py --check`, exit0, stdout `export-interop --check: 88 ficheros al día`, stderr vacío. `tasks.md:204,248` declara interop y `:1114` evidencia autor; revisión3 todavía en curso sin macro cerrada. |
+| Descriptores actualizados / E3 | ✓ | `docs/agents/CONTRACTS.md:76–77,85,118–119` E13/E14/E22/E53/E54; `ROLES.md:30–43,89`; seis docs agentes y CONVENTIONS/FLOWS/SPECIALIZATION ES/EN, skills/kits/callers actualizados en el mismo diff. Nuevo layout descrito en contrato `:83–94`, sin nueva promesa global o nativa. |
+| API OpenAPI | ✓ (n/a) | Ninguna spec OpenAPI en las68 rutas. No ejecutado openapi-lint. |
+| Docs-style | ✓ (n/a como gate exclusivo de prosa) | Servicio/persistencia con pruebas y descriptores, criterio conservado del pase2. Fragmento `agent-kits/shared/docs-style.md:14–25` leído; no reabro estilo. |
+| T-07 corte prospectivo / legado | ✓ | `agent-kits/shared/knowledge-write.md:65–89`, `knowledge-check.md:59–71`; contrato `memory-curation-contract.md:113–126` bajo comparisons. Sin migración/reaprobación/borrado ni accepted=approved; nuevo layout prospectivo `:93–94`. `test_knowledge_curation.py:648–661` preserva legado/journal/índice. |
+| T-08 persistencia compartida / juicio Curator | ✓ | `knowledge-curation.py:450,562,623`; `agents/knowledge-curator.md:37–46,79–141`: productor propone, Curator semántica, servicio bytes. Revisión/design/QA/Gold/repetición no aprueban; sin nuevo rol/skill. |
+| Propuesta redactada, portable y exclusiva | ✓ | Servicio `:78–85,153–164,195–204,450–475`: destino128, aliases<=8/255 sólo comparación, reserva en cuatro estados bajo cerrojo, SHA final. Tests `:220–307` conservan aliases/duplicado/redacción y nunca destino por alias. |
+| SHA original / metadatos finales | ✓ | Servicio `:404–443,562–589`: ID/prefijo, categoría, versión1, índice/colisión y SHA fuente. `_caught:66–76` conserva redactor o fallback seguro. Test dedicado B4 `:207–217` mantiene código/status y árbol intacto sin secreto. |
+| needs_changes/reject/replacement | ✓ | Servicio `:569–576,585–618`; tests `:415–480`: preserva original/motivo, rejected terminal, sólo approve admite replacement completo ligado al SHA original; nunca edición de approved. |
+| Gate puro / reglas compartidas | ✓ | `agent-kits/knowledge-curator/curator-gate.py:152–172` delega los mismos validadores del servicio `:421–435`; `test_knowledge_curation.py:664–670` conserva gate0 sin mutación ni transición. |
+| Intención / recibo / recover | ✓ | Servicio `:299–340,477–507,510–559,623–630`: SHA de ruta exacta, operación hash/verificación y binding antes de `_settle_record`; recover enumera nombres y exige única coincidencia. Tests `:105–205` conservan cortes B1 y añaden misplaced/duplicate sin mutación; `:507–575` preserva cortes/reintentos/cambios/ajenos. No corte eléctrico. |
+| Concurrencia / IO / OS | ✓ | Servicio `:109–147,166–204,207–290`; tests `:577–646,684–753`: proceso cooperante, enlaces/scan incompleto y fuente ajena conservada. _walk de recover conserva límite4096 y rechaza escaneo no verificable. Dos skips Windows no prueban guards symlink; POSIX/nativo pendientes. |
+| T-11 productores / fallback / retro tardía | ✓ | Seis agentes, debug-root-cause/retro/bridge siguen el mismo propose sin writer alternativo. `commands/dev-cycle.md:400–428`, `commands/retro.md:24–34`: handoff explícito o ruta/ID pendiente; cierre de retro no aprueba. |
+| Bridge Gold / nombre / SHA / store | ✓ | `propose-from-case.py:151–164,210–243,274–277`: fórmula ordinaria preservada, acorta sólo slug largo y reserva alias histórico, SHA real servicio. `test_propose_from_case.py:603–701` verifica Gold máximos, cuatro estados, store/config y handoff; sin hash/cambiado conserva tratamientos históricos. |
+| Journal episódico sin promoción | ✓ | `journal.py:1565–1574,1702–1711,2178–2184`; `test_journal_curation_handoff.py:18–52`: orientación de consulta explícita, fuentes/estado preservados y ausencia de creación de candidates/approved. No aceptación por repetición. |
+| Confluence / staging | ✓ | `confluence-scope.py:83–85,268–275`, defaults/skill/policy; `test_memory_curation_scope.py:21–58`: exclusión forzada journal/candidates antes de include/casing/staging; approved y originales preservados. No conexión/publicación real. |
+| T-14 honestidad RED/GREEN/QA | ✓ | `tasks.md:1091–1100`: RED2fallos/5pases, B1 pasaba misma frontera antes del cambio; `:1106–1115`: GREEN267/2skips y consola20sin skips, procesos exactos/SHAs y QA/publicación pendientes. Históricos conservados sin suma como cobertura única ni eficacia/escala/global. |
+| T-15 consola obligatoria nueva | ✓ | A23-1 corregido confirmado2 y conservado: rules `:6–8` snippet, servicio `:20–22`; `test_console_encoding.py:305–306,383–392,730–770` MODOS/pureza medidos y UTF8/emoji/JSON/SHA reales cp1252/ascii. Criterio canónico no relajado. |
+| Rama / publicación / macros | ✓ | `tasks.md:14–24,1102–1115`: sólo T-01 cerrada; sin PR/main/release ni B23 publicado/aceptado. Prioridades y skills aplazadas se mantienen; continúa objetivo global, QA/OS/clientes pendientes. |
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A23-1 | Important | Consola | T-11/T-14/T-15 | Corregido; aprobado2 y conservado3 | Snippet/MODOS, oráculos Unicode y criterios intactos. |
+| B23-1 | Important | Corte enlace/limpieza de registros | T-08/T-14 | Corregido; confirmado B3 en layout actual | Cortes reales operations/receipts y staging vivo, recover doble y enlaces ajenos. |
+| B23-2 | Important | Curator generado incompatible | T-11/T-15 | Corregido; aprobado2 y conservado3 |16 proyecciones individualmente verificadas; check88 propio A3. |
+| B23-3 | Important | Gold largo y handoff SHA | T-08/T-14 | Corregido; aprobado2 y conservado3 | Nombre128/hash completo/aliases y store conservados. |
+| B23-4 | Important | Secreto en diagnóstico | T-08/T-14 | Corregido; aprobado2 y conservado3 | Redactor/fallback y códigos sin datos crudos. |
+| D23-1 | Important | Recarga global de payloads históricos bajo lock | T-08/T-14/T-15 | Corregido, confirmado D3 y sin defecto B3 |801 históricos:802→1 lecturas,62.627.193→78.137B,0 ajenas; cuatro transiciones reales conservadas. |
+
+Informes SHA A `3ee6e8f4aa327a5df8774f0987fef2517b67768486d060985e977fb09e8c5d7c`,
+B `a9edbd14df60b1100407e82b49236f04ad093fc0e9a26396fa2d442812acd30d`,
+D `abef027d6f97f4dd11a0a5983b005f2c67460ae425a199eb84eab53a4969df4c`.
+D mide muestras locales individuales: apply antiguo3,465s frente nuevo0,164s;
+no SLA ni benchmark universal. Recover801 enumera803 directorios/1604 nombres,
+lee un payload y tarda1,320s: coste explícito y acotado, no O(1).
+La construcción de801 históricos modela registros sintéticos, no801 movimientos
+reales; la sonda adicional sí completa cuatro transiciones reales y recover
+doble con bytes intactos. Ambas fuentes/probes preservan sus límites.
+
+Precisión de evidencia: B3 mantiene recibo original y suplemento SHA
+`cfa8c8208a430894d9b9fd45ccfe4b912e9c69e88bbfadd5ae180a1e91e3017a`,
+con16 hashes verificados. Su array argv original partió la ruta: no es captura
+nativa; reconstrucción por receta diferenciada de sys.argv. Los logs del primer
+finalizador son finalize-first, no los nombres reutilizados tras su fallo.
+PID inicial ausente declarado; no se inventa. A/D conservan sus fallos auxiliares,
+sin atribuirles verde de producto. No se repiten sondas para completar metadata.
+
+Jira no publica: fixture público OWN sin integración activa ni issues volcados;
+configuración privada del consumidor no consultada. Ninguna memoria se aprueba
+por esta revisión. Se habilita QA de fuente exacta revisión3: Windows/Linux,
+Coverage.py oficial y gates sin redondear, bundle portable/CLI/lint/evals/exports.
+La preparación instala sólo dependencias QA OWN, no producto/Python global.
+QA, commit y push todavía pendientes; las dieciséis macros conservan su estado.
+
+
+## Validación Windows/Linux interrumpida y corrección posterior — Bloque23
+
+La primera QA no se acepta: Windows JUnit995 passed/3 failed/1 error/2 skipped,
+Linux952 passed/1 failed/1 error/1 skipped; pytest exit3 y procesos externos exit1.
+JUnit SHA Windows `53172507423ee1e28b272cb8af1a9f17fd12671ef7b944130f21da2c41b4a092`,
+Linux `8318e46f65e0aedae4f1980ffe35413c19e7809f2adfb2672b4c418f46870fa5`.
+Se preservan resultados parciales, sin acreditar cobertura ni gate completo.
+El contenedor QA OWN quedó detenido, eliminado por su ID exacto y ausente;
+las1029 fuentes conservaron sus hashes. No se tocó ningún servicio del usuario.
+
+La monitorización ROOT leía el log vivo mediante FileShare.Read: podía impedir
+su append en Windows y en el bind mount Linux. Reproducción OWN con fixture
+aislado: PowerShell PID31184 exit0; Python32520 obtiene PermissionError con
+lector abierto y37536 exit0 después de cerrarlo. La primera sonda auxiliar
+falló por quoting de PowerShell y se conserva; no prueba el bloqueo. Se corrige
+el diagnóstico inicial atribuido a mocks. La repetición no leerá logs vivos
+con ese modo; el registro QA usa referencias IO capturadas y progreso stdout.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| Q23-1 | Important | CI omite la suite Confluence nueva | T-14 | Incluida en workflow y copia manual | `test_toda_suite_de_skill_esta_en_la_linea_pytest_de_la_ci`: falla antes y pasa después. |
+| Q23-2 | Important | Consola no declara el validador visual del bloque22 | T-14/T-15 | MODOS con envelope UTF8 válido; SIN_SIMBOLOS explícito medido | Oráculos existentes de arranque, snippet y Unicode:5 rojos antes; sin saltar el script ni aceptar invalid_open. |
+
+RED correctivo PID25632 exit1:5 failed/4 passed/554 deselected. JUnit SHA
+`6b7872de4732bc666c7666c2d2ec3d0b727143e6c4fdae9bc7bd3babde278be2`.
+GREEN dirigido PID22916 exit0:570 passed/6 skipped. JUnit SHA
+`9b824f2061b0dafc575ab9f959c7690aad7bf8a5870b4c6a9ed86a42969848a8`.
+Tres skips: PyYAML ausente en esa receta; otros tres: Node ausente.
+No se acreditan esos seis checks; QA completa llevará ambos runtimes QA OWN.
+No cambia código de producto, decisiones de memoria ni proyecciones generadas.
+
+El ciclo original revisión1–3 se conserva aceptado. Se abre un ciclo acotado
+nuevo de remediación post-QA sobre seis rutas de CI/tests/changelogs/ledger,
+con máximo tres intentos, sin reiniciar ni ocultar los tres pases anteriores.
+Sus24 criterios y seis gaps corregidos se trasladan íntegros; se reevalúan
+sólo Q23-1/Q23-2 y el delta, salvo evidencia nueva. No hay aprobación de memoria,
+QA verde, cierre macro, commit ni push todavía. Skills aplazadas hasta completar
+comandos, dashboard, memoria y compatibilidad, según instrucción del usuario.
+
+## Revisión de dos lentes — intento 1: Remediación post-QA Bloque23 (T-14/T-15) — sin gaps pendientes
+
+Ciclo nuevo acotado1 de3, separado de revisión original1–3 aceptada.
+Lentes A+B+C independientes en paralelo, D=false. C=true sólo por workflow.
+Scope PID35296 exit0:6 rutas,0 fuera/avisos/exclusiones. Export check88
+PID10000 exit0. Ledger PID23512 exit0, aviso histórico de cabecera729.
+ROOT leyó íntegros los tres informes y verificó recibos,26 hashes de A,
+artefactos/hijos B y las1029 fuentes congeladas. Se conservan24 criterios
+y seis gaps originales; Q23-1/Q23-2 corregidos,0 Critical/Important/Minor.
+Sin rebatidos, reaperturas, nueva aprobación de memoria ni cierre macro.
+
+| Criterio | ✓/✗ heredado | Evidencia aceptada del ciclo original3 (referencias históricas) | Revisión del delta remediación1 |
+|---|---|---|---|
+| T-XX hechas y criterios | ✓ | `docs/roadmap/2026-10-07-catalog-capabilities/tasks.md:46–56`: T-01 conserva sus tres criterios y verificación; única macro completada. `tasks.md:33–40`:1/16; no acepta comparación global. | ✓ Conservado; tasks.md:48 única macro completada. |
+| Alcance del plan | ✓ | `tasks.md:204,238,248,258` declara agentes/comandos/kits/scripts/tests/skills/docs/interop/changelogs. ROOT scope PID33736 exit0:68 en alcance,0 fuera/avisos/excluidos. `diff-audit.json` reconstruye esas68 rutas; corrección y contrato/oráculos permanecen en ese alcance. | ✓ Revalidado: tasks.md:238–239 y259; scope PID35296 exit0 seis rutas, 0 fuera/avisos/excluidos. Changelogs pertenecen al alcance T-16, sin cerrar esa macro. |
+| Tests y oráculos reales | ✓ | `agent-kits/shared/test_knowledge_curation.py:105–205`: cuatro B1 siguen interrumpiendo `os.link` real y rechazando enlace ajeno; D23-1 observa `_read` real, conserva cada byte histórico y recupera cada ID; misplaced/duplicate compara árbol antes/después. `tests/test_console_encoding.py:730–770` conserva oráculos reales Unicode. No fake writer para verde. | ✓ Revalidado: tests/test_ci_skill_suites.py:61–63; test_console_encoding.py:303–304,380–387,687–699,783–796. Ejecución real subprocess :632–634. RED5 y GREEN570/6skips comprobados; no acreditan QA global. |
+| Constitución explícita | ✓ | `docs/CONSTITUTION.md:10–13,17–21,36–40`: stdlib, dueño único, TDD/regresión dedicada, fuente generada, redactor/no mutación ajena. `tasks.md:1091–1100,1106–1115` conserva RED antes del cambio y GREEN posterior sin QA. `_load_operation:495–506` liga ruta antes de limpiar staging propio. | ✓ Revalidado: CONSTITUTION.md:11–13,26. RED previo conserva tests que identifican el gap, stdlib json y espejo ES/EN en el delta. Sin cambios generados manuales ni cierre global. |
+| Verificación de tareas cerradas | ✓ | `tasks.md:52` conserva evidencia ejecutada T-01. Las demás tareas permanecen abiertas; `tasks.md:1106–1115` conserva verificación acotada y pendientes explícitos. No ejecuto una verificación faltante para tapar cierre. | ✓ Conservado; ninguna nueva tarea completada. Tasks.md:1216–1222 registra evidencia correctiva limitada, no cierre. |
+| Generado al día / E2 | ✓ | Check propio en copia OWN exacta1029: Python PID17500, `-I -X utf8 -B scripts/export-interop.py --check`, exit0, stdout `export-interop --check: 88 ficheros al día`, stderr vacío. `tasks.md:204,248` declara interop y `:1114` evidencia autor; revisión3 todavía en curso sin macro cerrada. | ✓ No aplica al delta6: no cambia commands/, agents/ ni hooks/. No ejecutado export por esta lente. Check88/PID17500 sigue como evidencia histórica aceptada3, sin atribuir ejecución nueva. |
+| Descriptores actualizados / E3 | ✓ | `docs/agents/CONTRACTS.md:76–77,85,118–119` E13/E14/E22/E53/E54; `ROLES.md:30–43,89`; seis docs agentes y CONVENTIONS/FLOWS/SPECIALIZATION ES/EN, skills/kits/callers actualizados en el mismo diff. Nuevo layout descrito en contrato `:83–94`, sin nueva promesa global o nativa. | ✓ Revalidado para delta: tasks.md:239,1193–1230 y CHANGELOG.md:14–16/CHANGELOG.es.md:14–16 describen exactamente CI y consola. Contratos/callers del producto sin delta. |
+| API OpenAPI | ✓ (n/a) | Ninguna spec OpenAPI en las68 rutas. No ejecutado openapi-lint. | ✓ n/a: sin spec OpenAPI en seis rutas; no ejecutado lint. |
+| Docs-style | ✓ (n/a como gate exclusivo de prosa) | Servicio/persistencia con pruebas y descriptores, criterio conservado del pase2. Fragmento `agent-kits/shared/docs-style.md:14–25` leído; no reabro estilo. | ✓ Conservado n/a del ciclo anterior; no hallazgos de requisitos introducidos por la prosa acotada. |
+| T-07 corte prospectivo / legado | ✓ | `agent-kits/shared/knowledge-write.md:65–89`, `knowledge-check.md:59–71`; contrato `memory-curation-contract.md:113–126` bajo comparisons. Sin migración/reaprobación/borrado ni accepted=approved; nuevo layout prospectivo `:93–94`. `test_knowledge_curation.py:648–661` preserva legado/journal/índice. | ✓ Conservado, sin cambio ni evidencia nueva en las seis rutas. No reabierto. |
+| T-08 persistencia compartida / juicio Curator | ✓ | `knowledge-curation.py:450,562,623`; `agents/knowledge-curator.md:37–46,79–141`: productor propone, Curator semántica, servicio bytes. Revisión/design/QA/Gold/repetición no aprueban; sin nuevo rol/skill. | ✓ Conservado, sin cambio ni evidencia nueva en las seis rutas. No reabierto. |
+| Propuesta redactada, portable y exclusiva | ✓ | Servicio `:78–85,153–164,195–204,450–475`: destino128, aliases<=8/255 sólo comparación, reserva en cuatro estados bajo cerrojo, SHA final. Tests `:220–307` conservan aliases/duplicado/redacción y nunca destino por alias. | ✓ Conservado, sin cambio ni evidencia nueva en las seis rutas. No reabierto. |
+| SHA original / metadatos finales | ✓ | Servicio `:404–443,562–589`: ID/prefijo, categoría, versión1, índice/colisión y SHA fuente. `_caught:66–76` conserva redactor o fallback seguro. Test dedicado B4 `:207–217` mantiene código/status y árbol intacto sin secreto. | ✓ Conservado, sin cambio ni evidencia nueva en las seis rutas. No reabierto. |
+| needs_changes/reject/replacement | ✓ | Servicio `:569–576,585–618`; tests `:415–480`: preserva original/motivo, rejected terminal, sólo approve admite replacement completo ligado al SHA original; nunca edición de approved. | ✓ Conservado, sin cambio ni evidencia nueva en las seis rutas. No reabierto. |
+| Gate puro / reglas compartidas | ✓ | `agent-kits/knowledge-curator/curator-gate.py:152–172` delega los mismos validadores del servicio `:421–435`; `test_knowledge_curation.py:664–670` conserva gate0 sin mutación ni transición. | ✓ Conservado, sin cambio ni evidencia nueva en las seis rutas. No reabierto. |
+| Intención / recibo / recover | ✓ | Servicio `:299–340,477–507,510–559,623–630`: SHA de ruta exacta, operación hash/verificación y binding antes de `_settle_record`; recover enumera nombres y exige única coincidencia. Tests `:105–205` conservan cortes B1 y añaden misplaced/duplicate sin mutación; `:507–575` preserva cortes/reintentos/cambios/ajenos. No corte eléctrico. | ✓ Conservado, sin cambio ni evidencia nueva en las seis rutas. No reabierto. |
+| Concurrencia / IO / OS | ✓ | Servicio `:109–147,166–204,207–290`; tests `:577–646,684–753`: proceso cooperante, enlaces/scan incompleto y fuente ajena conservada. _walk de recover conserva límite4096 y rechaza escaneo no verificable. Dos skips Windows no prueban guards symlink; POSIX/nativo pendientes. | ✓ Conservado, sin cambio ni evidencia nueva en las seis rutas. No reabierto. |
+| T-11 productores / fallback / retro tardía | ✓ | Seis agentes, debug-root-cause/retro/bridge siguen el mismo propose sin writer alternativo. `commands/dev-cycle.md:400–428`, `commands/retro.md:24–34`: handoff explícito o ruta/ID pendiente; cierre de retro no aprueba. | ✓ Conservado, sin cambio ni evidencia nueva en las seis rutas. No reabierto. |
+| Bridge Gold / nombre / SHA / store | ✓ | `propose-from-case.py:151–164,210–243,274–277`: fórmula ordinaria preservada, acorta sólo slug largo y reserva alias histórico, SHA real servicio. `test_propose_from_case.py:603–701` verifica Gold máximos, cuatro estados, store/config y handoff; sin hash/cambiado conserva tratamientos históricos. | ✓ Conservado, sin cambio ni evidencia nueva en las seis rutas. No reabierto. |
+| Journal episódico sin promoción | ✓ | `journal.py:1565–1574,1702–1711,2178–2184`; `test_journal_curation_handoff.py:18–52`: orientación de consulta explícita, fuentes/estado preservados y ausencia de creación de candidates/approved. No aceptación por repetición. | ✓ Conservado, sin cambio ni evidencia nueva en las seis rutas. No reabierto. |
+| Confluence / staging | ✓ | `confluence-scope.py:83–85,268–275`, defaults/skill/policy; `test_memory_curation_scope.py:21–58`: exclusión forzada journal/candidates antes de include/casing/staging; approved y originales preservados. No conexión/publicación real. | ✓ Conservado producto; Q23-1 revalidado: workflow y copia :52 incluyen skills/confluence-publish/scripts y son byte-idénticos SHA d8378db84a799058564c69ad12f7e1331ad54c0f191f0bd91366bc3beb810844. No publicación real. |
+| T-14 honestidad RED/GREEN/QA | ✓ | `tasks.md:1091–1100`: RED2fallos/5pases, B1 pasaba misma frontera antes del cambio; `:1106–1115`: GREEN267/2skips y consola20sin skips, procesos exactos/SHAs y QA/publicación pendientes. Históricos conservados sin suma como cobertura única ni eficacia/escala/global. | ✓ Revalidado: tasks.md:1195–1201 QA interrumpida no aceptada; :1216–1222 RED5/GREEN570/6skips exactos. XML y recibos coinciden. Sin suma de cohortes, cobertura/gate completo no acreditados. |
+| T-15 consola obligatoria nueva | ✓ | A23-1 corregido confirmado2 y conservado: rules `:6–8` snippet, servicio `:20–22`; `test_console_encoding.py:305–306,383–392,730–770` MODOS/pureza medidos y UTF8/emoji/JSON/SHA reales cp1252/ascii. Criterio canónico no relajado. | ✓ Revalidado Q23-2: MODOS :380–387 exige exit0 para envelope UTF8 con emoji; excepción ASCII :303–304 medida :783–796 y no oculta arranque/snippet. Validador :69–79 usa bytes UTF8 y approval_granted=False :60–61. |
+| Rama / publicación / macros | ✓ | `tasks.md:14–24,1102–1115`: sólo T-01 cerrada; sin PR/main/release ni B23 publicado/aceptado. Prioridades y skills aplazadas se mantienen; continúa objetivo global, QA/OS/clientes pendientes. | ✓ Revalidado: tasks.md:1224–1230 ciclo nuevo1/max3 separado, objetivo activo/skills aplazadas, sin QA verde/cierre macro/commit/push. |
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A23-1 | Important | Consola | T-11/T-14/T-15 | Corregido; aprobado2 y conservado3 | Snippet/MODOS, oráculos Unicode y criterios intactos. |
+| B23-1 | Important | Corte enlace/limpieza de registros | T-08/T-14 | Corregido; confirmado B3 en layout actual | Cortes reales operations/receipts y staging vivo, recover doble y enlaces ajenos. |
+| B23-2 | Important | Curator generado incompatible | T-11/T-15 | Corregido; aprobado2 y conservado3 |16 proyecciones individualmente verificadas; check88 propio A3. |
+| B23-3 | Important | Gold largo y handoff SHA | T-08/T-14 | Corregido; aprobado2 y conservado3 | Nombre128/hash completo/aliases y store conservados. |
+| B23-4 | Important | Secreto en diagnóstico | T-08/T-14 | Corregido; aprobado2 y conservado3 | Redactor/fallback y códigos sin datos crudos. |
+| D23-1 | Important | Recarga global de payloads históricos bajo lock | T-08/T-14/T-15 | Corregido, confirmado D3 y sin defecto B3 |801 históricos:802→1 lecturas,62.627.193→78.137B,0 ajenas; cuatro transiciones reales conservadas. |
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| Q23-1 | Important | Suite Confluence omitida en CI | T-14 | Corregido; confirmado A/B/C | Ruta literal en copias idénticas, detector real sin carpetas omitidas; sin permisos/triggers/secrets nuevos. |
+| Q23-2 | Important | Metadata consola de plan-review-open | T-14/T-15 | Corregido; confirmado A/B/C | Envelope UTF8 válido y exit0, exención ASCII individual medida; snippet/arranque/negativos preservados, approval_granted=false. |
+
+Informes SHA A `6fd70f0afb0de172d3a33c201f479fe99baa413998a841a40252aa40272a248d`,
+B `306d152b53775c9e489919be7419e9bad1353235bb703954897cf4ca4669a3dd`,
+C `86ea0dbaf3abd7633069c70ac76d28056a99be5c04f3c1008d166d8954a57f00`.
+B ejecutó8 hijos en copia OWN:2 positivos exit0 y6 negativos exit2,
+supervisorPID3544 exit0. Wrapper declara cp1252/ascii antes del snippet;
+no equivale a host nativo ni pytest/cobertura. A/C no ejecutaron producto.
+Jira no publica: no integración/issue en fixture pública ni config consumidor
+consultada. Fuente manifest `08d1c109802e46878f1287144529744c37ed04d1b2c9e0b5b1f7ef93cd9f59b4`,
+diff `bd215e50f24ce4a8daf0a47f4aab16f62c0c368343e1b4efa96254f4e7742ce2`.
+Se habilita segunda QA completa Windows/Linux sobre esa fuente exacta,
+con selección CI íntegra, Node/PyYAML QA OWN y cobertura oficial sin redondeo.
+El diff de cobertura es el bloque23 entero contra baseline publicado, no
+el delta de seis rutas de remediación. Se preserva la primera QA fallida.
+La preparación auxiliar intentó decodificar un asset binario inalterado;
+falló antes de tests. La continuación verifica la copia exacta y sólo calcula
+diff de archivos cambiados; no relaja la lectura ni cambia producto.
+QA, commit y push siguen pendientes; skills aplazadas y objetivo activo.
+
+## Continuación técnica — regresiones de hooks (2026-10-10)
+
+Se mantiene el ciclo post-QA: intento1 aceptado, intento2 todavía pendiente.
+La segunda QA completa sigue ejecutándose sobre su fuente congelada anterior;
+sus fallos se conservan y no se atribuye aceptación a resultados parciales.
+No se modifica su fuente, procesos ni registros durante la ejecución.
+
+Corrección acotada a `tests/test_graphiti_security.py`,
+`tests/test_knowledge_services.py` y nuevo `tests/hook_security_support.py`:
+el recorrido declara las dependencias reales de captura y guardia nativa;
+el analizador distingue enumeraciones de runtime usadas como datos de argv;
+la excepción AST de `urllib.parse.urlparse` sólo admite el import exacto sin
+ocultación de llamadas de red, alias o usos desconocidos. Se conserva la
+excepción nominal y condicionada del resumen IA. El espía intercepta sólo
+la carga del backend y deja funcionar el lector real de política local.
+La huella del launcher se actualiza tras revisar su contenido íntegro;
+no se deriva el esperado del fichero bajo prueba. No cambia el producto.
+
+RED previo, conservado por cohortes independientes (sin sumarlas):
+
+| Caso | PID / exit | Resultado | SHA256 JUnit |
+|---|---|---|---|
+| Enumeraciones, parseo local y dependencias | 10536 /1 |5 fallos,2 pases |3b74edf79c3e60c4fa488841b355f4f62d8bd5f9aee5461ce0a2b73a6d0bf464 |
+| Lector real bajo espía |3040 /1 |1 fallo |a440e36fd1144d080d93d2abb0f559e7c9cc87edaec526a21a7effe6c7d8152c |
+| Controles positivos/negativos ampliados |25476 /1 |6 fallos,5 pases |693abeca1f9e94128bb63a2f54cf04ff4cf80d00c8b3a3b4f2e6ed8e95e84765 |
+| Segundo analizador y control de red |19628 /1 |2 fallos,1 pase |bc6a5fb418b3d18a6ab3555ccb46ed1097e99ed9ef161a463eceb92c18547ee3 |
+| Reasignación de constructor argparse |36572 /1 |1 fallo |2e960b3195a9ceca5f97d963f82babc588302f00b3f2efab113f60a0fa8615e2 |
+
+GREEN final dirigido Windows: PID24304 exit0,125 pases,0 fallos/errores/skips;
+JUnit SHA256 `988ad2ce47c6b651903e9e921c7c1ece63a97c4561dbb07f5a8abfc23c0bc30b`.
+GREEN dirigido Linux: Graphiti74, servicios51 y shell64:189 pases,
+0 fallos/errores/skips,75,80s, Pythoncontenedor8/Docker19336/host20724 exit0.
+JUnit SHA256 `8fc08fe7c837f58bcc27088175d5b99de25b0e4e42602f4982600265a8fe01c0`;
+informe SHA256 `5c47b7f752fb6d5689b49851e74acfc999672bf38f59eea9b343b35a9d2c1eae`.
+ROOT leyó informe y recibos finales; fuente1030 exacta y modos intactos,
+134 hijos con terminal, contenedor OWN retirado por CID y ausencia comprobada.
+Las cohortes Windows/Linux no se suman ni acreditan cobertura, QA completa,
+clientes nativos, cierre macro o publicación.
+
+La prueba Linux usa bytes LF conforme `.gitattributes` y modos publicados
+100644/100755 en tmpfs nativo. Ocho shell de la copia Windows requieren
+normalización CRLF→LF; la copia cruda conserva su SHA y no se modifica ROOT
+para ocultar ese error de preparación. La segunda QA copió bytes/modes
+inadecuados: esos fallos deben separarse de defectos del producto con evidencia.
+La próxima receta preservará bytes canónicos, modos Git y registros JSONL
+serializados, además de exigir CTracer oficial activo. No se inicia todavía.
+
+ROOT promovió sólo los tres archivos de pruebas tras comprobar los SHA
+originales de ambos tests y la ausencia del helper, conservando inmutable
+la fuente dirigida. Quedan revisión2, análisis terminal de QA2, QA completa
+corregida, gates y publicación. La ampliación de skills queda para después de
+implementar y validar comandos, dashboard, hooks y memoria, según el usuario.
+
+### Fixture de permisos Windows y diagnóstico de router
+
+La segunda QA alcanza una prueba histórica de permisos POSIX que usa chmod
+en Windows: `os.access(..., X_OK)` sigue dando true para archivos regulares.
+RED aislado del caso original noexec: PID10460 exit1, stderr SHA256
+`54b6277f62485658a5134f63fb05079ec6fb502e3035edc319661ac38069f9e7`.
+Tras corregir ese caso, la suite completa expone la misma precondición en
+hooks.json: PID19724 exit1, stderr SHA256
+`cf25616d5aec08dcb0f8f69fa41ab2b9d84501f0bebf19b39da98ffa9abb4aa7`.
+Ambos rojos se conservan. `tests/test_lint_plugin.py` simula en un hijo
+aislado sólo la respuesta X_OK del path exacto para esos dos casos Windows;
+delega el resto de accesos reales. Un control dedicado conserva permisos de
+otro hook y el error de path inexistente. POSIX sigue usando chmod real y
+el caso de modo Git conserva su índice real, sin simulación ni skip.
+No cambia `scripts/lint_plugin.py` ni ningún hook de producto.
+
+GREEN caso original: PID17348 exit0. GREEN suite-script completa final:
+PID31000 exit0, stdout SHA256
+`a5313733321974d91940bf113076ddecc913f2c34b726c3acedeac5b8644717a`,
+stderr vacío. Es evidencia del comportamiento con entrada controlada en
+Windows; no acredita permisos POSIX nativos ni la QA completa.
+Promoción ROOT guardada por SHA original, nueva huella del test
+`bb5bac7ca7a10ee7307e75bb01099faddb8bd8fbfd83ce4b043b6b3533e899a1`.
+
+El fallo QA2 del router documental positivo no se ha reproducido en la
+sonda acotada: dos casos (positivo y carrera) pasan con CTracer PID3152 y
+con PyTracer PID17652, ambos exit0, con metadatos reales del router.
+El positivo conserva origen backend y la carrera degrada a local por
+manifest desfasado. No se atribuye el fallo a cobertura por inferencia:
+faltan diagnóstico terminal de QA2 y revalidación completa. No hay fix de
+producto, relajación de deadline ni aceptación global por estas sondas.
+El assert del test de integración incluye ahora `info` para que una nueva
+degradación exponga el motivo real en el informe de fallo; su condición y
+el presupuesto permanecen intactos.
+
+### Arranque de memoria y puerta de entrenamiento
+
+RED original de SessionStart: PID3300 exit1, dos fallos, JUnit SHA256
+`96d9718c3a37415ed6edde4e1807cd7e1dd082e240724bf2cebc4b5b9e22529d`.
+La sonda bash-x prueba salida en línea69 por ausencia de python3, antes de
+resolver SHARED; no se atribuye a línea81 ni a las barras Windows. `_env`
+de `tests/test_memory_path.py` incorpora el shim, Python nativo, SystemRoot
+y rutas normalizadas conforme al fixture de shell existente. POSIX y todas
+las aserciones se conservan. La ejecución ampliada PID28228 produjo70 pases
+y un fallo por ausencia de índice Git en la copia OWN; los siete tests de
+memoria pasaron con contexto real, selección por área y topes originales.
+JUnit SHA256 `52ce15713f32a9de1c1aad1ff8e39f0c5a436d0dba70621645fc23e3358b173f`.
+Tras preparar todos los modos publicados en un índice Git OWN se repitió
+sólo ese check: PID9552 exit0,1 pase, JUnit SHA256
+`642caa52cf00fbec70e0ee5135b753f8f8c3cb647f0fd55f63bc05a41ee3259e`.
+No se declara un intento único de71 pases. ROOT verificó385 hashes de
+artefactos y promovió únicamente el fixture con guardia de SHA original.
+
+Dos fallos de entrenamiento se reproducen antes de corregirlos: E22
+carecía de ruta de pruebas y el lambda del resolver interpretaba el segundo
+argumento timeout como la IP preparada. RED PID7652:2 fallos originales;
+RED PID10320:4 variantes de la regresión dedicada. Se conservan ambos.
+El spy en `tests/test_training_data_services.py` admite los dos argumentos
+y mantiene la resolución privada/pública/None/no-IP preparada; sus asserts
+originales y los controles del timeout permanecen activos. E22 en
+`docs/agents/CONTRACTS.md` cita el bridge y el servicio compartido, conserva
+QA pendiente y no convierte evidencia histórica en aprobación de memoria.
+GREEN dirigido PID19468 exit0:6 pases. Suite principal y puerta E22,
+PID3364 exit0:161 pases/2 skips de enlaces Windows. Scripts restantes,
+PID21788 exit0:598 pases/12 skips OS. Cada skip tiene su razón en el informe;
+ninguno acredita symlink/FIFO nativos ni se suma como pase.
+ROOT comprobó los stdout/stderr/JUnit completos de las cinco cohortes y
+promovió sólo el test y E22, tras comprobar sus SHA originales.
+Informe SHA256 `e206377a5473ef91d74e064abd67de37e7ed24d6553a23afc38bd68ac36cc4bc`;
+diff SHA256 `16e39bc66eb8aa088ca1feee1275e218427c46211bf7d6fcb8010a474ff1c341`.
+
+La revisión2 del ciclo post-QA puede examinar ahora el delta congelado
+mientras QA2 continúa sobre su fuente anterior, intacta. Se mantienen las
+24 decisiones originales, seis gaps históricos y Q23-1/Q23-2; no se reabren
+sin evidencia nueva. No se lanza QA3 ni se publica antes de analizar la QA2
+terminal, completar revisión y verificar todas las puertas necesarias.
+
+## Revisión de dos lentes — intento 2: Remediación post-QA Bloque23 (T-14/T-15) — un Important corregido pendiente de revisión3
+
+Lentes A+B frescas por subagentes genéricos; reviewer nativo no disponible.
+Selector PID23076 exit0: C=false/D=false. Scope real PID14652 exit0:
+11 en alcance,0 fuera/avisos/excluidos. El despacho mencionaba PID13620;
+se usa el terminal real y se conserva el artefacto original. Fuente congelada
+1030 archivos, manifest SHA256
+`a1fc147808cf757f0fcdb12b9748d73b9d80ebf534a57b146db6157f09e2b9bd`,
+diff SHA256 `138fa204f56c565c61f335015cfa773a4a134ab2ed270c82afd70b9fb4db814d`.
+
+A conserva los24 criterios y ocho gaps corregidos del intento1 post-QA.
+B reproduce un Important nuevo: el cambio de método del parser desde una
+función o mediante alias mantenía indebidamente la exención de datos runtime.
+ROOT leyó ambos informes íntegros, comprobó sus hashes y17 artefactos B,
+reprodujo el defecto con cinco regresiones dedicadas y lo acepta sin rebate.
+Los ✓ de A no anulan el defecto de B; no hay aceptación global del intento2.
+Informes A SHA256 `0e164b90a66fbe2258259654c62f8e497f4850a6bb26c330722f3f21e87745a1`,
+B SHA256 `9b251e7739102295076489b1911f5870670121ab6bd410fe6221c431794aad95`.
+
+Tabla de continuidad: las referencias al intento1 son evidencia canónica
+heredada; no representan una nueva ejecución de esas cohortes.
+
+| # | Criterio | A2 | Continuidad y delta |
+|---|---|---|---|
+| 1 | T-XX hechas y criterios | ✓ | Intento1 fila1; sólo T-01 completada, sin macro nueva. |
+| 2 | Alcance del plan | ✓ | Intento1 fila2; scope11 sin fuera ni exclusiones. |
+| 3 | Tests y oráculos reales | ✓ | Intento1 fila3; fixtures y spies reales; B23-QA2-1 acepta un defecto nuevo del scanner. |
+| 4 | Constitución explícita | ✓ | Intento1 fila4; stdlib, RED previo, delegación y fuentes generadas conservadas. |
+| 5 | Verificación de tareas cerradas | ✓ | Intento1 fila5; T-01 intacta, ninguna verificación faltante se inventa. |
+| 6 | Generado al día / E2 | ✓ | Intento1 fila6; delta sin commands/agents/hooks; check autor PID5800 exit0,88 al día. |
+| 7 | Descriptores / E3 | ✓ | Intento1 fila7; CONTRACTS E22 incorpora puertas reales manteniendo QA pendiente. |
+| 8 | API OpenAPI | n/a | Intento1 fila8; no spec OpenAPI modificada. |
+| 9 | Docs-style | n/a | Intento1 fila9; no gate exclusivo de prosa ni reapertura por estilo. |
+| 10 | Corte prospectivo / legado | ✓ | Intento1 fila10; sin delta ni migración. |
+| 11 | Persistencia compartida / juicio Curator | ✓ | Intento1 fila11; Gold sólo propone, QA no aprueba. |
+| 12 | Propuesta redactada / portable / exclusiva | ✓ | Intento1 fila12; propose, aliases y reserva intactos. |
+| 13 | SHA original / metadatos finales | ✓ | Intento1 fila13; binding y redactor intactos. |
+| 14 | needs_changes / reject / replacement | ✓ | Intento1 fila14; transiciones y original ligado a SHA intactos. |
+| 15 | Gate puro / reglas compartidas | ✓ | Intento1 fila15; E22 sólo enumera ejecución, sin transición nueva. |
+| 16 | Intención / recibo / recover | ✓ | Intento1 fila16; operación y cortes internos intactos. |
+| 17 | Concurrencia / IO / OS | ✓ | Intento1 fila17; fixtures Windows conservan assertions/POSIX; límites explícitos. |
+| 18 | Productores / fallback / retro tardía | ✓ | Intento1 fila18; sin delta ni autoaprobación. |
+| 19 | Bridge Gold / nombre / SHA / store | ✓ | Intento1 fila19; E22 gate real, store y juicio intactos. |
+| 20 | Journal episódico sin promoción | ✓ | Intento1 fila20; nueva clasificación sólo en scanner de tests. |
+| 21 | Confluence / staging | ✓ | Intento1 fila21 y Q23-1 conservados; ninguna publicación real. |
+| 22 | Honestidad RED / GREEN / QA | ✓ | Intento1 fila22; cohortes separadas, fallos/skips preservados, sin cobertura nueva aceptada. |
+| 23 | Consola obligatoria nueva | ✓ | Intento1 fila23 y A23-1/Q23-2 conservados; no CLI nueva del helper. |
+| 24 | Rama / publicación / macros | ✓ | Intento1 fila24; QA/gates/push pendientes, skills aplazadas, objetivo activo. |
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B23-QA2-1 | Important | Mutación de parser entre scopes o aliases oculta argv claude | T-14/T-15 | Invalidación conservadora transitiva de aliases y nombres mutados; corregido, pendiente revisión3 | RED5, GREEN130/0skips; no producto modificado. |
+
+A23-1, B23-1..4, D23-1, Q23-1 y Q23-2 permanecen corregidos, sin
+reapertura, deuda aceptada ni cambio del ciclo original1–3. Este es el
+intento2 del ciclo post-QA existente; el próximo será3/MAX3.
+
+La primera recopilación del test nuevo falló por falta de import pytest,
+PID1480 exit2; se conserva como error de preparación, no como RED válido.
+Tras corregir sólo ese import, RED PID35640 exit1: cinco fallos del detector,
+JUnit SHA256 `88986c4a3cd018be5757e0c9d1f00329971d0ed35d9ada6072ae6433016de0ef`.
+GREEN PID25772 exit0:130 pases,0skips, ambas suites completas del scanner,
+JUnit SHA256 `ef0427a038557fedff9a01bbb9cf4cb2ca564a7bf484ef50240da1848f8ca0f1`.
+ROOT promovió sólo `tests/test_graphiti_security.py` con guardia del SHA
+original; se conserva la fuente dirigida. No cambia el producto, el timeout,
+los permisos nativos ni el backend. Revisión3 y QA completa siguen pendientes.
+
+Linux dirigido2 aporta otra cohorte independiente:16 pases,0skips,14.36s,
+JUnit SHA256 `b78f6ba6f94867b8be2d99b51ce259f445a520b8780cea813d4c0866c89555fb`.
+ROOT verificó106 hashes y la identidad AST del helper final, cuyo único
+cambio posterior fue whitespace EOF. Git privado mantiene1030 blobs/modos;
+el contenedor OWN se retiró por su CID y se comprobó ausencia. No se suma
+con189/125/130 ni acredita cobertura o clientes nativos.
+
+La segunda QA Linux terminó:6209 pases,78 fallos,44 skips,6331 casos.
+Conserva los75 fallos previamente diagnosticados y tres nuevos pendientes
+de corrección/reproducción: fixture del recorte de memoria sin su lector
+dependiente y dos verificaciones de snapshot documental. No se atribuyen
+éstos a un timeout sin medir. La cobertura de esa ejecución no se acepta:
+proveedor PyTracer, aviso trace-changed y gate sin datos agregados válidos.
+Windows continúa sobre su snapshot antiguo; su terminal no se inventa.
+La ampliación de skills sigue reservada para después de completar y validar
+comandos, dashboard, hooks y memoria.
+
+### Diagnóstico y corrección de la fixture final de memoria
+
+El fallo del recorte tiene causa probada: el CLI trasladado a una ruta larga
+no incluía `knowledge-view.py` ni sus dependencias locales. El hijo QA2
+PID5119 exit0 devuelve total0/reader_unavailable; no alcanza el algoritmo
+de recorte. La fixture copia ahora los cuatro siblings reales necesarios,
+sin mocks ni cambio de assertions, orden, entradas o topes.
+Las tres cohortes independientes sin cobertura/con CTracer/con PyTracer
+reproducen6 pases/1 fallo, siempre ese caso. GREEN final CTracer:7 pases,
+0skips, JUnit SHA256
+`2758ffb2daab4749946f7a1416850196b69b2ab2aebf9cb780aa46f59c89c729`.
+Son los mismos siete casos repetidos, no28 casos únicos. El CLI GREEN
+devuelve41 entradas/12 candidatos, lectura completa y stderr vacío; la
+aserción original comprueba que el render recorta de verdad.
+
+Los dos verify históricos pasan en las cuatro cohortes sin cambiar100ms;
+en las tres originales miden2.483–22.770ms. No usan resolver: loopback
+IPv4 literal, cero llamadas DNS. No se ha reproducido su fallo ni probado
+causa exacta; no hay fix de producto ni aumento de presupuesto.
+El test muestra ahora `resultado` y exige explícitamente `comparacion`
+antes del acceso ya obligatorio para que una recurrencia conserve el motivo.
+Ese cambio diagnóstico se valida por AST/operandos sin repetir el GREEN;
+su archivo final se ejecutará en QA completa. No se presenta como reparación
+de un timeout ni elimina ninguno de los fallos históricos.
+
+ROOT leyó el informe completo, verificó149 hashes y promovió únicamente
+ambos tests con guardias de SHA original. Informe SHA256
+`69da7cd4078c8a7b5b3062afbd39306b31ee3986dd2236fd05d6d2b36cba90ac`;
+fixture SHA256 `c3afa13b17b1542fa670b762e501b4fe9b5d3699f1dc855a28346c95f687b35c`,
+diagnóstico SHA256 `c3459e9538bfa5e8feba4f31d71165cf0b787ead763b2294d5ad485eec6f8840`.
+El contenedor OWN fue retirado por su CID tras observar terminal y propietario;
+fuentes QA2/final permanecen intactas. No se acredita cobertura por estas sondas.
+
+El preparador OWN de QA3 conserva los14 directorios/6331 IDs anteriores,
+siete archivos de producción y ambos umbrales90 sin redondear. Corrige
+la auditoría concurrente JSONL y exige CTracer oficial activo; journal.py
+sin ejecutables cambiados sigue en la media y aporta0 al denominador
+agregado. Denominador global vacío/proveedor no medible no inventan ratios.
+23 unidades propias del harness pasan en dos cohortes, sin tests de producto:
+lock/shortwrite/IO capturado/dedup/pending/corrupción y binding/MAX3.
+La aritmética corregida sobre los datos históricos Linux sigue FAIL:
+media71.3220%, changed578/725=79.7241%; trace-changed impide atribuirlos
+sólo a ejecución de hijos. No se asume que CTracer resolverá la cobertura.
+QA3 aún no ha empezado: necesita revisión3 aceptada y terminal real de
+ambas plataformas QA2, además de fuente/receta/pointer ligados por hashes.
+
+
+## Revisión de dos lentes — intento 3: Fase QA (T-14/T-15) — residual verificado y decisión del orquestador
+
+Lentes A+B+D sobre la fuente de1030 archivos, manifest
+`0524e67de8eddac84d2d0a1777a366a1531b3bb9dd9bef2440a8904e7ac6bfee`.
+A conserva sus24 criterios y los9 gaps de continuidad; D sin hallazgos.
+B confirma el mismo Important B23-QA2-1: `alias = second = p` y
+`alias: object = p` ocultan el argv tras mutar `alias.add_argument`.
+ROOT verificó informes, recibos, artefactos y fuente; acepta el residual.
+La sonda con mock PID9288 exit0 observa argv real y detectores vacíos;
+no ejecuta comandos ni red. La corrección previa no cubre esas asignaciones.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B23-QA2-1 | Important | Alias encadenado/anotado no invalida el parser | T-14/T-15 | pendiente; no se acepta intento3 | test_graphiti_security.py:313–339; informe B SHA6727e60b351cc1d398ac1f6be1e9938f431aff50a2e163d6806c367ee447529a |
+
+El ciclo3/MAX3 termina con ese gap. La skill adversarial-review §5 devuelve
+la decisión al orquestador/usuario. ROOT decide continuar conforme a la
+autorización de completar la implementación: una corrección y un único pase
+independiente adicional, contador global4/MAX4. No reinicia ni oculta1–3,
+no acepta deuda ni convierte esta fuente rechazada en revisión aceptada.
+Los24 criterios y nueve gaps se trasladan íntegros al pase adicional.
+Si ese pase conserva un Important, se devuelve una nueva decisión explícita.
+
+QA2 Windows terminó PID21420 exit1:6215 pases,24 fallos,92 skips,
+6331 casos y7821.37s. Linux mantiene6209/78/44 sobre6331 casos.
+Los10 fallos Windows posteriores al inventario14 se diagnostican en OWN;
+no se asumen corregidos ni se relanza QA3. Cobertura, aceptación nativa,
+macros, commit/push y cierre global permanecen pendientes.
+Sin Jira habilitado en esta ejecución aislada: no publicación externa.
+Skills nuevas siguen aplazadas hasta completar comandos/dashboard/hooks/memoria.
+
+
+### Corrección adicional acotada de B23-QA2-1 — revisión4/MAX4 pendiente
+
+RED: seis regresiones de alias encadenado/anotado, dentro/fuera de función,
+desempaquetado y expresión asignada fallaron con `argv claude` ausente:
+Python PID18348 exit1 · 2026-10-10 · JUnit SHA256
+`0ee68c6b9939f4c93d31463254660b798d33c0d690ce967b3ec460f8be155121`.
+Se reproducen variantes del mismo falso negativo, antes de cambiar el detector.
+El detector separa las relaciones de alias de las asignaciones que prueban
+identidad argparse; recoge Assign, AnnAssign y NamedExpr, con pares
+desempaquetados estructuralmente iguales. No concede una identidad nueva a
+una asignación ambigua: sólo propaga la invalidez por mutación.
+
+GREEN: Graphiti y knowledge-services completos, Python PID26368 exit0,
+136 pases,0 skips,66.44s · JUnit SHA256
+`b7fafeec21c576f9e46a7336fadee5395c1503c23c65a8282242ba3e1a95c8c9`.
+ROOT verificó terminales, streams, XML y los1030 archivos OWN; sólo cambió
+el test/scanner indicado, promovido con guardia SHA original. SHA final
+`df76106ed8bdb1db25d7b97f6170aecbe34d3e9d0cb6871bcb64eed4d6c6e5d0`. Changelogs EN/ES actualizados.
+No se modifica producto ni se acredita cobertura o QA completa.
+La revisión adicional global4/MAX4 necesita fuente final que incluya las
+correcciones de QA2 Windows; no se ha lanzado ni se acepta todavía el gap.
+La fuente de revisión3 permanece intacta y rechazada, sin reiniciar ciclos.
+
+
+### QA2 Windows — diagnóstico de los diez fallos nuevos y correcciones acotadas
+
+Inventario: cinco coverage-gate, dos evals y tres lecturas HTTP. En OWN sobre
+la fuente exacta de revisión3, PID9308 exit1 reproduce7 fallos y20 pases.
+Coverage construía --runner con rutas Windows sin serializar para shlex:
+el hijo buscaba un executable sin backslashes y no escribía coverage.json.
+La fixture usa shlex.join para el script real y para el runner sin cobertura;
+no cambia el parser ni el veredicto de producción.
+
+RED: evals prueba desaparición real del cwd con objetos Git readonly y
+visibilidad del fallo de limpieza: PID22904 exit1,2 fallos · 2026-10-10,
+JUnit SHA256 `cacb795bd0a43e1b75ba24a4417532c0e08d605e913d543df08e92d51f7e97ff`.
+El runner sustituye ignore_errors por limpieza del cwd recién creado y
+reintenta sólo unlink de archivo regular readonly Windows dentro de esa ruta,
+sin reparse. Un error restante falla el caso, conserva cwd y guarda clase/códigos
+sin mensaje bruto. El prefijo eval- valida formato, no acredita propiedad.
+El bloque standalone de tests queda al final; Git ausente sólo omite su
+regresión específica. Docs EN/ES comparten evals/README.md y changelogs espejados.
+
+GREEN: PID32648,2 regresiones; PID29048,45 casos; refinamientos PID33036,
+45 casos; runner sin fichero serializado PID14428,1 caso. Todos exit0 sin
+skips; las dos cohortes45 no se suman como90 únicos ni como cobertura.
+JUnit final45 SHA256 `419b6bc6e1c2e8364daf93f30d1ff0f9655f4c1675680971e9d64ecc40711b4c`.
+
+HTTP conserva100/1500ms. Tres casos dirigidos pasan sin cambiar producto,
+con PyTracer PID13172 y CTracer activo PID33932; verify36.88/20.95ms y
+17.52/15.32ms respectivamente, lectura306.52 y118.38ms. No reproducen
+los fallos históricos ni demuestran su causa; deadline_read_agotado sólo
+es el motivo histórico observado de uno. Se conserva la fuente/terminal
+QA2 fallida, no se atribuye su resultado a cobertura válida ni al nuevo fix.
+
+ROOT leyó informe completo y diff, verificó94 artefactos, terminales/XML y
+1030 archivos OWN; promovió cuatro rutas con guardias de SHA original.
+Informe SHA256 `ab48c88875b4c89256c8ca054ffc4f025757641b0183e49dde262cfc0f762521`;
+recibo SHA256 `b9aa49d32042a383e81408b37cc711e4d2c11e08c895b2bdc66a161f64d1a41b`.
+Revisión independiente adicional4/MAX4 y QA completa permanecen pendientes.
+Sin modelos/hosts nativos, Docker, QA3, aprobación de memoria ni commit/push.
+La ampliación de skills sigue aplazada después de comandos/dashboard/hooks/memoria.
+
+
+## Revisión de dos lentes — intento 4: Fase QA (T-14/T-15) — dos Important verificados y replan acotado
+
+ROOT fusiona A+B sobre el manifest de1030 archivos SHA256
+`94aec1d3b603bc6185f33e5ee5726f8abd9f2de9320c31df8ae57b2d226dd45f`.
+Selector autor C=false/D=false; reviewer nativo ausente, lentes genéricas con
+modelo heredado sin override. Informes, recibos, artefactos y fuente cotejados
+por SHA. A conserva24 criterios y tres criterios T-01; criterio4 ahora ✗.
+B confirma el mismo B23-QA2-1 en `alias, *rest = p, None, None`: la mutación
+no invalida p y los dos detectores omiten el argv observado por el mock.
+La sonda PID10956 exit0 no ejecuta hosts, comandos de producto ni red.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B23-QA2-1 | Important | Desempaquetado con estrella conserva el falso negativo | T-14/T-15 | pendiente | tests/test_graphiti_security.py:335–339; informe B SHA d17c90225d71e9cd9aa35f20b137b522b73b900851c0bfa6d75c2518907a59c5 |
+| A23-QA4-1 | Important | Nuevo diagnóstico persistido sin redactor compartido | T-14/T-15 | pendiente | evals/run.py:324–325,397; CONSTITUTION.md:34; informe A SHA 1f647b6ceec03f22553088033ca2a99f3a85928299aa6d0c59b6ea71cf1c3172 |
+
+Los ocho gaps históricos A23-1, B23-1..4, D23-1 y Q23-1/Q23-2 siguen
+corregidos y conservados con su evidencia original, sin nueva adjudicación.
+El noveno B23-QA2-1 sigue pendiente; A23-QA4-1 es el décimo, nuevo Important
+aceptado por ROOT contra el principio literal, sin afirmar fuga real.
+Se conserva debajo la tabla completa A4 con las columnas de continuidad;
+sus ✓ heredados no equivalen a aceptación universal o nueva ejecución.
+
+| # | Tarea | Criterio | ✓/✗ | Evidencia heredada completa | Estado y evidencia delta2 heredados | Juicio y evidencia delta3 | Juicio y evidencia adicional 4/MAX4 |
+|---|---|---|---|---|---|---|---|
+| 1 | T-01 | T-XX hechas y criterios | ✓ | `docs/roadmap/2026-10-07-catalog-capabilities/tasks.md:46–56`: T-01 conserva sus tres criterios y verificación; única macro completada. `tasks.md:33–40`:1/16; no acepta comparación global. Referencia de traspaso: tasks.md:1246. | ✓ Conservado. tasks.md:48,54–56 y33–40 mantiene única macro T-01 completa, tres criterios y1/16; ninguna nueva macro se cierra. | ✓ Conservado. tasks.md:33–56 mantiene sólo T-01 completada,1/16. Sus tres criterios se desglosan abajo; ninguna macro se cierra en este delta. | ✓ Conservado. tasks.md:33–56 mantiene sólo T-01 completada, 1/16; se conservan sus tres criterios ejecutados. Ninguna macro se cierra. |
+| 2 | T-14/T-15/T-16 | Alcance del plan | ✓ | `tasks.md:204,238,248,258` declara agentes/comandos/kits/scripts/tests/skills/docs/interop/changelogs. ROOT scope PID33736 exit0:68 en alcance,0 fuera/avisos/excluidos. `diff-audit.json` reconstruye esas68 rutas; corrección y contrato/oráculos permanecen en ese alcance. Referencia de traspaso: tasks.md:1247. | ✓ Revalidado. tasks.md:239 tests/** y ledger, :250 docs/** y tests/**, :260 ambos changelogs; corresponde QA/documentación del plan:19–21,45–48. Scope terminal PID14652 exit0:11 en alcance,0 fuera/avisos/excluidos. PID13620 del despacho no coincide con terminal y no se usa. | ✓ Revalidado. tasks.md:239,250,260 declara tests/kit/skills/docs y ambos changelogs; plan:19–21,45–48 requiere QA/documentación. Scope PID6176 exit0,6 en alcance,0 fuera/avisos/info/excluidos (terminal y hashes propios comprobados). | ✓ Revalidado. tasks.md:239,250,260 declara evals/**, tests/**, skills/**, ledger y ambos changelogs; plan:19–21,45–48 requiere QA/documentación. Scope PID 28776 exit 0: ocho rutas dentro, cero fuera/avisos/info/excluidos. Limpieza del fixture y serialización del runner son reparación de QA, no ampliación de skills. |
+| 3 | T-14 | Tests y oráculos reales | ✓ | `agent-kits/shared/test_knowledge_curation.py:105–205`: cuatro B1 siguen interrumpiendo `os.link` real y rechazando enlace ajeno; D23-1 observa `_read` real, conserva cada byte histórico y recupera cada ID; misplaced/duplicate compara árbol antes/después. `tests/test_console_encoding.py:730–770` conserva oráculos reales Unicode. No fake writer para verde. Referencia de traspaso: tasks.md:1248. | ✓ Revalidado línea a línea: test_graphiti_security.py:2250–2348 prueba datos/argv, parseo/red, rutas y lector local real; test_knowledge_services.py:1379–1404 prueba ambos recorridos; test_lint_plugin.py:497–516 controla noexec/otro/missing. test_training_data_services.py:572–601 separa resolución/timeout y mantiene los asserts; test_memory_path.py:185–284 mantiene payload/contexto/área/topes. test_knowledge_router_read.py:366–371 sólo añade diagnóstico info. No existe % oficial nuevo del diff aceptado: pendiente, sin usar cohortes como cobertura. | ✓ Revalidado. tests/test_graphiti_security.py:308–339,2369–2385 conserva detector real y cinco negativos de mutación/alias/delete; RED5 y GREEN130/0skip ejecutados. test_task_brief.py:1802–1823 copia cuatro dependencias reales, preserves assertions/topes y GREEN7. test_backend_markdown_export.py:278,528–530 mantiene condiciones,100ms y añade sólo dict/presencia. Último archivo diagnóstico sin rerun todavía; tests existentes no equivalen a QA completa. Sin % oficial nuevo aceptado del diff. | ✓ Revalidado línea a línea. test_graphiti_security.py:332–347,2405–2422 recoge Assign/AnnAssign/NamedExpr y exige argv + ofensor real para seis variantes; RED 6/GREEN 136. evals/test_evals.py:402–458 comprueba Git readonly/ausencia real y denegación visible/conservación del sentinel; RED 2/GREEN 2 y cohorte 45. test_coverage_gate.py:160,262 cambia sólo shlex.join; conserva mínimos/diff/exit/asserts. No % oficial nuevo válido del diff. |
+| 4 | T-14/T-15 | Constitución explícita | ✓ | `docs/CONSTITUTION.md:10–13,17–21,36–40`: stdlib, dueño único, TDD/regresión dedicada, fuente generada, redactor/no mutación ajena. `tasks.md:1091–1100,1106–1115` conserva RED antes del cambio y GREEN posterior sin QA. `_load_operation:495–506` liga ruta antes de limpiar staging propio. Referencia de traspaso: tasks.md:1249. | ✓ Revalidado contra CONSTITUTION.md:10–13,17–21,26,29,33–38. Tests/soporte stdlib, RED real conservado en tasks.md:1321–1330,1360–1366,1393–1394,1409–1412; controles dedicados y espejos CHANGELOG.md/CHANGELOG.es.md:17–18. No nueva llamada de red hook ni edición manual generada; no aprobación de memoria ni cierre/publicación. | ✓ Revalidado. CONSTITUTION.md:10–13,17–21,26,29,33–38: helper usa stdlib, RED válido precede corrección y cinco regresiones nombradas; mirrors EN/ES actualizados; fuente generada y juicio Curator conservados. Pytest es infraestructura de test existente, no dependencia nueva del producto. El error import PID1480 no cuenta como RED. | ✗ Nuevo A23-QA4-1 Important. CONSTITUTION.md:34 exige que todo texto persistido pase por redact.py. evals/run.py:324–325 crea detalle.cleanup como texto y :397 lo persiste por json.dump sin cargar/invocar ese redactor. El resto conserva stdlib, TDD (tasks.md:1598–1610,1629–1642), fuentes y espejos; no se reabren violaciones previas ajenas al delta. |
+| 5 | T-01 | Verificación de tareas cerradas | ✓ | `tasks.md:52` conserva evidencia ejecutada T-01. Las demás tareas permanecen abiertas; `tasks.md:1106–1115` conserva verificación acotada y pendientes explícitos. No ejecuto una verificación faltante para tapar cierre. Referencia de traspaso: tasks.md:1250. | ✓ Conservado. Verificación ejecutada T-01 heredada tasks.md:52 y fila aceptada :1250. El delta no altera Estado ni sus tres criterios; otras15 macros abiertas. No ejecuté ninguna verificación para cubrir falta de evidencia. | ✓ Conservado. tasks.md:52 contiene verificación ejecutada T-01 y :54–56 sus tres checks. Ninguna otra macro cerrada; no ejecuté una verificación para ocultar ausencia. | ✓ Conservado. tasks.md:52 conserva la verificación ejecutada de la única macro cerrada; :54–56 sus tres checks. No ejecuto verificaciones para cubrir evidencia faltante. T-14/T-15 abiertas, T-16 borrador. |
+| 6 | T-11/T-15 | Generado al día / E2 | ✓ | Check propio en copia OWN exacta1029: Python PID17500, `-I -X utf8 -B scripts/export-interop.py --check`, exit0, stdout `export-interop --check: 88 ficheros al día`, stderr vacío. `tasks.md:204,248` declara interop y `:1114` evidencia autor; revisión3 todavía en curso sin macro cerrada. Referencia de traspaso: tasks.md:1251. | ✓ n/a al delta11: sólo tests, CONTRACTS, changelogs y ledger; no commands/, agents/ ni hooks/. No ejecuté export. Evidencia autor adicional qa-rem-review2-final-exports/terminal.json PID5800 exit0 y stdout exacto export-interop --check: 88 ficheros al día; hashes stdout/stderr comprobados, separado del check heredado PID17500. | ✓ n/a al delta6: no commands/, agents/ ni hooks/. Prompt A no requiere ejecución propia de export aquí. Autor PID6488 exit0,88 ficheros al día, terminal/streams verificados; separar del check histórico17500. | ✓ n/a al delta ocho: no commands/, agents/ ni hooks/. No ejecuté export-interop; evidencia autor PID 30612 exit 0 y stdout «export-interop --check: 88 ficheros al día», streams cotejados. interop/** declarado en tasks.md:250. No se atribuye como ejecución propia nueva. |
+| 7 | T-15 | Descriptores actualizados / E3 | ✓ | `docs/agents/CONTRACTS.md:76–77,85,118–119` E13/E14/E22/E53/E54; `ROLES.md:30–43,89`; seis docs agentes y CONVENTIONS/FLOWS/SPECIALIZATION ES/EN, skills/kits/callers actualizados en el mismo diff. Nuevo layout descrito en contrato `:83–94`, sin nueva promesa global o nativa. Referencia de traspaso: tasks.md:1252. | ✓ Revalidado E3. CONTRACTS.md:85 cambia sólo Puerta E22 por dos rutas existentes del bridge/servicio y conserva QA pendiente/Gold nunca aprueba. test_training_data_services.py:386–407 exige ruta real. CHANGELOG.md/CHANGELOG.es.md:17–18 y tasks.md:1303–1432 describen scanner/espía/fixtures, sin promesa global. Producto/callers sin delta. | ✓ Revalidado. CONTRACTS.md:85,118–119,140–142 conserva E22/E53/E54 y condición E3. Sólo tests/scanner/fixture cambian, sin arista/caller o flujo de producto nuevo; CHANGELOG.md/CHANGELOG.es.md:18,20 y tasks.md:1433–1561 describen exactamente esos cambios y límites en esta tarea. | ✓ Revalidado. CONTRACTS.md:66,140–142 exige E3/espejos. Ninguna arista de productor/caller cambia. evals/README.md:79–85,157–163 describe limpieza/cleanup_error en ES/EN en esta misma tarea; CHANGELOG.md/CHANGELOG.es.md:18,21 y tasks.md:1596–1657 describen scanner/fixtures/runner y límites. No obligación de modificar FLOWS por un flujo del ciclo inexistente en el delta. |
+| 8 | T-08/T-11 | API OpenAPI | ✓ | Ninguna spec OpenAPI en las68 rutas. No ejecutado openapi-lint. Referencia de traspaso: tasks.md:1253. | ✓ n/a; las11 rutas no incluyen spec OpenAPI. No ejecutado lint. | ✓ n/a: seis rutas sin spec OpenAPI. No ejecutado openapi-lint. | ✓ n/a: ocho rutas sin spec OpenAPI. No ejecutado openapi-lint. |
+| 9 | T-15 | Docs-style | ✓ | Servicio/persistencia con pruebas y descriptores, criterio conservado del pase2. Fragmento `agent-kits/shared/docs-style.md:14–25` leído; no reabro estilo. Referencia de traspaso: tasks.md:1254. | ✓ n/a conservado como gate exclusivo de prosa; sin hallazgo de requisitos ni reapertura por estilo. | ✓ Aplicado a este delta mayoritariamente prosa por líneas; docs-style.md:14–25. tasks.md:1433–1561 y changelogs:18,20 usan evidencia y comparaciones concretas, sin promesa global/nativa. Tabla única de gap :1482–1484 responde al formato obligatorio SKILL §6, no se elimina por preferencia; no hallazgo citable nuevo. | ✓ n/a al criterio adicional de iniciativa mayoritariamente prosa: semántica de código/tests y documentación de QA. docs-style.md:15–22 leído; no se reporta estilo. Tabla de una fila en ledger responde al formato obligatorio SKILL §6. |
+| 10 | T-07 | T-07 corte prospectivo / legado | ✓ | `agent-kits/shared/knowledge-write.md:65–89`, `knowledge-check.md:59–71`; contrato `memory-curation-contract.md:113–126` bajo comparisons. Sin migración/reaprobación/borrado ni accepted=approved; nuevo layout prospectivo `:93–94`. `test_knowledge_curation.py:648–661` preserva legado/journal/índice. Referencia de traspaso: tasks.md:1255. | ✓ Conservado. Sin delta al servicio, knowledge-write/check ni contrato de corte prospectivo; evidencia heredada :1255 sigue vigente. | ✓ Conservado. tasks.md:1255,1466; ningún delta a knowledge-write/check/contrato o producto. Legado sin migración/reaprobación. | ✓ Conservado. tasks.md:1255,1466; sin delta a knowledge-write/check/contrato de corte prospectivo. No migración ni reaprobación del legado. |
+| 11 | T-08 | T-08 persistencia compartida / juicio Curator | ✓ | `knowledge-curation.py:450,562,623`; `agents/knowledge-curator.md:37–46,79–141`: productor propone, Curator semántica, servicio bytes. Revisión/design/QA/Gold/repetición no aprueban; sin nuevo rol/skill. Referencia de traspaso: tasks.md:1256. | ✓ Conservado. Sin delta al servicio/Curator. CONTRACTS.md:85 conserva explícitamente Gold no aprueba, sólo pending; juicio no delegado a QA. | ✓ Conservado. tasks.md:1256,1467; persistencia/Curator sin delta. QA/Gold no aprueban memoria. | ✓ Conservado. tasks.md:1256,1467; servicio/Curator sin delta. QA/Gold/revisión no aprueban memoria. |
+| 12 | T-08 | Propuesta redactada, portable y exclusiva | ✓ | Servicio `:78–85,153–164,195–204,450–475`: destino128, aliases<=8/255 sólo comparación, reserva en cuatro estados bajo cerrojo, SHA final. Tests `:220–307` conservan aliases/duplicado/redacción y nunca destino por alias. Referencia de traspaso: tasks.md:1257. | ✓ Conservado. Sin delta a propose/redactor/alias/reserva; evidencia heredada :1257 intacta. | ✓ Conservado. tasks.md:1257,1468; propose/aliases/reserva/redactor sin delta. | ✓ Conservado. tasks.md:1257,1468; propose/aliases de candidatos/reserva/redactor de memoria sin delta. Aliases del scanner son otro dominio. |
+| 13 | T-08 | SHA original / metadatos finales | ✓ | Servicio `:404–443,562–589`: ID/prefijo, categoría, versión1, índice/colisión y SHA fuente. `_caught:66–76` conserva redactor o fallback seguro. Test dedicado B4 `:207–217` mantiene código/status y árbol intacto sin secreto. Referencia de traspaso: tasks.md:1258. | ✓ Conservado. Sin delta a SHA/metadatos/_caught ni test B4; evidencia heredada :1258 intacta. | ✓ Conservado. tasks.md:1258,1469; SHA original/metadatos y test B23-4 sin delta. | ✓ Conservado. tasks.md:1258,1469; SHA/metadatos/_caught y test B23-4 sin delta. |
+| 14 | T-08 | needs_changes/reject/replacement | ✓ | Servicio `:569–576,585–618`; tests `:415–480`: preserva original/motivo, rejected terminal, sólo approve admite replacement completo ligado al SHA original; nunca edición de approved. Referencia de traspaso: tasks.md:1259. | ✓ Conservado. Sin delta a transiciones/replacement/terminal rejected; evidencia heredada :1259 intacta. | ✓ Conservado. tasks.md:1259,1470; transiciones y replacement ligados a SHA original sin delta. | ✓ Conservado. tasks.md:1259,1470; transiciones/replacement y rejected terminal sin delta. |
+| 15 | T-08 | Gate puro / reglas compartidas | ✓ | `agent-kits/knowledge-curator/curator-gate.py:152–172` delega los mismos validadores del servicio `:421–435`; `test_knowledge_curation.py:664–670` conserva gate0 sin mutación ni transición. Referencia de traspaso: tasks.md:1260. | ✓ Conservado. Sin delta al gate/validadores; E22 sólo enumera su puerta de ejecución, no añade mutación ni transición. | ✓ Conservado. tasks.md:1260,1471 y CONTRACTS.md:85; gate puro y validadores compartidos sin delta. | ✓ Conservado. tasks.md:1260,1471 y CONTRACTS.md:85; gate y validadores compartidos sin delta. |
+| 16 | T-08/T-14 | Intención / recibo / recover | ✓ | Servicio `:299–340,477–507,510–559,623–630`: SHA de ruta exacta, operación hash/verificación y binding antes de `_settle_record`; recover enumera nombres y exige única coincidencia. Tests `:105–205` conservan cortes B1 y añaden misplaced/duplicate sin mutación; `:507–575` preserva cortes/reintentos/cambios/ajenos. No corte eléctrico. Referencia de traspaso: tasks.md:1261. | ✓ Conservado. Sin delta a operaciones/recibos/recover ni oráculos de interrupción; evidencia heredada :1261 intacta. | ✓ Conservado. tasks.md:1261,1472; intención/recibo/recover y fronteras reales sin delta. | ✓ Conservado. tasks.md:1261,1472; intención/recibo/recover y cortes reales sin delta. |
+| 17 | T-08/T-14 | Concurrencia / IO / OS | ✓ | Servicio `:109–147,166–204,207–290`; tests `:577–646,684–753`: proceso cooperante, enlaces/scan incompleto y fuente ajena conservada. _walk de recover conserva límite4096 y rechaza escaneo no verificable. Dos skips Windows no prueban guards symlink; POSIX/nativo pendientes. Referencia de traspaso: tasks.md:1262. | ✓ Conservado producto. Fixture Windows test_memory_path.py:151–169 ahora aporta shim/SYSTEMROOT/Python coherentes con shell, sin relajar aserciones. test_lint_plugin.py:41–60 simula X_OK sólo del path exacto y :497–516 comprueba delegado/missing. tasks.md:1375–1376,1400–1407,1418–1421 conserva límites, intento fallido y skips; no acredita POSIX/nativo. | ✓ Conservado. tasks.md:1262,1473; ningún cambio producto/OS/permisos. Fixture Linux lector real RED trescohortes6/1 y GREEN7/0skip son selección acotada, no aceptación Windows/POSIX completa ni nativa. | ✓ Conservado producto de curación. tasks.md:1262,1473; no cambio servicio/locks/guards. evals/run.py:134–164 limpia sólo cwd recibido de preparar_cwd, limita retry a unlink regular readonly Windows dentro del cwd y sin reparse; pruebas :402–458 verifican Windows, no aceptación POSIX/nativa completa. |
+| 18 | T-11 | T-11 productores / fallback / retro tardía | ✓ | Seis agentes, debug-root-cause/retro/bridge siguen el mismo propose sin writer alternativo. `commands/dev-cycle.md:400–428`, `commands/retro.md:24–34`: handoff explícito o ruta/ID pendiente; cierre de retro no aprueba. Referencia de traspaso: tasks.md:1263. | ✓ Conservado. Sin delta a productores/commands/retro; evidencia heredada :1263 intacta. | ✓ Conservado. tasks.md:1263,1474; productores/retro/commands sin delta. No autoaprobación. | ✓ Conservado. tasks.md:1263,1474; productores, comandos y retro sin delta, sin autoaprobación. |
+| 19 | T-08/T-11/T-14 | Bridge Gold / nombre / SHA / store | ✓ | `propose-from-case.py:151–164,210–243,274–277`: fórmula ordinaria preservada, acorta sólo slug largo y reserva alias histórico, SHA real servicio. `test_propose_from_case.py:603–701` verifica Gold máximos, cuatro estados, store/config y handoff; sin hash/cambiado conserva tratamientos históricos. Referencia de traspaso: tasks.md:1264. | ✓ Conservado implementación. E22 CONTRACTS.md:85 incorpora gate real y conserva pending/no aprobación; suites bridge/curation ejecutadas PID3364 exit0:161 pases y2 skips. No cambia nombre/SHA/Gold/store; evidencia heredada :1264. | ✓ Conservado. tasks.md:1264,1475,CONTRACTS.md:85; puente Gold/nombre/SHA/store sin delta. | ✓ Conservado. tasks.md:1264,1475; puente Gold/nombre/SHA/store sin delta. |
+| 20 | T-07/T-11 | Journal episódico sin promoción | ✓ | `journal.py:1565–1574,1702–1711,2178–2184`; `test_journal_curation_handoff.py:18–52`: orientación de consulta explícita, fuentes/estado preservados y ausencia de creación de candidates/approved. No aceptación por repetición. Referencia de traspaso: tasks.md:1265. | ✓ Conservado. Sin delta journal/handoff y sin promoción por repetición. Nueva clasificación de runtime en test_graphiti_security.py:292–397 se limita al scanner de tests y no cambia autoridad. | ✓ Conservado. tasks.md:1265,1476; scanner de tests cambia clasificación conservadora, no journal ni autoridad. Journal sigue episódico. | ✓ Conservado. tasks.md:1265,1476; journal/handoff sin delta. Scanner AST sólo modifica una puerta de tests, no autoridad de memoria. |
+| 21 | T-07/T-15 | Confluence / staging | ✓ | `confluence-scope.py:83–85,268–275`, defaults/skill/policy; `test_memory_curation_scope.py:21–58`: exclusión forzada journal/candidates antes de include/casing/staging; approved y originales preservados. No conexión/publicación real. Referencia de traspaso: tasks.md:1266. | ✓ Conservado Q23-1 y producto. No delta workflow/copia/confluence-scope ni tests Confluence; evidencia heredada :1266 y gap :1282. | ✓ Conservado. tasks.md:1266,1282,1477; sin cambios a Confluence/staging/CI en delta3. Q23-1 conservado; ninguna conexión o publicación real. | ✓ Conservado. tasks.md:1266,1282,1477; Confluence/staging/CI sin delta. Q23-1 conservado; no conexión/publicación real. |
+| 22 | T-14 | T-14 honestidad RED/GREEN/QA | ✓ | `tasks.md:1091–1100`: RED2fallos/5pases, B1 pasaba misma frontera antes del cambio; `:1106–1115`: GREEN267/2skips y consola20sin skips, procesos exactos/SHAs y QA/publicación pendientes. Históricos conservados sin suma como cobertura única ni eficacia/escala/global. Referencia de traspaso: tasks.md:1267. | ✓ Revalidado. tasks.md:1321–1340,1360–1376,1393–1425 coincide con recibos terminal/JUnit por cohortes; se conservan70 pases/1 fallo y correctivo1 pase separado,161/2skips y598/12skips. QA2 anterior permanece pendiente/fallida; no % ni gate/QA completa nuevos aceptados. | ✓ Revalidado. tasks.md:1490–1548 conserva error preparación, RED5/GREEN130, tres RED6/1 y GREEN7; mismos7 repetidos. Dos verify históricos no reproducidos, causa pendiente y100ms intactos; diagnóstico final sin JUnit nuevo. QA2Linux6209/78/44,6331 no se transforma en verde; PyTracer/trace-changed y gates históricos insuficientes. tasks.md:1550–1561 distingue preparación QA3 de ejecución/aceptación. | ✓ Revalidado. tasks.md:1598–1610 conserva RED 6/GREEN 136; :1622–1642 conserva 20/7, RED 2 y verdes 2,45,45 + noop 1 separado. XML/terminales cotejados. :1644–1649 conserva HTTP no reproducido y deadlines, sin causa inventada. :1587–1591 mantiene QA2 Windows 6215/24/92 y Linux 6209/78/44, ambos 6331 FAIL. Sin QA3 ni cobertura válida. |
+| 23 | T-15 | T-15 consola obligatoria nueva | ✓ | A23-1 corregido confirmado2 y conservado: rules `:6–8` snippet, servicio `:20–22`; `test_console_encoding.py:305–306,383–392,730–770` MODOS/pureza medidos y UTF8/emoji/JSON/SHA reales cp1252/ascii. Criterio canónico no relajado. Referencia de traspaso: tasks.md:1268. | ✓ Conservado A23-1/Q23-2. Sin delta a rules/MODOS/snippet/validador/oráculos Unicode; evidencia heredada :1268 y :1283. Helper de tests sin CLI nueva; no cambia promesa de consola. | ✓ Conservado. tasks.md:1268,1283,1479; A23-1/Q23-2 sin delta a snippet/MODOS/Unicode. Helper no añade CLI de producto. | ✓ Conservado. tasks.md:1268,1283,1479; snippet/MODOS/Unicode sin delta. evals/run.py:65–69 conserva consola UTF-8; no CLI de producto nueva. A23-1/Q23-2 no se reabren. |
+| 24 | T-01..T-16 | Rama / publicación / macros | ✓ | `tasks.md:14–24,1102–1115`: sólo T-01 cerrada; sin PR/main/release ni B23 publicado/aceptado. Prioridades y skills aplazadas se mantienen; continúa objetivo global, QA/OS/clientes pendientes. Referencia de traspaso: tasks.md:1269. | ✓ Revalidado. tasks.md:192,1305–1308,1339–1340,1350–1354,1427–1432 conserva intento2 pendiente, QA2 intacta, macros/publicación/gates pendientes y skills aplazadas después de comandos/dashboard/hooks/memoria; objetivo no cancelado. | ✓ Conservado. tasks.md:14–24,192,1486–1488,1513–1515,1560–1561: ciclo post-QA3/MAX3 sin reset original1–3/post1–2; sólo1/16, skills aplazadas después comandos/dashboard/hooks/memoria; QA/gates/commit/push/cierre global pendientes. | ✓ Conservado. tasks.md:1564–1593 preserva rechazo de intento 3, decisión ROOT de una única revisión adicional global 4/MAX4 y original 1–3/post 1–3 sin reset. :1655–1657 mantiene QA completa/gates/macros/push/cierre pendientes y skills aplazadas después de comandos/dashboard/hooks/memoria. |
+
+Los tres criterios T-01 conservan los455 hashes cotejados,4212 recursos/455
+bundles reconciliados y alcance completo sin simular revisión semántica;
+verificación ejecutada en tasks.md:52–56. Sólo1/16 macros completadas.
+
+El pase4/MAX4 agota la extensión anterior con0 Critical/2 Important/0 Minor.
+Conforme a adversarial-review §5, ROOT toma una decisión explícita de replan:
+sustituir el seguimiento creciente de alias por una invalidación conservadora
+ante mutaciones relevantes de métodos, y usar el redactor compartido real en
+los nuevos diagnósticos de cleanup con fallback fijo seguro. Una sola revisión
+independiente adicional, contador global5/MAX5. No se reinician1–3 ni4,
+no se acepta deuda; si5 mantiene un Important devuelve otra decisión explícita.
+El recibo ROOT4 enlaza el rechazo ROOT3 byte-identico por SHA.
+
+QA2 sigue FAIL en ambas plataformas, QA3 no iniciada y cobertura no aceptada.
+Sin Jira habilitado en esta ejecución aislada: ninguna publicación externa.
+Commit/push y cierre permanecen pendientes. Skills nuevas aplazadas hasta
+completar comandos, dashboard, hooks y memoria, conforme a la prioridad vigente.
+
+
+### Replan5 — correcciones de B23-QA2-1 y A23-QA4-1, revisión independiente pendiente
+
+RED: B23-QA2-1, siete casos de estrella (prefijo/sufijo/scope anidado),
+contenedores list/dict y setattr literal/dinámico fallan antes del cambio:
+Python PID21444 exit1,7 fallos · 2026-10-10 · JUnit SHA256
+`06d2f7084ed9cf290a0707552a47c3c4ac5c0ea144d3bffa143c122c06547847`. Se exige argv y ofensor del detector real.
+El scanner retira el cierre de alias y deja de eximir choices argparse
+si encuentra escrituras/borrados de los métodos que prueban identidad o
+setattr/delattr con un nombre relevante o no literal. La comprobación
+es conservadora en todo el módulo; no demuestra un sandbox de Python.
+Comparaciones y choices de argparse sin mutaciones conservan sus controles.
+GREEN: Graphiti + knowledge-services completos, PID35096 exit0,
+143 pases/0 skips,65.40s · JUnit SHA256 `cf71fc5c353eda142062412392aa25655b42d25830d2a5e5308d0d87a9c6369c`.
+ROOT coteja1030 archivos OWN (sólo scanner/test cambia), terminales/streams/XML
+y promueve con guardia SHA. SHA final `e442e30839a8d07c3ce8af77eab3bbef4f88c6b9f40c37af7506772585365b90`.
+
+RED: A23-QA4-1, cinco regresiones con marcadores sintéticos en el JSON
+fallan antes del cambio, PID22624 exit1 · 2026-10-10 · JUnit SHA256
+`8a39a2b9da24f71342b60084f55ec53bba23bd4235a6bdf79ec35c941c67a334`.
+run.py carga redact.py por ruta relativa a su propia raíz; diagnóstico y
+cwd nuevos de cleanup_error pasan por el redactor real antes de persistir.
+Si falta/falla/devuelve no-texto, aviso fijo sin texto del consumidor y
+pass=false/checks.cleanup=false; el directorio real permanece retenido.
+--keep y campos históricos sin delta. README ES/EN explica ruta redactada.
+GREEN dedicado PID37120 exit0,5 pases; evals completo PID13396 exit0,
+30 pases/0 skips/12.02s, JUnit SHA256
+`3eb34a98b4c46129824fcccac7a45969c07391293b160d188b68228bb1046b95`.
+ROOT leyó informe/diff y cotejó34 artefactos y1030 archivos de propuesta,
+promoviendo tres rutas con guardias SHA. Los45 hijos reales observados
+conservan un exit1 esperado del caso check_json_invalido; no fallo de suite.
+No se suman5+30 ni143 como cobertura ni QA completa, ni se acepta revisión5.
+
+ROOT cotejó también32 artefactos y3813 descriptores de la observación QA2.
+Windows terminal FAIL6215/24/92 sobre6331, auditoría inutilizable por936
+salidas que no coinciden al reutilizar PID/archivo; Linux FAIL6209/78/44,
+audit corrupto con4 líneas no vacías y4 vacías inválidas. Counts de procesos
+aceptados null en ambas; no reconstrucción, ni auditoría válida inventada.
+El helper histórico del observador se conserva byte-idéntico antes de
+adaptar la preparación de QA3. Observación root SHA256
+`de60b8366148694e11ea038fe9170febd24f62edff5ca12d8d31d509b912f91c`.
+QA3 necesita revisión5 aceptada y gates reales; no iniciada. Las dos fuentes
+rechazadas3/MAX3 y4/MAX4 permanecen intactas, sin reset. Sin modelos/hosts
+nativos, red, publicación de memoria, commit/push o cierre global.
+
+
+## Revisión de dos lentes — intento 5: Fase QA (T-14/T-15) — redacción corregida y regresión de clase pendiente
+
+ROOT fusiona A+B sobre 1030 rutas públicas, manifest SHA256
+`f87527e0739ff7aa9bef32d657debdbfa4694119c676c17baa34ae7af4241300`.
+Selector C=false/D=false, lentes genéricas con modelo heredado sin override.
+Informes, recibos, artefactos y fuente cotejados; anexos A4/B4 byte-equivalentes
+tras lectura de texto conservan íntegro el traspaso. A conserva 24 criterios
+y tres de T-01, sin gaps nuevos. A23-QA4-1 corregido: redactor compartido real,
+fallback fijo y cinco regresiones RED antes de la reparación, GREEN30 después.
+B no identifica otro defecto en evals. ROOT acepta su corrección; QA no cerrada.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B23-QA2-1 | Important | alias.__class__ cambia add_argument sin invalidar p | T-14/T-15 | pendiente; regresión verificada | tests/test_graphiti_security.py:330–340,357–370; mock observa argv, detectores vacíos; PID14436 exit0 |
+| A23-QA4-1 | Important | Diagnóstico nuevo persistido sin redactor | T-14/T-15 | corregido, aceptado por ROOT5 | evals/run.py:299–313,342–344; test_evals.py:462–561; RED5/GREEN30, A5/B5 |
+
+La sonda reconstruye el scanner previo sólo revirtiendo hunks del diff,
+SHA exacto df76106ed8bdb1db25d7b97f6170aecbe34d3e9d0cb6871bcb64eed4d6c6e5d0.
+Ese scanner detecta el mismo caso; el actual no, y el control p.__class__ directo
+sí se detecta. Es una regresión concreta del mismo noveno gap, no una exigencia
+de sandbox universal ni reapertura de los ocho históricos corregidos. El décimo
+A23-QA4-1 queda corregido. Todos los estados y evidencias previos se conservan.
+La tabla completa A5 se traslada debajo; conformidad A no elimina el residual B.
+
+| # | Tarea | Criterio | ✓/✗ histórico | Evidencia heredada completa | Estado y evidencia delta2 heredados | Juicio y evidencia delta3 | Juicio y evidencia adicional 4/MAX4 | Juicio y evidencia global5/MAX5 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | T-01 | T-XX hechas y criterios | ✓ | `docs/roadmap/2026-10-07-catalog-capabilities/tasks.md:46–56`: T-01 conserva sus tres criterios y verificación; única macro completada. `tasks.md:33–40`:1/16; no acepta comparación global. Referencia de traspaso: tasks.md:1246. | ✓ Conservado. tasks.md:48,54–56 y33–40 mantiene única macro T-01 completa, tres criterios y1/16; ninguna nueva macro se cierra. | ✓ Conservado. tasks.md:33–56 mantiene sólo T-01 completada,1/16. Sus tres criterios se desglosan abajo; ninguna macro se cierra en este delta. | ✓ Conservado. tasks.md:33–56 mantiene sólo T-01 completada, 1/16; se conservan sus tres criterios ejecutados. Ninguna macro se cierra. | ✓ Conservado. tasks.md:33–56: sólo T-01 completada,1/16; tres criterios y evidencia ejecutada sin delta. |
+| 2 | T-14/T-15/T-16 | Alcance del plan | ✓ | `tasks.md:204,238,248,258` declara agentes/comandos/kits/scripts/tests/skills/docs/interop/changelogs. ROOT scope PID33736 exit0:68 en alcance,0 fuera/avisos/excluidos. `diff-audit.json` reconstruye esas68 rutas; corrección y contrato/oráculos permanecen en ese alcance. Referencia de traspaso: tasks.md:1247. | ✓ Revalidado. tasks.md:239 tests/** y ledger, :250 docs/** y tests/**, :260 ambos changelogs; corresponde QA/documentación del plan:19–21,45–48. Scope terminal PID14652 exit0:11 en alcance,0 fuera/avisos/excluidos. PID13620 del despacho no coincide con terminal y no se usa. | ✓ Revalidado. tasks.md:239,250,260 declara tests/kit/skills/docs y ambos changelogs; plan:19–21,45–48 requiere QA/documentación. Scope PID6176 exit0,6 en alcance,0 fuera/avisos/info/excluidos (terminal y hashes propios comprobados). | ✓ Revalidado. tasks.md:239,250,260 declara evals/**, tests/**, skills/**, ledger y ambos changelogs; plan:19–21,45–48 requiere QA/documentación. Scope PID 28776 exit 0: ocho rutas dentro, cero fuera/avisos/info/excluidos. Limpieza del fixture y serialización del runner son reparación de QA, no ampliación de skills. | ✓ Revalidado. tasks.md:239,250,260 declara tests/**,evals/**,docs/** y ambos changelogs; plan:19–21,45–48 requiere QA/documentación. Scope autor PID9148 exit0,7 dentro,0 fuera/avisos/info/excluidos; reparación acotada QA y replan ROOT4:1714–1726. |
+| 3 | T-14 | Tests y oráculos reales | ✓ | `agent-kits/shared/test_knowledge_curation.py:105–205`: cuatro B1 siguen interrumpiendo `os.link` real y rechazando enlace ajeno; D23-1 observa `_read` real, conserva cada byte histórico y recupera cada ID; misplaced/duplicate compara árbol antes/después. `tests/test_console_encoding.py:730–770` conserva oráculos reales Unicode. No fake writer para verde. Referencia de traspaso: tasks.md:1248. | ✓ Revalidado línea a línea: test_graphiti_security.py:2250–2348 prueba datos/argv, parseo/red, rutas y lector local real; test_knowledge_services.py:1379–1404 prueba ambos recorridos; test_lint_plugin.py:497–516 controla noexec/otro/missing. test_training_data_services.py:572–601 separa resolución/timeout y mantiene los asserts; test_memory_path.py:185–284 mantiene payload/contexto/área/topes. test_knowledge_router_read.py:366–371 sólo añade diagnóstico info. No existe % oficial nuevo del diff aceptado: pendiente, sin usar cohortes como cobertura. | ✓ Revalidado. tests/test_graphiti_security.py:308–339,2369–2385 conserva detector real y cinco negativos de mutación/alias/delete; RED5 y GREEN130/0skip ejecutados. test_task_brief.py:1802–1823 copia cuatro dependencias reales, preserves assertions/topes y GREEN7. test_backend_markdown_export.py:278,528–530 mantiene condiciones,100ms y añade sólo dict/presencia. Último archivo diagnóstico sin rerun todavía; tests existentes no equivalen a QA completa. Sin % oficial nuevo aceptado del diff. | ✓ Revalidado línea a línea. test_graphiti_security.py:332–347,2405–2422 recoge Assign/AnnAssign/NamedExpr y exige argv + ofensor real para seis variantes; RED 6/GREEN 136. evals/test_evals.py:402–458 comprueba Git readonly/ausencia real y denegación visible/conservación del sentinel; RED 2/GREEN 2 y cohorte 45. test_coverage_gate.py:160,262 cambia sólo shlex.join; conserva mínimos/diff/exit/asserts. No % oficial nuevo válido del diff. | ✓ Revalidado línea a línea. tests/test_graphiti_security.py:330–340,357–359,2413–2431: guardia conservadora de métodos y siete regresiones argv + detector real; RED7 PID21444/GREEN143 PID35096. evals/test_evals.py:462–561 persiste JSON, espía y delega redactor real, comprueba marcadores ausentes y cuatro fallbacks; RED5 PID22624/GREEN30 PID13396. Sin porcentaje oficial válido para este diff7; cohortes no son cobertura. |
+| 4 | T-14/T-15 | Constitución explícita | ✓ | `docs/CONSTITUTION.md:10–13,17–21,36–40`: stdlib, dueño único, TDD/regresión dedicada, fuente generada, redactor/no mutación ajena. `tasks.md:1091–1100,1106–1115` conserva RED antes del cambio y GREEN posterior sin QA. `_load_operation:495–506` liga ruta antes de limpiar staging propio. Referencia de traspaso: tasks.md:1249. | ✓ Revalidado contra CONSTITUTION.md:10–13,17–21,26,29,33–38. Tests/soporte stdlib, RED real conservado en tasks.md:1321–1330,1360–1366,1393–1394,1409–1412; controles dedicados y espejos CHANGELOG.md/CHANGELOG.es.md:17–18. No nueva llamada de red hook ni edición manual generada; no aprobación de memoria ni cierre/publicación. | ✓ Revalidado. CONSTITUTION.md:10–13,17–21,26,29,33–38: helper usa stdlib, RED válido precede corrección y cinco regresiones nombradas; mirrors EN/ES actualizados; fuente generada y juicio Curator conservados. Pytest es infraestructura de test existente, no dependencia nueva del producto. El error import PID1480 no cuenta como RED. | ✗ Nuevo A23-QA4-1 Important. CONSTITUTION.md:34 exige que todo texto persistido pase por redact.py. evals/run.py:324–325 crea detalle.cleanup como texto y :397 lo persiste por json.dump sin cargar/invocar ese redactor. El resto conserva stdlib, TDD (tasks.md:1598–1610,1629–1642), fuentes y espejos; no se reabren violaciones previas ajenas al delta. | ✓ A23-QA4-1 corregido conforme en A5: evals/run.py:299–313,342–344 carga por ruta propia y llama module.redactar antes de json.dump:416; fallback fijo seguro para redactor ausente/fallido/no-texto. CONSTITUTION.md:34 satisfecho; :11–13 evidencia dedicada RED5/GREEN30 tasks.md:1745–1758, stdlib y espejos intactos. |
+| 5 | T-01 | Verificación de tareas cerradas | ✓ | `tasks.md:52` conserva evidencia ejecutada T-01. Las demás tareas permanecen abiertas; `tasks.md:1106–1115` conserva verificación acotada y pendientes explícitos. No ejecuto una verificación faltante para tapar cierre. Referencia de traspaso: tasks.md:1250. | ✓ Conservado. Verificación ejecutada T-01 heredada tasks.md:52 y fila aceptada :1250. El delta no altera Estado ni sus tres criterios; otras15 macros abiertas. No ejecuté ninguna verificación para cubrir falta de evidencia. | ✓ Conservado. tasks.md:52 contiene verificación ejecutada T-01 y :54–56 sus tres checks. Ninguna otra macro cerrada; no ejecuté una verificación para ocultar ausencia. | ✓ Conservado. tasks.md:52 conserva la verificación ejecutada de la única macro cerrada; :54–56 sus tres checks. No ejecuto verificaciones para cubrir evidencia faltante. T-14/T-15 abiertas, T-16 borrador. | ✓ Conservado. tasks.md:48,52,54–56: única tarea cerrada y Verificación ejecutada. T-14/T-15 abiertas; T-16 borrador. No ejecuté una verificación faltante para cubrir evidencia. |
+| 6 | T-11/T-15 | Generado al día / E2 | ✓ | Check propio en copia OWN exacta1029: Python PID17500, `-I -X utf8 -B scripts/export-interop.py --check`, exit0, stdout `export-interop --check: 88 ficheros al día`, stderr vacío. `tasks.md:204,248` declara interop y `:1114` evidencia autor; revisión3 todavía en curso sin macro cerrada. Referencia de traspaso: tasks.md:1251. | ✓ n/a al delta11: sólo tests, CONTRACTS, changelogs y ledger; no commands/, agents/ ni hooks/. No ejecuté export. Evidencia autor adicional qa-rem-review2-final-exports/terminal.json PID5800 exit0 y stdout exacto export-interop --check: 88 ficheros al día; hashes stdout/stderr comprobados, separado del check heredado PID17500. | ✓ n/a al delta6: no commands/, agents/ ni hooks/. Prompt A no requiere ejecución propia de export aquí. Autor PID6488 exit0,88 ficheros al día, terminal/streams verificados; separar del check histórico17500. | ✓ n/a al delta ocho: no commands/, agents/ ni hooks/. No ejecuté export-interop; evidencia autor PID 30612 exit 0 y stdout «export-interop --check: 88 ficheros al día», streams cotejados. interop/** declarado en tasks.md:250. No se atribuye como ejecución propia nueva. | ✓ n/a: diff7 no toca commands/,agents/ ni hooks/. No ejecuté exportador. Evidencia autor PID27252 exit0, stdout export-interop --check: 88 ficheros al día; hashes de terminal y streams cotejados. tasks.md:250 declara interop/**; separar de check propio históricoPID17500. |
+| 7 | T-15 | Descriptores actualizados / E3 | ✓ | `docs/agents/CONTRACTS.md:76–77,85,118–119` E13/E14/E22/E53/E54; `ROLES.md:30–43,89`; seis docs agentes y CONVENTIONS/FLOWS/SPECIALIZATION ES/EN, skills/kits/callers actualizados en el mismo diff. Nuevo layout descrito en contrato `:83–94`, sin nueva promesa global o nativa. Referencia de traspaso: tasks.md:1252. | ✓ Revalidado E3. CONTRACTS.md:85 cambia sólo Puerta E22 por dos rutas existentes del bridge/servicio y conserva QA pendiente/Gold nunca aprueba. test_training_data_services.py:386–407 exige ruta real. CHANGELOG.md/CHANGELOG.es.md:17–18 y tasks.md:1303–1432 describen scanner/espía/fixtures, sin promesa global. Producto/callers sin delta. | ✓ Revalidado. CONTRACTS.md:85,118–119,140–142 conserva E22/E53/E54 y condición E3. Sólo tests/scanner/fixture cambian, sin arista/caller o flujo de producto nuevo; CHANGELOG.md/CHANGELOG.es.md:18,20 y tasks.md:1433–1561 describen exactamente esos cambios y límites en esta tarea. | ✓ Revalidado. CONTRACTS.md:66,140–142 exige E3/espejos. Ninguna arista de productor/caller cambia. evals/README.md:79–85,157–163 describe limpieza/cleanup_error en ES/EN en esta misma tarea; CHANGELOG.md/CHANGELOG.es.md:18,21 y tasks.md:1596–1657 describen scanner/fixtures/runner y límites. No obligación de modificar FLOWS por un flujo del ciclo inexistente en el delta. | ✓ E3 revalidado. CONTRACTS.md:140–142: sin cambio de cadena del ciclo; README evals:84–88,167–171 describe redactor/fallback/ruta retenida ES/EN en esta tarea. CHANGELOG.md/CHANGELOG.es.md:18,21 y tasks.md:1729–1771 describen scanner/redactor y límites; sin nueva autoridad/flujo de memoria. |
+| 8 | T-08/T-11 | API OpenAPI | ✓ | Ninguna spec OpenAPI en las68 rutas. No ejecutado openapi-lint. Referencia de traspaso: tasks.md:1253. | ✓ n/a; las11 rutas no incluyen spec OpenAPI. No ejecutado lint. | ✓ n/a: seis rutas sin spec OpenAPI. No ejecutado openapi-lint. | ✓ n/a: ocho rutas sin spec OpenAPI. No ejecutado openapi-lint. | ✓ n/a: siete rutas sin spec OpenAPI; no ejecutado openapi-lint. |
+| 9 | T-15 | Docs-style | ✓ | Servicio/persistencia con pruebas y descriptores, criterio conservado del pase2. Fragmento `agent-kits/shared/docs-style.md:14–25` leído; no reabro estilo. Referencia de traspaso: tasks.md:1254. | ✓ n/a conservado como gate exclusivo de prosa; sin hallazgo de requisitos ni reapertura por estilo. | ✓ Aplicado a este delta mayoritariamente prosa por líneas; docs-style.md:14–25. tasks.md:1433–1561 y changelogs:18,20 usan evidencia y comparaciones concretas, sin promesa global/nativa. Tabla única de gap :1482–1484 responde al formato obligatorio SKILL §6, no se elimina por preferencia; no hallazgo citable nuevo. | ✓ n/a al criterio adicional de iniciativa mayoritariamente prosa: semántica de código/tests y documentación de QA. docs-style.md:15–22 leído; no se reporta estilo. Tabla de una fila en ledger responde al formato obligatorio SKILL §6. | ✓ n/a: iniciativa de corrección de código/tests con evidencia documental; docs-style.md:15–22 leído. Sin nueva violación citable de requisitos ni hallazgo de estilo. |
+| 10 | T-07 | T-07 corte prospectivo / legado | ✓ | `agent-kits/shared/knowledge-write.md:65–89`, `knowledge-check.md:59–71`; contrato `memory-curation-contract.md:113–126` bajo comparisons. Sin migración/reaprobación/borrado ni accepted=approved; nuevo layout prospectivo `:93–94`. `test_knowledge_curation.py:648–661` preserva legado/journal/índice. Referencia de traspaso: tasks.md:1255. | ✓ Conservado. Sin delta al servicio, knowledge-write/check ni contrato de corte prospectivo; evidencia heredada :1255 sigue vigente. | ✓ Conservado. tasks.md:1255,1466; ningún delta a knowledge-write/check/contrato o producto. Legado sin migración/reaprobación. | ✓ Conservado. tasks.md:1255,1466; sin delta a knowledge-write/check/contrato de corte prospectivo. No migración ni reaprobación del legado. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. |
+| 11 | T-08 | T-08 persistencia compartida / juicio Curator | ✓ | `knowledge-curation.py:450,562,623`; `agents/knowledge-curator.md:37–46,79–141`: productor propone, Curator semántica, servicio bytes. Revisión/design/QA/Gold/repetición no aprueban; sin nuevo rol/skill. Referencia de traspaso: tasks.md:1256. | ✓ Conservado. Sin delta al servicio/Curator. CONTRACTS.md:85 conserva explícitamente Gold no aprueba, sólo pending; juicio no delegado a QA. | ✓ Conservado. tasks.md:1256,1467; persistencia/Curator sin delta. QA/Gold no aprueban memoria. | ✓ Conservado. tasks.md:1256,1467; servicio/Curator sin delta. QA/Gold/revisión no aprueban memoria. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. |
+| 12 | T-08 | Propuesta redactada, portable y exclusiva | ✓ | Servicio `:78–85,153–164,195–204,450–475`: destino128, aliases<=8/255 sólo comparación, reserva en cuatro estados bajo cerrojo, SHA final. Tests `:220–307` conservan aliases/duplicado/redacción y nunca destino por alias. Referencia de traspaso: tasks.md:1257. | ✓ Conservado. Sin delta a propose/redactor/alias/reserva; evidencia heredada :1257 intacta. | ✓ Conservado. tasks.md:1257,1468; propose/aliases/reserva/redactor sin delta. | ✓ Conservado. tasks.md:1257,1468; propose/aliases de candidatos/reserva/redactor de memoria sin delta. Aliases del scanner son otro dominio. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. |
+| 13 | T-08 | SHA original / metadatos finales | ✓ | Servicio `:404–443,562–589`: ID/prefijo, categoría, versión1, índice/colisión y SHA fuente. `_caught:66–76` conserva redactor o fallback seguro. Test dedicado B4 `:207–217` mantiene código/status y árbol intacto sin secreto. Referencia de traspaso: tasks.md:1258. | ✓ Conservado. Sin delta a SHA/metadatos/_caught ni test B4; evidencia heredada :1258 intacta. | ✓ Conservado. tasks.md:1258,1469; SHA original/metadatos y test B23-4 sin delta. | ✓ Conservado. tasks.md:1258,1469; SHA/metadatos/_caught y test B23-4 sin delta. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. |
+| 14 | T-08 | needs_changes/reject/replacement | ✓ | Servicio `:569–576,585–618`; tests `:415–480`: preserva original/motivo, rejected terminal, sólo approve admite replacement completo ligado al SHA original; nunca edición de approved. Referencia de traspaso: tasks.md:1259. | ✓ Conservado. Sin delta a transiciones/replacement/terminal rejected; evidencia heredada :1259 intacta. | ✓ Conservado. tasks.md:1259,1470; transiciones y replacement ligados a SHA original sin delta. | ✓ Conservado. tasks.md:1259,1470; transiciones/replacement y rejected terminal sin delta. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. |
+| 15 | T-08 | Gate puro / reglas compartidas | ✓ | `agent-kits/knowledge-curator/curator-gate.py:152–172` delega los mismos validadores del servicio `:421–435`; `test_knowledge_curation.py:664–670` conserva gate0 sin mutación ni transición. Referencia de traspaso: tasks.md:1260. | ✓ Conservado. Sin delta al gate/validadores; E22 sólo enumera su puerta de ejecución, no añade mutación ni transición. | ✓ Conservado. tasks.md:1260,1471 y CONTRACTS.md:85; gate puro y validadores compartidos sin delta. | ✓ Conservado. tasks.md:1260,1471 y CONTRACTS.md:85; gate y validadores compartidos sin delta. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. |
+| 16 | T-08/T-14 | Intención / recibo / recover | ✓ | Servicio `:299–340,477–507,510–559,623–630`: SHA de ruta exacta, operación hash/verificación y binding antes de `_settle_record`; recover enumera nombres y exige única coincidencia. Tests `:105–205` conservan cortes B1 y añaden misplaced/duplicate sin mutación; `:507–575` preserva cortes/reintentos/cambios/ajenos. No corte eléctrico. Referencia de traspaso: tasks.md:1261. | ✓ Conservado. Sin delta a operaciones/recibos/recover ni oráculos de interrupción; evidencia heredada :1261 intacta. | ✓ Conservado. tasks.md:1261,1472; intención/recibo/recover y fronteras reales sin delta. | ✓ Conservado. tasks.md:1261,1472; intención/recibo/recover y cortes reales sin delta. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. |
+| 17 | T-08/T-14 | Concurrencia / IO / OS | ✓ | Servicio `:109–147,166–204,207–290`; tests `:577–646,684–753`: proceso cooperante, enlaces/scan incompleto y fuente ajena conservada. _walk de recover conserva límite4096 y rechaza escaneo no verificable. Dos skips Windows no prueban guards symlink; POSIX/nativo pendientes. Referencia de traspaso: tasks.md:1262. | ✓ Conservado producto. Fixture Windows test_memory_path.py:151–169 ahora aporta shim/SYSTEMROOT/Python coherentes con shell, sin relajar aserciones. test_lint_plugin.py:41–60 simula X_OK sólo del path exacto y :497–516 comprueba delegado/missing. tasks.md:1375–1376,1400–1407,1418–1421 conserva límites, intento fallido y skips; no acredita POSIX/nativo. | ✓ Conservado. tasks.md:1262,1473; ningún cambio producto/OS/permisos. Fixture Linux lector real RED trescohortes6/1 y GREEN7/0skip son selección acotada, no aceptación Windows/POSIX completa ni nativa. | ✓ Conservado producto de curación. tasks.md:1262,1473; no cambio servicio/locks/guards. evals/run.py:134–164 limpia sólo cwd recibido de preparar_cwd, limita retry a unlink regular readonly Windows dentro del cwd y sin reparse; pruebas :402–458 verifican Windows, no aceptación POSIX/nativa completa. | ✓ Conservado producto curación. Scanner sólo cambia puerta de tests. evals/run.py:335–346 conserva limpieza/caso fallido/retención real; redacción no borra ni mueve ruta. test_evals.py:490,525–529,560–561 observa sentinel y JSON. Sin aceptación nueva POSIX/nativa. |
+| 18 | T-11 | T-11 productores / fallback / retro tardía | ✓ | Seis agentes, debug-root-cause/retro/bridge siguen el mismo propose sin writer alternativo. `commands/dev-cycle.md:400–428`, `commands/retro.md:24–34`: handoff explícito o ruta/ID pendiente; cierre de retro no aprueba. Referencia de traspaso: tasks.md:1263. | ✓ Conservado. Sin delta a productores/commands/retro; evidencia heredada :1263 intacta. | ✓ Conservado. tasks.md:1263,1474; productores/retro/commands sin delta. No autoaprobación. | ✓ Conservado. tasks.md:1263,1474; productores, comandos y retro sin delta, sin autoaprobación. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. |
+| 19 | T-08/T-11/T-14 | Bridge Gold / nombre / SHA / store | ✓ | `propose-from-case.py:151–164,210–243,274–277`: fórmula ordinaria preservada, acorta sólo slug largo y reserva alias histórico, SHA real servicio. `test_propose_from_case.py:603–701` verifica Gold máximos, cuatro estados, store/config y handoff; sin hash/cambiado conserva tratamientos históricos. Referencia de traspaso: tasks.md:1264. | ✓ Conservado implementación. E22 CONTRACTS.md:85 incorpora gate real y conserva pending/no aprobación; suites bridge/curation ejecutadas PID3364 exit0:161 pases y2 skips. No cambia nombre/SHA/Gold/store; evidencia heredada :1264. | ✓ Conservado. tasks.md:1264,1475,CONTRACTS.md:85; puente Gold/nombre/SHA/store sin delta. | ✓ Conservado. tasks.md:1264,1475; puente Gold/nombre/SHA/store sin delta. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. |
+| 20 | T-07/T-11 | Journal episódico sin promoción | ✓ | `journal.py:1565–1574,1702–1711,2178–2184`; `test_journal_curation_handoff.py:18–52`: orientación de consulta explícita, fuentes/estado preservados y ausencia de creación de candidates/approved. No aceptación por repetición. Referencia de traspaso: tasks.md:1265. | ✓ Conservado. Sin delta journal/handoff y sin promoción por repetición. Nueva clasificación de runtime en test_graphiti_security.py:292–397 se limita al scanner de tests y no cambia autoridad. | ✓ Conservado. tasks.md:1265,1476; scanner de tests cambia clasificación conservadora, no journal ni autoridad. Journal sigue episódico. | ✓ Conservado. tasks.md:1265,1476; journal/handoff sin delta. Scanner AST sólo modifica una puerta de tests, no autoridad de memoria. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. |
+| 21 | T-07/T-15 | Confluence / staging | ✓ | `confluence-scope.py:83–85,268–275`, defaults/skill/policy; `test_memory_curation_scope.py:21–58`: exclusión forzada journal/candidates antes de include/casing/staging; approved y originales preservados. No conexión/publicación real. Referencia de traspaso: tasks.md:1266. | ✓ Conservado Q23-1 y producto. No delta workflow/copia/confluence-scope ni tests Confluence; evidencia heredada :1266 y gap :1282. | ✓ Conservado. tasks.md:1266,1282,1477; sin cambios a Confluence/staging/CI en delta3. Q23-1 conservado; ninguna conexión o publicación real. | ✓ Conservado. tasks.md:1266,1282,1477; Confluence/staging/CI sin delta. Q23-1 conservado; no conexión/publicación real. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. |
+| 22 | T-14 | T-14 honestidad RED/GREEN/QA | ✓ | `tasks.md:1091–1100`: RED2fallos/5pases, B1 pasaba misma frontera antes del cambio; `:1106–1115`: GREEN267/2skips y consola20sin skips, procesos exactos/SHAs y QA/publicación pendientes. Históricos conservados sin suma como cobertura única ni eficacia/escala/global. Referencia de traspaso: tasks.md:1267. | ✓ Revalidado. tasks.md:1321–1340,1360–1376,1393–1425 coincide con recibos terminal/JUnit por cohortes; se conservan70 pases/1 fallo y correctivo1 pase separado,161/2skips y598/12skips. QA2 anterior permanece pendiente/fallida; no % ni gate/QA completa nuevos aceptados. | ✓ Revalidado. tasks.md:1490–1548 conserva error preparación, RED5/GREEN130, tres RED6/1 y GREEN7; mismos7 repetidos. Dos verify históricos no reproducidos, causa pendiente y100ms intactos; diagnóstico final sin JUnit nuevo. QA2Linux6209/78/44,6331 no se transforma en verde; PyTracer/trace-changed y gates históricos insuficientes. tasks.md:1550–1561 distingue preparación QA3 de ejecución/aceptación. | ✓ Revalidado. tasks.md:1598–1610 conserva RED 6/GREEN 136; :1622–1642 conserva 20/7, RED 2 y verdes 2,45,45 + noop 1 separado. XML/terminales cotejados. :1644–1649 conserva HTTP no reproducido y deadlines, sin causa inventada. :1587–1591 mantiene QA2 Windows 6215/24/92 y Linux 6209/78/44, ambos 6331 FAIL. Sin QA3 ni cobertura válida. | ✓ Revalidado. tasks.md:1731–1759 conserva RED7/GREEN143 y RED5/GREEN dedicado5/GREEN30 separados, PIDs/XML cotejados; no suma como cobertura/suite única. :1761–1771 y recibo QA2 mantienen FAIL Windows6215/24/92 y Linux6209/78/44, auditorías inutilizable/corrupta, procesos aceptados null, sin QA3. |
+| 23 | T-15 | T-15 consola obligatoria nueva | ✓ | A23-1 corregido confirmado2 y conservado: rules `:6–8` snippet, servicio `:20–22`; `test_console_encoding.py:305–306,383–392,730–770` MODOS/pureza medidos y UTF8/emoji/JSON/SHA reales cp1252/ascii. Criterio canónico no relajado. Referencia de traspaso: tasks.md:1268. | ✓ Conservado A23-1/Q23-2. Sin delta a rules/MODOS/snippet/validador/oráculos Unicode; evidencia heredada :1268 y :1283. Helper de tests sin CLI nueva; no cambia promesa de consola. | ✓ Conservado. tasks.md:1268,1283,1479; A23-1/Q23-2 sin delta a snippet/MODOS/Unicode. Helper no añade CLI de producto. | ✓ Conservado. tasks.md:1268,1283,1479; snippet/MODOS/Unicode sin delta. evals/run.py:65–69 conserva consola UTF-8; no CLI de producto nueva. A23-1/Q23-2 no se reabren. | ✓ Conservado A23-1/Q23-2. No delta a consola/MODOS/Unicode; importlib es stdlib y no añade CLI. Evidencia histórica intacta. |
+| 24 | T-01..T-16 | Rama / publicación / macros | ✓ | `tasks.md:14–24,1102–1115`: sólo T-01 cerrada; sin PR/main/release ni B23 publicado/aceptado. Prioridades y skills aplazadas se mantienen; continúa objetivo global, QA/OS/clientes pendientes. Referencia de traspaso: tasks.md:1269. | ✓ Revalidado. tasks.md:192,1305–1308,1339–1340,1350–1354,1427–1432 conserva intento2 pendiente, QA2 intacta, macros/publicación/gates pendientes y skills aplazadas después de comandos/dashboard/hooks/memoria; objetivo no cancelado. | ✓ Conservado. tasks.md:14–24,192,1486–1488,1513–1515,1560–1561: ciclo post-QA3/MAX3 sin reset original1–3/post1–2; sólo1/16, skills aplazadas después comandos/dashboard/hooks/memoria; QA/gates/commit/push/cierre global pendientes. | ✓ Conservado. tasks.md:1564–1593 preserva rechazo de intento 3, decisión ROOT de una única revisión adicional global 4/MAX4 y original 1–3/post 1–3 sin reset. :1655–1657 mantiene QA completa/gates/macros/push/cierre pendientes y skills aplazadas después de comandos/dashboard/hooks/memoria. | ✓ Conservado. tasks.md:1714–1726 y ROOT4 preservan rechazo3/MAX3 y4/MAX4; global5/MAX5 único pase explícito replan, sin reset ni deuda. :1759,1769–1771 mantiene revisión5,QA3,gates,cobertura,publicación/macros pendientes; sólo1/16 y skills aplazadas. |
+
+Global5/MAX5 termina con 0 Critical/1 Important/0 Minor. Conforme a la decisión
+devuelta por adversarial-review §5, ROOT replantea la invalidación: cualquier
+mutación de atributos o setter obliga a conservar la clasificación de argv,
+sin enumerar sólo cuatro métodos ni afirmar un análisis universal de Python.
+Regresión dedicada de cambio de clase y métodos internos, una revisión fresca
+adicional global6/MAX6. Rechazos3/MAX3,4/MAX4 y5/MAX5 quedan intactos y enlazados,
+sin reset ni deuda. Si6 retiene un Important vuelve a decisión explícita.
+
+Preparación QA3 para5: 42 unidades OWN actuales pasan PID18112 exit0; las 11
+runtime siguen históricas, no repetidas. ROOT cotejó 177 artefactos/copies;
+no ejecución autorizada, freeze, pointer, atestación ni QA3. El primer cotejo
+ROOT confundió path actual con archive en el índice y falló antes del recibo;
+se corrigió sólo el lector de ese esquema y el cotejo final pasó. No RED producto.
+La preparación5 no autoriza ni implementa la extensión6: requiere nueva adaptación
+desde esta decisión real y revisión aceptada. Ambas QA2 siguen FAIL, sin cobertura
+aceptada, clientes/modelos nativos, publicación de memoria, commit/push o cierre.
+Skills nuevas permanecen aplazadas tras comandos, dashboard, hooks y memoria.
+
+
+### Corrección B23-QA2-1 para revisión6/MAX6 — invalidación por cualquier mutación de atributos
+
+La nueva prueba ejecuta sólo el script sintético con subprocess.run mockeado,
+observa exactamente el argv de runtimes y después exige su clasificación en
+los dos detectores AST reales. Tres variantes nombran el gap: alias.__class__,
+setattr de clase y alias._add_action. Ningún hook, modelo, host o red ejecutado.
+RED válido: PID38164 exit1, tres AssertionError con argv claude ausente,
+sin error de preparación · 2026-10-10 · JUnit SHA256
+`4d60cdc8308753b668d6a4787b45178e8a63086bd3a6f5b87c22d5ee3176b720`. La primera fixture omitía import subprocess:
+PID39108/6996 fallaron por NameError, no cuentan como RED/GREEN. Se descartó
+la guardia escrita tras ese error, restauró el scanner exacto de revisión5,
+corrigió sólo el import del test y reescribió la guardia tras el RED válido.
+Esos terminales/streams/XML anteriores se conservan sin sustituirlos.
+
+El scanner conserva clasificación de argv cuando encuentra cualquier
+Attribute Store/Del o llamada setattr/delattr en el módulo, sin enumerar
+cuatro métodos ni volver al análisis de aliases. Esto cubre el cambio de clase
+y métodos internos que ya protegía el scanner anterior; una mutación ajena
+tampoco prueba identidad argparse. Comparaciones siguen como datos y argparse
+sin mutaciones conserva sus controles. Static check conservador, no sandbox.
+GREEN: Graphiti + knowledge-services completos, PID19260 exit0,
+146 pases/0 skips/48.44s · JUnit SHA256 `3ab3875cb17fa22e2b34d1273a125e91b0f6a57249834ef020c9bb4e2975e618`.
+ROOT cotejó terminales/streams/XML y 1030 archivos OWN, uno modificado,
+promovido con guardia SHA original. Final `c15cc7c75746e5ac98776cb4f1f4829b912342aaede3a8cca9aecc0b60ec8584`.
+Revisión6/MAX6 independiente pendiente, QA3 no iniciada y cobertura no aceptada;
+no commit/push ni cierre global. Los rechazos3/4/5 permanecen intactos.
+
+
+## Revisión de dos lentes — intento 6: Fase QA (T-14/T-15) — correcciones aceptadas; QA completa pendiente
+
+ROOT fusiona A+B, genéricos con contexto fresco/modelo heredado. Selector C=false/D=false.
+1030 hashes de fuente coinciden antes/después; informes, recibos e índices íntegros
+cotejados: A6 21 artefactos y B6 62. Los anexos A5/B5 son byte exactos;
+la tabla conserva las 24 filas y todas sus evidencias anteriores, añadiendo sólo6.
+El primer cotejo ROOT falló antes de escribir recibos: el formatter A6 anexó el
+juicio6 dentro de la última celda5. ROOT cotejó íntegros todos los campos previos
+y el prefijo literal de esa celda; aquí separa el juicio añadido, sin modificar
+el informe sellado ni sus veredictos. No fue fallo de producto o nuevo intento.
+Tres criterios cerrados T-01 y diez warnings preservados. Rechazos3/4/5
+siguen intactos; el pase6/MAX6 procede de la decisión ROOT5 explícita, sin reset.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B23-QA2-1 | Important | Mutación de identidad parser oculta argv | T-14/T-15 | corregido, aceptado ROOT6 | test_graphiti_security.py:326–336,353–355,2431–2454; RED3 PID38164/GREEN146 PID19260; B6 24 sondas OWN PID2396 exit0,14 cuerpos con subprocess mock y cinco controles limpios |
+| A23-QA4-1 | Important | Diagnóstico nuevo persistido sin redactor | T-14/T-15 | aceptación ROOT5 conservada | evals/run.py:299–313,342–344; RED5/GREEN30, A5/B5; sin delta6 |
+
+La guardia conservadora retira la exención argparse ante cualquier escritura/borrado
+de atributo o setter en el módulo; se verificaron cambios de clase/métodos internos,
+aliases, setters y controles limpios. Sin sandbox universal ni ejecución de hooks.
+Las fallas propias de preparación de B6 quedan preservadas, no RED de producto.
+Sólo la revisión de estas correcciones queda aceptada: 0 Critical/Important/Minor.
+
+| # | Tarea | Criterio | ✓/✗ histórico | Evidencia heredada completa | Estado y evidencia delta2 heredados | Juicio y evidencia delta3 | Juicio y evidencia adicional 4/MAX4 | Juicio y evidencia global5/MAX5 | Juicio y evidencia global6/MAX6 |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | T-01 | T-XX hechas y criterios | ✓ | `docs/roadmap/2026-10-07-catalog-capabilities/tasks.md:46–56`: T-01 conserva sus tres criterios y verificación; única macro completada. `tasks.md:33–40`:1/16; no acepta comparación global. Referencia de traspaso: tasks.md:1246. | ✓ Conservado. tasks.md:48,54–56 y33–40 mantiene única macro T-01 completa, tres criterios y1/16; ninguna nueva macro se cierra. | ✓ Conservado. tasks.md:33–56 mantiene sólo T-01 completada,1/16. Sus tres criterios se desglosan abajo; ninguna macro se cierra en este delta. | ✓ Conservado. tasks.md:33–56 mantiene sólo T-01 completada, 1/16; se conservan sus tres criterios ejecutados. Ninguna macro se cierra. | ✓ Conservado. tasks.md:33–56: sólo T-01 completada,1/16; tres criterios y evidencia ejecutada sin delta. | ✓ Conservado. tasks.md:33–56: sólo T-01 completada, 1/16; tres checks y Verificación ejecutada sin delta. |
+| 2 | T-14/T-15/T-16 | Alcance del plan | ✓ | `tasks.md:204,238,248,258` declara agentes/comandos/kits/scripts/tests/skills/docs/interop/changelogs. ROOT scope PID33736 exit0:68 en alcance,0 fuera/avisos/excluidos. `diff-audit.json` reconstruye esas68 rutas; corrección y contrato/oráculos permanecen en ese alcance. Referencia de traspaso: tasks.md:1247. | ✓ Revalidado. tasks.md:239 tests/** y ledger, :250 docs/** y tests/**, :260 ambos changelogs; corresponde QA/documentación del plan:19–21,45–48. Scope terminal PID14652 exit0:11 en alcance,0 fuera/avisos/excluidos. PID13620 del despacho no coincide con terminal y no se usa. | ✓ Revalidado. tasks.md:239,250,260 declara tests/kit/skills/docs y ambos changelogs; plan:19–21,45–48 requiere QA/documentación. Scope PID6176 exit0,6 en alcance,0 fuera/avisos/info/excluidos (terminal y hashes propios comprobados). | ✓ Revalidado. tasks.md:239,250,260 declara evals/**, tests/**, skills/**, ledger y ambos changelogs; plan:19–21,45–48 requiere QA/documentación. Scope PID 28776 exit 0: ocho rutas dentro, cero fuera/avisos/info/excluidos. Limpieza del fixture y serialización del runner son reparación de QA, no ampliación de skills. | ✓ Revalidado. tasks.md:239,250,260 declara tests/**,evals/**,docs/** y ambos changelogs; plan:19–21,45–48 requiere QA/documentación. Scope autor PID9148 exit0,7 dentro,0 fuera/avisos/info/excluidos; reparación acotada QA y replan ROOT4:1714–1726. | ✓ Revalidado. tasks.md:239,250,260 declara tests/**, ledger y ambos changelogs; plan:19–21,45–48 y replan ROOT5/tasks.md:1826–1831 acotan esta reparación. Scope autor PID35272 exit0: cuatro dentro, cero fuera/avisos/info/excluidos. |
+| 3 | T-14 | Tests y oráculos reales | ✓ | `agent-kits/shared/test_knowledge_curation.py:105–205`: cuatro B1 siguen interrumpiendo `os.link` real y rechazando enlace ajeno; D23-1 observa `_read` real, conserva cada byte histórico y recupera cada ID; misplaced/duplicate compara árbol antes/después. `tests/test_console_encoding.py:730–770` conserva oráculos reales Unicode. No fake writer para verde. Referencia de traspaso: tasks.md:1248. | ✓ Revalidado línea a línea: test_graphiti_security.py:2250–2348 prueba datos/argv, parseo/red, rutas y lector local real; test_knowledge_services.py:1379–1404 prueba ambos recorridos; test_lint_plugin.py:497–516 controla noexec/otro/missing. test_training_data_services.py:572–601 separa resolución/timeout y mantiene los asserts; test_memory_path.py:185–284 mantiene payload/contexto/área/topes. test_knowledge_router_read.py:366–371 sólo añade diagnóstico info. No existe % oficial nuevo del diff aceptado: pendiente, sin usar cohortes como cobertura. | ✓ Revalidado. tests/test_graphiti_security.py:308–339,2369–2385 conserva detector real y cinco negativos de mutación/alias/delete; RED5 y GREEN130/0skip ejecutados. test_task_brief.py:1802–1823 copia cuatro dependencias reales, preserves assertions/topes y GREEN7. test_backend_markdown_export.py:278,528–530 mantiene condiciones,100ms y añade sólo dict/presencia. Último archivo diagnóstico sin rerun todavía; tests existentes no equivalen a QA completa. Sin % oficial nuevo aceptado del diff. | ✓ Revalidado línea a línea. test_graphiti_security.py:332–347,2405–2422 recoge Assign/AnnAssign/NamedExpr y exige argv + ofensor real para seis variantes; RED 6/GREEN 136. evals/test_evals.py:402–458 comprueba Git readonly/ausencia real y denegación visible/conservación del sentinel; RED 2/GREEN 2 y cohorte 45. test_coverage_gate.py:160,262 cambia sólo shlex.join; conserva mínimos/diff/exit/asserts. No % oficial nuevo válido del diff. | ✓ Revalidado línea a línea. tests/test_graphiti_security.py:330–340,357–359,2413–2431: guardia conservadora de métodos y siete regresiones argv + detector real; RED7 PID21444/GREEN143 PID35096. evals/test_evals.py:462–561 persiste JSON, espía y delega redactor real, comprueba marcadores ausentes y cuatro fallbacks; RED5 PID22624/GREEN30 PID13396. Sin porcentaje oficial válido para este diff7; cohortes no son cobertura. | ✓ Revalidado línea a línea. tests/test_graphiti_security.py:2431–2454 nombra B23_QA2_1, observa argv bajo mock antes de exigir argv claude y ofensor en detectores reales. Tres variantes class-alias/class-setter/internal-method-alias. RED3 PID38164/GREEN146 PID19260 cotejados. No porcentaje oficial válido del diff actual; cobertura pendiente, cohortes no equivalen a cobertura. |
+| 4 | T-14/T-15 | Constitución explícita | ✓ | `docs/CONSTITUTION.md:10–13,17–21,36–40`: stdlib, dueño único, TDD/regresión dedicada, fuente generada, redactor/no mutación ajena. `tasks.md:1091–1100,1106–1115` conserva RED antes del cambio y GREEN posterior sin QA. `_load_operation:495–506` liga ruta antes de limpiar staging propio. Referencia de traspaso: tasks.md:1249. | ✓ Revalidado contra CONSTITUTION.md:10–13,17–21,26,29,33–38. Tests/soporte stdlib, RED real conservado en tasks.md:1321–1330,1360–1366,1393–1394,1409–1412; controles dedicados y espejos CHANGELOG.md/CHANGELOG.es.md:17–18. No nueva llamada de red hook ni edición manual generada; no aprobación de memoria ni cierre/publicación. | ✓ Revalidado. CONSTITUTION.md:10–13,17–21,26,29,33–38: helper usa stdlib, RED válido precede corrección y cinco regresiones nombradas; mirrors EN/ES actualizados; fuente generada y juicio Curator conservados. Pytest es infraestructura de test existente, no dependencia nueva del producto. El error import PID1480 no cuenta como RED. | ✗ Nuevo A23-QA4-1 Important. CONSTITUTION.md:34 exige que todo texto persistido pase por redact.py. evals/run.py:324–325 crea detalle.cleanup como texto y :397 lo persiste por json.dump sin cargar/invocar ese redactor. El resto conserva stdlib, TDD (tasks.md:1598–1610,1629–1642), fuentes y espejos; no se reabren violaciones previas ajenas al delta. | ✓ A23-QA4-1 corregido conforme en A5: evals/run.py:299–313,342–344 carga por ruta propia y llama module.redactar antes de json.dump:416; fallback fijo seguro para redactor ausente/fallido/no-texto. CONSTITUTION.md:34 satisfecho; :11–13 evidencia dedicada RED5/GREEN30 tasks.md:1745–1758, stdlib y espejos intactos. | ✓ Revalidado. CONSTITUTION.md:11,13 satisfechos por RED válido y test dedicado B23_QA2_1; tasks.md:1850–1856 conserva NameError inválido y descarte/re-escritura. :17–21,26,34–37 sin violación nueva: fuente de pruebas, stdlib, espejos EN/ES, sin cambio de autoridad/red/persistencia de producto. A23-QA4-1 corregido/aceptado ROOT5:1783,1788. |
+| 5 | T-01 | Verificación de tareas cerradas | ✓ | `tasks.md:52` conserva evidencia ejecutada T-01. Las demás tareas permanecen abiertas; `tasks.md:1106–1115` conserva verificación acotada y pendientes explícitos. No ejecuto una verificación faltante para tapar cierre. Referencia de traspaso: tasks.md:1250. | ✓ Conservado. Verificación ejecutada T-01 heredada tasks.md:52 y fila aceptada :1250. El delta no altera Estado ni sus tres criterios; otras15 macros abiertas. No ejecuté ninguna verificación para cubrir falta de evidencia. | ✓ Conservado. tasks.md:52 contiene verificación ejecutada T-01 y :54–56 sus tres checks. Ninguna otra macro cerrada; no ejecuté una verificación para ocultar ausencia. | ✓ Conservado. tasks.md:52 conserva la verificación ejecutada de la única macro cerrada; :54–56 sus tres checks. No ejecuto verificaciones para cubrir evidencia faltante. T-14/T-15 abiertas, T-16 borrador. | ✓ Conservado. tasks.md:48,52,54–56: única tarea cerrada y Verificación ejecutada. T-14/T-15 abiertas; T-16 borrador. No ejecuté una verificación faltante para cubrir evidencia. | ✓ Conservado. tasks.md:48,52,54–56 contiene ejecución de Verificación T-01; demás macros abiertas/borrador. Ninguna verificación faltante ejecutada por A6. |
+| 6 | T-11/T-15 | Generado al día / E2 | ✓ | Check propio en copia OWN exacta1029: Python PID17500, `-I -X utf8 -B scripts/export-interop.py --check`, exit0, stdout `export-interop --check: 88 ficheros al día`, stderr vacío. `tasks.md:204,248` declara interop y `:1114` evidencia autor; revisión3 todavía en curso sin macro cerrada. Referencia de traspaso: tasks.md:1251. | ✓ n/a al delta11: sólo tests, CONTRACTS, changelogs y ledger; no commands/, agents/ ni hooks/. No ejecuté export. Evidencia autor adicional qa-rem-review2-final-exports/terminal.json PID5800 exit0 y stdout exacto export-interop --check: 88 ficheros al día; hashes stdout/stderr comprobados, separado del check heredado PID17500. | ✓ n/a al delta6: no commands/, agents/ ni hooks/. Prompt A no requiere ejecución propia de export aquí. Autor PID6488 exit0,88 ficheros al día, terminal/streams verificados; separar del check histórico17500. | ✓ n/a al delta ocho: no commands/, agents/ ni hooks/. No ejecuté export-interop; evidencia autor PID 30612 exit 0 y stdout «export-interop --check: 88 ficheros al día», streams cotejados. interop/** declarado en tasks.md:250. No se atribuye como ejecución propia nueva. | ✓ n/a: diff7 no toca commands/,agents/ ni hooks/. No ejecuté exportador. Evidencia autor PID27252 exit0, stdout export-interop --check: 88 ficheros al día; hashes de terminal y streams cotejados. tasks.md:250 declara interop/**; separar de check propio históricoPID17500. | ✓ n/a al delta4: no commands/, agents/ ni hooks/. No ejecuté exportador. Evidencia autor PID20444 exit0, stdout exacto export-interop --check: 88 ficheros al día; terminal/streams cotejados. interop/** declarado tasks.md:250; no nueva obligación de ledger --check de tarea cerrada. |
+| 7 | T-15 | Descriptores actualizados / E3 | ✓ | `docs/agents/CONTRACTS.md:76–77,85,118–119` E13/E14/E22/E53/E54; `ROLES.md:30–43,89`; seis docs agentes y CONVENTIONS/FLOWS/SPECIALIZATION ES/EN, skills/kits/callers actualizados en el mismo diff. Nuevo layout descrito en contrato `:83–94`, sin nueva promesa global o nativa. Referencia de traspaso: tasks.md:1252. | ✓ Revalidado E3. CONTRACTS.md:85 cambia sólo Puerta E22 por dos rutas existentes del bridge/servicio y conserva QA pendiente/Gold nunca aprueba. test_training_data_services.py:386–407 exige ruta real. CHANGELOG.md/CHANGELOG.es.md:17–18 y tasks.md:1303–1432 describen scanner/espía/fixtures, sin promesa global. Producto/callers sin delta. | ✓ Revalidado. CONTRACTS.md:85,118–119,140–142 conserva E22/E53/E54 y condición E3. Sólo tests/scanner/fixture cambian, sin arista/caller o flujo de producto nuevo; CHANGELOG.md/CHANGELOG.es.md:18,20 y tasks.md:1433–1561 describen exactamente esos cambios y límites en esta tarea. | ✓ Revalidado. CONTRACTS.md:66,140–142 exige E3/espejos. Ninguna arista de productor/caller cambia. evals/README.md:79–85,157–163 describe limpieza/cleanup_error en ES/EN en esta misma tarea; CHANGELOG.md/CHANGELOG.es.md:18,21 y tasks.md:1596–1657 describen scanner/fixtures/runner y límites. No obligación de modificar FLOWS por un flujo del ciclo inexistente en el delta. | ✓ E3 revalidado. CONTRACTS.md:140–142: sin cambio de cadena del ciclo; README evals:84–88,167–171 describe redactor/fallback/ruta retenida ES/EN en esta tarea. CHANGELOG.md/CHANGELOG.es.md:18,21 y tasks.md:1729–1771 describen scanner/redactor y límites; sin nueva autoridad/flujo de memoria. | ✓ Revalidado. CONTRACTS.md:140–142 no introduce E2/flujo E3 nuevo. CHANGELOG.md/CHANGELOG.es.md:18 describen class/internal/setters en ESTA tarea; tasks.md:1844–1869 documenta guardia/pruebas/límites actuales. No cambio de productor/caller/autoridad de memoria. |
+| 8 | T-08/T-11 | API OpenAPI | ✓ | Ninguna spec OpenAPI en las68 rutas. No ejecutado openapi-lint. Referencia de traspaso: tasks.md:1253. | ✓ n/a; las11 rutas no incluyen spec OpenAPI. No ejecutado lint. | ✓ n/a: seis rutas sin spec OpenAPI. No ejecutado openapi-lint. | ✓ n/a: ocho rutas sin spec OpenAPI. No ejecutado openapi-lint. | ✓ n/a: siete rutas sin spec OpenAPI; no ejecutado openapi-lint. | ✓ n/a: cuatro rutas sin spec OpenAPI; no ejecutado openapi-lint. |
+| 9 | T-15 | Docs-style | ✓ | Servicio/persistencia con pruebas y descriptores, criterio conservado del pase2. Fragmento `agent-kits/shared/docs-style.md:14–25` leído; no reabro estilo. Referencia de traspaso: tasks.md:1254. | ✓ n/a conservado como gate exclusivo de prosa; sin hallazgo de requisitos ni reapertura por estilo. | ✓ Aplicado a este delta mayoritariamente prosa por líneas; docs-style.md:14–25. tasks.md:1433–1561 y changelogs:18,20 usan evidencia y comparaciones concretas, sin promesa global/nativa. Tabla única de gap :1482–1484 responde al formato obligatorio SKILL §6, no se elimina por preferencia; no hallazgo citable nuevo. | ✓ n/a al criterio adicional de iniciativa mayoritariamente prosa: semántica de código/tests y documentación de QA. docs-style.md:15–22 leído; no se reporta estilo. Tabla de una fila en ledger responde al formato obligatorio SKILL §6. | ✓ n/a: iniciativa de corrección de código/tests con evidencia documental; docs-style.md:15–22 leído. Sin nueva violación citable de requisitos ni hallazgo de estilo. | ✓ Conservado; docs-style.md:15–22 leído para la evidencia documental del delta. No gap de requisito/constitución ni reapertura por estilo. |
+| 10 | T-07 | T-07 corte prospectivo / legado | ✓ | `agent-kits/shared/knowledge-write.md:65–89`, `knowledge-check.md:59–71`; contrato `memory-curation-contract.md:113–126` bajo comparisons. Sin migración/reaprobación/borrado ni accepted=approved; nuevo layout prospectivo `:93–94`. `test_knowledge_curation.py:648–661` preserva legado/journal/índice. Referencia de traspaso: tasks.md:1255. | ✓ Conservado. Sin delta al servicio, knowledge-write/check ni contrato de corte prospectivo; evidencia heredada :1255 sigue vigente. | ✓ Conservado. tasks.md:1255,1466; ningún delta a knowledge-write/check/contrato o producto. Legado sin migración/reaprobación. | ✓ Conservado. tasks.md:1255,1466; sin delta a knowledge-write/check/contrato de corte prospectivo. No migración ni reaprobación del legado. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. | ✓ Conservado íntegro. Sin delta semántico a fuente/test/contrato de este criterio en las cuatro rutas. Evidencia original y delta2/3/4/5 permanece en esta fila y anexos; sin nueva ejecución, aceptación global ni adjudicación. |
+| 11 | T-08 | T-08 persistencia compartida / juicio Curator | ✓ | `knowledge-curation.py:450,562,623`; `agents/knowledge-curator.md:37–46,79–141`: productor propone, Curator semántica, servicio bytes. Revisión/design/QA/Gold/repetición no aprueban; sin nuevo rol/skill. Referencia de traspaso: tasks.md:1256. | ✓ Conservado. Sin delta al servicio/Curator. CONTRACTS.md:85 conserva explícitamente Gold no aprueba, sólo pending; juicio no delegado a QA. | ✓ Conservado. tasks.md:1256,1467; persistencia/Curator sin delta. QA/Gold no aprueban memoria. | ✓ Conservado. tasks.md:1256,1467; servicio/Curator sin delta. QA/Gold/revisión no aprueban memoria. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. | ✓ Conservado íntegro. Sin delta semántico a fuente/test/contrato de este criterio en las cuatro rutas. Evidencia original y delta2/3/4/5 permanece en esta fila y anexos; sin nueva ejecución, aceptación global ni adjudicación. |
+| 12 | T-08 | Propuesta redactada, portable y exclusiva | ✓ | Servicio `:78–85,153–164,195–204,450–475`: destino128, aliases<=8/255 sólo comparación, reserva en cuatro estados bajo cerrojo, SHA final. Tests `:220–307` conservan aliases/duplicado/redacción y nunca destino por alias. Referencia de traspaso: tasks.md:1257. | ✓ Conservado. Sin delta a propose/redactor/alias/reserva; evidencia heredada :1257 intacta. | ✓ Conservado. tasks.md:1257,1468; propose/aliases/reserva/redactor sin delta. | ✓ Conservado. tasks.md:1257,1468; propose/aliases de candidatos/reserva/redactor de memoria sin delta. Aliases del scanner son otro dominio. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. | ✓ Conservado íntegro. Sin delta semántico a fuente/test/contrato de este criterio en las cuatro rutas. Evidencia original y delta2/3/4/5 permanece en esta fila y anexos; sin nueva ejecución, aceptación global ni adjudicación. |
+| 13 | T-08 | SHA original / metadatos finales | ✓ | Servicio `:404–443,562–589`: ID/prefijo, categoría, versión1, índice/colisión y SHA fuente. `_caught:66–76` conserva redactor o fallback seguro. Test dedicado B4 `:207–217` mantiene código/status y árbol intacto sin secreto. Referencia de traspaso: tasks.md:1258. | ✓ Conservado. Sin delta a SHA/metadatos/_caught ni test B4; evidencia heredada :1258 intacta. | ✓ Conservado. tasks.md:1258,1469; SHA original/metadatos y test B23-4 sin delta. | ✓ Conservado. tasks.md:1258,1469; SHA/metadatos/_caught y test B23-4 sin delta. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. | ✓ Conservado íntegro. Sin delta semántico a fuente/test/contrato de este criterio en las cuatro rutas. Evidencia original y delta2/3/4/5 permanece en esta fila y anexos; sin nueva ejecución, aceptación global ni adjudicación. |
+| 14 | T-08 | needs_changes/reject/replacement | ✓ | Servicio `:569–576,585–618`; tests `:415–480`: preserva original/motivo, rejected terminal, sólo approve admite replacement completo ligado al SHA original; nunca edición de approved. Referencia de traspaso: tasks.md:1259. | ✓ Conservado. Sin delta a transiciones/replacement/terminal rejected; evidencia heredada :1259 intacta. | ✓ Conservado. tasks.md:1259,1470; transiciones y replacement ligados a SHA original sin delta. | ✓ Conservado. tasks.md:1259,1470; transiciones/replacement y rejected terminal sin delta. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. | ✓ Conservado íntegro. Sin delta semántico a fuente/test/contrato de este criterio en las cuatro rutas. Evidencia original y delta2/3/4/5 permanece en esta fila y anexos; sin nueva ejecución, aceptación global ni adjudicación. |
+| 15 | T-08 | Gate puro / reglas compartidas | ✓ | `agent-kits/knowledge-curator/curator-gate.py:152–172` delega los mismos validadores del servicio `:421–435`; `test_knowledge_curation.py:664–670` conserva gate0 sin mutación ni transición. Referencia de traspaso: tasks.md:1260. | ✓ Conservado. Sin delta al gate/validadores; E22 sólo enumera su puerta de ejecución, no añade mutación ni transición. | ✓ Conservado. tasks.md:1260,1471 y CONTRACTS.md:85; gate puro y validadores compartidos sin delta. | ✓ Conservado. tasks.md:1260,1471 y CONTRACTS.md:85; gate y validadores compartidos sin delta. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. | ✓ Conservado íntegro. Sin delta semántico a fuente/test/contrato de este criterio en las cuatro rutas. Evidencia original y delta2/3/4/5 permanece en esta fila y anexos; sin nueva ejecución, aceptación global ni adjudicación. |
+| 16 | T-08/T-14 | Intención / recibo / recover | ✓ | Servicio `:299–340,477–507,510–559,623–630`: SHA de ruta exacta, operación hash/verificación y binding antes de `_settle_record`; recover enumera nombres y exige única coincidencia. Tests `:105–205` conservan cortes B1 y añaden misplaced/duplicate sin mutación; `:507–575` preserva cortes/reintentos/cambios/ajenos. No corte eléctrico. Referencia de traspaso: tasks.md:1261. | ✓ Conservado. Sin delta a operaciones/recibos/recover ni oráculos de interrupción; evidencia heredada :1261 intacta. | ✓ Conservado. tasks.md:1261,1472; intención/recibo/recover y fronteras reales sin delta. | ✓ Conservado. tasks.md:1261,1472; intención/recibo/recover y cortes reales sin delta. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. | ✓ Conservado íntegro. Sin delta semántico a fuente/test/contrato de este criterio en las cuatro rutas. Evidencia original y delta2/3/4/5 permanece en esta fila y anexos; sin nueva ejecución, aceptación global ni adjudicación. |
+| 17 | T-08/T-14 | Concurrencia / IO / OS | ✓ | Servicio `:109–147,166–204,207–290`; tests `:577–646,684–753`: proceso cooperante, enlaces/scan incompleto y fuente ajena conservada. _walk de recover conserva límite4096 y rechaza escaneo no verificable. Dos skips Windows no prueban guards symlink; POSIX/nativo pendientes. Referencia de traspaso: tasks.md:1262. | ✓ Conservado producto. Fixture Windows test_memory_path.py:151–169 ahora aporta shim/SYSTEMROOT/Python coherentes con shell, sin relajar aserciones. test_lint_plugin.py:41–60 simula X_OK sólo del path exacto y :497–516 comprueba delegado/missing. tasks.md:1375–1376,1400–1407,1418–1421 conserva límites, intento fallido y skips; no acredita POSIX/nativo. | ✓ Conservado. tasks.md:1262,1473; ningún cambio producto/OS/permisos. Fixture Linux lector real RED trescohortes6/1 y GREEN7/0skip son selección acotada, no aceptación Windows/POSIX completa ni nativa. | ✓ Conservado producto de curación. tasks.md:1262,1473; no cambio servicio/locks/guards. evals/run.py:134–164 limpia sólo cwd recibido de preparar_cwd, limita retry a unlink regular readonly Windows dentro del cwd y sin reparse; pruebas :402–458 verifican Windows, no aceptación POSIX/nativa completa. | ✓ Conservado producto curación. Scanner sólo cambia puerta de tests. evals/run.py:335–346 conserva limpieza/caso fallido/retención real; redacción no borra ni mueve ruta. test_evals.py:490,525–529,560–561 observa sentinel y JSON. Sin aceptación nueva POSIX/nativa. | ✓ Conservado íntegro. Sin delta semántico a fuente/test/contrato de este criterio en las cuatro rutas. Evidencia original y delta2/3/4/5 permanece en esta fila y anexos; sin nueva ejecución, aceptación global ni adjudicación. |
+| 18 | T-11 | T-11 productores / fallback / retro tardía | ✓ | Seis agentes, debug-root-cause/retro/bridge siguen el mismo propose sin writer alternativo. `commands/dev-cycle.md:400–428`, `commands/retro.md:24–34`: handoff explícito o ruta/ID pendiente; cierre de retro no aprueba. Referencia de traspaso: tasks.md:1263. | ✓ Conservado. Sin delta a productores/commands/retro; evidencia heredada :1263 intacta. | ✓ Conservado. tasks.md:1263,1474; productores/retro/commands sin delta. No autoaprobación. | ✓ Conservado. tasks.md:1263,1474; productores, comandos y retro sin delta, sin autoaprobación. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. | ✓ Conservado íntegro. Sin delta semántico a fuente/test/contrato de este criterio en las cuatro rutas. Evidencia original y delta2/3/4/5 permanece en esta fila y anexos; sin nueva ejecución, aceptación global ni adjudicación. |
+| 19 | T-08/T-11/T-14 | Bridge Gold / nombre / SHA / store | ✓ | `propose-from-case.py:151–164,210–243,274–277`: fórmula ordinaria preservada, acorta sólo slug largo y reserva alias histórico, SHA real servicio. `test_propose_from_case.py:603–701` verifica Gold máximos, cuatro estados, store/config y handoff; sin hash/cambiado conserva tratamientos históricos. Referencia de traspaso: tasks.md:1264. | ✓ Conservado implementación. E22 CONTRACTS.md:85 incorpora gate real y conserva pending/no aprobación; suites bridge/curation ejecutadas PID3364 exit0:161 pases y2 skips. No cambia nombre/SHA/Gold/store; evidencia heredada :1264. | ✓ Conservado. tasks.md:1264,1475,CONTRACTS.md:85; puente Gold/nombre/SHA/store sin delta. | ✓ Conservado. tasks.md:1264,1475; puente Gold/nombre/SHA/store sin delta. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. | ✓ Conservado íntegro. Sin delta semántico a fuente/test/contrato de este criterio en las cuatro rutas. Evidencia original y delta2/3/4/5 permanece en esta fila y anexos; sin nueva ejecución, aceptación global ni adjudicación. |
+| 20 | T-07/T-11 | Journal episódico sin promoción | ✓ | `journal.py:1565–1574,1702–1711,2178–2184`; `test_journal_curation_handoff.py:18–52`: orientación de consulta explícita, fuentes/estado preservados y ausencia de creación de candidates/approved. No aceptación por repetición. Referencia de traspaso: tasks.md:1265. | ✓ Conservado. Sin delta journal/handoff y sin promoción por repetición. Nueva clasificación de runtime en test_graphiti_security.py:292–397 se limita al scanner de tests y no cambia autoridad. | ✓ Conservado. tasks.md:1265,1476; scanner de tests cambia clasificación conservadora, no journal ni autoridad. Journal sigue episódico. | ✓ Conservado. tasks.md:1265,1476; journal/handoff sin delta. Scanner AST sólo modifica una puerta de tests, no autoridad de memoria. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. | ✓ Conservado íntegro. Sin delta semántico a fuente/test/contrato de este criterio en las cuatro rutas. Evidencia original y delta2/3/4/5 permanece en esta fila y anexos; sin nueva ejecución, aceptación global ni adjudicación. |
+| 21 | T-07/T-15 | Confluence / staging | ✓ | `confluence-scope.py:83–85,268–275`, defaults/skill/policy; `test_memory_curation_scope.py:21–58`: exclusión forzada journal/candidates antes de include/casing/staging; approved y originales preservados. No conexión/publicación real. Referencia de traspaso: tasks.md:1266. | ✓ Conservado Q23-1 y producto. No delta workflow/copia/confluence-scope ni tests Confluence; evidencia heredada :1266 y gap :1282. | ✓ Conservado. tasks.md:1266,1282,1477; sin cambios a Confluence/staging/CI en delta3. Q23-1 conservado; ninguna conexión o publicación real. | ✓ Conservado. tasks.md:1266,1282,1477; Confluence/staging/CI sin delta. Q23-1 conservado; no conexión/publicación real. | ✓ Conservado íntegro: sin delta semántico a la fuente/test/contrato de este criterio en las siete rutas; todas sus evidencias y límites originales/delta2/delta3/A4 permanecen en esta fila y anexo. Sin nueva ejecución o adjudicación. | ✓ Conservado íntegro. Sin delta semántico a fuente/test/contrato de este criterio en las cuatro rutas. Evidencia original y delta2/3/4/5 permanece en esta fila y anexos; sin nueva ejecución, aceptación global ni adjudicación. |
+| 22 | T-14 | T-14 honestidad RED/GREEN/QA | ✓ | `tasks.md:1091–1100`: RED2fallos/5pases, B1 pasaba misma frontera antes del cambio; `:1106–1115`: GREEN267/2skips y consola20sin skips, procesos exactos/SHAs y QA/publicación pendientes. Históricos conservados sin suma como cobertura única ni eficacia/escala/global. Referencia de traspaso: tasks.md:1267. | ✓ Revalidado. tasks.md:1321–1340,1360–1376,1393–1425 coincide con recibos terminal/JUnit por cohortes; se conservan70 pases/1 fallo y correctivo1 pase separado,161/2skips y598/12skips. QA2 anterior permanece pendiente/fallida; no % ni gate/QA completa nuevos aceptados. | ✓ Revalidado. tasks.md:1490–1548 conserva error preparación, RED5/GREEN130, tres RED6/1 y GREEN7; mismos7 repetidos. Dos verify históricos no reproducidos, causa pendiente y100ms intactos; diagnóstico final sin JUnit nuevo. QA2Linux6209/78/44,6331 no se transforma en verde; PyTracer/trace-changed y gates históricos insuficientes. tasks.md:1550–1561 distingue preparación QA3 de ejecución/aceptación. | ✓ Revalidado. tasks.md:1598–1610 conserva RED 6/GREEN 136; :1622–1642 conserva 20/7, RED 2 y verdes 2,45,45 + noop 1 separado. XML/terminales cotejados. :1644–1649 conserva HTTP no reproducido y deadlines, sin causa inventada. :1587–1591 mantiene QA2 Windows 6215/24/92 y Linux 6209/78/44, ambos 6331 FAIL. Sin QA3 ni cobertura válida. | ✓ Revalidado. tasks.md:1731–1759 conserva RED7/GREEN143 y RED5/GREEN dedicado5/GREEN30 separados, PIDs/XML cotejados; no suma como cobertura/suite única. :1761–1771 y recibo QA2 mantienen FAIL Windows6215/24/92 y Linux6209/78/44, auditorías inutilizable/corrupta, procesos aceptados null, sin QA3. | ✓ Revalidado. tasks.md:1850–1856 separa NameError PID39108/6996 de RED válido3 PID38164; :1864–1869 conserva GREEN146/0skip/48.44s, SHAs XML y revisión6/QA3/cobertura pendientes. Terminales, streams y casos JUnit cotejados; no suma como QA global. |
+| 23 | T-15 | T-15 consola obligatoria nueva | ✓ | A23-1 corregido confirmado2 y conservado: rules `:6–8` snippet, servicio `:20–22`; `test_console_encoding.py:305–306,383–392,730–770` MODOS/pureza medidos y UTF8/emoji/JSON/SHA reales cp1252/ascii. Criterio canónico no relajado. Referencia de traspaso: tasks.md:1268. | ✓ Conservado A23-1/Q23-2. Sin delta a rules/MODOS/snippet/validador/oráculos Unicode; evidencia heredada :1268 y :1283. Helper de tests sin CLI nueva; no cambia promesa de consola. | ✓ Conservado. tasks.md:1268,1283,1479; A23-1/Q23-2 sin delta a snippet/MODOS/Unicode. Helper no añade CLI de producto. | ✓ Conservado. tasks.md:1268,1283,1479; snippet/MODOS/Unicode sin delta. evals/run.py:65–69 conserva consola UTF-8; no CLI de producto nueva. A23-1/Q23-2 no se reabren. | ✓ Conservado A23-1/Q23-2. No delta a consola/MODOS/Unicode; importlib es stdlib y no añade CLI. Evidencia histórica intacta. | ✓ Conservado. tasks.md:1268,1283 y tests/test_graphiti_security.py:2437 import subprocess local: no CLI nueva ni delta a consola/MODOS/oráculos Unicode; A23-1/Q23-2 intactos. |
+| 24 | T-01..T-16 | Rama / publicación / macros | ✓ | `tasks.md:14–24,1102–1115`: sólo T-01 cerrada; sin PR/main/release ni B23 publicado/aceptado. Prioridades y skills aplazadas se mantienen; continúa objetivo global, QA/OS/clientes pendientes. Referencia de traspaso: tasks.md:1269. | ✓ Revalidado. tasks.md:192,1305–1308,1339–1340,1350–1354,1427–1432 conserva intento2 pendiente, QA2 intacta, macros/publicación/gates pendientes y skills aplazadas después de comandos/dashboard/hooks/memoria; objetivo no cancelado. | ✓ Conservado. tasks.md:14–24,192,1486–1488,1513–1515,1560–1561: ciclo post-QA3/MAX3 sin reset original1–3/post1–2; sólo1/16, skills aplazadas después comandos/dashboard/hooks/memoria; QA/gates/commit/push/cierre global pendientes. | ✓ Conservado. tasks.md:1564–1593 preserva rechazo de intento 3, decisión ROOT de una única revisión adicional global 4/MAX4 y original 1–3/post 1–3 sin reset. :1655–1657 mantiene QA completa/gates/macros/push/cierre pendientes y skills aplazadas después de comandos/dashboard/hooks/memoria. | ✓ Conservado. tasks.md:1714–1726 y ROOT4 preservan rechazo3/MAX3 y4/MAX4; global5/MAX5 único pase explícito replan, sin reset ni deuda. :1759,1769–1771 mantiene revisión5,QA3,gates,cobertura,publicación/macros pendientes; sólo1/16 y skills aplazadas. | ✓ Conservado. tasks.md:1830–1841,1868–1869 mantiene rechazos3/4/5 sin reset, una revisión6/MAX6 explícita y QA2 FAIL/QA3/cobertura/macros/push/cierre pendientes. :192 conserva skills aplazadas; T-01 sigue 1/16. |
+
+Preparación6: 55 unidades OWN actuales pasan PID6212 exit0; 11 runtime históricas,
+no repetidas. ROOT cotejó217 artefactos/copies, sin ejecución ni aceptación QA.
+Una copia pública limpia conserva exactamente1030 hashes de la fuente revisada,
+sin su Git privado; evita extras al verificar los inputs de QA3. No código cambiado.
+Ambas QA2 siguen FAIL, auditorías inutilizable/corrupta y counts aceptados null.
+QA3 completa Windows/Linux y cobertura90/90 siguen pendientes. Sin modelos/clientes
+nativos, memoria promovida, cierre macro/global, commits o push por esta revisión.
+Skills nuevas aplazadas hasta implementar y validar comandos, dashboard, hooks y memoria.
+
+### QA3 iniciada tras revisión6 aceptada — Windows/Linux en paralelo
+
+Revisión6 aceptada por ROOT, SHA256
+`35e38f5a214f5c0a249a57d9002065b7d5d556d0dc01574d18e3b53922cd10ff`.
+Ledger-lint posterior: PID23336 exit0, cero incoherencias y el aviso histórico730.
+Freeze real PID33272 exit0; ROOT verificó los1030 hashes raw/canónicos, blobs Git,
+todos los modos y los inputs/dependencias de ambas plataformas. Preflight SHA256
+`9bc3f471fdb7ff5da9099e931f7b6a4fe7bfb16ed0bfd6515f50f498948e8854`.
+Atestación ROOT SHA256
+`dcfd73b5ac5e1e2259d63ff31102573cbf5fb56d94f8a617bd5a254a564706e6`;
+pointer final SHA256
+`49f5f5a8acdd8fe5b7e1c7b44559550f5527bacb0b12432c90e4cc7497700d5f`.
+
+Runners reales iniciados: Windows PID34856 y Linux PID24544, cada uno con output
+OWN exclusivo; conservan los14 directorios de CI y los6331 IDs históricos.
+La colección y los terminales finales de esta ejecución siguen pendientes;
+no se atribuye ningún pase ni porcentaje de cobertura antes de observarlos.
+Coverage7.16.2 debe observar CTracer real; gates90/90, qa-gate y auditoría de hijos
+siguen obligatorios. QA2 permanece FAIL. Sin aceptación completa/nativa/global,
+promoción de memoria, commits, push ni nuevas skills por iniciar estos runners.
+
+### Observación QA3 y reintento Linux aislado
+
+Linux inicial terminó FAIL: runner PID24544 exit1 y Docker attach PID32360 exit1.
+La colección de6378 se comparó por error contra los6331 IDs de Windows;27 IDs
+paramétricos difieren entre plataformas. Se ejecutaron0 tests de producto. El
+JUnit cerrado conserva1 testcase sintético `pytest/internal` con1 error, no0
+testcases. El fallo posterior al construir coverage impidió escribir el terminal
+del driver; no se reconstruye ese archivo ni se presenta pytest3 como un retorno
+medido. CID OWN terminado removido y ausencia verificada; servicios del usuario
+intactos. La ejecución Windows original continúa, sin alterar su harness/fuente.
+
+Reparación exclusivamente OWN de Linux: RED PID24820 exit1 con4 fallos de
+aserción; GREEN final PID38444 exit0,14 unidades de funciones AST, no QA completa.
+Las dos cohortes observadas conservan6331 IDs exactos cada una,6304 comunes y27
+propios de cada plataforma; no normalización ni omisiones. Coverage faltante
+conserva los7 archivos como unsupported y bloquea aceptación; gates90/90 y
+CTracer7.16.2 permanecen obligatorios. Revisión fresca de lectura sin defectos.
+ROOT corrigió dos errores de lectura del índice de preparación antes de crear
+bindings; ambos exit1 sin modificar los inputs originales ni iniciar QA.
+El informe inicial confundía0 tests ejecutados con0 testcases JUnit: se corrigió
+y se preservaron íntegros el informe y los recibos anteriores en OWN/history.
+
+ROOT preflight PID29152 exit0, SHA256
+`9986d5adc84c185fbf0994466d7f49a045d6ff17dc0be362a5d2b969247c49b8`:
+91 artefactos OWN,1108 originales,78 OWN previos,6 artefactos Linux cerrados y10
+archivados verificados. Fuente aceptada6 de1030 archivos y cadena de decisiones
+3/4/5/6 intactas. Nuevo runner Linux PID39188 iniciado en OWN separado con los
+mismos14 directorios de CI; terminal, colección y cobertura del reintento aún
+pendientes. No se reinició Windows ni se atribuye aceptación al nuevo inicio.
+
+Observación provisional Windows, mediante lectura compartida acotada de filas
+JSONL completas:3371 call reports,3332 passed y7 failed. Seis fallos muestran
+`COMSPEC` ausente en el entorno de pruebas; N09 muestra WinError5 al renombrar
+el staging de restauración. La suite continúa: no son resultados finales ni
+cobertura aceptada; causas/reproducciones y resolución siguen pendientes.
+
+Comprobación visual OWN: servidor PID34544 cerrado voluntariamente exit0 tras
+`ERR_BLOCKED_BY_CLIENT` de Edge. El HTML estático se generó, pero el navegador
+rechazó file por su política de URLs. No se eludieron barreras ni se escribió
+decisión alguna. Navegación visual y revisión interactiva/nativa siguen pendientes.
+
+Lectura paralela identifica la siguiente aceptación de memoria: retoma tras
+interrupción con candidato, operación y recibo exactos de la iniciativa. El lector
+actual de work-resume compone ledger/journal sin consultar ese handoff; implementar
+su vista readonly queda después de resolver la QA actual. No se convierte journal
+en autoridad ni se infiere pertenencia por texto. Skills nuevas siguen aplazadas
+hasta implementar y validar comandos, dashboard, hooks y memoria. Sin cierre
+macro/global, promoción de memoria, commits o push por estas observaciones.
+
+Reintento Linux observado: driver PID7 con CTracer7.16.2 real; colección6378
+conserva los6331 previos Linux y añade47, sin omisiones. Ya supera la frontera
+de colección que falló en el primer intento; no equivale a terminal verde.
+Ledger-lint de esta observación: PID20732 exit0,0 incoherencias y1 aviso
+histórico de cabecera en línea730. Gates y cierre completo siguen pendientes.
+
+### QA3 terminal y bloque24 — coherencia de comandos y handoffs
+
+Las observaciones provisionales anteriores quedan como historia. Windows terminó:
+runner PID34856, driver PID24112, pytest y qa-gate exit1; JUnit6279 passed,
+7 failed,0 errors,92 skipped,6378 casos. Los seis KeyError COMSPEC proceden
+del entorno del harness, reparado en OWN separado con RED válido PID24368 exit1,
+GREEN PID12176 exit0 y seis casos de aliases PID1492 exit0. No reemplazan la
+suite completa fallida. N09 sigue con causa no probada: publicación por rename
+tras inventario validado; tres hijos registrados exit0. Una reproducción aislada,
+un módulo completo y dos fixtures de profundidad pasan, sin demostrar causa ni
+autorizar la etiqueta flaky. Los128 artefactos de preparación,1378 de diagnóstico,
+19 inputs originales y50 del análisis terminal fueron verificados por ROOT.
+
+El reintento Linux terminó: runner PID39188, driver PID7, pytest/qa-gate exit0,
+JUnit6334 passed,0 failed/errors,44 skipped,6378 casos. Conserva los6331 IDs
+Linux previos y47 nuevos. El runner sale1 por cobertura, no por tests. Auditorías
+del wrapper: Windows2910/2910 y Linux2917/2917 hijos registrados terminales,
+sin pendientes; no cubren descendientes fuera del wrapper. CTracer7.16.2 real:
+Windows media84.22456775892661%, cambiadas84.55172413793103%; Linux
+media84.40309891746371%, cambiadas85.24137931034483%. Ambos incumplen90/90,
+sin redondear ni sumar plataformas. No hay aceptación QA global. El contenedor
+del reintento Linux fue retirado por el runner usando su CID propio ya terminal;
+no se tocaron contenedores del usuario.
+
+Recibos ROOT privados: `windows-preparations24-root-verified.json` y
+`terminals-operations24-root-verified.json`, bajo el OWN de ejecución. JUnit Windows
+SHA0056cc1ba76060eae41eb0fb5effa1724c91523c79696a704f1c7f53d1c7b161;
+Linux SHA8215607ea66fbad80b60948af5ca4d291a65fe93ef3691b2fd5d640acfb3b1f2.
+Un primer preflight del segundo recibo resolvió erróneamente una ruta pública
+relativa contra OWN y falló antes de escribir; se corrigió contra ROOT explícito
+con whitelist del manifest público. La evidencia terminal original se conserva.
+
+Comparación de comandos en paralelo:55 cuerpos nuevos completos y2 relecturas,
+en tres grupos de26,17 y14. Con los18 previos:73/94 cuerpos leídos;21 restantes
+en el siguiente pase. ROOT verificó65,53 y56 registros de evidencia de estos
+grupos y sus artefactos; los counterparts cambiados se cotejaron con el snapshot
+raw histórico. Hay8 decisiones estáticas suficientes en el grupo de planificación,
+sin aceptación de runtime; las otras fichas mantienen recursos/dependencias
+pendientes. Cuerpo leído, comparación estática e integración son medidas distintas:
+ningún comando de estos grupos se declara integrado por esta lectura.
+
+Bloque24 aplica una corrección propia posterior a la fuente congelada6:
+`agents/qa.md` sólo escribe testing y devuelve evidencia; el orquestador controla
+reapertura y cierre después de retro. `commands/dev-cycle.md` reserva Done a
+`aprobado`, propone diseño por servicio/ruta/SHA y reconcilia su tabla de estados.
+La plantilla de architect, doc de QA, CONVENTIONS y FLOWS ES/EN conservan esos
+dueños; rejected no se reenvía a curación y retro exit1 tiene nodo de cierre
+pendiente separado. El formato de retro documentado coincide con el gate real.
+Revisión fresca estática:8 ficheros,9 observaciones corregidas y releídas,
+0 defectos scoped abiertos. Informe SHA
+151d06cf93cf749b3365825408ce1d2c3ae9b7f869e790948089766e0fcea6f0.
+Los límites Jira heredados —read-back antes de aprobado, evidencia de revisión,
+agrupación fase y publicación de ops— permanecen pendientes distintos.
+
+Validación aislada del bloque24: export PID13172 exit0, export-check PID26828
+exit0, lint PID25812 exit0 (0 errores,9 avisos existentes). ROOT verificó los8
+SHA actuales contra el snapshot revisado y promocionó exclusivamente4 exports
+generados de QA/dev-cycle para Codex/OpenCode. Espejos CHANGELOG EN/ES reflejan
+el cambio. Prosa: TDD n/a; no tests que imiten instrucciones. Esta revisión y
+checks no amplían la aceptación de fuente6 ni prueban dispatch nativo.
+
+Siguiente trabajo acotado: pruebas significativas de publicación/recuperación,
+CLI en proceso y Gold sin fallback para cubrir contratos hoy no medidos; un
+experimento OWN de sharing de rename comprueba un mecanismo, sin identificar
+el holder original ni suprimir fallos; completar cuerpos y recursos de comandos.
+Skills nuevas siguen aplazadas hasta implementar y validar comandos, dashboard,
+hooks y memoria. Macros, V01–V08, memoria/handoffs nativos, cobertura, cierre,
+commits y push permanecen pendientes; no se reinicia una suite completa antes
+de atender estos resultados.
+
+#### Continuación verificada del bloque24
+
+El cuarto grupo leyó los21 cuerpos restantes:120954 bytes,4192 líneas. ROOT
+verificó3 artefactos y68 registros, sus IDs y la unión exacta C001–C094 con los
+18 previos y los tres grupos anteriores. Total94/94 cuerpos completos; seis
+decisiones estáticas suficientes y quince fichas abiertas en este último grupo.
+Recibo `remaining-commands24-root-verified.json`. Un primer lector ROOT incluyó
+IDs de recursos como comandos y falló antes de escribir; se corrigió el filtro
+exacto Cddd. Recursos transitivos, callers y aceptación nativa siguen pendientes;
+esta lectura no integra comandos. El documento de comparación refleja esa
+distinción y la ampliación de skills sigue aplazada.
+
+Preparación de pruebas de memoria en OWN: tres archivos nuevos,54 casos nuevos
+verdes. Cohorte final Windows PID35244 exit0:192 passed,0 failed/errors,2 skipped,
+1 deselected; baseline PID13396 exit0:138 passed y los mismos2 skips. La prueba
+original multiproceso se deselectó sólo en este experimento sin hijos y debe
+incluirse en la próxima QA completa. El primer baseline falló en el harness antes
+de pytest; el primer intento ampliado detectó ID de parámetro excesivo y lectura
+del byte de lock Windows durante el bloqueo. Se conservaron sus recibos y se
+corrigieron únicamente fixtures/observación, sin rebajar expectativas.
+
+ROOT verificó54 artefactos,1030 fuentes canónicas,86 dependencias, JUnit, tracer
+y las cohortes exactas: los140 casos previos se conservan y se añaden54. Preflight
+PID17064 exit0, recibo `memory-tests24-root-verified.json`. CTracer7.16.2 real:
+publicación260/268 líneas; curation493/544; Gold169/174 en la misma cohorte.
+No son porcentajes de QA global, changed-lines ni Linux; no se atribuyen hijos.
+Las pruebas siguen en OWN hasta completar la revisión A+B y promoverlas.
+
+Experimento N09 de sharing de rename, en tres fixtures OWN con16 archivos y
+un intento por caso: sin handle, handle de directorio con share READ|WRITE y
+handle con READ|WRITE|DELETE; los tres restauran correctamente. Los dos handles
+reales se cerraron. ROOT verificó169 artefactos y flags/resultados exactos;
+recibo `rename-sharing24-root-verified.json`. Este mecanismo concreto no reproduce
+el fallo original; causa y holder siguen desconocidos. No hay fix, retry de
+producción, supresión ni etiqueta flaky.
+
+Checks del bloque documental previo: export-check PID15000 exit0, lint PID33748
+exit0 (0 errores,9 avisos existentes), ledger PID3652 exit0 (0 incoherencias,
+1 aviso histórico). Diff-check explícito de16 archivos PID11084 exit0; stderr
+sólo avisos CRLF. Las actualizaciones posteriores de ledger/comparación requieren
+su check final; esta evidencia conserva los bytes que se comprobaron entonces.
+
+## Revisión de dos lentes — intento 1: Bloque24 (T-14) — pruebas adicionales de memoria
+
+Bloque nuevo de tres pruebas, separado de la revisión aceptada6 del producto:
+intento1 de3, lentes A+B. Selector PID14604 exit0, C=false/D=false, sin avisos.
+Contexto fresco por revisores genéricos con modelo heredado; API de reviewer por
+nombre no disponible. Alcance sin Git: selección explícita de los tres archivos,
+scope-gate saltado con aviso, sin simular exit0. No cambia el veredicto ni el
+historial de intentos3/4/5/6 de la fuente anterior.
+
+| Criterio del bloque | A | B | Evidencia |
+|---|---|---|---|
+| CLI y handoff reales | ✓ | ✓ | Confluence main, servicio propose/apply/recover y recorder Gold real |
+| Errores e inputs corruptos observables | ✓ | ✓ | Códigos, snapshots y fronteras IO específicas |
+| Bytes, identidades y estado preservados | ✓ | ✓ | SHA de bytes persistidos, fuente/store/policy conservados |
+| Recuperación, idempotencia y lock cooperante | ✓ | ✓ | Servicio real, operación durable y hilo dueño liberado en finally |
+| Gold exclusivamente candidato | ✓ | ✓ | Sin approved, trayectoria ni writer alternativo |
+| Fixtures locales sin servicios externos | ✓ | ✓ | tmp_path, sin red ni subprocess en la cohorte acotada |
+| Originales/umbrales intactos | ✓ | ✓ | Tres archivos nuevos; fuente1030 y dependencias86 verificadas |
+| Evidencia y límites de54 casos | ✓ | ✓ | JUnit real, Windows acotado; Linux/global/multiproceso no aceptados |
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| — | — | Sin defectos ni gaps abiertos en este bloque | T-14 | No necesaria | A+B leyeron los tres tests completos y contratos/transitivos pertinentes |
+
+ROOT leyó ambos informes y verificó sus artefactos, la preparación y los hashes
+exactos de las tres pruebas. B detectó inicialmente una discrepancia al comparar
+SHA raw con canonical: exit1 conservado, sin PID inventado. Las14 fuentes
+contrastadas coinciden con sus campos de manifiesto; en seis sólo difiere CRLF/LF.
+La revalidación B PID15724 exit0 mantiene ambos hashes separados. No se modificó
+fuente ni consumió un intento de corrección del producto por ese error de lector.
+
+Promoción ROOT PID22680 exit0 de sólo tres archivos nuevos en tests, con bytes
+revisados intactos. Fusión privada SHA
+d7ccf5f63f20fd5311bffb099b67ca2b2bc1a0a6f54a26fc9f7cb59de71483a9;
+recibo de promoción SHA05f4366fde74120f90d9cd6867106f7830d38d516da57b70c9988949fc695b2c.
+El preflight del índice B apuntó primero a un nombre inexistente y falló en
+lectura; luego se usó sha256.json real. No hubo mutación ni aceptación por ese
+fallo. No se consulta configuración Jira del consumidor en esta QA aislada,
+por lo que no se publica fuera del ledger. Sin cierre de T-14, QA global/nativa,
+promoción de conocimiento, commits ni push. Siguiente puerta: QA completa con
+54 casos añadidos y todos los originales, sin deselect del lock multiproceso.
+
+Comparación detallada del panel de revisión cerrada como lectura estática:
+15 funciones,47 recursos (44 cuerpos completos y tres dirigidos). ROOT preflight
+PID14452 exit0 verificó cinco artefactos y hashes de los47 recursos; recibo
+`panel-comparison24-root-verified.json`. El documento panel-activity distingue
+review UI de vista operativa/runner y conserva CAS, raw/view y receive/ack propios.
+Se diseñan resultados por comentario y actividad con caducidad; polling actual
+se conserva porque SSE bloquearía el HTTPServer serial. No hay implementación
+ni prueba de atención individual, actividad nativa o interacción browser en este
+pase. V01–V08 siguen pendientes. Un primer patch documental falló por contexto
+de línea inexistente y no modificó el fichero; el patch con contexto real pasó.
+
+#### Retoma explícita de curación — preparación del bloque24
+
+El código de retoma quedó aprobado en la revisión acotada2 de3, lentes A+B+D,
+sin gaps abiertos; C=false. Se conservan los dos Important del intento1 y
+sus RED antes de corregir. Preparación Windows OWN-02:16 regresiones nuevas,
+70 vecinos (25 añadidos previos y45 originales) y10 vecinos de curación pasan.
+Estos resultados no constituyen QA global, Linux ni aceptación nativa.
+
+El paquete integra referencias explícitas candidate/SHA en el ledger antes
+de apply, con orquestador/planner como dueños; Curator sólo entrega IDs y recibos.
+La vista usa validación readonly del servicio y presupuestos existentes,
+sin limpieza, recuperación, aprobación ni búsqueda global de candidatos.
+Callers, contratos ES/EN y proyecciones generadas se preparan en OWN; su
+revisión independiente, QA y promoción a ROOT siguen pendientes. No cambia
+el estado de T-14 ni de las otras quince tareas macro; skills nuevas aplazadas.
+
+## Bloque24 — integración revisada y validación conjunta pendiente
+
+La ampliación de skills sigue aplazada. Este bloque mantiene la prioridad de
+comandos, panel, hooks y memoria; no cierra ninguna tarea macro adicional.
+
+La retoma de curación y sus callers quedaron aceptados en sus revisiones
+acotadas2. La lectura readonly conserva las identidades de candidato,
+operación y recibo y sus omisiones; no recupera, aplica ni aprueba conocimiento.
+La documentación y los exports se integraron en una copia de trabajo aislada.
+
+Los resultados por comentario del panel quedaron aceptados en revisión de
+producto2 y de documentación1. La revisión de sus pruebas terminó en intento3
+de3: B-T01 (limpieza de procesos fallidos) corregido en2, A-T02 (lector aún
+vivo después de publicar la señal) corregido en3. RED causal1 y GREEN1 del
+último cambio, foco5/5 Windows y nueve hijos terminales; la colección72
+observada entonces era Windows, no ejecución Linux. El consumo de una decisión
+no equivale a atención ni una respuesta constituye otra autorización.
+
+### Resultados de QA conservados
+
+QA4 evaluó la fuente anterior congelada de1034 archivos, con6432 casos por
+plataforma, sin deselects. Estos resultados no validan automáticamente las
+ampliaciones posteriores de retoma, feedback o protocolo sintético.
+
+| Plataforma | Pasan | Fallan | Saltos | Media de cobertura | Líneas cambiadas |
+|---|---:|---:|---:|---:|---:|
+| Windows |6338|2|92|93,6867%|92,2759%|
+| Linux |6388|0|44|93,8652%|92,9655%|
+
+Ambas mediciones usaron CTracer oficial7.16.2 en el proceso padre y superaron
+90/90 con fracciones exactas, antes de redondear. Linux pasó sus gates;
+Windows sigue NO-PASS por N03 y N04[claim_after_claiming]. La causa primaria
+histórica permanece desconocida. Los dos casos pasaron en la ejecución
+instrumentada aislada; ese resultado no demuestra reparación de su causa.
+
+Un defecto secundario demostrado del soporte de prueba podía ocultar la primera
+excepción de publicación con una segunda escritura desde finally. La corrección
+acotada3 archivos quedó aceptada por A+B en intento1: clasifica InfrastructureError
+con causa y etapa, conserva el temporal y repropaga la primera excepción sin
+reintentar. Cinco RED antes del fix, cinco GREEN y cinco regresiones públicas
+finales; focal original2/2 una vez. No se modificó ready ni producto ni se
+presenta como reparación de los dos errores históricos. El nuevo test público
+es `tests/test_memory_recovery_protocol.py`.
+
+La ejecución Linux del panel72 terminó por timeout externo240s: salida parcial
+sin JUnit ni aceptación. Fuente y contenedor propios verificados; el contenedor
+se eliminó. La focal second_popen pasó1/1 en3,42s sin reproducir un atasco
+intrínseco. La causa del coste total y la captura RAW POSIX del helper siguen
+pendientes; no se reconstruyen streams antiguos ni se cambia el presupuesto
+de producto para hacer pasar una prueba.
+
+### Siguiente validación
+
+La copia conjunta contiene1040 archivos públicos revisados, sin promoción a
+ROOT ni QA integrada aceptada. Faltan corregir y verificar el registro de pruebas
+Linux, ejecutar la QA de esta fuente, comprobar generados/documentación y
+publicar el commit de alcance autorizado. V01–V08 de interacción real y la
+aceptación nativa ampliada conservan su estado pendiente; las pruebas DOM y
+los contratos aceptados no sustituyen esas observaciones. La memoria local
+sigue siendo la base, con Kwipu/Graphify opcionales y Graphiti fuera del default.
+### Addendum — Linux del panel y checks estáticos (2026-10-10)
+
+La cohorte Linux del panel quedó aceptada con alcance limitado: colección y
+JUnit reales 72/72, sin fallos, errores o skips, en 209,89 s según pytest;
+29 hijos registrados terminales, sin pendientes, fuente antes/después igual y
+contenedor propio eliminado con ausencia verificada. Bindings de código/tests,
+imagen y versiones están en
+`testing/panel-feedback-linux-evidence.json`.
+
+Se conserva el intento histórico que agotó el guard externo de 240 s, sin JUnit
+ni aceptación. Su causa primaria de coste total sigue desconocida. El defecto
+de captura POSIX del helper se probó con 4 RAW rojos y 4 verdes; los tapes
+antiguos no se reconstruyen. La nueva ejecución usó guardrail externo de 600 s y
+traceback a 30 s por fase, sin cambiar deadline de 3 s, lock de 100 ms u oracles;
+el resultado no demuestra una causa del tiempo anterior ni rendimiento garantizado.
+
+Los checks estáticos de la copia conjunta de 1040 archivos fueron verificados:
+88 exports al día, lint: 0 errores/9 avisos conservados y ledger: 0 incoherencias/
+1 aviso histórico igual antes/después; todos con exit 0, sin ejecutar tests nuevos.
+El aviso de ejecutabilidad usa fallback filesystem, no valida el índice Git.
+
+Esto actualiza sólo la evidencia Linux y estática posterior. La QA integrada,
+V01–V08 reales y aceptación nativa ampliada continúan pendientes; sin medición
+de cobertura, aceptación global, promoción o nuevo cierre macro.
+
+### Capturas nativas de la implementación actual (2026-10-10)
+
+Claude 2.1.287 produjo dos capturas válidas de sesión, con schema1,
+sequence1 y versión1.22.0. OpenCode2.0.12 también produjo dos tras corregir
+el fixture para copiar el manifiesto que ya incluye el instalador. El fallo
+anterior por versión0.0.0 se conserva; no requirió modificar producción.
+OpenCode observa ejecución/idle y emite el envelope SessionEnd del plugin;
+esta prueba no acredita un evento nativo de teardown.
+
+Codex0.161.0 registró el marketplace, pero plugin add terminó en exit1 por
+«Acceso denegado (os error5)» antes de iniciar sesiones. La causa sigue
+sin determinar; el diagnóstico de instalación está preparado, sin ejecutar.
+Todos los jobs de esas ejecuciones quedaron sin procesos activos y la fuente
+y las distribuciones permanecieron intactas. Los bindings y los límites están
+en `testing/native-capture-current-evidence.json`.
+
+No se aceptan por esas capturas el solape de escritores, decisiones de modelos,
+routing de agentes, workflows de comandos o interacción de navegador.
+La suite integrada de Windows/Linux está en curso sobre1040 archivos,
+11 productores Python y14 directorios CI; no tiene todavía veredicto final.
+La colección real contiene6612 IDs por plataforma. Una prueba cuyo ID incluye
+el número de líneas de una skill cambió79→82; código y límite250 son iguales.
+Se conserva esa transición explícita y las6431 identidades restantes literales;
+los recibos originales de colección no se reclasifican.
+
+### QA completa de la fuente actual — resultado Linux (2026-10-10)
+
+Linux terminó con 6.568 pruebas pasadas y 44 omitidas, de los 6.612 IDs
+recogidos, sin fallos ni errores. Pytest y qa-gate terminaron con exit 0.
+Coverage.py 7.16.2 usó CTracer oficial en el proceso padre: media de los
+11 archivos de producción 93,140669 %, líneas cambiadas 355/383
+(92,689295 %); ambos gates de 90 % pasaron antes de redondear.
+Los 2.963 hijos registrados quedaron terminales, sin pendientes; los
+1.060 bindings de fuente y soporte coincidieron tras la ejecución. El
+contenedor propio se eliminó con ausencia verificada.
+
+Las omisiones mantienen sus motivos: corpus privado ausente, PowerShell no
+disponible en Linux y contratos específicos de Windows. No acreditan esos
+recorridos en Linux. Los bindings y límites están en
+`testing/core-qa-current-evidence.json`.
+
+Windows sigue ejecutándose y conserva un fallo en
+`test_f21_feedback_aggregate_boundaries[exact-verifications-40]`: el fixture
+descartó la respuesta de preparación y después usó un review `None`. El
+error original de esa operación no se registró y su causa permanece
+desconocida. La regresión para conservar etapa/respuesta está preparada,
+sin ejecución ni cambio de producto. Los dos casos N03/N04 que fallaron
+históricamente pasaron sus tres fases en esta ejecución; no demuestra
+reparación de sus causas históricas.
+
+El resultado integrado aún no está aceptado; tampoco se cierran la interacción
+real, la aceptación nativa ampliada o el objetivo completo. Sin promoción,
+commit o push de este lote.
+
+### Resultado terminal Windows y diagnóstico del setup de revisión
+
+2026-10-10. Las dos suites completas han terminado con sus handles originales.
+Windows: 6.519 passed, 1 failed, 92 skipped, 0 errors; pytest y qa-gate exit1.
+Cobertura oficial CTracer 7.16.2 parent-only: media 93,248765 % y cambios
+1.069/1.149 = 93,037424 %, ambos umbrales 90 % superados sin redondear.
+Los 2.966 hijos registrados terminaron; 1.060 hashes posteriores sin diferencias.
+La QA integrada permanece roja por F21 exact-verifications-40, conservado.
+
+Diagnóstico en copia propia, sin cambiar producción: tres RED demuestran que
+`typed_record` pierde la primera respuesta no-ok de submit/receive/ack.
+La primera corrección conserva el texto pero pytest reescribe el assert;
+la corrección definitiva lanza AssertionError con operación y envelope exactos.
+Sus tres regresiones pasan. La primera invocación focal falló en setup por un
+padre basetemp propio ausente; corregido el harness, el singleton original pasa.
+Esto no reproduce ni explica el error operacional de la ejecución completa,
+no cambia su resultado y no autoriza declarar aceptado el producto global.
+Resultados y límites en [evidencia actual](testing/core-qa-current-evidence.json).
+### Instalación Codex reducida y siguientes componentes
+
+2026-10-10. Codex 0.161.0 instaló en un proyecto propio la distribución de
+390 archivos (hooks, agent-kits, skills, manifiesto Codex y proyección Codex),
+sin Git init, proveedor ni sesiones. Marketplace add y plugin add exit0;
+versión instalada 1.22.0. ROOT comprobó 29 artefactos, los 390 hashes de caché
+y los 1.040 hashes de fuente: cero diferencias. Cleanup exit0, ningún hijo
+pendiente. El fallo del paquete completo permanece registrado. La comparación
+exacta también encuentra diferencias de watcher/proveedor, tiempo y lectores;
+el éxito reducido no atribuye a contenido la causa del os5. Se prepara una
+instalación completa con el harness installation-only, aún sin ejecutarla.
+
+En copia propia se implementa el cálculo puro de frescura de actividad:
+27 casos GREEN tras RED por API ausente, caducidad exacta a los 60 segundos, reloj futuro
+como desconocido, exclusión de contenido libre y separación respuesta/ejecución.
+No acredita un proceso vivo ni destrucción de agente. Almacenamiento, opt-in,
+productores nativos, HTTP y UI siguen pendientes; no se distribuye aún.
+Portabilidad de memoria y selección de commits continúan con RED/GREEN reales
+en copias propias separadas; no se incorporan a la fuente QA de 1.040 archivos
+ni se declaran aceptadas por los resultados de esa fuente anterior.
+### Actualización del 10 de octubre: instalación completa de Codex
+
+La prueba aislada de instalación de la distribución completa terminó con exit 0: marketplace y plugin instalados, 1.040 archivos de caché verificados y 3.120 comparaciones SHA entre fuente, distribución y caché sin diferencias. El cierre terminó con exit 0 y cero procesos activos del job. No se lanzaron sesiones, modelos, proveedor, watcher ni Git. Se conserva el fallo anterior de acceso denegado; su causa sigue desconocida. Esta prueba acredita instalación y no ejecución nativa de hooks ni QA global. Evidencia portable: testing/native-capture-current-evidence.json.
+
+### Actualización del 10 de octubre: almacenamiento compartido para actividad
+
+Implementación aislada de local-state.py y extracción de seis funciones de plan-review.py; 41 funciones restantes idénticas. Revisión independiente C0/I0/M0. RED antes de código y regresiones de callback sync preservados. Pase vecino final: 211 aprobadas y una omitida por symlink OS, total 212, 51 hijos directos terminales y cierre del job sin fugas. El primer pase incompleto por límite de ejecutor 60 s se conserva; el siguiente usó 180 s sin aumentar deadlines del producto. Evidencia portable: testing/core-qa-current-evidence.json. Pendientes integración, store/productores de actividad, HTTP/UI, QA completo y publicación. El QA completo Windows previo sigue rojo y su causa no se declara resuelta.
+
+## Bloque25 — traslado de memoria, commits y actividad integrada
+
+2026-10-10. La candidata de trabajo incorpora el traslado local de memoria,
+la selección revisada de commits y el almacenamiento/productores/HTTP/UI de
+actividad. Su manifest de esta fusión tiene 1.068 archivos; no está congelada
+para QA, no está promovida al checkout y no acredita aceptación global.
+La ampliación de skills permanece aplazada; se cierran referencias de la
+skill existente del panel para distribuir sus dependencias.
+
+- Memoria: corrección de export a `.git` y efectos `written` con RED real;
+  29 casos finales de corrección/persistencia pasan. La documentación ES/EN
+  fue contrastada independientemente contra el CLI y codec sin defectos.
+  Se conserva la QA anterior de 159 aprobadas/4 omisiones como evidencia de
+  aquella fuente, no como ejecución completa de esta versión integrada.
+- Commits: el CLI tiene 10 pruebas verdes, incluido el límite total de salida
+  con newline. Las 28 pruebas públicas de selección/snapshot profundo terminan
+  con 26 aprobadas y dos omisiones OS. Validan fixtures Git propias con 754
+  hijos directos terminales, sin exigir rutas ni variables privadas OWN.
+  Caller y documentación ES/EN tienen revisión independiente sin defectos;
+  el workflow nativo conjunto aún requiere su evidencia.
+- Actividad: el store conserva la QA focal anterior de 40 aprobadas/una omisión
+  y dos barreras verdes. El rechazo de archivos locales por Git tiene RED y
+  GREEN reales; el último caso focal pasa con un entorno Git cerrado, sin
+  cambiar el producto. El fallo concurrente GREEN6 permanece de causa desconocida.
+- Panel: la entrega inicial tuvo 185 aprobadas; ROOT encontró después dos
+  etiquetas Unicode mal codificadas. RED dedicado y corrección conservados.
+  El pase final de 11 casos sobre store actualizado pasa; no equivale a repetir
+  los 185 sobre los bytes finales ni a comprobar un navegador real.
+- Diagnóstico: RED de tres métodos y nueve subcasos confirma que `/doctor`
+  desconoce `sesion.actividad`; tras añadirla al vocabulario booleano pasan los
+  tres métodos. Su ejemplo conserva el opt-in desactivado. Corrección revisada
+  y fusionada; documentación de dependencias fusionada en la candidata de trabajo.
+
+La QA completa Windows anterior sigue roja en F21. Conservar etapa/envelope
+mejora el diagnóstico y no demuestra una reparación causal. La instalación
+Codex completa sin sesiones pasó; no acredita captura de actividad nativa.
+Se preparan nuevas colecciones/QA Windows y Linux sobre una fuente congelada,
+con los mismos 14 directorios CI y umbrales de cobertura 90/90, sin quitar casos.
+Ejecución nativa ampliada, navegador Edge, retro y publicación permanecen
+pendientes. No se cierra ninguna tarea macro ni se cambia su alcance por este
+checkpoint. Sin commit ni push del lote.
+
+
+### Validación operativa del bloque25 — resultados preservados
+
+[Estado parcial de pruebas y actividad nativa](testing/final-qa25-status.md).
+Linux full01 terminó con 6.842 pases/14 fallos/44 skips, cero errores y
+ambas coberturas por encima del 90 %, con cierre del contenedor confirmado.
+Windows full01 conserva un fallo de actividad y un error del diagnóstico;
+no se declara QA completa. Correcciones de panel, fixtures y escáner pendientes
+de pruebas focales, fusión y nueva QA. La actividad de sesión OpenCode V2 pasó
+una prueba nativa con identidad HMAC y outcome HTTP correlacionados; Claude
+valida límites de respuesta, pero no SessionEnd; Codex conserva el descubrimiento
+y el diagnóstico del fixture LF/CRLF, sin captura aceptada todavía.
+T-02/T-09/T-14 y las demás tareas macro conservan su estado. No hay push
+de este cierre y la ampliación de skills sigue aplazada.
+
+
+### Actividad nativa y revisiÃ³n del escÃ¡ner â€” checkpoint 2026-10-11
+
+Codex 0.161.0 pasÃ³ la prueba aislada de actividad del subagente architect:
+inicio y fin de respuesta correlacionados desde el protocolo RAW y el HMAC
+del store, diez definiciones con confianza nativa verificada, cliente y probe
+en exit 0, cierre exacto sin procesos activos y 1.070 archivos sin cambios.
+El resultado no valida todos los eventos de hooks. Se conservan los intentos
+fallidos y las causas probadas del fixture LF/CRLF y de la comparaciÃ³n de
+ctime entre APIs en Python 3.13.0 para Windows.
+La Ãºltima correcciÃ³n del escÃ¡ner tiene revisiÃ³n independiente sin defectos;
+su selecciÃ³n focal prevista de 127 casos aÃºn debe recogerse y ejecutarse.
+[Evidencia operativa actualizada](testing/final-qa25-status.md).
+ContinÃºan pendientes SessionEnd de Claude, las pruebas focales y la QA final
+Windows/Linux, la verificaciÃ³n visual bloqueada y la publicaciÃ³n de la rama.
+No se cierran tareas macro ni se amplÃ­a el catÃ¡logo de skills.
+
+
+### Coste de proceso — corrección candidata y persistencia pendiente, 2026-10-11
+
+El contrato productor/consumidor conserva identidades de fuente y ventana con revisiones
+persistidas. El dashboard selecciona el último snapshot completo, suma ventanas independientes
+y avisa de datos parciales ante identidades inválidas o contradictorias. Planner, plantillas,
+transportes y documentación bilingüe propagan los campos opcionales del JSON real.
+RED: PID 36180/exit 1, identidad ausente y total 350 en lugar de 200.
+Primer foco completo: PID 28516/exit 0, 65 tests del medidor y dashboard aprobado.
+Segundo foco con productor/frontmatter/consumidor: dashboard aprobado (200/250 tokens);
+medidor PID 15692/exit 1, 64 aprobados y un fallo de persistencia legacy. Se conservan
+revisión 1 en state y revisión 2 en el temporal; el error exacto y su causa no se acreditan.
+La observación aislada PID 19120/exit 0 pasó, sin aceptar la ejecución fallida.
+No se añaden retries al producto ni se cambian permisos para obtener un verde.
+[Detalle y límites de validación](testing/final-qa25-status.md).
+Siguen pendientes la aceptación completa del delta, su cobertura, revisión independiente,
+N05 Windows, verificación visual, promoción, commits y push. No se cierran tareas macro
+ni se amplía el catálogo de skills.
+
+### Persistencia de mediciones — corrección candidata verificada en foco, 2026-10-11
+
+La carga aislada PID 12828 reprodujo WinError 5 en la escritura 63; la consulta posterior
+no identificó usuarios del archivo. El control con bloqueo propio sí fue identificado.
+Esto no demuestra la causa de los fallos históricos. No hubo retries ni cambios de permisos.
+El productor informa `medicion_persistida`; el consumidor evita sumar cierres sin persistencia
+y los muestra como parciales, sin una etiqueta de ventana compartida no acreditada.
+RED PID 14700: campo ausente y subtotal 350 frente a 150 parcial. RED PID 4572: etiqueta incorrecta.
+GREEN PID 18944 y comprobación final PID 35976: 65 tests del medidor y dashboard completos.
+Coverage 7.16.2/CTracer: 76/79 líneas cambiadas (96,20253164556962 %) en los dos archivos de costes,
+gate 90 % aprobado sin redondeo; alcance solo del padre. Plantillas y convenciones sincronizadas.
+La observación anterior PID 19120 fue un único test, sin dashboard; scope corregido en recibo aparte.
+[Evidencia actual y límites](testing/final-qa25-status.md). N05, causa Windows, revisión independiente,
+UI real, QA global, promoción, commits y push siguen pendientes. No se cierran tareas macro.
+
+
+### Temporales y sesiones — corrección y comparación, 2026-10-11
+
+RED PID 15168: colisión real entre temporales de dos saves intercalados, WinError 2.
+La candidata usa creación exclusiva por operación y reemplazo Windows acotado (5/32/33;
+cuatro intentos; esperas 20/40/80 ms). Otros errores no se reintentan; no hay merge multiwriter.
+GREEN PID 30120 y cobertura PID 3916: 74 tests del medidor y dashboard completos;
+Coverage 7.16.2/CTracer 97/103 líneas cambiadas (94,1747572815534 %) en los dos archivos de costes.
+Controles Windows PID 29904: bloqueo liberado, segundo intento aprobado; bloqueo persistente,
+cuatro rechazos con bytes anteriores conservados. 100 escrituras adicionales aprobadas.
+No se atribuye owner ni causa a los fallos históricos; N05 y QA conjunta siguen abiertos.
+Tres cuerpos de sesiones/revisión añadidos: 22 completos y uno parcial; 22 inmediatos
+y 15 descendientes pendientes. Dos descendientes tienen ahora hash comprobado, sin lectura completa.
+[Contraste y límites](comparisons/hook-session-continuity.md). Retoma de decisiones UI pendiente
+de integración del caller; no se consume feedback al mostrar contexto ni se equiparan eventos.
+Revisión independiente, UI, promoción, commits y push pendientes; ninguna macro cerrada.
+
+## Consulta de revisiones al retomar — candidata, verificación incompleta
+
+El dueño `plan-review.py list_reminders` observa la carpeta exacta del ledger,
+sin inicializar estado, adquirir bloqueos de escritura, entregar decisiones ni ack.
+Dos inventarios y dos lecturas de versión rechazan cambios observados. Hasta ocho
+referencias conservan ID, versión, puerta y estado; las actuales y pendientes tienen
+prioridad y se cuentan las omisiones. Los contadores de respuestas/verificaciones
+son registros, no evidencia de atención, aprobación vigente ni trabajo terminado.
+
+`/work-resume` y el bloque de progreso de sesión usan ese dueño. El historial
+`--history-only` mantiene su comportamiento. Exportaciones Codex/OpenCode
+comprobadas: 88 ficheros; linter: cero errores y nueve avisos existentes.
+
+RED: las 12 pruebas iniciales fallaron por ausencia de la función/proyección.
+Primer conjunto ampliado: 294 correctas, tres fallidas y un error de preparación.
+Final01: 298 correctas y dos fallidas; el oracle de omisiones requería tres
+registros, pues dos más el encabezado caben en tres líneas. Se corrigió el fixture,
+conservando ese rojo. El harness no produjo un recibo final de cobertura; no se
+acepta su medición. Final02: 295 correctas, cinco fallidas; las 14 pruebas nuevas
+pasaron, cobertura nueva 77/87 (88,51 %), insuficiente para el gate de 90 %.
+Se añadieron casos de dependencias incompletas, acceso denegado y omisiones.
+Final03: 90 correctas y una fallida; 17/18 nuevas correctas. La prueba de contadores
+falló antes de su verificación con estado `unavailable`, sin motivo capturado.
+Cobertura de líneas nuevas: 83/87 (95,40 %), CTracer del padre y sus threads,
+sin descendientes. Cobertura verde no equivale a tests verdes.
+
+Dos workloads positivos contra el dueño anterior, sin reintentos, se detuvieron
+tras 71 y dos ciclos completos con `changed_path`. El segundo observó cambios en
+`st_ctime_ns` del descriptor, con identidad, tamaño y mtime constantes. No hubo
+OSError capturado ni escritor identificado. Esto reproduce sensibilidad de la
+lectura previa; no demuestra la causa de cada fallo histórico ni de Final03.
+Las diferencias de timestamps en Windows están documentadas en
+[CPython](https://github.com/python/cpython/issues/157671) y la distinción entre
+datos y metadatos en [Microsoft](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_basic_info).
+Se mantienen las comprobaciones y los rojos, sin atribuirlos a un producto externo.
+
+Evidencia y hashes en [review-resume25-evidence.json](testing/review-resume25-evidence.json).
+Lectura estable, revisión independiente, aceptación nativa, UI real y QA conjunta
+siguen pendientes. No se promueve ROOT, no se cierra ninguna macro y no hay commit
+ni push de este cambio.
+
+## Lectura estable — comprobación focal completada, cierre conjunto pendiente
+
+Se reproduce en Windows el cambio de metadatos sin cambio de contenido y se
+conservan los RED: seis fallos del contrato inicial, dos del control nativo y dos
+por cachés reales creadas al consultar kits de proyecto sin `-B`.
+La candidata incorpora una única relectura acotada del mismo descriptor y
+desactiva bytecode en los dos CLIs, con los controles de identidad y rutas activos.
+
+La regresión ampliada inicial dio 389 correctas, una fallida y seis omitidas;
+el fallo ocurrió preparando un recibo antes del deadline inyectado, con motivo
+`invalid_input`. No se identificó su causa exacta. Tras el arreglo de cachés,
+la batería ampliada dio 392 correctas y seis omitidas. La medición posterior,
+con controles nativos adicionales en los límites de buffer, dio 187 correctas y
+seis omitidas: 23/23 líneas ejecutables nuevas cubiertas (100 %), CTracer del padre.
+La cobertura no incluye procesos descendientes. El linter detectó dos avisos nuevos por situar la opción de bytecode antes del bloque UTF-8; se reordenó tras ese bloque y antes de cargar helpers, y se midió de nuevo la fuente corregida. Las seis omisiones corresponden
+a la falta de privilegio de symlink nativo de Windows.
+
+Dos workloads positivos independientes completaron 100 y 250 ciclos de
+open/submit/receive/ack, sin reintentos de operaciones ni eventos de fallo.
+No demuestran la causa de todos los fallos históricos ni aceptación global.
+Los recibos terminales y cleanup terminaron sin timeout ni errores de captura.
+
+Evidencia: [stable-read25-evidence.json](testing/stable-read25-evidence.json).
+Siguen pendientes QA completa Windows/Linux, revisión independiente, workflows
+nativos y UI real. El ledger actual supera el límite de lectura de 256 KiB;
+hay que reorganizar su historial conservando trazas y revisiones vigentes.
+No se cierra ninguna macro ni se promueve, commitea o publica este lote.

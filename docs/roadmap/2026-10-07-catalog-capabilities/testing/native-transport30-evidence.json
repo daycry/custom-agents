@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "tested_source_manifest_sha256": "79e31a7c264557dcdfff4ffaa1064017984f4977bbaff6a82bc36bdcc04f352c",
+  "source_file_count": 1083,
+  "scope": "Native plugin installation, explicit command transport, read-only owner projection and command discovery; controlled providers",
+  "cases": [
+    {
+      "scenario": "claude-command",
+      "native_version": "2.1.295",
+      "accepted": true,
+      "acceptance_key": "command_transport_accepted",
+      "observed": {
+        "plugin_loaded": true,
+        "command_expanded": true,
+        "arguments_preserved": true,
+        "provider_message_requests": 1
+      },
+      "result_sha256": "157ff56f9d2b9f4a944426d565e0911cb5b236bde47def9b1056763143bf6f84",
+      "runner_terminal_sha256": "16b3b2b704bc0a9145665a5bd91db08a6165d65c532b802ba48c9281309ac746",
+      "supervisor_pid": 32952,
+      "supervisor_exit": 0,
+      "cleanup_pid": 39436,
+      "cleanup_exit": 0,
+      "process_cleanup_confirmed": true
+    },
+    {
+      "scenario": "claude-resume",
+      "native_version": "2.1.295",
+      "accepted": true,
+      "acceptance_key": "read_only_native_owner_case_accepted",
+      "observed": {
+        "plugin_loaded": true,
+        "owner_projection_verified": true,
+        "project_files_and_directories_unchanged": true,
+        "no_delivery_consumption_or_approval": true
+      },
+      "result_sha256": "0e479f80d1c9af1965c48c248a2cb289dc67c2591d9d2c563758fb947bd96aaa",
+      "runner_terminal_sha256": "aae4d8c74deddf00395e201b1e92d0cd8760ef1c1387dd0013462acae17b5770",
+      "supervisor_pid": 10600,
+      "supervisor_exit": 0,
+      "cleanup_pid": 9492,
+      "cleanup_exit": 0,
+      "process_cleanup_confirmed": true
+    },
+    {
+      "scenario": "codex-install",
+      "native_version": "0.162.1",
+      "accepted": true,
+      "acceptance_key": "native_add_exit_zero",
+      "observed": {
+        "terminal_exit": 0,
+        "plugin_add_json_object": true,
+        "native_add_exit_zero": true
+      },
+      "result_sha256": "d446c016c233499b24a688d0c8966ef8c851edc96f19110a722ddbc948bf8b46",
+      "runner_terminal_sha256": "f41badd08a3e316d41ef4593e2ebf8324c11138de55d362c80d1670ef34dbbcc",
+      "supervisor_pid": 31760,
+      "supervisor_exit": 0,
+      "cleanup_pid": 14348,
+      "cleanup_exit": 0,
+      "process_cleanup_confirmed": true
+    },
+    {
+      "scenario": "codex-command",
+      "native_version": "0.162.1",
+      "accepted": true,
+      "acceptance_key": "skill_transport_accepted",
+      "observed": {
+        "wrapper_injected": true,
+        "canonical_body_injected": false,
+        "arguments_preserved": true,
+        "final_marker_observed": true,
+        "isolated_config_preserved": true
+      },
+      "result_sha256": "bcd02f5d91a4ea75cb2157c684358483345ecbbebb0f509a0c31873949fa64c3",
+      "runner_terminal_sha256": "ecfbdd7ffcd73a9b2ba8d3e9760ef5973862f5d00705b4ad71c7cb3c543d7366",
+      "supervisor_pid": 27036,
+      "supervisor_exit": 0,
+      "cleanup_pid": 764,
+      "cleanup_exit": 0,
+      "process_cleanup_confirmed": true
+    },
+    {
+      "scenario": "opencode-commands-ready",
+      "native_version": "2.0.12",
+      "accepted": true,
+      "acceptance_key": "native_command_discovery_accepted",
+      "observed": {
+        "native_command_count": 17,
+        "installed_generated_command_count": 15,
+        "missing_generated_commands": [],
+        "resume_registered": true
+      },
+      "result_sha256": "86f01517b355f32407a242258b44019057164b03f3988c614b8957067aff38e3",
+      "runner_terminal_sha256": "50d62398c38c19e9ad400564821a0cf5098999895d27ca8837228c1a0ab901df",
+      "supervisor_pid": 33536,
+      "supervisor_exit": 0,
+      "cleanup_pid": 13588,
+      "cleanup_exit": 0,
+      "process_cleanup_confirmed": true
+    },
+    {
+      "scenario": "codex-resume",
+      "native_version": "0.162.1",
+      "accepted": false,
+      "acceptance_key": "read_only_native_owner_case_accepted",
+      "observed": {
+        "native_exit": 0,
+        "canonical_body_read_completely": false,
+        "owner_projection_verified": false,
+        "project_files_and_directories_unchanged": true,
+        "isolated_config_preserved": true
+      },
+      "result_sha256": "c3066059c50b1ee8b728244d3ce651a5192a6ad094d6d7b6efa5673af518bb3b",
+      "runner_terminal_sha256": "65aff336c8607b1e223d8817bc6962493aac6cc712e12474e3fb0ca408c781d5",
+      "supervisor_pid": 33356,
+      "supervisor_exit": 1,
+      "cleanup_pid": 26092,
+      "cleanup_exit": 0,
+      "process_cleanup_confirmed": true
+    }
+  ],
+  "codex_cache_verified_files": 1083,
+  "codex_cache_evidence_sha256": "9c434ee65a4e760fcd13fa3c3e07474eb6c0a2180b2245814dff8a0b541574e1",
+  "opencode_initialization": {
+    "samples": [
+      {
+        "elapsed_ms": 58,
+        "count": 2,
+        "sha256": "6fdac4ce4d2aeb48d7b3c6de3c10211dc2d01680bbd0eb1edffa3084ca973a52"
+      },
+      {
+        "elapsed_ms": 317,
+        "count": 17,
+        "sha256": "eeedd655496a3d4a6dfee51990404d3cccfa560ebd4085cc1f07054528dc9e55"
+      }
+    ],
+    "settled_registry_sha256": "eeedd655496a3d4a6dfee51990404d3cccfa560ebd4085cc1f07054528dc9e55",
+    "criterion": "All fifteen expected generated commands present; built-in commands alone do not meet readiness"
+  },
+  "codex_read_only_owner_rejection": {
+    "tool_outputs": 2,
+    "reason": "Native execution policy rejected both requested commands",
+    "tool_outputs_sha256": "b2cff0221363f7b91e61a110d9f967f7e1911cd7e0560b4c5f88c7ac90e6c0d4",
+    "case_accepted": false,
+    "policy_bypassed": false
+  },
+  "historical_observations_preserved": [
+    {
+      "case": "opencode-server07/result.json",
+      "result_sha256": "6d625d9557251926a0737782d0752f7bc1f3720f631e8296e55e17e4331cda1b"
+    },
+    {
+      "case": "opencode-server08/result.json",
+      "result_sha256": "a6cca635c23013dc43939b8156e9e215252278b2ddddf5230ffdb55bd6da90ec"
+    },
+    {
+      "case": "opencode-commands09/result.json",
+      "result_sha256": "59da386f668e689ccdafe57d67716290bc1376ac65ebcb5504eb2b7a005f2f32"
+    },
+    {
+      "case": "opencode-commands10/result.json",
+      "result_sha256": "de5086fd059db28c4e0dac9851c0375d506f835ed998f3134a1cc2e1decb68f4"
+    }
+  ],
+  "external_model_inferences": 0,
+  "provider_usage": "Synthetic fixture values, not measured billable tokens",
+  "real_model_judgment_accepted": false,
+  "all_native_workflows_accepted": false,
+  "visual_ui_accepted": false,
+  "fresh_independent_review_accepted": false,
+  "global_product_accepted": false,
+  "root_promoted": false
+}

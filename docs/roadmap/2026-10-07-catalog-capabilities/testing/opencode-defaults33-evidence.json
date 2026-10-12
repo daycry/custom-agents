@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "base_source_manifest_sha256": "3666bbeb05215e9f2794358a18b514a9cfe7f46d914dc649bd8599fc29f73d13",
+  "corrected_stage_manifest_sha256": "b18219ce4bf3ef09e9f32e37f7ca16c7774f19525b41e9e7b50c3f2868aaefa3",
+  "decision": "Do not translate Claude tiers into sampling settings; generated OpenCode roles inherit native model and generation defaults",
+  "reason": "The mapping was plugin-authored, not a native tier contract; both old and rewritten agent formats omitted the declared role temperature on the observed wire",
+  "historical_old_format_wire_result_sha256": "4b94a0b85c1c9cd9cd95d4a2028942f0fff52be3b75f778e462fb98adf1a6b56",
+  "historical_old_format_case_accepted": false,
+  "upstream_role_parameter_cause_proven": false,
+  "old_failed_cases_preserved": true,
+  "new_inheritance_requirement": "No generated model or request override; preserve explicit caller/provider settings",
+  "red": {
+    "expected_red_observed": true,
+    "pytest_exit": 1,
+    "testcase_count": 1,
+    "junit_sha256": "841ebdf054b87d397af0889e60215ff5db9b4c3c880013e69ec681f5de59b4cd"
+  },
+  "windows": {
+    "counts": {
+      "cases": 40,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "official_c_tracer": true,
+    "official_coverage_version": "7.16.2",
+    "owner_percent_covered": 86.20689655172414,
+    "junit_sha256": "724849213879ccbad1774ce2fdedbd54a3bc77554a6bd57056bde457b73f0a9b"
+  },
+  "linux": {
+    "pytest_exit": 0,
+    "pytest_version": "9.1.1",
+    "counts": {
+      "cases": 40,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "official_c_tracer": true,
+    "coverage_version": "7.16.2",
+    "parent_whole_owner_percent_covered": 86.20689655172414,
+    "full_module_accepted": true,
+    "source_mount_read_only": true,
+    "global_product_accepted": false
+  },
+  "linux_terminal_sha256": "830fa1e5b957b47da56de30bc4306ae72c7573122094d9143bfb7d68cd0c4263",
+  "metadata_assignment_covered_in_parent": true,
+  "metadata_assignment_start_line": 524,
+  "native_inheritance": {
+    "base_source_manifest_sha256": "3666bbeb05215e9f2794358a18b514a9cfe7f46d914dc649bd8599fc29f73d13",
+    "source_stage_manifest_sha256": "b18219ce4bf3ef09e9f32e37f7ca16c7774f19525b41e9e7b50c3f2868aaefa3",
+    "native_version": "2.0.12",
+    "failure": null,
+    "provider_requests": 4,
+    "parent_requests": 2,
+    "child_requests": 2,
+    "child_read_marker_observed": true,
+    "parent_received_child_result": true,
+    "caller_provider_temperature_preserved": true,
+    "caller_model_preserved": true,
+    "reviewer_prompt_loaded": true,
+    "reviewer_edit_tools_not_exposed": true,
+    "owned_read_target_preserved": true,
+    "source_and_executable_preserved": true,
+    "native_delegation_case_accepted": true,
+    "external_model_inferences": 0,
+    "real_model_judgment_accepted": false,
+    "fresh_independent_review_accepted": false,
+    "global_product_accepted": false
+  },
+  "native_result_sha256": "a9dcf96bca393d6b619b2c44baff0c0a74d12203f6b1cd0636ad32c62830e9f4",
+  "observed_caller_temperature": 0.55,
+  "native_case_cleanup_confirmed": true,
+  "external_model_inferences": 0,
+  "real_model_judgment_accepted": false,
+  "fresh_independent_review_accepted": false,
+  "all_native_workflows_accepted": false,
+  "visual_ui_accepted": false,
+  "global_product_accepted": false,
+  "root_promoted": false
+}

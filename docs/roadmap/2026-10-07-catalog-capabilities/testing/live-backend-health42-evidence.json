@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "observed_utc": "2026-10-11T19:07:46Z",
+  "source_manifest_sha256": "9b3f90cae1df5b93af2dee420b3a1d296faebb22c714eaf0c9cade2e1d0a9205",
+  "documentation_sha256": {
+    "operacion/03-pruebas.md": "0d3b65fd1f8c7be85200f6a115e3b5ee50ffe559f83bec3bbc62cfdd5d6abf0d",
+    "referencia/graphiti-y-falkordb.md": "92e3570f90e631dbe33eabb32d4b44ec5bb77ea5de6483f09829982f39dfe1ee"
+  },
+  "results": {
+    "kwipu": {
+      "estado": "sano",
+      "detalle": "status=ok, property_graph=ok, ollama=ok",
+      "elapsed_seconds": 0.4506796000059694,
+      "adapter_sha256": "2326d8074f68d504cad4eca00a6afaba6aabe110009ce6ff8f13d5d7d1b68732",
+      "explicit_config": {
+        "health": {
+          "url": "http://127.0.0.1:8765/health",
+          "timeout_ms": 3000
+        }
+      }
+    },
+    "graphiti": {
+      "estado": "sano",
+      "detalle": "get_status=ok; health.url={\"status\": \"healthy\", \"service\": \"graphiti-mcp\"}",
+      "elapsed_seconds": 0.5128174999845214,
+      "adapter_sha256": "0b6dae6d4a64c900a524159809b5c9617258316f28a24c8b7c9bdfdced657307",
+      "explicit_config": {
+        "endpoint": "http://127.0.0.1:8001/mcp",
+        "mode": "shadow",
+        "timeout_ms": 3000,
+        "health": {
+          "url": "http://127.0.0.1:8001/health",
+          "timeout_ms": 3000
+        },
+        "telemetria": false,
+        "max_respuesta_kb": 64
+      }
+    }
+  },
+  "scope": "Kwipu health GET and Graphiti health GET / MCP initialize and get_status through actual adapters; only documented loopback endpoints",
+  "source_and_documentation_preserved": true,
+  "service_lifecycle_changed": false,
+  "knowledge_published": false,
+  "knowledge_query_executed": false,
+  "LLM_quality_or_extraction_proven": false,
+  "benchmark_accepted": false,
+  "native_client_handoff_accepted": false,
+  "global_product_accepted": false
+}

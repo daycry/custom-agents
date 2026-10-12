@@ -62,7 +62,14 @@ La primera vez confirma los parámetros de estimación (tarifa/hora, modelo, pre
 
 ## 4-bis. Memoria técnica del proyecto
 
-Antes de descomponer, lee el índice de `docs/knowledge/` (si existe) y abre las entradas de `adr/` + `lessons/` que apliquen — paso compartido `agent-kits/shared/knowledge-check.md`. Cuando una decisión de diseño del plan **cruza el umbral** de `agent-kits/shared/knowledge-write.md` (cierra una alternativa y afecta a 2+ piezas, o se tomó en una puerta), escribe un ADR `estado: propuesta` en `docs/knowledge/adr/` con la plantilla `agent-kits/shared/templates/adr.md` y actualiza el índice en el mismo cambio; si no cruza el umbral, no escribe nada.
+Consulta memoria pertinente con `agent-kits/shared/knowledge-check.md`: legado aceptado y
+approved conservan estados/autoridad; propuestas no se aplican como doctrina. Una decisión de diseño que cierra alternativa y cruza el umbral se propone con fuentes del plan.
+Usa `agent-kits/shared/knowledge-curation.py propose --root <proyecto> --filename <nombre.md>
+--producer planner` con Markdown por stdin y salida JSON. El servicio redacta, crea sólo pending
+sin `estado` y devuelve ruta/SHA. No escribe ni promueve nuevas entradas en legado. Sin servicio,
+informa pendiente y no recurre a Write/Edit. Curator decide; `apply` persiste ligado al SHA original,
+con motivo y metadatos válidos. Conflicto/alto impacto requieren resolución humana, no fecha.
+[Contrato](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).
 
 ---
 

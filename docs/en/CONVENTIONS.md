@@ -132,7 +132,7 @@ agents do so when run standalone):
 - After **evaluating**: evaluation → `en-revision`. At the **go** gate: spec → `aprobada`, evaluation → `completado`. On **no-go**: evaluation → `cancelado` (spec → `obsoleta` if it is discarded).
 - When **creating the plan**: plan/tasks → `borrador`. When **starting the implementation** (plan approved): plan and active phase → `en-progreso`.
 - During **implementation**: each `en-progreso` task → `completado`; the phase → `completado` when its tasks are closed.
-- At **closeout** (qa green + documented): plan → `completado` and spec → `implementada`.
+- In **`/dev-cycle` Phase 6**, the orchestrator moves plan/tasks to `completado` after review without gaps, green QA and documentation. The spec becomes `implementada` only with `retro-gate.py` exit 0; until retro is complete, it stays `aprobada` with pending closeout visible. QA returns its verdict and evidence, including standalone invocations; it does not declare the initiative closed.
 - **Cancellation** at any point: plan/evaluation → `cancelado` (spec → `obsoleta` if applicable).
 
 Linking rules (**bidirectional**, and since everything is in the same folder, links are **plain filenames**):
@@ -146,7 +146,7 @@ Linking rules (**bidirectional**, and since everything is in the same folder, li
 frontmatter a `generacion:` block with what it cost to **produce it**, measured by
 `agent-kits/shared/usage-meter.py` (`start` when opening it, `close` when closing it): start/end
 dates (only **context**, never a source of hours), `tokens_reales` (the **measurement**, read from the
-session transcript), `eur`, `horas_ia` (**derived**: billable tokens × calibrated ratio —
+session transcript), `eur`, `horas_ia` (**derived**: billable tokens ÷ calibrated ratio —
 median from `CALIBRATION.md` > default from `estimation-defaults.md`) and `fuente:
 medido|estimado`. Rules: the meter **never blocks** (if it cannot read the transcript, it degrades
 to `estimado` with a warning); re-closing **replaces** the block (it does not accumulate); every agent **closes its
@@ -154,6 +154,34 @@ marker before the handoff** (overlapping windows misallocate the cost); legacy a
 without the block are valid. Durations presented to people use the human format `XhYm`
 (`usage-meter.py fmt`: `32m` · `1h 32m` · `18h`). `/roadmap-metrics` aggregates these blocks as
 **process cost** (separate from implementation cost) and `/retro` calibrates the ratio with them.
+
+When `close` persists a real measurement, also copy `fuente_id`, `ventana_id` and
+`revision_medicion` into the block. The source hashes the transcript path; `start` creates
+the window and each measured close increments its revision. These are local provenance
+metadata, without authentication or a guarantee of complete transcripts. The dashboard uses
+the latest **whole** revision per source/window: it neither adds cumulative closes nor mixes
+maximum token, hour and euro values. Distinct windows or sources are added even when their
+figures match. Conflicting copies of the latest revision, or an incomplete identity, produce
+visible partial data and exclude that window from the total. Legacy blocks retain exact-copy
+deduplication; identities are never invented for them. For `estimado` or failed persistence,
+do not invent these fields or a calibration. Templates omit these optional fields: add them
+only when the meter's JSON includes them.
+
+Also preserve `medicion_persistida` when present: it is a boolean, not a string.
+A measured close whose state write fails returns `false` and warnings, without new identities.
+Its tokens still describe the read, but the dashboard excludes that snapshot from the total
+and marks the data as partial. A `true` requires all three valid identity fields. Old blocks
+without this flag retain their compatibility; the flag neither authenticates the producer
+nor explains why Windows or another system rejected the write.
+
+The meter writes each snapshot to an exclusive temporary file per process and operation.
+On Windows it retries replacement only for error codes 5, 32 and 33: up to four attempts
+with 20, 40 and 80 ms waits (140 ms of scheduled waiting in total, without a time limit
+on system calls). Other errors and platforms are not retried. Exhaustion preserves the
+warning and `medicion_persistida: false`, and removes only its own temporary file.
+This avoids temporary-file collisions; it does not merge concurrent changes or turn the
+marker file into a transaction for multiple writers. The caller retains marker coordination
+and the rule against overlapping windows.
 
 ## 8. Progress of a plan: `tasks.md` is the canonical ledger
 
@@ -182,13 +210,14 @@ Each skill stores its config (user decisions) and its state (machine memory) in 
 | `confluence-state.json` | Page↔file manifest (hash + pageId) | `confluence-publish`/`pull` | Rebuilds itself: publish searches by title under the anchor before creating |
 | `jira.json` | Opt-in + workday policy (`alCubrirJornada`) | `jira-sync` skill or `/setup` | Recreate with `/setup`; safe defaults |
 | `jira-state.json` | T-XX↔issue mapping, logged time per day, hours bank | `jira-sync` (via `worklog.py`) | Mapping: re-derivable from the keys annotated in `tasks.md`; logged time/bank: review worklogs in Jira |
-| `dev.json` | Discipline of `/dev-cycle`'s native chain: `tdd` (RED-GREEN-REFACTOR with evidence of the red), `worktree` (initiative in an isolated worktree), `subagentes` (one task = one fresh subagent), `constitucion` (decision on the `docs/CONSTITUTION.md` opt-in — distinguishes "declined" from "never asked"), `guardrails` (the implementer's guard hook: `true` by default; `false` or `{"alcance","ramaPrincipal","git"}` per rule), `revision.lenteSeguridad` (`auto` by default: the security lens C of `adversarial-review` only when `review-lens-select.py` detects sensitive paths/lines; `siempre` · `nunca`; asked by `/setup` step 5-ter), `revision.lenteRendimiento` (superiority T-04, same vocabulary and same `auto` default: the performance lens D of the SAME `review-lens-select.py`, only when it detects repository/query/queue paths or costly patterns —N+1, `await` in a loop, blocking `sleep`—; asked by the same step 5-ter), `revision.excluir` (list of `**`-aware globs removed from lenses C's and D's **path** heuristic —each with its own stems—, not from the content one — e.g. `["hooks/**"]` for a repo whose hooks are named `session-*.sh`; manual setting), `tests.coberturaMinima` (superiority T-03, **absent by default = no gate**: minimum diff coverage threshold N that `implementer` step P5 checks with the `unit-tests` skill —`coverage-gate.py --changed-only`— only when the stack's official tool is installed; without it, informational only, never blocking; asked by `/setup` step 5-quinquies), `sesion.indice` (`true` by default: the `SessionStart` hook injects the compact piece index from `skill-index.py`; `false` turns it off and leaves only the roadmap resume context), `sesion.journal` (boolean or `{activo, dir, ventanaHuerfanaMin, replay: {budgetMs, max}}`; `true`/active by default: the `SessionEnd` hook only captures the envelope under `.claude/journal/outbox/` and `SessionStart`/`replay` materialize the session log entry under `docs/knowledge/journal/`, re-injecting the latest one; `false` turns it off — rule 10), `sesion.captura` (`true` by default: the `UserPromptSubmit` hook appends the user's turn to the raw, unversioned log from which `SessionEnd` extracts `decisiones`/`pendientes`; `false` turns it off — rule 10), `sesion.resumen` (`false` by default: with `true`, `SessionEnd` asks `claude -p --bare` for a session summary AFTER writing the deterministic entry; without the CLI, without `ANTHROPIC_API_KEY` or on timeout it degrades to the deterministic one — rule 10), `sesion.memoria` (`true` by default: the `SessionStart` hook injects the technical-memory block for the active initiative's area — routed `knowledge-find.py`, ≤ 1,200 chars —; `false` turns it off and leaves index, resume and journal), `alcance.excluir` (plugin-refactor T-11, list of `**`-aware globs that **ADDITIVELY extends** `agent-kits/shared/scope-check.py`'s default list —`CONTINUE-HERE*.md` · `.claude/**` · `docs/knowledge/journal/**`: what the orchestrator, the installation or a hook writes and that belongs to no task—; what is excluded is **not** "out of scope" (the exit code does not change) but it is listed under the `--json` key `excluidos`, and a file declared in a task's `Archivos` field wins over the exclusion, and so does `docs/knowledge/**` (project memory: `SIEMPRE_EN_ALCANCE` is evaluated BEFORE the user exclusion, so a `docs/**` under `alcance.excluir` cannot push a new ADR out of scope); the default cannot be emptied from `dev.json`; if a user glob leaves the "out of scope" list EMPTY while there are changes that would otherwise be out, or swallows ≥ half of the diff (≥ 3 files), the gate WARNS on stderr and in the `--json` key `avisos` without changing the exit code — the `--json` also publishes `excluir_vigente`, `excluir_usuario` and `excluidos_patron` (which glob excluded each file); a malformed value or an unreadable file → warning on stderr and default; manual setting, `/setup` does not ask for it), `modelos` (**configurable tiering, layer 2** — `{"<agent>": {"model": "haiku|sonnet|opus|inherit|claude-…", "effort": "low|medium|high|xhigh|max"}}`, partial and per agent; resolved by `agent-kits/shared/model-tier.py` and passed by the orchestrators in the Agent tool's `model` parameter; `effort` here is informative — the Agent tool has no per-invocation effort —; a manual `@agent` invocation follows the frontmatter; asked by `/setup` step 5-quater). All opt-in with defaults `false` except `guardrails` (on), `revision.lenteSeguridad`/`revision.lenteRendimiento` (`auto` each), `sesion.indice`, `sesion.journal`, `sesion.captura` and `sesion.memoria` (on), `sesion.resumen` (off), `modelos` (absent = frontmatter) `tests.coberturaMinima` (absent = no gate) and `alcance.excluir` (absent = the script's default only) | `/setup` or by hand | Recreate with `/setup`; missing or corrupted file → defaults `false` + warning (classic behavior) |
+| `dev.json` | Discipline of `/dev-cycle`'s native chain: `tdd` (RED-GREEN-REFACTOR with evidence of the red), `worktree` (initiative in an isolated worktree), `subagentes` (one task = one fresh subagent), `constitucion` (decision on the `docs/CONSTITUTION.md` opt-in — distinguishes "declined" from "never asked"), `guardrails` (the implementer's guard hook: `true` by default; `false` or `{"alcance","ramaPrincipal","git"}` per rule), `revision.lenteSeguridad` (`auto` by default: the security lens C of `adversarial-review` only when `review-lens-select.py` detects sensitive paths/lines; `siempre` · `nunca`; asked by `/setup` step 5-ter), `revision.lenteRendimiento` (superiority T-04, same vocabulary and same `auto` default: the performance lens D of the SAME `review-lens-select.py`, only when it detects repository/query/queue paths or costly patterns —N+1, `await` in a loop, blocking `sleep`—; asked by the same step 5-ter), `revision.excluir` (list of `**`-aware globs removed from lenses C's and D's **path** heuristic —each with its own stems—, not from the content one — e.g. `["hooks/**"]` for a repo whose hooks are named `session-*.sh`; manual setting), `tests.coberturaMinima` (superiority T-03, **absent by default = no gate**: minimum diff coverage threshold N that `implementer` step P5 checks with the `unit-tests` skill —`coverage-gate.py --changed-only`— only when the stack's official tool is installed; without it, informational only, never blocking; asked by `/setup` step 5-quinquies), `sesion.indice` (`true` by default: the `SessionStart` hook injects the compact piece index from `skill-index.py`; `false` turns it off and leaves only the roadmap resume context), `sesion.journal` (boolean or `{activo, dir, ventanaHuerfanaMin, replay: {budgetMs, max}}`; `true`/active by default: the `SessionEnd` hook only captures the envelope under `.claude/journal/outbox/` and `SessionStart`/`replay` materialize the session log entry under `docs/knowledge/journal/`, re-injecting the latest one; `false` turns it off — rule 10), `sesion.captura` (`true` by default: the `UserPromptSubmit` hook appends the user's turn to the raw, unversioned log from which `SessionEnd` extracts `decisiones`/`pendientes`; `false` turns it off — rule 10), `sesion.resumen` (`false` by default: with `true`, `SessionEnd` asks `claude -p --bare` for a session summary AFTER writing the deterministic entry; without the CLI, without `ANTHROPIC_API_KEY` or on timeout it degrades to the deterministic one — rule 10), `sesion.memoria` (`true` by default: the `SessionStart` hook injects the technical-memory block for the active initiative's area — routed `knowledge-find.py`, ≤ 1,200 chars —; `false` turns it off and leaves index, resume and journal), `sesion.actividad` (boolean, `false` by default: opt-in recent native signals through `agent-activity-store.py` and the served panel, not process liveness; manual setting, never enabled automatically by `/setup`), `alcance.excluir` (plugin-refactor T-11, list of `**`-aware globs that **ADDITIVELY extends** `agent-kits/shared/scope-check.py`'s default list —`CONTINUE-HERE*.md` · `.claude/**` · `docs/knowledge/journal/**`: what the orchestrator, the installation or a hook writes and that belongs to no task—; what is excluded is **not** "out of scope" (the exit code does not change) but it is listed under the `--json` key `excluidos`, and a file declared in a task's `Archivos` field wins over the exclusion, and so does `docs/knowledge/**` (project memory: `SIEMPRE_EN_ALCANCE` is evaluated BEFORE the user exclusion, so a `docs/**` under `alcance.excluir` cannot push a new ADR out of scope); the default cannot be emptied from `dev.json`; if a user glob leaves the "out of scope" list EMPTY while there are changes that would otherwise be out, or swallows ≥ half of the diff (≥ 3 files), the gate WARNS on stderr and in the `--json` key `avisos` without changing the exit code — the `--json` also publishes `excluir_vigente`, `excluir_usuario` and `excluidos_patron` (which glob excluded each file); a malformed value or an unreadable file → warning on stderr and default; manual setting, `/setup` does not ask for it), `modelos` (**configurable tiering, layer 2** — `{"<agent>": {"model": "haiku|sonnet|opus|inherit|claude-…", "effort": "low|medium|high|xhigh|max"}}`, partial and per agent; resolved by `agent-kits/shared/model-tier.py` and passed by the orchestrators in the Agent tool's `model` parameter; `effort` here is informative — the Agent tool has no per-invocation effort —; a manual `@agent` invocation follows the frontmatter; asked by `/setup` step 5-quater). All opt-in with defaults `false` except `guardrails` (on), `revision.lenteSeguridad`/`revision.lenteRendimiento` (`auto` each), `sesion.indice`, `sesion.journal`, `sesion.captura` and `sesion.memoria` (on), `sesion.resumen` (off), `sesion.actividad` (off), `modelos` (absent = frontmatter) `tests.coberturaMinima` (absent = no gate) and `alcance.excluir` (absent = the script's default only) | `/setup` or by hand | Recreate with `/setup`; missing or corrupted file → defaults `false` + warning (classic behavior) |
 | `knowledge-services/taxonomy.json` | `knowledge-services` config (ADR-018): per-project knowledge categories (`key`/`folder`/`min_evidence`/`routing`), declared `backends` (`id`, `type`, `enabled`, `config`), and per-category `routing` that can only cite declared ids (fail-closed, CA-11). `type: "graphiti"` (graphiti-memory ADR-018, T-01/T-01-fix1) adds, all nested under `config` (nested shape; an unknown key at `backends.<id>` level or inside `config`/`provider`/`router`/`health` is an error): `config.mode` (`off\|shadow\|read`, default `shadow`), `config.endpoint` (local/private — same criterion as the Kwipu adapter, including `host.docker.internal` and `.test`/`.local`/`.internal` suffixes — unless `allow_remote: true`, read as a strict boolean only), `config.group_id` (NO hardcoded default: derived by any backend whose `type` is `graphiti` -not just the literal `graphiti` key- using a Unicode-aware slug of the project directory -keeps accents/CJK, unlike `id_prefix`'s ASCII-only slug-; cannot be an empty string, and with the backend enabled it must be declared by hand if the directory has no alphanumeric characters at all -it never falls back to the same fixed `"ca"` as `id_prefix`, to avoid accidentally merging different projects into the same remote group-), `config.provider.llm` (`ollama\|openai\|anthropic\|none`, credentials ONLY via `api_key_env`; with the backend enabled, `endpoint`/`provider.llm`/`mode` are mandatory), `config.provider.model` (MANDATORY if `provider.llm` is not `none` — gap #37, without this field the adapter used to fall back to a model hardcoded in the code, against CA-09), `config.entity_map` (category -> type declared by the Graphiti SERVER, non-empty string, never a domain list in the plugin, CA-13), `config.relations` (no empty strings), `config.router.intents`/`config.router.default` (the latter is **reserved**: validated and kept, but no code reads it — CA-12 requires anything the router cannot serve to fall back to the LOCAL path, never to another default backend; gap #108), `config.telemetria` (boolean), `config.timeout_ms` (finite integer > 0, default 3000), `config.concurrency` (integer >= 1, default 1, same limit as the reference stack's `SEMAPHORE_LIMIT`), `config.episode_body_max_kb` (finite integer > 0, optional, default 512 KiB applied by `graphiti.py`; caps the `episode_body` sent to `add_memory` — above the cap only the CONTENT is truncated, the provenance block is always kept whole, gap #64/#80), `config.max_respuesta_kb` (integer > 0, optional, default 8192 KiB = 8 MiB; hard cap on reading EACH MCP response, read in chunks — going over it is an explicit error, never a `MemoryError`, gap #70), `config.max_episodes` (integer > 0, optional, default 5000; caps the `get_episodes` window that `verify()` sweeps, gap #70) and `config.health` (`url` under the same network guardrail as `endpoint`, `timeout_ms` finite integer > 0). `config.endpoint` and `config.health.url` can NEVER carry embedded credentials (userinfo `user:token@host` — gap #43); the local/private check ALWAYS normalizes IPv4-mapped IPv6 literals (`::ffff:169.254.169.254`, etc. — gap #53) before classifying them, and ALWAYS rejects —even with `allow_remote: true`— link-local/cloud-metadata addresses, unspecified addresses and the IPv6 transition prefixes 6to4 (`2002::/16`) and Teredo (`2001:0::/32`), which wrap an arbitrary IPv4 and CPython classifies as private (gaps #71/#75; same rule in the adapter and in the validator, declared copy `direccion_prohibida_siempre` in `agent-kits/shared/copias.json`). Validated with `agent-kits/shared/knowledge-schema.py` (stdlib, no dependencies) against `agent-kits/shared/schemas/taxonomy.schema.json`. Without this file, the plugin uses the default template (`agent-kits/shared/templates/taxonomy.json`: DECISION/PATTERN/GOTCHA/LESSON aligned with `adr/`/`gotchas/`/`lessons/`, `kwipu` and `graphiti` backends disabled) | `/setup` (from the template) or by hand | Recreate from `agent-kits/shared/templates/taxonomy.json`; without the file, the plugin degrades to that same template in memory |
 | `knowledge-services/training.json` | Opt-in config of `training-data-services`: `version` (1), `enabled` (default `false`), `root` (the case store root chosen by the project, relative to its root or absolute, no `~`; never inside `<project>/docs/knowledge/`, resolved with `realpath` and case-insensitively, ADR-019), `id_prefix` (slug prefixing `case_id` = `<id_prefix>-<family>.<variant>`), `ids` (`family_pattern`/`variant_pattern`/`version_width`, optional) and `bridge_to_curator` (default `false`: a Gold case may be proposed as a candidate to `knowledge-curator`, never approved on its own). Validated with `skills/training-data-services/scripts/case_schema.py` (stdlib; unknown key → error). Without this file or with `enabled: false`, the `training` capability does not exist for the cycle (CA-01). Cases and the dataset live under `root`, **not** in `.claude/` or Git | `/setup` (the `training` capability step) or by hand | Recreate by hand (five keys); losing it only switches the capability off: the case store under `root` is untouched |
 | `usage-state.json` | Cost-measurement markers (`usage-meter.py`: offsets per transcript and artifact) | `usage-meter.py` | Deleting it is harmless: open markers are lost; subsequent `start` calls recreate it |
 | `journal/` | Atomic queue for `SessionEnd`'s durable capture (`outbox/` → `processing/` → `done/`/`dead-letter/`, module `agent-kits/shared/outbox.py`); **unversioned**, with its own `.gitignore` seeded by the hook itself and excluded from the root `.gitignore`; survives a plugin uninstall/upgrade | `session-journal.sh` hook (`journal.py capture-end`), materialized by `journal.py replay`/`recover` | Only `journal.py purge --confirm` deletes it; an entry lost before the envelope is recovered up to the last captured prompt (`recover`, `cierre: recuperado_sin_cierre`) |
 | `.confluence-pending` | Ephemeral hook flag (there are unsynced docs) | `PostToolUse` hook | Deleting it is harmless; the skill re-detects via manifest |
 | `plan-review/` | Shared local state for explicit plan review in Claude/Codex/OpenCode: owned marker, redacted comments and version/gate receipts. Exclude `.claude/plan-review/` from Git; it is neither personal configuration nor a progress ledger | `agent-kits/shared/plan-review.py`; panel transports and CLI consumes | Missing state grants no approval through this channel. Unowned/corrupt directories degrade without adoption, deletion or automatic migration. Owned state recovers the same receive/ack receipt; current consumption supports resume without another confirmation |
+| `agent-activity/` | Owned local activity metadata, separate from config and the ledger: maximum 64 observations/64 KiB per snapshot, TTL60 and own `.gitignore` containing `*` plus newline before publication; no prompts or transcripts | `agent-kits/shared/agent-activity-store.py`, only with boolean `sesion.actividad: true`; panel GET reads it | Read-only snapshot never initializes, adopts, locks, purges or recovers. Missing, partial or invalid state remains unavailable; incomplete collection is explicit and no approval or liveness is derived |
 
 Rules: **config ≠ state** (config is decided by the user; state is maintained by the machine and
 is never edited by hand); every new skill that needs memory follows this pattern (`<skill>.json` +
@@ -253,22 +282,16 @@ have to be re-discovered", generalizing the bookend pattern from `agents/nemesis
   entry) and `docs/knowledge/lessons/LES-NNN-<agent>-<slug>.md` (one per entry, grouped by agent
   in the filename). Alongside that legacy corpus (ADR/GOT/LES, manually indexed), `knowledge-
   services` (ADR-018) adds `docs/knowledge/candidates/{pending,needs_changes,rejected}/` (curation
-  queue, proposed by `documenter`/`knowledge-curator`) and `docs/knowledge/approved/<folder>/`
+  queue, proposed by producers through `knowledge-curation.py`) and `docs/knowledge/approved/<folder>/`
   (one folder per `categories[].folder` in `.claude/knowledge-services/taxonomy.json`, or the
   plugin's default template): that tree is indexed by `agent-kits/shared/knowledge-index.py`
   (deterministic index over the configured taxonomy), distinct from the manual ADR/GOT/LES index
   below — never mixed together.
-  With an **entry-point** index `README.md` (the generated index + `knowledge-lint.py` remain
-  deferred until there is evidence they are needed: more than 15 entries, or the first ID
-  collision in any of the three families, in a parallel batch). One file per entry across all
-  three types removes the FILE collision risk in parallel writes; the `id:` collision risk
-  remains possible across all three families (ADR/GOT/LES), with the same mitigation (renumber
-  and declare it in the retro), see previous rule.
-  **Migration (gap 113, two-lens review Phase 3 attempt 2, 2026-09-18):** the `category` field
-  under `docs/knowledge/approved/<folder>/` was optional when this tree was born and became
-  **mandatory** (`knowledge-index.py` requires it when indexing, `curator-gate.py` blocks
-  `approve` without it) — see the migration note in `docs/knowledge/approved/README.md` if a
-  project has entries predating that change.
+  The historical `README.md` keeps its manual-index role. Local retrieval preserves IDs and
+  states from both corpora; collisions are diagnosed, never renumbered or migrated automatically.
+  **Compatibility:** category and `estado: aprobado` are mandatory in approved; legacy entries
+  do not acquire these requirements or get reapproved. The historical category migration
+  (2026-09-18) does not authorize automatic conversion of the current corpus.
 - **Always active, no opt-in.** If `docs/knowledge/` did not exist, no agent would complain: the
   folder is created on first write. Same silent-degradation philosophy as the rest of the plugin
   (constitution, Jira, Confluence), but without a switch — there is nothing to turn on.
@@ -278,14 +301,14 @@ have to be re-discovered", generalizing the bookend pattern from `agents/nemesis
   **not** deserve an ADR. A gotcha only if it cost **at least one real debugging cycle** or nearly
   broke a product guarantee — an unverified hunch or a typo fixed on the fly does **not** deserve a
   gotcha. The goal is 0-2 entries per initiative, not an exhaustive log.
-- **Who writes.** `architect` writes the ADR of the chosen design option (the discarded ones as alternatives) when `design.md` is approved; `planner`/`implementer` write an ADR when a design decision (while decomposing
-  the plan, or resolving an ambiguity during execution) crosses the threshold, with
-  `estado: propuesta` to be validated by the two-lens review or the user. `debug-root-cause` writes
-  a gotcha when it closes its Phase 4 (root cause confirmed, not a partial diagnosis). `qa` writes
-  a gotcha when a justified flaky turns out to be a **pattern** (2+ cycles with the same cause), not
-  an isolated accident. `/retro` produces, in addition to `CALIBRATION.md`'s numeric row, a
-  **second output** with the qualitative technical learnings from the initiative's closeout. Shared
-  fragment: `agent-kits/shared/knowledge-write.md`.
+- **Who proposes, judges and persists (Block 23).** `architect`, `planner`, `implementer`,
+  `debug-root-cause`, `qa`, `documenter`, `/retro` and the case bridge propose new knowledge
+  exclusively through `agent-kits/shared/knowledge-curation.py` (`propose`). The service creates
+  redacted pending content without `estado` and returns SHA256. No new ADR/GOT/LES are written
+  or promoted in legacy folders. Chosen design, review/QA, repetition and Gold are evidence,
+  not approval. `knowledge-curator` judges category, sufficiency and transition; the service
+  `apply_decision` persists that decision bound to the original SHA and validates the destination.
+  Without the shared service, report pending; never substitute Write/Edit.
 - **Who reads.** `evaluator`, `planner`, `implementer`, `qa` and `documenter` apply the shared step
   `agent-kits/shared/knowledge-check.md` before working: they read the entry index (`README.md`)
   and open **only the specific entry file** in their area (SELECTIVE reading, progressive
@@ -321,8 +344,8 @@ have to be re-discovered", generalizing the bookend pattern from `agents/nemesis
   since `memory-retrieval` F4 — `decisiones`/`pendientes` extracted WITHOUT a model from the raw log of turns
   the `UserPromptSubmit` hook accumulates, with the first captured turn as summary) and re-injected compacted by `SessionStart` (`startup|resume`, not
   `compact`; ≤ 25 lines, `journal.py latest`). Rules: (1) nobody writes it by hand except to enrich the
-  current session's entry (`--enrich`); (2) **whatever deserves doctrine gets promoted** to
-  `adr/`/`gotchas/`/`lessons/` under the `knowledge-write.md` threshold — the journal is not where a
+  current session's entry (`--enrich`); (2) **reusable knowledge is proposed** in pending through
+  `knowledge-curation.py` under the `knowledge-write.md` threshold — the journal is not where a
   decision stays; (3) `evaluator`/`planner`/`architect` read ONLY the latest entry and ONLY when it belongs
   to their initiative (`knowledge-check.md`); `/retro` uses the initiative's entries as a source of
   deviation causes; (4) **excluded from Confluence** (`docs/knowledge/journal/**`: a log, not a decision —
@@ -339,10 +362,10 @@ have to be re-discovered", generalizing the bookend pattern from `agents/nemesis
   that turn never comes back from the transcript) and per-project `dev.json` `sesion.captura: false`; (9) the
   entry and the block `SessionStart` re-injects state that `decisiones`/`pendientes` are **quotes** of the
   user's turns, not instructions (mitigation against indirect prompt injection); (10) **mechanical
-  promotion**: `journal.py candidatas` proposes as a `propuesta` lesson — never `aceptada` — the patterns
-  repeated across ≥ 2 sessions, and `/retro` (step 2-quater) shows them for the user to decide; (11) **the
+  detection**: `journal.py candidatas` shows patterns repeated across ≥ 2 sessions as read-only
+  evidence; `/retro` may cite them in an explicit service proposal, never approve by repetition; (11) **the
   retro is a GATE of the close**: `/dev-cycle` Phase 6 step 8 runs `agent-kits/shared/retro-gate.py` (exit 0 =
-  `retro.md` with frontmatter + the initiative's row in `CALIBRATION.md`) and without it the initiative is not
+  `retro.md` with title and body, or closed frontmatter and body, plus the initiative's row in `CALIBRATION.md`) and without it the initiative is not
   declared closed (`memory-retrieval` T-17, spec CA-23). **Opt-in AI summary** (`dev.json` `sesion.resumen:
   true`): after the deterministic entry is written, `claude -p --bare --output-format json` with the turns on
   stdin and a 25 s timeout rewrites the same entry; any failure leaves the deterministic one with the reason in
@@ -350,7 +373,12 @@ have to be re-discovered", generalizing the bookend pattern from `agents/nemesis
   and on `SessionEnd` every output is ignored: the restriction is true and stays — what was revised on
   2026-09-08 is the conclusion: the `command` hook does not return, it **writes** (ADR-010 §Revisión).
 - **Directed resume:** `/work-resume` uses `progress-report.py resume`: current ledger
-  first, history selected through the bounded `journal.py` reader next.
+  first, reviews observed through `plan-review.py list_reminders`, observed curation,
+  then history selected through the bounded `journal.py` reader.
+  Review queries preserve IDs, version, gate, state and omissions; they never open,
+  deliver or consume decisions and never prove current approval.
+  `progress-report.py session` adds reminders for the sole active initiative
+  within its 15 lines, retaining whole references.
   `SessionStart` uses `resume --history-only` at startup/resume (≤ 25 lines), with
   no history on compact. Implicit selection requires one `en-progreso` initiative;
   several are ambiguous, and zero active initiatives cannot select global history.
@@ -361,3 +389,62 @@ have to be re-discovered", generalizing the bookend pattern from `agents/nemesis
   `agent-kits/planner/templates/tasks.md` template was retired (`knowledge-capture` initiative,
   task T-14) — an initiative's qualitative record now lives in `docs/knowledge/`, not in a
   catch-all drawer at the end of the ledger.
+
+- **Compatibility, conflicts and persistence.** Existing ADR/GOT/LES preserve bytes, IDs, states,
+  links and original authority: `aceptada` does not mean `aprobado`. No automatic migration,
+  reapproval or deletion. Curator reads approved and relevant accepted legacy; contradiction or
+  high impact requires a traced human resolution, never newest-wins. Constitution prevails;
+  explicit succession records references without incidental legacy changes. The gate is read-only;
+  `apply` requires original SHA, reason and valid final metadata. Index errors and collisions block.
+  Intent and receipt support explicit `recover`; publication, source retirement and receipt are
+  not an atomic multi-file transaction. Approved content may be visible before the final receipt.
+  The lock coordinates cooperating writers only; declared producer/decider do not authenticate
+  actors or prove a sandbox or native acceptance. Retro after the main Gate hands off to Curator
+  or leaves route/ID and pending state visible; closing retro does not approve memory. Contract
+  and acceptance remain pending: [curation](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).
+
+## Stable local reads and queries without caches
+
+On Windows, a ctime-only change during a read permits one reread of the same
+descriptor. Identity, mode, link count, size, mtime, birth time and attributes must
+remain unchanged. Payloads must match, the final generation must be stable, and
+path and parent checks remain active. Both reads share the original byte limit;
+`bytes` charges cumulative consumption. If both cannot fit, the result remains
+`changed_path`. Access errors, payload changes and ctime changes on other platforms
+are not retried. These checks do not guarantee multi-file atomicity or absence of ABA.
+
+The `progress-report.py` and `plan-review.py` CLIs disable bytecode creation before
+loading helpers: querying a project-local kit does not create `__pycache__`, even
+without `-B`. Existing caches are retained. The tested guarantee covers these CLI
+invocations and does not extend to arbitrary external loaders.
+
+## Publishing owned metadata during concurrent reads
+
+`local-state.py` retains exclusive creation and caller coordination. Only Windows
+retries owned-generation replacement errors 5, 32 and 33, with at most four
+attempts and 20, 40 and 80 ms waits clipped to the remaining caller deadline.
+Each attempt rechecks the deadline, safe parents and full target signature. A
+generation change rejects the operation. The same exclusive temporary is retained;
+there is no whole-operation retry, foreign-target adoption or concurrent merge.
+Other errors and platforms do not retry. Persistent replacement rejection
+does not overwrite the target and removes only this invocation's temporary.
+A later sync failure may leave new bytes visible with unconfirmed durability;
+it does not roll back publication. Scheduled waits do not bound OS
+call duration or provide atomic CAS against non-cooperating writers.
+
+A real Windows reader denying delete sharing reproduces the transient rejection;
+releasing it after the first error permits the second replacement. This does not
+identify historical generic failures. [Scoped evidence](../roadmap/2026-10-07-catalog-capabilities/testing/state-publication26-evidence.json).
+
+## Native OpenCode process teardown on Windows
+
+The adapter resolves taskkill.exe under System32 using SystemRoot/WINDIR, with
+the default Windows directory as a final fallback. Stopping its owned tree does
+not depend on PATH. The regression executes real teardown with PATH limited to
+the test Node. The system path is not derived from session payloads; termination
+uses the PID of the created child. This prevents the demonstrated lookup failure,
+without proving every possible OS failure mode.
+
+Capture tests observe that handler alone. Informational activity can launch
+another process for the same event and must not share its assertion output file.
+[Evidence](../roadmap/2026-10-07-catalog-capabilities/testing/opencode-lifecycle27-evidence.json).

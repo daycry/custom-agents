@@ -605,157 +605,954 @@
       "id": "R-e6c33a7553a7",
       "sha256": "90748dfc22acabb22ebb6e8365d6821b6cb04acba3af467fdb239d5d66ceaa7b",
       "lines": 2096,
-      "body_read_status": "partial",
+      "body_read_status": "full",
+      "hash_verified": true,
       "ranges_read": [
         [
           1,
-          250
-        ],
-        [
-          1884,
           2096
         ]
       ],
-      "dependencies": []
-    }
-  ],
-  "unread_immediate_resources": [
-    {
-      "id": "R-7d767c8228df",
-      "sha256": "382623502ffe25ffc2cc7fe810bc79a181600a46c43595fe8de0da148998b7b1",
-      "lines": 92,
-      "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": [
-        "R-076e8356b72b"
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Clasificador estático de política, expresamente distinto de un intérprete PowerShell; comparte IDs de reglas entre detección de acciones destructivas y eventos informativos.",
+        "Normaliza comillas y escapes, analiza comandos anidados o codificados, distingue funciones diferidas y resuelve algunas variables y alias estáticos.",
+        "Profundidad de análisis y contexto están limitados; expresiones dinámicas desconocidas producen hallazgos conservadores. La lectura no demuestra ausencia de bypasses."
+      ],
+      "native_decisions": [
+        "Conservar un único dueño para clasificación y sus consumidores; no duplicar reglas entre guardia, avisos y panel.",
+        "Mantener guards con alcance del rol y traducción explícita por runtime. Un hallazgo informativo no equivale a denegación ni a aprobación.",
+        "No incorporar un segundo parser global PowerShell para prometer detección exhaustiva. Los controles propios conservan casos de regresión ejecutados, scope y límites declarados.",
+        "Si se amplía un clasificador, cada forma sintáctica relevante necesita reproducción y regresión; los límites o expresiones no resueltas se muestran como tales."
       ]
     },
     {
-      "id": "R-aa073f6b406b",
-      "sha256": "f9e811b4657dc250c2fd448cd21838aea1155a274b6803afafc87156009a720e",
-      "lines": 279,
+      "id": "R-5f85c39068f7",
+      "sha256": "18feb739884b028791b432b8185888451fa27fe23f94adc96747c9b9c773f018",
+      "lines": 226,
+      "body_read_status": "full",
+      "ranges_read": [
+        [
+          1,
+          226
+        ]
+      ],
+      "dependencies": [],
+      "dependency_scope": "no local imports; remote review server callers still unreviewed"
+    },
+    {
+      "id": "R-03b492bcef1e",
+      "sha256": "f894fdc9a38ba2c4b92035e026d58775dcec4679ea5035e7df0fe1d2b359445b",
+      "lines": 68,
+      "body_read_status": "full",
+      "ranges_read": [
+        [
+          1,
+          68
+        ]
+      ],
+      "dependencies": [],
+      "dependency_scope": "no local imports; remote review server callers still unreviewed"
+    },
+    {
+      "id": "R-115137fae3ce",
+      "sha256": "9ad9c91f1ad63c04ab3bbefba28608403ff9e0b60744ac3f18eea9478e0d040d",
+      "lines": 148,
+      "body_read_status": "full",
+      "ranges_read": [
+        [
+          1,
+          148
+        ]
+      ],
+      "dependencies": [],
+      "dependency_scope": "no local imports; remote review server callers still unreviewed"
+    },
+    {
+      "id": "R-d8dbc333fffb",
+      "sha256": "06091a88ce114082b2801a9ad621c8905157a874748bfe7a131665a1c7fa0d7b",
+      "lines": 52,
+      "body_read_status": "full",
       "hash_verified": true,
-      "body_read_status": "unread",
+      "ranges_read": [
+        [
+          1,
+          52
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Same-directory PID/random exclusive temporary, fsync file then close/rename",
+        "Optional caller-supplied parent validation before writes/rename/cleanup",
+        "Unchanged-parent cleanup on failure; parent-changed staging intentionally retained",
+        "No retries, directory fsync, compare-and-swap, or concurrent writer merging"
+      ],
+      "native_decisions": [
+        "Retain native exclusive meter temporary and bounded Windows retry",
+        "Do not infer shared-writer coordination from atomic rename",
+        "No additional product helper warranted by this dependency"
+      ]
+    },
+    {
+      "id": "R-053f74dadb4a",
+      "sha256": "98eee132c60edc683066233b227e65f0a4e752683efe97384509577bbbfb8bd6",
+      "lines": 178,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          178
+        ]
+      ],
       "dependencies": [
         "R-076e8356b72b",
-        "R-115137fae3ce",
-        "R-7d9940f71285"
+        "R-30aa29857c62"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "PreCompact synchronously calls same90s Claude summary helper",
+        "Selects global session by canonical worktree, with legacy basename fallback",
+        "Writes summary markers or appends compaction log through non-atomic utilities"
+      ],
+      "native_decisions": [
+        "Retain explicit work-save checkpoints and fast durable local capture",
+        "Do not introduce synchronous90s model work in lifecycle hooks",
+        "Shared provider-native compaction support needs verified event contracts before registering hooks"
       ]
     },
     {
-      "id": "R-2a1f8ff1e882",
-      "sha256": "ee5c5c366958848683c17527d1572f10cf86f8ec52a9ba645202db8652d9c046",
-      "lines": 261,
+      "id": "R-076e8356b72b",
+      "sha256": "c9a84bd7993cb65e532a16b1872ce468b869ec40aac2d743aa03bcbf6a6dd5a8",
+      "lines": 742,
+      "body_read_status": "full",
       "hash_verified": true,
-      "body_read_status": "unread",
+      "ranges_read": [
+        [
+          1,
+          742
+        ]
+      ],
       "dependencies": [
-        "R-076e8356b72b"
-      ]
-    },
-    {
-      "id": "R-591e0ebb2a34",
-      "sha256": "a91eea1e20c0affaf0460dd128afad46af5a0d71dc7f52d7e4b875c5607225d1",
-      "lines": 116,
-      "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": [
-        "R-9dacc6e3b314"
-      ]
-    },
-    {
-      "id": "R-b18149810e30",
-      "sha256": "d3bf18be2af61791b25bcb8fb7cc44b911bf9d59579fbcfc0c6af16579574db6",
-      "lines": 100,
-      "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": [
-        "R-076e8356b72b"
-      ]
-    },
-    {
-      "id": "R-8bd71b6add90",
-      "sha256": "8001160e9bc469dd57aa000ff483962c00841701973e9d1cf122105b88a839d8",
-      "lines": 373,
-      "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": [
-        "R-e6c33a7553a7",
-        "R-391f040a5518"
+        "R-e004ae305ac0"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Canonical session-data plus legacy sessions search paths; global learned-skill directory",
+        "Git common-dir identity supports linked worktrees and Windows file IDs",
+        "Session IDs truncate to eight characters with project/default fallback",
+        "Stdin size bound counts JavaScript string units, not UTF-8 bytes",
+        "File discovery recursion, text reads, and regex helpers are not byte/item/deadline bounded",
+        "runCommand uses a shell with prefix/metacharacter filters"
+      ],
+      "native_decisions": [
+        "Retain full scoped session identity instead of truncated IDs",
+        "Retain bounded local-read and argument-array subprocesses",
+        "Retain byte-counted input and explicit per-host deadlines",
+        "Review data-home dependency before claiming complete closure"
       ]
     },
     {
       "id": "R-07b6abd1ac04",
       "sha256": "111d993be01f5ca3145f7693862695a87a23994810f972e2bc914dfaf102d7a1",
       "lines": 120,
+      "body_read_status": "full",
       "hash_verified": true,
-      "body_read_status": "unread",
+      "ranges_read": [
+        [
+          1,
+          120
+        ]
+      ],
       "dependencies": [
         "R-4a236023dc1d",
         "R-564ee7b92148"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Standalone lifecycle wrapper delegates to flags runner",
+        "Default30s bounded up to300s, failure propagation differs from optional fail-soft hook",
+        "Raw truncated prefix forwarded with explicit upstream flag"
+      ],
+      "native_decisions": [
+        "Retain host-specific budgets including Codex SessionEnd ceiling and no heavy work in shutdown"
       ]
-    },
-    {
-      "id": "R-8549f97a6403",
-      "sha256": "f553b83f754a8b024e53303200ae85aaec7abacc3f6ef703075081799288a459",
-      "lines": 863,
-      "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": []
-    },
-    {
-      "id": "R-bf8034b7b095",
-      "sha256": "0ac9f619f326a5465f04ddc4cdade192132b6a47d011067af00b7a5d17f5efed",
-      "lines": 199,
-      "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": []
-    },
-    {
-      "id": "R-5f85c39068f7",
-      "sha256": "18feb739884b028791b432b8185888451fa27fe23f94adc96747c9b9c773f018",
-      "lines": 226,
-      "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": []
-    },
-    {
-      "id": "R-03b492bcef1e",
-      "sha256": "f894fdc9a38ba2c4b92035e026d58775dcec4679ea5035e7df0fe1d2b359445b",
-      "lines": 68,
-      "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": []
     },
     {
       "id": "R-115c4c2bd99f",
       "sha256": "f47e296e4536ba71572c27b6611919d1b350bc1f2d293b1c1ddb2c7662e506b4",
       "lines": 49,
+      "body_read_status": "full",
       "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": []
+      "ranges_read": [
+        [
+          1,
+          49
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Build-command regex prints completion/background-analysis message regardless of tool result",
+        "No actual asynchronous analysis is launched",
+        "Direct input counts string units and lacks its own EOF deadline"
+      ],
+      "native_decisions": [
+        "Do not import unsupported build success/background-work claims",
+        "Use existing QA evidence and scoped activity events"
+      ]
     },
     {
-      "id": "R-c340af711e18",
-      "sha256": "286bc8dc082ab9e23e228a744788b5bfce91fa3cb842dd2db3dfb96bd2eb464a",
-      "lines": 80,
+      "id": "R-13dd1e32403b",
+      "sha256": "dd24fbec816a9dc738e45c5b126f3823365410c3d0e0fde52ea8ee8e1384a234",
+      "lines": 67,
+      "body_read_status": "full",
       "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": []
+      "ranges_read": [
+        [
+          1,
+          67
+        ]
+      ],
+      "dependencies": [
+        "R-1b52a64f96e4"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "SessionEnd removes own session lease and stops observer when final lease ends",
+        "Cleanup delegated to observer sessions helper",
+        "No durable memory publication occurs here"
+      ],
+      "native_decisions": [
+        "Retain fast durable capture and deferred replay without background observer service"
+      ]
+    },
+    {
+      "id": "R-261622b88023",
+      "sha256": "e1f2495e0846fdb8378b0d794e39134d52c01f8242c445faf0265227dfcddd50",
+      "lines": 101,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          101
+        ]
+      ],
+      "dependencies": [
+        "R-4a236023dc1d",
+        "R-564ee7b92148",
+        "R-07b6abd1ac04"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Standalone bootstrap avoids shell-inline JavaScript quoting",
+        "Delegates SessionStart through flags runner with30s timeout"
+      ],
+      "native_decisions": [
+        "Retain standalone host adapters with native output contracts"
+      ]
+    },
+    {
+      "id": "R-2a754bdba132",
+      "sha256": "dad58b43af2ea3ed46ec802334d65c5cf327998b6ce818b5a3e6c482088e2730",
+      "lines": 360,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          360
+        ]
+      ],
+      "dependencies": [
+        "R-076e8356b72b",
+        "R-30aa29857c62"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Runs on Stop after every response despite SessionEnd naming",
+        "Writes global daily/session file identified by final eight UUID characters",
+        "Preserves manual sections while replacing generated summary markers",
+        "Low-context or every50user messages may trigger90s synchronous Claude summary",
+        "Writes through ordinary utils.writeFile, no atomic publication"
+      ],
+      "native_decisions": [
+        "Retain full scoped IDs, canonical journal, fast capture/outbox replay",
+        "Retain deterministic-first publication and opt-in IA enhancement",
+        "Do not copy global truncated-ID storage or per-response full transcript scans"
+      ]
+    },
+    {
+      "id": "R-30aa29857c62",
+      "sha256": "ce2caaae62f8f50ff48cf07ce9cf1ae2b8e37162bd897e59055f6cf68725db97",
+      "lines": 177,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          177
+        ]
+      ],
+      "dependencies": [
+        "R-f33c48fbb392"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Reads full transcript before clipping25turns/7000characters",
+        "Claude CLI summary timeout90s with recursion environment guards",
+        "Input may include assistant text and has no secret redaction in this helper"
+      ],
+      "native_decisions": [
+        "Retain opt-in bounded structured summary after deterministic local publication",
+        "Retain redaction, inert data delimiters and bare mode recursion isolation",
+        "Do not launch model work in SessionEnd capture"
+      ]
+    },
+    {
+      "id": "R-4f8126d33200",
+      "sha256": "542126cf47247161dd26713a1f33d34af2881db46435ac8ecef76a8be31c062c",
+      "lines": 109,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          109
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Canonicalizes nearest existing ancestor and missing tail before containment",
+        "Rejects destination outside caller-provided trusted root",
+        "Does not bind subsequent mutation to an already-open parent descriptor"
+      ],
+      "native_decisions": []
+    },
+    {
+      "id": "R-591e0ebb2a34",
+      "sha256": "a91eea1e20c0affaf0460dd128afad46af5a0d71dc7f52d7e4b875c5607225d1",
+      "lines": 116,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          116
+        ]
+      ],
+      "dependencies": [
+        "R-9dacc6e3b314"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Warn-only filename policy with structured-directory allowlist",
+        "Direct input counts UTF-8 bytes up to16MiB",
+        "Visible output delegated to another helper"
+      ],
+      "native_decisions": [
+        "Retain existing documentation conventions rather than add optional noisy naming hook"
+      ]
     },
     {
       "id": "R-68dc6b78fcc7",
       "sha256": "360a4d5428801786fda5c03ebfa065033aa6382448d0035bd7c44904ee686e6a",
       "lines": 60,
+      "body_read_status": "full",
       "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": []
+      "ranges_read": [
+        [
+          1,
+          60
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Recognizes gh pr create text and first GitHub PR URL in tool stdout",
+        "Prints manual review command; no PR or review action occurs"
+      ],
+      "native_decisions": [
+        "Use workflow-owned PR validation before displaying delivery evidence",
+        "No duplicate passive PR hook warranted"
+      ]
+    },
+    {
+      "id": "R-7d9940f71285",
+      "sha256": "a9573841c8862bb274e46bc73708d9077865750820c36df569def539a90630c4",
+      "lines": 513,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          513
+        ]
+      ],
+      "dependencies": [
+        "R-d8dbc333fffb",
+        "R-115137fae3ce"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Latest session row is recovered from a global append-only JSONL with a per-session checkpoint",
+        "Checkpoint validation samples three 256-byte windows, not the entire processed prefix",
+        "Scanning is capped at16MiB per call and 1MiB per JSONL line; incomplete last rows can be displayed but are not committed to the checkpoint",
+        "Cumulative row selection prefers a vector with greater token and cost totals before timestamps",
+        "Snapshot retention is opportunistic, defaults to30 days/512 snapshots, and warns on failures without undoing appended rows"
+      ],
+      "native_decisions": [
+        "Retain explicit revisions per source/window instead of inferring that a greater cost is newer",
+        "Retain visible partial/persistence statuses and typed project scope",
+        "Incremental checkpoint optimization requires workload evidence before changing the existing task-close meter",
+        "Do not claim sampled-prefix fingerprints authenticate an entire prefix or coordinate concurrent writers"
+      ]
+    },
+    {
+      "id": "R-aa073f6b406b",
+      "sha256": "f9e811b4657dc250c2fd448cd21838aea1155a274b6803afafc87156009a720e",
+      "lines": 279,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          279
+        ]
+      ],
+      "dependencies": [
+        "R-076e8356b72b",
+        "R-115137fae3ce",
+        "R-7d9940f71285"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Reads usage from assistant transcript messages and keeps the last usage per message ID",
+        "Cumulative session cost snapshots are separate from per-response appended rows",
+        "Optional statusline cache declares billed cost with 300-second freshness; no billed-amount verification performed here",
+        "Unknown model falls back to a fixed model-family rate table; transcript read has no explicit byte cap",
+        "Stdin pass-through is suppressed after truncation, but its cap measures JavaScript string length"
+      ],
+      "native_decisions": [
+        "Keep existing global message-ID deduplication across principal and subagent transcripts",
+        "Keep explicit window and source identities for cumulative dashboard deduplication",
+        "Do not import a fixed pricing table or a global shared user-history store",
+        "Read remaining snapshot and utility dependencies before claiming this resource is fully compared"
+      ]
+    },
+    {
+      "id": "R-b18149810e30",
+      "sha256": "d3bf18be2af61791b25bcb8fb7cc44b911bf9d59579fbcfc0c6af16579574db6",
+      "lines": 100,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          100
+        ]
+      ],
+      "dependencies": [
+        "R-076e8356b72b"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Creates learned-skills directory, counts user markers in transcript and prints evaluation suggestion",
+        "No pattern extraction or skill creation is performed"
+      ],
+      "native_decisions": [
+        "Retain curated knowledge proposal and human approval rather than claim automatic learning"
+      ]
+    },
+    {
+      "id": "R-b9a585599001",
+      "sha256": "e031a96b7d05b689a457eb4c2c02dd8e1171cd5e68633f30b60a3f0f6ce4471a",
+      "lines": 276,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          276
+        ]
+      ],
+      "dependencies": [
+        "R-076e8356b72b",
+        "R-f33c48fbb392"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Tool-call count plus measured context token thresholds generate structured PreToolUse reminder",
+        "Window inference is explicit and inferred percentages omitted",
+        "Counters live in global temp; sanitized session identity may collide",
+        "14day retention sweep has no item/deadline bounds; counter updates are not coordinated"
+      ],
+      "native_decisions": [
+        "Keep token context hints separate from cost and canonical memory",
+        "Retain phase-boundary save/resume prompts rather than call-count compaction policy",
+        "No global temporary counters or unbounded cleanup imported"
+      ]
+    },
+    {
+      "id": "R-c340af711e18",
+      "sha256": "286bc8dc082ab9e23e228a744788b5bfce91fa3cb842dd2db3dfb96bd2eb464a",
+      "lines": 80,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          80
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Appends command text to global Claude audit/cost logs with selected regex redaction",
+        "Does not scope project, cap file size, or derive actual token cost"
+      ],
+      "native_decisions": [
+        "Retain event metadata without raw command text",
+        "Retain canonical redactor and scoped usage meter"
+      ]
+    },
+    {
+      "id": "R-e004ae305ac0",
+      "sha256": "0a39212f81838cd9756ade0048c296a6f79acf6dc8416ded6b15cd8c5be07ae8",
+      "lines": 245,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          245
+        ]
+      ],
+      "dependencies": [
+        "R-4f8126d33200"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Explicit environment override wins over project config and host defaults",
+        "Project config permits only user-anchored roots under predefined data homes",
+        "Project detection favors Cursor config, then defaults Claude global storage"
+      ],
+      "native_decisions": [
+        "Keep project-scoped canonical local memory and host adapters",
+        "Do not add Cursor-specific storage or unconstrained environment overrides"
+      ]
+    },
+    {
+      "id": "R-f33c48fbb392",
+      "sha256": "38f399260f79904bc8a97448d1dff965aaf0f04596143ce344fdbf64747bf0a2",
+      "lines": 292,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          292
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Default256KiB tail scan finds latest Claude usage row",
+        "Context window may be assumed or inferred; explicit status exposed",
+        "Threshold buckets reduce repeated reminders"
+      ],
+      "native_decisions": [
+        "Do not add inferred model-window percentages to measured usage totals",
+        "Review context hints as separate future opt-in feature, not canonical memory authority"
+      ]
+    },
+    {
+      "id": "R-0fe5dcabdfb7",
+      "sha256": "ee6e4c0990f8d538cae1c85aa194e01e9ca2336e5d993ef68eb608b96cb0d82c",
+      "lines": 150,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          150
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Condiciona análisis opcional por horario, cooldown de proyecto e inactividad. El registro de cooldown se actualiza antes de comprobar inactividad.",
+        "Si no puede determinar la inactividad o crear el directorio del log, permite continuar; esas condiciones no son una puerta de autorización humana."
+      ],
+      "native_decisions": [
+        "Si se añaden límites de frecuencia u horarios, sólo deben afectar al análisis opcional; la lectura local, captura y propuestas pendientes permanecen disponibles.",
+        "No convertir detección de actividad ni cooldown en una prueba de permiso, aprobación o éxito del análisis. Conservar ejecución controlada y decisiones explícitas."
+      ]
+    },
+    {
+      "id": "R-2a1f8ff1e882",
+      "sha256": "ee5c5c366958848683c17527d1572f10cf86f8ec52a9ba645202db8652d9c046",
+      "lines": 261,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          261
+        ]
+      ],
+      "dependencies": [
+        "R-076e8356b72b"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Notificaciones por OSC 9 o AppleScript en macOS y por PowerShell/BurntToast en WSL. No contiene envío para Windows nativo ni Linux ordinario.",
+        "Resume la primera línea de la respuesta; la búsqueda de TTY y las llamadas síncronas pueden exceder un presupuesto breve. No demuestra por sí sola soporte para tres clientes."
+      ],
+      "native_decisions": [
+        "Mantener la actividad y el resultado en el panel local común a los tres runtimes; no añadir módulos del sistema ni exponer texto del asistente en notificaciones de escritorio por defecto.",
+        "Si se incorpora notificación externa, debe ser una capacidad opt-in con permiso explícito, contenido mínimo, adaptadores por plataforma y ejecución fuera del hook breve."
+      ]
+    },
+    {
+      "id": "R-30610fcbd0b0",
+      "sha256": "6f17e7a99aafe252ecd0b9212fb5f606be50b8ce1685f5a6435e46e87ffeb970",
+      "lines": 8,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          8
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Configuración por defecto: observador desactivado, intervalo de cinco minutos y mínimo de veinte observaciones."
+      ],
+      "native_decisions": [
+        "Conservar análisis opcional y separado de la disponibilidad de memoria local; no activar modelos externos ni procesos persistentes por defecto."
+      ]
+    },
+    {
+      "id": "R-3b02f94e1e1a",
+      "sha256": "c254d1411dfd2a191c380c605fedfe8c5b37daf8f5c4bec55844b06c22403624",
+      "lines": 675,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          675
+        ]
+      ],
+      "dependencies": [
+        "R-5224873745a6",
+        "R-bfbbc1c8e8e9",
+        "R-95b5ae2a73e0",
+        "R-30610fcbd0b0"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Captura pre/post por proyecto, depuración de patrones de secretos, rotación de JSONL y filtros para evitar observar sesiones automatizadas.",
+        "Intenta arrancar un observador en segundo plano y reconoce que en Windows nativo puede morir al cerrar el Job Object del hook. Las señales de vida se basan en PID.",
+        "La identidad de proyecto, configuración y arranque dependen de cuatro recursos adicionales; quedan registrados para lectura."
+      ],
+      "native_decisions": [
+        "Conservar captura durable acotada y replay explícito fuera de hooks breves, con identidad de proyecto y filtrado de secretos.",
+        "No depender de un daemon lanzado desde el hook para hacer disponible la memoria en Windows. Los efectos de aprobación/publicación siguen la puerta de conocimiento.",
+        "No convertir kill -0 o un PID persistido en prueba de pertenencia o salud; mantener contención y evidencias de proceso propias."
+      ]
+    },
+    {
+      "id": "R-4a236023dc1d",
+      "sha256": "c36f288d96abcbababfc3284f11ab807eb040853bcdf9b97dcd7ac77506df86c",
+      "lines": 167,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          167
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Centraliza búsqueda de raíz entre entorno, instalación directa, rutas heredadas y caché. En modo implícito usa una skill sentinela para distinguir instalaciones parciales.",
+        "La raíz explícita se acepta sin probe y el fallback devuelve el directorio global aun cuando no encuentra una instalación completa."
+      ],
+      "native_decisions": [
+        "Conservar resolución y verificación propias por runtime y modo de instalación; evitar sentinelas de una skill ajena y nombres heredados.",
+        "No asumir que un directorio global es una raíz válida. La ausencia o instalación parcial debe informar y degradar conforme al contrato de cada cliente."
+      ]
+    },
+    {
+      "id": "R-5224873745a6",
+      "sha256": "99dfa99ae0f7c6e2e15ed5b5bf3c46e91a5f089f4060ba93d5da5e85e04fd308",
+      "lines": 31,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          31
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Resuelve almacenamiento por override, XDG_DATA_HOME y HOME; sólo reconoce las formas absolutas POSIX."
+      ],
+      "native_decisions": [
+        "Mantener resolución de rutas nativa de cada sistema y raíz validada; no interpretar C:\\ como una ruta relativa en un host Windows."
+      ]
+    },
+    {
+      "id": "R-7d767c8228df",
+      "sha256": "382623502ffe25ffc2cc7fe810bc79a181600a46c43595fe8de0da148998b7b1",
+      "lines": 92,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          92
+        ]
+      ],
+      "dependencies": [
+        "R-076e8356b72b"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Aviso Stop sobre console.log en archivos JavaScript/TypeScript modificados, con exclusiones de pruebas, configuración y scripts.",
+        "La detección es textual y puede advertir sobre comentarios o literales; mantiene el payload de entrada en el ejecutable directo."
+      ],
+      "native_decisions": [
+        "No incorporar un escaneo JavaScript global en cada respuesta: la QA usa las herramientas de análisis declaradas por el proyecto.",
+        "Conservar el patrón informativo y no bloqueante; cualquier futura detección concreta requiere opt-in y pruebas del oracle, sin copiar el pass-through de payload a otro contrato nativo."
+      ]
+    },
+    {
+      "id": "R-8737e85cbf53",
+      "sha256": "1dbb93800818af03798c4775f1fa4997d6c68b603b4b0837df0a38b4e54dfe32",
+      "lines": 149,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          149
+        ]
+      ],
+      "dependencies": [
+        "R-dde3f40a27b5"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Registra invocaciones de la herramienta Skill con identificadores y versiones acotados, sin guardar el prompt como descripción.",
+        "Infiere éxito cuando no reconoce un error; una respuesta ausente se clasifica como success. La señal depende del contrato de herramientas del cliente."
+      ],
+      "native_decisions": [
+        "Distinguir finalización de herramienta, resultado desconocido y aceptación de una tarea; no deducir éxito funcional de la ausencia de error.",
+        "Mantener aplazada la ampliación y analítica específica de skills. Una futura implementación debe usar señales verificadas por runtime y conservar estado unknown si falta evidencia."
+      ]
+    },
+    {
+      "id": "R-95b5ae2a73e0",
+      "sha256": "6f5beed1e96f685c09ffa7f614f9673ba68f1466a60830252b8b9138efe05e84",
+      "lines": 258,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          258
+        ]
+      ],
+      "dependencies": [
+        "R-bfbbc1c8e8e9",
+        "R-5224873745a6",
+        "R-30610fcbd0b0",
+        "R-b074e432e361"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Arranque, estado y parada de un observador por PID persistido, con centinela de pausa ante textos de permisos y arranque nohup.",
+        "El arranque delega el análisis a otro script; la comprobación inicial de PID no demuestra supervivencia tras salir el hook."
+      ],
+      "native_decisions": [
+        "Mantener ejecución explícita y contención propia; no basar salud ni propiedad del proceso en un PID reutilizable.",
+        "Conservar pendiente la lectura del bucle delegado antes de cerrar la comparación del análisis."
+      ]
+    },
+    {
+      "id": "R-b074e432e361",
+      "sha256": "a6d119252c8ff2eda7aa7b345c2254fd6bdaf14056f6b5bf54835a2738ff310d",
+      "lines": 545,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          545
+        ]
+      ],
+      "dependencies": [
+        "R-0fe5dcabdfb7",
+        "R-091ff88fa6e3"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Bucle opcional con cooldown, muestreo de las últimas observaciones, watchdog y confirmación estructurada antes de archivar.",
+        "La confirmación usa descriptores del fichero resultado, pero se archiva el fichero completo de observaciones tras analizar sólo una cola. El texto del contrato no prueba que todas las observaciones archivadas se hayan procesado.",
+        "El modelo escribe patrones con confianza derivada de frecuencia; se invoca Claude con Read y Write y se omite el análisis Windows por defecto.",
+        "Delega condiciones de ejecución a un guardián de sesión y poda de patrones a otra CLI; ambas dependencias requieren lectura."
+      ],
+      "native_decisions": [
+        "Mantener recibos y ack por entrada y generación; no archivar observaciones fuera de la instantánea efectivamente procesada.",
+        "Conservar cuarentena y aprobación de conocimiento; frecuencia de un patrón o un marcador de completado del modelo no sustituyen validación de artefactos ni aprobación humana.",
+        "Mantener IA opt-in fuera del hook con límites y resultado validado; no anunciar disponibilidad en tres proveedores para una implementación específica de Claude."
+      ]
+    },
+    {
+      "id": "R-bf8034b7b095",
+      "sha256": "0ac9f619f326a5465f04ddc4cdade192132b6a47d011067af00b7a5d17f5efed",
+      "lines": 199,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          199
+        ]
+      ],
+      "dependencies": [
+        "R-3b02f94e1e1a"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Runner de observación pre/post que resuelve una raíz, busca Bash/sh y ejecuta un script de aprendizaje con timeout por defecto de nueve segundos.",
+        "La contención de ruta es léxica; la prueba de shell no declara timeout y el ejecutable directo lee stdin completo. Su script destino requiere revisión separada."
+      ],
+      "native_decisions": [
+        "Mantener la captura durable y el replay como dueño del aprendizaje local; no añadir otro fan-out síncrono de shells en hooks breves.",
+        "La observación produce propuestas pendientes, no conocimiento aprobado automáticamente. Revisar el script de observación antes de cerrar esta dependencia."
+      ]
+    },
+    {
+      "id": "R-bfbbc1c8e8e9",
+      "sha256": "43215ad15ce0c6585c13b1c45cbba6bf8df0dc459b663ddca77c0b86c459c283",
+      "lines": 334,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          334
+        ]
+      ],
+      "dependencies": [
+        "R-5224873745a6"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Identifica proyecto por remoto Git normalizado o raíz; usa hash corto, un fallback global y migración de hashes anteriores.",
+        "Actualiza proyecto y registro mediante reemplazos separados; no declara serialización del read-modify-write de todo el registro."
+      ],
+      "native_decisions": [
+        "Mantener la identidad de proyecto declarada y validada de la candidata; la portabilidad no debe fusionar scopes por una inferencia del remoto.",
+        "Conservar bloqueo de dueño y validación de generación en operaciones de estado; un reemplazo atómico por sí solo no prueba ausencia de actualizaciones perdidas."
+      ]
+    },
+    {
+      "id": "R-14813285deed",
+      "sha256": "4e0ecb82f611c1d3ea17767f4df1abf90bb508054fbfb51371f24c92263eee58",
+      "lines": 190,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          190
+        ]
+      ],
+      "dependencies": [
+        "R-9893278a65f2"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Centraliza descubrimiento por marcadores, prioriza Biome frente a Prettier y prefiere binarios locales.",
+        "Si falta el binario local usa un runner de paquetes, que delega a otra biblioteca; esa dependencia requiere lectura."
+      ],
+      "native_decisions": [
+        "Conservar resolución compartida y ejecutable disponible, evitando duplicación. No introducir descarga de herramientas como fallback automático.",
+        "La herramienta y su prioridad deben derivarse de la configuración declarada del proyecto, con rutas y scope validados."
+      ]
+    },
+    {
+      "id": "R-1a9ef05bc3af",
+      "sha256": "de72d89dc4cedb4ba0ba799edacad79b69165ec9aac5be6d65950cd0cd3b5c2d",
+      "lines": 75,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          75
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Detección textual de console.log en el fichero editado con hasta cinco líneas de contexto. La salida puede contener contenido de código o secretos de esas líneas."
+      ],
+      "native_decisions": [
+        "Preferir herramientas de análisis declaradas en el proyecto y avisos mínimos; no publicar fragmentos del archivo en logs de hooks por defecto.",
+        "No tratar un patrón presente en comentario, literal o salida intencional como defecto probado."
+      ]
+    },
+    {
+      "id": "R-1b52a64f96e4",
+      "sha256": "f8d12ce13a257a33f41e6b796891aa8af001c48a8237f24afd4216a2e5f3bfaa",
+      "lines": 212,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          212
+        ]
+      ],
+      "dependencies": [
+        "R-076e8356b72b"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Contexto de proyecto por remoto o raíz, leases de sesión y parada de observador por PID persistido. Un lease de disco basta para figurar como presente."
+      ],
+      "native_decisions": [
+        "Conservar identidad de proyecto, ejecución y estado del dueño. Un lease o kill -0 no acredita liveness, pertenencia ni trabajo actual.",
+        "No detener procesos por PID de un fichero sin comprobar propiedad; mantener supervisión y limpieza del árbol creado."
+      ]
     },
     {
       "id": "R-1cc73263eabb",
       "sha256": "4724276f27684b45dd05282fd8b1e2b7e1dcf76eb72952b8b491bc3da7c4f846",
       "lines": 270,
+      "body_read_status": "full",
       "hash_verified": true,
-      "body_read_status": "unread",
+      "ranges_read": [
+        [
+          1,
+          270
+        ]
+      ],
       "dependencies": [
         "R-d357f7a01498",
         "R-564ee7b92148",
@@ -770,199 +1567,387 @@
         "R-7fb9a92af3c0",
         "R-d4c4189d23b0",
         "R-8737e85cbf53"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Un punto de entrada síncrono y otro asíncrono conservan ID, matcher y perfil de cada manejador.",
+        "Combina additionalContext cuando todas las salidas cumplen el mismo contrato; para stdout opaco conserva sólo la última salida y avisa.",
+        "Los manejadores se invocan secuencialmente incluso dentro del grupo llamado async. Continúa tras errores y conserva el primer exit distinto de cero."
+      ],
+      "native_decisions": [
+        "Conservar el catálogo de manejadores por runtime y la UI que muestra cada responsabilidad, timeout y estado: agrupar eventos no debe ocultar el trabajo concreto.",
+        "Mantener traducción de salidas conforme al contrato nativo; no perder avisos o decisiones al fusionar stdout arbitrario.",
+        "El modo asíncrono de un hook no acredita ejecución paralela de sus manejadores ni una latencia acotada sin revisar las dependencias."
       ]
     },
     {
-      "id": "R-053f74dadb4a",
-      "sha256": "98eee132c60edc683066233b227e65f0a4e752683efe97384509577bbbfb8bd6",
-      "lines": 178,
+      "id": "R-3c29b0aea62d",
+      "sha256": "b69e6128795c7d9a5db9af45e4f709a6192d427ac998962c3564926aaa9d35a4",
+      "lines": 78,
+      "body_read_status": "full",
       "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": [
-        "R-076e8356b72b",
-        "R-30aa29857c62"
+      "ranges_read": [
+        [
+          1,
+          78
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Acumula rutas JavaScript/TypeScript en texto temporal por sesión para consumirlas en Stop; el fallback de identidad se deriva de cwd.",
+        "El formato por líneas pierde la distinción si un nombre de archivo contiene un salto de línea y no contiene recibos por entrada procesada."
+      ],
+      "native_decisions": [
+        "Conservar entradas estructuradas, scope y generación en cualquier futura cola de trabajo; identidad de sesión no debe confundirse con proyecto.",
+        "No consumir el trabajo pendiente antes de confirmar el resultado del dueño. Mantener la ejecución de formato explícita."
       ]
     },
     {
-      "id": "R-13dd1e32403b",
-      "sha256": "dd24fbec816a9dc738e45c5b126f3823365410c3d0e0fde52ea8ee8e1384a234",
-      "lines": 67,
+      "id": "R-461d2219288b",
+      "sha256": "51c2110a507c7f545f9040cb0bb5cf23c935b1f05018aea15bf4685bfb17a53a",
+      "lines": 639,
+      "body_read_status": "full",
       "hash_verified": true,
-      "body_read_status": "unread",
+      "ranges_read": [
+        [
+          1,
+          639
+        ]
+      ],
       "dependencies": [
-        "R-1b52a64f96e4"
+        "R-076e8356b72b"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Telemetría por herramienta con resúmenes filtrados, paths, previews de diff y comandos Git para enriquecer el evento. Es señal PostToolUse de Claude.",
+        "duration_ms se fija a cero y el evento infiere acción de nombres de herramienta; un evento de lectura o escritura no acredita una ejecución activa ni resultado validado."
+      ],
+      "native_decisions": [
+        "Conservar captura mínima con identidades HMAC, scope, revisión, procedencia y resultado explícito de los adaptadores nativos.",
+        "No incorporar fragmentos de código o de comandos al dashboard por defecto; registrar detalles sólo con política declarada y filtrado adecuado.",
+        "Mostrar eventos y estado conocido sin inventar duraciones, progreso continuo, éxito funcional o atención del modelo."
       ]
     },
     {
-      "id": "R-2a754bdba132",
-      "sha256": "dad58b43af2ea3ed46ec802334d65c5cf327998b6ce818b5a3e6c482088e2730",
-      "lines": 360,
+      "id": "R-7f7e78032ef1",
+      "sha256": "ffac3f7c2b226e68c808b7e23d515727e0db32e166ed14d25674dfa9a407be33",
+      "lines": 131,
+      "body_read_status": "full",
       "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": [
-        "R-076e8356b72b",
-        "R-30aa29857c62"
+      "ranges_read": [
+        [
+          1,
+          131
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Recordatorio de diseño por extensión y patrones textuales de copy, clases CSS o disposición. Lee cada fichero completo y advierte incluso sin patrón detectado."
+      ],
+      "native_decisions": [
+        "Mantener evaluación visual y accesibilidad sobre la UI real. Una heurística textual no demuestra calidad ni debe bloquear una decisión de diseño válida.",
+        "No añadir este recordatorio en cada edición: las guías compartidas y la revisión visual tienen un dueño explícito."
       ]
     },
     {
-      "id": "R-261622b88023",
-      "sha256": "e1f2495e0846fdb8378b0d794e39134d52c01f8242c445faf0265227dfcddd50",
-      "lines": 101,
+      "id": "R-7fb9a92af3c0",
+      "sha256": "c78b8ba985fefbca95db970da8da50465f634895e0ea688b45d688f70d4abfdd",
+      "lines": 278,
+      "body_read_status": "full",
       "hash_verified": true,
-      "body_read_status": "unread",
+      "ranges_read": [
+        [
+          1,
+          278
+        ]
+      ],
       "dependencies": [
-        "R-4a236023dc1d",
-        "R-564ee7b92148",
-        "R-07b6abd1ac04"
+        "R-115137fae3ce",
+        "R-7d9940f71285",
+        "R-076e8356b72b"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Bridge con contadores y buffer de cinco herramientas; usa hashes del contenido de cambios para reducir falsas colisiones y acota los archivos a doscientos.",
+        "Lee snapshots de coste y devuelve ceros cuando faltan datos o hay un fallo. El reemplazo de un bridge no implica merge concurrente."
+      ],
+      "native_decisions": [
+        "Conservar clasificación medido/estimado y datos desconocidos separados de cero. La fuente, ventana y revisión identifican el snapshot completo.",
+        "Mantener estado parcial y fallo de persistencia explícitos; no afirmar que reemplazo atómico equivale a serialización o ausencia de pérdida concurrente."
       ]
     },
     {
-      "id": "R-8737e85cbf53",
-      "sha256": "1dbb93800818af03798c4775f1fa4997d6c68b603b4b0837df0a38b4e54dfe32",
-      "lines": 149,
+      "id": "R-8549f97a6403",
+      "sha256": "f553b83f754a8b024e53303200ae85aaec7abacc3f6ef703075081799288a459",
+      "lines": 863,
+      "body_read_status": "full",
       "hash_verified": true,
-      "body_read_status": "unread",
+      "ranges_read": [
+        [
+          1,
+          863
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Preflight y recuperación MCP con TTL, backoff, HTTP y arranque de procesos stdio, configurados para Claude.",
+        "La prueba HTTP acepta respuestas de autenticación y 404 como conectividad. La prueba stdio observa supervivencia hasta un timer, sin handshake de protocolo.",
+        "Se almacena estado global por nombre del servidor con escritura directa; configuraciones de proyecto, identidad y concurrencia requieren atención separada.",
+        "Por defecto puede bloquear la herramienta tras un probe fallido; el opt-in de reconexión permite ejecutar un comando configurado."
+      ],
+      "native_decisions": [
+        "No confundir descubrimiento, endpoint alcanzable, proceso lanzado, autenticación y handshake o uso MCP completado; mostrar evidence específica y unknown cuando falte.",
+        "Mantener conexión y ejecución bajo demanda y opt-in; no ejecutar configuraciones de un proyecto por inventario o por abrir el dashboard.",
+        "No añadir guardias globales que bloqueen herramientas legítimas por una caché de conectividad o que mezclen servidores homónimos de distintos proyectos.",
+        "Si se incorpora salud persistida, conservar identidad de proyecto y backend, estado duradero propio, límites, secretos filtrados y resultado de publicación explícito."
+      ]
+    },
+    {
+      "id": "R-8a235acb30a7",
+      "sha256": "66874c9ff75bf74483b17a699b217865ae6a47cfe1462fd2b1f037511aecb582",
+      "lines": 168,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          168
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "Ejecuta controles por archivo con timeout de quince segundos; puede escribir al activar fix. strict produce avisos pero no cambia la decisión nativa."
+      ],
+      "native_decisions": [
+        "Mantener separación entre aviso y QA gate. Un nombre strict no acredita bloqueo o aceptación.",
+        "No iniciar herramientas, paquetes ni modificaciones de archivos desde un hook informativo global sin configuración y autorización del proyecto."
+      ]
+    },
+    {
+      "id": "R-8bd71b6add90",
+      "sha256": "8001160e9bc469dd57aa000ff483962c00841701973e9d1cf122105b88a839d8",
+      "lines": 373,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          373
+        ]
+      ],
       "dependencies": [
-        "R-dde3f40a27b5"
+        "R-e6c33a7553a7",
+        "R-391f040a5518"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Captura opcional de patrones de secretos, operaciones sensibles y entradas truncadas como eventos informativos.",
+        "El dueño observado emite JSON a stderr; esa emisión no demuestra que el almacenamiento o panel hayan persistido el evento.",
+        "Las reglas textuales identifican operaciones a revisar, pero un evento approval_requested no demuestra solicitud entregada ni aprobación humana; puede derivarse de PostToolUse."
+      ],
+      "native_decisions": [
+        "Conservar una única puerta versionada para aprobación, con petición, decisión, entrega y resultado separados. Un aviso posterior no bloquea ni autoriza una acción ya ejecutada.",
+        "Mantener evidencia mínima sin comandos completos ni secretos; las rutas sensibles también requieren tratamiento según scope.",
+        "Separar señal emitida de persistencia confirmada; no mostrar como resuelto o aprobado un evento sin recibo del dueño."
+      ]
+    },
+    {
+      "id": "R-9893278a65f2",
+      "sha256": "636f8bc8379ae0c26be1f7c5b61555cf2a274698a4f9fbd34e9eced9eacb3662",
+      "lines": 434,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          434
+        ]
+      ],
+      "dependencies": [
+        "R-076e8356b72b"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Resuelve gestor por entorno, configuración de proyecto, packageManager, lockfile y preferencia global; usa npm como fallback sin comprobar disponibilidad.",
+        "El runner de paquetes y la generación de comandos no demuestran que los binarios estén instalados ni que la ejecución vaya a evitar descargas."
+      ],
+      "native_decisions": [
+        "Mantener comandos y herramientas declarados por el proyecto y resolver disponibilidad real antes de ejecutar. No añadir paquetes técnicos ni instalar herramientas por fallback silencioso.",
+        "Separar selección de gestor, capacidad declarada, ejecutable disponible y ejecución verificada. La detección local no debe disparar sondeos de procesos en cada hook."
+      ]
+    },
+    {
+      "id": "R-d4c4189d23b0",
+      "sha256": "6c9399ca4e1bd0162cf824fd4c94f5c05e580bb3146e6e365f38b6f7bd14e5ec",
+      "lines": 300,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          300
+        ]
+      ],
+      "dependencies": [
+        "R-115137fae3ce"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Avisos de contexto, coste, cantidad de archivos y repetición de llamadas a partir de un bridge. La deduplicación usa nivel de severidad.",
+        "La antigüedad sólo suprime el porcentaje de contexto, no los avisos de coste, scope o bucles."
+      ],
+      "native_decisions": [
+        "Conservar avisos informativos acotados y su procedencia. Umbrales no deben cambiar una autorización ni detener el objetivo del usuario automáticamente.",
+        "No afirmar un bucle improductivo sólo por varias llamadas iguales: polling, reintentos y verificación legítima pueden repetir parámetros."
+      ]
+    },
+    {
+      "id": "R-dde3f40a27b5",
+      "sha256": "a4aaf552a06e45e5ccb1fe76c4ec98566ff088967102f86f968dadb6b102054b",
+      "lines": 196,
+      "body_read_status": "full",
+      "hash_verified": true,
+      "ranges_read": [
+        [
+          1,
+          196
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "JSONL local con retención de cinco mil filas, intentos de permisos privados y fallback desde state store.",
+        "La poda reescribe el fichero directamente sin lock declarado; los strings no están acotados aquí y los números usan coerción Number."
+      ],
+      "native_decisions": [
+        "Mantener límites por bytes y entrada además de retención, publicación duradera y estado visible si falla la escritura.",
+        "No importar inferencias de éxito de tools a aprobación funcional de skills. La ampliación y analítica específica de skills sigue aplazada por el usuario."
       ]
     },
     {
       "id": "R-e49100132a90",
       "sha256": "a02d73b611527ba5816781893ea347b646fa7ddce7bcb50820d8c9079c798f0d",
       "lines": 251,
+      "body_read_status": "full",
       "hash_verified": true,
-      "body_read_status": "unread",
+      "ranges_read": [
+        [
+          1,
+          251
+        ]
+      ],
       "dependencies": [
         "R-14813285deed"
+      ],
+      "static_read_only": true,
+      "observations": [
+        "Agrupa archivos JavaScript/TypeScript acumulados para formatear y ejecutar typecheck por proyecto; consume y elimina el acumulador antes de ejecutar.",
+        "Puede escribir con formateadores y ejecutar npx tsc; distribuye un presupuesto de 270 segundos entre lotes.",
+        "Excluye instalaciones Claude de plugins pero no demuestra por sí mismo protección equivalente para todos los clientes."
+      ],
+      "native_decisions": [
+        "Mantener comandos QA y formato explícitos con herramientas declaradas por el proyecto; no añadir paquetes técnicos ni escritura automática global al finalizar cada respuesta.",
+        "Si se incorpora acumulación de archivos, debe validar rutas e identidad por runtime y confirmar procesamiento antes de consumir el trabajo.",
+        "No trasladar presupuestos largos de Stop a SessionEnd ni asumir que son compatibles con los tres hosts."
       ]
     },
     {
-      "id": "R-b9a585599001",
-      "sha256": "e031a96b7d05b689a457eb4c2c02dd8e1171cd5e68633f30b60a3f0f6ce4471a",
-      "lines": 276,
+      "id": "R-091ff88fa6e3",
+      "sha256": "a2e90e34ee589827592248dbc801bee90f1d5db6d2330e2d5004e4694b8e06f9",
+      "lines": 2290,
+      "body_read_status": "full",
       "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": [
-        "R-076e8356b72b",
-        "R-f33c48fbb392"
+      "ranges_read": [
+        [
+          1,
+          2290
+        ]
+      ],
+      "dependencies": [],
+      "static_read_only": true,
+      "observations": [
+        "CLI completa con import/export, agrupación de patrones, generación opcional de skills/comandos/agentes, promoción de proyecto a global y mantenimiento de proyectos.",
+        "La identidad se infiere de remoto/ruta. Import puede cambiar a global cuando falta proyecto; status y dry-run llaman a detección que crea directorios y actualiza registro.",
+        "La confianza sirve como criterio de importación y promoción, y la repetición entre proyectos como candidata global. La agrupación combina patrones locales y globales.",
+        "El reemplazo en import publica el fichero nuevo y elimina ficheros fuente completos de patrones actualizados; un fichero fuente con varias entradas exige preservar las no seleccionadas.",
+        "El bloqueo del registro es no-op en Windows cuando falta fcntl. La poda automática elimina entradas pending por antigüedad."
+      ],
+      "native_decisions": [
+        "Conservar identidad declarada, scope explícito y separación capture → pending → revisión → approved. Frecuencia/confianza no sustituye aprobación ni valida contenido.",
+        "Mantener consultas de estado y previsualización sin escrituras. La ausencia de proyecto debe pedir o requerir un destino explícito; nunca ampliar silenciosamente a global.",
+        "Conservar importación por entrada con ID/version/hash y procedencia: nuevas entradas quedan pendientes en el destino, sin sobrescribir aprobado ni borrar contenido no seleccionado.",
+        "Mantener evolución de patrones como propuestas revisables con contrato propio y exportadores nativos; no activar automáticamente agentes, skills o comandos generados. La ampliación de skills sigue aplazada.",
+        "No adoptar borrado automático global de propuestas pendientes como efecto de iniciar un observador. Retención y limpieza requieren política declarada, scope y evidencia.",
+        "Mantener propietario, generación y plazos de publicación en todos los sistemas; reemplazo atómico sin serialización no garantiza conservación concurrente."
       ]
-    },
-    {
-      "id": "R-e004ae305ac0",
-      "sha256": "0a39212f81838cd9756ade0048c296a6f79acf6dc8416ded6b15cd8c5be07ae8",
-      "lines": 245,
-      "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": [
-        "R-4f8126d33200"
-      ]
-    },
-    {
-      "id": "R-4a236023dc1d",
-      "sha256": "c36f288d96abcbababfc3284f11ab807eb040853bcdf9b97dcd7ac77506df86c",
-      "lines": 167,
-      "hash_verified": true,
-      "body_read_status": "unread",
-      "dependencies": []
     }
   ],
-  "discovered_unread_descendants": [
-    {
-      "id": "R-7f7e78032ef1",
-      "catalog_sha256": "ffac3f7c2b226e68c808b7e23d515727e0db32e166ed14d25674dfa9a407be33",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-d4c4189d23b0",
-      "catalog_sha256": "6c9399ca4e1bd0162cf824fd4c94f5c05e580bb3146e6e365f38b6f7bd14e5ec",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-7fb9a92af3c0",
-      "catalog_sha256": "c78b8ba985fefbca95db970da8da50465f634895e0ea688b45d688f70d4abfdd",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-3c29b0aea62d",
-      "catalog_sha256": "b69e6128795c7d9a5db9af45e4f709a6192d427ac998962c3564926aaa9d35a4",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-1a9ef05bc3af",
-      "catalog_sha256": "de72d89dc4cedb4ba0ba799edacad79b69165ec9aac5be6d65950cd0cd3b5c2d",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-8a235acb30a7",
-      "catalog_sha256": "66874c9ff75bf74483b17a699b217865ae6a47cfe1462fd2b1f037511aecb582",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-461d2219288b",
-      "catalog_sha256": "51c2110a507c7f545f9040cb0bb5cf23c935b1f05018aea15bf4685bfb17a53a",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-30aa29857c62",
-      "catalog_sha256": "ce2caaae62f8f50ff48cf07ce9cf1ae2b8e37162bd897e59055f6cf68725db97",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-1b52a64f96e4",
-      "catalog_sha256": "f8d12ce13a257a33f41e6b796891aa8af001c48a8237f24afd4216a2e5f3bfaa",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-4f8126d33200",
-      "catalog_sha256": "542126cf47247161dd26713a1f33d34af2881db46435ac8ecef76a8be31c062c",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-14813285deed",
-      "catalog_sha256": "4e0ecb82f611c1d3ea17767f4df1abf90bb508054fbfb51371f24c92263eee58",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-115137fae3ce",
-      "catalog_sha256": "9ad9c91f1ad63c04ab3bbefba28608403ff9e0b60744ac3f18eea9478e0d040d",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-7d9940f71285",
-      "catalog_sha256": "a9573841c8862bb274e46bc73708d9077865750820c36df569def539a90630c4",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-dde3f40a27b5",
-      "catalog_sha256": "a4aaf552a06e45e5ccb1fe76c4ec98566ff088967102f86f968dadb6b102054b",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-f33c48fbb392",
-      "catalog_sha256": "38f399260f79904bc8a97448d1dff965aaf0f04596143ce344fdbf64747bf0a2",
-      "body_read_status": "unread",
-      "hash_verified": false
-    },
-    {
-      "id": "R-076e8356b72b",
-      "catalog_sha256": "c9a84bd7993cb65e532a16b1872ce468b869ec40aac2d743aa03bcbf6a6dd5a8",
-      "body_read_status": "unread",
-      "hash_verified": false
-    }
-  ],
-  "transitive_closure_complete": false
+  "unread_immediate_resources": [],
+  "discovered_unread_descendants": [],
+  "transitive_closure_complete": true,
+  "session_continuity_checkpoint": {
+    "date": "2026-10-11",
+    "source_bodies_read": [
+      "R-5f85c39068f7",
+      "R-03b492bcef1e",
+      "R-115137fae3ce"
+    ],
+    "own_sections_read": [
+      {
+        "path": "agent-kits/shared/usage-meter.py",
+        "sha256": "dac4453933c646da9e8f79bc7a524e2e1dbe0baba793b90f7962ae09998961a6",
+        "sections": [
+          "_replace_state_file",
+          "_save_state"
+        ]
+      },
+      {
+        "path": "hooks/session-context.sh",
+        "sha256": "e17d12526124df2324660362a55354a6d596b8087029b158cc85692569fe9398",
+        "sections": [
+          [
+            1,
+            315
+          ]
+        ]
+      },
+      {
+        "path": "agent-kits/shared/plan-review.py",
+        "sha256": "fadd605254592d5f4ae82bef3db69b0d384a790fe15091b3c1715d02f494e46f",
+        "sections": [
+          [
+            215,
+            248
+          ],
+          [
+            321,
+            409
+          ]
+        ]
+      }
+    ],
+    "reference_execution": false,
+    "native_review_workflow_accepted": false,
+    "own_state_implementation_focal_accepted": false
+  },
+  "static_read_checkpoint": {
+    "observed_on": "2026-10-11",
+    "newly_read_resources": [
+      "R-e6c33a7553a7"
+    ],
+    "full_bodies": 70,
+    "partial_bodies": 0,
+    "pending_immediate": 0,
+    "pending_descendants": 0,
+    "source_execution": false,
+    "native_efficacy_claim": false,
+    "global_acceptance": false,
+    "candidate_modified": false,
+    "live_QA_source_modified": false
+  },
+  "closure_scope": "Declared dependency graph of the targeted static hook/guard/learning comparison only; not all library resources or native runtime acceptance"
 }

@@ -39,6 +39,25 @@ La memoria local sigue siendo el origen canónico. Esta decisión de prioridad
 no declara implementados los contratos de lectura pendientes ni superioridad
 general, y no convierte la lectura documental inicial en un benchmark.
 
+## Comprobación real posterior — compatibilidad de publicación
+
+El pase del 2026-10-11 observó un error tipado del servidor con `isError: false`,
+antes tratado como éxito; el cliente lo rechaza ahora. La regresión usa la respuesta
+real y pasa junto con Graphiti/seguridad: 322 casos por plataforma Windows/Linux.
+El mismo rechazo se confirma en el servidor, sin enviar un episodio de fondo.
+
+La entrada sintética en un grupo propio fue aceptada en cola, pero su procesamiento
+falló con node-not-found. Los registros de ese grupo y el código instalado de
+graphiti-core 0.30.1 identifican el UUID proporcionado como búsqueda de un episodio
+existente, frente a la creación de una entrada nueva. Se limpió sólo el grupo de
+prueba después del fallo; no se reenviaron episodios ni se cambiaron servicios.
+[Evidencia y límite de aceptación](../testing/graphiti-error44-evidence.json).
+
+La creación/identidad y confirmación asíncrona siguen abiertas, igual que sucesión,
+retirada y benchmark real. Esta observación no demuestra mejor recuperación ni
+altera la prioridad Kwipu/Graphify opcionales, el origen local o el opt-in de
+Graphiti. Su disponibilidad no acredita una publicación funcional completa.
+
 ## Comparación con la memoria de referencia y la propia
 
 La referencia comparada está fijada a `ef648e01899ba3e8dc6371642deaaf64b4477775`.
@@ -103,7 +122,7 @@ La futura prueba no reconstruirá el índice general ni borrará grupos existent
 
 | Candidato | Uso humano documentado | Uso por agentes documentado | Integración propia observada |
 |---|---|---|---|
-| Kwipu | Terminal y navegador con grafo 3D, preguntas y apertura de fuentes | MCP y HTTP con respuesta y citas | `markdown-export` publica Markdown aprobado y verifica health/snapshot. No ofrece consulta enrutada. |
+| Kwipu | Terminal y navegador con grafo 3D, preguntas y apertura de fuentes | MCP y HTTP con respuesta y citas | `markdown-export` publica Markdown aprobado y verifica health/snapshot. La consulta enrutada es opt-in explícito por backend, lectura e intent; valida las citas contra el corpus canónico y conserva respaldo local. |
 | Graphiti | Necesita herramientas de presentación alrededor del framework | Grafo temporal, episodios, hechos y búsqueda mediante MCP/API | Adaptador opt-in con publicación, verificación y lectura `read`; respaldo local por el router. |
 | Graphify | Grafo HTML, informes y exportaciones para explorar un repositorio | Consultas estructurales, caminos y MCP sobre grafo persistido | `code-context.py` lee contexto AST citado de un artefacto existente. No ejecuta el extractor ni activa su MCP. |
 
@@ -127,8 +146,12 @@ ni acredita compatibilidad por ejecutar una petición.
 
 Kwipu devuelve respuesta y citas con `node_id`, `file_name` y score opcional.
 Eso no equivale a ID, versión, estado y evidencia del conocimiento aprobado.
-Una futura lectura propia resolverá las citas al corpus canónico antes de servirlas
-como conocimiento gobernado. Un score no demuestra autoridad ni respuesta correcta.
+La lectura propia del bloque18 resuelve las citas al corpus canónico y valida
+ID, versión, hash y scope antes de devolver conocimiento gobernado. La respuesta
+generada se identifica como no verificada: esos vínculos no comprueban cada
+afirmación ni convierten un score en autoridad o respuesta correcta. La consulta
+requiere autorización explícita y conserva el respaldo local descrito en el
+[contrato de integración](memory-read-integration-contract.md).
 [Formato HTTP](https://github.com/benmaster82/Kwipu/blob/01dd7d40fd5b071fc158aec4fcd69b85be4c0a22/bridge/query.py),
 [formato MCP](https://github.com/benmaster82/Kwipu/blob/01dd7d40fd5b071fc158aec4fcd69b85be4c0a22/kwipu_mcp_server.py).
 
@@ -136,8 +159,9 @@ El bridge Kwipu inicializa con `build_if_missing=False`. Su MCP inicializa el
 motor con el default, que puede construir almacenamiento ausente. El flag del
 bridge deshabilita ese build; no acredita cero efectos: el constructor crea
 el directorio de conocimiento y la carga entra en lock/recuperación. Una futura
-consulta verificará también los efectos del arranque. No hemos probado este
-recorrido ni integrado recuperación Kwipu en el plugin.
+evaluación operativa verificará también los efectos del arranque. Ese recorrido
+de inicialización y recuperación del almacenamiento Kwipu no está probado por
+la consulta enrutada integrada en el plugin.
 [Inicialización del bridge](https://github.com/benmaster82/Kwipu/blob/01dd7d40fd5b071fc158aec4fcd69b85be4c0a22/bridge/query.py),
 [motor](https://github.com/benmaster82/Kwipu/blob/01dd7d40fd5b071fc158aec4fcd69b85be4c0a22/geode_graph.py).
 
@@ -150,9 +174,12 @@ filtros temporales ni usa `get_episode_entities` en `consultar`. El intent llama
 [adaptador propio](../../../../skills/knowledge-services/backends/graphiti.py).
 
 Graphify clasifica relaciones extraídas, inferidas y ambiguas. El lector propio
-acepta únicamente contexto AST citado y declara cobertura desconocida, vigencia
-sin verificar y contexto no aprobado. Sus relaciones sirven para localizar
-evidencia del código, sin convertirse en decisiones de proyecto aprobadas.
+acepta únicamente contexto AST citado y declara cobertura desconocida y contexto
+no aprobado. Con un recibo válido comprueba los hashes de las entradas declaradas
+y suprime contexto obsoleto; sin ese recibo, la vigencia sigue sin verificar.
+Esta comprobación no acredita cobertura de archivos nuevos, semántica, commit
+de construcción ni autenticidad del productor. Sus relaciones sirven para
+localizar evidencia del código, sin convertirse en decisiones aprobadas.
 [Arquitectura oficial](https://github.com/Graphify-Labs/graphify/blob/5b74d7d74911cf435c8f1636b6f96ea202cc6246/ARCHITECTURE.md),
 [lector propio](../../../../agent-kits/shared/code-context.py).
 
@@ -250,3 +277,19 @@ Aquella entrega preparó evaluación y cerró consultas locales, sin activar
 servicios, medir costes o acreditar UX. Los resultados actuales se conservan
 en el [informe funcional separado](memory-functional-results.md); los siguientes
 cambios siguen el [contrato de integración](memory-read-integration-contract.md).
+
+
+## Recuperación medida con los lectores actuales — 2026-10-12
+
+El pase posterior ejecuta ambos motores sobre las mismas doce fuentes sintéticas:
+catorce preguntas, tres repeticiones. Nuestro lector recupera todas las fuentes
+esperadas entre los cinco primeros en 36/36 consultas positivas; el motor de
+referencia, en 33/36. No hay cruces de proyecto. La medición no evalúa generación
+ni abstención de respuestas y sus tiempos de proceso no son comparables.
+El lector actual de contexto de código conserva explícitamente vigencia y cobertura
+no verificadas sobre el artefacto AST anterior; no se regeneró ni se aprobó ese
+conocimiento. [Resultados y límites](memory-comparison115-status.md).
+
+Se mantiene el origen local y la combinación opcional Kwipu/Graphify; Graphiti
+fuera del default. Este pase no repite consultas a los servicios externos ni
+convierte la lectura documental inicial o benchmarks anteriores en pruebas nuevas.

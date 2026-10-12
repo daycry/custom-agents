@@ -47,7 +47,7 @@ Las reglas del implementer deniegan con una razón y cómo proceder:
 
 | Regla (`dev.json` → `guardrails`) | Qué bloquea |
 |---|---|
-| `alcance` | Write/Edit/MultiEdit/NotebookEdit sobre `docs/roadmap/**` que no sea `tasks.md` (incl. `testing/`, de qa) y sobre `docs/security-scan/**`; rutas case-insensitive (`Docs/Roadmap/…` también). `docs/knowledge/**` se permite (ADR). En la raíz de `docs/roadmap/` solo se permite `README.md` (índice de iniciativas, que el cierre de cada iniciativa actualiza); `CALIBRATION.md`, `DRIFT.md` y `BACKLOG.md` quedan bloqueados **por diseño**: los escriben `/retro`, `/spec-drift` y `/pm-backlog`, que son comandos y no pasan por este hook. |
+| `alcance` | Write/Edit/MultiEdit/NotebookEdit sobre `docs/roadmap/**` que no sea `tasks.md` (incl. `testing/`, de qa) y sobre `docs/security-scan/**`; rutas case-insensitive (`Docs/Roadmap/…` también). `docs/knowledge/**` sigue permitido por la política de rutas histórica; ello no autoriza nuevas escrituras de memoria fuera del servicio compartido ni prueba confinamiento nativo de esa vía. En la raíz de `docs/roadmap/` solo se permite `README.md` (índice de iniciativas, que el cierre de cada iniciativa actualiza); `CALIBRATION.md`, `DRIFT.md` y `BACKLOG.md` quedan bloqueados **por diseño**: los escriben `/retro`, `/spec-drift` y `/pm-backlog`, que son comandos y no pasan por este hook. |
 | `ramaPrincipal` | Escrituras fuera del ledger con HEAD en `main`/`master` («trabaja en `feature/<slug>`»). Sin git → no aplica. |
 | `git` | `git push --force|-f|--force-with-lease`, refspec `+rama`, `git branch -D`, `git checkout|switch main|master` desde una rama de trabajo y `rm -rf` de `/`, `~`, `.git` o `.`. También `git commit` con verificación desactivada (`--no-verify`/`-n`) o un override explícito de `core.hooksPath`. |
 
@@ -104,7 +104,14 @@ excluido es lo que se quería excluir; el gap aparece si ahí sale código sin d
 
 ## Memoria técnica del proyecto
 
-Antes de tocar código, lee el índice de `docs/knowledge/` (si existe) y abre las entradas de `adr/` + `gotchas/` que apliquen (decisiones que restringen la implementación, trampas ya comprobadas) — paso compartido `agent-kits/shared/knowledge-check.md`. Si resolver una ambigüedad del plan cruza el umbral de `agent-kits/shared/knowledge-write.md` (cierra una alternativa y afecta a 2+ piezas, o se tomó en una puerta), escribe un ADR `estado: propuesta` en `docs/knowledge/adr/` en vez de dejarlo solo como nota en `tasks.md`.
+Consulta memoria pertinente con `agent-kits/shared/knowledge-check.md`: legado aceptado y
+approved conservan estados/autoridad; propuestas no se aplican como doctrina. Una ambigüedad resuelta que cruza el umbral se propone con decisión y evidencia del código.
+Usa `agent-kits/shared/knowledge-curation.py propose --root <proyecto> --filename <nombre.md>
+--producer implementer` con Markdown por stdin y salida JSON. El servicio redacta, crea sólo pending
+sin `estado` y devuelve ruta/SHA. No escribe ni promueve nuevas entradas en legado. Sin servicio,
+informa pendiente y no recurre a Write/Edit. Curator decide; `apply` persiste ligado al SHA original,
+con motivo y metadatos válidos. Conflicto/alto impacto requieren resolución humana, no fecha.
+[Contrato](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).
 
 ## Ledger canónico
 

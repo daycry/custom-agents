@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "recorded_utc": "2026-10-12T10:55:22.736813+00:00",
+  "source51_manifest_sha256": "8010b95e31e1c525e4000aebd5f2f2887491d18008292713bdca3cb1545781f4",
+  "shared_guard_sha256": "fa9a6874ebee6be2c465bc4772ef9fbcf310d6c0cfedc2ccede9c2fbd393866a",
+  "red_native86": {
+    "observed_cases": 1,
+    "unexpected_legacy_adr_write": true,
+    "historical_receipt_retained": true
+  },
+  "red_unit87": {
+    "cases": 51,
+    "failed": 48,
+    "passed": 3
+  },
+  "windows88": {
+    "passed": 316,
+    "failed": 0,
+    "skipped": 0
+  },
+  "linux91": {
+    "cases": 316,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 316
+  },
+  "native90_92": [
+    {
+      "mode": "memory",
+      "cases": 6,
+      "denied": 4,
+      "allowed": 2,
+      "loopback_model_requests": 12,
+      "real_native_child_ids": false,
+      "source_post_terminal_verified": true,
+      "current_guard_installed": true,
+      "cleanup_confirmed": true,
+      "result_sha256": "276eee79ec35002a187fe87a1fab116d19b4acb5de727105f994392acccf6d30"
+    },
+    {
+      "mode": "children",
+      "cases": 2,
+      "denied": 1,
+      "allowed": 1,
+      "loopback_model_requests": 8,
+      "real_native_child_ids": true,
+      "source_post_terminal_verified": true,
+      "current_guard_installed": true,
+      "cleanup_confirmed": true,
+      "result_sha256": "72fc4b40f6717276843cde8e3e44d54ba0bb515379130f964698cdd5c076f306"
+    }
+  ],
+  "runtime_version": "OpenCode 2.0.12",
+  "native_binary_sha256": "58d550b26e9241759a6906c65f1e0605eaf512d63cbaf6d8eb472375b9311c95",
+  "external_model_inferences": 0,
+  "observer_policy": false,
+  "failed89_fixture_source_literal_retained": true,
+  "guard_is_sandbox": false,
+  "human_semantic_judgment_accepted": false,
+  "actual_claude_and_codex_updated_guard_accepted": false,
+  "current_global_qa_accepted": false,
+  "independent_review_accepted": false,
+  "global_product_accepted": false
+}

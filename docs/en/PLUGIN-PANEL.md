@@ -13,6 +13,11 @@ activation and behavior. Claude reads `hooks/hooks.json`; Codex reads
 as JavaScript. `hook_sources` reports each source as declared, missing or invalid;
 a failed source is never replaced with another runtime's hooks.
 
+The OpenCode catalog retains six bindings and eight actions. `ActivityObserved`
+identifies the informative `agent-activity` capture, with declared supervision of
+2500 ms; the reader requires its exact terminal events and idle inputs. This row
+is an adapter declaration, not evidence of opt-in, loading or actual execution.
+
 Claude/Codex timeouts use seconds with registration provenance. OpenCode shows
 milliseconds of adapter supervision; its idle/execution stream capture is not a
 native teardown hook. Declared, absent and invalid budgets remain distinct;
@@ -29,7 +34,7 @@ and focus; Sources stays reachable on mobile.
 
 The plugin-catalog command uses plugin-panel to explore agents, skills, commands,
 declared tools and global hooks. Search and filters run in a standalone HTML
-file. Served mode adds local progress and memory queries; portfolio details, evaluations and
+file. Served mode adds local progress, memory queries and opt-in recent activity signals; portfolio details, evaluations and
 budgets remain in roadmap-dashboard.
 
 From a checkout:
@@ -85,6 +90,75 @@ no-referrer and no framing. The capability does not isolate other processes
 owned by the same user. Consuming a plan decision requires the common CLI and
 an authorized workflow. Memory publication/rebuild retain their consumers and tests.
 
+## Recent activity signals
+
+In `--serve` mode, Activity is separate from Progress. Reading it neither starts
+agents nor turns ledger states into process presence. The common owner,
+`agent-kits/shared/agent-activity-store.py`, persists only closed metadata; the
+reader calls its `snapshot(project)` and the pure `agent-activity.py` projection.
+
+Capture requires the boolean opt-in `sesion.actividad: true` in the project's
+`.claude/dev.json`. Missing or `false` disables it. To enable it manually, merge
+this key into the existing configuration without replacing other settings:
+
+```json
+{"sesion": {"actividad": true}}
+```
+
+Opening the panel or running setup neither creates nor enables this setting.
+The producer owns `.claude/agent-activity/` and first creates its `.gitignore`
+with `*` followed by a newline, excluding new local-state files from Git. The
+reader never initializes, locks, purges, migrates or recovers state. Unowned,
+partial or invalid directories remain unavailable without adoption. Ignore rules
+do not remove files that Git already tracks.
+
+There are at most 64 observations. The JSON snapshot and HTTP response each have
+a 64 KiB limit. `complete` means that snapshot validated; visible
+`collection_complete: false` does not represent every session or agent. Cards
+show declared runtime/role, source, state and time; pseudonymous keys stay
+internal. This state retains no prompts, transcripts, tool arguments or raw
+consumer paths.
+
+| State | Meaning |
+|---|---|
+| `recent_start` | Recent start signal |
+| `recent_response_end` | Recent response boundary |
+| `recent_execution_end` | Recent execution boundary |
+| `recent_idle` | Recent session idle signal |
+| `unknown` | Expired signal, future clock or unknown freshness |
+
+A signal proves neither a live process nor agent destruction, authenticated
+identity or complete collection. Freshness expires at 60 seconds. The UI combines
+advertised age with monotonic time since reception; refreshing the same event
+and revision does not renew its age. HTTP failure preserves the view and date,
+but signals keep expiring. Future timestamps remain unknown.
+
+`GET api/activity` uses the server's existing capability and Host/Origin guards.
+It is read-only, bounded and accepts no arbitrary route. POST retains the
+existing 405 rejection. There is one active request, a four-second timeout and
+polling five seconds after settlement. Hiding the tab aborts and pauses requests;
+resuming applies expiry before fetching. Static HTML explains that no service
+supplies signals. Missing activity JS degrades only this section, preserving
+other views.
+
+Skills-only export requires explicit skill references to
+`agent-kits/shared/agent-activity-store.py`, `agent-kits/shared/agent-activity.py`,
+`agent-kits/shared/local-state.py` and `agent-kits/shared/local-read.py`.
+The `capture` producer also reads the central mapping
+`agent-kits/shared/native-roles.json`: declare it explicitly so the package
+includes the JSON, even though the `snapshot` reader does not use it.
+That package registers no native hooks; bundled helpers and mapping do not prove capture.
+Projection/HTTP/DOM have focal tests. Real browser interaction, hook loading and
+native acceptance require their own evidence.
+
+Official references checked on **2026-10-10**:
+
+- [Claude Code: SubagentStart/SubagentStop](https://code.claude.com/docs/en/hooks): subagent signals; a response boundary does not prove destruction.
+- [Codex: hooks](https://developers.openai.com/codex/hooks/): native subagent events/payloads; documentation does not establish loading in this session.
+- [OpenCode V2.0.12: execution settlement](https://github.com/anomalyco/opencode/blob/2670273ff17da96f85c5826ced57aa1b368754fa/packages/core/src/session/execution.ts#L118-L150): emits one `session.execution.succeeded/failed/interrupted` terminal; its [projector](https://github.com/anomalyco/opencode/blob/2670273ff17da96f85c5826ced57aa1b368754fa/packages/core/src/session/projector.ts#L403-L434) derives idle/outcome from that event.
+  Capture preserves `execution_finished`, without turning it into an independent `session_idle` observation or teardown. `session.idle`/`session.status` remain compatibility inputs without claiming emission by this version.
+  Native acceptance requires its own evidence and exact correlation; reading the contract does not establish complete capture.
+
 ## Review a plan at the existing gate
 
 Visual review is optional. When explicitly requested, it replaces the pending
@@ -129,6 +203,22 @@ no clipped prefix can be approved.
 | Close without deciding | Closes the UI and preserves drafts/receipts without a decision |
 | Return to review | Reopens the UI without submitting another decision |
 
+The workflow uses `plan-review.py consume` with project, state-root, initiative,
+review_id, gate and the raw/view tuple. The owner validates selection/view before
+delivery, confirms actual IDs and rereads the version before returning consumed
+state. It launches no roles and proves no external effects. Waiting preserves an
+absent decision; an obsolete version is not consumed. A failed ack preserves the
+delivery for retry; a post-ack change returns version_changed with historical
+consumption. One three-second deadline covers the whole operation. The final view
+is not a transaction with subsequent work and does not guarantee ABA detection.
+
+An obsolete review preserves its historical decision but does not approve the
+current plan. `receive` returns `version_changed` and exit code 2 without consuming
+it. A new review opens with `open` against the current version and needs its own
+decision; the old receipt hashes are not updated. Valid consumption remains
+`receive → validation → ack → validation → view`, before effects. Sufficient
+conversational authorization retains its existing route.
+
 The common owner `agent-kits/shared/plan-review.py` maintains machine states
 `pendiente` → `entregada` → `consumida`. Submission leaves the decision pending;
 `receive` delivers it and `ack` records durable consumption. The panel never starts
@@ -160,11 +250,107 @@ Hashes and the capability do not authenticate a person. Rereads and locks provid
 no workflow transaction, ABA detection or universal power-loss durability.
 Fallback uses existing conversational authorization without inventing approval.
 
-The common bundle needs `plan-review.py`, `local-read.py` and `redact.py`.
-Skills-only review requires the export to include all three dependencies declared
+The common bundle needs `plan-review.py`, `local-state.py`, `local-read.py` and `redact.py`.
+Skills-only review requires the export to include all four dependencies declared
 from plugin-panel. Package verification belongs to QA; any missing dependency
 leaves this channel unavailable.
 The [command](../../commands/dev-cycle.md) describes receive/ack and the authorized return to planner.
+
+### See what happened to a comment
+
+Consumption confirmed means ack, not that the comment was addressed. Results show
+the consumer's declaration: `addressed`, `not_applied` with a reason, or
+`needs_clarification`. `confirmed`/`not_confirmed` records a human observation
+already communicated; it authenticates nobody and grants no approval, QA or new
+permission. Missing responses or verifications stay explicitly missing. This is
+not chat and adds no confirmation before continuing authorized work.
+
+The consumer records responses through the CLI after that decision's ack. The
+browser reads results/history; result/verify-result/receive/ack have no HTTP write
+endpoint. Comments on approve can also receive responses; no comments means no
+invented row. Notes are inert text. Editing the plan leaves a response bound to
+its old consumed review; the new view inherits neither attention nor approval.
+Response history distinguishes versions and superseded results. Polling preserves
+drafts and focus; failure retains the previous date with a warning.
+
+### Record a response from the workflow
+
+Reuse the `/dev-cycle` caller variables and owner from the same bundle. Retain
+review_id, version, gate_key, decision_id and delivery_id from the consumed decision;
+CommentId comes from decision.comments. ReviewRevision is that record's integer
+`review.revision`, reread before a new operation. A historical version_changed or
+unavailable view may expose this record; it cannot authorize work on a new plan.
+Choose ResultId once (64 lowercase hex characters) and retain it and the payload
+if a response is lost. ReviewRuntime is the current runtime.
+
+```powershell
+$OutputEncoding = [Text.UTF8Encoding]::new($false)
+$ResultRequest = @{
+  version = @{raw_sha256=$RawSha256; view_sha256=$ViewSha256; view_version='plan-text-v1'}
+  gate_key = 'plan-ok'; decision_id = $DecisionId; delivery_id = $DeliveryId
+  comment_id = $CommentId; result_id = $ResultId; expected_revision = $ReviewRevision
+  disposition = 'addressed'; response_text = 'Separated consumption from comment attention.'
+  supersedes_result_id = $null
+  producer = @{caller_id='dev-cycle'; runtime=$ReviewRuntime; actor_id=$null}
+}
+$ResultRequest | ConvertTo-Json -Depth 4 -Compress | & $ReviewPython @ReviewPythonArgs $PlanReview result @ReviewScope --review-id $ReviewId --json
+```
+
+In Bash select a UTF-8 JSON file with the same eleven keys; RESULT_REQUEST is its
+chosen path. Pass the note as data, never as executable shell text.
+
+```bash
+"$REVIEW_PYTHON" "${REVIEW_PYTHON_ARGS[@]}" "$PLANREVIEW" result "${REVIEW_SCOPE[@]}" --review-id "$REVIEW_ID" --json < "$RESULT_REQUEST"
+```
+
+`producer` has exactly caller_id (1–128 ASCII letters/digits/_/-), runtime
+(`claude-code|codex|opencode`) and actor_id (null or an opaque 64 lowercase-hex ID).
+Do not send identity_basis, human names, dates, flags, section_id or artifact
+observations: the owner derives those. Matching the first consumer is not required.
+
+If a human observation was already explicitly received, retain those bindings and
+choose VerificationId once. Reread ReviewRevision for the new operation. Never
+infer a verification from edits or tests.
+
+```powershell
+$VerifyRequest = @{
+  version=$ResultRequest.version; gate_key=$ResultRequest.gate_key
+  decision_id=$DecisionId; delivery_id=$DeliveryId; comment_id=$CommentId
+  result_id=$ResultId; verification_id=$VerificationId; expected_revision=$ReviewRevision
+  assessment='confirmed'; note='Human observation already communicated about this response.'
+  producer=@{caller_id='dev-cycle'; runtime=$ReviewRuntime; actor_id=$null}
+}
+$VerifyRequest | ConvertTo-Json -Depth 4 -Compress | & $ReviewPython @ReviewPythonArgs $PlanReview verify-result @ReviewScope --review-id $ReviewId --json
+```
+
+The eleven verify-result keys replace disposition/response_text/supersedes_result_id
+with verification_id/assessment/note. Assessment also accepts not_confirmed and
+note may be empty. Bash uses the same verify-result CLI with its JSON on stdin.
+This annotation is optional, never another gate or delivery requirement.
+
+Exit 0/status ok confirms feedback persistence: review null, approval_granted false
+and a feedback_receipt binding the operation, IDs and version. Never pass it to
+the open validator or use it as authorization. Exit 2 means conflict; exit3 means
+unavailable. Retry with identical IDs/content retains the date and observation,
+even when the record revision has advanced. revision_conflict needs reread and
+reconciliation; operation_conflict never permits overwrite. A correction uses a
+new result_id and supersedes_result_id of the latest result (at most two per
+comment). Each result allows one verification; superseded rows stay historical.
+
+`feedback_receipt.revision` is the current record revision when the owner replies.
+A retry after another operation may return a higher number than the first receipt;
+the IDs, `recorded_at` and persisted row remain unchanged.
+
+
+Requests 16 KiB; nonempty responses up to 1000 characters/2048 UTF-8 bytes; notes
+up to 500/1024. Oversized input and row/record budgets fail without clipping.
+History contains up to 8 complete reviews/64 KiB from the same scope, initiative
+and gate. Incomplete is not empty. Older bundles without the extension report
+unavailable results; an invalid extension is not treated as missing. The new owner
+reads record schemas 1/2 without migration on reads; the first valid feedback write
+may upgrade legacy to 2. Use owner/server/UI from one bundle; concurrent writes by
+old and new binaries are not promised. The envelope remains 1. These instructions
+do not establish V01–V08 browser interaction or native acceptance.
 
 ## Local memory queries
 

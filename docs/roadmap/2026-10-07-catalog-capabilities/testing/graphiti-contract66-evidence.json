@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "recorded_utc": "2026-10-12T04:23:50.489335+00:00",
+  "tested_stage_manifest_sha256": "ee44354a7672fb1b16064f8f0a9022763c296baff1d3ab8d9b3c4e315a97151e",
+  "runtime_source_pins": {
+    "graphiti.py": "b0b5112e7c701e5d4eb7493c986774dc9c68232d033bfac7ac925fdc3a56fa7f",
+    "graphiti_provenance.py": "4454cfa92459b79ba3e10b20b84da0f2e5a67ae0412fd64faa7255193d046d48",
+    "graphiti_rebuild.py": "2a42be0a968dfc792bb869fbd060965f62c6d2bab3213666e7c0a3c5027b7434",
+    "graphiti_scope.py": "f025fa50feb2f1c1748575bcfc8d2827abbc203c3da1561bdec4a268d1461059",
+    "graphiti_publication.py": "6aba41a6d4ee98f1ba3edb4456345aa697f12a12fd274d023ffe9845d0f16519"
+  },
+  "windows_broad": {
+    "cases": 376,
+    "passed": 375,
+    "failed": 0,
+    "skipped": 1,
+    "errors": 0
+  },
+  "windows_publication": {
+    "cases": 288,
+    "passed": 288,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0
+  },
+  "linux_combined": {
+    "cases": 664,
+    "passed": 664,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0
+  },
+  "prior_fifteen_contract_failures_resolved": true,
+  "invalid_prior_version_red_failures": 1,
+  "invalid_prior_version_rejected_during_plan": true,
+  "native_name_red_failures": 4,
+  "coincident_entity_names_require_membership_or_exact_published_episode_identity": true,
+  "modern_facts_require_episode_references": true,
+  "all_extracted_hits_label_derivative_authority": true,
+  "original_identity_observation": {
+    "confirmed_source_id_length": 256,
+    "returned_id_length": 200,
+    "confirmed_source_path_length": 245,
+    "returned_path_length": 200,
+    "exact_id_preserved": false,
+    "exact_path_preserved": false,
+    "fixture_transport_only": true,
+    "production_modified": false,
+    "global_product_accepted": false,
+    "graphiti_source_sha256": "cccc81ff85c28da221e87c2cb477a283f78197f388fe6f280d2f1c5c8f90d821"
+  },
+  "identity_red_failures": 4,
+  "identity_defect_resolved": true,
+  "identity_bounds": {
+    "id": 512,
+    "path": 4096
+  },
+  "source_identity_validated_before_normalization_without_truncation": true,
+  "prior_retired_version_test_failure_preserved": true,
+  "all_three_owned_linux_containers_removed": true,
+  "source_and_dependencies_preserved": true,
+  "real_semantic_retest_after_last_correction": false,
+  "current_service_replaced": false,
+  "native_client_acceptance": false,
+  "benchmark_accepted": false,
+  "global_product_accepted": false,
+  "root_promoted": false,
+  "committed": false,
+  "pushed": false
+}

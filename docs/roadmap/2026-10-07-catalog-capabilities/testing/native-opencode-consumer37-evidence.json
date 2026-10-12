@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "source_manifest_sha256": "78e5336b8cd14f1f9b8f1177c9aeb79e3bcb001936dec90e3ac4c78c9df569ce",
+  "native_version": "2.0.12",
+  "scope": "Project generated dev-cycle command via V2 API and four native shell owner operations in an isolated fixture",
+  "native_case_accepted": true,
+  "native_tool_calls": 4,
+  "provider_turns": 5,
+  "command_api_status": 204,
+  "wait_api_status": 204,
+  "command_body_exact_in_native_request": true,
+  "native_request_phrase_checks": {
+    "fixture-consumer-only": true,
+    "plan-review.py": true,
+    "plan-ok": true,
+    "feedback_receipt": true
+  },
+  "steps": [
+    {
+      "operation": "receive",
+      "status": "ok",
+      "state": "entregada",
+      "validity": "current"
+    },
+    {
+      "operation": "ack",
+      "status": "ok",
+      "state": "consumida",
+      "validity": "current"
+    },
+    {
+      "operation": "fresh_view",
+      "status": "ok",
+      "state": "consumida",
+      "validity": "current"
+    },
+    {
+      "operation": "stale_status",
+      "status": "version_changed",
+      "state": "consumida",
+      "validity": "version_changed"
+    }
+  ],
+  "review_id": "a28f2c2a28893b0afeb75098a220deec678a04beb03414754588a353fe0b2149",
+  "version": {
+    "raw_sha256": "2b5a024316db362a3cb23cc858cf2b6d19c7abd005287654887060ba3685fd4a",
+    "view_sha256": "a2afaa407142927e7c22f43ac55842769483c03b0b62f3ab2603c92bcb4c2b1c",
+    "view_version": "plan-text-v1"
+  },
+  "decision_id": "fb2e87319d6e0e0356f6a679ea159cacd73b10e3293dd19064c6aa2475735b5f",
+  "delivery_id": "1f715cf23c6daa6e50080c8e29e405aedc7ac0eed60be5f885ad1aa8e9f2c905",
+  "same_binding_preserved": true,
+  "consumed_decision_does_not_remain_current_after_plan_change": true,
+  "fixture_decision_and_plan_change_actor": "ROOT synthetic owner/controller, not real human approval or model judgment",
+  "source_bundle_and_executable_preserved": true,
+  "tasks_preserved": true,
+  "project_changes": [
+    ".claude/plan-review/r-a28f2c2a28893b0afeb75098a220deec678a04beb03414754588a353fe0b2149.json",
+    "docs/roadmap/2026-10-11-owned-alpha/improvement-plan.md"
+  ],
+  "server_owned_shutdown_requested": true,
+  "server_exit": 1,
+  "cleanup_confirmed": true,
+  "job_postclose_active": 0,
+  "job_leak": false,
+  "observed_job_process_total": 19,
+  "first_case_failed_oracle_preserved": {
+    "original_case_accepted": false,
+    "original_result_sha256": "22bed6d5f0ba005baeabf4dad5cf1e81a0d7fe14003b8d1d73aea5a29048d423",
+    "cause": "V2 session.command returns NoContent/204; the harness wrongly required prompt endpoint status 200 and stopped before waiting",
+    "observed_status": 204,
+    "original_provider_turns": 0,
+    "product_source_modified": false,
+    "primary_tag_source_sha256": "9f78f4c34732adcd7fe87c3968ee28de9078b82494114b6a73053bd80c0ab5c1"
+  },
+  "external_model_inferences": 0,
+  "usage_is_synthetic": true,
+  "hooks_tested": false,
+  "real_human_ui_decision_accepted": false,
+  "real_model_judgment_accepted": false,
+  "implementation_started": false,
+  "memory_published": false,
+  "all_native_workflows_accepted": false,
+  "global_product_accepted": false,
+  "root_promoted": false,
+  "receipts": {
+    "native-consumer02/result.json": "61087fd118ed578b0d896fd59531b5ddf0fa5249cc737884877a8d8714908f0e",
+    "native-consumer02/native-owner-observations.json": "5edc27fbee918968ddc7ef07c07697e82d437987c7115211987a287106709247",
+    "native-consumer02/provider-receipt.json": "a825af566c5a31c0477d88a1ad16f8ef0c309d51751c03285bc50917c5a63f0e",
+    "native-consumer02/provider-request-001.json": "59f9a2bc2be7d8284bbdbe200602497958ca62f33ebd0205fe79e797341a4930",
+    "native-consumer02/terminal.json": "9166dff4630023788ec0f686cb69a50d84c08835a9729d3a95b2fb84120efa63",
+    "native-consumer02/project-before.json": "b5077e053852af121414f3786613b86e408199880c429ca1ce82faf5179f6686",
+    "native-consumer02/project-after.json": "bd62123617b8d2e41c176a2fd1e48cc96659cd95943702c0e3f67981293d00bd",
+    "runner-terminal-opencode-consumer02.json": "3b43dde60195217a9886f441925179f49d5a5c60c65e5030f2de1d9542e4dbfb",
+    "output/opencode-consumer02/cleanup.stdout.raw": "c605867b107c40aa641e32a2370897433db0a13ed907e485d141af64ef2ebba4"
+  }
+}

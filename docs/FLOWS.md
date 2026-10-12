@@ -103,28 +103,79 @@ Selectores, CLI y dependencias: [CODE_CONTEXT](CODE_CONTEXT.md).
 El panel y los hooks mantienen su lectura local. Abrirlos no activa estas consultas,
 no inicia servicios y no añade polling de backends.
 
+## Publicación recuperable de memoria
+
+La sincronización real lee el canon y su routing, drena la outbox propia vencida y
+calcula después el plan fresco contra el destino observado. El replay no es una
+aprobación de memoria: el plan reconcilia retiradas y contenido vigente del canon.
+Dry-run calcula sólo el plan y no drena; check no publica. Los servicios conservan
+su opt-in y la lectura local funciona sin Docker.
+
+```mermaid
+flowchart LR
+  Canon[Approved y routing del proyecto] --> Replay[Outbox propia vencida]
+  Replay --> Plan[Plan fresco contra el destino]
+  Plan --> Envelope[Envelope propio]
+  Envelope --> Apply[Publicación del adaptador]
+  Apply --> Done[Recibo done]
+  Apply -.->|fallo| Pending[Estado parcial y reencolado con backoff]
+  Pending -.-> Replay
+```
+
+Markdown publica por archivo con un manifiesto pendiente; un fallo puede dejar
+archivos actualizados o revocados y no revierte el lote. El CLI muestra esa
+posibilidad y `--outbox-status`. Al finalizar el manifiesto, sólo Windows reintenta
+errores 5/32/33 hasta cuatro veces, comprobando identidades observadas de origen
+y destino. Un cambio o rechazo persistente conserva el pendiente; no proporciona
+CAS frente a escritores externos. [Contrato del adaptador](../skills/knowledge-services/references/kwipu-adapter.md).
+
 ## Retoma dirigida sobre registros existentes
 
 `/work-resume` llama a `progress-report.py resume` y muestra primero el ledger
-actual. El selector de `journal.py` aporta después el historial de la identidad
-solicitada. Una selección explícita fallida no toma otra sesión. Ambigüedad,
+actual y después la curación desde sus asociaciones explícitas. El selector de
+`journal.py` aporta al final el historial de la identidad solicitada.
+Una selección explícita fallida no toma otra sesión. Ambigüedad,
 registro ilegible y recorrido incompleto conservan su propio estado.
-[Selección, límites y lectura](WORK-RESUME.md).
+[Selección, límites y lectura](WORK-RESUME.md). Con `--json`, publica el objeto íntegro del compositor, incluido `status`;
+una respuesta ambigua espera una nueva petición sin abrir otra interacción.
 
 ```mermaid
 flowchart LR
   Selector[Iniciativa · sesión · runtime · fichero exacto] --> Resume[progress-report resume]
   Tasks[(tasks.md actual)] --> Resume
+  Reviews[(Recibos locales de revisión)] --> Observe[plan-review: consulta sin escritura]
+  Observe --> Resume
   Journal[(Journal local)] --> Select[journal: selección acotada]
   Select --> Resume
-  Resume --> View[Ledger primero · citas históricas después]
+  Resume --> View[Ledger · revisiones · curación observada · citas históricas]
   View -.-> Decision[El usuario elige cómo continuar]
 ```
 
 Startup/resume usa el mismo compositor con `--history-only`; compact omite el
 historial. Replay y el bloque de progreso siguen separados: el hook completo
+añade observaciones de revisiones dentro de sus 15 líneas de progreso, sin abrir,
+entregar ni consumir decisiones. El hook completo
 conserva operaciones de recuperación. El dossier manual no ejecuta recuperación,
 meter, Git ni backends, y no crea otro ciclo o almacén.
+
+
+```mermaid
+flowchart LR
+    P["Productores · evidencia"] --> S["knowledge-curation propose<br/>pending + SHA · sin estado"]
+    S --> L["Dueño del ledger<br/>candidate + SHA explícitos"]
+    L --> C["Juicio del Curator<br/>approved + legado aceptado"]
+    C -.->|"conflicto / alto impacto"| U["Resolución humana trazada"]
+    U --> C
+    C --> A["servicio apply<br/>SHA esperado + motivo + metadatos"]
+    A --> D["Destino verificado<br/>intención / recibo / recover"]
+    D --> R["Recuperación local<br/>legado compatible + approved"]
+    D -.->|"operation-id / recibo al dueño"| L
+    L -.-> V["work-resume · observación readonly<br/>sin recover ni QA implícita"]
+```
+
+La publicación puede preceder al recibo final; no es una transacción multiarchivo atómica.
+Rol declarado y cerrojo cooperativo no prueban actores autenticados ni sandbox universal.
+Aceptación nativa y aceptación de implementación del Bloque 23 siguen pendientes.
 
 ## 1 · La cadena completa de una iniciativa
 
@@ -139,7 +190,7 @@ flowchart LR
     idea(["💡 Idea / petición"]) --> analyst["🗣️ analyst<br/>toma de requerimientos"]
     analyst -->|spec aprobada| evaluator["💶 evaluator<br/>presupuesta<br/>(+ code-health opt-in: riesgo medido)"]
     evaluator -->|go| planner["🗺️ planner<br/>plan + tasks"]
-    evaluator -.->|"go + complejidad Alta<br/>(opt-in)"| architect["🏗️ architect<br/>2-3 opciones → design.md<br/>2 pasadas: opciones → elección del usuario → ADR"]
+    evaluator -.->|"go + complejidad Alta<br/>(opt-in)"| architect["🏗️ architect<br/>2-3 opciones → design.md<br/>2 pasadas: opciones → elección del usuario → propuesta"]
     architect -->|design aprobado| planner
     evaluator -.->|no-go| fin1(["✋ se descarta"])
     planner --> implementer["⚙️ implementer<br/>código + ledger"]
@@ -152,7 +203,7 @@ flowchart LR
     qa -.->|rojo| implementer
     review -.->|"plan con test-plan: n/a (sin UI)"| qasinui["✅ qa · modo sin UI<br/>ledger-lint + coverage-check<br/>sin Playwright ni URL"]
     qasinui --> documenter
-    documenter -.->|"candidato propuesto<br/>(opcional, buzón)"| kcurator["🗂️ knowledge-curator<br/>Knowledge Gate<br/>approve/needs_changes/rejected"]
+    documenter -.->|"candidato propuesto<br/>(opcional, buzón)"| kcurator["🗂️ knowledge-curator<br/>Knowledge Gate<br/>approve/needs_changes/reject"]
     documenter --> retro["🔁 /retro<br/>calibración"]
     kcurator --> retro
     nemesis["🛡️ nemesis<br/>auditoría"] -.->|hallazgos críticos| analyst
@@ -177,7 +228,7 @@ flowchart TD
     E -->|no-go| F["evaluación → cancelado<br/>spec → obsoleta"]
     E -->|a revisar| C
     E -->|go| G["spec → aprobada<br/>evaluación → completado"]
-    G -.->|"opt-in (recomendado si<br/>complejidad Alta)"| AR["architect<br/>design.md: 2-3 opciones<br/>2 pasadas · elección del usuario · ADR"]
+    G -.->|"opt-in (recomendado si<br/>complejidad Alta)"| AR["architect<br/>design.md: 2-3 opciones<br/>2 pasadas · elección del usuario · propuesta"]
     AR -.-> H
     G --> H["salidas opt-in:<br/>📄 brief PDF · 🎫 épica en Jira"]
     H --> I(["ofrece handoff a /dev-cycle<br/>sin ejecutarlo"])
@@ -195,8 +246,9 @@ flowchart TD
 ```mermaid
 flowchart TD
     NL(["petición en lenguaje natural<br/>«implementa X rápido»"]) -.->|"skill quick-implement<br/>(filtro de idoneidad)"| Z
-    A["/dev-cycle objetivo"] --> Z{"flujo completo<br/>o vía rápida?"}
-    Z -->|vía rápida| Q["tasks.md ligero<br/>(sin spec/eval/plan)"]
+    A["/dev-cycle objetivo"] --> CT["Encargo: resultado · requisitos y fuentes<br/>restricciones · patrones con rutas · pendientes"]
+    CT --> Z{"flujo completo<br/>o vía rápida?"}
+    Z -->|vía rápida| Q["tasks.md ligero<br/>requisito/fuente → criterio → verificación<br/>(sin spec/eval/plan)"]
     Q --> H
     Z -->|completo| B{"¿carpeta con<br/>spec+evaluación<br/>de /pm-cycle?"}
     B -->|sí| AD
@@ -204,7 +256,7 @@ flowchart TD
     C -->|go| AD{"¿design.md o<br/>lo pide el usuario?"}
     AD -->|sí| AR["architect<br/>opciones → design.md aprobado"]
     AR --> D
-    AD -->|no| D["planner<br/>improvement-plan + tasks.md"]
+    AD -->|no| D["planner<br/>improvement-plan + tasks.md<br/>requisito/fuente → criterio → verificación"]
     C -->|no-go| X(["parar"])
     D --> E["opt-in: volcar plan a Jira<br/>jira-sync: 1 issue por tarea"]
     E --> PO{"¿OK conversacional<br/>suficiente?"}
@@ -214,10 +266,13 @@ flowchart TD
     CO -->|autorizado| H
     RV -->|sí| PB["Caller Bash o PowerShell<br/>Python real · bundle común · open validado"]
     PB --> PV["Vista y comentarios del plan<br/>servidor con handle separado<br/>gate plan-ok · versión exacta"]
-    PV --> RC["CLI receive → validar puerta/versión/choice<br/>ack → relectura vigente"]
+    PV --> RC["CLI consume · dueño común<br/>selección → receive → ack → vista vigente"]
     RC -->|approve consumida y vigente| H
     RC -->|request_changes consumida<br/>planner ya autorizado| D
     RC -.->|waiting / cambio / conflicto<br/>sin trabajo por esa decisión| PV
+    D -.->|"respuesta a comentario ya consumido"| PF["CLI result<br/>respuesta declarada · versión histórica<br/>sin nueva aprobación"]
+    H -.->|"respuesta a comentario ya consumido"| PF
+    PF -.->|"observación humana ya recibida<br/>opcional"| VF["CLI verify-result<br/>anotación comunicada · no autenticada<br/>sin otra puerta"]
     H["implementer<br/>tarea a tarea<br/>(dev.json opt-in: TDD ·<br/>worktree · subagentes frescos)<br/>P5: gate de cobertura skill unit-tests<br/>(coverage-gate.py --changed-only)"]
     H --> SC{"scope-check.py<br/>ficheros cambiados ⊆<br/>Archivos del ledger?"}
     SC -.->|"exit 1: gap Important<br/>(sin gastar revisores)"| H
@@ -225,24 +280,36 @@ flowchart TD
     R -.->|gaps| H
     R --> I["qa · E2E local<br/>veredicto: qa-gate.py"]
     I -->|"rojo (máx. 3 intentos,<br/>luego preguntar)"| H
-    I -->|verde| J["documenter<br/>una vez al final"]
-    J --> KG{"¿hay candidatos en<br/>docs/knowledge/candidates/**?"}
-    KG -->|sí| KC["knowledge-curator<br/>Knowledge Gate<br/>(curator-gate.py)"]
-    KG -.->|"no: omisión honesta<br/>(una línea, sin fallo)"| CS
-    KC --> CS["skill changelog-sync<br/>[Unreleased] EN + [Sin publicar] ES<br/>desde el ledger cerrado"]
+    I -->|verde| J["documenter<br/>una vez al final<br/>estados: orquestador en Fase 6"]
+    J --> KG{"¿hay candidatos en<br/>pending o needs_changes?"}
+    KG -->|sí| KC["knowledge-curator<br/>juicio + gate solo lectura<br/>servicio apply · SHA original"]
+    KG -.->|"no: omisión honesta<br/>(una línea, sin fallo)"| CP
+    KC --> CP["Fase 6: selección literal por tarea<br/>commit-selection.py preview<br/>selección · patch · staging ajeno"]
+    CP --> CV{"validate por stdin<br/>snapshot vigente · exit 0?"}
+    CV -->|sí| GC["Git nativo commit --only<br/>lista UTF-8/NUL revisada<br/>verificar árbol y staging ajeno"]
+    CV -.->|no| CH["commit pendiente<br/>motivo visible · nuevo preview"]
+    GC --> GV{"¿resultado coincide<br/>y staging ajeno conservado?"}
+    GV -->|sí| CS["skill changelog-sync<br/>[Unreleased] EN + [Sin publicar] ES<br/>desde el ledger cerrado"]
+    GV -.->|no| CE["informar discrepancia<br/>sin reescribir el commit"]
     CS --> K["opcional: nemesis<br/>auditoría"]
     K --> RG["paso 8: /retro + retro-gate.py<br/>retro.md + fila en CALIBRATION.md<br/>(puerta: exit 0)"]
+    RG -.->|"propuesta nueva: servicio propose"| RH["handoff al Curator<br/>o ruta/ID pendiente visible"]
     RG -->|"exit 0"| L(["cierre: plan completado · retro<br/>spec implementada"])
-    RG -.->|"exit 1: cierre pendiente de retro<br/>(spec sigue aprobada)"| L
+    RG -.->|"exit 1"| P(["cierre pendiente de retro<br/>spec aprobada · plan completado"])
     style X fill:#fdecea,stroke:#ef9a9a
     style L fill:#e8f5e9,stroke:#81c784
 ```
 
 `tasks.md` es el **ledger canónico** de progreso de todo el ciclo.
 
+La selección de commits conserva la puerta de alcance y no autoriza integración
+externa. Revalidación y commit son operaciones separadas; se comprueba el resultado
+real y se informa cualquier discrepancia. [Contrato y CLI](COMMIT-SELECTION.md).
+
 La revisión visual sustituye el OK pendiente y no reabre una autorización previa.
 `plan-review.py` es el dueño común de recibos; el panel sólo presenta y transporta.
-Receive/ack son CLI, nunca HTTP. Un recibo consumido vigente permite retoma sin
+El caller usa `consume`: selección/vista → receive → ack → vista vigente, con
+validaciones del dueño entre operaciones. Las primitivas receive/ack siguen siendo CLI, nunca HTTP. Un recibo consumido vigente permite retoma sin
 nueva señal ni confirmación; no acredita efectos externos ni actividad de agentes.
 La retoma contrasta ledger/plan vigentes: ack no prueba trabajo terminado tras un crash.
 Continúa lo pendiente sin repetir una petición de cambios ya atendida por planner.
@@ -252,7 +319,7 @@ Un fallo del canal opcional conserva el OK conversacional o la autorización pre
 
 ## 4 · Jira (opt-in) — volcado del plan al crearlo
 
-> **Granularidad** (`.claude/jira.json` → `granularidad`): **tarea** = un issue por `T-XX` (defecto); **fase** = un issue por Fase con sus tareas como checklist. En modo fase, comentarios/worklog/Done van al issue de la fase; el issue cierra cuando todas sus tareas están `completado`. Además, el **resultado del revisor** se publica como comentario (por criterio ✓/✗ + nº intentos) y su tiempo se imputa como worklog `[revisión]` aparte — con la granularidad elegida.
+> **Granularidad** (`.claude/jira.json` → `granularidad`): **tarea** = un issue por `T-XX` (defecto); **fase** = un issue por Fase con sus tareas como checklist. En modo fase, comentarios/worklog/Done van al issue de la fase; el orquestador lo cierra con `aprobado` cuando todas sus tareas están `completado`, la revisión no tiene gaps y QA está verde. Además, el **resultado del revisor** se publica como comentario (por criterio ✓/✗ + nº intentos) y su tiempo se imputa como worklog `[revisión]` aparte — con la granularidad elegida.
 
 ```mermaid
 flowchart TD
@@ -345,7 +412,7 @@ declaran que no aplican, el paso `agent-kits/shared/confluence-optin.md`):
 |---|---|---|
 | `analyst` | `spec.md` | ✅ Sí |
 | `evaluator` | `evaluation.md` (+ `spec.md` si lo crea) | ✅ Sí |
-| `architect` | `design.md` (+ ADR en `docs/knowledge/adr/`) | ✅ Sí — decisión de arquitectura, como `spec.md` y los ADR (no es tablero de ejecución) |
+| `architect` | `design.md` + propuesta pending por el servicio | ✅ Design; ❌ candidato: elegir diseño no aprueba conocimiento |
 | `planner` | `improvement-plan.md`, `tasks.md` | ❌ No — plan y ledger (D1): su sitio es el repo y Jira, no Confluence |
 | `implementer` | actualiza `tasks.md` por tarea; dispara la sincronización **al cerrar cada fase** (D3) | ⚠️ El disparo sí ocurre, pero `tasks.md` en sí **no** sube (D1) — refresca lo demás que haya cambiado bajo `docs/` (típicamente `dashboard.md`) |
 | `qa` | `testing/report.md` + `report.pdf`, `screenshots/`, `raw/` | ❌ No — `**/testing/**` (D4): el informe embebe capturas que el conector no puede adjuntar; queda solo-local |
@@ -362,21 +429,17 @@ del proyecto consumidor), `docs/**/atlassian-connector-notes.md` y, como siempre
 `docs/security-scan/**` (invariante no negociable de `nemesis`). Verificable con
 `confluence-scope.py --status` / `--check` (`skills/confluence-publish/scripts/`).
 
-**Puntos de nacimiento de `docs/knowledge/`** (memoria técnica, `2026-08-20-knowledge-capture`) —
-**sí entra en el espejo por defecto**, no está en el `exclude` (a diferencia del plan/ledger de la
-fila `planner` de arriba): `planner`/`implementer` escriben un ADR en `docs/knowledge/adr/` cuando
-una decisión de diseño cruza el umbral (ver regla 10 de `CONVENTIONS.md`); `debug-root-cause`
-escribe un gotcha en `docs/knowledge/gotchas/GOT-NNN-<slug>.md` (fichero nuevo) al cerrar su Fase 4
-(causa raíz confirmada); `qa` escribe un gotcha cuando un flaky justificado resulta ser un patrón,
-no un accidente; `/retro` produce una segunda salida con lecciones de proceso en
-`docs/knowledge/lessons/LES-NNN-<agente>-<slug>.md` (fichero nuevo), además de su
-fila numérica en `CALIBRATION.md`. Los cinco agentes lectores (`evaluator`, `planner`,
-`implementer`, `qa`, `documenter`) aplican `agent-kits/shared/knowledge-check.md` antes de
-trabajar (progressive disclosure: solo el índice + su área). El **journal de sesión**
-(`docs/knowledge/journal/`, bitácora generada por el hook `SessionEnd`) es memoria episódica, no
-curada: `evaluator`/`planner`/`architect` leen solo la última entrada de su iniciativa, `/retro` la
-usa como fuente de causas de desviación y lo que merezca doctrina se promueve a ADR/gotcha/lección.
-Detalle completo: regla 10 de [`CONVENTIONS.md`](CONVENTIONS.md).
+**Conocimiento nuevo y legado compatible (Bloque 23).** Productores proponen con
+`knowledge-curation.py propose`; Curator juzga y el servicio `apply` persiste con SHA original,
+motivo y metadatos finales. Design/revisión/QA/Gold y repetición son evidencia, no aprobación.
+ADR/GOT/LES existentes siguen legibles con bytes/estados y autoridad intactos; sin migración
+automática ni precedencia por fecha. Conflictos/alto impacto exigen resolución humana trazada.
+Retro ocurre después del Gate principal: handoff explícito o ruta/ID y pendiente visibles.
+Candidatos y journal no se publican como conocimiento curado: `confluence-scope.py` fuerza
+su exclusión incluso con include explícito y diferencias de mayúsculas, también al generar
+staging; approved válido permanece publicable. Esta corrección de fuente está en revisión;
+no acredita publicación externa ni aceptación global/nativa. Detalle: regla 10 de
+[CONVENTIONS.md](CONVENTIONS.md) y [contrato de curación](roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).
 
 ## 6 · Visibilidad y aprendizaje (todo solo-lectura)
 
@@ -423,7 +486,7 @@ flowchart TD
 > IA **opt-in** (`sesion.resumen`), degradando siempre. `/doctor` diagnostica la cola (`journal.py
 > status`: pendientes, huérfanas, dead-letter con remedio nombrado, triage del «Hook cancelled»). Lo
 > que se repite en ≥ 2 sesiones lo propone `journal.py candidatas` como lección `propuesta` por la
-> puerta de `/retro`.
+> lectura de `/retro`; una propuesta explícita usa el servicio y queda pendiente hasta curación.
 
 ```mermaid
 flowchart LR
@@ -453,7 +516,7 @@ flowchart LR
     SL -.->|"[Opus] $0.01 ctx 8% · 📋 slug T-04/12 33%"| U
 ```
 
-## 6c · Guardrails deterministas del `implementer` (hook de guardia con alcance de agente)
+## 6c · Guardrails deterministas de `implementer` y `architect` (alcance de agente)
 
 > Las guardias distribuidas usan un dispatcher global previo a la tool, por IDs nativos
 > propios exactos del mapa generado. `native-guardrail.py` normaliza la mutación y aplica
@@ -467,14 +530,16 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    T["implementer propio intenta una mutación<br/>Claude · Codex · OpenCode"] --> W["dispatcher previo<br/>native-guardrail.py + mapa de IDs"]
+    T["implementer/architect propios intentan una mutación<br/>Claude · Codex · OpenCode"] --> W["dispatcher previo<br/>native-guardrail.py + mapa de IDs"]
     W -->|"sin Python / timeout sin decisión<br/>respuesta ausente o inválida"| M(["systemMessage Claude/Codex<br/>diagnóstico OpenCode<br/>exit 0 + permisos normales"])
     W --> G["guardrail-check.py pre-tool<br/>(dev.json → guardrails)"]
-    G -->|"docs/roadmap/** ≠ tasks.md<br/>docs/security-scan/**"| D(["❌ deny + razón:<br/>«solo tasks.md; el plan lo cambia planner»"])
-    G -->|"HEAD en main/master<br/>+ escritura fuera del ledger"| D2(["❌ deny: «trabaja en feature/<slug>»"])
+    G -->|"implementer: roadmap ≠ tasks.md<br/>ambos: docs/security-scan/**"| D(["❌ deny + razón:<br/>«solo tasks.md; el plan lo cambia planner»"])
+    G -->|"implementer: HEAD en main/master<br/>+ escritura fuera del ledger"| D2(["❌ deny: «trabaja en feature/<slug>»"])
     G -->|"git push --force · branch -D<br/>checkout main desde feature<br/>rm -rf / ~ .git<br/>commit sin verify / override core.hooksPath"| D3(["❌ deny + cómo proceder"])
+    G -->|"architect: fuera de design.md<br/>o del enlace design en spec/plan"| DA(["❌ deny: conserva el alcance de diseño"])
+    G -->|"ambos productores: Write/Edit directo<br/>docs/knowledge/**"| DM(["❌ deny: usa el servicio de memoria<br/>conserva el legado"])
     G -->|"todo lo demás"| A(["✅ sin deny, exit 0<br/>(flujo normal de permisos)"])
-    D & D2 & D3 -.->|"lee la razón, cambia de fichero/rama"| T
+    D & D2 & D3 & DM & DA -.->|"lee la razón, cambia de fichero/rama"| T
 ```
 
 La regla `git` protege los IDs propios exactos de `implementer` y `architect`.
@@ -509,8 +574,8 @@ un sandbox; configurar
 > con la misma gramática que ya tienen el ciclo (`tasks.md`) y la memoria
 > (`docs/knowledge/README.md`): registro canónico + puerta de entrada + puerta de cierre. Detalle
 > completo: [`SPECIALIZATION.md`](SPECIALIZATION.md). **Invariante de dirección**: `/specialize`
-> **lee** `docs/knowledge/` y **nunca escribe** en él — la promoción a doctrina sigue siendo
-> exclusiva de `/retro` (por eso este bucle no se solapa con el de memoria, `ADR-011`). Esta
+> **lee** `docs/knowledge/` y **nunca escribe** en él — el conocimiento nuevo se propone por
+> el servicio compartido y lo juzga Curator; especialización no lo aprueba. Esta
 > iteración cubre F1 (sustrato, **entregado**: cascada de personas de `task-brief.py`) y F2
 > (nacimiento, **contrato de diseño, aún no en el árbol**); F3 (deriva semántica) queda diferida,
 > no descartada.
@@ -536,7 +601,8 @@ flowchart LR
   SP --> REG --> PZ
   PZ -->|"task-brief.py inyecta persona"| T
   T --> CAL
-  CAL -.->|"/retro promueve"| K
+  CAL -.->|"/retro: servicio propose"| CP["candidato pending · ruta/SHA<br/>juicio de Curator"]
+  CP -->|"approve + servicio apply"| K
   REG -.->|"/doctor: salud por fila"| SP
 ```
 
@@ -610,3 +676,63 @@ conector Atlassian: [`atlassian-connector-notes.md`](atlassian-connector-notes.m
 
 > **Mantenimiento:** al añadir o cambiar un agente, comando o skill, actualiza el diagrama
 > correspondiente de este documento (ver checklist de `CONVENTIONS.md`).
+
+
+## Reconstrucción de memoria por generaciones
+
+La consulta del grafo enlaza episodios por UUID o pertenencia de entidades a fuentes
+vigentes confirmadas. El contenido extraído sigue declarado como derivado sin autoridad.
+
+```mermaid
+flowchart LR
+    H[Hechos y entidades] --> U[UUID de episodio o pertenencia]
+    U --> V[Grupo, versión y contenido confirmados]
+    V --> D[Resultado derivado con fuente vigente]
+```
+
+El coordinador conserva snapshots y recibos, verifica corpus e historial y cambia la
+publicación al final. Una interrupción conserva el grupo anterior; pasó la prueba real
+acotada del servidor compatible. Los recorridos nativos y la aceptación global siguen pendientes.
+
+```mermaid
+flowchart LR
+    S[Validar snapshot] --> B[Construir grupo aislado]
+    B --> V[Confirmar corpus e historial]
+    V --> P[Publicar generación activa]
+    P --> A[Conservar grupo anterior]
+    B --> R[Reanudar desde recibos propios]
+    R --> B
+```
+
+## Lectura del estado nativo de Codex
+
+El lector compartido consulta el estado y entrega JSON saneado. Su plazo de
+3.000 ms incluye el arranque del worker y de la CLI: el inicio síncrono del
+proceso consume ese presupuesto. Una salida recibida fuera de plazo se
+descarta y produce `unknown` con `cli-timeout`; el wrapper reserva un margen
+acotado para finalizar procesos y recoger su salida. Esta lectura no cambia
+la configuración del proyecto.
+
+OpenCode 2.0.12 sobre el candidato actual ha confirmado carga, contexto,
+escritura/post-tool, captura/replay de dos loops y actividad opt-in de
+fin de ejecución con proveedor local controlado. La actividad observada
+no prueba liveness ni todos los agentes; las guardias por rol nativas y
+aprobación humana por UI todavía requieren aceptación específica.
+
+
+La guardia de memoria de ambos productores deniega herramientas de escritura directa en `docs/knowledge/`, incluidos ADR e índice legado, approved y candidatos. El conocimiento nuevo se propone con `knowledge-curation.py`; journal e índices conservan sus servicios. El opt-out explícito y los agentes ajenos al mapa no cambian. [Evidencia nativa y límites](roadmap/2026-10-07-catalog-capabilities/testing/native-memory-guard90-status.md).
+
+
+La actividad opt-in de OpenCode recibe el inicio de ejecución con su registro propio; la captura SessionEnd conserva únicamente end/idle. La prueba nativa observa el inicio mientras el proveedor espera, con prompt intacto y cero envelopes prematuros, y después el fin. La señal reciente no prueba liveness ni colección completa. [Evidencia](roadmap/2026-10-07-catalog-capabilities/testing/native-activity103-status.md).
+
+```mermaid
+flowchart LR
+  Start["OpenCode: session.execution.started"] --> Activity["ActivityObserved: opt-in metadata"]
+  End["OpenCode: execution end / idle"] --> Activity
+  End --> Capture["SessionEnd: canonical capture"]
+  Activity --> Store["Shared activity owner / recent signal"]
+  Store --> Panel["Panel: observed time and scope"]
+```
+
+
+El inventario de hooks valida vocabularios exactos distintos: ActivityObserved incluye execution.started y SessionEnd no. La revisión del dueño local mantiene cerradas sus dependencias; una mutación de red sigue detectándose. [Evidencia](roadmap/2026-10-07-catalog-capabilities/testing/activity-catalog-closure114-status.md).

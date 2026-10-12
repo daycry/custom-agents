@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "base_candidate_manifest_sha256": "144bb4b9d48c599d02bad3a0e8abc8442809cc9f6563e8458ebed9f51aaa7adf",
+  "fixed_stage_manifest_sha256": "f2e791b6514c1ca6f113bc0ac86e07dbe9a52ccbc044735b214a9ac48daffae7",
+  "backend_sha256": "babd983a6e0030b57f00166712c6494a219c71ec09ee25c178b954852edc22a7",
+  "root_cause": "Typed Graphiti ErrorResponse is returned with MCP isError=false; client only checked isError and returned it as success",
+  "fix": "Decode the typed result and raise sanitized ErrorMCP when its error field is present, preserving successful result envelopes",
+  "RED": {
+    "expected_failures": 5,
+    "cases": 6,
+    "backend_unchanged_before_RED": true,
+    "backend_sha256": "0b6dae6d4a64c900a524159809b5c9617258316f28a24c8b7c9bdfdced657307",
+    "live_fixture_sha256": "385d28379cdef7069252562ebeca57a9eeca441146f17d54198ecb20b8a8ba89",
+    "junit_sha256": "f9d94de343be87f570abe42e1eaf2e6e3fce1c54c87e33658fa89828bf495393"
+  },
+  "module_QA": {
+    "windows": {
+      "pytest_exit": 0,
+      "cases": 322,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "coverage_version": "7.16.2",
+      "official_parent_CTracer": true,
+      "production_sha256": "babd983a6e0030b57f00166712c6494a219c71ec09ee25c178b954852edc22a7",
+      "global_product_accepted": false
+    },
+    "linux": {
+      "pytest_exit": 0,
+      "full_module_accepted": true,
+      "cases": 322,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "coverage_version": "7.16.2",
+      "official_parent_CTracer": true,
+      "production_sha256": "babd983a6e0030b57f00166712c6494a219c71ec09ee25c178b954852edc22a7",
+      "global_product_accepted": false
+    }
+  },
+  "coverage": {
+    "windows": {
+      "changed_percent": 100.0,
+      "changed_executable_lines": [
+        663,
+        664
+      ],
+      "changed_missing_lines": [],
+      "whole_owner_percent": 92.47675401521555,
+      "children_attributed": false,
+      "global_coverage_gate_satisfied": false
+    },
+    "linux": {
+      "changed_percent": 100.0,
+      "changed_executable_lines": [
+        663,
+        664
+      ],
+      "changed_missing_lines": [],
+      "whole_owner_percent": 92.47675401521555,
+      "children_attributed": false,
+      "global_coverage_gate_satisfied": false
+    }
+  },
+  "actual_server_error_fix": {
+    "backend_sha256": "babd983a6e0030b57f00166712c6494a219c71ec09ee25c178b954852edc22a7",
+    "actual_server_error_raises_ErrorMCP": true,
+    "diagnostic": "tool `add_memory` devolvio ErrorResponse: Invalid reference_time: Invalid isoformat string: 'invalid-reference-time'",
+    "prequeue_validation_only": true,
+    "new_background_episode_submitted": false,
+    "source_preserved": true,
+    "global_product_accepted": false
+  },
+  "actual_error_response_sha256": "385d28379cdef7069252562ebeca57a9eeca441146f17d54198ecb20b8a8ba89",
+  "test_message_oracle_updated": "Only old publication-intact assertion changed to partial-publication plus --outbox-status; existing outbox/dead-letter/manifest/cause assertions retained",
+  "historical_broad_oracle_failures_preserved": true,
+  "historical_collection_indentation_failures_preserved": true,
+  "remaining_live_publication_defect": {
+    "status": "Open",
+    "submitted_uuid": "39f775b6-cd31-5e7c-aa5d-e7a971a451b9",
+    "failure": "Owned new episode queued then failed with node-not-found; server expected supplied UUID to address existing Episodic node",
+    "graphiti_core_version": "0.30.1",
+    "add_episode_source_sha256": "288a49df5f8de5cf9e535908c2e2ad1a95f2bbf3c7dc56bd79c315ad5edd7e4e",
+    "installed_source_and_exact_group_logs_observed": true,
+    "group_data_cleared": true,
+    "empty_graph_metadata_may_remain": true,
+    "resubmitted": false,
+    "publication_query_withdrawal_accepted": false
+  },
+  "owned_jobs_terminal": true,
+  "cleanup_confirmed": true,
+  "owned_containers_removed_and_absent": true,
+  "scope": "Typed MCP client errors and existing Graphiti/security suites; new-episode identity and async publication remain unaccepted",
+  "integration_candidate_promoted": false,
+  "root_promoted": false,
+  "global_product_accepted": false
+}

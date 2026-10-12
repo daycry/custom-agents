@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "observed_on": "2026-10-11",
+  "input_manifest_sha256": "3433a7c19ff1ecbef9cfd4e4db555ad88ec4f5ee3d7989ae402ff535721122dc",
+  "writer_before_sha256": "e56afd127b99c335f09e239e4272b0d8ba27a4c2feebe46b500bfec67879a490",
+  "writer_after_sha256": "f31b62e826735ad9ab641d7b590e47b598f5c0d2f545a57a41e5e66900f48567",
+  "test_sha256": "aedd0e3a72fd926b62999a8cc28e35012a3cbf61e123d6af9a45cee4537cbc6f",
+  "hypothesis": "A real Windows reader without delete sharing rejects owned-leaf replacement even if released immediately after the first failure.",
+  "red": {
+    "supervisor_pid": 35708,
+    "supervisor_exit": 1,
+    "cleanup_pid": 34108,
+    "cleanup_exit": 0,
+    "receipt_sha256": "c3c78541327bd90cf043c0df821a8f9cafb0b5f2d53974d37f29290069afc698",
+    "native_error": "WinError 5",
+    "counts": {
+      "tests": 1,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 0
+    }
+  },
+  "green": {
+    "supervisor_pid": 2712,
+    "supervisor_exit": 0,
+    "cleanup_pid": 4728,
+    "cleanup_exit": 0,
+    "receipt_sha256": "05ae5a15c4a7a1561593295f5aff4f6f0f6d8c13c607b12c565c0dd83ca2e6d4",
+    "counts": {
+      "tests": 23,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "passed": 22
+    }
+  },
+  "windows_regression": {
+    "supervisor_pid": 15936,
+    "supervisor_exit": 0,
+    "cleanup_pid": 4124,
+    "cleanup_exit": 0,
+    "receipt_sha256": "64ca481186a49ccf7e7fe4fb89ba668c6f5e8ff29fb50bfe39d7cef2511c28d6",
+    "counts": {
+      "tests": 223,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 2,
+      "passed": 221
+    },
+    "source_files_preserved": 1080,
+    "scope": [
+      "local state",
+      "plan review",
+      "feedback",
+      "feedback contracts",
+      "feedback cleanup",
+      "agent activity"
+    ]
+  },
+  "linux_companion": {
+    "supervisor_pid": 11168,
+    "supervisor_exit": 0,
+    "cleanup_pid": 17240,
+    "cleanup_exit": 0,
+    "receipt_sha256": "248b32566af0ac39a3f1fedf4986cb713aba520859893c22e3be95820ceb05bc",
+    "result": {
+      "pytest_exit_code": 0,
+      "tests": 24,
+      "failures": 0,
+      "errors": 0,
+      "skips": 6,
+      "container_owned_removed_and_absent": true,
+      "container_id": "9471b27479c67c801fff5eb1300956b9c08290a583c89d0d95e288a0a552c2b3",
+      "source_and_dependencies_preserved": true,
+      "global_QA_accepted": false,
+      "historical_cause_proven": false
+    },
+    "pytest_provider": {
+      "version": "9.1.1",
+      "module": "/usr/local/lib/python3.11/site-packages/pytest/__init__.py",
+      "module_sha256": "ee37885c9583f843390684dfb496907f87a0905128e7a3cf4ad227f49ff34c2d",
+      "provider": "Read-only pinned image; the 86 extra dependencies are Coverage/PyYAML"
+    },
+    "scope": "Original local-state suite and new publication suite; not all plan review workflows"
+  },
+  "linux_controller_history": [
+    {
+      "run": 1,
+      "tests_executed": false,
+      "failure": "Wrong assumed pytest version; case-sensitive Docker absence assertion also failed. Removal and absence RAW remain recorded."
+    },
+    {
+      "run": 2,
+      "tests_executed": false,
+      "failure": "TMPDIR omitted with a read-only root; pytest capture failed before collection. Owned container removed and absence recorded."
+    }
+  ],
+  "limits": [
+    "Four replacement attempts only for Windows codes 5/32/33; waits 20/40/80 ms clipped to the caller deadline.",
+    "Original target generation, deadline and parent safety rechecked before each replacement; same exclusive temporary retained.",
+    "No exclusive-creation retry, operation restart, overwrite fallback, concurrent merge or atomic multiwriter CAS.",
+    "This controlled cause is proven; historical full03 feedback failures remain unexplained.",
+    "No child coverage attributed, full03 results unchanged, final QA and independent review pending.",
+    "Technical memory proposal handoff remains pending until the correction completes its required review."
+  ],
+  "historical_cause_proven": false,
+  "global_QA_accepted": false,
+  "root_promoted": false
+}

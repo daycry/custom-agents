@@ -26,14 +26,18 @@ las puertas de escritura de F2; su estado se sigue en el ledger independiente.
 ## Qué es el bucle
 
 ```
-Memoria  ──lee──▶  Especialización  ──alimenta──▶  Ciclo  ──/retro──▶  Memoria
+Memoria ──lee──▶ Especialización ──alimenta──▶ Ciclo
+Ciclo ──/retro: servicio propose──▶ pending + SHA ──juicio──▶ Curator
+Curator ──servicio apply ligado SHA──▶ Memoria
 ```
 
 `docs/knowledge/` (ADR, gotchas, lecciones, journal) alimenta `/specialize`, que produce **piezas de
 proyecto** — personas, tools, skills o agentes que viven en el `.claude/` del consumidor y saben de SU
 dominio. Esas piezas entran en el ciclo (`task-brief.py` inyecta la persona en el brief de las tareas
-que llevan `- **Tipo**: <tipo>` — el campo es opcional; sin él, subagente genérico), y `/retro` cierra el círculo promoviendo a doctrina lo que se repite. Dos términos distintos, para no
-confundirlos:
+que llevan `- **Tipo**: <tipo>` — el campo es opcional; sin él, subagente genérico). `/retro`
+propone evidencia por `agent-kits/shared/knowledge-curation.py`; repetir no aprueba conocimiento.
+Curator juzga y el servicio persiste con SHA original, motivo y metadatos válidos. Dos términos
+distintos, para no confundirlos:
 
 - **Pieza de plugin** — agente, skill, comando, kit o hook que vive en este repo y viaja con el
   plugin. Agnóstica de dominio por diseño.
@@ -117,19 +121,27 @@ aviso y confirmación extra, nunca un fallo silencioso.
 ## El invariante de dirección
 
 **`/specialize` lee `docs/knowledge/` y NUNCA escribe en él.** Consume ADR, gotchas, lecciones y las
-candidatas del journal; produce piezas. La promoción a doctrina sigue siendo exclusiva de `/retro` y
-del contrato de promoción de `adversarial-review`. Un solo sentido, sin retorno: por eso el tercer
-bucle no se solapa con el bucle de memoria (`ADR-011`, matriz en `docs/agents/ROLES.md`).
+candidatas del journal como indicios; produce piezas según el contrato de F2. Conocimiento nuevo
+se propone por el servicio compartido; `knowledge-curator` decide y solicita persistencia por
+`apply_decision`, no `/retro` ni `adversarial-review`. Design/revisión/QA/Gold/repetición aportan
+evidencia, no aprobación. Retro posterior al Gate entrega handoff o ruta/ID pendientes visibles.
+Legado mantiene bytes/estados/autoridad sin migración, reaprobación o borrado automáticos;
+conflictos/alto impacto requieren resolución humana trazada, no fecha/score. El tercer bucle
+no escribe ni aprueba memoria (`docs/agents/ROLES.md`).
+
+El servicio de curación no entrega F2 ni demuestra actor autenticado o sandbox universal.
+Intención, publicación y recibo son fronteras recuperables, no una transacción multiarchivo
+atómica; aceptación nativa pendiente. [Contrato de curación](roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).
 
 ## El límite de esta iteración
 
-Esta iteración cubre **F1 (Sustrato) y F2 (Nacimiento)**: la cascada de personas, el comando
+El alcance planificado de esta iteración cubre **F1 (Sustrato) y F2 (Nacimiento)**: la cascada de personas, el comando
 `/specialize`, el registro con sus tres estados, el modo de adopción, los requisitos no funcionales
 (idempotencia, concurrencia, privacidad) y la propia sección de `/doctor` que audita el registro — no
 se entrega la capacidad de generar sin la de comprobar.
 
-**F3 (deriva semántica y retirada de piezas muertas) queda diferida, no descartada.** F2 ya entrega su
-propia auditoría mecánica (`/doctor`), así que diferir F3 no deja ningún estadio del ciclo de vida sin
-dueño. Se retoma como iniciativa propia cuando haya datos del criterio de éxito. Detalle completo,
+**F3 (deriva semántica y retirada de piezas muertas) queda diferida, no descartada.** El contrato de
+F2 exige su propia auditoría mecánica (`/doctor`); F2 sigue sin implementarse en este árbol.
+F3 se retoma como iniciativa propia cuando haya datos del criterio de éxito. Detalle completo,
 motivo y punto de control: `docs/roadmap/2026-09-09-project-specialization/spec.md`, sección
 **«Alcance» → «Fuera (esta iteración — diferido, no descartado)»**.

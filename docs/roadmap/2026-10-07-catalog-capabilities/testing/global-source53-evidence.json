@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "source53_manifest_sha256": "5694fd77e1f0b6ead217cc765f541614ac96e26440fd91aed7dc83e00c34ed33",
+  "cases_per_platform": 7296,
+  "changed_python_targets": 32,
+  "windows": {
+    "counts": {
+      "cases": 7296,
+      "failed": 6,
+      "errors": 0,
+      "skipped": 99,
+      "passed": 7191
+    },
+    "coverage": 90.84657800843334,
+    "source_preserved": true,
+    "dashboard_direct_passed": true,
+    "collection_preserved": true,
+    "job_cleanup_confirmed": true,
+    "result_sha256": "a956afd16c7eab36bcfd498a404d68ac48600d951c6d229f3faddce14e560b7a"
+  },
+  "linux": {
+    "counts": {
+      "cases": 7296,
+      "failed": 6,
+      "errors": 0,
+      "skipped": 61,
+      "passed": 7229
+    },
+    "coverage": 90.96334738890691,
+    "source_preserved": true,
+    "dashboard_direct_passed": true,
+    "collection_preserved": true,
+    "container_removed": true,
+    "result_sha256": "5432eb22c966420248be264c139547fad20691d06097a2e7b2ab7f0ce82c055b"
+  },
+  "failed_case_names": [
+    "test_activity_hook_closure_includes_real_local_modules",
+    "test_activity_hook_dependency_network_mutations_remain_detected",
+    "test_activity_hook_missing_local_dependency_is_not_adopted",
+    "test_opencode_reads_only_literal_data_and_exposes_adapter_budget",
+    "test_opencode_stream_bindings_match_exact_declared_metadata[events_missing-activity]",
+    "test_toda_cita_de_script_desde_un_hook_resuelve_a_un_fichero_real"
+  ],
+  "source53_python_qa_accepted": false,
+  "source54_current_full_qa_accepted": false,
+  "global_product_accepted": false
+}

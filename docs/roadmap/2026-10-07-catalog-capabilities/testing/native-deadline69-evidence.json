@@ -1,0 +1,270 @@
+{
+  "schema_version": 1,
+  "recorded_utc": "2026-10-12T06:25:22.175416+00:00",
+  "scope": "Codex state deadline and isolated panel DOM contracts; global and native acceptance remain pending",
+  "runtime_sha256": "4a637c36ce5b529790262f47b3f350b09998ded1445626bc24781841250940cd",
+  "regression_sha256": "1a2665ce69f38e65a2cb78e2548a6a750972547c53dbb2e05d28593f01b30253",
+  "red_windows": {
+    "cases": 1,
+    "failed": 1,
+    "observed_native_exit": 0,
+    "required_timeout_exit": 124
+  },
+  "red_linux": {
+    "cases": 1,
+    "failed": 1,
+    "observed_native_exit": 0,
+    "required_timeout_exit": 124,
+    "actual_native_pid_required": true
+  },
+  "green_windows": {
+    "cases": 6,
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0,
+    "node_version": "v22.22.0"
+  },
+  "green_linux": {
+    "cases": 6,
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0,
+    "node_version": "v22.23.3",
+    "container_removed_and_absent": true
+  },
+  "private_fixture_modes": {
+    "restored_from_source_manifest": 20,
+    "source_bytes_preserved": true,
+    "user_checkout_changed": false,
+    "focused_cases": 1,
+    "passed": 1
+  },
+  "documentation_focal": {
+    "cases": 2,
+    "passed": 2,
+    "failed": 0
+  },
+  "panel_dom_contracts": {
+    "cases": 61,
+    "passed": 61,
+    "failed": 0,
+    "provider": "Node 22 official V8 coverage",
+    "rendered_asset_body_verified": true,
+    "activity_line_percent": 100.0,
+    "review_line_percent": 98.79,
+    "aggregate_line_percent": 99.08,
+    "aggregate_branch_percent": 84.74,
+    "real_browser_interaction_proven": false
+  },
+  "python_windows_global": {
+    "cases": 7227,
+    "passed": 7126,
+    "failed": 2,
+    "skipped": 99,
+    "source47_preserved": true,
+    "provider": "Coverage.py 7.16.2 official parent CTracer",
+    "changed_python_sources_measured": 31,
+    "changed_statement_percent": 90.95279428456968,
+    "coverage_gate_90_passed": true,
+    "original_global_failure_preserved": true,
+    "runner_report_failure": "Coverage report paths resolved against the later pytest cwd rather than startup cwd; post-terminal audit resolves all 31 against the recorded startup cwd."
+  },
+  "full_node_default_concurrency": {
+    "cases": 329,
+    "passed": 327,
+    "failed": 2,
+    "source1139_preserved": true,
+    "accepted": false
+  },
+  "full_node_concurrency2_first": {
+    "suite_budget_seconds": 390,
+    "terminal": "suite budget expired before completion",
+    "no_failed_case_in_captured_output": true,
+    "accepted": false
+  },
+  "full_node_concurrency2_continuation": {
+    "suite_budget_seconds": 900,
+    "individual_deadlines_modified": false,
+    "cases": 329,
+    "passed": 329,
+    "failed": 0,
+    "skipped": 0,
+    "file_concurrency": 2,
+    "source1139_preserved": true,
+    "execution_terminal_exit": 0,
+    "owner_cleanup_exit": 0,
+    "provider": "Node 22 official V8 coverage",
+    "codex_state_line_percent": 97.73,
+    "opencode_adapter_line_percent": 96.52,
+    "hook_runner_line_percent": 85.24,
+    "measured_three_source_line_percent": 92.32,
+    "all_javascript_sources_measured": false,
+    "pending": false
+  },
+  "linux_python_global_pending": false,
+  "independent_review_pending": true,
+  "native_workflows_pending": true,
+  "browser_interaction_pending": true,
+  "global_product_accepted": false,
+  "root_promoted": false,
+  "committed": false,
+  "pushed": false,
+  "ci_file_concurrency": 2,
+  "linux_python_global": {
+    "cases": 7227,
+    "passed": 7160,
+    "failed": 8,
+    "skipped": 59,
+    "collection_preserved": true,
+    "dashboard_direct_passed": true,
+    "changed_python_sources_measured": 31,
+    "changed_statement_percent": 91.07297856713627,
+    "coverage_gate_90_passed": true,
+    "source47_preserved": true,
+    "container_removed_and_absent": true,
+    "original_global_failure_preserved": true
+  },
+  "linux_posix_focal71": {
+    "pytest_exit": 0,
+    "counts": {
+      "cases": 8,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 8
+    },
+    "canonical_source_preserved": true,
+    "input_source_readonly": true,
+    "native_posix_modes_verified": true,
+    "owned_tmpfs_exec_verified": true,
+    "test_bodies_modified": false,
+    "global_product_accepted": false,
+    "container_removed_and_absent": true,
+    "scope": "Eight original failed cases, corrected documentary invocation and owned test filesystem only; no product or test body edits"
+  },
+  "linux_updated_topology_global_pending": false,
+  "linux_updated_topology_global": {
+    "cases": 7227,
+    "passed": 7168,
+    "failed": 0,
+    "skipped": 59,
+    "collection_preserved": true,
+    "dashboard_direct_passed": true,
+    "source1141_preserved": true,
+    "official_parent_provider": "Coverage.py 7.16.2 CTracer",
+    "changed_python_sources_measured": 31,
+    "changed_statement_percent": 91.07297856713627,
+    "coverage_gate_90_passed": true,
+    "container_removed_and_absent": true,
+    "owner_terminal_and_cleanup_exit": 0,
+    "input_source_readonly": true,
+    "native_modes_from_manifest": true
+  },
+  "generated_opencode_entrypoint": {
+    "original_partial_fixture": {
+      "cases": 20,
+      "passed": 17,
+      "failed": 3,
+      "failure_preserved": true
+    },
+    "complete_project_install_fixture": {
+      "cases": 20,
+      "passed": 20,
+      "failed": 0
+    },
+    "complete_install_and_guards": {
+      "cases": 23,
+      "passed": 23,
+      "failed": 0,
+      "skipped": 0,
+      "official_v8_line_percent": 93.03,
+      "official_v8_branch_percent": 64.67
+    },
+    "test_assertions_modified": false,
+    "actual_project_installer_used": true,
+    "source1141_post_terminal_hash_verified": true,
+    "actual_native_server_proven": false
+  },
+  "javascript_diff": {
+    "base_commit": "3be4821377d8d3dbb34e454a838b42314352c23e",
+    "javascript_sources": 6,
+    "rows": [
+      {
+        "path": "hooks/opencode-plugin.js",
+        "source_sha256": "d65c59fa2e325aed7667b962a26f21ab752fc69d48c26f3cf66669d703808533",
+        "official_v8_report_sha256": "127a8c89314da94f8e7dc4da1ea65943002f52fe6ad8377c127da86c7939a64e",
+        "source_line_percent": 96.52,
+        "source_branch_percent": 64.38,
+        "changed_source_lines": 10,
+        "changed_source_lines_not_covered": [],
+        "changed_source_line_percent": 100.0,
+        "scope": "Changed source lines against official Node uncovered-line report; includes comments/blank lines and is not a statement or branch metric"
+      },
+      {
+        "path": "hooks/run-hook.mjs",
+        "source_sha256": "27818c62be968bb5cbff91e5108d96e50a2592c9bb69d9e00755361896d895e5",
+        "official_v8_report_sha256": "127a8c89314da94f8e7dc4da1ea65943002f52fe6ad8377c127da86c7939a64e",
+        "source_line_percent": 85.24,
+        "source_branch_percent": 46.67,
+        "changed_source_lines": 17,
+        "changed_source_lines_not_covered": [],
+        "changed_source_line_percent": 100.0,
+        "scope": "Changed source lines against official Node uncovered-line report; includes comments/blank lines and is not a statement or branch metric"
+      },
+      {
+        "path": "agent-kits/shared/codex-plugin-state.mjs",
+        "source_sha256": "4a637c36ce5b529790262f47b3f350b09998ded1445626bc24781841250940cd",
+        "official_v8_report_sha256": "127a8c89314da94f8e7dc4da1ea65943002f52fe6ad8377c127da86c7939a64e",
+        "source_line_percent": 97.73,
+        "source_branch_percent": 77.61,
+        "changed_source_lines": 10,
+        "changed_source_lines_not_covered": [],
+        "changed_source_line_percent": 100.0,
+        "scope": "Changed source lines against official Node uncovered-line report; includes comments/blank lines and is not a statement or branch metric"
+      },
+      {
+        "path": "interop/opencode/plugins/custom-agents/index.js",
+        "source_sha256": "d65c59fa2e325aed7667b962a26f21ab752fc69d48c26f3cf66669d703808533",
+        "official_v8_report_sha256": "0845a38d0c08e049f32531189a6da930efa0417a2a0c82156c2bcaff567c6e1c",
+        "source_line_percent": 93.03,
+        "source_branch_percent": 64.67,
+        "changed_source_lines": 10,
+        "changed_source_lines_not_covered": [
+          126,
+          127
+        ],
+        "changed_source_line_percent": 80.0,
+        "scope": "Changed source lines against official Node uncovered-line report; includes comments/blank lines and is not a statement or branch metric"
+      },
+      {
+        "path": "skills/plugin-panel/references/panel-activity.js",
+        "source_sha256": "26d7501ce3053b09fca3e17aa19962d19fb4174b2fd7cd61bd2a9ae7571db752",
+        "official_v8_report_sha256": "13774b616c4d6d1a6c244b42dfc71fc8d020d65c1fd6cd3360a28024beb3c03c",
+        "source_line_percent": 100.0,
+        "source_branch_percent": 81.48,
+        "changed_source_lines": 78,
+        "changed_source_lines_not_covered": [],
+        "changed_source_line_percent": 100.0,
+        "scope": "Changed source lines against official Node uncovered-line report; includes comments/blank lines and is not a statement or branch metric"
+      },
+      {
+        "path": "skills/plugin-panel/references/panel-review.js",
+        "source_sha256": "62c0c72f5cb287f4ec45b8c444c375ef3a667d11d3351bde8379d0cd42a0d8ae",
+        "official_v8_report_sha256": "13774b616c4d6d1a6c244b42dfc71fc8d020d65c1fd6cd3360a28024beb3c03c",
+        "source_line_percent": 98.79,
+        "source_branch_percent": 85.64,
+        "changed_source_lines": 89,
+        "changed_source_lines_not_covered": [],
+        "changed_source_line_percent": 100.0,
+        "scope": "Changed source lines against official Node uncovered-line report; includes comments/blank lines and is not a statement or branch metric"
+      }
+    ],
+    "changed_source_lines": 214,
+    "changed_source_lines_not_covered": 2,
+    "changed_source_line_percent": 99.06542056074767,
+    "changed_source_line_gate_90_passed": true,
+    "child_coverage_fabricated": false,
+    "actual_native_sdk_dispatch_proven": false
+  },
+  "windows_current_source_full_pending": true
+}

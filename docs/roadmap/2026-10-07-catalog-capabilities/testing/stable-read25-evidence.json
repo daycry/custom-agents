@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-11",
+  "status": "focal_validation_passed_global_pending",
+  "base_manifest_sha256": "36c643647a9b5dfaa789451169f5f211b221a3da0cefd4a8441648faa2a1a95f",
+  "global_accepted": false,
+  "root_promoted": false,
+  "independent_review_complete": false,
+  "tested_sources": {
+    "agent-kits/shared/local-read.py": "14fd786992636d3ff9c490ccb7383f0c44dd735565fef9abef0f3627c6b0175a",
+    "agent-kits/shared/progress-report.py": "0d163e9b3816e8133c516a4e7ab3ce1bd2dc7356b2194c2fa2880d031ffac908",
+    "agent-kits/shared/plan-review.py": "58c33db023d442108258db90cc2a72a19ff12da0ce110ae9e8bdfa2f801b6811"
+  },
+  "stages": {
+    "red": {
+      "tests": 14,
+      "passed": 8,
+      "failed": 6,
+      "errors": 0,
+      "skipped": 0,
+      "failed_cases": [
+        "test_windows_metadata_settles_only_after_identical_stable_reread",
+        "test_windows_recovery_budget_includes_both_reads_and_text_decode",
+        "test_windows_persistent_metadata_change_returns_no_data_and_stops_after_two_reads",
+        "test_windows_different_reread_bytes_never_receive_a_successful_digest",
+        "test_reread_seek_failure_is_visible_and_does_not_disclose_private_text",
+        "test_second_read_failure_reserves_only_remaining_allocation"
+      ],
+      "junit_sha256": "e75f0c2fd78f75384ab19b9fc58da1d5098167078f4090b3e19d3a9283abc4d1"
+    },
+    "red-native": {
+      "tests": 2,
+      "passed": 0,
+      "failed": 2,
+      "errors": 0,
+      "skipped": 0,
+      "failed_cases": [
+        "test_native_windows_metadata_control_requires_identical_stable_bytes[metadata-only]",
+        "test_native_windows_metadata_control_requires_identical_stable_bytes[different-bytes]"
+      ],
+      "junit_sha256": "b3a57283c5cb47cf3bc6aa2fa0135c454e22eb46a053a526a24da8badbd86f0c"
+    },
+    "red-bytecode": {
+      "tests": 2,
+      "passed": 0,
+      "failed": 2,
+      "errors": 0,
+      "skipped": 0,
+      "failed_cases": [
+        "test_project_local_query_preserves_files_without_requiring_python_B[resume]",
+        "test_project_local_query_preserves_files_without_requiring_python_B[review-status]"
+      ],
+      "junit_sha256": "3b4c4fbf515d37ab66ddd3400f945a6ef4e3b6428a9b9a6ae039552c2396e79b"
+    },
+    "green": {
+      "tests": 396,
+      "passed": 389,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 6,
+      "failed_cases": [
+        "test_f23_deadline_before_commit_preserves_exact_bytes[result-pre_replace]"
+      ],
+      "junit_sha256": "51afc1d6ddbc25646909976bff6056f850766f415b815754a71f471a88c80815"
+    },
+    "green-final": {
+      "tests": 398,
+      "passed": 392,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 6,
+      "failed_cases": [],
+      "junit_sha256": "63759429327e41d305206ce257486e5bfedf04b66eb3a3de4e5cf75b4b6f08fe"
+    },
+    "measurement": {
+      "tests": 193,
+      "passed": 187,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 6,
+      "failed_cases": [],
+      "junit_sha256": "34a9299e45fe71b54ec3b04616554cfb66463ac5890bcdd04a7c60f9190ec50d"
+    },
+    "measurement02": {
+      "tests": 193,
+      "passed": 187,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 6,
+      "failed_cases": [],
+      "junit_sha256": "ca8bd5bef2914e86e2c9798e6c5d4d75212e06dd09ea9bfaada755acfa7165c3"
+    }
+  },
+  "measurement_receipt_sha256": "33e61011729eb1a7aa4bfd019958fe2332cbcb497c21fb3c1e2b816933e111cd",
+  "execution_binding_sha256": "2e11cd92ffb961ca658592d5b6011fce580884e4dae4b17c18ba91ca448b6d87",
+  "coverage": {
+    "changed_covered": 23,
+    "changed_total": 23,
+    "changed_percent": 100.0,
+    "changed_gate_90_without_rounding": true,
+    "coverage_scope": "parent only, three changed source files relative to working19"
+  },
+  "positive_workloads": [
+    {
+      "receipt_sha256": "650fb05e9c5323c621a76081ff26d3fe2d198de83ca74914f6a3c27cd8b12c48",
+      "completed": 100,
+      "outer_retries": 0
+    },
+    {
+      "receipt_sha256": "03714c2d5546032d4cf0f8f3baf6d991a18ab764de5b0a47602875a792528a93",
+      "completed": 250,
+      "outer_retries": 0
+    }
+  ],
+  "contract": {
+    "metadata_only_rereads": 1,
+    "windows_only": true,
+    "same_descriptor": true,
+    "identical_payload_required": true,
+    "cumulative_byte_limit_preserved": true,
+    "path_and_identity_checks_preserved": true,
+    "stable_final_generation_required": true,
+    "project_local_cli_bytecode_disabled": [
+      "progress-report.py",
+      "plan-review.py"
+    ]
+  },
+  "limits": [
+    "No multi-file atomicity or ABA guarantee",
+    "No Windows native symlink privilege; six cases skipped",
+    "Coverage measures the parent, not subprocess CLI execution",
+    "Historical failures remain recorded; causes not all proven",
+    "Full Windows/Linux QA, independent review and real visual QA remain pending"
+  ]
+}

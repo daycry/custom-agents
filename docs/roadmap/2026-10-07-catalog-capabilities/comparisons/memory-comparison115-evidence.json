@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "source_manifest_sha256": "5694fd77e1f0b6ead217cc765f541614ac96e26440fd91aed7dc83e00c34ed33",
+  "reference_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "fixture_sources": 12,
+  "questions": 14,
+  "repetitions": 3,
+  "positive_runs": 36,
+  "positive_expected_source_occurrences": 42,
+  "local": {
+    "all_expected_top5_runs": 36,
+    "all_expected_top1_runs": 24,
+    "recalled_source_occurrences_top5": 42,
+    "absence_returned_counts": [
+      10,
+      3,
+      10,
+      3,
+      10,
+      3
+    ],
+    "partial_runs": 21,
+    "complete_runs": 21,
+    "foreign_source_occurrences": [],
+    "unknown_source_occurrences": [],
+    "version_or_byte_hash_errors": []
+  },
+  "reference": {
+    "all_expected_top5_runs": 33,
+    "all_expected_top1_runs": 9,
+    "recalled_occurrences_top5": 39,
+    "absence_counts": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+    ],
+    "foreign_occurrences": []
+  },
+  "timings_comparable": false,
+  "synthetic_retrieval_only": true,
+  "answer_generation_evaluated": false,
+  "network_or_external_model_calls": 0,
+  "reference_trust": "unreviewed",
+  "reference_version_not_native": true,
+  "project_scope_isolation": "separate owned physical roots in both engines",
+  "local_approved_fixture_is_not_real_curator_approval": true,
+  "graph_context": {
+    "runs": 12,
+    "artifact_sha256": "2c963ad3b99bc4fe51e78f4cf93664f2016f61e322f8fb21860853207eba4ac6",
+    "regenerated": false,
+    "source_and_fixture_preserved": true,
+    "all_citation_locations_exist": true,
+    "rows": [
+      {
+        "symbol": "accept",
+        "repetition": 1,
+        "status": "matches",
+        "nodes": 4,
+        "edges": 3,
+        "freshness": "unverified",
+        "coverage": "unknown",
+        "directed": false,
+        "knowledge_status": "unapproved-context"
+      },
+      {
+        "symbol": "append",
+        "repetition": 1,
+        "status": "matches",
+        "nodes": 4,
+        "edges": 3,
+        "freshness": "unverified",
+        "coverage": "unknown",
+        "directed": false,
+        "knowledge_status": "unapproved-context"
+      },
+      {
+        "symbol": "deadline",
+        "repetition": 1,
+        "status": "matches",
+        "nodes": 6,
+        "edges": 4,
+        "freshness": "unverified",
+        "coverage": "unknown",
+        "directed": false,
+        "knowledge_status": "unapproved-context"
+      },
+      {
+        "symbol": "missing_symbol",
+        "repetition": 1,
+        "status": "no-match-in-artifact",
+        "nodes": 0,
+        "edges": 0,
+        "freshness": "unverified",
+        "coverage": "unknown",
+        "directed": false,
+        "knowledge_status": "unapproved-context"
+      },
+      {
+        "symbol": "accept",
+        "repetition": 2,
+        "status": "matches",
+        "nodes": 4,
+        "edges": 3,
+        "freshness": "unverified",
+        "coverage": "unknown",
+        "directed": false,
+        "knowledge_status": "unapproved-context"
+      },
+      {
+        "symbol": "append",
+        "repetition": 2,
+        "status": "matches",
+        "nodes": 4,
+        "edges": 3,
+        "freshness": "unverified",
+        "coverage": "unknown",
+        "directed": false,
+        "knowledge_status": "unapproved-context"
+      },
+      {
+        "symbol": "deadline",
+        "repetition": 2,
+        "status": "matches",
+        "nodes": 6,
+        "edges": 4,
+        "freshness": "unverified",
+        "coverage": "unknown",
+        "directed": false,
+        "knowledge_status": "unapproved-context"
+      },
+      {
+        "symbol": "missing_symbol",
+        "repetition": 2,
+        "status": "no-match-in-artifact",
+        "nodes": 0,
+        "edges": 0,
+        "freshness": "unverified",
+        "coverage": "unknown",
+        "directed": false,
+        "knowledge_status": "unapproved-context"
+      },
+      {
+        "symbol": "accept",
+        "repetition": 3,
+        "status": "matches",
+        "nodes": 4,
+        "edges": 3,
+        "freshness": "unverified",
+        "coverage": "unknown",
+        "directed": false,
+        "knowledge_status": "unapproved-context"
+      },
+      {
+        "symbol": "append",
+        "repetition": 3,
+        "status": "matches",
+        "nodes": 4,
+        "edges": 3,
+        "freshness": "unverified",
+        "coverage": "unknown",
+        "directed": false,
+        "knowledge_status": "unapproved-context"
+      },
+      {
+        "symbol": "deadline",
+        "repetition": 3,
+        "status": "matches",
+        "nodes": 6,
+        "edges": 4,
+        "freshness": "unverified",
+        "coverage": "unknown",
+        "directed": false,
+        "knowledge_status": "unapproved-context"
+      },
+      {
+        "symbol": "missing_symbol",
+        "repetition": 3,
+        "status": "no-match-in-artifact",
+        "nodes": 0,
+        "edges": 0,
+        "freshness": "unverified",
+        "coverage": "unknown",
+        "directed": false,
+        "knowledge_status": "unapproved-context"
+      }
+    ]
+  },
+  "private_raw_record_pins": [
+    {
+      "label": "local",
+      "sha256": "32bc54ca9049f8bfd581c908ab9e4669c06ca7fd92e43226910de0242e1b11f0",
+      "bytes": 172972
+    },
+    {
+      "label": "reference",
+      "sha256": "0e14c2bc8819d7d459bea0d60200a430425a0a970ff302dce2504218deaed81d",
+      "bytes": 461435
+    },
+    {
+      "label": "code",
+      "sha256": "a23b639505db1d5b8299562fcd90ecfd5a4c8b52c0edada3f00e4458159a6128",
+      "bytes": 28728
+    }
+  ],
+  "global_product_accepted": false
+}

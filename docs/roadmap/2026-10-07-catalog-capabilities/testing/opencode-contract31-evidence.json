@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "base_source_manifest_sha256": "f40cfa0ba0afd94c14ae36eb11673bbdc93ccf2a44f69a0cd6e79fadb7e5cfbd",
+  "corrected_stage_manifest_sha256": "ff39fe2196f3a7d6becac864922707aa9ab6e51b177c18189624b507d7c83fb2",
+  "problem": "Generated OpenCode V2 role and command examples supplied name, but the native skill tool requires id",
+  "native_contract_fixture": "tests/fixtures/opencode-v2-skill-contract.json",
+  "native_contract_fixture_sha256": "790167a079508cf2e57581a457ade31052cdaf12f99573730ef25df1b7c873a7",
+  "red": {
+    "expected_red_observed": true,
+    "testcase_count": 1,
+    "pytest_exit": 1,
+    "native_required_key": "id",
+    "exported_wrong_key": "name",
+    "first_example_value": "X",
+    "controller_exit": 1,
+    "controller_failed_due_to": "Diagnostic assumed example value nombre; actual first agent example uses X",
+    "junit_sha256": "54bc4fe1ea9854a0d1381351e0da864bc7c69fdc4a1e151eab63e4a640941f6c",
+    "original_receipts_preserved": true
+  },
+  "windows": {
+    "counts": {
+      "cases": 38,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "full_module_accepted": true,
+    "official_coverage_version": "7.16.2",
+    "official_c_tracer": true,
+    "owner_percent_covered": 87.03703703703704,
+    "coverage_scope": "Parent exporter calls from transport tests; no attribution of exporter child coverage",
+    "junit_sha256": "9d44510a0d1248b874eee6fc71a5c078e96f75d852a00400d6677eace4444aa3"
+  },
+  "linux": {
+    "pytest_exit": 0,
+    "pytest_version": "9.1.1",
+    "counts": {
+      "cases": 38,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "official_c_tracer": true,
+    "coverage_version": "7.16.2",
+    "parent_whole_owner_percent_covered": 87.03703703703704,
+    "full_module_accepted": true,
+    "source_mount_read_only": true,
+    "global_product_accepted": false
+  },
+  "linux_terminal_audit": {
+    "module_accepted": true,
+    "cases": 38,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "container_id": "5dd92a3af27146db5079882e2d37236f687b97fadb1fd782036b7ec222313d78",
+    "container_owned_removed_and_absent": true,
+    "source_and_dependencies_preserved": true,
+    "original_controller_exit": 1,
+    "original_controller_failure_preserved": true,
+    "controller_failure_reason": "Expected error text used capital No; Docker reports lower-case no such object",
+    "junit_sha256": "b9a3be77ebd39e4c03ac6db3bd36115bf2446d2d828a45a70331de48d12bbbd9",
+    "coverage_json_sha256": "c838669ae85e558793ef123e9a23a1b4763f1cc445a0fc1b51b07018c9167c64",
+    "absent_receipt_sha256": "a6e0f318ebfa9e31b0f9b088ca1dbd43d89277e789b8fb1963d78fae6c138378",
+    "independent_agent_review": false,
+    "global_product_accepted": false
+  },
+  "changed_coverage": {
+    "changed_lines": [
+      93,
+      144
+    ],
+    "changed_executable_lines": [],
+    "changed_executable_coverage_percent": null,
+    "coverage_applicable_to_changed_lines": false,
+    "reason": "Only text inside existing constant assignments changed; Coverage.py classifies neither changed line as executable",
+    "parent_whole_owner_percent_covered": 87.03703703703704,
+    "official_c_tracer": true,
+    "original_controller_failure_preserved": true,
+    "stage_manifest_sha256": "ff39fe2196f3a7d6becac864922707aa9ab6e51b177c18189624b507d7c83fb2",
+    "stage_binding_scope": "Exact file bytes, not validation of Git executable modes",
+    "global_product_accepted": false
+  },
+  "native_cases": [
+    {
+      "scenario": "native-skill",
+      "accepted": true,
+      "acceptance_key": "native_skill_execution_accepted",
+      "native_version": "2.0.12",
+      "provider_requests": 2,
+      "canonical_command_expanded": true,
+      "arguments_preserved": true,
+      "result_sha256": "53267875896baea5c14fb2d8838a178e049955c2b21241b593c499f905c88071",
+      "runner_terminal_sha256": "43f5e03e2197eba6b57401fb6e8163dc15465a5bf4ecccc62df538cbf63cd4d1",
+      "cleanup_confirmed": true,
+      "observed": {
+        "native_skill_outputs": 1,
+        "native_skill_body_returned": true
+      }
+    },
+    {
+      "scenario": "native-resume",
+      "accepted": true,
+      "acceptance_key": "read_only_native_owner_case_accepted",
+      "native_version": "2.0.12",
+      "provider_requests": 2,
+      "canonical_command_expanded": true,
+      "arguments_preserved": true,
+      "result_sha256": "4f7b8b4a18042e0b5acbbb2073a0076b2b3a472e6f8af4157d4619ed811b5b4d",
+      "runner_terminal_sha256": "ca95092ce5f4f14b27dd012132acfb529b0dfbc4bf3dfaee605fdfb54514cf07",
+      "cleanup_confirmed": true,
+      "observed": {
+        "native_owner_outputs": 1,
+        "owner_projection_verified": true,
+        "project_files_and_directories_unchanged": true,
+        "no_delivery_consumption_or_approval": true
+      }
+    }
+  ],
+  "generated_outputs_regenerated": true,
+  "source_and_dependencies_preserved": true,
+  "external_model_inferences": 0,
+  "synthetic_provider_usage_not_billable": true,
+  "real_model_judgment_accepted": false,
+  "full_qa_baseline": "working24; this literal-only correction has focused module and native evidence",
+  "fresh_independent_review_accepted": false,
+  "all_native_workflows_accepted": false,
+  "visual_ui_accepted": false,
+  "global_product_accepted": false,
+  "root_promoted": false
+}

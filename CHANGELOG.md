@@ -11,6 +11,162 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed — Deterministic plan decision consumption
+
+- Consume a selected plan decision through the existing owner with bound delivery/ack IDs and a final current-view check; preserve waiting, obsolete versions and retry receipts without launching workflow effects.
+
+### Fixed — Obsolete plan-review guidance
+
+- Distinguish opening a review for a new plan version from consuming an existing decision, and preserve the receive/ack/view order and nonzero JSON results.
+
+### Fixed — Resume command output
+
+- Preserve the complete composer JSON and use its selection result for unfiltered resume requests; resolve the kit from the authorized project root.
+
+### Changed — Core validation evidence
+
+- Record full Windows/Linux validation, current production coverage scope and JavaScript line measurements, keeping native workflow, human UI and independent review acceptance separate.
+
+### Fixed — Activity catalog consistency
+
+- Require the native execution-start event in panel activity declarations while keeping terminal capture separate. Review and renew the local activity owner dependency pin; preserve network mutation checks.
+
+### Fixed — Activity at native execution start
+
+- Observe OpenCode execution start through the existing opt-in activity owner, independently of terminal session capture. Keep live prompt logs during execution and retain native end/idle capture; verify with a held local provider.
+
+### Fixed — Producer memory scope
+
+- Remove the stale direct legacy ADR/index write permission from producer guards. Share the memory scope check, retain explicit opt-out and consumer-agent permissions, and verify actual OpenCode writes and nested agent identity.
+
+### Fixed — CLI budget and Windows acceptance publication
+
+- Count the CLI terminating newline in brief overflow diagnostics. Stabilize synthetic restore/audit publication against bounded Windows sharing contention, preserving persistent failures and existing restore destinations.
+
+### Fixed — Native query deadline
+
+- Count synchronous CLI startup against the original Codex plugin-state deadline and discard late successful output. Add an actual-process regression and prepare platform fixtures before testing responsive queries.
+
+
+### Fixed — Native graph source linkage
+
+- Reject invalid prior versions and prevent coincident Entity names from bypassing native UUID provenance. Require episode references for modern facts, retain derivative labels, and validate source identities in full without truncation.
+
+
+- Retain the original sanitized submission failure across uncertain retries without resending; validate bounded diagnostic fields in owned receipts.
+
+
+- Preserve derivative authority labels and source UUIDs in shared JSON and compact reads; retain exact bounded identities and reject inconsistent claims. Keep the authority label visible when shortening compact output.
+
+
+- Resolve native fact episode UUIDs and Entity membership to confirmed current source identities, with bounded lookup and no name fallback for malformed native references. Preserve independently bound facts when membership is unavailable and label extracted text as derivative without approval or claim-level authority.
+
+### Changed — Recoverable memory reconstruction
+
+- Build and verify a separate generation before switching publication; retain the prior group, snapshots and uncertain abandoned stages. Recover interrupted submissions without resending, rebind version history to confirmed UUIDs, and repair remote loss from exact owned snapshots or canonical source.
+
+### Changed — Memory generation resolution
+
+- Resolve published physical groups bound to the project's logical scope without activating pending descriptors or adopting another projection. Revalidate under lock and close gates for unsafe descriptors or concurrent changes; establish the scope foundation for generation-based reconstruction.
+
+### Fixed — Remote memory history verification
+
+- Verify transition markers, retired versions and historical edges with exact identity and content, including manifests without current entries. Reject contradictory manifests, duplicate names and out-of-group responses; distinguish incomplete windows from successful verification without state mutation.
+
+### Fixed — Interrupted memory succession
+
+- Record and recover transition intent before withdrawing abandoned versions or confirming replacements; reuse existing relationships and defer dependent operations after failure. Prevent receipts from expanding the configured mode and reuse shared manifest I/O with Windows retry and target identity checks.
+
+### Fixed — Context and types for memory control markers
+
+- Isolate succession and withdrawal markers from prior episode context; exclude Entity and declared custom types before validating their attributes. Validate configuration without changing extraction for approved knowledge entries.
+
+### Fixed — Memory submissions withdrawn before confirmation
+
+- Recover pending publications removed from the approved corpus through exact readback and version-scoped withdrawal without resubmission. Retain withdrawn identity before pruning receipts; interrupted commits and stale replay preserve provenance and later generations.
+
+### Fixed — Typed Graphiti errors
+
+- Reject typed MCP ErrorResponse results even when isError is false, preserving successful envelopes and sanitizing diagnostics. Align the remaining security assertion with partial-publication recovery.
+
+### Fixed — Recoverable memory publication
+
+- Reconcile outbox replay before fresh planning so withdrawn or superseded knowledge cannot remain as the final projection. Retry bounded Windows final-manifest sharing denials while checking observed file identities; report possible partial publication and recovery without promising global rollback.
+
+### Fixed — Native OpenCode teardown
+
+- Resolve Windows process termination through the system executable so cleanup completes with a restricted PATH; isolate capture assertions from informational activity.
+
+### Fixed — Owned metadata publication
+
+- Recover transient Windows sharing denials when replacing owned state within the caller deadline, while rechecking the observed generation and avoiding overwrite after replacement rejection.
+
+- Preserve ledger heading markers when moving execution details into history, keeping command consumers and resume compatible.
+
+### Fixed — Read-only local queries
+
+- Stabilize Windows metadata-only reads through one bounded, identical-payload reread while retaining path and identity checks; prevent helper bytecode writes from project-local resume and plan review CLI queries.
+
+### Changed — Review continuity
+
+- Graphiti confirms server-assigned UUIDs and retains asynchronous receipts; succession and withdrawal bind individual versions. Documentary relationships are the default; direct edges require opt-in and a server with verified group write isolation.
+
+- Show scoped plan review receipts when resuming work and in session progress, preserving versions, states and omission notices without delivering, acknowledging or approving decisions.
+
+### Fixed — Cumulative process measurements
+
+- Use exclusive temporary files for meter state and bounded replacement attempts for Windows access and sharing errors. Preserve the previous snapshot and visible failure state when replacement is exhausted, without retrying unrelated errors.
+
+- Identify persisted measurement windows and revisions so shared plan/task snapshots use the latest whole close instead of adding cumulative tokens, hours and cost. Preserve independent windows and legacy exact copies, and show partial data for failed persistence, conflicting revisions or invalid identities.
+
+### Changed — Development request continuity
+
+- Carry the requested outcome, explicit requirements and their sources into both development paths. Keep project patterns and open assumptions in existing task notes, and connect acceptance criteria with verification in the implementation brief.
+
+### Added — Local knowledge transfer
+
+- Export explicitly selected approved notes as a bounded, hash-bound package and import them as pending proposals in another project. Preserve source bytes and provenance, validate the whole batch before persistence and report partial effects without automatic approval or backend activation.
+
+### Added — Optional agent activity
+
+- Display recent native activity signals in the local panel with manual refresh, polling and expiry. Keep incomplete collection and unknown states visible; separate response and execution events from task progress and process liveness. Capture is opt-in, bounded and excludes local activity files from Git.
+
+### Changed — Reviewed commit selection
+
+- Preview and revalidate exact selected paths before the workflow's native Git commit, preserving unrelated staging. Report conflicting selections and changed snapshots through one shared read-only CLI; verify the resulting commit and retain discrepancies for review.
+
+### Fixed — Activity configuration and panel labels
+
+- Recognize the activity boolean in the installation diagnostic and retain correctly encoded accessible labels in the memory view.
+
+### Added — Plan review responses
+
+- Record results for individual consumed plan comments, show producer actors as declared or unknown, and retain optional human observations through the existing owner CLI. Distinguish consumption, attention and communicated verification in versioned panel history without adding approval gates or browser write endpoints.
+
+### Added — Explicit curation continuity
+
+- Show curation associated with the current initiative through exact candidate paths and hashes recorded by the ledger owner. Observe pending operations and validated persistence receipts without recovery, promotion or implied QA; retain complete identities and count references omitted by bounded output across generated runtime commands.
+- Resume a selected curation operation explicitly using complete IDs, the candidate SHA256 and validated persistence receipts. Reject stale bindings and preserve local recovery state without automatically approving or publishing.
+
+### Fixed — Workflow ownership
+
+- Reserve initiative closeout for the orchestrator after review, QA, documentation and the retro gate; keep standalone QA evidence separate from final states. Align Jira completion, design proposals and diagrams with their existing owners and persistence contracts across all three runtimes.
+
+### Fixed — Regression suite execution
+
+- Exercise publication CLI boundaries, recoverable curation failures and Gold proposal handoffs with real local fixtures; verify preserved bytes and receipts without requiring external memory services.
+- Include Confluence scope tests in CI and exercise the visual review envelope validator with valid UTF-8 input in Windows console tests.
+- Distinguish runtime configuration values and local URL parsing from network calls in hook security tests, follow the capture and native guard dependencies, and preserve the real local policy reader when spying on backend loading.
+- Keep parser mutations visible to hook security checks across nested scopes and aliases, including class changes, internal methods and attribute setters; conservatively withhold argparse exemptions when object attributes may have changed.
+- Make Windows shell and permission test environments explicit, preserve resolver values independently of timeout arguments in backend spies, and document the executable gate for the training-to-curator handoff.
+- Copy the local reader dependencies into the relocated memory brief test and retain backend verification results in assertion diagnostics.
+- Quote Windows Python paths in coverage fixtures and remove temporary evaluation repositories with read-only Git objects; report cleanup failures through the shared redactor, retaining the directory and using a fixed notice if redaction is unavailable.
+- Preserve the first publication exception in test support with its cause and failing stage. Retain the temporary file and re-raise the original error without retries or a secondary cleanup write masking it.
+
+### Changed — Shared knowledge curation
+
+- Route new proposals through one shared persistence service and reserve approval decisions for the curator. Validate the original hash and final knowledge metadata before publication, preserve recovery intents and exclude candidates and session journals from Confluence publication.
+
 ### Changed — Native Codex command transport
 
 - Generate explicit command adapters inside the plugin from canonical workflows, preserving their full bodies and literal shell syntax. Keep canonical skills in their own manifest root. Install adapters within the selected scope and preserve existing personal prompts while releasing obsolete installer ownership.

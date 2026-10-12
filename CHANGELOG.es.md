@@ -11,6 +11,162 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed — Consumo determinista de decisiones de plan
+
+- Consumir la decisión seleccionada mediante el dueño existente, con IDs reales de entrega/ack y vista vigente final; conservar espera, versiones obsoletas y recibos de reintento sin ejecutar efectos del workflow.
+
+### Fixed — Guía de revisiones obsoletas
+
+- Distinguir la apertura de una revisión para otra versión del plan del consumo de una decisión existente; conservar el orden receive/ack/view y el JSON con código no cero.
+
+### Fixed — Salida del comando de retoma
+
+- Conservar el JSON completo del compositor y usar su selección en consultas sin filtros; resolver el kit desde la raíz del proyecto autorizado.
+
+### Changed — Evidencia de validación del core
+
+- Registrar la validación completa Windows/Linux, el alcance vigente de cobertura de producción y la medición de líneas JavaScript, separando aceptación de workflows nativos, UI humana y revisión independiente.
+
+### Fixed — Coherencia del catálogo de actividad
+
+- Exigir el evento nativo de inicio en la declaración de actividad del panel y conservar la captura terminal separada. Revisar y renovar el pin del dueño local de actividad, manteniendo la detección de red en dependencias.
+
+### Fixed — Actividad al iniciar la ejecución nativa
+
+- Observar el inicio de ejecución de OpenCode mediante el dueño de actividad opt-in, separado de la captura terminal. Conservar el prompt mientras ejecuta y mantener captura end/idle; verificado con proveedor local detenido durante la observación.
+
+### Fixed — Alcance de memoria de productores
+
+- Eliminar el permiso antiguo de escritura directa de ADR e índice legado en las guardias de productores. Compartir la comprobación de memoria, conservar el opt-out y los permisos de agentes del usuario, y verificar escrituras nativas de OpenCode e identidad de subagentes.
+
+### Fixed — Presupuesto del CLI y publicación de pruebas en Windows
+
+- Contar el salto final del CLI en los avisos de exceso del brief. Estabilizar la publicación de restauraciones y auditoría sintéticas ante contención breve de Windows, conservando los fallos persistentes y los destinos existentes.
+
+### Fixed — Plazo de consulta nativa
+
+- Contar el arranque síncrono de la CLI dentro del plazo original del lector de estado de Codex y descartar salidas tardías. Añadir una regresión con proceso real y preparar las fixtures de cada plataforma antes de probar consultas responsivas.
+
+
+### Fixed — Vínculo de fuentes del grafo nativo
+
+- Rechazar versiones previas inválidas e impedir que nombres de Entity coincidentes eludan la procedencia por UUID. Exigir referencias en hechos modernos, conservar etiquetas derivadas y validar identidades completas sin recorte.
+
+
+- Conservar el fallo original saneado en reintentos inciertos sin reenviar; validar campos de diagnóstico acotados en recibos propios.
+
+
+- Conservar etiquetas de autoridad derivada y UUID de origen en JSON y lecturas compactas; mantener identidades exactas y acotadas y rechazar declaraciones inconsistentes. El recorte conserva visible la etiqueta de autoridad.
+
+
+- Resolver UUID de episodios en hechos y pertenencia de entidades a fuentes vigentes confirmadas, con consulta acotada y sin alternativa por nombre para referencias nativas inválidas. Conservar hechos vinculados cuando la pertenencia no esté disponible y declarar el texto extraído como derivado, sin aprobación ni autoridad por afirmación.
+
+### Changed — Reconstrucción recuperable de memoria
+
+- Construir y verificar otra generación antes de cambiar la publicación; conservar el grupo anterior, snapshots y estados abandonados inciertos. Recuperar envíos interrumpidos sin reenviar, vincular el historial a UUID confirmados y reparar pérdidas remotas desde copias propias o fuentes canónicas exactas.
+
+### Changed — Resolución de generaciones de memoria
+
+- Resolver grupos físicos publicados ligados al grupo lógico del proyecto, sin activar descriptores pendientes ni adoptar otra proyección. Revalidar la selección bajo bloqueo y mantener cerradas las operaciones ante descriptores inseguros o cambios concurrentes; preparar la base de reconstrucción por generaciones.
+
+### Fixed — Verificación remota del historial de memoria
+
+- Verificar marcadores, versiones retiradas y aristas históricas con identidad y contenido exactos, incluso sin entradas vigentes. Rechazar manifiestos contradictorios, nombres duplicados y respuestas fuera del grupo; distinguir ventanas incompletas de verificación exitosa sin mutar estado.
+
+### Fixed — Sucesiones de memoria interrumpidas
+
+- Registrar y recuperar la intención de los marcadores antes de retirar versiones abandonadas o confirmar sus reemplazos; reutilizar relaciones existentes y diferir operaciones dependientes tras un fallo. Impedir que un recibo amplíe el modo autorizado y reutilizar el escritor compartido para manifiestos con reintento Windows y comprobación del destino.
+
+### Fixed — Contexto y tipos de los marcadores de memoria
+
+- Aislar los marcadores de sucesión y retirada del contexto previo; excluir Entity y los tipos personalizados declarados antes de validar sus atributos. Validar la configuración sin alterar la extracción de las entradas aprobadas.
+
+### Fixed — Envíos de memoria retirados antes de confirmación
+
+- Recuperar publicaciones pendientes que desaparecen del corpus aprobado mediante lectura exacta y retirada por versión, sin reenvío. Conservar la identidad retirada antes de podar recibos; un corte antes del commit o un replay antiguo mantiene la trazabilidad y las generaciones posteriores.
+
+### Fixed — Errores tipados de Graphiti
+
+- Rechazar resultados MCP ErrorResponse aunque isError sea false, conservando los envelopes de éxito y saneando diagnósticos. Alinear la aserción restante de seguridad con la recuperación de publicación parcial.
+
+### Fixed — Publicación recuperable de memoria
+
+- Reconciliar el replay de la outbox antes del plan fresco para que conocimiento retirado o reemplazado no permanezca como proyección final. Reintentar de forma acotada los rechazos Windows del manifiesto final comprobando las identidades observadas; informar de publicación parcial y recuperación sin prometer rollback global.
+
+### Fixed — Cierre nativo OpenCode
+
+- Resolver la terminación de procesos Windows mediante el ejecutable del sistema para cerrar con PATH restringido; separar las comprobaciones de captura de la actividad informativa.
+
+### Fixed — Publicación de metadatos propios
+
+- Recuperar rechazos transitorios de acceso compartido en Windows al reemplazar estado propio dentro del plazo del caller, comprobando la generación observada y evitando sobrescribir tras un rechazo del reemplazo.
+
+- Conserva los encabezados usados como marcadores al trasladar el detalle al historial, manteniendo compatibles los comandos y la retoma.
+
+### Fixed — Consultas locales de solo lectura
+
+- Estabilizar lecturas Windows con cambios exclusivos de metadatos mediante una única relectura acotada de bytes idénticos, conservando controles de rutas e identidad; evitar bytecode de helpers al consultar retoma y revisión de planes desde kits locales de proyecto.
+
+### Changed — Continuidad de revisiones
+
+- Graphiti confirma UUID asignados por el servidor y conserva recibos asíncronos; sucesión y retirada se vinculan por versión. Las relaciones documentales son predeterminadas y las aristas directas requieren opt-in y servidor aislado por grupo.
+
+- Mostrar los recibos de revisión de la iniciativa al retomar trabajo y en el progreso de sesión, conservando versiones, estados y omisiones sin entregar, consumir ni aprobar decisiones.
+
+### Fixed — Mediciones acumuladas del proceso
+
+- Usar temporales exclusivos para el estado del medidor y reintentos acotados de reemplazo ante errores de acceso y compartición en Windows. Conservar el snapshot anterior y el fallo visible al agotarlos, sin reintentar otros errores.
+
+- Identificar ventanas y revisiones de medición persistidas para que las copias compartidas de plan y tareas usen el último cierre completo, sin sumar tokens, horas y coste acumulados. Conservar ventanas independientes y copias legacy exactas, y mostrar datos parciales ante fallos de persistencia, revisiones contradictorias o identidades inválidas.
+
+### Changed — Continuidad del encargo de desarrollo
+
+- Conservar el resultado solicitado, los requisitos explícitos y sus fuentes en las dos vías de desarrollo. Registrar los patrones del proyecto y las hipótesis pendientes en las notas existentes de cada tarea, y conectar los criterios de aceptación con su verificación en el brief de implementación.
+
+### Added — Traslado local de conocimiento
+
+- Exportar notas aprobadas seleccionadas explícitamente en un paquete acotado y ligado al hash, e importarlas como propuestas pendientes en otro proyecto. Conservar bytes y procedencia, validar todo el lote antes de persistir e informar de efectos parciales sin aprobación ni activación de backends automáticas.
+
+### Added — Actividad opcional de agentes
+
+- Mostrar señales nativas recientes en el panel local con actualización manual, consulta periódica y vencimiento. Mantener visibles la colección incompleta y los estados desconocidos; separar eventos de respuesta y ejecución del progreso de tareas y la presencia de procesos. La captura es opt-in, acotada y excluye los archivos locales de actividad de Git.
+
+### Changed — Selección revisada de commits
+
+- Previsualizar y revalidar rutas seleccionadas exactas antes del commit Git nativo del workflow, conservando el staging ajeno. Informar de selecciones conflictivas y snapshots cambiados mediante un CLI compartido de solo lectura; verificar el commit resultante y conservar discrepancias para revisión.
+
+### Fixed — Configuración de actividad y etiquetas del panel
+
+- Reconocer el booleano de actividad en el diagnóstico de instalación y conservar la codificación correcta de las etiquetas accesibles de memoria.
+
+### Added — Respuestas a la revisión de planes
+
+- Registrar resultados por comentario de plan consumido, mostrar actores del productor como declarados o desconocidos y conservar observaciones humanas opcionales por el CLI del dueño existente. Distinguir consumo, atención y verificación comunicada en el historial por versión del panel, sin nuevas puertas de aprobación ni endpoints de escritura del navegador.
+
+### Added — Continuidad explícita de curación
+
+- Mostrar la curación ligada a la iniciativa actual mediante rutas y hashes exactos registrados por el dueño del ledger. Observar operaciones pendientes y recibos de persistencia validados sin recuperar, promover ni atribuir QA implícita; conservar identidades completas y contar referencias omitidas por la salida acotada en los comandos generados para los tres runtimes.
+- Retomar explícitamente una operación de curación seleccionada usando IDs completos, el SHA256 del candidato y recibos de persistencia validados. Rechazar enlaces desactualizados y conservar el estado local de recuperación sin aprobar ni publicar automáticamente.
+
+### Fixed — Responsabilidades del workflow
+
+- Reservar el cierre de la iniciativa al orquestador tras revisión, QA, documentación y puerta de retro; separar la evidencia de QA suelta de los estados finales. Alinear el cierre de Jira, las propuestas de diseño y los diagramas con sus dueños y contratos de persistencia existentes en los tres runtimes.
+
+### Fixed — Ejecución de suites de regresión
+
+- Probar los límites del CLI de publicación, fallos recuperables de curación y propuestas Gold con fixtures locales reales; comprobar bytes y recibos conservados sin requerir servicios externos de memoria.
+- Incluir las pruebas de alcance de Confluence en CI y comprobar el validador de apertura de revisión visual con entrada UTF-8 válida en las pruebas de consola Windows.
+- Distinguir valores de configuración de runtime y análisis local de URLs de llamadas de red en las pruebas de seguridad de hooks, recorrer las dependencias de captura y guardia nativa y conservar el lector real de política local al espiar la carga de backends.
+- Mantener visibles para las comprobaciones de seguridad de hooks las mutaciones del parser entre scopes anidados y aliases, incluidos cambios de clase, métodos internos y setters de atributos; retirar de forma conservadora la exención argparse si pueden haber cambiado atributos del objeto.
+- Declarar el entorno de las pruebas de shell y permisos en Windows, conservar los valores del resolver independientemente del timeout en los espías de backends y documentar la puerta ejecutable del handoff de entrenamiento al curador.
+- Copiar las dependencias del lector local en la prueba del brief de memoria trasladado y conservar los resultados de verificación del backend en los diagnósticos de aserción.
+- Escapar las rutas Python de Windows en las fixtures de cobertura y retirar repositorios temporales de evaluación con objetos Git de solo lectura; informar de los fallos de limpieza mediante el redactor compartido, conservar el directorio y usar un aviso fijo si la redacción no está disponible.
+- Conservar en el soporte de tests la primera excepción de publicación con su causa y etapa. Mantener el temporal y repropagar el error original sin reintentos ni otra escritura de limpieza que lo oculte.
+
+### Changed — Curación compartida de conocimiento
+
+- Canalizar propuestas nuevas mediante un servicio compartido de persistencia y reservar la decisión de aprobación al curador. Validar el hash original y los metadatos finales antes de publicar, conservar intenciones de recuperación y excluir candidatos y journals de sesión de la publicación a Confluence.
+
 ### Changed — Transporte nativo de comandos Codex
 
 - Generar adaptadores explícitos dentro del plugin desde los workflows canónicos, conservando sus cuerpos completos y sintaxis shell literal. Mantener las skills canónicas en su propia raíz del manifiesto. Instalar adaptadores en el scope elegido y conservar los prompts personales existentes retirando la propiedad obsoleta del instalador.

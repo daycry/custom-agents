@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "status": "current_scoped_qa_passed_independent_review_pending",
+  "tested_source_manifest_sha256": "09b1dd967cd27983a2ec8a9048ab14eef809172846463248974c2e1eeadd3216",
+  "platforms": {
+    "windows": {
+      "counts": {
+        "cases": 7322,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 73,
+        "passed": 7249
+      },
+      "changed_python_targets": 33,
+      "changed_statement_percent": 91.1717693348088,
+      "coverage_provider": "Coverage.py 7.16.2 official parent CTracer",
+      "child_coverage_attributed": false,
+      "coverage_gate_90_passed": true,
+      "collection_preserved": true,
+      "source_preserved": true,
+      "dashboard_direct_passed": true,
+      "own_cleanup_confirmed": true,
+      "junit_sha256": "3e64c022eaaf5312a155c66887e1ec2b9586dcacce1a437289aa2ec61d0a491b"
+    },
+    "linux": {
+      "counts": {
+        "cases": 7322,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 67,
+        "passed": 7255
+      },
+      "changed_python_targets": 33,
+      "changed_statement_percent": 91.28242960777081,
+      "coverage_provider": "Coverage.py 7.16.2 official parent CTracer",
+      "child_coverage_attributed": false,
+      "coverage_gate_90_passed": true,
+      "collection_preserved": true,
+      "source_preserved": true,
+      "dashboard_direct_passed": true,
+      "own_cleanup_confirmed": true,
+      "junit_sha256": "e3b92514839d50d7ef5ec5dea4048cac7b52aa9d8abf60fe7e88aaa3a97fd542"
+    }
+  },
+  "owner_tdd": {
+    "extended_red_failed": 16,
+    "owner_green_passed": 68
+  },
+  "literal_shell_recipes": {
+    "passed": 34,
+    "skipped": 0,
+    "real_owner_cases": 8
+  },
+  "barrier_reader_tdd": {
+    "real_windows_red_failed": 2,
+    "recovery_suite_green_passed": 14,
+    "original_file_holder_identified": false,
+    "production_python_changed_for_fixture_fix": false
+  },
+  "native_consume": {
+    "cases": [
+      {
+        "case": "approve",
+        "actual_consume_exit": 0,
+        "protocol_passed": true,
+        "returned_json_payload_semantically_equal": true,
+        "raw_json_only": true,
+        "format_limitation": null
+      },
+      {
+        "case": "stale",
+        "actual_consume_exit": 2,
+        "protocol_passed": true,
+        "returned_json_payload_semantically_equal": true,
+        "raw_json_only": false,
+        "format_limitation": "Model adds an introductory line and a JSON code fence; strict JSON-only fixture requirement remains failed"
+      },
+      {
+        "case": "request_changes",
+        "actual_consume_exit": 0,
+        "protocol_passed": true,
+        "returned_json_payload_semantically_equal": true,
+        "raw_json_only": false,
+        "format_limitation": "Model adds an introductory line and a JSON code fence; strict JSON-only fixture requirement remains failed"
+      },
+      {
+        "case": "waiting",
+        "actual_consume_exit": 0,
+        "protocol_passed": true,
+        "returned_json_payload_semantically_equal": true,
+        "raw_json_only": true,
+        "format_limitation": null
+      }
+    ],
+    "actual_protocol_cases_passed": 4,
+    "full_json_payload_cases_passed": 4,
+    "strict_raw_json_only_cases_passed": 2,
+    "original_failed_strict_cohort_preserved": true,
+    "source_manifest_sha256": "1d5a1276a2daee001c70f60b7ca0a0c8e4a60a0e4871c2efd5aecfeb59453047",
+    "real_model_requests": 42,
+    "human_browser_approval_accepted": false,
+    "other_native_clients_accepted": false
+  },
+  "technical_memory": {
+    "candidate": "docs/knowledge/candidates/pending/2026-10-12-windows-barrier-ready-read.md",
+    "sha256": "97dc7a8f2bdb796e1439000877e21c07558313cdc6b4f972f6b29cf667bfba1f",
+    "approved": false
+  },
+  "original_windows164_failed_cohort_preserved": true,
+  "independent_review_complete": false,
+  "root_checkout_promoted": false,
+  "committed_or_pushed": false,
+  "whole_catalog_or_workflow_accepted": false,
+  "global_product_accepted": false,
+  "this_evidence_document_added_after_tested_snapshot": true
+}

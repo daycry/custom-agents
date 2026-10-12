@@ -30,9 +30,12 @@ almacén, comando de aprobación, backend o máquina de estados.
   su procedencia se conserva en la traza de sesión, sin otro almacén de aprobación,
   y no autentica ni autoriza la decisión.
   No basta exit0. El servidor conserva un handle/PID propio y URL privada;
-  receive/ack se ejecutan en otra operación sin esperar su terminación.
-- `receive → validación → ack → validación → view/current` mantiene el dueño
-  común. Waiting, vista parcial, otra puerta, versión obsoleta, conflicto o
+  consume se ejecuta en otra operación sin esperar su terminación.
+- El caller usa `plan-review.py consume` con selección/ID/puerta/tupla explícitos.
+  El mismo dueño valida vista y selección antes de entregar, coordina receive/ack
+  con los IDs reales y relee la versión antes de devolver el recibo consumido.
+  No lanza roles ni permite que el modelo sintetice IDs. Un retry conserva la
+  entrega y ack; un cambio después del ack deja consumo histórico sin permiso vigente. Waiting, vista parcial, otra puerta, versión obsoleta, conflicto o
   ack fallido no autorizan trabajo por esta decisión.
 - Aprobar permite sólo el alcance autorizado. Pedir cambios pasa comentarios
   como datos al planner ya autorizado. Una autorización conversacional suficiente

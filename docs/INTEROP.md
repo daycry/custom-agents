@@ -167,10 +167,10 @@ instalador; no los elimina. No se escriben nuevos prompts globales al instalar.
 | Concepto del plugin | Codex (`.toml`) | OpenCode (frontmatter) |
 |---|---|---|
 | `description` | `description` | `description` |
-| `tools` con Write/Edit | — | `permission.edit: allow\|deny` |
-| `tools` sin escritura (`reviewer`) | Responsabilidad en el prompt; permisos heredados del padre | `permission.edit: deny` para herramientas de edición |
+| `tools` con Write/Edit | — | Regla en `permissions`: `action: edit`, `resource: "*"`, `effect: allow` |
+| `tools` sin escritura (`reviewer`) | Responsabilidad en el prompt; permisos heredados del padre | Regla en `permissions` con `action: edit` y `effect: deny` para herramientas de edición |
 | `effort` (`medium`/`high`) | `model_reasoning_effort` | — |
-| `model` (`sonnet`/`opus`) | — *(hereda de la sesión)* | `temperature` (0.1 / 0.2) |
+| `model` (`sonnet`/`opus`) | — *(hereda de la sesión)* | Hereda el modelo y sus parámetros nativos; no traduce tiers de Claude a temperaturas |
 | cuerpo del prompt | `developer_instructions` | cuerpo del `.md` |
 
 `model` **no se traduce a Codex** a propósito: `haiku`/`sonnet`/`opus` no tienen equivalente en los
@@ -210,7 +210,7 @@ sustituye, y aquí está dicho.
 | Capacidad | Claude Code | Codex | OpenCode |
 |---|---|---|---|
 | **Registro del plugin** (qué lo hace cargar) | ✅ `installed_plugins.json` + `enabledPlugins`, por CLI o escrito por el instalador — ⚠️ con `--mode copy` no hay registro: el bundle está en `.claude/` y el runtime no se entera (`/doctor` lo marca) | CLI nativa ≥0.161.0: caché validada antes de declarar marketplace y activación. En modo proyecto, registro preparado en un `CODEX_HOME` privado y configuración local; `status` y `/doctor` separan declaración, listado nativo y ejecución | Paquete local V2 en `plugins` de `opencode.json`; `status` y `/doctor` comprueban la declaración, no la ejecución |
-| Skills bajo demanda | ✅ herramienta Skill | ✅ `$nombre` o activación por `description` | ✅ herramienta `skill` |
+| Skills bajo demanda | ✅ herramienta Skill | ✅ `$nombre` o activación por `description` | ✅ herramienta V2 `skill({ id: "nombre" })`; conserva el ID nativo de la skill |
 | Comandos | ✅ `/nombre` | Adaptador nativo explícito `$custom-agents:custom-agents-<nombre>`; argumentos del mensaje, dentro del plugin del scope | ✅ `/nombre` |
 | Delegar en un agente por nombre | Agent con `subagent_type: custom-agents:<rol>` | `spawn_agent` con `agent_type: custom-agents-<rol>`; el modelo decide cuándo delegar | V2 `subagent` con `agent: custom-agents-<rol>` |
 | Aviso de progreso al editar el ledger | ✅ `PostToolUse` | ✅ `PostToolUse` para `apply_patch`, con rutas extraídas del parche | ✅ `tool.execute.after` |
@@ -219,7 +219,7 @@ sustituye, y aquí está dicho.
 | Captura del turno del usuario | ✅ `UserPromptSubmit` | ✅ `UserPromptSubmit` | `session.prompt`, antes de admisión: petición provisional, con exclusión `<private>` |
 | Fin de subagente | ✅ `SubagentStop` | ✅ `SubagentStop` | ❌ sin evento equivalente |
 | **Guardia por agente** (`implementer`, `architect`) | Dispatcher global `PreToolUse` por ID propio; `hooks:` del agente de plugin se ignora | Dispatcher `PreToolUse` por ID propio | V2 `tool.execute.before` por ID propio; validación final de los tres runtimes en el roadmap |
-| `reviewer` de solo lectura | Sin Write/Edit; Bash sigue sujeto a permisos y responsabilidad del rol | El TOML no impone sandbox independiente; hereda permisos del padre | `permission.edit: deny`; no equivale a prohibir toda escritura desde shell |
+| `reviewer` de solo lectura | Sin Write/Edit; Bash sigue sujeto a permisos y responsabilidad del rol | El TOML no impone sandbox independiente; hereda permisos del padre | Regla `edit` con efecto `deny` en `permissions`; no equivale a prohibir toda escritura desde shell |
 | Statusline del roadmap | ✅ opt-in | ❌ | ❌ |
 | **Memoria de grafo** (capacidad `graphiti`, opt-in) | ✅ `/doctor` la comprueba en vivo por su adaptador | ✅ igual: el adaptador habla HTTP con el endpoint declarado, no con el MCP del runtime | Mismo adaptador opt-in; no se activa ningún backend al instalar |
 | Permisos de OpenCode | — | — | El instalador conserva `permission`/`permissions` y no añade grants globales. |
