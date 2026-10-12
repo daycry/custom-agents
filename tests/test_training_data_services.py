@@ -569,6 +569,29 @@ def _mx_suite():
     return mod
 
 
+def _resolver_fijo_178(resuelto):
+    return lambda host, timeout_s: resuelto
+
+
+@pytest.mark.parametrize("resuelto,esperado", [
+    (None, False), ("no-es-una-ip", False), ("10.0.0.7", True), ("8.8.8.8", False),
+])
+def test_178_resolver_spy_conserva_resolucion_y_timeout_separados(resuelto, esperado):
+    mx = _mx_suite()._cargar()
+    resolver = _resolver_fijo_178(resuelto)
+    llamadas = []
+
+    def observar(host, timeout_s):
+        llamadas.append((host, timeout_s))
+        return resolver(host, timeout_s)
+
+    mx._resolver_host_con_tope = observar
+    permitido = mx._host_permitido("http://nombre.ejemplo/x")
+    assert llamadas == [("nombre.ejemplo", mx._DNS_TIMEOUT_S)]
+    assert resolver("nombre.ejemplo", 0.125) == resuelto
+    assert permitido is esperado
+
+
 def test_178_markdown_export_host_permitido_ramas():
     mx = _mx_suite()._cargar()
     assert mx._host_permitido("http://[::1") is False
@@ -576,7 +599,7 @@ def test_178_markdown_export_host_permitido_ramas():
     assert mx._host_permitido("http:///sin-host") is False
     assert mx._host_permitido("http://localhost:1/health") is True
     for resuelto, esperado in ((None, False), ("no-es-una-ip", False), ("10.0.0.7", True)):
-        mx._resolver_host_con_tope = lambda host, r=resuelto: r
+        mx._resolver_host_con_tope = _resolver_fijo_178(resuelto)
         assert mx._host_permitido("http://nombre.ejemplo/x") is esperado, resuelto
 
 

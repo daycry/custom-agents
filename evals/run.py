@@ -51,11 +51,13 @@ Uso:
 import argparse
 import datetime as _dt
 import glob
+import importlib.util
 import json
 import os
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -128,6 +130,40 @@ def preparar_cwd(fixture, base):
 
 
 # ------------------------------------------------------------------ transcripción
+
+
+def limpiar_cwd(cwd):
+    """Clean the cwd returned by preparar_cwd; retry Windows read-only Git files.
+
+    The caller supplies its newly created temporary directory. The eval- prefix
+    checks its format; it does not establish ownership of an arbitrary path.
+    """
+    cwd = os.path.abspath(cwd)
+    if (not os.path.basename(cwd).startswith("eval-") or
+            os.path.islink(cwd) or getattr(os.path, "isjunction", lambda p: False)(cwd)):
+        raise OSError("invalid eval cleanup directory")
+    normalized = os.path.normcase(cwd)
+
+    def readonly_retry(function, path, exc_info):
+        error = exc_info[1]
+        relative = os.path.normcase(os.path.abspath(path))
+        if (os.name != "nt" or not isinstance(error, PermissionError) or
+                function is not os.unlink or
+                os.path.commonpath([normalized, relative]) != normalized):
+            raise error
+        info = os.lstat(path)
+        attributes = getattr(info, "st_file_attributes", 0)
+        if (not stat.S_ISREG(info.st_mode) or
+                not attributes & stat.FILE_ATTRIBUTE_READONLY or
+                attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT):
+            raise error
+        os.chmod(path, stat.S_IWRITE)
+        function(path)
+
+    shutil.rmtree(cwd, onerror=readonly_retry)
+    if os.path.lexists(cwd):
+        raise OSError("eval directory remains after cleanup")
+
 
 def parsear_stream(texto):
     """stream-json (una línea = un evento) → {tool_uses:[{name,input,parent}], textos:[…], result:{…}}."""
@@ -260,6 +296,23 @@ def _resumen_input(inp):
 
 # ------------------------------------------------------------------ ejecución
 
+def _texto_cleanup_seguro(texto):
+    """Redact new cleanup text; partial installations retain only a fixed notice."""
+    try:
+        path = os.path.join(os.path.dirname(HERE), "agent-kits", "shared", "redact.py")
+        spec = importlib.util.spec_from_file_location("_eval_cleanup_redact", path)
+        if spec is None or spec.loader is None:
+            raise ImportError("shared redactor unavailable")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        safe = module.redactar(texto)
+        if not isinstance(safe, str):
+            raise TypeError("shared redactor returned non-text")
+        return safe
+    except Exception:
+        return "cleanup text unavailable: shared redactor unavailable"
+
+
 def ejecutar_caso(target, caso, root, opts, runner):
     cmd = construir_comando(caso["prompt"], root, opts)
     cwd = preparar_cwd(opts.fixture, opts.workdir)
@@ -278,9 +331,19 @@ def ejecutar_caso(target, caso, root, opts, runner):
               "redirect_observado": None, "tool_uses": [], "coste_usd": None, "turnos": None,
               "exit_code": None, "stderr": f"timeout tras {opts.timeout}s"}
     ev.update({"id": caso["id"], "target": target, "segundos": round(time.time() - t0, 1),
-               "cwd": cwd if opts.keep else None})
+               "cwd": cwd})
     if not opts.keep:
-        shutil.rmtree(cwd, ignore_errors=True)
+        try:
+            limpiar_cwd(cwd)
+        except OSError as error:
+            ev["pass"] = False
+            ev["causa"] = "cleanup_error"
+            ev["checks"]["cleanup"] = False
+            ev["detalle"]["cleanup"] = _texto_cleanup_seguro(f"{type(error).__name__}; "
+                f"errno={error.errno}; winerror={getattr(error, 'winerror', None)}")
+            ev["cwd"] = _texto_cleanup_seguro(cwd)
+        else:
+            ev["cwd"] = None
     return ev
 
 

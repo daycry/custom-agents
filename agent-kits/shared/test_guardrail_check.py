@@ -7,6 +7,8 @@ import subprocess
 import sys
 import tempfile
 
+import pytest
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "guardrail-check.py")
 
@@ -49,8 +51,8 @@ def test_alcance_deny_security_scan():
     assert r and "security-scan" in r
 
 
-def test_alcance_allow_knowledge():
-    assert decide(write("docs/knowledge/adr/ADR-009-x.md")) is None
+def test_alcance_deny_direct_knowledge():
+    assert "knowledge-curation.py" in decide(write("docs/knowledge/adr/ADR-009-x.md"))
 
 
 def test_alcance_ruta_absoluta_relativa_al_proyecto():
@@ -268,10 +270,10 @@ def edit(path, old, new):
     return {"tool_name": "Edit", "tool_input": {"file_path": path, "old_string": old, "new_string": new}}
 
 
-def test_architect_allow_design_adr_e_indice_knowledge():
+def test_architect_design_permitido_memoria_solo_por_servicio():
     assert arch(write("docs/roadmap/2026-01-01-x/design.md")) is None
-    assert arch(write("docs/knowledge/adr/ADR-010-x.md")) is None
-    assert arch(write("docs/knowledge/README.md", "Edit")) is None
+    assert "knowledge-curation.py" in arch(write("docs/knowledge/adr/ADR-010-x.md"))
+    assert "knowledge-curation.py" in arch(write("docs/knowledge/README.md", "Edit"))
 
 
 def test_architect_deny_codigo_y_tasks_y_evaluation():
@@ -280,7 +282,7 @@ def test_architect_deny_codigo_y_tasks_y_evaluation():
     r = arch(write("docs/roadmap/2026-01-01-x/tasks.md", "Edit"))
     assert r and "architect" in r
     assert arch(write("docs/roadmap/2026-01-01-x/evaluation.md", "Edit"))
-    assert arch(write("docs/knowledge/gotchas/GOT-009-x.md"))          # solo adr/ + README
+    assert arch(write("docs/knowledge/gotchas/GOT-009-x.md"))          # memoria directa fuera del alcance del productor
     assert arch(write("docs/security-scan/x.md"))
 
 
@@ -394,3 +396,26 @@ def test_config_hook_limit_does_not_accept_oversized_optout(tmp_path):
     assert gc.load_config(str(tmp_path), max_bytes=65536) == (gc.DEFAULTS, True)
     path.write_text('{"guardrails":false}', encoding="utf-8")
     assert gc.load_config(str(tmp_path), max_bytes=65536) == (dict.fromkeys(gc.DEFAULTS, False), False)
+
+
+@pytest.mark.parametrize("agent", ["architect", "implementer"])
+@pytest.mark.parametrize("tool", ["Write", "Edit", "MultiEdit", "NotebookEdit"])
+@pytest.mark.parametrize("path", [
+    "docs/knowledge/adr/legacy.md", "docs/knowledge/README.md",
+    "docs/knowledge/gotchas/legacy.md", "docs/knowledge/approved/adr/current.md",
+    "docs/knowledge/candidates/pending/proposal.md", "docs/knowledge/candidates/.curation/receipts/a.json",
+])
+def test_memory_scope_direct_writes_require_service(agent, tool, path):
+    reason = gc.decide(write(path, tool), PROJ, None, branch="feature/x", agent=agent)
+    assert reason and "knowledge-curation.py" in reason and "Write/Edit" in reason
+
+
+@pytest.mark.parametrize("agent", ["architect", "implementer"])
+def test_memory_scope_explicit_optout_is_preserved(agent):
+    assert gc.decide(write("docs/knowledge/adr/legacy.md"), PROJ,
+                     {"alcance": False}, branch="feature/x", agent=agent) is None
+
+
+def test_memory_scope_does_not_match_other_project_docs():
+    assert decide(write("docs/knowledge-howto.md")) is None
+    assert arch(write("docs/roadmap/own/design.md")) is None

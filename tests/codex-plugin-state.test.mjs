@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync,chmodSync,copyFileSync} from 'node:fs'
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync,chmodSync,copyFileSync,symlinkSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join,resolve,delimiter} from 'node:path'
 import {execFileSync} from 'node:child_process'
@@ -23,8 +23,13 @@ function fixture() {
   }
   const createDirectNode=body=>{
     const binary=join(bin,process.platform==='win32' ? 'codex.exe' : 'codex')
-    if(!existsSync(binary)) copyFileSync(process.execPath,binary)
-    if(process.platform!=='win32')chmodSync(binary,0o755)
+    if(!existsSync(binary)) {
+      if(process.platform==='win32') {
+        copyFileSync(process.execPath,binary)
+        // Prepare the copied fixture before measuring its query deadline.
+        assert.equal(execFileSync(binary,['--version'],{cwd:root,env,encoding:'utf8',timeout:10000}).trim(),process.version)
+      } else symlinkSync(process.execPath,binary)
+    }
     writeFileSync(join(root,'package.json'),'{"type":"module"}')
     writeFileSync(join(root,'plugin'),body)
   }

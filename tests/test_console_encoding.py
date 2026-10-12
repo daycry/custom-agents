@@ -31,6 +31,7 @@ ponía roja la suite acusando al criterio de haber divergido.
 Ejecutar: python3 -m pytest -q tests/test_console_encoding.py
 """
 import ast
+import json
 import os
 import re
 import subprocess
@@ -299,9 +300,17 @@ SCRIPTS = descubrir()
 # no-ASCII en el fuente. `test_los_exentos_de_simbolos_lo_estan_por_medicion` comprueba que la
 # exención sigue siendo cierta ejecutando el modo declarado.
 SIN_SIMBOLOS_EN_LA_SALIDA = {
+    'agent-kits/shared/agent-activity-store.py':
+        'hook informativo: consume JSON UTF-8 y persiste metadatos, nunca emite contexto ni salida',
+    'agent-kits/shared/commit-selection.py':
+        'validate consume JSON UTF-8 y emite un veredicto JSON ASCII con ensure_ascii=True',
+    'agent-kits/shared/plan-review-open.py':
+        'lee el sobre UTF-8, devuelve sólo versión/hashes/estado ASCII y nunca concede aprobación',
     'agent-kits/shared/diagnostic-report.py': 'sin `__main__`: contrato puro de proyección, no imprime al arrancar',
     "agent-kits/shared/knowledge-local.py": "sin `__main__`: módulo de lectura local, no imprime al arrancar",
     "agent-kits/shared/knowledge-taxonomy-local.py": "sin `__main__`: módulo de taxonomía local, no imprime al arrancar",
+    "agent-kits/shared/knowledge-curation-rules.py":
+        "sin `__main__`: reglas puras compartidas, no imprimen al arrancar",
     "agent-kits/shared/journal-capture.py":
         "valid SessionEnd payloads persist an envelope without emitting context; limit warnings are ASCII",
     "agent-kits/nemesis/tools/pick_asset.py":
@@ -371,13 +380,41 @@ def _modos():
     # en el fuente, así que el criterio de T-04 no lo miraba: entra por LEER stdin (T-05).
     release = ('{"tag_name":"v1.0.0","body":"Arreglos 🐛 y mejoras 👍","assets":'
                '[{"name":"tool_linux_amd64.tar.gz","browser_download_url":"https://x/y"}]}')
+    curation = '---\ncategory: GOTCHA\n---\n\n# Depuración 🐛\n\nVerificación 👍 — señal íntegra.\n'
+    opening_version = {'raw_sha256': 'b' * 64, 'view_sha256': 'c' * 64, 'view_version': 'plan-text-v1'}
+    opening = json.dumps({'schema_version': 1, 'status': 'ok', 'note': 'Plan 🐛 👍', 'review': {
+        'initiative': 'docs/roadmap/2026-10-09-consola', 'artifact': 'improvement-plan.md',
+        'gate_key': 'plan-ok', 'complete': True, 'validity': 'current', 'review_id': 'a' * 64,
+        'version': opening_version, 'current_version': opening_version}}, ensure_ascii=False)
+    # Hook real y opt-in en el taller. El cwd sólo existe al crear el fixture;
+    # stdin callable recibe los args ya resueltos y devuelve el JSON UTF-8 exacto.
+    activity = lambda args: json.dumps({
+        'cwd': args[-1], 'hook_event_name': 'SubagentStart',
+        'session_id': 'consola-🐛', 'agent_id': 'agente-👍',
+        'agent_type': 'custom-agents:implementer'}, ensure_ascii=False)
     return {
+        'agent-kits/shared/agent-activity-store.py':
+            [('hook UTF-8 opt-in', lambda w: ['--runtime', 'claude', '--root',
+                os.path.join(w, 'console-activity')], (0,), activity)],
+        'agent-kits/shared/commit-selection.py':
+            [('snapshot UTF-8 invalido', lambda w: ['validate', '--root', w], (1,),
+                '{"note":"Revisión 🐛 👍"}')],
+        'agent-kits/shared/plan-review-open.py':
+            [('sobre UTF-8 válido', lambda w: ['--initiative', 'docs/roadmap/2026-10-09-consola'], (0,), opening)],
         'agent-kits/shared/diagnostic-report.py':
             [('importar sin CLI', lambda w: [], (0,), None)],
         "agent-kits/shared/knowledge-local.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         "agent-kits/shared/knowledge-taxonomy-local.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
+        "agent-kits/shared/knowledge-curation-rules.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
+        # Propose lee un payload UTF-8 real; la taxonomía inválida del taller produce
+        # el diagnóstico no ASCII «vacía». El éxito se verifica aparte con raíz propia.
+        "agent-kits/shared/knowledge-curation.py":
+            [("propuesta con taxonomia invalida", lambda w: [
+                "propose", "--filename", "console.md", "--producer", "documenter",
+                "--root", os.path.join(w, "kc-taxonomia-invalida")], (2,), curation)],
         "agent-kits/shared/native-guardrail.py":
             [("deny nativo con emoji", lambda w: ["--runtime", "claude", "--project-dir", w], (0,),
               '{"agent_type":"custom-agents:implementer","tool_name":"Write","tool_input":'
@@ -588,6 +625,9 @@ def taller(tmp_path_factory):
     taxonomia_dir.mkdir(parents=True)
     (taxonomia_dir / "taxonomy.json").write_text(
         json.dumps({"version": 1, "evidence_levels": []}), encoding="utf-8")
+    activity_config = w / 'console-activity' / '.claude' / 'dev.json'
+    activity_config.parent.mkdir(parents=True)
+    activity_config.write_text('{"sesion":{"actividad":true}}', encoding='utf-8')
     return str(w)
 
 
@@ -604,6 +644,8 @@ def _ejecutar(rel, args, stdin, encoding):
     afirman (exit code, ausencia de traceback, bytes UTF-8 válidos) depende de eso. La caché vive lo
     que dura el módulo, así que cada `pytest` sigue ejecutando de verdad las 28 piezas.
     """
+    if callable(stdin):
+        stdin = stdin(args)
     clave = (rel, tuple(args), stdin, encoding)
     if clave not in _EJECUCIONES:
         env = dict(os.environ, PYTHONIOENCODING=encoding)
@@ -713,6 +755,48 @@ def test_code_context_preserva_etiqueta_utf8_del_payload(encoding, taller):
     payload = json.loads(result.stdout.decode('utf-8'))
     assert payload['status'] == 'matches'
     assert payload['nodes'][0]['label'] == 'procesar_pedido() — Facturación 🐛'
+
+
+@pytest.mark.parametrize("encoding", ENCODINGS)
+def test_knowledge_curation_preserva_diagnostico_utf8_y_json(encoding, taller):
+    """El modo real devuelve el error de taxonomía íntegro, sin volcar el payload."""
+    import json
+    rel = 'agent-kits/shared/knowledge-curation.py'
+    _etiqueta, args, exits, stdin = MODOS[rel][0]
+    result = _ejecutar(rel, args(taller), stdin, encoding)
+    assert result.returncode in exits
+    assert result.stderr == b''
+    payload = json.loads(result.stdout.decode('utf-8'))
+    assert payload['status'] == 'invalid_taxonomy'
+    assert payload['avisos'] == []
+    assert any('vacía' in error['mensaje'] for error in payload['errores'])
+    assert 'Depuración 🐛' not in result.stdout.decode('utf-8')
+
+
+@pytest.mark.parametrize("encoding", ENCODINGS)
+def test_knowledge_curation_preserva_payload_utf8_y_sha(encoding, tmp_path):
+    """La respuesta de éxito es ASCII legítimo; los bytes persistidos conservan el emoji."""
+    import hashlib
+    import json
+    rel = 'agent-kits/shared/knowledge-curation.py'
+    project = tmp_path / 'curation-console'
+    project.mkdir()
+    stdin = MODOS[rel][0][3]
+    assert '🐛' in stdin and '👍' in stdin
+    result = _ejecutar(rel, [
+        'propose', '--filename', 'console.md', '--producer', 'documenter',
+        '--root', str(project)], stdin, encoding)
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == b''
+    payload = json.loads(result.stdout.decode('utf-8'))
+    assert payload['status'] == 'proposed'
+    assert payload['errores'] == [] and payload['avisos'] == []
+    assert payload['ruta'] == 'docs/knowledge/candidates/pending/console.md'
+    persisted = (project / payload['ruta']).read_bytes()
+    expected = stdin.replace('---', '---\nproposed_by: documenter', 1).encode('utf-8')
+    assert persisted == expected
+    assert payload['sha256'] == hashlib.sha256(persisted).hexdigest()
+    assert not (project / 'docs' / 'knowledge' / 'approved').exists()
 
 
 @pytest.mark.parametrize("encoding", ENCODINGS)
@@ -1378,3 +1462,43 @@ def test_supervised_native_capture_preserves_utf8_payload(encoding, tmp_path):
                          CASOS_LEE_STDIN, ids=[c[0] for c in CASOS_LEE_STDIN])
 def test_lee_stdin_no_se_apaga_por_donde_este_el_snippet(nombre, esperado, src):
     assert lee_stdin(src) is esperado, nombre
+
+
+@pytest.mark.parametrize('encoding', ENCODINGS)
+def test_activity_hook_consume_utf8_sin_emitir_payload(encoding, taller):
+    """El modo silencioso sí procesa los IDs UTF-8: sus HMAC persistidos los vinculan."""
+    import hashlib
+    import hmac
+    from pathlib import Path
+    rel = 'agent-kits/shared/agent-activity-store.py'
+    _etiqueta, args, exits, stdin = MODOS[rel][0]
+    resolved = args(taller)
+    result = _ejecutar(rel, resolved, stdin, encoding)
+    assert result.returncode in exits
+    assert result.stdout == result.stderr == b''
+    state = Path(resolved[-1]) / '.claude' / 'agent-activity'
+    owner = json.loads((state / 'owner.json').read_bytes())
+    snapshot = json.loads((state / 'snapshot.json').read_bytes())
+    assert (state / '.gitignore').read_bytes() == b'*\n'
+    assert len(snapshot['records']) == 1
+    record = snapshot['records'][0]
+    def expected(fields):
+        raw = json.dumps(fields, ensure_ascii=True, sort_keys=True,
+            separators=(',', ':'), allow_nan=False).encode('utf-8')
+        return hmac.new(bytes.fromhex(owner['scope_id']), raw, hashlib.sha256).hexdigest()
+    assert record['session_key'] == expected(['claude', 'session', 'consola-🐛'])
+    assert record['agent_key'] == expected(['claude', 'subagent', 'consola-🐛', 'agente-👍'])
+    assert record['runtime'] == 'claude' and record['scope'] == 'subagent'
+    assert record['role'] == 'implementer' and record['event'] == 'response_started'
+    assert record['source'] == 'native_hook'
+
+
+@pytest.mark.parametrize('encoding', ENCODINGS)
+def test_commit_selection_emite_veredicto_ascii_sin_payload(encoding, taller):
+    """Un snapshot UTF-8 de forma inválida devuelve el veredicto cerrado, no el payload."""
+    rel = 'agent-kits/shared/commit-selection.py'
+    _etiqueta, args, exits, stdin = MODOS[rel][0]
+    result = _ejecutar(rel, args(taller), stdin, encoding)
+    assert result.returncode in exits
+    assert result.stderr == b''
+    assert result.stdout == b'{"valido":false,"motivos":[{"code":"invalid_snapshot"}]}\n'

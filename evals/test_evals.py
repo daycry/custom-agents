@@ -383,7 +383,8 @@ def test_run_fixture_real_es_ledger_valido_y_se_copia(tmp_path):
     ll = os.path.join(ROOT, "agent-kits", "shared", "ledger-lint.py")
     r = subprocess.run([sys.executable, ll, os.path.join(cwd, "docs", "roadmap", "2026-01-01-demo", "tasks.md")], capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert r.returncode == 0, r.stdout + r.stderr
-    shutil.rmtree(cwd)
+    run.limpiar_cwd(cwd)
+    assert not os.path.lexists(cwd)
 
 
 def test_casos_reales_cada_negativo_con_redirect_apunta_a_pieza_distinta():
@@ -395,6 +396,169 @@ def test_casos_reales_cada_negativo_con_redirect_apunta_a_pieza_distinta():
                 assert red != d["target"], (fn, c["id"])
                 assert not c["expect"]["activates"], (fn, c["id"])
 
+
+
+
+def test_run_git_fixture_cleanup_removes_actual_cwd(tmp_path):
+    if shutil.which("git") is None:
+        pytest.skip("git unavailable; real Git fixture cleanup cannot be tested")
+    root = plugin_min(tmp_path)
+    seen = []
+
+    def runner(cmd, cwd, **kwargs):
+        assert os.path.isdir(os.path.join(cwd, ".git"))
+        objects = []
+        for parent, _, names in os.walk(os.path.join(cwd, ".git", "objects")):
+            objects.extend(os.path.join(parent, name) for name in names)
+        assert objects
+        if os.name == "nt":
+            import stat
+            assert any(os.stat(path).st_file_attributes & stat.FILE_ATTRIBUTE_READONLY
+                       for path in objects)
+        seen.append(cwd)
+        return types.SimpleNamespace(returncode=0,
+            stdout=stream(tool_use("Skill", {"skill": "cosa"}), resultado()), stderr="")
+
+    report = tmp_path / "cleanup.json"
+    rc = run.main(["--root", str(root), "--cases", str(root / "evals" / "cases"),
+                   "--only", "cosa-lit", "--report", str(report),
+                   "--workdir", str(tmp_path)], runner=runner)
+    inf = json.loads(report.read_text(encoding="utf-8"))
+    assert rc == 0 and len(seen) == 1
+    assert inf["casos"][0]["cwd"] is None
+    assert not os.path.lexists(seen[0])
+
+
+def test_run_cleanup_failure_is_visible_and_preserves_cwd(tmp_path, monkeypatch):
+    root = plugin_min(tmp_path)
+    owned_cwd = tmp_path / "eval-cleanup-denied"
+    owned_cwd.mkdir()
+    (owned_cwd / "sentinel.txt").write_text("owned", encoding="utf-8")
+
+    def denied(path, ignore_errors=False, **kwargs):
+        assert os.path.abspath(path) == str(owned_cwd.resolve())
+        if not ignore_errors:
+            raise PermissionError("owned cleanup denied")
+
+    def runner(cmd, **kwargs):
+        return types.SimpleNamespace(returncode=0,
+            stdout=stream(tool_use("Skill", {"skill": "cosa"}), resultado()), stderr="")
+
+    report = tmp_path / "cleanup-denied.json"
+    with monkeypatch.context() as patch:
+        patch.setattr(run, "preparar_cwd", lambda fixture, base: str(owned_cwd))
+        patch.setattr(run.shutil, "rmtree", denied)
+        rc = run.main(["--root", str(root), "--cases", str(root / "evals" / "cases"),
+                       "--only", "cosa-lit", "--report", str(report),
+                       "--workdir", str(tmp_path)], runner=runner)
+    case = json.loads(report.read_text(encoding="utf-8"))["casos"][0]
+    assert rc == 1 and case["pass"] is False
+    assert case["causa"] == "cleanup_error" and case["checks"]["cleanup"] is False
+    assert case["cwd"] == str(owned_cwd) and "PermissionError" in case["detalle"]["cleanup"]
+    assert (owned_cwd / "sentinel.txt").read_text(encoding="utf-8") == "owned"
+
+
+
+def _cleanup_redaction_case(tmp_path, monkeypatch):
+    """A23-QA4-1: real persisted report; cleanup still fails and owns its directory."""
+    root = plugin_min(tmp_path)
+    secret_class = "ghp_SYNTHETICERROR1234567890"
+    secret_path = "ghp_SYNTHETICPATH1234567890"
+    owned_cwd = tmp_path / ("eval-" + secret_path)
+    owned_cwd.mkdir()
+    (owned_cwd / "sentinel.txt").write_text("owned", encoding="utf-8")
+    error_type = type(secret_class, (OSError,), {})
+
+    def denied(path):
+        assert os.path.abspath(path) == str(owned_cwd.resolve())
+        raise error_type(13, "raw synthetic cleanup message must not be retained")
+
+    def runner(cmd, **kwargs):
+        return types.SimpleNamespace(returncode=0,
+            stdout=stream(tool_use("Skill", {"skill": "cosa"}), resultado()), stderr="")
+
+    monkeypatch.setattr(run, "preparar_cwd", lambda fixture, base: str(owned_cwd))
+    monkeypatch.setattr(run, "limpiar_cwd", denied)
+    report = tmp_path / "redacted-cleanup.json"
+    rc = run.main(["--root", str(root), "--cases", str(root / "evals" / "cases"),
+                   "--only", "cosa-lit", "--report", str(report),
+                   "--workdir", str(tmp_path)], runner=runner)
+    serialized = report.read_text(encoding="utf-8")
+    case = json.loads(serialized)["casos"][0]
+    assert rc == 1 and case["pass"] is False
+    assert case["causa"] == "cleanup_error" and case["checks"]["cleanup"] is False
+    assert (owned_cwd / "sentinel.txt").read_text(encoding="utf-8") == "owned"
+    assert secret_class not in serialized and secret_path not in serialized, serialized
+    assert "raw synthetic cleanup message" not in serialized
+    return case, str(owned_cwd), secret_class
+
+
+def test_A23_QA4_1_cleanup_diagnostic_and_retained_cwd_use_real_shared_redactor(
+        tmp_path, monkeypatch):
+    shared = os.path.join(ROOT, "agent-kits", "shared", "redact.py")
+    original_spec = importlib.util.spec_from_file_location
+    calls = []
+    loaded = []
+
+    def spy_spec(name, location, *args, **kwargs):
+        assert os.path.abspath(location) == os.path.abspath(shared)
+        spec = original_spec(name, location, *args, **kwargs)
+        execute = spec.loader.exec_module
+
+        def execute_and_spy(module):
+            execute(module)
+            real = module.redactar
+
+            def spy(text):
+                calls.append(text)
+                return real(text)
+
+            module.redactar = spy
+            loaded.append(os.path.abspath(location))
+
+        spec.loader.exec_module = execute_and_spy
+        return spec
+
+    monkeypatch.setattr(importlib.util, "spec_from_file_location", spy_spec)
+    case, cwd, error_name = _cleanup_redaction_case(tmp_path, monkeypatch)
+    assert len(loaded) >= 1
+    assert cwd in calls and any(error_name in text for text in calls), calls
+    assert "[secreto redactado]" in case["cwd"]
+    assert "[secreto redactado]" in case["detalle"]["cleanup"]
+    assert "errno=13" in case["detalle"]["cleanup"]
+    assert "winerror=None" in case["detalle"]["cleanup"]
+
+
+@pytest.mark.parametrize("failure", ["missing", "import_error", "redaction_error", "invalid_result"])
+def test_A23_QA4_1_cleanup_redactor_failure_never_persists_consumer_text(
+        tmp_path, monkeypatch, failure):
+    original_spec = importlib.util.spec_from_file_location
+
+    def failed_spec(name, location, *args, **kwargs):
+        if failure == "missing":
+            return None
+        spec = original_spec(name, location, *args, **kwargs)
+        execute = spec.loader.exec_module
+
+        def failing_execute(module):
+            if failure == "import_error":
+                raise OSError("synthetic sensitive loader failure")
+            execute(module)
+
+            def broken(text):
+                if failure == "redaction_error":
+                    raise ValueError("synthetic sensitive redactor failure")
+                return object()
+
+            module.redactar = broken
+
+        spec.loader.exec_module = failing_execute
+        return spec
+
+    monkeypatch.setattr(importlib.util, "spec_from_file_location", failed_spec)
+    case, _, _ = _cleanup_redaction_case(tmp_path, monkeypatch)
+    assert case["detalle"]["cleanup"] == "cleanup text unavailable: shared redactor unavailable"
+    assert case["cwd"] == "cleanup text unavailable: shared redactor unavailable"
 
 if __name__ == "__main__":
     sys.exit(pytest.main(["-q", __file__]))

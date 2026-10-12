@@ -410,3 +410,130 @@ def test_cli_entrypoint_forms_bind_transport_and_exit_statuses(owned, monkeypatc
     assert code == 0 and d['state'] == 'entregada'
     code, consumed = cli('ack', extra=selection + version + ['--decision-id', d['decision']['decision_id'], '--delivery-id', d['delivery']['delivery_id']])
     assert code == 0 and consumed['review']['state'] == 'consumida'
+
+
+def test_consume_cli_confirms_current_decision_with_bound_delivery_and_view(owned):
+    """The caller supplies selection/version, never invents decision or delivery IDs."""
+    review=submit(owned,ready(owned))['review']
+    argv=[sys.executable,'-I','-X','utf8','-B',str(SCRIPT),'consume',
+          '--project',str(owned.root),'--state-root',str(owned.state),
+          '--initiative',INITIATIVE,'--review-id',review['review_id'],
+          '--raw-sha256',review['version']['raw_sha256'],
+          '--view-sha256',review['version']['view_sha256'],'--gate-key','plan-ok','--json']
+    child=subprocess.run(argv,capture_output=True,encoding='utf8',timeout=20)
+    assert child.returncode==0,child.stderr or child.stdout
+    result=json.loads(child.stdout);current=result['review']
+    assert result['status']=='ok' and result['schema_version']==1
+    assert current['review_id']==review['review_id'] and current['initiative']==INITIATIVE
+    assert current['version']==review['version'] and current['gate_key']=='plan-ok'
+    assert current['state']=='consumida' and current['complete'] and current['validity']=='current'
+    assert current['decision']['decision_id']==review['decision']['decision_id']
+    assert current['ack']['decision_id']==current['decision']['decision_id']
+    assert current['ack']['delivery_id']==current['delivery']['delivery_id']
+    observed=owned.module.get_view(owned.root,review['review_id'],state_root=owned.state)
+    assert observed['review']['ack']==current['ack']
+    assert 'Private fixture body.' in owned.plan.read_text(encoding='utf-8-sig')
+
+
+def consume(o, review, **kwargs):
+    args={'initiative':INITIATIVE,'gate_key':'plan-ok','state_root':o.state}
+    args.update(kwargs)
+    return o.module.consume_decision(o.root,review['review_id'],review['version'],**args)
+
+
+@pytest.mark.parametrize('choice',['approve','request_changes'])
+def test_consume_preserves_real_decision_and_idempotent_receipts(owned,choice):
+    initial=ready(owned)
+    rows=comment(initial) if choice=='request_changes' else []
+    review=submit(owned,initial,choice,rows)['review']
+    first=consume(owned,review)
+    assert first['status']=='ok' and first['review']['state']=='consumida'
+    assert first['review']['decision']==review['decision']
+    raw=stored(owned,review).read_bytes()
+    second=consume(owned,review)
+    assert second['status']=='ok'
+    assert second['review']['ack']==first['review']['ack']
+    assert second['review']['delivery']==first['review']['delivery']
+    assert stored(owned,review).read_bytes()==raw
+
+
+def test_consume_waiting_does_not_create_delivery_or_ack(owned):
+    review=ready(owned);raw=stored(owned,review).read_bytes()
+    result=consume(owned,review)
+    assert result['status']=='waiting'
+    assert result['review']['decision'] is None and result['review']['delivery'] is None
+    assert result['review']['ack'] is None and stored(owned,review).read_bytes()==raw
+
+
+@pytest.mark.parametrize('wrong',['initiative','gate','raw','view'])
+def test_consume_wrong_binding_never_delivers(owned,wrong):
+    review=submit(owned,ready(owned))['review'];raw=stored(owned,review).read_bytes()
+    options={}
+    if wrong=='initiative':options['initiative']='docs/roadmap/2026-10-09-other'
+    elif wrong=='gate':options['gate_key']='requested-review'
+    else:
+        review={**review,'version':{**review['version'],wrong+'_sha256':'0'*64}}
+    result=consume(owned,review,**options)
+    assert result['status']!='ok' and result['review'] is None
+    assert stored(owned,review).read_bytes()==raw
+
+
+def test_consume_obsolete_receipt_remains_unconsumed(owned):
+    review=submit(owned,ready(owned))['review'];raw=stored(owned,review).read_bytes()
+    owned.plan.write_bytes(owned.plan.read_bytes()+b'Changed scope\n')
+    result=consume(owned,review)
+    assert result['status']=='version_changed' and result['reason']=='plan_version_changed'
+    assert result['review']['ack'] is None and result['review']['state']=='pendiente'
+    assert stored(owned,review).read_bytes()==raw
+
+
+def test_consume_failed_ack_retries_same_delivery(owned,monkeypatch):
+    review=submit(owned,ready(owned))['review'];original=owned.module.ack_decision
+    monkeypatch.setattr(owned.module,'ack_decision',lambda *a,**k: {'schema_version':1,'status':'unavailable','reason':'ack_failed','review':None})
+    result=consume(owned,review)
+    assert result['status']=='unavailable' and result['reason']=='ack_failed'
+    delivered=owned.module.get_status(owned.root,review['review_id'],state_root=owned.state)['review']
+    assert delivered['state']=='entregada' and delivered['ack'] is None
+    monkeypatch.setattr(owned.module,'ack_decision',original)
+    retry=consume(owned,review)
+    assert retry['status']=='ok' and retry['review']['delivery']==delivered['delivery']
+
+
+def test_consume_change_after_ack_never_returns_current_approval(owned,monkeypatch):
+    review=submit(owned,ready(owned))['review'];original=owned.module.ack_decision
+    def change_after_ack(*args,**kwargs):
+        result=original(*args,**kwargs)
+        owned.plan.write_bytes(owned.plan.read_bytes()+b'Changed after durable ack\n')
+        return result
+    monkeypatch.setattr(owned.module,'ack_decision',change_after_ack)
+    result=consume(owned,review)
+    assert result['status']=='version_changed' and result['review']['validity']=='version_changed'
+    assert result['review']['state']=='consumida'  # Historical consumption is preserved.
+
+
+@pytest.mark.parametrize('stage',['preflight','receive','ack'])
+def test_consume_malformed_response_never_reports_consumption(owned,monkeypatch,stage):
+    review=submit(owned,ready(owned))['review']
+    method={'preflight':'get_view','receive':'receive_decision','ack':'ack_decision'}[stage]
+    monkeypatch.setattr(owned.module,method,lambda *a,**k: {'schema_version':1,'status':'ok','review':None})
+    result=consume(owned,review)
+    assert result['status']=='unavailable' and result['reason']=='consume_response_invalid'
+    observed=owned.module.get_status(owned.root,review['review_id'],state_root=owned.state)['review']
+    assert observed['ack'] is None
+
+
+def test_consume_incomplete_view_is_not_delivered(owned,monkeypatch):
+    review=submit(owned,ready(owned))['review'];original=owned.module.get_view
+    def incomplete(*args,**kwargs):
+        value=original(*args,**kwargs);value['review']['complete']=False;return value
+    monkeypatch.setattr(owned.module,'get_view',incomplete)
+    result=consume(owned,review)
+    assert result['status']=='unavailable'
+    assert owned.module.get_status(owned.root,review['review_id'],state_root=owned.state)['review']['delivery'] is None
+
+
+def test_consume_expired_budget_never_delivers(owned):
+    review=submit(owned,ready(owned))['review'];raw=stored(owned,review).read_bytes()
+    result=consume(owned,review,deadline=time.monotonic()-1)
+    assert result['status']=='unavailable' and result['reason']=='deadline_expired'
+    assert stored(owned,review).read_bytes()==raw

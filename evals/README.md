@@ -76,6 +76,18 @@ pasa `--allowed-tools` (default `Bash(python3:*),Bash(git:*),Bash(find:*)`; se e
 un `tool_result` con `is_error` habla de permisos — amplía `--allowed-tools`), `expectativa`
 (`mentions`/`must_not`/`artifacts`) o `timeout`.
 
+Sin `--keep`, el runner borra el directorio temporal que acaba de crear, incluidos
+los objetos Git de solo lectura en Windows. Solo declara `cwd: null` tras comprobar
+que desapareció. Si falla la limpieza, el caso falla con `causa: cleanup_error`,
+`checks.cleanup: false` y conserva `cwd` para poder retirarlo después. El diagnóstico
+persiste la clase del error y sus códigos `errno`/`winerror`, sin el mensaje bruto.
+El diagnóstico y la ruta retenida pasan por `agent-kits/shared/redact.py` antes
+del informe: si detecta secretos, `cwd` muestra una ruta redactada, que puede no
+localizar directamente el directorio original. Si el redactor no está disponible
+o falla, ambos campos muestran un aviso fijo sin texto del consumidor; el fallo
+de limpieza sigue visible y el directorio se conserva.
+Con `--keep`, conserva el directorio y su ruta.
+
 **Cómo detecta la activación.** `--output-format json` solo devuelve el resultado final (sin tool
 uses), así que se usa `stream-json` y se leen las tool uses de los mensajes `assistant`:
 `Skill` (o `SlashCommand`) con `input.skill == <nombre>` para skills **y comandos** (los commands
@@ -147,6 +159,18 @@ contexto de sesión y hook de guardia son interactivos).
 
 ## English
 
+Without `--keep`, the runner removes its freshly created temporary directory,
+including read-only Git objects on Windows, and reports `cwd: null` only after
+confirming its absence. Cleanup failure fails the case with `causa: cleanup_error`
+and `checks.cleanup: false`, retaining `cwd` for later removal. The diagnostic
+records the exception class and `errno`/`winerror` codes, without its raw message.
+The diagnostic and retained path pass through `agent-kits/shared/redact.py` before
+the report: detected secrets produce a redacted `cwd`, which may not directly
+locate the original directory. If the redactor is unavailable or fails, both
+fields contain a fixed notice without consumer text; cleanup still fails visibly
+and the directory remains.
+`--keep` retains the directory and its path.
+
 `evals/` turns each piece's `description` — a *promise* that Claude will invoke it when the user
 says X — into something **tested**, not assumed. One JSON file per skill/command/agent
 (`cases/<kind>-<name>.json`) holds ≥ 2 positive prompts (one containing a literal phrase of the
@@ -160,7 +184,7 @@ description (so changing a description breaks the case until both are updated). 
 `fixtures/project/`, detects activation from the `Skill`/`Agent` tool uses in the transcript
 (`json` output has no tool uses; commands are invoked through the Skill tool), checks
 `mentions`/`must_not`/`artifacts`, tags each failure with a `causa` (`no activó` · `activó sin deber` · `permiso denegado` — the
-piece fired but a tool_result was denied for permissions — · `expectativa` · `timeout`), writes `reports/<date>.json`, and exits 0/1 (2 when `claude` is
+piece fired but a tool_result was denied for permissions — · `expectativa` · `timeout` · `cleanup_error`), writes `reports/<date>.json`, and exits 0/1 (2 when `claude` is
 not on PATH; `--dry-run` only prints the commands). There is no official `claude plugin eval`
 (plugins-reference, 2026-09-03); the official `skill-creator` `evals/evals.json` measures output
 quality, so this format is our own and maps 1:1 onto its trigger list (`prompt`→`query`,

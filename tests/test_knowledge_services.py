@@ -42,6 +42,10 @@ def _load(ruta, nombre_modulo):
     return mod
 
 
+_hook_security = sys.modules.get("custom_agents_hook_security_support") or _load(
+    os.path.join(ROOT, "tests", "hook_security_support.py"), "custom_agents_hook_security_support")
+
+
 ks = _load(os.path.join(SHARED, "knowledge-schema.py"), "e2e_knowledge_schema")
 ki = _load(os.path.join(SHARED, "knowledge-index.py"), "e2e_knowledge_index")
 cg = _load(os.path.join(CURATOR_KIT, "curator-gate.py"), "e2e_curator_gate")
@@ -853,7 +857,8 @@ def _ofensores_de_scripts_invocados(rutas_rel, root, vistos, profundidad=1):
         if etiqueta in _ALLOWLIST_USOS_LOCALES_DE_RED:
             continue
         texto_script = _texto_o_fallo_si_no_decodifica(resuelta)
-        texto_script_l = texto_script.lower()
+        texto_script_l = (_hook_security.local_urlparse_code(texto_script)
+                          if resuelta.endswith(".py") else texto_script).lower()
         for termino in _TERMINOS_RED_PROHIBIDOS:
             if _termino_en_codigo(texto_script_l, termino, os.path.basename(resuelta)):
                 ofensores.append((etiqueta, termino))
@@ -876,7 +881,8 @@ def _ofensores_de_red_en_hooks(hooks_dir=None, root=None):
             ruta = os.path.join(raiz, nombre)
             vistos.add(os.path.normpath(ruta))
             texto = _texto_o_fallo_si_no_decodifica(ruta)
-            texto_l = texto.lower()
+            texto_l = (_hook_security.local_urlparse_code(texto)
+                       if nombre.endswith(".py") else texto).lower()
             for termino in _TERMINOS_RED_PROHIBIDOS:
                 if _termino_en_codigo(texto_l, termino, nombre):
                     ofensores.append((os.path.relpath(ruta, hooks_dir), termino))
@@ -1368,3 +1374,32 @@ def test_f3fix1_gap113_e18_declara_la_arista_de_lectura():
     assert "escritura" in fila.lower()
     assert "knowledge-find.py" in fila and "capabilities.py" in fila
     assert "puede_leer" in fila or "consultar" in fila
+
+
+def test_hook_security_services_local_urlparse_is_not_network(tmp_path):
+    helper = tmp_path / "agent-kits" / "shared" / "probe.py"
+    helper.parent.mkdir(parents=True)
+    helper.write_text('import urllib.parse\nparts = urllib.parse.urlparse("https://example.invalid")\n', encoding="utf8")
+    assert _ofensores_de_scripts_invocados({"agent-kits/shared/probe.py"}, str(tmp_path), set()) == []
+
+
+def test_hook_security_services_direct_local_urlparse_is_not_network(tmp_path):
+    hooks = tmp_path / "hooks"
+    hooks.mkdir()
+    (hooks / "probe.py").write_text('import urllib.parse\nparts = urllib.parse.urlparse("https://example.invalid")\n', encoding="utf8")
+    assert _ofensores_de_red_en_hooks(str(hooks), root=str(tmp_path)) == []
+
+
+def test_hook_security_services_local_parser_does_not_hide_unknown_network(tmp_path):
+    for index, body in enumerate((
+        'import urllib.parse, urllib.request\nurllib.request.urlopen("https://example.invalid")\n',
+        'import urllib.parse as unknown\nunknown.urlparse("https://example.invalid")\n',
+        'import urllib.parse\nnamespace = urllib.parse.__dict__\n',
+        'import URLLIB.PARSE\nURLLIB.PARSE.urlparse("https://example.invalid")\n',
+        'import urllib.parse\nexec("import urllib.request; urllib.request.urlopen(url)")\n',
+    )):
+        root = tmp_path / str(index)
+        helper = root / "agent-kits" / "shared" / "probe.py"
+        helper.parent.mkdir(parents=True)
+        helper.write_text(body, encoding="utf8")
+        assert _ofensores_de_scripts_invocados({"agent-kits/shared/probe.py"}, str(root), set())

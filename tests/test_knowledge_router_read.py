@@ -365,6 +365,6 @@ def test_router_with_actual_documentary_adapter_and_loopback_post(router, projec
     if race:
         assert hits is None and info["origen"] == "local" and "respuesta_generada" not in info
     else:
-        assert info["origen"] == "backend" and len(hits) == 1
+        assert info["origen"] == "backend" and len(hits) == 1, info
         assert len(info["respuesta_generada"]["source_nodes"]) == 2
         assert info["respuesta_generada"]["autoridad"] == "ninguna"

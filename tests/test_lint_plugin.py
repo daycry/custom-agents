@@ -38,8 +38,24 @@ def make_plugin(tmp, agents):
         open(os.path.join(tmp, "agents", name + ".md"), "w", encoding="utf-8").write(body)
 
 
-def run(tmp):
-    r = subprocess.run([sys.executable, SCRIPT, "--root", tmp],
+def run(tmp, deny_exec=None):
+    argv = [sys.executable, SCRIPT, "--root", tmp]
+    if deny_exec is not None:
+        # Controlled permission input for the warning branch. Windows chmod
+        # cannot remove X_OK; this does not claim native POSIX mode evidence.
+        wrapper = """import os, runpy, sys
+denied = os.path.normcase(os.path.abspath(sys.argv.pop(1)))
+original = os.access
+def access(path, mode, *args, **kwargs):
+    if mode & os.X_OK and os.path.normcase(os.path.abspath(path)) == denied:
+        return False
+    return original(path, mode, *args, **kwargs)
+os.access = access
+sys.argv = sys.argv[1:]
+runpy.run_path(sys.argv[0], run_name="__main__")
+"""
+        argv = [sys.executable, "-c", wrapper, deny_exec, SCRIPT, "--root", tmp]
+    r = subprocess.run(argv,
                        capture_output=True, text=True, encoding="utf-8", errors="replace")
     return r.returncode, r.stdout + r.stderr
 
@@ -477,7 +493,30 @@ def casos_tolerancias_caducadas():
         assert "PIEZAS_PLANIFICADAS" in out, f"la tolerancia caducada tiene que avisar\n{out}"
 
 
+
+def caso_permiso_controlado_no_oculta_el_resto():
+    """The permission probe is exact-path and preserves unrelated existence/access."""
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        hook = _escribe(tmp, "hooks/noexec.sh", "exit 0\n")
+        other = _escribe(tmp, "hooks/other.sh", "exit 0\n")
+        os.chmod(other, 0o755)
+        def config(path):
+            _escribe(tmp, "hooks/hooks.json", json.dumps({"hooks": {
+                "PostToolUse": [{"hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/" + path}]}]}}))
+        config("hooks/noexec.sh")
+        code, out = run(tmp, deny_exec=hook)
+        assert code == 0 and "hooks/noexec.sh` no es ejecutable" in out, out
+        config("hooks/other.sh")
+        code, out = run(tmp, deny_exec=hook)
+        assert code == 0 and "no es ejecutable" not in out, out
+        config("hooks/missing.sh")
+        code, out = run(tmp, deny_exec=hook)
+        assert code == 1 and "missing.sh" in out and "no existe" in out, out
+
+
 def main():
+    caso_permiso_controlado_no_oculta_el_resto()
     # 1) Plugin válido → exit 0
     with tempfile.TemporaryDirectory() as tmp:
         make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
@@ -594,7 +633,7 @@ def main():
         os.chmod(hook, 0o644)
         open(os.path.join(tmp, "hooks", "hooks.json"), "w").write(json.dumps({"hooks": {
             "PostToolUse": [{"hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/noexec.sh"}]}]}}))
-        code, out = run(tmp)
+        code, out = run(tmp, deny_exec=hook if os.name == "nt" else None)
         assert code == 0 and "no es ejecutable" in out, f"ejecutable es aviso, no error\n{out}"
         open(os.path.join(tmp, "hooks", "hooks.json"), "w").write("{ esto no es json")
         code, out = run(tmp)
@@ -672,7 +711,7 @@ dependencies:
         open(hj, "w").write(json.dumps({"hooks": {"PostToolUse": [{"hooks": [
             {"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/ok.sh"}]}]}}))
         os.chmod(hj, 0o644)
-        code, out = run(tmp)
+        code, out = run(tmp, deny_exec=hj if os.name == "nt" else None)
         assert code == 0 and "no debería ser ejecutable" not in out, out
         os.chmod(hj, 0o755)
         code, out = run(tmp)
@@ -1077,7 +1116,7 @@ dependencies:
     casos_matriz_fila_en_negrita()
     casos_tolerancias_caducadas()
 
-    print("test_lint_plugin: 60/60 OK")
+    print("test_lint_plugin: OK")
 
 
 if __name__ == "__main__":

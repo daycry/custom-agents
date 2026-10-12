@@ -215,20 +215,31 @@ class TestGraphitiPlanApply(unittest.TestCase):
             entradas = [_entrada()]
             self.mod.apply(self.mod.plan(entradas, cfg), cfg)
             ops = self.mod.plan([], cfg)
-            self.assertEqual(ops, [{"tipo": "revoke", "id": "mem.gotchas.graphiti-timeout"}])
+            self.assertEqual(len(ops), 1)
+            self.assertEqual(ops[0]['tipo'], 'revoke')
+            self.assertEqual(ops[0]['id'], 'mem.gotchas.graphiti-timeout')
+            self.assertEqual(ops[0]['version'], 1)
+            self.assertEqual(ops[0]['uuid'], srv.episodios[0]['uuid'])
             resultado = self.mod.apply(ops, cfg)
             self.assertEqual(resultado, {"aplicados": 0, "revocados": 1})
-            self.assertTrue(any(n == "add_triplet" and a.get("edge_name") == "SUPERSEDES"
+            self.assertTrue(any(n == "add_memory" and a.get("name") == "mem.gotchas.graphiti-timeout@1@withdrawn"
                                  for n, a in srv.llamadas))
+            self.assertFalse(any(n == "add_triplet" for n, _a in srv.llamadas))
             self.assertFalse(any(n == "delete_episode" for n, _a in srv.llamadas))
 
-    def test_apply_uuid_deterministico_por_group_id_id_y_version(self):
-        cfg = self._cfg("http://127.0.0.1:1")
-        op = {"tipo": "upsert", "id": "mem.x", "version": 1, "hash": "h", "cuerpo": "c"}
-        u1 = self.mod._uuid_episodio(cfg["group_id"], op["id"], op["version"])
-        u2 = self.mod._uuid_episodio(cfg["group_id"], op["id"], op["version"])
-        self.assertEqual(u1, u2)
-        uuid.UUID(u1)  # no lanza: es un UUID válido
+    def test_apply_confirma_uuid_asignado_por_el_servidor_sin_reenviar(self):
+        with _ServidorMCPContext() as srv:
+            cfg = self._cfg(srv.endpoint)
+            entry = _entrada()
+            self.mod.apply(self.mod.plan([entry], cfg), cfg)
+            published, _ = self.mod._leer_manifest(cfg)
+            remote = srv.episodios[0]
+            self.assertEqual(published['entradas'][entry['id']]['uuid'], remote['uuid'])
+            uuid.UUID(remote['uuid'])
+            self.mod.apply(self.mod.plan([entry], cfg), cfg)
+            requests = [a for n, a in srv.llamadas if n == 'add_memory']
+            self.assertEqual(len(requests), 1)
+            self.assertNotIn('uuid', requests[0])
 
     def test_apply_deja_pending_si_una_operacion_falla_publicacion_anterior_intacta(self):
         def _add_memory_falla(_args):
@@ -237,8 +248,10 @@ class TestGraphitiPlanApply(unittest.TestCase):
         with _ServidorMCPContext() as srv:
             cfg = self._cfg(srv.endpoint)
             self.mod.apply(self.mod.plan([_entrada()], cfg), cfg)  # publicación previa OK
-        with _ServidorMCPContext(respuestas_tools={"add_memory": _add_memory_falla}) as srv2:
-            cfg2 = self._cfg(srv2.endpoint)
+            with open(self.mod._manifest_path(cfg), 'rb') as handle:
+                published_before = handle.read()
+            srv.handler_cls.respuestas_tools = {"add_memory": _add_memory_falla}
+            cfg2 = cfg
             nueva = _entrada(id_="mem.gotchas.otra", cuerpo="Otro cuerpo.\n")
             ops = self.mod.plan([_entrada(), nueva], cfg2)
             with self.assertRaises(self.mod.ErrorMCP):
@@ -248,12 +261,15 @@ class TestGraphitiPlanApply(unittest.TestCase):
                 {**cfg2, "_root": cfg2["_root"]})  # con .pending presente, ESE es el objetivo leído
             # la entrada previa (que no fallo) sigue en el objetivo pendiente; nada se perdio.
             self.assertIn("mem.gotchas.graphiti-timeout", manifest_publicado["entradas"])
+            with open(self.mod._manifest_path(cfg), 'rb') as handle:
+                self.assertEqual(handle.read(), published_before)
 
-    def test_shadow_mode_no_lee_apply_no_llama_a_get_episodes(self):
+    def test_shadow_confirma_publicacion_sin_abrir_consultas_semanticas(self):
         with _ServidorMCPContext() as srv:
             cfg = self._cfg(srv.endpoint, mode="shadow")
             self.mod.apply(self.mod.plan([_entrada()], cfg), cfg)
-            self.assertFalse(any(n == "get_episodes" for n, _a in srv.llamadas))
+            self.assertTrue(any(n == "get_episodes" for n, _a in srv.llamadas))
+            self.assertFalse(any(n.startswith("search_") for n, _a in srv.llamadas))
 
 
 class TestGraphitiVerifyRebuildRevoke(unittest.TestCase):
@@ -307,7 +323,7 @@ class TestGraphitiVerifyRebuildRevoke(unittest.TestCase):
                       "entradas": {"mem.x": {"version": 1, "hash": "h", "uuid": "u1"}}})
             self.assertEqual(self.mod.verify(cfg), {"ok": True, "estado": "ok", "desfase": []})
 
-    def test_verify_avisa_si_el_servidor_devuelve_otro_group_id(self):
+    def test_verify_no_autoriza_datos_de_otro_group_id(self):
         def _get_episodes(_args):
             return {"structuredContent": {"episodes": [{"name": "mem.x@1", "group_id": "otro-proyecto"}]}}
 
@@ -317,15 +333,18 @@ class TestGraphitiVerifyRebuildRevoke(unittest.TestCase):
                 cfg, {"group_id": "proy-test",
                       "entradas": {"mem.x": {"version": 1, "hash": "h", "uuid": "u1"}}})
             veredicto = self.mod.verify(cfg)
-            self.assertIn("otro-proyecto", veredicto["aviso"])
+            self.assertFalse(veredicto["ok"])
+            self.assertEqual(veredicto["razon"], "respuesta fuera del group_id solicitado")
 
-    def test_rebuild_es_el_unico_camino_que_llama_a_clear_graph_acotado_al_grupo_propio(self):
+    def test_rebuild_construye_otro_grupo_sin_vaciar_la_publicacion(self):
         with _ServidorMCPContext() as srv:
             cfg = self._cfg(srv.endpoint)
             resultado = self.mod.rebuild([_entrada()], cfg)
-            self.assertEqual(resultado, {"aplicados": 1, "revocados": 0})
-            nombre, argumentos = next(l for l in srv.llamadas if l[0] == "clear_graph")
-            self.assertEqual(argumentos, {"group_ids": ["proy-test"]})
+            self.assertEqual(resultado['aplicados'], 1)
+            self.assertFalse(any(n == "clear_graph" for n, _a in srv.llamadas))
+            manifest, _ = self.mod._leer_manifest(self.mod._gscope.read_config(cfg, self.mod._gpub))
+            self.assertNotEqual(manifest['group_id'], 'proy-test')
+            self.assertEqual(manifest['logical_group_id'], 'proy-test')
 
     def test_rebuild_reproduce_el_mismo_manifiesto_que_la_sincronizacion_incremental(self):
         entradas = [_entrada()]
@@ -339,8 +358,12 @@ class TestGraphitiVerifyRebuildRevoke(unittest.TestCase):
                 cfg2 = self._cfg(srv2.endpoint)
                 cfg2["_root"] = tmp2
                 self.mod.rebuild(entradas, cfg2)
-                manifest_rebuild, _ = self.mod._leer_manifest(cfg2)
-            self.assertEqual(manifest_incremental["entradas"], manifest_rebuild["entradas"])
+                manifest_rebuild, _ = self.mod._leer_manifest(self.mod._gscope.read_config(cfg2, self.mod._gpub))
+            old = manifest_incremental['entradas'][entradas[0]['id']]
+            new = manifest_rebuild['entradas'][entradas[0]['id']]
+            self.assertEqual({k:old[k] for k in ('version','hash','category','binding')},
+                             {k:new[k] for k in ('version','hash','category','binding')})
+            self.assertNotEqual(old['uuid'], new['uuid'])
         finally:
             import shutil
             shutil.rmtree(tmp2, ignore_errors=True)
@@ -369,7 +392,7 @@ class TestGraphitiVerifyRebuildRevoke(unittest.TestCase):
             self.mod.apply(ops, cfg)
             manifest, _ = self.mod._leer_manifest(cfg)
             self.assertNotIn("mem.gotchas.graphiti-timeout", manifest["entradas"])
-            self.assertTrue(any(n == "add_memory" and a.get("name", "").endswith("@tombstone")
+            self.assertTrue(any(n == "add_memory" and a.get("name", "").endswith("@1@withdrawn")
                                  for n, a in srv.llamadas))
 
 
@@ -463,10 +486,11 @@ class TestGraphitiCA13Provenance(unittest.TestCase):
             cfg = self._cfg(srv.endpoint)
             self.mod.apply(self.mod.plan([_entrada()], cfg), cfg)
             _, argumentos = next(l for l in srv.llamadas if l[0] == "add_memory")
-        self.assertEqual(argumentos.get("category"), "GOTCHA")
-        self.assertIn("entity_type", argumentos)
-        self.assertEqual(argumentos.get("hash_enviado"),
-                          hashlib.sha256(b"Cuerpo de la entrada.\n").hexdigest())
+        self.assertIn("category: GOTCHA", argumentos['episode_body'])
+        self.assertIn("hash: " + hashlib.sha256(b"Cuerpo de la entrada.\n").hexdigest(), argumentos['episode_body'])
+        self.assertNotIn('category', argumentos)
+        self.assertNotIn('entity_type', argumentos)
+        self.assertNotIn('hash_enviado', argumentos)
 
     def test_cuerpo_hostil_con_delimitador_de_procedencia_se_escapa(self):
         with _ServidorMCPContext() as srv:
@@ -927,18 +951,18 @@ class TestGraphitiFase2Fix2(unittest.TestCase):
     # -- #56 (Important, mutante N6): `add_triplet` de `_aplicar_revoke` con el campo correcto --
 
     def test_gap56_revoke_usa_target_node_uuid_y_tambien_el_nombre_obligatorio(self):
-        """Mutante: quitar `target_node_uuid` hace que esta clave NUNCA aparezca en los
-        argumentos capturados de `add_triplet`. Fix4 (gap #69): el contrato REAL de la tool
-        declara ADEMAS `source_node_name`/`target_node_name` como OBLIGATORIOS -el arbitraje de
-        #56/#40 ("solo `*_uuid`") era incompleto-, asi que se comprueban los cuatro campos."""
         with _ServidorMCPContext() as srv:
             cfg = self._cfg(srv.endpoint)
-            self.mod.apply(self.mod.plan([_entrada()], cfg), cfg)
-            self.mod.apply(self.mod.plan([], cfg), cfg)  # revoke
-            _nombre, argumentos = next(l for l in srv.llamadas if l[0] == "add_triplet")
-        self.assertIn("target_node_uuid", argumentos)
-        self.assertEqual(argumentos["target_node_name"], "mem.gotchas.graphiti-timeout@1")
-        self.assertEqual(argumentos["source_node_name"], "mem.gotchas.graphiti-timeout@tombstone")
+            entry = _entrada()
+            self.mod.apply(self.mod.plan([entry], cfg), cfg)
+            source = srv.episodios[0]
+            self.mod.apply(self.mod.plan([], cfg), cfg)
+            manifest, _ = self.mod._leer_manifest(cfg)
+            marker = manifest['transitions'][entry['id']+'@1@withdrawn']
+        self.assertEqual(marker['source_episode_uuid'], source['uuid'])
+        self.assertEqual(marker['target_version'], 1)
+        self.assertEqual(marker['representation'], 'episode')
+        self.assertFalse(any(n == 'add_triplet' for n, a in srv.llamadas))
 
     # -- #57 (Important): M7 con un hang de verdad, no un puerto cerrado ------------------------
 
@@ -1118,14 +1142,18 @@ class TestGraphitiFase2Fix2(unittest.TestCase):
         self.assertIn("mem.bueno", manifest["entradas"])
 
     def test_gap65_pending_corrupto_no_pierde_el_revoke_de_una_entrada_retirada(self):
-        cfg = self._cfg("http://127.0.0.1:1")
-        self.mod._escribir_manifest(
-            cfg, {"group_id": "proy-test", "entradas": {"mem.bueno": {"version": 1, "hash": "h"}}})
-        ruta_pending = self.mod._manifest_path(cfg, ".pending")
-        with open(ruta_pending, "w", encoding="utf-8") as f:
-            f.write("{ esto no es json valido")
-        ops = self.mod.plan([], cfg)  # "mem.bueno" ya no esta en `entries` -> debe salir un revoke
-        self.assertEqual(ops, [{"tipo": "revoke", "id": "mem.bueno"}])
+        with _ServidorMCPContext() as srv:
+            cfg = self._cfg(srv.endpoint)
+            entry = _entrada(id_='mem.bueno')
+            self.mod.apply(self.mod.plan([entry], cfg), cfg)
+            uid = srv.episodios[0]['uuid']
+            with open(self.mod._manifest_path(cfg, '.pending'), 'w', encoding='utf8') as handle:
+                handle.write('{ invalid pending JSON')
+            ops = self.mod.plan([], cfg)
+            self.assertEqual([(o['tipo'],o['id'],o['version'],o['uuid']) for o in ops],
+                             [('revoke','mem.bueno',1,uid)])
+            self.assertEqual(self.mod.apply(ops,cfg)['revocados'],1)
+            self.assertTrue(self.mod.verify(cfg)['ok'])
 
 
 class TestGraphitiFase2Fix3(unittest.TestCase):
@@ -1258,33 +1286,20 @@ class TestGraphitiFase2Fix3(unittest.TestCase):
     # (no retirada) emite tombstone + SUPERSEDES con los campos `*_uuid` correctos ---------------
 
     def test_fix3_gap40_cambio_de_version_emite_tombstone_y_supersedes_con_uuid_correctos(self):
-        """`test_entrada_retirada_de_approved_genera_revoke_y_tombstone` (TestGraphitiPlanApply)
-        y `test_gap56_revoke_usa_target_node_uuid_no_target_node_name` (Fix2) cubren el camino de
-        RETIRADA (`_aplicar_revoke`); ninguno cubria el camino DISTINTO de CAMBIO DE VERSION
-        (`_aplicar_upsert` -> `_tombstone_supersedes`) que el arbitraje de #40 tambien exige.
-        Mutante: comentar la llamada a `_tombstone_supersedes` en `_aplicar_upsert` (la condicion
-        `entrada_previa and entrada_previa.get("version") != op.get("version") and
-        entrada_previa.get("uuid")`) hace que un cambio de version deje de ser observable."""
         with _ServidorMCPContext() as srv:
             cfg = self._cfg(srv.endpoint)
-            self.mod.apply(self.mod.plan([_entrada(version=1)], cfg), cfg)
-            uuid_v1, _ = next((a.get("uuid"), n) for n, a in srv.llamadas if n == "add_memory")
+            entry = _entrada(version=1)
+            self.mod.apply(self.mod.plan([entry], cfg), cfg)
+            uid1 = srv.episodios[0]['uuid']
             self.mod.apply(self.mod.plan([_entrada(version=2)], cfg), cfg)
-            llamadas_add_memory = [a for n, a in srv.llamadas if n == "add_memory"]
-            llamadas_add_triplet = [a for n, a in srv.llamadas if n == "add_triplet"]
-        # tombstone de la version 1 (episodio adicional con `@superseded`; gap #96 de la
-        # revision Fase 3 intento 1: este camino ya NO usa `@tombstone`, que queda para el revoke)
-        self.assertTrue(any(a.get("name", "").endswith("@superseded") for a in llamadas_add_memory))
-        # SUPERSEDES con los campos correctos, apuntando al uuid de la version 1
-        supersedes = next(a for a in llamadas_add_triplet if a.get("edge_name") == "SUPERSEDES")
-        self.assertEqual(supersedes.get("target_node_uuid"), uuid_v1)
-        # Gap #69 (fix4): el contrato REAL de `add_triplet` (fixture `tools/list`) declara
-        # `required: [source_node_name, edge_name, fact, target_node_name]` — el arbitraje de #40
-        # ("usa `*_uuid`") era incompleto: van los CUATRO campos, nombre Y uuid.
-        self.assertEqual(supersedes.get("target_node_name"), "mem.gotchas.graphiti-timeout@1")
-        self.assertEqual(supersedes.get("source_node_name"), "mem.gotchas.graphiti-timeout@2")
-        # NUNCA se llama a `delete_episode` (design.md, enmienda 2026-09-18)
-        self.assertFalse(any(n == "delete_episode" for n, _a in srv.llamadas))
+            manifest,_ = self.mod._leer_manifest(cfg)
+            marker = manifest['transitions'][entry['id']+'@1@superseded']
+            uid2 = manifest['entradas'][entry['id']]['uuid']
+            self.assertTrue(self.mod.verify(cfg)['ok'])
+        self.assertEqual(marker['source_episode_uuid'],uid1)
+        self.assertEqual(marker['replacement_episode_uuid'],uid2)
+        self.assertNotEqual(uid1,uid2)
+        self.assertFalse(any(n in ('add_triplet','delete_episode') for n,a in srv.llamadas))
 
     # -- #61 (Minor, test pendiente de fix2): `--propose-config` alcanzable con `enabled: false` --
     # (test dedicado en `tests/test_knowledge_services.py`, backend deshabilitado por defecto;
@@ -1335,88 +1350,51 @@ class TestGraphitiFase2Fix4(unittest.TestCase):
         self.assertEqual(publicado["entradas"], entradas)
 
     def test_fix4_gap67_revoke_sigue_disponible_tras_una_reconciliacion_fallida(self):
-        """Corolario del mismo gap: como el manifiesto publicado sobrevive, `revoke()` sigue
-        viendo la entrada como publicada (con el mutante decia "no publicado" para siempre)."""
-        cfg = self._cfg("http://127.0.0.1:1")
-        entradas = {"mem.x": {"version": 1, "hash": "h", "uuid": "u1"}}
-        self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": entradas})
-        self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": entradas},
-                                    sufijo=".pending")
-        resultado = self.mod.apply([], cfg)
-        self.assertTrue(resultado.get("pendiente_sin_confirmar"))
-
-        def _get_episodes(_args):
-            return {"structuredContent": {"episodes": [
-                {"name": "mem.x@1", "uuid": "u1", "group_id": "proy-test"}]}}
-
-        # el servidor vuelve: la entrada SIGUE publicada en el manifiesto, asi que se puede
-        # revocar de verdad (con el mutante, `revoke()` decia "no publicado" para siempre y los
-        # episodios quedaban en el grafo sin forma de invalidarlos).
-        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
-            cfg_vivo = self._cfg(srv.endpoint)
-            veredicto = self.mod.revoke("mem.x", cfg_vivo)
-            tombstones = [a for n, a in srv.llamadas
-                          if n == "add_memory" and a.get("name", "").endswith("@tombstone")]
-        self.assertTrue(veredicto["revocado"])
-        self.assertTrue(tombstones)
+        with _ServidorMCPContext() as srv:
+            cfg = self._cfg(srv.endpoint)
+            entry = _entrada(id_='mem.x')
+            self.mod.apply(self.mod.plan([entry],cfg),cfg)
+            published,_ = self.mod._leer_manifest(cfg)
+            self.mod._escribir_manifest(cfg,published,sufijo='.pending')
+            srv.handler_cls.respuestas_tools = {'get_episodes':{'isError':True,'content':[{'type':'text','text':'Owned read unavailable'}]}}
+            self.assertTrue(self.mod.apply([],cfg).get('pendiente_sin_confirmar'))
+            srv.handler_cls.respuestas_tools = {}
+            self.assertTrue(self.mod.revoke(entry['id'],cfg)['revocado'])
+            self.assertTrue(self.mod.verify(cfg)['ok'])
+            self.assertTrue(any(n=='add_memory' and a['name']=='mem.x@1@withdrawn' for n,a in srv.llamadas))
 
     # -- #68 (Critical): el `.pending` heredado se reconcilia TAMBIEN con ops nuevas ------------
 
     def test_fix4_gap68_pending_heredado_se_reconcilia_aunque_haya_ops_nuevas(self):
-        """Mutante #68: la reconciliacion de #54 solo vivia en la rama `if not ops`, asi que con
-        >= 1 op nueva la entrada fantasma del `.pending` se promovia a PUBLICADO con cero
-        llamadas de confirmacion — con hash/version coincidentes, `plan()` no la volvia a
-        proponer jamas."""
-        def _get_episodes(_args):
-            # el servidor solo reconoce la entrada REAL, nunca la fantasma
-            return {"structuredContent": {"episodes": [
-                {"name": "mem.real@1", "group_id": "proy-test"}]}}
-
-        real = _entrada(id_="mem.real", cuerpo="Cuerpo real.\n")
-        fantasma = _entrada(id_="mem.fantasma", cuerpo="Cuerpo fantasma.\n")
-
-        def _hash_de(entrada):
-            return hashlib.sha256(entrada["cuerpo"].encode("utf-8")).hexdigest()
-
-        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
+        real = _entrada(id_='mem.real',cuerpo='Real body.\n')
+        phantom = _entrada(id_='mem.fantasma',cuerpo='Phantom body.\n')
+        new = _entrada(id_='mem.nueva',cuerpo='New body.\n')
+        with _ServidorMCPContext() as srv:
             cfg = self._cfg(srv.endpoint)
-            # `.pending` heredado de una corrida cortada: `mem.real` SI llego al servidor,
-            # `mem.fantasma` no (pero el `.pending` afirma que si).
-            self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {
-                "mem.real": {"version": 1, "hash": _hash_de(real), "uuid": "u-real"},
-                "mem.fantasma": {"version": 1, "hash": _hash_de(fantasma), "uuid": "u-fantasma"},
-            }}, sufijo=".pending")
-            nueva = _entrada(id_="mem.nueva", cuerpo="Cuerpo nuevo.\n")
-            # `plan()` solo ve UNA op nueva (las otras dos "coinciden" con el `.pending`)
-            ops = self.mod.plan([real, fantasma, nueva], cfg)
-            self.assertEqual([o["id"] for o in ops], ["mem.nueva"])
-            resultado = self.mod.apply(ops, cfg)
-            self.assertEqual(resultado["aplicados"], 1)
-            self.assertTrue(any(n == "get_episodes" for n, _a in srv.llamadas))
-            manifest, _ = self.mod._leer_manifest(cfg)
-        self.assertIn("mem.real", manifest["entradas"])
-        self.assertIn("mem.nueva", manifest["entradas"])
-        self.assertNotIn("mem.fantasma", manifest["entradas"])
-        self.assertTrue(any("mem.fantasma" in a for a in resultado.get("avisos") or []))
+            self.mod.apply(self.mod.plan([real],cfg),cfg)
+            published,_ = self.mod._leer_manifest(cfg)
+            pending = json.loads(json.dumps(published))
+            pending['entradas'][phantom['id']]={'version':1,'hash':hashlib.sha256(phantom['cuerpo'].encode()).hexdigest(),'uuid':'unconfirmed-fixture'}
+            self.mod._escribir_manifest(cfg,pending,sufijo='.pending')
+            ops=self.mod.plan([real,phantom,new],cfg)
+            self.assertEqual([o['id'] for o in ops],[new['id']])
+            result=self.mod.apply(ops,cfg)
+            current,_=self.mod._leer_manifest(cfg)
+            self.assertEqual(set(current['entradas']),{real['id'],new['id']})
+            self.assertEqual(result['aplicados'],1)
+            self.assertTrue(any(phantom['id'] in value for value in result.get('avisos',[])))
 
     def test_fix4_gap68_lo_no_confirmado_se_vuelve_a_proponer_como_upsert(self):
-        """La consecuencia observable: tras la reconciliacion, `plan()` VUELVE a proponer la
-        entrada fantasma (con el mutante quedaba con hash/version coincidentes y `plan()` no la
-        proponia nunca mas — solo `--rebuild` la arreglaba)."""
-        def _get_episodes(_args):
-            return {"structuredContent": {"episodes": []}}
-
-        fantasma = _entrada(id_="mem.fantasma", cuerpo="Cuerpo fantasma 2.\n")
-        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
-            cfg = self._cfg(srv.endpoint)
-            hash_f = hashlib.sha256(fantasma["cuerpo"].encode("utf-8")).hexdigest()
-            self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {
-                "mem.fantasma": {"version": 1, "hash": hash_f, "uuid": "u-fantasma"},
-            }}, sufijo=".pending")
-            nueva = _entrada(id_="mem.nueva", cuerpo="Cuerpo nuevo.\n")
-            self.mod.apply(self.mod.plan([nueva, fantasma], cfg), cfg)
-            ops = self.mod.plan([nueva, fantasma], cfg)
-        self.assertIn("mem.fantasma", [o["id"] for o in ops if o["tipo"] == "upsert"])
+        phantom=_entrada(id_='mem.fantasma',cuerpo='Phantom body.\n')
+        new=_entrada(id_='mem.nueva',cuerpo='New body.\n')
+        with _ServidorMCPContext() as srv:
+            cfg=self._cfg(srv.endpoint)
+            self.mod._escribir_manifest(cfg,{'group_id':'proy-test','entradas':{
+                phantom['id']:{'version':1,'hash':hashlib.sha256(phantom['cuerpo'].encode()).hexdigest(),'uuid':'unconfirmed-fixture'}}},sufijo='.pending')
+            self.mod.apply(self.mod.plan([new,phantom],cfg),cfg)
+            ops=self.mod.plan([new,phantom],cfg)
+            self.assertEqual([o['id'] for o in ops if o['tipo']=='upsert'],[phantom['id']])
+            self.assertFalse(any(n=='add_memory' and a['name']==phantom['id']+'@1' for n,a in srv.llamadas))
 
     # -- #69 (Critical): `add_triplet` cumple el `required` del contrato REAL -------------------
 
@@ -1435,35 +1413,34 @@ class TestGraphitiFase2Fix4(unittest.TestCase):
         self.assertIn("source_node_name", str(ctx.exception))
 
     def test_fix4_gap69_supersedes_de_cambio_de_version_envia_nombre_y_uuid(self):
-        """Mutante #69a: quitar `source_node_name`/`target_node_name` de `_tombstone_supersedes`
-        devuelve el fallo real (`isError` -> `ErrorMCP` -> `fallidos`) en CADA cambio de version."""
         with _ServidorMCPContext() as srv:
-            cfg = self._cfg(srv.endpoint)
-            self.mod.apply(self.mod.plan([_entrada(version=1)], cfg), cfg)
-            uuid_v1 = next(a.get("uuid") for n, a in srv.llamadas if n == "add_memory")
-            resultado = self.mod.apply(self.mod.plan([_entrada(version=2)], cfg), cfg)
-            triplets = [a for n, a in srv.llamadas if n == "add_triplet"]
-        self.assertEqual(resultado["aplicados"], 1)
-        supersedes = next(a for a in triplets if a.get("edge_name") == "SUPERSEDES")
-        self.assertEqual(supersedes["target_node_uuid"], uuid_v1)
-        self.assertEqual(supersedes["target_node_name"], "mem.gotchas.graphiti-timeout@1")
-        self.assertEqual(supersedes["source_node_name"], "mem.gotchas.graphiti-timeout@2")
-        self.assertFalse(_campos_obligatorios_que_faltan("add_triplet", supersedes))
+            cfg=self._cfg(srv.endpoint)
+            entry=_entrada()
+            self.mod.apply(self.mod.plan([entry],cfg),cfg)
+            uid1=srv.episodios[0]['uuid']
+            self.assertEqual(self.mod.apply(self.mod.plan([_entrada(version=2)],cfg),cfg)['aplicados'],1)
+            current,_=self.mod._leer_manifest(cfg)
+            marker=current['transitions'][entry['id']+'@1@superseded']
+            self.assertEqual(marker['target_version'],1)
+            self.assertEqual(marker['source_episode_uuid'],uid1)
+            self.assertEqual(marker['replacement_episode_uuid'],current['entradas'][entry['id']]['uuid'])
+            requests=[a for n,a in srv.llamadas if n=='add_memory' and a['name'].endswith('@superseded')]
+            self.assertEqual(len(requests),1)
+            self.assertIn('relation: SUPERSEDES',requests[0]['episode_body'])
+            self.assertFalse(_campos_obligatorios_que_faltan('add_memory',requests[0]))
 
     def test_fix4_gap69_supersedes_de_revoke_envia_nombre_y_uuid(self):
-        """Mutante #69b: el camino de REVOKE (`_aplicar_revoke`) es DISTINTO del de cambio de
-        version y tambien enviaba solo `*_uuid`."""
         with _ServidorMCPContext() as srv:
-            cfg = self._cfg(srv.endpoint)
-            self.mod.apply(self.mod.plan([_entrada()], cfg), cfg)
-            veredicto = self.mod.revoke("mem.gotchas.graphiti-timeout", cfg)
-            triplets = [a for n, a in srv.llamadas if n == "add_triplet"]
-        self.assertTrue(veredicto["revocado"])
-        supersedes = next(a for a in triplets if a.get("edge_name") == "SUPERSEDES")
-        self.assertEqual(supersedes["source_node_name"], "mem.gotchas.graphiti-timeout@tombstone")
-        self.assertEqual(supersedes["target_node_name"], "mem.gotchas.graphiti-timeout@1")
-        self.assertTrue(supersedes.get("target_node_uuid"))
-        self.assertFalse(_campos_obligatorios_que_faltan("add_triplet", supersedes))
+            cfg=self._cfg(srv.endpoint);entry=_entrada()
+            self.mod.apply(self.mod.plan([entry],cfg),cfg)
+            uid=srv.episodios[0]['uuid']
+            self.assertTrue(self.mod.revoke(entry['id'],cfg)['revocado'])
+            current,_=self.mod._leer_manifest(cfg)
+            marker=current['transitions'][entry['id']+'@1@withdrawn']
+            self.assertEqual(marker['source_episode_uuid'],uid)
+            self.assertEqual(marker['retired_episode']['uuid'],uid)
+            self.assertEqual(marker['target_version'],1)
+            self.assertFalse(any(n=='add_triplet' for n,a in srv.llamadas))
 
     # -- #70 (Important): tope de lectura MCP, MemoryError y ventana de verify ------------------
 
@@ -1865,20 +1842,26 @@ class TestGraphitiFase2Fix4(unittest.TestCase):
     # -- #82 (Minor): `rebuild` marca el `.pending` ANTES de `clear_graph` ----------------------
 
     def test_fix4_gap82_rebuild_marca_el_pending_antes_de_clear_graph(self):
-        """Mutante #82: `clear_graph` ANTES de vaciar el manifiesto — si el borrado ocurre y la
-        lectura falla, el grafo queda vacio y el manifiesto afirma que todo esta publicado."""
-        estado = {}
-
-        def _clear_graph(_args):
-            estado["pending_existia"] = os.path.isfile(
-                os.path.join(self.tmp, ".claude", "knowledge-services",
-                             "graphiti-manifest.pending.json"))
-            return {"structuredContent": {"ok": True}}
-
-        with _ServidorMCPContext(respuestas_tools={"clear_graph": _clear_graph}) as srv:
-            cfg = self._cfg(srv.endpoint)
-            self.mod.rebuild([_entrada()], cfg)
-        self.assertTrue(estado.get("pending_existia"))
+        with _ServidorMCPContext() as srv:
+            cfg=self._cfg(srv.endpoint);entry=_entrada()
+            self.mod.apply(self.mod.plan([entry],cfg),cfg)
+            before,_=self.mod._leer_manifest(cfg)
+            original=self.mod._escribir_manifest
+            def cut(configuration,value,sufijo=''):
+                if configuration.get('_root')==cfg['_root'] and not sufijo and value.get('group_id')!=cfg['group_id']:
+                    raise OSError('Owned final publication cut')
+                return original(configuration,value,sufijo)
+            self.mod._escribir_manifest=cut
+            try:
+                with self.assertRaises((self.mod.ErrorMCP,OSError)):
+                    self.mod.rebuild([entry],cfg)
+            finally:self.mod._escribir_manifest=original
+            after,_=self.mod._leer_manifest(cfg)
+            self.assertEqual(after,before)
+            self.assertTrue(self.mod.verify(cfg)['ok'])
+            self.assertFalse(any(n=='clear_graph' for n,a in srv.llamadas))
+            self.mod.rebuild([entry],cfg)
+            self.assertTrue(self.mod.verify(cfg)['ok'])
 
     # -- #83 (Minor D): presupuesto de tiempo COMPARTIDO entre candidatas IP --------------------
 
@@ -1986,86 +1969,62 @@ class TestGraphitiFase2Fix5(unittest.TestCase):
     # -- #89 (Important): un `revoke` podado por la reconciliacion se emite IGUALMENTE ----------
 
     def test_fix5_gap89_revoke_de_una_entrada_podada_emite_tombstone_y_supersedes(self):
-        """Mutante #89 (el codigo de fix4): la poda de #68 quitaba del `publicado` la entrada que
-        el servidor no confirma (episodio fuera de la ventana de `get_episodes`, o `uuid` distinto
-        por #79), asi que `_aplicar_revoke` recibia `entrada_previa=None`, salia con `return None`
-        SIN emitir nada... y `apply()` contaba `revocados += 1`: el episodio quedaba VIVO e
-        irrevocable en el grafo y un `revoke()` posterior respondia "no publicado". Escenario
-        exacto de la lente B: con el mutante, `tools/call` solo trae `['get_episodes']` y el
-        resultado es `{"aplicados": 0, "revocados": 1}`."""
-        def _get_episodes(_args):
-            return {"structuredContent": {"episodes": []}}  # el servidor no confirma nada
-
-        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
-            cfg = self._cfg(srv.endpoint)
-            # `.pending` heredado (reconciliacion POSIBLE, pero sin confirmacion de la entrada)
-            self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {
-                "mem.fuera": {"version": 3, "hash": "h", "uuid": "u-fuera"}}}, sufijo=".pending")
-            resultado = self.mod.apply([{"tipo": "revoke", "id": "mem.fuera"}], cfg)
-            llamadas = list(srv.llamadas)
-
-        tombstones = [a for n, a in llamadas
-                      if n == "add_memory" and a.get("name") == "mem.fuera@tombstone"]
-        tripletes = [a for n, a in llamadas if n == "add_triplet"]
-        self.assertTrue(tombstones, "el tombstone (`add_memory`) tiene que salir hacia el servidor")
-        self.assertTrue(tripletes, "el `SUPERSEDES` (`add_triplet`) tiene que salir hacia el servidor")
-        self.assertEqual(tripletes[0]["edge_name"], "SUPERSEDES")
-        # el nombre del nodo invalidado se reconstruye del manifiesto heredado, no se inventa
-        self.assertEqual(tripletes[0]["target_node_name"], "mem.fuera@3")
-        self.assertEqual(tripletes[0]["target_node_uuid"], "u-fuera")
-        self.assertEqual(resultado["revocados"], 1)
-        self.assertTrue(any("revocan IGUALMENTE" in a for a in resultado.get("avisos") or []),
-                        "el aviso de la poda tiene que distinguir revocado de re-propuesto")
+        with _ServidorMCPContext() as srv:
+            cfg=self._cfg(srv.endpoint);entry=_entrada(id_='mem.fuera',version=3)
+            self.mod.apply(self.mod.plan([entry],cfg),cfg)
+            published,_=self.mod._leer_manifest(cfg)
+            uid=published['entradas'][entry['id']]['uuid']
+            self.mod._escribir_manifest(cfg,published,sufijo='.pending')
+            ops=self.mod.plan([],cfg)
+            def window(args):
+                values=[e for e in srv.episodios if e['name']!='mem.fuera@3']
+                return {'structuredContent':{'result':{'episodes':values[:args['max_episodes']]}}}
+            srv.handler_cls.respuestas_tools={'get_episodes':window}
+            result=self.mod.apply(ops,cfg)
+            srv.handler_cls.respuestas_tools={}
+            current,_=self.mod._leer_manifest(cfg)
+            marker=current['transitions']['mem.fuera@3@withdrawn']
+            self.assertEqual(marker['source_episode_uuid'],uid)
+            self.assertEqual(marker['retired_episode']['uuid'],uid)
+            self.assertEqual(result['revocados'],1)
+            self.assertTrue(self.mod.verify(cfg)['ok'])
 
     def test_fix5_gap89_revoke_sin_datos_para_el_nombre_va_a_fallidos_no_a_revocados(self):
-        """Mismo gap, el otro lado del arbitraje: si NO hay datos para reconstruir el nombre/uuid
-        (nada en el manifiesto, o una entrada sin `version`), la op va a `fallidos` con causa
-        explicita — nunca a `revocados`. Con el mutante devolvia `{"aplicados": 0, "revocados": 1}`
-        sin haber llamado al servidor."""
         with _ServidorMCPContext() as srv:
-            cfg = self._cfg(srv.endpoint)
-            with self.assertRaises(self.mod.ErrorMCP) as ctx:
-                self.mod.apply([{"tipo": "revoke", "id": "mem.sin.rastro"}], cfg)
-            self.assertIn("no se cuenta como revocado", str(ctx.exception))
-
-            cfg2 = self._cfg(srv.endpoint, group_id="proy-test-2")
-            self.mod._escribir_manifest(cfg2, {"group_id": "proy-test-2", "entradas": {
-                "mem.sin.version": {"hash": "h", "uuid": "u1"}}})
-            with self.assertRaises(self.mod.ErrorMCP) as ctx2:
-                self.mod.apply([{"tipo": "revoke", "id": "mem.sin.version"}], cfg2)
-            self.assertIn("no se cuenta como revocado", str(ctx2.exception))
-            nombres_falsos = [a for n, a in srv.llamadas
-                              if n == "add_triplet" and "@None" in str(a.get("target_node_name"))]
-        self.assertEqual(nombres_falsos, [])
+            cfg=self._cfg(srv.endpoint)
+            with self.assertRaises(self.mod.ErrorMCP):
+                self.mod.apply([{'tipo':'revoke','id':'mem.sin.rastro'}],cfg)
+            cfg2=self._cfg(srv.endpoint,group_id='proy-test-2')
+            self.mod._escribir_manifest(cfg2,{'group_id':'proy-test-2','entradas':{'mem.sin.version':{'hash':'h','uuid':'u1'}}})
+            with self.assertRaises(self.mod.ErrorMCP):
+                self.mod.apply([{'tipo':'revoke','id':'mem.sin.version'}],cfg2)
+            self.assertFalse(any(n in ('add_memory','add_triplet') for n,a in srv.llamadas))
 
     def test_fix5_gap89_el_aviso_de_la_poda_distingue_upsert_de_revocado(self):
-        """El aviso unico de fix4 ("`plan()` las volvera a proponer como `upsert`") era FALSO para
-        los ids que ya no estan en `approved/`. Con dos entradas no confirmadas —una con `upsert`
-        y otra con `revoke` en la misma corrida— el aviso tiene que decir de cada una lo que de
-        verdad le pasa."""
-        def _get_episodes(_args):
-            return {"structuredContent": {"episodes": []}}
-
-        viva = _entrada(id_="mem.viva", cuerpo="Cuerpo vivo.\n")
-        hash_viva = hashlib.sha256(viva["cuerpo"].encode("utf-8")).hexdigest()
-        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
-            cfg = self._cfg(srv.endpoint)
-            self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {
-                "mem.viva": {"version": 1, "hash": hash_viva, "uuid": "u-viva"},
-                "mem.retirada": {"version": 2, "hash": "h", "uuid": "u-retirada"},
-            }}, sufijo=".pending")
-            ops = self.mod.plan([viva], cfg)  # `mem.retirada` ya no esta en `approved/`
-            self.assertEqual(sorted((o["tipo"], o["id"]) for o in ops),
-                             [("revoke", "mem.retirada")])
-            # se fuerza tambien el `upsert` de la viva (la poda la devuelve a "no publicada")
-            ops = ops + [o for o in self.mod.plan([viva], cfg, force=True)]
-            resultado = self.mod.apply(ops, cfg)
-        avisos = " | ".join(resultado.get("avisos") or [])
-        self.assertIn("republican como `upsert`", avisos)
-        self.assertIn("mem.viva", avisos.split("republican como `upsert`")[1])
-        self.assertIn("revocan IGUALMENTE", avisos)
-        self.assertIn("mem.retirada", avisos.split("revocan IGUALMENTE")[1])
-        self.assertEqual((resultado["aplicados"], resultado["revocados"]), (1, 1))
+        viva=_entrada(id_='mem.viva',cuerpo='Live body.\n')
+        retired=_entrada(id_='mem.retirada',version=2)
+        with _ServidorMCPContext() as srv:
+            cfg=self._cfg(srv.endpoint)
+            self.mod.apply(self.mod.plan([viva,retired],cfg),cfg)
+            published,_=self.mod._leer_manifest(cfg)
+            self.mod._escribir_manifest(cfg,published,sufijo='.pending')
+            ops=self.mod.plan([viva],cfg)+[o for o in self.mod.plan([viva],cfg,force=True) if o['tipo']=='upsert']
+            hidden={viva['id']+'@1',retired['id']+'@2'}
+            def window(args):return {'structuredContent':{'result':{'episodes':[e for e in srv.episodios if e['name'] not in hidden]}}}
+            srv.handler_cls.respuestas_tools={'get_episodes':window}
+            with self.assertRaises(self.mod.ErrorMCP) as ctx:self.mod.apply(ops,cfg)
+            warnings=' | '.join(ctx.exception.avisos)
+            self.assertIn('mem.viva',warnings)
+            self.assertIn('upsert',warnings)
+            self.assertIn('mem.retirada',warnings)
+            self.assertIn('revocan IGUALMENTE',warnings)
+            self.assertIn('confirmed_episode_missing',str(ctx.exception))
+            self.assertEqual(len([a for n,a in srv.llamadas if n=='add_memory' and a['name']=='mem.viva@1']),1)
+            srv.handler_cls.respuestas_tools={}
+            self.mod.apply(self.mod.plan([viva],cfg),cfg)
+            current,_=self.mod._leer_manifest(cfg)
+            self.assertEqual(set(current['entradas']),{viva['id']})
+            self.assertTrue(self.mod.verify(cfg)['ok'])
 
     # -- #90 (Minor): `health()` propaga el tope de respuesta ----------------------------------
 
@@ -2185,22 +2144,12 @@ class TestGraphitiFase2Fix5(unittest.TestCase):
     # -- #94 (Minor, fuera de lente B): nunca se fabrica un nombre de nodo ----------------------
 
     def test_fix5_gap94_sin_version_previa_no_se_fabrica_un_nodo_fantasma(self):
-        """Mutante #94: `_nombre_episodio(id_, entrada_previa.get("version"))` daba `<id>@None` y
-        los fallbacks `or _nombre_episodio(id_, "anterior"/"actual")` fabricaban nombres de nodos
-        INEXISTENTES: el `add_triplet` pasaba el `required` del servidor y colgaba el `SUPERSEDES`
-        de un fantasma."""
         with _ServidorMCPContext() as srv:
-            cfg = self._cfg(srv.endpoint)
-            entrada = _entrada(version=2, cuerpo="Cuerpo v2.\n")
-            self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {
-                entrada["id"]: {"hash": "viejo", "uuid": "u-previo"}}})  # sin `version`
-            with self.assertRaises(self.mod.ErrorMCP) as ctx:
-                self.mod.apply(self.mod.plan([entrada], cfg), cfg)
-            llamadas = list(srv.llamadas)
-        self.assertIn("no se inventa un nombre de nodo", str(ctx.exception))
-        self.assertEqual([a for n, a in llamadas if n == "add_triplet"], [])
-        self.assertEqual([a for n, a in llamadas
-                          if n == "add_memory" and "@None" in str(a.get("name"))], [])
+            cfg=self._cfg(srv.endpoint);entry=_entrada(version=2)
+            self.mod._escribir_manifest(cfg,{'group_id':'proy-test','entradas':{entry['id']:{'hash':'old','uuid':'known-old'}}})
+            with self.assertRaises(self.mod.ErrorMCP) as ctx:self.mod.plan([entry],cfg)
+            self.assertIn('version',str(ctx.exception))
+            self.assertFalse(any(n in ('add_memory','add_triplet') for n,a in srv.llamadas))
 
     def test_fix5_gap94_tombstone_supersedes_exige_los_nombres_reales(self):
         """Los fallbacks "anterior"/"actual" ya no existen: sin nombres reales, `SUPERSEDES` no
@@ -2216,29 +2165,19 @@ class TestGraphitiFase2Fix5(unittest.TestCase):
     # -- #95 (Minor, fuera de lente B/D): la cache de `verify` se invalida al escribir ----------
 
     def test_fix5_gap95_apply_rebuild_y_revoke_invalidan_la_cache_de_verify(self):
-        """Mutante #95: `_verify_cacheado` guardaba el veredicto 5 s y NADIE lo invalidaba, asi
-        que justo tras un `rebuild()`/`apply()`/`revoke()` exitoso `puede_leer()` podia autorizar
-        una lectura con un veredicto OBSOLETO."""
-        def _get_episodes(_args):
-            return {"structuredContent": {"episodes": []}}
-
-        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
-            cfg = self._cfg(srv.endpoint)
-            clave = (cfg["endpoint"], cfg["group_id"], cfg["_root"])
-            entrada = _entrada()
-
-            for accion in ("apply", "rebuild", "revoke"):
-                self.mod._cache_verify[clave] = ({"ok": True, "marca": "obsoleto"},
-                                                 time.monotonic() + 999)
-                if accion == "apply":
-                    self.mod.apply(self.mod.plan([entrada], cfg), cfg)
-                elif accion == "rebuild":
-                    self.mod.rebuild([entrada], cfg)
-                else:
-                    self.mod.revoke(entrada["id"], cfg)
-                self.assertNotIn(clave, self.mod._cache_verify,
-                                 f"`{accion}()` tiene que tirar el veredicto cacheado")
-                self.assertNotEqual(self.mod._verify_cacheado(cfg).get("marca"), "obsoleto")
+        with _ServidorMCPContext() as srv:
+            cfg=self._cfg(srv.endpoint);entry=_entrada()
+            for action in ('apply','rebuild','revoke'):
+                effective=self.mod._gscope.read_config(cfg,self.mod._gpub)
+                key=(effective['endpoint'],effective['group_id'],effective['_root'])
+                self.mod._cache_verify[key]=({'ok':True,'marca':'obsolete'},time.monotonic()+999)
+                if action=='apply':self.mod.apply(self.mod.plan([entry],cfg),cfg)
+                elif action=='rebuild':self.mod.rebuild([entry],cfg)
+                else:self.mod.revoke(entry['id'],cfg)
+                after=self.mod._gscope.read_config(cfg,self.mod._gpub)
+                newkey=(after['endpoint'],after['group_id'],after['_root'])
+                self.assertTrue(newkey!=key or key not in self.mod._cache_verify)
+                self.assertNotEqual(self.mod._verify_cacheado(after).get('marca'),'obsolete')
 
     # -- Lente A: `_MAX_FALLIDOS_EN_MENSAJE` no tenia test propio ------------------------------
 
@@ -2283,7 +2222,7 @@ class TestGraphitiConsultar(unittest.TestCase):
         op = {"id": id_, "version": version, "hash": "h" * 8, "category": categoria,
               "evidencia": evidencia, "ruta": ruta, "cuerpo": "Cuerpo de la entrada.\n"}
         episodio, _aviso = self.mod._episodio_upsert("proy-test", op)
-        return {"name": episodio["name"], "uuid": episodio["uuid"], "group_id": "proy-test",
+        return {"name": episodio["name"], "uuid": str(uuid.uuid4()), "group_id": "proy-test",
                 "content": episodio["episode_body"]}
 
     def _respuestas(self, episodios, nodos=None, hechos=None):
@@ -2456,7 +2395,7 @@ class TestGraphitiEnvoltorioResultReal(unittest.TestCase):
               "evidencia": "validated_case", "ruta": "docs/knowledge/approved/adr/ADR-101.md",
               "cuerpo": "Cuerpo.\n"}
         episodio, _aviso = self.mod._episodio_upsert("proy-test", op)
-        ep = {"name": episodio["name"], "uuid": episodio["uuid"], "group_id": "proy-test",
+        ep = {"name": episodio["name"], "uuid": str(uuid.uuid4()), "group_id": "proy-test",
               "content": episodio["episode_body"]}
         respuestas = {
             "get_episodes": {"structuredContent": {"result": {"message": "ok", "episodes": [ep]}}},
@@ -2513,7 +2452,7 @@ class TestGraphitiFase3Fix1(unittest.TestCase):
         op = {"id": id_, "version": version, "hash": "h" * 8, "category": categoria,
               "evidencia": evidencia, "ruta": ruta, "cuerpo": "Cuerpo de la entrada.\n"}
         episodio, _aviso = self.mod._episodio_upsert("proy-test", op)
-        return {"name": episodio["name"], "uuid": episodio["uuid"], "group_id": "proy-test",
+        return {"name": episodio["name"], "uuid": str(uuid.uuid4()), "group_id": "proy-test",
                 "content": episodio["episode_body"]}
 
     def _respuestas(self, episodios, nodos=None, hechos=None):
@@ -2525,37 +2464,37 @@ class TestGraphitiFase3Fix1(unittest.TestCase):
 
     # -- #96 (Critical): sucesion de version != revoke -----------------------------------------
 
-    def _episodios_tras_subir_de_version(self):
+    def _episodios_tras_subir_de_version(self, srv):
         """Publica v1 y luego v2 contra el servidor falso y devuelve los episodios REALES que
         quedaron en el grafo (incluido el tombstone que emitio el camino de sucesion)."""
         entrada = _entrada(id_="mem.adr.grafo", version=1, category="DECISION",
                            evidencia="validated_case", cuerpo="Cuerpo v1.\n",
                            ruta="docs/knowledge/approved/adr/ADR-100.md")
-        with _ServidorMCPContext() as srv:
-            cfg = self._cfg(srv.endpoint)
-            self.mod.apply(self.mod.plan([dict(entrada)], cfg), cfg)
-            entrada2 = dict(entrada, version=2, cuerpo="Cuerpo v2.\n")
-            self.mod.apply(self.mod.plan([entrada2], cfg), cfg)
-            escritos = [a for n, a in srv.llamadas if n == "add_memory"]
-        return [{"name": a["name"], "uuid": a.get("uuid"), "group_id": "proy-test",
-                 "content": a["episode_body"]} for a in escritos]
+        cfg = self._cfg(srv.endpoint)
+        self.mod.apply(self.mod.plan([dict(entrada)], cfg), cfg)
+        entrada2 = dict(entrada, version=2, cuerpo="Cuerpo v2.\n")
+        self.mod.apply(self.mod.plan([entrada2], cfg), cfg)
+        return srv.episodios
 
     def test_f3fix1_gap96_la_version_vigente_no_queda_invalidada_por_su_propia_sucesion(self):
-        episodios = self._episodios_tras_subir_de_version()
-        vigente = next(e for e in episodios if e["name"].endswith("@2"))
-        nodos = [{"name": vigente["name"], "uuid": vigente["uuid"], "summary": "resumen"}]
-        with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios, nodos=nodos)) as srv:
+        with _ServidorMCPContext() as srv:
+            episodios = self._episodios_tras_subir_de_version(srv)
+            vigente = next(e for e in episodios if e["name"].endswith("@2"))
+            nodos = [{"name": vigente["name"], "uuid": vigente["uuid"], "summary": "resumen"}]
+            srv.handler_cls.respuestas_tools = self._respuestas(episodios, nodos=nodos)
             salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
         self.assertEqual(len(salida["aciertos"]), 1, salida)
         self.assertEqual(salida["aciertos"][0]["estado"], "aprobado")
 
     def test_f3fix1_gap96_la_version_antigua_si_queda_invalidada(self):
-        episodios = self._episodios_tras_subir_de_version()
-        antigua = next(e for e in episodios if e["name"].endswith("@1"))
-        nodos = [{"name": antigua["name"], "uuid": antigua["uuid"], "summary": "resumen"}]
-        with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios, nodos=nodos)) as srv:
+        with _ServidorMCPContext() as srv:
+            episodios = self._episodios_tras_subir_de_version(srv)
+            antigua = next(e for e in episodios if e["name"].endswith("@1"))
+            nodos = [{"name": antigua["name"], "uuid": antigua["uuid"], "summary": "resumen"}]
+            srv.handler_cls.respuestas_tools = self._respuestas(episodios, nodos=nodos)
             salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
-        self.assertEqual(salida["aciertos"][0]["estado"], "invalidado")
+        self.assertEqual(salida["aciertos"], [])
+        self.assertGreater(salida['descartados'], 0)
 
     def test_f3fix1_gap96_el_revoke_sigue_invalidando_la_entrada_entera(self):
         ep = self._episodio()
@@ -2568,7 +2507,8 @@ class TestGraphitiFase3Fix1(unittest.TestCase):
 
     def test_f3fix1_gap96_los_dos_tombstones_no_comparten_nombre(self):
         """El del camino de sucesion nombra la VERSION superada; el de revoke, la entrada."""
-        nombres = [e["name"] for e in self._episodios_tras_subir_de_version()]
+        with _ServidorMCPContext() as srv:
+            nombres = [e["name"] for e in self._episodios_tras_subir_de_version(srv)]
         self.assertIn("mem.adr.grafo@1@superseded", nombres)
         self.assertNotIn("mem.adr.grafo@tombstone", nombres)
 
@@ -2719,16 +2659,14 @@ class TestGraphitiFase3Fix2(unittest.TestCase):
             "search_memory_facts": {"structuredContent": {"facts": hechos or []}},
         }
 
-    def _publicar(self, lotes):
+    def _publicar(self, lotes, srv):
         """Publica por el camino REAL (`plan` + `apply`) contra el servidor falso y devuelve los
         episodios tal y como quedaron en el grafo (lo que de verdad se envio a `add_memory`)."""
-        with _ServidorMCPContext() as srv:
-            cfg = self._cfg(srv.endpoint)
-            for lote in lotes:
-                self.mod.apply(self.mod.plan([dict(e) for e in lote], cfg), cfg)
-            escritos = [a for n, a in srv.llamadas if n == "add_memory"]
-        return [{"name": a["name"], "uuid": a.get("uuid"), "group_id": "proy-test",
-                 "content": a["episode_body"]} for a in escritos]
+        srv.handler_cls.respuestas_tools = {}
+        cfg = self._cfg(srv.endpoint)
+        for lote in lotes:
+            self.mod.apply(self.mod.plan([dict(e) for e in lote], cfg), cfg)
+        return srv.episodios
 
     # -- #117: el adaptador sirve el vocabulario del corpus LOCAL --------------------------------
 
@@ -2739,47 +2677,50 @@ class TestGraphitiFase3Fix2(unittest.TestCase):
         casos = [("mem.adr.uno", "DECISION", "adr", "docs/knowledge/approved/adr/ADR-100.md"),
                  ("mem.got.dos", "GOTCHA", "gotchas", "docs/knowledge/approved/gotchas/GOT-001.md"),
                  ("mem.les.tres", "LESSON", "lessons", "docs/knowledge/approved/lessons/LES-001.md")]
-        for id_, categoria, folder, ruta in casos:
-            entrada = _entrada(id_=id_, version=1, category=categoria,
-                               evidencia="validated_case", cuerpo="Cuerpo de " + id_ + ".\n", ruta=ruta)
-            entrada["folder"] = folder
-            entrada["tags"] = ["area:memoria tecnica", "agente:implementer"]
-            episodios = self._publicar([[entrada]])
-            nodos = [{"name": episodios[0]["name"], "uuid": episodios[0]["uuid"], "summary": "res"}]
-            with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios, nodos=nodos)) as srv:
+        with _ServidorMCPContext() as srv:
+            for id_, categoria, folder, ruta in casos:
+                entrada = _entrada(id_=id_, version=1, category=categoria,
+                                   evidencia="validated_case", cuerpo="Cuerpo de " + id_ + ".\n", ruta=ruta)
+                entrada["folder"] = folder
+                entrada["tags"] = ["area:memoria tecnica", "agente:implementer"]
+                episodios = self._publicar([[entrada]], srv)
+                actual = next(e for e in episodios if e["name"] == id_ + "@1")
+                nodos = [{"name": actual["name"], "uuid": actual["uuid"], "summary": "res"}]
+                srv.handler_cls.respuestas_tools = self._respuestas(episodios, nodos=nodos)
                 salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
-            self.assertEqual(len(salida["aciertos"]), 1, salida)
-            acierto = salida["aciertos"][0]
-            self.assertEqual(acierto["tipo"], folder, acierto)
-            self.assertEqual(acierto["categoria"], categoria, acierto)
-            self.assertIn("memoria", acierto["area"], acierto)
+                self.assertEqual(len(salida["aciertos"]), 1, salida)
+                acierto = salida["aciertos"][0]
+                self.assertEqual(acierto["tipo"], folder, acierto)
+                self.assertEqual(acierto["categoria"], categoria, acierto)
+                self.assertIn("memoria", acierto["area"], acierto)
 
     # -- #118: se sirve la version VIGENTE, no el primer hit -------------------------------------
 
-    def _episodios_v1_y_v2(self):
+    def _episodios_v1_y_v2(self, srv):
         entrada = _entrada(id_="mem.adr.grafo", version=1, category="DECISION",
                            evidencia="validated_case", cuerpo="Cuerpo v1.\n",
                            ruta="docs/knowledge/approved/adr/ADR-100.md")
         entrada["folder"] = "adr"
-        return self._publicar([[dict(entrada)], [dict(entrada, version=2, cuerpo="Cuerpo v2.\n")]])
+        return self._publicar([[dict(entrada)], [dict(entrada, version=2, cuerpo="Cuerpo v2.\n")]], srv)
 
-    def _consultar_con_orden(self, episodios, orden):
+    def _consultar_con_orden(self, episodios, orden, srv):
         por_nombre = {e["name"]: e for e in episodios}
         nodos = []
         for v in orden:
             ep = por_nombre["mem.adr.grafo@" + str(v)]
             nodos.append({"name": ep["name"], "uuid": ep["uuid"], "summary": "resumen v" + str(v)})
-        with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios, nodos=nodos)) as srv:
-            return self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+        srv.handler_cls.respuestas_tools = self._respuestas(episodios, nodos=nodos)
+        return self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
 
     def test_f3fix2_gap118_con_v1_y_v2_se_sirve_la_vigente_venga_en_el_orden_que_venga(self):
-        episodios = self._episodios_v1_y_v2()   # publicados UNA vez por el camino real
-        for orden in ([1, 2], [2, 1]):
-            salida = self._consultar_con_orden(episodios, orden)
-            self.assertEqual(len(salida["aciertos"]), 1, (orden, salida))
-            acierto = salida["aciertos"][0]
-            self.assertEqual(acierto["version"], "2", (orden, acierto))
-            self.assertEqual(acierto["estado"], "aprobado", (orden, acierto))
+        with _ServidorMCPContext() as srv:
+            episodios = self._episodios_v1_y_v2(srv)
+            for orden in ([1, 2], [2, 1]):
+                salida = self._consultar_con_orden(episodios, orden, srv)
+                self.assertEqual(len(salida["aciertos"]), 1, (orden, salida))
+                acierto = salida["aciertos"][0]
+                self.assertEqual(acierto["version"], "2", (orden, acierto))
+                self.assertEqual(acierto["estado"], "aprobado", (orden, acierto))
 
     # -- #121: procedencia mas alla de la ventana inicial, y lo que quede fuera se CUENTA --------
 
@@ -2795,7 +2736,7 @@ class TestGraphitiFase3Fix2(unittest.TestCase):
                       "ruta": "docs/knowledge/approved/adr/ADR-%03d.md" % i,
                       "cuerpo": "Cuerpo " + str(i) + ".\n"}
                 ep, _aviso = self.mod._episodio_upsert("proy-test", op)
-                episodios.append({"name": ep["name"], "uuid": ep["uuid"], "group_id": "proy-test",
+                episodios.append({"name": ep["name"], "uuid": str(uuid.uuid4()), "group_id": "proy-test",
                                   "content": ep["episode_body"]})
                 mios[i] = episodios[-1]
             else:
@@ -2840,7 +2781,7 @@ class TestGraphitiFase3Fix2(unittest.TestCase):
               "evidencia": "validated_case", "folder": "adr",
               "ruta": "docs/knowledge/approved/adr/ADR-100.md", "cuerpo": "Cuerpo.\n"}
         ep, _aviso = self.mod._episodio_upsert("proy-test", op)
-        return {"name": ep["name"], "uuid": ep["uuid"], "group_id": "proy-test",
+        return {"name": ep["name"], "uuid": str(uuid.uuid4()), "group_id": "proy-test",
                 "content": ep["episode_body"]}
 
     def test_f3fix2_gap124_un_hit_de_otro_group_id_se_descarta(self):
@@ -2862,22 +2803,17 @@ class TestGraphitiFase3Fix2(unittest.TestCase):
     # -- #131: emisor y lector comparten la constante del sufijo ---------------------------------
 
     def test_f3fix2_gap131_el_revoke_nombra_el_tombstone_con_la_constante(self):
-        """Mutante: mover `_SUFIJO_TOMBSTONE` tiene que mover TAMBIEN el nombre que emite el
-        revoke; con el literal cableado, emisor y lector se desalineaban en silencio."""
-        original = self.mod._SUFIJO_TOMBSTONE
+        original=self.mod._SUFIJO_TOMBSTONE
         try:
-            self.mod._SUFIJO_TOMBSTONE = "@lapida"
-            entrada = _entrada(id_="mem.adr.grafo", version=1, category="DECISION",
-                               evidencia="validated_case", cuerpo="Cuerpo.\n",
-                               ruta="docs/knowledge/approved/adr/ADR-100.md")
+            self.mod._SUFIJO_TOMBSTONE='@legacy-only'
             with _ServidorMCPContext() as srv:
-                cfg = self._cfg(srv.endpoint)
-                self.mod.apply(self.mod.plan([dict(entrada)], cfg), cfg)
-                self.mod.apply(self.mod.plan([], cfg), cfg)   # sin entradas -> revoke
-                nombres = [a.get("name") for n, a in srv.llamadas if n == "add_memory"]
-            self.assertIn("mem.adr.grafo@lapida", nombres)
-        finally:
-            self.mod._SUFIJO_TOMBSTONE = original
+                cfg=self._cfg(srv.endpoint);entry=_entrada(id_='mem.adr.grafo')
+                self.mod.apply(self.mod.plan([entry],cfg),cfg)
+                self.mod.apply(self.mod.plan([],cfg),cfg)
+                names=[a['name'] for n,a in srv.llamadas if n=='add_memory']
+                self.assertIn('mem.adr.grafo@1@withdrawn',names)
+                self.assertNotIn('mem.adr.grafo@legacy-only',names)
+        finally:self.mod._SUFIJO_TOMBSTONE=original
 
 
 class TestGraphitiFase3Fix2Verify(unittest.TestCase):
@@ -2992,7 +2928,7 @@ class TestGraphitiFase3Fix2Verify(unittest.TestCase):
         # lista — clobbering `ordenados[0]` borraba del grafo la entrada `mem.adr.e0499`, y con el
         # `puede_leer` estricto de #133 eso ya no es «una entrada de menos que da igual».
         indice = next(i for i, e in enumerate(ordenados) if e["name"] == ep["name"])
-        ordenados[indice] = {"name": ep["name"], "uuid": ep["uuid"], "group_id": "proy-test",
+        ordenados[indice] = {"name": ep["name"], "uuid": str(uuid.uuid4()), "group_id": "proy-test",
                              "content": ep["episode_body"]}
 
         def get_episodes(args):
@@ -3001,7 +2937,7 @@ class TestGraphitiFase3Fix2Verify(unittest.TestCase):
 
         respuestas = {"get_episodes": get_episodes,
                       "search_nodes": {"structuredContent": {"nodes": [
-                          {"name": ep["name"], "uuid": ep["uuid"], "summary": "res"}]}},
+                          {"name": ep["name"], "uuid": ordenados[indice]["uuid"], "summary": "res"}]}},
                       "search_memory_facts": {"structuredContent": {"facts": []}}}
         with _ServidorMCPContext(respuestas_tools=respuestas) as srv:
             cfg = self._cfg(srv.endpoint)
@@ -3061,7 +2997,7 @@ class TestGraphitiFase3Fix3(unittest.TestCase):
         op = {"id": id_, "version": version, "hash": "h" * 8, "category": "DECISION",
               "evidencia": "validated_case", "folder": folder, "ruta": ruta, "cuerpo": cuerpo}
         ep, _aviso = self.mod._episodio_upsert("proy-test", op)
-        return {"name": ep["name"], "uuid": ep["uuid"], "group_id": "proy-test",
+        return {"name": ep["name"], "uuid": str(uuid.uuid4()), "group_id": "proy-test",
                 "content": ep["episode_body"]}
 
     def _ruido(self, n, cuerpo="ruido", grupo="proy-test", prefijo="ruido"):
@@ -3233,7 +3169,7 @@ class TestGraphitiFase3Fix3(unittest.TestCase):
         self.assertEqual(salida.get("descartados"), 0, salida)
 
     # ------------------------------------------------------------------ #138 (CWE-400/117)
-    def test_f3fix3_gap138_el_aviso_de_otros_grupos_se_acota_y_se_sanea(self):
+    def test_verify_rechaza_grupos_ajenos_sin_reflejar_su_contenido(self):
         hostil = "\x1b[31m‮GRUPO"
         ajenos = [{"name": "x-%03d" % i, "uuid": "u-%03d" % i, "group_id": hostil + str(i),
                    "content": "c"} for i in range(30)]
@@ -3242,11 +3178,13 @@ class TestGraphitiFase3Fix3(unittest.TestCase):
             cfg = self._cfg(srv.endpoint)
             self._manifiesto(cfg, {"mem.adr.uno": {"version": 1, "hash": "h" * 8}})
             veredicto = self.mod.verify(cfg)
-        aviso = veredicto.get("aviso", "")
-        self.assertIn("y 25 mas", aviso, aviso)
-        self.assertLess(len(aviso), 600, len(aviso))
-        self.assertNotIn("\x1b", aviso)
-        self.assertNotIn("‮", aviso)
+        self.assertFalse(veredicto["ok"])
+        self.assertEqual(veredicto["estado"], "no_verificable")
+        self.assertEqual(veredicto["razon"], "respuesta fuera del group_id solicitado")
+        salida = json.dumps(veredicto, ensure_ascii=False)
+        self.assertLess(len(salida), 600)
+        self.assertNotIn("\x1b", salida)
+        self.assertNotIn("‮", salida)
 
     # ------------------------------------------------------------------ #145 (mutantes M1/M21/M4/M5)
     def test_f3fix3_gap145_sin_local_folder_en_la_procedencia_el_tipo_sale_de_la_ruta(self):

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "runtime_version": "2.0.12",
+  "native_request_sha256": "5bc887d2f6a79921ff0ced83236133be7b1d5d6ab7faa7ed5dabf2b5ed70dcc2",
+  "tool_name": "skill",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "The ID of an available skill or a skill explicitly referenced by the user"
+      }
+    },
+    "required": [
+      "id"
+    ],
+    "additionalProperties": false
+  }
+}

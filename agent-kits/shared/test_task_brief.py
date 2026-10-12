@@ -1801,6 +1801,10 @@ def test_memoria_el_recorte_al_tope_muerde_de_verdad(tmp_path):
     import shutil
     script = lejos / "knowledge-find.py"
     shutil.copy(Path(__file__).parent / "knowledge-find.py", script)
+    # The relocated CLI requires its real local reader dependency closure.
+    for dependency in ("knowledge-view.py", "local-read.py", "knowledge-local.py",
+                       "knowledge-taxonomy-local.py"):
+        shutil.copy(Path(__file__).parent / dependency, lejos / dependency)
     assert len(str(script)) > 300
     rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md"), "--knowledge-find", str(script)])
     assert rc == 0
@@ -1844,3 +1848,27 @@ def test_memoria_no_altera_las_secciones_existentes_ni_su_orden(tmp_path):
              "## Arquitectura de la solución", "## Constitución del proyecto", "## TDD", "## Contrato de retorno"]
     posiciones = [out.index(s) for s in orden]
     assert posiciones == sorted(posiciones), orden
+
+
+@pytest.mark.parametrize("rendered_length", [10000, 10001])
+def test_brief_budget_aviso_mide_el_salto_final(inic, monkeypatch, capsys, rendered_length):
+    """The CLI warning must measure the same output as the recipient."""
+    (inic / "improvement-plan.md").unlink()
+    monkeypatch.setattr(tb, "_memoria_tecnica", lambda *args: "")
+    for section in ("_seccion_verificacion", "_seccion_capacidades", "_seccion_extensiones"):
+        monkeypatch.setattr(tb, section, lambda *args, **kwargs: [])
+    args = [str(inic), "T-01", "--sin-lint", "--constitucion", str(inic / "absent.md"),
+            "--personas-dir", str(inic / "absent-personas")]
+    rc, base = _run(args)
+    assert rc == 0 and len(base) < rendered_length
+    criterion = "la cosa A funciona" + "X" * (rendered_length - len(base))
+    (inic / "tasks.md").write_text(TASKS.replace("la cosa A funciona", criterion), encoding="utf-8")
+    capsys.readouterr()
+    rc, out = _run(args)
+    err = capsys.readouterr().err
+    assert rc == 0 and len(out) == rendered_length and criterion in out and tb.CONTRATO in out
+    if rendered_length > tb.BRIEF_TOPE_CHARS:
+        assert "por encima de BRIEF_TOPE_CHARS=10000" in err
+        assert f"{rendered_length} caracteres" in err
+    else:
+        assert "por encima de BRIEF_TOPE_CHARS" not in err

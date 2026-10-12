@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cpSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
-import { pathToFileURL } from 'node:url';
+import { execFileSync, spawn } from 'node:child_process';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import plugin from '../hooks/opencode-plugin.js';
 import { opencodeContext, until } from './helpers/opencode-context.mjs';
 
@@ -230,7 +230,9 @@ test('catalog binding and handler edits govern native registration and dispatch'
 test('catalog stream events drive capture without changing native payload translation', async () => {
   const dir = project(); let cleanup;
   try {
-    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';fs.writeFileSync('stream-args.json',JSON.stringify(process.argv.slice(2)));`, catalog => {
+    // Activity handlers may run independently; the stream fixture observes capture only.
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
+      if(process.argv[2]==='session-journal.sh') fs.writeFileSync('stream-args.json',JSON.stringify(process.argv.slice(2)));`, catalog => {
       catalog.bindings.find(item => item.id === 'capture').native_events = ['own.completed'];
     });
     const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
@@ -278,6 +280,35 @@ test('cleanup terminates its launcher tree and settles the pending hook', async 
     await cleanup?.(); await pending;
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('Windows teardown completes when PATH omits system tools', {skip:process.platform !== 'win32'}, async () => {
+  const args = ['--test', '--test-name-pattern=^cleanup terminates its launcher tree and settles the pending hook$',
+    fileURLToPath(import.meta.url)];
+  const environment = {...process.env, PATH:dirname(process.execPath)};
+  delete environment.NODE_TEST_CONTEXT; // Start an independent native test runner.
+  const child = spawn(process.execPath, args, {
+    env:environment, windowsHide:true,
+    stdio:['ignore','pipe','pipe'],
+  });
+  let output = '', errors = '', expired = false;
+  child.stdout.on('data', data => {output += data.toString('utf8');});
+  child.stderr.on('data', data => {errors += data.toString('utf8');});
+  const code = await new Promise((resolveDone, reject) => {
+    const timer = setTimeout(() => {
+      expired = true;
+      if(child.exitCode === null && child.pid) {
+        const taskkill = join(process.env.SystemRoot || process.env.WINDIR || 'C:\\Windows', 'System32', 'taskkill.exe');
+        try {execFileSync(taskkill, ['/PID',String(child.pid),'/T','/F'], {windowsHide:true,stdio:'ignore'});} catch {}
+      }
+    }, 15000);
+    child.once('error', error => {clearTimeout(timer);reject(error);});
+    child.once('close', status => {clearTimeout(timer);resolveDone(status);});
+  });
+  assert.equal(expired, false, 'Teardown must settle with a restricted PATH');
+  assert.equal(code, 0, errors || output);
+  assert.match(output, /^# pass 1\s*$/m, 'The child must execute the real teardown case');
+  assert.match(output, /^# fail 0\s*$/m);
 });
 
 test('cleanup of the real launcher reaches its Python process', async () => {
@@ -378,4 +409,27 @@ test('failed writes, reads and broken payloads degrade without claiming edits', 
     assert.equal(existsSync(join(dir, '.claude', '.confluence-pending')), false);
     assert.equal(existsSync(join(dir, '.claude', 'session-prompts-unavailable.log')), false);
   } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+
+test('native execution start informs activity without premature session capture', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
+      let input=''; process.stdin.setEncoding('utf8'); process.stdin.on('data',chunk=>input+=chunk);
+      process.stdin.on('end',()=>{
+        if(process.argv[2]==='agent-activity') fs.appendFileSync('activity-start.jsonl',JSON.stringify({argv:process.argv.slice(2),payload:JSON.parse(input)})+'\\n');
+        if(process.argv[2]==='session-journal.sh') fs.appendFileSync('premature-capture.jsonl',input+'\\n');
+      });`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    for(let n=0;n<2;n++)ctx.emit({type:'session.execution.started',data:{sessionID:'started',prompt:'RAW-START-PROMPT'},error:'RAW-START-ERROR'});
+    const trace=join(dir,'activity-start.jsonl');
+    await until(()=>existsSync(trace)&&readFileSync(trace,'utf8').trim().split('\n').length===2);
+    const rows=readFileSync(trace,'utf8').trim().split('\n').map(line=>JSON.parse(line));
+    assert.equal(existsSync(join(dir,'premature-capture.jsonl')),false);
+    for(const row of rows){
+      assert.deepEqual(row.argv,['agent-activity','--runtime=opencode']);
+      assert.deepEqual(row.payload,{type:'session.execution.started',data:{sessionID:'started'},cwd:dir});
+    }
+  }finally{await cleanup?.();rmSync(dir,{recursive:true,force:true});}
 });

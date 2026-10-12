@@ -47,6 +47,74 @@ def _mod():
 MOD = _mod()
 
 
+def test_opencode_default_roles_do_not_override_native_model_or_generation_settings():
+    """Logical Claude tiers do not impose a sampling proxy on another runtime."""
+    exports = MOD.generar(ROOT)
+    agents = {path: text for path, text in exports.items() if path.startswith('interop/opencode/agents/')}
+    assert agents
+    for path, text in agents.items():
+        header, _ = MOD.partir_frontmatter(text)
+        fields = set(re.findall(r'^([A-Za-z_]\w*):', header, re.M))
+        assert 'request' not in fields and 'model' not in fields, f'{path}: generated role must inherit native model and generation defaults'
+        assert 'permissions' in fields and 'mode' in fields
+
+
+def test_opencode_agents_use_native_fields_and_preserve_observed_semantics():
+    """Own agent files load through the V2 schema with the same request and permission rules."""
+    with open(os.path.join(ROOT, 'tests/fixtures/opencode-v2-agent-contract.json'), encoding='utf8') as stream:
+        contract = json.load(stream)
+    exports = MOD.generar(ROOT)
+    agents = {path: text for path, text in exports.items() if path.startswith('interop/opencode/agents/')}
+    assert len(agents) == len(contract['owned_semantics'])
+    for path, text in agents.items():
+        block, _ = MOD.partir_frontmatter(text)
+        fields = set(re.findall(r'^([A-Za-z_]\w*):', block, re.M))
+        assert fields <= set(contract['native_config_fields']), f'{path}: non-native agent fields {fields - set(contract["native_config_fields"])}'
+        assert 'permissions' in fields, f'{path}: native permissions required'
+        expected = contract['owned_semantics'][os.path.basename(path)[:-3]]
+        assert MOD.campo(block, 'mode') == expected['mode']
+        description = json.loads(re.search(r'^description:\s*(.*)$', block, re.M).group(1))
+        assert description == expected['description']
+        assert 'request' not in fields and 'model' not in fields
+        permissions = json.loads(MOD.campo(block, 'permissions'))
+        assert permissions == expected['permissions']
+        assert all(set(rule) == {'action', 'resource', 'effect'} for rule in permissions)
+
+
+def test_opencode_skill_examples_match_observed_native_tool_contract():
+    """Every generated adaptation supplies the native V2 skill tool's required ID."""
+    with open(os.path.join(ROOT, 'tests/fixtures/opencode-v2-skill-contract.json'), encoding='utf8') as stream:
+        contract = json.load(stream)
+    schema = contract['parameters']
+    exports = MOD.generar(ROOT)
+    adapted = {path: text for path, text in exports.items()
+               if path.startswith(('interop/opencode/agents/', 'interop/opencode/commands/'))}
+    assert adapted, 'No native role or command instructions checked'
+    for path, text in adapted.items():
+        examples = re.findall(r'skill\(\{\s*(\w+)\s*:\s*"([^"]+)"\s*\}\)', text)
+        assert examples, f'{path}: missing concrete native skill example'
+        for key, value in examples:
+            payload = {key: value}
+            assert set(schema['required']) <= payload.keys(), f'{path}: native skill tool requires {schema["required"]}, got {payload}'
+            assert set(payload) <= schema['properties'].keys(), f'{path}: unsupported native skill field {key}'
+            assert schema['properties'][key]['type'] == 'string' and isinstance(value, str)
+
+
+@pytest.mark.parametrize("runtime", ["Codex", "OpenCode"])
+def test_review_b23_b2_curator_keeps_service_decisions_without_direct_edit_permissions(runtime):
+    frontmatter = "description: Curator\ntools: Read, Glob, Grep, Bash"
+    body = "Curator ejecuta knowledge-curation.py apply y recover.\n"
+    rendered = (MOD.codex_agente if runtime == "Codex" else MOD.opencode_agente)("knowledge-curator", frontmatter, body)
+    prompt = tomllib.loads(rendered)["developer_instructions"] if runtime == "Codex" else rendered
+    assert "knowledge-curation.py" in prompt and "apply" in prompt and "recover" in prompt
+    assert "servicio compartido" in MOD.guardrail_de("knowledge-curator", ["Read", "Glob", "Grep", "Bash"], runtime)
+    assert MOD.guardrail_de("knowledge-curator", ["Read", "Glob", "Grep", "Bash"], runtime) != MOD.GUARDRAIL_SOLO_LECTURA[runtime]
+    assert MOD.guardrail_de("reviewer", ["Read", "Glob", "Grep", "Bash"], runtime) == MOD.GUARDRAIL_SOLO_LECTURA[runtime]
+    if runtime == "OpenCode":
+        permissions = MOD.permisos_opencode(["Read", "Glob", "Grep", "Bash"])
+        assert permissions["edit"] == "deny" and permissions["shell"] == "allow"
+
+
 def test_native_roles_map_and_exports_use_exact_owned_ids():
     plan = MOD.generar(ROOT)
     assert 'agent-kits/shared/native-roles.json' in plan
@@ -343,7 +411,7 @@ def test_hook_a_shell_form_falla_con_command_no_literal_bash_o_sh_con_args():
 
 
 def test_opencode_agentes_frontmatter():
-    """Frontmatter con `description`, `mode` y `permission`; el cuerpo conserva el prompt."""
+    """Frontmatter con campos V2; el cuerpo conserva el prompt."""
     base = os.path.join(ROOT, "interop", "opencode", "agents")
     for fn in sorted(os.listdir(base)):
         t = leer("interop/opencode/agents/" + fn)
@@ -351,7 +419,8 @@ def test_opencode_agentes_frontmatter():
         assert bloque, "%s: sin frontmatter" % fn
         assert MOD.campo(bloque, "description"), "%s: sin description" % fn
         assert re.search(r"^mode: (subagent|primary|all)$", bloque, re.M), "%s: `mode` inválido" % fn
-        assert re.search(r"^permission:$", bloque, re.M), "%s: sin bloque `permission`" % fn
+        assert isinstance(json.loads(MOD.campo(bloque, "permissions")), list), "%s: sin reglas `permissions`" % fn
+        assert not MOD.campo(bloque, "request") and not MOD.campo(bloque, "model")
         assert len(cuerpo) > 500, "%s: cuerpo sospechosamente corto" % fn
 
 
@@ -382,14 +451,15 @@ def test_reviewer_no_declara_sandbox_independiente_inexistente():
         codex = tomllib.load(f)
     assert "sandbox_mode" not in codex, "Codex ignora este campo por rol; no debe exportarse como protección"
     bloque, _ = MOD.partir_frontmatter(leer("interop/opencode/agents/custom-agents-reviewer.md"))
-    assert re.search(r"^\s+edit: deny$", bloque, re.M), "reviewer con `edit` permitido en OpenCode"
+    assert {"action": "edit", "resource": "*", "effect": "deny"} in json.loads(MOD.campo(bloque, "permissions")), "reviewer con `edit` permitido en OpenCode"
 
 
 def test_agentes_con_escritura_la_conservan():
     """La traducción no puede DEJAR SIN herramientas a quien las declara (p. ej. implementer)."""
     bloque, _ = MOD.partir_frontmatter(leer("interop/opencode/agents/custom-agents-implementer.md"))
-    assert re.search(r"^\s+edit: allow$", bloque, re.M)
-    assert re.search(r"^\s+shell: allow$", bloque, re.M)
+    rules = json.loads(MOD.campo(bloque, "permissions"))
+    assert {"action": "edit", "resource": "*", "effect": "allow"} in rules
+    assert {"action": "shell", "resource": "*", "effect": "allow"} in rules
 
 
 def test_descripciones_de_skill_caben_en_opencode():

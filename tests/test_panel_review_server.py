@@ -2,6 +2,7 @@
 import http.client
 import importlib.util
 import json
+import os
 from pathlib import Path
 import socket
 import threading
@@ -16,6 +17,20 @@ VERSION = {'raw_sha256': 'b' * 64, 'view_sha256': 'c' * 64, 'view_version': 'pla
 DATA = {'counts': dict.fromkeys(('agents', 'skills', 'commands', 'tools', 'hooks'), 0),
         'agents': [], 'skills': [], 'commands': [], 'tools': [], 'hooks': [],
         'runtimes': {}, 'memory': {}, 'warnings': [], 'workflow': {'roles': {}}}
+
+def audit_server(server, event, thread=None):
+    target = os.environ.get('OWN_SERVER_AUDIT')
+    if target:
+        row = {'pid': os.getpid(), 'event': event, 'host': server.server_address[0],
+               'port': server.server_port, 'scope': 'isolated OWN loopback fixture',
+               'socket_closed': server.socket.fileno() == -1,
+               'thread_alive': thread.is_alive() if thread is not None else None}
+        with Path(target).open('a', encoding='utf8') as handle: handle.write(json.dumps(row)+'\n')
+
+def stop_owned_server(server, thread):
+    server.shutdown(); server.server_close(); thread.join(5)
+    audit_server(server, 'teardown', thread)
+    assert not thread.is_alive() and server.socket.fileno() == -1
 
 @pytest.fixture
 def service():
@@ -40,9 +55,9 @@ def review_server(service, tmp_path, monkeypatch):
     server = service.create_server(tmp_path, DATA, review_selection=selection)
     server.calls = calls; server.result = result; server.service = service; server.selection = selection
     thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+    audit_server(server, 'start', thread)
     yield server
-    server.shutdown(); server.server_close(); thread.join(5)
-    assert not thread.is_alive()
+    stop_owned_server(server, thread)
 
 def send(server, op='view', payload=None, *, method='GET', rid=RID, raw=None, headers=None):
     connection = http.client.HTTPConnection('127.0.0.1', server.server_port, timeout=5)
@@ -81,7 +96,7 @@ def test_comments_submit_and_refresh_delegate(review_server):
     assert send(server, 'refresh', {'review_id': RID}, method='POST')[0] == 200
     assert server.calls[-1][0] == 'open_review' and len(server.calls) == 4
 
-@pytest.mark.parametrize('op', ['receive', 'ack', 'reset', 'view/extra', 'status?x=1'])
+@pytest.mark.parametrize('op', ['receive', 'ack', 'result', 'verify-result', 'reset', 'view/extra', 'status?x=1'])
 def test_unknown_routes_never_delegate(review_server, op):
     before = len(review_server.calls)
     assert send(review_server, op, {}, method='POST')[0] in (404, 405)
@@ -231,9 +246,10 @@ def test_review_route_never_reinterprets_capability(service, tmp_path, monkeypat
     monkeypatch.setattr(service, '_load_review', lambda: pytest.fail('disabled route loads owner'), raising=False)
     server = service.create_server(tmp_path, DATA)
     thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+    audit_server(server, 'start', thread)
     try: assert send(server)[0] == 404
     finally:
-        server.shutdown(); server.server_close(); thread.join(5)
+        stop_owned_server(server, thread)
 
 @pytest.fixture
 def real_review(service, tmp_path):
@@ -248,13 +264,13 @@ def real_review(service, tmp_path):
     def start():
         server = service.create_server(tmp_path, DATA, review_selection=selection)
         thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+        audit_server(server, 'start', thread)
         servers.append((server,thread))
         return server
     server = start()
     yield server,plan,start
     for server,thread in servers:
-        server.shutdown(); server.server_close(); thread.join(5)
-        assert not thread.is_alive()
+        stop_owned_server(server, thread)
 
 def real_view(server):
     rid, = server.review_ids
@@ -352,3 +368,34 @@ def test_actual_owner_contradictory_tabs_and_changes_delivery(real_review):
     assert received['review']['decision']['choice'] == 'request_changes'
     code, _, raw = send(server,'status',rid=rid)
     assert code == 200 and json.loads(raw)['review']['state'] == 'entregada'
+
+
+def test_feedback_existing_registered_endpoint_survives_restart_and_refresh(real_review):
+    server, plan, start = real_review
+    rid, view = real_view(server)
+    rows = [{'comment_id':'one','section_id':view['sections'][0]['section_id'],'text':'Requested scope correction'}]
+    submitted = server.review_owner.submit_decision(server.project,rid,view['version'],'request_changes',rows,
+        expected_revision=view['revision'],state_root=server.review_selection['state_root'])['review']
+    common = {'gate_key':'plan-ok','state_root':server.review_selection['state_root']}
+    received = server.review_owner.receive_decision(server.project,rid,view['version'],**common)['review']
+    consumed = server.review_owner.ack_decision(server.project,rid,view['version'],
+        decision_id=received['decision']['decision_id'],delivery_id=received['delivery']['delivery_id'],**common)['review']
+    plan.write_text('# New version\nScope corrected.\n',encoding='utf8')
+    response = server.review_owner.record_feedback_result(server.project,rid,view['version'],
+        decision_id=submitted['decision']['decision_id'],delivery_id=received['delivery']['delivery_id'],
+        comment_id='one',result_id='1'*64,expected_revision=consumed['revision'],
+        disposition='addressed',response_text='Scope paragraph updated explicitly.',supersedes_result_id=None,
+        producer={'caller_id':'owned','runtime':'codex','actor_id':None},**common)
+    assert response['status'] == 'ok', response
+    restarted = start()  # Registers current version, never enumerates arbitrary review IDs.
+    new_id,new_view = real_view(restarted)
+    assert new_id != rid and new_view['feedback']['results'] == []
+    before = (server.review_selection['state_root']/('r-'+rid+'.json')).read_bytes()
+    code, _, raw = send(restarted,'status',rid=new_id)
+    projection = json.loads(raw)['review']
+    assert code == 200 and projection['feedback_history']['reviews'][0]['review_id'] == rid
+    assert projection['feedback_history']['reviews'][0]['feedback']['results'][0]['response_text'].startswith('Scope paragraph')
+    assert (server.review_selection['state_root']/('r-'+rid+'.json')).read_bytes() == before
+    assert send(restarted,'status',rid=rid)[0] == 404
+    for op in ('result','verify-result','receive','ack'):
+        assert send(restarted,op,{},method='POST',rid=new_id)[0] in (404,405)

@@ -53,9 +53,17 @@ def main():
                        if rel.startswith('agent-kits/shared/') and rel.endswith('.py')}
     if any(path.exists() for path in absent_bytecode):
         raise InfrastructureError('frozen helper bytecode is present before execution')
+    audit_failure = None
     def record_audit():
-        atomic_record(control / 'audit.json', {'nonce': spec['nonce'], 'attempts': attempted,
-                      'source_reads': source_reads, 'bytecode_probes': bytecode_probes})
+        nonlocal audit_failure
+        if audit_failure is not None:
+            raise audit_failure
+        try:
+            atomic_record(control / 'audit.json', {'nonce': spec['nonce'], 'attempts': attempted,
+                          'source_reads': source_reads, 'bytecode_probes': bytecode_probes})
+        except InfrastructureError as exc:
+            audit_failure = exc
+            raise
     record_audit()
     def audit(event, arguments):
         if event.startswith('socket.') or event in ('urllib.Request', 'http.client.connect'):

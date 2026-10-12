@@ -7,6 +7,13 @@ rompan la lectura de spec.md / evaluation.md o la coherencia de estados.
 """
 import os
 import sys
+import contextlib
+import importlib.util
+import io
+import json
+import tempfile
+from datetime import datetime, timezone
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "skills", "roadmap-dashboard", "scripts"))
@@ -23,7 +30,156 @@ def contains(text, needle, msg):
     assert needle in text, f"{msg}: no contiene {needle!r}"
 
 
+def check_snapshot_windows():
+    """Stable measurement identities replace cumulative snapshots as a whole."""
+    def snapshot(tokens, revision, source="a", window="b"):
+        return {"fuente": "medido", "inicio": "2026-10-11T00:00:00Z",
+                "fin": "2026-10-11T00:02:00Z", "tokens_reales": {"entrada": tokens},
+                "horas_ia": tokens / 100, "eur": tokens / 10000,
+                "fuente_id": "src-" + source * 64, "ventana_id": "win-" + window * 32,
+                "revision_medicion": revision}
+    old, latest = snapshot(150, 1), snapshot(200, 2)
+    for rows in ({"plan": old, "tasks": latest}, {"tasks": latest, "plan": old}):
+        stats = bd._proceso_gen_stats(rows)
+        eq(stats["toks"], 200, "latest shared snapshot, independent of document order")
+        eq(stats["horas"], 2, "hours belong to the latest whole snapshot")
+        eq(stats["eur"], .02, "price belongs to the latest whole snapshot")
+        eq(stats["ventanas"], 1, "one identified window")
+    corrected = snapshot(100, 3)
+    eq(bd._proceso_gen_stats({"old": latest, "corrected": corrected})["toks"], 100,
+       "revision ordering permits corrected lower totals")
+    for other in (snapshot(150, 1, source="c"), snapshot(150, 1, window="d")):
+        eq(bd._proceso_gen_stats({"one": old, "other": other})["toks"], 300,
+           "independent sources and windows retain their own identical metrics")
+    eq(bd._proceso_gen_stats({"one": old, "copy": dict(old)})["toks"], 150,
+       "identical copies of the same revision count once")
+    conflict = snapshot(250, 2)
+    stats = bd._proceso_gen_stats({"one": latest, "conflicting": conflict})
+    assert stats["parcial"] and stats["avisos"] and stats["docs_con_tokens"] == 0
+    view = bd.render_proceso_md([{"titulo": "Fixture", "generacion": {
+        "one": latest, "conflicting": conflict}}])
+    contains(view, "parcial", "contradictory revisions are visible in the report")
+    invalid = {**old, "revision_medicion": True}
+    assert bd._proceso_gen_stats({"invalid": invalid})["parcial"]
+    recovered = bd._proceso_gen_stats({"one": latest, "conflicting": conflict,
+                                      "corrected": corrected})
+    assert not recovered["parcial"] and recovered["toks"] == 100
+    legacy = {key: value for key, value in old.items()
+              if key not in ("fuente_id", "ventana_id", "revision_medicion")}
+    eq(bd._proceso_gen_stats({"one": legacy, "copy": dict(legacy)})["toks"], 150,
+       "exact legacy copies retain compatibility")
+    estimated = {**legacy, "fuente": "estimado"}
+    eq(bd._proceso_gen_stats({"measured": legacy, "estimated": estimated})["toks"], 300,
+       "different source classifications are not deduplicated")
+    parsed = bd.parse_generacion("---\ngeneracion:\n  fuente: medido\n  fuente_id: "
+                                 + old["fuente_id"] + "\n  ventana_id: " + old["ventana_id"]
+                                 + "\n  revision_medicion: 2\n---\n")
+    eq(parsed["revision_medicion"], 2, "revision survives the frontmatter parser as integer")
+
+
+def check_persistence_flags():
+    measured = {"fuente": "medido", "inicio": "2026-10-11T00:00:00Z",
+                "fin": "2026-10-11T00:02:00Z", "tokens_reales": {"entrada": 150},
+                "fuente_id": "src-" + "a" * 64, "ventana_id": "win-" + "b" * 32,
+                "revision_medicion": 1, "medicion_persistida": True}
+    failed = {"fuente": "medido", "tokens_reales": {"entrada": 200},
+              "medicion_persistida": False}
+    stats = bd._proceso_gen_stats({"plan": measured, "failed-update": failed})
+    eq(stats["toks"], 150, "failed persistence does not add an unbound cumulative close")
+    assert stats["parcial"] and stats["avisos"] and not stats["eur_ok"]
+    report = bd.render_proceso_md([{"titulo": "Fixture", "generacion": {
+        "plan": measured, "failed-update": failed}}])
+    contains(report, "parcial", "failed persistence is visible in human totals")
+    assert "ventana compartida" not in report, "excluded measurements do not prove a shared window"
+    for invalid in ("false", 0, None):
+        assert bd._proceso_gen_stats({"invalid": {**measured,
+            "medicion_persistida": invalid}})["parcial"]
+    missing_identity = {**failed, "medicion_persistida": True}
+    assert bd._proceso_gen_stats({"unbound": missing_identity})["parcial"]
+    for text, expected in (("false", False), ("true", True), ('"false"', None), ("0", None)):
+        parsed = bd.parse_generacion("---\ngeneracion:\n  fuente: medido\n"
+            "  medicion_persistida: " + text + "\n---\n")
+        eq(parsed["medicion_persistida"], expected, "persistence flag has a typed parser")
+
+
+def check_meter_to_dashboard():
+    """Exercise persisted meter output through document parsing and report totals."""
+    spec = importlib.util.spec_from_file_location(
+        "snapshot_meter", Path(ROOT) / "agent-kits/shared/usage-meter.py")
+    meter = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(meter)
+    with tempfile.TemporaryDirectory(prefix="dashboard-meter-") as directory:
+        base = Path(directory)
+        transcripts = base / "transcripts"
+        transcripts.mkdir()
+        transcript = transcripts / "session.jsonl"
+        transcript.write_text("", encoding="utf-8")
+        rates = base / "rates.json"
+        rates.write_text("{}", encoding="utf-8")
+        common = ["--artefacto", "shared-plan", "--state", str(base / "state.json"),
+                  "--transcript-dir", str(transcripts)]
+
+        def invoke(command):
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                eq(meter.main(command), 0, "nonblocking meter invocation")
+            return json.loads(output.getvalue())
+
+        def append(message_id, tokens):
+            item = {"type": "assistant", "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "message": {"id": message_id, "usage": {"input_tokens": tokens,
+                    "output_tokens": 0, "cache_creation_input_tokens": 0,
+                    "cache_read_input_tokens": 0}}}
+            with transcript.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(item) + "\n")
+
+        def parse(output):
+            # Real producer values, serialized into the document's supported frontmatter.
+            lines = ["---", "generacion:"]
+            for key, value in output.items():
+                if key in ("avisos", "artefacto"):
+                    continue
+                if isinstance(value, dict):
+                    lines.append("  " + key + ": { " + ", ".join(
+                        str(k) + ": " + str(v) for k, v in value.items()) + " }")
+                else:
+                    lines.append("  " + key + ": " + ("null" if value is None else str(value)))
+            return bd.parse_generacion("\n".join([*lines, "---", ""]))
+
+        invoke(["start", *common])
+        append("one", 150)
+        close = ["close", *common, "--rates", str(rates), "--ratio", "300000"]
+        first = parse(invoke(close))
+        append("two", 50)
+        latest = parse(invoke(close))
+        stats = bd._proceso_gen_stats({"plan": first, "tasks": latest})
+        eq(stats["toks"], 200, "real cumulative snapshots replace rather than add")
+        assert not stats["parcial"]
+        append("failed-persistence-response", 25)
+        replace = meter.os.replace
+        def fail_replace(*args):
+            raise PermissionError("synthetic state persistence failure")
+        try:
+            meter.os.replace = fail_replace
+            failed = parse(invoke(close))
+        finally:
+            meter.os.replace = replace
+        assert failed["medicion_persistida"] is False
+        partial = bd._proceso_gen_stats({"plan": first, "tasks": latest, "failed": failed})
+        eq(partial["toks"], 200, "failed producer persistence cannot silently add its snapshot")
+        assert partial["parcial"]
+        invoke(["start", *common])
+        append("three", 50)
+        independent = parse(invoke(close))
+        eq(bd._proceso_gen_stats({"plan": first, "tasks": latest,
+                                 "new-session": independent})["toks"], 250,
+           "new real start adds an independent window")
+
+
 def run():
+    check_snapshot_windows()
+    check_persistence_flags()
+    check_meter_to_dashboard()
     inits = bd.scan(FIX)
     by = {r["slug"]: r for r in inits}
 

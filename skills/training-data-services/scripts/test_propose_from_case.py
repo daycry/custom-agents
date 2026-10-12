@@ -8,6 +8,7 @@ import copy
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -94,7 +95,10 @@ def test_t09_puente_nunca_aprueba_nada(tmp_path):
     r = pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "LESSON")
     despues = _arbol(raiz)
     nuevos = set(despues) - set(antes)
-    assert nuevos == {"candidates/pending/" + os.path.basename(r["ruta"])}
+    # El servicio puede dejar su cerrojo/recibos de control; el unico contenido
+    # de conocimiento nuevo sigue siendo este candidato, nunca un aprobado.
+    assert {k for k in nuevos if k.lower().endswith(".md")} == {
+        "candidates/pending/" + os.path.basename(r["ruta"])}
     assert not any(k.startswith("approved/") for k in despues)
     assert b"estado: aprobado" not in despues["candidates/pending/" + os.path.basename(r["ruta"])]
     # la puerta del Curator dice que la FORMA vale para aprobar... y el candidato sigue en pending/
@@ -184,7 +188,7 @@ def test_t09_puente_pending_enlazado_se_rechaza_sin_escribir_fuera(tmp_path):
             os.symlink(fuera, os.path.join(cand, "pending"), target_is_directory=True)
     except (OSError, AttributeError) as e:   # pragma: no cover - entorno
         pytest.skip(f"sin enlaces de directorio: {e}")
-    with pytest.raises(pfc.Rechazo):
+    with pytest.raises((pfc.Rechazo, pfc.KnowledgeServicesNoDisponible)):
         pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
     assert os.listdir(fuera) == []
 
@@ -205,33 +209,38 @@ def _pending_enlazado(raiz):
     return fuera
 
 
-def test_t09_puente_cada_defensa_de_enlace_basta_por_si_sola(tmp_path, monkeypatch):
-    """Componente a componente (`lstat`) y `realpath` por igualdad: cualquiera de las dos, sola, evita
-    escribir a traves de un `pending/` enlazado (p. ej. si el enlace aparece entre ambas)."""
+def test_t09_puente_enlace_pending_se_rechaza_aun_con_realpath_no_informativo(tmp_path, monkeypatch):
+    """La inspeccion de componentes del servicio no depende solo de realpath."""
     raiz, cfg = _proyecto(tmp_path)
     fuera = _pending_enlazado(raiz)
-    monkeypatch.setattr(rec, "_motivo_enlace", lambda *_a: None)          # sin la defensa por componente
-    with pytest.raises(pfc.Rechazo):
-        pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
-    monkeypatch.undo()
     real = os.path.realpath
     monkeypatch.setattr(os.path, "realpath", lambda p, *a, **k: os.path.abspath(p) if "candidates" in str(p) else real(p, *a, **k))
-    with pytest.raises(pfc.Rechazo):                                      # sin la de realpath
+    with pytest.raises((pfc.Rechazo, pfc.KnowledgeServicesNoDisponible)):
         pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
     monkeypatch.undo()
     assert os.listdir(fuera) == []
 
 
-def test_t09_puente_o_excl_aunque_la_comprobacion_previa_no_lo_vea(tmp_path, monkeypatch):
-    """Carrera: el candidato aparece entre `_ya_propuesto` y la creacion -> `O_EXCL` no lo pisa."""
+def test_t09_puente_publicacion_exclusiva_no_pisa_candidato_creado_en_carrera(tmp_path, monkeypatch):
+    """El destino aparece justo antes del publish exclusivo real del servicio; no se pisa."""
     raiz, cfg = _proyecto(tmp_path)
-    r = pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
-    antes = open(r["ruta"], "rb").read()
-    monkeypatch.setattr(pfc, "_ya_propuesto", lambda *_a: None)
+    target = os.path.join(raiz, "docs", "knowledge", "candidates", "pending",
+                          pfc._nombre_candidato("geo-ramp.steep@v001"))
+    real_link, reached = os.link, []
+
+    def publish_after_foreign_creation(source, destination, *args, **kwargs):
+        if os.path.normcase(os.path.abspath(destination)) == os.path.normcase(target):
+            reached.append(destination)
+            with open(target, "xb") as f:
+                f.write(b"foreign contender bytes\n")
+        return real_link(source, destination, *args, **kwargs)
+
+    monkeypatch.setattr(os, "link", publish_after_foreign_creation)
     with pytest.raises(pfc.Rechazo) as e:
-        pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "LESSON")
-    assert "nunca se sobrescribe" in str(e.value)
-    assert open(r["ruta"], "rb").read() == antes
+        pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
+    assert len(reached) == 1, "la carrera no alcanzo la publicacion real"
+    assert open(target, "rb").read() == b"foreign contender bytes\n"
+    assert str(e.value)
 
 
 def test_t09_puente_cuerpo_sin_trayectoria_y_texto_de_una_linea(tmp_path):
@@ -263,15 +272,23 @@ def test_t09_puente_cli(tmp_path):
     assert p.returncode == 1 and "version" in p.stderr and "Traceback" not in p.stderr
 
 
-def test_t09_puente_nada_de_docs_knowledge_alimenta_el_case_store():
+def test_t09_puente_nada_de_docs_knowledge_alimenta_el_case_store(tmp_path):
     """Anti-leakage (una sola direccion): ni el recorder, ni el dedup, ni el ensamblador nombran el
-    arbol de conocimiento; el puente solo lo lee para no re-proponer (`approved/`, una vez) y nunca
-    escribe el token `aprobado`."""
+    arbol de conocimiento. Proponer no cambia ningun byte del store: solo escribe el buzon."""
     for fichero in ("dataset-assembler.py", "case-recorder.py", "dedup.py"):
         fuente = open(os.path.join(HERE, fichero), encoding="utf-8").read()
         assert "candidates" not in fuente and "approved/" not in fuente, fichero
-    fuente = open(os.path.join(HERE, "propose-from-case.py"), encoding="utf-8").read()
-    assert fuente.count('"approved"') == 1 and "estado: aprobado" not in fuente
+    raiz, cfg = _proyecto(tmp_path)
+    store = os.path.join(raiz, "..", "store")
+
+    def store_bytes():
+        return {os.path.relpath(os.path.join(d, f), store): open(os.path.join(d, f), "rb").read()
+                for d, _, fs in os.walk(store) for f in fs}
+
+    before = store_bytes()
+    r = pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
+    assert before == store_bytes()
+    assert b"estado:" not in open(r["ruta"], "rb").read()
 
 
 # ------------------------------------------------------------------ fix1 de la Fase 3 (#119, #121, #125, #126, #128, #132)
@@ -323,32 +340,33 @@ def test_t09_puente_tag_con_un_secreto_se_rechaza(tmp_path):
     assert not os.path.exists(os.path.join(raiz, "docs"))
 
 
-def test_t09_puente_pending_sustituido_tras_prepararlo_se_detecta_y_se_nombra(tmp_path, monkeypatch):
-    """#121 (CWE-59/367): `pending/` sustituido por un enlace a `approved/` entre `_preparar_pending` y
-    la creacion: se detecta, el aviso nombra donde quedo el fichero (es el creado) y no se borra nada."""
+def test_t09_puente_pending_sustituido_antes_del_servicio_no_escribe_en_approved(tmp_path, monkeypatch):
+    """Reemplazo en la frontera productor→servicio: el preflight compartido rechaza sin escape.
+
+    No afirma inmunidad a todo rename hostil durante IO; el viejo oraculo de escape
+    post-write no era una garantia de contencion.
+    """
     raiz, cfg = _proyecto(tmp_path)
     fuera = os.path.join(raiz, "docs", "knowledge", "approved", "gotchas")
-    real = pfc._preparar_pending
+    reached, load = [], pfc._cargar
 
-    def preparar_y_sustituir(r):
-        salida = real(r)
-        os.makedirs(fuera)
-        os.rmdir(salida[0])
-        try:
-            if os.name == "nt":
-                import _winapi
-                _winapi.CreateJunction(fuera, salida[0])
-            else:
-                os.symlink(fuera, salida[0], target_is_directory=True)
-        except (OSError, AttributeError) as e:   # pragma: no cover - entorno
-            pytest.skip(f"sin enlaces de directorio: {e}")
-        return salida
-    monkeypatch.setattr(pfc, "_preparar_pending", preparar_y_sustituir)
-    with pytest.raises(pfc.Rechazo) as e:
+    def load_with_redirect(path, name):
+        mod = load(path, name)
+        if os.path.basename(path) == "knowledge-curation.py":
+            propose = mod.propose
+
+            def redirect_then_propose(*args, **kwargs):
+                reached.append(True)
+                _pending_enlazado(raiz)
+                return propose(*args, **kwargs)
+
+            monkeypatch.setattr(mod, "propose", redirect_then_propose)
+        return mod
+
+    monkeypatch.setattr(pfc, "_cargar", load_with_redirect)
+    with pytest.raises((pfc.Rechazo, pfc.KnowledgeServicesNoDisponible)):
         pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
-    (creado,) = os.listdir(fuera)
-    assert "quedo en" in str(e.value) and creado in str(e.value) and "gotchas" in str(e.value)
-    assert "no borra nada" in str(e.value)
+    assert reached == [True] and os.listdir(fuera) == []
 
 
 def test_t09_puente_nombre_inyectivo_con_familias_no_ascii_o_mayusculas(tmp_path):
@@ -421,21 +439,33 @@ def test_t09_puente_gold_sin_hash_de_aprobacion_se_propone_con_aviso(tmp_path):
 
 # ------------------------------------------------------------------ fix2 de la Fase 3 (#140)
 
-def test_t09_140_el_puente_tiene_una_sola_ventana_de_creacion(tmp_path, monkeypatch):
-    """#140: el puente crea UN solo fichero (`open(…, "xb")` del candidato), y su ventana es la de
-    `test_t09_puente_pending_sustituido_tras_prepararlo_se_detecta_y_se_nombra` (#121)."""
+def test_t09_140_el_puente_invoca_una_sola_persistencia_compartida(tmp_path, monkeypatch):
+    """No hay segundo writer: unica llamada real al servicio, sin open de escritura local."""
     import builtins
     raiz, cfg = _proyecto(tmp_path)
-    creados, real = [], builtins.open
+    calls, load, real = [], pfc._cargar, builtins.open
+
+    def load_observed(path, name):
+        mod = load(path, name)
+        if os.path.basename(path) == "knowledge-curation.py":
+            propose = mod.propose
+
+            def observe(*args, **kwargs):
+                calls.append((args, kwargs))
+                return propose(*args, **kwargs)
+
+            monkeypatch.setattr(mod, "propose", observe)
+        return mod
 
     def open_(ruta, modo="r", *a, **k):
         if any(c in modo for c in "wxa+"):
-            creados.append((os.path.basename(str(ruta)), modo))
+            pytest.fail("el puente conserva un open de escritura directo")
         return real(ruta, modo, *a, **k)
+    monkeypatch.setattr(pfc, "_cargar", load_observed)
     monkeypatch.setattr(pfc, "open", open_, raising=False)
     r = pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
     monkeypatch.undo()
-    assert creados == [(os.path.basename(r["ruta"]), "xb")], creados
+    assert len(calls) == 1 and os.path.isfile(r["ruta"])
 
 
 # ------------------------------------------------------------------ T-10 fix2 #178: CLI EN PROCESO
@@ -460,3 +490,211 @@ def test_t10fix2_178_cli_del_puente_en_proceso(tmp_path, capsys, monkeypatch):
     monkeypatch.setattr(pfc, "proponer", falla(pfc.KnowledgeServicesNoDisponible("sin taxonomia")))
     assert pfc.main(["geo-ramp.steep", "1", "--category", "GOTCHA", "--project-root", raiz]) == 2
     capsys.readouterr()
+
+
+# ------------------------------------------------------------------ B23: el puente delega persistencia en el servicio real
+
+def test_b23_bridge_delegates_to_real_shared_propose_without_raw_writer(tmp_path, monkeypatch):
+    """El mismo puente Gold conserva payload/nombre, pero no crea candidatos por su cuenta."""
+    raiz, cfg = _proyecto(tmp_path)
+    observed = []
+    load = pfc._cargar
+
+    def load_observed(path, name):
+        mod = load(path, name)
+        if os.path.basename(path) == "knowledge-curation.py":
+            propose = mod.propose
+
+            def observe(root, filename, text, **kwargs):
+                observed.append((root, filename, text, kwargs))
+                return propose(root, filename, text, **kwargs)
+
+            monkeypatch.setattr(mod, "propose", observe)
+        return mod
+
+    def no_raw_write(path, mode="r", *args, **kwargs):
+        assert not any(c in mode for c in "wxa+"), "bridge conserva un writer directo fuera del servicio"
+        return open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(pfc, "_cargar", load_observed)
+    monkeypatch.setattr(pfc, "open", no_raw_write, raising=False)
+    result = pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
+    assert len(observed) == 1, "el puente no llamó al servicio compartido real"
+    project, filename, text, kwargs = observed[0]
+    assert os.path.abspath(project) == os.path.abspath(raiz)
+    assert filename == pfc._nombre_candidato("geo-ramp.steep@v001")
+    assert kwargs.get("producer") == "training-data-services"
+    assert "source_cases: [geo-ramp.steep@v001]" in text and "evidencia: validated_case" in text
+    assert "trajectory" not in text and '"role"' not in text
+    assert os.path.basename(result["ruta"]) == filename and os.path.isfile(result["ruta"])
+
+
+def test_b23_bridge_missing_service_never_falls_back_to_raw_write(tmp_path, monkeypatch):
+    """Paquete parcial con taxonomía disponible, servicio ausente: pendiente, no writer legado."""
+    import shutil
+    raiz, cfg = _proyecto(tmp_path)
+    shared = tmp_path / "partial-shared"
+    shared.mkdir()
+    canonical = os.path.join(REPO, "agent-kits", "shared")
+    for name in ("knowledge-schema.py", "knowledge-taxonomy-local.py"):
+        shutil.copyfile(os.path.join(canonical, name), shared / name)
+    monkeypatch.setattr(pfc, "_dirs_shared", lambda: [str(shared)])
+    with pytest.raises(pfc.KnowledgeServicesNoDisponible) as failure:
+        pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
+    assert "knowledge-curation" in str(failure.value)
+    assert not os.path.exists(os.path.join(raiz, "docs"))
+
+
+def test_b23_bridge_propagates_service_rejection_without_second_writer(tmp_path, monkeypatch):
+    """Un rechazo del servicio no dispara el writer previo como fallback."""
+    raiz, cfg = _proyecto(tmp_path)
+    observed = []
+    load = pfc._cargar
+
+    def load_rejecting(path, name):
+        mod = load(path, name)
+        if os.path.basename(path) == "knowledge-curation.py":
+            def reject(*args, **kwargs):
+                observed.append((args, kwargs))
+                return {"status": "rejected", "errores": [{"mensaje": "fixture policy rejection"}], "avisos": []}, 1
+            monkeypatch.setattr(mod, "propose", reject)
+        return mod
+
+    monkeypatch.setattr(pfc, "_cargar", load_rejecting)
+    with pytest.raises(pfc.Rechazo) as failure:
+        pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
+    assert len(observed) == 1 and "fixture policy rejection" in str(failure.value)
+    assert not os.path.exists(os.path.join(raiz, "docs"))
+
+
+# ------------------------------------------------------------------ revisión B23 B3: identidad Gold larga y aliases históricos
+
+def _review_b23_long_gold(tmp_path):
+    raiz, cfg = _proyecto(tmp_path, family="r" * 64, variant="s" * 64)
+    second = copy.deepcopy(CASO)
+    second.update(family="r" * 64, variant="s" * 63 + "t")
+    record = rec.grabar(second, dict(cfg, bridge_to_curator=False), raiz)
+    rec.cambiar_estado(record["case_id"], record["version"], "approved", cfg, raiz,
+                       approved_by_human=True, reviewer_note="Caso largo distinto, evidencia revisada.")
+    first_id = "geo-" + "r" * 64 + "." + "s" * 64
+    second_id = "geo-" + "r" * 64 + "." + "s" * 63 + "t"
+    assert record["case_id"] == second_id and len(first_id) == len(second_id) == 133
+    for identifier in (first_id, second_id):
+        family_variant = identifier[len("geo-"):]
+        path = os.path.join(_store(raiz), "cases", family_variant, "v001", "validation.json")
+        validation = json.load(open(path, encoding="utf-8"))
+        assert validation["status"] == "approved" and validation["approved_by_human"] is True
+        assert re.fullmatch(r"[a-f0-9]{64}", validation["content_hash"])
+    return raiz, cfg, (first_id, second_id)
+
+
+def _review_b23_store_bytes(raiz):
+    store = _store(raiz)
+    return {os.path.relpath(os.path.join(directory, name), store): open(os.path.join(directory, name), "rb").read()
+            for directory, _, names in os.walk(store) for name in names}
+
+
+def _review_b23_legacy_name(reference):
+    # Fórmula exacta del baseline: el alias sólo reserva una identidad ya publicada.
+    slug = re.sub(r"[^A-Za-z0-9._-]", "-", reference.replace("@", "-"))
+    return "caso-" + slug + "-" + hashlib.sha256(reference.encode("utf-8")).hexdigest()[:10] + ".md"
+
+
+def test_review_b23_b3_long_gold_preserves_identity_hash_and_store(tmp_path, monkeypatch):
+    raiz, cfg, identifiers = _review_b23_long_gold(tmp_path)
+    calls, load = [], pfc._cargar
+
+    def observe_loader(path, name):
+        mod = load(path, name)
+        if os.path.basename(path) == "knowledge-curation.py":
+            propose = mod.propose
+
+            def observe(*args, **kwargs):
+                calls.append(kwargs)
+                return propose(*args, **kwargs)
+
+            monkeypatch.setattr(mod, "propose", observe)
+        return mod
+
+    monkeypatch.setattr(pfc, "_cargar", observe_loader)
+    store_before = _review_b23_store_bytes(raiz)
+    policy = os.path.join(raiz, ".claude", "knowledge-services", "training.json")
+    policy_before = open(policy, "rb").read()
+    names = []
+    for identifier in identifiers:
+        reference = identifier + "@v001"
+        result = pfc.proponer(cfg, raiz, identifier, 1, "GOTCHA")
+        assert tuple(calls[-1].get("reserved_aliases", ())) == (_review_b23_legacy_name(reference),)
+        name = os.path.basename(result["ruta"])
+        assert name.isascii() and len(name) <= 128
+        assert name == pfc._nombre_candidato(reference) == pfc._nombre_candidato(reference)
+        assert name.endswith("-" + hashlib.sha256(reference.encode("utf-8")).hexdigest()[:10] + ".md")
+        payload = open(result["ruta"], "rb").read()
+        assert f"source_cases: [{reference}]".encode() in payload
+        assert f"fuentes: [training-case:{reference}]".encode() in payload
+        assert result["sha256"] == hashlib.sha256(payload).hexdigest()
+        assert not os.path.exists(os.path.join(raiz, "docs", "knowledge", "approved"))
+        before = _arbol(raiz)
+        with pytest.raises(pfc.Rechazo):
+            pfc.proponer(cfg, raiz, identifier, 1, "LESSON")
+        assert before == _arbol(raiz)
+        names.append(name)
+    assert names[0] != names[1] and names[0].rsplit("-", 1)[0] == names[1].rsplit("-", 1)[0]
+    assert _review_b23_store_bytes(raiz) == store_before
+    assert open(policy, "rb").read() == policy_before
+    ordinary = "geo-ramp.steep@v001"
+    assert pfc._nombre_candidato(ordinary) == _review_b23_legacy_name(ordinary)
+
+
+@pytest.mark.parametrize("folder", ["candidates/pending", "candidates/needs_changes",
+                                    "candidates/rejected", "approved/gotchas"])
+def test_review_b23_b3_long_gold_reserves_legacy_name_in_all_states(tmp_path, folder):
+    raiz, cfg, identifiers = _review_b23_long_gold(tmp_path)
+    reference = identifiers[0] + "@v001"
+    legacy = _review_b23_legacy_name(reference)
+    assert len(legacy) == 157
+    destination = os.path.join(raiz, "docs", "knowledge", *folder.split("/"), legacy)
+    os.makedirs(os.path.dirname(destination), exist_ok=True)
+    original = b"historical bytes kept verbatim\n"
+    with open(destination, "xb") as stream:
+        stream.write(original)
+    store_before = _review_b23_store_bytes(raiz)
+    with pytest.raises(pfc.Rechazo) as failure:
+        pfc.proponer(cfg, raiz, identifiers[0], 1, "GOTCHA")
+    assert "ya" in str(failure.value)
+    assert open(destination, "rb").read() == original
+    knowledge = _arbol(raiz)
+    assert {path for path in knowledge if path.lower().endswith(".md")} == {folder + "/" + legacy}
+    assert _review_b23_store_bytes(raiz) == store_before
+
+
+def test_review_b23_b3_bridge_handoff_hash_is_the_service_hash(tmp_path, monkeypatch, capsys):
+    raiz, cfg = _proyecto(tmp_path)
+    observed, load = [], pfc._cargar
+
+    def observing_loader(path, name):
+        mod = load(path, name)
+        if os.path.basename(path) == "knowledge-curation.py":
+            propose = mod.propose
+
+            def observe(*args, **kwargs):
+                response = propose(*args, **kwargs)
+                observed.append(response)
+                return response
+
+            monkeypatch.setattr(mod, "propose", observe)
+        return mod
+
+    monkeypatch.setattr(pfc, "_cargar", observing_loader)
+    result = pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
+    assert len(observed) == 1 and observed[0][1] == 0
+    assert result["sha256"] == observed[0][0]["sha256"]
+    assert result["sha256"] == hashlib.sha256(open(result["ruta"], "rb").read()).hexdigest()
+    # Otro Gold válido permite probar salida CLI sin recrear la misma candidata.
+    second = copy.deepcopy(CASO)
+    second["variant"] = "gentle"
+    record = rec.grabar(second, dict(cfg, bridge_to_curator=False), raiz)
+    rec.cambiar_estado(record["case_id"], record["version"], "approved", cfg, raiz, approved_by_human=True)
+    assert pfc.main([record["case_id"], "1", "--category", "GOTCHA", "--project-root", raiz]) == 0
+    cli_output = capsys.readouterr().out
+    assert observed[-1][0]["sha256"] in cli_output

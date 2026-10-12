@@ -49,7 +49,7 @@ def test_B1_resume_validates_real_owner_historical_consumer(tmp_path, first_runt
     assert CHECK.is_file(), 'B1 requires executable opening validation'
     kit = tmp_path / 'bundle/agent-kits/shared'
     kit.mkdir(parents=True)
-    for name in ('plan-review.py', 'local-read.py', 'redact.py'):
+    for name in ('plan-review.py', 'local-read.py', 'local-state.py', 'redact.py'):
         shutil.copyfile(ROOT / 'agent-kits/shared' / name, kit / name)
     project = tmp_path / 'project ü'
     folder = project / INITIATIVE

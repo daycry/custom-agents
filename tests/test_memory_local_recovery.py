@@ -28,6 +28,62 @@ def write_json(path, data):
     path.write_text(json.dumps(data, ensure_ascii=False, sort_keys=True) + '\n', encoding='utf-8')
 
 
+@pytest.mark.skipif(os.name != 'nt', reason='requires native Windows file sharing')
+@pytest.mark.parametrize('valid_identity', [True, False])
+def test_barrier_real_sharing_conflict_does_not_bypass_identity(lab, monkeypatch, valid_identity):
+    """A real exclusive read handle makes the first barrier read fail on Windows."""
+    import ctypes
+    from ctypes import wintypes
+
+    root = lab.project()
+    child = lab.launch(root, None, (), mode='backup_drill', destination=lab.work / 'sharing-backup')
+    ready_path = child['control'] / 'ready.json'
+    deadline = time.monotonic() + protocol.CHILD_SECONDS
+    while not ready_path.exists():
+        assert child['process'].poll() is None, 'owned child exited before publication'
+        assert time.monotonic() < deadline, 'owned ready publication timed out'
+        time.sleep(0.01)
+    if not valid_identity:
+        ready = json.loads(ready_path.read_text(encoding='utf-8'))
+        protocol.atomic_record(ready_path, {**ready, 'nonce': 'wrong-owned-nonce'})
+
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+        wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    handle = kernel.CreateFileW(str(ready_path), 0x80000000, 0, None, 3, 0x80, None)
+    assert handle not in (None, ctypes.c_void_p(-1).value), ctypes.get_last_error()
+    held = [handle]
+    faults = []
+    original = Path.read_text
+
+    def observe_actual_read(path, *args, **kwargs):
+        try:
+            return original(path, *args, **kwargs)
+        except PermissionError as exc:
+            if path == ready_path and held:
+                faults.append(exc)
+                assert kernel.CloseHandle(held.pop())
+            raise
+
+    monkeypatch.setattr(Path, 'read_text', observe_actual_read)
+    try:
+        if valid_identity:
+            ready = lab.barrier(child)
+            assert ready['nonce'] == child['nonce'] and ready['pid'] == child['process'].pid
+            lab.stop(child, 'validated_after_real_sharing_conflict')
+        else:
+            with pytest.raises(protocol.InfrastructureError, match='barrier identity unavailable'):
+                lab.barrier(child)
+            lab.safety_stop(child, 'identity_rejected_after_real_sharing_conflict')
+        assert len(faults) == 1 and faults[0].errno == 13
+    finally:
+        for remaining in held:
+            kernel.CloseHandle(remaining)
+
+
 def state_bytes(root):
     return {key: value['sha256'] for key, value in protocol.inventory(root).items()}
 
@@ -417,9 +473,17 @@ class Lab:
     def barrier(self, child):
         proc, control = child['process'], child['control']
         deadline = time.monotonic() + protocol.CHILD_SECONDS
+        read_conflicts = 0
         while time.monotonic() < deadline:
             if (control / 'ready.json').exists():
-                ready = json.loads((control / 'ready.json').read_text(encoding='utf-8'))
+                try:
+                    ready = json.loads((control / 'ready.json').read_text(encoding='utf-8'))
+                except PermissionError as exc:
+                    if os.name == 'nt' and exc.errno == 13 and read_conflicts < 5:
+                        read_conflicts += 1
+                        time.sleep(0.01)
+                        continue
+                    raise
                 expected_frontier = (child['spec']['frontier'] if child['spec']['mode'] == 'cli'
                                      else 'backup_before_complete_manifest')
                 if (ready['pid'] != proc.pid or ready['nonce'] != child['nonce']

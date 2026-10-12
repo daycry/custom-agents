@@ -512,13 +512,25 @@ def test_opencode_reads_only_literal_data_and_exposes_adapter_budget(panel, bund
     raw = source.read_text(encoding='utf-8')
     write(bundle, 'hooks/opencode-plugin.js', 'throw new Error("FOREIGN CODE");\n' + raw)
     data = panel.build_inventory(bundle, runtime='opencode')
-    assert len(data['hooks']) == 7
+    assert len(data['hooks']) == 8
     guard = next(item for item in data['hooks'] if item['behavior'] == 'guard')
     assert guard['native_event'] == 'tool.execute.before' and guard['timeout'] == 10500
     assert guard['timeout_unit'] == 'ms' and guard['timeout_provenance'] == 'adapter-supervision'
     assert guard['role_ids'] == [] and data['warnings']  # No role map in this fixture.
     end = next(item for item in data['hooks'] if item['event'] == 'SessionEnd')
     assert end['timeout'] == 20000 and 'session.execution.succeeded' in end['native_event']
+    activity = next(item for item in data['hooks'] if item['event'] == 'ActivityObserved')
+    assert activity['handler'] == 'agent-activity' and activity['behavior'] == 'informative'
+    assert activity['runtime'] == 'opencode' and activity['scope'] == 'global'
+    assert activity['timeout'] == 2500 and activity['timeout_status'] == 'declared'
+    assert activity['timeout_unit'] == 'ms' and activity['timeout_provenance'] == 'adapter-supervision'
+    assert activity['source'] == 'hooks/opencode-plugin.js'
+    assert activity['locator'] == 'hook-catalog/bindings/activity/handlers/0'
+    assert activity['native_event'] == ('session.execution.started, session.execution.succeeded, session.execution.failed, '
+        'session.execution.interrupted, session.idle, session.status (idle)')
+    assert activity['identity_status'] == 'unknown' and activity['role_ids'] == []
+    assert activity['load_status'] == activity['execution_status'] == 'unknown'
+    assert data['hook_sources']['opencode']['status'] == 'declared'
     assert 'FOREIGN CODE' not in panel.render_html(data)
 
 
@@ -597,8 +609,8 @@ def test_malformed_opencode_literal_is_unknown_and_keeps_catalog(panel, bundle, 
     elif change == 'invalid_budget': catalog['bindings'][1]['timeout_ms'] = True
     elif change == 'invalid_event': catalog['bindings'][1]['native_event'] = 'Bad<script>'
     elif change == 'invalid_activation': catalog['bindings'][1]['activation'] = None
-    elif change == 'invalid_idle': catalog['bindings'][-1]['idle_status'] = 'running'
-    elif change == 'invalid_tools': catalog['bindings'][-2]['tools'] = ['bad/tool']
+    elif change == 'invalid_idle': next(item for item in catalog['bindings'] if item['id'] == 'capture')['idle_status'] = 'running'
+    elif change == 'invalid_tools': next(item for item in catalog['bindings'] if item['id'] == 'post')['tools'] = ['bad/tool']
     payload = json.dumps(catalog)
     if change == 'duplicate_key': payload = payload.replace('"schema_version": 1', '"schema_version": 1, "schema_version": 1')
     if change == 'interpolation': payload = payload.replace('Text prompt', '${privateExpression()} Text prompt')
@@ -666,3 +678,51 @@ def test_runtime_filter_navigation_and_mobile_sources_preserve_stage_controls(pa
     assert '.sidebar nav a:last-child{display:none}' not in output
     assert 'Las guardias pertenecen a los agentes' not in output
     assert 'syncNavigation' in output and 'aria-pressed' in output and '.flow-detail' in output
+
+
+@pytest.mark.parametrize('identifier', ['capture', 'activity'])
+@pytest.mark.parametrize('change', [
+    'events_type', 'events_missing', 'events_extra', 'events_duplicate',
+    'events_reordered', 'event_wrong', 'idle_event_wrong', 'idle_status_wrong',
+])
+def test_opencode_stream_bindings_match_exact_declared_metadata(panel, bundle, identifier, change):
+    """Both event bindings use only the adapter's declared execution/idle vocabulary."""
+    raw = (Path(__file__).resolve().parents[1] / 'hooks/opencode-plugin.js').read_text(encoding='utf-8')
+    expression = r'(const hookCatalog = JSON\.parse\(`)([\s\S]*?)(`\);)'
+    catalog = json.loads(re.search(expression, raw)[2])
+    binding = next(item for item in catalog['bindings'] if item['id'] == identifier)
+    if change == 'events_type': binding['native_events'] = 'session.idle'
+    elif change == 'events_missing': binding['native_events'].pop(0)
+    elif change == 'events_extra': binding['native_events'].append('session.deleted')
+    elif change == 'events_duplicate': binding['native_events'][1] = binding['native_events'][0]
+    elif change == 'events_reordered': binding['native_events'].reverse()
+    elif change == 'event_wrong': binding['native_events'][0] = 'session.deleted'
+    elif change == 'idle_event_wrong': binding['idle_status_event'] = 'session.deleted'
+    elif change == 'idle_status_wrong': binding['idle_status'] = 'running'
+    raw = re.sub(expression, lambda match: match[1] + json.dumps(catalog) + match[3], raw, count=1)
+    write(bundle, 'hooks/opencode-plugin.js', 'throw new Error("FOREIGN CODE");\n' + raw)
+    data = panel.build_inventory(bundle, runtime='opencode')
+    assert data['hooks'] == [] and data['hook_sources']['opencode']['status'] == 'invalid'
+    assert data['counts']['agents'] == 1 and data['warnings']
+    assert 'FOREIGN CODE' not in panel.render_html(data)
+
+
+@pytest.mark.parametrize('change', ['missing', 'domain', 'event', 'handler', 'budget', 'post_incomplete'])
+def test_opencode_activity_binding_keeps_closed_contract(panel, bundle, change):
+    """Six bindings expose eight handlers; activity stays informative with 2500 ms supervision."""
+    raw = (Path(__file__).resolve().parents[1] / 'hooks/opencode-plugin.js').read_text(encoding='utf-8')
+    expression = r'(const hookCatalog = JSON\.parse\(`)([\s\S]*?)(`\);)'
+    catalog = json.loads(re.search(expression, raw)[2])
+    binding = next(item for item in catalog['bindings'] if item['id'] == 'activity')
+    if change == 'missing': catalog['bindings'].remove(binding)
+    elif change == 'domain': binding['domain'] = 'session'
+    elif change == 'event': binding['event'] = 'SessionEnd'
+    elif change == 'handler': binding['handlers'] = ['session-journal.sh']
+    elif change == 'budget': binding['timeout_ms'] = 2501
+    elif change == 'post_incomplete': next(item for item in catalog['bindings'] if item['id'] == 'post')['handlers'].pop()
+    raw = re.sub(expression, lambda match: match[1] + json.dumps(catalog) + match[3], raw, count=1)
+    write(bundle, 'hooks/opencode-plugin.js', 'throw new Error("FOREIGN CODE");\n' + raw)
+    data = panel.build_inventory(bundle, runtime='opencode')
+    assert data['hooks'] == [] and data['hook_sources']['opencode']['status'] == 'invalid'
+    assert data['counts']['agents'] == 1 and data['warnings']
+    assert 'FOREIGN CODE' not in panel.render_html(data)

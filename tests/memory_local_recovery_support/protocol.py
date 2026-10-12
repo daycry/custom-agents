@@ -57,15 +57,46 @@ def regular(path):
     return info
 
 
+def _publish_with_windows_retry(publisher, source, destination, *, must_be_new=False):
+    """Bound native sharing contention without hiding persistent/other failures."""
+    for delay in (0.02, 0.04, 0.08, None):
+        if must_be_new and os.path.lexists(destination):
+            raise RestoreRejected('restore destination appeared')
+        try:
+            publisher(source, destination)
+        except PermissionError as exc:
+            if delay is None or getattr(exc, 'winerror', None) not in (5, 32):
+                raise
+            time.sleep(delay)
+        else:
+            return
+
+
 def atomic_record(path, record):
     path = Path(path)
     temporary = path.with_name(path.name + '.own-tmp')
-    with temporary.open('x', encoding='utf-8', newline='\n') as handle:
-        json.dump(record, handle, ensure_ascii=False, sort_keys=True)
-        handle.write('\n')
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.replace(temporary, path)
+    stage = 'open'
+    try:
+        with temporary.open('x', encoding='utf-8', newline='\n') as handle:
+            stage = 'write'
+            json.dump(record, handle, ensure_ascii=False, sort_keys=True)
+            handle.write('\n')
+            stage = 'flush'
+            handle.flush()
+            stage = 'fsync'
+            os.fsync(handle.fileno())
+            stage = 'close'
+        stage = 'replace'
+        _publish_with_windows_retry(os.replace, temporary, path)
+    except OSError as exc:
+        failure = {'stage': stage, 'path': str(path), 'temporary': str(temporary),
+                   'nonce': record.get('nonce'), 'pid': os.getpid(),
+                   'parent_pid': os.getppid(), 'errno': exc.errno,
+                   'winerror': getattr(exc, 'winerror', None),
+                   'cause_type': type(exc).__name__, 'cause_message': str(exc)}
+        error = InfrastructureError('atomic_record: ' + json.dumps(failure, sort_keys=True))
+        error.record_failure = failure
+        raise error from exc
 
 
 def memory_path(relative):
@@ -220,5 +251,5 @@ def restore_drill(snapshot, target, *, own):
     if target.exists():
         raise RestoreRejected('restore destination appeared')
     # Single-parent OWN protocol, no hostile concurrent destination writer permitted.
-    os.rename(stage, target)
+    _publish_with_windows_retry(os.rename, stage, target, must_be_new=True)
     return files

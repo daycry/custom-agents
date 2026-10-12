@@ -275,7 +275,7 @@ class TestMarkdownExportVerify(unittest.TestCase):
         with _ServidorFixturasContext({"/graph/snapshot": (200, cuerpo)}) as srv:
             cfg["health"]["url"] = f"{srv.base_url}/health"
             resultado = self.mod.verify(cfg)
-        self.assertTrue(resultado["ok"])
+        self.assertTrue(resultado["ok"], resultado)
         self.assertEqual(resultado["desfase"], [])
 
     def test_verify_detecta_desfase_y_nombra_el_remedio_sin_ejecutarlo(self):
@@ -524,8 +524,9 @@ class TestMarkdownExportVerifyHash(unittest.TestCase):
         with _ServidorFixturasContext({"/graph/snapshot": (200, cuerpo)}) as srv:
             self.cfg["health"]["url"] = f"{srv.base_url}/health"
             resultado = self.mod.verify(self.cfg)
-        self.assertFalse(resultado["ok"])
-        self.assertEqual(resultado["comparacion"], "hash")
+        self.assertFalse(resultado["ok"], resultado)
+        self.assertIn("comparacion", resultado, resultado)
+        self.assertEqual(resultado["comparacion"], "hash", resultado)
 
 
 class TestMarkdownExportFix2(unittest.TestCase):

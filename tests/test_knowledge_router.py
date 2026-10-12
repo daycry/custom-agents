@@ -680,7 +680,7 @@ def _taxonomia_graphiti(root, endpoint, **extra_config):
     return data
 
 
-def _grafo_real(suite, root, categoria="DECISION", folder="adr",
+def _grafo_real(suite, root, srv, categoria="DECISION", folder="adr",
                 ruta="docs/knowledge/approved/adr/ADR-100-grafo.md", tags=("area:memoria",)):
     """Publica UNA entrada por el camino REAL (`plan`+`apply`) y devuelve sus episodios."""
     graphiti = suite._cargar("graphiti.py", "graphiti_para_router")
@@ -689,13 +689,14 @@ def _grafo_real(suite, root, categoria="DECISION", folder="adr",
                              ruta=ruta)
     entrada["folder"] = folder
     entrada["tags"] = list(tags)
-    with suite._ServidorMCPContext() as srv:
-        cfg = {"_root": root, "group_id": "proy-test", "endpoint": srv.endpoint, "mode": "read",
-               "allow_remote": False, "timeout_ms": 5000, "provider": {"llm": "none"}}
-        graphiti.apply(graphiti.plan([dict(entrada)], cfg), cfg)
-        escritos = [a for n, a in srv.llamadas if n == "add_memory"]
-    return [{"name": a["name"], "uuid": a.get("uuid"), "group_id": "proy-test",
-             "content": a["episode_body"]} for a in escritos]
+    cfg = {"_root": root, "group_id": "proy-test", "endpoint": srv.endpoint, "mode": "read",
+           "allow_remote": False, "timeout_ms": 5000, "provider": {"llm": "none"}}
+    graphiti.apply(graphiti.plan([dict(entrada)], cfg), cfg)
+    episodios = srv.episodios
+    assert len(episodios) == 1 and episodios[0]["uuid"]
+    assert all("uuid" not in a for n, a in srv.llamadas if n == "add_memory")
+    srv.handler_cls.respuestas_tools = _respuestas_grafo(episodios)
+    return episodios
 
 
 def _respuestas_grafo(episodios):
@@ -712,8 +713,8 @@ def test_f3fix2_gap117_el_camino_real_con_tipo_adr_sirve_el_acierto_del_grafo(tm
     suite = _cargar_suite_graphiti()
     root = str(tmp_path)
     _corpus_local(root)
-    episodios = _grafo_real(suite, root)
-    with suite._ServidorMCPContext(respuestas_tools=_respuestas_grafo(episodios)) as srv:
+    with suite._ServidorMCPContext() as srv:
+        _grafo_real(suite, root, srv)
         _taxonomia_graphiti(root, srv.endpoint)
         aciertos, info = kf.consultar_intent(root, "temporal", texto="memoria", limit=5,
                                              tipo="adr", directorios=[_BACKENDS_DIR])
@@ -725,8 +726,8 @@ def test_f3fix2_gap117_el_camino_real_con_area_sirve_el_acierto_del_grafo(tmp_pa
     suite = _cargar_suite_graphiti()
     root = str(tmp_path)
     _corpus_local(root)
-    episodios = _grafo_real(suite, root)
-    with suite._ServidorMCPContext(respuestas_tools=_respuestas_grafo(episodios)) as srv:
+    with suite._ServidorMCPContext() as srv:
+        _grafo_real(suite, root, srv)
         _taxonomia_graphiti(root, srv.endpoint)
         aciertos, info = kf.consultar_intent(root, "temporal", texto="memoria", limit=5,
                                              area="memoria", directorios=[_BACKENDS_DIR])
@@ -740,8 +741,8 @@ def test_f3fix2_gap117_un_filtro_que_no_casa_cuenta_el_descarte_y_cae_a_local(tm
     suite = _cargar_suite_graphiti()
     root = str(tmp_path)
     _corpus_local(root)
-    episodios = _grafo_real(suite, root)
-    with suite._ServidorMCPContext(respuestas_tools=_respuestas_grafo(episodios)) as srv:
+    with suite._ServidorMCPContext() as srv:
+        _grafo_real(suite, root, srv)
         _taxonomia_graphiti(root, srv.endpoint)
         aciertos, info = kf.consultar_intent(root, "temporal", texto="memoria", limit=5,
                                              tipo="gotcha", directorios=[_BACKENDS_DIR])
@@ -756,8 +757,8 @@ def test_f3fix2_gap117_la_forma_canonica_de_knowledge_check_devuelve_doctrina(tm
     suite = _cargar_suite_graphiti()
     root = str(tmp_path)
     _corpus_local(root)
-    episodios = _grafo_real(suite, root)
-    with suite._ServidorMCPContext(respuestas_tools=_respuestas_grafo(episodios)) as srv:
+    with suite._ServidorMCPContext() as srv:
+        _grafo_real(suite, root, srv)
         _taxonomia_graphiti(root, srv.endpoint)
         code, out, _err = run("--intent", "temporal", "--json", "--root", root,
                               "--backends-dir", _BACKENDS_DIR, "--tipo", "adr",
