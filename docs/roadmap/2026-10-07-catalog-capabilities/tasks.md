@@ -236,7 +236,7 @@ La candidata conserva el encargo de desarrollo en ambas vías: resultado, requis
 - **Descripción**: Integrar contenido útil de las fichas con referencias y recursos propios; dominios existentes en el corpus, sin paquetes inventados ni carga indiscriminada.
 - **Dependencias**: T-08/T-09.
 - **Archivos**: `skills/**`, `agent-kits/shared/**`, `evals/**`, `tests/**`, `docs/**`
-- **Verificación**: Pendiente: escenarios reales por alta/consolidación, recursos vigentes, tamaño y degradación; mapas sin duplicación ni pérdida.
+- **Verificación**: Pendiente: escenarios reales por alta/consolidación, recursos vigentes, tamaño y degradación; mapas sin duplicación ni pérdida. Avance 2026-10-13: [comparisons/skills-destinations.md](comparisons/skills-destinations.md) consolida 157 destinos (13 P1, 59 P2, 38 P3, 47 aparcados por la regla única de stacks sin consumidor). Integrados los 72 P1/P2 en siete paquetes con tests de los scripts tocados (guardrail-check, scope-check, task-brief, review-lens-select, jira-flow, lint_plugin, coverage-gate, to-pdf), lint 0 errores, evals 0 errores, interop al día. P3 pendiente. Escenarios reales de alta/consolidación siguen pendientes.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
@@ -311,7 +311,7 @@ Los bloques operativos 1–18 conservan sus pruebas y decisiones en [execution-h
 La entrega más reciente acepta lectura documental opt-in, selectores AST, recibos y productor explícito.
 La memoria local sigue siendo canónica y funciona sin servicios externos.
 
-La integración global sigue abierta. La comparación de skills se retomó el 2026-10-13: 293/293 evaluadas.
+La integración global sigue abierta. La comparación de skills se retomó el 2026-10-13: 293/293 evaluadas. Lecturas parciales completadas ([skills-taste-comply-complete-reading.md](comparisons/skills-taste-comply-complete-reading.md)), 37 afirmaciones contrastadas con fuentes oficiales ([skills-official-contrasts.md](comparisons/skills-official-contrasts.md): 31 confirmadas, 3 corregidas, 3 sin concluir) y consumidores operativos revisados ([skills-operational-consumers.md](comparisons/skills-operational-consumers.md): S114 y S163 a revisar). Destinos P1/P2 integrados; P3 pendiente.
 La revisión de planes y los resultados por comentario están implementados en la copia revisada. La QA conjunta, el diagnóstico de instalación Codex y la interacción real del panel conservan su validación pendiente.
 Restore, corpus grandes, continuidad, aprendizaje y demás capacidades siguen pendientes.
 

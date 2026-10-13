@@ -1,0 +1,1563 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S255",
+    "S270",
+    "S271"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S255",
+      "sha256": "e26cbbc30a32ea8c76c56d09ba9a3a921e82ad6e2360f825ec63d3f8df6b1f5a",
+      "bytes": 2500,
+      "lines": 59,
+      "read_ranges": [
+        [
+          1,
+          59
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "pyproject.toml",
+          "sha256": "df59c2204d2873c542deb60cecba3add4c9485e1701f4c586e4f7ef92b77655c",
+          "bytes": 360,
+          "lines": 16,
+          "read_ranges": [
+            [
+              1,
+              16
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "fixtures/compliant_trace.jsonl",
+          "sha256": "1b58f5b9797bddaf14b1835652fccff04f822668b74a50e480edd0634bda81a8",
+          "bytes": 1070,
+          "lines": 5,
+          "read_ranges": [
+            [
+              1,
+              5
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "fixtures/noncompliant_trace.jsonl",
+          "sha256": "9c3d2564bd32b126cccfd119df55c55f885aeb6ac91fd854d68597eb21d7a432",
+          "bytes": 629,
+          "lines": 3,
+          "read_ranges": [
+            [
+              1,
+              3
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "fixtures/tdd_spec.yaml",
+          "sha256": "0bd9ce7e26fef1274240f97a6d86ee3398638e93f29077aa695c98d4095b863a",
+          "bytes": 1266,
+          "lines": 44,
+          "read_ranges": [
+            [
+              1,
+              44
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "prompts/classifier.md",
+          "sha256": "8374ccb93bbb7908b7bb0d41223f8c5c38347c7421014bec3d7d534a71d5842e",
+          "bytes": 1064,
+          "lines": 24,
+          "read_ranges": [
+            [
+              1,
+              24
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "prompts/scenario_generator.md",
+          "sha256": "ba508c9560dcc5c632bbf916d5f38369b03cb0b216fb8dfdcd6ade8c962952e2",
+          "bytes": 1974,
+          "lines": 62,
+          "read_ranges": [
+            [
+              1,
+              62
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "prompts/spec_generator.md",
+          "sha256": "dd702f91352cde35e394419a307a6498cad369e934c1babb0a4b22e669156c74",
+          "bytes": 1645,
+          "lines": 42,
+          "read_ranges": [
+            [
+              1,
+              42
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/__init__.py",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "lines": 0,
+          "read_ranges": [
+            [
+              1,
+              0
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/classifier.py",
+          "sha256": "f9847e0cb5475e81a0b8fd7fa70f802bf653c0867ea0c39b71de13c05763cbc9",
+          "bytes": 2414,
+          "lines": 85,
+          "read_ranges": [
+            [
+              1,
+              85
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/grader.py",
+          "sha256": "ce606a03a16f23509843e90b861d0808458dc47e758d526832ff404df4761cd0",
+          "bytes": 7767,
+          "lines": 194,
+          "read_ranges": [
+            [
+              1,
+              194
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/parser.py",
+          "sha256": "ccb2a27cccd3b4af41e618a7b64c8753b24a8298e6c77e80271fe4f71ca82629",
+          "bytes": 2777,
+          "lines": 107,
+          "read_ranges": [
+            [
+              1,
+              107
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/report.py",
+          "sha256": "fc188fb8c64c5d429e0333e7277a6a3ba87ba7f8eaa33ee4de29673bd37e725f",
+          "bytes": 6470,
+          "lines": 170,
+          "read_ranges": [
+            [
+              1,
+              170
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/run.py",
+          "sha256": "9bd9af2a98490d5dbbbb9de9c42be3c883d61a1cf8014c4604eb46380293e223",
+          "bytes": 4294,
+          "lines": 127,
+          "read_ranges": [
+            [
+              1,
+              127
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/runner.py",
+          "sha256": "1901b9084756be518d86ed3f205b8f8f945b772af7b022700d70ad0e7a4eb59f",
+          "bytes": 9114,
+          "lines": 245,
+          "read_ranges": [
+            [
+              1,
+              245
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/scenario_generator.py",
+          "sha256": "b900df39ea775494d716751b095beb0e01af5b2288caf5afd7207afe197f16f8",
+          "bytes": 1835,
+          "lines": 70,
+          "read_ranges": [
+            [
+              1,
+              70
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/spec_generator.py",
+          "sha256": "3d22f61dd77c1e1589effe556f58155794e67b9b8f90867ae06f1e59b80756c4",
+          "bytes": 2202,
+          "lines": 72,
+          "read_ranges": [
+            [
+              1,
+              72
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/utils.py",
+          "sha256": "7a5b1509ac0785f330314e0b59f57dd495ca83e8111738e30169ed49e85d0d22",
+          "bytes": 411,
+          "lines": 13,
+          "read_ranges": [
+            [
+              1,
+              13
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_grader.py",
+          "sha256": "cb4d693b1525d84085d0dff12ba44e10f4d27bab1e5757eebbdae22e879ab278",
+          "bytes": 18148,
+          "lines": 442,
+          "read_ranges": [
+            [
+              1,
+              442
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_parser.py",
+          "sha256": "c56055fd0927d38debb564f48e2b5432a7daaf3ecf8ff7d020bd98af3acd924e",
+          "bytes": 3140,
+          "lines": 90,
+          "read_ranges": [
+            [
+              1,
+              90
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_runner.py",
+          "sha256": "a4b8009cfe9646b77f065c57aa3ac858dc054938c466d2960f43062e798c14f5",
+          "bytes": 12265,
+          "lines": 316,
+          "read_ranges": [
+            [
+              1,
+              316
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    },
+    {
+      "id": "S270",
+      "sha256": "422a07f05e0dfc16a1bcc14895ff6f34891473ddec28981c4fa7986591165d2e",
+      "bytes": 19794,
+      "lines": 352,
+      "read_ranges": [
+        [
+          1,
+          352
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "SOURCE.md",
+          "sha256": "9fff1b35e4e191973af3b606929e2e10cd2b21d88ffd433b88d6d52726217608",
+          "bytes": 2169,
+          "lines": 33,
+          "read_ranges": [
+            [
+              1,
+              33
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/.gitignore",
+          "sha256": "12f2522494d1cf04cae13ba51336f3fa772264dba97a559a5a2695942cdb96cf",
+          "bytes": 25,
+          "lines": 3,
+          "read_ranges": [
+            [
+              1,
+              3
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/HANDOFF-TEMPLATE.md",
+          "sha256": "dd3eb86bd8d05ff93e0fef1610f1ce9befd127036aa0283ba8413e0dba95a281",
+          "bytes": 8665,
+          "lines": 198,
+          "read_ranges": [
+            [
+              1,
+              198
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/LICENSE",
+          "sha256": "326146379f01bb137c0a5d3c54770c1aa31076705c8b88a7f6b26a460f6221b2",
+          "bytes": 1071,
+          "lines": 21,
+          "read_ranges": [
+            [
+              1,
+              21
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/apply.py",
+          "sha256": "dbafc01568e2a57a8f4467a3aa0a8d2d8b041745ced82467774dcd989942bc14",
+          "bytes": 27117,
+          "lines": 632,
+          "read_ranges": [
+            [
+              1,
+              632
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/blender_prop.py",
+          "sha256": "8e1c4c56ac5c6046683a95d668a32b66b5568ca705b21634151c60c2e650b120",
+          "bytes": 15779,
+          "lines": 350,
+          "read_ranges": [
+            [
+              1,
+              350
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/distill.py",
+          "sha256": "a8e7f5b9077814b750719e4f98198f708d1c3eeddaf8ce6b73045467815400ea",
+          "bytes": 20283,
+          "lines": 518,
+          "read_ranges": [
+            [
+              1,
+              518
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/falapi.py",
+          "sha256": "d52ae50059dc94b1b7d96a6c538c06a4db9509fb0281d770444e38ba1b63d78a",
+          "bytes": 31178,
+          "lines": 790,
+          "read_ranges": [
+            [
+              1,
+              790
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/forge.py",
+          "sha256": "39487ebfc0dd172946199969864711c5b50bd3ee64ebeaa0cb181d4091245179",
+          "bytes": 16845,
+          "lines": 343,
+          "read_ranges": [
+            [
+              1,
+              343
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/mint.py",
+          "sha256": "90dc757f11462ee4b6628a0811a78753de81a7df744fe1adb678bce533b3efaf",
+          "bytes": 7979,
+          "lines": 197,
+          "read_ranges": [
+            [
+              1,
+              197
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/mint3d.py",
+          "sha256": "db443c810b0e590dae660b3be3e7244a73ab26a588f705b18a09399a0b93fa42",
+          "bytes": 11922,
+          "lines": 264,
+          "read_ranges": [
+            [
+              1,
+              264
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/pipeline.py",
+          "sha256": "1528bde87c5f1193ebda8cb59a63baa2cfaea0e3543cb68d0de0e41c0c0ec2aa",
+          "bytes": 7342,
+          "lines": 160,
+          "read_ranges": [
+            [
+              1,
+              160
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/pyproject.toml",
+          "sha256": "23c07587d9b7939eee97d44dc4e9ca4648f68e2b597516ed76cd7e01a9a31430",
+          "bytes": 617,
+          "lines": 26,
+          "read_ranges": [
+            [
+              1,
+              26
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/requirements-live.txt",
+          "sha256": "0b799301bdada3bb7f55f486d7d64dc2aad70af45d4eb2051d2db95608d6e216",
+          "bytes": 242,
+          "lines": 5,
+          "read_ranges": [
+            [
+              1,
+              5
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/requirements.txt",
+          "sha256": "d7176637dc3e9469019016f05df36e4c8cebf3a452b0ef2f74a377f707a31c11",
+          "bytes": 66,
+          "lines": 5,
+          "read_ranges": [
+            [
+              1,
+              5
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/resolve_ingest.py",
+          "sha256": "744fa2390ce2552c7ebf1ab92a3a122ef69633418ef74fd598d8aa776ad9c19c",
+          "bytes": 19743,
+          "lines": 486,
+          "read_ranges": [
+            [
+              1,
+              486
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/verify.py",
+          "sha256": "50f5195af73167cc63a766f8208101ef098c0445a1aa0bbd5b48af1211d11a95",
+          "bytes": 10054,
+          "lines": 228,
+          "read_ranges": [
+            [
+              1,
+              228
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/workflow_graphs.py",
+          "sha256": "dbf2c85e7360388a8bd038f43f47162879c8a5cf259751fcfc8af8affecbe563",
+          "bytes": 6735,
+          "lines": 156,
+          "read_ranges": [
+            [
+              1,
+              156
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/__init__.py",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "lines": 0,
+          "read_ranges": [
+            [
+              1,
+              0
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/assemble.py",
+          "sha256": "05dbbbc794b83028bc3c3eb1e72165fe156ce5674041b9a2b26c0893a21bdbee",
+          "bytes": 11847,
+          "lines": 286,
+          "read_ranges": [
+            [
+              1,
+              286
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/cadence.py",
+          "sha256": "0cbbf74701943b9be8aaed7e026b1a616dbd752f397785b5ed6f67911518fa16",
+          "bytes": 11414,
+          "lines": 328,
+          "read_ranges": [
+            [
+              1,
+              328
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/falapi.py",
+          "sha256": "d52ae50059dc94b1b7d96a6c538c06a4db9509fb0281d770444e38ba1b63d78a",
+          "bytes": 31178,
+          "lines": 790,
+          "read_ranges": [
+            [
+              1,
+              790
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/frames.py",
+          "sha256": "d9bc5f1df87592a9b9b2eae9f286c40048b1208708e36a0ab9841027829fc76b",
+          "bytes": 11985,
+          "lines": 333,
+          "read_ranges": [
+            [
+              1,
+              333
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/grade.py",
+          "sha256": "2e4cfaa6e932dbf6d17875a5fdfc9722ad71c512d75d1e96a3fe8801eb60c906",
+          "bytes": 33442,
+          "lines": 818,
+          "read_ranges": [
+            [
+              1,
+              818
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/pack.py",
+          "sha256": "db67cb8459e1335e765070fbf9459c94d72173a49e9dc4a6ddcad98e7dac8813",
+          "bytes": 5422,
+          "lines": 164,
+          "read_ranges": [
+            [
+              1,
+              164
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/plates.py",
+          "sha256": "2b93a78f9fb17f8558835df3c1e52806097b92dc29918283d667076d95ce3e2b",
+          "bytes": 9983,
+          "lines": 246,
+          "read_ranges": [
+            [
+              1,
+              246
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/render3d.py",
+          "sha256": "3902b8973c651d80a433730bf54928c4dae9b469c771c9c8f7cc01530cef322a",
+          "bytes": 10461,
+          "lines": 289,
+          "read_ranges": [
+            [
+              1,
+              289
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/resolve.py",
+          "sha256": "bd8adae90b494a7b16f8e27fb0f5c580fee8f44ec87c736243ac1d47f555d3bd",
+          "bytes": 297,
+          "lines": 10,
+          "read_ranges": [
+            [
+              1,
+              10
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/timeline.py",
+          "sha256": "bbd8c53139dea08edecfd9fdf2c028b197097488fc1f57a7acef74536f0b2623",
+          "bytes": 20837,
+          "lines": 556,
+          "read_ranges": [
+            [
+              1,
+              556
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/README.md",
+          "sha256": "6e6d74188157f5d565715bbd7d839fb7540e2da7984b83f56878f45bbf71006e",
+          "bytes": 15666,
+          "lines": 284,
+          "read_ranges": [
+            [
+              1,
+              284
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/__init__.py",
+          "sha256": "6e9bf2a7ebd76586f5abeb9acee90c7af7f909d754b4cee6617b6fb5e7353f98",
+          "bytes": 926,
+          "lines": 33,
+          "read_ranges": [
+            [
+              1,
+              33
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/__main__.py",
+          "sha256": "fb1388074da70d3b11f17ff06ff26a44c5059bd9203dac4409cb324c75ba4032",
+          "bytes": 172,
+          "lines": 10,
+          "read_ranges": [
+            [
+              1,
+              10
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/apply.py",
+          "sha256": "cd94c79fcab09e4928a22bd4d7e9b3c72d4e07349c94ae6e9c189d6b2c14928a",
+          "bytes": 9679,
+          "lines": 242,
+          "read_ranges": [
+            [
+              1,
+              242
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/assets.py",
+          "sha256": "aae8c7dca359b13fb40c2c0524f0d181595f7676fdb3940deb376db9687de5bd",
+          "bytes": 10970,
+          "lines": 243,
+          "read_ranges": [
+            [
+              1,
+              243
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/cli.py",
+          "sha256": "96a58e24f7befead4e215de26efd7604c95f18b926856b2a4eab79f4efad9878",
+          "bytes": 8794,
+          "lines": 232,
+          "read_ranges": [
+            [
+              1,
+              232
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/contract.py",
+          "sha256": "a3152b3a9113c8f095fb8f2c0e59bdb40028655b8e1dd45db09c66d8b8612bf9",
+          "bytes": 25760,
+          "lines": 487,
+          "read_ranges": [
+            [
+              1,
+              487
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/distill.py",
+          "sha256": "5382354638d550af80a0e69d86386e77935053d9e1a6375e6f6f9a573958f800",
+          "bytes": 5811,
+          "lines": 169,
+          "read_ranges": [
+            [
+              1,
+              169
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/export.py",
+          "sha256": "406827086ef4d5fbdbcde67ea8555b662031b862580a5f1dd37e13ac37f2284a",
+          "bytes": 10073,
+          "lines": 309,
+          "read_ranges": [
+            [
+              1,
+              309
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/integration.py",
+          "sha256": "273c7f25dbd27154f70958bceb1c7ae097cb893920d524a83fbe15de532c7e2a",
+          "bytes": 19371,
+          "lines": 397,
+          "read_ranges": [
+            [
+              1,
+              397
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/interview.py",
+          "sha256": "cd08edf92b30f0d2f29ff45487ea1569e0b06e3af33f08cca327fa49a2974640",
+          "bytes": 3316,
+          "lines": 97,
+          "read_ranges": [
+            [
+              1,
+              97
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/pack.py",
+          "sha256": "43d1c594709346119939d298096cce751924f2e0d9bfec0e292f5d9aef0e3f13",
+          "bytes": 6775,
+          "lines": 191,
+          "read_ranges": [
+            [
+              1,
+              191
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/provenance.py",
+          "sha256": "e092fca5774c9453b6f2b58902c586dbc73c75e35483159d39c14b974483d68f",
+          "bytes": 5827,
+          "lines": 149,
+          "read_ranges": [
+            [
+              1,
+              149
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/providers.py",
+          "sha256": "3d5b7c604e53774f01fb0a5e51eb366fbf79915acc66b74f40860b96f089e915",
+          "bytes": 2892,
+          "lines": 84,
+          "read_ranges": [
+            [
+              1,
+              84
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/resolve.py",
+          "sha256": "e58b91e196fcc82cfcbb9d497ccf1bdc5fb2b0fac067233c684ac403a01755b6",
+          "bytes": 12576,
+          "lines": 339,
+          "read_ranges": [
+            [
+              1,
+              339
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/schema.py",
+          "sha256": "0834a1f067d7247b2b7e79ce2d82e23d2a219e51e8c560aa2cf4d49485c1792d",
+          "bytes": 15315,
+          "lines": 404,
+          "read_ranges": [
+            [
+              1,
+              404
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/timeline.py",
+          "sha256": "1f70626d1ae48db001eab74e107441921488d707a6157e63e6c71ad982d10404",
+          "bytes": 3579,
+          "lines": 104,
+          "read_ranges": [
+            [
+              1,
+              104
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/workflow.py",
+          "sha256": "91e2acd3f031953bc4061aaa13e1a9e312c922e1d70c279310805c35c3c25bde",
+          "bytes": 34614,
+          "lines": 833,
+          "read_ranges": [
+            [
+              1,
+              833
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/fixtures/flashethereal/cadence.json",
+          "sha256": "91cf9f25a2ce925f4cd02652ae7be33d35c5c7044e5b8ac5e91e07dfc1bb53cf",
+          "bytes": 8019,
+          "lines": 477,
+          "read_ranges": [
+            [
+              1,
+              477
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/fixtures/flashethereal/flashethereal-cut.edl",
+          "sha256": "bbcb8611f44b2c08491e2049a514ad010cda102d53cf517f8e43036b78afd97e",
+          "bytes": 8674,
+          "lines": 233,
+          "read_ranges": [
+            [
+              1,
+              233
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/fixtures/flashethereal/grade.json",
+          "sha256": "3b2910582819336d07064ed731bce9a5b084ca31ea4fee9455b19c9e7adcdded",
+          "bytes": 7324,
+          "lines": 336,
+          "read_ranges": [
+            [
+              1,
+              336
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/fixtures/flashethereal/grounding.txt",
+          "sha256": "f9ebb71974b3aab439441d0b7e5efc945a60fec0377de215a5239f5835f1955d",
+          "bytes": 970,
+          "lines": 11,
+          "read_ranges": [
+            [
+              1,
+              11
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/fixtures/flashethereal/pack.json",
+          "sha256": "4e1fddb4d89905e03ae6722901625a5b1fbe220d0906ae9dfd67f84ce2a27b8f",
+          "bytes": 1377,
+          "lines": 62,
+          "read_ranges": [
+            [
+              1,
+              62
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/fixtures/flashethereal/spec.json",
+          "sha256": "0cfbc0236d400675f154d784642a3a66c919a994cedbb74feca995e65cf2b293",
+          "bytes": 1303,
+          "lines": 40,
+          "read_ranges": [
+            [
+              1,
+              40
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/media/__init__.py",
+          "sha256": "61f72ed847e3ecb3c80d41199d6685be47cc6350626ae3e59b4e661c952b9dd2",
+          "bytes": 85,
+          "lines": 1,
+          "read_ranges": [
+            [
+              1,
+              1
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/media/capcut.py",
+          "sha256": "b7688e3a8808a4ddd9cae50141292541e33c0c4844bcc7b797c2a246c7565ff4",
+          "bytes": 2873,
+          "lines": 100,
+          "read_ranges": [
+            [
+              1,
+              100
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/media/common.py",
+          "sha256": "2975dfb274daff37fbe37fcfc14aad3ffa991604a130f41787c0f0ec025cbedf",
+          "bytes": 1330,
+          "lines": 38,
+          "read_ranges": [
+            [
+              1,
+              38
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/media/glitch.py",
+          "sha256": "54752934845119cf0b0de409993d0a5440291e58a4173a853d4a9d8d776e0537",
+          "bytes": 7177,
+          "lines": 228,
+          "read_ranges": [
+            [
+              1,
+              228
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/media/manim_geo.py",
+          "sha256": "3a005a7c39213c1465f95059ecfe2f2874f282c96de0be1beb2069a1eeac8ede",
+          "bytes": 5167,
+          "lines": 174,
+          "read_ranges": [
+            [
+              1,
+              174
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/tasteforge/media/stills.py",
+          "sha256": "14ce28cde03fc8b7996df8765c081715dfefe2b46665cd2ab4240e81639d4b12",
+          "bytes": 3196,
+          "lines": 99,
+          "read_ranges": [
+            [
+              1,
+              99
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_apply.py",
+          "sha256": "7107f3f02f9e94e513d9bbfeca6b71b2e4110da7539401e1dec9f9cfcc1267dc",
+          "bytes": 10584,
+          "lines": 208,
+          "read_ranges": [
+            [
+              1,
+              208
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_assets.py",
+          "sha256": "41e58206c2197b10e33ddee8dd578f7a36f176322f79ac3edcfa9a27f230a3e3",
+          "bytes": 8375,
+          "lines": 176,
+          "read_ranges": [
+            [
+              1,
+              176
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_cli.py",
+          "sha256": "9325927a0232c11988c785a866df60bec40bd1e8ff69edc8f564e2521baccbf6",
+          "bytes": 16127,
+          "lines": 363,
+          "read_ranges": [
+            [
+              1,
+              363
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_distill.py",
+          "sha256": "70a51b84d0a629f7c7a10dca4a42691619d68de68d0dbabb0de263bf4869c8e1",
+          "bytes": 3286,
+          "lines": 89,
+          "read_ranges": [
+            [
+              1,
+              89
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_integration.py",
+          "sha256": "3f3a54302c7470efe84b74b7404352e6771ca1d2c996eba91b03c177914733f9",
+          "bytes": 30206,
+          "lines": 542,
+          "read_ranges": [
+            [
+              1,
+              542
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_interview.py",
+          "sha256": "ea9be4c613366a2d3d34f4be3d260eddb6dd931437eaabac2f4fada379647342",
+          "bytes": 3119,
+          "lines": 80,
+          "read_ranges": [
+            [
+              1,
+              80
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_media_utilities.py",
+          "sha256": "87a7de6d38b1ab2e455ecc5517fa8e4bff5c2d0c0cf71687b0274d0f3f169308",
+          "bytes": 16706,
+          "lines": 418,
+          "read_ranges": [
+            [
+              1,
+              418
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_multimodal_contract.py",
+          "sha256": "581e73a1ad9be860cdfef62a055507fe17979f39a2a0af8e890c2a163fb1a43a",
+          "bytes": 21158,
+          "lines": 517,
+          "read_ranges": [
+            [
+              1,
+              517
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_multimodal_workflow.py",
+          "sha256": "3a5d19007ef7dae077f87e71391db53d9a50643c8b9710972c7eaf6bbbb2048b",
+          "bytes": 18035,
+          "lines": 386,
+          "read_ranges": [
+            [
+              1,
+              386
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_offline_fixture.py",
+          "sha256": "760ca26ae1e08f7221cf8f3c6642e80b2bc6042f07577a72a1033ef409d01ef4",
+          "bytes": 2688,
+          "lines": 65,
+          "read_ranges": [
+            [
+              1,
+              65
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_pack.py",
+          "sha256": "98779024825599ea4fea7776b5d4d269ce9a2023a158784377d3207398d32450",
+          "bytes": 3481,
+          "lines": 92,
+          "read_ranges": [
+            [
+              1,
+              92
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_provenance.py",
+          "sha256": "c2e6105d44c8fe12d4ab9386714d2afbef99202f905a62c7956415e277da79a8",
+          "bytes": 3194,
+          "lines": 82,
+          "read_ranges": [
+            [
+              1,
+              82
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_providers.py",
+          "sha256": "b2d1c6dc358b0aeef4d9e09c69f8560fc2084f922f71e95fe9d1883484576b94",
+          "bytes": 1773,
+          "lines": 51,
+          "read_ranges": [
+            [
+              1,
+              51
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_resolve.py",
+          "sha256": "6ef7be2771028cd679630c1184e908bbb23ca5dae5522aa046e17bfd29c6d5e6",
+          "bytes": 10281,
+          "lines": 320,
+          "read_ranges": [
+            [
+              1,
+              320
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_schema.py",
+          "sha256": "1675ac74acfa431cb9443ced4a501f3c6389d408f4d383259192e899d3958dcb",
+          "bytes": 3982,
+          "lines": 105,
+          "read_ranges": [
+            [
+              1,
+              105
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "tests/test_timeline_export.py",
+          "sha256": "c38d73c9427612d183f3eb492c377b1795c0adbcfe90e883619aafd320ae4e90",
+          "bytes": 4623,
+          "lines": 114,
+          "read_ranges": [
+            [
+              1,
+              114
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "workflows/README.md",
+          "sha256": "1c1c7d4fb67c224695ab6d4c88a4defaaf419cb96bee72e3a3b645a348189d8a",
+          "bytes": 4553,
+          "lines": 50,
+          "read_ranges": [
+            [
+              1,
+              50
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "workflows/taste-apply-motion.json",
+          "sha256": "577e2005e651ce02c8f3839605a8d9460241beff6bc7996e070e3e9d6f1c4a45",
+          "bytes": 5504,
+          "lines": 235,
+          "read_ranges": [
+            [
+              1,
+              235
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "workflows/taste-apply.json",
+          "sha256": "a471a621bc456effae8f31fd567720620280536fcf42dffe49e493a221177847",
+          "bytes": 5271,
+          "lines": 226,
+          "read_ranges": [
+            [
+              1,
+              226
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "workflows/taste-distill.json",
+          "sha256": "58c3abb1839211f70f454ad7b0df6100bfaf5208e21d850240c7156715562db9",
+          "bytes": 4690,
+          "lines": 170,
+          "read_ranges": [
+            [
+              1,
+              170
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "workflows/taste-prop3d.json",
+          "sha256": "ef16a86801696a9212ce2208d73d574712c3dda7ac64a574f56184f126930cd0",
+          "bytes": 2302,
+          "lines": 102,
+          "read_ranges": [
+            [
+              1,
+              102
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    },
+    {
+      "id": "S271",
+      "sha256": "7aa53f4a4cc7a959da5b60d77a6f43e5541cb3a95aa982fea73a2b706d9cd408",
+      "bytes": 9133,
+      "lines": 200,
+      "read_ranges": [
+        [
+          1,
+          200
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "scripts/distill.py",
+          "sha256": "a8e7f5b9077814b750719e4f98198f708d1c3eeddaf8ce6b73045467815400ea",
+          "bytes": 20283,
+          "lines": 518,
+          "read_ranges": [
+            [
+              1,
+              518
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/mint.py",
+          "sha256": "90dc757f11462ee4b6628a0811a78753de81a7df744fe1adb678bce533b3efaf",
+          "bytes": 7979,
+          "lines": 197,
+          "read_ranges": [
+            [
+              1,
+              197
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/requirements-live.txt",
+          "sha256": "0b54b9df6f4da4e0c5bd0b2eebdd0123972d826e59a4c30c7c66ddea9dc63f9a",
+          "bytes": 92,
+          "lines": 3,
+          "read_ranges": [
+            [
+              1,
+              3
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/requirements.txt",
+          "sha256": "269eed88dc45309ca8ff64fc0dd7f454601ad5eb8a0971b0d1ba47c10bebd345",
+          "bytes": 58,
+          "lines": 4,
+          "read_ranges": [
+            [
+              1,
+              4
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/__init__.py",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "lines": 0,
+          "read_ranges": [
+            [
+              1,
+              0
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/assemble.py",
+          "sha256": "05dbbbc794b83028bc3c3eb1e72165fe156ce5674041b9a2b26c0893a21bdbee",
+          "bytes": 11847,
+          "lines": 286,
+          "read_ranges": [
+            [
+              1,
+              286
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/cadence.py",
+          "sha256": "0cbbf74701943b9be8aaed7e026b1a616dbd752f397785b5ed6f67911518fa16",
+          "bytes": 11414,
+          "lines": 328,
+          "read_ranges": [
+            [
+              1,
+              328
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/falapi.py",
+          "sha256": "d52ae50059dc94b1b7d96a6c538c06a4db9509fb0281d770444e38ba1b63d78a",
+          "bytes": 31178,
+          "lines": 790,
+          "read_ranges": [
+            [
+              1,
+              790
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/frames.py",
+          "sha256": "d9bc5f1df87592a9b9b2eae9f286c40048b1208708e36a0ab9841027829fc76b",
+          "bytes": 11985,
+          "lines": 333,
+          "read_ranges": [
+            [
+              1,
+              333
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/grade.py",
+          "sha256": "2e4cfaa6e932dbf6d17875a5fdfc9722ad71c512d75d1e96a3fe8801eb60c906",
+          "bytes": 33442,
+          "lines": 818,
+          "read_ranges": [
+            [
+              1,
+              818
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/pack.py",
+          "sha256": "db67cb8459e1335e765070fbf9459c94d72173a49e9dc4a6ddcad98e7dac8813",
+          "bytes": 5422,
+          "lines": 164,
+          "read_ranges": [
+            [
+              1,
+              164
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/plates.py",
+          "sha256": "2b93a78f9fb17f8558835df3c1e52806097b92dc29918283d667076d95ce3e2b",
+          "bytes": 9983,
+          "lines": 246,
+          "read_ranges": [
+            [
+              1,
+              246
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/render3d.py",
+          "sha256": "3902b8973c651d80a433730bf54928c4dae9b469c771c9c8f7cc01530cef322a",
+          "bytes": 10461,
+          "lines": 289,
+          "read_ranges": [
+            [
+              1,
+              289
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/taste/timeline.py",
+          "sha256": "bbd8c53139dea08edecfd9fdf2c028b197097488fc1f57a7acef74536f0b2623",
+          "bytes": 20837,
+          "lines": 556,
+          "read_ranges": [
+            [
+              1,
+              556
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/outcome-evals/SKILL.md",
+      "sha256": "a9fc451f8c60a1850fc69a992a6710660b886e249294b34d9374b5f6ccd791ae"
+    },
+    {
+      "path": "agent-kits/shared/local-read.py",
+      "sha256": "14fd786992636d3ff9c490ccb7383f0c44dd735565fef9abef0f3627c6b0175a"
+    },
+    {
+      "path": "agent-kits/shared/plan-review.py",
+      "sha256": "899cd9a885d0b03a72e896f37398e9262ca78a3161fed9fc639c008021439ad2"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

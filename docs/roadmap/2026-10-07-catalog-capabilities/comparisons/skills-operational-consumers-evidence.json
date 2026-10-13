@@ -1,0 +1,3812 @@
+{
+ "version": 1,
+ "checked_at": "2026-10-13",
+ "source_code_executed": false,
+ "source_root": "C:/tmp/command-catalog24-root-20261010-01/source",
+ "files": [
+  {
+   "path": "manifests/install-modules.json",
+   "sha256": "59e855c382ccab4670dcd293721365d88d400c5d499fd93c1572ce9c1ccb6b6d",
+   "bytes": 31763,
+   "lines": 1199,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "manifests/install-components.json",
+   "sha256": "df188ab88aae4c1ef8880309054368ff354a01169101eb91339206c57672f758",
+   "bytes": 19841,
+   "lines": 690,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "manifests/install-profiles.json",
+   "sha256": "874431e67c3574c39c4437e96afa3d6aa6ccaa7b2fa7609d11bf6fe52f476eaf",
+   "bytes": 2990,
+   "lines": 106,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "manifests/pi-core.json",
+   "sha256": "9583fe1ac4109a8a3c94c5ffaf8a331d6e9997c8657494ef2a95dbf3a65b5414",
+   "bytes": 22743,
+   "lines": 482,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "manifests/context-packs/skill-registry@1.json",
+   "sha256": "39658b817c456028fe65d1013fd1aa4afc7c4c231122cbcd035f60cd6e79e727",
+   "bytes": 169,
+   "lines": 9,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "manifests/context-packs/skill-triggers@1.json",
+   "sha256": "8469faa352fdab0720d516196806c25c529c76013bb7b799eddc77938f8d10ef",
+   "bytes": 5512,
+   "lines": 1,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "manifests/context-profiles/full@1.json",
+   "sha256": "131f90973e1b34b85666393c23a5e5926d94375eaa3bb57b0d1a608288c81829",
+   "bytes": 475,
+   "lines": 12,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "manifests/context-profiles/lean@1.json",
+   "sha256": "20e58f01ada67778f9283bfd38df6131fac1497b64dd0badb8c35c7dcbb0595c",
+   "bytes": 488,
+   "lines": 12,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "manifests/install-assets/claude-project-scripts-package.json",
+   "sha256": "8005a3491db7d92f36ac66369861589f9c47123d3a7c71e643fc2c06168cd45a",
+   "bytes": 25,
+   "lines": 3,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "scripts/build-opencode.js",
+   "sha256": "df905553b58f94ff8ae325b15634c4e27c64932eb902af9fc8c05950df388758",
+   "bytes": 733,
+   "lines": 26,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "scripts/build-pi-core.js",
+   "sha256": "4751eb5546bca4f8894e533b76deb1af086e8eb0594f030d60440e5aca161396",
+   "bytes": 16476,
+   "lines": 390,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "scripts/gemini-adapt-agents.js",
+   "sha256": "01fbaacc128d1396e06115a372a726803eee5cc576373d8d17f1f5a9507e0a8d",
+   "bytes": 4026,
+   "lines": 178,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "scripts/install-plan.js",
+   "sha256": "ed8fa2d151573b968f3d46b6b456c5178276747c7bf9bca120e6fbcc9c3c95d2",
+   "bytes": 9067,
+   "lines": 277,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "scripts/install-apply.js",
+   "sha256": "1440534ecae87d44d2bc93a8403ffb210a8845b5f1ac1b475b120bb4f5f302cc",
+   "bytes": 9795,
+   "lines": 243,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "scripts/catalog.js",
+   "sha256": "ede2801dce2abd2953f383df0146653182166f7e52b53b87b9c0f64ee4337c3d",
+   "bytes": 4827,
+   "lines": 186,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "scripts/harness-adapter-compliance.js",
+   "sha256": "922a18303ba17a288f63196e707924059c77bf8ace59ec53b1e1a697fcc59e1d",
+   "bytes": 3401,
+   "lines": 149,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "scripts/lib/context-pack-registry.js",
+   "sha256": "06e90d104f6240ed94317f26d6d147ae09504596d2121eb54d21034877e8e976",
+   "bytes": 7585,
+   "lines": 160,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "scripts/lib/context-profiles.js",
+   "sha256": "acd949a17c1e6dc45e9fad7be60ed39aedb6877f60770607d2bfb11236985eda",
+   "bytes": 7213,
+   "lines": 133,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "tests/ci/codex-skill-surface.test.js",
+   "sha256": "9b0f8f59381e56c38d2d6f673c48c13722db862877bf472618bb8ecebd3a318c",
+   "bytes": 4231,
+   "lines": 125,
+   "reading_scope": "completo"
+  },
+  {
+   "path": "scripts/lib/install-manifests.js",
+   "sha256": "4cbb8cb2c7b55e8ff9292f858cdf09b771df20ffc92caa51f041658cb1048ec7",
+   "bytes": 23390,
+   "lines": 759,
+   "reading_scope": "parcial: 1-260 completas (targets, compatibilidad legacy, exclusiones por target, componentes sintéticos skill:<dir>); 261-759 por índice de funciones"
+  },
+  {
+   "path": "scripts/lib/install/request.js",
+   "sha256": "8bcf1bcdda81d41b39bb97661474be3f2e2ef6abe712dc70c9b096f37d001fe3",
+   "bytes": 5913,
+   "lines": 169,
+   "reading_scope": "parcial: líneas que normalizan --skill/--skills"
+  },
+  {
+   "path": "scripts/lib/install-targets/helpers.js",
+   "sha256": "f38cedd94cb13c48485c61f991e2e552a40d0b5252a09d38623efbe712e9bde3",
+   "bytes": 13679,
+   "lines": 441,
+   "reading_scope": "parcial: 20-40 (exclusión de .agents en instalaciones de home)"
+  },
+  {
+   "path": "scripts/lib/install-targets/claude-home.js",
+   "sha256": "ed6e69fb0247cea6a86b01473de2b336040dcbf6e0c8fb6da5f59afe3a84de27",
+   "bytes": 2875,
+   "lines": 100,
+   "reading_scope": "parcial: mapeo de skills/ a skills/ plano (grep)"
+  },
+  {
+   "path": "scripts/lib/install-targets/claude-project.js",
+   "sha256": "6cf6803ef420742445f4ead5bf9442f63ae6b2e58a45ee8ed5a85c7ce38c92f6",
+   "bytes": 3304,
+   "lines": 114,
+   "reading_scope": "parcial: mapeo de skills/ a skills/ plano (grep)"
+  },
+  {
+   "path": "scripts/lib/install-targets/antigravity-project.js",
+   "sha256": "7a1576d2f8775436d1dd3a6545051c3527b6ceac6196e19f30489b8b1aabbf21",
+   "bytes": 3847,
+   "lines": 121,
+   "reading_scope": "parcial: prefijos soportados y destino de skills (grep)"
+  },
+  {
+   "path": "scripts/lib/install-targets/kimi-project.js",
+   "sha256": "91a505c80bc8ab0dacf350b2ae31118a63e7f64a645024c97a32ffc921b1028b",
+   "bytes": 3603,
+   "lines": 109,
+   "reading_scope": "parcial: 80-95 (copia .agents/skills)"
+  },
+  {
+   "path": "scripts/lib/install/claude-skill-migration.js",
+   "sha256": "38d217536d66daf75b4e052c3ebc23c0b69da53ed2fa0559984d383a05af34e3",
+   "bytes": 13271,
+   "lines": 417,
+   "reading_scope": "parcial: 85-130 y 215-232 (skills/ecc/<n> a skills/<n>, propiedad por install-state)"
+  },
+  {
+   "path": "scripts/lib/install/link-rewrite.js",
+   "sha256": "4da79826d0c8a714a0ec6ffe02c97fce0acc2b2dcd4718c07c5219adaccbb41d",
+   "bytes": 6043,
+   "lines": 167,
+   "reading_scope": "parcial: 1-30 (reescritura de enlaces inline)"
+  },
+  {
+   "path": "scripts/lib/context-profile-support.js",
+   "sha256": "470d8a6f730205ce6b933a57c55f2796566d8d4a657a2af0b4cfe9a11adcef07",
+   "bytes": 9874,
+   "lines": 214,
+   "reading_scope": "parcial: TARGETS, normalizeMetadataText, isExcludedResource, validateRelativePath, validateTarget"
+  },
+  {
+   "path": "scripts/lib/context-selection.js",
+   "sha256": "4a5cdd47e7ac642db3b556abd58b2acf36309091f659e1e3d835c4945b8b33b2",
+   "bytes": 16376,
+   "lines": 273,
+   "reading_scope": "parcial: 1-35 y uso de triggers"
+  },
+  {
+   "path": "scripts/lib/context-retrieval.js",
+   "sha256": "00bd279efea22d88b5e0ebb1e970e8f1e3f356791a634567a3025355cf238920",
+   "bytes": 8762,
+   "lines": 186,
+   "reading_scope": "parcial: pesos de campo y uso de triggers (grep)"
+  },
+  {
+   "path": "scripts/lib/harness-adapter-compliance.js",
+   "sha256": "878f55ec0ab76070fe3010b6d33dc76d98131ec6f34247b89013f69ba8fa2b76",
+   "bytes": 16337,
+   "lines": 487,
+   "reading_scope": "parcial: 30-160 (registros claude-code, codex, opencode, pi)"
+  },
+  {
+   "path": "scripts/codex/check-codex-global-state.sh",
+   "sha256": "3fe55bedfafd11e3da49de5e81b0b611b851192d2b050b19bf5cbaa6c9cbee9c",
+   "bytes": 7165,
+   "lines": 244,
+   "reading_scope": "parcial: 130-180 (16 skills requeridas) y grep de skill"
+  },
+  {
+   "path": "scripts/codex/check-plugin-cache.js",
+   "sha256": "10f1e1703da6a849f4e7462e259b86350c93762a6f6be5c1b6c13e794e774d1c",
+   "bytes": 7394,
+   "lines": 264,
+   "reading_scope": "grep: sin referencias a skills"
+  },
+  {
+   "path": "scripts/codex/install-global-git-hooks.sh",
+   "sha256": "c216694e67c9a44ce4331ea6db9d5b450417f5f68ce0855cbc8acf0cf9178eaf",
+   "bytes": 2591,
+   "lines": 75,
+   "reading_scope": "grep: sin referencias a skills"
+  },
+  {
+   "path": "scripts/codex/legacy-sync-state.js",
+   "sha256": "0f73025c665cbfdf332fa55e8a27dc2c2d3d4ee0b013948b7b3483ede175b1c0",
+   "bytes": 2084,
+   "lines": 66,
+   "reading_scope": "grep: sin referencias a skills"
+  },
+  {
+   "path": "scripts/codex/merge-codex-config.js",
+   "sha256": "d7a2f3412193b7b4d5c4e732a89d736ea4e284799100820f2061b9221d39c32a",
+   "bytes": 9526,
+   "lines": 317,
+   "reading_scope": "grep: sin referencias a skills"
+  },
+  {
+   "path": "scripts/codex/merge-mcp-config.js",
+   "sha256": "5ca3b6a20c8cb993603c19153a17b46d2500c684b17d338da003ece4746d799e",
+   "bytes": 13013,
+   "lines": 352,
+   "reading_scope": "grep: sin referencias a skills"
+  },
+  {
+   "path": "scripts/sync-ecc-to-codex.sh",
+   "sha256": "d8ca312ba9ed6229fd64285806b855faf22133e48b09998b1bda54d11bdde6e2",
+   "bytes": 19715,
+   "lines": 608,
+   "reading_scope": "parcial: 330-360 y grep de skill (no sincroniza skills)"
+  },
+  {
+   "path": "scripts/ci/validate-skills.js",
+   "sha256": "f9e8e0487afe42439619cbff7cd6d52709be7255b623334f30b82ade1cdbd97a",
+   "bytes": 13122,
+   "lines": 387,
+   "reading_scope": "parcial: 1-35 y 200-387 (reglas de frontmatter)"
+  },
+  {
+   "path": ".agents/skills/tdd-workflow/agents/openai.yaml",
+   "sha256": "d68700053a6f3a4a65ec18e34bcef58e75986b5f8ae19f6e20e7412ccbd895a4",
+   "bytes": 268,
+   "lines": 7,
+   "reading_scope": "completo"
+  },
+  {
+   "path": ".agents/skills/tdd-workflow/SKILL.md",
+   "sha256": "e9507695657b05f26dd62127f1d6ff58e4015d624df65dd4d7e07f6470317393",
+   "bytes": 13202,
+   "lines": 467,
+   "reading_scope": "parcial: frontmatter y comparación de cuerpo con skills/tdd-workflow"
+  },
+  {
+   "path": ".agents/plugins/marketplace.json",
+   "sha256": "a006b8f87d5b90e316bb32386c3a750db0bbecfdb6baa9c7ee3b7320e3a427cb",
+   "bytes": 357,
+   "lines": 21,
+   "reading_scope": "completo"
+  },
+  {
+   "path": ".opencode/opencode.json",
+   "sha256": "48dce6b40065f49ed5827a619001475676de73a91d1fe564b50d4c42494a7d1f",
+   "bytes": 14946,
+   "lines": 451,
+   "reading_scope": "parcial: 1-30 y referencias skills/*/SKILL.md"
+  },
+  {
+   "path": "agent.yaml",
+   "sha256": "44cdc945a12cbb8662382872a7626f527903ac9c7a5d96172351f0721e379890",
+   "bytes": 5357,
+   "lines": 269,
+   "reading_scope": "parcial: lista skills:"
+  },
+  {
+   "path": "CONTRIBUTING.md",
+   "sha256": "1f2d9b76b995c8989b05eba1dbd53c4e6ec041c3e672fba0db9ccf4d249ef8c5",
+   "bytes": 15629,
+   "lines": 541,
+   "reading_scope": "parcial: 410-480 (subconjuntos por arnés)"
+  },
+  {
+   "path": ".codex/AGENTS.md",
+   "sha256": "e0b5b2a64f3cbb8b9b792ceacb84fbe85b7164bb6ac488ed05c668ef7e735d9b",
+   "bytes": 5904,
+   "lines": 105,
+   "reading_scope": "parcial: grep de .agents/skills y openai.yaml"
+  },
+  {
+   "path": "docs/CODEX-NAVIGATION-GUIDE.md",
+   "sha256": "025df2da8d1ac9a4fef5671a667839d612b7f6fa6ef30f9aa384118dc66e3551",
+   "bytes": 7490,
+   "lines": 167,
+   "reading_scope": "parcial: grep de .agents/skills y openai.yaml"
+  }
+ ],
+ "own_files": [
+  {
+   "path": "scripts/export-interop.py",
+   "sha256": "efe2d04f8ff1150f76eb05202609f276b32d699ceb77a486edaaaf40f177b945",
+   "bytes": 40802,
+   "lines": 763,
+   "reading_scope": "parcial: 1-40, 150-182, 277-300, 450-505, 607-625"
+  },
+  {
+   "path": "scripts/lint_plugin.py",
+   "sha256": "316fb161b7cfdd13fa38e766966e0a64abdf23c7f01d8319d81961865f79eed1",
+   "bytes": 93844,
+   "lines": 1788,
+   "reading_scope": "parcial: constantes de description (105-115) y grep"
+  },
+  {
+   "path": ".codex-plugin/plugin.json",
+   "sha256": "bb0939d0ec7f4234745ad0d6d808478e95e789f570ed63377e1d713775fcb749",
+   "bytes": 2738,
+   "lines": 44,
+   "reading_scope": "parcial: raíces skills"
+  },
+  {
+   "path": "package.json",
+   "sha256": "f841e86ea91d1dbdef8be75ae2981f24f3eaba6b64a90fad38671c6f91e26d73",
+   "bytes": 1494,
+   "lines": 59,
+   "reading_scope": "parcial: 37-58 (files distribuidos)"
+  },
+  {
+   "path": "docs/INTEROP.md",
+   "sha256": "1586852ab0f1b990d85577a42a8ae97f9d90d7e741adaf1454c85641878cab2a",
+   "bytes": 28789,
+   "lines": 400,
+   "reading_scope": "parcial: 140-165"
+  },
+  {
+   "path": "install/providers.mjs",
+   "sha256": "aa6a53b3b0d8b1a669ea5260294ec286239e701402d60cceb29d1346c46859c8",
+   "bytes": 32430,
+   "lines": 588,
+   "reading_scope": "parcial: grep de skills y propiedad"
+  },
+  {
+   "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-git-github-workspace.md",
+   "sha256": "2529b86e9747ace5a690fdd9bb2f589e3f74116c29da0e2c8fb8cd94685b027d",
+   "bytes": 4171,
+   "lines": 65,
+   "reading_scope": "parcial: S114"
+  },
+  {
+   "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-living-docs-loops-trading.md",
+   "sha256": "f3fdb982925dded742b17700d1e5f7bedffd44c803c44ca5521cdad4967e47a9",
+   "bytes": 6854,
+   "lines": 102,
+   "reading_scope": "parcial: S163"
+  }
+ ],
+ "skill_refs": {
+  "S001": {
+   "name": "accessibility",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S002": {
+   "name": "agent-architecture-audit",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S003": {
+   "name": "agent-eval",
+   "refs": [
+    "module:optimization-workflows",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S004": {
+   "name": "agent-harness-construction",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S005": {
+   "name": "agent-introspection-debugging",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml"
+   ]
+  },
+  "S006": {
+   "name": "agent-payment-x402",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: venture-specific x402 payments; wallet and network runtime",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S007": {
+   "name": "agent-self-evaluation",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S008": {
+   "name": "agent-sort",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: ECC install planner over the full ECC catalog; not portable",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml"
+   ]
+  },
+  "S009": {
+   "name": "agentic-engineering",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S010": {
+   "name": "agentic-os",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: Claude-Code-only persistent OS mechanics (slash commands, memory, schedules)",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S011": {
+   "name": "ai-first-engineering",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S012": {
+   "name": "ai-regression-testing",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: workflow creates Claude Code custom slash commands (.claude/commands)",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S013": {
+   "name": "android-clean-architecture",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S014": {
+   "name": "angular-developer",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S015": {
+   "name": "api-connector-builder",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:3",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S016": {
+   "name": "api-design",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:11",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "opencode:instructions",
+    "agent.yaml:skills"
+   ]
+  },
+  "S017": {
+   "name": "architecture-decision-records",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S018": {
+   "name": "article-writing",
+   "refs": [
+    "module:business-content",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: content/marketing writing, not engineering",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "cursor:.cursor/skills",
+    "agent.yaml:skills"
+   ]
+  },
+  "S019": {
+   "name": "automation-audit-ops",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: ECC ops audit of hooks/connectors/MCP surfaces",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S020": {
+   "name": "autonomous-agent-harness",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: Claude-Code-only autonomous harness (hooks, scheduling, computer use)",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S021": {
+   "name": "autonomous-loops",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: Claude-Code-only autonomous loops",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S022": {
+   "name": "backend-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "component:skill:backend-patterns",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:8",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "opencode:instructions",
+    "agent.yaml:skills"
+   ]
+  },
+  "S023": {
+   "name": "benchmark",
+   "refs": [
+    "module:optimization-workflows",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S024": {
+   "name": "benchmark-methodology",
+   "refs": [
+    "module:optimization-workflows",
+    "profile:full",
+    "pi-core:exclude: competitive/marketing benchmarking",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml"
+   ]
+  },
+  "S025": {
+   "name": "benchmark-optimization-loop",
+   "refs": [
+    "module:optimization-workflows",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S026": {
+   "name": "blender-motion-state-inspection",
+   "refs": [
+    "module:media-generation",
+    "profile:full",
+    "pi-core:exclude: niche 3D/Blender domain pack",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S027": {
+   "name": "blueprint",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S028": {
+   "name": "brand-discovery",
+   "refs": [
+    "module:business-content",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: brand/marketing content",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml"
+   ]
+  },
+  "S029": {
+   "name": "brand-voice",
+   "refs": [
+    "module:business-content",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: marketing/outreach voice profiling",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml"
+   ]
+  },
+  "S030": {
+   "name": "browser-qa",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: requires a browser automation MCP server at runtime",
+    "context-pack:skill-triggers@1:6",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S031": {
+   "name": "bun-runtime",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "cursor:.cursor/skills",
+    "agent.yaml:skills"
+   ]
+  },
+  "S032": {
+   "name": "canary-watch",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:exclude: makes network calls to deployed URLs",
+    "context-pack:skill-triggers@1:6",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S033": {
+   "name": "carrier-relationship-management",
+   "refs": [
+    "module:supply-chain-domain",
+    "profile:full",
+    "pi-core:exclude: supply chain/logistics domain pack",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S034": {
+   "name": "cisco-ios-patterns",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:exclude: network-device ops niche domain",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S035": {
+   "name": "ck",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: Claude-Code-only persistent memory commands",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S036": {
+   "name": "claude-devfleet",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: multi-agent orchestration via external DevFleet product",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S037": {
+   "name": "click-path-audit",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S038": {
+   "name": "clickhouse-io",
+   "refs": [
+    "module:database",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S039": {
+   "name": "code-tour",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:5",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S040": {
+   "name": "codebase-onboarding",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S041": {
+   "name": "codehealth-mcp",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: wraps CodeScene MCP SaaS",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S042": {
+   "name": "coding-standards",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "component:skill:coding-standards",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:7",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "opencode:instructions",
+    "agent.yaml:skills"
+   ]
+  },
+  "S043": {
+   "name": "competitive-platform-analysis",
+   "refs": [
+    "module:business-content",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: competitive/marketing analysis",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml"
+   ]
+  },
+  "S044": {
+   "name": "competitive-report-structure",
+   "refs": [
+    "module:business-content",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: competitive/marketing reporting",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml"
+   ]
+  },
+  "S045": {
+   "name": "compose-multiplatform-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S046": {
+   "name": "config-gc",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: Claude-Code-only config garbage collection (~/.claude)",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S047": {
+   "name": "configure-ecc",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: ECC-specific setup wizard",
+    "context-profile:lean@1:eager+required",
+    "context-profile:full@1:eager+required",
+    "agent.yaml:skills"
+   ]
+  },
+  "S048": {
+   "name": "connections-optimizer",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: social/outreach (X and LinkedIn)",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S049": {
+   "name": "content-engine",
+   "refs": [
+    "module:business-content",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: social/marketing content system",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "cursor:.cursor/skills",
+    "agent.yaml:skills"
+   ]
+  },
+  "S050": {
+   "name": "content-hash-cache-pattern",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:3",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S051": {
+   "name": "context-budget",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: Claude-Code-only context window audit",
+    "context-profile:lean@1:eager+required",
+    "context-profile:full@1:eager+required",
+    "agent.yaml:skills"
+   ]
+  },
+  "S052": {
+   "name": "continuous-agent-loop",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: continuous agent loops",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S053": {
+   "name": "continuous-learning",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "component:skill:continuous-learning",
+    "pi-core:exclude: Claude-Code-only hooks-based continuous learning (deprecated)",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S054": {
+   "name": "continuous-learning-v2",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: Claude-Code-only hooks-based continuous learning",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S055": {
+   "name": "contract-first",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S056": {
+   "name": "cost-aware-llm-pipeline",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S057": {
+   "name": "cost-tracking",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: Claude Code cost tracking",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S058": {
+   "name": "council",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "pi-core:rename:ecc-council",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S059": {
+   "name": "council-multi-model",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: requires external Codex CLI at runtime",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S060": {
+   "name": "counterparty-channel-discipline",
+   "refs": [
+    "module:operator-desk-patterns",
+    "profile:full",
+    "pi-core:exclude: agent messaging ops policy",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S061": {
+   "name": "cpp-coding-standards",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S062": {
+   "name": "cpp-testing",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S063": {
+   "name": "crosspost",
+   "refs": [
+    "module:social-distribution",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: social/marketing distribution",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "agent.yaml:skills"
+   ]
+  },
+  "S064": {
+   "name": "csharp-testing",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S065": {
+   "name": "customer-billing-ops",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: billing/ops skill over connected billing tools",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S066": {
+   "name": "customs-trade-compliance",
+   "refs": [
+    "module:supply-chain-domain",
+    "profile:full",
+    "pi-core:exclude: customs/trade niche domain",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S067": {
+   "name": "dart-flutter-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S068": {
+   "name": "dashboard-builder",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S069": {
+   "name": "data-scraper-agent",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: scheduled network scraping agent",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S070": {
+   "name": "data-throughput-accelerator",
+   "refs": [
+    "module:optimization-workflows",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S071": {
+   "name": "database-migrations",
+   "refs": [
+    "module:database",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:9",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S072": {
+   "name": "deep-research",
+   "refs": [
+    "module:research-apis",
+    "profile:research",
+    "profile:full",
+    "component:skill:deep-research",
+    "pi-core:exclude: requires firecrawl and exa SaaS MCP tools",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "agent.yaml:skills"
+   ]
+  },
+  "S073": {
+   "name": "defi-amm-security",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:exclude: crypto/DeFi niche domain",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S074": {
+   "name": "delivery-gate",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: Claude-Code-only stop hook",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S075": {
+   "name": "deployment-patterns",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:7",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S076": {
+   "name": "design-system",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:5",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S077": {
+   "name": "dev-team",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S078": {
+   "name": "django-celery",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S079": {
+   "name": "django-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:6",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S080": {
+   "name": "django-security",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:8",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S081": {
+   "name": "django-tdd",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S082": {
+   "name": "django-verification",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S083": {
+   "name": "dmux-workflows",
+   "refs": [
+    "module:orchestration",
+    "profile:developer",
+    "profile:full",
+    "pi-core:exclude: multi-agent orchestration via dmux",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "agent.yaml:skills"
+   ]
+  },
+  "S084": {
+   "name": "docker-patterns",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:4",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S085": {
+   "name": "documentation-lookup",
+   "refs": [
+    "module:research-apis",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: wraps Context7 SaaS MCP",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "cursor:.cursor/skills",
+    "agent.yaml:skills"
+   ]
+  },
+  "S086": {
+   "name": "dotnet-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S087": {
+   "name": "dynamic-workflow-mode",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: Claude dynamic workflow mode mechanics",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S088": {
+   "name": "e2e-testing",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "opencode:instructions",
+    "agent.yaml:skills"
+   ]
+  },
+  "S089": {
+   "name": "ecc-guide",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: ECC repository self-reference",
+    "context-profile:lean@1:eager+required",
+    "context-profile:full@1:eager+required"
+   ]
+  },
+  "S090": {
+   "name": "ecc-recipes",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: ECC command catalog self-reference",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S091": {
+   "name": "ecc-tools-cost-audit",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: ECC Tools commercial billing/ops",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S092": {
+   "name": "email-ops",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: mailbox ops skill",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S093": {
+   "name": "energy-procurement",
+   "refs": [
+    "module:supply-chain-domain",
+    "profile:full",
+    "pi-core:exclude: energy procurement niche domain",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S094": {
+   "name": "enterprise-agent-ops",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: agent runtime ops, not portable engineering",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S095": {
+   "name": "error-handling",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:11",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S096": {
+   "name": "esign-field-placement",
+   "refs": [
+    "module:operator-desk-patterns",
+    "profile:full",
+    "pi-core:exclude: niche e-sign browser automation",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S097": {
+   "name": "eval-harness",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "component:skill:eval-harness",
+    "pi-core:exclude: reads and writes .claude/evals (Claude-Code-only)",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "opencode:instructions",
+    "agent.yaml:skills"
+   ]
+  },
+  "S098": {
+   "name": "evm-token-decimals",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:exclude: crypto/EVM niche domain",
+    "context-pack:skill-triggers@1:4",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S099": {
+   "name": "exa-search",
+   "refs": [
+    "module:research-apis",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: wraps Exa SaaS",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "agent.yaml:skills"
+   ]
+  },
+  "S100": {
+   "name": "fal-ai-media",
+   "refs": [
+    "module:media-generation",
+    "profile:full",
+    "pi-core:exclude: wraps fal.ai SaaS",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "agent.yaml:skills"
+   ]
+  },
+  "S101": {
+   "name": "fastapi-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S102": {
+   "name": "finance-billing-ops",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: billing/ops skill",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S103": {
+   "name": "flox-environments",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:exclude: runtime installer flow (curl|sh) for Flox",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S104": {
+   "name": "flutter-dart-code-review",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S105": {
+   "name": "foundation-models-on-device",
+   "refs": [
+    "module:swift-apple",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S106": {
+   "name": "frontend-a11y",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:7",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S107": {
+   "name": "frontend-design-direction",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:exclude: ECC-specific design direction",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S108": {
+   "name": "frontend-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "component:skill:frontend-patterns",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "opencode:instructions",
+    "agent.yaml:skills"
+   ]
+  },
+  "S109": {
+   "name": "frontend-slides",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:exclude: presentation/content production, not engineering",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "opencode:instructions",
+    "cursor:.cursor/skills",
+    "agent.yaml:skills"
+   ]
+  },
+  "S110": {
+   "name": "fsharp-testing",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S111": {
+   "name": "gan-style-harness",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: Claude-Code-only generator/evaluator harness",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S112": {
+   "name": "gateguard",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:exclude: Claude-Code-only PreToolUse gate",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S113": {
+   "name": "generating-python-installer",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:exclude: niche Windows installer packaging with runtime downloads",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S114": {
+   "name": "git-workflow",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:7",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S115": {
+   "name": "github-ops",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: makes GitHub API calls via gh at runtime",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S116": {
+   "name": "golang-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S117": {
+   "name": "golang-testing",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S118": {
+   "name": "google-workspace-ops",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: wraps Google Workspace SaaS",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S119": {
+   "name": "growth-log",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: ECC learning-log workflow",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S120": {
+   "name": "healthcare-cdss-patterns",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:exclude: healthcare niche domain pack",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S121": {
+   "name": "healthcare-emr-patterns",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:exclude: healthcare niche domain pack",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S122": {
+   "name": "healthcare-eval-harness",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:exclude: healthcare niche domain pack",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S123": {
+   "name": "healthcare-phi-compliance",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:exclude: healthcare/PHI niche domain pack",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S124": {
+   "name": "hermes-imports",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: venture-specific hermes-*",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S125": {
+   "name": "hexagonal-architecture",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:3",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S126": {
+   "name": "hipaa-compliance",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:exclude: HIPAA niche domain pack",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S127": {
+   "name": "homelab-network-readiness",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:exclude: homelab niche domain pack",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S128": {
+   "name": "homelab-network-setup",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:exclude: homelab niche domain pack",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S129": {
+   "name": "homelab-pihole-dns",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:exclude: homelab niche domain pack",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S130": {
+   "name": "homelab-vlan-segmentation",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:exclude: homelab niche domain pack",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S131": {
+   "name": "homelab-wireguard-vpn",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:exclude: homelab niche domain pack",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S132": {
+   "name": "hookify-rules",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: hookify (Claude-Code-only hooks)",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S133": {
+   "name": "i18n-sync",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:exclude: built around a third-party npm CLI (locakit) with external source links; not self-contained",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S134": {
+   "name": "inherit-legacy-style",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S135": {
+   "name": "intent-driven-development",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S136": {
+   "name": "inventory-demand-planning",
+   "refs": [
+    "module:supply-chain-domain",
+    "profile:full",
+    "pi-core:exclude: supply chain niche domain",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S137": {
+   "name": "investor-materials",
+   "refs": [
+    "module:business-content",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: fundraising/marketing content",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "cursor:.cursor/skills",
+    "agent.yaml:skills"
+   ]
+  },
+  "S138": {
+   "name": "investor-outreach",
+   "refs": [
+    "module:business-content",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: fundraising outreach",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "cursor:.cursor/skills",
+    "agent.yaml:skills"
+   ]
+  },
+  "S139": {
+   "name": "ios-icon-gen",
+   "refs": [
+    "module:swift-apple",
+    "profile:full",
+    "pi-core:exclude: Iconify API network calls at runtime",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S140": {
+   "name": "iterative-retrieval",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: multi-agent subagent context mechanics; links to external social post",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S141": {
+   "name": "ito-baskets",
+   "refs": [
+    "module:prediction-market-skills",
+    "profile:full",
+    "pi-core:exclude: venture-specific ito-*",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S142": {
+   "name": "ito-compute",
+   "refs": [
+    "module:ito-compute",
+    "profile:full",
+    "pi-core:exclude: venture-specific ito-*",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S143": {
+   "name": "ito-inference",
+   "refs": [
+    "module:ito-compute",
+    "profile:full",
+    "pi-core:exclude: venture-specific ito-*",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S144": {
+   "name": "ito-training",
+   "refs": [
+    "module:ito-compute",
+    "profile:full",
+    "pi-core:exclude: venture-specific ito-*",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S145": {
+   "name": "java-coding-standards",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S146": {
+   "name": "jira-integration",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: wraps Jira SaaS API",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S147": {
+   "name": "jpa-patterns",
+   "refs": [
+    "module:database",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S148": {
+   "name": "knowledge-ops",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: ops skill over MCP memory and vector stores",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S149": {
+   "name": "kotlin-coroutines-flows",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S150": {
+   "name": "kotlin-exposed-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S151": {
+   "name": "kotlin-ktor-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S152": {
+   "name": "kotlin-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S153": {
+   "name": "kotlin-testing",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S154": {
+   "name": "kubernetes-patterns",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:6",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S155": {
+   "name": "laravel-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S156": {
+   "name": "laravel-plugin-discovery",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:exclude: wraps LaraPlugins.io SaaS MCP",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S157": {
+   "name": "laravel-security",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S158": {
+   "name": "laravel-tdd",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S159": {
+   "name": "laravel-verification",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S160": {
+   "name": "latency-critical-systems",
+   "refs": [
+    "module:optimization-workflows",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S161": {
+   "name": "lead-intelligence",
+   "refs": [
+    "module:business-content",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: sales outreach pipeline",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S162": {
+   "name": "liquid-glass-design",
+   "refs": [
+    "module:swift-apple",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S163": {
+   "name": "living-docs-governance",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S164": {
+   "name": "llm-trading-agent-security",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:exclude: trading-agent niche domain",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S165": {
+   "name": "logistics-exception-management",
+   "refs": [
+    "module:supply-chain-domain",
+    "profile:full",
+    "pi-core:exclude: logistics niche domain",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S166": {
+   "name": "loop-design-check",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: agent loop design mechanics",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S167": {
+   "name": "mailtrap-email-integration",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: wraps Mailtrap SaaS API",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S168": {
+   "name": "make-interfaces-feel-better",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S169": {
+   "name": "manim-video",
+   "refs": [
+    "module:media-generation",
+    "profile:full",
+    "pi-core:exclude: niche video production; pip installs at runtime",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S170": {
+   "name": "market-research",
+   "refs": [
+    "module:business-content",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: web research over network sources",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "cursor:.cursor/skills",
+    "agent.yaml:skills"
+   ]
+  },
+  "S171": {
+   "name": "marketing-campaign",
+   "refs": [
+    "module:business-content",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: marketing",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S172": {
+   "name": "master-agreement-generator",
+   "refs": [
+    "module:operator-desk-patterns",
+    "profile:full",
+    "pi-core:exclude: legal docs niche",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S173": {
+   "name": "mcp-server-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "cursor:.cursor/skills",
+    "agent.yaml:skills"
+   ]
+  },
+  "S174": {
+   "name": "messages-ops",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: messaging ops skill",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S175": {
+   "name": "ml-adoption-playbook",
+   "refs": [
+    "module:machine-learning",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S176": {
+   "name": "mle-workflow",
+   "refs": [
+    "module:machine-learning",
+    "profile:full",
+    "component:skill:mle-workflow",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml"
+   ]
+  },
+  "S177": {
+   "name": "motion-advanced",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S178": {
+   "name": "motion-foundations",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S179": {
+   "name": "motion-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S180": {
+   "name": "mysql-patterns",
+   "refs": [
+    "module:database",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S181": {
+   "name": "nanoclaw-repl",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: ECC product-specific REPL",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S182": {
+   "name": "nasiko-control-plane",
+   "refs": [
+    "module:nasiko-control-plane",
+    "profile:full",
+    "pi-core:exclude: venture-specific nasiko-*",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S183": {
+   "name": "nestjs-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S184": {
+   "name": "netmiko-ssh-automation",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:exclude: network-device ops niche; SSH at runtime",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S185": {
+   "name": "network-bgp-diagnostics",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:exclude: network ops niche domain",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S186": {
+   "name": "network-config-validation",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:exclude: network ops niche domain",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S187": {
+   "name": "network-interface-health",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:exclude: network ops niche domain",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S188": {
+   "name": "nextjs-turbopack",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "cursor:.cursor/skills",
+    "agent.yaml:skills"
+   ]
+  },
+  "S189": {
+   "name": "nodejs-keccak256",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:exclude: crypto/EVM niche domain",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S190": {
+   "name": "nutrient-document-processing",
+   "refs": [
+    "module:document-processing",
+    "profile:full",
+    "pi-core:exclude: wraps Nutrient DWS SaaS API",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S191": {
+   "name": "nuxt4-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S192": {
+   "name": "openclaw-persona-forge",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: venture-specific openclaw-*",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S193": {
+   "name": "opensource-pipeline",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: multi-agent roster pipeline",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S194": {
+   "name": "operator-approval-loop",
+   "refs": [
+    "module:operator-desk-patterns",
+    "profile:full",
+    "pi-core:exclude: ECC ops approval contract",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S195": {
+   "name": "orch-add-feature",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: Claude-Code-only orch-* orchestration",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S196": {
+   "name": "orch-build-mvp",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: Claude-Code-only orch-* orchestration",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S197": {
+   "name": "orch-change-feature",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: Claude-Code-only orch-* orchestration",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S198": {
+   "name": "orch-fix-defect",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: Claude-Code-only orch-* orchestration",
+    "context-pack:skill-triggers@1:5",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S199": {
+   "name": "orch-pipeline",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: Claude-Code-only orch-* orchestration",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S200": {
+   "name": "orch-refine-code",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: Claude-Code-only orch-* orchestration",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S201": {
+   "name": "parallel-execution-optimizer",
+   "refs": [
+    "module:optimization-workflows",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S202": {
+   "name": "perl-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S203": {
+   "name": "perl-security",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S204": {
+   "name": "perl-testing",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S205": {
+   "name": "plan-canvas",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "component:skill:plan-canvas",
+    "pi-core:exclude: Claude-Code-only plan canvas server",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "agent.yaml:skills"
+   ]
+  },
+  "S206": {
+   "name": "plan-orchestrate",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: ECC orchestration prompt generator over the full catalog",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S207": {
+   "name": "plankton-code-quality",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: Claude-Code-only write-time hooks",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S208": {
+   "name": "postgres-patterns",
+   "refs": [
+    "module:database",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:11",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S209": {
+   "name": "prediction-market-oracle-research",
+   "refs": [
+    "module:prediction-market-skills",
+    "profile:full",
+    "pi-core:exclude: venture-specific prediction-market-*",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S210": {
+   "name": "prediction-market-risk-review",
+   "refs": [
+    "module:prediction-market-skills",
+    "profile:full",
+    "pi-core:exclude: venture-specific prediction-market-*",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S211": {
+   "name": "prisma-patterns",
+   "refs": [
+    "module:database",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S212": {
+   "name": "product-capability",
+   "refs": [
+    "module:business-content",
+    "profile:research",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml"
+   ]
+  },
+  "S213": {
+   "name": "product-lens",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S214": {
+   "name": "production-audit",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S215": {
+   "name": "production-scheduling",
+   "refs": [
+    "module:supply-chain-domain",
+    "profile:full",
+    "pi-core:exclude: manufacturing niche domain",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S216": {
+   "name": "project-flow-ops",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: ops over GitHub/Linear SaaS",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S217": {
+   "name": "prompt-optimizer",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: ECC command/agent catalog self-reference",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S218": {
+   "name": "python-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:5",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S219": {
+   "name": "python-testing",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:5",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S220": {
+   "name": "pytorch-patterns",
+   "refs": [
+    "module:machine-learning",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S221": {
+   "name": "quality-nonconformance",
+   "refs": [
+    "module:supply-chain-domain",
+    "profile:full",
+    "pi-core:exclude: regulated manufacturing niche",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S222": {
+   "name": "quarkus-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S223": {
+   "name": "quarkus-security",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S224": {
+   "name": "quarkus-tdd",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S225": {
+   "name": "quarkus-verification",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S226": {
+   "name": "rails-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S227": {
+   "name": "ralphinho-rfc-pipeline",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: multi-agent DAG orchestration",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S228": {
+   "name": "react-native-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S229": {
+   "name": "react-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S230": {
+   "name": "react-performance",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S231": {
+   "name": "react-testing",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S232": {
+   "name": "recsys-pipeline-architect",
+   "refs": [
+    "module:machine-learning",
+    "profile:full",
+    "pi-core:exclude: installs upstream package via npx skills add",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S233": {
+   "name": "recursive-decision-ledger",
+   "refs": [
+    "module:optimization-workflows",
+    "profile:full",
+    "pi-core:exclude: recursive prompting loops",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S234": {
+   "name": "redis-patterns",
+   "refs": [
+    "module:database",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:4",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S235": {
+   "name": "regex-vs-llm-structured-text",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:10",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S236": {
+   "name": "remotion-video-creation",
+   "refs": [
+    "module:media-generation",
+    "profile:full",
+    "pi-core:exclude: video/media production niche",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S237": {
+   "name": "repo-scan",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: downloads an external skill at runtime",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S238": {
+   "name": "research-ops",
+   "refs": [
+    "module:research-apis",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: ECC ops research workflow with network enrichment",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S239": {
+   "name": "returns-reverse-logistics",
+   "refs": [
+    "module:supply-chain-domain",
+    "profile:full",
+    "pi-core:exclude: logistics niche domain",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S240": {
+   "name": "rules-distill",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: Claude-Code-only rules distillation mechanics",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S241": {
+   "name": "rust-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:6",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S242": {
+   "name": "rust-testing",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S243": {
+   "name": "safety-guard",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:exclude: Claude-Code-only PreToolUse hooks",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S244": {
+   "name": "santa-method",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: multi-agent adversarial review roster",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S245": {
+   "name": "scientific-db-pubmed-database",
+   "refs": [
+    "module:research-apis",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: scientific niche domain pack",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S246": {
+   "name": "scientific-db-uspto-database",
+   "refs": [
+    "module:research-apis",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: scientific niche domain pack",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S247": {
+   "name": "scientific-pkg-gget",
+   "refs": [
+    "module:research-apis",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: scientific niche domain pack",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S248": {
+   "name": "scientific-thinking-literature-review",
+   "refs": [
+    "module:research-apis",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: scientific niche domain pack",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S249": {
+   "name": "scientific-thinking-scholar-evaluation",
+   "refs": [
+    "module:research-apis",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: scientific niche domain pack",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S250": {
+   "name": "search-first",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: network searches (npm/PyPI/GitHub) at runtime",
+    "context-pack:skill-triggers@1:5",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S251": {
+   "name": "security-bounty-hunter",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:exclude: offensive security (bug bounty)",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S252": {
+   "name": "security-review",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "component:skill:security-review",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:12",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "opencode:instructions",
+    "agent.yaml:skills"
+   ]
+  },
+  "S253": {
+   "name": "security-scan",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:exclude: wraps AgentShield commercial product",
+    "context-pack:skill-triggers@1:6",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S254": {
+   "name": "seo",
+   "refs": [
+    "module:business-content",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: SEO/marketing",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S255": {
+   "name": "skill-comply",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: runs agent rosters for compliance checks",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S256": {
+   "name": "skill-scout",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: network searches of skill marketplaces",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S257": {
+   "name": "skill-stocktake",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "pi-core:exclude: subagent-based Claude skill audit",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S258": {
+   "name": "social-graph-ranker",
+   "refs": [
+    "module:business-content",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: social graph (X and LinkedIn)",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S259": {
+   "name": "social-publisher",
+   "refs": [
+    "module:social-distribution",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: wraps SocialClaw SaaS",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S260": {
+   "name": "springboot-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S261": {
+   "name": "springboot-security",
+   "refs": [
+    "module:security",
+    "profile:security",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S262": {
+   "name": "springboot-tdd",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S263": {
+   "name": "springboot-verification",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S264": {
+   "name": "strategic-compact",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "component:skill:strategic-compact",
+    "pi-core:exclude: Claude Code session compaction mechanics",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "opencode:instructions",
+    "agent.yaml:skills"
+   ]
+  },
+  "S265": {
+   "name": "swift-actor-persistence",
+   "refs": [
+    "module:swift-apple",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S266": {
+   "name": "swift-concurrency-6-2",
+   "refs": [
+    "module:swift-apple",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S267": {
+   "name": "swift-protocol-di-testing",
+   "refs": [
+    "module:swift-apple",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S268": {
+   "name": "swiftui-patterns",
+   "refs": [
+    "module:swift-apple",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S269": {
+   "name": "taste",
+   "refs": [
+    "module:media-generation",
+    "profile:full",
+    "pi-core:exclude: media/creative-direction niche pack",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S270": {
+   "name": "taste-application",
+   "refs": [
+    "module:media-generation",
+    "profile:full",
+    "pi-core:exclude: media generation via fal.ai SaaS",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S271": {
+   "name": "taste-distillation",
+   "refs": [
+    "module:media-generation",
+    "profile:full",
+    "pi-core:exclude: media analysis paired with fal.ai SaaS",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S272": {
+   "name": "tasteforge-video",
+   "refs": [
+    "module:media-generation",
+    "profile:full",
+    "pi-core:exclude: media generation workflow over fal.ai SaaS",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S273": {
+   "name": "tdd-workflow",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "component:skill:tdd-workflow",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:6",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "opencode:instructions",
+    "agent.yaml:skills"
+   ]
+  },
+  "S274": {
+   "name": "team-agent-orchestration",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: agent squad orchestration",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S275": {
+   "name": "team-builder",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: Claude agents roster picker",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S276": {
+   "name": "terminal-opener",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:exclude: ECC harness utility, not engineering content",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S277": {
+   "name": "terminal-ops",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: ECC ops workflow",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S278": {
+   "name": "tinystruct-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:exclude: niche single-framework pack",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S279": {
+   "name": "token-budget-advisor",
+   "refs": [
+    "module:agentic-patterns",
+    "profile:full",
+    "pi-core:exclude: session/token mechanics",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S280": {
+   "name": "ui-demo",
+   "refs": [
+    "module:media-generation",
+    "profile:full",
+    "pi-core:exclude: Playwright video recording with runtime installs",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S281": {
+   "name": "ui-to-vue",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:exclude: runs an npx converter package at runtime",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S282": {
+   "name": "uncloud",
+   "refs": [
+    "module:devops-infra",
+    "profile:full",
+    "pi-core:exclude: niche cluster ops",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S283": {
+   "name": "unified-memory",
+   "refs": [
+    "module:skill-unified-memory",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "component:skill:unified-memory",
+    "pi-core:exclude: ECC memory vault (session save/resume family)",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "cursor:.cursor/skills",
+    "agent.yaml:skills"
+   ]
+  },
+  "S284": {
+   "name": "unified-notifications-ops",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: ECC notifications ops",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S285": {
+   "name": "verification-loop",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "component:skill:verification-loop",
+    "pi-core:include",
+    "context-pack:skill-triggers@1:5",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "codex:check-codex-global-state:required",
+    "opencode:instructions",
+    "agent.yaml:skills"
+   ]
+  },
+  "S286": {
+   "name": "video-editing",
+   "refs": [
+    "module:media-generation",
+    "profile:full",
+    "pi-core:exclude: media production niche",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "agent.yaml:skills"
+   ]
+  },
+  "S287": {
+   "name": "videodb",
+   "refs": [
+    "module:media-generation",
+    "profile:full",
+    "pi-core:exclude: wraps VideoDB SaaS",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S288": {
+   "name": "visa-doc-translate",
+   "refs": [
+    "module:document-processing",
+    "profile:full",
+    "pi-core:exclude: visa/legal docs niche; OCR network calls",
+    "context-profile:full@1:eager",
+    "agent.yaml:skills"
+   ]
+  },
+  "S289": {
+   "name": "vite-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S290": {
+   "name": "vue-patterns",
+   "refs": [
+    "module:framework-language",
+    "profile:developer",
+    "profile:full",
+    "component:skill:vue-patterns",
+    "pi-core:include",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S291": {
+   "name": "windows-desktop-e2e",
+   "refs": [
+    "module:workflow-quality",
+    "profile:minimal",
+    "profile:opencode",
+    "profile:core",
+    "profile:developer",
+    "profile:security",
+    "profile:research",
+    "profile:full",
+    "defaultInstall:true",
+    "component:skill:windows-desktop-e2e",
+    "pi-core:exclude: niche Windows desktop automation; pip installs at runtime",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S292": {
+   "name": "workspace-surface-audit",
+   "refs": [
+    "module:operator-workflows",
+    "profile:full",
+    "pi-core:exclude: ECC harness surface audit",
+    "context-profile:full@1:eager"
+   ]
+  },
+  "S293": {
+   "name": "x-api",
+   "refs": [
+    "module:social-distribution",
+    "profile:research",
+    "profile:full",
+    "pi-core:exclude: wraps X/Twitter SaaS API",
+    "context-profile:full@1:eager",
+    "codex:.agents/skills+openai.yaml",
+    "agent.yaml:skills"
+   ]
+  }
+ },
+ "decisions_to_review": [
+  {
+   "id": "S114",
+   "name": "git-workflow",
+   "ficha": "comparisons/skills-git-github-workspace.md:31-32",
+   "decision": "Sin skill nueva: CONTRIBUTING.md y los guardrails cubren conflictos y merge frente a rebase.",
+   "motivo": "La fuente la trata como capacidad del proyecto consumidor en todas sus instalaciones: módulo por defecto workflow-quality, presente en los siete perfiles (también minimal y opencode), 7 disparadores curados e inclusión en pi-core como guía portable. La cobertura que cita la ficha no llega al consumidor: CONTRIBUTING.md no está en los files distribuidos y el guardrail de git limita al implementer, no guía conflictos ni merge frente a rebase.",
+   "evidencia": [
+    "manifests/install-modules.json:314-364 (workflow-quality, defaultInstall true, skills/git-workflow)",
+    "manifests/install-profiles.json:4-19 (minimal y opencode incluyen workflow-quality)",
+    "manifests/context-packs/skill-triggers@1.json:1 (skill:git-workflow, 7 disparadores)",
+    "manifests/pi-core.json:88 (include)",
+    "repo:package.json:37-58 (CONTRIBUTING.md no se distribuye)"
+   ],
+   "revision_propuesta": "Rehacer la comprobación de cobertura en el consumidor: o bien decidir dueño (implementer/quick-implement o una referencia de delivery-practices) para resolución de conflictos y merge frente a rebase, conservando las correcciones de la ficha, o bien reafirmar «sin destino» con un motivo que no dependa de ficheros no distribuidos."
+  },
+  {
+   "id": "S163",
+   "name": "living-docs-governance",
+   "ficha": "comparisons/skills-living-docs-loops-trading.md:16-43",
+   "decision": "Destino: solo el texto del aviso de _tolerancias_caducadas en scripts/lint_plugin.py. Sin skill nueva.",
+   "motivo": "La fuente la instala por defecto en todos los perfiles y la incluye en pi-core como guía portable para el repositorio del usuario. La ficha comprueba los cuatro papeles contra el repo del propio plugin (CLAUDE.md, docs/README.md, lint_plugin.py) y su único destino es un script que no se distribuye; no comprueba la cobertura en el consumidor (documenter, docs/CONSTITUTION.md, /spec-drift).",
+   "evidencia": [
+    "manifests/install-modules.json:314-358 (workflow-quality, skills/living-docs-governance)",
+    "manifests/install-profiles.json:4-19",
+    "manifests/pi-core.json:108 (include)",
+    "repo:package.json:37-58 (scripts/ no se distribuye)"
+   ],
+   "revision_propuesta": "Mantener el cambio del aviso y añadir la comprobación en el consumidor: si documenter ya inventaría antes de crear y actualiza solo el papel afectado, anotar esa cobertura; si no, la «zona de borrado» (motivo, sustituto y condición de revisión) va a documenter."
+  }
+ ]
+}
