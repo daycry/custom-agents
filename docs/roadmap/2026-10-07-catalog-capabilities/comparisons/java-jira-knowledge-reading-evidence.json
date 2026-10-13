@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S145",
+    "S146",
+    "S147",
+    "S148"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S145",
+      "sha256": "c7088a434cd7efb4f3bb449bed2178cf683c1d71bc50f8ae5234a8880d3633f4",
+      "bytes": 11550,
+      "lines": 384,
+      "read_ranges": [
+        [
+          1,
+          384
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S146",
+      "sha256": "ce0a0c815e3112a1e80d4dbd1d2d0c804c2af0371628d325e04d7ffbddf4247e",
+      "bytes": 9897,
+      "lines": 312,
+      "read_ranges": [
+        [
+          1,
+          312
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S147",
+      "sha256": "bcdd45c5e435df259856b20aae47182209b0467b542eacfc7e32bcf452326839",
+      "bytes": 4679,
+      "lines": 152,
+      "read_ranges": [
+        [
+          1,
+          152
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S148",
+      "sha256": "958529713af2ab29c7b31b3cb758953271174b8909c94f1238dd7c78671672c2",
+      "bytes": 6752,
+      "lines": 155,
+      "read_ranges": [
+        [
+          1,
+          155
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/stack-practices/SKILL.md",
+      "sha256": "c44933dab261ee24ae0daf38b9d1d11e02084ad04cd05fb84d03ab2110f60751"
+    },
+    {
+      "path": "skills/backend-practices/references/contracts-data.md",
+      "sha256": "589af44a6c37b7355ed8d088c7a8e341b42a131ce5b0d1c89c06e6cde2d2bdab"
+    },
+    {
+      "path": "skills/jira-sync/SKILL.md",
+      "sha256": "244c9b1bf72d85621240bca46b6d6904a3ef00cb96cae9d3adb55bb4a5587bff"
+    },
+    {
+      "path": "commands/roadmap-live.md",
+      "sha256": "e9193d5b677bebc1c71f4c635663411e74390b8fe69723ac06312294b2e6fd15"
+    },
+    {
+      "path": "commands/confluence-pull.md",
+      "sha256": "34be828cf0202a9e2c86a99bb089758b716c764c0fdab58aa62a166b7d685832"
+    },
+    {
+      "path": "agents/knowledge-curator.md",
+      "sha256": "594f125574aec362b41f07242544e9cb942bea57bdb882e57255b1d174565dc9"
+    },
+    {
+      "path": "skills/knowledge-services/SKILL.md",
+      "sha256": "d88f31e2ef49570ed47d841c98ede832665e45d939dfae8cf59e77aa7186bbb3"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

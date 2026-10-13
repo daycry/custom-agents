@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S141",
+    "S142",
+    "S143",
+    "S144"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S141",
+      "sha256": "ef5e4353d1d90a75ad0b9c435d831c178187b4be407b9270e2d32b2bb64589bc",
+      "bytes": 13385,
+      "lines": 263,
+      "read_ranges": [
+        [
+          1,
+          263
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "b5fc7bf3b938608ae9794248dc64e6aaf71942c12caae4131289e95056c1c441",
+          "bytes": 326,
+          "lines": 4,
+          "read_ranges": [
+            [
+              1,
+              4
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/ito-baskets.js",
+          "sha256": "696d05df7600ce3babcc5887a997b7e799e331015384bd5d6a0b4fd6a2ea51ee",
+          "bytes": 9956,
+          "lines": 195,
+          "read_ranges": [
+            [
+              1,
+              195
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    },
+    {
+      "id": "S142",
+      "sha256": "ed0664f44307b1243cd7fa7521b05ca3f50a1dd4460e93b55edb8bcda988e815",
+      "bytes": 6619,
+      "lines": 165,
+      "read_ranges": [
+        [
+          1,
+          165
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "75e87ae788bd1431fb25c0a1e070313e4e4a5d2ea8cb5f85b228b7a22f969e08",
+          "bytes": 253,
+          "lines": 4,
+          "read_ranges": [
+            [
+              1,
+              4
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    },
+    {
+      "id": "S143",
+      "sha256": "60d2094ff4e8eb43f4599eaf806331231525a7a6cc5fee609f1764a0f848cc7b",
+      "bytes": 6147,
+      "lines": 119,
+      "read_ranges": [
+        [
+          1,
+          119
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S144",
+      "sha256": "43ce5354855709d10d7171bae301157b0b88e6ac9a3775c9acd9599c0b7617d5",
+      "bytes": 6087,
+      "lines": 123,
+      "read_ranges": [
+        [
+          1,
+          123
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/research-first/SKILL.md",
+      "sha256": "ae43e6baaad2124c1613e981489b5ed6933c54bfd12c63e5897004b4a80bf760"
+    },
+    {
+      "path": "skills/backend-practices/SKILL.md",
+      "sha256": "130015328c98c14cfb7b55385fb6d438eb1c3d0baf46543c49e84e2f2d723f1e"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "67702b1115bc6d57c4eafbf9dab8d10abaab6b333d4ab330d828f30353770c96"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-curation.py",
+      "sha256": "c44d25841df77b669c66846eb947fa850b15d35fef089e6e65606ceb2e64a346"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}
