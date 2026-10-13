@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": ["S089", "S090", "S091", "S092", "S093", "S094"],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {"id": "S089", "sha256": "472d72a270cbd7f4eaf7fc73a1313f40a4995575c5e2d2ff4f91c280f5ee5df9", "bytes": 5713, "lines": 190, "read_ranges": [[1, 190]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S090", "sha256": "0c3250fe8c8c1384f1dc4a8b8bd57e3a80037d4964c7c18848e449bf03866644", "bytes": 6451, "lines": 150, "read_ranges": [[1, 150]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S091", "sha256": "efcc5b7c850d5a2f1b853c25a92b392fa0bf62451e5799b9a5efb905dbf45337", "bytes": 6477, "lines": 161, "read_ranges": [[1, 161]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S092", "sha256": "188b226ec0dfd4304d6c9b60498b5f0dc2b3c97b14e159e5bde5db323ad45721", "bytes": 4401, "lines": 133, "read_ranges": [[1, 133]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S093", "sha256": "4b4cb5d87f571cf02c26631e647fa06df21601a4faed6baf97a8100e1f32cc50", "bytes": 29934, "lines": 221, "read_ranges": [[1, 221]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S094", "sha256": "468a10e507520d1fd2f15e5cf326499456206740697fd9462570321996ddfb35", "bytes": 1536, "lines": 51, "read_ranges": [[1, 51]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []}
+  ],
+  "own_counterparts": [
+    {"path": "skills/backend-practices/references/contracts-data.md", "sha256": "589af44a6c37b7355ed8d088c7a8e341b42a131ce5b0d1c89c06e6cde2d2bdab"},
+    {"path": "skills/delivery-practices/references/delivery-tools.md", "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9"},
+    {"path": "commands/work-context.md", "sha256": "830b5f37649bd1c8945013096e5930ca425a3c384e5d1dd52c1765f5f32821ec"},
+    {"path": "commands/plugin-catalog.md", "sha256": "fd70e7acfa5f17bf889dbf8e9c4f77291c1e5372af05f70e81a206b7b9690334"}
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}
