@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": ["S107", "S108"],
+  "partially_read_skill_ids": ["S109"],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {"id": "S107", "sha256": "fa254de821f708e5791c4c80d30309ac7da89c2888301e967becb3b21ac73331", "bytes": 4360, "lines": 93, "read_ranges": [[1, 93]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S108", "sha256": "a5b971eb9e74cd763c7e3308bfd888e0d9cf69f8b88477659889d77182479740", "bytes": 15432, "lines": 657, "read_ranges": [[1, 657]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S109", "sha256": "9d58ad7d4555a9d6ea1944a5084fd0428ee44276ac13ee8df02c1c4e63925291", "bytes": 6559, "lines": 185, "read_ranges": [[1, 185]], "reading_scope": "full-body", "semantic_review": "partial-resources-pending", "directory_resources": [{"path": "scripts/export-pdf.sh", "sha256": "d19c5fb88b0165b47b21d7cc46f2947def88bc9ffc395f4efbaf96a6e07be2ac", "reading_scope": "full"}, {"path": "scripts/extract-pptx.py", "sha256": "4f5e7603c99b8b53e20c5b2a65abdf5edf9422b4c490dca9f2b872a752c17d2a", "reading_scope": "full"}, {"path": "STYLE_PRESETS.md", "sha256": "f3448493022f8fa3f858319b14c0c48a35d441864dc78a2411f7938c28e7a265", "reading_scope": "unread"}, {"path": "html-template.md", "sha256": "0ba1acf5016472f0f902ee2a67cf2d6e20e8dbd3f733df9cd8f5ee67d5ca0adf", "reading_scope": "unread"}, {"path": "animation-patterns.md", "sha256": "152ac81e87eba92dea96ef5ac488e3e0a341836aca034e908b0c1b6d60bff204", "reading_scope": "unread"}, {"path": "viewport-base.css", "sha256": "dab42c1a556a0fa51d3c39f7edfb93d8303e5c29625ade479a18ba97f2640734", "reading_scope": "unread"}]}
+  ],
+  "own_counterparts": [
+    {"path": "skills/frontend-quality/SKILL.md", "sha256": "7b6916e32d90731b8f81ee3eb36695dd9f62d498f132ac61bd7b9fd39066f4b0"},
+    {"path": "skills/stack-practices/references/react.md", "sha256": "97cc70d0da0fb6e9686222704084c7c0309f994d492b0487abb96a6bfb29c4d5"},
+    {"path": "skills/to-pdf/SKILL.md", "sha256": "c0c4a09b7a4072fc977ed8a8e984eaeefe9ed1762d1cf1d126c62f6be78e5287"}
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}
