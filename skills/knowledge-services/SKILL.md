@@ -42,11 +42,12 @@ no habilita ni configura ningún servicio externo.
 | Fichero | Qué es |
 |---|---|
 | `scripts/knowledge-sync.py` | Único punto de entrada; nunca menciona un backend concreto. |
+| `scripts/kwipu-project-add.py` | Alta del proyecto en `<stack>/kwipu/config/projects.yaml` (`/setup` 5-sexies, C-07): **solo añade** un bloque marcado, con vista previa + `sha256`, confirmación (`--apply --esperado`) y copia `.bak-<AAAAMMDDTHHMMSSZ>`. Exit 0 ok/no-op · 1 E/S o fichero cambiado · 2 uso · 3 forma no reconocida (imprime el bloque) · 4 conflicto. Contrato en `references/kwipu-adapter.md`. |
 | `backends/__init__.py` | Carga y valida el adaptador por `type` (`backends/README.md`: contrato completo de las 6 funciones). |
 | `backends/markdown_export.py` | Adaptador Kwipu (`type: "markdown-export"`): CA-17/CA-16, ver `references/kwipu-adapter.md`. |
 | `backends/graphiti.py` + `backends/graphiti_providers.py` | Adaptador Graphiti (`type: "graphiti"`, ADR-018): cliente MCP, `mode: off`/`shadow`/`read` (default `shadow`), `rebuild`/`revoke`; los proveedores orientan la extracción del servidor — ver `backends/README.md`. |
 | `agent-kits/shared/knowledge-find.py` | Recuperación local y router por `--intent`: lectura externa autorizada o fallback local con motivo; lee `backends/README.md` al configurar esa lectura. |
-| `agent-kits/shared/knowledge-schema.py` | Taxonomía del proyecto (`taxonomy.json`), fail-closed. |
+| `agent-kits/shared/knowledge-schema.py` | Taxonomía del proyecto (`taxonomy.json`), fail-closed; `--setup-id-prefix` propone/valida/guarda el `id_prefix` y avisa al renombrar con conocimiento ya exportado (CA-14/CA-15). Aviso de grupo ajeno de Graphiti: `knowledge-sync.py --avisos-grupo [--consultar-servidor]`. |
 | `agent-kits/shared/knowledge-curation.py` + `agent-kits/shared/knowledge-curation-rules.py` | Dueños de persistencia y validación reutilizable en la fase anterior a sync; propose/apply/recover no se invocan para publicar ni sustituyen juicio del Curator. Referencias del bundle compartido, no un segundo gate. |
 | `agent-kits/shared/knowledge-index.py` | Índice de `approved/`. |
 | `agent-kits/shared/knowledge-local.py` + `knowledge-taxonomy-local.py` | Lectores compartidos sin red: corpus aprobado y reglas locales de taxonomía. |
@@ -120,6 +121,7 @@ Añadir un backend nuevo: un fichero `backends/<type>.py` con las 6 funciones �
   publicación/retirada/recibo separados; sin atomicidad multiarchivo ni sandbox universal.
   POSIX sincroniza directorios; el helper Windows no lo hace. La implementación y su revisión/QA
   no acreditan aceptación nativa o supervivencia a corte eléctrico. Esta skill no añade esos permisos.
+- **Una sola excepción a «no toca el stack»** (enmienda de ADR-018 / PAT-001, diseño O1): `kwipu-project-add.py` puede AÑADIR un bloque a `projects.yaml`, nunca modificar ni borrar; `build_view` y el reinicio de contenedores solo se imprimen.
 - **Sin dependencias externas**: todo el código de esta skill es stdlib puro.
 
 Los errores tipados de Graphiti se rechazan incluso con `isError: false`.
@@ -133,4 +135,4 @@ sigue pendiente; la base local y el opt-in conservan sus contratos.
 
 - No decide taxonomía ni categorías (eso es `taxonomy.json`, por proyecto).
 - No aprueba ni rechaza conocimiento (eso es `knowledge-curator`).
-- No registra el backend en Kwipu/Graphiti por su cuenta (nada de "auto-discovery" de red).
+- No registra el backend en Kwipu/Graphiti por su cuenta (nada de "auto-discovery" de red); el alta en `projects.yaml` la lanza `/setup` con confirmación del usuario y solo añade.

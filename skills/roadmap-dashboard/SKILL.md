@@ -52,7 +52,7 @@ crea nada. Con cero iniciativas genera un HTML con un mensaje vacío y un enlace
 ## Cómo lee cada iniciativa
 
 - **spec.md** → frontmatter (`estado`, `descripcion`, `creado`, `actualizado`) + primer `# título`.
-- **evaluation.md** → filas de la tabla de cabecera (`Estado`, `Prioridad global`, `Características`) y del **Cuadro de mando** (`Coste`, `Esfuerzo humano`, `Tokens IA`, `Multiplicador productividad`).
+- **evaluation.md** → filas de la tabla de cabecera (`Estado`, `Prioridad global`, `Características`) y del **Cuadro de mando** (`Coste` o `Coste humano a N EUR/h` / `Coste humano (N EUR/h)`; `Esfuerzo humano` o `Tiempo humano`; `Tokens IA`; `Multiplicador productividad`). Sin fila `Estado`, lee `estado:` del frontmatter. Una evaluación sin tabla de coste (solo prosa) da coste y esfuerzo nulos y un aviso que nombra la evaluación; los valores se conservan como texto (la coma de «1,300 EUR» es de miles).
 - Presencia de `improvement-plan.md`, `tasks.md` y `testing/` → artefactos y fase.
 
 El esquema de estados es el del repo (regla 7 de `docs/CONVENTIONS.md`):

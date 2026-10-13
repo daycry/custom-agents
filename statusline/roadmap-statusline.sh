@@ -55,11 +55,16 @@ out=""
 [ -n "$model" ] && out="[$model]"
 # Coste y contexto solo si son numéricos (un valor raro se omite, no se imprime a medias).
 if printf '%s' "$cost" | grep -qE '^[0-9]+([.][0-9]+)?$'; then
-  cost_fmt="$(printf '%.2f' "$cost" 2>/dev/null)"
-  [ -n "$cost_fmt" ] && out="${out:+$out }\$${cost_fmt}"
+  cost_fmt="$(LC_ALL=C printf '%.2f' "$cost" 2>/dev/null)"
+  # C-03: un coste positivo por debajo del céntimo no se muestra como $0.00.
+  if [ "$cost_fmt" = "0.00" ] && printf '%s' "$cost" | grep -qE '[1-9]'; then
+    out="${out:+$out }<\$0.01"
+  elif [ -n "$cost_fmt" ]; then
+    out="${out:+$out }\$${cost_fmt}"
+  fi
 fi
 if printf '%s' "$ctx" | grep -qE '^[0-9]+([.][0-9]+)?$'; then
-  ctx_int="$(printf '%.0f' "$ctx" 2>/dev/null)"
+  ctx_int="$(LC_ALL=C printf '%.0f' "$ctx" 2>/dev/null)"
   [ -n "$ctx_int" ] && out="${out:+$out }ctx ${ctx_int}%"
 fi
 
@@ -67,21 +72,27 @@ fi
 if command -v python3 >/dev/null 2>&1; then
   REPORT="$HERE/../agent-kits/shared/progress-report.py"
   if [ ! -f "$REPORT" ]; then
-    REPORT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "${HOME:-}/.claude" "${HOME:-}/.codex" "${HOME:-}/.config/opencode" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
+    REPORT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "${HOME:-}/.claude" "${HOME:-}/.codex" "${HOME:-}/.config/opencode" -type f -path '*agent-kits/shared/progress-report.py' ! -path '*/.claude/jobs/*' 2>/dev/null | head -1)"
   fi
   ROOT="${CLAUDE_PROJECT_DIR:-$PWD}/docs/roadmap"
   if [ -n "$REPORT" ] && [ -f "$REPORT" ] && [ -d "$ROOT" ]; then
     rm_seg="$(python3 "$REPORT" active --root "$ROOT" --json 2>/dev/null | PYTHONIOENCODING=utf-8:replace python3 -c '
 import json, sys
 try:
-    a = json.load(sys.stdin).get("activas", [])
+    d = json.load(sys.stdin)
+    a = d.get("activas", [])
+    cur = d.get("iniciativa_en_curso")
 except Exception:
-    a = []
+    a, cur = [], None
 if len(a) == 1:
     r = a[0]
     print("📋 %s T-%02d/%d %d%%" % (r["slug"], r["completadas"], r["total"], r["pct"]))
 elif len(a) > 1:
-    print("📋 %d iniciativas activas" % len(a))
+    r = next((x for x in a if x.get("slug") == cur), None)
+    if r:  # C-01: la iniciativa en curso (marcador abierto del usage-meter o tasks.md más reciente)
+        print("📋 %d activas · ▶ %s T-%02d/%d %d%%" % (len(a), r["slug"], r["completadas"], r["total"], r["pct"]))
+    else:
+        print("📋 %d iniciativas activas" % len(a))
 ' 2>/dev/null)"
     [ -n "$rm_seg" ] && out="${out:+$out · }$rm_seg"
   fi
