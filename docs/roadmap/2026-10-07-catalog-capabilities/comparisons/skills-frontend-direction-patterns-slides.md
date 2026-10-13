@@ -1,10 +1,8 @@
 # Dirección de diseño, patrones React y presentaciones HTML — S107–S109
 
 Revisión fijada: `ef648e01899ba3e8dc6371642deaaf64b4477775`.
-Evaluadas S107 y S108 (cuerpos completos, **19.792 bytes/750 líneas**). S109 queda
-**parcial**: cuerpo y dos scripts leídos (`export-pdf.sh`, `extract-pptx.py`), cuatro
-recursos de estilo sin leer (`STYLE_PRESETS.md`, `html-template.md`,
-`animation-patterns.md`, `viewport-base.css`); no cuenta como evaluada.
+Evaluadas S107–S109: cuerpos completos (**26.351 bytes/935 líneas**) y los seis recursos de S109.
+S109 se cerró en una segunda pasada tras leer sus cuatro recursos de estilo.
 [frontend-direction-patterns-slides-reading-evidence.json](frontend-direction-patterns-slides-reading-evidence.json).
 Nada se ejecutó ni se integró. Propuestas para T-08.
 
@@ -46,12 +44,12 @@ frontend-quality, interacción. Correcciones:
 **Destino.** Ejemplos corregidos de carga de datos con cancelación en
 stack-practices/react; el resto ya está cubierto.
 
-## S109 — Presentaciones HTML animadas (parcial)
+## S109 — Presentaciones HTML animadas
 
 `6.559 bytes/185 líneas` + scripts. Generar presentaciones de un solo fichero,
 conversión desde PPTX y exportación a PDF por capturas.
 
-**Lectura parcial.** El plugin tiene `to-pdf` (Markdown/HTML/Word a PDF con
+El plugin tiene `to-pdf` (Markdown/HTML/Word a PDF con
 Chromium y tema propio). Hallazgos en lo leído:
 
 - `export-pdf.sh` instala Playwright y Chromium **en cada ejecución** (sin versión
@@ -62,5 +60,24 @@ Chromium y tema propio). Hallazgos en lo leído:
 - `extract-pptx.py` sobrescribe `assets/` y `extracted-slides.json` sin comprobar
   si existen, y usa el número mágico 13 para imágenes en vez de la constante de la librería.
 
-Decisión provisional: no adoptar; la exportación a PDF ya tiene dueño (`to-pdf`).
-Falta leer los recursos de estilo antes de cerrar la ficha.
+**Cierre (2026-10-13, recursos leídos).** `STYLE_PRESETS.md` (12 estilos,
+densidad por tipo de diapositiva, CSS base obligatorio), `viewport-base.css`
+(el mismo bloque), `animation-patterns.md` y `html-template.md` (estructura,
+controlador de navegación, edición en línea opcional y procesado de imágenes).
+Hallazgos adicionales:
+
+- La plantilla prohíbe las fuentes del sistema y carga siempre fuentes de un CDN
+  externo: la presentación no es autocontenida (contradice «cero dependencias»)
+  y falla sin red.
+- El controlador de la plantilla tiene los métodos vacíos y `navDotsContainer`
+  sin asignar: no es código ejecutable, aunque la pieza lo presenta como estructura obligatoria.
+- `prefers-reduced-motion` reduce animaciones a 0,01 ms pero deja transiciones de
+  0,2 s y el `scroll-snap` obligatorio; la navegación por rueda sigue moviendo diapositivas.
+- Reducir tipografía hasta `0.65rem` en pantallas bajas choca con «nunca reducir
+  el texto por debajo de lo legible» de la propia pieza.
+- **Conservar:** el aviso de CSS (`-clamp()` se ignora en silencio; usar
+  `calc(-1 * clamp(...))`) y quitar el estado de edición antes de exportar el HTML.
+
+**Decisión.** No adoptar: generar presentaciones no es un rol del ciclo y la
+exportación a PDF ya tiene dueño (`to-pdf`). El aviso de `-clamp()` va a
+frontend-quality como nota de CSS.
