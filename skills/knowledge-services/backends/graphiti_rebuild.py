@@ -21,8 +21,8 @@ STATE_FIELDS = {'owner', 'schema', 'endpoint', 'logical_group_id', 'group_id',
 
 
 def _mkdir_private(path, **kwargs):
-    """0o700 en POSIX. En Windows se heredan los permisos del padre: Python 3.13 convierte
-    0o700 en una ACL explícita que deja fuera al usuario restringido del sandbox de Codex."""
+    """0o700 on POSIX. On Windows the parent permissions are inherited: Python 3.13 turns
+    0o700 into an explicit ACL that locks out the restricted Codex sandbox user."""
     if os.name == 'nt':
         path.mkdir(**kwargs)
     else:

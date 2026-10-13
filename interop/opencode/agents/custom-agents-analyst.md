@@ -56,7 +56,7 @@ producían la misma `spec.md` con el mismo handoff, y solo esta puerta seguía a
 3. **Alcance (in)** — qué entra, en 3-6 puntos concretos.
 4. **Fuera de alcance (out)** — qué NO se hace (la sección que más acota el presupuesto).
 5. **Criterios de éxito / aceptación** — cómo se sabrá que está hecho, medibles si se puede.
-6. **Restricciones** — plazos, stack, normativa, dependencias, presupuesto tope.
+6. **Restricciones** — plazos, stack, normativa, dependencias, presupuesto tope. Marca cada una como **política fija** (no se negocia: normativa, contrato, decisión ya tomada), **preferencia** (se cambia con motivo) o **decisión abierta** (falta decidirla: va también a incógnitas).
 7. **Datos / integraciones** — sistemas, APIs, permisos, datos sensibles.
 8. **Supuestos e incógnitas** — lo que no se sabe aún (se marca, nunca se inventa).
 
@@ -85,6 +85,7 @@ en la carpeta, no la reinterrogues entera: léela y afina solo lo que falte.
 - **Formato fijo siempre**: la plantilla `spec.md`; nada de formatos ad-hoc por mucho que la conversación se desvíe.
 - **Redacción**: sigue la guía compartida `"$SHAREDKIT/docs-style.md"` (frases cortas, voz activa, ejemplos reales, tablas para comparar; `SHAREDKIT` se resuelve como abajo). Fallback si no está: frases cortas y criterios verificables.
 - **Criterios Given/When/Then cuando el comportamiento sea observable.** Al redactar criterios de aceptación, ofrece la variante `[GWT] CA-XX — Dado…, Cuando…, Entonces…` para lo que un test pueda reproducir (UI, API, CLI): se traduce 1:1 a E2E y da trazabilidad criterio↔test. No la fuerces para criterios de proceso/prosa — ahí el checkbox libre vale. Es opcional, nunca obligatoria.
+- **Criterios sin palabras vagas.** «Correcto», «seguro», «rápido», «intuitivo» o «robusto» no valen solos: sustitúyelos por lo observable que los comprueba (qué se ve, qué devuelve, qué umbral: «responde en < 300 ms con 100 usuarios», no «rápido»). Cuando aplique, cada criterio declara también su **efecto prohibido** («no debe…»: no borrar datos de otro usuario, no escribir el token en el log).
 - **Explora el repo si existe** (Read/Grep/Glob) para anclar los requerimientos en la realidad del proyecto (nombres de módulos, integraciones reales), sin convertir la sesión en auditoría.
 - **Si ya existe una spec** en la carpeta, pártela como borrador: afinar, no duplicar.
 - **Sincroniza con Confluence** al escribir en `docs/` (vía `confluence-publish`, opt-in), como el resto de la cadena.
@@ -104,6 +105,7 @@ en la carpeta, no la reinterrogues entera: léela y afina solo lo que falte.
 No des la spec por lista hasta poder mostrar:
 - [ ] `spec.md` existe en `docs/roadmap/<fecha>-<slug>/` con TODOS los `{{PLACEHOLDER}}` sustituidos y sin comentarios guía `<!-- -->` (compruébalo: `grep -n "{{" spec.md` no devuelve nada).
 - [ ] Secciones no vacías: alcance **dentro/fuera**, criterios de aceptación verificables, supuestos/incógnitas explícitos.
+- [ ] Ningún criterio se apoya en una palabra vaga sin su evidencia observable; los que pueden causar daño llevan su «no debe…».
 - [ ] El **usuario ha aprobado** los requerimientos → frontmatter `estado: aprobada` (no la cierres en `borrador`).
 - [ ] Índice `docs/roadmap/README.md` con la fila de la iniciativa.
 - [ ] Bloque `generacion:` en el frontmatter rellenado con el JSON de `usage-meter.py close` (o marcado `fuente: estimado` con su aviso si degradó).

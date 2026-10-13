@@ -196,6 +196,21 @@ def test_sin_stack_exit_2():
     assert code == 2 and "no se detectó ningún stack" in data["aviso"]
 
 
+def test_build_conocido_sin_soporte_lo_nombra_en_vez_de_pedir_manifiestos():
+    """Un proyecto Gradle/Maven/Cargo SÍ tiene manifiesto: decirle «¿faltan sus ficheros de
+    manifiesto?» le manda a buscar un error que no existe. Se nombra el build y su herramienta."""
+    casos = {"build.gradle.kts": ("gradle", "Kover"), "pom.xml": ("maven", "JaCoCo"),
+             "Cargo.toml": ("cargo", "cargo-llvm-cov")}
+    for fichero, (build, herramienta) in casos.items():
+        d = tempfile.mkdtemp(prefix="cg-")
+        write(d, fichero, "\n")
+        code, data, _ = run(d, ".")
+        assert code == 2 and data["stack"] is None
+        assert data["buildSinSoporte"] == build
+        assert fichero in data["aviso"] and herramienta in data["aviso"]
+        assert "faltan sus ficheros" not in data["aviso"]
+
+
 def test_changed_only_filtra_por_diff_en_repo_git_temporal():
     d = tempfile.mkdtemp(prefix="cg-")
     sh(d, "git", "init", "-q", "-b", "master")

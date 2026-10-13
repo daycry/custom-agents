@@ -81,6 +81,8 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 CONTRATO = """## Contrato de retorno (obligatorio)
 
 Trabaja SOLO con este brief y los ficheros que referencia (no explores el repo entero).
+Si un término no aparece en ellos, búscalo con sinónimos del dominio («rate limit» → `throttle`)
+antes de devolver NEEDS_CONTEXT.
 Al terminar, tu última línea debe ser exactamente uno de estos estados:
 
 - `DONE` — tarea completa; todos los criterios de aceptación cumplidos y la **Verificación ejecutada

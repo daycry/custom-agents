@@ -18,7 +18,7 @@ sin detección se registran como declarados, no como dependencias comprobadas.
 |---|---|
 | [PHP y CodeIgniter](references/php-codeigniter.md) | Rutas, validación, servicios, persistencia o tests PHP |
 | [Python](references/python.md) | Tipos, E/S, concurrencia, empaquetado o fixtures Python |
-| [React](references/react.md) | Estado, efectos, componentes, datos o tests React |
+| [React](references/react.md) | Estado, efectos, componentes, datos, SSR, build Vite o tests React |
 
 Architect decide fronteras; planner convierte riesgos en casos; implementer
 aplica el criterio; reviewer comprueba el mismo contrato; qa ejecuta escenarios.

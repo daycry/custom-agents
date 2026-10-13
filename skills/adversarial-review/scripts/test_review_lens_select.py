@@ -13,6 +13,7 @@ SCRIPT = os.path.join(HERE, "review-lens-select.py")
 # si algún día se escanea (los tests están excluidos del escaneo de contenido, pero por si acaso).
 EVAL = "ev" + "al(" + "'1+1')"
 FSELECT = 'f"SEL' + 'ECT * FROM u WHERE id={uid}"'
+USE_SERVER = "use " + "server"
 
 # Lente D (rendimiento, superiority T-04): mismo cuidado por concatenación.
 SLEEP = "sle" + "ep(2)"
@@ -84,6 +85,32 @@ def test_contenido_eval_en_linea_anadida_activa_la_lente_c():
     assert code == 0 and data["lente_c"] is True
     m = [m for m in data["motivos"] if m["tipo"] == "contenido"]
     assert m and m[0]["fichero"] == "src/app.py" and m[0]["linea"] == 2
+
+
+def test_directiva_de_accion_de_servidor_activa_la_lente_c():
+    """Una función marcada como acción de servidor es un endpoint público (autenticar y autorizar
+    dentro): la directiva, con comillas dobles o simples, dispara la Lente C por contenido."""
+    casos = (
+        ("app/actions.ts", '"' + USE_SERVER + '";\nexport async function borrar(id) {}\n'),
+        ("app/admin/borrar.js", "'" + USE_SERVER + "';\nexport async function borrar(id) {}\n"),
+        ("app/page.tsx", "export async function f() { '" + USE_SERVER + "'; }\n"),
+    )
+    for rel, texto in casos:
+        d = repo_git()
+        write(d, rel, texto)
+        sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "action")
+        code, data, _ = run(d)
+        assert code == 0 and data["lente_c"] is True, rel
+        m = [m for m in data["motivos"] if m["tipo"] == "contenido" and m["fichero"] == rel]
+        assert m and m[0]["linea"] == 1
+
+
+def test_mencion_sin_comillas_de_server_no_es_la_directiva():
+    d = repo_git()
+    write(d, "src/notas.py", "# we " + USE_SERVER + "s for this\nx = 1\n")
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "nota")
+    code, data, _ = run(d)
+    assert code == 0 and data["lente_c"] is False and data["motivos"] == []
 
 
 def test_nada_sensible_da_false_con_motivos_vacios():

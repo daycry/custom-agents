@@ -16,7 +16,8 @@ en `dev.json` saca globs de la heurística de ruta —para un repo cuyos hooks s
 líneas añadidas** del diff (las borradas no cuentan): `eval(`/`exec(`, `subprocess` **solo con
 `shell=True` en la misma línea**, `os.system(`/`os.popen(`, `innerHTML`/`dangerouslySetInnerHTML`,
 `pickle.loads(`, `yaml.load(`, SQL concatenado o en f-string, `API_KEY`, `PRIVATE KEY`/`BEGIN RSA`,
-`Authorization:`, `Set-Cookie`. La prosa, `docs/**`, los tests y las fixtures no se escanean por
+`Authorization:`, `Set-Cookie` y la directiva `"use server"`/`'use server'` (cada función que marca
+es un endpoint público que se invoca desde el cliente: autenticar y autorizar va dentro). La prosa, `docs/**`, los tests y las fixtures no se escanean por
 contenido (contienen payloads a propósito); los binarios se saltan. Configurable en
 `.claude/dev.json` → `"revision": {"lenteSeguridad": "auto" | "siempre" | "nunca", "excluir": ["glob", …]}`
 (default `auto`, sin exclusiones; `/setup` paso 5-ter pregunta el modo; `excluir` es ajuste manual).

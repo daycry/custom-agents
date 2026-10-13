@@ -21,4 +21,4 @@ Las credenciales y los detalles internos de errores no van a las respuestas.
 
 | Referencia | Cuándo leerla |
 |---|---|
-| [Contratos y datos](references/contracts-data.md) | Cambios API, persistencia, retries o migraciones |
+| [Contratos y datos](references/contracts-data.md) | Cambios API, persistencia, retries, webhooks, subidas, cuotas, caché, cerrojos o migraciones |

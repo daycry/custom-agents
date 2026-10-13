@@ -32,7 +32,11 @@ Enuncia la causa en una frase falsable: "falla porque X hace Y cuando Z". Diseñ
 más barata que la confirme o la tumbe (un assert, un input diseñado, un log en el punto
 exacto) y ejecútala. Si la hipótesis cae, vuelve a la Fase 2 con lo aprendido — NO pases a
 arreglar "por si acaso".
-*Evidencia:* la hipótesis literal + el resultado de la prueba que la confirma.
+Si la evidencia muestra una **conjunción de causas** (el fallo solo aparece cuando X **y** Y
+coinciden), no la fuerces a una sola frase: enuncia y prueba cada causa por separado, y cada una
+lleva su propio test de regresión en la Fase 4. Arreglar solo una reduce la frecuencia del fallo
+sin eliminarlo.
+*Evidencia:* la hipótesis literal + el resultado de la prueba que la confirma (una por causa).
 
 **Fase 4 — Fix + test de regresión.**
 Arregla LA CAUSA (no el síntoma) con el cambio mínimo que la hipótesis justifica, y deja un

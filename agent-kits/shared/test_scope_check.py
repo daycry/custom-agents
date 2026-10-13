@@ -252,8 +252,10 @@ def test_exclusiones_por_defecto_no_salen_fuera_de_alcance():
         assert d["en_alcance"] == ["src/app.py"], d["en_alcance"]
         # claves del contrato: las 8 de siempre + las 5 aditivas de T-11 (`excluidos` y, desde el
         # gap R4a-9, `excluir_vigente`/`excluir_usuario`/`excluidos_patron`/`avisos`) + las 2 del
-        # gap B4-1 (`excluidos_usuario`/`info`: la visibilidad sin veredicto)
-        assert sorted(d) == ["avisos", "base", "base_desc", "cambiados", "declarados_sin_tocar",
+        # gap B4-1 (`excluidos_usuario`/`info`: la visibilidad sin veredicto) + las 2 de los criterios
+        # aprobados (`criterios_base`/`criterios_alterados`)
+        assert sorted(d) == ["avisos", "base", "base_desc", "cambiados", "criterios_alterados",
+                             "criterios_base", "declarados_sin_tocar",
                              "en_alcance", "excluidos", "excluidos_patron", "excluidos_usuario",
                              "excluir_usuario", "excluir_vigente", "fuera_de_alcance", "info",
                              "patrones", "slug"]
@@ -540,3 +542,100 @@ def test_hay_git_dir_mira_los_padres():
         os.makedirs(os.path.join(tmp, ".git"), exist_ok=True)
         assert mod.hay_git_dir(hondo) is True
         assert mod.hay_git_dir(tmp) is True
+
+
+# ---------------------------- criterios de aceptación aprobados (texto intocable) ----
+CRIT = "El endpoint devuelve 404 si el recurso no existe."
+LEDGER_CRIT = LEDGER.replace("- [ ] c\n\n### T-02", f"- [ ] {CRIT}\n\n### T-02", 1)
+
+
+def _ledger(tmp, texto):
+    """UTF-8 explícito: `touch` usa la codificación local (cp1252 en Windows) y «aceptación» dejaría de
+    casar con la cabecera del bloque de criterios."""
+    p = os.path.join(tmp, INI, "tasks.md")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w", encoding="utf-8") as fh:
+        fh.write(texto)
+
+
+def _repo_crit(tmp):
+    git(tmp, "init", "-q", "-b", "main")
+    _ledger(tmp, LEDGER_CRIT)
+    commit_all(tmp, "plan aprobado")
+    git(tmp, "checkout", "-qb", "feature/demo")
+
+
+def test_criterio_aprobado_reescrito_falla_y_lo_cita():
+    with tempfile.TemporaryDirectory() as tmp:
+        _repo_crit(tmp)
+        _ledger(tmp, LEDGER_CRIT.replace(CRIT, "El endpoint responde."))
+        commit_all(tmp)
+        code, out, _ = run(tmp)
+        assert code == 1, out
+        assert "T-01" in out and "404 si el recurso no existe" in out
+        code, out, _ = run(tmp, "--json")
+        d = json.loads(out)
+        assert code == 1 and d["fuera_de_alcance"] == []
+        assert d["criterios_alterados"] == [{"tarea": "T-01", "criterio": CRIT.rstrip(".")}]
+
+
+def test_criterio_aprobado_borrado_falla_y_warn_only_no():
+    with tempfile.TemporaryDirectory() as tmp:
+        _repo_crit(tmp)
+        _ledger(tmp, LEDGER_CRIT.replace(f"- [ ] {CRIT}\n", ""))   # sin comitear
+        code, out, _ = run(tmp)
+        assert code == 1 and "T-01" in out, out
+        code, _, _ = run(tmp, "--warn-only")
+        assert code == 0
+
+
+def test_marcar_anotar_y_anadir_criterios_no_es_alterar():
+    with tempfile.TemporaryDirectory() as tmp:
+        _repo_crit(tmp)
+        nuevo = LEDGER_CRIT.replace(f"- [ ] {CRIT}", f"- [x] {CRIT[:-1]} (fix1: también con id negativo).\n"
+                                                    "- [ ] Criterio nuevo del intento 2", 1)
+        _ledger(tmp, nuevo)
+        commit_all(tmp)
+        code, out, err = run(tmp, "--json")
+        assert code == 0, out + err
+        assert json.loads(out)["criterios_alterados"] == []
+
+
+def test_linea_base_es_el_primer_commit_de_la_rama_si_la_base_no_tiene_ledger():
+    with tempfile.TemporaryDirectory() as tmp:
+        git(tmp, "init", "-q", "-b", "main")
+        touch(tmp, "base.txt")
+        commit_all(tmp, "init")
+        git(tmp, "checkout", "-qb", "feature/demo")
+        _ledger(tmp, LEDGER_CRIT)
+        commit_all(tmp, "plan")
+        _ledger(tmp, LEDGER_CRIT.replace("404", "4xx"))
+        commit_all(tmp, "T-01")
+        code, out, _ = run(tmp, "--json")
+        d = json.loads(out)
+        assert code == 1 and d["criterios_alterados"][0]["tarea"] == "T-01", out
+        assert d["criterios_base"].startswith("primer commit de la rama")
+
+
+def test_sin_linea_base_no_falla_y_lo_dice():
+    with tempfile.TemporaryDirectory() as tmp:
+        git(tmp, "init", "-q", "-b", "main")
+        touch(tmp, "base.txt")
+        commit_all(tmp, "init")
+        git(tmp, "checkout", "-qb", "feature/demo")
+        _ledger(tmp, LEDGER_CRIT)              # ledger nunca comiteado
+        code, out, err = run(tmp, "--json")
+        d = json.loads(out)
+        assert code == 0 and d["criterios_alterados"] == [] and d["criterios_base"] is None, out
+        assert "sin línea base" in err
+
+
+def test_criterio_prefijo_solo_en_frontera_de_palabra():
+    mod = _mod()
+    pl = mod._load_parse_ledger()
+    base = LEDGER_CRIT
+    assert mod.criterios_alterados(base, base, pl) == []
+    pegado = base.replace(CRIT, CRIT[:-1] + "s")                  # «existes»: ya no es el mismo texto
+    assert mod.criterios_alterados(base, pegado, pl) == [{"tarea": "T-01", "criterio": CRIT.rstrip(".")}]
+    sin_tarea = base.split("### T-01")[0]                         # la tarea entera desaparece
+    assert {a["tarea"] for a in mod.criterios_alterados(base, sin_tarea, pl)} == {"T-01", "T-02"}

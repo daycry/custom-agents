@@ -687,6 +687,7 @@ def _lint_estructura_global(root, commands_dir, skills_dir, errors, warnings):
     # --- Skills cortas: SKILL.md > SKILL_WARN_LINES líneas (aviso token-diet) ---
     warnings.extend(lint_skill_sizes(root))
     warnings.extend(lint_skill_desc_interop(root))
+    warnings.extend(lint_skill_fm_claves(root))
 
     # --- Frontmatter que un parser YAML rechaza (GitHub lo pinta como error) ---
     errors.extend(lint_frontmatter_yaml(root))
@@ -1175,6 +1176,50 @@ def lint_skill_sizes(root):
             warns.append(f"skill `{d}`: SKILL.md de {n} líneas (> {SKILL_WARN_LINES}) — token-diet: mueve el detalle a "
                          f"skills/{d}/references/<tema>.md y déjalo enlazado «léelo solo al llegar al paso X» "
                          f"(umbral duro {SKILL_HARD_LINES} en tests/test_skill_size.py)")
+    return warns
+
+
+# Claves de frontmatter de SKILL.md que documenta Claude Code (code.claude.com/docs/en/skills,
+# «Frontmatter reference», consultada 2026-10-13). Una clave fuera de esta lista se ignora EN
+# SILENCIO: una errata (`user-invokable`) deja sin efecto lo que pretendía.
+SKILL_FM_CLAVES = frozenset((
+    "name", "description", "when_to_use", "arguments", "argument-hint", "disable-model-invocation",
+    "user-invocable", "allowed-tools", "disallowed-tools", "model", "effort", "context", "agent",
+    "background", "hooks", "paths", "shell", "metadata", "license", "compatibility"))
+
+
+def lint_skill_fm_claves(root):
+    """Avisos: clave de frontmatter de skill que Claude Code no reconoce (y la buena si es errata)."""
+    import difflib
+    warns = []
+    sk = os.path.join(root, "skills")
+    if not os.path.isdir(sk):
+        return warns
+    for d in sorted(os.listdir(sk)):
+        p = os.path.join(sk, d, "SKILL.md")
+        if not os.path.isfile(p):
+            continue
+        try:
+            with open(p, encoding="utf-8", errors="replace") as f:
+                texto = f.read()
+        except OSError:
+            continue
+        m = re.match(r"^---\r?\n(.*?)\r?\n---\r?\n", texto, re.S)
+        if not m:
+            continue
+        nombre = re.search(r"^name:\s*['\"]?([^'\"\r\n]+?)['\"]?\s*$", m.group(1), re.M)
+        if nombre and nombre.group(1) != d:
+            # En un plugin, `name` sustituye al nombre de la carpeta en el comando
+            # (`/custom-agents:<name>`) y otros runtimes la buscan por carpeta: divergen.
+            warns.append(f"skill `{d}`: `name: {nombre.group(1)}` no coincide con su carpeta; el "
+                         f"comando y la carpeta que buscan otros runtimes serían distintos")
+        for clave in re.findall(r"^([A-Za-z_][A-Za-z0-9_-]*):", m.group(1), re.M):
+            if clave in SKILL_FM_CLAVES:
+                continue
+            parecida = difflib.get_close_matches(clave, SKILL_FM_CLAVES, n=1, cutoff=0.8)
+            pista = f" — ¿querías `{parecida[0]}`?" if parecida else ""
+            warns.append(f"skill `{d}`: clave `{clave}` no documentada en el frontmatter de skills; "
+                         f"Claude Code la ignora sin avisar{pista}")
     return warns
 
 
@@ -1705,8 +1750,10 @@ def _tolerancias_caducadas(root):
                           f"PIEZAS_PLANIFICADAS ({motivo})")
     for ruta, motivo in sorted(RUTAS_RETIRADAS.items()):
         if os.path.exists(os.path.join(root, ruta)):
-            avisos.append(f"scripts/lint_plugin.py: `{ruta}` vuelve a existir: quítala de "
-                          f"RUTAS_RETIRADAS ({motivo})")
+            # reaparecer contradice la decisión que la retiró: se nombra y se registra antes de quitarla
+            avisos.append(f"scripts/lint_plugin.py: `{ruta}` vuelve a existir y la retiró {motivo}; "
+                          f"si es intencional, registra la decisión que lo revierte y luego quítala "
+                          f"de RUTAS_RETIRADAS")
     for nombre, motivo in sorted(COMANDOS_PLANIFICADOS.items()):
         if os.path.isfile(os.path.join(root, "commands", nombre + ".md")):
             avisos.append(f"scripts/lint_plugin.py: `/{nombre}` ya existe: quítalo de "

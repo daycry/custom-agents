@@ -25,6 +25,10 @@ iniciativa: <slug de docs/roadmap/AAAA-MM-DD-slug/, o "proceso" si no viene de u
 
 <Qué cambia a partir de esta decisión (2-3 frases): qué se gana, qué se renuncia, qué queda condicionado.>
 
+## Participantes (opcional)
+
+<Quién decidió y a quién se consultó, por rol (usuario, architect, planner…). Solo con información real que conste en la conversación o el ledger; si no consta, borra la sección: nunca la rellenes por suposición.>
+
 ## Estado
 
 `propuesta` — a validar por la revisión de dos lentes o el usuario en la puerta. Pasa a `aceptada` cuando se valida; a `obsoleta` si una decisión posterior la reemplaza (enlaza aquí a la que la sustituye, nunca se borra el rastro).

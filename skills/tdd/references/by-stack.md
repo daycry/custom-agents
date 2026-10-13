@@ -28,6 +28,7 @@ del repo (columna «señal»), no preguntes si es evidente.
 |---|---|---|
 | `AssertionError: expected X, got Y` / `Expected … Received …` | **Rojo válido**: falla por el criterio | Registra `RED: …` y pasa a GREEN |
 | `NameError` / `AttributeError` / `undefined is not a function` sobre la función NUEVA | **Rojo válido**: la funcionalidad no existe todavía | Registra `RED: …` (resume el error) |
+| Error de **compilación** o de tipos (`TS2305`/`TS2339` de `tsc`, «símbolo no encontrado» del compilador) porque el test referencia el símbolo NUEVO | **Rojo válido**, el equivalente compilado del `NameError`: falla por la ausencia de lo que vas a escribir | Registra `RED: …`. Si el error de compilación apunta a OTRO símbolo o a un typo del test, es rojo por la razón equivocada |
 | `ImportError` / `ModuleNotFoundError` / `Cannot find module` del **test** | Rojo por la razón equivocada | Arregla el import del test; vuelve a correr |
 | `SyntaxError` en el test · fixture no encontrada · `0 tests collected` | El test no se ejecutó | Arregla el test hasta que corra y falle por el assert |
 | `passed` a la primera | No hay rojo | O el criterio ya estaba cubierto (dilo; no cuenta como TDD) o el test no prueba lo que crees: rómpelo a propósito hasta verlo fallar |

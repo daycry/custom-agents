@@ -66,6 +66,10 @@ el Knowledge Gate evalúa en solo lectura; Graphify no reemplaza journal, approv
     entre approved y legado aceptado requiere resolución humana trazada: ni fecha, score ni
     ranking deciden cuál gana. La constitución (`constitution-check.md`) prima. Una sucesión
     explícita conserva referencias; el lector no modifica incidentalmente el legado.
+  - **Preguntas «¿por qué X?»** (por qué este almacén, por qué se descartó una alternativa):
+    `knowledge-find.py --tipo adr --contexto "<X>"`, abre solo la decisión que responde y contesta
+    con su ID, `estado`, ruta y `fecha`; si está `obsoleta`, con la de su sucesor. Sin aciertos,
+    di que no consta una decisión registrada: no la reconstruyas ni propongas una entrada por eso.
 - **Si NO existe `docs/knowledge/`:** continúa sin ella — es **siempre activa pero degrada en
   silencio** (D3 de la iniciativa `knowledge-capture`): el servicio crea la cola al persistir la primera propuesta
   (`knowledge-write.md`), nunca bloquea a un lector que llega antes de que exista. Si el script no

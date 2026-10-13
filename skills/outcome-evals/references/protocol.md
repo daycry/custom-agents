@@ -11,7 +11,14 @@ Un check puede ser un test de dominio, un contrato API o una inspección humana
 predefinida. Una búsqueda textual de «TaskGroup» no demuestra cancelación; una
 captura de pantalla no demuestra persistencia. Clasifica checks automáticos y
 humanos por separado. Los juicios de un modelo son evidencia auxiliar con modelo,
-prompt y revisión; nunca sustituyen una prueba ejecutable disponible.
+prompt y revisión; nunca sustituyen una prueba ejecutable disponible. Un juez
+que recibe la medida como contexto no la valida, solo la repite: el contraste
+necesita una fuente separada de esa medida.
+
+En extracción determinista (regex, parser), el silencio del extractor no es
+éxito: lo que no reconoce desaparece sin error. Cuenta las unidades esperadas
+por una vía independiente (p. ej. encabezados numerados del documento) y trata
+la diferencia con lo extraído como fallo.
 
 ## Ejecutar condiciones comparables
 
@@ -20,6 +27,12 @@ permisos, presupuesto, dependencias y criterios. Ordena o alterna las ejecucione
 para no atribuir ruido temporal a la guía. Guarda la trayectoria permitida y
 artefactos redactados, sin razonamiento privado ni secretos. Una tool ausente,
 timeout o rechazo es un resultado distinto de un defecto funcional.
+
+La presión del prompt contra el método es una condición más: un mismo caso
+con petición de apoyo, neutra y en contra («hazlo rápido, los tests son
+opcionales») se fija antes de ejecutar y se compara por separado. El
+cumplimiento se comprueba en el artefacto (línea `RED:` del ledger, veredicto
+del script de puerta), no clasificando la trayectoria con un modelo.
 
 ## Registrar y comparar
 
@@ -46,6 +59,11 @@ los mismos casos/fixtures/conditions y número de repeticiones; no demuestra por
 sí misma que el productor haya mantenido esas condiciones.
 
 Publica denominador, casos y repeticiones, distribución y fallos de cada variante.
+Para expresar fiabilidad con k repeticiones por caso: pass@k es la fracción de
+casos con al menos un pass en sus k runs; pass^k, la de casos con pass en los k.
+Un run error o not-run no es pass. El script no las calcula: se derivan de sus
+outcomes por caso y se publican con k, casos y fallos, nunca contra un umbral
+(«pass@3 > 90 %») sin base en este corpus.
 La conclusión debe explicar qué cambió y en qué condiciones; no generalices de
 tres fixtures a todo el catálogo. Si no hay sesiones comparables, publica el
 protocolo y sus checks como preparados, sin anunciar una mejora de agentes.

@@ -11,7 +11,7 @@ description: >
   preferencias en .claude/confluence.json para que la próxima vez sea de un clic.
   Úsala cuando el usuario diga "publica en Confluence", "sube la doc a Confluence",
   "sincroniza con Confluence", "crea el espacio/árbol del proyecto en Confluence".
-user-invokable: true
+user-invocable: true
 ---
 
 # confluence-publish — publicar en Confluence con asistente guiado

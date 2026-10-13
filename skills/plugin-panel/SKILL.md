@@ -75,6 +75,9 @@ humana comunicada, opcional y no autenticada. Sus notas/historial se leen del du
 result/verify-result sólo se registran por CLI, sin nueva puerta ni escritor browser.
 Una autorización previa válida permite continuar sin otra confirmación.
 Cerrar la vista conserva el borrador y no decide.
+Feedback pendiente se informa; ningún hook bloquea el turno por él (ADR-007).
+La vista no carga recursos de red ni de CDN (la CSP del servidor parte de
+`default-src 'none'`): un diagrama Mermaid del plan se muestra como fuente.
 
 Actividad en modo servido es una lectura opt-in de señales recientes, separada
 del ledger: hasta 64 observaciones, 64 KiB por snapshot/respuesta y caducidad de

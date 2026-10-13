@@ -70,7 +70,7 @@ Si `ledger-lint` da incoherencias duras, repórtalo y pide que se arregle el led
 
 **P2. Guardrail + entorno.** Valida la URL (fase 0). Prepara el runner (fase 1) si hace falta.
 
-**P3. Generar los tests.** Traduce cada `E2E-xx` a un fichero Playwright `E2E-xx.spec.mjs` en `"$CACHE/tests/"` (usa `tests/E2E-example.spec.mjs` como patrón): pasos → acciones (`goto`, `fill`, `click`…), aserciones → `expect(...)`, y `page.screenshot()` en los momentos clave hacia `QA_OUT/screenshots`.
+**P3. Generar los tests.** Traduce cada `E2E-xx` a un fichero Playwright `E2E-xx.spec.mjs` en `"$CACHE/tests/"` (usa `tests/E2E-example.spec.mjs` como patrón): pasos → acciones (`goto`, `fill`, `click`…), aserciones → `expect(...)`, y `page.screenshot()` en los momentos clave hacia `QA_OUT/screenshots`. **Antes de escribir los selectores, inspecciona los controles reales de cada página** contra la app en marcha (tipo de campo, opciones de un `select` y su valor de marcador, botones deshabilitados hasta tener contenido) y localiza por **rol y nombre accesible** (`getByRole('button', { name: 'Guardar' })`, `getByLabel(...)`); CSS o XPath solo si el control no tiene rol ni nombre, y anótalo en el informe como hallazgo de accesibilidad.
 
 **P4. Ejecutar.**
 ```bash

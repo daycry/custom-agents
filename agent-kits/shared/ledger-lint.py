@@ -481,7 +481,9 @@ def parse_ledger(text):
                  "" si el campo existe pero está vacío, None si no existe),
                  "verificacion_items" ([str]: un ítem por comando → resultado),
                  "verificacion_ejecutada" (texto del paréntesis `(ejecutada …)` o None),
-                 "changelog" (texto del campo `- **Changelog**:`, "" si existe vacío, None si no)}.
+                 "changelog" (texto del campo `- **Changelog**:`, "" si existe vacío, None si no),
+                 "criterios" ([str]: texto de cada línea `- [ ]`/`- [x]` del bloque de criterios, sin la
+                 casilla; lo usa `scope-check.py` para detectar criterios aprobados reescritos)}.
     Lo consumen `lint()` (aquí) y `progress-report.py` (línea de progreso).
     """
     text = text.lstrip("\ufeff")          # BOM UTF-8: sin esto el frontmatter no se reconoce
@@ -562,7 +564,7 @@ def parse_ledger(text):
                         "tiene_criterios": False, "ia_real_h": None, "ia_est_h": None,
                         "ia_real_fuente": None, "verificacion": None,
                         "verificacion_items": [], "verificacion_ejecutada": None,
-                        "changelog": None}
+                        "changelog": None, "criterios": []}
             in_criterios = False
             continue
         if cur_task is not None:
@@ -599,6 +601,7 @@ def parse_ledger(text):
             if in_criterios:
                 mc = check_re.match(ln)
                 if mc:
+                    cur_task["criterios"].append(ln[mc.end():].strip())
                     if mc.group(1) in ("x", "X"):
                         cur_task["checked"] += 1
                     else:

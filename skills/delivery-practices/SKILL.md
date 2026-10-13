@@ -10,7 +10,7 @@ description: >
 # Preparar una entrega verificable
 
 Lee [entrega y herramientas](references/delivery-tools.md) **solo** al tocar
-operación, Docker o MCP. Prepara artefactos/configuración y una comprobación
+operación, Docker, CI, MCP o un efecto fuera del repo. Prepara artefactos/configuración y una comprobación
 local reproducible antes de ejecutar cambios externos. Usa la autorización
 vigente del usuario; preparar una entrega no autoriza publicarla o conectarla.
 
@@ -21,4 +21,4 @@ reales; una declaración MCP no demuestra conexión, salud ni permisos.
 
 | Referencia | Cuándo leerla |
 |---|---|
-| [Entrega y herramientas](references/delivery-tools.md) | Contenedores, despliegue o servidores MCP |
+| [Entrega y herramientas](references/delivery-tools.md) | Contenedores, despliegue, CI, arnés aislado, servidores MCP, contenido externo o efectos externos (envío, publicación, transición) |

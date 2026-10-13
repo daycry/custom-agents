@@ -99,6 +99,15 @@ def test_brief_extrae_tarea_fase_y_arquitectura(inic):
         assert estado in out, f"el contrato de retorno incluye {estado}"
 
 
+def test_contrato_pide_sinonimos_del_dominio_antes_de_needs_context(inic):
+    rc, out = _run([str(inic), "T-01", "--sin-lint",
+                    "--constitucion", str(inic / "no-existe.md")])
+    assert rc == 0
+    contrato = out.split("## Contrato de retorno")[1]
+    assert "sinónimos del dominio" in contrato
+    assert contrato.index("sinónimos del dominio") < contrato.index("NEEDS_CONTEXT")
+
+
 def test_brief_con_constitucion(inic, tmp_path):
     c = tmp_path / "CONSTITUTION.md"
     c.write_text("# Constitución\n- Prohibido el estado global.\n", encoding="utf-8")

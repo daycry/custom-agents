@@ -168,6 +168,63 @@ def test_fix1_normpath_resuelve_dotdot_sin_falsos_positivos():
     assert gc.normalize_path("", PROJ) == "" and gc.normalize_path(".", PROJ) == ""
 
 
+# ------------------------------------------- órdenes con efecto fuera del repo ----
+@pytest.mark.parametrize("cmd,marca", [
+    ("npm publish", "publish"),
+    ("npm publish --access public", "publish"),
+    ("pnpm publish --no-git-checks", "publish"),
+    ("yarn npm publish", "publish"),
+    ("cd pkg && npm publish", "publish"),
+    ("npm run publish", "publish"),               # script del proyecto con ese nombre: publica
+    ("docker system prune -af", "prune"),
+    ("docker system prune --volumes", "prune"),
+    ("docker volume prune -f", "prune"),
+    ("podman system prune", "prune"),
+    ("kubectl delete pod web-1", "kubectl delete"),
+    ("kubectl -n prod delete deployment api", "kubectl delete"),
+    ("psql -U app -c 'DROP TABLE users'", "DROP"),
+    ("mysql -e \"drop table if exists users\" app", "DROP"),
+    ("sqlite3 app.db 'DROP TABLE users;'", "DROP"),
+    ("docker compose exec db psql -c \"DROP DATABASE app\"", "DROP"),
+    ("bash -c 'npm publish'", "publish"),
+    ("env CI=1 kubectl delete ns staging", "kubectl delete"),
+])
+def test_ordenes_externas_destructivas_deny(cmd, marca):
+    r = decide(bash(cmd))
+    assert r and marca in r
+
+
+@pytest.mark.parametrize("cmd", [
+    "npm publish --dry-run",                     # simulación: no publica
+    "npm pack",
+    "npm install publish",                       # paquete llamado así, no la orden
+    "npm run build",
+    "docker compose down",
+    "docker container prune -f",                 # solo contenedores parados del host
+    "docker image ls",
+    "kubectl get pods -n prod",
+    "kubectl apply -f k8s/",
+    "kubectl delete pod web-1 --dry-run=client",  # simulación
+    "psql -c 'SELECT 1'",
+    "psql -f migrations/001.sql",                # fichero: lo revisa la revisión del diff, no el hook
+    "git commit -m 'DROP TABLE legacy en la migración'",
+    "grep -rn 'DROP TABLE' migrations/",
+    "echo npm publish",
+])
+def test_ordenes_externas_permitidas_sin_falsos_positivos(cmd):
+    assert decide(bash(cmd)) is None
+
+
+def test_ordenes_externas_se_apagan_con_la_regla_git():
+    cfg = {"alcance": True, "git": False, "ramaPrincipal": True}
+    assert decide(bash("npm publish"), cfg=cfg) is None
+    assert decide(bash("kubectl delete ns x"), cfg=cfg) is None
+
+
+def test_ordenes_externas_tambien_en_architect():
+    assert gc.decide(bash("docker system prune -a"), PROJ, None, branch="feature/x", agent="architect")
+
+
 # ------------------------------------------------------- rama principal ----
 def test_rama_principal_deny_codigo_allow_ledger():
     r = decide(write("src/app.py"), branch="main")

@@ -15,7 +15,11 @@ tabla desarma la justificación para no aportarla.
 | Excusa que el modelo se da | Por qué no vale | Qué hacer en su lugar |
 |---|---|---|
 | «Los tests ya pasaban antes, no hace falta correrlos» | Se verifica el estado DESPUÉS del cambio. | Corre la suite ahora y pega la salida en el DoD. |
+| «Este test falla por un detalle; relajo el assert o lo borro y queda en verde» | Un test debilitado deja de cazar el fallo que cazaba: el verde ya no prueba el criterio, y la Lente B lo devuelve como defecto. | Corrige el código; si el test está mal, cambia su assert con la razón anotada en `tasks.md`, nunca para pasar. |
 ```
+
+La segunda fila vale para toda pieza que persigue un verde (implementar, TDD, cerrar un bucle de
+qa); si su tabla está llena, sustituye a la fila que menos haya aparecido en sus ledgers.
 
 **Reglas**
 

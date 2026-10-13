@@ -37,6 +37,8 @@ SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" 
 | El usuario lo pide («hazlo con TDD», «escribe primero el test») | Aplica el ciclo a ese cambio aunque `dev.json` diga `false` |
 | Tarea sin código testeable (prosa, docs, config, plantillas, un `.md` de agente) | **Excepción declarada:** anota en la tarea `TDD n/a: <motivo>` y sigue el flujo normal. **No fabriques un test vacío para cumplir** |
 | Arreglar un fallo que ya existe | Primero `debug-root-cause` (reproducción mínima); el test de regresión de su Fase 4 ES el rojo de este ciclo |
+| Cambiar un comportamiento que ya funciona | Modifica **primero** el test existente al comportamiento nuevo y míralo rojo por esa razón; un test cambiado que sigue verde no demuestra nada. Ese rojo es la línea `RED:` |
+| Refactor puro (sin cambio de comportamiento) | No hay rojo nuevo: anota `TDD n/a: refactor` y corre el **mismo** conjunto de tests en verde antes y después. Si el área no tiene cobertura, escribe antes tests de caracterización del comportamiento actual (verdes desde el principio) |
 | Correr la suite y dar el verde final | No es esto: es `qa` con `qa-gate.py`. Aquí se corre **un** test, el de la tarea |
 
 ## El ciclo — por criterio de aceptación, no por tarea entera

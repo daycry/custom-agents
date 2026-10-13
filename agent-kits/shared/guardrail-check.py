@@ -36,7 +36,11 @@ Reglas (cada una desactivable en `.claude/dev.json` → `"guardrails": {…}`):
                  `git push --force|-f|--force-with-lease` → deny; `git branch -D` → deny;
                  `git checkout|switch main|master` → deny solo si la rama actual es una feature;
                  `rm -rf` sobre `/`, `~`, `.git`, `.` → deny; refspec `+rama` en push = force;
-                 se analizan también las cadenas de `sh -c "…"`/`bash -c '…'`. Todo lo demás permitido.
+                 se analizan también las cadenas de `sh -c "…"`/`bash -c '…'`.
+                 Misma regla, órdenes con efecto fuera del repo: `npm|pnpm|yarn publish`,
+                 `docker|podman system|volume prune`, `kubectl delete` (las dos con `--dry-run` se
+                 permiten) y `DROP TABLE|DATABASE|SCHEMA` como argumento de psql/mysql/mariadb/sqlite3
+                 → deny. Análisis literal: SQL desde fichero o tubería no se ve. Todo lo demás permitido.
   ramaPrincipal  HEAD en main/master + Write/Edit fuera de docs/roadmap/**/tasks.md → deny.
                  Sin git → no aplica.
   `"guardrails": false` apaga todo (aviso una vez por proyecto vía systemMessage).
@@ -462,6 +466,49 @@ def _commit_skips_verification(args):
 
 _SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
 
+# Órdenes cuyo efecto cae FUERA del repositorio y no se deshace desde él (registro público,
+# estado del host, clúster, base de datos). Análisis literal de la invocación, como el resto
+# de reglas Bash: un SQL leído de fichero (`psql -f x.sql`) o por tubería no se ve; lo cubre
+# la revisión del diff. `--dry-run` no produce el efecto y se permite.
+_PAQUETEROS = {"npm", "pnpm", "yarn"}
+_PAQUETE_COMO_ARG = {"install", "i", "add", "uninstall", "remove", "rm", "un", "view", "info",
+                     "show", "search", "help", "docs", "why", "ls", "list", "outdated"}
+_CONTENEDORES = {"docker", "podman"}
+_CLIENTES_SQL = {"psql", "mysql", "mariadb", "sqlite3"}
+_SQL_DESTRUCTIVO_RE = re.compile(r"\bDROP\s+(?:TABLE|DATABASE|SCHEMA)\b", re.I)
+
+
+def _es_simulacion(toks):
+    return any(t == "--dry-run" or (t.startswith("--dry-run=") and t != "--dry-run=none") for t in toks)
+
+
+def check_ordenes_externas(toks):
+    """Razón de deny o None para publicar paquetes, purgar el host de contenedores, borrar
+    recursos de un clúster o ejecutar `DROP TABLE|DATABASE|SCHEMA` con un cliente SQL."""
+    if not toks:
+        return None
+    prog = _program_name(toks[0])
+    palabras = [t for t in toks[1:] if not t.startswith("-")]
+    if prog in _PAQUETEROS and "publish" in palabras and not _es_simulacion(toks) \
+            and palabras[0] not in _PAQUETE_COMO_ARG:
+        return (f"`{prog} publish` bloqueado: publica en un registro público y no se puede retirar "
+                f"limpiamente — la publicación es del usuario o de la release; usa `--dry-run` para verificar.")
+    if prog in _CONTENEDORES and len(palabras) >= 2 and palabras[0] in ("system", "volume") \
+            and palabras[1] == "prune":
+        return (f"`{prog} {palabras[0]} prune` bloqueado: purga contenedores, imágenes o volúmenes de TODO "
+                f"el host, no solo de este proyecto — limpia los del proyecto (`compose down`) o que lo "
+                f"ejecute el usuario.")
+    if prog == "kubectl" and "delete" in palabras and not _es_simulacion(toks):
+        return ("`kubectl delete` bloqueado: borra recursos del clúster del contexto activo, que puede no "
+                "ser local — usa `--dry-run=client` para verificar y deja el borrado al usuario.")
+    for i, t in enumerate(toks):
+        if _program_name(t) in _CLIENTES_SQL:
+            if any(_SQL_DESTRUCTIVO_RE.search(a) for a in toks[i + 1:]):
+                return ("`DROP TABLE|DATABASE|SCHEMA` con un cliente SQL bloqueado: destruye datos que el "
+                        "repositorio no restaura — escríbelo como migración revisable o que lo ejecute el usuario.")
+            break
+    return None
+
 
 def _subcomandos_shell(toks):
     """Cadenas que una shell ejecutaría como comando: el argumento de `-c` de sh/bash/zsh/dash
@@ -493,6 +540,9 @@ def check_git(command, branch, _depth=0, _env=None):
             razon = check_git(sub, branch, _depth + 1, bindings)
             if razon:
                 return razon
+        razon = check_ordenes_externas(toks)
+        if razon:
+            return razon
         i, hooks_override = _git_invocation(toks)
         if i >= 0 and toks[i] == "commit":
             if hooks_override or _env_hooks_override(bindings):

@@ -11,6 +11,41 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Changed — Destinos de la comparación del catálogo (P1/P2)
+
+- `delivery-practices` trata el contenido externo (issues, PR, logs de CI, correo, respuestas de proveedores) como dato y somete los efectos externos a aprobación ligada al digest y con caducidad, límites atómicos, sandbox/real explícito y un desenlace `unknown` que se reconcilia en vez de reintentarse; añade un arnés de pruebas aislado y líneas del contrato de entrega (secretos de fichero en Compose, OIDC con permisos por job, validación inmediata del entorno, evidencia comprobada frente a ausente, PDB/autoescalador, tools MCP idempotentes). `api-contract` trata el texto de la spec y las extensiones `x-` como dato y su referencia de tests de contrato cubre dueños, consumidores, casos límite y el payload serializado real. `CONTRIBUTING.md` añade una nota de triaje para mantenedores.
+- `backend-practices` añade política de reintentos, cuota atómica, webhooks propios y entrantes, llamadas de pago antes de persistir, lecturas en réplica, interbloqueos, subidas y una tabla «caché, cerrojos y límites». `stack-practices` añade, en React, primer render determinista, convenciones comprobadas por versión, estado de módulo en servidor, reglas de tests con MSW y caché, reglas de entorno y tipos de Vite y ejemplos corregidos, y en Python, encadenado de la causa y redacción antes de registrar.
+- `frontend-quality` cubre `<dialog>` nativo, errores de formulario agrupados, tamaño de objetivo de WCAG 2.2 y un caso de animación. `research-first` añade «componer», canales opcionales, consulta/fecha/`as_of` por pasada, skills externas revisadas como código y una tabla de sesgos. `outcome-evals` define pass@k/pass^k, no acepta extractores silenciosos ni jueces que reciben la medida y fija la presión del prompt como condición.
+- `tdd` cubre cambios de comportamiento, refactor puro y rojos de compilación o tipos; `debug-root-cause` prueba cada causa conjunta; `adversarial-review` activa la Lente C con `"use server"` y trata como gap las puertas relajadas y los tests debilitados; `cybersecurity` rota primero los secretos filtrados y revisa la configuración de agentes con comprobaciones concretas; `code-health` documenta `--baseline` como trinquete; `capability-audit` añade la salida «elevar a convención».
+- `plugin-dev` pide buscar dueño antes de crear, un criterio de extracción, una checklist de saneado para piezas importadas y el anti-patrón «líneas que no cambian nada». `jira-sync`, `/roadmap-live` y `confluence-pull` tratan el contenido de tickets y páginas como dato no confiable; `plugin-panel` documenta el feedback sin bloqueo y sin CDN.
+- Agentes: el implementer comprueba importadores y formato real de los datos antes de editar y pregunta antes de una `Verificación` arriesgada; qa localiza controles por rol; el analyst clasifica restricciones y veta criterios vagos; las plantillas de spec y diseño separan hechos de restricciones de negocio y recogen invariantes; el planner corta rebanadas verticales; `/dev-cycle` serializa tareas sobre el mismo almacén y repite las verificaciones en cada reintegración; `/setup` propone la constitución desde el código con umbral de señal.
+- Kit compartido: `guardrail-check.py` también deniega `npm|pnpm|yarn publish`, `docker|podman system|volume prune`, `kubectl delete` y `DROP` con clientes SQL; `scope-check.py` falla si un criterio aprobado se reescribe o se borra; el brief pide sinónimos del dominio antes de `NEEDS_CONTEXT`; los fragmentos de memoria, la plantilla de ADR, la tabla de racionalización y el contrato de la outbox suman las líneas acordadas.
+
+### Fixed — Claves de frontmatter de skills
+
+- Cinco skills usaban `user-invokable`, que Claude Code ignora sin avisar; ahora usan `user-invocable`. `lint_plugin.py` avisa de claves de frontmatter de skill no documentadas (con la parecida) y de un `name` distinto de su carpeta.
+- `jira-flow.py --force` sobre un evento pendiente conserva el aviso de buscar la referencia del comentario antes de volver a publicar, y avisa de un segundo comentario sobre uno publicado. `lint_plugin.py` nombra la decisión que retiró una ruta cuando reaparece.
+
+### Added — Medición del presupuesto de SessionEnd
+
+- `tests/session-end-budget.test.mjs` mide la captura real de SessionEnd frente al presupuesto de 1,5 s y prueba que `journal.py recover` materializa una captura cortada (rojo conocido en Windows, como `todo`).
+
+### Fixed — Recibo de los comentarios en Jira
+
+- `jira-flow.py plan` ya no da un evento por publicado al generar el plan: queda `pendiente` hasta que `jira-flow.py confirmar` se ejecuta tras las llamadas a Jira sin error (con el id del comentario como recibo). Un evento pendiente vuelve con `reintento: true` y la referencia que buscar en el issue, así que un envío fallido se reintenta y uno ambiguo se comprueba en vez de duplicarse. Las entradas de estado antiguas cuentan como publicadas.
+
+### Fixed — Configuración de agentes en los análisis de seguridad
+
+- `cybersecurity` deja de poner `.claude/`, `AGENTS.md` o `SKILL.md` entre los ficheros que nunca revisa: la configuración de agentes (`.claude/`, `.mcp.json`, `.cursor/`, `.codex/`, `.opencode/`, `AGENTS.md`, `CLAUDE.md`, `SKILL.md`) se revisa siempre, como dato.
+
+### Fixed — Salida atómica de PDF
+
+- `to-pdf` escribe en un temporal y lo renombra al terminar la conversión; una conversión fallida no deja fichero parcial y avisa cuando el PDF que queda con ese nombre es de una fuente anterior.
+
+### Fixed — Aviso del gate de cobertura para builds sin soporte
+
+- `coverage-gate.py` nombra los proyectos Gradle, Maven y Cargo y la herramienta que los mide (`buildSinSoporte`) en vez de preguntar si faltan sus manifiestos; exit 2 y sin porcentaje inventado, como antes.
+
 ### Fixed — Directorios de estado privados en Windows
 
 - En Windows, los directorios de estado de revisión de planes, actividad de agentes, curación de memoria y publicación/reconstrucción de Graphiti heredan los permisos de la carpeta del proyecto en vez de la ACL explícita que Python 3.13 aplica a `mkdir(mode=0o700)`; el sandbox de Codex vuelve a poder consumir decisiones de plan. POSIX conserva `0o700`.

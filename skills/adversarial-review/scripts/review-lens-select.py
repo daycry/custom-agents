@@ -30,7 +30,8 @@ Qué hace:
      untracked cuentan enteros): ejecución dinámica de código (eval/exec), shell vía subprocess con
      shell activado, os.system/popen, inyección en el DOM (React incluido), deserialización
      insegura (pickle, yaml.load sin Loader), SQL concatenado o en f-string, secretos (API keys,
-     claves privadas PEM), cabeceras de autorización y de cookies. La lista exacta es CONTENIDO
+     claves privadas PEM), cabeceras de autorización y de cookies, directiva de acción de servidor
+     (React/Next.js: toda función que marca es un endpoint público). La lista exacta es CONTENIDO
      (abajo). No se escanea el contenido de prosa (.md/.txt/.rst), de tests ni de fixtures
      (contienen payloads a propósito); la ruta sí se evalúa siempre. Binarios (NUL en la cabecera
      o «Binary files differ») se saltan.
@@ -155,6 +156,9 @@ CONTENIDO = [
     ("begin-rsa", re.compile(r"BEGIN[ ]RSA")),
     ("authorization-header", re.compile(r"Authorization[:]")),
     ("set-cookie", re.compile(r"Set[-]Cookie")),
+    # Directiva de acción de servidor (React/Next.js): cada función exportada es un endpoint
+    # público invocable desde el cliente; autenticar y autorizar va DENTRO de la función.
+    ("server-action", re.compile(r"""['"]use[ ]server['"]""")),
 ]
 
 # ---- Lente D (rendimiento, superiority T-04) --------------------------------------------------

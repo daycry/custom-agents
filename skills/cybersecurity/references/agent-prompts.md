@@ -200,6 +200,15 @@ or connection strings, mask the value showing only first 4 and last 4 characters
   AKIA****WXYZ, sk_live_****abcd, password = "sec****word"
 Never reproduce a full secret in report output. For private keys: show header only.
 
+REMEDIATION RULE: The FIX of every real secret finding has two parts, in this order:
+  1. ROTATE/REVOKE the credential at its issuer (new key, old one invalidated).
+  2. THEN remove it from the tree (env var, secret manager) and keep it out
+     (.gitignore, pre-commit secret scan).
+Removing or parameterizing the value alone is NOT a fix: a credential that was
+ever committed stays valid and readable in the repository history, clones,
+forks and CI caches until it is revoked. Rewriting history does not replace
+rotation. If rotation is out of your reach, say so in FIX and keep the severity.
+
 OUTPUT: Same VULN-XXX format. Category score 0-100.
 ```
 

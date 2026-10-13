@@ -46,6 +46,12 @@ Contrato (todas las funciones son deterministas, no lanzan por errores de disco 
       saltan. `item` es {"clave", "path", "payload"}; `payload` es `None` si el JSON no es legible
       (envelope venenoso: lo decide el llamador, normalmente `dead_letter` inmediato). Sin
       pendientes -> `None`.
+      Entrega AL MENOS UNA VEZ: el re-encolado tras la TTL vuelve a entregar un item cuyo efecto
+      pudo haberse producido ya (el proceso murió después del efecto y antes de `completar`). Solo
+      es seguro con materializadores IDEMPOTENTES EN DESTINO (el journal reescribe la entrada de un
+      `session_id`; un export sustituye el mismo fichero). Un efecto no idempotente (comentario,
+      mensaje o issue en un sistema externo) con desenlace incierto no se reintenta solo: el
+      llamador comprueba en destino si ya ocurrió o lo manda a `dead_letter` para reconciliarlo.
   completar(item, manifiesto=None) -> ruta
       Mueve el item de `processing/` a `done/` y escribe `<ruta>.manifest.json` con el
       `manifiesto` dado más `hash` (sha256 del contenido) y `completado_en` (si no vienen ya) —

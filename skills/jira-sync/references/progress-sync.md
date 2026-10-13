@@ -8,10 +8,15 @@
 
 > **Tres cosas que hace el script y no tienes que vigilar tú** (T-fix1): **(1) opt-in real** — lee
 > `.claude/jira.json` (`--root`, o cwd hacia arriba) y con `enabled` ≠ `true` devuelve `ops: []` y
-> `jira: "desactivado"`, exit 0 sin ruido; **(2) idempotencia** — anota cada plan con `ops` en
-> `jira-state.json` (`flow["<issue>|<evento>|<tareas>|<intento>"]`), así que repetir el mismo evento
-> da `ops: []` + `yaRealizado: true` en vez de un segundo comentario (`--force` si de verdad quieres
-> repetirlo; estado corrupto o de solo lectura → aviso y sigue); **(3) worklog sin inventar issue** —
+> `jira: "desactivado"`, exit 0 sin ruido; **(2) idempotencia con recibo** — anota cada plan con
+> `ops` como `pendiente` en `jira-state.json` (`flow["<issue>|<evento>|<tareas>|<intento>"]`) y el
+> comentario lleva esa clave como referencia; tras ejecutar las ops sin error, el comando `confirmar`
+> del plan (`jira-flow.py confirmar --ledger … --clave … [--comentario-id ID]`) lo pasa a
+> `publicado`. Repetir un evento publicado da `ops: []` + `yaRealizado: true`; repetir uno pendiente
+> devuelve las ops con `reintento: true` y el aviso de buscar la referencia en el issue antes de
+> publicar (un envío ambiguo pudo llegar). `--force` repite a propósito, sin quitar ese aviso a un
+> pendiente, y sobre uno publicado avisa de que será un segundo comentario; estado corrupto o de solo
+> lectura → aviso y sigue; **(3) worklog sin inventar issue** —
 > si la tarea no está mapeada, la op de worklog sale marcada `pendiente: "issueKey"` /
 > `requiereIssue: true` **sin comando**, en vez de un comando con un placeholder que se podía
 > ejecutar tal cual.

@@ -491,7 +491,42 @@ def casos_tolerancias_caducadas():
                  "---\nname: specialize\ndescription: prueba de caducidad de la tolerancia\n---\n\nx\n")
         code, out = run(tmp)
         assert "PIEZAS_PLANIFICADAS" in out, f"la tolerancia caducada tiene que avisar\n{out}"
+    # Una ruta RETIRADA que reaparece no es solo una tolerancia que sobra: contradice la decisión
+    # que la retiró. El aviso nombra esa decisión y pide registrarla ANTES de quitar la tolerancia.
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "docs/knowledge/LESSONS.md", "# lecciones\n")
+        code, out = run(tmp)
+        assert "`docs/knowledge/LESSONS.md` vuelve a existir y la retiró ADR-006" in out, \
+            f"el aviso tiene que nombrar la decisión que la retiró\n{out}"
+        assert "registra la decisión" in out and "luego quítala de RUTAS_RETIRADAS" in out, \
+            f"el aviso tiene que pedir registrar la decisión antes de quitar la tolerancia\n{out}"
 
+
+
+def casos_claves_frontmatter_skill():
+    """59) Claude Code ignora EN SILENCIO una clave de frontmatter de skill que no reconoce: con
+    `user-invokable` (sin la c) un `false` no oculta nada y nadie se entera. Se avisa por nombre y,
+    si es una errata de una clave real, se propone la buena."""
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "skills/typo/SKILL.md",
+                 "---\nname: typo\ndescription: prueba de claves\nuser-invokable: false\n"
+                 "argument-hint: \"[ruta]\"\nmetadata:\n  origin: x\n---\n\nx\n")
+        code, out = run(tmp)
+        assert "skill `typo`: clave `user-invokable`" in out and "`user-invocable`" in out, \
+            f"la errata tiene que avisarse con la clave buena\n{out}"
+        assert "`argument-hint`" not in out and "`metadata`" not in out, \
+            f"las claves documentadas no avisan\n{out}"
+        _escribe(tmp, "skills/typo/SKILL.md",
+                 "---\nname: typo\ndescription: prueba de claves\nuser-invocable: false\n---\n\nx\n")
+        code, out = run(tmp)
+        assert "skill `typo`: clave" not in out, f"una clave válida no avisa\n{out}"
+        assert "no coincide con su carpeta" not in out, out
+        _escribe(tmp, "skills/typo/SKILL.md", "---\nname: otra\ndescription: prueba\n---\n\nx\n")
+        code, out = run(tmp)
+        assert "skill `typo`: `name: otra` no coincide con su carpeta" in out, \
+            f"un name distinto de la carpeta cambia el comando del plugin\n{out}"
 
 
 def caso_permiso_controlado_no_oculta_el_resto():
@@ -1115,6 +1150,7 @@ dependencies:
     casos_cita_de_comando_con_argumento()
     casos_matriz_fila_en_negrita()
     casos_tolerancias_caducadas()
+    casos_claves_frontmatter_skill()
 
     print("test_lint_plugin: OK")
 

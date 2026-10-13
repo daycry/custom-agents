@@ -36,6 +36,11 @@ generacion:
 - {{RESTRICCION_1}}
 - {{RESTRICCION_2}}
 
+<!-- Solo si el cambio cruza servicios o procesos (si no, borra la línea): qué debe cumplirse siempre,
+     qué servicio es dueño de cada dato (el único que lo escribe) y los estados con sus transiciones
+     permitidas (p. ej. `pendiente → pagado → enviado`; `pagado → pendiente` prohibida). -->
+**Invariantes, propiedad de los datos y estados:** {{INVARIANTES}}
+
 ## 2. Opciones (2-3)
 
 <!-- Una subsección por opción. Cada una con la MISMA estructura para que se puedan comparar. Coste

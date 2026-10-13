@@ -22,7 +22,10 @@ indicio de umbral mal calibrado: se registra en la retro, no se ignora.
   elección cuya reversión no toca una segunda pieza no merecen registro.
 - **Gotcha:** costó ≥1 ciclo de depuración O rompió/casi rompió una garantía del
   producto. Un typo o un fallo aislado de CI sin repetición no lo merecen. Si la
-  causa ya está documentada, enlaza la entrada existente, no la dupliques.
+  causa ya está documentada, enlaza la entrada existente, no la dupliques: antes de
+  proponer, busca por **causa raíz**, no por síntoma ni título
+  (`knowledge-find.py --tipo gotcha --contexto "<causa>"`, y lo mismo con `lesson`),
+  y mira `candidates/pending/` por si ya hay una propuesta en curso.
 - **Lección:** aprendizaje de proceso transversal con fuentes verificables;
   distingue lo cualitativo técnico de los números de calibración de la retro.
 
@@ -34,6 +37,9 @@ Usa Markdown UTF-8 con frontmatter simple y cuerpo: `category` como propuesta se
 la taxonomía, `evidencia` justificable, `fuentes` reales y `tags` `clave:valor`.
 **Nunca incluyas `estado`.** Una decisión describe alternativas descartadas;
 un gotcha incluye síntoma, causa raíz, qué hacer en su lugar y test de regresión.
+Gotcha y lección llevan además la **señal reconocible**: una línea «La próxima vez
+que veas <X observable: mensaje, comportamiento, patrón del diff>…» que permita
+reconocer el caso antes de repetir la depuración; sin ella, la entrada narra el evento.
 Una entrada derivada o de backfill cita su fuente original: no añade conclusiones
 que el material no respalde.
 

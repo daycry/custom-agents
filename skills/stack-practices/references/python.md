@@ -28,8 +28,11 @@ Los tipos describen contratos, pero no validan por sí solos datos JSON externos
 Valida en el borde y conserva modelos de dominio independientes del transporte.
 
 No hagas E/S, lectura de credenciales ni arranques workers al importar módulos.
-Coloca el entrypoint bajo main; propaga errores clasificados, encadena su causa y
-evita capturar Exception para devolver éxito. Recursos y temporales se cierran
+Coloca el entrypoint bajo main; propaga errores clasificados, encadena su causa
+al re-lanzar (`raise ErrorDominio(...) from exc`) y evita capturar Exception
+para devolver éxito. Antes de registrar un error, redacta credenciales, tokens y
+datos personales: el mensaje de una excepción de librería puede incluir la URL
+con token o la consulta con sus valores. Recursos y temporales se cierran
 con context managers/finally también cuando se cancela o falla una operación.
 
 Fixtures pytest con yield restauran el estado; restringe su scope cuando haya

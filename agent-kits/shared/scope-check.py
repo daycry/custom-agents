@@ -30,6 +30,13 @@ Qué hace:
      `dev.json`. Los excluidos no son «fuera de alcance» (no cambian el exit code) pero se listan,
      con el glob que los excluyó, para que la revisión los vea.
   4. Clasifica: en alcance · fuera de alcance · excluidos · declarados sin tocar.
+  4-bis. Criterios aprobados: compara las líneas `- [ ]`/`- [x]` de cada tarea con las del `tasks.md`
+     de la LÍNEA BASE (el de la base del diff; si ahí no existe, el del primer commit de la rama que
+     lo contiene). Un criterio reescrito o borrado —o su tarea desaparecida— es `criterios_alterados`
+     y cuenta para el exit code: quien implementa no edita el criterio que debe cumplir. Marcar la
+     casilla, AMPLIAR el texto detrás (`(fix1: …)`, una nota) o añadir criterios nuevos no cuenta.
+     Solo mira la primera línea de cada criterio. Sin línea base (ledger nunca comiteado) → línea ℹ️,
+     sin fallo.
   5. Publica SIEMPRE (stderr + clave `info` del `--json`) la línea ℹ️ con lo que esconden los
      globs de USUARIO —fichero y glob, sin umbral y sin los del default—, para que el implementer y
      la revisión comprueben que lo excluido es lo que se quería excluir. No es un gap: es
@@ -45,7 +52,7 @@ Qué hace:
 
 Uso:
   scope-check.py <docs/roadmap/<fecha>-<slug>> [--base <ref>] [--warn-only] [--json]
-Exit: 0 nada fuera de alcance · 1 hay ficheros fuera (con --warn-only siempre 0) ·
+Exit: 0 nada fuera de alcance · 1 hay ficheros fuera o criterios aprobados alterados (con --warn-only siempre 0) ·
       2 error de uso (carpeta/ledger inválidos, sin git en el PATH, fuera de un repo, un `.git`
       presente con `git rev-parse` fallando —config rota, `safe.directory`, repo corrupto: se cita
       el stderr de git—, sin base determinable: el mensaje distingue los cinco, porque el remedio
@@ -338,6 +345,53 @@ def patrones_del_ledger(text, parse_ledger):
                 for p in _expandir_llaves(tok):
                     patrones.append((p, tid))
     return patrones
+
+
+# ------------------------------------------- criterios de aceptación aprobados ----
+def _norm_criterio(texto):
+    return re.sub(r"\s+", " ", texto).strip().rstrip(" .;:")
+
+
+def _conserva(criterio, actuales):
+    """El criterio sigue si alguna línea actual ES su texto o lo AMPLÍA detrás en frontera de
+    palabra (`(fix1: …)`, una nota): ampliar no debilita; reescribir o borrar, sí puede."""
+    n = len(criterio)
+    return any(a == criterio or (a.startswith(criterio) and not (a[n].isalnum() or a[n] == "_"))
+               for a in actuales)
+
+
+def criterios_alterados(base_text, cur_text, parse_ledger):
+    """[{tarea, criterio}] de la línea base que ya no siguen en SU tarea (reescritos, borrados o la
+    tarea desaparecida). Marcar la casilla, ampliar el texto o añadir criterios nuevos no cuenta."""
+    actuales = {t["id"]: [_norm_criterio(c) for c in t.get("criterios", [])]
+                for t in parse_ledger(cur_text)["tareas"]}
+    out = []
+    for t in parse_ledger(base_text)["tareas"]:
+        for c in t.get("criterios", []):
+            n = _norm_criterio(c)
+            if n and not _conserva(n, actuales.get(t["id"], [])):
+                out.append({"tarea": t["id"], "criterio": n})
+    return out
+
+
+def _git_show(root, ref, rel):
+    r = subprocess.run(["git", "show", f"{ref}:{rel}"], cwd=root, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
+    return r.stdout if r.returncode == 0 else None
+
+
+def linea_base_ledger(root, base, tasks_rel):
+    """(texto, descripción) del `tasks.md` aprobado o (None, None): el de la base del diff y, si ahí
+    no existe, el del PRIMER commit de la rama que lo contiene (el plan suele entrar con la rama)."""
+    texto = _git_show(root, base, tasks_rel)
+    if texto is not None:
+        return texto, f"base del diff ({base[:12]})"
+    for c in git(root, "log", "--reverse", "--format=%H", f"{base}..HEAD", "--", tasks_rel,
+                 check=False).split():
+        texto = _git_show(root, c, tasks_rel)
+        if texto is not None:
+            return texto, f"primer commit de la rama con el ledger ({c[:12]})"
+    return None, None
 
 
 def casa(path, patron, root):
@@ -790,6 +844,11 @@ def main():
                                                    excluir, excluir_usuario)
     avisos += avisos_de_exclusion(cambiados, fuera, quien, excluir_usuario)
     info = info_de_exclusion(quien, excluir_usuario)
+    base_text, criterios_base = linea_base_ledger(root, base, tasks_rel)
+    alterados = criterios_alterados(base_text, text, parse_ledger) if base_text is not None else []
+    if base_text is None:
+        info.append("criterios: sin línea base (tasks.md no está en la base del diff ni en ningún commit "
+                    "de la rama) — comitea el plan aprobado para que la puerta vigile sus criterios")
     for a in avisos:
         print(f"scope-check: ⚠️  {a}", file=sys.stderr)
     for i in info:      # por stderr, para que salga también con --json (gap B4-1)
@@ -802,6 +861,7 @@ def main():
                           "excluir_vigente": excluir, "excluir_usuario": excluir_usuario,
                           "excluidos_patron": quien,
                           "excluidos_usuario": excluidos_por_usuario(quien, excluir_usuario),
+                          "criterios_base": criterios_base, "criterios_alterados": alterados,
                           "avisos": avisos, "info": info},
                          ensure_ascii=False, indent=2))
     else:
@@ -818,7 +878,12 @@ def main():
         if fuera:
             print("→ o el fichero es necesario (añádelo al campo Archivos de su tarea y anótalo) "
                   "o revierte el cambio; hasta entonces la revisión no arranca.")
-    if fuera and not args.warn_only:
+        if alterados:
+            print(f"❌ criterios aprobados alterados ({len(alterados)}, línea base: {criterios_base}):" +
+                  "".join(f"\n   {a['tarea']}: «{a['criterio']}»" for a in alterados))
+            print("→ el criterio que se cumple no lo reescribe quien lo cumple: restaura el texto (puedes "
+                  "marcarlo o ampliarlo detrás) o, si lo cambió planner/el usuario, rebátelo con esa evidencia.")
+    if (fuera or alterados) and not args.warn_only:
         return 1
     return 0
 

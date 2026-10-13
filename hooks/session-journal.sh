@@ -26,6 +26,11 @@
 #            Claude Code 2.1.139 y evita tokenizar una línea de shell.
 #            Referencia interna: skills/plugin-dev/references/claude-code-contracts.md
 #            SessionEnd y command-hook-fields, verificada 2026-10-11. El respeto del límite requiere medición.
+#   medido → `tests/session-end-budget.test.mjs` (launcher `run-hook.mjs` → `journal-capture.py`, la
+#            ruta real de Claude Code; este script queda para la prueba manual). 2026-10-13: Linux
+#            mediana 0,45-0,7 s y 0-1 de cada 5 cierres cortados por los 800 ms del hijo; Windows con
+#            carga, mediana 2,8 s y todos cortados. Un cierre cortado no pierde la sesión: el log de
+#            prompts queda y `journal.py recover` la materializa (mismo test).
 #
 # Prueba manual:
 #   echo '{"hook_event_name":"SessionEnd","session_id":"s1","reason":"other","cwd":"'"$PWD"'"}' | bash hooks/session-journal.sh

@@ -75,6 +75,13 @@ Extensiones por defecto: `py js ts tsx jsx php go java rb cs kt rs` (`--langs`).
    - `/roadmap-brief`: una fila «Salud del código» con la cabecera del informe (opcional).
    - A demanda: entrega el MD tal cual (o la sección que pidan) sin adornos.
 
+**`--baseline` como trinquete** (si el proyecto quiere que la deuda no crezca): versiona un JSON
+cuyo techo es el **peor valor medido** hoy más un margen pequeño; nunca se alcanza el techo
+excluyendo ficheros (`--exclude-path` es para código generado, no para esconder deuda), y el techo
+se **baja a mano, en un commit propio**, cuando se simplifica un punto caliente. Imponerlo (fallar
+ante «↑ empeora») es trabajo de la CI del proyecto, que lee el `--json`; el script sigue saliendo
+con 0.
+
 ## Guardrails
 
 - **Solo lectura.** El script no toca ningún fichero del proyecto; si guardas el JSON, hazlo bajo

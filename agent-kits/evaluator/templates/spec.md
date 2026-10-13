@@ -111,4 +111,12 @@ generacion:               # coste real de producir ESTE documento — lo rellena
 
 ## Supuestos
 
-- {{Supuesto explícito y, si aplica, qué lo verificaría}}
+<!--
+  Separa dos orígenes que no pesan igual:
+  · Hechos técnicos: lo comprobado en el repo, con su localizador (fichero:línea, comando y salida).
+  · Restricciones de negocio: solo las aporta el usuario o un documento de producto (cítalo). Mientras
+    nadie las confirme son SUPUESTOS, aunque el código parezca sugerirlas; di qué las confirmaría.
+-->
+
+- **Hecho técnico:** {{lo comprobado en el repo}} — `{{fichero:línea}}`
+- **Restricción de negocio (supuesto hasta confirmar):** {{restricción}} — la confirmaría {{quién o qué documento}}

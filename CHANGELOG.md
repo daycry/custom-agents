@@ -11,6 +11,41 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Changed — Catalog comparison destinations (P1/P2)
+
+- `delivery-practices` treats external content (issues, PRs, CI logs, mail, provider responses) as data and gates external effects with digest-bound expiring approval, atomic limits, explicit sandbox/real and an `unknown` outcome that is reconciled, not retried; it adds an isolated test harness and delivery-contract lines (Compose file secrets, CI OIDC with per-job permissions, fail-fast env, checked vs missing evidence, PDB/autoscaler, idempotent transport-independent MCP tools). `api-contract` treats spec text and `x-` extensions as data and its contract-test reference covers owners, consumers, edge cases and the real serialized payload. `CONTRIBUTING.md` adds a maintainer triage note.
+- `backend-practices` adds retry policy, atomic quota, self-triggered and incoming webhooks, paid calls before persistence, replica reads, deadlocks, uploads and a "cache, locks and limits" table. `stack-practices` adds, for React, deterministic first render, version-checked conventions, server module state, MSW/cache test rules, Vite env and type-check rules and corrected examples, and for Python, cause chaining and redaction before logging.
+- `frontend-quality` covers native `<dialog>`, grouped form errors, WCAG 2.2 target sizes and an animation case. `research-first` adds "compose", optional channels, query/date/`as_of` per pass, external skills reviewed as code and a source-bias table. `outcome-evals` defines pass@k/pass^k, rejects silent extractors and judges given the measurement, and fixes prompt pressure as a condition.
+- `tdd` covers behaviour changes, pure refactors and compile/type reds; `debug-root-cause` proves each joint cause; `adversarial-review` triggers Lens C on `"use server"` and treats relaxed gates and weakened tests as gaps; `cybersecurity` rotates leaked secrets first and checks agent configuration concretely; `code-health` documents `--baseline` as a ratchet; `capability-audit` adds an "elevate to convention" output.
+- `plugin-dev` asks for an existing owner first, an extraction criterion, a sanitizing checklist for imported pieces and a "lines that change nothing" anti-pattern. `jira-sync`, `/roadmap-live` and `confluence-pull` treat ticket and page content as untrusted data; `plugin-panel` documents non-blocking feedback and no CDN.
+- Agents: the implementer checks importers and the real data format before editing and asks before a risky `Verificación`; qa locates controls by role; the analyst classifies constraints and bans vague criteria; spec and design templates separate facts from business constraints and record invariants; the planner cuts vertical slices; `/dev-cycle` serializes tasks on the same store and re-runs verifications on each reintegration; `/setup` proposes constitution principles from the code with a signal threshold.
+- Shared kit: `guardrail-check.py` also denies `npm|pnpm|yarn publish`, `docker|podman system|volume prune`, `kubectl delete` and `DROP` through SQL clients; `scope-check.py` fails when an approved acceptance criterion is rewritten or deleted; the task brief asks for domain synonyms before `NEEDS_CONTEXT`; memory fragments, the ADR template, the rationalization table and the outbox contract gain the agreed lines.
+
+### Fixed — Skill frontmatter keys
+
+- Five skills used `user-invokable`, which Claude Code ignores silently; they now use `user-invocable`. `lint_plugin.py` warns on undocumented skill frontmatter keys (suggesting the close match) and on a `name` that differs from its folder.
+- `jira-flow.py --force` on a pending event keeps the warning to look for the comment reference before publishing again, and warns of a second comment on a published one. `lint_plugin.py` names the decision that retired a path when it reappears.
+
+### Added — SessionEnd budget measurement
+
+- `tests/session-end-budget.test.mjs` measures the real SessionEnd capture against the 1.5 s budget and proves `journal.py recover` materializes a cut capture (known red on Windows, tracked as `todo`).
+
+### Fixed — Jira comment receipts
+
+- `jira-flow.py plan` no longer marks an event as published when it builds the plan: the event stays `pending` until `jira-flow.py confirmar` runs after the Jira calls succeed (with the comment id as receipt). A pending event comes back with `reintento: true` and the reference to look for in the issue, so a failed post is retried and an ambiguous one is checked instead of duplicated. Older state entries count as published.
+
+### Fixed — Agent configuration in security scans
+
+- `cybersecurity` no longer lists `.claude/`, `AGENTS.md` or `SKILL.md` among the files it never reviews: agent configuration (`.claude/`, `.mcp.json`, `.cursor/`, `.codex/`, `.opencode/`, `AGENTS.md`, `CLAUDE.md`, `SKILL.md`) is always reviewed, as data.
+
+### Fixed — Atomic PDF output
+
+- `to-pdf` writes to a temporary file and renames it when the conversion finishes; a failed conversion leaves no partial file and says when the PDF left under that name belongs to an earlier source.
+
+### Fixed — Coverage gate message for unsupported builds
+
+- `coverage-gate.py` names Gradle, Maven and Cargo projects and the tool that measures them (`buildSinSoporte`) instead of asking whether their manifests are missing; exit 2 and no invented percentage, as before.
+
 ### Fixed — Private state directories on Windows
 
 - On Windows, plan review, agent activity, knowledge curation and Graphiti publication/rebuild state directories inherit the project folder permissions instead of the explicit ACL that Python 3.13 applies to `mkdir(mode=0o700)`; the Codex sandbox can consume plan decisions again. POSIX keeps `0o700`.
