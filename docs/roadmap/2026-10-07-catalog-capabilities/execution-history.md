@@ -5844,3 +5844,274 @@ Siguen pendientes QA completa Windows/Linux, revisión independiente, workflows
 nativos y UI real. El ledger actual supera el límite de lectura de 256 KiB;
 hay que reorganizar su historial conservando trazas y revisiones vigentes.
 No se cierra ninguna macro ni se promueve, commitea o publica este lote.
+
+## Traslado 2026-10-13 — narrativa operativa del ledger (líneas 1145–1410, bytes sin cambios)
+
+Trasladada para mantener `tasks.md` bajo el tope de lectura de 256 KiB del CLI común de retoma. SHA-256 del bloque: `\7a5394b52bb997ef6ae88800ca6e60ec02b61ecd6b84f7b45ed62f069fa8c07`.
+
+## Comparación de dependencias operativas — lectura ampliada
+
+Se han leído 68 cuerpos completos. Se conservan las decisiones de adaptación
+para avisos de diseño, formato, señales de actividad, métricas y salud MCP.
+No se ejecutó código de referencia ni se incorporaron paquetes técnicos.
+El inventario no contiene dependencias sin registrar; resta una CLI de patrones
+y la parte pendiente del clasificador PowerShell. La comparación de dependencias
+sigue abierta. [Lecturas y decisiones](comparisons/role-hook-reading-evidence.json).
+
+La QA aceptada de working24 conserva exactamente sus bytes ejecutables y de
+pruebas. Esta actualización documental no cambia tareas, revisión final,
+workflows nativos, UI real ni publicación pendientes. Las skills siguen aplazadas.
+
+## Comparación de memoria aprendida — CLI revisada
+
+Se han leído 69 cuerpos completos. Se conservan las decisiones de adaptación
+para avisos de diseño, formato, señales de actividad, métricas y salud MCP.
+No se ejecutó código de referencia ni se incorporaron paquetes técnicos.
+La CLI de patrones está revisada: importar conserva el alcance declarado y
+crea propuestas pendientes; confianza o repetición no sustituyen aprobación.
+No se adoptan activación automática de capacidades generadas ni eliminación
+de propuestas por iniciar un observador. Resta completar el clasificador
+PowerShell; la comparación de dependencias sigue abierta. [Lecturas y decisiones](comparisons/role-hook-reading-evidence.json).
+
+La QA aceptada de working24 conserva exactamente sus bytes ejecutables y de
+pruebas. Esta actualización documental no cambia tareas, revisión final,
+workflows nativos, UI real ni publicación pendientes. Las skills siguen aplazadas.
+
+## Comparación de hooks — lecturas dirigidas completadas
+
+Se han leído 70 cuerpos completos. Se conservan las decisiones de adaptación
+para avisos de diseño, formato, señales de actividad, métricas y salud MCP.
+No se ejecutó código de referencia ni se incorporaron paquetes técnicos.
+La CLI de patrones y el clasificador PowerShell están revisados. Las
+dependencias declaradas de este tramo dirigido están leídas por completo.
+Se conservan captura y análisis separados, propuestas pendientes, alcance
+explícito y aprobación versionada. No se incorpora un parser global adicional
+ni se promete detección exhaustiva. Este cierre de lectura no acepta por sí
+solo la eficacia de hooks, todos los recursos del catálogo o los workflows. [Lecturas y decisiones](comparisons/role-hook-reading-evidence.json).
+
+La QA aceptada de working24 conserva exactamente sus bytes ejecutables y de
+pruebas. Esta actualización documental no cambia tareas, revisión final,
+workflows nativos, UI real ni publicación pendientes. Las skills siguen aplazadas.
+
+## Transporte nativo — evidencia parcial de tres clientes
+
+Claude 2.1.295 carga y expande work-resume, ejecuta la consulta real y conserva
+revisiones vigentes y de otra versión sin modificar el proyecto. Codex 0.162.1
+instala el plugin local en su cache aislada y carga la skill con argumentos;
+la prueba de consulta posterior se conserva rechazada por política nativa.
+OpenCode 2.0.12 registra los quince comandos generados tras su inicialización.
+La disponibilidad exige sus nombres, no sólo los dos comandos internos.
+
+Son pruebas controladas de transporte y una consulta del dueño, sin inferencia
+externa ni juicio real del modelo. Los jobs terminaron y se confirmó su limpieza.
+No se acredita aprobación humana efectiva ni todos los workflows, hooks o UI.
+No se modifica ninguna macro, revisión o gate. La revisión independiente y el
+cierre conjunto siguen pendientes; tampoco hay promoción, commit ni push.
+[Evidencia nativa](testing/native-transport30-evidence.json). Las skills siguen aplazadas.
+
+## OpenCode V2 — contrato nativo de skills y retoma
+
+RED: test_opencode_skill_examples_match_observed_native_tool_contract falló
+con «native skill tool requires ['id'], got {'name': 'X'}» · 2026-10-11.
+El fallo del controlador que esperaba el ejemplo nombre se conserva por separado;
+la verificación posterior liga el RED al JUnit original, sin repetir la prueba.
+Se corrigen las dos constantes del exportador y se regeneran todos los ejemplos
+de agentes y comandos. El contrato observado queda como fixture de la regresión.
+GREEN: módulo completo, 38/38 en Windows y 38/38 en Linux, sin omisiones.
+El contenedor propio Linux terminó y se eliminó. La comprobación final conserva
+el fallo del controlador por mayúscula en el mensaje de ausencia y verifica la
+ausencia con el recibo original, junto con fuentes y dependencias intactas.
+
+La herramienta nativa skill carga por id y devuelve el cuerpo completo de una
+skill existente. work-resume consulta el dueño real por shell nativa, mostrando
+revisión vigente y antigua sin cambiar archivos, entregar, consumir o aprobar.
+Las pruebas usan un proveedor controlado: no acreditan juicio real del modelo.
+La cobertura focal del propietario es 87,03703703703704 %; no hay líneas cambiadas
+clasificadas ejecutables y no se calcula un porcentaje ficticio para ellas.
+No se declara QA conjunta nueva ni se modifica ninguna macro o revisión.
+Revisión independiente, flujos restantes, UI real y publicación siguen pendientes.
+[Evidencia](testing/opencode-contract31-evidence.json). Las skills siguen aplazadas.
+
+## Agentes OpenCode — exportación V2 sin conversión de campos
+
+RED: test_opencode_agents_use_native_fields_and_preserve_observed_semantics
+falló con non-native agent fields para permission y temperature · 2026-10-11.
+Se reemplazan por permissions con reglas action/resource/effect y
+request.body.temperature. Se regenera, sin editar las copias a mano, y se
+actualiza la documentación EN/ES. El primer módulo dio 38 correctas y una fallida
+por comparar comillas JSON escapadas con un lector escalar; el oracle corregido
+decodifica la descripción nativa y conserva el original fallido.
+GREEN: 39/39 en Windows y 39/39 en Linux. CTracer cubre las líneas cambiadas
+clasificadas ejecutables y la asignación de metadata; la cobertura focal del
+propietario completo es 86,24338624338624 %, sin declarar QA conjunta nueva.
+
+El cliente carga los diez agentes y conserva metadata, permisos en orden,
+temperaturas declaradas y los cuerpos completos. Una delegación nativa lee la
+fixture en la hija y devuelve el resultado al padre, sin exponer edición ni
+cambiar el archivo. El criterio de temperatura enviada al proveedor no pasa:
+figura en metadata, pero no en las peticiones de la hija. Su causa no está
+probada y se mantiene pendiente, con los recibos originales intactos.
+No se acredita juicio real del modelo, revisión independiente o sandbox universal.
+Los jobs terminaron sin fuga y el contenedor propio quedó eliminado. No se cambia
+ninguna macro o revisión ni se promueve, commitea o publica el checkout.
+[Evidencia](testing/opencode-agent32-evidence.json). Las skills siguen aplazadas.
+
+## OpenCode — defaults del modelo del usuario
+
+La comparación nativa con el formato anterior tampoco observa temperatura 0.1
+en las peticiones del reviewer. Se conserva ese caso sin aceptar; no se prueba
+una causa genérica del cliente. Se elimina TEMP_OPENCODE y el request generado:
+traducir tiers de Claude a sampling era una convención propia y no representaba
+un tier nativo. Se mantiene el formato permissions y las responsabilidades de
+los roles, sin cambiar configuraciones, modelos o permisos globales del usuario.
+RED: test_opencode_default_roles_do_not_override_native_model_or_generation_settings
+falló con generated role must inherit native model and generation defaults · 2026-10-11.
+GREEN: 40/40 en Windows y 40/40 en Linux. CTracer cubre la asignación completa de
+metadata. La prueba nativa hereda el modelo y la temperatura 0.55 del proveedor
+del llamador, lee la fixture en la hija y devuelve el resultado al padre; no
+expone edición ni cambia el archivo. No acredita juicio real del modelo.
+Fuentes y dependencias se conservan y el contenedor propio quedó eliminado.
+No se convierten los casos históricos fallidos en verde ni se cierra una macro
+o revisión. Revisión independiente, flujos restantes, UI y publicación siguen
+pendientes. [Evidencia](testing/opencode-defaults33-evidence.json). Skills aplazadas.
+
+## Consumidor de plan — comprobación nativa versionada
+
+Claude 2.1.295 ejecuta receive, ack, view y status con el dueño real del bundle.
+Conserva review_id, versión y decision/delivery IDs y observa entregada → consumida
+antes de releer la vista completa y vigente de plan-ok. Un cambio posterior
+controlado de la fixture produce version_changed; el consumo de una decisión
+anterior no mantiene su vigencia. No se inicia implementación ni se toca tasks.md.
+No se publica memoria. La decisión y el cambio pertenecen a la fixture sintética:
+no acreditan interacción humana, juicio del modelo o todo dev-cycle.
+Fuente, bundle y ejecutable se conservan. El job es terminal, sin procesos activos
+ni fuga. Se conserva el primer fallo de preparación por runtime claude en lugar
+de claude-code, que ocurrió antes de lanzar el cliente.
+[Evidencia](testing/native-plan-consumer34-evidence.json). Permanecen pendientes
+UI real, feedback por comentario, otros clientes, entrega a memoria y revisión
+independiente. No se modifica una macro o revisión ni se publica el checkout.
+La ampliación de skills sigue aplazada.
+
+## Memoria pendiente — comprobación nativa autorizada
+
+Claude crea un candidato con propose y devuelve ruta y SHA. resume no infiere
+una asociación ausente; tras la referencia explícita del controlador observa
+pending / candidate_observed. No se aprueba ni publica memoria. La identidad del
+productor no está autenticada por su etiqueta. La memoria aprobada, entrada
+antigua, plan, taxonomía y evidencia permanecen intactos.
+Se conserva dontAsk con reglas de dos comandos exactos y la entrada de fixture;
+no se modifican ajustes personales ni se omiten permisos de forma general.
+El verificador original falló por omitir el archivo vacío de bloqueo persistente.
+La auditoría terminal posterior verifica el contrato, la liberación del bloqueo
+y los inventarios sin repetir el cliente. El exit 1 original queda conservado.
+El primer intento rechazado por permisos también queda conservado, incluida su
+limpieza con un hijo activo antes del cierre del job. El segundo job termina
+sin procesos activos ni fuga. Los hooks no se probaron en bare.
+[Evidencia](testing/native-memory-proposal35-evidence.json). Siguen pendientes
+curación/publicación completas, feedback, otros clientes, UI real y revisión
+independiente. No se modifican macros ni revisiones. No se promueve el checkout,
+ni se hace commit o push. La ampliación de skills sigue aplazada.
+
+## Feedback por comentario — comprobación nativa Claude
+
+Ocho operaciones del dueño real y nueve turnos completan resultado,
+verificación declarada, vistas, historial por versión y deduplicación. El cuerpo
+canónico completo de dev-cycle está en la petición nativa. La respuesta y su
+verificación mantienen vínculos e IDs; el segundo comentario sigue sin atender.
+Los recibos no conceden aprobación. El plan cambiado conserva feedback en su
+revisión histórica; la nueva no hereda resultados ni decisión.
+El retry idéntico conserva IDs/fecha/filas y devuelve la revisión actual; el
+incompatible devuelve operation_conflict sin sobrescribir. Se conserva exit 1
+del primer oracle, que confundía revisión actual con revisión del primer recibo.
+La segunda fixture pasa. Documentación ES/EN precisa ese contrato.
+Sólo cambian plan de fixture y registro propio; tasks.md, fuentes, bundle y
+ejecutable se conservan. Jobs terminales, sin fuga. Decisión y verificación son
+sintéticas, sin atención humana real ni juicio del modelo. No se inicia una
+tarea ni se publica memoria. Hooks no ejecutados en bare.
+[Evidencia](testing/native-feedback36-evidence.json). Siguen pendientes otros
+clientes, UI humana, curación/publicación completas y revisión independiente.
+No cambia ninguna macro ni revisión; no hay promoción, commit ni push.
+Skills nuevas permanecen aplazadas.
+
+## Consumidor de decisiones — comprobación nativa OpenCode V2
+
+Quince comandos de proyecto descubiertos y cuerpo completo de dev-cycle cargado
+con su argumento. Command y wait devuelven 204, según el contrato V2. Cuatro
+llamadas nativas shell completan receive, ack, view y status: entregada → consumida,
+relectura vigente de plan-ok y version_changed tras el cambio controlado de plan.
+Se mantienen versión e IDs; el consumo anterior no aprueba la versión nueva.
+Sólo cambian plan de fixture y registro propio; tasks.md, fuentes, bundle y
+ejecutable se conservan. Servidor detenido de forma explícita (exit 1); controlador
+y cleanup en exit 0, sin procesos activos ni fuga. El primer caso fallido por
+esperar 200 en command se conserva, sin provider calls ni cambios de proyecto.
+[Evidencia](testing/native-opencode-consumer37-evidence.json). Decisión y cambio
+sintéticos, sin UI humana ni juicio del modelo. Se cargan comandos/agentes del
+proyecto; hooks no cargados. No se inicia una tarea ni se publica memoria.
+Feedback OpenCode, Codex, UI real, curación/publicación completas y revisión
+independiente siguen pendientes. No cambian macros/revisiones, no se promueve
+el checkout ni se hace commit o push. Skills nuevas permanecen aplazadas.
+
+## Curación y portabilidad — comprobación nativa OpenCode
+
+Delegación real al agente generado knowledge-curator, prompt completo cargado
+y retorno al padre. Diez herramientas del hijo completan gate readonly, rechazo
+de SHA/fuente cambiados, recover preparado, apply exacto, lectura de aprobado,
+export de un ID, import --check, import pending y retry idempotente. Trece
+peticiones locales, sin errores. La recuperación no re-decide: sólo completa
+la intención sintética preparada. Vecinos approved, legado y taxonomías intactos.
+Dos aprobados de fixture, ninguno de producción; el destino importa un candidato
+sin aprobar. El check y retry conservan archivos y directorios. Backends apagados.
+Se conserva exit 1 del verificador, que omitía la retirada del staging propio de
+recover. La auditoría posterior verifica ruta/hash de intención, destino e
+inventarios sin repetir el cliente. Servidor terminado explícitamente (exit 1),
+job cerrado sin fuga. Fuente, bundle y ejecutable conservados.
+[Evidencia](testing/native-memory-curation38-evidence.json). No se acepta juicio
+semántico real, aprobación humana, identidad autenticada, guardias por hook ni
+revisión independiente. Siguen pendientes otros clientes, backends, UI real,
+comparación y cierre final. Macros/revisiones intactas, sin promoción/commit/push.
+Skills nuevas aplazadas. Contrato y README precisan implementación candidata
+disponible y aceptación global pendiente.
+
+## Publicador — replay y recuperación parcial validados
+
+RED reprodujo retiradas reintroducidas y canon reemplazado por cola obsoleta;
+drain precede ahora al plan fresco. Otro RED usa un lector nativo Windows sin
+compartir borrado: la finalización incorpora hasta cuatro intentos para 5/32/33,
+rechazando cambios de identidad. El último RED observa publicación parcial real
+y el mensaje incorrecto de estado intacto; CLI/contratos muestran parcialidad y
+outbox-status, y la próxima sincronización completa el objetivo pendiente.
+109 casos por plataforma Windows/Linux: 108 correctos, una omisión, cero fallos.
+Canon y vecinos ajenos conservados; cobertura de cambios ≥90% con CTracer oficial,
+sin gate global. Jobs sin fuga y contenedor propio retirado. Las pruebas controladas
+no identifican el proceso del fallo histórico; se conservan sus recibos fallidos.
+[Evidencia](testing/publisher-recovery41-evidence.json). Publicación por archivo,
+sin rollback global ni CAS contra terceros. Incorporación a la candidata con
+contratos ES/EN y changelogs; no valida servicios reales, todos los callers nativos,
+UI, revisión final o cierre de macros. Sin promoción del checkout, commit o push.
+Skills nuevas aplazadas.
+
+## Conectividad de servicios reales — observación acotada
+
+2026-10-11 19:07:46 UTC: health real de Kwipu y Graphiti sano mediante endpoints
+loopback documentados; Kwipu confirma grafo/Ollama y Graphiti status por MCP.
+Sin publicación, consultas, extracción, cambios de contenedores o configuración.
+Fuente y docs conservadas, job sin fuga. [Evidencia](testing/live-backend-health42-evidence.json).
+No acredita calidad, benchmark, persistencia, handoff nativo ni disponibilidad
+posterior. Sigue pendiente la entrada controlada y su recuperación/verificación.
+Macros y revisiones intactas; sin promoción, commit/push ni cierre global.
+
+## Graphiti real — errores y compatibilidad de creación
+
+ErrorResponse real con isError false era devuelto como éxito; corregido con
+rechazo tipado y diagnóstico saneado. RED 5/6; GREEN 322/322 Windows y Linux,
+sin omisiones. Cambios 100% y owner 92,48% con CTracer oficial. Rechazo confirmado
+en servidor real antes de cola. Se conservan fallo de aserción antigua e intento
+con indentación errónea; el último pase completo corresponde al test compilado.
+[Evidencia](testing/graphiti-error44-evidence.json). Jobs sin fuga y contenedores
+propios retirados. La publicación real sigue abierta: worker falla node-not-found
+por UUID nuevo; código instalado 0.30.1 interpreta UUID como episodio existente.
+Grupo de prueba limpiado después del fallo, sin reenviar ni tocar otros grupos.
+Queda creación/identidad/confirmación y sucesión/retirada, sin aceptar benchmark,
+handoff nativo o QA global. Macros y revisiones intactas; sin promoción/commit/push.
+
+

@@ -11,6 +11,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed — Journal recovery warning
+
+- `journal.py recover` only reports candidates skipped by its limit or time budget; sessions already captured no longer trigger «N candidate(s) not recovered» on every start.
+
 ### Fixed — Deterministic plan decision consumption
 
 - Consume a selected plan decision through the existing owner with bound delivery/ack IDs and a final current-view check; preserve waiting, obsolete versions and retry receipts without launching workflow effects.

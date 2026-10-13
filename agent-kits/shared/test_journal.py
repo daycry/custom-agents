@@ -2493,6 +2493,24 @@ def test_recover_a_demanda_sin_tope_recupera_todas_las_huerfanas(tmp_path):
     assert len(journal.entradas(str(proj))) == 10
 
 
+def test_recover_no_avisa_de_logs_ya_capturados_ni_en_la_segunda_pasada(tmp_path):
+    """Los logs de prompts NO se borran al materializar: una sesión ya recuperada (entrada) o
+    cerrada con envelope sigue siendo candidata por ventana, pero no queda «sin recuperar». Antes
+    el aviso comparaba `candidatas > recuperadas` y pedía repetir `recover`/subir `--max` en cada
+    arranque aunque no hubiera nada pendiente (observado en sesiones nativas Claude 2026-10-13)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    for i in range(2):
+        _log_prompts(proj, f"huerF{i}", mtime_hace_min=1500)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="cerrada"))
+    _log_prompts(proj, "cerrada", mtime_hace_min=1500)
+    primera = journal.recover(str(proj), current_session_id="viva")
+    assert primera["recuperadas"] == 2, primera
+    assert not any("sin recuperar" in a for a in primera["avisos"]), primera["avisos"]
+    segunda = journal.recover(str(proj), current_session_id="viva")
+    assert segunda["recuperadas"] == 0, segunda
+    assert not any("sin recuperar" in a for a in segunda["avisos"]), segunda["avisos"]
+
+
 def test_recover_a_demanda_con_max_3_recupera_3_y_avisa_de_las_7_restantes(tmp_path):
     """Gap 91: con `--max 3` explícito, `recover` a demanda recupera solo 3 de 10 y avisa de las 7
     que quedan sin recuperar (antes solo avisaba si `recuperadas == 0`)."""

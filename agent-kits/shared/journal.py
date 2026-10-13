@@ -764,7 +764,7 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
     ahora = time.time()
     capturados = _indice_sids_capturados(root, ob, dir_)
     recuperados_n = 0
-    agotado_por_presupuesto = False      # gap 84/85: al menos una candidata se saltó por max_n/deadline
+    saltadas_por_presupuesto = 0         # gap 84/85: candidatas que se saltaron por max_n/deadline
     for fn in sorted(nombres):
         sid = _extraer_sid_de_log(fn)
         if not sid:
@@ -800,10 +800,10 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
             resumen["recuperadas"] += 1
             continue
         if max_n is not None and recuperados_n >= max_n:
-            agotado_por_presupuesto = True
+            saltadas_por_presupuesto += 1
             continue                                        # gap 65: tope de esta pasada, el resto queda para la próxima
         if deadline is not None and time.monotonic() >= deadline:
-            agotado_por_presupuesto = True
+            saltadas_por_presupuesto += 1
             continue                                        # gap 65: presupuesto agotado, el resto queda para la próxima
         try:
             captured_at = _mtime_utc_iso(log_path_)          # gap 67: fecha/derivados del CIERRE, no de "ahora"
@@ -828,14 +828,14 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
             # incluye la ruta en su texto) y de ahí a `additionalContext` de `SessionStart` sin que
             # nadie lo cite como dato: `_msg_seguro` se queda con el tipo + 80 caracteres saneados.
             resumen["avisos"].append(f"{_sid_seguro(sid)}: {_msg_seguro(ex)}")
-    if not dry_run and resumen["candidatas"] > resumen["recuperadas"]:
+    if not dry_run and saltadas_por_presupuesto:
         # gap 91: antes solo avisaba con `recuperados_n == 0` (agotamiento total) — con `--max`
         # bajo (o el compartido de `SessionStart`) una recuperación PARCIAL (p. ej. 3 de 10
-        # candidatas) quedaba sin decir que faltan 7 por recuperar, así que nadie sabía que hacía
-        # falta repetir `recover`/`replay --con-recover` o subir `--max`.
-        faltan = resumen["candidatas"] - resumen["recuperadas"]
+        # candidatas) quedaba sin decir que faltan 7 por recuperar. Solo cuentan las saltadas por
+        # tope/presupuesto: los logs ya capturados (entrada o envelope) siguen siendo candidatas por
+        # ventana pero no están pendientes, y contarlos repetía el aviso en cada arranque.
         resumen["avisos"].append(
-            f"{faltan} candidata(s) sin recuperar en esta pasada; repite `recover` o sube `--max`")
+            f"{saltadas_por_presupuesto} candidata(s) sin recuperar en esta pasada; repite `recover` o sube `--max`")
 
 
 def recover(root, ventana_min=None, current_session_id=None, session_id=None, dry_run=False,

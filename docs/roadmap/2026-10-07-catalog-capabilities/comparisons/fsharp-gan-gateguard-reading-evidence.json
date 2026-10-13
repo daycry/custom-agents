@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": ["S110", "S111", "S112"],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "unread_referenced_sources": ["scripts/gan-harness.sh", "scripts/hooks/gateguard-fact-force.js"],
+  "source": [
+    {"id": "S110", "sha256": "d89f8cb5235f7896b014aae4aa94026bd1a38bc6add956d3fc7ccf2963f2adb7", "bytes": 7941, "lines": 281, "read_ranges": [[1, 281]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S111", "sha256": "d91da8ca4a77a797d9ab78bb748aeb16567d75a1b109c894dc07d8815aa19dde", "bytes": 12431, "lines": 279, "read_ranges": [[1, 279]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S112", "sha256": "33e89b52b5f76ade2508165271bcf425fc3b792e56a92405c356a7e94077610a", "bytes": 9328, "lines": 206, "read_ranges": [[1, 206]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []}
+  ],
+  "own_counterparts": [
+    {"path": "agent-kits/shared/guardrail-check.py", "sha256": "fa9a6874ebee6be2c465bc4772ef9fbcf310d6c0cfedc2ccede9c2fbd393866a"},
+    {"path": "skills/adversarial-review/SKILL.md", "sha256": "234bafc53ac9e6f581baaddb2f1896806e30781dafbf75c3e1d431f171b11904"},
+    {"path": "agents/implementer.md", "sha256": "173c13352c752d1d81920729246e806110346a8a29e55070cf36ae4813f65e9c"}
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

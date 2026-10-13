@@ -146,7 +146,7 @@ La candidata conserva el encargo de desarrollo en ambas vías: resultado, requis
 - **Descripción**: Leer cuerpos, recursos y callers de todas las skills; registrar contenido único y comparación concreta, incluyendo dominios técnicos y memoria.
 - **Dependencias**: T-01.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
-- **Verificación**: 79/293 skills evaluadas semánticamente (S001–S079), cuerpos completos, recursos locales y consumidores pertinentes comprobados. comparisons/skills-foundations.md conserva el primer bloque, con hashes/rangos de 18 fuentes y 13 archivos propios en reading-evidence.json. comparisons/skills-workflows.md añade S006–S012 y los seis recursos de S007; workflow-reading-evidence.json registra 20 fuentes y 18 propios. comparisons/skills-architecture-operations.md añade S013/S015–S020; architecture-reading-evidence.json registra 32 fuentes y 16 propios y conserva la lectura pendiente histórica de S014. comparisons/skills-angular.md completa S014; angular-reading-evidence.json registra 39 fuentes y 15 propios, los 35 recursos completos y 21 contrastes documentales oficiales. comparisons/skills-iteration-backend-benchmarks.md añade S021–S027; iteration-reading-evidence.json registra 35 fuentes y 26 propios, siete cuerpos completos sin recursos locales y 10 contrastes oficiales, con cuatro lecturas documentales rechazadas diferenciadas. comparisons/skills-brand-browser-runtime.md añade S028–S032; brand-ui-reading-evidence.json registra 36 fuentes y 22 propios, los nueve recursos completos y siete contrastes oficiales. comparisons/skills-operations-session-context.md añade S033–S035; operations-reading-evidence.json registra 21 fuentes y 18 propios, nueve recursos completos y cuatro contrastes oficiales, con tres rechazos HTTP directos separados de la lectura documental disponible. comparisons/skills-navigation-quality-data.md añade S036–S042; navigation-reading-evidence.json registra 21 fuentes y 28 propios, siete cuerpos completos sin recursos locales y 15 contrastes oficiales, con un enlace antiguo HTTP 404 y su sustituto vigente diferenciados. comparisons/skills-strategy-configuration-context.md añade S043–S052; business-reading-evidence.json registra 40 fuentes y 30 propios, diez cuerpos completos sin recursos locales y nueve contrastes oficiales; entrypoints leídos y verificación operativa pendiente diferenciados. comparisons/skills-session-learning-memory.md añade S053–S054; learning-reading-evidence.json registra 32 fuentes y 22 propios, dos cuerpos completos, 13 recursos completos y cuatro contrastes oficiales; tests y código del corpus leídos sin ejecución, dispatch/arquitectura/eficacia pendientes diferenciados. Helpers privados de cada bloque, Python 3.13, exit 0. Las fichas separan destinos propuestos, escenarios estáticos y validaciones no ejecutadas. comparisons/skills-contracts-costs-decisions.md añade S055–S060; contract-cost-reading-evidence.json registra 22 fuentes y 20 propios, seis cuerpos completos, tres recursos completos, siete contrastes oficiales y dos consultas CLI de versión/ayuda; estimación, facturación e integración operativa diferenciadas. comparisons/skills-cpp-dotnet-distribution-billing.md añade S061–S065; cpp-dotnet-reading-evidence.json registra 24 fuentes y 20 propios, cinco cuerpos completos sin recursos locales, 14 contrastes oficiales y un HTTP 404 con sustituto vigente diferenciado; compilación/cobertura/envíos/operaciones financieras no ejecutados. comparisons/skills-trade-flutter-observability.md añade S066–S068; trade-flutter-reading-evidence.json registra 25 fuentes y 27 propios, tres cuerpos completos sin recursos locales, diez reglas externas completas (30.350 bytes/1.080 líneas), 24 contrastes oficiales y tres respuestas sin documento válido diferenciadas; normativa por caso, compilación, hooks y dashboards operativos no ejecutados. comparisons/skills-data-pipelines-research.md añade S069–S072; data-research-reading-evidence.json registra 14 fuentes y 24 propios, cuatro cuerpos completos (46.443 bytes/1.450 líneas) sin recursos locales, 23 contrastes oficiales y un HTTP 404 con sustituto válido diferenciado; extracción, enriquecimiento, benchmark, migraciones y conexiones MCP no ejecutados. comparisons/skills-contract-security-delivery.md añade S073–S074; security-delivery-reading-evidence.json registra ocho fuentes y 19 propios, dos cuerpos completos (10.530 bytes/293 líneas), un recurso completo (7.826 bytes/220 líneas), 12 contrastes oficiales, un HTTP 404 y dos errores del lector web diferenciados; herramientas Solidity y dispatch de cierre no ejecutados. comparisons/skills-deployment-design-collaboration.md añade S075–S077; deploy-design-team-reading-evidence.json registra 20 fuentes y 19 propios, tres cuerpos completos (22.246 bytes/714 líneas), cero recursos locales, 13 contrastes oficiales y un error de lector web con lectura HTTP válida posterior diferenciados; despliegue, preview visual y sesiones de agentes no ejecutados. comparisons/skills-django-queues-architecture.md añade S078–S079; django-core-reading-evidence.json registra 11 fuentes y 14 propios, dos cuerpos completos (34.250 bytes/1.193 líneas), cero recursos locales y 14 contrastes oficiales; código, migraciones, workers, brokers y pagos no ejecutados. Integradas desde esta comparación: 0; quedan 214 skills y la revisión operativa de adaptadores/generadores en T-06. T-03 no está cerrada.
+- **Verificación**: 112/293 skills evaluadas semánticamente (S001–S112), cuerpos completos, recursos locales y consumidores pertinentes comprobados. comparisons/skills-foundations.md conserva el primer bloque, con hashes/rangos de 18 fuentes y 13 archivos propios en reading-evidence.json. comparisons/skills-workflows.md añade S006–S012 y los seis recursos de S007; workflow-reading-evidence.json registra 20 fuentes y 18 propios. comparisons/skills-architecture-operations.md añade S013/S015–S020; architecture-reading-evidence.json registra 32 fuentes y 16 propios y conserva la lectura pendiente histórica de S014. comparisons/skills-angular.md completa S014; angular-reading-evidence.json registra 39 fuentes y 15 propios, los 35 recursos completos y 21 contrastes documentales oficiales. comparisons/skills-iteration-backend-benchmarks.md añade S021–S027; iteration-reading-evidence.json registra 35 fuentes y 26 propios, siete cuerpos completos sin recursos locales y 10 contrastes oficiales, con cuatro lecturas documentales rechazadas diferenciadas. comparisons/skills-brand-browser-runtime.md añade S028–S032; brand-ui-reading-evidence.json registra 36 fuentes y 22 propios, los nueve recursos completos y siete contrastes oficiales. comparisons/skills-operations-session-context.md añade S033–S035; operations-reading-evidence.json registra 21 fuentes y 18 propios, nueve recursos completos y cuatro contrastes oficiales, con tres rechazos HTTP directos separados de la lectura documental disponible. comparisons/skills-navigation-quality-data.md añade S036–S042; navigation-reading-evidence.json registra 21 fuentes y 28 propios, siete cuerpos completos sin recursos locales y 15 contrastes oficiales, con un enlace antiguo HTTP 404 y su sustituto vigente diferenciados. comparisons/skills-strategy-configuration-context.md añade S043–S052; business-reading-evidence.json registra 40 fuentes y 30 propios, diez cuerpos completos sin recursos locales y nueve contrastes oficiales; entrypoints leídos y verificación operativa pendiente diferenciados. comparisons/skills-session-learning-memory.md añade S053–S054; learning-reading-evidence.json registra 32 fuentes y 22 propios, dos cuerpos completos, 13 recursos completos y cuatro contrastes oficiales; tests y código del corpus leídos sin ejecución, dispatch/arquitectura/eficacia pendientes diferenciados. Helpers privados de cada bloque, Python 3.13, exit 0. Las fichas separan destinos propuestos, escenarios estáticos y validaciones no ejecutadas. comparisons/skills-contracts-costs-decisions.md añade S055–S060; contract-cost-reading-evidence.json registra 22 fuentes y 20 propios, seis cuerpos completos, tres recursos completos, siete contrastes oficiales y dos consultas CLI de versión/ayuda; estimación, facturación e integración operativa diferenciadas. comparisons/skills-cpp-dotnet-distribution-billing.md añade S061–S065; cpp-dotnet-reading-evidence.json registra 24 fuentes y 20 propios, cinco cuerpos completos sin recursos locales, 14 contrastes oficiales y un HTTP 404 con sustituto vigente diferenciado; compilación/cobertura/envíos/operaciones financieras no ejecutados. comparisons/skills-trade-flutter-observability.md añade S066–S068; trade-flutter-reading-evidence.json registra 25 fuentes y 27 propios, tres cuerpos completos sin recursos locales, diez reglas externas completas (30.350 bytes/1.080 líneas), 24 contrastes oficiales y tres respuestas sin documento válido diferenciadas; normativa por caso, compilación, hooks y dashboards operativos no ejecutados. comparisons/skills-data-pipelines-research.md añade S069–S072; data-research-reading-evidence.json registra 14 fuentes y 24 propios, cuatro cuerpos completos (46.443 bytes/1.450 líneas) sin recursos locales, 23 contrastes oficiales y un HTTP 404 con sustituto válido diferenciado; extracción, enriquecimiento, benchmark, migraciones y conexiones MCP no ejecutados. comparisons/skills-contract-security-delivery.md añade S073–S074; security-delivery-reading-evidence.json registra ocho fuentes y 19 propios, dos cuerpos completos (10.530 bytes/293 líneas), un recurso completo (7.826 bytes/220 líneas), 12 contrastes oficiales, un HTTP 404 y dos errores del lector web diferenciados; herramientas Solidity y dispatch de cierre no ejecutados. comparisons/skills-deployment-design-collaboration.md añade S075–S077; deploy-design-team-reading-evidence.json registra 20 fuentes y 19 propios, tres cuerpos completos (22.246 bytes/714 líneas), cero recursos locales, 13 contrastes oficiales y un error de lector web con lectura HTTP válida posterior diferenciados; despliegue, preview visual y sesiones de agentes no ejecutados. comparisons/skills-django-queues-architecture.md añade S078–S079; django-core-reading-evidence.json registra 11 fuentes y 14 propios, dos cuerpos completos (34.250 bytes/1.193 líneas), cero recursos locales y 14 contrastes oficiales; código, migraciones, workers, brokers y pagos no ejecutados. comparisons/skills-django-security-testing-verification.md añade S080–S082 (2026-10-13); django-security-testing-reading-evidence.json registra tres cuerpos completos (50.033 bytes/1.844 líneas), cero recursos locales, callers A017/A018 por líneas y dos contrastes oficiales (Django 6.1, pytest-django); sin skill nueva: especialidad django-practices propuesta. comparisons/skills-parallel-containers-docs.md añade S083–S085 (2026-10-13): parallel-containers-docs-reading-evidence.json registra tres cuerpos completos (26.185 bytes/803 líneas), cero recursos locales y dos scripts citados sin leer; decisiones: no adoptar dmux, ampliar delivery-practices con el arnés aislado, Context7 como canal opcional de research-first. comparisons/skills-dotnet-harness-e2e.md añade S086–S088 (2026-10-13): tres cuerpos completos (22.875 bytes/773 líneas) sin recursos locales; .NET de diseño a dotnet-practices, criterio de extracción a plugin-dev y estabilidad de specs a qa/frontend-quality; contraste oficial pendiente. comparisons/skills-catalog-self-ops-domains.md añade S089–S094 (2026-10-13): seis cuerpos completos (54.512 bytes/906 líneas); tres describen el catálogo de origen y quedan cubiertas por dueños propios, S091 aporta cuatro patrones de coste a backend-practices, S092/S093 van a extensiones/personas de proyecto. comparisons/skills-errors-evals-providers.md añade S095–S100 (2026-10-13): seis cuerpos y un recurso completos (45.983 + 4.651 bytes); errores a stack/backend-practices, patrón de aprobación ligada de S096 a delivery-practices, pass@k a outcome-evals, Exa a research-first, fal.ai fuera del bundle. comparisons/skills-fastapi-billing-flox.md añade S101–S103 (2026-10-13): FastAPI a stack-practices/python con 10 adaptaciones, facturación sin destino nuevo, Flox como manifiesto de dependency-upgrade. comparisons/skills-flutter-ondevice-a11y.md añade S104–S106 (2026-10-13): revisión Flutter a la especialidad de S067, FoundationModels fuera del bundle, accesibilidad React a frontend-quality con 7 correcciones. comparisons/skills-frontend-direction-patterns-slides.md añade S107–S109 (2026-10-13; S109 cerrada tras leer sus seis recursos): dirección visual a frontend-quality, carga de datos con cancelación a stack-practices/react. comparisons/skills-fsharp-gan-gateguard.md añade S110–S112 (2026-10-13): F# a dotnet-practices, arnés generador-evaluador y puerta de hechos sin adoptar (contradicen alcance aprobado y hooks que informan). Integradas desde esta comparación: 0; quedan 181 skills y la revisión operativa de adaptadores/generadores en T-06. T-03 no está cerrada.
 - **Notas**: TDD n/a: prosa/config de comparación, sin modificación de producción. Los consumidores leídos parcialmente no se cuentan como otras piezas evaluadas; las validaciones de activación son estáticas y no acreditan invocación nativa.
 - **Comprobaciones del primer bloque**: ledger-lint 0 incoherencias/0 avisos; test_roadmap_index 50 passed; lint_plugin 0 errores/3 avisos históricos; scope-check 9 archivos propios en alcance/0 fuera, settings ajenos excluidos. check_skill_comparison_docs.py: 18 hashes de origen/13 propios coincidentes, enlaces locales válidos, JSON válido, diff limpio y 0 referencias públicas prohibidas en los 9 documentos de ese checkpoint. Estas puertas validan estructura/trazabilidad, no integración funcional.
 - **Hallazgos del segundo bloque**: la metadata oficial del SDK de pagos 6.0.0 no declara bin, por lo que el arranque MCP propuesto necesita corrección y esquema real de tools; la rúbrica textual asume precisión máxima sin verificarla y su ejemplo HTTPX es incorrecto; los recordatorios echo de Stop/PostToolUse no prueban entrega de contexto al modelo; la ayuda de Claude 2.1.287 no documenta los flags del scheduler de ejemplo; la prueba de paridad solo cubre mock y puede pasar sin filas. Contraste documental y CLI limitado a versión/ayuda, sin instalar SDKs, usar carteras, prompts ni schedules. Todos los criterios útiles tienen destino propuesto; integración y pruebas de eficacia pendientes.
@@ -344,7 +344,7 @@ Los bloques operativos 1–18 conservan sus pruebas y decisiones en [execution-h
 La entrega más reciente acepta lectura documental opt-in, selectores AST, recibos y productor explícito.
 La memoria local sigue siendo canónica y funciona sin servicios externos.
 
-La integración global sigue abierta. Las skills permanecen aplazadas en 79/293 evaluadas.
+La integración global sigue abierta. La comparación de skills se retomó el 2026-10-13: 112/293 evaluadas.
 La revisión de planes y los resultados por comentario están implementados en la copia revisada. La QA conjunta, el diagnóstico de instalación Codex y la interacción real del panel conservan su validación pendiente.
 Restore, corpus grandes, continuidad, aprendizaje y demás capacidades siguen pendientes.
 
@@ -1142,271 +1142,9 @@ Esta entrada acepta la QA de esa fuente; no cierra las tareas macro, workflows,
 UI, comparación de dependencias, revisión independiente ni publicación.
 La actualización documental conserva el código probado y el historial de revisiones.
 
-## Comparación de dependencias operativas — lectura ampliada
+## Narrativa operativa del 2026-10-10/11 — trasladada
 
-Se han leído 68 cuerpos completos. Se conservan las decisiones de adaptación
-para avisos de diseño, formato, señales de actividad, métricas y salud MCP.
-No se ejecutó código de referencia ni se incorporaron paquetes técnicos.
-El inventario no contiene dependencias sin registrar; resta una CLI de patrones
-y la parte pendiente del clasificador PowerShell. La comparación de dependencias
-sigue abierta. [Lecturas y decisiones](comparisons/role-hook-reading-evidence.json).
-
-La QA aceptada de working24 conserva exactamente sus bytes ejecutables y de
-pruebas. Esta actualización documental no cambia tareas, revisión final,
-workflows nativos, UI real ni publicación pendientes. Las skills siguen aplazadas.
-
-## Comparación de memoria aprendida — CLI revisada
-
-Se han leído 69 cuerpos completos. Se conservan las decisiones de adaptación
-para avisos de diseño, formato, señales de actividad, métricas y salud MCP.
-No se ejecutó código de referencia ni se incorporaron paquetes técnicos.
-La CLI de patrones está revisada: importar conserva el alcance declarado y
-crea propuestas pendientes; confianza o repetición no sustituyen aprobación.
-No se adoptan activación automática de capacidades generadas ni eliminación
-de propuestas por iniciar un observador. Resta completar el clasificador
-PowerShell; la comparación de dependencias sigue abierta. [Lecturas y decisiones](comparisons/role-hook-reading-evidence.json).
-
-La QA aceptada de working24 conserva exactamente sus bytes ejecutables y de
-pruebas. Esta actualización documental no cambia tareas, revisión final,
-workflows nativos, UI real ni publicación pendientes. Las skills siguen aplazadas.
-
-## Comparación de hooks — lecturas dirigidas completadas
-
-Se han leído 70 cuerpos completos. Se conservan las decisiones de adaptación
-para avisos de diseño, formato, señales de actividad, métricas y salud MCP.
-No se ejecutó código de referencia ni se incorporaron paquetes técnicos.
-La CLI de patrones y el clasificador PowerShell están revisados. Las
-dependencias declaradas de este tramo dirigido están leídas por completo.
-Se conservan captura y análisis separados, propuestas pendientes, alcance
-explícito y aprobación versionada. No se incorpora un parser global adicional
-ni se promete detección exhaustiva. Este cierre de lectura no acepta por sí
-solo la eficacia de hooks, todos los recursos del catálogo o los workflows. [Lecturas y decisiones](comparisons/role-hook-reading-evidence.json).
-
-La QA aceptada de working24 conserva exactamente sus bytes ejecutables y de
-pruebas. Esta actualización documental no cambia tareas, revisión final,
-workflows nativos, UI real ni publicación pendientes. Las skills siguen aplazadas.
-
-## Transporte nativo — evidencia parcial de tres clientes
-
-Claude 2.1.295 carga y expande work-resume, ejecuta la consulta real y conserva
-revisiones vigentes y de otra versión sin modificar el proyecto. Codex 0.162.1
-instala el plugin local en su cache aislada y carga la skill con argumentos;
-la prueba de consulta posterior se conserva rechazada por política nativa.
-OpenCode 2.0.12 registra los quince comandos generados tras su inicialización.
-La disponibilidad exige sus nombres, no sólo los dos comandos internos.
-
-Son pruebas controladas de transporte y una consulta del dueño, sin inferencia
-externa ni juicio real del modelo. Los jobs terminaron y se confirmó su limpieza.
-No se acredita aprobación humana efectiva ni todos los workflows, hooks o UI.
-No se modifica ninguna macro, revisión o gate. La revisión independiente y el
-cierre conjunto siguen pendientes; tampoco hay promoción, commit ni push.
-[Evidencia nativa](testing/native-transport30-evidence.json). Las skills siguen aplazadas.
-
-## OpenCode V2 — contrato nativo de skills y retoma
-
-RED: test_opencode_skill_examples_match_observed_native_tool_contract falló
-con «native skill tool requires ['id'], got {'name': 'X'}» · 2026-10-11.
-El fallo del controlador que esperaba el ejemplo nombre se conserva por separado;
-la verificación posterior liga el RED al JUnit original, sin repetir la prueba.
-Se corrigen las dos constantes del exportador y se regeneran todos los ejemplos
-de agentes y comandos. El contrato observado queda como fixture de la regresión.
-GREEN: módulo completo, 38/38 en Windows y 38/38 en Linux, sin omisiones.
-El contenedor propio Linux terminó y se eliminó. La comprobación final conserva
-el fallo del controlador por mayúscula en el mensaje de ausencia y verifica la
-ausencia con el recibo original, junto con fuentes y dependencias intactas.
-
-La herramienta nativa skill carga por id y devuelve el cuerpo completo de una
-skill existente. work-resume consulta el dueño real por shell nativa, mostrando
-revisión vigente y antigua sin cambiar archivos, entregar, consumir o aprobar.
-Las pruebas usan un proveedor controlado: no acreditan juicio real del modelo.
-La cobertura focal del propietario es 87,03703703703704 %; no hay líneas cambiadas
-clasificadas ejecutables y no se calcula un porcentaje ficticio para ellas.
-No se declara QA conjunta nueva ni se modifica ninguna macro o revisión.
-Revisión independiente, flujos restantes, UI real y publicación siguen pendientes.
-[Evidencia](testing/opencode-contract31-evidence.json). Las skills siguen aplazadas.
-
-## Agentes OpenCode — exportación V2 sin conversión de campos
-
-RED: test_opencode_agents_use_native_fields_and_preserve_observed_semantics
-falló con non-native agent fields para permission y temperature · 2026-10-11.
-Se reemplazan por permissions con reglas action/resource/effect y
-request.body.temperature. Se regenera, sin editar las copias a mano, y se
-actualiza la documentación EN/ES. El primer módulo dio 38 correctas y una fallida
-por comparar comillas JSON escapadas con un lector escalar; el oracle corregido
-decodifica la descripción nativa y conserva el original fallido.
-GREEN: 39/39 en Windows y 39/39 en Linux. CTracer cubre las líneas cambiadas
-clasificadas ejecutables y la asignación de metadata; la cobertura focal del
-propietario completo es 86,24338624338624 %, sin declarar QA conjunta nueva.
-
-El cliente carga los diez agentes y conserva metadata, permisos en orden,
-temperaturas declaradas y los cuerpos completos. Una delegación nativa lee la
-fixture en la hija y devuelve el resultado al padre, sin exponer edición ni
-cambiar el archivo. El criterio de temperatura enviada al proveedor no pasa:
-figura en metadata, pero no en las peticiones de la hija. Su causa no está
-probada y se mantiene pendiente, con los recibos originales intactos.
-No se acredita juicio real del modelo, revisión independiente o sandbox universal.
-Los jobs terminaron sin fuga y el contenedor propio quedó eliminado. No se cambia
-ninguna macro o revisión ni se promueve, commitea o publica el checkout.
-[Evidencia](testing/opencode-agent32-evidence.json). Las skills siguen aplazadas.
-
-## OpenCode — defaults del modelo del usuario
-
-La comparación nativa con el formato anterior tampoco observa temperatura 0.1
-en las peticiones del reviewer. Se conserva ese caso sin aceptar; no se prueba
-una causa genérica del cliente. Se elimina TEMP_OPENCODE y el request generado:
-traducir tiers de Claude a sampling era una convención propia y no representaba
-un tier nativo. Se mantiene el formato permissions y las responsabilidades de
-los roles, sin cambiar configuraciones, modelos o permisos globales del usuario.
-RED: test_opencode_default_roles_do_not_override_native_model_or_generation_settings
-falló con generated role must inherit native model and generation defaults · 2026-10-11.
-GREEN: 40/40 en Windows y 40/40 en Linux. CTracer cubre la asignación completa de
-metadata. La prueba nativa hereda el modelo y la temperatura 0.55 del proveedor
-del llamador, lee la fixture en la hija y devuelve el resultado al padre; no
-expone edición ni cambia el archivo. No acredita juicio real del modelo.
-Fuentes y dependencias se conservan y el contenedor propio quedó eliminado.
-No se convierten los casos históricos fallidos en verde ni se cierra una macro
-o revisión. Revisión independiente, flujos restantes, UI y publicación siguen
-pendientes. [Evidencia](testing/opencode-defaults33-evidence.json). Skills aplazadas.
-
-## Consumidor de plan — comprobación nativa versionada
-
-Claude 2.1.295 ejecuta receive, ack, view y status con el dueño real del bundle.
-Conserva review_id, versión y decision/delivery IDs y observa entregada → consumida
-antes de releer la vista completa y vigente de plan-ok. Un cambio posterior
-controlado de la fixture produce version_changed; el consumo de una decisión
-anterior no mantiene su vigencia. No se inicia implementación ni se toca tasks.md.
-No se publica memoria. La decisión y el cambio pertenecen a la fixture sintética:
-no acreditan interacción humana, juicio del modelo o todo dev-cycle.
-Fuente, bundle y ejecutable se conservan. El job es terminal, sin procesos activos
-ni fuga. Se conserva el primer fallo de preparación por runtime claude en lugar
-de claude-code, que ocurrió antes de lanzar el cliente.
-[Evidencia](testing/native-plan-consumer34-evidence.json). Permanecen pendientes
-UI real, feedback por comentario, otros clientes, entrega a memoria y revisión
-independiente. No se modifica una macro o revisión ni se publica el checkout.
-La ampliación de skills sigue aplazada.
-
-## Memoria pendiente — comprobación nativa autorizada
-
-Claude crea un candidato con propose y devuelve ruta y SHA. resume no infiere
-una asociación ausente; tras la referencia explícita del controlador observa
-pending / candidate_observed. No se aprueba ni publica memoria. La identidad del
-productor no está autenticada por su etiqueta. La memoria aprobada, entrada
-antigua, plan, taxonomía y evidencia permanecen intactos.
-Se conserva dontAsk con reglas de dos comandos exactos y la entrada de fixture;
-no se modifican ajustes personales ni se omiten permisos de forma general.
-El verificador original falló por omitir el archivo vacío de bloqueo persistente.
-La auditoría terminal posterior verifica el contrato, la liberación del bloqueo
-y los inventarios sin repetir el cliente. El exit 1 original queda conservado.
-El primer intento rechazado por permisos también queda conservado, incluida su
-limpieza con un hijo activo antes del cierre del job. El segundo job termina
-sin procesos activos ni fuga. Los hooks no se probaron en bare.
-[Evidencia](testing/native-memory-proposal35-evidence.json). Siguen pendientes
-curación/publicación completas, feedback, otros clientes, UI real y revisión
-independiente. No se modifican macros ni revisiones. No se promueve el checkout,
-ni se hace commit o push. La ampliación de skills sigue aplazada.
-
-## Feedback por comentario — comprobación nativa Claude
-
-Ocho operaciones del dueño real y nueve turnos completan resultado,
-verificación declarada, vistas, historial por versión y deduplicación. El cuerpo
-canónico completo de dev-cycle está en la petición nativa. La respuesta y su
-verificación mantienen vínculos e IDs; el segundo comentario sigue sin atender.
-Los recibos no conceden aprobación. El plan cambiado conserva feedback en su
-revisión histórica; la nueva no hereda resultados ni decisión.
-El retry idéntico conserva IDs/fecha/filas y devuelve la revisión actual; el
-incompatible devuelve operation_conflict sin sobrescribir. Se conserva exit 1
-del primer oracle, que confundía revisión actual con revisión del primer recibo.
-La segunda fixture pasa. Documentación ES/EN precisa ese contrato.
-Sólo cambian plan de fixture y registro propio; tasks.md, fuentes, bundle y
-ejecutable se conservan. Jobs terminales, sin fuga. Decisión y verificación son
-sintéticas, sin atención humana real ni juicio del modelo. No se inicia una
-tarea ni se publica memoria. Hooks no ejecutados en bare.
-[Evidencia](testing/native-feedback36-evidence.json). Siguen pendientes otros
-clientes, UI humana, curación/publicación completas y revisión independiente.
-No cambia ninguna macro ni revisión; no hay promoción, commit ni push.
-Skills nuevas permanecen aplazadas.
-
-## Consumidor de decisiones — comprobación nativa OpenCode V2
-
-Quince comandos de proyecto descubiertos y cuerpo completo de dev-cycle cargado
-con su argumento. Command y wait devuelven 204, según el contrato V2. Cuatro
-llamadas nativas shell completan receive, ack, view y status: entregada → consumida,
-relectura vigente de plan-ok y version_changed tras el cambio controlado de plan.
-Se mantienen versión e IDs; el consumo anterior no aprueba la versión nueva.
-Sólo cambian plan de fixture y registro propio; tasks.md, fuentes, bundle y
-ejecutable se conservan. Servidor detenido de forma explícita (exit 1); controlador
-y cleanup en exit 0, sin procesos activos ni fuga. El primer caso fallido por
-esperar 200 en command se conserva, sin provider calls ni cambios de proyecto.
-[Evidencia](testing/native-opencode-consumer37-evidence.json). Decisión y cambio
-sintéticos, sin UI humana ni juicio del modelo. Se cargan comandos/agentes del
-proyecto; hooks no cargados. No se inicia una tarea ni se publica memoria.
-Feedback OpenCode, Codex, UI real, curación/publicación completas y revisión
-independiente siguen pendientes. No cambian macros/revisiones, no se promueve
-el checkout ni se hace commit o push. Skills nuevas permanecen aplazadas.
-
-## Curación y portabilidad — comprobación nativa OpenCode
-
-Delegación real al agente generado knowledge-curator, prompt completo cargado
-y retorno al padre. Diez herramientas del hijo completan gate readonly, rechazo
-de SHA/fuente cambiados, recover preparado, apply exacto, lectura de aprobado,
-export de un ID, import --check, import pending y retry idempotente. Trece
-peticiones locales, sin errores. La recuperación no re-decide: sólo completa
-la intención sintética preparada. Vecinos approved, legado y taxonomías intactos.
-Dos aprobados de fixture, ninguno de producción; el destino importa un candidato
-sin aprobar. El check y retry conservan archivos y directorios. Backends apagados.
-Se conserva exit 1 del verificador, que omitía la retirada del staging propio de
-recover. La auditoría posterior verifica ruta/hash de intención, destino e
-inventarios sin repetir el cliente. Servidor terminado explícitamente (exit 1),
-job cerrado sin fuga. Fuente, bundle y ejecutable conservados.
-[Evidencia](testing/native-memory-curation38-evidence.json). No se acepta juicio
-semántico real, aprobación humana, identidad autenticada, guardias por hook ni
-revisión independiente. Siguen pendientes otros clientes, backends, UI real,
-comparación y cierre final. Macros/revisiones intactas, sin promoción/commit/push.
-Skills nuevas aplazadas. Contrato y README precisan implementación candidata
-disponible y aceptación global pendiente.
-
-## Publicador — replay y recuperación parcial validados
-
-RED reprodujo retiradas reintroducidas y canon reemplazado por cola obsoleta;
-drain precede ahora al plan fresco. Otro RED usa un lector nativo Windows sin
-compartir borrado: la finalización incorpora hasta cuatro intentos para 5/32/33,
-rechazando cambios de identidad. El último RED observa publicación parcial real
-y el mensaje incorrecto de estado intacto; CLI/contratos muestran parcialidad y
-outbox-status, y la próxima sincronización completa el objetivo pendiente.
-109 casos por plataforma Windows/Linux: 108 correctos, una omisión, cero fallos.
-Canon y vecinos ajenos conservados; cobertura de cambios ≥90% con CTracer oficial,
-sin gate global. Jobs sin fuga y contenedor propio retirado. Las pruebas controladas
-no identifican el proceso del fallo histórico; se conservan sus recibos fallidos.
-[Evidencia](testing/publisher-recovery41-evidence.json). Publicación por archivo,
-sin rollback global ni CAS contra terceros. Incorporación a la candidata con
-contratos ES/EN y changelogs; no valida servicios reales, todos los callers nativos,
-UI, revisión final o cierre de macros. Sin promoción del checkout, commit o push.
-Skills nuevas aplazadas.
-
-## Conectividad de servicios reales — observación acotada
-
-2026-10-11 19:07:46 UTC: health real de Kwipu y Graphiti sano mediante endpoints
-loopback documentados; Kwipu confirma grafo/Ollama y Graphiti status por MCP.
-Sin publicación, consultas, extracción, cambios de contenedores o configuración.
-Fuente y docs conservadas, job sin fuga. [Evidencia](testing/live-backend-health42-evidence.json).
-No acredita calidad, benchmark, persistencia, handoff nativo ni disponibilidad
-posterior. Sigue pendiente la entrada controlada y su recuperación/verificación.
-Macros y revisiones intactas; sin promoción, commit/push ni cierre global.
-
-## Graphiti real — errores y compatibilidad de creación
-
-ErrorResponse real con isError false era devuelto como éxito; corregido con
-rechazo tipado y diagnóstico saneado. RED 5/6; GREEN 322/322 Windows y Linux,
-sin omisiones. Cambios 100% y owner 92,48% con CTracer oficial. Rechazo confirmado
-en servidor real antes de cola. Se conservan fallo de aserción antigua e intento
-con indentación errónea; el último pase completo corresponde al test compilado.
-[Evidencia](testing/graphiti-error44-evidence.json). Jobs sin fuga y contenedores
-propios retirados. La publicación real sigue abierta: worker falla node-not-found
-por UUID nuevo; código instalado 0.30.1 interpreta UUID como episodio existente.
-Grupo de prueba limpiado después del fallo, sin reenviar ni tocar otros grupos.
-Queda creación/identidad/confirmación y sucesión/retirada, sin aceptar benchmark,
-handoff nativo o QA global. Macros y revisiones intactas; sin promoción/commit/push.
-
+Las secciones de dependencias, memoria aprendida, hooks, transporte nativo, OpenCode V2, consumidor de plan, memoria pendiente, feedback, curación/portabilidad, publicador, conectividad y Graphiti real están íntegras en [execution-history.md](execution-history.md) («Traslado 2026-10-13», SHA-256 `\7a5394b52bb997ef6ae88800ca6e60ec02b61ecd6b84f7b45ed62f069fa8c07`). Ninguna revisión ni asociación de curación se movió.
 
 ## Validación OWN68–OWN70: plazo nativo y cobertura del panel
 
@@ -1580,3 +1318,21 @@ Subagentes independientes de contexto fresco: A+B+C+D, fallback genérico dispon
 ### Curación de los cinco gotchas propuestos — 2026-10-13
 
 Knowledge Curator (rol aplicado por el orquestador con el contrato de la rama) aprueba los cinco candidatos asociados en `curation-refs-v1` como GOTCHA `validated_case`: `custom-agents.GOT-020` (salto final del brief), `GOT-021` (guardias de productores de memoria), `GOT-022` (actividad de inicio frente a captura), `GOT-023` (publicación sintética en Windows) y `GOT-024` (lectura de barrera en Windows). `curator-gate.py --json`: 5 × `errores: []`, `avisos: []`; SHA originales iguales a la asociación. Cada aprobación usa representación corregida por stdin: se retiran frases de QA/revisión pendientes ya cumplidas el 2026-10-12 y se enlazan GOT-008/009/016/017. GOT-021 es de alto impacto (dos guardias); resolución humana: el usuario ordenó curar los cinco. Servicio `apply`: 5 × `status: complete`, operation-id en la asociación; `knowledge-index.py` 16 entradas sin errores; `pending/` vacío. Aparte, el YAML local de GOT-018 se entrecomilla (sin cambio de contenido): `lint_plugin` 0 errores. TDD n/a: memoria local no versionada y ledger.
+
+### Mezcla de master y aceptación nativa Claude/Codex — 2026-10-13
+
+Mezclado `origin/master` (`d553d0c`, PR #15/#16): 12 conflictos resueltos conservando ambas partes; la arista Kwipu de master pasa a **E55** en `docs/agents/CONTRACTS.md` porque esta rama ya usaba E25–E54. Suites afectadas: 1.114 passed/5 skipped; lint 0 errores, export 88 al día, evals 0 errores. Para no superar el tope de 256 KiB del lector de retoma, las secciones operativas del 10–11/10 se trasladaron sin cambios a `execution-history.md` (SHA en el puntero); `resume --initiative` vuelve a `ok`.
+
+Aceptación nativa con modelos reales y proyectos sintéticos ([detalle](testing/native-claude-codex-2026-10-13-status.md)): `/work-resume` exacto y ambiguo pasan en Claude y Codex con JSON igual al compositor. Consumo del plan: Claude da `ok`/`version_changed` correctos pero envuelve y recorta el JSON (formato pendiente, igual que OpenCode); Codex falla con `invalid_input` porque `mkdir(mode=0o700)` en Python 3.13/Windows sustituye la ACL heredada y excluye el token del sandbox. La corrección afecta a cinco piezas y queda pendiente de decisión del usuario. Hooks Claude: SessionEnd cancelado en 2/5 sesiones, recuperado por `recover`; el aviso falso de «candidatas sin recuperar» se corrige en `journal.py` (RED: `test_recover_no_avisa_de_logs_ya_capturados_ni_en_la_segunda_pasada` falló con el aviso en la primera pasada; GREEN: 171 passed/10 skipped en `test_journal.py`). Panel servido para la revisión humana en Edge; su resultado queda pendiente del usuario. Ninguna macro cambia de estado.
+
+### Comparación de skills retomada — S080–S082 (2026-10-13)
+
+Con los pendientes operativos atendidos (salvo la decisión sobre ACL Windows/Codex y la revisión humana del panel), se retoma T-03 donde quedó. Fuente: el clon fijado `ef648e0` en el directorio de trabajo local de Codex; IDs S verificados por hash contra las fichas previas (S078/S079 = posiciones 78/79 del orden alfabético). [Ficha](comparisons/skills-django-security-testing-verification.md): S080 seguridad (13 adaptaciones; ajustes retirados como `SECURE_BROWSER_XSS_FILTER`, `CSRF_COOKIE_HTTPONLY` sin beneficio, CSP nativa en 6.0, políticas contradictorias en la vista), S081 pruebas (12; `--reuse-db`/`--nomigrations` ocultan cambios de esquema y migraciones, ejemplos no ejecutables) y S082 verificación (10; un segundo bucle duplicaría `qa`, varios pasos escriben). Destino: referencias de la especialidad opcional `django-practices` y una fila Django en `tdd/references/by-stack.md`. TDD n/a: prosa/evidencia. 82/293 evaluadas; quedan 211.
+
+### Comparación de skills — S083–S085 (2026-10-13)
+
+[Ficha](comparisons/skills-parallel-containers-docs.md): S083 (paneles tmux) no se adopta porque `subagentes`, `worktree` y las lentes paralelas ya cubren el caso con ledger y puertas; S084 (Docker) amplía `delivery-practices` con el arnés aislado de instaladores y secretos de Compose, y cierra la ficha pendiente del bloque de despliegue; S085 (Context7) entra como canal opcional de `research-first`, con versión desde el lockfile y redacción previa. Scripts citados por S083/S084 sin leer: declarado. TDD n/a: prosa/evidencia. 85/293 evaluadas; quedan 208.
+
+### Comparación de skills — S086–S088 (2026-10-13)
+
+[Ficha](comparisons/skills-dotnet-harness-e2e.md): S086 (C#/.NET) completa la especialidad opcional `dotnet-practices` iniciada con S064, con 10 adaptaciones (concurrencia de `DbContext`, firmas que no compilan, Problem Details); S087 (arneses por tarea) no crea pieza: aporta a `plugin-dev` un criterio de extracción compatible con ADR-011; S088 (Playwright) propone una guía de specs estables para `qa` y corrige `networkidle`, `data-testid` por defecto, `retries` que ocultan flakies y E2E contra staging, que el guardarraíl prohíbe. Contraste oficial pendiente en este bloque. TDD n/a. 88/293 evaluadas; quedan 205.

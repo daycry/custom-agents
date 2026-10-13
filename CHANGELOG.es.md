@@ -11,6 +11,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed — Aviso de recuperación del journal
+
+- `journal.py recover` solo informa de las candidatas saltadas por su tope o presupuesto; las sesiones ya capturadas dejan de provocar «N candidata(s) sin recuperar» en cada arranque.
+
 ### Fixed — Consumo determinista de decisiones de plan
 
 - Consumir la decisión seleccionada mediante el dueño existente, con IDs reales de entrega/ack y vista vigente final; conservar espera, versiones obsoletas y recibos de reintento sin ejecutar efectos del workflow.

@@ -42,6 +42,24 @@ if pytest is not None:
 
 # ------------------------------------------------------------------ helpers ----
 
+def copiar_checkout(destino):
+    """Copia solo los ficheros del proyecto (versionados y nuevos no ignorados): los directorios
+    locales excluidos de git (scratchpads, entornos virtuales) pueden tener decenas de miles de
+    ficheros y convertían esta copia en minutos. Sin git, copia todo salvo `.git`."""
+    try:
+        listado = subprocess.run(["git", "-C", ROOT, "ls-files", "-z", "--cached", "--others",
+                                  "--exclude-standard"], capture_output=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        shutil.copytree(ROOT, destino, ignore=shutil.ignore_patterns(".git"))
+        return
+    for rel in filter(None, listado.decode("utf-8").split("\0")):
+        origen = os.path.join(ROOT, rel)
+        if not os.path.isfile(origen):
+            continue  # borrado en el árbol de trabajo pero aún en el índice
+        os.makedirs(os.path.join(destino, os.path.dirname(rel)), exist_ok=True)
+        shutil.copy2(origen, os.path.join(destino, rel))
+
+
 def proyecto(tmp_path, activa=True, slug="2026-01-01-demo"):
     """Proyecto temporal con un ledger de fixture (copia real del repo) en-progreso o completado."""
     proj = tmp_path / "proj"
@@ -401,9 +419,8 @@ def test_session_journal_repo_ajeno_sin_rastro_del_plugin_no_siembra_nada(tmp_pa
 def test_session_journal_ruta_del_plugin_con_espacios_y_unicode(tmp_path):
     """CA-09: `CLAUDE_PLUGIN_ROOT` con espacios y Unicode sigue resolviendo journal.py y
     escribiendo el envelope."""
-    import shutil as _shutil
     destino = tmp_path / "plugin raíz ☂"
-    _shutil.copytree(ROOT, destino, ignore=_shutil.ignore_patterns(".git"))
+    copiar_checkout(destino)
     proj, _ = proyecto(tmp_path)
     env = env_de(proj, tmp_path, plugin_root=destino)
     assert hook("session-journal.sh", session_end(proj), env) == (0, "", "")
