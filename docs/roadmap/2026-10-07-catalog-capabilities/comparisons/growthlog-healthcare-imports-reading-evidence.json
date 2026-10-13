@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": ["S119", "S120", "S121", "S122", "S123", "S124"],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {"id": "S119", "sha256": "1cfaf2a0bf341087bbeeb8db0dc7c5edd5bad241ce4d89df728d22f2c5c72809", "bytes": 7034, "lines": 128, "read_ranges": [[1, 128]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S120", "sha256": "439875d2fff3bbf14e0b46b7310b4c815c2596e54a6cafaafb4b2b93b4865626", "bytes": 9461, "lines": 246, "read_ranges": [[1, 246]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S121", "sha256": "117e1861c5313f1874c82791c73798d28e9985cac8964a95d73bed915a8aff39", "bytes": 6746, "lines": 160, "read_ranges": [[1, 160]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S122", "sha256": "0c74bb0309d4fb7e3bf04b0f779909156520c73bd6162bd405f7232af19c0a68", "bytes": 7849, "lines": 208, "read_ranges": [[1, 208]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S123", "sha256": "02f9091e652f278a722230d5b96948d6ceaf10f9f37bc4c7eb6ddaad7bc8a271", "bytes": 5753, "lines": 146, "read_ranges": [[1, 146]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S124", "sha256": "4e425b32c9830c936f845b3f63352f6f199d869eb27eef484ce28ddc8ce4f3b4", "bytes": 3006, "lines": 89, "read_ranges": [[1, 89]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []}
+  ],
+  "own_counterparts": [
+    {"path": "agent-kits/shared/knowledge-write.md", "sha256": "804c8acda8d1d98f450773dde07dc4fe1a044579b62d1c1b520e3f9fb6a3bb68"},
+    {"path": "skills/plugin-dev/SKILL.md", "sha256": "5b2cb087181ea5fb91f19ba45a2a24e42eaa99ad1ff1b73ced2486a70608f3da"},
+    {"path": "skills/backend-practices/references/contracts-data.md", "sha256": "589af44a6c37b7355ed8d088c7a8e341b42a131ce5b0d1c89c06e6cde2d2bdab"}
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

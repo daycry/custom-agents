@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S135",
+    "S136"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S135",
+      "sha256": "e34045f7b3bf6a6fbd364f85c7bc81d8208e18bb929ceff80bbc987f78aadea8",
+      "bytes": 17199,
+      "lines": 360,
+      "read_ranges": [
+        [
+          1,
+          360
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S136",
+      "sha256": "ad5bf71e6d95d80611beb8c4f424f8bbd6a49fb7e4766562d45133e9fdf4a6f2",
+      "bytes": 24381,
+      "lines": 240,
+      "read_ranges": [
+        [
+          1,
+          240
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/analyst.md",
+      "sha256": "c15e86fa198a20f4bf30fa47077633ce707c91d30268852f6cf090d66c7f1f82"
+    },
+    {
+      "path": "agent-kits/evaluator/templates/spec.md",
+      "sha256": "95af5b74a3b8ec178a10ab240ee9ba1a6a1f7e877a5817826cf8e72d0d47f3d5"
+    },
+    {
+      "path": "skills/outcome-evals/SKILL.md",
+      "sha256": "a9fc451f8c60a1850fc69a992a6710660b886e249294b34d9374b5f6ccd791ae"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}
