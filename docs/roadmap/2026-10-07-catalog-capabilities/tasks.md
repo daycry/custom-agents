@@ -1517,23 +1517,28 @@ Las dos causas se propusieron con el servicio canónico como gotchas pendientes;
 [
   {
     "candidate": "docs/knowledge/candidates/pending/2026-10-12-brief-final-newline.md",
-    "sha256": "e9cb77fd0c60155f99af39cef2b2792a6eddad70dcf36ed8910bb67d8c940f46"
+    "sha256": "e9cb77fd0c60155f99af39cef2b2792a6eddad70dcf36ed8910bb67d8c940f46",
+    "operation_id": "683904c801e08378e656906fe7db12d9d93e54324f244223d6bad7dafc522a35"
   },
   {
     "candidate": "docs/knowledge/candidates/pending/2026-10-12-windows-test-publication.md",
-    "sha256": "53cf5e630b780f90a11e7583ff0bbc50a18b0c2a754a13809334c0ac70c54152"
+    "sha256": "53cf5e630b780f90a11e7583ff0bbc50a18b0c2a754a13809334c0ac70c54152",
+    "operation_id": "6c84b6188c1addcb27081d901dd5d253e92b15b4a8a4e4bfd74e7892d265af86"
   },
   {
     "candidate": "docs/knowledge/candidates/pending/2026-10-12-memory-producer-guard-scope.md",
-    "sha256": "63dcee7510b2506d9fbec27ee91f4adeb9f6c156313e44f11c7a34ba4ac287d8"
+    "sha256": "63dcee7510b2506d9fbec27ee91f4adeb9f6c156313e44f11c7a34ba4ac287d8",
+    "operation_id": "dcfb2b98139ad5861d144d0b7c5305ce192a633587fb79a549d4d59e393234f8"
   },
   {
     "candidate": "docs/knowledge/candidates/pending/2026-10-12-native-activity-start-and-capture.md",
-    "sha256": "a847338d5ad29a227fc1ef6eedd5e435ebb376d6202b97d1bdca6b5339ac6087"
+    "sha256": "a847338d5ad29a227fc1ef6eedd5e435ebb376d6202b97d1bdca6b5339ac6087",
+    "operation_id": "2c24336cb34e405d25facce40f0659fcbb8b2514be0bd94c00e16e47bb3bb6f2"
   },
   {
     "candidate": "docs/knowledge/candidates/pending/2026-10-12-windows-barrier-ready-read.md",
-    "sha256": "97dc7a8f2bdb796e1439000877e21c07558313cdc6b4f972f6b29cf667bfba1f"
+    "sha256": "97dc7a8f2bdb796e1439000877e21c07558313cdc6b4f972f6b29cf667bfba1f",
+    "operation_id": "9899e8ec4b5dd69f60a0d266d259f640a83c475650ac3916744a4dfcd2766011"
   }
 ]
 ```
@@ -1571,3 +1576,7 @@ Se conserva Windows164 rojo: N06 no pudo leer ready.json. RED real de sharing: d
 ## Revisión de dos lentes — intento 1: cierre de consumo (2026-10-12)
 
 Subagentes independientes de contexto fresco: A+B+C+D, fallback genérico disponible. Scope exit0 sin avisos; delta de consumo/fixture y contratos conforme, sin Critical/Important/Minor nuevos ni reapertura de veredictos históricos. Export comprobado por A: exit0,88 archivos al día. [Cobertura, resultados y límites](testing/publication-review-status.md). Ledger-lint exit0 y CA08 real de todos los ledgers: 1 passed tras incorporar la fuente al checkout. Se conservan propuestas sin aprobar y configuración privada; este cierre no implica aceptación global.
+
+### Curación de los cinco gotchas propuestos — 2026-10-13
+
+Knowledge Curator (rol aplicado por el orquestador con el contrato de la rama) aprueba los cinco candidatos asociados en `curation-refs-v1` como GOTCHA `validated_case`: `custom-agents.GOT-020` (salto final del brief), `GOT-021` (guardias de productores de memoria), `GOT-022` (actividad de inicio frente a captura), `GOT-023` (publicación sintética en Windows) y `GOT-024` (lectura de barrera en Windows). `curator-gate.py --json`: 5 × `errores: []`, `avisos: []`; SHA originales iguales a la asociación. Cada aprobación usa representación corregida por stdin: se retiran frases de QA/revisión pendientes ya cumplidas el 2026-10-12 y se enlazan GOT-008/009/016/017. GOT-021 es de alto impacto (dos guardias); resolución humana: el usuario ordenó curar los cinco. Servicio `apply`: 5 × `status: complete`, operation-id en la asociación; `knowledge-index.py` 16 entradas sin errores; `pending/` vacío. Aparte, el YAML local de GOT-018 se entrecomilla (sin cambio de contenido): `lint_plugin` 0 errores. TDD n/a: memoria local no versionada y ledger.
