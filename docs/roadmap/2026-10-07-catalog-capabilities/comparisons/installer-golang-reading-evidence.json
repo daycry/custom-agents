@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": ["S113", "S116", "S117"],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {"id": "S113", "sha256": "47e73ef601d900be3b5ccb5d1a1ba2371d3e46c67b5243c1810e51cd2d8f62f3", "bytes": 30327, "lines": 820, "read_ranges": [[1, 820]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S116", "sha256": "d643e354683167727cfeb76934855db988468cd15b3ca01db9a32db43902edf7", "bytes": 14136, "lines": 676, "read_ranges": [[1, 676]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S117", "sha256": "e3399562c58590dfcbd09bfcbf8f401120a2ded0418eb33bbfca6c697ac485ad", "bytes": 16744, "lines": 721, "read_ranges": [[1, 721]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []}
+  ],
+  "own_counterparts": [
+    {"path": "skills/tdd/references/by-stack.md", "sha256": "e7f4eaa33be28c9595e04203e8429b99e14b87bce3a21492cde9880dce85695c"},
+    {"path": "skills/unit-tests/scripts/coverage-gate.py", "sha256": "747bd3d746a4736705cbd4c13a5607c26b1b8f41ca0c89aa583994ee3e1136f3"},
+    {"path": "skills/stack-practices/SKILL.md", "sha256": "c44933dab261ee24ae0daf38b9d1d11e02084ad04cd05fb84d03ab2110f60751"}
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}
