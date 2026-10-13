@@ -11,6 +11,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed — Private state directories on Windows
+
+- On Windows, plan review, agent activity, knowledge curation and Graphiti publication/rebuild state directories inherit the project folder permissions instead of the explicit ACL that Python 3.13 applies to `mkdir(mode=0o700)`; the Codex sandbox can consume plan decisions again. POSIX keeps `0o700`.
+
 ### Fixed — Journal recovery warning
 
 - `journal.py recover` only reports candidates skipped by its limit or time budget; sessions already captured no longer trigger «N candidate(s) not recovered» on every start.

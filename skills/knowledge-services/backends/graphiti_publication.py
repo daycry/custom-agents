@@ -25,6 +25,15 @@ _active_publication = contextvars.ContextVar('graphiti_publication_io', default=
 _helper_modules = {}
 
 
+def _mkdir_private(path, **kwargs):
+    """0o700 en POSIX. En Windows se heredan los permisos del padre: Python 3.13 convierte
+    0o700 en una ACL explícita que deja fuera al usuario restringido del sandbox de Codex."""
+    if os.name == 'nt':
+        path.mkdir(**kwargs)
+    else:
+        path.mkdir(mode=0o700, **kwargs)
+
+
 class PublicationError(ValueError):
     pass
 
@@ -270,14 +279,14 @@ def _journal(cfg):
     for part in ('.claude', 'knowledge-services'):
         path = parent / part
         io.dirs(parent)
-        path.mkdir(mode=0o700, exist_ok=True)
+        _mkdir_private(path, exist_ok=True)
         io.dirs(path)
         parent = path
     base = parent / 'graphiti-submissions'
     marker = base / '_owner.json'
     created = False
     try:
-        base.mkdir(mode=0o700)
+        _mkdir_private(base)
         created = True
     except FileExistsError:
         pass
@@ -342,7 +351,7 @@ def write_manifest(cfg, path, raw):
         parent = parent / part
         if not os.path.lexists(parent):
             io.dirs(parent.parent)
-            parent.mkdir(mode=0o700)
+            _mkdir_private(parent)
         io.dirs(parent)
     expected = io.file(path) if os.path.lexists(path) else None
     io.write(path, raw, deadline, expected=expected)

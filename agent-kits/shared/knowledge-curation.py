@@ -33,6 +33,15 @@ RECEIPTS = BASE + '/.curation/receipts'
 _MODULES = {}
 
 
+def _mkdir_private(path, **kwargs):
+    """0o700 en POSIX. En Windows se heredan los permisos del padre: Python 3.13 convierte
+    0o700 en una ACL explícita que deja fuera al usuario restringido del sandbox de Codex."""
+    if os.name == 'nt':
+        path.mkdir(**kwargs)
+    else:
+        path.mkdir(mode=0o700, **kwargs)
+
+
 class _Failure(Exception):
     def __init__(self, status, code=1, errors=None):
         self.status, self.code, self.errors = status, code, errors
@@ -122,7 +131,7 @@ def _parents(root, relative, create=False, *, effects=None):
                 # A failed OS call does not prove that creation had no effect.
                 if effects is not None and effects['written'] is not True:
                     effects['written'] = None
-                path.mkdir(mode=0o700)
+                _mkdir_private(path)
                 if effects is not None:
                     effects['written'] = True
             except FileExistsError:

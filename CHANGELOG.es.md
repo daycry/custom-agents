@@ -11,6 +11,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed — Directorios de estado privados en Windows
+
+- En Windows, los directorios de estado de revisión de planes, actividad de agentes, curación de memoria y publicación/reconstrucción de Graphiti heredan los permisos de la carpeta del proyecto en vez de la ACL explícita que Python 3.13 aplica a `mkdir(mode=0o700)`; el sandbox de Codex vuelve a poder consumir decisiones de plan. POSIX conserva `0o700`.
+
 ### Fixed — Aviso de recuperación del journal
 
 - `journal.py recover` solo informa de las candidatas saltadas por su tope o presupuesto; las sesiones ya capturadas dejan de provocar «N candidata(s) sin recuperar» en cada arranque.

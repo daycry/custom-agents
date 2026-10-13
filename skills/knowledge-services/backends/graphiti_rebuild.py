@@ -20,6 +20,15 @@ STATE_FIELDS = {'owner', 'schema', 'endpoint', 'logical_group_id', 'group_id',
                 'restored', 'transitions', 'seeded', 'candidate', 'candidate_snapshot'}
 
 
+def _mkdir_private(path, **kwargs):
+    """0o700 en POSIX. En Windows se heredan los permisos del padre: Python 3.13 convierte
+    0o700 en una ACL explícita que deja fuera al usuario restringido del sandbox de Codex."""
+    if os.name == 'nt':
+        path.mkdir(**kwargs)
+    else:
+        path.mkdir(mode=0o700, **kwargs)
+
+
 class GenerationError(ValueError):
     pass
 
@@ -250,14 +259,14 @@ def _snapshot(manifest, entries, cfg, client, api, backup=None):
 def _stage_root(root, record, io, deadline, api):
     parent = root / '.claude/knowledge-services/graphiti-generations'
     if not os.path.lexists(parent):
-        parent.mkdir(mode=0o700)
+        _mkdir_private(parent)
     io.dirs(parent)
     folder = parent / record['nonce']
     marker = folder / '_owner.json'
     identity = {'owner': OWNER, 'schema': 1, 'endpoint': record['endpoint'],
                 'logical_group_id': record['logical_group_id'], 'group_id': record['group_id']}
     if not os.path.lexists(folder):
-        folder.mkdir(mode=0o700)
+        _mkdir_private(folder)
         io.dirs(folder)
         _write(io, marker, identity, deadline)
     else:

@@ -60,3 +60,21 @@ Se conserva el fallo como sensibilidad temporal, no como verde. La copia del
 checkout en `test_session_journal_ruta_del_plugin_con_espacios_y_unicode` ahora
 usa solo los ficheros que git considera del proyecto: con un scratchpad local de
 70.000 ficheros excluidos, la copia completa tardaba más de una hora.
+
+## Corrección aplicada (decisión del usuario, 2026-10-13)
+
+El usuario autorizó la corrección tras conocer su impacto. Regresión de las cinco piezas: 730 passed, 11 skipped, 0 failed. Las cinco piezas crean sus
+directorios de estado con `_mkdir_private`: `0o700` en POSIX y permisos heredados en
+Windows (comportamiento de Python ≤ 3.12). Ficheros `0o600` sin cambios.
+RED `tests/test_private_state_dirs.py`: 6 failed/5 skipped; GREEN: 6 passed/5 skipped
+(los omitidos son los casos POSIX). Prueba real repetida en Codex 0.162.1: la
+preparación dentro del sandbox crea `.claude/plan-review` con ACL heredada y termina;
+consumo aprobado → `ok`/`consumida`; plan editado → `version_changed` (Codex informa
+exit 1 del comando). En ambos casos la respuesta de Codex es el JSON original exacto.
+Las carpetas ya creadas con la ACL antigua en otros proyectos no se migran.
+
+## Revisión humana del panel
+
+El usuario abrió el panel servido en Edge (`build_panel.py --serve` sobre este repo) y
+respondió «ok». Se registra como aceptación humana de esa sesión, sin detalle de los
+escenarios recorridos (teclado, móvil y memoria no se comprobaron por separado).

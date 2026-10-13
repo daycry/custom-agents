@@ -44,6 +44,15 @@ INITIATIVE = re.compile(r'docs/roadmap/[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[
 CONTROLS = re.compile(r'[\x00-\x08\x0b-\x1f\x7f-\x9f\u2028\u2029\u202a-\u202e\u2066-\u2069]')
 RECORD_KEYS = {'schema_version', 'owner', 'review_id', 'scope_id', 'initiative', 'artifact', 'gate_key', 'version', 'created_at', 'revision', 'state', 'consumer_registration', 'draft_comments', 'decision', 'delivery', 'ack'}
 
+def _mkdir_private(path, **kwargs):
+    """0o700 en POSIX. En Windows se heredan los permisos del padre: Python 3.13 convierte
+    0o700 en una ACL explícita que deja fuera al usuario restringido del sandbox de Codex."""
+    if os.name == 'nt':
+        path.mkdir(**kwargs)
+    else:
+        path.mkdir(mode=0o700, **kwargs)
+
+
 class _Failure(Exception):
     def __init__(self, reason, status='unavailable'):
         self.reason, self.status = reason, status
@@ -179,9 +188,9 @@ def _marker(project, state, reader, deadline, initialize):
     root_key = _digest({'path': os.path.normcase(str(project)), 'identity': [info.st_dev, info.st_ino]})
     if not state.exists():
         _need(initialize, 'review_not_found')
-        if not state.parent.exists(): state.parent.mkdir(mode=0o700)
+        if not state.parent.exists(): _mkdir_private(state.parent)
         _dirs(state.parent, reader)
-        try: state.mkdir(mode=0o700)
+        try: _mkdir_private(state)
         except FileExistsError: raise _Failure('state_busy') from None
         # A concurrent initializer may win; missing owner is never adopted on later calls.
         marker = {'schema_version': 1, 'owner': OWNER, 'scope_id': secrets.token_hex(32), 'root_key': root_key}

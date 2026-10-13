@@ -22,6 +22,15 @@ MAX_REVISION = 2**53 - 1
 IGNORE = b'*\n'
 
 
+def _mkdir_private(path, **kwargs):
+    """0o700 en POSIX. En Windows se heredan los permisos del padre: Python 3.13 convierte
+    0o700 en una ACL explícita que deja fuera al usuario restringido del sandbox de Codex."""
+    if os.name == 'nt':
+        path.mkdir(**kwargs)
+    else:
+        path.mkdir(mode=0o700, **kwargs)
+
+
 class _Failure(Exception):
     pass
 
@@ -185,7 +194,7 @@ def capture(project, *, runtime, payload):
         if not state.exists():
             io.dirs(state.parent)
             try:
-                state.mkdir(mode=0o700)
+                _mkdir_private(state)
                 created = True
             except FileExistsError:
                 pass
