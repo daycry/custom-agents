@@ -1,0 +1,202 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S274",
+    "S275",
+    "S279",
+    "S283",
+    "S284",
+    "S292"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S274",
+      "sha256": "a64dbdf4b6df857c044d6b38cf23324fcd7d2c139ba1cfcd39535e8c928c49a3",
+      "bytes": 4897,
+      "lines": 111,
+      "read_ranges": [
+        [
+          1,
+          111
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S275",
+      "sha256": "23ce20d4d50be35d4b6cfe7facc01010983e18cb95c4aaf3d100338ca55e671b",
+      "bytes": 7478,
+      "lines": 169,
+      "read_ranges": [
+        [
+          1,
+          169
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S279",
+      "sha256": "7f037a58306a6bd5c5a024491a6c4529cd8373309e413eda517ad2430420e25a",
+      "bytes": 5740,
+      "lines": 122,
+      "read_ranges": [
+        [
+          1,
+          122
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S283",
+      "sha256": "c42e96155783a44a50f13ab63e9d7f33c9d03b7a1f30777ef434401469c1630a",
+      "bytes": 7871,
+      "lines": 199,
+      "read_ranges": [
+        [
+          1,
+          199
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S284",
+      "sha256": "0ade130619dfc73781d6a4beaf79b65b6d3ac70f0751dce0844a8f9fd39167aa",
+      "bytes": 5630,
+      "lines": 188,
+      "read_ranges": [
+        [
+          1,
+          188
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S292",
+      "sha256": "ca6eadae6bd303713da56344bedbd8b246fe07bde1d20a26c9f21844d919cd6f",
+      "bytes": 5163,
+      "lines": 126,
+      "read_ranges": [
+        [
+          1,
+          126
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "ec9504fb23b8eadb209e83ce347eee8c9a63c8d03e09d0f7e7c4bb204d65ad5c"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "234bafc53ac9e6f581baaddb2f1896806e30781dafbf75c3e1d431f171b11904"
+    },
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "a62f6e912bb8cd095918224661ade80cae70c3e962235eaadcf94f73f04923a5"
+    },
+    {
+      "path": "agent-kits/shared/task-brief.py",
+      "sha256": "41e3f4261f0f9107b6189882cac410481fe33f51f16de6fb68e2bb56aaebddb5"
+    },
+    {
+      "path": "agent-kits/shared/model-tier.py",
+      "sha256": "9a2ba0874a2380dbe21ad48ac79829d30ba06e7023dd9e52f99b24f3af3572cd"
+    },
+    {
+      "path": "agent-kits/shared/progress-report.py",
+      "sha256": "9ea0146458fbd11997aad79b084010266c772ed8680d71fe22cff8d2759f7124"
+    },
+    {
+      "path": "agent-kits/shared/output-discipline.md",
+      "sha256": "46b1d36a3bfb7e1ba2d9911e07910ddd3901d407dee9507b8027284a35e2de76"
+    },
+    {
+      "path": "commands/work-resume.md",
+      "sha256": "dd6f7f22e93dd6ec73362105293a1b2599e0e676caa87b1f26391c2b7edf09bc"
+    },
+    {
+      "path": "docs/WORK-RESUME.md",
+      "sha256": "ce4e94a5c55c27c25aa06da346ce252adbd02a9c7b77f96fdb28ff65ddb74f2e"
+    },
+    {
+      "path": "docs/MEMORY-PORTABILITY.md",
+      "sha256": "288b8d70f936d61a1f05c716d84eabec6246465ef91ccf38b33ad84f66ee4f78"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-010-journal-memoria-de-sesion-determinista.md",
+      "sha256": "c2a32d8f29224217cf1f880048366bc744397b92a3a2b0b2a42adaaa5f779575"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-013-memoria-en-tres-capas-fuente-git-indice-cache-grafo-curado.md",
+      "sha256": "5f0517a0882cfff5180936686bcc73cb1e0f958e9575f6d497493ea54b96a615"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-018-arquitectura-de-memoria-markdown-canonico-backends-declarados.md",
+      "sha256": "702e0fbf94ec3dc29b2ef806457303cf50de3d80c28e7f87ec0fe4e97251c5bc"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-007-deny-solo-con-alcance-de-agente.md",
+      "sha256": "2f12b9214bf8e7c71a58b498c890f4631db91fc400598d254edbb6bd1c10d505"
+    },
+    {
+      "path": "commands/doctor.md",
+      "sha256": "f892be94d2e8dae401df3752e1c77bff1c160af442569dde2558b496fb727379"
+    },
+    {
+      "path": "commands/plugin-catalog.md",
+      "sha256": "fd70e7acfa5f17bf889dbf8e9c4f77291c1e5372af05f70e81a206b7b9690334"
+    },
+    {
+      "path": "skills/plugin-panel/SKILL.md",
+      "sha256": "ba57b96d6d9f6523c0862239019a71003450635e7db48faa6feab4ad342c66c9"
+    },
+    {
+      "path": "skills/capability-audit/SKILL.md",
+      "sha256": "0a8579a37efbc067bfb6b4dc3f8759a49f50a2a72acc89116f24bbd125406dd9"
+    },
+    {
+      "path": "agent-kits/shared/usage-meter.py",
+      "sha256": "dac4453933c646da9e8f79bc7a524e2e1dbe0baba793b90f7962ae09998961a6"
+    },
+    {
+      "path": "hooks/hooks.json",
+      "sha256": "ffe4001ade3342f82a379a57ce926815053971959bda4d385da1bae43a31a675"
+    },
+    {
+      "path": "hooks/progress-line.sh",
+      "sha256": "9ee335ceaf2611f0621e8679a9ce257dab4f4bd3a2a030190f5b55c2e40a2445"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-parallel-containers-docs.md",
+      "sha256": "f4dcd97e51b4776bda41c3471ce782fd9f115236218009a4508f3bf008f3c20f"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

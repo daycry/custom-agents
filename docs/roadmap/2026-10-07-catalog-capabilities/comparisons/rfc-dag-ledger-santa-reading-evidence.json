@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S227",
+    "S233",
+    "S244"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S227",
+      "sha256": "00d92ba603b5989a243b1d4c2f5442bb8451f1153dce2c42aed2a60c821507d6",
+      "bytes": 1837,
+      "lines": 68,
+      "read_ranges": [
+        [
+          1,
+          68
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S233",
+      "sha256": "0c842b982a4ec80bb6487842ac8f019dc0f716c56e8363618a5f6d5a6de6e58e",
+      "bytes": 2803,
+      "lines": 81,
+      "read_ranges": [
+        [
+          1,
+          81
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S244",
+      "sha256": "942eb2301d759aec427771866779b431fa10129d11a4f058583770f68ca6baa7",
+      "bytes": 12991,
+      "lines": 307,
+      "read_ranges": [
+        [
+          1,
+          307
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "ec9504fb23b8eadb209e83ce347eee8c9a63c8d03e09d0f7e7c4bb204d65ad5c"
+    },
+    {
+      "path": "agents/planner.md",
+      "sha256": "69f4b232cfc383e9c4123502db8c7c198caec413871842a6ad55a2de072335c5"
+    },
+    {
+      "path": "agents/architect.md",
+      "sha256": "dc96da9390c051f6255d3bfea6ed4c056b12e0f33dce5ad472ede3a872126274"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "234bafc53ac9e6f581baaddb2f1896806e30781dafbf75c3e1d431f171b11904"
+    },
+    {
+      "path": "skills/outcome-evals/SKILL.md",
+      "sha256": "a9fc451f8c60a1850fc69a992a6710660b886e249294b34d9374b5f6ccd791ae"
+    },
+    {
+      "path": "agent-kits/shared/docs-style.md",
+      "sha256": "0c1711b30d9586b93e6470a6ee1a54beb7c7aa807771fe913347bc768914b322"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-022-rigor-proporcional-al-riesgo-y-ledger-fino-con-anexos-enlazados.md",
+      "sha256": "ddc5f31105a805314b67b59cf0328a87ef60244dfb0d7440c6a38e0b033b28de"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

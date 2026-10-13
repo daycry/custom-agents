@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S276",
+    "S282",
+    "S288",
+    "S293"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S276",
+      "sha256": "679b8aca9af3f47450d437fed7a71ac9c1272b6196224ddad8fead218f5f16ab",
+      "bytes": 2539,
+      "lines": 55,
+      "read_ranges": [
+        [
+          1,
+          55
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "b48803241c40fec74ad08e209217b9ba4dd576643500e350072cb98bbb88da66",
+          "bytes": 219,
+          "lines": 4,
+          "read_ranges": [
+            [
+              1,
+              4
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/open-terminal.js",
+          "sha256": "d7dceb3d0fd1bdb7f7061dc7a78f1b74df172b56c9d78df943b4c18353a4be9f",
+          "bytes": 11931,
+          "lines": 396,
+          "read_ranges": [
+            [
+              1,
+              396
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    },
+    {
+      "id": "S282",
+      "sha256": "cc2383ca4459a686ccda87ac08b2a1953028d91076e6a83f29e4c99de5f2fb7f",
+      "bytes": 9282,
+      "lines": 344,
+      "read_ranges": [
+        [
+          1,
+          344
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S288",
+      "sha256": "528a180f10389f3228980a487f004e0eaccccf00be0d88073a554001c36bcd89",
+      "bytes": 4153,
+      "lines": 117,
+      "read_ranges": [
+        [
+          1,
+          117
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "README.md",
+          "sha256": "34c2550bd066d0dbfb976704da8c532f52f7c788b9ecad31f1262754d426e152",
+          "bytes": 1836,
+          "lines": 86,
+          "read_ranges": [
+            [
+              1,
+              86
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    },
+    {
+      "id": "S293",
+      "sha256": "997937ac9dc11779c6bb6c16833630836a22f1b2f115482982f6350474fa8ff1",
+      "bytes": 7438,
+      "lines": 244,
+      "read_ranges": [
+        [
+          1,
+          244
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "docs/WORK-RESUME.md",
+      "sha256": "ce4e94a5c55c27c25aa06da346ce252adbd02a9c7b77f96fdb28ff65ddb74f2e"
+    },
+    {
+      "path": "skills/backend-practices/references/contracts-data.md",
+      "sha256": "589af44a6c37b7355ed8d088c7a8e341b42a131ce5b0d1c89c06e6cde2d2bdab"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "67702b1115bc6d57c4eafbf9dab8d10abaab6b333d4ab330d828f30353770c96"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9"
+    },
+    {
+      "path": "skills/to-pdf/SKILL.md",
+      "sha256": "c0c4a09b7a4072fc977ed8a8e984eaeefe9ed1762d1cf1d126c62f6be78e5287"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-catalog-self-ops-domains.md",
+      "sha256": "e90d5c8c3cd8dcb6842df35263198138f2860495db933653604e24acae7fea3f"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-git-github-workspace.md",
+      "sha256": "2529b86e9747ace5a690fdd9bb2f589e3f74116c29da0e2c8fb8cd94685b027d"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-java-jira-knowledge.md",
+      "sha256": "9598ce2e852c0ad370debbdaad73a2920d7e5e3d0ae749c367a59ccd91d86af2"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-parallel-containers-docs.md",
+      "sha256": "f4dcd97e51b4776bda41c3471ce782fd9f115236218009a4508f3bf008f3c20f"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

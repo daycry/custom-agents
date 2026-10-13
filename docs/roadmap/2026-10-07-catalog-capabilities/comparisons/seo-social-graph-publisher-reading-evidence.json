@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S254",
+    "S258",
+    "S259"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S254",
+      "sha256": "4b744d2ff5c9313e903e4e5139322cc98adb9f9778a7231d4826216ab0f6873a",
+      "bytes": 4320,
+      "lines": 155,
+      "read_ranges": [
+        [
+          1,
+          155
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S258",
+      "sha256": "24657648f76eb7b835fa71275980e704ebf798853565856623c1e3cd4fd7a183",
+      "bytes": 4156,
+      "lines": 155,
+      "read_ranges": [
+        [
+          1,
+          155
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S259",
+      "sha256": "c2fde5ac9d953cb649ce69331ca49be1df854d051ebc31eb54423c5d262337f6",
+      "bytes": 4520,
+      "lines": 139,
+      "read_ranges": [
+        [
+          1,
+          139
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/frontend-quality/SKILL.md",
+      "sha256": "7b6916e32d90731b8f81ee3eb36695dd9f62d498f132ac61bd7b9fd39066f4b0"
+    },
+    {
+      "path": "skills/frontend-quality/references/interaction-performance.md",
+      "sha256": "aa2fbb759c0854e7db4b4db13141469f10573e19138301078b9ad0846157322f"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "67702b1115bc6d57c4eafbf9dab8d10abaab6b333d4ab330d828f30353770c96"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-brand-browser-runtime.md",
+      "sha256": "ad3c59397f58aef72e28c4e85c9e85602ae5e9c917fdf3ecbd191ab6c6bee862"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-git-github-workspace.md",
+      "sha256": "2529b86e9747ace5a690fdd9bb2f589e3f74116c29da0e2c8fb8cd94685b027d"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-java-jira-knowledge.md",
+      "sha256": "9598ce2e852c0ad370debbdaad73a2920d7e5e3d0ae749c367a59ccd91d86af2"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

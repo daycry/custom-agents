@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S161",
+    "S165",
+    "S170",
+    "S171",
+    "S172"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S161",
+      "sha256": "1b24027c5ef0ebfb046990433905b80d8df63d93f83fff9fdef4f74ad883a5f2",
+      "bytes": 13111,
+      "lines": 333,
+      "read_ranges": [
+        [
+          1,
+          333
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "agents/enrichment-agent.md",
+          "sha256": "ad0e369651b45f2ab82e9aa8b0419d551c918614ba70d84b43f3ca74faf57092",
+          "bytes": 2319,
+          "lines": 85,
+          "read_ranges": [
+            [
+              1,
+              85
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "agents/mutual-mapper.md",
+          "sha256": "fb741c0f2ee3d08df81f7569424a5e542c4549ce6d16c90296bfffa3b1049ba9",
+          "bytes": 2549,
+          "lines": 75,
+          "read_ranges": [
+            [
+              1,
+              75
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "agents/outreach-drafter.md",
+          "sha256": "e7406e69a0f3dfb8e6457bd43e51e8624c54fea43e3ad77a696d723a325c789c",
+          "bytes": 3065,
+          "lines": 98,
+          "read_ranges": [
+            [
+              1,
+              98
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "agents/signal-scorer.md",
+          "sha256": "d6aa79f50c93259e37d20adc6cbe8cc6629b1ecde621cfa3e45508e8d53d20c5",
+          "bytes": 2028,
+          "lines": 60,
+          "read_ranges": [
+            [
+              1,
+              60
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    },
+    {
+      "id": "S165",
+      "sha256": "7a1723164c36771a57601ade98296293a864c608d189a459dfbe18ab2259b877",
+      "bytes": 16818,
+      "lines": 216,
+      "read_ranges": [
+        [
+          1,
+          216
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S170",
+      "sha256": "8cfc36dc8a93476d092115f3fc70c631dcab14fcd6e04371160fc4fb29547800",
+      "bytes": 3185,
+      "lines": 87,
+      "read_ranges": [
+        [
+          1,
+          87
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S171",
+      "sha256": "f4d2501b1abb19f7ef5f73b21afa5a7ea51c5dc3d766e8dbd239ec548899213f",
+      "bytes": 5293,
+      "lines": 114,
+      "read_ranges": [
+        [
+          1,
+          114
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S172",
+      "sha256": "46f8c847b3fc406929a52c0064214715abb5412ecabb068730e6d4af50f89ac6",
+      "bytes": 11550,
+      "lines": 230,
+      "read_ranges": [
+        [
+          1,
+          230
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "references/master-template.example.md",
+          "sha256": "165f3a7b8cffd03dbf2bfb52fdf600be3fd1a16d77f3fa91ab7364ff7fa3203b",
+          "bytes": 4256,
+          "lines": 85,
+          "read_ranges": [
+            [
+              1,
+              85
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "references/spec.example.json",
+          "sha256": "66046914a2d257721c101cacfc97f1ca5fe001c80fa7befbf46e81dc9473541e",
+          "bytes": 460,
+          "lines": 16,
+          "read_ranges": [
+            [
+              1,
+              16
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/build-agreement.js",
+          "sha256": "6806f46261f3229857f7d9f3402c3712f9222eafebb412e5b9c524b4c13cab94",
+          "bytes": 9597,
+          "lines": 226,
+          "read_ranges": [
+            [
+              1,
+              226
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/research-first/SKILL.md",
+      "sha256": "ae43e6baaad2124c1613e981489b5ed6933c54bfd12c63e5897004b4a80bf760"
+    },
+    {
+      "path": "skills/to-pdf/scripts/to-pdf.mjs",
+      "sha256": "f6a9880213c2070933fd33c102c18ce49244e9f7fdbb437dd25195a5c2eadbea"
+    },
+    {
+      "path": "skills/knowledge-services/SKILL.md",
+      "sha256": "d88f31e2ef49570ed47d841c98ede832665e45d939dfae8cf59e77aa7186bbb3"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

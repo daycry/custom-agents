@@ -14,8 +14,9 @@ JPA, carga perezosa con `JOIN FETCH`, proyecciones, transacciones de lectura,
 paginación, HikariCP y migraciones con Flyway o Liquibase.
 
 **Comparación.** `stack-practices` solo cubre PHP/CodeIgniter, Python y React.
-Igual que con .NET (S086) y Go (S116–S117), **no se abre especialidad Java hasta
-que un consumidor declare el stack**; cuando ocurra, estas dos piezas y las de
+Igual que con Go (S116–S117), **no se abre especialidad Java hasta que un
+consumidor declare el stack** (S064/S086 sí propusieron `dotnet-practices`; T-08
+debe aplicar una sola regla a los stacks sin consumidor); cuando ocurra, estas dos piezas y las de
 Spring Boot y Quarkus (S222–S225, S260–S263) se leen juntas como una sola
 referencia `java.md`. Lo transversal ya está en `backend-practices` (N+1 en
 `contracts-data.md`, migraciones compatibles). Correcciones para entonces:

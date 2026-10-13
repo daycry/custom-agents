@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S280",
+    "S291"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S280",
+      "sha256": "893eee77f98f52d28bffa6bbababa7481300cc13535dea519fa0cc1b0168b2f8",
+      "bytes": 15256,
+      "lines": 466,
+      "read_ranges": [
+        [
+          1,
+          466
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S291",
+      "sha256": "cbc93a1e2514ecdcee30da744aa13eb6c0ebe4948ca3dfff52b287df4f9f0814",
+      "bytes": 30577,
+      "lines": 888,
+      "read_ranges": [
+        [
+          1,
+          888
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/qa.md",
+      "sha256": "5ab45acfb5905dc26a3294fbf1fdd3b62e36cb525e9e0772108190556c8073f2"
+    },
+    {
+      "path": "agent-kits/qa/qa-gate.py",
+      "sha256": "276f2ae90aa12111c6f5ddac2678c5ac930d97c16f7606e5bc6292f5c0e6a23b"
+    },
+    {
+      "path": "agent-kits/qa/lib-guardrail.sh",
+      "sha256": "908fa83b29efbbf87f3784a4e5eb0baeaa0d0339298d48e1d1c911872f9050d5"
+    },
+    {
+      "path": "skills/stack-practices/references/react.md",
+      "sha256": "97cc70d0da0fb6e9686222704084c7c0309f994d492b0487abb96a6bfb29c4d5"
+    },
+    {
+      "path": "agent-kits/shared/redact.py",
+      "sha256": "4e9131368fd2471dcb2e3a2e91f6b0dc00555354487b6308194be05e4c4d5907"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-011-un-rol-un-dueno-agentes-retirados-y-responsabilidades-fusionadas.md",
+      "sha256": "6047829c51b5b9c95433f5d33fa34dcfacee03a0cf17a5d7f18422a93edc85b4"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

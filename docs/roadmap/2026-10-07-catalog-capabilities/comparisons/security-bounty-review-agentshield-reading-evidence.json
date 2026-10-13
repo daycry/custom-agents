@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S251",
+    "S252",
+    "S253"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S251",
+      "sha256": "c94945165ca16ec06a04727dcbcf7a7593810d83fe168247c9c2d88c5a078611",
+      "bytes": 3628,
+      "lines": 100,
+      "read_ranges": [
+        [
+          1,
+          100
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S252",
+      "sha256": "b9eb6416eebc8dda046674f0a2dbb3be88aff526d182b60a0f55998d3d6d0d8d",
+      "bytes": 12955,
+      "lines": 511,
+      "read_ranges": [
+        [
+          1,
+          511
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "cloud-infrastructure-security.md",
+          "sha256": "7d9a83852475a9396e04c59c73df84ac24ee0f41322016de7c11c62138c2a8ca",
+          "bytes": 10171,
+          "lines": 361,
+          "read_ranges": [
+            [
+              1,
+              361
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    },
+    {
+      "id": "S253",
+      "sha256": "74bc3006fb15eef9cea6bf70a4e9cc45ec118ef00733d1c8226c9dc428f8d658",
+      "bytes": 4592,
+      "lines": 166,
+      "read_ranges": [
+        [
+          1,
+          166
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/nemesis.md",
+      "sha256": "82a534cc0399b39f0f5e990526b656a7e1736d7e4276bb9340f8b1b78e14df78"
+    },
+    {
+      "path": "skills/cybersecurity/SKILL.md",
+      "sha256": "643742197404f4a7bb4d0ac1520078745bff09908966edb6d0d9deb097f16d46"
+    },
+    {
+      "path": "skills/cybersecurity/references/large-codebase.md",
+      "sha256": "64e09a6479f720539fe79a03696db757d3820d56ed70ca918b2521c6f0bb5d8f"
+    },
+    {
+      "path": "skills/cybersecurity/references/iac-patterns/github-actions.md",
+      "sha256": "d29578838ecb8825b1235f122a63e0d608c321f9332ccb41a488779be17e6035"
+    },
+    {
+      "path": "skills/backend-practices/references/contracts-data.md",
+      "sha256": "589af44a6c37b7355ed8d088c7a8e341b42a131ce5b0d1c89c06e6cde2d2bdab"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "234bafc53ac9e6f581baaddb2f1896806e30781dafbf75c3e1d431f171b11904"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-django-security-testing-verification.md",
+      "sha256": "76470a800ffa74683c8fc56ebc24a9b4f923e335598b3fe001838bd8bbe0c3e2"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

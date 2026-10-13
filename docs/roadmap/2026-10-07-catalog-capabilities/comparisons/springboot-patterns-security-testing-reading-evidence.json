@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S260",
+    "S261",
+    "S262",
+    "S263"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S260",
+      "sha256": "ff1884a8492d078d1bbb35f3ce0a8ae25f1ad95dab8596f4944a7c3110680946",
+      "bytes": 10047,
+      "lines": 315,
+      "read_ranges": [
+        [
+          1,
+          315
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S261",
+      "sha256": "566ecf928bf76812d15efd62e2f00841652e1618f0a97d8dda93e1c247a162c5",
+      "bytes": 8133,
+      "lines": 273,
+      "read_ranges": [
+        [
+          1,
+          273
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S262",
+      "sha256": "e4bd145484d93fb569eb0e1a09ffeb5cca68533d63c83805146b111c48bba172",
+      "bytes": 3786,
+      "lines": 159,
+      "read_ranges": [
+        [
+          1,
+          159
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S263",
+      "sha256": "c9449f169a3b920fd01875e3b2b2712c743c5fe8f469d2eabfe78886c590d04a",
+      "bytes": 6079,
+      "lines": 232,
+      "read_ranges": [
+        [
+          1,
+          232
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/stack-practices/SKILL.md",
+      "sha256": "c44933dab261ee24ae0daf38b9d1d11e02084ad04cd05fb84d03ab2110f60751"
+    },
+    {
+      "path": "skills/backend-practices/references/contracts-data.md",
+      "sha256": "589af44a6c37b7355ed8d088c7a8e341b42a131ce5b0d1c89c06e6cde2d2bdab"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "8d144cd02ca19b8e08c083cf9a79d66ed3961127ada437bc2a3f548b94666716"
+    },
+    {
+      "path": "skills/tdd/references/by-stack.md",
+      "sha256": "e7f4eaa33be28c9595e04203e8429b99e14b87bce3a21492cde9880dce85695c"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "bfb1b3899fd657b8beb70522e5f7d834869d22609da94b028c6dc82c7d577bc7"
+    },
+    {
+      "path": "agent-kits/qa/qa-gate.py",
+      "sha256": "276f2ae90aa12111c6f5ddac2678c5ac930d97c16f7606e5bc6292f5c0e6a23b"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "234bafc53ac9e6f581baaddb2f1896806e30781dafbf75c3e1d431f171b11904"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-011-un-rol-un-dueno-agentes-retirados-y-responsabilidades-fusionadas.md",
+      "sha256": "6047829c51b5b9c95433f5d33fa34dcfacee03a0cf17a5d7f18422a93edc85b4"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-java-jira-knowledge.md",
+      "sha256": "9598ce2e852c0ad370debbdaad73a2920d7e5e3d0ae749c367a59ccd91d86af2"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-django-security-testing-verification.md",
+      "sha256": "76470a800ffa74683c8fc56ebc24a9b4f923e335598b3fe001838bd8bbe0c3e2"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-quarkus-family.md",
+      "sha256": "730c52739eb2179628e2583cb545da204e14234ce011bb7bebc81acb252627fd"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}
