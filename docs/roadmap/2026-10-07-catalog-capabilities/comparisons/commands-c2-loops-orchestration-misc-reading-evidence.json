@@ -1,0 +1,194 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_command_ids": [
+    "C025",
+    "C030",
+    "C038",
+    "C044",
+    "C045",
+    "C046",
+    "C047",
+    "C048"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "C025",
+      "sha256": "0f0d80a171d4637b1cd38998f5f260cdc445473b7b81a170f50b8491103f9723",
+      "bytes": 1796,
+      "lines": 39,
+      "read_ranges": [
+        [
+          1,
+          39
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C030",
+      "sha256": "dc420f85cdbfab6671338227b5673b4feed564c4294a12c304b6d79cf0346ec2",
+      "bytes": 3170,
+      "lines": 84,
+      "read_ranges": [
+        [
+          1,
+          84
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C038",
+      "sha256": "0503ced85e1144d03c1bb32f0f34003c9cc6c8f17d05a516ce6d5902a5f62c8b",
+      "bytes": 3069,
+      "lines": 106,
+      "read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C044",
+      "sha256": "f12ce22d669072226a0df8a98f1421cc1318752e7a3e2d5eae0fe99cbb6f2f3c",
+      "bytes": 1332,
+      "lines": 36,
+      "read_ranges": [
+        [
+          1,
+          36
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C045",
+      "sha256": "74ca3ff7a7249f5d0bc7f87cdec882ef1f682ebc6567653eac5bb7ebaeae8b2e",
+      "bytes": 2617,
+      "lines": 77,
+      "read_ranges": [
+        [
+          1,
+          77
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C046",
+      "sha256": "58b3eb75ebcc4ca1399dcf7b8e8e135cf0af4fcd476d1de6ce4c34f88c71eec9",
+      "bytes": 4064,
+      "lines": 129,
+      "read_ranges": [
+        [
+          1,
+          129
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C047",
+      "sha256": "2e9789cb610bfa1a382dbaa46480a03aa976445d23b9ff719e4358bafa7292eb",
+      "bytes": 697,
+      "lines": 30,
+      "read_ranges": [
+        [
+          1,
+          30
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C048",
+      "sha256": "38512263b611f3fb7139366dfcdb0b40b9d782520e50042f177160dd76bc5d8b",
+      "bytes": 5604,
+      "lines": 164,
+      "read_ranges": [
+        [
+          1,
+          164
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "b6e03985d8ed921cf629b53af25f6c671df9792f1512acf4d2db14e1297442b9"
+    },
+    {
+      "path": "commands/pm-cycle.md",
+      "sha256": "a31f06cd9f5bf7d02fb5ee0a3ac36b106da00c1e8cd7b35b5f860b5f5813a1d5"
+    },
+    {
+      "path": "commands/doctor.md",
+      "sha256": "cfb88392075454952fca87df3b4ed0e7bbe762e6022e4ec9f5109e86e3b43326"
+    },
+    {
+      "path": "commands/work-resume.md",
+      "sha256": "52f8e4bf85eb5c8099abfd7b3c07375bec369853eb9b15f3d3dd6750c70df4c6"
+    },
+    {
+      "path": "commands/plugin-catalog.md",
+      "sha256": "fd70e7acfa5f17bf889dbf8e9c4f77291c1e5372af05f70e81a206b7b9690334"
+    },
+    {
+      "path": "commands/setup.md",
+      "sha256": "d10958c2f797efb0980f0a323c9abc4f4bb55d368bda22d304fd7275e6a2d1ad"
+    },
+    {
+      "path": "agents/analyst.md",
+      "sha256": "a5fb0d5ed2bc67606d8206e0173daf7c137e8ee63d3a5a44bbb300bf0c8b3be0"
+    },
+    {
+      "path": "skills/jira-sync/SKILL.md",
+      "sha256": "a06a3e253b3cd1567e736a55dd3f69815eb0000e2ca05a31c81895e7762d70e9"
+    },
+    {
+      "path": "skills/frontend-quality/references/visual-system.md",
+      "sha256": "c4bb5338ab6b3ca91561f011d5b77ab864eae5ab7c9498f5f95ca98ac6d11a97"
+    },
+    {
+      "path": "skills/plugin-dev/references/persistent-workflows.md",
+      "sha256": "0e3e609ce7b98f24d223c32ba48486c4f727759bef0813bc78771bc754a033c8"
+    },
+    {
+      "path": "agent-kits/shared/model-tier.py",
+      "sha256": "9a2ba0874a2380dbe21ad48ac79829d30ba06e7023dd9e52f99b24f3af3572cd"
+    },
+    {
+      "path": "docs/agents/ROLES.md",
+      "sha256": "16de05a15de9e81168181de94f22f9d891dda6fdb1adc927815c19605b87b997"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

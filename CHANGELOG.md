@@ -11,6 +11,20 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Changed — Command comparison (94 commands)
+
+- `adversarial-review` reviews a remote PR by number or URL: base and head come from `gh pr view`, evidence runs in a worktree of the head SHA, and the verdict is posted only with explicit user OK. A lens with no structured output leaves the attempt `incompleto` instead of counting as «no defects». Lens B flags snapshots or goldens rewritten with the update flag when no criterion asks for that change; the TDD stack table accepts a `NotImplementedError`-style stub of the new symbol as a valid red.
+- The implementer does not trust a pipeline's exit code (`pipefail`, or a file plus the command's own exit) and undoes a failed attempt with its own diff, never by restoring files that already had uncommitted changes. The planner cites the `file:line` pattern each code task must follow; the analyst asks for evidence that the problem exists and reads a Jira key as untrusted source data; the documenter rechecks pages whose cited sources changed after their last update; the curator sends duplicates of approved knowledge back as `needs_changes`.
+- `/dev-cycle` classifies each change (new capability, behaviour change, defect, refactor) to pick its first check in `Verificación`, and when opening a PR fills in the repo's PR template, sets base and head explicitly and checks for an open PR first.
+
+### Added — Discarded approaches in the session journal
+
+- The journal continuity schema gains a `descartados` list («approach — reason»), set only through `--enrich`/`--draft`; `/work-resume` quotes it after «Bloqueos» within the same caps, so the next session does not repeat a failed attempt.
+
+### Fixed — CI-only failures on Linux
+
+- The `db` persona fits again under the brief's persona floor (1,300 characters). The hooks network scan skips `hooks/__pycache__`, which the interpreter writes when another test imports `runtime-supervisor.py`; reading that bytecode as hook code failed the suite depending on test order.
+
 ### Changed — Agent comparison (68 agents)
 
 - `reviewer` knows Lens D (performance), which `adversarial-review` already dispatched to it, and never opens connections with environment credentials. `analyst` records non-functional requirements only with a given figure and keeps current behaviour apart from desired behaviour. `planner` makes removal tasks declare how dynamic references and public API use were ruled out. `implementer` no longer "fixes" a broken build by deleting lockfiles, bumping packages, clearing global caches, `--fake` migrations or killing processes by port, and its rationalization table covers lint/type suppressions. `documenter` checks cited paths and links; the `db` persona warns that `EXPLAIN ANALYZE` executes; `qa` runs new specs with `--repeat-each=3`.

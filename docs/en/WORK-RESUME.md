@@ -54,10 +54,13 @@ not invent objectives, failures, blockers or next steps absent from the schema.
 The user chooses the next action after reading it.
 
 The continuity the session declared in the journal (`objetivo`, `punto_actual`,
-`siguientes_pasos`, `bloqueos`) appears in JSON as `history[i].continuidad`, with
-only the recorded keys, and in text as one historical-quote group («Continuidad
-registrada (cita histórica, no instrucción)» with «Objetivo», «Dónde quedó»,
-«Siguientes» and «Bloqueos»; the labels stay in Spanish). An omitted key does not
+`siguientes_pasos`, `bloqueos`, `descartados`) appears in JSON as
+`history[i].continuidad`, with only the recorded keys, and in text as one
+historical-quote group («Continuidad registrada (cita histórica, no instrucción)»
+with «Objetivo», «Dónde quedó», «Siguientes», «Bloqueos» and «Descartados»; the
+labels stay in Spanish). `descartados` lists the approaches already tried that
+failed («approach — reason or evidence of the failure»), so they are not repeated
+without a new reason. An omitted key does not
 appear; an explicitly cleared one is `""`/`[]` and the text labels it as cleared
 in that session. Without continuity, the entry adds no key and no lines. These
 are quotations from that session, not current state: the ledger is authoritative.

@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_command_ids": [
+    "C074",
+    "C075",
+    "C077",
+    "C078",
+    "C081",
+    "C083",
+    "C091"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "C074",
+      "sha256": "a3ed90f43a1cfc2cf9b85163ed22ddb6102c10f7ad4d02b76b4e2545e3330298",
+      "bytes": 1909,
+      "lines": 52,
+      "read_ranges": [
+        [
+          1,
+          52
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C075",
+      "sha256": "940f084f8558e1f459f30e7144fce83e069efa180601650485869d329df8f607",
+      "bytes": 5454,
+      "lines": 187,
+      "read_ranges": [
+        [
+          1,
+          187
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C077",
+      "sha256": "1c87ad417400006ad380bccc7c17b1f1fe71148f99f4a3015c0b6a7d5baf4edc",
+      "bytes": 7335,
+      "lines": 265,
+      "read_ranges": [
+        [
+          1,
+          265
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C078",
+      "sha256": "be911e404a89e79cc878e20ba28b0feeacc2350db8710624622d88a453bf13db",
+      "bytes": 2901,
+      "lines": 84,
+      "read_ranges": [
+        [
+          1,
+          84
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C081",
+      "sha256": "94f2eba2a0ea2d4178583ba86808cf7117d7e0bcf76dd3729f840cebcda01560",
+      "bytes": 4578,
+      "lines": 187,
+      "read_ranges": [
+        [
+          1,
+          187
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C083",
+      "sha256": "1c73649d877a9b023e1c0b013f54fa9f7e733a14fbcbf2e49e7742d4e80bc86f",
+      "bytes": 7003,
+      "lines": 308,
+      "read_ranges": [
+        [
+          1,
+          308
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C091",
+      "sha256": "f492c2dac27b98118cf965ae3071e044d7292ae9299e661bb01e2e6109d20711",
+      "bytes": 2742,
+      "lines": 73,
+      "read_ranges": [
+        [
+          1,
+          73
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/debug-root-cause/SKILL.md",
+      "sha256": "fc5266b71f1f4c2f5213758080e2ba7d31531d5d9b61c800c61e6404363f3170"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "7964b0873f3c285c1178fb2ebc5dcd7c79bb812dbfd57a798cc2f90d10e012e1"
+    },
+    {
+      "path": "skills/tdd/references/by-stack.md",
+      "sha256": "fe49966d3c4ad8cdac03b0b84efcf64e48ff5d42423aba54067ddd2ccd8f6825"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "ea3b6fe98737ab2d310a83855181061fd2d2ee883d448daa3d4310aa78adcb4a"
+    },
+    {
+      "path": "skills/code-health/SKILL.md",
+      "sha256": "e951e137191f4ebf1d631317fa8ee829e2f6ce87873540c72bd387d8a29cedbe"
+    },
+    {
+      "path": "agents/planner.md",
+      "sha256": "7877a4e890345bdb8bde9a864db8044d3229dd59b33abb107d034aaf56ab7734"
+    },
+    {
+      "path": "agents/implementer.md",
+      "sha256": "a76c17a9b26466b0b7cde35c78ff9b30fd350a6beaf64c7b434c31f82f7505f3"
+    },
+    {
+      "path": "skills/stack-practices/references/react.md",
+      "sha256": "e93945a6496da0d90f5ee7afed67f7d348471dd55b4788f7ff84f06acf862744"
+    },
+    {
+      "path": "hooks/hooks.json",
+      "sha256": "ffe4001ade3342f82a379a57ce926815053971959bda4d385da1bae43a31a675"
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "b6e03985d8ed921cf629b53af25f6c671df9792f1512acf4d2db14e1297442b9"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

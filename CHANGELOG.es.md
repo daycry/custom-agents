@@ -11,6 +11,20 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Changed — Comparación de comandos (94 comandos)
+
+- `adversarial-review` revisa un PR remoto por número o URL: base y head salen de `gh pr view`, la evidencia se ejecuta en un worktree del SHA del head y el veredicto solo se publica con OK explícito. Una lente sin salida estructurada deja el intento `incompleto`, no cuenta como «sin defectos». La Lente B marca los snapshots o goldens reescritos con el flag de actualización sin un criterio que lo pida; la tabla de TDD por stack acepta como rojo válido el stub del símbolo nuevo que lanza `NotImplementedError` o equivalente.
+- El implementer no se fía del exit de una tubería (`pipefail`, o fichero más el exit propio) y deshace un intento fallido con su propio diff, nunca restaurando ficheros que ya tenían cambios sin comitear. El planner cita el `fichero:línea` del patrón que debe reflejar cada tarea de código; el analyst pide evidencia de que el problema existe y lee una clave de Jira como fuente no confiable; el documenter revisa las páginas cuyas fuentes cambiaron tras su última actualización; el curador devuelve como `needs_changes` los duplicados de conocimiento aprobado.
+- `/dev-cycle` clasifica cada cambio (capacidad nueva, cambio de comportamiento, defecto, refactor) para elegir su primera comprobación en `Verificación`, y al abrir un PR rellena la plantilla del repo, fija base y head explícitos y comprueba antes si ya hay un PR abierto.
+
+### Added — Enfoques descartados en el journal de sesión
+
+- La continuidad del journal suma la lista `descartados` («enfoque — motivo»), que solo entra por `--enrich`/`--draft`; `/work-resume` la cita tras «Bloqueos» con los mismos topes, para no repetir un intento fallido.
+
+### Fixed — Fallos que solo salían en la CI de Linux
+
+- La persona `db` vuelve a caber bajo el suelo de personas del brief (1.300 caracteres). El escaneo de red de los hooks salta `hooks/__pycache__`, que escribe el intérprete cuando otro test importa `runtime-supervisor.py`; leer ese bytecode como código de hook tumbaba la suite según el orden de los tests.
+
 ### Changed — Comparación de agentes (68 agentes)
 
 - `reviewer` conoce la Lente D (rendimiento), que `adversarial-review` ya le despachaba, y nunca abre conexiones con credenciales del entorno. `analyst` registra los requisitos no funcionales solo con una cifra dada y separa el comportamiento actual del deseado. `planner` obliga a que las tareas de borrado declaren cómo descartaron referencias dinámicas y uso como API pública. `implementer` ya no «arregla» un build roto borrando el lockfile, subiendo paquetes, limpiando cachés globales, con migraciones `--fake` ni matando procesos por puerto, y su tabla de racionalizaciones cubre las supresiones de lint y tipado. `documenter` comprueba rutas y enlaces citados; la persona `db` advierte de que `EXPLAIN ANALYZE` ejecuta; `qa` ejecuta los specs nuevos con `--repeat-each=3`.

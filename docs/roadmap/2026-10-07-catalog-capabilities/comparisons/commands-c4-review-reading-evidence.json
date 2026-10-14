@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_command_ids": [
+    "C073",
+    "C076",
+    "C080",
+    "C082",
+    "C084",
+    "C094"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "C073",
+      "sha256": "7982b50c59cad83941400a436c1d1001d73fe9bdba6cb84a3ac7c6d43f394c99",
+      "bytes": 6657,
+      "lines": 297,
+      "read_ranges": [
+        [
+          1,
+          297
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C076",
+      "sha256": "e2a41010af97104e3f6819b7a6ddc381b529c8b6a0cac46e8cfc13578dc51cde",
+      "bytes": 5820,
+      "lines": 170,
+      "read_ranges": [
+        [
+          1,
+          170
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C080",
+      "sha256": "48968023b079cd4952cd4f750a0d3ea537643871d17c441ec88a16a14fe81954",
+      "bytes": 1343,
+      "lines": 37,
+      "read_ranges": [
+        [
+          1,
+          37
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C082",
+      "sha256": "19e9eb0c5805e982f9d864202dde19c49b394e8d8e28030b3aeac33c157d812c",
+      "bytes": 3898,
+      "lines": 142,
+      "read_ranges": [
+        [
+          1,
+          142
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C084",
+      "sha256": "a18d65eddb6cf1d5c2f80ba3275638fef6a1a473baddedfdecb8e3af0f65ac23",
+      "bytes": 8515,
+      "lines": 208,
+      "read_ranges": [
+        [
+          1,
+          208
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C094",
+      "sha256": "bd9fe40b1fc015a8d39a7db5e955ccd54f57eafb6e9db367a195dcd037b3c67a",
+      "bytes": 5813,
+      "lines": 174,
+      "read_ranges": [
+        [
+          1,
+          174
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "12ccff0790433a793b8229aa20eafb36c871a9c96798bafcbb186dcaabe1c1d6"
+    },
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "3e2d1f5c527ccd156961ca0803453b924cd73be6493cb6b09dbd0eafdfa006a2"
+    },
+    {
+      "path": "skills/stack-practices/references/python.md",
+      "sha256": "ef54c25f173072d5ecf35d00b59479fc5dbac35add4edf3a24d41511740ceed6"
+    },
+    {
+      "path": "skills/stack-practices/references/react.md",
+      "sha256": "e93945a6496da0d90f5ee7afed67f7d348471dd55b4788f7ff84f06acf862744"
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "b6e03985d8ed921cf629b53af25f6c671df9792f1512acf4d2db14e1297442b9"
+    },
+    {
+      "path": "commands/work-context.md",
+      "sha256": "181bc6b81c1bf856e2fad27b4ca4f467345acea993a18c977070cdf70bf05b28"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

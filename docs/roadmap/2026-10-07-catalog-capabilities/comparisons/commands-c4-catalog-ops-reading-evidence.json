@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_command_ids": [
+    "C086",
+    "C088",
+    "C089",
+    "C090"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "C086",
+      "sha256": "7df73784c48da5b2f6eeae2aa104699fe0a0c7b207e7c6a2e0ba011fe1922d94",
+      "bytes": 2757,
+      "lines": 92,
+      "read_ranges": [
+        [
+          1,
+          92
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C088",
+      "sha256": "163b3cd106028d21dbd2a91b47f1cf99957e40a78ed9e5e5dc8507e225f73a2d",
+      "bytes": 1675,
+      "lines": 80,
+      "read_ranges": [
+        [
+          1,
+          80
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C089",
+      "sha256": "d90b882c5af825951a1b99e82b40c2ea9c611dab5d2aab26bc2da7a26aab1fc8",
+      "bytes": 6992,
+      "lines": 178,
+      "read_ranges": [
+        [
+          1,
+          178
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C090",
+      "sha256": "da34a0a3c0fe3ccec6795cbf16252a4253b81baa8ea7bf332cd7a0d1cde1efdf",
+      "bytes": 4245,
+      "lines": 54,
+      "read_ranges": [
+        [
+          1,
+          54
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/nemesis.md",
+      "sha256": "82a534cc0399b39f0f5e990526b656a7e1736d7e4276bb9340f8b1b78e14df78"
+    },
+    {
+      "path": "skills/cybersecurity/references/large-codebase.md",
+      "sha256": "5debf2a579b51f7fc5efc96683d757b0a0fad3cf7cd2dde54bb8da7bb166f732"
+    },
+    {
+      "path": "skills/plugin-dev/SKILL.md",
+      "sha256": "4d0fd503335ead9cf6dced139a97cfee29f725a2ecc5ed9a67ffe64c5601f06e"
+    },
+    {
+      "path": "docs/SPECIALIZATION.md",
+      "sha256": "c61aaac67a54b8932ad6235ec58bbbd51a4702f537f20812424fdd5e38c59936"
+    },
+    {
+      "path": "skills/capability-audit/SKILL.md",
+      "sha256": "0a8579a37efbc067bfb6b4dc3f8759a49f50a2a72acc89116f24bbd125406dd9"
+    },
+    {
+      "path": "commands/plugin-catalog.md",
+      "sha256": "fd70e7acfa5f17bf889dbf8e9c4f77291c1e5372af05f70e81a206b7b9690334"
+    },
+    {
+      "path": "commands/doctor.md",
+      "sha256": "cfb88392075454952fca87df3b4ed0e7bbe762e6022e4ec9f5109e86e3b43326"
+    },
+    {
+      "path": "commands/setup.md",
+      "sha256": "d10958c2f797efb0980f0a323c9abc4f4bb55d368bda22d304fd7275e6a2d1ad"
+    },
+    {
+      "path": "skills/debug-root-cause/SKILL.md",
+      "sha256": "fc5266b71f1f4c2f5213758080e2ba7d31531d5d9b61c800c61e6404363f3170"
+    },
+    {
+      "path": "skills/dependency-upgrade/SKILL.md",
+      "sha256": "69b22380b27f56c58e9e15253c719e93753805f6a8325059d9b64d4ea0df1e12"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

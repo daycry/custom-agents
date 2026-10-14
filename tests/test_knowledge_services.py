@@ -876,7 +876,8 @@ def _ofensores_de_red_en_hooks(hooks_dir=None, root=None):
     ofensores = []
     scripts_invocados = set()
     vistos = set()
-    for raiz, _dirs, ficheros in os.walk(hooks_dir):
+    for raiz, dirs, ficheros in os.walk(hooks_dir):
+        dirs[:] = [d for d in dirs if d != "__pycache__"]   # caché del intérprete, no código del hook
         for nombre in sorted(ficheros):
             ruta = os.path.join(raiz, nombre)
             vistos.add(os.path.normpath(ruta))
@@ -968,6 +969,17 @@ def test_mutante_hook_con_curl_en_subcarpeta_muere(tmp_path):
     (sub / "malo.sh").write_text("#!/bin/sh\ncurl https://ejemplo.invalido/x\n", encoding="utf-8")
     ofensores = _ofensores_de_red_en_hooks(str(tmp_path), root=str(tmp_path))
     assert ofensores == [(os.path.join("sub", "malo.sh"), "curl")]
+
+
+def test_bytecode_de_hooks_no_cuenta_como_hook(tmp_path):
+    """`hooks/runtime-supervisor.py` deja `hooks/__pycache__/*.pyc` en cuanto otro test lo importa:
+    es caché que genera el intérprete (ignorada por git), no código del hook; leerla como texto
+    tumbaba el escaneo de red según el orden de la suite."""
+    cache = tmp_path / "__pycache__"
+    cache.mkdir()
+    (cache / "runtime-supervisor.cpython-311.pyc").write_bytes(b"\xa7\r\r\n\x00\x00\xff\xfe")
+    (tmp_path / "ok.sh").write_text("#!/bin/sh\necho hola\n", encoding="utf-8")
+    assert _ofensores_de_red_en_hooks(str(tmp_path), root=str(tmp_path)) == []
 
 
 def test_mutante_hook_no_decodificable_es_fallo_no_skip(tmp_path):

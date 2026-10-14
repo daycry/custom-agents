@@ -151,6 +151,10 @@ candidatos de conocimiento propuestos (P5-bis) con su ruta.
 Si `docs/` ya tiene documentación:
 - **No la borres ni la regeneres entera.** Detecta qué cambió en el código (nuevos módulos,
   dependencias, endpoints) y **actualiza** las páginas afectadas; crea solo lo que falte.
+  Para cada página que mantengas, compara la fecha del último commit de las rutas que cita como
+  fuente (`git log -1 --format=%cs -- <ruta>`) con su «Última actualización» (o, si no la lleva,
+  con el último commit de la propia página): si la fuente es posterior, revísala. La antigüedad
+  sola no es motivo para reescribir. Sin git, dilo en el resumen y decide por el recon.
 - Mantén el índice y el `RAG-INDEX.md` coherentes y actualiza la fecha.
 - Respeta el contenido escrito a mano; añade/corrige, no aplastes.
 - Actualiza solo el documento dueño del hecho que cambió (P2); los demás lo enlazan.

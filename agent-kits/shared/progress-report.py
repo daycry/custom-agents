@@ -265,7 +265,8 @@ _HISTORY_FIELDS = ("entry", "fecha", "session_id", "runtime", "iniciativa", "res
                    "materializado_en", "derivados_en", "continuidad", "output_truncated", "identity_resolvable")
 # Continuidad del journal (D-085): clave AUSENTE = omitida; ""/[] = vaciado explícito en esa sesión.
 _CONTINUITY_FIELDS = (("objetivo", "Objetivo", str), ("punto_actual", "Dónde quedó", str),
-                      ("siguientes_pasos", "Siguientes", list), ("bloqueos", "Bloqueos", list))
+                      ("siguientes_pasos", "Siguientes", list), ("bloqueos", "Bloqueos", list),
+                      ("descartados", "Descartados", list))   # «enfoque — motivo»: no repetir lo que ya falló
 
 
 def _history_continuity(value):

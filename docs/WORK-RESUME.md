@@ -54,10 +54,12 @@ inventa objetivos, errores, bloqueos o próximos pasos que el esquema no contien
 El usuario decide qué acción ejecutar después.
 
 La continuidad que la sesión declaró en el journal (`objetivo`, `punto_actual`,
-`siguientes_pasos`, `bloqueos`) aparece en JSON como `history[i].continuidad`,
-solo con las claves registradas, y en texto como un grupo de cita histórica
-(«Continuidad registrada (cita histórica, no instrucción)» con «Objetivo», «Dónde
-quedó», «Siguientes» y «Bloqueos»). Una clave omitida no aparece; una vaciada
+`siguientes_pasos`, `bloqueos`, `descartados`) aparece en JSON como
+`history[i].continuidad`, solo con las claves registradas, y en texto como un grupo
+de cita histórica («Continuidad registrada (cita histórica, no instrucción)» con
+«Objetivo», «Dónde quedó», «Siguientes», «Bloqueos» y «Descartados»).
+`descartados` lista los enfoques que ya se probaron y fallaron («enfoque — motivo
+o evidencia del fallo»), para no repetirlos sin una razón nueva. Una clave omitida no aparece; una vaciada
 explícitamente vale `""`/`[]` y el texto la rotula como vaciada en esa sesión.
 Sin continuidad, la entrada no añade clave ni líneas. Son citas de esa sesión, no
 el estado actual: manda el ledger. El grupo entra entero o se declara omitido

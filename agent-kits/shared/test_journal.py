@@ -2945,6 +2945,35 @@ def test_continuidad_tipo_invalido_cuenta_como_omitido_y_se_ve_en_la_seleccion(t
     assert "siguientes pasos: probar en Linux" in journal.latest(str(proj), n=1)
 
 
+def test_continuidad_descartados_misma_semantica_que_bloqueos(tmp_path):
+    """`descartados` («enfoque — motivo») es una lista de continuidad más: solo por --enrich/--draft,
+    omitida conserva, vaciada limpia, tipo inválido = omitida con aviso; se ve en la sección, en
+    `select` y en `latest`, para que la sesión siguiente no repita un intento que ya falló."""
+    assert "descartados" in journal.CONTINUIDAD_LISTAS
+    proj, _ = proyecto(tmp_path, con_git=False)
+    p = proj / "docs" / "knowledge" / "journal" / f"{journal.hoy()}-demo.md"
+    run("write", "--session-id", "s1", "--enrich", _enrich(tmp_path, {
+        "descartados": ["subir el timeout — el hook sigue muriendo a los 5 s"]}), root=proj)
+    e = journal.parse_entry(str(p))
+    assert e["descartados"] == ["subir el timeout — el hook sigue muriendo a los 5 s"]
+    texto = p.read_text(encoding="utf-8")
+    assert "- **Descartados**:" in texto and "  - subir el timeout — el hook sigue muriendo a los 5 s" in texto
+    run("write", "--session-id", "s1", "--enrich", _enrich(tmp_path, {"bloqueos": ["falta revisión"]}), root=proj)
+    e = journal.parse_entry(str(p))                                     # omitido: se conserva
+    assert e["descartados"] == ["subir el timeout — el hook sigue muriendo a los 5 s"]
+    run("write", "--session-id", "s1", "--enrich", _enrich(tmp_path, {"descartados": "texto"}), root=proj)
+    assert journal.parse_entry(str(p))["descartados"] == ["subir el timeout — el hook sigue muriendo a los 5 s"]
+    assert any("continuidad.descartados" in a for a in journal.draft(
+        str(proj), "s1", enrich=_enrich(tmp_path, {"descartados": 7}, "x.json"))["avisos"])
+    sel = journal.select_entries(str(proj), initiative="demo")
+    assert sel["entries"][0]["continuidad"]["descartados"] == ["subir el timeout — el hook sigue muriendo a los 5 s"]
+    assert "descartados: subir el timeout" in journal.latest(str(proj), n=1)
+    assert "descartados: subir el timeout" in journal.latest(str(proj), n=1, initiative="demo")
+    run("write", "--session-id", "s1", "--enrich", _enrich(tmp_path, {"descartados": None}), root=proj)
+    e = journal.parse_entry(str(p))                                     # vaciado: la clave queda, vacía
+    assert e["descartados"] == [] and e["bloqueos"] == ["falta revisión"]
+
+
 # ------------------------------------------------------------------ recuperación temprana por inactividad del transcript
 
 def _transcript(tmp_path, monkeypatch, sid, mtime_hace_min=None, sub="proj-x"):

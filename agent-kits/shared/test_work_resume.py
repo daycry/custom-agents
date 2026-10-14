@@ -426,6 +426,38 @@ def test_continuity_respects_output_budgets(tmp_path):
     assert "\u202e" not in rendered
 
 
+def test_discarded_approaches_are_quoted_in_the_continuity_group(tmp_path):
+    """`descartados` viaja en el mismo grupo de continuidad, tras «Bloqueos», y con los mismos topes."""
+    ledger(tmp_path, "2026-10-09-demo")
+    continuity_entry(tmp_path, lines=FULL_CONTINUITY + [
+        'descartados:', '  - "subir el timeout — el hook sigue muriendo a los 5 s"'])
+    result = pr.resume(tmp_path, initiative="demo")
+    assert result["history"][0]["continuidad"]["descartados"] == [
+        "subir el timeout — el hook sigue muriendo a los 5 s"]
+    lines = pr.resume_text(result).splitlines()
+    assert "> Descartados: subir el timeout — el hook sigue muriendo a los 5 s" in lines
+    assert lines.index("> Bloqueos: falta revisión") < lines.index(
+        "> Descartados: subir el timeout — el hook sigue muriendo a los 5 s")
+    continuity_entry(tmp_path, "c.md", lines=['descartados: []'], sid="s3")
+    cleared = pr.resume(tmp_path, initiative="demo", session_id="s3")
+    assert cleared["history"][0]["continuidad"] == {"descartados": []}
+    assert "> Descartados: (vaciado explícitamente en esa sesión)" in pr.resume_text(cleared)
+
+
+def test_discarded_approaches_respect_output_budgets(tmp_path):
+    ledger(tmp_path, "2026-10-09-demo")
+    big = (['objetivo: "' + "漢" * 3000 + '"', 'bloqueos:', '  - "' + "b" * 500 + '"', 'descartados:']
+           + ['  - "' + "d‮" * 400 + '"'] * 6)
+    continuity_entry(tmp_path, "a.md", lines=big)
+    continuity_entry(tmp_path, "b.md", lines=big, sid="s2")
+    result = pr.resume(tmp_path, initiative="demo")
+    output = json.dumps(result, ensure_ascii=False)
+    assert len(output.encode("utf-8")) <= 12000 and "‮" not in output
+    assert result["output_truncated"] is True
+    rendered = pr.resume_text(result)
+    assert len(rendered) <= 6000 and len(rendered.splitlines()) <= 32 and "‮" not in rendered
+
+
 def test_history_only_keeps_continuity_quote(tmp_path, capsys):
     ledger(tmp_path, "2026-10-09-demo")
     continuity_entry(tmp_path, lines=FULL_CONTINUITY)

@@ -79,6 +79,10 @@ los campos CA-17 (`project`, `scope`, `source`, `confidence`) si el proyecto los
 Ante contradicción con approved o legado aceptado, o alto impacto (2+ piezas o decisión
 reescrita), pide resolución humana trazada antes de decidir. No gana la fecha, score o ranking;
 la constitución prima y una sucesión explícita registra referencias sin editar el legado.
+Si el candidato repite el contenido de una entrada aprobada, no apruebes un duplicado: decide
+`needs_changes` con la ruta de la existente en el motivo y pide que aporte solo lo nuevo,
+enlazándola como sucesión; si no añade nada, `reject`. El gate solo ve colisiones de ID o de
+nombre de fichero, no el solape de contenido: esa comparación es tuya.
 
 **P3 — Ejecutar la puerta de solo lectura.** Por candidato:
 

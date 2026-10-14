@@ -147,7 +147,8 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
 
 `--enrich JSON` (fichero o `-` para stdin): {"resumen": "...", "decisiones": [...], "pendientes": [...]}
 — entrada MANUAL que manda sobre lo extraído del log y sobre la IA. Continuidad operativa (D-085), con el
-mismo `--enrich`: `objetivo` y `punto_actual` (texto), `siguientes_pasos` y `bloqueos` (listas de texto). Se
+mismo `--enrich`: `objetivo` y `punto_actual` (texto), `siguientes_pasos`, `bloqueos` y `descartados` (listas
+de texto; `descartados` = «enfoque — motivo o evidencia del fallo», para no repetir un intento fallido). Se
 escriben en el frontmatter y en la sección «Continuidad» solo si se declaran; al re-escribir la misma sesión,
 una clave OMITIDA conserva su valor previo y una VACIADA (`""`, `[]` o `null`) se limpia; tipo inválido →
 aviso y cuenta como omitida. Ningún extractor las rellena: `latest`/`select` y `/work-resume` solo las leen. Sobre el contrato: la doc oficial
@@ -240,11 +241,12 @@ CURSOR_RE = re.compile(r"\d{4}-\d{2}-\d{2}/[^/\\\x00-\x1f]+\.md")   # `AAAA-MM-D
 # Clave AUSENTE = omitida (al re-escribir la misma sesión se conserva lo que hubiera); `""`/`[]`/`null` =
 # VACIADO explícito (la clave queda en el frontmatter, vacía). Ningún extractor la rellena por su cuenta.
 CONTINUIDAD_ESCALARES = ("objetivo", "punto_actual")
-CONTINUIDAD_LISTAS = ("siguientes_pasos", "bloqueos")
+CONTINUIDAD_LISTAS = ("siguientes_pasos", "bloqueos", "descartados")   # descartados: «enfoque — motivo»
 CONTINUIDAD = CONTINUIDAD_ESCALARES + CONTINUIDAD_LISTAS
 _LISTAS_FM = LISTAS + CONTINUIDAD_LISTAS     # listas que admite el frontmatter (lector acotado `_selected_parse`)
 _CONTINUIDAD_ETIQUETA = {"objetivo": "Objetivo", "punto_actual": "Punto actual",
-                         "siguientes_pasos": "Siguientes pasos", "bloqueos": "Bloqueos"}
+                         "siguientes_pasos": "Siguientes pasos", "bloqueos": "Bloqueos",
+                         "descartados": "Descartados"}
 
 
 def _load_module(name, filename):
@@ -1934,7 +1936,7 @@ def index(root):
              "| `derivados_en` | `replay` | `ficheros_tocados`/`tareas_cambiadas` se calculan con git al materializar (también para huérfanas), nunca en el teardown de `SessionEnd` (CA-01) |",
              "| `materializado_en` | timestamp ISO UTC | Cuándo se escribió la entrada final; la `fecha` es la del cierre (`captured_at`) |",
              "| `log_hasta` | timestamp ISO UTC (solo `recuperado_sin_cierre`) | mtime del log de prompts con el que se recuperó; si el log cambia después, `recover` rehace la entrada |",
-             "| `objetivo` · `punto_actual` · `siguientes_pasos` · `bloqueos` | texto · texto · lista · lista (opcionales) | Continuidad declarada con `--enrich`; clave ausente = nunca declarada, vacía = vaciada a propósito |", "",
+             "| `objetivo` · `punto_actual` · `siguientes_pasos` · `bloqueos` · `descartados` | texto · texto · lista · lista · lista (opcionales) | Continuidad declarada con `--enrich`; clave ausente = nunca declarada, vacía = vaciada a propósito |", "",
              "| Fecha | Iniciativa | Resumen | Fuente |", "|---|---|---|---|"]
     for e in reversed(es):
         fn = os.path.basename(e["_path"])

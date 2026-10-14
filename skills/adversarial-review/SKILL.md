@@ -42,10 +42,10 @@ REVSKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/skills" "$H
 | Modo | Qué recibes | Contra qué revisa la Lente A |
 |---|---|---|
 | **Con ledger** (desde `/dev-cycle`, `quick-implement`) | `docs/roadmap/<fecha>-<slug>/` (con `tasks.md`; `improvement-plan.md` si existe), nº de intento N, y si N > 1 la tabla de veredictos del intento anterior | `improvement-plan.md` + `tasks.md` (+ `docs/CONSTITUTION.md` si existe) |
-| **Sin plan** (a demanda: «revísame este diff», «revisión de la rama») | rama o rango `<base>..HEAD` (si no lo dan, pregunta la base o usa merge-base con `main`/`master`), más el **objetivo declarado por el usuario** | el objetivo declarado + los mensajes de commit del rango; sin criterios formales, la Lente A emite ✓/✗ por **objetivo** (uno por commit o por el objetivo único) |
+| **Sin plan** (a demanda: «revísame este diff», «revisión de la rama», «revisa el PR 123») | rama o rango `<base>..HEAD` (si no lo dan, pregunta la base o usa merge-base con `main`/`master`), más el **objetivo declarado por el usuario**. **PR remoto:** con un número entero (o el que sale de la URL) y `gh` respondiendo, base y head salen de `gh pr view <n> --json baseRefName,headRefOid`; el diff es `git diff <base>...<headRefOid>`, se anota el SHA en la salida y los tests de evidencia corren en un worktree de ese SHA (tráelo con `git fetch origin pull/<n>/head` y comprueba que coincide), nunca en la rama local. Sin `gh` o sin acceso, pregunta la base. Publicar el veredicto en el PR es un efecto externo (`skills/delivery-practices/references/delivery-tools.md`, «Efectos externos»): se muestra y solo se publica con OK explícito del usuario, nunca como aprobación automática | el objetivo declarado + los mensajes de commit del rango; sin criterios formales, la Lente A emite ✓/✗ por **objetivo** (uno por commit o por el objetivo único) |
 
-En ambos modos el diff es `git diff <base>...HEAD` ∪ cambios sin comitear. Sin git → revisa los
-ficheros que el usuario indique y dilo (la puerta de alcance no aplica).
+En ambos modos el diff es `git diff <base>...HEAD` ∪ cambios sin comitear (PR remoto: `<headRefOid>`, sin cambios
+locales). Sin git → revisa los ficheros que el usuario indique y dilo (la puerta de alcance no aplica).
 
 ## Proceso
 
@@ -95,11 +95,13 @@ revisa, y si N > 1 la tabla del intento anterior (ver §5). Despacho:
 ### 3. Fusionar y graduar
 
 **Fusiona** las 2-4 salidas: deduplica gaps que señalen lo mismo (mismo `fichero:línea` o mismo
-escenario); A da el **veredicto por criterio** (✓/✗); B, C y D aportan defectos (los de C con su
-CWE; los de D, el escenario de carga que lo justifica). Gradúa cada gap **`Critical / Important /
-Minor`**: Critical (pérdida de datos, seguridad explotable, criterio incumplido que rompe el
-objetivo) e Important (defecto reproducible, fuera de alcance, constitución violada) **obligan
-corrección**; Minor se anota sin bloquear el cierre.
+escenario); A da el **veredicto por criterio** (✓/✗); B, C y D aportan defectos (los de C con su CWE; los
+de D, el escenario de carga que lo justifica). Gradúa cada gap **`Critical / Important / Minor`**:
+Critical (pérdida de datos, seguridad explotable, criterio incumplido que rompe el objetivo) e Important
+(defecto reproducible, fuera de alcance, constitución violada) **obligan corrección**; Minor se anota sin
+bloquear el cierre. **Lente sin salida estructurada** (error, rechazo también del respaldo, vacía o
+truncada) ≠ «sin defectos»: intento `incompleto`, la traza la nombra y no pasa a `qa` sin relanzarla o OK
+explícito del usuario.
 
 ### 4. Disciplina al RECIBIR (nada de obediencia ciega)
 

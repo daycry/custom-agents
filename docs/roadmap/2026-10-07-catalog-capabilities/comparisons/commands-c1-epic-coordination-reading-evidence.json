@@ -1,0 +1,193 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_command_ids": [
+    "C011",
+    "C012",
+    "C013",
+    "C014",
+    "C015",
+    "C016",
+    "C017"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "C011",
+      "sha256": "fab151e31f5ed680cff1e171c65870ab18dbdd481fe5b94378dc57f98b0eb6ab",
+      "bytes": 608,
+      "lines": 26,
+      "read_ranges": [
+        [
+          1,
+          26
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C012",
+      "sha256": "cc5ddee38eb6f87bc995e686b474b8b57e04aaf35394cfaaa3fd1ae5a579d5b1",
+      "bytes": 528,
+      "lines": 23,
+      "read_ranges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C013",
+      "sha256": "d13da877f7e0a4a632a7bbc2acf5e9fb1e28ad1d6b554f2c7cd7dd3198ce4cd4",
+      "bytes": 484,
+      "lines": 23,
+      "read_ranges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C014",
+      "sha256": "4c9ce11bb8d7375f6d2128e0883071ccbf4162df8ed445e565706983f6c17b42",
+      "bytes": 519,
+      "lines": 23,
+      "read_ranges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C015",
+      "sha256": "b191bedc4bfafb8a03818042dbc87ed175930e27a042c112c219912626dceb79",
+      "bytes": 517,
+      "lines": 23,
+      "read_ranges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C016",
+      "sha256": "48c1868f03b6ceda7a923d98c76206a35eefa91774a61a0d9d4c18ea5713a4e7",
+      "bytes": 493,
+      "lines": 22,
+      "read_ranges": [
+        [
+          1,
+          22
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C017",
+      "sha256": "894516dd4de62c6c28254c841f11a6ae461869cb8e78c4eff984fb108c2d92ad",
+      "bytes": 504,
+      "lines": 22,
+      "read_ranges": [
+        [
+          1,
+          22
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "docs/CONVENTIONS.md",
+      "sha256": "a8d76278cd2970223ab3c0fee69c05fce16f69f0d494f2660c148bab9b67b4b1"
+    },
+    {
+      "path": "skills/jira-sync/SKILL.md",
+      "sha256": "a06a3e253b3cd1567e736a55dd3f69815eb0000e2ca05a31c81895e7762d70e9"
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "b6e03985d8ed921cf629b53af25f6c671df9792f1512acf4d2db14e1297442b9"
+    },
+    {
+      "path": "agents/planner.md",
+      "sha256": "7877a4e890345bdb8bde9a864db8044d3229dd59b33abb107d034aaf56ab7734"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "12ccff0790433a793b8229aa20eafb36c871a9c96798bafcbb186dcaabe1c1d6"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "1e4dd91857210df7679632f6c6f60241424da85cdd095bb9da59f3b83ca626e3"
+    },
+    {
+      "path": "commands/roadmap-status.md",
+      "sha256": "33015cde63c92cc2ab78f53afc9e010cb14aa4b0eef55211ced5c63414e3e2be"
+    },
+    {
+      "path": "docs/agents/ROLES.md",
+      "sha256": "16de05a15de9e81168181de94f22f9d891dda6fdb1adc927815c19605b87b997"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null,
+  "transitive_resources": [
+    {
+      "path": "scripts/github-coordination.js",
+      "sha256": "35ad5de2c702a9193d0fb3d376340fafa78998717b5ebcd87616384865727709",
+      "bytes": 7015,
+      "lines": 197,
+      "read_ranges": [
+        [
+          1,
+          197
+        ]
+      ],
+      "reading_scope": "full",
+      "callers": [
+        "C011",
+        "C012",
+        "C013",
+        "C014",
+        "C015",
+        "C016",
+        "C017"
+      ]
+    },
+    {
+      "path": "scripts/lib/github-coordination",
+      "sha256": null,
+      "read_ranges": [],
+      "reading_scope": "not-read",
+      "note": "logic and policy not verified"
+    }
+  ]
+}

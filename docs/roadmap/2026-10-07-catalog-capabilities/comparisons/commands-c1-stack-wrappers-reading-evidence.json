@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_command_ids": [
+    "C007",
+    "C008",
+    "C009",
+    "C019",
+    "C021",
+    "C022",
+    "C023"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "C007",
+      "sha256": "0850ec6adad0e96d832ebf584c34788a8d98998a8e05743166c1c1e0057c23ef",
+      "bytes": 4030,
+      "lines": 173,
+      "read_ranges": [
+        [
+          1,
+          173
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C008",
+      "sha256": "58a0e058207bb8e96d6fe02f1a71db77157f30121dd5c7aec32c0f4a91523576",
+      "bytes": 3456,
+      "lines": 132,
+      "read_ranges": [
+        [
+          1,
+          132
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C009",
+      "sha256": "6bd5d550a008568a9227c942c9b71038c430ab63b32fcf96d0a9b5f416eacb9f",
+      "bytes": 5880,
+      "lines": 251,
+      "read_ranges": [
+        [
+          1,
+          251
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C019",
+      "sha256": "758f6c55befc3255e5b1c1dc6df41453b21543a93b6aa9df0fb1be9e334831a8",
+      "bytes": 1007,
+      "lines": 39,
+      "read_ranges": [
+        [
+          1,
+          39
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C021",
+      "sha256": "589c18404b15703bd306023d0210b8f974a395dc4b00c5bc70d41cb64a0da627",
+      "bytes": 4085,
+      "lines": 164,
+      "read_ranges": [
+        [
+          1,
+          164
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C022",
+      "sha256": "631142330e5884cd0dae2d404d183b0dda4c5f6b1752a21e7d1e70b0be6d2e28",
+      "bytes": 3955,
+      "lines": 116,
+      "read_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C023",
+      "sha256": "22d547f9a255ddbbcebdcc90ca48a6865896f8cf00d39ed5d3e49504d716c363",
+      "bytes": 3839,
+      "lines": 144,
+      "read_ranges": [
+        [
+          1,
+          144
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/stack-practices/SKILL.md",
+      "sha256": "2634a69d18da4d0006de56439783b5337c80cd1405de256be6e8cf89cf655132"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "7964b0873f3c285c1178fb2ebc5dcd7c79bb812dbfd57a798cc2f90d10e012e1"
+    },
+    {
+      "path": "skills/tdd/references/by-stack.md",
+      "sha256": "fe49966d3c4ad8cdac03b0b84efcf64e48ff5d42423aba54067ddd2ccd8f6825"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "ea3b6fe98737ab2d310a83855181061fd2d2ee883d448daa3d4310aa78adcb4a"
+    },
+    {
+      "path": "skills/adversarial-review/references/lens-prompts.md",
+      "sha256": "379ba44d0e8758aa3fc1cdfd7227d0bebdfdffa3ecf2c2397bc08c56867064e3"
+    },
+    {
+      "path": "agents/implementer.md",
+      "sha256": "a76c17a9b26466b0b7cde35c78ff9b30fd350a6beaf64c7b434c31f82f7505f3"
+    },
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "3e2d1f5c527ccd156961ca0803453b924cd73be6493cb6b09dbd0eafdfa006a2"
+    },
+    {
+      "path": "agents/qa.md",
+      "sha256": "4e2a545764ce588c28165247f1ce124f7d0153467d0616f859f9168327b9ac56"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}
