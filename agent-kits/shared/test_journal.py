@@ -2943,3 +2943,244 @@ def test_continuidad_tipo_invalido_cuenta_como_omitido_y_se_ve_en_la_seleccion(t
     cont = sel["entries"][0]["continuidad"]
     assert cont["objetivo"] == "Retomar el upgrade" and cont["siguientes_pasos"] == ["probar en Linux"]
     assert "siguientes pasos: probar en Linux" in journal.latest(str(proj), n=1)
+
+
+# ------------------------------------------------------------------ recuperación temprana por inactividad del transcript
+
+def _transcript(tmp_path, monkeypatch, sid, mtime_hace_min=None, sub="proj-x"):
+    """Transcript REAL bajo `$CLAUDE_CONFIG_DIR/projects/<sub>/<sid>.jsonl` (el directorio permitido
+    por `_transcript_seguro`), con el mtime simulado."""
+    cfg = tmp_path / "cfg"
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(cfg))
+    p = cfg / "projects" / sub / f"{sid}.jsonl"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text('{"type":"user","message":{"content":"hola"}}\n', encoding="utf-8")
+    if mtime_hace_min is not None:
+        t = time.time() - mtime_hace_min * 60
+        os.utime(p, (t, t))
+    return p
+
+
+def _log_con_transcript(proj, sid, transcripts, mtime_hace_min=None, prompt="decidimos recuperar la sesión",
+                        anexar=False):
+    """Log de prompts con un turno por transcript (`None` = turno sin clave `transcript`)."""
+    d = proj / ".claude"
+    d.mkdir(exist_ok=True)
+    p = d / f"session-prompts-{sid}.log"
+    lineas = []
+    for i, t in enumerate(transcripts):
+        rec = {"ts": "2026-10-14T00:00:00Z", "prompt": f"{prompt} {i}" if i else prompt}
+        if t is not None:
+            rec["transcript"] = str(t)
+        lineas.append(json.dumps(rec, ensure_ascii=False) + "\n")
+    with open(p, "a" if anexar else "w", encoding="utf-8") as fh:
+        fh.write("".join(lineas))
+    if mtime_hace_min is not None:
+        t = time.time() - mtime_hace_min * 60
+        os.utime(p, (t, t))
+    return p
+
+
+def test_capture_guarda_transcript_solo_si_es_seguro(tmp_path, monkeypatch):
+    """El turno lleva `transcript` SOLO si `transcript_path` pasa `_transcript_seguro` (absoluta,
+    `<sid>.jsonl`, sin symlink, bajo `$CLAUDE_CONFIG_DIR/projects`); `capturas` lo ignora."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    bueno = _transcript(tmp_path, monkeypatch, "s1")
+    fuera = tmp_path / "otro" / "s1.jsonl"
+    fuera.parent.mkdir()
+    fuera.write_text("{}\n", encoding="utf-8")
+    otro_sid = bueno.parent / "s2.jsonl"
+    otro_sid.write_text("{}\n", encoding="utf-8")
+    casos = [str(bueno), str(fuera), "rel/s1.jsonl", str(otro_sid), 42, None]
+    for i, tp in enumerate(casos):
+        payload = _payload(prompt=f"turno {i}")
+        if tp is not None:
+            payload["transcript_path"] = tp
+        assert journal.capture(str(proj), payload)
+    recs = [json.loads(l) for l in (proj / ".claude" / "session-prompts-s1.log").read_text(encoding="utf-8").splitlines()]
+    assert recs[0].get("transcript") == str(bueno)
+    assert all("transcript" not in r for r in recs[1:]), recs
+    assert journal.capturas(str(proj), "s1") == [f"turno {i}" for i in range(len(casos))]
+
+
+def test_recover_transcript_inactivo_recupera_antes_de_24h(tmp_path, monkeypatch):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    t = _transcript(tmp_path, monkeypatch, "ti1", mtime_hace_min=45)
+    _log_con_transcript(proj, "ti1", [t], mtime_hace_min=45)
+    r = journal.recover(str(proj), current_session_id="viva")
+    assert r["recuperadas"] == 1
+    es = journal.entradas(str(proj))
+    assert len(es) == 1 and es[0]["cierre"] == "recuperado_sin_cierre"
+    assert es[0]["log_hasta"] == journal._mtime_utc_iso(str(proj / ".claude" / "session-prompts-ti1.log"))
+    texto = open(es[0]["_path"], encoding="utf-8").read()
+    assert str(t) not in texto and "cfg" not in texto          # la ruta del transcript nunca va a la entrada versionada
+
+
+def test_replay_con_recover_transcript_inactivo_recupera(tmp_path, monkeypatch):
+    """El camino de `SessionStart` (`replay --con-recover`) aplica la misma regla."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    t = _transcript(tmp_path, monkeypatch, "ti2", mtime_hace_min=31)
+    _log_con_transcript(proj, "ti2", [t], mtime_hace_min=31)
+    r = journal.replay(str(proj), budget_ms=2000, max_n=3, con_recover=True, current_session_id="viva")
+    assert r["recuperadas"] == 1
+
+
+@pytest.mark.parametrize("log_min,transcript_min", [(45, 2), (5, 45), (20, 20)])
+def test_recover_transcript_o_log_activo_no_recupera(tmp_path, monkeypatch, log_min, transcript_min):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    t = _transcript(tmp_path, monkeypatch, "ta1", mtime_hace_min=transcript_min)
+    _log_con_transcript(proj, "ta1", [t], mtime_hace_min=log_min)
+    r = journal.recover(str(proj), current_session_id="viva")
+    assert r["recuperadas"] == 0 and journal.entradas(str(proj)) == []
+
+
+def test_recover_sin_transcript_valido_mantiene_la_regla_de_24h(tmp_path, monkeypatch):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _transcript(tmp_path, monkeypatch, "otra", mtime_hace_min=45)
+    fuera = tmp_path / "fuera" / "st2.jsonl"
+    fuera.parent.mkdir()
+    fuera.write_text("{}\n", encoding="utf-8")
+    t_ = time.time() - 45 * 60
+    os.utime(fuera, (t_, t_))
+    _log_con_transcript(proj, "st1", [None], mtime_hace_min=45)              # sin clave
+    _log_con_transcript(proj, "st2", [fuera], mtime_hace_min=45)             # fuera del directorio permitido
+    _log_con_transcript(proj, "st3", [tmp_path / "cfg" / "projects" / "proj-x" / "st3.jsonl"],
+                        mtime_hace_min=45)                                    # no existe
+    assert journal.recover(str(proj), current_session_id="viva")["recuperadas"] == 0
+    _log_con_transcript(proj, "st4", [None], mtime_hace_min=1500)
+    r = journal.recover(str(proj), current_session_id="viva")
+    assert r["recuperadas"] == 1 and [e["session_id"] for e in journal.entradas(str(proj))] == ["st4"]
+
+
+def test_recover_usa_el_ultimo_transcript_del_log(tmp_path, monkeypatch):
+    """Solo cuenta la ÚLTIMA línea con `transcript`: un transcript viejo de un turno anterior no
+    hace inactiva una sesión cuyo transcript actual sigue vivo."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    viejo = _transcript(tmp_path, monkeypatch, "ul1", mtime_hace_min=300, sub="a")
+    vivo = _transcript(tmp_path, monkeypatch, "ul1", mtime_hace_min=1, sub="b")
+    _log_con_transcript(proj, "ul1", [viejo, None, vivo, None], mtime_hace_min=45)
+    assert journal.recover(str(proj), current_session_id="viva")["recuperadas"] == 0
+    (vivo.parent / "ul2.jsonl").write_text("{}\n", encoding="utf-8")
+    t_ = time.time() - 300 * 60
+    os.utime(vivo.parent / "ul2.jsonl", (t_, t_))
+    _log_con_transcript(proj, "ul2", [vivo.parent / "ul2.jsonl", viejo.parent / "ul2.jsonl"], mtime_hace_min=45)
+    # el último (`a/ul2.jsonl`) no existe: no hay transcript válido → regla de 24 h, aunque el anterior fuera inactivo
+    assert journal.recover(str(proj), current_session_id="viva")["recuperadas"] == 0
+
+
+def test_recover_ultimo_transcript_lee_solo_la_cola(tmp_path, monkeypatch):
+    """La lectura está acotada a la cola del log: un `transcript` que solo aparece al principio de
+    un log grande no se ve (se queda la regla de 24 h)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    t = _transcript(tmp_path, monkeypatch, "cola1", mtime_hace_min=45)
+    _log_con_transcript(proj, "cola1", [t] + [None] * 200, mtime_hace_min=45, prompt="x" * 400)
+    log = proj / ".claude" / "session-prompts-cola1.log"
+    assert log.stat().st_size > journal.TRANSCRIPT_COLA_BYTES
+    assert journal._ultimo_transcript(str(log), "cola1") is None
+    _log_con_transcript(proj, "cola1", [t], mtime_hace_min=45, anexar=True)
+    assert journal._ultimo_transcript(str(log), "cola1") == str(t)
+
+
+def test_recover_transcript_inactivo_nunca_toca_la_sesion_actual(tmp_path, monkeypatch):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    t = _transcript(tmp_path, monkeypatch, "act1", mtime_hace_min=300)
+    _log_con_transcript(proj, "act1", [t], mtime_hace_min=300)
+    assert journal.recover(str(proj), current_session_id="act1")["recuperadas"] == 0
+    assert journal.replay(str(proj), con_recover=True, current_session_id="act1")["recuperadas"] == 0
+    assert journal.entradas(str(proj)) == []
+
+
+def test_recover_temprana_se_rehace_si_la_sesion_siguio(tmp_path, monkeypatch):
+    """Recuperación temprana → la sesión sigue (nuevos prompts) → al volver a quedar inactiva se
+    recupera OTRA vez y sobrescribe la MISMA entrada; sin cambios en el log no se rehace."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    t = _transcript(tmp_path, monkeypatch, "re1", mtime_hace_min=120)
+    log = _log_con_transcript(proj, "re1", [t], mtime_hace_min=120)
+    assert journal.recover(str(proj), current_session_id="viva")["recuperadas"] == 1
+    e1 = journal.entradas(str(proj))[0]
+    assert e1["turnos"] == "1"
+    assert journal.recover(str(proj), current_session_id="viva")["recuperadas"] == 0     # log intacto: no se reabre
+    _log_con_transcript(proj, "re1", [t], mtime_hace_min=40, prompt="queda pendiente revisar el cierre",
+                        anexar=True)
+    tt = time.time() - 40 * 60
+    os.utime(t, (tt, tt))
+    r = journal.recover(str(proj), current_session_id="viva")
+    assert r["recuperadas"] == 1
+    es = journal.entradas(str(proj))
+    assert len(es) == 1 and es[0]["_path"] == e1["_path"]
+    assert es[0]["turnos"] == "2" and es[0]["cierre"] == "recuperado_sin_cierre"
+    assert es[0]["log_hasta"] == journal._mtime_utc_iso(str(log)) and es[0]["log_hasta"] > e1["log_hasta"]
+    assert any("revisar el cierre" in p for p in es[0]["pendientes"])
+
+
+def test_recover_temprana_reabierta_espera_a_que_vuelva_a_estar_inactiva(tmp_path, monkeypatch):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    t = _transcript(tmp_path, monkeypatch, "re2", mtime_hace_min=120)
+    _log_con_transcript(proj, "re2", [t], mtime_hace_min=120)
+    assert journal.recover(str(proj), current_session_id="viva")["recuperadas"] == 1
+    _log_con_transcript(proj, "re2", [t], mtime_hace_min=1, anexar=True)    # la sesión sigue viva ahora mismo
+    os.utime(t, None)
+    assert journal.recover(str(proj), current_session_id="viva")["recuperadas"] == 0
+
+
+def test_recover_entrada_recuperada_sin_log_hasta_no_se_reabre(tmp_path, monkeypatch):
+    """Entradas `recuperado_sin_cierre` anteriores a `log_hasta` (sin la marca) no se reabren:
+    sin la marca no hay con qué comparar."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "leg1", mtime_hace_min=1500)
+    assert journal.recover(str(proj))["recuperadas"] == 1
+    p = journal.entradas(str(proj))[0]["_path"]
+    texto = open(p, encoding="utf-8").read()
+    assert "log_hasta:" in texto
+    texto = "\n".join(l for l in texto.split("\n") if not l.startswith("log_hasta:"))
+    open(p, "w", encoding="utf-8").write(texto)
+    _log_con_transcript(proj, "leg1", [None], mtime_hace_min=1450, anexar=True)
+    assert journal.recover(str(proj))["recuperadas"] == 0
+
+
+def test_recover_materializado_nunca_se_degrada_ni_se_reabre(tmp_path, monkeypatch):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    t = _transcript(tmp_path, monkeypatch, "mt1", mtime_hace_min=120)
+    _log_con_transcript(proj, "mt1", [t], mtime_hace_min=120)
+    assert journal.recover(str(proj), current_session_id="viva")["recuperadas"] == 1   # recuperación temprana
+    journal.capture_end(str(proj), session_end_payload(proj, sid="mt1"))              # luego llega el cierre real
+    journal.replay(str(proj))
+    es = journal.entradas(str(proj))
+    assert len(es) == 1 and es[0]["cierre"] == "materializado" and "log_hasta" not in es[0]
+    antes = open(es[0]["_path"], encoding="utf-8").read()
+    _log_con_transcript(proj, "mt1", [t], mtime_hace_min=40, anexar=True)            # el log cambia después
+    tt = time.time() - 40 * 60
+    os.utime(t, (tt, tt))
+    assert journal.recover(str(proj), current_session_id="viva")["recuperadas"] == 0
+    assert journal.replay(str(proj), con_recover=True, current_session_id="viva")["recuperadas"] == 0
+    assert open(es[0]["_path"], encoding="utf-8").read() == antes
+    # y una entrada materializada desde el principio, con el log tocado después, tampoco se reabre
+    t2 = _transcript(tmp_path, monkeypatch, "mt2", mtime_hace_min=40)
+    _log_con_transcript(proj, "mt2", [t2], mtime_hace_min=40)
+    journal.escribir_sesion(str(proj), "mt2", reason="other", fuente="hook")
+    _log_con_transcript(proj, "mt2", [t2], mtime_hace_min=35, anexar=True)
+    assert journal.recover(str(proj), current_session_id="viva")["recuperadas"] == 0
+    assert [e["cierre"] for e in journal.entradas(str(proj)) if e["session_id"] == "mt2"] == ["materializado"]
+
+
+def test_recover_ventana_inactividad_configurable_por_dev_json(tmp_path, monkeypatch):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    assert journal._ventana_inactividad_min(str(proj)) == 30
+    dev = proj / ".claude" / "dev.json"
+    dev.write_text(json.dumps({"sesion": {"journal": {"ventanaInactividadMin": 120}}}), encoding="utf-8")
+    assert journal._ventana_inactividad_min(str(proj)) == 120
+    t = _transcript(tmp_path, monkeypatch, "vi1", mtime_hace_min=90)
+    _log_con_transcript(proj, "vi1", [t], mtime_hace_min=90)
+    assert journal.recover(str(proj), current_session_id="viva")["recuperadas"] == 0
+    dev.write_text(json.dumps({"sesion": {"journal": {"ventanaInactividadMin": 60}}}), encoding="utf-8")
+    assert journal.recover(str(proj), current_session_id="viva")["recuperadas"] == 1
+    for valor, esperado in ((0, 1), (-5, 1), ("x", 30), (None, 30), ("15", 15)):
+        dev.write_text(json.dumps({"sesion": {"journal": {"ventanaInactividadMin": valor}}}), encoding="utf-8")
+        assert journal._ventana_inactividad_min(str(proj)) == esperado, valor
+
+
+def test_status_cuenta_huerfana_por_transcript_inactivo(tmp_path, monkeypatch):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    t = _transcript(tmp_path, monkeypatch, "sti1", mtime_hace_min=45)
+    _log_con_transcript(proj, "sti1", [t], mtime_hace_min=45)
+    assert journal.status(str(proj))["huerfanas"] == 1

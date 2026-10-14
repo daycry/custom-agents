@@ -11,6 +11,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Changed — Early recovery of orphaned sessions
+
+- Orphaned sessions (common on Windows, where the `SessionEnd` capture does not fit the 1.5 s budget) are recovered once the prompt log and the session transcript have both been idle for `sesion.journal.ventanaInactividadMin` (default 30 min), instead of after 24 h. `journal.py capture` keeps the validated transcript path in the local, unversioned prompt log. A recovered entry records `log_hasta`; if the session continues, the next `recover` redoes that entry. `materializado` entries are never reopened or downgraded.
+
 ### Changed — Session continuity, measurement provenance and SessionEnd budget
 
 - `/work-resume` shows the continuity recorded in each journal entry (objective, where it stopped, next steps, blockers) as `history[i].continuidad` and as a bounded historical-quote group, telling explicitly cleared fields from omitted ones; output caps are unchanged.

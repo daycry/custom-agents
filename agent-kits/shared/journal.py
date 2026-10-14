@@ -51,6 +51,13 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
       sin envelope en la cola NI entrada de journal, cuyo mtime lleva más de `--ventana-min` (default
       `sesion.journal.ventanaHuerfanaMin`, 1440) sin actividad, se materializa con `draft`/`write` como
       `cierre: recuperado_sin_cierre` (nunca inventa: el resumen sale del propio log, CA-05).
+      Recuperación TEMPRANA: también es candidata antes de esa ventana si el ÚLTIMO `transcript`
+      registrado en su log (cola acotada, TRANSCRIPT_COLA_BYTES) pasa `_transcript_seguro` y tanto él
+      como el log llevan más de `sesion.journal.ventanaInactividadMin` (default 30, mínimo 1) sin
+      cambiar — en Windows la captura de SessionEnd no cabe en su presupuesto de 1,5 s y casi toda
+      sesión queda huérfana. La entrada recuperada lleva `log_hasta` (mtime UTC del log usado): si el
+      log cambia DESPUÉS (la sesión siguió), vuelve a ser candidata y se rehace la MISMA entrada; una
+      entrada `materializado` (o una sesión con envelope) nunca se reabre ni se degrada.
       `--current-session-id` (la sesión que está arrancando, invocado por `session-context.sh`) nunca
       se recupera, aunque su log supere la ventana: una sesión concurrente viva no es una huérfana.
       `--session-id` fuerza una sesión concreta, ignorando ventana/sesión actual (a demanda). Una
@@ -61,8 +68,10 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
       `candidatas > recuperadas` al terminar (presupuesto/`--max` insuficiente) avisa cuántas quedan
       y sugiere repetir `recover` o subir `--max`.
   capture [--root DIR]                                   ← stdin: payload del hook UserPromptSubmit
-      Añade el turno del usuario (`prompt`) como UNA línea JSON `{"ts", "prompt"}` a
-      `.claude/session-prompts-<session_id>.log` (no versionado: `*.log` está en .gitignore). Reglas:
+      Añade el turno del usuario (`prompt`) como UNA línea JSON `{"ts", "prompt"[, "transcript"]}` a
+      `.claude/session-prompts-<session_id>.log` (no versionado: `*.log` está en .gitignore);
+      `transcript` = `transcript_path` del payload SOLO si pasa `_transcript_seguro` (señal de
+      inactividad para `recover`; nunca llega a la entrada versionada, los lectores la ignoran). Reglas:
       (1) con la etiqueta `<private>` en cualquier parte del turno el log NO se toca (ni se crea, ni
       mtime, ni tamaño); (2) solo en proyectos con rastro del plugin (mismo criterio que `write`) y sin
       `dev.json` → `sesion.journal: false` ni `sesion.captura: false`; (3) topes: CAPTURA_MAX_CHARS por
@@ -715,6 +724,15 @@ VENTANA_HUERFANA_MIN_DEFAULT = 1440   # min sin envelope ni sesión viva para tr
 # ociosa (portátil en suspensión, fin de semana) podía recuperarse ANTES de tiempo como
 # `recuperado_sin_cierre`; la limitación se acepta por diseño (ver design.md, «Estados»): se
 # autocorrige sola al cerrar de verdad (`materializado` sobrescribe la entrada por `session_id`).
+VENTANA_INACTIVIDAD_MIN_DEFAULT = 30  # min sin tocar transcript NI log para recuperar ANTES de las 24 h.
+# En Windows la captura de `SessionEnd` no cabe en el presupuesto de cierre (1,5 s; arrancar el
+# launcher ya cuesta más), así que casi toda sesión acaba huérfana: esperar 24 h para verla al
+# arrancar era el caso normal, no la excepción. El transcript que `capture` registró en el log
+# (`_transcript_seguro`) es la señal de inactividad: si NI él NI el log cambian en esta ventana, la
+# sesión no está escribiendo. Si luego sigue, la recuperación se rehace (`log_hasta`).
+TRANSCRIPT_COLA_BYTES = 32 * 1024     # cola del log que se lee para hallar el ÚLTIMO `transcript`:
+# cubre siempre una línea completa (CAPTURA_MAX_CHARS × 4 bytes UTF-8 + escapes < 32 KiB) sin leer
+# el log entero (hasta LOG_MAX_BYTES) en el arranque presupuestado de `SessionStart`.
 
 
 def _extraer_sid_de_log(fn):
@@ -737,16 +755,92 @@ def _ventana_huerfana_min(root):
     return VENTANA_HUERFANA_MIN_DEFAULT
 
 
+def _ventana_inactividad_min(root):
+    """`sesion.journal.ventanaInactividadMin` (minutos; default VENTANA_INACTIVIDAD_MIN_DEFAULT = 30,
+    mínimo 1): inactividad de transcript Y log que basta para recuperar una huérfana antes de
+    `ventanaHuerfanaMin`."""
+    v = _dev_sesion(root).get("journal")
+    if isinstance(v, dict) and "ventanaInactividadMin" in v:
+        try:
+            return max(1, int(v["ventanaInactividadMin"]))
+        except (TypeError, ValueError):
+            pass
+    return VENTANA_INACTIVIDAD_MIN_DEFAULT
+
+
+def _ultimo_transcript(log_path_, session_id):
+    """Ruta del transcript de la ÚLTIMA línea del log que lleva `transcript`, SOLO si pasa
+    `_transcript_seguro` (si esa última no vale, `None`: no se busca una anterior). Lee únicamente
+    la cola del log (TRANSCRIPT_COLA_BYTES); la primera línea de la cola, posiblemente cortada, se
+    descarta. Nunca lanza."""
+    try:
+        with open(log_path_, "rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            tam = fh.tell()
+            fh.seek(max(0, tam - TRANSCRIPT_COLA_BYTES))
+            cola = fh.read(TRANSCRIPT_COLA_BYTES)
+    except OSError:
+        return None
+    lineas = cola.split(b"\n")
+    if tam > TRANSCRIPT_COLA_BYTES:
+        lineas = lineas[1:]
+    for raw in reversed(lineas):
+        if b'"transcript"' not in raw:
+            continue
+        try:
+            rec = json.loads(raw.decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            continue
+        if isinstance(rec, dict) and isinstance(rec.get("transcript"), str):
+            return _transcript_seguro(rec["transcript"], session_id)
+    return None
+
+
+def _transcript_inactivo(log_path_, session_id, ahora, ventana_min):
+    """True si el último transcript registrado en el log es válido y su mtime lleva más de
+    `ventana_min` minutos sin cambiar (el del log lo comprueba el llamador antes). Un `stat`."""
+    t = _ultimo_transcript(log_path_, session_id)
+    if not t:
+        return False
+    try:
+        return (ahora - os.stat(t).st_mtime) >= ventana_min * 60
+    except OSError:
+        return False
+
+
 def _indice_sids_capturados(root, ob, dir_):
-    """Conjunto de `session_id` YA capturados: entradas del journal + envelopes en
-    `outbox`/`processing`/`done` (gap 68 de la revisión tramo 2: `dead-letter/` NO cuenta — un
-    envelope descartado ahí no es una captura viva, es la señal de que el LOG es la única fuente
-    para recuperar esa sesión; antes `dead-letter` se contaba como «ya capturada» y la sesión se
-    perdía sin vía de recuperación). Construido UNA VEZ por llamada a `recover` (gap 80: antes se
-    reconstruía por candidata, O(n·m) en el arranque con muchas huérfanas)."""
-    sids = {e.get("session_id") for e in entradas(root) if e.get("session_id")}
-    if ob is None:
-        return sids
+    """`(capturados, reabribles)`. `capturados`: `session_id` YA capturados — entradas del journal +
+    envelopes en `outbox`/`processing`/`done` (gap 68 de la revisión tramo 2: `dead-letter/` NO
+    cuenta — un envelope descartado ahí no es una captura viva, es la señal de que el LOG es la
+    única fuente para recuperar esa sesión; antes `dead-letter` se contaba como «ya capturada» y la
+    sesión se perdía sin vía de recuperación). `reabribles`: `{sid: log_hasta}` de las entradas
+    `recuperado_sin_cierre` con `log_hasta` válido y SIN envelope ni entrada de otro cierre — si su
+    log cambió después de `log_hasta`, la sesión siguió tras una recuperación temprana y `recover`
+    la rehace; una entrada `materializado` (o una sesión con envelope) nunca es reabrible.
+    Construido UNA VEZ por llamada a `recover` (gap 80: antes se reconstruía por candidata, O(n·m)
+    en el arranque con muchas huérfanas)."""
+    sids, otras, recuperadas = set(), set(), {}
+    for e in entradas(root):
+        sid = e.get("session_id")
+        if not sid:
+            continue
+        sids.add(sid)
+        if e.get("cierre") == "recuperado_sin_cierre":
+            lh = e.get("log_hasta")
+            valido = isinstance(lh, str) and _CAPTURED_AT_RE.match(lh) and sid not in recuperadas
+            recuperadas[sid] = lh if valido else None     # duplicada o sin marca: no se reabre
+        else:
+            otras.add(sid)
+    envelopes = set()
+    if ob is not None:
+        envelopes = _sids_con_envelope(dir_)
+    sids |= envelopes
+    reabribles = {s: lh for s, lh in recuperadas.items() if lh and s not in otras and s not in envelopes}
+    return sids, reabribles
+
+
+def _sids_con_envelope(dir_):
+    sids = set()
     for sub in ("outbox", "processing", "done"):
         p = os.path.join(dir_, sub)
         try:
@@ -795,13 +889,14 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
     (gap 65); `git_timeout` es el mismo timeout ACOTADO que usa `replay` bajo presupuesto, no el
     `GIT_TIMEOUT` de 5 s fijo. El índice de `session_id` ya capturados se construye UNA vez (gap 80)."""
     ventana_min = ventana_min if ventana_min is not None else _ventana_huerfana_min(root)
+    ventana_inactividad = _ventana_inactividad_min(root)
     d = os.path.join(root, LOG_DIR_REL)
     try:
         nombres = os.listdir(d)
     except OSError:
         return
     ahora = time.time()
-    capturados = _indice_sids_capturados(root, ob, dir_)
+    capturados, reabribles = _indice_sids_capturados(root, ob, dir_)
     recuperados_n = 0
     saltadas_por_presupuesto = 0         # gap 84/85: candidatas que se saltaron por max_n/deadline
     for fn in sorted(nombres):
@@ -819,11 +914,24 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
                 mtime = os.stat(log_path_).st_mtime
             except OSError:
                 continue
-            if (ahora - mtime) < ventana_min * 60:
-                continue                                     # todavía dentro de la ventana: podría seguir viva
+            quieto_s = ahora - mtime
+            if quieto_s < ventana_min * 60:
+                # Dentro de la ventana larga podría seguir viva — salvo que el log Y el último
+                # transcript registrado lleven `ventanaInactividadMin` sin cambiar (un `stat` del
+                # transcript y la cola del log, solo si el log ya está quieto). Sin transcript
+                # válido, la regla de la ventana larga queda tal cual.
+                if quieto_s < ventana_inactividad * 60 or \
+                        not _transcript_inactivo(log_path_, sid, ahora, ventana_inactividad):
+                    continue
         resumen["candidatas"] += 1
         if not forzada and sid in capturados:               # gap 68: `--session-id` fuerza aunque ya conste
-            continue
+            # Recuperación temprana que la sesión dejó atrás: la entrada `recuperado_sin_cierre`
+            # se hizo con el log hasta `log_hasta`; si el log cambió DESPUÉS, se rehace (misma
+            # entrada, `write` sobrescribe por `session_id`). `materializado` nunca es reabrible.
+            log_hasta = reabribles.get(sid)
+            actual = _mtime_utc_iso(log_path_) if log_hasta else None
+            if not (actual and actual > log_hasta):
+                continue
         if forzada and any(prev.get("session_id") == sid and prev.get("cierre") == "materializado"
                           for prev in entradas(root)):
             # gap 82: el bypass de `--session-id` NUNCA sobrescribe en silencio una entrada YA
@@ -855,6 +963,10 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
             e = draft(root, sid, None, "orphan_recovery", captured_at=captured_at, git_timeout=git_timeout)
             e["cierre"] = "recuperado_sin_cierre"
             e["derivados_en"] = "replay"                     # `recover` corre bajo el mismo cerrojo/pasada que replay
+            if captured_at:
+                # mtime del log LEÍDO antes de `draft`: un turno que entre durante la lectura deja
+                # `log_hasta` atrás y la próxima pasada rehace la entrada (nunca se pierde el turno).
+                e["log_hasta"] = captured_at
             p = write(root, e, fuente="recover")
             if p:
                 resumen["recuperadas"] += 1
@@ -883,7 +995,12 @@ def recover(root, ventana_min=None, current_session_id=None, session_id=None, dr
     prompts (`.claude/session-prompts-<sid>.log`) sin envelope ni entrada de journal, cuyo mtime
     lleva más de `ventana_min` minutos (default `sesion.journal.ventanaHuerfanaMin`, 1440) sin
     actividad, y que no sea la sesión ACTUAL (`current_session_id`, la del payload de `SessionStart`:
-    una sesión concurrente viva nunca se toca). `session_id`: fuerza la recuperación de UNA sesión
+    una sesión concurrente viva nunca se toca). Antes de esa ventana, también si el último transcript
+    registrado en el log (válido por `_transcript_seguro`) y el propio log llevan más de
+    `sesion.journal.ventanaInactividadMin` (30) sin cambiar — en Windows `SessionEnd` no cabe en su
+    presupuesto y esperar 24 h dejaba la sesión anterior invisible al arrancar. Una entrada
+    `recuperado_sin_cierre` cuyo log cambió después de su `log_hasta` se rehace (la sesión siguió);
+    `materializado` nunca. `session_id`: fuerza la recuperación de UNA sesión
     concreta ignorando ventana/sesión actual (uso a demanda; recupera aunque ya conste capturada en
     dead-letter, gap 68). Reutiliza `draft`/`write` (CA-05: nunca inventa contenido — el resumen sale
     del propio log de prompts).
@@ -1260,6 +1377,11 @@ def capture(root, payload):
     _asegurar_gitignore(d)
     path = log_path(root, sid)
     rec = {"ts": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "prompt": texto}
+    # Señal de inactividad para `recover` (huérfanas de Windows antes de 24 h): la ruta del transcript
+    # SOLO si pasa `_transcript_seguro`. Vive en este log local no versionado; nunca llega a la entrada.
+    tp = payload.get("transcript_path")
+    if isinstance(tp, str) and len(tp) <= ENVELOPE_STR_MAX and _transcript_seguro(tp, sid):
+        rec["transcript"] = tp
     with _cerrojo(path):
         with _abrir_log(path) as fh:
             fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -1616,6 +1738,10 @@ def render(e, fuente):
         # teardown (CA-01 prohíbe git ahí): «replay» = calculados al materializar, no al cerrar
         # (gap 8 de la revisión; limitación aceptada por diseño, ver design.md).
         fm.append(f"derivados_en: {_yaml_str(e['derivados_en'])}")
+    if e.get("log_hasta"):
+        # solo `recuperado_sin_cierre`: mtime UTC del log de prompts usado (nunca la ruta del log
+        # ni la del transcript); si el log cambia después, `recover` rehace esta entrada.
+        fm.append(f"log_hasta: {_yaml_str(e['log_hasta'])}")
     cont = e.get("continuidad") or {}
     for k in CONTINUIDAD_ESCALARES:
         if k in cont:
@@ -1807,6 +1933,7 @@ def index(root):
              "| `reason` | motivo del envelope (`clear`, `resume`, `logout`, `prompt_input_exit`, `other`) o `orphan_recovery` | Motivo de cierre; `orphan_recovery` = nunca hubo envelope |",
              "| `derivados_en` | `replay` | `ficheros_tocados`/`tareas_cambiadas` se calculan con git al materializar (también para huérfanas), nunca en el teardown de `SessionEnd` (CA-01) |",
              "| `materializado_en` | timestamp ISO UTC | Cuándo se escribió la entrada final; la `fecha` es la del cierre (`captured_at`) |",
+             "| `log_hasta` | timestamp ISO UTC (solo `recuperado_sin_cierre`) | mtime del log de prompts con el que se recuperó; si el log cambia después, `recover` rehace la entrada |",
              "| `objetivo` · `punto_actual` · `siguientes_pasos` · `bloqueos` | texto · texto · lista · lista (opcionales) | Continuidad declarada con `--enrich`; clave ausente = nunca declarada, vacía = vaciada a propósito |", "",
              "| Fecha | Iniciativa | Resumen | Fuente |", "|---|---|---|---|"]
     for e in reversed(es):
@@ -2558,7 +2685,8 @@ def main(argv=None):
     sp = sub.add_parser("recover", help="materializa como recuperado_sin_cierre las sesiones huérfanas (log sin envelope, sin sesión viva)")
     comunes(sp)
     sp.add_argument("--ventana-min", type=int, default=None,
-                    help="minutos sin actividad para tratar un log como huérfano (default: sesion.journal.ventanaHuerfanaMin, 1440)")
+                    help="minutos sin actividad para tratar un log como huérfano (default: sesion.journal.ventanaHuerfanaMin, 1440); "
+                         "antes, si log y transcript llevan sesion.journal.ventanaInactividadMin (30) quietos")
     sp.add_argument("--current-session-id", default=None, help="session_id de la sesión actual: nunca se recupera aunque supere la ventana (CA-07)")
     sp.add_argument("--session-id", default=None, help="fuerza la recuperación de esta sesión concreta, ignorando ventana/sesión actual")
     sp.add_argument("--budget-ms", type=int, default=0,

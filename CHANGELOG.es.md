@@ -11,6 +11,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Changed — Recuperación temprana de sesiones huérfanas
+
+- Las sesiones huérfanas (lo habitual en Windows, donde la captura de `SessionEnd` no cabe en el presupuesto de 1,5 s) se recuperan cuando el log de prompts y el transcript llevan `sesion.journal.ventanaInactividadMin` (30 min por defecto) sin cambiar, en vez de esperar 24 h. `journal.py capture` guarda la ruta validada del transcript en el log local no versionado. La entrada recuperada registra `log_hasta`; si la sesión sigue, el siguiente `recover` rehace esa entrada. Una entrada `materializado` nunca se reabre ni se degrada.
+
 ### Changed — Continuidad de sesión, procedencia de la medición y presupuesto de SessionEnd
 
 - `/work-resume` muestra la continuidad registrada en cada entrada del journal (objetivo, dónde quedó, siguientes pasos, bloqueos) como `history[i].continuidad` y como un grupo acotado de cita histórica, distinguiendo el vaciado explícito de la omisión; los topes de salida no cambian.
