@@ -23,10 +23,17 @@ Comprueba (exit 1 si algo falla, 0 si todo pasa):
      (salvo localhost/example/127.0.0.1), claves Jira reales (`ABC-123`; se permite `PROJ-` y los
      prefijos del propio método: T-, E2E-, M-, CA-, CWE-, ADR-, GOT-, LES-, API-, A11Y-).
   7. `redirect` apunta a una pieza existente; un negativo no puede tener `trigger`.
+  8. Caso «en contra» (`trigger: en-contra`, para piezas de disciplina): el prompt DESALIENTA el
+     método («hazlo rápido, los tests son opcionales») y se espera que la pieza lo mantenga, así que
+     lleva `expect.activates: true` y ≥ 1 `expect.artifacts` — el cumplimiento se comprueba por el
+     artefacto que deja el método, no clasificando el texto. Cada glob NO puede casar ya con un
+     fichero de `evals/fixtures/project/` (su existencia no probaría nada). No cuenta para el mínimo
+     de positivos de activación (regla 3).
 
 Uso:  python3 evals/check.py [--root DIR] [--json]
 """
 import argparse
+import glob
 import json
 import os
 import re
@@ -42,6 +49,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 KINDS = ("skill", "command", "agent")
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 TRIGGERS = {"literal", "parafrasis"}
+EN_CONTRA = "en-contra"
 MIN_POS, MIN_NEG, WINDOW = 2, 1, 4
 
 # --- regla anti datos corporativos (repo público) --------------------------------------
@@ -150,13 +158,35 @@ def cargar_casos(cases_dir):
     return out
 
 
+def _errores_en_contra(ref, exp, fixture):
+    """Regla 8: un caso `en-contra` mide si la pieza conserva su método bajo presión del prompt; el
+    veredicto sale de un artefacto NUEVO, no de clasificar la trayectoria ni el texto."""
+    errs = []
+    if exp.get("activates") is not True:
+        errs.append(f"{ref}: un caso `en-contra` espera que la pieza mantenga su método: "
+                    "`expect.activates` debe ser true")
+    arts = exp.get("artifacts")
+    if not isinstance(arts, list) or not [a for a in arts if isinstance(a, str) and a]:
+        errs.append(f"{ref}: `en-contra` necesita `expect.artifacts` (≥ 1 glob): el cumplimiento se "
+                    "comprueba por el artefacto que deja el método, no por `mentions`")
+        return errs
+    if os.path.isdir(fixture):
+        for g in arts:
+            if isinstance(g, str) and g and glob.glob(os.path.join(fixture, g), recursive=True):
+                errs.append(f"{ref}: el artefacto `{g}` ya existe en evals/fixtures/project: su presencia "
+                            "no prueba que la pieza mantuviera el método")
+    return errs
+
+
 def check(root):
-    errores, stats = [], {"ficheros": 0, "casos": 0, "positivos": 0, "negativos": 0, "targets": 0}
+    errores, stats = [], {"ficheros": 0, "casos": 0, "positivos": 0, "negativos": 0, "en_contra": 0,
+                          "targets": 0}
     cases_dir = os.path.join(root, "evals", "cases")
     if not os.path.isdir(cases_dir):
         return [f"no existe {cases_dir}"], stats
     repo = piezas(root)
     stats["targets"] = len(repo)
+    fixture = os.path.join(root, "evals", "fixtures", "project")
     ids, cubiertos = {}, {}
 
     for fn, data, err in cargar_casos(cases_dir):
@@ -213,11 +243,15 @@ def check(root):
                 errores.append(f"{ref}: `expect.redirect` `{red}` no es una pieza del repo")
             trig = c.get("trigger")
             stats["casos"] += 1
+            if trig == EN_CONTRA:
+                stats["en_contra"] += 1
+                errores.extend(_errores_en_contra(ref, exp, fixture))
             if exp["activates"]:
-                pos += 1
                 stats["positivos"] += 1
-                if trig not in TRIGGERS:
-                    errores.append(f"{ref}: positivo sin `trigger` válido ({sorted(TRIGGERS)})")
+                if trig != EN_CONTRA:
+                    pos += 1
+                if trig not in TRIGGERS and trig != EN_CONTRA:
+                    errores.append(f"{ref}: positivo sin `trigger` válido ({sorted(TRIGGERS | {EN_CONTRA})})")
                 if normaliza(prompt) in prompts_pos:
                     errores.append(f"{ref}: prompt positivo repetido")
                 prompts_pos.add(normaliza(prompt))
@@ -230,7 +264,7 @@ def check(root):
             else:
                 neg += 1
                 stats["negativos"] += 1
-                if trig is not None:
+                if trig is not None and trig != EN_CONTRA:
                     errores.append(f"{ref}: un negativo no lleva `trigger`")
             listas = [x for k in ("mentions", "must_not", "artifacts")
                       for x in (exp.get(k, []) if isinstance(exp.get(k, []), list) else []) if isinstance(x, str)]
@@ -265,7 +299,8 @@ def main(argv=None):
         for e in errores:
             print(f"❌ {e}")
         print(f"evals/check: {stats['ficheros']} ficheros · {stats['casos']} casos "
-              f"({stats['positivos']} positivos, {stats['negativos']} negativos) · "
+              f"({stats['positivos']} positivos, {stats['negativos']} negativos, "
+              f"{stats['en_contra']} en contra) · "
               f"{stats['targets']} piezas del repo · {len(errores)} errores")
     return 1 if errores else 0
 

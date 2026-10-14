@@ -22,3 +22,7 @@ reales; una declaración MCP no demuestra conexión, salud ni permisos.
 | Referencia | Cuándo leerla |
 |---|---|
 | [Entrega y herramientas](references/delivery-tools.md) | Contenedores, despliegue, CI, arnés aislado, servidores MCP, contenido externo o efectos externos (envío, publicación, transición) |
+| [CI, artefacto, rollout y recuperación](references/rollout-recovery.md) | Solo al elegir estrategia de rollout, condición de parada o vuelta atrás, o al preparar el job que construye y publica el artefacto |
+| [Observación tras desplegar](references/post-deploy-observation.md) | Solo al comprobar o vigilar un entorno propio tras un despliegue o un paso de rollout, o al comparar dos entornos |
+| [Conectores del repositorio](references/repository-connectors.md) | Solo al añadir o ampliar un conector con un servicio externo (cliente, SDK, webhooks o polling) |
+| [Entrega asistida por agentes](references/agent-assisted-delivery.md) | Solo al repartir trabajo entre agentes y personas, fijar qué evidencia pedir antes de delegar o decidir si escalar el modelo tras un fallo |

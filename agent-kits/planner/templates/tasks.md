@@ -19,6 +19,11 @@
   `verificacion: obligatoria` y `ledger-lint.py` falla (exit 1) si una tarea no la tiene: sin
   verificación ejecutable la tarea no está bien definida. El implementer la ejecuta al cerrar la
   tarea y pega la salida; `task-brief.py` la inyecta en el brief del subagente.
+  Replanificar (regla del planner): los IDs no se renumeran ni se reutilizan — lo nuevo toma el
+  siguiente número libre; una tarea cancelada se queda con `Estado: cancelado` y el motivo
+  autorizado en `Notas` (cuenta en el total del resumen); una `completado` no se reabre; la
+  re-estimación cambia `est.` y deja el valor anterior en `Notas`; revalida las `Dependencias`
+  que apuntaban a la tarea tocada. Nada de lo ejecutado (revisiones, `RED:`, salidas) se borra.
 -->
 ---
 generacion:

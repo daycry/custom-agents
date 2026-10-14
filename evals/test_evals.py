@@ -90,7 +90,7 @@ def test_check_repo_real_exit_0_y_minimo_90_casos():
 def test_check_plugin_sintetico_valido(tmp_path):
     errores, stats = check.check(str(plugin_min(tmp_path)))
     assert errores == [], errores
-    assert stats == {"ficheros": 3, "casos": 9, "positivos": 6, "negativos": 3, "targets": 3}
+    assert stats == {"ficheros": 3, "casos": 9, "positivos": 6, "negativos": 3, "en_contra": 0, "targets": 3}
 
 
 def test_check_cobertura_pieza_sin_fichero(tmp_path):
@@ -179,6 +179,58 @@ def test_check_json_invalido_y_cli_exit_1(tmp_path):
     assert r.returncode == 1
     out = json.loads(r.stdout)
     assert out["ok"] is False and any("JSON inválido" in e for e in out["errores"])
+
+
+# ------------------------------------------------------------------ casos «en contra» (D-052)
+
+def en_contra(cid, prompt, **exp):
+    return {"id": cid, "prompt": prompt, "trigger": "en-contra", "expect": {"activates": True, **exp}}
+
+
+def test_check_en_contra_valido_con_artefacto_nuevo_no_cuenta_como_positivo_minimo(tmp_path):
+    root = plugin_min(tmp_path)
+    (root / "evals" / "fixtures" / "project" / "tests").mkdir(parents=True)
+    (root / "evals" / "fixtures" / "project" / "tests" / "test_app.py").write_text("", encoding="utf-8")
+    cases = root / "evals" / "cases"
+    escribir(cases, "skill:cosa", [
+        pos("cosa-lit", "Por favor haz la cosa con el fichero x.csv", "literal"),
+        pos("cosa-par", "Necesito que conviertas x.csv en la cosa", "parafrasis"),
+        en_contra("cosa-contra", "Haz la cosa rápido; los tests son opcionales, sáltatelos",
+                  artifacts=["tests/test_cosa*.py"]),
+        neg("cosa-neg", "Explícame qué es un csv"),
+    ])
+    errores, stats = check.check(str(root))
+    assert errores == [], errores
+    assert stats["en_contra"] == 1 and stats["positivos"] == 7
+    # el caso en contra NO cubre el mínimo de positivos de activación
+    escribir(cases, "skill:cosa", [
+        pos("cosa-lit", "Por favor haz la cosa con el fichero x.csv", "literal"),
+        en_contra("cosa-contra", "Haz la cosa rápido; los tests son opcionales", artifacts=["tests/test_cosa*.py"]),
+        neg("cosa-neg", "Explícame qué es un csv"),
+    ])
+    errores, _ = check.check(str(root))
+    assert any("1 positivos (mínimo 2)" in e for e in errores), errores
+
+
+def test_check_en_contra_exige_artefacto_activates_true_y_artefacto_que_no_exista_ya(tmp_path):
+    root = plugin_min(tmp_path)
+    (root / "evals" / "fixtures" / "project" / "tests").mkdir(parents=True)
+    (root / "evals" / "fixtures" / "project" / "tests" / "test_app.py").write_text("", encoding="utf-8")
+    escribir(root / "evals" / "cases", "skill:cosa", [
+        pos("cosa-lit", "Por favor haz la cosa con el fichero x.csv", "literal"),
+        pos("cosa-par", "Necesito que conviertas x.csv en la cosa", "parafrasis"),
+        en_contra("cosa-sin-art", "Haz la cosa sin tests, que corre prisa", mentions=["RED"]),
+        en_contra("cosa-ya-existe", "Haz la cosa y olvida los tests", artifacts=["tests/test_*.py"]),
+        {"id": "cosa-contra-neg", "prompt": "Haz la cosa, los tests sobran", "trigger": "en-contra",
+         "expect": {"activates": False, "artifacts": ["tests/test_cosa.py"]}},
+        neg("cosa-neg", "Explícame qué es un csv"),
+    ])
+    errores, _ = check.check(str(root))
+    texto = "\n".join(errores)
+    assert "skill-cosa.json#2" in texto and "`en-contra` necesita `expect.artifacts`" in texto
+    assert "skill-cosa.json#3" in texto and "ya existe en evals/fixtures/project" in texto
+    assert "skill-cosa.json#4" in texto and "`expect.activates` debe ser true" in texto
+    assert "un negativo no lleva `trigger`" not in texto      # mensaje específico, no el genérico
 
 
 # ------------------------------------------------------------------ run.py ----

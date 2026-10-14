@@ -431,7 +431,7 @@
       "copias": [
         {
           "ruta": "skills/code-health/scripts/code-health.py",
-          "rango": "23-27"
+          "rango": "26-30"
         },
         {
           "ruta": "skills/dependency-upgrade/scripts/deps-inventory.py",

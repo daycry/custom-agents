@@ -96,3 +96,9 @@ preguntar.
 - **Instrumentación temporal se retira** al cerrar (logs/asserts de diagnóstico fuera del diff final).
 - Si el fallo resulta ser de la SPEC (comportamiento esperado mal definido), no lo "arregles"
   en código: repórtalo — eso es una decisión de producto (spec → `/pm-cycle`).
+
+## Referencias
+
+| Referencia | Cuándo leerla |
+|---|---|
+| [Fallos de ejecución de un agente](references/agent-runtime-failures.md) | Solo si lo que falla es la ejecución del agente (repite la misma herramienta o fix, pierde el objetivo, trabaja en otra rama o carpeta), al empezar la Fase 1 |

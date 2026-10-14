@@ -208,6 +208,23 @@ def test_exportacion_detecta_artefactos_ausentes_y_modificados(tmp_path, capsys)
     assert 'FALTA         interop/opencode/opencode.json' in output
 
 
+@pytest.mark.parametrize('ruta', ['/home/alguien/repo/x.md', '/Users/alguien/repo/x.md',
+                                  'C:\\Users\\alguien\\repo\\x.md', 'C:/Users/alguien/x.md'])
+def test_check_falla_si_lo_generado_lleva_una_ruta_de_usuario_absoluta(tmp_path, capsys, ruta):
+    """Lo generado viaja a otras máquinas: una ruta de home absoluta filtra un usuario y no resuelve
+    en el destino. `--check` la denuncia aunque el fichero esté al día con su fuente."""
+    plan = {'interop/opencode/commands/x.md': 'lee %s\n' % ruta, 'interop/codex/hooks.json': '{}\n'}
+    assert MOD.escribir(str(tmp_path), plan, quiet=True) == 0
+    assert MOD.comprobar(str(tmp_path), plan) == 1
+    assert 'RUTA ABSOLUTA interop/opencode/commands/x.md:1' in capsys.readouterr().out
+
+
+def test_check_no_confunde_rutas_relativas_ni_home_simbolico(tmp_path):
+    plan = {'interop/opencode/commands/x.md': 'usa ~/.claude, $HOME/.codex y docs/Users/guia.md\n'}
+    assert MOD.escribir(str(tmp_path), plan, quiet=True) == 0
+    assert MOD.comprobar(str(tmp_path), plan) == 0
+
+
 def test_indice_opencode_degrada_si_falta_el_kit(tmp_path):
     for folder in ('agents', 'commands', 'skills/demo'):
         (tmp_path / folder).mkdir(parents=True)

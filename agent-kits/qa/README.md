@@ -7,6 +7,7 @@ Ejecuta E2E con Playwright contra la app local y produce el informe. Uso interno
 - `qa-gate.py` — **veredicto determinista**: parsea `results.json` y decide verde/rojo por exit code (0 failed y 0 flaky sin justificar; justificaciones con `--justify fichero.json`). La ausencia de evidencia es rojo. Tests en `tests/test_qa_gate.py`.
 - `coverage-check.py` — **puerta de cobertura** criterios↔tests: cruza el campo «Cubre (tests)» de `tasks.md` con los bloques del `test-plan.md`; referencias rotas = error, tareas sin cobertura y tests sin referenciar = avisos para triage.
 - `templates/report.md` — plantilla del informe de QA (resultados + evidencias + checklist manual).
+- `references/e2e-evidence.md` — cómo escribir specs estables (localizadores accesibles, aserciones web-first, sin `waitForTimeout`/`networkidle`), flaky y cuarentena visibles, baseline visual con entorno fijado y clasificación de cada resultado. Se lee en P3 y al redactar el informe.
 
 Playwright + Chromium se instalan **fuera del repo**, en `~/.claude/tool-cache/qa/`, con **permiso previo** (descarga pesada). La salida va a `docs/roadmap/<fecha>-<slug>/testing/`. El PDF se genera con la skill compartida `to-pdf`.
 

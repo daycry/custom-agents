@@ -2832,3 +2832,114 @@ def test_index_conserva_la_tabla_de_campos_de_frontmatter(tmp_path):
     for campo in ("`cierre`", "`derivados_en`", "`materializado_en`", "`recuperado_sin_cierre`", "`orphan_recovery`"):
         assert campo in txt
     assert txt.index("Campos de frontmatter") < txt.index("| Fecha | Iniciativa |")
+
+
+
+# ------------------------------------------------------------------ candidatas: categoría, id y lote estable (D-084)
+
+def test_candidatas_clasifica_por_categoria_con_id_estable(tmp_path):
+    """Cada candidata trae `categoria` (vocabulario cerrado, por marcadores léxicos, sin modelo) e `id`
+    estable (mismo patrón → mismo id entre ejecuciones)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _entrada(proj, "s1", "2026-09-01", decisiones=["El error de encoding se arregló reconfigurando stdout",
+                                                   "Siempre usar rutas relativas en los scripts",
+                                                   "Workaround: reintentar el clon con longpaths"],
+             pendientes=["Depurar el hook con logs y reproducir el timeout"])
+    _entrada(proj, "s2", "2026-09-02", decisiones=["error de encoding arreglado reconfigurando stdout",
+                                                   "siempre rutas relativas en scripts",
+                                                   "workaround reintentar clon longpaths"],
+             pendientes=["depurar hook con logs y reproducir timeout"])
+    c = {x["texto"]: x for x in journal.candidatas(str(proj))}
+    assert c["El error de encoding se arregló reconfigurando stdout"]["categoria"] == "resolucion_error"
+    assert c["Siempre usar rutas relativas en los scripts"]["categoria"] == "convencion"
+    assert c["Workaround: reintentar el clon con longpaths"]["categoria"] == "workaround"
+    assert c["Depurar el hook con logs y reproducir el timeout"]["categoria"] == "tecnica_depuracion"
+    assert set(journal.CATEGORIAS) >= {"resolucion_error", "correccion_usuario", "workaround",
+                                       "tecnica_depuracion", "convencion", "otra"}
+    assert journal.categoria_de("No, eso no es así: el ratio va en CALIBRATION") == "correccion_usuario"
+    assert journal.categoria_de("Subir la cobertura del gate") == "otra"
+    ids = [x["id"] for x in journal.candidatas(str(proj))]
+    assert ids == [x["id"] for x in journal.candidatas(str(proj))] and len(set(ids)) == len(ids)
+    assert all(i.startswith("cand-") for i in ids)
+    rc, out, _ = run("candidatas", root=proj)
+    assert rc == 0 and "categoría: workaround" in out
+
+
+def test_candidatas_lote_estable_con_cursor_retiene_lo_posterior(tmp_path):
+    """`--lote` envuelve la salida con un cursor y un id de lote; `--hasta CURSOR` reproduce el MISMO lote
+    aunque lleguen entradas nuevas (se declaran como posteriores, no se dan por leídas) y `--confirmar ID`
+    lo verifica sin escribir nada."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _entrada(proj, "s1", "2026-09-01", pendientes=["Revisar la CI en Windows"])
+    _entrada(proj, "s2", "2026-09-02", pendientes=["revisar la CI de Windows"])
+    rc, out, _ = run("candidatas", "--lote", root=proj)
+    assert rc == 0
+    lote = json.loads(out)
+    assert lote["lote"]["cursor"] == "2026-09-02/2026-09-02-demo.md"
+    assert lote["lote"]["entradas_leidas"] == 2 and lote["lote"]["posteriores_al_cursor"] == 0
+    assert lote["lote"]["id"].startswith("lote-") and len(lote["candidatas"]) == 1
+    _entrada(proj, "s3", "2026-09-03", pendientes=["Revisar la CI en Windows"])
+    antes = sorted(p.name for p in (proj / "docs" / "knowledge" / "journal").iterdir())
+    rc, out, _ = run("candidatas", "--lote", "--hasta", lote["lote"]["cursor"], root=proj)
+    mismo = json.loads(out)
+    assert mismo["lote"]["id"] == lote["lote"]["id"] and mismo["candidatas"] == lote["candidatas"]
+    assert mismo["lote"]["posteriores_al_cursor"] == 1                  # retenida para el próximo lote
+    rc, out, _ = run("candidatas", "--hasta", lote["lote"]["cursor"], "--confirmar", lote["lote"]["id"], root=proj)
+    assert rc == 0 and json.loads(out)["confirmado"] is True
+    rc, out, _ = run("candidatas", "--confirmar", lote["lote"]["id"], root=proj)   # sin cursor: el lote ya no es el mismo
+    r = json.loads(out)
+    assert rc == 0 and r["confirmado"] is False and r["candidatas"] == [] and r["motivo"]
+    despues = sorted(p.name for p in (proj / "docs" / "knowledge" / "journal").iterdir())
+    assert despues == antes                                            # confirmar no marca ni escribe nada
+    assert run("candidatas", "--hasta", "no-es-un-cursor", root=proj)[0] == 2
+
+
+# ------------------------------------------------------------------ continuidad operativa (D-085)
+
+def _enrich(tmp_path, datos, nombre="cont.json"):
+    p = tmp_path / nombre
+    p.write_text(json.dumps(datos), encoding="utf-8")
+    return str(p)
+
+
+def test_continuidad_esquema_omitido_frente_a_vaciado(tmp_path):
+    """`objetivo`, `punto_actual`, `siguientes_pasos` y `bloqueos` (vía --enrich) se escriben en el
+    frontmatter; al re-escribir la MISMA sesión, un campo OMITIDO conserva el valor previo y uno
+    VACIADO explícitamente (""/[]/null) se limpia. Sin continuidad, la entrada no cambia."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    run("write", "--session-id", "s1", root=proj)
+    p = proj / "docs" / "knowledge" / "journal" / f"{journal.hoy()}-demo.md"
+    assert "objetivo:" not in p.read_text(encoding="utf-8")            # nada declarado → nada escrito
+    run("write", "--session-id", "s1", "--enrich", _enrich(tmp_path, {
+        "objetivo": "Cerrar D-085", "punto_actual": "tests en rojo",
+        "siguientes_pasos": ["implementar", "verde"], "bloqueos": ["falta revisión"]}), root=proj)
+    e = journal.parse_entry(str(p))
+    assert e["objetivo"] == "Cerrar D-085" and e["punto_actual"] == "tests en rojo"
+    assert e["siguientes_pasos"] == ["implementar", "verde"] and e["bloqueos"] == ["falta revisión"]
+    run("write", "--session-id", "s1", "--enrich", _enrich(tmp_path, {"punto_actual": "verde"}), root=proj)
+    e = journal.parse_entry(str(p))                                     # omitidos: se conservan
+    assert e["objetivo"] == "Cerrar D-085" and e["punto_actual"] == "verde" and e["bloqueos"] == ["falta revisión"]
+    run("write", "--session-id", "s1", "--enrich", _enrich(tmp_path, {"objetivo": "", "bloqueos": None}), root=proj)
+    e = journal.parse_entry(str(p))                                     # vaciados: se limpian, la clave queda
+    assert e["objetivo"] == "" and e["bloqueos"] == [] and e["siguientes_pasos"] == ["implementar", "verde"]
+    run("write", "--session-id", "s1", root=proj)                       # replay del hook sin --enrich: no borra
+    e = journal.parse_entry(str(p))
+    assert e["siguientes_pasos"] == ["implementar", "verde"] and e["objetivo"] == ""
+    texto = p.read_text(encoding="utf-8")
+    assert "## Continuidad" in texto and "vaciado explícitamente" in texto
+
+
+def test_continuidad_tipo_invalido_cuenta_como_omitido_y_se_ve_en_la_seleccion(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    run("write", "--session-id", "s1", "--enrich", _enrich(tmp_path, {
+        "objetivo": "Retomar el upgrade", "siguientes_pasos": ["probar en Linux"]}), root=proj)
+    run("write", "--session-id", "s1", "--enrich", _enrich(tmp_path, {"objetivo": 42, "bloqueos": "texto"}), root=proj)
+    p = proj / "docs" / "knowledge" / "journal" / f"{journal.hoy()}-demo.md"
+    e = journal.parse_entry(str(p))
+    assert e["objetivo"] == "Retomar el upgrade" and "bloqueos" not in e
+    assert any("continuidad" in a for a in journal.draft(str(proj), "s1", enrich=_enrich(tmp_path, {"objetivo": 42}, "x.json"))["avisos"])
+    sel = journal.select_entries(str(proj), initiative="demo")
+    assert sel["status"] == "ok"
+    cont = sel["entries"][0]["continuidad"]
+    assert cont["objetivo"] == "Retomar el upgrade" and cont["siguientes_pasos"] == ["probar en Linux"]
+    assert "siguientes pasos: probar en Linux" in journal.latest(str(proj), n=1)

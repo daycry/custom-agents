@@ -45,7 +45,12 @@ Formularios prueban pending, éxito, validación y error, con datos preservados 
 autorización en el servidor. Optimismo requiere revertir/reconciliar y distinguir
 un reintento del envío original. Cache keys incluyen identidad, filtros y tenant;
 al mutar, invalida lo pertinente según la librería existente. No instales otra
-librería de fetching únicamente por aplicar esta guía.
+librería de fetching únicamente por aplicar esta guía. Un `<button>` dentro de
+un formulario que no envía lleva `type="button"`: el tipo por defecto es
+`submit`. Un estado que se calcula desde el anterior usa la actualización
+funcional (`setN((n) => n + 1)`); con el valor capturado, dos actualizaciones
+del mismo evento o de un callback asíncrono parten del mismo valor y se pierde
+una.
 
 Tests de componentes actúan por rol/nombre accesible y eventos del usuario;
 esperan estados observables, sin sleeps arbitrarios ni snapshot como única prueba.

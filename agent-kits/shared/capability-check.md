@@ -27,6 +27,9 @@ tarea; la salida distingue esa declaración de detección en manifiestos.
 4. Los métodos fijos del ciclo (TDD configurado, revisión independiente, qa-gate,
    Knowledge Gate y cierre) siguen aplicándose aunque no aparezcan en el selector.
    La memoria local se consulta con knowledge-check; no precargues su histórico.
+5. Para decidir qué capacidades son habituales en el proyecto o revisar una
+   selección vieja, lee `capability-selection.md`; para estimar cuánto contexto
+   añade cargarlas, `context-cost.md`. Solo cuando la tarea lo pida.
 
 ## Extensiones de proyecto y usuario
 
@@ -68,3 +71,4 @@ Sin script/registro, instalación parcial o manifiesto inválido: avisa, conserv
 los criterios explícitos de la tarea y consulta la guía disponible pertinente.
 La selección opcional no detiene el ciclo ni oculta un gate de calidad fallido.
 No instala paquetes, crea agentes de proyecto, cambia permisos ni ejecuta red.
+Instalar, mover de ámbito o retirar piezas sigue `installation-lifecycle.md`.

@@ -37,6 +37,15 @@
 <!-- Si existe docs/roadmap/, enlázalo aquí -->
 {{ENLACE_ROADMAP_SI_EXISTE}}
 
+<!-- Retirados: documentos que se quitaron a propósito, para que no se vuelvan a crear. Una fila
+por documento; recrear uno exige decisión del usuario y quitar su fila. Si no hay ninguno, borra
+la sección entera. -->
+## Retirados
+
+| Documento | Motivo | Sustituto | Fecha |
+|-----------|--------|-----------|-------|
+| `{{RUTA_RETIRADA}}` | {{MOTIVO}} | {{SUSTITUTO_O_NINGUNO}} | {{FECHA}} |
+
 ---
 
 **Última actualización:** {{FECHA}}

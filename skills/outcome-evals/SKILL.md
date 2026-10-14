@@ -37,4 +37,8 @@ contrato opt-in y la promoción humana; no dupliques su almacenamiento.
 | Referencia | Cuándo leerla |
 |---|---|
 | [Protocolo](references/protocol.md) | Corpus, comprobaciones y comparación de resultados |
+| [Comparar agentes](references/agent-comparisons.md) | Solo si se enfrentan ejecuciones de agentes, workflows o runtimes: aislamiento, repeticiones y condiciones por runtime |
+| [Calidad de una entrega](references/delivery-quality.md) | Solo al valorar si una respuesta, informe o explicación sirve a lo pedido (rúbrica auxiliar, no QA) |
+| [Baselines de rendimiento](references/performance-baselines.md) | Solo al medir latencia, Web Vitals, build o frescura antes y después |
+| [Optimización medida](references/measured-optimization.md) | Solo al probar variantes de una operación contra un baseline dentro de un presupuesto |
 | `scripts/report_outcomes.py` | Agregar JUnit existente con runs/condiciones y métricas declaradas; no ejecutar ni aprobar QA |

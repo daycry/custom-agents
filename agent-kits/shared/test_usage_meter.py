@@ -1122,3 +1122,55 @@ def test_state_existing_temporary_is_not_owned_or_deleted(tmp_path, monkeypatch)
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+# ------------------------------------------------------------------ procedencia y cobertura (D-086)
+
+def test_procedencia_medida_completa_con_subagente_y_tarifa(entorno):
+    """Tokens medidos, coste estimado y cobertura van SEPARADOS en claves planas aditivas."""
+    tmp, tdir, state = entorno
+    rates = _rates(tmp, verificado=HOY, extra={"cacheCreacion": 18.75, "cacheLectura": 1.5})
+    _write(tdir / "sesion.jsonl", [])
+    rc, _ = _run(None, ["start", "--artefacto", "a.md", "--state", str(state), "--transcript-dir", str(tdir)])
+    with open(tdir / "sesion.jsonl", "a", encoding="utf-8") as f:
+        f.write(_rec("m1", inp=1000, out=100, cr=50) + "\n")
+    sub = tdir / "s1" / "subagents"
+    sub.mkdir(parents=True)
+    _write(sub / "agent-x.jsonl", [_rec("s1", inp=10, out=1)])
+    rc, res = _run(None, ["close", "--artefacto", "a.md", "--state", str(state), "--transcript-dir", str(tdir),
+                          "--rates", rates])
+    assert rc == 0 and res["fuente"] == "medido"
+    assert res["tokens_procedencia"] == "transcript" and res["tokens_cobertura"] == "completa"
+    assert (res["transcripts_leidos"], res["transcripts_subagente"], res["transcripts_con_error"]) == (2, 1, 0)
+    assert res["coste_procedencia"] == "estimado_tarifa" and res["coste_cobertura"] == "completa"
+    assert res["coste_sin_precio"] == [] and res["tarifa_verificada_el"] == HOY
+
+
+def test_procedencia_coste_incompleto_si_una_clase_no_tiene_precio(entorno):
+    tmp, tdir, state = entorno
+    rates = _rates(tmp, verificado=HOY)
+    res = _start_close(tdir, state, antes=[], despues=[_rec("m1", inp=1000, out=0, cr=5000)],
+                       close_args=["--rates", rates])
+    assert res["eur"] is not None and res["coste_procedencia"] == "estimado_tarifa"
+    assert res["coste_cobertura"] == "incompleta" and res["coste_sin_precio"] == ["cache_lectura"]
+
+
+def test_procedencia_sin_coste_y_sin_medida_no_se_presentan_como_cero(entorno, tmp_path):
+    tmp, tdir, state = entorno
+    res = _start_close(tdir, state, antes=[], despues=[_rec("m1", inp=1000, out=100)],
+                       close_args=["--rates", _rates(tmp, verificado=None)])
+    assert res["tokens_procedencia"] == "transcript" and res["eur"] is None
+    assert res["coste_procedencia"] == "sin_coste" and res["coste_cobertura"] == "sin_coste"
+    st = tmp_path / "otro.json"
+    _run(None, ["start", "--artefacto", "b.md", "--state", str(st), "--transcript-dir", str(tmp_path / "no")])
+    rc, res = _run(None, ["close", "--artefacto", "b.md", "--state", str(st), "--transcript-dir", str(tmp_path / "no")])
+    assert res["tokens_procedencia"] == "sin_medida" and res["tokens_cobertura"] == "sin_medida"
+    assert res["transcripts_leidos"] is None and res["coste_procedencia"] == "sin_coste"
+
+
+def test_procedencia_cobertura_parcial_con_usage_no_numerico(entorno):
+    _, tdir, state = entorno
+    malo = json.loads(_rec("m2", inp=5, out=5))
+    malo["message"]["usage"]["input_tokens"] = "muchos"
+    res = _start_close(tdir, state, antes=[], despues=[_rec("m1", inp=10, out=5), json.dumps(malo)])
+    assert res["fuente"] == "medido" and res["tokens_cobertura"] == "parcial"

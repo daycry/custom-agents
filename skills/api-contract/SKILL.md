@@ -25,7 +25,7 @@ SKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/skills" "$HOME
 - Para documentar la API para humanos o consumidores externos (guías, ejemplos de uso): eso es `documenter`.
 - Para auditar la seguridad de la API (auth, rate limiting, OWASP API Security Top 10): eso es `nemesis` con la skill `cybersecurity`. Esta skill solo mira la ESTRUCTURA del contrato.
 - Para ejecutar tests de contrato de verdad contra un servidor real (`schemathesis run`, `dredd`): la skill ofrece la PLANTILLA (más abajo); ejecutarla contra un entorno vivo es cosa de `qa` o del propio pipeline del proyecto.
-- Sobre una API sin spec OpenAPI (GraphQL, gRPC, RPC ad-hoc): fuera de alcance; si no existe spec, sugiere escribirla primero — no se puede validar un contrato que no está escrito.
+- Sobre una API sin spec OpenAPI (GraphQL, gRPC, RPC ad-hoc): fuera del alcance del linter; si no existe spec, sugiere escribirla primero — no se puede validar un contrato que no está escrito. Para eventos, RPC o paquetes compartidos entre despliegues, el método (sin linter) está en `references/shared-boundaries.md`.
 
 ## Flujo contract-first
 
@@ -121,3 +121,4 @@ criterio adicional (lo dice en la salida) — ninguna de las dos cadenas se bloq
 |---|---|
 | `scripts/openapi-lint.py` | Nunca hace falta leerlo para usar la skill — el contrato son sus funciones + tests. Ábrelo solo para extender la validación o el diff. |
 | `references/contract-tests.md` | Al elegir o adaptar una plantilla de tests de contrato para el stack del proyecto, o al decidir qué deja sin cubrir un exit 0 del linter. |
+| `references/shared-boundaries.md` | Solo si el proyecto tiene fronteras no HTTP (eventos, RPC, paquetes compartidos) entre productores y consumidores que se despliegan por separado. |

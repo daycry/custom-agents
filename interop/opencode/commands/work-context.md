@@ -26,6 +26,11 @@ y las tools propias como fuentes; contrasta disponibilidad con la sesión antes
 de usarlas. Registra la selección de una tarea con los campos del método común.
 No modifiques configuración ni instales recursos.
 
+Si el usuario pide la selección habitual del proyecto («qué capacidades usarías
+aquí»), aplica `agent-kits/shared/capability-selection.md`: seis grupos,
+habitual frente a biblioteca, evidencia del repositorio y plan con dueño, sin
+adoptar nada. Si pregunta cuánto contexto añade, `agent-kits/shared/context-cost.md`.
+
 La salida es contexto para pm/dev-cycle o un rol manual. No inicia otra cadena,
 no calcula calidad y no genera piezas de project-specialization. Sin selector,
 informa del límite y continúa con las guías disponibles.

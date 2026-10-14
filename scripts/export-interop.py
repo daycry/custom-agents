@@ -716,16 +716,28 @@ def escribir(root, plan, quiet=False):
     return 0
 
 
+# Ruta de home ABSOLUTA (`/home/<u>`, `/Users/<u>`, `C:\Users\<u>`): lo generado viaja a otras
+# máquinas, así que filtra un usuario y no resuelve en el destino. `~` y `$HOME` no casan.
+RUTA_HOME_ABSOLUTA = re.compile(r"(?<![\w.$~/\\])(?:/home/|/Users/|[A-Za-z]:[\\/]Users[\\/])[A-Za-z0-9._-]+")
+
+
+def rutas_absolutas(plan):
+    """[(rel, línea)] de lo generado que lleva una ruta de home absoluta."""
+    return [(rel, n) for rel, contenido in sorted(plan.items())
+            for n, linea in enumerate(contenido.splitlines(), 1) if RUTA_HOME_ABSOLUTA.search(linea)]
+
+
 def comprobar(root, plan):
     faltan, distintos = [], []
     retirados = obsoletos(root, plan)
+    absolutas = rutas_absolutas(plan)
     for rel, contenido in plan.items():
         p = os.path.join(root, rel.replace("/", os.sep))
         if not os.path.isfile(p):
             faltan.append(rel)
         elif leer(p) != contenido:
             distintos.append(rel)
-    if not faltan and not distintos and not retirados:
+    if not faltan and not distintos and not retirados and not absolutas:
         print("export-interop --check: %d ficheros al día" % len(plan))
         return 0
     for rel in faltan:
@@ -734,8 +746,14 @@ def comprobar(root, plan):
         print("DESINCRONIZADO %s" % rel)
     for rel in retirados:
         print("OBSOLETO      %s" % rel)
-    print("\nERROR: la interop de Codex/OpenCode no refleja las piezas del repo.\n"
-          "       Arréglalo con: python3 scripts/export-interop.py")
+    for rel, n in absolutas:
+        print("RUTA ABSOLUTA %s:%d" % (rel, n))
+    if faltan or distintos or retirados:
+        print("\nERROR: la interop de Codex/OpenCode no refleja las piezas del repo.\n"
+              "       Arréglalo con: python3 scripts/export-interop.py")
+    if absolutas:
+        print("\nERROR: lo generado lleva rutas de usuario absolutas; corrige la pieza de origen "
+              "(rutas relativas, `~` o variables) y regenera.")
     return 1
 
 

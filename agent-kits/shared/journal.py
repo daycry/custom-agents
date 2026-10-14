@@ -126,9 +126,22 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
       en pending mediante `knowledge-curation.py propose`; `knowledge-curator` decide su curación.
       Este comando sólo lee y agrupa el journal. Sin journal, con una
       sola entrada o sin patrón repetido → sin salida, exit 0.
+      Cada candidata lleva `id` estable (`cand-` + hash de campo y clave) y `categoria` por marcadores
+      léxicos sin modelo (CATEGORIAS: `correccion_usuario` · `resolucion_error` · `workaround` ·
+      `tecnica_depuracion` · `convencion` · `otra`): una pista para quien revisa, no un juicio.
+      Lote estable (D-084): `--lote` imprime `{lote: {id, cursor, entradas_leidas, posteriores_al_cursor,
+      ilegibles}, candidatas}` con las entradas en orden (fecha, fichero); `--hasta <cursor>` reproduce ese
+      lote aunque lleguen entradas nuevas (se cuentan como `posteriores_al_cursor`, no se dan por leídas);
+      `--confirmar <id>` comprueba que lo leído ahora es ese lote (`confirmado: true|false` + `motivo`,
+      exit 0). Nada se marca como procesado: la propuesta la hace quien llama (`knowledge-curation.py
+      propose`) y la decide `knowledge-curator`. `--hasta` mal formado → exit 2.
 
 `--enrich JSON` (fichero o `-` para stdin): {"resumen": "...", "decisiones": [...], "pendientes": [...]}
-— entrada MANUAL que manda sobre lo extraído del log y sobre la IA. Sobre el contrato: la doc oficial
+— entrada MANUAL que manda sobre lo extraído del log y sobre la IA. Continuidad operativa (D-085), con el
+mismo `--enrich`: `objetivo` y `punto_actual` (texto), `siguientes_pasos` y `bloqueos` (listas de texto). Se
+escriben en el frontmatter y en la sección «Continuidad» solo si se declaran; al re-escribir la misma sesión,
+una clave OMITIDA conserva su valor previo y una VACIADA (`""`, `[]` o `null`) se limpia; tipo inválido →
+aviso y cuenta como omitida. Ningún extractor las rellena: `latest`/`select` y `/work-resume` solo las leen. Sobre el contrato: la doc oficial
 (hooks.md, 2026-09-03) sigue sin permitir que un hook `prompt`/`agent` en SessionEnd DEVUELVA texto
 (solo decisión `ok/reason`, y en SessionEnd la salida se ignora) — eso sigue siendo cierto y por eso el
 hook `command` no devuelve nada: ESCRIBE (ADR-010, revisada 2026-09-08 por memory-retrieval T-12/T-13).
@@ -197,6 +210,32 @@ IA_ENV_GUARD = "CUSTOM_AGENTS_JOURNAL_IA"   # =0 en el hijo: si algo re-entrara 
 CANDIDATA_MIN = 2                  # entradas (sesiones distintas) en las que debe repetirse el patrón
 CANDIDATA_MIN_RAICES = 2           # un patrón de una sola raíz («ok», «tests») no es un patrón
 CANDIDATA_JACCARD = 0.6            # dos formulaciones son el MISMO patrón si sus raíces solapan ≥ 60 % (Jaccard)
+# Categoría de la candidata: marcadores léxicos ES/EN sobre su primera formulación, SIN modelo; gana la primera
+# regla que casa (orden de CATEGORIAS) y sin marcador queda `otra`. Es una pista para quien revisa, no un juicio.
+CATEGORIAS = ("correccion_usuario", "resolucion_error", "workaround", "tecnica_depuracion", "convencion", "otra")
+_CORRECCION_RE = re.compile(r"(?<!\w)(?:no es as[ií]|eso no|as[ií] no|te equivocas|est[aá] mal|incorrect[oa]|"
+                            r"en realidad|that'?s (?:not|wrong)|wrong|actually)(?!\w)", re.I)
+_ERROR_RE = re.compile(r"(?<!\w)(?:error(?:es)?|fall(?:o|a|ó|aba)|excepci[oó]n|traceback|crash|bug|roto|rompe|"
+                       r"failed|failure|exception)(?!\w)", re.I)
+_ARREGLO_RE = re.compile(r"(?<!\w)(?:arregl\w*|solucion\w*|resuel\w*|resolv\w*|corregi\w*|corrig\w*|"
+                         r"fix(?:ed|es)?|solved|resolved)(?!\w)", re.I)
+_WORKAROUND_RE = re.compile(r"(?<!\w)(?:workaround|apa[ñn]o|parche temporal|soluci[oó]n temporal|rodeo|de momento|"
+                            r"por ahora|mientras tanto|temporary fix|for now|stopgap)(?!\w)", re.I)
+_DEPURACION_RE = re.compile(r"(?<!\w)(?:depur\w*|debug\w*|bisect\w*|reproduc\w*|a[ií]sl\w*|traza\w*|stack ?trace|"
+                            r"breakpoints?|logs?)(?!\w)", re.I)
+_CONVENCION_RE = re.compile(r"(?<!\w)(?:siempre|nunca|convenci[oó]n|por norma|regla|always|never|convention|"
+                            r"naming)(?!\w)", re.I)
+CURSOR_RE = re.compile(r"\d{4}-\d{2}-\d{2}/[^/\\\x00-\x1f]+\.md")   # `AAAA-MM-DD/<fichero>.md`: (fecha, fichero) de la última entrada leída
+
+# --- continuidad operativa de la sesión (D-085): esquema explícito, solo por `--enrich`/`--draft` ---
+# Clave AUSENTE = omitida (al re-escribir la misma sesión se conserva lo que hubiera); `""`/`[]`/`null` =
+# VACIADO explícito (la clave queda en el frontmatter, vacía). Ningún extractor la rellena por su cuenta.
+CONTINUIDAD_ESCALARES = ("objetivo", "punto_actual")
+CONTINUIDAD_LISTAS = ("siguientes_pasos", "bloqueos")
+CONTINUIDAD = CONTINUIDAD_ESCALARES + CONTINUIDAD_LISTAS
+_LISTAS_FM = LISTAS + CONTINUIDAD_LISTAS     # listas que admite el frontmatter (lector acotado `_selected_parse`)
+_CONTINUIDAD_ETIQUETA = {"objetivo": "Objetivo", "punto_actual": "Punto actual",
+                         "siguientes_pasos": "Siguientes pasos", "bloqueos": "Bloqueos"}
 
 
 def _load_module(name, filename):
@@ -1460,6 +1499,29 @@ def _recorta(texto, max_chars=160):
     return texto if len(texto) <= max_chars else texto[:max_chars - 1].rstrip() + "…"
 
 
+def continuidad_de(datos, avisos):
+    """Campos de continuidad PRESENTES en `datos` (el `--enrich` o el `continuidad` de un `--draft`), validados
+    y redactados. Ausente → no aparece (omitido); `""`/`[]`/`null` → vaciado explícito; tipo inválido → aviso
+    y se trata como omitido (nunca borra lo que hubiera)."""
+    out = {}
+    if not isinstance(datos, dict):
+        return out
+    for k in CONTINUIDAD:
+        if k not in datos:
+            continue
+        v = datos[k]
+        if k in CONTINUIDAD_ESCALARES:
+            if v is None or isinstance(v, str):
+                out[k] = _recorta(redactar(v), ITEM_MAX_CHARS) if v else ""
+                continue
+            avisos.append(f"continuidad.{k}: se esperaba texto (o \"\"/null para vaciar); se ignora")
+        elif v is None or (isinstance(v, list) and all(isinstance(x, str) for x in v)):
+            out[k] = _acotar(redactar(x) for x in (v or []))
+        else:
+            avisos.append(f"continuidad.{k}: se esperaba una lista de textos (o []/null para vaciar); se ignora")
+    return out
+
+
 def _fecha_local_de_captured_at(captured_at):
     """`captured_at` (UTC, `AAAA-MM-DDTHH:MM:SSZ`) -> fecha en hora LOCAL (gap 44 de la revisión
     intento 2): `draft` usaba `captured_at[:10]` (UTC) mientras el resto del módulo usa `hoy()`
@@ -1496,7 +1558,9 @@ def draft(root, session_id=None, transcript=None, reason=None, enrich=None, capt
             # (gap 17 de la revisión: la rama de «declara la carencia» no tenía test).
             avisos.append("resumen: sin turnos capturados ni transcript legible — usando "
                           f"«Sesión sobre {iniciativa}» (CA-05: no se inventa contenido)")
+    continuidad = continuidad_de(enr, avisos)
     return {
+        **({"continuidad": continuidad} if continuidad else {}),   # solo si el --enrich declaró alguno (D-085)
         "fecha": fecha,
         "session_id": session_id or "manual",
         "reason": reason or "manual",
@@ -1552,6 +1616,14 @@ def render(e, fuente):
         # teardown (CA-01 prohíbe git ahí): «replay» = calculados al materializar, no al cerrar
         # (gap 8 de la revisión; limitación aceptada por diseño, ver design.md).
         fm.append(f"derivados_en: {_yaml_str(e['derivados_en'])}")
+    cont = e.get("continuidad") or {}
+    for k in CONTINUIDAD_ESCALARES:
+        if k in cont:
+            fm.append(f"{k}: {_yaml_str(cont[k])}")
+    for k in CONTINUIDAD_LISTAS:
+        if k in cont:
+            fm.append(f"{k}:" + ("" if cont[k] else " []"))
+            fm += [f"  - {_yaml_str(x)}" for x in cont[k]]
     for k in ("decisiones", "pendientes"):
         fm.append(f"{k}:" + ("" if e[k] else " []"))
         fm += [f"  - {_yaml_str(x)}" for x in e[k]]
@@ -1578,6 +1650,18 @@ def render(e, fuente):
         body.extend([f"- {x}" for x in items] if items else [f"_{vacio}_"])
         body.append("")
 
+    if cont:
+        body.extend(["## Continuidad", ""])
+        for k in CONTINUIDAD:
+            if k not in cont:
+                continue
+            v, etiqueta = cont[k], _CONTINUIDAD_ETIQUETA[k]
+            if isinstance(v, list):
+                body.append(f"- **{etiqueta}**:" + ("" if v else " _vaciado explícitamente_"))
+                body.extend(f"  - {x}" for x in v)
+            else:
+                body.append(f"- **{etiqueta}**: " + (v or "_vaciado explícitamente_"))
+        body.append("")
     seccion("Decisiones", e["decisiones"], "sin decisiones registradas (borrador determinista)")
     seccion("Pendientes", e["pendientes"], "sin pendientes registrados")
     seccion(f"Ficheros tocados (top {TOP_FICHEROS})",
@@ -1664,11 +1748,18 @@ def write(root, e, fuente="hook"):
         return None
     d = journal_dir(root)
     os.makedirs(d, exist_ok=True)
-    destino = None
+    destino, previa = None, None
     for prev in entradas(root):
         if prev.get("session_id") == e["session_id"]:
-            destino = prev["_path"]
+            destino, previa = prev["_path"], prev
             break
+    # Continuidad (D-085): lo OMITIDO en esta escritura conserva el valor de la entrada previa de la misma
+    # sesión; lo vaciado explícitamente lo sustituye. Un replay del hook sin `--enrich` no borra nada.
+    cont = {k: previa[k] for k in CONTINUIDAD if previa is not None and k in previa
+            and isinstance(previa[k], list if k in CONTINUIDAD_LISTAS else str)}
+    cont.update(continuidad_de(e.get("continuidad"), e.setdefault("avisos", [])))
+    if cont:
+        e["continuidad"] = cont
     if destino is None:
         base = f"{e['fecha']}-{slugify(e['iniciativa'])}"
         destino = os.path.join(d, base + ".md")
@@ -1715,7 +1806,8 @@ def index(root):
              "| `fuente` | `hook` · `recover` · `manual` | Quién generó la entrada: `replay` del envelope del hook, `recover` sobre una sesión huérfana, o `--enrich` a mano |",
              "| `reason` | motivo del envelope (`clear`, `resume`, `logout`, `prompt_input_exit`, `other`) o `orphan_recovery` | Motivo de cierre; `orphan_recovery` = nunca hubo envelope |",
              "| `derivados_en` | `replay` | `ficheros_tocados`/`tareas_cambiadas` se calculan con git al materializar (también para huérfanas), nunca en el teardown de `SessionEnd` (CA-01) |",
-             "| `materializado_en` | timestamp ISO UTC | Cuándo se escribió la entrada final; la `fecha` es la del cierre (`captured_at`) |", "",
+             "| `materializado_en` | timestamp ISO UTC | Cuándo se escribió la entrada final; la `fecha` es la del cierre (`captured_at`) |",
+             "| `objetivo` · `punto_actual` · `siguientes_pasos` · `bloqueos` | texto · texto · lista · lista (opcionales) | Continuidad declarada con `--enrich`; clave ausente = nunca declarada, vacía = vaciada a propósito |", "",
              "| Fecha | Iniciativa | Resumen | Fuente |", "|---|---|---|---|"]
     for e in reversed(es):
         fn = os.path.basename(e["_path"])
@@ -1747,6 +1839,18 @@ def _corta(items, n=3):
     if len(items) <= n:
         return "; ".join(items)
     return "; ".join(items[:n]) + f" (+{len(items) - n})"
+
+
+def _lineas_continuidad(c):
+    """Líneas de continuidad (D-085) para el contexto: solo los campos con contenido, saneados."""
+    out = []
+    for k in CONTINUIDAD_ESCALARES:
+        if isinstance(c.get(k), str) and c[k]:
+            out.append(f"  {_CONTINUIDAD_ETIQUETA[k].lower()}: {_linea_segura(c[k])}")
+    for k in CONTINUIDAD_LISTAS:
+        if isinstance(c.get(k), list) and c[k]:
+            out.append(f"  {_CONTINUIDAD_ETIQUETA[k].lower()}: {_corta(c[k])}")
+    return out
 
 
 def public_text(value, limit=240):
@@ -1793,7 +1897,7 @@ def _selected_parse(text):
         if not raw.strip():
             continue
         if raw.startswith('  - '):
-            if current not in LISTAS:
+            if current not in _LISTAS_FM:
                 return None
             value = raw[4:].strip()
             try:
@@ -1810,8 +1914,8 @@ def _selected_parse(text):
             return None
         key, value = match.groups()
         seen.add(key)
-        current = key if key in LISTAS and value == '' else None
-        if key in LISTAS:
+        current = key if key in _LISTAS_FM and value == '' else None
+        if key in _LISTAS_FM:
             if value not in ('', '[]'):
                 return None
         elif key == 'turnos':
@@ -1853,6 +1957,17 @@ def _public_entry(entry, name):
         values = entry.get(key, [])
         out[key] = [public_text(value, 120) for value in values[:3]]
         truncated |= len(values) > 3 or any(_linea_segura(redactar(v)) != s for v, s in zip(values[:3], out[key]))
+    continuidad = {}
+    for key in CONTINUIDAD_ESCALARES:
+        if isinstance(entry.get(key), str):
+            continuidad[key] = public_text(entry[key], 240)
+            truncated |= _linea_segura(redactar(entry[key])) != continuidad[key]
+    for key in CONTINUIDAD_LISTAS:
+        if isinstance(entry.get(key), list):
+            values = entry[key]
+            continuidad[key] = [public_text(value, 120) for value in values[:3]]
+            truncated |= len(values) > 3 or any(_linea_segura(redactar(v)) != s for v, s in zip(values[:3], continuidad[key]))
+    out['continuidad'] = continuidad
     out['output_truncated'] = bool(truncated)
     out['identity_resolvable'] = (name == out['entry'] and
                                   all(str(entry.get(k, '')) == out[k]
@@ -1920,7 +2035,7 @@ def select_entries(root, *, initiative=None, session_id=None, runtime=None, entr
             continue
         # A generated placeholder is still available through explicit identity.
         placeholder = (parsed.get('resumen', '').strip() in ('', 'Sesión sobre ' + str(parsed.get('iniciativa', '')), 'Sesión de trabajo')
-                       and not any(parsed.get(key) for key in LISTAS))
+                       and not any(parsed.get(key) for key in LISTAS + CONTINUIDAD))
         if placeholder and entry is None and session_id is None:
             result['issues'].append({'entry': public_text(name, 180), 'status': 'placeholder'})
             continue
@@ -1952,6 +2067,7 @@ def selected_text(result, n=2, max_lines=25):
         for key in ('decisiones', 'pendientes', 'tareas_cambiadas', 'ficheros_tocados'):
             if e[key]:
                 out.append(f'  {key} (citas): ' + _corta(e[key], 3))
+        out.extend(_lineas_continuidad(e.get('continuidad') or {}))
     return '\n'.join(out[:max(1, min(max_lines, 25))])[:6000]
 
 
@@ -1979,6 +2095,7 @@ def latest(root, n=2, max_lines=25, *, initiative=None, session_id=None, runtime
             out.append(f"  tareas: {_corta(e['tareas_cambiadas'], 4)}")
         if e.get("ficheros_tocados"):
             out.append(f"  tocados: {_corta([f.split(' (')[0] for f in e['ficheros_tocados']], 5)}")
+        out.extend(_lineas_continuidad(e))
     if len(out) > max_lines:
         out = out[:max_lines - 1] + ["  …"]
     return "\n".join(out)
@@ -2139,14 +2256,33 @@ def _jaccard(a, b):
     return len(a & b) / len(a | b) if (a or b) else 0.0
 
 
+def categoria_de(texto):
+    """Categoría (CATEGORIAS) de una formulación por marcadores léxicos, sin modelo: corrección del usuario >
+    resolución de error (marcador de error Y de arreglo) > workaround > técnica de depuración > convención > otra."""
+    texto = str(texto)
+    if _CORRECCION_RE.search(texto):
+        return "correccion_usuario"
+    if _ERROR_RE.search(texto) and _ARREGLO_RE.search(texto):
+        return "resolucion_error"
+    for categoria, patron in (("workaround", _WORKAROUND_RE), ("tecnica_depuracion", _DEPURACION_RE),
+                              ("convencion", _CONVENCION_RE)):
+        if patron.search(texto):
+            return categoria
+    return "otra"
+
+
 def candidatas(root, minimo=CANDIDATA_MIN, iniciativa=None):
     """Patrones de `decisiones`/`pendientes` repetidos en ≥ `minimo` entradas de sesiones distintas →
-    [{"estado": "propuesta", "tipo": "lección", "campo", "texto", "clave", "entradas": n, "evidencia": [...]}],
-    ordenados por nº de entradas desc. `texto` es la primera formulación vista (la más antigua)."""
+    [{"id", "estado": "propuesta", "tipo": "lección", "categoria", "campo", "texto", "clave", "entradas": n,
+    "evidencia": [...]}], ordenados por nº de entradas desc. `texto` es la primera formulación vista (la más
+    antigua); `id` = hash de campo + clave (estable mientras la primera formulación sea la misma)."""
+    return _agrupar_candidatas([e for e in entradas(root)       # orden cronológico (fecha, mtime): determinista
+                                if not iniciativa or str(e.get("iniciativa")) == iniciativa], minimo)
+
+
+def _agrupar_candidatas(es, minimo):
     grupos = {"decisiones": [], "pendientes": []}     # agrupación voraz: el primer grupo que solape ≥ CANDIDATA_JACCARD
-    for e in entradas(root):                             # orden cronológico (fecha, mtime): determinista
-        if iniciativa and str(e.get("iniciativa")) != iniciativa:
-            continue
+    for e in es:
         sid = str(e.get("session_id"))
         for campo in ("decisiones", "pendientes"):
             items = e.get(campo)
@@ -2158,8 +2294,11 @@ def candidatas(root, minimo=CANDIDATA_MIN, iniciativa=None):
                     continue
                 g = next((g for g in grupos[campo] if _jaccard(g["_raices"], r) >= CANDIDATA_JACCARD), None)
                 if g is None:
-                    g = {"estado": "propuesta", "tipo": "lección", "campo": campo, "texto": " ".join(str(item).split()),
-                         "clave": " ".join(sorted(r)), "_raices": r, "evidencia": []}
+                    clave = " ".join(sorted(r))
+                    g = {"id": "cand-" + hashlib.sha256(f"{campo}\0{clave}".encode("utf-8")).hexdigest()[:12],
+                         "estado": "propuesta", "tipo": "lección", "categoria": categoria_de(item),
+                         "campo": campo, "texto": " ".join(str(item).split()),
+                         "clave": clave, "_raices": r, "evidencia": []}
                     grupos[campo].append(g)
                 if any(ev["session_id"] == sid for ev in g["evidencia"]):
                     continue                                   # una entrada cuenta UNA vez
@@ -2174,6 +2313,39 @@ def candidatas(root, minimo=CANDIDATA_MIN, iniciativa=None):
     return out
 
 
+def _clave_cursor(e):
+    return str(e.get("fecha")), os.path.basename(e["_path"])
+
+
+def _lista_str(v):
+    return [str(x) for x in v] if isinstance(v, list) else []
+
+
+def lote_candidatas(root, minimo=CANDIDATA_MIN, iniciativa=None, hasta=None):
+    """Lote ESTABLE de candidatas (D-084): entradas en orden (fecha, fichero) —sin mtime—, cortadas en el cursor
+    `hasta` (`AAAA-MM-DD/<fichero>.md`, inclusive) si se da. Devuelve {"lote": {id, cursor, entradas_leidas,
+    posteriores_al_cursor, ilegibles}, "candidatas": [...]}. `id` es un hash del contenido leído (fichero,
+    sesión, decisiones y pendientes de cada entrada + umbral + filtro): mismo lote → mismo id aunque lleguen
+    entradas nuevas tras el cursor, que se CUENTAN como posteriores y no se dan por leídas. Sólo lee."""
+    validas = entradas(root)
+    todas = sorted((e for e in validas if not iniciativa or str(e.get("iniciativa")) == iniciativa),
+                   key=_clave_cursor)
+    tope = tuple(hasta.split("/", 1)) if hasta else None
+    leidas = [e for e in todas if tope is None or _clave_cursor(e) <= tope]
+    try:
+        md = [f for f in os.listdir(journal_dir(root)) if f.endswith(".md") and f != "README.md"]
+    except OSError:
+        md = []
+    huella = json.dumps([[os.path.basename(e["_path"]), str(e.get("session_id")),
+                          _lista_str(e.get("decisiones")), _lista_str(e.get("pendientes"))] for e in leidas]
+                        + [max(1, int(minimo)), iniciativa or ""], ensure_ascii=False)
+    return {"lote": {"id": "lote-" + hashlib.sha256(huella.encode("utf-8")).hexdigest()[:16],
+                     "cursor": "/".join(_clave_cursor(leidas[-1])) if leidas else None,
+                     "entradas_leidas": len(leidas), "posteriores_al_cursor": len(todas) - len(leidas),
+                     "ilegibles": max(0, len(md) - len(validas))},
+            "candidatas": _agrupar_candidatas(leidas, minimo)}
+
+
 def render_candidatas(lista, minimo=CANDIDATA_MIN):
     if not lista:
         return ""
@@ -2182,7 +2354,8 @@ def render_candidatas(lista, minimo=CANDIDATA_MIN):
            "y `knowledge-curator` decide la curación; este listado no aprueba ni persiste candidatos):"]
     for g in lista:
         ev = " · ".join(f"{x['fecha']} {x['fichero']}" for x in g["evidencia"])
-        out.append(f"- [{g['estado']}] «{g['texto']}» · {g['campo']} · {g['entradas']} entradas: {ev}")
+        out.append(f"- [{g['estado']}] «{g['texto']}» · {g['campo']} · {g['entradas']} entradas: {ev}"
+                   f" · categoría: {g.get('categoria', 'otra')} · {g.get('id', '')}")
     return "\n".join(out)
 
 
@@ -2263,7 +2436,26 @@ def cmd_status(a):
 
 def cmd_candidatas(a):
     minimo = max(1, int(a.min))                      # el umbral anunciado en la cabecera es el aplicado (Lente B gap 6)
-    lista = candidatas(a.root, minimo, a.iniciativa)
+    if a.hasta is not None and not CURSOR_RE.fullmatch(a.hasta):
+        print(f"journal: --hasta espera AAAA-MM-DD/<fichero>.md (el `cursor` de --lote); recibido {a.hasta!r}",
+              file=sys.stderr)
+        return 2
+    if a.lote or a.hasta or a.confirmar:
+        r = lote_candidatas(a.root, minimo, a.iniciativa, a.hasta)
+        if a.confirmar:
+            ok = r["lote"]["id"] == a.confirmar
+            salida = {"confirmado": ok, "lote": r["lote"], "candidatas": r["candidatas"] if ok else []}
+            if not ok:
+                salida["motivo"] = (f"el lote leído ahora ({r['lote']['id']}) no es {a.confirmar}: hay entradas "
+                                    "nuevas o reescritas hasta el cursor; vuelve a listar con --lote --hasta <cursor>")
+            print(json.dumps(salida, ensure_ascii=False, indent=2))
+            return 0
+        if a.lote:
+            print(json.dumps(r, ensure_ascii=False, indent=2))
+            return 0
+        lista = r["candidatas"]
+    else:
+        lista = candidatas(a.root, minimo, a.iniciativa)
     if not lista:
         return 0
     if a.json:
@@ -2430,6 +2622,9 @@ def main(argv=None):
     sp.add_argument("--min", type=int, default=CANDIDATA_MIN, help=f"entradas mínimas (sesiones distintas); default {CANDIDATA_MIN}")
     sp.add_argument("--iniciativa", help="solo entradas de esta iniciativa (slug)")
     sp.add_argument("--json", action="store_true")
+    sp.add_argument("--lote", action="store_true", help="JSON del lote estable: {lote: {id, cursor, …}, candidatas}")
+    sp.add_argument("--hasta", help="cursor AAAA-MM-DD/<fichero>.md: solo entradas hasta él (reproduce un lote)")
+    sp.add_argument("--confirmar", metavar="LOTE_ID", help="comprueba que el lote leído es ese id (sólo lee, exit 0)")
     sp.set_defaults(fn=cmd_candidatas)
 
     a = p.parse_args(argv)

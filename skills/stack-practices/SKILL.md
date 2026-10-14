@@ -19,10 +19,11 @@ sin detección se registran como declarados, no como dependencias comprobadas.
 | [PHP y CodeIgniter](references/php-codeigniter.md) | Rutas, validación, servicios, persistencia o tests PHP |
 | [Python](references/python.md) | Tipos, E/S, concurrencia, empaquetado o fixtures Python |
 | [React](references/react.md) | Estado, efectos, componentes, datos, SSR, build Vite o tests React |
+| [Mínimo común y TypeScript](references/coding-baseline.md) | Al revisar nombres, cohesión, comentarios o tipos TypeScript sin guía propia del proyecto |
 
 Architect decide fronteras; planner convierte riesgos en casos; implementer
 aplica el criterio; reviewer comprueba el mismo contrato; qa ejecuta escenarios.
 Las guías no eligen librerías ni fuerzan migraciones por sí mismas. TDD,
 api-contract, adversarial-review y unit-tests mantienen sus métodos y puertas.
-No precargues las tres referencias ni cambies versiones/configuración externa
+No precargues las referencias ni cambies versiones/configuración externa
 por invocar esta skill. Una guía presente no acredita haberla aplicado.

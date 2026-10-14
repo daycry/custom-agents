@@ -120,6 +120,7 @@ reales:
 - Estructura de carpetas, módulos/paquetes/componentes, puntos de entrada, rutas/endpoints.
 - Configuración, variables de entorno (`.env.example`), scripts (build/test/lint), CI.
 - README existente, comentarios relevantes. Si existe `docs/knowledge/`, **indexa** approved y el legado pertinente en la documentación de producto (categoría "arquitectura y decisiones"); conserva sus estados, no los reescribas ni derives otra vez del código. Candidatos pendientes no son doctrina.
+- **Inventario de la documentación existente, antes de proponer nada nuevo.** Lista lo que ya hay en `docs/` (y el README raíz) y qué papel cumple cada documento: mapa (índice), estado (cómo es hoy cada unidad) o historia (decisiones, CHANGELOG). Cada hecho tiene **un único documento dueño**; si ya está en otro, enlázalo en vez de repetirlo. Lee también la sección «Retirados» del índice (§3).
 
 **P3. Proponer estructura y confirmar.** A partir del recon (P2), **propón** la estructura de
 `docs/` derivada del proyecto: las carpetas/ficheros con los **nombres propios del proyecto** y
@@ -134,6 +135,8 @@ cat "$DOCKIT/redaction-guide.md"   # $DOCKIT resuelto en §0
 ```
 
 Regla que aplicas siempre: contenido real con evidencia (fragmentos + ruta), tablas y diagramas ASCII cuando ayuden; marca lo incierto con `⚠️ verificar`; no fuerces categorías que no apliquen (decláralas omitidas en el índice).
+
+**Guía de incorporación (si se pide o el proyecto no tiene una):** usa `"$DOCKIT/templates/onboarding.template.md"` — entradas, estructura, recorrido de una ejecución, comandos y versiones con su fuente (declaración, lockfile u observación) y convenciones con evidencia. Los comandos se copian de su fuente; **no los ejecutas** para escribir la guía, y de las variables de entorno documentas el nombre, nunca el valor.
 
 **P5. Índices.** Rellena el **índice/punto de entrada** (`docs/README.md`) y el **índice para IA/RAG** (`docs/RAG-INDEX.md`) — su composición está en `redaction-guide.md`. Añade **"Última actualización: <fecha>"** (usa `date +%F`). Si existe `docs/roadmap/`, enlázalo desde el índice.
 
@@ -161,6 +164,8 @@ Si `docs/` ya tiene documentación:
   dependencias, endpoints) y **actualiza** las páginas afectadas; crea solo lo que falte.
 - Mantén el índice y el `RAG-INDEX.md` coherentes y actualiza la fecha.
 - Respeta el contenido escrito a mano; añade/corrige, no aplastes.
+- Actualiza solo el documento dueño del hecho que cambió (P2); los demás lo enlazan.
+- **Retirados.** Cuando un documento deja de tener sentido (el usuario lo pide o su unidad desaparece del código), no lo borres en silencio: añade una fila a la sección «Retirados» del índice (`ruta · motivo · sustituto · fecha`). **No recrees** un documento listado ahí aunque el recon parezca pedirlo: dilo en el resumen y recréalo solo si el usuario lo decide (entonces quita su fila).
 
 ---
 

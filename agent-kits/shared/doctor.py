@@ -72,6 +72,14 @@ línea ⚠️/❌, el **arreglo sugerido** en llano:
                    para descartar pérdida (ℹ️), huérfana confirmada → PÉRDIDA POSIBLE (⚠️). Sin
                    `.claude/journal/` → informativo (normal en un proyecto recién instalado).
 
+  i) automatizaciones  (D-087) clave aparte `automatizaciones` del `--json` y sección propia del MD, FUERA de
+                   los ocho bloques (no suma ✅/⚠️/❌ ni cambia el exit): una fila por hook de `hooks/hooks.json`,
+                   por `statusLine` (ajustes de proyecto, locales y de usuario) y por workflow de
+                   `.github/workflows/`, con `fuente`, `alcance`, `fecha_fuente` (mtime de la config, NO de una
+                   ejecución), `estado` (`configurado` · `no_configurado` · `no_cargado` · `roto`) y `firma_fallo`.
+                   `ejecucion` es siempre `no_verificada`: doctor no observa despachos ni consulta CI remoto, así
+                   que nunca afirma que algo esté «vivo» por estar configurado.
+
 **No escribe nada en el proyecto** (ni configs, ni estado, ni caché): es un diagnóstico de solo
 lectura, así que se puede lanzar sin miedo tantas veces como haga falta.
 
@@ -2567,6 +2575,104 @@ def bloque_journal(plugin_root, project):
 
 # ------------------------------------------------------------------ informe
 
+# ------------------------------------------------------------------ i) inventario de automatizaciones (D-087)
+
+AUTOMATIZACION_ESTADOS = ("configurado", "no_configurado", "no_cargado", "roto")
+AUTOMATIZACION_MAX_JOBS = 20
+AUTOMATIZACION_NOTA = ("Inventario de la configuración leída en disco, no de la ejecución: doctor no observa "
+                       "despachos de hooks ni consulta CI remoto, así que `ejecucion` es siempre `no_verificada` "
+                       "y ninguna fila afirma que la automatización esté viva.")
+
+
+def _fecha_fuente(path):
+    """mtime UTC del fichero de configuración (cuándo cambió la config, NO cuándo se ejecutó); None si no se lee."""
+    try:
+        return datetime.datetime.fromtimestamp(os.path.getmtime(path), datetime.timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ")
+    except (OSError, ValueError, OverflowError):
+        return None
+
+
+def _automatizacion(tipo, ident, fuente, alcance, fecha, estado, firma=None):
+    return {"tipo": tipo, "id": ident, "fuente": fuente, "alcance": alcance, "fecha_fuente": fecha,
+            "estado": estado, "ejecucion": "no_verificada", "firma_fallo": firma}
+
+
+def _automatizaciones_hooks(plugin_root, modo):
+    """Una fila por command de `hooks/hooks.json`: roto (script ausente) > no_cargado (copia/inactivo) > configurado."""
+    if not plugin_root:
+        return []
+    hpath = os.path.join(plugin_root, "hooks", "hooks.json")
+    datos, err = _leer_json(hpath)
+    if datos is None and not err:
+        return []
+    fecha, alcance = _fecha_fuente(hpath), f"plugin ({modo})"
+    if err or not isinstance(datos.get("hooks"), dict):
+        return [_automatizacion("hook", "hooks/hooks.json", "hooks/hooks.json", alcance, fecha, "roto",
+                                "hooks/hooks.json: " + (err or "falta la raíz `hooks`"))]
+    out = []
+    for evento, grupos in datos["hooks"].items():
+        for g in grupos if isinstance(grupos, list) else []:
+            for h in (g.get("hooks", []) if isinstance(g, dict) else []):
+                if not (isinstance(h, dict) and h.get("type") == "command"):
+                    continue
+                args = h.get("args") if isinstance(h.get("args"), list) else []
+                cmd = " ".join([str(h.get("command", ""))] + [str(a) for a in args])
+                rels = HOOK_PATH_RE.findall(cmd)
+                ausentes = [r for r in rels if not os.path.isfile(os.path.join(plugin_root, r))]
+                if ausentes:
+                    estado, firma = "roto", "script ausente: " + ", ".join(ausentes)
+                elif modo in ("copia", "inactivo"):
+                    estado, firma = "no_cargado", f"instalación {modo}: Claude Code no carga `hooks/hooks.json`"
+                else:
+                    estado, firma = "configurado", None
+                out.append(_automatizacion("hook", f"{evento}:{rels[0] if rels else 'command'}", "hooks/hooks.json",
+                                           alcance, fecha, estado, firma))
+    return out
+
+
+def _automatizaciones_statusline(project):
+    """`statusLine` en los ajustes del proyecto, locales y de usuario; sin ninguna → una fila `no_configurado`."""
+    out = []
+    for fuente, alcance, path in ((".claude/settings.json", "proyecto", os.path.join(project, ".claude", "settings.json")),
+                                  (".claude/settings.local.json", "local",
+                                   os.path.join(project, ".claude", "settings.local.json")),
+                                  ("<CLAUDE_CONFIG_DIR>/settings.json", "usuario",
+                                   os.path.join(claude_config_dir(), "settings.json"))):
+        datos, err = _leer_json(path)
+        if err:
+            out.append(_automatizacion("statusline", "statusLine", fuente, alcance, _fecha_fuente(path), "roto",
+                                       f"{fuente}: {err}"))
+            continue
+        sl = datos.get("statusLine") if isinstance(datos, dict) else None
+        cmd = sl.get("command", "") if isinstance(sl, dict) else ""
+        if not cmd:
+            continue
+        roto = "roadmap-statusline.sh" in cmd and not os.path.isfile(cmd.strip('"\' '))
+        out.append(_automatizacion("statusline", "statusLine", fuente, alcance, _fecha_fuente(path),
+                                   "roto" if roto else "configurado",
+                                   "el script de la statusline no existe en la ruta configurada" if roto else None))
+    return out or [_automatizacion("statusline", "statusLine", None, None, None, "no_configurado")]
+
+
+def _automatizaciones_jobs(project):
+    """Workflows de GitHub Actions del proyecto (configurados; su ejecución vive en el CI remoto, que no se consulta)."""
+    d = os.path.join(project, ".github", "workflows")
+    try:
+        nombres = sorted(n for n in os.listdir(d) if n.endswith((".yml", ".yaml")))
+    except OSError:
+        return [], False
+    return ([_automatizacion("job", n, f".github/workflows/{n}", "repositorio (CI remoto)",
+                             _fecha_fuente(os.path.join(d, n)), "configurado")
+             for n in nombres[:AUTOMATIZACION_MAX_JOBS]], len(nombres) > AUTOMATIZACION_MAX_JOBS)
+
+
+def inventario_automatizaciones(plugin_root, project, modo):
+    jobs, truncado = _automatizaciones_jobs(project)
+    return {"nota": AUTOMATIZACION_NOTA, "truncado": truncado,
+            "elementos": _automatizaciones_hooks(plugin_root, modo) + _automatizaciones_statusline(project) + jobs}
+
+
 def _acciones_prioritarias(bloques):
     """Recomienda hasta tres arreglos existentes: errores antes de avisos, orden estable."""
     acciones = []
@@ -2600,6 +2706,7 @@ def diagnostico(project, plugin_root_explicito=None, hoy=None, verbose=False):
             "bloques": bloques,
             "resumen": resumen,
             "acciones_prioritarias": _acciones_prioritarias(bloques),
+            "automatizaciones": inventario_automatizaciones(plugin_root, project, bloques[1].get("modo", "desconocido")),
             "exit": 1 if resumen[ERROR] else 0}
 
 
@@ -2627,6 +2734,17 @@ def render_md(inf):
         for l in b["lineas"]:
             out.append(f"| {ICONO[l['estado']]} | {_celda(l['que'])} | {_celda(l['detalle'])} "
                        f"| {_celda(l['arreglo'])} |")
+        out.append("")
+    autos = inf.get("automatizaciones")
+    if autos:
+        out += ["## Automatizaciones (configuración leída, no ejecución)", "", autos["nota"], "",
+                "| Tipo | Automatización | Estado | Fuente · alcance · fecha | Firma de fallo |", "|---|---|---|---|---|"]
+        for a in autos["elementos"]:
+            origen = " · ".join(x for x in (a["fuente"], a["alcance"], a["fecha_fuente"]) if x) or "—"
+            out.append(f"| {a['tipo']} | {_celda(a['id'])} | {a['estado']} | {_celda(origen)} "
+                       f"| {_celda(a['firma_fallo'])} |")
+        if autos.get("truncado"):
+            out.append(f"\nSolo se listan los primeros {AUTOMATIZACION_MAX_JOBS} workflows.")
         out.append("")
     r = inf["resumen"]
     out += ["## Resumen", "",

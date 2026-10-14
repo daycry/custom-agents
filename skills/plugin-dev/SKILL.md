@@ -116,6 +116,14 @@ Reglas de cuerpo (las que más se incumplen):
    `lint_plugin.py` y las prueba `tests/test_console_encoding.py`. En un `.sh`, el `python3 -c` en
    línea que lea `stdin` o imprima símbolos lleva delante `PYTHONIOENCODING=utf-8:replace`.
 
+Referencias bajo demanda (lee cada una **solo** al llegar a su caso):
+
+| Referencia | Cuándo leerla |
+|---|---|
+| [Contratos de herramientas](references/tool-observation-contracts.md) | Al diseñar o cambiar lo que un agente invoca y lee: flags, salida, exit codes, errores, salida de un hook o tool MCP propia |
+| [Diagnóstico de arquitectura](references/architecture-diagnostics.md) | Cuando un agente, hook o memoria del plugin falla y la causa puede estar en su contexto, memoria o tools, no en el modelo |
+| [Flujos persistentes](references/persistent-workflows.md) | Al crear o cambiar estado que sobrevive a la sesión (cola, marcador, contador, tarea programada) o un bucle con reintentos |
+
 ## Paso 3 — Validación (TDD-ish: la puerta se escribe ANTES de dar por hecha la pieza)
 
 Orden estricto; no se avanza con un paso en rojo:

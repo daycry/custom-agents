@@ -232,6 +232,10 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ## Changelog del plan
 
+<!-- Replanificación: una fila por cambio (insertar, dividir, reordenar, omitir, cancelar o
+re-estimar) con el motivo y su efecto en dependencias: «Cancela T-04 (decisión del usuario,
+<fecha>); T-06 deja de depender de T-04». -->
+
 | Fecha | Cambio | Autor |
 |-------|--------|-------|
 | {{YYYY-MM-DD}} | Creación del plan | {{planner}} |

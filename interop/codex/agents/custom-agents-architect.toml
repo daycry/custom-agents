@@ -82,7 +82,10 @@ Sin rutas reales no hay diseño: «la capa de servicios» no es una ruta.
 
 **P3. Opciones y RECOMENDACIÓN (dos modos — la validación por trozos la hace quien tiene al usuario delante).**
 Redacta 2-3 opciones con la MISMA estructura (descripción + tabla complejidad · riesgo · coste relativo
-S/M/L · reversibilidad) y elige una **recomendada** con sus razones. Cómo sigue depende de quién te invoca:
+S/M/L · reversibilidad) y elige una **recomendada** con sus razones. Referencias del kit, solo al llegar aquí y si aplican:
+`"$ARCHKIT/references/hexagonal-migration.md"` cuando una opción sea aislar el dominio (puertos y adaptadores) o migrar
+un módulo por rebanadas; `"$ARCHKIT/references/decision-deliberation.md"` cuando la recomendación sea ambigua y cara de
+deshacer, o el usuario pida las objeciones más fuertes a una opción. Cómo sigue depende de quién te invoca:
 - **Orquestado (`/pm-cycle` 2-bis, `/dev-cycle` 2-a — un subagente devuelve UN mensaje, no dialoga).**
   Dos pasadas, mismo patrón que la puerta go/no-go:
   1. *Pasada 1 (sin `elegida:` en el prompt):* escribe `design.md` en `borrador` con las opciones, la

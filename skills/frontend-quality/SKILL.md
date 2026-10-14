@@ -21,3 +21,7 @@ En React, combina con stack-practices para estado/efectos, sin repetir ese méto
 | Referencia | Cuándo leerla |
 |---|---|
 | [Interacción y rendimiento](references/interaction-performance.md) | Diseño, implementación o QA de interfaces |
+| [Criterios de accesibilidad](references/accessibility-criteria.md) | Al citar un criterio WCAG concreto: contraste, color, nombres, arrastre, errores o anuncios |
+| [Sistema visual](references/visual-system.md) | Al extraer, normalizar o revisar tokens, estilos o acabado visual |
+| [Transiciones de estado](references/state-transition-audit.md) | Cuando una interacción acaba en un estado incorrecto (éxito sin guardar, respuestas que se pisan) |
+| [Traducciones](references/translations.md) | Solo si la tarea añade, sincroniza o revisa textos traducidos |

@@ -3166,3 +3166,62 @@ def test_ca16_el_margen_esta_documentado_en_contracts_e17():
                                  "CONTRACTS.md"), encoding="utf-8").read()
     fila = next(l for l in contrato.splitlines() if l.startswith("| E17"))
     assert "CAPACIDAD_MARGEN_MS" in fila and "daemon" in fila
+
+
+# ------------------------------------------------------------------ inventario de automatizaciones (D-087)
+
+def _autos(inf, tipo=None):
+    return [a for a in inf["automatizaciones"]["elementos"] if tipo is None or a["tipo"] == tipo]
+
+
+def test_automatizaciones_hooks_con_fuente_fecha_alcance_y_sin_afirmar_ejecucion(tmp_path):
+    proj = proyecto(tmp_path)
+    inf = diag(proj, plugin(tmp_path))
+    (hook,) = _autos(inf, "hook")
+    assert hook["id"] == "PostToolUse:hooks/demo.sh" and hook["fuente"] == "hooks/hooks.json"
+    assert hook["alcance"].startswith("plugin") and re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", hook["fecha_fuente"])
+    assert hook["estado"] == "configurado" and hook["ejecucion"] == "no_verificada" and hook["firma_fallo"] is None
+    assert set(hook) == {"tipo", "id", "fuente", "alcance", "fecha_fuente", "estado", "ejecucion", "firma_fallo"}
+    estados = {a["estado"] for a in _autos(inf)}
+    assert estados <= set(doctor.AUTOMATIZACION_ESTADOS) and not estados & {"vivo", "activo", "live"}
+    assert "configuración" in inf["automatizaciones"]["nota"]
+
+
+def test_automatizaciones_hook_sin_script_es_roto_con_firma_y_copia_no_cargado(tmp_path, monkeypatch):
+    inf = diag(proyecto(tmp_path), plugin(tmp_path, script_existe=False))
+    (hook,) = _autos(inf, "hook")
+    assert hook["estado"] == "roto" and hook["firma_fallo"] == "script ausente: hooks/demo.sh"
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = tmp_path / "otro"
+    proj.mkdir()
+    inf = diag(proj, plugin(tmp_path, dest=proj / ".claude"))
+    (hook,) = _autos(inf, "hook")
+    assert hook["estado"] == "no_cargado" and "copia" in hook["firma_fallo"]
+
+
+def test_automatizaciones_statusline_y_jobs_del_proyecto(tmp_path):
+    proj = proyecto(tmp_path, settings__json={"statusLine": {"type": "command",
+                                                            "command": str(tmp_path / "x" / "roadmap-statusline.sh")}})
+    wf = proj / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "ci.yml").write_text("on: push\n", encoding="utf-8")
+    inf = diag(proj)
+    (sl,) = _autos(inf, "statusline")
+    assert sl["fuente"] == ".claude/settings.json" and sl["alcance"] == "proyecto"
+    assert sl["estado"] == "roto" and "no existe" in sl["firma_fallo"]
+    (job,) = _autos(inf, "job")
+    assert job["id"] == "ci.yml" and job["fuente"] == ".github/workflows/ci.yml"
+    assert job["estado"] == "configurado" and job["ejecucion"] == "no_verificada"
+    sin = diag(proyecto(tmp_path / "b"))
+    (sl,) = _autos(sin, "statusline")
+    assert sl["estado"] == "no_configurado" and sl["fuente"] is None
+
+
+def test_automatizaciones_en_md_sin_cambiar_veredictos_ni_bloques(tmp_path):
+    proj = proyecto(tmp_path)
+    inf = diag(proj, plugin(tmp_path))
+    md = doctor.render_md(inf)
+    assert "## Automatizaciones" in md and "PostToolUse:hooks/demo.sh" in md
+    assert md.index("## Automatizaciones") < md.index("## Resumen")
+    assert veredictos_md(md) == [l["estado"] for l in lineas(inf)]
+    assert len(inf["bloques"]) == 8
