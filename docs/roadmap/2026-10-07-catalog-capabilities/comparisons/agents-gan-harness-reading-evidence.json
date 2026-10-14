@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_agent_ids": [
+    "A025",
+    "A026",
+    "A027",
+    "A031"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "A025",
+      "sha256": "e5c8e6ab245ce97502472ae5223e529cc3d1c4c84527f4c19bcca3d362513322",
+      "bytes": 8822,
+      "lines": 232,
+      "read_ranges": [
+        [
+          1,
+          232
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A026",
+      "sha256": "52411e8bb705284ef0be36a86b9df69d7365cda84a2780d5e3c2d64e6019a352",
+      "bytes": 5891,
+      "lines": 140,
+      "read_ranges": [
+        [
+          1,
+          140
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A027",
+      "sha256": "852f8ac7cc1761186ec6f48e1b1be65cc32307a182062e0cebb84aae2d3ca901",
+      "bytes": 4502,
+      "lines": 108,
+      "read_ranges": [
+        [
+          1,
+          108
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A031",
+      "sha256": "16b5cd0cd03ba4de2a9cc6b737c8cc0d4e52d3fdc423a1c2bcdd6496d65d4cfd",
+      "bytes": 4923,
+      "lines": 55,
+      "read_ranges": [
+        [
+          1,
+          55
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/analyst.md",
+      "sha256": "6a5fb1f6f20249183a93fea3210bf5886901e35c90d99022089539c01f9dda62"
+    },
+    {
+      "path": "agents/evaluator.md",
+      "sha256": "8f82a80c8d9e9803152e8ef3c3d42ad3168dbb537ddb10aacc8070fb7c557cf2"
+    },
+    {
+      "path": "agents/implementer.md",
+      "sha256": "c8df51df5d618690e8f2bcae747999448eb95ae3904ac1bcbbc7f470fbb53a19"
+    },
+    {
+      "path": "agents/qa.md",
+      "sha256": "4e2a545764ce588c28165247f1ce124f7d0153467d0616f859f9168327b9ac56"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "12ccff0790433a793b8229aa20eafb36c871a9c96798bafcbb186dcaabe1c1d6"
+    },
+    {
+      "path": "skills/outcome-evals/references/agent-comparisons.md",
+      "sha256": "631a15cf2e046dc6a4efc3be4e53691446b68f23ffc35cca05065c21ab39e934"
+    },
+    {
+      "path": "skills/outcome-evals/references/protocol.md",
+      "sha256": "ecc0dc9db4fd22fd1165324629cef7f1fe094c9de5dc2b58d8b3287a86253e31"
+    },
+    {
+      "path": "skills/plugin-dev/SKILL.md",
+      "sha256": "e1b28d5ebdafb3c485176f3f9821a508c05d894ce6e242c95ab7d5208288a10e"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-fsharp-gan-gateguard.md",
+      "sha256": "d2467c808d3a9a9a8ce101858ac28d31b525f1cc73b3d5a1715d847f5d7e517d"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

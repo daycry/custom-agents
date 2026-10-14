@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_agent_ids": [
+    "A002",
+    "A005",
+    "A009",
+    "A010",
+    "A011"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "A002",
+      "sha256": "7ef0739152e7bbc837e9bab4fbae7164f29719a4d1dbdaa1e3b62b4f34358e3c",
+      "bytes": 9117,
+      "lines": 215,
+      "read_ranges": [
+        [
+          1,
+          215
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A005",
+      "sha256": "d3dca9a474011410256dfcd0cc553f926bd30b4efdaaf6ec41b4f6ec86e88e6f",
+      "bytes": 6600,
+      "lines": 160,
+      "read_ranges": [
+        [
+          1,
+          160
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A009",
+      "sha256": "4020b1466f4a635ed33b87a3d734bda45363514defc7d1613b81d5c59e426c6b",
+      "bytes": 2265,
+      "lines": 56,
+      "read_ranges": [
+        [
+          1,
+          56
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A010",
+      "sha256": "ce7fdf759885ba9ef5ee1bdc9da4ce88d78ba65501facf53e581082fcf402b07",
+      "bytes": 2034,
+      "lines": 54,
+      "read_ranges": [
+        [
+          1,
+          54
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A011",
+      "sha256": "f86fcf4317a41158dc55641f606c97a8d4d3ccacf7157ff70e0811ca7b42ba75",
+      "bytes": 2435,
+      "lines": 61,
+      "read_ranges": [
+        [
+          1,
+          61
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/outcome-evals/SKILL.md",
+      "sha256": "8b3d65b247db25ee086861227df88ddae92410533f0f9f82b9d8af7e4ce849ff"
+    },
+    {
+      "path": "skills/outcome-evals/references/delivery-quality.md",
+      "sha256": "a18803c63e722af1c43720e16b11316f4a9adb7f26b92de26c26800c434f24ff"
+    },
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "a62f6e912bb8cd095918224661ade80cae70c3e962235eaadcf94f73f04923a5"
+    },
+    {
+      "path": "agents/implementer.md",
+      "sha256": "c8df51df5d618690e8f2bcae747999448eb95ae3904ac1bcbbc7f470fbb53a19"
+    },
+    {
+      "path": "skills/stack-practices/references/coding-baseline.md",
+      "sha256": "2c483f7338e5292a1bd066878dc42f2aa1b20025dac6e3231c3860ff80ff77d6"
+    },
+    {
+      "path": "skills/code-health/SKILL.md",
+      "sha256": "e951e137191f4ebf1d631317fa8ee829e2f6ce87873540c72bd387d8a29cedbe"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "7964b0873f3c285c1178fb2ebc5dcd7c79bb812dbfd57a798cc2f90d10e012e1"
+    },
+    {
+      "path": "agent-kits/shared/journal.py",
+      "sha256": "0930c34ae38c5bae7f297d423eac3f381b28cc1cbe0db93bbf4e9dd101c1a002"
+    },
+    {
+      "path": "hooks/hooks.json",
+      "sha256": "ffe4001ade3342f82a379a57ce926815053971959bda4d385da1bae43a31a675"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "1e4dd91857210df7679632f6c6f60241424da85cdd095bb9da59f3b83ca626e3"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

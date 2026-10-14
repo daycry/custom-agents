@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_agent_ids": [
+    "A035",
+    "A036",
+    "A037"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "A035",
+      "sha256": "e768811020978d62930e8a1de33d674f07fbd479073de570df57c143b8eb33b6",
+      "bytes": 13333,
+      "lines": 190,
+      "read_ranges": [
+        [
+          1,
+          190
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A036",
+      "sha256": "db6796bdc2294d795bac286f7c04f4e6048af8acb3faf80edfc110285172e16b",
+      "bytes": 5203,
+      "lines": 127,
+      "read_ranges": [
+        [
+          1,
+          127
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A037",
+      "sha256": "be82de3435c4b7b48e4ff9589e8c211d80fafa5c8c9ac98d6572c88004519858",
+      "bytes": 7679,
+      "lines": 168,
+      "read_ranges": [
+        [
+          1,
+          168
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "a62f6e912bb8cd095918224661ade80cae70c3e962235eaadcf94f73f04923a5"
+    },
+    {
+      "path": "agents/implementer.md",
+      "sha256": "c8df51df5d618690e8f2bcae747999448eb95ae3904ac1bcbbc7f470fbb53a19"
+    },
+    {
+      "path": "skills/stack-practices/SKILL.md",
+      "sha256": "2634a69d18da4d0006de56439783b5337c80cd1405de256be6e8cf89cf655132"
+    },
+    {
+      "path": "skills/stack-practices/references/python.md",
+      "sha256": "1fdef37162afdf214fe78441642d5b90949590d98dac8a60d3bca3f77a3a49b8"
+    },
+    {
+      "path": "skills/adversarial-review/references/lens-prompts.md",
+      "sha256": "53309deeda86aaedb1daf00dbb5f8d9e23aa246da038f1f6a281dc52ab2c278c"
+    },
+    {
+      "path": "skills/cybersecurity/references/language-patterns/java.md",
+      "sha256": "23f3b8c28807b34b6e517e0f6bdc81c71993f82ce4969fbc8590f2e4569fbc00"
+    },
+    {
+      "path": "skills/cybersecurity/references/language-patterns/swift-kotlin.md",
+      "sha256": "02c560291bb7e73d7a798ba2de89d87a813e937ce780d254dce027d6ebf48e9c"
+    },
+    {
+      "path": "skills/debug-root-cause/SKILL.md",
+      "sha256": "6d17fa65be26f7222b679f3c7126e00df0d774f6b5b30ea1dffd5c0628804d7c"
+    },
+    {
+      "path": "skills/backend-practices/references/contracts-data.md",
+      "sha256": "50d0557f9f6123098f9e55192f567fc8356a655beb080f6b1d8b4fc058bffcba"
+    },
+    {
+      "path": "skills/backend-practices/references/cache-jobs.md",
+      "sha256": "5360000739e023579a3936e2dca843a0d26a857b7c074212ecf60ba778be1311"
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "b6e03985d8ed921cf629b53af25f6c671df9792f1512acf4d2db14e1297442b9"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-destinations.md",
+      "sha256": "ef595ccb3b92157ba3df5fe2b0823db6dd2df51a47f803a8d59591b461b02e7e"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-kotlin-family.md",
+      "sha256": "79b3c96eb4d2fbb72be1fca40503ea9b50a3f5c303d2e361fb660dbe7be71c1b"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

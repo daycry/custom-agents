@@ -33,7 +33,7 @@
 #            prompts queda y `journal.py recover` la materializa (mismo test). 2026-10-14, Windows
 #            sin otras suites: arrancar `node` ya cuesta 1-3,3 s (mediana 2,3 s), así que dentro de
 #            1,5 s no cabe nada; la única palanca es elevar el presupuesto. Si el usuario define
-#            CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS, `hooks/hook-budget.mjs` da al hijo ese
+#            CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS, el bloque `child-budget` de `run-hook.mjs` da al hijo ese
 #            presupuesto (tope: el `timeout: 5` declarado) menos 700 ms de margen; `/doctor` lo informa.
 #
 # Prueba manual:

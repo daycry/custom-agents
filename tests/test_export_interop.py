@@ -525,7 +525,11 @@ def test_toml_multi_escapa_cuerpo_con_triple_comilla():
 
 
 def _tests():
-    return [(k, v) for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    """Casos sin parámetros: los que piden fixtures (`tmp_path`, `capsys`, parametrize) solo los
+    corre pytest, que la CI ejecuta en su paso propio; en modo script se cuentan como omitidos."""
+    import inspect
+    return [(k, v) for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)
+            and not inspect.signature(v).parameters]
 
 
 if __name__ == "__main__":

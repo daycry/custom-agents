@@ -51,6 +51,7 @@ proponer una opción o una sintaxis.
 | Mutar o copiar | Estado compartido de UI o de otro dueño se copia; un buffer local propio puede mutarse. Decide por dueño del estado, no por regla general | Un render no ve cambios hechos fuera del flujo de actualización |
 | Re-lanzar un error | `new Error("contexto", { cause: err })` conserva la causa; registra el contexto redactado, sin el objeto completo con credenciales | El registro muestra la causa original y no el token de la URL |
 | Varias promesas | `Promise.all` solo si son independientes y el primer fallo invalida el conjunto (las demás siguen en curso: si hay que pararlas, `AbortController`); `Promise.allSettled` si cada resultado cuenta; con muchas, límite de concurrencia | Una de diez falla: el resultado declara qué pasó con las otras nueve |
+| Promesa sin esperar | Toda promesa se espera, se devuelve o maneja su rechazo; `forEach` no espera callbacks `async` (usa `for…of` o la fila «Varias promesas») | Un rechazo dentro de `forEach(async …)` no llega al `catch` y el handler ya respondió éxito |
 | Respuesta con estados | Unión discriminada (`{ estado: "cargando" } \| { estado: "ok", datos } \| { estado: "error", error }`) en vez de tres campos independientes | No existe un estado con `datos` y `error` a la vez |
 
 No impongas envoltorios de respuesta, librerías de validación ni frameworks
@@ -60,4 +61,5 @@ de sus consumidores reales. Un test vacío es una ilustración, no cobertura.
 Fuentes, consultadas el 2026-10-14:
 [TSConfig `useUnknownInCatchVariables` y `noUncheckedIndexedAccess`](https://www.typescriptlang.org/tsconfig/),
 [TypeScript, `readonly` y alias](https://www.typescriptlang.org/docs/handbook/2/objects.html),
-[MDN `Error.cause`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/cause).
+[MDN `Error.cause`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/cause),
+[MDN `Array.prototype.forEach`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach).

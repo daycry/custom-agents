@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_agent_ids": [
+    "A004",
+    "A012",
+    "A015",
+    "A017"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "A004",
+      "sha256": "acc9e14df59dd28d00f966b3a6cf0d9aeeda7e8a9ab7f1bc442466c0219c35ec",
+      "bytes": 4749,
+      "lines": 123,
+      "read_ranges": [
+        [
+          1,
+          123
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A012",
+      "sha256": "0a06faff0f6be85989a22c79647743d872c3348ca772ee860f048035473c1675",
+      "bytes": 4108,
+      "lines": 99,
+      "read_ranges": [
+        [
+          1,
+          99
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A015",
+      "sha256": "2715aa7b58fae3667493a089afbfa891dfe20d24e555e90ddfdd732d10104d1f",
+      "bytes": 7671,
+      "lines": 210,
+      "read_ranges": [
+        [
+          1,
+          210
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A017",
+      "sha256": "643f1445336ef801f49cc56a00ad09af3435124ef841f4b023be19ee50662b29",
+      "bytes": 9519,
+      "lines": 252,
+      "read_ranges": [
+        [
+          1,
+          252
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/implementer.md",
+      "sha256": "c8df51df5d618690e8f2bcae747999448eb95ae3904ac1bcbbc7f470fbb53a19"
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "b6e03985d8ed921cf629b53af25f6c671df9792f1512acf4d2db14e1297442b9"
+    },
+    {
+      "path": "skills/debug-root-cause/SKILL.md",
+      "sha256": "6d17fa65be26f7222b679f3c7126e00df0d774f6b5b30ea1dffd5c0628804d7c"
+    },
+    {
+      "path": "skills/dependency-upgrade/SKILL.md",
+      "sha256": "69b22380b27f56c58e9e15253c719e93753805f6a8325059d9b64d4ea0df1e12"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "7964b0873f3c285c1178fb2ebc5dcd7c79bb812dbfd57a798cc2f90d10e012e1"
+    },
+    {
+      "path": "skills/adversarial-review/references/lens-prompts.md",
+      "sha256": "53309deeda86aaedb1daf00dbb5f8d9e23aa246da038f1f6a281dc52ab2c278c"
+    },
+    {
+      "path": "skills/backend-practices/references/database-migrations.md",
+      "sha256": "b8373b455bb611cd1df750c4d926f0e468a3cd1bdf99f87bee79cc113cec3fe9"
+    },
+    {
+      "path": "agent-kits/shared/guardrail-check.py",
+      "sha256": "8b3c5c9de455be7358a49de82e2c93daa00b29ccc3883bd4758a051d49b58789"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

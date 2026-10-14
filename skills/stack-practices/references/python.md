@@ -26,6 +26,9 @@ Protocol para expresar una dependencia por comportamiento cuando eso permita
 tests sin infraestructura; no añadas abstracciones para funciones sin variación.
 Los tipos describen contratos, pero no validan por sí solos datos JSON externos.
 Valida en el borde y conserva modelos de dominio independientes del transporte.
+Un argumento por defecto mutable (`def f(x=[])`, `={}`) se evalúa una sola vez
+y se comparte entre llamadas: usa `None` como centinela y crea el valor dentro;
+la prueba es que dos llamadas sin argumento no comparten estado.
 
 No hagas E/S, lectura de credenciales ni arranques workers al importar módulos.
 Coloca el entrypoint bajo main; propaga errores clasificados, encadena su causa
@@ -49,6 +52,7 @@ Mantén stdlib como default del plugin; dependencias del consumidor se deciden p
 su necesidad y contrato, no por una regla heredada del bundle.
 
 Fuentes: [typing Protocol](https://docs.python.org/3/library/typing.html#typing.Protocol),
+[valores por defecto](https://docs.python.org/3/tutorial/controlflow.html#default-argument-values),
 [contextlib](https://docs.python.org/3/library/contextlib.html),
 [pytest fixtures](https://docs.pytest.org/en/stable/how-to/fixtures.html),
 [monkeypatch](https://docs.pytest.org/en/stable/how-to/monkeypatch.html).

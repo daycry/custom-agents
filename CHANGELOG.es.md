@@ -11,6 +11,15 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Changed — Comparación de agentes (68 agentes)
+
+- `reviewer` conoce la Lente D (rendimiento), que `adversarial-review` ya le despachaba, y nunca abre conexiones con credenciales del entorno. `analyst` registra los requisitos no funcionales solo con una cifra dada y separa el comportamiento actual del deseado. `planner` obliga a que las tareas de borrado declaren cómo descartaron referencias dinámicas y uso como API pública. `implementer` ya no «arregla» un build roto borrando el lockfile, subiendo paquetes, limpiando cachés globales, con migraciones `--fake` ni matando procesos por puerto, y su tabla de racionalizaciones cubre las supresiones de lint y tipado. `documenter` comprueba rutas y enlaces citados; la persona `db` advierte de que `EXPLAIN ANALYZE` ejecuta; `qa` ejecuta los specs nuevos con `--repeat-each=3`.
+- `debug-root-cause` trata los fallos de build y el estado de las dependencias (build del proyecto como reproducción, un error cada vez, diagnóstico que no escribe, limpiar cachés como experimento declarado, hipótesis que explica todos los síntomas). La Lente B sigue un llamante antes de reportar un manejo ausente y solo marca un fallback si oculta el fallo. `stack-practices` añade subidas de CodeIgniter 4, el argumento por defecto mutable de Python, `key` estable en React, «Invalid hook call» por React desalineado y promesas sin esperar en TypeScript; `plugin-dev` añade el anti-patrón de debilitar una guardia por coste o latencia.
+
+### Fixed — Revisión del launcher y tests en modo script
+
+- La función de presupuesto de SessionEnd vuelve a vivir dentro de `hooks/run-hook.mjs`, así que el launcher sigue importando solo módulos nativos de Node; su huella revisada y la de `agent-activity-store.py` se actualizan tras revisarlas. `tests/test_export_interop.py` en modo script omite los casos que necesitan fixtures de pytest en vez de romper.
+
 ### Changed — Recuperación temprana de sesiones huérfanas
 
 - Las sesiones huérfanas (lo habitual en Windows, donde la captura de `SessionEnd` no cabe en el presupuesto de 1,5 s) se recuperan cuando el log de prompts y el transcript llevan `sesion.journal.ventanaInactividadMin` (30 min por defecto) sin cambiar, en vez de esperar 24 h. `journal.py capture` guarda la ruta validada del transcript en el log local no versionado. La entrada recuperada registra `log_hasta`; si la sesión sigue, el siguiente `recover` rehace esa entrada. Una entrada `materializado` nunca se reabre ni se degrada.

@@ -11,6 +11,15 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Changed — Agent comparison (68 agents)
+
+- `reviewer` knows Lens D (performance), which `adversarial-review` already dispatched to it, and never opens connections with environment credentials. `analyst` records non-functional requirements only with a given figure and keeps current behaviour apart from desired behaviour. `planner` makes removal tasks declare how dynamic references and public API use were ruled out. `implementer` no longer "fixes" a broken build by deleting lockfiles, bumping packages, clearing global caches, `--fake` migrations or killing processes by port, and its rationalization table covers lint/type suppressions. `documenter` checks cited paths and links; the `db` persona warns that `EXPLAIN ANALYZE` executes; `qa` runs new specs with `--repeat-each=3`.
+- `debug-root-cause` treats build failures and dependency state (project build as repro, one error at a time, diagnostics that do not write, cache clearing as a declared experiment, a hypothesis that explains every symptom). Lens B follows a caller before reporting missing handling and flags a fallback only when it hides the failure. `stack-practices` adds CodeIgniter 4 uploads, the Python mutable default argument, stable React keys, "Invalid hook call" from mismatched React and unawaited promises in TypeScript; `plugin-dev` adds the "weakening a guard for cost or latency" anti-pattern.
+
+### Fixed — Launcher review and script-mode tests
+
+- The SessionEnd budget function lives inside `hooks/run-hook.mjs` again, so the launcher keeps importing Node builtins only; its reviewed fingerprint and the reviewed fingerprint of `agent-activity-store.py` are updated after review. `tests/test_export_interop.py` in script mode skips cases that need pytest fixtures instead of crashing.
+
 ### Changed — Early recovery of orphaned sessions
 
 - Orphaned sessions (common on Windows, where the `SessionEnd` capture does not fit the 1.5 s budget) are recovered once the prompt log and the session transcript have both been idle for `sesion.journal.ventanaInactividadMin` (default 30 min), instead of after 24 h. `journal.py capture` keeps the validated transcript path in the local, unversioned prompt log. A recovered entry records `log_hasta`; if the session continues, the next `recover` redoes that entry. `materializado` entries are never reopened or downgraded.

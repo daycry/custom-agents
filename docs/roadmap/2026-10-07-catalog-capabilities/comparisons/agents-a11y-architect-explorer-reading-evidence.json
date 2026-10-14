@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_agent_ids": [
+    "A001",
+    "A003",
+    "A006",
+    "A007"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "A001",
+      "sha256": "88e684476cbc449a2444a1218a79034d275465f375ce45b6d86ab99958bf45e7",
+      "bytes": 7339,
+      "lines": 149,
+      "read_ranges": [
+        [
+          1,
+          149
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A003",
+      "sha256": "6b8e1e8bd274995f3949691731f4334820c061d3054eaea3be2ce163386d1f24",
+      "bytes": 7276,
+      "lines": 220,
+      "read_ranges": [
+        [
+          1,
+          220
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A006",
+      "sha256": "1a2ce1d231b7427ff863522f6f19e7738cd668279ac60af520aa0c45ac14772b",
+      "bytes": 2525,
+      "lines": 80,
+      "read_ranges": [
+        [
+          1,
+          80
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A007",
+      "sha256": "3dbb33769147f6c7ffb739c550b7b8867e1b8ea84f1179197fdbc3028dc34fb7",
+      "bytes": 2585,
+      "lines": 78,
+      "read_ranges": [
+        [
+          1,
+          78
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/architect.md",
+      "sha256": "4c60c41cf4e17499ee99369401a305c2a68193c70576e788c579dcd3634ec99c"
+    },
+    {
+      "path": "agents/planner.md",
+      "sha256": "ca0e7d162045ede38414c0a8ba0934c167d71e778119fd9a0b2c59fff8fab5b9"
+    },
+    {
+      "path": "agents/analyst.md",
+      "sha256": "6a5fb1f6f20249183a93fea3210bf5886901e35c90d99022089539c01f9dda62"
+    },
+    {
+      "path": "agent-kits/architect/templates/design.md",
+      "sha256": "e95bc7aa9c32ff746272fefcdca89f3631a60e9fb1998c671423802eaaa0b6d3"
+    },
+    {
+      "path": "agent-kits/shared/read-discipline.md",
+      "sha256": "40511d5a85d2ccac7cde3cc8df2610459852d86d389749807042b5caee879fcd"
+    },
+    {
+      "path": "skills/frontend-quality/SKILL.md",
+      "sha256": "ec2843326f2a2a103747bb648d59ccbc330496c3242c1f313579ee6fc60cf379"
+    },
+    {
+      "path": "skills/frontend-quality/references/accessibility-criteria.md",
+      "sha256": "0560b394f65b7525d845a749555872bff011934c99da8c3eabacfa4110b35124"
+    },
+    {
+      "path": "skills/frontend-quality/references/interaction-performance.md",
+      "sha256": "a18f59a90a0220f1e0b729af9b795914b38cfca0793247a90b8578d63b1b510f"
+    },
+    {
+      "path": "agent-kits/shared/personas/frontend.md",
+      "sha256": "8f11339ea1b549fd42b0443c3ba7b6b0c14a4eb55c54081a6a541201ee0c716a"
+    },
+    {
+      "path": "skills/stack-practices/references/coding-baseline.md",
+      "sha256": "2c483f7338e5292a1bd066878dc42f2aa1b20025dac6e3231c3860ff80ff77d6"
+    },
+    {
+      "path": "docs/agents/ROLES.md",
+      "sha256": "16de05a15de9e81168181de94f22f9d891dda6fdb1adc927815c19605b87b997"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

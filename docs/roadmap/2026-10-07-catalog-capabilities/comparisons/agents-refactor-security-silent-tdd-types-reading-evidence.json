@@ -1,0 +1,158 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_agent_ids": [
+    "A056",
+    "A059",
+    "A061",
+    "A065",
+    "A066"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "A056",
+      "sha256": "13704c3aee163bcbf6bcbf7a7933630a70d6c312ff3ee5a29bff63b8800484cc",
+      "bytes": 3686,
+      "lines": 94,
+      "read_ranges": [
+        [
+          1,
+          94
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A059",
+      "sha256": "813e4062bed5f42ab25dd02a0070f682058ffe9508198fcfdbb2c31296f93b7b",
+      "bytes": 5446,
+      "lines": 117,
+      "read_ranges": [
+        [
+          1,
+          117
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A061",
+      "sha256": "e5e2094c6f50cc515a77376331c78e4955d5ff16c7a0e5d8f6edec692b7ebd8d",
+      "bytes": 1989,
+      "lines": 59,
+      "read_ranges": [
+        [
+          1,
+          59
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A065",
+      "sha256": "979afbb40c42bfdd02fc308c130d7e257f5d6dd5f6531ef2562644862f6b7771",
+      "bytes": 3865,
+      "lines": 100,
+      "read_ranges": [
+        [
+          1,
+          100
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A066",
+      "sha256": "753908aadd759d4710e07ac1a0ba8a6fbc0bc35fe369cadd3ede9655da5d1c49",
+      "bytes": 1881,
+      "lines": 50,
+      "read_ranges": [
+        [
+          1,
+          50
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/code-health/SKILL.md",
+      "sha256": "e951e137191f4ebf1d631317fa8ee829e2f6ce87873540c72bd387d8a29cedbe"
+    },
+    {
+      "path": "agents/planner.md",
+      "sha256": "ca0e7d162045ede38414c0a8ba0934c167d71e778119fd9a0b2c59fff8fab5b9"
+    },
+    {
+      "path": "agents/implementer.md",
+      "sha256": "c8df51df5d618690e8f2bcae747999448eb95ae3904ac1bcbbc7f470fbb53a19"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "7964b0873f3c285c1178fb2ebc5dcd7c79bb812dbfd57a798cc2f90d10e012e1"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "ea3b6fe98737ab2d310a83855181061fd2d2ee883d448daa3d4310aa78adcb4a"
+    },
+    {
+      "path": "skills/outcome-evals/references/protocol.md",
+      "sha256": "ecc0dc9db4fd22fd1165324629cef7f1fe094c9de5dc2b58d8b3287a86253e31"
+    },
+    {
+      "path": "agents/nemesis.md",
+      "sha256": "82a534cc0399b39f0f5e990526b656a7e1736d7e4276bb9340f8b1b78e14df78"
+    },
+    {
+      "path": "skills/cybersecurity/SKILL.md",
+      "sha256": "96d7079407a4ad9315c8ab6cedca6bcf3ccf7b26082fba345618a478f77ecd51"
+    },
+    {
+      "path": "skills/adversarial-review/references/lens-prompts.md",
+      "sha256": "53309deeda86aaedb1daf00dbb5f8d9e23aa246da038f1f6a281dc52ab2c278c"
+    },
+    {
+      "path": "skills/backend-practices/references/contracts-data.md",
+      "sha256": "50d0557f9f6123098f9e55192f567fc8356a655beb080f6b1d8b4fc058bffcba"
+    },
+    {
+      "path": "skills/stack-practices/references/python.md",
+      "sha256": "1fdef37162afdf214fe78441642d5b90949590d98dac8a60d3bca3f77a3a49b8"
+    },
+    {
+      "path": "skills/stack-practices/references/coding-baseline.md",
+      "sha256": "2c483f7338e5292a1bd066878dc42f2aa1b20025dac6e3231c3860ff80ff77d6"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-orch-parallel-plan.md",
+      "sha256": "41b73a1eb0538998d3b72673a13a010cf391c2b869432e09f3f9bbc34b882d03"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-security-bounty-review-agentshield.md",
+      "sha256": "ae3b2b3496304850477773cef387f143aacb776ba88cc217e6b3ad94cc30b8ea"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-tdd-verification-ops.md",
+      "sha256": "f383e03078d7e395e5290af51b151ed6c72e4ea0c256d92aab148f0b162e5876"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

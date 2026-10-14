@@ -60,6 +60,12 @@ El runner del kit reintenta dos veces para que el reporter distinga:
 (dato compartido, animación, carrera con una petición) y la traza que lo
 muestra.
 
+Los reintentos solo clasifican un fallo que ya ocurrió; no buscan la
+inestabilidad. Un spec **nuevo o reescrito** se ejecuta una vez con
+`--repeat-each=3` (la misma invocación del runner con
+`npx playwright test <spec> --repeat-each=3`) antes de acreditar su criterio.
+Si alguna repetición falla, el spec es flaky o defecto, no verde.
+
 ## Cuarentena con dueño y fecha
 
 Sacar un test de la ejecución (`test.fixme`, `test.skip`) lo deja como
@@ -127,6 +133,7 @@ una imagen de referencia (baseline) aprobada.
 - Playwright — Locators (orden recomendado, `getByTestId`): https://playwright.dev/docs/locators · consultada 2026-10-14.
 - Playwright — Page (`waitForTimeout` desaconsejado, `networkidle` desaconsejado, `waitForNavigation` obsoleto): https://playwright.dev/docs/api/class-page · consultada 2026-10-14.
 - Playwright — Retries (passed / flaky / failed): https://playwright.dev/docs/test-retries · consultada 2026-10-14.
+- Playwright — Command line (`--repeat-each <N>`: ejecuta cada test N veces; `--retries`): https://playwright.dev/docs/test-cli · consultada 2026-10-14.
 - Playwright — Annotations (`skip`, `fixme`, anotación `issue`): https://playwright.dev/docs/test-annotations · consultada 2026-10-14.
 - Playwright — Visual comparisons (baseline por navegador y plataforma, `--update-snapshots`, `threshold`, `maxDiffPixels`, `stylePath`): https://playwright.dev/docs/test-snapshots · consultada 2026-10-14.
 - Playwright — LocatorAssertions (`toHaveScreenshot`: `animations`, `caret`, `mask`; `toHaveCount`): https://playwright.dev/docs/api/class-locatorassertions · consultada 2026-10-14.

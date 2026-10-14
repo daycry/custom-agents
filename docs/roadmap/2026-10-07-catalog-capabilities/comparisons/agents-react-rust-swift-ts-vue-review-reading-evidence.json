@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_agent_ids": [
+    "A055",
+    "A058",
+    "A064",
+    "A067",
+    "A068"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "A055",
+      "sha256": "17d0286b4f101e27b818cad026a6bfc1f9fd3e7f9b52c8414e6ea2a05481995a",
+      "bytes": 11411,
+      "lines": 167,
+      "read_ranges": [
+        [
+          1,
+          167
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A058",
+      "sha256": "10af67c5764677596d43f32a952d8ec28662bb353fd986d726daefd3382ebeca",
+      "bytes": 5656,
+      "lines": 103,
+      "read_ranges": [
+        [
+          1,
+          103
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A064",
+      "sha256": "b8de7f16fafef82645aca3923b0c4fdbe619433c5df9386b3737fb6591545e8b",
+      "bytes": 7325,
+      "lines": 116,
+      "read_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A067",
+      "sha256": "6b012db1a9039870c4f040975144a0d4e3592510d6332e2d260f02859ec66da1",
+      "bytes": 9068,
+      "lines": 124,
+      "read_ranges": [
+        [
+          1,
+          124
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A068",
+      "sha256": "c675814544f06703cf34347c24c630267073d6ee605e70820fc1c1a74e71358a",
+      "bytes": 15319,
+      "lines": 206,
+      "read_ranges": [
+        [
+          1,
+          206
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "a62f6e912bb8cd095918224661ade80cae70c3e962235eaadcf94f73f04923a5"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "12ccff0790433a793b8229aa20eafb36c871a9c96798bafcbb186dcaabe1c1d6"
+    },
+    {
+      "path": "skills/adversarial-review/references/lens-prompts.md",
+      "sha256": "53309deeda86aaedb1daf00dbb5f8d9e23aa246da038f1f6a281dc52ab2c278c"
+    },
+    {
+      "path": "skills/adversarial-review/references/lens-c-heuristics.md",
+      "sha256": "6202ca8f07f4c0b4b75e845f4d75c4f7fe1129da91b89fc3687aa71a6bd69e10"
+    },
+    {
+      "path": "skills/stack-practices/SKILL.md",
+      "sha256": "2634a69d18da4d0006de56439783b5337c80cd1405de256be6e8cf89cf655132"
+    },
+    {
+      "path": "skills/stack-practices/references/react.md",
+      "sha256": "2ce419b2bcf0000c9dca9b138ab40952d143969382ec49b7ff91178e3e8eb1bd"
+    },
+    {
+      "path": "skills/stack-practices/references/coding-baseline.md",
+      "sha256": "2c483f7338e5292a1bd066878dc42f2aa1b20025dac6e3231c3860ff80ff77d6"
+    },
+    {
+      "path": "skills/frontend-quality/references/accessibility-criteria.md",
+      "sha256": "0560b394f65b7525d845a749555872bff011934c99da8c3eabacfa4110b35124"
+    },
+    {
+      "path": "skills/cybersecurity/references/language-patterns/javascript-typescript.md",
+      "sha256": "a242571608eb7c502c06c5a5e48f789d8a4539c4fc0a357394383d02496ce00a"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-destinations.md",
+      "sha256": "ef595ccb3b92157ba3df5fe2b0823db6dd2df51a47f803a8d59591b461b02e7e"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

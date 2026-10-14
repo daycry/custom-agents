@@ -28,12 +28,20 @@ Comprueba React, router, build y librería de tests reales. Mantén estado en el
 dueño más próximo que lo necesita; separa datos remotos, identidad de formulario
 y preferencias de UI. No conviertas todos ellos en un store global. Si un contexto
 provoca renders costosos, mide consumidores y frecuencia antes de dividirlo.
+Una lista que se reordena, inserta o borra lleva `key` estable del dato (su id
+de base de datos o uno creado al crear el elemento, nunca durante el render); el
+índice solo vale si la lista es fija. Con índice, el estado local y el foco
+pasan a la fila equivocada al insertar o borrar.
 
 Los límites cliente/servidor pertenecen al framework: no traslades ejemplos de
 Actions/RSC a una SPA sin ese contrato. Props serializadas no llevan credenciales.
 Suspense depende de fuentes compatibles; envolver fetch manual no lo hace
 suspender. Error boundaries de render no sustituyen manejo de fallos de handlers.
 Comprueba APIs de React 19 contra la versión mínima antes de proponerlas.
+Un «Invalid hook call» con hooks que cumplen sus reglas apunta a `react` y
+`react-dom` de versiones distintas o a dos copias de React: `npm ls react` (o el
+equivalente del gestor) debe mostrar una sola. `react` y `react-dom` se suben
+juntos, con `@types/react` en la misma major; saltar de major es una tarea aparte.
 
 Si el manifiesto declara Vite: toda variable con el prefijo público (`VITE_` por
 defecto) se incrusta en el bundle, y `loadEnv(mode, root, '')` carga todas las
@@ -109,6 +117,8 @@ Los casos que hay que probar los fija frontend-quality; esta tabla solo da la
 forma React/HTML de llegar a ellos.
 
 Fuentes: [state sharing](https://react.dev/learn/sharing-state-between-components),
+[keys de listas](https://react.dev/learn/rendering-lists) y
+[Invalid hook call](https://react.dev/warnings/invalid-hook-call-warning) (consultadas el 2026-10-14),
 [Suspense](https://react.dev/reference/react/Suspense),
 [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/),
 [Testing Library queries](https://testing-library.com/docs/queries/about/),

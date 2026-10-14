@@ -18,6 +18,14 @@ Reduce el fallo al caso más pequeño que lo dispara: un test concreto, un input
 comando concreto. Quita todo lo que no haga falta para que falle. Si no consigues reproducirlo
 de forma determinista, documenta las condiciones en que aparece/desaparece — eso YA es
 información (sugiere carrera, estado compartido o dependencia del entorno).
+En un fallo de build o compilación, la reproducción mínima es el comando de build del
+proyecto (con el gestor que indica el lockfile). Aborda un error cada vez, el primero que
+emite, y vuelve a compilar tras su fix: un error nuevo que aparece después es otro
+diagnóstico, no se arregla en el mismo cambio. Silenciar el aviso o el tipo no es un arreglo.
+Los comandos de diagnóstico dejan intacto el estado de partida: uno que reescribe manifiestos
+o lockfiles, refresca dependencias o limpia cachés (`composer update`, `pip install -U`,
+`npm install` en vez de `npm ci`) no es una lectura sino una intervención, y como tal va a la
+Fase 2 como experimento declarado (ver Reglas).
 *Evidencia:* el comando/test mínimo y su salida de fallo, pegados.
 
 **Fase 2 — Aislamiento de la causa.**
@@ -32,6 +40,8 @@ Enuncia la causa en una frase falsable: "falla porque X hace Y cuando Z". Diseñ
 más barata que la confirme o la tumbe (un assert, un input diseñado, un log en el punto
 exacto) y ejecútala. Si la hipótesis cae, vuelve a la Fase 2 con lo aprendido — NO pases a
 arreglar "por si acaso".
+La hipótesis tiene que explicar **todos** los síntomas recogidos en las Fases 1-2: un síntoma
+que no explica es otra causa (conjunción, abajo) o la señal de que la hipótesis es falsa.
 Si la evidencia muestra una **conjunción de causas** (el fallo solo aparece cuando X **y** Y
 coinciden), no la fuerces a una sola frase: enuncia y prueba cada causa por separado, y cada una
 lleva su propio test de regresión en la Fase 4. Arreglar solo una reduce la frecuencia del fallo
@@ -93,6 +103,10 @@ preguntar.
 - **Evidencia o no ocurrió**: cada fase cierra con su dato pegado, no con "ya lo miré".
 - **Los descartes se registran** — la siguiente persona (o pasada) no debe repetir el camino.
 - **El síntoma no es la causa**: si el fix no se deduce de la hipótesis probada, es un parche.
+- **Limpiar cachés o reinstalar dependencias es un experimento de la Fase 2, no un fix**: se
+  registra como tal y, si el fallo desaparece, la causa era el estado previo (versión resuelta,
+  artefacto obsoleto) y hay que nombrarla con evidencia. Una caché global afecta a otros
+  proyectos: borrarla requiere el OK del usuario.
 - **Instrumentación temporal se retira** al cerrar (logs/asserts de diagnóstico fuera del diff final).
 - Si el fallo resulta ser de la SPEC (comportamiento esperado mal definido), no lo "arregles"
   en código: repórtalo — eso es una decisión de producto (spec → `/pm-cycle`).

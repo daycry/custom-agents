@@ -33,6 +33,14 @@ que Legacy Auto Routing respeta la misma superficie que las rutas declaradas.
 No migres automáticamente el router. Un Model con allowedFields no es validación
 de dominio ni autorización: prueba esos caminos también cuando se use Builder.
 
+Valida una subida solo con las reglas de fichero (`uploaded` si es obligatoria,
+porque `required` no vale para ficheros; `max_size` en KB; `mime_in`/`ext_in`).
+El nombre, la extensión y el MIME del cliente no son confiables: usa
+`guessExtension()`/`getMimeType()` y, al mover, `getRandomName()` como nombre.
+Las reglas no impiden que el servidor web ejecute el fichero: guárdalo fuera de
+`public/` (`store()` escribe en `writable/uploads`) y nunca dejes que la entrada
+elija el directorio. Prueba con un tipo falsificado y un tamaño en el límite.
+
 Una prueba de servicio aísla reloj, mail y red; una de persistencia usa el motor
 real y un estado restaurable; una feature prueba ruta, filtro, sesión y respuesta.
 Incluye error SQL, entrada inválida, doble envío y fallo tras la primera escritura.
@@ -43,3 +51,6 @@ Fuentes: [routing](https://codeigniter.com/user_guide/incoming/routing.html),
 [security](https://codeigniter.com/user_guide/libraries/security.html),
 [testing](https://codeigniter.com/user_guide/testing/overview.html),
 [PHPUnit](https://docs.phpunit.de/). Usa el manual de la versión bloqueada.
+Subidas, 2026-10-14 (manual 4.7.5):
+[ficheros subidos](https://codeigniter4.github.io/userguide/libraries/uploaded_files.html),
+[reglas de fichero](https://codeigniter4.github.io/userguide/libraries/validation.html#rules-for-file-uploads).

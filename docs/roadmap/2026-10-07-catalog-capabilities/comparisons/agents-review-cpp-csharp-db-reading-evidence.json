@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_agent_ids": [
+    "A008",
+    "A013",
+    "A014",
+    "A016"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "A008",
+      "sha256": "9dd23be23d65f18126e10f7680fc1eb2576ec54a427d076ff2f870bd0bafd5d2",
+      "bytes": 13877,
+      "lines": 323,
+      "read_ranges": [
+        [
+          1,
+          323
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A013",
+      "sha256": "c34ee3291505ea66d4330268babbd9cbc899e32b7869ca71cca1690b4ce3cf22",
+      "bytes": 3972,
+      "lines": 81,
+      "read_ranges": [
+        [
+          1,
+          81
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A014",
+      "sha256": "34652d6a39387d0d008a90804b1b271ae62bba77abaf9537b79bd7705b1724e0",
+      "bytes": 5692,
+      "lines": 110,
+      "read_ranges": [
+        [
+          1,
+          110
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A016",
+      "sha256": "945c107dea01ca74e3e9bc3a5841e79e744673e8f14697e88cf1cfd9c01a1cc5",
+      "bytes": 5314,
+      "lines": 100,
+      "read_ranges": [
+        [
+          1,
+          100
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "a62f6e912bb8cd095918224661ade80cae70c3e962235eaadcf94f73f04923a5"
+    },
+    {
+      "path": "agents/nemesis.md",
+      "sha256": "82a534cc0399b39f0f5e990526b656a7e1736d7e4276bb9340f8b1b78e14df78"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "12ccff0790433a793b8229aa20eafb36c871a9c96798bafcbb186dcaabe1c1d6"
+    },
+    {
+      "path": "skills/adversarial-review/references/lens-prompts.md",
+      "sha256": "53309deeda86aaedb1daf00dbb5f8d9e23aa246da038f1f6a281dc52ab2c278c"
+    },
+    {
+      "path": "skills/adversarial-review/references/lens-d-heuristics.md",
+      "sha256": "7b0e5a00b68e9a29a7b24d4ce43f6876a167a388624d8ff0c1dc0b54854e23b9"
+    },
+    {
+      "path": "skills/cybersecurity/references/false-positive-suppression.md",
+      "sha256": "8092f5519d1e838998d2137e58b584be578787a1eb1e0e665cac0eba3a6b68b3"
+    },
+    {
+      "path": "skills/stack-practices/SKILL.md",
+      "sha256": "2634a69d18da4d0006de56439783b5337c80cd1405de256be6e8cf89cf655132"
+    },
+    {
+      "path": "skills/backend-practices/references/database-migrations.md",
+      "sha256": "b8373b455bb611cd1df750c4d926f0e468a3cd1bdf99f87bee79cc113cec3fe9"
+    },
+    {
+      "path": "skills/backend-practices/references/contracts-data.md",
+      "sha256": "50d0557f9f6123098f9e55192f567fc8356a655beb080f6b1d8b4fc058bffcba"
+    },
+    {
+      "path": "agent-kits/shared/personas/db.md",
+      "sha256": "638fa9f5a5762f1e9e3d1ca3f2fc5066f199758361de6b1cf0448fc1e770e248"
+    },
+    {
+      "path": "agent-kits/shared/model-tier.py",
+      "sha256": "9a2ba0874a2380dbe21ad48ac79829d30ba06e7023dd9e52f99b24f3af3572cd"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

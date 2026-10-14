@@ -188,6 +188,8 @@ Orden estricto; no se avanza con un paso en rojo:
 - **Prosa que calcula**: "suma las horas y si supera X…" en un agente → script con test.
 - **Ruta fija a un kit** (`.claude/agent-kits/...`) → se rompe como plugin; usa `find`.
 - **Bloquear por una pieza opcional**: medición sin transcripción, Jira sin token → aviso + seguir.
+- **Debilitar una guardia por coste o latencia** (un deny previo pasa a aviso posterior o asíncrono, se
+  quita un patrón, se baja un umbral) → solo con ADR o aprobación explícita; antes, mide y acelera el script.
 - **Duplicar un fragmento de prompt** en dos agentes "porque es corto" → `agent-kits/shared/`.
 - **`tools: *` o tools de más** en un agente → mínimos reales; el linter y la revisión lo cazan.
 - **Skill sin disparadores** en la description → Claude no sabrá cuándo invocarla; termina

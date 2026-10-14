@@ -1,7 +1,12 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
-import {childBudgetMs} from '../hooks/hook-budget.mjs'
+// The launcher may only import Node builtins (tests/test_graphiti_security.py), so the budget
+// function lives inside it between markers and is evaluated here from its source.
+const launcher = readFileSync(new URL('../hooks/run-hook.mjs', import.meta.url), 'utf8')
+const block = launcher.match(/\/\/ child-budget:start[\s\S]*?\/\/ child-budget:end/)
+if (!block) throw new Error('child-budget block not found in hooks/run-hook.mjs')
+const childBudgetMs = new Function(`${block[0]}\nreturn childBudgetMs`)()
 
 // SessionEnd en Claude Code: 1,5 s globales por defecto. El hijo de la captura tiene 800 ms y el resto
 // es margen para arrancar el launcher y cerrar el árbol. Si el usuario eleva el presupuesto con

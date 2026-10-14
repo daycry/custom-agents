@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_agent_ids": [
+    "A041",
+    "A042",
+    "A043"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "A041",
+      "sha256": "1b434aa8496a1cb8c39add08d0c68a4b27af8378de725f370d7682c02a56997e",
+      "bytes": 4823,
+      "lines": 106,
+      "read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A042",
+      "sha256": "12b2b04d8235941f6a9a0d42a679c581ce89963172d5fb0f63abb4202521593f",
+      "bytes": 4351,
+      "lines": 106,
+      "read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A043",
+      "sha256": "64528c41b59eea2cb4ac642bd3197bbadc8c456f3601520e410cf606e848fb07",
+      "bytes": 4292,
+      "lines": 128,
+      "read_ranges": [
+        [
+          1,
+          128
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/architect.md",
+      "sha256": "4c60c41cf4e17499ee99369401a305c2a68193c70576e788c579dcd3634ec99c"
+    },
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "a62f6e912bb8cd095918224661ade80cae70c3e962235eaadcf94f73f04923a5"
+    },
+    {
+      "path": "agents/nemesis.md",
+      "sha256": "82a534cc0399b39f0f5e990526b656a7e1736d7e4276bb9340f8b1b78e14df78"
+    },
+    {
+      "path": "skills/debug-root-cause/SKILL.md",
+      "sha256": "6d17fa65be26f7222b679f3c7126e00df0d774f6b5b30ea1dffd5c0628804d7c"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "eaae2178c159e6f5aa49261152c3e238a3d55b9e4b139a7f85967efd3bcc144d"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-network-netmiko-bgp.md",
+      "sha256": "c684f5e493c5c637bd9e43f7e2d175ec03902e68971928961d6f2679ef5d55c6"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-destinations.md",
+      "sha256": "ef595ccb3b92157ba3df5fe2b0823db6dd2df51a47f803a8d59591b461b02e7e"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

@@ -119,7 +119,7 @@ _BOOTSTRAP_NODE_HASHES = {
 }
 # The scanner admits exactly the audited launcher, not arbitrary JavaScript.
 # Normalize only line endings; a code change must update this fingerprint after review.
-_LAUNCHER_NODE_HASH = "27818c62be968bb5cbff91e5108d96e50a2592c9bb69d9e00755361896d895e5"
+_LAUNCHER_NODE_HASH = "caf8e7cde0c9c1ddb58034dbc334fc8a4a7fdc2f9fef8307999997ca3135afe6"
 _EXT_RE = "|".join(_EXT_ESCANEABLES + _EXT_NO_ESCANEABLES)
 # Gap #155 (Important, fix1 Fase 4): el lookahead final quita los falsos positivos del escaneo de
 # CODIGO (`hashlib.sha256` casaba como `hashlib.sh`). Hace falta porque a partir de este fix una
@@ -158,7 +158,7 @@ _CITAS_POR_NOMBRE = {
 # This is a closure declaration, never an egress exception. Any owner change needs review.
 _CARGAS_LOCALES_REVISADAS = {
     "agent-kits/shared/agent-activity-store.py": {
-        "sha256_lf": "e9d2865997311e351567e73185c956b3c7eeb62ad600ff1eedde5857342f9c98",
+        "sha256_lf": "17da5efdeea19af4944faa2954791c6a1f830600cc7f75bf1540edd4eaba5a46",
         "dependencies": ("agent-kits/shared/local-read.py", "agent-kits/shared/local-state.py",
                          "agent-kits/shared/agent-activity.py"),
     },

@@ -192,6 +192,7 @@ su curación y la publicación de approved siguen el contrato gobernado de memor
 No des la documentación por lista hasta poder mostrar:
 - [ ] `docs/README.md` y `docs/RAG-INDEX.md` existen, coherentes y con la fecha actualizada.
 - [ ] Las páginas creadas/actualizadas citan **evidencia real** del repo (rutas, clases, comandos); lo no verificable marcado `⚠️ verificar`.
+- [ ] Las rutas de fichero y los enlaces relativos que citan las páginas tocadas existen en el repo (compruébalo con Glob/`test -e`, no de memoria); los comandos y ejemplos citados **no se ejecutan** para validarlos: lo que no puedas comprobar leyendo, `⚠️ verificar`.
 - [ ] Modo idempotente respetado: `git status` muestra actualizaciones, no borrados masivos ni duplicados; contenido escrito a mano preservado.
 - [ ] No se ha tocado `docs/roadmap/**` ni `docs/security-scan/**` (solo se enlazan).
 - [ ] Si propusiste conocimiento (P5-bis): salida real del servicio con ruta pending/SHA,
