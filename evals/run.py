@@ -31,12 +31,16 @@ Veredicto por caso (pasa si TODO se cumple):
   · `expect.mentions`: cada cadena aparece (sin distinguir mayúsculas) en el texto del asistente
     (bloques `text` + `result`). `expect.must_not`: ninguna aparece.
   · `expect.artifacts`: cada glob (relativo al cwd temporal, `**` recursivo) casa ≥ 1 fichero.
+  · `expect.contains`: cada `{path, pattern}` — la regex (`re.MULTILINE`) casa, TRAS la ejecución, en
+    ≥ 1 fichero del cwd que case con el glob, y NO casaba ya en esos ficheros del `--fixture` original
+    (contenido preexistente no es evidencia). Ruta con raíz/unidad/`..` o regex inválida → falla con
+    motivo; `detalle.contains_faltan` lo lista.
   · `expect.redirect` es INFORMATIVO: se anota si la pieza alternativa se activó, no decide.
   Un `claude` que termina con error o timeout → caso fallido con el motivo.
   · `causa` por caso fallido: `no activó` / `activó sin deber` (activación), `permiso denegado`
     (la pieza SÍ se activó pero una tool use —típicamente Bash— fue denegada: en `-p` nadie
     aprueba y `acceptEdits` no cubre Bash; se detecta en los `tool_result` con `is_error` cuyo
-    texto habla de permisos), `expectativa` (mentions/must_not/artifacts) o `timeout`. Por eso
+    texto habla de permisos), `expectativa` (mentions/must_not/artifacts/contains) o `timeout`. Por eso
     `--allowed-tools` (default `ALLOWED_TOOLS_DEFAULT`, se pasa tal cual a `--allowedTools`).
 
 Informe: evals/reports/<AAAA-MM-DD>.json (o --report) + resumen en consola.
@@ -113,11 +117,25 @@ def construir_comando(prompt, root, opts):
     return cmd
 
 
+def _carpetas_escribibles(cwd):
+    """Windows: `copytree` copia el atributo de solo lectura de las carpetas del fixture (OneDrive lo
+    pone) y luego `rmtree` no puede borrarlas. La copia es nuestra: se quita en sus carpetas, nunca
+    en un punto de reanálisis ni fuera de `cwd`."""
+    if os.name != "nt":
+        return
+    rutas = [cwd] + [os.path.join(raiz, nombre) for raiz, carpetas, _ in os.walk(cwd) for nombre in carpetas]
+    for ruta in rutas:
+        atributos = getattr(os.lstat(ruta), "st_file_attributes", 0)
+        if atributos & stat.FILE_ATTRIBUTE_READONLY and not atributos & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+            os.chmod(ruta, stat.S_IWRITE | stat.S_IREAD)
+
+
 def preparar_cwd(fixture, base):
     """Copia del fixture en un directorio temporal (+ `git init` silencioso si hay git)."""
     cwd = tempfile.mkdtemp(prefix="eval-", dir=base)
     if os.path.isdir(fixture):
         shutil.copytree(fixture, cwd, dirs_exist_ok=True)
+        _carpetas_escribibles(cwd)
     if shutil.which("git"):
         try:
             for args in (["git", "init", "-q"], ["git", "add", "-A"],
@@ -245,8 +263,65 @@ def detectar(tool_uses, target, loose=False):
     return False
 
 
-def evaluar(target, caso, parsed, cwd, loose=False):
-    """→ {pass, checks:{…}, activado, redirect_observado}."""
+def _ruta_relativa_segura(path):
+    """Glob relativo que no puede salir del cwd: sin raíz, sin unidad, sin `..` (mismo criterio que check.py)."""
+    if not isinstance(path, str) or not path.strip():
+        return False
+    if os.path.isabs(path) or path[0] in "/\\" or re.match(r"^[A-Za-z]:", path):
+        return False
+    return ".." not in re.split(r"[\\/]+", path)
+
+
+def _ficheros_que_casan(base, path, rx):
+    """Ficheros regulares bajo `base` (sin escapar por enlaces) que casan con el glob y con la regex."""
+    raiz = os.path.realpath(base)
+    out, vistos = [], 0
+    for f in sorted(glob.glob(os.path.join(base, path), recursive=True)):
+        if not os.path.isfile(f):
+            continue
+        real = os.path.realpath(f)
+        if os.path.commonpath([os.path.normcase(raiz), os.path.normcase(real)]) != os.path.normcase(raiz):
+            continue
+        vistos += 1
+        try:
+            with open(f, encoding="utf-8", errors="replace") as fh:
+                if rx.search(fh.read()):
+                    out.append(f)
+        except OSError:
+            continue
+    return out, vistos
+
+
+def evaluar_contains(items, cwd, fixture=None):
+    """`expect.contains`: cada {path, pattern} debe casar DESPUÉS de la ejecución en algún fichero del
+    cwd y NO casar ya en el fixture original (un contenido preexistente no es evidencia).
+    → [{path, pattern, motivo}] de los que fallan; motivo: `ruta inválida` · `regex inválida` ·
+    `ya casaba en el fixture` · `sin fichero` · `sin coincidencia`."""
+    faltan = []
+    for it in items or []:
+        path = it.get("path") if isinstance(it, dict) else None
+        pattern = it.get("pattern") if isinstance(it, dict) else None
+        fallo = {"path": path, "pattern": pattern}
+        if not _ruta_relativa_segura(path):
+            faltan.append({**fallo, "motivo": "ruta inválida"})
+            continue
+        try:
+            rx = re.compile(pattern, re.M)
+        except (re.error, TypeError):
+            faltan.append({**fallo, "motivo": "regex inválida"})
+            continue
+        if fixture and os.path.isdir(fixture) and _ficheros_que_casan(fixture, path, rx)[0]:
+            faltan.append({**fallo, "motivo": "ya casaba en el fixture"})
+            continue
+        casan, vistos = _ficheros_que_casan(cwd, path, rx)
+        if not casan:
+            faltan.append({**fallo, "motivo": "sin coincidencia" if vistos else "sin fichero"})
+    return faltan
+
+
+def evaluar(target, caso, parsed, cwd, loose=False, fixture=None):
+    """→ {pass, checks:{…}, activado, redirect_observado}. `fixture`: el original (sin ejecutar) contra el
+    que `expect.contains` exige que la coincidencia sea NUEVA."""
     exp = caso.get("expect", {})
     checks = {}
     activado = detectar(parsed["tool_uses"], target, loose)
@@ -259,11 +334,13 @@ def evaluar(target, caso, parsed, cwd, loose=False):
     sin_artefacto = [g for g in exp.get("artifacts", [])
                      if not glob.glob(os.path.join(cwd, g), recursive=True)]
     checks["artifacts"] = not sin_artefacto
+    contains_faltan = evaluar_contains(exp.get("contains", []), cwd, fixture)
+    checks["contains"] = not contains_faltan
     res = parsed["result"] or {}
     checks["sin_error"] = not res.get("is_error", False) and res.get("subtype", "success") == "success"
     permisos = parsed.get("permisos_denegados", [])
     detalle = {"mentions_faltan": faltan, "must_not_presentes": sobran, "artifacts_faltan": sin_artefacto,
-               "permisos_denegados": permisos}
+               "contains_faltan": contains_faltan, "permisos_denegados": permisos}
     ok = all(checks.values())
     if ok:
         causa = None
@@ -320,7 +397,7 @@ def ejecutar_caso(target, caso, root, opts, runner):
     try:
         r = runner(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=opts.timeout)
         parsed = parsear_stream(r.stdout or "")
-        ev = evaluar(target, caso, parsed, cwd, opts.loose)
+        ev = evaluar(target, caso, parsed, cwd, opts.loose, fixture=opts.fixture)
         if r.returncode != 0:
             ev["checks"]["exit_0"] = False
             ev["pass"] = False

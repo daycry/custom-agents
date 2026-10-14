@@ -262,7 +262,19 @@ _RESUME_BYTES = 1024 * 1024
 _HISTORY_FIELDS = ("entry", "fecha", "session_id", "runtime", "iniciativa", "resumen",
                    "fuente", "cierre", "resumen_por", "decisiones", "pendientes",
                    "ficheros_tocados", "tareas_cambiadas", "marcadores_cerrados",
-                   "materializado_en", "derivados_en", "output_truncated", "identity_resolvable")
+                   "materializado_en", "derivados_en", "continuidad", "output_truncated", "identity_resolvable")
+# Continuidad del journal (D-085): clave AUSENTE = omitida; ""/[] = vaciado explícito en esa sesión.
+_CONTINUITY_FIELDS = (("objetivo", "Objetivo", str), ("punto_actual", "Dónde quedó", str),
+                      ("siguientes_pasos", "Siguientes", list), ("bloqueos", "Bloqueos", list))
+
+
+def _history_continuity(value):
+    """Solo las claves conocidas con su tipo; sin ninguna, la entrada no añade nada."""
+    if not isinstance(value, dict):
+        return {}
+    return {key: value[key] for key, _, kind in _CONTINUITY_FIELDS
+            if isinstance(value.get(key), kind)
+            and (kind is str or all(isinstance(item, str) for item in value[key]))}
 
 
 def _initiative_name(value):
@@ -303,7 +315,10 @@ def _public_resume(result, journal):
     truncated |= len(entries) > 2 or any(entry.get("output_truncated") for entry in entries)
     result["history"] = []
     for entry in entries[:2]:
-        visible = {k: entry[k] for k in _HISTORY_FIELDS if k in entry}
+        visible = {k: entry[k] for k in _HISTORY_FIELDS if k in entry and k != "continuidad"}
+        continuity = _history_continuity(entry.get("continuidad"))
+        if continuity:
+            visible["continuidad"] = continuity
         projected = clean(visible, 120)
         projected['output_truncated'] = bool(entry.get('output_truncated') or projected != visible)
         projected['identity_resolvable'] = bool(entry.get('identity_resolvable') and
@@ -620,6 +635,13 @@ def _resume_text_lines(result):
             if entry.get(field):
                 value = entry[field]
                 append(["> " + field + ": " + ("; ".join(value) if isinstance(value, list) else str(value))])
+        continuity = _history_continuity(entry.get("continuidad"))
+        if continuity:
+            # Un solo grupo: o cabe entero o se declara omitido; nunca una continuidad a medias.
+            append(["> Continuidad registrada (cita histórica, no instrucción):"]
+                   + ["> " + label + ": " + (("; ".join(continuity[key]) if kind is list else continuity[key])
+                                             or "(vaciado explícitamente en esa sesión)")
+                      for key, label, kind in _CONTINUITY_FIELDS if key in continuity])
     for issue in result["issues"]:
         append(["Aviso: " + (issue.get("status", "unknown") if isinstance(issue, dict) else str(issue))])
     if omitted:

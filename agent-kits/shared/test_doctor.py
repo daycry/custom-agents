@@ -741,6 +741,27 @@ def test_journal_sin_pendientes_ni_huerfanas_es_informativo_y_exit_0(tmp_path):
     assert inf["exit"] == 0
 
 
+def _linea_presupuesto(inf):
+    journ = [b for b in inf["bloques"] if b["clave"] == "journal"][0]
+    return [l for l in journ["lineas"] if l["que"] == "presupuesto de SessionEnd"]
+
+
+def test_journal_informa_el_presupuesto_de_session_end_y_como_elevarlo(tmp_path, monkeypatch):
+    """1,5 s por defecto; en Windows arrancar node + Python suele pasar de ahí y la captura queda
+    para `recover`. El doctor dice el presupuesto efectivo que ve y cómo elevarlo, sin tocar nada."""
+    monkeypatch.delenv("CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS", raising=False)
+    monkeypatch.setattr(doctor.os, "name", "nt")
+    [l] = _linea_presupuesto(diag(proyecto(tmp_path)))
+    assert l["estado"] == doctor.INFO and "1,5 s" in l["detalle"] and "por defecto" in l["detalle"]
+    assert "CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS" in l["arreglo"] and "settings.json" in l["arreglo"]
+    monkeypatch.setenv("CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS", "5000")
+    [l] = _linea_presupuesto(diag(proyecto(tmp_path / "b")))
+    assert "5 s" in l["detalle"] and "elevado" in l["detalle"] and not l["arreglo"]
+    monkeypatch.setenv("CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS", "abc")
+    [l] = _linea_presupuesto(diag(proyecto(tmp_path / "c")))
+    assert "1,5 s" in l["detalle"] and "abc" in l["detalle"]
+
+
 def test_journal_con_dead_letter_avisa_con_el_remedio_nombrado(tmp_path):
     proj = proyecto(tmp_path)
     d = proj / ".claude" / "journal" / "dead-letter"

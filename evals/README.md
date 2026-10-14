@@ -46,8 +46,9 @@ cosa — p. ej. una petición con incógnitas no debe ir a `quick-implement` sin
 
 - `target`: `skill:<n>` · `command:<n>` · `agent:<n>`; el fichero se llama igual con `:` → `-`.
 - `trigger` (solo positivos): `literal` = el prompt contiene una frase de la description (entrecomillada o 4 palabras seguidas; comparación sin acentos ni mayúsculas) · `parafrasis` = misma intención con otras palabras. Cada pieza necesita ≥ 1 de cada.
-- `expect.activates` (obligatorio) · `artifacts` (globs relativos al cwd temporal) · `mentions` / `must_not` (subcadenas en el texto del asistente) · `redirect` (pieza que debería activarse en su lugar; **informativo**, no decide).
-- **Caso en contra** (`trigger: en-contra`, para piezas de disciplina: `tdd`, `quick-implement`, `adversarial-review`…): el prompt **desalienta** el método («hazlo rápido, los tests son opcionales») y se espera que la pieza lo mantenga. Lleva `activates: true` y ≥ 1 `artifacts` — el cumplimiento se comprueba por el artefacto que deja el método, no clasificando el texto (`mentions` puede acompañar, nunca bastar) — y ningún glob puede casar ya con un fichero de `fixtures/project/`, porque su existencia no probaría nada. No cuenta para el mínimo de 2 positivos. Límite: `run.py` solo comprueba que el glob exista, no su contenido; un método cuya evidencia es una línea dentro de un fichero que ya existe (`RED:` en `tasks.md`) aún no tiene caso en contra ejecutable.
+- `expect.activates` (obligatorio) · `artifacts` (globs relativos al cwd temporal) · `contains` (contenido, abajo) · `mentions` / `must_not` (subcadenas en el texto del asistente) · `redirect` (pieza que debería activarse en su lugar; **informativo**, no decide).
+- `expect.contains` (opcional): lista de `{"path": "<glob>", "pattern": "<regex>"}`. `run.py` lo comprueba sobre los ficheros del cwd **después** de la ejecución: la regex (`re.MULTILINE`, así `^` es inicio de línea) debe casar en ≥ 1 fichero del glob y **no** casar ya en esos mismos ficheros del fixture original (`--fixture`) — un contenido preexistente no es evidencia. Si falla, `detalle.contains_faltan` da el motivo por elemento: `sin fichero` · `sin coincidencia` · `ya casaba en el fixture` · `regex inválida` · `ruta inválida`. `check.py` valida la forma: exactamente esas dos claves, regex compilable y `path` relativo dentro del fixture (sin raíz, sin unidad, sin `..`).
+- **Caso en contra** (`trigger: en-contra`, para piezas de disciplina: `tdd`, `quick-implement`, `adversarial-review`…): el prompt **desalienta** el método («hazlo rápido, los tests son opcionales») y se espera que la pieza lo mantenga. Lleva `activates: true` y ≥ 1 `artifacts` **o** `contains` — el cumplimiento se comprueba por la evidencia que deja el método, no clasificando el texto (`mentions` puede acompañar, nunca bastar). Ningún glob de `artifacts` puede casar ya con un fichero de `fixtures/project/` y ningún `pattern` de `contains` puede casar ya en los ficheros de su `path` en el fixture, porque su existencia no probaría nada. `contains` es la vía cuando la evidencia es una línea dentro de un fichero que ya existe: `tdd-en-contra-prisa` exige una línea `RED: <test> falló con …` nueva en el `tasks.md` del fixture. No cuenta para el mínimo de 2 positivos.
 - Prompts en español, naturales, con contexto (ficheros, rutas del fixture); **sin datos corporativos** (correos, hosts `atlassian.net`, URLs externas, claves Jira reales — `check.py` lo vigila; `PROJ-`, `localhost` y `example.com` están permitidos).
 
 ## Cómo se ejecuta
@@ -75,7 +76,7 @@ pasa `--allowed-tools` (default `Bash(python3:*),Bash(git:*),Bash(find:*)`; se e
 `--allowedTools`; cadena vacía → no se pasa) y, en el informe, cada caso fallido lleva una `causa`:
 `no activó` / `activó sin deber` (lo que mide la suite), `permiso denegado` (la pieza se activó pero
 un `tool_result` con `is_error` habla de permisos — amplía `--allowed-tools`), `expectativa`
-(`mentions`/`must_not`/`artifacts`) o `timeout`.
+(`mentions`/`must_not`/`artifacts`/`contains`) o `timeout`.
 
 Sin `--keep`, el runner borra el directorio temporal que acaba de crear, incluidos
 los objetos Git de solo lectura en Windows. Solo declara `cwd: null` tras comprobar
@@ -180,17 +181,23 @@ elsewhere — `expect.redirect`). `check.py` is the **static, CI** half: schema,
 piece, unique ids, no corporate data, and the literal prompt must still match the current
 description (so changing a description breaks the case until both are updated). An **against case**
 (`trigger: en-contra`, for discipline pieces) has a prompt that discourages the method («do it fast,
-tests are optional»): it needs `activates: true` and ≥ 1 `artifacts` glob that matches nothing already
-in `fixtures/project/`, because compliance is checked by the artifact the method leaves, not by
-classifying text; it does not count towards the 2-positive minimum, and since `run.py` only checks that
-a glob exists, evidence that is a line inside an existing file (`RED:` in `tasks.md`) is not yet
-executable as an against case. `run.py` is the
+tests are optional»): it needs `activates: true` and ≥ 1 `artifacts` glob or `contains` entry that
+matches nothing already in `fixtures/project/`, because compliance is checked by the evidence the
+method leaves, not by classifying text; it does not count towards the 2-positive minimum. The optional
+`expect.contains` field (`[{"path": "<glob>", "pattern": "<regex>"}]`) checks file CONTENT: after the
+run, the regex (`re.MULTILINE`) must match in ≥ 1 cwd file matching the glob and must NOT already match
+in those files of the original `--fixture` (pre-existing content is not evidence); failures are listed
+in `detalle.contains_faltan` with a reason (`sin fichero` · `sin coincidencia` · `ya casaba en el
+fixture` · `regex inválida` · `ruta inválida`). `check.py` validates its shape (exactly those two keys,
+a compilable regex, a relative `path` with no root, drive or `..`). It is how a line inside an existing
+file becomes executable evidence: `tdd-en-contra-prisa` requires a new `RED: <test> falló con …` line
+in the fixture's `tasks.md`. `run.py` is the
 **local** runner: it launches `claude -p "<prompt>" --output-format stream-json --verbose
 --plugin-dir <plugin> --max-turns 8 --permission-mode acceptEdits --allowedTools "<--allowed-tools>"` (default
 `Bash(python3:*),Bash(git:*),Bash(find:*)`: in `-p` nobody approves tools and `acceptEdits` does not cover Bash) per case on a copy of
 `fixtures/project/`, detects activation from the `Skill`/`Agent` tool uses in the transcript
 (`json` output has no tool uses; commands are invoked through the Skill tool), checks
-`mentions`/`must_not`/`artifacts`, tags each failure with a `causa` (`no activó` · `activó sin deber` · `permiso denegado` — the
+`mentions`/`must_not`/`artifacts`/`contains`, tags each failure with a `causa` (`no activó` · `activó sin deber` · `permiso denegado` — the
 piece fired but a tool_result was denied for permissions — · `expectativa` · `timeout` · `cleanup_error`), writes `reports/<date>.json`, and exits 0/1 (2 when `claude` is
 not on PATH; `--dry-run` only prints the commands). There is no official `claude plugin eval`
 (plugins-reference, 2026-09-03); the official `skill-creator` `evals/evals.json` measures output

@@ -2569,8 +2569,31 @@ def _bloque_journal_lineas(plugin_root, project):
     return out
 
 
+def _presupuesto_session_end():
+    """SessionEnd tiene 1,5 s globales por defecto y el `timeout` de un hook de plugin no los eleva
+    (code.claude.com/docs/en/hooks, «SessionEnd», 2026-10-14). Se lee la variable que ve este proceso;
+    no se escribe nada. En Windows, arrancar node + Python suele pasar de 1,5 s y la captura queda para
+    `recover` (medido en tests/session-end-budget.test.mjs)."""
+    raw = os.environ.get("CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS")
+    if raw and re.fullmatch(r"[0-9]{1,7}", raw) and int(raw) > 1500:
+        segundos = int(raw) / 1000
+        return linea(INFO, "presupuesto de SessionEnd",
+                     f"elevado a {segundos:g} s por `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` "
+                     "(la captura del journal usa hasta 5 s, su `timeout` declarado)")
+    detalle = "1,5 s por defecto"
+    if raw:
+        detalle += f" (`CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS={raw[:20]}` no es un número de ms mayor que 1500)"
+    if os.name == "nt":
+        detalle += "; en Windows arrancar node + Python suele superarlo y la sesión se recupera más tarde con `recover`"
+    return linea(INFO, "presupuesto de SessionEnd", detalle,
+                 "opcional, decisión tuya: `\"env\": {\"CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS\": \"5000\"}` en "
+                 "`~/.claude/settings.json` (o lanzar `claude` con esa variable); retrasa el cierre de la sesión "
+                 "hasta 5 s como máximo")
+
+
 def bloque_journal(plugin_root, project):
-    return {"clave": "journal", "titulo": "Journal", "lineas": _bloque_journal_lineas(plugin_root, project)}
+    return {"clave": "journal", "titulo": "Journal",
+            "lineas": _bloque_journal_lineas(plugin_root, project) + [_presupuesto_session_end()]}
 
 
 # ------------------------------------------------------------------ informe

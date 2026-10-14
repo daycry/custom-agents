@@ -11,6 +11,20 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Changed — Continuidad de sesión, procedencia de la medición y presupuesto de SessionEnd
+
+- `/work-resume` muestra la continuidad registrada en cada entrada del journal (objetivo, dónde quedó, siguientes pasos, bloqueos) como `history[i].continuidad` y como un grupo acotado de cita histórica, distinguiendo el vaciado explícito de la omisión; los topes de salida no cambian.
+- `build_dashboard.py` (`/roadmap-metrics`, `/roadmap-status`) agrega las claves de procedencia y cobertura del meter: tokens medidos (completos/parciales) frente a sin medida y procedencia desconocida, y coste estimado completo frente a incompleto, por iniciativa y en la cartera. Los bloques antiguos cuentan como procedencia desconocida.
+- El launcher de SessionEnd respeta `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS`: si el usuario eleva el presupuesto, la captura del journal lo usa (con tope en su `timeout` declarado de 5 s, menos 700 ms de margen del launcher) en vez de cortarse a los 800 ms. `/doctor` informa del presupuesto efectivo y de cómo elevarlo en `~/.claude/settings.json`; no escribe nada por el usuario. En Windows, solo arrancar `node` supera los 1,5 s por defecto, así que sin ese opt-in la sesión se sigue recuperando más tarde con `journal.py recover`.
+
+### Added — Comprobación de contenido en los evals de activación
+
+- `expect.contains` (`[{path, pattern}]`) comprueba el contenido de los ficheros tras la ejecución real: la regex debe casar en la copia del caso y no casar ya en el fixture. Primer caso en contra ejecutable, `tdd-en-contra-prisa`, que exige una línea `RED:` nueva en el ledger del fixture.
+
+### Fixed — Limpieza del fixture de evals en Windows
+
+- `evals/run.py` quita el atributo de solo lectura que `copytree` copia de las carpetas del fixture a su copia temporal, así que la limpieza ya no falla con `WinError 5`.
+
 ### Added — Destinos de la comparación del catálogo (P3)
 
 - Referencias bajo demanda: `delivery-practices` (despliegue y recuperación, observación tras desplegar, conectores del repositorio, entrega asistida por agentes); `backend-practices` (diseño de contratos HTTP, límites de servicio, caché de resultados y trabajos, rendimiento de pipelines, migraciones de base de datos para PostgreSQL 18 / MySQL 8.4 / MariaDB con runners de CodeIgniter 4 y Alembic, regresiones por rama condicional); `api-contract` (fronteras compartidas no HTTP); `frontend-quality` (sistema visual, mapa de criterios WCAG 2.2, auditoría de transiciones de estado, traducciones); `stack-practices` (`coding-baseline.md` con sección TypeScript opcional); `outcome-evals` (comparación de agentes, rúbrica de calidad de entrega, baselines de rendimiento, optimización medida); `debug-root-cause` (fallos de ejecución de agentes); `code-health` (analizadores estructurales externos); `plugin-dev` (contratos de tools y observaciones, diagnóstico de arquitectura, flujos persistentes — sin skill nueva `agent-system-quality`: `plugin-dev` ya es su dueño).

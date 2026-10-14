@@ -233,6 +233,146 @@ def test_check_en_contra_exige_artefacto_activates_true_y_artefacto_que_no_exist
     assert "un negativo no lleva `trigger`" not in texto      # mensaje específico, no el genérico
 
 
+# ------------------------------------------------------------------ expect.contains (evidencia DENTRO de un fichero)
+
+RED_RE = r"^\s*(?:[-*]\s*)?RED:\s*\S*test"
+
+
+def _fixture_con_ledger(root, contenido="# ledger\n### T-01\n- **Estado**: borrador\n"):
+    led = root / "evals" / "fixtures" / "project" / "docs" / "roadmap" / "2026-01-01-demo"
+    led.mkdir(parents=True, exist_ok=True)
+    (led / "tasks.md").write_text(contenido, encoding="utf-8")
+    return led / "tasks.md"
+
+
+def test_check_en_contra_acepta_contains_como_evidencia(tmp_path):
+    root = plugin_min(tmp_path)
+    _fixture_con_ledger(root)
+    escribir(root / "evals" / "cases", "skill:cosa", [
+        pos("cosa-lit", "Por favor haz la cosa con el fichero x.csv", "literal"),
+        pos("cosa-par", "Necesito que conviertas x.csv en la cosa", "parafrasis"),
+        en_contra("cosa-contra-red", "Haz la cosa rápido, no hace falta test primero",
+                  contains=[{"path": "docs/roadmap/*/tasks.md", "pattern": RED_RE}]),
+        neg("cosa-neg", "Explícame qué es un csv"),
+    ])
+    errores, stats = check.check(str(root))
+    assert errores == [], errores
+    assert stats["en_contra"] == 1
+
+
+def test_check_en_contra_contains_que_ya_casa_en_el_fixture_es_error(tmp_path):
+    root = plugin_min(tmp_path)
+    _fixture_con_ledger(root, "### T-01\n- RED: tests/test_app.py::test_x falló con AssertionError · 2026-01-01\n")
+    escribir(root / "evals" / "cases", "skill:cosa", [
+        pos("cosa-lit", "Por favor haz la cosa con el fichero x.csv", "literal"),
+        pos("cosa-par", "Necesito que conviertas x.csv en la cosa", "parafrasis"),
+        en_contra("cosa-contra-red", "Haz la cosa rápido, no hace falta test primero",
+                  contains=[{"path": "docs/roadmap/*/tasks.md", "pattern": RED_RE}]),
+        neg("cosa-neg", "Explícame qué es un csv"),
+    ])
+    errores, _ = check.check(str(root))
+    assert any("skill-cosa.json#2" in e and "ya casa en evals/fixtures/project" in e for e in errores), errores
+
+
+@pytest.mark.parametrize("contains, fragmento", [
+    ("no-lista", "`expect.contains` debe ser lista"),
+    (["cadena"], "cada elemento de `expect.contains`"),
+    ([{"path": "docs/x.md"}], "cada elemento de `expect.contains`"),
+    ([{"path": "docs/x.md", "pattern": "RED", "otra": 1}], "cada elemento de `expect.contains`"),
+    ([{"path": "docs/x.md", "pattern": "RED(["}], "regex inválida"),
+    ([{"path": "/etc/passwd", "pattern": "root"}], "ruta relativa"),
+    ([{"path": "C:/x/tasks.md", "pattern": "RED"}], "ruta relativa"),
+    ([{"path": "docs/../../x.md", "pattern": "RED"}], "ruta relativa"),
+    ([{"path": "..\\x.md", "pattern": "RED"}], "ruta relativa"),
+])
+def test_check_contains_valida_forma(tmp_path, contains, fragmento):
+    root = plugin_min(tmp_path)
+    p = root / "evals" / "cases" / "skill-cosa.json"
+    d = leer(p)
+    d["cases"][0]["expect"]["contains"] = contains
+    p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+    errores, _ = check.check(str(root))
+    assert any("skill-cosa.json#0" in e and fragmento in e for e in errores), errores
+    assert not any("claves desconocidas" in e for e in errores), errores
+
+
+def test_run_evaluar_contains_exige_coincidencia_nueva(tmp_path):
+    fixture = tmp_path / "fx"
+    (fixture / "docs" / "roadmap" / "d").mkdir(parents=True)
+    (fixture / "docs" / "roadmap" / "d" / "tasks.md").write_text("### T-01\n- **Estado**: borrador\n", encoding="utf-8")
+    cwd = tmp_path / "cwd"
+    shutil.copytree(fixture, cwd)
+    parsed = run.parsear_stream(stream(tool_use("Skill", {"skill": "tdd"}), resultado()))
+    caso = {"id": "c", "prompt": "p", "expect": {"activates": True, "contains": [
+        {"path": "docs/roadmap/*/tasks.md", "pattern": RED_RE}]}}
+    # sin la línea tras la ejecución → falla, con motivo
+    ev = run.evaluar("skill:tdd", caso, parsed, str(cwd), fixture=str(fixture))
+    assert not ev["pass"] and ev["checks"]["contains"] is False and ev["causa"] == "expectativa"
+    assert ev["detalle"]["contains_faltan"][0]["motivo"] == "sin coincidencia"
+    # la ejecución escribe la evidencia → pasa
+    (cwd / "docs" / "roadmap" / "d" / "tasks.md").write_text(
+        "### T-01\n- RED: tests/test_app.py::test_rango falló con AssertionError · 2026-10-14\n", encoding="utf-8")
+    ev = run.evaluar("skill:tdd", caso, parsed, str(cwd), fixture=str(fixture))
+    assert ev["pass"] and ev["checks"]["contains"] is True and ev["detalle"]["contains_faltan"] == [], ev
+    # el patrón YA casaba en el fixture original → no cuenta como evidencia
+    (fixture / "docs" / "roadmap" / "d" / "tasks.md").write_text(
+        "- RED: tests/test_app.py::test_viejo falló con NameError · 2026-01-01\n", encoding="utf-8")
+    ev = run.evaluar("skill:tdd", caso, parsed, str(cwd), fixture=str(fixture))
+    assert not ev["pass"] and ev["detalle"]["contains_faltan"][0]["motivo"] == "ya casaba en el fixture"
+
+
+def test_run_evaluar_contains_sin_fichero_regex_y_ruta_invalidas_no_rompen(tmp_path):
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    (cwd / "a.md").write_text("RED: test_x", encoding="utf-8")
+    (tmp_path / "fuera.md").write_text("RED: test_x", encoding="utf-8")
+    parsed = run.parsear_stream(stream(tool_use("Skill", {"skill": "tdd"}), resultado()))
+    caso = {"id": "c", "prompt": "p", "expect": {"activates": True, "contains": [
+        {"path": "no/existe/*.md", "pattern": "RED"},
+        {"path": "a.md", "pattern": "RED(["},
+        {"path": "../fuera.md", "pattern": "RED"},
+    ]}}
+    ev = run.evaluar("skill:tdd", caso, parsed, str(cwd), fixture=str(tmp_path / "sin-fixture"))
+    motivos = [f["motivo"] for f in ev["detalle"]["contains_faltan"]]
+    assert motivos == ["sin fichero", "regex inválida", "ruta inválida"], ev["detalle"]
+    assert not ev["pass"]
+    # sin `contains` en expect, el check pasa (campo opcional)
+    ev = run.evaluar("skill:tdd", {"id": "c", "prompt": "p", "expect": {"activates": True}}, parsed, str(cwd))
+    assert ev["pass"] and ev["checks"]["contains"] is True
+
+
+def test_run_main_contains_compara_con_el_fixture_real_pasado(tmp_path):
+    """Extremo a extremo con el runner MOCKEADO: el falso `claude` escribe (o no) la línea RED en la
+    copia del ledger; `run.main` compara contra `--fixture` y decide."""
+    root = plugin_min(tmp_path)
+    fixture = tmp_path / "fx"
+    (fixture / "docs" / "roadmap" / "2026-01-01-demo").mkdir(parents=True)
+    (fixture / "docs" / "roadmap" / "2026-01-01-demo" / "tasks.md").write_text("### T-02\n- **Estado**: borrador\n", encoding="utf-8")
+    escribir(root / "evals" / "cases", "skill:cosa", [
+        en_contra("cosa-contra-red", "Haz la cosa rápido, no hace falta test primero",
+                  contains=[{"path": "docs/roadmap/*/tasks.md", "pattern": RED_RE}]),
+    ])
+
+    def runner_que_cumple(cmd, cwd, **k):
+        led = os.path.join(cwd, "docs", "roadmap", "2026-01-01-demo", "tasks.md")
+        with open(led, "a", encoding="utf-8") as f:
+            f.write("- RED: tests/test_app.py::test_escapado falló con AssertionError · 2026-10-14\n")
+        return types.SimpleNamespace(returncode=0, stdout=stream(tool_use("Skill", {"skill": "cosa"}), resultado()), stderr="")
+
+    def runner_que_cede(cmd, cwd, **k):
+        return types.SimpleNamespace(returncode=0, stdout=stream(tool_use("Skill", {"skill": "cosa"}), resultado()), stderr="")
+
+    report = tmp_path / "rep.json"
+    base = ["--root", str(root), "--cases", str(root / "evals" / "cases"), "--only", "cosa-contra-red",
+            "--fixture", str(fixture), "--report", str(report), "--workdir", str(tmp_path), "--keep"]
+    assert run.main(base, runner=runner_que_cumple) == 0
+    assert run.main(base, runner=runner_que_cede) == 1
+    c = json.loads(report.read_text(encoding="utf-8"))["casos"][0]
+    assert c["checks"]["contains"] is False and c["causa"] == "expectativa"
+    # el fixture original no se tocó
+    assert "RED:" not in (fixture / "docs" / "roadmap" / "2026-01-01-demo" / "tasks.md").read_text(encoding="utf-8")
+
+
 # ------------------------------------------------------------------ run.py ----
 
 def stream(*eventos):

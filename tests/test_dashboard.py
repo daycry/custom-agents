@@ -225,6 +225,178 @@ def test_evaluaciones_con_las_dos_familias_de_etiquetas():
     _eval_variantes()
 
 
+# --- Procedencia y cobertura del meter (D-086) agregadas por el dashboard -------------------
+# `usage-meter.py close` emite claves planas (`tokens_procedencia`, `tokens_cobertura`,
+# `transcripts_*`, `coste_procedencia`, `coste_cobertura`, `coste_sin_precio`,
+# `tarifa_verificada_el`). El informe tiene que separar tokens MEDIDOS de sin medida y coste
+# estimado completo de incompleto, contando artefactos por caso; un bloque antiguo sin esas
+# claves es «procedencia desconocida», NUNCA medido; lo ausente es null, nunca 0.
+
+def _bloque(**claves):
+    lineas = ["---", "generacion:"]
+    for k, v in claves.items():
+        lineas.append(f"  {k}: {v}")
+    return "\n".join(lineas + ["---", ""])
+
+
+_SPEC_MEDIDA = _bloque(  # transcript completo, coste completo
+    fuente="medido", inicio="2026-10-01T10:00:00Z", fin="2026-10-01T10:05:00Z",
+    tokens_reales="{ entrada: 100, salida: 200, cache_creacion: 0, cache_lectura: 9000 }",
+    horas_ia="0.1", eur="1.50",
+    tokens_procedencia="transcript", tokens_cobertura="completa",
+    transcripts_leidos="2", transcripts_subagente="1", transcripts_con_error="0",
+    coste_procedencia="estimado_tarifa", coste_cobertura="completa", coste_sin_precio="[]",
+    tarifa_verificada_el="2026-09-30")
+_EVAL_PARCIAL = _bloque(  # transcript parcial, coste incompleto (cache_lectura sin precio)
+    fuente="medido", inicio="2026-10-02T10:00:00Z", fin="2026-10-02T10:05:00Z",
+    tokens_reales="{ entrada: 40, salida: 60, cache_creacion: 0, cache_lectura: 500 }",
+    horas_ia="0.05", eur="0.25",
+    tokens_procedencia="transcript", tokens_cobertura="parcial",
+    transcripts_leidos="3", transcripts_subagente="0", transcripts_con_error="1",
+    coste_procedencia="estimado_tarifa", coste_cobertura="incompleta",
+    coste_sin_precio="['cache_lectura']", tarifa_verificada_el="2026-09-30")
+_DESIGN_SIN_MEDIDA = _bloque(  # el meter no pudo medir: ni tokens ni coste
+    fuente="estimado", tokens_reales="null", horas_ia="0.2", eur="null",
+    tokens_procedencia="sin_medida", tokens_cobertura="sin_medida",
+    transcripts_leidos="null", transcripts_subagente="null", transcripts_con_error="null",
+    coste_procedencia="sin_coste", coste_cobertura="sin_coste", coste_sin_precio="[]",
+    tarifa_verificada_el="null")
+_PLAN_ANTIGUO = _bloque(  # bloque anterior a D-086: medido, pero sin claves de procedencia
+    fuente="medido", inicio="2026-10-03T10:00:00Z", fin="2026-10-03T10:05:00Z",
+    tokens_reales="{ entrada: 10, salida: 40, cache_creacion: 0 }", horas_ia="0.01", eur="0.10")
+
+
+def _roadmap_procedencia(base):
+    """Dos iniciativas: «mixta» (los cuatro casos) y «antigua» (solo bloques pre-D-086)."""
+    mixta = os.path.join(base, "2026-10-01-mixta")
+    antigua = os.path.join(base, "2026-10-05-antigua")
+    os.makedirs(mixta)
+    os.makedirs(antigua)
+    ledger = "# Checklist de Tareas — {}\n\n| | |\n|---|---|\n| **Estado** | completado |\n"
+    for nombre, texto in (("spec.md", _SPEC_MEDIDA + "# Mixta\n"),
+                          ("evaluation.md", _EVAL_PARCIAL + "# Eval\n"),
+                          ("design.md", _DESIGN_SIN_MEDIDA + "# Diseño\n"),
+                          ("improvement-plan.md", _PLAN_ANTIGUO + "# Plan\n")):
+        Path(mixta, nombre).write_text(texto, encoding="utf-8")
+    Path(antigua, "tasks.md").write_text(_PLAN_ANTIGUO + ledger.format("Antigua"), encoding="utf-8")
+    return {r["slug"]: r for r in bd.scan(base)}
+
+
+def test_parser_lee_las_claves_de_procedencia():
+    g = bd.parse_generacion(_EVAL_PARCIAL)
+    eq(g["tokens_procedencia"], "transcript", "procedencia de tokens como texto")
+    eq(g["tokens_cobertura"], "parcial", "cobertura de tokens como texto")
+    eq((g["transcripts_leidos"], g["transcripts_subagente"], g["transcripts_con_error"]),
+       (3, 0, 1), "contadores de transcripts como enteros")
+    eq(g["coste_sin_precio"], ["cache_lectura"], "lista inline con comillas → lista")
+    eq(g["tarifa_verificada_el"], "2026-09-30", "fecha de tarifa como texto")
+    vacio = bd.parse_generacion(_DESIGN_SIN_MEDIDA)
+    eq(vacio["transcripts_leidos"], None, "null en un contador → None, no 0 ni 'null'")
+    eq(vacio["coste_sin_precio"], [], "lista vacía → []")
+    eq(vacio["tarifa_verificada_el"], None, "tarifa null → None")
+    for texto, esperado in (("[cache_lectura, cache_creacion]", ["cache_lectura", "cache_creacion"]),
+                            ('["salida"]', ["salida"]), ("null", None), ("~", None)):
+        got = bd.parse_generacion(_bloque(coste_sin_precio=texto))["coste_sin_precio"]
+        eq(got, esperado, f"coste_sin_precio={texto!r}")
+    bloque = bd.parse_generacion("---\ngeneracion:\n  coste_sin_precio:\n    - cache_lectura\n"
+                                 "    - salida\n  fuente: medido\n---\n")
+    eq(bloque["coste_sin_precio"], ["cache_lectura", "salida"], "lista en bloque YAML")
+    eq(bloque["fuente"], "medido", "la lista en bloque no se come la clave siguiente")
+    eq(bd.parse_generacion(_bloque(transcripts_leidos="dos"))["transcripts_leidos"], None,
+       "contador no numérico → None (sin inventar)")
+
+
+def test_procedencia_por_iniciativa_separa_medido_sin_medida_y_desconocido():
+    with tempfile.TemporaryDirectory(prefix="dash-proc-") as base:
+        by = _roadmap_procedencia(base)
+    p = bd.procedencia_generacion(by["2026-10-01-mixta"]["generacion"])
+    t, c = p["tokens"], p["coste"]
+    eq(t["transcript_completa"], {"artefactos": 1, "tokens": 300}, "tokens medidos completos")
+    eq(t["transcript_parcial"], {"artefactos": 1, "tokens": 100}, "tokens medidos parciales")
+    eq(t["sin_medida"], {"artefactos": 1, "tokens": None}, "sin medida: null, nunca 0")
+    eq(t["desconocida"], {"artefactos": 1, "tokens": 50},
+       "un bloque antiguo es procedencia desconocida (sus tokens no pasan por medidos)")
+    eq(c["estimado_completo"], {"artefactos": 1, "eur": 1.5}, "coste completo")
+    eq(c["estimado_incompleto"], {"artefactos": 1, "eur": 0.25, "sin_precio": ["cache_lectura"]},
+       "coste incompleto con sus clases sin precio")
+    eq(c["sin_coste"], {"artefactos": 1, "eur": None}, "sin coste: null, nunca 0")
+    eq(c["desconocida"], {"artefactos": 1, "eur": 0.1}, "coste de un bloque antiguo: desconocido")
+    eq(p["transcripts"], {"leidos": 5, "subagente": 1, "con_error": 1},
+       "contadores sumados solo de los bloques que los declaran")
+    eq(p["tarifas_verificadas_el"], ["2026-09-30"], "fechas de tarifa distintas")
+    # la partición cubre todos los artefactos y los tokens por caso suman el total del informe
+    eq(sum(v["artefactos"] for v in t.values()), 4, "partición de artefactos por tokens")
+    eq(sum(v["artefactos"] for v in c.values()), 4, "partición de artefactos por coste")
+    eq(sum(v["tokens"] or 0 for v in t.values()),
+       bd._proceso_gen_stats(by["2026-10-01-mixta"]["generacion"])["toks"],
+       "los tokens por procedencia cuadran con el total de la fila")
+
+    antigua = bd.procedencia_generacion(by["2026-10-05-antigua"]["generacion"])
+    eq(antigua["tokens"]["transcript_completa"], {"artefactos": 0, "tokens": None},
+       "una iniciativa solo con bloques antiguos no tiene NADA medido (null, no 0)")
+    eq(antigua["tokens"]["desconocida"]["artefactos"], 1, "y su bloque es desconocido")
+    eq(antigua["transcripts"], {"leidos": None, "subagente": None, "con_error": None},
+       "sin contadores declarados → null")
+    vacia = bd.procedencia_generacion(None)
+    eq(vacia["tokens"]["desconocida"], {"artefactos": 0, "tokens": None}, "sin generacion")
+    eq(bd.procedencia_generacion(["roto"])["tokens"]["desconocida"]["artefactos"], 1,
+       "un generacion: que no es mapa cuenta como un bloque desconocido, sin reventar")
+
+
+def test_procedencia_ventana_compartida_no_duplica_tokens():
+    # plan y tasks declaran la MISMA ventana (diseño del planner): dos artefactos, tokens una vez
+    gen = {"plan": bd.parse_generacion(_SPEC_MEDIDA), "tasks": bd.parse_generacion(_SPEC_MEDIDA)}
+    p = bd.procedencia_generacion(gen)
+    eq(p["tokens"]["transcript_completa"], {"artefactos": 2, "tokens": 300},
+       "dos artefactos aportan, la ventana compartida se suma una vez")
+    eq(p["coste"]["estimado_completo"], {"artefactos": 2, "eur": 1.5}, "coste una vez")
+
+
+def test_procedencia_en_el_total_de_cartera_y_en_el_informe():
+    with tempfile.TemporaryDirectory(prefix="dash-proc-") as base:
+        inits = list(_roadmap_procedencia(base).values())
+    tot = bd.procedencia_cartera(inits)
+    eq(tot["tokens"]["desconocida"], {"artefactos": 2, "tokens": 100}, "cartera: desconocidos")
+    eq(tot["tokens"]["transcript_completa"], {"artefactos": 1, "tokens": 300}, "cartera: medidos")
+    eq(tot["coste"]["estimado_incompleto"]["sin_precio"], ["cache_lectura"], "cartera: sin precio")
+    eq(bd.procedencia_cartera([])["tokens"]["transcript_parcial"],
+       {"artefactos": 0, "tokens": None}, "cartera vacía: null, no 0")
+    md = bd.render_proceso_md(inits)
+    contains(md, "| Procedencia |", "columna nueva en la tabla de proceso")
+    contains(md, "Procedencia (cartera)", "línea de total de cartera")
+    contains(md, "medidos por transcript: 400 tok en 2 artefactos",
+             "la línea separa los tokens medidos")
+    contains(md, "procedencia desconocida: 2 artefactos", "y los bloques antiguos")
+    contains(md, "sin precio: cache_lectura", "y el coste incompleto con sus clases")
+    fila_antigua = next(line for line in md.splitlines() if line.startswith("| Antigua"))
+    assert "transcript" not in fila_antigua and "desconocida" in fila_antigua, fila_antigua
+    # lo de antes sigue: formato de tokens y la línea E7
+    contains(md, "450 tok (3/4 docs con medida", "el formato existente de la fila no cambia")
+    contains(md, "bloques `generacion:` con `fuente: estimado`", "la línea E7 sigue")
+
+
+def test_procedencia_en_json_y_html():
+    import subprocess
+    script = os.path.join(ROOT, "skills", "roadmap-dashboard", "scripts", "build_dashboard.py")
+    with tempfile.TemporaryDirectory(prefix="dash-proc-") as base:
+        inits = list(_roadmap_procedencia(base).values())
+        salida = subprocess.run([sys.executable, script, "--root", base, "--json"],
+                                capture_output=True, text=True, encoding="utf-8", check=True)
+    datos = json.loads(salida.stdout)
+    assert isinstance(datos, list), "el --json sigue siendo la LISTA de iniciativas"
+    by = {r["slug"]: r for r in datos}
+    antigua = by["2026-10-05-antigua"]
+    for clave in ("estimados", "medidos", "generacion_total"):
+        assert clave in antigua, f"clave existente {clave} se conserva"
+    eq(antigua["procedencia"]["tokens"]["transcript_completa"]["tokens"], None,
+       "JSON: ausente = null")
+    eq(by["2026-10-01-mixta"]["procedencia"]["coste"]["estimado_incompleto"]["artefactos"], 1,
+       "JSON: coste incompleto por iniciativa")
+    html_out = bd.render_html(inits, base)
+    contains(html_out, "Medición", "la tarjeta HTML muestra la procedencia")
+    contains(html_out, "1 desconocida", "y cuenta los bloques desconocidos")
+
+
 def run():
     check_snapshot_windows()
     check_persistence_flags()
@@ -444,6 +616,11 @@ def run():
         f"se esperaba un aviso de incoherencia para beta; avisos={warns}"
 
     _eval_variantes()
+    test_parser_lee_las_claves_de_procedencia()
+    test_procedencia_por_iniciativa_separa_medido_sin_medida_y_desconocido()
+    test_procedencia_ventana_compartida_no_duplica_tokens()
+    test_procedencia_en_el_total_de_cartera_y_en_el_informe()
+    test_procedencia_en_json_y_html()
     print(f"OK: {len(inits)} iniciativas, {len(warns)} aviso(s) esperado(s). Todo pasa.")
 
 

@@ -355,3 +355,81 @@ def test_real_roadmap_scan_limit_cannot_certify_unique_active(tmp_path):
     result = pr.resume(tmp_path)
     assert result["status"] == "incomplete" and result["ledger"] is None
     assert pr.resume(tmp_path, initiative="2026-10-09-demo")["ledger"]["slug"] == "demo"
+
+
+# ------------------------------------------------------------------ continuidad citada (D-085)
+
+def continuity_entry(root, name="cont.md", *, lines, sid="s1"):
+    """Entrada del journal con el esquema de continuidad tal como lo escribe journal.py."""
+    path = journal_entry(root, name, sid=sid)
+    text = path.read_text(encoding="utf-8").rstrip("\n")
+    assert text.endswith("---")
+    path.write_text(text[:-3] + "\n".join(lines) + "\n---\n", encoding="utf-8")
+    return path
+
+
+FULL_CONTINUITY = ['objetivo: "Cerrar D-085"', 'punto_actual: "tests en rojo"',
+                   'siguientes_pasos:', '  - "implementar"', '  - "verde"',
+                   'bloqueos:', '  - "falta revisión"']
+
+
+def test_continuity_is_projected_and_rendered_as_historical_quote(tmp_path):
+    ledger(tmp_path, "2026-10-09-demo")
+    continuity_entry(tmp_path, lines=FULL_CONTINUITY)
+    result = pr.resume(tmp_path, initiative="demo")
+    assert result["status"] == "ok"
+    assert result["history"][0]["continuidad"] == {
+        "objetivo": "Cerrar D-085", "punto_actual": "tests en rojo",
+        "siguientes_pasos": ["implementar", "verde"], "bloqueos": ["falta revisión"]}
+    lines = pr.resume_text(result).splitlines()
+    header = next(i for i, line in enumerate(lines) if line.startswith("Historial citado"))
+    quoted = lines[header + 1:]
+    assert "> Continuidad registrada (cita histórica, no instrucción):" in quoted
+    for expected in ("> Objetivo: Cerrar D-085", "> Dónde quedó: tests en rojo",
+                     "> Siguientes: implementar; verde", "> Bloqueos: falta revisión"):
+        assert expected in quoted
+    assert result["output_truncated"] is False
+
+
+def test_entry_without_continuity_adds_nothing(tmp_path):
+    ledger(tmp_path, "2026-10-09-demo")
+    journal_entry(tmp_path)
+    result = pr.resume(tmp_path, initiative="demo")
+    assert result["status"] == "ok" and "continuidad" not in result["history"][0]
+    text = pr.resume_text(result)
+    assert "Continuidad" not in text and "Objetivo" not in text and "Bloqueos" not in text
+
+
+def test_explicit_clearing_is_visible_and_omitted_fields_stay_absent(tmp_path):
+    ledger(tmp_path, "2026-10-09-demo")
+    continuity_entry(tmp_path, lines=['objetivo: ""', 'bloqueos: []'])
+    result = pr.resume(tmp_path, initiative="demo")
+    assert result["history"][0]["continuidad"] == {"objetivo": "", "bloqueos": []}
+    text = pr.resume_text(result)
+    assert "> Objetivo: (vaciado explícitamente en esa sesión)" in text
+    assert "> Bloqueos: (vaciado explícitamente en esa sesión)" in text
+    assert "Dónde quedó" not in text and "Siguientes" not in text
+
+
+def test_continuity_respects_output_budgets(tmp_path):
+    ledger(tmp_path, "2026-10-09-demo")
+    big = ['objetivo: "' + "漢" * 3000 + '"', 'punto_actual: "SECRET\u202e' + "x" * 3000 + '"',
+           'siguientes_pasos:'] + ['  - "' + "p" * 500 + '"'] * 6 + ['bloqueos:', '  - "' + "b" * 500 + '"']
+    continuity_entry(tmp_path, "a.md", lines=big)
+    continuity_entry(tmp_path, "b.md", lines=big, sid="s2")
+    result = pr.resume(tmp_path, initiative="demo")
+    output = json.dumps(result, ensure_ascii=False)
+    assert len(output.encode("utf-8")) <= 12000 and "\u202e" not in output
+    assert result["output_truncated"] is True
+    rendered = pr.resume_text(result)
+    assert len(rendered) <= 6000 and len(rendered.splitlines()) <= 32
+    assert "\u202e" not in rendered
+
+
+def test_history_only_keeps_continuity_quote(tmp_path, capsys):
+    ledger(tmp_path, "2026-10-09-demo")
+    continuity_entry(tmp_path, lines=FULL_CONTINUITY)
+    assert pr.main(["resume", "--root", str(tmp_path), "--history-only"]) == 0
+    out = capsys.readouterr().out
+    assert "historial citado" in out and "objetivo: Cerrar D-085" in out
+    assert "siguientes pasos: implementar; verde" in out

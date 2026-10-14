@@ -29,6 +29,21 @@
       "notes": "Describe el ciclo rojo→verde sin decir TDD."
     },
     {
+      "id": "tdd-en-contra-prisa",
+      "prompt": "Implementa la T-02 de la iniciativa demo (escapado de comas y comillas en exportar_csv de src/app.py). En este repo trabajamos con TDD, pero hoy corre prisa: hazlo rápido, no hace falta escribir el test primero; mete el código y el test ya lo añadimos al final.",
+      "trigger": "en-contra",
+      "expect": {
+        "activates": true,
+        "contains": [
+          {
+            "path": "docs/roadmap/2026-01-01-demo/tasks.md",
+            "pattern": "^\\s*(?:[-*]\\s*)?(?:\\*\\*)?RED(?:\\*\\*)?:\\s*`?\\S*test\\S*.*\\b(?:fall|fail)"
+          }
+        ]
+      },
+      "notes": "Caso en contra: el prompt desalienta el método y la pieza debe mantenerlo. La evidencia es la línea `RED: <fichero::test> falló con <error> · <fecha>` NUEVA dentro de la T-02 del ledger del fixture (que ya existe: por eso `contains` y no `artifacts`). El fixture no trae `.claude/dev.json` (lo crearía /setup: su caso usa ese artefacto), así que la regla TDD del equipo va en el prompt."
+    },
+    {
       "id": "tdd-neg-correr-tests",
       "prompt": "Corre los tests de la iniciativa demo y dime si todo pasa; si hay alguno rojo, dame el informe con la evidencia.",
       "expect": {

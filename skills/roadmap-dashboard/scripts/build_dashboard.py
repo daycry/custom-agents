@@ -117,6 +117,29 @@ def _gen_tokens_reales(v, lines, i, indent):
     return (toks or None), (j - 1 if toks else i)
 
 
+# Claves de procedencia y cobertura de `usage-meter.py close` (D-086) con tipo propio.
+_GEN_CONTADORES = ("transcripts_leidos", "transcripts_subagente", "transcripts_con_error")
+_GEN_LISTAS = ("coste_sin_precio",)
+
+
+def _gen_lista(v, lines, i, indent):
+    """Lista inline (`[a, 'b']`, `[]`) o en bloque YAML (`- a`); null → None. Devuelve (valor, i)."""
+    if v.startswith("["):
+        cuerpo = v.strip()[1:].rstrip("]").strip()
+        return [x.strip().strip("'\"") for x in cuerpo.split(",") if x.strip().strip("'\"")], i
+    if v:
+        return None, i  # null, ~ o un escalar: no es una lista declarada
+    items, j = [], i + 1
+    while j < len(lines):
+        hijo = re.match(r"(\s+)-\s*(.*?)\s*(?:#.*)?$", lines[j])
+        if not hijo or len(hijo.group(1)) <= len(indent):
+            break
+        if hijo.group(2).strip("'\""):
+            items.append(hijo.group(2).strip("'\""))
+        j += 1
+    return (items, j - 1) if j > i + 1 else (None, i)
+
+
 def _gen_valor(k, v):
     """Valor de una clave `generacion:` que NO es `tokens_reales`."""
     if k == "medicion_persistida":
@@ -128,6 +151,8 @@ def _gen_valor(k, v):
     if k == "revision_medicion":
         return (int(v) if re.fullmatch(r"[1-9][0-9]{0,18}", v)
                 and int(v) <= 2**63 - 1 else None)
+    if k in _GEN_CONTADORES:
+        return int(v) if re.fullmatch(r"[0-9]{1,18}", v) else None  # null/texto → None, nunca 0
     v = v.strip("'\"")
     return None if v.lower() in ("", "null", "~", "none") else v
 
@@ -149,6 +174,8 @@ def _generacion_de_lineas(lines, start):
         indent, k, v = mm.group(1), mm.group(2), mm.group(3).split("#", 1)[0].strip()
         if k == "tokens_reales":
             gen[k], i = _gen_tokens_reales(v, lines, i, indent)
+        elif k in _GEN_LISTAS:
+            gen[k], i = _gen_lista(v, lines, i, indent)
         else:
             gen[k] = _gen_valor(k, v)
         i += 1
@@ -498,6 +525,11 @@ def _render_html_card_metrics(r):
             metrics.append(
                 f'<div class="m"><span class="mk">{label}</span>'
                 f'<span class="mv">{html.escape(str(r[key]))}</span></div>')
+    if r.get("generacion"):
+        # D-086: cuántos artefactos tienen tokens medidos, sin medida o de procedencia desconocida
+        metrics.append(
+            '<div class="m"><span class="mk">Medición</span><span class="mv">'
+            f'{html.escape(_procedencia_celda(procedencia_generacion(r["generacion"])))}</span></div>')
     return metrics
 
 
@@ -806,22 +838,14 @@ def _proceso_gen_stats(gen):
     eur = 0.0
     eur_ok = True
     fuentes = set()
-    vistas = set()
     ventanas = 0
     selected, avisos = _seleccionar_snapshots_generacion(gen)
     fuentes.update(g.get("fuente") or "?" for g in gen.values() if isinstance(g, dict))
-    for g in selected:
-        t = g.get("tokens_reales")
-        clave = _clave_ventana_generacion(g, t)
-        duplicada = clave is not None and clave in vistas
-        if clave is not None:
-            vistas.add(clave)
-        fuentes.add(g.get("fuente") or "?")
-        if duplicada:
-            continue  # ventana compartida ya contada
+    fuentes.update(g.get("fuente") or "?" for g in selected)
+    for g in _ventanas_a_sumar(selected):
         ventanas += 1
         toks, horas, docs_con_tokens, eur, eur_ok = _sumar_generacion(
-            g, t, toks, horas, docs_con_tokens, eur, eur_ok)
+            g, g.get("tokens_reales"), toks, horas, docs_con_tokens, eur, eur_ok)
     if avisos:
         eur_ok = False
     return {"toks": toks, "horas": horas, "eur": eur, "eur_ok": eur_ok,
@@ -829,11 +853,180 @@ def _proceso_gen_stats(gen):
             "parcial": bool(avisos), "avisos": avisos}
 
 
+def _ventanas_a_sumar(selected):
+    """Bloques seleccionados SIN las ventanas compartidas ya vistas (se cuentan una vez)."""
+    vistas, out = set(), []
+    for g in selected:
+        clave = _clave_ventana_generacion(g, g.get("tokens_reales"))
+        if clave is not None:
+            if clave in vistas:
+                continue  # ventana compartida ya contada
+            vistas.add(clave)
+        out.append(g)
+    return out
+
+
+# ---- Procedencia y cobertura (D-086): claves planas de `usage-meter.py close` ---------------
+_CLASES_TOKENS = (("transcript_completa", "transcript completa"),
+                  ("transcript_parcial", "transcript parcial"),
+                  ("sin_medida", "sin medida"), ("desconocida", "desconocida"))
+_CLASES_COSTE = (("estimado_completo", "completo"), ("estimado_incompleto", "incompleto"),
+                 ("sin_coste", "sin coste"), ("desconocida", "desconocido"))
+_CONTADORES_TRANSCRIPT = (("leidos", "transcripts_leidos"),
+                          ("subagente", "transcripts_subagente"),
+                          ("con_error", "transcripts_con_error"))
+
+
+def _clase_tokens(g):
+    """Bloque sin las claves (anterior a D-086) o con valores no reconocidos → `desconocida`:
+    NUNCA se presume medido aunque declare `fuente: medido`."""
+    if not isinstance(g, dict):
+        return "desconocida"
+    proc, cob = g.get("tokens_procedencia"), g.get("tokens_cobertura")
+    if proc == "transcript" and cob in ("completa", "parcial"):
+        return "transcript_" + cob
+    return "sin_medida" if proc == "sin_medida" else "desconocida"
+
+
+def _clase_coste(g):
+    if not isinstance(g, dict):
+        return "desconocida"
+    proc, cob = g.get("coste_procedencia"), g.get("coste_cobertura")
+    if proc == "estimado_tarifa" and cob in ("completa", "incompleta"):
+        return "estimado_completo" if cob == "completa" else "estimado_incompleto"
+    return "sin_coste" if proc == "sin_coste" else "desconocida"
+
+
+def _sumar_opcional(acc, v):
+    """Suma que conserva el «sin dato»: None + None = None; nunca un 0 inventado."""
+    if v is None:
+        return acc
+    return v if acc is None else acc + v
+
+
+def _procedencia_vacia():
+    return {"tokens": {k: {"artefactos": 0, "tokens": None} for k, _ in _CLASES_TOKENS},
+            "coste": {k: ({"artefactos": 0, "eur": None, "sin_precio": []}
+                          if k == "estimado_incompleto" else {"artefactos": 0, "eur": None})
+                      for k, _ in _CLASES_COSTE},
+            "transcripts": {k: None for k, _ in _CONTADORES_TRANSCRIPT},
+            "tarifas_verificadas_el": []}
+
+
+def _facturables(t):
+    if not isinstance(t, dict):
+        return None
+    return (t.get("entrada") or 0) + (t.get("cache_creacion") or 0) + (t.get("salida") or 0)
+
+
+def procedencia_generacion(gen):
+    """Reparto por procedencia/cobertura de los bloques `generacion:` de UNA iniciativa.
+
+    `artefactos` cuenta cada bloque (como `contar_fuentes`: cada bloque es una declaración);
+    `tokens`/`eur` suman solo las ventanas que el total de la fila ya suma (sin duplicar una
+    ventana compartida ni sumar una medición excluida), así que los tokens por clase cuadran con
+    el total. Ausente = None (JSON `null`), nunca 0."""
+    p = _procedencia_vacia()
+    bloques = list(gen.values()) if isinstance(gen, dict) else ([gen] if gen else [])
+    sin_precio, tarifas = set(), set()
+    for g in bloques:
+        p["tokens"][_clase_tokens(g)]["artefactos"] += 1
+        clase = _clase_coste(g)
+        p["coste"][clase]["artefactos"] += 1
+        if not isinstance(g, dict):
+            continue
+        if clase == "estimado_incompleto" and isinstance(g.get("coste_sin_precio"), list):
+            sin_precio.update(g["coste_sin_precio"])
+        if g.get("tarifa_verificada_el"):
+            tarifas.add(str(g["tarifa_verificada_el"]))
+    if isinstance(gen, dict):
+        selected, _ = _seleccionar_snapshots_generacion(gen)
+        for g in _ventanas_a_sumar(selected):
+            tok = p["tokens"][_clase_tokens(g)]
+            tok["tokens"] = _sumar_opcional(tok["tokens"], _facturables(g.get("tokens_reales")))
+            cos = p["coste"][_clase_coste(g)]
+            cos["eur"] = _sumar_opcional(cos["eur"], g.get("eur"))
+            for corto, clave in _CONTADORES_TRANSCRIPT:
+                v = g.get(clave)
+                if type(v) is int:
+                    p["transcripts"][corto] = _sumar_opcional(p["transcripts"][corto], v)
+    p["coste"]["estimado_incompleto"]["sin_precio"] = sorted(sin_precio)
+    p["tarifas_verificadas_el"] = sorted(tarifas)
+    return p
+
+
+def procedencia_cartera(inits):
+    """Total de cartera: suma las procedencias por iniciativa conservando los None."""
+    tot = _procedencia_vacia()
+    sin_precio, tarifas = set(), set()
+    for r in inits:
+        p = procedencia_generacion(r.get("generacion"))
+        for eje, campo in (("tokens", "tokens"), ("coste", "eur")):
+            for clase, v in p[eje].items():
+                tot[eje][clase]["artefactos"] += v["artefactos"]
+                tot[eje][clase][campo] = _sumar_opcional(tot[eje][clase][campo], v[campo])
+        for corto, v in p["transcripts"].items():
+            tot["transcripts"][corto] = _sumar_opcional(tot["transcripts"][corto], v)
+        sin_precio.update(p["coste"]["estimado_incompleto"]["sin_precio"])
+        tarifas.update(p["tarifas_verificadas_el"])
+    tot["coste"]["estimado_incompleto"]["sin_precio"] = sorted(sin_precio)
+    tot["tarifas_verificadas_el"] = sorted(tarifas)
+    return tot
+
+
+def _procedencia_celda(p):
+    """Texto corto por iniciativa: cuántos artefactos aportan cada caso (solo los no vacíos)."""
+    tok = [f"{p['tokens'][k]['artefactos']} {txt}" for k, txt in _CLASES_TOKENS
+           if p["tokens"][k]["artefactos"]]
+    eur = []
+    for k, txt in _CLASES_COSTE:
+        v = p["coste"][k]
+        if v["artefactos"]:
+            extra = (f" (sin precio: {', '.join(v['sin_precio'])})"
+                     if k == "estimado_incompleto" and v["sin_precio"] else "")
+            eur.append(f"{v['artefactos']} {txt}{extra}")
+    if not tok and not eur:
+        return "—"
+    return f"tok: {' · '.join(tok) or '—'}; €: {' · '.join(eur) or '—'}"
+
+
+def _n_art(n):
+    return f"{n} artefacto" + ("" if n == 1 else "s")
+
+
+def _procedencia_cartera_md(inits):
+    tot = procedencia_cartera(inits)
+    t, c = tot["tokens"], tot["coste"]
+    if not sum(v["artefactos"] for v in t.values()):
+        return []
+    comp, parc = t["transcript_completa"], t["transcript_parcial"]
+    med_tok = _sumar_opcional(comp["tokens"], parc["tokens"])
+    med_tok_txt = f"{_miles(med_tok)} tok" if med_tok is not None else "—"
+    desc = t["desconocida"]
+    desc_tok = f" ({_miles(desc['tokens'])} tok, nunca contados como medidos)" \
+        if desc["tokens"] is not None else ""
+
+    def eur_txt(v):
+        return f"{v['eur']:.2f} €" if v["eur"] is not None else "—"
+    inc = c["estimado_incompleto"]
+    inc_sp = f" (sin precio: {', '.join(inc['sin_precio'])})" if inc["sin_precio"] else ""
+    return ["", f"> **Procedencia (cartera):** tokens medidos por transcript: {med_tok_txt} en "
+                f"{_n_art(comp['artefactos'] + parc['artefactos'])} (cobertura completa: "
+                f"{comp['artefactos']}, parcial: {parc['artefactos']}) · sin medida: "
+                f"{_n_art(t['sin_medida']['artefactos'])} · procedencia desconocida: "
+                f"{_n_art(desc['artefactos'])}{desc_tok}. Coste estimado por tarifa: completo "
+                f"{eur_txt(c['estimado_completo'])} en {_n_art(c['estimado_completo']['artefactos'])}"
+                f" · incompleto {eur_txt(inc)} en {_n_art(inc['artefactos'])}{inc_sp} · sin coste: "
+                f"{_n_art(c['sin_coste']['artefactos'])} · desconocido: "
+                f"{_n_art(c['desconocida']['artefactos'])}. `eur` = tokens × `precioTokens`, "
+                f"nunca una factura; «sin medida» y «sin coste» no son 0."]
+
+
 def _proceso_fila(r):
     """Fila de la tabla de coste de proceso para una iniciativa. None si no tiene datos."""
     gen = r.get("generacion")
     if not gen:
-        return f"| {md_cell(r['titulo'])} | _sin datos_ | — | — | — |", None
+        return f"| {md_cell(r['titulo'])} | _sin datos_ | — | — | — | — |", None
     s = _proceso_gen_stats(gen)
     fuente = "medido" if s["fuentes"] == {"medido"} else "/".join(sorted(s["fuentes"]))
     eur_cell = f"{s['eur']:.2f} €" if s["eur_ok"] else "⚠️ verificar"
@@ -846,7 +1039,7 @@ def _proceso_fila(r):
         tok_cell += " · datos parciales ⚠️"
     fila = (f"| {md_cell(r['titulo'])} | {tok_cell} "
             f"| {_xhym(s['horas']) if s['horas'] else '—'} | {eur_cell} | "
-            f"{', '.join(sorted(gen))} |")
+            f"{', '.join(sorted(gen))} | {md_cell(_procedencia_celda(procedencia_generacion(gen)))} |")
     return fila, s
 
 
@@ -892,8 +1085,8 @@ def render_proceso_md(inits):
     rows, tot_tok, tot_h, tot_eur, con_datos, eur_incompleto = _totales_de_proceso(inits)
     avisos = sorted({warning for r in inits for warning in
                      _proceso_gen_stats(r.get("generacion") or {})["avisos"]})
-    out += ["| Iniciativa | Tokens facturables | Horas-IA | Coste | Artefactos medidos |",
-            "|---|---|---|---|---|"]
+    out += ["| Iniciativa | Tokens facturables | Horas-IA | Coste | Artefactos medidos | Procedencia |",
+            "|---|---|---|---|---|---|"]
     out += rows
     if con_datos:
         if eur_incompleto and not tot_eur:
@@ -903,7 +1096,7 @@ def render_proceso_md(inits):
         parcial = "; parcial" if avisos else ""
         out.append(f"| **TOTAL ({con_datos} con datos{parcial})** | "
                    f"**{_miles(tot_tok) + ' tok' if tot_tok else '—'}** | "
-                   f"**{_xhym(tot_h) if tot_h else '—'}** | **{tot_eur_cell}** | |")
+                   f"**{_xhym(tot_h) if tot_h else '—'}** | **{tot_eur_cell}** | | |")
     else:
         out += ["", "_Ninguna iniciativa tiene aún bloque `generacion:` "
                 "(se rellena con usage-meter a partir de la iniciativa coste-generacion)._"]
@@ -911,6 +1104,8 @@ def render_proceso_md(inits):
     # E7: cuántos de estos números son una MEDIDA y cuántos una estimación con formato de medida.
     # Va después de la tabla, no dentro: es un juicio sobre la tabla entera, no sobre una fila.
     out += _fuentes_de_proceso(inits)
+    # D-086: tokens medidos vs sin medida vs procedencia desconocida, y coste completo vs incompleto.
+    out += _procedencia_cartera_md(inits)
     if avisos:
         out += ["", "> ⚠️ Coste de proceso parcial: " + "; ".join(avisos) + "."]
     return "\n".join(out)
@@ -971,6 +1166,8 @@ def main():
             r["estimados"], r["medidos"], r["generacion_total"] = (
                 f["estimados"], f["medidos"], f["total"])
             r["generacion_otros"] = f["otros"]
+            # D-086 (aditiva): reparto por procedencia/cobertura; ausente = null, nunca 0.
+            r["procedencia"] = procedencia_generacion(r.get("generacion"))
         print(json.dumps(inits, ensure_ascii=False, indent=2))
     _dashboard_archivos(args, inits)
     if not any([args.html, args.md, args.metrics_md, args.json]):

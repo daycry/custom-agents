@@ -30,7 +30,11 @@
 #            ruta real de Claude Code; este script queda para la prueba manual). 2026-10-13: Linux
 #            mediana 0,45-0,7 s y 0-1 de cada 5 cierres cortados por los 800 ms del hijo; Windows con
 #            carga, mediana 2,8 s y todos cortados. Un cierre cortado no pierde la sesión: el log de
-#            prompts queda y `journal.py recover` la materializa (mismo test).
+#            prompts queda y `journal.py recover` la materializa (mismo test). 2026-10-14, Windows
+#            sin otras suites: arrancar `node` ya cuesta 1-3,3 s (mediana 2,3 s), así que dentro de
+#            1,5 s no cabe nada; la única palanca es elevar el presupuesto. Si el usuario define
+#            CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS, `hooks/hook-budget.mjs` da al hijo ese
+#            presupuesto (tope: el `timeout: 5` declarado) menos 700 ms de margen; `/doctor` lo informa.
 #
 # Prueba manual:
 #   echo '{"hook_event_name":"SessionEnd","session_id":"s1","reason":"other","cwd":"'"$PWD"'"}' | bash hooks/session-journal.sh

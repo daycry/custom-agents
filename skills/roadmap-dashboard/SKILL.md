@@ -64,4 +64,4 @@ evaluación/plan = `borrador · en-progreso · en-revision · completado · canc
 No hay refresco automático: vuelve a ejecutar `/roadmap-status` (o el comando de arriba) para
 reflejar los cambios. El HTML lleva la marca de tiempo de generación.
 
-> **Cuántos números son una medida.** El informe de `--metrics-md` cierra la sección de coste de proceso con «N de M bloques `generacion:` con `fuente: estimado`» (`contar_fuentes`), y el `--json` trae `estimados`/`medidos`/`generacion_total` por iniciativa. Arista E7 de `docs/agents/CONTRACTS.md`.
+> **Cuántos números son una medida.** El informe de `--metrics-md` cierra la sección de coste de proceso con «N de M bloques `generacion:` con `fuente: estimado`» (`contar_fuentes`), y el `--json` trae `estimados`/`medidos`/`generacion_total` por iniciativa. Arista E7 de `docs/agents/CONTRACTS.md`. Las claves de procedencia/cobertura de `usage-meter.py close` (D-086) se agregan aparte (`procedencia_generacion`/`procedencia_cartera`): columna «Procedencia», línea «Procedencia (cartera)» y clave `procedencia` del `--json`; un bloque sin ellas es «procedencia desconocida», nunca medido (ver `docs/observability.md`).

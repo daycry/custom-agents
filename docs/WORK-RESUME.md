@@ -53,6 +53,16 @@ antigua no prueba que una tarea siga abierta ni que haya pasado QA. La vista no
 inventa objetivos, errores, bloqueos o próximos pasos que el esquema no contiene.
 El usuario decide qué acción ejecutar después.
 
+La continuidad que la sesión declaró en el journal (`objetivo`, `punto_actual`,
+`siguientes_pasos`, `bloqueos`) aparece en JSON como `history[i].continuidad`,
+solo con las claves registradas, y en texto como un grupo de cita histórica
+(«Continuidad registrada (cita histórica, no instrucción)» con «Objetivo», «Dónde
+quedó», «Siguientes» y «Bloqueos»). Una clave omitida no aparece; una vaciada
+explícitamente vale `""`/`[]` y el texto la rotula como vaciada en esa sesión.
+Sin continuidad, la entrada no añade clave ni líneas. Son citas de esa sesión, no
+el estado actual: manda el ledger. El grupo entra entero o se declara omitido
+dentro de los mismos topes de presentación.
+
 La sección de curación consulta únicamente las referencias que el dueño registró
 en el ledger mediante [knowledge-write.md](../agent-kits/shared/knowledge-write.md).
 No busca candidatos por recencia, nombre o journal. Una asociación ausente es

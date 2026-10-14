@@ -3,6 +3,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { childBudgetMs } from './hook-budget.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = dirname(here);
@@ -199,10 +200,8 @@ async function main() {
     const timer = setTimeout(() => {
       if (!child.pid) return;
       timedOut = true;
-      // This is the child budget. Native guard registrations also leave room
-      // for launcher startup and confirmed tree cleanup. Capture does no deferred work.
       void stop();
-    }, guard ? 4500 : activity ? 2000 : hook === 'session-journal.sh' ? (runtime === '--runtime=claude' ? 800 : 2200) : 20000);
+    }, childBudgetMs(hook, runtime, process.env));
     let output = '';
     if (guard) {
       let bytes = 0;

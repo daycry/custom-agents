@@ -11,6 +11,20 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Changed — Session continuity, measurement provenance and SessionEnd budget
+
+- `/work-resume` shows the continuity recorded in each journal entry (objective, where it stopped, next steps, blockers) as `history[i].continuidad` and as a bounded historical-quote group, telling explicitly cleared fields from omitted ones; output caps are unchanged.
+- `build_dashboard.py` (`/roadmap-metrics`, `/roadmap-status`) aggregates the meter's provenance and coverage keys: measured tokens (complete/partial) versus unmeasured and unknown provenance, and complete versus incomplete estimated cost, per initiative and for the portfolio. Older blocks count as unknown provenance.
+- The SessionEnd launcher honours `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS`: when the user raises the budget, the journal capture gets it (capped by its declared 5 s timeout, minus a 700 ms launcher margin) instead of being cut at 800 ms. `/doctor` reports the effective budget and how to raise it in `~/.claude/settings.json`; nothing is written for the user. On Windows, starting `node` alone exceeds the default 1.5 s, so without that opt-in the session keeps being recovered later by `journal.py recover`.
+
+### Added — Content checks for activation evals
+
+- `expect.contains` (`[{path, pattern}]`) checks file content after a real run: the regex must match in the run's copy and must not already match in the fixture. First executable against-case, `tdd-en-contra-prisa`, requires a new `RED:` line in the fixture ledger.
+
+### Fixed — Eval fixture cleanup on Windows
+
+- `evals/run.py` clears the read-only attribute that `copytree` copies from the fixture folders onto its temporary copy, so cleanup no longer fails with `WinError 5`.
+
 ### Added — Catalog comparison destinations (P3)
 
 - On-demand references: `delivery-practices` (rollout and recovery, post-deploy observation, repository connectors, agent-assisted delivery); `backend-practices` (HTTP contract design, service boundaries, result caches and jobs, pipeline throughput, database migrations for PostgreSQL 18 / MySQL 8.4 / MariaDB with CodeIgniter 4 and Alembic runners, conditional-path regressions); `api-contract` (non-HTTP shared boundaries); `frontend-quality` (visual system, WCAG 2.2 criteria map, state-transition audit, translations); `stack-practices` (`coding-baseline.md` with an optional TypeScript section); `outcome-evals` (agent comparisons, delivery-quality rubric, performance baselines, measured optimization); `debug-root-cause` (agent runtime failures); `code-health` (external structural analysers); `plugin-dev` (tool and observation contracts, architecture diagnostics, persistent workflows — no new `agent-system-quality` skill, `plugin-dev` already owns it).
