@@ -14,6 +14,7 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 ### Changed — Activación corregida con ejecuciones reales
 
 - Las ejecuciones reales de activación con el plugin de la rama mostraron dos fallos: pedir «hazlo rápido, sin test primero» en un repo con TDD no cargaba `tdd`, y revisar el rendimiento de un diff no cargaba `adversarial-review`. Las dos descripciones nombran ahora esos disparadores. `evals/run.py --settings <json>` pasa ajustes a `claude`, para desactivar el plugin instalado y medir solo la rama.
+- `evals/run.py` deja que cada caso lea la raíz del plugin (`--add-dir`), donde las piezas resuelven sus kits, y permite `python` además de `python3` (el binario de Windows); sin ellos, los casos fallaban por «permiso denegado» aunque la pieza se activara. Los casos positivos de `research-first` miden solo la activación: sus prompts no nombran tema, así que no se puede exigir contenido de salida.
 
 ### Changed — Comparación de comandos (94 comandos)
 

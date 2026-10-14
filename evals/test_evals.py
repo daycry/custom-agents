@@ -436,6 +436,20 @@ def test_run_negativo_pasa_si_no_se_activa_y_falla_si_se_activa():
     assert not run.evaluar("skill:quick-implement", caso, run.parsear_stream(stream(tool_use("Skill", {"skill": "quick-implement"}), resultado())), ".")["pass"]
 
 
+def test_run_permite_leer_el_plugin_y_el_python_de_windows(capsys, tmp_path):
+    """Las piezas resuelven sus kits con `find` sobre la raíz del plugin (regla 5), que está FUERA
+    del cwd temporal del caso: sin `--add-dir <raíz>` el sandbox lo deniega y el caso falla por
+    «permiso denegado» aunque la pieza se activara bien. Y en Windows el binario es `python`, no
+    `python3`: con solo `Bash(python3:*)` los tests del caso tampoco corren."""
+    root = plugin_min(tmp_path)
+    rc = run.main(["--root", str(root), "--cases", str(root / "evals" / "cases"), "--dry-run"],
+                  runner=lambda *a, **k: None)
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert out.count("--add-dir") == out.count("claude -p ") > 0, out
+    assert "Bash(python:*)" in run.ALLOWED_TOOLS_DEFAULT and "Bash(python3:*)" in run.ALLOWED_TOOLS_DEFAULT
+
+
 def test_run_settings_desactiva_el_plugin_instalado_para_medir_la_rama(capsys, tmp_path):
     """Con el plugin también instalado, `--plugin-dir` carga DOS versiones con el mismo espacio de
     nombres y la activación no dice cuál se midió. `--settings` pasa tal cual a `claude` (p. ej.

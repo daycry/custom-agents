@@ -7,7 +7,10 @@ en una sesión headless de Claude Code con el plugin cargado, en un cwd temporal
 
 Contrato de la CLI usado (code.claude.com/docs/en/headless + cli-reference, verificado 2026-09-03):
   claude -p "<prompt>" --output-format stream-json --verbose --plugin-dir <raíz del plugin>
-         --max-turns N --permission-mode acceptEdits --allowedTools "<--allowed-tools>" [--bare]
+         --add-dir <raíz del plugin> --max-turns N --permission-mode acceptEdits
+         --allowedTools "<--allowed-tools>" [--bare] [--settings <json>]
+  · `--add-dir` deja leer la raíz del plugin, fuera del cwd temporal: las piezas resuelven sus
+    kits con `find` sobre ella (regla 5) y sin él el caso falla por «permiso denegado».
   · `--output-format json` devuelve SOLO el resultado final (result, session_id, coste) — sin las
     tool uses; para ver QUÉ se activó hace falta `stream-json` (+ `--verbose`, obligatorio en -p),
     cuyas líneas `{"type":"assistant","message":{"content":[{"type":"tool_use",…}]}}` traen cada
@@ -77,7 +80,8 @@ FIXTURE = os.path.join(HERE, "fixtures", "project")
 SKILL_TOOLS = {"Skill", "SlashCommand"}
 # Default de --allowed-tools: lo que los scripts del plugin lanzan por Bash (python3, git, find) — sin
 # esto, en `-p` una tool use de Bash queda denegada y el caso falla por permisos, no por activación.
-ALLOWED_TOOLS_DEFAULT = "Bash(python3:*),Bash(git:*),Bash(find:*)"
+# `python` además de `python3`: en Windows el binario es `python` y los tests del caso no correrían.
+ALLOWED_TOOLS_DEFAULT = "Bash(python3:*),Bash(python:*),Bash(git:*),Bash(find:*)"
 AGENT_TOOLS = {"Agent", "Task"}
 
 
@@ -108,7 +112,7 @@ def cargar_casos(cases_dir, target=None, only=None):
 
 def construir_comando(prompt, root, opts):
     cmd = [opts.claude, "-p", prompt, "--output-format", "stream-json", "--verbose",
-           "--plugin-dir", root, "--max-turns", str(opts.max_turns),
+           "--plugin-dir", root, "--add-dir", root, "--max-turns", str(opts.max_turns),
            "--permission-mode", opts.permission_mode]
     if getattr(opts, "allowed_tools", None):
         cmd += ["--allowedTools", opts.allowed_tools]

@@ -14,6 +14,7 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 ### Changed — Activation fixes from real runs
 
 - Real activation runs with the branch plugin showed two misses: a "do it fast, skip the test first" request in a TDD repo did not load `tdd`, and a performance review of a diff did not load `adversarial-review`. Both descriptions now name those triggers. `evals/run.py --settings <json>` passes settings to `claude`, so the installed plugin can be disabled and only the branch is measured.
+- `evals/run.py` lets each case read the plugin root (`--add-dir`), where pieces resolve their kits, and allows `python` as well as `python3` (the Windows binary); without them, cases failed on «permission denied» even when the piece fired. The `research-first` positive cases measure activation only: their prompts name no topic, so no output content can be required.
 
 ### Changed — Command comparison (94 commands)
 

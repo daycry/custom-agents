@@ -66,17 +66,21 @@ Comando que lanza `run.py` por caso (contrato de la CLI verificado el 2026-09-03
 `code.claude.com/docs/en/headless` y `cli-reference`):
 
 ```
-claude -p "<prompt>" --output-format stream-json --verbose --plugin-dir <raíz del plugin> --max-turns 8 --permission-mode acceptEdits --allowedTools "Bash(python3:*),Bash(git:*),Bash(find:*)"
+claude -p "<prompt>" --output-format stream-json --verbose --plugin-dir <raíz del plugin> --add-dir <raíz del plugin> --max-turns 8 --permission-mode acceptEdits --allowedTools "Bash(python3:*),Bash(python:*),Bash(git:*),Bash(find:*)"
 ```
 
 **Permisos en `-p`.** Nadie aprueba herramientas en una sesión headless y `acceptEdits` solo cubre
 Write/Edit: una tool use de Bash (los scripts del plugin: `ledger-lint.py`, `usage-meter.py`, `git`,
 `find`) quedaría **denegada** y el caso fallaría por permisos, no por activación. Por eso `run.py`
-pasa `--allowed-tools` (default `Bash(python3:*),Bash(git:*),Bash(find:*)`; se entrega tal cual a
+pasa `--allowed-tools` (default `Bash(python3:*),Bash(python:*),Bash(git:*),Bash(find:*)`; `python` porque en Windows el binario no es `python3`; se entrega tal cual a
 `--allowedTools`; cadena vacía → no se pasa) y, en el informe, cada caso fallido lleva una `causa`:
 `no activó` / `activó sin deber` (lo que mide la suite), `permiso denegado` (la pieza se activó pero
 un `tool_result` con `is_error` habla de permisos — amplía `--allowed-tools`), `expectativa`
-(`mentions`/`must_not`/`artifacts`/`contains`) o `timeout`.
+(`mentions`/`must_not`/`artifacts`/`contains`) o `timeout`. `--add-dir <raíz del plugin>` va siempre:
+las piezas resuelven sus kits con `find` sobre la raíz del plugin, fuera del cwd temporal, y sin él
+el sandbox lo deniega. Con el plugin también instalado, `--settings
+'{"enabledPlugins":{"custom-agents@daycry":false}}'` desactiva la versión instalada para medir
+solo la rama (con las dos cargadas, la activación no dice cuál se midió).
 
 Sin `--keep`, el runner borra el directorio temporal que acaba de crear, incluidos
 los objetos Git de solo lectura en Windows. Solo declara `cwd: null` tras comprobar
@@ -193,8 +197,8 @@ a compilable regex, a relative `path` with no root, drive or `..`). It is how a 
 file becomes executable evidence: `tdd-en-contra-prisa` requires a new `RED: <test> falló con …` line
 in the fixture's `tasks.md`. `run.py` is the
 **local** runner: it launches `claude -p "<prompt>" --output-format stream-json --verbose
---plugin-dir <plugin> --max-turns 8 --permission-mode acceptEdits --allowedTools "<--allowed-tools>"` (default
-`Bash(python3:*),Bash(git:*),Bash(find:*)`: in `-p` nobody approves tools and `acceptEdits` does not cover Bash) per case on a copy of
+--plugin-dir <plugin> --add-dir <plugin> --max-turns 8 --permission-mode acceptEdits --allowedTools "<--allowed-tools>"` (default
+`Bash(python3:*),Bash(python:*),Bash(git:*),Bash(find:*)`: in `-p` nobody approves tools and `acceptEdits` does not cover Bash; `--add-dir` lets pieces read the plugin root outside the temporary cwd; `--settings '{"enabledPlugins":{"custom-agents@daycry":false}}'` measures only the branch when the plugin is also installed) per case on a copy of
 `fixtures/project/`, detects activation from the `Skill`/`Agent` tool uses in the transcript
 (`json` output has no tool uses; commands are invoked through the Skill tool), checks
 `mentions`/`must_not`/`artifacts`/`contains`, tags each failure with a `causa` (`no activó` · `activó sin deber` · `permiso denegado` — the
