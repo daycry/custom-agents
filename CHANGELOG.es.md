@@ -11,6 +11,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Changed — Activación corregida con ejecuciones reales
+
+- Las ejecuciones reales de activación con el plugin de la rama mostraron dos fallos: pedir «hazlo rápido, sin test primero» en un repo con TDD no cargaba `tdd`, y revisar el rendimiento de un diff no cargaba `adversarial-review`. Las dos descripciones nombran ahora esos disparadores. `evals/run.py --settings <json>` pasa ajustes a `claude`, para desactivar el plugin instalado y medir solo la rama.
+
 ### Changed — Comparación de comandos (94 comandos)
 
 - `adversarial-review` revisa un PR remoto por número o URL: base y head salen de `gh pr view`, la evidencia se ejecuta en un worktree del SHA del head y el veredicto solo se publica con OK explícito. Una lente sin salida estructurada deja el intento `incompleto`, no cuenta como «sin defectos». La Lente B marca los snapshots o goldens reescritos con el flag de actualización sin un criterio que lo pida; la tabla de TDD por stack acepta como rojo válido el stub del símbolo nuevo que lanza `NotImplementedError` o equivalente.

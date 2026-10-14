@@ -9,7 +9,8 @@ description: >
   brief) cuando `.claude/dev.json` tiene `tdd: true`; también a demanda. NO corre la suite completa
   ni da el verde de pruebas (eso es `qa` con `qa-gate`), ni depura fallos ajenos (`debug-root-cause`).
   Úsala cuando el usuario diga "hazlo con TDD", "escribe primero el test", "test antes del código",
-  "RED-GREEN-REFACTOR", "quiero evidencia del rojo", o cuando dev.json active `tdd`.
+  "RED-GREEN-REFACTOR", "quiero evidencia del rojo", o cuando dev.json active `tdd`. También si
+  el repo trabaja con TDD y piden saltarse el test por prisa: la prisa no desactiva el método.
 ---
 
 # tdd — test primero, con prueba de que falló

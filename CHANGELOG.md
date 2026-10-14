@@ -11,6 +11,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Changed — Activation fixes from real runs
+
+- Real activation runs with the branch plugin showed two misses: a "do it fast, skip the test first" request in a TDD repo did not load `tdd`, and a performance review of a diff did not load `adversarial-review`. Both descriptions now name those triggers. `evals/run.py --settings <json>` passes settings to `claude`, so the installed plugin can be disabled and only the branch is measured.
+
 ### Changed — Command comparison (94 commands)
 
 - `adversarial-review` reviews a remote PR by number or URL: base and head come from `gh pr view`, evidence runs in a worktree of the head SHA, and the verdict is posted only with explicit user OK. A lens with no structured output leaves the attempt `incompleto` instead of counting as «no defects». Lens B flags snapshots or goldens rewritten with the update flag when no criterion asks for that change; the TDD stack table accepts a `NotImplementedError`-style stub of the new symbol as a valid red.

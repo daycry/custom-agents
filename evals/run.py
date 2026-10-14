@@ -114,6 +114,8 @@ def construir_comando(prompt, root, opts):
         cmd += ["--allowedTools", opts.allowed_tools]
     if opts.bare:
         cmd.append("--bare")
+    if getattr(opts, "settings", None):
+        cmd += ["--settings", opts.settings]
     return cmd
 
 
@@ -445,7 +447,16 @@ def main(argv=None, runner=None):
     ap.add_argument("--report", help="ruta del informe JSON (default evals/reports/<fecha>.json)")
     ap.add_argument("--workdir", default=None, help="dónde crear los cwd temporales")
     ap.add_argument("--keep", action="store_true", help="no borrar los cwd temporales")
+    ap.add_argument("--settings", help="JSON que se pasa tal cual a `claude --settings`; p. ej. "
+                    "'{\"enabledPlugins\":{\"custom-agents@daycry\":false}}' para medir la rama sin la "
+                    "versión instalada (con las dos cargadas, la activación no dice cuál se midió)")
     opts = ap.parse_args(argv)
+    if opts.settings:
+        try:
+            json.loads(opts.settings)
+        except ValueError:
+            print("evals/run: --settings no es JSON válido", file=sys.stderr)
+            return 2
 
     root = os.path.abspath(opts.root)
     casos = cargar_casos(opts.cases, opts.target, opts.only)

@@ -436,6 +436,21 @@ def test_run_negativo_pasa_si_no_se_activa_y_falla_si_se_activa():
     assert not run.evaluar("skill:quick-implement", caso, run.parsear_stream(stream(tool_use("Skill", {"skill": "quick-implement"}), resultado())), ".")["pass"]
 
 
+def test_run_settings_desactiva_el_plugin_instalado_para_medir_la_rama(capsys, tmp_path):
+    """Con el plugin también instalado, `--plugin-dir` carga DOS versiones con el mismo espacio de
+    nombres y la activación no dice cuál se midió. `--settings` pasa tal cual a `claude` (p. ej.
+    `{"enabledPlugins":{"custom-agents@daycry":false}}`) y debe ser JSON válido."""
+    root = plugin_min(tmp_path)
+    ajustes = '{"enabledPlugins":{"custom-agents@daycry":false}}'
+    rc = run.main(["--root", str(root), "--cases", str(root / "evals" / "cases"), "--dry-run",
+                   "--settings", ajustes], runner=lambda *a, **k: None)
+    out = capsys.readouterr().out
+    assert rc == 0 and out.count("--settings") == out.count("claude -p ") > 0, out
+    assert "custom-agents@daycry" in out
+    assert run.main(["--root", str(root), "--cases", str(root / "evals" / "cases"), "--dry-run",
+                     "--settings", "{no es json"], runner=lambda *a, **k: None) == 2
+
+
 def test_run_dry_run_imprime_comandos_sin_ejecutar(capsys, tmp_path):
     root = plugin_min(tmp_path)
     llamadas = []
