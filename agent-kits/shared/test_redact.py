@@ -397,3 +397,83 @@ def test_t10fix2_178_dir_de_la_cola_y_enrich_ramas(tmp_path, monkeypatch, capsys
     lista = tmp_path / "lista.json"
     lista.write_text("[1]", encoding="utf-8")
     assert journal.cargar_enrich(str(lista), avisos) == {}
+
+
+# ---- anonimizar (panel-redesign T-04, CA-41) ---------------------------------------------------
+# Datos FALSOS: ninguna ruta, usuario ni correo de esta máquina.
+_RAIZ_WIN = r"C:\Users\anaperez2024\Proyectos\demo"
+_HOME_WIN = r"C:\Users\anaperez2024"
+
+
+def test_anonimizar_raiz_y_home_windows_con_ambos_separadores_y_mayusculas():
+    texto = (r"edita C:\Users\anaperez2024\Proyectos\demo\docs\a.md y "
+             "c:/users/ANAPEREZ2024/proyectos/DEMO/skills/x.py; caché en C:/Users/AnaPerez2024/AppData/Local/t")
+    assert redact.anonimizar(texto, _RAIZ_WIN, _HOME_WIN, "anaperez2024") == (
+        r"edita .\docs\a.md y ./skills/x.py; caché en ~/AppData/Local/t")
+
+
+def test_anonimizar_formas_alternativas_de_la_misma_ruta_windows():
+    # Git Bash (/c/Users/…), URL file:/// y el nombre corto 8.3 del perfil (ANAPER~1).
+    texto = r"/c/Users/anaperez2024/x · file:///C:/Users/anaperez2024/Proyectos/demo/i.html · C:\Users\ANAPER~1\AppData\Local\Temp\y"
+    assert redact.anonimizar(texto, _RAIZ_WIN, _HOME_WIN, "anaperez2024") == (
+        r"~/x · file:///./i.html · ~\AppData\Local\Temp\y")
+
+
+def test_anonimizar_posix_distingue_mayusculas_y_respeta_limites_de_componente():
+    texto = "/home/ana/proj/src/a.py · /home/ana/.ssh/config · /home/anabel/z · /HOME/ANA/w · /home/ana."
+    assert redact.anonimizar(texto, "/home/ana/proj", "/home/ana", "ana") == (
+        "./src/a.py · ~/.ssh/config · /home/anabel/z · /HOME/<usuario>/w · ~.")
+
+
+def test_anonimizar_correo_antes_que_usuario():
+    texto = "Autor: Ana <ana.perez@example.org>, revisó ana.perez y anaperez2024@corp.example.com"
+    assert redact.anonimizar(texto, None, None, "ana.perez") == (
+        "Autor: Ana <<correo>>, revisó <usuario> y <correo>")
+
+
+def test_anonimizar_usuario_como_palabra_sin_distinguir_mayusculas():
+    texto = "lo lanzó anaperez2024 y luego ANAPEREZ2024; no toca anaperez20245 ni x_anaperez2024"
+    assert redact.anonimizar(texto, None, None, "anaperez2024") == (
+        "lo lanzó <usuario> y luego <usuario>; no toca anaperez20245 ni x_anaperez2024")
+
+
+def test_anonimizar_sin_falsos_positivos_en_rutas_relativas_y_paquetes():
+    for limpio in ("docs/roadmap/2026-10-15-panel-redesign/tasks.md", r"skills\plugin-panel\assets\x.js",
+                   "home/ana/proj/a.py", "docs/home/ana/b.md", "@playwright/test", "chart.js@4.5.1",
+                   '"root_id": "project"', "npm i left-pad@1.3.0", "--root roadmap"):
+        assert redact.anonimizar(limpio, "/home/ana/proj", "/home/ana", "root") == limpio, limpio
+
+
+def test_anonimizar_parametros_ausentes_o_inservibles_no_tocan_nada():
+    texto = "texto sin datos C:/otra/ruta"
+    assert redact.anonimizar(texto, None, None, None) == texto
+    assert redact.anonimizar(texto, "", "", "") == texto
+    # Un usuario de < 3 caracteres destrozaría el texto («a», «yo»): se ignora (documentado).
+    assert redact.anonimizar("a la ruta yo", None, None, "a") == "a la ruta yo"
+    assert redact.anonimizar("a la ruta yo", None, None, "yo") == "a la ruta yo"
+    # Raíz «/» o una unidad sola no son una raíz anonimizable: borrarían toda ruta absoluta.
+    assert redact.anonimizar(r"/etc/hosts y C:\Windows", "/", "C:\\", None) == r"/etc/hosts y C:\Windows"
+
+
+def test_anonimizar_es_pura_y_determinista(monkeypatch):
+    monkeypatch.setenv("HOME", _HOME_WIN)
+    monkeypatch.setenv("USERPROFILE", _HOME_WIN)
+    monkeypatch.setenv("USERNAME", "anaperez2024")
+    monkeypatch.setenv("USER", "anaperez2024")
+    texto = r"C:\Users\anaperez2024\x y anaperez2024"
+    # Sin argumentos no lee el entorno: la entrada sale tal cual.
+    assert redact.anonimizar(texto, None, None, None) == texto
+    primera = redact.anonimizar(texto, _RAIZ_WIN, _HOME_WIN, "anaperez2024")
+    assert primera == redact.anonimizar(texto, _RAIZ_WIN, _HOME_WIN, "anaperez2024") == r"~\x y <usuario>"
+    # Acepta pathlib y una lista de alias equivalentes (p. ej. la raíz real y la resuelta por un enlace).
+    assert redact.anonimizar("/srv/real/p/a /home/ana/p/b", ["/home/ana/p", Path("/srv/real/p")], None, None) == "./a ./b"
+
+
+def test_anonimizar_fuera_del_bloque_replicado_y_redactar_intacto():
+    fuente = Path(HERE, "redact.py").read_text(encoding="utf8")
+    inicio = fuente.index("# --8<-- redact (redactar + constantes)")
+    fin = fuente.index("# --8<-- fin redact (redactar + constantes)")
+    assert "def anonimizar" in fuente and "def anonimizar" not in fuente[inicio:fin]
+    assert fuente.index("def anonimizar") > fin
+    # Orden fijo del saneado, documentado en el módulo (lo siguen panel_data.py y el almacén de actividad).
+    assert "redactar → anonimizar → quitar controles → recortar" in redact.__doc__

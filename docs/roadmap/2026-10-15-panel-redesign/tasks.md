@@ -24,7 +24,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | | |
 |---|---|
-| **Estado** | borrador |
+| **Estado** | en-progreso |
 | **Fecha** | 2026-10-15 |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
 | **Diseño** | [`design.md`](./design.md) — opción O1+O5 (D-A1 = O1, D-A2 = O5) |
@@ -39,11 +39,11 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Base común | 0 | 16 | 0% | 0 / 28,8h | 0 / 10,5h | 0 / 3,6h | 0 / 5,58 M |
+| Fase 1 — Base común | 4 | 16 | 25% | 0 / 28,8h | 0,91 / 10,5h | 0,24 / 3,6h | 0,49 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 0 | 13 | 0% | 0 / 36,0h | 0 / 10,8h | 0 / 3,7h | 0 / 5,74 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 0 | 10 | 0% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
 | Fase 3 — Agentes en vivo + cierre transversal | 0 | 15 | 0% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **0** | **54** | **0%** | **0 / 136,8h** | **0 / 51,9h** | **0 / 17,0h** | **0 / 27,60 M** |
+| **TOTAL** | **4** | **54** | **7%** | **0 / 136,8h** | **0,91 / 51,9h** | **0,24 / 17,0h** | **0,49 / 27,60 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -53,72 +53,80 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 1 — Base común
 
-**Estado**: borrador · **Estimado**: 28,8h humanas · 10,5h IA · **Real**: — · **Coste est.**: 1.513 € referencia · ≈ 255 € ejecución · **Tokens est.**: 5,58 M
+**Estado**: en-progreso · **Estimado**: 28,8h humanas · 10,5h IA · **Real**: — · **Coste est.**: 1.513 € referencia · ≈ 255 € ejecución · **Tokens est.**: 5,58 M
 
 Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la primera revisión de CA-44). Aplica D-A1 = O1.
 
 ### T-01 — Golden files de los contratos que no deben cambiar
 
 - **Descripción**: Antes de refactorizar nada, fija las salidas actuales sobre fixtures propias: `build_dashboard.py --json`, `build_dashboard.py --md` (`dashboard.md`) y `build_panel.py --json` sobre un bundle de fixture. Son la red de no regresión de CA-28 y de «No regresión» de la spec.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,3h · real —
-- **Supervisión**: est. 0,1h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,3h · real 0,18h (medido)
+- **Supervisión**: est. 0,1h (≈25 % IA) · real 0,05h (estimado, 25 % de la IA)
 - **Previsión IA**: 137k in / 22k out tok · 2,10 €
 - **Dependencias**: ninguna
 - **Tipo**: test
-- **Archivos**: `tests/fixtures/panel-redesign/**`, `tests/test_panel_contract_golden.py`
+- **Archivos**: `tests/fixtures/panel-redesign/**`, `tests/test_panel_contract_golden.py`, `.gitattributes` (añadido: ver Notas)
 - **Cubre (tests)**: —
 - **Verificación**: `python3 -m pytest -q tests/test_panel_contract_golden.py` → `3 passed` (o más) en el código ACTUAL, antes de tocar ningún generador
 
 **Criterios de aceptación**
-- [ ] Tres goldens versionados: `dashboard.json`, `dashboard.md` y `panel.json`, generados sobre `tests/fixtures/panel-redesign/roadmap/` y `tests/fixtures/panel-redesign/bundle/`, nunca sobre el repo real.
-- [ ] El test compara byte a byte; si un campo es volátil (fecha de generación, rutas temporales), se normaliza con una lista explícita y documentada en el test, no se excluye el fichero.
-- [ ] La fixture de roadmap cubre los casos que la spec exige después: estados de spec variados, iniciativa ilegible, ledger > 256 KiB, sin `generacion:`, sin `real`, `—` en horas, gaps de revisión abiertos, `execution-history.md`.
-- [ ] Las fixtures no contienen rutas del home, usuarios ni correos reales (CA-41).
+- [x] Tres goldens versionados: `dashboard.json`, `dashboard.md` y `panel.json`, generados sobre `tests/fixtures/panel-redesign/roadmap/` y `tests/fixtures/panel-redesign/bundle/`, nunca sobre el repo real.
+- [x] El test compara byte a byte; si un campo es volátil (fecha de generación, rutas temporales), se normaliza con una lista explícita y documentada en el test, no se excluye el fichero.
+- [x] La fixture de roadmap cubre los casos que la spec exige después: estados de spec variados, iniciativa ilegible, ledger > 256 KiB, sin `generacion:`, sin `real`, `—` en horas, gaps de revisión abiertos, `execution-history.md`.
+- [x] Las fixtures no contienen rutas del home, usuarios ni correos reales (CA-41).
 
 **Subtareas**
-- [ ] Crear la fixture de roadmap (5-7 iniciativas mínimas) y la de bundle.
-- [ ] Generar los goldens con el código actual y versionarlos.
-- [ ] Test de comparación byte a byte con normalización declarada.
+- [x] Crear la fixture de roadmap (5-7 iniciativas mínimas) y la de bundle.
+- [x] Generar los goldens con el código actual y versionarlos.
+- [x] Test de comparación byte a byte con normalización declarada.
 
-**Notas**: patrón de fixture de bundle en `tests/test_plugin_panel.py:69-70` (`bundle(tmp_path)`); patrón de roadmap sintético y subprocess de `--json` en `tests/test_dashboard.py:269` (`_roadmap_procedencia`). El `--json` se emite en `skills/roadmap-dashboard/scripts/build_dashboard.py:1157-1170`. Este golden se actualiza UNA vez en F3 (T-51), con diff limitado a los registros de hook nuevos.
+- **Changelog**: Las salidas JSON y Markdown del dashboard y el JSON del catálogo del panel quedan fijadas con goldens: el rediseño del panel no puede cambiarlas sin que falle un test.
+- **Evidencia TDD**: `RED: test_dashboard_json_igual_a_su_golden, test_dashboard_md_igual_a_su_golden y test_panel_json_igual_a_su_golden fallaron con AssertionError: golden ausente: tests/fixtures/panel-redesign/golden/<nombre> · 2026-10-15` (3 failed, 2 passed). GREEN: goldens generados con `PANEL_GOLDEN_UPDATE=1` sobre el código ACTUAL (sin tocar ningún generador: `git status` limpio en `skills/` y `agent-kits/`), y 3 ejecuciones seguidas en verde.
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_contract_golden.py` → `5 passed in 0.92s`. Tokens reales de la tarea ≈ 0,10 M (derivados de las horas-IA medidas × ratio 531.798; el JSON de `close` no se conservó). Independencia de la ubicación: la fixture copiada a otra carpeta absoluta produce los mismos bytes normalizados en `panel.json` y `dashboard.json` (`True True`).
+
+**Notas**: patrón de fixture de bundle en `tests/test_plugin_panel.py:69-70` (`bundle(tmp_path)`); patrón de roadmap sintético y subprocess de `--json` en `tests/test_dashboard.py:269` (`_roadmap_procedencia`). El `--json` se emite en `skills/roadmap-dashboard/scripts/build_dashboard.py:1157-1170`. Este golden se actualiza UNA vez en F3 (T-51), con diff limitado a los registros de hook nuevos. **Implementación (2026-10-15):** fixture de roadmap con 6 iniciativas + 1 carpeta y 1 fichero que no son iniciativa: `alfa` (cadena completa, spec `aprobada`, `generacion:` medido, gaps de revisión abiertos), `beta` (spec `borrador`, sin `generacion:`), `gamma` (`implementada`, horas `—` sin real, `testing/`, `execution-history.md`, etiquetas nuevas de evaluación), `delta` (ilegible: spec sin frontmatter con bytes no UTF-8 —que solo existen en la copia materializada, ver abajo— y evaluación sin etiquetas), `epsilon` (vía rápida, ledger de 273.499 bytes > 256 KiB, `generacion:` sin medida) y `zeta` (`obsoleta`, evaluación `cancelado` por frontmatter, coste parcial). El ledger grande se generó una vez con un script de desarrollo determinista (no versionado; el fichero sí). Bundle de fixture: 2 agentes, 1 skill, 1 comando, `hooks/hooks.json`, `interop/codex/hooks.json` (con un timeout inválido), el catálogo de hooks de OpenCode (copiado del `hooks/opencode-plugin.js` real, solo el bloque de datos) y `native-roles.json`; extensiones `project/` y `home/` (agente, persona, skills con un conflicto de nombre, TOML de Codex, fuente de tool, `.mcp.json` con URL y cabecera privadas que no salen). **Normalización declarada en el test** (`NORMALIZACION` + `_ids_de_usuario`): fin de línea CRLF→LF, fecha de `dashboard.md`, separador `\` del campo `path`, e ids de piezas de USUARIO derivados del hash de la ruta absoluta de la raíz (`project-pieces.py:505`). **Desviación:** `.gitattributes` gana `tests/fixtures/panel-redesign/** text eol=lf`; sin ella, `core.autocrlf=true` en Windows extrae CRLF y los goldens dejan de cuadrar (mismo caso que `tests/fixtures/knowledge-corpus/**`). Para regenerar en T-51: `PANEL_GOLDEN_UPDATE=1` y revisar el diff de `golden/`. **Materialización (corrección tras la suite repo-wide):** la primera versión versionaba la spec de `delta` con bytes no UTF-8 y rompía `tests/test_review_jira_owner.py::test_paso_9_no_aparece_en_ningun_md_vivo_del_repo` (lee todo `.md` vivo en UTF-8 estricto; en CI habría fallado). Ahora el árbol versionado es UTF-8 válido (lo vigila `test_el_arbol_versionado_solo_lleva_utf8_valido`) y los generadores corren sobre una copia en `tmp` que hace `materializar()` (copia `roadmap/`, `bundle/`, `project/`, `home/` y escribe los bytes no UTF-8 de `delta`); los goldens no cambiaron. Las fases siguientes que usen la fixture deben importar `materializar` de `tests/test_panel_contract_golden.py`. Verificación tras el cambio: `… tests/test_panel_contract_golden.py` → `6 passed in 3.03s`.
 
 ### T-02 — Chart.js 4.5.1 incluido con procedencia, licencia y hash
 
 - **Descripción**: Incluye `chart.umd.min.js` 4.5.1 sin modificar en `skills/plugin-panel/assets/vendor/chart.js/`, extraído una sola vez del tarball de npm verificando su `sha512`, con `LICENSE.md` (MIT) y `PROVENANCE.json`. Un test falla si el SHA-256 del fichero no coincide (CA-36).
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 1,2h · real —
-- **Tiempo IA (ejec.)**: est. 0,2h · real —
-- **Supervisión**: est. 0,05h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,2h · real 0,54h (medido; la ventana incluye la suite `installer.test.mjs`, 7 min)
+- **Supervisión**: est. 0,05h (≈25 % IA) · real 0,14h (estimado, 25 % de la IA)
 - **Previsión IA**: 91k in / 15k out tok · 1,40 €
 - **Dependencias**: ninguna
 - **Tipo**: devops
-- **Archivos**: `skills/plugin-panel/assets/vendor/chart.js/chart.umd.min.js`, `skills/plugin-panel/assets/vendor/chart.js/LICENSE.md`, `skills/plugin-panel/assets/vendor/chart.js/PROVENANCE.json`, `tests/test_panel_vendor.py`
+- **Archivos**: `skills/plugin-panel/assets/vendor/chart.js/chart.umd.min.js`, `skills/plugin-panel/assets/vendor/chart.js/LICENSE.md`, `skills/plugin-panel/assets/vendor/chart.js/PROVENANCE.json`, `tests/test_panel_vendor.py`, `.gitignore`, `.gitattributes` (añadidos: ver Notas)
 - **Cubre (tests)**: E2E-02
 - **Verificación**: `python3 -m pytest -q tests/test_panel_vendor.py` → `passed`, con SHA-256 `48444a82d4edcb5bec0f1965faacdde18d9c17db3063d042abada2f705c9f54a` y 208.522 bytes
 
 **Criterios de aceptación**
-- [ ] Un único fichero de Chart.js en todo el árbol del plugin (el test lo busca por nombre y por contenido de cabecera).
-- [ ] `PROVENANCE.json` declara versión, URL del tarball, `sha512` npm, `sha256` del fichero, tamaño, licencia y fecha de extracción.
-- [ ] El test recalcula el SHA-256 y falla si no coincide con `PROVENANCE.json`.
-- [ ] Ningún script del plugin descarga nada en ejecución ni al generar: la extracción es un paso de desarrollo único y queda anotado en `Notas`.
+- [x] Un único fichero de Chart.js en todo el árbol del plugin (el test lo busca por nombre y por contenido de cabecera).
+- [x] `PROVENANCE.json` declara versión, URL del tarball, `sha512` npm, `sha256` del fichero, tamaño, licencia y fecha de extracción.
+- [x] El test recalcula el SHA-256 y falla si no coincide con `PROVENANCE.json`.
+- [x] Ningún script del plugin descarga nada en ejecución ni al generar: la extracción es un paso de desarrollo único y queda anotado en `Notas`.
 
 **Subtareas**
-- [ ] Descargar el tarball de npm (paso de desarrollo, una vez), verificar `sha512`, extraer `dist/chart.umd.min.js`.
-- [ ] Escribir `LICENSE.md` y `PROVENANCE.json`.
-- [ ] Test de hash y de unicidad.
-- [ ] Comprobar que `scripts/lint_plugin.py`, `tests/test_skill_size.py`, `scripts/export-interop.py` e `install/` toleran el activo de ~210 KB (riesgo de la evaluación C-01).
+- [x] Descargar el tarball de npm (paso de desarrollo, una vez), verificar `sha512`, extraer `dist/chart.umd.min.js`.
+- [x] Escribir `LICENSE.md` y `PROVENANCE.json`.
+- [x] Test de hash y de unicidad.
+- [x] Comprobar que `scripts/lint_plugin.py`, `tests/test_skill_size.py`, `scripts/export-interop.py` e `install/` toleran el activo de ~210 KB (riesgo de la evaluación C-01).
 
-**Notas**: valores de `design.md` §2.4 I-01. Patrón de comprobación de huella por SHA-256 en `tests/test_graphiti_security.py:122` (`_LAUNCHER_NODE_HASH`). Si `install/` no copia `assets/`, se anota y se corrige en T-14.
+- **Changelog**: El panel incluye Chart.js 4.5.1 sin modificar, con su licencia MIT y un fichero de procedencia; un test comprueba su huella y que no hay otra copia.
+- **Evidencia TDD**: `RED: los 6 tests de tests/test_panel_vendor.py fallaron (falta chart.umd.min.js; FileNotFoundError de PROVENANCE.json y LICENSE.md; unicidad [] ≠ [vendor]; .gitignore ignora el fichero por **/vendor/; serve_panel.py cita http://) · 2026-10-15`. El último rojo destapó un falso positivo del propio test (el servidor cita su origen de loopback `http://127.0.0.1:<puerto>`): el patrón excluye `127.0.0.1` y `localhost`. Mutación comprobada: una copia de `chart.umd.min.js` en `skills/plugin-panel/references/` hace fallar la unicidad.
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_vendor.py` → `6 passed`. Fichero: 208.522 bytes, SHA-256 `48444a82d4edcb5bec0f1965faacdde18d9c17db3063d042abada2f705c9f54a` (= `design.md` I-01). Tokens reales 0,29 M facturables (`usage-meter close`: entrada 54, salida 15.347, creación de caché 272.366).
+
+**Notas**: valores de `design.md` §2.4 I-01. Patrón de comprobación de huella por SHA-256 en `tests/test_graphiti_security.py:122` (`_LAUNCHER_NODE_HASH`). Si `install/` no copia `assets/`, se anota y se corrige en T-14. **Extracción (paso de desarrollo único, 2026-10-15):** `curl -sS -f` de `https://registry.npmjs.org/chart.js/4.5.1` (metadatos) y del tarball `https://registry.npmjs.org/chart.js/-/chart.js-4.5.1.tgz` (1.576.314 bytes) a una carpeta vacía del scratchpad; un script con `python -I` fuera de esa carpeta comprobó `sha512-GIjfiT9dbmHRiYi6Nl2yFCq7kkwdkp1W/lp2J99rX0yo9tgJGn3lKQATztIjb5tVtevcBtIdICNWqlq5+E8/Pw==` = `dist.integrity` del registro = valor de `design.md` (y `shasum` sha1 `19dd1a9a386a3f6397691672231cb5fc9c052c35` = registro), y solo entonces leyó con `tarfile` dos miembros sin ejecutar nada: `package/dist/chart.umd.min.js` (SHA-256 `48444a82…f54a`, igual al publicado por jsDelivr que cita el diseño) y `package/LICENSE.md` (MIT, «Copyright (c) 2014-2024 Chart.js Contributors», SHA-256 `41a84aa2…4cce`). Ningún script del plugin descarga: lo vigila `test_ningun_script_del_panel_descarga_nada`. **Desviaciones (ficheros fuera del `Archivos` original):** (1) `.gitignore` tenía `**/vendor/`, que ignoraba el fichero: sin la excepción `!skills/plugin-panel/assets/vendor/`, el plugin instalado por marketplace (clon de git) no lo traería; (2) `.gitattributes` gana `skills/plugin-panel/assets/vendor/** -text`: con `core.autocrlf=true` git podría convertir fines de línea y romper el SHA-256 (el test lo vigila con `git check-attr`). **Tolerancia del activo (riesgo C-01):** `lint_plugin.py` → `0 errores · 8 avisos` (los 8 preexistentes: 3 nombres genéricos, `/health`, `/skills` ×4); `export-interop.py --check` → `88 ficheros al día`; `test_skill_size.py` → `30 passed`; `test_export_skills.py` + `test_export_interop.py` → `65 passed`; `export-skills.py` lleva el `vendor/` al paquete portable con el mismo SHA-256 y `--check` → `241 ficheros · 0 problema(s)`; `install/` copia `skills/` entero con `cpSync` (sin filtro de tamaño; `installer.test.mjs` → `145 pass, 0 fail`) y `npm pack --dry-run` incluye los 3 ficheros de `vendor/chart.js/`: **no hace falta corregir nada en T-14**. Nota para T-11: el fichero termina en `//# sourceMappingURL=chart.umd.min.js.map` (sin modificar); el `.map` no se incluye, así que un navegador con las herramientas de desarrollo abiertas lo pedirá y recibirá 404 (no es CSP ni red externa).
 
 ### T-03 — Spike de CSP con Chart.js en servido y en `file://` (Playwright, Chromium y Firefox)
 
 - **Descripción**: Primer día de F1: una página mínima con un gráfico Chart.js se abre en modo servido (CSP con nonce) y en `file://` (CSP `default-src 'none'; script-src 'self' file:; style-src 'self' 'unsafe-inline'; img-src data:`) con la red bloqueada, en Chromium y Firefox. Decide entre `file:` y el respaldo con Chart.js incrustado y `'sha256-…'` antes de seguir.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,4h · real —
-- **Supervisión**: est. 0,1h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,4h · real 0,07h (medido; corto: ver Notas)
+- **Supervisión**: est. 0,1h (≈25 % IA) · real 0,02h (estimado, 25 % de la IA)
 - **Previsión IA**: 183k in / 30k out tok · 2,80 €
 - **Dependencias**: T-02
 - **Tipo**: test
@@ -127,25 +135,57 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 - **Verificación**: `node tests/e2e/panel-csp-spike.mjs --engines chromium,firefox` → `securitypolicyviolation: 0` y `peticiones a otros orígenes: 0` en los 4 casos (2 motores × 2 modos), o la salida que justifica el respaldo hash, pegada en este ledger
 
 **Criterios de aceptación**
-- [ ] Los 4 casos (Chromium/Firefox × servido/`file://`) se ejecutan con la red bloqueada y la salida se pega en `Notas` de esta tarea.
-- [ ] Decisión anotada: `file:` vale en ambos motores, o se adopta el respaldo determinista (Chart.js incrustado + `script-src 'sha256-…'`, el fichero sigue en `vendor/` con su `LICENSE`).
-- [ ] Sin `unsafe-eval` ni `unsafe-inline` en `script-src` en ningún caso.
-- [ ] Si Playwright no está instalado, el script sale con aviso y código 2 (no inventa un verde); la instalación requiere permiso del usuario.
+- [x] Los 4 casos (Chromium/Firefox × servido/`file://`) se ejecutan con la red bloqueada y la salida se pega en `Notas` de esta tarea.
+- [x] Decisión anotada: `file:` vale en ambos motores, o se adopta el respaldo determinista (Chart.js incrustado + `script-src 'sha256-…'`, el fichero sigue en `vendor/` con su `LICENSE`).
+- [x] Sin `unsafe-eval` ni `unsafe-inline` en `script-src` en ningún caso.
+- [x] Si Playwright no está instalado, el script sale con aviso y código 2 (no inventa un verde); la instalación requiere permiso del usuario.
 
 **Subtareas**
-- [ ] Pedir permiso para instalar Playwright y los navegadores (mismo opt-in que `qa`, runner en `agent-kits/qa/runner/`).
-- [ ] Script con `page.on('console')`, `securitypolicyviolation` y `route('**', abort)` para todo origen ajeno.
-- [ ] Ejecutar, pegar la salida y anotar la decisión.
+- [x] Pedir permiso para instalar Playwright y los navegadores (mismo opt-in que `qa`, runner en `agent-kits/qa/runner/`).
+- [x] Script con `page.on('console')`, `securitypolicyviolation` y `route('**', abort)` para todo origen ajeno.
+- [x] Ejecutar, pegar la salida y anotar la decisión.
 
-**Notas**: CSP actual del servido en `skills/plugin-panel/scripts/serve_panel.py:469-470` (nonce) y `:492` (cabecera); la del HTML estático en `skills/plugin-panel/references/panel.html:2`. Runner Playwright de referencia: `agent-kits/qa/runner/playwright.config.mjs`. El nombre `.mjs` sin `.test` evita que la CI lo recoja (no hay navegadores en CI). La evidencia va a este ledger: el guardrail del implementer prohíbe escribir en `docs/roadmap/**/testing/`.
+- **Changelog**: Comprobado en Chromium y Firefox que el panel con gráficos funciona sin red y con una política de seguridad de contenido estricta, tanto servido como abierto desde una carpeta.
+- **Evidencia TDD**: `TDD n/a: pico de exploración (script de evidencia, no código de producto)`. Rojo real que cambió la decisión: la primera ejecución dio `Casos: 4 · fallidos: 1` — `[firefox · servido] securitypolicyviolation: 1 … directivas: img-src ← <origen>/…/favicon.ico → FALLA` (Firefox pide `/favicon.ico` por su cuenta y `default-src 'none'` lo bloquea).
+- **Decisión (2026-10-15):** **`file:` vale en los dos motores; NO se adopta el respaldo con `'sha256-…'`** (probado igualmente: también pasa y queda como plan B documentado). Políticas que salen del pico:
+  - Exportado (`<meta>`), **igual que `design.md`**: `default-src 'none'; script-src 'self' file:; style-src 'self' 'unsafe-inline'; img-src data:`.
+  - Servido (cabecera), **cambia respecto a `design.md` y a `serve_panel.py`**: `default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'nonce-N'; img-src data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`.
+  - Toda página (los dos modos) declara `<link rel="icon" href="data:,">`.
+- **Qué cambia de `design.md` (§2.4 I-01, «Modo servido»)** — afecta a T-05 (plantilla) y T-11 (servidor): (1) `style-src` del servido necesita `'self'`: con la cabecera actual (`style-src 'unsafe-inline'`) el `assets/panel.css` enlazado que prevé §5.2 se bloquea en los dos motores (`style-src-elem ← <origen>/…/spike.css`); (2) el servido necesita `img-src data:` y cada página el icono `data:,`: sin ellos Firefox registra una violación `img-src` por `/favicon.ico` (y Chromium otra `img-src` con la cabecera actual). `design.md` dice que la CSP servida «queda `script-src 'nonce-N'`»: sigue siendo cierto para `script-src`, pero no basta. El implementer no edita `design.md` (guardarraíl de `docs/roadmap/`): queda aquí para que lo recoja el orquestador.
+- **Verificación ejecutada** (2026-10-15): `PLAYWRIGHT_DIR=<scratchpad>/pw node tests/e2e/panel-csp-spike.mjs --engines chromium,firefox --fallback` → exit 0:
+  ```
+  Playwright: cargado de --playwright-dir
+  Política exportada: default-src 'none'; script-src 'self' file:; style-src 'self' 'unsafe-inline'; img-src data:
+  Política servida:   default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'nonce-<nonce>'; img-src data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+  [chromium] 155.0.4283.45 (channel msedge)
+  [chromium · servido] securitypolicyviolation: 0 · peticiones a otros orígenes: 0 · gráfico: dibujado (18387 píxeles) · fetch mismo origen: 200 → OK
+  [chromium · servido · control inline] securitypolicyviolation: 1 · peticiones a otros orígenes: 0 · gráfico: sin ejecutar · inline ejecutado: no · directivas: script-src-elem ← inline → detector OK
+  [chromium · servido · cabecera ACTUAL de serve_panel.py (diagnóstico)] securitypolicyviolation: 2 · peticiones a otros orígenes: 0 · gráfico: dibujado (18387 píxeles) · fetch mismo origen: 200 · directivas: img-src ← otro, style-src-elem ← <origen>/…/spike.css
+  [chromium · file://] securitypolicyviolation: 0 · peticiones a otros orígenes: 0 · gráfico: dibujado (18387 píxeles) → OK
+  [chromium · file:// · control inline] securitypolicyviolation: 1 · peticiones a otros orígenes: 0 · gráfico: sin ejecutar · inline ejecutado: no · directivas: script-src-elem ← inline → detector OK
+  [chromium · file:// · respaldo 'sha256-…' (informativo)] securitypolicyviolation: 0 · peticiones a otros orígenes: 0 · gráfico: dibujado (18387 píxeles) → OK
+  [firefox] 142.0.1 (bundled)
+  [firefox · servido] securitypolicyviolation: 0 · peticiones a otros orígenes: 0 · gráfico: dibujado (18183 píxeles) · fetch mismo origen: 200 → OK
+  [firefox · servido · control inline] securitypolicyviolation: 1 · peticiones a otros orígenes: 0 · gráfico: sin ejecutar · inline ejecutado: no · directivas: script-src-elem ← inline → detector OK
+  [firefox · servido · cabecera ACTUAL de serve_panel.py (diagnóstico)] securitypolicyviolation: 1 · peticiones a otros orígenes: 0 · gráfico: dibujado (18183 píxeles) · fetch mismo origen: 200 · directivas: style-src-elem ← <origen>/…/spike.css
+  [firefox · file://] securitypolicyviolation: 0 · peticiones a otros orígenes: 0 · gráfico: dibujado (18183 píxeles) → OK
+  [firefox · file:// · control inline] securitypolicyviolation: 1 · peticiones a otros orígenes: 0 · gráfico: sin ejecutar · inline ejecutado: no · directivas: script-src-elem ← inline → detector OK
+  [firefox · file:// · respaldo 'sha256-…' (informativo)] securitypolicyviolation: 0 · peticiones a otros orígenes: 0 · gráfico: dibujado (18183 píxeles) → OK
+  Política del respaldo (hash de Chart.js 4.5.1 + spike.js): default-src 'none'; script-src 'sha256-SERKgtTty1vs…' 'sha256-y2JkKMty/S42…'; style-src 'self' 'unsafe-inline'; img-src data:
+  Casos: 4 · fallidos: 0
+  Decisión: `script-src 'self' file:` vale en chromium y firefox; no hace falta el respaldo con 'sha256-…'.
+  ```
+  Sin Playwright (sin `PLAYWRIGHT_DIR` y sin `agent-kits/qa/runner/node_modules`): `node tests/e2e/panel-csp-spike.mjs --engines chromium,firefox` → `Playwright no está instalado (…) Sin Playwright no hay veredicto.` · `exit=2`.
+
+**Notas**: CSP actual del servido en `skills/plugin-panel/scripts/serve_panel.py:469-470` (nonce) y `:492` (cabecera); la del HTML estático en `skills/plugin-panel/references/panel.html:2`. Runner Playwright de referencia: `agent-kits/qa/runner/playwright.config.mjs`. El nombre `.mjs` sin `.test` evita que la CI lo recoja (no hay navegadores en CI). La evidencia va a este ledger: el guardrail del implementer prohíbe escribir en `docs/roadmap/**/testing/`. **Ejecución (2026-10-15):** permiso de instalación: el orquestador autorizó en el brief el Playwright del scratchpad (`@playwright/test` 1.56.1) y `npx playwright install firefox` (descarga oficial, Firefox 142.0.1, build v1495). El Chromium de Playwright 1.56 (rev. 1194) no está en la caché del usuario: el motor Chromium se probó con `channel: 'msedge'` (Edge del sistema, motor Chromium); el script cae a ese canal solo si falta el ejecutable empaquetado (`--chromium-channel` lo fija). Cómo mide: la red se bloquea con `context.route(/^https?:\/\//)`, que aborta y cuenta todo origen ajeno al servidor de loopback (en `file://`, todo http/https), y `context.on('request')` cuenta cualquier otra petición que no sea `file:/data:/about:/blob:`; las violaciones salen de un detector `securitypolicyviolation` inyectado con `addInitScript` y de los mensajes de consola de CSP. Cada motor y modo lleva un CONTROL (script inline prohibido) que debe dar ≥ 1 violación y no ejecutarse; sin él, «0 violaciones» podría ser un detector roto. También prueba `fetch('ping')` al mismo origen (`connect-src 'self'` → 200) y que el gráfico pinta píxeles en el `<canvas>`. Los datos van en `<script type="application/json">`, que no dispara CSP en ningún motor. El servidor del pico imita el de `serve_panel.py` (token en la ruta, rechazo de `?`, `%`, `\` y `#`, nonce por respuesta); el script no escribe en el repo (carpeta temporal que borra al salir) ni imprime rutas locales ni el token. **Medición:** `usage-meter close` solo contó 10 respuestas en la ventana (37.822 tokens facturables), menos que el trabajo hecho (redacción del script y tres ejecuciones); el real de IA parece corto y se deja tal cual, marcado como medido.
 
 ### T-04 — `redact.anonimizar` para rutas, usuario y correos
 
 - **Descripción**: Añade `anonimizar(texto, raiz, home, usuario)` a `agent-kits/shared/redact.py`: raíz del proyecto → `.`, home → `~`, usuario del sistema → `<usuario>`, correos → `<correo>`. `redactar` y su bloque replicado no cambian. Es la primitiva de CA-41 para todo HTML/JSON del panel.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 1,2h · real —
-- **Tiempo IA (ejec.)**: est. 0,2h · real —
-- **Supervisión**: est. 0,05h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,2h · real 0,12h (medido)
+- **Supervisión**: est. 0,05h (≈25 % IA) · real 0,03h (estimado, 25 % de la IA)
 - **Previsión IA**: 91k in / 15k out tok · 1,40 €
 - **Dependencias**: ninguna
 - **Tipo**: backend
@@ -154,17 +194,21 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 - **Verificación**: `python3 -m pytest -q agent-kits/shared/test_redact.py` → `passed` · `python3 -m pytest -q tests/test_copias_declaradas.py` → `passed` (bloque replicado intacto)
 
 **Criterios de aceptación**
-- [ ] `anonimizar` es pura y determinista; acepta rutas con `\` y `/` y mayúsculas distintas en Windows.
-- [ ] Orden fijo documentado: `redactar` → `anonimizar` → quitar controles → recortar.
-- [ ] Tests con home, usuario y correo falsos; sin falsos positivos sobre rutas relativas.
-- [ ] `anonimizar` queda FUERA del bloque `# --8<-- redact` declarado en `agent-kits/shared/copias.json`.
+- [x] `anonimizar` es pura y determinista; acepta rutas con `\` y `/` y mayúsculas distintas en Windows.
+- [x] Orden fijo documentado: `redactar` → `anonimizar` → quitar controles → recortar.
+- [x] Tests con home, usuario y correo falsos; sin falsos positivos sobre rutas relativas.
+- [x] `anonimizar` queda FUERA del bloque `# --8<-- redact` declarado en `agent-kits/shared/copias.json`.
 
 **Subtareas**
-- [ ] RED con los casos de CA-41.
-- [ ] Implementar fuera del bloque replicado.
-- [ ] Verificar `test_copias_declaradas`.
+- [x] RED con los casos de CA-41.
+- [x] Implementar fuera del bloque replicado.
+- [x] Verificar `test_copias_declaradas`.
 
-**Notas**: patrón de tests en `agent-kits/shared/test_redact.py:23-41`; bloque replicado declarado en `agent-kits/shared/copias.json:297-310` (no tocar). Lo consumen `panel_data.py` (F1-F4) y el almacén de actividad (F3).
+- **Changelog**: Nueva primitiva para quitar del panel la ruta del proyecto, el directorio personal, el usuario del sistema y los correos antes de mostrarlos o exportarlos.
+- **Evidencia TDD**: `RED: los 9 tests nuevos test_anonimizar_* de agent-kits/shared/test_redact.py fallaron con AttributeError: module 'redact' has no attribute 'anonimizar' · 2026-10-15` (9 failed, 33 passed). Segundo rojo, ya con la función: 3 casos de rutas Windows fallaron (`C:\Users\<usuario>\Proyectos\…` en vez de `.\docs\…`) porque el separador había quedado como `[\/]` sin la barra invertida al pegar el código por heredoc; corregido escribiendo el fichero con el editor. GREEN: `42 passed`.
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider agent-kits/shared/test_redact.py` → `42 passed in 3.71s` · `… tests/test_copias_declaradas.py` → `29 passed in 0.36s` (bloque `redact_redactar` intacto en `redact.py` y `journal.py`). Regresión de consumidores: `agent-kits/shared/test_journal.py` + `tests/test_console_encoding.py` → `797 passed, 10 skipped`. Cobertura (`coverage run --include=*redact.py`): `agent-kits/shared/redact.py 102 stmts, 0 miss, 100%`.
+
+**Notas**: patrón de tests en `agent-kits/shared/test_redact.py:23-41`; bloque replicado declarado en `agent-kits/shared/copias.json:297-310` (no tocar). Lo consumen `panel_data.py` (F1-F4) y el almacén de actividad (F3). **Implementación (2026-10-15):** `anonimizar(texto, raiz, home, usuario)` y sus constantes (`ANON_RAIZ`, `ANON_HOME`, `ANON_USUARIO`, `ANON_CORREO`) van DESPUÉS del marcador `# --8<-- fin redact`; `redactar` no cambia. Orden interno: raíz → home → correos → usuario (los correos antes que el usuario para no dejar `<usuario>@dominio`). El orden del saneado completo (`redactar → anonimizar → quitar controles → recortar`) queda en el docstring del módulo con su porqué. Decisiones de la implementación, sin cambio de alcance: (1) pura de verdad: no lee entorno ni disco ni `os.name`; el «Windows» se reconoce por la FORMA de la ruta (con unidad `C:`), que casa sin distinguir mayúsculas, con `\` o `/`, como `/c/…` de Git Bash, dentro de `file:///C:/…` y con los nombres cortos 8.3 de los componentes largos sin punto (`ABCDEFGHIJ` → `ABCDEF~N`, el caso de las rutas `%TEMP%` cortas); las rutas POSIX casan literalmente; (2) límites: la ruta solo casa en límite de componente (`/home/ana` no toca `/home/anabel`) y nunca dentro de una relativa (`docs/home/ana/…`); un punto final de frase sí cuenta como límite; (3) `raiz`/`home` aceptan también `Path` o una lista de alias equivalentes (la raíz real y la resuelta por un enlace); (4) se ignoran un usuario de menos de 3 caracteres (casaría con palabras como «a» o «yo») y una raíz que sea solo `/` o una unidad. Consumidores previstos: `panel_data.py` (F1-F4) y el almacén de actividad (F3); ningún llamante actual cambia (solo se añade API).
 
 ### T-05 — Plantilla común multi-página (`panel_pages.py`) con menú accesible
 

@@ -9,6 +9,14 @@ secretos evidentes: claves de API con prefijo conocido, JWT, bloques PEM, `Beare
 `clave|token|password… = valor` con valor de ≥ 8 caracteres que mezcla letras y dígitos/símbolos.
 Alta precisión antes que cobertura: «tokens por hora (479326)» o «password reset flow» no se tocan.
 
+`anonimizar(texto, raiz, home, usuario)` (panel-redesign T-04, CA-41) quita además los datos
+personales de lo que el panel publica: raíz del proyecto → `.`, home → `~`, correos → `<correo>` y
+usuario del sistema → `<usuario>`. Vive FUERA del bloque replicado (no tiene copia en journal.py).
+Orden fijo del saneado de todo texto persistido o exportado por el panel y el almacén de actividad:
+redactar → anonimizar → quitar controles → recortar. Redactar va primero porque sus patrones
+reconocen el secreto entero (`token=…`); recortar va al final para no partir un secreto ni una ruta
+antes de sustituirlos.
+
 `journal.py` importa `redactar`/`REDACTADO`/`_SECRETOS_RE` de aquí (misma carpeta,
 `agent-kits/shared/`); si viaja sin este fichero (paquete portable, ver `docs/CONVENTIONS.md` regla
 «compartido vs privado»), usa una copia local declarada en `agent-kits/shared/copias.json` (bloque
@@ -110,3 +118,75 @@ def redactar(texto):
     texto = _SECRETOS_RE[-1].sub(lambda m: m.group("pre") + REDACTADO, texto)
     return texto
 # --8<-- fin redact (redactar + constantes)
+
+
+# ---- anonimizar (panel-redesign T-04, CA-41) — FUERA del bloque replicado: solo vive aquí --------
+ANON_RAIZ = "."
+ANON_HOME = "~"
+ANON_USUARIO = "<usuario>"
+ANON_CORREO = "<correo>"
+_ANON_USUARIO_MIN = 3   # «a», «yo»: un usuario tan corto casaría con palabras corrientes
+# Local-part y dominio con TLD alfabético: «chart.js@4.5.1» o «@playwright/test» no son correos.
+_CORREO_RE = re.compile(r"(?<![\w.%+\-])[\w.%+\-]+@[\w\-]+(?:\.[\w\-]+)*\.[A-Za-z]{2,}(?![\w\-])")
+_DRIVE_RE = re.compile(r"^([A-Za-z]):(?:[\\/]|$)")
+_SEP = r"[\\/]+"                         # separador de ruta: barra invertida o barra, repetidas
+_ANTES_RUTA = r"(?<![\w.\-])"            # no empieza en mitad de un nombre («docs/home/x»)
+_TRAS_RUTA = r"(?![\w\-]|\.[\w\-])"      # termina en límite de componente; un punto final sí vale
+
+
+def _componentes(ruta):
+    return [c for c in re.split(_SEP, ruta.strip()) if c]
+
+
+def _corto_83(componente):
+    """Forma corta 8.3 de Windows (`ABCDEFGHIJ` → `ABCDEF~N`) de un componente largo sin punto."""
+    if "." in componente or (len(componente) <= 8 and " " not in componente):
+        return None
+    base = re.sub(r"[^A-Za-z0-9_$%'`\-@{}!#()&^]", "", componente)[:6]
+    return re.escape(base) + r"~\d{1,4}" if base else None
+
+
+def _patron_ruta(ruta):
+    """Regex de una ruta absoluta con cualquier separador, en sus formas equivalentes. Windows (con
+    unidad): sin distinguir mayúsculas, también `/c/…` (Git Bash) y los alias 8.3. POSIX: literal."""
+    ruta = str(ruta).strip()
+    unidad = _DRIVE_RE.match(ruta)
+    partes = _componentes(ruta[2:] if unidad else ruta)
+    if not partes:
+        return None   # la raíz «/» o una unidad sola borrarían toda ruta absoluta
+    if unidad:
+        cuerpo = _SEP.join("(?:" + re.escape(p) + ("|" + _corto_83(p) if _corto_83(p) else "") + ")" for p in partes)
+        letra = re.escape(unidad.group(1))
+        return re.compile(_ANTES_RUTA + "(?:" + letra + ":|/" + letra + ")" + _SEP + cuerpo + _TRAS_RUTA, re.I)
+    return re.compile(_ANTES_RUTA + _SEP + _SEP.join(re.escape(p) for p in partes) + _TRAS_RUTA)
+
+
+def _alias(valor):
+    if valor is None or isinstance(valor, (str, bytes)) or hasattr(valor, "__fspath__"):
+        valor = [valor]
+    return [str(v) for v in valor if v is not None and str(v).strip()]
+
+
+def anonimizar(texto, raiz, home, usuario):
+    """Quita los datos personales de un texto que va a un HTML/JSON del panel (CA-41).
+
+    Función PURA: no lee el entorno, el disco ni la plataforma; lo que se anonimiza son
+    exactamente los argumentos. `raiz` y `home` aceptan una ruta (str/Path) o una lista de alias
+    equivalentes; `usuario` es el nombre de la cuenta del sistema. Sustituye, en este orden:
+      1. la raíz del proyecto → `.` (antes que el home: suele estar dentro de él);
+      2. el home → `~`;
+      3. los correos → `<correo>` (antes que el usuario: `ana@x.org` no deja `<usuario>@x.org`);
+      4. el usuario como palabra entera → `<usuario>`, sin distinguir mayúsculas.
+    Las rutas casan con barra invertida o `/`, solo en límite de componente y nunca dentro de una ruta
+    relativa; las de Windows (con unidad) sin distinguir mayúsculas y también como `/c/…` y con
+    sus nombres cortos 8.3. Un usuario de menos de 3 caracteres, la raíz `/` o una unidad sola
+    se ignoran. Va DESPUÉS de `redactar` (ver el orden del módulo)."""
+    texto = str(texto)
+    for valor, marca in ((raiz, ANON_RAIZ), (home, ANON_HOME)):
+        for patron in filter(None, (_patron_ruta(r) for r in sorted(_alias(valor), key=len, reverse=True))):
+            texto = patron.sub(marca, texto)
+    texto = _CORREO_RE.sub(ANON_CORREO, texto)
+    usuario = str(usuario or "").strip()
+    if len(usuario) >= _ANON_USUARIO_MIN:
+        texto = re.sub(_ANTES_RUTA + re.escape(usuario) + r"(?![\w\-])", ANON_USUARIO, texto, flags=re.I)
+    return texto

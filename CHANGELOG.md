@@ -11,6 +11,12 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Added — Panel redesign, phase 1 (foundations)
+
+- The panel bundles Chart.js 4.5.1 unmodified, with its MIT licence and a provenance file; a test checks its fingerprint and that no other copy exists. A browser spike (Chromium and Firefox, served and `file://`) confirmed the exported pages can load it under `script-src 'self' file:` with no CSP violation and no network request.
+- New `redact.anonimizar` primitive strips the project path, home directory, system user and e-mails from panel output before it is shown or exported.
+- Dashboard JSON/Markdown and the panel catalogue JSON are pinned by golden tests, so the panel redesign cannot change them unnoticed.
+
 ### Added — Ledger archiving
 
 - `ledger-archive.py` moves closed history out of `tasks.md` into `execution-history.md`, keeping each block's bytes with its SHA-256 and leaving a pointer in the ledger. Superseded review rounds go only if every task keeps the same pending gaps, latest attempt and inherited mentions; long `Verificación` fields are cut to their first sentence. Dry run by default; `--apply` is atomic and idempotent, and writes nothing if `ledger-lint` would get worse. Applied to the catalog-capabilities ledger: 248,766 → 126,898 bytes with identical invariants.
