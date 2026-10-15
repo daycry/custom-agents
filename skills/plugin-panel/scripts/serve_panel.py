@@ -123,6 +123,25 @@ def _encoded(value):
     return json.dumps(value, ensure_ascii=False, allow_nan=False).encode('utf8')
 
 
+_CLOSED_KEYS = frozenset(('review_id', 'section_id', 'comment_id', 'result_id', 'verification_id',
+    'decision_id', 'source_sha256', 'raw_sha256', 'view_sha256', 'view_version', 'schema_version'))
+
+
+def _scrubbed(value, scrub, key=None):
+    """Apply the panel's single scrubber (redact -> anonymize) to every free-text string of a JSON
+    answer coming from another owner (memory, review). Opaque identifiers and hashes stay verbatim:
+    they are not text and the browser sends them back."""
+    if scrub is None:
+        return value
+    if isinstance(value, str):
+        return value if key in _CLOSED_KEYS else scrub(value)
+    if isinstance(value, list):
+        return [_scrubbed(item, scrub, key) for item in value]
+    if isinstance(value, dict):
+        return {k: _scrubbed(item, scrub, k) for k, item in value.items()}
+    return value
+
+
 def progress_snapshot(project, scrub=None):
     """Bounded public ledger projection, independent of network and live-agent state.
 
@@ -279,7 +298,7 @@ class PanelServer(HTTPServer):
             helper = _load_memory()
             if not helper.valid_request(**payload):
                 return 400, b'Panel request unavailable.'
-            body = _encoded(helper.query(self.project, **payload))
+            body = _encoded(_scrubbed(helper.query(self.project, **payload), self.scrub))
             if len(body) > MAX_RESPONSE_BYTES:
                 raise ValueError('response budget')
             return 200, body
@@ -308,7 +327,7 @@ class PanelServer(HTTPServer):
                 else:
                     result = helper.submit_decision(*call_args, payload['choice'], payload['comments'],
                         expected_revision=payload['expected_revision'], **args)
-            body = _encoded(result)
+            body = _encoded(_scrubbed(result, self.scrub))
             if time.monotonic() >= deadline:
                 raise TimeoutError
             if len(body) > MAX_REVIEW_RESPONSE_BYTES:

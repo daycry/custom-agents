@@ -32,6 +32,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - La anonimización del panel ya no reescribe los valores de vocabulario cerrado (scope, kind, runtime): una cuenta llamada `user`, `project`, `agent` o `codex` no rompe la exportación ni oculta hooks en los filtros. El texto se anonimiza antes de recortarlo, así que un correo o una ruta del home que cruza el corte no se filtra a trozos.
 - El panel servido aplica la misma anonimización que el exportado, también en los títulos de progreso. `/roadmap-status` no escribe nada si falta `docs/roadmap/` o falla el dashboard, y su descripción dice lo que escribe.
 - La sincronización con Confluence deja fuera cualquier carpeta de exportación de `plugin-panel` (reconocida por su `export-manifest.json`), así que ya no se publica la licencia de Chart.js incluida.
+- Un usuario real escrito entre ángulos (`<jdoe>`) se anonimiza ahora; solo se conservan las marcas propias del módulo (`<usuario>`, `<correo>`). El panel servido pasa `api/memory` y las respuestas de la revisión del plan por el mismo anonimizador, y los valores `model` y `tools` de los agentes se anonimizan como cualquier otro texto libre.
+- La limpieza de la exportación vuelve a comprobar, justo antes de cada borrado, que nada de la ruta se haya vuelto enlace o junction, y nunca borra un fichero recién escrito (alias por mayúsculas o punto final); se rechazan las entradas del manifiesto con punto o espacio final. El manifiesto de una exportación del panel solo saca de Confluence los ficheros que lista: uno vacío, o situado en `docs/`, no excluye nada.
 
 ### Added — Archivado del ledger
 
@@ -57,6 +59,7 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 - La persona `db` vuelve a caber bajo el suelo de personas del brief (1.300 caracteres). El escaneo de red de los hooks salta `hooks/__pycache__`, que escribe el intérprete cuando otro test importa `runtime-supervisor.py`; leer ese bytecode como código de hook tumbaba la suite según el orden de los tests.
 - Dos rojos que la CI arrastraba eran fallos reales. En imágenes sin `ps` (como `python:*-slim`), el supervisor de hooks no podía listar el grupo de procesos del adaptador de OpenCode y los procesos de fondo de un hook le sobrevivían; ahora lee `/proc` si falta `ps`. Un test de `knowledge-find` consultaba la memoria local no versionada en vez de su corpus de fixture.
+- La limpieza de grupos de hooks sin `ps` falla ahora cerrada si `/proc` está vacío o no lista al proceso dueño. Un test de OpenCode que solo corre en Windows fija el reporter TAP, porque Node 23 imprime el reporter spec aunque la salida vaya a una tubería.
 
 ### Changed — Comparación de agentes (68 agentes)
 

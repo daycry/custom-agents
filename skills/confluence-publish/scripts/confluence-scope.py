@@ -251,24 +251,40 @@ PANEL_EXPORT_MANIFEST = "export-manifest.json"
 PANEL_EXPORT_GENERATOR = "custom-agents plugin-panel"
 
 
-def panel_export_dirs(docs_root, root):
-    """Carpetas bajo `docs/` que son una EXPORTACIÓN de plugin-panel (HTML + `vendor/` con licencias y
-    procedencia de terceros), reconocidas por su `export-manifest.json` con el generador del plugin, no por
-    un nombre fijo (`docs/roadmap/panel/` es solo el destino por defecto de `/roadmap-status`). Un manifiesto
-    ilegible o de otro generador no excluye nada. Devuelve rutas relativas a `root`, con `/`."""
-    carpetas = []
+def _ruta_listada_valida(ruta):
+    """Ruta relativa POSIX a la carpeta del manifiesto, validada como en el exportador de plugin-panel: sin
+    barra invertida, unidad, raíz, `:`, NUL ni componentes `.`, `..` o vacíos."""
+    if not isinstance(ruta, str) or not ruta or ruta.startswith("/") or any(c in ruta for c in ("\\", ":", chr(0))):
+        return False
+    return all(parte not in ("", ".", "..") for parte in ruta.split("/"))
+
+
+def panel_export_files(docs_root, root):
+    """{ruta relativa a `root` (casefold) -> manifiesto que la declara} de los ficheros que una EXPORTACIÓN
+    de plugin-panel lista en `ficheros` (HTML + `vendor/` con licencias y procedencia de terceros). Se
+    reconoce por su `export-manifest.json` con el generador del plugin, no por un nombre fijo
+    (`docs/roadmap/panel/` es solo el destino por defecto de `/roadmap-status`). El manifiesto es un fichero
+    plantable (CWE-807): solo excluye lo que LISTA (no toda su carpeta), un manifiesto ilegible, de otro
+    generador, sin entradas o ubicado en la propia `docs/` no excluye nada, y las rutas inválidas se ignoran."""
+    listados = {}
+    raiz_docs = Path(docs_root).resolve()
     for dirpath, dirnames, filenames in os.walk(docs_root):
         dirnames.sort()
-        if PANEL_EXPORT_MANIFEST not in filenames:
+        if PANEL_EXPORT_MANIFEST not in filenames or Path(dirpath).resolve() == raiz_docs:
             continue
         try:
             datos = json.loads((Path(dirpath) / PANEL_EXPORT_MANIFEST).read_text(encoding="utf-8"))
             if datos.get("generador") != PANEL_EXPORT_GENERATOR:
                 continue
-        except (OSError, ValueError, UnicodeError, AttributeError):
+            rutas = [f.get("ruta") for f in datos.get("ficheros", [])]
+        except (OSError, ValueError, UnicodeError, AttributeError, TypeError):
             continue
-        carpetas.append(rel_from_root(dirpath, root))
-    return carpetas
+        carpeta = rel_from_root(dirpath, root)
+        manifiesto = carpeta + "/" + PANEL_EXPORT_MANIFEST
+        for ruta in rutas:
+            if _ruta_listada_valida(ruta):
+                listados.setdefault((carpeta + "/" + ruta).casefold(), manifiesto)
+    return listados
 
 
 def resolve_scope(root, publish, docs_dirname="docs", out_dir=None):
@@ -287,12 +303,12 @@ def resolve_scope(root, publish, docs_dirname="docs", out_dir=None):
     en_alcance, excluidos = [], []
     if not docs_root.is_dir():
         return en_alcance, excluidos
-    paneles = panel_export_dirs(docs_root, root)
+    paneles = panel_export_files(docs_root, root)
     for f in iter_md_files(docs_root):
         rel = rel_from_root(f, root)
-        exportacion = next((c for c in paneles if rel.startswith(c + "/")), None)
+        exportacion = paneles.get(rel.casefold())
         if exportacion:
-            excluidos.append((rel, f"exportación de plugin-panel ({exportacion}/{PANEL_EXPORT_MANIFEST})"))
+            excluidos.append((rel, f"exportación de plugin-panel (listado en {exportacion})"))
             continue
         # Memory queues and episodic notes never become curated publication.
         # Case folding also protects Windows projects with noncanonical casing.

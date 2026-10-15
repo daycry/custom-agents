@@ -32,6 +32,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - Anonymizing the panel no longer rewrites closed-vocabulary values (scope, kind, runtime): an account named `user`, `project`, `agent` or `codex` no longer crashes the export or hides hooks from the filters. Text is anonymized before it is cut to length, so an e-mail or home path crossing the cut is not leaked in pieces.
 - The served panel applies the same anonymization as the exported one, including the progress titles. `/roadmap-status` writes nothing when `docs/roadmap/` is missing or the dashboard fails, and its description now says what it writes.
 - Confluence sync leaves out any `plugin-panel` export folder (recognized by its `export-manifest.json`), so the bundled Chart.js licence is no longer published.
+- A real user name written between angle brackets (`<jdoe>`) is now anonymised; only the module's own marks (`<usuario>`, `<correo>`) are kept. The served panel passes `api/memory` and the plan-review answers through the same anonymiser, and agent `model` and `tools` values are anonymised like any other free text.
+- Export cleanup re-checks, right before each delete, that nothing in the path became a link or junction, and never deletes a file the export just wrote (case or trailing-dot aliases); manifest entries with a trailing dot or space are rejected. A panel export manifest now excludes from Confluence only the files it lists, so an empty manifest, or one placed in `docs/`, excludes nothing.
 
 ### Added — Ledger archiving
 
@@ -57,6 +59,7 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 - The `db` persona fits again under the brief's persona floor (1,300 characters). The hooks network scan skips `hooks/__pycache__`, which the interpreter writes when another test imports `runtime-supervisor.py`; reading that bytecode as hook code failed the suite depending on test order.
 - Two long-standing CI reds were real bugs. On images without `ps` (such as `python:*-slim`), the hook supervisor could not list the OpenCode adapter's process group, so background descendants of a hook outlived it; it now reads `/proc` when `ps` is missing. A `knowledge-find` test queried the unversioned local memory instead of its fixture corpus.
+- Hook group cleanup without `ps` now fails closed when `/proc` is empty or does not list the owner process. A Windows-only OpenCode test pins the TAP reporter, since Node 23 prints the spec reporter even when piped.
 
 ### Changed — Agent comparison (68 agents)
 

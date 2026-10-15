@@ -145,3 +145,28 @@ def test_malformed_bootstrap_is_informational_and_never_attaches(args, monkeypat
     monkeypatch.setattr(supervisor, "attach", lambda *a: pytest.fail("malformed bootstrap attached"))
     assert supervisor.main(args) == 1
     assert capsys.readouterr().err == "custom-agents hooks: process supervision unavailable; hook skipped\n"
+
+
+def _unaccounted_group(monkeypatch, tmp_path, rows):
+    for pid, group in rows:
+        (tmp_path / str(pid)).mkdir()
+        (tmp_path / str(pid) / "stat").write_text(f"{pid} (x) S 1 {group} {group} 0 -1\n")
+    monkeypatch.setattr(supervisor, "PROC_ROOT", str(tmp_path))
+    monkeypatch.setattr(supervisor.os, "getppid", lambda: 41001)
+    monkeypatch.setattr(supervisor.os, "getpgid", lambda pid: 41001, raising=False)
+    monkeypatch.setattr(supervisor.os, "getpgrp", lambda: 42000, raising=False)
+    monkeypatch.setattr(supervisor.os.path, "isfile", lambda path: False)
+    monkeypatch.setattr(supervisor.os, "kill", lambda *a: pytest.fail("no signal without accounting"), raising=False)
+
+
+def test_group_cleanup_fails_closed_when_proc_is_empty(monkeypatch, tmp_path):
+    # Review 2-8: /proc mounted but empty must not read as «group finished».
+    _unaccounted_group(monkeypatch, tmp_path, [])
+    with pytest.raises(OSError, match="accounting unavailable"):
+        supervisor.close_group(41001)
+
+
+def test_group_cleanup_fails_closed_when_accounting_misses_the_owner(monkeypatch, tmp_path):
+    _unaccounted_group(monkeypatch, tmp_path, [(41003, 42000)])
+    with pytest.raises(OSError, match="accounting unavailable"):
+        supervisor.close_group(41001)

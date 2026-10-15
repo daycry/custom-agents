@@ -256,11 +256,13 @@ def test_default_policy_excludes_staging_marker_from_publish_walk():
     print("test_default_policy_excludes_staging_marker_from_publish_walk: OK")
 
 
-def _panel_export(proj, carpeta, generador="custom-agents plugin-panel"):
+def _panel_export(proj, carpeta, generador="custom-agents plugin-panel", ficheros=("vendor/chart.js/LICENSE.md",)):
     base = Path(proj) / "docs" / carpeta
     (base / "vendor" / "chart.js").mkdir(parents=True)
     (base / "vendor" / "chart.js" / "LICENSE.md").write_text("# MIT\n", encoding="utf-8")
-    (base / "export-manifest.json").write_text(json.dumps({"generador": generador, "ficheros": []}), encoding="utf-8")
+    (base / "export-manifest.json").write_text(json.dumps(
+        {"generador": generador, "ficheros": [{"ruta": r, "sha256": "0" * 64, "bytes": 1} for r in ficheros]}),
+        encoding="utf-8")
     return base
 
 
@@ -289,6 +291,35 @@ def test_panel_export_folder_is_out_of_scope_wherever_it_lives():
         en_alcance, _ = cs.resolve_scope(str(proj), publish)
         assert "docs/terceros/export/vendor/chart.js/LICENSE.md" in en_alcance
     print("test_panel_export_folder_is_out_of_scope_wherever_it_lives: OK")
+
+
+def test_panel_manifest_only_excludes_the_files_it_lists():
+    # panel-redesign (revisión intento 2, gap 2-6): el manifiesto es un fichero plantable; solo saca del alcance
+    # lo que LISTA en `ficheros` (rutas relativas a su carpeta), no toda la carpeta ni `docs/` entera.
+    publish = {"include": ["**/*.md"], "exclude": []}
+    with tempfile.TemporaryDirectory() as tmp:
+        proj = Path(tmp) / "proj"
+        (proj / "docs").mkdir(parents=True)
+        (proj / "docs" / "README.md").write_text("# docs\n", encoding="utf-8")
+        legit = _panel_export(proj, "roadmap/panel")
+        (legit / "NOTAS.md").write_text("# nota propia\n", encoding="utf-8")
+        vacio = _panel_export(proj, "plantado", ficheros=())
+        (vacio / "guia.md").write_text("# guia\n", encoding="utf-8")
+        hostil = _panel_export(proj, "hostil", ficheros=("../README.md", "/etc/x.md", "a\\b.md", "vendor/chart.js/../chart.js/LICENSE.md"))
+        # Un manifiesto en la propia `docs/` no excluye nada (ni siquiera lo que liste).
+        (proj / "docs" / "export-manifest.json").write_text(json.dumps(
+            {"generador": "custom-agents plugin-panel",
+             "ficheros": [{"ruta": "README.md", "sha256": "0" * 64, "bytes": 1}]}), encoding="utf-8")
+        en_alcance, excluidos = cs.resolve_scope(str(proj), publish)
+        motivos = dict(excluidos)
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" in motivos          # listado: excluido
+        assert "export-manifest.json" in motivos["docs/roadmap/panel/vendor/chart.js/LICENSE.md"]
+        assert "docs/roadmap/panel/NOTAS.md" in en_alcance                          # no listado: en alcance
+        assert "docs/plantado/vendor/chart.js/LICENSE.md" in en_alcance             # ficheros: []
+        assert "docs/plantado/guia.md" in en_alcance
+        assert "docs/README.md" in en_alcance                                        # manifiesto en docs/
+        assert "docs/hostil/vendor/chart.js/LICENSE.md" in en_alcance                # rutas inválidas
+    print("test_panel_manifest_only_excludes_the_files_it_lists: OK")
 
 
 def test_stage_is_idempotent():
@@ -506,6 +537,7 @@ def main():
         test_stage_copies_readme_byte_for_byte,
         test_default_policy_excludes_staging_marker_from_publish_walk,
         test_panel_export_folder_is_out_of_scope_wherever_it_lives,
+        test_panel_manifest_only_excludes_the_files_it_lists,
         test_stage_is_idempotent,
         test_stage_wipes_previous_contents,
         test_stage_refuses_unsafe_out_target,

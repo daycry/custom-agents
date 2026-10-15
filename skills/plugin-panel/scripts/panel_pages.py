@@ -190,7 +190,38 @@ def _ruta_manifiesto_valida(rel):
     """Ruta relativa POSIX y sin trucos: sin barra invertida, unidad, raíz, `:`, NUL ni componentes `.`, `..` o vacíos."""
     if not isinstance(rel, str) or not rel or rel.startswith('/') or any(c in rel for c in _PROHIBIDOS_EN_RUTA):
         return False
-    return not _UNIDAD_RE.match(rel) and all(parte not in ('', '.', '..') for parte in rel.split('/'))
+    partes = rel.split('/')
+    # Win32 recorta el punto y el espacio finales de un componente: `chart.umd.min.js.` ES `chart.umd.min.js`.
+    return not _UNIDAD_RE.match(rel) and all(
+        parte not in ('', '.', '..') and parte == parte.rstrip(' .') for parte in partes)
+
+
+def _clave_fs(rel):
+    """Nombre tal como lo compara el sistema de ficheros (sin distinguir mayúsculas, sin punto/espacio final)."""
+    return '/'.join(parte.casefold().rstrip(' .') for parte in rel.split('/'))
+
+
+def _borrar_si_es_nuestro(destino, raiz, rel, sha, unsafe_link):
+    """Borra `destino/rel` solo si, AHORA, ningún componente es enlace, la ruta resuelta sigue dentro del
+    destino y el contenido es el que escribimos. Se repite justo antes del `unlink` porque la validación
+    del manifiesto es anterior a la escritura (CWE-367): un padre cambiado por un enlace entre medias no
+    puede sacar el borrado del destino."""
+    ruta = destino / rel
+    try:
+        for padre in ruta.parents:
+            if padre == destino:
+                break
+            if unsafe_link(padre):
+                return False
+        if unsafe_link(ruta) or not ruta.is_file():
+            return False
+        ruta.resolve().relative_to(raiz)
+        if _sha256(ruta.read_bytes()) != sha:
+            return False
+        ruta.unlink()
+    except (OSError, ValueError):
+        return False
+    return True
 
 
 def _leer_manifiesto(ruta, destino, unsafe_link):
@@ -275,10 +306,11 @@ def exportar_sitio(destino, datos, *, generado=None, unsafe_link=lambda ruta: ru
 
     for rel, contenido in sorted(ficheros.items()):
         _escribir_atomico(destino / rel, contenido)
+    escritos = {_clave_fs(rel) for rel in ficheros}
+    raiz = destino.resolve()
     for rel, sha in previo.items():
-        ruta = destino / rel
-        if rel not in ficheros and ruta.is_file() and not unsafe_link(ruta) and _sha256(ruta.read_bytes()) == sha:
-            ruta.unlink()
+        if rel not in ficheros and _clave_fs(rel) not in escritos:
+            _borrar_si_es_nuestro(destino, raiz, rel, sha, unsafe_link)
     manifiesto = {'generador': GENERADOR, 'version': 1, 'generado': generado,
                   'ficheros': [{'ruta': rel, 'sha256': _sha256(c), 'bytes': len(c)} for rel, c in sorted(ficheros.items())]}
     _escribir_atomico(destino / MANIFEST, (json.dumps(manifiesto, ensure_ascii=False, indent=2) + '\n').encode('utf8'))

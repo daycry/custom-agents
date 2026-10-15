@@ -9,6 +9,10 @@ import { opencodeContext, until } from './helpers/opencode-context.mjs';
 
 const root = resolve('.');
 const runner = join(root, 'hooks', 'run-hook.mjs');
+// The SessionEnd child budget follows this variable (hook-budget.test.mjs covers it). A developer
+// who raised it in their Claude Code settings would stretch every timeout case here past the
+// fixtures' sleeps; these cases measure the default budget, as CI does.
+delete process.env.CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS;
 function invoke(hook, payload, cwd) {
   return spawnSync(process.execPath, [runner, hook], {
     cwd, input: JSON.stringify(payload), encoding: 'utf8', timeout: ['session-journal.sh', 'user-prompt-capture.sh'].includes(hook) ? 3000 : 25000,

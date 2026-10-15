@@ -125,6 +125,8 @@ ANON_RAIZ = "."
 ANON_HOME = "~"
 ANON_USUARIO = "<usuario>"
 ANON_CORREO = "<correo>"
+_MARCAS_PROPIAS = frozenset(m for m in (ANON_RAIZ, ANON_HOME, ANON_USUARIO, ANON_CORREO)
+                            if m.startswith("<") and m.endswith(">"))
 _ANON_USUARIO_MIN = 3   # «a», «yo»: un usuario tan corto casaría con palabras corrientes
 # Local-part y dominio con TLD alfabético: «chart.js@4.5.1» o «@playwright/test» no son correos.
 _CORREO_RE = re.compile(r"(?<![\w.%+\-])[\w.%+\-]+@[\w\-]+(?:\.[\w\-]+)*\.[A-Za-z]{2,}(?![\w\-])")
@@ -168,11 +170,13 @@ def _alias(valor):
 
 
 def _marca_usuario(m):
-    """Sustituye el usuario salvo que ya sea el interior de una marca (`<usuario>`, `<correo>`): así
-    `anonimizar` es idempotente aunque la cuenta se llame como una marca, y un texto que se
-    anonimiza en origen y otra vez al exportar no acaba en `<<usuario>>`."""
-    antes, despues = m.string[m.start() - 1:m.start()], m.string[m.end():m.end() + 1]
-    return m.group(0) if (antes == "<" and despues == ">") else ANON_USUARIO
+    """Sustituye el usuario salvo que sea EXACTAMENTE el interior de una marca que produce este
+    módulo (`<usuario>`, `<correo>`: constantes `ANON_*` entre `<>`, en minúsculas): así `anonimizar`
+    es idempotente aunque la cuenta se llame como una marca, y un texto que se anonimiza en origen y
+    otra vez al exportar no acaba en `<<usuario>>`. Cualquier otro `<…>` (`<jdoeuser>`) se anonimiza."""
+    texto = m.string
+    marca = texto[m.start() - 1:m.end() + 1]
+    return m.group(0) if marca in _MARCAS_PROPIAS else ANON_USUARIO
 
 
 def anonimizar(texto, raiz, home, usuario):

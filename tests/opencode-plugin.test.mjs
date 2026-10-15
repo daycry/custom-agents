@@ -283,7 +283,8 @@ test('cleanup terminates its launcher tree and settles the pending hook', async 
 });
 
 test('Windows teardown completes when PATH omits system tools', {skip:process.platform !== 'win32'}, async () => {
-  const args = ['--test', '--test-name-pattern=^cleanup terminates its launcher tree and settles the pending hook$',
+  // The assertions read TAP lines; Node >= 23 defaults to the spec reporter even when piped.
+  const args = ['--test', '--test-reporter=tap', '--test-name-pattern=^cleanup terminates its launcher tree and settles the pending hook$',
     fileURLToPath(import.meta.url)];
   const environment = {...process.env, PATH:dirname(process.execPath)};
   delete environment.NODE_TEST_CONTEXT; // Start an independent native test runner.

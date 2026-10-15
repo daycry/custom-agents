@@ -187,14 +187,19 @@ def close_group(owner_pid):
                                         encoding="utf-8", errors="replace", check=True, timeout=0.2).stdout
         else:
             accounting = _proc_accounting()
-        active = []
+        active, seen_owner = [], False
         for row in accounting.splitlines():
             fields = row.split()
             if len(fields) != 3:
                 continue
             pid, group = int(fields[0]), int(fields[1])
+            seen_owner = seen_owner or pid == owner_pid
             if group == owner_pid and pid != owner_pid and not fields[2].startswith("Z"):
                 active.append(pid)
+        if not seen_owner:
+            # The live owner must appear in any real accounting: an empty or foreign view (no /proc
+            # mounted, hidepid) cannot prove the group is gone, so fail closed.
+            raise OSError("process accounting unavailable")
         if not active:
             return
         for sig in (signal.SIGSTOP, signal.SIGKILL):

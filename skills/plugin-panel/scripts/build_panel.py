@@ -49,8 +49,8 @@ CLAVES_CERRADAS = frozenset((
     'schema_version', 'version', 'evidence', 'id', 'ids', 'role_ids', 'scope', 'kind', 'runtime', 'root_id',
     'source', 'locator', 'event', 'native_event', 'handler', 'behavior', 'availability', 'ownership',
     'resolution', 'registry_status', 'status', 'load_status', 'execution_status', 'identity_status',
-    'timeout', 'timeout_status', 'timeout_unit', 'timeout_provenance', 'transport', 'enabled', 'model',
-    'tools', 'hook_sources', 'runtimes', 'memory', 'counts', 'workflow', 'hook_group_count',
+    'timeout', 'timeout_status', 'timeout_unit', 'timeout_provenance', 'transport', 'enabled',
+    'hook_sources', 'runtimes', 'memory', 'counts', 'workflow', 'hook_group_count',
     'definition_status', 'partial', 'selection_only'))
 
 

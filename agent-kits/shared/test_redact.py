@@ -487,3 +487,20 @@ def test_anonimizar_es_idempotente_con_usuarios_que_coinciden_con_sus_marcas(usu
     una = redact.anonimizar(texto, None, "/home/" + usuario, usuario)
     assert redact.anonimizar(una, None, "/home/" + usuario, usuario) == una
     assert "<<" not in una and ">>" not in una and "<correo>" in una
+
+
+@pytest.mark.parametrize("texto", [
+    "Pregunta a <jdoeuser> antes", "owner: <JDoeUser>", "git log --author=<jdoeuser>",
+])
+def test_un_usuario_real_entre_angulares_se_anonimiza(texto):
+    # Gap 2-2: solo se conservan las marcas exactas del módulo; `<jdoeuser>` es el usuario real.
+    out = redact.anonimizar(texto, None, None, "jdoeuser")
+    assert "jdoeuser" not in out.lower()
+    assert redact.anonimizar(out, None, None, "jdoeuser") == out
+
+
+@pytest.mark.parametrize("usuario", ["usuario", "correo"])
+def test_las_marcas_exactas_se_conservan_y_aplicar_dos_veces_es_una(usuario):
+    una = redact.anonimizar(f"hola {usuario} y <usuario> y <correo> a@b.org", None, None, usuario)
+    assert "<usuario>" in una and "<correo>" in una and "<<" not in una
+    assert redact.anonimizar(una, None, None, usuario) == una
