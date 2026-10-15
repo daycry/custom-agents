@@ -117,7 +117,7 @@ Datos de prueba: las fixtures de `tests/fixtures/panel-redesign/` (T-01): roadma
 - **Cubre tareas**: T-14, T-45, T-47, T-49, T-53
 
 ### E2E-10 — Revisión visual del plan
-- **Objetivo**: CA-43 — anotar y enviar una decisión funciona como hoy.
+- **Objetivo**: CA-43 — anotar y enviar una decisión funciona como hoy (con `--review-initiative`; la apertura desde el panel está en E2E-24).
 - **Precondiciones**: `--serve --review-initiative <fixture> --review-state-root <tmp>`.
 - **Pasos**:
   1. Abrir el Plan, anotar un comentario y enviar la decisión.
@@ -126,6 +126,25 @@ Datos de prueba: las fixtures de `tests/fixtures/panel-redesign/` (T-01): roadma
   - [ ] Ningún otro control del navegador escribe en disco.
 - **Capturas esperadas**: comentario enviado.
 - **Cubre tareas**: T-12
+
+### E2E-24 — Plan: abrir, comentar y decidir una revisión desde el panel
+- **Objetivo**: CA-45 a CA-53 (enmienda 2026-10-15) — abrir la revisión del plan de cualquier iniciativa sin `--review-initiative`, con una sola vía de escritura.
+- **Precondiciones**: `--serve --project <fixture> --review-state-root <tmp>/.claude/plan-review --review-panel`; fixtures con iniciativas sin revisión, pendiente, con cambios pedidos, aprobada, obsoleta y con respuestas del agente.
+- **Pasos**:
+  1. Abrir Iniciativas y leer el estado de revisión de cada tarjeta; abrir el Plan de una iniciativa sin revisión.
+  2. Pulsar «Revisar este plan» con teclado, añadir comentarios por sección y enviar «pedir correcciones».
+  3. Editar `improvement-plan.md` de la fixture y esperar al refresco.
+  4. Reiniciar el panel sin `--review-panel` y sin `--project`, y abrir `--export`.
+  5. Intentar `POST api/review-open/<id16>` con `gate_key` en el cuerpo, con `Origin` ajeno, sin token y con un id16 desconocido.
+- **Aserciones**:
+  - [ ] Tarjeta y cabecera del Plan muestran el mismo estado en texto («sin revisión · pendiente · cambios pedidos · aprobada vN · obsoleta por cambio de versión»); abrir la página no cambia ningún fichero de `.claude/plan-review/`.
+  - [ ] La revisión se abre en la propia página con `gate_key = requested-review`; los comentarios y la decisión se guardan con los topes de hoy.
+  - [ ] Tras cambiar el plan, el estado pasa a «obsoleta por cambio de versión» y la UI exige una nueva decisión.
+  - [ ] Bajo cada comentario con `result` se ve la respuesta del agente y su disposición; sin respuesta, «sin respuesta del agente».
+  - [ ] Sin `--review-panel`: ni botón ni JS de revisión y la página explica cómo activarlo; en `--export`: ni controles ni `api/review` y «estado de revisión: solo en modo servido».
+  - [ ] `gate_key` en el cuerpo → 400; `Origin` ajeno o sin token → 403; id16 desconocido → 404; en los tres casos el directorio de estado no cambia; un `plan-ok` abierto por otro proceso se ve sin controles de escritura.
+- **Capturas esperadas**: tarjeta con estado; Plan con revisión abierta y respuesta del agente.
+- **Cubre tareas**: T-55, T-56, T-57, T-58
 
 ### E2E-11 — Inicio: cifras de cartera
 - **Objetivo**: CA-01, CA-02, CA-03.
@@ -319,6 +338,12 @@ Rutas relativas a `http://127.0.0.1:<puerto>/<token>/`; todas con `Host` propio 
 - **Aserción sobre el body**: conteos por tipo y estado, bandeja y backends
 - **Cubre tareas**: T-30
 
+### API-07 — Resumen de revisiones
+- **Método y ruta**: GET `api/review-summary` (y GET `api/review-current/<id16>`)
+- **Status esperado**: 200 (≤ 65.536 bytes); `id16` inexistente → 404
+- **Aserción sobre el body**: una fila por iniciativa con `estado` del vocabulario cerrado, `version_ordinal` y cifras de comentarios; sin `review_id`; `approval_granted: false`
+- **Cubre tareas**: T-55, T-56
+
 ## Accesibilidad (axe-core vía Playwright; la spec exige WCAG 2.2 AA)
 
 ### A11Y-01 — Las siete páginas
@@ -336,10 +361,11 @@ Rutas relativas a `http://127.0.0.1:<puerto>/<token>/`; todas con `Host` propio 
 - **Cubre tareas**: T-16
 
 ### M-02 — Revisión visual de la Fase 2
-- **Qué revisar**: Inicio, Iniciativas y Plan: legibilidad del kanban, del detalle y de los gráficos.
+- **Qué revisar**: Inicio, Iniciativas y Plan: legibilidad del kanban, del detalle y de los gráficos. **(Enmienda 2026-10-15)** Además, desde la página Plan de una iniciativa: abrir una revisión, comentar por sección y decidir (aprobar / pedir correcciones); que el estado de revisión se entienda en la tarjeta y en la cabecera y que se vean las respuestas del agente.
 - **Por qué no se automatiza**: juicio visual (CA-44).
 - **Criterio de aceptación**:
   - [ ] El usuario aprueba la Fase 2 en el navegador.
+  - [ ] El usuario abre, comenta y decide una revisión desde el Plan y lo da por claro.
 - **Cubre tareas**: T-29
 
 ### M-03 — Revisión visual de la Fase 4
@@ -383,6 +409,10 @@ Rutas relativas a `http://127.0.0.1:<puerto>/<token>/`; todas con `Host` propio 
 | T-26 | E2E-07, E2E-15 |
 | T-27 | E2E-16 |
 | T-29 | M-02 |
+| T-55 | API-07, E2E-24 |
+| T-56 | API-07, E2E-24 |
+| T-57 | E2E-24 |
+| T-58 | E2E-05, E2E-10, E2E-24 |
 | T-30 | API-06, E2E-20 |
 | T-31 | E2E-20 |
 | T-32 | E2E-20 |
@@ -406,4 +436,4 @@ Rutas relativas a `http://127.0.0.1:<puerto>/<token>/`; todas con `Host` propio 
 | T-53 | E2E-09 |
 | T-54 | M-04 |
 
-Criterios de la spec por escenario: CA-01..03 → E2E-11 · CA-04 → E2E-19 · CA-05/06/08 → E2E-12 · CA-07 → E2E-13 · CA-09/10 → E2E-14 · CA-11/12/13 → E2E-15 · CA-14 → E2E-16 · CA-15/16/19 → E2E-17 · CA-17/18 → E2E-18 · CA-20/21 → E2E-19 · CA-22/23/24 → E2E-20 · CA-25/26/27 → E2E-21 · CA-28/29 → E2E-22 · CA-30/31 → E2E-23 · CA-32 → E2E-01 · CA-33/36 → E2E-02 · CA-34 → E2E-03 · CA-35 → E2E-02, E2E-04 · CA-37 → E2E-05 · CA-38 → A11Y-01 · CA-39 → E2E-06 · CA-40 → E2E-07 · CA-41 → E2E-08 · CA-42 → E2E-09 · CA-43 → E2E-10 · CA-44 → M-01..M-04.
+Criterios de la spec por escenario: CA-01..03 → E2E-11 · CA-04 → E2E-19 · CA-05/06/08 → E2E-12 · CA-07 → E2E-13 · CA-09/10 → E2E-14 · CA-11/12/13 → E2E-15 · CA-14 → E2E-16 · CA-15/16/19 → E2E-17 · CA-17/18 → E2E-18 · CA-20/21 → E2E-19 · CA-22/23/24 → E2E-20 · CA-25/26/27 → E2E-21 · CA-28/29 → E2E-22 · CA-30/31 → E2E-23 · CA-32 → E2E-01 · CA-33/36 → E2E-02 · CA-34 → E2E-03 · CA-35 → E2E-02, E2E-04 · CA-37 → E2E-05 · CA-38 → A11Y-01 · CA-39 → E2E-06 · CA-40 → E2E-07 · CA-41 → E2E-08 · CA-42 → E2E-09 · CA-43 → E2E-10, E2E-24 · CA-44 → M-01..M-04 · CA-45..CA-53 → E2E-24 (CA-49 también API-07) · CA-54 → suites de `plan-review.py` y `tests/test_panel_review_*` (T-55, T-56, T-57).

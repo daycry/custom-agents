@@ -8,7 +8,7 @@ spec: spec.md                 # enlace hacia atrás (misma carpeta)
 evaluacion: evaluation.md
 plan: improvement-plan.md     # creado por el planner el 2026-10-15
 adr: docs/knowledge/candidates/pending/2026-10-15-plugin-panel-dueno-unico-de-la-presentacion.md   # sha256 1128a65fcbbf5a31733d5bfa87f9fffb183c006ad88f84c848c64f91a73351f9; lo decide knowledge-curator (ID sugerido custom-agents.ADR-024)
-opcion_elegida: "O1+O5"       # D-A1 = O1, D-A2 = O5; fijadas por instrucción del orquestador (estructura aprobada por el usuario); revisables por el usuario
+opcion_elegida: "O1+O5+O7"    # D-A1 = O1, D-A2 = O5 (instrucción del orquestador, estructura aprobada por el usuario); I-10 = O7 (adenda 2026-10-15, decisión técnica delegada); revisables por el usuario
 generacion:                   # usage-meter.py close (marcador abierto tras el recon del repo y la doc oficial: cubre la redacción; la ventana puede incluir el transcript del evaluator en paralelo)
   inicio: 2026-10-15T09:29:45Z
   fin: 2026-10-15T09:38:37Z
@@ -36,7 +36,7 @@ generacion:                   # usage-meter.py close (marcador abierto tras el r
 | | |
 |---|---|
 | **Estado** | aprobado |
-| **Opción elegida** | D-A1: **O1** — `plugin-panel` dueño único de la presentación · D-A2: **O5** — captura asíncrona post-herramienta con atribución por ventana declarada |
+| **Opción elegida** | D-A1: **O1** — `plugin-panel` dueño único de la presentación · D-A2: **O5** — captura asíncrona post-herramienta con atribución por ventana declarada · Adenda 2026-10-15 (I-10): **O7** — resumen de revisiones de solo lectura en `plan-review.py` (§8) |
 | **Validada por el usuario** | 2026-10-15, vía orquestador. El usuario aprobó la estructura en la spec; el orquestador pidió fijar la recomendada. **El usuario puede cambiar cualquiera de las dos**: basta con re-invocar al architect con `elegida: O<n>` para esa decisión. |
 
 ## 1. Contexto y restricciones
@@ -401,8 +401,160 @@ Cada gráfico es un `<figure>` con `<canvas aria-label>` y una `<table>` equival
 
 ---
 
+## 8. Adenda 2026-10-15 — revisión del plan desde el panel (enmienda de la spec)
+
+**Origen:** subsección «Enmienda 2026-10-15» de la spec (`spec.md:337-339`), CA-43 reformulado (`spec.md:232`), CA-45 a CA-54 (`spec.md:239-248`) e incógnita I-10 (`spec.md:380`). El usuario aprobó el **qué**; el **cómo** es una decisión técnica que el orquestador delegó en el architect. Esta adenda no cambia D-A1 (O1) ni D-A2 (O5) y el diseño sigue `aprobado`.
+
+### 8.1 Lo que hay hoy (recon con citas)
+
+| Pieza | Hecho comprobado | Consecuencia para la enmienda |
+|---|---|---|
+| `plan-review.py` `open` | Valida la iniciativa con `INITIATIVE` (`agent-kits/shared/plan-review.py:43`, `:487`), crea el directorio de estado y `owner.json` con `_marker(..., initialize=True)` (`:185-198`, `:495`), crea `.lock` (`agent-kits/shared/local-state.py:104-112`) y escribe el registro nuevo (`:502-508`, `:562`). Sobre un registro existente no cambia bytes, pero hace `fsync` (`:563`) | `open` **escribe**: solo puede llegar por POST con token |
+| `plan-review.py` `status` / `view` | Exigen un `review_id` (`:494`) y toman el cerrojo **exclusivo** (`:496`; `local-state.py:115-133`). No escriben contenido (`:558`), pero el `review_id` depende del `scope_id` del estado (`:171-173`) | No sirven para «todas las iniciativas»: el servidor no conoce los ids, y sondear 64 cerrojos cada 5 s compite con el agente que consume la decisión |
+| `plan-review.py` `list_reminders` | Lectura sin efectos: no inicializa, no toma cerrojo, inventario doble para detectar cambios (`:575-635`, en concreto `:596-612`). Va **por iniciativa** y expone `decision_recorded`, pero **no** la elección `approve`/`request_changes` (`:620-627`) | Patrón correcto; contrato insuficiente. Lo usa `/work-resume` (`agent-kits/shared/progress-report.py:501-506`): no se toca |
+| Internos `_inventory` / `_record` / `_projection` | `_inventory` y `_record` solo listan, hacen `lstat` y leen y validan (`:211-262`); `_projection` es pura (`:264-276`) | Una operación nueva del dueño puede componerlos sin escribir |
+| Servidor del panel | Un único `review_selection` fijado al arrancar (`skills/plugin-panel/scripts/serve_panel.py:471-500`); `refresh` reabre SIEMPRE esa iniciativa (`:293-296`); ids registrados en un `set` con tope 64 (`:319-327`); rutas `api/review/<id64>/<op>` solo con id registrado (`:379-385`); GET `view`/`status` (`:403-405`); POST `comments`/`submit`/`refresh` (`:417`, `:451-456`); id de iniciativa = `sha256(carpeta)[:16]` (`:190`); tope de 64 KiB general (`:19`) y de 512 KiB para revisión (`:23`) | Hace falta un registro `id64 → (iniciativa, puerta, escritura)` y una correspondencia `id16 → iniciativa` |
+| CLI | `--review-initiative` y `--review-state-root` se exigen mutuamente (`skills/plugin-panel/scripts/build_panel.py:845-847`, `:860-862`), y un test lo fija: `--serve --project … --review-state-root …` sin iniciativa → exit 2 (`tests/test_panel_review_ui.py:52-57`). `/dev-cycle` lanza `--review-gate-key plan-ok` (`tests/test_plan_review_caller.py:120-121`) | CA-54 prohíbe cambiar esa expectativa: el modo nuevo necesita su propio flag |
+| UI | `panel-review.js` toma el id de `data-review-id` (`skills/plugin-panel/assets/panel-review.js:59`), ya pinta resultados y verificaciones por comentario (`:106-148`) con el literal «Sin respuesta declarada» (`:106`); sin revisión seleccionada el JS no se sirve (`skills/plugin-panel/scripts/panel_pages.py:146-147`) | CA-51 ya tiene casi todo el render; cambia el texto y el punto de entrada |
+
+### 8.2 Opciones para I-10 (estado de revisión de todas las iniciativas)
+
+#### O7 — Operación nueva de solo lectura en el dueño: `summarize_reviews` (CLI `summary`)
+
+`plan-review.py` añade `summarize_reviews(project, initiatives, *, state_root, deadline=None)`. Sigue el patrón de `list_reminders`: sin `_marker(initialize=True)`, sin `_locked`, inventario doble y `approval_granted: false`. Recorre el inventario **una vez** para todas las iniciativas pedidas (≤ 64) y devuelve una fila cerrada por iniciativa. El servidor solo llama a la función.
+
+| Complejidad | Riesgo | Coste relativo | Reversibilidad |
+|---|---|---|---|
+| Media | Bajo (patrón ya revisado en `list_reminders`) | M | Alta (función nueva, nada existente cambia) |
+
+#### O8 — Proyección en el servidor
+
+`serve_panel.py` calcula el estado. Hay tres variantes y ninguna se sostiene: (a) leer `.claude/plan-review/r-*.json` o llamar a `_inventory`/`_record` duplica el parser del formato de estado fuera de su dueño (ADR-011) y acopla el servidor a funciones privadas; (b) llamar a `list_reminders` 64 veces cuesta 128 inventarios y aún no distingue «aprobada» de «cambios pedidos»; (c) llamar a `status` por id necesita ids que el servidor no conoce y toma el cerrojo exclusivo.
+
+| Complejidad | Riesgo | Coste relativo | Reversibilidad |
+|---|---|---|---|
+| Media | Alto (dos lectores del mismo estado; cerrojo en sondeo) | S-M | Media (el formato de estado queda atado al servidor) |
+
+**Elegida (decisión técnica delegada, 2026-10-15): O7.** Criterios: 1) un rol, un dueño — el estado de revisión solo lo interpreta `plan-review.py`; 2) reutilizar el cierre ya revisado — el patrón sin cerrojo de `list_reminders`; 3) honestidad del dato — el dueño ya sabe qué es «vigente» (versión por hash). **Descartadas:** O8 por los motivos anteriores; ampliar `list_reminders` porque cambia el contrato de `/work-resume` (CA-54).
+
+### 8.3 Contrato de `summarize_reviews` (O7)
+
+- **Entrada:** lista de rutas `docs/roadmap/<carpeta>` (cada una debe casar con `INITIATIVE`, sin repetir, ≤ 64), `state_root` = `<proyecto>/.claude/plan-review` (misma comprobación que `:591-592`) y `deadline` (3 s por defecto).
+- **Sin efectos:** no inicializa (sin estado → todas `sin_revision`, `complete: true`), no toma `.lock`, no hace `fsync`, no escribe nada. Test: el árbol de `.claude/plan-review/` tiene los mismos nombres, tamaños y hashes antes y después, y la llamada funciona mientras otro proceso tiene el cerrojo.
+- **Registro principal por iniciativa:** el más reciente (`created_at`, desempate por `review_id`) cuya versión es la **vigente**; si ninguno es vigente, el más reciente de todos.
+- **Vigencia sin redactar de más:** compara primero el `sha256` crudo del plan (`reader.read_bytes(..., include_digest=True)`); si difiere → `obsoleta`. Solo si coincide calcula `_view` para comparar `view_sha256` (cambio del redactor). Un plan ausente o ilegible da `plan: missing|unavailable`.
+- **Estado (vocabulario cerrado):**
+
+  | `estado` | Regla | Texto en la UI (CA-49) |
+  |---|---|---|
+  | `sin_revision` | La iniciativa no tiene registros | «sin revisión» |
+  | `pendiente` | Registro principal vigente sin `decision` | «pendiente» |
+  | `cambios_pedidos` | Vigente con `decision.choice = request_changes` | «cambios pedidos» |
+  | `aprobada` | Vigente con `decision.choice = approve` | «aprobada vN» |
+  | `obsoleta` | Hay registros pero ninguno sobre la versión vigente (CA-50) | «obsoleta por cambio de versión» |
+  | `no_disponible` | Plazo agotado o plan ilegible; nunca se rellena con otro estado | «sin datos» + motivo |
+
+- **vN:** ordinal (desde 1) de la versión del registro entre las versiones distintas que tienen registros de esa iniciativa, ordenadas por su primer `created_at`. Lo calcula el dueño; el estado no se borra nunca, así que el ordinal es estable.
+- **Campos por fila:** `initiative`, `estado`, `version_ordinal` (o `null`), `gate_key` del principal, `review_state` (`pendiente|entregada|consumida`, o `null`), `plan`, `comments`, `comments_with_result`, `needs_clarification`, `results_without_verification`, `other_current_reviews` y `review_id` (este último **solo para el servidor**; ver 8.4).
+- **Sobre:** `schema_version`, `status` (`ok|partial|unavailable`), `reason` (`state_changed`, `deadline_expired`, `state_budget`…), `complete`, `observed_at`, `initiatives`, `omitted` y `approval_granted: false`. Unos 350 B por fila: ≈ 22 KiB con 64 filas, por debajo de 64 KiB.
+- **CLI:** `plan-review.py summary --project P --state-root S`, con la lista JSON por stdin (≤ 16 KiB, como `comments`). Exit 0 si `ok|partial`, 3 si `unavailable`.
+
+### 8.4 Servidor: rutas nuevas y su enlace con `api/review/<id64>/<op>`
+
+**Correspondencia `id16 → iniciativa`.** La construye el servidor con el mismo escaneo que da los `plan-<id16>` de la Fase 2 (`sha256(carpeta)[:16]`, `serve_panel.py:190`) y la refresca con la caché de cartera. Quedan fuera: las carpetas que no casan con `INITIATIVE`, las que no tienen `improvement-plan.md` (comprobado con `list_names`, sin leer el fichero) y las que colisionan en el id16 (salen las dos). El navegador nunca envía una ruta ni un nombre de fichero.
+
+**Registro de ids.** El `set` (`:319-327`) pasa a ser un diccionario `id64 → {initiative, gate_key, escritura}` con tope 128 (64 iniciativas × vigente + reapertura). Solo se registra desde respuestas del dueño, nunca desde el cuerpo de una petición.
+
+| Ruta | Método | Qué hace | Escribe en disco |
+|---|---|---|---|
+| `api/review-summary` | GET | `summarize_reviews` sobre la correspondencia; quita `review_id`; caché de 5 s (como `snapshot`, `:252-263`); recorte por filas si pasa de 64 KiB (como `:200-201`) | No |
+| `api/review-current/<id16>` | GET | Pide al dueño el resumen de esa iniciativa y registra el `review_id` principal: `requested-review` → con escritura; `plan-ok` → **solo lectura** (salvo que sea el preseleccionado). Devuelve `{initiative_id, review_id, estado, escritura}`. Con eso el cliente usa `api/review/<id64>/view` (CA-51) | No (el registro es memoria del proceso) |
+| `api/review-open/<id16>` | POST | Cuerpo exacto `{"initiative_id": "<id16>"}` igual al de la ruta (mismo patrón que `refresh`, `:76-77`); cualquier otra clave, `gate_key` incluida → 400 sin llamar al dueño (CA-48). Llama a `open_review(project, 'docs/roadmap/<carpeta>', gate_key='requested-review', consumer=None)` y registra el id con escritura | Sí, solo a través del dueño |
+| `api/review/<id64>/view·status` | GET | Igual que hoy | No |
+| `api/review/<id64>/comments·submit·refresh` | POST | Igual que hoy, pero solo si el registro tiene `escritura`. `refresh` reabre la iniciativa y la puerta **del registro**, no de la selección global (hoy, `:293-296`). Un `plan-ok` en solo lectura → 405 | Sí, solo a través del dueño |
+
+Un id16 que no está en la correspondencia → 404 antes de cargar el dueño; el directorio de estado no cambia (test de CA-45). Token en la ruta, `Host`/`Origin`/`Sec-Fetch-Site`, sin cookies, `Content-Type` JSON, 16 KiB de petición, plazo de 3 s y CSP con nonce: **sin cambios** (`:353-368`, `:411-430`; CA-47). `receive`/`ack`/`consume`/`result`/`verify-result` siguen sin ruta HTTP (contrato E51): las respuestas del agente las escribe el agente, no el navegador.
+
+### 8.5 Flags, modos y la puerta `plan-ok`
+
+| Caso | Comportamiento |
+|---|---|
+| `--serve --project P --review-state-root S --review-panel` (flag **nuevo**, opt-in) | Habilita el botón «Revisar este plan» en todas las páginas Plan con plan legible, el estado en tarjetas y cabeceras y las respuestas del agente. Carga el dueño y el JS de revisión |
+| `--review-initiative X --review-state-root S [--review-gate-key G]` | **Se conserva igual** (CA-43, CA-54): abre X al arrancar con su puerta (incl. `plan-ok` para `/dev-cycle`) y la preselecciona en la página Plan de X con escritura. Combinable con `--review-panel` |
+| `--review-state-root` sin `--review-initiative` ni `--review-panel` | Sigue saliendo con exit 2 (`tests/test_panel_review_ui.py:52-57` intacto) |
+| Servido sin `--review-panel` (o sin `--project`) | Ni botón ni JS de revisión; la página Plan dice en una frase: «La revisión del plan se activa con `--review-panel --review-state-root <proyecto>/.claude/plan-review`» (CA-53). `test_ordinary_server_never_loads_review_owner` sigue igual |
+| `--export` | Sin revisión: ni controles, ni `api/review`, ni lectura de `.claude/plan-review/`. La página Plan dice «estado de revisión: solo en modo servido» (CA-52) |
+
+`create_server` recibe el ámbito nuevo en un argumento propio (`review_scope={'state_root': …}`), **no** ampliando `review_selection`, cuya validación fija un test (`tests/test_panel_review_server.py:172-176`).
+
+**`plan-ok` jamás desde el navegador (CA-48):** la puerta la fija el servidor (`'requested-review'` literal en `api/review-open`) o el orquestador (preselección). Un `plan-ok` abierto por otro proceso se ve, pero sin escritura.
+
+**Descartadas en las subdecisiones:**
+
+- Relajar el parser para que `--review-state-root` solo habilite el modo: cambia la expectativa de `test_panel_review_ui.py:54` (incumple CA-54).
+- Reutilizar `api/review/<id>/refresh` con un id16: mezcla dos espacios de id en una ruta que hoy exige id registrado.
+- Escribir en el exportado el estado de revisión de la instantánea: obligaría a leer `.claude/` al exportar para un dato que caduca; la spec lo permite («si aparece»), pero no lo exige.
+
+### 8.6 Respuestas del agente en el Plan (CA-51)
+
+- **Origen:** `feedback` y `feedback_history` de la proyección del dueño (`plan-review.py:264-276`, `:378-398`), servidos por `api/review/<id64>/view` con su tope actual de 512 KiB (`serve_panel.py:23`) y el historial acotado a 8 revisiones y 64 KiB (`plan-review.py:395`).
+- **Render:** el de `panel-review.js:106-148`, en la página Plan. El literal pasa de «Sin respuesta declarada» a «sin respuesta del agente» (ningún test fija el literal antiguo; comprobado con grep en `tests/`).
+- **Resumen de la tarjeta:** solo cifras (`comments_with_result` de `comments`, `needs_clarification`), sin texto de respuestas; así `api/review-summary` queda dentro de 64 KiB.
+
+### 8.7 Impacto adicional en módulos y ficheros
+
+| Módulo / fichero (ruta real) | Cambio | Nuevo / modificado |
+|---|---|---|
+| `agent-kits/shared/plan-review.py` | `summarize_reviews` + CLI `summary` (8.3); el resto, sin cambios | modificado |
+| `agent-kits/shared/test_plan_review_summary.py` | Suite nueva de la operación (sin tocar las suites existentes del dueño) | nuevo |
+| `skills/plugin-panel/scripts/serve_panel.py` | `review_scope`, correspondencia `id16`, registro con puerta y escritura, rutas de 8.4, `refresh` por registro | modificado |
+| `skills/plugin-panel/scripts/build_panel.py` | Flag `--review-panel` y su validación; cuerpo de la página Plan con botón o explicación | modificado |
+| `skills/plugin-panel/scripts/panel_pages.py` | Servir `panel-review.js` también con `review_scope` (`:146-147`) | modificado |
+| `skills/plugin-panel/assets/panel-review.js` | Entrada por `data-initiative-id`: `review-current` → `view`; botón → `review-open`; cabecera de estado; texto CA-51 | modificado |
+| JS de Iniciativas (`page-*.js` de T-19) | Estado de revisión en texto en cada tarjeta, desde `api/review-summary` | modificado |
+| `tests/test_panel_review_panel_server.py`, `tests/test_panel_review_panel_ui.py` | Suites nuevas (las de `tests/test_panel_review_*` existentes no cambian sus expectativas) | nuevo |
+| `tests/test_panel_export.py` | Sin controles de revisión ni `api/review` en el exportado | modificado |
+| `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/agents/CONTRACTS.md` (E49-E51 y una arista nueva «panel resume revisiones»), `agent-kits/shared/README.md` | Modo `--review-panel`, operación `summary`, rutas nuevas | modificado |
+
+No toca agentes, comandos ni hooks: `export-interop.py --check` no cambia por esta adenda.
+
+### 8.8 Tareas sugeridas para el planner (Fase 2)
+
+El planner las numera como `T-XX` de la Fase 2. Dependen de T-12 (JS a `assets/`), T-19 (Iniciativas) y T-23 (`plan-<id16>`).
+
+| # | Tarea | Ficheros | CA |
+|---|---|---|---|
+| R-1 | `summarize_reviews` + CLI `summary`. Tests: sin escritura (árbol idéntico), sin estado → `sin_revision`, funciona con el cerrojo tomado, los 6 estados, vN, obsoleta por `raw` y por `view`, plazo → `partial`, `state_changed`, 64 registros | `agent-kits/shared/plan-review.py`, `agent-kits/shared/test_plan_review_summary.py` | CA-49, CA-50, CA-54 |
+| R-2 | Servidor: `review_scope`, correspondencia `id16`, registro `id64 → {iniciativa, puerta, escritura}` (tope 128), `api/review-summary`, `api/review-current/<id16>`, `api/review-open/<id16>`, `refresh` por registro. Tests: id16 desconocido → 404 y estado intacto; `gate_key` en el cuerpo → 400; sin token u `Origin` ajeno → 403 y estado intacto; `plan-ok` ajeno sin escritura (405); respuesta ≤ 64 KiB | `skills/plugin-panel/scripts/serve_panel.py`, `tests/test_panel_review_panel_server.py` | CA-43, CA-45, CA-47, CA-48 |
+| R-3 | CLI `--review-panel` + texto de activación; exportado sin revisión | `skills/plugin-panel/scripts/build_panel.py`, `skills/plugin-panel/scripts/panel_pages.py`, `tests/test_panel_export.py` | CA-52, CA-53, CA-54 |
+| R-4 | UI del Plan: botón, cabecera de estado, comentarios y decisión, respuestas del agente; estado en texto en las tarjetas de Iniciativas (misma cifra). Arnés Node sin `innerHTML` | `skills/plugin-panel/assets/panel-review.js`, JS de Iniciativas, `tests/test_panel_review_panel_ui.py` | CA-45, CA-46, CA-49, CA-50, CA-51 |
+| R-5 | Documentación y contratos (dentro de T-28) | `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/agents/CONTRACTS.md`, `agent-kits/shared/README.md` | CA-44 |
+| R-6 | Cierre de la Fase 2 (T-29) con **lente C obligatoria**, aunque `review-lens-select.py` no la marque; M-02 incluye abrir, comentar y decidir una revisión desde el Plan | ledger | CA-44, CA-47 |
+
+### 8.9 Riesgos de la adenda
+
+| Riesgo | Probabilidad | Impacto | Mitigación |
+|---|---|---|---|
+| Vía de escritura nueva desde el navegador (abrir `requested-review`) | Segura | Alto | Id de inventario (nunca ruta), cuerpo exacto, puerta literal en el servidor, token/Origin/CSP actuales, `plan-ok` ajeno en solo lectura; lente C obligatoria (R-6) |
+| CA-49 nombra `plan-review.py status`, pero la lectura es `summary` | Segura | Bajo | La propiedad que pide el CA (solo lectura del dueño, sin crear ni modificar ficheros) se cumple; qa debe probar `summary`. Ver 8.10 |
+| `summary` lee hasta 64 planes de 256 KiB y redacta los que coinciden en `raw` | Media | Medio | `raw` primero, `_view` solo si coincide; plazo de 3 s → `partial` con `no_disponible`, nunca otro estado; caché de 5 s |
+| Lectura sin cerrojo mientras el agente escribe | Media | Bajo | Inventario doble → `state_changed`; la UI dice «actualizando» y reintenta en el siguiente sondeo |
+| Se agota el registro de ids | Baja | Bajo | Tope 128 y respuesta explícita «demasiadas revisiones abiertas en este proceso»; test |
+| Choque con T-11/T-12 en curso (servidor multi-página y JS a `assets/`) | Media | Medio | R-2 a R-4 van después de T-12 y T-23; no se cambia nada de la Fase 1 |
+| El contrato E51 («selección fija») queda desfasado | Segura | Bajo | R-5 lo actualiza en el mismo cambio |
+| La opción excede la evaluación (≈ 4 tareas más en la Fase 2) | Media | Medio | `/dev-cycle` decide si re-evaluar la Fase 2 |
+
+### 8.10 Preguntas abiertas de la adenda
+
+- **Literal de CA-49.** Dice «calculado solo leyendo `plan-review.py status`». La adenda usa la operación nueva `summary` (`status` exige id y cerrojo; ver 8.1). Si el orquestador lo pide, el analyst puede ajustar el literal a «una operación de solo lectura de `plan-review.py`». El architect no edita la spec.
+- **Persistencia de la decisión.** Candidato propuesto al Curator: `docs/knowledge/candidates/pending/2026-10-15-panel-revision-del-plan-resumen-solo-lectura.md` (sha256 `14ca5630c64003b1763065e0b4f68903bec7c525269fb0d1f0ac9c9884135667`, `evidencia: observation`). Lo decide `knowledge-curator`.
+- **Medición.** No hay bloque `generacion:` propio para la adenda: `usage-meter.py close` sobrescribiría la medición original del diseño. Si hace falta, se mide a nivel de la tarea del planner.
+
+---
+
 ## Changelog
 
 | Fecha | Cambio |
 |---|---|
 | 2026-10-15 | Diseño creado; D-A1 (O1-O3) y D-A2 (O4-O6) con recomendación O1+O5, fijada por instrucción del orquestador sobre la estructura aprobada por el usuario (`aprobado`, revisable) |
+| 2026-10-15 | Adenda §8 por la enmienda de la spec (CA-43 reformulado, CA-45 a CA-54, I-10): O7 (operación de solo lectura `summarize_reviews` en `plan-review.py`) elegida por decisión técnica delegada; O8 (proyección en el servidor) descartada; rutas `api/review-summary`, `api/review-current/<id16>` y `api/review-open/<id16>`; flag `--review-panel`; candidato de decisión al Curator. Estado sin cambio (`aprobado`) |

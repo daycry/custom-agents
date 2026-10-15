@@ -3,7 +3,7 @@ spec: panel-redesign
 descripcion: Panel local multi-página (Inicio, Iniciativas, Plan, Agentes en vivo, Memoria, Catálogo, Diagnóstico) con menú común, kanban y gráficos Chart.js incluidos en el plugin, sin red, accesible y con datos ausentes declarados como tales.
 estado: aprobada          # borrador | aprobada | implementada | obsoleta
 creado: 2026-10-15
-actualizado: 2026-10-15
+actualizado: 2026-10-15   # enmienda 2026-10-15: revisión del plan desde el panel (CA-45 a CA-54)
 evaluacion: evaluation.md
 design: design.md         # aprobado: D-A1 = O1, D-A2 = O5 (revisable por el usuario)
 plan: improvement-plan.md
@@ -127,6 +127,7 @@ Valores que ya existen en el repo y que el panel debe respetar. Ninguna cifra nu
   - Páginas Inicio, Iniciativas (kanban de planes + gráficos de cartera) y Plan (kanban de tareas con detalle + gráficos de fase, burndown y real vs estimado).
   - Página Agentes en vivo y la ampliación del registro de actividad con eventos de herramienta (opt-in, local, acotado, redactado).
   - Páginas Memoria (vista sencilla acordada), Catálogo (lo de hoy, mejor presentado) y Diagnóstico (proyección de `/doctor`).
+  - **(Enmienda 2026-10-15)** Revisión del plan desde el panel: en modo servido, desde la página Plan de CUALQUIER iniciativa, abrir su revisión (aprobar / pedir correcciones con comentarios anclados por sección) sin lanzar el panel con `--review-initiative`; estado de revisión de cada iniciativa («sin revisión · pendiente · cambios pedidos · aprobada vN · obsoleta por cambio de versión») visible en la tarjeta del kanban de Iniciativas y en la cabecera del Plan; respuestas del agente a cada comentario visibles en el Plan. El comando que lanza la UI de revisión de un plan se conserva (`--review-initiative`, y `/dev-cycle` en `plan-ok`). La persistencia y la lógica siguen siendo las de `agent-kits/shared/plan-review.py`.
   - Decidir y aplicar qué pieza es dueña de la presentación (D-A1), sin dejar dos dashboards HTML con el mismo rol.
   - Tests de cada fase, documentación de la pieza dueña, `FLOWS.md`/`observability.md` y sus espejos EN si cambia un flujo, y regeneración de `interop/`.
 - **Fuera (siguientes specs o nunca):**
@@ -135,7 +136,11 @@ Valores que ya existen en el repo y que el panel debe respetar. Ninguna cifra nu
   - Réplica de Kwipu, Graphiti o Graphify: el panel enlaza a su interfaz y muestra qué se publicó; no reproduce su vista.
   - Control de agentes desde el panel: lanzar, parar, reintentar o reasignar agentes o tareas.
   - Cualquier petición de red o CDN, en tiempo de ejecución o de generación.
-  - Escribir tareas desde el panel: crear, mover entre columnas, editar o cerrar `T-XX`. El kanban es de solo lectura; el ledger `tasks.md` sigue siendo la única fuente (constitución §2).
+  - Escribir tareas desde el panel: crear, mover entre columnas, editar o cerrar `T-XX`. El kanban es de solo lectura; el ledger `tasks.md` sigue siendo la única fuente (constitución §2). **(Enmienda 2026-10-15)** La única excepción es la revisión del plan (aprobar / pedir correcciones), que no toca tareas ni markdown.
+  - **(Enmienda 2026-10-15)** Editar markdown desde el navegador (spec, plan, tasks). Aclaración del usuario: «me refería a aprobar o solicitar correcciones, no editar manualmente los markdown».
+  - **(Enmienda 2026-10-15)** Que el navegador aplique las correcciones pedidas: las aplica el agente al retomar, con `plan-review.py` (`consume`/`result`).
+  - **(Enmienda 2026-10-15)** Que una revisión abierta desde el panel autorice la puerta `plan-ok` de `/dev-cycle`: el navegador solo abre `requested-review`; `plan-ok` solo lo abre el orquestador.
+  - **(Enmienda 2026-10-15)** Ampliar la revisión desde el panel a la spec o al go/no-go de `/pm-cycle`. Posible futuro, no se hace aquí.
   - Arrastrar y soltar tarjetas.
   - Cambiar los contratos de `dashboard.md`, `build_dashboard.py --json` o `doctor --panel-json`.
 
@@ -224,8 +229,23 @@ Variante `[GWT]` para lo que un test puede reproducir. Cada página tiene su blo
 - [ ] [GWT] CA-40 — Dado una fuente sin un dato o con un dato parcial, Cuando la página lo muestra, Entonces aparece «sin datos» o «parcial: N de M» con su origen. No debe aparecer un 0, una media o un valor interpolado en su lugar. Test con fixtures de ledger sin `generacion:`, sin `real` y sin fechas.
 - [ ] [GWT] CA-41 — Dado un proyecto de prueba con su ruta bajo un home de usuario y un autor de git con correo, Cuando genero el panel en ambos modos, Entonces ningún HTML, JSON ni evento de actividad contiene la ruta absoluta del home, el nombre de usuario del sistema ni direcciones de correo. Test con grep sobre la salida.
 - [ ] [GWT] CA-42 — Dado el mismo proyecto, Cuando genero el panel desde Claude Code, Codex y OpenCode, Entonces las 7 páginas se generan en los tres; lo que un runtime no aporta (p. ej. eventos de herramienta) se declara en la página, no se omite en silencio. `export-interop.py --check` pasa.
-- [ ] [GWT] CA-43 — Dado el panel con la revisión visual del plan activa (`--review-initiative`), Cuando la uso, Entonces anotar y enviar una decisión funciona como hoy (`plan-review.py`, `tests/test_panel_review_*`). No debe añadirse ningún otro camino de escritura desde el navegador.
+- [ ] [GWT] CA-43 — Dado el panel con la revisión visual del plan activa (`--review-initiative`), Cuando la uso, Entonces anotar y enviar una decisión funciona como hoy (`plan-review.py`, `tests/test_panel_review_*`). *(Reformulado por la enmienda 2026-10-15; antes: «No debe añadirse ningún otro camino de escritura desde el navegador».)* La ÚNICA vía de escritura desde el navegador sigue siendo `plan-review.py` (abrir `requested-review`, comentarios, decisión); no debe existir ninguna otra.
 - [ ] CA-44 — Al cerrar cada fase, las suites `tests/test_plugin_panel.py`, `tests/test_panel_*`, `tests/test_dashboard.py`, `tests/test_agent_activity_*` y `tests/test_graphiti_security.py` pasan, junto con `lint_plugin.py` y `evals/check.py`; y el usuario revisa la fase en el navegador (comprobación manual M-xx) antes de pasar a la siguiente.
+
+### Revisión del plan desde el panel — enmienda 2026-10-15 (10)
+
+Origen (citas del usuario, 2026-10-15): «en el dashboard, se podrían aprobar planes? e interactuar con el plan para corregir cosas como hace ecc? así tendríamos un sólo dashboard? que te parece? de todas formas se puede dejar el comando que lanza la UI del plan para interactuar». Aclaración: «me refería a aprobar o solicitar correcciones, no editar manualmente los markdown». Reutiliza `agent-kits/shared/plan-review.py` y el servidor `serve_panel.py` (rutas `api/review/<id64>/<op>`); no los sustituye.
+
+- [ ] [GWT] CA-45 — Dado el panel servido con `--review-state-root` y la página Plan de una iniciativa sin revisión, Cuando pulso «Revisar este plan», Entonces el cliente envía el id de iniciativa que el servidor publicó en su inventario (nunca una ruta ni un nombre de fichero) y el servidor abre la revisión con `plan-review.py open` y la muestra en la propia página, sin haber lanzado el panel con `--review-initiative`. Un id que no está en el inventario del servidor se rechaza con error y no escribe nada en disco (test: el directorio de estado no cambia).
+- [ ] [GWT] CA-46 — Dado la página Plan con una revisión abierta, Cuando añado comentarios anclados por `section_id` y envío «aprobar» o «pedir correcciones», Entonces la decisión y los comentarios se guardan con `plan-review.py` (`submit`), con redacción, ≤ 20 comentarios y ≤ 2.000 caracteres por comentario; pasarse de cualquiera de los topes se rechaza con el mismo error que hoy.
+- [ ] [GWT] CA-47 — Dado el servidor del panel, Cuando recibe una operación de revisión, Entonces se aplican las mismas protecciones que hoy: sin cookies, POST solo con el token de la URL del proceso, 403 ante `Host`, `Origin` o `Sec-Fetch-Site` ajenos, y la misma CSP (`default-src 'none'`, nonce por proceso). Test: POST sin token y con `Origin` ajeno → 403 y estado sin cambios.
+- [ ] [GWT] CA-48 — Dado una revisión abierta desde el navegador, Cuando miro su registro, Entonces su `gate_key` es `requested-review` y nunca `plan-ok`. No debe existir ninguna petición del navegador que fije o cambie la puerta a `plan-ok`; `plan-ok` solo lo abre `/dev-cycle`. Test: el cuerpo de la petición no puede traer `gate_key` y, si lo trae, se rechaza.
+- [ ] [GWT] CA-49 — Dado un inventario de iniciativas con revisiones en cada situación, Cuando abro Iniciativas y el Plan, Entonces la tarjeta del kanban y la cabecera del Plan muestran el estado en texto («sin revisión · pendiente · cambios pedidos · aprobada vN · obsoleta por cambio de versión»), con la misma cifra en ambos sitios, calculado con una operación de solo lectura de `plan-review.py` (`summary`, design.md §8; solo lectura: abrir la página no crea ni modifica ningún fichero de `.claude/plan-review/`). No depende solo del color.
+- [ ] [GWT] CA-50 — Dado una revisión aprobada (o con cambios pedidos) sobre una versión de `improvement-plan.md`, Cuando el plan cambia (hash de la versión distinto), Entonces el estado pasa a «obsoleta por cambio de versión» en tarjeta y cabecera, la decisión anterior no cuenta como vigente y la UI exige una nueva decisión.
+- [ ] [GWT] CA-51 — Dado una revisión en la que el agente ha respondido (`result` con disposición por comentario), Cuando abro el Plan, Entonces veo bajo cada comentario la respuesta del agente y su disposición, y el resultado de `verify-result` si existe. Un comentario sin respuesta aparece como «sin respuesta del agente».
+- [ ] [GWT] CA-52 — Dado el panel en modo exportado (`--export`), Cuando abro cualquier página, Entonces no hay botones ni formularios de revisión, ningún `fetch` de escritura y el estado de revisión, si aparece, es texto de la instantánea marcado como tal. Test: el HTML exportado no contiene los controles de revisión ni la ruta `api/review`.
+- [ ] [GWT] CA-53 — Dado el panel servido sin `--review-state-root` (o sin `--project`), Cuando abro el Plan, Entonces el botón de revisión no aparece y la página explica en una frase cómo activarlo (parámetros que lo habilitan). No debe mostrar un botón que falle al pulsarlo.
+- [ ] [GWT] CA-54 — Dado el cambio completo, Cuando se ejecutan los tests de `plan-review.py` y `tests/test_panel_review_*`, Entonces siguen pasando sin modificar sus expectativas: el formato de estado en `.claude/plan-review/`, los presupuestos (comentarios, caracteres, tamaño de respuesta) y el comando `--review-initiative` se conservan, y `/dev-cycle` en `plan-ok` y `/work-resume` funcionan como antes.
 
 ## Requisitos no funcionales
 
@@ -245,7 +265,7 @@ Variante `[GWT]` para lo que un test puede reproducir. Cada página tiene su blo
 | Restricción | Tipo |
 |---|---|
 | Sin red ni CDN en ejecución ni en generación; Chart.js incluido con versión fija y licencia | **Política fija** (decisión del usuario) |
-| Kanban y páginas de solo lectura sobre el ledger; `tasks.md` es la única fuente (constitución §2) | **Política fija** |
+| Kanban y páginas de solo lectura sobre el ledger; `tasks.md` es la única fuente (constitución §2). **(Enmienda 2026-10-15)** Única excepción de escritura desde el navegador: la revisión del plan por `plan-review.py` (abrir `requested-review`, comentarios, decisión); nunca markdown, tareas ni `plan-ok` | **Política fija** |
 | Hooks informan, no deciden; exit 0 siempre; sin red desde hooks (ADR-007, constitución §1-§2) | **Política fija** |
 | Todo texto persistido o mostrado pasa por `redact.py`; nunca chain-of-thought ni conversación cruda (constitución §4) | **Política fija** |
 | Captura de actividad opt-in, desactivada por defecto, estado local fuera de git | **Política fija** |
@@ -272,12 +292,12 @@ Variante `[GWT]` para lo que un test puede reproducir. Cada página tiene su blo
 
 ## Fases propuestas
 
-El planner debe respetar estas cuatro fases acordadas con el usuario. Cada fase cierra con tests, revisión adversarial y la revisión manual del usuario (CA-44).
+El planner debe respetar estas cuatro fases acordadas con el usuario. Cada fase cierra con tests, revisión adversarial y la revisión manual del usuario (CA-44). **(Enmienda 2026-10-15)** La fase 2 añade una vía de escritura nueva desde el navegador: su revisión adversarial debe incluir la lente C de seguridad de forma obligatoria (no solo cuando `review-lens-select.py` la marque).
 
 | Fase | Contenido | Criterios |
 |---|---|---|
 | **1 — Base común** | Plantilla multi-página, menú común, Chart.js incluido (versión fija, licencia, hash), CSP sin red, modos servido y exportado, accesibilidad base, aplicación de D-A1 | CA-32 a CA-41, CA-43 |
-| **2 — Iniciativas y Plan** | Kanban de planes y de tareas, detalle de tarea, gráficos de cartera, avance por fase, burndown, real vs estimado; Inicio con sus cifras de cartera | CA-01 a CA-03, CA-05 a CA-14 |
+| **2 — Iniciativas y Plan** | Kanban de planes y de tareas, detalle de tarea, gráficos de cartera, avance por fase, burndown, real vs estimado; Inicio con sus cifras de cartera | CA-01 a CA-03, CA-05 a CA-14, CA-45 a CA-54 (enmienda 2026-10-15; T-12 ya mueve la revisión a la página Plan) |
 | **3 — Agentes en vivo** | Ampliación del registro con eventos de herramienta (D-A2), página Agentes en vivo, actividad reciente en Inicio | CA-04, CA-15 a CA-21, CA-42 en lo relativo a eventos |
 | **4 — Memoria, Catálogo y Diagnóstico** | Página Memoria (vista sencilla), Catálogo mejor presentado sin pérdida de información, Diagnóstico | CA-22 a CA-31 |
 
@@ -287,6 +307,7 @@ El planner debe respetar estas cuatro fases acordadas con el usuario. Cada fase 
 - Servidor: las suites `tests/test_panel_*_server.py` existentes más las nuevas rutas; 403 por token/Host/Origin (CA-34).
 - E2E con Playwright en local (qa): cada `[GWT]` de arriba con el mismo ID en `test-plan.md`; navegación por teclado (CA-37); carga con la red bloqueada y comprobación de cero peticiones a otros orígenes (CA-33, CA-35).
 - No regresión: `build_panel.py --json` igual antes/después (CA-28); `build_dashboard.py --json` y `dashboard.md` iguales para el mismo `docs/roadmap/`; revisión visual del plan (CA-43).
+- Revisión del plan desde el panel (CA-45 a CA-54): tests de servidor (id desconocido sin escritura, token/Origin, `gate_key` imposible de fijar desde el cliente), de proyección de estado en solo lectura y de UI; las suites de `plan-review.py` y `tests/test_panel_review_*` sin cambios (CA-54).
 - Multi-runtime: generación en los tres runtimes y `export-interop.py --check` (CA-42).
 - Manual (M-xx): revisión del usuario en el navegador al cerrar cada fase (CA-44).
 
@@ -313,6 +334,10 @@ El planner debe respetar estas cuatro fases acordadas con el usuario. Cada fase 
 
 Aprobada el 2026-10-15. Fuente: el usuario validó en la conversación la estructura de siete páginas, Chart.js incluido, la memoria sencilla sin duplicar Kwipu/Graphiti/Graphify y los runs de agentes («me parece bien», «la parte memoria me parece bien tu propuesta, algo sencillo») y fijó como objetivo «finaliza lo del archivado y lo del dashboard». Los cuatro supuestos de negocio de abajo se resuelven con la opción por defecto que la spec ya proponía (revisión visual conservada en la página Plan; `dashboard.md` sigue para Confluence; el modo exportado sale sin datos personales; interfaz en español); cualquiera se revisa si el usuario lo pide.
 
+### Enmienda 2026-10-15 — revisión del plan desde el panel
+
+Aprobada por el usuario en la conversación del 2026-10-15 con las citas de CA-45 a CA-54 («en el dashboard, se podrían aprobar planes? …» y «me refería a aprobar o solicitar correcciones, no editar manualmente los markdown»). Cambia: Alcance (dentro y fuera), CA-43 (reformulado), CA-45 a CA-54 (nuevos), política de solo lectura (con su única excepción), fase 2 y pruebas. No cambia nada más de lo aprobado. Motivo: tener un solo dashboard (el diseño O1 ya deja `plugin-panel` como dueño de la presentación) sin perder la revisión visual del plan.
+
 ## Supuestos
 
 - **Hecho técnico:** el servidor del panel escucha solo en `127.0.0.1` y usa un token por proceso — `skills/plugin-panel/scripts/serve_panel.py:471`, `:488`.
@@ -331,7 +356,9 @@ Aprobada el 2026-10-15. Fuente: el usuario validó en la conversación la estruc
 - **Hecho técnico:** campos de continuidad del journal — `agent-kits/shared/journal.py:244`.
 - **Hecho técnico:** `doctor.py --panel-json` es la proyección portable para el panel — `agent-kits/shared/doctor.py:87-88`.
 - **Hecho técnico:** la narrativa larga del ledger se archiva en `execution-history.md` con `ledger-archive.py` — commit `aa87e69`.
-- **Restricción de negocio (supuesto hasta confirmar):** la revisión visual del plan (`--review-initiative`) se conserva tal cual y vive en la página Plan — la confirmaría el usuario.
+- **Restricción de negocio (confirmado por el usuario, enmienda 2026-10-15):** la revisión visual del plan (`--review-initiative`) se conserva y vive en la página Plan; además se puede abrir desde el propio panel (CA-45 a CA-54). «de todas formas se puede dejar el comando que lanza la UI del plan para interactuar».
+- **Hecho técnico (enmienda 2026-10-15):** `plan-review.py` ya ofrece open/view/status/comments/submit/receive/ack/consume/result/verify-result, decisión `approve`|`request_changes`, ≤ 20 comentarios de ≤ 2.000 caracteres redactados, versión por hash y gate `requested-review` (por defecto) o `plan-ok`; el servidor lo expone en `api/review/<id64>/<op>` con `do_POST` (`serve_panel.py:386`, `:415`).
+- **Riesgo (enmienda 2026-10-15):** es una vía de escritura nueva desde el navegador; se mitiga con id de inventario (nunca ruta), token/Origin/CSP actuales, `requested-review` fijo y lente C obligatoria en la revisión de la fase 2.
 - **Restricción de negocio (supuesto hasta confirmar):** el PM sin git sigue usando `dashboard.md` en Confluence y no necesita el panel nuevo allí — la confirmaría el usuario.
 - **Restricción de negocio (supuesto hasta confirmar):** el modo exportado puede compartirse fuera del equipo del proyecto, y por eso CA-41 aplica también a él — la confirmaría el usuario.
 - **Restricción de negocio (supuesto hasta confirmar):** basta con español en la interfaz del panel (como el panel actual) — la confirmaría el usuario.
@@ -350,4 +377,5 @@ Aprobada el 2026-10-15. Fuente: el usuario validó en la conversación la estruc
 | I-06 | Tiempo de carga objetivo por página y tamaño máximo de la carpeta exportada | usuario |
 | I-07 | Longitud del resumen redactado del argumento (precedente en el repo: 160 caracteres en `serve_panel.py:139`, no confirmado para este uso) | usuario / architect |
 | I-08 | Si Codex expone eventos por herramienta con identificador de subagente; si no, CA-42 lo declara como «no emite eventos de herramienta» | architect |
+| I-10 | Cómo calcula el servidor el estado de revisión de TODAS las iniciativas sin escribir y dentro del tope de 64 KiB por respuesta (consulta de estado por iniciativa o proyección agregada), y cómo se enlaza el id del inventario con el `<id64>` de la ruta `api/review/` | architect / implementer (fase 2) |
 | I-09 | Dónde se lee «qué se publicó» y cuándo en Kwipu/Graphiti sin red (manifiesto, outbox) y si traen fecha | architect |
