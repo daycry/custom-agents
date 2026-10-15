@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import pytest
+from panel_render import pagina
 from test_panel_activity_server import DATA, ROOT
 
 @pytest.fixture
@@ -17,19 +18,21 @@ def panel():
     return module
 
 def test_static_panel_explains_no_service_without_telemetry(panel):
-    html=panel.render_html(DATA)
+    html=pagina(panel,DATA,'agentes')
     assert 'id="activity"' in html and 'sin servicio' in html.lower()
-    assert 'api/activity' not in html and 'id="activity-refresh"' not in html and '@@ACTIVITY@@' not in html
+    assert 'api/activity' not in html and 'id="activity-refresh"' not in html and 'panel-activity.js' not in html
 
 def test_served_activity_is_separate_accessible_and_embedded(panel):
-    html=panel.render_html(DATA,live=True)
+    html=pagina(panel,DATA,'agentes',live=True)
+    assert 'src="assets/panel-activity.js"' in html
     for identity in ('activity','activity-status','activity-freshness','activity-cards','activity-refresh','activity-coverage'):
         assert f'id="{identity}"' in html
-    assert 'href="#activity"' in html and 'api/activity' in html and 'api/progress' in html
-    assert 'aria-live=' in html and 'collection_complete' in html and '@@ACTIVITY@@' not in html
+    assert 'aria-live=' in html and 'collection_complete' in html and '@@' not in html
 
 def activity_script(panel):
-    return next(x for x in re.findall(r'<script[^>]*>(.*?)</script>',panel.render_html(DATA,live=True),re.S) if 'api/activity' in x)
+    source=(ROOT/'skills/plugin-panel/assets/panel-activity.js').read_text(encoding='utf8')
+    assert 'api/activity' in source
+    return source
 
 HARNESS=r'''
 const assert=require('node:assert/strict');
@@ -105,19 +108,22 @@ def test_activity_dom_contract(panel,tmp_path,scenario):
     assert child.returncode==0,(tmp_path/'stdout.raw').read_bytes()+(tmp_path/'stderr.raw').read_bytes()
 
 def test_missing_activity_asset_preserves_static_and_existing_served_views(panel,tmp_path,monkeypatch):
-    reference=ROOT/'skills/plugin-panel/references'
-    for name in ('panel.html','panel-live.js','panel-memory.js'):
-        (tmp_path/name).write_bytes((reference/name).read_bytes())
-    monkeypatch.setattr(panel,'TEMPLATE',tmp_path/'panel.html')
-    assert 'sin servicio' in panel.render_html(DATA).lower()
-    html=panel.render_html(DATA,live=True)
+    copy=tmp_path/'assets'
+    shutil.copytree(ROOT/'skills/plugin-panel/assets',copy)
+    (copy/'panel-activity.js').unlink()
+    pages=panel._load_pages()
+    monkeypatch.setattr(pages,'ASSETS_DIR',copy)
+    files,_,_=pages.cargar_assets('servido')
+    assert 'assets/panel-activity.js' not in files and 'assets/panel-live.js' in files
+    assert 'sin servicio' in pagina(panel,DATA,'agentes').lower()
+    html=panel.cuerpos_paginas(DATA,live=True,actividad=False)['agentes']
     assert 'id="activity"' in html and 'no disponibles' in html.lower()
     assert 'api/activity' not in html and 'id="activity-refresh"' not in html
-    assert 'api/progress' in html and 'id="operations"' in html
+    assert 'id="operations"' in panel.cuerpos_paginas(DATA,live=True,actividad=False)['inicio']
 
 
 def test_memory_view_preserves_unicode_accessible_labels(panel):
-    html=panel.render_html(DATA,live=True)
+    html=pagina(panel,DATA,'memoria',live=True)
     assert 'placeholder="Área opcional"' in html
     assert 'aria-label="Área de conocimiento"' in html
     assert chr(129) not in html and chr(195) not in html

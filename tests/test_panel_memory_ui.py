@@ -4,24 +4,25 @@ import shutil
 import subprocess
 
 import pytest
-from test_panel_live_ui import HARNESS, inventory, panel
+from panel_render import pagina
+from test_panel_live_ui import ASSETS, HARNESS, inventory, panel
 
 
 def script(panel, inventory):
-    output = panel.render_html(inventory, live=True)
-    scripts = re.findall(r'<script[^>]*>(.*?)</script>', output, re.S)
-    return next(source for source in scripts if 'api/memory' in source)
+    source = (ASSETS / 'panel-memory.js').read_text(encoding='utf8')
+    assert 'api/memory' in source
+    return source
 
 
 def test_memory_only_served_with_accessible_controls(panel, inventory):
-    offline = panel.render_html(inventory)
-    assert 'api/memory' not in offline and 'id="memory-query"' not in offline
-    output = panel.render_html(inventory, live=True)
+    offline = pagina(panel, inventory, 'memoria')
+    assert 'api/memory' not in offline and 'id="memory-query"' not in offline and 'panel-memory.js' not in offline
+    output = pagina(panel, inventory, 'memoria', live=True)
+    assert 'src="assets/panel-memory.js"' in output
     for selector in ('memory-query', 'memory-form', 'memory-text', 'memory-area', 'memory-type',
                      'memory-search', 'memory-status', 'memory-freshness', 'memory-results',
                      'memory-selected', 'memory-related'):
         assert f'id="{selector}"' in output
-    assert 'href="#memory-query"' in output
     assert 'type="submit"' in output and 'aria-label="Buscar conocimiento"' in output
     assert '@@' not in output
 

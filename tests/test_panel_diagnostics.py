@@ -8,6 +8,8 @@ import re
 
 import pytest
 
+from panel_render import pagina
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -51,7 +53,7 @@ def test_no_report_means_unknown_without_importing_checker(panel, tmp_path, monk
     monkeypatch.setattr(panel, '_load_shared', lambda name: pytest.fail('Implicit diagnostics import'))
     data = inventory(panel, tmp_path)
     assert data['diagnostics'] == {'status': 'not_provided'}
-    assert 'Sin diagnóstico importado' in panel.render_html(data)
+    assert 'Sin diagnóstico importado' in pagina(panel, data, 'diagnostico')
 
 
 def test_explicit_file_is_bound_hashed_and_never_runs_doctor(panel, tmp_path, report, monkeypatch):
@@ -133,7 +135,7 @@ def test_future_report_has_no_results_or_recommendations(panel, tmp_path, report
     path.write_text(json.dumps(value), encoding='utf8')
     data = inventory(panel, tmp_path/'bundle', project, path)
     assert data['diagnostics']['status'] == 'future_timestamp'
-    page = panel.render_html(data)
+    page = pagina(panel, data, 'diagnostico')
     assert 'id="diagnostic-plugin-1"' not in page
     assert 'id="diagnostic-state"' not in page
 
@@ -145,7 +147,7 @@ def test_partial_report_keeps_prefix_counts_without_priorities(panel, tmp_path, 
     data = inventory(panel, tmp_path/'bundle', project, path)
     assert data['diagnostics']['status'] == 'incomplete'
     assert data['diagnostics']['report']['summary'] == {'ok': 0, 'aviso': 0, 'error': 1, 'info': 1}
-    page = panel.render_html(data)
+    page = pagina(panel, data, 'diagnostico')
     assert 'id="diagnostic-plugin-1"' in page
     assert 'href="#diagnostic-plugin-1"' not in page
 
@@ -164,9 +166,83 @@ def test_old_snapshot_and_current_hook_unknown_states_remain_separate(panel, tmp
 def test_render_shows_source_scope_and_safe_recommendation(panel, tmp_path, report):
     project, path, _ = report
     data = inventory(panel, tmp_path, project, path)
-    page = panel.render_html(data)
-    for expected in ('id="diagnostics"', 'href="#diagnostics"', 'id="diagnostic-state"',
+    page = pagina(panel, data, 'diagnostico')
+    for expected in ('id="diagnostics"', 'id="diagnostic-state"',
                      'id="diagnostic-plugin-1"', 'registro en Codex', '/doctor',
                      'no acredita carga ni ejecución', data['diagnostics']['source_sha256']):
         assert expected in page
     assert 'PRIVATE' not in page and 'SECRET' not in page and str(project) not in page
+
+
+MENSAJES = {'not_provided': 'Sin diagnóstico importado', 'scope_unbound': 'Falta un proyecto explícito',
+            'scope_mismatch': 'pertenece a otra ruta de proyecto', 'future_timestamp': 'en el futuro',
+            'incompatible': 'no cumple el contrato portable', 'not_found': 'no existe',
+            'too_large': 'supera el límite de lectura', 'invalid_encoding': 'UTF-8 válida'}
+
+
+@pytest.mark.parametrize('estado', sorted(MENSAJES))
+def test_la_pagina_diagnostico_conserva_cada_rechazo_con_su_mensaje(panel, tmp_path, estado):
+    """T-10: mismos rechazos que antes («sin informe», otro proyecto, otro formato) en `diagnostico.html`."""
+    data = inventory(panel, tmp_path)
+    data['diagnostics'] = {'status': estado}
+    page = pagina(panel, data, 'diagnostico')
+    assert MENSAJES[estado] in page and 'id="diagnostic-state"' not in page
+    assert '<h1>Diagnóstico</h1>' in page and 'id="diagnostics"' in page
+    assert 'Los datos del catálogo permanecen independientes' in page
+
+
+def test_el_catalogo_ya_no_lleva_el_diagnostico(panel, tmp_path):
+    data = inventory(panel, tmp_path)
+    assert 'id="diagnostics"' not in pagina(panel, data, 'catalogo')
+
+
+def test_renderizar_la_pagina_no_ejecuta_doctor_ni_busca_informes(panel, tmp_path, report, monkeypatch):
+    project, path, _ = report
+    data = inventory(panel, tmp_path / 'bundle', project, path)
+    import subprocess
+    monkeypatch.setattr(subprocess, 'run', lambda *a, **k: pytest.fail('el panel ejecutó un subproceso'))
+    monkeypatch.setattr(subprocess, 'Popen', lambda *a, **k: pytest.fail('el panel lanzó un proceso'))
+    monkeypatch.setattr(panel, '_diagnostics', lambda *a, **k: pytest.fail('el panel buscó un informe por su cuenta'))
+    page = pagina(panel, data, 'diagnostico')
+    assert 'Instantánea' in page and 'registro en Codex' in page
+
+
+def test_la_pagina_carga_su_script_de_filtros_como_fichero(panel, tmp_path, report):
+    project, path, _ = report
+    page = pagina(panel, inventory(panel, tmp_path, project, path), 'diagnostico')
+    assert re.findall(r'<script src="([^"]+)"', page)[-1] == 'assets/page-diagnostico.js'
+    assert '<script>' not in page
+
+
+def test_los_filtros_de_diagnostico_ocultan_filas_y_bloques(tmp_path):
+    import shutil, subprocess
+    node = shutil.which('node')
+    if not node:
+        pytest.skip('Node no disponible para el arnés de page-diagnostico.js')
+    js = ROOT / 'skills/plugin-panel/assets/page-diagnostico.js'
+    programa = r"""
+const assert = require('node:assert/strict');
+global.window = global;
+const fila = (estado, texto) => ({ dataset: { state: estado }, textContent: texto, hidden: false });
+const f1 = fila('error', 'registro en Codex'), f2 = fila('info', 'otra cosa');
+const bloque = (filas) => ({ hidden: false, querySelectorAll() { return filas; }, closest() { return null; } });
+const b1 = bloque([f1]), b2 = bloque([f2]);
+const ctl = { value: 'all', handlers: {}, addEventListener(t, f) { this.handlers[t] = f; } };
+const buscar = { value: '', handlers: {}, addEventListener(t, f) { this.handlers[t] = f; } };
+const resultado = { textContent: '' };
+const ids = { 'diagnostic-state': ctl, 'diagnostic-search': buscar, 'diagnostic-results': resultado };
+global.document = { getElementById: (id) => ids[id] || null, querySelectorAll: () => [b1, b2], addEventListener() {} };
+global.addEventListener = () => {};
+require(JS);
+global.PanelDiagnostico.iniciar();
+assert.equal(resultado.textContent, '2 comprobaciones coincidentes');
+ctl.value = 'error'; ctl.handlers.change();
+assert.equal(f2.hidden, true); assert.equal(b2.hidden, true); assert.equal(b1.hidden, false);
+assert.equal(resultado.textContent, '1 comprobaciones coincidentes');
+ctl.value = 'all'; buscar.value = 'codex'; buscar.handlers.input();
+assert.equal(f1.hidden, false); assert.equal(f2.hidden, true);
+""".replace('JS', json.dumps(str(js)))
+    fuente = tmp_path / 'diag.cjs'
+    fuente.write_text(programa, encoding='utf8')
+    r = subprocess.run([node, str(fuente)], capture_output=True, text=True, encoding='utf8', errors='replace', timeout=15)
+    assert r.returncode == 0, r.stdout + r.stderr

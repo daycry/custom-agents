@@ -39,7 +39,13 @@ CSP_SERVIDO = ("default-src 'none'; style-src 'self' 'unsafe-inline'; script-src
                "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
 
 # Ficheros propios del panel que se copian a la carpeta exportada (ruta relativa a assets/).
-ASSET_FILES = ('panel.css', 'panel-core.js', 'panel-charts.js')
+ASSET_FILES = ('panel.css', 'panel-core.js', 'panel-charts.js', 'page-catalogo.js', 'page-diagnostico.js')
+# Solo el modo servido los usa (consultan api/*); el exportado no los copia.
+LIVE_ASSET_FILES = ('panel-live.js', 'panel-memory.js', 'panel-activity.js', 'panel-review.js')
+# Script propio de cada página (después de panel-core.js y panel-charts.js), y los vivos del modo servido.
+PAGE_SCRIPTS = {'catalogo': ('page-catalogo.js',), 'diagnostico': ('page-diagnostico.js',)}
+LIVE_SCRIPTS = {'inicio': ('panel-live.js',), 'plan': ('panel-live.js', 'panel-review.js'),
+                'agentes': ('panel-activity.js',), 'memoria': ('panel-memory.js',)}
 VENDOR_FILES = ('vendor/chart.js/chart.umd.min.js', 'vendor/chart.js/LICENSE.md', 'vendor/chart.js/PROVENANCE.json')
 
 _ESCAPES_JSON = {'<': '\\u003c', '>': '\\u003e', '&': '\\u0026', ' ': '\\u2028', ' ': '\\u2029'}
@@ -71,8 +77,13 @@ def _cabecera_modo(modo, generado):
     return f'<p class="modo" data-modo="exportado">Instantánea del {_esc(generado)} · no se actualiza sola</p>'
 
 
-def render_page(slug, *, modo, generado, datos, cuerpo='', chart_ok=True):
-    """Devuelve el HTML de una página. `cuerpo` es HTML ya escapado por quien lo genera."""
+def render_page(slug, *, modo, generado, datos, cuerpo='', chart_ok=True, nonce=None, scripts_omitidos=()):
+    """Devuelve el HTML de una página. `cuerpo` es HTML ya escapado por quien lo genera.
+
+    `nonce` (modo servido) va en TODAS las etiquetas `<script …>` que se generan aquí; los scripts
+    son siempre ficheros (`src=`) y los datos viajan en un bloque `application/json`.
+    `scripts_omitidos` quita scripts por nombre (p. ej. la revisión cuando no está activa).
+    """
     pagina = next((p for p in PAGES if p[0] == slug), None)
     if pagina is None:
         raise ValueError(f'página desconocida: {slug}')
@@ -80,10 +91,14 @@ def render_page(slug, *, modo, generado, datos, cuerpo='', chart_ok=True):
         raise ValueError(f'modo desconocido: {modo}')
     _, archivo, titulo = pagina
     csp = (f'<meta http-equiv="Content-Security-Policy" content="{CSP_EXPORTADO}">' if modo == 'exportado' else '')
-    scripts = ''
-    if chart_ok:
-        scripts += f'<script src="{CHART_REL}"></script>'
-    scripts += '<script src="assets/panel-core.js"></script><script src="assets/panel-charts.js"></script>'
+    atributo = f' nonce="{_esc(nonce)}"' if nonce else ''
+
+    def script(ruta):
+        return f'<script{atributo} src="{ruta}"></script>'
+    scripts = script(CHART_REL) if chart_ok else ''
+    scripts += script('assets/panel-core.js') + script('assets/panel-charts.js')
+    propios = PAGE_SCRIPTS.get(slug, ()) + (LIVE_SCRIPTS.get(slug, ()) if modo == 'servido' else ())
+    scripts += ''.join(script('assets/' + nombre) for nombre in propios if nombre not in scripts_omitidos)
     datos_pagina = {**datos, 'chartjs_disponible': bool(chart_ok)}
     return (MARKER + '<html lang="es"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">' + csp
@@ -95,7 +110,7 @@ def render_page(slug, *, modo, generado, datos, cuerpo='', chart_ok=True):
             + _cabecera_modo(modo, generado) + '</header>'
             + _nav(archivo)
             + f'<main id="main" tabindex="-1"><h1>{_esc(titulo)}</h1>{cuerpo}</main>'
-            + f'<script type="application/json" id="panel-data">{json_seguro(datos_pagina)}</script>'
+            + f'<script{atributo} type="application/json" id="panel-data">{json_seguro(datos_pagina)}</script>'
             + scripts + '</body></html>')
 
 
@@ -105,11 +120,13 @@ def _sha256(contenido):
     return hashlib.sha256(contenido).hexdigest()
 
 
-def cargar_assets():
+def cargar_assets(modo='exportado', review=False):
     """Lee los ficheros propios del panel. Devuelve (ficheros, chart_ok, avisos).
 
     Falta de un asset propio: ValueError opaco. Chart.js ausente o con huella distinta de la de
     PROVENANCE.json: se omite entero y las páginas degradan a tablas (chart_ok=False).
+    Con `modo='servido'` suma los JS vivos: progreso y memoria son obligatorios (ValueError opaco), la
+    revisión solo si `review` y la actividad degrada (la página lo dice) si falta.
     """
     ficheros, avisos = {}, []
     try:
@@ -117,6 +134,17 @@ def cargar_assets():
             ficheros['assets/' + rel] = (ASSETS_DIR / rel).read_bytes()
     except OSError:
         raise ValueError('bundled panel asset unavailable') from None
+    if modo == 'servido':
+        for rel in LIVE_ASSET_FILES:
+            try:
+                ficheros['assets/' + rel] = (ASSETS_DIR / rel).read_bytes()
+            except OSError:
+                if rel in ('panel-live.js', 'panel-memory.js'):
+                    raise ValueError('bundled live panel asset unavailable') from None
+                if rel == 'panel-review.js' and review:
+                    raise ValueError('bundled review panel asset unavailable') from None
+        if not review:
+            ficheros.pop('assets/panel-review.js', None)
     chart_ok = False
     try:
         vendor = {rel: (ASSETS_DIR / rel).read_bytes() for rel in VENDOR_FILES}
@@ -131,18 +159,24 @@ def cargar_assets():
     return ficheros, chart_ok, avisos
 
 
-def _datos_de_pagina(slug, datos):
+def datos_de_pagina(slug, datos, modo='exportado'):
+    """Bloque `panel-data` de una página. El inventario completo solo viaja en la instantánea exportada
+    (ya anonimizada); el modo servido lleva los contadores y consulta el resto por `api/*`."""
     base = {'pagina': slug, 'contadores': datos.get('counts', {})}
-    if slug == 'catalogo':
+    if slug == 'catalogo' and modo == 'exportado':
         base['inventario'] = datos
     return base
 
 
-def construir_paginas(datos, *, generado, chart_ok):
-    """HTML (bytes UTF-8) de las 7 páginas del modo exportado."""
-    cuerpo = '<section><p>Esta página todavía no muestra contenido.</p></section>'
+PLACEHOLDER = '<section><p>Esta página todavía no muestra contenido.</p></section>'
+
+
+def construir_paginas(datos, *, generado, chart_ok, cuerpos=None):
+    """HTML (bytes UTF-8) de las 7 páginas del modo exportado. `cuerpos`: {slug: HTML} ya escapado."""
+    cuerpos = cuerpos or {}
     return {archivo: render_page(slug, modo='exportado', generado=generado, chart_ok=chart_ok,
-                                 datos=_datos_de_pagina(slug, datos), cuerpo=cuerpo).encode('utf8')
+                                 datos=datos_de_pagina(slug, datos), cuerpo=cuerpos.get(slug, PLACEHOLDER),
+                                 scripts_omitidos=('panel-review.js',)).encode('utf8')
             for slug, archivo, _ in PAGES}
 
 
@@ -171,7 +205,7 @@ def _escribir_atomico(ruta, contenido):
             os.unlink(temporal)
 
 
-def exportar_sitio(destino, datos, *, generado=None, unsafe_link=lambda ruta: ruta.is_symlink()):
+def exportar_sitio(destino, datos, *, generado=None, unsafe_link=lambda ruta: ruta.is_symlink(), cuerpos=None):
     """Escribe las 7 páginas, `assets/`, `vendor/chart.js/` y `export-manifest.json` en `destino`.
 
     Solo sobrescribe HTML con MARKER o ficheros del manifiesto previo cuyo hash sea el que se escribió;
@@ -181,7 +215,7 @@ def exportar_sitio(destino, datos, *, generado=None, unsafe_link=lambda ruta: ru
     if generado is None:
         generado = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
     ficheros, chart_ok, avisos = cargar_assets()
-    ficheros.update(construir_paginas(datos, generado=generado, chart_ok=chart_ok))
+    ficheros.update(construir_paginas(datos, generado=generado, chart_ok=chart_ok, cuerpos=cuerpos))
 
     if unsafe_link(destino) or any(unsafe_link(p) for p in destino.absolute().parents):
         raise ValueError('output is a symbolic link')

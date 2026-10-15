@@ -231,3 +231,182 @@ assert.equal(boton.hidden,true);assert.equal(nav.hidden,false);
     fuente.write_text(programa, encoding='utf8')
     r = subprocess.run([_node(), str(fuente)], capture_output=True, text=True, encoding='utf8', errors='replace', timeout=15)
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+# --- T-09: página Catálogo -------------------------------------------------------------------------
+
+import html as _html
+
+from test_panel_contract_golden import materializar
+from panel_render import pagina
+
+
+@pytest.fixture(scope='module')
+def bp():
+    return _cargar('build_panel')
+
+
+@pytest.fixture(scope='module')
+def inventario(bp, tmp_path_factory):
+    copia = materializar(tmp_path_factory.mktemp('catalogo'))
+    datos = bp.build_inventory(copia / 'bundle', project=copia / 'project', home=copia / 'home')
+    # La fixture no trae registro de selección de guías: se añade uno para ver los roles del workflow.
+    datos['workflow'] = {'source': 'agent-kits/shared/capability-catalog.json', 'selection_only': True,
+                         'roles': {'alfa': ['guia-uno', 'guia-dos'], 'beta': ['guia-uno']}}
+    return datos
+
+
+def _texto(html):
+    return _html.unescape(re.sub(r'<[^>]+>', ' ', html))
+
+
+def test_catalogo_muestra_toda_pieza_conteo_fuente_conflicto_hook_y_paso_de_workflow(bp, inventario):
+    """T-09: lo que mostraba el panel de una página aparece en `catalogo.html` (por contenido)."""
+    pag = pagina(bp, inventario, 'catalogo')
+    texto = _texto(pag)
+    for clase in ('agents', 'skills', 'commands'):
+        assert inventario[clase], clase
+        for pieza in inventario[clase]:
+            assert pieza['name'] in texto and pieza['source'] in texto
+    for herramienta in inventario['tools']:
+        assert herramienta in texto
+    assert inventario['hooks']
+    for gancho in inventario['hooks']:
+        assert gancho['event'] in texto
+        if 'id' in gancho:
+            assert f'id="{gancho["id"]}"' in pag
+        if 'handler' in gancho:
+            assert gancho['handler'] in texto
+    assert inventario['extensions']['pieces']
+    for pieza in inventario['extensions']['pieces']:
+        assert pieza['name'] in texto and pieza['id'] in texto
+    assert inventario['extensions']['conflicts']
+    for conflicto in inventario['extensions']['conflicts']:
+        assert conflicto['name'] in texto
+    assert inventario['workflow']['roles']
+    for rol, guias in inventario['workflow']['roles'].items():
+        assert f'id="role-{rol}"' in pag
+        assert all(g in texto for g in guias)
+    for etapa in ('Descubrir', 'Diseñar', 'Planificar', 'Construir', 'Revisar', 'Validar'):
+        assert etapa in texto
+    for etiqueta in ('Agentes', 'Skills', 'Comandos', 'Herramientas', 'Registros de hook'):
+        assert etiqueta in texto
+    for ancla in ('id="catalog"', 'id="extensions"', 'id="workflow"', 'id="source-notes"'):
+        assert ancla in pag
+    assert 'La presencia de un archivo no acredita ejecución' in texto
+    assert 'Disponibilidad sin verificar' in texto
+
+
+def test_catalogo_lleva_el_contenedor_del_grafico_y_su_script_de_pagina(bp, inventario):
+    pag = pagina(bp, inventario, 'catalogo')
+    assert 'id="grafico-piezas"' in pag
+    assert re.findall(r'<script src="([^"]+)"', pag)[-1] == 'assets/page-catalogo.js'
+    datos = json.loads(re.search(r'id="panel-data">(.*?)</script>', pag, re.S).group(1))
+    assert datos['contadores'] == inventario['counts'] and datos['pagina'] == 'catalogo'
+
+
+def test_las_otras_paginas_no_cargan_el_script_del_catalogo(bp, inventario):
+    for slug in ('inicio', 'plan', 'memoria', 'iniciativas'):
+        assert 'page-catalogo.js' not in pagina(bp, inventario, slug)
+
+
+def test_el_catalogo_exportado_no_expone_scripts_inline_ni_manejadores(bp, inventario):
+    pag = pagina(bp, inventario, 'catalogo')
+    assert not re.search(r'\son[a-z]+\s*=', pag) and 'javascript:' not in pag
+    for atributos, cuerpo in re.findall(r'<script\b([^>]*)>(.*?)</script>', pag, re.S):
+        assert 'src="' in atributos or 'application/json' in atributos
+
+
+def _node_catalogo(tmp_path, cuerpo):
+    node = shutil.which('node')
+    if not node:
+        pytest.skip('Node no disponible para el arnés de page-catalogo.js')
+    programa = ('const assert = require("node:assert/strict");\nglobal.window = global;\n'
+                f'require({json.dumps(str(ASSETS / "page-catalogo.js"))});\n' + cuerpo)
+    fuente = tmp_path / 'catalogo.cjs'
+    fuente.write_text(programa, encoding='utf8')
+    r = subprocess.run([node, str(fuente)], capture_output=True, text=True, encoding='utf8', errors='replace', timeout=15)
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_el_grafico_de_piezas_usa_los_counts_y_su_tabla_da_las_mismas_cifras(tmp_path):
+    _node_catalogo(tmp_path, r"""
+const llamadas = [];
+global.PanelCharts = { dibujar(cont, spec, op) { llamadas.push({ cont, spec, op }); } };
+const contenedor = {};
+const datos = { chartjs_disponible: true, contadores: { agents: 3, skills: 2, commands: 4, tools: 5, hooks: 7 } };
+global.document = { getElementById(id) { return id === 'grafico-piezas' ? contenedor : null; } };
+global.PanelCatalogo.dibujarPiezas(datos);
+assert.equal(llamadas.length, 1);
+const { spec, op, cont } = llamadas[0];
+assert.equal(cont, contenedor);
+assert.deepEqual(op, { chartDisponible: true });
+assert.equal(spec.tipo, 'bar');
+assert.deepEqual(spec.etiquetas, ['Agentes', 'Skills', 'Comandos', 'Herramientas', 'Acciones de hook']);
+assert.deepEqual(spec.series, [{ nombre: 'Piezas', valores: [3, 2, 4, 5, 7] }]);
+assert.match(spec.origen, /counts/);
+""")
+
+
+def test_un_conteo_ausente_va_como_null_nunca_como_cero(tmp_path):
+    _node_catalogo(tmp_path, r"""
+const llamadas = [];
+global.PanelCharts = { dibujar(cont, spec, op) { llamadas.push({ spec, op }); } };
+global.document = { getElementById() { return {}; } };
+global.PanelCatalogo.dibujarPiezas({ chartjs_disponible: false, contadores: { agents: 3 } });
+assert.deepEqual(llamadas[0].spec.series[0].valores, [3, null, null, null, null]);
+assert.deepEqual(llamadas[0].op, { chartDisponible: false });
+llamadas.length = 0;
+global.PanelCatalogo.dibujarPiezas({ chartjs_disponible: true });
+assert.deepEqual(llamadas[0].spec.series[0].valores, [null, null, null, null, null]);
+""")
+
+
+def test_sin_adaptador_de_graficos_la_pagina_no_falla(tmp_path):
+    _node_catalogo(tmp_path, r"""
+global.PanelCharts = undefined;
+global.document = { getElementById() { return {}; } };
+global.PanelCatalogo.dibujarPiezas({ contadores: { agents: 1 } });
+""")
+
+
+# --- T-12: JS vivos a assets/ y a sus páginas ----------------------------------------------------------
+
+def test_los_js_vivos_viven_en_assets_y_no_queda_la_plantilla_de_una_pagina():
+    for nombre in ('panel-live.js', 'panel-memory.js', 'panel-activity.js', 'panel-review.js'):
+        assert (ASSETS / nombre).is_file(), nombre
+        assert not (RAIZ / 'skills/plugin-panel/references' / nombre).exists()
+    assert not (RAIZ / 'skills/plugin-panel/references/panel.html').exists()
+    for dueño in (RAIZ / 'skills/plugin-panel/SKILL.md', RAIZ / 'docs/PLUGIN-PANEL.md', RAIZ / 'docs/en/PLUGIN-PANEL.md',
+                  SCRIPTS / 'build_panel.py', SCRIPTS / 'serve_panel.py', SCRIPTS / 'panel_pages.py'):
+        assert 'references/panel.html' not in dueño.read_text(encoding='utf-8'), dueño.name
+    assert not hasattr(_cargar('build_panel'), 'TEMPLATE') and not hasattr(_cargar('build_panel'), 'render_html')
+
+
+@pytest.mark.parametrize('slug,esperados,ausentes', [
+    ('inicio', ['panel-live.js'], ['panel-memory.js', 'panel-activity.js', 'panel-review.js']),
+    ('plan', ['panel-live.js', 'panel-review.js'], ['panel-memory.js', 'panel-activity.js']),
+    ('agentes', ['panel-activity.js'], ['panel-live.js', 'panel-memory.js', 'panel-review.js']),
+    ('memoria', ['panel-memory.js'], ['panel-live.js', 'panel-activity.js', 'panel-review.js']),
+    ('catalogo', [], ['panel-live.js', 'panel-memory.js', 'panel-activity.js', 'panel-review.js']),
+])
+def test_cada_pagina_servida_carga_solo_sus_js_vivos(bp, inventario, slug, esperados, ausentes):
+    pag = pagina(bp, inventario, slug, live=True, review_enabled=True, nonce='n' * 8)
+    cargados = [s.rsplit('/', 1)[-1] for s in re.findall(r'<script nonce="nnnnnnnn" src="([^"]+)"', pag)]
+    for nombre in esperados:
+        assert nombre in cargados, (slug, nombre)
+    for nombre in ausentes:
+        assert nombre not in cargados, (slug, nombre)
+    assert not re.search(r'<script(?![^>]*nonce=)[^>]*>', pag)
+
+
+def test_el_exportado_nunca_carga_js_vivos_ni_llama_a_api(bp, inventario):
+    for slug in ('inicio', 'plan', 'agentes', 'memoria', 'catalogo', 'diagnostico', 'iniciativas'):
+        pag = pagina(bp, inventario, slug)
+        assert 'api/' not in pag and not re.search(r'panel-(live|memory|activity|review)\.js', pag), slug
+
+
+def test_los_js_vivos_no_insertan_html_ni_usan_eval():
+    for nombre in ('panel-live.js', 'panel-memory.js', 'panel-activity.js', 'panel-review.js'):
+        js = (ASSETS / nombre).read_text(encoding='utf-8')
+        assert 'innerHTML' not in js.replace("set innerHTML", '') and 'insertAdjacentHTML' not in js and 'eval(' not in js, nombre

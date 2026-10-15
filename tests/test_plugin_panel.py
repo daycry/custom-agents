@@ -8,6 +8,8 @@ import subprocess
 
 import pytest
 
+from panel_render import pagina
+
 SCRIPT = Path(__file__).resolve().parents[1] / 'skills/plugin-panel/scripts/build_panel.py'
 
 
@@ -16,8 +18,7 @@ def test_runtime_filter_is_exclusive_for_extensions_but_hook_only_in_catalog(kin
     node = shutil.which('node')
     if not node:
         pytest.skip('Node unavailable for panel JavaScript regression')
-    template = SCRIPT.parent.parent / 'references/panel.html'
-    function = re.search(r'^function connectFilters\([^\n]+', template.read_text(encoding='utf-8'), re.M).group(0)
+    page_js = SCRIPT.parent.parent / 'assets/page-catalogo.js'
     harness = r'''
 const assert = require('node:assert/strict');
 const kind = KIND;
@@ -48,7 +49,9 @@ const catalog = [
 scenario('catalog',catalog);
 assert.deepEqual(catalog.map(card=>card.hidden),[false,true,false],'catalog runtime selector only filters hooks');
 '''.replace('KIND', json.dumps(kind))
-    result = subprocess.run([node, '-e', function + '\n' + harness], capture_output=True, text=True, encoding='utf-8')
+    programa = ('global.window = global;\nrequire(' + json.dumps(str(page_js)) + ');\n'
+                'const connectFilters = global.PanelCatalogo.connectFilters;\n' + harness)
+    result = subprocess.run([node, '-e', programa], capture_output=True, text=True, encoding='utf-8')
     assert result.returncode == 0, result.stdout + result.stderr
 
 
@@ -121,8 +124,8 @@ def test_project_extensions_are_separate_from_bundle_counts(panel, bundle, exten
 
 def test_extension_cards_have_origins_conflicts_and_unverified_availability(panel, bundle, extension_sources):
     project, home = extension_sources
-    output = panel.render_html(panel.build_inventory(bundle, project=project, home=home))
-    assert 'id="extensions"' in output and 'href="#extensions"' in output
+    output = pagina(panel, panel.build_inventory(bundle, project=project, home=home), 'catalogo')
+    assert 'id="extensions"' in output
     assert 'id="extension-scope"' in output and 'id="extension-runtime"' in output
     assert 'id="extension-kind"' in output and 'id="extension-search"' in output
     assert 'data-scope="project"' in output and 'data-scope="user"' in output
@@ -134,7 +137,7 @@ def test_extension_cards_have_origins_conflicts_and_unverified_availability(pane
 def test_invalid_mcp_definition_is_visible_without_claiming_connection(panel, bundle, extension_sources):
     project, home = extension_sources
     write(project, '.mcp.json', json.dumps({'mcpServers': {'ledger': {'url': 'https://example.test/private-token'}}}))
-    output = panel.render_html(panel.build_inventory(bundle, project=project, home=home))
+    output = pagina(panel, panel.build_inventory(bundle, project=project, home=home), 'catalogo')
     assert 'Declaración MCP inválida' in output and 'Disponibilidad sin verificar' in output
     assert 'private-token' not in output
 
@@ -142,14 +145,14 @@ def test_invalid_mcp_definition_is_visible_without_claiming_connection(panel, bu
 def test_conflict_card_identifies_the_repeated_invocation_name(panel, bundle, extension_sources):
     project, home = extension_sources
     write(project, '.claude/skills/tdd/SKILL.md', '---\nname: special-guidance\ndescription: Guidance\n---\nPRIVATE BODY\n')
-    output = panel.render_html(panel.build_inventory(bundle, project=project, home=home, runtime='claude-code'))
+    output = pagina(panel, panel.build_inventory(bundle, project=project, home=home, runtime='claude-code'), 'catalogo')
     assert 'Nombre repetido: <code>tdd</code>' in output
 
 
 def test_extension_metadata_html_is_escaped_and_redacted(panel, bundle, extension_sources):
     project, home = extension_sources
     write(project, '.claude/agents/billing.md', '---\nname: "<img src=x onerror=alert(1)>"\ndescription: "token=Password123456"\n---\n')
-    output = panel.render_html(panel.build_inventory(bundle, project=project, home=home, runtime='claude-code'))
+    output = pagina(panel, panel.build_inventory(bundle, project=project, home=home, runtime='claude-code'), 'catalogo')
     assert '<img src=x onerror=alert(1)>' not in output
     assert '&lt;img src=x onerror=alert(1)&gt;' in output
     assert 'Password123456' not in output and '[secreto redactado]' in output
@@ -162,7 +165,7 @@ def test_extension_reader_failure_keeps_bundle_panel_usable(panel, bundle, tmp_p
     data = panel.build_inventory(bundle, project=tmp_path)
     assert data['counts']['agents']==1 and data['extensions']['partial']
     assert data['extensions']['warnings'] and not data['extensions']['pieces']
-    output = panel.render_html(data)
+    output = pagina(panel, data, 'catalogo')
     assert 'demo' in output and 'must not echo private path' not in output
 
 
@@ -192,7 +195,7 @@ def test_hook_event_card_groups_handlers_without_changing_json_inventory(panel, 
         'SessionStart': [{'hooks': [{'timeout': 5}]}],
     }}))
     data = panel.build_inventory(bundle)
-    rendered = panel.render_html(data)
+    rendered = pagina(panel, data, 'catalogo')
     assert data['counts']['hooks'] == len(data['hooks']) == 4
     assert rendered.count('<h2>PostToolUse</h2>') == 1
     assert '3 acciones configuradas' in rendered
@@ -207,11 +210,11 @@ def test_hook_event_card_groups_handlers_without_changing_json_inventory(panel, 
 def test_grouped_hook_event_escapes_names_and_empty_inventory_counts_zero(panel, bundle):
     data = panel.build_inventory(bundle)
     data['hooks'] = [{'event': '<script>hook()</script>', 'timeout': None, 'scope': 'global'}] * 2
-    rendered = panel.render_html(data)
+    rendered = pagina(panel, data, 'catalogo')
     assert rendered.count('<h2>&lt;script&gt;hook()&lt;/script&gt;</h2>') == 1
     assert '<script>hook()</script>' not in rendered
     data['hooks'] = []
-    assert '<strong>0</strong><span>Registros de hook</span>' in panel.render_html(data)
+    assert '<strong>0</strong><span>Registros de hook</span>' in pagina(panel, data, 'catalogo')
 
 
 def test_hook_handlers_show_public_purpose_script_and_matcher_without_commands(panel, bundle):
@@ -222,7 +225,7 @@ def test_hook_handlers_show_public_purpose_script_and_matcher_without_commands(p
         'SessionEnd': [{'hooks': [{'command': 'node', 'args': ['${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs', 'session-journal.sh'], 'timeout': 5}]}],
     }}))
     data = panel.build_inventory(bundle)
-    rendered = panel.render_html(data)
+    rendered = pagina(panel, data, 'catalogo')
     assert data['hooks'][0]['handler'] == 'mark-docs-pending.sh'
     assert data['hooks'][0]['matcher'] == 'Write|Edit|MultiEdit'
     assert 'Mark edited docs pending. token=&quot;[secreto redactado]&quot;' in rendered
@@ -239,7 +242,7 @@ def test_hook_command_variations_cannot_choose_external_sources(panel, bundle):
     ]}]}}))
     data = panel.build_inventory(bundle)
     assert all('handler' not in hook for hook in data['hooks'])
-    assert 'PRIVATE LAUNCHER' not in panel.render_html(data)
+    assert 'PRIVATE LAUNCHER' not in pagina(panel, data, 'catalogo')
 
 
 def test_missing_bundled_template_is_diagnostic_and_keeps_json_available(panel, bundle, tmp_path, monkeypatch, capsys):
@@ -252,7 +255,7 @@ def test_missing_bundled_template_is_diagnostic_and_keeps_json_available(panel, 
 
 def test_template_markers_inside_metadata_remain_plain_text(panel, bundle):
     write(bundle, 'agents/demo.md', '---\nname: demo\ndescription: @@WORKFLOW@@ @@NOTES@@\n---')
-    rendered = panel.render_html(panel.build_inventory(bundle))
+    rendered = pagina(panel, panel.build_inventory(bundle), 'catalogo')
     assert '@@WORKFLOW@@ @@NOTES@@' in rendered
     assert rendered.count('id="workflow"') == 1
 
@@ -281,7 +284,7 @@ def test_flow_links_only_point_to_present_rendered_native_roles(panel, bundle):
     data = panel.build_inventory(bundle)
     data['agents'].append({'name': 'architect', 'description': 'Designs architecture.', 'model': '', 'tools': [], 'source': 'agents/architect.md'})
     data['workflow']['roles'] = {'architect': []}
-    rendered = panel.render_html(data)
+    rendered = pagina(panel, data, 'catalogo')
     assert 'href="#role-architect"' in rendered and 'id="role-architect"' in rendered
     assert 'href="#role-qa"' not in rendered
     assert 'Roles no disponibles en esta instantánea.' in rendered
@@ -298,12 +301,12 @@ def test_redaction_precedes_summary_and_json_encoding(panel, bundle, secret):
     assert '[secreto redactado]' in description
     assert 'Password123456' not in description
     assert 'TESTKEY' not in description
-    assert 'Password123456' not in panel.render_html(data)
-    assert 'TESTKEY' not in panel.render_html(data)
+    assert 'Password123456' not in pagina(panel, data, 'catalogo')
+    assert 'TESTKEY' not in pagina(panel, data, 'catalogo')
 
 
 def test_html_escapes_metadata_and_has_no_remote_resources(panel, bundle):
-    html = panel.render_html(panel.build_inventory(bundle))
+    html = pagina(panel, panel.build_inventory(bundle), 'catalogo')
     assert '<script>alert(1)</script>' not in html
     assert '&lt;script&gt;alert(1)&lt;/script&gt;' in html
     assert 'https://' not in html and 'fetch(' not in html
@@ -345,7 +348,7 @@ def test_workflow_role_guides_use_inspected_sources_and_no_execution_claim(panel
     assert data['workflow']['source'] == 'agent-kits/shared/capability-catalog.json'
     assert data['workflow']['selection_only'] is True
     assert data['workflow']['roles']['analyst'] == ['research-first']
-    html = panel.render_html(data)
+    html = pagina(panel, data, 'catalogo')
     assert 'Tu workflow, rol a rol' in html and 'workflow-role' in html
     assert 'research-first' in html
 
@@ -410,7 +413,7 @@ def test_yaml_list_tools_are_counted(panel, bundle):
 def test_workflow_responsibilities_use_redacted_role_definitions(panel, bundle):
     data = panel.build_inventory(bundle)
     data['workflow']['roles'] = {'demo': ['example'], 'absent': []}
-    rendered = panel.render_html(data)
+    rendered = pagina(panel, data, 'catalogo')
     assert 'Responsabilidad: Ayuda con código. token=[secreto redactado]' in rendered
     assert 'Definición del rol no disponible en esta instantánea' in rendered
     assert 'Password123456' not in rendered
@@ -420,7 +423,7 @@ def test_workflow_responsibility_is_html_escaped(panel, bundle):
     write(bundle, 'agents/demo.md', '---\nname: demo\ndescription: <script>private()</script>\n---')
     data = panel.build_inventory(bundle)
     data['workflow']['roles'] = {'demo': []}
-    rendered = panel.render_html(data)
+    rendered = pagina(panel, data, 'catalogo')
     assert 'Responsabilidad: &lt;script&gt;private()&lt;/script&gt;' in rendered
     assert '<script>private()</script>' not in rendered
 
@@ -471,7 +474,7 @@ def test_hooks_use_selected_runtime_and_show_native_guard_identity(panel, bundle
         assert guard['source'] == source and guard['load_status'] == guard['execution_status'] == 'unknown'
         assert end['timeout'] == timeout and end['timeout_unit'] == 's'
         assert end['timeout_provenance'] == 'runtime-registration'
-        output = panel.render_html(data)
+        output = pagina(panel, data, 'catalogo')
         assert 'Guardia de roles' in output and 'Carga sin verificar' in output
         assert source in output and '--runtime=' not in output and 'run-hook.mjs' not in output
 
@@ -482,7 +485,7 @@ def test_invalid_timeouts_are_diagnostic_not_budget_claims(panel, bundle, timeou
     data = panel.build_inventory(bundle, runtime='codex')
     end = next(item for item in data['hooks'] if item['event'] == 'SessionEnd')
     assert end['timeout'] is None and end['timeout_status'] == 'invalid'
-    assert data['warnings'] and 'Presupuesto inválido' in panel.render_html(data)
+    assert data['warnings'] and 'Presupuesto inválido' in pagina(panel, data, 'catalogo')
 
 
 def test_runtime_source_failure_never_falls_back_to_claude(panel, bundle):
@@ -503,7 +506,7 @@ def test_all_groups_by_runtime_event_without_collapsing_handlers(panel, bundle):
     data = panel.build_inventory(bundle, runtime='all')
     assert data['counts']['hooks'] == 4
     assert data['hook_group_count'] == 4
-    output = panel.render_html(data)
+    output = pagina(panel, data, 'catalogo')
     assert output.count('<h2>SessionEnd</h2>') == 2
     assert 'id="hook-runtime"' in output and 'data-runtime="codex"' in output
     assert 'Registros de hook' in output
@@ -533,7 +536,7 @@ def test_opencode_reads_only_literal_data_and_exposes_adapter_budget(panel, bund
     assert activity['identity_status'] == 'unknown' and activity['role_ids'] == []
     assert activity['load_status'] == activity['execution_status'] == 'unknown'
     assert data['hook_sources']['opencode']['status'] == 'declared'
-    assert 'FOREIGN CODE' not in panel.render_html(data)
+    assert 'FOREIGN CODE' not in pagina(panel, data, 'catalogo')
 
 
 @pytest.mark.parametrize('alteration', ['missing', 'duplicate', 'invalid', 'oversized'])
@@ -557,7 +560,7 @@ def test_unknown_role_map_does_not_invent_guarded_identity(panel, bundle):
     data = panel.build_inventory(bundle, runtime='codex')
     guard = data['hooks'][0]
     assert guard['role_ids'] == [] and guard['identity_status'] == 'unknown'
-    assert 'bad private' not in panel.render_html(data)
+    assert 'bad private' not in pagina(panel, data, 'catalogo')
 
 
 def test_boolean_native_role_map_version_is_unknown(panel, bundle):
@@ -573,7 +576,7 @@ def test_boolean_native_role_map_version_is_unknown(panel, bundle):
 def test_unidentified_hook_behavior_is_unknown(panel, bundle):
     hook = panel.build_inventory(bundle, runtime='claude-code')['hooks'][0]
     assert hook['behavior'] == 'unknown'
-    assert 'Comportamiento: Sin identificar' in panel.render_html(panel.build_inventory(bundle, runtime='claude-code'))
+    assert 'Comportamiento: Sin identificar' in pagina(panel, panel.build_inventory(bundle, runtime='claude-code'), 'catalogo')
 
 
 @pytest.mark.parametrize('identifier,handler', [('post', 'native-guardrail'), ('prompt', 'progress-line.sh'),
@@ -622,7 +625,7 @@ def test_malformed_opencode_literal_is_unknown_and_keeps_catalog(panel, bundle, 
     data = panel.build_inventory(bundle, runtime='opencode')
     assert data['hooks'] == [] and data['hook_sources']['opencode']['status'] == 'invalid'
     assert data['counts']['agents'] == 1
-    assert 'privateExpression' not in panel.render_html(data)
+    assert 'privateExpression' not in pagina(panel, data, 'catalogo')
 
 
 @pytest.mark.parametrize('events', [[], {'SessionStart': None}, {'SessionStart': [None]},
@@ -640,7 +643,7 @@ def test_absent_timeout_and_mismatched_runtime_launcher_are_explicit(panel, bund
     native_hook(bundle, 'codex', timeout=None)
     data = panel.build_inventory(bundle, runtime='codex')
     assert data['hooks'][-1]['timeout_status'] == 'absent'
-    assert 'Timeout: no declarado' in panel.render_html(data)
+    assert 'Timeout: no declarado' in pagina(panel, data, 'catalogo')
     path = bundle / 'interop/codex/hooks.json'
     path.write_text(path.read_text(encoding='utf-8').replace('--runtime=codex', '--runtime=claude'), encoding='utf-8')
     hooks = panel.build_inventory(bundle, runtime='codex')['hooks']
@@ -674,12 +677,14 @@ def test_linked_runtime_declaration_is_rejected(panel, bundle, tmp_path):
 
 
 def test_runtime_filter_navigation_and_mobile_sources_preserve_stage_controls(panel, bundle):
-    output = panel.render_html(panel.build_inventory(bundle))
+    output = pagina(panel, panel.build_inventory(bundle), 'catalogo')
     assert 'href="#main"' in output and 'id="main"' in output
     assert 'id="navigation-status"' in output and 'aria-live="polite"' in output
     assert '.sidebar nav a:last-child{display:none}' not in output
     assert 'Las guardias pertenecen a los agentes' not in output
-    assert 'syncNavigation' in output and 'aria-pressed' in output and '.flow-detail' in output
+    assert 'aria-pressed' in output and 'class="flow-detail"' in output
+    page_js = (SCRIPT.parent.parent / 'assets/page-catalogo.js').read_text(encoding='utf-8')
+    assert 'sincronizarAncla' in page_js and 'hashchange' in page_js and 'flow-steps' in page_js
 
 
 @pytest.mark.parametrize('identifier', ['capture', 'activity'])
@@ -706,7 +711,7 @@ def test_opencode_stream_bindings_match_exact_declared_metadata(panel, bundle, i
     data = panel.build_inventory(bundle, runtime='opencode')
     assert data['hooks'] == [] and data['hook_sources']['opencode']['status'] == 'invalid'
     assert data['counts']['agents'] == 1 and data['warnings']
-    assert 'FOREIGN CODE' not in panel.render_html(data)
+    assert 'FOREIGN CODE' not in pagina(panel, data, 'catalogo')
 
 
 @pytest.mark.parametrize('change', ['missing', 'domain', 'event', 'handler', 'budget', 'post_incomplete'])
@@ -727,4 +732,4 @@ def test_opencode_activity_binding_keeps_closed_contract(panel, bundle, change):
     data = panel.build_inventory(bundle, runtime='opencode')
     assert data['hooks'] == [] and data['hook_sources']['opencode']['status'] == 'invalid'
     assert data['counts']['agents'] == 1 and data['warnings']
-    assert 'FOREIGN CODE' not in panel.render_html(data)
+    assert 'FOREIGN CODE' not in pagina(panel, data, 'catalogo')

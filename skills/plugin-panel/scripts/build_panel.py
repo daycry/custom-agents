@@ -20,7 +20,6 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 MARKER = '<!doctype html><!-- custom-agents plugin-panel v1 -->'
 MAX_BYTES = 512 * 1024
 MAX_FILES = 1000
-TEMPLATE = Path(__file__).resolve().parents[1] / 'references/panel.html'
 
 
 def _load_redactor():
@@ -454,7 +453,7 @@ DIAGNOSTIC_STATES = {'ok': 'Correcto en la comprobación', 'aviso': 'Advertencia
 
 def _diagnostics_html(result):
     esc = html.escape
-    intro = ('<section id="diagnostics"><div class="section-head"><div><h2>Diagnóstico</h2>'
+    intro = ('<section id="diagnostics"><div class="section-head"><div><h2>Instantánea de doctor</h2>'
              '<p>Instantánea importada de doctor; no acredita carga ni ejecución de hooks.</p></div>'
              '<span class="section-pill">Consulta explícita</span></div>')
     messages = {'not_provided': 'Sin diagnóstico importado. Obtén una proyección con doctor --panel-json y selecciónala al generar el panel.',
@@ -656,44 +655,79 @@ def _extensions_html(data):
             + '<span class="section-pill">' + str(total) + ' declaraciones</span></div>' + controls + body + '</section>')
 
 
-def render_html(data, *, live=False, review_enabled=False):
+def _stats_html(data):
     counts = {**data['counts'], 'hooks': len({(hook.get('runtime', 'unknown'), hook['event']) for hook in data['hooks']})}
     labels = {'agents': 'Agentes', 'skills': 'Skills', 'commands': 'Comandos', 'tools': 'Herramientas', 'hooks': 'Registros de hook'}
-    stats = ''.join(f'<div class="stat"><strong>{count}</strong><span>{labels[kind]}</span></div>' for kind, count in counts.items())
+    return ''.join(f'<div class="stat"><strong>{count}</strong><span>{labels[kind]}</span></div>' for kind, count in counts.items()), counts
+
+
+def _notes_text(data, counts):
     sources = {'runtimes': data['runtimes'], 'memory': data['memory'], 'warnings': data['warnings'],
                'hook_sources': data.get('hook_sources', {}), 'hook_handlers': data['counts']['hooks'],
                'hook_groups': counts['hooks'],
                'diagnostics': {key: value for key, value in data.get('diagnostics', {}).items() if key != 'report'}}
     if 'extensions' in data:
         sources['extensions'] = {key: data['extensions'][key] for key in ('registry_status', 'warnings', 'orphans')}
-    notes = html.escape(json.dumps(sources, ensure_ascii=False, indent=2))
-    try:
-        template = _read(TEMPLATE.parent, TEMPLATE)
-    except (OSError, UnicodeError, ValueError):
-        raise ValueError('bundled panel template unavailable') from None
-    operations, memory, review, live_script = '', '', '', ''
-    activity = '<section id="activity"><h2>Señales de actividad</h2><p>Sin servicio: este archivo estático no consulta señales de actividad.</p></section>'
-    if live:
-        try:
-            live_script = '<script>' + _read(TEMPLATE.parent, TEMPLATE.parent / 'panel-live.js') + '</script>'
-            live_script += '<script>' + _read(TEMPLATE.parent, TEMPLATE.parent / 'panel-memory.js') + '</script>'
-        except (OSError, UnicodeError, ValueError):
-            raise ValueError('bundled live panel asset unavailable') from None
-        activity = '''<section id="activity"><div class="section-head"><div><h2>Señales de actividad</h2>
-<p>Señales nativas recientes, separadas del progreso declarado. Un fin de respuesta o ejecución no acredita presencia ni destrucción.</p></div><span class="section-pill">Lectura local · cada 5 s</span></div>
-<button id="activity-refresh" type="button">Actualizar señales</button>
-<p id="activity-status" role="status" aria-live="polite">Consultando señales…</p>
-<p id="activity-freshness">Sin lectura disponible todavía.</p>
-<p id="activity-coverage">collection_complete: false · Colección incompleta; no representa todos los agentes o sesiones.</p>
-<div id="activity-cards" class="grid" aria-live="polite"></div></section>'''
-        operations = '''<section id="operations"><div class="section-head"><div><h2>Progreso del proyecto</h2>
+    return html.escape(json.dumps(sources, ensure_ascii=False, indent=2))
+
+
+def _cuerpo_catalogo(data, live):
+    stats, counts = _stats_html(data)
+    refresh = ('Catálogo y diagnóstico fijados al arranque; progreso local con actualización periódica.' if live
+               else 'Regenera la exportación para actualizarla.')
+    progress = ('Los presupuestos y la cartera detallada se consultan en el dashboard del roadmap.' if live
+                else 'El progreso de iniciativas se consulta en el dashboard del roadmap.')
+    return (
+        '<p id="navigation-status" class="navigation-status" role="status" aria-live="polite"></p>'
+        '<section id="flujo"><div class="section-head"><div><h2>De la idea a la entrega</h2>'
+        '<p>Roles con responsabilidades propias y una selección de guías compartida.</p></div></div>'
+        + _flow_html(data) + '</section>'
+        '<section id="inventario"><h2>Inventario de capacidades</h2><div class="stats">' + stats + '</div></section>'
+        '<section id="piezas-por-tipo"><div class="section-head"><div><h2>Piezas por tipo</h2>'
+        '<p>Cuántas piezas declara el bundle de cada tipo.</p></div></div><div id="grafico-piezas"></div>'
+        '<noscript><p>Sin JavaScript no se dibuja el gráfico: las cifras están en el inventario de arriba.</p></noscript></section>'
+        '<section id="catalog"><div class="section-head"><div><h2>Explora el catálogo</h2><p>Busca por nombre, función, herramienta o evento.</p></div>'
+        '<span class="section-pill">Definiciones del bundle</span></div>'
+        '<div class="controls"><div class="search-wrap"><input id="search" type="search" placeholder="¿Qué necesitas hacer?" aria-label="Buscar capacidades"></div>'
+        '<select id="kind" aria-label="Tipo de capacidad"><option value="all">Todas las capacidades</option><option value="agents">Agentes</option>'
+        '<option value="skills">Skills</option><option value="commands">Comandos</option><option value="tools">Herramientas</option><option value="hooks">Hooks</option></select>'
+        '<select id="hook-runtime" aria-label="Runtime de hooks"><option value="all">Hooks de todos los runtimes</option>'
+        '<option value="claude-code">Claude Code</option><option value="codex">Codex</option><option value="opencode">OpenCode</option></select></div>'
+        '<p class="filter-note">El filtro de runtime afecta a los registros de hook; el resto del catálogo conserva sus declaraciones.</p>'
+        '<p id="results" aria-live="polite"></p><div class="grid">' + _cards(data) + '</div></section>'
+        + _extensions_html(data) + _workflow_html(data)
+        + '<details id="source-notes"><summary>Fuentes de runtime y memoria · ver presencia y avisos</summary>'
+        '<p>La presencia de un archivo no acredita ejecución, acceso ni salud del servicio.</p><pre>' + _notes_text(data, counts) + '</pre></details>'
+        '<footer>Catálogo local · ' + refresh + ' Las guardias globales aplican políticas a identidades de rol concretas; su declaración no acredita ejecución. '
+        'Los ciclos se definen en los comandos. ' + progress + '</footer>')
+
+
+def _seccion_progreso():
+    return '''<section id="operations"><div class="section-head"><div><h2>Progreso del proyecto</h2>
 <p>Ledger recién leído: los estados de las tareas no demuestran agentes vivos. Catálogo y diagnóstico permanecen fijados al arranque.</p></div><span class="section-pill">Lectura local · cada 5 s</span></div>
 <div class="controls"><div class="search-wrap"><input id="progress-search" type="search" placeholder="Buscar iniciativas o tareas" aria-label="Buscar progreso"></div>
 <select id="progress-state" aria-label="Estado de iniciativa"><option value="all">Todos los estados</option><option value="borrador">Borrador</option><option value="en-progreso">En progreso</option><option value="en-revision">En revisión</option><option value="completado">Completado</option><option value="cancelado">Cancelado</option><option value="unknown">Sin estado reconocido</option></select>
 <button id="progress-refresh" type="button">Actualizar ahora</button></div>
 <p id="progress-status" role="status" aria-live="polite">Consultando el ledger seleccionado…</p><p id="progress-freshness">Sin lectura disponible todavía.</p>
 <p id="progress-results" aria-live="polite"></p><div id="progress-cards" class="grid"></div></section>'''
-        memory = '''<section id="memory-query"><div class="section-head"><div><h2>Consulta tu conocimiento</h2>
+
+
+def _seccion_actividad(live, disponible):
+    if not live:
+        return '<section id="activity"><h2>Señales de actividad</h2><p>Sin servicio: este archivo estático no consulta señales de actividad.</p></section>'
+    if not disponible:
+        return '<section id="activity"><h2>Señales de actividad</h2><p>Señales no disponibles: falta el recurso local de esta vista.</p></section>'
+    return '''<section id="activity"><div class="section-head"><div><h2>Señales de actividad</h2>
+<p>Señales nativas recientes, separadas del progreso declarado. Un fin de respuesta o ejecución no acredita presencia ni destrucción.</p></div><span class="section-pill">Lectura local · cada 5 s</span></div>
+<button id="activity-refresh" type="button">Actualizar señales</button>
+<p id="activity-status" role="status" aria-live="polite">Consultando señales…</p>
+<p id="activity-freshness">Sin lectura disponible todavía.</p>
+<p id="activity-coverage">collection_complete: false · Colección incompleta; no representa todos los agentes o sesiones.</p>
+<div id="activity-cards" class="grid" aria-live="polite"></div></section>'''
+
+
+def _seccion_memoria():
+    return '''<section id="memory-query"><div class="section-head"><div><h2>Consulta tu conocimiento</h2>
 <p>Busca en la memoria local del proyecto. El cuerpo y las relaciones se leen solo cuando los seleccionas.</p></div><span class="section-pill">Consulta explícita · local</span></div>
 <form id="memory-form" class="controls"><div class="search-wrap"><input id="memory-text" type="search" placeholder="¿Qué necesitas recordar?" aria-label="Buscar conocimiento"></div>
 <input id="memory-area" type="text" placeholder="Área opcional" aria-label="Área de conocimiento">
@@ -704,12 +738,10 @@ def render_html(data, *, live=False, review_enabled=False):
 <div id="memory-results" class="grid"></div><div id="memory-selected" tabindex="-1" aria-label="Entrada seleccionada"></div>
 <div id="memory-related" tabindex="-1" aria-label="Relaciones del conocimiento"></div>
 <p class="filter-note">Estados y evidencia declarados conservan su procedencia. Una cita o un hash no prueban aprobación humana; los límites de lectura se muestran en cada consulta.</p></section>'''
-        if review_enabled:
-            try:
-                live_script += '<script>' + _read(TEMPLATE.parent, TEMPLATE.parent / 'panel-review.js') + '</script>'
-            except (OSError, UnicodeError, ValueError):
-                raise ValueError('bundled review panel asset unavailable') from None
-            review = '''<section id="plan-review" data-review-id=""><div class="section-head"><div><h2>Revisa el plan seleccionado</h2>
+
+
+def _seccion_revision(review_id):
+    return '''<section id="plan-review" data-review-id="''' + html.escape(review_id) + '''"><div class="section-head"><div><h2>Revisa el plan seleccionado</h2>
 <p>Lee la vista completa, comenta sus secciones y decide. El recibo se consume desde el workflow autorizado.</p></div><span class="section-pill">Revisión explícita · local</span></div>
 <p id="review-status" role="status" aria-live="polite">Consultando la revisión seleccionada…</p>
 <p id="review-metadata"></p><pre id="review-version"></pre><div id="review-sections"></div>
@@ -723,22 +755,25 @@ def render_html(data, *, live=False, review_enabled=False):
 <section aria-labelledby="review-history-title"><h3 id="review-history-title">Respuestas de versiones anteriores</h3>
 <div id="review-feedback-history" aria-live="polite"></div></section>
 <p class="filter-note">Cerrar conserva el borrador y no crea una decisión. Este panel no inicia agentes ni acredita QA.</p></section>'''
-        try:
-            live_script += '<script>' + _read(TEMPLATE.parent, TEMPLATE.parent / 'panel-activity.js') + '</script>'
-        except (OSError, UnicodeError, ValueError):
-            activity = '<section id="activity"><h2>Señales de actividad</h2><p>Señales no disponibles: falta el recurso local de esta vista.</p></section>'
-    values = {'STATS': stats, 'CARDS': _cards(data), 'WORKFLOW': _workflow_html(data), 'NOTES': notes, 'FLOW': _flow_html(data), 'EXTENSIONS': _extensions_html(data),
-              'DIAGNOSTICS': _diagnostics_html(data.get('diagnostics', {'status': 'not_provided'})),
-              'OPERATIONS': operations, 'ACTIVITY': activity, 'MEMORY_QUERY': memory, 'PLAN_REVIEW': review, 'LIVE_SCRIPT': live_script,
-              'LIVE_NAV': ('<a href="#activity"><span class="nav-dot"></span>Actividad</a><a href="#operations"><span class="nav-dot"></span>Progreso</a><a href="#memory-query"><span class="nav-dot"></span>Memoria</a>'
-                           + ('<a href="#plan-review"><span class="nav-dot"></span>Plan</a>' if review_enabled else '')) if live else '',
-              'CONNECT_CSP': "; connect-src 'self'" if live else '',
-              'SIDEBAR_NOTE': 'Servidor local de lectura. El progreso refleja tareas declaradas, sin dirigir agentes.' if live else 'Explora definiciones sin iniciar servicios ni modificar la configuración.',
-              'REFRESH_NOTE': 'Catálogo y diagnóstico fijados al arranque; progreso local con actualización periódica.' if live else 'Regenera el archivo para actualizarlo.',
-              'PROGRESS_NOTE': 'Los presupuestos y la cartera detallada se consultan en el dashboard del roadmap.' if live else 'El progreso de iniciativas se consulta en el dashboard del roadmap.',
-              'SNAPSHOT_NOTE': 'Catálogo al iniciar' if live else 'Instantánea local'}
-    return MARKER + re.sub(r'@@(STATS|CARDS|WORKFLOW|NOTES|FLOW|EXTENSIONS|DIAGNOSTICS|OPERATIONS|ACTIVITY|MEMORY_QUERY|PLAN_REVIEW|LIVE_SCRIPT|LIVE_NAV|CONNECT_CSP|SIDEBAR_NOTE|REFRESH_NOTE|PROGRESS_NOTE|SNAPSHOT_NOTE)@@', lambda match: values[match.group(1)], template)
 
+
+def cuerpos_paginas(data, *, live=False, review_enabled=False, review_id='', actividad=True):
+    """Cuerpo HTML (ya escapado) de cada una de las 7 páginas, por slug.
+
+    Catálogo y Diagnóstico llevan hoy todo su contenido; el resto lleva, en modo servido, la sección viva
+    que le toca (progreso → Inicio y Plan; revisión → Plan; actividad → Agentes; memoria → Memoria) y,
+    en el exportado, su marcador provisional.
+    """
+    pages = _load_pages()
+    cuerpos = {slug: pages.PLACEHOLDER for slug, _, _ in pages.PAGES}
+    cuerpos['catalogo'] = _cuerpo_catalogo(data, live)
+    cuerpos['diagnostico'] = _diagnostics_html(data.get('diagnostics', {'status': 'not_provided'}))
+    cuerpos['agentes'] = _seccion_actividad(live, actividad)
+    if live:
+        cuerpos['inicio'] = _seccion_progreso()
+        cuerpos['plan'] = _seccion_progreso() + (_seccion_revision(review_id) if review_enabled else '')
+        cuerpos['memoria'] = _seccion_memoria()
+    return cuerpos
 
 
 _PAGES_MODULE = None
@@ -785,7 +820,8 @@ def _scrubber(args):
 def _export(args, data):
     pages = _load_pages()
     clean = _anonymize_values(data, _scrubber(args))
-    written, warnings = pages.exportar_sitio(args.export, clean, unsafe_link=_unsafe_link)
+    written, warnings = pages.exportar_sitio(args.export, clean, unsafe_link=_unsafe_link,
+                                             cuerpos=cuerpos_paginas(clean))
     for warning in warnings:
         print(f'plugin-panel: aviso: {warning}', file=sys.stderr)
     return written

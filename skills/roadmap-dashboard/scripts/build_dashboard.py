@@ -1142,6 +1142,26 @@ def _dashboard_archivos(args, inits):
         print(f"[roadmap-dashboard] MÉTRICAS: -> {args.metrics_md}")
 
 
+def vista_json(inits):
+    """Proyección pura de `--json`: añade a cada iniciativa su procedencia y sus contadores.
+
+    No lee disco ni imprime: recibe las iniciativas de `scan()` y las devuelve (la misma lista,
+    enriquecida en sitio). Clave ADITIVA por iniciativa (E7). El `--json` sigue siendo la LISTA de
+    iniciativas que ya consumían `/roadmap-metrics` y `/pm-backlog`: añadir un envoltorio
+    `{"proceso": …}` habría roto a todo consumidor existente, así que el agregado se deriva sumando
+    `estimados` (y está escrito tal cual en la línea del informe de proceso, `--metrics-md`; `--md`
+    es el DASHBOARD y esa línea no sale ahí).
+    """
+    for r in inits:
+        f = contar_fuentes([r])
+        r["estimados"], r["medidos"], r["generacion_total"] = (
+            f["estimados"], f["medidos"], f["total"])
+        r["generacion_otros"] = f["otros"]
+        # D-086 (aditiva): reparto por procedencia/cobertura; ausente = null, nunca 0.
+        r["procedencia"] = procedencia_generacion(r.get("generacion"))
+    return inits
+
+
 def main():
     ap = _dashboard_parser()
     args = ap.parse_args()
@@ -1156,19 +1176,7 @@ def main():
         print(f"[roadmap-dashboard][aviso] {w}", file=sys.stderr)
 
     if args.json:
-        # Clave ADITIVA por iniciativa (E7). El `--json` sigue siendo la LISTA de iniciativas que
-        # ya consumían `/roadmap-metrics` y `/pm-backlog`: añadir un envoltorio `{"proceso": …}`
-        # habría roto a todo consumidor existente, así que el agregado se deriva sumando
-        # `estimados` (y está escrito tal cual en la línea del informe de proceso,
-        # `--metrics-md`; `--md` es el DASHBOARD y esa línea no sale ahí).
-        for r in inits:
-            f = contar_fuentes([r])
-            r["estimados"], r["medidos"], r["generacion_total"] = (
-                f["estimados"], f["medidos"], f["total"])
-            r["generacion_otros"] = f["otros"]
-            # D-086 (aditiva): reparto por procedencia/cobertura; ausente = null, nunca 0.
-            r["procedencia"] = procedencia_generacion(r.get("generacion"))
-        print(json.dumps(inits, ensure_ascii=False, indent=2))
+        print(json.dumps(vista_json(inits), ensure_ascii=False, indent=2))
     _dashboard_archivos(args, inits)
     if not any([args.html, args.md, args.metrics_md, args.json]):
         print(f"[roadmap-dashboard] {len(inits)} iniciativa(s) encontradas")

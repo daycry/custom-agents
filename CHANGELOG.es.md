@@ -17,10 +17,13 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - Nueva primitiva `redact.anonimizar`: quita del panel la ruta del proyecto, el directorio personal, el usuario del sistema y los correos antes de mostrarlos o exportarlos.
 - Las salidas JSON y Markdown del dashboard y el JSON del catálogo del panel quedan fijadas con goldens: el rediseño no puede cambiarlas sin que falle un test.
 - `build_panel.py --export <carpeta>` escribe un sitio de siete páginas con menú accesible común, paleta WCAG 2.2 AA, gráficos siempre acompañados de su tabla equivalente (el dato ausente se muestra como «sin datos», nunca como 0), Chart.js incluido con su licencia y un `export-manifest.json`. No necesita red, quita rutas, usuario y correos, y nunca sobrescribe ficheros que no son suyos.
+- La página Catálogo del panel reúne el catálogo, las extensiones, el workflow y las notas de fuentes, con un gráfico de piezas por tipo y su tabla equivalente; la página Diagnóstico conserva la instantánea de doctor con los mismos rechazos y filtros, sin ejecutar doctor.
+- La proyección JSON de `roadmap-dashboard` es ahora una función pura (`vista_json`) que reutiliza el panel, con `--json` y `--md` idénticos byte a byte.
 
 ### Changed — Exportación del panel
 
 - `build_panel.py --html` se sustituye por `--export <carpeta>`; `--json` y `--serve` no cambian.
+- El servidor local del panel sirve las siete páginas y sus activos desde una lista cerrada con una CSP estricta, un nonce por arranque en cada script y sin leer disco en cada petición; si Chart.js falta o está alterado, las páginas muestran solo tablas. Los scripts vivos de progreso, memoria, actividad y revisión del plan se cargan como ficheros en su página, y la plantilla de una sola página desaparece.
 
 ### Added — Archivado del ledger
 

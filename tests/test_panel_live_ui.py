@@ -7,8 +7,11 @@ import subprocess
 
 import pytest
 
+from panel_render import pagina
+
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'skills/plugin-panel/scripts/build_panel.py'
+ASSETS = SCRIPT.parents[1] / 'assets'
 
 
 @pytest.fixture
@@ -32,39 +35,47 @@ def inventory():
 
 
 def test_default_offline_has_no_operational_fetch(panel, inventory):
-    output = panel.render_html(inventory)
-    assert 'id="operations"' not in output
-    assert 'api/progress' not in output
-    assert "connect-src 'self'" not in output
-    assert 'Instantánea local' in output
-    assert '@@' not in output
+    for slug in ('inicio', 'plan'):
+        output = pagina(panel, inventory, slug)
+        assert 'id="operations"' not in output
+        assert 'api/progress' not in output and 'panel-live.js' not in output
+        assert "connect-src 'self'" not in output
+        assert 'Instantánea del' in output
+        assert '@@' not in output
 
 
 def test_live_render_has_progress_controls_and_same_origin_csp(panel, inventory):
-    output = panel.render_html(inventory, live=True)
-    assert 'id="operations"' in output and 'href="#operations"' in output
+    for slug in ('inicio', 'plan'):
+        output = pagina(panel, inventory, slug, live=True)
+        _live_page_checks(output)
+
+
+def _live_page_checks(output):
+    assert 'id="operations"' in output and 'src="assets/panel-live.js"' in output
     for field in ('progress-refresh', 'progress-search', 'progress-state',
                   'progress-status', 'progress-freshness', 'progress-cards'):
         assert 'id="' + field + '"' in output
-    assert "connect-src 'self'" in output
-    assert 'api/progress' in output and 'agentes vivos' in output
+    assert '<script>' not in output and 'agentes vivos' in output
     assert 'Catálogo y diagnóstico' in output
     assert '@@' not in output
 
 
 def test_live_asset_absent_is_opaque_and_offline_remains_available(panel, inventory, tmp_path, monkeypatch):
-    template = tmp_path / 'panel.html'
-    template.write_text(panel.TEMPLATE.read_text(encoding='utf8'), encoding='utf8')
-    monkeypatch.setattr(panel, 'TEMPLATE', template)
+    import shutil as _shutil
+    copy = tmp_path / 'assets'
+    _shutil.copytree(ASSETS, copy)
+    (copy / 'panel-live.js').unlink()
+    monkeypatch.setattr(panel._load_pages(), 'ASSETS_DIR', copy)
     with pytest.raises(ValueError, match='bundled live panel asset unavailable'):
-        panel.render_html(inventory, live=True)
-    assert panel.render_html(inventory)
+        panel._load_pages().cargar_assets('servido')
+    files, _, _ = panel._load_pages().cargar_assets()
+    assert 'assets/panel-live.js' not in files and pagina(panel, inventory, 'inicio')
 
 
 def _live_script(panel, inventory):
-    output = panel.render_html(inventory, live=True)
-    scripts = re.findall(r'<script[^>]*>(.*?)</script>', output, re.S)
-    return next(script for script in scripts if 'api/progress' in script)
+    script = (ASSETS / 'panel-live.js').read_text(encoding='utf8')
+    assert 'api/progress' in script
+    return script
 
 
 HARNESS = r'''

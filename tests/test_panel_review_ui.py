@@ -6,6 +6,8 @@ import shutil
 import subprocess
 import types
 
+from panel_render import pagina
+
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,25 +24,30 @@ def panel():
 
 def test_review_is_explicit_live_only(panel):
     for kwargs in ({}, {'live': True}, {'review_enabled': True}):
-        output = panel.render_html(DATA, **kwargs)
-        assert 'id="plan-review"' not in output and 'api/review/' not in output
-    output = panel.render_html(DATA, live=True, review_enabled=True)
+        output = pagina(panel, DATA, 'plan', **kwargs)
+        assert 'id="plan-review"' not in output and 'api/review/' not in output and 'panel-review.js' not in output
+    output = pagina(panel, DATA, 'plan', live=True, review_enabled=True)
+    assert 'src="assets/panel-review.js"' in output
     for identity in ('plan-review', 'review-status', 'review-sections', 'review-save', 'review-approve',
                      'review-changes', 'review-refresh', 'review-close', 'review-open', 'review-version',
                      'review-feedback', 'review-feedback-history'):
         assert 'id="'+identity+'"' in output
-    assert 'aria-live="polite"' in output and 'href="#plan-review"' in output
+    assert 'aria-live="polite"' in output
     assert '@@' not in output
 
 def test_missing_review_asset_degrades_only_requested_review(panel, tmp_path, monkeypatch):
-    reference = SCRIPT.parents[1] / 'references'
-    for name in ('panel.html','panel-live.js','panel-memory.js'):
-        (tmp_path / name).write_bytes((reference / name).read_bytes())
-    monkeypatch.setattr(panel,'TEMPLATE',tmp_path / 'panel.html')
+    import shutil as _shutil
+    copy = tmp_path / 'assets'
+    _shutil.copytree(SCRIPT.parents[1] / 'assets', copy)
+    (copy / 'panel-review.js').unlink()
+    pages = panel._load_pages()
+    monkeypatch.setattr(pages, 'ASSETS_DIR', copy)
     with pytest.raises(ValueError,match='bundled review panel asset unavailable'):
-        panel.render_html(DATA,live=True,review_enabled=True)
-    assert 'id="plan-review"' not in panel.render_html(DATA,live=True)
-    assert 'api/review/' not in panel.render_html(DATA,review_enabled=True)
+        pages.cargar_assets('servido', review=True)
+    files, _, _ = pages.cargar_assets('servido')
+    assert 'assets/panel-review.js' not in files and 'assets/panel-live.js' in files
+    assert 'id="plan-review"' not in pagina(panel, DATA, 'plan', live=True)
+    assert 'api/review/' not in pagina(panel, DATA, 'plan', review_enabled=True)
 
 @pytest.mark.parametrize('argv', [ ['--review-initiative','docs/roadmap/2026-10-09-example'],
     ['--serve','--project','synthetic','--review-initiative','docs/roadmap/2026-10-09-example'],
@@ -150,8 +157,8 @@ SCENARIOS.update({
 def test_review_controller(panel, scenario, tmp_path):
     node = shutil.which('node')
     if not node: pytest.skip('Node unavailable for isolated controller test')
-    output = panel.render_html(DATA, live=True, review_enabled=True)
-    script = next(script for script in re.findall(r'<script[^>]*>(.*?)</script>', output, re.S) if 'api/review/' in script)
+    script = (SCRIPT.parents[1] / 'assets/panel-review.js').read_text(encoding='utf8')
+    assert 'api/review/' in script
     source = tmp_path / 'review.cjs'
     source.write_text(HARNESS+'\n'+script+'\n(async()=>{'+SCENARIOS[scenario]+'})().catch(error=>{console.error(error);process.exitCode=1;});', encoding='utf8')
     result = subprocess.run([node, str(source)], capture_output=True, text=True, encoding='utf8', errors='replace', timeout=15)

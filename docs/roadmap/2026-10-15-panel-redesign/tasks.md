@@ -39,11 +39,11 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Base común | 8 | 16 | 50% | 0 / 28,8h | 0,91 / 10,5h | 0,24 / 3,6h | 0,49 / 5,58 M |
+| Fase 1 — Base común | 13 | 16 | 81% | 0 / 28,8h | 1,75 / 10,5h | 0,24 / 3,6h | 0,49 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 0 | 13 | 0% | 0 / 36,0h | 0 / 10,8h | 0 / 3,7h | 0 / 5,74 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 0 | 10 | 0% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
 | Fase 3 — Agentes en vivo + cierre transversal | 0 | 15 | 0% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **8** | **54** | **15%** | **0 / 136,8h** | **0,91 / 51,9h** | **0,24 / 17,0h** | **0,49 / 27,60 M** |
+| **TOTAL** | **13** | **54** | **24%** | **0 / 136,8h** | **1,75 / 51,9h** | **0,24 / 17,0h** | **0,49 / 27,60 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -339,112 +339,132 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 ### T-09 — Página Catálogo con las secciones de hoy y un gráfico de piezas por tipo
 
 - **Descripción**: Mueve a `catalogo.html` las secciones actuales `#catalog`, `#extensions`, `#workflow` y `#source-notes`, sin perder información, y añade un primer gráfico real: piezas por tipo con su tabla. Es la rebanada vertical que prueba Chart.js + tabla + CSP de punta a punta con datos que ya existen.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 1,8h · real —
-- **Tiempo IA (ejec.)**: est. 0,3h · real —
-- **Supervisión**: est. 0,1h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,3h · real 0,19h (medido en bloque: 0,76 h de la ventana única T-09..T-12 repartidas según el peso del estimado 0,3/0,2/0,4/0,3)
+- **Supervisión**: est. 0,1h (≈25 % IA) · real n/d
 - **Previsión IA**: 137k in / 22k out tok · 2,10 €
 - **Dependencias**: T-08
 - **Tipo**: frontend
-- **Archivos**: `skills/plugin-panel/scripts/panel_pages.py`, `skills/plugin-panel/assets/page-catalogo.js`, `tests/test_panel_pages.py`, `tests/test_plugin_panel.py`
+- **Archivos**: `skills/plugin-panel/scripts/panel_pages.py`, `skills/plugin-panel/assets/page-catalogo.js`, `tests/test_panel_pages.py`, `tests/test_plugin_panel.py`, `skills/plugin-panel/scripts/build_panel.py`, `skills/plugin-panel/assets/panel.css`, `tests/panel_render.py`, `tests/test_panel_export.py`
 - **Cubre (tests)**: E2E-06, E2E-22
 - **Verificación**: `python3 -m pytest -q tests/test_panel_pages.py tests/test_plugin_panel.py tests/test_panel_contract_golden.py` → `passed` (mismas piezas, conteos, fuentes, conflictos, hooks y workflow que hoy)
 
 **Criterios de aceptación**
-- [ ] Toda pieza, conteo, fuente, conflicto, hook y paso de workflow que mostraba el panel de una página aparece en Catálogo (test por contenido sobre el bundle de fixture).
-- [ ] El gráfico de piezas por tipo usa los `counts` de `build_panel.py --json` y su tabla da las mismas cifras.
-- [ ] `--json` igual al golden.
+- [x] Toda pieza, conteo, fuente, conflicto, hook y paso de workflow que mostraba el panel de una página aparece en Catálogo (test por contenido sobre el bundle de fixture).
+- [x] El gráfico de piezas por tipo usa los `counts` de `build_panel.py --json` y su tabla da las mismas cifras.
+- [x] `--json` igual al golden.
 
 **Subtareas**
-- [ ] RED: test de equivalencia de contenido con el HTML actual.
-- [ ] Migrar secciones y añadir el gráfico.
+- [x] RED: test de equivalencia de contenido con el HTML actual.
+- [x] Migrar secciones y añadir el gráfico.
 
-**Notas**: secciones de hoy en `skills/plugin-panel/references/panel.html:26` (anclas). Filtros de CA-29 en F4 (T-36).
+- **Cerrada**: 2026-10-15
+- **Changelog**: La página Catálogo del panel reúne el catálogo, las extensiones, el workflow y las notas de fuentes, y añade un gráfico de piezas por tipo con su tabla de las mismas cifras.
+- **Evidencia TDD**: `RED: 7 tests de tests/test_panel_pages.py (T-09) fallaron con AttributeError: cuerpos_paginas / FileNotFoundError: page-catalogo.js · 2026-10-15` (7 failed, 17 passed). GREEN: `32 passed` en el fichero (incluye los de T-12).
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_pages.py tests/test_plugin_panel.py tests/test_panel_contract_golden.py` → `144 passed, 2 skipped` (mismas piezas, conteos, fuentes, conflictos, hooks y workflow que hoy; golden de T-01 intacto). Navegador (Playwright `pw/verify-panel.mjs` en el scratchpad, servidor real y export real): Edge 155 y Firefox 142.0.1, servido y `file://`, 7 páginas cada uno → `violaciones=0 · externas=0 · errores=0`; `catalogo`: gráfico con ~307 k píxeles pintados (Edge) / ~306 k (Firefox) y tabla `Agentes=2, Skills=1, Comandos=1, Herramientas=5, Acciones de hook=15`.
+
+**Notas**: secciones de hoy en `skills/plugin-panel/references/panel.html:26` (anclas). Filtros de CA-29 en F4 (T-36). **Notas de implementación (2026-10-15):** los constructores de sección de `render_html` (`_cards`, `_extensions_html`, `_workflow_html`, `_flow_html`) siguen en `build_panel.py` (ahí está el inventario) y su HTML sale idéntico (comprobado con una comparación ad hoc contra el `render_html` de `HEAD`: `#catalog` solo difiere en un salto de línea de la plantilla, `#extensions`, `#workflow`, notas, cifras y flujo son byte a byte iguales). `build_panel.cuerpos_paginas(data, live, review_enabled, review_id, actividad)` devuelve el cuerpo de las 7 páginas; el exportador lo recibe ya anonimizado (`exportar_sitio(..., cuerpos=)`). `catalogo.html` lleva: flujo de etapas, cifras (`#inventario`), gráfico de piezas por tipo, `#catalog`, `#extensions`, `#workflow`, `#source-notes` y el pie. El gráfico usa `counts` de `--json` con la etiqueta «Acciones de hook» (los `counts.hooks` son acciones, no registros; las cifras de `#inventario` siguen diciendo «Registros de hook» como hoy); un conteo ausente va como `null` («sin datos»). `assets/page-catalogo.js` (filtros, ancla/hook, etapas y gráfico) expone `global.PanelCatalogo`; `connectFilters` es el de la plantilla anterior, ahora probado desde el asset. Desaparece la barra lateral y el héroe de marketing de la página única (el menú común las sustituye); las anclas `#catalog`, `#extensions`, `#workflow`, `#source-notes` se conservan. El CSS de componentes (tarjetas, controles, cifras, hooks…) se añade a `panel.css` solo con variables de `:root` (el test de paleta sigue verde). **Desviaciones (ficheros fuera del `Archivos` original):** `tests/panel_render.py` (ayuda de tests: renderiza una página como el exportador o el servidor), `tests/test_panel_export.py` (la lista de ficheros exportados suma `page-catalogo.js` y `page-diagnostico.js`), `panel.css`, `build_panel.py`. Los tests que antes llamaban `panel.render_html(data)` en `tests/test_plugin_panel.py` pasan a `pagina(panel, data, "catalogo")` (el de `connectFilters` se prueba cargando `page-catalogo.js`; se retiran las comprobaciones de los enlaces de la barra lateral, que ya no existe).
 
 ### T-10 — Página Diagnóstico con la proyección actual
 
 - **Descripción**: Mueve a `diagnostico.html` la sección de diagnóstico actual (`--diagnostics-report`, proyección de `doctor --panel-json`), con su validación de alcance tal cual. El enriquecimiento de CA-30/31 va en F4 (T-37).
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 1,2h · real —
-- **Tiempo IA (ejec.)**: est. 0,2h · real —
-- **Supervisión**: est. 0,05h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,2h · real 0,13h (medido en bloque: 0,76 h de la ventana única T-09..T-12 repartidas según el peso del estimado 0,3/0,2/0,4/0,3)
+- **Supervisión**: est. 0,05h (≈25 % IA) · real n/d
 - **Previsión IA**: 91k in / 15k out tok · 1,40 €
 - **Dependencias**: T-08
 - **Tipo**: frontend
-- **Archivos**: `skills/plugin-panel/scripts/panel_pages.py`, `tests/test_panel_diagnostics.py`
+- **Archivos**: `skills/plugin-panel/scripts/panel_pages.py`, `tests/test_panel_diagnostics.py`, `skills/plugin-panel/scripts/build_panel.py`, `skills/plugin-panel/assets/page-diagnostico.js`, `tests/panel_render.py`
 - **Cubre (tests)**: E2E-23
 - **Verificación**: `python3 -m pytest -q tests/test_panel_diagnostics.py` → `passed`
 
 **Criterios de aceptación**
-- [ ] Mismo contenido y mismos rechazos («sin informe», otro proyecto, otro formato) que hoy.
-- [ ] El panel no ejecuta `doctor` ni busca informes por su cuenta.
+- [x] Mismo contenido y mismos rechazos («sin informe», otro proyecto, otro formato) que hoy.
+- [x] El panel no ejecuta `doctor` ni busca informes por su cuenta.
 
 **Subtareas**
-- [ ] Ajustar `tests/test_panel_diagnostics.py` a la página nueva.
-- [ ] Migrar la sección.
+- [x] Ajustar `tests/test_panel_diagnostics.py` a la página nueva.
+- [x] Migrar la sección.
 
-**Notas**: validador seleccionado en CONTRACTS E30 (`agent-kits/shared/diagnostic-report.py`); proyección portable en `agent-kits/shared/doctor.py:87-88`.
+- **Cerrada**: 2026-10-15
+- **Changelog**: La página Diagnóstico muestra la instantánea de doctor con los mismos rechazos de siempre (sin informe, otro proyecto, otro formato) y filtros por severidad, sin ejecutar doctor.
+- **Evidencia TDD**: `RED: 16 de los 32 tests de tests/test_panel_diagnostics.py fallaron con ImportError/AttributeError: cuerpos_paginas y falta assets/page-diagnostico.js · 2026-10-15` (16 failed, 16 passed). GREEN: `32 passed`.
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_diagnostics.py` → `32 passed` (8 rechazos con su mensaje en `diagnostico.html`, el catálogo ya no lleva la sección, renderizar no ejecuta subprocesos ni llama a `_diagnostics`, filtros por severidad/texto probados con Node). Navegador: ver T-09 (`diagnostico` sin violaciones en Edge y Firefox, servido y `file://`).
+
+**Notas**: validador seleccionado en CONTRACTS E30 (`agent-kits/shared/diagnostic-report.py`); proyección portable en `agent-kits/shared/doctor.py:87-88`. **Notas de implementación (2026-10-15):** `_diagnostics_html` (validación de alcance y mensajes) no cambia; solo su `<h2>` pasa de «Diagnóstico» (el `<h1>` ya lo dice) a «Instantánea de doctor». El panel no ejecuta `doctor` ni busca informes: el cuerpo se genera con `data["diagnostics"]`, que sigue produciendo `build_inventory` solo si el usuario pasó `--diagnostics-report`. `assets/page-diagnostico.js` (nuevo, no estaba en `Archivos`) lleva los filtros que antes eran un script en línea y la navegación a las filas desde «Acciones prioritarias» (abre el `<details>`, resetea los filtros y enfoca la fila). `tests/test_panel_diagnostics.py` pasa de `panel.render_html(data)` a `pagina(panel, data, "diagnostico")` y se retira la aserción del enlace `href="#diagnostics"` de la barra lateral.
 
 ### T-11 — Servidor multi-página: rutas de página, activos de lista blanca y nonce en todo `<script>`
 
 - **Descripción**: `serve_panel.py` sirve `<token>/<pagina>.html` y `<token>/plan-<id16>.html`, y los activos de una lista blanca precargados al arrancar (comprueba el hash de Chart.js al arrancar). El nonce va en todas las etiquetas `<script …>` que se generan, no por reemplazo del literal `<script>`. Topes, token y validación de Host/Origin/Sec-Fetch-Site sin cambios.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,4h · real —
-- **Supervisión**: est. 0,1h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,4h · real 0,25h (medido en bloque: 0,76 h de la ventana única T-09..T-12 repartidas según el peso del estimado 0,3/0,2/0,4/0,3)
+- **Supervisión**: est. 0,1h (≈25 % IA) · real n/d
 - **Previsión IA**: 183k in / 30k out tok · 2,80 €
 - **Dependencias**: T-08
 - **Tipo**: backend
-- **Archivos**: `skills/plugin-panel/scripts/serve_panel.py`, `tests/test_panel_server.py`
+- **Archivos**: `skills/plugin-panel/scripts/serve_panel.py`, `tests/test_panel_server.py`, `tests/test_panel_review_server.py`, `skills/plugin-panel/scripts/build_panel.py`, `skills/plugin-panel/scripts/panel_pages.py`
 - **Cubre (tests)**: E2E-03, E2E-04
 - **Verificación**: `python3 -m pytest -q tests/test_panel_server.py` → `passed` (403 sin token / Host / Origin ajenos; 404 en activo fuera de lista; CSP `default-src 'none'` con `script-src 'nonce-…'` y `connect-src 'self'`)
 
 **Criterios de aceptación**
-- [ ] Escucha solo en `127.0.0.1` con la URL de token del proceso; sin token, `Host` u `Origin` distintos → 403 (CA-34).
-- [ ] Activos servidos solo desde la lista blanca precargada; cualquier otra ruta → 404; sin lectura de disco por petición.
-- [ ] Si el hash de Chart.js no coincide al arrancar, las páginas se sirven sin él (tablas + aviso), no fallan.
-- [ ] Sigue rechazando `?`, `%`, `\` y `#` en la ruta.
+- [x] Escucha solo en `127.0.0.1` con la URL de token del proceso; sin token, `Host` u `Origin` distintos → 403 (CA-34).
+- [x] Activos servidos solo desde la lista blanca precargada; cualquier otra ruta → 404; sin lectura de disco por petición.
+- [x] Si el hash de Chart.js no coincide al arrancar, las páginas se sirven sin él (tablas + aviso), no fallan.
+- [x] Sigue rechazando `?`, `%`, `\` y `#` en la ruta.
 
 **Subtareas**
-- [ ] RED: rutas nuevas y nonce en `<script src>`.
-- [ ] Lista blanca precargada y rutas.
+- [x] RED: rutas nuevas y nonce en `<script src>`.
+- [x] Lista blanca precargada y rutas.
 
-**Notas**: enrutado en `skills/plugin-panel/scripts/serve_panel.py:364-371` (`_route`) y `:381-393` (`do_GET`); validación en `:347-362` (`_allowed`); nonce en `:469-470`; CSP en `:492`. Patrón de tests 403 en `tests/test_panel_server.py:183-194`.
+- **Cerrada**: 2026-10-15
+- **Changelog**: El servidor local sirve las siete páginas y sus activos desde una lista cerrada, con una política de seguridad estricta y sin leer disco en cada petición; si falta Chart.js muestra solo las tablas.
+- **Evidencia TDD**: `RED: contra el serve_panel.py de HEAD, los tests nuevos de tests/test_panel_server.py dieron 7 failed, 79 errors (AttributeError: render_html/cuerpos_paginas; rutas de página y activos → 404) · 2026-10-15`. El RED se obtuvo DESPUÉS de implementar (git stash de serve_panel.py y los tests nuevos contra HEAD): este bloque no lo hizo antes. GREEN: `106 passed`.
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_server.py` → `106 passed` (403 sin Host/Origin propios en páginas y activos; 404 sin token o con otro, en activo fuera de lista, en `plan-<id16>.html` no registrado y en `?`, `%`, `\`, `#`; CSP exacta `default-src 'none'` + `script-src 'nonce-…'` + `connect-src 'self'`; nonce en TODO `<script>`; sin lectura de disco por petición; Chart.js alterado → sin Chart.js y aviso). `tests/test_panel_review_server.py`: `server.page` → `server.pages["plan.html"]`. Con el servidor real en Edge y Firefox: ver T-09.
+
+**Notas**: enrutado en `skills/plugin-panel/scripts/serve_panel.py:364-371` (`_route`) y `:381-393` (`do_GET`); validación en `:347-362` (`_allowed`); nonce en `:469-470`; CSP en `:492`. Patrón de tests 403 en `tests/test_panel_server.py:183-194`. **Notas de implementación (2026-10-15):** `create_server` pide a `panel_pages.cargar_assets("servido", review=…)` los ficheros (los JS vivos suman a los comunes; progreso y memoria obligatorios con el error opaco de antes, revisión solo si hay selección, actividad degrada con el aviso de la página) y los guarda en `server.assets` (ruta relativa → bytes, tipo); las 7 páginas se renderizan UNA vez con `render_page(modo="servido", nonce=…)` y quedan en `server.pages`; el nonce va en todas las etiquetas `<script …>` que genera la plantilla (también la de datos JSON), ya no por reemplazo del literal `<script>`. La raíz `<token>/` sirve `index.html`. `server.plan_pages` está vacío (las páginas `plan-<id16>.html` llegan en la Fase 2; la ruta existe y devuelve 404 si no está registrada, y 200 si la Fase 2 registra la página). Chart.js se comprueba contra `PROVENANCE.json` UNA vez al arrancar: si no coincide o falta, las páginas se sirven sin él (`chartjs_disponible:false`) y `run()` imprime el aviso por stderr; no falla. CSP servida = `panel_pages.CSP_SERVIDO` (decidida en T-03; añade `style-src 'self'` e `img-src data:` a la anterior). Si el render falla tras abrir el puerto, `create_server` cierra el socket antes de relanzar (nada a medias). Topes, token y validación Host/Origin/Sec-Fetch-Site sin cambios. Los comentarios nuevos de `serve_panel.py` son ASCII a propósito: ese fichero no declara modo de arranque en `test_console_encoding.py` y un símbolo no ASCII + el snippet de reconfiguración lo obligaría a declararlo (no tiene CLI propia).
 
 ### T-12 — JS vivos a `assets/` y a sus páginas (progreso, memoria, actividad, revisión)
 
 - **Descripción**: Mueve `panel-live.js`, `panel-memory.js`, `panel-activity.js` y `panel-review.js` de `references/` a `assets/` y los carga como ficheros en sus páginas (progreso vivo → Plan e Inicio; memoria → Memoria; actividad → Agentes en vivo; revisión → Plan). Los arneses de UI leen los JS de `assets/`. Retira `references/panel.html`.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,3h · real —
-- **Supervisión**: est. 0,1h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,3h · real 0,19h (medido en bloque: 0,76 h de la ventana única T-09..T-12 repartidas según el peso del estimado 0,3/0,2/0,4/0,3)
+- **Supervisión**: est. 0,1h (≈25 % IA) · real n/d
 - **Previsión IA**: 137k in / 22k out tok · 2,10 €
 - **Dependencias**: T-11
 - **Tipo**: frontend
-- **Archivos**: `skills/plugin-panel/references/**`, `skills/plugin-panel/assets/**`, `skills/plugin-panel/scripts/panel_pages.py`, `skills/plugin-panel/scripts/build_panel.py`, `tests/test_panel_live_ui.py`, `tests/test_panel_activity_ui.py`, `tests/test_panel_memory_ui.py`, `tests/test_panel_review_ui.py`, `tests/test_panel_review_server.py`, `tests/test_panel_activity_server.py`, `tests/test_panel_memory_server.py`
+- **Archivos**: `skills/plugin-panel/references/**`, `skills/plugin-panel/assets/**`, `skills/plugin-panel/scripts/panel_pages.py`, `skills/plugin-panel/scripts/build_panel.py`, `tests/test_panel_live_ui.py`, `tests/test_panel_activity_ui.py`, `tests/test_panel_memory_ui.py`, `tests/test_panel_review_ui.py`, `tests/test_panel_review_server.py`, `tests/test_panel_activity_server.py`, `tests/test_panel_memory_server.py`, `skills/plugin-panel/SKILL.md`, `docs/agents/CONTRACTS.md`, `tests/panel_render.py`, `skills/plugin-panel/assets/panel.css`
 - **Cubre (tests)**: E2E-10
 - **Verificación**: `python3 -m pytest -q tests/test_panel_live_ui.py tests/test_panel_activity_ui.py tests/test_panel_memory_ui.py tests/test_panel_review_ui.py tests/test_panel_review_server.py tests/test_panel_activity_server.py tests/test_panel_memory_server.py` → `passed` (mismos escenarios que hoy)
 
 **Criterios de aceptación**
-- [ ] La revisión visual del plan (`--review-initiative`) funciona igual: anotar y enviar una decisión (CA-43); ningún camino de escritura nuevo desde el navegador.
-- [ ] `api/progress`, `api/activity`, `api/memory` y `api/review/*` no cambian de forma.
-- [ ] Los arneses siguen prohibiendo `innerHTML`; los IDs DOM se ajustan por página.
-- [ ] No queda ninguna referencia a `references/panel.html` (`lint_plugin.py` sin citas rotas nuevas).
+- [x] La revisión visual del plan (`--review-initiative`) funciona igual: anotar y enviar una decisión (CA-43); ningún camino de escritura nuevo desde el navegador.
+- [x] `api/progress`, `api/activity`, `api/memory` y `api/review/*` no cambian de forma.
+- [x] Los arneses siguen prohibiendo `innerHTML`; los IDs DOM se ajustan por página.
+- [x] No queda ninguna referencia a `references/panel.html` (`lint_plugin.py` sin citas rotas nuevas).
 
 **Subtareas**
-- [ ] RED: arnés leyendo de `assets/`.
-- [ ] Mover JS y cargar por página.
-- [ ] Retirar `references/panel.html`.
+- [x] RED: arnés leyendo de `assets/`.
+- [x] Mover JS y cargar por página.
+- [x] Retirar `references/panel.html`.
 
-**Notas**: extracción actual del JS inline en `tests/test_panel_live_ui.py:64` (`_live_script`); refresco de 5 s en `skills/plugin-panel/references/panel-live.js:63`. CONTRACTS E48/E51 (revisión): describen `docs/PLUGIN-PANEL.md`, `docs/FLOWS.md` (+EN); se actualizan en T-15.
+- **Cerrada**: 2026-10-15
+- **Changelog**: El panel servido carga el progreso, la memoria, la actividad y la revisión del plan como ficheros propios en la página que les corresponde; la plantilla de una sola página desaparece.
+- **Evidencia TDD**: `RED: contra el árbol de HEAD, las pruebas nuevas y migradas de tests/test_panel_pages.py, test_panel_live_ui.py y test_panel_memory_ui.py dieron 85 failed (FileNotFoundError: assets/panel-live.js…, AttributeError: cuerpos_paginas) · 2026-10-15`. Como en T-11, el RED se obtuvo después de implementar (ejecutando los tests nuevos sobre un `git archive` de HEAD). GREEN: `290 passed` en las 7 suites de la Verificación.
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_live_ui.py tests/test_panel_activity_ui.py tests/test_panel_memory_ui.py tests/test_panel_review_ui.py tests/test_panel_review_server.py tests/test_panel_activity_server.py tests/test_panel_memory_server.py` → `290 passed` (mismos escenarios que hoy, los arneses leen los JS de `assets/`). `python scripts/lint_plugin.py` → `0 errores · 8 avisos` (los mismos 8 de antes: ninguna cita rota nueva).
+
+**Notas**: extracción actual del JS inline en `tests/test_panel_live_ui.py:64` (`_live_script`); refresco de 5 s en `skills/plugin-panel/references/panel-live.js:63`. CONTRACTS E48/E51 (revisión): describen `docs/PLUGIN-PANEL.md`, `docs/FLOWS.md` (+EN); se actualizan en T-15. **Notas de implementación (2026-10-15):** `git mv` de `references/panel-{live,memory,activity,review}.js` a `assets/` (contenido intacto: mismos IDs DOM, mismos `api/progress`, `api/activity`, `api/memory`, `api/review/*`; no hay camino de escritura nuevo) y `git rm` de `references/panel.html`; desaparecen `TEMPLATE` y `render_html` de `build_panel.py` (la carpeta `references/` queda vacía y se elimina). Mapa de scripts por página en `panel_pages.LIVE_SCRIPTS` (solo modo servido): `inicio` → `panel-live.js`; `plan` → `panel-live.js` + `panel-review.js` (solo con `--review-initiative`); `agentes` → `panel-activity.js`; `memoria` → `panel-memory.js`. La página exportada nunca los carga ni llama a `api/*`. Cada sección viva se coloca en su página con los mismos IDs (`#operations` en Inicio y Plan, que nunca coinciden en la misma página; `#plan-review`, `#activity`, `#memory-query`), por eso «los IDs DOM se ajustan por página» no hizo falta más que en el reparto, no en los scripts. Los tests UI de memoria/actividad/revisión/progreso leen los JS de `assets/` y siguen prohibiendo `innerHTML`; los que degradaban si faltaba un asset ahora lo prueban sobre `cargar_assets` con `ASSETS_DIR` apuntando a una copia. `SKILL.md` cambia sus dos filas de referencias (la plantilla de una página sale; la vista de actividad apunta a `assets/`), y `docs/agents/CONTRACTS.md` E34 cita `cuerpos_paginas(live=True)` en lugar de `render_html(live=True)`. La documentación larga (`docs/PLUGIN-PANEL.md` y espejo EN: «/panel.html es un artefacto…») queda para T-15.
 
 ### T-13 — `build_dashboard.vista_json(inits)` sin cambio de bytes
 
 - **Descripción**: Extrae a una función pura `vista_json(inits)` lo que hoy hace `main()` al construir el `--json` (procedencia y contadores por iniciativa). El panel la importará en F2 para dar cifras idénticas a `--json`.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 0,6h · real —
-- **Tiempo IA (ejec.)**: est. 0,1h · real —
-- **Supervisión**: est. 0,03h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,1h · real 0,08h (medido)
+- **Supervisión**: est. 0,03h (≈25 % IA) · real n/d
 - **Previsión IA**: 46k in / 7k out tok · 0,70 €
 - **Dependencias**: T-01
 - **Tipo**: backend
@@ -453,13 +473,18 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 - **Verificación**: `python3 -m pytest -q tests/test_panel_contract_golden.py tests/test_dashboard.py` → `passed` (`--json` y `--md` idénticos al golden)
 
 **Criterios de aceptación**
-- [ ] `--json` y `--md` byte a byte iguales al golden de T-01.
-- [ ] `vista_json` no lee disco ni imprime: recibe `inits` y devuelve la lista.
+- [x] `--json` y `--md` byte a byte iguales al golden de T-01.
+- [x] `vista_json` no lee disco ni imprime: recibe `inits` y devuelve la lista.
 
 **Subtareas**
-- [ ] Extraer la función y llamarla desde `main()`.
+- [x] Extraer la función y llamarla desde `main()`.
 
-**Notas**: bloque a extraer en `skills/roadmap-dashboard/scripts/build_dashboard.py:1157-1170`; `scan()` en `:451`.
+- **Cerrada**: 2026-10-15
+- **Changelog**: El cálculo del JSON de `roadmap-dashboard` queda en una función pura reutilizable por el panel, sin cambiar un solo byte de lo que imprime `--json` ni `--md`.
+- **Evidencia TDD**: `RED: tests/test_dashboard.py::test_vista_json_es_pura_y_coincide_con_el_json_de_la_cli falló con AttributeError: module 'build_dashboard' has no attribute 'vista_json' · 2026-10-15` (1 failed). GREEN: `1 passed`.
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_contract_golden.py tests/test_dashboard.py` → `13 passed` (`--json` y `--md` idénticos al golden de T-01; `python tests/test_dashboard.py` → `OK: 3 iniciativas, 1 aviso(s) esperado(s). Todo pasa.`). Suite ampliada con `test_copias_declaradas.py` y `test_console_encoding.py`: `655 passed`.
+
+**Notas**: bloque a extraer en `skills/roadmap-dashboard/scripts/build_dashboard.py:1157-1170`; `scan()` en `:451`. **Implementación (2026-10-15):** `vista_json(inits)` (antes de `main()`) recibe las iniciativas de `scan()` y les añade, en sitio y devolviendo la misma lista, `estimados`, `medidos`, `generacion_total`, `generacion_otros` y `procedencia`; `main()` hace `print(json.dumps(vista_json(inits), …))`. El test nuevo compara su resultado con lo que imprime `--json` de la CLI sobre la misma fixture, comprueba que no imprime y que no abre ficheros (`builtins.open` parcheado para fallar).
 
 ### T-14 — D-A1: retirar el HTML de `roadmap-dashboard` y redirigir a sus consumidores
 

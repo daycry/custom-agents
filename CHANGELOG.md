@@ -17,10 +17,13 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - New `redact.anonimizar` primitive strips the project path, home directory, system user and e-mails from panel output before it is shown or exported.
 - Dashboard JSON/Markdown and the panel catalogue JSON are pinned by golden tests, so the panel redesign cannot change them unnoticed.
 - `build_panel.py --export <dir>` writes a seven-page site with a shared accessible menu, a WCAG 2.2 AA palette, charts that always come with an equivalent table (missing data shown as "sin datos", never 0), bundled Chart.js with its licence and an `export-manifest.json`. The export needs no network, strips paths, user name and e-mails, and never overwrites files it does not own.
+- The panel's Catalog page gathers the catalog, extensions, workflow and source notes, with a pieces-by-type chart and its equivalent table; the Diagnostics page keeps the doctor snapshot with the same rejections and filters, without running doctor.
+- `roadmap-dashboard`'s JSON projection is now a pure function (`vista_json`) the panel reuses, with byte-identical `--json` and `--md` output.
 
 ### Changed — Panel export
 
 - `build_panel.py --html` is replaced by `--export <dir>`; `--json` and `--serve` are unchanged.
+- The local panel server serves the seven pages and their assets from a closed allowlist under a strict CSP, with a per-start nonce on every script and no disk reads per request; if Chart.js is missing or altered, pages fall back to tables. The live progress, memory, activity and plan-review scripts load as files on their own page, and the single-page template is gone.
 
 ### Added — Ledger archiving
 

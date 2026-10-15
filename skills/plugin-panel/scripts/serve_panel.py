@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import re
 import secrets
+import sys
 import time
 
 HERE = Path(__file__).resolve().parent
@@ -38,6 +39,11 @@ def _load_shared(filename):
 
 def _load_builder():
     return _load('panel_service_builder', HERE / 'build_panel.py')
+
+
+PLAN_PAGE = re.compile(r'plan-[a-f0-9]{16}\.html')
+ASSET_TYPES = {'.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+               '.json': 'application/json; charset=utf-8', '.md': 'text/markdown; charset=utf-8'}
 
 
 def _load_memory():
@@ -383,7 +389,13 @@ class PanelHandler(BaseHTTPRequestHandler):
         if not self._allowed():return
         route = self._route()
         if route == '':
-            self._reply(200, self.server.page, 'text/html; charset=utf-8')
+            route = 'index.html'
+        if route is None:
+            self._reply(404)
+        elif route in self.server.pages or (PLAN_PAGE.fullmatch(route) and route in self.server.plan_pages):
+            self._reply(200, self.server.pages.get(route) or self.server.plan_pages[route], 'text/html; charset=utf-8')
+        elif route in self.server.assets:
+            self._reply(200, self.server.assets[route][0], self.server.assets[route][1])
         elif route == 'api/progress':
             self._reply(200, self.server.snapshot(), 'application/json; charset=utf-8')
         elif route == 'api/activity':
@@ -465,38 +477,54 @@ def create_server(project, inventory, *, port=0, review_selection=None):
             or not {'initiative', 'state_root'} <= set(review_selection)):
         raise ValueError('invalid review selection')
     builder = _load_builder()
-    page = builder.render_html(inventory, live=True, review_enabled=review_selection is not None)
+    pages = builder._load_pages()
+    # Allowlisted assets: read once here; the disk is never touched per request.
+    files, chart_ok, warnings = pages.cargar_assets('servido', review=review_selection is not None)
     nonce = secrets.token_urlsafe(24)
-    page = page.replace('<script>', '<script nonce="' + nonce + '">')
     server = PanelServer(('127.0.0.1', port), PanelHandler)
-    server.project = project
-    server.review_selection = dict(review_selection) if review_selection is not None else None
-    server.review_ids = set(); server.review_owner = None
-    review_id = ''
-    if review_selection is not None:
-        try:
-            server.review_owner = _load_review()
-            deadline = time.monotonic() + BODY_TIMEOUT
-            opened = server.review_owner.open_review(project, review_selection['initiative'],
-                state_root=review_selection['state_root'], gate_key=review_selection.get('gate_key', 'requested-review'),
-                consumer=review_selection.get('consumer'), deadline=deadline)
-            if time.monotonic() < deadline and len(_encoded(opened)) <= MAX_REVIEW_RESPONSE_BYTES:
-                review_id = server.register_review(opened)
-        except Exception:
-            pass  # Optional UI remains unavailable; no invented decision.
-    page = page.replace('data-review-id=""', 'data-review-id="' + review_id + '"')
-    server.capability = secrets.token_urlsafe(32)
-    server.access_prefix = '/' + server.capability + '/'
-    server.page = page.encode('utf8')
-    server._snapshot = None; server._snapshot_at = 0
-    server.csp = ("default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-" + nonce
-                  + "'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+    try:
+        server.project = project
+        server.review_selection = dict(review_selection) if review_selection is not None else None
+        server.review_ids = set(); server.review_owner = None
+        review_id = ''
+        if review_selection is not None:
+            try:
+                server.review_owner = _load_review()
+                deadline = time.monotonic() + BODY_TIMEOUT
+                opened = server.review_owner.open_review(project, review_selection['initiative'],
+                    state_root=review_selection['state_root'], gate_key=review_selection.get('gate_key', 'requested-review'),
+                    consumer=review_selection.get('consumer'), deadline=deadline)
+                if time.monotonic() < deadline and len(_encoded(opened)) <= MAX_REVIEW_RESPONSE_BYTES:
+                    review_id = server.register_review(opened)
+            except Exception:
+                pass  # Optional UI remains unavailable; no invented decision.
+        server.capability = secrets.token_urlsafe(32)
+        server.access_prefix = '/' + server.capability + '/'
+        server._snapshot = None; server._snapshot_at = 0
+        server.csp = pages.CSP_SERVIDO.format(nonce=nonce)
+        server.warnings = warnings
+        bodies = builder.cuerpos_paginas(inventory, live=True, review_enabled=review_selection is not None,
+                                         review_id=review_id, actividad='assets/panel-activity.js' in files)
+        generated = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+        hidden = {name for name in pages.LIVE_ASSET_FILES if 'assets/' + name not in files}  # review not selected or asset missing
+        server.pages = {archivo: pages.render_page(slug, modo='servido', generado=generated, chart_ok=chart_ok, nonce=nonce,
+                                                   datos=pages.datos_de_pagina(slug, inventory, modo='servido'),
+                                                   cuerpo=bodies[slug], scripts_omitidos=hidden).encode('utf8')
+                        for slug, archivo, _ in pages.PAGES}
+        server.plan_pages = {}  # plan-<id16>.html pages (per initiative) arrive in phase 2.
+        server.assets = {rel: (content, ASSET_TYPES.get(Path(rel).suffix, 'application/octet-stream'))
+                         for rel, content in files.items()}
+    except BaseException:
+        server.server_close()  # nada a medias: no deja el puerto abierto
+        raise
     return server
 
 
 def run(project, inventory, *, port=0, review_selection=None):
     server = create_server(project, inventory, port=port, review_selection=review_selection)
     try:
+        for warning in server.warnings:
+            print('plugin-panel: aviso: ' + warning, file=sys.stderr, flush=True)
         print(json.dumps({'status': 'serving', 'url': f'http://127.0.0.1:{server.server_port}' + server.access_prefix,
                           'catalog': 'startup_snapshot', 'progress': 'canonical_ledger'}), flush=True)
         server.serve_forever(poll_interval=0.2)

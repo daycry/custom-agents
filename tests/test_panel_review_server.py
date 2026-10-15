@@ -166,7 +166,7 @@ def test_ordinary_server_never_loads_review_owner(service, tmp_path, monkeypatch
     monkeypatch.setattr(service, '_load_review', lambda: pytest.fail('ordinary server opened review'), raising=False)
     server = service.create_server(tmp_path, DATA)
     try:
-        assert b'id="plan-review"' not in server.page
+        assert b'id="plan-review"' not in server.pages['plan.html']
     finally: server.server_close()
 
 @pytest.mark.parametrize('selection', [[], {}, {'initiative':'x'}, {'state_root':'x'},
@@ -182,8 +182,8 @@ def test_optional_owner_load_failure_keeps_panel_available(service, tmp_path, mo
     server = service.create_server(tmp_path,DATA,review_selection={'initiative':'docs/roadmap/2026-10-09-example',
         'state_root':tmp_path / '.claude/plan-review'})
     try:
-        assert server.review_ids == set() and b'data-review-id=""' in server.page
-        assert b'SECRET' not in server.page and b'id="plan-review"' in server.page
+        assert server.review_ids == set() and b'data-review-id=""' in server.pages['plan.html']
+        assert b'SECRET' not in server.pages['plan.html'] and b'id="plan-review"' in server.pages['plan.html']
     finally: server.server_close()
 
 def test_unicode_codepoints_and_aggregate_limits(review_server):
@@ -309,7 +309,7 @@ def test_actual_owner_receipt_comment_cas_submit_consume_restart(real_review):
     server,plan,start = real_review
     rid,view = real_view(server)
     assert view['version']['raw_sha256'] == hashlib.sha256(plan.read_bytes()).hexdigest()
-    assert b'data-review-id="'+rid.encode()+b'"' in server.page
+    assert b'data-review-id="'+rid.encode()+b'"' in server.pages['plan.html']
     comments = [{'comment_id':'comment-1','section_id':view['sections'][0]['section_id'],'text':'Comprobar 🚀'}]
     payload = {'version':view['version'],'comments':comments,'expected_revision':view['revision']}
     code, _, raw = send(server,'comments',payload,method='POST',rid=rid)

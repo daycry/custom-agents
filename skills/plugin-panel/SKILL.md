@@ -101,5 +101,5 @@ indisponibles; las otras vistas conservan sus propios contratos.
 |---|---|
 | [Uso y límites](../../docs/PLUGIN-PANEL.md) | Al explicar inventario, exportación y diferencias con el roadmap |
 | [Extensiones propias](../../docs/PROJECT-EXTENSIONS.md) | Carpetas nativas, selección por ID, personas y disponibilidad |
-| [Plantilla local](references/panel.html) | Presentación HTML empaquetada; el generador la usa sin cargar recursos de red |
-| [Vista de actividad](references/panel-activity.js) | Al mantener la vista servida de señales, sus metadatos y caducidad local |
+| [Plantilla de páginas](scripts/panel_pages.py) | Plantilla común de las siete páginas (menú, cabecera de modo, CSP); sin recursos de red |
+| [Vista de actividad](assets/panel-activity.js) | Al mantener la vista servida de señales, sus metadatos y caducidad local |

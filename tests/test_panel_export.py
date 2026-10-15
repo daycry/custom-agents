@@ -66,12 +66,13 @@ def test_la_exportacion_escribe_siete_paginas_assets_vendor_y_manifiesto(panel, 
     for pagina in PAGINAS:
         assert (destino / pagina).read_text(encoding='utf8').startswith(panel.MARKER)
     for ruta in ('assets/panel.css', 'assets/panel-core.js', 'assets/panel-charts.js',
-                 'vendor/chart.js/chart.umd.min.js', 'vendor/chart.js/LICENSE.md', 'vendor/chart.js/PROVENANCE.json'):
+                 'assets/page-catalogo.js', 'assets/page-diagnostico.js', 'vendor/chart.js/chart.umd.min.js', 'vendor/chart.js/LICENSE.md', 'vendor/chart.js/PROVENANCE.json'):
         assert (destino / ruta).is_file(), ruta
     manifiesto = json.loads((destino / 'export-manifest.json').read_text(encoding='utf8'))
     assert manifiesto['generador'] == 'custom-agents plugin-panel' and manifiesto['generado']
     rutas = {f['ruta']: f for f in manifiesto['ficheros']}
     assert set(rutas) == set(PAGINAS) | {'assets/panel.css', 'assets/panel-core.js', 'assets/panel-charts.js',
+                                          'assets/page-catalogo.js', 'assets/page-diagnostico.js',
                                           'vendor/chart.js/chart.umd.min.js', 'vendor/chart.js/LICENSE.md',
                                           'vendor/chart.js/PROVENANCE.json'}
     for ruta, ficha in rutas.items():

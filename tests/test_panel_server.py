@@ -273,3 +273,178 @@ def test_bundled_service_shutdown_closes_owned_port_and_reports_only_operator_ur
     with socket.socket() as probe:
         probe.settimeout(1)
         assert probe.connect_ex(('127.0.0.1', server.server_port)) != 0
+
+
+# --- T-11: servidor multi-página, activos de lista blanca y nonce en todo <script> -----------------------
+
+import re
+import shutil
+
+PAGINAS = ['index.html', 'iniciativas.html', 'plan.html', 'agentes.html', 'memoria.html', 'catalogo.html', 'diagnostico.html']
+ACTIVOS_ESTATICOS = ['assets/panel.css', 'assets/panel-core.js', 'assets/panel-charts.js', 'assets/page-catalogo.js',
+                     'assets/page-diagnostico.js', 'assets/panel-live.js', 'assets/panel-memory.js',
+                     'assets/panel-activity.js', 'vendor/chart.js/chart.umd.min.js']
+
+
+@pytest.mark.parametrize('pagina', PAGINAS)
+def test_http_sirve_cada_pagina_con_su_csp_y_el_nonce_en_cada_script(http_server, pagina):
+    status, headers, body = request(http_server, pagina)
+    assert status == 200 and headers['Content-Type'] == 'text/html; charset=utf-8'
+    html = body.decode('utf8')
+    csp = headers['Content-Security-Policy']
+    nonce = re.search(r"script-src 'nonce-([A-Za-z0-9_-]+)'", csp).group(1)
+    assert csp == ("default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'nonce-" + nonce
+                   + "'; img-src data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+    etiquetas = re.findall(r'<script\b[^>]*>', html)
+    assert etiquetas and all(f'nonce="{nonce}"' in etiqueta for etiqueta in etiquetas)
+    assert '<script>' not in html and '<link rel="icon" href="data:,">' in html
+    assert not re.search(r'\son[a-z]+\s*=', html)
+
+
+def test_http_la_raiz_del_token_es_la_pagina_de_inicio(http_server):
+    assert request(http_server)[2] == request(http_server, 'index.html')[2]
+
+
+@pytest.mark.parametrize('activo', ACTIVOS_ESTATICOS)
+def test_http_sirve_los_activos_de_la_lista_blanca(http_server, activo):
+    status, headers, body = request(http_server, activo)
+    esperado = (ROOT / 'skills/plugin-panel' / ('' if activo.startswith('assets/') else 'assets') / activo).read_bytes()
+    assert status == 200 and body == esperado
+    assert headers['Content-Type'].split(';')[0] == ('text/css' if activo.endswith('.css') else 'text/javascript')
+    assert headers['Cache-Control'] == 'no-store' and headers['X-Content-Type-Options'] == 'nosniff'
+
+
+@pytest.mark.parametrize('suffix', ['assets/serve_panel.py', 'assets/../scripts/serve_panel.py', 'assets/', 'assets',
+                                    'vendor/', 'vendor/chart.js/', 'vendor/chart.js/otro.js', 'assets/panel-review.js',
+                                    'scripts/build_panel.py', 'catalogo', 'catalogo.html/', 'Catalogo.html',
+                                    'plan-0123456789abcdef.html', 'plan-xyz.html', 'plan-0123456789abcdef0.html',
+                                    'api/memory', 'api/activity/x'])
+def test_http_activo_o_pagina_fuera_de_la_lista_blanca_es_404(http_server, suffix):
+    assert request(http_server, suffix)[0] in (404, 405)
+
+
+@pytest.mark.parametrize('suffix', ['catalogo.html?x=1', 'catalogo.html#a', 'assets%2Fpanel.css', 'assets\\panel.css',
+                                    'assets/panel.css?v=1', 'assets/panel%2ecss'])
+def test_http_sigue_rechazando_consulta_porcentaje_barra_inversa_y_ancla(http_server, suffix):
+    assert request(http_server, target=http_server.access_prefix + suffix)[0] == 404
+
+
+@pytest.mark.parametrize('headers', [{'Host': 'outside.invalid'}, {'Origin': 'null'}, {'Origin': 'https://outside.invalid'},
+                                     {'Sec-Fetch-Site': 'cross-site'}])
+@pytest.mark.parametrize('suffix', ['catalogo.html', 'assets/panel.css'])
+def test_http_paginas_y_activos_exigen_host_y_origen_propios(http_server, suffix, headers):
+    assert request(http_server, suffix, headers=headers)[0] == 403
+
+
+def test_http_paginas_y_activos_sin_token_o_con_otro_token_dan_404_sin_contenido(http_server):
+    for objetivo in ('/catalogo.html', '/assets/panel.css', '/' + 'A' * 43 + '/catalogo.html'):
+        status, _, body = request(http_server, target=objetivo)
+        assert status == 404 and b'Piezas por tipo' not in body and b'.card' not in body
+
+
+def test_http_head_de_una_pagina_y_de_un_activo(http_server):
+    for suffix in ('catalogo.html', 'assets/panel.css'):
+        status, headers, body = request(http_server, suffix, method='HEAD')
+        assert status == 200 and body == b'' and int(headers['Content-Length']) > 0
+
+
+def test_http_no_lee_disco_por_peticion(http_server, monkeypatch):
+    import builtins
+    real_open = builtins.open
+    monkeypatch.setattr(builtins, 'open', lambda *a, **k: pytest.fail('lectura de disco al servir'))
+    monkeypatch.setattr(Path, 'read_bytes', lambda *a, **k: pytest.fail('lectura de disco al servir'))
+    monkeypatch.setattr(Path, 'read_text', lambda *a, **k: pytest.fail('lectura de disco al servir'))
+    for suffix in ('catalogo.html', 'assets/panel-core.js', 'vendor/chart.js/chart.umd.min.js'):
+        assert request(http_server, suffix)[0] == 200
+    monkeypatch.setattr(builtins, 'open', real_open)
+
+
+def test_http_plan_por_iniciativa_solo_se_sirve_si_esta_registrado(http_server):
+    identificador = 'plan-0123456789abcdef.html'
+    assert request(http_server, identificador)[0] == 404
+    http_server.plan_pages[identificador] = b'<p>plan registrado</p>'
+    status, headers, body = request(http_server, identificador)
+    assert status == 200 and body == b'<p>plan registrado</p>' and headers['Content-Type'].startswith('text/html')
+    assert request(http_server, 'plan-aaaaaaaaaaaaaaaa.html')[0] == 404
+
+
+def test_http_cada_pagina_carga_solo_sus_scripts_vivos(http_server):
+    def scripts(pagina):
+        return re.findall(r'<script nonce="[^"]+" src="([^"]+)"', request(http_server, pagina)[2].decode('utf8'))
+    assert 'assets/panel-live.js' in scripts('index.html') and 'assets/panel-live.js' in scripts('plan.html')
+    assert 'assets/panel-activity.js' in scripts('agentes.html') and 'assets/panel-memory.js' in scripts('memoria.html')
+    assert 'assets/panel-review.js' not in scripts('plan.html')  # sin revisión seleccionada
+    assert 'assets/page-catalogo.js' in scripts('catalogo.html') and 'assets/page-diagnostico.js' in scripts('diagnostico.html')
+    assert not any('panel-live' in s or 'panel-memory' in s for s in scripts('catalogo.html'))
+
+
+def _copia_de_assets(tmp_path):
+    destino = tmp_path / 'assets-copia'
+    shutil.copytree(ROOT / 'skills/plugin-panel/assets', destino)
+    return destino
+
+
+def _servidor_con_assets(service, tmp_path, monkeypatch, assets, **kwargs):
+    builder = service._load_builder()
+    monkeypatch.setattr(builder._load_pages(), 'ASSETS_DIR', assets)
+    monkeypatch.setattr(service, '_load_builder', lambda: builder)  # el servidor usa el builder ya parcheado
+    inventory = builder.build_inventory(tmp_path, project=None)
+    return service.create_server(tmp_path, inventory, **kwargs)
+
+
+def test_http_chart_con_huella_distinta_se_sirve_sin_chart_y_con_aviso(service, tmp_path, monkeypatch):
+    assets = _copia_de_assets(tmp_path)
+    with open(assets / 'vendor/chart.js/chart.umd.min.js', 'ab') as chart:
+        chart.write(b'\n/* alterado */')
+    server = _servidor_con_assets(service, tmp_path, monkeypatch, assets)
+    try:
+        thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+        pagina = request(server, 'catalogo.html')[2].decode('utf8')
+        datos = json.loads(re.search(r'id="panel-data">(.*?)</script>', pagina, re.S).group(1))
+        assert 'chart.umd.min.js' not in pagina and datos['chartjs_disponible'] is False
+        assert request(server, 'vendor/chart.js/chart.umd.min.js')[0] == 404
+        assert server.warnings and 'Chart.js' in server.warnings[0]
+        assert request(server, 'assets/panel-charts.js')[0] == 200
+    finally:
+        server.shutdown(); server.server_close()
+
+
+def test_http_sin_chart_el_arranque_no_falla(service, tmp_path, monkeypatch):
+    assets = _copia_de_assets(tmp_path)
+    shutil.rmtree(assets / 'vendor')
+    server = _servidor_con_assets(service, tmp_path, monkeypatch, assets)
+    try:
+        assert 'chart.umd.min.js' not in server.pages['catalogo.html'].decode('utf8') and server.warnings
+    finally:
+        server.server_close()
+
+
+@pytest.mark.parametrize('faltante', ['panel-live.js', 'panel-memory.js'])
+def test_asset_vivo_obligatorio_ausente_es_un_error_opaco_y_no_deja_el_puerto_abierto(service, tmp_path, monkeypatch, faltante):
+    assets = _copia_de_assets(tmp_path)
+    (assets / faltante).unlink()
+    with pytest.raises(ValueError, match='bundled live panel asset unavailable'):
+        _servidor_con_assets(service, tmp_path, monkeypatch, assets)
+
+
+def test_actividad_ausente_degrada_solo_esa_pagina(service, tmp_path, monkeypatch):
+    assets = _copia_de_assets(tmp_path)
+    (assets / 'panel-activity.js').unlink()
+    server = _servidor_con_assets(service, tmp_path, monkeypatch, assets)
+    try:
+        agentes = server.pages['agentes.html'].decode('utf8')
+        assert 'falta el recurso local de esta vista' in agentes and 'panel-activity.js' not in agentes
+        assert 'assets/panel-activity.js' not in server.assets and 'panel-live.js' in server.pages['index.html'].decode('utf8')
+    finally:
+        server.server_close()
+
+
+def test_la_pagina_de_plan_lleva_la_revision_cuando_hay_seleccion(service, tmp_path, monkeypatch):
+    assets = _copia_de_assets(tmp_path)
+    (assets / 'panel-review.js').unlink()
+    builder = service._load_builder()
+    monkeypatch.setattr(builder._load_pages(), 'ASSETS_DIR', assets)
+    monkeypatch.setattr(service, '_load_builder', lambda: builder)
+    seleccion = {'initiative': 'docs/roadmap/x', 'state_root': str(tmp_path / 'estado')}
+    with pytest.raises(ValueError, match='bundled review panel asset unavailable'):
+        service.create_server(tmp_path, builder.build_inventory(tmp_path, project=None), review_selection=seleccion)

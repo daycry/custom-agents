@@ -397,6 +397,32 @@ def test_procedencia_en_json_y_html():
     contains(html_out, "1 desconocida", "y cuenta los bloques desconocidos")
 
 
+def test_vista_json_es_pura_y_coincide_con_el_json_de_la_cli():
+    """T-13 (panel-redesign): `vista_json(inits)` es lo que `--json` imprime, sin disco ni salida."""
+    import builtins
+    import subprocess
+    script = os.path.join(ROOT, "skills", "roadmap-dashboard", "scripts", "build_dashboard.py")
+    with tempfile.TemporaryDirectory(prefix="dash-vista-") as base:
+        inits = list(_roadmap_procedencia(base).values())
+        salida = subprocess.run([sys.executable, script, "--root", base, "--json"],
+                                capture_output=True, text=True, encoding="utf-8", check=True)
+        copia = json.loads(json.dumps(inits))
+    esperado = json.loads(salida.stdout)
+    real_open, volcado = builtins.open, io.StringIO()
+    builtins.open = lambda *a, **k: (_ for _ in ()).throw(AssertionError("vista_json no lee ni escribe disco"))
+    try:
+        with contextlib.redirect_stdout(volcado):
+            vista = bd.vista_json(copia)
+    finally:
+        builtins.open = real_open
+    assert volcado.getvalue() == "", "vista_json no imprime"
+    assert vista is copia, "devuelve la misma lista de iniciativas, enriquecida"
+    eq(vista, esperado, "vista_json == lo que imprime --json")
+    for r in vista:
+        for clave in ("estimados", "medidos", "generacion_total", "generacion_otros", "procedencia"):
+            assert clave in r, clave
+
+
 def run():
     check_snapshot_windows()
     check_persistence_flags()
@@ -621,6 +647,7 @@ def run():
     test_procedencia_ventana_compartida_no_duplica_tokens()
     test_procedencia_en_el_total_de_cartera_y_en_el_informe()
     test_procedencia_en_json_y_html()
+    test_vista_json_es_pura_y_coincide_con_el_json_de_la_cli()
     print(f"OK: {len(inits)} iniciativas, {len(warns)} aviso(s) esperado(s). Todo pasa.")
 
 
