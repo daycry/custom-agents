@@ -16,7 +16,29 @@ supervisor = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(supervisor)
 
 
-def test_group_cleanup_keeps_owner_running_and_kills_children(monkeypatch):
+class _Reloj:
+    """Reloj controlado del supervisor: el plazo de 0,25 s de `close_group` no depende de la velocidad del disco."""
+
+    def __init__(self, paso=0.0):
+        self.ahora, self.paso = 0.0, paso
+
+    def monotonic(self):
+        self.ahora += self.paso
+        return self.ahora
+
+    def sleep(self, segundos):
+        self.ahora += segundos
+
+
+@pytest.fixture
+def reloj(monkeypatch):
+    """Reloj congelado (cada llamada avanza 0 s): el plazo nunca vence salvo que el test lo diga."""
+    falso = _Reloj()
+    monkeypatch.setattr(supervisor, "time", falso)
+    return falso
+
+
+def test_group_cleanup_keeps_owner_running_and_kills_children(monkeypatch, reloj):
     owner, child = 41001, 41002
     calls = []
     accounting = iter([f"{owner} {owner} S\n{child} {owner} S\n", f"{owner} {owner} S\n"])
@@ -36,7 +58,7 @@ def test_group_cleanup_keeps_owner_running_and_kills_children(monkeypatch):
     assert not any(pid == owner and sig in (signal.SIGSTOP, signal.SIGKILL) for _, pid, sig in calls)
 
 
-def test_group_cleanup_without_ps_reads_proc(monkeypatch, tmp_path):
+def test_group_cleanup_without_ps_reads_proc(monkeypatch, tmp_path, reloj):
     # Minimal images (python:*-slim) ship no procps: accounting falls back to /proc/<pid>/stat.
     owner, child = 41001, 41002
     for pid, group, state, name in ((owner, owner, "S", "node"), (child, owner, "S", "py (x) y"),
@@ -170,3 +192,22 @@ def test_group_cleanup_fails_closed_when_accounting_misses_the_owner(monkeypatch
     _unaccounted_group(monkeypatch, tmp_path, [(41003, 42000)])
     with pytest.raises(OSError, match="accounting unavailable"):
         supervisor.close_group(41001)
+
+
+def test_group_cleanup_reports_unconfirmed_when_the_deadline_passes(monkeypatch, tmp_path):
+    # Con un reloj lento (0,3 s por llamada) el plazo de 0,25 s vence tras el primer barrido: no se confirma.
+    owner, child = 41001, 41002
+    for pid in (owner, child):
+        (tmp_path / str(pid)).mkdir()
+        (tmp_path / str(pid) / "stat").write_text(f"{pid} (x) S 1 {owner} {owner} 0 -1\n")
+    monkeypatch.setattr(supervisor, "time", _Reloj(paso=0.3))
+    monkeypatch.setattr(signal, "SIGSTOP", 19, raising=False)
+    monkeypatch.setattr(signal, "SIGKILL", 9, raising=False)
+    monkeypatch.setattr(supervisor, "PROC_ROOT", str(tmp_path))
+    monkeypatch.setattr(supervisor.os, "getppid", lambda: owner)
+    monkeypatch.setattr(supervisor.os, "getpgid", lambda pid: owner, raising=False)
+    monkeypatch.setattr(supervisor.os, "getpgrp", lambda: 42000, raising=False)
+    monkeypatch.setattr(supervisor.os.path, "isfile", lambda path: False)
+    monkeypatch.setattr(supervisor.os, "kill", lambda pid, sig: None)
+    with pytest.raises(OSError, match="could not be confirmed"):
+        supervisor.close_group(owner)

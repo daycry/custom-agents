@@ -123,22 +123,27 @@ def _encoded(value):
     return json.dumps(value, ensure_ascii=False, allow_nan=False).encode('utf8')
 
 
-_CLOSED_KEYS = frozenset(('review_id', 'section_id', 'comment_id', 'result_id', 'verification_id',
-    'decision_id', 'source_sha256', 'raw_sha256', 'view_sha256', 'view_version', 'schema_version'))
+# Allow-list of free-text fields that are only DISPLAYED and never travel back to the server.
+# Everything else (ids, hashes, versions, runtime/state/disposition/caller_id vocabularies and, above all,
+# the user's own comments and drafts: `draft_comments`, `decision.comments[].text`) is left verbatim:
+# the user wrote them in this very session and they return in Save/Decide, so anonymizing them would
+# corrupt what the panel delivers to the agent.
+_DISPLAY_KEYS = frozenset(('titular', 'texto', 'evidencia', 'estado_detalle', 'ruta',
+                           'response_text', 'note'))
+_SECTION_KEYS = frozenset(('title', 'text'))
 
 
-def _scrubbed(value, scrub, key=None):
-    """Apply the panel's single scrubber (redact -> anonymize) to every free-text string of a JSON
-    answer coming from another owner (memory, review). Opaque identifiers and hashes stay verbatim:
-    they are not text and the browser sends them back."""
+def _scrubbed(value, scrub, key=None, in_section=False):
+    """Apply the panel's single scrubber (redact -> anonymize) to the displayed free text of a JSON
+    answer coming from another owner (memory notes; review plan sections and agent answers)."""
     if scrub is None:
         return value
     if isinstance(value, str):
-        return value if key in _CLOSED_KEYS else scrub(value)
+        return scrub(value) if key in _DISPLAY_KEYS or (in_section and key in _SECTION_KEYS) else value
     if isinstance(value, list):
-        return [_scrubbed(item, scrub, key) for item in value]
+        return [_scrubbed(item, scrub, key, in_section) for item in value]
     if isinstance(value, dict):
-        return {k: _scrubbed(item, scrub, k) for k, item in value.items()}
+        return {k: _scrubbed(item, scrub, k, in_section or key == 'sections') for k, item in value.items()}
     return value
 
 

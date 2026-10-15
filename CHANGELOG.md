@@ -34,6 +34,7 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - Confluence sync leaves out any `plugin-panel` export folder (recognized by its `export-manifest.json`), so the bundled Chart.js licence is no longer published.
 - A real user name written between angle brackets (`<jdoe>`) is now anonymised; only the module's own marks (`<usuario>`, `<correo>`) are kept. The served panel passes `api/memory` and the plan-review answers through the same anonymiser, and agent `model` and `tools` values are anonymised like any other free text.
 - Export cleanup re-checks, right before each delete, that nothing in the path became a link or junction, and never deletes a file the export just wrote (case or trailing-dot aliases); manifest entries with a trailing dot or space are rejected. A panel export manifest now excludes from Confluence only the files it lists, so an empty manifest, or one placed in `docs/`, excludes nothing.
+- The served panel now anonymizes only the free text it displays (memory notes, plan text, agent answers); the comments you write and closed vocabularies such as the runtime travel back untouched, so a review can be approved again on a `codex` account and is delivered with your exact words. Re-exporting can no longer delete a file just written through a Windows 8.3 short name, and Confluence only skips files that a real panel export lists with a matching hash.
 
 ### Added — Ledger archiving
 

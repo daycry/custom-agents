@@ -184,6 +184,8 @@ def construir_paginas(datos, *, generado, chart_ok, cuerpos=None):
 _SHA256_RE = re.compile(r'[0-9a-f]{64}')
 _UNIDAD_RE = re.compile(r'^[A-Za-z]:')
 _PROHIBIDOS_EN_RUTA = ('\\', ':', '\x00')
+# Patron de nombre corto 8.3 de Windows (`CHARTU~1.JS`): el sistema lo trata como alias del fichero largo.
+_NOMBRE_CORTO_RE = re.compile(r'~[0-9]')
 
 
 def _ruta_manifiesto_valida(rel):
@@ -193,7 +195,8 @@ def _ruta_manifiesto_valida(rel):
     partes = rel.split('/')
     # Win32 recorta el punto y el espacio finales de un componente: `chart.umd.min.js.` ES `chart.umd.min.js`.
     return not _UNIDAD_RE.match(rel) and all(
-        parte not in ('', '.', '..') and parte == parte.rstrip(' .') for parte in partes)
+        parte not in ('', '.', '..') and parte == parte.rstrip(' .') and not _NOMBRE_CORTO_RE.search(parte)
+        for parte in partes)
 
 
 def _clave_fs(rel):
@@ -201,7 +204,7 @@ def _clave_fs(rel):
     return '/'.join(parte.casefold().rstrip(' .') for parte in rel.split('/'))
 
 
-def _borrar_si_es_nuestro(destino, raiz, rel, sha, unsafe_link):
+def _borrar_si_es_nuestro(destino, raiz, rel, sha, unsafe_link, escritos_resueltos=frozenset()):
     """Borra `destino/rel` solo si, AHORA, ningún componente es enlace, la ruta resuelta sigue dentro del
     destino y el contenido es el que escribimos. Se repite justo antes del `unlink` porque la validación
     del manifiesto es anterior a la escritura (CWE-367): un padre cambiado por un enlace entre medias no
@@ -215,7 +218,10 @@ def _borrar_si_es_nuestro(destino, raiz, rel, sha, unsafe_link):
                 return False
         if unsafe_link(ruta) or not ruta.is_file():
             return False
-        ruta.resolve().relative_to(raiz)
+        resuelta = ruta.resolve()  # en Windows expande un alias 8.3 al nombre largo
+        resuelta.relative_to(raiz)
+        if resuelta in escritos_resueltos:
+            return False  # es un fichero que acabamos de escribir con otro nombre: no se toca
         if _sha256(ruta.read_bytes()) != sha:
             return False
         ruta.unlink()
@@ -308,9 +314,10 @@ def exportar_sitio(destino, datos, *, generado=None, unsafe_link=lambda ruta: ru
         _escribir_atomico(destino / rel, contenido)
     escritos = {_clave_fs(rel) for rel in ficheros}
     raiz = destino.resolve()
+    resueltos = {(destino / rel).resolve() for rel in ficheros}
     for rel, sha in previo.items():
         if rel not in ficheros and _clave_fs(rel) not in escritos:
-            _borrar_si_es_nuestro(destino, raiz, rel, sha, unsafe_link)
+            _borrar_si_es_nuestro(destino, raiz, rel, sha, unsafe_link, resueltos)
     manifiesto = {'generador': GENERADOR, 'version': 1, 'generado': generado,
                   'ficheros': [{'ruta': rel, 'sha256': _sha256(c), 'bytes': len(c)} for rel, c in sorted(ficheros.items())]}
     _escribir_atomico(destino / MANIFEST, (json.dumps(manifiesto, ensure_ascii=False, indent=2) + '\n').encode('utf8'))

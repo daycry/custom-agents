@@ -256,12 +256,21 @@ def test_default_policy_excludes_staging_marker_from_publish_walk():
     print("test_default_policy_excludes_staging_marker_from_publish_walk: OK")
 
 
-def _panel_export(proj, carpeta, generador="custom-agents plugin-panel", ficheros=("vendor/chart.js/LICENSE.md",)):
+PANEL_MARKER = "<!doctype html><!-- custom-agents plugin-panel v1 -->"
+
+
+def _panel_export(proj, carpeta, generador="custom-agents plugin-panel", ficheros=("vendor/chart.js/LICENSE.md",),
+                  panel=True, sha=None):
+    """Exportación sintética: LICENSE.md real, manifiesto con su hash real y, con `panel`, el `index.html` del panel."""
     base = Path(proj) / "docs" / carpeta
     (base / "vendor" / "chart.js").mkdir(parents=True)
-    (base / "vendor" / "chart.js" / "LICENSE.md").write_text("# MIT\n", encoding="utf-8")
+    licencia = base / "vendor" / "chart.js" / "LICENSE.md"
+    licencia.write_text("# MIT\n", encoding="utf-8")
+    if panel:
+        (base / "index.html").write_text(PANEL_MARKER + "<html></html>", encoding="utf-8")
+    real = hashlib.sha256(licencia.read_bytes()).hexdigest()
     (base / "export-manifest.json").write_text(json.dumps(
-        {"generador": generador, "ficheros": [{"ruta": r, "sha256": "0" * 64, "bytes": 1} for r in ficheros]}),
+        {"generador": generador, "ficheros": [{"ruta": r, "sha256": sha or real, "bytes": 1} for r in ficheros]}),
         encoding="utf-8")
     return base
 
@@ -320,6 +329,69 @@ def test_panel_manifest_only_excludes_the_files_it_lists():
         assert "docs/README.md" in en_alcance                                        # manifiesto en docs/
         assert "docs/hostil/vendor/chart.js/LICENSE.md" in en_alcance                # rutas inválidas
     print("test_panel_manifest_only_excludes_the_files_it_lists: OK")
+
+
+def test_panel_marker_matches_the_exporter():
+    # La copia del literal en confluence-scope.py debe ser la que escribe plugin-panel.
+    spec = importlib.util.spec_from_file_location("panel_pages_marker", ROOT / "skills/plugin-panel/scripts/panel_pages.py")
+    pp = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(spec.origin and Path(spec.origin).parent))
+    try:
+        spec.loader.exec_module(pp)
+    finally:
+        sys.path.pop(0)
+    assert pp.MARKER == PANEL_MARKER == cs.PANEL_INDEX_MARKER
+    print("test_panel_marker_matches_the_exporter: OK")
+
+
+def test_panel_manifest_entry_needs_matching_hash():
+    # panel-redesign (revisión intento 3, gap 3-4): una entrada se excluye solo si el fichero es el que escribió el exportador.
+    publish = {"include": ["**/*.md"], "exclude": []}
+    with tempfile.TemporaryDirectory() as tmp:
+        proj = Path(tmp) / "proj"
+        (proj / "docs").mkdir(parents=True)
+        _panel_export(proj, "roadmap/panel")
+        _panel_export(proj, "otro/ajeno", sha="1" * 64)
+        en_alcance, excluidos = cs.resolve_scope(str(proj), publish)
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" not in en_alcance
+        assert "docs/otro/ajeno/vendor/chart.js/LICENSE.md" in en_alcance      # hash distinto: no se excluye
+        assert "docs/otro/ajeno/vendor/chart.js/LICENSE.md" not in dict(excluidos)
+    print("test_panel_manifest_entry_needs_matching_hash: OK")
+
+
+def test_panel_manifest_without_a_real_panel_beside_it_excludes_nothing():
+    publish = {"include": ["**/*.md"], "exclude": []}
+    with tempfile.TemporaryDirectory() as tmp:
+        proj = Path(tmp) / "proj"
+        (proj / "docs").mkdir(parents=True)
+        _panel_export(proj, "plantado/sin-panel", panel=False)
+        falso = _panel_export(proj, "plantado/index-falso")
+        (falso / "index.html").write_text("<html>otra cosa</html>", encoding="utf-8")
+        en_alcance, _ = cs.resolve_scope(str(proj), publish)
+        assert "docs/plantado/sin-panel/vendor/chart.js/LICENSE.md" in en_alcance
+        assert "docs/plantado/index-falso/vendor/chart.js/LICENSE.md" in en_alcance
+    print("test_panel_manifest_without_a_real_panel_beside_it_excludes_nothing: OK")
+
+
+def test_real_panel_export_excludes_license():
+    spec = importlib.util.spec_from_file_location("panel_pages_real", ROOT / "skills/plugin-panel/scripts/panel_pages.py")
+    pp = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(Path(spec.origin).parent))
+    try:
+        spec.loader.exec_module(pp)
+    finally:
+        sys.path.pop(0)
+    datos = {"counts": dict.fromkeys(("agents", "skills", "commands", "tools", "hooks"), 0),
+             "agents": [], "skills": [], "commands": [], "tools": [], "hooks": [],
+             "runtimes": {}, "memory": {}, "warnings": [], "workflow": {"roles": {}}}
+    with tempfile.TemporaryDirectory() as tmp:
+        proj = Path(tmp) / "proj"
+        (proj / "docs" / "roadmap").mkdir(parents=True)
+        pp.exportar_sitio(proj / "docs" / "roadmap" / "panel", datos)
+        en_alcance, excluidos = cs.resolve_scope(str(proj), {"include": ["**/*.md"], "exclude": []})
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" not in en_alcance
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" in dict(excluidos)
+    print("test_real_panel_export_excludes_license: OK")
 
 
 def test_stage_is_idempotent():
@@ -538,6 +610,10 @@ def main():
         test_default_policy_excludes_staging_marker_from_publish_walk,
         test_panel_export_folder_is_out_of_scope_wherever_it_lives,
         test_panel_manifest_only_excludes_the_files_it_lists,
+        test_panel_marker_matches_the_exporter,
+        test_panel_manifest_entry_needs_matching_hash,
+        test_panel_manifest_without_a_real_panel_beside_it_excludes_nothing,
+        test_real_panel_export_excludes_license,
         test_stage_is_idempotent,
         test_stage_wipes_previous_contents,
         test_stage_refuses_unsafe_out_target,

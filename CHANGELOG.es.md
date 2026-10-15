@@ -34,6 +34,7 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - La sincronización con Confluence deja fuera cualquier carpeta de exportación de `plugin-panel` (reconocida por su `export-manifest.json`), así que ya no se publica la licencia de Chart.js incluida.
 - Un usuario real escrito entre ángulos (`<jdoe>`) se anonimiza ahora; solo se conservan las marcas propias del módulo (`<usuario>`, `<correo>`). El panel servido pasa `api/memory` y las respuestas de la revisión del plan por el mismo anonimizador, y los valores `model` y `tools` de los agentes se anonimizan como cualquier otro texto libre.
 - La limpieza de la exportación vuelve a comprobar, justo antes de cada borrado, que nada de la ruta se haya vuelto enlace o junction, y nunca borra un fichero recién escrito (alias por mayúsculas o punto final); se rechazan las entradas del manifiesto con punto o espacio final. El manifiesto de una exportación del panel solo saca de Confluence los ficheros que lista: uno vacío, o situado en `docs/`, no excluye nada.
+- El panel servido anonimiza solo el texto libre que muestra (notas de memoria, texto del plan, respuestas del agente); tus comentarios y los vocabularios cerrados, como el runtime, vuelven sin tocar, así que la revisión vuelve a poder aprobarse con una cuenta `codex` y se entrega con tus palabras exactas. Reexportar ya no puede borrar un fichero recién escrito a través de un nombre corto 8.3 de Windows, y Confluence solo omite ficheros que una exportación real del panel lista con su hash.
 
 ### Added — Archivado del ledger
 

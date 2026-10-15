@@ -249,6 +249,9 @@ def always_exclude_for(root, out_dir):
 
 PANEL_EXPORT_MANIFEST = "export-manifest.json"
 PANEL_EXPORT_GENERATOR = "custom-agents plugin-panel"
+# Literal del MARKER que plugin-panel (`panel_pages.MARKER`) escribe al principio de cada página; un test lo
+# compara con el real. Una carpeta solo cuenta como exportación del panel si su `index.html` lo lleva.
+PANEL_INDEX_MARKER = "<!doctype html><!-- custom-agents plugin-panel v1 -->"
 
 
 def _ruta_listada_valida(ruta):
@@ -259,13 +262,25 @@ def _ruta_listada_valida(ruta):
     return all(parte not in ("", ".", "..") for parte in ruta.split("/"))
 
 
+def _sha_coincide(fichero, declarado):
+    """True solo si `fichero` es un fichero regular cuyo sha256 es el declarado por el manifiesto."""
+    if not isinstance(declarado, str) or not fichero.is_file() or fichero.is_symlink():
+        return False
+    try:
+        return hashlib.sha256(fichero.read_bytes()).hexdigest() == declarado.lower()
+    except OSError:
+        return False
+
+
 def panel_export_files(docs_root, root):
     """{ruta relativa a `root` (casefold) -> manifiesto que la declara} de los ficheros que una EXPORTACIÓN
     de plugin-panel lista en `ficheros` (HTML + `vendor/` con licencias y procedencia de terceros). Se
     reconoce por su `export-manifest.json` con el generador del plugin, no por un nombre fijo
     (`docs/roadmap/panel/` es solo el destino por defecto de `/roadmap-status`). El manifiesto es un fichero
-    plantable (CWE-807): solo excluye lo que LISTA (no toda su carpeta), un manifiesto ilegible, de otro
-    generador, sin entradas o ubicado en la propia `docs/` no excluye nada, y las rutas inválidas se ignoran."""
+    plantable (CWE-807): solo excluye lo que LISTA (no toda su carpeta) Y que existe con el `sha256` declarado
+    (es lo que escribió el exportador), y solo si junto al manifiesto hay un `index.html` con el MARKER del
+    panel. Un manifiesto ilegible, de otro generador, sin entradas, sin panel al lado o ubicado en la propia
+    `docs/` no excluye nada, y las rutas inválidas se ignoran."""
     listados = {}
     raiz_docs = Path(docs_root).resolve()
     for dirpath, dirnames, filenames in os.walk(docs_root):
@@ -276,13 +291,16 @@ def panel_export_files(docs_root, root):
             datos = json.loads((Path(dirpath) / PANEL_EXPORT_MANIFEST).read_text(encoding="utf-8"))
             if datos.get("generador") != PANEL_EXPORT_GENERATOR:
                 continue
-            rutas = [f.get("ruta") for f in datos.get("ficheros", [])]
+            rutas = [(f.get("ruta"), f.get("sha256")) for f in datos.get("ficheros", [])]
+            with open(Path(dirpath) / "index.html", "rb") as pagina:
+                if not pagina.read(len(PANEL_INDEX_MARKER)).decode("utf-8", "replace") == PANEL_INDEX_MARKER:
+                    continue
         except (OSError, ValueError, UnicodeError, AttributeError, TypeError):
             continue
         carpeta = rel_from_root(dirpath, root)
         manifiesto = carpeta + "/" + PANEL_EXPORT_MANIFEST
-        for ruta in rutas:
-            if _ruta_listada_valida(ruta):
+        for ruta, sha in rutas:
+            if _ruta_listada_valida(ruta) and _sha_coincide(Path(dirpath) / ruta, sha):
                 listados.setdefault((carpeta + "/" + ruta).casefold(), manifiesto)
     return listados
 
