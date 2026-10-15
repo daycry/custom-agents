@@ -123,23 +123,54 @@ def _encoded(value):
     return json.dumps(value, ensure_ascii=False, allow_nan=False).encode('utf8')
 
 
+# `initiative` is deliberately NOT here: it is a regex-bounded slug (plan-review.py INITIATIVE) that the
+# anonymizer cannot match anyway (a user joined by hyphens is not a whole word) and it identifies the plan.
 # Allow-list of free-text fields that are only DISPLAYED and never travel back to the server.
 # Everything else (ids, hashes, versions, runtime/state/disposition/caller_id vocabularies and, above all,
 # the user's own comments and drafts: `draft_comments`, `decision.comments[].text`) is left verbatim:
 # the user wrote them in this very session and they return in Save/Decide, so anonymizing them would
 # corrupt what the panel delivers to the agent.
 _DISPLAY_KEYS = frozenset(('titular', 'texto', 'evidencia', 'estado_detalle', 'ruta',
+                           'tipo', 'estado', 'area', 'category', 'relation',
                            'response_text', 'note'))
 _SECTION_KEYS = frozenset(('title', 'text'))
+# Ceilings the browser validators enforce on each displayed field, as (code points, UTF-8 bytes or None):
+# `panel-memory.js` (`string(...,160|1000|12000)`) and `panel-review.js` (`noteValid`: 1000/2048 for an
+# agent answer, 500/1024 for a verification note). Anonymizing lengthens the text (`<usuario>` is longer than
+# a short account name), so the cut happens HERE, after scrubbing, never before.
+_CAPS = {'titular': (160, None), 'estado_detalle': (160, None), 'area': (160, None), 'tipo': (160, None),
+         'estado': (160, None), 'category': (160, None), 'relation': (160, None),
+         'evidencia': (1000, None), 'ruta': (1000, None), 'texto': (12000, None),
+         'response_text': (1000, 2048), 'note': (500, 1024)}
+_MARKS = re.compile(r'<(?:usuario|correo)>')
+
+
+def _clip(text, chars, nbytes=None):
+    """Cut `text` to `chars` code points (and `nbytes` UTF-8 bytes) without splitting an anonymizer mark."""
+    cut = min(len(text), chars)
+    while nbytes is not None and len(text[:cut].encode('utf8')) > nbytes:
+        cut -= 1
+    if cut >= len(text):
+        return text
+    for mark in _MARKS.finditer(text):
+        if mark.start() < cut < mark.end():
+            cut = mark.start()
+            break
+    return text[:cut]
 
 
 def _scrubbed(value, scrub, key=None, in_section=False):
     """Apply the panel's single scrubber (redact -> anonymize) to the displayed free text of a JSON
-    answer coming from another owner (memory notes; review plan sections and agent answers)."""
+    answer coming from another owner (memory notes; review plan sections and agent answers), then cut it
+    to the ceiling of the browser validator."""
     if scrub is None:
         return value
     if isinstance(value, str):
-        return scrub(value) if key in _DISPLAY_KEYS or (in_section and key in _SECTION_KEYS) else value
+        if key in _DISPLAY_KEYS or (in_section and key in _SECTION_KEYS):
+            value = scrub(value)
+            if key in _CAPS:
+                value = _clip(value, *_CAPS[key])
+        return value
     if isinstance(value, list):
         return [_scrubbed(item, scrub, key, in_section) for item in value]
     if isinstance(value, dict):

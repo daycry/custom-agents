@@ -331,6 +331,41 @@ def test_panel_manifest_only_excludes_the_files_it_lists():
     print("test_panel_manifest_only_excludes_the_files_it_lists: OK")
 
 
+def test_panel_manifest_entry_tolerates_git_line_ending_conversion():
+    # panel-redesign (confirmacion del intento 3, C-2): Git for Windows saca el LICENSE.md con CRLF aunque el
+    # exportador lo escribiera con LF; el cotejo acepta el sha256 de los bytes tal cual o con CRLF -> LF.
+    publish = {"include": ["**/*.md"], "exclude": []}
+    with tempfile.TemporaryDirectory() as tmp:
+        proj = Path(tmp) / "proj"
+        (proj / "docs").mkdir(parents=True)
+        base = _panel_export(proj, "roadmap/panel")
+        licencia = base / "vendor" / "chart.js" / "LICENSE.md"
+        licencia.write_bytes(licencia.read_bytes().replace(b"\n", b"\r\n"))
+        assert b"\r\n" in licencia.read_bytes()
+        en_alcance, excluidos = cs.resolve_scope(str(proj), publish)
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" not in en_alcance      # CRLF: sigue excluido
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" in dict(excluidos)
+        licencia.write_bytes(b"# GPL\r\n")                                           # otro contenido: no se excluye
+        en_alcance, _ = cs.resolve_scope(str(proj), publish)
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" in en_alcance
+    print("test_panel_manifest_entry_tolerates_git_line_ending_conversion: OK")
+
+
+def test_panel_manifest_binary_or_js_is_compared_as_is():
+    # El Chart.js minificado no es texto del repo: solo cuenta el hash exacto (no se normaliza CRLF).
+    with tempfile.TemporaryDirectory() as tmp:
+        js = Path(tmp) / "chart.umd.min.js"
+        js.write_bytes(b"a\nb")
+        exacto = hashlib.sha256(b"a\nb").hexdigest()
+        assert cs._sha_coincide(js, exacto)
+        js.write_bytes(b"a\r\nb")
+        assert not cs._sha_coincide(js, exacto)
+        md = Path(tmp) / "LICENSE.md"
+        md.write_bytes(b"a\r\nb")
+        assert cs._sha_coincide(md, exacto)
+    print("test_panel_manifest_binary_or_js_is_compared_as_is: OK")
+
+
 def test_panel_marker_matches_the_exporter():
     # La copia del literal en confluence-scope.py debe ser la que escribe plugin-panel.
     spec = importlib.util.spec_from_file_location("panel_pages_marker", ROOT / "skills/plugin-panel/scripts/panel_pages.py")
@@ -611,6 +646,8 @@ def main():
         test_panel_export_folder_is_out_of_scope_wherever_it_lives,
         test_panel_manifest_only_excludes_the_files_it_lists,
         test_panel_marker_matches_the_exporter,
+        test_panel_manifest_entry_tolerates_git_line_ending_conversion,
+        test_panel_manifest_binary_or_js_is_compared_as_is,
         test_panel_manifest_entry_needs_matching_hash,
         test_panel_manifest_without_a_real_panel_beside_it_excludes_nothing,
         test_real_panel_export_excludes_license,

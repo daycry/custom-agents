@@ -262,14 +262,23 @@ def _ruta_listada_valida(ruta):
     return all(parte not in ("", ".", "..") for parte in ruta.split("/"))
 
 
+_SUFIJOS_TEXTO = (".md", ".txt", ".html", ".json")   # Git puede convertirles el fin de línea; Chart.js (.js) se escribe tal cual
+
+
 def _sha_coincide(fichero, declarado):
-    """True solo si `fichero` es un fichero regular cuyo sha256 es el declarado por el manifiesto."""
+    """True solo si `fichero` es un fichero regular cuyo sha256 es el declarado por el manifiesto. Tolera la
+    conversión de fin de línea de Git (CRLF <-> LF) solo en ficheros de texto: vale el hash de los bytes tal
+    cual o el de los bytes con CRLF normalizado a LF."""
     if not isinstance(declarado, str) or not fichero.is_file() or fichero.is_symlink():
         return False
     try:
-        return hashlib.sha256(fichero.read_bytes()).hexdigest() == declarado.lower()
+        datos = fichero.read_bytes()
     except OSError:
         return False
+    declarado = declarado.lower()
+    if hashlib.sha256(datos).hexdigest() == declarado:
+        return True
+    return fichero.suffix.lower() in _SUFIJOS_TEXTO and hashlib.sha256(datos.replace(b"\r\n", b"\n")).hexdigest() == declarado
 
 
 def panel_export_files(docs_root, root):
