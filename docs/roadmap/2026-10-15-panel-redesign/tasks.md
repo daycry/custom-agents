@@ -39,7 +39,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Base común | 15 | 16 | 94% | 0 / 28,8h | 2,15 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
+| Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 0 | 17 | 0% | 0 / 58,4h | 0 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 0 | 10 | 0% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
 | Fase 3 — Agentes en vivo + cierre transversal | 0 | 15 | 0% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
@@ -53,7 +53,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 1 — Base común
 
-**Estado**: en-progreso · **Estimado**: 28,8h humanas · 10,5h IA · **Real**: — · **Coste est.**: 1.513 € referencia · ≈ 255 € ejecución · **Tokens est.**: 5,58 M
+**Estado**: completado (2026-10-15) · **Estimado**: 28,8h humanas · 10,5h IA · **Real**: 3,99h IA medida (T-05..T-08 sin medir) · **Coste est.**: 1.513 € referencia · ≈ 255 € ejecución · **Tokens est.**: 5,58 M
 
 Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la primera revisión de CA-44). Aplica D-A1 = O1.
 
@@ -553,9 +553,10 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 ### T-16 — Cierre de la Fase 1: revisión de dos lentes y revisión visual del usuario (M-01)
 
 - **Descripción**: Puerta de la fase: suites de CA-44, linter y evals en verde; revisión adversarial de dos lentes sobre el diff de la fase (Lente C si `review-lens-select.py` la activa: toca CSP y servidor); bucle acotado a 3 con Minor al backlog; y el usuario revisa la fase en el navegador (M-01) antes de abrir la Fase 2.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-15
 - **Tiempo humano**: est. 1,8h · real —
-- **Tiempo IA (ejec.)**: est. 6,3h · real — (revisión + corrección, f = 1,5)
+- **Tiempo IA (ejec.)**: est. 6,3h · real 1,84h (medido: fix1 0,26 + fix2 0,90 + fix3 0,26 + fix4 0,42; fix1 solo cubre el cierre; las revisiones de las lentes no se midieron por tarea) (revisión + corrección, f = 1,5)
 - **Supervisión**: est. 2,6h (≈25 % IA + 1h de revisión manual) · real —
 - **Previsión IA**: 2,88 M in / 469k out tok · 44,08 €
 - **Dependencias**: T-01..T-15
@@ -569,14 +570,14 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
   - lectura: sección «Revisión de dos lentes — intento N: …» de la Fase 1 sin Critical ni Important abiertos, y línea «Revisión visual del usuario — Fase 1: aprobada AAAA-MM-DD» con el resultado de M-01
 
 **Criterios de aceptación**
-- [ ] CA-44 de la Fase 1: suites, linter y evals en verde.
-- [ ] Revisión de dos lentes cerrada en ≤ 3 intentos; Minor anotados al backlog, no bloqueantes.
-- [ ] El usuario aprueba M-01 en el navegador (servido y exportado).
+- [x] CA-44 de la Fase 1: suites, linter y evals en verde.
+- [x] Revisión de dos lentes cerrada en ≤ 3 intentos; Minor anotados al backlog, no bloqueantes.
+- [x] El usuario aprueba M-01 en el navegador (servido y exportado).
 
 **Subtareas**
-- [ ] Ejecutar suites y puertas.
-- [ ] Despachar `adversarial-review` sobre el diff de la fase.
-- [ ] Pedir al usuario M-01 y anotar el resultado.
+- [x] Ejecutar suites y puertas.
+- [x] Despachar `adversarial-review` sobre el diff de la fase.
+- [x] Pedir al usuario M-01 y anotar el resultado.
 
 **Notas**: el contador de intentos y el worklog `[revisión]` son del orquestador. Cabecera de revisión con el formato `intento N: …` sin paréntesis tras N (la leen `jira-flow`/`task-brief`).
 
@@ -586,6 +587,9 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 **Bucle de corrección — intento 3** (clave `2026-10-15-panel-redesign/T-16-fix3`, abierta al empezar: **0,26 h IA (medido)**, 3,34 €): cinco gaps 3-1..3-5 reproducidos y corregidos con TDD (RED/GREEN en la tabla); ninguno rechazado. Tests nuevos: `tests/test_panel_fix3.py`, `tests/test_confluence_scope.py`, `tests/test_hook_supervisor.py`. Tocados: `skills/plugin-panel/scripts/{serve_panel,panel_pages}.py`, `skills/confluence-publish/scripts/confluence-scope.py`. Verificación: `lint_plugin` 0 errores · 8 avisos (los mismos); `export-interop --check` 88 al día; `evals/check` 0 errores; `ledger-lint` 0 incoherencias; `scope-check --base 14ef84b` exit 0, fuera de alcance (0); suites del panel, confluence, redact, supervisor, graphiti, copias, console_encoding → todas verdes; `node --test tests/opencode-plugin.test.mjs` → 21 pass · 0 fail.
 
 **Bucle de corrección — intento 2** (clave de medición `2026-10-15-panel-redesign/T-16-fix2`, abierta al empezar: **0,9 h IA medidas**, 8,22 € (medido), tokens completos del transcript): los nueve gaps 2-1..2-9 se reprodujeron contra el código y se corrigieron con TDD (RED y GREEN por gap en la tabla del intento 2); ninguno rechazado. Añadida a petición del usuario la fila 2-10 (defensa de `_route` con test propio; RED por mutación temporal). Tests nuevos: `tests/test_panel_fix2.py` (2-3..2-5, 2-7, 2-10 y TOCTOU de 2-4), `agent-kits/shared/test_redact.py` (2-2), `tests/test_confluence_scope.py` (2-6), `tests/test_hook_supervisor.py` (2-8). Tocados: `agent-kits/shared/redact.py`, `skills/plugin-panel/scripts/{serve_panel,panel_pages,build_panel}.py`, `skills/confluence-publish/scripts/confluence-scope.py` (+ dos referencias), `hooks/runtime-supervisor.py` (E2: `hooks/` tocado; `export-interop.py --check` → «88 ficheros al día», sin cambios de interop). Decisiones: 2-3 sanea `api/memory` y `api/review/*` en el servidor con el saneador único (`api/activity` solo expone enums, hashes y números: sin cambio); 2-4 deja como riesgo residual la ventana mínima entre la comprobación y el `unlink` (sin descriptores relativos en Windows); 2-7 aborta (exit 2) ante punto o espacio final y salta sin borrar la entrada que solo difiere en mayúsculas (exit 0, manifiesto nuevo coherente con Chart.js listado). Verificación del bucle: suites del panel + `test_dashboard` + `test_confluence_scope` + `test_redact` + `test_hook_supervisor` + `test_copias_declaradas` + `test_graphiti_security` + `test_console_encoding` + `test_skill_size` → `1549 passed, 4 skipped` (y `test_panel_fix2` + graphiti/consola/copias/skill-size de nuevo tras 2-10 → `812 passed`); `lint_plugin.py` → `0 errores · 8 avisos` (los mismos 8, de `docs/` con `/skills`); `export-interop.py --check` → `88 ficheros al día`; `evals/check.py` → `0 errores`; `node --test tests/opencode-plugin.test.mjs` → 20 pass · 1 fail (`Windows teardown completes when PATH omits system tools`: el test espera salida TAP `# pass 1` y Node 23.8 imprime el reporter por defecto; fallo de entorno ajeno a este diff, sin JS tocado). **Salida real de `scope-check` (post-cambios de este bucle, sustituye la afirmación del intento 1)**: `python agent-kits/shared/scope-check.py docs/roadmap/2026-10-15-panel-redesign --base 14ef84b` → exit 0 · «122 fichero(s) cambiado(s) · 285 patrón(es) declarados en Archivos» · «✅ en alcance (121)» (el ledger cuenta aparte) · «❌ fuera de alcance (0): —» · sin avisos ⚠️.
+
+**Verificación ejecutada (2026-10-15, HEAD `70ba946`):** réplica de `ci.yml` en `python:3.11-slim` (`git -c core.autocrlf=false archive`): `lint_plugin` exit 0 · `evals/check` exit 0 · pytest **7955 passed, 54 skipped, 0 failed** · bench p95 7,58 ms (exit 0) · `export-interop --check` «88 ficheros al día» · `node --test` **329 pass, 0 fail**. En Windows, todas las suites del panel por tandas en verde; `scope-check --base 14ef84b` exit 0 (0 fuera de alcance). Revisión: 3 intentos más 2 confirmaciones, sin Critical ni Important abiertos; 3 Minor (M-F1-1..3) al backlog de la Fase 2; deuda del gap 6 aceptada por el usuario y verificada por mutación. M-01 aprobado por el usuario.
+
 ---
 
 ## Fase 2 — Inicio, Iniciativas y Plan
@@ -1745,3 +1749,13 @@ Decisión: corregir (orquestador, 2026-10-15, siguiendo la recomendación al usu
 | C-1 | Important | Regresión de fix3: la lista blanca `_DISPLAY_KEYS` deja fuera `area`, `category`, `estado` y `tipo` de `api/memory` (texto libre del frontmatter que `panel-memory.js:66-70` muestra y que con fix2 se anonimizaba); `initiative` de `api/review` también, aunque es un slug acotado por regex (CWE-359) | T-11 | corregido: la lista blanca `_DISPLAY_KEYS` cubre ahora TODO texto libre que el panel muestra y no vuelve al servidor: `tipo`, `estado`, `estado_detalle`, `titular`, `area`, `category`, `evidencia`, `ruta`, `texto`, `relation` (memoria; inventario contra `panel-memory.js:51-70,100-120` y `knowledge-view.py` `compact`) y `title`/`text` de `sections`, `response_text`, `note` (revisión). `initiative` NO se toca (decisión con evidencia: el anonimizador no casa un usuario unido por guiones a otras palabras, así que sería un no-op, y es la identidad pública de la iniciativa; el JS solo exige `string`). Queda intacto lo que vuelve al servidor o valida por vocabulario (`id`, `origen`, `source_sha256`, `runtime`, `caller_id`, hashes, `draft_comments`, `decision.comments[].text`). Test de contrato por respuesta completa de `api/memory` y `api/review` con usuario/home/correo plantado en cada campo y las dos listas explícitas: un campo sin clasificar falla. | `serve_panel.py:132-133`; sonda: `area: jdoeuser /home/jdoeuser/x jdoe@example.org` llega intacto con fix3 y sale `<usuario> ~/x <correo>` con 95c72d3  **Evidencia de la corrección:** `RED: tests/test_panel_fix4.py::test_contrato_memoria_cada_campo_mostrado_anonimizado_y_el_resto_intacto y ::test_contrato_revision_… fallaron (area/category/estado/tipo/ruta/relation sin anonimizar; `note` sin tope) · 2026-10-15`; GREEN: `pytest tests/test_panel_fix4.py` → `5 passed` |
 | C-2 | Minor | El cotejo de sha256 deja de excluir el `LICENSE.md` del panel si el consumidor versiona `docs/roadmap/panel/` y Git for Windows lo saca con CRLF (el exportador escribe LF) | T-14 | corregido: `_sha_coincide` acepta el sha256 de los bytes tal cual O el de los bytes con CRLF normalizado a LF, solo para ficheros de texto (`.md .txt .html .json`); Chart.js (`.js`) se compara tal cual. | `confluence-scope.py:270-271,303`  **Evidencia de la corrección:** `RED: tests/test_confluence_scope.py::test_panel_manifest_entry_tolerates_git_line_ending_conversion y ::test_panel_manifest_binary_or_js_is_compared_as_is fallaron (LICENSE.md con CRLF en alcance) · 2026-10-15`; GREEN: `pytest tests/test_confluence_scope.py` → `33 passed` (LICENSE.md reescrito con CRLF sigue excluido; contenido distinto no) |
 | C-3 | Minor | Anonimizar alarga el texto (`<usuario>` es más largo que un usuario corto): un `titular` de 160 caracteres o un `response_text` cerca de 1.000 pasa del tope de los validadores del JS y el panel rechaza toda la respuesta (viene de fix2) | T-11 | corregido: `_scrubbed` recorta DESPUÉS de anonimizar, en el servidor, a los topes de los validadores (`_CAPS`: 160 en campos cortos, 1.000 en `evidencia`/`ruta`, 12.000 en `texto`, `response_text` 1.000 car./2.048 bytes, `note` 500/1.024) con `_clip`, que no parte una marca (`<usuario>`, `<correo>`) ni un carácter. El módulo no usaba indicador de recorte (solo `[:limit]`); no se añade. | `panel-memory.js:21`, `panel-review.js:24`  **Evidencia de la corrección:** `RED: tests/test_panel_fix4.py::test_titular_de_160_… y ::test_response_text_de_mil_… fallaron (response_text de 2.500 caracteres tras anonimizar; sin `_clip`) · 2026-10-15`; GREEN: `pytest tests/test_panel_fix4.py` → `5 passed` (respuestas reales del servidor pasan los validadores de `panel-memory.js` y `panel-review.js` en el arnés Node) |
+
+**Confirmación de fix4 (diff `cb405d3..HEAD`, 70ba946, lentes A+B+C, 2026-10-15): 0 Critical, 0 Important, 3 Minor.** C-1 y C-2 quedan cerradas con test. C-3 queda parcial y pasa a M-F1-1. Lente C sin hallazgos: no hay fuga de PII en `api/memory` ni en `api/review`, y la tolerancia CRLF no permite excluir contenido distinto. Los Minor no bloquean el cierre (skill `adversarial-review` §3) y pasan al backlog de la Fase 2, que vuelve a tocar `serve_panel.py` y la revisión (T-56, T-58):
+
+| # | Grado | Gap | Destino | Evidencia |
+|---|---|---|---|---|
+| M-F1-1 | Minor | Tope agregado de `feedbackValid` (16.384 bytes de `response_text`, 4.096 de `note`, 65.536 del historial): `_clip` recorta campo a campo, y anonimizar puede pasar la suma, con lo que el panel rechaza la revisión entera | T-56 (servidor), backlog | `serve_panel.py:162-177`; `panel-review.js:39`; sonda: 16.260 → 16.420 bytes |
+| M-F1-2 | Minor | El test de contrato de C-1 usa fixtures escritas a mano: un campo nuevo del productor (`knowledge-view.compact`, `plan-review`) no lo hace fallar si no se añade también a la fixture | T-56/T-58, backlog | `tests/test_panel_fix4.py:33-49,92-102` |
+| M-F1-3 | Minor | `_clip` puede partir la marca `[secreto redactado]` del redactor (solo estético: el secreto no se filtra) | T-56, backlog | `serve_panel.py:146,153-158`; `redact.py:34` |
+
+Bucle de revisión de la Fase 1 cerrado: 3 intentos y 2 confirmaciones, sin gaps Critical ni Important pendientes. La deuda del gap 6 la aceptó el usuario y se verificó por mutación.
