@@ -110,9 +110,12 @@ def test_csp_solo_en_exportado_con_la_politica_decidida_en_t03(pp):
 
 def test_cabecera_de_modo(pp):
     exportado = pp.render_page('inicio', modo='exportado', generado='2026-10-15 10:00 UTC', datos={})
-    assert 'Instantánea' in exportado and '2026-10-15 10:00 UTC' in exportado
+    # Petición del usuario tras la revisión visual M-01: el aviso dice que es una copia estática y cómo verla en vivo.
+    assert 'Copia estática del 2026-10-15 10:00 UTC' in exportado
+    assert 'para verla en vivo, abre el panel servido con <code>/plugin-catalog --serve</code>' in exportado
+    assert 'Instantánea del' not in exportado and 'no se actualiza sola' not in exportado
     servido = pp.render_page('inicio', modo='servido', generado='2026-10-15 10:00 UTC', datos={})
-    assert 'Servido' in servido and 'Instantánea' not in servido
+    assert 'Servido' in servido and 'Copia estática' not in servido and 'Instantánea' not in servido
     with pytest.raises(ValueError):
         pp.render_page('inicio', modo='otro', generado='x', datos={})
     with pytest.raises(ValueError):
@@ -126,10 +129,10 @@ def test_cuerpo_se_inserta_tal_cual_y_el_titulo_se_escapa(pp):
 
 
 def test_scripts_son_ficheros_en_orden_y_chart_solo_si_esta_disponible(pp):
-    con = pp.render_page('inicio', modo='exportado', generado='x', datos={}, chart_ok=True)
+    con = pp.render_page('agentes', modo='exportado', generado='x', datos={}, chart_ok=True)
     srcs = re.findall(r'<script src="([^"]+)"', con)
     assert srcs == ['vendor/chart.js/chart.umd.min.js', 'assets/panel-core.js', 'assets/panel-charts.js']
-    sin = pp.render_page('inicio', modo='exportado', generado='x', datos={}, chart_ok=False)
+    sin = pp.render_page('agentes', modo='exportado', generado='x', datos={}, chart_ok=False)
     assert re.findall(r'<script src="([^"]+)"', sin) == ['assets/panel-core.js', 'assets/panel-charts.js']
     def dato(h):
         return json.loads(re.search(r'id="panel-data">(.*?)</script>', h, re.S).group(1))['chartjs_disponible']

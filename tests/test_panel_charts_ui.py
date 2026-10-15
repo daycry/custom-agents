@@ -141,6 +141,26 @@ assert.deepEqual(ds.map(d=>d.label),['S1','S2','S3','S4','S5','S6']);
 assert.equal(creados[0].config.options.plugins.legend.display,true);
 assert.deepEqual(celdas(tag(tag(c,'table')[0],'thead')[0].children[0]),['Categoría','S1','S2','S3','S4','S5','S6']);
 ''',
+    'sin_datos_filas_en_la_tabla_y_fuera_de_las_barras': '''
+global.Chart=FakeChart;
+const c=nuevo();
+Charts.dibujar(c,spec({etiquetas:['A','B'],series:[{nombre:'Real',valores:[3,null]},{nombre:'Est',valores:[4,5]}],sinDatos:['C','D']}));
+const fig=tag(c,'figure')[0];
+const filas=tag(tag(fig,'table')[0],'tbody')[0].children.map(celdas);
+assert.deepEqual(filas,[['A','3','4'],['B','sin datos','5'],['C','sin datos','sin datos'],['D','sin datos','sin datos']]);
+assert.deepEqual(creados[0].config.data.labels,['A','B'],'las iniciativas sin datos no entran en las barras');
+assert.deepEqual(creados[0].config.data.datasets.map(d=>d.data),[[3,null],[4,5]]);
+assert.equal(walk(fig,n=>n.className.includes('sin-datos')).length,2+3,'una celda ausente por serie y fila sin datos');
+''',
+    'solo_filas_sin_datos_no_dibuja_el_grafico_pero_las_lista': '''
+global.Chart=FakeChart;
+const c=nuevo();
+Charts.dibujar(c,spec({etiquetas:[],series:[{nombre:'Real',valores:[]}],sinDatos:['C']}));
+assert.equal(creados.length,0);
+const fig=tag(c,'figure')[0];
+assert.match(walk(fig,n=>n.className.includes('ausencia'))[0].textContent,/sin datos/i);
+assert.deepEqual(tag(tag(fig,'table')[0],'tbody')[0].children.map(celdas),[['C','sin datos']]);
+''',
     'sin_animaciones_y_sin_red': '''
 global.Chart=FakeChart;
 const c=nuevo();Charts.dibujar(c,spec());

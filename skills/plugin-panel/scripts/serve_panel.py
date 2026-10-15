@@ -50,6 +50,10 @@ def _load_memory():
     return _load_shared('knowledge-view.py')
 
 
+def _load_data():
+    return _load('panel_service_data', HERE / 'panel_data.py')
+
+
 def _load_review():
     return _load_shared('plan-review.py')
 
@@ -119,6 +123,15 @@ def _unavailable_memory(operation):
             'related': None, 'budget': {'files': 0, 'bytes': 0, 'entries': 0}}
 
 
+def _unavailable_cartera():
+    return {'version': 1, 'source': 'roadmap_cartera', 'status': 'unavailable', 'complete': False,
+            'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+            'issues': [{'status': 'reader_unavailable'}], 'iniciativas': [],
+            'totales': {'iniciativas': 0, 'por_estado': {}, 'tareas': None, 'fuera_de_tope': [],
+                        'coste': {'real_eur': None, 'real_n': 0, 'est_eur': None, 'est_n': 0},
+                        'procedencia': {'medidos': 0, 'estimados': 0, 'desconocidos': 0}}}
+
+
 def _encoded(value):
     return json.dumps(value, ensure_ascii=False, allow_nan=False).encode('utf8')
 
@@ -130,9 +143,13 @@ def _encoded(value):
 # the user's own comments and drafts: `draft_comments`, `decision.comments[].text`) is left verbatim:
 # the user wrote them in this very session and they return in Save/Decide, so anonymizing them would
 # corrupt what the panel delivers to the agent.
+# `api/cartera` (panel_data.cartera): `slug`, `titulo`, `literal` (estado de spec no reconocido) y `est_texto`
+# (coste estimado tal como lo escribe `evaluation.md`) son texto del repo que solo se muestra. Todo lo demas de
+# esa respuesta (`id`, `categoria`, `ledger`, `motivo`, `codigo`, `fecha`, `status`, `issues`...) es vocabulario
+# cerrado o numeros y queda intacto: un usuario llamado `ilegible` no puede romper los filtros de las paginas.
 _DISPLAY_KEYS = frozenset(('titular', 'texto', 'evidencia', 'estado_detalle', 'ruta',
                            'tipo', 'estado', 'area', 'category', 'relation',
-                           'response_text', 'note'))
+                           'response_text', 'note', 'slug', 'titulo', 'literal', 'est_texto'))
 _SECTION_KEYS = frozenset(('title', 'text'))
 # Ceilings the browser validators enforce on each displayed field, as (code points, UTF-8 bytes or None):
 # `panel-memory.js` (`string(...,160|1000|12000)`) and `panel-review.js` (`noteValid`: 1000/2048 for an
@@ -141,7 +158,8 @@ _SECTION_KEYS = frozenset(('title', 'text'))
 _CAPS = {'titular': (160, None), 'estado_detalle': (160, None), 'area': (160, None), 'tipo': (160, None),
          'estado': (160, None), 'category': (160, None), 'relation': (160, None),
          'evidencia': (1000, None), 'ruta': (1000, None), 'texto': (12000, None),
-         'response_text': (1000, 2048), 'note': (500, 1024)}
+         'response_text': (1000, 2048), 'note': (500, 1024),
+         'slug': (80, None), 'titulo': (160, None), 'literal': (48, None), 'est_texto': (120, None)}
 _MARKS = re.compile(r'<(?:usuario|correo)>')
 
 
@@ -320,6 +338,20 @@ class PanelServer(HTTPServer):
             self._snapshot_at = now
         return self._snapshot
 
+    def cartera(self):
+        """Roadmap portfolio for Inicio and Iniciativas: panel_data owns the projection, the single scrubber
+        cleans the displayed text after it, and a short cache keeps several tabs from rescanning the roadmap."""
+        now = time.monotonic()
+        if self._cartera is None or now - self._cartera_at >= 2:
+            try:
+                body = _encoded(_scrubbed(_load_data().cartera(self.project), self.scrub))
+                if len(body) > MAX_RESPONSE_BYTES:
+                    raise ValueError('response budget')
+            except Exception:
+                body = _encoded(_unavailable_cartera())
+            self._cartera, self._cartera_at = body, now
+        return self._cartera
+
     def activity(self):
         try:
             body = _encoded(activity_snapshot(self.project))
@@ -456,6 +488,8 @@ class PanelHandler(BaseHTTPRequestHandler):
             self._reply(200, self.server.assets[route][0], self.server.assets[route][1])
         elif route == 'api/progress':
             self._reply(200, self.server.snapshot(), 'application/json; charset=utf-8')
+        elif route == 'api/cartera':
+            self._reply(200, self.server.cartera(), 'application/json; charset=utf-8')
         elif route == 'api/activity':
             self._reply(200, self.server.activity(), 'application/json; charset=utf-8')
         elif (review := self._review_route(route, ('view', 'status'))) is not None:
@@ -560,6 +594,7 @@ def create_server(project, inventory, *, port=0, review_selection=None, scrub=No
         server.capability = secrets.token_urlsafe(32)
         server.access_prefix = '/' + server.capability + '/'
         server._snapshot = None; server._snapshot_at = 0
+        server._cartera = None; server._cartera_at = 0
         server.csp = pages.CSP_SERVIDO.format(nonce=nonce)
         server.warnings = warnings
         bodies = builder.cuerpos_paginas(inventory, live=True, review_enabled=review_selection is not None,

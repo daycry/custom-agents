@@ -73,6 +73,7 @@ def test_la_exportacion_escribe_siete_paginas_assets_vendor_y_manifiesto(panel, 
     rutas = {f['ruta']: f for f in manifiesto['ficheros']}
     assert set(rutas) == set(PAGINAS) | {'assets/panel.css', 'assets/panel-core.js', 'assets/panel-charts.js',
                                           'assets/page-catalogo.js', 'assets/page-diagnostico.js',
+                                          'assets/page-cartera.js', 'assets/page-inicio.js', 'assets/page-iniciativas.js',
                                           'vendor/chart.js/chart.umd.min.js', 'vendor/chart.js/LICENSE.md',
                                           'vendor/chart.js/PROVENANCE.json'}
     for ruta, ficha in rutas.items():

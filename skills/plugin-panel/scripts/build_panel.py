@@ -808,6 +808,33 @@ def _seccion_revision(review_id):
 <p class="filter-note">Cerrar conserva el borrador y no crea una decisión. Este panel no inicia agentes ni acredita QA.</p></section>'''
 
 
+def _cuerpo_inicio():
+    """Esqueleto de Inicio: lo rellena `page-inicio.js` con la cartera (api/cartera o el JSON incrustado)."""
+    return (
+        '<p id="cartera-estado" class="filter-note" role="status" aria-live="polite">Leyendo la cartera…</p>'
+        '<section id="cartera-estados"><div class="section-head"><div><h2>Iniciativas por estado de spec</h2>'
+        '<p>Cuántas iniciativas hay en cada estado de su spec. Una spec ilegible no cuenta en ningún estado.</p></div></div>'
+        '<div id="grafico-estados"></div>'
+        '<noscript><p>Sin JavaScript no se leen las cifras de la cartera ni se dibuja el gráfico.</p></noscript></section>'
+        '<section id="cartera-avance"><h2>Avance global</h2><p id="avance-global" role="status">Sin datos todavía.</p>'
+        '<div id="avance-fuera-de-tope"></div></section>'
+        '<section id="cartera-coste"><h2>Coste real frente al estimado</h2><div id="coste-cartera"></div>'
+        '<p id="coste-procedencia"></p></section>')
+
+
+def _cuerpo_iniciativas():
+    """Esqueleto de Iniciativas: lo rellena `page-iniciativas.js` con la cartera (api/cartera o el JSON incrustado)."""
+    return (
+        '<p id="cartera-estado" class="filter-note" role="status" aria-live="polite">Leyendo la cartera…</p>'
+        '<section id="iniciativas-kanban"><div class="section-head"><div><h2>Iniciativas por estado de spec</h2>'
+        '<p>Solo lectura: una columna por estado y una tarjeta por iniciativa. La tarjeta con plan lleva a su Plan.</p></div></div>'
+        '<div id="kanban-iniciativas" class="kanban"></div>'
+        '<noscript><p>Sin JavaScript no se leen las iniciativas.</p></noscript></section>'
+        '<section id="iniciativas-graficos"><div class="section-head"><div><h2>Horas y coste por iniciativa</h2>'
+        '<p>Real frente a estimado. Una iniciativa sin datos aparece en la tabla como «sin datos» y no en las barras.</p></div></div>'
+        '<div id="grafico-horas"></div><div id="grafico-coste"></div></section>')
+
+
 def cuerpos_paginas(data, *, live=False, review_enabled=False, review_id='', actividad=True):
     """Cuerpo HTML (ya escapado) de cada una de las 7 páginas, por slug.
 
@@ -820,8 +847,10 @@ def cuerpos_paginas(data, *, live=False, review_enabled=False, review_id='', act
     cuerpos['catalogo'] = _cuerpo_catalogo(data, live)
     cuerpos['diagnostico'] = _diagnostics_html(data.get('diagnostics', {'status': 'not_provided'}))
     cuerpos['agentes'] = _seccion_actividad(live, actividad)
+    cuerpos['inicio'] = _cuerpo_inicio()
+    cuerpos['iniciativas'] = _cuerpo_iniciativas()
     if live:
-        cuerpos['inicio'] = _seccion_progreso()
+        cuerpos['inicio'] += _seccion_progreso()
         cuerpos['plan'] = _seccion_progreso() + (_seccion_revision(review_id) if review_enabled else '')
         cuerpos['memoria'] = _seccion_memoria()
     return cuerpos
@@ -859,10 +888,22 @@ def _scrubber(args):
     return lambda text: ANONIMIZAR(REDACTOR(text), roots, homes, user)
 
 
-def _export(args, data):
+def _cartera_exportada(args, scrub):
+    """Cartera para la copia estática: la proyecta `panel_data` y la limpia el MISMO saneador que el servidor
+    (`serve_panel._scrubbed`). Sin `--project` no hay roadmap que leer y la página lo dice."""
+    if not args.project:
+        return None
+    try:
+        servicio = _load_server()
+        return servicio._scrubbed(servicio._load_data().cartera(Path(args.project)), scrub)
+    except (OSError, ValueError, ImportError, AttributeError, SyntaxError):
+        return None
+
+
+def _export(args, data, cartera=None):
     pages = _load_pages()
     written, warnings = pages.exportar_sitio(args.export, data, unsafe_link=_unsafe_link,
-                                             cuerpos=cuerpos_paginas(data))
+                                             cuerpos=cuerpos_paginas(data), cartera=cartera)
     for warning in warnings:
         print(f'plugin-panel: aviso: {warning}', file=sys.stderr)
     return written
@@ -915,7 +956,7 @@ def main(argv=None):
                          'gate_key': args.review_gate_key or 'requested-review'} if args.review_initiative else None
             return server.run(args.project, data, port=args.port or 0, review_selection=selection, scrub=scrub)
         if args.export:
-            written = _export(args, data)
+            written = _export(args, data, _cartera_exportada(args, scrub))
             print(f'plugin-panel: exportados {len(written)} ficheros (7 páginas, assets y vendor) con su export-manifest.json',
                   file=sys.stderr if args.json else sys.stdout)
         if args.json or not args.export:

@@ -40,10 +40,10 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
-| Fase 2 — Inicio, Iniciativas y Plan | 0 | 17 | 0% | 0 / 58,4h | 0 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
+| Fase 2 — Inicio, Iniciativas y Plan | 4 | 17 | 24% | 0 / 58,4h | 1,42 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 0 | 10 | 0% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
 | Fase 3 — Agentes en vivo + cierre transversal | 0 | 15 | 0% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **15** | **58** | **26%** | **0 / 159,2h** | **2,15 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| **TOTAL** | **20** | **58** | **34%** | **0 / 159,2h** | **5,41 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -594,7 +594,7 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 
 ## Fase 2 — Inicio, Iniciativas y Plan
 
-**Estado**: borrador · **Estimado**: 58,4h humanas · 19,1h IA · **Real**: — · **Coste est.**: 3.054 € referencia · ≈ 447 € ejecución · **Tokens est.**: 10,16 M (antes de la enmienda: 36,0h · 10,8h IA · 1.876 € · ≈ 261 € · 5,74 M)
+**Estado**: en-progreso · **Estimado**: 58,4h humanas · 19,1h IA · **Real**: — · **Coste est.**: 3.054 € referencia · ≈ 447 € ejecución · **Tokens est.**: 10,16 M (antes de la enmienda: 36,0h · 10,8h IA · 1.876 € · ≈ 261 € · 5,74 M)
 
 Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 2026-10-15: revisión del plan desde el panel; `design.md` §8). Incluye el campo `- **Cerrada**:` del diseño (I-02), que la evaluación dejaba fuera: diferencia declarada en `improvement-plan.md`.
 
@@ -603,103 +603,125 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 ### T-17 — `api/cartera` y proyección de cartera con las cifras de `--json`
 
 - **Descripción**: `panel_data.cartera()` importa `build_dashboard.py` (`scan` + `vista_json`) y `progress-report.py` y proyecta lo que necesitan Inicio e Iniciativas. En servido, `api/cartera` (≤ 64 iniciativas, ≤ 64 KiB); en exportado, el mismo JSON incrustado.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,4h · real —
-- **Supervisión**: est. 0,1h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,4h · real 0,22h (medido; ventana 19:13–19:33 UTC, 4,78 €)
+- **Supervisión**: est. 0,1h (≈25 % IA) · real n/d
 - **Previsión IA**: 183k in / 30k out tok · 2,80 €
 - **Dependencias**: T-16
 - **Tipo**: backend
-- **Archivos**: `skills/plugin-panel/scripts/panel_data.py`, `skills/plugin-panel/scripts/serve_panel.py`, `tests/test_panel_data.py`, `tests/test_panel_server.py`
+- **Archivos**: `skills/plugin-panel/scripts/panel_data.py`, `skills/plugin-panel/scripts/serve_panel.py`, `tests/test_panel_data.py`, `tests/test_panel_server.py`, `tests/test_panel_fix4.py` (añadido: contrato del saneador para `api/cartera`, cierra M-F1-2 para la API nueva; ver Notas)
 - **Cubre (tests)**: API-01
 - **Verificación**: `python3 -m pytest -q tests/test_panel_data.py tests/test_panel_server.py` → `passed` (cifras iguales a las de `build_dashboard.py --json` y `progress-report.py` sobre la fixture, ejecutando los scripts, no un oráculo copiado)
 
 **Criterios de aceptación**
-- [ ] Por iniciativa: estado de spec, «ilegible» con motivo, N/M tareas, horas y coste real/estimado y procedencia; ausente = `null` + etiqueta, nunca 0.
-- [ ] Los ledgers > 256 KiB salen en una lista aparte y no suman en N ni en M (CA-02).
-- [ ] `api/cartera` ≤ 64 KiB con 64 iniciativas; sin `?` en la ruta.
-- [ ] El panel no recalcula cifras de cartera: las toma de `vista_json`.
+- [x] Por iniciativa: estado de spec, «ilegible» con motivo, N/M tareas, horas y coste real/estimado y procedencia; ausente = `null` + etiqueta, nunca 0.
+- [x] Los ledgers > 256 KiB salen en una lista aparte y no suman en N ni en M (CA-02).
+- [x] `api/cartera` ≤ 64 KiB con 64 iniciativas; sin `?` en la ruta.
+- [x] El panel no recalcula cifras de cartera: las toma de `vista_json`.
 
 **Subtareas**
-- [ ] RED con la fixture de T-01 contra la salida real de los scripts.
-- [ ] Proyección y ruta.
+- [x] RED con la fixture de T-01 contra la salida real de los scripts.
+- [x] Proyección y ruta.
 
-**Notas**: patrón de carga de módulos del bundle `_load_shared` en `skills/plugin-panel/scripts/serve_panel.py:35-40`; snapshot acotado de progreso en `serve_panel.py:120-134` (`progress_snapshot`); lector acotado `agent-kits/shared/local-read.py` (CONTRACTS E35). Lección de `usage-meter-transcripts`: los tests comparan contra el script.
+- **Cerrada**: 2026-10-15
+- **Changelog**: El panel servido ofrece la cartera del roadmap (estado de cada spec, tareas completadas, horas y coste real frente a estimado, procedencia y alertas) con las mismas cifras que el dashboard y el informe de progreso.
+- **Evidencia TDD**: `RED: tests/test_panel_data.py falló con FileNotFoundError: skills/plugin-panel/scripts/panel_data.py (6 failed, 5 errors) · 2026-10-15`; `RED: test_http_api_cartera_proyecta_el_ledger_con_las_cifras_de_progress_report, test_http_api_cartera_cae_en_unavailable_sin_filtrar_la_causa y test_http_api_cartera_pasa_por_el_saneador_unico_del_servidor fallaron con AssertionError (404 en api/cartera; 3 failed) · 2026-10-15`. El contrato de `test_panel_fix4.py` se escribió tras el servidor y se comprobó por mutación: quitar `titulo` de `_DISPLAY_KEYS` lo pone en rojo (`1 failed, 6 passed`).
+
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_data.py tests/test_panel_server.py` → `128 passed in 97.08s`; `... tests/test_panel_fix4.py` → `7 passed in 3.37s`. Las cifras se comparan ejecutando `build_dashboard.py --json` y `progress-report.py line --json` sobre la fixture de T-01 (subprocess), no contra un oráculo copiado.
+
+**Notas**: patrón de carga de módulos del bundle `_load_shared` en `skills/plugin-panel/scripts/serve_panel.py:35-40`; snapshot acotado de progreso en `serve_panel.py:120-134` (`progress_snapshot`); lector acotado `agent-kits/shared/local-read.py` (CONTRACTS E35). Lección de `usage-meter-transcripts`: los tests comparan contra el script. **Notas de implementación (decisiones, sin ADR: afectan solo a la proyección del panel):** (1) `panel_data.cartera()` lista con `local-read.list_names` (tope 128 carpetas, enlaces rechazados), comprueba con `lstat` que ningún artefacto sea enlace ni pase de 1 MiB (tope total del escaneo 16 MiB) y llama a `build_dashboard._scan_una` por carpeta (no `scan()` entero: así una carpeta ilegible no tira la cartera) y a `vista_json(vistos)` para la procedencia; N/M salen de `progress-report.resumir` con el lector acotado de 256 KiB (`ledger: fuera_de_tope` → se lista aparte, N/M `null`). (2) Categorías de spec: los 4 estados exactos de `--json` + `ilegible` (spec sin `estado:`; `motivo` en vocabulario `sin_estado|sin_lectura|fuera_de_tope`) + `sin_spec` (vía rápida) + `no_reconocido` (con `literal`); cada iniciativa cae en UNA categoría. (3) **Coste estimado:** `evaluation.md` lo guarda como texto libre; el panel lo muestra tal cual (`est_texto`, tope 120) y extrae solo el PRIMER importe en euros (`est_eur`, `null` si no hay) para sumar; no hay otra interpretación. El coste real es la suma de los `eur` no nulos de `procedencia.coste` y `real_parcial` si hay coste incompleto. Los totales dicen cuántas iniciativas aportan dato (`real_n`, `est_n`): nunca suman las ausentes como 0. (4) Horas: «producción» = IA + supervisión, sumando solo lo presente (`—` → `null`), como `--metrics-md` pero sin tratar `null` como 0. (5) Alertas por iniciativa, con código y cuenta: `fuera_de_tope`, `gaps_abiertos` (filas de revisión que `ledger-lint.gap_pendiente` da por abiertas), `completado_sin_marcar` (tareas `completado` con `unchecked>0`, el mismo criterio que `ledger-lint`), `sin_estimacion`. (6) Saneado: `slug`, `titulo`, `literal` y `est_texto` se añaden a `_DISPLAY_KEYS`/`_CAPS` de `serve_panel.py`; el resto de la respuesta es vocabulario y queda intacto. `tests/test_panel_fix4.py` gana el contrato de `api/cartera` (respuesta construida con el productor real; M-F1-2 cerrado para la API nueva). (7) La incrustación del mismo JSON en el exportado va en T-18 (que declara ese criterio y toca `panel_pages.py`). (8) Ventana del meter: T-17 cerró a las 19:33:41 UTC y T-18 abrió a las 19:32:49 (≈1 min de solape, no relevante).
 
 ### T-18 — Página Inicio: estados de spec, avance global y real frente a estimado
 
 - **Descripción**: `index.html` muestra el número de iniciativas por estado de spec (gráfico + tabla), el avance global «N de M tareas completadas (P %)» y el coste real frente al estimado con la línea «procedencia: X medidos · Y estimados · Z desconocidos».
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3,6h · real —
-- **Tiempo IA (ejec.)**: est. 0,5h · real —
-- **Supervisión**: est. 0,1h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,5h · real 1,03h (medido; ventana 19:32–19:50 UTC, 8,55 €; incluye el aviso del modo exportado y el verificador de navegador)
+- **Supervisión**: est. 0,1h (≈25 % IA) · real n/d
 - **Previsión IA**: 229k in / 37k out tok · 3,50 €
 - **Dependencias**: T-17
 - **Tipo**: frontend
-- **Archivos**: `skills/plugin-panel/assets/page-inicio.js`, `skills/plugin-panel/scripts/panel_pages.py`, `tests/test_panel_inicio_ui.py`
+- **Archivos**: `skills/plugin-panel/assets/page-inicio.js`, `skills/plugin-panel/assets/page-cartera.js` (añadido: carga y validación de la cartera compartidas con T-19), `skills/plugin-panel/scripts/panel_pages.py`, `skills/plugin-panel/scripts/build_panel.py` (añadido: esqueleto de Inicio y cartera en la exportación), `tests/test_panel_inicio_ui.py`, `tests/test_panel_pages.py`, `tests/test_panel_live_ui.py` (textos del aviso del modo exportado)
 - **Cubre (tests)**: E2E-07, E2E-11
 - **Verificación**: `python3 -m pytest -q tests/test_panel_inicio_ui.py` → `passed` (escenarios: estados variados, ilegible, ledger fuera de tope, sin estimación)
 
 **Criterios de aceptación**
-- [ ] CA-01: cifras por estado iguales a `--json`; la ilegible aparece como «ilegible» y no cuenta en ningún estado.
-- [ ] CA-02: N y M iguales a la suma de `progress-report.py`; ledgers fuera de tope listados aparte.
-- [ ] CA-03: una iniciativa sin estimación no suma 0; la procedencia se cuenta por tipo.
-- [ ] Funciona en servido (vía `api/cartera`) y en exportado (JSON incrustado).
+- [x] CA-01: cifras por estado iguales a `--json`; la ilegible aparece como «ilegible» y no cuenta en ningún estado.
+- [x] CA-02: N y M iguales a la suma de `progress-report.py`; ledgers fuera de tope listados aparte.
+- [x] CA-03: una iniciativa sin estimación no suma 0; la procedencia se cuenta por tipo.
+- [x] Funciona en servido (vía `api/cartera`) y en exportado (JSON incrustado).
 
 **Subtareas**
-- [ ] RED en el arnés Node.
-- [ ] Página y gráficos.
+- [x] Subtarea previa (petición del usuario tras M-01): aviso del modo exportado «Copia estática del … · para verla en vivo, abre el panel servido con `/plugin-catalog --serve`».
+- [x] RED en el arnés Node.
+- [x] Página y gráficos.
 
-**Notas**: arnés en `tests/test_panel_live_ui.py:64-140`; adaptador de gráficos de T-07.
+- **Cerrada**: 2026-10-15
+- **Changelog**: La página Inicio muestra cuántas iniciativas hay en cada estado de spec, el avance global de tareas y el coste real frente al estimado con su procedencia; la copia estática ahora explica cómo verla en vivo.
+- **Evidencia TDD**: `RED: test_cabecera_de_modo (tests/test_panel_pages.py) y test_default_offline_has_no_operational_fetch (tests/test_panel_live_ui.py) fallaron con AssertionError: falta «Copia estática del» · 2026-10-15`; `RED: 9 failed (TypeError: datos_de_pagina() got an unexpected keyword argument 'cartera'; assets/page-inicio.js ausente del export; sin esqueleto de Inicio) en tests/test_panel_inicio_ui.py · 2026-10-15`. Los escenarios de Node escritos tras el JS pasaron a la primera: se comprobó su sensibilidad por mutación (pintar `null` como 0 y no contar iniciativas con dato → 4 failed).
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_inicio_ui.py` → `24 passed in 23.05s`; `tests/test_panel_pages.py tests/test_panel_live_ui.py tests/test_panel_export.py` → `79 passed, 1 skipped`. Navegador (Edge 155 y Firefox 142, servidor real y export en `file://`, fixture de T-01): 0 violaciones de CSP, 0 peticiones externas, 0 errores; gráfico de estados dibujado (píxeles > 0) con su tabla (1·1·1·1·1·1·0), «2 de 3 tareas completadas (67 %)», epsilon listado aparte, «procedencia: 5 medidos · 1 estimados · 0 desconocidos».
+
+**Notas**: arnés en `tests/test_panel_live_ui.py:64-140`; adaptador de gráficos de T-07. **Notas de implementación:** (1) **Aviso del modo exportado (petición del usuario, anotada al final del ledger tras la revisión visual M-01):** `panel_pages._cabecera_modo` pasa de «Instantánea del … · no se actualiza sola» a «Copia estática del … · para verla en vivo, abre el panel servido con `/plugin-catalog --serve`» (el comando en `<code>`); ajustados `test_cabecera_de_modo` y `test_default_offline_has_no_operational_fetch`. Esto sustituye la frase «instantánea: no se actualiza» del caso límite de la spec (fecha de generación + aviso): la fecha se conserva. (2) `panel-data` gana la clave `modo` (`servido|exportado`) para que el JS sepa si consulta `api/cartera` o lee la cartera incrustada (solo exportado, clave `cartera`, ya anonimizada con el mismo saneador que el servidor vía `serve_panel._scrubbed`); sin `--project` no hay clave y la página dice «esta copia estática no incluye la cartera». (3) En servido, Inicio refresca la cartera cada 10 s (sin solaparse, en pausa con la pestaña oculta, un fallo conserva la última vista) y mantiene debajo la sección viva de progreso de T-12. (4) Se añaden `page-cartera.js` (validador con los topes de `serve_panel._CAPS`, carga y formato) y `build_panel._cuerpo_inicio`; ambos fuera del `Archivos` original, declarados arriba.
 
 ### T-19 — Página Iniciativas: kanban de solo lectura con alertas en texto y navegación a Plan
 
 - **Descripción**: `iniciativas.html` muestra un kanban con una columna por estado y una tarjeta por iniciativa: slug, fecha, «N/M tareas (P %)», horas y coste real/estimado y alertas en texto. La tarjeta con plan navega a su Plan con ratón o Enter.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3,6h · real —
-- **Tiempo IA (ejec.)**: est. 0,5h · real —
-- **Supervisión**: est. 0,1h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,5h · real 0,12h (medido; ventana 19:50–19:56 UTC, 3,85 €)
+- **Supervisión**: est. 0,1h (≈25 % IA) · real n/d
 - **Previsión IA**: 229k in / 37k out tok · 3,50 €
 - **Dependencias**: T-17
 - **Tipo**: frontend
-- **Archivos**: `skills/plugin-panel/assets/page-iniciativas.js`, `skills/plugin-panel/scripts/panel_pages.py`, `tests/test_panel_iniciativas_ui.py`, `tests/test_dashboard.py`
+- **Archivos**: `skills/plugin-panel/assets/page-iniciativas.js`, `skills/plugin-panel/assets/panel.css` (añadido: kanban y enlace de tarjeta), `skills/plugin-panel/scripts/panel_pages.py`, `skills/plugin-panel/scripts/build_panel.py` (añadido: esqueleto de Iniciativas), `tests/test_panel_iniciativas_ui.py`, `tests/test_panel_server.py` (añadido: los JS nuevos en la lista de activos), `tests/test_dashboard.py`
 - **Cubre (tests)**: E2E-05, E2E-12
 - **Verificación**: `python3 -m pytest -q tests/test_panel_iniciativas_ui.py` → `passed` (sin `draggable`, sin listeners de arrastre, alertas con texto, enlace `plan-<id16>.html`)
 
 **Criterios de aceptación**
-- [ ] CA-05: solo lectura; ningún control mueve tarjetas ni escribe en fichero.
-- [ ] CA-06: cada alerta (ledger fuera de tope, gaps de revisión abiertos, `completado` con checkboxes sin marcar, sin estimación) lleva su texto.
-- [ ] CA-08: la tarjeta con plan es un enlace activable con Enter que lleva a `plan-<id16>.html`.
-- [ ] Las aserciones retiradas de `render_html` en T-14 tienen su equivalente aquí.
+- [x] CA-05: solo lectura; ningún control mueve tarjetas ni escribe en fichero.
+- [x] CA-06: cada alerta (ledger fuera de tope, gaps de revisión abiertos, `completado` con checkboxes sin marcar, sin estimación) lleva su texto.
+- [x] CA-08: la tarjeta con plan es un enlace activable con Enter que lleva a `plan-<id16>.html`.
+- [x] Las aserciones retiradas de `render_html` en T-14 tienen su equivalente aquí.
 
 **Subtareas**
-- [ ] RED con las alertas de la fixture.
-- [ ] Kanban y navegación.
+- [x] RED con las alertas de la fixture.
+- [x] Kanban y navegación.
 
-**Notas**: alerta de checkboxes sin marcar según `agent-kits/shared/ledger-lint.py:704`; id de iniciativa `sha256(carpeta)[:16]` de `skills/plugin-panel/scripts/serve_panel.py:184`.
+- **Cerrada**: 2026-10-15
+- **Changelog**: La página Iniciativas muestra un kanban de solo lectura con una columna por estado de spec; cada tarjeta lleva fecha, tareas, horas, coste, procedencia y sus alertas en texto, y enlaza a su Plan.
+- **Evidencia TDD**: `RED: 5 failed en tests/test_panel_iniciativas_ui.py (esqueleto ausente: el cuerpo de iniciativas era el marcador provisional y page-iniciativas.js no estaba cableado en panel_pages/build_panel) · 2026-10-15`.
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_iniciativas_ui.py` → `18 passed` (12 de T-19: sin `draggable`, sin listeners de arrastre ni controles, alertas con texto, enlace `plan-<id16>.html`; el resto son de T-20). Navegador (Edge 155 y Firefox 142, servido y `file://`): 0 violaciones de CSP, 0 externas, 0 errores; 6 tarjetas en 6 columnas, 0 elementos `draggable`, Enter sobre el enlace de la tarjeta de `alfa` navega a `plan-c232e7fb147f7bbb.html` (= `sha256('2026-01-10-alfa')[:16]`).
+
+**Notas**: alerta de checkboxes sin marcar según `agent-kits/shared/ledger-lint.py:704`; id de iniciativa `sha256(carpeta)[:16]` de `skills/plugin-panel/scripts/serve_panel.py:184`. **Notas de implementación:** (1) **Navegación a Plan:** la tarjeta con plan lleva un `<a href="plan-<id16>.html">` nativo (patrón de enlace extendido por CSS, `::after` sobre la tarjeta): el ratón activa toda la tarjeta y Enter el enlace enfocado, sin listeners propios. Las páginas `plan-<id16>.html` llegan en T-23: hasta entonces el servidor responde 404 a ese destino y la copia exportada no tiene el fichero (en `file://` la navegación no llega a ninguna página); es lo que pedía el encargo. (2) Columnas: las cuatro de estado de la spec siempre; `Ilegible`, `Sin spec` y `Estado no reconocido` solo si tienen tarjetas. La tarjeta repite «Spec: …» con el motivo de «ilegible» o el literal de «no reconocido». (3) **Equivalente de las aserciones de `render_html` retiradas en T-14** (`1d3d746`/`tests/test_dashboard.py` pre-T-14: tarjeta con procedencia): las cubren `test_la_tarjeta_muestra_slug_fecha_tareas_horas_coste_y_procedencia` («procedencia: N medidos · …», coste real parcial, ausente = «sin datos») y las alertas; `tests/test_dashboard.py` no se toca (su procedencia ya se afirma sobre `--json` y `--md`). (4) El DOM del kanban se conserva entre refrescos si las iniciativas no cambian, para no perder foco ni lectura.
 
 ### T-20 — Iniciativas: gráficos de horas y coste por iniciativa con tabla
 
 - **Descripción**: Dos gráficos en Iniciativas: horas real frente a estimado y coste por iniciativa, cada uno con su tabla. Las iniciativas sin datos aparecen en la tabla con «sin datos» y fuera de las barras.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,3h · real —
-- **Supervisión**: est. 0,1h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,3h · real 0,05h (medido; ventana 19:56–20:02 UTC, 1,48 €)
+- **Supervisión**: est. 0,1h (≈25 % IA) · real n/d
 - **Previsión IA**: 137k in / 22k out tok · 2,10 €
 - **Dependencias**: T-19
 - **Tipo**: frontend
-- **Archivos**: `skills/plugin-panel/assets/page-iniciativas.js`, `tests/test_panel_iniciativas_ui.py`
+- **Archivos**: `skills/plugin-panel/assets/page-iniciativas.js`, `skills/plugin-panel/assets/panel-charts.js` (añadido: filas `sinDatos` solo en la tabla), `tests/test_panel_iniciativas_ui.py`, `tests/test_panel_charts_ui.py` (añadido: escenarios del adaptador)
 - **Cubre (tests)**: E2E-07, E2E-13
 - **Verificación**: `python3 -m pytest -q tests/test_panel_iniciativas_ui.py` → `passed` (iniciativa sin datos: fila «sin datos» en la tabla, ausente del dataset del gráfico)
 
 **Criterios de aceptación**
-- [ ] CA-07: dos gráficos con su tabla equivalente.
-- [ ] CA-40: ningún 0 ni media en lugar de un dato ausente.
+- [x] CA-07: dos gráficos con su tabla equivalente.
+- [x] CA-40: ningún 0 ni media en lugar de un dato ausente.
 
 **Subtareas**
-- [ ] RED; gráficos.
+- [x] RED; gráficos.
 
-**Notas**: adaptador de T-07.
+- **Cerrada**: 2026-10-15
+- **Changelog**: Iniciativas añade dos gráficos, horas y coste por iniciativa (real frente a estimado), cada uno con su tabla; las iniciativas sin datos aparecen en la tabla como «sin datos» y no en las barras.
+- **Evidencia TDD**: `RED: test_adaptador_de_graficos[sin_datos_filas_en_la_tabla_y_fuera_de_las_barras] y [solo_filas_sin_datos_no_dibuja_el_grafico_pero_las_lista] fallaron con AssertionError (el adaptador no conocía spec.sinDatos; 2 failed, 13 passed) · 2026-10-15`; `RED: 6 failed en tests/test_panel_iniciativas_ui.py (figure ausente en #grafico-horas y #grafico-coste) · 2026-10-15`. Mutación: pintar los ausentes como 0 y no separar las iniciativas sin datos → 3 failed.
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_iniciativas_ui.py tests/test_panel_charts_ui.py` → `18 passed` y `15 passed`. Navegador (Edge y Firefox, servido y `file://`): dos `<figure>` con canvas y tabla de 6 filas; en horas, 3 iniciativas en las barras (alfa, gamma, epsilon) y beta/delta/zeta solo en la tabla como «sin datos»; en coste, alfa/gamma/zeta en barras y beta/delta/epsilon como «sin datos»; gamma con real «sin datos» y estimado 1,25 h.
+
+**Notas**: adaptador de T-07. **Notas de implementación:** el adaptador gana la opción `spec.sinDatos` (etiquetas que solo van a la tabla, con «sin datos» en cada serie y fuera del dataset): cambio mínimo en `panel-charts.js` y dos escenarios en `test_panel_charts_ui.py`, declarados arriba. Horas = IA + supervisión reales/estimadas de `vista_json` + `progreso` (no las humanas); coste real = suma de `eur` de la procedencia medida y estimado = primer importe en euros de la evaluación (ver T-17). La tabla muestra el valor sin formato regional («1300 €», «2.5 h»), tal como lo emite el adaptador de T-07; los textos de las tarjetas sí usan el formato español. Los gráficos solo se redibujan si cambian sus cifras.
 
 ### T-21 — `ledger-view.py`: proyección pura de un `tasks.md`
 

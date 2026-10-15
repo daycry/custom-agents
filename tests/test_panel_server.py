@@ -283,7 +283,8 @@ import shutil
 PAGINAS = ['index.html', 'iniciativas.html', 'plan.html', 'agentes.html', 'memoria.html', 'catalogo.html', 'diagnostico.html']
 ACTIVOS_ESTATICOS = ['assets/panel.css', 'assets/panel-core.js', 'assets/panel-charts.js', 'assets/page-catalogo.js',
                      'assets/page-diagnostico.js', 'assets/panel-live.js', 'assets/panel-memory.js',
-                     'assets/panel-activity.js', 'vendor/chart.js/chart.umd.min.js']
+                     'assets/panel-activity.js', 'assets/page-cartera.js', 'assets/page-inicio.js',
+                     'assets/page-iniciativas.js', 'vendor/chart.js/chart.umd.min.js']
 
 
 @pytest.mark.parametrize('pagina', PAGINAS)
@@ -448,3 +449,56 @@ def test_la_pagina_de_plan_lleva_la_revision_cuando_hay_seleccion(service, tmp_p
     seleccion = {'initiative': 'docs/roadmap/x', 'state_root': str(tmp_path / 'estado')}
     with pytest.raises(ValueError, match='bundled review panel asset unavailable'):
         service.create_server(tmp_path, builder.build_inventory(tmp_path, project=None), review_selection=seleccion)
+
+
+# --- T-17: api/cartera ------------------------------------------------------------------------------------
+
+def test_http_api_cartera_proyecta_el_ledger_con_las_cifras_de_progress_report(http_server):
+    status, headers, raw = request(http_server, 'api/cartera')
+    assert status == 200 and headers['Content-Type'] == 'application/json; charset=utf-8'
+    assert headers['Cache-Control'] == 'no-store' and len(raw) <= 65536
+    datos = json.loads(raw)
+    fila, = datos['iniciativas']
+    assert fila['tareas'] == {'total': 2, 'completadas': 1, 'pct': 50} and fila['ledger'] == 'ok'
+    assert fila['categoria'] == 'sin_spec' and fila['horas']['real'] is None and fila['coste']['real_eur'] is None
+    assert datos['totales']['tareas'] == {'completadas': 1, 'total': 2, 'pct': 50, 'ledgers': 1}
+    assert http_server.access_prefix.encode() not in raw and b'tasks.md' not in raw
+
+
+@pytest.mark.parametrize('suffix', ['api/cartera?x=1', 'api/cartera/', 'api/Cartera', 'api/cartera.json'])
+def test_http_api_cartera_solo_la_ruta_exacta_y_sin_consulta(http_server, suffix):
+    assert request(http_server, suffix)[0] == 404
+
+
+@pytest.mark.parametrize('method', ['POST', 'PUT', 'DELETE'])
+def test_http_api_cartera_es_solo_lectura(http_server, method):
+    assert request(http_server, 'api/cartera', method=method)[0] == 405
+
+
+def test_http_api_cartera_cae_en_unavailable_sin_filtrar_la_causa(service, tmp_path, monkeypatch):
+    ledger(tmp_path)
+    monkeypatch.setattr(service, '_load_data', lambda: (_ for _ in ()).throw(ImportError('/ruta/privada')))
+    server = service.create_server(tmp_path, service._load_builder().build_inventory(tmp_path, project=None))
+    thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+    try:
+        status, _, raw = request(server, 'api/cartera')
+    finally:
+        server.shutdown(); server.server_close(); thread.join(timeout=5)
+    datos = json.loads(raw)
+    assert status == 200 and datos['status'] == 'unavailable' and datos['iniciativas'] == []
+    assert b'/ruta/privada' not in raw
+
+
+def test_http_api_cartera_pasa_por_el_saneador_unico_del_servidor(service, tmp_path):
+    carpeta = tmp_path / 'docs/roadmap/2026-10-09-example'
+    ledger(tmp_path)
+    (carpeta / 'spec.md').write_text('---\nestado: aprobada\n---\n# Plan de jdoeuser en /home/jdoeuser/notas\n', encoding='utf8')
+    redact = service._load_shared('redact.py')
+    scrub = lambda t: redact.anonimizar(redact.redactar(t), None, '/home/jdoeuser', 'jdoeuser')
+    server = service.create_server(tmp_path, service._load_builder().build_inventory(tmp_path, project=None), scrub=scrub)
+    thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+    try:
+        raw = request(server, 'api/cartera')[2]
+    finally:
+        server.shutdown(); server.server_close(); thread.join(timeout=5)
+    assert b'jdoeuser' not in raw and b'/home/' not in raw and '<usuario>'.encode() in raw

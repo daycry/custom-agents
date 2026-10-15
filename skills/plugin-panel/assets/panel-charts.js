@@ -60,6 +60,15 @@
       });
       cuerpo.appendChild(fila);
     });
+    /* Categorías sin ningún dato: van a la tabla como «sin datos» y no entran en las barras. */
+    (spec.sinDatos || []).forEach(function (etiqueta) {
+      var fila = el('tr');
+      var th = el('th', '', etiqueta);
+      th.setAttribute('scope', 'row');
+      fila.appendChild(th);
+      spec.series.forEach(function () { fila.appendChild(el('td', 'sin-datos', nucleo().celda(null))); });
+      cuerpo.appendChild(fila);
+    });
     t.appendChild(cuerpo);
     region.appendChild(t);
     return region;
@@ -102,7 +111,8 @@
 
   /* Dibuja `spec` dentro de `contenedor`.
      spec: { id, titulo, descripcion?, tipo: 'bar'|'line', categoria?, unidad?, etiquetas: [], origen?,
-             series: [{ nombre, valores: [número|null] }], parcial?: { presentes, total, origen? } }
+             series: [{ nombre, valores: [número|null] }], parcial?: { presentes, total, origen? },
+             sinDatos?: [etiqueta] (filas que solo van a la tabla, como «sin datos») }
      opciones: { chartDisponible: false } fuerza el modo solo tabla. */
   function dibujar(contenedor, spec, opciones) {
     var opts = opciones || {};

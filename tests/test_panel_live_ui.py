@@ -40,7 +40,7 @@ def test_default_offline_has_no_operational_fetch(panel, inventory):
         assert 'id="operations"' not in output
         assert 'api/progress' not in output and 'panel-live.js' not in output
         assert "connect-src 'self'" not in output
-        assert 'Instantánea del' in output
+        assert 'Copia estática del' in output and '/plugin-catalog --serve' in output
         assert '@@' not in output
 
 

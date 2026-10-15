@@ -193,3 +193,69 @@ def test_recorte_no_parte_una_marca_ni_un_caracter():
         assert '<usuario>' in corte or '<' not in corte
     assert servicio._clip('a\U0001F680' * 10, 5) == 'a\U0001F680a\U0001F680a'
     assert len(servicio._clip('é' * 600, 1000, 1024).encode('utf8')) <= 1024
+
+
+# Contrato de `api/cartera` (T-17): el test construye la respuesta REAL con `panel_data.cartera()` sobre un
+# proyecto de prueba (no una fixture a mano), la pasa por el saneador unico del servidor y comprueba que cada
+# cadena esta clasificada: texto del repo que se muestra (se anonimiza) o vocabulario/forma (queda intacto).
+CARTERA_MOSTRADO = {'slug', 'titulo', 'literal', 'est_texto'}
+CARTERA_INTACTO = {'source', 'observed_at', 'status', 'id', 'fecha', 'categoria', 'ledger', 'motivo', 'codigo'}
+
+
+def _proyecto_cartera(tmp_path):
+    raiz = tmp_path / 'docs/roadmap'
+    a = raiz / '2026-10-01-uno'
+    a.mkdir(parents=True)
+    (a / 'spec.md').write_text(f'---\nestado: {PLANTADO}\ncreado: 2026-10-01\n---\n# {PLANTADO}\n', encoding='utf8')
+    (a / 'evaluation.md').write_text(f'| **Coste** | {PLANTADO} 500 EUR |\n', encoding='utf8')
+    (a / 'tasks.md').write_text('# Uno\n\n### T-01 — Uno\n- **Estado**: completado\n\n**Criterios de aceptación**\n- [ ] x\n\n'
+                                '## Revisión de dos lentes — intento 1: 1 gap\n\n| # | Grado | Gap | Tarea | Corrección | Evidencia |\n'
+                                '|---|---|---|---|---|---|\n| 1 | Minor | g | T-01 | pendiente | e |\n', encoding='utf8')
+    b = raiz / '2026-10-02-dos'
+    b.mkdir()
+    (b / 'spec.md').write_text('---\ncreado: 2026-10-02\n---\n# Dos\n', encoding='utf8')
+    c = raiz / '2026-10-03-tres'
+    c.mkdir()
+    (c / 'tasks.md').write_text('# Tres\n\n### T-01 — Uno\n- **Estado**: completado\n' + '\n' * 300000, encoding='utf8')
+    return tmp_path
+
+
+def _clasifica_cartera(ruta):
+    clave = ruta[-1]
+    if clave in CARTERA_MOSTRADO:
+        return 'mostrado'
+    return 'intacto' if clave in CARTERA_INTACTO else None
+
+
+def test_contrato_cartera_cada_campo_mostrado_anonimizado_y_el_resto_intacto(tmp_path):
+    servicio = _cargar()
+    respuesta = servicio._load_data().cartera(_proyecto_cartera(tmp_path))
+    assert respuesta['status'] == 'ok' and len(respuesta['iniciativas']) == 3
+    limpio = servicio._scrubbed(copy.deepcopy(respuesta), _scrub(servicio))
+    antes, despues = list(_hojas(respuesta)), list(_hojas(limpio))
+    sin_clasificar = {r[-1] for r, _ in antes if _clasifica_cartera(r) is None}
+    assert not sin_clasificar, f'campo de texto sin clasificar en el contrato de api/cartera: {sin_clasificar}'
+    vistos = set()
+    for (ruta, original), (_, nuevo) in zip(antes, despues):
+        tipo = _clasifica_cartera(ruta); vistos.add(ruta[-1])
+        if tipo == 'mostrado':
+            for sensible in SENSIBLES:
+                assert sensible not in nuevo, (ruta, sensible)
+        else:
+            assert nuevo == original, ruta
+    assert CARTERA_MOSTRADO <= vistos           # la respuesta real ejerce todos los campos mostrados
+    assert {'ilegible', 'ok', 'fuera_de_tope'} <= {f['categoria'] for f in respuesta['iniciativas']} | {f['ledger'] for f in respuesta['iniciativas']}
+
+
+def test_cartera_de_160_pasa_el_validador_de_las_paginas_tras_anonimizar(tmp_path):
+    servicio = _cargar()
+    scrub = _corto(servicio)
+    carpeta = tmp_path / 'docs/roadmap/2026-10-01-abc'
+    carpeta.mkdir(parents=True)
+    (carpeta / 'spec.md').write_text('---\nestado: ' + 'abc ' * 12 + '\n---\n# ' + 'abc ' * 40 + '\n', encoding='utf8')
+    (carpeta / 'evaluation.md').write_text('| **Coste** | ' + 'abc ' * 30 + ' 5 EUR |\n', encoding='utf8')
+    respuesta = servicio._load_data().cartera(tmp_path)
+    limpio = servicio._scrubbed(respuesta, scrub)['iniciativas'][0]
+    assert len(limpio['titulo']) <= 160 and len(limpio['slug']) <= 80
+    assert len(limpio['coste']['est_texto']) <= 120 and len(limpio['literal']) <= 48
+    assert '<usuari' not in limpio['titulo'].replace('<usuario>', '')

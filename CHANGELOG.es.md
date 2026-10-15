@@ -26,6 +26,13 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - El servidor local del panel sirve las siete páginas y sus activos desde una lista cerrada con una CSP estricta, un nonce por arranque en cada script y sin leer disco en cada petición; si Chart.js falta o está alterado, las páginas muestran solo tablas. Los scripts vivos de progreso, memoria, actividad y revisión del plan se cargan como ficheros en su página, y la plantilla de una sola página desaparece.
 - `roadmap-dashboard` deja de generar HTML y solo calcula los datos de cartera (`--md`, `--metrics-md`, `--json`); `/roadmap-status` escribe `dashboard.md` y exporta el panel multi-página a `docs/roadmap/panel/`, sin borrar nunca un `dashboard.html` antiguo. `plugin-panel` es ya el único dashboard, y su guía documenta las siete páginas, los dos modos, la CSP de cada uno y la procedencia de Chart.js incluido.
 
+### Added — iniciativa `panel-redesign`, fase 2 (inicio, iniciativas y plan)
+
+- El panel servido ofrece la cartera del roadmap (estado de cada spec, tareas completadas, horas y coste real frente a estimado, procedencia y alertas) con las mismas cifras que el dashboard y el informe de progreso.
+- La página Inicio muestra cuántas iniciativas hay en cada estado de spec, el avance global de tareas y el coste real frente al estimado con su procedencia.
+- La página Iniciativas es un kanban de solo lectura con una columna por estado de spec; cada tarjeta lleva fecha, tareas, horas, coste, procedencia y sus alertas en texto, y enlaza a su Plan. Dos gráficos, horas y coste por iniciativa, llevan cada uno su tabla; las iniciativas sin datos aparecen en la tabla como «sin datos» y no en las barras.
+- La copia estática ahora dice que es una copia estática y cómo verla en vivo (`/plugin-catalog --serve`).
+
 ### Fixed — iniciativa `panel-redesign`, revisión de la fase 1
 
 - La exportación del panel ya no se fía de un `export-manifest.json` previo: una entrada con `..`, ruta absoluta, unidad, barra invertida o un padre enlazado aborta antes de escribir o borrar nada. Tampoco crea las carpetas padre del destino y detecta antes de escribir un fichero donde hace falta una carpeta, sin imprimir rutas absolutas.

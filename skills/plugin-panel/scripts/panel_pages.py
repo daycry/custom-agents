@@ -40,11 +40,14 @@ CSP_SERVIDO = ("default-src 'none'; style-src 'self' 'unsafe-inline'; script-src
                "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
 
 # Ficheros propios del panel que se copian a la carpeta exportada (ruta relativa a assets/).
-ASSET_FILES = ('panel.css', 'panel-core.js', 'panel-charts.js', 'page-catalogo.js', 'page-diagnostico.js')
+ASSET_FILES = ('panel.css', 'panel-core.js', 'panel-charts.js', 'page-catalogo.js', 'page-diagnostico.js',
+               'page-cartera.js', 'page-inicio.js', 'page-iniciativas.js')
 # Solo el modo servido los usa (consultan api/*); el exportado no los copia.
 LIVE_ASSET_FILES = ('panel-live.js', 'panel-memory.js', 'panel-activity.js', 'panel-review.js')
 # Script propio de cada página (después de panel-core.js y panel-charts.js), y los vivos del modo servido.
-PAGE_SCRIPTS = {'catalogo': ('page-catalogo.js',), 'diagnostico': ('page-diagnostico.js',)}
+PAGE_SCRIPTS = {'catalogo': ('page-catalogo.js',), 'diagnostico': ('page-diagnostico.js',),
+                'inicio': ('page-cartera.js', 'page-inicio.js'),
+                'iniciativas': ('page-cartera.js', 'page-iniciativas.js')}
 LIVE_SCRIPTS = {'inicio': ('panel-live.js',), 'plan': ('panel-live.js', 'panel-review.js'),
                 'agentes': ('panel-activity.js',), 'memoria': ('panel-memory.js',)}
 VENDOR_FILES = ('vendor/chart.js/chart.umd.min.js', 'vendor/chart.js/LICENSE.md', 'vendor/chart.js/PROVENANCE.json')
@@ -75,7 +78,8 @@ def _nav(archivo_actual):
 def _cabecera_modo(modo, generado):
     if modo == 'servido':
         return '<p class="modo" data-modo="servido">Servido en este equipo · los datos se actualizan mientras el servidor está activo</p>'
-    return f'<p class="modo" data-modo="exportado">Instantánea del {_esc(generado)} · no se actualiza sola</p>'
+    return (f'<p class="modo" data-modo="exportado">Copia estática del {_esc(generado)} · para verla en vivo, '
+            'abre el panel servido con <code>/plugin-catalog --serve</code></p>')
 
 
 def render_page(slug, *, modo, generado, datos, cuerpo='', chart_ok=True, nonce=None, scripts_omitidos=()):
@@ -160,23 +164,31 @@ def cargar_assets(modo='exportado', review=False):
     return ficheros, chart_ok, avisos
 
 
-def datos_de_pagina(slug, datos, modo='exportado'):
-    """Bloque `panel-data` de una página. El inventario completo solo viaja en la instantánea exportada
-    (ya anonimizada); el modo servido lleva los contadores y consulta el resto por `api/*`."""
-    base = {'pagina': slug, 'contadores': datos.get('counts', {})}
+CARTERA_PAGES = ('inicio', 'iniciativas')
+
+
+def datos_de_pagina(slug, datos, modo='exportado', cartera=None):
+    """Bloque `panel-data` de una página. El inventario completo y la cartera (ya anonimizados) solo viajan en
+    la copia exportada; el modo servido lleva los contadores y consulta el resto por `api/*`. `modo` viaja
+    en el bloque para que el JS de la página sepa si debe preguntar al servidor o leer lo incrustado; sin
+    `cartera` (exportado sin `--project`) la clave no existe y la página dice que no hay datos."""
+    base = {'pagina': slug, 'modo': modo, 'contadores': datos.get('counts', {})}
     if slug == 'catalogo' and modo == 'exportado':
         base['inventario'] = datos
+    if slug in CARTERA_PAGES and modo == 'exportado' and cartera is not None:
+        base['cartera'] = cartera
     return base
 
 
 PLACEHOLDER = '<section><p>Esta página todavía no muestra contenido.</p></section>'
 
 
-def construir_paginas(datos, *, generado, chart_ok, cuerpos=None):
+def construir_paginas(datos, *, generado, chart_ok, cuerpos=None, cartera=None):
     """HTML (bytes UTF-8) de las 7 páginas del modo exportado. `cuerpos`: {slug: HTML} ya escapado."""
     cuerpos = cuerpos or {}
     return {archivo: render_page(slug, modo='exportado', generado=generado, chart_ok=chart_ok,
-                                 datos=datos_de_pagina(slug, datos), cuerpo=cuerpos.get(slug, PLACEHOLDER),
+                                 datos=datos_de_pagina(slug, datos, cartera=cartera),
+                                 cuerpo=cuerpos.get(slug, PLACEHOLDER),
                                  scripts_omitidos=('panel-review.js',)).encode('utf8')
             for slug, archivo, _ in PAGES}
 
@@ -273,7 +285,8 @@ def _escribir_atomico(ruta, contenido):
             os.unlink(temporal)
 
 
-def exportar_sitio(destino, datos, *, generado=None, unsafe_link=lambda ruta: ruta.is_symlink(), cuerpos=None):
+def exportar_sitio(destino, datos, *, generado=None, unsafe_link=lambda ruta: ruta.is_symlink(), cuerpos=None,
+                   cartera=None):
     """Escribe las 7 páginas, `assets/`, `vendor/chart.js/` y `export-manifest.json` en `destino`.
 
     Solo sobrescribe HTML con MARKER o ficheros del manifiesto previo cuyo hash sea el que se escribió;
@@ -283,7 +296,7 @@ def exportar_sitio(destino, datos, *, generado=None, unsafe_link=lambda ruta: ru
     if generado is None:
         generado = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
     ficheros, chart_ok, avisos = cargar_assets()
-    ficheros.update(construir_paginas(datos, generado=generado, chart_ok=chart_ok, cuerpos=cuerpos))
+    ficheros.update(construir_paginas(datos, generado=generado, chart_ok=chart_ok, cuerpos=cuerpos, cartera=cartera))
 
     if unsafe_link(destino) or any(unsafe_link(p) for p in destino.absolute().parents):
         raise ValueError('output is a symbolic link')

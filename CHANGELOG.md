@@ -26,6 +26,13 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - The local panel server serves the seven pages and their assets from a closed allowlist under a strict CSP, with a per-start nonce on every script and no disk reads per request; if Chart.js is missing or altered, pages fall back to tables. The live progress, memory, activity and plan-review scripts load as files on their own page, and the single-page template is gone.
 - `roadmap-dashboard` no longer generates HTML and only computes portfolio data (`--md`, `--metrics-md`, `--json`); `/roadmap-status` writes `dashboard.md` and exports the multi-page panel to `docs/roadmap/panel/`, never deleting an old `dashboard.html`. `plugin-panel` is now the only dashboard, and the panel guide documents the seven pages, both modes, each mode's CSP and the provenance of the bundled Chart.js.
 
+### Added — `panel-redesign` initiative, phase 2 (home, initiatives and plan)
+
+- The served panel offers the roadmap portfolio (spec state of each initiative, completed tasks, real vs estimated hours and cost, provenance and alerts) with the same figures as the dashboard and the progress report.
+- The Home page shows how many initiatives are in each spec state, the overall task progress and real vs estimated cost with its provenance.
+- The Initiatives page is a read-only kanban with one column per spec state; each card carries date, tasks, hours, cost, provenance and its alerts in text, and links to its Plan. Two charts, hours and cost per initiative, each come with their table; initiatives without data appear in the table as "sin datos" and not in the bars.
+- The static copy now says it is a static copy and how to see it live (`/plugin-catalog --serve`).
+
 ### Fixed — `panel-redesign` initiative, phase 1 review
 
 - The panel export no longer trusts a previous `export-manifest.json`: an entry with `..`, an absolute path, a drive letter, a backslash or a linked parent aborts the export before anything is written or deleted. It also refuses to create the output's parent folders and detects a file standing where a folder is needed before writing, without printing absolute paths.
