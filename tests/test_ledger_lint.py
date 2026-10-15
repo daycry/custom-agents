@@ -361,7 +361,31 @@ def main():
     assert code == 0, out
     assert "cabecera de revisión no casa con REVISION_HDR_PATTERN" in out, out
 
-    print("test_ledger_lint: 27/27 OK")
+    # 26) [ledger-archive] aviso (no error) de TAMAÑO por encima del 70 % del tope de lectura
+    #     acotada (256 KiB, `local-read.py` MAX_BYTES): el ledger se acerca a no poder retomarse.
+    #     Por debajo, ninguno.
+    relleno = "\n## Notas\n\n" + ("Texto de relleno del ledger para medir el tamaño.\n" * 3700)
+    grande = doc() + relleno
+    assert len(grande.encode("utf-8")) > 183_500
+    code, out = run(grande)
+    assert code == 0, out
+    assert "tope de lectura 256 KiB" in out and "ledger-archive.py" in out and "--apply" in out, out
+    code, out = run(doc() + "\n## Notas\n\n" + ("x\n" * 1000))
+    assert "tope de lectura" not in out, out
+
+    # 27) [ledger-archive] aviso por `Verificación` de más de 2.000 caracteres: la narrativa va a
+    #     comparisons/ o al histórico; en el ledger, comando → resultado vigente. Hasta 2.000, nada.
+    larga = doc().replace("- **Estado**: {}".format("en-progreso"),
+                          "- **Estado**: en-progreso\n- **Verificación**: " + "a" * 2001, 1)
+    code, out = run(larga)
+    assert code == 0, out
+    assert "T-02" in out and "la narrativa va a comparisons/ o al histórico" in out, out
+    justa = doc().replace("- **Estado**: {}".format("en-progreso"),
+                          "- **Estado**: en-progreso\n- **Verificación**: " + "a" * 2000, 1)
+    code, out = run(justa)
+    assert "la narrativa va a comparisons/" not in out, out
+
+    print("test_ledger_lint: 29/29 OK")
 
 
 if __name__ == "__main__":

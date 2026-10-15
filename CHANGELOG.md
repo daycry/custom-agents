@@ -11,6 +11,11 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Added — Ledger archiving
+
+- `ledger-archive.py` moves closed history out of `tasks.md` into `execution-history.md`, keeping each block's bytes with its SHA-256 and leaving a pointer in the ledger. Superseded review rounds go only if every task keeps the same pending gaps, latest attempt and inherited mentions; long `Verificación` fields are cut to their first sentence. Dry run by default; `--apply` is atomic and idempotent, and writes nothing if `ledger-lint` would get worse. Applied to the catalog-capabilities ledger: 248,766 → 126,898 bytes with identical invariants.
+- `ledger-lint` warns when a ledger passes 70 % of the 256 KiB read cap (naming the archive command) or when a `Verificación` passes 2,000 characters. `scope-check` counts an initiative's `execution-history.md` as in scope, and `/dev-cycle` runs the archive from the orchestrator when that warning appears.
+
 ### Changed — Activation fixes from real runs
 
 - Real activation runs with the branch plugin showed two misses: a "do it fast, skip the test first" request in a TDD repo did not load `tdd`, and a performance review of a diff did not load `adversarial-review`. Both descriptions now name those triggers. `evals/run.py --settings <json>` passes settings to `claude`, so the installed plugin can be disabled and only the branch is measured.

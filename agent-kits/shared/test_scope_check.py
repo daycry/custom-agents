@@ -174,6 +174,23 @@ def test_tasks_md_propio_y_knowledge_siempre_en_alcance():
         assert code == 1 and "spec.md" in out
 
 
+def test_execution_history_es_companero_del_ledger_y_esta_en_alcance():
+    """`ledger-archive.py` traslada la historia cerrada del ledger a `<carpeta>/execution-history.md`:
+    es el compañero de `tasks.md`, no un fichero fuera de alcance. El de OTRA iniciativa sí lo está."""
+    with tempfile.TemporaryDirectory() as tmp:
+        repo(tmp)
+        touch(tmp, INI + "/execution-history.md", "# Historial de ejecución — demo\n")
+        commit_all(tmp)
+        code, out, _ = run(tmp, "--json")
+        d = json.loads(out)
+        assert code == 0, out
+        assert INI + "/execution-history.md" in d["en_alcance"]
+        touch(tmp, "docs/roadmap/2026-01-02-otra/execution-history.md")
+        code, out, _ = run(tmp, "--json")
+        d = json.loads(out)
+        assert code == 1 and "docs/roadmap/2026-01-02-otra/execution-history.md" in d["fuera_de_alcance"]
+
+
 def test_sin_base_clara_exit_2_y_con_base_explicita():
     with tempfile.TemporaryDirectory() as tmp:
         repo(tmp, main="trunk")                  # ni main ni master; estamos en feature/demo

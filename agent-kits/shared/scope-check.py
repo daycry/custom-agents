@@ -17,7 +17,8 @@ Qué hace:
      (tokens entre acentos graves; globs `*` (un nivel) y `**/` (cero o más directorios),
      llaves `{a,b}`, carpetas con `/` final o existentes, «(nuevo)» y otros apuntes entre
      paréntesis se ignoran, listas por coma).
-     Siempre en alcance: el propio `tasks.md` de la iniciativa y `docs/knowledge/**` —CON UNA
+     Siempre en alcance: el propio `tasks.md` de la iniciativa y su compañero `execution-history.md`
+     (la historia cerrada que traslada `ledger-archive.py`), y `docs/knowledge/**` —CON UNA
      EXCEPCIÓN: `docs/knowledge/journal/**`, que no lo escribe nadie de la cadena sino el hook de
      sesión, va en las exclusiones por defecto del punto 3 y sale como «excluido», no como «en
      alcance». Lo que «siempre en alcance» garantiza es que un glob de USUARIO (`dev.json`) no
@@ -413,11 +414,13 @@ def clasificar(cambiados, patrones, tasks_rel, root, excluir=(), excluir_usuario
     puede sacar del alcance con un glob de `dev.json` (antes, un `docs/**` en `alcance.excluir`
     mandaba un ADR nuevo de `en_alcance` a `excluidos`)."""
     en, fuera, excl, usados, quien = [], [], [], set(), {}
+    # el ledger y su compañero: `ledger-archive.py` traslada ahí la historia cerrada del ledger
+    propios = {tasks_rel, "/".join(tasks_rel.split("/")[:-1] + ["execution-history.md"])}
     for f in cambiados:
         hit = [i for i, (p, _) in enumerate(patrones) if casa(f, p, root)]
         usados.update(hit)          # también si el fichero ya está en alcance «de oficio»
         g = patron_excluyente(f, excluir)
-        if hit or f == tasks_rel:
+        if hit or f in propios:
             en.append(f)            # declarado explícitamente (o el ledger): gana a la exclusión
         elif g is not None and g not in excluir_usuario:
             excl.append(f)          # exclusión por defecto: ni en alcance ni fuera

@@ -11,6 +11,11 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Added — Archivado del ledger
+
+- `ledger-archive.py` saca la historia cerrada de `tasks.md` a `execution-history.md`, con los bytes de cada bloque y su SHA-256, y deja un puntero en el ledger. Una ronda de revisión superada solo sale si ninguna tarea cambia sus gaps pendientes, su último intento ni las menciones que hereda; las `Verificación` largas se recortan a su primera frase. En seco por defecto; `--apply` es atómico e idempotente y no escribe nada si `ledger-lint` empeorase. Aplicado al ledger de catalog-capabilities: 248.766 → 126.898 bytes con invariantes idénticos.
+- `ledger-lint` avisa si el ledger pasa del 70 % del tope de lectura de 256 KiB (con el comando de archivado) o si una `Verificación` pasa de 2.000 caracteres. `scope-check` da por dentro de alcance el `execution-history.md` de la iniciativa y `/dev-cycle` lanza el archivado desde el orquestador ante ese aviso.
+
 ### Changed — Activación corregida con ejecuciones reales
 
 - Las ejecuciones reales de activación con el plugin de la rama mostraron dos fallos: pedir «hazlo rápido, sin test primero» en un repo con TDD no cargaba `tdd`, y revisar el rendimiento de un diff no cargaba `adversarial-review`. Las dos descripciones nombran ahora esos disparadores. `evals/run.py --settings <json>` pasa ajustes a `claude`, para desactivar el plugin instalado y medir solo la rama.

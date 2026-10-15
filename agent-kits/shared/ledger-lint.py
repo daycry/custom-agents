@@ -35,6 +35,11 @@ AVISOS (no rompen; formato/legacy):
     dos casos `changelog-sync` degrada el bullet al título, así que el campo no está escrito. Un
     `{{…}}` CITADO (entre acentos graves, o dentro de una frase que dice algo más) sí está escrito
     y se publica: el criterio es «el campo ES el placeholder», no «lo menciona».
+  - Ledger de más del 70 % del tope de lectura acotada (`local-read.py` `MAX_BYTES` = 256 KiB, que
+    usan la retoma y `plan-review.py`): el aviso da el comando `ledger-archive.py <carpeta> --apply`,
+    que traslada la historia cerrada a `execution-history.md` conservando los bytes con su SHA.
+  - `Verificación` de más de `VERIFICACION_MAX` caracteres: narrativa acumulada, no un
+    `comando → resultado` vigente (`ledger-archive.py` la recorta con el mismo umbral).
 
 Uso:
   python3 ledger-lint.py <ruta/a/tasks.md> [--warn-only]
@@ -54,6 +59,13 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
 ESTADOS = {"borrador", "en-progreso", "en-revision", "completado", "cancelado"}
+
+# Tamaño del ledger: el tope de lectura acotada es `MAX_BYTES` de `local-read.py` (256 KiB; lo usan
+# la retoma `progress-report.py resume` y `plan-review.py`). Al 70 % se avisa con el comando que
+# archiva la historia cerrada; `ledger-archive.py` reutiliza estas constantes.
+TOPE_LECTURA_BYTES = 256 * 1024
+UMBRAL_TAMANO_BYTES = 183_500          # 70 % de 256 KiB
+VERIFICACION_MAX = 2000                # caracteres de `Verificación` antes de avisar / recortar
 # quita emojis/decoración al comparar estados: "completado ✅" → "completado"
 def norm_estado(s):
     s = re.sub(r"[\s_]+", "-", s.strip().lower())   # "En Progreso" → "en-progreso"
@@ -707,6 +719,22 @@ def lint(path):
         elif verif_fm or usa_verif:
             warnings.append(f"{t['id']}: {que}"
                             + (" (otras tareas lo declaran)" if usa_verif else ""))
+    for t in all_tasks:
+        n = len(t["verificacion"] or "")
+        if n > VERIFICACION_MAX:
+            warnings.append(f"{t['id']}: campo **Verificación** de {n} caracteres (> "
+                            f"{VERIFICACION_MAX}) — la narrativa va a comparisons/ o al histórico; "
+                            f"aquí, comando → resultado vigente")
+
+    # ---- tamaño del ledger frente al tope de lectura acotada (ledger-archive) ----
+    try:
+        tam = os.path.getsize(path)
+    except OSError:
+        tam = 0
+    if tam > UMBRAL_TAMANO_BYTES:
+        carpeta = os.path.dirname(path) or "."
+        warnings.append(f"ledger de {tam // 1024} KB (tope de lectura 256 KiB): "
+                        f"`python3 agent-kits/shared/ledger-archive.py {carpeta} --apply`")
 
     # ---- Changelog por tarea (changelog-brief): AVISO, nunca incoherencia ----
     # Opcional por diseño. Solo se avisa en ADOPCIÓN PARCIAL (alguna tarea lo trae y otra no) o
