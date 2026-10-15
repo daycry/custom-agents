@@ -6,7 +6,7 @@ creado: 2026-10-15
 actualizado: 2026-10-15
 evaluacion: evaluation.md
 design: design.md         # aprobado: D-A1 = O1, D-A2 = O5 (revisable por el usuario)
-plan: pendiente
+plan: improvement-plan.md
 generacion:               # usage-meter.py close (el marcador se abrió tras las primeras lecturas: cubre casi toda la redacción)
   inicio: 2026-10-15T08:58:50Z
   fin: 2026-10-15T09:04:29Z
@@ -31,7 +31,7 @@ generacion:               # usage-meter.py close (el marcador se abrió tras las
 
 > **Evaluación:** [`evaluation.md`](evaluation.md) — go condicionado (F1, F2, F4 tras D-A1; F3 tras D-A2 + I-03, I-05, I-08)
 > **Diseño:** [`design.md`](design.md) — aprobado: D-A1 = O1 (`plugin-panel` dueño de la presentación), D-A2 = O5 (captura asíncrona post-herramienta)
-> **Plan de implementación:** pendiente
+> **Plan de implementación:** [`improvement-plan.md`](improvement-plan.md) · ledger [`tasks.md`](tasks.md) · pruebas [`test-plan.md`](test-plan.md)
 
 > **Terminología:**
 > - **Panel**: el conjunto de páginas HTML locales de esta iniciativa. Sustituye a la vista de una sola página de `plugin-panel` y al `dashboard.html` de `roadmap-dashboard` en lo que a presentación se refiere (cuál absorbe a cuál: D-A1).

@@ -31,7 +31,7 @@ generacion:               # usage-meter.py close
 | **Solicitante** | Usuario del repo (conversación del 2026-10-15) |
 | **Spec** | [`spec.md`](spec.md) |
 | **Design** | pendiente (architect obligatorio: D-A1, D-A2) |
-| **Plan** | pendiente (handoff a planner) |
+| **Plan** | [`improvement-plan.md`](improvement-plan.md) · [`tasks.md`](tasks.md) · [`test-plan.md`](test-plan.md) |
 | **Características evaluadas** | 5 (cuatro fases de la spec + cierre transversal) |
 
 ---

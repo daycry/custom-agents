@@ -6,7 +6,7 @@ creado: "2026-10-15"
 actualizado: "2026-10-15"
 spec: spec.md                 # enlace hacia atrás (misma carpeta)
 evaluacion: evaluation.md
-plan: pendiente               # improvement-plan.md cuando el planner lo cree
+plan: improvement-plan.md     # creado por el planner el 2026-10-15
 adr: docs/knowledge/candidates/pending/2026-10-15-plugin-panel-dueno-unico-de-la-presentacion.md   # sha256 1128a65fcbbf5a31733d5bfa87f9fffb183c006ad88f84c848c64f91a73351f9; lo decide knowledge-curator (ID sugerido custom-agents.ADR-024)
 opcion_elegida: "O1+O5"       # D-A1 = O1, D-A2 = O5; fijadas por instrucción del orquestador (estructura aprobada por el usuario); revisables por el usuario
 generacion:                   # usage-meter.py close (marcador abierto tras el recon del repo y la doc oficial: cubre la redacción; la ventana puede incluir el transcript del evaluator en paralelo)
@@ -31,7 +31,7 @@ generacion:                   # usage-meter.py close (marcador abierto tras el r
 
 # Diseño — Rediseño del panel local: multi-página, kanban y gráficos
 
-> **Spec:** [`spec.md`](spec.md) (aprobada) · **Evaluación:** [`evaluation.md`](evaluation.md) (en redacción en paralelo) · **Plan:** pendiente · **Decisión propuesta:** [`candidates/pending/2026-10-15-plugin-panel-dueno-unico-de-la-presentacion.md`](../../knowledge/candidates/pending/2026-10-15-plugin-panel-dueno-unico-de-la-presentacion.md) (pendiente del Curator)
+> **Spec:** [`spec.md`](spec.md) (aprobada) · **Evaluación:** [`evaluation.md`](evaluation.md) (en redacción en paralelo) · **Plan:** [`improvement-plan.md`](improvement-plan.md) · **Decisión propuesta:** [`candidates/pending/2026-10-15-plugin-panel-dueno-unico-de-la-presentacion.md`](../../knowledge/candidates/pending/2026-10-15-plugin-panel-dueno-unico-de-la-presentacion.md) (pendiente del Curator)
 
 | | |
 |---|---|
