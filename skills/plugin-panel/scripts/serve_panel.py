@@ -123,8 +123,11 @@ def _encoded(value):
     return json.dumps(value, ensure_ascii=False, allow_nan=False).encode('utf8')
 
 
-def progress_snapshot(project):
-    """Bounded public ledger projection, independent of network and live-agent state."""
+def progress_snapshot(project, scrub=None):
+    """Bounded public ledger projection, independent of network and live-agent state.
+
+    `scrub` (redact -> anonymize, the same one the builder applies to the inventory) replaces the bare
+    redactor, so served titles lose paths, user and e-mails like the exported pages do."""
     result = {'version': 1, 'source': 'canonical_ledger',
               'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
               'status': 'ok', 'complete': True, 'initiatives': [], 'issues': []}
@@ -143,7 +146,7 @@ def progress_snapshot(project):
         return result
 
     def clean(value, limit=160):
-        value = redactor.redactar(str(value))
+        value = (scrub or redactor.redactar)(str(value))
         value = re.sub(r'[\x00-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]', '', value)
         if len(value) > limit:
             issue('text_budget')
@@ -253,7 +256,7 @@ class PanelServer(HTTPServer):
         now = time.monotonic()
         if self._snapshot is None or now - self._snapshot_at >= 2:
             try:
-                self._snapshot = _encoded(progress_snapshot(self.project))
+                self._snapshot = _encoded(progress_snapshot(self.project, scrub=self.scrub))
             except (OSError, ValueError, TypeError, KeyError, RecursionError):
                 self._snapshot = _encoded({'version': 1, 'source': 'canonical_ledger',
                     'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
@@ -468,7 +471,7 @@ class PanelHandler(BaseHTTPRequestHandler):
     do_OPTIONS = _reject_method
 
 
-def create_server(project, inventory, *, port=0, review_selection=None):
+def create_server(project, inventory, *, port=0, review_selection=None, scrub=None):
     """Return an owned stoppable HTTPServer; start only at the caller's request."""
     if type(port) is not int or not 0 <= port <= 65535:
         raise ValueError('invalid panel port')
@@ -484,6 +487,7 @@ def create_server(project, inventory, *, port=0, review_selection=None):
     server = PanelServer(('127.0.0.1', port), PanelHandler)
     try:
         server.project = project
+        server.scrub = scrub
         server.review_selection = dict(review_selection) if review_selection is not None else None
         server.review_ids = set(); server.review_owner = None
         review_id = ''
@@ -520,8 +524,8 @@ def create_server(project, inventory, *, port=0, review_selection=None):
     return server
 
 
-def run(project, inventory, *, port=0, review_selection=None):
-    server = create_server(project, inventory, port=port, review_selection=review_selection)
+def run(project, inventory, *, port=0, review_selection=None, scrub=None):
+    server = create_server(project, inventory, port=port, review_selection=review_selection, scrub=scrub)
     try:
         for warning in server.warnings:
             print('plugin-panel: aviso: ' + warning, file=sys.stderr, flush=True)

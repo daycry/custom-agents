@@ -11,7 +11,7 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
-### Added — Panel redesign, phase 1 (foundations)
+### Added — `panel-redesign` initiative, phase 1 (foundations)
 
 - The panel bundles Chart.js 4.5.1 unmodified, with its MIT licence and a provenance file; a test checks its fingerprint and that no other copy exists. A browser spike (Chromium and Firefox, served and `file://`) confirmed the exported pages can load it under `script-src 'self' file:` with no CSP violation and no network request.
 - New `redact.anonimizar` primitive strips the project path, home directory, system user and e-mails from panel output before it is shown or exported.
@@ -20,11 +20,18 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - The panel's Catalog page gathers the catalog, extensions, workflow and source notes, with a pieces-by-type chart and its equivalent table; the Diagnostics page keeps the doctor snapshot with the same rejections and filters, without running doctor.
 - `roadmap-dashboard`'s JSON projection is now a pure function (`vista_json`) the panel reuses, with byte-identical `--json` and `--md` output.
 
-### Changed — Panel export
+### Changed — `panel-redesign` initiative, panel export
 
 - `build_panel.py --html` is replaced by `--export <dir>`; `--json` and `--serve` are unchanged.
 - The local panel server serves the seven pages and their assets from a closed allowlist under a strict CSP, with a per-start nonce on every script and no disk reads per request; if Chart.js is missing or altered, pages fall back to tables. The live progress, memory, activity and plan-review scripts load as files on their own page, and the single-page template is gone.
 - `roadmap-dashboard` no longer generates HTML and only computes portfolio data (`--md`, `--metrics-md`, `--json`); `/roadmap-status` writes `dashboard.md` and exports the multi-page panel to `docs/roadmap/panel/`, never deleting an old `dashboard.html`. `plugin-panel` is now the only dashboard, and the panel guide documents the seven pages, both modes, each mode's CSP and the provenance of the bundled Chart.js.
+
+### Fixed — `panel-redesign` initiative, phase 1 review
+
+- The panel export no longer trusts a previous `export-manifest.json`: an entry with `..`, an absolute path, a drive letter, a backslash or a linked parent aborts the export before anything is written or deleted. It also refuses to create the output's parent folders and detects a file standing where a folder is needed before writing, without printing absolute paths.
+- Anonymizing the panel no longer rewrites closed-vocabulary values (scope, kind, runtime): an account named `user`, `project`, `agent` or `codex` no longer crashes the export or hides hooks from the filters. Text is anonymized before it is cut to length, so an e-mail or home path crossing the cut is not leaked in pieces.
+- The served panel applies the same anonymization as the exported one, including the progress titles. `/roadmap-status` writes nothing when `docs/roadmap/` is missing or the dashboard fails, and its description now says what it writes.
+- Confluence sync leaves out any `plugin-panel` export folder (recognized by its `export-manifest.json`), so the bundled Chart.js licence is no longer published.
 
 ### Added — Ledger archiving
 
@@ -49,6 +56,7 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 ### Fixed — CI-only failures on Linux
 
 - The `db` persona fits again under the brief's persona floor (1,300 characters). The hooks network scan skips `hooks/__pycache__`, which the interpreter writes when another test imports `runtime-supervisor.py`; reading that bytecode as hook code failed the suite depending on test order.
+- Two long-standing CI reds were real bugs. On images without `ps` (such as `python:*-slim`), the hook supervisor could not list the OpenCode adapter's process group, so background descendants of a hook outlived it; it now reads `/proc` when `ps` is missing. A `knowledge-find` test queried the unversioned local memory instead of its fixture corpus.
 
 ### Changed — Agent comparison (68 agents)
 

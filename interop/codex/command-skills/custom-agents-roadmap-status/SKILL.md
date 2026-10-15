@@ -1,6 +1,6 @@
 ---
 name: custom-agents-roadmap-status
-description: "Muestra el estado de todas las iniciativas del roadmap (spec, evaluación, plan, tasks, testing), sus estados, prioridad y presupuesto. Escribe dashboard.md y exporta el panel multi-página a docs/roadmap/panel/. Solo lee docs/roadmap/; no modifica nada. Usa las skills roadmap-dashboard (datos) y plugin-panel (presentación)."
+description: "Muestra el estado de todas las iniciativas del roadmap (spec, evaluación, plan, tasks, testing), sus estados, prioridad y presupuesto. Lee docs/roadmap/ y ESCRIBE docs/roadmap/dashboard.md y la carpeta docs/roadmap/panel/ (panel multi-página exportado); no toca spec, evaluación, plan ni tasks, y no crea docs/roadmap/ si falta. Usa las skills roadmap-dashboard (datos) y plugin-panel (presentación)."
 ---
 <!-- GENERADO por scripts/export-interop.py desde commands/roadmap-status.md — no lo edites a mano.
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->

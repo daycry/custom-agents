@@ -48,6 +48,7 @@ estas exclusiones:
 | `**/testing/**` | El informe de `qa` (`report.md`/`report.pdf`, `screenshots/`, `raw/`) embebe capturas que el conector no puede adjuntar (saldrían rotas). Queda **solo-local** (D4); sigue disponible completo en el repo. |
 | `docs/confluence/**` | La propia carpeta **staged** generada por `--stage` (D5) — se autoexcluye SIEMPRE (por código, no por config) para que un `--stage` no se anide dentro del anterior. |
 | `**/node_modules/**` | Dependencias, nunca documentación. |
+| Carpeta con `export-manifest.json` de `plugin-panel` (p. ej. `docs/roadmap/panel/`) | Exportación del panel (HTML local y `vendor/` con licencias de terceros, p. ej. `LICENSE.md` de Chart.js). Se reconoce por el manifiesto del plugin, no por el nombre de la carpeta, y se excluye SIEMPRE por código en `confluence-scope.py` (`panel_export_dirs`); no hace falta listarla en `exclude`. |
 
 **Consecuencia visible:** con esta política, el ledger `tasks.md` de una iniciativa **nunca**
 aparece en Confluence, aunque `implementer` dispare la sincronización al cerrar cada fase (D3) —

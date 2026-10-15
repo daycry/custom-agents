@@ -477,3 +477,13 @@ def test_anonimizar_fuera_del_bloque_replicado_y_redactar_intacto():
     assert fuente.index("def anonimizar") > fin
     # Orden fijo del saneado, documentado en el módulo (lo siguen panel_data.py y el almacén de actividad).
     assert "redactar → anonimizar → quitar controles → recortar" in redact.__doc__
+
+
+@pytest.mark.parametrize("usuario", ["usuario", "correo", "jdoeuser"])
+def test_anonimizar_es_idempotente_con_usuarios_que_coinciden_con_sus_marcas(usuario):
+    # Un texto se anonimiza dos veces (en origen y en la pasada final del panel): la marca `<usuario>`
+    # no puede volver a sustituirse (`<<usuario>>`), ni `<correo>` quedar partida por el usuario `correo`.
+    texto = f"cuenta {usuario}, correo jdoe@example.org, ruta /home/{usuario}/p"
+    una = redact.anonimizar(texto, None, "/home/" + usuario, usuario)
+    assert redact.anonimizar(una, None, "/home/" + usuario, usuario) == una
+    assert "<<" not in una and ">>" not in una and "<correo>" in una

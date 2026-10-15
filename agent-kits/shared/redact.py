@@ -167,6 +167,14 @@ def _alias(valor):
     return [str(v) for v in valor if v is not None and str(v).strip()]
 
 
+def _marca_usuario(m):
+    """Sustituye el usuario salvo que ya sea el interior de una marca (`<usuario>`, `<correo>`): así
+    `anonimizar` es idempotente aunque la cuenta se llame como una marca, y un texto que se
+    anonimiza en origen y otra vez al exportar no acaba en `<<usuario>>`."""
+    antes, despues = m.string[m.start() - 1:m.start()], m.string[m.end():m.end() + 1]
+    return m.group(0) if (antes == "<" and despues == ">") else ANON_USUARIO
+
+
 def anonimizar(texto, raiz, home, usuario):
     """Quita los datos personales de un texto que va a un HTML/JSON del panel (CA-41).
 
@@ -188,5 +196,5 @@ def anonimizar(texto, raiz, home, usuario):
     texto = _CORREO_RE.sub(ANON_CORREO, texto)
     usuario = str(usuario or "").strip()
     if len(usuario) >= _ANON_USUARIO_MIN:
-        texto = re.sub(_ANTES_RUTA + re.escape(usuario) + r"(?![\w\-])", ANON_USUARIO, texto, flags=re.I)
+        texto = re.sub(_ANTES_RUTA + re.escape(usuario) + r"(?![\w\-])", _marca_usuario, texto, flags=re.I)
     return texto

@@ -256,6 +256,41 @@ def test_default_policy_excludes_staging_marker_from_publish_walk():
     print("test_default_policy_excludes_staging_marker_from_publish_walk: OK")
 
 
+def _panel_export(proj, carpeta, generador="custom-agents plugin-panel"):
+    base = Path(proj) / "docs" / carpeta
+    (base / "vendor" / "chart.js").mkdir(parents=True)
+    (base / "vendor" / "chart.js" / "LICENSE.md").write_text("# MIT\n", encoding="utf-8")
+    (base / "export-manifest.json").write_text(json.dumps({"generador": generador, "ficheros": []}), encoding="utf-8")
+    return base
+
+
+def test_panel_export_folder_is_out_of_scope_wherever_it_lives():
+    # panel-redesign (revisión intento 1, gap 9): el LICENSE.md de Chart.js que exporta plugin-panel bajo docs/
+    # entraba en el alcance y `publish-and-sync.md` afirmaba lo contrario. Se reconoce la carpeta por su
+    # `export-manifest.json` del plugin (no por un nombre fijo) y se excluye entera.
+    with tempfile.TemporaryDirectory() as tmp:
+        proj = Path(tmp) / "proj"
+        (proj / "docs").mkdir(parents=True)
+        (proj / "docs" / "README.md").write_text("# docs\n", encoding="utf-8")
+        _panel_export(proj, "roadmap/panel")
+        _panel_export(proj, "otro-sitio/vista")
+        ajeno = _panel_export(proj, "terceros/export", generador="otro-generador")
+        publish = {"include": ["**/*.md"], "exclude": []}
+        en_alcance, excluidos = cs.resolve_scope(str(proj), publish)
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" not in en_alcance
+        assert "docs/otro-sitio/vista/vendor/chart.js/LICENSE.md" not in en_alcance
+        assert "docs/README.md" in en_alcance
+        motivos = dict(excluidos)
+        assert "export-manifest.json" in motivos["docs/roadmap/panel/vendor/chart.js/LICENSE.md"]
+        # Una carpeta con un manifiesto de OTRO generador no es del panel: sigue en alcance.
+        assert "docs/terceros/export/vendor/chart.js/LICENSE.md" in en_alcance
+        # Un manifiesto ilegible tampoco excluye nada (degrada a la política normal).
+        (ajeno / "export-manifest.json").write_text("{no es json", encoding="utf-8")
+        en_alcance, _ = cs.resolve_scope(str(proj), publish)
+        assert "docs/terceros/export/vendor/chart.js/LICENSE.md" in en_alcance
+    print("test_panel_export_folder_is_out_of_scope_wherever_it_lives: OK")
+
+
 def test_stage_is_idempotent():
     # CA-10 [GWT]: dos ejecuciones seguidas sin cambios -> árbol idéntico.
     with tempfile.TemporaryDirectory() as tmp:
@@ -470,6 +505,7 @@ def main():
         test_stage_creates_exact_scope_and_marker,
         test_stage_copies_readme_byte_for_byte,
         test_default_policy_excludes_staging_marker_from_publish_walk,
+        test_panel_export_folder_is_out_of_scope_wherever_it_lives,
         test_stage_is_idempotent,
         test_stage_wipes_previous_contents,
         test_stage_refuses_unsafe_out_target,

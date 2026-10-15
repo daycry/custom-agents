@@ -39,13 +39,44 @@ ANONIMIZAR = None
 REDACTOR = _load_redactor()
 
 
-def _redact_values(value):
+# Saneado activo durante `build_inventory(scrub=...)`: redactar -> anonimizar. Sin él, solo se redacta.
+_SANEADOR = None
+
+# Claves de VOCABULARIO CERRADO del inventario (ids, enums, rutas relativas del propio bundle, estados,
+# conteos): nunca son texto libre del usuario, así que no se anonimizan (un usuario `user`, `project`,
+# `agent` o `codex` rompería los filtros y la exportación). Una clave cerrada cubre todo su subárbol.
+CLAVES_CERRADAS = frozenset((
+    'schema_version', 'version', 'evidence', 'id', 'ids', 'role_ids', 'scope', 'kind', 'runtime', 'root_id',
+    'source', 'locator', 'event', 'native_event', 'handler', 'behavior', 'availability', 'ownership',
+    'resolution', 'registry_status', 'status', 'load_status', 'execution_status', 'identity_status',
+    'timeout', 'timeout_status', 'timeout_unit', 'timeout_provenance', 'transport', 'enabled', 'model',
+    'tools', 'hook_sources', 'runtimes', 'memory', 'counts', 'workflow', 'hook_group_count',
+    'definition_status', 'partial', 'selection_only'))
+
+
+# Palabras del vocabulario cerrado que `project-pieces` pasa por su redactor junto al texto libre.
+_VOCABULARIO_EXACTO = frozenset(('project', 'user', 'local', 'claude-code', 'codex', 'opencode', 'agent', 'skill',
+                                 'command', 'persona', 'tool-source', 'mcp'))
+
+
+def _sanear(texto):
+    return (_SANEADOR or REDACTOR)(texto)
+
+
+def _sanear_extension(texto):
+    """Redactor que `project-pieces` aplica a TODO campo de texto, también a `scope`/`kind`/`runtime`: el
+    vocabulario cerrado exacto solo se redacta; el resto, texto libre, se anonimiza antes de recortar."""
+    return REDACTOR(texto) if texto in _VOCABULARIO_EXACTO else _sanear(texto)
+
+
+def _redact_values(value, cerrado=False):
+    """Texto libre -> `_sanear` (redactar y, si hay saneador, anonimizar); vocabulario cerrado -> solo redactar."""
     if isinstance(value, str):
-        return REDACTOR(value)
+        return REDACTOR(value) if cerrado else _sanear(value)
     if isinstance(value, list):
-        return [_redact_values(item) for item in value]
+        return [_redact_values(item, cerrado) for item in value]
     if isinstance(value, dict):
-        return {key: _redact_values(item) for key, item in value.items()}
+        return {key: _redact_values(item, cerrado or key in CLAVES_CERRADAS) for key, item in value.items()}
     return value
 
 
@@ -185,13 +216,13 @@ def _handler_metadata(root, script, group, metadata):
                     for key in ('title', 'description'):
                         prefix = '# panel-' + key + ': '
                         if line.startswith(prefix):
-                            fields[key] = REDACTOR(line[len(prefix):])[:300]
+                            fields[key] = _sanear(line[len(prefix):])[:300]
             except (OSError, ValueError, UnicodeError):
                 pass
         metadata[script] = fields
     matcher = group.get('matcher')
     return {'handler': script, **metadata[script],
-            'matcher': REDACTOR(matcher)[:160] if isinstance(matcher, str) else ''}
+            'matcher': _sanear(matcher)[:160] if isinstance(matcher, str) else ''}
 
 
 def _positive_number(value):
@@ -402,9 +433,13 @@ def _diagnostics(path, project):
 
 
 def _extensions(project, home, runtime, cwd, include_user, user_roots):
+    redactor_previo = None
     try:
         module = _load_pieces()
         roots = module.parse_user_roots(user_roots or [])
+        # Los textos de las extensiones se recortan dentro de `discover`: el saneador completo entra por el
+        # mismo punto que su redactor, así que anonimiza antes de recortar.
+        redactor_previo, module.REDACT = module.REDACT, _sanear_extension
         return module.discover(project, home=home, runtime=runtime, cwd=cwd,
                                include_user=include_user, user_roots=roots)
     except (OSError, ValueError, UnicodeError, RecursionError, ImportError, AttributeError, SyntaxError):
@@ -412,10 +447,26 @@ def _extensions(project, home, runtime, cwd, include_user, user_roots):
                 'registry_status': 'unknown', 'partial': True,
                 'evidence': 'local declarations; session availability not measured',
                 'warnings': ['Extension declarations unavailable; check project roots and bundled reader.']}
+    finally:
+        if redactor_previo is not None:
+            module.REDACT = redactor_previo
 
 
 def build_inventory(root, *, project=None, home=None, runtime='all', cwd=None,
-                    include_user=True, user_roots=None, diagnostics_report=None):
+                    include_user=True, user_roots=None, diagnostics_report=None, scrub=None):
+    """Inventario redactado. Con `scrub` (redactar -> anonimizar, ver `_scrubber`) TODO el texto libre se
+    anonimiza en origen, ANTES de recortar (orden de `redact.py`): exportado y servido comparten este punto."""
+    global _SANEADOR
+    anterior, _SANEADOR = _SANEADOR, scrub
+    try:
+        return _build_inventory(root, project=project, home=home, runtime=runtime, cwd=cwd,
+                                include_user=include_user, user_roots=user_roots,
+                                diagnostics_report=diagnostics_report)
+    finally:
+        _SANEADOR = anterior
+
+
+def _build_inventory(root, *, project, home, runtime, cwd, include_user, user_roots, diagnostics_report):
     if REDACTOR is None:
         raise ValueError('bundled redactor unavailable')
     root = Path(root).resolve()
@@ -791,18 +842,9 @@ def _load_pages():
     return _PAGES_MODULE
 
 
-def _anonymize_values(value, scrub):
-    if isinstance(value, str):
-        return scrub(value)
-    if isinstance(value, list):
-        return [_anonymize_values(item, scrub) for item in value]
-    if isinstance(value, dict):
-        return {key: _anonymize_values(item, scrub) for key, item in value.items()}
-    return value
-
-
 def _scrubber(args):
-    """redactar -> anonimizar (CA-41): raíz -> `.`, home -> `~`, usuario -> `<usuario>`, correos -> `<correo>`."""
+    """Saneado único del panel (CA-41), exportado y servido: redactar -> anonimizar (raíz -> `.`, home -> `~`,
+    usuario -> `<usuario>`, correos -> `<correo>`). Los controles y el recorte los aplica cada campo después."""
     if ANONIMIZAR is None:
         raise ValueError('bundled redactor unavailable')
     roots = [str(Path(value).resolve()) for value in (args.project, args.root) if value]
@@ -819,9 +861,8 @@ def _scrubber(args):
 
 def _export(args, data):
     pages = _load_pages()
-    clean = _anonymize_values(data, _scrubber(args))
-    written, warnings = pages.exportar_sitio(args.export, clean, unsafe_link=_unsafe_link,
-                                             cuerpos=cuerpos_paginas(clean))
+    written, warnings = pages.exportar_sitio(args.export, data, unsafe_link=_unsafe_link,
+                                             cuerpos=cuerpos_paginas(data))
     for warning in warnings:
         print(f'plugin-panel: aviso: {warning}', file=sys.stderr)
     return written
@@ -861,9 +902,10 @@ def main(argv=None):
             not args.serve or not args.project or not args.review_initiative or not args.review_state_root):
         parser.error('--review-initiative and --review-state-root require each other, --serve and explicit --project')
     try:
+        scrub = _scrubber(args) if (args.export or args.serve) else None  # un solo saneado: exportado y servido
         data = build_inventory(args.root, project=args.project, home=args.home,
                                runtime=args.runtime, cwd=args.cwd, include_user=not (args.project_only or args.serve),
-                               user_roots=args.user_root, diagnostics_report=args.diagnostics_report)
+                               user_roots=args.user_root, diagnostics_report=args.diagnostics_report, scrub=scrub)
         if args.serve:
             try:
                 server = _load_server()
@@ -871,7 +913,7 @@ def main(argv=None):
                 raise ValueError('bundled panel server unavailable') from None
             selection = {'initiative': args.review_initiative, 'state_root': args.review_state_root,
                          'gate_key': args.review_gate_key or 'requested-review'} if args.review_initiative else None
-            return server.run(args.project, data, port=args.port or 0, review_selection=selection)
+            return server.run(args.project, data, port=args.port or 0, review_selection=selection, scrub=scrub)
         if args.export:
             written = _export(args, data)
             print(f'plugin-panel: exportados {len(written)} ficheros (7 páginas, assets y vendor) con su export-manifest.json',

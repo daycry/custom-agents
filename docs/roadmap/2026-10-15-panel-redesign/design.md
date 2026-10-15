@@ -203,6 +203,7 @@ Se registran `PreToolUse` y `PostToolUse`, los dos asíncronos. El par da «herr
 - Modo servido:
   - `<script nonce="N" src="vendor/chart.umd.min.js">` desde el mismo origen; `serve_panel.py` deja de inyectar el nonce reemplazando el literal `<script>` y lo pone en todas las etiquetas `<script …>` que genera.
   - La CSP queda `script-src 'nonce-N'` (el nonce también autoriza scripts externos), sin `unsafe-eval`.
+  - **Ajuste del pico de T-03 (2026-10-15, revisión de la Fase 1, gap 11):** la cabecera servida completa es `default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'nonce-N'; img-src data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` (`CSP_SERVIDO` en `skills/plugin-panel/scripts/panel_pages.py`). Sin `style-src 'self'` los dos motores bloquean `assets/panel.css`, y sin `img-src data:` más `<link rel="icon" href="data:,">` en cada página Firefox registra una violación por `/favicon.ico`. El modo exportado no cambia: `script-src 'self' file:` funciona en Chromium y Firefox y el respaldo por hash no hace falta.
   - Chart.js 4 dibuja en `<canvas>` y fija estilos por CSSOM, que `style-src` no bloquea.
 - Modo exportado:
   - Todos los scripts son ficheros (`assets/*.js` y `vendor/…`); no hay JS inline. Los datos de la página van en `<script type="application/json" id="panel-data">`, que no se ejecuta.

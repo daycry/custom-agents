@@ -247,6 +247,30 @@ def always_exclude_for(root, out_dir):
     return [str(rel).replace(os.sep, "/") + "/**"]
 
 
+PANEL_EXPORT_MANIFEST = "export-manifest.json"
+PANEL_EXPORT_GENERATOR = "custom-agents plugin-panel"
+
+
+def panel_export_dirs(docs_root, root):
+    """Carpetas bajo `docs/` que son una EXPORTACIÓN de plugin-panel (HTML + `vendor/` con licencias y
+    procedencia de terceros), reconocidas por su `export-manifest.json` con el generador del plugin, no por
+    un nombre fijo (`docs/roadmap/panel/` es solo el destino por defecto de `/roadmap-status`). Un manifiesto
+    ilegible o de otro generador no excluye nada. Devuelve rutas relativas a `root`, con `/`."""
+    carpetas = []
+    for dirpath, dirnames, filenames in os.walk(docs_root):
+        dirnames.sort()
+        if PANEL_EXPORT_MANIFEST not in filenames:
+            continue
+        try:
+            datos = json.loads((Path(dirpath) / PANEL_EXPORT_MANIFEST).read_text(encoding="utf-8"))
+            if datos.get("generador") != PANEL_EXPORT_GENERATOR:
+                continue
+        except (OSError, ValueError, UnicodeError, AttributeError):
+            continue
+        carpetas.append(rel_from_root(dirpath, root))
+    return carpetas
+
+
 def resolve_scope(root, publish, docs_dirname="docs", out_dir=None):
     """Devuelve (en_alcance, excluidos): listas ordenadas de rutas
     'docs/...' relativas a `root`. `excluidos` es lista de tuplas
@@ -263,8 +287,13 @@ def resolve_scope(root, publish, docs_dirname="docs", out_dir=None):
     en_alcance, excluidos = [], []
     if not docs_root.is_dir():
         return en_alcance, excluidos
+    paneles = panel_export_dirs(docs_root, root)
     for f in iter_md_files(docs_root):
         rel = rel_from_root(f, root)
+        exportacion = next((c for c in paneles if rel.startswith(c + "/")), None)
+        if exportacion:
+            excluidos.append((rel, f"exportación de plugin-panel ({exportacion}/{PANEL_EXPORT_MANIFEST})"))
+            continue
         # Memory queues and episodic notes never become curated publication.
         # Case folding also protects Windows projects with noncanonical casing.
         private_memory = next((p for p in ALWAYS_EXCLUDE[1:]

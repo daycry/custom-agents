@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import tempfile
 
@@ -180,17 +181,47 @@ def construir_paginas(datos, *, generado, chart_ok, cuerpos=None):
             for slug, archivo, _ in PAGES}
 
 
-def _leer_manifiesto(ruta):
-    """{ruta: sha256} del manifiesto previo; ValueError si existe y no es nuestro."""
+_SHA256_RE = re.compile(r'[0-9a-f]{64}')
+_UNIDAD_RE = re.compile(r'^[A-Za-z]:')
+_PROHIBIDOS_EN_RUTA = ('\\', ':', '\x00')
+
+
+def _ruta_manifiesto_valida(rel):
+    """Ruta relativa POSIX y sin trucos: sin barra invertida, unidad, raíz, `:`, NUL ni componentes `.`, `..` o vacíos."""
+    if not isinstance(rel, str) or not rel or rel.startswith('/') or any(c in rel for c in _PROHIBIDOS_EN_RUTA):
+        return False
+    return not _UNIDAD_RE.match(rel) and all(parte not in ('', '.', '..') for parte in rel.split('/'))
+
+
+def _leer_manifiesto(ruta, destino, unsafe_link):
+    """{ruta: sha256} del manifiesto previo; ValueError si existe y no es nuestro o si una entrada no es
+    segura (CWE-22: el manifiesto guía un `unlink`, así que no es de fiar). Una entrada inválida ABORTA
+    antes de escribir o borrar nada: o el manifiesto está corrupto o es hostil, y en ambos casos no se
+    limpia a ciegas; el mensaje no lleva rutas."""
     if not ruta.exists():
         return {}
     try:
         texto = json.loads(ruta.read_text(encoding='utf8'))
         if texto.get('generador') != GENERADOR:
             raise ValueError
-        return {f['ruta']: f['sha256'] for f in texto['ficheros']}
+        previo = {f['ruta']: f['sha256'] for f in texto['ficheros']}
     except (OSError, ValueError, UnicodeError, KeyError, TypeError, AttributeError):
         raise ValueError(f'output was not created by plugin-panel: {MANIFEST}') from None
+    raiz = destino.resolve()
+    for rel, sha in previo.items():
+        if not _ruta_manifiesto_valida(rel) or not isinstance(sha, str) or not _SHA256_RE.fullmatch(sha):
+            raise ValueError(f'output manifest has an unsafe entry: {MANIFEST}')
+        completa = destino / rel
+        try:
+            completa.resolve().relative_to(raiz)
+        except (OSError, ValueError):
+            raise ValueError(f'output manifest has an unsafe entry: {MANIFEST}') from None
+        for padre in completa.parents:
+            if padre == destino:
+                break
+            if unsafe_link(padre):
+                raise ValueError('output is a symbolic link')
+    return previo
 
 
 def _escribir_atomico(ruta, contenido):
@@ -221,7 +252,9 @@ def exportar_sitio(destino, datos, *, generado=None, unsafe_link=lambda ruta: ru
         raise ValueError('output is a symbolic link')
     if destino.exists() and not destino.is_dir():
         raise ValueError('output is not a directory')
-    previo = _leer_manifiesto(destino / MANIFEST)
+    if not destino.exists() and not destino.parent.is_dir():
+        raise ValueError('output parent directory does not exist')
+    previo = _leer_manifiesto(destino / MANIFEST, destino, unsafe_link)
 
     for rel, contenido in sorted(ficheros.items()):
         ruta = destino / rel
@@ -229,6 +262,8 @@ def exportar_sitio(destino, datos, *, generado=None, unsafe_link=lambda ruta: ru
         while padre != destino and destino in padre.parents:
             if unsafe_link(padre):
                 raise ValueError('output is a symbolic link')
+            if padre.exists() and not padre.is_dir():
+                raise ValueError(f'output was not created by plugin-panel: {rel}')
             padre = padre.parent
         if unsafe_link(ruta) or ruta.is_dir():
             raise ValueError(f'output was not created by plugin-panel: {rel}')

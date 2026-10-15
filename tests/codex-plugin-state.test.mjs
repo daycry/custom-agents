@@ -76,7 +76,10 @@ test('Codex state: timeout kills non-cooperative native process and descendants 
     const began=Date.now()
     const state=queryCodexPlugin({cwd:owned.root,timeout:3000,runner:(args,options)=>runCodexQuery(args,{...options,env:owned.env})})
     assert.equal(state.reason,'cli-timeout')
-    assert.ok(Date.now()-began<7500,'query waited for non-cooperative process after its deadline')
+    // Ceiling = 3 s deadline + runCodexQuery's 4 s outer SIGKILL, plus spawn/teardown margin
+    // (Windows taskkill + CIM sweep under a loaded runner). Still far below the 12 s the
+    // non-cooperative descendant would live if the query waited for it.
+    assert.ok(Date.now()-began<9500,'query waited for non-cooperative process after its deadline')
     assert.ok(existsSync(pidFile),'fixture must start its descendant before the deadline')
     const pid=Number(readFileSync(pidFile,'utf8'))
     assert.throws(()=>process.kill(pid,0),'native descendant survived query timeout cleanup')

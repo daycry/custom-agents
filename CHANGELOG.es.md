@@ -11,7 +11,7 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
-### Added — Rediseño del panel, fase 1 (base)
+### Added — iniciativa `panel-redesign`, fase 1 (base)
 
 - El panel incluye Chart.js 4.5.1 sin modificar, con su licencia MIT y un fichero de procedencia; un test comprueba su huella y que no hay otra copia. Una prueba en navegador (Chromium y Firefox, servido y `file://`) confirmó que las páginas exportadas lo cargan con `script-src 'self' file:` sin violaciones de CSP ni peticiones de red.
 - Nueva primitiva `redact.anonimizar`: quita del panel la ruta del proyecto, el directorio personal, el usuario del sistema y los correos antes de mostrarlos o exportarlos.
@@ -20,11 +20,18 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - La página Catálogo del panel reúne el catálogo, las extensiones, el workflow y las notas de fuentes, con un gráfico de piezas por tipo y su tabla equivalente; la página Diagnóstico conserva la instantánea de doctor con los mismos rechazos y filtros, sin ejecutar doctor.
 - La proyección JSON de `roadmap-dashboard` es ahora una función pura (`vista_json`) que reutiliza el panel, con `--json` y `--md` idénticos byte a byte.
 
-### Changed — Exportación del panel
+### Changed — iniciativa `panel-redesign`, exportación del panel
 
 - `build_panel.py --html` se sustituye por `--export <carpeta>`; `--json` y `--serve` no cambian.
 - El servidor local del panel sirve las siete páginas y sus activos desde una lista cerrada con una CSP estricta, un nonce por arranque en cada script y sin leer disco en cada petición; si Chart.js falta o está alterado, las páginas muestran solo tablas. Los scripts vivos de progreso, memoria, actividad y revisión del plan se cargan como ficheros en su página, y la plantilla de una sola página desaparece.
 - `roadmap-dashboard` deja de generar HTML y solo calcula los datos de cartera (`--md`, `--metrics-md`, `--json`); `/roadmap-status` escribe `dashboard.md` y exporta el panel multi-página a `docs/roadmap/panel/`, sin borrar nunca un `dashboard.html` antiguo. `plugin-panel` es ya el único dashboard, y su guía documenta las siete páginas, los dos modos, la CSP de cada uno y la procedencia de Chart.js incluido.
+
+### Fixed — iniciativa `panel-redesign`, revisión de la fase 1
+
+- La exportación del panel ya no se fía de un `export-manifest.json` previo: una entrada con `..`, ruta absoluta, unidad, barra invertida o un padre enlazado aborta antes de escribir o borrar nada. Tampoco crea las carpetas padre del destino y detecta antes de escribir un fichero donde hace falta una carpeta, sin imprimir rutas absolutas.
+- La anonimización del panel ya no reescribe los valores de vocabulario cerrado (scope, kind, runtime): una cuenta llamada `user`, `project`, `agent` o `codex` no rompe la exportación ni oculta hooks en los filtros. El texto se anonimiza antes de recortarlo, así que un correo o una ruta del home que cruza el corte no se filtra a trozos.
+- El panel servido aplica la misma anonimización que el exportado, también en los títulos de progreso. `/roadmap-status` no escribe nada si falta `docs/roadmap/` o falla el dashboard, y su descripción dice lo que escribe.
+- La sincronización con Confluence deja fuera cualquier carpeta de exportación de `plugin-panel` (reconocida por su `export-manifest.json`), así que ya no se publica la licencia de Chart.js incluida.
 
 ### Added — Archivado del ledger
 
@@ -49,6 +56,7 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 ### Fixed — Fallos que solo salían en la CI de Linux
 
 - La persona `db` vuelve a caber bajo el suelo de personas del brief (1.300 caracteres). El escaneo de red de los hooks salta `hooks/__pycache__`, que escribe el intérprete cuando otro test importa `runtime-supervisor.py`; leer ese bytecode como código de hook tumbaba la suite según el orden de los tests.
+- Dos rojos que la CI arrastraba eran fallos reales. En imágenes sin `ps` (como `python:*-slim`), el supervisor de hooks no podía listar el grupo de procesos del adaptador de OpenCode y los procesos de fondo de un hook le sobrevivían; ahora lee `/proc` si falta `ps`. Un test de `knowledge-find` consultaba la memoria local no versionada en vez de su corpus de fixture.
 
 ### Changed — Comparación de agentes (68 agentes)
 
