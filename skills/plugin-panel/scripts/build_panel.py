@@ -3,6 +3,7 @@
 import argparse
 import html
 import hashlib
+import getpass
 import importlib.util
 import json
 import math
@@ -30,9 +31,12 @@ def _load_redactor():
     spec = importlib.util.spec_from_file_location('panel_redactor', path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    global ANONIMIZAR
+    ANONIMIZAR = getattr(module, 'anonimizar', None)
     return module.redactar
 
 
+ANONIMIZAR = None
 REDACTOR = _load_redactor()
 
 
@@ -737,22 +741,54 @@ def render_html(data, *, live=False, review_enabled=False):
 
 
 
-def _write_html(path, text):
-    path = Path(path)
-    if _unsafe_link(path) or any(_unsafe_link(parent) for parent in path.absolute().parents):
-        raise ValueError('output is a symbolic link')
-    if path.exists():
-        with path.open(encoding='utf8') as handle:
-            if handle.read(len(MARKER)) != MARKER:
-                raise ValueError('output was not created by plugin-panel')
-    descriptor, temporary = tempfile.mkstemp(prefix='.plugin-panel-', dir=path.parent)
+_PAGES_MODULE = None
+
+
+def _load_pages():
+    """Carga panel_pages.py del propio bundle (código de confianza; --root es dato)."""
+    global _PAGES_MODULE
+    if _PAGES_MODULE is None:
+        path = Path(__file__).resolve().parent / 'panel_pages.py'
+        spec = importlib.util.spec_from_file_location('panel_pages', path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _PAGES_MODULE = module
+    return _PAGES_MODULE
+
+
+def _anonymize_values(value, scrub):
+    if isinstance(value, str):
+        return scrub(value)
+    if isinstance(value, list):
+        return [_anonymize_values(item, scrub) for item in value]
+    if isinstance(value, dict):
+        return {key: _anonymize_values(item, scrub) for key, item in value.items()}
+    return value
+
+
+def _scrubber(args):
+    """redactar -> anonimizar (CA-41): raíz -> `.`, home -> `~`, usuario -> `<usuario>`, correos -> `<correo>`."""
+    if ANONIMIZAR is None:
+        raise ValueError('bundled redactor unavailable')
+    roots = [str(Path(value).resolve()) for value in (args.project, args.root) if value]
+    roots += [str(value) for value in (args.project, args.root) if value]
+    homes = [str(Path.home())]
+    if args.home:
+        homes.append(str(args.home))
     try:
-        with os.fdopen(descriptor, 'w', encoding='utf8', newline='\n') as handle:
-            handle.write(text)
-        os.replace(temporary, path)
-    finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
+        user = getpass.getuser()
+    except Exception:  # noqa: BLE001 - sin usuario resoluble no hay nada que sustituir
+        user = ''
+    return lambda text: ANONIMIZAR(REDACTOR(text), roots, homes, user)
+
+
+def _export(args, data):
+    pages = _load_pages()
+    clean = _anonymize_values(data, _scrubber(args))
+    written, warnings = pages.exportar_sitio(args.export, clean, unsafe_link=_unsafe_link)
+    for warning in warnings:
+        print(f'plugin-panel: aviso: {warning}', file=sys.stderr)
+    return written
 
 
 def _load_server():
@@ -766,7 +802,7 @@ def _load_server():
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', default=str(Path(__file__).resolve().parents[3]))
-    parser.add_argument('--html')
+    parser.add_argument('--export', metavar='DIR', help='exporta el panel multi-página (7 páginas + assets + manifiesto) a una carpeta')
     parser.add_argument('--json', action='store_true')
     parser.add_argument('--serve', action='store_true', help='explicit loopback dashboard with canonical ledger refresh')
     parser.add_argument('--port', type=int, help='local server port; default ephemeral; only with --serve')
@@ -781,8 +817,8 @@ def main(argv=None):
     parser.add_argument('--user-root', action='append', default=[], metavar='RUNTIME=PATH')
     parser.add_argument('--diagnostics-report', help='explicit portable doctor JSON snapshot; requires --project for scope')
     args = parser.parse_args(argv)
-    if args.serve and (not args.project or args.html or args.json or args.home or args.user_root):
-        parser.error('--serve requires --project and excludes --html, --json, --home and --user-root')
+    if args.serve and (not args.project or args.export or args.json or args.home or args.user_root):
+        parser.error('--serve requires --project and excludes --export, --json, --home and --user-root')
     if args.port is not None and (not args.serve or not 0 <= args.port <= 65535):
         parser.error('--port requires --serve and a value from 0 to 65535')
     if (args.review_initiative is not None or args.review_state_root is not None or args.review_gate_key is not None) and (
@@ -800,9 +836,11 @@ def main(argv=None):
             selection = {'initiative': args.review_initiative, 'state_root': args.review_state_root,
                          'gate_key': args.review_gate_key or 'requested-review'} if args.review_initiative else None
             return server.run(args.project, data, port=args.port or 0, review_selection=selection)
-        if args.html:
-            _write_html(args.html, render_html(data))
-        if args.json or not args.html:
+        if args.export:
+            written = _export(args, data)
+            print(f'plugin-panel: exportados {len(written)} ficheros (7 páginas, assets y vendor) con su export-manifest.json',
+                  file=sys.stderr if args.json else sys.stdout)
+        if args.json or not args.export:
             print(json.dumps(data, ensure_ascii=False, indent=2))
         return 0
     except (OSError, UnicodeError, ValueError) as error:

@@ -42,10 +42,21 @@ acción restauran filtros y foco; Fuentes permanece accesible en móvil.
 En un checkout:
 
 ```powershell
-python skills/plugin-panel/scripts/build_panel.py --html panel.html
+python skills/plugin-panel/scripts/build_panel.py --export panel
 python skills/plugin-panel/scripts/build_panel.py --json
-python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --html panel.html
+python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --export panel
 ```
+
+`--export <carpeta>` sustituye al antiguo `--html`: escribe siete páginas (`index.html`,
+`iniciativas.html`, `plan.html`, `agentes.html`, `memoria.html`, `catalogo.html`,
+`diagnostico.html`) con un menú común, `assets/`, `vendor/chart.js/` (con su licencia
+y su procedencia) y un `export-manifest.json` con cada fichero propio y su SHA-256.
+La carpeta se abre con `file://` y no hace peticiones de red. Solo se sobrescribe un
+HTML con la marca del panel o un fichero del manifiesto con el hash que se escribió; un
+fichero ajeno con el mismo nombre aborta la exportación con código 2 sin escribir nada.
+Rutas del proyecto y del home, nombre de usuario y correos salen como `.`, `~`,
+`<usuario>` y `<correo>`. Si Chart.js no coincide con su huella, las páginas muestran
+solo las tablas. `--json` no cambia.
 
 En una instalación, localiza la skill en las raíces del runtime. El script
 identifica el bundle por su propia ubicación. `--root <bundle>` permite inspeccionar
@@ -182,7 +193,7 @@ Selecciona la ruta exacta de la iniciativa; sólo se revisa `improvement-plan.md
 `--review-initiative` y `--review-state-root` van juntos. El builder usa
 `requested-review` por defecto; `/dev-cycle` debe seleccionar `plan-ok`.
 Una decisión de revisión general no autoriza esa puerta. El modo servido excluye
-`--html`, `--json`, `--home` y `--user-root`. El HTML autónomo no abre revisión ni escribe estado.
+`--export`, `--json`, `--home` y `--user-root`. El HTML autónomo no abre revisión ni escribe estado.
 
 El workflow ejecuta primero `plan-review.py open` para obtener el ID y la versión,
 con `gate-key: plan-ok` y su runtime actual. Después abre el servidor, que recupera

@@ -85,7 +85,7 @@ from extension declarations and filters by kind, origin and runtime. Each entry
 shows source, ID, conflicts, ownership and unverified availability.
 
 ```powershell
-python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --html panel.html
+python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --export panel
 python agent-kits/shared/project-pieces.py --project . --runtime codex --project-only --json
 ```
 

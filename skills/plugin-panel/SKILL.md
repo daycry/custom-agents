@@ -21,18 +21,18 @@ una vista acotada del ledger local, memoria canónica y señales recientes de ac
 
 1. Localiza esta skill en las raíces del bundle del runtime actual.
 2. Ejecuta scripts/build_panel.py con Python nativo, `--root <bundle>` y
-   `--html <salida>`. Para el proyecto actual añade `--project <raíz>` y
+   `--export <carpeta>` (7 páginas, `assets/`, `vendor/chart.js/` y `export-manifest.json`). Para el proyecto actual añade `--project <raíz>` y
    `--cwd <paquete>` si está anidado; fija `--runtime` según la sesión.
    Añade `--json` si necesitas inventario estructurado.
    Para un informe ya generado y seleccionado explícitamente, añade
    `--diagnostics-report <informe.json>` junto a `--project <misma-raíz>`.
-   Para actualización automática solicitada, sustituye HTML/JSON por `--serve`,
+   Para actualización automática solicitada, sustituye la exportación/JSON por `--serve`,
    con proyecto obligatorio; `--port` es opcional. Lee el contrato de servidor
    en la referencia de uso antes de lanzarlo. No se inicia en un inventario estático.
    Para una revisión solicitada, añade `--review-initiative <ruta-relativa-exacta>`
    y `--review-state-root <proyecto/.claude/plan-review>` en modo servido.
    Lee la puerta de revisión en la misma referencia antes de abrirla.
-3. Entrega el HTML y resume sus avisos. Un archivo presente no acredita que
+3. Entrega la carpeta exportada (abre `index.html`) y resume sus avisos. Un archivo presente no acredita que
    el hook se haya ejecutado ni que un servicio esté sano.
    En modo servido entrega la URL privada de ese proceso y conserva su handle;
    no persistas la URL ni presentes los estados del ledger como agentes vivos.
@@ -49,7 +49,7 @@ y artefacto Graphify. En modo servido, Buscar, Ver y Relaciones leen entradas
 locales explícitamente mediante `knowledge-view.py`, sin caché o backends.
 No consulta grafos, transcripciones ni credenciales.
 Usa el redactor del bundle. Sin él, avisa y no emite metadatos; continúa la tarea.
-No sigue enlaces simbólicos. Solo reemplaza HTML reconocido como suyo.
+No sigue enlaces simbólicos. Solo reemplaza HTML reconocido como suyo o ficheros de su `export-manifest.json` con el hash que escribió.
 
 Diagnóstico consume exclusivamente la proyección `doctor --panel-json`, no su
 JSON general. No ejecuta doctor ni descubre informes. Conserva fuente, fecha,

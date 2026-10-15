@@ -229,7 +229,7 @@ def test_builder_serve_is_explicit_project_only_and_separate_from_exports(servic
     assert calls[0]['include_user'] is False
 
 
-@pytest.mark.parametrize('args', [['--serve'], ['--serve', '--project', '.', '--html', 'file.html'],
+@pytest.mark.parametrize('args', [['--serve'], ['--serve', '--project', '.', '--export', 'salida'],
     ['--serve', '--project', '.', '--json'], ['--serve', '--project', '.', '--home', '.'],
     ['--serve', '--project', '.', '--user-root', 'codex=.'], ['--port', '1234'],
     ['--serve', '--project', '.', '--port', '-1']])

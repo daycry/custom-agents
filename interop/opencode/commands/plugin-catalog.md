@@ -27,7 +27,7 @@ para detenerlo a petición del usuario. En Windows, si lo lanzas en segundo
 plano con Start-Process, usa WindowStyle Hidden; no abras otra consola visible.
 
 Puerto efímero por defecto; `--port` permite uno local disponible. Este modo
-excluye `--html`, `--json`, `--home` y `--user-root`, y omite fuentes personales.
+excluye `--export`, `--json`, `--home` y `--user-root`, y omite fuentes personales.
 Entrega la URL solo al usuario. Catálogo y diagnóstico quedan fijados al
 arranque; Progreso relee ledgers con límites cada cinco segundos. La UI permite
 filtrar y actualizar, e identifica lecturas parciales y datos anteriores tras
@@ -40,7 +40,7 @@ Este modo no escribe tareas ni consulta journal, cachés o backends de memoria.
 ```bash
 PANEL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/plugin-panel/scripts/build_panel.py' 2>/dev/null | head -1)"
 # En el checkout, el script está también en skills/plugin-panel/scripts/.
-python3 "$PANEL" --project "<raíz-proyecto>" --runtime <claude-code|codex|opencode> --html "<salida.html>"
+python3 "$PANEL" --project "<raíz-proyecto>" --runtime <claude-code|codex|opencode> --export "<carpeta-de-salida>"
 ```
 
 Una vez localizado PANEL, para el modo servido ejecuta esta alternativa:

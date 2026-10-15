@@ -16,6 +16,11 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - El panel incluye Chart.js 4.5.1 sin modificar, con su licencia MIT y un fichero de procedencia; un test comprueba su huella y que no hay otra copia. Una prueba en navegador (Chromium y Firefox, servido y `file://`) confirmó que las páginas exportadas lo cargan con `script-src 'self' file:` sin violaciones de CSP ni peticiones de red.
 - Nueva primitiva `redact.anonimizar`: quita del panel la ruta del proyecto, el directorio personal, el usuario del sistema y los correos antes de mostrarlos o exportarlos.
 - Las salidas JSON y Markdown del dashboard y el JSON del catálogo del panel quedan fijadas con goldens: el rediseño no puede cambiarlas sin que falle un test.
+- `build_panel.py --export <carpeta>` escribe un sitio de siete páginas con menú accesible común, paleta WCAG 2.2 AA, gráficos siempre acompañados de su tabla equivalente (el dato ausente se muestra como «sin datos», nunca como 0), Chart.js incluido con su licencia y un `export-manifest.json`. No necesita red, quita rutas, usuario y correos, y nunca sobrescribe ficheros que no son suyos.
+
+### Changed — Exportación del panel
+
+- `build_panel.py --html` se sustituye por `--export <carpeta>`; `--json` y `--serve` no cambian.
 
 ### Added — Archivado del ledger
 

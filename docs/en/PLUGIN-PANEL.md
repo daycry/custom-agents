@@ -40,10 +40,21 @@ budgets remain in roadmap-dashboard.
 From a checkout:
 
 ```powershell
-python skills/plugin-panel/scripts/build_panel.py --html panel.html
+python skills/plugin-panel/scripts/build_panel.py --export panel
 python skills/plugin-panel/scripts/build_panel.py --json
-python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --html panel.html
+python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --export panel
 ```
+
+`--export <dir>` replaces the former `--html`: it writes seven pages (`index.html`,
+`iniciativas.html`, `plan.html`, `agentes.html`, `memoria.html`, `catalogo.html`,
+`diagnostico.html`) sharing one menu, `assets/`, `vendor/chart.js/` (with its license
+and provenance) and an `export-manifest.json` listing each owned file with its SHA-256.
+The folder opens from `file://` and makes no network requests. Only an HTML file with
+the panel marker, or a manifest file whose hash is the one it wrote, is overwritten; a
+foreign file with the same name aborts the export with exit code 2 before anything is
+written. Project and home paths, the system user name and emails come out as `.`, `~`,
+`<usuario>` and `<correo>`. If Chart.js does not match its fingerprint, pages show
+tables only. `--json` is unchanged.
 
 Installed bundles resolve the skill through their runtime roots. The generator
 finds its own bundle; `--root <bundle>` inspects another catalog without importing
@@ -179,7 +190,7 @@ python skills/plugin-panel/scripts/build_panel.py --serve --project . --review-i
 Select the exact initiative path; only `improvement-plan.md` is reviewed.
 `--review-initiative` and `--review-state-root` are paired. The builder defaults
 to `requested-review`; `/dev-cycle` must select `plan-ok`. A general review decision
-cannot authorize that gate. Served mode excludes `--html`, `--json`, `--home` and
+cannot authorize that gate. Served mode excludes `--export`, `--json`, `--home` and
 `--user-root`. Standalone HTML neither opens review nor writes its state.
 
 The workflow first runs `plan-review.py open` to obtain the review ID and version,

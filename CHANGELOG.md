@@ -16,6 +16,11 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - The panel bundles Chart.js 4.5.1 unmodified, with its MIT licence and a provenance file; a test checks its fingerprint and that no other copy exists. A browser spike (Chromium and Firefox, served and `file://`) confirmed the exported pages can load it under `script-src 'self' file:` with no CSP violation and no network request.
 - New `redact.anonimizar` primitive strips the project path, home directory, system user and e-mails from panel output before it is shown or exported.
 - Dashboard JSON/Markdown and the panel catalogue JSON are pinned by golden tests, so the panel redesign cannot change them unnoticed.
+- `build_panel.py --export <dir>` writes a seven-page site with a shared accessible menu, a WCAG 2.2 AA palette, charts that always come with an equivalent table (missing data shown as "sin datos", never 0), bundled Chart.js with its licence and an `export-manifest.json`. The export needs no network, strips paths, user name and e-mails, and never overwrites files it does not own.
+
+### Changed — Panel export
+
+- `build_panel.py --html` is replaced by `--export <dir>`; `--json` and `--serve` are unchanged.
 
 ### Added — Ledger archiving
 

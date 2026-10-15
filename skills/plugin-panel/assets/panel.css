@@ -1,0 +1,67 @@
+/* Panel local de custom-agents. Un solo tema, sin fuentes ni recursos externos.
+   Los colores viven SOLO en las propiedades de :root; tests/test_panel_palette.py las lee de aquí. */
+:root {
+  color-scheme: dark;
+  /* Texto: >= 4,5:1 (WCAG 1.4.3). Bordes, foco y marcas de gráficos: >= 3:1 (WCAG 1.4.11). */
+  --fondo: #0b1020;
+  --superficie: #131a2e;
+  --texto: #eef1fb;
+  --tenue: #aab4cf;
+  --acento: #b4a3ff;
+  --ok: #7de5cc;
+  --aviso: #f6c380;
+  --error: #ffb0bd;
+  --borde: #6b7799;
+  --foco: #ffd166;
+  /* Series de gráficos: nunca se distinguen solo por color (forma y etiqueta en panel-charts.js y en la tabla). */
+  --serie-1: #7de5cc;
+  --serie-2: #b4a3ff;
+  --serie-3: #f6c380;
+  --serie-4: #82b8ff;
+  --serie-5: #ff9db1;
+  --serie-6: #c8e07a;
+  font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 1.5rem; scroll-padding-bottom: 1.5rem; }
+body { margin: 0; background: var(--fondo); color: var(--texto); line-height: 1.6; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--foco); outline-offset: 3px; }
+main:focus { outline: none; }
+
+.skip-link { position: absolute; left: .75rem; top: .75rem; padding: .6rem 1rem; transform: translateY(-300%);
+  background: var(--texto); color: var(--fondo); border-radius: .5rem; }
+.skip-link:focus { transform: none; }
+
+.cabecera { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; padding: 1rem 1.5rem; border-bottom: 1px solid var(--borde); }
+.marca { font-weight: 700; letter-spacing: .02em; }
+.modo { margin: 0; font-size: .9rem; }
+#menu-toggle { font: inherit; color: inherit; background: transparent; border: 1px solid var(--borde); border-radius: .5rem; padding: .4rem .9rem; cursor: pointer; }
+
+#panel-nav ul { list-style: none; margin: 0; padding: .75rem 1.5rem; display: flex; flex-wrap: wrap; gap: .5rem; border-bottom: 1px solid var(--borde); }
+#panel-nav a { display: inline-block; padding: .45rem .9rem; border: 1px solid transparent; border-radius: .5rem; text-decoration: none; }
+#panel-nav a:hover { border-color: var(--borde); }
+#panel-nav a[aria-current="page"] { border-color: var(--borde); font-weight: 700; text-decoration: underline; text-underline-offset: .25em; }
+
+main { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+h1 { margin-top: 0; }
+table { border-collapse: collapse; width: 100%; }
+section, figure.grafico { background: var(--superficie); border: 1px solid var(--borde); border-radius: .75rem; padding: 1rem; margin: 0 0 1rem; }
+.modo, th { color: var(--tenue); }
+.ausencia { color: var(--aviso); margin: .5rem 0; }
+.estado-ok { color: var(--ok); } .estado-error { color: var(--error); } .estado-aviso { color: var(--aviso); }
+#panel-nav a:link, #panel-nav a:visited { color: var(--acento); }
+figure.grafico { margin-inline: 0; }
+figure.grafico figcaption { font-weight: 700; margin-bottom: .5rem; }
+.lienzo { position: relative; height: 20rem; }
+.tabla-equivalente { overflow-x: auto; margin-top: .75rem; }
+td.sin-datos { color: var(--tenue); font-style: italic; }
+th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid var(--borde); }
+
+@media (max-width: 760px) {
+  #panel-nav ul { flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}

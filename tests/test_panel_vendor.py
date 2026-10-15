@@ -116,7 +116,7 @@ def test_git_no_lo_ignora_ni_convierte_fines_de_linea():
     ignorado = subprocess.run([git, 'check-ignore', '-q', rel], cwd=ROOT)
     assert ignorado.returncode == 1, '.gitignore ignora el Chart.js incluido (regla **/vendor/)'
     atributos = subprocess.run([git, 'check-attr', 'text', '--', rel], cwd=ROOT, capture_output=True,
-                               text=True, check=True).stdout
+                               encoding='utf-8', errors='replace', check=True).stdout
     assert atributos.strip().endswith('text: unset'), atributos
 
 

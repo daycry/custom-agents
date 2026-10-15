@@ -243,9 +243,9 @@ def test_hook_command_variations_cannot_choose_external_sources(panel, bundle):
 
 
 def test_missing_bundled_template_is_diagnostic_and_keeps_json_available(panel, bundle, tmp_path, monkeypatch, capsys):
-    monkeypatch.setattr(panel, 'TEMPLATE', bundle / 'missing-template.html', raising=False)
-    assert panel.main(['--root', str(bundle), '--html', str(tmp_path / 'panel.html')]) == 2
-    assert 'bundled panel template unavailable' in capsys.readouterr().err
+    monkeypatch.setattr(panel._load_pages(), 'ASSETS_DIR', bundle / 'missing-assets')
+    assert panel.main(['--root', str(bundle), '--export', str(tmp_path / 'panel')]) == 2
+    assert 'bundled panel asset unavailable' in capsys.readouterr().err
     assert panel.main(['--root', str(bundle), '--json']) == 0
     assert json.loads(capsys.readouterr().out)['counts']['agents'] == 1
 
@@ -359,19 +359,21 @@ def test_foreign_routing_code_is_never_imported(panel, bundle):
     assert 'private text' not in json.dumps(data)
 
 
-def test_cli_json_and_owned_html_update(panel, bundle, tmp_path, capsys):
-    output = tmp_path / 'panel.html'
-    assert panel.main(['--root', str(bundle), '--html', str(output), '--json']) == 0
+def test_cli_json_and_owned_export_update(panel, bundle, tmp_path, capsys):
+    output = tmp_path / 'panel'
+    assert panel.main(['--root', str(bundle), '--export', str(output), '--json']) == 0
     assert json.loads(capsys.readouterr().out)['counts']['skills'] == 1
-    assert panel.main(['--root', str(bundle), '--html', str(output)]) == 0
-    assert output.read_text(encoding='utf8').startswith(panel.MARKER)
+    assert panel.main(['--root', str(bundle), '--export', str(output)]) == 0
+    assert (output / 'index.html').read_text(encoding='utf8').startswith(panel.MARKER)
+    assert (output / 'export-manifest.json').is_file()
 
 
 def test_cli_never_overwrites_unowned_file(panel, bundle, tmp_path, capsys):
-    output = tmp_path / 'mine.html'
-    output.write_text('USER CONTENT', encoding='utf8')
-    assert panel.main(['--root', str(bundle), '--html', str(output)]) == 2
-    assert output.read_text() == 'USER CONTENT'
+    output = tmp_path / 'panel'
+    output.mkdir()
+    (output / 'index.html').write_text('USER CONTENT', encoding='utf8')
+    assert panel.main(['--root', str(bundle), '--export', str(output)]) == 2
+    assert (output / 'index.html').read_text() == 'USER CONTENT'
     assert 'output' in capsys.readouterr().err.lower()
 
 

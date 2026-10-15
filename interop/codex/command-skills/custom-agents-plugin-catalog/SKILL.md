@@ -8,7 +8,7 @@ description: "Explora el catálogo del plugin en un control panel HTML local: ag
 # Comando /plugin-catalog
 
 Invocación explícita: `$custom-agents:custom-agents-plugin-catalog <argumentos>`.
-Argumentos esperados: `[ruta de salida HTML] [--diagnostics-report informe.json] [--serve] [--port PUERTO]`.
+Argumentos esperados: `[carpeta de exportación] [--diagnostics-report informe.json] [--serve] [--port PUERTO]`.
 
 1. Lee íntegramente `references/command.md`, relativa a esta skill, antes de actuar.
    Si no puedes leerla completa, comunica la limitación y no improvises el workflow.

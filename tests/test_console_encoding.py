@@ -439,6 +439,8 @@ def _modos():
              ("extensiones texto", lambda w: ["--project", os.path.join(w, "extensions"), "--project-only", "--runtime", "claude-code"], (0,), None)],
         "skills/plugin-panel/scripts/build_panel.py":
             [("catalogo JSON", lambda w: ["--json"], (0,), None)],
+        "skills/plugin-panel/scripts/panel_pages.py":
+            [("menu", lambda w: ["--list"], (0,), None)],
         "agent-kits/nemesis/tools/pick_asset.py":
             [("release con emoji", lambda w: ["linux", "amd64"], (0,), release)],
         "agent-kits/qa/coverage-check.py":

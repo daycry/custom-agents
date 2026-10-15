@@ -99,7 +99,7 @@ de las preferencias del proyecto en `~/.claude.json`; los otros runtimes
 conservan el campo enabled declarado. Ninguno de esos estados prueba conexión.
 
 ```powershell
-python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --html panel.html
+python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --export panel
 python agent-kits/shared/project-pieces.py --project . --runtime codex --project-only --json
 ```
 

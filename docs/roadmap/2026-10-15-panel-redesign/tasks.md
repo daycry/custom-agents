@@ -39,11 +39,11 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Base común | 4 | 16 | 25% | 0 / 28,8h | 0,91 / 10,5h | 0,24 / 3,6h | 0,49 / 5,58 M |
+| Fase 1 — Base común | 8 | 16 | 50% | 0 / 28,8h | 0,91 / 10,5h | 0,24 / 3,6h | 0,49 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 0 | 13 | 0% | 0 / 36,0h | 0 / 10,8h | 0 / 3,7h | 0 / 5,74 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 0 | 10 | 0% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
 | Fase 3 — Agentes en vivo + cierre transversal | 0 | 15 | 0% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **4** | **54** | **7%** | **0 / 136,8h** | **0,91 / 51,9h** | **0,24 / 17,0h** | **0,49 / 27,60 M** |
+| **TOTAL** | **8** | **54** | **15%** | **0 / 136,8h** | **0,91 / 51,9h** | **0,24 / 17,0h** | **0,49 / 27,60 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -213,37 +213,42 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 ### T-05 — Plantilla común multi-página (`panel_pages.py`) con menú accesible
 
 - **Descripción**: Crea `skills/plugin-panel/scripts/panel_pages.py`: plantilla común con el menú de 7 entradas en orden fijo, `aria-current="page"`, enlace «Saltar al contenido», cabecera de modo (servido / instantánea con fecha), datos de la página en `<script type="application/json" id="panel-data">` y la marca `MARKER`. Añade `assets/panel.css` y `assets/panel-core.js` (menú, foco visible, Escape).
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,4h · real —
-- **Supervisión**: est. 0,1h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,4h · real n/d (sin medición en este bloque)
+- **Supervisión**: est. 0,1h (≈25 % IA) · real n/d
 - **Previsión IA**: 183k in / 30k out tok · 2,80 €
 - **Dependencias**: T-01
 - **Tipo**: frontend
-- **Archivos**: `skills/plugin-panel/scripts/panel_pages.py`, `skills/plugin-panel/assets/panel.css`, `skills/plugin-panel/assets/panel-core.js`, `tests/test_panel_pages.py`
+- **Archivos**: `skills/plugin-panel/scripts/panel_pages.py`, `skills/plugin-panel/assets/panel.css`, `skills/plugin-panel/assets/panel-core.js`, `tests/test_panel_pages.py`, `tests/test_console_encoding.py` (añadido: modo `--list` de `panel_pages.py`, ver Notas)
 - **Cubre (tests)**: E2E-01, E2E-05
 - **Verificación**: `python3 -m pytest -q tests/test_panel_pages.py` → `passed` (7 páginas con el mismo `<nav>`, `aria-current` en la actual, `href="#main"` del salto, sin JS inline)
 
 **Criterios de aceptación**
-- [ ] Las 7 páginas comparten el mismo `<nav>` byte a byte salvo `aria-current` (CA-32).
-- [ ] Ningún `<script>` inline ejecutable; los datos van en `type="application/json"` y se escapan `<`, `>` y `&` dentro del JSON.
-- [ ] El foco es visible (`:focus-visible` con contraste ≥ 3:1) y ningún elemento fijo lo tapa (CA-37, WCAG 2.4.11).
-- [ ] Toda cadena de la plantilla está en español.
+- [x] Las 7 páginas comparten el mismo `<nav>` byte a byte salvo `aria-current` (CA-32).
+- [x] Ningún `<script>` inline ejecutable; los datos van en `type="application/json"` y se escapan `<`, `>` y `&` dentro del JSON.
+- [x] El foco es visible (`:focus-visible` con contraste ≥ 3:1) y ningún elemento fijo lo tapa (CA-37, WCAG 2.4.11).
+- [x] Toda cadena de la plantilla está en español.
 
 **Subtareas**
-- [ ] RED: test de estructura de las 7 páginas.
-- [ ] Plantilla y render por página con contenido de marcador.
-- [ ] `panel-core.js`: menú, gestión de foco, Escape genérico.
+- [x] RED: test de estructura de las 7 páginas.
+- [x] Plantilla y render por página con contenido de marcador.
+- [x] `panel-core.js`: menú, gestión de foco, Escape genérico.
 
-**Notas**: patrón de `MARKER` y de propiedad del HTML en `skills/plugin-panel/scripts/build_panel.py:19` y `:740` (`_write_html`); render actual en `build_panel.py:655-738`. Prohibido `innerHTML` (lo vigilan los arneses de `tests/test_panel_live_ui.py:70`).
+- **Cerrada**: 2026-10-15
+- **Changelog**: El panel exportado tiene siete páginas con el mismo menú accesible (salto al contenido, página actual marcada, foco visible) y sin JavaScript en línea.
+- **Evidencia TDD**: `RED: los 6 tests de contenido y los 11 que cargan panel_pages.py / panel-core.js de tests/test_panel_pages.py fallaron con FileNotFoundError · 2026-10-15` (6 failed, 11 errors). GREEN: `17 passed`. Dos rojos intermedios eran del propio test (el JSON lleva además `chartjs_disponible`) y de un comentario del JS que contenía la palabra de la API de inserción de HTML (la prohibición se busca por texto).
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_pages.py` → `17 passed`. Comprobación en navegador (Chromium/Edge y Firefox 142, `file://`, 500 px, red bloqueada) sobre una carpeta exportada: `violaciones: 0 · externas: 0`, el menú arranca plegado, el botón lo abre, Escape lo cierra y devuelve el foco a `menu-toggle`.
+
+**Notas**: patrón de `MARKER` y de propiedad del HTML en `skills/plugin-panel/scripts/build_panel.py:19` y `:740` (`_write_html`); render actual en `build_panel.py:655-738`. Prohibido `innerHTML` (lo vigilan los arneses de `tests/test_panel_live_ui.py:70`). **Implementación (2026-10-15):** `panel_pages.py` expone `PAGES` (slug, archivo, título), `render_page(slug, modo, generado, datos, cuerpo, chart_ok)` y `json_seguro` (escapa `<`, `>`, `&`, U+2028/2029). La entrada «Plan» del menú apunta a `plan.html` (índice de planes, tercera de las siete); los `plan-<id16>.html` por iniciativa llegan en la fase 2: **desviación menor respecto a `design.md` §5.2**, que no lista `plan.html` pero exige siete entradas fijas. `render_page` inyecta `chartjs_disponible` en `panel-data` y solo pone el `<script src="vendor/…">` si `chart_ok`. CSP: modo exportado en `<meta>` con la política de T-03; modo servido sin `<meta>` (la pone el servidor, T-11, con la política de T-03; `CSP_SERVIDO` queda definida y sin usar aquí) y todas las páginas llevan `<link rel="icon" href="data:,">`. `panel-core.js`: menú plegable ≤ 760 px (`matchMedia`); sin JS el menú queda siempre visible; Escape solo actúa con el menú abierto. **Aviso de entorno:** `package.json` es `"type": "module"`, así que `require()` de un `assets/*.js` lo trata como ESM y `module.exports` no existe: los arneses Node leen `global.PanelCore` / `global.PanelCharts`, no el valor devuelto. **Desviación:** el linter marcó `panel_pages.py` (fuente con tildes) por no reconfigurar stdio; se le añadió el snippet y un modo `--list` (imprime el menú en JSON) con su entrada en `MODOS` de `tests/test_console_encoding.py`.
 
 ### T-06 — Paleta con test de contraste WCAG 2.2
 
 - **Descripción**: Define la paleta (texto, fondos, marcas de gráficos, bordes y foco) como propiedades CSS en `panel.css` y un test que calcula el contraste: texto ≥ 4,5:1 (grande ≥ 3:1), marcas, bordes y foco ≥ 3:1 (CA-38).
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 1,2h · real —
-- **Tiempo IA (ejec.)**: est. 0,2h · real —
-- **Supervisión**: est. 0,05h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,2h · real n/d (sin medición en este bloque)
+- **Supervisión**: est. 0,05h (≈25 % IA) · real n/d
 - **Previsión IA**: 91k in / 15k out tok · 1,40 €
 - **Dependencias**: T-05
 - **Tipo**: frontend
@@ -252,23 +257,28 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 - **Verificación**: `python3 -m pytest -q tests/test_panel_palette.py` → `passed` (cada par color/fondo declarado cumple su umbral)
 
 **Criterios de aceptación**
-- [ ] El test lee los colores DEL CSS real (no de una copia en el test) y falla si un par baja de su umbral.
-- [ ] Cada serie de gráfico se distingue también por patrón, forma o etiqueta, no solo por color (CA-39, WCAG 1.4.1).
-- [ ] Un solo tema; sin dependencias externas de fuentes.
+- [x] El test lee los colores DEL CSS real (no de una copia en el test) y falla si un par baja de su umbral.
+- [x] Cada serie de gráfico se distingue también por patrón, forma o etiqueta, no solo por color (CA-39, WCAG 1.4.1).
+- [x] Un solo tema; sin dependencias externas de fuentes.
 
 **Subtareas**
-- [ ] RED con un par inválido.
-- [ ] Paleta y pares declarados.
+- [x] RED con un par inválido.
+- [x] Paleta y pares declarados.
 
-**Notas**: el repo no tiene un test de contraste previo; patrón de test que parsea un fichero real del bundle en `tests/test_panel_vendor.py` (T-02). Validación visual de la paleta: revisión del usuario M-01.
+- **Cerrada**: 2026-10-15
+- **Changelog**: La paleta del panel (un solo tema, sin fuentes externas) cumple los contrastes WCAG 2.2 AA, y un test lo comprueba leyendo los colores del propio CSS.
+- **Evidencia TDD**: `RED: test_la_paleta_real_cumple_todos_los_umbrales y los 3 test_el_verificador_detecta_* de tests/test_panel_palette.py fallaron con AssertionError: falta la propiedad --superficie / KeyError: 'serie-1' · 2026-10-15` (4 failed, 3 passed; el CSS de T-05 solo traía 4 propiedades). GREEN: `7 passed`. Mutaciones comprobadas por los propios tests: `--tenue #5a6480` (< 4,5:1), `--serie-3 #2a3350` (< 3:1), `--foco #101830` y dos series con el mismo color son detectados.
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_palette.py` → `7 passed`. Contrastes reales: texto 15,3:1 sobre superficie, texto secundario 8,4:1, acento 7,9:1, bordes 3,89:1 (superficie) y 4,26:1 (fondo), foco 12,0:1, series 7,9:1 a 11,9:1.
+
+**Notas**: el repo no tiene un test de contraste previo; patrón de test que parsea un fichero real del bundle en `tests/test_panel_vendor.py` (T-02). Validación visual de la paleta: revisión del usuario M-01. **Implementación (2026-10-15):** paleta oscura única en `:root` de `panel.css` (`--fondo --superficie --texto --tenue --acento --ok --aviso --error --borde --foco --serie-1..6`); el test declara 26 pares (texto 4,5:1; bordes, foco y marcas 3:1; incluye el del enlace de salto) y además falla si hay un color literal fuera de `:root` (escaparía del cálculo). CA-39 (series no solo por color) queda repartido: la paleta da 6 colores distintos entre sí (test) y las formas (`FORMAS`, 6) y las etiquetas de la tabla equivalente las verifica T-07 (`test_las_formas_cubren_todas_las_series_de_la_paleta`). La validación visual sigue siendo la revisión del usuario M-01.
 
 ### T-07 — Adaptador de gráficos con tabla equivalente y «sin datos»
 
 - **Descripción**: `assets/panel-charts.js` dibuja cada gráfico dentro de un `<figure>` con `<canvas aria-label>` y una `<table>` equivalente accesible por teclado. Si falta Chart.js o su hash no coincide, muestra solo la tabla con un aviso. `panel-core.js` expone el render de ausencias: «sin datos» / «parcial: N de M» con su origen, nunca 0 ni media.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,4h · real —
-- **Supervisión**: est. 0,1h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,4h · real n/d (sin medición en este bloque)
+- **Supervisión**: est. 0,1h (≈25 % IA) · real n/d
 - **Previsión IA**: 183k in / 30k out tok · 2,80 €
 - **Dependencias**: T-02, T-03, T-06
 - **Tipo**: frontend
@@ -277,44 +287,54 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 - **Verificación**: `python3 -m pytest -q tests/test_panel_charts_ui.py` → `passed` (escenarios: con Chart.js, sin Chart.js, valor `null`, parcial N de M)
 
 **Criterios de aceptación**
-- [ ] Todo gráfico tiene nombre accesible que dice qué muestra y su tabla equivalente (CA-39).
-- [ ] Un valor `null` se pinta «sin datos» y queda FUERA de las barras; nunca 0 (CA-40).
-- [ ] Sin Chart.js (o con `window.Chart` ausente), la página sigue entera con la tabla y el aviso (fila «Falta el fichero de Chart.js» de «Manejo de errores»).
-- [ ] Sin `innerHTML`; textos por `textContent`.
+- [x] Todo gráfico tiene nombre accesible que dice qué muestra y su tabla equivalente (CA-39).
+- [x] Un valor `null` se pinta «sin datos» y queda FUERA de las barras; nunca 0 (CA-40).
+- [x] Sin Chart.js (o con `window.Chart` ausente), la página sigue entera con la tabla y el aviso (fila «Falta el fichero de Chart.js» de «Manejo de errores»).
+- [x] Sin `innerHTML`; textos por `textContent`.
 
 **Subtareas**
-- [ ] RED en el arnés Node con DOM falso.
-- [ ] Adaptador y render de ausencias.
+- [x] RED en el arnés Node con DOM falso.
+- [x] Adaptador y render de ausencias.
 
-**Notas**: arnés Node con DOM falso y escenarios parametrizados en `tests/test_panel_live_ui.py:64-140` (`_live_script`, `HARNESS`). Política de ausencia `null` + etiqueta de `design.md` §5 (`panel_data.py`) y `build_dashboard.py:1169` («ausente = null, nunca 0»).
+- **Cerrada**: 2026-10-15
+- **Changelog**: Los gráficos del panel se dibujan con una tabla equivalente accesible por teclado; si falta Chart.js se muestra solo la tabla, y un dato ausente aparece como «sin datos», nunca como 0.
+- **Evidencia TDD**: `RED: los 13 tests de tests/test_panel_charts_ui.py fallaron con FileNotFoundError / Charts.dibujar is not a function (panel-charts.js no existía) · 2026-10-15` (13 failed). GREEN: `13 passed` (11 escenarios Node con DOM falso + formas/paleta + sin innerHTML/red).
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_charts_ui.py` → `13 passed` (con Chart.js, sin Chart.js, Chart.js marcado no disponible, Chart.js que lanza, `null`, todo `null`, parcial N de M, textos por `textContent`, 6 series por forma+color+etiqueta, sin animaciones, ausencias del núcleo).
+
+**Notas**: arnés Node con DOM falso y escenarios parametrizados en `tests/test_panel_live_ui.py:64-140` (`_live_script`, `HARNESS`). Política de ausencia `null` + etiqueta de `design.md` §5 (`panel_data.py`) y `build_dashboard.py:1169` («ausente = null, nunca 0»). **Implementación (2026-10-15):** `PanelCharts.dibujar(contenedor, spec, {chartDisponible})` crea `<figure class="grafico">` con `<figcaption>`, `<div class="lienzo"><canvas role="img" aria-label="título. descripción. Los mismos datos están en la tabla siguiente.">` y `<div role="region" tabindex="0" aria-label="Tabla equivalente: …">` con la `<table>` (`caption`, `th scope`). Un `null` va al dataset como `null` con `spanGaps:false` (Chart.js no dibuja la barra) y a la tabla como «sin datos» (`td.sin-datos`); si NINGÚN valor existe no se dibuja canvas y se muestra «Sin datos (origen: …)». `spec.parcial` pinta «Parcial: N de M (origen: …)». Si Chart.js falta, está marcado no disponible (`chartjs_disponible:false` del `panel-data`, que pone el exportador cuando su huella no coincide) o su constructor lanza, queda solo la tabla con el aviso «Chart.js no está disponible…». `panel-core.js` expone `celda`, `textoAusencia` y `renderAusencia`. Color por serie desde `--serie-N` (CSSOM, no inline) y forma por `FORMAS` (6); animación desactivada. Sin inserción de HTML, `eval` ni red (lo vigila el test). En navegador solo se comprobó el menú (T-05), no un gráfico real: el primer gráfico con Chart.js real es T-09.
 
 ### T-08 — Modo exportado `--export <dir>` con manifiesto propio (retira `--html` del panel)
 
 - **Descripción**: `build_panel.py --export <dir>` escribe las 7 páginas, `assets/`, `vendor/chart.js/` y `export-manifest.json` (ficheros propios + sha256 + fecha). Solo sobrescribe HTML con `MARKER` o ficheros del manifiesto con el hash que él escribió. Retira `--html`; `--json` queda igual (CA-28).
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,4h · real —
-- **Supervisión**: est. 0,1h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,4h · real n/d (sin medición en este bloque)
+- **Supervisión**: est. 0,1h (≈25 % IA) · real n/d
 - **Previsión IA**: 183k in / 30k out tok · 2,80 €
 - **Dependencias**: T-04, T-05, T-07
 - **Tipo**: backend
-- **Archivos**: `skills/plugin-panel/scripts/build_panel.py`, `skills/plugin-panel/scripts/panel_pages.py`, `tests/test_plugin_panel.py`, `tests/test_panel_export.py`, `commands/plugin-catalog.md`, `skills/plugin-panel/SKILL.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `interop/**` (regenerado: `commands/` tocado)
+- **Archivos**: `skills/plugin-panel/scripts/build_panel.py`, `skills/plugin-panel/scripts/panel_pages.py`, `tests/test_plugin_panel.py`, `tests/test_panel_export.py`, `commands/plugin-catalog.md`, `skills/plugin-panel/SKILL.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `interop/**` (regenerado: `commands/` tocado), `docs/PROJECT-EXTENSIONS.md`, `docs/en/PROJECT-EXTENSIONS.md`, `tests/test_panel_server.py`, `tests/test_panel_diagnostics.py`, `tests/test_panel_vendor.py` (añadidos: ver Notas)
 - **Cubre (tests)**: E2E-02, E2E-08
 - **Verificación**: `python3 -m pytest -q tests/test_panel_export.py tests/test_plugin_panel.py tests/test_panel_contract_golden.py` → `passed` · `python3 scripts/export-interop.py --check` → exit 0
 
 **Criterios de aceptación**
-- [ ] La carpeta exportada contiene un HTML por página, Chart.js, su `LICENSE.md`, `PROVENANCE.json` y los datos de la instantánea (CA-33).
-- [ ] Ningún HTML exportado contiene `http://` ni `https://` en `src`/`href` de recursos (CA-35) ni la ruta del home, el usuario o correos (CA-41, grep en el test).
-- [ ] Un fichero ajeno en la carpeta destino no se sobrescribe y el comando sale con 2 (comportamiento actual de `--html`).
-- [ ] `--json` sigue igual que el golden de T-01; `--serve` excluye `--export` como hoy excluye `--html`.
-- [ ] `commands/plugin-catalog.md`, `SKILL.md` y `PLUGIN-PANEL.md` (ES/EN) citan `--export`; `interop/` regenerado.
+- [x] La carpeta exportada contiene un HTML por página, Chart.js, su `LICENSE.md`, `PROVENANCE.json` y los datos de la instantánea (CA-33).
+- [x] Ningún HTML exportado contiene `http://` ni `https://` en `src`/`href` de recursos (CA-35) ni la ruta del home, el usuario o correos (CA-41, grep en el test).
+- [x] Un fichero ajeno en la carpeta destino no se sobrescribe y el comando sale con 2 (comportamiento actual de `--html`).
+- [x] `--json` sigue igual que el golden de T-01; `--serve` excluye `--export` como hoy excluye `--html`.
+- [x] `commands/plugin-catalog.md`, `SKILL.md` y `PLUGIN-PANEL.md` (ES/EN) citan `--export`; `interop/` regenerado.
 
 **Subtareas**
-- [ ] RED: migrar `tests/test_plugin_panel.py:245-249` y `:362-373` de `--html` a `--export`.
-- [ ] Export con manifiesto y propiedad.
-- [ ] Actualizar comando y doc; regenerar `interop/`.
+- [x] RED: migrar `tests/test_plugin_panel.py:245-249` y `:362-373` de `--html` a `--export`.
+- [x] Export con manifiesto y propiedad.
+- [x] Actualizar comando y doc; regenerar `interop/`.
 
-**Notas**: CLI actual en `skills/plugin-panel/scripts/build_panel.py:766-810` (exclusiones de `--serve` en `:787`); propiedad por `MARKER` en `:740`. Piezas que describen (CONTRACTS E33): `commands/plugin-catalog.md`, `skills/plugin-panel/SKILL.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`. CSP del `<meta>` según la decisión de T-03.
+- **Cerrada**: 2026-10-15
+- **Changelog**: El comando del catálogo exporta ahora una carpeta con las siete páginas, sus activos, Chart.js con licencia y un manifiesto de lo que escribió, sin rutas, usuario ni correos propios; `--html` desaparece.
+- **Evidencia TDD**: `RED: 18 tests de tests/test_panel_export.py fallaron con error: unrecognized arguments: --export · 2026-10-15` (18 failed, 1 skipped). Segundo rojo: `--export --json` imprimía el resumen en stdout antes del JSON y lo rompía (`JSONDecodeError`); el resumen pasa a stderr cuando hay `--json`. GREEN: `18 passed, 1 skipped` (el skip es el test de enlace simbólico: sin permiso para crearlos en esta máquina).
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_export.py tests/test_plugin_panel.py tests/test_panel_server.py tests/test_panel_contract_golden.py` → `177 passed, 3 skipped` (golden de T-01 intacto: `--json` no cambia). `python3 scripts/export-interop.py && … --check` → `export-interop --check: 88 ficheros al día`. `lint_plugin.py` → `0 errores · 8 avisos` (los 8 de antes).
+
+**Notas**: CLI actual en `skills/plugin-panel/scripts/build_panel.py:766-810` (exclusiones de `--serve` en `:787`); propiedad por `MARKER` en `:740`. Piezas que describen (CONTRACTS E33): `commands/plugin-catalog.md`, `skills/plugin-panel/SKILL.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`. CSP del `<meta>` según la decisión de T-03. **Implementación (2026-10-15):** `panel_pages.exportar_sitio(destino, datos, generado, unsafe_link)` escribe 7 HTML + `assets/{panel.css,panel-core.js,panel-charts.js}` + `vendor/chart.js/{chart.umd.min.js,LICENSE.md,PROVENANCE.json}` + `export-manifest.json` (`generador`, `version`, `generado`, `ficheros[{ruta,sha256,bytes}]`). Propiedad: HTML con `MARKER` o fichero del manifiesto previo con el hash que se escribió; **todos los choques se comprueban ANTES de escribir** (nada a medias), un manifiesto ajeno o corrupto también aborta, y un fichero que el manifiesto previo listaba y ya no se genera se retira solo si su hash sigue igual. `build_panel._unsafe_link` (bloque replicado de rutas de nube) se inyecta como parámetro para no copiarlo a `panel_pages.py` (lo vigila `test_copias_declaradas`). Chart.js se verifica contra el `sha256` de `PROVENANCE.json` al exportar; si no coincide o falta, se omite todo `vendor/`, las páginas no cargan el script, `chartjs_disponible` va a `false` y sale un aviso por stderr (degrada, no falla). Datos personales: `redactar → anonimizar` sobre TODOS los textos del inventario (raíz, `--project`/`--root` y alias resueltos → `.`; home y `--home` → `~`; usuario de `getpass` → `<usuario>`; correos → `<correo>`) antes de incrustarlos; el test busca usuario, correo, home y raíz en cada fichero exportado (menos `vendor/`). El contenido de las páginas es provisional («Esta página todavía no muestra contenido.»); `catalogo.html` ya incrusta el inventario anonimizado (`panel-data.inventario`) y todas llevan `contadores`; el contenido real llega en T-09/T-10 y la fase 2. `render_html`, `TEMPLATE` y `references/panel.html` NO se tocan: el modo servido los sigue usando hasta T-11/T-12. Salida: sin `--json`, una línea de resumen sin rutas por stdout; con `--json`, el resumen va a stderr para no romper el JSON. **Desviaciones (ficheros fuera del `Archivos` original, todos por retirar `--html`):** `docs/PROJECT-EXTENSIONS.md` y su espejo EN citaban `--html panel.html`; `tests/test_panel_server.py:232` usaba `--html` como opción excluyente de `--serve` (ahora `--export`); `tests/test_panel_diagnostics.py:18` fija el `argument-hint` del comando (ahora `[carpeta de exportación] …`); `commands/plugin-catalog.md` cambió su `argument-hint` y su ejemplo, por lo que se **regeneró `interop/`** (5 ficheros: el comando de Codex —`SKILL.md` y `references/command.md`—, el de OpenCode y el índice de OpenCode). **Fallo preexistente corregido:** `tests/test_panel_vendor.py:118` (T-02) capturaba un subproceso en modo texto sin `encoding=`; `tests/test_console_encoding.py::test_las_suites_tambien_decodifican_a_sus_hijos_como_utf8` lo detecta en la suite repo-wide y no estaba entre los tests corridos al cerrar T-02; se añadió `encoding='utf-8', errors='replace'`. Carpeta exportada de verdad comprobada en Chromium (Edge) y Firefox 142 con `file://` y red bloqueada: `violaciones: 0 · externas: 0`.
 
 ### T-09 — Página Catálogo con las secciones de hoy y un gráfico de piezas por tipo
 
