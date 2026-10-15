@@ -43,6 +43,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - `plan-review.py` gana la operación de solo lectura `summary`, que devuelve el estado de revisión (sin revisión, pendiente, cambios pedidos, aprobada, obsoleta, no disponible) de varias iniciativas a la vez sin crear ni modificar nada en `.claude/plan-review/`.
 - El servidor del panel puede abrir la revisión de un plan de cualquier iniciativa desde la página Plan (`POST api/review-open/<id>`) y publica el estado de revisión de todas (`api/review-summary`, `api/review-current/<id>`), con el mismo token, `Origin`, CSP y tope de 16 KiB de siempre; el navegador solo abre `requested-review`, nunca `plan-ok`.
 - Nuevo flag opt-in `--review-panel` (requiere `--serve --project … --review-state-root …`) que activa la revisión del plan desde cada página Plan; `--review-initiative` sigue igual, la copia exportada nunca lleva controles de revisión y el Plan explica cómo activarla.
+- Desde la página Plan se puede abrir una revisión del plan, comentar por sección y decidir; el estado de revisión de cada iniciativa se ve como texto en su tarjeta de Iniciativas y en la cabecera del Plan, con las respuestas del agente bajo cada comentario.
+- Documentadas las páginas Inicio, Iniciativas y Plan, el campo `Cerrada` del ledger y la revisión del plan desde el panel (`--review-panel`), con las nuevas aristas de contrato E56–E58.
 
 ### Fixed — iniciativa `panel-redesign`, revisión de la fase 1
 

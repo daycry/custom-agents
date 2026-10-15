@@ -120,7 +120,8 @@ def test_tree_identical_and_works_with_lock_held(o):
     code = ("import os,sys\nf=open(sys.argv[1],'r+b')\nif os.name=='nt':\n import msvcrt;msvcrt.locking(f.fileno(),msvcrt.LK_NBLCK,1)\n"
             "else:\n import fcntl;fcntl.flock(f.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)\nprint('locked',flush=True);sys.stdin.readline()")
     child = subprocess.Popen([sys.executable, '-X', 'utf8', '-B', '-c', code, str(o.state / '.lock')],
-                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                             encoding='utf-8')
     try:
         assert child.stdout.readline().strip() == 'locked'
         result = summary(o, [a, b])

@@ -663,6 +663,9 @@ flowchart LR
     Snapshot --> Query
     Query -->|parser ranking relations and redaction| Server
     Server --> Memory[View with state version evidence and source]
+    Server -->|ledger-view, read-only| Plan[Home · Initiatives · Plan with kanban and charts]
+    Server -->|--review-panel: summary| Summary2[Review state per initiative]
+    Server -->|POST api/review-open, requested-review gate| Owner[plan-review: local receipts]
 ```
 
 One command, two modes, seven pages (Home, Initiatives, Plan, Live agents, Memory,
@@ -670,6 +673,12 @@ Catalogue, Diagnostics): the exported panel is static and network-free; the serv
 the live scripts under a nonce CSP. `roadmap-dashboard` computes the portfolio data and no
 longer generates HTML; `/roadmap-status` delegates presentation to the panel
 (`docs/en/PLUGIN-PANEL.md`).
+
+Home, Initiatives and Plan project the portfolio and the ledger (`ledger-view.py`) read-only. With
+`--review-panel`, the panel summarises the review state of each plan (`plan-review.py summary`) and can
+open a review from the Plan page (`api/review-open`, always with the `requested-review` gate): it is
+the panel's only write, onto the receipts in `.claude/plan-review/`. The browser never opens
+`plan-ok` (that belongs to `/dev-cycle`).
 
 The panel executes neither doctor nor hooks. Source presence and declared budgets
 do not prove loading or execution; OpenCode's terminal stream has its own contract

@@ -1,15 +1,6 @@
 /* The common owner alone decides version validity and receipt transitions. */
 (() => {
  'use strict';
- const root = document.getElementById('plan-review');
- if (!root) return;
- const status = document.getElementById('review-status');
- const metadata = document.getElementById('review-metadata');
- const versionText = document.getElementById('review-version');
- const sections = document.getElementById('review-sections');
- const feedback = document.getElementById('review-feedback');
- const feedbackHistory = document.getElementById('review-feedback-history');
- const buttons = Object.fromEntries(['save','approve','changes','refresh','close','open'].map(name => [name, document.getElementById('review-'+name)]));
  const hex = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
  const date = value => typeof value === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(value) && Number.isFinite(Date.parse(value));
  const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -56,7 +47,11 @@
   if (value.feedback_history !== undefined && !historyValid(value.feedback_history,value.review_id)) return false;
   return true;
  }
- let reviewId = root.dataset.reviewId;
+ function controller(els, initialId, opts = {}) {
+ const {status, metadata, versionText, sections, feedback, feedbackHistory, buttons} = els;
+ const readOnly = !!opts.readOnly, onChange = opts.onChange || (() => {});
+ let stopped = false;
+ let reviewId = initialId;
  let current = null, inputs = [], blocked = true, closed = false, active = null, activeOperation = null, poll = null;
  let feedbackSnapshot = null, historySnapshot = null;
  function clearPoll() { if (poll !== null) clearTimeout(poll); poll = null; }
@@ -66,17 +61,17 @@
   return 'Panel cerrado. Cerrar no crea una decisión ni cancela envíos anteriores; el borrador se conserva.';
  }
  function controls() {
-  const editable = current && inputs.length > 0 && !closed && !blocked && current.validity === 'current' && current.state === 'pendiente' && current.decision === null;
+  const editable = !readOnly && !stopped && current && inputs.length > 0 && !closed && !blocked && current.validity === 'current' && current.state === 'pendiente' && current.decision === null;
   for (const name of ['save','approve','changes']) buttons[name].disabled = !editable || !!active;
   for (const input of inputs) input.disabled = !editable || (!!active && activeOperation !== 'status');
-  buttons.refresh.disabled = closed || !!active || !hex(reviewId);
+  buttons.refresh.disabled = readOnly || closed || !!active || !hex(reviewId);
   buttons.close.disabled = postActive(); buttons.close.textContent = current && current.decision ? 'Cerrar panel' : 'Cerrar sin decidir';
   buttons.close.hidden = closed; buttons.open.hidden = !closed;
   sections.hidden = closed;
  }
  function schedule() {
   clearPoll();
-  if (!closed && !document.hidden && !active && hex(reviewId)) poll = setTimeout(() => request('status'),5000);
+  if (!opts.noPoll && !stopped && !closed && !document.hidden && !active && hex(reviewId)) poll = setTimeout(() => request('status'),5000);
  }
  function summary(review) {
   const consumer = review.consumer_registration ? 'Consumidor registrado; actividad desconocida.' : 'Sin consumidor registrado.';
@@ -91,7 +86,7 @@
   else if (review.state === 'consumida') status.textContent = 'Decisión consumida por el workflow. El ack acredita recepción; no acredita que los comentarios estén atendidos.';
   else if (review.state === 'entregada') status.textContent = 'Decisión entregada; pendiente de confirmación de consumo.';
   else if (review.decision) status.textContent = (review.decision.choice === 'approve' ? 'Vista aprobada.' : 'Cambios solicitados.')+' Decisión pendiente de consumo.';
-  else status.textContent = 'Versión actual disponible. Comenta las secciones y decide sobre esta vista.';
+  else status.textContent = readOnly ? 'Revisión abierta por otro proceso: se muestra en solo lectura, sin controles de escritura.' : 'Versión actual disponible. Comenta las secciones y decide sobre esta vista.';
  }
  function textNode(tag,text) { const node = document.createElement(tag); node.textContent = text; return node; }
  function producerText(producer) {
@@ -103,7 +98,7 @@
    const responses = value.results.filter(row => row.comment_id === comment.comment_id);
    if (!responses.length) {
     const card = document.createElement('article');
-    card.append(textNode('h4','Comentario '+comment.comment_id+' · Sin respuesta declarada'),textNode('p',comment.text));
+    card.append(textNode('h4','Comentario '+comment.comment_id+' · sin respuesta del agente'),textNode('p',comment.text));
     return [card];
    }
    return responses.map(row => {
@@ -111,12 +106,12 @@
    const superseded = value.results.some(other => other.supersedes_result_id === row.result_id);
    const disposition = {addressed:'Atendido (declarado)',not_applied:'No aplicado (declarado)',needs_clarification:'Necesita aclaración (declarado)'}[row.disposition];
    card.append(textNode('h4','Comentario '+row.comment_id+' · '+disposition+(superseded ? ' · Resultado reemplazado' : '')));
-   card.append(textNode('p',comment.text),textNode('pre',row.response_text));
+   card.append(textNode('p',comment.text),textNode('p','Respuesta del agente:'),textNode('pre',row.response_text));
    card.append(textNode('p','Registrado: '+row.recorded_at+' · '+producerText(row.producer)));
    card.append(textNode('p',row.artifact_observation.status === 'available' ? 'Versión observada: '+row.artifact_observation.version.raw_sha256+' · '+row.artifact_observation.observed_at+'. No prueba el efecto del cambio.' : 'Plan no disponible al registrar este resultado · '+row.artifact_observation.observed_at+'.'));
    const annotation = value.verifications.find(v => v.result_id === row.result_id);
    if (annotation) {
-    card.append(textNode('p','Anotación humana opcional: '+(annotation.assessment === 'confirmed' ? 'confirmada' : 'no confirmada')+' (declarada) · '+annotation.recorded_at+'. No crea una puerta ni acredita identidad humana.'));
+    card.append(textNode('p','Resultado de verify-result (anotación humana opcional): '+(annotation.assessment === 'confirmed' ? 'confirmada' : 'no confirmada')+' (declarada) · '+annotation.recorded_at+'. No crea una puerta ni acredita identidad humana.'));
     card.append(textNode('p',producerText(annotation.producer)));
     if (annotation.note) card.append(textNode('pre',annotation.note));
    } else card.append(textNode('p','Sin verificación humana anotada. La respuesta puede entregarse sin esta anotación.'));
@@ -196,9 +191,10 @@
   if (review.sections && !changed) render(review);
   renderFeedback(review);
   summary(review);
+  onChange(review);
  }
  async function request(operation,payload) {
-  if (active || closed || document.hidden || !hex(reviewId)) return;
+  if (stopped || active || closed || document.hidden || !hex(reviewId)) return;
   clearPoll();
   const controller = new AbortController(); active = controller; activeOperation = operation; controls();
   const timeout = setTimeout(() => controller.abort(),4000);
@@ -240,9 +236,102 @@
  });
  buttons.open.addEventListener('click',() => { closed = false; controls(); request(current ? 'status' : 'view'); });
  document.addEventListener('visibilitychange',() => {
+  if (stopped) return;
   clearPoll(); if (document.hidden) { if (active) active.abort(); } else if (!closed) request(current ? 'status' : 'view');
  });
  controls();
- if (hex(reviewId)) request('view');
+ function obsolete() {
+  if (active || (blocked && status.textContent.startsWith('La versión ha cambiado'))) return;
+  blocked = true; for (const input of inputs) input.value = '';
+  status.textContent = 'La versión ha cambiado. El borrador de esta pestaña queda invalidado. Carga la versión actual explícitamente.'; controls();
+ }
+ if (opts.startObsolete) obsolete();
+ else if (hex(reviewId)) request('view');
  else status.textContent = 'Revisión no disponible. Usa la confirmación del workflow existente.';
+ return {obsolete, poke() { if (current) request('status'); }, stop() { stopped = true; clearPoll(); if (active) active.abort(); }, focused: () => inputs.some(input => input === document.activeElement)};
+ }
+ /* Estado de revisión por iniciativa para las tarjetas de Iniciativas (`page-iniciativas.js`): `api/review-summary` → `{id16: fila}`. */
+ globalThis.PanelReview = {leerResumen(done) {
+  fetch('api/review-summary',{credentials:'omit',cache:'no-store'}).then(r => { if (!r.ok) throw Error('unavailable'); return r.json(); }).then(d => {
+   const rows = {};
+   (object(d) && Array.isArray(d.initiatives) ? d.initiatives : []).forEach(row => { if (object(row) && /^[a-f0-9]{16}$/.test(row.initiative_id)) rows[row.initiative_id] = row; });
+   done(rows);
+  }).catch(() => done({}));
+ }};
+ const byId = id => document.getElementById(id);
+ const legacy = byId('plan-review');
+ if (legacy) controller({status:byId('review-status'),metadata:byId('review-metadata'),versionText:byId('review-version'),sections:byId('review-sections'),
+  feedback:byId('review-feedback'),feedbackHistory:byId('review-feedback-history'),
+  buttons:Object.fromEntries(['save','approve','changes','refresh','close','open'].map(name => [name, byId('review-'+name)]))},legacy.dataset.reviewId);
+ /* Plan of ONE initiative (`#plan-revision`): the id16 comes from the server-published page, never from a path or a file name. */
+ const STATES = {sin_revision:'sin revisión',pendiente:'pendiente',cambios_pedidos:'cambios pedidos',obsoleta:'obsoleta por cambio de versión',no_disponible:'no disponible'};
+ const stateText = (estado,ordinal) => estado === 'aprobada' ? 'aprobada v'+(Number.isSafeInteger(ordinal) && ordinal > 0 ? ordinal : 1) : STATES[estado];
+ const host = byId('plan-revision');
+ if (host && host.dataset.revision === 'activa') {
+  const header = byId('plan-revision-estado'), button = byId('plan-revisar');
+  let initiative = host.dataset.initiativeId;
+  if (!/^[a-f0-9]{16}$/.test(initiative || '')) {
+   try { initiative = JSON.parse(byId('panel-data').textContent).plan_id; } catch { initiative = null; }
+  }
+  const element = (tag,text) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; return node; };
+  let mounted = null, mountedId = null, mountedReadOnly = null, busy = false, timer = null, announce = '';
+  const fetchJson = async (url,init) => {
+   const controller = new AbortController(), guard = setTimeout(() => controller.abort(),4000);
+   try { const response = await fetch(url,{credentials:'omit',cache:'no-store',signal:controller.signal,...init}); return await response.json(); }
+   finally { clearTimeout(guard); }
+  };
+  const currentValid = data => object(data) && data.schema_version === 1 && ['ok','unavailable'].includes(data.status) && data.initiative_id === initiative && typeof data.estado === 'string' && data.estado in {...STATES,aprobada:1} && typeof data.escritura === 'boolean' && (data.review_id === null || hex(data.review_id));
+  function mount(reviewIdentity,readOnly,obsoleteNow) {
+   if (mounted && mountedId === reviewIdentity && mountedReadOnly === readOnly) return;
+   if (mounted && mounted.focused()) return;
+   if (mounted) mounted.stop();
+   const els = {status:element('p'),metadata:element('p'),versionText:element('pre'),sections:element('div'),feedback:element('div'),feedbackHistory:element('div')};
+   els.status.setAttribute('role','status'); els.status.setAttribute('aria-live','polite');
+   els.feedback.setAttribute('aria-live','polite'); els.feedbackHistory.setAttribute('aria-live','polite');
+   const actions = element('div'); actions.className = 'review-actions';
+   els.buttons = {};
+   for (const [name,label] of [['save','Guardar comentarios'],['approve','Aprobar'],['changes','Pedir correcciones'],['refresh','Cargar versión actual'],['close','Cerrar sin decidir'],['open','Volver a la revisión']]) {
+    const control = element('button',label); control.setAttribute('type','button'); control.disabled = name !== 'close' && name !== 'open'; els.buttons[name] = control;
+    if (readOnly && ['save','approve','changes','refresh'].includes(name)) control.hidden = true;
+    if (name === 'open') control.hidden = true;
+    actions.append(control);
+   }
+   const holder = element('div'); holder.id = 'plan-revision-panel';
+   holder.append(els.status,els.metadata,els.versionText,els.sections,actions,element('h3','Respuestas del agente a tus comentarios'),els.feedback,element('h3','Respuestas de versiones anteriores'),els.feedbackHistory);
+   const old = byId('plan-revision-panel'); if (old) old.replaceWith(holder); else host.append(holder);
+   mounted = controller(els,reviewIdentity,{readOnly,noPoll:true,startObsolete:obsoleteNow,onChange:() => schedule(0,false)}); mountedId = reviewIdentity; mountedReadOnly = readOnly;
+  }
+  function paint(data,poke) {
+   const text = stateText(data.estado,data.version_ordinal);
+   header.textContent = 'Estado de la revisión: '+text+(announce ? ' · '+announce : '');
+   button.hidden = !(data.estado === 'sin_revision' && data.escritura === false && data.review_id === null) || busy;
+   if (hex(data.review_id)) {
+    const fresh = !(mounted && mountedId === data.review_id);
+    mount(data.review_id,!data.escritura,data.estado === 'obsoleta');
+    if (mounted && mountedId === data.review_id && !fresh) { if (data.estado === 'obsoleta') mounted.obsolete(); else if (poke && data.estado !== 'no_disponible') mounted.poke(); }
+   }
+  }
+  async function load(poke = true) {
+   timer = null;
+   if (busy || document.hidden || !/^[a-f0-9]{16}$/.test(initiative || '')) return;
+   try {
+    const data = await fetchJson('api/review-current/'+initiative);
+    if (!currentValid(data)) throw Error('schema');
+    paint(data,poke);
+   } catch { header.textContent = 'Estado de la revisión: no se pudo leer; se conserva la última vista.'; }
+   schedule(5000);
+  }
+  function schedule(delay,poke = true) { if (timer !== null) clearTimeout(timer); timer = setTimeout(() => load(poke),delay); }
+  button.addEventListener('click',async () => {
+   if (busy) return;
+   busy = true; button.disabled = true; announce = ''; header.textContent = 'Abriendo la revisión…';
+   try {
+    const data = await fetchJson('api/review-open/'+initiative,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initiative_id:initiative})});
+    announce = object(data) && data.status === 'ok' && hex(data.review_id) ? 'revisión abierta' : 'no se pudo abrir la revisión'+(object(data) && typeof data.reason === 'string' ? ' ('+data.reason.slice(0,64)+')' : '');
+   } catch { announce = 'no se pudo abrir la revisión'; }
+   busy = false; button.disabled = false; await load(false); button.focus();
+  });
+  document.addEventListener('visibilitychange',() => { if (!document.hidden) schedule(0); else if (timer !== null) { clearTimeout(timer); timer = null; } });
+  if (initiative) load(); else header.textContent = 'Estado de la revisión: no disponible.';
+ }
 })();

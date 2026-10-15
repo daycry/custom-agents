@@ -853,12 +853,13 @@ def _cuerpo_plan_indice(planes):
 REVISION_ACTIVAR = '--serve --project &lt;proyecto&gt; --review-panel --review-state-root &lt;proyecto&gt;/.claude/plan-review'
 
 
-def _bloque_revision_plan(revision):
+def _bloque_revision_plan(revision, plan_id=None):
     """Bloque de revisión de `plan-<id16>.html` según el modo (CA-52, CA-53): `exportado` (copia estática, nunca
     controles ni lectura de `.claude/plan-review/`), `inactiva` (servido sin `--review-panel`: explica cómo activarla) o
     `activa` (servido con `--review-panel`: el estado y el botón «Revisar este plan», que `panel-review.js` muestra)."""
     if revision == 'activa':
-        return ('<section id="plan-revision" data-revision="activa"><div class="section-head"><h2 id="plan-revision-titulo">'
+        ident = f' data-initiative-id="{html.escape(plan_id)}"' if plan_id else ''
+        return ('<section id="plan-revision" data-revision="activa"' + ident + '><div class="section-head"><h2 id="plan-revision-titulo">'
                 'Revisión del plan</h2></div><p id="plan-revision-estado" class="filter-note" role="status" '
                 'aria-live="polite">Consultando el estado de revisión…</p>'
                 '<button id="plan-revisar" type="button" hidden>Revisar este plan</button></section>')
@@ -871,7 +872,7 @@ def _bloque_revision_plan(revision):
             'modo servido.</p>')
 
 
-def cuerpo_plan_iniciativa(revision='exportado'):
+def cuerpo_plan_iniciativa(revision='exportado', plan_id=None):
     """Esqueleto de `plan-<id16>.html`: lo rellena `page-plan.js` con `api/plan-<id16>` (servido) o con el plan
     incrustado en `panel-data` (exportado). `revision`: `exportado` (por defecto), `inactiva` o `activa`."""
     return (
@@ -880,7 +881,7 @@ def cuerpo_plan_iniciativa(revision='exportado'):
         '<p><span id="plan-frescura" class="filter-note"></span> '
         '<button id="plan-refrescar" type="button" hidden>Actualizar ahora</button></p>'
         '<p id="plan-anuncio" class="solo-lectores" role="status" aria-live="polite"></p>'
-        + _bloque_revision_plan(revision) +
+        + _bloque_revision_plan(revision, plan_id) +
         '<section id="plan-detalle" class="detalle" role="region" aria-labelledby="plan-detalle-titulo" tabindex="-1" hidden>'
         '<div class="section-head"><h2 id="plan-detalle-titulo">Detalle de la tarea</h2>'
         '<button id="plan-detalle-cerrar" type="button">Cerrar detalle</button></div>'
@@ -895,7 +896,7 @@ def cuerpo_plan_iniciativa(revision='exportado'):
         '<div id="grafico-burndown"></div></section>')
 
 
-def cuerpos_paginas(data, *, live=False, review_enabled=False, review_id='', actividad=True, planes=None):
+def cuerpos_paginas(data, *, live=False, review_enabled=False, review_id='', actividad=True, planes=None, review_panel=False):
     """Cuerpo HTML (ya escapado) de cada una de las 7 páginas, por slug.
 
     `planes` (`[{'id', 'slug', 'titulo'}]`, ya saneados; `None` sin `--project`) alimenta el índice de `plan.html`.
@@ -911,6 +912,8 @@ def cuerpos_paginas(data, *, live=False, review_enabled=False, review_id='', act
     cuerpos['agentes'] = _seccion_actividad(live, actividad)
     cuerpos['inicio'] = _cuerpo_inicio()
     cuerpos['iniciativas'] = _cuerpo_iniciativas()
+    if review_panel:  # servido con `--review-panel`: las tarjetas piden `api/review-summary` (T-58)
+        cuerpos['iniciativas'] += '<p id="iniciativas-revision" data-revision="activa" hidden></p>'
     cuerpos['plan'] = _cuerpo_plan_indice(planes)
     if live:
         cuerpos['inicio'] += _seccion_progreso()

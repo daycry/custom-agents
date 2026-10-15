@@ -70,7 +70,7 @@ the same seven-page panel with a shared menu, in two modes:
 |---|---|---|
 | Inicio (Home) | `index.html` | Summary and, in served mode, ledger progress |
 | Iniciativas (Initiatives) | `iniciativas.html` | Portfolio from `docs/roadmap/` (state, budget); the landing page of `/roadmap-status` |
-| Plan | `plan.html` | Plan by phases; in served mode, the visual plan review |
+| Plan | `plan.html` (index) and `plan-<id16>.html` | Task kanban per initiative, charts and burndown; in served mode, plan review from the panel |
 | Agentes en vivo (Live agents) | `agentes.html` | Recent activity signals (served only; opt-in) |
 | Memoria (Memory) | `memoria.html` | Local memory queries (served only; on demand) |
 | Catálogo (Catalogue) | `catalogo.html` | Agents, skills, commands, tools and hooks |
@@ -92,6 +92,65 @@ generating or opening. If the file does not match its fingerprint, pages show ta
 (`dashboard.md`, `--json`, `--metrics-md`) and the panel presents it (relationship in
 `agents/ROLES.md`). The installer copies the whole `skills/plugin-panel/assets/`,
 `vendor/` included.
+
+## Home, Initiatives and Plan (redesign phase 2)
+
+The three pages read the roadmap through **read-only** projections and never recompute figures
+that already have an owner: `roadmap-dashboard` (`scan` + `vista_json`) provides the portfolio,
+`progress-report.py` the "N of M tasks", and `agent-kits/shared/ledger-view.py` what the ledger
+says about each task. `skills/plugin-panel/scripts/panel_data.py` only projects them.
+A missing value is `null` and is stated ("sin datos"); it is never drawn as 0.
+
+| Page | What it shows | Served API |
+|---|---|---|
+| Inicio (Home) | Initiatives by spec state (chart + table), overall progress and actual vs estimated cost | `api/cartera` |
+| Iniciativas (Initiatives) | Read-only kanban, one column per spec state (`borrador`, `aprobada`, `implementada`, `obsoleta`) and one card per initiative with its alerts as text; hours and cost charts with their table. A card with a plan links to `plan-<id16>.html` | `api/cartera` |
+| Plan (`plan-<id16>.html`) | Kanban of the ledger tasks with the five vocabulary columns (`borrador`, `en-progreso`, `en-revision`, `completado`, `cancelado`) and an "unrecognised state" strip showing the literal; task detail; progress and hours per phase charts and a burndown | `api/plan-<id16>`, `api/plan-<id16>-<T-XX>` |
+
+- **`api/cartera`**: initiatives of `docs/roadmap/` (at most 128 folders listed, 64 rows, response
+  <= 64 KiB). Each initiative falls in ONE spec category: the four states, `ilegible`,
+  `sin_spec` (fast path) or `no_reconocido` (with its literal). The estimated cost is shown as
+  `evaluation.md` writes it; only the first euro amount is extracted for the sum.
+- **Plan by id16**: `<id16>` is 16 hex characters from the plan inventory the server publishes;
+  the browser never sends a path. A task carries actual and estimated AI hours with their source
+  (`medido`/`estimado`), supervision and human hours, criteria with their checkbox, the
+  `Verificación` and its output, dependencies, the latest review with its open gaps and the
+  "archived" mark (only the link to `execution-history.md`; its content is never read). The detail
+  opens with a click or Enter, is announced in an `aria-live` region and Escape closes it,
+  returning focus.
+- **Charts**: progress per phase = completed/total as the ledger counts them; hours per phase =
+  sum of what is present, "sin datos" if no task has the figure, labelled "(medido)",
+  "(estimado)" or "(medido y estimado)". The **burndown** starts from the non-cancelled tasks
+  minus those closed up to each date, using only real closing dates; with no completed task it
+  says "Sin datos: ninguna tarea completada todavía".
+- **Live refresh** (served): the Plan is re-read every five seconds with the Progress polling
+  rules (one active request, paused while the tab is hidden, four-second timeout); cards with the
+  same row keep their node and focus. The read date sits in a non-live region so each cycle is
+  not announced. A failure keeps the view with a warning.
+- **Exported**: the same from the JSON embedded in `panel-data` (keys `plan` and `detalles`),
+  with no requests; live data is declared absent.
+
+### The `Cerrada` ledger field
+
+`- **Cerrada**: YYYY-MM-DD` is an optional per-task field: the real closing date. The
+implementer fills it when completing the task; `ledger-lint.py` requires a real date (empty,
+malformed or impossible is an inconsistency) not earlier than `creado:` or the `| **Fecha** |`
+row. `ledger-view.py` publishes `cerrada` (valid) and `cerrada_invalida` (the text), and the
+burndown only uses the former. `task-brief.py` does not pass it to the subagent. Like
+`Changelog`, it is ledger metadata, not an acceptance criterion.
+
+### `ledger-view.py`
+
+```powershell
+python agent-kits/shared/ledger-view.py docs/roadmap/<date>-<slug> --json
+```
+
+Pure projection of a `tasks.md` (folder or file): phases, tasks, state (from the vocabulary or
+`literal` if it does not match), hours, criteria, description, verification, dependencies,
+`archivado`, `cerrada`, `revision` and `gaps`. It does not validate (that is `ledger-lint.py`),
+does not summarise (that is `progress-report.py`) and reuses their parsers. `status`: `ok`,
+`fuera_de_tope` (> 256 KiB, no figures), `ilegible`, `sin_ledger`, `sin_tareas` or `sin_lectura`.
+Exit 0 for a usable path, 2 for incorrect usage.
 
 ## Local dashboard with refresh
 
@@ -126,8 +185,9 @@ and absolute paths are excluded.
 
 Page/API require the capability and exact Host; any Origin must match the server.
 Cross-site requests, queries and arbitrary paths are rejected. POST is accepted
-for local memory queries and an explicitly selected plan review.
-Review writes only its own local receipts and comments.
+for local memory queries and a plan review (the fixed one of `--review-initiative` or that of
+`--review-panel`). It is the only exception to read-only: review writes only its own local
+receipts and comments, and the browser never opens the `plan-ok` gate.
 No cookies or access logs; nonce CSP, same-origin connections, no-store,
 no-referrer and no framing. The capability does not isolate other processes
 owned by the same user. Consuming a plan decision requires the common CLI and
@@ -201,6 +261,55 @@ Official references checked on **2026-10-10**:
 - [OpenCode V2.0.12: execution settlement](https://github.com/anomalyco/opencode/blob/2670273ff17da96f85c5826ced57aa1b368754fa/packages/core/src/session/execution.ts#L118-L150): emits one `session.execution.succeeded/failed/interrupted` terminal; its [projector](https://github.com/anomalyco/opencode/blob/2670273ff17da96f85c5826ced57aa1b368754fa/packages/core/src/session/projector.ts#L403-L434) derives idle/outcome from that event.
   Capture preserves `execution_finished`, without turning it into an independent `session_idle` observation or teardown. `session.idle`/`session.status` remain compatibility inputs without claiming emission by this version.
   Native acceptance requires its own evidence and exact correlation; reading the contract does not establish complete capture.
+
+## Review plans from the panel (`--review-panel`)
+
+Besides the review of one fixed initiative (next section), the served panel can open the
+review of the plan of **any** initiative from its Plan page:
+
+```powershell
+python skills/plugin-panel/scripts/build_panel.py --serve --project . --review-panel --review-state-root ./.claude/plan-review
+```
+
+`--review-panel` requires `--serve`, an explicit `--project` and `--review-state-root`; it
+combines with `--review-initiative` (which keeps its legacy screen). Without `--review-panel`
+the Plan page shows no button and explains in one sentence how to enable it; the exported HTML
+never carries review controls or a write `fetch`.
+
+| Route | Method | What it does |
+|---|---|---|
+| `api/review-summary` | GET | Review state of every initiative (the `plan-review.py summary` operation), keyed by id16 `initiative_id`, with no paths or `review_id`; 5 s cache |
+| `api/review-current/<id16>` | GET | Registers for the browser the main review of ONE initiative; answers `review_id`, `estado`, `version_ordinal`, `gate_key` and `escritura` |
+| `api/review-open/<id16>` | POST | Opens the review with the `requested-review` gate; compact answer (`review_id`, `escritura`); the view arrives through `api/review/<id64>/view` |
+
+The id16 values come from listing `docs/roadmap` (a valid folder with `improvement-plan.md`; a
+collision leaves the initiative out). An unknown id16 gets 404 before the body is read; the
+browser never sends a path or a file name. One process registers at most 128 reviews: the
+excess answers 429 with "demasiadas revisiones abiertas en este proceso". A review with another
+gate (e.g. a `plan-ok` opened by `/dev-cycle`) is shown with `escritura: false`.
+
+**`plan-review.py summary`** (read-only: no lock, no fsync, no writes). It takes a list of
+initiatives on stdin and returns, for each, `estado` (`sin_revision`, `pendiente`,
+`cambios_pedidos`, `aprobada`, `obsoleta` or `no_disponible`), `version_ordinal`, `gate_key` and
+counters for comments, answered comments, those needing clarification and answers without
+verification. A review whose version no longer matches the plan is `obsoleta`; the earlier
+decision does not count as current. Double inventory that rejects observed changes (not an atomic
+snapshot nor permission to continue a gate); `approval_granted` is always `false`. Without a state
+folder every initiative is `sin_revision`. Exit 0 with `ok`/`partial`, 3 when unavailable; an
+expired deadline mid-way leaves the rest as `no_disponible`.
+
+The Plan page UI shows the "Revisar este plan" button and the state as text ("sin revisión ·
+pendiente · cambios pedidos · aprobada vN · obsoleta por cambio de versión") on the Initiatives
+card and in the Plan header, with identical wording; it lets you comment per section and decide
+(approve or request changes); and under each comment it shows the agent's answer and its
+disposition, or "sin respuesta del agente".
+
+**Write exception.** The panel is read-only, with one bounded exception: `api/review-open` (and
+the already existing comment/decision POSTs) write only the receipts and comments of
+`.claude/plan-review/`, with the same protections (capability, Host/Origin, no cookies, nonce
+CSP). **The browser never opens `plan-ok`**: `/dev-cycle` opens that gate; approving here with
+`requested-review` does not authorise it. There is no receive/ack/consume/result over HTTP, and
+the panel never modifies `improvement-plan.md` or `tasks.md`.
 
 ## Review a plan at the existing gate
 

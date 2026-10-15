@@ -11,6 +11,31 @@
   var vistaPintada = null;
   var graficosPintados = {};
   var chartjsDisponible = true;
+  /* Estado de revisión (solo servido con --review-panel): texto idéntico al de la cabecera del Plan (panel-review.js). */
+  var TEXTOS_REVISION = { sin_revision: 'sin revisión', pendiente: 'pendiente', cambios_pedidos: 'cambios pedidos',
+    obsoleta: 'obsoleta por cambio de versión', no_disponible: 'no disponible' };
+  var resumenRevision = {};
+  var lineasRevision = {};
+  var pidiendoResumen = false;
+  function textoRevision(fila) {
+    if (!fila || typeof fila.estado !== 'string') { return 'Revisión: sin datos'; }
+    if (fila.estado === 'aprobada') {
+      return 'Revisión: aprobada v' + (Number.isSafeInteger(fila.version_ordinal) && fila.version_ordinal > 0 ? fila.version_ordinal : 1);
+    }
+    return 'Revisión: ' + (Object.prototype.hasOwnProperty.call(TEXTOS_REVISION, fila.estado) ? TEXTOS_REVISION[fila.estado] : 'sin datos');
+  }
+  function pintarRevisiones() {
+    Object.keys(lineasRevision).forEach(function (id) { lineasRevision[id].textContent = textoRevision(resumenRevision[id]); });
+  }
+  function activaRevision() {
+    var marca = raiz.document.getElementById('iniciativas-revision');
+    return !!marca && marca.getAttribute('data-revision') === 'activa';
+  }
+  function pedirResumen() {
+    if (pidiendoResumen || !activaRevision() || !raiz.PanelReview) { return; }
+    pidiendoResumen = true;
+    raiz.PanelReview.leerResumen(function (nuevo) { resumenRevision = nuevo; pintarRevisiones(); pidiendoResumen = false; });
+  }
 
   function el(etiqueta, clase, texto) {
     var nodo = raiz.document.createElement(etiqueta);
@@ -70,6 +95,10 @@
     art.appendChild(el('p', 'tarjeta-titulo', f.titulo));
     art.appendChild(el('p', '', 'Spec: ' + C().categoriaTexto(f)));
     art.appendChild(el('p', '', 'Fecha: ' + (f.fecha || 'sin datos') + (f.tiene_plan ? '' : ' · sin plan')));
+    if (activaRevision()) {
+      var rev = el('p', 'revision-estado', textoRevision(resumenRevision[f.id]));
+      lineasRevision[f.id] = rev; art.appendChild(rev);
+    }
     art.appendChild(el('p', '', lineaTareas(f)));
     art.appendChild(el('p', '', lineaHoras(f)));
     art.appendChild(el('p', '', lineaCoste(f)));
@@ -89,6 +118,7 @@
     var clave = hayDatos(d) ? JSON.stringify(d.iniciativas) : 'sin-datos';
     if (clave === vistaPintada) { return; }
     vistaPintada = clave;
+    lineasRevision = {};
     if (!hayDatos(d)) {
       tablero.replaceChildren(el('p', 'ausencia', 'Sin datos: no hay lectura de la cartera.'));
       return;
@@ -148,6 +178,7 @@
     pongo('cartera-estado', estadoGeneral(d, motivo));
     dibujarKanban(d);
     dibujarGraficos(d);
+    pedirResumen();
   }
 
   function iniciar() {

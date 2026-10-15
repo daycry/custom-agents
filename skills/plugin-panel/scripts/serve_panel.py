@@ -899,7 +899,7 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
         server.plan_ids = {plan['id'] for plan in planes}
         bodies = builder.cuerpos_paginas(inventory, live=True, review_enabled=review_selection is not None,
                                          review_id=review_id, actividad='assets/panel-activity.js' in files,
-                                         planes=planes)
+                                         planes=planes, review_panel=review_scope is not None)
         generated = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
         hidden = {name for name in pages.LIVE_ASSET_FILES if 'assets/' + name not in files}  # review not selected or asset missing
         server.pages = {archivo: pages.render_page(slug, modo='servido', generado=generated, chart_ok=chart_ok, nonce=nonce,
@@ -912,7 +912,7 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
             'plan', modo='servido', generado=generated, chart_ok=chart_ok, nonce=nonce, plan_id=plan['id'],
             datos=pages.datos_de_pagina('plan', inventory, modo='servido', plan_id=plan['id']),
             scripts_omitidos=hidden,
-            cuerpo=builder.cuerpo_plan_iniciativa('activa' if review_scope is not None else 'inactiva')).encode('utf8')
+            cuerpo=builder.cuerpo_plan_iniciativa('activa' if review_scope is not None else 'inactiva', plan['id'])).encode('utf8')
             for plan in planes}
         server.assets = {rel: (content, ASSET_TYPES.get(Path(rel).suffix, 'application/octet-stream'))
                          for rel, content in files.items()}

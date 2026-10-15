@@ -55,7 +55,8 @@ PLAN_SCRIPTS = ('page-cartera.js', 'page-plan.js')
 PLAN_LIVE_SCRIPTS = ('panel-review.js',)
 ID16_RE = re.compile(r'[a-f0-9]{16}')
 LIVE_SCRIPTS = {'inicio': ('panel-live.js',), 'plan': ('panel-live.js', 'panel-review.js'),
-                'agentes': ('panel-activity.js',), 'memoria': ('panel-memory.js',)}
+                'agentes': ('panel-activity.js',), 'memoria': ('panel-memory.js',),
+                'iniciativas': ('panel-review.js',)}  # T-58: solo con ámbito de revisión (el servidor lo omite sin él)
 VENDOR_FILES = ('vendor/chart.js/chart.umd.min.js', 'vendor/chart.js/LICENSE.md', 'vendor/chart.js/PROVENANCE.json')
 
 _ESCAPES_JSON = {'<': '\\u003c', '>': '\\u003e', '&': '\\u0026', ' ': '\\u2028', ' ': '\\u2029'}

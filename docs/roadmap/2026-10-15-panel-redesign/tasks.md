@@ -40,10 +40,10 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
-| Fase 2 — Inicio, Iniciativas y Plan | 14 | 17 | 82% | 0 / 58,4h | 2,92 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
+| Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 0 | 10 | 0% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
 | Fase 3 — Agentes en vivo + cierre transversal | 0 | 15 | 0% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **30** | **58** | **52%** | **0 / 159,2h** | **6,91 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| **TOTAL** | **32** | **58** | **55%** | **0 / 159,2h** | **8,21 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1035,57 +1035,68 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 ### T-58 — UI del Plan: abrir, comentar y decidir una revisión; estado en tarjetas y respuestas del agente
 
 - **Descripción**: `panel-review.js` toma la iniciativa de `data-initiative-id`: `review-current` → `view` para mostrar la revisión vigente, botón «Revisar este plan» → `review-open`, cabecera de estado en la página Plan (texto «sin revisión · pendiente · cambios pedidos · aprobada vN · obsoleta por cambio de versión»), comentarios por sección y decisión (aprobar / pedir correcciones) con los topes de hoy, y bajo cada comentario la respuesta del agente con su disposición y el resultado de `verify-result` («sin respuesta del agente» si no hay). El JS de Iniciativas pinta el mismo estado en texto en cada tarjeta desde `api/review-summary`, con la misma cifra. Sin `innerHTML`.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 6,0h · real —
-- **Tiempo IA (ejec.)**: est. 1,2h · real —
+- **Tiempo IA (ejec.)**: est. 1,2h · real 1,1h (estimado)
 - **Supervisión**: est. 0,3h (≈25 % IA) · real —
 - **Previsión IA**: 549k in / 89k out tok · 8,40 €
 - **Dependencias**: T-19, T-23, T-56, T-57
 - **Tipo**: frontend
-- **Archivos**: `skills/plugin-panel/assets/panel-review.js`, `skills/plugin-panel/assets/page-iniciativas.js`, `skills/plugin-panel/assets/page-plan.js`, `skills/plugin-panel/assets/panel.css`, `tests/test_panel_review_panel_ui.py`, `tests/test_panel_review_ui.py`
+- **Archivos**: `skills/plugin-panel/assets/panel-review.js`, `skills/plugin-panel/assets/page-iniciativas.js`, `skills/plugin-panel/assets/page-plan.js`, `skills/plugin-panel/assets/panel.css`, `skills/plugin-panel/scripts/panel_pages.py`, `skills/plugin-panel/scripts/build_panel.py`, `skills/plugin-panel/scripts/serve_panel.py`, `tests/test_panel_review_panel_ui.py`, `tests/test_panel_review_ui.py`
 - **Cubre (tests)**: E2E-05, E2E-10, E2E-24
 - **Verificación**: `python3 -m pytest -q tests/test_panel_review_panel_ui.py tests/test_panel_review_ui.py` → `passed` (el arnés Node prohíbe `innerHTML`; mismo texto de estado en tarjeta y cabecera; los escenarios de `test_panel_review_ui.py` sin cambiar sus expectativas)
 
 **Criterios de aceptación**
-- [ ] [GWT] CA-45: Dado el Plan de una iniciativa sin revisión (con `--review-panel`), Cuando pulso «Revisar este plan», Entonces el cliente envía solo el id16 publicado por el servidor y la revisión aparece en la misma página; el botón es operable con teclado y el resultado se anuncia con texto.
-- [ ] [GWT] CA-46: Dado una revisión abierta, Cuando añado comentarios anclados por `section_id` y envío «aprobar» o «pedir correcciones», Entonces se guardan por `submit` con los mismos topes (≤ 20 comentarios, ≤ 2.000 caracteres) y el mismo error al pasarse.
-- [ ] [GWT] CA-49: Dado revisiones en cada situación, Cuando abro Iniciativas y el Plan, Entonces tarjeta y cabecera muestran el mismo estado en texto (no solo color) y abrir la página no escribe nada.
-- [ ] [GWT] CA-50: Dado una decisión sobre una versión anterior del plan, Cuando cambia el hash, Entonces tarjeta y cabecera muestran «obsoleta por cambio de versión» y la UI exige una nueva decisión.
-- [ ] [GWT] CA-51: Dado una revisión con `result` del agente, Cuando abro el Plan, Entonces veo bajo cada comentario la respuesta, su disposición y el resultado de `verify-result` si existe; sin respuesta, «sin respuesta del agente».
-- [ ] Con la revisión preseleccionada por `--review-initiative` y `plan-ok` (escritura) o con un `plan-ok` ajeno (solo lectura) la UI se comporta como indica `design.md` §8.4: sin controles de escritura en el segundo caso.
+- [x] [GWT] CA-45: Dado el Plan de una iniciativa sin revisión (con `--review-panel`), Cuando pulso «Revisar este plan», Entonces el cliente envía solo el id16 publicado por el servidor y la revisión aparece en la misma página; el botón es operable con teclado y el resultado se anuncia con texto.
+- [x] [GWT] CA-46: Dado una revisión abierta, Cuando añado comentarios anclados por `section_id` y envío «aprobar» o «pedir correcciones», Entonces se guardan por `submit` con los mismos topes (≤ 20 comentarios, ≤ 2.000 caracteres) y el mismo error al pasarse.
+- [x] [GWT] CA-49: Dado revisiones en cada situación, Cuando abro Iniciativas y el Plan, Entonces tarjeta y cabecera muestran el mismo estado en texto (no solo color) y abrir la página no escribe nada.
+- [x] [GWT] CA-50: Dado una decisión sobre una versión anterior del plan, Cuando cambia el hash, Entonces tarjeta y cabecera muestran «obsoleta por cambio de versión» y la UI exige una nueva decisión.
+- [x] [GWT] CA-51: Dado una revisión con `result` del agente, Cuando abro el Plan, Entonces veo bajo cada comentario la respuesta, su disposición y el resultado de `verify-result` si existe; sin respuesta, «sin respuesta del agente».
+- [x] Con la revisión preseleccionada por `--review-initiative` y `plan-ok` (escritura) o con un `plan-ok` ajeno (solo lectura) la UI se comporta como indica `design.md` §8.4: sin controles de escritura en el segundo caso.
 
 **Subtareas**
-- [ ] RED: arnés Node `test_panel_review_panel_ui.py` (botón, estados, cabecera, respuestas, solo lectura, sin `innerHTML`).
-- [ ] `panel-review.js`: entrada por id16, botón, cabecera y respuestas; cambio del literal «Sin respuesta declarada».
-- [ ] Estado en texto en las tarjetas de Iniciativas desde `api/review-summary`.
+- [x] RED: arnés Node `test_panel_review_panel_ui.py` (botón, estados, cabecera, respuestas, solo lectura, sin `innerHTML`).
+- [x] `panel-review.js`: entrada por id16, botón, cabecera y respuestas; cambio del literal «Sin respuesta declarada».
+- [x] Estado en texto en las tarjetas de Iniciativas desde `api/review-summary`.
+
+- **Cerrada**: 2026-10-16
+
+- **Evidencia TDD**: `RED: tests/test_panel_review_panel_ui.py falló con 13 failed (sin controles de revisión en el Plan ni estado en tarjetas; el literal «Sin respuesta declarada» sigue) · 2026-10-16`
+
+- **Verificación ejecutada** (2026-10-16): `pytest -q tests/test_panel_review_panel_ui.py tests/test_panel_review_ui.py` → `67 passed`; `tests/test_panel_review_panel_server.py tests/test_panel_review_server.py` + `tests/test_panel_plan_ui.py tests/test_panel_iniciativas_ui.py tests/test_panel_fix4.py` → 0 failed. Navegador (`verify-p5.mjs`, servido `--review-panel` sobre copia de fixture): Edge 155 y Firefox 142 (`channel msedge`; servidor con `--review-panel` sobre copia de fixture y `.claude/plan-review` temporal): abrir no escribe, botón por teclado, comentario, «pedir correcciones», respuesta simulada por la CLI bajo el comentario (disposición y verify-result), «obsoleta por cambio de versión» tras tocar el plan, nueva decisión «aprobada v2», mismo texto en tarjeta y cabecera; 0 violaciones de CSP, 0 externas, 0 errores; `file://` sin controles ni `api/review`.
 
 - **Changelog**: Desde la página Plan se puede abrir una revisión, comentar por sección y decidir; el estado de revisión de cada iniciativa se ve en su tarjeta y en la cabecera del Plan, con las respuestas del agente bajo cada comentario.
 
-**Notas**: render ya existente en `panel-review.js:106-148` y literal en `:106` (ningún test fija el literal antiguo; comprobado con grep en `tests/`); id en `data-review-id` (`:59`). La tarjeta solo muestra cifras (`comments_with_result`, `needs_clarification`): el texto de las respuestas vive en `api/review/<id64>/view` (tope 512 KiB). El JS de Iniciativas es el de T-19 (confirmar el nombre real al implementar). Lente C: render de texto de usuario y del agente.
+**Notas**: Desviaciones: `build_panel.py`/`serve_panel.py` pasan `data-initiative-id` al Plan y un marcador `#iniciativas-revision` (solo con `--review-panel`) para que Iniciativas pida `api/review-summary` sin 404 en consola; el `fetch` vive en `panel-review.js` (`PanelReview.leerResumen`; `panel_pages.LIVE_SCRIPTS` lo carga también en Iniciativas, omitido sin ámbito), porque `test_panel_iniciativas_ui` y `test_panel_inicio_ui` limitan los `fetch(` de `page-iniciativas.js` y `page-cartera.js`. En el Plan el controlador va sin sondeo propio: la cabecera sondea `api/review-current` y lo empuja (`poke`/`obsolete`), así una versión obsoleta no provoca 409 en consola. Botones del Plan «Aprobar»/«Pedir correcciones»; la sección heredada `#plan-review` sigue igual. «Sin respuesta declarada» → «sin respuesta del agente» (ningún test fijaba el literal). Lente C: render de texto de usuario/agente solo por `textContent`.
 
 ### T-28 — Documentación de F2 (Inicio, Iniciativas, Plan, `ledger-view`, `Cerrada` y revisión del plan desde el panel)
 
 - **Descripción**: Documenta las tres páginas, las API `api/cartera` y `api/plan-*`, la relación `plugin-panel` → `build_dashboard` y `plugin-panel` → `ledger-view` en CONTRACTS, y el campo `Cerrada`. **Ampliada por la enmienda (R-5 de `design.md` §8.8):** documenta el modo `--review-panel`, la operación `plan-review.py summary`, las rutas `api/review-summary`, `api/review-current/<id16>` y `api/review-open/<id16>`, la excepción de escritura de la política de solo lectura y el `plan-ok` que nunca abre el navegador; actualiza E49-E51 de CONTRACTS (E51 ya no es «selección fija») y añade la arista «panel resume revisiones» con su Puerta (T-55/T-56).
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h (1,8h + 0,6h de la enmienda) · real —
-- **Tiempo IA (ejec.)**: est. 0,5h (0,4h + 0,1h) · real —
-- **Supervisión**: est. 0,15h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,5h (0,4h + 0,1h) · real 0,2h (estimado)
+- **Supervisión**: est. 0,15h (≈25 % IA) · real 0,05h (estimado, 25 % de la IA)
 - **Previsión IA**: 229k in / 37k out tok · 3,50 €
 - **Dependencias**: T-18..T-27, T-55..T-58
 - **Tipo**: docs
-- **Archivos**: `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/agents/CONTRACTS.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `agent-kits/shared/README.md`
+- **Archivos**: `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/agents/CONTRACTS.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `agent-kits/shared/README.md`, `skills/plugin-panel/SKILL.md`
 - **Cubre (tests)**: —
 - **Verificación**: `python3 scripts/lint_plugin.py` → exit 0 (ninguna fila de CONTRACTS sin Puerta) · `grep -n "review-panel" docs/PLUGIN-PANEL.md docs/en/PLUGIN-PANEL.md` → al menos una coincidencia en cada fichero · lectura: espejos EN iguales en contenido
 
 **Criterios de aceptación**
-- [ ] Aristas nuevas en CONTRACTS con su Puerta ejecutable (test de T-17 y T-21) y sus «Piezas que describen».
-- [ ] ES y EN en el mismo cambio.
-- [ ] CA-44 (documentación de la enmienda): `docs/PLUGIN-PANEL.md` y su espejo EN describen `--review-panel`, `summary`, las tres rutas nuevas y la excepción de escritura; E49-E51 actualizados y la arista «panel resume revisiones» con Puerta (test de T-55 y de T-56) y «Piezas que describen»; `agent-kits/shared/README.md` lista `summary`.
+- [x] Aristas nuevas en CONTRACTS con su Puerta ejecutable (test de T-17 y T-21) y sus «Piezas que describen».
+- [x] ES y EN en el mismo cambio.
+- [x] CA-44 (documentación de la enmienda): `docs/PLUGIN-PANEL.md` y su espejo EN describen `--review-panel`, `summary`, las tres rutas nuevas y la excepción de escritura; E49-E51 actualizados y la arista «panel resume revisiones» con Puerta (test de T-55 y de T-56) y «Piezas que describen»; `agent-kits/shared/README.md` lista `summary`.
 
 **Subtareas**
-- [ ] Redactar y espejar.
+- [x] Redactar y espejar.
+
+- **Changelog**: Documentados Inicio, Iniciativas y Plan del panel, el campo Cerrada del ledger y la revisión del plan desde el panel (`--review-panel`), con su contrato en la matriz de aristas.
+- **Cerrada**: 2026-10-16
+- **Verificación ejecutada** (2026-10-16): `lint_plugin.py` → 0 errores (8 avisos previos: nombres genéricos y `/health`, `/skills`; ninguno de CONTRACTS) · `grep review-panel` → 5 líneas ES y 5 EN · `export-interop.py --check` → 88 ficheros al día · `scope-check --base 14ef84b` → exit 0 · `ledger-lint` → 0 incoherencias.
 
 **Notas**: TDD n/a: prosa. Formato de arista en `docs/agents/CONTRACTS.md:96-103` (E30-E37).
+ Desviaciones: aristas nuevas E56 (panel→build_dashboard, T-17), E57 (panel→ledger-view, T-21) y E58 (panel resume revisiones, T-55/T-56); E49-E51 actualizados y E51 con Puerta ejecutable. `skills/plugin-panel/SKILL.md` añadido a `Archivos` (flag `--review-panel`, +2 líneas, sin tocar `commands/`; `interop --check` verde). La UI de T-58 se describe según spec/design y `panel-review.js` vigente (cuadra al 2026-10-16).
 
 ### T-29 — Cierre de la Fase 2: revisión de dos lentes y revisión visual del usuario (M-02)
 

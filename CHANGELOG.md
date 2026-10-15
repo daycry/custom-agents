@@ -43,6 +43,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - `plan-review.py` gains a read-only `summary` operation that returns the review state (none, pending, changes requested, approved, outdated, unavailable) of several initiatives at once without creating or modifying anything under `.claude/plan-review/`.
 - The panel server can open a plan review for any initiative from the Plan page (`POST api/review-open/<id>`) and publishes the review state of every initiative (`api/review-summary`, `api/review-current/<id>`), with the same token, `Origin`, CSP and 16 KiB limits as before; the browser can only open `requested-review`, never `plan-ok`.
 - New opt-in `--review-panel` flag (needs `--serve --project … --review-state-root …`) turns on plan review from every Plan page; `--review-initiative` keeps working as before, the exported copy never carries review controls, and Plan explains how to enable it.
+- From the Plan page you can open a plan review, comment per section and decide; each initiative's review status shows as text on its Initiatives card and in the Plan header, with the agent's replies under each comment.
+- Documented the Home, Initiatives and Plan pages, the `Cerrada` ledger field and plan review from the panel (`--review-panel`), with the new contract edges E56–E58.
 
 ### Fixed — `panel-redesign` initiative, phase 1 review
 

@@ -34,6 +34,8 @@ señales recientes de actividad.
    en la referencia de uso antes de lanzarlo. No se inicia en un inventario estático.
    Para una revisión solicitada, añade `--review-initiative <ruta-relativa-exacta>`
    y `--review-state-root <proyecto/.claude/plan-review>` en modo servido.
+   Para revisar el plan de cualquier iniciativa desde su página Plan, usa `--review-panel` con
+   `--review-state-root` (siempre puerta `requested-review`; el navegador nunca abre `plan-ok`).
    Lee la puerta de revisión en la misma referencia antes de abrirla.
 3. Entrega la carpeta exportada (abre `index.html`) y resume sus avisos. Un archivo presente no acredita que
    el hook se haya ejecutado ni que un servicio esté sano.

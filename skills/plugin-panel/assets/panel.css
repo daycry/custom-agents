@@ -120,6 +120,10 @@ footer { color: var(--tenue); font-size: .9rem; margin-top: 1.5rem; }
 #review-sections textarea { width: 100%; min-height: 6rem; resize: vertical; }
 #progress-status, #progress-freshness, #progress-results, #memory-status, #memory-freshness, #activity-status,
 #activity-freshness, #activity-coverage, #review-status, #review-metadata { color: var(--tenue); overflow-wrap: anywhere; }
+#plan-revision-panel section, #plan-revision-panel article { margin: 1rem 0; }
+#plan-revision-panel textarea { width: 100%; min-height: 6rem; resize: vertical; }
+#plan-revision-panel pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.revision-estado { font-weight: 600; }
 
 @media (max-width: 760px) {
   #panel-nav ul { flex-direction: column; }

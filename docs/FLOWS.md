@@ -665,12 +665,21 @@ flowchart LR
     Snapshot --> Consulta
     Consulta -->|parser ranking relaciones y redacción| Servidor
     Servidor --> Memoria[Vista con estado versión evidencia y fuente]
+    Servidor -->|ledger-view, solo lectura| Plan[Inicio · Iniciativas · Plan con kanban y gráficos]
+    Servidor -->|--review-panel: summary| Resumen2[Estado de revisión por iniciativa]
+    Servidor -->|POST api/review-open, puerta requested-review| Dueno[plan-review: recibos locales]
 ```
 
 Un solo comando, dos modos, siete páginas (Inicio, Iniciativas, Plan, Agentes en vivo,
 Memoria, Catálogo, Diagnóstico): el exportado es estático y sin red; el servido añade los
 scripts vivos bajo CSP con nonce. `roadmap-dashboard` calcula los datos de cartera y ya no
 genera HTML; `/roadmap-status` delega la presentación en el panel (`docs/PLUGIN-PANEL.md`).
+
+Inicio, Iniciativas y Plan proyectan la cartera y el ledger (`ledger-view.py`) en solo lectura. Con
+`--review-panel`, el panel resume el estado de revisión de cada plan (`plan-review.py summary`) y puede
+abrir una revisión desde la página Plan (`api/review-open`, siempre con la puerta `requested-review`):
+es la única escritura del panel, sobre los recibos de `.claude/plan-review/`. El navegador nunca abre
+`plan-ok` (eso es de `/dev-cycle`).
 
 El panel no ejecuta doctor ni los hooks. Presencia y presupuestos declarados
 no acreditan carga o ejecución; el stream de cierre OpenCode tiene su propio
