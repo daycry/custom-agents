@@ -489,6 +489,9 @@ def _modos():
                                      "--root", os.path.join(ROOT, "evals", "fixtures", "project")], (0,), None)],
         "agent-kits/shared/ledger-lint.py":
             [("ledger", lambda w: [L], (0, 1), None)],
+        # Plan en seco (no escribe): imprime «→», «·» y cabeceras con tildes del ledger real.
+        "agent-kits/shared/ledger-archive.py":
+            [("plan en seco", lambda w: [os.path.dirname(L)], (0,), None)],
         "agent-kits/shared/outbox.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         "skills/knowledge-services/backends/__init__.py":

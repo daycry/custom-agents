@@ -147,7 +147,9 @@ def test_A22_2_block22_review_header_and_rows_reach_ledger_consumers(repair_head
     spec = importlib.util.spec_from_file_location('transport_ledger_reader', path)
     ledger = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(ledger)
-    text = (ROOT / 'docs/roadmap/2026-10-07-catalog-capabilities/tasks.md').read_text(encoding='utf-8')
+    # The closed Bloque22 review was archived out of tasks.md (ledger-archive.py, bytes unchanged):
+    # the history keeps the original block, so the shared reader is checked against it.
+    text = (ROOT / 'docs/roadmap/2026-10-07-catalog-capabilities/execution-history.md').read_text(encoding='utf-8')
     text = text.split('## Transporte nativo de comandos — Bloque22 en preparación', 1)[1]
     if repair_header_only:
         text = text.replace('intento 1 de 3: Bloque22', 'intento 1: Bloque22')
