@@ -557,7 +557,7 @@ def test_ca03_related_adr010_grafo_curado_en_menos_de_1600_caracteres(real):
     # La vista humana está topada: un corpus mayor puede dejar relaciones fuera de pantalla.
     area = out.split("Misma área")[1]
     assert "ADR-006 · " in area, area
-    code_json, out_json, err_json = run("--related", "ADR-010", "--json")
+    code_json, out_json, err_json = run("--related", "ADR-010", "--json", "--root", real)
     assert code_json == 0, err_json
     ids = {entry["id"] for entry in json.loads(out_json)["relaciones"]["area"]["aciertos"]}
     assert {"ADR-006", "ADR-007"} <= ids

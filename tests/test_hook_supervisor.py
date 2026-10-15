@@ -36,6 +36,43 @@ def test_group_cleanup_keeps_owner_running_and_kills_children(monkeypatch):
     assert not any(pid == owner and sig in (signal.SIGSTOP, signal.SIGKILL) for _, pid, sig in calls)
 
 
+def test_group_cleanup_without_ps_reads_proc(monkeypatch, tmp_path):
+    # Minimal images (python:*-slim) ship no procps: accounting falls back to /proc/<pid>/stat.
+    owner, child = 41001, 41002
+    for pid, group, state, name in ((owner, owner, "S", "node"), (child, owner, "S", "py (x) y"),
+                                    (41003, 42000, "S", "other"), (41004, owner, "Z", "dead")):
+        (tmp_path / str(pid)).mkdir()
+        (tmp_path / str(pid) / "stat").write_text(f"{pid} ({name}) {state} 1 {group} {group} 0 -1\n")
+    (tmp_path / "self").mkdir()
+    calls = []
+    monkeypatch.setattr(supervisor, "PROC_ROOT", str(tmp_path))
+    monkeypatch.setattr(supervisor.os, "getppid", lambda: owner)
+    monkeypatch.setattr(signal, "SIGSTOP", 19, raising=False)
+    monkeypatch.setattr(signal, "SIGKILL", 9, raising=False)
+    monkeypatch.setattr(supervisor.os, "getpgid", lambda pid: owner, raising=False)
+    monkeypatch.setattr(supervisor.os, "getpgrp", lambda: 42000, raising=False)
+    monkeypatch.setattr(supervisor.os.path, "isfile", lambda path: False)
+    def kill(pid, sig):
+        calls.append((pid, sig))
+        if sig == signal.SIGKILL:
+            (tmp_path / str(pid) / "stat").unlink()
+    monkeypatch.setattr(supervisor.os, "kill", kill)
+    monkeypatch.setattr(supervisor.subprocess, "run", lambda *a, **kw: pytest.fail("no ps is installed"))
+    supervisor.close_group(owner)
+    assert (child, signal.SIGKILL) in calls and (child, signal.SIGSTOP) in calls
+    assert all(pid == child for pid, _ in calls), calls
+
+
+def test_group_cleanup_without_ps_or_proc_stays_unavailable(monkeypatch, tmp_path):
+    monkeypatch.setattr(supervisor, "PROC_ROOT", str(tmp_path / "missing"))
+    monkeypatch.setattr(supervisor.os, "getppid", lambda: 41001)
+    monkeypatch.setattr(supervisor.os, "getpgid", lambda pid: 41001, raising=False)
+    monkeypatch.setattr(supervisor.os, "getpgrp", lambda: 42000, raising=False)
+    monkeypatch.setattr(supervisor.os.path, "isfile", lambda path: False)
+    with pytest.raises(OSError, match="accounting unavailable"):
+        supervisor.close_group(41001)
+
+
 def test_group_cleanup_rejects_foreign_owner_before_signals(monkeypatch):
     monkeypatch.setattr(supervisor.os, "getppid", lambda: 41001)
     def forbidden(*args):

@@ -147,13 +147,34 @@ def close_job(owner_pid, remote_handle):
         api.CloseHandle(owner)
 
 
+PROC_ROOT = "/proc"
+
+
+def _proc_accounting():
+    """`pid pgid stat` rows from /proc/<pid>/stat, for images without procps."""
+    rows = []
+    for name in os.listdir(PROC_ROOT):
+        if not name.isdigit():
+            continue
+        try:
+            with open(os.path.join(PROC_ROOT, name, "stat"), encoding="utf-8", errors="replace") as handle:
+                stat = handle.read()
+        except OSError:
+            continue  # The process exited between listing and reading.
+        # The command name may hold spaces and parentheses: fields resume after the last ')'.
+        fields = stat[stat.rfind(")") + 1:].split()
+        if len(fields) >= 3:
+            rows.append(f"{name} {fields[2]} {fields[0]}")
+    return "\n".join(rows)
+
+
 def close_group(owner_pid):
     """Clean an adapter-owned POSIX group while its Node owner remains alive."""
     import signal
     if owner_pid != os.getppid() or os.getpgid(owner_pid) != owner_pid or os.getpgrp() == owner_pid:
         raise OSError("cleanup group is not owned by its parent")
     ps = next((path for path in ("/bin/ps", "/usr/bin/ps") if os.path.isfile(path)), None)
-    if not ps:
+    if not ps and not os.path.isdir(PROC_ROOT):
         raise OSError("process accounting unavailable")
     # Never stop the Node owner: it must remain able to enforce its deadline
     # even if accounting fails or this cleanup helper is forcibly terminated.
@@ -161,10 +182,13 @@ def close_group(owner_pid):
     # children created before their parent received SIGSTOP.
     deadline = time.monotonic() + 0.25
     while True:
-        result = subprocess.run([ps, "-eo", "pid=,pgid=,stat="], capture_output=True,
-                                encoding="utf-8", errors="replace", check=True, timeout=0.2)
+        if ps:
+            accounting = subprocess.run([ps, "-eo", "pid=,pgid=,stat="], capture_output=True,
+                                        encoding="utf-8", errors="replace", check=True, timeout=0.2).stdout
+        else:
+            accounting = _proc_accounting()
         active = []
-        for row in result.stdout.splitlines():
+        for row in accounting.splitlines():
             fields = row.split()
             if len(fields) != 3:
                 continue
