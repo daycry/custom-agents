@@ -144,3 +144,15 @@ footer { color: var(--tenue); font-size: .9rem; margin-top: 1.5rem; }
 .kanban .card:hover, .kanban .card:focus-within { border-color: var(--acento); }
 .kanban .alertas { margin: .5rem 0 0; padding-left: 1.2rem; color: var(--aviso); }
 .kanban .columna-vacia { color: var(--tenue); font-style: italic; }
+
+/* --- Plan de una iniciativa (kanban de tareas). Solo variables de :root. --- */
+.kanban .columna.desconocidos { border-color: var(--aviso); }
+.kanban .columna.desconocidos h2 { color: var(--aviso); }
+.solo-lectores { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.kanban .abrir-tarea { font: inherit; text-align: left; color: var(--acento); background: transparent; border: 0; padding: 0; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+.kanban .abrir-tarea::after { content: ""; position: absolute; inset: 0; border-radius: .75rem; }
+.detalle { border-color: var(--acento); }
+.detalle .detalle-bloque { background: var(--fondo); }
+.detalle .detalle-bloque h3 { margin: 0 0 .4rem; font-size: 1rem; }
+.detalle ul { margin: .25rem 0; padding-left: 1.2rem; }
+.detalle .gaps { color: var(--aviso); }

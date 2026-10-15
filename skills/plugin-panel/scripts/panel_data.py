@@ -1,12 +1,16 @@
-"""Proyecciones de solo lectura del panel multi-página (hoy: la cartera de iniciativas).
+"""Proyecciones de solo lectura del panel multi-página: la cartera de iniciativas y el plan de una iniciativa.
 
 `roadmap-dashboard` es el dueño de los datos de cartera (`scan` + `vista_json`, el contrato de `--json`) y
 `progress-report.py` el de «N de M tareas»; este módulo solo los proyecta para Inicio e Iniciativas y NO
 recalcula ninguna cifra que ellos ya den. Un dato ausente es `None` (JSON `null`), nunca 0.
 
-El texto libre del repo (títulos, slug, literal de un estado, coste estimado) sale SIN anonimizar: lo
-sanea el servidor (`serve_panel._scrubbed`, lista blanca `_DISPLAY_KEYS`) o el exportador, con el mismo
-saneador que el resto de APIs.
+`plan` y `tarea` proyectan el ledger de UNA iniciativa con `agent-kits/shared/ledger-view.py` (dueño único de
+«qué dice el ledger»): `plan` solo trae lo del kanban (id, título, fase, estado, horas IA y nº de gaps abiertos) y
+`tarea` el detalle de una tarea; el contenido de `execution-history.md` nunca se lee ni se mezcla.
+
+El texto libre del repo (títulos, slug, literal de un estado, coste estimado, fase, criterios, verificación, gaps)
+sale SIN anonimizar: lo sanea el servidor (`serve_panel._scrubbed`, lista blanca `_DISPLAY_KEYS`) o el exportador,
+con el mismo saneador que el resto de APIs.
 """
 import datetime
 import hashlib
@@ -19,7 +23,7 @@ import stat
 import sys
 
 for _s in (sys.stdin, sys.stdout, sys.stderr):
-    try: _s.reconfigure(encoding='utf-8', errors='replace')
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass  # noqa: BLE001
 
 HERE = Path(__file__).resolve().parent
@@ -52,6 +56,10 @@ def _load_shared(filename):
     return _load('panel_data_' + filename.replace('-', '_').replace('.py', ''), REPO / 'agent-kits/shared' / filename)
 
 
+def _load_ledger_view():
+    return _load_shared('ledger-view.py')
+
+
 def _load_dashboard():
     return _load('panel_data_build_dashboard', REPO / 'skills/roadmap-dashboard/scripts/build_dashboard.py')
 
@@ -59,7 +67,17 @@ def _load_dashboard():
 # Topes de los textos libres, en code points: los mismos que valida el JS de las páginas (`page-cartera.js`)
 # y que el servidor aplica DESPUÉS de anonimizar (`serve_panel._CAPS`); aquí solo evitan que una respuesta
 # con textos enormes agote el presupuesto de 64 KiB antes de llegar al saneador.
-TOPES = {'titulo': 160, 'slug': 80, 'est_texto': 120, 'literal': 48}
+TOPES = {'titulo': 160, 'slug': 80, 'est_texto': 120, 'literal': 48, 'fase_nombre': 160,
+         'descripcion': 1500, 'criterio': 400, 'verificacion': 2000, 'ejecutada': 1000, 'salida': 1000,
+         'cabecera': 160, 'gap': 400, 'correccion': 400}
+MAX_TAREAS = 400                    # tarjetas de la respuesta de `plan`; el servidor recorta más si pesa > 64 KiB
+MAX_CRITERIOS = 40                  # criterios y gaps de la respuesta de `tarea`; el servidor recorta más si pesa > 64 KiB
+MAX_GAPS = 20
+TAREA_RE = re.compile(r'T-\d{1,4}')
+ID16_RE = re.compile(r'[a-f0-9]{16}')
+# Vocabulario de estados del ledger (`ledger-lint.ESTADOS`, en el orden de las columnas). Solo se repite aquí para
+# poder contestar «no disponible» cuando `ledger-view.py` no carga; un test lo compara con el de `ledger-view`.
+ESTADOS_LEDGER = ('borrador', 'en-progreso', 'en-revision', 'completado', 'cancelado')
 
 
 def _limpio(valor, tope=None):
@@ -303,3 +321,129 @@ def cartera(project):
     if not resultado['complete']:
         resultado['status'] = 'partial'
     return resultado
+
+
+# --- Plan de una iniciativa (T-23/T-24) -----------------------------------------------------------------------
+
+def _carpeta(project, ident, reader):
+    """Carpeta de `docs/roadmap` cuyo `sha256(carpeta)[:16]` es `ident`, o `None` (id mal formado, sin roadmap o
+    carpeta que no es un directorio). Solo se resuelve el id contra los nombres que lista `local-read.py`."""
+    if not isinstance(ident, str) or not ID16_RE.fullmatch(ident):
+        return None
+    listado = reader.list_names(project, 'docs/roadmap', max_entries=MAX_SCAN)
+    if listado['status'] not in ('ok', 'incomplete'):
+        return None
+    for nombre in listado['names']:
+        if _id16(nombre) == ident:
+            directorio = reader.list_names(project, 'docs/roadmap/' + nombre, max_entries=1)
+            return nombre if directorio['status'] in ('ok', 'incomplete') else None
+    return None
+
+
+def _ahora():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z')
+
+
+def _vista(project, ident):
+    """(carpeta, proyección de `ledger-view`) de la iniciativa `ident`; `None` si el id no se resuelve; `ImportError`
+    y compañía si falta un ayudante (el llamador lo traduce a «no disponible»)."""
+    reader = _load_shared('local-read.py')
+    carpeta = _carpeta(project, ident, reader)
+    if carpeta is None:
+        return None
+    return carpeta, _load_ledger_view().leer(Path(str(project)) / 'docs' / 'roadmap' / carpeta)
+
+
+def _fila_plan(t):
+    return {'id': t['id'], 'titulo': _limpio(t['titulo'], 'titulo'), 'fase_nombre': _limpio(t['fase'], 'fase_nombre'),
+            'estado_tarea': t['estado'], 'literal': _limpio(t['literal'], 'literal'),
+            'horas': {'real': t['horas']['ia']['real'], 'est': t['horas']['ia']['est'],
+                      'fuente': t['horas']['ia']['fuente']},
+            'gaps': len(t['gaps'])}
+
+
+def plan(project, ident):
+    """Kanban de la iniciativa `ident` (id16): solo lo que pinta una tarjeta. `None` si el id no se resuelve.
+
+    Un ledger que no se puede mostrar (`fuera_de_tope`, `ilegible`, `sin_ledger`, `sin_tareas`, `sin_lectura`) lleva
+    su estado y NINGUNA cifra (`tareas: null`, nunca una lista vacía que parezca «sin tareas»). Las tareas con un
+    estado fuera del vocabulario llevan `estado_tarea: null` y el literal; la página las pone en su franja."""
+    try:
+        resuelto = _vista(project, ident)
+    except Exception:  # noqa: BLE001 - un ayudante ausente o roto no revela su ruta ni su error
+        return _plan_vacio(ident, None, 'unavailable', 'reader_unavailable')
+    if resuelto is None:
+        return None
+    carpeta, vista = resuelto
+    estado = vista['status']
+    respuesta = _plan_vacio(ident, carpeta, 'ok' if estado == 'ok' else estado, None if estado == 'ok' else estado)
+    if estado != 'ok':
+        return respuesta
+    filas = [_fila_plan(t) for t in vista['tareas']]
+    if len(filas) > MAX_TAREAS:
+        respuesta['omitidas'] = len(filas) - MAX_TAREAS
+        respuesta['complete'] = False
+        respuesta['status'] = 'partial'
+        respuesta['issues'].append({'status': 'task_budget'})
+        filas = filas[:MAX_TAREAS]
+    respuesta['tareas'] = filas
+    return respuesta
+
+
+def _env_tarea(ident, tarea_id, status, issue=None):
+    return {'version': 1, 'source': 'ledger_tarea', 'status': status, 'complete': status == 'ok',
+            'observed_at': _ahora(), 'id': ident, 'tarea_id': tarea_id,
+            'issues': [{'status': issue}] if issue else [], 'omitidos': {'criterios': 0, 'gaps': 0}, 'tarea': None}
+
+
+def tarea(project, ident, tarea_id):
+    """Detalle de la tarea `tarea_id` de la iniciativa `ident` (id16). `None` si el id o la tarea no se resuelven.
+
+    Trae descripción, criterios con su casilla, `Verificación` (≤ 2.000 caracteres) y su salida, dependencias, la
+    última revisión con sus gaps abiertos y la marca `archivado` (solo el enlace: `execution-history.md` no se lee).
+    Criterios y gaps se topan (`MAX_CRITERIOS`, `MAX_GAPS`) y lo omitido se cuenta en `omitidos`: nunca se inventa."""
+    if not isinstance(tarea_id, str) or not TAREA_RE.fullmatch(tarea_id):
+        return None
+    try:
+        resuelto = _vista(project, ident)
+    except Exception:  # noqa: BLE001 - un ayudante ausente o roto no revela su ruta ni su error
+        return _env_tarea(ident, tarea_id, 'unavailable', 'reader_unavailable')
+    if resuelto is None:
+        return None
+    _, vista = resuelto
+    if vista['status'] != 'ok':
+        return _env_tarea(ident, tarea_id, vista['status'], vista['status'])
+    t = next((x for x in vista['tareas'] if x['id'] == tarea_id), None)
+    if t is None:
+        return None
+    v, r = t['verificacion'], t['revision']
+    respuesta = _env_tarea(ident, tarea_id, 'ok')
+    respuesta['omitidos'] = {'criterios': max(0, len(t['criterios']) - MAX_CRITERIOS),
+                             'gaps': max(0, len(t['gaps']) - MAX_GAPS)}
+    if any(respuesta['omitidos'].values()):
+        respuesta['status'], respuesta['complete'] = 'partial', False
+        respuesta['issues'].append({'status': 'task_budget'})
+    respuesta['tarea'] = {
+        'id': t['id'], 'titulo': _limpio(t['titulo'], 'titulo'), 'fase_nombre': _limpio(t['fase'], 'fase_nombre'),
+        'estado_tarea': t['estado'], 'literal': _limpio(t['literal'], 'literal'),
+        'descripcion': _limpio(t['descripcion'], 'descripcion'),
+        'criterios': [{'criterio': _limpio(c['texto'], 'criterio'), 'marcado': c['marcado']}
+                      for c in t['criterios'][:MAX_CRITERIOS]],
+        'verificacion': _limpio(v['texto'], 'verificacion') if v else None,
+        'verificacion_recortada': bool(v and v['recortada']),
+        'ejecutada': _limpio(v['ejecutada'], 'ejecutada') if v else None,
+        'salida': _limpio(v['salida'], 'salida') if v else None,
+        'dependencias': t['dependencias'][:40], 'archivado': t['archivado'], 'cerrada': t['cerrada'],
+        'horas': t['horas'],
+        'revision': {'intento': r['intento'], 'cabecera': _limpio(r['cabecera'], 'cabecera'),
+                     'abiertos': r['abiertos']} if r else None,
+        'gaps': [{'intento': g['intento'], 'num': g['num'], 'grado': g['grado'], 'gap': _limpio(g['gap'], 'gap'),
+                  'correccion': _limpio(g['correccion'], 'correccion')} for g in t['gaps'][:MAX_GAPS]]}
+    return respuesta
+
+
+def _plan_vacio(ident, carpeta, status, issue):
+    return {'version': 1, 'source': 'ledger_plan', 'status': status, 'complete': status == 'ok',
+            'observed_at': _ahora(), 'id': ident, 'slug': _limpio(carpeta, 'slug'),
+            'issues': [{'status': issue}] if issue else [], 'vocabulario': list(ESTADOS_LEDGER),
+            'omitidas': 0, 'tareas': None}

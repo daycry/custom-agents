@@ -154,8 +154,9 @@ _ITEM_RED_RE = re.compile(r"^\s*[`*_]*\s*(RED|TDD n/a)\s*:", re.I)
 # Campos del ledger que NO son información para implementar y se quitan del bloque de la tarea (≈ 350-800 chars):
 # los de PRESUPUESTO (horas y euros, estimado vs real: contabilidad del PM que el brief no pide devolver) y el
 # `Changelog` (la nota de release, que escribe quien CIERRA la tarea —ADR-012—: una tarea en despacho no lo tiene,
-# y en un redespacho de una cerrada es texto para el usuario del proyecto, no para el subagente).
-_CAMPO_NO_BRIEF_RE = re.compile(r"^\s*-\s*\*\*(Tiempo humano|Tiempo IA[^*]*|Supervisi[oó]n|Previsi[oó]n IA|Changelog)\*\*\s*:", re.I)
+# y en un redespacho de una cerrada es texto para el usuario del proyecto, no para el subagente) y `Cerrada` (la fecha
+# de cierre del burndown del panel, panel-redesign T-22: la escribe quien CIERRA, no es información para implementar).
+_CAMPO_NO_BRIEF_RE = re.compile(r"^\s*-\s*\*\*(Tiempo humano|Tiempo IA[^*]*|Supervisi[oó]n|Previsi[oó]n IA|Changelog|Cerrada)\*\*\s*:", re.I)
 
 
 def _es_evidencia_red(item):

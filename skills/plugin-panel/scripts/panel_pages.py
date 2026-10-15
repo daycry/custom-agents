@@ -41,13 +41,17 @@ CSP_SERVIDO = ("default-src 'none'; style-src 'self' 'unsafe-inline'; script-src
 
 # Ficheros propios del panel que se copian a la carpeta exportada (ruta relativa a assets/).
 ASSET_FILES = ('panel.css', 'panel-core.js', 'panel-charts.js', 'page-catalogo.js', 'page-diagnostico.js',
-               'page-cartera.js', 'page-inicio.js', 'page-iniciativas.js')
+               'page-cartera.js', 'page-inicio.js', 'page-iniciativas.js', 'page-plan.js')
 # Solo el modo servido los usa (consultan api/*); el exportado no los copia.
 LIVE_ASSET_FILES = ('panel-live.js', 'panel-memory.js', 'panel-activity.js', 'panel-review.js')
 # Script propio de cada página (después de panel-core.js y panel-charts.js), y los vivos del modo servido.
 PAGE_SCRIPTS = {'catalogo': ('page-catalogo.js',), 'diagnostico': ('page-diagnostico.js',),
                 'inicio': ('page-cartera.js', 'page-inicio.js'),
                 'iniciativas': ('page-cartera.js', 'page-iniciativas.js')}
+# La página Plan de UNA iniciativa (`plan-<id16>.html`): su kanban y su detalle de tarea. No lleva los JS vivos de
+# `plan.html` (progreso y revisión), que dependen de secciones que solo tiene el índice.
+PLAN_SCRIPTS = ('page-cartera.js', 'page-plan.js')
+ID16_RE = re.compile(r'[a-f0-9]{16}')
 LIVE_SCRIPTS = {'inicio': ('panel-live.js',), 'plan': ('panel-live.js', 'panel-review.js'),
                 'agentes': ('panel-activity.js',), 'memoria': ('panel-memory.js',)}
 VENDOR_FILES = ('vendor/chart.js/chart.umd.min.js', 'vendor/chart.js/LICENSE.md', 'vendor/chart.js/PROVENANCE.json')
@@ -82,12 +86,15 @@ def _cabecera_modo(modo, generado):
             'abre el panel servido con <code>/plugin-catalog --serve</code></p>')
 
 
-def render_page(slug, *, modo, generado, datos, cuerpo='', chart_ok=True, nonce=None, scripts_omitidos=()):
+def render_page(slug, *, modo, generado, datos, cuerpo='', chart_ok=True, nonce=None, scripts_omitidos=(),
+                plan_id=None):
     """Devuelve el HTML de una página. `cuerpo` es HTML ya escapado por quien lo genera.
 
     `nonce` (modo servido) va en TODAS las etiquetas `<script …>` que se generan aquí; los scripts
     son siempre ficheros (`src=`) y los datos viajan en un bloque `application/json`.
     `scripts_omitidos` quita scripts por nombre (p. ej. la revisión cuando no está activa).
+    `plan_id` (solo con `slug == 'plan'`): es la página Plan de UNA iniciativa, `plan-<id16>.html`; el menú sigue
+    marcando «Plan» y sus scripts son `PLAN_SCRIPTS`, no los de la vista viva del índice.
     """
     pagina = next((p for p in PAGES if p[0] == slug), None)
     if pagina is None:
@@ -102,7 +109,12 @@ def render_page(slug, *, modo, generado, datos, cuerpo='', chart_ok=True, nonce=
         return f'<script{atributo} src="{ruta}"></script>'
     scripts = script(CHART_REL) if chart_ok else ''
     scripts += script('assets/panel-core.js') + script('assets/panel-charts.js')
-    propios = PAGE_SCRIPTS.get(slug, ()) + (LIVE_SCRIPTS.get(slug, ()) if modo == 'servido' else ())
+    if plan_id is not None:
+        if slug != 'plan' or not ID16_RE.fullmatch(plan_id):
+            raise ValueError('plan_id solo para la página Plan y con la forma de un id16')
+        propios = PLAN_SCRIPTS
+    else:
+        propios = PAGE_SCRIPTS.get(slug, ()) + (LIVE_SCRIPTS.get(slug, ()) if modo == 'servido' else ())
     scripts += ''.join(script('assets/' + nombre) for nombre in propios if nombre not in scripts_omitidos)
     datos_pagina = {**datos, 'chartjs_disponible': bool(chart_ok)}
     return (MARKER + '<html lang="es"><head><meta charset="utf-8">'
@@ -167,12 +179,16 @@ def cargar_assets(modo='exportado', review=False):
 CARTERA_PAGES = ('inicio', 'iniciativas')
 
 
-def datos_de_pagina(slug, datos, modo='exportado', cartera=None):
+def datos_de_pagina(slug, datos, modo='exportado', cartera=None, plan_id=None):
     """Bloque `panel-data` de una página. El inventario completo y la cartera (ya anonimizados) solo viajan en
     la copia exportada; el modo servido lleva los contadores y consulta el resto por `api/*`. `modo` viaja
     en el bloque para que el JS de la página sepa si debe preguntar al servidor o leer lo incrustado; sin
-    `cartera` (exportado sin `--project`) la clave no existe y la página dice que no hay datos."""
+    `cartera` (exportado sin `--project`) la clave no existe y la página dice que no hay datos. `plan_id` (página
+    Plan de una iniciativa) viaja en el bloque para que el JS sepa qué plan pide a `api/plan-<id16>` o lee de lo
+    incrustado (`plan`, `detalles`: los añade quien exporta)."""
     base = {'pagina': slug, 'modo': modo, 'contadores': datos.get('counts', {})}
+    if plan_id is not None:
+        base['plan_id'] = plan_id
     if slug == 'catalogo' and modo == 'exportado':
         base['inventario'] = datos
     if slug in CARTERA_PAGES and modo == 'exportado' and cartera is not None:
@@ -286,8 +302,9 @@ def _escribir_atomico(ruta, contenido):
 
 
 def exportar_sitio(destino, datos, *, generado=None, unsafe_link=lambda ruta: ruta.is_symlink(), cuerpos=None,
-                   cartera=None):
-    """Escribe las 7 páginas, `assets/`, `vendor/chart.js/` y `export-manifest.json` en `destino`.
+                   cartera=None, planes=None):
+    """Escribe las 7 páginas, una `plan-<id16>.html` por cada plan de `planes` (`[{'id', 'cuerpo', 'datos'}]`),
+    `assets/`, `vendor/chart.js/` y `export-manifest.json` en `destino`.
 
     Solo sobrescribe HTML con MARKER o ficheros del manifiesto previo cuyo hash sea el que se escribió;
     cualquier otro choque aborta ANTES de escribir nada. Devuelve (rutas escritas, avisos).
@@ -297,6 +314,12 @@ def exportar_sitio(destino, datos, *, generado=None, unsafe_link=lambda ruta: ru
         generado = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
     ficheros, chart_ok, avisos = cargar_assets()
     ficheros.update(construir_paginas(datos, generado=generado, chart_ok=chart_ok, cuerpos=cuerpos, cartera=cartera))
+    for plan in planes or ():
+        if not isinstance(plan.get('id'), str) or not ID16_RE.fullmatch(plan['id']):
+            raise ValueError('plan id is not an id16')
+        ficheros[f"plan-{plan['id']}.html"] = render_page(
+            'plan', modo='exportado', generado=generado, chart_ok=chart_ok, plan_id=plan['id'], cuerpo=plan['cuerpo'],
+            datos={**datos_de_pagina('plan', datos, plan_id=plan['id']), **plan['datos']}).encode('utf8')
 
     if unsafe_link(destino) or any(unsafe_link(p) for p in destino.absolute().parents):
         raise ValueError('output is a symbolic link')

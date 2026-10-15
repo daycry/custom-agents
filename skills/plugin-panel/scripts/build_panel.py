@@ -835,8 +835,42 @@ def _cuerpo_iniciativas():
         '<div id="grafico-horas"></div><div id="grafico-coste"></div></section>')
 
 
-def cuerpos_paginas(data, *, live=False, review_enabled=False, review_id='', actividad=True):
+def _cuerpo_plan_indice(planes):
+    """Índice de `plan.html`: un enlace por iniciativa con plan, estático (sin JS y válido en servido y exportado).
+    `planes` = `[{'id', 'slug', 'titulo'}]` ya saneados; `None` = copia estática sin `--project`."""
+    if planes is None:
+        return ('<section id="plan-indice"><h2>Planes por iniciativa</h2><p class="ausencia">Sin datos: esta copia '
+                'estática no incluye los planes (se genera con --project).</p></section>')
+    if not planes:
+        return ('<section id="plan-indice"><h2>Planes por iniciativa</h2><p class="ausencia">Ninguna iniciativa del '
+                'roadmap tiene plan (improvement-plan.md).</p></section>')
+    items = ''.join(f'<li><a href="plan-{html.escape(p["id"])}.html">{html.escape(p["slug"])}</a>'
+                    f' <span class="filter-note">{html.escape(p["titulo"])}</span></li>' for p in planes)
+    return ('<section id="plan-indice"><h2>Planes por iniciativa</h2><p>Cada plan muestra el kanban de sus tareas, en solo '
+            'lectura.</p><nav aria-label="Planes por iniciativa"><ul>' + items + '</ul></nav></section>')
+
+
+def cuerpo_plan_iniciativa():
+    """Esqueleto de `plan-<id16>.html`: lo rellena `page-plan.js` con `api/plan-<id16>` (servido) o con el plan
+    incrustado en `panel-data` (exportado)."""
+    return (
+        '<p><a href="plan.html">Todos los planes</a> · <a href="iniciativas.html">Iniciativas</a></p>'
+        '<p id="plan-estado" class="filter-note" role="status" aria-live="polite">Leyendo el ledger…</p>'
+        '<p id="plan-anuncio" class="solo-lectores" role="status" aria-live="polite"></p>'
+        '<section id="plan-detalle" class="detalle" role="region" aria-labelledby="plan-detalle-titulo" tabindex="-1" hidden>'
+        '<div class="section-head"><h2 id="plan-detalle-titulo">Detalle de la tarea</h2>'
+        '<button id="plan-detalle-cerrar" type="button">Cerrar detalle</button></div>'
+        '<div id="plan-detalle-contenido" aria-busy="false"></div></section>'
+        '<section id="plan-kanban"><div class="section-head"><div><h2 id="plan-titulo">Tareas del plan</h2>'
+        '<p>Solo lectura: una columna por estado del ledger y una tarjeta por tarea.</p></div></div>'
+        '<div id="kanban-plan" class="kanban"></div>'
+        '<noscript><p>Sin JavaScript no se leen las tareas del plan.</p></noscript></section>')
+
+
+def cuerpos_paginas(data, *, live=False, review_enabled=False, review_id='', actividad=True, planes=None):
     """Cuerpo HTML (ya escapado) de cada una de las 7 páginas, por slug.
+
+    `planes` (`[{'id', 'slug', 'titulo'}]`, ya saneados; `None` sin `--project`) alimenta el índice de `plan.html`.
 
     Catálogo y Diagnóstico llevan hoy todo su contenido; el resto lleva, en modo servido, la sección viva
     que le toca (progreso → Inicio y Plan; revisión → Plan; actividad → Agentes; memoria → Memoria) y,
@@ -849,9 +883,10 @@ def cuerpos_paginas(data, *, live=False, review_enabled=False, review_id='', act
     cuerpos['agentes'] = _seccion_actividad(live, actividad)
     cuerpos['inicio'] = _cuerpo_inicio()
     cuerpos['iniciativas'] = _cuerpo_iniciativas()
+    cuerpos['plan'] = _cuerpo_plan_indice(planes)
     if live:
         cuerpos['inicio'] += _seccion_progreso()
-        cuerpos['plan'] = _seccion_progreso() + (_seccion_revision(review_id) if review_enabled else '')
+        cuerpos['plan'] += _seccion_progreso() + (_seccion_revision(review_id) if review_enabled else '')
         cuerpos['memoria'] = _seccion_memoria()
     return cuerpos
 
@@ -900,10 +935,42 @@ def _cartera_exportada(args, scrub):
         return None
 
 
-def _export(args, data, cartera=None):
+def _planes_exportados(args, scrub, cartera):
+    """Páginas Plan de la copia estática: una por iniciativa con plan de la cartera (ya anonimizada), con su plan
+    proyectado y saneado por el MISMO saneador que el servidor. Sin `--project`, `None` (el índice lo dice)."""
+    if cartera is None or not args.project:
+        return None
+    try:
+        servicio = _load_server()
+        data = servicio._load_data()
+        planes = []
+        for fila in cartera.get('iniciativas', []):
+            if not fila.get('tiene_plan'):
+                continue
+            plan = data.plan(Path(args.project), fila['id'])
+            if plan is None:
+                continue
+            limpio = servicio._scrubbed(plan, scrub)
+            # Detalle de cada tarea del plan, incrustado: la copia estática no puede preguntar a `api/plan-<id16>-<T-XX>`.
+            detalles = {}
+            for fila_tarea in limpio.get('tareas') or []:
+                detalle = data.tarea(Path(args.project), fila['id'], fila_tarea['id'])
+                if detalle is not None:
+                    detalles[fila_tarea['id']] = servicio._scrubbed(detalle, scrub)
+            planes.append({'id': fila['id'], 'slug': fila['slug'], 'titulo': fila['titulo'],
+                           'datos': {'plan': limpio, 'detalles': detalles}})
+        return planes
+    except (OSError, ValueError, ImportError, AttributeError, SyntaxError):
+        return None
+
+
+def _export(args, data, cartera=None, planes=None):
     pages = _load_pages()
+    indice = None if planes is None else [{k: p[k] for k in ('id', 'slug', 'titulo')} for p in planes]
+    paginas = None if planes is None else [{'id': p['id'], 'cuerpo': cuerpo_plan_iniciativa(), 'datos': p['datos']} for p in planes]
     written, warnings = pages.exportar_sitio(args.export, data, unsafe_link=_unsafe_link,
-                                             cuerpos=cuerpos_paginas(data), cartera=cartera)
+                                             cuerpos=cuerpos_paginas(data, planes=indice), cartera=cartera,
+                                             planes=paginas)
     for warning in warnings:
         print(f'plugin-panel: aviso: {warning}', file=sys.stderr)
     return written
@@ -956,7 +1023,8 @@ def main(argv=None):
                          'gate_key': args.review_gate_key or 'requested-review'} if args.review_initiative else None
             return server.run(args.project, data, port=args.port or 0, review_selection=selection, scrub=scrub)
         if args.export:
-            written = _export(args, data, _cartera_exportada(args, scrub))
+            cartera = _cartera_exportada(args, scrub)
+            written = _export(args, data, cartera, _planes_exportados(args, scrub, cartera))
             print(f'plugin-panel: exportados {len(written)} ficheros (7 páginas, assets y vendor) con su export-manifest.json',
                   file=sys.stderr if args.json else sys.stdout)
         if args.json or not args.export:

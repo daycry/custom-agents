@@ -3,6 +3,7 @@
 Datos de prueba genericos (`jdoe@example.org`, `jdoeuser`); nada del equipo donde se ejecuta.
 """
 import copy
+import hashlib
 import json
 import shutil
 import subprocess
@@ -195,6 +196,19 @@ def test_recorte_no_parte_una_marca_ni_un_caracter():
     assert len(servicio._clip('é' * 600, 1000, 1024).encode('utf8')) <= 1024
 
 
+def test_recorte_no_parte_la_marca_del_redactor():
+    """M-F1-3 (revision de la fase 1): `[secreto redactado]` (`redact.REDACTADO`) tampoco se parte."""
+    servicio = _cargar()
+    marca = '[secreto redactado]'
+    assert marca == servicio._load_shared('redact.py').REDACTADO
+    texto = 'x' * 150 + marca + 'y' * 20
+    for tope in range(140, 190):
+        corte = servicio._clip(texto, tope)
+        assert len(corte) <= tope
+        assert marca in corte or '[' not in corte, (tope, corte[-25:])
+        assert corte in (texto[:tope], texto[:150])
+
+
 # Contrato de `api/cartera` (T-17): el test construye la respuesta REAL con `panel_data.cartera()` sobre un
 # proyecto de prueba (no una fixture a mano), la pasa por el saneador unico del servidor y comprueba que cada
 # cadena esta clasificada: texto del repo que se muestra (se anonimiza) o vocabulario/forma (queda intacto).
@@ -259,3 +273,136 @@ def test_cartera_de_160_pasa_el_validador_de_las_paginas_tras_anonimizar(tmp_pat
     assert len(limpio['titulo']) <= 160 and len(limpio['slug']) <= 80
     assert len(limpio['coste']['est_texto']) <= 120 and len(limpio['literal']) <= 48
     assert '<usuari' not in limpio['titulo'].replace('<usuario>', '')
+
+
+# Contrato de `api/plan-<id16>` (T-23): como el de `api/cartera`, la respuesta se construye con el productor REAL
+# (`panel_data.plan` sobre `ledger-view.py`) y se pasa por el saneador unico y el recorte del servidor
+# (`_plan_body`). Cada cadena esta clasificada: texto del ledger que se muestra (se anonimiza y se recorta al tope
+# del validador de `page-plan.js`) o vocabulario/forma (queda intacto). Un campo nuevo sin clasificar rompe el test.
+PLAN_MOSTRADO = {'slug', 'titulo', 'fase_nombre', 'literal'}
+PLAN_INTACTO = {'source', 'observed_at', 'status', 'id', 'vocabulario', 'estado_tarea', 'fuente'}
+
+
+def _proyecto_plan(tmp_path):
+    carpeta = tmp_path / 'docs/roadmap/2026-10-01-plan'
+    carpeta.mkdir(parents=True)
+    (carpeta / 'improvement-plan.md').write_text('# plan\n', encoding='utf8')
+    (carpeta / 'tasks.md').write_text(
+        f'# L\n\n## Fase 1 — {PLANTADO}\n\n### T-01 — {PLANTADO}\n- **Estado**: completado\n'
+        '- **Tiempo IA (ejec.)**: est. 0,5h · real 0,4h (medido)\n\n**Criterios de aceptación**\n- [x] a\n\n'
+        f'### T-02 — {PLANTADO}\n- **Estado**: 🚧 bloqueada\n\n'
+        '## Revisión de dos lentes — intento 1: 1 gap\n\n| # | Grado | Gap | Tarea | Corrección | Evidencia |\n'
+        '|---|---|---|---|---|---|\n| 1 | Minor | g | T-01 | pendiente | e |\n', encoding='utf8')
+    return tmp_path
+
+
+def _clasifica_plan(ruta):
+    clave = ruta[-1]
+    if clave in PLAN_MOSTRADO:
+        return 'mostrado'
+    return 'intacto' if clave in PLAN_INTACTO else None
+
+
+def test_contrato_plan_cada_campo_mostrado_anonimizado_y_el_resto_intacto(tmp_path):
+    servicio = _cargar()
+    ident = hashlib.sha256(b'2026-10-01-plan').hexdigest()[:16]
+    respuesta = servicio._load_data().plan(_proyecto_plan(tmp_path), ident)
+    assert respuesta['status'] == 'ok' and [t['estado_tarea'] for t in respuesta['tareas']] == ['completado', None]
+    limpio = json.loads(servicio._plan_body(copy.deepcopy(respuesta), _scrub(servicio)))
+    antes, despues = list(_hojas(respuesta)), list(_hojas(limpio))
+    sin_clasificar = {r[-1] for r, _ in antes if _clasifica_plan(r) is None}
+    assert not sin_clasificar, f'campo de texto sin clasificar en el contrato de api/plan-<id16>: {sin_clasificar}'
+    vistos = set()
+    for (ruta, original), (_, nuevo) in zip(antes, despues):
+        tipo = _clasifica_plan(ruta); vistos.add(ruta[-1])
+        if tipo == 'mostrado':
+            for sensible in SENSIBLES:
+                assert sensible not in nuevo, (ruta, sensible)
+        else:
+            assert nuevo == original, ruta
+    assert PLAN_MOSTRADO - {'slug'} <= vistos        # la respuesta real ejerce todos los campos mostrados
+    assert limpio['tareas'][0]['gaps'] == 1 and limpio['tareas'][1]['literal'] == 'bloqueada'
+
+
+def test_plan_de_160_pasa_el_validador_de_la_pagina_tras_anonimizar(tmp_path):
+    servicio = _cargar()
+    scrub = _corto(servicio)
+    carpeta = tmp_path / 'docs/roadmap/2026-10-01-abc'
+    carpeta.mkdir(parents=True)
+    (carpeta / 'tasks.md').write_text('# L\n\n## Fase 1 — ' + 'abc ' * 40 + '\n\n### T-01 — ' + 'abc ' * 40 + '\n- **Estado**: completado\n', encoding='utf8')
+    ident = hashlib.sha256(b'2026-10-01-abc').hexdigest()[:16]
+    fila = json.loads(servicio._plan_body(servicio._load_data().plan(tmp_path, ident), scrub))['tareas'][0]
+    assert len(fila['titulo']) <= 160 and len(fila['fase_nombre']) <= 160
+    assert '<usuari' not in fila['titulo'].replace('<usuario>', '')
+
+
+# Contrato de `api/plan-<id16>-<T-XX>` (T-24): igual que el de `api/plan-<id16>`, con el productor REAL
+# (`panel_data.tarea`) y el saneado y recorte del servidor (`_tarea_body`). Todo texto del ledger que se muestra se
+# anonimiza y se recorta al tope del validador de `page-plan.js`; vocabulario y forma quedan intactos.
+TAREA_MOSTRADO = {'titulo', 'fase_nombre', 'literal', 'descripcion', 'criterio', 'verificacion', 'ejecutada', 'salida',
+                  'cabecera', 'gap', 'correccion'}
+TAREA_INTACTO = {'source', 'observed_at', 'status', 'id', 'tarea_id', 'estado_tarea', 'fuente', 'dependencias',
+                 'enlace', 'cerrada', 'grado', 'num'}
+
+
+def _proyecto_tarea(tmp_path):
+    carpeta = tmp_path / 'docs/roadmap/2026-10-01-detalle'
+    carpeta.mkdir(parents=True)
+    (carpeta / 'improvement-plan.md').write_text('# plan\n', encoding='utf8')
+    (carpeta / 'tasks.md').write_text(
+        f'# L\n\n## Fase 1 — {PLANTADO}\n\n### T-01 — {PLANTADO}\n- **Descripción**: {PLANTADO}\n- **Estado**: completado\n'
+        '- **Tiempo IA (ejec.)**: est. 0,5h · real 0,4h (medido)\n- **Dependencias**: T-02\n'
+        f'- **Verificación** (ejecutada 2026-10-15 — salida: {PLANTADO}): {PLANTADO}. Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `abcdef123456`.\n'
+        f'- **Verificación ejecutada** (2026-10-15): {PLANTADO}\n- **Cerrada**: 2026-10-15\n\n'
+        f'**Criterios de aceptación**\n- [x] {PLANTADO}\n\n'
+        f'## Revisión de dos lentes — intento 1: T-01 {PLANTADO}\n\n| # | Grado | Gap | Tarea | Corrección | Evidencia |\n'
+        f'|---|---|---|---|---|---|\n| 1 | Important | {PLANTADO} | T-01 | pendiente | e |\n', encoding='utf8')
+    return tmp_path
+
+
+def _clasifica_tarea(ruta):
+    clave = ruta[-1]
+    if clave in TAREA_MOSTRADO:
+        return 'mostrado'
+    return 'intacto' if clave in TAREA_INTACTO else None
+
+
+def test_contrato_tarea_cada_campo_mostrado_anonimizado_y_el_resto_intacto(tmp_path):
+    servicio = _cargar()
+    ident = hashlib.sha256(b'2026-10-01-detalle').hexdigest()[:16]
+    respuesta = servicio._load_data().tarea(_proyecto_tarea(tmp_path), ident, 'T-01')
+    assert respuesta['status'] == 'ok' and respuesta['tarea']['archivado'] == {'enlace': 'execution-history.md'}
+    limpio = json.loads(servicio._tarea_body(copy.deepcopy(respuesta), _scrub(servicio)))
+    antes, despues = list(_hojas(respuesta)), list(_hojas(limpio))
+    sin_clasificar = {r[-1] for r, _ in antes if _clasifica_tarea(r) is None}
+    assert not sin_clasificar, f'campo de texto sin clasificar en el contrato de api/plan-<id16>-<T-XX>: {sin_clasificar}'
+    vistos = set()
+    for (ruta, original), (_, nuevo) in zip(antes, despues):
+        tipo = _clasifica_tarea(ruta); vistos.add(ruta[-1])
+        if tipo == 'mostrado':
+            for sensible in SENSIBLES:
+                assert sensible not in nuevo, (ruta, sensible)
+        else:
+            assert nuevo == original, ruta
+    assert TAREA_MOSTRADO - {'literal'} <= vistos          # la respuesta real ejerce todos los campos mostrados
+    assert limpio['tarea']['gaps'][0]['grado'] == 'Important' and limpio['tarea']['dependencias'] == ['T-02']
+
+
+def test_tarea_con_textos_de_los_topes_pasa_el_validador_de_la_pagina_tras_anonimizar(tmp_path):
+    servicio = _cargar()
+    scrub = _corto(servicio)
+    carpeta = tmp_path / 'docs/roadmap/2026-10-01-abc'
+    carpeta.mkdir(parents=True)
+    larga = 'abc ' * 100
+    (carpeta / 'tasks.md').write_text(
+        f'# L\n\n## Fase 1\n\n### T-01 — {larga[:160]}\n- **Descripción**: {larga * 3}\n- **Estado**: completado\n'
+        f'- **Verificación**: {larga * 5}\n- **Verificación ejecutada** (2026-10-15): {larga * 3}\n\n'
+        f'**Criterios de aceptación**\n- [x] {larga}\n\n## Revisión de dos lentes — intento 1: T-01\n\n'
+        '| # | Grado | Gap | Tarea | Corrección | Evidencia |\n|---|---|---|---|---|---|\n'
+        f'| 1 | Minor | {larga} | T-01 | pendiente | e |\n', encoding='utf8')
+    ident = hashlib.sha256(b'2026-10-01-abc').hexdigest()[:16]
+    t = json.loads(servicio._tarea_body(servicio._load_data().tarea(tmp_path, ident, 'T-01'), scrub))['tarea']
+    assert len(t['titulo']) <= 160 and len(t['descripcion']) <= 1500 and len(t['verificacion']) <= 2000
+    assert len(t['salida']) <= 1000 and len(t['criterios'][0]['criterio']) <= 400 and len(t['gaps'][0]['gap']) <= 400
+    for campo in ('titulo', 'descripcion', 'verificacion', 'salida'):
+        assert '<usuari' not in t[campo].replace('<usuario>', ''), campo

@@ -356,6 +356,9 @@ SIN_SIMBOLOS_EN_LA_SALIDA = {
     # `backends/__init__.py::cargar_adaptador("graphiti", ...)`, igual que markdown_export.py).
     "skills/knowledge-services/backends/graphiti.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
     "skills/knowledge-services/backends/graphiti_providers.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
+    # panel-redesign T-17/T-23: proyecciones puras del panel (`cartera`, `plan`, `tarea`), sin `__main__`
+    # (las carga `serve_panel.py` / `build_panel.py` por `importlib`); arrancado no imprime nada.
+    "skills/plugin-panel/scripts/panel_data.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
 }
 SCRIPTS_CON_SIMBOLOS = [rel for rel in SCRIPTS if rel not in SIN_SIMBOLOS_EN_LA_SALIDA]
 
@@ -491,6 +494,9 @@ def _modos():
                                      "--root", os.path.join(ROOT, "evals", "fixtures", "project")], (0,), None)],
         "agent-kits/shared/ledger-lint.py":
             [("ledger", lambda w: [L], (0, 1), None)],
+        # Texto: una línea por tarea con `·` y títulos con tildes del ledger real (panel-redesign T-21).
+        "agent-kits/shared/ledger-view.py":
+            [("ledger", lambda w: [L], (0,), None)],
         # Plan en seco (no escribe): imprime «→», «·» y cabeceras con tildes del ledger real.
         "agent-kits/shared/ledger-archive.py":
             [("plan en seco", lambda w: [os.path.dirname(L)], (0,), None)],
@@ -522,6 +528,8 @@ def _modos():
         "skills/knowledge-services/backends/graphiti_providers.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         "agent-kits/shared/redact.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
+        "skills/plugin-panel/scripts/panel_data.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         "agent-kits/shared/model-tier.py":
             [("--all", lambda w: ["--all"], (0,), None)],

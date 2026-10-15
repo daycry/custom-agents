@@ -42,6 +42,8 @@ def _load_builder():
 
 
 PLAN_PAGE = re.compile(r'plan-[a-f0-9]{16}\.html')
+PLAN_API = re.compile(r'api/plan-([a-f0-9]{16})')
+TAREA_API = re.compile(r'api/plan-([a-f0-9]{16})-(T-\d{1,4})')
 ASSET_TYPES = {'.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
                '.json': 'application/json; charset=utf-8', '.md': 'text/markdown; charset=utf-8'}
 
@@ -136,6 +138,62 @@ def _encoded(value):
     return json.dumps(value, ensure_ascii=False, allow_nan=False).encode('utf8')
 
 
+def _unavailable_plan(ident):
+    """`api/plan-<id16>` cuando el ledger no se puede proyectar: la misma forma que la respuesta normal, sin cifras."""
+    return {'version': 1, 'source': 'ledger_plan', 'status': 'unavailable', 'complete': False,
+            'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'), 'id': ident, 'slug': None,
+            'issues': [{'status': 'reader_unavailable'}],
+            'vocabulario': ['borrador', 'en-progreso', 'en-revision', 'completado', 'cancelado'],
+            'omitidas': 0, 'tareas': None}
+
+
+def _unavailable_tarea(ident, tarea_id):
+    return {'version': 1, 'source': 'ledger_tarea', 'status': 'unavailable', 'complete': False,
+            'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'), 'id': ident,
+            'tarea_id': tarea_id, 'issues': [{'status': 'reader_unavailable'}],
+            'omitidos': {'criterios': 0, 'gaps': 0}, 'tarea': None}
+
+
+def _tarea_body(data, scrub):
+    """Cuerpo de `api/plan-<id16>-<T-XX>`: saneado y, si pasa de 64 KiB, recortado con indicador (primero los gaps y
+    luego los criterios, del final) y contado en `omitidos`: nunca se inventa lo que falta."""
+    limpio = _scrubbed(data, scrub)
+    body = _encoded(limpio)
+    tarea = limpio.get('tarea')
+    if len(body) > MAX_RESPONSE_BYTES and tarea:
+        limpio['status'] = 'partial'; limpio['complete'] = False
+        if {'status': 'output_budget'} not in limpio['issues']:
+            limpio['issues'].append({'status': 'output_budget'})
+        for campo, contador in (('gaps', 'gaps'), ('criterios', 'criterios')):
+            while len(body) > MAX_RESPONSE_BYTES and tarea[campo]:
+                tarea[campo].pop()
+                limpio['omitidos'][contador] += 1
+                body = _encoded(limpio)
+    if len(body) > MAX_RESPONSE_BYTES:
+        raise ValueError('response budget')
+    return body
+
+
+def _plan_body(data, scrub):
+    """Cuerpo de `api/plan-<id16>`: saneado con el saneador unico y recortado (con indicador, nunca inventando datos)
+    hasta que cabe en 64 KiB. El recorte quita tarjetas del final y lo dice en `omitidas`, `status` e `issues`."""
+    limpio = _scrubbed(data, scrub)
+    body = _encoded(limpio)
+    if len(body) > MAX_RESPONSE_BYTES and limpio.get('tareas'):
+        limpio['status'] = 'partial'; limpio['complete'] = False
+        if {'status': 'output_budget'} not in limpio['issues']:
+            limpio['issues'].append({'status': 'output_budget'})
+        while len(body) > MAX_RESPONSE_BYTES and limpio['tareas']:
+            media = max(1, len(body) // len(limpio['tareas']))
+            quitar = min(len(limpio['tareas']), max(1, (len(body) - MAX_RESPONSE_BYTES) // media))
+            del limpio['tareas'][-quitar:]
+            limpio['omitidas'] += quitar
+            body = _encoded(limpio)
+    if len(body) > MAX_RESPONSE_BYTES:
+        raise ValueError('response budget')
+    return body
+
+
 # `initiative` is deliberately NOT here: it is a regex-bounded slug (plan-review.py INITIATIVE) that the
 # anonymizer cannot match anyway (a user joined by hyphens is not a whole word) and it identifies the plan.
 # Allow-list of free-text fields that are only DISPLAYED and never travel back to the server.
@@ -147,9 +205,16 @@ def _encoded(value):
 # (coste estimado tal como lo escribe `evaluation.md`) son texto del repo que solo se muestra. Todo lo demas de
 # esa respuesta (`id`, `categoria`, `ledger`, `motivo`, `codigo`, `fecha`, `status`, `issues`...) es vocabulario
 # cerrado o numeros y queda intacto: un usuario llamado `ilegible` no puede romper los filtros de las paginas.
+# `api/plan-<id16>` (panel_data.plan): ademas `fase_nombre` (nombre de la fase del ledger). El estado de la tarea
+# va en `estado_tarea` (NO en `estado`, clave mostrada de la memoria): es vocabulario cerrado y queda intacto.
+# `api/plan-<id16>-<T-XX>` (panel_data.tarea): ademas `descripcion`, `criterio`, `verificacion`, `ejecutada`, `salida`,
+# `cabecera` (de la revision), `gap` y `correccion`. `grado` (Critical/Important/Minor/otro), `num`, `intento`,
+# `dependencias`, `enlace` (execution-history.md) y las fechas son vocabulario o forma y quedan intactos.
 _DISPLAY_KEYS = frozenset(('titular', 'texto', 'evidencia', 'estado_detalle', 'ruta',
                            'tipo', 'estado', 'area', 'category', 'relation',
-                           'response_text', 'note', 'slug', 'titulo', 'literal', 'est_texto'))
+                           'response_text', 'note', 'slug', 'titulo', 'literal', 'est_texto', 'fase_nombre',
+                           'descripcion', 'criterio', 'verificacion', 'ejecutada', 'salida', 'cabecera', 'gap',
+                           'correccion'))
 _SECTION_KEYS = frozenset(('title', 'text'))
 # Ceilings the browser validators enforce on each displayed field, as (code points, UTF-8 bytes or None):
 # `panel-memory.js` (`string(...,160|1000|12000)`) and `panel-review.js` (`noteValid`: 1000/2048 for an
@@ -159,8 +224,12 @@ _CAPS = {'titular': (160, None), 'estado_detalle': (160, None), 'area': (160, No
          'estado': (160, None), 'category': (160, None), 'relation': (160, None),
          'evidencia': (1000, None), 'ruta': (1000, None), 'texto': (12000, None),
          'response_text': (1000, 2048), 'note': (500, 1024),
-         'slug': (80, None), 'titulo': (160, None), 'literal': (48, None), 'est_texto': (120, None)}
-_MARKS = re.compile(r'<(?:usuario|correo)>')
+         'slug': (80, None), 'titulo': (160, None), 'literal': (48, None), 'est_texto': (120, None),
+         'fase_nombre': (160, None), 'descripcion': (1500, None), 'criterio': (400, None),
+         'verificacion': (2000, None), 'ejecutada': (1000, None), 'salida': (1000, None), 'cabecera': (160, None),
+         'gap': (400, None), 'correccion': (400, None)}
+# Marcas del anonimizador y del redactor (`redact.REDACTADO`) que un recorte no puede partir.
+_MARKS = re.compile(r'<(?:usuario|correo)>|\[secreto redactado\]')
 
 
 def _clip(text, chars, nbytes=None):
@@ -352,6 +421,48 @@ class PanelServer(HTTPServer):
             self._cartera, self._cartera_at = body, now
         return self._cartera
 
+    def plan(self, ident):
+        """`api/plan-<id16>`: kanban de una iniciativa DEL INVENTARIO de planes (no de cualquier id); `None` -> 404.
+        `panel_data` proyecta con `ledger-view.py`, el saneador unico limpia el texto mostrado y una cache corta
+        evita releer el ledger en cada pestana."""
+        if ident not in self.plan_ids:
+            return None
+        now = time.monotonic()
+        hit = self._plans.get(ident)
+        if hit is not None and now - hit[0] < 2:
+            return hit[1]
+        try:
+            data = _load_data().plan(self.project, ident)
+            body = _plan_body(data, self.scrub) if data is not None else _encoded(_unavailable_plan(ident))
+        except Exception:
+            body = _encoded(_unavailable_plan(ident))
+        if len(self._plans) >= MAX_INITIATIVES:
+            self._plans.clear()
+        self._plans[ident] = (now, body)
+        return body
+
+    def tarea(self, ident, tarea_id):
+        """`api/plan-<id16>-<T-XX>`: detalle de una tarea de una iniciativa DEL INVENTARIO de planes; `None` -> 404
+        (id fuera del inventario o tarea que el ledger no tiene)."""
+        if ident not in self.plan_ids:
+            return None
+        now = time.monotonic()
+        clave = (ident, tarea_id)
+        hit = self._plans.get(clave)
+        if hit is not None and now - hit[0] < 2:
+            return hit[1]
+        try:
+            data = _load_data().tarea(self.project, ident, tarea_id)
+            if data is None:
+                return None
+            body = _tarea_body(data, self.scrub)
+        except Exception:
+            body = _encoded(_unavailable_tarea(ident, tarea_id))
+        if len(self._plans) >= MAX_INITIATIVES * 4:
+            self._plans.clear()
+        self._plans[clave] = (now, body)
+        return body
+
     def activity(self):
         try:
             body = _encoded(activity_snapshot(self.project))
@@ -490,6 +601,12 @@ class PanelHandler(BaseHTTPRequestHandler):
             self._reply(200, self.server.snapshot(), 'application/json; charset=utf-8')
         elif route == 'api/cartera':
             self._reply(200, self.server.cartera(), 'application/json; charset=utf-8')
+        elif (plan := PLAN_API.fullmatch(route)) is not None or (tarea := TAREA_API.fullmatch(route)) is not None:
+            body = self.server.plan(plan[1]) if plan is not None else self.server.tarea(tarea[1], tarea[2])
+            if body is None:
+                self._reply(404)
+            else:
+                self._reply(200, body, 'application/json; charset=utf-8')
         elif route == 'api/activity':
             self._reply(200, self.server.activity(), 'application/json; charset=utf-8')
         elif (review := self._review_route(route, ('view', 'status'))) is not None:
@@ -560,6 +677,18 @@ class PanelHandler(BaseHTTPRequestHandler):
     do_OPTIONS = _reject_method
 
 
+def plan_inventory(project, scrub=None):
+    """Iniciativas con plan, `[{'id', 'slug', 'titulo'}]` ya saneadas con el saneador unico: de ellas salen las
+    paginas `plan-<id16>.html`, el indice de `plan.html` y los ids que acepta `api/plan-<id16>`. Sin roadmap
+    legible, lista vacia (la pagina Plan lo dice; nunca se inventa un plan)."""
+    try:
+        cartera = _scrubbed(_load_data().cartera(project), scrub)
+    except Exception:
+        return []
+    return [{'id': fila['id'], 'slug': fila['slug'], 'titulo': fila['titulo']}
+            for fila in cartera.get('iniciativas', []) if fila.get('tiene_plan')]
+
+
 def create_server(project, inventory, *, port=0, review_selection=None, scrub=None):
     """Return an owned stoppable HTTPServer; start only at the caller's request."""
     if type(port) is not int or not 0 <= port <= 65535:
@@ -595,17 +724,26 @@ def create_server(project, inventory, *, port=0, review_selection=None, scrub=No
         server.access_prefix = '/' + server.capability + '/'
         server._snapshot = None; server._snapshot_at = 0
         server._cartera = None; server._cartera_at = 0
+        server._plans = {}
         server.csp = pages.CSP_SERVIDO.format(nonce=nonce)
         server.warnings = warnings
+        planes = plan_inventory(project, scrub)
+        server.plan_ids = {plan['id'] for plan in planes}
         bodies = builder.cuerpos_paginas(inventory, live=True, review_enabled=review_selection is not None,
-                                         review_id=review_id, actividad='assets/panel-activity.js' in files)
+                                         review_id=review_id, actividad='assets/panel-activity.js' in files,
+                                         planes=planes)
         generated = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
         hidden = {name for name in pages.LIVE_ASSET_FILES if 'assets/' + name not in files}  # review not selected or asset missing
         server.pages = {archivo: pages.render_page(slug, modo='servido', generado=generated, chart_ok=chart_ok, nonce=nonce,
                                                    datos=pages.datos_de_pagina(slug, inventory, modo='servido'),
                                                    cuerpo=bodies[slug], scripts_omitidos=hidden).encode('utf8')
                         for slug, archivo, _ in pages.PAGES}
-        server.plan_pages = {}  # plan-<id16>.html pages (per initiative) arrive in phase 2.
+        # plan-<id16>.html: una pagina por iniciativa con plan, del inventario leido al arrancar (su contenido llega
+        # por `api/plan-<id16>`, asi que servirlas no toca disco). Sin los JS vivos del indice (progreso, revision).
+        server.plan_pages = {f"plan-{plan['id']}.html": pages.render_page(
+            'plan', modo='servido', generado=generated, chart_ok=chart_ok, nonce=nonce, plan_id=plan['id'],
+            datos=pages.datos_de_pagina('plan', inventory, modo='servido', plan_id=plan['id']),
+            cuerpo=builder.cuerpo_plan_iniciativa()).encode('utf8') for plan in planes}
         server.assets = {rel: (content, ASSET_TYPES.get(Path(rel).suffix, 'application/octet-stream'))
                          for rel, content in files.items()}
     except BaseException:

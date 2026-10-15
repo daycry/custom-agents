@@ -80,6 +80,9 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 (skill `changelog-sync`, tope 200 caracteres): sin jerga del ledger ni nombres de
 fichero. Sin el campo —o con el `{{…}}` sin sustituir— el bullet degrada al título. -->
 - **Changelog**: {{qué cambia para quien USA el proyecto, en una frase}}
+<!-- Cerrada: OPCIONAL, la escribe quien marca la tarea `completado` (implementer / /dev-cycle):
+`- **Cerrada**: AAAA-MM-DD` con la fecha del día. Lo lee el burndown del panel; `ledger-lint`
+valida solo el formato y que no sea anterior a la creación del ledger. Déjalo fuera al planificar. -->
 - **Estado**: borrador
 - **Tiempo humano**: est. {{0.5}}h · real —
 - **Tiempo IA (ejec.)**: est. {{X}}h · real —

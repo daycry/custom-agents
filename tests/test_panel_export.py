@@ -74,7 +74,7 @@ def test_la_exportacion_escribe_siete_paginas_assets_vendor_y_manifiesto(panel, 
     assert set(rutas) == set(PAGINAS) | {'assets/panel.css', 'assets/panel-core.js', 'assets/panel-charts.js',
                                           'assets/page-catalogo.js', 'assets/page-diagnostico.js',
                                           'assets/page-cartera.js', 'assets/page-inicio.js', 'assets/page-iniciativas.js',
-                                          'vendor/chart.js/chart.umd.min.js', 'vendor/chart.js/LICENSE.md',
+                                          'assets/page-plan.js', 'vendor/chart.js/chart.umd.min.js', 'vendor/chart.js/LICENSE.md',
                                           'vendor/chart.js/PROVENANCE.json'}
     for ruta, ficha in rutas.items():
         assert ficha['sha256'] == _sha(destino / ruta) and ficha['bytes'] == (destino / ruta).stat().st_size
