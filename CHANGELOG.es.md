@@ -24,6 +24,7 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 - `build_panel.py --html` se sustituye por `--export <carpeta>`; `--json` y `--serve` no cambian.
 - El servidor local del panel sirve las siete páginas y sus activos desde una lista cerrada con una CSP estricta, un nonce por arranque en cada script y sin leer disco en cada petición; si Chart.js falta o está alterado, las páginas muestran solo tablas. Los scripts vivos de progreso, memoria, actividad y revisión del plan se cargan como ficheros en su página, y la plantilla de una sola página desaparece.
+- `roadmap-dashboard` deja de generar HTML y solo calcula los datos de cartera (`--md`, `--metrics-md`, `--json`); `/roadmap-status` escribe `dashboard.md` y exporta el panel multi-página a `docs/roadmap/panel/`, sin borrar nunca un `dashboard.html` antiguo. `plugin-panel` es ya el único dashboard, y su guía documenta las siete páginas, los dos modos, la CSP de cada uno y la procedencia de Chart.js incluido.
 
 ### Added — Archivado del ledger
 

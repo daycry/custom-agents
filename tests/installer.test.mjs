@@ -843,6 +843,21 @@ test("ficherosDe enumera árboles y excluye caché de python", () => {
   assert.deepEqual(ficherosDe("no-existe-nada", "/dst"), [])
 })
 
+test("el panel viaja con sus assets y Chart.js vendorizado (D-A1)", () => {
+  const dst = join("/dst", "skills", "plugin-panel", "assets")
+  const fs_ = ficherosDe(join("skills", "plugin-panel", "assets"), dst).map((f) => f.replaceAll("\\", "/"))
+  for (const rel of ["panel.css", "panel-core.js", "vendor/chart.js/chart.umd.min.js", "vendor/chart.js/PROVENANCE.json", "vendor/chart.js/LICENSE.md"]) {
+    assert.ok(fs_.some((f) => f.endsWith("/assets/" + rel)), `falta assets/${rel} en lo que copia el instalador`)
+  }
+  const proj = tmpProj()
+  try {
+    cli(["install", "-p", "claude-code", "--mode", "copy", "-y", "--dir", proj, "-q"])
+    for (const rel of ["panel.css", "vendor/chart.js/chart.umd.min.js", "vendor/chart.js/PROVENANCE.json"]) {
+      assert.ok(existsSync(join(proj, ".claude", "skills", "plugin-panel", "assets", ...rel.split("/"))), `no se instaló assets/${rel}`)
+    }
+  } finally { rmSync(proj, { recursive: true, force: true }) }
+})
+
 // ------------------------------------------------------------------ end to end
 
 test('retirar artefacto conocido conserva config ajena y es idempotente y dry-run seguro', () => {

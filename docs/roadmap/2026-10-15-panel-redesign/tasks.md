@@ -39,11 +39,11 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Base común | 13 | 16 | 81% | 0 / 28,8h | 1,75 / 10,5h | 0,24 / 3,6h | 0,49 / 5,58 M |
+| Fase 1 — Base común | 15 | 16 | 94% | 0 / 28,8h | 2,15 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 0 | 17 | 0% | 0 / 58,4h | 0 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 0 | 10 | 0% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
 | Fase 3 — Agentes en vivo + cierre transversal | 0 | 15 | 0% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **13** | **58** | **22%** | **0 / 159,2h** | **1,75 / 60,2h** | **0,24 / 19,6h** | **0,49 / 32,01 M** |
+| **TOTAL** | **15** | **58** | **26%** | **0 / 159,2h** | **2,15 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -489,39 +489,44 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 ### T-14 — D-A1: retirar el HTML de `roadmap-dashboard` y redirigir a sus consumidores
 
 - **Descripción**: `build_dashboard.py` retira `--html` y `render_html()`. `/roadmap-status` conserva `dashboard.md` y exporta el panel a `docs/roadmap/panel/` aterrizando en Iniciativas; avisa una vez de la ruta nueva y nunca borra un `dashboard.html` antiguo. Se actualizan todos los consumidores de `dashboard.html`/`--html` en el mismo cambio y la relación queda en `ROLES.md`.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 1,8h · real —
-- **Tiempo IA (ejec.)**: est. 0,3h · real —
-- **Supervisión**: est. 0,1h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,3h · real 0,32h (medido)
+- **Supervisión**: est. 0,1h (≈25 % IA) · real n/d
 - **Previsión IA**: 137k in / 22k out tok · 2,10 €
 - **Dependencias**: T-08, T-13
 - **Tipo**: backend
-- **Archivos**: `skills/roadmap-dashboard/scripts/build_dashboard.py`, `skills/roadmap-dashboard/SKILL.md`, `tests/test_dashboard.py`, `commands/roadmap-status.md`, `skills/confluence-pull/SKILL.md`, `skills/confluence-publish/references/publish-and-sync.md`, `skills/plugin-panel/SKILL.md`, `docs/README.md`, `docs/en/README.md`, `docs/PROJECT-EXTENSIONS.md`, `docs/en/PROJECT-EXTENSIONS.md`, `docs/agents/ROLES.md`, `evals/cases/command-roadmap-status.json`, `evals/cases/skill-roadmap-dashboard.json`, `evals/cases/skill-plugin-panel.json`, `evals/cases/command-plugin-catalog.json`, `install/**`, `interop/**` (regenerado: `commands/` tocado)
+- **Archivos**: `skills/roadmap-dashboard/scripts/build_dashboard.py`, `skills/roadmap-dashboard/SKILL.md`, `tests/test_dashboard.py`, `commands/roadmap-status.md`, `skills/confluence-pull/SKILL.md`, `skills/confluence-publish/references/publish-and-sync.md`, `skills/plugin-panel/SKILL.md`, `docs/README.md`, `docs/en/README.md`, `docs/PROJECT-EXTENSIONS.md`, `docs/en/PROJECT-EXTENSIONS.md`, `docs/agents/ROLES.md`, `evals/cases/command-roadmap-status.json`, `evals/cases/skill-roadmap-dashboard.json`, `evals/cases/skill-plugin-panel.json`, `evals/cases/command-plugin-catalog.json`, `install/**`, `tests/installer.test.mjs`, `interop/**` (regenerado: `commands/` tocado)
 - **Cubre (tests)**: E2E-09
 - **Verificación**: `python3 -m pytest -q tests/test_dashboard.py tests/test_panel_contract_golden.py` → `passed` · `python3 scripts/lint_plugin.py` → exit 0, sin citas rotas nuevas a `dashboard.html`/`--html` · `python3 evals/check.py` → exit 0 · `python3 scripts/export-interop.py --check` → exit 0
 
 **Criterios de aceptación**
-- [ ] Al cerrar no quedan dos generadores HTML con el mismo rol (ADR-011): `grep -rn "render_html" skills/roadmap-dashboard` vacío.
-- [ ] `--json`, `--md` y `--metrics-md` iguales; los cuatro comandos consumidores siguen funcionando.
-- [ ] Las 13 referencias actuales a `dashboard.html`/`--html` fuera del roadmap están actualizadas (lista en `Notas`).
-- [ ] La `description` de `roadmap-dashboard` deja de prometer HTML y la de `plugin-panel` absorbe «dashboard del roadmap», «panel del roadmap» y «kanban de los planes»; los casos de `evals/` casan con la `description` real.
-- [ ] `ROLES.md`: `roadmap-dashboard` dueño de los datos de cartera; `plugin-panel` dueño de la presentación; `/roadmap-status` entrada de cartera que delega.
-- [ ] El instalador copia `assets/` (incluido `vendor/`) del plugin.
+- [x] Al cerrar no quedan dos generadores HTML con el mismo rol (ADR-011): `grep -rn "render_html" skills/roadmap-dashboard` vacío.
+- [x] `--json`, `--md` y `--metrics-md` iguales; los cuatro comandos consumidores siguen funcionando.
+- [x] Las 13 referencias actuales a `dashboard.html`/`--html` fuera del roadmap están actualizadas (lista en `Notas`).
+- [x] La `description` de `roadmap-dashboard` deja de prometer HTML y la de `plugin-panel` absorbe «dashboard del roadmap», «panel del roadmap» y «kanban de los planes»; los casos de `evals/` casan con la `description` real.
+- [x] `ROLES.md`: `roadmap-dashboard` dueño de los datos de cartera; `plugin-panel` dueño de la presentación; `/roadmap-status` entrada de cartera que delega.
+- [x] El instalador copia `assets/` (incluido `vendor/`) del plugin.
 
 **Subtareas**
-- [ ] RED: retirar las aserciones de `render_html` de `tests/test_dashboard.py:376-397` y llevarlas a las tarjetas de Iniciativas (F2).
-- [ ] Retirar `--html` y `render_html()`.
-- [ ] Actualizar consumidores, ROLES, evals; regenerar `interop/`.
+- [x] RED: retirar las aserciones de `render_html` de `tests/test_dashboard.py:376-397` y llevarlas a las tarjetas de Iniciativas (F2).
+- [x] Retirar `--html` y `render_html()`.
+- [x] Actualizar consumidores, ROLES, evals; regenerar `interop/`.
 
-**Notas**: consumidores encontrados con grep (2026-10-15): `commands/roadmap-status.md:18,22,25`, `skills/confluence-pull/SKILL.md:105`, `skills/confluence-publish/references/publish-and-sync.md`, `skills/roadmap-dashboard/SKILL.md`, `skills/plugin-panel/SKILL.md`, `docs/README.md`, `docs/en/README.md`, `docs/PROJECT-EXTENSIONS.md`, `docs/en/PROJECT-EXTENSIONS.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md` y los dos casos de `evals/`. `design.md` §5 lista solo parte: los de `docs/PROJECT-EXTENSIONS.md` y `publish-and-sync.md` son adicionales. `render_html()` actual en `build_dashboard.py:573`; argumento en `:1117`.
+- **Cerrada**: 2026-10-15
+- **Changelog**: `roadmap-dashboard` deja de generar HTML y solo calcula los datos de cartera (`--md`, `--metrics-md`, `--json`); `/roadmap-status` escribe `dashboard.md` y exporta el panel multi-página a `docs/roadmap/panel/`, sin borrar nunca un `dashboard.html` antiguo.
+- **Evidencia TDD**: `RED: tests/test_dashboard.py (aserciones nuevas «roadmap-dashboard no debe conservar render_html» y «--html retirado de la CLI») falló con AssertionError: roadmap-dashboard no debe conservar render_html · 2026-10-15`; las aserciones de `render_html` se habían retirado/trasladado antes de tocar el generador. GREEN: `OK: 3 iniciativas, 1 aviso(s) esperado(s). Todo pasa.` y `13 passed`.
+- **Verificación ejecutada** (2026-10-15): `pytest tests/test_dashboard.py tests/test_panel_contract_golden.py tests/test_export_interop.py` → `58 passed` (goldens `--json`/`--md`/`--metrics-md` intactos); `python scripts/lint_plugin.py` → `0 errores · 8 avisos` (los mismos 8, sin citas rotas nuevas a `dashboard.html`/`--html`); `python evals/check.py` → `52 ficheros · 192 casos … 0 errores`; `python scripts/export-interop.py` → `88 ficheros escritos` y `--check` → `88 ficheros al día`; `grep -rn render_html skills/roadmap-dashboard` (solo fuentes) → vacío; `node --test tests/installer.test.mjs` → ver Notas.
+
+**Notas**: consumidores encontrados con grep (2026-10-15): `commands/roadmap-status.md:18,22,25`, `skills/confluence-pull/SKILL.md:105`, `skills/confluence-publish/references/publish-and-sync.md`, `skills/roadmap-dashboard/SKILL.md`, `skills/plugin-panel/SKILL.md`, `docs/README.md`, `docs/en/README.md`, `docs/PROJECT-EXTENSIONS.md`, `docs/en/PROJECT-EXTENSIONS.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md` y los dos casos de `evals/`. `design.md` §5 lista solo parte: los de `docs/PROJECT-EXTENSIONS.md` y `publish-and-sync.md` son adicionales. `render_html()` actual en `build_dashboard.py:573`; argumento en `:1117`. **Implementación (2026-10-15):** `build_dashboard.py` pierde `render_html` y sus ayudantes (`pill`, tarjetas, contadores, `COLORS`, `PRIO_COLORS`, `_DASHBOARD_CSS`), el `import html` y el argumento `--html` (sin otro uso en el repo). `test_procedencia_en_json_y_html` pasa a `…_en_json_y_md` (la tarjeta HTML se sustituye por `render_proceso_md`, que ya cubre la procedencia; la cobertura de tarjetas de Iniciativas llega en F2, T-17..T-19). `/roadmap-status` ejecuta `build_dashboard.py --md` y `build_panel.py --export docs/roadmap/panel --project "$PWD"`, entrega `iniciativas.html` (por ahora sin contenido: llega en F2) y avisa una vez si existe un `dashboard.html` antiguo, sin borrarlo. `description` de `roadmap-dashboard` reescrita sin «dashboard HTML»; la de `plugin-panel` absorbe «dashboard del roadmap», «panel del roadmap» y «kanban de los planes» (sin colisión de disparador literal: los dos literales salieron de `roadmap-dashboard`, que conserva «estado del roadmap» y «cómo van las iniciativas»; el lint sigue en 0 errores/8 avisos). Evals: `command-roadmap-status`, `skill-roadmap-dashboard` y `skill-plugin-panel` (caso literal nuevo y negativo redirigido a `roadmap-dashboard`) casan con la description real; `command-plugin-catalog.json` no hizo falta tocarlo. Consumidores actualizados: `commands/roadmap-status.md`, `confluence-pull` (sin `--html`), `publish-and-sync.md`, `roadmap-dashboard/SKILL.md`, `plugin-panel/SKILL.md`, `docs/README.md` y `docs/en/README.md`; `docs/PROJECT-EXTENSIONS.md` (+EN) no tenían referencia alguna (el grep de la nota era inexacto) y `docs/PLUGIN-PANEL.md` (+EN) se reescriben en T-15. `ROLES.md` gana el solape 5 (datos/presentación/entrada que delega). Instalador: `install/` ya copia `skills/` entero (`PAYLOAD_COMUN`), por lo que `assets/vendor/` viaja sin cambios en `install/`; se añade el test `el panel viaja con sus assets y Chart.js vendorizado` en `tests/installer.test.mjs` (unitario sobre `ficherosDe` + instalación real `--mode copy`). `commands/roadmap-status.md` tocado: `interop/` regenerado.
 
 ### T-15 — Documentación de F1 (panel multi-página, modos, CSP, Chart.js)
 
 - **Descripción**: Actualiza `docs/PLUGIN-PANEL.md` y su espejo EN, `docs/FLOWS.md` y `docs/en/FLOWS.md` (flujo del panel: un comando, dos modos, siete páginas) y `skills/plugin-panel/SKILL.md` (mapa ≤ 200 líneas).
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 1,2h · real —
-- **Tiempo IA (ejec.)**: est. 0,1h · real —
-- **Supervisión**: est. 0,03h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,1h · real 0,08h (medido)
+- **Supervisión**: est. 0,03h (≈25 % IA) · real n/d
 - **Previsión IA**: 46k in / 7k out tok · 0,70 €
 - **Dependencias**: T-12, T-14
 - **Tipo**: docs
@@ -530,14 +535,19 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 - **Verificación**: `python3 -m pytest -q tests/test_skill_size.py` → `passed` · `python3 scripts/lint_plugin.py` → exit 0 · lectura: ES y EN describen lo mismo (modos, páginas, CSP, procedencia de Chart.js)
 
 **Criterios de aceptación**
-- [ ] `SKILL.md` de `plugin-panel` ≤ 200 líneas; el detalle va a `references/<tema>.md` con «lee X solo al llegar al paso Y».
-- [ ] Espejos EN actualizados en el mismo cambio.
-- [ ] Sin rutas absolutas ni datos personales.
+- [x] `SKILL.md` de `plugin-panel` ≤ 200 líneas; el detalle va a `references/<tema>.md` con «lee X solo al llegar al paso Y».
+- [x] Espejos EN actualizados en el mismo cambio.
+- [x] Sin rutas absolutas ni datos personales.
 
 **Subtareas**
-- [ ] Redactar ES; espejar EN; comprobar tamaño.
+- [x] Redactar ES; espejar EN; comprobar tamaño.
 
-**Notas**: TDD n/a: prosa. Piezas que describen según CONTRACTS E33/E34/E37/E48: `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `skills/plugin-panel/SKILL.md`.
+- **Cerrada**: 2026-10-15
+- **Changelog**: La guía del panel describe las siete páginas, los modos exportado y servido, la política CSP de cada uno y la procedencia de Chart.js vendorizado, en español e inglés.
+- **Evidencia TDD**: `TDD n/a: prosa (documentación)`.
+- **Verificación ejecutada** (2026-10-15): `pytest tests/test_skill_size.py tests/test_mermaid_blocks.py` → `30 passed` (el recorrido completo del repo no se coló); `wc -l skills/plugin-panel/SKILL.md` → `118`; `python scripts/lint_plugin.py` → `0 errores · 8 avisos`; lectura ES/EN: ambas secciones «Panel multi-página» / «Multi-page panel» traen la misma tabla de páginas, modos, CSP y procedencia de Chart.js.
+
+**Notas**: TDD n/a: prosa. Piezas que describen según CONTRACTS E33/E34/E37/E48: `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `skills/plugin-panel/SKILL.md`. **Implementación (2026-10-15):** `docs/PLUGIN-PANEL.md` y espejo: nueva sección «Panel multi-página: siete páginas, dos modos» (tabla de páginas, CSP exportada por `<meta>` y servida por cabecera con nonce, Chart.js 4.5.1 MIT vendorizado con `PROVENANCE.json`, instalador copia `assets/` con `vendor/`); se retiran la «plantilla local» y la frase de `/panel.html`. `docs/FLOWS.md` y espejo: el diagrama del panel añade el export de siete páginas y `/roadmap-status` + `roadmap-dashboard` (nodos entre comillas; `test_mermaid_blocks.py` en verde) y un párrafo «un comando, dos modos, siete páginas». `SKILL.md` de `plugin-panel`: 118 líneas, nueva sección «Páginas y modos» y fila de referencias; no hizo falta `references/` (el detalle ya vive en `docs/PLUGIN-PANEL.md`). No contradice F2: la revisión se describe solo en modo servido y la página Iniciativas sin prometer contenido concreto.
 
 ### T-16 — Cierre de la Fase 1: revisión de dos lentes y revisión visual del usuario (M-01)
 

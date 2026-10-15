@@ -648,7 +648,10 @@ flowchart LR
     Roles[Central role map] --> Panel
     Doctor[Explicit doctor with --panel-json] --> Projection[Portable report with date and scope]
     Projection -->|explicit selection| Panel
-    Panel --> View[HTML and JSON with sources and limits]
+    Panel --> View[JSON with sources and limits]
+    Panel -->|--export| Exported["Seven static file:// pages with vendored Chart.js"]
+    Portfolio["roadmap-dashboard: portfolio data"] --> Panel
+    Status["/roadmap-status"] -->|"dashboard.md and export to docs/roadmap/panel"| Exported
     Panel -->|explicit --serve| Server[Loopback server with private access]
     Ledger[Canonical tasks.md ledger] --> Reader[Bounded local-read]
     Reader --> Summary[progress-report over supplied text]
@@ -661,6 +664,12 @@ flowchart LR
     Query -->|parser ranking relations and redaction| Server
     Server --> Memory[View with state version evidence and source]
 ```
+
+One command, two modes, seven pages (Home, Initiatives, Plan, Live agents, Memory,
+Catalogue, Diagnostics): the exported panel is static and network-free; the served one adds
+the live scripts under a nonce CSP. `roadmap-dashboard` computes the portfolio data and no
+longer generates HTML; `/roadmap-status` delegates presentation to the panel
+(`docs/en/PLUGIN-PANEL.md`).
 
 The panel executes neither doctor nor hooks. Source presence and declared budgets
 do not prove loading or execution; OpenCode's terminal stream has its own contract

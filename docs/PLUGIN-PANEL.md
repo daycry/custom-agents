@@ -4,8 +4,8 @@
 
 El comando `/plugin-catalog` usa plugin-panel para mostrar agentes, skills,
 comandos, tools declaradas y hooks globales. La búsqueda y los filtros funcionan
-en un HTML autónomo. El modo servido añade progreso, consulta local de memoria y señales recientes de actividad opt-in; cartera detallada,
-evaluaciones y presupuestos siguen en roadmap-dashboard.
+en un panel HTML autónomo de siete páginas. El modo servido añade progreso, consulta local de memoria y señales recientes de actividad opt-in. La
+cartera (evaluaciones y presupuestos) se presenta en la página Iniciativas; sus datos los calcula roadmap-dashboard.
 
 Los hooks se agrupan por **runtime y evento**, con una tarjeta por grupo.
 `PostToolUse` conserva tres handlers en cada runtime. El contador HTML mide
@@ -63,6 +63,37 @@ identifica el bundle por su propia ubicación. `--root <bundle>` permite inspecc
 otro catálogo; no importa código del catálogo inspeccionado. Python nativo funciona
 en Windows; no necesita WSL, Tkinter o paquetes Python adicionales. La
 exportación autónoma no necesita servidor.
+
+## Panel multi-página: siete páginas, dos modos
+
+Un solo comando (`/plugin-catalog`; `/roadmap-status` lo invoca para la cartera) produce
+el mismo panel de siete páginas con un menú común, en dos modos:
+
+| Página | Archivo | Qué muestra |
+|---|---|---|
+| Inicio | `index.html` | Resumen y, en modo servido, progreso del ledger |
+| Iniciativas | `iniciativas.html` | Cartera de `docs/roadmap/` (estado, presupuesto); es la página de aterrizaje de `/roadmap-status` |
+| Plan | `plan.html` | Plan por fases; en modo servido, la revisión visual de un plan |
+| Agentes en vivo | `agentes.html` | Señales recientes de actividad (solo servido; opt-in) |
+| Memoria | `memoria.html` | Consulta local de memoria (solo servido; bajo demanda) |
+| Catálogo | `catalogo.html` | Agentes, skills, comandos, tools y hooks |
+| Diagnóstico | `diagnostico.html` | Informe de doctor importado, con fecha y alcance |
+
+- **Exportado** (`--export <carpeta>`): ficheros estáticos que se abren con `file://`; sin
+  servidor ni peticiones de red; las páginas con datos vivos lo dicen en lugar de inventarlos.
+  CSP por `<meta>`: `default-src 'none'`, `script-src 'self' file:`, `style-src 'self'
+  'unsafe-inline'`, `img-src data:`. La revisión de planes nunca se abre desde aquí.
+- **Servido** (`--serve`, solo 127.0.0.1): las mismas páginas más los scripts vivos
+  (`panel-live.js`, `panel-memory.js`, `panel-activity.js`, `panel-review.js`). CSP por cabecera
+  con nonce y `connect-src 'self'`; sin CDN. Las rutas `api/*` mantienen su forma.
+
+Las gráficas usan **Chart.js 4.5.1 (MIT) vendorizado** en `assets/vendor/chart.js/`, sin
+modificar: extraído una sola vez del tarball oficial de npm con su integridad verificada;
+`PROVENANCE.json` guarda versión, SHA-256 y licencia, y nada lo descarga al generar ni al
+abrir. Si el fichero no coincide con su huella, las páginas muestran solo las tablas.
+`roadmap-dashboard` ya no genera HTML: calcula los datos de cartera (`dashboard.md`, `--json`,
+`--metrics-md`) y el panel los presenta (relación en `agents/ROLES.md`). La instalación copia
+`skills/plugin-panel/assets/` entero, `vendor/` incluido.
 
 ## Dashboard local con actualización
 
@@ -444,11 +475,11 @@ Se rechazan symlinks y hay límites de lectura/inventario. El HTML se escribe
 atómicamente; solo puede reemplazarse si lleva el marcador de este generador.
 Para actualizar la vista, vuelve a generar el archivo.
 
-La plantilla local empaquetada presenta navegación por secciones, tarjetas de
+Las páginas del panel presentan navegación por menú, tarjetas de
 inventario, filtros y detalles desplegables de funciones y roles. Se adapta a
 móvil, permite operar los controles con teclado y respeta movimiento reducido.
-No necesita servidor ni assets de terceros. Si falta la plantilla, el HTML avisa
-y el inventario JSON sigue disponible.
+No necesita servidor ni assets de terceros (Chart.js va vendorizado). Si falta
+Chart.js o su procedencia, las páginas avisan y muestran tablas; el inventario JSON sigue disponible.
 
 La comparación y decisiones están en
 [decisiones de arquitectura y memoria](roadmap/2026-10-06-capability-foundation/comparison.md).
@@ -491,9 +522,8 @@ prioridades. Sin informe no se inventan ceros, readiness, tasas o salud.
 
 Diagnóstico tiene filtro de severidad, búsqueda, fragmentos y foco de teclado.
 El inventario y sus filtros siguen independientes. Una comprobación correcta
-no cambia `load_status` o `execution_status` de los hooks. Regenera el HTML para
-actualizarlo; no es un servicio vivo. En el checkout, /panel.html es un artefacto
-local excluido de Git; la plantilla empaquetada sigue versionada.
+no cambia `load_status` o `execution_status` de los hooks. Regenera el panel para
+actualizarlo; el exportado no es un servicio vivo.
 
 La sección «Guides by role» lee el registro de capacidades del bundle
 inspeccionado y relaciona guías con roles. No suma esas filas a las tarjetas ni

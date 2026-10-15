@@ -98,11 +98,11 @@ Enseña un resumen humano y **espera un "sí"** antes de escribir nada en local:
 
 ### Paso 5 — aplicar y actualizar el manifiesto
 Con el "sí": escribe los ficheros (creando carpetas si hace falta), **actualiza
-`.claude/confluence-state.json`** con el nuevo hash y `pageId` de cada uno, y **regenera la vista
-local** del dashboard si existe roadmap:
+`.claude/confluence-state.json`** con el nuevo hash y `pageId` de cada uno, y **regenera el
+`dashboard.md`** si existe roadmap (el panel HTML local lo exporta `/roadmap-status`):
 ```bash
 DASH="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
-[ -d docs/roadmap ] && python3 "$DASH" --root docs/roadmap --html docs/roadmap/dashboard.html --md docs/roadmap/dashboard.md
+[ -d docs/roadmap ] && python3 "$DASH" --root docs/roadmap --md docs/roadmap/dashboard.md
 ```
 Cierra en llano: "Listo ✅ Actualicé 3 y creé 1. Tienes conflicto en 1, te lo enseño para que decidas."
 

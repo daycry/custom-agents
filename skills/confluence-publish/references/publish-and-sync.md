@@ -71,7 +71,7 @@ DASH="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOM
 Luego sigue el flujo normal: `docs/roadmap/dashboard.md` entra en el espejo como cualquier `.md`
 (su hash cambiará y se publicará/actualizará su página). Notas:
 
-- **Solo el `.md` va a Confluence.** El `dashboard.html` es vista local y, al no ser `.md`, el espejo lo ignora; no lo publiques.
+- **Solo el `.md` va a Confluence.** El panel exportado en `docs/roadmap/panel/` (y un `dashboard.html` antiguo, si queda) es vista local y, al no ser `.md`, el espejo lo ignora; no lo publiques.
 - Así el disparo es determinista y honesto: la página se refresca **en la misma publicación** que provocó el cambio del roadmap, y su cabecera lleva la marca `generado <fecha/hora>` para que se vea la frescura. No es tiempo real: si nadie publica, el PM ve la última versión con su fecha.
 - Si `docs/roadmap/` no existe, no generes nada.
 

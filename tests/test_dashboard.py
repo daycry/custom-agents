@@ -375,7 +375,7 @@ def test_procedencia_en_el_total_de_cartera_y_en_el_informe():
     contains(md, "bloques `generacion:` con `fuente: estimado`", "la línea E7 sigue")
 
 
-def test_procedencia_en_json_y_html():
+def test_procedencia_en_json_y_md():
     import subprocess
     script = os.path.join(ROOT, "skills", "roadmap-dashboard", "scripts", "build_dashboard.py")
     with tempfile.TemporaryDirectory(prefix="dash-proc-") as base:
@@ -392,9 +392,9 @@ def test_procedencia_en_json_y_html():
        "JSON: ausente = null")
     eq(by["2026-10-01-mixta"]["procedencia"]["coste"]["estimado_incompleto"]["artefactos"], 1,
        "JSON: coste incompleto por iniciativa")
-    html_out = bd.render_html(inits, base)
-    contains(html_out, "Medición", "la tarjeta HTML muestra la procedencia")
-    contains(html_out, "1 desconocida", "y cuenta los bloques desconocidos")
+    # La tarjeta HTML ya no la genera esta skill (D-A1): su procedencia sale en el --json y el --md.
+    md = bd.render_proceso_md(inits)
+    contains(md, "procedencia desconocida", "el markdown cuenta los bloques desconocidos")
 
 
 def test_vista_json_es_pura_y_coincide_con_el_json_de_la_cli():
@@ -472,10 +472,9 @@ def run():
     contains(md, "Alpha (fixture)", "markdown incluye alpha")
     contains(md, "1.850 €", "markdown incluye coste alpha")
     contains(md, "| Iniciativa |", "markdown tiene tabla")
-    html = bd.render_html(inits, FIX)
-    contains(html, "Alpha (fixture)", "html incluye alpha")
-    contains(html, "Roadmap", "html tiene cabecera")
-    assert html.strip().startswith("<!doctype html>"), "html arranca como documento"
+    # D-A1: el HTML de la cartera lo presenta plugin-panel; aquí ya no hay generador HTML.
+    assert not hasattr(bd, "render_html"), "roadmap-dashboard no debe conservar render_html"
+    assert "--html" not in bd._dashboard_parser().format_help(), "--html retirado de la CLI"
 
     # --- coste de proceso (bloque generacion:, iniciativa coste-generacion) ---
     gen = a.get("generacion")
@@ -646,7 +645,7 @@ def run():
     test_procedencia_por_iniciativa_separa_medido_sin_medida_y_desconocido()
     test_procedencia_ventana_compartida_no_duplica_tokens()
     test_procedencia_en_el_total_de_cartera_y_en_el_informe()
-    test_procedencia_en_json_y_html()
+    test_procedencia_en_json_y_md()
     test_vista_json_es_pura_y_coincide_con_el_json_de_la_cli()
     print(f"OK: {len(inits)} iniciativas, {len(warns)} aviso(s) esperado(s). Todo pasa.")
 

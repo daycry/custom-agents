@@ -2,20 +2,18 @@
 """
 roadmap-dashboard - generador
 Escanea docs/roadmap/<fecha>-<slug>/ y produce:
-  - un dashboard HTML autocontenido (--html RUTA)   -> vista local
   - un dashboard en Markdown (--md RUTA)             -> para publicar en Confluence
   - un resumen JSON de todas las iniciativas (--json)
+La presentación HTML de la cartera ya no vive aquí: es del panel (skill plugin-panel).
 Sin dependencias externas (solo stdlib). No modifica los ficheros de roadmap.
 
 Uso:
-  python build_dashboard.py --root docs/roadmap --html docs/roadmap/dashboard.html
   python build_dashboard.py --root docs/roadmap --md   docs/roadmap/dashboard.md
   python build_dashboard.py --root docs/roadmap --json
 """
 import argparse
 import datetime
 import glob
-import html
 import json
 import os
 import re
@@ -29,52 +27,6 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 # ---- estados y colores ------------------------------------------------------
 SPEC_STATES = ["borrador", "aprobada", "implementada", "obsoleta"]
 EVAL_STATES = ["borrador", "en-progreso", "en-revision", "completado", "cancelado"]
-
-COLORS = {
-    # spec
-    "borrador": "#94a3b8", "aprobada": "#22c55e", "implementada": "#0ea5e9",
-    "obsoleta": "#64748b",
-    # eval / plan
-    "en-progreso": "#f59e0b", "en-revision": "#a855f7",
-    "completado": "#22c55e", "cancelado": "#ef4444",
-    # fallback
-    "pendiente": "#64748b", "sin-dato": "#334155",
-}
-PRIO_COLORS = {"Baja": "#22c55e", "Media": "#eab308", "Alta": "#f97316", "Crítica": "#ef4444"}
-
-_DASHBOARD_CSS = """
-:root{color-scheme:dark}
-*{box-sizing:border-box}
-body{margin:0;font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-  background:#0b1120;color:#e2e8f0;padding:28px}
-header{display:flex;flex-wrap:wrap;gap:16px;align-items:baseline;justify-content:space-between;margin-bottom:8px}
-h1{font-size:22px;margin:0}
-.meta{color:#94a3b8;font-size:13px}
-.counters{display:flex;flex-wrap:wrap;gap:14px;margin:18px 0 26px}
-.counter{display:flex;align-items:center;gap:8px;background:#111c33;border:1px solid #1e293b;
-  border-radius:10px;padding:8px 12px}
-.cn{font-size:20px;font-weight:700}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
-.card{background:#111c33;border:1px solid #1e293b;border-radius:14px;padding:16px 18px}
-.card h3{margin:10px 0 2px;font-size:16px}
-.slug{margin:0;color:#64748b;font-size:12px;font-family:ui-monospace,monospace}
-.desc{color:#cbd5e1;font-size:13px;margin:10px 0}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.pill{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;
-  color:#0b1120;background:var(--c);white-space:nowrap}
-.metrics{display:flex;flex-wrap:wrap;gap:8px 16px;margin:14px 0 12px}
-.m{display:flex;flex-direction:column}
-.mk{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b}
-.mv{font-size:14px;font-weight:600}
-.nodata{color:#64748b;font-size:13px;font-style:italic}
-.arts{display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid #1e293b;padding-top:12px}
-.art{font-size:11px;padding:2px 8px;border-radius:6px}
-.art.on{background:#14342b;color:#4ade80}
-.art.off{background:#1e293b;color:#475569;text-decoration:line-through}
-.empty{color:#94a3b8}
-code{background:#1e293b;padding:1px 6px;border-radius:5px;font-size:.9em}
-footer{margin-top:28px;color:#475569;font-size:12px}
-"""
 
 
 def parse_frontmatter(text):
@@ -494,105 +446,6 @@ def warnings_for(inits):
             warns.append(f"{s}: spec 'implementada' pero sin improvement-plan.md")
     return warns
 
-
-# ---- HTML (vista local) -----------------------------------------------------
-def pill(text, color):
-    text = html.escape(str(text))
-    return f'<span class="pill" style="--c:{color}">{text}</span>'
-
-
-
-
-def _render_html_card_chips(r):
-    se = r["spec_estado"] or "sin-dato"
-    ee = r["eval_estado"] or "sin-dato"
-    prio = r["prioridad"]
-    chips = [pill("spec: " + se, COLORS.get(se, COLORS["sin-dato"]))]
-    if r["has_eval"]:
-        chips.append(pill("eval: " + ee, COLORS.get(ee, COLORS["sin-dato"])))
-    if prio:
-        chips.append(pill(prio, PRIO_COLORS.get(prio, "#64748b")))
-    chips.append(pill(r["fase"], "#475569"))
-    return chips
-
-
-def _render_html_card_metrics(r):
-    metrics = []
-    for label, key in [("Coste", "coste"), ("Esfuerzo", "esfuerzo"),
-                        ("Tokens", "tokens"), ("Prod.", "multiplicador"),
-                        ("Carac.", "caracteristicas")]:
-        if r.get(key):
-            metrics.append(
-                f'<div class="m"><span class="mk">{label}</span>'
-                f'<span class="mv">{html.escape(str(r[key]))}</span></div>')
-    if r.get("generacion"):
-        # D-086: cuántos artefactos tienen tokens medidos, sin medida o de procedencia desconocida
-        metrics.append(
-            '<div class="m"><span class="mk">Medición</span><span class="mv">'
-            f'{html.escape(_procedencia_celda(procedencia_generacion(r["generacion"])))}</span></div>')
-    return metrics
-
-
-def _render_html_card_arts(r):
-    arts = []
-    for label, flag in [("spec", "has_spec"), ("evaluación", "has_eval"),
-                        ("diseño", "has_design"), ("plan", "has_plan"),
-                        ("tasks", "has_tasks"), ("testing", "has_testing")]:
-        cls = "on" if r[flag] else "off"
-        extra = f" · {html.escape(str(r['design_estado']))}" if flag == "has_design" and r.get("design_estado") else ""
-        arts.append(f'<span class="art {cls}">{label}{extra}</span>')
-    return arts
-
-
-def _render_html_card(r):
-    chips = _render_html_card_chips(r)
-    metrics = _render_html_card_metrics(r)
-    arts = _render_html_card_arts(r)
-    desc = html.escape(r["descripcion"]) if r["descripcion"] else ""
-    return f"""
-      <article class="card">
-        <div class="chips">{''.join(chips)}</div>
-        <h3>{html.escape(r['titulo'])}</h3>
-        <p class="slug">{html.escape(r['slug'])}</p>
-        {f'<p class="desc">{desc}</p>' if desc else ''}
-        <div class="metrics">{''.join(metrics) if metrics else '<span class="nodata">Sin evaluación aún</span>'}</div>
-        <div class="arts">{''.join(arts)}</div>
-      </article>"""
-
-
-def _render_html_counters(inits):
-    by_spec = {}
-    for r in inits:
-        by_spec[r["spec_estado"] or "sin-dato"] = by_spec.get(r["spec_estado"] or "sin-dato", 0) + 1
-    return "".join(
-        f'<div class="counter"><span class="cn">{n}</span>'
-        f'<span class="cl">{pill(st, COLORS.get(st, COLORS["sin-dato"]))}</span></div>'
-        for st, n in sorted(by_spec.items(), key=lambda x: -x[1]))
-
-
-def render_html(inits, root):
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    counters = _render_html_counters(inits)
-    cards = [_render_html_card(r) for r in inits]
-
-    body = "".join(cards) if cards else \
-        '<p class="empty">No hay iniciativas en <code>docs/roadmap/</code> todavía. ' \
-        'Crea una con <code>/pm-cycle &lt;objetivo&gt;</code>.</p>'
-
-    return f"""<!doctype html>
-<html lang="es"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Roadmap · dashboard</title>
-<style>{_DASHBOARD_CSS}</style></head><body>
-<header>
-  <h1>🗺️ Roadmap — estado de iniciativas</h1>
-  <span class="meta">{len(inits)} iniciativa(s) · {html.escape(root)} · generado {now}</span>
-</header>
-<div class="counters">{counters}</div>
-<div class="grid">{body}</div>
-<footer>Generado por la skill <code>roadmap-dashboard</code>. Vuelve a ejecutar
-<code>/roadmap-status</code> para refrescar. No editar a mano.</footer>
-</body></html>"""
 
 
 # ---- Markdown (para Confluence) --------------------------------------------
@@ -1114,7 +967,6 @@ def render_proceso_md(inits):
 def _dashboard_parser():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default="docs/roadmap")
-    ap.add_argument("--html", help="ruta de salida del HTML (vista local)")
     ap.add_argument("--md", help="ruta de salida del Markdown (para Confluence)")
     ap.add_argument("--metrics-md", dest="metrics_md",
                     help="ruta de salida del informe real vs estimado (Markdown)")
@@ -1125,11 +977,6 @@ def _dashboard_parser():
 
 
 def _dashboard_archivos(args, inits):
-    if args.html:
-        os.makedirs(os.path.dirname(os.path.abspath(args.html)), exist_ok=True)
-        with open(args.html, "w", encoding="utf-8") as f:
-            f.write(render_html(inits, args.root))
-        print(f"[roadmap-dashboard] HTML: {len(inits)} iniciativa(s) -> {args.html}")
     if args.md:
         os.makedirs(os.path.dirname(os.path.abspath(args.md)), exist_ok=True)
         with open(args.md, "w", encoding="utf-8") as f:
@@ -1178,7 +1025,7 @@ def main():
     if args.json:
         print(json.dumps(vista_json(inits), ensure_ascii=False, indent=2))
     _dashboard_archivos(args, inits)
-    if not any([args.html, args.md, args.metrics_md, args.json]):
+    if not any([args.md, args.metrics_md, args.json]):
         print(f"[roadmap-dashboard] {len(inits)} iniciativa(s) encontradas")
 
     if args.strict and warns:

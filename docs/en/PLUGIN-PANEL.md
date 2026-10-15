@@ -33,9 +33,9 @@ and focus; Sources stays reachable on mobile.
 **English** · [Español](../PLUGIN-PANEL.md)
 
 The plugin-catalog command uses plugin-panel to explore agents, skills, commands,
-declared tools and global hooks. Search and filters run in a standalone HTML
-file. Served mode adds local progress, memory queries and opt-in recent activity signals; portfolio details, evaluations and
-budgets remain in roadmap-dashboard.
+declared tools and global hooks. Search and filters run in a standalone
+seven-page HTML panel. Served mode adds local progress, memory queries and opt-in recent activity signals. The
+portfolio (evaluations and budgets) is presented on the Initiatives page; its data is computed by roadmap-dashboard.
 
 From a checkout:
 
@@ -60,6 +60,38 @@ Installed bundles resolve the skill through their runtime roots. The generator
 finds its own bundle; `--root <bundle>` inspects another catalog without importing
 its code. Native Python supports Windows without WSL, Tkinter, extra Python
 packages. Standalone export needs no server.
+
+## Multi-page panel: seven pages, two modes
+
+One command (`/plugin-catalog`; `/roadmap-status` invokes it for the portfolio) produces
+the same seven-page panel with a shared menu, in two modes:
+
+| Page | File | What it shows |
+|---|---|---|
+| Inicio (Home) | `index.html` | Summary and, in served mode, ledger progress |
+| Iniciativas (Initiatives) | `iniciativas.html` | Portfolio from `docs/roadmap/` (state, budget); the landing page of `/roadmap-status` |
+| Plan | `plan.html` | Plan by phases; in served mode, the visual plan review |
+| Agentes en vivo (Live agents) | `agentes.html` | Recent activity signals (served only; opt-in) |
+| Memoria (Memory) | `memoria.html` | Local memory queries (served only; on demand) |
+| Catálogo (Catalogue) | `catalogo.html` | Agents, skills, commands, tools and hooks |
+| Diagnóstico (Diagnostics) | `diagnostico.html` | Imported doctor report, with date and scope |
+
+- **Exported** (`--export <folder>`): static files opened from `file://`; no server and
+  no network requests; pages that need live data say so instead of inventing it. CSP via
+  `<meta>`: `default-src 'none'`, `script-src 'self' file:`, `style-src 'self'
+  'unsafe-inline'`, `img-src data:`. Plan review is never opened from here.
+- **Served** (`--serve`, 127.0.0.1 only): the same pages plus the live scripts
+  (`panel-live.js`, `panel-memory.js`, `panel-activity.js`, `panel-review.js`). CSP via
+  header with a nonce and `connect-src 'self'`; no CDN. The `api/*` routes keep their shape.
+
+Charts use **Chart.js 4.5.1 (MIT), vendored** in `assets/vendor/chart.js/`, unmodified:
+extracted once from the official npm tarball with its integrity verified;
+`PROVENANCE.json` records version, SHA-256 and license, and nothing downloads it when
+generating or opening. If the file does not match its fingerprint, pages show tables only.
+`roadmap-dashboard` no longer generates HTML: it computes the portfolio data
+(`dashboard.md`, `--json`, `--metrics-md`) and the panel presents it (relationship in
+`agents/ROLES.md`). The installer copies the whole `skills/plugin-panel/assets/`,
+`vendor/` included.
 
 ## Local dashboard with refresh
 
@@ -429,10 +461,10 @@ the output. The central
 redactor runs before export. Names, models and tools describe declarations,
 not which tools are available in the current session.
 
-The bundled local template offers section navigation, inventory cards, filters
+The panel pages offer menu navigation, inventory cards, filters
 and expandable role and capability details. It adapts to mobile, supports keyboard
-controls and respects reduced motion. It needs no server or third-party assets.
-If the template is missing, HTML generation reports the issue while JSON remains
+controls and respects reduced motion. It needs no server or third-party assets (Chart.js is vendored).
+If Chart.js or its provenance is missing, pages report it and show tables while JSON remains
 available.
 
 Runtime and memory indicators show **source presence in the inspected bundle**.
@@ -488,6 +520,5 @@ readiness, execution rates or health.
 
 Diagnostics provides severity filtering, search, fragments and keyboard focus.
 Inventory filters remain independent. A successful check never upgrades hook
-`load_status` or `execution_status`. Regenerate HTML to update it; this is not a
-live service. The checkout's /panel.html is ignored as a local generated artifact;
-the packaged template remains versioned.
+`load_status` or `execution_status`. Regenerate the panel to update it; the
+exported panel is not a live service.

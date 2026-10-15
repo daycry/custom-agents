@@ -8,22 +8,22 @@
       "expect": {
         "activates": true,
         "artifacts": [
-          "docs/roadmap/dashboard.html"
+          "docs/roadmap/dashboard.md"
         ]
       },
       "notes": "Disparador literal «cómo van las iniciativas»."
     },
     {
       "id": "roadmap-dashboard-parafrasis",
-      "prompt": "Genera una vista HTML autocontenida del estado de todo lo que hay en docs/roadmap/, con prioridad y coste estimado por iniciativa; no modifiques los ficheros del roadmap.",
+      "prompt": "Calcula el resumen JSON de todo lo que hay en docs/roadmap/ con prioridad y coste estimado por iniciativa; no modifiques los ficheros del roadmap.",
       "trigger": "parafrasis",
       "expect": {
         "activates": true,
         "artifacts": [
-          "docs/roadmap/dashboard.html"
+          "docs/roadmap/dashboard.md"
         ]
       },
-      "notes": "Sin «dashboard/roadmap-status»: vista HTML del estado + solo lectura."
+      "notes": "Sin «roadmap-status»: datos de cartera en JSON + solo lectura."
     },
     {
       "id": "roadmap-dashboard-neg-retro",

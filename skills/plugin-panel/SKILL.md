@@ -9,15 +9,18 @@ description: >
   con modo --serve explícito para progreso actualizado del ledger y consulta
   local de memoria bajo demanda, señales recientes de actividad opt-in y revisión
   visual opcional de un plan, sin cambios
-  de configuración. Úsala cuando el usuario diga
-  "panel de capacidades", "control panel del plugin" o "explora el catálogo del plugin".
+  de configuración. También presenta la cartera de iniciativas del roadmap
+  (estado, presupuesto, plan por fases). Úsala cuando el usuario diga
+  "panel de capacidades", "control panel del plugin", "explora el catálogo del plugin",
+  "dashboard del roadmap", "panel del roadmap" o "kanban de los planes".
 ---
 
 # Plugin panel
 
-Presenta el bundle y las extensiones del proyecto seleccionado. El estado de las iniciativas lo muestra
-la skill roadmap-dashboard; este panel muestra capacidades y, en modo servido,
-una vista acotada del ledger local, memoria canónica y señales recientes de actividad.
+Presenta el bundle y las extensiones del proyecto seleccionado. Los datos de cartera los calcula
+la skill roadmap-dashboard (`/roadmap-status` los delega aquí); este panel es la presentación: capacidades,
+la cartera de iniciativas y, en modo servido, una vista acotada del ledger local, memoria canónica y
+señales recientes de actividad.
 
 1. Localiza esta skill en las raíces del bundle del runtime actual.
 2. Ejecuta scripts/build_panel.py con Python nativo, `--root <bundle>` y
@@ -36,6 +39,15 @@ una vista acotada del ledger local, memoria canónica y señales recientes de ac
    el hook se haya ejecutado ni que un servicio esté sano.
    En modo servido entrega la URL privada de ese proceso y conserva su handle;
    no persistas la URL ni presentes los estados del ledger como agentes vivos.
+
+## Páginas y modos
+
+Siete páginas con menú común: Inicio, Iniciativas (cartera; aterrizaje de `/roadmap-status`),
+Plan, Agentes en vivo, Memoria, Catálogo y Diagnóstico. **Exportado** (`--export`): estático,
+`file://`, sin red, CSP por `<meta>`; las páginas con datos vivos lo dicen. **Servido** (`--serve`):
+mismas páginas más scripts vivos, CSP por cabecera con nonce. Las gráficas usan Chart.js 4.5.1
+vendorizado en `assets/vendor/chart.js/` (huella en `PROVENANCE.json`; sin CDN ni descarga; si no
+coincide, solo tablas). Lee la tabla de páginas y la CSP en `docs/PLUGIN-PANEL.md` solo al explicarlos.
 
 El inventario extrae frontmatters públicos y declaraciones de hooks por runtime.
 Claude/Codex leen sus registros; OpenCode aporta un JSON acotado que gobierna el
@@ -101,5 +113,6 @@ indisponibles; las otras vistas conservan sus propios contratos.
 |---|---|
 | [Uso y límites](../../docs/PLUGIN-PANEL.md) | Al explicar inventario, exportación y diferencias con el roadmap |
 | [Extensiones propias](../../docs/PROJECT-EXTENSIONS.md) | Carpetas nativas, selección por ID, personas y disponibilidad |
+| [Páginas, modos, CSP y Chart.js](../../docs/PLUGIN-PANEL.md) | Al explicar las siete páginas, exportado vs servido o la procedencia de Chart.js |
 | [Plantilla de páginas](scripts/panel_pages.py) | Plantilla común de las siete páginas (menú, cabecera de modo, CSP); sin recursos de red |
 | [Vista de actividad](assets/panel-activity.js) | Al mantener la vista servida de señales, sus metadatos y caducidad local |

@@ -58,6 +58,12 @@ método/ejecutor que un comando aplica a los agentes, a menor escala).
 4. **`reviewer` (agente) vs skill `adversarial-review`** — relación método (skill, decide qué
    lentes y cómo se funden) / ejecutor de una lente (agente que revisa sin modificar el código). Ya
    funcionaba así; ahora está explícito en la matriz de arriba, no solo en el código.
+5. **`roadmap-dashboard` vs `plugin-panel` (y `/roadmap-status`)** — dos generadores HTML del
+   estado de la cartera. Relación **datos / presentación**: `roadmap-dashboard` es dueña de los
+   **datos de cartera** (escanea `docs/roadmap/`, escribe `dashboard.md`, `--metrics-md` y `--json`)
+   y **ya no genera HTML**; `plugin-panel` es dueña de la **presentación** (panel multi-página, con
+   la página Iniciativas); `/roadmap-status` es la **entrada de cartera que delega**: escribe el
+   `.md` y exporta el panel a `docs/roadmap/panel/`. Un `dashboard.html` antiguo nunca se borra.
 
 ## Guardarraíl mecánico (heurístico, no sustituye el criterio humano)
 

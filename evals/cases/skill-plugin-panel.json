@@ -46,8 +46,20 @@
       }
     },
     {
+      "id": "plugin-panel-roadmap-literal",
+      "prompt": "Enséñame el dashboard del roadmap con el kanban de los planes.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "plugin-panel"
+        ]
+      },
+      "notes": "Absorbe «dashboard del roadmap»/«kanban de los planes» (D-A1)."
+    },
+    {
       "id": "plugin-panel-negativo",
-      "prompt": "Muestra el progreso y presupuesto de las iniciativas del roadmap.",
+      "prompt": "Calcula el resumen JSON de prioridad y presupuesto de las iniciativas del roadmap para priorizar el backlog.",
       "expect": {
         "activates": false,
         "redirect": "skill:roadmap-dashboard"

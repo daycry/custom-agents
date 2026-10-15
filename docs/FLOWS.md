@@ -650,7 +650,10 @@ flowchart LR
     Roles[Mapa central de roles] --> Panel
     Doctor[Doctor explícito con --panel-json] --> Proyeccion[Informe portable con fecha y alcance]
     Proyeccion -->|selección explícita| Panel
-    Panel --> Vista[HTML y JSON con fuentes y límites]
+    Panel --> Vista[JSON con fuentes y límites]
+    Panel -->|--export| Exportado["Siete páginas estáticas file:// con Chart.js vendorizado"]
+    Cartera["roadmap-dashboard: datos de cartera"] --> Panel
+    Estado["/roadmap-status"] -->|"dashboard.md y export a docs/roadmap/panel"| Exportado
     Panel -->|--serve explícito| Servidor[Servidor loopback con acceso privado]
     Ledger[Ledger canónico tasks.md] --> Lector[local-read acotado]
     Lector --> Resumen[progress-report sobre texto]
@@ -663,6 +666,11 @@ flowchart LR
     Consulta -->|parser ranking relaciones y redacción| Servidor
     Servidor --> Memoria[Vista con estado versión evidencia y fuente]
 ```
+
+Un solo comando, dos modos, siete páginas (Inicio, Iniciativas, Plan, Agentes en vivo,
+Memoria, Catálogo, Diagnóstico): el exportado es estático y sin red; el servido añade los
+scripts vivos bajo CSP con nonce. `roadmap-dashboard` calcula los datos de cartera y ya no
+genera HTML; `/roadmap-status` delega la presentación en el panel (`docs/PLUGIN-PANEL.md`).
 
 El panel no ejecuta doctor ni los hooks. Presencia y presupuestos declarados
 no acreditan carga o ejecución; el stream de cierre OpenCode tiene su propio
