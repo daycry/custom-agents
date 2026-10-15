@@ -635,6 +635,99 @@ def list_reminders(project, initiative, *, state_root, deadline=None):
         return envelope('unavailable', 'helper_unavailable')
 
 
+def summarize_reviews(project, initiatives, *, state_root, deadline=None):
+    """Read-only review state for many initiatives; never initialize, lock, fsync or write.
+
+    Same double inventory as list_reminders: observed changes are rejected, but
+    this is neither an atomic snapshot nor permission to continue a gate.
+    """
+    def envelope(status, reason=None, *, complete=False, rows=None, omitted=0):
+        return {'schema_version': 1, 'status': status, 'reason': reason, 'complete': complete,
+                'observed_at': _now(), 'initiatives': rows or [], 'omitted': omitted, 'approval_granted': False}
+    def row(initiative, estado, **extra):
+        base = {'initiative': initiative, 'estado': estado, 'version_ordinal': None, 'gate_key': None,
+                'review_state': None, 'plan': None, 'comments': 0, 'comments_with_result': 0,
+                'needs_clarification': 0, 'results_without_verification': 0, 'other_current_reviews': 0,
+                'review_id': None}
+        base.update(extra)
+        return base
+    try:
+        deadline = _deadline(deadline)
+        _need(isinstance(project, (str, os.PathLike)) and not str(project).replace('\\', '/').startswith('//'))
+        project = Path(project).absolute()
+        _need('..' not in project.parts)
+        _need(isinstance(state_root, (str, os.PathLike)), 'state_scope')
+        state = Path(state_root).absolute()
+        _need('..' not in state.parts and state == project / '.claude/plan-review', 'state_scope')
+        _need(type(initiatives) is list and len(initiatives) <= MAX_RECORDS and len(set(map(str, initiatives))) == len(initiatives))
+        _need(all(type(i) is str and len(i) <= 180 and INITIATIVE.fullmatch(i) is not None for i in initiatives))
+        reader = _helper('local-read.py')
+        _guard(deadline); _dirs(project, reader)
+        for path in (state.parent, state):
+            try: path.lstat()
+            except FileNotFoundError:
+                return envelope('ok', complete=True, rows=[row(i, 'sin_revision') for i in initiatives])
+            _dirs(path, reader)
+        marker = _marker(project, state, reader, deadline, False)
+        first, second = [], []
+        _inventory(state, reader, marker, deadline, first)
+        _need(len(first) <= MAX_RECORDS, 'state_budget')
+        rows, seen, expired = [], {}, False
+        for initiative in initiatives:
+            records = sorted((r for r in first if r['initiative'] == initiative), key=lambda r: (r['created_at'], r['review_id']))
+            if not records:
+                rows.append(row(initiative, 'sin_revision')); continue
+            if expired:
+                rows.append(row(initiative, 'no_disponible', plan='unavailable')); continue
+            try:
+                _guard(deadline)
+                plan = reader.read_bytes(project, initiative + '/improvement-plan.md', max_bytes=MAX_PLAN_BYTES, include_digest=True)
+                if plan['status'] != 'ok':
+                    rows.append(row(initiative, 'no_disponible', plan='missing' if plan['status'] == 'not_found' else 'unavailable')); continue
+                seen[initiative] = plan['sha256']
+                same = [r for r in records if r['version']['raw_sha256'] == plan['sha256']]
+                view = _view(project, initiative, reader, deadline)['version'] if same else None
+            except _Failure as exc:
+                if exc.reason == 'deadline_expired': expired = True
+                rows.append(row(initiative, 'no_disponible', plan='unavailable')); continue
+            current = [r for r in same if r['version']['view_sha256'] == view['view_sha256']]
+            principal = (current or records)[-1]
+            order = []
+            for r in records:
+                if r['version'] not in order: order.append(r['version'])
+            feedback = principal.get('feedback', _empty_feedback())
+            latest = {x['comment_id']: x for x in feedback['results']}
+            verified = {x['result_id'] for x in feedback['verifications']}
+            decision = principal['decision']
+            estado = ('obsoleta' if not current else 'pendiente' if decision is None
+                      else 'aprobada' if decision['choice'] == 'approve' else 'cambios_pedidos')
+            rows.append(row(initiative, estado, version_ordinal=order.index(principal['version']) + 1,
+                gate_key=principal['gate_key'], review_state=principal['state'], plan='ok',
+                comments=len(decision['comments'] if decision else principal['draft_comments']),
+                comments_with_result=len(latest),
+                needs_clarification=sum(x['disposition'] == 'needs_clarification' for x in latest.values()),
+                results_without_verification=sum(x['result_id'] not in verified for x in latest.values()),
+                other_current_reviews=max(0, len(current) - 1),
+                review_id=principal['review_id']))
+        _inventory(state, reader, marker, deadline, second)
+        _need(_json(sorted(first, key=lambda r: r['review_id'])) ==
+              _json(sorted(second, key=lambda r: r['review_id'])), 'state_changed')
+        _need(_marker(project, state, reader, deadline, False) == marker, 'state_changed')
+        for initiative, sha in seen.items():
+            again = reader.read_bytes(project, initiative + '/improvement-plan.md', max_bytes=MAX_PLAN_BYTES, include_digest=True)
+            _need(again['status'] == 'ok' and again['sha256'] == sha, 'state_changed')
+        result = envelope('partial' if expired else 'ok', 'deadline_expired' if expired else None,
+                          complete=not expired, rows=rows)
+        _need(len(_json(result)) <= 64 * 1024, 'response_budget')
+        return result
+    except _Failure as exc:
+        return envelope(exc.status, exc.reason)
+    except (OSError, ValueError, TypeError, KeyError, UnicodeError, RecursionError):
+        return envelope('unavailable', 'invalid_input')
+    except (ImportError, AttributeError, SyntaxError):
+        return envelope('unavailable', 'helper_unavailable')
+
+
 def open_review(project, initiative, *, state_root, gate_key='requested-review', consumer=None, deadline=None):
     return _execute('open', project, state_root=state_root, deadline=deadline, initiative=initiative, gate_key=gate_key, consumer=consumer)
 
@@ -751,7 +844,7 @@ def record_feedback_verification(project, review_id, version, *, gate_key, decis
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('operation', choices=['open', 'view', 'status', 'comments', 'submit', 'receive', 'ack', 'consume', 'result', 'verify-result'])
+    parser.add_argument('operation', choices=['open', 'summary', 'view', 'status', 'comments', 'submit', 'receive', 'ack', 'consume', 'result', 'verify-result'])
     for name in ('project', 'state-root'): parser.add_argument('--' + name, required=True)
     for name in ('initiative', 'review-id', 'raw-sha256', 'view-sha256', 'decision-id', 'delivery-id', 'caller-id', 'runtime'):
         parser.add_argument('--' + name)
@@ -763,6 +856,10 @@ def main(argv=None):
         if args.operation == 'open':
             consumer = {'caller_id': args.caller_id, 'runtime': args.runtime} if args.caller_id is not None or args.runtime is not None else None
             result = open_review(args.project, args.initiative, gate_key=args.gate_key, consumer=consumer, **common)
+        elif args.operation == 'summary':
+            raw = sys.stdin.buffer.read(MAX_REQUEST_BYTES + 1)
+            _need(len(raw) <= MAX_REQUEST_BYTES, 'request_budget')
+            result = summarize_reviews(args.project, _strict(raw), **common)
         elif args.operation in ('view', 'status'):
             result = {'view': get_view, 'status': get_status}[args.operation](args.project, args.review_id, **common)
         elif args.operation in ('comments', 'submit', 'result', 'verify-result'):
@@ -787,6 +884,9 @@ def main(argv=None):
     except (OSError, ValueError, TypeError, _Failure, RecursionError) as exc:
         result = {'schema_version': 1, 'status': 'unavailable', 'reason': exc.reason if isinstance(exc, _Failure) else 'invalid_input', 'review': None}
         if args.operation in ('result', 'verify-result'): result.update(approval_granted=False, feedback_receipt=None)
+    if args.operation == 'summary':
+        print(_json(result).decode('utf-8'))
+        return 0 if result['status'] in ('ok', 'partial') else 3
     print(_json(result).decode('utf-8'))
     return 0 if result['status'] in ('ok', 'waiting') else 2 if result['status'] in ('conflict', 'version_changed') else 3
 

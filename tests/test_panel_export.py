@@ -238,3 +238,77 @@ def test_los_datos_de_la_instantanea_van_en_json_incrustado_y_escapado(panel, bu
     assert datos['inventario']['counts']['skills'] == 1
     assert datos['contadores']['agents'] == 1
     assert '</script><b>' not in html.replace(bruto, '')
+
+
+# --- T-57: revisión del plan desde el panel (`--review-panel`) y el exportado sin revisión -------------------
+
+def _proyecto_con_plan(tmp_path):
+    carpeta = tmp_path / 'proyecto/docs/roadmap/2026-10-09-alfa'
+    _escribir(carpeta, 'improvement-plan.md', '# Plan\n## Cambio\nValidar.\n')
+    _escribir(carpeta, 'tasks.md', '# Tareas\n\n### T-01 — Una\n\n- **Estado**: borrador\n')
+    return tmp_path / 'proyecto'
+
+
+def test_el_exportado_con_plan_no_lleva_controles_ni_api_de_revision_ni_lee_su_estado(panel, bundle, tmp_path, monkeypatch):
+    proyecto = _proyecto_con_plan(tmp_path)
+    (proyecto / '.claude/plan-review').mkdir(parents=True)
+    (proyecto / '.claude/plan-review/r-secreto.json').write_text('{"SECRETO-REVISION": 1}', encoding='utf8')
+    abiertos = []
+    original = Path.open
+    monkeypatch.setattr(Path, 'open', lambda self, *a, **k: abiertos.append(str(self)) or original(self, *a, **k))
+    destino = tmp_path / 'salida'
+    assert _exportar(panel, bundle, destino, '--project', str(proyecto)) == 0
+    assert not [ruta for ruta in abiertos if 'plan-review' in ruta]
+    paginas = sorted(destino.glob('plan-*.html'))
+    assert paginas, 'la copia estática lleva la página Plan de la iniciativa'
+    for ruta in [*paginas, destino / 'plan.html']:
+        texto = ruta.read_text(encoding='utf8')
+        assert 'api/review' not in texto and 'SECRETO-REVISION' not in texto and 'panel-review.js' not in texto
+        assert 'id="plan-revisar"' not in texto and '<form' not in texto and 'data-review-id' not in texto
+    assert 'estado de revisión: solo en modo servido' in paginas[0].read_text(encoding='utf8')
+    assert not (destino / 'assets/panel-review.js').exists()
+
+
+def test_el_cuerpo_del_plan_explica_la_activacion_con_los_parametros_exactos(panel):
+    inactiva = panel.cuerpo_plan_iniciativa('inactiva')
+    texto = inactiva.replace('&lt;', '<').replace('&gt;', '>')
+    assert '--review-panel --review-state-root <proyecto>/.claude/plan-review' in texto
+    assert 'id="plan-revisar"' not in inactiva and 'data-revision="inactiva"' in inactiva
+    activa = panel.cuerpo_plan_iniciativa('activa')
+    assert 'id="plan-revisar"' in activa and 'Revisar este plan' in activa and '--review-panel' not in activa
+    assert 'solo en modo servido' in panel.cuerpo_plan_iniciativa()
+    with pytest.raises(ValueError):
+        panel.cuerpo_plan_iniciativa('otra')
+
+
+@pytest.mark.parametrize('argv', [
+    ['--review-panel'],
+    ['--serve', '--project', 'x', '--review-panel'],
+    ['--project', 'x', '--review-panel', '--review-state-root', 'x/.claude/plan-review'],
+    ['--serve', '--review-panel', '--review-state-root', 'x/.claude/plan-review'],
+    ['--serve', '--project', 'x', '--review-panel', '--review-gate-key', 'plan-ok',
+     '--review-state-root', 'x/.claude/plan-review'],
+    ['--serve', '--project', 'x', '--review-state-root', 'x/.claude/plan-review'],
+    ['--export', 'salida', '--review-panel', '--project', 'x', '--review-state-root', 'x/.claude/plan-review'],
+])
+def test_cli_review_panel_exige_su_ambito_y_el_estado_solo_sigue_en_exit_2(panel, argv):
+    with pytest.raises(SystemExit) as error:
+        panel.main(argv)
+    assert error.value.code == 2
+
+
+@pytest.mark.parametrize('extra, esperado', [
+    (['--review-panel'], (None, {'state_root': 'x/.claude/plan-review'})),
+    (['--review-panel', '--review-initiative', 'docs/roadmap/2026-10-09-alfa', '--review-gate-key', 'plan-ok'],
+     ('plan-ok', {'state_root': 'x/.claude/plan-review'})),
+    (['--review-initiative', 'docs/roadmap/2026-10-09-alfa'], ('requested-review', None)),
+])
+def test_cli_review_panel_pasa_el_ambito_sin_tocar_la_seleccion(panel, monkeypatch, extra, esperado):
+    llamadas = []
+    monkeypatch.setattr(panel, 'build_inventory', lambda *a, **k: {})
+    monkeypatch.setattr(panel, '_load_server', lambda: type('S', (), {
+        'run': staticmethod(lambda *a, **k: llamadas.append(k) or 0)}))
+    assert panel.main(['--serve', '--project', 'x', '--review-state-root', 'x/.claude/plan-review', *extra]) == 0
+    puerta, ambito = esperado
+    seleccion = llamadas[0]['review_selection']
+    assert (seleccion and seleccion['gate_key']) == puerta and llamadas[0]['review_scope'] == ambito

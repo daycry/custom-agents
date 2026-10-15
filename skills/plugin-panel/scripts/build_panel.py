@@ -850,13 +850,37 @@ def _cuerpo_plan_indice(planes):
             'lectura.</p><nav aria-label="Planes por iniciativa"><ul>' + items + '</ul></nav></section>')
 
 
-def cuerpo_plan_iniciativa():
+REVISION_ACTIVAR = '--serve --project &lt;proyecto&gt; --review-panel --review-state-root &lt;proyecto&gt;/.claude/plan-review'
+
+
+def _bloque_revision_plan(revision):
+    """Bloque de revisión de `plan-<id16>.html` según el modo (CA-52, CA-53): `exportado` (copia estática, nunca
+    controles ni lectura de `.claude/plan-review/`), `inactiva` (servido sin `--review-panel`: explica cómo activarla) o
+    `activa` (servido con `--review-panel`: el estado y el botón «Revisar este plan», que `panel-review.js` muestra)."""
+    if revision == 'activa':
+        return ('<section id="plan-revision" data-revision="activa"><div class="section-head"><h2 id="plan-revision-titulo">'
+                'Revisión del plan</h2></div><p id="plan-revision-estado" class="filter-note" role="status" '
+                'aria-live="polite">Consultando el estado de revisión…</p>'
+                '<button id="plan-revisar" type="button" hidden>Revisar este plan</button></section>')
+    if revision == 'inactiva':
+        return ('<p id="plan-revision" data-revision="inactiva" class="filter-note">La revisión del plan se activa al '
+                'arrancar el panel con <code>' + REVISION_ACTIVAR + '</code>.</p>')
+    if revision != 'exportado':
+        raise ValueError('modo de revisión desconocido')
+    return ('<p id="plan-revision" data-revision="exportado" class="filter-note">Revisión · estado de revisión: solo en '
+            'modo servido.</p>')
+
+
+def cuerpo_plan_iniciativa(revision='exportado'):
     """Esqueleto de `plan-<id16>.html`: lo rellena `page-plan.js` con `api/plan-<id16>` (servido) o con el plan
-    incrustado en `panel-data` (exportado)."""
+    incrustado en `panel-data` (exportado). `revision`: `exportado` (por defecto), `inactiva` o `activa`."""
     return (
         '<p><a href="plan.html">Todos los planes</a> · <a href="iniciativas.html">Iniciativas</a></p>'
         '<p id="plan-estado" class="filter-note" role="status" aria-live="polite">Leyendo el ledger…</p>'
+        '<p><span id="plan-frescura" class="filter-note"></span> '
+        '<button id="plan-refrescar" type="button" hidden>Actualizar ahora</button></p>'
         '<p id="plan-anuncio" class="solo-lectores" role="status" aria-live="polite"></p>'
+        + _bloque_revision_plan(revision) +
         '<section id="plan-detalle" class="detalle" role="region" aria-labelledby="plan-detalle-titulo" tabindex="-1" hidden>'
         '<div class="section-head"><h2 id="plan-detalle-titulo">Detalle de la tarea</h2>'
         '<button id="plan-detalle-cerrar" type="button">Cerrar detalle</button></div>'
@@ -864,7 +888,11 @@ def cuerpo_plan_iniciativa():
         '<section id="plan-kanban"><div class="section-head"><div><h2 id="plan-titulo">Tareas del plan</h2>'
         '<p>Solo lectura: una columna por estado del ledger y una tarjeta por tarea.</p></div></div>'
         '<div id="kanban-plan" class="kanban"></div>'
-        '<noscript><p>Sin JavaScript no se leen las tareas del plan.</p></noscript></section>')
+        '<noscript><p>Sin JavaScript no se leen las tareas del plan.</p></noscript></section>'
+        '<section id="plan-graficos"><div class="section-head"><div><h2>Avance y horas del plan</h2>'
+        '<p>Cada gráfico lleva su tabla equivalente; un dato ausente se dice «sin datos» y nunca se pinta como 0.</p></div></div>'
+        '<div id="grafico-avance-fase"></div><div id="grafico-horas-fase"></div><div id="grafico-horas-tarea"></div>'
+        '<div id="grafico-burndown"></div></section>')
 
 
 def cuerpos_paginas(data, *, live=False, review_enabled=False, review_id='', actividad=True, planes=None):
@@ -994,6 +1022,7 @@ def main(argv=None):
     parser.add_argument('--review-initiative', help='exact initiative relative path; explicit review only with --serve')
     parser.add_argument('--review-state-root', help='explicit owner state root; requires --review-initiative')
     parser.add_argument('--review-gate-key', choices=('requested-review', 'plan-ok'), help='review gate; default requested-review; requires explicit review selection')
+    parser.add_argument('--review-panel', action='store_true', help='enable plan review from every Plan page; requires --serve, --project and --review-state-root; combinable with --review-initiative')
     parser.add_argument('--project', help='project root to inspect for local extensions')
     parser.add_argument('--cwd', help='task package within the project root')
     parser.add_argument('--home', help='user root to inspect')
@@ -1007,8 +1036,13 @@ def main(argv=None):
     if args.port is not None and (not args.serve or not 0 <= args.port <= 65535):
         parser.error('--port requires --serve and a value from 0 to 65535')
     if (args.review_initiative is not None or args.review_state_root is not None or args.review_gate_key is not None) and (
-            not args.serve or not args.project or not args.review_initiative or not args.review_state_root):
+            not args.serve or not args.project or not args.review_state_root
+            or not (args.review_initiative or args.review_panel)):
         parser.error('--review-initiative and --review-state-root require each other, --serve and explicit --project')
+    if args.review_gate_key is not None and not args.review_initiative:
+        parser.error('--review-gate-key requires --review-initiative')
+    if args.review_panel and (not args.serve or not args.project or not args.review_state_root):
+        parser.error('--review-panel requires --serve, explicit --project and --review-state-root')
     try:
         scrub = _scrubber(args) if (args.export or args.serve) else None  # un solo saneado: exportado y servido
         data = build_inventory(args.root, project=args.project, home=args.home,
@@ -1021,7 +1055,9 @@ def main(argv=None):
                 raise ValueError('bundled panel server unavailable') from None
             selection = {'initiative': args.review_initiative, 'state_root': args.review_state_root,
                          'gate_key': args.review_gate_key or 'requested-review'} if args.review_initiative else None
-            return server.run(args.project, data, port=args.port or 0, review_selection=selection, scrub=scrub)
+            scope = {'state_root': args.review_state_root} if args.review_panel else None
+            return server.run(args.project, data, port=args.port or 0, review_selection=selection, review_scope=scope,
+                              scrub=scrub)
         if args.export:
             cartera = _cartera_exportada(args, scrub)
             written = _export(args, data, cartera, _planes_exportados(args, scrub, cartera))

@@ -51,6 +51,8 @@ PAGE_SCRIPTS = {'catalogo': ('page-catalogo.js',), 'diagnostico': ('page-diagnos
 # La página Plan de UNA iniciativa (`plan-<id16>.html`): su kanban y su detalle de tarea. No lleva los JS vivos de
 # `plan.html` (progreso y revisión), que dependen de secciones que solo tiene el índice.
 PLAN_SCRIPTS = ('page-cartera.js', 'page-plan.js')
+# Solo servido: el JS de revisión (el servidor lo omite sin `review_selection` ni `review_scope`).
+PLAN_LIVE_SCRIPTS = ('panel-review.js',)
 ID16_RE = re.compile(r'[a-f0-9]{16}')
 LIVE_SCRIPTS = {'inicio': ('panel-live.js',), 'plan': ('panel-live.js', 'panel-review.js'),
                 'agentes': ('panel-activity.js',), 'memoria': ('panel-memory.js',)}
@@ -112,7 +114,7 @@ def render_page(slug, *, modo, generado, datos, cuerpo='', chart_ok=True, nonce=
     if plan_id is not None:
         if slug != 'plan' or not ID16_RE.fullmatch(plan_id):
             raise ValueError('plan_id solo para la página Plan y con la forma de un id16')
-        propios = PLAN_SCRIPTS
+        propios = PLAN_SCRIPTS + (PLAN_LIVE_SCRIPTS if modo == 'servido' else ())
     else:
         propios = PAGE_SCRIPTS.get(slug, ()) + (LIVE_SCRIPTS.get(slug, ()) if modo == 'servido' else ())
     scripts += ''.join(script('assets/' + nombre) for nombre in propios if nombre not in scripts_omitidos)

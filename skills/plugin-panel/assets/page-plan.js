@@ -24,8 +24,11 @@
   var MAX_CRITERIOS = 40;
   var MAX_GAPS = 20;
   var PLAZO_MS = 4000;
+  var SONDEO_MS = 5000;
+  var MAX_GRAFICO_TAREAS = 400;
   var pintado = null;
-  var ctx = { id: null, servido: false, tareas: [], detalles: {}, abierto: null, boton: null, token: 0, controlador: null };
+  var ctx = { id: null, servido: false, tareas: [], detalles: {}, abierto: null, boton: null, token: 0, controlador: null,
+              nodos: {}, chart: true, ultimo: null, aviso: false, temporizador: null, enVuelo: false, ctrlPlan: null, graficos: null };
 
   function largo(texto) { return Array.from(texto).length; }
   function entero(v) { return typeof v === 'number' && isFinite(v) && Math.floor(v) === v && v >= 0; }
@@ -44,11 +47,12 @@
   }
 
   var CLAVES_PLAN = 'complete,id,issues,observed_at,omitidas,slug,source,status,tareas,version,vocabulario';
-  var CLAVES_FILA = 'estado_tarea,fase_nombre,gaps,horas,id,literal,titulo';
+  var CLAVES_FILA = 'cerrada,estado_tarea,fase_nombre,gaps,horas,id,literal,titulo';
   var CLAVES_ENVOLTURA = 'complete,id,issues,observed_at,omitidos,source,status,tarea,tarea_id,version';
   var CLAVES_TAREA = lista('id,titulo,fase_nombre,estado_tarea,literal,descripcion,criterios,verificacion,'
     + 'verificacion_recortada,ejecutada,salida,dependencias,archivado,cerrada,horas,revision,gaps');
 
+  function fechaCierre(v) { return v === null || (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && isFinite(Date.parse(v))); }
   function estadoValido(v) { return v === null || COLUMNAS.some(function (c) { return c[0] === v; }); }
   function horasValidas(h) { return objeto(h) && claves(h) === 'est,fuente,real' && numero(h.real) && numero(h.est) && (h.fuente === null || incluye(FUENTES, h.fuente)); }
   function parValido(h) { return objeto(h) && claves(h) === 'est,real' && numero(h.real) && numero(h.est); }
@@ -57,7 +61,7 @@
     if (!objeto(f) || claves(f) !== CLAVES_FILA || typeof f.id !== 'string' || !/^T-\d{1,4}$/.test(f.id) || vistos[f.id]) { return false; }
     vistos[f.id] = true;
     return texto(f.titulo, 160) && textoONulo(f.fase_nombre, 160) && textoONulo(f.literal, 48) && entero(f.gaps)
-      && estadoValido(f.estado_tarea) && horasValidas(f.horas);
+      && estadoValido(f.estado_tarea) && horasValidas(f.horas) && fechaCierre(f.cerrada);
   }
 
   /* Forma y topes de `api/plan-<id16>`. Un campo fuera de contrato invalida la respuesta entera. */
@@ -125,7 +129,6 @@
     if (!d && motivo === 'sin_plan') { return 'Sin datos: esta copia estática no incluye este plan (se genera con --project).'; }
     if (!d && motivo === 'invalida') { return 'No se pudo leer el plan: la respuesta no tiene la forma esperada. Sin datos.'; }
     if (!d) { return 'No se pudo leer el plan. Sin datos de tareas; vuelve a intentarlo.'; }
-    var fecha = ' Lectura obtenida: ' + d.observed_at + '.';
     if (d.status === 'fuera_de_tope') { return 'Ledger fuera del tope de lectura (256 KiB): no se muestran tareas ni cifras.'; }
     if (d.status === 'ilegible') { return 'Ledger no legible (no es UTF-8 válido o no se pudo interpretar): no se muestran tareas ni cifras.'; }
     if (d.status === 'sin_ledger') { return 'Esta iniciativa no tiene ledger (tasks.md): sin tareas que mostrar.'; }
@@ -135,9 +138,9 @@
     var base = 'Plan de «' + (d.slug || 'iniciativa') + '»: ' + plural(d.tareas.length, 'tarea', 'tareas') + '.';
     if (d.status === 'partial' || !d.complete) {
       return base + ' Lectura parcial: ' + plural(d.omitidas, 'tarea omitida', 'tareas omitidas')
-        + ' por el presupuesto de la respuesta; lo omitido no acredita ausencia.' + fecha;
+        + ' por el presupuesto de la respuesta; lo omitido no acredita ausencia.';
     }
-    return base + fecha;
+    return base;
   }
 
   function lineaHoras(rotulo, h, conFuente) {
@@ -319,15 +322,27 @@
     art.appendChild(el('p', '', 'Fase: ' + (t.fase_nombre || 'sin datos')));
     art.appendChild(el('p', '', lineaHoras('Horas IA', t.horas, true)));
     art.appendChild(el('p', '', 'Gaps de revisión abiertos: ' + t.gaps));
-    return art;
+    return { clave: JSON.stringify(t), art: art, boton: abre };
   }
 
-  function columna(titulo, filas, clase) {
+  /* Una tarjeta cuya fila no cambió conserva su nodo entre refrescos (conservación de DOM, como panel-live.js). */
+  function nodoDe(t) {
+    var previo = ctx.nodos[t.id];
+    return previo && previo.clave === JSON.stringify(t) ? previo : tarjeta(t);
+  }
+
+  function columna(titulo, filas, clase, nuevos) {
     var seccion = el('section', 'columna' + (clase ? ' ' + clase : ''));
     seccion.appendChild(el('h2', '', titulo + ' (' + filas.length + ')'));
     if (!filas.length) { seccion.appendChild(el('p', 'columna-vacia', 'Ninguna tarea.')); }
-    filas.forEach(function (t) { seccion.appendChild(tarjeta(t)); });
+    filas.forEach(function (t) { var n = nodoDe(t); nuevos[t.id] = n; seccion.appendChild(n.art); });
     return seccion;
+  }
+
+  function tareaConFoco() {
+    var activo = raiz.document.activeElement;
+    var id = activo && activo.dataset ? activo.dataset.tarea : null;
+    return id && ctx.nodos[id] && ctx.nodos[id].boton === activo ? id : null;
   }
 
   function dibujarKanban(d) {
@@ -338,21 +353,193 @@
     pintado = clave;
     ctx.tareas = hayTareas(d) ? d.tareas : [];
     if (!hayTareas(d)) {
+      ctx.nodos = {};
       tablero.replaceChildren(el('p', 'ausencia', 'Sin datos: no hay tareas que mostrar.'));
       return;
     }
+    var foco = tareaConFoco();
+    var nuevos = {};
     var columnas = COLUMNAS.map(function (c) {
-      return columna(c[1], d.tareas.filter(function (t) { return t.estado_tarea === c[0]; }));
+      return columna(c[1], d.tareas.filter(function (t) { return t.estado_tarea === c[0]; }), '', nuevos);
     });
     var raras = d.tareas.filter(function (t) { return t.estado_tarea === null; });
-    if (raras.length) { columnas.push(columna('Estado no reconocido', raras, 'desconocidos')); }
+    if (raras.length) { columnas.push(columna('Estado no reconocido', raras, 'desconocidos', nuevos)); }
+    ctx.nodos = nuevos;
     tablero.replaceChildren.apply(tablero, columnas);
+    if (ctx.abierto && nuevos[ctx.abierto]) { ctx.boton = nuevos[ctx.abierto].boton; }
+    if (foco && nuevos[foco]) { nuevos[foco].boton.focus(); }
   }
 
+  /* --- gráficos (T-25, T-26): derivan de las filas del plan con el adaptador panel-charts.js ------------------- */
+
+  function suma(valores) {
+    var presentes = valores.filter(function (v) { return v !== null; });
+    if (!presentes.length) { return null; }
+    return Math.round(presentes.reduce(function (a, b) { return a + b; }, 0) * 100) / 100;
+  }
+  function sufijoFuente(fuentes) {
+    var f = FUENTES.filter(function (x) { return fuentes.indexOf(x) !== -1; });
+    return f.length ? ' (' + f.join(' y ') + ')' : '';
+  }
+
+  function fases(tareas) {
+    var orden = [], por = {};
+    tareas.forEach(function (t) {
+      var n = t.fase_nombre || 'Sin fase';
+      if (!por[n]) { por[n] = []; orden.push(n); }
+      por[n].push(t);
+    });
+    return orden.map(function (n) { return { nombre: n, tareas: por[n] }; });
+  }
+
+  function especificaciones(tareas) {
+    var fs = fases(tareas);
+    var avance = { id: 'grafico-avance-fase-spec', titulo: 'Avance por fase', tipo: 'bar', categoria: 'Fase',
+      descripcion: 'Tareas completadas y tareas totales de cada fase, como en el resumen de progreso del ledger.',
+      origen: 'ledger (api/plan)', etiquetas: fs.map(function (f) { return f.nombre; }),
+      series: [{ nombre: 'Completadas', valores: fs.map(function (f) { return f.tareas.filter(function (t) { return t.estado_tarea === 'completado'; }).length; }) },
+               { nombre: 'Total', valores: fs.map(function (f) { return f.tareas.length; }) }] };
+    var horasFase = { id: 'grafico-horas-fase-spec', titulo: 'Horas IA reales frente a estimadas, por fase', tipo: 'bar',
+      categoria: 'Fase', unidad: 'h', origen: 'ledger (api/plan); real solo con medición o estimación declarada',
+      descripcion: 'Suma de las horas IA reales y estimadas de cada fase; sin dato se dice «sin datos», nunca 0.',
+      etiquetas: [], series: [{ nombre: 'IA real', valores: [] }, { nombre: 'IA estimada', valores: [] }], sinDatos: [] };
+    fs.forEach(function (f) {
+      var real = suma(f.tareas.map(function (t) { return t.horas.real; }));
+      var est = suma(f.tareas.map(function (t) { return t.horas.est; }));
+      var fuentes = f.tareas.filter(function (t) { return t.horas.real !== null; }).map(function (t) { return t.horas.fuente; });
+      if (real === null && est === null) { horasFase.sinDatos.push(f.nombre); return; }
+      horasFase.etiquetas.push(f.nombre + sufijoFuente(fuentes));
+      horasFase.series[0].valores.push(real);
+      horasFase.series[1].valores.push(est);
+    });
+    var horasTarea = { id: 'grafico-horas-tarea-spec', titulo: 'Horas IA reales frente a estimadas, por tarea', tipo: 'bar',
+      categoria: 'Tarea', unidad: 'h', origen: 'ledger (api/plan); «(medido)» o «(estimado)» según la procedencia del real',
+      descripcion: 'Horas IA reales y estimadas de cada tarea; la procedencia del real va entre paréntesis.',
+      etiquetas: [], series: [{ nombre: 'IA real', valores: [] }, { nombre: 'IA estimada', valores: [] }], sinDatos: [] };
+    tareas.slice(0, MAX_GRAFICO_TAREAS).forEach(function (t) {
+      if (t.horas.real === null && t.horas.est === null) { horasTarea.sinDatos.push(t.id); return; }
+      horasTarea.etiquetas.push(t.id + (t.horas.real !== null && t.horas.fuente ? ' (' + t.horas.fuente + ')' : ''));
+      horasTarea.series[0].valores.push(t.horas.real);
+      horasTarea.series[1].valores.push(t.horas.est);
+    });
+    return { avance: avance, horasFase: horasFase, horasTarea: horasTarea, burndown: burndown(tareas) };
+  }
+
+  /* Burndown (design.md §2.4 I-02): solo si TODAS las tareas completadas llevan Cerrada; si no, el mensaje y nada más.
+     Los puntos son únicamente las fechas de cierre reales: no se interpola ningún día intermedio. */
+  function burndown(tareas) {
+    var hechas = tareas.filter(function (t) { return t.estado_tarea === 'completado'; });
+    if (!hechas.length) { return { mensaje: 'Sin datos: ninguna tarea completada todavía; el burndown necesita fechas de cierre.' }; }
+    var sin = hechas.filter(function (t) { return t.cerrada === null; }).length;
+    if (sin) { return { mensaje: 'burndown no disponible: ' + sin + ' de ' + hechas.length + ' tareas completadas sin fecha de cierre' }; }
+    var base = tareas.filter(function (t) { return t.estado_tarea !== 'cancelado'; }).length;
+    var fechas = [];
+    hechas.forEach(function (t) { if (fechas.indexOf(t.cerrada) === -1) { fechas.push(t.cerrada); } });
+    fechas.sort();
+    return { spec: { id: 'grafico-burndown-spec', titulo: 'Burndown: tareas pendientes por fecha de cierre', tipo: 'line',
+      categoria: 'Fecha de cierre', unidad: 'tareas', origen: 'campo Cerrada del ledger',
+      descripcion: 'Tareas pendientes (sin cancelar) tras cada fecha en la que se cerró alguna; no hay puntos interpolados.',
+      etiquetas: fechas, series: [{ nombre: 'Tareas pendientes', valores: fechas.map(function (f) {
+        return base - hechas.filter(function (t) { return t.cerrada <= f; }).length; }) }] } };
+  }
+
+  function vaciar(id) { var n = porId(id); if (n) { n.replaceChildren(); } return n; }
+
+  function dibujarGraficos(tareas) {
+    if (!porId('grafico-avance-fase') || !raiz.PanelCharts) { return; }
+    var esp = tareas ? especificaciones(tareas) : null;
+    var clave = JSON.stringify([esp, ctx.chart]);
+    if (clave === ctx.graficos) { return; }
+    ctx.graficos = clave;
+    ['grafico-avance-fase', 'grafico-horas-fase', 'grafico-horas-tarea', 'grafico-burndown'].forEach(vaciar);
+    if (!esp) {
+      porId('grafico-avance-fase').appendChild(el('p', 'ausencia', 'Sin datos: no hay tareas con las que dibujar los gráficos.'));
+      return;
+    }
+    var opciones = { chartDisponible: ctx.chart };
+    raiz.PanelCharts.dibujar(porId('grafico-avance-fase'), esp.avance, opciones);
+    raiz.PanelCharts.dibujar(porId('grafico-horas-fase'), esp.horasFase, opciones);
+    raiz.PanelCharts.dibujar(porId('grafico-horas-tarea'), esp.horasTarea, opciones);
+    var b = porId('grafico-burndown');
+    if (esp.burndown.spec) { raiz.PanelCharts.dibujar(b, esp.burndown.spec, opciones); }
+    else {
+      var m = el('p', 'ausencia', esp.burndown.mensaje);
+      m.setAttribute('role', 'status');
+      b.appendChild(m);
+    }
+  }
+
+  /* --- estado, sondeo y arranque ----------------------------------------------------------------------------- */
+
   function dibujar(d, motivo) {
+    ctx.aviso = false;
     pongo('plan-estado', textoEstado(d, motivo));
+    pongo('plan-frescura', d ? 'Lectura obtenida: ' + d.observed_at + '.' : '');
     if (d && d.slug) { pongo('plan-titulo', 'Tareas del plan «' + d.slug + '»'); }
     dibujarKanban(hayTareas(d) ? d : null);
+    dibujarGraficos(hayTareas(d) ? d.tareas : null);
+  }
+
+  function parar() {
+    if (ctx.temporizador !== null) { raiz.clearTimeout(ctx.temporizador); ctx.temporizador = null; }
+  }
+  function programar() {
+    parar();
+    if (!ctx.servido || raiz.document.hidden) { return; }
+    ctx.temporizador = raiz.setTimeout(refrescar, SONDEO_MS);
+  }
+
+  function filaDe(id) { return ctx.nodos[id] ? ctx.nodos[id].clave : null; }
+
+  function aplicar(d) {
+    var tid = ctx.abierto;
+    var antes = tid ? filaDe(tid) : null;
+    dibujar(d);
+    ctx.ultimo = d;
+    /* Si la tarea abierta cambió de fila, su detalle se vuelve a pedir en silencio: sin cerrar ni mover el foco. */
+    if (tid && ctx.abierto === tid && ctx.nodos[tid] && ctx.nodos[tid].clave !== antes) {
+      if (ctx.controlador) { ctx.controlador.abort(); }
+      pedirDetalle(tid, ctx.token);
+    }
+  }
+
+  function refrescar() {
+    parar();
+    if (raiz.document.hidden || ctx.enVuelo) { return; }
+    ctx.enVuelo = true;
+    var boton = porId('plan-refrescar');
+    if (boton) { boton.disabled = true; }
+    var controlador = new raiz.AbortController();
+    ctx.ctrlPlan = controlador;
+    var plazo = raiz.setTimeout(function () { controlador.abort(); }, PLAZO_MS);
+    raiz.fetch('api/plan-' + ctx.id, { credentials: 'omit', cache: 'no-store', signal: controlador.signal })
+      .then(function (r) { if (!r.ok) { throw new Error('no disponible'); } return r.json(); })
+      .then(function (d) {
+        ctx.invalida = !validar(d, ctx.id);
+        if (ctx.invalida) { throw new Error('invalida'); }
+        aplicar(d);
+      })
+      .catch(function () {
+        if (controlador.signal.aborted && raiz.document.hidden) { return; }
+        if (ctx.ultimo) {
+          ctx.aviso = true;
+          pongo('plan-estado', 'No se pudo actualizar. Se conserva la última vista y su fecha anterior; no se acredita su vigencia.');
+        } else { dibujar(null, ctx.invalida ? 'invalida' : 'no_disponible'); }
+      })
+      .then(function () {
+        raiz.clearTimeout(plazo);
+        ctx.ctrlPlan = null;
+        ctx.enVuelo = false;
+        if (boton) { boton.disabled = false; }
+        programar();
+      });
+  }
+
+  function alVisibilidad() {
+    if (raiz.document.hidden) {
+      parar();
+      if (ctx.ctrlPlan) { ctx.ctrlPlan.abort(); }
+    } else { refrescar(); }
   }
 
   function leerDatos() {
@@ -366,6 +553,7 @@
     if (typeof id !== 'string' || !/^[a-f0-9]{16}$/.test(id)) { dibujar(null, 'invalida'); return; }
     ctx.id = id;
     ctx.servido = datos.modo === 'servido';
+    ctx.chart = datos.chartjs_disponible !== false;
     ctx.detalles = objeto(datos.detalles) ? datos.detalles : {};
     raiz.document.addEventListener('keydown', alTeclado);
     var cierre = porId('plan-detalle-cerrar');
@@ -376,16 +564,10 @@
       else { dibujar(null, 'invalida'); }
       return;
     }
-    var controlador = new raiz.AbortController();
-    var plazo = raiz.setTimeout(function () { controlador.abort(); }, PLAZO_MS);
-    raiz.fetch('api/plan-' + id, { credentials: 'omit', cache: 'no-store', signal: controlador.signal })
-      .then(function (r) { if (!r.ok) { throw new Error('no disponible'); } return r.json(); })
-      .then(function (d) {
-        if (!validar(d, id)) { dibujar(null, 'invalida'); return; }
-        dibujar(d);
-      })
-      .catch(function () { dibujar(null, 'no_disponible'); })
-      .then(function () { raiz.clearTimeout(plazo); });
+    var boton = porId('plan-refrescar');
+    if (boton) { boton.hidden = false; boton.addEventListener('click', refrescar); }
+    raiz.document.addEventListener('visibilitychange', alVisibilidad);
+    refrescar();
   }
 
   raiz.PanelPlan = { iniciar: iniciar, dibujar: dibujar, validar: validar, validarDetalle: validarDetalle, COLUMNAS: COLUMNAS };

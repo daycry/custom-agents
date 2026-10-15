@@ -359,7 +359,7 @@ def _fila_plan(t):
             'estado_tarea': t['estado'], 'literal': _limpio(t['literal'], 'literal'),
             'horas': {'real': t['horas']['ia']['real'], 'est': t['horas']['ia']['est'],
                       'fuente': t['horas']['ia']['fuente']},
-            'gaps': len(t['gaps'])}
+            'gaps': len(t['gaps']), 'cerrada': t['cerrada']}
 
 
 def plan(project, ident):

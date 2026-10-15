@@ -79,7 +79,7 @@ def servidor(servicio, proyecto_plan):
 
 CLAVES_PLAN = {'version', 'source', 'status', 'complete', 'observed_at', 'id', 'slug', 'issues', 'vocabulario',
                'omitidas', 'tareas'}
-CLAVES_FILA = {'id', 'titulo', 'fase_nombre', 'estado_tarea', 'literal', 'horas', 'gaps'}
+CLAVES_FILA = {'id', 'titulo', 'fase_nombre', 'estado_tarea', 'literal', 'horas', 'gaps', 'cerrada'}
 
 
 def test_plan_proyecta_solo_lo_del_kanban_con_su_contrato(datos, proyecto_plan):
@@ -316,7 +316,7 @@ def _correr(tmp_path, cuerpo, *, datos_pagina, extra=''):
     node = shutil.which('node')
     if not node:
         pytest.skip('Node no disponible para el arnés de page-plan.js')
-    fuentes = ''.join((ASSETS / n).read_text(encoding='utf8') for n in ('panel-core.js', 'page-cartera.js', 'page-plan.js'))
+    fuentes = ''.join((ASSETS / n).read_text(encoding='utf8') for n in ('panel-core.js', 'panel-charts.js', 'page-cartera.js', 'page-plan.js'))
     programa = (HARNESS.replace('IDS', json.dumps(list(IDS))) + extra + '\nponerDatos(' + json.dumps(datos_pagina) + ');\n' + fuentes
                 + '\n(async()=>{' + cuerpo + '})().catch(e=>{console.error(e);process.exitCode=1;});')
     fuente = tmp_path / 'plan.cjs'
@@ -345,9 +345,9 @@ def _plan_con(plan, tareas, **cambios):
     return nuevo
 
 
-def _fila(ident, estado, titulo='t', literal=None, real=None, est=None, fuente=None, gaps=0, fase='Fase 1'):
+def _fila(ident, estado, titulo='t', literal=None, real=None, est=None, fuente=None, gaps=0, fase='Fase 1', cerrada=None):
     return {'id': ident, 'titulo': titulo, 'fase_nombre': fase, 'estado_tarea': estado, 'literal': literal,
-            'horas': {'real': real, 'est': est, 'fuente': fuente}, 'gaps': gaps}
+            'horas': {'real': real, 'est': est, 'fuente': fuente}, 'gaps': gaps, 'cerrada': cerrada}
 
 
 def test_el_kanban_tiene_exactamente_las_cinco_columnas_del_vocabulario_y_una_tarjeta_por_tarea(tmp_path, plan_alfa):
@@ -632,7 +632,8 @@ def test_el_detalle_precede_al_kanban_en_el_orden_de_lectura_y_tiene_su_anuncio(
 # --- JS: detalle accesible --------------------------------------------------------------------------------------
 
 IDS = ('plan-estado', 'kanban-plan', 'plan-titulo', 'plan-detalle', 'plan-detalle-titulo', 'plan-detalle-contenido',
-       'plan-detalle-cerrar', 'plan-anuncio')
+       'plan-detalle-cerrar', 'plan-anuncio', 'plan-frescura', 'plan-refrescar', 'grafico-avance-fase',
+       'grafico-horas-fase', 'grafico-horas-tarea', 'grafico-burndown')
 EXTRA_DET = '''
 ids['plan-detalle'].hidden=true;
 const boton=(id)=>walk(ids['kanban-plan'],n=>n.tagName==='button'&&n.dataset.tarea===id)[0];
@@ -812,3 +813,237 @@ def test_page_plan_usa_texto_plano_para_los_campos_del_ledger_y_dos_fetch_como_m
     js = (ASSETS / 'page-plan.js').read_text(encoding='utf8')
     assert 'innerHTML' not in js and 'insertAdjacentHTML' not in js and 'eval(' not in js and 'http://' not in js
     assert js.count('.fetch(') == 2 and "'api/plan-' + " in js and "'Escape'" in js and 'plan-anuncio' in js
+
+
+# =====================================================================================================================
+# T-25, T-26 y T-27: gráficos del Plan, burndown con fechas completas y refresco vivo
+# =====================================================================================================================
+
+def _resumen_del_ledger(ruta):
+    """Filas `[fase, completadas, total]` de la tabla «Resumen de progreso» de un ledger (sin la fila TOTAL)."""
+    texto = Path(ruta).read_text(encoding='utf8')
+    bloque = texto.split('## Resumen de progreso', 1)[1].split('\n## ', 1)[0]
+    filas = [[c.strip() for c in ln.strip().strip('|').split('|')] for ln in bloque.splitlines() if ln.startswith('| ')]
+    return [[f[0], f[1], f[2]] for f in filas[1:] if not f[0].startswith('**') and set(f[0]) != {'-'}]
+
+
+GRAF = """
+const tabla=(id)=>filas(ids[id]);
+const canvases=(id)=>walk(ids[id],n=>n.tagName==='canvas').length;
+"""
+
+
+def test_el_avance_por_fase_coincide_con_la_tabla_resumen_del_ledger(tmp_path, plan_alfa):
+    esperado = _resumen_del_ledger(ROOT / 'tests/fixtures/panel-redesign/roadmap/2026-01-10-alfa/tasks.md')
+    assert esperado == [['Fase 1', '1', '2']]
+    _correr(tmp_path, GRAF + """
+assert.deepEqual(tabla('grafico-avance-fase'),ESPERADO);
+assert.equal(creados.length>=1,true);assert.equal(canvases('grafico-avance-fase'),1);
+""".replace('ESPERADO', json.dumps(esperado)), datos_pagina=_exportado_con(plan_alfa))
+
+
+def test_el_avance_por_fase_suma_por_fase_y_una_tarea_sin_fase_va_a_su_fila(tmp_path, plan_alfa):
+    plan = _plan_con(plan_alfa, [_fila('T-01', 'completado', fase='Fase 1 — A'), _fila('T-02', 'borrador', fase='Fase 1 — A'),
+                                 _fila('T-03', 'cancelado', fase='Fase 2 — B'), _fila('T-04', 'completado', fase='Fase 2 — B'),
+                                 _fila('T-05', 'en-progreso', fase=None)])
+    _correr(tmp_path, GRAF + """
+assert.deepEqual(tabla('grafico-avance-fase'),[['Fase 1 — A','1','2'],['Fase 2 — B','1','2'],['Sin fase','0','1']]);
+""", datos_pagina=_exportado_con(plan))
+
+
+def test_real_frente_a_estimado_por_fase_suma_solo_lo_medido_y_dice_sin_datos_en_lo_ausente(tmp_path, plan_alfa):
+    plan = _plan_con(plan_alfa, [
+        _fila('T-01', 'completado', real=1.5, est=2, fuente='medido', fase='Fase 1'),
+        _fila('T-02', 'completado', real=0.25, est=1, fuente='medido', fase='Fase 1'),
+        _fila('T-03', 'completado', real=0.5, est=1, fuente='estimado', fase='Fase 2'),
+        _fila('T-04', 'borrador', est=3, fase='Fase 3'), _fila('T-05', 'borrador', fase='Fase 4')])
+    _correr(tmp_path, GRAF + """
+const t=tabla('grafico-horas-fase');
+assert.deepEqual(t[0],['Fase 1 (medido)','1.75 h','3 h']);
+assert.deepEqual(t[1],['Fase 2 (estimado)','0.5 h','1 h']);
+assert.deepEqual(t[2],['Fase 3','sin datos','3 h']);
+assert.deepEqual(t[3],['Fase 4','sin datos','sin datos']);
+assert.ok(!t.some(f=>f.some(c=>/^0 h$/.test(c))),'un dato ausente nunca se pinta como 0');
+assert.equal(canvases('grafico-horas-fase'),1);
+""", datos_pagina=_exportado_con(plan))
+
+
+def test_real_frente_a_estimado_por_tarea_con_su_procedencia(tmp_path, plan_alfa):
+    plan = _plan_con(plan_alfa, [
+        _fila('T-01', 'completado', real=1, est=2, fuente='medido'), _fila('T-02', 'completado', real=0.5, est=0.5, fuente='estimado'),
+        _fila('T-03', 'borrador', est=4), _fila('T-04', 'borrador')])
+    _correr(tmp_path, GRAF + """
+const t=tabla('grafico-horas-tarea');
+assert.deepEqual(t[0],['T-01 (medido)','1 h','2 h']);
+assert.deepEqual(t[1],['T-02 (estimado)','0.5 h','0.5 h']);
+assert.deepEqual(t[2],['T-03','sin datos','4 h']);
+assert.deepEqual(t[3],['T-04','sin datos','sin datos']);
+""", datos_pagina=_exportado_con(plan))
+
+
+def test_sin_tareas_los_graficos_dicen_sin_datos_y_sin_chart_js_queda_la_tabla(tmp_path, plan_alfa):
+    _correr(tmp_path, GRAF + """
+assert.equal(canvases('grafico-avance-fase'),0);assert.match(ids['grafico-avance-fase'].textContent,/Sin datos/);
+""", datos_pagina=_exportado_con(_plan_con(plan_alfa, None, status='sin_tareas', complete=False)))
+    plan = _plan_con(plan_alfa, [_fila('T-01', 'completado', real=1, est=1, fuente='medido')])
+    _correr(tmp_path, GRAF + """
+assert.equal(canvases('grafico-avance-fase'),0);assert.match(ids['grafico-avance-fase'].textContent,/solo la tabla/);
+assert.deepEqual(tabla('grafico-avance-fase'),[['Fase 1','1','1']]);
+""", datos_pagina={**_exportado_con(plan), 'chartjs_disponible': False})
+
+
+def test_el_burndown_se_dibuja_solo_con_todas_las_fechas_y_sin_puntos_interpolados(tmp_path, plan_alfa):
+    plan = _plan_con(plan_alfa, [
+        _fila('T-01', 'completado', cerrada='2026-10-12'), _fila('T-02', 'completado', cerrada='2026-10-12'),
+        _fila('T-03', 'completado', cerrada='2026-10-15'), _fila('T-04', 'en-progreso'), _fila('T-05', 'borrador'),
+        _fila('T-06', 'cancelado')])
+    _correr(tmp_path, GRAF + """
+assert.deepEqual(tabla('grafico-burndown'),[['2026-10-12','3 tareas'],['2026-10-15','2 tareas']]);
+const c=creados[creados.length-1];assert.equal(c.config.type,'line');
+assert.deepEqual(c.config.data.labels,['2026-10-12','2026-10-15'],'sin el 13 y el 14: nada interpolado');
+assert.equal(canvases('grafico-burndown'),1);assert.doesNotMatch(ids['grafico-burndown'].textContent,/no disponible/);
+""", datos_pagina=_exportado_con(plan))
+
+
+def test_el_burndown_con_una_fecha_ausente_dice_el_mensaje_exacto_sin_grafico_parcial(tmp_path, plan_alfa):
+    plan = _plan_con(plan_alfa, [_fila('T-01', 'completado', cerrada='2026-10-12'), _fila('T-02', 'completado'),
+                                 _fila('T-03', 'completado'), _fila('T-04', 'borrador')])
+    _correr(tmp_path, GRAF + """
+assert.equal(ids['grafico-burndown'].textContent,'burndown no disponible: 2 de 3 tareas completadas sin fecha de cierre');
+assert.equal(canvases('grafico-burndown'),0);assert.equal(tag(ids['grafico-burndown'],'table').length,0);
+""", datos_pagina=_exportado_con(plan))
+
+
+def test_un_ledger_antiguo_sin_ninguna_fecha_muestra_el_mensaje_y_sin_completadas_no_inventa(tmp_path, plan_alfa):
+    _correr(tmp_path, GRAF + """
+assert.equal(ids['grafico-burndown'].textContent,'burndown no disponible: 1 de 1 tareas completadas sin fecha de cierre');
+""", datos_pagina=_exportado_con(_plan_con(plan_alfa, [_fila('T-01', 'completado'), _fila('T-02', 'borrador')])))
+    _correr(tmp_path, GRAF + """
+assert.match(ids['grafico-burndown'].textContent,/Sin datos: ninguna tarea completada/);assert.equal(canvases('grafico-burndown'),0);
+""", datos_pagina=_exportado_con(_plan_con(plan_alfa, [_fila('T-01', 'borrador')])))
+
+
+def test_cerrada_viaja_en_la_fila_del_plan_y_una_fecha_mal_formada_no_se_pinta(datos, tmp_path):
+    carpeta = tmp_path / 'docs/roadmap/2026-02-02-cc'
+    carpeta.mkdir(parents=True)
+    (carpeta / 'improvement-plan.md').write_text('# p\n', encoding='utf8')
+    (carpeta / 'tasks.md').write_text('# L\n\n## Fase 1\n\n### T-01 — a\n- **Estado**: completado\n- **Cerrada**: 2026-10-15\n\n'
+                                      '### T-02 — b\n- **Estado**: completado\n- **Cerrada**: ayer\n\n'
+                                      '### T-03 — c\n- **Estado**: borrador\n', encoding='utf8')
+    r = datos.plan(tmp_path, id16('2026-02-02-cc'))
+    assert [t['cerrada'] for t in r['tareas']] == ['2026-10-15', None, None]
+
+
+def test_una_fecha_de_cierre_fuera_de_contrato_invalida_la_respuesta(tmp_path, plan_alfa):
+    plan = _plan_con(plan_alfa, [_fila('T-01', 'completado', cerrada='15/10/2026')])
+    _correr(tmp_path, """
+assert.equal(walk(ids['kanban-plan'],n=>n.tagName==='article').length,0);assert.match(ids['plan-estado'].textContent,/No se pudo leer/);
+""", datos_pagina=_exportado_con(plan))
+
+
+# --- T-27: refresco vivo ----------------------------------------------------------------------------------------------
+
+VIVO = LIBRES + EXTRA_DET + """
+const columna=(titulo)=>columnas().find(c=>tag(c,'h2')[0].textContent.startsWith(titulo));
+const enColumna=(titulo)=>tarjetas(columna(titulo)).map(a=>a.dataset.id);
+const ciclo=async(plan)=>{fire(5000);await settle();await respond(plan);};
+"""
+
+
+def _vivo(plan_alfa):
+    base = _plan_con(plan_alfa, [_fila('T-01', 'completado', 'Primera'), _fila('T-02', 'en-progreso', 'Segunda'),
+                                 _fila('T-03', 'borrador', 'Tercera')])
+    movido = json.loads(json.dumps(base))
+    movido['tareas'][1]['estado_tarea'] = 'completado'
+    movido['observed_at'] = '2026-10-15T10:00:10Z'
+    return base, movido
+
+
+def _sustituye(texto, **valores):
+    for clave, valor in valores.items():
+        texto = texto.replace(clave, json.dumps(valor))
+    return texto
+
+
+def test_servido_refresca_cada_5_s_mueve_la_tarjeta_y_conserva_tarea_abierta_foco_y_region(tmp_path, plan_alfa):
+    base, movido = _vivo(plan_alfa)
+    _correr(tmp_path, _sustituye(VIVO + """
+await respond(BASE);assert.equal(pendientes(5000),1,'el sondeo queda programado a 5 s');
+assert.deepEqual(enColumna('En progreso'),['T-02']);
+const antes=tarjetaDe('T-03');const anuncio=ids['plan-anuncio'];
+boton('T-01').events.click[0]();await settle();await respond(DET1);
+assert.equal(ids['plan-detalle'].hidden,false);
+boton('T-03').focus();
+await ciclo(BASE);
+assert.equal(requests[requests.length-1].url,'api/plan-'+ID);
+assert.equal(tarjetaDe('T-03'),antes,'una tarjeta sin cambios conserva su DOM');
+assert.equal(ids['plan-detalle'].hidden,false,'ciclo 1: detalle abierto');
+await ciclo(MOVIDO);
+assert.deepEqual(enColumna('En progreso'),[]);assert.deepEqual(enColumna('Completado'),['T-01','T-02']);
+assert.equal(ids['plan-detalle'].hidden,false,'ciclo 2: la tarea abierta sigue abierta');
+assert.match(ids['plan-detalle-titulo'].textContent,/T-01/);
+assert.equal(document.activeElement,boton('T-03'),'el foco se conserva');
+assert.equal(ids['plan-anuncio'],anuncio);assert.equal(pendientes(5000),1);
+assert.match(ids['plan-frescura'].textContent,/2026-10-15T10:00:10Z/);
+""", BASE=base, MOVIDO=movido, ID=ALFA, DET1=_env(base, 'T-01', tarea=_tarea_js('T-01'))), datos_pagina=_servido(ALFA))
+
+
+def test_el_foco_en_una_tarjeta_que_cambia_de_columna_se_restaura(tmp_path, plan_alfa):
+    base, movido = _vivo(plan_alfa)
+    _correr(tmp_path, _sustituye(VIVO + """
+await respond(BASE);boton('T-02').focus();await ciclo(MOVIDO);
+assert.deepEqual(enColumna('Completado'),['T-01','T-02']);assert.equal(document.activeElement,boton('T-02'));
+""", BASE=base, MOVIDO=movido), datos_pagina=_servido(ALFA))
+
+
+def test_si_cambia_la_tarea_abierta_su_detalle_se_vuelve_a_pedir_sin_cerrarlo(tmp_path, plan_alfa):
+    base, movido = _vivo(plan_alfa)
+    nuevo = _env(movido, 'T-02', tarea=_tarea_js('T-02', estado_tarea='completado'))
+    _correr(tmp_path, _sustituye(VIVO + """
+await respond(BASE);boton('T-02').events.click[0]();await settle();await respond(DET);
+assert.match(detalle(),/Estado: en-progreso/);
+await ciclo(MOVIDO);
+assert.equal(requests[requests.length-1].url,'api/plan-'+ID+'-T-02');await respond(NUEVO);
+assert.match(detalle(),/Estado: completado/);assert.equal(ids['plan-detalle'].hidden,false);
+""", BASE=base, MOVIDO=movido, ID=ALFA, NUEVO=nuevo, DET=_env(base, 'T-02', tarea=_tarea_js('T-02'))),
+        datos_pagina=_servido(ALFA))
+
+
+def test_un_fallo_de_red_conserva_lo_anterior_con_aviso_y_se_recupera(tmp_path, plan_alfa):
+    base, movido = _vivo(plan_alfa)
+    _correr(tmp_path, _sustituye(VIVO + """
+await respond(BASE);fire(5000);await settle();requests[requests.length-1].reject(new Error('red'));await settle();
+assert.deepEqual(enColumna('En progreso'),['T-02'],'se conserva lo anterior');
+assert.match(ids['plan-estado'].textContent,/No se pudo actualizar.*Se conserva la última vista/);
+assert.equal(pendientes(5000),1,'sigue sondeando');
+await ciclo(MOVIDO);assert.doesNotMatch(ids['plan-estado'].textContent,/No se pudo actualizar/);
+assert.deepEqual(enColumna('Completado'),['T-01','T-02']);
+""", BASE=base, MOVIDO=movido), datos_pagina=_servido(ALFA))
+
+
+def test_el_sondeo_se_pausa_con_la_pestana_oculta_y_se_reanuda_y_el_boton_lo_cancela(tmp_path, plan_alfa):
+    base, _ = _vivo(plan_alfa)
+    _correr(tmp_path, _sustituye(VIVO + """
+await respond(BASE);assert.equal(pendientes(5000),1);
+document.hidden=true;docEvents.visibilitychange();assert.equal(pendientes(5000),0,'oculta: sin sondeo');
+const n=requests.length;document.hidden=false;docEvents.visibilitychange();assert.equal(requests.length,n+1,'visible: refresca ya');
+await respond(BASE);assert.equal(pendientes(5000),1);
+assert.equal(ids['plan-refrescar'].hidden,false);
+ids['plan-refrescar'].events.click[0]();assert.equal(pendientes(5000),0,'a mano: cancela el sondeo pendiente');
+assert.equal(requests.length,n+2);await respond(BASE);assert.equal(pendientes(5000),1);
+""", BASE=base), datos_pagina=_servido(ALFA))
+
+
+def test_el_exportado_no_sondea_ni_muestra_el_boton_de_actualizar(tmp_path, plan_alfa):
+    _correr(tmp_path, """
+assert.equal(requests.length,0);assert.equal(pendientes(5000),0);assert.equal(ids['plan-refrescar'].hidden,true);
+""", datos_pagina=_exportado_con(plan_alfa), extra="ids['plan-refrescar'].hidden=true;")
+
+
+def test_el_esqueleto_del_plan_trae_los_contenedores_de_graficos_y_el_boton_oculto():
+    build = _cargar('build_panel_plan', SCRIPTS / 'build_panel.py')
+    html = build.cuerpo_plan_iniciativa()
+    for ident in ('grafico-avance-fase', 'grafico-horas-fase', 'grafico-horas-tarea', 'grafico-burndown', 'plan-frescura'):
+        assert f'id="{ident}"' in html, ident
+    assert re.search(r'<button id="plan-refrescar" type="button" hidden>', html)
+    assert html.index('id="plan-detalle"') < html.index('id="kanban-plan"')

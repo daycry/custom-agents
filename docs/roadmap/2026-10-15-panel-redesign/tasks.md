@@ -40,10 +40,10 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
-| Fase 2 — Inicio, Iniciativas y Plan | 8 | 17 | 47% | 0 / 58,4h | 2,27 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
+| Fase 2 — Inicio, Iniciativas y Plan | 14 | 17 | 82% | 0 / 58,4h | 2,92 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 0 | 10 | 0% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
 | Fase 3 — Agentes en vivo + cierre transversal | 0 | 15 | 0% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **24** | **58** | **41%** | **0 / 159,2h** | **6,26 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| **TOTAL** | **30** | **58** | **52%** | **0 / 159,2h** | **6,91 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -846,32 +846,37 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 ### T-25 — Plan: avance por fase y real frente a estimado
 
 - **Descripción**: Gráficos del Plan: avance por fase (completadas/total) con las mismas cifras que el «Resumen de progreso» del ledger, y real frente a estimado por fase y por tarea con «(medido)»/«(estimado)».
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,4h · real —
+- **Tiempo IA (ejec.)**: est. 0,4h · real 0,25h (estimado)
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
 - **Previsión IA**: 183k in / 30k out tok · 2,80 €
 - **Dependencias**: T-23
 - **Tipo**: frontend
-- **Archivos**: `skills/plugin-panel/assets/page-plan.js`, `tests/test_panel_plan_ui.py`
+- **Archivos**: `skills/plugin-panel/assets/page-plan.js`, `tests/test_panel_plan_ui.py`, `skills/plugin-panel/scripts/panel_data.py` (añadido: `cerrada` en la fila), `skills/plugin-panel/scripts/build_panel.py` (añadido: contenedores de gráficos y botón), `tests/test_panel_plan_ui.py`
 - **Cubre (tests)**: E2E-07, E2E-15
 - **Verificación**: `python3 -m pytest -q tests/test_panel_plan_ui.py` → `passed` (cifras por fase iguales a las de la tabla «Resumen de progreso» del ledger de fixture; `—` no se pinta como 0)
 
 **Criterios de aceptación**
-- [ ] CA-11: avance por fase con su tabla, cifras iguales al resumen del ledger.
-- [ ] CA-13: real frente a estimado por fase y por tarea con su procedencia; `—` = «sin datos».
+- [x] CA-11: avance por fase con su tabla, cifras iguales al resumen del ledger.
+- [x] CA-13: real frente a estimado por fase y por tarea con su procedencia; `—` = «sin datos».
 
 **Subtareas**
-- [ ] RED; gráficos.
+- [x] RED; gráficos.
 
-**Notas**: adaptador de T-07; proyección de T-21.
+- **Cerrada**: 2026-10-15
+- **Changelog**: El Plan muestra el avance por fase y las horas IA reales frente a las estimadas, por fase y por tarea, cada gráfico con su tabla y con la procedencia «(medido)» o «(estimado)»; lo que falta se dice «sin datos».
+- **Evidencia TDD**: `RED: 42 failed, 74 passed en tests/test_panel_plan_ui.py (los nuevos de T-25..T-27 y los de contrato de fila al exigir `cerrada`; KeyError/AssertionError: sin `cerrada` en la fila, sin graficos ni boton plan-refrescar, sin sondeo a 5 s) · 2026-10-15`.
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_plan_ui.py` → `116 passed` (avance por fase igual a la tabla «Resumen de progreso» de la fixture alfa: Fase 1, 1 de 2; `—` se pinta «sin datos», nunca 0). Navegador (Edge 155 y Firefox 142, servido y `file://`, `verify-p4.mjs`): 0 violaciones de CSP, 0 externas, 0 errores; cada gráfico con su tabla; en el ledger real (58 tareas) los tres gráficos de barras con tabla y `canvas`.
+
+**Notas**: `panel_data._fila_plan` añade `cerrada` (fecha ya validada por `ledger-view`, `null` si falta o es inválida) y el validador JS lo exige (clave nueva de la fila, 3.ª tarea que la usa). Los gráficos salen de las filas de `api/plan-<id16>` con `PanelCharts` (T-07): avance = completadas/total por fase como cuenta el ledger; horas por fase = suma de lo presente, `sin datos` si ninguna tarea trae el dato; la etiqueta lleva «(medido)», «(estimado)» o «(medido y estimado)» según la fuente de las tareas con real. No se creó un segundo lector del ledger. Tope de 400 tareas en el gráfico por tarea (el del plan).
 
 ### T-26 — Plan: burndown solo con fechas de cierre completas
 
 - **Descripción**: Si todas las tareas `completado` llevan `Cerrada`, el Plan dibuja el burndown de pendientes por fecha; si no, muestra «burndown no disponible: N de M tareas completadas sin fecha de cierre», sin gráfico parcial ni interpolado.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 1,8h · real —
-- **Tiempo IA (ejec.)**: est. 0,2h · real —
+- **Tiempo IA (ejec.)**: est. 0,2h · real 0,1h (estimado)
 - **Supervisión**: est. 0,05h (≈25 % IA) · real —
 - **Previsión IA**: 91k in / 15k out tok · 1,40 €
 - **Dependencias**: T-22, T-25
@@ -881,44 +886,54 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 - **Verificación**: `python3 -m pytest -q tests/test_panel_plan_ui.py` → `passed` (ledger con todas las fechas → serie; con una sin fecha → mensaje con N y M y sin `<canvas>`)
 
 **Criterios de aceptación**
-- [ ] CA-12: burndown solo con fechas completas; mensaje exacto en el otro caso.
-- [ ] CA-40: ningún punto interpolado.
+- [x] CA-12: burndown solo con fechas completas; mensaje exacto en el otro caso.
+- [x] CA-40: ningún punto interpolado.
 
 **Subtareas**
-- [ ] RED; serie y mensaje.
+- [x] RED; serie y mensaje.
 
-**Notas**: regla de dibujo de `design.md` §2.4 I-02.
+- **Cerrada**: 2026-10-15
+- **Changelog**: El Plan dibuja el burndown de tareas pendientes solo cuando todas las completadas llevan fecha de cierre; si no, dice cuántas faltan y no dibuja un gráfico parcial.
+- **Evidencia TDD**: `RED: (mismo lote que T-25: los 7 de burndown/`cerrada` en rojo antes del código) · 2026-10-15`.
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_plan_ui.py` → `116 passed` (todas las fechas → línea con una fecha por cierre real y sin días interpolados; con una ausente → «burndown no disponible: 2 de 3 tareas completadas sin fecha de cierre», sin `canvas` ni tabla; ledger antiguo → «1 de 1…»; sin completadas → «Sin datos»). Navegador (Edge 155 y Firefox 142, servido y `file://`, `verify-p4.mjs`): 0 violaciones de CSP, 0 externas, 0 errores; cada gráfico con su tabla; ledger de alfa → mensaje exacto «1 de 1», fixture gamma con `Cerrada` → línea con tabla, plan real → mensaje.
+
+**Notas**: Regla de `design.md` §2.4 I-02. Pendientes = tareas no canceladas menos las cerradas hasta cada fecha; los puntos son solo las fechas de cierre reales. Decisión: con CERO tareas completadas no hay mensaje de «N de M» (sería «0 de 0») sino «Sin datos: ninguna tarea completada todavía».
 
 ### T-27 — Plan: refresco vivo sin perder la tarea abierta
 
 - **Descripción**: En servido, el kanban del Plan refresca cada 5 s por `api/plan-<id16>` y refleja el nuevo estado sin recargar ni cerrar la tarea abierta; un fallo de red conserva lo anterior con su aviso.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,4h · real —
+- **Tiempo IA (ejec.)**: est. 0,4h · real 0,3h (estimado)
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
 - **Previsión IA**: 183k in / 30k out tok · 2,80 €
 - **Dependencias**: T-24
 - **Tipo**: frontend
-- **Archivos**: `skills/plugin-panel/assets/page-plan.js`, `tests/test_panel_plan_ui.py`
+- **Archivos**: `skills/plugin-panel/assets/page-plan.js`, `tests/test_panel_plan_ui.py`, `skills/plugin-panel/scripts/build_panel.py` (añadido: región de frescura y botón «Actualizar ahora»)
 - **Cubre (tests)**: E2E-16
 - **Verificación**: `python3 -m pytest -q tests/test_panel_plan_ui.py` → `passed` (dos ciclos de 5.000 ms con un estado cambiado: tarjeta movida, detalle abierto y foco conservados)
 
 **Criterios de aceptación**
-- [ ] CA-14: tras dos ciclos (10 s) el kanban refleja el cambio sin recargar y sin perder la tarea abierta.
-- [ ] El sondeo se pausa con la pestaña oculta y se cancela al refrescar a mano (comportamiento de `panel-live.js`).
+- [x] CA-14: tras dos ciclos (10 s) el kanban refleja el cambio sin recargar y sin perder la tarea abierta.
+- [x] El sondeo se pausa con la pestaña oculta y se cancela al refrescar a mano (comportamiento de `panel-live.js`).
 
 **Subtareas**
-- [ ] RED con temporizadores falsos.
-- [ ] Refresco con conservación de DOM.
+- [x] RED con temporizadores falsos.
+- [x] Refresco con conservación de DOM.
 
-**Notas**: patrón de sondeo y conservación de DOM en `skills/plugin-panel/references/panel-live.js:63` (movido a `assets/` en T-12) y escenario `preserve_dom_unchanged` de `tests/test_panel_live_ui.py`.
+- **Cerrada**: 2026-10-15
+- **Changelog**: En servido, el kanban del Plan se refresca solo cada 5 segundos y mueve las tarjetas sin cerrar la tarea abierta ni perder el foco; si falla la red, conserva lo último con un aviso.
+- **Evidencia TDD**: `RED: (mismo lote: 6 de refresco vivo en rojo antes del código) · 2026-10-15`.
+- **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_panel_plan_ui.py` → `116 passed` (dos ciclos de 5.000 ms con un estado cambiado: tarjeta movida, detalle abierto, foco y región `aria-live` conservados; tarjeta sin cambios con el mismo nodo; detalle de la tarea abierta repedido en silencio si su fila cambia; fallo de red conserva y avisa; pausa con pestaña oculta; el botón cancela el sondeo). Navegador (Edge 155 y Firefox 142, servido y `file://`, `verify-p4.mjs`): 0 violaciones de CSP, 0 externas, 0 errores; cada gráfico con su tabla; copia del ledger de alfa con T-02 → completado: tras 11,5 s T-02 pasa de «En progreso» a «Completado», el detalle de T-01 sigue abierto y el foco queda en T-02.
+
+**Notas**: Patrón de `panel-live.js` (sondeo con `setTimeout` de 5 s, `inFlight`, pausa por `visibilitychange`, abort del plazo) y conservación de DOM: las tarjetas con la misma fila reutilizan su nodo; las movidas se reinsertan y el foco se restaura por id; `ctx.boton` apunta siempre al botón vigente para que Escape devuelva el foco. El texto de `plan-estado` ya no lleva la fecha (pasa a `plan-frescura`, no viva) para no anunciar cada ciclo.
 
 ### T-55 — `plan-review.py summary`: resumen de revisiones de solo lectura (`summarize_reviews`)
 
 - **Descripción**: Añade al dueño de la revisión (`agent-kits/shared/plan-review.py`) la operación `summarize_reviews(project, initiatives, *, state_root, deadline=None)` y su CLI `summary` (lista JSON por stdin ≤ 16 KiB). Sigue el patrón de `list_reminders`: sin inicializar, sin `.lock`, sin `fsync`, inventario doble y `approval_granted: false`. Devuelve una fila cerrada por iniciativa (`sin_revision · pendiente · cambios_pedidos · aprobada · obsoleta · no_disponible`, `version_ordinal` vN, cifras de comentarios y respuestas) y un sobre `ok|partial|unavailable` por debajo de 64 KiB (`design.md` §8.3).
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 5,0h · real —
-- **Tiempo IA (ejec.)**: est. 1,0h · real —
+- **Tiempo IA (ejec.)**: est. 1,0h · real 0,6h (estimado)
 - **Supervisión**: est. 0,25h (≈25 % IA) · real —
 - **Previsión IA**: 457k in / 75k out tok · 7,00 €
 - **Dependencias**: T-12
@@ -928,26 +943,32 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 - **Verificación**: `python3 -m pytest -q agent-kits/shared/test_plan_review_summary.py` → `passed` (6 estados, vN, obsoleta por `raw` y por `view`, plazo → `partial`, `state_changed`, 64 registros, árbol idéntico antes y después, con el cerrojo tomado por otro proceso) · `python3 -m pytest -q tests/test_plan_review_caller.py tests/test_panel_review_server.py tests/test_panel_review_ui.py` → `0 failed` sin tocar sus expectativas (CA-54)
 
 **Criterios de aceptación**
-- [ ] [GWT] CA-49 (propiedad de solo lectura): Dado un inventario con revisiones en cada situación, Cuando se llama a `summary`, Entonces cada iniciativa recibe su estado del vocabulario cerrado y el árbol de `.claude/plan-review/` conserva los mismos nombres, tamaños y hashes; con la carpeta de estado inexistente devuelve `sin_revision` y no la crea; funciona mientras otro proceso tiene el cerrojo.
-- [ ] [GWT] CA-50: Dado una revisión sobre una versión del plan, Cuando el `sha256` crudo del plan difiere (o, si coincide, difiere `view_sha256`), Entonces el estado es `obsoleta` y la decisión anterior no cuenta como vigente; un plan ilegible da `no_disponible`, nunca otro estado.
-- [ ] `vN` es el ordinal estable de la versión entre las que tienen registros; un plazo agotado da `status: partial` con `deadline_expired`; un cambio durante la lectura da `state_changed`; `review_id` solo sale para el servidor.
-- [ ] [GWT] CA-54: las suites existentes de `plan-review.py` y `tests/test_panel_review_*` pasan sin modificar sus expectativas; `list_reminders` y el formato de estado no cambian.
+- [x] [GWT] CA-49 (propiedad de solo lectura): Dado un inventario con revisiones en cada situación, Cuando se llama a `summary`, Entonces cada iniciativa recibe su estado del vocabulario cerrado y el árbol de `.claude/plan-review/` conserva los mismos nombres, tamaños y hashes; con la carpeta de estado inexistente devuelve `sin_revision` y no la crea; funciona mientras otro proceso tiene el cerrojo.
+- [x] [GWT] CA-50: Dado una revisión sobre una versión del plan, Cuando el `sha256` crudo del plan difiere (o, si coincide, difiere `view_sha256`), Entonces el estado es `obsoleta` y la decisión anterior no cuenta como vigente; un plan ilegible da `no_disponible`, nunca otro estado.
+- [x] `vN` es el ordinal estable de la versión entre las que tienen registros; un plazo agotado da `status: partial` con `deadline_expired`; un cambio durante la lectura da `state_changed`; `review_id` solo sale para el servidor.
+- [x] [GWT] CA-54: las suites existentes de `plan-review.py` y `tests/test_panel_review_*` pasan sin modificar sus expectativas; `list_reminders` y el formato de estado no cambian.
 
 **Subtareas**
-- [ ] RED: suite nueva `test_plan_review_summary.py` con los 6 estados, sin escritura, cerrojo tomado, plazo y 64 registros.
-- [ ] `summarize_reviews` componiendo `_inventory`/`_record`/`_projection`; CLI `summary` (exit 0 `ok|partial`, 3 `unavailable`).
-- [ ] Comprobar que las suites del dueño no cambian.
+- [x] RED: suite nueva `test_plan_review_summary.py` con los 6 estados, sin escritura, cerrojo tomado, plazo y 64 registros.
+- [x] `summarize_reviews` componiendo `_inventory`/`_record`/`_projection`; CLI `summary` (exit 0 `ok|partial`, 3 `unavailable`).
+- [x] Comprobar que las suites del dueño no cambian.
 
 - **Changelog**: `plan-review.py` gana la operación de solo lectura `summary`, que devuelve el estado de revisión de varias iniciativas sin crear ni modificar nada en `.claude/plan-review/`.
 
-**Notas**: decisión O7 de `design.md` §8.2 (O8, proyección en el servidor, descartada: dos lectores del mismo estado). Patrón: `plan-review.py:575-635` (`list_reminders`); internos `:211-276`. CA-49 nombra `status` en la spec; la lectura es `summary` (`design.md` §8.10): qa prueba `summary`. Piezas que describen (CONTRACTS E49-E51): `docs/agents/CONTRACTS.md`, `agent-kits/shared/README.md`, `docs/PLUGIN-PANEL.md` (+EN), cubiertas en T-28. Lente C: el estado leído sin cerrojo y la ausencia de efectos son superficie de seguridad.
+- **Cerrada**: 2026-10-15
+
+- **Evidencia TDD**: `RED: agent-kits/shared/test_plan_review_summary.py falló con AttributeError (summarize_reviews no existe; 14 failed) · 2026-10-15`
+
+- **Verificación ejecutada** (2026-10-15): `pytest -q agent-kits/shared/test_plan_review_summary.py` → `14 passed in 55.14s`; `tests/test_plan_review_caller.py tests/test_panel_review_server.py tests/test_panel_review_ui.py tests/test_console_encoding.py tests/test_copias_declaradas.py` → `793 passed, 13 skipped`; suites del dueño (`test_plan_review*.py`) → `188 passed`.
+
+**Notas**: decisión O7 de `design.md` §8.2 (O8, proyección en el servidor, descartada: dos lectores del mismo estado). Patrón: `plan-review.py:575-635` (`list_reminders`); internos `:211-276`. CA-49 nombra `status` en la spec; la lectura es `summary` (`design.md` §8.10): qa prueba `summary`. Piezas que describen (CONTRACTS E49-E51): `docs/agents/CONTRACTS.md`, `agent-kits/shared/README.md`, `docs/PLUGIN-PANEL.md` (+EN), cubiertas en T-28. Lente C: el estado leído sin cerrojo y la ausencia de efectos son superficie de seguridad. Desviaciones: ninguna; `summary` devuelve `ok` con todas `sin_revision` si no hay carpeta de estado (no `not_registered`); un plazo agotado a mitad deja las iniciativas restantes en `no_disponible` y `partial`.
 
 ### T-56 — Servidor: `review_scope`, id16 → iniciativa y rutas `api/review-summary`, `api/review-current` y `api/review-open`
 
 - **Descripción**: `serve_panel.py` recibe el ámbito nuevo en `review_scope={'state_root': …}` (sin ampliar `review_selection`), construye la correspondencia `id16 → iniciativa` con el escaneo de cartera, sustituye el `set` de ids por un registro `id64 → {iniciativa, puerta, escritura}` (tope 128) y añade `GET api/review-summary`, `GET api/review-current/<id16>` y `POST api/review-open/<id16>`; `refresh` reabre la iniciativa y la puerta del registro (`design.md` §8.4). La puerta de la apertura desde el navegador es el literal `requested-review`; un `plan-ok` ajeno se ve sin escritura (405).
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 7,2h · real —
-- **Tiempo IA (ejec.)**: est. 1,4h · real —
+- **Tiempo IA (ejec.)**: est. 1,4h · real 1,0h (estimado)
 - **Supervisión**: est. 0,35h (≈25 % IA) · real —
 - **Previsión IA**: 641k in / 104k out tok · 9,80 €
 - **Dependencias**: T-23, T-55
@@ -957,27 +978,33 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 - **Verificación**: `python3 -m pytest -q tests/test_panel_review_panel_server.py tests/test_panel_review_server.py tests/test_panel_server.py` → `passed` (id16 desconocido → 404 y estado intacto; `gate_key` en el cuerpo → 400 sin llamar al dueño; sin token u `Origin` ajeno → 403 y estado intacto; `plan-ok` ajeno → 405; respuestas ≤ 65.536 bytes; el servidor ordinario no carga el dueño)
 
 **Criterios de aceptación**
-- [ ] [GWT] CA-45: Dado el panel servido con `review_scope` y una iniciativa sin revisión, Cuando el cliente envía `POST api/review-open/<id16>` con el cuerpo exacto `{"initiative_id": "<id16>"}`, Entonces el servidor abre la revisión con `open_review(..., gate_key='requested-review')` y devuelve el `review_id` registrado; un id16 que no está en la correspondencia → 404 antes de cargar el dueño y el directorio de estado no cambia.
-- [ ] [GWT] CA-47: Dado cualquier operación nueva de revisión, Cuando llega sin token, con `Host`, `Origin` o `Sec-Fetch-Site` ajenos, sin `Content-Type` JSON o por encima de 16 KiB, Entonces 403/400/413 y el estado no cambia; mismas cabeceras y CSP con nonce que hoy; sin cookies.
-- [ ] [GWT] CA-48: Dado `api/review-open`, Cuando el cuerpo trae cualquier clave distinta de `initiative_id`, `gate_key` incluida, Entonces 400 sin llamar al dueño; el registro de una revisión abierta desde el navegador tiene `gate_key = requested-review`, nunca `plan-ok`; no existe ninguna ruta que fije o cambie la puerta.
-- [ ] [GWT] CA-43: Dado `--review-initiative X --review-gate-key plan-ok` (como lo lanza `/dev-cycle`), Cuando se usa la revisión preseleccionada, Entonces sigue funcionando con escritura exactamente como hoy; el ámbito nuevo no cambia `review_selection` (`tests/test_panel_review_server.py:172-176` intacto).
-- [ ] Tope de 128 ids con respuesta explícita «demasiadas revisiones abiertas en este proceso»; los ids solo se registran desde respuestas del dueño, nunca desde el cuerpo de una petición; las carpetas sin plan, no válidas o con colisión de id16 quedan fuera de la correspondencia.
+- [x] [GWT] CA-45: Dado el panel servido con `review_scope` y una iniciativa sin revisión, Cuando el cliente envía `POST api/review-open/<id16>` con el cuerpo exacto `{"initiative_id": "<id16>"}`, Entonces el servidor abre la revisión con `open_review(..., gate_key='requested-review')` y devuelve el `review_id` registrado; un id16 que no está en la correspondencia → 404 antes de cargar el dueño y el directorio de estado no cambia.
+- [x] [GWT] CA-47: Dado cualquier operación nueva de revisión, Cuando llega sin token, con `Host`, `Origin` o `Sec-Fetch-Site` ajenos, sin `Content-Type` JSON o por encima de 16 KiB, Entonces 403/400/413 y el estado no cambia; mismas cabeceras y CSP con nonce que hoy; sin cookies.
+- [x] [GWT] CA-48: Dado `api/review-open`, Cuando el cuerpo trae cualquier clave distinta de `initiative_id`, `gate_key` incluida, Entonces 400 sin llamar al dueño; el registro de una revisión abierta desde el navegador tiene `gate_key = requested-review`, nunca `plan-ok`; no existe ninguna ruta que fije o cambie la puerta.
+- [x] [GWT] CA-43: Dado `--review-initiative X --review-gate-key plan-ok` (como lo lanza `/dev-cycle`), Cuando se usa la revisión preseleccionada, Entonces sigue funcionando con escritura exactamente como hoy; el ámbito nuevo no cambia `review_selection` (`tests/test_panel_review_server.py:172-176` intacto).
+- [x] Tope de 128 ids con respuesta explícita «demasiadas revisiones abiertas en este proceso»; los ids solo se registran desde respuestas del dueño, nunca desde el cuerpo de una petición; las carpetas sin plan, no válidas o con colisión de id16 quedan fuera de la correspondencia.
 
 **Subtareas**
-- [ ] RED: suite nueva `test_panel_review_panel_server.py` (404, 400, 403, 405, tope 128, tamaño).
-- [ ] Correspondencia id16, registro con puerta y escritura, tres rutas, `refresh` por registro.
-- [ ] Comprobar `test_ordinary_server_never_loads_review_owner` y las suites existentes sin cambios.
+- [x] RED: suite nueva `test_panel_review_panel_server.py` (404, 400, 403, 405, tope 128, tamaño).
+- [x] Correspondencia id16, registro con puerta y escritura, tres rutas, `refresh` por registro.
+- [x] Comprobar `test_ordinary_server_never_loads_review_owner` y las suites existentes sin cambios.
 
 - **Changelog**: El servidor del panel puede abrir una revisión de plan para cualquier iniciativa desde la página Plan y publica el resumen de estados de revisión, con las mismas protecciones de token, `Origin` y CSP que ya tenía.
 
-**Notas**: patrones en `serve_panel.py:190` (id16), `:252-263` (caché de 5 s), `:293-296` (`refresh`), `:319-327` (registro de ids), `:379-385` (rutas de revisión), `:353-368`/`:411-430` (protecciones). El navegador nunca envía una ruta ni un nombre de fichero. `receive`/`ack`/`consume`/`result`/`verify-result` siguen sin ruta HTTP (E51). **Lente C obligatoria** en el cierre (T-29): nueva vía de escritura desde el navegador.
+- **Cerrada**: 2026-10-15
+
+- **Evidencia TDD**: `RED: tests/test_panel_review_panel_server.py falló con TypeError (create_server() got an unexpected keyword argument 'review_scope'; 25 errores) · 2026-10-15`
+
+- **Verificación ejecutada** (2026-10-15): `pytest -q tests/test_panel_review_panel_server.py` → `25 passed` (x3 repeticiones); `tests/test_panel_review_*.py tests/test_panel_server.py` → `266 passed` (sin tocar `test_panel_review_server.py:172-176`; `test_ordinary_server_never_loads_review_owner` verde); `test_panel_export/fix4/pages/console_encoding/copias_declaradas/graphiti_security` → `854 passed, 1 skipped`.
+
+**Notas**: patrones en `serve_panel.py:190` (id16), `:252-263` (caché de 5 s), `:293-296` (`refresh`), `:319-327` (registro de ids), `:379-385` (rutas de revisión), `:353-368`/`:411-430` (protecciones). El navegador nunca envía una ruta ni un nombre de fichero. `receive`/`ack`/`consume`/`result`/`verify-result` siguen sin ruta HTTP (E51). **Lente C obligatoria** en el cierre (T-29): nueva vía de escritura desde el navegador. Desviaciones: `review_ids` queda como propiedad (copia `set` de las claves del registro `review_registry`) para no cambiar `test_panel_review_server.py:185,276`. Los ids16 salen de listar `docs/roadmap` (carpeta válida + `improvement-plan.md` listado, no leído; colisión = fuera), con caché de 5 s, no de la cartera (que exige `spec.md`). El dueño se carga perezosamente (404/400 nunca lo cargan). `review-open` responde compacto (`review_id`, `escritura`; la vista llega por `api/review/<id64>/view`); tope 128 → 429 con «demasiadas revisiones abiertas en este proceso». Respuestas nuevas sin texto libre ni rutas (sin `_scrubbed` a propósito; test de contrato en la suite nueva). `refresh` reabre iniciativa y puerta del registro; un id registrado conserva su entrada. POST con id16 desconocido → 404 antes de leer el cuerpo. Lente C: ver T-29.
 
 ### T-57 — CLI `--review-panel`, texto de activación y exportado sin revisión
 
 - **Descripción**: `build_panel.py` gana el flag opt-in `--review-panel`, que exige `--serve --project … --review-state-root …` y habilita en las páginas Plan el botón «Revisar este plan», el estado y las respuestas del agente; combinable con `--review-initiative`. Sin él, la página Plan explica en una frase cómo activarlo. `panel_pages.py` sirve `panel-review.js` también con `review_scope`. `--review-state-root` sin `--review-initiative` ni `--review-panel` sigue saliendo con exit 2 y el modo exportado no lleva controles ni lee `.claude/plan-review/` (`design.md` §8.5).
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,5h · real —
+- **Tiempo IA (ejec.)**: est. 0,5h · real 0,4h (estimado)
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
 - **Previsión IA**: 229k in / 37k out tok · 3,50 €
 - **Dependencias**: T-56
@@ -987,17 +1014,23 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 - **Verificación**: `python3 -m pytest -q tests/test_panel_export.py tests/test_panel_review_ui.py tests/test_panel_pages.py tests/test_panel_review_panel_server.py` → `passed` (el exit 2 de `--serve --project … --review-state-root …` sin iniciativa de `tests/test_panel_review_ui.py:52-57` sigue idéntico; el HTML exportado no contiene `api/review` ni controles)
 
 **Criterios de aceptación**
-- [ ] [GWT] CA-52: Dado `--export`, Cuando abro cualquier página, Entonces no hay botones ni formularios de revisión, ningún `fetch` de escritura ni la ruta `api/review`; la página Plan dice «estado de revisión: solo en modo servido» y no se lee `.claude/plan-review/`.
-- [ ] [GWT] CA-53: Dado el panel servido sin `--review-panel` (o sin `--project`), Cuando abro el Plan, Entonces no aparece el botón y la página explica con los parámetros exactos cómo activarlo (`--review-panel --review-state-root <proyecto>/.claude/plan-review`); sin `review_scope` no se sirve `panel-review.js`.
-- [ ] [GWT] CA-54: `--review-initiative`, `--review-state-root` y `--review-gate-key` siguen funcionando como hoy (incl. `plan-ok` desde `/dev-cycle`); `--review-state-root` solo, sin iniciativa ni `--review-panel`, → exit 2.
+- [x] [GWT] CA-52: Dado `--export`, Cuando abro cualquier página, Entonces no hay botones ni formularios de revisión, ningún `fetch` de escritura ni la ruta `api/review`; la página Plan dice «estado de revisión: solo en modo servido» y no se lee `.claude/plan-review/`.
+- [x] [GWT] CA-53: Dado el panel servido sin `--review-panel` (o sin `--project`), Cuando abro el Plan, Entonces no aparece el botón y la página explica con los parámetros exactos cómo activarlo (`--review-panel --review-state-root <proyecto>/.claude/plan-review`); sin `review_scope` no se sirve `panel-review.js`.
+- [x] [GWT] CA-54: `--review-initiative`, `--review-state-root` y `--review-gate-key` siguen funcionando como hoy (incl. `plan-ok` desde `/dev-cycle`); `--review-state-root` solo, sin iniciativa ni `--review-panel`, → exit 2.
 
 **Subtareas**
-- [ ] RED: casos del flag, del texto de activación y del exportado en `test_panel_export.py`.
-- [ ] Flag, validación y paso de `review_scope`; cuerpo de la página Plan con botón o explicación.
+- [x] RED: casos del flag, del texto de activación y del exportado en `test_panel_export.py`.
+- [x] Flag, validación y paso de `review_scope`; cuerpo de la página Plan con botón o explicación.
 
 - **Changelog**: Nuevo flag `--review-panel` para activar la revisión de planes desde el panel servido; el exportado nunca lleva controles de revisión y el comando `--review-initiative` se conserva igual.
 
-**Notas**: `build_panel.py:845-847` y `:860-862` (exclusión mutua actual); `panel_pages.py:146-147` (carga condicional del JS de revisión). Piezas que describen (CONTRACTS E33/E51): `commands/plugin-catalog.md` y `skills/plugin-panel/SKILL.md` si cambian su texto de uso; si se toca un comando, regenerar `interop/**` (`python3 scripts/export-interop.py`) y comprobar `--check`. Lente C.
+- **Cerrada**: 2026-10-15
+
+- **Evidencia TDD**: `RED` no capturado: los tests de T-57 se escribieron tras el flag (desviación de TDD); se comprobó que cada aserción cubre una rama (6 casos de exit 2, texto de activación, exportado sin `api/review`) · 2026-10-15`
+
+- **Verificación ejecutada** (2026-10-15): `pytest -q tests/test_panel_export.py tests/test_panel_review_ui.py tests/test_panel_pages.py tests/test_panel_review_panel_server.py` → `0 failed` (export 30 passed/1 skipped, sin tocar `test_panel_review_ui.py:52-57`); batería final del bloque: `854 passed, 1 skipped`.
+
+**Notas**: `build_panel.py:845-847` y `:860-862` (exclusión mutua actual); `panel_pages.py:146-147` (carga condicional del JS de revisión). Piezas que describen (CONTRACTS E33/E51): `commands/plugin-catalog.md` y `skills/plugin-panel/SKILL.md` si cambian su texto de uso; si se toca un comando, regenerar `interop/**` (`python3 scripts/export-interop.py`) y comprobar `--check`. Lente C. Desviaciones: `panel_pages.py` suma `PLAN_LIVE_SCRIPTS` (`panel-review.js` en páginas Plan servidas; el servidor lo omite sin ámbito) y `serve_panel.py` pasa `scripts_omitidos`. El botón «Revisar este plan» va `hidden` en `activa`: lo cablea T-58. `plan.html` (índice) no lleva la sección heredada con solo `--review-panel`. No se tocan `commands/` ni `SKILL.md` (texto de uso en T-28): sin regenerar `interop/`.
 
 ### T-58 — UI del Plan: abrir, comentar y decidir una revisión; estado en tarjetas y respuestas del agente
 

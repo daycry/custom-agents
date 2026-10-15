@@ -37,6 +37,12 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - Every initiative with a plan gets its own Plan page (`plan-<id16>.html`) with a read-only kanban: one column per ledger state, an «unrecognised state» strip with the literal, and a card per task with phase, AI hours with provenance and open-gap count. `plan.html` lists every plan, the Initiatives card link no longer returns 404, and the static export writes one page per plan.
 - `api/plan-<id16>` and `api/plan-<id16>-<T-XX>` serve the kanban and the task detail (under 64 KiB, trimmed with an explicit indicator, text scrubbed by the single panel scrubber). Opening a card with a click or Enter shows description, criteria, verification and its output, dependencies, latest review with open gaps and the archived mark; focus moves to the detail, Escape or «Cerrar detalle» closes it and returns focus to the card, and both are announced in a live region.
 - The panel scrubber no longer splits the redactor's `[secreto redactado]` mark when cutting text.
+- The Plan page shows progress per phase and real vs estimated AI hours per phase and per task, each chart with its equivalent table and the «(medido)»/«(estimado)» provenance; missing data reads «sin datos», never 0.
+- The Plan draws a burndown of pending tasks only when every completed task has a closing date; otherwise it says how many are missing and draws no partial chart.
+- When served, the Plan board refreshes every 5 seconds and moves cards without closing the open task or losing focus; on a network failure it keeps the last view with a warning.
+- `plan-review.py` gains a read-only `summary` operation that returns the review state (none, pending, changes requested, approved, outdated, unavailable) of several initiatives at once without creating or modifying anything under `.claude/plan-review/`.
+- The panel server can open a plan review for any initiative from the Plan page (`POST api/review-open/<id>`) and publishes the review state of every initiative (`api/review-summary`, `api/review-current/<id>`), with the same token, `Origin`, CSP and 16 KiB limits as before; the browser can only open `requested-review`, never `plan-ok`.
+- New opt-in `--review-panel` flag (needs `--serve --project … --review-state-root …`) turns on plan review from every Plan page; `--review-initiative` keeps working as before, the exported copy never carries review controls, and Plan explains how to enable it.
 
 ### Fixed — `panel-redesign` initiative, phase 1 review
 

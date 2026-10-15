@@ -21,6 +21,9 @@ MAX_REQUEST_BYTES = 4096
 BODY_TIMEOUT = 3
 MAX_REVIEW_REQUEST_BYTES = 16 * 1024
 MAX_REVIEW_RESPONSE_BYTES = 512 * 1024
+MAX_REVIEW_IDS = 128
+REVIEW_OPEN_GATE = 'requested-review'  # the only gate the browser can open; `plan-ok` belongs to the orchestrator
+TOO_MANY_REVIEWS = 'demasiadas revisiones abiertas en este proceso'
 STATES = {'borrador', 'en-progreso', 'en-revision', 'completado', 'cancelado'}
 
 
@@ -44,6 +47,10 @@ def _load_builder():
 PLAN_PAGE = re.compile(r'plan-[a-f0-9]{16}\.html')
 PLAN_API = re.compile(r'api/plan-([a-f0-9]{16})')
 TAREA_API = re.compile(r'api/plan-([a-f0-9]{16})-(T-\d{1,4})')
+REVIEW_OPEN_API = re.compile(r'api/review-open/([a-f0-9]{16})')
+REVIEW_CURRENT_API = re.compile(r'api/review-current/([a-f0-9]{16})')
+# Same shape as plan-review.py INITIATIVE (the owner validates it again before any write).
+_INITIATIVE_FOLDER = re.compile(r'[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*')
 ASSET_TYPES = {'.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
                '.json': 'application/json; charset=utf-8', '.md': 'text/markdown; charset=utf-8'}
 
@@ -114,6 +121,37 @@ def _review_payload_error(operation, payload, review_id):
         try: total += len(row['text'].encode('utf8'))
         except UnicodeError: return 400
     return None if total <= 10 * 1024 else 413
+
+
+def review_initiatives(project):
+    """`{id16: 'docs/roadmap/<carpeta>'}` of the initiatives with a plan: the only paths the browser can name
+    (by id, never by path). Folders that are not valid initiatives, have no `improvement-plan.md` (listed, never
+    read) or collide in id16 (both leave) are out. Never loads the review owner."""
+    try:
+        reader = _load_shared('local-read.py')
+        listing = reader.list_names(project, 'docs/roadmap', max_entries=MAX_SCAN)
+        if listing['status'] not in ('ok', 'incomplete'):
+            return {}
+        found, collided = {}, set()
+        for folder in listing['names']:
+            if len(folder) > 160 or _INITIATIVE_FOLDER.fullmatch(folder) is None:
+                continue
+            inner = reader.list_names(project, 'docs/roadmap/' + folder, max_entries=MAX_SCAN)
+            if inner['status'] not in ('ok', 'incomplete') or 'improvement-plan.md' not in inner['names']:
+                continue
+            ident = hashlib.sha256(folder.encode('utf8')).hexdigest()[:16]
+            if ident in found:
+                collided.add(ident)
+            found[ident] = 'docs/roadmap/' + folder
+        return {i: path for i, path in sorted(found.items()) if i not in collided}
+    except Exception:
+        return {}
+
+
+def _review_summary_failure(reason='reader_unavailable'):
+    return {'schema_version': 1, 'status': 'unavailable', 'reason': reason, 'complete': False,
+            'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+            'initiatives': [], 'omitted': 0, 'approval_granted': False}
 
 
 def _unavailable_memory(operation):
@@ -484,17 +522,27 @@ class PanelServer(HTTPServer):
         except Exception:
             return 200, _encoded(_unavailable_memory(payload.get('operation', 'search')))
 
+    @property
+    def review_ids(self):
+        """Registered review ids (a copy; the registry is the authority)."""
+        return set(self.review_registry)
+
+    def owner(self):
+        if self.review_owner is None:
+            self.review_owner = _load_review()
+        return self.review_owner
+
     def review(self, operation, review_id, payload, deadline):
         """Only the common owner reads or changes durable review state."""
         try:
             if time.monotonic() >= deadline:
                 raise TimeoutError
-            helper = self.review_owner
-            args = {'state_root': self.review_selection['state_root'], 'deadline': deadline}
+            entry = self.review_registry[review_id]
+            helper = self.owner()
+            args = {'state_root': self.review_state_root, 'deadline': deadline}
             if operation == 'refresh':
-                result = helper.open_review(self.project, self.review_selection['initiative'],
-                    gate_key=self.review_selection.get('gate_key', 'requested-review'),
-                    consumer=self.review_selection.get('consumer'), **args)
+                result = helper.open_review(self.project, entry['initiative'],
+                    gate_key=entry['gate_key'], consumer=entry['consumer'], **args)
             elif operation in ('view', 'status'):
                 function = helper.get_view if operation == 'view' else helper.get_status
                 result = function(self.project, review_id, **args)
@@ -512,20 +560,114 @@ class PanelServer(HTTPServer):
             if len(body) > MAX_REVIEW_RESPONSE_BYTES:
                 return 413, _encoded(_review_failure('response_budget'))
             if operation == 'refresh':
-                self.register_review(result)
+                self.register_review(result, entry['initiative'], entry['gate_key'], entry['consumer'], entry['escritura'])
             return _review_code(result), body
         except Exception:
             return 503, _encoded(_review_failure())
 
-    def register_review(self, result):
+    def register_review(self, result, initiative, gate_key, consumer=None, escritura=None):
+        """Register a review id taken from an OWNER response (never from a request body). An id that is already
+        registered keeps its entry; at the cap new ids are left out instead of evicting."""
         review = result.get('review') if type(result) is dict else None
-        if (result.get('status') in ('ok', 'waiting') and type(review) is dict
+        if not (type(result) is dict and result.get('status') in ('ok', 'waiting') and type(review) is dict
                 and type(review.get('review_id')) is str
-                and re.fullmatch('[a-f0-9]{64}', review['review_id']) is not None
-                and len(self.review_ids) < 64):
-            self.review_ids.add(review['review_id'])
-            return review['review_id']
-        return ''
+                and re.fullmatch('[a-f0-9]{64}', review['review_id']) is not None):
+            return ''
+        rid = review['review_id']
+        if rid not in self.review_registry:
+            if len(self.review_registry) >= MAX_REVIEW_IDS:
+                return ''
+            self.review_registry[rid] = {'initiative': initiative, 'gate_key': gate_key, 'consumer': consumer,
+                'escritura': gate_key == REVIEW_OPEN_GATE if escritura is None else escritura}
+        return rid
+
+    def review_paths(self):
+        """`id16 -> initiative path`, refreshed every 5 s (the portfolio cache cadence)."""
+        now = time.monotonic()
+        if self._review_map is None or now - self._review_map_at >= 5:
+            self._review_map, self._review_map_at = review_initiatives(self.project), now
+        return self._review_map
+
+    def review_summary(self):
+        """`api/review-summary`: the owner's read-only summary keyed by id16 (no paths, no review ids), 5 s cache."""
+        now = time.monotonic()
+        if self._review_summary is not None and now - self._review_summary_at < 5:
+            return self._review_summary
+        try:
+            paths = self.review_paths()
+            ids = {path: ident for ident, path in paths.items()}
+            deadline = time.monotonic() + BODY_TIMEOUT
+            data = self.owner().summarize_reviews(self.project, list(paths.values()),
+                state_root=self.review_state_root, deadline=deadline)
+            rows = []
+            for row in data.get('initiatives', []):
+                ident = ids.get(row.get('initiative'))
+                if ident is not None:
+                    rows.append({'initiative_id': ident,
+                                 **{k: v for k, v in row.items() if k not in ('initiative', 'review_id')}})
+            data = {**data, 'initiatives': rows}
+            body = _encoded(data)
+            while len(body) > MAX_RESPONSE_BYTES and rows:
+                rows.pop(); data['omitted'] = data.get('omitted', 0) + 1
+                data['status'] = 'partial'; data['complete'] = False
+                body = _encoded(data)
+        except Exception:
+            body = _encoded(_review_summary_failure())
+        self._review_summary, self._review_summary_at = body, now
+        return body
+
+    def _current_failure(self, ident, reason, estado='no_disponible', **extra):
+        return _encoded({'schema_version': 1, 'status': 'unavailable', 'reason': reason, 'initiative_id': ident,
+                         'review_id': None, 'estado': estado, 'escritura': False, **extra})
+
+    def review_current(self, ident):
+        """`api/review-current/<id16>`: registers the main review id of ONE initiative for the browser. A
+        `requested-review` review gets write access; any other gate (`plan-ok` of another process) is read-only."""
+        initiative = self.review_paths().get(ident)
+        if initiative is None:
+            return None
+        try:
+            data = self.owner().summarize_reviews(self.project, [initiative], state_root=self.review_state_root,
+                                                  deadline=time.monotonic() + BODY_TIMEOUT)
+            row = (data.get('initiatives') or [None])[0]
+            if row is None or data.get('status') not in ('ok', 'partial'):
+                return self._current_failure(ident, data.get('reason') or 'reader_unavailable')
+            rid, entry = row.get('review_id'), None
+            if type(rid) is str:
+                self.register_review({'status': 'ok', 'review': {'review_id': rid}}, initiative, row['gate_key'])
+                entry = self.review_registry.get(rid)
+                if entry is None:
+                    return self._current_failure(ident, 'too_many_reviews', row['estado'], message=TOO_MANY_REVIEWS)
+            return _encoded({'schema_version': 1, 'status': 'ok', 'reason': None, 'initiative_id': ident,
+                'review_id': rid, 'estado': row['estado'], 'version_ordinal': row['version_ordinal'],
+                'gate_key': row['gate_key'], 'escritura': bool(entry and entry['escritura'])})
+        except Exception:
+            return self._current_failure(ident, 'reader_unavailable')
+
+    def review_open(self, ident, deadline):
+        """`POST api/review-open/<id16>` (the id is already known to be in the map): opens with the literal gate."""
+        initiative = self.review_paths()[ident]
+        full = {'schema_version': 1, 'status': 'unavailable', 'reason': 'too_many_reviews',
+                'message': TOO_MANY_REVIEWS, 'initiative_id': ident, 'review_id': None}
+        if len(self.review_registry) >= MAX_REVIEW_IDS and all(e['initiative'] != initiative for e in self.review_registry.values()):
+            return 429, _encoded(full)
+        try:
+            if time.monotonic() >= deadline:
+                raise TimeoutError
+            result = self.owner().open_review(self.project, initiative, state_root=self.review_state_root,
+                gate_key=REVIEW_OPEN_GATE, consumer=None, deadline=deadline)
+            if time.monotonic() >= deadline:
+                raise TimeoutError
+            rid = self.register_review(result, initiative, REVIEW_OPEN_GATE, None, True)
+            self._review_summary = None
+            if not rid and result.get('status') in ('ok', 'waiting'):
+                return 429, _encoded(full)
+            reason = result.get('reason')
+            return _review_code(result), _encoded({'schema_version': 1, 'status': result.get('status'),
+                'reason': reason if type(reason) is str else None, 'initiative_id': ident,
+                'review_id': rid or None, 'escritura': bool(rid)})
+        except Exception:
+            return 503, _encoded(_review_failure())
 
 
 class PanelHandler(BaseHTTPRequestHandler):
@@ -577,12 +719,13 @@ class PanelHandler(BaseHTTPRequestHandler):
             return None
         return '/'.join(parts[2:])
 
-    def _review_route(self, route, operations):
-        if not route or self.server.review_selection is None:
+    def _review_route(self, route, operations, *, write=False):
+        if not route or not self.server.review_enabled:
             return None
         match = re.fullmatch(r'api/review/([a-f0-9]{64})/([a-z]+)', route)
-        if match and match[1] in self.server.review_ids and match[2] in operations:
-            return match[1], match[2]
+        entry = self.server.review_registry.get(match[1]) if match else None
+        if entry is not None and match[2] in operations and (entry['escritura'] or not write):
+            return match[1], match[2]  # a read-only review (`plan-ok` of another process) has no write route
         return None
 
     def do_GET(self):
@@ -609,6 +752,14 @@ class PanelHandler(BaseHTTPRequestHandler):
                 self._reply(200, body, 'application/json; charset=utf-8')
         elif route == 'api/activity':
             self._reply(200, self.server.activity(), 'application/json; charset=utf-8')
+        elif self.server.review_scope is not None and route == 'api/review-summary':
+            self._reply(200, self.server.review_summary(), 'application/json; charset=utf-8')
+        elif self.server.review_scope is not None and (current := REVIEW_CURRENT_API.fullmatch(route)) is not None:
+            body = self.server.review_current(current[1])
+            if body is None:
+                self._reply(404)
+            else:
+                self._reply(200, body, 'application/json; charset=utf-8')
         elif (review := self._review_route(route, ('view', 'status'))) is not None:
             code, body = self.server.review(review[1], review[0], None, deadline)
             self._reply(code, body, 'application/json; charset=utf-8')
@@ -623,14 +774,17 @@ class PanelHandler(BaseHTTPRequestHandler):
         route = self._route()
         if route is None:
             self._reply(404); return
-        review = self._review_route(route, ('comments', 'submit', 'refresh'))
-        if route != 'api/memory' and review is None:
+        review = self._review_route(route, ('comments', 'submit', 'refresh'), write=True)
+        opening = REVIEW_OPEN_API.fullmatch(route) if self.server.review_scope is not None else None
+        if opening is not None and opening[1] not in self.server.review_paths():
+            self._reply(404); return  # unknown initiative: before the body and before loading the owner
+        if route != 'api/memory' and review is None and opening is None:
             self._reply(405); return
         lengths = self.headers.get_all('Content-Length')
         if lengths is None or len(lengths) != 1 or re.fullmatch(r'[0-9]{1,8}', lengths[0]) is None:
             self._reply(400); return
         size = int(lengths[0])
-        if size > (MAX_REVIEW_REQUEST_BYTES if review else MAX_REQUEST_BYTES):
+        if size > (MAX_REVIEW_REQUEST_BYTES if review or opening else MAX_REQUEST_BYTES):
             self._reply(413); return
         if size == 0:
             self._reply(400); return
@@ -657,6 +811,11 @@ class PanelHandler(BaseHTTPRequestHandler):
             payload = json.loads(b''.join(chunks).decode('utf8'), object_pairs_hook=unique, parse_constant=constant)
         except (OSError, ValueError, RecursionError):
             self._reply(400); return
+        if opening is not None:
+            if type(payload) is not dict or set(payload) != {'initiative_id'} or payload['initiative_id'] != opening[1]:
+                self._reply(400); return
+            code, body = self.server.review_open(opening[1], deadline)
+            self._reply(code, body, 'application/json; charset=utf-8'); return
         if review is not None:
             error = _review_payload_error(review[1], payload, review[0])
             if error is not None:
@@ -689,7 +848,7 @@ def plan_inventory(project, scrub=None):
             for fila in cartera.get('iniciativas', []) if fila.get('tiene_plan')]
 
 
-def create_server(project, inventory, *, port=0, review_selection=None, scrub=None):
+def create_server(project, inventory, *, port=0, review_selection=None, review_scope=None, scrub=None):
     """Return an owned stoppable HTTPServer; start only at the caller's request."""
     if type(port) is not int or not 0 <= port <= 65535:
         raise ValueError('invalid panel port')
@@ -697,17 +856,25 @@ def create_server(project, inventory, *, port=0, review_selection=None, scrub=No
             or set(review_selection) - {'initiative', 'state_root', 'gate_key', 'consumer'}
             or not {'initiative', 'state_root'} <= set(review_selection)):
         raise ValueError('invalid review selection')
+    if review_scope is not None and (type(review_scope) is not dict or set(review_scope) != {'state_root'}
+            or (review_selection is not None and str(review_selection['state_root']) != str(review_scope['state_root']))):
+        raise ValueError('invalid review scope')
     builder = _load_builder()
     pages = builder._load_pages()
     # Allowlisted assets: read once here; the disk is never touched per request.
-    files, chart_ok, warnings = pages.cargar_assets('servido', review=review_selection is not None)
+    files, chart_ok, warnings = pages.cargar_assets('servido', review=review_selection is not None or review_scope is not None)
     nonce = secrets.token_urlsafe(24)
     server = PanelServer(('127.0.0.1', port), PanelHandler)
     try:
         server.project = project
         server.scrub = scrub
         server.review_selection = dict(review_selection) if review_selection is not None else None
-        server.review_ids = set(); server.review_owner = None
+        server.review_scope = dict(review_scope) if review_scope is not None else None
+        server.review_enabled = review_selection is not None or review_scope is not None
+        server.review_state_root = (review_selection or review_scope or {}).get('state_root')
+        server.review_registry = {}; server.review_owner = None
+        server._review_map = None; server._review_map_at = 0
+        server._review_summary = None; server._review_summary_at = 0
         review_id = ''
         if review_selection is not None:
             try:
@@ -717,7 +884,8 @@ def create_server(project, inventory, *, port=0, review_selection=None, scrub=No
                     state_root=review_selection['state_root'], gate_key=review_selection.get('gate_key', 'requested-review'),
                     consumer=review_selection.get('consumer'), deadline=deadline)
                 if time.monotonic() < deadline and len(_encoded(opened)) <= MAX_REVIEW_RESPONSE_BYTES:
-                    review_id = server.register_review(opened)
+                    review_id = server.register_review(opened, review_selection['initiative'],
+                        review_selection.get('gate_key', REVIEW_OPEN_GATE), review_selection.get('consumer'), True)
             except Exception:
                 pass  # Optional UI remains unavailable; no invented decision.
         server.capability = secrets.token_urlsafe(32)
@@ -743,7 +911,9 @@ def create_server(project, inventory, *, port=0, review_selection=None, scrub=No
         server.plan_pages = {f"plan-{plan['id']}.html": pages.render_page(
             'plan', modo='servido', generado=generated, chart_ok=chart_ok, nonce=nonce, plan_id=plan['id'],
             datos=pages.datos_de_pagina('plan', inventory, modo='servido', plan_id=plan['id']),
-            cuerpo=builder.cuerpo_plan_iniciativa()).encode('utf8') for plan in planes}
+            scripts_omitidos=hidden,
+            cuerpo=builder.cuerpo_plan_iniciativa('activa' if review_scope is not None else 'inactiva')).encode('utf8')
+            for plan in planes}
         server.assets = {rel: (content, ASSET_TYPES.get(Path(rel).suffix, 'application/octet-stream'))
                          for rel, content in files.items()}
     except BaseException:
@@ -752,8 +922,9 @@ def create_server(project, inventory, *, port=0, review_selection=None, scrub=No
     return server
 
 
-def run(project, inventory, *, port=0, review_selection=None, scrub=None):
-    server = create_server(project, inventory, port=port, review_selection=review_selection, scrub=scrub)
+def run(project, inventory, *, port=0, review_selection=None, review_scope=None, scrub=None):
+    server = create_server(project, inventory, port=port, review_selection=review_selection,
+                           review_scope=review_scope, scrub=scrub)
     try:
         for warning in server.warnings:
             print('plugin-panel: aviso: ' + warning, file=sys.stderr, flush=True)
