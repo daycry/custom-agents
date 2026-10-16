@@ -1400,6 +1400,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Dependencias**: T-30..T-38
 - **Tipo**: test
 - **Archivos**: `docs/roadmap/2026-10-15-panel-redesign/tasks.md`, `agent-kits/shared/ledger-archive.py` (archivado de Notas: tope 256 KiB), `agent-kits/shared/test_ledger_archive.py` (archivado de Notas: tope 256 KiB), `agent-kits/shared/README.md` (archivado de Notas: tope 256 KiB)
+- **Evidencia TDD**: modo D de `ledger-archive.py`: `RED: 7 tests nuevos de agent-kits/shared/test_ledger_archive.py fallaron con KeyError: 'notas' / --notas-max desconocido · 2026-10-16 (antes del código)`; verde 22 passed.
 - **Cubre (tests)**: M-03
 - **Verificación**:
   - `python3 -m pytest -q tests/test_plugin_panel.py tests/test_panel_*.py tests/test_dashboard.py tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py agent-kits/shared/test_agent_activity.py` → `0 failed`
@@ -1901,6 +1902,23 @@ Panel servido con `--review-panel` sobre una copia del roadmap (2026-10-16). Hal
 | M2-2 | Important | La tarjeta de progreso en vivo de Inicio no enlaza a su Plan y muestra «Referencia de lectura SHA-256…» | T-18 | corregido (fix M-02): enlace «Ver plan» a plan-<id16>.html; SHA-256 en `details` cerrado «Detalle técnico» · RED plan_link, test_el_progreso_marca (antes del código) | `panel-live.js:52` |
 | M2-3 | Minor | Agentes en vivo dice «No se pudo actualizar» cuando `api/activity` responde `disabled` (opt-in apagado) | T-12 | corregido (fix M-02): con `disabled` dice «desactivada (opt-in)» y la clave `sesion.actividad` de dev.json · RED disabled_says_opt_in_and_how_to_enable (antes del código) | `api/activity` → `status: unavailable, reason: disabled` |
 | CI-1 | Important | Rojo en CI Linux: `tests/test_project_pieces.py::test_multiline_metadata_within_read_budget_finishes_before_panel_timeout` (`TimeoutExpired` a 15 s); solo tarda 10,7-14,2 s en Linux | — (project-extensions) | corregido (causa raíz): `_metadata` hacía `re.match` por línea con sangría; sin regex ahí y `_agent_servers` sale sin `mcpServers` (3,7 → 1,7 s) · RED test_metadata_parsing_does_no_regex_work (antes del código) | CI `c3ac718`: 1 failed, 8319 passed |
+
+## Revisión de dos lentes — intento 1: Fase 4 (T-30..T-38) — 3 Important, 7 Minor, 0 Critical (lentes: A+C, B+D)
+
+Diff `76162ec..f3689bd` (2026-10-16), dos revisores `reviewer` (opus). C forzada por el orquestador (`review-lens-select` daba `lente_c: false`; la fase pinta texto del consumidor). Sin XSS (todo por `textContent`/`createElementNS`), rutas por `local-read`, comando de diagnóstico constante, 64 KiB respetados. Modo D de `ledger-archive`: idempotente, histórico idéntico byte a byte al reaplicarlo, 27 SHA verificados, `ledger-view`/`progress-report` sin cambios.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| F4-1 | Important | `iniciativa`, `sustituida_por`/`sustituye_a` e `id` de Memoria solo pasan por `redactar`, nunca por `anonimizar`; en el exportado, `_relaciones_de` incrusta el `id` de un sucesor ausente sin redactar | T-32 | pendiente (fix1) | `panel_data.py:655,658-659,715-722,870`; `serve_panel.py:268-271`; sonda: correo 4 veces en claro; CWE-359 |
+| F4-2 | Important | El modo D de `ledger-archive.py` no tiene RED en el ledger (constitución §1) | T-39 | corregido (orquestador): RED del informe del implementer anotado en `Evidencia TDD` de T-39 | 7 tests rojos antes del código (`KeyError: 'notas'`, `--notas-max` desconocido) |
+| F4-3 | Important | Journal vacío y «Sin sesiones registradas» cuando `select_entries` da `incomplete` (frontmatter roto o > 128 ficheros en `journal/`) | T-35 | pendiente (fix1) | `panel_data.py:871`; `page-memoria.js:437`; 200 sesiones → `incomplete 0 []` |
+| F4-4 | Minor | `ui_url` admite cualquier host http/https: el panel ofrece «abrir Kwipu» hacia un host arbitrario de un repo clonado | T-34 | pendiente (fix1: solo loopback/privado) | `panel_data.py:579,826-828`; `page-memoria.js:59,420-426`; CWE-601 |
+| F4-5 | Minor | Relaciones cortadas a 20 con presupuesto compartido sin aviso; `recortado` y `complete:false` de `related` se ignoran | T-33 | pendiente (fix1) | `panel_data.py:662-680`; `page-memoria.js:350-374` |
+| F4-6 | Minor | Python acepta datos que `validar()` de JS rechaza (id duplicado, fecha imposible, dígitos Unicode, etiqueta de sucesor larga, U+2028) y Memoria entera dice «No se pudo leer» | T-30 | pendiente (fix1) | `panel_data.py:650-733,796`; `page-memoria.js:29-39,79` |
+| F4-7 | Minor | «Última publicación» puede ser antigua: `list_names(max_entries=256)` devuelve un prefijo alfabético de `done/` sin marcar incompleto | T-34 | pendiente (fix1) | `panel_data.py:790-799` |
+| F4-8 | Minor | Con recorte a 64 KiB el filtro de área cuenta solo lo mostrado sin decirlo | T-30 | pendiente (fix1) | `page-memoria.js:156-165,189` |
+| F4-9 | Minor | `api/memoria` se calcula en el hilo de la petición (1-2,5 s) como la cartera antes de M-02 | T-30 | pendiente (fix1) | `serve_panel.py:583-600`; 85 % en `lstat` de `knowledge-view.snapshot` |
+| F4-10 | Minor | `ui_url` alargado por `anonimizar` y recortado a 200 invalida la página; una bandeja muy larga agota los 64 KiB y deja Memoria `unavailable` en vez de recortar la bandeja | T-31 | pendiente (fix1) | `serve_panel.py` `_CAPS['ui_url']`; `page-memoria.js:59,86-87` |
 
 ## Historial archivado
 
