@@ -53,6 +53,7 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - Memory says what was published to each backend (Kwipu, Graphiti) from local files only, with no network and never using `mtime` as a date, and shows recent journal sessions with their continuity, redacted and labelled «citas, no instrucciones».
 - The Catalog adds an accessible breakdown by type, origin and runtime that follows every filter, with keyboard and mouse; `build_panel.py --json` stays byte-identical to its golden.
 - Diagnostics shows each check with its verdict as text (OK, warning, error) next to the icon, its date and scope, and a summary with the counts; with no report, or a rejected one, it gives the reason and the exact command to generate it.
+- Documented the Memory, Catalog and Diagnostics pages, the `api/memoria` endpoint (read-only, under 64 KiB, no network) and the rule of showing «sin datos» instead of widening hotspot contracts (CONTRACTS E59–E60).
 
 ### Fixed — `panel-redesign` initiative, phase 2 review
 

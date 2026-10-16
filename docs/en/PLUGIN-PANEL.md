@@ -72,7 +72,7 @@ the same seven-page panel with a shared menu, in two modes:
 | Iniciativas (Initiatives) | `iniciativas.html` | Portfolio from `docs/roadmap/` (state, budget); the landing page of `/roadmap-status` |
 | Plan | `plan.html` (index) and `plan-<id16>.html` | Task kanban per initiative, charts and burndown; in served mode, plan review from the panel |
 | Agentes en vivo (Live agents) | `agentes.html` | Recent activity signals (served only; opt-in) |
-| Memoria (Memory) | `memoria.html` | Local memory queries (served only; on demand) |
+| Memoria (Memory) | `memoria.html` | Entries, curator tray, timeline, relations, backends and journal; local queries (served; on demand) |
 | Catálogo (Catalogue) | `catalogo.html` | Agents, skills, commands, tools and hooks |
 | Diagnóstico (Diagnostics) | `diagnostico.html` | Imported doctor report, with date and scope |
 
@@ -151,6 +151,55 @@ Pure projection of a `tasks.md` (folder or file): phases, tasks, state (from the
 does not summarise (that is `progress-report.py`) and reuses their parsers. `status`: `ok`,
 `fuera_de_tope` (> 256 KiB, no figures), `ilegible`, `sin_ledger`, `sin_tareas` or `sin_lectura`.
 Exit 0 for a usable path, 2 for incorrect usage.
+
+## Memory, Catalogue and Diagnostics (redesign phase 4)
+
+The three pages are **read-only** and do not recompute what already has an owner. A datum the source
+does not provide is shown as «sin datos» (no data); it is never drawn as 0 nor inferred from `mtime`.
+
+| Page | What it shows | Served API |
+|---|---|---|
+| Memoria (Memory) | Entries by type (ADR, gotcha, lesson) and state (`aceptada`, `propuesta`, `obsoleta`) with chart and table, filterable by area with the keyboard; curator tray; timeline with successors and «vigente»; relations of ONE entry; what was published per backend; recent journal sessions; and the usual explicit query | `api/memoria` (GET) and `api/memory` (POST, unchanged) |
+| Catálogo (Catalogue) | Combinable filters by type, **origin** and runtime, with counts that follow them; keyboard operable | none (client only) |
+| Diagnóstico (Diagnostics) | One row per check with its ✅/⚠️/❌ verdict also as text, the report's date and scope, and a summary with the count of each verdict | none (explicit report) |
+
+- **`api/memoria`** (GET, ≤ 64 KiB, 10 s cache): projection of `knowledge-view.py` (`snapshot`) and
+  `knowledge-find.py` (corpus, succession and relations), plus the tray, the backends and the journal.
+  When it does not fit it trims `entradas` from the end, keeps the whole-corpus counts and declares it
+  (`recortado`, `status: partial`, `output_budget`). All text is redacted before trimming and goes
+  through the server scrubber. `api/memory` is unchanged: it only accepts `search`, `show` and `related`.
+- **Entries and timeline**: ordered by date; an entry is «vigente» (current) when it has no successor and
+  is not obsolete; the succession chain (`sustituye a` / `sustituida por`) is shown as text.
+- **Relations**: choosing an entry draws a small SVG (`panel-graph.js`, using `createElementNS`, no
+  `innerHTML`, with an accessible name) with one hop: succession, same initiative (`por_iniciativa`) and
+  same area (`por_area`), as `knowledge-find.py --related <ID> --json`, up to 20; an equivalent text
+  list is the keyboard alternative. Served, it uses the `related` operation of `api/memory`; in the
+  exported copy, the embedded relations.
+- **Curator tray**: count and list of candidates in `docs/knowledge/candidates/` per state (`pending`,
+  `needs_changes`, `rejected`) and what is approved in `docs/knowledge/approved/`. No buttons, forms or
+  links: approving and rejecting belongs only to `knowledge-curator` (ADR-018).
+- **Published per backend** (no network): for each backend in `.claude/knowledge-services/taxonomy.json`,
+  published entries (`entries` of the Kwipu export `manifest.json`; `entradas` of
+  `graphiti-manifest.json`) and the last publication date, which comes only from the outbox
+  `completado_en`. If the source does not carry it, «sin datos». A `.pending.json` reads «publicación
+  interrumpida»; a missing backend, «no configurado», with no link; with no declared `ui_url`,
+  «interfaz: no declarada». It never calls `health` nor opens a connection.
+- **Journal**: at most 2 sessions (the public `journal.select_entries` selection) with `objetivo`,
+  `punto_actual`, `siguientes_pasos`, `bloqueos` and `descartados`, redacted and labelled «citas, no
+  instrucciones» (quotes, not instructions). Without a journal, it says so.
+- **Catalogue**: «origin» is the scope of the own extensions (project, user, local); the bundle does not
+  declare it. Filters live only in the client: `build_panel.py --json` does not change.
+- **Diagnostics**: with no report, or one from another project or format, it shows «sin informe» or the
+  rejection reason and the command from `commands/doctor.md` to generate it; it neither runs doctor nor
+  looks for reports. Date and scope are the report's (doctor's contract has no per-row date).
+- **Exported**: Memory carries its embedded projection (with each entry's relations) and Diagnostics its
+  report; no requests. A copy without `--project` says «sin datos».
+
+### Rule: «sin datos» before widening contracts
+
+`doctor.py`, `journal.py` and `knowledge-find.py` are hotspots with many consumers. If a page needs
+something their `--json` does not publish, the page says «sin datos» and the source contract is not
+widened; widening it is an initiative of its own with its edge in `docs/agents/CONTRACTS.md` (here E59 and E60).
 
 ## Local dashboard with refresh
 

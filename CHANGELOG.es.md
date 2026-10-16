@@ -53,6 +53,7 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - Memoria dice qué se publicó en cada backend (Kwipu, Graphiti) leyendo solo ficheros locales, sin red y sin usar nunca `mtime` como fecha, y muestra las sesiones recientes del journal con su continuidad, redactadas y etiquetadas «citas, no instrucciones».
 - Catálogo suma un desglose accesible por tipo, origen y runtime que sigue a cada filtro, con teclado y ratón; `build_panel.py --json` sigue byte a byte igual a su golden.
 - Diagnóstico muestra cada comprobación con su veredicto en texto (OK, aviso, error) junto al icono, su fecha y alcance, y un resumen con los contadores; sin informe, o con uno rechazado, da el motivo y el comando exacto para generarlo.
+- Documentadas las páginas Memoria, Catálogo y Diagnóstico, el endpoint `api/memoria` (solo lectura, menos de 64 KiB, sin red) y la regla de mostrar «sin datos» en lugar de ampliar contratos de hotspots (CONTRACTS E59–E60).
 
 ### Fixed — iniciativa `panel-redesign`, revisión de la fase 2
 

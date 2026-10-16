@@ -41,9 +41,9 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
-| Fase 4 — Memoria, Catálogo y Diagnóstico | 8 | 10 | 80% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
+| Fase 4 — Memoria, Catálogo y Diagnóstico | 9 | 10 | 90% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
 | Fase 3 — Agentes en vivo + cierre transversal | 0 | 15 | 0% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **40** | **58** | **69%** | **0 / 159,2h** | **8,21 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| **TOTAL** | **41** | **58** | **71%** | **0 / 159,2h** | **8,21 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1363,7 +1363,9 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 ### T-38 — Documentación de F4 (Memoria, Catálogo, Diagnóstico)
 
 - **Descripción**: Documenta las tres páginas, `api/memoria` y la regla «sin datos antes que ampliar contratos de hotspots».
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-16
+- **Changelog**: Documentadas las páginas Memoria, Catálogo y Diagnóstico del panel, `api/memoria` y la regla «sin datos» antes de ampliar contratos.
 - **Tiempo humano**: est. 1,2h · real —
 - **Tiempo IA (ejec.)**: est. 0,3h · real —
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
@@ -1375,13 +1377,17 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Verificación**: `python3 -m pytest -q tests/test_skill_size.py` → `passed` · `python3 scripts/lint_plugin.py` → exit 0 · lectura: espejo EN
 
 **Criterios de aceptación**
-- [ ] Arista `serve_panel` → `api/memoria` declarada con su Puerta.
-- [ ] ES y EN en el mismo cambio; `SKILL.md` ≤ 200 líneas.
+- [x] Arista `serve_panel` → `api/memoria` declarada con su Puerta.
+- [x] ES y EN en el mismo cambio; `SKILL.md` ≤ 200 líneas.
 
 **Subtareas**
-- [ ] Redactar y espejar.
+- [x] Redactar y espejar.
 
-**Notas**: TDD n/a: prosa. CONTRACTS E42 describe `commands/plugin-catalog.md`, `skills/plugin-panel/SKILL.md`, `docs/PLUGIN-PANEL.md` (+EN).
+**Evidencia TDD**: TDD n/a: prosa.
+
+**Verificación ejecutada** (2026-10-16): test_skill_size + test_lint_plugin → 30 passed; lint_plugin exit 0 (0 errores, 8 avisos previos); export-interop --check 88 ficheros al día; SKILL.md 125 líneas; espejo EN revisado
+
+**Notas**: aristas E59/E60 nuevas en CONTRACTS (sesenta). E42 describe `commands/plugin-catalog.md`, `skills/plugin-panel/SKILL.md`, `docs/PLUGIN-PANEL.md` (+EN).
 
 ### T-39 — Cierre de la Fase 4: revisión de dos lentes y revisión visual del usuario (M-03)
 

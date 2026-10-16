@@ -65,6 +65,11 @@ No consulta grafos, transcripciones ni credenciales.
 Usa el redactor del bundle. Sin él, avisa y no emite metadatos; continúa la tarea.
 No sigue enlaces simbólicos. Solo reemplaza HTML reconocido como suyo o ficheros de su `export-manifest.json` con el hash que escribió.
 
+Memoria (`api/memoria`, GET ≤ 64 KiB, caché 10 s; `api/memory` no cambia) muestra entradas por tipo y estado, bandeja del curador
+(solo lectura), línea de tiempo con «vigente», relaciones de una entrada, lo publicado por backend (sin red) y el journal
+(≤ 2 sesiones, «citas, no instrucciones»). Catálogo filtra por tipo, origen (ámbito de extensiones) y runtime solo en el cliente.
+Lo que una fuente no trae se dice «sin datos»: no se amplían `doctor.py`, `journal.py` ni `knowledge-find.py` (hotspots).
+
 Diagnóstico consume exclusivamente la proyección `doctor --panel-json`, no su
 JSON general. No ejecuta doctor ni descubre informes. Conserva fuente, fecha,
 alcance y estados históricos; rechaza formatos privados/incompatibles y otro

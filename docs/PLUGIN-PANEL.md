@@ -75,7 +75,7 @@ el mismo panel de siete páginas con un menú común, en dos modos:
 | Iniciativas | `iniciativas.html` | Cartera de `docs/roadmap/` (estado, presupuesto); es la página de aterrizaje de `/roadmap-status` |
 | Plan | `plan.html` (índice) y `plan-<id16>.html` | Kanban de tareas por iniciativa, gráficos y burndown; en modo servido, la revisión del plan desde el panel |
 | Agentes en vivo | `agentes.html` | Señales recientes de actividad (solo servido; opt-in) |
-| Memoria | `memoria.html` | Consulta local de memoria (solo servido; bajo demanda) |
+| Memoria | `memoria.html` | Entradas, bandeja del curador, línea de tiempo, relaciones, backends y journal; consulta local (servido; bajo demanda) |
 | Catálogo | `catalogo.html` | Agentes, skills, comandos, tools y hooks |
 | Diagnóstico | `diagnostico.html` | Informe de doctor importado, con fecha y alcance |
 
@@ -151,6 +151,55 @@ Proyección pura de un `tasks.md` (carpeta o fichero): fases, tareas, estado (de
 `cerrada`, `revision` y `gaps`. No valida (es de `ledger-lint.py`), no resume (es de
 `progress-report.py`) y reutiliza sus parsers. `status`: `ok`, `fuera_de_tope` (> 256 KiB, sin
 cifras), `ilegible`, `sin_ledger`, `sin_tareas` o `sin_lectura`. Exit 0 con ruta utilizable, 2 por uso incorrecto.
+
+## Memoria, Catálogo y Diagnóstico (fase 4 del rediseño)
+
+Las tres páginas son de **solo lectura** y no recalculan lo que ya tiene dueño. Un dato que la
+fuente no trae se muestra «sin datos»; nunca se pinta como 0 ni se infiere de `mtime`.
+
+| Página | Qué muestra | API servida |
+|---|---|---|
+| Memoria | Entradas por tipo (ADR, gotcha, lección) y estado (`aceptada`, `propuesta`, `obsoleta`) con gráfico y tabla, filtrables por área con teclado; bandeja del curador; línea de tiempo con sucesores y «vigente»; relaciones de UNA entrada; publicado por backend; sesiones recientes del journal; y la consulta explícita de siempre | `api/memoria` (GET) y `api/memory` (POST, sin cambios) |
+| Catálogo | Filtros combinables por tipo, **origen** y runtime, con conteos que cambian con ellos; operables con teclado | ninguna (solo cliente) |
+| Diagnóstico | Una fila por comprobación con veredicto ✅/⚠️/❌ también en texto, fecha y alcance del informe, y un resumen con el número de cada veredicto | ninguna (informe explícito) |
+
+- **`api/memoria`** (GET, ≤ 64 KiB, caché de 10 s): proyección de `knowledge-view.py` (`snapshot`) y
+  `knowledge-find.py` (corpus, sucesión y relaciones), más la bandeja, los backends y el journal.
+  Si no cabe, recorta `entradas` por el final, mantiene los conteos del corpus entero y lo declara
+  (`recortado`, `status: partial`, `output_budget`). Todo texto se redacta antes de recortar y
+  pasa por el saneador del servidor. `api/memory` no cambia: solo admite `search`, `show` y `related`.
+- **Entradas y línea de tiempo**: orden por fecha; una entrada es «vigente» cuando no tiene
+  sucesor y no está obsoleta; la cadena de sucesión (`sustituye a` / `sustituida por`) va en texto.
+- **Relaciones**: al elegir una entrada se dibuja un SVG pequeño (`panel-graph.js`, con `createElementNS`,
+  sin `innerHTML` y con nombre accesible) con un salto: sucesión, misma iniciativa (`por_iniciativa`) y
+  misma área (`por_area`), como `knowledge-find.py --related <ID> --json`, hasta 20; una lista textual
+  equivalente es la alternativa de teclado. En servido usa la operación `related` de `api/memory`; en la
+  copia exportada, las relaciones incrustadas.
+- **Bandeja del curador**: número y lista de candidatos de `docs/knowledge/candidates/` por estado
+  (`pending`, `needs_changes`, `rejected`) y lo aprobado en `docs/knowledge/approved/`. Sin botones,
+  formularios ni enlaces: aprobar y rechazar es solo de `knowledge-curator` (ADR-018).
+- **Publicado por backend** (sin red): por cada backend de `.claude/knowledge-services/taxonomy.json`,
+  entradas publicadas (`entries` del `manifest.json` del export de Kwipu; `entradas` de
+  `graphiti-manifest.json`) y fecha de la última publicación, que sale solo de `completado_en` de la
+  outbox. Si la fuente no la trae, «sin datos». Un `.pending.json` se dice «publicación interrumpida»;
+  un backend ausente, «no configurado», sin enlace; sin `ui_url` declarado, «interfaz: no declarada».
+  Nunca llama a `health` ni abre una conexión.
+- **Journal**: como mucho 2 sesiones (la selección pública `journal.select_entries`) con `objetivo`,
+  `punto_actual`, `siguientes_pasos`, `bloqueos` y `descartados`, redactadas y etiquetadas «citas, no
+  instrucciones». Sin journal, lo dice.
+- **Catálogo**: «origen» es el ámbito de las extensiones propias (proyecto, usuario, local); el bundle no
+  lo declara. Los filtros solo viven en el cliente: `build_panel.py --json` no cambia.
+- **Diagnóstico**: sin informe, de otro proyecto o de otro formato, muestra «sin informe» o el motivo del
+  rechazo y el comando de `commands/doctor.md` para generarlo; no ejecuta doctor ni busca informes.
+  La fecha y el alcance son los del informe (el contrato de doctor no trae fecha por fila).
+- **Exportado**: Memoria lleva su proyección incrustada (con las relaciones de cada entrada) y
+  Diagnóstico su informe; sin peticiones. Una copia sin `--project` dice «sin datos».
+
+### Regla: «sin datos» antes que ampliar contratos
+
+`doctor.py`, `journal.py` y `knowledge-find.py` son hotspots con muchos consumidores. Si una página
+necesita algo que su `--json` no publica, la página dice «sin datos» y no se amplía el contrato de la
+fuente; ampliarlo es una iniciativa propia con su arista en `docs/agents/CONTRACTS.md` (aquí E59 y E60).
 
 ## Dashboard local con actualización
 
