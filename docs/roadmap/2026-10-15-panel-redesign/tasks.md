@@ -1392,7 +1392,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 ### T-39 — Cierre de la Fase 4: revisión de dos lentes y revisión visual del usuario (M-03)
 
 - **Descripción**: Puerta de la fase: suites de CA-44, linter y evals; revisión de dos lentes; bucle acotado a 3; el usuario revisa Memoria, Catálogo y Diagnóstico en el navegador (M-03).
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 1,8h · real —
 - **Tiempo IA (ejec.)**: est. 3,6h · real — (revisión + corrección, f = 1,0)
 - **Supervisión**: est. 1,9h (≈25 % IA + 1h de revisión manual) · real —
@@ -1919,6 +1919,16 @@ Diff `76162ec..f3689bd` (2026-10-16), dos revisores `reviewer` (opus). C forzada
 | F4-8 | Minor | Con recorte a 64 KiB el filtro de área cuenta solo lo mostrado sin decirlo | T-30 | corregido (fix1): con `recortado > 0` una nota junto al filtro dice que cuenta solo las N entradas mostradas de M · RED test_f4_8_con_recorte_el_filtro_de_area_dice_que_cuenta_solo_lo_mostrado (antes del código) | `page-memoria.js:156-165,189` |
 | F4-9 | Minor | `api/memoria` se calcula en el hilo de la petición (1-2,5 s) como la cartera antes de M-02 | T-30 | corregido (fix1): `api/memoria` en hilo de fondo con Lock, última versión mientras recalcula; la página reintenta si `calculando` · RED test_f4_9_la_primera_peticion_responde_calculando (antes del código) | `serve_panel.py:583-600`; 85 % en `lstat` de `knowledge-view.snapshot` |
 | F4-10 | Minor | `ui_url` alargado por `anonimizar` y recortado a 200 invalida la página; una bandeja muy larga agota los 64 KiB y deja Memoria `unavailable` en vez de recortar la bandeja | T-31 | corregido (fix1): `ui_url` alterada por anonimizar se descarta; la bandeja se recorta (conteos reales) antes de `unavailable` · RED test_f4_10_una_bandeja_demasiado_larga_se_recorta (antes del código) | `serve_panel.py` `_CAPS['ui_url']`; `page-memoria.js:59,86-87` |
+
+## Revisión de dos lentes — intento 2: Fase 4 (T-30..T-38) — 0 Important, 3 Minor, 0 Critical (lentes: A+B+C+D)
+
+Confirmación de fix1 sobre `01a1adc..469db9a` (2026-10-16), un revisor `reviewer` (opus) con las cuatro lentes por memoria. F4-1, F4-3..F4-10 ✓ con test; los 38 tests de `tests/test_panel_memoria_fix1.py` fallan sobre `01a1adc` (RED real). Ningún test existente relajado. C: 30 hosts probados en Python y JS, ningún host público sale como enlace; `_scrub_memoria` cubre todo el texto libre en servido y exportado. D: recálculo solo con la caché vencida, `memoria` 0,46 s y `_scrub_memoria` 0,03 s en el repo real. **Bucle cerrado sin Critical ni Important;** los Minor pasan al backlog de la Fase 3. T-39 sigue `en-progreso` hasta M-03 (el usuario lo revisará al final, 2026-10-16).
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| F4-11 | Minor | Un recálculo fallido de `api/memoria` no se ve en la página: la versión buena sale `ok`/`complete` y `recalculo_fallido` se pierde con 16 avisos; añadirlo puede pasar de 64 KiB | T-30 | deuda (backlog F3) | `serve_panel.py:701-706`; `page-memoria.js:165-169` |
+| F4-12 | Minor | Python y JS discrepan en `[0:0:0:0:0:0:0:1]` y `[fe80::1%25eth0]`: la tarjeta dice «host no local» para un loopback (etiqueta, no seguridad) | T-34 | deuda (backlog F3) | `panel_data.py:600-606`; `page-memoria.js:63-68` |
+| F4-13 | Minor | «Actualizar» con la caché vencida devuelve la versión vieja sin reintentar | T-30 | deuda (backlog F3) | `serve_panel.py:676-684`; `page-memoria.js:530-532` |
 
 ## Historial archivado
 
