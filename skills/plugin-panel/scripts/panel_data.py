@@ -15,12 +15,14 @@ con el mismo saneador que el resto de APIs.
 import datetime
 import hashlib
 import importlib.util
+import ipaddress
 import json
 import os
 from pathlib import Path
 import re
 import stat
 import sys
+import urllib.parse
 
 for _s in (sys.stdin, sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
@@ -38,8 +40,8 @@ MAX_RESPONSE_BYTES = 65536
 ESTADOS_SPEC = ('borrador', 'aprobada', 'implementada', 'obsoleta')
 CATEGORIAS = ESTADOS_SPEC + ('ilegible', 'sin_spec', 'no_reconocido')
 ARTEFACTOS = ('spec.md', 'evaluation.md', 'design.md', 'improvement-plan.md', 'tasks.md')
-_FECHA = re.compile(r'\d{4}-\d{2}-\d{2}')
-_CONTROLES = re.compile('[' + chr(0) + '-' + chr(0x1f) + chr(0x7f) + '-' + chr(0x9f) + chr(0x202a) + '-' + chr(0x202e) + chr(0x2066) + '-' + chr(0x2069) + ']')
+_FECHA = re.compile(r'\d{4}-\d{2}-\d{2}', re.ASCII)   # `\d` de str casa dígitos Unicode; el validador de JS, no
+_CONTROLES = re.compile('[' + chr(0) + '-' + chr(0x1f) + chr(0x7f) + '-' + chr(0x9f) + chr(0x202a) + '-' + chr(0x202e) + chr(0x2066) + '-' + chr(0x2069) + chr(0x2028) + '-' + chr(0x2029) + ']')
 _EUR = re.compile(r'(?<![\w.,])(\d{1,3}(?:[.,]\d{3})+|\d+)(?:[.,](\d{1,2}))?\s*(?:€|EUR\b)')
 
 
@@ -574,10 +576,55 @@ MEM_MAX_BACKENDS = 8
 MEM_OUTBOX_LEIDOS = 64              # manifiestos de `done/` que se leen para la última publicación
 KS = '.claude/knowledge-services'
 CANDIDATOS = ('pending', 'needs_changes', 'rejected')
-_BACKEND_RE = re.compile(r'[a-z][a-z0-9_-]{0,31}')
-_ISO_Z = re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z')
+_BACKEND_RE = re.compile(r'[a-z][a-z0-9_-]{0,31}', re.ASCII)
+_ISO_Z = re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z', re.ASCII)
 _URL_UI = re.compile(r'https?://[^\s?#@\\\x00-\x1f]{1,190}')
 _MARCA_REDACTOR = '[secreto redactado]'
+# Redes que el guardrail de nemesis (`lib-guardrail.sh`) admite como locales/privadas. Aqui se comparan como REDES y no
+# por prefijo de texto: `127.0.0.1.example.com` no es loopback.
+_REDES_LOCALES = tuple(ipaddress.ip_network(n) for n in (
+    '127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '169.254.0.0/16', '::1/128', 'fc00::/7', 'fe80::/10'))
+_SUFIJOS_LOCALES = ('.test', '.local', '.localhost', '.internal')
+
+
+def _host_local(url):
+    """`True` si el host de `url` es loopback o privado (mismo criterio que `lib-guardrail.sh`); nunca resuelve nombres."""
+    try:
+        host = urllib.parse.urlsplit(url).hostname
+    except ValueError:
+        return False
+    if not host:
+        return False
+    host = host.lower().rstrip('.')
+    if host in ('localhost', 'host.docker.internal') or host.endswith(_SUFIJOS_LOCALES):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return any(ip.version == red.version and ip in red for red in _REDES_LOCALES)
+
+
+def _fecha_ok(valor):
+    """`AAAA-MM-DD` real (ASCII y existente en el calendario); si no, `None`."""
+    if not isinstance(valor, str) or not _FECHA.fullmatch(valor):
+        return None
+    try:
+        datetime.date.fromisoformat(valor)
+    except ValueError:
+        return None
+    return valor
+
+
+def _iso_z_ok(valor):
+    """Instante `AAAA-MM-DDTHH:MM:SSZ` real: el validador de la pagina (`Date.parse`) rechaza uno imposible."""
+    if not isinstance(valor, str) or not _ISO_Z.fullmatch(valor):
+        return False
+    try:
+        datetime.datetime.fromisoformat(valor[:-1])
+    except ValueError:
+        return False
+    return True
 
 
 def _corta(texto, tope):
@@ -624,6 +671,27 @@ def _memoria_vacia(status, issue=None):
     return datos
 
 
+def _recortar_bandeja(datos, limite, tope=None):
+    """Quita elementos del FINAL de la lista mas larga de la bandeja hasta que ocupe `limite` bytes (o, con `tope`, hasta
+    que la respuesta entera quepa). Los conteos `n` no cambian: son los de la carpeta, no los listados."""
+    bandeja = datos.get('bandeja')
+    if not isinstance(bandeja, dict):
+        return
+
+    def listas():
+        yield from (e['items'] for e in bandeja['estados'].values() if e.get('items'))
+        if bandeja['aprobadas'].get('items'):
+            yield bandeja['aprobadas']['items']
+
+    def pesa(valor):
+        return len(json.dumps(valor, ensure_ascii=False).encode('utf8'))
+    while (pesa(datos) > tope) if tope is not None else (pesa(bandeja) > limite):
+        mayor = max(listas(), key=len, default=None)
+        if not mayor:
+            break
+        mayor.pop()
+
+
 def ajustar_memoria(datos, tope=MAX_RESPONSE_BYTES):
     """Recorta `entradas` por el final hasta que la respuesta quepa en `tope` bytes (los conteos siguen siendo los del
     corpus entero) y lo declara (`recortado`, `status: partial`). Lo usan `memoria` y el servidor, que vuelve a medir
@@ -633,6 +701,10 @@ def ajustar_memoria(datos, tope=MAX_RESPONSE_BYTES):
     exceso = tamano() - tope
     if exceso <= 0:
         return datos
+    # La bandeja nunca agota el presupuesto entera: se recorta primero a la mitad (sus `n` siguen siendo los reales y la
+    # pagina dice «se listan X de n»); despues las entradas por el final; y solo si aun asi no cabe, mas bandeja.
+    _recortar_bandeja(datos, tope // 2)
+    exceso = tamano() - tope
     filas = datos['entradas']
     while filas and exceso > 0:
         exceso -= len(json.dumps(filas.pop(), ensure_ascii=False).encode('utf8')) + 1
@@ -640,6 +712,8 @@ def ajustar_memoria(datos, tope=MAX_RESPONSE_BYTES):
     while filas and tamano() > tope:
         filas.pop()
         datos['recortado'] += 1
+    if tamano() > tope:
+        _recortar_bandeja(datos, 0, tope=tope)
     datos['complete'], datos['status'] = False, 'partial'
     if {'status': 'output_budget'} not in datos['issues'] and len(datos['issues']) < 16:
         datos['issues'].append({'status': 'output_budget'})
@@ -648,36 +722,57 @@ def ajustar_memoria(datos, tope=MAX_RESPONSE_BYTES):
 
 def _fila_entrada(e, redact, sucesion):
     sustituida = [i for r, _x, i in sucesion if r == 'sustituida por']
-    fecha = (e.get('fecha') or '').strip()
-    return {'id': e['id'], 'tipo': _redactado(redact, e['tipo'], 160), 'estado': _redactado(redact, e['estado'], 160),
-            'area': _redactado(redact, e['area'], 160), 'titular': _redactado(redact, e['titular'], 160),
-            'fecha': fecha if _FECHA.fullmatch(fecha) else None,
+    fecha = _fecha_ok((e.get('fecha') or '').strip())
+    return {'id': e['id'], 'tipo': _redactado(redact, e['tipo'], 160) or '', 'estado': _redactado(redact, e['estado'], 160) or '',
+            'area': _redactado(redact, e['area'], 160) or '', 'titular': _redactado(redact, e['titular'], 160) or '',
+            'fecha': fecha,
             'iniciativa': _redactado(redact, e.get('iniciativa') or '', 80),
             'origen': 'approved' if str(e['ruta']).startswith('docs/knowledge/approved/') else 'proyecto',
             'vigente': e['estado'] != 'obsoleta' and not sustituida,
-            'sustituida_por': [_redactado(redact, i, 256) for i in sustituida],
-            'sustituye_a': [_redactado(redact, i, 256) for r, _x, i in sucesion if r == 'sustituye a']}
+            'sustituida_por': _etiquetas(redact, sustituida),
+            'sustituye_a': _etiquetas(redact, [i for r, _x, i in sucesion if r == 'sustituye a'])}
+
+
+def _etiqueta(redact, valor):
+    """Id de un sucesor (que puede NO estar en el corpus): redactado, sin controles y de <= 256 puntos de codigo, como
+    pide la pagina; nunca vacio."""
+    return _redactado(redact, valor, 256).strip() or '(sin id)'
+
+
+def _etiquetas(redact, valores, maximo=16):
+    """Hasta `maximo` etiquetas distintas (la pagina rechaza mas de 16)."""
+    salida = []
+    for valor in valores:
+        etiqueta = _etiqueta(redact, valor)
+        if etiqueta not in salida and len(salida) < maximo:
+            salida.append(etiqueta)
+    return salida
 
 
 def _relaciones_de(find, unicos, e, redact):
     rel = find.relaciones(unicos, e)
-    quedan = MEM_MAX_RELACIONES
     # Claves propias (`por_iniciativa`, `por_area`): `area` es una clave de texto mostrado del saneador y no puede contener ids.
     salida = {'sucesion': [], 'por_iniciativa': [], 'por_area': [], 'enlaces': []}
     origen = {'sucesion': 'sucesion', 'por_iniciativa': 'iniciativa', 'por_area': 'area', 'enlaces': 'enlaces'}
-    recortado = False
+    filas = {grupo: rel.get(origen[grupo], []) for grupo in salida}
+    total = sum(len(f) for f in filas.values())
+    # Reparto por turnos: el cupo de 20 se comparte y ningun grupo con relaciones se queda sin ninguna en silencio.
+    cupo = dict.fromkeys(salida, 0)
+    quedan = MEM_MAX_RELACIONES
+    while quedan and any(cupo[g] < len(filas[g]) for g in salida):
+        for grupo in salida:
+            if quedan and cupo[grupo] < len(filas[grupo]):
+                cupo[grupo] += 1
+                quedan -= 1
     for grupo in salida:
-        filas = rel.get(origen[grupo], [])
-        if len(filas) > quedan:
-            recortado = True
-        for fila in filas[:quedan]:
+        for fila in filas[grupo][:cupo[grupo]]:
             if grupo == 'sucesion':
                 relacion, destino, ident = fila
-                salida[grupo].append({'relacion': relacion, 'id': ident, 'ausente': destino is None})
+                salida[grupo].append({'relacion': relacion, 'id': _etiqueta(redact, ident), 'ausente': destino is None})
             else:
                 salida[grupo].append(fila['id'])
-        quedan -= len(salida[grupo])
-    salida['recortado'] = recortado
+    salida['recortado'] = total > MEM_MAX_RELACIONES
+    salida['total'] = total
     return salida
 
 
@@ -697,7 +792,8 @@ def _entradas_memoria(project, datos, redact, relaciones):
     validas = []
     for e in corpus:
         ident = e.get('id')
-        if not isinstance(ident, str) or not 0 < len(ident) <= 256 or redact.redactar(ident) != ident:
+        if (not isinstance(ident, str) or not 0 < len(ident) <= 256 or redact.redactar(ident) != ident
+                or _CONTROLES.search(ident)):
             issue('identidad_invalida')
             continue
         validas.append(e)
@@ -708,8 +804,11 @@ def _entradas_memoria(project, datos, redact, relaciones):
         issue('identidad_duplicada')
     unicos = [e for e in validas if cuentas[e['id'].casefold()] == 1]
     sucesion = getattr(find, '_relaciones_sucesion', None)
-    filas, conteos, rel = [], {}, {}
+    filas, conteos, rel, vistos = [], {}, {}, set()
     for e in sorted(validas, key=find.clave_orden):
+        if e['id'] in vistos:      # el mismo id dos veces: una sola fila (la pagina rechaza ids repetidos); el aviso ya esta dado
+            continue
+        vistos.add(e['id'])
         unico = cuentas[e['id'].casefold()] == 1
         suc = (sucesion(unicos, e) if sucesion else find.relaciones(unicos, e)['sucesion']) if unico else []
         fila = _fila_entrada(e, redact, suc)
@@ -789,27 +888,30 @@ def _ruta_del_proyecto(project, valor):
 
 
 def _ultima_publicacion(reader, project, backend):
-    """Fecha de la última publicación: el `completado_en` MÁS RECIENTE de `done/*.manifest.json` de la outbox del
-    backend (la fecha real de materialización que escribe `outbox.completar`). Nunca el `mtime`."""
+    """`(fecha, parcial)`: el `completado_en` MAS RECIENTE de `done/*.manifest.json` de la outbox del backend (la fecha
+    real de materializacion que escribe `outbox.completar`; nunca el `mtime`) y si el listado o la lectura se quedaron cortos."""
     ruta = f'{KS}/_sync-outbox/{backend}/done'
     listado = reader.list_names(project, ruta, max_entries=256)
     if listado['status'] not in ('ok', 'incomplete'):
-        return None
-    nombres = sorted((n for n in listado['names'] if n.endswith('.manifest.json')), reverse=True)[:MEM_OUTBOX_LEIDOS]
+        return None, False
+    todos = sorted((n for n in listado['names'] if n.endswith('.manifest.json')), reverse=True)
     mejor = None
-    for nombre in nombres:
+    for nombre in todos[:MEM_OUTBOX_LEIDOS]:
         dato = _json_acotado(reader, project, ruta + '/' + nombre, 16 * 1024)
         fecha = dato.get('completado_en') if isinstance(dato, dict) else None
-        if isinstance(fecha, str) and _ISO_Z.fullmatch(fecha) and (mejor is None or fecha > mejor):
+        if _iso_z_ok(fecha) and (mejor is None or fecha > mejor):
             mejor = fecha
-    return mejor
+    # `list_names` devuelve un prefijo del directorio si hay mas de 256 ficheros, y solo se leen `MEM_OUTBOX_LEIDOS`:
+    # en ambos casos puede haber una publicacion mas reciente que no se vio («al menos»).
+    return mejor, (not listado['complete']) or len(todos) > MEM_OUTBOX_LEIDOS
 
 
 def _fila_backend(project, reader, ident, cfg):
     tipo = cfg.get('type') if isinstance(cfg.get('type'), str) else ''
     conf = cfg.get('config') if isinstance(cfg.get('config'), dict) else {}
     fila = {'backend': ident, 'tipo': tipo[:40], 'situacion': 'deshabilitado' if cfg.get('enabled') is False else 'configurado',
-            'entradas': None, 'ultima': None, 'interrumpida': False, 'ui_url': None}
+            'entradas': None, 'ultima': None, 'ultima_parcial': False, 'interrumpida': False, 'ui_url': None,
+            'ui_url_no_local': False}
     if tipo == 'markdown-export':
         carpeta = _ruta_del_proyecto(project, conf.get('export_dir') or KS + '/kwipu-export')
         if carpeta:
@@ -822,10 +924,14 @@ def _fila_backend(project, reader, ident, cfg):
         if isinstance(manifiesto, dict) and isinstance(manifiesto.get('entradas'), dict):
             fila['entradas'] = len(manifiesto['entradas'])
         fila['interrumpida'] = _existe(reader, project, KS + '/graphiti-manifest.pending.json')
-    fila['ultima'] = _ultima_publicacion(reader, project, ident)
+    fila['ultima'], fila['ultima_parcial'] = _ultima_publicacion(reader, project, ident)
     url = conf.get('ui_url')
     if isinstance(url, str) and _URL_UI.fullmatch(url):
-        fila['ui_url'] = url
+        # Un repo clonado no puede apuntar el enlace «abrir» a un host externo: solo loopback/privado (guardrail de nemesis).
+        if _host_local(url):
+            fila['ui_url'] = url
+        else:
+            fila['ui_url_no_local'] = True
     return fila
 
 
@@ -847,7 +953,7 @@ def _backends(project, reader, issue):
     for ident, tipo in (('kwipu', 'markdown-export'), ('graphiti', 'graphiti')):
         if not any(f['backend'] == ident for f in filas):
             filas.append({'backend': ident, 'tipo': tipo, 'situacion': 'no_configurado', 'entradas': None, 'ultima': None,
-                          'interrumpida': False, 'ui_url': None})
+                          'ultima_parcial': False, 'interrumpida': False, 'ui_url': None, 'ui_url_no_local': False})
     orden = {'kwipu': 0, 'graphiti': 1}
     return sorted(filas, key=lambda f: (orden.get(f['backend'], 2), f['backend']))
 
@@ -863,10 +969,14 @@ def _journal(project, redact):
     if estado not in ('ok', 'empty', 'not_found', 'incomplete'):
         return {'status': 'unavailable', 'sesiones': []}
     sesiones = []
-    for e in (resultado.get('entries') or [])[:MEM_MAX_SESIONES]:
+    # Con una lectura incompleta (frontmatter roto, mas de 128 ficheros) `journal.py` no promueve nada a `entries`, pero
+    # ofrece las `candidates` legibles: se muestran, con la lista marcada como incompleta (no acredita ausencia ni «las ultimas»).
+    lista = resultado.get('candidates') if estado == 'incomplete' else resultado.get('entries')
+    for e in (lista or [])[:MEM_MAX_SESIONES]:
+        if not isinstance(e, dict):
+            continue
         c = e.get('continuidad') if isinstance(e.get('continuidad'), dict) else {}
-        fecha = str(e.get('fecha') or '')
-        sesiones.append({'fecha': fecha if _FECHA.fullmatch(fecha) else None,
+        sesiones.append({'fecha': _fecha_ok(str(e.get('fecha') or '')),
                          'iniciativa': _redactado(redact, e.get('iniciativa') or '', 80),
                          'resumen': _redactado(redact, e.get('resumen') or '', 240),
                          'objetivo': _redactado(redact, c.get('objetivo'), 240),

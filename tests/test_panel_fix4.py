@@ -459,3 +459,19 @@ def test_contrato_api_memoria_cada_campo_mostrado_anonimizado_y_el_resto_intacto
     largo['journal']['sesiones'][0]['objetivo'] = 'abc ' * 60
     recortado = servicio._scrubbed(largo, _corto(servicio))
     assert len(recortado['entradas'][0]['titular']) <= 160 and len(recortado['journal']['sesiones'][0]['objetivo']) <= 240
+
+
+def test_contrato_api_memoria_la_identidad_no_cerrada_tambien_se_sanean_y_los_ids_cerrados_quedan():
+    """F4-1: `iniciativa`, el id de un sucesor ausente y un id de forma libre pasan por el saneador unico (`_scrub_memoria`)."""
+    servicio = _cargar()
+    dato = _memoria_panel()
+    dato['entradas'][0]['iniciativa'] = PLANTADO
+    dato['entradas'][0]['sustituida_por'] = ['ADR-002', PLANTADO]
+    dato['relaciones']['ADR-001']['sucesion'][0]['id'] = PLANTADO
+    dato['journal']['sesiones'][0]['iniciativa'] = PLANTADO
+    limpio = servicio._scrub_memoria(dato, _scrub(servicio))
+    crudo = json.dumps(limpio, ensure_ascii=False)
+    for sensible in SENSIBLES:
+        assert sensible not in crudo, sensible
+    assert limpio['entradas'][0]['id'] == 'ADR-001' and limpio['entradas'][0]['sustituida_por'][0] == 'ADR-002'
+    assert limpio['bandeja']['aprobadas']['items'][0]['id'] == 'ADR-001' and 'ADR-001' in limpio['relaciones']

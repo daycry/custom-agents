@@ -198,10 +198,19 @@ def _memoria_falsa(**fila):
     return types.SimpleNamespace(memoria=memoria)
 
 
+def _get_memoria(server):
+    """`api/memoria` se calcula en un hilo de fondo (F4-9): la primera peticion contesta `calculando`; se espera al hilo."""
+    send(server, method='GET', suffix='api/memoria')
+    hilo = getattr(server, '_memoria_hilo', None)
+    if hilo is not None:
+        hilo.join(10)
+    return send(server, method='GET', suffix='api/memoria')
+
+
 def test_api_memoria_es_un_get_json_acotado_y_no_toca_api_memory(memory_server, monkeypatch):
     monkeypatch.setattr(memory_server.test_service, '_load_data', lambda: _memoria_falsa())
-    status, headers, raw = send(memory_server, method='GET', suffix='api/memoria')
-    assert status == 200 and json.loads(raw)['source'] == 'memoria_panel' and len(raw) <= 65536
+    status, headers, raw = _get_memoria(memory_server)
+    assert status == 200 and json.loads(raw)['source'] == 'memoria_panel' and json.loads(raw)['status'] == 'ok' and len(raw) <= 65536
     assert headers['Content-Type'].startswith('application/json') and headers['Cache-Control'] == 'no-store'
     assert memory_server.test_calls == []                      # el lector de api/memory no se invoca
     assert send(memory_server, {'operation': 'search'}, suffix='api/memoria')[0] == 405   # POST no
@@ -223,7 +232,7 @@ def test_api_memoria_redacta_antes_de_recortar_y_no_pasa_de_64_kib(memory_server
         return base
     monkeypatch.setattr(servicio, '_load_data', lambda: types.SimpleNamespace(memoria=memoria))
     memory_server._memoria = None
-    status, _, raw = send(memory_server, method='GET', suffix='api/memoria')
+    status, _, raw = _get_memoria(memory_server)
     cuerpo = json.loads(raw)
     assert status == 200 and len(raw) <= 65536 and secreto[:12].encode() not in raw
     assert cuerpo['recortado'] > 0 and cuerpo['status'] == 'partial' and cuerpo['complete'] is False
@@ -235,5 +244,6 @@ def test_api_memoria_degrada_sin_filtrar_la_causa(memory_server, monkeypatch):
         raise ImportError('PRIVATE_EXPLANATION')
     monkeypatch.setattr(memory_server.test_service, '_load_data', roto)
     memory_server._memoria = None
-    status, _, raw = send(memory_server, method='GET', suffix='api/memoria')
+    status, _, raw = _get_memoria(memory_server)
     assert status == 200 and json.loads(raw)['status'] == 'unavailable' and b'PRIVATE_EXPLANATION' not in raw
+    assert {'status': 'calculando'} not in json.loads(raw)['issues']       # es el fallo, no la espera

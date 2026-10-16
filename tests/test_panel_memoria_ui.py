@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FIND = ROOT / 'agent-kits/shared/knowledge-find.py'
 IDS = ('memoria-estado', 'grafico-memoria', 'memoria-area', 'memoria-tabla', 'memoria-bandeja', 'memoria-linea',
        'memoria-relaciones', 'memoria-relaciones-estado', 'memoria-grafo', 'memoria-lista-relaciones',
-       'memoria-backends', 'memoria-journal', 'memoria-actualizar')
+       'memoria-backends', 'memoria-journal', 'memoria-actualizar', 'memoria-area-nota')
 
 
 def _panel_data():

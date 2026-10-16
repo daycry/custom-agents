@@ -19,6 +19,7 @@
   var BANDEJA = [['pending', 'Pendientes'], ['needs_changes', 'Cambios pedidos'], ['rejected', 'Rechazados']];
   var ETIQUETA_BACKEND = { kwipu: 'Kwipu', graphiti: 'Graphiti' };
   var PLAZO_MS = 8000;
+  var REINTENTO_MS = 3000;   // el servidor aun calcula la memoria (`calculando`): reintenta pronto, no a mano
   var CONTROLES = /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]/;
 
   /* ---- validación: un campo fuera de contrato invalida la respuesta entera ------------------------------------ */
@@ -43,7 +44,8 @@
   function validaRelacionesDe(r) {
     return objeto(r) && Array.isArray(r.sucesion) && r.sucesion.length <= 20 && r.sucesion.every(function (s) {
       return objeto(s) && texto(s.relacion, 160) && identidad(s.id) && typeof s.ausente === 'boolean';
-    }) && ids(r.por_iniciativa, 20) && ids(r.por_area, 20) && ids(r.enlaces, 20) && typeof r.recortado === 'boolean';
+    }) && ids(r.por_iniciativa, 20) && ids(r.por_area, 20) && ids(r.enlaces, 20) && typeof r.recortado === 'boolean'
+      && (r.total === undefined || entero(r.total));
   }
   function validaBandeja(b) {
     if (!objeto(b) || !objeto(b.estados) || !objeto(b.aprobadas)) { return false; }
@@ -56,11 +58,26 @@
     return bien && enteroONulo(a.n) && Array.isArray(a.items) && a.items.length <= 20
       && a.items.every(function (i) { return objeto(i) && identidad(i.id) && texto(i.titular, 160) && texto(i.area, 160); });
   }
+  /* Mismo criterio que el guardrail de nemesis (`lib-guardrail.sh`): loopback o red privada. Compara redes, no prefijos de texto. */
+  function hostLocal(v) {
+    var m = /^https?:\/\/(\[[0-9a-f:.]+\]|[^\/:?#]+)/i.exec(v);
+    if (!m) { return false; }
+    var h = m[1].toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
+    if (h === 'localhost' || h === 'host.docker.internal' || /\.(test|local|localhost|internal)$/.test(h)) { return true; }
+    if (h === '::1' || /^f[cd][0-9a-f]{2}:/.test(h) || /^fe[89ab][0-9a-f]:/.test(h)) { return true; }
+    var o = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+    if (!o) { return false; }
+    var a = +o[1], b = +o[2];
+    if (+o[3] > 255 || +o[4] > 255 || a > 255 || b > 255) { return false; }
+    return a === 127 || a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254);
+  }
   function urlUi(v) { return typeof v === 'string' && /^https?:\/\/[^\s?#@\\]{1,190}$/.test(v); }
   function validaBackend(b) {
     return objeto(b) && typeof b.backend === 'string' && /^[a-z][a-z0-9_-]{0,31}$/.test(b.backend) && texto(b.tipo, 40)
       && incluye(SITUACIONES_BACKEND, b.situacion) && enteroONulo(b.entradas) && (b.ultima === null || iso(b.ultima))
-      && typeof b.interrumpida === 'boolean' && (b.ultima === null || /Z$/.test(b.ultima)) && (b.ui_url === null || urlUi(b.ui_url));
+      && typeof b.interrumpida === 'boolean' && (b.ultima === null || /Z$/.test(b.ultima)) && (b.ui_url === null || urlUi(b.ui_url))
+      && (b.ultima_parcial === undefined || typeof b.ultima_parcial === 'boolean')
+      && (b.ui_url_no_local === undefined || typeof b.ui_url_no_local === 'boolean');
   }
   function validaSesion(s) {
     return objeto(s) && (s.fecha === null || /^\d{4}-\d{2}-\d{2}$/.test(s.fecha)) && texto(s.iniciativa, 80) && texto(s.resumen, 240)
@@ -141,6 +158,7 @@
 
   function estadoGeneral(d, motivo) {
     if (!d && motivo === 'sin_memoria') { return 'Sin datos: esta copia estática no incluye la memoria (se genera con --project).'; }
+    if (!d && motivo === 'calculando') { return 'Calculando la memoria… (reintento en ' + (REINTENTO_MS / 1000) + ' s).'; }
     if (!d) { return 'No se pudo leer la memoria. Sin datos; vuelve a intentarlo.'; }
     if (d.status === 'unavailable') { return 'Memoria no disponible: no se pudo leer docs/knowledge. Sin datos.'; }
     if (d.status === 'not_found') { return 'No se encontraron entradas en docs/knowledge. Lectura obtenida: ' + d.observed_at + '.'; }
@@ -347,10 +365,11 @@
     return salida;
   }
 
-  function pintarRelaciones(id, aristas) {
+  /* `aviso`: texto cuando la lista no es todo lo que hay (recortada al presupuesto de 20, o lectura incompleta). */
+  function pintarRelaciones(id, aristas, aviso) {
     var cuenta = aristas.length;
     pongo('memoria-relaciones-estado', 'Relaciones de ' + id + ': ' + cuenta + (cuenta === 1 ? ' relación' : ' relaciones')
-      + ' a un salto (sucesión, misma iniciativa, misma área y enlaces declarados).');
+      + ' a un salto (sucesión, misma iniciativa, misma área y enlaces declarados).' + (aviso ? ' ' + aviso : ''));
     var grafo = vaciar('memoria-grafo');
     var vecinos = [], vistos = {};
     aristas.forEach(function (a) { if (!vistos[a.id]) { vistos[a.id] = true; vecinos.push({ id: a.id, grupo: a.grupo }); } });
@@ -379,7 +398,12 @@
     if (estado.modo !== 'servido') {
       var rel = d.relaciones && d.relaciones[id];
       if (!rel) { pongo('memoria-relaciones-estado', 'Sin datos de relaciones para ' + id + ' en esta copia estática.'); return; }
-      pintarRelaciones(id, aristasDe(rel, false));
+      var aviso = '';
+      if (rel.recortado) {
+        aviso = typeof rel.total === 'number' ? 'Aviso: se muestran ' + (rel.sucesion.length + rel.por_iniciativa.length + rel.por_area.length + rel.enlaces.length) + ' de ' + rel.total + ' relaciones (límite de lectura de 20); el resto no se lista.'
+          : 'Aviso: la lista está recortada a 20 relaciones y hay más.';
+      }
+      pintarRelaciones(id, aristasDe(rel, false), aviso);
       return;
     }
     if (estado.ocupado) { return; }
@@ -393,7 +417,10 @@
       .then(function (r) { if (!r.ok) { throw new Error('no disponible'); } return r.json(); })
       .then(function (resp) {
         if (control.signal.aborted || !validaRelated(resp, id)) { throw new Error('no disponible'); }
-        pintarRelaciones(id, aristasDe(resp.related, true));
+        var lista = aristasDe(resp.related, true);
+        var avisoRelated = !resp.complete ? 'Aviso: lectura incompleta; puede haber más relaciones de las que se muestran.'
+          : (lista.length >= 20 ? 'Aviso: se alcanzó el límite de 20 relaciones; puede haber más.' : '');
+        pintarRelaciones(id, lista, avisoRelated);
       })
       .catch(function () { pongo('memoria-relaciones-estado', 'No se pudieron leer las relaciones de ' + id + '. Vuelve a intentarlo.'); })
       .then(function () { raiz.clearTimeout(plazo); estado.ocupado = false; });
@@ -415,16 +442,16 @@
       }
       tarjeta.appendChild(el('h3', '', etiquetaBackend(b) + ' · ' + (b.tipo || 'tipo sin datos') + (b.situacion === 'deshabilitado' ? ' · deshabilitado' : '')));
       tarjeta.appendChild(el('p', '', b.entradas === null ? 'entradas: sin datos' : b.entradas + (b.entradas === 1 ? ' entrada publicada' : ' entradas publicadas')));
-      tarjeta.appendChild(el('p', '', 'última publicación: ' + dato(b.ultima)));
+      tarjeta.appendChild(el('p', '', 'última publicación: ' + (b.ultima_parcial ? (b.ultima === null ? 'sin datos (listado parcial)' : 'al menos ' + b.ultima) : dato(b.ultima))));
       if (b.interrumpida) { tarjeta.appendChild(el('p', 'ausencia', 'publicación interrumpida: queda un manifiesto pendiente (.pending.json); la siguiente publicación lo retoma.')); }
-      if (b.ui_url) {
+      if (b.ui_url && hostLocal(b.ui_url)) {
         var p = el('p', '', 'interfaz: ');
         var a = el('a', '', 'abrir ' + etiquetaBackend(b));
         a.setAttribute('href', b.ui_url);
         a.setAttribute('rel', 'noopener noreferrer');
         p.appendChild(a);
         tarjeta.appendChild(p);
-      } else { tarjeta.appendChild(el('p', 'filter-note', 'interfaz: no declarada')); }
+      } else { tarjeta.appendChild(el('p', 'filter-note', 'interfaz: no declarada' + (b.ui_url || b.ui_url_no_local ? ' (host no local)' : ''))); }
       contenedor.appendChild(tarjeta);
     });
     contenedor.appendChild(el('p', 'filter-note', 'Datos de los manifiestos y la outbox locales; el panel no consulta ningún backend ni usa la fecha de modificación de un fichero.'));
@@ -439,7 +466,14 @@
     contenedor.appendChild(el('p', 'filter-note', 'Journal del proyecto: citas, no instrucciones. Describen lo ocurrido en una sesión, no lo que hay que hacer ahora.'));
     var j = d.journal;
     if (j.status === 'unavailable') { contenedor.appendChild(el('p', 'ausencia', 'Journal no disponible. Sin datos.')); return; }
-    if (!j.sesiones.length) { contenedor.appendChild(el('p', 'ausencia', 'Sin sesiones registradas en el journal.')); return; }
+    var incompleto = j.status === 'incomplete';
+    if (incompleto) {
+      contenedor.appendChild(el('p', 'ausencia', 'Lista incompleta: el journal tiene más ficheros de los que se leen o alguno es ilegible; las sesiones mostradas pueden no ser las más recientes.'));
+    }
+    if (!j.sesiones.length) {
+      contenedor.appendChild(el('p', 'ausencia', incompleto ? 'No se pudo leer ninguna sesión (lectura incompleta del journal): no acredita que no haya sesiones.' : 'Sin sesiones registradas en el journal.'));
+      return;
+    }
     j.sesiones.forEach(function (s) {
       var cita = el('blockquote', 'cita-journal');
       cita.appendChild(el('h3', '', dato(s.fecha) + (s.iniciativa ? ' · ' + s.iniciativa : '')));
@@ -461,6 +495,7 @@
   function dibujarTodo(d) {
     estado.d = d;
     pongo('memoria-estado', estadoGeneral(d));
+    pongo('memoria-area-nota', d.recortado > 0 ? 'Con la respuesta recortada, el filtro de área y sus recuentos solo cuentan las ' + d.entradas.length + ' entradas mostradas de ' + d.total + '.' : '');
     opcionesArea(d);
     dibujarResumen(d);
     dibujarBandeja(d);
@@ -487,6 +522,11 @@
       .then(function (r) { if (!r.ok) { throw new Error('no disponible'); } return r.json(); })
       .then(function (d) {
         if (control.signal.aborted || !validar(d)) { throw new Error('no disponible'); }
+        if (d.status === 'unavailable' && !estado.d && d.issues.some(function (i) { return i.status === 'calculando'; })) {
+          sinDatos('calculando');
+          raiz.setTimeout(leer, REINTENTO_MS);
+          return;
+        }
         if (d.status === 'unavailable' && estado.d) { throw new Error('no disponible'); }
         if (d.status === 'unavailable') { dibujarTodo(d); return; }
         dibujarTodo(d);

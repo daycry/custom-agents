@@ -55,6 +55,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - Diagnostics shows each check with its verdict as text (OK, warning, error) next to the icon, its date and scope, and a summary with the counts; with no report, or a rejected one, it gives the reason and the exact command to generate it.
 - Documented the Memory, Catalog and Diagnostics pages, the `api/memoria` endpoint (read-only, under 64 KiB, no network) and the rule of showing «sin datos» instead of widening hotspot contracts (CONTRACTS E59–E60).
 
+### Fixed — `panel-redesign` initiative, phase 4 review
+
+- Memory page: personal data in initiative and successor labels is anonymized like the rest of the panel; the journal and relation lists say when they are incomplete instead of claiming there is nothing; the backend link is offered only for local hosts; the last publication reads «al menos» when the listing is truncated; one malformed entry no longer blanks the whole page; and `api/memoria` is computed in the background so the page no longer stalls.
+
 ### Fixed — `panel-redesign` initiative, phase 2 review
 
 - The panel's portfolio, review and task-detail endpoints now reuse their answers until the ledger or review state changes, review summaries cover projects with more than 64 plans, the static export no longer re-projects each ledger per task, and ledger ranges such as `T-01..T-15` count for every task in them.

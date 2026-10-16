@@ -327,6 +327,93 @@ def _scrubbed(value, scrub, key=None, in_section=False):
     return value
 
 
+# Ids de vocabulario cerrado de la memoria (`ADR-011`, `GOT-005`, `LES-012-implementer-x`): salen intactos. Lo demas que
+# viaja como identidad (`iniciativa`, el id de un sucesor ausente, un id con forma libre) es texto del repo y pasa por el
+# MISMO saneador que el resto del panel. Si anonimizar altera un id de la tabla, se usa el mismo valor en todas partes.
+_ID_CERRADO = re.compile(r'(?:ADR|GOT|LES)-\d{3,6}(?:-[A-Za-z0-9._-]{1,200})?', re.ASCII)
+
+
+def _identidad_saneada(valor, scrub, tope):
+    if not isinstance(valor, str) or not valor or _ID_CERRADO.fullmatch(valor):
+        return valor
+    return _clip(scrub(valor), tope) or '(sin id)'
+
+
+def _scrub_memoria(datos, scrub):
+    """Saneado unico de `api/memoria` y de la copia exportada: `_scrubbed` para el texto mostrado y, ademas, lo que viaja
+    como identidad (`id`, `iniciativa`, `sustituida_por`/`sustituye_a`, el id de un sucesor ausente, las claves de
+    `conteos`/`relaciones`) por el mismo `scrub`, y los topes que el validador de la pagina impone DESPUES de anonimizar
+    (que alarga el texto). Un enlace de interfaz que anonimizar altere o que ya no valide se descarta (`None`)."""
+    if scrub is None or not isinstance(datos, dict):
+        return _scrubbed(datos, scrub)
+
+    def ident(valor):
+        return _identidad_saneada(valor, scrub, 256)
+
+    def idents(lista):
+        return [ident(v) for v in lista] if isinstance(lista, list) else lista
+
+    def iniciativa(valor):
+        return _clip(scrub(valor), 80) if isinstance(valor, str) and valor else valor
+    vistos, filas = set(), []
+    for fila in datos.get('entradas') or []:
+        if not isinstance(fila, dict):
+            continue
+        fila['id'] = ident(fila.get('id'))
+        if fila['id'] in vistos:      # dos ids distintos que saneados coinciden: una sola fila, dicho
+            datos['complete'], datos['status'] = False, ('partial' if datos.get('status') == 'ok' else datos.get('status'))
+            if {'status': 'identidad_duplicada'} not in datos.get('issues', []) and len(datos.get('issues', [])) < 16:
+                datos.setdefault('issues', []).append({'status': 'identidad_duplicada'})
+            continue
+        vistos.add(fila['id'])
+        fila['iniciativa'] = iniciativa(fila.get('iniciativa'))
+        fila['sustituida_por'] = idents(fila.get('sustituida_por'))
+        fila['sustituye_a'] = idents(fila.get('sustituye_a'))
+        filas.append(fila)
+    if 'entradas' in datos:
+        datos['entradas'] = filas
+    if isinstance(datos.get('relaciones'), dict):
+        nuevas = {}
+        for clave, rel in datos['relaciones'].items():
+            if isinstance(rel, dict):
+                rel['sucesion'] = [dict(r, id=ident(r.get('id'))) if isinstance(r, dict) else r for r in rel.get('sucesion') or []]
+                for grupo in ('por_iniciativa', 'por_area', 'enlaces'):
+                    rel[grupo] = idents(rel.get(grupo))
+            nuevas.setdefault(ident(clave), rel)
+        datos['relaciones'] = nuevas
+    if isinstance(datos.get('conteos'), dict):
+        cuentas = {}
+        for tipo, por_estado in datos['conteos'].items():
+            if isinstance(por_estado, dict):
+                destino = cuentas.setdefault(_clip(scrub(str(tipo)), 160), {})
+                for estado, n in por_estado.items():
+                    clave = _clip(scrub(str(estado)), 160)
+                    destino[clave] = destino.get(clave, 0) + n
+        datos['conteos'] = cuentas
+    bandeja = datos.get('bandeja')
+    if isinstance(bandeja, dict) and isinstance(bandeja.get('aprobadas'), dict):
+        for item in bandeja['aprobadas'].get('items') or []:
+            if isinstance(item, dict):
+                item['id'] = ident(item.get('id'))
+    for fila in datos.get('backends') or []:
+        if isinstance(fila, dict) and isinstance(fila.get('ui_url'), str) and scrub(fila['ui_url']) != fila['ui_url']:
+            fila['ui_url'] = None         # el saneador la altera (usuario, ruta, correo): no se ofrece un enlace modificado
+    journal = datos.get('journal')
+    for sesion in (journal.get('sesiones') if isinstance(journal, dict) else None) or []:
+        if isinstance(sesion, dict):
+            sesion['iniciativa'] = iniciativa(sesion.get('iniciativa'))
+    datos = _scrubbed(datos, scrub)
+    # Topes de la pagina tras anonimizar: `category` y el `tipo` de un backend (40), la `iniciativa` ya se acoto a 80.
+    for estado in ((bandeja or {}).get('estados') or {}).values() if isinstance(bandeja, dict) else ():
+        for item in estado.get('items') or []:
+            if isinstance(item, dict) and isinstance(item.get('category'), str):
+                item['category'] = _clip(item['category'], 40)
+    for fila in datos.get('backends') or []:
+        if isinstance(fila, dict) and isinstance(fila.get('tipo'), str):
+            fila['tipo'] = _clip(fila['tipo'], 40)
+    return datos
+
+
 def progress_snapshot(project, scrub=None):
     """Bounded public ledger projection, independent of network and live-agent state.
 
@@ -585,19 +672,41 @@ class PanelServer(HTTPServer):
         locales (corpus acotado, candidatos, manifiestos de backend, journal); el saneador unico limpia el texto mostrado
         y DESPUES se recorta a 64 KiB (anonimizar alarga el texto). Distinta de `api/memory`, que no cambia."""
         now = time.monotonic()
-        hit = self._memoria
-        if hit is not None and now - hit[0] < MEMORIA_MAX_AGE:
-            return hit[1]
+        with self._memoria_lock:
+            if self._memoria is not None and now - self._memoria_at < MEMORIA_MAX_AGE:
+                return self._memoria
+            if self._memoria_hilo is None or not self._memoria_hilo.is_alive():   # a single calculation at a time
+                self._memoria_hilo = threading.Thread(target=self._recalcular_memoria, daemon=True)
+                self._memoria_hilo.start()
+            if self._memoria is None:
+                return _encoded(_memoria_no_disponible('calculando'))
+            return self._memoria
+
+    def _recalcular_memoria(self):
+        """Background thread (same pattern as `_recalcular_cartera`): on failure the last good version stays and says so
+        (`recalculo_fallido`), never why."""
         try:
-            datos = _scrubbed(_load_data().memoria(self.project), self.scrub)
+            datos = _scrub_memoria(_load_data().memoria(self.project), self.scrub)
             datos = _load('panel_service_data_budget', HERE / 'panel_data.py').ajustar_memoria(datos, MAX_RESPONSE_BYTES)
             body = _encoded(datos)
             if len(body) > MAX_RESPONSE_BYTES:
                 body = _encoded(_memoria_no_disponible('response_budget'))
         except Exception:
-            body = _encoded(_memoria_no_disponible())
-        self._memoria = (now, body)
-        return body
+            body = None
+        built = time.monotonic()
+        with self._memoria_lock:
+            if body is None:
+                try:
+                    previa = json.loads(self._memoria) if self._memoria is not None else None
+                except ValueError:
+                    previa = None
+                if previa is not None and previa.get('status') != 'unavailable':
+                    if {'status': 'recalculo_fallido'} not in previa['issues']:
+                        previa['issues'] = (previa['issues'] + [{'status': 'recalculo_fallido'}])[:16]
+                    self._memoria, self._memoria_at = _encoded(previa), built
+                    return
+                body = _encoded(_memoria_no_disponible())
+            self._memoria, self._memoria_at = body, built
 
     def memory(self, payload):
         try:
@@ -1088,7 +1197,8 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
         server._cartera = None; server._cartera_at = 0; server._cartera_built = 0; server._cartera_firma = None
         server._cartera_lock = threading.Lock(); server._cartera_hilo = None
         server._plans = {}
-        server._memoria = None
+        server._memoria = None; server._memoria_at = 0
+        server._memoria_lock = threading.Lock(); server._memoria_hilo = None
         server.csp = pages.CSP_SERVIDO.format(nonce=nonce)
         server.warnings = warnings
         # The portfolio is computed ONCE here, before `serving`: the same reading feeds the plan inventory and the first
@@ -1139,6 +1249,7 @@ def run(project, inventory, *, port=0, review_selection=None, review_scope=None,
     try:
         for warning in server.warnings:
             print('plugin-panel: aviso: ' + warning, file=sys.stderr, flush=True)
+        server.memoria_panel()   # warms `api/memoria` in the background (the first tab visit finds it ready)
         print(json.dumps({'status': 'serving', 'url': f'http://127.0.0.1:{server.server_port}' + server.access_prefix,
                           'catalog': 'startup_snapshot', 'progress': 'canonical_ledger'}), flush=True)
         server.serve_forever(poll_interval=0.2)

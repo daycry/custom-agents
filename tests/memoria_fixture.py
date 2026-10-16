@@ -3,10 +3,6 @@ import json
 from pathlib import Path
 import sys
 
-for _s in (sys.stdin, sys.stdout, sys.stderr):   # consola cp1252 / tuberias de Windows (GOT-005)
-    try: _s.reconfigure(encoding="utf-8", errors="replace")
-    except Exception: pass  # noqa: BLE001
-
 SECRETO = 'sk-ant-api03-ABCDEFGHIJKLMNOPQRSTUV0123456789'
 
 
@@ -20,11 +16,11 @@ def _md(ruta, **fm):
 def crear_proyecto(raiz, *, secreto_en_journal=False):
     k = Path(raiz) / 'docs/knowledge'
     ds = 'Datos / almacenamiento'
-    _md(k / 'adr/ADR-001-a.md', id='ADR-001', titulo='Almacén A', estado='obsoleta', fecha='2026-01-10', area=ds,
+    _md(k / 'adr/ADR-001-a.md', id='ADR-001', titulo='Almacen A', estado='obsoleta', fecha='2026-01-10', area=ds,
         iniciativa='alfa', sucesor='ADR-002')
-    _md(k / 'adr/ADR-002-b.md', id='ADR-002', titulo='Almacén B', estado='aceptada', fecha='2026-02-10', area=ds,
+    _md(k / 'adr/ADR-002-b.md', id='ADR-002', titulo='Almacen B', estado='aceptada', fecha='2026-02-10', area=ds,
         iniciativa='alfa', sucesor='ADR-003')
-    _md(k / 'adr/ADR-003-c.md', id='ADR-003', titulo='Almacén C', estado='aceptada', fecha='2026-03-10', area=ds,
+    _md(k / 'adr/ADR-003-c.md', id='ADR-003', titulo='Almacen C', estado='aceptada', fecha='2026-03-10', area=ds,
         iniciativa='alfa', sustituye='ADR-002')
     _md(k / 'adr/ADR-004-d.md', id='ADR-004', titulo='Obsoleta sin sucesor', estado='obsoleta', fecha='2026-01-05',
         area='Otra cosa distinta')

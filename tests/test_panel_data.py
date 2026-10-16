@@ -286,7 +286,8 @@ def test_backends_sin_ninguna_conexion_y_con_la_fecha_de_la_outbox_nunca_el_mtim
     _sin_red(monkeypatch)
     filas = {b['backend']: b for b in _cargar().memoria(proyecto)['backends']}
     assert filas['kwipu'] == {'backend': 'kwipu', 'tipo': 'markdown-export', 'situacion': 'configurado', 'entradas': 3,
-                              'ultima': '2026-10-02T11:30:00Z', 'interrumpida': False, 'ui_url': None}
+                              'ultima': '2026-10-02T11:30:00Z', 'ultima_parcial': False, 'interrumpida': False,
+                              'ui_url': None, 'ui_url_no_local': False}
     assert filas['graphiti']['entradas'] == 2 and filas['graphiti']['interrumpida'] is True
     assert filas['graphiti']['ultima'] is None            # sin outbox de graphiti: «sin datos», no el mtime del manifiesto
     assert all('1970' not in json.dumps(f) for f in filas.values())

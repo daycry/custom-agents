@@ -55,6 +55,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - Diagnóstico muestra cada comprobación con su veredicto en texto (OK, aviso, error) junto al icono, su fecha y alcance, y un resumen con los contadores; sin informe, o con uno rechazado, da el motivo y el comando exacto para generarlo.
 - Documentadas las páginas Memoria, Catálogo y Diagnóstico, el endpoint `api/memoria` (solo lectura, menos de 64 KiB, sin red) y la regla de mostrar «sin datos» en lugar de ampliar contratos de hotspots (CONTRACTS E59–E60).
 
+### Fixed — iniciativa `panel-redesign`, revisión de la fase 4
+
+- Página Memoria: los datos personales en las etiquetas de iniciativa y sucesor se anonimizan igual que en el resto del panel; el journal y las relaciones avisan cuando la lista está incompleta en vez de decir que no hay nada; el enlace al backend solo se ofrece para hosts locales; la última publicación dice «al menos» si el listado se trunca; una entrada mal formada ya no deja la página entera en blanco; y `api/memoria` se calcula en segundo plano para que la página no se quede esperando.
+
 ### Fixed — iniciativa `panel-redesign`, revisión de la fase 2
 
 - Los endpoints de cartera, revisión y detalle de tarea del panel reutilizan su respuesta hasta que cambia el ledger o el estado de revisión, el resumen de revisiones cubre proyectos con más de 64 planes, el exportado estático ya no reproyecta cada ledger por tarea y los rangos del ledger como `T-01..T-15` cuentan para todas sus tareas.

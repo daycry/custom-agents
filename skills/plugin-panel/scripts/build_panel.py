@@ -808,6 +808,7 @@ def _cuerpo_memoria():
         '<p>Decisiones (ADR), gotchas y lecciones por estado. El filtro de área cambia el gráfico y la tabla.</p></div></div>'
         '<div class="controls"><label for="memoria-area">Área</label>'
         '<select id="memoria-area"><option value="">Todas las áreas</option></select></div>'
+        '<p id="memoria-area-nota" class="filter-note"></p>'
         '<div id="grafico-memoria"></div>'
         '<div id="memoria-tabla" class="tabla-equivalente" role="region" tabindex="0" aria-label="Entradas de memoria"></div>'
         '<noscript><p>Sin JavaScript no se leen las entradas de memoria.</p></noscript></section>'
@@ -1056,7 +1057,7 @@ def _memoria_exportada(args, scrub):
         return None
     try:
         servicio = _load_server()
-        return servicio._scrubbed(servicio._load_data().memoria(Path(args.project), relaciones=True), scrub)
+        return servicio._scrub_memoria(servicio._load_data().memoria(Path(args.project), relaciones=True), scrub)
     except (OSError, ValueError, ImportError, AttributeError, SyntaxError):
         return None
 
