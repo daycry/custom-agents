@@ -147,3 +147,46 @@ def test_directory_flush_policy_is_injected_for_existing_owner(tmp_path):
         maximum=4096, sync=lambda path: calls.append(path))
     io.write(tmp_path / 'state.json', b'one', time.monotonic() + 2)
     assert calls == [tmp_path]
+
+
+# ---- panel-redesign T-43 / P-EI-3: a single attempt without waiting (lock and replace) ----------
+def test_lock_wait_zero_is_a_single_attempt_without_sleeping(tmp_path, monkeypatch):
+    module = load('local-state.py')
+    io = module.StateIO(load('local-read.py'), need,
+        lambda deadline: need(time.monotonic() < deadline, 'deadline_expired'), maximum=4096)
+    state = tmp_path / 'state'
+    state.mkdir()
+    sleeps = []
+    monkeypatch.setattr(module.time, 'sleep', lambda s: sleeps.append(s))
+    with io.locked(state, time.monotonic() + 1, True):
+        with pytest.raises(Failure) as busy:
+            with io.locked(state, time.monotonic() + 1, False, wait=0):
+                pass
+        assert str(busy.value) == 'state_busy' and sleeps == []
+        with pytest.raises(Failure):
+            with io.locked(state, time.monotonic() + 1, False):  # the default still waits (up to 100 ms)
+                pass
+        assert sleeps
+
+
+def test_replace_retry_can_be_disabled(tmp_path, monkeypatch):
+    module = load('local-state.py')
+    io = module.StateIO(load('local-read.py'), need,
+        lambda deadline: need(time.monotonic() < deadline, 'deadline_expired'), maximum=4096)
+    target = tmp_path / 'state.json'
+    io.write(target, b'one', time.monotonic() + 2)
+    expected = io.file(target)
+    calls = []
+
+    def replace(*args):
+        calls.append(args)
+        error = PermissionError(13, 'sharing violation')
+        error.winerror = 32
+        raise error
+
+    monkeypatch.setattr(module.os, 'replace', replace)
+    monkeypatch.setattr(module.time, 'sleep', lambda s: None)
+    with pytest.raises(PermissionError):
+        io.write(target, b'two', time.monotonic() + 2, expected=expected, retry=False)
+    assert len(calls) == 1
+    assert target.read_bytes() == b'one' and [p.name for p in tmp_path.iterdir()] == ['state.json']

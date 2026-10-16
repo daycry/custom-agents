@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 9 | 10 | 90% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 1 | 15 | 7% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **42** | **58** | **72%** | **0 / 159,2h** | **8,21 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 5 | 15 | 33% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **46** | **58** | **79%** | **0 / 159,2h** | **8,21 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1460,7 +1460,8 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 ### T-41 — Proyección pura de runs, ventanas y eventos en `agent-activity.py`
 
 - **Descripción**: Añade a `agent-kits/shared/agent-activity.py` las constantes del historial (500 eventos, 256 KiB, 24 h, entrada 2 MiB, resumen 160) y la proyección pura de runs (`en curso` / `sin señal reciente` con duración congelada / `respuesta terminada`), ventanas de atribución (`abierta` → `cerrada` | `reemplazada` | `caducada`) y la regla de atribución a `T-XX`.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-16
 - **Tiempo humano**: est. 3,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,6h · real —
 - **Supervisión**: est. 0,15h (≈25 % IA) · real —
@@ -1471,22 +1472,28 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Cubre (tests)**: E2E-17, E2E-18
 - **Verificación**: `python3 -m pytest -q agent-kits/shared/test_agent_activity.py` → `passed` (incluye: run con 61 s → «sin señal reciente» y duración congelada; dos ventanas abiertas → «sin atribuir»; `lote-<n>` nunca atribuye; `cerrada → abierta` sin `start` rechazado)
 
+- **Changelog**: El historial de agentes calcula runs, ventanas de atribución y eventos con reglas puras: tras 60 s sin señal un run queda «sin señal reciente» y nunca «terminado» inferido.
+
 **Criterios de aceptación**
-- [ ] CA-18: atribución solo con exactamente una ventana abierta en el run o, si no tiene, en la sesión padre; si no, «sin atribuir».
-- [ ] CA-19: más de 60 s → «sin señal reciente»; nunca «terminado» ni «muerto» inferidos.
-- [ ] CA-21: el recorte por antigüedad descarta el más antiguo y cuenta `recortado`.
-- [ ] `FRESH_SECONDS` (60) y `MAX_OBSERVATIONS` (64) del snapshot no cambian.
+- [x] CA-18: atribución solo con exactamente una ventana abierta en el run o, si no tiene, en la sesión padre; si no, «sin atribuir».
+- [x] CA-19: más de 60 s → «sin señal reciente»; nunca «terminado» ni «muerto» inferidos.
+- [x] CA-21: el recorte por antigüedad descarta el más antiguo y cuenta `recortado`.
+- [x] `FRESH_SECONDS` (60) y `MAX_OBSERVATIONS` (64) del snapshot no cambian.
 
 **Subtareas**
-- [ ] RED en `test_agent_activity.py`.
-- [ ] Constantes y proyecciones puras.
+- [x] RED en `test_agent_activity.py`.
+- [x] Constantes y proyecciones puras.
 
-**Notas**: patrón de proyección pura con `now` inyectado en `agent-kits/shared/agent-activity.py:48` (`project_activity`); constantes en `:9-10`. Estados de `design.md` §1 «Invariantes».
+- **Evidencia TDD**: RED: test_agent_activity.py (26 tests nuevos) falló con AttributeError: sin MAX_EVENTS/project_runs/apply_window/attribute/trim_events · 2026-10-16 (antes del código)
+- **Verificación ejecutada**: `pytest agent-kits/shared/test_agent_activity.py` → 53 passed (26 nuevos: run 61 s → sin señal reciente con duración congelada; dos ventanas → sin atribuir; lote nunca atribuye; cerrada→abierta rechazado).
+
+**Notas**: patrón de proyección pura con `now` inyectado en `agent-kits/shared/agent-activity.py:48` (`project_activity`); constantes en `:9-10`. Estados de `design.md` §1 «Invariantes». Decisión: `recortado` cuenta solo el recorte por tope (500/256 KiB); la retención de 24 h purga sin contar. Cuarentena de 5 s en `attribute` (P-EI-2 i).
 
 ### T-42 — Resumen redactado por lista blanca y `Authorization: Basic` en el redactor
 
 - **Descripción**: Resumen del argumento por herramienta en lista blanca (`design.md` §2.4 I-07: 1.ª línea del comando, rutas relativas, patrón + ruta, host, tipo de subagente, nombre de skill, «—» para MCP y desconocidas), en el orden fijo redactar → anonimizar → quitar controles → recortar a 160. Amplía `_SECRETOS_RE` con `Authorization: Basic …` en el canónico y en su copia declarada.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-16
 - **Tiempo humano**: est. 3,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,6h · real —
 - **Supervisión**: est. 0,15h (≈25 % IA) · real —
@@ -1497,53 +1504,65 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Cubre (tests)**: E2E-18
 - **Verificación**: `python3 -m pytest -q agent-kits/shared/test_redact.py tests/test_agent_activity_store.py tests/test_copias_declaradas.py` → `passed` (corpus de secretos de `redact.py` + `Authorization: Basic`: ningún secreto en el resumen persistido ni mostrado)
 
+- **Changelog**: Los resúmenes de herramientas del panel y el redactor ocultan también las cabeceras «Authorization: Basic …», y nunca muestran rutas absolutas, usuario ni correos.
+
 **Criterios de aceptación**
-- [ ] CA-17: el resumen persistido y el mostrado pasan por `redact.py` y no contienen el secreto (corpus completo).
-- [ ] CA-16: nunca contenido de ficheros, salidas, prompts ni chain-of-thought; MCP y desconocidas → «—».
-- [ ] CA-41: rutas relativas al proyecto, sin home, usuario ni correos.
-- [ ] El bloque replicado de `redact.py` y su copia en `journal.py` siguen idénticos.
+- [x] CA-17: el resumen persistido y el mostrado pasan por `redact.py` y no contienen el secreto (corpus completo).
+- [x] CA-16: nunca contenido de ficheros, salidas, prompts ni chain-of-thought; MCP y desconocidas → «—».
+- [x] CA-41: rutas relativas al proyecto, sin home, usuario ni correos.
+- [x] El bloque replicado de `redact.py` y su copia en `journal.py` siguen idénticos.
 
 **Subtareas**
-- [ ] RED con el corpus.
-- [ ] Lista blanca y orden fijo; ampliar `_SECRETOS_RE` en los dos sitios.
+- [x] RED con el corpus.
+- [x] Lista blanca y orden fijo; ampliar `_SECRETOS_RE` en los dos sitios.
 
-**Notas**: `_SECRETOS_RE` en `agent-kits/shared/redact.py:35`; copia declarada en `agent-kits/shared/copias.json:297-310` (canónico `redact.py`, respaldo `journal.py`). Precedente de 160 caracteres en `skills/plugin-panel/scripts/serve_panel.py:139`. Lente C.
+- **Evidencia TDD**: RED: test_agent_activity_store.py (≈120 casos de resumen) falló con AttributeError: sin `summarize`; test_redact.py `test_authorization_basic_*` (6) falló con la cabecera sin redactar · 2026-10-16 (antes del código)
+- **Verificación ejecutada**: `pytest agent-kits/shared/test_redact.py tests/test_agent_activity_store.py tests/test_copias_declaradas.py` → 204 passed, 1 skipped (corpus de secretos + Authorization: Basic; bloque replicado de journal.py idéntico).
+
+**Notas**: `_SECRETOS_RE` en `agent-kits/shared/redact.py:35`; copia declarada en `agent-kits/shared/copias.json:297-310` (canónico `redact.py`, respaldo `journal.py`). Precedente de 160 caracteres en `skills/plugin-panel/scripts/serve_panel.py:139`. Lente C. `anonimizar` ya existía (T-04). El host de WebFetch se extrae por regex, sin `urllib` (la puerta de red de test_graphiti_security lo marca). Un PEM sin cierre se tapa entero antes de recortar.
 
 ### T-43 — Almacén `events.json`: anillo acotado, CAS, retención y opt-out sin escritura
 
 - **Descripción**: `agent-activity-store.py` añade `events.json` al directorio propio (inventario de 4 a 5 nombres + `.lock`): `runs` (≤ 64), `ventanas` (≤ 64) y `events` (anillo 500 / 256 KiB / 24 h), reemplazo atómico con CAS como `snapshot.json`, `recortado`, `descartados_por_tamano` sin identidad y tope de entrada de 2 MiB solo en memoria. Sin `sesion.actividad: true` no escribe nada.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-16
 - **Tiempo humano**: est. 4,2h · real —
 - **Tiempo IA (ejec.)**: est. 1,0h · real —
 - **Supervisión**: est. 0,25h (≈25 % IA) · real —
 - **Previsión IA**: 457k in / 74k out tok · 7,00 €
 - **Dependencias**: T-42
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/agent-activity-store.py`, `tests/test_agent_activity_store.py`, `tests/test_agent_activity_git.py`, `tests/test_graphiti_security.py`
+- **Archivos**: `agent-kits/shared/agent-activity-store.py`, `tests/test_agent_activity_store.py`, `tests/test_agent_activity_git.py`, `tests/test_graphiti_security.py`, `agent-kits/shared/local-state.py` (añadido: espera 0 y un intento), `agent-kits/shared/test_local_state.py` (añadido)
 - **Cubre (tests)**: E2E-19
 - **Verificación**: `python3 -m pytest -q tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py` → `passed` (opt-out: el directorio de estado no cambia; 501 eventos → 500 y `recortado: 1`; entrada de 2 MiB + 1 → contador; escrituras concurrentes sin pérdida de integridad)
 
+- **Changelog**: El historial de actividad se guarda en un anillo acotado (500 eventos o 256 KiB, 24 h) que solo se escribe con `sesion.actividad: true` y se recupera solo de escrituras cortadas.
+
 **Criterios de aceptación**
-- [ ] CA-20: con `sesion.actividad` ausente o `false`, ningún fichero nuevo ni modificado (test con huella del directorio).
-- [ ] CA-21: tope y retención; la escritura fallida no rompe nada y el llamante sale con 0.
-- [ ] Estados intermedios de la condición 1 cubiertos por test: bloqueo ocupado (evento perdido, sin reintento que añada latencia), CAS fallido, escritura cortada.
-- [ ] `snapshot.json` y su contrato (60 s, 64 filas, 64 KiB, `api/activity`, `doctor`) no cambian.
-- [ ] Nueva huella `sha256_lf` de `agent-activity-store.py` y `redact.py` en sus `dependencies` en `_CARGAS_LOCALES_REVISADAS`, tras revisión.
-- [ ] `.gitignore` del directorio propio sigue cubriendo el fichero nuevo.
+- [x] CA-20: con `sesion.actividad` ausente o `false`, ningún fichero nuevo ni modificado (test con huella del directorio).
+- [x] CA-21: tope y retención; la escritura fallida no rompe nada y el llamante sale con 0.
+- [x] Estados intermedios de la condición 1 cubiertos por test: bloqueo ocupado (evento perdido, sin reintento que añada latencia), CAS fallido, escritura cortada.
+- [x] `snapshot.json` y su contrato (60 s, 64 filas, 64 KiB, `api/activity`, `doctor`) no cambian.
+- [x] Nueva huella `sha256_lf` de `agent-activity-store.py` y `redact.py` en sus `dependencies` en `_CARGAS_LOCALES_REVISADAS`, tras revisión.
+- [x] `.gitignore` del directorio propio sigue cubriendo el fichero nuevo.
 
 **Subtareas**
-- [ ] RED: opt-out, tope, retención, concurrencia.
-- [ ] Inventario, CAS y anillo.
-- [ ] Huella revisada.
+- [x] RED: opt-out, tope, retención, concurrencia.
+- [x] Inventario, CAS y anillo.
+- [x] Huella revisada.
 
-**Notas**: inventario cerrado en `agent-kits/shared/agent-activity-store.py:119-122`; opt-in en `:92-100` (`_enabled`); tope de entrada actual en `:20` y `:264-266`; captura y CAS en `:185-233` (`capture`). Huella en `tests/test_graphiti_security.py:159-165`. Familia de riesgo de `session-end-durable-capture` (LES-016). Lente C.
+- **Evidencia TDD**: RED: 43 tests nuevos de test_agent_activity_store.py/test_agent_activity_git.py y 2 de test_local_state.py fallaron con AttributeError: sin `record`/`history`/`count_oversize` y sin `wait=`/`retry=` · 2026-10-16 (antes del código)
+- **Verificación ejecutada**: `pytest tests/test_agent_activity_store.py tests/test_agent_activity_git.py agent-kits/shared/test_local_state*.py` → verde dentro de 398 passed, 3 skipped; `pytest tests/test_graphiti_security.py` → 121 passed.
+
+**Notas**: inventario cerrado en `agent-kits/shared/agent-activity-store.py:119-122`; opt-in en `:92-100` (`_enabled`); tope de entrada actual en `:20` y `:264-266`; captura y CAS en `:185-233` (`capture`). Huella en `tests/test_graphiti_security.py:159-165`. Familia de riesgo de `session-end-durable-capture` (LES-016). Lente C. Añadido `history()` (lector) y `local-state.py` `wait=`/`retry=` (P-EI-3, un solo intento). Huella revisada del almacén y `redact.py` en `dependencies`. Limpieza P-EI-1 antes del inventario, solo si el resto de nombres es el esperado.
 
 Prerrequisito (2026-10-16): inventario tolera hasta 8 .tmp-* (§2.5 c); RED test_orphan_temp_keeps_capture_and_snapshot_ok (antes del código); limpieza pendiente de P-EI-1.
 
 ### T-44 — Eventos de herramienta por runtime y ventanas por gramática exacta
 
 - **Descripción**: `_payload` acepta los eventos de herramienta: Claude `PostToolUse` (ok) y `PostToolUseFailure` (error) con `agent_id`/`agent_type` y `duration_ms`; Codex `PostToolUse` agrupado por sesión, sin duración y resultado «sin datos»; OpenCode `tool.execute.after` con `sessionID`, `agent` y `status`. Reconoce `usage-meter.py start|close --artefacto <slug>/T-XX` solo por regex anclada sobre el argv de un evento Bash/shell.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-16
 - **Tiempo humano**: est. 3,6h · real —
 - **Tiempo IA (ejec.)**: est. 0,8h · real —
 - **Supervisión**: est. 0,2h (≈25 % IA) · real —
@@ -1554,17 +1573,22 @@ Prerrequisito (2026-10-16): inventario tolera hasta 8 .tmp-* (§2.5 c); RED test
 - **Cubre (tests)**: E2E-17, E2E-18
 - **Verificación**: `python3 -m pytest -q tests/test_agent_activity_store.py tests/test_graphiti_security.py` → `passed` (texto libre con `T-07` en commit, grep o prompt de Agent → «sin atribuir»; `-fixN` normalizado a `T-XX`; Codex sin subagente → run de sesión)
 
+- **Changelog**: Agentes en vivo reconoce las herramientas de Claude Code, Codex y OpenCode y atribuye cada evento a su tarea solo por el comando exacto del medidor, nunca por texto libre.
+
 **Criterios de aceptación**
-- [ ] CA-16: por evento, hora, herramienta, resumen, `T-XX` si se atribuyó, duración y resultado (`ok`/`error`/`null`).
-- [ ] CA-18: test negativo con `T-XX` en texto libre; nunca proximidad temporal.
-- [ ] Nunca persiste `tool_response`, contenido, salidas, prompts ni rutas absolutas.
-- [ ] Un runtime o evento desconocido se descarta con su código, sin excepción hacia el hook.
+- [x] CA-16: por evento, hora, herramienta, resumen, `T-XX` si se atribuyó, duración y resultado (`ok`/`error`/`null`).
+- [x] CA-18: test negativo con `T-XX` en texto libre; nunca proximidad temporal.
+- [x] Nunca persiste `tool_response`, contenido, salidas, prompts ni rutas absolutas.
+- [x] Un runtime o evento desconocido se descarta con su código, sin excepción hacia el hook.
 
 **Subtareas**
-- [ ] RED por runtime con payloads de la doc oficial (citados en T-40).
-- [ ] Mapeo y gramática exacta.
+- [x] RED por runtime con payloads de la doc oficial (citados en T-40).
+- [x] Mapeo y gramática exacta.
 
-**Notas**: `_payload` actual en `agent-kits/shared/agent-activity-store.py:155-178`; argumento `--artefacto` en `agent-kits/shared/usage-meter.py:730`. Tabla de runtimes de `design.md` §1. Lente C.
+- **Evidencia TDD**: RED: 59 tests nuevos de test_agent_activity_store.py (gramática por runtime, ventanas, T-XX en texto libre, Codex MCP) fallaron con unsupported_event y sin ventanas · 2026-10-16 (antes del código)
+- **Verificación ejecutada**: `pytest tests/test_agent_activity_store.py tests/test_graphiti_security.py` → verde (suite de actividad 398 passed, 3 skipped; graphiti 121 passed).
+
+**Notas**: `_payload` actual en `agent-kits/shared/agent-activity-store.py:155-178`; argumento `--artefacto` en `agent-kits/shared/usage-meter.py:730`. Tabla de runtimes de `design.md` §1. Lente C. Los eventos Post de un comando fallido (`PostToolUseFailure`/`status: error`) no abren ventana. Codex trae el resultado como «sin datos». Nombres de herramienta de OpenCode en minúsculas se normalizan solo para el resumen.
 
 ### T-45 — Registro de hooks: `PostToolUse` y `PostToolUseFailure` asíncronos e interop
 

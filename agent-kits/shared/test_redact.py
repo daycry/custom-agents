@@ -504,3 +504,29 @@ def test_las_marcas_exactas_se_conservan_y_aplicar_dos_veces_es_una(usuario):
     una = redact.anonimizar(f"hola {usuario} y <usuario> y <correo> a@b.org", None, None, usuario)
     assert "<usuario>" in una and "<correo>" in una and "<<" not in una
     assert redact.anonimizar(una, None, None, usuario) == una
+
+
+# ---- panel-redesign T-42: `Authorization: Basic` (activity summaries; CA-17) --------------------
+@pytest.mark.parametrize("texto,secreto", [
+    ("curl -H 'Authorization: Basic dXNlcjpwYXNzd29yZA==' https://x.test", "dXNlcjpwYXNzd29yZA"),
+    ('Authorization: basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==', "QWxhZGRpbjpvcGVuIHNlc2FtZQ"),
+    ('{"Authorization":"Basic dXNlcjpwYXNz"}', "dXNlcjpwYXNz"),
+    ("Proxy-Authorization: Basic YWxhZGRpbjpvcGVu", "YWxhZGRpbjpvcGVu"),
+])
+def test_authorization_basic_se_redacta(texto, secreto):
+    salida = redact.redactar(texto)
+    assert secreto not in salida and redact.REDACTADO in salida
+
+
+def test_authorization_basic_conserva_el_prefijo_y_no_toca_prosa():
+    assert redact.redactar("Authorization: Basic dXNlcjpwYXNzd29yZA==") == f"Authorization: Basic {redact.REDACTADO}"
+    for limpio in ("a basic configuration of the authorization flow", "basic authentication guide",
+                   "Authorization: none", "Authorization header is required"):
+        assert redact.redactar(limpio) == limpio
+
+
+def test_authorization_basic_idem_en_el_respaldo_de_journal():
+    spec = importlib.util.spec_from_file_location("journal_basic_t42", os.path.join(HERE, "journal.py"))
+    journal = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(journal)
+    assert "dXNlcjpwYXNzd29yZA" not in journal.redactar("Authorization: Basic dXNlcjpwYXNzd29yZA==")

@@ -46,6 +46,12 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - From the Plan page you can open a plan review, comment per section and decide; each initiative's review status shows as text on its Initiatives card and in the Plan header, with the agent's replies under each comment.
 - Documented the Home, Initiatives and Plan pages, the `Cerrada` ledger field and plan review from the panel (`--review-panel`), with the new contract edges E56–E58.
 
+### Added — `panel-redesign` initiative, phase 3 (live agents)
+
+- Live-agents history is computed with pure rules: after 60 s without a signal a run is «sin señal reciente», never an inferred «finished».
+- Tool events from Claude Code, Codex and OpenCode are recorded in a bounded ring (500 events or 256 KiB, 24 h) written only with `sesion.actividad: true`; each event is attributed to its task only by the exact meter command, never by free text, with a 5 s quarantine after each window change.
+- Argument summaries are whitelisted and redacted (the redactor now also masks `Authorization: Basic …`), with no absolute paths, usernames or emails; the writer cleans up its own orphaned temporaries.
+
 ### Added — `panel-redesign` initiative, phase 4 (memory, catalog and diagnostics)
 
 - The Memory page shows a chart and a table of entries by type (ADR, gotcha, lesson) and state, with a keyboard-operable area filter, served by a new `api/memoria` (GET, under 64 KiB); `api/memory` is unchanged.

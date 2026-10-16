@@ -50,8 +50,9 @@ class StateIO:
         self.need(self.file(path) == before, 'unsafe_state')
         return row['data'], before
 
-    def write(self, path, raw, deadline, expected=None):
-        """Exclusive creation or observed owned-leaf replacement; no overwrite fallback."""
+    def write(self, path, raw, deadline, expected=None, retry=True):
+        """Exclusive creation or observed owned-leaf replacement; no overwrite fallback.
+        `retry=False` makes a single `os.replace` attempt (no sharing-violation backoff)."""
         path = Path(path)
         self.need(type(raw) is bytes and len(raw) <= self.maximum, 'state_budget')
         self.guard(deadline)
@@ -71,7 +72,7 @@ class StateIO:
             if expected is None:
                 os.link(temporary, path, follow_symlinks=False)
             else:
-                for attempt in range(4):
+                for attempt in range(4 if retry else 1):
                     self.guard(deadline)
                     self.dirs(path.parent)
                     self.need(self.file(path) == expected, 'unsafe_state')
@@ -80,7 +81,7 @@ class StateIO:
                         break
                     except OSError as error:
                         if (os.name != 'nt' or getattr(error, 'winerror', None) not in (5, 32, 33)
-                                or attempt == 3):
+                                or attempt == 3 or not retry):
                             raise
                         self.guard(deadline)
                         time.sleep(min(0.02 * 2 ** attempt, max(0, deadline - time.monotonic())))
@@ -95,8 +96,9 @@ class StateIO:
                 temporary.unlink()  # Only this invocation's exact private temporary.
 
     @contextlib.contextmanager
-    def locked(self, state, deadline, initialize):
-        """Bounded cooperative process lock; never remove another writer's lock."""
+    def locked(self, state, deadline, initialize, wait=0.1):
+        """Bounded cooperative process lock; never remove another writer's lock.
+        `wait=0` is a single attempt without sleeping."""
         state = Path(state)
         self.guard(deadline)
         self.dirs(state)
@@ -118,7 +120,7 @@ class StateIO:
             info = os.fstat(fd)
             self.need((info.st_dev, info.st_ino) == before[:2]
                 and self.file(path) == before, 'unsafe_state')
-            stop = min(deadline, time.monotonic() + 0.1)
+            stop = min(deadline, time.monotonic() + wait)
             while True:
                 self.guard(deadline)
                 try:

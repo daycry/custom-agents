@@ -68,6 +68,8 @@ def test_activity_git_exclusion_is_effective_without_external_rules(api, project
 
     call('init', '--quiet', '--template=' + str(template))
     assert api.capture(project, runtime='claude', payload=native(project))['status'] == 'ok'
+    assert api.record(project, {'runtime': 'claude', 'scope': 'session', 'session': 's', 'agent': None, 'role': None,
+        'tool': 'Bash', 'resumen': 'git status', 'duracion_ms': None, 'resultado': 'ok', 'window': None, 'nowait': False})['status'] == 'ok'
     before = files(project / '.claude')
     status = call('status', '--porcelain=v1', '--untracked-files=all', '-z')
     call('add', '--', '.')
@@ -76,8 +78,8 @@ def test_activity_git_exclusion_is_effective_without_external_rules(api, project
     assert b'agent-activity/' not in status
     ignored = call('check-ignore', '--', '.claude/agent-activity/.gitignore',
                    '.claude/agent-activity/owner.json', '.claude/agent-activity/snapshot.json',
-                   '.claude/agent-activity/.lock').splitlines()
-    assert len([path for path in ignored if path]) == 4
+                   '.claude/agent-activity/.lock', '.claude/agent-activity/events.json').splitlines()
+    assert len([path for path in ignored if path]) == 5
     assert (project / '.claude/agent-activity/.gitignore').read_bytes() == b'*\n'
     assert files(project / '.claude') == before
     assert not (project / '.claude/.gitignore').exists()
@@ -88,13 +90,13 @@ def test_ignore_is_published_before_any_identifying_state(api, project, monkeypa
     order = []
     def write(io, path, raw, deadline, expected=None):
         path = Path(path)
-        if path.name in ('owner.json', 'snapshot.json'):
+        if path.name in ('owner.json', 'snapshot.json', 'events.json'):
             assert (path.parent / '.gitignore').read_bytes() == b'*\n'
         original(io, path, raw, deadline, expected)
         order.append(path.name)
     monkeypatch.setattr(api._state_io.StateIO, 'write', write)
     assert api.capture(project, runtime='claude', payload=native(project))['status'] == 'ok'
-    assert order == ['.gitignore', 'owner.json', 'snapshot.json', 'snapshot.json']
+    assert order == ['.gitignore', 'owner.json', 'snapshot.json', 'events.json', 'snapshot.json', 'events.json']
 
 
 @pytest.mark.parametrize('mutation', ['missing', 'corrupt', 'hardlink'])

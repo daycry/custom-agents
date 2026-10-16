@@ -44,6 +44,8 @@ _SECRETOS_RE = (
     re.compile(r"\b(?:sk-ant-|sk-|ghp_|gho_|ghu_|ghs_|ghr_|github_pat_|xox[baprs]-|glpat-|AKIA|ASIA)[A-Za-z0-9_\-]{16,}"),
     re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
     re.compile(r"(?i)(?P<pre>\bbearer\s+)(?P<sec>[A-Za-z0-9._~+/=\-]{20,})"),
+    # `Authorization: Basic <base64>` (cabecera HTTP, tambien como par JSON o con `Proxy-`): panel-redesign T-42
+    re.compile(r"(?i)(?P<pre>\bauthorization[\"']?\s*[:=]\s*[\"']?basic\s+)(?P<sec>[A-Za-z0-9+/=_\-]{6,})"),
     # par clave-valor JSON (o repr de Python) con la clave sensible ENTRECOMILLADA: el valor entero, sea
     # cual sea su forma (#139 de training-data-services: `"password": "…"` no casaba con `password=`)
     re.compile(r"(?i)(?P<pre>(?P<q>[\"'])(?:" + _CLAVES_SENSIBLES + r")(?P=q)\s*:\s*(?P<q2>[\"']))"

@@ -46,6 +46,12 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - Desde la página Plan se puede abrir una revisión del plan, comentar por sección y decidir; el estado de revisión de cada iniciativa se ve como texto en su tarjeta de Iniciativas y en la cabecera del Plan, con las respuestas del agente bajo cada comentario.
 - Documentadas las páginas Inicio, Iniciativas y Plan, el campo `Cerrada` del ledger y la revisión del plan desde el panel (`--review-panel`), con las nuevas aristas de contrato E56–E58.
 
+### Added — iniciativa `panel-redesign`, fase 3 (agentes en vivo)
+
+- El historial de agentes en vivo se calcula con reglas puras: tras 60 s sin señal un run queda «sin señal reciente», nunca «terminado» inferido.
+- Los eventos de herramienta de Claude Code, Codex y OpenCode se guardan en un anillo acotado (500 eventos o 256 KiB, 24 h) que solo se escribe con `sesion.actividad: true`; cada evento se atribuye a su tarea solo por el comando exacto del medidor, nunca por texto libre, con una cuarentena de 5 s tras cada cambio de ventana.
+- Los resúmenes de argumentos van en lista blanca y redactados (el redactor ahora también enmascara `Authorization: Basic …`), sin rutas absolutas, usuario ni correos; el escritor limpia sus propios temporales huérfanos.
+
 ### Added — iniciativa `panel-redesign`, fase 4 (memoria, catálogo y diagnóstico)
 
 - La página Memoria muestra un gráfico y una tabla de entradas por tipo (ADR, gotcha, lección) y estado, con filtro de área operable por teclado, servida por un `api/memoria` nuevo (GET, menos de 64 KiB); `api/memory` no cambia.
