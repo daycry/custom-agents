@@ -46,6 +46,18 @@
     });
   }
 
+  /* `avisos` es opcional (solo viaja si la proyección tiene alguno) y de vocabulario cerrado. */
+  var AVISOS = ['rangos_sin_expandir'];
+  function avisosValidos(d) {
+    return d.avisos === undefined || (Array.isArray(d.avisos) && d.avisos.length >= 1 && d.avisos.length <= AVISOS.length
+      && d.avisos.every(function (a) { return incluye(AVISOS, a); }));
+  }
+  function clavesSinAvisos(d) { return Object.keys(d).filter(function (k) { return k !== 'avisos'; }).sort().join(','); }
+  function textoAvisos(d) {
+    return d && Array.isArray(d.avisos) && incluye(d.avisos, 'rangos_sin_expandir')
+      ? 'Aviso: hay rangos de tareas sin expandir; alguna revisión puede no aparecer.' : '';
+  }
+
   var CLAVES_PLAN = 'complete,id,issues,observed_at,omitidas,slug,source,status,tareas,version,vocabulario';
   var CLAVES_FILA = 'cerrada,estado_tarea,fase_nombre,gaps,horas,id,literal,titulo';
   var CLAVES_ENVOLTURA = 'complete,id,issues,observed_at,omitidos,source,status,tarea,tarea_id,version';
@@ -66,7 +78,7 @@
 
   /* Forma y topes de `api/plan-<id16>`. Un campo fuera de contrato invalida la respuesta entera. */
   function validar(d, id) {
-    if (!objeto(d) || claves(d) !== CLAVES_PLAN || d.version !== 1 || d.source !== 'ledger_plan'
+    if (!objeto(d) || clavesSinAvisos(d) !== CLAVES_PLAN || !avisosValidos(d) || d.version !== 1 || d.source !== 'ledger_plan'
         || !incluye(ESTADOS_RESPUESTA, d.status) || typeof d.complete !== 'boolean' || d.id !== id) { return false; }
     if (!fechaISO(d.observed_at) || !textoONulo(d.slug, 80) || !entero(d.omitidas) || !issuesValidos(d.issues)) { return false; }
     if (!Array.isArray(d.vocabulario) || d.vocabulario.join(',') !== COLUMNAS.map(function (c) { return c[0]; }).join(',')) { return false; }
@@ -101,7 +113,7 @@
 
   /* Forma y topes de `api/plan-<id16>-<T-XX>`. */
   function validarDetalle(d, id, tid) {
-    if (!objeto(d) || claves(d) !== CLAVES_ENVOLTURA || d.version !== 1 || d.source !== 'ledger_tarea'
+    if (!objeto(d) || clavesSinAvisos(d) !== CLAVES_ENVOLTURA || !avisosValidos(d) || d.version !== 1 || d.source !== 'ledger_tarea'
         || !incluye(ESTADOS_RESPUESTA, d.status) || typeof d.complete !== 'boolean' || d.id !== id || d.tarea_id !== tid) { return false; }
     if (!fechaISO(d.observed_at) || !issuesValidos(d.issues)) { return false; }
     var o = d.omitidos;
@@ -135,7 +147,8 @@
     if (d.status === 'sin_tareas') { return 'El ledger no contiene tareas reconocibles (### T-XX): sin tareas que mostrar.'; }
     if (d.status === 'sin_lectura') { return 'No se pudo leer el ledger. Sin datos de tareas; vuelve a intentarlo.'; }
     if (d.status === 'unavailable') { return 'Plan no disponible: no se pudo leer el ledger. Sin datos.'; }
-    var base = 'Plan de «' + (d.slug || 'iniciativa') + '»: ' + plural(d.tareas.length, 'tarea', 'tareas') + '.';
+    var base = 'Plan de «' + (d.slug || 'iniciativa') + '»: ' + plural(d.tareas.length, 'tarea', 'tareas') + '.'
+      + (textoAvisos(d) ? ' ' + textoAvisos(d) : '');
     if (d.status === 'partial' || !d.complete) {
       return base + ' Lectura parcial: ' + plural(d.omitidas, 'tarea omitida', 'tareas omitidas')
         + ' por el presupuesto de la respuesta; lo omitido no acredita ausencia.';
@@ -193,8 +206,9 @@
     cont.appendChild(b);
   }
 
-  function pintarRevision(cont, t, omitidos) {
+  function pintarRevision(cont, t, d) {
     var b = bloque('Última revisión');
+    if (textoAvisos(d)) { b.appendChild(el('p', 'ausencia', textoAvisos(d))); }
     if (t.revision === null) { b.appendChild(el('p', '', 'Sin revisión registrada para esta tarea.')); }
     else {
       b.appendChild(el('p', '', (t.revision.cabecera || ('Revisión de dos lentes — intento ' + t.revision.intento))));
@@ -230,7 +244,7 @@
     var contenedor = el('div', 'detalle-cuerpo');
     pintarCriterios(contenedor, t);
     pintarVerificacion(contenedor, t);
-    pintarRevision(contenedor, t, d.omitidos);
+    pintarRevision(contenedor, t, d);
     Array.prototype.push.apply(nodos, contenedor.children);
     if (t.archivado) {
       var a = bloque('Historia archivada');

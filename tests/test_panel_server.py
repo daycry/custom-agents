@@ -604,8 +604,8 @@ def test_la_firma_de_la_cartera_ve_un_ledger_con_mtime_y_tamano_iguales_y_retro(
         server.server_close()
 
 
-def test_la_cartera_con_la_misma_firma_no_se_sirve_mas_de_10_s(service, tmp_path, monkeypatch):
-    """I2-7: el tope de reutilización por firma baja de 60 s al intervalo de sondeo (10 s)."""
+def test_la_cartera_con_la_misma_firma_no_se_sirve_mas_de_60_s(service, tmp_path, monkeypatch):
+    """I2-7 -> I3-2: la firma ya cubre el contenido; el tope de reutilización vuelve a 60 s (con 10 s la caché no acertaba)."""
     server, carpeta, _ = _server_con_plan(service, tmp_path)
     try:
         data = service._load_data()
@@ -615,6 +615,9 @@ def test_la_cartera_con_la_misma_firma_no_se_sirve_mas_de_10_s(service, tmp_path
         monkeypatch.setattr(service, '_load_data', lambda: data)
         server.cartera()
         server._cartera_at -= 30; server._cartera_built -= 11
+        server.cartera()
+        assert len(llamadas) == 1                                  # 11 s: la misma firma se reutiliza
+        server._cartera_at -= 30; server._cartera_built -= 60
         server.cartera()
         assert len(llamadas) == 2
     finally:
@@ -638,3 +641,130 @@ def test_un_fallo_de_firma_no_se_traga_cualquier_excepcion_y_deja_rastro(service
         assert data.firma_ledger(tmp_path, ident) == () and data.FIRMA_FALLOS['oserror'] >= 1
     finally:
         server.server_close()
+
+
+# --- fix3 de la Fase 2: la caché de la cartera acierta con el sondeo real de 10 s (I3-2) ---------------------------------
+
+def test_la_cartera_acierta_con_el_sondeo_de_10_s_y_un_cambio_de_ledger_recalcula(service, tmp_path, monkeypatch):
+    """I3-2: el cliente pide de nuevo 10 s DESPUÉS de recibir la respuesta (`setTimeout`); con el instante de construcción
+    tomado al terminar el cálculo y el tope en 60 s, cuatro sondeos sin cambios son un solo cálculo."""
+    server, carpeta, _ = _server_con_plan(service, tmp_path)
+    try:
+        reloj = [1000.0]
+        monkeypatch.setattr(service.time, 'monotonic', lambda: reloj[0])
+        data = service._load_data()
+        llamadas = []
+        real = data.cartera
+
+        def lenta(project):
+            llamadas.append(1)
+            resultado = real(project)
+            reloj[0] += 1.5                                        # el cálculo tarda: el cliente recibe la respuesta DESPUÉS
+            return resultado
+        data.cartera = lenta
+        monkeypatch.setattr(service, '_load_data', lambda: data)
+
+        def sondeo():
+            cuerpo = server.cartera()
+            reloj[0] += 10                                         # `setTimeout(10 s)` tras la respuesta
+            return cuerpo
+        for _ in range(4):
+            sondeo()
+        assert len(llamadas) == 1
+        (carpeta / 'tasks.md').write_text((carpeta / 'tasks.md').read_text(encoding='utf8')
+                                          + '### T-03 — Extra\n- **Estado**: borrador\n', encoding='utf8')
+        assert json.loads(sondeo())['iniciativas'][0]['tareas']['total'] == 3 and len(llamadas) == 2
+    finally:
+        server.server_close()
+
+
+# --- fix3 de la Fase 2: la firma lee con la misma protección que `local-read` y con tope agregado (I3-1, I3-3) ----------
+
+def _firma_sin_cache(firma):
+    """Una firma que nunca coincide con la siguiente (`object()`) o `None`: el llamador no cachea."""
+    return firma is None or type(firma) is object
+
+
+def _espia_aperturas(monkeypatch):
+    """Rutas que se abren con `open()` u `os.open()` mientras dura el test (para probar que un fichero NO se abre)."""
+    import builtins
+    abiertas = []
+    real_open, real_os_open = builtins.open, os.open
+    monkeypatch.setattr(builtins, 'open', lambda f, *a, **k: (abiertas.append(str(f)), real_open(f, *a, **k))[1])
+    monkeypatch.setattr(os, 'open', lambda f, *a, **k: (abiertas.append(str(f)), real_os_open(f, *a, **k))[1])
+    return abiertas
+
+
+def test_la_firma_no_sigue_un_symlink_a_un_fichero_fuera_del_proyecto(service, tmp_path, monkeypatch):
+    """I3-1: `tasks.md` apunta fuera del proyecto; la firma ni lo abre ni lo hashea (`local-read`: sin redirecciones)."""
+    server, carpeta, ident = _server_con_plan(service, tmp_path / 'proyecto')
+    server.server_close()
+    fuera = tmp_path / 'fuera'
+    fuera.mkdir()
+    secreto = fuera / 'SECRETO-fuera.md'
+    secreto.write_text('# fuera del proyecto\n', encoding='utf8')
+    (carpeta / 'tasks.md').unlink()
+    try:
+        (carpeta / 'tasks.md').symlink_to(secreto)
+    except (OSError, NotImplementedError):
+        pytest.skip('symlinks no disponibles en este sistema')
+    data = service._load_data()
+    proyecto = tmp_path / 'proyecto'
+    abiertas = _espia_aperturas(monkeypatch)
+    firma, firma_otra, plan = data.cartera_firma(proyecto), data.cartera_firma(proyecto), data.firma_ledger(proyecto, ident)
+    assert not [a for a in abiertas if 'SECRETO-fuera' in a]
+    assert _firma_sin_cache(firma) and firma != firma_otra and _firma_sin_cache(plan)
+
+
+@pytest.mark.skipif(not hasattr(os, 'mkfifo'), reason='FIFO solo en POSIX')
+def test_la_firma_no_se_bloquea_con_un_fifo_en_lugar_de_tasks_md(service, tmp_path):
+    """I3-1: abrir un FIFO sin escritor bloquea `open()`; con `local-read` (O_NONBLOCK + fichero regular) no."""
+    server, carpeta, ident = _server_con_plan(service, tmp_path)
+    server.server_close()
+    (carpeta / 'tasks.md').unlink()
+    os.mkfifo(carpeta / 'tasks.md')
+    data = service._load_data()
+    resultados = []
+    hilos = [threading.Thread(target=lambda f=f: resultados.append(f()), daemon=True)
+             for f in (lambda: data.cartera_firma(tmp_path), lambda: data.firma_ledger(tmp_path, ident))]
+    try:
+        for hilo in hilos:
+            hilo.start()
+        for hilo in hilos:
+            hilo.join(5)
+        assert not any(h.is_alive() for h in hilos), 'la firma se quedó bloqueada en el FIFO'
+        assert len(resultados) == 2 and all(_firma_sin_cache(r) for r in resultados)
+    finally:
+        try:
+            os.close(os.open(carpeta / 'tasks.md', os.O_WRONLY | os.O_NONBLOCK))   # suelta un lector bloqueado
+        except OSError:
+            pass
+
+
+def test_la_firma_lee_los_ledgers_con_local_read_y_la_lectura_normal_sigue_estable(service, tmp_path):
+    server, carpeta, ident = _server_con_plan(service, tmp_path)
+    server.server_close()
+    data = service._load_data()
+    assert data.cartera_firma(tmp_path) == data.cartera_firma(tmp_path)
+    assert data.firma_ledger(tmp_path, ident) == data.firma_ledger(tmp_path, ident) and data.firma_ledger(tmp_path, ident)[2]
+    (carpeta / 'tasks.md').write_text('x' * (data.MAX_FILE_BYTES + 10), encoding='utf8')   # fuera de tope: se firma por stat
+    assert data.cartera_firma(tmp_path) == data.cartera_firma(tmp_path)
+
+
+def test_la_firma_de_la_cartera_tiene_un_tope_agregado_de_bytes_hasheados(service, tmp_path, monkeypatch):
+    """I3-3: por encima de `MAX_SCAN_BYTES` la firma es `None`/única (sin caché), nunca una lectura sin tope."""
+    server, _, _ = _server_con_plan(service, tmp_path)
+    server.server_close()
+    for n in range(3):
+        ledger(tmp_path, folder=f'2026-10-1{n}-otra')
+    data = service._load_data()
+    assert data.cartera_firma(tmp_path) == data.cartera_firma(tmp_path)
+    leidos = []
+    reader = data._load_shared('local-read.py')
+    real = reader.read_bytes
+    monkeypatch.setattr(data, '_load_shared', lambda nombre: types.SimpleNamespace(
+        read_bytes=lambda *a, **k: (leidos.append(1), real(*a, **k))[1]) if nombre == 'local-read.py' else None)
+    monkeypatch.setattr(data, 'MAX_SCAN_BYTES', 200)           # cada tasks.md pesa ~150 bytes: el segundo ya no cabe
+    firma, otra = data.cartera_firma(tmp_path), data.cartera_firma(tmp_path)
+    assert _firma_sin_cache(firma) and firma != otra
+    assert len(leidos) <= 4                                    # 2 llamadas x (1 lectura + la que rebasa el tope), nunca las 8

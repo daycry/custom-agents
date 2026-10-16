@@ -1089,3 +1089,65 @@ for(const tipo of ['textarea','TEXTAREA','input','select']){assert.equal(campo(t
 assert.equal(document.activeElement,ids['plan-detalle'],'el foco no se roba');
 assert.equal(campo('button'),true);assert.equal(ids['plan-detalle'].hidden,true);assert.equal(document.activeElement,b);
 """, datos_pagina=_exportado_con(plan, detalles=_detalles(plan)))
+
+
+# --- fix3 de la Fase 2: el aviso `rangos_sin_expandir` llega al Plan y al detalle (I3-4) ---------------------------------
+
+AVISO_TEXTO = 'Aviso: hay rangos de tareas sin expandir; alguna revisión puede no aparecer'
+
+
+def _proyecto_con_rangos(tmp_path, con_aviso):
+    carpeta = tmp_path / 'docs/roadmap/2026-02-02-rangos'
+    carpeta.mkdir(parents=True)
+    (carpeta / 'improvement-plan.md').write_text('# p\n', encoding='utf8')
+    cabecera = 'Fase 1 (' + ' '.join(['T-00..T-99'] * 400) + ')' if con_aviso else 'Fase 1 (T-01..T-02)'
+    (carpeta / 'tasks.md').write_text(
+        '# L\n\n## Fase 1\n\n### T-01 — a\n- **Estado**: borrador\n\n### T-02 — b\n- **Estado**: borrador\n\n'
+        f'## Revisión de dos lentes — intento 1: {cabecera} — 1 gap\n\n| # | Grado | Gap | Tarea | Corrección | Evidencia |\n'
+        '|---|---|---|---|---|---|\n| 1 | Minor | g | T-02 | pendiente | e |\n', encoding='utf8')
+    return tmp_path, id16('2026-02-02-rangos')
+
+
+@pytest.mark.parametrize('con_aviso', [True, False])
+def test_el_servidor_lleva_los_avisos_de_la_proyeccion_a_plan_y_a_la_tarea(servicio, tmp_path, con_aviso):
+    proyecto_r, ident = _proyecto_con_rangos(tmp_path, con_aviso)
+    server = servicio.create_server(proyecto_r, servicio._load_builder().build_inventory(proyecto_r, project=None))
+    try:
+        plan, detalle = json.loads(server.plan(ident)), json.loads(server.tarea(ident, 'T-01'))
+    finally:
+        server.server_close()
+    for cuerpo in (plan, detalle):
+        assert cuerpo['status'] == 'ok'
+        if con_aviso:
+            assert cuerpo['avisos'] == ['rangos_sin_expandir']
+        else:
+            assert 'avisos' not in cuerpo
+
+
+def test_la_proyeccion_y_el_exportado_llevan_los_avisos_tambien(datos, tmp_path):
+    proyecto_r, ident = _proyecto_con_rangos(tmp_path, True)
+    assert datos.plan(proyecto_r, ident)['avisos'] == ['rangos_sin_expandir']
+    assert datos.tarea(proyecto_r, ident, 'T-01')['avisos'] == ['rangos_sin_expandir']
+    plan, detalles = datos.plan_y_detalles(proyecto_r, ident)
+    assert plan['avisos'] == ['rangos_sin_expandir'] and detalles['T-02']['avisos'] == ['rangos_sin_expandir']
+
+
+def test_la_pagina_plan_muestra_el_aviso_como_texto_en_la_cabecera_y_en_el_detalle(tmp_path, plan_alfa):
+    plan = _plan_dos(plan_alfa)
+    plan['avisos'] = ['rangos_sin_expandir']
+    detalles = _detalles(plan)
+    detalles['T-02']['avisos'] = ['rangos_sin_expandir']
+    _correr(tmp_path, EXTRA_DET + f'''
+assert.ok(ids['plan-estado'].textContent.includes({json.dumps(AVISO_TEXTO)}),ids['plan-estado'].textContent);
+await abrir('T-02');assert.ok(detalle().includes({json.dumps(AVISO_TEXTO)}),detalle());
+''', datos_pagina=_exportado_con(plan, detalles=detalles))
+
+
+def test_sin_avisos_la_cabecera_no_dice_nada_y_un_aviso_desconocido_invalida_la_respuesta(tmp_path, plan_alfa):
+    _correr(tmp_path, f'''assert.ok(!ids['plan-estado'].textContent.includes('Aviso:'));''', datos_pagina=_exportado_con(plan_alfa))
+    malo = json.loads(json.dumps(plan_alfa))
+    malo['avisos'] = ['<img src=x onerror=alert(1)>']
+    _correr(tmp_path, '''
+assert.match(ids['plan-estado'].textContent,/No se pudo leer el plan/);
+assert.equal(walk(ids['kanban-plan'],n=>n.tagName==='article').length,0);
+''', datos_pagina=_exportado_con(malo))

@@ -243,21 +243,41 @@ def _vacia(status, issue=None):
 FIRMA_FALLOS = {'oserror': 0}   # rastro de diagnóstico (solo un contador: ningún texto del usuario ni rutas)
 
 
-def _estado_fichero(ruta, contenido=False):
-    """`(mtime, tamaño)` de un fichero, más un hash de su contenido con `contenido` (acotado a `MAX_FILE_BYTES`): el
-    mtime de FAT/exFAT/red es grueso y marcar `[ ]` -> `[x]` no cambia el tamaño. `None` si no se puede leer."""
+class _SinFirma(OSError):
+    """La lectura protegida del contenido falló o rebasó el tope: no hay firma fiable (el llamador no cachea)."""
+
+
+class _LecturaFirma:
+    """Lectura del contenido para las firmas: `local-read.py` (fichero regular, sin redirecciones en ningún ancestro,
+    `nlink`, sin bloquear en FIFOs, `MAX_FILE_BYTES`), la MISMA protección que el cálculo normal, más un tope
+    agregado de bytes hasheados por petición (`MAX_SCAN_BYTES`)."""
+    def __init__(self, project, reader):
+        self.project, self.reader, self.gastado = str(project), reader, 0
+
+    def huella(self, ruta):
+        relativa = os.path.relpath(str(ruta), self.project).replace(os.sep, '/')
+        lectura = self.reader.read_bytes(self.project, relativa, max_bytes=MAX_FILE_BYTES, include_digest=True)
+        self.gastado += lectura['bytes']
+        if self.gastado > MAX_SCAN_BYTES:
+            raise _SinFirma('scan_budget')
+        if lectura['status'] == 'too_large':
+            return 'fuera_de_tope'                      # el cálculo lo reporta como `fuera_de_tope`; basta (mtime, tamaño)
+        if lectura['status'] != 'ok':
+            raise _SinFirma(lectura['status'])          # not_regular, redirected_path, changed_path, unreadable...
+        return lectura['sha256'][:16]
+
+
+def _estado_fichero(ruta, lectura=None):
+    """`(mtime, tamaño)` de un fichero, más un hash de su contenido con `lectura` (una `_LecturaFirma`): el mtime de
+    FAT/exFAT/red es grueso y marcar `[ ]` -> `[x]` no cambia el tamaño. `None` si no existe; `_SinFirma` si el
+    contenido no se puede leer con la protección de `local-read.py`."""
     try:
         info = os.stat(ruta)
     except OSError:
         return None
-    if not contenido:
+    if lectura is None:
         return (info.st_mtime_ns, info.st_size)
-    try:
-        with open(ruta, 'rb') as fichero:
-            huella = hashlib.sha256(fichero.read(MAX_FILE_BYTES + 1)).hexdigest()[:16]
-    except OSError:
-        huella = None
-    return (info.st_mtime_ns, info.st_size, huella)
+    return (info.st_mtime_ns, info.st_size, lectura.huella(ruta))
 
 
 CON_CONTENIDO = ('tasks.md', 'retro.md')   # los dos ficheros que cambian a mano dentro de la misma ventana de mtime
@@ -270,15 +290,16 @@ def cartera_firma(project):
     leer, la firma es única cada vez: nunca sirve una copia vieja."""
     raiz = os.path.join(str(project), 'docs', 'roadmap')
     try:
+        lectura = _LecturaFirma(project, _load_shared('local-read.py'))
         firma = [_estado_fichero(raiz)]
         with os.scandir(raiz) as it:
             nombres = sorted(e.name for e in it)
         for nombre in nombres[:MAX_SCAN]:
             ruta = os.path.join(raiz, nombre)
             firma.append((nombre, _estado_fichero(ruta), tuple(
-                _estado_fichero(os.path.join(ruta, a), a in CON_CONTENIDO) for a in ARTEFACTOS + ('retro.md', 'testing'))))
+                _estado_fichero(os.path.join(ruta, a), lectura if a in CON_CONTENIDO else None) for a in ARTEFACTOS + ('retro.md', 'testing'))))
         return tuple(firma)
-    except OSError:
+    except Exception:  # noqa: BLE001 - OSError, `_SinFirma` o un ayudante ausente: sin firma fiable no se cachea
         return object()
 
 
@@ -399,6 +420,14 @@ def _vista(project, ident):
     return carpeta, _load_ledger_view().leer(Path(str(project)) / 'docs' / 'roadmap' / carpeta)
 
 
+def _con_avisos(respuesta, vista):
+    """Los `avisos` de la proyección (vocabulario cerrado, p. ej. `rangos_sin_expandir`) viajan en la respuesta solo
+    cuando los hay: sin ellos, «Sin revisión registrada» pasaría por un dato completo (I3-4)."""
+    if vista.get('avisos'):
+        respuesta['avisos'] = list(vista['avisos'])
+    return respuesta
+
+
 def firma_ledger(project, ident):
     """`(mtime, tamaño, hash)` del `tasks.md` de la iniciativa `ident`: cambia cuando cambia lo que `plan`/`tarea`
     proyectan (el hash cubre el mtime grueso). `None` si el id no se resuelve; `()` si no se puede leer (cuenta en
@@ -406,7 +435,12 @@ def firma_ledger(project, ident):
     carpeta = _carpeta(project, ident, _load_shared('local-read.py'))
     if carpeta is None:
         return None
-    firma = _estado_fichero(os.path.join(str(project), 'docs', 'roadmap', carpeta, 'tasks.md'), True)
+    try:
+        firma = _estado_fichero(os.path.join(str(project), 'docs', 'roadmap', carpeta, 'tasks.md'),
+                                _LecturaFirma(project, _load_shared('local-read.py')))
+    except _SinFirma:
+        FIRMA_FALLOS['oserror'] += 1
+        return None                                     # redirigido, no regular o ilegible: el cálculo normal lo reporta
     if firma is None:
         FIRMA_FALLOS['oserror'] += 1
         return ()
@@ -441,6 +475,7 @@ def _plan_de(ident, carpeta, vista):
     respuesta = _plan_vacio(ident, carpeta, 'ok' if estado == 'ok' else estado, None if estado == 'ok' else estado)
     if estado != 'ok':
         return respuesta
+    _con_avisos(respuesta, vista)
     filas = [_fila_plan(t) for t in vista['tareas']]
     if len(filas) > MAX_TAREAS:
         respuesta['omitidas'] = len(filas) - MAX_TAREAS
@@ -476,7 +511,7 @@ def tarea(project, ident, tarea_id):
     if vista['status'] != 'ok':
         return _env_tarea(ident, tarea_id, vista['status'], vista['status'])
     t = next((x for x in vista['tareas'] if x['id'] == tarea_id), None)
-    return None if t is None else _detalle(ident, tarea_id, t)
+    return None if t is None else _con_avisos(_detalle(ident, tarea_id, t), vista)
 
 
 def plan_y_detalles(project, ident):
@@ -492,7 +527,7 @@ def plan_y_detalles(project, ident):
     respuesta = _plan_de(ident, *resuelto)
     if resuelto[1]['status'] != 'ok':
         return respuesta, {}
-    return respuesta, {t['id']: _detalle(ident, t['id'], t) for t in resuelto[1]['tareas']}
+    return respuesta, {t['id']: _con_avisos(_detalle(ident, t['id'], t), resuelto[1]) for t in resuelto[1]['tareas']}
 
 
 def _detalle(ident, tarea_id, t):

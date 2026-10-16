@@ -390,3 +390,46 @@ def test_un_rango_exige_t_a_la_derecha_y_dos_cifras_como_ids_de_tarea():
     assert lv._expandir("T-03..12") == "T-03..12"
     assert lv._expandir("T-1..T-4") == "T-1..T-4"                     # `ids_de_tarea` solo casa `T-NN`: no se generan ids que no casan
     assert lv._expandir("T-100..T-102") == "T-100..T-102"
+
+
+# --- fix3 de la Fase 2: coste de la proyección con muchas tareas y filas (I3-5) -------------------------------------
+
+def _ledger_grande(tareas, filas, secciones=3):
+    cuerpo = "## Fase 1 — Base\n\n" + "".join(f"### T-{n:02d} — Tarea {n}\n- **Estado**: borrador\n" for n in range(1, tareas + 1))
+    for s in range(1, secciones + 1):
+        cuerpo += (f"\n## Revisión de dos lentes — intento {s}: Fase 1 (T-01..T-09) — gaps\n\n"
+                   "| # | Grado | Gap | Tarea | Corrección | Evidencia |\n|---|---|---|---|---|---|\n")
+        cuerpo += "".join(f"| {n} | Minor | x | T-{(n % 90) + 1:02d} | {'pendiente' if n % 3 else 'corregido'} | e |\n"
+                           for n in range(filas // secciones))
+    return "# Ledger\n\n" + cuerpo
+
+
+def test_mil_tareas_y_330_filas_por_seccion_se_proyectan_en_menos_de_2_s():
+    """I3-5: el índice id -> secciones/filas se construye una vez por proyección (antes: tareas x filas x ids)."""
+    import time
+    texto = _ledger_grande(1000, 3300, secciones=10)   # 330 filas por sección
+    t0 = time.perf_counter()
+    datos = lv.proyectar(texto)
+    assert datos["status"] == "ok" and len(datos["tareas"]) == 1000
+    assert time.perf_counter() - t0 < 2
+
+
+def test_el_indice_da_la_misma_revision_y_gaps_que_las_funciones_de_ledger_lint():
+    """I3-5: el índice no cambia el resultado: cada tarea sale igual que con `ultimo_intento_para`,
+    `seleccionar_seccion` y `filas_pendientes_de_tarea` de `ledger-lint` sobre las mismas secciones."""
+    texto = _ledger_grande(30, 60, secciones=3) + (
+        "\n## Revisión de dos lentes — intento 4: sin gaps\n\n## Fase 2 — Otra\n"
+        "\n## Revisión de dos lentes — intento 4 (Fase 2: T-07): x\n\n"
+        "| # | Grado | Gap | Tarea | Corrección | Evidencia |\n|---|---|---|---|---|---|\n| 1 | Important | y | T-07/T-12 | pendiente | e |\n")
+    datos = lv.proyectar(texto)
+    secciones = lv._secciones_expandidas(ll.secciones_revision(texto))
+    for t in datos["tareas"]:
+        ultimo = ll.ultimo_intento_para(secciones, [t["id"]])
+        _, abiertas = ll.filas_pendientes_de_tarea(secciones, t["id"])
+        if ultimo is None:
+            assert t["revision"] is None and t["gaps"] == []
+            continue
+        seccion, _ = ll.seleccionar_seccion(secciones, ultimo, [t["id"]])
+        assert t["revision"]["intento"] == ultimo and t["revision"]["abiertos"] == len(abiertas)
+        assert t["revision"]["cabecera"] == (seccion["_original"][:160] if seccion else None)
+        assert [(g["intento"], g["num"]) for g in t["gaps"]] == [(f["intento"], f["num"]) for f in abiertas]

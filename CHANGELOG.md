@@ -52,6 +52,7 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - Panel: reviewing a stale plan version now requires loading the current one before deciding; "Load current version" keeps focus; Escape inside a review field no longer closes the task detail; a failed review summary keeps the last good state with a notice; a missing review reads "not available".
 - `ledger-lint` reads the `Estado` and `Fecha` header rows in linear time, so a crafted `tasks.md` can no longer stall the panel; a review summary whose deadline runs out returns what it already read as `partial`.
 - Panel review actions (refresh, save, submit, open) show at once in the current review and the card summary, and "Load current version" keeps keyboard focus; ledger range expansion has a global budget with an explicit warning; a full review registry neither writes before answering 429 nor evicts the orchestrator's write entry; cache signatures cover file content, so a same-mtime `[ ]`→`[x]` edit shows at once.
+- The portfolio and plan caches sign file contents with the panel's protected read (no symlinks, no FIFO hangs, capped bytes) and hit on the real 10 s poll; the Plan shows an "unexpanded task ranges" warning; 1,000-task ledgers project in under 2 s; a review write that ends in a timeout or an oversized response drops the stale review cache.
 
 ### Fixed — `panel-redesign` initiative, phase 1 review
 

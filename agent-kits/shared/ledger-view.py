@@ -172,15 +172,55 @@ def _cerrada(t):
     return None, _tope(crudo, 48)
 
 
-def _tarea(t, fase, secciones, archivadas):
+class _Indice:
+    """Índice id -> secciones/filas de revisión, construido UNA vez por proyección. Contesta lo mismo que
+    `ultimo_intento_para`, `seleccionar_seccion` y `filas_pendientes_de_tarea` de `ledger-lint` (un test lo compara)
+    sin recorrer todas las filas por cada tarea (coste tareas x filas)."""
+    def __init__(self, secciones):
+        self.secciones = secciones
+        efectivas = _ll._menciones_efectivas(secciones)
+        self.citantes, self.propias, self.ajenas, self.filas = {}, {}, {}, {}
+        self.por_intento = {}
+        for i, (s, eff) in enumerate(zip(secciones, efectivas)):
+            self.por_intento.setdefault(s["intento"], []).append(i)
+            for ident in eff:
+                self.citantes.setdefault(ident, []).append(i)
+            for ident in _ll.ids_de_tarea(s["cabecera"]):
+                self.propias.setdefault(ident, set()).add(i)
+            for f in s["filas"]:
+                for ident in _ll.ids_de_tarea(f["tarea"]):
+                    self.ajenas.setdefault(ident, set()).add(i)
+                    self.filas.setdefault(ident, []).append((i, f))
+
+    def ultimo(self, ident):
+        return max((self.secciones[i]["intento"] for i in self.citantes.get(ident, ())), default=None)
+
+    def seccion(self, intento, ident):
+        candidatas = self.por_intento.get(intento, [])
+        if not candidatas:
+            return None
+        if len(candidatas) > 1:
+            for grupo in (self.propias, self.ajenas):
+                hit = [i for i in candidatas if i in grupo.get(ident, ())]
+                if hit:
+                    return self.secciones[hit[-1]]
+        return self.secciones[candidatas[-1]]
+
+    def abiertas(self, ident):
+        citantes = set(self.citantes.get(ident, ()))
+        return [dict(f, seccion=self.secciones[i]["cabecera"], intento=self.secciones[i]["intento"])
+                for i, f in self.filas.get(ident, ()) if i in citantes and _ll.gap_pendiente(f)]
+
+
+def _tarea(t, fase, indice, archivadas):
     estado = t["estado"] if t["estado"] in ESTADOS else None
     literal = t["estado"] if t["estado"] is not None and estado is None else None
     ident = t["id"]
-    intento, abiertas = filas_pendientes_de_tarea(secciones, ident)
-    ultimo = ultimo_intento_para(secciones, [ident])
+    abiertas = indice.abiertas(ident)
+    ultimo = indice.ultimo(ident)
     revision = None
     if ultimo is not None:
-        seccion, _aviso = seleccionar_seccion(secciones, ultimo, [ident])
+        seccion = indice.seccion(ultimo, ident)
         revision = {"intento": ultimo,
                     "cabecera": _tope(seccion["_original"], 160) if seccion else None,
                     "abiertos": len(abiertas)}
@@ -217,7 +257,8 @@ def proyectar(text):
         return _vacio("sin_tareas")
     fase_de = {id(t): f["nombre"] for f in parsed["fases"] for t in f["tareas"]}
     archivadas = _archivadas(text, presupuesto)
-    tareas = [_tarea(t, fase_de.get(id(t)), secciones, archivadas) for t in parsed["tareas"]]
+    indice = _Indice(secciones)
+    tareas = [_tarea(t, fase_de.get(id(t)), indice, archivadas) for t in parsed["tareas"]]
     salida = {"version": 1, "status": "ok", "vocabulario": list(ESTADOS),
               "fases": [{"nombre": f["nombre"], "tareas": [t["id"] for t in f["tareas"]]} for f in parsed["fases"]],
               "desconocidos": [{"id": t["id"], "literal": t["literal"]} for t in tareas if t["estado"] is None],

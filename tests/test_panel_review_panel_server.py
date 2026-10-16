@@ -531,3 +531,37 @@ def test_el_plazo_de_lectura_del_servidor_deja_margen_bajo_los_4_s_del_cliente(s
         assert len(plazos) == 2 and all(p + 0.25 < 3.0 for p in plazos), plazos
     finally:
         server.shutdown(); server.server_close(); thread.join(5)
+
+
+# --- fix3 de la Fase 2: el dueño pudo escribir aunque la respuesta acabe mal (I3-6) -----------------------------------
+
+@pytest.mark.parametrize('modo', ['timeout', 'demasiado_grande', 'excepcion'])
+def test_una_operacion_que_pudo_escribir_olvida_la_cache_aunque_la_respuesta_acabe_en_error(service, tmp_path, monkeypatch, modo):
+    import time
+    calls = []
+    inner = fake_owner(calls)
+
+    def save_comments(project, review_id, version, comments, **kwargs):
+        calls.append('save_comments')                              # el dueño YA escribió cuando devuelve (o falla)
+        if modo == 'timeout':
+            time.sleep(0.2)
+        if modo == 'excepcion':
+            raise RuntimeError('fallo del dueno tras escribir')
+        review = {'review_id': RID, 'revision': 1, 'pad': 'x' * (600 * 1024) if modo == 'demasiado_grande' else ''}
+        return {'schema_version': 1, 'status': 'ok', 'reason': None, 'review': review}
+    owner = types.SimpleNamespace(**{**vars(inner), 'save_comments': save_comments})
+    server, thread = run_server(service, monkeypatch, tmp_path, owner)
+    try:
+        server.review_registry[RID] = {'initiative': INITIATIVE, 'gate_key': 'requested-review', 'consumer': None, 'escritura': True}
+        server._review_map = {IDENT: INITIATIVE}
+        server._review_summary = b'copia vieja'
+        server._review_current[IDENT] = ('firma', time.monotonic(), b'copia vieja')
+        server._review_current_at[IDENT] = time.monotonic()
+        payload = {'version': 1, 'comments': [], 'expected_revision': 0}
+        deadline = time.monotonic() + (0.05 if modo == 'timeout' else 5)
+        code, _body = server.review('comments', RID, payload, deadline)
+        assert 'save_comments' in calls
+        assert code == {'timeout': 503, 'demasiado_grande': 413, 'excepcion': 503}[modo]
+        assert server._review_summary is None and IDENT not in server._review_current and IDENT not in server._review_current_at
+    finally:
+        server.shutdown(); server.server_close(); thread.join(5)

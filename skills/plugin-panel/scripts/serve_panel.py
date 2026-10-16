@@ -26,7 +26,7 @@ MAX_REVIEW_RESPONSE_BYTES = 512 * 1024
 MAX_REVIEW_IDS = 128
 REVIEW_BATCH = 64  # plan-review.MAX_RECORDS: `summarize_reviews` refuses more initiatives per call
 CACHE_MAX_AGE = 60  # an unchanged signature is trusted for this long (keeps `observed_at` honest)
-CARTERA_MAX_AGE = 10  # the portfolio also reads files the signature only samples: never older than one poll
+CARTERA_MAX_AGE = 60  # the signature covers contents (tasks.md, retro.md), so freshness no longer rests on a short cap
 REVIEW_OPEN_GATE = 'requested-review'  # the only gate the browser can open; `plan-ok` belongs to the orchestrator
 TOO_MANY_REVIEWS = 'demasiadas revisiones abiertas en este proceso'
 STATES = {'borrador', 'en-progreso', 'en-revision', 'completado', 'cancelado'}
@@ -467,7 +467,8 @@ class PanelServer(HTTPServer):
                 raise ValueError('response budget')
         except Exception:
             body, firma = _encoded(_unavailable_cartera()), None
-        self._cartera, self._cartera_at, self._cartera_built, self._cartera_firma = body, now, now, firma
+        built = time.monotonic()   # taken when the calculation ENDS: the client polls 10 s after receiving the response
+        self._cartera, self._cartera_at, self._cartera_built, self._cartera_firma = body, built, built, firma
         return self._cartera
 
     def plan(self, ident):
@@ -555,11 +556,14 @@ class PanelServer(HTTPServer):
 
     def review(self, operation, review_id, payload, deadline):
         """Only the common owner reads or changes durable review state."""
+        touched = None   # initiative whose state the owner may have changed, whatever the response ends up being
         try:
             if time.monotonic() >= deadline:
                 raise TimeoutError
             entry = self.review_registry[review_id]
             helper = self.owner()
+            if operation not in ('view', 'status'):
+                touched = entry['initiative']
             args = {'state_root': self.review_state_root, 'deadline': deadline}
             if operation == 'refresh':
                 result = helper.open_review(self.project, entry['initiative'],
@@ -582,11 +586,12 @@ class PanelServer(HTTPServer):
                 return 413, _encoded(_review_failure('response_budget'))
             if operation == 'refresh':
                 self.register_review(result, entry['initiative'], entry['gate_key'], entry['consumer'], entry['escritura'])
-            if operation not in ('view', 'status'):
-                self._forget_review_cache(entry['initiative'])
             return _review_code(result), body
         except Exception:
             return 503, _encoded(_review_failure())
+        finally:
+            if touched is not None:   # a timeout or a 413 after the owner wrote must not leave a stale summary or current
+                self._forget_review_cache(touched)
 
     def _forget_review_cache(self, initiative):
         """An operation that changes review state (open, refresh, comments, submit) must show at once in
