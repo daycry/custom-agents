@@ -1861,6 +1861,21 @@ Diff `04cf18b..e22c49b` (2026-10-16). Lentes A+B+C+D con `reviewer` (opus) en pa
 | F2-24 | Minor | T-22 cerrada sin el campo `Cerrada` que introduce: el burndown de este plan nunca aparece | T-22 | corregido (orquestador): `Cerrada: 2026-10-15` | `ledger-view` lista T-22 sin `cerrada` antes |
 | F2-25 | Minor | M-F1-1 sin disposición anotada en T-56 | T-56 | descartado (rebatido): resuelto en `panel-review.js:31` (16.384 / 4.096 bytes), comprobado por la lente B | lente B, tabla de criterios |
 
+## Revisión de dos lentes — intento 2: Fase 2 (T-17..T-28, T-55..T-58) — 3 Important, 5 Minor, 0 Critical (lentes: A+C, B+D)
+
+Confirmación sobre `e7fb2f9..add1525` (fix1, 2026-10-16), dos revisores `reviewer` (opus). Confirmadas con test F2-2..F2-17, F2-19..F2-22 y F2-24 (F2-17 cae por I2-2); F2-18 parcial (I2-4). F2-1 y F2-23 siguen a decisión del usuario; la mutación de T-17/T-18 no deja salida en el repo. C: cachés por firma sin cruce de iniciativas ni saneadores, `not_reviewable` sin rutas, regex de `ledger-lint` lineales (9 formas adversarias ≤ 0,017 s), `redact.py` cacheado sin bypass. D: `cartera` 429 → 8,6 ms con firma igual; exportado 18,2 → 1,2 s; F2-5 idéntico a `progress-report` en los 45 ledgers legibles.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| I2-1 | Important | Constitución §1: fix1 escribió código antes que el test en F2-5, F2-6, F2-7 y F2-9 y las celdas lo presentan como «RED» sin declararlo | T-29 | pendiente (fix2: declararlo; decide el usuario con F2-1) | `tasks.md` celdas F2-5/6/7/9 |
+| I2-2 | Important | `review()` (refresh/comments/submit) no invalida la caché de `review-current`: durante 5 s devuelve el `review_id` viejo, el panel remonta con «La versión ha cambiado» y pierde el foco (F2-17 no se cumple con el servidor real); tras Aprobar la cabecera sigue «pendiente» hasta 5 s | T-56 | pendiente (fix2) | `serve_panel.py:561-582,707-709`; sonda con el dueño real |
+| I2-3 | Important | `_expandir` sin cota agregada: N copias de `T-0..T-499` en cabecera o filas bloquean el servidor de un hilo (500 en cabecera → 29 s; 5.000 filas → 182 s); rangos de anchura 1 generan ids que `ids_de_tarea` nunca casa; falso rango en «T-03… 12 gaps» | T-21 | pendiente (fix2) | `ledger-view.py:48-49,90-106,136,164-165,198`; CWE-400/407 |
+| I2-4 | Minor | F2-18 incompleto: registro lleno con la iniciativa presente solo como `plan-ok` → el dueño escribe y se responde 429 | T-56 | pendiente (fix2) | `serve_panel.py:749-760,598-603`; CWE-664 |
+| I2-5 | Minor | Con el registro lleno, un GET de `review-current` desplaza la entrada de arranque `plan-ok` con escritura del orquestador por otra sin escritura | T-56 | pendiente (fix2) | `serve_panel.py:598-605,729-733`; CWE-664 |
+| I2-6 | Minor | Con el plazo vencido `summary` suma 1 s propio y relee planes sin `_guard`: puede pasar del plazo del cliente (4 s) | T-55 | pendiente (fix2) | `plan-review.py:730-737`; `panel-review.js:279` |
+| I2-7 | Minor | Firmas mtime+tamaño con mtime grueso (FAT/exFAT/red): marcar `[ ]`→`[x]` en la misma ventana sirve copia vieja hasta 60 s; `retro.md` y el contenido de `testing/` fuera de la firma | T-17 | pendiente (fix2) | `panel_data.py:254,261,391`; `serve_panel.py:359,388` |
+| I2-8 | Minor | `firma_ledger` traga cualquier excepción y desactiva la caché sin aviso | T-17 | pendiente (fix2 si es barato; si no, backlog) | `panel_data.py` `firma_ledger` |
+
 ## Historial archivado
 
 - 2026-10-15 · «Revisión de dos lentes — intento 2: Fase 1 (T-01..T-15) — 3 Important, 6 Minor, 0 Critical (lentes: A+B+C)» → [execution-history.md](execution-history.md) · SHA-256 `d61eb2c7b857fa4ea4b5c1ac3ada276c3524b033db9b039612e546385fc492d6`
