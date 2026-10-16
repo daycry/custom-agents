@@ -1102,7 +1102,7 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 ### T-29 — Cierre de la Fase 2: revisión de dos lentes y revisión visual del usuario (M-02)
 
 - **Descripción**: Puerta de la fase: suites de CA-44, linter y evals en verde; revisión de dos lentes sobre el diff de la fase; bucle acotado a 3 con Minor al backlog; el usuario revisa Inicio, Iniciativas y Plan en el navegador (M-02). **Ampliada por la enmienda (R-6 de `design.md` §8.8):** la **lente C de seguridad es obligatoria** en esta revisión (la fase añade la vía de escritura de `api/review-open`; el orquestador la fuerza aunque `review-lens-select.py` no la marque) y M-02 incluye **abrir, comentar y decidir una revisión desde la página Plan**.
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 3,0h (1,8h + 1,2h de la enmienda) · real —
 - **Tiempo IA (ejec.)**: est. 9,5h (5,4h + 4,1h de la enmienda) · real — (revisión + corrección, f = 1,0, incluida la parte de `Cerrada` y la lente C sobre T-55..T-58)
 - **Supervisión**: est. 3,85h (≈25 % IA + 1,5h de revisión manual: 1h + 0,5h de M-02 ampliado) · real —
@@ -1127,7 +1127,7 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 **Subtareas**
 - [ ] Suites y puertas; `adversarial-review`; M-02. **Ampliada por la enmienda 2026-10-15:** `adversarial-review` con A + B + **C obligatoria** (+ D si `review-lens-select.py` la activa); M-02 con la revisión desde el Plan.
 
-**Notas**: la Lente A comprueba que CA-01, CA-02 y CA-11 se testean contra los scripts reales y que CA-45 a CA-54 tienen su test. La lente C es obligatoria por la enmienda 2026-10-15 (spec «Fases propuestas»); el orquestador la fuerza sin tocar `.claude/dev.json` del usuario (mismo mecanismo que T-54, `review-lens-select.py:573` modo `siempre`).
+**Notas**: **2026-10-16:** revisión cerrada en 3 intentos + verificación dirigida de fix3 (0 gaps nuevos); pendientes del usuario: M-02, deuda TDD (F2-1/I2-1) y CA-10 (F2-23). la Lente A comprueba que CA-01, CA-02 y CA-11 se testean contra los scripts reales y que CA-45 a CA-54 tienen su test. La lente C es obligatoria por la enmienda 2026-10-15 (spec «Fases propuestas»); el orquestador la fuerza sin tocar `.claude/dev.json` del usuario (mismo mecanismo que T-54, `review-lens-select.py:573` modo `siempre`).
 
 ---
 
@@ -1859,6 +1859,8 @@ Confirmación sobre `ae57334..7ee05f1` (fix2, 2026-10-16). Lente A: I2-2..I2-8 h
 | I3-5 | Minor | `proyectar` cuesta tareas × filas × ids aunque no haya rangos (1.000 × 330 filas: 115 s); previo a fix2 | T-21 | corregido (fix3): `ledger-view` construye un índice id -> secciones/filas una vez (8,3 s -> <2 s con 1.000 × 3.300 filas) · RED test_mil_tareas_y_330_filas_por_seccion… (antes del código) | `ledger-view.py:216` |
 | I3-6 | Minor | `review()` no invalida la caché si el dueño escribió y la respuesta acaba en `TimeoutError` o 413 | T-56 | corregido (fix3): `review()` invalida la caché en `finally` si el dueño pudo escribir (timeout, 413, excepción) · RED test_una_operacion_que_pudo_escribir_olvida_la_cache… (3 casos, antes del código) | `serve_panel.py:583-586` |
 | I3-7 | Minor | `firma_fallos` solo vive en memoria: ningún endpoint ni `/doctor` lo muestra | T-17 | deuda (backlog F3) | `serve_panel.py:499` |
+
+**Verificación dirigida de fix3 (diff `2a4c6ef..1beb9fa`, lentes B+C, 2026-10-16): 0 gaps nuevos.** I3-1..I3-6 ✓ con test que falla sobre `2a4c6ef` (Linux `python:3.11-slim`: symlink, FIFO y tope 22 passed; `test_panel_server.py` 132 passed). I3-5: proyección idéntica en los 49 ledgers reales (`2a4c6ef` frente a HEAD, sin `observed_at`). I3-7 queda en el backlog de la Fase 3. Bucle de revisión de la Fase 2 cerrado sin Critical ni Important de corrección pendientes; quedan a decisión del usuario F2-1/I2-1 (deuda TDD) y F2-23 (CA-10).
 
 ## Historial archivado
 
