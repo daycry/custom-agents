@@ -269,7 +269,7 @@ def test_sin_chartjs_los_dos_graficos_degradan_a_su_tabla(tmp_path, cartera):
     _correr(tmp_path, GRAFICOS + '''
 assert.equal(creados.length,0);
 for(const id of ['grafico-horas','grafico-coste']){assert.equal(tag(figura(id),'canvas').length,0);assert.equal(tag(figura(id),'table').length,1);}
-assert.match(figura('grafico-horas').textContent,/Chart\.js no está disponible/);
+assert.match(figura('grafico-horas').textContent,/Chart\\.js no está disponible/);
 ''', datos=_exportado(cartera, chartjs_disponible=False))
 
 
