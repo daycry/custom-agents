@@ -28,6 +28,7 @@
   function hayDatos(d) { return d && (d.status === 'ok' || d.status === 'partial'); }
 
   function estadoGeneral(d, motivo) {
+    if (!d && motivo === 'calculando') { return 'Calculando la cartera… (reintento en ' + C().REINTENTO_S + ' s)'; }
     if (!d && motivo === 'sin_cartera') {
       return 'Sin datos: esta copia estática no incluye la cartera (se genera con --project).';
     }

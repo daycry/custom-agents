@@ -186,13 +186,25 @@ def _policy_child(policy, key, line, child):
     return child
 
 
+_INDENT = ' ' + chr(9)
+_METADATA_KEY = re.compile(r'^(name|description|model|tools|permission):\s*(.*)$')
+
+
 def _metadata(raw, *, ignore_name=False):
     result, key, child = {}, None, None
     description_parts = []
     for line in _frontmatter(raw):
-        if not line.strip() or line.lstrip().startswith('#'):
+        stripped = line.strip()
+        if not stripped or stripped[0] == '#':
             continue
-        match = re.match(r'^(name|description|model|tools|permission):\s*(.*)$', line)
+        # An indented line cannot open a key: no regex for the (up to ~175 000) lines of a long block scalar.
+        if line[0] in _INDENT:
+            if key == 'description':
+                description_parts.append(stripped)
+                continue
+            match = None
+        else:
+            match = _METADATA_KEY.match(line)
         if match:
             key, value = match.groups()
             if key == 'name' and ignore_name:
@@ -210,7 +222,7 @@ def _metadata(raw, *, ignore_name=False):
                 if key == 'description':
                     description_parts = [result[key]]
         elif line.startswith((' ', '\t')) and key == 'description':
-            description_parts.append(line.strip())
+            description_parts.append(stripped)
         elif key == 'tools' and line.lstrip().startswith('- '):
             if result[key] == {}:
                 result[key] = []
@@ -230,7 +242,10 @@ def _agent_servers(raw):
     """Read only public MCP identity/transport from a Claude agent's YAML list."""
     servers, active, seen, current, property_indent = [], False, False, None, None
     entry_indent = None
-    for line in _frontmatter(raw):
+    lines = _frontmatter(raw)
+    if 'mcpServers:' not in raw:
+        return servers   # no declaration anywhere: nothing to scan line by line
+    for line in lines:
         if not line.strip() or line.lstrip().startswith('#'):
             continue
         if line.startswith('mcpServers:'):

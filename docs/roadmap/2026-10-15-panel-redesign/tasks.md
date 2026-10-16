@@ -1109,7 +1109,7 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 - **Previsión IA**: 4,35 M in / 707k out tok · 66,48 €
 - **Dependencias**: T-17..T-28, T-55..T-58
 - **Tipo**: test
-- **Archivos**: `docs/roadmap/2026-10-15-panel-redesign/tasks.md`
+- **Archivos**: `docs/roadmap/2026-10-15-panel-redesign/tasks.md`, `agent-kits/shared/project-pieces.py`, `tests/test_project_pieces.py` (CI-1 de M-02)
 - **Cubre (tests)**: M-02
 - **Verificación**:
   - `python3 -m pytest -q tests/test_plugin_panel.py tests/test_panel_*.py tests/test_dashboard.py tests/test_ledger_lint.py tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py agent-kits/shared/test_agent_activity.py agent-kits/shared/test_ledger_view.py` → `0 failed`
@@ -1861,6 +1861,17 @@ Confirmación sobre `ae57334..7ee05f1` (fix2, 2026-10-16). Lente A: I2-2..I2-8 h
 | I3-7 | Minor | `firma_fallos` solo vive en memoria: ningún endpoint ni `/doctor` lo muestra | T-17 | deuda (backlog F3) | `serve_panel.py:499` |
 
 **Verificación dirigida de fix3 (diff `2a4c6ef..1beb9fa`, lentes B+C, 2026-10-16): 0 gaps nuevos.** I3-1..I3-6 ✓ con test que falla sobre `2a4c6ef` (Linux `python:3.11-slim`: symlink, FIFO y tope 22 passed; `test_panel_server.py` 132 passed). I3-5: proyección idéntica en los 49 ledgers reales (`2a4c6ef` frente a HEAD, sin `observed_at`). I3-7 queda en el backlog de la Fase 3. Bucle de revisión de la Fase 2 cerrado sin Critical ni Important de corrección pendientes; F2-1/I2-1 (deuda TDD): **deuda aceptada por el usuario (2026-10-16)**; las fases 4 y 3 exigen RED antes del código en el brief. F2-23 (CA-10): **spec enmendada por decisión del usuario (2026-10-16)**: «archivado» como texto, sin enlace.
+
+## Revisión visual del usuario — Fase 2 (M-02), ronda 1: 3 hallazgos + 1 rojo de CI
+
+Panel servido con `--review-panel` sobre una copia del roadmap (2026-10-16). Hallazgos del usuario en el navegador y rojo de la CI Linux sobre `c3ac718`.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| M2-1 | Important | Iniciativas se queda en «Leyendo la cartera…»: `api/cartera` en frío tarda 2-47 s en esta máquina (49 iniciativas) y el cliente aborta a los 4 s sin aviso; el kanban no aparece | T-17 | corregido (fix M-02): cartera calculada al arrancar y en hilo de fondo con Lock; cliente «Calculando… (reintento en 3 s)» · RED test_la_primera_peticion_responde_calculando (antes del código) | `curl` 47,3 s en frío y 0,06 s en caché; `page-cartera.js:17` `PLAZO_MS = 4000` |
+| M2-2 | Important | La tarjeta de progreso en vivo de Inicio no enlaza a su Plan y muestra «Referencia de lectura SHA-256…» | T-18 | corregido (fix M-02): enlace «Ver plan» a plan-<id16>.html; SHA-256 en `details` cerrado «Detalle técnico» · RED plan_link, test_el_progreso_marca (antes del código) | `panel-live.js:52` |
+| M2-3 | Minor | Agentes en vivo dice «No se pudo actualizar» cuando `api/activity` responde `disabled` (opt-in apagado) | T-12 | corregido (fix M-02): con `disabled` dice «desactivada (opt-in)» y la clave `sesion.actividad` de dev.json · RED disabled_says_opt_in_and_how_to_enable (antes del código) | `api/activity` → `status: unavailable, reason: disabled` |
+| CI-1 | Important | Rojo en CI Linux: `tests/test_project_pieces.py::test_multiline_metadata_within_read_budget_finishes_before_panel_timeout` (`TimeoutExpired` a 15 s); solo tarda 10,7-14,2 s en Linux | — (project-extensions) | corregido (causa raíz): `_metadata` hacía `re.match` por línea con sangría; sin regex ahí y `_agent_servers` sale sin `mcpServers` (3,7 → 1,7 s) · RED test_metadata_parsing_does_no_regex_work (antes del código) | CI `c3ac718`: 1 failed, 8319 passed |
 
 ## Historial archivado
 

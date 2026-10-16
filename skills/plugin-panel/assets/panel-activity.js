@@ -60,6 +60,9 @@ async function request(){
   const response=await fetch('api/activity',{method:'GET',credentials:'omit',cache:'no-store',signal:own.signal});
   if(!response.ok)throw Error('unavailable');const data=await response.json();
   if(own.signal.aborted||version!==generation)return;
+  if(valid(data)&&data.status==='unavailable'&&data.reason==='disabled'){
+   rows=[];render();status.textContent='La actividad de los agentes está desactivada (opt-in). Para activarla, define "sesion": {"actividad": true} en .claude/dev.json.';return;
+  }
   if(!valid(data)||data.status!=='ok')throw Error('unavailable');accept(data);
  }catch(error){if(version===generation)status.textContent='No se pudo actualizar; se conserva la última vista y sus señales caducan.';render();}
  finally{

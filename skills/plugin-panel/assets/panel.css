@@ -144,6 +144,7 @@ footer { color: var(--tenue); font-size: .9rem; margin-top: 1.5rem; }
 .kanban .card h3 { margin: 0 0 .25rem; }
 .kanban .card .tarjeta-titulo { color: var(--texto); }
 .kanban .enlace-tarjeta { color: var(--acento); text-underline-offset: .2em; }
+.progress-card .card-link { color: var(--acento); text-underline-offset: .2em; }
 .kanban .enlace-tarjeta::after { content: ""; position: absolute; inset: 0; border-radius: .75rem; }
 .kanban .card:hover, .kanban .card:focus-within { border-color: var(--acento); }
 .kanban .alertas { margin: .5rem 0 0; padding-left: 1.2rem; color: var(--aviso); }

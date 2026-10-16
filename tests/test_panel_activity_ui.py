@@ -78,6 +78,8 @@ SCENARIOS={
  'wrong_shape_does_not_claim_empty':"await resolve({...report([]),collection_complete:true});assert.match(ids['activity-status'].textContent,/disponible|actualizar/i);",
  'duplicate_id_rejected':"await resolve(report([observation(),observation()]));assert.equal(ids['activity-cards'].children.length,0);",
  'count_limit':"await resolve(report(Array.from({length:65},(_,i)=>observation({agent_key:i.toString(16).padStart(64,'0')}))));assert.equal(ids['activity-cards'].children.length,0);",
+ 'disabled_says_opt_in_and_how_to_enable':"await resolve({schema_version:1,status:'unavailable',reason:'disabled',complete:false,collection_complete:false,observations:[]});const t=ids['activity-status'].textContent;assert.match(t,/La actividad de los agentes está desactivada \(opt-in\)/);assert.ok(t.includes('sesion')&&t.includes('actividad')&&t.includes('.claude/dev.json'));assert.ok(!/No se pudo actualizar/.test(t));assert.equal(ids['activity-cards'].children.length,0);",
+ 'other_unavailable_reasons_keep_the_failure_text':"await resolve({schema_version:1,status:'unavailable',reason:'state_missing',complete:false,collection_complete:false,observations:[]});assert.match(ids['activity-status'].textContent,/No se pudo actualizar/);",
  'not_a_writer_or_chat':"await resolve(report());assert.ok(requests.every(x=>!x.options.body&&(!x.options.method||x.options.method==='GET')));assert.ok(!ids['activity-cards'].children.some(x=>x.tagName==='textarea'));"
 }
 

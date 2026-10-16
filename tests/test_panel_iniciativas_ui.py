@@ -286,3 +286,42 @@ await respond(DATOS);const primero=figura('grafico-horas');assert.equal(creados.
 fire(10000);await respond({...DATOS,observed_at:'2026-10-15T10:05:00Z'});
 assert.equal(figura('grafico-horas'),primero);assert.equal(creados.length,2);
 '''.replace('DATOS', json.dumps(cartera)), datos=SERVIDO)
+
+
+# --- M2-1 (revisión visual de la Fase 2): una cartera en frío lenta no deja la página en «Leyendo la cartera…» -------
+
+CALCULANDO = {'version': 1, 'source': 'roadmap_cartera', 'status': 'unavailable', 'complete': False,
+              'observed_at': '2026-10-16T10:00:00.000000Z', 'issues': [{'status': 'calculando'}], 'iniciativas': [],
+              'totales': {'iniciativas': 0, 'por_estado': {}, 'tareas': None, 'fuera_de_tope': [],
+                          'coste': {'real_eur': None, 'real_n': 0, 'est_eur': None, 'est_n': 0},
+                          'procedencia': {'medidos': 0, 'estimados': 0, 'desconocidos': 0}}}
+
+
+def test_una_respuesta_calculando_se_dice_y_se_reintenta_sola_hasta_tener_la_cartera(tmp_path, cartera):
+    _correr(tmp_path, '''
+const estado=()=>ids['cartera-estado'].textContent;
+await settle();
+assert.equal(requests.length,1);
+await respond(CALC);
+assert.equal(estado(),'Calculando la cartera… (reintento en 3 s)');
+assert.equal(pendientes(3000),1,'reintenta a los 3 s, sin esperar al refresco de 10 s');
+fire(3000);await settle();
+assert.equal(requests.length,2);
+await respond(CARTERA);
+assert.match(estado(),/Cartera derivada de docs[/]roadmap/);
+assert.ok(walk(ids['kanban-iniciativas'],n=>n.tagName==='article').length>0);
+'''.replace('CALC', json.dumps(CALCULANDO)).replace('CARTERA', json.dumps(cartera)), datos=SERVIDO)
+
+
+def test_un_plazo_agotado_sin_datos_dice_calculando_y_reintenta(tmp_path, cartera):
+    _correr(tmp_path, '''
+const estado=()=>ids['cartera-estado'].textContent;
+await settle();
+fire(4000);                                         // el cliente aborta la lectura a los 4 s
+requests[0].reject(new Error('abortada'));await settle();
+assert.equal(estado(),'Calculando la cartera… (reintento en 3 s)');
+assert.equal(pendientes(3000),1);
+fire(3000);await settle();
+await respond(CARTERA);
+assert.match(estado(),/Cartera derivada de docs[/]roadmap/);
+'''.replace('CARTERA', json.dumps(cartera)), datos=SERVIDO)

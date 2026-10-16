@@ -15,6 +15,7 @@
   var ESTADOS_RESPUESTA = ['ok', 'partial', 'not_found', 'unavailable'];
   var REFRESCO_MS = 10000;
   var PLAZO_MS = 4000;
+  var REINTENTO_MS = 3000;  // sin datos todavía (cartera calculándose o lectura vencida): reintenta pronto, no a los 10 s
 
   function largo(texto) { return Array.from(texto).length; }
   function entero(v) { return typeof v === 'number' && isFinite(v) && Math.floor(v) === v && v >= 0; }
@@ -107,7 +108,7 @@
   }
 
   /* Pide la cartera y llama a `alRecibir(cartera)` con una respuesta válida o a `alFallar(hayPrevio, motivo)` si
-     no la hay (`motivo`: `sin_cartera` en una copia exportada sin `--project`, `invalida`, `no_disponible`). Exportado: una sola lectura del JSON incrustado. Servido: lectura inicial y refresco cada 10 s, sin
+     no la hay (`motivo`: `sin_cartera` en una copia exportada sin `--project`, `invalida`, `no_disponible`, `calculando`: el servidor aún no tiene la cartera o la lectura venció). Exportado: una sola lectura del JSON incrustado. Servido: lectura inicial y refresco cada 10 s, sin
      solaparse, parado mientras la pestaña está oculta; un fallo conserva la última vista. */
   function iniciar(alRecibir, alFallar) {
     var datos = leerDatos();
@@ -117,11 +118,11 @@
       else { alFallar(false, 'invalida'); }
       return;
     }
-    var temporizador = null, enVuelo = false, hayPrevio = false, controlador = null;
+    var temporizador = null, enVuelo = false, hayPrevio = false, controlador = null, calculando = false;
     function parar() { if (temporizador !== null) { raiz.clearTimeout(temporizador); temporizador = null; } }
     function programar() {
       parar();
-      if (!raiz.document.hidden) { temporizador = raiz.setTimeout(leer, REFRESCO_MS); }
+      if (!raiz.document.hidden) { temporizador = raiz.setTimeout(leer, calculando && !hayPrevio ? REINTENTO_MS : REFRESCO_MS); }
     }
     function leer() {
       parar();
@@ -129,16 +130,23 @@
       enVuelo = true;
       controlador = new raiz.AbortController();
       var actual = controlador;
-      var plazo = raiz.setTimeout(function () { actual.abort(); }, PLAZO_MS);
+      var vencido = false;
+      calculando = false;
+      var plazo = raiz.setTimeout(function () { vencido = true; actual.abort(); }, PLAZO_MS);
       raiz.fetch('api/cartera', { credentials: 'omit', cache: 'no-store', signal: actual.signal })
         .then(function (r) { if (!r.ok) { throw new Error('no disponible'); } return r.json(); })
         .then(function (d) {
           if (!validar(d)) { throw new Error('no disponible'); }
           if (d.status === 'unavailable' && hayPrevio) { throw new Error('no disponible'); }
+          if (d.status === 'unavailable' && !hayPrevio && d.issues.some(function (i) { return i.status === 'calculando'; })) {
+            calculando = true; alFallar(false, 'calculando'); return;
+          }
           hayPrevio = hayPrevio || d.status !== 'unavailable';
           alRecibir(d);
         })
-        .catch(function () { alFallar(hayPrevio, 'no_disponible'); })
+        .catch(function () {
+          if (vencido && !hayPrevio) { calculando = true; alFallar(false, 'calculando'); } else { alFallar(hayPrevio, 'no_disponible'); }
+        })
         .then(function () { raiz.clearTimeout(plazo); controlador = null; enVuelo = false; programar(); });
     }
     raiz.document.addEventListener('visibilitychange', function () {
@@ -147,7 +155,7 @@
     leer();
   }
 
-  var Cartera = { CATEGORIAS: CATEGORIAS, MOTIVOS: MOTIVOS, validar: validar, iniciar: iniciar, num: num, eur: eur,
+  var Cartera = { REINTENTO_S: REINTENTO_MS / 1000, CATEGORIAS: CATEGORIAS, MOTIVOS: MOTIVOS, validar: validar, iniciar: iniciar, num: num, eur: eur,
                   horas: horas, alertaTexto: alertaTexto, categoriaTexto: categoriaTexto };
   raiz.PanelCartera = Cartera;
   if (typeof module === 'object' && module.exports) { module.exports = Cartera; }

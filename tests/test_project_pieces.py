@@ -728,6 +728,18 @@ def test_multiline_metadata_within_read_budget_finishes_before_panel_timeout(loc
     assert all(len(piece['description'])==480 for piece in inventory['pieces'])
 
 
+def test_metadata_parsing_does_no_regex_work_per_indented_line(reader, monkeypatch):
+    """CI-1: un `description: |` de ~175 000 lineas costaba una llamada a `re.match` por linea (x16 ficheros, 3-4 s
+    en Linux y 10-14 s en el runner de la CI). Una linea con sangria no puede abrir una clave, asi que no necesita regex."""
+    raw = '---\nname: heavy\ndescription: |\n' + ' x\n' * 20000 + '---\n'
+    llamadas = []
+    original = reader.re.match
+    monkeypatch.setattr(reader.re, 'match', lambda *a, **k: (llamadas.append(1), original(*a, **k))[1])
+    assert reader._metadata(raw)['description'] == ' '.join(['x'] * 20000)
+    assert reader._agent_servers(raw) == []
+    assert len(llamadas) < 50
+
+
 @pytest.mark.parametrize('runtime,relative,kind', [
     ('claude-code', '.claude/commands/tdd.md', 'command'),
     ('opencode', '.opencode/commands/tdd.md', 'command'),

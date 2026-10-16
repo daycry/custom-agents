@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import secrets
 import sys
+import threading
 import time
 
 HERE = Path(__file__).resolve().parent
@@ -441,7 +442,10 @@ class PanelServer(HTTPServer):
         now = time.monotonic()
         if self._snapshot is None or now - self._snapshot_at >= 2:
             try:
-                self._snapshot = _encoded(progress_snapshot(self.project, scrub=self.scrub))
+                snapshot = progress_snapshot(self.project, scrub=self.scrub)
+                for fila in snapshot['initiatives']:   # `plan-<id16>.html` exists only for initiatives with a plan
+                    fila['tiene_plan'] = fila['id'] in self.plan_ids
+                self._snapshot = _encoded(snapshot)
             except (OSError, ValueError, TypeError, KeyError, RecursionError):
                 self._snapshot = _encoded({'version': 1, 'source': 'canonical_ledger',
                     'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
@@ -451,25 +455,51 @@ class PanelServer(HTTPServer):
         return self._snapshot
 
     def cartera(self):
-        """Roadmap portfolio for Inicio and Iniciativas: panel_data owns the projection, the single scrubber
-        cleans the displayed text after it, and a short cache keeps several tabs from rescanning the roadmap."""
+        """Roadmap portfolio for Inicio and Iniciativas. No HTTP request computes it: the first one is computed at
+        startup (`create_server`) and a changed signature is recomputed on ONE background thread while the last complete
+        version (with its own `observed_at`) keeps being served. Without any version yet, the answer is `calculando`.
+        panel_data owns the projection and the single scrubber cleans the displayed text after it."""
         now = time.monotonic()
-        if self._cartera is not None and now - self._cartera_at < 2:
-            return self._cartera
-        try:
-            data = _load_data()
-            firma = data.cartera_firma(self.project)   # cheap (mtime and size): unchanged -> no ledger is read again
-            if self._cartera is not None and firma == self._cartera_firma and now - self._cartera_built < CARTERA_MAX_AGE:
+        with self._cartera_lock:
+            if self._cartera is not None and now - self._cartera_at < 2:
+                return self._cartera
+            try:
+                firma = _load_data().cartera_firma(self.project)   # cheap (mtime, size, bounded contents)
+            except Exception:
+                firma = None
+            if (self._cartera is not None and firma is not None and firma == self._cartera_firma
+                    and now - self._cartera_built < CARTERA_MAX_AGE):
                 self._cartera_at = now
                 return self._cartera
-            body = _encoded(_scrubbed(data.cartera(self.project), self.scrub))
+            if self._cartera_hilo is None or not self._cartera_hilo.is_alive():   # a single calculation at a time
+                self._cartera_hilo = threading.Thread(target=self._recalcular_cartera, args=(firma,), daemon=True)
+                self._cartera_hilo.start()
+            if self._cartera is None:
+                return _encoded({**_unavailable_cartera(), 'issues': [{'status': 'calculando'}]})
+            return self._cartera
+
+    def _recalcular_cartera(self, firma):
+        """Background thread: on failure the last good version stays and says so (`recalculo_fallido`), never why."""
+        try:
+            body = _encoded(_scrubbed(_load_data().cartera(self.project), self.scrub))
             if len(body) > MAX_RESPONSE_BYTES:
                 raise ValueError('response budget')
         except Exception:
-            body, firma = _encoded(_unavailable_cartera()), None
+            body, firma = None, None
         built = time.monotonic()   # taken when the calculation ENDS: the client polls 10 s after receiving the response
-        self._cartera, self._cartera_at, self._cartera_built, self._cartera_firma = body, built, built, firma
-        return self._cartera
+        with self._cartera_lock:
+            if body is None:
+                try:
+                    previa = json.loads(self._cartera) if self._cartera is not None and self._cartera_firma is not None else None
+                except ValueError:
+                    previa = None
+                if previa is not None and previa.get('status') != 'unavailable':
+                    if {'status': 'recalculo_fallido'} not in previa['issues']:
+                        previa['issues'] = (previa['issues'] + [{'status': 'recalculo_fallido'}])[:16]
+                    self._cartera, self._cartera_at = _encoded(previa), built   # same `observed_at`, same signature: retried later
+                    return
+                body = _encoded(_unavailable_cartera())
+            self._cartera, self._cartera_at, self._cartera_built, self._cartera_firma = body, built, built, firma
 
     def plan(self, ident):
         """`api/plan-<id16>`: kanban de una iniciativa DEL INVENTARIO de planes (no de cualquier id); `None` -> 404.
@@ -962,6 +992,10 @@ def plan_inventory(project, scrub=None):
         cartera = _scrubbed(_load_data().cartera(project), scrub)
     except Exception:
         return []
+    return _planes_de(cartera)
+
+
+def _planes_de(cartera):
     return [{'id': fila['id'], 'slug': fila['slug'], 'titulo': fila['titulo']}
             for fila in cartera.get('iniciativas', []) if fila.get('tiene_plan')]
 
@@ -1013,10 +1047,24 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
         server.access_prefix = '/' + server.capability + '/'
         server._snapshot = None; server._snapshot_at = 0
         server._cartera = None; server._cartera_at = 0; server._cartera_built = 0; server._cartera_firma = None
+        server._cartera_lock = threading.Lock(); server._cartera_hilo = None
         server._plans = {}
         server.csp = pages.CSP_SERVIDO.format(nonce=nonce)
         server.warnings = warnings
-        planes = plan_inventory(project, scrub)
+        # The portfolio is computed ONCE here, before `serving`: the same reading feeds the plan inventory and the first
+        # `api/cartera` answer (no request computes it afterwards; see `PanelServer.cartera`).
+        planes = []
+        try:
+            data = _load_data()
+            firma = data.cartera_firma(project)
+            body_cartera = _encoded(_scrubbed(data.cartera(project), scrub))
+            if len(body_cartera) > MAX_RESPONSE_BYTES:
+                raise ValueError('response budget')
+            planes = _planes_de(json.loads(body_cartera))
+            built = time.monotonic()
+            server._cartera, server._cartera_at, server._cartera_built, server._cartera_firma = body_cartera, built, built, firma
+        except Exception:
+            planes = []   # no portfolio yet: the first `api/cartera` answers `calculando` and starts the background thread
         server.plan_ids = {plan['id'] for plan in planes}
         reviewable = set(review_initiatives(project)) if review_scope is not None else set()  # plans the panel can review
         bodies = builder.cuerpos_paginas(inventory, live=True, review_enabled=review_selection is not None,

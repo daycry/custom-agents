@@ -22,6 +22,7 @@
    if(!integer(item.total)||!integer(item.completadas)||item.completadas>item.total||!integer(item.pct)||item.pct>100)return false;
    if(typeof item.source_sha256!=='string'||!/^[a-f0-9]{64}$/.test(item.source_sha256))return false;
    if(item.fase!==null&&(!item.fase||!integer(item.fase.indice)||!integer(item.fase.total)||item.fase.indice<1||item.fase.indice>item.fase.total||!text(item.fase.nombre)))return false;
+   if(item.tiene_plan!==undefined&&typeof item.tiene_plan!=='boolean')return false;
    if(!Array.isArray(item.en_progreso)||item.en_progreso.length>8||item.en_progreso.some(task=>!task||!text(task.id)||[...task.id].length>20||!text(task.titulo)))return false;
   }
   return true;
@@ -49,7 +50,8 @@
     card.append(element('p','Tareas declaradas en progreso'));
     const list=element('ul');for(const task of item.en_progreso)list.append(element('li',task.id+' · '+task.titulo));card.append(list);
    }
-   const source=element('details');source.append(element('summary','Referencia de lectura'),element('code','SHA-256 del texto UTF-8: '+item.source_sha256));card.append(source);nodes.push(card);
+   if(item.tiene_plan===true){const link=element('a','Ver plan','card-link');link.setAttribute('href','plan-'+item.id+'.html');card.append(link);}
+   const source=element('details');source.append(element('summary','Detalle técnico'),element('code','Referencia de lectura · SHA-256 del texto UTF-8: '+item.source_sha256));card.append(source);nodes.push(card);
   }
   if(!unchanged)cards.replaceChildren(...nodes);last=data;
   freshness.textContent='Lectura obtenida: '+data.observed_at+' · esta fecha no indica actividad de agentes.';

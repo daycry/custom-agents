@@ -526,15 +526,16 @@ def test_la_cartera_no_se_recalcula_si_nada_cambio_y_un_cambio_de_ledger_si_se_v
         real = data.cartera
         data.cartera = lambda project: (llamadas.append(1), real(project))[1]
         monkeypatch.setattr(service, '_load_data', lambda: data)
-        primera = json.loads(server.cartera())
-        assert len(llamadas) == 1 and primera['iniciativas'][0]['tareas']['total'] == 2
+        primera = json.loads(server.cartera())                    # M2-1: la calculó el arranque, no la petición
+        assert len(llamadas) == 0 and primera['iniciativas'][0]['tareas']['total'] == 2
         server._cartera_at -= 30                                  # caducó el TTL corto, pero el roadmap es el mismo
-        assert json.loads(server.cartera()) == primera and len(llamadas) == 1
+        assert json.loads(server.cartera()) == primera and len(llamadas) == 0
         (carpeta / 'tasks.md').write_text((carpeta / 'tasks.md').read_text(encoding='utf8')
                                           + '### T-03 — Extra\n- **Estado**: borrador\n', encoding='utf8')
         server._cartera_at -= 30
+        server.cartera(); _esperar_cartera(server)                # M2-1: recalcula el hilo de fondo
         despues = json.loads(server.cartera())
-        assert len(llamadas) == 2 and despues['iniciativas'][0]['tareas']['total'] == 3
+        assert len(llamadas) == 1 and despues['iniciativas'][0]['tareas']['total'] == 3
     finally:
         server.server_close()
 
@@ -613,13 +614,12 @@ def test_la_cartera_con_la_misma_firma_no_se_sirve_mas_de_60_s(service, tmp_path
         real = data.cartera
         data.cartera = lambda project: (llamadas.append(1), real(project))[1]
         monkeypatch.setattr(service, '_load_data', lambda: data)
-        server.cartera()
         server._cartera_at -= 30; server._cartera_built -= 11
-        server.cartera()
-        assert len(llamadas) == 1                                  # 11 s: la misma firma se reutiliza
+        server.cartera(); _esperar_cartera(server)
+        assert len(llamadas) == 0                                  # 11 s: la misma firma se reutiliza
         server._cartera_at -= 30; server._cartera_built -= 60
-        server.cartera()
-        assert len(llamadas) == 2
+        server.cartera(); _esperar_cartera(server)
+        assert len(llamadas) == 1
     finally:
         server.server_close()
 
@@ -664,8 +664,10 @@ def test_la_cartera_acierta_con_el_sondeo_de_10_s_y_un_cambio_de_ledger_recalcul
         data.cartera = lenta
         monkeypatch.setattr(service, '_load_data', lambda: data)
 
+        server._cartera_at = server._cartera_built = 0.0          # el arranque calculó con el reloj real; aquí manda `reloj`
+
         def sondeo():
-            cuerpo = server.cartera()
+            cuerpo = server.cartera(); _esperar_cartera(server)
             reloj[0] += 10                                         # `setTimeout(10 s)` tras la respuesta
             return cuerpo
         for _ in range(4):
@@ -673,7 +675,8 @@ def test_la_cartera_acierta_con_el_sondeo_de_10_s_y_un_cambio_de_ledger_recalcul
         assert len(llamadas) == 1
         (carpeta / 'tasks.md').write_text((carpeta / 'tasks.md').read_text(encoding='utf8')
                                           + '### T-03 — Extra\n- **Estado**: borrador\n', encoding='utf8')
-        assert json.loads(sondeo())['iniciativas'][0]['tareas']['total'] == 3 and len(llamadas) == 2
+        sondeo()
+        assert json.loads(server.cartera())['iniciativas'][0]['tareas']['total'] == 3 and len(llamadas) == 2
     finally:
         server.server_close()
 
@@ -768,3 +771,126 @@ def test_la_firma_de_la_cartera_tiene_un_tope_agregado_de_bytes_hasheados(servic
     firma, otra = data.cartera_firma(tmp_path), data.cartera_firma(tmp_path)
     assert _firma_sin_cache(firma) and firma != otra
     assert len(leidos) <= 4                                    # 2 llamadas x (1 lectura + la que rebasa el tope), nunca las 8
+
+
+# --- M2-1 (revisión visual de la Fase 2): la cartera nunca se calcula en el hilo del servidor ---------------------------
+
+def _esperar_cartera(server):
+    """Espera al hilo de fondo de la cartera (si hay uno) y lo da por terminado."""
+    hilo = getattr(server, '_cartera_hilo', None)
+    if hilo is not None:
+        hilo.join(10)
+        assert not hilo.is_alive()
+
+
+def _cartera_con_puerta(service, monkeypatch, *, falla=False):
+    """`data.cartera` que espera a `puerta` (hasta 5 s) y cuenta sus llamadas; `falla=True` lanza tras la puerta."""
+    data = service._load_data()
+    real = data.cartera
+    puerta, llamadas = threading.Event(), []
+
+    def lenta(project):
+        llamadas.append(1)
+        puerta.wait(5)
+        if falla:
+            raise RuntimeError('SECRETO-cartera')
+        return real(project)
+    data.cartera = lenta
+    monkeypatch.setattr(service, '_load_data', lambda: data)
+    return puerta, llamadas
+
+
+def _tareas_totales(cuerpo):
+    return json.loads(cuerpo)['iniciativas'][0]['tareas']['total']
+
+
+def _anadir_tarea(carpeta):
+    (carpeta / 'tasks.md').write_text((carpeta / 'tasks.md').read_text(encoding='utf8')
+                                      + '### T-03 — Extra\n- **Estado**: borrador\n', encoding='utf8')
+
+
+def test_la_primera_peticion_responde_calculando_sin_esperar_a_una_cartera_lenta(service, tmp_path, monkeypatch):
+    """M2-1: sin cartera todavía, la petición contesta al instante y la cartera llega cuando acaba el hilo de fondo."""
+    import time
+    server, _, _ = _server_con_plan(service, tmp_path)
+    try:
+        puerta, llamadas = _cartera_con_puerta(service, monkeypatch)
+        server._cartera = None; server._cartera_firma = None                  # arranque sin cartera calculada
+        antes = time.monotonic()
+        primera = json.loads(server.cartera())
+        assert time.monotonic() - antes < 1
+        assert primera['status'] == 'unavailable' and primera['iniciativas'] == []
+        assert {'status': 'calculando'} in primera['issues']
+        puerta.set(); _esperar_cartera(server)
+        assert _tareas_totales(server.cartera()) == 2 and len(llamadas) == 1
+    finally:
+        server.server_close()
+
+
+def test_un_cambio_de_firma_sirve_la_cartera_vieja_y_luego_la_nueva(service, tmp_path, monkeypatch):
+    """M2-1: stale-while-revalidate; la versión vieja conserva su `observed_at` y un solo cálculo a la vez."""
+    server, carpeta, _ = _server_con_plan(service, tmp_path)
+    try:
+        vieja = json.loads(server.cartera())
+        puerta, llamadas = _cartera_con_puerta(service, monkeypatch)
+        _anadir_tarea(carpeta)
+        server._cartera_at -= 30
+        durante = json.loads(server.cartera())
+        server._cartera_at -= 30
+        server.cartera()                                                      # segunda petición: no abre otro cálculo
+        assert durante == vieja and durante['iniciativas'][0]['tareas']['total'] == 2
+        puerta.set(); _esperar_cartera(server)
+        nueva = json.loads(server.cartera())
+        assert nueva['iniciativas'][0]['tareas']['total'] == 3 and nueva['observed_at'] >= vieja['observed_at']
+        assert len(llamadas) == 1
+    finally:
+        server.server_close()
+
+
+def test_un_fallo_del_recalculo_conserva_la_ultima_buena_y_lo_dice_sin_filtrar_la_causa(service, tmp_path, monkeypatch):
+    server, carpeta, _ = _server_con_plan(service, tmp_path)
+    try:
+        vieja = json.loads(server.cartera())
+        puerta, _ = _cartera_con_puerta(service, monkeypatch, falla=True)
+        puerta.set()
+        _anadir_tarea(carpeta)
+        server._cartera_at -= 30
+        server.cartera(); _esperar_cartera(server)
+        cuerpo = server.cartera()
+        despues = json.loads(cuerpo)
+        assert despues['status'] == 'ok' and despues['iniciativas'] == vieja['iniciativas']
+        assert despues['observed_at'] == vieja['observed_at'] and {'status': 'recalculo_fallido'} in despues['issues']
+        assert b'SECRETO' not in cuerpo
+    finally:
+        server.server_close()
+
+
+def test_el_arranque_calcula_la_cartera_una_sola_vez_y_la_primera_peticion_no_calcula(service, tmp_path, monkeypatch):
+    """M2-1: la cartera se calcula antes de anunciar `serving` (la misma lectura sirve al inventario de planes)."""
+    ledger(tmp_path)
+    data = service._load_data()
+    real = data.cartera
+    llamadas = []
+    data.cartera = lambda project: (llamadas.append(1), real(project))[1]
+    monkeypatch.setattr(service, '_load_data', lambda: data)
+    server = service.create_server(tmp_path, service._load_builder().build_inventory(tmp_path, project=None))
+    try:
+        assert len(llamadas) == 1
+        assert _tareas_totales(server.cartera()) == 2 and len(llamadas) == 1
+    finally:
+        server.server_close()
+
+
+# --- M2-2 (revisión visual de la Fase 2): la tarjeta de progreso sabe si su iniciativa tiene página de plan ------------
+
+def test_el_progreso_marca_que_iniciativas_tienen_pagina_de_plan(service, tmp_path):
+    server, carpeta, ident = _server_con_plan(service, tmp_path)
+    try:
+        fila = json.loads(server.snapshot())['initiatives'][0]
+        assert fila['id'] == ident and fila['tiene_plan'] is True and ident in server.plan_ids
+        (carpeta / 'improvement-plan.md').unlink()
+        server._snapshot_at -= 30                                              # caduca la caché del progreso
+        server.plan_ids = set()                                                # el inventario de planes se lee al arrancar
+        assert json.loads(server.snapshot())['initiatives'][0]['tiene_plan'] is False
+    finally:
+        server.server_close()
