@@ -41,13 +41,14 @@ CSP_SERVIDO = ("default-src 'none'; style-src 'self' 'unsafe-inline'; script-src
 
 # Ficheros propios del panel que se copian a la carpeta exportada (ruta relativa a assets/).
 ASSET_FILES = ('panel.css', 'panel-core.js', 'panel-charts.js', 'page-catalogo.js', 'page-diagnostico.js',
-               'page-cartera.js', 'page-inicio.js', 'page-iniciativas.js', 'page-plan.js')
+               'page-cartera.js', 'page-inicio.js', 'page-iniciativas.js', 'page-plan.js', 'panel-graph.js', 'page-memoria.js')
 # Solo el modo servido los usa (consultan api/*); el exportado no los copia.
 LIVE_ASSET_FILES = ('panel-live.js', 'panel-memory.js', 'panel-activity.js', 'panel-review.js')
 # Script propio de cada página (después de panel-core.js y panel-charts.js), y los vivos del modo servido.
 PAGE_SCRIPTS = {'catalogo': ('page-catalogo.js',), 'diagnostico': ('page-diagnostico.js',),
                 'inicio': ('page-cartera.js', 'page-inicio.js'),
-                'iniciativas': ('page-cartera.js', 'page-iniciativas.js')}
+                'iniciativas': ('page-cartera.js', 'page-iniciativas.js'),
+                'memoria': ('panel-graph.js', 'page-memoria.js')}
 # La página Plan de UNA iniciativa (`plan-<id16>.html`): su kanban y su detalle de tarea. No lleva los JS vivos de
 # `plan.html` (progreso y revisión), que dependen de secciones que solo tiene el índice.
 PLAN_SCRIPTS = ('page-cartera.js', 'page-plan.js')
@@ -182,7 +183,7 @@ def cargar_assets(modo='exportado', review=False):
 CARTERA_PAGES = ('inicio', 'iniciativas')
 
 
-def datos_de_pagina(slug, datos, modo='exportado', cartera=None, plan_id=None):
+def datos_de_pagina(slug, datos, modo='exportado', cartera=None, plan_id=None, memoria=None):
     """Bloque `panel-data` de una página. El inventario completo y la cartera (ya anonimizados) solo viajan en
     la copia exportada; el modo servido lleva los contadores y consulta el resto por `api/*`. `modo` viaja
     en el bloque para que el JS de la página sepa si debe preguntar al servidor o leer lo incrustado; sin
@@ -196,17 +197,19 @@ def datos_de_pagina(slug, datos, modo='exportado', cartera=None, plan_id=None):
         base['inventario'] = datos
     if slug in CARTERA_PAGES and modo == 'exportado' and cartera is not None:
         base['cartera'] = cartera
+    if slug == 'memoria' and modo == 'exportado' and memoria is not None:   # el servido la pide a `api/memoria`
+        base['memoria'] = memoria
     return base
 
 
 PLACEHOLDER = '<section><p>Esta página todavía no muestra contenido.</p></section>'
 
 
-def construir_paginas(datos, *, generado, chart_ok, cuerpos=None, cartera=None):
+def construir_paginas(datos, *, generado, chart_ok, cuerpos=None, cartera=None, memoria=None):
     """HTML (bytes UTF-8) de las 7 páginas del modo exportado. `cuerpos`: {slug: HTML} ya escapado."""
     cuerpos = cuerpos or {}
     return {archivo: render_page(slug, modo='exportado', generado=generado, chart_ok=chart_ok,
-                                 datos=datos_de_pagina(slug, datos, cartera=cartera),
+                                 datos=datos_de_pagina(slug, datos, cartera=cartera, memoria=memoria),
                                  cuerpo=cuerpos.get(slug, PLACEHOLDER),
                                  scripts_omitidos=('panel-review.js',)).encode('utf8')
             for slug, archivo, _ in PAGES}
@@ -305,7 +308,7 @@ def _escribir_atomico(ruta, contenido):
 
 
 def exportar_sitio(destino, datos, *, generado=None, unsafe_link=lambda ruta: ruta.is_symlink(), cuerpos=None,
-                   cartera=None, planes=None):
+                   cartera=None, planes=None, memoria=None):
     """Escribe las 7 páginas, una `plan-<id16>.html` por cada plan de `planes` (`[{'id', 'cuerpo', 'datos'}]`),
     `assets/`, `vendor/chart.js/` y `export-manifest.json` en `destino`.
 
@@ -316,7 +319,8 @@ def exportar_sitio(destino, datos, *, generado=None, unsafe_link=lambda ruta: ru
     if generado is None:
         generado = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
     ficheros, chart_ok, avisos = cargar_assets()
-    ficheros.update(construir_paginas(datos, generado=generado, chart_ok=chart_ok, cuerpos=cuerpos, cartera=cartera))
+    ficheros.update(construir_paginas(datos, generado=generado, chart_ok=chart_ok, cuerpos=cuerpos, cartera=cartera,
+                                      memoria=memoria))
     for plan in planes or ():
         if not isinstance(plan.get('id'), str) or not ID16_RE.fullmatch(plan['id']):
             raise ValueError('plan id is not an id16')

@@ -285,7 +285,8 @@ PAGINAS = ['index.html', 'iniciativas.html', 'plan.html', 'agentes.html', 'memor
 ACTIVOS_ESTATICOS = ['assets/panel.css', 'assets/panel-core.js', 'assets/panel-charts.js', 'assets/page-catalogo.js',
                      'assets/page-diagnostico.js', 'assets/panel-live.js', 'assets/panel-memory.js',
                      'assets/panel-activity.js', 'assets/page-cartera.js', 'assets/page-inicio.js',
-                     'assets/page-iniciativas.js', 'assets/page-plan.js', 'vendor/chart.js/chart.umd.min.js']
+                     'assets/page-iniciativas.js', 'assets/page-plan.js', 'assets/page-memoria.js', 'assets/panel-graph.js',
+                     'vendor/chart.js/chart.umd.min.js']
 
 
 @pytest.mark.parametrize('pagina', PAGINAS)

@@ -260,3 +260,63 @@ def test_plan_y_detalles_lee_el_ledger_una_vez_y_da_lo_mismo_que_plan_y_tarea(pr
         esperado = datos2.tarea(proyecto, fila['id'], tarea_id)
         assert {k: v for k, v in detalle.items() if k != 'observed_at'} == {k: v for k, v in esperado.items() if k != 'observed_at'}
     assert datos.plan_y_detalles(proyecto, '0' * 16) is None
+
+
+
+# --- T-34: qué se publicó en cada backend, sin red y sin `mtime` ---------------------------------------------------
+
+def _sin_red(monkeypatch):
+    import socket
+    import urllib.request
+
+    def prohibido(*a, **k):
+        raise AssertionError('el panel no puede abrir ninguna conexion de red')
+    monkeypatch.setattr(socket.socket, 'connect', prohibido)
+    monkeypatch.setattr(socket, 'create_connection', prohibido)
+    monkeypatch.setattr(socket, 'getaddrinfo', prohibido)
+    monkeypatch.setattr(urllib.request, 'urlopen', prohibido)
+
+
+def test_backends_sin_ninguna_conexion_y_con_la_fecha_de_la_outbox_nunca_el_mtime(tmp_path, monkeypatch):
+    import os
+    from memoria_fixture import crear_proyecto
+    proyecto = crear_proyecto(tmp_path)
+    for nombre in ('manifest.json',):
+        os.utime(proyecto / '.claude/knowledge-services/kwipu-export' / nombre, (86400, 86400))   # 1970-01-02
+    _sin_red(monkeypatch)
+    filas = {b['backend']: b for b in _cargar().memoria(proyecto)['backends']}
+    assert filas['kwipu'] == {'backend': 'kwipu', 'tipo': 'markdown-export', 'situacion': 'configurado', 'entradas': 3,
+                              'ultima': '2026-10-02T11:30:00Z', 'interrumpida': False, 'ui_url': None}
+    assert filas['graphiti']['entradas'] == 2 and filas['graphiti']['interrumpida'] is True
+    assert filas['graphiti']['ultima'] is None            # sin outbox de graphiti: «sin datos», no el mtime del manifiesto
+    assert all('1970' not in json.dumps(f) for f in filas.values())
+
+
+def test_backend_sin_manifiesto_ni_outbox_es_sin_datos_y_ui_url_solo_si_se_declara(tmp_path, monkeypatch):
+    from memoria_fixture import crear_proyecto
+    proyecto = crear_proyecto(tmp_path)
+    ks = proyecto / '.claude/knowledge-services'
+    (ks / 'kwipu-export/manifest.json').unlink()
+    (ks / 'graphiti-manifest.json').unlink()
+    (ks / 'graphiti-manifest.pending.json').unlink()
+    config = json.loads((ks / 'taxonomy.json').read_text(encoding='utf8'))
+    config['backends']['graphiti']['config']['ui_url'] = 'http://127.0.0.1:9000/ui'
+    config['backends']['kwipu']['config']['ui_url'] = 'javascript:alert(1)'
+    (ks / 'taxonomy.json').write_text(json.dumps(config), encoding='utf8')
+    _sin_red(monkeypatch)
+    filas = {b['backend']: b for b in _cargar().memoria(proyecto)['backends']}
+    assert filas['kwipu']['entradas'] is None and filas['graphiti']['entradas'] is None
+    assert filas['graphiti']['ui_url'] == 'http://127.0.0.1:9000/ui' and filas['kwipu']['ui_url'] is None
+    assert filas['graphiti']['interrumpida'] is False
+
+
+def test_backend_deshabilitado_se_dice_y_un_export_dir_fuera_del_proyecto_no_se_lee(tmp_path):
+    from memoria_fixture import crear_proyecto
+    proyecto = crear_proyecto(tmp_path)
+    ks = proyecto / '.claude/knowledge-services'
+    config = json.loads((ks / 'taxonomy.json').read_text(encoding='utf8'))
+    config['backends']['kwipu']['enabled'] = False
+    config['backends']['kwipu']['config']['export_dir'] = '../fuera'
+    (ks / 'taxonomy.json').write_text(json.dumps(config), encoding='utf8')
+    fila = next(b for b in _cargar().memoria(proyecto)['backends'] if b['backend'] == 'kwipu')
+    assert fila['situacion'] == 'deshabilitado' and fila['entradas'] is None

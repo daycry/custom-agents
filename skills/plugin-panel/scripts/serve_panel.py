@@ -27,6 +27,7 @@ MAX_REVIEW_RESPONSE_BYTES = 512 * 1024
 MAX_REVIEW_IDS = 128
 REVIEW_BATCH = 64  # plan-review.MAX_RECORDS: `summarize_reviews` refuses more initiatives per call
 CACHE_MAX_AGE = 60  # an unchanged signature is trusted for this long (keeps `observed_at` honest)
+MEMORIA_MAX_AGE = 10  # `api/memoria` reads the corpus, candidates, manifests and journal: a short cache keeps tabs cheap
 CARTERA_MAX_AGE = 60  # the signature covers contents (tasks.md, retro.md), so freshness no longer rests on a short cap
 REVIEW_OPEN_GATE = 'requested-review'  # the only gate the browser can open; `plan-ok` belongs to the orchestrator
 TOO_MANY_REVIEWS = 'demasiadas revisiones abiertas en este proceso'
@@ -169,6 +170,16 @@ def _unavailable_memory(operation):
             'related': None, 'budget': {'files': 0, 'bytes': 0, 'entries': 0}}
 
 
+def _memoria_no_disponible(motivo='reader_unavailable'):
+    return {'version': 1, 'source': 'memoria_panel', 'status': 'unavailable', 'complete': False,
+            'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+            'issues': [{'status': motivo}], 'total': 0, 'recortado': 0, 'conteos': {}, 'entradas': [],
+            'bandeja': {'estados': {e: {'situacion': 'no_disponible', 'n': None, 'items': []}
+                                    for e in ('pending', 'needs_changes', 'rejected')},
+                        'aprobadas': {'n': None, 'items': []}},
+            'backends': [], 'journal': {'status': 'unavailable', 'sesiones': []}}
+
+
 def _unavailable_cartera():
     return {'version': 1, 'source': 'roadmap_cartera', 'status': 'unavailable', 'complete': False,
             'observed_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
@@ -254,11 +265,16 @@ def _plan_body(data, scrub):
 # `api/plan-<id16>-<T-XX>` (panel_data.tarea): ademas `descripcion`, `criterio`, `verificacion`, `ejecutada`, `salida`,
 # `cabecera` (de la revision), `gap` y `correccion`. `grado` (Critical/Important/Minor/otro), `num`, `intento`,
 # `dependencias`, `enlace` (execution-history.md) y las fechas son vocabulario o forma y quedan intactos.
+# `api/memoria` (panel_data.memoria): ademas `candidato` (nombre del fichero del candidato), `ui_url` (enlace declarado
+# de un backend) y los textos del journal (`resumen`, `objetivo`, `punto_actual`, `siguientes_pasos`, `bloqueos`,
+# `descartados`, `decisiones`, `pendientes`: citas, no instrucciones). `id`, `fecha`, `iniciativa`, `backend`, `situacion`,
+# `ultima` y los numeros son vocabulario, identidad o forma y quedan intactos.
 _DISPLAY_KEYS = frozenset(('titular', 'texto', 'evidencia', 'estado_detalle', 'ruta',
                            'tipo', 'estado', 'area', 'category', 'relation',
                            'response_text', 'note', 'slug', 'titulo', 'literal', 'est_texto', 'fase_nombre',
                            'descripcion', 'criterio', 'verificacion', 'ejecutada', 'salida', 'cabecera', 'gap',
-                           'correccion'))
+                           'correccion', 'candidato', 'ui_url', 'resumen', 'objetivo', 'punto_actual',
+                           'siguientes_pasos', 'bloqueos', 'descartados', 'decisiones', 'pendientes'))
 _SECTION_KEYS = frozenset(('title', 'text'))
 # Ceilings the browser validators enforce on each displayed field, as (code points, UTF-8 bytes or None):
 # `panel-memory.js` (`string(...,160|1000|12000)`) and `panel-review.js` (`noteValid`: 1000/2048 for an
@@ -271,7 +287,9 @@ _CAPS = {'titular': (160, None), 'estado_detalle': (160, None), 'area': (160, No
          'slug': (80, None), 'titulo': (160, None), 'literal': (48, None), 'est_texto': (120, None),
          'fase_nombre': (160, None), 'descripcion': (1500, None), 'criterio': (400, None),
          'verificacion': (2000, None), 'ejecutada': (1000, None), 'salida': (1000, None), 'cabecera': (160, None),
-         'gap': (400, None), 'correccion': (400, None)}
+         'gap': (400, None), 'correccion': (400, None), 'candidato': (160, None), 'ui_url': (200, None),
+         'resumen': (240, None), 'objetivo': (240, None), 'punto_actual': (240, None), 'siguientes_pasos': (240, None),
+         'bloqueos': (240, None), 'descartados': (240, None), 'decisiones': (240, None), 'pendientes': (240, None)}
 # Marcas del anonimizador y del redactor (`redact.REDACTADO`) que un recorte no puede partir.
 _MARKS = re.compile(r'<(?:usuario|correo)>|\[secreto redactado\]')
 
@@ -561,6 +579,25 @@ class PanelServer(HTTPServer):
             return body
         except Exception:
             return _encoded(_unavailable_activity())
+
+    def memoria_panel(self):
+        """`api/memoria` (GET, <= 64 KiB): la proyeccion de Memoria. `panel_data` la calcula leyendo solo ficheros
+        locales (corpus acotado, candidatos, manifiestos de backend, journal); el saneador unico limpia el texto mostrado
+        y DESPUES se recorta a 64 KiB (anonimizar alarga el texto). Distinta de `api/memory`, que no cambia."""
+        now = time.monotonic()
+        hit = self._memoria
+        if hit is not None and now - hit[0] < MEMORIA_MAX_AGE:
+            return hit[1]
+        try:
+            datos = _scrubbed(_load_data().memoria(self.project), self.scrub)
+            datos = _load('panel_service_data_budget', HERE / 'panel_data.py').ajustar_memoria(datos, MAX_RESPONSE_BYTES)
+            body = _encoded(datos)
+            if len(body) > MAX_RESPONSE_BYTES:
+                body = _encoded(_memoria_no_disponible('response_budget'))
+        except Exception:
+            body = _encoded(_memoria_no_disponible())
+        self._memoria = (now, body)
+        return body
 
     def memory(self, payload):
         try:
@@ -898,6 +935,8 @@ class PanelHandler(BaseHTTPRequestHandler):
                 self._reply(404)
             else:
                 self._reply(200, body, 'application/json; charset=utf-8')
+        elif route == 'api/memoria':
+            self._reply(200, self.server.memoria_panel(), 'application/json; charset=utf-8')
         elif route == 'api/activity':
             self._reply(200, self.server.activity(), 'application/json; charset=utf-8')
         elif self.server.review_scope is not None and route == 'api/review-summary':
@@ -1049,6 +1088,7 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
         server._cartera = None; server._cartera_at = 0; server._cartera_built = 0; server._cartera_firma = None
         server._cartera_lock = threading.Lock(); server._cartera_hilo = None
         server._plans = {}
+        server._memoria = None
         server.csp = pages.CSP_SERVIDO.format(nonce=nonce)
         server.warnings = warnings
         # The portfolio is computed ONCE here, before `serving`: the same reading feeds the plan inventory and the first

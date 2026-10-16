@@ -563,3 +563,341 @@ def _plan_vacio(ident, carpeta, status, issue):
             'observed_at': _ahora(), 'id': ident, 'slug': _limpio(carpeta, 'slug'),
             'issues': [{'status': issue}] if issue else [], 'vocabulario': list(ESTADOS_LEDGER),
             'omitidas': 0, 'tareas': None}
+
+
+# --- Memoria (T-30..T-35) -------------------------------------------------------------------------------------------
+
+MEM_MAX_ITEMS = 20                  # candidatos y entradas aprobadas que lista la bandeja por estado
+MEM_MAX_RELACIONES = 20             # igual que `knowledge-view.MAX_RESULTS`: un salto, nunca el grafo entero
+MEM_MAX_SESIONES = 2                # lo que devuelve `journal.select_entries` (su contrato; no se amplía)
+MEM_MAX_BACKENDS = 8
+MEM_OUTBOX_LEIDOS = 64              # manifiestos de `done/` que se leen para la última publicación
+KS = '.claude/knowledge-services'
+CANDIDATOS = ('pending', 'needs_changes', 'rejected')
+_BACKEND_RE = re.compile(r'[a-z][a-z0-9_-]{0,31}')
+_ISO_Z = re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z')
+_URL_UI = re.compile(r'https?://[^\s?#@\\\x00-\x1f]{1,190}')
+_MARCA_REDACTOR = '[secreto redactado]'
+
+
+def _corta(texto, tope):
+    """Corta a `tope` code points sin partir la marca del redactor."""
+    if len(texto) <= tope:
+        return texto
+    inicio = texto.find(_MARCA_REDACTOR)
+    while inicio != -1:
+        if inicio < tope < inicio + len(_MARCA_REDACTOR):
+            return texto[:inicio]
+        inicio = texto.find(_MARCA_REDACTOR, inicio + 1)
+    return texto[:tope]
+
+
+def _redactado(redact, valor, tope):
+    """redactar -> quitar controles -> recortar (el orden de `redact.py`: el secreto se reconoce entero antes de cortar)."""
+    if valor is None:
+        return None
+    return _corta(_CONTROLES.sub(' ', redact.redactar(str(valor))), tope)
+
+
+def _lista_redactada(redact, valores, tope, maximo=3):
+    return [_redactado(redact, v, tope) for v in (valores if isinstance(valores, list) else [])[:maximo] if isinstance(v, str)]
+
+
+def _issue_memoria(datos):
+    def issue(codigo):
+        datos['complete'] = False
+        if len(datos['issues']) < 16 and {'status': codigo} not in datos['issues']:
+            datos['issues'].append({'status': codigo})
+        if datos['status'] in ('ok', 'not_found'):
+            datos['status'] = 'partial'
+    return issue
+
+
+def _memoria_vacia(status, issue=None):
+    estados = {e: {'situacion': 'no_disponible', 'n': None, 'items': []} for e in CANDIDATOS}
+    datos = {'version': 1, 'source': 'memoria_panel', 'observed_at': _ahora(), 'status': status,
+             'complete': status == 'ok', 'issues': [], 'total': 0, 'recortado': 0, 'conteos': {}, 'entradas': [],
+             'bandeja': {'estados': estados, 'aprobadas': {'n': None, 'items': []}}, 'backends': [],
+             'journal': {'status': 'unavailable', 'sesiones': []}}
+    if issue:
+        datos['issues'].append({'status': issue})
+    return datos
+
+
+def ajustar_memoria(datos, tope=MAX_RESPONSE_BYTES):
+    """Recorta `entradas` por el final hasta que la respuesta quepa en `tope` bytes (los conteos siguen siendo los del
+    corpus entero) y lo declara (`recortado`, `status: partial`). Lo usan `memoria` y el servidor, que vuelve a medir
+    DESPUÉS de anonimizar (anonimizar alarga el texto)."""
+    def tamano():
+        return len(json.dumps(datos, ensure_ascii=False).encode('utf8'))
+    exceso = tamano() - tope
+    if exceso <= 0:
+        return datos
+    filas = datos['entradas']
+    while filas and exceso > 0:
+        exceso -= len(json.dumps(filas.pop(), ensure_ascii=False).encode('utf8')) + 1
+        datos['recortado'] += 1
+    while filas and tamano() > tope:
+        filas.pop()
+        datos['recortado'] += 1
+    datos['complete'], datos['status'] = False, 'partial'
+    if {'status': 'output_budget'} not in datos['issues'] and len(datos['issues']) < 16:
+        datos['issues'].append({'status': 'output_budget'})
+    return datos
+
+
+def _fila_entrada(e, redact, sucesion):
+    sustituida = [i for r, _x, i in sucesion if r == 'sustituida por']
+    fecha = (e.get('fecha') or '').strip()
+    return {'id': e['id'], 'tipo': _redactado(redact, e['tipo'], 160), 'estado': _redactado(redact, e['estado'], 160),
+            'area': _redactado(redact, e['area'], 160), 'titular': _redactado(redact, e['titular'], 160),
+            'fecha': fecha if _FECHA.fullmatch(fecha) else None,
+            'iniciativa': _redactado(redact, e.get('iniciativa') or '', 80),
+            'origen': 'approved' if str(e['ruta']).startswith('docs/knowledge/approved/') else 'proyecto',
+            'vigente': e['estado'] != 'obsoleta' and not sustituida,
+            'sustituida_por': [_redactado(redact, i, 256) for i in sustituida],
+            'sustituye_a': [_redactado(redact, i, 256) for r, _x, i in sucesion if r == 'sustituye a']}
+
+
+def _relaciones_de(find, unicos, e, redact):
+    rel = find.relaciones(unicos, e)
+    quedan = MEM_MAX_RELACIONES
+    # Claves propias (`por_iniciativa`, `por_area`): `area` es una clave de texto mostrado del saneador y no puede contener ids.
+    salida = {'sucesion': [], 'por_iniciativa': [], 'por_area': [], 'enlaces': []}
+    origen = {'sucesion': 'sucesion', 'por_iniciativa': 'iniciativa', 'por_area': 'area', 'enlaces': 'enlaces'}
+    recortado = False
+    for grupo in salida:
+        filas = rel.get(origen[grupo], [])
+        if len(filas) > quedan:
+            recortado = True
+        for fila in filas[:quedan]:
+            if grupo == 'sucesion':
+                relacion, destino, ident = fila
+                salida[grupo].append({'relacion': relacion, 'id': ident, 'ausente': destino is None})
+            else:
+                salida[grupo].append(fila['id'])
+        quedan -= len(salida[grupo])
+    salida['recortado'] = recortado
+    return salida
+
+
+def _entradas_memoria(project, datos, redact, relaciones):
+    """Proyecta el corpus de `knowledge-view.snapshot` + `knowledge-find.parsear_corpus`: la misma lectura acotada que
+    `api/memory`; aquí solo se resumen metadatos (el cuerpo de una entrada no viaja)."""
+    issue = _issue_memoria(datos)
+    view, find = _load_shared('knowledge-view.py'), _load_shared('knowledge-find.py')
+    snap = view.snapshot(project)
+    for codigo in snap['corpus_read']['issues']:
+        issue(codigo)
+    try:
+        corpus = find.parsear_corpus(snap['files'])
+    except Exception:  # noqa: BLE001 - un corpus que no parsea se dice, sin su causa
+        issue('corpus_ilegible')
+        corpus = []
+    validas = []
+    for e in corpus:
+        ident = e.get('id')
+        if not isinstance(ident, str) or not 0 < len(ident) <= 256 or redact.redactar(ident) != ident:
+            issue('identidad_invalida')
+            continue
+        validas.append(e)
+    cuentas = {}
+    for e in validas:
+        cuentas[e['id'].casefold()] = cuentas.get(e['id'].casefold(), 0) + 1
+    if any(n > 1 for n in cuentas.values()):
+        issue('identidad_duplicada')
+    unicos = [e for e in validas if cuentas[e['id'].casefold()] == 1]
+    sucesion = getattr(find, '_relaciones_sucesion', None)
+    filas, conteos, rel = [], {}, {}
+    for e in sorted(validas, key=find.clave_orden):
+        unico = cuentas[e['id'].casefold()] == 1
+        suc = (sucesion(unicos, e) if sucesion else find.relaciones(unicos, e)['sucesion']) if unico else []
+        fila = _fila_entrada(e, redact, suc)
+        filas.append(fila)
+        conteos.setdefault(fila['tipo'], {}).setdefault(fila['estado'], 0)
+        conteos[fila['tipo']][fila['estado']] += 1
+        if relaciones and unico:
+            rel[e['id']] = _relaciones_de(find, unicos, e, redact)
+    datos['entradas'], datos['conteos'], datos['total'] = filas, conteos, len(filas)
+    if relaciones:
+        datos['relaciones'] = rel
+    if not filas and datos['complete']:
+        datos['status'] = 'not_found'
+    return filas
+
+
+def _titular_candidato(texto):
+    for linea in texto.splitlines():
+        if linea.startswith('# '):
+            return linea[2:].strip()
+    return ''
+
+
+def _bandeja(project, reader, find, redact, aprobadas):
+    """Candidatos del curador por estado (carpetas de `docs/knowledge/candidates/`) y lo aprobado. Solo lectura: el panel
+    no ofrece ninguna decisión; es de `knowledge-curator` (ADR-018)."""
+    estados = {}
+    for estado in CANDIDATOS:
+        ruta = 'docs/knowledge/candidates/' + estado
+        listado = reader.list_names(project, ruta, max_entries=128)
+        if listado['status'] == 'not_found':
+            estados[estado] = {'situacion': 'ausente', 'n': 0, 'items': []}
+            continue
+        if listado['status'] not in ('ok', 'incomplete'):
+            estados[estado] = {'situacion': 'no_disponible', 'n': None, 'items': []}
+            continue
+        nombres = [n for n in listado['names'] if n.lower().endswith('.md') and n.lower() != 'readme.md']
+        items = []
+        for nombre in nombres[:MEM_MAX_ITEMS]:
+            lectura = reader.read_text(project, ruta + '/' + nombre, max_bytes=16 * 1024)
+            fm, cuerpo = find.frontmatter(lectura['text']) if lectura['status'] == 'ok' else ({}, '')
+            items.append({'candidato': _redactado(redact, nombre, 160),
+                          'titular': _redactado(redact, _titular_candidato(cuerpo) or None, 160),
+                          'category': _redactado(redact, fm.get('category') or None, 40)})
+        estados[estado] = {'situacion': 'ok' if listado['complete'] else 'incompleto', 'n': len(nombres), 'items': items}
+    lista = [{'id': f['id'], 'titular': f['titular'], 'area': f['area']} for f in aprobadas]
+    return {'estados': estados, 'aprobadas': {'n': len(lista), 'items': lista[:MEM_MAX_ITEMS]}}
+
+
+def _json_acotado(reader, project, ruta, tope=256 * 1024):
+    lectura = reader.read_text(project, ruta, max_bytes=tope)
+    if lectura['status'] != 'ok':
+        return None
+    try:
+        return json.loads(lectura['text'])
+    except (ValueError, RecursionError):
+        return None
+
+
+def _existe(reader, project, ruta):
+    return reader.read_bytes(project, ruta, max_bytes=1)['status'] in ('ok', 'too_large')
+
+
+def _ruta_del_proyecto(project, valor):
+    """Ruta relativa y segura dentro del proyecto (acepta una absoluta que caiga dentro); si no, `None`."""
+    if not isinstance(valor, str) or not valor or '\x00' in valor:
+        return None
+    try:
+        if os.path.isabs(valor):
+            valor = Path(valor).resolve().relative_to(Path(str(project)).resolve()).as_posix()
+        partes = valor.replace('\\', '/').split('/')
+    except (OSError, ValueError):
+        return None
+    if any(p in ('', '.', '..') or ':' in p for p in partes):
+        return None
+    return '/'.join(partes)
+
+
+def _ultima_publicacion(reader, project, backend):
+    """Fecha de la última publicación: el `completado_en` MÁS RECIENTE de `done/*.manifest.json` de la outbox del
+    backend (la fecha real de materialización que escribe `outbox.completar`). Nunca el `mtime`."""
+    ruta = f'{KS}/_sync-outbox/{backend}/done'
+    listado = reader.list_names(project, ruta, max_entries=256)
+    if listado['status'] not in ('ok', 'incomplete'):
+        return None
+    nombres = sorted((n for n in listado['names'] if n.endswith('.manifest.json')), reverse=True)[:MEM_OUTBOX_LEIDOS]
+    mejor = None
+    for nombre in nombres:
+        dato = _json_acotado(reader, project, ruta + '/' + nombre, 16 * 1024)
+        fecha = dato.get('completado_en') if isinstance(dato, dict) else None
+        if isinstance(fecha, str) and _ISO_Z.fullmatch(fecha) and (mejor is None or fecha > mejor):
+            mejor = fecha
+    return mejor
+
+
+def _fila_backend(project, reader, ident, cfg):
+    tipo = cfg.get('type') if isinstance(cfg.get('type'), str) else ''
+    conf = cfg.get('config') if isinstance(cfg.get('config'), dict) else {}
+    fila = {'backend': ident, 'tipo': tipo[:40], 'situacion': 'deshabilitado' if cfg.get('enabled') is False else 'configurado',
+            'entradas': None, 'ultima': None, 'interrumpida': False, 'ui_url': None}
+    if tipo == 'markdown-export':
+        carpeta = _ruta_del_proyecto(project, conf.get('export_dir') or KS + '/kwipu-export')
+        if carpeta:
+            manifiesto = _json_acotado(reader, project, carpeta + '/manifest.json')
+            if isinstance(manifiesto, dict) and isinstance(manifiesto.get('entries'), dict):
+                fila['entradas'] = len(manifiesto['entries'])
+            fila['interrumpida'] = _existe(reader, project, carpeta + '/manifest.pending.json')
+    elif tipo == 'graphiti':
+        manifiesto = _json_acotado(reader, project, KS + '/graphiti-manifest.json')
+        if isinstance(manifiesto, dict) and isinstance(manifiesto.get('entradas'), dict):
+            fila['entradas'] = len(manifiesto['entradas'])
+        fila['interrumpida'] = _existe(reader, project, KS + '/graphiti-manifest.pending.json')
+    fila['ultima'] = _ultima_publicacion(reader, project, ident)
+    url = conf.get('ui_url')
+    if isinstance(url, str) and _URL_UI.fullmatch(url):
+        fila['ui_url'] = url
+    return fila
+
+
+def _backends(project, reader, issue):
+    """Qué se publicó en cada backend de `taxonomy.json`, leyendo SOLO ficheros locales: ninguna conexión, ninguna
+    llamada a `health`, ninguna fecha de `mtime`. Lo que la fuente no trae es `None` («sin datos» en la página)."""
+    configurados = {}
+    leida = reader.read_text(project, KS + '/taxonomy.json', max_bytes=64 * 1024)
+    if leida['status'] == 'ok':
+        try:
+            declarados = json.loads(leida['text']).get('backends')
+            configurados = declarados if isinstance(declarados, dict) else {}
+        except (ValueError, AttributeError, RecursionError):
+            issue('taxonomia_invalida')
+    elif leida['status'] != 'not_found':
+        issue('taxonomia_' + leida['status'])
+    filas = [_fila_backend(project, reader, ident, cfg) for ident, cfg in list(configurados.items())[:MEM_MAX_BACKENDS]
+             if isinstance(ident, str) and _BACKEND_RE.fullmatch(ident) and isinstance(cfg, dict)]
+    for ident, tipo in (('kwipu', 'markdown-export'), ('graphiti', 'graphiti')):
+        if not any(f['backend'] == ident for f in filas):
+            filas.append({'backend': ident, 'tipo': tipo, 'situacion': 'no_configurado', 'entradas': None, 'ultima': None,
+                          'interrumpida': False, 'ui_url': None})
+    orden = {'kwipu': 0, 'graphiti': 1}
+    return sorted(filas, key=lambda f: (orden.get(f['backend'], 2), f['backend']))
+
+
+def _journal(project, redact):
+    """Sesiones recientes del journal con su continuidad, por la selección pública y acotada de `journal.py`
+    (`select_entries`: ya redacta y recorta). Son CITAS del historial, no instrucciones."""
+    try:
+        resultado = _load_shared('journal.py').select_entries(str(project))
+    except Exception:  # noqa: BLE001 - sin el lector, «no disponible», sin su causa
+        return {'status': 'unavailable', 'sesiones': []}
+    estado = resultado.get('status') if isinstance(resultado, dict) else None
+    if estado not in ('ok', 'empty', 'not_found', 'incomplete'):
+        return {'status': 'unavailable', 'sesiones': []}
+    sesiones = []
+    for e in (resultado.get('entries') or [])[:MEM_MAX_SESIONES]:
+        c = e.get('continuidad') if isinstance(e.get('continuidad'), dict) else {}
+        fecha = str(e.get('fecha') or '')
+        sesiones.append({'fecha': fecha if _FECHA.fullmatch(fecha) else None,
+                         'iniciativa': _redactado(redact, e.get('iniciativa') or '', 80),
+                         'resumen': _redactado(redact, e.get('resumen') or '', 240),
+                         'objetivo': _redactado(redact, c.get('objetivo'), 240),
+                         'punto_actual': _redactado(redact, c.get('punto_actual'), 240),
+                         'siguientes_pasos': _lista_redactada(redact, c.get('siguientes_pasos'), 240),
+                         'bloqueos': _lista_redactada(redact, c.get('bloqueos'), 240),
+                         'descartados': _lista_redactada(redact, c.get('descartados'), 240),
+                         'decisiones': _lista_redactada(redact, e.get('decisiones'), 240),
+                         'pendientes': _lista_redactada(redact, e.get('pendientes'), 240)})
+    return {'status': estado, 'sesiones': sesiones}
+
+
+def memoria(project, relaciones=False):
+    """Proyección de Memoria para `api/memoria` y la copia exportada: entradas por tipo y estado con su sucesión y su
+    «vigente», bandeja del curador, backends y journal. Solo lectura y sin red. `relaciones=True` (copia exportada, que
+    no puede preguntar a `api/memory`) añade las de cada entrada: ids de un salto, como `knowledge-find --related`.
+    Un dato que una fuente no trae es `None`; nunca se inventa ni se pinta como 0."""
+    try:
+        redact = _load_shared('redact.py')
+        reader = _load_shared('local-read.py')
+        find = _load_shared('knowledge-find.py')
+    except Exception:  # noqa: BLE001 - un ayudante ausente o roto no revela su ruta ni su error
+        return _memoria_vacia('unavailable', 'reader_unavailable')
+    datos = _memoria_vacia('ok')
+    datos['bandeja'] = None
+    datos['journal'] = {'status': 'unavailable', 'sesiones': []}
+    try:
+        filas = _entradas_memoria(project, datos, redact, relaciones)
+        datos['bandeja'] = _bandeja(project, reader, find, redact, [f for f in filas if f['origen'] == 'approved'])
+        datos['backends'] = _backends(project, reader, _issue_memoria(datos))
+        datos['journal'] = _journal(project, redact)
+    except Exception:  # noqa: BLE001 - una lectura que falla no deja la página a medias: vacía y dicho
+        return _memoria_vacia('unavailable', 'read_failed')
+    return datos if relaciones else ajustar_memoria(datos)

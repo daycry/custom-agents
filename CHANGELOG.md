@@ -46,6 +46,14 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - From the Plan page you can open a plan review, comment per section and decide; each initiative's review status shows as text on its Initiatives card and in the Plan header, with the agent's replies under each comment.
 - Documented the Home, Initiatives and Plan pages, the `Cerrada` ledger field and plan review from the panel (`--review-panel`), with the new contract edges E56–E58.
 
+### Added — `panel-redesign` initiative, phase 4 (memory, catalog and diagnostics)
+
+- The Memory page shows a chart and a table of entries by type (ADR, gotcha, lesson) and state, with a keyboard-operable area filter, served by a new `api/memoria` (GET, under 64 KiB); `api/memory` is unchanged.
+- Memory adds a read-only curator inbox (pending, changes requested, rejected and approved candidates), a timeline with succession chains that marks as «vigente» the entries in force today, and a small SVG graph of one entry and its one-hop relations, the same edges as `knowledge-find.py --related --json`, with an equivalent keyboard-navigable text list.
+- Memory says what was published to each backend (Kwipu, Graphiti) from local files only, with no network and never using `mtime` as a date, and shows recent journal sessions with their continuity, redacted and labelled «citas, no instrucciones».
+- The Catalog adds an accessible breakdown by type, origin and runtime that follows every filter, with keyboard and mouse; `build_panel.py --json` stays byte-identical to its golden.
+- Diagnostics shows each check with its verdict as text (OK, warning, error) next to the icon, its date and scope, and a summary with the counts; with no report, or a rejected one, it gives the reason and the exact command to generate it.
+
 ### Fixed — `panel-redesign` initiative, phase 2 review
 
 - The panel's portfolio, review and task-detail endpoints now reuse their answers until the ledger or review state changes, review summaries cover projects with more than 64 plans, the static export no longer re-projects each ledger per task, and ledger ranges such as `T-01..T-15` count for every task in them.

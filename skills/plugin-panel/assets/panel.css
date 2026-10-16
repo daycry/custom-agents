@@ -109,9 +109,9 @@ footer { color: var(--tenue); font-size: .9rem; margin-top: 1.5rem; }
 .diagnostic-row { display: flex; flex-wrap: wrap; gap: .5rem 1rem; border-top: 1px solid var(--borde); padding: .6rem 0; }
 .diagnostic-row strong { flex: 1 1 12rem; }
 .diagnostic-row small { width: 100%; color: var(--tenue); }
-.diagnostic-row[data-state="error"] .diagnostic-badge { color: var(--error); }
-.diagnostic-row[data-state="aviso"] .diagnostic-badge { color: var(--aviso); }
-.diagnostic-row[data-state="ok"] .diagnostic-badge { color: var(--ok); }
+.diagnostic-row[data-state="error"] .diagnostic-verdict { color: var(--error); }
+.diagnostic-row[data-state="aviso"] .diagnostic-verdict { color: var(--aviso); }
+.diagnostic-row[data-state="ok"] .diagnostic-verdict { color: var(--ok); }
 .diagnostic-priorities li { padding: .3rem 0; color: var(--tenue); }
 .diagnostic-priorities a, .diagnostic-source summary { color: var(--ok); }
 .memory-actions, .review-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
@@ -161,3 +161,19 @@ footer { color: var(--tenue); font-size: .9rem; margin-top: 1.5rem; }
 .detalle .detalle-bloque h3 { margin: 0 0 .4rem; font-size: 1rem; }
 .detalle ul { margin: .25rem 0; padding-left: 1.2rem; }
 .detalle .gaps { color: var(--aviso); }
+
+/* --- Memoria (grafo de una entrada, línea de tiempo, bandeja, sesiones). Solo variables de :root. --- */
+.linea-tiempo { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--borde); }
+.linea-tiempo li { padding: .35rem 0 .35rem .9rem; overflow-wrap: anywhere; }
+.linea-tiempo li button, #memoria-lista-relaciones li button { margin-left: .4rem; padding: .15rem .6rem; }
+#memoria-lista-relaciones { padding-left: 1.2rem; overflow-wrap: anywhere; }
+#memoria-relaciones:focus { outline: 3px solid var(--foco); outline-offset: 3px; }
+.grafo-memoria { max-width: 100%; height: auto; }
+.grafo-memoria .arista { stroke: var(--borde); stroke-width: 2; fill: none; }
+.grafo-memoria .nodo circle, .grafo-memoria .nodo rect, .grafo-memoria .nodo polygon { fill: var(--superficie); stroke: var(--acento); stroke-width: 2; }
+.grafo-memoria .nodo-centro circle { fill: var(--acento); }
+.grafo-memoria .nodo text { fill: var(--texto); font-size: 12px; }
+.cita-journal { margin: .75rem 0; padding: .5rem 1rem; border-left: 3px solid var(--borde); color: var(--tenue); }
+.cita-journal h3 { margin: 0 0 .25rem; color: var(--texto); font-size: 1rem; }
+.cita-journal dl { margin: .25rem 0 0; display: grid; grid-template-columns: max-content 1fr; gap: .15rem 1rem; }
+.cita-journal dd { margin: 0; overflow-wrap: anywhere; }

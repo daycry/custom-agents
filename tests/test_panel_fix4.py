@@ -406,3 +406,56 @@ def test_tarea_con_textos_de_los_topes_pasa_el_validador_de_la_pagina_tras_anoni
     assert len(t['salida']) <= 1000 and len(t['criterios'][0]['criterio']) <= 400 and len(t['gaps'][0]['gap']) <= 400
     for campo in ('titulo', 'descripcion', 'verificacion', 'salida'):
         assert '<usuari' not in t[campo].replace('<usuario>', ''), campo
+
+
+
+# Contrato de `api/memoria` (T-30..T-35, `panel_data.memoria`): lo que `page-memoria.js` muestra (se anonimiza) y lo que
+# es identidad, fecha o vocabulario (queda intacto). Un campo nuevo sin clasificar rompe este test. `area` es clave de
+# texto mostrado: por eso las relaciones incrustadas usan `por_area`/`por_iniciativa` (listas de ids, intactas).
+MEMORIA_PANEL_MOSTRADO = {'tipo', 'estado', 'area', 'titular', 'candidato', 'category', 'ui_url', 'resumen', 'objetivo',
+                          'punto_actual', 'siguientes_pasos', 'bloqueos', 'descartados', 'decisiones', 'pendientes'}
+MEMORIA_PANEL_INTACTO = {'id', 'fecha', 'iniciativa', 'origen', 'sustituida_por', 'sustituye_a', 'relacion', 'status',
+                         'source', 'observed_at', 'situacion', 'backend', 'ultima', 'sucesion', 'por_iniciativa',
+                         'por_area', 'enlaces'}
+
+
+def _memoria_panel():
+    p = PLANTADO
+    entrada = {'id': 'ADR-001', 'tipo': p, 'estado': p, 'area': p, 'titular': p, 'fecha': '2026-01-01',
+               'iniciativa': 'alfa', 'origen': 'proyecto', 'vigente': True, 'sustituida_por': ['ADR-002'], 'sustituye_a': []}
+    return {'version': 1, 'source': 'memoria_panel', 'observed_at': '2026-10-16T10:00:00Z', 'status': 'ok', 'complete': True,
+            'issues': [{'status': 'output_budget'}], 'total': 1, 'recortado': 0, 'conteos': {'adr': {'aceptada': 1}},
+            'entradas': [entrada],
+            'relaciones': {'ADR-001': {'sucesion': [{'relacion': 'sustituida por', 'id': 'ADR-002', 'ausente': False}],
+                                       'por_iniciativa': ['ADR-003'], 'por_area': ['ADR-004'], 'enlaces': ['ADR-005'],
+                                       'recortado': False}},
+            'bandeja': {'estados': {'pending': {'situacion': 'ok', 'n': 1, 'items': [
+                {'candidato': p, 'titular': p, 'category': p}]}}, 'aprobadas': {'n': 1, 'items': [
+                    {'id': 'ADR-001', 'titular': p, 'area': p}]}},
+            'backends': [{'backend': 'kwipu', 'tipo': p, 'situacion': 'configurado', 'entradas': 1,
+                          'ultima': '2026-10-02T11:30:00Z', 'interrumpida': False, 'ui_url': 'http://127.0.0.1:9/' + p}],
+            'journal': {'status': 'ok', 'sesiones': [{
+                'fecha': '2026-10-10', 'iniciativa': 'alfa', 'resumen': p, 'objetivo': p, 'punto_actual': p,
+                'siguientes_pasos': [p], 'bloqueos': [p], 'descartados': [p], 'decisiones': [p], 'pendientes': [p]}]}}
+
+
+def test_contrato_api_memoria_cada_campo_mostrado_anonimizado_y_el_resto_intacto():
+    servicio = _cargar()
+    dato = _memoria_panel()
+    limpio = servicio._scrubbed(copy.deepcopy(dato), _scrub(servicio))
+    sin_clasificar = {r[-1] for r, _ in _hojas(dato) if r[-1] not in MEMORIA_PANEL_MOSTRADO | MEMORIA_PANEL_INTACTO}
+    assert not sin_clasificar, f'campo de texto sin clasificar en el contrato de api/memoria: {sin_clasificar}'
+    originales = dict(_hojas_con_indice(dato))
+    for indice, (ruta, texto) in enumerate(_hojas(limpio)):
+        if ruta[-1] in MEMORIA_PANEL_MOSTRADO:
+            for sensible in SENSIBLES:
+                assert sensible not in texto, (ruta, sensible)
+        else:
+            assert texto == originales[indice], ruta
+    assert {r[-1] for r, _ in _hojas(dato)} >= MEMORIA_PANEL_MOSTRADO
+    # anonimizar alarga el texto: el recorte a los topes del validador del navegador va DESPUES
+    largo = _memoria_panel()
+    largo['entradas'][0]['titular'] = 'abc ' * 40
+    largo['journal']['sesiones'][0]['objetivo'] = 'abc ' * 60
+    recortado = servicio._scrubbed(largo, _corto(servicio))
+    assert len(recortado['entradas'][0]['titular']) <= 160 and len(recortado['journal']['sesiones'][0]['objetivo']) <= 240

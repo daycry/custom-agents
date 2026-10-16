@@ -53,7 +53,7 @@ def test_no_report_means_unknown_without_importing_checker(panel, tmp_path, monk
     monkeypatch.setattr(panel, '_load_shared', lambda name: pytest.fail('Implicit diagnostics import'))
     data = inventory(panel, tmp_path)
     assert data['diagnostics'] == {'status': 'not_provided'}
-    assert 'Sin diagnóstico importado' in pagina(panel, data, 'diagnostico')
+    assert 'Sin informe' in pagina(panel, data, 'diagnostico')
 
 
 def test_explicit_file_is_bound_hashed_and_never_runs_doctor(panel, tmp_path, report, monkeypatch):
@@ -174,7 +174,7 @@ def test_render_shows_source_scope_and_safe_recommendation(panel, tmp_path, repo
     assert 'PRIVATE' not in page and 'SECRET' not in page and str(project) not in page
 
 
-MENSAJES = {'not_provided': 'Sin diagnóstico importado', 'scope_unbound': 'Falta un proyecto explícito',
+MENSAJES = {'not_provided': 'Sin informe', 'scope_unbound': 'Falta un proyecto explícito',
             'scope_mismatch': 'pertenece a otra ruta de proyecto', 'future_timestamp': 'en el futuro',
             'incompatible': 'no cumple el contrato portable', 'not_found': 'no existe',
             'too_large': 'supera el límite de lectura', 'invalid_encoding': 'UTF-8 válida'}
@@ -246,3 +246,78 @@ assert.equal(f1.hidden, false); assert.equal(f2.hidden, true);
     fuente.write_text(programa, encoding='utf8')
     r = subprocess.run([node, str(fuente)], capture_output=True, text=True, encoding='utf8', errors='replace', timeout=15)
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+# --- T-37: veredicto en texto, fecha, alcance y resumen (CA-30, CA-31) --------------------------------------
+
+COMANDO = 'python3 "$DOC" --panel-json --root <proyecto> > informe.json'
+
+
+def _filas(page):
+    return re.findall(r'<li class="diagnostic-row"[^>]*>.*?</li>', page, re.S)
+
+
+def test_cada_fila_lleva_veredicto_en_texto_con_su_icono_fecha_y_alcance(panel, tmp_path, report):
+    project, path, value = report
+    page = pagina(panel, inventory(panel, tmp_path, project, path), 'diagnostico')
+    filas = _filas(page)
+    assert len(filas) == 2
+    error = filas[0]
+    assert 'data-state="error"' in error and '<span aria-hidden="true">❌</span> error' in error
+    assert 'diagnostic-verdict' in error
+    assert value['checked_at'] in error and 'Alcance: proyecto indicado' in error
+    info = filas[1]
+    assert 'data-state="info"' in info and '<span aria-hidden="true">ℹ️</span> info</span>' in info
+
+
+@pytest.mark.parametrize('estado,icono,texto', [('ok', '✅', 'OK'), ('aviso', '⚠️', 'aviso'), ('error', '❌', 'error')])
+def test_los_tres_veredictos_llevan_icono_y_palabra(panel, tmp_path, report, estado, icono, texto):
+    project, path, value = report
+    value['blocks'] = [{'id': 'plugin', 'rows': [{'state': estado, 'label': 'registro en Codex'}]}]
+    value['summary'] = {'ok': 0, 'aviso': 0, 'error': 0, 'info': 0}; value['summary'][estado] = 1
+    value['priorities'] = []
+    path.write_text(json.dumps(value), encoding='utf8')
+    page = pagina(panel, inventory(panel, tmp_path, project, path), 'diagnostico')
+    assert '<span aria-hidden="true">%s</span> %s</span>' % (icono, texto) in _filas(page)[0]
+
+
+def test_el_resumen_muestra_los_tres_contadores_con_texto(panel, tmp_path, report):
+    project, path, value = report
+    value['blocks'] = [{'id': 'plugin', 'rows': [{'state': 'ok', 'label': ''}, {'state': 'ok', 'label': ''},
+                                                 {'state': 'aviso', 'label': ''}, {'state': 'error', 'label': ''}]}]
+    value['summary'] = {'ok': 2, 'aviso': 1, 'error': 1, 'info': 0}; value['priorities'] = []
+    path.write_text(json.dumps(value), encoding='utf8')
+    page = pagina(panel, inventory(panel, tmp_path, project, path), 'diagnostico')
+    resumen = re.search(r'<ul id="diagnostic-summary".*?</ul>', page, re.S).group(0)
+    assert 'aria-label="Resumen de veredictos"' in resumen
+    for esperado in ('OK: 2', 'aviso: 1', 'error: 1'):
+        assert esperado in re.sub(r'<[^>]+>', '', resumen)
+
+
+@pytest.mark.parametrize('estado,motivo', [('not_provided', 'Sin informe'), ('scope_mismatch', 'otra ruta de proyecto'),
+                                           ('incompatible', 'contrato portable'), ('not_found', 'no existe'),
+                                           ('scope_unbound', 'proyecto explícito')])
+def test_sin_informe_o_rechazado_da_el_motivo_y_el_comando_exacto(panel, tmp_path, estado, motivo):
+    data = inventory(panel, tmp_path)
+    data['diagnostics'] = {'status': estado}
+    page = pagina(panel, data, 'diagnostico')
+    assert motivo in page and 'id="diagnostic-command"' in page
+    assert html_escape(COMANDO) in page and '--diagnostics-report informe.json --project &lt;proyecto&gt;' in page
+    assert 'id="diagnostic-summary"' not in page and not _filas(page)
+
+
+def html_escape(texto):
+    import html
+    return html.escape(texto, quote=False)
+
+
+def test_el_comando_no_filtra_la_ruta_real_del_proyecto(panel, tmp_path, report):
+    project, path, _ = report
+    data = inventory(panel, tmp_path, tmp_path/'otro', path)
+    page = pagina(panel, data, 'diagnostico')
+    assert data['diagnostics']['status'] == 'scope_mismatch' and str(tmp_path) not in page
+
+
+def test_el_js_de_diagnostico_no_toca_la_red_ni_inserta_html():
+    fuente = (ROOT/'skills/plugin-panel/assets/page-diagnostico.js').read_text(encoding='utf8')
+    assert not re.search(r'innerHTML|outerHTML|insertAdjacentHTML|eval\(|fetch\(|XMLHttpRequest|WebSocket', fuente)

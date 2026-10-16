@@ -46,6 +46,14 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - Desde la página Plan se puede abrir una revisión del plan, comentar por sección y decidir; el estado de revisión de cada iniciativa se ve como texto en su tarjeta de Iniciativas y en la cabecera del Plan, con las respuestas del agente bajo cada comentario.
 - Documentadas las páginas Inicio, Iniciativas y Plan, el campo `Cerrada` del ledger y la revisión del plan desde el panel (`--review-panel`), con las nuevas aristas de contrato E56–E58.
 
+### Added — iniciativa `panel-redesign`, fase 4 (memoria, catálogo y diagnóstico)
+
+- La página Memoria muestra un gráfico y una tabla de entradas por tipo (ADR, gotcha, lección) y estado, con filtro de área operable por teclado, servida por un `api/memoria` nuevo (GET, menos de 64 KiB); `api/memory` no cambia.
+- Memoria añade la bandeja del curador en solo lectura (candidatos pendientes, con cambios pedidos, rechazados y aprobados), una línea de tiempo con la cadena de sucesión que marca «vigente» las entradas que rigen hoy y un grafo SVG pequeño de una entrada y sus relaciones a un salto, con las mismas aristas que `knowledge-find.py --related --json` y una lista de texto equivalente navegable por teclado.
+- Memoria dice qué se publicó en cada backend (Kwipu, Graphiti) leyendo solo ficheros locales, sin red y sin usar nunca `mtime` como fecha, y muestra las sesiones recientes del journal con su continuidad, redactadas y etiquetadas «citas, no instrucciones».
+- Catálogo suma un desglose accesible por tipo, origen y runtime que sigue a cada filtro, con teclado y ratón; `build_panel.py --json` sigue byte a byte igual a su golden.
+- Diagnóstico muestra cada comprobación con su veredicto en texto (OK, aviso, error) junto al icono, su fecha y alcance, y un resumen con los contadores; sin informe, o con uno rechazado, da el motivo y el comando exacto para generarlo.
+
 ### Fixed — iniciativa `panel-redesign`, revisión de la fase 2
 
 - Los endpoints de cartera, revisión y detalle de tarea del panel reutilizan su respuesta hasta que cambia el ledger o el estado de revisión, el resumen de revisiones cubre proyectos con más de 64 planes, el exportado estático ya no reproyecta cada ledger por tarea y los rangos del ledger como `T-01..T-15` cuentan para todas sus tareas.

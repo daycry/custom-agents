@@ -181,3 +181,59 @@ def test_real_shared_reader_runs_from_http_without_cache_or_writes(memory_server
     assert before == {p.relative_to(server.project).as_posix(): p.read_bytes()
                       for p in server.project.rglob('*') if p.is_file()}
     assert server.test_calls == []
+
+
+
+# --- T-30: `api/memoria` (GET, <= 64 KiB) es distinta de `api/memory` (POST, search/show/related) -----------------
+
+def _memoria_falsa(**fila):
+    def memoria(project, relaciones=False):
+        base = {'version': 1, 'source': 'memoria_panel', 'observed_at': '2026-10-16T10:00:00Z', 'status': 'ok',
+                'complete': True, 'issues': [], 'total': 1, 'recortado': 0, 'conteos': {'adr': {'aceptada': 1}},
+                'entradas': [dict({'id': 'ADR-001', 'tipo': 'adr', 'estado': 'aceptada', 'area': 'a', 'titular': 't',
+                                   'fecha': '2026-01-01', 'iniciativa': '', 'origen': 'proyecto', 'vigente': True,
+                                   'sustituida_por': [], 'sustituye_a': []}, **fila)],
+                'bandeja': {}, 'backends': [], 'journal': {'status': 'empty', 'sesiones': []}}
+        return base
+    return types.SimpleNamespace(memoria=memoria)
+
+
+def test_api_memoria_es_un_get_json_acotado_y_no_toca_api_memory(memory_server, monkeypatch):
+    monkeypatch.setattr(memory_server.test_service, '_load_data', lambda: _memoria_falsa())
+    status, headers, raw = send(memory_server, method='GET', suffix='api/memoria')
+    assert status == 200 and json.loads(raw)['source'] == 'memoria_panel' and len(raw) <= 65536
+    assert headers['Content-Type'].startswith('application/json') and headers['Cache-Control'] == 'no-store'
+    assert memory_server.test_calls == []                      # el lector de api/memory no se invoca
+    assert send(memory_server, {'operation': 'search'}, suffix='api/memoria')[0] == 405   # POST no
+    assert send(memory_server, method='GET', suffix='api/memory')[0] == 404               # api/memory sigue siendo solo POST
+    assert send(memory_server, {'operation': 'search', 'text': 'x'})[0] == 200 and len(memory_server.test_calls) == 1
+
+
+def test_api_memoria_redacta_antes_de_recortar_y_no_pasa_de_64_kib(memory_server, monkeypatch):
+    secreto = 'sk-ant-api03-ABCDEFGHIJKLMNOPQRSTUV0123456789'
+    servicio = memory_server.test_service
+    redactor = servicio._load_shared('redact.py')
+    memory_server.scrub = lambda t: redactor.redactar(t)
+    filas = [{'id': f'LES-{n:03d}', 'titular': 'x' * 150 + ' token=' + secreto} for n in range(600)]
+
+    def memoria(project, relaciones=False):
+        base = _memoria_falsa().memoria(project)
+        base['entradas'] = [dict(base['entradas'][0], **f) for f in filas]
+        base['total'] = len(filas)
+        return base
+    monkeypatch.setattr(servicio, '_load_data', lambda: types.SimpleNamespace(memoria=memoria))
+    memory_server._memoria = None
+    status, _, raw = send(memory_server, method='GET', suffix='api/memoria')
+    cuerpo = json.loads(raw)
+    assert status == 200 and len(raw) <= 65536 and secreto[:12].encode() not in raw
+    assert cuerpo['recortado'] > 0 and cuerpo['status'] == 'partial' and cuerpo['complete'] is False
+    assert all(len(e['titular']) <= 160 for e in cuerpo['entradas'])
+
+
+def test_api_memoria_degrada_sin_filtrar_la_causa(memory_server, monkeypatch):
+    def roto():
+        raise ImportError('PRIVATE_EXPLANATION')
+    monkeypatch.setattr(memory_server.test_service, '_load_data', roto)
+    memory_server._memoria = None
+    status, _, raw = send(memory_server, method='GET', suffix='api/memoria')
+    assert status == 200 and json.loads(raw)['status'] == 'unavailable' and b'PRIVATE_EXPLANATION' not in raw

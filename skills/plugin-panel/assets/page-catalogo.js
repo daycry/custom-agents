@@ -6,14 +6,26 @@
   var ETIQUETAS = [['agents', 'Agentes'], ['skills', 'Skills'], ['commands', 'Comandos'],
                    ['tools', 'Herramientas'], ['hooks', 'Acciones de hook']];
 
+  /* Desglose de las tarjetas visibles por atributo: «Por origen: Proyecto 1 · Usuario 2.» */
+  function describir(cards, groups) {
+    return groups.map(function (g) {
+      var partes = g[2].map(function (o) {
+        var n = cards.filter(function (c) { return !c.hidden && c.dataset[g[0]] === o[0]; }).length;
+        return o[1] + ' ' + n;
+      });
+      return g[1] + ': ' + partes.join(' · ');
+    }).join('. ') + '.';
+  }
+
   /* Filtro por texto y por selectores sobre las tarjetas de una sección. */
-  function connectFilters(sectionId, searchId, resultId, filters, label) {
+  function connectFilters(sectionId, searchId, resultId, filters, label, desglose) {
     var doc = raiz.document;
     var section = doc.getElementById(sectionId);
     var search = doc.getElementById(searchId);
     var result = doc.getElementById(resultId);
     var cards = Array.prototype.slice.call(section.querySelectorAll('.card'));
     var controls = filters.map(function (f) { return [doc.getElementById(f[0]), f[1]]; });
+    var detalle = desglose ? doc.getElementById(desglose.id) : null;
     function filter() {
       var count = 0;
       var query = search.value.toLocaleLowerCase();
@@ -28,6 +40,7 @@
         if (visible) { count++; }
       });
       result.textContent = count + ' ' + label + ' visibles';
+      if (detalle) { detalle.textContent = describir(cards, desglose.groups); }
     }
     search.addEventListener('input', filter);
     controls.forEach(function (c) { c[0].addEventListener('change', filter); });
@@ -98,9 +111,14 @@
   function iniciar() {
     var doc = raiz.document;
     dibujarPiezas(leerDatos());
-    connectFilters('catalog', 'search', 'results', [['kind', 'kind'], ['hook-runtime', 'runtime']], 'capacidades');
+    connectFilters('catalog', 'search', 'results', [['kind', 'kind'], ['hook-runtime', 'runtime']], 'capacidades',
+      { id: 'results-detail', groups: [['kind', 'Por tipo', [['agents', 'Agentes'], ['skills', 'Skills'],
+        ['commands', 'Comandos'], ['tools', 'Herramientas'], ['hooks', 'Hooks']]]] });
     connectFilters('extensions', 'extension-search', 'extension-results',
-      [['extension-kind', 'kind'], ['extension-scope', 'scope'], ['extension-runtime', 'runtime']], 'declaraciones');
+      [['extension-kind', 'kind'], ['extension-scope', 'scope'], ['extension-runtime', 'runtime']], 'declaraciones',
+      { id: 'extension-detail', groups: [
+        ['scope', 'Por origen', [['project', 'Proyecto'], ['user', 'Usuario'], ['local', 'Local']]],
+        ['runtime', 'Por runtime', [['claude-code', 'Claude Code'], ['codex', 'Codex'], ['opencode', 'OpenCode']]]] });
     etapas();
     raiz.addEventListener('hashchange', sincronizarAncla);
     doc.addEventListener('click', function (evento) {

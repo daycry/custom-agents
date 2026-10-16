@@ -41,9 +41,9 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
-| Fase 4 — Memoria, Catálogo y Diagnóstico | 0 | 10 | 0% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
+| Fase 4 — Memoria, Catálogo y Diagnóstico | 8 | 10 | 80% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
 | Fase 3 — Agentes en vivo + cierre transversal | 0 | 15 | 0% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **32** | **58** | **55%** | **0 / 159,2h** | **8,21 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| **TOTAL** | **40** | **58** | **69%** | **0 / 159,2h** | **8,21 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1140,30 +1140,35 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 ### T-30 — Memoria: entradas por tipo, estado y área (y `api/memoria`)
 
 - **Descripción**: `memoria.html` muestra un gráfico y una tabla de entradas por tipo (ADR, gotcha, lección) y estado (`aceptada · propuesta · obsoleta`), filtrables por área. La proyección sale de `knowledge-view.snapshot`; en servido, por `api/memoria` (GET, ≤ 64 KiB) porque `api/memory` solo admite `search`/`show`/`related`.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3,6h · real —
 - **Tiempo IA (ejec.)**: est. 0,5h · real —
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
 - **Previsión IA**: 229k in / 37k out tok · 3,50 €
 - **Dependencias**: T-29
 - **Tipo**: frontend
-- **Archivos**: `skills/plugin-panel/scripts/panel_data.py`, `skills/plugin-panel/scripts/serve_panel.py`, `skills/plugin-panel/assets/page-memoria.js`, `tests/test_panel_memoria_ui.py`, `tests/test_panel_memory_server.py`
+- **Archivos**: `skills/plugin-panel/scripts/panel_data.py`, `skills/plugin-panel/scripts/serve_panel.py`, `skills/plugin-panel/assets/page-memoria.js`, `tests/test_panel_memoria_ui.py`, `tests/test_panel_memory_server.py`, `tests/memoria_fixture.py`, `skills/plugin-panel/scripts/panel_pages.py`, `skills/plugin-panel/scripts/build_panel.py`, `skills/plugin-panel/assets/panel.css`, `tests/test_panel_fix4.py`, `tests/test_panel_export.py`, `tests/test_panel_server.py`
 - **Cubre (tests)**: API-06, E2E-20
 - **Verificación**: `python3 -m pytest -q tests/test_panel_memoria_ui.py tests/test_panel_memory_server.py` → `passed` (conteos iguales a `knowledge-find.py --json` sobre la fixture; filtro por área)
 
 **Criterios de aceptación**
-- [ ] CA-22: tipo × estado con gráfico y tabla; filtro por área con teclado.
-- [ ] `api/memory` (POST) no cambia; `api/memoria` respeta 64 KiB y la redacción antes de recortar.
+- [x] CA-22: tipo × estado con gráfico y tabla; filtro por área con teclado.
+- [x] `api/memory` (POST) no cambia; `api/memoria` respeta 64 KiB y la redacción antes de recortar.
 
 **Subtareas**
-- [ ] RED; proyección, ruta y página.
+- [x] RED; proyección, ruta y página.
 
-**Notas**: proyección existente `agent-kits/shared/knowledge-view.py:60` (`snapshot`) y `:224` (`query`, operaciones en `:50-57`); orden de estados en `agent-kits/shared/knowledge-find.py:140`. `design.md` §2.4 I-04 no asigna API a Memoria: `api/memoria` es una ruta nueva de este plan (declarada como diferencia). CONTRACTS E38-E42.
+- **Changelog**: Memoria muestra un gráfico y una tabla de entradas por tipo y estado, con filtro de área por teclado.
+- **Cerrada**: 2026-10-16
+- **Evidencia TDD**: `RED: 35 tests (test_panel_memoria_ui.py 29, test_panel_data.py 3, test_panel_memory_server.py 3) fallaron con AttributeError: no existe panel_data.memoria, FileNotFoundError: page-memoria.js y 404 en api/memoria · 2026-10-16 (antes del código)`
+- **Verificación ejecutada** (2026-10-16): `pytest tests/test_panel_memoria_ui.py tests/test_panel_data.py tests/test_panel_memory_server.py tests/test_panel_fix4.py` → `105 passed`. Navegador (Edge y Firefox, servido y file://): 0 violaciones CSP, 0 peticiones externas, 0 errores.
+
+**Notas**: T-29 sigue en-progreso por M-02 aplazado por el usuario; no bloquea F4 (decisión del orquestador). proyección existente `agent-kits/shared/knowledge-view.py:60` (`snapshot`) y `:224` (`query`, operaciones en `:50-57`); orden de estados en `agent-kits/shared/knowledge-find.py:140`. `design.md` §2.4 I-04 no asigna API a Memoria: `api/memoria` es una ruta nueva de este plan (declarada como diferencia). CONTRACTS E38-E42. `api/memoria` es ruta nueva (cache 10 s); `api/memory` intacto. Declarados además: `tests/memoria_fixture.py`, `panel_pages.py`, `build_panel.py`, `panel.css`, `test_panel_fix4.py`, `test_panel_export.py`, `test_panel_server.py` (conjuntos de activos).
 
 ### T-31 — Memoria: bandeja del curador de solo lectura
 
 - **Descripción**: La bandeja muestra el número y la lista de candidatos de `docs/knowledge/candidates/` por estado (`pending`, `needs_changes`, `rejected`) y lo aprobado en `docs/knowledge/approved/`. Sin acciones.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
 - **Tiempo IA (ejec.)**: est. 0,3h · real —
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
@@ -1175,17 +1180,22 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Verificación**: `python3 -m pytest -q tests/test_panel_memoria_ui.py` → `passed` (ningún botón ni formulario de aprobar/rechazar/editar en el DOM)
 
 **Criterios de aceptación**
-- [ ] CA-23: conteo y lista por estado; ninguna acción del curador (ADR-018).
+- [x] CA-23: conteo y lista por estado; ninguna acción del curador (ADR-018).
 
 **Subtareas**
-- [ ] RED; bandeja.
+- [x] RED; bandeja.
 
-**Notas**: dueño único de las decisiones: `agent-kits/shared/knowledge-curation.py` (CONTRACTS E53); el panel solo lee.
+- **Changelog**: Memoria muestra la bandeja del curador (pendientes, cambios pedidos, rechazados y aprobadas) en solo lectura.
+- **Cerrada**: 2026-10-16
+- **Evidencia TDD**: `RED: 35 tests (test_panel_memoria_ui.py 29, test_panel_data.py 3, test_panel_memory_server.py 3) fallaron con AttributeError: no existe panel_data.memoria, FileNotFoundError: page-memoria.js y 404 en api/memoria · 2026-10-16 (antes del código)`
+- **Verificación ejecutada** (2026-10-16): `pytest tests/test_panel_memoria_ui.py tests/test_panel_data.py tests/test_panel_memory_server.py tests/test_panel_fix4.py` → `105 passed`. Navegador (Edge y Firefox, servido y file://): 0 violaciones CSP, 0 peticiones externas, 0 errores.
+
+**Notas**: dueño único de las decisiones: `agent-kits/shared/knowledge-curation.py` (CONTRACTS E53); el panel solo lee. Bandeja sin botones, formularios ni enlaces (test + navegador).
 
 ### T-32 — Memoria: línea de tiempo con sucesores y «vigente»
 
 - **Descripción**: Línea de tiempo de entradas por fecha con su cadena de sucesión; las que rigen hoy (sin sucesor, no obsoletas) llevan «vigente».
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,4h · real —
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
@@ -1197,17 +1207,22 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Verificación**: `python3 -m pytest -q tests/test_panel_memoria_ui.py` → `passed` (cadena A→B→C: solo C «vigente»; obsoleta sin sucesor: no «vigente»)
 
 **Criterios de aceptación**
-- [ ] CA-24: orden por fecha, cadena visible y «vigente» en texto.
+- [x] CA-24: orden por fecha, cadena visible y «vigente» en texto.
 
 **Subtareas**
-- [ ] RED; línea de tiempo.
+- [x] RED; línea de tiempo.
 
-**Notas**: sucesión desde `knowledge-find.py` (`--related`, `agent-kits/shared/knowledge-find.py:102`).
+- **Changelog**: Memoria muestra una línea de tiempo por fecha con la cadena de sucesión y marca «vigente» las entradas que rigen hoy.
+- **Cerrada**: 2026-10-16
+- **Evidencia TDD**: `RED: 35 tests (test_panel_memoria_ui.py 29, test_panel_data.py 3, test_panel_memory_server.py 3) fallaron con AttributeError: no existe panel_data.memoria, FileNotFoundError: page-memoria.js y 404 en api/memoria · 2026-10-16 (antes del código)`
+- **Verificación ejecutada** (2026-10-16): `pytest tests/test_panel_memoria_ui.py tests/test_panel_data.py tests/test_panel_memory_server.py tests/test_panel_fix4.py` → `105 passed`. Navegador (Edge y Firefox, servido y file://): 0 violaciones CSP, 0 peticiones externas, 0 errores.
+
+**Notas**: sucesión desde `knowledge-find.py` (`--related`, `agent-kits/shared/knowledge-find.py:102`). «vigente» = sin sucesor y no obsoleta, calculado con `knowledge-find` (`_relaciones_sucesion`).
 
 ### T-33 — Memoria: relaciones de UNA entrada en un SVG pequeño y lista textual
 
 - **Descripción**: Al seleccionar una entrada se dibuja un grafo pequeño en SVG propio, centrado en ella, con las mismas aristas que `knowledge-find.py --related <ID> --json` (sucesión, misma iniciativa, misma área) y una lista textual equivalente navegable por teclado. Un salto, nunca el grafo completo.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3,6h · real —
 - **Tiempo IA (ejec.)**: est. 0,6h · real —
 - **Supervisión**: est. 0,15h (≈25 % IA) · real —
@@ -1219,19 +1234,24 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Verificación**: `python3 -m pytest -q tests/test_panel_memoria_ui.py` → `passed` (aristas iguales a la salida real de `--related --json`; ningún nodo a 2 saltos; la lista textual tiene las mismas aristas)
 
 **Criterios de aceptación**
-- [ ] CA-25: mismas aristas que `--related`; un salto; lista textual equivalente.
-- [ ] CA-37/CA-39: el SVG lleva nombre accesible; la lista es la alternativa de teclado.
-- [ ] Usa la operación `related` existente de `api/memory`.
+- [x] CA-25: mismas aristas que `--related`; un salto; lista textual equivalente.
+- [x] CA-37/CA-39: el SVG lleva nombre accesible; la lista es la alternativa de teclado.
+- [x] Usa la operación `related` existente de `api/memory`.
 
 **Subtareas**
-- [ ] RED; SVG con `createElementNS` (sin `innerHTML`).
+- [x] RED; SVG con `createElementNS` (sin `innerHTML`).
 
-**Notas**: Chart.js no dibuja grafos (riesgo de la evaluación C-04). Operación `related` en `agent-kits/shared/knowledge-view.py:50-57`.
+- **Changelog**: Memoria dibuja un grafo pequeño de una entrada y sus relaciones a un salto, con una lista de texto equivalente.
+- **Cerrada**: 2026-10-16
+- **Evidencia TDD**: `RED: 35 tests (test_panel_memoria_ui.py 29, test_panel_data.py 3, test_panel_memory_server.py 3) fallaron con AttributeError: no existe panel_data.memoria, FileNotFoundError: page-memoria.js y 404 en api/memoria · 2026-10-16 (antes del código)`
+- **Verificación ejecutada** (2026-10-16): `pytest tests/test_panel_memoria_ui.py tests/test_panel_data.py tests/test_panel_memory_server.py tests/test_panel_fix4.py` → `105 passed`. Navegador (Edge y Firefox, servido y file://): 0 violaciones CSP, 0 peticiones externas, 0 errores.
+
+**Notas**: Chart.js no dibuja grafos (riesgo de la evaluación C-04). Operación `related` en `agent-kits/shared/knowledge-view.py:50-57`. Relaciones incrustadas con claves `por_iniciativa`/`por_area` (`area` es clave de texto mostrado del saneador). Tope 20 relaciones como `api/memory`.
 
 ### T-34 — Memoria: qué se publicó en cada backend, sin red
 
 - **Descripción**: Por backend configurado en `taxonomy.json`: número de entradas publicadas y fecha de la última publicación si la fuente la trae; si no, «sin datos». Kwipu: `entries` del `manifest.json` de su export + `completado_en` de la outbox; Graphiti: `entradas` de `graphiti-manifest.json` y «publicación interrumpida» si hay `.pending.json`. Sin `ui_url` declarado: «interfaz: no declarada».
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,4h · real —
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
@@ -1243,20 +1263,25 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Verificación**: `python3 -m pytest -q tests/test_panel_data.py tests/test_panel_memoria_ui.py` → `passed` (con `socket` parcheado para fallar: ninguna conexión; `mtime` nunca usado como fecha)
 
 **Criterios de aceptación**
-- [ ] CA-26: sin ninguna petición al backend (test con red bloqueada) ni réplica de su vista.
-- [ ] Backend no configurado → «Kwipu: no configurado» / «Graphiti: no configurado», sin enlace.
-- [ ] Nunca usa `mtime` ni llama a `health`.
+- [x] CA-26: sin ninguna petición al backend (test con red bloqueada) ni réplica de su vista.
+- [x] Backend no configurado → «Kwipu: no configurado» / «Graphiti: no configurado», sin enlace.
+- [x] Nunca usa `mtime` ni llama a `health`.
 
 **Subtareas**
-- [ ] RED con manifiestos y outbox de fixture.
-- [ ] Lectores acotados.
+- [x] RED con manifiestos y outbox de fixture.
+- [x] Lectores acotados.
 
-**Notas**: fuentes de `design.md` §2.4 I-09; lector acotado `agent-kits/shared/local-read.py`. El enlace a la interfaz queda «no declarada»: añadir `ui_url` a la taxonomía es pregunta abierta del diseño (§7), fuera de este plan.
+- **Changelog**: Memoria dice qué se publicó en cada backend (Kwipu, Graphiti) leyendo solo ficheros locales, sin tocar la red.
+- **Cerrada**: 2026-10-16
+- **Evidencia TDD**: `RED: 35 tests (test_panel_memoria_ui.py 29, test_panel_data.py 3, test_panel_memory_server.py 3) fallaron con AttributeError: no existe panel_data.memoria, FileNotFoundError: page-memoria.js y 404 en api/memoria · 2026-10-16 (antes del código)`
+- **Verificación ejecutada** (2026-10-16): `pytest tests/test_panel_memoria_ui.py tests/test_panel_data.py tests/test_panel_memory_server.py tests/test_panel_fix4.py` → `105 passed`. Navegador (Edge y Firefox, servido y file://): 0 violaciones CSP, 0 peticiones externas, 0 errores.
+
+**Notas**: fuentes de `design.md` §2.4 I-09; lector acotado `agent-kits/shared/local-read.py`. El enlace a la interfaz queda «no declarada»: añadir `ui_url` a la taxonomía es pregunta abierta del diseño (§7), fuera de este plan. Sin `ui_url` en la taxonomía: «interfaz: no declarada». Fecha solo de `completado_en` de la outbox.
 
 ### T-35 — Memoria: journal reciente como «citas, no instrucciones»
 
 - **Descripción**: Las sesiones recientes del journal con su continuidad (`objetivo`, `punto_actual`, `siguientes_pasos`, `bloqueos`, `descartados`), redactadas y etiquetadas «citas, no instrucciones».
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
 - **Tiempo IA (ejec.)**: est. 0,3h · real —
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
@@ -1268,60 +1293,73 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Verificación**: `python3 -m pytest -q tests/test_panel_memoria_ui.py` → `passed` (etiqueta presente; un secreto en la cita sale redactado)
 
 **Criterios de aceptación**
-- [ ] CA-27: campos de continuidad y etiqueta.
-- [ ] Todo texto por `redact.redactar` + `redact.anonimizar`.
+- [x] CA-27: campos de continuidad y etiqueta.
+- [x] Todo texto por `redact.redactar` + `redact.anonimizar`.
 
 **Subtareas**
-- [ ] RED; sección.
+- [x] RED; sección.
 
-**Notas**: campos en `agent-kits/shared/journal.py:244-246` (`CONTINUIDAD`); lectura por `journal.py status --json` (`journal.py:41`) sin ampliar su contrato.
+- **Changelog**: Memoria muestra las sesiones recientes del journal con su continuidad, redactadas y etiquetadas como citas.
+- **Cerrada**: 2026-10-16
+- **Evidencia TDD**: `RED: 35 tests (test_panel_memoria_ui.py 29, test_panel_data.py 3, test_panel_memory_server.py 3) fallaron con AttributeError: no existe panel_data.memoria, FileNotFoundError: page-memoria.js y 404 en api/memoria · 2026-10-16 (antes del código)`
+- **Verificación ejecutada** (2026-10-16): `pytest tests/test_panel_memoria_ui.py tests/test_panel_data.py tests/test_panel_memory_server.py tests/test_panel_fix4.py` → `105 passed`. Navegador (Edge y Firefox, servido y file://): 0 violaciones CSP, 0 peticiones externas, 0 errores.
+
+**Notas**: campos en `agent-kits/shared/journal.py:244-246` (`CONTINUIDAD`); lectura por `journal.py status --json` (`journal.py:41`) sin ampliar su contrato. `journal.select_entries` devuelve como mucho 2 sesiones (su contrato, sin ampliar).
 
 ### T-36 — Catálogo: filtros por tipo, origen y runtime
 
 - **Descripción**: Filtros de Catálogo por tipo, origen y runtime, con teclado y ratón; lista y conteos cambian en consecuencia. `build_panel.py --json` sigue igual al golden (CA-28).
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,4h · real —
+- **Tiempo IA (ejec.)**: est. 0,4h · real 0,3h (estimado)
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
 - **Previsión IA**: 183k in / 30k out tok · 2,80 €
 - **Dependencias**: T-29
 - **Tipo**: frontend
-- **Archivos**: `skills/plugin-panel/assets/page-catalogo.js`, `tests/test_panel_catalogo_ui.py`, `tests/test_panel_contract_golden.py`
+- **Archivos**: `skills/plugin-panel/assets/page-catalogo.js`, `tests/test_panel_catalogo_ui.py`, `tests/test_panel_contract_golden.py`, `skills/plugin-panel/scripts/build_panel.py` (zonas de desglose), `skills/plugin-panel/assets/panel.css`
 - **Cubre (tests)**: E2E-05, E2E-22
 - **Verificación**: `python3 -m pytest -q tests/test_panel_catalogo_ui.py tests/test_panel_contract_golden.py` → `passed`
 
 **Criterios de aceptación**
-- [ ] CA-29: filtros combinables; conteos coherentes; operables con teclado.
-- [ ] CA-28: `--json` igual al golden.
+- [x] CA-29: filtros combinables; conteos coherentes; operables con teclado.
+- [x] CA-28: `--json` igual al golden.
 
 **Subtareas**
-- [ ] RED; filtros.
+- [x] RED; filtros.
 
-**Notas**: página de T-09.
+- **Cerrada**: 2026-10-16
+- **Changelog**: Catálogo suma al buscador un desglose accesible por tipo, origen y runtime que se actualiza con cada filtro, con teclado y con ratón.
+- **Evidencia TDD**: `RED: 4 tests de test_panel_catalogo_ui.py fallaron (AssertionError: sin desglose «Por origen»/«results-detail» ausente) · 2026-10-16 (antes del código)`.
+- **Verificación ejecutada** (2026-10-16): `pytest tests/test_panel_catalogo_ui.py tests/test_panel_contract_golden.py tests/test_plugin_panel.py` → `117 passed, 2 skipped`. Edge y Firefox, servido y `file://`: 0 CSP, 0 externas, 0 errores.
 
+**Notas**: página de T-09. T-29 sigue en-progreso (M-02 aplazada por el usuario a la revisión final); no bloquea. «Origen» = ámbito de extensiones (proyecto/usuario/local); el bundle no lo declara. Filtros solo del cliente: `--json` igual al golden.
 ### T-37 — Diagnóstico: veredicto en texto, fecha, alcance y resumen
 
 - **Descripción**: Una fila por comprobación con su veredicto ✅/⚠️/❌ también en texto, su fecha y su alcance, y un resumen con el número de cada veredicto; sin informe, de otro proyecto u otro formato, «sin informe» o el motivo del rechazo y el comando para generarlo.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,4h · real —
+- **Tiempo IA (ejec.)**: est. 0,4h · real 0,3h (estimado)
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
 - **Previsión IA**: 183k in / 30k out tok · 2,80 €
 - **Dependencias**: T-29
 - **Tipo**: frontend
-- **Archivos**: `skills/plugin-panel/assets/page-diagnostico.js`, `skills/plugin-panel/scripts/panel_pages.py`, `tests/test_panel_diagnostics.py`
+- **Archivos**: `skills/plugin-panel/assets/page-diagnostico.js`, `skills/plugin-panel/scripts/panel_pages.py`, `tests/test_panel_diagnostics.py`, `skills/plugin-panel/scripts/build_panel.py` (HTML de filas y rechazo), `skills/plugin-panel/assets/panel.css`
 - **Cubre (tests)**: E2E-23
 - **Verificación**: `python3 -m pytest -q tests/test_panel_diagnostics.py` → `passed` (texto «OK/aviso/error» junto al icono; resumen con los tres contadores; rechazo con el comando)
 
 **Criterios de aceptación**
-- [ ] CA-30: fila por comprobación, veredicto en texto, fecha, alcance y resumen.
-- [ ] CA-31: no ejecuta `doctor` ni busca informes.
+- [x] CA-30: fila por comprobación, veredicto en texto, fecha, alcance y resumen.
+- [x] CA-31: no ejecuta `doctor` ni busca informes.
 
 **Subtareas**
-- [ ] RED; página.
+- [x] RED; página.
 
-**Notas**: proyección `doctor.py --panel-json` (`agent-kits/shared/doctor.py:87-88`, `:2795`); validador de CONTRACTS E30.
+- **Cerrada**: 2026-10-16
+- **Changelog**: Diagnóstico muestra cada comprobación con su veredicto en texto (OK, aviso, error) junto al icono, su fecha y alcance, y un resumen con los contadores; sin informe da el motivo y el comando para generarlo.
+- **Evidencia TDD**: `RED: 10 tests nuevos de test_panel_diagnostics.py fallaron (AssertionError: sin diagnostic-verdict, diagnostic-summary ni diagnostic-command) · 2026-10-16 (antes del código)`.
+- **Verificación ejecutada** (2026-10-16): `pytest tests/test_panel_diagnostics.py` → `44 passed`. Navegador (Edge y Firefox, servido y `file://`, informe real, sin informe y otro proyecto): 0 CSP, 0 externas, 0 errores.
 
+**Notas**: `page-diagnostico.js` sin cambios (la fila ya se filtra por `data-state`); el HTML sale de `build_panel.py`. Fecha y alcance son del informe (no hay fecha por fila en el contrato de doctor). Comando: el de `commands/doctor.md`. Proyección `doctor.py --panel-json` (`agent-kits/shared/doctor.py:87-88`, `:2795`); validador de CONTRACTS E30.
 ### T-38 — Documentación de F4 (Memoria, Catálogo, Diagnóstico)
 
 - **Descripción**: Documenta las tres páginas, `api/memoria` y la regla «sin datos antes que ampliar contratos de hotspots».

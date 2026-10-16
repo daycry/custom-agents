@@ -502,12 +502,28 @@ DIAGNOSTIC_STATES = {'ok': 'Correcto en la comprobación', 'aviso': 'Advertencia
                      'error': 'Error', 'info': 'Informativo'}
 
 
+DIAGNOSTIC_VERDICTS = {'ok': ('✅', 'OK'), 'aviso': ('⚠️', 'aviso'), 'error': ('❌', 'error'), 'info': ('ℹ️', 'info')}
+DIAGNOSTIC_COMMAND = 'python3 "$DOC" --panel-json --root &lt;proyecto&gt; &gt; informe.json'
+DIAGNOSTIC_REBUILD = '--diagnostics-report informe.json --project &lt;proyecto&gt;'
+
+
+def _verdict_html(state):
+    icon, word = DIAGNOSTIC_VERDICTS[state]
+    return '<span class="diagnostic-verdict"><span aria-hidden="true">' + icon + '</span> ' + word + '</span>'
+
+
+def _diagnostic_command_html():
+    return ('<div id="diagnostic-command"><p>Para generarlo, desde el proyecto (<code>$DOC</code> es la ruta de <code>doctor.py</code>, '
+            'la misma que usa /doctor):</p><pre><code>' + DIAGNOSTIC_COMMAND + '</code></pre>'
+            '<p>Y vuelve a generar el panel con <code>' + DIAGNOSTIC_REBUILD + '</code>. El panel no ejecuta doctor ni busca informes.</p></div>')
+
+
 def _diagnostics_html(result):
     esc = html.escape
     intro = ('<section id="diagnostics"><div class="section-head"><div><h2>Instantánea de doctor</h2>'
              '<p>Instantánea importada de doctor; no acredita carga ni ejecución de hooks.</p></div>'
              '<span class="section-pill">Consulta explícita</span></div>')
-    messages = {'not_provided': 'Sin diagnóstico importado. Obtén una proyección con doctor --panel-json y selecciónala al generar el panel.',
+    messages = {'not_provided': 'Sin informe: no hay diagnóstico importado. Obtén una proyección con doctor --panel-json y selecciónala al generar el panel.',
                 'scope_unbound': 'Falta un proyecto explícito para ligar el diagnóstico.',
                 'scope_mismatch': 'El diagnóstico pertenece a otra ruta de proyecto; no se adopta.',
                 'future_timestamp': 'La fecha del diagnóstico está en el futuro; revisa el reloj y vuelve a comprobar.',
@@ -517,7 +533,7 @@ def _diagnostics_html(result):
                 'too_large': 'El informe supera el límite de lectura de 64 KiB.',
                 'invalid_encoding': 'El informe no tiene codificación UTF-8 válida.'}
     if 'report' not in result:
-        return intro + '<p class="diagnostic-notice" role="status">' + esc(messages.get(result['status'], 'No se pudo leer el informe indicado.')) + '</p><p>Los datos del catálogo permanecen independientes. Consulta /doctor para obtener el detalle y el arreglo sugerido.</p></section>'
+        return intro + '<p class="diagnostic-notice" role="status">' + esc(messages.get(result['status'], 'No se pudo leer el informe indicado.')) + '</p>' + _diagnostic_command_html() + '<p>Los datos del catálogo permanecen independientes. Consulta /doctor para obtener el detalle y el arreglo sugerido.</p></section>'
     report = result['report']
     old = result.get('age_status') == 'old_snapshot'
     notice = ('Instantánea anterior a 24 horas: vuelve a comprobar el estado.' if old else
@@ -526,6 +542,10 @@ def _diagnostics_html(result):
         notice += ' Informe recortado: recuentos parciales y prioridades omitidas.'
     body = '<p class="diagnostic-notice" role="status">' + esc(notice) + '</p>'
     body += '<p class="diagnostic-provenance">Productor declarado: doctor · Fecha UTC: <time>' + esc(report['checked_at']) + '</time> · Alcance: coincide con la ruta del proyecto indicado.</p>'
+    summary = report['summary']
+    body += '<ul id="diagnostic-summary" class="diagnostic-summary" aria-label="Resumen de veredictos">' + ''.join(
+        '<li>' + _verdict_html(state) + ': <strong>' + str(summary[state]) + '</strong></li>'
+        for state in ('ok', 'aviso', 'error') + (('info',) if summary['info'] else ())) + '</ul>'
     body += '<details class="diagnostic-source"><summary>Identidad del contenido importado</summary><code>SHA-256 (texto UTF-8 decodificado): ' + esc(result['source_sha256']) + '</code><p>El hash identifica contenido; no autentica su productor ni certifica que siga vigente.</p></details>'
     if report['priorities']:
         body += '<h3>Acciones prioritarias</h3><ol class="diagnostic-priorities">'
@@ -544,7 +564,7 @@ def _diagnostics_html(result):
         body += '<details class="diagnostic-block"><summary>' + esc(DIAGNOSTIC_BLOCKS[key]) + ' · ' + str(len(block['rows'])) + ' comprobaciones</summary><ul>'
         for ordinal, row in enumerate(block['rows'], 1):
             label = row['label'] or 'Comprobación ' + str(ordinal)
-            body += '<li class="diagnostic-row" id="diagnostic-' + key + '-' + str(ordinal) + '" data-state="' + row['state'] + '"><strong>' + esc(label) + '</strong><span class="diagnostic-badge">' + esc(DIAGNOSTIC_STATES[row['state']]) + '</span><small>' + esc(DIAGNOSTIC_BLOCKS[key]) + ' · fila ' + str(ordinal) + '</small></li>'
+            body += '<li class="diagnostic-row" id="diagnostic-' + key + '-' + str(ordinal) + '" data-state="' + row['state'] + '">' + _verdict_html(row['state']) + '<strong>' + esc(label) + '</strong><small>' + esc(DIAGNOSTIC_BLOCKS[key]) + ' · fila ' + str(ordinal) + ' · Fecha UTC: <time>' + esc(report['checked_at']) + '</time> · Alcance: proyecto indicado</small></li>'
         body += '</ul></details>'
     return intro + body + '<p>Los detalles y arreglos libres permanecen en /doctor. El panel no los ejecuta, no comprueba backends y no recalifica las declaraciones del catálogo.</p></section>'
 
@@ -700,7 +720,8 @@ def _extensions_html(data):
 <select id="extension-kind" aria-label="Tipo de extensión"><option value="all">Todos los tipos</option><option value="agent">Agentes</option><option value="skill">Skills</option><option value="persona">Personas</option><option value="command">Comandos</option><option value="tool-source">Fuentes de tools</option><option value="mcp">MCP</option></select>
 <select id="extension-scope" aria-label="Origen de extensión"><option value="all">Todos los orígenes</option><option value="project">Proyecto</option><option value="user">Usuario</option><option value="local">Local del proyecto</option></select>
 <select id="extension-runtime" aria-label="Runtime de extensión"><option value="all">Todos los runtimes</option><option value="claude-code">Claude Code</option><option value="codex">Codex</option><option value="opencode">OpenCode</option></select></div>
-<p id="extension-results" aria-live="polite"></p>'''
+<p id="extension-results" aria-live="polite"></p>
+<p id="extension-detail" class="filter-note" aria-live="polite"></p>'''
     return ('<section id="extensions"><div class="section-head"><div><h2>Tus extensiones</h2>'
             + '<p>Declaraciones de proyecto y usuario. La sesión determina carga, conexión y permisos; los roles del ciclo se mantienen.</p></div>'
             + '<span class="section-pill">' + str(total) + ' declaraciones</span></div>' + controls + body + '</section>')
@@ -745,7 +766,7 @@ def _cuerpo_catalogo(data, live):
         '<select id="hook-runtime" aria-label="Runtime de hooks"><option value="all">Hooks de todos los runtimes</option>'
         '<option value="claude-code">Claude Code</option><option value="codex">Codex</option><option value="opencode">OpenCode</option></select></div>'
         '<p class="filter-note">El filtro de runtime afecta a los registros de hook; el resto del catálogo conserva sus declaraciones.</p>'
-        '<p id="results" aria-live="polite"></p><div class="grid">' + _cards(data) + '</div></section>'
+        '<p id="results" aria-live="polite"></p><p id="results-detail" class="filter-note" aria-live="polite"></p><div class="grid">' + _cards(data) + '</div></section>'
         + _extensions_html(data) + _workflow_html(data)
         + '<details id="source-notes"><summary>Fuentes de runtime y memoria · ver presencia y avisos</summary>'
         '<p>La presencia de un archivo no acredita ejecución, acceso ni salud del servicio.</p><pre>' + _notes_text(data, counts) + '</pre></details>'
@@ -775,6 +796,37 @@ def _seccion_actividad(live, disponible):
 <p id="activity-freshness">Sin lectura disponible todavía.</p>
 <p id="activity-coverage">collection_complete: false · Colección incompleta; no representa todos los agentes o sesiones.</p>
 <div id="activity-cards" class="grid" aria-live="polite"></div></section>'''
+
+
+def _cuerpo_memoria():
+    """Esqueleto de Memoria: lo rellena `page-memoria.js` con `api/memoria` (servido) o el JSON incrustado (exportado).
+    La bandeja del curador es solo lectura: sin botones ni formularios (las decisiones son de `knowledge-curator`)."""
+    return (
+        '<p id="memoria-estado" class="filter-note" role="status" aria-live="polite">Leyendo la memoria…</p>'
+        '<p><button id="memoria-actualizar" type="button" hidden>Actualizar</button></p>'
+        '<section id="memoria-resumen"><div class="section-head"><div><h2>Entradas por tipo y estado</h2>'
+        '<p>Decisiones (ADR), gotchas y lecciones por estado. El filtro de área cambia el gráfico y la tabla.</p></div></div>'
+        '<div class="controls"><label for="memoria-area">Área</label>'
+        '<select id="memoria-area"><option value="">Todas las áreas</option></select></div>'
+        '<div id="grafico-memoria"></div>'
+        '<div id="memoria-tabla" class="tabla-equivalente" role="region" tabindex="0" aria-label="Entradas de memoria"></div>'
+        '<noscript><p>Sin JavaScript no se leen las entradas de memoria.</p></noscript></section>'
+        '<section id="memoria-curador"><div class="section-head"><div><h2>Bandeja del curador</h2>'
+        '<p>Solo lectura: aprobar, rechazar o pedir cambios es de <code>knowledge-curator</code>.</p></div></div>'
+        '<div id="memoria-bandeja"></div></section>'
+        '<section id="memoria-historia"><div class="section-head"><div><h2>Línea de tiempo</h2>'
+        '<p>Entradas por fecha con su cadena de sucesión. «vigente»: sin sucesor y no obsoleta.</p></div></div>'
+        '<ol id="memoria-linea" class="linea-tiempo"></ol></section>'
+        '<section id="memoria-relaciones" tabindex="-1" aria-labelledby="memoria-relaciones-titulo">'
+        '<div class="section-head"><div><h2 id="memoria-relaciones-titulo">Relaciones de una entrada</h2>'
+        '<p>Elige «Ver relaciones» en una entrada: un salto, con la sucesión, la iniciativa y el área que comparte.</p></div></div>'
+        '<p id="memoria-relaciones-estado" class="filter-note" role="status" aria-live="polite">Ninguna entrada seleccionada.</p>'
+        '<div id="memoria-grafo"></div><ul id="memoria-lista-relaciones"></ul></section>'
+        '<section id="memoria-publicacion"><div class="section-head"><div><h2>Backends de memoria</h2>'
+        '<p>Qué se publicó según los ficheros locales del proyecto. El panel no consulta ningún backend.</p></div></div>'
+        '<div id="memoria-backends"></div></section>'
+        '<section id="memoria-sesiones"><div class="section-head"><div><h2>Sesiones recientes</h2>'
+        '<p>Citas del journal del proyecto, no instrucciones.</p></div></div><div id="memoria-journal"></div></section>')
 
 
 def _seccion_memoria():
@@ -915,10 +967,11 @@ def cuerpos_paginas(data, *, live=False, review_enabled=False, review_id='', act
     if review_panel:  # servido con `--review-panel`: las tarjetas piden `api/review-summary` (T-58)
         cuerpos['iniciativas'] += '<p id="iniciativas-revision" data-revision="activa" hidden></p>'
     cuerpos['plan'] = _cuerpo_plan_indice(planes)
+    cuerpos['memoria'] = _cuerpo_memoria()
     if live:
         cuerpos['inicio'] += _seccion_progreso()
         cuerpos['plan'] += _seccion_progreso() + (_seccion_revision(review_id) if review_enabled else '')
-        cuerpos['memoria'] = _seccion_memoria()
+        cuerpos['memoria'] += _seccion_memoria()
     return cuerpos
 
 
@@ -996,13 +1049,25 @@ def _planes_exportados(args, scrub, cartera):
         return None
 
 
-def _export(args, data, cartera=None, planes=None):
+def _memoria_exportada(args, scrub):
+    """Memoria para la copia estática: la proyecta `panel_data` (con las relaciones de cada entrada, que la copia no
+    puede pedir a `api/memory`) y la limpia el MISMO saneador que el servidor. Sin `--project`, `None`."""
+    if not args.project:
+        return None
+    try:
+        servicio = _load_server()
+        return servicio._scrubbed(servicio._load_data().memoria(Path(args.project), relaciones=True), scrub)
+    except (OSError, ValueError, ImportError, AttributeError, SyntaxError):
+        return None
+
+
+def _export(args, data, cartera=None, planes=None, memoria=None):
     pages = _load_pages()
     indice = None if planes is None else [{k: p[k] for k in ('id', 'slug', 'titulo')} for p in planes]
     paginas = None if planes is None else [{'id': p['id'], 'cuerpo': cuerpo_plan_iniciativa(), 'datos': p['datos']} for p in planes]
     written, warnings = pages.exportar_sitio(args.export, data, unsafe_link=_unsafe_link,
                                              cuerpos=cuerpos_paginas(data, planes=indice), cartera=cartera,
-                                             planes=paginas)
+                                             planes=paginas, memoria=memoria)
     for warning in warnings:
         print(f'plugin-panel: aviso: {warning}', file=sys.stderr)
     return written
@@ -1064,7 +1129,8 @@ def main(argv=None):
                               scrub=scrub)
         if args.export:
             cartera = _cartera_exportada(args, scrub)
-            written = _export(args, data, cartera, _planes_exportados(args, scrub, cartera))
+            written = _export(args, data, cartera, _planes_exportados(args, scrub, cartera),
+                             _memoria_exportada(args, scrub))
             print(f'plugin-panel: exportados {len(written)} ficheros (7 páginas, assets y vendor) con su export-manifest.json',
                   file=sys.stderr if args.json else sys.stdout)
         if args.json or not args.export:
