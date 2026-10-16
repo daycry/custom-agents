@@ -158,7 +158,7 @@ _CITAS_POR_NOMBRE = {
 # This is a closure declaration, never an egress exception. Any owner change needs review.
 _CARGAS_LOCALES_REVISADAS = {
     "agent-kits/shared/agent-activity-store.py": {
-        "sha256_lf": "17da5efdeea19af4944faa2954791c6a1f830600cc7f75bf1540edd4eaba5a46",
+        "sha256_lf": "77d9dc1a8a5141bdeb4594d279f169bfb9e159654ccefa34f6182fd179835b2c",
         "dependencies": ("agent-kits/shared/local-read.py", "agent-kits/shared/local-state.py",
                          "agent-kits/shared/agent-activity.py"),
     },

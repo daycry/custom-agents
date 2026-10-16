@@ -7,6 +7,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import secrets
 import sys
 import time
@@ -116,10 +117,20 @@ def _owner(root, state, io):
     return marker, signature
 
 
+FIXED_NAMES = frozenset({'.gitignore', 'owner.json', 'snapshot.json', '.lock'})
+MAX_TEMPS = 8  # orphans of an interrupted atomic replace; tolerated, never read or deleted here
+_TEMP = re.compile(r'\.tmp-[a-zA-Z0-9_-]+')
+
+
 def _inventory(state):
-    listing = _reader.list_names(state.parent, state.name, max_entries=5)
-    _need(listing['status'] == 'ok' and listing['complete']
-        and set(listing['names']) == {'.gitignore', 'owner.json', 'snapshot.json', '.lock'}, 'invalid_state')
+    listing = _reader.list_names(state.parent, state.name, max_entries=len(FIXED_NAMES) + MAX_TEMPS + 2)
+    if listing['status'] == 'ok' and not listing['complete']:
+        raise _Failure('state_budget')
+    _need(listing['status'] == 'ok' and listing['complete'], 'invalid_state')
+    names = set(listing['names'])
+    temps = {name for name in names if _TEMP.fullmatch(name)}
+    _need(names - temps == FIXED_NAMES, 'invalid_state')
+    _need(len(temps) <= MAX_TEMPS, 'state_budget')
 
 
 def _ignore(state, io):

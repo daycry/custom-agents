@@ -391,6 +391,12 @@ Todos los estados se pueden reproducir en test de forma determinista: otro descr
   - (ii) Cierre perdido por (a)-(c): la ventana sigue abierta y atribuye de más hasta el siguiente `start`. Opciones: declararlo en la página, o confirmar cada ventana contra `.claude/usage-state.json` (dueño: `usage-meter.py`). Lo segundo crea un contrato de lectura nuevo con otra pieza y toca la subdecisión de atribución de §2.3, así que lo decide el usuario.
 - **P-EI-3 — Herramientas MCP en Codex (síncronas, excepción de I-05).** Las esperas de `StateIO` (hasta 100 ms de cerrojo y hasta 140 ms de reintentos en Windows) se pagan ahí en síncrono. ¿Se reduce a un único intento sin espera cuando `runtime == codex` y la herramienta es MCP? Va junto a la confirmación de I-05.
 
+**Decisiones del usuario (2026-10-16, condición 2 de T-40): acepta las cuatro recomendaciones.**
+- I-05: 0 ms síncronos (salvo MCP en Codex) e I-03: 500 eventos o 256 KiB y 24 h, sin cambios.
+- P-EI-1: sí; el escritor, bajo el cerrojo, borra como máximo 8 `.tmp-*` propios por escritura (ficheros regulares, `nlink == 1`, más de 60 s).
+- P-EI-2: (i) cuarentena de 5 s tras cada transición de ventana (`tarea: null`); (ii) un cierre perdido se declara en la página, sin contrato nuevo con `usage-meter.py`.
+- P-EI-3: sí; con `runtime == codex` y herramienta MCP, un único intento sin espera.
+
 ## 3. Criterios de decisión
 
 1. **Un rol, un dueño sin romper contratos intocables**: ADR-011, más `dashboard.md`, `--json` y `doctor --panel-json` iguales byte a byte. Pesa más que el coste, porque es política fija de la spec.

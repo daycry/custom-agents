@@ -188,12 +188,45 @@ def test_hardlink_rejected_without_mutation(api, project):
     assert files(project) == before
 
 
-def test_foreign_temp_preserved(api, project):
+def _state(project):
+    return project / '.claude' / 'agent-activity'
+
+
+def test_foreign_name_is_invalid_state_and_preserved(api, project):
     assert api.capture(project, runtime='claude', payload=native(project))['status'] == 'ok'
-    (project / '.claude' / 'agent-activity' / '.tmp-foreign').write_bytes(b'foreign')
+    (_state(project) / 'otro.json').write_bytes(b'foreign')
     before = files(project)
     assert api.capture(project, runtime='claude', payload=native(project))['reason'] == 'invalid_state'
-    assert api.snapshot(project)['status'] == 'unavailable'
+    assert api.snapshot(project)['reason'] == 'invalid_state'
+    assert files(project) == before
+
+
+def test_orphan_temp_keeps_capture_and_snapshot_ok(api, project):
+    assert api.capture(project, runtime='claude', payload=native(project))['status'] == 'ok'
+    (_state(project) / '.tmp-x').write_bytes(b'orphan')
+    assert api.snapshot(project)['status'] == 'ok'
+    assert api.capture(project, runtime='claude', payload=native(project))['status'] == 'ok'
+    assert (_state(project) / '.tmp-x').read_bytes() == b'orphan'
+
+
+def test_temps_are_neither_read_nor_deleted(api, project):
+    assert api.capture(project, runtime='claude', payload=native(project))['status'] == 'ok'
+    (_state(project) / '.tmp-bad').write_bytes(b'\xff{not json' * 20000)  # unreadable and oversized
+    before = files(project)
+    assert api.snapshot(project)['status'] == 'ok'
+    assert files(project) == before
+
+
+def test_eight_temps_ok_nine_state_budget(api, project):
+    assert api.capture(project, runtime='claude', payload=native(project))['status'] == 'ok'
+    for i in range(8):
+        (_state(project) / ('.tmp-%d' % i)).write_bytes(b'o')
+    assert api.snapshot(project)['status'] == 'ok'
+    assert api.capture(project, runtime='claude', payload=native(project))['status'] == 'ok'
+    (_state(project) / '.tmp-8').write_bytes(b'o')
+    before = files(project)
+    assert api.snapshot(project)['reason'] == 'state_budget'
+    assert api.capture(project, runtime='claude', payload=native(project))['reason'] == 'state_budget'
     assert files(project) == before
 
 
@@ -399,7 +432,8 @@ def test_mutable_snapshot_validation_occurs_under_lock(api, project, monkeypatch
     worker.start()
     assert temporary_ready.wait(1)
     try:
-        assert api.snapshot(project) == {'status': 'unavailable', 'reason': 'invalid_state', 'records': [], 'collection_complete': False}
+        live = api.snapshot(project)  # a live temporary is tolerated (design 2.5 c): the committed snapshot is read
+        assert live['status'] == 'ok' and len(live['records']) == 1
         assert api.capture(project, runtime='codex', payload=native(project, runtime='codex')) == {'status': 'unavailable', 'reason': 'state_busy'}
         assert observed == [('publisher', True), (threading.current_thread().name, False)]
     finally:

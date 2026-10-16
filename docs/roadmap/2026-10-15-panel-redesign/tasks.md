@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 9 | 10 | 90% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 0 | 15 | 0% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **41** | **58** | **71%** | **0 / 159,2h** | **8,21 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 1 | 15 | 7% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **42** | **58** | **72%** | **0 / 159,2h** | **8,21 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1429,7 +1429,8 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 ### T-40 — Puerta de entrada de F3: condiciones de la evaluación y latencia base
 
 - **Descripción**: Antes de tocar el hook, comprueba las cuatro condiciones de la evaluación y mide la latencia del hook actual. No escribe código del producto.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-16
 - **Tiempo humano**: est. 1,8h · real —
 - **Tiempo IA (ejec.)**: est. 0,3h · real —
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
@@ -1440,16 +1441,19 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Verificación**: lectura: en `Notas` de esta tarea, las cuatro condiciones marcadas con su evidencia (sección de `design.md`, respuesta del usuario con fecha, URL de la doc de Codex, configuración de la Lente C) y las líneas `Hooks: PostToolUse:… (Nms)` del log de Claude Code con la latencia base
 
 **Criterios de aceptación**
-- [ ] Condición 1: `design.md` tiene la sección «estados intermedios y su recuperación» de `events.json` (bloqueo ocupado, CAS fallido, escritura cortada, eventos asíncronos fuera de orden). Si no está, se pide al architect antes de seguir (el planner no la escribe).
-- [ ] Condición 2: el usuario confirma o cambia I-05 (0 ms síncronos) e I-03 (500 / 256 KiB / 24 h); la respuesta y su fecha quedan en `Notas`.
-- [ ] Condición 3: la evidencia de Codex (PreToolUse/PostToolUse sin identificador de subagente) se cita con URL y fecha de consulta.
-- [ ] Condición 4: la Lente C se despacha en T-54 aunque `review-lens-select.py` no la active.
-- [ ] Latencia base medida y anotada.
+- [x] Condición 1: `design.md` tiene la sección «estados intermedios y su recuperación» de `events.json` (bloqueo ocupado, CAS fallido, escritura cortada, eventos asíncronos fuera de orden). Si no está, se pide al architect antes de seguir (el planner no la escribe).
+- [x] Condición 2: el usuario confirma o cambia I-05 (0 ms síncronos) e I-03 (500 / 256 KiB / 24 h); la respuesta y su fecha quedan en `Notas`.
+- [x] Condición 3: la evidencia de Codex (PreToolUse/PostToolUse sin identificador de subagente) se cita con URL y fecha de consulta.
+- [x] Condición 4: la Lente C se despacha en T-54 aunque `review-lens-select.py` no la active.
+- [x] Latencia base medida y anotada.
 
 **Subtareas**
-- [ ] Revisar `design.md` §1-§2.4.
-- [ ] Preguntar al usuario I-03/I-05 (valores del diseño por defecto).
-- [ ] Medir y anotar.
+- [x] Revisar `design.md` §1-§2.4.
+- [x] Preguntar al usuario I-03/I-05 (valores del diseño por defecto).
+- [x] Medir y anotar.
+
+- **Evidencia TDD**: TDD n/a: puerta de entrada, sin código del producto.
+- **Verificación ejecutada**: (1) `design.md` §2.5 «Estados intermedios y su recuperación» (architect, `d448942`). (2) El usuario acepta I-05, I-03 y P-EI-1..P-EI-3 (2026-10-16, «acepto la decisión de 1 a 4»; anotado en §2.5). (3) https://learn.chatgpt.com/docs/hooks (redirección de developers.openai.com/codex/hooks, consultada 2026-10-16): `PreToolUse`/`PostToolUse` sin `agent_id`/`agent_type` (solo `SubagentStart`/`SubagentStop`), los subagentes usan el `session_id` del padre, sin duración; `async` admitido salvo MCP. (4) Lente C obligatoria en T-54 (orquestador; T-54 ya lo exige). (5) Latencia base (`run-hook.mjs` real, 12 ejecuciones, Windows): `PostToolUse` `progress-line.sh` p50 589 ms / p90 714 ms (síncrono); `SubagentStop` `agent-activity` con captura desactivada p50 1.018 ms / p90 1.085 ms (lanza Python: lo corrige T-46).
 
 **Notas**: condiciones en `evaluation.md` «Recomendación». Medición de I-05 según `design.md` §2.4 («líneas `Hooks: PostToolUse:… (Nms)`»). Presupuesto actual del hook en `hooks/run-hook.mjs:26`.
 
@@ -1533,6 +1537,8 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - [ ] Huella revisada.
 
 **Notas**: inventario cerrado en `agent-kits/shared/agent-activity-store.py:119-122`; opt-in en `:92-100` (`_enabled`); tope de entrada actual en `:20` y `:264-266`; captura y CAS en `:185-233` (`capture`). Huella en `tests/test_graphiti_security.py:159-165`. Familia de riesgo de `session-end-durable-capture` (LES-016). Lente C.
+
+Prerrequisito (2026-10-16): inventario tolera hasta 8 .tmp-* (§2.5 c); RED test_orphan_temp_keeps_capture_and_snapshot_ok (antes del código); limpieza pendiente de P-EI-1.
 
 ### T-44 — Eventos de herramienta por runtime y ventanas por gramática exacta
 
