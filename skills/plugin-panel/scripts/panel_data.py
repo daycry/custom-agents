@@ -240,25 +240,43 @@ def _vacia(status, issue=None):
     return resultado
 
 
-def cartera_firma(project):
-    """Firma barata (nombre, mtime, tamaño) de todo lo que lee `cartera`: `docs/roadmap` y, por iniciativa, sus
-    artefactos y `testing/`. Dos firmas iguales = la cartera no ha cambiado y no hay que recalcularla (ni leer ni
-    parsear ningún ledger). Si no se puede leer, la firma es única cada vez: nunca sirve una copia vieja."""
-    raiz = os.path.join(str(project), 'docs', 'roadmap')
+FIRMA_FALLOS = {'oserror': 0}   # rastro de diagnóstico (solo un contador: ningún texto del usuario ni rutas)
 
-    def estado(ruta):
-        try:
-            info = os.stat(ruta)
-        except OSError:
-            return None
+
+def _estado_fichero(ruta, contenido=False):
+    """`(mtime, tamaño)` de un fichero, más un hash de su contenido con `contenido` (acotado a `MAX_FILE_BYTES`): el
+    mtime de FAT/exFAT/red es grueso y marcar `[ ]` -> `[x]` no cambia el tamaño. `None` si no se puede leer."""
+    try:
+        info = os.stat(ruta)
+    except OSError:
+        return None
+    if not contenido:
         return (info.st_mtime_ns, info.st_size)
     try:
-        firma = [estado(raiz)]
+        with open(ruta, 'rb') as fichero:
+            huella = hashlib.sha256(fichero.read(MAX_FILE_BYTES + 1)).hexdigest()[:16]
+    except OSError:
+        huella = None
+    return (info.st_mtime_ns, info.st_size, huella)
+
+
+CON_CONTENIDO = ('tasks.md', 'retro.md')   # los dos ficheros que cambian a mano dentro de la misma ventana de mtime
+
+
+def cartera_firma(project):
+    """Firma barata de todo lo que lee `cartera`: `docs/roadmap` y, por iniciativa, sus artefactos, `retro.md` y
+    `testing/` (nombre, mtime, tamaño; `tasks.md` y `retro.md` también con un hash de su contenido). Dos firmas
+    iguales = la cartera no ha cambiado y no hay que recalcularla (ni leer ni parsear ningún ledger). Si no se puede
+    leer, la firma es única cada vez: nunca sirve una copia vieja."""
+    raiz = os.path.join(str(project), 'docs', 'roadmap')
+    try:
+        firma = [_estado_fichero(raiz)]
         with os.scandir(raiz) as it:
             nombres = sorted(e.name for e in it)
         for nombre in nombres[:MAX_SCAN]:
             ruta = os.path.join(raiz, nombre)
-            firma.append((nombre, estado(ruta), tuple(estado(os.path.join(ruta, a)) for a in ARTEFACTOS + ('testing',))))
+            firma.append((nombre, _estado_fichero(ruta), tuple(
+                _estado_fichero(os.path.join(ruta, a), a in CON_CONTENIDO) for a in ARTEFACTOS + ('retro.md', 'testing'))))
         return tuple(firma)
     except OSError:
         return object()
@@ -382,18 +400,17 @@ def _vista(project, ident):
 
 
 def firma_ledger(project, ident):
-    """`(mtime, tamaño)` del `tasks.md` de la iniciativa `ident`: cambia cuando cambia lo que `plan`/`tarea`
-    proyectan. `None` si el id no se resuelve; `()` si no se puede leer. Solo sirve para invalidar cachés."""
-    try:
-        carpeta = _carpeta(project, ident, _load_shared('local-read.py'))
-        if carpeta is None:
-            return None
-        info = os.stat(os.path.join(str(project), 'docs', 'roadmap', carpeta, 'tasks.md'))
-        return (info.st_mtime_ns, info.st_size)
-    except OSError:
-        return ()
-    except Exception:  # noqa: BLE001
+    """`(mtime, tamaño, hash)` del `tasks.md` de la iniciativa `ident`: cambia cuando cambia lo que `plan`/`tarea`
+    proyectan (el hash cubre el mtime grueso). `None` si el id no se resuelve; `()` si no se puede leer (cuenta en
+    `FIRMA_FALLOS`). Solo sirve para invalidar cachés; cualquier otra excepción sube al llamador."""
+    carpeta = _carpeta(project, ident, _load_shared('local-read.py'))
+    if carpeta is None:
         return None
+    firma = _estado_fichero(os.path.join(str(project), 'docs', 'roadmap', carpeta, 'tasks.md'), True)
+    if firma is None:
+        FIRMA_FALLOS['oserror'] += 1
+        return ()
+    return firma
 
 
 def _fila_plan(t):

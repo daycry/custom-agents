@@ -726,13 +726,15 @@ def summarize_reviews(project, initiatives, *, state_root, deadline=None):
                 other_current_reviews=max(0, len(current) - 1),
                 review_id=principal['review_id']))
         # An expired deadline already made the answer `partial`; the consistency check still needs a little time
-        # of its own (a second `_guard` on the spent deadline would turn what was read into `unavailable`).
-        recheck = time.monotonic() + 1 if expired and time.monotonic() >= deadline else deadline
+        # of its own, small and bounded (a second `_guard` on the spent deadline would turn what was read into
+        # `unavailable`; a long grace would outlast the client's own window).
+        recheck = time.monotonic() + 0.25 if expired and time.monotonic() >= deadline else deadline
         _inventory(state, reader, marker, recheck, second)
         _need(_json(sorted(first, key=lambda r: r['review_id'])) ==
               _json(sorted(second, key=lambda r: r['review_id'])), 'state_changed')
         _need(_marker(project, state, reader, recheck, False) == marker, 'state_changed')
         for initiative, sha in seen.items():
+            _guard(recheck)
             again = reader.read_bytes(project, initiative + '/improvement-plan.md', max_bytes=MAX_PLAN_BYTES, include_digest=True)
             _need(again['status'] == 'ok' and again['sha256'] == sha, 'state_changed')
         result = envelope('partial' if expired else 'ok', 'deadline_expired' if expired else None,

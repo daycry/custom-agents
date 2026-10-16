@@ -245,3 +245,45 @@ def test_a_foreign_plan_ok_does_not_hide_the_users_requested_review(o):
     row = summary(o, [initiative])['initiatives'][0]
     assert row['gate_key'] == 'requested-review' and row['review_id'] == mine['review_id']
     assert row['other_current_reviews'] == 1
+
+
+def test_the_grace_after_an_expired_deadline_is_small_and_bounded(o, monkeypatch):
+    """I2-6: the consistency re-check after a spent deadline gets at most 0.5 s of its own (it was 1 s: more than the
+    client's 4 s window once the 3 s deadline was spent)."""
+    a = review(o, 'one', 'approve'); b = review(o, 'two', 'approve')
+    real, seen = o.m._view, []
+    def slow(*args, **kw):
+        out = real(*args, **kw); time.sleep(0.6); return out
+    monkeypatch.setattr(o.m, '_view', slow)
+    inventory = o.m._inventory
+    def spy(state, reader, marker, deadline, records=None):
+        seen.append(deadline - time.monotonic())
+        return inventory(state, reader, marker, deadline, records)
+    monkeypatch.setattr(o.m, '_inventory', spy)
+    result = summary(o, [a, b], deadline=time.monotonic() + 0.3)
+    assert result['status'] == 'partial', result['reason']
+    assert len(seen) == 2
+    assert seen[1] <= 0.5
+
+
+def test_the_plan_rereads_respect_the_guard(o, monkeypatch):
+    """I2-6: past the re-check deadline the plans are not read again (a slow disk cannot stretch the call)."""
+    a = review(o, 'one', 'approve'); b = review(o, 'two', 'approve')
+    real, state = o.m._view, {'marker': 0}
+    def slow(*args, **kw):
+        out = real(*args, **kw); time.sleep(0.5); return out
+    monkeypatch.setattr(o.m, '_view', slow)
+    marker = o.m._marker
+    def lax(*args, **kw):                      # the marker check itself does not look at the clock here
+        state['marker'] += 1
+        return marker(*args[:3], 1e12, args[4]) if state['marker'] > 0 else marker(*args, **kw)
+    monkeypatch.setattr(o.m, '_marker', lax)
+    inventory = o.m._inventory
+    def burn(state_, reader, mk, deadline, records=None):
+        out = inventory(state_, reader, mk, deadline, records)
+        if records is not None and records and len(burn.calls) == 1: time.sleep(0.6)  # the second inventory overruns its grace
+        burn.calls.append(1); return out
+    burn.calls = []
+    monkeypatch.setattr(o.m, '_inventory', burn)
+    result = summary(o, [a, b], deadline=time.monotonic() + 0.3)
+    assert result['status'] == 'unavailable' and result['reason'] == 'deadline_expired'

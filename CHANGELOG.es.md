@@ -51,6 +51,7 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - Los endpoints de cartera, revisión y detalle de tarea del panel reutilizan su respuesta hasta que cambia el ledger o el estado de revisión, el resumen de revisiones cubre proyectos con más de 64 planes, el exportado estático ya no reproyecta cada ledger por tarea y los rangos del ledger como `T-01..T-15` cuentan para todas sus tareas.
 - Panel: revisar una versión de plan obsoleta exige cargar la actual antes de decidir; «Cargar versión actual» conserva el foco; Escape dentro de un campo de revisión ya no cierra el detalle de la tarea; un fallo del resumen de revisión conserva el último estado bueno con aviso; una revisión ausente se muestra como «no disponible».
 - `ledger-lint` lee las filas `Estado` y `Fecha` de la cabecera en tiempo lineal, así que un `tasks.md` preparado ya no puede bloquear el panel; un resumen de revisiones al que se le acaba el plazo devuelve lo ya leído como `partial`.
+- Las acciones de revisión del panel (refrescar, guardar, enviar, abrir) se ven al instante en la revisión actual y en el resumen de la tarjeta, y «Cargar versión actual» conserva el foco; la expansión de rangos del ledger tiene un presupuesto global con aviso explícito; un registro de revisiones lleno ni escribe antes de contestar 429 ni desplaza la entrada de escritura del orquestador; las firmas de caché cubren el contenido, así que un `[ ]`→`[x]` con el mismo mtime se ve al momento.
 
 ### Fixed — iniciativa `panel-redesign`, revisión de la fase 1
 

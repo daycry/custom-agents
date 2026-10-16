@@ -196,6 +196,7 @@
  async function request(operation,payload) {
   if (stopped || active || closed || document.hidden || !hex(reviewId)) return;
   clearPoll();
+  const focused = document.activeElement;   // `controls()` desactiva los botones mientras dura la petición y el navegador los desenfoca
   const controller = new AbortController(); active = controller; activeOperation = operation; controls();
   const timeout = setTimeout(() => controller.abort(),4000);
   try {
@@ -208,6 +209,7 @@
    blocked = true; status.textContent = closed ? closedMessage() : 'No se pudo actualizar la revisión. Se conserva la última vista recibida; carga la versión actual antes de decidir.';
   } finally {
    clearTimeout(timeout); active = null; activeOperation = null; controls(); schedule();
+   if (focused && focused !== document.activeElement && (!document.activeElement || document.activeElement === document.body) && focused.isConnected !== false && !focused.disabled && !focused.hidden) focused.focus();
   }
  }
  function collect() {

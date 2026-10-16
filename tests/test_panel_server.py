@@ -3,6 +3,7 @@ import hashlib
 import http.client
 import importlib.util
 import json
+import os
 from pathlib import Path
 import threading
 import types
@@ -558,5 +559,82 @@ def test_el_detalle_de_una_tarea_no_sirve_la_copia_anterior_tras_cambiar_el_ledg
         (carpeta / 'tasks.md').write_text(texto, encoding='utf8')
         assert json.loads(server.tarea(ident, 'T-02'))['tarea']['estado_tarea'] == 'completado'
         assert [t['estado_tarea'] for t in json.loads(server.plan(ident))['tareas']] == ['completado', 'completado']
+    finally:
+        server.server_close()
+
+
+# --- fix2 de la Fase 2: firmas con contenido, tope de la cartera y fallo de firma visible (I2-7, I2-8) -----------------
+
+def _mismo_mtime_y_tamano(ruta, antiguo, nuevo):
+    """Reescribe `ruta` cambiando `antiguo` por `nuevo` (misma longitud) y le devuelve el mtime de antes."""
+    info = ruta.stat()
+    ruta.write_text(ruta.read_text(encoding='utf8').replace(antiguo, nuevo), encoding='utf8', newline='\n')
+    os.utime(ruta, ns=(info.st_atime_ns, info.st_mtime_ns))
+    assert ruta.stat().st_size == info.st_size and ruta.stat().st_mtime_ns == info.st_mtime_ns
+
+
+def test_la_firma_del_ledger_ve_un_cambio_con_mtime_y_tamano_iguales(service, tmp_path):
+    """I2-7: en FAT/exFAT/red el mtime es grueso; marcar `[ ]` -> `[x]` no cambia ni mtime ni tamaño."""
+    server, carpeta, ident = _server_con_plan(service, tmp_path)
+    try:
+        carpeta.joinpath('tasks.md').write_text(
+            '---\nestado: en-progreso\n---\n# Work\n## Fase 1 — Build\n### T-01 — Uno\n- **Estado**: en-progreso\n'
+            '- **Criterios de aceptación**:\n  - [ ] hecho\n', encoding='utf8', newline='\n')
+        data = service._load_data()
+        antes = data.firma_ledger(tmp_path, ident)
+        _mismo_mtime_y_tamano(carpeta / 'tasks.md', '[ ] hecho', '[x] hecho')
+        assert data.firma_ledger(tmp_path, ident) != antes
+    finally:
+        server.server_close()
+
+
+def test_la_firma_de_la_cartera_ve_un_ledger_con_mtime_y_tamano_iguales_y_retro(service, tmp_path):
+    """I2-7: la firma de la cartera incluye el contenido de `tasks.md` y el `retro.md` de cada iniciativa."""
+    server, carpeta, _ = _server_con_plan(service, tmp_path)
+    try:
+        data = service._load_data()
+        (carpeta / 'retro.md').write_text('# Retro\nabierta\n', encoding='utf8', newline='\n')
+        antes = data.cartera_firma(tmp_path)
+        _mismo_mtime_y_tamano(carpeta / 'tasks.md', 'Build feature', 'Build featurX')
+        medio = data.cartera_firma(tmp_path)
+        assert medio != antes
+        _mismo_mtime_y_tamano(carpeta / 'retro.md', 'abierta', 'cerrada')
+        assert data.cartera_firma(tmp_path) != medio
+    finally:
+        server.server_close()
+
+
+def test_la_cartera_con_la_misma_firma_no_se_sirve_mas_de_10_s(service, tmp_path, monkeypatch):
+    """I2-7: el tope de reutilización por firma baja de 60 s al intervalo de sondeo (10 s)."""
+    server, carpeta, _ = _server_con_plan(service, tmp_path)
+    try:
+        data = service._load_data()
+        llamadas = []
+        real = data.cartera
+        data.cartera = lambda project: (llamadas.append(1), real(project))[1]
+        monkeypatch.setattr(service, '_load_data', lambda: data)
+        server.cartera()
+        server._cartera_at -= 30; server._cartera_built -= 11
+        server.cartera()
+        assert len(llamadas) == 2
+    finally:
+        server.server_close()
+
+
+def test_un_fallo_de_firma_no_se_traga_cualquier_excepcion_y_deja_rastro(service, tmp_path, monkeypatch):
+    """I2-8: `firma_ledger` solo captura `OSError` (y lo cuenta); el servidor cuenta lo demás sin cachear, sin texto."""
+    server, carpeta, ident = _server_con_plan(service, tmp_path)
+    try:
+        data = service._load_data()
+        monkeypatch.setattr(data, '_carpeta', lambda *a, **k: (_ for _ in ()).throw(RuntimeError('SECRETO-x')))
+        with pytest.raises(RuntimeError):
+            data.firma_ledger(tmp_path, ident)
+        monkeypatch.setattr(service, '_load_data', lambda: data)
+        antes = server.firma_fallos
+        json.loads(server.plan(ident)); json.loads(server.plan(ident))
+        assert server.firma_fallos == antes + 2 and server._plans[ident][2] is None
+        monkeypatch.setattr(data, '_carpeta', lambda *a, **k: carpeta.name)
+        carpeta.joinpath('tasks.md').unlink()
+        assert data.firma_ledger(tmp_path, ident) == () and data.FIRMA_FALLOS['oserror'] >= 1
     finally:
         server.server_close()

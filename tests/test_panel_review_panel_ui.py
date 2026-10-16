@@ -256,3 +256,19 @@ setTimeout(async()=>{
 """
     out = _run(tmp_path, 'summary.cjs', source)
     assert out.returncode == 0, out.stdout + out.stderr
+
+
+def test_el_foco_sobrevive_a_que_el_navegador_desactive_el_boton_durante_la_peticion(tmp_path):
+    """I2-2 (comprobado en Edge): un botón desactivado pierde el foco; al volver a activarse el panel lo recupera."""
+    new = 'f' * 64
+    result = _plan(tmp_path, """
+  let refreshed=false;
+  routes=(u,o)=>{if(u.startsWith('api/review-current/'))return refreshed?current({review_id:'%s',estado:'pendiente',escritura:true}):current({review_id:RID,estado:'obsoleta',escritura:true});
+   if(u.endsWith('/refresh')){refreshed=true;return envelope({review_id:'%s'});}return envelope();};
+  await boot();await settle();
+  const refresh=find('button','Cargar versión actual');
+  let off=refresh.disabled;                                  // como Chromium: desactivar el botón enfocado lo desenfoca
+  Object.defineProperty(refresh,'disabled',{get:()=>off,set:v=>{off=v;if(v&&document.activeElement===refresh)document.activeElement=null;}});
+  refresh.focus();refresh.events.click();await settle();await fire(0);
+  assert.equal(document.activeElement,refresh,'el foco vuelve al botón al terminar la petición');""" % (new, new))
+    assert result.returncode == 0, result.stdout + result.stderr

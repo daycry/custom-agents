@@ -20,11 +20,13 @@ MAX_INITIATIVES = 64
 MAX_RESPONSE_BYTES = 65536
 MAX_REQUEST_BYTES = 4096
 BODY_TIMEOUT = 3
+REVIEW_READ_TIMEOUT = 2.5  # review-summary/current: + the owner's 0.25 s grace stays well under the client's 4 s abort
 MAX_REVIEW_REQUEST_BYTES = 16 * 1024
 MAX_REVIEW_RESPONSE_BYTES = 512 * 1024
 MAX_REVIEW_IDS = 128
 REVIEW_BATCH = 64  # plan-review.MAX_RECORDS: `summarize_reviews` refuses more initiatives per call
 CACHE_MAX_AGE = 60  # an unchanged signature is trusted for this long (keeps `observed_at` honest)
+CARTERA_MAX_AGE = 10  # the portfolio also reads files the signature only samples: never older than one poll
 REVIEW_OPEN_GATE = 'requested-review'  # the only gate the browser can open; `plan-ok` belongs to the orchestrator
 TOO_MANY_REVIEWS = 'demasiadas revisiones abiertas en este proceso'
 STATES = {'borrador', 'en-progreso', 'en-revision', 'completado', 'cancelado'}
@@ -457,7 +459,7 @@ class PanelServer(HTTPServer):
         try:
             data = _load_data()
             firma = data.cartera_firma(self.project)   # cheap (mtime and size): unchanged -> no ledger is read again
-            if self._cartera is not None and firma == self._cartera_firma and now - self._cartera_built < CACHE_MAX_AGE:
+            if self._cartera is not None and firma == self._cartera_firma and now - self._cartera_built < CARTERA_MAX_AGE:
                 self._cartera_at = now
                 return self._cartera
             body = _encoded(_scrubbed(data.cartera(self.project), self.scrub))
@@ -494,6 +496,7 @@ class PanelServer(HTTPServer):
         try:
             return _load_data().firma_ledger(self.project, ident)
         except Exception:
+            self.firma_fallos += 1   # a diagnostic count (no text of the failure): the cache is off for this request
             return None
 
     def tarea(self, ident, tarea_id):
@@ -579,9 +582,18 @@ class PanelServer(HTTPServer):
                 return 413, _encoded(_review_failure('response_budget'))
             if operation == 'refresh':
                 self.register_review(result, entry['initiative'], entry['gate_key'], entry['consumer'], entry['escritura'])
+            if operation not in ('view', 'status'):
+                self._forget_review_cache(entry['initiative'])
             return _review_code(result), body
         except Exception:
             return 503, _encoded(_review_failure())
+
+    def _forget_review_cache(self, initiative):
+        """An operation that changes review state (open, refresh, comments, submit) must show at once in
+        `review-current` of THAT initiative and in `review-summary`; the other initiatives keep their cache."""
+        self._review_summary = None
+        for ident in [i for i, path in (self._review_map or {}).items() if path == initiative]:
+            self._review_current.pop(ident, None); self._review_current_at.pop(ident, None)
 
     def register_review(self, result, initiative, gate_key, consumer=None, escritura=None):
         """Register a review id taken from an OWNER response (never from a request body). An id that is already
@@ -593,16 +605,19 @@ class PanelServer(HTTPServer):
             return ''
         rid = review['review_id']
         if rid not in self.review_registry:
+            writable = gate_key == REVIEW_OPEN_GATE if escritura is None else escritura
             if len(self.review_registry) >= MAX_REVIEW_IDS:
                 # An initiative that already has an id at the cap replaces it (same gate: a new plan version makes
-                # the old review obsolete); an initiative with none is left out instead of evicting another's.
+                # the old review obsolete); an initiative with none is left out instead of evicting another's. An entry
+                # with write access (the orchestrator's) is never displaced by one without it.
                 old = next((k for k, e in self.review_registry.items()
-                            if e['initiative'] == initiative and e['gate_key'] == gate_key), None)
+                            if e['initiative'] == initiative and e['gate_key'] == gate_key
+                            and (writable or not e['escritura'])), None)
                 if old is None:
                     return ''
                 del self.review_registry[old]
             self.review_registry[rid] = {'initiative': initiative, 'gate_key': gate_key, 'consumer': consumer,
-                'escritura': gate_key == REVIEW_OPEN_GATE if escritura is None else escritura}
+                'escritura': writable}
         return rid
 
     def review_paths(self):
@@ -625,7 +640,7 @@ class PanelServer(HTTPServer):
         try:
             paths = self.review_paths()
             ids = {path: ident for ident, path in paths.items()}
-            deadline = time.monotonic() + BODY_TIMEOUT
+            deadline = time.monotonic() + REVIEW_READ_TIMEOUT
             data = self._summarize(list(paths.values()), deadline)
             rows = []
             for row in data.get('initiatives', []):
@@ -723,7 +738,7 @@ class PanelServer(HTTPServer):
     def _review_current_body(self, ident, initiative):
         try:
             data = self.owner().summarize_reviews(self.project, [initiative], state_root=self.review_state_root,
-                                                  deadline=time.monotonic() + BODY_TIMEOUT)
+                                                  deadline=time.monotonic() + REVIEW_READ_TIMEOUT)
             row = (data.get('initiatives') or [None])[0]
             if row is None or data.get('status') not in ('ok', 'partial'):
                 return self._current_failure(ident, data.get('reason') or 'reader_unavailable')
@@ -746,7 +761,8 @@ class PanelServer(HTTPServer):
             return 404, _encoded(_review_failure('initiative_unavailable'))
         full = {'schema_version': 1, 'status': 'unavailable', 'reason': 'too_many_reviews',
                 'message': TOO_MANY_REVIEWS, 'initiative_id': ident, 'review_id': None}
-        if len(self.review_registry) >= MAX_REVIEW_IDS and all(e['initiative'] != initiative for e in self.review_registry.values()):
+        if len(self.review_registry) >= MAX_REVIEW_IDS and not any(
+                e['initiative'] == initiative and e['gate_key'] == REVIEW_OPEN_GATE for e in self.review_registry.values()):
             return 429, _encoded(full)
         try:
             if time.monotonic() >= deadline:
@@ -756,7 +772,7 @@ class PanelServer(HTTPServer):
             if time.monotonic() >= deadline:
                 raise TimeoutError
             rid = self.register_review(result, initiative, REVIEW_OPEN_GATE, None, True)
-            self._review_summary = None; self._review_current.clear(); self._review_current_at.clear()
+            self._forget_review_cache(initiative)
             if not rid and result.get('status') in ('ok', 'waiting'):
                 return 429, _encoded(full)
             reason = result.get('reason')
@@ -974,6 +990,7 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
         server._review_summary = None; server._review_summary_at = 0
         server._review_summary_built = 0; server._review_summary_firma = None
         server._review_current = {}; server._review_current_at = {}
+        server.firma_fallos = 0
         review_id = ''
         if review_selection is not None:
             try:

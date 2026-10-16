@@ -81,29 +81,43 @@ CRITERIO_MAX = 400
 GAP_MAX = 400
 GRADOS = ("Critical", "Important", "Minor")
 _ID_RE = re.compile(r"\bT-\d+\b")
-# Rango de tareas en una cabecera de revisión o en el historial archivado: `T-01..T-15`, `T-01–T-15`, `T-01…T-15`
-# (con `..`/`…` el segundo `T-` es opcional; con guion es obligatorio: `T-01 — 5 gaps` no es un rango). Se expande a la lista de ids para que cubra las intermedias.
-_RANGO_RE = re.compile(r"\bT-(\d{1,4})[ \t]{0,3}(?:(?:\.{2,3}|…)[ \t]{0,3}(?:T-)?|[–—-][ \t]{0,3}T-)(\d{1,4})\b")
-RANGO_MAX = 500
+# Rango de tareas en una cabecera de revisión o en el historial archivado: `T-01..T-15`, `T-01–T-15`, `T-01…T-15`.
+# Los dos extremos llevan `T-` y dos cifras (el formato que `ledger-lint.ids_de_tarea` casa: dos cifras tras `T-`): `T-03… 12 gaps`
+# o `T-01 — 5 gaps` no son rangos, y no se generan ids que ningún parser casaría. Se expande a la lista de ids para que
+# cubra las intermedias.
+_RANGO_RE = re.compile(r"\bT-(\d{2})[ \t]{0,3}(?:\.{2,3}|…|[–—-])[ \t]{0,3}T-(\d{2})\b")
+RANGO_MAX = 100
+IDS_EXPANDIDOS_MAX = 5000   # presupuesto GLOBAL por ledger: un texto adversarial no multiplica la expansión (CWE-400)
 
 
-def _expandir(texto):
-    """`texto` con cada rango `T-a..T-b` sustituido por `T-a, …, T-b` (anchura del primer extremo): los parsers de
-    ledger-lint solo ven los extremos. Un rango invertido o de más de `RANGO_MAX` ids se deja tal cual."""
+class _Presupuesto:
+    """Ids que aún se pueden expandir en una proyección; al agotarse, los rangos restantes se dejan tal cual y
+    `excedido` lo recuerda (la proyección lo publica en `avisos`, nunca en silencio)."""
+    def __init__(self, ids=IDS_EXPANDIDOS_MAX):
+        self.ids, self.excedido = ids, False
+
+
+def _expandir(texto, presupuesto=None):
+    """`texto` con cada rango `T-a..T-b` sustituido por `T-a, …, T-b`: los parsers de ledger-lint solo ven los
+    extremos. Un rango invertido se deja tal cual; si no cabe en el `presupuesto` también (y lo marca)."""
     def lista(m):
         a, b = int(m.group(1)), int(m.group(2))
         if not 0 <= b - a < RANGO_MAX:
             return m.group(0)
-        ancho = len(m.group(1))
-        return ", ".join(f"T-{n:0{ancho}d}" for n in range(a, b + 1))
+        if presupuesto is not None:
+            if b - a + 1 > presupuesto.ids:
+                presupuesto.excedido = True
+                return m.group(0)
+            presupuesto.ids -= b - a + 1
+        return ", ".join(f"T-{n:02d}" for n in range(a, b + 1))
     return _RANGO_RE.sub(lista, texto)
 
 
-def _secciones_expandidas(secciones):
+def _secciones_expandidas(secciones, presupuesto=None):
     """Copias de las secciones de revisión con los rangos de la cabecera y de la celda `Tarea` expandidos, solo para
     ELEGIR sección y filas; `_original` conserva la cabecera tal como está escrita (es lo que se muestra)."""
-    return [dict(s, cabecera=_expandir(s["cabecera"]), _original=s["cabecera"],
-                 filas=[dict(f, tarea=_expandir(f["tarea"])) for f in s["filas"]]) for s in secciones]
+    return [dict(s, cabecera=_expandir(s["cabecera"], presupuesto), _original=s["cabecera"],
+                 filas=[dict(f, tarea=_expandir(f["tarea"], presupuesto)) for f in s["filas"]]) for s in secciones]
 
 
 def _vacio(status):
@@ -125,7 +139,7 @@ def _grado(celda):
     return next((g for g in GRADOS if g.lower() == limpio), "otro")
 
 
-def _archivadas(texto):
+def _archivadas(texto, presupuesto=None):
     """IDs citados en `## Historial archivado` (lo que `ledger-archive.py` deja al trasladar revisiones)."""
     ids, dentro = set(), False
     for ln in _ll.sin_vallas(texto).split("\n"):
@@ -133,7 +147,7 @@ def _archivadas(texto):
             dentro = ln.strip() == _la.HISTORIAL_HDR
             continue
         if dentro:
-            ids |= set(_ID_RE.findall(_expandir(ln)))
+            ids |= set(_ID_RE.findall(_expandir(ln, presupuesto)))
     return ids
 
 
@@ -195,18 +209,22 @@ def proyectar(text):
     """Proyección de un texto de ledger. Pura: no lee ni escribe ficheros."""
     try:
         parsed = parse_ledger(text)
-        secciones = _secciones_expandidas(secciones_revision(text))
+        presupuesto = _Presupuesto()
+        secciones = _secciones_expandidas(secciones_revision(text), presupuesto)
     except (ValueError, TypeError, KeyError, OverflowError, RecursionError):
         return _vacio("ilegible")
     if not parsed["tareas"]:
         return _vacio("sin_tareas")
     fase_de = {id(t): f["nombre"] for f in parsed["fases"] for t in f["tareas"]}
-    archivadas = _archivadas(text)
+    archivadas = _archivadas(text, presupuesto)
     tareas = [_tarea(t, fase_de.get(id(t)), secciones, archivadas) for t in parsed["tareas"]]
-    return {"version": 1, "status": "ok", "vocabulario": list(ESTADOS),
-            "fases": [{"nombre": f["nombre"], "tareas": [t["id"] for t in f["tareas"]]} for f in parsed["fases"]],
-            "desconocidos": [{"id": t["id"], "literal": t["literal"]} for t in tareas if t["estado"] is None],
-            "tareas": tareas}
+    salida = {"version": 1, "status": "ok", "vocabulario": list(ESTADOS),
+              "fases": [{"nombre": f["nombre"], "tareas": [t["id"] for t in f["tareas"]]} for f in parsed["fases"]],
+              "desconocidos": [{"id": t["id"], "literal": t["literal"]} for t in tareas if t["estado"] is None],
+              "tareas": tareas}
+    if presupuesto.excedido:
+        salida["avisos"] = ["rangos_sin_expandir"]   # el presupuesto global se agotó: hay rangos que no cubren sus intermedias
+    return salida
 
 
 def leer(ruta):

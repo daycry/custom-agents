@@ -353,3 +353,40 @@ def test_un_guion_seguido_de_un_numero_no_es_un_rango():
     assert lv._expandir("Fase 1 (T-01 — 5 gaps)") == "Fase 1 (T-01 — 5 gaps)"
     assert lv._expandir("T-01..T-03 y T-07-T-08") == "T-01, T-02, T-03 y T-07, T-08"
     assert lv._expandir("T-09..T-02") == "T-09..T-02"
+
+
+# --- fix2 de la Fase 2: cota agregada de la expansión de rangos (I2-3) ------------------------------------------------
+
+def test_cinco_mil_filas_con_un_rango_enorme_se_proyectan_en_menos_de_2_s():
+    """I2-3 (caso adversario de la revisión): 5.000 filas `T-1..T-499` dentro de 256 KB no bloquean la proyección."""
+    import time
+    filas = "".join(f"| {n} | Minor | x | T-1..T-499 | p | e |\n" for n in range(5000))
+    texto = _con_revision_de_rango("Fase 1", "T-01") + filas
+    assert len(texto.encode()) <= 256 * 1024
+    t0 = time.perf_counter()
+    datos = lv.proyectar(texto)
+    assert datos["status"] == "ok" and time.perf_counter() - t0 < 2
+
+
+def test_una_cabecera_con_cientos_de_rangos_no_bloquea_y_lo_marca():
+    """I2-3: N copias de `T-00..T-99` agotan el presupuesto global (5.000 ids): el resto no se expande y se AVISA."""
+    import time
+    cabecera = "Fase 1 (" + " ".join(["T-00..T-99"] * 400) + ")"
+    t0 = time.perf_counter()
+    datos = lv.proyectar(_con_revision_de_rango(cabecera, "T-02"))
+    assert time.perf_counter() - t0 < 2
+    assert datos["avisos"] == ["rangos_sin_expandir"]
+    assert "avisos" not in lv.proyectar(_con_revision_de_rango("Fase 1 (T-01..T-05)", "T-02"))
+
+
+def test_el_presupuesto_de_ids_expandidos_es_global_y_el_resto_queda_tal_cual():
+    presupuesto = lv._Presupuesto(150)
+    assert lv._expandir("T-00..T-99", presupuesto).count("T-") == 100
+    assert lv._expandir("T-00..T-99", presupuesto) == "T-00..T-99" and presupuesto.excedido
+
+
+def test_un_rango_exige_t_a_la_derecha_y_dos_cifras_como_ids_de_tarea():
+    assert lv._expandir("T-03… 12 gaps") == "T-03… 12 gaps"
+    assert lv._expandir("T-03..12") == "T-03..12"
+    assert lv._expandir("T-1..T-4") == "T-1..T-4"                     # `ids_de_tarea` solo casa `T-NN`: no se generan ids que no casan
+    assert lv._expandir("T-100..T-102") == "T-100..T-102"

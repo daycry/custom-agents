@@ -451,3 +451,83 @@ def test_una_carpeta_con_plan_no_revisable_no_ofrece_revision_y_review_current_d
         assert send(server, 'api/review-current/' + '0' * 16)[0] == 404
     finally:
         server.shutdown(); server.server_close(); thread.join(5)
+
+
+# --- fix2 de la Fase 2: una operación que cambia estado invalida la caché de review-current/summary (I2-2) -------------
+
+def test_con_el_dueno_real_refresh_y_submit_se_ven_al_instante_en_review_current(service, tmp_path):
+    """I2-2: sin esperar al TTL de 5 s, `review-current` devuelve el `review_id` nuevo tras refresh y el estado tras submit."""
+    project = make_project(tmp_path)
+    server = service.create_server(project, DATA, review_scope={'state_root': project / '.claude/plan-review'})
+    thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+    try:
+        opened = json.loads(send(server, 'api/review-open/' + IDENT, open_body(), method='POST')[2])
+        viejo = opened['review_id']
+        assert json.loads(send(server, 'api/review-current/' + IDENT)[2])['review_id'] == viejo   # llena la caché
+        (project / INITIATIVE / 'improvement-plan.md').write_text('# Plan\n## Cambio\nOtra cosa.\n', encoding='utf8')
+        code, _, raw = send(server, 'api/review/' + viejo + '/refresh', {'review_id': viejo}, method='POST')
+        nuevo = json.loads(raw)['review']['review_id']
+        assert code == 200 and nuevo != viejo
+        assert json.loads(send(server, 'api/review-current/' + IDENT)[2])['review_id'] == nuevo   # inmediato, sin _envejece
+        view = json.loads(send(server, 'api/review/' + nuevo + '/view')[2])
+        version = {k: view['review']['version'][k] for k in ('raw_sha256', 'view_sha256', 'view_version')}
+        status = json.loads(send(server, 'api/review/' + nuevo + '/status')[2])
+        code, _, raw = send(server, 'api/review/' + nuevo + '/submit', {'version': version, 'comments': [], 'choice': 'approve',
+                            'expected_revision': status['review']['revision']}, method='POST')
+        assert code == 200, raw
+        assert json.loads(send(server, 'api/review-current/' + IDENT)[2])['estado'] == 'aprobada'
+        rows = {r['initiative_id']: r for r in json.loads(send(server, 'api/review-summary')[2])['initiatives']}
+        assert rows[IDENT]['estado'] == 'aprobada'
+    finally:
+        server.shutdown(); server.server_close(); thread.join(5)
+
+
+MAX_IDS = 128  # serve_panel.MAX_REVIEW_IDS (el test de F2-18 lo compara con la constante real)
+
+
+def _llena_registro(server, **entrada):
+    """Registro al tope: una entrada dada (`entrada`) y relleno de otras iniciativas hasta MAX_REVIEW_IDS."""
+    server.review_registry['b' * 64] = {'initiative': INITIATIVE, 'consumer': None, **entrada}
+    for n in range(MAX_IDS - 1):
+        server.review_registry[format(n, '064x')] = {'initiative': 'docs/roadmap/x', 'gate_key': 'plan-ok',
+                                                    'consumer': None, 'escritura': False}
+
+
+def test_registro_lleno_con_la_iniciativa_solo_como_plan_ok_no_llama_al_dueno_y_da_429(service, tmp_path, monkeypatch):
+    """I2-4: la comprobación previa mira iniciativa Y puerta: sin hueco para `requested-review`, 429 sin escribir."""
+    calls = []
+    server, thread = run_server(service, monkeypatch, tmp_path, fake_owner(calls))
+    try:
+        _llena_registro(server, gate_key='plan-ok', escritura=False)
+        code, _, raw = send(server, 'api/review-open/' + IDENT, open_body(), method='POST')
+        assert code == 429 and json.loads(raw)['reason'] == 'too_many_reviews'
+        assert not any(c[0] == 'open_review' for c in calls)
+    finally:
+        server.shutdown(); server.server_close(); thread.join(5)
+
+
+def test_un_get_de_review_current_no_desplaza_la_entrada_de_arranque_con_escritura(service, tmp_path, monkeypatch):
+    """I2-5: con el registro lleno, la entrada con `escritura: True` (la del orquestador) no la sustituye una sin escritura."""
+    calls = []
+    server, thread = run_server(service, monkeypatch, tmp_path, fake_owner(calls, gate='plan-ok'))
+    try:
+        _llena_registro(server, gate_key='plan-ok', escritura=True)
+        body = json.loads(send(server, 'api/review-current/' + IDENT)[2])
+        assert server.review_registry['b' * 64]['escritura'] is True
+        assert RID not in server.review_registry and body['reason'] == 'too_many_reviews'
+    finally:
+        server.shutdown(); server.server_close(); thread.join(5)
+
+
+def test_el_plazo_de_lectura_del_servidor_deja_margen_bajo_los_4_s_del_cliente(service, tmp_path, monkeypatch):
+    """I2-6: plazo del servidor + margen del dueño (0,25 s) por debajo de los 4 s con que el cliente aborta (con holgura de cola)."""
+    import time
+    calls = []
+    server, thread = run_server(service, monkeypatch, tmp_path, fake_owner(calls))
+    try:
+        ahora = time.monotonic()
+        send(server, 'api/review-summary'); send(server, 'api/review-current/' + IDENT)
+        plazos = [c[2]['deadline'] - ahora for c in calls if c[0] == 'summarize_reviews']
+        assert len(plazos) == 2 and all(p + 0.25 < 3.0 for p in plazos), plazos
+    finally:
+        server.shutdown(); server.server_close(); thread.join(5)
