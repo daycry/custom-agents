@@ -55,6 +55,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - The portfolio and plan caches sign file contents with the panel's protected read (no symlinks, no FIFO hangs, capped bytes) and hit on the real 10 s poll; the Plan shows an "unexpanded task ranges" warning; 1,000-task ledgers project in under 2 s; a review write that ends in a timeout or an oversized response drops the stale review cache.
 - The Initiatives kanban no longer depends on a slow cold portfolio read: the server computes it at startup, recomputes it in the background and the page says "Calculando la cartera… (reintento en 3 s)" until it arrives; progress cards on Home link to their Plan with the read hash moved to a closed "Detalle técnico"; Agentes en vivo says activity is disabled (opt-in) and how to enable it; project-piece metadata parsing is about twice as fast on long block scalars.
 
+### Changed — Ledger archiving
+
+- `ledger-archive.py` also trims long `**Notas**:` paragraphs of completed tasks (`--notas-max`, default 600) to their first sentence plus a pointer and SHA-256, moving the original to `execution-history.md`.
+
 ### Fixed — `panel-redesign` initiative, phase 1 review
 
 - The panel export no longer trusts a previous `export-manifest.json`: an entry with `..`, an absolute path, a drive letter, a backslash or a linked parent aborts the export before anything is written or deleted. It also refuses to create the output's parent folders and detects a file standing where a folder is needed before writing, without printing absolute paths.

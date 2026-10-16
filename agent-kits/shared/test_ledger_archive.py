@@ -346,3 +346,134 @@ def test_salida_legible_resume_bytes():
         code, out, _ = run(carpeta)
         assert code == 0
         assert "en seco" in out and "bytes" in out and "intento 1: Fase 1 (T-01)" in out
+
+
+# ----------------------------------------------------------------- (D) Notas largas ----
+
+NOTA_LARGA = "Primera frase de la nota. " + "detalle largo " * 80
+NOTA_CORTA = "nota corta que se queda tal cual."
+
+
+def ledger_notas(estado_t01="completado", nota_t01=NOTA_LARGA, nota_t02=NOTA_CORTA):
+    hechas = 2 if estado_t01 == "completado" else 1
+    return f"""---
+tasks: demo
+estado: en-progreso
+---
+# Checklist — demo
+
+## Resumen de progreso
+
+| Fase | Completadas | Total | Progreso |
+|---|---|---|---|
+| Fase 1 — Uno | {hechas} | 2 | x% |
+
+## Fase 1 — Uno
+
+### T-01 — Tarea uno
+
+- **Estado**: {estado_t01}
+- **Verificación**: `pytest -q` → verde
+
+**Criterios de aceptación**
+- [{'x' if estado_t01 == 'completado' else ' '}] c1
+
+**Notas**: {nota_t01}
+
+### T-02 — Tarea dos
+
+- **Estado**: completado
+- **Verificación**: `pytest -q` → verde
+
+**Criterios de aceptación**
+- [x] c1
+
+**Notas**: {nota_t02}
+
+## Notas finales
+
+Texto libre del ledger que no es una Nota de tarea.
+"""
+
+
+def test_nota_larga_de_tarea_completada_se_recorta_con_puntero_y_sha():
+    with tempfile.TemporaryDirectory() as tmp:
+        carpeta = _carpeta(tmp, ledger_notas())
+        d = run_json(carpeta, "--apply")
+        original = f"**Notas**: {NOTA_LARGA}\n"
+        sha = hashlib.sha256(original.encode("utf-8")).hexdigest()
+        assert d["notas"] == [{"tarea": "T-01", "sha256": sha,
+                               "bytes": len(original.encode("utf-8"))}]
+        nuevo = leer(os.path.join(carpeta, "tasks.md")).decode("utf-8")
+        esperado = ("**Notas**: Primera frase de la nota. Detalle archivado: "
+                    f"[execution-history.md](execution-history.md) · SHA-256 `{sha[:12]}`.")
+        assert esperado + "\n" in nuevo
+        assert f"**Notas**: {NOTA_CORTA}\n" in nuevo                 # la corta no se toca
+        assert "Texto libre del ledger que no es una Nota de tarea." in nuevo
+        hist = leer(os.path.join(carpeta, "execution-history.md")).decode("utf-8")
+        assert original in hist and f"## Archivado {FECHA} — T-01 · Notas (bytes sin cambios)" in hist
+        assert f"SHA-256 del bloque: `{sha}`." in hist
+        errores, _ = _lint_mod().lint(os.path.join(carpeta, "tasks.md"))
+        assert errores == []
+
+
+def test_nota_de_tarea_no_completada_queda_intacta():
+    with tempfile.TemporaryDirectory() as tmp:
+        carpeta = _carpeta(tmp, ledger_notas(estado_t01="en-progreso"))
+        antes = leer(os.path.join(carpeta, "tasks.md"))
+        assert run_json(carpeta, "--apply")["notas"] == []
+        assert leer(os.path.join(carpeta, "tasks.md")) == antes
+        assert not os.path.exists(os.path.join(carpeta, "execution-history.md"))
+
+
+def test_notas_segunda_ejecucion_no_archiva_nada_ni_duplica():
+    with tempfile.TemporaryDirectory() as tmp:
+        carpeta = _carpeta(tmp, ledger_notas())
+        run_json(carpeta, "--apply")
+        t1 = leer(os.path.join(carpeta, "tasks.md"))
+        h1 = leer(os.path.join(carpeta, "execution-history.md"))
+        d = run_json(carpeta, "--apply")
+        assert d["notas"] == [] and d["aplicado"] is False
+        assert leer(os.path.join(carpeta, "tasks.md")) == t1
+        assert leer(os.path.join(carpeta, "execution-history.md")) == h1
+
+
+def test_notas_max_es_configurable():
+    with tempfile.TemporaryDirectory() as tmp:
+        carpeta = _carpeta(tmp, ledger_notas())
+        assert run_json(carpeta, "--notas-max", "5000")["notas"] == []
+        assert [n["tarea"] for n in run_json(carpeta, "--notas-max", "20")["notas"]] == ["T-01", "T-02"]
+
+
+def test_notas_crlf_se_conserva():
+    with tempfile.TemporaryDirectory() as tmp:
+        carpeta = _carpeta(tmp, ledger_notas(), newline="\r\n")
+        run_json(carpeta, "--apply")
+        for nombre in ("tasks.md", "execution-history.md"):
+            datos = leer(os.path.join(carpeta, nombre))
+            assert datos.count(b"\n") == datos.count(b"\r\n") > 0, nombre
+        hist = leer(os.path.join(carpeta, "execution-history.md"))
+        assert f"**Notas**: {NOTA_LARGA}\r\n".encode("utf-8") in hist
+
+
+def test_notas_con_verificacion_posterior_que_falla_no_escribe_y_sale_con_1(monkeypatch, capsys):
+    spec = importlib.util.spec_from_file_location("ledger_archive_mut2", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    with tempfile.TemporaryDirectory() as tmp:
+        carpeta = _carpeta(tmp, ledger_notas())
+        antes = leer(os.path.join(carpeta, "tasks.md"))
+        reales = mod.errores_lint
+        monkeypatch.setattr(mod, "errores_lint",
+                            lambda data: reales(data) + ([] if data == antes else ["colada"]))
+        assert mod.main([carpeta, "--apply", "--fecha", FECHA]) == 1
+        assert "ledger-lint empeoraría" in capsys.readouterr().err
+        assert leer(os.path.join(carpeta, "tasks.md")) == antes
+        assert not os.path.exists(os.path.join(carpeta, "execution-history.md"))
+
+
+def test_nota_dentro_de_valla_de_codigo_no_se_toca():
+    nota = "corta.\n\n```\n**Notas**: " + NOTA_LARGA + "\n```"
+    with tempfile.TemporaryDirectory() as tmp:
+        carpeta = _carpeta(tmp, ledger_notas(nota_t01="ejemplo corto", nota_t02=nota))
+        assert run_json(carpeta, "--apply")["notas"] == []

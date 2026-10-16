@@ -55,6 +55,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - Las cachés de cartera y plan firman el contenido con la lectura protegida del panel (sin symlinks, sin bloqueos con FIFO, con tope de bytes) y aciertan con el sondeo real de 10 s; el Plan muestra el aviso de «rangos de tareas sin expandir»; los ledgers de 1.000 tareas se proyectan en menos de 2 s; una escritura de revisión que acaba en timeout o en respuesta demasiado grande descarta la caché de revisión.
 - El kanban de Iniciativas ya no depende de una lectura lenta de la cartera en frío: el servidor la calcula al arrancar, la recalcula en segundo plano y la página dice «Calculando la cartera… (reintento en 3 s)» hasta que llega; las tarjetas de progreso de Inicio enlazan a su Plan y el hash de lectura pasa a un «Detalle técnico» cerrado; Agentes en vivo dice que la actividad está desactivada (opt-in) y cómo activarla; el análisis de metadatos de piezas de proyecto es unas dos veces más rápido con bloques largos.
 
+### Changed — Archivado del ledger
+
+- `ledger-archive.py` también recorta los párrafos `**Notas**:` largos de las tareas completadas (`--notas-max`, 600 por defecto) a su primera frase más puntero y SHA-256, y traslada el original a `execution-history.md`.
+
 ### Fixed — iniciativa `panel-redesign`, revisión de la fase 1
 
 - La exportación del panel ya no se fía de un `export-manifest.json` previo: una entrada con `..`, ruta absoluta, unidad, barra invertida o un padre enlazado aborta antes de escribir o borrar nada. Tampoco crea las carpetas padre del destino y detecta antes de escribir un fichero donde hace falta una carpeta, sin imprimir rutas absolutas.

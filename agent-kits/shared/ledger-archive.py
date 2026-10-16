@@ -5,7 +5,7 @@ ledger-archive.py — archivado DETERMINISTA de la historia cerrada del ledger c
 `tasks.md` crece sin límite y acaba superando el tope de lectura acotada de 256 KiB
 (`local-read.py` `MAX_BYTES`, que usan la retoma `progress-report.py resume` y `plan-review.py`).
 Lo que más pesa es historia ya cerrada: secciones `## Revisión de dos lentes — intento N`
-superadas y campos `- **Verificación**:` con narrativa acumulada. Este script la traslada a
+superadas campos `- **Verificación**:` y párrafos `**Notas**:` con narrativa acumulada. Este script la traslada a
 `<carpeta>/execution-history.md` con los bytes intactos y su SHA-256, y deja en el ledger un
 puntero por bloque. Sustituye al traslado a mano (`## Traslado AAAA-MM-DD …`).
 
@@ -24,6 +24,13 @@ B) `Verificación` de más de `--verificacion-max` caracteres (por defecto el `V
    `ledger-lint.py`): se sustituye por su PRIMERA frase (hasta el primer «. » o 400 caracteres, sin
    cortar palabras) + ` Detalle archivado: [execution-history.md](execution-history.md) · SHA-256
    `<sha12>`.`; el campo sigue presente (`verificacion: obligatoria`).
+D) `Notas` (párrafo `**Notas**: …`, hasta la línea en blanco) de las tareas `completado` de más de
+   `--notas-max` caracteres (600 por defecto: cubre una nota normal de cierre y recorta la narrativa
+   de depuración): mismo recorte que (B) — primera frase + puntero + SHA-256 —, con el original íntegro
+   en el histórico (`## Archivado … — T-NN · Notas`). Solo tareas `completado`; nunca una abierta, la
+   tabla de resumen, las secciones de revisión ni lo que hay dentro de una valla de código. No se
+   archivan `Verificación ejecutada` (la lee `ledger-view.py` como `verificacion_salida` para el
+   panel, con su tope) ni `Evidencia TDD` (la exige la disciplina `tdd` en el ledger y pesa poco).
 C) Histórico: una sección `## Archivado AAAA-MM-DD — <qué> (bytes sin cambios)` por bloque, con
    `SHA-256 del bloque: `<sha>`.` y el bloque tal cual. IDEMPOTENTE: un SHA que ya está en el
    histórico no se vuelve a añadir (cubre un corte entre las dos escrituras). El SHA se calcula
@@ -38,7 +45,7 @@ C) Histórico: una sección `## Archivado AAAA-MM-DD — <qué> (bytes sin cambi
 El parser es el de `ledger-lint.py` (cargado con importlib, sin duplicarlo).
 
 Uso:
-  ledger-archive.py <carpeta-iniciativa> [--apply] [--verificacion-max N] [--json] [--fecha AAAA-MM-DD]
+  ledger-archive.py <carpeta-iniciativa> [--apply] [--verificacion-max N] [--notas-max N] [--json] [--fecha AAAA-MM-DD]
   Sin --apply: plan en seco (no escribe nada). Lo ejecuta el ORQUESTADOR cuando `ledger-lint` avisa
   del tamaño (el implementer no: su guardia solo le deja escribir `tasks.md` en `docs/roadmap/`).
 Exit: 0 éxito (también «nada que archivar») · 1 la verificación posterior falla (nada escrito) ·
@@ -65,6 +72,8 @@ HISTORICO = "execution-history.md"
 HISTORIAL_HDR = "## Historial archivado"
 PUNTERO = f"[{HISTORICO}]({HISTORICO})"
 FRASE_MAX = 400
+NOTAS_MAX = 600
+_NOTAS_RE = re.compile(r"^\*\*Notas\*\*[^\S\n]*:[^\S\n]*(?P<txt>.*)$")
 _FECHA_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _TAREA_HDR_RE = re.compile(r"^###\s+(T-\d+)\b")
 _H2_RE = re.compile(r"^##\s")
@@ -268,6 +277,43 @@ def recortar_verificaciones(texto, maximo):
     return "\n".join(lineas), list(reversed(out))
 
 
+def recortar_notas(texto, maximo):
+    """(texto con las `Notas` largas de tareas `completado` recortadas, [{tarea, bloque, sha}]).
+    Párrafo `**Notas**: …` dentro de un `### T-NN` completado (fuera de vallas): llega hasta una línea
+    en blanco, un encabezado o el siguiente campo del ledger. Mismo recorte que `Verificación`."""
+    estados = {t["id"]: t["estado"] for t in LL.parse_ledger(texto)["tareas"]}
+    lineas = texto.split("\n")
+    limpias = LL.sin_vallas(texto).split("\n")
+    cambios, tarea, i = [], None, 0
+    while i < len(limpias):
+        ln = limpias[i]
+        m = _TAREA_HDR_RE.match(ln)
+        if m:
+            tarea = m.group(1)
+        elif _H2_RE.match(ln) or _FASE_H3_RE.match(ln):
+            tarea = None
+        elif tarea and estados.get(tarea) == "completado" and _NOTAS_RE.match(ln):
+            j = i + 1
+            while (j < len(limpias) and limpias[j].strip() and not limpias[j].startswith("#")
+                   and not LL._CAMPO_LEDGER_RE.match(limpias[j])):
+                j += 1
+            campo = " ".join([_NOTAS_RE.match(ln).group("txt").strip()]
+                             + [x.strip() for x in limpias[i + 1:j]]).strip()
+            if len(campo) > maximo and "Detalle archivado:" not in campo:
+                cambios.append((tarea, i, j, campo))
+            i = j
+            continue
+        i += 1
+    out = []
+    for tarea, i, j, campo in reversed(cambios):         # de abajo arriba: los índices no se mueven
+        bloque = "\n".join(lineas[i:j]) + "\n"
+        sha = sha256(bloque)
+        lineas[i:j] = [f"**Notas**: {primera_frase(campo)} Detalle archivado: {PUNTERO} · "
+                       f"SHA-256 `{sha[:12]}`."]
+        out.append({"tarea": tarea, "bloque": bloque, "sha": sha})
+    return "\n".join(lineas), list(reversed(out))
+
+
 # ------------------------------------------------------------------- Historial archivado ----
 
 def anadir_historial(texto, nuevas):
@@ -362,24 +408,28 @@ def slug_de(carpeta):
     return re.sub(r"^\d{4}-\d{2}-\d{2}-", "", os.path.basename(os.path.normpath(carpeta)))
 
 
-def planificar(carpeta, maximo, fecha):
+def planificar(carpeta, maximo, fecha, notas_max=NOTAS_MAX):
     """Calcula todo sin escribir. Devuelve un dict con el plan y los bytes resultantes."""
     tasks = os.path.join(carpeta, "tasks.md")
     texto, bom, nl = leer_texto(tasks)
     base = invariantes(texto)
     tras_a, archivadas, omitidas = seleccionar_revisiones(texto, base)
     tras_b, recortes = recortar_verificaciones(tras_a, maximo)
+    tras_b, notas = recortar_notas(tras_b, notas_max)
     for a in archivadas:
         a["sha"] = sha256(a["bloque"])
     final = anadir_historial(tras_b, [
         f"- {fecha} · «{a['cabecera']}» → {PUNTERO} · SHA-256 `{a['sha']}`" for a in archivadas])
     antes = a_bytes(texto, bom, nl)
-    despues = a_bytes(final, bom, nl) if (archivadas or recortes) else antes
+    despues = a_bytes(final, bom, nl) if (archivadas or recortes or notas) else antes
     entradas = ([{"titulo": a["cabecera"], "bloque": a["bloque"], "sha": a["sha"]} for a in archivadas]
                 + [{"titulo": f"{r['tarea']} · Verificación", "bloque": r["bloque"], "sha": r["sha"]}
-                   for r in recortes])
+                   for r in recortes]
+                + [{"titulo": f"{r['tarea']} · Notas", "bloque": r["bloque"], "sha": r["sha"]}
+                   for r in notas])
     return {"tasks": tasks, "texto": texto, "final": final, "nl": nl, "base": base,
             "antes": antes, "despues": despues, "archivadas": archivadas, "recortes": recortes,
+            "notas": notas,
             "omitidas": omitidas, "entradas": entradas}
 
 
@@ -432,6 +482,8 @@ def informe(plan, aplicado):
                        "bytes": bloque_en_fichero(a["bloque"], nl)} for a in plan["archivadas"]],
         "verificaciones": [{"tarea": r["tarea"], "sha256": r["sha"],
                             "bytes": bloque_en_fichero(r["bloque"], nl)} for r in plan["recortes"]],
+        "notas": [{"tarea": r["tarea"], "sha256": r["sha"],
+                   "bytes": bloque_en_fichero(r["bloque"], nl)} for r in plan["notas"]],
         "bytes_antes": len(plan["antes"]),
         "bytes_despues": len(plan["despues"]),
         "omitidas": plan["omitidas"],
@@ -441,7 +493,7 @@ def informe(plan, aplicado):
 def imprimir(d, carpeta):
     modo = "aplicado" if d["aplicado"] else "en seco — nada escrito; --apply para aplicar"
     print(f"ledger-archive ({modo}): {carpeta}")
-    if not d["secciones"] and not d["verificaciones"]:
+    if not d["secciones"] and not d["verificaciones"] and not d["notas"]:
         print("  nada que archivar")
     if d["secciones"]:
         print(f"  secciones de revisión archivadas ({len(d['secciones'])}):")
@@ -450,6 +502,10 @@ def imprimir(d, carpeta):
     if d["verificaciones"]:
         print(f"  Verificación recortadas ({len(d['verificaciones'])}):")
         for v in d["verificaciones"]:
+            print(f"    - {v['tarea']} · {v['bytes']} bytes · SHA-256 {v['sha256'][:12]}")
+    if d["notas"]:
+        print(f"  Notas recortadas ({len(d['notas'])}):")
+        for v in d["notas"]:
             print(f"    - {v['tarea']} · {v['bytes']} bytes · SHA-256 {v['sha256'][:12]}")
     if d["omitidas"]:
         print(f"  secciones de revisión que se quedan ({len(d['omitidas'])}):")
@@ -467,6 +523,9 @@ def main(argv=None):
     ap.add_argument("--verificacion-max", type=int, default=LL.VERIFICACION_MAX,
                     help=f"caracteres de Verificación a partir de los que se recorta "
                          f"(por defecto {LL.VERIFICACION_MAX})")
+    ap.add_argument("--notas-max", type=int, default=NOTAS_MAX,
+                    help=f"caracteres de `Notas` (tareas completado) a partir de los que se recorta "
+                         f"(por defecto {NOTAS_MAX})")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--fecha", default=None, help="fecha de las entradas (AAAA-MM-DD; hoy por defecto)")
     args = ap.parse_args(argv)
@@ -478,12 +537,15 @@ def main(argv=None):
     if args.verificacion_max < 1:
         print("ledger-archive: --verificacion-max tiene que ser un entero positivo", file=sys.stderr)
         return 2
+    if args.notas_max < 1:
+        print("ledger-archive: --notas-max tiene que ser un entero positivo", file=sys.stderr)
+        return 2
     carpeta = args.carpeta
     if not os.path.isfile(os.path.join(carpeta, "tasks.md")):
         print(f"ledger-archive: no existe {os.path.join(carpeta, 'tasks.md')}", file=sys.stderr)
         return 2
     try:
-        plan = planificar(carpeta, args.verificacion_max, fecha)
+        plan = planificar(carpeta, args.verificacion_max, fecha, args.notas_max)
     except (OSError, UnicodeDecodeError) as e:
         print(f"ledger-archive: ledger ilegible ({e})", file=sys.stderr)
         return 2
