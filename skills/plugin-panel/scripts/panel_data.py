@@ -192,14 +192,17 @@ def _leer_ledger(fila, project, carpeta, reader, progress, lint, presupuesto):
         fila['ledger'] = 'ilegible' if estado in ('invalid_encoding', 'not_regular') else 'sin_lectura'
         return alertas, estado
     try:
-        resumen = progress.resumir(rel, text=lectura['text'])
-        analizado = progress.parse_ledger(lectura['text'])
+        analizado = progress.parse_ledger(lectura['text'])      # un solo parseo: N/M, completado_sin_marcar y gaps
+        if not analizado['tareas']:
+            raise ValueError('sin tareas `### T-XX` reconocibles')  # el mismo rechazo que `progress.resumir`
         secciones = lint.secciones_revision(lectura['text'])
     except (ValueError, TypeError, KeyError, OverflowError, RecursionError):
         fila['ledger'] = 'ilegible'
         return alertas, 'malformed'
     fila['ledger'] = 'ok'
-    fila['tareas'] = {'total': resumen['total'], 'completadas': resumen['completadas'], 'pct': resumen['pct']}
+    total = len(analizado['tareas'])
+    completadas = sum(1 for t in analizado['tareas'] if t['estado'] == 'completado')
+    fila['tareas'] = {'total': total, 'completadas': completadas, 'pct': round(100 * completadas / total)}
     abiertos = sum(1 for s in secciones for f in s['filas'] if lint.gap_pendiente(f))
     if abiertos:
         alertas.append({'codigo': 'gaps_abiertos', 'n': abiertos})
@@ -235,6 +238,30 @@ def _vacia(status, issue=None):
     if issue:
         resultado['issues'].append({'status': issue})
     return resultado
+
+
+def cartera_firma(project):
+    """Firma barata (nombre, mtime, tamaño) de todo lo que lee `cartera`: `docs/roadmap` y, por iniciativa, sus
+    artefactos y `testing/`. Dos firmas iguales = la cartera no ha cambiado y no hay que recalcularla (ni leer ni
+    parsear ningún ledger). Si no se puede leer, la firma es única cada vez: nunca sirve una copia vieja."""
+    raiz = os.path.join(str(project), 'docs', 'roadmap')
+
+    def estado(ruta):
+        try:
+            info = os.stat(ruta)
+        except OSError:
+            return None
+        return (info.st_mtime_ns, info.st_size)
+    try:
+        firma = [estado(raiz)]
+        with os.scandir(raiz) as it:
+            nombres = sorted(e.name for e in it)
+        for nombre in nombres[:MAX_SCAN]:
+            ruta = os.path.join(raiz, nombre)
+            firma.append((nombre, estado(ruta), tuple(estado(os.path.join(ruta, a)) for a in ARTEFACTOS + ('testing',))))
+        return tuple(firma)
+    except OSError:
+        return object()
 
 
 def cartera(project):
@@ -354,6 +381,21 @@ def _vista(project, ident):
     return carpeta, _load_ledger_view().leer(Path(str(project)) / 'docs' / 'roadmap' / carpeta)
 
 
+def firma_ledger(project, ident):
+    """`(mtime, tamaño)` del `tasks.md` de la iniciativa `ident`: cambia cuando cambia lo que `plan`/`tarea`
+    proyectan. `None` si el id no se resuelve; `()` si no se puede leer. Solo sirve para invalidar cachés."""
+    try:
+        carpeta = _carpeta(project, ident, _load_shared('local-read.py'))
+        if carpeta is None:
+            return None
+        info = os.stat(os.path.join(str(project), 'docs', 'roadmap', carpeta, 'tasks.md'))
+        return (info.st_mtime_ns, info.st_size)
+    except OSError:
+        return ()
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _fila_plan(t):
     return {'id': t['id'], 'titulo': _limpio(t['titulo'], 'titulo'), 'fase_nombre': _limpio(t['fase'], 'fase_nombre'),
             'estado_tarea': t['estado'], 'literal': _limpio(t['literal'], 'literal'),
@@ -374,7 +416,10 @@ def plan(project, ident):
         return _plan_vacio(ident, None, 'unavailable', 'reader_unavailable')
     if resuelto is None:
         return None
-    carpeta, vista = resuelto
+    return _plan_de(ident, *resuelto)
+
+
+def _plan_de(ident, carpeta, vista):
     estado = vista['status']
     respuesta = _plan_vacio(ident, carpeta, 'ok' if estado == 'ok' else estado, None if estado == 'ok' else estado)
     if estado != 'ok':
@@ -414,8 +459,27 @@ def tarea(project, ident, tarea_id):
     if vista['status'] != 'ok':
         return _env_tarea(ident, tarea_id, vista['status'], vista['status'])
     t = next((x for x in vista['tareas'] if x['id'] == tarea_id), None)
-    if t is None:
+    return None if t is None else _detalle(ident, tarea_id, t)
+
+
+def plan_y_detalles(project, ident):
+    """`(plan, {T-XX: detalle})` de la iniciativa `ident` con UNA lectura y UNA proyección del ledger (el exportado
+    pedía `tarea()` por tarea y reproyectaba el ledger entero cada vez). Cada valor es lo que devuelven `plan()` y
+    `tarea()`. `None` si el id no se resuelve; con un ledger no mostrable, sin detalles."""
+    try:
+        resuelto = _vista(project, ident)
+    except Exception:  # noqa: BLE001 - un ayudante ausente o roto no revela su ruta ni su error
+        return _plan_vacio(ident, None, 'unavailable', 'reader_unavailable'), {}
+    if resuelto is None:
         return None
+    respuesta = _plan_de(ident, *resuelto)
+    if resuelto[1]['status'] != 'ok':
+        return respuesta, {}
+    return respuesta, {t['id']: _detalle(ident, t['id'], t) for t in resuelto[1]['tareas']}
+
+
+def _detalle(ident, tarea_id, t):
+    """Respuesta `api/plan-<id16>-<T-XX>` de la tarea `t` de una proyección ya leída."""
     v, r = t['verificacion'], t['revision']
     respuesta = _env_tarea(ident, tarea_id, 'ok')
     respuesta['omitidos'] = {'criterios': max(0, len(t['criterios']) - MAX_CRITERIOS),

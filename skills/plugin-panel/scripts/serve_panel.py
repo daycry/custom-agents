@@ -5,6 +5,7 @@ import hmac
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
 import secrets
@@ -22,6 +23,8 @@ BODY_TIMEOUT = 3
 MAX_REVIEW_REQUEST_BYTES = 16 * 1024
 MAX_REVIEW_RESPONSE_BYTES = 512 * 1024
 MAX_REVIEW_IDS = 128
+REVIEW_BATCH = 64  # plan-review.MAX_RECORDS: `summarize_reviews` refuses more initiatives per call
+CACHE_MAX_AGE = 60  # an unchanged signature is trusted for this long (keeps `observed_at` honest)
 REVIEW_OPEN_GATE = 'requested-review'  # the only gate the browser can open; `plan-ok` belongs to the orchestrator
 TOO_MANY_REVIEWS = 'demasiadas revisiones abiertas en este proceso'
 STATES = {'borrador', 'en-progreso', 'en-revision', 'completado', 'cancelado'}
@@ -449,14 +452,20 @@ class PanelServer(HTTPServer):
         """Roadmap portfolio for Inicio and Iniciativas: panel_data owns the projection, the single scrubber
         cleans the displayed text after it, and a short cache keeps several tabs from rescanning the roadmap."""
         now = time.monotonic()
-        if self._cartera is None or now - self._cartera_at >= 2:
-            try:
-                body = _encoded(_scrubbed(_load_data().cartera(self.project), self.scrub))
-                if len(body) > MAX_RESPONSE_BYTES:
-                    raise ValueError('response budget')
-            except Exception:
-                body = _encoded(_unavailable_cartera())
-            self._cartera, self._cartera_at = body, now
+        if self._cartera is not None and now - self._cartera_at < 2:
+            return self._cartera
+        try:
+            data = _load_data()
+            firma = data.cartera_firma(self.project)   # cheap (mtime and size): unchanged -> no ledger is read again
+            if self._cartera is not None and firma == self._cartera_firma and now - self._cartera_built < CACHE_MAX_AGE:
+                self._cartera_at = now
+                return self._cartera
+            body = _encoded(_scrubbed(data.cartera(self.project), self.scrub))
+            if len(body) > MAX_RESPONSE_BYTES:
+                raise ValueError('response budget')
+        except Exception:
+            body, firma = _encoded(_unavailable_cartera()), None
+        self._cartera, self._cartera_at, self._cartera_built, self._cartera_firma = body, now, now, firma
         return self._cartera
 
     def plan(self, ident):
@@ -466,8 +475,9 @@ class PanelServer(HTTPServer):
         if ident not in self.plan_ids:
             return None
         now = time.monotonic()
+        firma = self._ledger_firma(ident)
         hit = self._plans.get(ident)
-        if hit is not None and now - hit[0] < 2:
+        if hit is not None and firma is not None and hit[2] == firma and now - hit[0] < CACHE_MAX_AGE:
             return hit[1]
         try:
             data = _load_data().plan(self.project, ident)
@@ -476,8 +486,15 @@ class PanelServer(HTTPServer):
             body = _encoded(_unavailable_plan(ident))
         if len(self._plans) >= MAX_INITIATIVES:
             self._plans.clear()
-        self._plans[ident] = (now, body)
+        self._plans[ident] = (now, body, firma)
         return body
+
+    def _ledger_firma(self, ident):
+        """Signature of the initiative `tasks.md` (any edit of the ledger changes it); `None` = do not cache."""
+        try:
+            return _load_data().firma_ledger(self.project, ident)
+        except Exception:
+            return None
 
     def tarea(self, ident, tarea_id):
         """`api/plan-<id16>-<T-XX>`: detalle de una tarea de una iniciativa DEL INVENTARIO de planes; `None` -> 404
@@ -486,8 +503,9 @@ class PanelServer(HTTPServer):
             return None
         now = time.monotonic()
         clave = (ident, tarea_id)
+        firma = self._ledger_firma(ident)
         hit = self._plans.get(clave)
-        if hit is not None and now - hit[0] < 2:
+        if hit is not None and firma is not None and hit[2] == firma and now - hit[0] < CACHE_MAX_AGE:
             return hit[1]
         try:
             data = _load_data().tarea(self.project, ident, tarea_id)
@@ -498,7 +516,7 @@ class PanelServer(HTTPServer):
             body = _encoded(_unavailable_tarea(ident, tarea_id))
         if len(self._plans) >= MAX_INITIATIVES * 4:
             self._plans.clear()
-        self._plans[clave] = (now, body)
+        self._plans[clave] = (now, body, firma)
         return body
 
     def activity(self):
@@ -576,7 +594,13 @@ class PanelServer(HTTPServer):
         rid = review['review_id']
         if rid not in self.review_registry:
             if len(self.review_registry) >= MAX_REVIEW_IDS:
-                return ''
+                # An initiative that already has an id at the cap replaces it (same gate: a new plan version makes
+                # the old review obsolete); an initiative with none is left out instead of evicting another's.
+                old = next((k for k, e in self.review_registry.items()
+                            if e['initiative'] == initiative and e['gate_key'] == gate_key), None)
+                if old is None:
+                    return ''
+                del self.review_registry[old]
             self.review_registry[rid] = {'initiative': initiative, 'gate_key': gate_key, 'consumer': consumer,
                 'escritura': gate_key == REVIEW_OPEN_GATE if escritura is None else escritura}
         return rid
@@ -593,12 +617,16 @@ class PanelServer(HTTPServer):
         now = time.monotonic()
         if self._review_summary is not None and now - self._review_summary_at < 5:
             return self._review_summary
+        firma = self._review_firma()
+        if (self._review_summary is not None and firma == self._review_summary_firma
+                and now - self._review_summary_built < CACHE_MAX_AGE):
+            self._review_summary_at = now  # nothing changed since the last read: the poll (10 s) costs no owner call
+            return self._review_summary
         try:
             paths = self.review_paths()
             ids = {path: ident for ident, path in paths.items()}
             deadline = time.monotonic() + BODY_TIMEOUT
-            data = self.owner().summarize_reviews(self.project, list(paths.values()),
-                state_root=self.review_state_root, deadline=deadline)
+            data = self._summarize(list(paths.values()), deadline)
             rows = []
             for row in data.get('initiatives', []):
                 ident = ids.get(row.get('initiative'))
@@ -613,8 +641,55 @@ class PanelServer(HTTPServer):
                 body = _encoded(data)
         except Exception:
             body = _encoded(_review_summary_failure())
+            firma = None
         self._review_summary, self._review_summary_at = body, now
+        self._review_summary_built, self._review_summary_firma = now, firma
         return body
+
+    def _summarize(self, initiatives, deadline):
+        """The owner's summary, asked in batches of `REVIEW_BATCH` (it refuses more initiatives per call than its
+        record budget): a project with more plans than that keeps every row instead of answering `invalid_input`.
+        A batch that fails is counted in `omitted` and makes the answer `partial`; if none succeeds, the first failure."""
+        owner = self.owner()
+        batches = [initiatives[i:i + REVIEW_BATCH] for i in range(0, len(initiatives), REVIEW_BATCH)] or [[]]
+        results = [owner.summarize_reviews(self.project, batch, state_root=self.review_state_root, deadline=deadline)
+                   for batch in batches]
+        if len(results) == 1:
+            return results[0]
+        good = [(r, b) for r, b in zip(results, batches) if r.get('status') in ('ok', 'partial')]
+        if not good:
+            return results[0]
+        merged = dict(good[0][0])
+        merged['initiatives'] = [row for r, _ in good for row in r.get('initiatives', [])]
+        merged['omitted'] = (sum(r.get('omitted', 0) for r, _ in good)
+                             + sum(len(b) for r, b in zip(results, batches) if r.get('status') not in ('ok', 'partial')))
+        merged['complete'] = all(r.get('complete') is True for r in results)
+        merged['status'] = 'ok' if merged['complete'] else 'partial'
+        merged['reason'] = None if merged['complete'] else next(
+            (r.get('reason') for r in results if r.get('reason')), 'deadline_expired')
+        return merged
+
+    def _review_firma(self):
+        """Cheap signature of what the owner reads for the summary: every file of the review state folder and the plan
+        of each mappable initiative (name, mtime, size). Equal signatures = nothing to re-read. Unreadable -> a value
+        that never equals another, so an error is never served from cache."""
+        def stat(path):
+            try:
+                info = os.stat(path)
+            except OSError:
+                return None
+            return (info.st_mtime_ns, info.st_size)
+        try:
+            root = Path(self.review_state_root)
+            records = []
+            if root.is_dir():
+                with os.scandir(root) as it:
+                    records = sorted((e.name, stat(e.path)) for e in it)
+            plans = [(path, stat(Path(self.project) / path / 'improvement-plan.md'))
+                     for path in sorted(self.review_paths().values())]
+            return (stat(root), tuple(records), tuple(plans))
+        except Exception:
+            return object()
 
     def _current_failure(self, ident, reason, estado='no_disponible', **extra):
         return _encoded({'schema_version': 1, 'status': 'unavailable', 'reason': reason, 'initiative_id': ident,
@@ -625,7 +700,27 @@ class PanelServer(HTTPServer):
         `requested-review` review gets write access; any other gate (`plan-ok` of another process) is read-only."""
         initiative = self.review_paths().get(ident)
         if initiative is None:
+            if ident in self.plan_ids:  # a plan the panel lists but cannot review (folder name, id collision)
+                return self._current_failure(ident, 'not_reviewable')
             return None
+        now = time.monotonic()
+        hit = self._review_current.get(ident)
+        if hit is not None and now - self._review_current_at.get(ident, 0) < 5:
+            return hit[2]
+        firma = self._review_firma()
+        if hit is not None and hit[0] == firma and now - hit[1] < CACHE_MAX_AGE:
+            self._review_current_at[ident] = now
+            return hit[2]
+        body = self._review_current_body(ident, initiative)
+        if body is not None and json.loads(body).get('status') == 'ok':
+            self._review_current[ident] = (firma, now, body)
+            self._review_current_at[ident] = now
+        else:
+            self._review_current.pop(ident, None)
+            body = body or self._current_failure(ident, 'reader_unavailable')
+        return body
+
+    def _review_current_body(self, ident, initiative):
         try:
             data = self.owner().summarize_reviews(self.project, [initiative], state_root=self.review_state_root,
                                                   deadline=time.monotonic() + BODY_TIMEOUT)
@@ -646,7 +741,9 @@ class PanelServer(HTTPServer):
 
     def review_open(self, ident, deadline):
         """`POST api/review-open/<id16>` (the id is already known to be in the map): opens with the literal gate."""
-        initiative = self.review_paths()[ident]
+        initiative = self.review_paths().get(ident)
+        if initiative is None:  # the folder left the map between the route check and here
+            return 404, _encoded(_review_failure('initiative_unavailable'))
         full = {'schema_version': 1, 'status': 'unavailable', 'reason': 'too_many_reviews',
                 'message': TOO_MANY_REVIEWS, 'initiative_id': ident, 'review_id': None}
         if len(self.review_registry) >= MAX_REVIEW_IDS and all(e['initiative'] != initiative for e in self.review_registry.values()):
@@ -659,7 +756,7 @@ class PanelServer(HTTPServer):
             if time.monotonic() >= deadline:
                 raise TimeoutError
             rid = self.register_review(result, initiative, REVIEW_OPEN_GATE, None, True)
-            self._review_summary = None
+            self._review_summary = None; self._review_current.clear(); self._review_current_at.clear()
             if not rid and result.get('status') in ('ok', 'waiting'):
                 return 429, _encoded(full)
             reason = result.get('reason')
@@ -875,6 +972,8 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
         server.review_registry = {}; server.review_owner = None
         server._review_map = None; server._review_map_at = 0
         server._review_summary = None; server._review_summary_at = 0
+        server._review_summary_built = 0; server._review_summary_firma = None
+        server._review_current = {}; server._review_current_at = {}
         review_id = ''
         if review_selection is not None:
             try:
@@ -891,12 +990,13 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
         server.capability = secrets.token_urlsafe(32)
         server.access_prefix = '/' + server.capability + '/'
         server._snapshot = None; server._snapshot_at = 0
-        server._cartera = None; server._cartera_at = 0
+        server._cartera = None; server._cartera_at = 0; server._cartera_built = 0; server._cartera_firma = None
         server._plans = {}
         server.csp = pages.CSP_SERVIDO.format(nonce=nonce)
         server.warnings = warnings
         planes = plan_inventory(project, scrub)
         server.plan_ids = {plan['id'] for plan in planes}
+        reviewable = set(review_initiatives(project)) if review_scope is not None else set()  # plans the panel can review
         bodies = builder.cuerpos_paginas(inventory, live=True, review_enabled=review_selection is not None,
                                          review_id=review_id, actividad='assets/panel-activity.js' in files,
                                          planes=planes, review_panel=review_scope is not None)
@@ -912,7 +1012,8 @@ def create_server(project, inventory, *, port=0, review_selection=None, review_s
             'plan', modo='servido', generado=generated, chart_ok=chart_ok, nonce=nonce, plan_id=plan['id'],
             datos=pages.datos_de_pagina('plan', inventory, modo='servido', plan_id=plan['id']),
             scripts_omitidos=hidden,
-            cuerpo=builder.cuerpo_plan_iniciativa('activa' if review_scope is not None else 'inactiva', plan['id'])).encode('utf8')
+            cuerpo=builder.cuerpo_plan_iniciativa(
+                'activa' if review_scope is not None and plan['id'] in reviewable else 'inactiva', plan['id'])).encode('utf8')
             for plan in planes}
         server.assets = {rel: (content, ASSET_TYPES.get(Path(rel).suffix, 'application/octet-stream'))
                          for rel, content in files.items()}

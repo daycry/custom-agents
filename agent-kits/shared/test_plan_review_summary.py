@@ -203,3 +203,45 @@ def test_cli_exit_codes_and_stdin_limit(o):
     bad = run_cli(o, None, raw=b'[' + b'"x",' * 5000 + b'"x"]')
     assert bad.returncode == 3 and json.loads(bad.stdout)['reason'] == 'request_budget'
     assert run_cli(o, {'not': 'list'}).returncode == 3
+
+
+def test_a_really_expired_deadline_gives_partial_with_what_was_read(o, monkeypatch):
+    """F2-8: the second inventory must not die on the expired deadline: `partial` keeps the rows already read."""
+    a = review(o, 'one', 'approve')
+    b = review(o, 'two', 'approve')
+    real = o.m._view
+    calls = []
+    def slow(*args, **kw):
+        calls.append(1)
+        out = real(*args, **kw)
+        if len(calls) == 1: time.sleep(0.6)   # the real deadline passes while the first plan is read
+        return out
+    monkeypatch.setattr(o.m, '_view', slow)
+    result = summary(o, [a, b], deadline=time.monotonic() + 0.4)
+    assert result['status'] == 'partial' and result['reason'] == 'deadline_expired' and result['complete'] is False
+    assert sorted(r['estado'] for r in result['initiatives']) == ['aprobada', 'no_disponible']
+
+
+def test_the_redactor_is_loaded_once_for_many_plans(o, monkeypatch):
+    """F2-10: `summarize_reviews` over N initiatives must not exec `redact.py` once per plan."""
+    items = [review(o, name, 'approve') for name in ('one', 'two', 'three')]
+    real = o.m._helper
+    loads = []
+    def counting(name):
+        if name == 'redact.py': loads.append(1)
+        return real(name)
+    monkeypatch.setattr(o.m, '_helper', counting)
+    result = summary(o, items)
+    assert result['status'] == 'ok' and len(result['initiatives']) == 3
+    assert len(loads) <= 1
+
+
+def test_a_foreign_plan_ok_does_not_hide_the_users_requested_review(o):
+    """F2-22: the principal review is the user requested-review, even when a later plan-ok exists for the same plan."""
+    initiative = review(o, 'one', gate='requested-review')
+    mine = summary(o, [initiative])['initiatives'][0]
+    time.sleep(0.01)
+    o.m.open_review(o.root, initiative, state_root=o.state, gate_key='plan-ok')
+    row = summary(o, [initiative])['initiatives'][0]
+    assert row['gate_key'] == 'requested-review' and row['review_id'] == mine['review_id']
+    assert row['other_current_reviews'] == 1

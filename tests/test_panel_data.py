@@ -221,3 +221,42 @@ def test_no_escribe_nada_en_el_proyecto(proyecto):
     antes = sorted((p, p.stat().st_mtime_ns) for p in proyecto.rglob('*') if p.is_file())
     _cargar().cartera(proyecto)
     assert sorted((p, p.stat().st_mtime_ns) for p in proyecto.rglob('*') if p.is_file()) == antes
+
+
+# --- fix1 de la Fase 2 (F2-5, F2-6) -------------------------------------------------------------------------------------
+
+def test_cada_ledger_se_parsea_una_sola_vez_por_calculo_de_cartera(proyecto):
+    """F2-5: `progress.parse_ledger` una vez por ledger (antes `resumir` + `parse_ledger` = dos)."""
+    datos = _cargar()
+    cuentas = []
+    cargar = datos._load_shared
+    def contando(nombre):
+        modulo = cargar(nombre)
+        if nombre == 'progress-report.py':
+            real = modulo.parse_ledger
+            modulo.parse_ledger = lambda texto: (cuentas.append(1), real(texto))[1]
+        return modulo
+    datos._load_shared = contando
+    resultado = datos.cartera(proyecto)
+    con_ledger = [f for f in resultado['iniciativas'] if f['ledger'] == 'ok']
+    assert con_ledger and len(cuentas) == len([f for f in resultado['iniciativas'] if f['ledger'] not in ('sin_ledger', 'fuera_de_tope', 'sin_lectura')])
+
+
+def test_plan_y_detalles_lee_el_ledger_una_vez_y_da_lo_mismo_que_plan_y_tarea(proyecto, cartera):
+    datos = _cargar()
+    fila = next(f for f in cartera['iniciativas'] if f['tiene_plan'] and f['ledger'] == 'ok')
+    lecturas = []
+    vista = datos._load_ledger_view()
+    real = vista.leer
+    vista.leer = lambda ruta: (lecturas.append(1), real(ruta))[1]
+    datos._load_ledger_view = lambda: vista
+    plan, detalles = datos.plan_y_detalles(proyecto, fila['id'])
+    assert len(lecturas) == 1
+    datos2 = _cargar()
+    observado = datos2.plan(proyecto, fila['id'])
+    assert {k: v for k, v in plan.items() if k != 'observed_at'} == {k: v for k, v in observado.items() if k != 'observed_at'}
+    assert set(detalles) == {t['id'] for t in plan['tareas']}
+    for tarea_id, detalle in detalles.items():
+        esperado = datos2.tarea(proyecto, fila['id'], tarea_id)
+        assert {k: v for k, v in detalle.items() if k != 'observed_at'} == {k: v for k, v in esperado.items() if k != 'observed_at'}
+    assert datos.plan_y_detalles(proyecto, '0' * 16) is None

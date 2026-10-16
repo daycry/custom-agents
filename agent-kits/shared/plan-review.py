@@ -126,6 +126,19 @@ def _file(path, reader):
 def _read(path, reader, maximum):
     raw, signature = _state_io(reader).read(path, maximum)
     return _strict(raw), signature
+_REDACTORS = {}
+
+def _redactor():
+    """`redact.py`, executed once per (size, mtime) of the file: a many-initiative summary validated every record
+    (and every plan) with a fresh load. A changed file loads again; a failing load is never cached."""
+    info = (HERE / 'redact.py').stat()
+    key = (info.st_size, info.st_mtime_ns)
+    module = _REDACTORS.get(key)
+    if module is None:
+        _REDACTORS.clear()
+        module = _REDACTORS[key] = _helper('redact.py')
+    return module
+
 def _view(project, initiative, reader, deadline):
     _guard(deadline)
     relative = initiative + '/improvement-plan.md'
@@ -136,7 +149,7 @@ def _view(project, initiative, reader, deadline):
     except UnicodeError: raise _Failure('invalid_encoding') from None
     code = reader.read_bytes(HERE, 'redact.py', max_bytes=256 * 1024, include_digest=True)
     _need(code['status'] == 'ok', 'helper_unavailable')
-    redactor = _helper('redact.py')
+    redactor = _redactor()
     sanitized = CONTROLS.sub('', original)
     text = redactor.redactar(sanitized)
     _need(bool(text.strip()), 'empty_plan')
@@ -289,7 +302,7 @@ def _envelope(status='ok', reason=None, review=None):
 def _comments(value, view):
     _need(type(value) is list and len(value) <= 20, 'comment_budget')
     allowed = {s['section_id'] for s in view['sections']} if view is not None else None; seen = set(); cleaned = []
-    redactor = _helper('redact.py')
+    redactor = _redactor()
     for item in value:
         _need(type(item) is dict and set(item) == {'comment_id', 'section_id', 'text'}, 'invalid_comments')
         identifier = item['comment_id']
@@ -321,7 +334,7 @@ def _feedback_text(value, verification=False):
     _need(len(value) <= characters and len(value.encode('utf8')) <= maximum, 'feedback_text_budget')
     normalized = value.replace('\r\n', '\n')
     sanitized = CONTROLS.sub('', normalized)
-    text = _helper('redact.py').redactar(sanitized)
+    text = _redactor().redactar(sanitized)
     _need(verification or bool(text.strip()), 'invalid_feedback')
     _need(len(text) <= characters and len(text.encode('utf8')) <= maximum, 'feedback_text_budget')
     return text, {'redacted': text != sanitized, 'controls_sanitized': sanitized != normalized}
@@ -691,7 +704,10 @@ def summarize_reviews(project, initiatives, *, state_root, deadline=None):
                 if exc.reason == 'deadline_expired': expired = True
                 rows.append(row(initiative, 'no_disponible', plan='unavailable')); continue
             current = [r for r in same if r['version']['view_sha256'] == view['view_sha256']]
-            principal = (current or records)[-1]
+            pool = current or records
+            # The panel can only act on its own `requested-review`: a later `plan-ok` of the orchestrator on the same
+            # plan must not hide it (it still counts in `other_current_reviews`).
+            principal = ([r for r in pool if r['gate_key'] == 'requested-review'] or pool)[-1]
             order = []
             for r in records:
                 if r['version'] not in order: order.append(r['version'])
@@ -709,10 +725,13 @@ def summarize_reviews(project, initiatives, *, state_root, deadline=None):
                 results_without_verification=sum(x['result_id'] not in verified for x in latest.values()),
                 other_current_reviews=max(0, len(current) - 1),
                 review_id=principal['review_id']))
-        _inventory(state, reader, marker, deadline, second)
+        # An expired deadline already made the answer `partial`; the consistency check still needs a little time
+        # of its own (a second `_guard` on the spent deadline would turn what was read into `unavailable`).
+        recheck = time.monotonic() + 1 if expired and time.monotonic() >= deadline else deadline
+        _inventory(state, reader, marker, recheck, second)
         _need(_json(sorted(first, key=lambda r: r['review_id'])) ==
               _json(sorted(second, key=lambda r: r['review_id'])), 'state_changed')
-        _need(_marker(project, state, reader, deadline, False) == marker, 'state_changed')
+        _need(_marker(project, state, reader, recheck, False) == marker, 'state_changed')
         for initiative, sha in seen.items():
             again = reader.read_bytes(project, initiative + '/improvement-plan.md', max_bytes=MAX_PLAN_BYTES, include_digest=True)
             _need(again['status'] == 'ok' and again['sha256'] == sha, 'state_changed')

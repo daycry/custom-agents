@@ -502,3 +502,61 @@ def test_http_api_cartera_pasa_por_el_saneador_unico_del_servidor(service, tmp_p
     finally:
         server.shutdown(); server.server_close(); thread.join(timeout=5)
     assert b'jdoeuser' not in raw and b'/home/' not in raw and '<usuario>'.encode() in raw
+
+
+# --- fix1 de la Fase 2: cachés por firma (F2-4, F2-13) ----------------------------------------------------------------
+
+def _server_con_plan(service, tmp_path):
+    carpeta = tmp_path / 'docs/roadmap/2026-10-09-example'
+    ledger(tmp_path)
+    (carpeta / 'spec.md').write_text('---\nestado: aprobada\n---\n# Spec\n', encoding='utf8')
+    (carpeta / 'improvement-plan.md').write_text('# Plan\n', encoding='utf8')
+    server = service.create_server(tmp_path, service._load_builder().build_inventory(tmp_path, project=None))
+    ident = hashlib.sha256(b'2026-10-09-example').hexdigest()[:16]
+    return server, carpeta, ident
+
+
+def test_la_cartera_no_se_recalcula_si_nada_cambio_y_un_cambio_de_ledger_si_se_ve(service, tmp_path, monkeypatch):
+    """F2-4: dos peticiones seguidas (pasado el TTL) sin cambios no recalculan; un cambio de ledger se ve."""
+    server, carpeta, _ = _server_con_plan(service, tmp_path)
+    try:
+        data = service._load_data()
+        llamadas = []
+        real = data.cartera
+        data.cartera = lambda project: (llamadas.append(1), real(project))[1]
+        monkeypatch.setattr(service, '_load_data', lambda: data)
+        primera = json.loads(server.cartera())
+        assert len(llamadas) == 1 and primera['iniciativas'][0]['tareas']['total'] == 2
+        server._cartera_at -= 30                                  # caducó el TTL corto, pero el roadmap es el mismo
+        assert json.loads(server.cartera()) == primera and len(llamadas) == 1
+        (carpeta / 'tasks.md').write_text((carpeta / 'tasks.md').read_text(encoding='utf8')
+                                          + '### T-03 — Extra\n- **Estado**: borrador\n', encoding='utf8')
+        server._cartera_at -= 30
+        despues = json.loads(server.cartera())
+        assert len(llamadas) == 2 and despues['iniciativas'][0]['tareas']['total'] == 3
+    finally:
+        server.server_close()
+
+
+def test_la_firma_de_la_cartera_cambia_con_un_artefacto_y_con_una_carpeta_nueva(service, tmp_path):
+    ledger(tmp_path)
+    data = service._load_data()
+    antes = data.cartera_firma(tmp_path)
+    assert antes == data.cartera_firma(tmp_path)
+    (tmp_path / 'docs/roadmap/2026-10-10-otra').mkdir()
+    assert data.cartera_firma(tmp_path) != antes
+
+
+def test_el_detalle_de_una_tarea_no_sirve_la_copia_anterior_tras_cambiar_el_ledger(service, tmp_path):
+    """F2-13: el cambio de fila en el ledger se ve en la petición siguiente, dentro de la ventana de caché."""
+    server, carpeta, ident = _server_con_plan(service, tmp_path)
+    try:
+        antes = json.loads(server.tarea(ident, 'T-02'))['tarea']
+        assert antes['estado_tarea'] == 'en-progreso'
+        texto = (carpeta / 'tasks.md').read_text(encoding='utf8').replace(
+            'Build feature\n- **Estado**: en-progreso', 'Build feature\n- **Estado**: completado')
+        (carpeta / 'tasks.md').write_text(texto, encoding='utf8')
+        assert json.loads(server.tarea(ident, 'T-02'))['tarea']['estado_tarea'] == 'completado'
+        assert [t['estado_tarea'] for t in json.loads(server.plan(ident))['tareas']] == ['completado', 'completado']
+    finally:
+        server.server_close()

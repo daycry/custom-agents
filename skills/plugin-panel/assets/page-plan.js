@@ -259,8 +259,8 @@
     var plazo = raiz.setTimeout(function () { controlador.abort(); }, PLAZO_MS);
     raiz.fetch('api/plan-' + ctx.id + '-' + tid, { credentials: 'omit', cache: 'no-store', signal: controlador.signal })
       .then(function (r) { if (!r.ok) { throw new Error('no disponible'); } return r.json(); })
-      .then(function (d) { if (token === ctx.token) { pintarDetalle(validarDetalle(d, ctx.id, tid) ? d : null, tid); } })
-      .catch(function () { if (token === ctx.token) { pintarDetalle(null, tid); } })
+      .then(function (d) { if (token === ctx.token && ctx.controlador === controlador) { pintarDetalle(validarDetalle(d, ctx.id, tid) ? d : null, tid); } })
+      .catch(function () { if (token === ctx.token && ctx.controlador === controlador) { pintarDetalle(null, tid); } })
       .then(function () { raiz.clearTimeout(plazo); });
   }
 
@@ -301,6 +301,9 @@
 
   function alTeclado(evento) {
     if (evento.key === 'Escape') {
+      /* Escape dentro de un campo de formulario (p. ej. un comentario de revisión) es del campo: no cierra el detalle. */
+      var objetivo = evento.target && typeof evento.target.tagName === 'string' ? evento.target.tagName.toLowerCase() : '';
+      if (objetivo === 'textarea' || objetivo === 'input' || objetivo === 'select') { return; }
       var panel = porId('plan-detalle');
       if (panel && !panel.hidden) { evento.preventDefault(); cerrar(); }
     }
@@ -507,8 +510,6 @@
     parar();
     if (raiz.document.hidden || ctx.enVuelo) { return; }
     ctx.enVuelo = true;
-    var boton = porId('plan-refrescar');
-    if (boton) { boton.disabled = true; }
     var controlador = new raiz.AbortController();
     ctx.ctrlPlan = controlador;
     var plazo = raiz.setTimeout(function () { controlador.abort(); }, PLAZO_MS);
@@ -530,7 +531,6 @@
         raiz.clearTimeout(plazo);
         ctx.ctrlPlan = null;
         ctx.enVuelo = false;
-        if (boton) { boton.disabled = false; }
         programar();
       });
   }

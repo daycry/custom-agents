@@ -473,3 +473,18 @@ def test_los_ledgers_del_repo_no_tienen_incoherencias_por_cerrada():
 
 if __name__ == "__main__":
     main()
+def test_las_filas_estado_y_fecha_de_la_cabecera_no_tienen_backtracking_cuadratico():
+    """F2-9 (CWE-1333): 40.000 espacios tras la celda no pueden bloquear el parser (< 1 s)."""
+    import importlib.util, time
+    spec = importlib.util.spec_from_file_location("ledger_lint_redos", SCRIPT)
+    ll = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ll)
+    espacios = " " * 40000
+    texto = (f"| **Estado** |{espacios}\n| **Fecha** |{espacios}\n\n## Fase 1\n\n### T-01 — x\n\n"
+             "- **Estado**: borrador\n")
+    t0 = time.monotonic()
+    parsed = ll.parse_ledger(texto)
+    assert time.monotonic() - t0 < 1.0
+    assert parsed["creado"] is None
+    ok = ll.parse_ledger("| **Estado** | en-progreso |\n| **Fecha** | 2026-10-01 |\n\n### T-01 — x\n")
+    assert ok["creado"] == "2026-10-01" and ok["estado_tabla"] == "en-progreso"

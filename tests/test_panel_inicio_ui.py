@@ -347,6 +347,30 @@ document.hidden=false;docEvents.visibilitychange();assert.equal(requests.length,
 '''.replace('DATOS', json.dumps(cartera)), datos=SERVIDO)
 
 
+def test_servido_una_pestana_que_vuelve_a_ser_visible_no_solapa_una_peticion_en_vuelo(tmp_path, cartera):
+    _correr(tmp_path, '''
+await respond(DATOS);
+fire(10000);assert.equal(requests.length,2);
+document.hidden=false;docEvents.visibilitychange();
+assert.equal(requests.length,2,'con una lectura en vuelo no se abre otra');
+'''.replace('DATOS', json.dumps(cartera)), datos=SERVIDO)
+
+
+def test_servido_un_unavailable_con_vista_previa_no_la_pisa_y_avisa(tmp_path, cartera):
+    caida = {'version': 1, 'source': 'roadmap_cartera', 'status': 'unavailable', 'complete': False,
+             'observed_at': '2026-10-15T10:00:30Z', 'issues': [{'status': 'reader_unavailable'}], 'iniciativas': [],
+             'totales': {'iniciativas': 0, 'por_estado': {}, 'tareas': None, 'fuera_de_tope': [],
+                         'coste': {'real_eur': None, 'real_n': 0, 'est_eur': None, 'est_n': 0},
+                         'procedencia': {'medidos': 0, 'estimados': 0, 'desconocidos': 0}}}
+    _correr(tmp_path, '''
+await respond(DATOS);
+const antes=ids['avance-global'].textContent;assert.ok(!/Sin datos/.test(antes));
+fire(10000);await respond(CAIDA);
+assert.equal(ids['avance-global'].textContent,antes,'la vista previa no se pisa con una cartera caída');
+assert.match(ids['cartera-estado'].textContent,/Se conserva la última vista/);
+'''.replace('DATOS', json.dumps(cartera)).replace('CAIDA', json.dumps(caida)), datos=SERVIDO)
+
+
 def test_el_grafico_no_se_redibuja_si_las_cifras_no_cambian(tmp_path, cartera):
     _correr(tmp_path, '''
 await respond(DATOS);const primero=ids['grafico-estados'].children[0];

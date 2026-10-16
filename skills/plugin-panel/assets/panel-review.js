@@ -248,15 +248,15 @@
  if (opts.startObsolete) obsolete();
  else if (hex(reviewId)) request('view');
  else status.textContent = 'Revisión no disponible. Usa la confirmación del workflow existente.';
- return {obsolete, poke() { if (current) request('status'); }, stop() { stopped = true; clearPoll(); if (active) active.abort(); }, focused: () => inputs.some(input => input === document.activeElement)};
+ return {obsolete, id: () => reviewId, poke() { if (current) request('status'); }, stop() { stopped = true; clearPoll(); if (active) active.abort(); }, focused: () => inputs.some(input => input === document.activeElement)};
  }
  /* Estado de revisión por iniciativa para las tarjetas de Iniciativas (`page-iniciativas.js`): `api/review-summary` → `{id16: fila}`. */
  globalThis.PanelReview = {leerResumen(done) {
-  fetch('api/review-summary',{credentials:'omit',cache:'no-store'}).then(r => { if (!r.ok) throw Error('unavailable'); return r.json(); }).then(d => {
+  fetch('api/review-summary',{credentials:'omit',cache:'no-store'}).then(r => { if (!r.ok) { const error = Error('unavailable'); error.noDisponible = r.status === 404; throw error; } return r.json(); }).then(d => {
    const rows = {};
    (object(d) && Array.isArray(d.initiatives) ? d.initiatives : []).forEach(row => { if (object(row) && /^[a-f0-9]{16}$/.test(row.initiative_id)) rows[row.initiative_id] = row; });
    done(rows);
-  }).catch(() => done({}));
+  }).catch(error => done(null,error && error.noDisponible ? 'no_disponible' : 'error'));
  }};
  const byId = id => document.getElementById(id);
  const legacy = byId('plan-review');
@@ -277,12 +277,17 @@
   let mounted = null, mountedId = null, mountedReadOnly = null, busy = false, timer = null, announce = '';
   const fetchJson = async (url,init) => {
    const controller = new AbortController(), guard = setTimeout(() => controller.abort(),4000);
-   try { const response = await fetch(url,{credentials:'omit',cache:'no-store',signal:controller.signal,...init}); return await response.json(); }
+   try {
+    const response = await fetch(url,{credentials:'omit',cache:'no-store',signal:controller.signal,...init});
+    if (response.status === 404) { const error = Error('not_found'); error.noDisponible = true; throw error; }
+    return await response.json();
+   }
    finally { clearTimeout(guard); }
   };
   const currentValid = data => object(data) && data.schema_version === 1 && ['ok','unavailable'].includes(data.status) && data.initiative_id === initiative && typeof data.estado === 'string' && data.estado in {...STATES,aprobada:1} && typeof data.escritura === 'boolean' && (data.review_id === null || hex(data.review_id));
   function mount(reviewIdentity,readOnly,obsoleteNow) {
-   if (mounted && mountedId === reviewIdentity && mountedReadOnly === readOnly) return;
+   /* «Cargar versión actual» ya cambió la identidad dentro del controlador: se adopta sin desmontar (el foco se queda). */
+   if (mounted && mounted.id() === reviewIdentity && mountedReadOnly === readOnly) { mountedId = reviewIdentity; return; }
    if (mounted && mounted.focused()) return;
    if (mounted) mounted.stop();
    const els = {status:element('p'),metadata:element('p'),versionText:element('pre'),sections:element('div'),feedback:element('div'),feedbackHistory:element('div')};
@@ -306,7 +311,7 @@
    header.textContent = 'Estado de la revisión: '+text+(announce ? ' · '+announce : '');
    button.hidden = !(data.estado === 'sin_revision' && data.escritura === false && data.review_id === null) || busy;
    if (hex(data.review_id)) {
-    const fresh = !(mounted && mountedId === data.review_id);
+    const fresh = !(mounted && mounted.id() === data.review_id);
     mount(data.review_id,!data.escritura,data.estado === 'obsoleta');
     if (mounted && mountedId === data.review_id && !fresh) { if (data.estado === 'obsoleta') mounted.obsolete(); else if (poke && data.estado !== 'no_disponible') mounted.poke(); }
    }
@@ -318,7 +323,9 @@
     const data = await fetchJson('api/review-current/'+initiative);
     if (!currentValid(data)) throw Error('schema');
     paint(data,poke);
-   } catch { header.textContent = 'Estado de la revisión: no se pudo leer; se conserva la última vista.'; }
+   } catch (error) {
+    header.textContent = error && error.noDisponible ? 'Estado de la revisión: no disponible' : 'Estado de la revisión: no se pudo leer; se conserva la última vista.';
+   }
    schedule(5000);
   }
   function schedule(delay,poke = true) { if (timer !== null) clearTimeout(timer); timer = setTimeout(() => load(poke),delay); }

@@ -46,6 +46,12 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - From the Plan page you can open a plan review, comment per section and decide; each initiative's review status shows as text on its Initiatives card and in the Plan header, with the agent's replies under each comment.
 - Documented the Home, Initiatives and Plan pages, the `Cerrada` ledger field and plan review from the panel (`--review-panel`), with the new contract edges E56–E58.
 
+### Fixed — `panel-redesign` initiative, phase 2 review
+
+- The panel's portfolio, review and task-detail endpoints now reuse their answers until the ledger or review state changes, review summaries cover projects with more than 64 plans, the static export no longer re-projects each ledger per task, and ledger ranges such as `T-01..T-15` count for every task in them.
+- Panel: reviewing a stale plan version now requires loading the current one before deciding; "Load current version" keeps focus; Escape inside a review field no longer closes the task detail; a failed review summary keeps the last good state with a notice; a missing review reads "not available".
+- `ledger-lint` reads the `Estado` and `Fecha` header rows in linear time, so a crafted `tasks.md` can no longer stall the panel; a review summary whose deadline runs out returns what it already read as `partial`.
+
 ### Fixed — `panel-redesign` initiative, phase 1 review
 
 - The panel export no longer trusts a previous `export-manifest.json`: an entry with `..`, an absolute path, a drive letter, a backslash or a linked parent aborts the export before anything is written or deleted. It also refuses to create the output's parent folders and detects a file standing where a folder is needed before writing, without printing absolute paths.

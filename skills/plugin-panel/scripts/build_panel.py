@@ -978,14 +978,15 @@ def _planes_exportados(args, scrub, cartera):
         for fila in cartera.get('iniciativas', []):
             if not fila.get('tiene_plan'):
                 continue
-            plan = data.plan(Path(args.project), fila['id'])
-            if plan is None:
+            proyectado = data.plan_y_detalles(Path(args.project), fila['id'])   # UNA lectura y UNA proyección por plan
+            if proyectado is None:
                 continue
+            plan, proyectados = proyectado
             limpio = servicio._scrubbed(plan, scrub)
             # Detalle de cada tarea del plan, incrustado: la copia estática no puede preguntar a `api/plan-<id16>-<T-XX>`.
             detalles = {}
             for fila_tarea in limpio.get('tareas') or []:
-                detalle = data.tarea(Path(args.project), fila['id'], fila_tarea['id'])
+                detalle = proyectados.get(fila_tarea['id'])
                 if detalle is not None:
                     detalles[fila_tarea['id']] = servicio._scrubbed(detalle, scrub)
             planes.append({'id': fila['id'], 'slug': fila['slug'], 'titulo': fila['titulo'],

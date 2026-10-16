@@ -1047,3 +1047,45 @@ def test_el_esqueleto_del_plan_trae_los_contenedores_de_graficos_y_el_boton_ocul
         assert f'id="{ident}"' in html, ident
     assert re.search(r'<button id="plan-refrescar" type="button" hidden>', html)
     assert html.index('id="plan-detalle"') < html.index('id="kanban-plan"')
+
+
+# --- fix1 de la revisión de Fase 2 (F2-14, F2-15, F2-20) ---------------------------------------------------------------
+
+def test_abortar_el_pedido_de_detalle_para_volver_a_pedirlo_no_pinta_el_error_transitorio(tmp_path, plan_alfa):
+    base, movido = _vivo(plan_alfa)
+    nuevo = _env(movido, 'T-02', tarea=_tarea_js('T-02', estado_tarea='completado'))
+    _correr(tmp_path, _sustituye(VIVO + """
+await respond(BASE);boton('T-02').events.click[0]();await settle();
+const viejo=requests.length-1;
+fire(5000);await settle();await respond(MOVIDO);
+assert.equal(requests[requests.length-1].url,'api/plan-'+ID+'-T-02','se vuelve a pedir el detalle');
+requests[viejo].reject(new Error('AbortError'));await settle();
+assert.doesNotMatch(detalle(),/No se pudo leer el detalle/,'el pedido abortado no deja error');
+await respond(NUEVO);assert.match(detalle(),/Estado: completado/);assert.equal(ids['plan-detalle'].hidden,false);
+""", BASE=base, MOVIDO=movido, ID=ALFA, NUEVO=nuevo), datos_pagina=_servido(ALFA))
+
+
+def test_el_sondeo_no_desactiva_actualizar_ahora_si_tiene_el_foco(tmp_path, plan_alfa):
+    base, _ = _vivo(plan_alfa)
+    extra = """
+Object.defineProperty(ids['plan-refrescar'],'disabled',{get(){return !!this._d;},set(v){this._d=v;if(v&&document.activeElement===this)document.activeElement=null;}});
+"""
+    _correr(tmp_path, _sustituye(VIVO + """
+await respond(BASE);ids['plan-refrescar'].focus();
+fire(5000);await settle();await respond(BASE);
+assert.equal(document.activeElement,ids['plan-refrescar'],'el foco sigue en Actualizar ahora tras el sondeo');
+assert.equal(ids['plan-refrescar'].disabled,false);
+ids['plan-refrescar'].events.click[0]();await settle();await respond(BASE);
+assert.equal(document.activeElement,ids['plan-refrescar'],'y tras pulsarlo');
+""", BASE=base), datos_pagina=_servido(ALFA), extra=extra)
+
+
+def test_escape_dentro_de_un_campo_del_formulario_no_cierra_el_detalle_y_fuera_si(tmp_path, plan_alfa):
+    plan = _plan_dos(plan_alfa)
+    _correr(tmp_path, EXTRA_DET + """
+const b=await abrir('T-01');assert.equal(ids['plan-detalle'].hidden,false);
+const campo=(tipo)=>{let evitado=false;docEvents.keydown({key:'Escape',target:{tagName:tipo},preventDefault(){evitado=true;}});return evitado;};
+for(const tipo of ['textarea','TEXTAREA','input','select']){assert.equal(campo(tipo),false,tipo);assert.equal(ids['plan-detalle'].hidden,false,tipo);}
+assert.equal(document.activeElement,ids['plan-detalle'],'el foco no se roba');
+assert.equal(campo('button'),true);assert.equal(ids['plan-detalle'].hidden,true);assert.equal(document.activeElement,b);
+""", datos_pagina=_exportado_con(plan, detalles=_detalles(plan)))

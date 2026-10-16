@@ -81,6 +81,29 @@ CRITERIO_MAX = 400
 GAP_MAX = 400
 GRADOS = ("Critical", "Important", "Minor")
 _ID_RE = re.compile(r"\bT-\d+\b")
+# Rango de tareas en una cabecera de revisión o en el historial archivado: `T-01..T-15`, `T-01–T-15`, `T-01…T-15`
+# (con `..`/`…` el segundo `T-` es opcional; con guion es obligatorio: `T-01 — 5 gaps` no es un rango). Se expande a la lista de ids para que cubra las intermedias.
+_RANGO_RE = re.compile(r"\bT-(\d{1,4})[ \t]{0,3}(?:(?:\.{2,3}|…)[ \t]{0,3}(?:T-)?|[–—-][ \t]{0,3}T-)(\d{1,4})\b")
+RANGO_MAX = 500
+
+
+def _expandir(texto):
+    """`texto` con cada rango `T-a..T-b` sustituido por `T-a, …, T-b` (anchura del primer extremo): los parsers de
+    ledger-lint solo ven los extremos. Un rango invertido o de más de `RANGO_MAX` ids se deja tal cual."""
+    def lista(m):
+        a, b = int(m.group(1)), int(m.group(2))
+        if not 0 <= b - a < RANGO_MAX:
+            return m.group(0)
+        ancho = len(m.group(1))
+        return ", ".join(f"T-{n:0{ancho}d}" for n in range(a, b + 1))
+    return _RANGO_RE.sub(lista, texto)
+
+
+def _secciones_expandidas(secciones):
+    """Copias de las secciones de revisión con los rangos de la cabecera y de la celda `Tarea` expandidos, solo para
+    ELEGIR sección y filas; `_original` conserva la cabecera tal como está escrita (es lo que se muestra)."""
+    return [dict(s, cabecera=_expandir(s["cabecera"]), _original=s["cabecera"],
+                 filas=[dict(f, tarea=_expandir(f["tarea"])) for f in s["filas"]]) for s in secciones]
 
 
 def _vacio(status):
@@ -110,7 +133,7 @@ def _archivadas(texto):
             dentro = ln.strip() == _la.HISTORIAL_HDR
             continue
         if dentro:
-            ids |= set(_ID_RE.findall(ln))
+            ids |= set(_ID_RE.findall(_expandir(ln)))
     return ids
 
 
@@ -144,7 +167,8 @@ def _tarea(t, fase, secciones, archivadas):
     revision = None
     if ultimo is not None:
         seccion, _aviso = seleccionar_seccion(secciones, ultimo, [ident])
-        revision = {"intento": ultimo, "cabecera": _tope(seccion["cabecera"], 160) if seccion else None,
+        revision = {"intento": ultimo,
+                    "cabecera": _tope(seccion["_original"], 160) if seccion else None,
                     "abiertos": len(abiertas)}
     verificacion = _verificacion(t)
     cerrada, invalida = _cerrada(t)
@@ -171,7 +195,7 @@ def proyectar(text):
     """Proyección de un texto de ledger. Pura: no lee ni escribe ficheros."""
     try:
         parsed = parse_ledger(text)
-        secciones = secciones_revision(text)
+        secciones = _secciones_expandidas(secciones_revision(text))
     except (ValueError, TypeError, KeyError, OverflowError, RecursionError):
         return _vacio("ilegible")
     if not parsed["tareas"]:

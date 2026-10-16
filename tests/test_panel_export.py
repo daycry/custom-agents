@@ -312,3 +312,23 @@ def test_cli_review_panel_pasa_el_ambito_sin_tocar_la_seleccion(panel, monkeypat
     puerta, ambito = esperado
     seleccion = llamadas[0]['review_selection']
     assert (seleccion and seleccion['gate_key']) == puerta and llamadas[0]['review_scope'] == ambito
+
+
+def test_el_exportado_proyecta_el_ledger_de_cada_plan_una_sola_vez(panel, bundle, tmp_path, monkeypatch):
+    """F2-6: la copia estática no reproyecta el ledger entero por cada tarea (antes: 1 lectura + N por plan)."""
+    proyecto = _proyecto_con_plan(tmp_path)
+    ledger = proyecto / 'docs/roadmap/2026-10-09-alfa/tasks.md'
+    ledger.write_text(ledger.read_text(encoding='utf8') + '\n### T-02 — Dos\n\n- **Estado**: borrador\n'
+                      '\n### T-03 — Tres\n\n- **Estado**: borrador\n', encoding='utf8')
+    servicio = panel._load_server()
+    datos = servicio._load_data()
+    vistas = []
+    real = datos._vista
+    datos._vista = lambda proyecto_, ident: (vistas.append(ident), real(proyecto_, ident))[1]
+    servicio._load_data = lambda: datos
+    monkeypatch.setattr(panel, '_load_server', lambda: servicio)
+    destino = tmp_path / 'salida'
+    assert _exportar(panel, bundle, destino, '--project', str(proyecto)) == 0
+    assert len(vistas) == 1
+    pagina = next(destino.glob('plan-*.html')).read_text(encoding='utf8')
+    assert 'T-03' in pagina

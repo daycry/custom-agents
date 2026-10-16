@@ -17,7 +17,10 @@
   var resumenRevision = {};
   var lineasRevision = {};
   var pidiendoResumen = false;
+  var avisoResumen = false;
+  var resumenNoDisponible = false;
   function textoRevision(fila) {
+    if (!fila && resumenNoDisponible) { return 'Revisión: no disponible'; }
     if (!fila || typeof fila.estado !== 'string') { return 'Revisión: sin datos'; }
     if (fila.estado === 'aprobada') {
       return 'Revisión: aprobada v' + (Number.isSafeInteger(fila.version_ordinal) && fila.version_ordinal > 0 ? fila.version_ordinal : 1);
@@ -25,7 +28,11 @@
     return 'Revisión: ' + (Object.prototype.hasOwnProperty.call(TEXTOS_REVISION, fila.estado) ? TEXTOS_REVISION[fila.estado] : 'sin datos');
   }
   function pintarRevisiones() {
-    Object.keys(lineasRevision).forEach(function (id) { lineasRevision[id].textContent = textoRevision(resumenRevision[id]); });
+    Object.keys(lineasRevision).forEach(function (id) {
+      var texto = textoRevision(resumenRevision[id]);
+      if (avisoResumen) { texto += ' · no se pudo actualizar; se conserva el último estado'; }
+      lineasRevision[id].textContent = texto;
+    });
   }
   function activaRevision() {
     var marca = raiz.document.getElementById('iniciativas-revision');
@@ -34,7 +41,12 @@
   function pedirResumen() {
     if (pidiendoResumen || !activaRevision() || !raiz.PanelReview) { return; }
     pidiendoResumen = true;
-    raiz.PanelReview.leerResumen(function (nuevo) { resumenRevision = nuevo; pintarRevisiones(); pidiendoResumen = false; });
+    raiz.PanelReview.leerResumen(function (nuevo, motivo) {
+      if (nuevo) { resumenRevision = nuevo; avisoResumen = false; resumenNoDisponible = false; }
+      else if (Object.keys(resumenRevision).length) { avisoResumen = true; }
+      else { resumenNoDisponible = motivo === 'no_disponible'; }
+      pintarRevisiones(); pidiendoResumen = false;
+    });
   }
 
   function el(etiqueta, clase, texto) {

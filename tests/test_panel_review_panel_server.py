@@ -328,3 +328,126 @@ def test_new_responses_carry_only_closed_vocabulary_and_no_free_text(scoped):
     assert set(current) == {'schema_version', 'status', 'reason', 'initiative_id', 'review_id', 'estado', 'version_ordinal', 'gate_key', 'escritura'}
     opened = json.loads(send(scoped, 'api/review-open/' + IDENT, open_body(), method='POST')[2])
     assert set(opened) == {'schema_version', 'status', 'reason', 'initiative_id', 'review_id', 'escritura'}
+
+
+# --- fix1 de la Fase 2: caché por firma, lotes, registro lleno, carrera del mapa, páginas no revisables ------------------
+
+def _escribe_registro(project, nombre='r-x.json', texto='{}'):
+    carpeta = project / '.claude/plan-review'
+    carpeta.mkdir(parents=True, exist_ok=True)
+    (carpeta / nombre).write_text(texto, encoding='utf8')
+
+
+def _envejece(server, segundos=8):
+    server._review_summary_at -= segundos
+    server._review_current_at = {k: v - segundos for k, v in server._review_current_at.items()}
+
+
+def test_summary_y_current_no_vuelven_al_dueno_si_nada_cambio_y_un_cambio_se_ve(service, tmp_path, monkeypatch):
+    """F2-10/F2-11: pasado el TTL corto, la misma firma del estado y de los planes reutiliza la respuesta."""
+    calls = []
+    server, thread = run_server(service, monkeypatch, tmp_path, fake_owner(calls))
+    try:
+        send(server, 'api/review-summary'); send(server, 'api/review-current/' + IDENT)
+        base = len(calls)
+        _envejece(server)
+        send(server, 'api/review-summary'); send(server, 'api/review-current/' + IDENT)
+        assert len(calls) == base                                  # nada cambió: ni summarize ni review-current al dueño
+        _escribe_registro(tmp_path)                                # el estado de revisiones cambió
+        _envejece(server)
+        send(server, 'api/review-summary'); send(server, 'api/review-current/' + IDENT)
+        assert len(calls) == base + 2
+    finally:
+        server.shutdown(); server.server_close(); thread.join(5)
+
+
+def test_summary_con_mas_de_64_planes_pide_al_dueno_en_lotes(service, tmp_path, monkeypatch):
+    """F2-12: el dueño rechaza > 64 iniciativas por llamada; el servidor reparte en lotes y no da `invalid_input`."""
+    calls = []
+    inner = fake_owner(calls)
+
+    def summarize(project, initiatives, **kwargs):
+        if len(initiatives) > 64:
+            return {'schema_version': 1, 'status': 'unavailable', 'reason': 'invalid_input', 'complete': False,
+                    'observed_at': 'x', 'initiatives': [], 'omitted': 0, 'approval_granted': False}
+        return inner.summarize_reviews(project, initiatives, **kwargs)
+    owner = types.SimpleNamespace(**{**vars(inner), 'summarize_reviews': summarize})
+    monkeypatch.setattr(service, '_load_review', lambda: owner, raising=False)
+    project = make_project(tmp_path)
+    for n in range(70):
+        plan = project / 'docs/roadmap' / f'2026-11-{n % 28 + 1:02d}-extra{n}' / 'improvement-plan.md'
+        plan.parent.mkdir(parents=True)
+        plan.write_text('# p\n', encoding='utf8')
+    server = service.create_server(project, DATA, review_scope={'state_root': project / '.claude/plan-review'})
+    thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+    try:
+        body = json.loads(send(server, 'api/review-summary')[2])
+        assert body['status'] == 'ok' and body['complete'] is True and body['reason'] is None
+        assert len(body['initiatives']) == 72 and body['omitted'] == 0
+        assert {len(c[1]) for c in calls if c[0] == 'summarize_reviews'} == {64, 8}
+    finally:
+        server.shutdown(); server.server_close(); thread.join(5)
+
+
+def test_registro_lleno_con_la_iniciativa_ya_presente_reemplaza_su_id_viejo_sin_429(service, tmp_path, monkeypatch):
+    """F2-18: al tope, una iniciativa ya presente cambia de id (nueva versión): se sustituye el suyo, no escribe y 429."""
+    calls = []
+    server, thread = run_server(service, monkeypatch, tmp_path, fake_owner(calls))
+    try:
+        viejo = 'b' * 64
+        server.review_registry[viejo] = {'initiative': INITIATIVE, 'gate_key': 'requested-review', 'consumer': None,
+                                         'escritura': True}
+        for n in range(service.MAX_REVIEW_IDS - 1):
+            server.review_registry[format(n, '064x')] = {'initiative': 'docs/roadmap/x', 'gate_key': 'plan-ok',
+                                                        'consumer': None, 'escritura': False}
+        code, _, raw = send(server, 'api/review-open/' + IDENT, open_body(), method='POST')
+        body = json.loads(raw)
+        assert code == 200 and body['review_id'] in server.review_registry and viejo not in server.review_registry
+        assert len(server.review_registry) == service.MAX_REVIEW_IDS and body['escritura'] is True
+    finally:
+        server.shutdown(); server.server_close(); thread.join(5)
+
+
+def test_la_carpeta_desaparece_en_el_refresco_del_mapa_da_json_y_no_cierra_la_conexion(service, tmp_path, monkeypatch):
+    """F2-21: `review_open` no indexa el mapa fuera del `try`."""
+    calls = []
+    server, thread = run_server(service, monkeypatch, tmp_path, fake_owner(calls))
+    try:
+        real = server.review_paths
+        veces = []
+
+        def cambia():
+            veces.append(1)
+            return real() if len(veces) == 1 else {}
+        monkeypatch.setattr(server, 'review_paths', cambia)
+        code, _, raw = send(server, 'api/review-open/' + IDENT, open_body(), method='POST')
+        assert code == 404 and json.loads(raw)['status'] == 'unavailable'
+        assert not any(c[0] == 'open_review' for c in calls)
+    finally:
+        server.shutdown(); server.server_close(); thread.join(5)
+
+
+def test_una_carpeta_con_plan_no_revisable_no_ofrece_revision_y_review_current_da_json(service, tmp_path, monkeypatch):
+    """F2-16: con plan pero fuera del mapa (nombre no válido): la página dice «inactiva» y `review-current` no es un 404 mudo."""
+    calls = []
+    monkeypatch.setattr(service, '_load_review', lambda: fake_owner(calls), raising=False)
+    project = make_project(tmp_path)
+    mala = project / 'docs/roadmap/Mala_Carpeta'
+    mala.mkdir()
+    (mala / 'improvement-plan.md').write_text('# p\n', encoding='utf8')
+    (mala / 'spec.md').write_text('---\nestado: aprobada\n---\n# S\n', encoding='utf8')
+    ident = hashlib.sha256(b'Mala_Carpeta').hexdigest()[:16]
+    server = service.create_server(project, DATA, review_scope={'state_root': project / '.claude/plan-review'})
+    thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+    try:
+        assert ident in server.plan_ids
+        pagina = send(server, 'plan-' + ident + '.html')[2].decode()
+        assert 'data-revision="activa"' not in pagina and 'id="plan-revisar"' not in pagina
+        assert 'data-revision="activa"' in send(server, 'plan-' + IDENT + '.html')[2].decode()
+        code, _, raw = send(server, 'api/review-current/' + ident)
+        body = json.loads(raw)
+        assert code == 200 and body['status'] == 'unavailable' and body['estado'] == 'no_disponible'
+        assert body['escritura'] is False
+        assert send(server, 'api/review-current/' + '0' * 16)[0] == 404
+    finally:
+        server.shutdown(); server.server_close(); thread.join(5)

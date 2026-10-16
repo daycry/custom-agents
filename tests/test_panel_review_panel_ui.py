@@ -172,3 +172,87 @@ def test_no_inner_html_and_no_old_literal():
         text = (ASSETS / name).read_text(encoding='utf8')
         assert 'innerHTML' not in text and 'insertAdjacentHTML' not in text
     assert 'Sin respuesta declarada' not in (ASSETS / 'panel-review.js').read_text(encoding='utf8')
+
+
+# --- fix1 de la revisión de Fase 2 (F2-2, F2-16, F2-17, F2-19) ---------------------------------------------------------
+
+def test_una_revision_sobre_version_obsoleta_exige_cargar_la_actual_antes_de_decidir(tmp_path):
+    """CA-50: con `estado: obsoleta` el panel monta con `startObsolete`; Aprobar/Pedir correcciones quedan inertes hasta cargar la versión actual."""
+    new = 'f' * 64
+    result = _plan(tmp_path, """
+  let refreshed=false;
+  routes=(u,o)=>{if(u.startsWith('api/review-current/'))return refreshed?current({review_id:'%s',estado:'pendiente',escritura:true}):current({review_id:RID,estado:'obsoleta',escritura:true});
+   if(u.endsWith('/refresh')){refreshed=true;return envelope({review_id:'%s'});}return envelope();};
+  await boot();await settle();
+  const approve=find('button','Aprobar'),changes=find('button','Pedir correcciones'),refresh=find('button','Cargar versión actual');
+  assert.equal(approve.disabled,true,'Aprobar inerte sobre versión obsoleta');assert.equal(changes.disabled,true,'Pedir correcciones inerte');
+  assert.equal(find('button','Guardar comentarios').disabled,true);assert.equal(refresh.disabled,false,'cargar la actual sí se puede');
+  assert.match(body(),/La versión ha cambiado/);
+  assert.ok(!requests.some(r=>r.url.endsWith('/view')),'no se carga la vista antigua como si valiera');
+  approve.events.click();changes.events.click();await settle();
+  assert.equal(requests.filter(r=>r.options.method==='POST').length,0,'ninguna decisión se envía');
+  refresh.events.click();await settle();
+  assert.equal(approve.disabled,false,'tras cargar la versión actual se puede decidir de nuevo');
+  assert.doesNotMatch(body(),/La versión ha cambiado/);""" % (new, new))
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_cargar_la_version_actual_no_desmonta_el_panel_ni_pierde_el_foco(tmp_path):
+    new = 'f' * 64
+    result = _plan(tmp_path, """
+  let refreshed=false;
+  routes=(u,o)=>{if(u.startsWith('api/review-current/'))return refreshed?current({review_id:'%s',estado:'pendiente',escritura:true}):current({review_id:RID,estado:'obsoleta',escritura:true});
+   if(u.endsWith('/refresh')){refreshed=true;return envelope({review_id:'%s'});}return envelope();};
+  await boot();await settle();
+  const refresh=find('button','Cargar versión actual');refresh.focus();
+  refresh.events.click();await settle();await fire(0);
+  assert.equal(ids['plan-revision'].children.length,1,'el panel no se vuelve a montar');
+  assert.equal(find('button','Cargar versión actual'),refresh);assert.equal(document.activeElement,refresh,'el foco sigue en el botón');""" % (new, new))
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize('respuesta', [
+    "Promise.resolve({ok:false,status:404,json:async()=>{throw Error('sin JSON');}})",
+    "Promise.resolve({ok:false,status:404,json:async()=>({schema_version:1,status:'unavailable',reason:'not_found'})})",
+])
+def test_un_404_de_review_current_se_dice_no_disponible_y_no_no_se_pudo_leer(tmp_path, respuesta):
+    result = _plan(tmp_path, "global.fetch=()=>" + respuesta + ";await boot();await settle();" + """
+  assert.equal(ids['plan-revision-estado'].textContent,'Estado de la revisión: no disponible');
+  assert.doesNotMatch(ids['plan-revision-estado'].textContent,/no se pudo leer/);""")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_el_estado_no_disponible_de_review_current_se_dice_no_disponible(tmp_path):
+    result = _plan(tmp_path, """
+  routes=u=>current({estado:'no_disponible',status:'unavailable'});await boot();await settle();
+  assert.equal(ids['plan-revision-estado'].textContent,'Estado de la revisión: no disponible');""")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+SUMMARY_CARD = CARD.replace(
+    "fetch:u=>{reqs.push(u);return Promise.resolve({ok:true,json:async()=>({initiatives:[{initiative_id:'ab12cd34ef56ab12',estado:'__ESTADO__',version_ordinal:__ORD__}]})});}",
+    "fetch:u=>{reqs.push(u);return __FETCH__;}")
+
+
+def test_un_fallo_de_review_summary_conserva_el_ultimo_estado_bueno_con_aviso(tmp_path):
+    page = (ASSETS / 'page-iniciativas.js').read_text(encoding='utf8')
+    cartera = (ASSETS / 'page-cartera.js').read_text(encoding='utf8')
+    ok = "Promise.resolve({ok:true,json:async()=>({initiatives:[{initiative_id:'ab12cd34ef56ab12',estado:'pendiente',version_ordinal:1}]})})"
+    source = (SUMMARY_CARD.replace('__FETCH__', "(reqs.length===1?" + ok + ":Promise.resolve({ok:false,status:500,json:async()=>({})}))")
+              .replace('__PAGE__', json.dumps(page)).replace('__CARTERA__', json.dumps(cartera))
+              .replace('__REVIEW__', json.dumps((ASSETS / 'panel-review.js').read_text(encoding='utf8'))))
+    source = source.replace("setTimeout(()=>{const l=els['kanban-iniciativas'].find('revision-estado');assert.equal(l.length,1);\n assert.equal(l[0].textContent,'Revisión: __TEXTO__');assert.deepEqual(reqs,['api/review-summary']);},5);", "")
+    source += """
+const linea=()=>els['kanban-iniciativas'].find('revision-estado')[0];
+setTimeout(async()=>{
+ assert.equal(linea().textContent,'Revisión: pendiente');
+ w.PanelIniciativas.dibujar({status:'ok',complete:true,observed_at:'y',iniciativas:[Object.assign({},fila,{titulo:'otro'})]});
+ await new Promise(r=>setTimeout(r,5));
+ assert.equal(reqs.length,2,'se volvió a pedir el resumen');
+ assert.match(linea().textContent,/^Revisión: pendiente/,'se conserva el último estado bueno');
+ assert.match(linea().textContent,/no se pudo actualizar/i,'con su aviso');
+ assert.doesNotMatch(linea().textContent,/sin datos/);
+},5);
+"""
+    out = _run(tmp_path, 'summary.cjs', source)
+    assert out.returncode == 0, out.stdout + out.stderr

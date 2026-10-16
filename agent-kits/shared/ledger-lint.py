@@ -532,11 +532,11 @@ def parse_ledger(text):
             if m:
                 val = m.group(2).split("#", 1)[0].strip()
                 frontmatter[m.group(1)] = val
-    m = re.search(r"^\|\s*\*\*Estado\*\*\s*\|\s*([^|]+)\|", text, re.M)
+    m = re.search(r"^\|\s*\*\*Estado\*\*\s*\|[ \t]*([^|\s][^|]*)\|", text, re.M)
     estado_tabla = norm_estado(m.group(1)) if m else None
     # Fecha de creación del ledger: `creado:` del frontmatter o la fila `| **Fecha** | AAAA-MM-DD |` de la
     # tabla de cabecera (la usa `lint()` para que `Cerrada` no sea anterior). Solo si es una fecha bien formada.
-    m = re.search(r"^\|\s*\*\*Fecha\*\*\s*\|\s*([^|]+)\|", text, re.M)
+    m = re.search(r"^\|\s*\*\*Fecha\*\*\s*\|[ \t]*([^|\s][^|]*)\|", text, re.M)
     creado = (frontmatter.get("creado") or (m.group(1).strip() if m else "")).strip()
     creado = creado if CERRADA_FECHA_RE.match(creado) else None
 

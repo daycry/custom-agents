@@ -46,6 +46,12 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - Desde la página Plan se puede abrir una revisión del plan, comentar por sección y decidir; el estado de revisión de cada iniciativa se ve como texto en su tarjeta de Iniciativas y en la cabecera del Plan, con las respuestas del agente bajo cada comentario.
 - Documentadas las páginas Inicio, Iniciativas y Plan, el campo `Cerrada` del ledger y la revisión del plan desde el panel (`--review-panel`), con las nuevas aristas de contrato E56–E58.
 
+### Fixed — iniciativa `panel-redesign`, revisión de la fase 2
+
+- Los endpoints de cartera, revisión y detalle de tarea del panel reutilizan su respuesta hasta que cambia el ledger o el estado de revisión, el resumen de revisiones cubre proyectos con más de 64 planes, el exportado estático ya no reproyecta cada ledger por tarea y los rangos del ledger como `T-01..T-15` cuentan para todas sus tareas.
+- Panel: revisar una versión de plan obsoleta exige cargar la actual antes de decidir; «Cargar versión actual» conserva el foco; Escape dentro de un campo de revisión ya no cierra el detalle de la tarea; un fallo del resumen de revisión conserva el último estado bueno con aviso; una revisión ausente se muestra como «no disponible».
+- `ledger-lint` lee las filas `Estado` y `Fecha` de la cabecera en tiempo lineal, así que un `tasks.md` preparado ya no puede bloquear el panel; un resumen de revisiones al que se le acaba el plazo devuelve lo ya leído como `partial`.
+
 ### Fixed — iniciativa `panel-redesign`, revisión de la fase 1
 
 - La exportación del panel ya no se fía de un `export-manifest.json` previo: una entrada con `..`, ruta absoluta, unidad, barra invertida o un padre enlazado aborta antes de escribir o borrar nada. Tampoco crea las carpetas padre del destino y detecta antes de escribir un fichero donde hace falta una carpeta, sin imprimir rutas absolutas.

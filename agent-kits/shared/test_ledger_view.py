@@ -320,3 +320,36 @@ def test_el_ledger_real_de_la_iniciativa_se_proyecta_sin_desconocidos():
     assert d["status"] == "ok" and d["desconocidos"] == [] and len(d["tareas"]) >= 58
     t = tarea(d, "T-01")
     assert t["estado"] == "completado" and t["horas"]["ia"]["fuente"] in ("medido", "estimado", None)
+
+
+def _con_revision_de_rango(cabecera, fila_tarea):
+    return LEDGER + f"""
+## Revisión de dos lentes — intento 1: {cabecera} — 1 gap
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Minor | Algo | {fila_tarea} | pendiente | x |
+"""
+
+
+@pytest.mark.parametrize("cabecera,celda", [("Fase 1 (T-01..T-05)", "T-02"), ("Fase 1 (T-01–T-05)", "T-02"),
+                                             ("Fase 1", "T-01..T-05"), ("Fase 1", "T-01–T-05")])
+def test_un_rango_de_tareas_cubre_las_tareas_intermedias_en_la_revision(cabecera, celda):
+    """F2-7: `T-01..T-05` cita también T-03, no solo los extremos."""
+    datos = lv.proyectar(_con_revision_de_rango(cabecera, celda))
+    por = {t["id"]: t for t in datos["tareas"]}
+    assert por["T-03"]["revision"] is not None and por["T-03"]["revision"]["intento"] == 1
+    assert por["T-03"]["revision"]["cabecera"].startswith("## Revisión de dos lentes")
+
+
+def test_un_rango_en_el_historial_archivado_marca_las_intermedias():
+    texto = LEDGER + "\n## Historial archivado\n\n- 2026-10-15 · «Revisión (T-01..T-04)» → [execution-history.md](execution-history.md)\n"
+    por = {t["id"]: t for t in lv.proyectar(texto)["tareas"]}
+    assert por["T-03"]["archivado"] == {"enlace": "execution-history.md"}
+    assert por["T-04"]["archivado"] == {"enlace": "execution-history.md"}
+
+
+def test_un_guion_seguido_de_un_numero_no_es_un_rango():
+    assert lv._expandir("Fase 1 (T-01 — 5 gaps)") == "Fase 1 (T-01 — 5 gaps)"
+    assert lv._expandir("T-01..T-03 y T-07-T-08") == "T-01, T-02, T-03 y T-07, T-08"
+    assert lv._expandir("T-09..T-02") == "T-09..T-02"

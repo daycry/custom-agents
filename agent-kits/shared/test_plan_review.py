@@ -360,6 +360,7 @@ def test_registered_consumer_is_metadata_and_missing_redactor_fails_closed(owned
         if name == 'redact.py': raise ImportError('PRIVATE_HELPER_DETAIL')
         return original(name)
     monkeypatch.setattr(o.module, '_helper', absent)
+    monkeypatch.setattr(o.module, '_REDACTORS', {})   # the loaded redactor is cached per file: start cold
     before = stored(o, r).read_bytes()
     result = submit(o, r)
     assert result['reason'] == 'helper_unavailable' and 'PRIVATE_' not in json.dumps(result)
