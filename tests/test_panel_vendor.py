@@ -123,7 +123,9 @@ def test_git_no_lo_ignora_ni_convierte_fines_de_linea():
 def test_ningun_script_del_panel_descarga_nada():
     """La extracción es un paso de desarrollo único: ni el generador ni el servidor citan un origen remoto."""
     # El servidor local cita su propio origen de loopback (`http://127.0.0.1:<puerto>`): eso no es red.
-    remoto = re.compile(r'registry\.npmjs\.org|jsdelivr|unpkg|cdnjs|https?://(?!127\.0\.0\.1[:/]|localhost[:/])[A-Za-z0-9.-]+', re.I)
+    # El espacio de nombres SVG del W3C es un identificador XML de `createElementNS`, no una URL que se descargue:
+    # se excluye solo esa cadena exacta (cualquier otra ruta de www.w3.org sigue contando como origen remoto).
+    remoto = re.compile(r'registry\.npmjs\.org|jsdelivr|unpkg|cdnjs|https?://(?!127\.0\.0\.1[:/]|localhost[:/]|www\.w3\.org/2000/svg\b)[A-Za-z0-9.-]+', re.I)
     panel = ROOT / 'skills/plugin-panel'
     for ruta in sorted(panel.rglob('*')):
         if not ruta.is_file() or ruta.suffix not in ('.py', '.js', '.mjs', '.html', '.css'):
