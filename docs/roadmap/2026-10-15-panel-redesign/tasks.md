@@ -1127,7 +1127,7 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 **Subtareas**
 - [ ] Suites y puertas; `adversarial-review`; M-02. **Ampliada por la enmienda 2026-10-15:** `adversarial-review` con A + B + **C obligatoria** (+ D si `review-lens-select.py` la activa); M-02 con la revisión desde el Plan.
 
-**Notas**: **2026-10-16:** revisión cerrada en 3 intentos + verificación dirigida de fix3 (0 gaps nuevos); pendientes del usuario: M-02, deuda TDD (F2-1/I2-1) y CA-10 (F2-23). la Lente A comprueba que CA-01, CA-02 y CA-11 se testean contra los scripts reales y que CA-45 a CA-54 tienen su test. La lente C es obligatoria por la enmienda 2026-10-15 (spec «Fases propuestas»); el orquestador la fuerza sin tocar `.claude/dev.json` del usuario (mismo mecanismo que T-54, `review-lens-select.py:573` modo `siempre`).
+**Notas**: **2026-10-16:** revisión cerrada en 3 intentos + verificación dirigida de fix3 (0 gaps nuevos); deuda TDD F2-1/I2-1 aceptada por el usuario (2026-10-16); CA-10 (F2-23) enmendada en la spec por decisión del usuario (2026-10-16); pendiente del usuario: M-02. la Lente A comprueba que CA-01, CA-02 y CA-11 se testean contra los scripts reales y que CA-45 a CA-54 tienen su test. La lente C es obligatoria por la enmienda 2026-10-15 (spec «Fases propuestas»); el orquestador la fuerza sin tocar `.claude/dev.json` del usuario (mismo mecanismo que T-54, `review-lens-select.py:573` modo `siempre`).
 
 ---
 
@@ -1835,7 +1835,7 @@ Confirmación sobre `e7fb2f9..add1525` (fix1, 2026-10-16), dos revisores `review
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| I2-1 | Important | Constitución §1: fix1 escribió código antes que el test en F2-5, F2-6, F2-7 y F2-9 y las celdas lo presentan como «RED» sin declararlo | T-29 | declarado (fix2); decide el usuario con F2-1 | `tasks.md` celdas F2-5/6/7/9 |
+| I2-1 | Important | Constitución §1: fix1 escribió código antes que el test en F2-5, F2-6, F2-7 y F2-9 y las celdas lo presentan como «RED» sin declararlo | T-29 | deuda aceptada por el usuario (2026-10-16, opción A), junto con F2-1 (archivada en `execution-history.md`) | `tasks.md` celdas F2-5/6/7/9 |
 | I2-2 | Important | `review()` (refresh/comments/submit) no invalida la caché de `review-current`: durante 5 s devuelve el `review_id` viejo, el panel remonta con «La versión ha cambiado» y pierde el foco (F2-17 no se cumple con el servidor real); tras Aprobar la cabecera sigue «pendiente» hasta 5 s | T-56 | corregido (fix2): review() invalida review-current y summary; el foco vuelve · RED test_con_el_dueno_real_refresh…, test_el_foco_sobrevive… | `serve_panel.py:561-582,707-709`; sonda con el dueño real |
 | I2-3 | Important | `_expandir` sin cota agregada: N copias de `T-0..T-499` en cabecera o filas bloquean el servidor de un hilo (500 en cabecera → 29 s; 5.000 filas → 182 s); rangos de anchura 1 generan ids que `ids_de_tarea` nunca casa; falso rango en «T-03… 12 gaps» | T-21 | corregido (fix2): presupuesto global de 5.000 ids con aviso, rango = T-NN..T-NN · RED test_cinco_mil_filas… (13,7 s→0,1 s) | `ledger-view.py:48-49,90-106,136,164-165,198`; CWE-400/407 |
 | I2-4 | Minor | F2-18 incompleto: registro lleno con la iniciativa presente solo como `plan-ok` → el dueño escribe y se responde 429 | T-56 | corregido (fix2): el tope mira iniciativa y puerta; sin hueco, 429 sin llamar al dueño · RED test_registro_lleno…solo_como_plan_ok | `serve_panel.py:749-760,598-603`; CWE-664 |
@@ -1860,7 +1860,7 @@ Confirmación sobre `ae57334..7ee05f1` (fix2, 2026-10-16). Lente A: I2-2..I2-8 h
 | I3-6 | Minor | `review()` no invalida la caché si el dueño escribió y la respuesta acaba en `TimeoutError` o 413 | T-56 | corregido (fix3): `review()` invalida la caché en `finally` si el dueño pudo escribir (timeout, 413, excepción) · RED test_una_operacion_que_pudo_escribir_olvida_la_cache… (3 casos, antes del código) | `serve_panel.py:583-586` |
 | I3-7 | Minor | `firma_fallos` solo vive en memoria: ningún endpoint ni `/doctor` lo muestra | T-17 | deuda (backlog F3) | `serve_panel.py:499` |
 
-**Verificación dirigida de fix3 (diff `2a4c6ef..1beb9fa`, lentes B+C, 2026-10-16): 0 gaps nuevos.** I3-1..I3-6 ✓ con test que falla sobre `2a4c6ef` (Linux `python:3.11-slim`: symlink, FIFO y tope 22 passed; `test_panel_server.py` 132 passed). I3-5: proyección idéntica en los 49 ledgers reales (`2a4c6ef` frente a HEAD, sin `observed_at`). I3-7 queda en el backlog de la Fase 3. Bucle de revisión de la Fase 2 cerrado sin Critical ni Important de corrección pendientes; quedan a decisión del usuario F2-1/I2-1 (deuda TDD) y F2-23 (CA-10).
+**Verificación dirigida de fix3 (diff `2a4c6ef..1beb9fa`, lentes B+C, 2026-10-16): 0 gaps nuevos.** I3-1..I3-6 ✓ con test que falla sobre `2a4c6ef` (Linux `python:3.11-slim`: symlink, FIFO y tope 22 passed; `test_panel_server.py` 132 passed). I3-5: proyección idéntica en los 49 ledgers reales (`2a4c6ef` frente a HEAD, sin `observed_at`). I3-7 queda en el backlog de la Fase 3. Bucle de revisión de la Fase 2 cerrado sin Critical ni Important de corrección pendientes; F2-1/I2-1 (deuda TDD): **deuda aceptada por el usuario (2026-10-16)**; las fases 4 y 3 exigen RED antes del código en el brief. F2-23 (CA-10): **spec enmendada por decisión del usuario (2026-10-16)**: «archivado» como texto, sin enlace.
 
 ## Historial archivado
 

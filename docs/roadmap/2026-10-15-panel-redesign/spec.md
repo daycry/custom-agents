@@ -3,7 +3,7 @@ spec: panel-redesign
 descripcion: Panel local multi-página (Inicio, Iniciativas, Plan, Agentes en vivo, Memoria, Catálogo, Diagnóstico) con menú común, kanban y gráficos Chart.js incluidos en el plugin, sin red, accesible y con datos ausentes declarados como tales.
 estado: aprobada          # borrador | aprobada | implementada | obsoleta
 creado: 2026-10-15
-actualizado: 2026-10-15   # enmienda 2026-10-15: revisión del plan desde el panel (CA-45 a CA-54)
+actualizado: 2026-10-16   # enmienda 2026-10-15: revisión del plan desde el panel (CA-45 a CA-54) · enmienda 2026-10-16: CA-10 «archivado» como texto
 evaluacion: evaluation.md
 design: design.md         # aprobado: D-A1 = O1, D-A2 = O5 (revisable por el usuario)
 plan: improvement-plan.md
@@ -181,7 +181,7 @@ Variante `[GWT]` para lo que un test puede reproducir. Cada página tiene su blo
 ### Plan (6)
 
 - [ ] [GWT] CA-09 — Dado un `tasks.md` válido, Cuando abro su Plan, Entonces veo un kanban de solo lectura con una columna por estado del vocabulario del ledger (`borrador · en-progreso · en-revision · completado · cancelado`, `ledger-lint.py:61`) y una tarjeta por `T-XX` con ID, título, fase y horas real/estimado. No debe crear columnas para estados fuera de ese vocabulario: una tarea con estado desconocido va a una franja «estado no reconocido» con el literal.
-- [ ] [GWT] CA-10 — Dada una tarjeta de tarea, Cuando la abro (clic o Enter), Entonces veo su descripción, criterios de aceptación con su casilla, `Verificación` (y la salida ejecutada si existe), dependencias, la última «Revisión de dos lentes — intento N» y sus gaps abiertos con severidad. No debe mostrar contenido de `execution-history.md` como si estuviera en el ledger: si la tarea tiene historia archivada, enlaza a ella con la etiqueta «archivado».
+- [ ] [GWT] CA-10 — Dada una tarjeta de tarea, Cuando la abro (clic o Enter), Entonces veo su descripción, criterios de aceptación con su casilla, `Verificación` (y la salida ejecutada si existe), dependencias, la última «Revisión de dos lentes — intento N» y sus gaps abiertos con severidad. No debe mostrar contenido de `execution-history.md` como si estuviera en el ledger: si la tarea tiene historia archivada, lo indica con la etiqueta «archivado» y el nombre `execution-history.md`, como texto y sin enlace (**enmienda 2026-10-16**, decisión del usuario sobre F2-23: ni el panel servido ni la copia exportada sirven ese fichero y un enlace daría 404).
 - [ ] [GWT] CA-11 — Dado un ledger con fases, Cuando abro el Plan, Entonces veo un gráfico de avance por fase (completadas/total) con su tabla, con las mismas cifras que la tabla «Resumen de progreso» del ledger.
 - [ ] [GWT] CA-12 — Dado un ledger con fechas de cierre por tarea, Cuando abro el Plan, Entonces veo un burndown de tareas pendientes por fecha; sin fechas, veo «burndown no disponible: el ledger no registra fechas de cierre» y ningún gráfico interpolado.
 - [ ] [GWT] CA-13 — Dado un ledger con columnas `real`/`est`, Cuando abro el Plan, Entonces veo real frente a estimado por fase y por tarea, marcando «(medido)» o «(estimado)» según indique el ledger. No debe tratar un valor «—» como 0.
