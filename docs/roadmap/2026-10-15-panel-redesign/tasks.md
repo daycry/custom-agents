@@ -779,6 +779,7 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 - [x] RED en `tests/test_ledger_lint.py`.
 - [x] Validación, extracción y prosa; regenerar `interop/`.
 
+- **Cerrada**: 2026-10-15
 - **Changelog**: Las tareas del ledger pueden llevar una fecha de cierre opcional (`Cerrada`) que el linter valida (fecha real, no anterior a la creación) y que el panel usa para el burndown; los ledgers antiguos siguen validando igual.
 - **Evidencia TDD**: `RED: 4 failed en tests/test_ledger_lint.py (test_cerrada_con_formato_invalido_…, test_cerrada_vacia_…, test_cerrada_anterior_a_la_creacion_…, test_el_parser_expone_cerrada_… con KeyError: 'creado') · 2026-10-15`. La extracción de `Cerrada` en `parse_ledger` y su proyección en `ledger-view` se escribieron junto al parser de T-21; su RED es el de las pruebas de validación y de `creado`.
 - **Verificación ejecutada** (2026-10-15): `PYTHONDONTWRITEBYTECODE=1 .venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_ledger_lint.py agent-kits/shared/test_ledger_view.py tests/test_copias_declaradas.py` → `60 passed`; `skills/changelog-sync/scripts/test_changelog_sync.py` → `84 passed` (compara `CAMPO_LEDGER_PATTERN` con la copia); `agent-kits/shared/test_task_brief.py` → `92 passed`; `ledger-lint.py` sobre los 49 `docs/roadmap/*/tasks.md` → 0 incoherencias en todos (avisos sin cambio); `python scripts/export-interop.py --check` → `88 ficheros al día` (exit 0).
@@ -1827,6 +1828,38 @@ Decisión: corregir (orquestador, 2026-10-15, siguiendo la recomendación al usu
 | M-F1-3 | Minor | `_clip` puede partir la marca `[secreto redactado]` del redactor (solo estético: el secreto no se filtra) | T-56, backlog | `serve_panel.py:146,153-158`; `redact.py:34` |
 
 Bucle de revisión de la Fase 1 cerrado: 3 intentos y 2 confirmaciones, sin gaps Critical ni Important pendientes. La deuda del gap 6 la aceptó el usuario y se verificó por mutación.
+
+## Revisión de dos lentes — intento 1: Fase 2 (T-17..T-28, T-55..T-58) — 8 Important, 16 Minor, 0 Critical (lentes: A+B+C+D)
+
+Diff `04cf18b..e22c49b` (2026-10-16). Lentes A+B+C+D con `reviewer` (opus) en paralelo. **C obligatoria por la enmienda** (`review-lens-select.py` daba `lente_c: false`); D activada por ruta (`tests/test_panel_export.py`). C: la vía de escritura `api/review-open` aguanta (token, `Origin`, `Sec-Fetch-Site`, 415, `gate_key` → 400, id16 desconocido → 404 sin dueño, junction fuera del mapa, `plan-ok` ajeno → 405; sondeado con el dueño real). B: `parse_ledger` sin regresión en los 49 ledgers (claves antiguas idénticas). Constitución §1 (TDD) aplica: `docs/CONSTITUTION.md` existe.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| F2-1 | Important | Constitución §1 (`docs/CONSTITUTION.md:11`): tests escritos después del código en T-57 (sin RED) y en partes de T-17 (contrato fix4) y T-18 (escenarios Node) | T-57 | pendiente (decide el usuario: deuda TDD como T-11/T-12) | T-57 verificada por el orquestador con 7 mutantes, 7 detectados; T-17/T-18 por mutación en fix1 |
+| F2-2 | Important | CA-50 «la UI exige una nueva decisión» sin test: `obsolete()`/`startObsolete` no se ejercitan | T-58 | pendiente (fix1) | `panel-review.js:243-248,284,302,311`; `test_panel_review_panel_ui.py:101-102,155-159` |
+| F2-3 | Important | Verificación de T-24 sin evidencia de `tests/test_panel_server.py` | T-24 | pendiente (fix1) | `tasks.md` T-24 `Verificación` frente a `Verificación ejecutada` |
+| F2-4 | Important | La caché de `api/cartera` (2 s) caduca antes del sondeo (10 s); `cartera()` tarda ~2,5 s con 49 iniciativas en un `HTTPServer` de un hilo y bloquea `api/plan`/`api/review-*` (plazo de 4 s del cliente) | T-17 | pendiente (fix1) | `serve_panel.py:452`, `:422`; `page-cartera.js:16`; medido 2,45-2,68 s |
+| F2-5 | Important | Cada ledger se lee 2 veces y se parsea 3 por cálculo de cartera | T-17 | pendiente (fix1) | `panel_data.py:195-196`, `:281`; cProfile: 90 `parse_ledger` 1,66 s |
+| F2-6 | Important | El exportado llama a `data.tarea()` por tarea y reproyecta el ledger entero cada vez (48 s con 25 planes, 285 tareas) | T-23 | pendiente (fix1) | `build_panel.py:987-988`; `panel_data.py:350-354` |
+| F2-7 | Important | El detalle dice «Sin revisión registrada» en tareas cubiertas por un rango (`T-01..T-15`): `ids_de_tarea` no expande rangos; `archivado` solo marca los extremos | T-21 | pendiente (fix1) | `ledger-view.py:142-143`; `ledger-lint.py:302`; T-05/T-10 → `revision None` |
+| F2-8 | Important | Con el plazo vencido de verdad `summary` da `unavailable` y nunca `partial`: el segundo `_inventory` llama a `_guard(deadline)`; el test simula con +120 s | T-55 | pendiente (fix1) | `plan-review.py:217`; sonda con `_view` lento y +0,5 s |
+| F2-9 | Minor | Regex con backtracking cuadrático en `\| **Fecha** \|` (gemela previa en `**Estado**`): 40.000 espacios → 27 s, bloquea el servidor | T-22 | pendiente (fix1, ambas) | `ledger-lint.py:535,539`; CWE-1333 |
+| F2-10 | Minor | `api/review-summary` falla la caché en cada repintado (5 s vs 10 s) y recarga `redact.py` por iniciativa | T-58 | pendiente (fix1) | `page-iniciativas.js:181`; `serve_panel.py:594`; `plan-review.py:689,139` |
+| F2-11 | Minor | `api/review-current/<id16>` sin caché: inventario doble de todo el estado cada 5 s por pestaña | T-56 | pendiente (fix1) | `serve_panel.py:623-630`; `panel-review.js:322` |
+| F2-12 | Minor | Con ≥ 65 planes `api/review-summary` da siempre `invalid_input` (`MAX_SCAN` 128 frente a `MAX_RECORDS` 64) | T-56 | pendiente (fix1) | `serve_panel.py:336`; `plan-review.py:661` |
+| F2-13 | Minor | Detalle viejo tras un cambio de fila: caché de 2 s por tarea sirve la copia anterior | T-27 | pendiente (fix1) | `serve_panel.py:235-238`; `page-plan.js:500-503` |
+| F2-14 | Minor | Error transitorio «No se pudo leer el detalle» al abortar un pedido en vuelo sin subir el token | T-27 | pendiente (fix1) | `page-plan.js:501-502`, `:263` |
+| F2-15 | Minor | El foco cae a `body` cada 5 s si está en «Actualizar ahora» (se desactiva en cada sondeo) | T-27 | pendiente (fix1) | `page-plan.js:510-511` |
+| F2-16 | Minor | Carpeta con plan que no casa con `_INITIATIVE_FOLDER` o colisiona: página con revisión «activa» y `review-current` 404 sin JSON | T-58 | pendiente (fix1) | `serve_panel.py:54` |
+| F2-17 | Minor | «Cargar versión actual» desmonta el panel y pierde el foco | T-58 | pendiente (fix1) | `panel-review.js` `paint`/`mount` |
+| F2-18 | Minor | Registro lleno (128) con la iniciativa ya presente: `open_review` escribe y se responde 429 | T-56 | pendiente (fix1) | `serve_panel.py:388-400`, `:652-664` |
+| F2-19 | Minor | Un fallo de `api/review-summary` borra el último estado bueno de las tarjetas | T-58 | pendiente (fix1) | `panel-review.js` `leerResumen`; `page-iniciativas.js:37` |
+| F2-20 | Minor | Escape en un comentario de revisión cierra el detalle y roba el foco | T-24 | pendiente (fix1) | `page-plan.js:302-306` |
+| F2-21 | Minor | `self.review_paths()[ident]` fuera del `try`: `KeyError` y conexión cerrada si la carpeta desaparece en el refresco del mapa | T-56 | pendiente (fix1) | `serve_panel.py:649` |
+| F2-22 | Minor | El principal de `review-current` es el último registro: un `plan-ok` ajeno posterior oculta la revisión con escritura del usuario | T-56 | pendiente (fix1) | `plan-review.py:687`; observado en la sonda de C |
+| F2-23 | Minor | CA-10 dice «enlaza» al histórico; se muestra texto (un enlace daría 404 en servido y exportado) | T-24 | pendiente (decide el usuario: enmendar CA-10 o aceptar) | `spec.md:184`; `page-plan.js:237` |
+| F2-24 | Minor | T-22 cerrada sin el campo `Cerrada` que introduce: el burndown de este plan nunca aparece | T-22 | corregido (orquestador): `Cerrada: 2026-10-15` | `ledger-view` lista T-22 sin `cerrada` antes |
+| F2-25 | Minor | M-F1-1 sin disposición anotada en T-56 | T-56 | descartado (rebatido): resuelto en `panel-review.js:31` (16.384 / 4.096 bytes), comprobado por la lente B | lente B, tabla de criterios |
 
 ## Historial archivado
 
