@@ -784,6 +784,23 @@ def test_hooks_json_registra_user_prompt_submit_y_ningun_post_tool_use_de_captur
     assert not any("user-prompt-capture" in c for c in otros)
 
 
+def test_hooks_json_solo_la_actividad_es_asincrona_y_toda_herramienta_la_dispara():
+    """panel-redesign T-45 (O5, I-05): `agent-activity` se registra en `PostToolUse` y en
+    `PostToolUseFailure` en un grupo propio, sin matcher (toda herramienta), `async: true` y
+    `timeout: 5`. Ningún otro hook es asíncrono: los que informan (`systemMessage`) necesitan que el
+    runtime espere su salida, y el inicio/fin de subagente conserva su registro síncrono."""
+    data = json.load(open(os.path.join(HOOKS, "hooks.json"), encoding="utf-8"))["hooks"]
+    for evento in ("PostToolUse", "PostToolUseFailure"):
+        act = [g for g in data[evento] if any(" agent-activity" in h["command"] for h in g["hooks"])]
+        assert len(act) == 1 and "matcher" not in act[0], evento
+        assert [(h.get("async"), h.get("timeout")) for h in act[0]["hooks"]] == [(True, 5)], evento
+    asincronos = [(ev, h["command"]) for ev, gs in data.items() for g in gs for h in g["hooks"] if h.get("async")]
+    assert sorted(ev for ev, _ in asincronos) == ["PostToolUse", "PostToolUseFailure"]
+    assert all(c.endswith(" agent-activity") for _, c in asincronos)
+    for evento in ("SubagentStart", "SubagentStop"):
+        assert not any(h.get("async") for g in data[evento] for h in g["hooks"])
+
+
 def test_session_journal_con_log_crudo_escribe_decisiones_y_pendientes(tmp_path):
     """memory-retrieval T-12 (spec CA-17), de punta a punta por los dos hooks: los turnos capturados por
     UserPromptSubmit acaban en la entrada que escribe SessionEnd como `decisiones`/`pendientes` no vacías;

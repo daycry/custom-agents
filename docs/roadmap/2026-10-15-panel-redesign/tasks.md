@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 9 | 10 | 90% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 5 | 15 | 33% | 0 / 45,6h | 0 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **46** | **58** | **79%** | **0 / 159,2h** | **8,21 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 6 | 15 | 40% | 0 / 45,6h | 0,58 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **47** | **58** | **81%** | **0 / 159,2h** | **8,79 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1422,7 +1422,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 
 ## Fase 3 — Agentes en vivo + cierre transversal
 
-**Estado**: borrador · **Estimado**: 45,6h humanas · 23,4h IA · **Real**: — · **Coste est.**: 2.444 € referencia · ≈ 506 € ejecución · **Tokens est.**: 12,44 M
+**Estado**: en-progreso · **Estimado**: 45,6h humanas · 23,4h IA · **Real**: — · **Coste est.**: 2.444 € referencia · ≈ 506 € ejecución · **Tokens est.**: 12,44 M
 
 Última fase. Criterios de la spec: CA-04, CA-15 a CA-21 y CA-42 (eventos); además, el cierre transversal C-05. **Lente C obligatoria** en toda tarea de captura (condición 4 de la evaluación). Valores de diseño: 0 ms síncronos añadidos (O5), historial de 500 eventos / 256 KiB / 24 h, entrada ≤ 2 MiB, resumen ≤ 160.
 
@@ -1593,9 +1593,10 @@ Prerrequisito (2026-10-16): inventario tolera hasta 8 .tmp-* (§2.5 c); RED test
 ### T-45 — Registro de hooks: `PostToolUse` y `PostToolUseFailure` asíncronos e interop
 
 - **Descripción**: `hooks/hooks.json` añade grupos `PostToolUse` (sin matcher) y `PostToolUseFailure` con `agent-activity`, `"async": true` y `timeout: 5`. `export-interop.py` conserva el matcher del grupo de actividad en el `PostToolUse` de Codex (hoy fuerza `^apply_patch$` en todo grupo) y omite `PostToolUseFailure`. Se regenera `interop/`.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,5h · real —
+- **Tiempo IA (ejec.)**: est. 0,5h · real 0,58h (medido)
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
 - **Previsión IA**: 229k in / 37k out tok · 3,50 €
 - **Dependencias**: T-44
@@ -1604,14 +1605,21 @@ Prerrequisito (2026-10-16): inventario tolera hasta 8 .tmp-* (§2.5 c); RED test
 - **Cubre (tests)**: E2E-09
 - **Verificación**: `python3 -m pytest -q tests/test_export_interop.py tests/test_hooks_shell.py` → `passed` · `python3 scripts/export-interop.py --check` → exit 0 · `python3 scripts/lint_plugin.py` → exit 0 (commands de `hooks.json` existentes y ejecutables)
 
+- **Changelog**: Agentes en vivo recibe un evento por cada herramienta terminada (también las fallidas en Claude Code) sin hacer esperar a la herramienta: el hook corre en segundo plano en Claude Code y Codex.
+
 **Criterios de aceptación**
-- [ ] Los grupos de actividad son `async` en Claude y Codex; el resto de grupos `PostToolUse` no cambia.
-- [ ] Codex: el grupo de actividad conserva su matcher; los demás siguen con `^apply_patch$`; sin `PostToolUseFailure`.
-- [ ] CA-42: `export-interop.py --check` pasa.
+- [x] Los grupos de actividad son `async` en Claude y Codex; el resto de grupos `PostToolUse` no cambia.
+- [x] Codex: el grupo de actividad conserva su matcher; los demás siguen con `^apply_patch$`; sin `PostToolUseFailure`.
+- [x] CA-42: `export-interop.py --check` pasa.
 
 **Subtareas**
-- [ ] RED en `test_export_interop.py`.
-- [ ] Registro y traducción; regenerar `interop/`.
+- [x] RED en `test_export_interop.py`.
+- [x] Registro y traducción; regenerar `interop/`.
+
+- **Evidencia TDD**: RED: test_export_interop.py::test_codex_activity_group_keeps_its_matcher_async_and_drops_failure, ::test_real_hooks_register_async_tool_activity_and_codex_export_matches y test_hooks_shell.py::test_hooks_json_solo_la_actividad_es_asincrona_y_toda_herramienta_la_dispara fallaron con AssertionError: PostToolUse (sin grupo de actividad; `^apply_patch$` forzado y `PostToolUseFailure` exportado) · 2026-10-20 (antes del código)
+- **Verificación ejecutada**: `pytest tests/test_export_interop.py tests/test_hooks_shell.py` → 127 passed in 201.87s · `export-interop.py --check` → «88 ficheros al día» (exit 0) · `lint_plugin.py` → exit 0, «10 agentes · 0 errores · 8 avisos» (avisos previos de citas en docs, ninguno de `hooks.json`) · `evals/check.py` → 0 errores. Suites que leen `hooks.json` (`test_agent_activity_store`, `test_codex_command_transport`, `test_graphiti_security`, `test_hook_launcher_security`, `test_hooks_config`, `test_knowledge_services`, `test_lint_plugin`, `test_panel_diagnostics`, `test_plugin_panel`, `agent-kits/shared/test_agent_activity`, `test_doctor`) → 864 passed, 5 skipped, 2 failed: `test_doctor.py::test_config_error_long_absolute_path_keeps_file_and_field[taxonomy.json-categories|training.json-id_prefix]` con `FileNotFoundError [WinError 3]` por ruta > MAX_PATH del tmp de Windows (previo y ajeno a esta tarea; la réplica Linux de T-53 lo confirma).
+
+Decisión: un grupo es «de actividad» solo si TODOS sus hooks son el launcher de `agent-activity`; un grupo mixto sigue la regla general (`^apply_patch$`). Ningún otro hook es `async` (los que informan necesitan que el runtime espere su `systemMessage`); `SubagentStart`/`SubagentStop` siguen síncronos.
 
 **Notas**: grupos actuales en `hooks/hooks.json:34-50`; matcher forzado en `scripts/export-interop.py:407-408`. Lente C.
 

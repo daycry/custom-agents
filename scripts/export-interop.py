@@ -387,6 +387,18 @@ def _hook_a_shell_form(h, evento="?"):
     return nh
 
 
+_LAUNCHER_ACTIVIDAD = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" agent-activity'
+
+
+def _grupo_de_actividad(g):
+    """True si TODOS los hooks del grupo son el launcher de `agent-activity` (con o sin
+    `--runtime=claude`). Un grupo mixto no lo es y sigue la regla general del evento."""
+    hooks = g.get("hooks") if isinstance(g, dict) else None
+    return bool(hooks) and all(isinstance(h, dict) and h.get("command") in
+                               (_LAUNCHER_ACTIVIDAD, _LAUNCHER_ACTIVIDAD + " --runtime=claude")
+                               for h in hooks)
+
+
 def codex_hooks_json(root):
     """`interop/codex/hooks.json` — los hooks del plugin filtrados y corregidos para Codex:
 
@@ -395,6 +407,9 @@ def codex_hooks_json(root):
     - `UserPromptSubmit`: captura del turno con launcher compartido.
     - `SubagentStop`: existe en Codex; se mantiene.
     - `PostToolUse`: apply_patch; run-hook.mjs convierte tool_input.command a edits[].file_path.
+      Excepción: un grupo SOLO de `agent-activity` (panel-redesign T-45) conserva su matcher (sin
+      matcher = toda herramienta) y su `async`; es la captura de herramientas de Agentes en vivo.
+    - `PostToolUseFailure`: no existe en Codex (su `PostToolUse` también salta con salida ≠ 0); se omite.
     """
     src = json.loads(leer(os.path.join(root, "hooks", "hooks.json")))["hooks"]
     out = {}
@@ -404,6 +419,9 @@ def codex_hooks_json(root):
             ng = {}
             if evento == "SessionStart":
                 ng["matcher"] = "startup|resume|clear|compact"
+            elif evento == "PostToolUse" and _grupo_de_actividad(g):
+                if "matcher" in g:
+                    ng["matcher"] = g["matcher"]
             elif evento == "PostToolUse":
                 ng["matcher"] = "^apply_patch$"
             elif evento == "PreToolUse":

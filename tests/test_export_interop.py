@@ -169,6 +169,68 @@ def test_codex_exports_known_launcher_runtime_and_pretool_registration(tmp_path,
     assert hooks['PreToolUse'][0]['hooks'][0]['command'] == guard.replace('--runtime=claude', '--runtime=codex')
 
 
+ACTIVIDAD = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" agent-activity'
+
+
+def _grupos_actividad(grupos):
+    return [g for g in grupos if g["hooks"] and all("agent-activity" in h["command"] for h in g["hooks"])]
+
+
+def test_codex_activity_group_keeps_its_matcher_async_and_drops_failure(tmp_path):
+    """panel-redesign T-45: el grupo `PostToolUse` de actividad conserva su matcher (sin matcher =
+    toda herramienta) y su `async`; los demás grupos `PostToolUse` siguen con `^apply_patch$`;
+    `PostToolUseFailure` no existe en Codex y se omite."""
+    (tmp_path / 'hooks').mkdir()
+    act = {'type': 'command', 'command': ACTIVIDAD, 'async': True, 'timeout': 5}
+    src = {'hooks': {
+        'PostToolUse': [
+            {'matcher': 'Write|Edit|MultiEdit', 'hooks': [{'type': 'command', 'command':
+                'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" progress-line.sh'}]},
+            {'hooks': [dict(act)]},
+            {'matcher': 'Bash', 'hooks': [dict(act)]}],
+        'PostToolUseFailure': [{'hooks': [dict(act)]}]}}
+    (tmp_path / 'hooks/hooks.json').write_text(json.dumps(src), encoding='utf8')
+    hooks = json.loads(MOD.codex_hooks_json(str(tmp_path)))['hooks']
+    assert 'PostToolUseFailure' not in hooks
+    post = hooks['PostToolUse']
+    assert post[0]['matcher'] == '^apply_patch$'
+    assert 'matcher' not in post[1] and post[2]['matcher'] == 'Bash'
+    for g in post[1:]:
+        assert g['hooks'] == [{'type': 'command', 'command': ACTIVIDAD + ' --runtime=codex', 'async': True, 'timeout': 5}]
+
+
+def test_codex_mixed_group_with_activity_is_not_an_activity_group(tmp_path):
+    """Un grupo que mezcla actividad con otro hook no es «de actividad»: sigue con `^apply_patch$`."""
+    (tmp_path / 'hooks').mkdir()
+    src = {'hooks': {'PostToolUse': [{'hooks': [
+        {'type': 'command', 'command': ACTIVIDAD, 'async': True},
+        {'type': 'command', 'command': 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" progress-line.sh'}]}]}}
+    (tmp_path / 'hooks/hooks.json').write_text(json.dumps(src), encoding='utf8')
+    hooks = json.loads(MOD.codex_hooks_json(str(tmp_path)))['hooks']
+    assert hooks['PostToolUse'][0]['matcher'] == '^apply_patch$'
+
+
+def test_real_hooks_register_async_tool_activity_and_codex_export_matches():
+    """panel-redesign T-45 (O5): `hooks/hooks.json` registra `agent-activity` en `PostToolUse` (sin
+    matcher) y en `PostToolUseFailure`, `async` y `timeout: 5`; el resto de grupos `PostToolUse` no
+    cambia; `interop/codex/hooks.json` lo refleja sin `PostToolUseFailure`."""
+    src = json.loads(leer("hooks/hooks.json"))["hooks"]
+    for evento in ("PostToolUse", "PostToolUseFailure"):
+        act = _grupos_actividad(src[evento])
+        assert len(act) == 1, evento
+        assert "matcher" not in act[0]
+        assert act[0]["hooks"] == [{"type": "command", "command": ACTIVIDAD, "async": True, "timeout": 5}]
+    otros = [g for g in src["PostToolUse"] if g not in _grupos_actividad(src["PostToolUse"])]
+    assert [g["matcher"] for g in otros] == ["Write|Edit|MultiEdit"]
+    assert not any(h.get("async") for g in otros for h in g["hooks"])
+    codex = json.loads(leer("interop/codex/hooks.json"))["hooks"]
+    assert "PostToolUseFailure" not in codex
+    act = _grupos_actividad(codex["PostToolUse"])
+    assert len(act) == 1 and "matcher" not in act[0]
+    assert act[0]["hooks"] == [{"type": "command", "command": ACTIVIDAD + " --runtime=codex", "async": True, "timeout": 5}]
+    assert codex["PostToolUse"][0]["matcher"] == "^apply_patch$"
+
+
 def test_opencode_v2_permission_actions_match_native_shell_and_subagent():
     permissions = MOD.permisos_opencode(['Read'])
     assert permissions['shell'] == 'deny' and permissions['subagent'] == 'deny'
