@@ -1278,3 +1278,18 @@ def test_c1_prefixed_and_argument_secrets_are_redacted_in_events_and_history(api
     for secret in secrets_in.values():
         assert secret not in raw and secret not in shown, secret
     assert raw.count(b'[secreto redactado]') == 3
+
+
+# ---- panel-redesign T-44 fix1 (C-2, CWE-1333): the apply_patch summary is linear on whitespace runs ---------
+def test_c2_patch_summary_with_a_long_whitespace_run_is_linear(api, project):
+    command = '*** Update File: a' + ' ' * 20000 + 'b\n*** Add File: c.py   \n'
+    started = time.perf_counter()
+    out = api.summarize(project, 'apply_patch', {'command': command})
+    elapsed = time.perf_counter() - started
+    assert elapsed < 0.5, elapsed  # quadratic before the fix: ~1.5 s at 20k, ~15 s at 40k
+    assert out == '2 ficheros'
+
+
+def test_c2_patch_summary_keeps_the_trailing_space_and_cr_trim(api, project):
+    assert api.summarize(project, 'apply_patch', {'command': '*** Update File: docs/a.md  \r\n+x'}) == 'docs/a.md'
+    assert api.summarize(project, 'apply_patch', {'command': '*** Delete File:    \n'}) == '—'

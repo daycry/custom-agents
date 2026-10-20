@@ -489,7 +489,9 @@ _SHELL = frozenset(('Bash', 'PowerShell', 'exec_command', 'shell', 'local_shell'
 _FILE_TOOLS = frozenset(('Read', 'Write', 'Edit', 'MultiEdit', 'NotebookEdit'))
 _SEARCH_TOOLS = frozenset(('Grep', 'Glob'))
 _SUBAGENT_TOOLS = frozenset(('Agent', 'Task', 'spawn_agent'))
-_PATCH_FILE = re.compile(r'^\*\*\* (?:Add|Update|Delete) File: (.+?)\s*$', re.M)
+# Linear (T-44 fix1, C-2): the rest of the line, stripped in Python; `(.+?)\s*$` backtracked
+# quadratically on a long run of spaces inside the name.
+_PATCH_FILE = re.compile(r'^\*\*\* (?:Add|Update|Delete) File: ([^\n]*)', re.M)
 _PEM_OPEN = re.compile(r'-----BEGIN [A-Z ]*PRIVATE KEY-----.*', re.S)
 _PRECUT = 8192
 # scheme://[userinfo@]host[:port]: only the host is ever kept (no urllib: this hook has no network code)
@@ -537,7 +539,8 @@ def _raw_summary(root, tool, tool_input):
         path = _first(tool_input, 'file_path', 'notebook_path', 'filePath', 'path')
         return _relative(root, path) if path else None
     if tool == 'apply_patch':
-        paths = _PATCH_FILE.findall(tool_input.get('command') if type(tool_input.get('command')) is str else '')
+        found = _PATCH_FILE.findall(tool_input.get('command') if type(tool_input.get('command')) is str else '')
+        paths = [path.strip() for path in found if path.strip()]
         return None if not paths else _relative(root, paths[0]) if len(paths) == 1 else '%d ficheros' % len(paths)
     if tool in _SEARCH_TOOLS:
         pattern = _first(tool_input, 'pattern')
