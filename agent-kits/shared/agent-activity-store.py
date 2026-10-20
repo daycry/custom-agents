@@ -28,12 +28,11 @@ MAX_CLEAN = 8  # P-EI-1: own old temporaries removed per write
 CLEAN_AGE = 60
 MAX_REVISION = 2**53 - 1
 IGNORE = b'*\n'
-# T-43 fix1 (D2): a tool-event writer holds the lock for one read + validation + replace of the whole ring,
-# measured at p50 ~105 ms / p90 ~130 ms on Windows with a full 500-event ring (a freshly replaced events.json
-# is re-scanned on open). With 100 ms of wait, a burst of 8 parallel async hooks wrote 1 and lost 7. Tool events
-# run asynchronously (I-05: 0 ms synchronous), so they wait up to 1 s (>= 7 holds at p90) inside a 1.3 s
-# deadline, still under the launcher's 2 s child budget (Python start ~0.3 s); lifecycle signals (synchronous)
-# keep `StateIO`'s 100 ms and the 1 s deadline, and Codex MCP tools keep a single attempt (P-EI-3).
+# T-43 fix1 (D2) + fix2 (2-1): tool events run asynchronously (I-05: 0 ms synchronous) and wait up to 1 s inside a
+# 1.3 s deadline (under the launcher's 2 s child budget), with single attempts that YIELD to a waiting lifecycle
+# writer (byte 1 of `.lock`, `StateIO.intent`/`priority`). Lifecycle signals (synchronous) keep 100 ms and 1 s;
+# Codex MCP keeps a single attempt (P-EI-3). The ring is read and validated before the lock and reused only if
+# its signature is unchanged: a hold with a full 500-event ring went from p50 ~68 / p90 ~84 ms to ~23 / ~37 ms.
 TOOL_LOCK_WAIT = 1.0
 TOOL_DEADLINE = 1.3
 
@@ -311,11 +310,33 @@ def _publish_events(root, state, io, doc, signature, ignore_signature, deadline,
     io.write(state / EVENTS, raw, deadline, expected=signature, retry=not nowait)
 
 
-def _update_events(root, state, io, config_signature, deadline, mutate, nowait=False):
+def _preload(root, state, io):
+    """T-43 fix2 (2-1): the ring read and validated BEFORE the lock (the first open of a freshly replaced
+    256 KiB file is the slowest step of a hold); (doc, signature) or None. Never trusted on its own."""
+    try:
+        marker, _ = _owner(root, state, io)
+        doc, signature = _load_events(root, state, io, marker)
+        return (doc, signature) if signature is not None else None
+    except (_Failure, OSError, ValueError, TypeError, OverflowError, RecursionError, KeyError):
+        return None
+
+
+def _signature(path, io):
+    try:
+        return io.file(path)
+    except (_Failure, OSError):
+        return None
+
+
+def _update_events(root, state, io, config_signature, deadline, mutate, nowait=False, preloaded=None):
     marker, _, ignore_signature = _base(root, state, io)
     now = time.time()
     _need(type(now) in (int, float) and math.isfinite(now) and 0 <= now <= MAX_REVISION, 'invalid_clock')
-    doc, signature = _load_events(root, state, io, marker)
+    if (preloaded is not None and preloaded[0]['scope_id'] == marker['scope_id']
+            and _signature(state / EVENTS, io) == preloaded[1]):
+        doc, signature = preloaded  # unchanged since it was read and validated: same CAS as the replace
+    else:
+        doc, signature = _load_events(root, state, io, marker)
     stamp = hashlib.sha256(repr(config_signature).encode('utf-8')).hexdigest()
     if doc['config_sig'] != stamp:  # any edit of dev.json invalidates the open attribution windows (2.5 e)
         doc['ventanas'] = _projection.expire_open(doc['ventanas'], now)
@@ -655,10 +676,20 @@ def record(project, entry):
         config_signature = _enabled(root, io)
         state = root / '.claude' / 'agent-activity'
         created = _ensure_state(root, state, io, deadline)
-        with io.locked(state, deadline, created, wait=0 if entry['nowait'] else TOOL_LOCK_WAIT):
-            _clean_temps(state)
-            _update_events(root, state, io, config_signature, deadline, _tool_mutation(entry), entry['nowait'])
-        return {'status': 'ok', 'reason': None}
+        stop = min(deadline, started + (0 if entry['nowait'] else TOOL_LOCK_WAIT))
+        preloaded = _preload(root, state, io)
+        while True:  # single non-blocking attempts that yield to a waiting lifecycle writer (2-1)
+            try:
+                with io.locked(state, deadline, created, wait=0, priority='yield'):
+                    _clean_temps(state)
+                    _update_events(root, state, io, config_signature, deadline, _tool_mutation(entry),
+                        entry['nowait'], preloaded)
+                return {'status': 'ok', 'reason': None}
+            except _Failure as exc:
+                if str(exc) != 'state_busy' or time.monotonic() >= stop:
+                    raise
+            time.sleep(min(0.005, max(0, stop - time.monotonic())))
+
     except _Failure as exc:
         return {'status': 'unavailable', 'reason': str(exc)}
     except (OSError, ValueError, TypeError, OverflowError, RecursionError, KeyError):
@@ -701,35 +732,44 @@ def capture(project, *, runtime, payload):
         config_signature = _enabled(root, io)
         state = root / '.claude' / 'agent-activity'
         created = _ensure_state(root, state, io, deadline)
-        with io.locked(state, deadline, created):
-            _clean_temps(state)
-            marker, value, signature, ignore_signature = _read_snapshot(root, state, io)
-            now = time.time()
-            _need(type(now) in (int, float) and math.isfinite(now) and 0 <= now <= MAX_REVISION, 'invalid_clock')
-            session_key = _key(marker, [runtime, 'session', session])
-            agent_key = _key(marker, [runtime, 'subagent', session, agent]) if agent is not None else None
-            identity = (runtime, scope, session_key, agent_key)
-            rows = [row for row in value['records'] if not 0 <= now - row['observed_at'] or now - row['observed_at'] < _projection.FRESH_SECONDS]
-            rows = [row for row in rows if (row['runtime'], row['scope'], row['session_key'], row['agent_key']) != identity]
-            _need(len(rows) < _projection.MAX_OBSERVATIONS, 'quota_exceeded')
-            _need(value['revision'] < MAX_REVISION, 'revision_exhausted')
-            value['revision'] += 1
-            rows.append({'schema_version': 1, 'runtime': runtime, 'scope': scope, 'session_key': session_key,
-                'agent_key': agent_key, 'role': role, 'event': event, 'source': source, 'observed_at': now, 'revision': value['revision']})
-            value['records'] = sorted(rows, key=lambda row: (row['runtime'], row['scope'], row['session_key'], row['agent_key'] or ''))
-            _enabled(root, io)  # An observed opt-out before publication prevents this update.
-            _need(_ignore(state, io) == ignore_signature, 'unsafe_state')
-            io.write(state / 'snapshot.json', _json(value), deadline, expected=signature)
-            try:  # the history is secondary: a damaged events.json never stops the live snapshot
-                _update_events(root, state, io, config_signature, deadline,
-                    _lifecycle_mutation(runtime, scope, session, agent, role, event))
-            except (_Failure, OSError, ValueError, TypeError, OverflowError, RecursionError, KeyError):
-                pass
-        return {'status': 'ok', 'reason': None}
+        with io.intent(state):  # 2-1: tool writers stop entering while this one prepares and waits
+            return _capture_locked(root, state, io, deadline, created, config_signature,
+                runtime, scope, session, agent, role, event, source)
     except _Failure as exc:
         return {'status': 'unavailable', 'reason': str(exc)}
     except (OSError, ValueError, TypeError, OverflowError, RecursionError, KeyError):
         return {'status': 'unavailable', 'reason': 'invalid_state'}
+
+
+def _capture_locked(root, state, io, deadline, created, config_signature, runtime, scope, session, agent, role, event,
+        source):
+    """The lifecycle write: snapshot first, then the (secondary) history, under one hold."""
+    preloaded = _preload(root, state, io)
+    with io.locked(state, deadline, created, priority='claim'):  # tool writers yield to it (2-1)
+        _clean_temps(state)
+        marker, value, signature, ignore_signature = _read_snapshot(root, state, io)
+        now = time.time()
+        _need(type(now) in (int, float) and math.isfinite(now) and 0 <= now <= MAX_REVISION, 'invalid_clock')
+        session_key = _key(marker, [runtime, 'session', session])
+        agent_key = _key(marker, [runtime, 'subagent', session, agent]) if agent is not None else None
+        identity = (runtime, scope, session_key, agent_key)
+        rows = [row for row in value['records'] if not 0 <= now - row['observed_at'] or now - row['observed_at'] < _projection.FRESH_SECONDS]
+        rows = [row for row in rows if (row['runtime'], row['scope'], row['session_key'], row['agent_key']) != identity]
+        _need(len(rows) < _projection.MAX_OBSERVATIONS, 'quota_exceeded')
+        _need(value['revision'] < MAX_REVISION, 'revision_exhausted')
+        value['revision'] += 1
+        rows.append({'schema_version': 1, 'runtime': runtime, 'scope': scope, 'session_key': session_key,
+            'agent_key': agent_key, 'role': role, 'event': event, 'source': source, 'observed_at': now, 'revision': value['revision']})
+        value['records'] = sorted(rows, key=lambda row: (row['runtime'], row['scope'], row['session_key'], row['agent_key'] or ''))
+        _enabled(root, io)  # An observed opt-out before publication prevents this update.
+        _need(_ignore(state, io) == ignore_signature, 'unsafe_state')
+        io.write(state / 'snapshot.json', _json(value), deadline, expected=signature)
+        try:  # the history is secondary: a damaged events.json never stops the live snapshot
+            _update_events(root, state, io, config_signature, deadline,
+                _lifecycle_mutation(runtime, scope, session, agent, role, event), preloaded=preloaded)
+        except (_Failure, OSError, ValueError, TypeError, OverflowError, RecursionError, KeyError):
+            pass
+    return {'status': 'ok', 'reason': None}
 
 
 def snapshot(project):

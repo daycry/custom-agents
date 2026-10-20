@@ -1,3 +1,4 @@
+import contextlib
 import importlib.util
 import json
 import os
@@ -408,8 +409,8 @@ def test_mutable_snapshot_validation_occurs_under_lock(api, project, monkeypatch
     observed, results = [], []
 
     @contextlib.contextmanager
-    def locked(io, *args):
-        with original_lock(io, *args):
+    def locked(io, *args, **kwargs):  # fix2: lifecycle writers pass `priority='claim'`
+        with original_lock(io, *args, **kwargs):
             held.value = True
             try: yield
             finally: held.value = False
@@ -1359,7 +1360,129 @@ def test_d2_burst_of_eight_parallel_tool_events_on_a_full_ring_loses_none(api, p
         assert p.returncode == 0, err
         results.append(json.loads(out))
     lost = [r for r in results if r['status'] != 'ok']
-    assert lost == [], lost  # design 2.5 (a): a lost event is only an exceptional gap, not the rule of a burst
+    # design 2.5 (a): a lost event is only an exceptional gap. Measured margin (fix2, 2-4): 8 in parallel lose 0 even
+    # with 6 CPU hogs; 12 lose 0-2 and 16 lose 1-5 (CA-42: the capture is informative and may have gaps).
+    assert lost == [], lost
     value = doc(project)
     assert len(value['events']) == 500 and value['recortado'] == 8
     assert sorted(e['tool'] for e in value['events'][-8:]) == sorted('T%d' % i for i in range(8))
+
+
+# ---- panel-redesign T-43 fix2 (2-1): lifecycle signals keep the lock against a burst of tool events ---------
+# A child holds byte 1 of `.lock`: the intent a waiting lifecycle writer (SubagentStart/Stop) announces.
+_INTENT = ('import os,sys,time\n'
+    'fd=os.open(sys.argv[1],os.O_RDWR)\n'
+    'if os.name=="nt":\n import msvcrt;os.lseek(fd,1,0);msvcrt.locking(fd,msvcrt.LK_NBLCK,1)\n'
+    'else:\n import fcntl;fcntl.lockf(fd,fcntl.LOCK_EX|fcntl.LOCK_NB,1,1,0)\n'
+    'print("held",flush=True);sys.stdin.read()\n')
+
+
+def _intent_holder(project):
+    child = subprocess.Popen([sys.executable, '-I', '-c', _INTENT, str(_state(project) / '.lock')],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    assert child.stdout.readline().strip() == 'held', child.stderr.read()
+    return child
+
+
+def test_2_1_tool_writers_yield_while_a_lifecycle_writer_waits(api, project, monkeypatch):
+    boot(api, project)
+    before = files(project)
+    child = _intent_holder(project)
+    try:
+        assert api.record(project, entry())['reason'] == 'state_busy'  # yields for its whole 1 s wait
+        sleeps = []
+        monkeypatch.setattr(api._state_io.time, 'sleep', sleeps.append)
+        assert api.record(project, entry(runtime='codex', nowait=True))['reason'] == 'state_busy'
+        assert sleeps == []  # Codex MCP: still a single attempt, no wait (P-EI-3)
+        monkeypatch.undo()
+    finally:
+        child.communicate('', timeout=10)
+    assert files(project) == before  # read after the child exits: Windows range locks also bar reads
+    assert api.record(project, entry())['status'] == 'ok'
+
+
+def test_2_1_lifecycle_writer_is_not_blocked_by_another_waiting_lifecycle_writer(api, project):
+    boot(api, project)
+    child = _intent_holder(project)  # another lifecycle writer already announced its intent
+    try:
+        assert api.capture(project, runtime='claude', payload=native(project, agent='agent-two'))['status'] == 'ok'
+    finally:
+        child.communicate('', timeout=10)
+
+
+def test_2_1_the_ring_read_before_the_lock_is_reused_only_if_unchanged(api, project, monkeypatch):
+    boot(api, project)
+    now = time.time()
+    seed(api, project, revision=500, events=[dict(old_event(i, now - 5), resumen=('r %d ' % i).ljust(160, 'y')) for i in range(1, 501)])
+    held, reads, original = [False], [], api._state_io.StateIO.read
+    real_locked = api._state_io.StateIO.locked
+
+    @contextlib.contextmanager
+    def locked(io, *args, **kwargs):
+        with real_locked(io, *args, **kwargs):
+            held[0] = True
+            try:
+                yield
+            finally:
+                held[0] = False
+
+    def read(io, path, maximum):
+        reads.append((Path(path).name, held[0]))
+        return original(io, path, maximum)
+
+    monkeypatch.setattr(api._state_io.StateIO, 'locked', locked)
+    monkeypatch.setattr(api._state_io.StateIO, 'read', read)
+    assert api.record(project, entry(tool='A'))['status'] == 'ok'
+    assert ('events.json', True) not in reads and ('events.json', False) in reads  # read outside the hold
+    # Another writer replaces the ring between that read and the lock: the stale copy is never published.
+    first = [True]
+
+    @contextlib.contextmanager
+    def racing(io, *args, **kwargs):
+        if first[0]:
+            first[0] = False
+            assert api.record(project, entry(tool='B'))['status'] == 'ok'
+        with locked(io, *args, **kwargs):
+            yield
+
+    monkeypatch.setattr(api._state_io.StateIO, 'locked', racing)
+    reads.clear()
+    assert api.record(project, entry(tool='C'))['status'] == 'ok'
+    assert ('events.json', True) in reads  # the changed ring is re-read under the lock
+    value = doc(project)
+    assert [e['tool'] for e in value['events'][-3:]] == ['A', 'B', 'C'] and value['revision'] == 503
+
+
+_LIFECYCLE = ('import importlib.util,json,sys,time;'
+    's=importlib.util.spec_from_file_location("s",sys.argv[1]);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);'
+    'out=[]\nfor i,at in enumerate(json.loads(sys.argv[4])):\n'
+    ' p=json.loads(sys.argv[3]);p["agent_id"]="agent-%d"%i;p["hook_event_name"]=("SubagentStart","SubagentStop")[i%2]\n'
+    ' time.sleep(max(0,at-time.time()));out.append(m.capture(sys.argv[2],runtime="claude",payload=p)["reason"])\n'
+    'print(json.dumps(out))')
+_HAMMER = ('import importlib.util,json,sys,time;'
+    's=importlib.util.spec_from_file_location("s",sys.argv[1]);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);'
+    'e=json.loads(sys.argv[3]);start,stop=float(sys.argv[4]),float(sys.argv[5]);time.sleep(max(0,start-time.time()));n=0\n'
+    'while time.time()<stop:\n e["tool"]="H%s-%d"%(sys.argv[6],n);n+=1;m.record(sys.argv[2],e)\n')
+
+
+def test_2_1_lifecycle_signals_survive_sustained_tool_contention_on_a_full_ring(api, project):
+    """Far harsher than a real burst: 8 writers re-entering the lock non-stop for 2.4 s on a full ring.
+    Before fix2 a lifecycle signal (100 ms of wait) won ~1 hand-off in 9 and was lost most of the time."""
+    boot(api, project)
+    now = time.time()
+    seed(api, project, revision=500, events=[dict(old_event(i, now - 5), resumen=('git status %d ' % i).ljust(160, 'y')) for i in range(1, 501)])
+    store = str(SHARED / 'agent-activity-store.py')
+    start = time.time() + 4
+    hammers = [subprocess.Popen([sys.executable, '-I', '-X', 'utf8', '-B', '-c', _HAMMER, store, str(project), json.dumps(entry()),
+        repr(start), repr(start + 2.4), str(i)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=project) for i in range(8)]
+    times = [start + 0.3 + 0.25 * k for k in range(8)]
+    lifecycle = subprocess.Popen([sys.executable, '-I', '-X', 'utf8', '-B', '-c', _LIFECYCLE, store, str(project),
+        json.dumps(native(project)), json.dumps(times)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=project)
+    out, err = lifecycle.communicate(timeout=90)
+    for p in hammers:
+        assert p.communicate(timeout=90)[0] is not None and p.returncode == 0
+    assert lifecycle.returncode == 0, err
+    reasons = json.loads(out)
+    assert reasons == [None] * 8, reasons  # every SubagentStart/SubagentStop kept: N of N
+    runs = api.history(project)['runs']
+    assert len([r for r in runs if r['scope'] == 'subagent' and r['started_at'] is not None]) >= 4

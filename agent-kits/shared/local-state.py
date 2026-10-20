@@ -96,9 +96,32 @@ class StateIO:
                 temporary.unlink()  # Only this invocation's exact private temporary.
 
     @contextlib.contextmanager
-    def locked(self, state, deadline, initialize, wait=0.1):
+    def intent(self, state):
+        """Announce a priority writer (byte 1 of an existing `.lock`) before its unlocked preparation,
+        so `priority='yield'` writers stop entering; one attempt, never waits. Yields whether it is held."""
+        path = Path(state) / '.lock'
+        fd = release = None
+        try:
+            with contextlib.suppress(OSError):
+                before = self.file(path)
+                fd = os.open(path, os.O_RDWR | getattr(os, 'O_NOFOLLOW', 0))
+                info = os.fstat(fd)
+                if (info.st_dev, info.st_ino) == before[:2]:
+                    release = _byte_lock(fd, 1)
+            yield release is not None
+        finally:
+            if release:
+                with contextlib.suppress(OSError):
+                    release()
+            if fd is not None:
+                os.close(fd)
+
+    @contextlib.contextmanager
+    def locked(self, state, deadline, initialize, wait=0.1, priority=None):
         """Bounded cooperative process lock; never remove another writer's lock.
-        `wait=0` is a single attempt without sleeping."""
+        `wait=0` is a single attempt without sleeping. Byte 0 of `.lock` is the lock; byte 1 is
+        the intent of a waiting priority writer: `priority='claim'` announces it while waiting,
+        `priority='yield'` never takes byte 0 while someone announces it (it waits, or fails at once)."""
         state = Path(state)
         self.guard(deadline)
         self.dirs(state)
@@ -115,7 +138,7 @@ class StateIO:
                 pass
         before = self.file(path)
         fd = os.open(path, os.O_RDWR | getattr(os, 'O_NOFOLLOW', 0))
-        unlock = None
+        unlock = intent = None
         try:
             info = os.fstat(fd)
             self.need((info.st_dev, info.st_ino) == before[:2]
@@ -124,23 +147,45 @@ class StateIO:
             while True:
                 self.guard(deadline)
                 try:
-                    if os.name == 'nt':
-                        import msvcrt
-                        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
-                        unlock = lambda: msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
-                    else:
-                        import fcntl
-                        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                        unlock = lambda: fcntl.flock(fd, fcntl.LOCK_UN)
+                    if priority == 'claim' and intent is None:
+                        with contextlib.suppress(OSError):
+                            intent = _byte_lock(fd, 1)  # taken by another claimant: compete as before
+                    if priority == 'yield':
+                        _byte_lock(fd, 1)()  # raises while a priority writer waits
+                    unlock = _byte_lock(fd, 0)
                     break
                 except OSError:
                     self.need(time.monotonic() < stop, 'state_busy')
                     time.sleep(min(0.005, max(0, stop - time.monotonic())))
+            if intent:
+                with contextlib.suppress(OSError):
+                    intent()
+                intent = None
             self.dirs(state)
             self.need(self.file(path) == before, 'unsafe_state')
             yield
         finally:
-            if unlock:
-                with contextlib.suppress(OSError):
-                    unlock()
+            for release in (intent, unlock):
+                if release:
+                    with contextlib.suppress(OSError):
+                        release()
             os.close(fd)
+
+
+def _byte_lock(fd, offset):
+    """Non-blocking exclusive lock of one byte of `fd` (OSError when taken); returns its release.
+    Byte 0 keeps `flock` on POSIX (the historical whole-file lock); byte 1 is an independent range lock."""
+    if os.name == 'nt':
+        import msvcrt
+        os.lseek(fd, offset, os.SEEK_SET)
+        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        def release():
+            os.lseek(fd, offset, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        return release
+    import fcntl
+    if offset == 0:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return lambda: fcntl.flock(fd, fcntl.LOCK_UN)
+    fcntl.lockf(fd, fcntl.LOCK_EX | fcntl.LOCK_NB, 1, offset, os.SEEK_SET)
+    return lambda: fcntl.lockf(fd, fcntl.LOCK_UN, 1, offset, os.SEEK_SET)

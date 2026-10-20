@@ -190,3 +190,39 @@ def test_replace_retry_can_be_disabled(tmp_path, monkeypatch):
         io.write(target, b'two', time.monotonic() + 2, expected=expected, retry=False)
     assert len(calls) == 1
     assert target.read_bytes() == b'one' and [p.name for p in tmp_path.iterdir()] == ['state.json']
+
+
+# T-43 fix2 (2-1): byte 1 of `.lock` is the intent of a waiting priority writer (another process holds it here)
+_INTENT = ('import os,sys\nfd=os.open(sys.argv[1],os.O_RDWR)\n'
+    'if os.name=="nt":\n import msvcrt;os.lseek(fd,1,0);msvcrt.locking(fd,msvcrt.LK_NBLCK,1)\n'
+    'else:\n import fcntl;fcntl.lockf(fd,fcntl.LOCK_EX|fcntl.LOCK_NB,1,1,0)\n'
+    'print("held",flush=True);sys.stdin.read()\n')
+
+
+def test_fix2_yield_waits_for_an_announced_intent_and_the_rest_ignore_it(tmp_path):
+    import subprocess
+    import sys
+    io = owner()
+    with io.locked(tmp_path, time.monotonic() + 1, True):
+        pass
+    child = subprocess.Popen([sys.executable, '-I', '-c', _INTENT, str(tmp_path / '.lock')],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+    try:
+        assert child.stdout.readline().strip() == 'held'
+        with pytest.raises(Failure, match='state_busy'):
+            with io.locked(tmp_path, time.monotonic() + 1, False, wait=0, priority='yield'):
+                pass
+        for priority in (None, 'claim'):  # the historical lock and other claimants are not blocked
+            with io.locked(tmp_path, time.monotonic() + 1, False, priority=priority):
+                pass
+        with io.intent(tmp_path) as held:
+            assert held is False  # one attempt, no wait
+    finally:
+        child.communicate('', timeout=10)
+    with io.intent(tmp_path) as held:
+        assert held is True
+    with io.intent(tmp_path / 'absent') as held:
+        assert held is False  # no `.lock` yet: nothing to announce, nothing created
+    assert not (tmp_path / 'absent').exists()
+    with io.locked(tmp_path, time.monotonic() + 1, False, wait=0, priority='yield'):
+        pass

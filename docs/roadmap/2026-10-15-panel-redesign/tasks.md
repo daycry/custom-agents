@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 17 | 17 | 100% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 10 | 10 | 100% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 12 | 15 | 80% | 0 / 45,6h | 3,57 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **55** | **58** | **95%** | **0 / 159,2h** | **11,78 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 13 | 15 | 87% | 0 / 45,6h | 4,44 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **56** | **58** | **97%** | **0 / 159,2h** | **12,65 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1534,9 +1534,9 @@ Decisión fix1 (C-1): sin `\b` a la izquierda en `_ASIGNACION_RE` (el final se m
 ### T-43 — Almacén `events.json`: anillo acotado, CAS, retención y opt-out sin escritura
 
 - **Descripción**: `agent-activity-store.py` añade `events.json` al directorio propio (inventario de 4 a 5 nombres + `.lock`): `runs` (≤ 64), `ventanas` (≤ 64) y `events` (anillo 500 / 256 KiB / 24 h), reemplazo atómico con CAS como `snapshot.json`, `recortado`, `descartados_por_tamano` sin identidad y tope de entrada de 2 MiB solo en memoria. Sin `sesion.actividad: true` no escribe nada.
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 4,2h · real —
-- **Tiempo IA (ejec.)**: est. 1,0h · real 0,00h (medido: fix1, solo el cierre; código y RED dentro de la ventana común de T-42-fix1)
+- **Tiempo IA (ejec.)**: est. 1,0h · real 0,87h (medido: fix1 0,00h + fix2 0,87h)
 - **Supervisión**: est. 0,25h (≈25 % IA) · real —
 - **Previsión IA**: 457k in / 74k out tok · 7,00 €
 - **Dependencias**: T-42
@@ -1545,6 +1545,7 @@ Decisión fix1 (C-1): sin `\b` a la izquierda en `_ASIGNACION_RE` (el final se m
 - **Cubre (tests)**: E2E-19
 - **Verificación**: `python3 -m pytest -q tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py` → `passed` (opt-out: el directorio de estado no cambia; 501 eventos → 500 y `recortado: 1`; entrada de 2 MiB + 1 → contador; escrituras concurrentes sin pérdida de integridad)
 
+- **Cerrada**: 2026-10-20
 - **Changelog**: El historial de actividad se guarda en un anillo acotado (500 eventos o 256 KiB, 24 h) que solo se escribe con `sesion.actividad: true` y se recupera solo de escrituras cortadas.
 
 **Criterios de aceptación**
@@ -1560,11 +1561,14 @@ Decisión fix1 (C-1): sin `\b` a la izquierda en `_ASIGNACION_RE` (el final se m
 - [x] Inventario, CAS y anillo.
 - [x] Huella revisada.
 
-- **Evidencia TDD**: RED: 43 tests nuevos de test_agent_activity_store.py/test_agent_activity_git.py y 2 de test_local_state.py fallaron con AttributeError: sin `record`/`history`/`count_oversize` y sin `wait=`/`retry=` · 2026-10-16 (antes del código). fix1 RED: (A-2) test_a2_codex_mcp_publishes_events_without_replace_retries falló con `[('events.json', True)] != [('events.json', False)]` y test_a2_single_attempt_on_a_windows_sharing_violation con `assert (4 == 1)` intentos de `os.replace`; (D2) test_d2_burst_of_eight_parallel_tool_events_on_a_full_ring_loses_none falló con 7 de 8 `state_busy` · 2026-10-20 (antes del código)
+- **Evidencia TDD**: RED: 43 tests nuevos de test_agent_activity_store.py/test_agent_activity_git.py y 2 de test_local_state.py fallaron con AttributeError: sin `record`/`history`/`count_oversize` y sin `wait=`/`retry=` · 2026-10-16 (antes del código). fix1 RED: (A-2) test_a2_codex_mcp_publishes_events_without_replace_retries falló con `[('events.json', True)] != [('events.json', False)]` y test_a2_single_attempt_on_a_windows_sharing_violation con `assert (4 == 1)` intentos de `os.replace`; (D2) test_d2_burst_of_eight_parallel_tool_events_on_a_full_ring_loses_none falló con 7 de 8 `state_busy` · 2026-10-20 (antes del código). fix2 (2-1) RED: test_2_1_lifecycle_signals_survive_sustained_tool_contention… falló con 8 de 8 `state_busy`; test_2_1_tool_writers_yield… con `None == 'state_busy'`; test_2_1_the_ring_read_before_the_lock… con `events.json` leído bajo el cerrojo · 2026-10-20 (antes del código)
 - **Verificación ejecutada**: `pytest tests/test_agent_activity_store.py tests/test_agent_activity_git.py agent-kits/shared/test_local_state*.py` → verde dentro de 398 passed, 3 skipped; `pytest tests/test_graphiti_security.py` → 121 passed.
-  - fix1 (A-2, D2): `pytest tests/test_agent_activity_store.py tests/test_agent_activity_git.py agent-kits/shared/test_local_state*.py agent-kits/shared/test_agent_activity.py` → 320 passed, 3 skipped (ráfaga de 8 ×5 seguidas: 0 perdidos; con 0,8 s/1 s perdía 1 de 8 a veces) · `pytest tests/test_graphiti_security.py` → 121 passed (huella del almacén `2a106540…c682`, revisada: sin imports ni módulos nuevos).
+  - fix1 (A-2, D2): `pytest tests/test_agent_activity_store.py tests/test_agent_activity_git.py agent-kits/shared/test_local_state*.py agent-kits/shared/test_agent_activity.py` → 320 passed, 3 skipped (ráfaga de 8 ×5 seguidas: 0 perdidos; matizado en fix2, 2-4: con carga perdía 1 de 8 y con 16 en paralelo 4 de 16) · `pytest tests/test_graphiti_security.py` → 121 passed (huella del almacén `2a106540…c682`, revisada: sin imports ni módulos nuevos).
+  - fix2 (2-1, 2-4): `pytest tests/test_agent_activity_store.py tests/test_agent_activity_git.py agent-kits/shared/test_local_state*.py agent-kits/shared/test_agent_activity.py` → 325 passed, 3 skipped · `pytest tests/test_graphiti_security.py` → 121 passed (huella `7e13711f…57bc`, revisada: sin imports nuevos). Ciclo de vida bajo contención sostenida: 8 de 8 conservados (×9, 6 de ellos con 6 procesos de CPU al 100 %); arnés del revisor 5 de 5. Ráfaga con anillo lleno: 8 → 0 perdidos (×7, 4 con carga); 12 → 0-2; 16 → 1-5. No se promete más (CA-42).
 
 Decisión fix1 (D2): retención medida con el anillo lleno en Windows p50 ≈ 105 / p90 ≈ 130 ms, dominada por reabrir el `events.json` recién reemplazado (≈ 55 ms) y su reemplazo (≈ 12 ms); los validadores pasan a regex (mismas reglas; la validación baja de ≈ 50 % a ≈ 5 % del perfil). Como la retención no cabe en 100 ms × 7, los eventos de herramienta (asíncronos, I-05 intacto) esperan hasta `TOOL_LOCK_WAIT` = 1 s con plazo `TOOL_DEADLINE` = 1,3 s (bajo el presupuesto de 2 s del launcher); las señales de ciclo de vida (síncronas) siguen con 100 ms y 1 s y Codex MCP con un intento (P-EI-3, ahora también sin reintentos de `os.replace`: A-2). `design.md` §2.5 (a) dice «hasta 100 ms» y «plazo de 1 s»: pendiente de que el architect lo actualice (el implementer no escribe `design.md`).
+
+Decisión fix2 (2-1): prioridad al ciclo de vida, no más espera. Byte 1 de `.lock` = intención de un escritor de ciclo de vida (`StateIO.intent` antes de preparar, `priority='claim'` al esperar); los de herramienta hacen intentos únicos con `priority='yield'`. El anillo se lee y valida antes del cerrojo y solo se reutiliza con la firma intacta (mismo CAS). Retención con anillo lleno: herramienta p50 68 → 23 ms, p90 84 → 37 ms; ciclo de vida p50 186 → 69 ms. Valores: herramienta 1 s / 1,3 s (con 0,1 s se pierden 6-7 de 8; con 0,5 s, 0-1), ciclo de vida 100 ms / 1 s (§2.5), Codex MCP un intento. `hooks/` intacto.
 
 **Notas**: inventario cerrado en `agent-kits/shared/agent-activity-store.py:119-122`; opt-in en `:92-100` (`_enabled`); tope de entrada actual en `:20` y `:264-266`; captura y CAS en `:185-233` (`capture`). Huella en `tests/test_graphiti_security.py:159-165`. Familia de riesgo de `session-end-durable-capture` (LES-016). Lente C. Añadido `history()` (lector) y `local-state.py` `wait=`/`retry=` (P-EI-3, un solo intento). Huella revisada del almacén y `redact.py` en `dependencies`. Limpieza P-EI-1 antes del inventario, solo si el resto de nombres es el esperado.
 
@@ -2050,10 +2054,10 @@ Diff `8b98065..8fbb61e` (fix1, 2026-10-20), dos revisores `reviewer` (opus) en p
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| 2-1 | Important | Regresión de fix1: las señales de ciclo de vida (`SubagentStart`/`SubagentStop`, espera de 100 ms) pierden el cerrojo frente a una ráfaga de herramientas, que ahora espera 1 s y reintenta cada 5 ms. La pérdida pasa a los eventos que definen los runs: un `SubagentStop` perdido deja el run «en curso» hasta 60 s (A2-1 = B-4) | T-43 | pendiente (fix2) | `agent-activity-store.py:37,658` frente a `:704`; anillo lleno, 8 herramientas y `SubagentStart` a 250 ms: perdido en 2 de 5 (orquestador), 4 de 9 (A) y 2 de 3 (B); con la espera de herramienta a 0,1 s, 0 de 5 |
+| 2-1 | Important | Regresión de fix1: las señales de ciclo de vida (`SubagentStart`/`SubagentStop`, espera de 100 ms) pierden el cerrojo frente a una ráfaga de herramientas, que ahora espera 1 s y reintenta cada 5 ms. La pérdida pasa a los eventos que definen los runs: un `SubagentStop` perdido deja el run «en curso» hasta 60 s (A2-1 = B-4) | T-43 | corregido (fix2): prioridad al ciclo de vida (byte 1 de `.lock`) y anillo leído antes del cerrojo; esperas sin cambio · RED 8 de 8 `state_busy` · GREEN 8 de 8 (×9, con carga) | `agent-activity-store.py:37,658` frente a `:704`; anillo lleno, 8 herramientas y `SubagentStart` a 250 ms: perdido en 2 de 5 (orquestador), 4 de 9 (A) y 2 de 3 (B); con la espera de herramienta a 0,1 s, 0 de 5 |
 | 2-2 | Important | C-1 incompleta: siguen en claro `curl -su`/`-sSu user:pass` (opciones agrupadas), `curl -U` y `--proxy-user`, un `-u` tras una URL con `&` (el comando se corta en `&` y ese trozo ya no lleva `curl`) y los secretos entre comillas con espacio (`mysql -p"S3cret Pw1"` → `-p"[secreto redactado] Pw1"`). Es C2-1 + B-5 (CWE-532) | T-42 | pendiente (fix2) | `redact.py:115-121`; `journal.py:347`; reproducido por el orquestador |
 | 2-3 | Minor | Redacta de más cuando `mysql` o `curl` aparecen como ruta o imagen en el mismo trozo: `cp -pr /var/lib/mysql /backup` → `cp -p[secreto redactado]…`; también `mkdir -pv /etc/mysql/conf.d`, `docker run -p3306:3306 mysql:8` y `docker run -u 1000:1000 img curl …` | T-42 | pendiente (fix2, mismo código que 2-2) | `redact.py:118-121` (igual en `journal.py`) |
-| 2-4 | Minor | `test_d2_burst…` no tiene margen: 1 s ≈ 7 retenciones de p90, justo lo que necesita el 8.º escritor, y con carga pierde 1 de 8 (3 de 6 en el arnés de B). Además, el «0 de 8 perdidos» solo vale hasta ≈ 8: con 16 herramientas en paralelo y el anillo lleno se pierden 4 de 16 (25 %); no es regresión | T-43 | pendiente (fix2, con 2-1; corregir la afirmación del ledger) | `tests/test_agent_activity_store.py:1349`; `agent-activity-store.py:37-38,658` |
+| 2-4 | Minor | `test_d2_burst…` no tiene margen: 1 s ≈ 7 retenciones de p90, justo lo que necesita el 8.º escritor, y con carga pierde 1 de 8 (3 de 6 en el arnés de B). Además, el «0 de 8 perdidos» solo vale hasta ≈ 8: con 16 herramientas en paralelo y el anillo lleno se pierden 4 de 16 (25 %); no es regresión | T-43 | corregido (fix2): retención p90 84 → 37 ms; afirmación del ledger acotada a lo medido (8 → 0, 12 → 0-2, 16 → 1-5 perdidos) · GREEN 8 de 8 con 6 procesos de CPU al 100 % (×4) | `tests/test_agent_activity_store.py:1349`; `agent-activity-store.py:37-38,658` |
 
 Sin hallazgos en el resto. B1 no tiene carreras: un pedido en vuelo, un solo temporizador, y Cartera tiene su propio listener. En B2, `tool-activity` es síncrona y no lanza excepciones. D1 tarda 0,04 s por petición con 500 eventos. Los arneses de test quedan más estrictos, no más laxos. La redacción no tiene regresiones frente a la base: es idempotente y lineal (360 KB en 0,17 s). No quedan cerrojos huérfanos. El DOM solo recibe texto por `textContent`. Los CHANGELOG son espejo EN/ES.
 
