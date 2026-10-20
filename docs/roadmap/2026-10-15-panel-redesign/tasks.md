@@ -40,10 +40,10 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
-| Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
-| Fase 4 — Memoria, Catálogo y Diagnóstico | 9 | 10 | 90% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
+| Fase 2 — Inicio, Iniciativas y Plan | 17 | 17 | 100% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
+| Fase 4 — Memoria, Catálogo y Diagnóstico | 10 | 10 | 100% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
 | Fase 3 — Agentes en vivo + cierre transversal | 14 | 15 | 93% | 0 / 45,6h | 2,28 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **55** | **58** | **95%** | **0 / 159,2h** | **10,49 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| **TOTAL** | **57** | **58** | **98%** | **0 / 159,2h** | **10,49 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -594,7 +594,7 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 
 ## Fase 2 — Inicio, Iniciativas y Plan
 
-**Estado**: en-progreso · **Estimado**: 58,4h humanas · 19,1h IA · **Real**: — · **Coste est.**: 3.054 € referencia · ≈ 447 € ejecución · **Tokens est.**: 10,16 M (antes de la enmienda: 36,0h · 10,8h IA · 1.876 € · ≈ 261 € · 5,74 M)
+**Estado**: completado (2026-10-20) · **Estimado**: 58,4h humanas · 19,1h IA · **Real**: — · **Coste est.**: 3.054 € referencia · ≈ 447 € ejecución · **Tokens est.**: 10,16 M (antes de la enmienda: 36,0h · 10,8h IA · 1.876 € · ≈ 261 € · 5,74 M)
 
 Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 2026-10-15: revisión del plan desde el panel; `design.md` §8). Incluye el campo `- **Cerrada**:` del diseño (I-02), que la evaluación dejaba fuera: diferencia declarada en `improvement-plan.md`.
 
@@ -1102,7 +1102,8 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 ### T-29 — Cierre de la Fase 2: revisión de dos lentes y revisión visual del usuario (M-02)
 
 - **Descripción**: Puerta de la fase: suites de CA-44, linter y evals en verde; revisión de dos lentes sobre el diff de la fase; bucle acotado a 3 con Minor al backlog; el usuario revisa Inicio, Iniciativas y Plan en el navegador (M-02). **Ampliada por la enmienda (R-6 de `design.md` §8.8):** la **lente C de seguridad es obligatoria** en esta revisión (la fase añade la vía de escritura de `api/review-open`; el orquestador la fuerza aunque `review-lens-select.py` no la marque) y M-02 incluye **abrir, comentar y decidir una revisión desde la página Plan**.
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 3,0h (1,8h + 1,2h de la enmienda) · real —
 - **Tiempo IA (ejec.)**: est. 9,5h (5,4h + 4,1h de la enmienda) · real — (revisión + corrección, f = 1,0, incluida la parte de `Cerrada` y la lente C sobre T-55..T-58)
 - **Supervisión**: est. 3,85h (≈25 % IA + 1,5h de revisión manual: 1h + 0,5h de M-02 ampliado) · real —
@@ -1119,21 +1120,23 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
   - lectura: «Revisión de dos lentes — intento N: …» de la Fase 2 con la lente C ejecutada (obligatoria) y sin Critical ni Important abiertos, y «Revisión visual del usuario — Fase 2: aprobada AAAA-MM-DD»
 
 **Criterios de aceptación**
-- [ ] CA-44 de la Fase 2.
-- [ ] Revisión cerrada en ≤ 3 intentos.
-- [ ] [GWT] CA-47 y CA-48 (enmienda): la lente C de seguridad se ejecuta sobre el diff de la fase aunque `review-lens-select.py` no la marque, y no deja Critical ni Important abiertos sobre `api/review-open`, la correspondencia id16 y el registro de ids.
-- [ ] El usuario aprueba M-02, incluido abrir, comentar y decidir una revisión desde la página Plan.
+- [x] CA-44 de la Fase 2.
+- [x] Revisión cerrada en ≤ 3 intentos.
+- [x] [GWT] CA-47 y CA-48 (enmienda): la lente C de seguridad se ejecuta sobre el diff de la fase aunque `review-lens-select.py` no la marque, y no deja Critical ni Important abiertos sobre `api/review-open`, la correspondencia id16 y el registro de ids.
+- [x] El usuario aprueba M-02, incluido abrir, comentar y decidir una revisión desde la página Plan.
 
 **Subtareas**
-- [ ] Suites y puertas; `adversarial-review`; M-02. **Ampliada por la enmienda 2026-10-15:** `adversarial-review` con A + B + **C obligatoria** (+ D si `review-lens-select.py` la activa); M-02 con la revisión desde el Plan.
+- [x] Suites y puertas; `adversarial-review`; M-02. **Ampliada por la enmienda 2026-10-15:** `adversarial-review` con A + B + **C obligatoria** (+ D si `review-lens-select.py` la activa); M-02 con la revisión desde el Plan.
 
-**Notas**: **2026-10-16:** revisión cerrada en 3 intentos + verificación dirigida de fix3 (0 gaps nuevos); deuda TDD F2-1/I2-1 aceptada por el usuario (2026-10-16); CA-10 (F2-23) enmendada en la spec por decisión del usuario (2026-10-16); pendiente del usuario: M-02. M-02 ronda 1 corregida en 76162ec; el usuario aplaza su aprobación a la revisión conjunta al final (2026-10-16). la Lente A comprueba que CA-01, CA-02 y CA-11 se testean contra los scripts reales y que CA-45 a CA-54 tienen su test. La lente C es obligatoria por la enmienda 2026-10-15 (spec «Fases propuestas»); el orquestador la fuerza sin tocar `.claude/dev.json` del usuario (mismo mecanismo que T-54, `review-lens-select.py:573` modo `siempre`).
+**Notas**: **2026-10-16:** revisión cerrada en 3 intentos + verificación dirigida de fix3 (0 gaps nuevos); deuda TDD F2-1/I2-1 aceptada por el usuario (2026-10-16); CA-10 (F2-23) enmendada en la spec por decisión del usuario (2026-10-16); pendiente del usuario: M-02. M-02 ronda 1 corregida en 76162ec; el usuario aplaza su aprobación a la revisión conjunta al final (2026-10-16). la Lente A comprueba que CA-01, CA-02 y CA-11 se testean contra los scripts reales y que CA-45 a CA-54 tienen su test. La lente C es obligatoria por la enmienda 2026-10-15 (spec «Fases propuestas»); el orquestador la fuerza sin tocar `.claude/dev.json` del usuario (mismo mecanismo que T-54, `review-lens-select.py:573` modo `siempre`). **2026-10-20:** M-02 aprobada por el usuario en el navegador (panel servido con `--review-panel`): revisión abierta desde el Plan, comentada y decidida («aprobada v1» en cabecera y tarjeta).
+
+- **Verificación ejecutada** (2026-10-20, HEAD `3ca861b`, `.venv` del repo, pytest 9.1.1): suites de la Verificación juntas (incluidas `test_plan_review_summary.py` y `test_plan_review_caller.py`) → `3 failed, 1604 passed, 20 skipped` en 676 s; los 3 fallos son de plazo (`test_sixty_four_records_fit_the_envelope`, `test_a_really_expired_deadline_gives_partial_with_what_was_read`, `test_the_plan_rereads_respect_the_guard`) con la máquina cargada (lint, evals, interop y scope-check en paralelo); `agent-kits/shared/test_plan_review_summary.py` en solitario → `19 passed`; `plan-review.py` y su test sin cambios en `9c47821..3ca861b` · `lint_plugin.py` → exit 0 («10 agentes · 0 errores · 8 avisos») · `evals/check.py` → 0 errores · `export-interop.py --check` → «88 ficheros al día» · `scope-check.py --base 14ef84b` → exit 0, 0 fuera de alcance · lectura: intento 3 de la Fase 2 con lente C y verificación dirigida de fix3 sin gaps; «Revisión visual del usuario — Fase 2: aprobada 2026-10-20».
 
 ---
 
 ## Fase 4 — Memoria, Catálogo y Diagnóstico
 
-**Estado**: borrador · **Estimado**: 26,4h humanas · 7,2h IA · **Real**: — · **Coste est.**: 1.370 € referencia · ≈ 190 € ejecución · **Tokens est.**: 3,83 M
+**Estado**: completado (2026-10-20) · **Estimado**: 26,4h humanas · 7,2h IA · **Real**: — · **Coste est.**: 1.370 € referencia · ≈ 190 € ejecución · **Tokens est.**: 3,83 M
 
 Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: CA-22 a CA-31. Fuentes en solo lectura; si una no trae un dato por su `--json`, se muestra «sin datos» y no se amplía su contrato (`doctor.py`, `journal.py` y `knowledge-find.py` son hotspots).
 
@@ -1392,7 +1395,8 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 ### T-39 — Cierre de la Fase 4: revisión de dos lentes y revisión visual del usuario (M-03)
 
 - **Descripción**: Puerta de la fase: suites de CA-44, linter y evals; revisión de dos lentes; bucle acotado a 3; el usuario revisa Memoria, Catálogo y Diagnóstico en el navegador (M-03).
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 1,8h · real —
 - **Tiempo IA (ejec.)**: est. 3,6h · real — (revisión + corrección, f = 1,0)
 - **Supervisión**: est. 1,9h (≈25 % IA + 1h de revisión manual) · real —
@@ -1409,14 +1413,16 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
   - lectura: «Revisión de dos lentes — intento N: …» de la Fase 4 sin Critical ni Important abiertos y «Revisión visual del usuario — Fase 4: aprobada AAAA-MM-DD»
 
 **Criterios de aceptación**
-- [ ] CA-44 de la Fase 4.
-- [ ] Revisión cerrada en ≤ 3 intentos.
-- [ ] El usuario aprueba M-03.
+- [x] CA-44 de la Fase 4.
+- [x] Revisión cerrada en ≤ 3 intentos.
+- [x] El usuario aprueba M-03.
 
 **Subtareas**
-- [ ] Suites y puertas; `adversarial-review`; M-03.
+- [x] Suites y puertas; `adversarial-review`; M-03.
 
-**Notas**: la Lente A comprueba que ningún hotspot (`doctor.py`, `journal.py`, `knowledge-find.py`) cambió de contrato.
+**Notas**: la Lente A comprueba que ningún hotspot (`doctor.py`, `journal.py`, `knowledge-find.py`) cambió de contrato. **2026-10-20:** M-03 aprobada por el usuario en el navegador (Memoria, Catálogo y Diagnóstico, panel servido).
+
+- **Verificación ejecutada** (2026-10-20, HEAD `3ca861b`): la misma tanda que T-29 (cubre todas las suites de esta Verificación) → `3 failed, 1604 passed, 20 skipped`; los 3 fallos son de plazo en `test_plan_review_summary.py`, fuera de esta Verificación, y en solitario pasan (`19 passed`) · `lint_plugin.py` → exit 0 · `evals/check.py` → 0 errores · `export-interop.py --check` → «88 ficheros al día» · `scope-check.py --base 14ef84b` → exit 0 · lectura: intento 2 de la Fase 4 sin Critical ni Important; «Revisión visual del usuario — Fase 4: aprobada 2026-10-20».
 
 ---
 
@@ -2010,6 +2016,8 @@ Panel servido con `--review-panel` sobre una copia del roadmap (2026-10-16). Hal
 | M2-3 | Minor | Agentes en vivo dice «No se pudo actualizar» cuando `api/activity` responde `disabled` (opt-in apagado) | T-12 | corregido (fix M-02): con `disabled` dice «desactivada (opt-in)» y la clave `sesion.actividad` de dev.json · RED disabled_says_opt_in_and_how_to_enable (antes del código) | `api/activity` → `status: unavailable, reason: disabled` |
 | CI-1 | Important | Rojo en CI Linux: `tests/test_project_pieces.py::test_multiline_metadata_within_read_budget_finishes_before_panel_timeout` (`TimeoutExpired` a 15 s); solo tarda 10,7-14,2 s en Linux | — (project-extensions) | corregido (causa raíz): `_metadata` hacía `re.match` por línea con sangría; sin regex ahí y `_agent_servers` sale sin `mcpServers` (3,7 → 1,7 s) · RED test_metadata_parsing_does_no_regex_work (antes del código) | CI `c3ac718`: 1 failed, 8319 passed |
 
+**Revisión visual del usuario — Fase 2: aprobada 2026-10-20** (M-02, ronda 2, panel servido con `--review-panel` sobre el roadmap real en `3ca861b`): Inicio, Iniciativas y Plan aprobados; desde el Plan de `2026-09-09-brief-budget` abrió la revisión, guardó un comentario de sección y la aprobó (`api/review-summary` → «aprobada v1», 1 comentario); también aprobó sin comentarios la de `2026-08-12-sdd-hardening`. El estado vive solo en `.claude/plan-review/` (ignorado por git; puerta `requested-review`, no `plan-ok`).
+
 ## Revisión de dos lentes — intento 1: Fase 4 (T-30..T-38) — 3 Important, 7 Minor, 0 Critical (lentes: A+C, B+D)
 
 Diff `76162ec..f3689bd` (2026-10-16), dos revisores `reviewer` (opus). C forzada por el orquestador (`review-lens-select` daba `lente_c: false`; la fase pinta texto del consumidor). Sin XSS (todo por `textContent`/`createElementNS`), rutas por `local-read`, comando de diagnóstico constante, 64 KiB respetados. Modo D de `ledger-archive`: idempotente, histórico idéntico byte a byte al reaplicarlo, 27 SHA verificados, `ledger-view`/`progress-report` sin cambios.
@@ -2036,6 +2044,8 @@ Confirmación de fix1 sobre `01a1adc..469db9a` (2026-10-16), un revisor `reviewe
 | F4-11 | Minor | Un recálculo fallido de `api/memoria` no se ve en la página: la versión buena sale `ok`/`complete` y `recalculo_fallido` se pierde con 16 avisos; añadirlo puede pasar de 64 KiB | T-30 | deuda (backlog F3) | `serve_panel.py:701-706`; `page-memoria.js:165-169` |
 | F4-12 | Minor | Python y JS discrepan en `[0:0:0:0:0:0:0:1]` y `[fe80::1%25eth0]`: la tarjeta dice «host no local» para un loopback (etiqueta, no seguridad) | T-34 | deuda (backlog F3) | `panel_data.py:600-606`; `page-memoria.js:63-68` |
 | F4-13 | Minor | «Actualizar» con la caché vencida devuelve la versión vieja sin reintentar | T-30 | deuda (backlog F3) | `serve_panel.py:676-684`; `page-memoria.js:530-532` |
+
+**Revisión visual del usuario — Fase 4: aprobada 2026-10-20** (M-03, panel servido en `3ca861b`): Memoria, Catálogo y Diagnóstico aprobados sin hallazgos.
 
 ## Historial archivado
 
