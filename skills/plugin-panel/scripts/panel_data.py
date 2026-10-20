@@ -1011,3 +1011,72 @@ def memoria(project, relaciones=False):
     except Exception:  # noqa: BLE001 - una lectura que falla no deja la página a medias: vacía y dicho
         return _memoria_vacia('unavailable', 'read_failed')
     return datos if relaciones else ajustar_memoria(datos)
+
+
+# --- Agentes en vivo (panel-redesign T-48): proyección del historial de actividad ---------------------------------
+# Dueño de los datos: `agent-activity-store.history` (lectura sin bloqueo ni reparación) y las reglas puras de
+# `agent-activity.py` (`project_runs`). Aquí solo se da forma a las dos respuestas de la API (design I-04); el
+# servidor valida el historial, sanea el texto mostrado y aplica el tope de 64 KiB.
+ACTIVIDAD_MAX_EVENTOS_RUN = 150     # línea de tiempo de un run: los últimos N, con `recortado`
+ACTIVIDAD_MAX_RECIENTES = 10        # «actividad reciente» de Inicio (T-50)
+ACTIVIDAD_ACTIVAR = 'Para activarla, define "sesion": {"actividad": true} en .claude/dev.json.'
+KEY16_RE = re.compile(r'[a-f0-9]{16}', re.ASCII)
+
+
+def _actividad_proyeccion():
+    return _load_shared('agent-activity.py')
+
+
+def _fila_run(run, eventos):
+    return {'key16': run['run_key'][:16], 'runtime': run['runtime'], 'scope': run['scope'], 'role': run['role'],
+            'estado': run['estado'], 'iniciado_at': run['started_at'], 'ultima_senal_at': run['last_seen'],
+            'edad_s': run['age_seconds'], 'duracion_s': run['duration_seconds'],
+            'ultima_herramienta': run['last_tool'], 'eventos': eventos}
+
+
+def _runs_proyectados(historia, now):
+    proyeccion = _actividad_proyeccion().project_runs(historia['runs'], now=now, events=historia['events'])
+    if proyeccion['status'] != 'ok':
+        raise ValueError('invalid_runs')
+    cuenta = {}
+    for evento in historia['events']:
+        cuenta[evento['run_key']] = cuenta.get(evento['run_key'], 0) + 1
+    return [(run, _fila_run(run, cuenta.get(run['run_key'], 0))) for run in proyeccion['runs']]
+
+
+def actividad_runs(historia, *, now):
+    """`api/actividad-runs`: una fila por run (más reciente primero) y los últimos eventos de todos los runs.
+    `historia` es la salida `ok` de `agent-activity-store.history`, ya validada por el servidor."""
+    filas = [fila for _, fila in _runs_proyectados(historia, now)]
+    filas.sort(key=lambda fila: (-fila['ultima_senal_at'], fila['key16']))
+    runs = {run['run_key']: run for run in historia['runs']}
+    recientes = []
+    for evento in sorted(historia['events'], key=lambda e: -e['revision'])[:ACTIVIDAD_MAX_RECIENTES]:
+        edad = now - evento['observed_at']
+        recientes.append({'key16': evento['run_key'][:16], 'runtime': evento['runtime'], 'role': evento['role'],
+                          'scope': runs[evento['run_key']]['scope'] if evento['run_key'] in runs else None,
+                          'tool': evento['tool'], 'tarea': evento['tarea'], 'observed_at': evento['observed_at'],
+                          'edad_s': edad if edad >= 0 else None})
+    return {'schema_version': 1, 'status': 'ok', 'reason': None, 'collection_complete': False,
+            'recortado': historia['recortado'], 'descartados_por_tamano': historia['descartados_por_tamano'],
+            'eventos': len(historia['events']), 'runs': filas, 'recientes': recientes}
+
+
+def actividad_run(historia, key16, *, now):
+    """`api/actividad-run-<key16>`: la línea de tiempo de UN run (los últimos 150 eventos, orden de recepción).
+    `None` si ningún run, o más de uno, empieza por `key16` (nunca se adivina)."""
+    if type(key16) is not str or not KEY16_RE.fullmatch(key16):
+        return None
+    candidatos = [(run, fila) for run, fila in _runs_proyectados(historia, now) if run['run_key'][:16] == key16]
+    if len(candidatos) != 1:
+        return None
+    run, fila = candidatos[0]
+    eventos = _actividad_proyeccion().project_events(historia['events'], now=now, run_key=run['run_key'])
+    recortado = max(0, len(eventos) - ACTIVIDAD_MAX_EVENTOS_RUN)
+    eventos = eventos[recortado:]
+    return {'schema_version': 1, 'status': 'ok', 'reason': None, 'collection_complete': False, 'key16': key16,
+            'run': fila, 'recortado': recortado, 'recortado_historial': historia['recortado'],
+            'descartados_por_tamano': historia['descartados_por_tamano'],
+            'eventos': [{'tool': e['tool'], 'resumen': e['resumen'], 'tarea': e['tarea'], 'duracion_ms': e['duracion_ms'],
+                         'resultado': e['resultado'], 'observed_at': e['observed_at'], 'revision': e['revision']}
+                        for e in eventos]}

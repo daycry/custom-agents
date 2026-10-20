@@ -5,6 +5,7 @@ import hmac
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import importlib.util
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -530,6 +531,111 @@ def activity_snapshot(project):
         return _unavailable_activity()
 
 
+# --- Agentes en vivo (panel-redesign T-48): api/actividad-runs y api/actividad-run-<key16> -------------------------
+# Reads `agent-activity-store.history` (no lock, no initialization, no repair); the projection lives in
+# `panel_data.actividad_runs`/`actividad_run`. `api/activity` (the live snapshot) does not change.
+ACTIVIDAD_RUN_API = re.compile(r'api/actividad-run-([a-f0-9]{16})')
+_HISTORY_KEYS = frozenset(('status', 'reason', 'runs', 'ventanas', 'events', 'recortado', 'descartados_por_tamano',
+                           'collection_complete'))
+_HISTORY_EVENT_KEYS = frozenset(('schema_version', 'runtime', 'run_key', 'role', 'tool', 'resumen', 'tarea',
+                                 'duracion_ms', 'resultado', 'observed_at', 'revision'))
+_HEX64 = re.compile(r'[a-f0-9]{64}', re.ASCII)
+_HISTORY_TEXT_CAPS = {'tool': 64, 'ultima_herramienta': 64, 'resumen': 160, 'tarea': 200}
+
+
+def _count(value):
+    return type(value) is int and 0 <= value <= 2**53 - 1
+
+
+def _unavailable_history(reason, key16=None):
+    body = {'schema_version': 1, 'status': 'unavailable', 'reason': reason, 'collection_complete': False,
+            'recortado': 0, 'descartados_por_tamano': 0, 'eventos': 0, 'runs': [], 'recientes': []}
+    if key16 is not None:
+        body = {'schema_version': 1, 'status': 'unavailable', 'reason': reason, 'collection_complete': False,
+                'key16': key16, 'run': None, 'recortado': 0, 'recortado_historial': 0, 'descartados_por_tamano': 0,
+                'eventos': []}
+    if reason in ('disabled', 'invalid_config'):
+        body['activar'] = _load_data().ACTIVIDAD_ACTIVAR
+    return body
+
+
+def _valid_history_event(row):
+    roles = _load_shared('agent-activity.py').ROLES
+    return (type(row) is dict and set(row) == _HISTORY_EVENT_KEYS and row['runtime'] in ('claude', 'codex', 'opencode')
+            and type(row['run_key']) is str and _HEX64.fullmatch(row['run_key']) is not None
+            and (row['role'] is None or row['role'] in roles)
+            and type(row['tool']) is str and len(row['tool']) <= 64 and type(row['resumen']) is str and len(row['resumen']) <= 160
+            and (row['tarea'] is None or (type(row['tarea']) is str and len(row['tarea']) <= 200))
+            and (row['duracion_ms'] is None or _count(row['duracion_ms'])) and row['resultado'] in (None, 'ok', 'error')
+            and type(row['observed_at']) in (int, float) and math.isfinite(row['observed_at'])
+            and _count(row['revision']))
+
+
+def activity_history(project):
+    """(history, None) when the owner's read is `ok` and well formed; (None, reason) otherwise. A reason outside the
+    closed set, an extra key or a malformed row is `invalid_history`: nothing partial is ever projected."""
+    try:
+        value = _load_shared('agent-activity-store.py').history(project)
+    except Exception:
+        return None, 'reader_unavailable'
+    if type(value) is not dict or set(value) != _HISTORY_KEYS or value['collection_complete'] is not False:
+        return None, 'invalid_history'
+    if value['status'] == 'unavailable':
+        empty = value['runs'] == [] and value['events'] == []
+        return None, value['reason'] if type(value['reason']) is str and value['reason'] in ACTIVITY_REASONS and empty \
+            else 'invalid_history'
+    if (value['status'] != 'ok' or value['reason'] is not None or type(value['runs']) is not list
+            or type(value['events']) is not list or len(value['events']) > 500 or len(value['runs']) > 64
+            or not _count(value['recortado']) or not _count(value['descartados_por_tamano'])
+            or not all(_valid_history_event(row) for row in value['events'])):
+        return None, 'invalid_history'
+    return value, None
+
+
+def _scrub_history(body, scrub):
+    """The panel's single scrubber on every displayed text, then the browser validator's ceilings."""
+    def clean(row):
+        for key, cap in _HISTORY_TEXT_CAPS.items():
+            if type(row.get(key)) is str:
+                row[key] = _clip(scrub(row[key]) if scrub is not None else row[key], cap)
+        return row
+    for name in ('runs', 'recientes', 'eventos'):
+        if type(body.get(name)) is list:  # `eventos` is a count in api/actividad-runs and a list in a timeline
+            for row in body[name]:
+                clean(row)
+    if type(body.get('run')) is dict:
+        clean(body['run'])
+    return body
+
+
+def _history_body(body, trim):
+    """Encode within MAX_RESPONSE_BYTES, dropping the oldest timeline events (counted in `recortado`)."""
+    encoded = _encoded(body)
+    while len(encoded) > MAX_RESPONSE_BYTES and trim(body):
+        encoded = _encoded(body)
+    if len(encoded) > MAX_RESPONSE_BYTES:
+        return _encoded(_unavailable_history('response_budget', body.get('key16')))
+    return encoded
+
+
+def _trim_runs(body):
+    if body['recientes']:
+        body['recientes'].pop()
+    elif body['runs']:
+        body['runs'].pop()
+    else:
+        return False
+    return True
+
+
+def _trim_timeline(body):
+    if not body['eventos']:
+        return False
+    body['eventos'].pop(0)
+    body['recortado'] += 1
+    return True
+
+
 class PanelServer(HTTPServer):
     """Serial handlers bound concurrency; a stalled socket expires in three seconds."""
     request_queue_size = 8
@@ -666,6 +772,30 @@ class PanelServer(HTTPServer):
             return body
         except Exception:
             return _encoded(_unavailable_activity())
+
+    def actividad_runs(self):
+        """`api/actividad-runs` (T-48): runs and recent events of the history; disabled capture says how to enable it."""
+        try:
+            history, reason = activity_history(self.project)
+            if history is None:
+                return _encoded(_unavailable_history(reason))
+            body = _scrub_history(_load_data().actividad_runs(history, now=time.time()), self.scrub)
+            return _history_body(body, _trim_runs)
+        except Exception:
+            return _encoded(_unavailable_history('reader_unavailable'))
+
+    def actividad_run(self, key16):
+        """`api/actividad-run-<key16>` (T-48): one run's timeline; `None` (404) for an unknown or ambiguous key."""
+        try:
+            history, reason = activity_history(self.project)
+            if history is None:
+                return _encoded(_unavailable_history(reason, key16))
+            body = _load_data().actividad_run(history, key16, now=time.time())
+            if body is None:
+                return None
+            return _history_body(_scrub_history(body, self.scrub), _trim_timeline)
+        except Exception:
+            return _encoded(_unavailable_history('reader_unavailable', key16))
 
     def memoria_panel(self):
         """`api/memoria` (GET, <= 64 KiB): la proyeccion de Memoria. `panel_data` la calcula leyendo solo ficheros
@@ -1048,6 +1178,14 @@ class PanelHandler(BaseHTTPRequestHandler):
             self._reply(200, self.server.memoria_panel(), 'application/json; charset=utf-8')
         elif route == 'api/activity':
             self._reply(200, self.server.activity(), 'application/json; charset=utf-8')
+        elif route == 'api/actividad-runs':
+            self._reply(200, self.server.actividad_runs(), 'application/json; charset=utf-8')
+        elif (run := ACTIVIDAD_RUN_API.fullmatch(route)) is not None:
+            body = self.server.actividad_run(run[1])
+            if body is None:
+                self._reply(404)
+            else:
+                self._reply(200, body, 'application/json; charset=utf-8')
         elif self.server.review_scope is not None and route == 'api/review-summary':
             self._reply(200, self.server.review_summary(), 'application/json; charset=utf-8')
         elif self.server.review_scope is not None and (current := REVIEW_CURRENT_API.fullmatch(route)) is not None:

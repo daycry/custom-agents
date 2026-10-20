@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 9 | 10 | 90% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 8 | 15 | 53% | 0 / 45,6h | 0,84 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **49** | **58** | **84%** | **0 / 159,2h** | **9,05 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 9 | 15 | 60% | 0 / 45,6h | 1,01 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **50** | **58** | **86%** | **0 / 159,2h** | **9,22 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1693,9 +1693,10 @@ Decisiones: (1) binding propio `tool-activity` en el catálogo (dominio `tool`, 
 ### T-48 — API `api/actividad-runs` y `api/actividad-run-<key16>`
 
 - **Descripción**: Dos rutas nuevas: la lista de runs y la línea de tiempo de un run (≤ 150 últimos eventos, con `recortado`), ambas ≤ 64 KiB y redactadas. `api/activity` no cambia.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,5h · real —
+- **Tiempo IA (ejec.)**: est. 0,5h · real 0,17h (medido)
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
 - **Previsión IA**: 229k in / 37k out tok · 3,50 €
 - **Dependencias**: T-43
@@ -1704,13 +1705,20 @@ Decisiones: (1) binding propio `tool-activity` en el catálogo (dominio `tool`, 
 - **Cubre (tests)**: API-04, API-05
 - **Verificación**: `python3 -m pytest -q tests/test_panel_activity_server.py` → `passed` (≤ 65.536 bytes con 500 eventos; `key16` inexistente → 404; sin token → 403)
 
+- **Changelog**: El panel servido ofrece dos lecturas nuevas de actividad: la lista de runs con sus eventos recientes y la línea de tiempo de un run (sus últimos 150 eventos), siempre dentro de 64 KiB y con el texto saneado.
+
 **Criterios de aceptación**
-- [ ] Tope de 64 KiB y 150 eventos por run con `recortado`.
-- [ ] Sin `?` en la ruta; `key16` validado por regex exacta.
-- [ ] Captura desactivada → respuesta con el estado y cómo activarla, no una lista vacía.
+- [x] Tope de 64 KiB y 150 eventos por run con `recortado`.
+- [x] Sin `?` en la ruta; `key16` validado por regex exacta.
+- [x] Captura desactivada → respuesta con el estado y cómo activarla, no una lista vacía.
 
 **Subtareas**
-- [ ] RED; rutas.
+- [x] RED; rutas.
+
+- **Evidencia TDD**: RED: 13 tests nuevos de test_panel_activity_server.py fallaron con AttributeError: 'PanelServer' object has no attribute 'actividad_runs' / 'actividad_run' y la ruta HTTP con `assert (404 == 200)` · 2026-10-20 (antes del código)
+- **Verificación ejecutada**: `pytest tests/test_panel_activity_server.py tests/test_panel_server.py` → 184 passed, 2 skipped (500 eventos de 160 caracteres que escapan a muchos bytes → cuerpo ≤ 65.536 en las dos rutas; `key16` inexistente o ambiguo → 404; mayúsculas, 15/17 caracteres, `?` o `/` final → 404; sin capacidad → 404 y Host ajeno → 403, sin leer el historial; POST → 405) · `pytest tests/test_console_encoding.py tests/test_panel_data.py tests/test_panel_memory_server.py tests/test_panel_review_server.py tests/test_panel_review_panel_server.py` → 798 passed · pasada de todas las `tests/test_panel_*.py` + `test_plugin_panel` + `test_graphiti_security` → 1207 passed (el único rojo, `test_no_scope_has_no_new_routes`, coincidió con una edición en vuelo y pasa en las dos repeticiones) · `lint_plugin.py` → 0 errores.
+
+Decisiones: (1) Proyección en `panel_data.actividad_runs`/`actividad_run` (pura, con `project_runs`/`project_events` de `agent-activity.py`); el servidor valida la lectura de `agent-activity-store.history` con un conjunto cerrado de claves y motivos (fuera de forma → `invalid_history`, nada parcial), sanea `tool`/`resumen`/`tarea`/`ultima_herramienta` con el saneador único del panel y recorta a 64/160/200. (2) Respuesta de runs: `runs` (más reciente primero, `key16` = 16 primeros hex del `run_key`; nunca las claves completas), `recientes` (10 últimos eventos, para Inicio en T-50), `eventos` (total), `recortado` y `descartados_por_tamano`. (3) Tope de 64 KiB: la lista suelta primero `recientes` y luego runs; la línea de tiempo suelta los eventos más antiguos y los suma a `recortado`. (4) `key16` que casa con dos runs → 404 (nunca se adivina). (5) «Sin token → 403» de la Verificación: el contrato vigente del servidor (`test_no_capability_never_calls_snapshot`) responde 404 sin capacidad y 403 con Host/Origin ajenos; se mantiene y se prueba así. (6) Captura desactivada o `invalid_config` → `status: unavailable` con `reason` y `activar` (cómo activarla).
 
 **Notas**: snapshot de actividad actual en `skills/plugin-panel/scripts/serve_panel.py:206-226` (`_unavailable_activity`, `activity_snapshot`, 222 líneas: no ampliarla, crear función nueva). Lente C.
 
