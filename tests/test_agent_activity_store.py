@@ -1264,3 +1264,17 @@ def test_real_cli_records_a_tool_event_silently(api, project):
         env=dict(os.environ), cwd=project, timeout=20)
     assert p.returncode == 0 and p.stdout == p.stderr == b''
     assert last(api, project)['tool'] == 'Bash'
+
+
+# ---- panel-redesign T-42 fix1 (C-1): prefixed secrets never reach events.json nor the history -----
+def test_c1_prefixed_and_argument_secrets_are_redacted_in_events_and_history(api, project):
+    secrets_in = {'DB_PASSWORD=Hunter2xyz! psql -h db': b'Hunter2xyz!',
+                  'curl -u admin:S3cretPw! https://x.test': b'S3cretPw!',
+                  'mysql -uroot -pMyS3cret9 appdb': b'MyS3cret9'}
+    for command in secrets_in:
+        assert api.capture(project, runtime='claude', payload=tool_payload(project, inp={'command': command}))['status'] == 'ok'
+    raw = events_path(project).read_bytes()
+    shown = json.dumps(api.history(project)['events']).encode()
+    for secret in secrets_in.values():
+        assert secret not in raw and secret not in shown, secret
+    assert raw.count(b'[secreto redactado]') == 3

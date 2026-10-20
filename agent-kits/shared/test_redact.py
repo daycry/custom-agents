@@ -49,12 +49,16 @@ def test_solo_stdlib():
         assert prohibido not in src
 
 
-@pytest.mark.parametrize('case', ['pem', 'assignment', 'quoted_json', 'show'])
+@pytest.mark.parametrize('case', ['pem', 'assignment', 'quoted_json', 'show', 'prefixed_assignment',
+                                  'curl_args', 'mysql_args'])
 def test_bounded_memory_inputs_redact_without_superlinear_delay(tmp_path, case):
     """A pathological owned input cannot occupy the serial memory endpoint."""
     pem = '-----BEGIN PRIVATE KEY-----\nx' * 9000
     payload = {'pem': pem, 'assignment': 'token=' * 43000,
-               'quoted_json': '"token":"' + '\\a' * 125000}.get(case, pem)
+               'quoted_json': '"token":"' + '\\a' * 125000,
+               # T-42 fix1 (C-1): prefixed keys and per-command credentials stay linear
+               'prefixed_assignment': 'DB_TOKEN=' * 40000, 'curl_args': 'curl ' + '-u ' * 120000,
+               'mysql_args': 'mysql' + ' -p' * 120000}.get(case, pem)
     own = tmp_path / 'owned'
     own.mkdir()
     fixture = own / 'input.txt'
@@ -530,3 +534,68 @@ def test_authorization_basic_idem_en_el_respaldo_de_journal():
     journal = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(journal)
     assert "dXNlcjpwYXNzd29yZA" not in journal.redactar("Authorization: Basic dXNlcjpwYXNzd29yZA==")
+
+
+# ---- panel-redesign T-42 fix1 (C-1, CWE-532/312): secretos en argumentos de comandos -----------
+@pytest.mark.parametrize("texto,secreto", [
+    ("DB_PASSWORD=Hunter2xyz! psql -h db", "Hunter2xyz!"),
+    ("export API_TOKEN=abc123def456 && make", "abc123def456"),
+    ("AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENG aws s3 ls", "wJalrXUtnFEMIK7MDENG"),
+    ("PGPASSWORD=s3cretPass1 psql -U app", "s3cretPass1"),
+    ("app --db-password=Hunter2xyz! run", "Hunter2xyz!"),
+])
+def test_c1_clave_sensible_tras_prefijo_o_guion_bajo_se_redacta(texto, secreto):
+    salida = redact.redactar(texto)
+    assert secreto not in salida and redact.REDACTADO in salida, salida
+
+
+@pytest.mark.parametrize("texto,secreto", [
+    ("curl -u admin:S3cretPw! https://x.test", "S3cretPw!"),
+    ("curl --user admin:pw2xyz https://x.test", "pw2xyz"),
+    ("curl --user=admin:hunter2 https://x.test", "hunter2"),
+    ("curl -uadmin:hunter2 https://x.test", "hunter2"),
+    ("curl -s -u 'admin:hunter2' https://x.test", "hunter2"),
+    ("curl.exe -u admin:123456 https://x.test", "123456"),
+])
+def test_c1_curl_usuario_y_clave_se_redacta(texto, secreto):
+    salida = redact.redactar(texto)
+    assert secreto not in salida and redact.REDACTADO in salida, salida
+    assert "admin:" in salida  # el usuario y el resto del comando se conservan
+
+
+@pytest.mark.parametrize("texto,secreto", [
+    ("mysql -uroot -pS3cretPw1 appdb", "S3cretPw1"),
+    ("mysqldump -h db -p'hunter2' appdb", "hunter2"),
+    ("mariadb -proot -e 'select 1'", "root"),
+])
+def test_c1_mysql_clave_pegada_a_p_se_redacta(texto, secreto):
+    salida = redact.redactar(texto)
+    assert "-p" + secreto not in salida and "-p'" + secreto not in salida and redact.REDACTADO in salida, salida
+
+
+@pytest.mark.parametrize("limpio", [
+    "mkdir -p src/dir", "cp -pr a b", "ls -p", "git log -p", "ssh -p2222 host", "tar -xpf a.tar",
+    "sort -u lista.txt", "docker run -u 1000:1000 img", "git push -u origin main", "mysql -p appdb",
+    "my_token_count=12345678a", "tokens=12345678a", "mkdir -p x; mysql -p db", "curl https://x.test -o out",
+])
+def test_c1_argumentos_corrientes_no_se_tocan(limpio):
+    assert redact.redactar(limpio) == limpio
+
+
+def test_c1_redactar_dos_veces_es_una():
+    for texto in ("DB_PASSWORD=Hunter2xyz! psql", "curl -u admin:S3cretPw! https://x.test",
+                  "mysql -uroot -pS3cretPw1 appdb", "mysqldump -p'hunter2' db"):
+        una = redact.redactar(texto)
+        assert redact.redactar(una) == una, una
+
+
+def test_c1_idem_en_el_respaldo_de_journal():
+    """El bloque replicado de journal.py (respaldo sin redact.py) redacta lo mismo."""
+    import re
+    source = Path(HERE, 'journal.py').read_text(encoding='utf8')
+    start = source.index('# --8<-- redact (redactar + constantes)')
+    end = source.index('# --8<-- fin redact (redactar + constantes)', start)
+    namespace = {'re': re}
+    exec(compile(source[start:end], 'journal_backup_c1', 'exec'), namespace)
+    for texto in ("DB_PASSWORD=Hunter2xyz! psql", "curl -u admin:S3cretPw! https://x.test", "mysql -pS3cretPw1 db"):
+        assert namespace['redactar'](texto) == redact.redactar(texto) != texto, texto

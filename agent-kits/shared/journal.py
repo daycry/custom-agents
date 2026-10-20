@@ -268,7 +268,10 @@ _CLAVES_SENSIBLES = r"api[_-]?key|secret[_-]?key|access[_-]?key|secret|token|pas
 _CLAVE_SENSIBLE_RE = re.compile(r"(?i)(?:" + _CLAVES_SENSIBLES + r")")
 _PEM_BEGIN_RE = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")
 _PEM_END_RE = re.compile(r"-----END [A-Z ]*PRIVATE KEY-----")
-_ASIGNACION_RE = re.compile(r"(?i)\b(?:" + _CLAVES_SENSIBLES + r")\b\s*[:=]\s*[\"']?")
+# Sin `\b` a la izquierda: la clave casa tambien tras `_`, `-` o un prefijo (`DB_PASSWORD=`, `API_TOKEN=`,
+# `AWS_SECRET_ACCESS_KEY=`, `PGPASSWORD=`; panel-redesign T-42 fix1, C-1). El `\b` final se mantiene:
+# `my_token_count=` o `tokens=` no son claves sensibles.
+_ASIGNACION_RE = re.compile(r"(?i)(?:" + _CLAVES_SENSIBLES + r")\b\s*[:=]\s*[\"']?")
 _ASIGNACION_FIN_RE = re.compile(r"[\s\"']")
 _ASIGNACION_LETRA_RE = re.compile(r"[A-Za-z]", re.I)
 _ASIGNACION_VARIADA_RE = re.compile(r"[0-9!@#$%^&*]")
@@ -337,6 +340,30 @@ def _redactar_asignaciones(texto):
     return "".join(partes)
 
 
+# Credenciales como argumento de un comando conocido (T-42 fix1, C-1): `curl -u usuario:clave` y
+# `mysql -p<clave>`. Solo dentro del MISMO comando (segmento hasta salto de linea, `|`, `;` o `&`) en
+# el que aparece ese programa, para no tocar `sort -u`, `mkdir -p`, `ssh -p2222` ni `docker -u 1000:1000`.
+# Lineal: cada segmento se recorre una vez por patron; lo ya redactado no se vuelve a redactar.
+_SEGMENTO_RE = re.compile(r"[^\n|;&]+")
+_YA_REDACTADO = r"(?!" + re.escape(REDACTADO) + r")"
+_CREDENCIAL_ARG_RE = (
+    (re.compile(r"(?i)(?<![\w.\-])curl(?:\.exe)?(?![\w.\-])"),
+     re.compile(r"(?P<pre>(?<!\S)(?:-u|--user)(?:\s+|=)?[\"']?[^\s:\"']*:)" + _YA_REDACTADO + r"(?P<sec>[^\s\"']+)")),
+    (re.compile(r"(?i)(?<![\w.\-])(?:mysql[a-z]*|mariadb(?:-[a-z]+)?)(?:\.exe)?(?![\w.\-])"),
+     re.compile(r"(?P<pre>(?<!\S)-p[\"']?)" + _YA_REDACTADO + r"(?P<sec>[^\s\"']+)")),
+)
+
+
+def _redactar_argumentos(texto):
+    def segmento(m):
+        trozo = m.group()
+        for programa, credencial in _CREDENCIAL_ARG_RE:
+            if programa.search(trozo):
+                trozo = credencial.sub(lambda c: c.group("pre") + REDACTADO, trozo)
+        return trozo
+    return _SEGMENTO_RE.sub(segmento, texto)
+
+
 def es_clave_sensible(clave):
     """True si `clave` es EXACTAMENTE una clave sensible (`password`, `api_key`, `token`…, sin
     distinguir mayusculas): `redactar_estructura` del recorder redacta entonces su valor textual."""
@@ -348,6 +375,7 @@ def redactar(texto):
     texto = _redactar_pem(str(texto))
     for pat in _SECRETOS_RE[:-1]:
         texto = pat.sub(lambda m: (m.group("pre") if "pre" in m.groupdict() else "") + REDACTADO, texto)
+    texto = _redactar_argumentos(texto)
     texto = _redactar_asignaciones(texto)
     texto = _SECRETOS_RE[-1].sub(lambda m: m.group("pre") + REDACTADO, texto)
     return texto
