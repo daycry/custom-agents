@@ -292,12 +292,15 @@ def _opencode_bindings(text):
     expected = {'guard': ('tool', 'PreToolUse', 'guard'), 'prompt': ('session', 'UserPromptSubmit', 'informative'),
                 'context': ('session', 'SessionStart', 'informative'), 'post': ('tool', 'PostToolUse', 'informative'),
                 'capture': ('event', 'SessionEnd', 'informative'),
-                'activity': ('event', 'ActivityObserved', 'informative')}
+                'activity': ('event', 'ActivityObserved', 'informative'),
+                'tool-activity': ('tool', 'PostToolUse', 'informative')}
     allowed_handlers = {'guard': {'native-guardrail'}, 'prompt': {'user-prompt-capture.sh'},
                         'context': {'session-context.sh'}, 'capture': {'session-journal.sh'},
-                        'activity': {'agent-activity'},
+                        'activity': {'agent-activity'}, 'tool-activity': {'agent-activity'},
                         'post': {'mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh'}}
-    if not isinstance(bindings, list) or len(bindings) != len(expected):
+    # `tool-activity` (panel-redesign T-47) is the only optional binding: an adapter installed before it simply
+    # declares no tool events. Every other binding stays mandatory.
+    if not isinstance(bindings, list) or len(bindings) not in (len(expected) - 1, len(expected)):
         raise ValueError('invalid binding list')
     found = set()
     for binding in bindings:
@@ -329,10 +332,12 @@ def _opencode_bindings(text):
                 raise ValueError('invalid execution/idle stream binding')
             if binding.get('idle_status_event') != 'session.status' or binding.get('idle_status') != 'idle':
                 raise ValueError('invalid idle binding')
-        if identifier == 'activity' and binding['timeout_ms'] != 2500:
+        if identifier in ('activity', 'tool-activity') and binding['timeout_ms'] != 2500:
             raise ValueError('invalid activity supervision budget')
         if identifier == 'post' and (not isinstance(binding.get('tools'), list) or not 1 <= len(binding['tools']) <= 32 or any(type(tool) is not str or not re.fullmatch(r'[a-z][a-z0-9_]{0,63}', tool) for tool in binding['tools'])):
             raise ValueError('invalid tool activation')
+    if found | {'tool-activity'} != set(expected):
+        raise ValueError('invalid binding list')
     return bindings
 
 

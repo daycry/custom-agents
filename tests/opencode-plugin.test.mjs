@@ -216,6 +216,7 @@ test('catalog binding and handler edits govern native registration and dispatch'
     const adapter = await isolatedPlugin(dir, `process.stdout.write(JSON.stringify({systemMessage:process.argv[2]}));`, catalog => {
       const post = catalog.bindings.find(item => item.id === 'post');
       post.native_event = 'own.after'; post.handlers = ['progress-line.sh'];
+      catalog.bindings.find(item => item.id === 'tool-activity').native_event = 'own.after'; // T-47: shares the event
     });
     const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
     assert.ok(ctx.hooks.has('tool.own.after'));
@@ -433,4 +434,90 @@ test('native execution start informs activity without premature session capture'
       assert.deepEqual(row.payload,{type:'session.execution.started',data:{sessionID:'started'},cwd:dir});
     }
   }finally{await cleanup?.();rmSync(dir,{recursive:true,force:true});}
+});
+
+// panel-redesign T-47 (design O5, I-05, CA-42): OpenCode tool activity is a catalog binding of its own on
+// tool.execute.after. The event promise resolves before the child ends (no await of the launcher) and the
+// child is tracked for cleanup. Only the keys the store's summary whitelist reads cross the boundary.
+test('catalog declares tool activity apart from the post and session activity bindings', async () => {
+  const source = readFileSync(new URL('../hooks/opencode-plugin.js', import.meta.url), 'utf8');
+  const catalog = JSON.parse(source.match(/hook-catalog:start\r?\nconst hookCatalog = JSON\.parse\(`([\s\S]*?)`\);/)[1]);
+  const tool = catalog.bindings.find(item => item.id === 'tool-activity');
+  assert.deepEqual([tool.domain, tool.native_event, tool.event, tool.behavior, tool.handlers, tool.timeout_ms],
+    ['tool', 'execute.after', 'PostToolUse', 'informative', ['agent-activity'], 2500]);
+  assert.deepEqual(catalog.bindings.find(item => item.id === 'post').handlers,
+    ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh']);
+  assert.equal(catalog.bindings.find(item => item.id === 'activity').domain, 'event');
+});
+
+test('tool activity resolves before its child ends and sends only summary arguments', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
+      let input=''; process.stdin.setEncoding('utf8'); process.stdin.on('data',chunk=>input+=chunk);
+      process.stdin.on('end',()=>{ if(process.argv[2]!=='agent-activity') return;
+        setTimeout(()=>fs.appendFileSync('tool-activity.jsonl',JSON.stringify({argv:process.argv.slice(2),payload:JSON.parse(input)})+'\\n'),1200); });`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    const events = [
+      { sessionID: 'tool-s', tool: 'read', status: 'completed', agent: 'build', input: { filePath: 'docs/x.md', content: 'RAW-CONTENT-FORBIDDEN' },
+        result: { output: 'RAW-OUTPUT-FORBIDDEN' } },
+      { sessionID: 'tool-s', tool: 'patch', status: 'error', input: { patchText: '  *** Update File: docs/a.md\n+RAW-PATCH-LINE' } },
+    ];
+    const started = Date.now();
+    for (const event of events) await ctx.hooks.get('tool.execute.after')(event);
+    assert.ok(Date.now() - started < 1000, 'the event must not wait for the activity child');
+    assert.equal(existsSync(join(dir, 'tool-activity.jsonl')), false);
+    const trace = join(dir, 'tool-activity.jsonl');
+    await until(() => existsSync(trace) && readFileSync(trace, 'utf8').trim().split('\n').length === 2);
+    const text = readFileSync(trace, 'utf8');
+    assert.doesNotMatch(text, /RAW-(CONTENT|OUTPUT|PATCH)/);
+    const rows = text.trim().split('\n').map(line => JSON.parse(line)).sort((a, b) => a.payload.data.tool.localeCompare(b.payload.data.tool));
+    assert.deepEqual(rows.map(row => row.argv), [['agent-activity', '--runtime=opencode'], ['agent-activity', '--runtime=opencode']]);
+    assert.deepEqual(rows[0].payload, { type: 'tool.execute.after', cwd: dir,
+      data: { sessionID: 'tool-s', tool: 'patch', status: 'error', args: { command: '*** Update File: docs/a.md' } } });
+    assert.deepEqual(rows[1].payload, { type: 'tool.execute.after', cwd: dir,
+      data: { sessionID: 'tool-s', tool: 'read', status: 'completed', agent: 'build', args: { filePath: 'docs/x.md' } } });
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('tool activity child is tracked and cleanup terminates it', async () => {
+  const dir = project(); let cleanup, pid;
+  try {
+    const adapter = await isolatedPlugin(dir, `import {spawn} from 'node:child_process'; import fs from 'node:fs';
+      if(process.argv[2]==='agent-activity'){const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});
+      fs.writeFileSync('tool-child.pid',String(child.pid));setInterval(()=>{},1000);}`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    await ctx.hooks.get('tool.execute.after')({ sessionID: 'tool-cleanup', tool: 'bash', status: 'completed', input: { command: 'ls' } });
+    await until(() => existsSync(join(dir, 'tool-child.pid')));
+    pid = Number(readFileSync(join(dir, 'tool-child.pid'), 'utf8'));
+    await cleanup(); cleanup = null;
+    await until(() => { try { process.kill(pid, 0); return false; } catch { return true; } });
+  } finally {
+    if (pid) {
+      if (process.platform === 'win32') { try { execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }); } catch {} }
+      else { try { process.kill(pid, 'SIGKILL'); } catch {} }
+    }
+    await cleanup?.(); rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('tool activity ignores foreign sessions and keeps the post notifications', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
+      let input=''; process.stdin.setEncoding('utf8'); process.stdin.on('data',chunk=>input+=chunk);
+      process.stdin.on('end',()=>{ if(process.argv[2]==='agent-activity') fs.appendFileSync('tool-activity.jsonl',input+'\\n');
+        else process.stdout.write(JSON.stringify({systemMessage:process.argv[2]})); });`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    const own = ctx.session.get;
+    ctx.session.get = async () => ({ location: { directory: join(dir, 'elsewhere') } });
+    await ctx.hooks.get('tool.execute.after')({ sessionID: 'foreign', tool: 'bash', status: 'completed', input: { command: 'ls' } });
+    await new Promise(resolve => setTimeout(resolve, 300));
+    assert.equal(existsSync(join(dir, 'tool-activity.jsonl')), false);
+    ctx.session.get = own;
+    const event = { sessionID: 'own', tool: 'write', status: 'completed', input: { filePath: 'docs/own.md' }, result: { metadata: {} } };
+    await ctx.hooks.get('tool.execute.after')(event);
+    assert.deepEqual(event.result.metadata.customAgentsMessages, ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh']);
+    await until(() => existsSync(join(dir, 'tool-activity.jsonl')));
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
 });

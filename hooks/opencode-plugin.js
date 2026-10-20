@@ -16,6 +16,7 @@ const hookCatalog = JSON.parse(`{
     {"id":"context","domain":"session","native_event":"context","event":"SessionStart","handlers":["session-context.sh"],"timeout_ms":20000,"behavior":"informative","activation":"System context array in the current project location; unchanged context may reuse its cache"},
     {"id":"post","domain":"tool","native_event":"execute.after","event":"PostToolUse","handlers":["mark-docs-pending.sh","ledger-lint-warn.sh","progress-line.sh"],"timeout_ms":20000,"behavior":"informative","activation":"Completed writing tool in the current project location","tools":["edit","write","patch","multiedit","apply_patch"]},
     {"id":"capture","domain":"event","native_events":["session.execution.succeeded","session.execution.failed","session.execution.interrupted","session.idle"],"idle_status_event":"session.status","idle_status":"idle","event":"SessionEnd","handlers":["session-journal.sh"],"timeout_ms":20000,"behavior":"informative","activation":"Execution/idle stream observation in the current project location; not a teardown hook"},
+    {"id":"tool-activity","domain":"tool","native_event":"execute.after","event":"PostToolUse","handlers":["agent-activity"],"timeout_ms":2500,"behavior":"informative","activation":"Opt-in tool observation after exact project location verification; dispatched without waiting for the child"},
     {"id":"activity","domain":"event","native_events":["session.execution.started","session.execution.succeeded","session.execution.failed","session.execution.interrupted","session.idle"],"idle_status_event":"session.status","idle_status":"idle","event":"ActivityObserved","handlers":["agent-activity"],"timeout_ms":2500,"behavior":"informative","activation":"Opt-in execution start/end and idle observations after exact project location verification; not liveness or teardown"}
   ]
 }`);
@@ -23,6 +24,27 @@ const hookCatalog = JSON.parse(`{
 const bindings = Object.fromEntries(hookCatalog.bindings.map(binding => [binding.id, binding]));
 const writing = new Set(bindings.post.tools);
 const readOnly = new Set(['read', 'glob', 'grep', 'list', 'ls', 'webfetch', 'websearch']);
+// Only what the store's summary whitelist reads crosses to the activity child (agent-activity-store.py
+// `_raw_summary`); file contents, outputs and the rest of the arguments stay here.
+const summaryKeys = ['command', 'cmd', 'paths', 'files', 'file_path', 'notebook_path', 'filePath', 'path',
+  'pattern', 'url', 'query', 'subagent_type', 'agent_type', 'skill', 'name'];
+function summaryArgs(input) {
+  const args = {};
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return args;
+  for (const key of summaryKeys) {
+    const value = input[key];
+    if (typeof value === 'string') args[key] = value.slice(0, 8192);
+    else if (Array.isArray(value) && value.length <= 1024 && value.every(item => typeof item === 'string'))
+      args[key] = value.map(item => item.slice(0, 4096));
+  }
+  const patch = input.patchText ?? input.patch;
+  if (args.command === undefined && typeof patch === 'string') {
+    const files = patch.split('\n').map(line => line.trimStart())
+      .filter(line => /^\*\*\* (?:Add|Update|Delete) File: /.test(line)).slice(0, 1024);
+    if (files.length) args.command = files.join('\n');
+  }
+  return args;
+}
 const normalized = path => process.platform === 'win32' ? resolve(path).toLowerCase() : resolve(path);
 const sameLocation = (a, b) => typeof a?.directory === 'string' && typeof b?.directory === 'string'
   && normalized(a.directory) === normalized(b.directory) && a.workspaceID === b.workspaceID;
@@ -37,7 +59,7 @@ export default {
     const hooks = roots.map(root => join(root, 'hooks')).find(dir => existsSync(join(dir, 'run-hook.mjs')));
     if (!hooks) { console.warn('custom-agents: hook bundle unavailable'); return; }
     const controller = new AbortController();
-    const children = new Set();
+    const children = new Set(), inflight = new Set();
     let cached, generation = 0;
     const invalidate = () => { cached = undefined; generation++; };
     const warn = () => console.warn('custom-agents: informational hook unavailable; continuing');
@@ -214,6 +236,23 @@ export default {
       } catch { warn(); }
     },
 
+    'tool-activity': event => {
+      // Never awaited by the runtime's tool path: the lookup and the child run in the background,
+      // and the child is tracked in `children` for cleanup (design O5, I-05).
+      const task = (async () => {
+        try {
+          if (!event || typeof event.tool !== 'string' || !event.tool) return;
+          const cwd = await project(event.sessionID);
+          if (!cwd) return;
+          const data = { sessionID: event.sessionID, tool: event.tool, status: event.status,
+            ...(typeof event.agent === 'string' && event.agent ? { agent: event.agent } : {}), args: summaryArgs(event.input) };
+          await run(bindings['tool-activity'].handlers[0], { type: 'tool.execute.after', data, cwd });
+        } catch { warn(); }
+      })();
+      inflight.add(task);
+      void task.finally(() => inflight.delete(task));
+    },
+
     post: async event => {
       try {
         if (event?.status !== 'completed') return;
@@ -251,8 +290,17 @@ export default {
         };
       } catch { warn(); }
     } };
+    // One native registration per event: tool activity and post share execute.after (activity first, unawaited).
+    const registrations = new Map();
     for (const binding of hookCatalog.bindings) {
-      if (binding.domain !== 'event') await ctx[binding.domain].hook(binding.native_event, callbacks[binding.id]);
+      if (binding.domain === 'event') continue;
+      const name = binding.domain + '.' + binding.native_event;
+      if (!registrations.has(name)) registrations.set(name, { binding, list: [] });
+      registrations.get(name).list.push(callbacks[binding.id]);
+    }
+    for (const { binding, list } of registrations.values()) {
+      await ctx[binding.domain].hook(binding.native_event, list.length === 1 ? list[0]
+        : async event => { for (const callback of list) await callback(event); });
     }
 
     const events = (async () => {
@@ -282,6 +330,7 @@ export default {
       invalidate();
       const pending = [...children];
       await Promise.all(pending.map(async entry => { await entry.stop(); await entry.done; }));
+      await Promise.all([...inflight]);
       await events;
     };
   },

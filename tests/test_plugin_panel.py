@@ -517,7 +517,7 @@ def test_opencode_reads_only_literal_data_and_exposes_adapter_budget(panel, bund
     raw = source.read_text(encoding='utf-8')
     write(bundle, 'hooks/opencode-plugin.js', 'throw new Error("FOREIGN CODE");\n' + raw)
     data = panel.build_inventory(bundle, runtime='opencode')
-    assert len(data['hooks']) == 8
+    assert len(data['hooks']) == 9
     guard = next(item for item in data['hooks'] if item['behavior'] == 'guard')
     assert guard['native_event'] == 'tool.execute.before' and guard['timeout'] == 10500
     assert guard['timeout_unit'] == 'ms' and guard['timeout_provenance'] == 'adapter-supervision'
@@ -535,8 +535,34 @@ def test_opencode_reads_only_literal_data_and_exposes_adapter_budget(panel, bund
         'session.execution.interrupted, session.idle, session.status (idle)')
     assert activity['identity_status'] == 'unknown' and activity['role_ids'] == []
     assert activity['load_status'] == activity['execution_status'] == 'unknown'
+    tool = next(item for item in data['hooks'] if item['locator'] == 'hook-catalog/bindings/tool-activity/handlers/0')
+    assert tool['handler'] == 'agent-activity' and tool['event'] == 'PostToolUse' and tool['native_event'] == 'tool.execute.after'
+    assert tool['timeout'] == 2500 and tool['timeout_provenance'] == 'adapter-supervision' and tool['behavior'] == 'informative'
     assert data['hook_sources']['opencode']['status'] == 'declared'
     assert 'FOREIGN CODE' not in pagina(panel, data, 'catalogo')
+
+
+def test_opencode_adapter_without_tool_activity_still_declares_its_hooks(panel, bundle):
+    """panel-redesign T-47: an adapter installed before the tool binding declares no tool events; nothing else changes."""
+    raw = (Path(__file__).resolve().parents[1] / 'hooks/opencode-plugin.js').read_text(encoding='utf-8')
+    raw = re.sub(r'\n\s*\{"id":"tool-activity"[^\n]*', '', raw)
+    assert '"tool-activity"' not in raw
+    write(bundle, 'hooks/opencode-plugin.js', raw)
+    data = panel.build_inventory(bundle, runtime='opencode')
+    assert data['hook_sources']['opencode']['status'] == 'declared' and len(data['hooks']) == 8
+    assert not any('tool-activity' in item['locator'] for item in data['hooks'])
+
+
+@pytest.mark.parametrize('extra', ['duplicate-optional', 'missing-required'])
+def test_opencode_optional_binding_never_replaces_a_required_one(panel, bundle, extra):
+    raw = (Path(__file__).resolve().parents[1] / 'hooks/opencode-plugin.js').read_text(encoding='utf-8')
+    if extra == 'duplicate-optional':
+        raw = raw.replace('{"id":"post",', '{"id":"tool-activity",', 1).replace('"event":"PostToolUse","handlers":["mark-docs-pending.sh","ledger-lint-warn.sh","progress-line.sh"]', '"event":"PostToolUse","handlers":["agent-activity"]', 1)
+    else:
+        raw = re.sub(r'\n\s*\{"id":"prompt"[^\n]*', '', raw)
+    write(bundle, 'hooks/opencode-plugin.js', raw)
+    data = panel.build_inventory(bundle, runtime='opencode')
+    assert data['hooks'] == [] and data['hook_sources']['opencode']['status'] == 'invalid'
 
 
 @pytest.mark.parametrize('alteration', ['missing', 'duplicate', 'invalid', 'oversized'])

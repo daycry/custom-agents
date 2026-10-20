@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 9 | 10 | 90% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 7 | 15 | 47% | 0 / 45,6h | 0,69 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **48** | **58** | **83%** | **0 / 159,2h** | **8,90 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 8 | 15 | 53% | 0 / 45,6h | 0,84 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **49** | **58** | **84%** | **0 / 159,2h** | **9,05 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1661,24 +1661,32 @@ Revisión de la huella: el diff del launcher solo añade el bloque `activity-opt
 ### T-47 — OpenCode: binding de actividad en `tool.execute.after` sin esperar al hijo
 
 - **Descripción**: `hooks/opencode-plugin.js` registra el binding de actividad en `tool.execute.after` (herramienta, `status`, `agent`, args solo para el resumen) y lanza el hijo sin `await`, registrándolo en `children` para el cierre.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,5h · real —
+- **Tiempo IA (ejec.)**: est. 0,5h · real 0,15h (medido; parte de los tests se redactó en la ventana de T-45)
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
 - **Previsión IA**: 229k in / 37k out tok · 3,50 €
 - **Dependencias**: T-44
 - **Tipo**: hooks
-- **Archivos**: `hooks/opencode-plugin.js`, `tests/opencode-plugin.test.mjs`, `interop/**` (regenerado: `hooks/` tocado)
+- **Archivos**: `hooks/opencode-plugin.js`, `tests/opencode-plugin.test.mjs`, `interop/**` (regenerado: `hooks/` tocado), `skills/plugin-panel/scripts/build_panel.py` (añadido: el inventario del panel valida el catálogo del adaptador binding a binding y rechazaba el nuevo), `tests/test_plugin_panel.py` (añadido)
 - **Cubre (tests)**: E2E-09
 - **Verificación**: `node --test tests/opencode-plugin.test.mjs` → `pass` (la promesa del evento resuelve antes de que termine el hijo; el hijo queda en `children`) · `python3 scripts/export-interop.py --check` → exit 0
 
+- **Changelog**: En OpenCode, Agentes en vivo recibe también un evento por herramienta terminada, sin hacer esperar a la herramienta y sin enviar al proceso de captura más que lo que necesita el resumen.
+
 **Criterios de aceptación**
-- [ ] CA-42: OpenCode emite eventos de herramienta; si V2 no trae `sessionID`/`agent` en un runtime real, se declara en la página y en `docs/INTEROP.md`.
-- [ ] Las vinculaciones de actividad e inicio/fin siguen separadas (GOT-022).
+- [x] CA-42: OpenCode emite eventos de herramienta; si V2 no trae `sessionID`/`agent` en un runtime real, se declara en la página y en `docs/INTEROP.md`.
+- [x] Las vinculaciones de actividad e inicio/fin siguen separadas (GOT-022).
 
 **Subtareas**
-- [ ] RED en `opencode-plugin.test.mjs`.
-- [ ] Binding sin `await`.
+- [x] RED en `opencode-plugin.test.mjs`.
+- [x] Binding sin `await`.
+
+- **Evidencia TDD**: RED: opencode-plugin.test.mjs «catalog declares tool activity…» falló con TypeError: Cannot read properties of undefined (reading 'domain'); «tool activity resolves before its child ends…», «…child is tracked and cleanup terminates it» y «…ignores foreign sessions and keeps the post notifications» fallaron con «Adapter effect was not observed» (reconfirmado contra el adaptador de HEAD: 4 fail); test_plugin_panel.py «…exposes_adapter_budget» con el binding nuevo falló con `assert 0 == 8` (catálogo rechazado) · 2026-10-20 (antes del código)
+- **Verificación ejecutada**: `node --test tests/opencode-plugin.test.mjs tests/hook-runtime.test.mjs` → tests 44 · pass 44 · fail 0 · `export-interop.py --check` → 88 al día (regenera `interop/opencode/plugins/custom-agents/index.js`) · `pytest tests/test_plugin_panel.py tests/test_panel_contract_golden.py` → 115 passed, 2 skipped · `pytest tests/test_export_interop.py tests/test_graphiti_security.py tests/test_panel_diagnostics.py tests/test_agent_activity_store.py` → verde (446 passed en la pasada conjunta, cuyo único rojo era el golden, corregido) · `lint_plugin.py` → 0 errores.
+
+Decisiones: (1) binding propio `tool-activity` en el catálogo (dominio `tool`, `execute.after`, `PostToolUse`, 2.500 ms); comparte el evento nativo con `post`, así que el adaptador registra UNA función por evento nativo que llama a `tool-activity` (sin esperar) y luego a `post` (como hoy). (2) La búsqueda de la sesión y el hijo corren en segundo plano; la tarea en vuelo se guarda en `inflight` y el hijo en `children`, y el cierre espera a los dos. (3) Al hijo solo le llegan `sessionID`, `tool`, `status`, `agent` y las claves que lee la lista blanca del resumen del almacén (`_raw_summary`); de un parche, solo sus líneas `*** Add|Update|Delete File:`. (4) El inventario del panel acepta el catálogo con o sin `tool-activity` (un adaptador anterior no declara eventos de herramienta; ningún otro binding es opcional): así el golden de `--json` no cambia aquí y su actualización queda en T-51. No validado en un OpenCode V2 real (sin runtime en esta máquina): si V2 no trae `sessionID`/`agent`, lo declaran la página (T-49) y `docs/INTEROP.md` (T-52).
 
 **Notas**: binding de actividad actual en `hooks/opencode-plugin.js:19` y despacho en `:263-270` (hoy con `await run(...)`); `agent` ya usado por la guardia (`design.md` §1, l. 163). Gotcha `custom-agents.GOT-022`. Lente C.
 
