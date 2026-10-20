@@ -51,6 +51,20 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - El historial de agentes en vivo se calcula con reglas puras: tras 60 s sin señal un run queda «sin señal reciente», nunca «terminado» inferido.
 - Los eventos de herramienta de Claude Code, Codex y OpenCode se guardan en un anillo acotado (500 eventos o 256 KiB, 24 h) que solo se escribe con `sesion.actividad: true`; cada evento se atribuye a su tarea solo por el comando exacto del medidor, nunca por texto libre, con una cuarentena de 5 s tras cada cambio de ventana.
 - Los resúmenes de argumentos van en lista blanca y redactados (el redactor ahora también enmascara `Authorization: Basic …`), sin rutas absolutas, usuario ni correos; el escritor limpia sus propios temporales huérfanos.
+- Agentes en vivo recibe un evento por cada herramienta terminada (también las fallidas en Claude Code) sin hacer esperar a la herramienta: el hook corre en segundo plano en Claude Code y Codex.
+- Sin `sesion.actividad: true`, el hook de actividad ya no arranca Python: sale en unos 80 ms en lugar de cerca de un segundo.
+- En OpenCode, Agentes en vivo recibe también un evento por herramienta terminada, sin hacer esperar a la herramienta y sin enviar al proceso de captura más que lo que necesita el resumen.
+- El panel servido ofrece dos lecturas nuevas de actividad: la lista de runs con sus eventos recientes y la línea de tiempo de un run (sus últimos 150 eventos), siempre dentro de 64 KiB y con el texto saneado.
+- Nueva vista Agentes en vivo en el panel servido: una fila por run (runtime, rol, inicio, duración, última herramienta y estado) y, al abrirlo, su línea de tiempo con la tarea atribuida o «sin atribuir»; dice qué no aporta cada runtime y que la captura puede tener huecos.
+- Inicio muestra en el panel servido los últimos eventos de actividad (agente o sesión, runtime, herramienta, tarea y hace cuánto) con enlace a Agentes en vivo; si la captura está desactivada dice cómo activarla, y la copia exportada avisa de que la actividad solo existe en servido.
+- El inventario del panel (`--json`) declara los nuevos registros de actividad por herramienta en los tres runtimes, y una prueba de privacidad comprueba que ni el historial ni las respuestas de actividad ni la copia exportada llevan la ruta del home, el usuario o correos.
+- La documentación explica Agentes en vivo: cómo activar la captura de herramientas, qué registra y qué no, sus topes, cómo borrar el historial a mano y qué aporta cada runtime.
+
+### Fixed — iniciativa `panel-redesign`, revisión de la fase 3
+
+- El redactor (resúmenes de actividad y journal de sesión) también enmascara secretos en variables con prefijo (`DB_PASSWORD=`, `API_TOKEN=`, `AWS_SECRET_ACCESS_KEY=`, `PGPASSWORD=`), `curl -u usuario:clave` y `mysql -p<clave>`.
+- Una ráfaga de herramientas en paralelo ya no pierde la mayoría de sus eventos mientras se escribe el historial; las herramientas MCP de Codex hacen un único intento de escritura, sin reintentos; el resumen de `apply_patch` ya no consume CPU con líneas muy largas; OpenCode registra el evento de herramienta antes de las notificaciones posteriores.
+- La «Actividad reciente» de Inicio vuelve a refrescarse cuando la pestaña vuelve a estar visible, y la API de actividad valida el historial sin recargar un módulo por evento.
 
 ### Added — iniciativa `panel-redesign`, fase 4 (memoria, catálogo y diagnóstico)
 

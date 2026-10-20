@@ -51,6 +51,20 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - Live-agents history is computed with pure rules: after 60 s without a signal a run is «sin señal reciente», never an inferred «finished».
 - Tool events from Claude Code, Codex and OpenCode are recorded in a bounded ring (500 events or 256 KiB, 24 h) written only with `sesion.actividad: true`; each event is attributed to its task only by the exact meter command, never by free text, with a 5 s quarantine after each window change.
 - Argument summaries are whitelisted and redacted (the redactor now also masks `Authorization: Basic …`), with no absolute paths, usernames or emails; the writer cleans up its own orphaned temporaries.
+- Live agents receives one event per finished tool call (failed ones too in Claude Code) without making the tool wait: the hook runs in the background in Claude Code and Codex.
+- Without `sesion.actividad: true` the activity hook no longer starts Python: it exits in about 80 ms instead of nearly a second.
+- In OpenCode, Live agents also receives one event per finished tool call, without making the tool wait and sending the capture process only what the summary needs.
+- The served panel offers two new activity reads: the list of runs with their recent events and one run's timeline (its last 150 events), always within 64 KiB and with scrubbed text.
+- New Live agents view in the served panel: one row per run (runtime, role, start, duration, last tool and state) and, when opened, its timeline with the attributed task or «sin atribuir»; it says what each runtime does not provide and that capture may have gaps.
+- Home shows, in the served panel, the latest activity events (agent or session, runtime, tool, task and how long ago) with a link to Live agents; with capture off it says how to turn it on, and the exported copy warns that activity exists only when served.
+- The panel inventory (`--json`) declares the new per-tool activity registrations in the three runtimes, and a privacy test checks that neither the history, the activity responses nor the exported copy carry the home path, the username or emails.
+- The documentation explains Live agents: how to turn on tool capture, what it records and what not, its caps, how to delete the history by hand and what each runtime provides.
+
+### Fixed — `panel-redesign` initiative, phase 3 review
+
+- The redactor (activity summaries and the session journal) also masks secrets in prefixed variables (`DB_PASSWORD=`, `API_TOKEN=`, `AWS_SECRET_ACCESS_KEY=`, `PGPASSWORD=`), `curl -u user:password` and `mysql -p<password>`.
+- A burst of parallel tool calls no longer loses most of its events while the history is being written; Codex MCP tools make a single write attempt with no retries; the `apply_patch` summary no longer burns CPU on very long lines; OpenCode records the tool event before the post-tool notifications.
+- Home's «Actividad reciente» resumes refreshing when the tab becomes visible again, and the activity API validates the history without reloading a module per event.
 
 ### Added — `panel-redesign` initiative, phase 4 (memory, catalog and diagnostics)
 

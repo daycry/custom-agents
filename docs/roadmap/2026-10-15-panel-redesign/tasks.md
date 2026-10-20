@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 17 | 17 | 100% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 10 | 10 | 100% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 9 | 15 | 60% | 0 / 45,6h | 2,28 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **52** | **58** | **90%** | **0 / 159,2h** | **10,49 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 14 | 15 | 93% | 0 / 45,6h | 3,50 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **57** | **58** | **98%** | **0 / 159,2h** | **11,71 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1428,7 +1428,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 
 ## Fase 3 — Agentes en vivo + cierre transversal
 
-**Estado**: en-progreso · **Estimado**: 45,6h humanas · 23,4h IA · **Real**: 2,28h IA medida (T-45..T-53; T-40..T-44 sin medir; falta T-54) · **Coste est.**: 2.444 € referencia · ≈ 506 € ejecución · **Tokens est.**: 12,44 M
+**Estado**: en-progreso · **Estimado**: 45,6h humanas · 23,4h IA · **Real**: 3,50h IA medida (T-45..T-53 + fix1 1,22h; T-40..T-41 sin medir; falta T-54) · **Coste est.**: 2.444 € referencia · ≈ 506 € ejecución · **Tokens est.**: 12,44 M
 
 Última fase. Criterios de la spec: CA-04, CA-15 a CA-21 y CA-42 (eventos); además, el cierre transversal C-05. **Lente C obligatoria** en toda tarea de captura (condición 4 de la evaluación). Valores de diseño: 0 ms síncronos añadidos (O5), historial de 500 eventos / 256 KiB / 24 h, entrada ≤ 2 MiB, resumen ≤ 160.
 
@@ -1445,6 +1445,8 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Cubre (tests)**: —
 - **Archivos**: `docs/roadmap/2026-10-15-panel-redesign/tasks.md`
 - **Verificación**: lectura: en `Notas` de esta tarea, las cuatro condiciones marcadas con su evidencia (sección de `design.md`, respuesta del usuario con fecha, URL de la doc de Codex, configuración de la Lente C) y las líneas `Hooks: PostToolUse:… (Nms)` del log de Claude Code con la latencia base
+
+- **Changelog**: Sin cambio visible: comprueba las condiciones de entrada de Agentes en vivo y mide la latencia base del hook de actividad.
 
 **Criterios de aceptación**
 - [x] Condición 1: `design.md` tiene la sección «estados intermedios y su recuperación» de `events.json` (bloqueo ocupado, CAS fallido, escritura cortada, eventos asíncronos fuera de orden). Si no está, se pide al architect antes de seguir (el planner no la escribe).
@@ -1498,9 +1500,10 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 ### T-42 — Resumen redactado por lista blanca y `Authorization: Basic` en el redactor
 
 - **Descripción**: Resumen del argumento por herramienta en lista blanca (`design.md` §2.4 I-07: 1.ª línea del comando, rutas relativas, patrón + ruta, host, tipo de subagente, nombre de skill, «—» para MCP y desconocidas), en el orden fijo redactar → anonimizar → quitar controles → recortar a 160. Amplía `_SECRETOS_RE` con `Authorization: Basic …` en el canónico y en su copia declarada.
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 3,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,6h · real —
+- **Tiempo IA (ejec.)**: est. 0,6h · real 1,17h (medido: fix1, ventana común con el código y los RED de los 8 gaps de fix1)
 - **Supervisión**: est. 0,15h (≈25 % IA) · real —
 - **Previsión IA**: 274k in / 45k out tok · 4,20 €
 - **Dependencias**: T-41
@@ -1521,17 +1524,21 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - [x] RED con el corpus.
 - [x] Lista blanca y orden fijo; ampliar `_SECRETOS_RE` en los dos sitios.
 
-- **Evidencia TDD**: RED: test_agent_activity_store.py (≈120 casos de resumen) falló con AttributeError: sin `summarize`; test_redact.py `test_authorization_basic_*` (6) falló con la cabecera sin redactar · 2026-10-16 (antes del código)
+- **Evidencia TDD**: RED: test_agent_activity_store.py (≈120 casos de resumen) falló con AttributeError: sin `summarize`; test_redact.py `test_authorization_basic_*` (6) falló con la cabecera sin redactar · 2026-10-16 (antes del código). fix1 (C-1) RED: test_redact.py::test_c1_clave_sensible_tras_prefijo… (5), ::test_c1_curl_usuario_y_clave… (6), ::test_c1_mysql_clave_pegada… (3) y ::test_c1_idem_en_el_respaldo_de_journal fallaron con el secreto intacto (`DB_PASSWORD=Hunter2xyz! psql -h db` sin cambios); test_agent_activity_store.py::test_c1_prefixed_and_argument_secrets… falló con el secreto en events.json · 2026-10-20 (antes del código)
 - **Verificación ejecutada**: `pytest agent-kits/shared/test_redact.py tests/test_agent_activity_store.py tests/test_copias_declaradas.py` → 204 passed, 1 skipped (corpus de secretos + Authorization: Basic; bloque replicado de journal.py idéntico).
+  - fix1 (C-1): `pytest agent-kits/shared/test_redact.py tests/test_copias_declaradas.py` → 118 passed (bloque replicado idéntico; casos lineales nuevos < 1,5 s) · `pytest agent-kits/shared/test_journal.py` → 192 passed, 10 skipped · `test_agent_activity_store.py` (con el resto de fix1) → verde · usuarios de `redactar` (training-data, receipts, curación, plan-review, privacidad) → verdes salvo 6 rojos de MAX_PATH de Windows ajenos (`test_case_recorder …gap87…`, `test_propose_from_case …long_gold…` ×5: `FileNotFoundError` en rutas > 260).
+
+Decisión fix1 (C-1): sin `\b` a la izquierda en `_ASIGNACION_RE` (el final se mantiene: `my_token_count=`/`tokens=` no casan); `curl -u|--user usuario:clave` y `mysql*/mariadb* -p<clave>` solo dentro del mismo comando (segmento hasta `\n|;&`), así `sort -u`, `mkdir -p`, `ssh -p2222` o `docker -u 1000:1000` no se tocan; idempotente; `es_clave_sensible` no cambia.
 
 **Notas**: `_SECRETOS_RE` en `agent-kits/shared/redact.py:35`; copia declarada en `agent-kits/shared/copias.json:297-310` (canónico `redact.py`, respaldo `journal.py`). Precedente de 160 caracteres en `skills/plugin-panel/scripts/serve_panel.py:139`. Lente C. `anonimizar` ya existía (T-04). El host de WebFetch se extrae por regex, sin `urllib` (la puerta de red de test_graphiti_security lo marca). Un PEM sin cierre se tapa entero antes de recortar.
 
 ### T-43 — Almacén `events.json`: anillo acotado, CAS, retención y opt-out sin escritura
 
 - **Descripción**: `agent-activity-store.py` añade `events.json` al directorio propio (inventario de 4 a 5 nombres + `.lock`): `runs` (≤ 64), `ventanas` (≤ 64) y `events` (anillo 500 / 256 KiB / 24 h), reemplazo atómico con CAS como `snapshot.json`, `recortado`, `descartados_por_tamano` sin identidad y tope de entrada de 2 MiB solo en memoria. Sin `sesion.actividad: true` no escribe nada.
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 4,2h · real —
-- **Tiempo IA (ejec.)**: est. 1,0h · real —
+- **Tiempo IA (ejec.)**: est. 1,0h · real 0,00h (medido: fix1, solo el cierre; código y RED dentro de la ventana común de T-42-fix1)
 - **Supervisión**: est. 0,25h (≈25 % IA) · real —
 - **Previsión IA**: 457k in / 74k out tok · 7,00 €
 - **Dependencias**: T-42
@@ -1555,8 +1562,11 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - [x] Inventario, CAS y anillo.
 - [x] Huella revisada.
 
-- **Evidencia TDD**: RED: 43 tests nuevos de test_agent_activity_store.py/test_agent_activity_git.py y 2 de test_local_state.py fallaron con AttributeError: sin `record`/`history`/`count_oversize` y sin `wait=`/`retry=` · 2026-10-16 (antes del código)
+- **Evidencia TDD**: RED: 43 tests nuevos de test_agent_activity_store.py/test_agent_activity_git.py y 2 de test_local_state.py fallaron con AttributeError: sin `record`/`history`/`count_oversize` y sin `wait=`/`retry=` · 2026-10-16 (antes del código). fix1 RED: (A-2) test_a2_codex_mcp_publishes_events_without_replace_retries falló con `[('events.json', True)] != [('events.json', False)]` y test_a2_single_attempt_on_a_windows_sharing_violation con `assert (4 == 1)` intentos de `os.replace`; (D2) test_d2_burst_of_eight_parallel_tool_events_on_a_full_ring_loses_none falló con 7 de 8 `state_busy` · 2026-10-20 (antes del código)
 - **Verificación ejecutada**: `pytest tests/test_agent_activity_store.py tests/test_agent_activity_git.py agent-kits/shared/test_local_state*.py` → verde dentro de 398 passed, 3 skipped; `pytest tests/test_graphiti_security.py` → 121 passed.
+  - fix1 (A-2, D2): `pytest tests/test_agent_activity_store.py tests/test_agent_activity_git.py agent-kits/shared/test_local_state*.py agent-kits/shared/test_agent_activity.py` → 320 passed, 3 skipped (ráfaga de 8 ×3 seguidas: 0 perdidos) · `pytest tests/test_graphiti_security.py` → 121 passed (huella nueva del almacén `2b068c1b…c8b7`, revisada: sin imports ni módulos nuevos).
+
+Decisión fix1 (D2): retención medida con el anillo lleno en Windows p50 ≈ 105 / p90 ≈ 130 ms, dominada por reabrir el `events.json` recién reemplazado (≈ 55 ms) y su reemplazo (≈ 12 ms); los validadores pasan a regex (mismas reglas; la validación baja de ≈ 50 % a ≈ 5 % del perfil). Como la retención no cabe en 100 ms × 7, los eventos de herramienta (asíncronos, I-05 intacto) esperan hasta `TOOL_LOCK_WAIT` = 0,8 s dentro del mismo plazo de 1 s; las señales de ciclo de vida (síncronas) siguen con 100 ms y Codex MCP con un intento (P-EI-3, ahora también sin reintentos de `os.replace`: A-2). `design.md` §2.5 (a) dice «hasta 100 ms»: pendiente de que el architect lo actualice (el implementer no escribe `design.md`).
 
 **Notas**: inventario cerrado en `agent-kits/shared/agent-activity-store.py:119-122`; opt-in en `:92-100` (`_enabled`); tope de entrada actual en `:20` y `:264-266`; captura y CAS en `:185-233` (`capture`). Huella en `tests/test_graphiti_security.py:159-165`. Familia de riesgo de `session-end-durable-capture` (LES-016). Lente C. Añadido `history()` (lector) y `local-state.py` `wait=`/`retry=` (P-EI-3, un solo intento). Huella revisada del almacén y `redact.py` en `dependencies`. Limpieza P-EI-1 antes del inventario, solo si el resto de nombres es el esperado.
 
@@ -1568,7 +1578,7 @@ Prerrequisito (2026-10-16): inventario tolera hasta 8 .tmp-* (§2.5 c); RED test
 - **Estado**: completado
 - **Cerrada**: 2026-10-16
 - **Tiempo humano**: est. 3,6h · real —
-- **Tiempo IA (ejec.)**: est. 0,8h · real —
+- **Tiempo IA (ejec.)**: est. 0,8h · real 0,02h (medido: fix1; código y RED en la ventana común de T-42-fix1)
 - **Supervisión**: est. 0,2h (≈25 % IA) · real —
 - **Previsión IA**: 366k in / 60k out tok · 5,60 €
 - **Dependencias**: T-43
@@ -1589,8 +1599,9 @@ Prerrequisito (2026-10-16): inventario tolera hasta 8 .tmp-* (§2.5 c); RED test
 - [x] RED por runtime con payloads de la doc oficial (citados en T-40).
 - [x] Mapeo y gramática exacta.
 
-- **Evidencia TDD**: RED: 59 tests nuevos de test_agent_activity_store.py (gramática por runtime, ventanas, T-XX en texto libre, Codex MCP) fallaron con unsupported_event y sin ventanas · 2026-10-16 (antes del código)
+- **Evidencia TDD**: RED: 59 tests nuevos de test_agent_activity_store.py (gramática por runtime, ventanas, T-XX en texto libre, Codex MCP) fallaron con unsupported_event y sin ventanas · 2026-10-16 (antes del código). fix1 (C-2) RED: test_c2_patch_summary_with_a_long_whitespace_run_is_linear falló con `1.74 < 0.5` s (20.000 espacios) · 2026-10-20 (antes del código)
 - **Verificación ejecutada**: `pytest tests/test_agent_activity_store.py tests/test_graphiti_security.py` → verde (suite de actividad 398 passed, 3 skipped; graphiti 121 passed).
+  - fix1 (C-2): `_PATCH_FILE` toma el resto de la línea (`[^\n]*`) y se recorta en Python; mismo resultado con espacios/`\r` finales · `pytest tests/test_agent_activity_store.py …` → 320 passed, 3 skipped (pasada de T-43-fix1) · graphiti 121 passed.
 
 **Notas**: `_payload` actual en `agent-kits/shared/agent-activity-store.py:155-178`; argumento `--artefacto` en `agent-kits/shared/usage-meter.py:730`. Tabla de runtimes de `design.md` §1. Lente C. Los eventos Post de un comando fallido (`PostToolUseFailure`/`status: error`) no abren ventana. Codex trae el resultado como «sin datos». Nombres de herramienta de OpenCode en minúsculas se normalizan solo para el resumen.
 
@@ -1668,7 +1679,7 @@ Revisión de la huella: el diff del launcher solo añade el bloque `activity-opt
 - **Estado**: completado
 - **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,5h · real 0,15h (medido; parte de los tests se redactó en la ventana de T-45)
+- **Tiempo IA (ejec.)**: est. 0,5h · real 0,15h (medido; parte de los tests se redactó en la ventana de T-45; fix1 0,00: código y RED en la ventana común de T-42-fix1)
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
 - **Previsión IA**: 229k in / 37k out tok · 3,50 €
 - **Dependencias**: T-44
@@ -1687,8 +1698,9 @@ Revisión de la huella: el diff del launcher solo añade el bloque `activity-opt
 - [x] RED en `opencode-plugin.test.mjs`.
 - [x] Binding sin `await`.
 
-- **Evidencia TDD**: RED: opencode-plugin.test.mjs «catalog declares tool activity…» falló con TypeError: Cannot read properties of undefined (reading 'domain'); «tool activity resolves before its child ends…», «…child is tracked and cleanup terminates it» y «…ignores foreign sessions and keeps the post notifications» fallaron con «Adapter effect was not observed» (reconfirmado contra el adaptador de HEAD: 4 fail); test_plugin_panel.py «…exposes_adapter_budget» con el binding nuevo falló con `assert 0 == 8` (catálogo rechazado) · 2026-10-20 (antes del código)
+- **Evidencia TDD**: RED: opencode-plugin.test.mjs «catalog declares tool activity…» falló con TypeError: Cannot read properties of undefined (reading 'domain'); «tool activity resolves before its child ends…», «…child is tracked and cleanup terminates it» y «…ignores foreign sessions and keeps the post notifications» fallaron con «Adapter effect was not observed» (reconfirmado contra el adaptador de HEAD: 4 fail); test_plugin_panel.py «…exposes_adapter_budget» con el binding nuevo falló con `assert 0 == 8` (catálogo rechazado) · 2026-10-20 (antes del código). fix1 (B2) RED: «tool activity is dispatched before the awaited post handlers…» falló con «activity started 1514 ms after the first post handler» · 2026-10-20 (antes del código)
 - **Verificación ejecutada**: `node --test tests/opencode-plugin.test.mjs tests/hook-runtime.test.mjs` → tests 44 · pass 44 · fail 0 · `export-interop.py --check` → 88 al día (regenera `interop/opencode/plugins/custom-agents/index.js`) · `pytest tests/test_plugin_panel.py tests/test_panel_contract_golden.py` → 115 passed, 2 skipped · `pytest tests/test_export_interop.py tests/test_graphiti_security.py tests/test_panel_diagnostics.py tests/test_agent_activity_store.py` → verde (446 passed en la pasada conjunta, cuyo único rojo era el golden, corregido) · `lint_plugin.py` → 0 errores.
+  - fix1 (B2): el registro pone el binding sin `await` (`tool-activity`) delante de `post` sea cual sea el orden del catálogo · `node --test tests/opencode-plugin.test.mjs tests/hook-runtime.test.mjs` → 45 pass, 0 fail · `export-interop.py --check` → 88 al día · `pytest tests/test_panel_contract_golden.py tests/test_plugin_panel.py tests/test_export_interop.py` → 163 passed, 2 skipped (golden sin cambios).
 
 Decisiones: (1) binding propio `tool-activity` en el catálogo (dominio `tool`, `execute.after`, `PostToolUse`, 2.500 ms); comparte el evento nativo con `post`, así que el adaptador registra UNA función por evento nativo que llama a `tool-activity` (sin esperar) y luego a `post` (como hoy). (2) La búsqueda de la sesión y el hijo corren en segundo plano; la tarea en vuelo se guarda en `inflight` y el hijo en `children`, y el cierre espera a los dos. (3) Al hijo solo le llegan `sessionID`, `tool`, `status`, `agent` y las claves que lee la lista blanca del resumen del almacén (`_raw_summary`); de un parche, solo sus líneas `*** Add|Update|Delete File:`. (4) El inventario del panel acepta el catálogo con o sin `tool-activity` (un adaptador anterior no declara eventos de herramienta; ningún otro binding es opcional): así el golden de `--json` no cambia aquí y su actualización queda en T-51. No validado en un OpenCode V2 real (sin runtime en esta máquina): si V2 no trae `sessionID`/`agent`, lo declaran la página (T-49) y `docs/INTEROP.md` (T-52).
 
@@ -1697,9 +1709,10 @@ Decisiones: (1) binding propio `tool-activity` en el catálogo (dominio `tool`, 
 ### T-48 — API `api/actividad-runs` y `api/actividad-run-<key16>`
 
 - **Descripción**: Dos rutas nuevas: la lista de runs y la línea de tiempo de un run (≤ 150 últimos eventos, con `recortado`), ambas ≤ 64 KiB y redactadas. `api/activity` no cambia.
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,5h · real 0,17h (medido)
+- **Tiempo IA (ejec.)**: est. 0,5h · real 0,17h (medido: 0,17 + fix1 0,00; código y RED de fix1 en la ventana común de T-42-fix1)
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
 - **Previsión IA**: 229k in / 37k out tok · 3,50 €
 - **Dependencias**: T-43
@@ -1718,8 +1731,9 @@ Decisiones: (1) binding propio `tool-activity` en el catálogo (dominio `tool`, 
 **Subtareas**
 - [x] RED; rutas.
 
-- **Evidencia TDD**: RED: 13 tests nuevos de test_panel_activity_server.py fallaron con AttributeError: 'PanelServer' object has no attribute 'actividad_runs' / 'actividad_run' y la ruta HTTP con `assert (404 == 200)` · 2026-10-20 (antes del código)
+- **Evidencia TDD**: RED: 13 tests nuevos de test_panel_activity_server.py fallaron con AttributeError: 'PanelServer' object has no attribute 'actividad_runs' / 'actividad_run' y la ruta HTTP con `assert (404 == 200)` · 2026-10-20 (antes del código). fix1 (D1) RED: test_d1_history_validation_loads_agent_activity_once_per_request[runs|run] falló con `assert 500 <= 1` cargas de `agent-activity.py` · 2026-10-20 (antes del código)
 - **Verificación ejecutada**: `pytest tests/test_panel_activity_server.py tests/test_panel_server.py` → 184 passed, 2 skipped (500 eventos de 160 caracteres que escapan a muchos bytes → cuerpo ≤ 65.536 en las dos rutas; `key16` inexistente o ambiguo → 404; mayúsculas, 15/17 caracteres, `?` o `/` final → 404; sin capacidad → 404 y Host ajeno → 403, sin leer el historial; POST → 405) · `pytest tests/test_console_encoding.py tests/test_panel_data.py tests/test_panel_memory_server.py tests/test_panel_review_server.py tests/test_panel_review_panel_server.py` → 798 passed · pasada de todas las `tests/test_panel_*.py` + `test_plugin_panel` + `test_graphiti_security` → 1207 passed (el único rojo, `test_no_scope_has_no_new_routes`, coincidió con una edición en vuelo y pasa en las dos repeticiones) · `lint_plugin.py` → 0 errores.
+  - fix1 (D1): `activity_history` carga `ROLES` una vez por petición y se lo pasa al validador · `pytest tests/test_panel_activity_server.py tests/test_panel_server.py tests/test_panel_inicio_ui.py tests/test_panel_live_ui.py tests/test_panel_activity_ui.py tests/test_panel_privacy.py tests/test_panel_pages.py tests/test_panel_export.py` → 360 passed, 3 skipped.
 
 Decisiones: (1) Proyección en `panel_data.actividad_runs`/`actividad_run` (pura, con `project_runs`/`project_events` de `agent-activity.py`); el servidor valida la lectura de `agent-activity-store.history` con un conjunto cerrado de claves y motivos (fuera de forma → `invalid_history`, nada parcial), sanea `tool`/`resumen`/`tarea`/`ultima_herramienta` con el saneador único del panel y recorta a 64/160/200. (2) Respuesta de runs: `runs` (más reciente primero, `key16` = 16 primeros hex del `run_key`; nunca las claves completas), `recientes` (10 últimos eventos, para Inicio en T-50), `eventos` (total), `recortado` y `descartados_por_tamano`. (3) Tope de 64 KiB: la lista suelta primero `recientes` y luego runs; la línea de tiempo suelta los eventos más antiguos y los suma a `recortado`. (4) `key16` que casa con dos runs → 404 (nunca se adivina). (5) «Sin token → 403» de la Verificación: el contrato vigente del servidor (`test_no_capability_never_calls_snapshot`) responde 404 sin capacidad y 403 con Host/Origin ajenos; se mantiene y se prueba así. (6) Captura desactivada o `invalid_config` → `status: unavailable` con `reason` y `activar` (cómo activarla).
 
@@ -1761,9 +1775,10 @@ Decisiones: `page-agentes.js` solo en servido (`LIVE_ASSET_FILES` y `LIVE_SCRIPT
 ### T-50 — Inicio: actividad reciente
 
 - **Descripción**: En servido, Inicio muestra los últimos eventos de actividad (agente, rol, herramienta, tarea si la hay, hace cuánto) con enlace a Agentes en vivo; con la captura desactivada, «actividad desactivada» y cómo activarla.
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 1,2h · real —
-- **Tiempo IA (ejec.)**: est. 0,2h · real 0,03h (medido)
+- **Tiempo IA (ejec.)**: est. 0,2h · real 0,03h (medido: 0,03 + fix1 0,00; código y RED de fix1 en la ventana común de T-42-fix1)
 - **Supervisión**: est. 0,05h (≈25 % IA) · real —
 - **Previsión IA**: 91k in / 15k out tok · 1,40 €
 - **Dependencias**: T-49
@@ -1781,8 +1796,9 @@ Decisiones: `page-agentes.js` solo en servido (`LIVE_ASSET_FILES` y `LIVE_SCRIPT
 **Subtareas**
 - [x] RED; sección.
 
-- **Evidencia TDD**: RED: 4 tests nuevos de test_panel_inicio_ui.py (`test_ca04_*` ×3, `test_exportado_dice_que_la_actividad_solo_existe_en_servido…`) fallaron con «sin pedido a api/actividad-runs», `0 == 1` pedidos y TypeError: Cannot read properties of undefined (reading 'textContent') (sin sección) · 2026-10-20 (antes del código)
+- **Evidencia TDD**: RED: 4 tests nuevos de test_panel_inicio_ui.py (`test_ca04_*` ×3, `test_exportado_dice_que_la_actividad_solo_existe_en_servido…`) fallaron con «sin pedido a api/actividad-runs», `0 == 1` pedidos y TypeError: Cannot read properties of undefined (reading 'textContent') (sin sección) · 2026-10-20 (antes del código). fix1 (B1) RED: test_b1_actividad_reanuda_el_sondeo_al_volver_la_pestana falló con «al volver se reanuda: 1 !== 2» y test_b1_respuesta_llegada_con_la_pestana_oculta… con `1 !== 2` pedidos · 2026-10-20 (antes del código)
 - **Verificación ejecutada**: `pytest tests/test_panel_inicio_ui.py` → 30 passed · `pytest tests/test_panel_inicio_ui.py tests/test_panel_export.py tests/test_panel_server.py tests/test_panel_pages.py tests/test_panel_live_ui.py tests/test_panel_iniciativas_ui.py tests/test_panel_charts_ui.py` → 297 passed, 3 skipped.
+  - fix1 (B1): escucha de `visibilitychange` (oculta → pausa; visible → `leer()`), como `page-agentes.js`; el arnés admite varios oyentes por evento (Cartera y Actividad) · `pytest tests/test_panel_inicio_ui.py` → 32 passed (dentro de la pasada de 360 de T-48-fix1).
 
 Decisiones: la sección «Actividad reciente» la construye `page-inicio.js` (sin tocar `build_panel.py`) y lee `recientes` de `api/actividad-runs` (T-48) cada 5 s, solo en servido; en exportado no pide nada y lo dice. El test que fija las rutas de red del JS de Inicio pasa de «solo `api/cartera`» a una lista exacta por fichero (`page-cartera.js` → `api/cartera`; `page-inicio.js` → `api/actividad-runs`).
 
@@ -1857,19 +1873,22 @@ Nota: `docs/agents/CONTRACTS.md` es solo ES (como el resto de `docs/agents/`).
 ### T-53 — Cierre transversal (C-05): multi-runtime, evals, interop, tamaño de skills y réplica Linux
 
 - **Descripción**: Comprueba que las 7 páginas se generan desde Claude Code, Codex y OpenCode; que `SKILL.md` de `plugin-panel` y `roadmap-dashboard` caben en 200 líneas; que `evals/` casa con las `description` reales; que `interop/` está al día; y replica `ci.yml` en un contenedor Linux antes del push. Deja el campo `- **Changelog**:` en las tareas con cambio visible; los CHANGELOG los escribe `changelog-sync` en la Fase 6 de `/dev-cycle`.
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 9,6h · real —
-- **Tiempo IA (ejec.)**: est. 1,2h · real 0,97h (medido; incluye la espera de la réplica Linux, 13 min de pytest)
+- **Tiempo IA (ejec.)**: est. 1,2h · real 1,00h (medido: 0,97, con la espera de la réplica Linux, + fix1 0,03)
 - **Supervisión**: est. 0,3h (≈25 % IA) · real —
 - **Previsión IA**: 549k in / 89k out tok · 8,40 €
 - **Dependencias**: T-52
 - **Tipo**: devops
-- **Archivos**: `skills/plugin-panel/SKILL.md`, `skills/roadmap-dashboard/SKILL.md`, `evals/cases/skill-plugin-panel.json`, `evals/cases/skill-roadmap-dashboard.json`, `evals/cases/command-plugin-catalog.json`, `evals/cases/command-roadmap-status.json`, `docs/README.md`, `interop/**` (regenerado), `docs/roadmap/2026-10-15-panel-redesign/tasks.md`
+- **Archivos**: `skills/plugin-panel/SKILL.md`, `skills/roadmap-dashboard/SKILL.md`, `evals/cases/skill-plugin-panel.json`, `evals/cases/skill-roadmap-dashboard.json`, `evals/cases/command-plugin-catalog.json`, `evals/cases/command-roadmap-status.json`, `docs/README.md`, `interop/**` (regenerado), `docs/roadmap/2026-10-15-panel-redesign/tasks.md`, `CHANGELOG.md`, `CHANGELOG.es.md` (añadidos en fix1, A-3: `changelog-sync` descarta el slug ya presente)
 - **Cubre (tests)**: E2E-09
 - **Verificación**:
   - `python3 scripts/export-interop.py --check` → exit 0 · `python3 evals/check.py` → exit 0 · `python3 -m pytest -q tests/test_skill_size.py tests/test_export_interop.py` → `passed`
   - réplica de `ci.yml` en `python:3.11-slim` con `git -c core.autocrlf=false archive` → mismos verdes que en Windows (salida pegada en `Notas`)
   - lectura: generación de las 7 páginas en los tres runtimes anotada con su runtime
+
+- **Changelog**: Las siete páginas del panel se generan igual desde Claude Code, Codex y OpenCode, y la guía de la skill del panel explica Agentes en vivo y cómo borrar su historial.
 
 **Criterios de aceptación**
 - [x] CA-42: las 7 páginas se generan en los tres runtimes; lo que falta se declara.
@@ -1887,6 +1906,7 @@ Nota: `docs/agents/CONTRACTS.md` es solo ES (como el resto de `docs/agents/`).
   - Réplica de `ci.yml.MANUAL-COPY` en `python:3.11-slim` (Python 3.11.17, Node v22.23.3; `git -c core.autocrlf=false archive`): `lint_plugin` 0 errores · `evals/check` 0 errores · suites en modo script 0 fallos · pytest **8701 passed, 54 skipped, 0 failed** (incluye los dos `test_doctor …long_absolute_path…` que en Windows chocan con MAX_PATH) · bench p95 8,37 ms / p99 9,92 ms (exit 0) · `export-interop --check` 88 al día · `node --test` **354 tests, 338 pass, 0 fail** · sintaxis y JSON OK · `release.py --check` OK · exit 0. Mismos verdes que en Windows.
   - Generación por runtime (`build_panel.py --root . --project . --runtime <r> --export`, más el servidor con el inventario de cada runtime): **claude-code**, **codex** y **opencode** → exit 0 y las 7 páginas (`index`, `iniciativas`, `plan`, `agentes`, `memoria`, `catalogo`, `diagnostico`); el `agentes.html` exportado dice «Sin servicio» y no carga `page-agentes.js`; el servido sí. Hooks de actividad declarados: claude-code `PostToolUse`, `PostToolUseFailure`, `SubagentStart`, `SubagentStop`; codex `PostToolUse`, `SubagentStart`, `SubagentStop` (sin `PostToolUseFailure`: lo declara la página); opencode `PostToolUse` (`tool.execute.after`) y `ActivityObserved`. No se ejecutaron Codex ni OpenCode reales en esta máquina: la generación usa el inventario de cada runtime.
   - Campos `Changelog`: T-41..T-52 los llevan; sin él solo quedan las tareas de puerta sin cambio visible (T-16, T-29, T-39, T-40, T-53, T-54).
+  - fix1 (A-3): bullets EN/ES de T-45..T-52 a mano en «phase 3 (live agents)» / «fase 3 (agentes en vivo)» desde su `Changelog`, y sección «phase 3 review» / «revisión de la fase 3» con las correcciones de fix1; `Changelog` añadido a T-40 y T-53 · `lint_plugin.py` → 0 errores, 8 avisos (los previos) · `evals/check.py` → 0 errores · `export-interop.py --check` → 88 al día · `scope-check.py … --base 14ef84b` → exit 0, 193 en alcance, 0 fuera · `ledger-lint.py` → 0 incoherencias.
 
 `skills/plugin-panel/SKILL.md`: párrafo de Agentes en vivo (historial, APIs, atribución, declaración por runtime y borrado a mano); la `description` no cambia (los evals siguen casando).
 
@@ -2031,15 +2051,15 @@ Diff `8fc3eb3..3ca861b` (2026-10-20), dos revisores `reviewer` (opus) en paralel
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| C-1 | Important | El resumen de Bash/PowerShell se guarda y se sirve **sin redactar** con secretos en variable con prefijo (`DB_PASSWORD=`, `API_TOKEN=`, `AWS_SECRET_ACCESS_KEY=`, `PGPASSWORD=`), `curl -u user:pass` y `mysql -p…`: `_ASIGNACION_RE` exige `\b` y `_` es carácter de palabra. Fallo anterior a la fase, pero la F3 lo lleva a `events.json`, `api/actividad-run-*` y Agentes en vivo (CA-17) | T-42 | pendiente (fix1): `_ASIGNACION_RE` casa la clave sensible también tras `_`/prefijo, `-u user:pass` y `-p<secreto>`; el bloque replicado de `journal.py` igual (T-42 exige copia idéntica) | `redact.py:39`; `agent-activity-store.py:530-531,570`; sonda: `DB_PASSWORD=Hunter2xyz! psql -h db` sale igual en events.json y `api/actividad-run-<key16>`; CWE-532/312 |
-| A-2 | Important | P-EI-3 (decisión del usuario 2026-10-16) a medias: `nowait` quita la espera del cerrojo, pero `_publish_events` no pasa `retry=False` y `os.replace` reintenta hasta 4 veces (≈140 ms síncronos en Codex MCP en Windows); docstring y ledger dicen lo contrario; sin test | T-43 | pendiente (fix1): `retry=False` con `nowait` + test del intento único | `agent-activity-store.py:296` frente a `:631`; `local-state.py:53-55,75`; `design.md:398` (= D3 de la Lente D) |
-| D2 | Important | El cerrojo se tiene ≈85-135 ms por escritura (revalida los 500 eventos carácter a carácter) y la espera es 100 ms: con herramientas en paralelo se pierde la mayoría de los eventos (8 hooks a la vez → 3 escritos, 5 perdidos, con anillo vacío o lleno); si cae un `usage-meter.py start`, lo siguiente queda «sin atribuir» | T-43 | pendiente (fix1): no revalidar el anillo entero dentro del cerrojo (validar lo nuevo; lo leído ya validado por firma) y/o espera ≥ tiempo de retención medido; test de ráfaga | `agent-activity-store.py:243-256,635-640`; `local-state.py:99`; bench: p50 128-136 ms con anillo lleno; cProfile `_validate_events` 124 de 264 ms |
-| D1 | Important | `_valid_history_event` recarga `agent-activity.py` (`exec_module` sin caché) por CADA evento: 500 por petición, ≈180-190 ms; servidor de un hilo con Inicio + Agentes sondeando cada 5 s → ≈0,2 s de bloqueo por petición al resto de rutas | T-48 | pendiente (fix1): cargar `ROLES` una vez por petición (o por proceso) | `serve_panel.py:37-45,563`; bench: `500 _load_shared ms 185.0` |
-| B1 | Important | «Actividad reciente» de Inicio deja de refrescarse para siempre tras ocultar la pestaña una vez: `leer()` solo se reprograma si `!document.hidden` y no hay escucha de `visibilitychange` (sí la hay en `page-agentes.js:232`, `panel-live.js:84`) | T-50 | pendiente (fix1): escucha de `visibilitychange` que reanuda el sondeo + test | `page-inicio.js:212-229`; arnés de `test_panel_inicio_ui.py`: tras volver, 1 pedido y 0 temporizadores pendientes |
-| A-3 | Important | Los bullets de T-45..T-52 no están en ningún CHANGELOG y no llegarán solos: la sección ya lleva el slug y `changelog-sync` descarta todo slug presente | T-53 | pendiente (fix1): bullets EN/ES de T-45..T-52 a mano en la sección «phase 3 (live agents)», desde su campo `Changelog` | `changelog-sync.py:12,824`; `CHANGELOG.md` «phase 3»: 3 bullets (T-41..T-44); el ledger lo advirtió en la F1 |
+| C-1 | Important | El resumen de Bash/PowerShell se guarda y se sirve **sin redactar** con secretos en variable con prefijo (`DB_PASSWORD=`, `API_TOKEN=`, `AWS_SECRET_ACCESS_KEY=`, `PGPASSWORD=`), `curl -u user:pass` y `mysql -p…`: `_ASIGNACION_RE` exige `\b` y `_` es carácter de palabra. Fallo anterior a la fase, pero la F3 lo lleva a `events.json`, `api/actividad-run-*` y Agentes en vivo (CA-17) | T-42 | corregido (fix1): clave tras `_`/prefijo sin `\b` izquierdo; `curl -u u:p` y `mysql -p<s>` por comando; `journal.py` idéntico · RED test_c1_* (16) · GREEN 118 passed | `redact.py:39`; `agent-activity-store.py:530-531,570`; sonda: `DB_PASSWORD=Hunter2xyz! psql -h db` sale igual en events.json y `api/actividad-run-<key16>`; CWE-532/312 |
+| A-2 | Important | P-EI-3 (decisión del usuario 2026-10-16) a medias: `nowait` quita la espera del cerrojo, pero `_publish_events` no pasa `retry=False` y `os.replace` reintenta hasta 4 veces (≈140 ms síncronos en Codex MCP en Windows); docstring y ledger dicen lo contrario; sin test | T-43 | corregido (fix1): `nowait` → `retry=False` en `events.json` · RED test_a2_* (2) · GREEN 320 passed | `agent-activity-store.py:296` frente a `:631`; `local-state.py:53-55,75`; `design.md:398` (= D3 de la Lente D) |
+| D2 | Important | El cerrojo se tiene ≈85-135 ms por escritura (revalida los 500 eventos carácter a carácter) y la espera es 100 ms: con herramientas en paralelo se pierde la mayoría de los eventos (8 hooks a la vez → 3 escritos, 5 perdidos, con anillo vacío o lleno); si cae un `usage-meter.py start`, lo siguiente queda «sin atribuir» | T-43 | corregido (fix1): validadores por regex + espera de herramienta 0,8 s ≥ 7 × retención medida (p90 ≈ 130 ms) · RED test_d2_burst… (7/8 perdidos) · GREEN 0/8 ×3 | `agent-activity-store.py:243-256,635-640`; `local-state.py:99`; bench: p50 128-136 ms con anillo lleno; cProfile `_validate_events` 124 de 264 ms |
+| D1 | Important | `_valid_history_event` recarga `agent-activity.py` (`exec_module` sin caché) por CADA evento: 500 por petición, ≈180-190 ms; servidor de un hilo con Inicio + Agentes sondeando cada 5 s → ≈0,2 s de bloqueo por petición al resto de rutas | T-48 | corregido (fix1): `ROLES` una vez por petición · RED test_d1_* (500 cargas) · GREEN 360 passed | `serve_panel.py:37-45,563`; bench: `500 _load_shared ms 185.0` |
+| B1 | Important | «Actividad reciente» de Inicio deja de refrescarse para siempre tras ocultar la pestaña una vez: `leer()` solo se reprograma si `!document.hidden` y no hay escucha de `visibilitychange` (sí la hay en `page-agentes.js:232`, `panel-live.js:84`) | T-50 | corregido (fix1): `visibilitychange` pausa y reanuda · RED test_b1_* (2) · GREEN 32 passed | `page-inicio.js:212-229`; arnés de `test_panel_inicio_ui.py`: tras volver, 1 pedido y 0 temporizadores pendientes |
+| A-3 | Important | Los bullets de T-45..T-52 no están en ningún CHANGELOG y no llegarán solos: la sección ya lleva el slug y `changelog-sync` descarta todo slug presente | T-53 | corregido (fix1): 8 bullets EN/ES + sección «phase 3 review»; `Changelog` en T-40/T-53 · TDD n/a (prosa) · lint/evals 0 errores | `changelog-sync.py:12,824`; `CHANGELOG.md` «phase 3»: 3 bullets (T-41..T-44); el ledger lo advirtió en la F1 |
 | A-1 | Important | T-49: `page-agentes.js` se escribió antes que su test y se **restauró** tras el rojo, no se reescribió; constitución §1 y ley dura de `tdd` («el código anterior al rojo se borra»). El rojo es un único `FileNotFoundError` para 18 casos | T-49 | **pendiente: decisión del usuario** (reescribir tras el rojo por assert, o aceptar como deuda con verificación por mutación, como el gap 6 de la F1) | `tasks.md` T-49 (nota transparente); `docs/CONSTITUTION.md` §1; `skills/tdd/SKILL.md` |
-| C-2 | Minor | Regex con retroceso superlineal en el resumen de `apply_patch` (`(.+?)\s*$` con racha de espacios): 40 KB → 14,8 s de CPU en segundo plano; el launcher corta a 2 s y se pierde el evento | T-44 | pendiente (fix1, mismo fichero) | `agent-activity-store.py:492`; 5k/10k/20k/40k → 0,095/0,42/1,54/14,8 s; CWE-1333 |
-| B2 | Minor | OpenCode: `tool-activity` no se despacha «primero» (comentario) sino tras los `post` esperados en serie (≈1,8 s en Windows, hasta 60 s): `observed_at` llega tarde y el run puede salir «sin señal reciente» | T-47 | pendiente (fix1, orden del registro) | `hooks/opencode-plugin.js:291-304`; orden del catálogo l.17/l.19 |
+| C-2 | Minor | Regex con retroceso superlineal en el resumen de `apply_patch` (`(.+?)\s*$` con racha de espacios): 40 KB → 14,8 s de CPU en segundo plano; el launcher corta a 2 s y se pierde el evento | T-44 | corregido (fix1): `[^\n]*` + recorte en Python · RED test_c2_… (1,74 s) · GREEN 320 passed | `agent-activity-store.py:492`; 5k/10k/20k/40k → 0,095/0,42/1,54/14,8 s; CWE-1333 |
+| B2 | Minor | OpenCode: `tool-activity` no se despacha «primero» (comentario) sino tras los `post` esperados en serie (≈1,8 s en Windows, hasta 60 s): `observed_at` llega tarde y el run puede salir «sin señal reciente» | T-47 | corregido (fix1): `tool-activity` delante de `post` en el registro · RED (1514 ms) · GREEN 45 pass | `hooks/opencode-plugin.js:291-304`; orden del catálogo l.17/l.19 |
 | C-3 | Minor | El hueco de `anonimizar` (usuario unido por guion: `notas-jdoe.txt`, `ssh jdoe-laptop`) llega ahora a texto libre de eventos, `api/actividad-run-*` y Agentes en vivo; queda en la máquina (el exportado no lleva eventos) | T-42 | **decisión del usuario** junto a A-4 | `redact.py:205`; `agent-activity-store.py:575`; CWE-359 |
 | A-4 | Minor | CA-41 no tiene excepciones y el test de privacidad usa un corpus que esquiva el caso conocido; lo decidió el implementer sin aceptación | T-51 | **decisión del usuario** junto a C-3 | `tests/test_panel_privacy.py:4-5,20`; `spec.md:230` |
 | A-5 | Minor | E3: el Catálogo describe `agent-activity` como «Observaciones de sesión opt-in» y ahora captura cada herramienta | T-51/T-52 | backlog (cambiarlo mueve más el golden; CA-28) | `build_panel.py:212`; golden: 4 registros nuevos con ese texto |
