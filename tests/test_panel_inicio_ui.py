@@ -161,9 +161,9 @@ global.getComputedStyle=()=>({getPropertyValue:()=>''});
 const ids={};
 for(const id of IDS)ids[id]=new El('div');
 ids['panel-data']=new El('script');
-const docEvents={};
+const docEvents={},docListeners={};  // T-50 fix1: every page script may listen (cartera and actividad)
 global.document={hidden:false,createElement:t=>new El(t),documentElement:new El('html'),getElementById:id=>ids[id]||null,
-  addEventListener(t,f){docEvents[t]=f;},readyState:'complete',querySelector:()=>null,querySelectorAll:()=>[]};
+  addEventListener(t,f){(docListeners[t]=docListeners[t]||[]).push(f);docEvents[t]=()=>docListeners[t].forEach(g=>g());},readyState:'complete',querySelector:()=>null,querySelectorAll:()=>[]};
 let seq=0;const timers=new Map();
 global.setTimeout=(f,d)=>{timers.set(++seq,{f,d});return seq;};
 global.clearTimeout=id=>timers.delete(id);
@@ -457,3 +457,29 @@ await settle();
 assert.equal(pedidos('api/actividad-runs').length,0);
 assert.ok(textoActividad().includes('La actividad de los agentes solo existe en el panel servido'));
 ''', datos=_exportado(cartera), extra=ACTIVIDAD_EXTRA)
+
+
+# --- T-50 fix1 (B1): «Actividad reciente» resumes after the tab was hidden ---------------------------------------
+def test_b1_actividad_reanuda_el_sondeo_al_volver_la_pestana(tmp_path):
+    _correr(tmp_path, '''
+await settle();
+await responderA('api/actividad-runs',actividad());
+assert.equal(pendientes(5000),1);
+document.hidden=true;fire(5000);await settle();
+assert.equal(pedidos('api/actividad-runs').length,1,'oculta: no se pide');
+document.hidden=false;docEvents.visibilitychange();await settle();
+assert.equal(pedidos('api/actividad-runs').length,2,'al volver se reanuda');
+await responderA('api/actividad-runs',actividad());
+assert.equal(pendientes(5000),1,'y queda programado el siguiente refresco');
+''', datos=_servido(), extra=ACTIVIDAD_EXTRA)
+
+
+def test_b1_respuesta_llegada_con_la_pestana_oculta_no_detiene_el_sondeo(tmp_path):
+    _correr(tmp_path, '''
+await settle();
+document.hidden=true;docEvents.visibilitychange();
+await responderA('api/actividad-runs',actividad());
+assert.equal(pendientes(5000),0);
+document.hidden=false;docEvents.visibilitychange();await settle();
+assert.equal(pedidos('api/actividad-runs').length,2);
+''', datos=_servido(), extra=ACTIVIDAD_EXTRA)

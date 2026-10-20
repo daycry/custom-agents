@@ -226,6 +226,11 @@
           if (!raiz.document.hidden) { temporizador = setTimeout(leer, 5000); }
         });
     }
+    // T-50 fix1 (B1): hidden pauses the polling; visible again resumes it (as page-agentes.js does).
+    raiz.document.addEventListener('visibilitychange', function () {
+      clearTimeout(temporizador); temporizador = null;
+      if (!raiz.document.hidden) { leer(); }
+    });
     leer();
   }
 
