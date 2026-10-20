@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 17 | 17 | 100% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 10 | 10 | 100% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 14 | 15 | 93% | 0 / 45,6h | 5,41 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **57** | **58** | **98%** | **0 / 159,2h** | **13,62 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 12 | 15 | 80% | 0 / 45,6h | 5,41 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **55** | **58** | **95%** | **0 / 159,2h** | **13,62 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1500,7 +1500,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 ### T-42 — Resumen redactado por lista blanca y `Authorization: Basic` en el redactor
 
 - **Descripción**: Resumen del argumento por herramienta en lista blanca (`design.md` §2.4 I-07: 1.ª línea del comando, rutas relativas, patrón + ruta, host, tipo de subagente, nombre de skill, «—» para MCP y desconocidas), en el orden fijo redactar → anonimizar → quitar controles → recortar a 160. Amplía `_SECRETOS_RE` con `Authorization: Basic …` en el canónico y en su copia declarada.
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 3,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,6h · real 2,14h (medido: fix1 1,17h, ventana común con los 8 gaps de fix1 + fix2 0,97h)
 - **Supervisión**: est. 0,15h (≈25 % IA) · real —
@@ -1511,7 +1511,6 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Cubre (tests)**: E2E-18
 - **Verificación**: `python3 -m pytest -q agent-kits/shared/test_redact.py tests/test_agent_activity_store.py tests/test_copias_declaradas.py` → `passed` (corpus de secretos de `redact.py` + `Authorization: Basic`: ningún secreto en el resumen persistido ni mostrado)
 
-- **Cerrada**: 2026-10-20
 - **Changelog**: Los resúmenes de herramientas del panel y el redactor ocultan también las cabeceras «Authorization: Basic …», y nunca muestran rutas absolutas, usuario ni correos.
 
 **Criterios de aceptación**
@@ -1538,7 +1537,7 @@ Decisión fix2 (2-2, 2-3): troceado tipo shell (palabras con comillas; `|;&`/sal
 ### T-43 — Almacén `events.json`: anillo acotado, CAS, retención y opt-out sin escritura
 
 - **Descripción**: `agent-activity-store.py` añade `events.json` al directorio propio (inventario de 4 a 5 nombres + `.lock`): `runs` (≤ 64), `ventanas` (≤ 64) y `events` (anillo 500 / 256 KiB / 24 h), reemplazo atómico con CAS como `snapshot.json`, `recortado`, `descartados_por_tamano` sin identidad y tope de entrada de 2 MiB solo en memoria. Sin `sesion.actividad: true` no escribe nada.
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 4,2h · real —
 - **Tiempo IA (ejec.)**: est. 1,0h · real 0,87h (medido: fix1 0,00h + fix2 0,87h)
 - **Supervisión**: est. 0,25h (≈25 % IA) · real —
@@ -1549,7 +1548,6 @@ Decisión fix2 (2-2, 2-3): troceado tipo shell (palabras con comillas; `|;&`/sal
 - **Cubre (tests)**: E2E-19
 - **Verificación**: `python3 -m pytest -q tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py` → `passed` (opt-out: el directorio de estado no cambia; 501 eventos → 500 y `recortado: 1`; entrada de 2 MiB + 1 → contador; escrituras concurrentes sin pérdida de integridad)
 
-- **Cerrada**: 2026-10-20
 - **Changelog**: El historial de actividad se guarda en un anillo acotado (500 eventos o 256 KiB, 24 h) que solo se escribe con `sesion.actividad: true` y se recupera solo de escrituras cortadas.
 
 **Criterios de aceptación**
@@ -2052,20 +2050,27 @@ Confirmación de fix1 sobre `01a1adc..469db9a` (2026-10-16), un revisor `reviewe
 
 **Revisión visual del usuario — Fase 4: aprobada 2026-10-20** (M-03, panel servido en `3ca861b`): Memoria, Catálogo y Diagnóstico aprobados sin hallazgos.
 
-## Revisión de dos lentes — intento 2: Fase 3 (T-40..T-53) — 2 Important, 2 Minor, 0 Critical (lentes: A+C, B+D)
+## Revisión de dos lentes — intento 3: Fase 3 (T-40..T-53) — 2 Important, 1 Minor, 0 Critical (lentes: A+C, B+D)
 
-Diff `8b98065..8fbb61e` (fix1, 2026-10-20), dos revisores `reviewer` (opus) en paralelo con el traspaso del intento 1. C forzada (condición 4 de la evaluación) y D forzada para re-evaluar D1/D2: `review-lens-select --base 8b98065` no marcó ninguna. Puerta: `scope-check --base 14ef84b` → exit 0, 0 fuera de alcance; `export-interop --check` → «88 ficheros al día». Cerrados con test: C-2, A-2, D1, B1, B2 y A-3. A-1: deuda verificada por mutación, 32/32 (la lente A lo volvió a ejecutar). C-3/A-4: la enmienda de CA-41 dice lo acordado. C-1 y D2 quedan corregidos en lo reportado, pero con huecos nuevos (abajo). La desviación de D2 frente a `design.md` §2.5 (`TOOL_LOCK_WAIT` 1 s, `TOOL_DEADLINE` 1,3 s) cabe en el presupuesto (≈1,7 s < 2 s del launcher) y deja intacto I-05; falta la decisión del usuario sobre `design.md`.
+Diff `96ae4f7..26f1ae0` (fix2, 2026-10-20): dos revisores `reviewer` (opus) en paralelo, con el traspaso del intento 2. Se ignora `6a3ba87` (`.claude/rates.json`, ajeno a la iniciativa). Lentes C y D forzadas. Puertas: `scope-check --base 14ef84b` → exit 0. Suites de los ficheros tocados: 744 passed, 13 skipped. Cobertura de los ficheros de código, con `dev.json` `tests.coberturaMinima` 80: almacén 93,6 %, journal 84,0 %, local-state 90,8 %, redact 100 %. Interop no aplica: el diff no toca `hooks/`, `agents/` ni `commands/`. 2-1, 2-2 (en sus 19 escenarios), 2-3 y 2-4 quedan corregidos, con RED sobre `96ae4f7`. Arnés del ciclo de vida: `SubagentStart` escrito en 5 de 5 ensayos. **Tercer intento con gaps: el bucle para y decide el usuario** (skill `adversarial-review` §5).
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| 2-1 | Important | Regresión de fix1: las señales de ciclo de vida (`SubagentStart`/`SubagentStop`, espera de 100 ms) pierden el cerrojo frente a una ráfaga de herramientas, que ahora espera 1 s y reintenta cada 5 ms. La pérdida pasa a los eventos que definen los runs: un `SubagentStop` perdido deja el run «en curso» hasta 60 s (A2-1 = B-4) | T-43 | corregido (fix2): prioridad al ciclo de vida (byte 1 de `.lock`) y anillo leído antes del cerrojo; esperas sin cambio · RED 8 de 8 `state_busy` · GREEN 8 de 8 (×9, con carga) | `agent-activity-store.py:37,658` frente a `:704`; anillo lleno, 8 herramientas y `SubagentStart` a 250 ms: perdido en 2 de 5 (orquestador), 4 de 9 (A) y 2 de 3 (B); con la espera de herramienta a 0,1 s, 0 de 5 |
-| 2-2 | Important | C-1 incompleta: siguen en claro `curl -su`/`-sSu user:pass` (opciones agrupadas), `curl -U` y `--proxy-user`, un `-u` tras una URL con `&` (el comando se corta en `&` y ese trozo ya no lleva `curl`) y los secretos entre comillas con espacio (`mysql -p"S3cret Pw1"` → `-p"[secreto redactado] Pw1"`). Es C2-1 + B-5 (CWE-532) | T-42 | corregido (fix2): troceado tipo shell con comillas y opciones solo tras el programa real (curl `-u/-U/--user/--proxy-user`, también agrupadas; mysql `-p`/`--password=`) · RED 13 de 19 fugas · GREEN 19 de 19 | `redact.py:115-121`; `journal.py:347`; reproducido por el orquestador |
-| 2-3 | Minor | Redacta de más cuando `mysql` o `curl` aparecen como ruta o imagen en el mismo trozo: `cp -pr /var/lib/mysql /backup` → `cp -p[secreto redactado]…`; también `mkdir -pv /etc/mysql/conf.d`, `docker run -p3306:3306 mysql:8` y `docker run -u 1000:1000 img curl …` | T-42 | corregido (fix2, con 2-2): `curl`/`mysql` solo como programa (con ruta, en posición de comando) · RED 4 de 20 falsos positivos · GREEN 20 de 20 | `redact.py:118-121` (igual en `journal.py`) |
-| 2-4 | Minor | `test_d2_burst…` no tiene margen: 1 s ≈ 7 retenciones de p90, justo lo que necesita el 8.º escritor, y con carga pierde 1 de 8 (3 de 6 en el arnés de B). Además, el «0 de 8 perdidos» solo vale hasta ≈ 8: con 16 herramientas en paralelo y el anillo lleno se pierden 4 de 16 (25 %); no es regresión | T-43 | corregido (fix2): retención p90 84 → 37 ms; afirmación del ledger acotada a lo medido (8 → 0, 12 → 0-2, 16 → 1-5 perdidos) · GREEN 8 de 8 con 6 procesos de CPU al 100 % (×4) | `tests/test_agent_activity_store.py:1349`; `agent-activity-store.py:37-38,658` |
+| 3-1 | Important | Regresión de fix2 (CWE-532): credenciales que fix1 tapaba vuelven a quedar en claro en `events.json`, en el log crudo y en el journal versionado. Hay cuatro causas: (1) el redactor no mira dentro de comillas (`sh -c "curl -u a:X"`, `ssh host 'mysql -pX'`, `docker exec db sh -c '…'`); (2) un apóstrofo en prosa abre una comilla sin cerrar que se traga el resto de la línea (`I can't connect: mysql -u root -pX`); (3) no reconoce el programa tras `--` ni tras una opción larga sin `=` (`kubectl exec -it mysql-0 -- mysql -pX`, `sudo --preserve-env curl -u a:X`); (4) un programa con ruta fuera de la posición de comando (`sudo -u postgres /usr/bin/mysql -pX`). Es C3-1 + B-1 + B-3 | T-42 | pendiente: decisión del usuario | `redact.py:118,135,147,149`; `journal.py:350,367,379,381`; 12 entradas (Lente C) y 8 (Lente B) tapadas en `96ae4f7` salen en claro en HEAD; el orquestador lo reprodujo en 7 de 7 |
+| 3-2 | Important | En macOS/BSD, los cerrojos `flock` y `fcntl` interactúan (lo dice flock(2)) y en Linux sobre NFS `flock` se emula con `fcntl`. `intent()` toma el byte 1 con `lockf` y luego `locked()` pide `flock` del fichero entero desde otro descriptor del mismo proceso, que choca con ese byte 1. Resultado: `state_busy` en todos los `SubagentStart`/`SubagentStop`, sin ninguna contención. La CI corre solo en Ubuntu (B-2) | T-43 | pendiente: decisión del usuario | `local-state.py:187-191`; `agent-activity-store.py:735,748`. Inferido de la semántica documentada; no se puede reproducir en Windows |
+| 3-3 | Minor | Coste de fix2 en ráfaga: cada herramienta lee y valida los 256 KiB del anillo antes del cerrojo y los relee bajo él (7 de 8 se releen). Cada intento con cesión reabre `.lock` cada 5 ms. Ráfaga de 8: CPU de 500 a 1.266 ms; de 16: de 750 a 2.719 ms. La retención en ráfaga baja poco (p50 de 97 a 79 ms con 8; la de 23 ms del ledger solo vale en secuencial). Con un `SubagentStart` en medio de la ráfaga, la prioridad le costó 2 de 8 eventos de herramienta en 1 de 5 ensayos (D-1) | T-43 | pendiente: decisión del usuario | `agent-activity-store.py:680,691`; `local-state.py:159`; arneses de la Lente D en el scratchpad de la sesión |
 
-Sin hallazgos en el resto. B1 no tiene carreras: un pedido en vuelo, un solo temporizador, y Cartera tiene su propio listener. En B2, `tool-activity` es síncrona y no lanza excepciones. D1 tarda 0,04 s por petición con 500 eventos. Los arneses de test quedan más estrictos, no más laxos. La redacción no tiene regresiones frente a la base: es idempotente y lineal (360 KB en 0,17 s). No quedan cerrojos huérfanos. El DOM solo recibe texto por `textContent`. Los CHANGELOG son espejo EN/ES.
+Sin hallazgos en el resto:
+- **Cerrojo de intención:** se libera en todos los caminos, también con excepción o con el proceso muerto (`finally`). No hay interbloqueo entre los bytes 0 y 1. Un `.lock` enlazado (symlink o `nlink>1`) falla cerrado. No abre superficie nueva de DoS.
+- **Anillo leído antes del cerrojo:** se reutiliza solo con la misma firma (dev, ino, size, mtime_ns, ctime_ns), la del CAS de `write`.
+- **Redactor:**
+  - Lineal: 17 entradas patológicas de 200 KB a 1 MB tardan ≤ 0,64 s.
+  - Idempotente.
+  - Las dos copias son idénticas.
+  - Sin regresión en `password="…"`, Bearer, PEM, `export AWS_SECRET_ACCESS_KEY=`, heredoc, comilla sin cerrar en código, `\"` y `$'…'`.
+- **Ledger:** 2-3 dice «4 de 20» en rojo y en la base fallaban 5; se queda corto, no promete de más.
 
-Del intento 1 (archivado en `execution-history.md`) siguen abiertos: la deuda aceptada por el usuario A-1 (T-49) y C-3/A-4 (T-42/T-51), y el backlog A-5, B3 y D4.
+Siguen abiertos: la deuda que aceptó el usuario (A-1, C-3/A-4) y el backlog (A-5, B3, D4).
 
 ## Historial archivado
 
@@ -2074,3 +2079,4 @@ Del intento 1 (archivado en `execution-history.md`) siguen abiertos: la deuda ac
 - 2026-10-16 · «Revisión de dos lentes — intento 2: Fase 2 (T-17..T-28, T-55..T-58) — 3 Important, 5 Minor, 0 Critical (lentes: A+C, B+D)» → [execution-history.md](execution-history.md) · SHA-256 `4ef8ebe0266262f09f3125a8406352bf57f7258cc3f4de049f8e0d0313af4598`
 - 2026-10-20 · «Revisión de dos lentes — intento 1: Fase 4 (T-30..T-38) — 3 Important, 7 Minor, 0 Critical (lentes: A+C, B+D)» → [execution-history.md](execution-history.md) · SHA-256 `38739915e10bde53690f3d12cfbae28ab15b846af05ca32584863e2b3e20db1a`
 - 2026-10-20 · «Revisión de dos lentes — intento 1: Fase 3 (T-40..T-53) — 7 Important, 7 Minor, 0 Critical (lentes: A+C, B+D)» → [execution-history.md](execution-history.md) · SHA-256 `cac137ca53621586bf93df13efd60a6e4254cb770da3333cda45b3eed17fd3e7`
+- 2026-10-20 · «Revisión de dos lentes — intento 2: Fase 3 (T-40..T-53) — 2 Important, 2 Minor, 0 Critical (lentes: A+C, B+D)» → [execution-history.md](execution-history.md) · SHA-256 `4a6afdf37bf5367ac70d92788a535d71d79a1547708928f43c3137593154ec27`
