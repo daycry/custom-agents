@@ -290,13 +290,17 @@ export default {
         };
       } catch { warn(); }
     } };
-    // One native registration per event: tool activity and post share execute.after (activity first, unawaited).
+    // One native registration per event: tool activity and post share execute.after. The unawaited
+    // activity binding goes first whatever the catalog order, so the awaited serial post handlers
+    // never delay its observation (T-47 fix1).
+    const unawaited = new Set(['tool-activity']);
     const registrations = new Map();
     for (const binding of hookCatalog.bindings) {
       if (binding.domain === 'event') continue;
       const name = binding.domain + '.' + binding.native_event;
       if (!registrations.has(name)) registrations.set(name, { binding, list: [] });
-      registrations.get(name).list.push(callbacks[binding.id]);
+      const { list } = registrations.get(name);
+      if (unawaited.has(binding.id)) list.unshift(callbacks[binding.id]); else list.push(callbacks[binding.id]);
     }
     for (const { binding, list } of registrations.values()) {
       await ctx[binding.domain].hook(binding.native_event, list.length === 1 ? list[0]

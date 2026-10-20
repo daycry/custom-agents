@@ -521,3 +521,25 @@ test('tool activity ignores foreign sessions and keeps the post notifications', 
     await until(() => existsSync(join(dir, 'tool-activity.jsonl')));
   } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
 });
+
+// panel-redesign T-47 fix1 (B2): the unawaited activity binding is dispatched BEFORE the awaited post
+// handlers share execute.after, so its observed_at is not delayed by the serial notifications.
+test('tool activity is dispatched before the awaited post handlers of the same event', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
+      fs.appendFileSync('starts.jsonl', JSON.stringify({ handler: process.argv[2], at: Date.now() }) + '\\n');
+      let input=''; process.stdin.setEncoding('utf8'); process.stdin.on('data',chunk=>input+=chunk);
+      process.stdin.on('end',()=>{ if(process.argv[2]!=='agent-activity') setTimeout(()=>{},400); });`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    await ctx.hooks.get('tool.execute.after')({ sessionID: 'order', tool: 'write', status: 'completed',
+      input: { filePath: 'docs/order.md' }, result: { metadata: {} } });
+    const trace = join(dir, 'starts.jsonl');
+    await until(() => existsSync(trace) && readFileSync(trace, 'utf8').trim().split('\n').length === 4);
+    const rows = readFileSync(trace, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+    const activity = rows.find(row => row.handler === 'agent-activity');
+    const firstPost = rows.filter(row => row.handler !== 'agent-activity').sort((a, b) => a.at - b.at)[0];
+    assert.ok(activity.at < firstPost.at + 300,
+      'activity started ' + (activity.at - firstPost.at) + ' ms after the first post handler: it waited for the serial posts');
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
