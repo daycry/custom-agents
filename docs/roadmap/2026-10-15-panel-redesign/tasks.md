@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 17 | 17 | 100% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 10 | 10 | 100% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 14 | 15 | 93% | 0 / 45,6h | 3,50 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **57** | **58** | **98%** | **0 / 159,2h** | **11,71 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 14 | 15 | 93% | 0 / 45,6h | 3,57 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **57** | **58** | **98%** | **0 / 159,2h** | **11,78 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1428,7 +1428,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 
 ## Fase 3 — Agentes en vivo + cierre transversal
 
-**Estado**: en-progreso · **Estimado**: 45,6h humanas · 23,4h IA · **Real**: 3,50h IA medida (T-45..T-53 + fix1 1,22h; T-40..T-41 sin medir; falta T-54) · **Coste est.**: 2.444 € referencia · ≈ 506 € ejecución · **Tokens est.**: 12,44 M
+**Estado**: en-progreso · **Estimado**: 45,6h humanas · 23,4h IA · **Real**: 3,57h IA medida (T-45..T-53 + fix1 1,29h; T-40..T-41 sin medir; falta T-54) · **Coste est.**: 2.444 € referencia · ≈ 506 € ejecución · **Tokens est.**: 12,44 M
 
 Última fase. Criterios de la spec: CA-04, CA-15 a CA-21 y CA-42 (eventos); además, el cierre transversal C-05. **Lente C obligatoria** en toda tarea de captura (condición 4 de la evaluación). Valores de diseño: 0 ms síncronos añadidos (O5), historial de 500 eventos / 256 KiB / 24 h, entrada ≤ 2 MiB, resumen ≤ 160.
 
@@ -1745,7 +1745,7 @@ Decisiones: (1) Proyección en `panel_data.actividad_runs`/`actividad_run` (pura
 - **Estado**: completado
 - **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 3,6h · real —
-- **Tiempo IA (ejec.)**: est. 0,8h · real 0,05h (medido; el JS y su arnés se redactaron dentro de la ventana de T-48, ≈ 0,1h más)
+- **Tiempo IA (ejec.)**: est. 0,8h · real 0,12h (medido: 0,05 + fix1 0,07; el JS y su arnés se redactaron dentro de la ventana de T-48, ≈ 0,1h más)
 - **Supervisión**: est. 0,2h (≈25 % IA) · real —
 - **Previsión IA**: 366k in / 60k out tok · 5,60 €
 - **Dependencias**: T-48
@@ -1765,12 +1765,13 @@ Decisiones: (1) Proyección en `panel_data.actividad_runs`/`actividad_run` (pura
 - [x] RED en el arnés.
 - [x] Página.
 
-- **Evidencia TDD**: RED: 20 tests nuevos de test_panel_activity_ui.py (`test_agentes_dom_contract[*]` ×18, `…never_writes_html…`, `test_served_agentes_page_loads_its_script…`) fallaron con FileNotFoundError: …/assets/page-agentes.js y con `'src="assets/page-agentes.js"' in …` falso · 2026-10-20. Transparencia: el primer borrador de `page-agentes.js` se escribió antes que el test; se retiró del árbol, se escribió el arnés, se obtuvo el rojo con el asset ausente y después se restauró y se cableó (constitución §1: el rojo es real, pero el orden de redacción no fue el ideal).
+- **Evidencia TDD**: RED: 20 tests nuevos de test_panel_activity_ui.py (`test_agentes_dom_contract[*]` ×18, `…never_writes_html…`, `test_served_agentes_page_loads_its_script…`) fallaron con FileNotFoundError: …/assets/page-agentes.js y con `'src="assets/page-agentes.js"' in …` falso · 2026-10-20. Transparencia: el primer borrador de `page-agentes.js` se escribió antes que el test; se retiró del árbol, se escribió el arnés, se obtuvo el rojo con el asset ausente y después se restauró y se cableó (constitución §1: el rojo es real, pero el orden de redacción no fue el ideal). fix1 (A-1, deuda aceptada por el usuario 2026-10-20, opción b, con verificación por mutación): 8 escenarios nuevos, cada uno RED contra SU mutante sobre una copia limpia (`AssertionError [ERR_ASSERTION]`, 1 failed) y verde sin él · 2026-10-20.
 - **Verificación ejecutada**: `pytest tests/test_panel_activity_ui.py` → 44 passed (run activo con runtime, rol, inicio, duración y última herramienta; run de 120 s «sin señal reciente» con duración congelada de 8 min; línea de tiempo con hora, herramienta, resumen, «tarea: sin atribuir», `panel/T-07`, duración y resultado; «Historial recortado a los últimos 150 eventos» en el run y «…500 eventos» en la lista; «Actividad desactivada» con cómo activarla, sin usar el texto del servidor; Codex «agrupa por sesión» y «sin eventos de herramienta»; declaraciones por runtime y «Captura informativa: puede tener huecos» siempre visibles; filas o eventos fuera de forma no llegan al DOM; refresco de 5 s, un pedido en vuelo, plazo de 4 s, pausa con la pestaña oculta; el arnés lanza error ante `innerHTML`) · todas las `tests/test_panel_*.py` (salvo los servidores de memoria/revisión, ya verdes en T-48) + `test_plugin_panel` → 940 passed, 6 skipped · `lint_plugin.py` → 0 errores.
+  - fix1 (A-1): `pytest tests/test_panel_activity_ui.py tests/test_panel_privacy.py` → 55 passed · mutación (`mutar_agentes.py` sobre `git archive` + test nuevo): **32 de 32 mutantes aplicables cazados** (antes 24/32; vivos cazados ahora: duración de run nula como 0, resultado nulo como ok, sin tope de 64 runs, sin tope de 150 eventos, dos pedidos en vuelo, caché permitida, respuesta no ok aceptada, respuesta tardía de otra generación); ninguno equivalente.
 
 Decisiones: `page-agentes.js` solo en servido (`LIVE_ASSET_FILES` y `LIVE_SCRIPTS['agentes']`; si falta, el servidor lo omite como al resto de vivos) y construye su propio DOM debajo de la sección del snapshot vivo, sin tocar `build_panel.py`; la tabla lleva `caption` y `th scope=col`; el texto de «cómo activarla» es una constante local (no se pinta texto libre del servidor).
 
-**Notas**: JS de actividad actual en `skills/plugin-panel/assets/panel-activity.js` (movido en T-12; refresco en su l. 67 original de `references/`). Lente C.
+**Notas**: JS de actividad actual en `skills/plugin-panel/assets/panel-activity.js` (movido en T-12; refresco en su l. 67 original de `references/`). Lente C. A-1 (fix1): deuda TDD aceptada por el usuario (2026-10-20, opción b), cerrada con 32/32 mutantes cazados.
 
 ### T-50 — Inicio: actividad reciente
 
@@ -1836,7 +1837,7 @@ Diff revisado del golden (`golden/panel.json`, +90 / −2): 4 registros nuevos c
 
 Aviso para la revisión: (1) `redact.anonimizar` (T-04) sustituye el usuario solo como palabra entera, y trata `-` como parte de la palabra: un nombre de cuenta pegado con guion o letras (`notas-jdoe.txt`) se conserva en el resumen. Es el contrato vigente (evita falsos positivos como «ana» en «ana-lisis») y no se toca aquí; la prueba lo deja escrito. (2) El título y la descripción del manejador `agent-activity` en el inventario («Señales recientes de actividad» / «Observaciones de sesión opt-in…») siguen describiendo solo las señales de sesión; ahora también captura herramientas. Cambiarlos movería más el golden: queda para la revisión.
 
-**Notas**: riesgo «CA-28 choca con la fase 3» de `design.md` §6.
+**Notas**: riesgo «CA-28 choca con la fase 3» de `design.md` §6. A-4/C-3 (fix1): deuda aceptada por el usuario (2026-10-20, opción b); CA-41 enmendada en la spec (usuario unido por guion o tras punto); comentario en el corpus de `test_panel_privacy.py`.
 
 ### T-52 — Documentación de F3: observabilidad, interop, flujos y contratos
 
@@ -2057,11 +2058,11 @@ Diff `8fc3eb3..3ca861b` (2026-10-20), dos revisores `reviewer` (opus) en paralel
 | D1 | Important | `_valid_history_event` recarga `agent-activity.py` (`exec_module` sin caché) por CADA evento: 500 por petición, ≈180-190 ms; servidor de un hilo con Inicio + Agentes sondeando cada 5 s → ≈0,2 s de bloqueo por petición al resto de rutas | T-48 | corregido (fix1): `ROLES` una vez por petición · RED test_d1_* (500 cargas) · GREEN 360 passed | `serve_panel.py:37-45,563`; bench: `500 _load_shared ms 185.0` |
 | B1 | Important | «Actividad reciente» de Inicio deja de refrescarse para siempre tras ocultar la pestaña una vez: `leer()` solo se reprograma si `!document.hidden` y no hay escucha de `visibilitychange` (sí la hay en `page-agentes.js:232`, `panel-live.js:84`) | T-50 | corregido (fix1): `visibilitychange` pausa y reanuda · RED test_b1_* (2) · GREEN 32 passed | `page-inicio.js:212-229`; arnés de `test_panel_inicio_ui.py`: tras volver, 1 pedido y 0 temporizadores pendientes |
 | A-3 | Important | Los bullets de T-45..T-52 no están en ningún CHANGELOG y no llegarán solos: la sección ya lleva el slug y `changelog-sync` descarta todo slug presente | T-53 | corregido (fix1): 8 bullets EN/ES + sección «phase 3 review»; `Changelog` en T-40/T-53 · TDD n/a (prosa) · lint/evals 0 errores | `changelog-sync.py:12,824`; `CHANGELOG.md` «phase 3»: 3 bullets (T-41..T-44); el ledger lo advirtió en la F1 |
-| A-1 | Important | T-49: `page-agentes.js` se escribió antes que su test y se **restauró** tras el rojo, no se reescribió; constitución §1 y ley dura de `tdd` («el código anterior al rojo se borra»). El rojo es un único `FileNotFoundError` para 18 casos | T-49 | **pendiente: decisión del usuario** (reescribir tras el rojo por assert, o aceptar como deuda con verificación por mutación, como el gap 6 de la F1) | `tasks.md` T-49 (nota transparente); `docs/CONSTITUTION.md` §1; `skills/tdd/SKILL.md` |
+| A-1 | Important | T-49: `page-agentes.js` se escribió antes que su test y se **restauró** tras el rojo, no se reescribió; constitución §1 y ley dura de `tdd` («el código anterior al rojo se borra»). El rojo es un único `FileNotFoundError` para 18 casos | T-49 | deuda aceptada por el usuario (2026-10-20, opción b); verificada por mutación en fix1: 32/32 cazados (8 escenarios nuevos, RED cada uno contra su mutante) | `tasks.md` T-49 (nota transparente); `docs/CONSTITUTION.md` §1; `skills/tdd/SKILL.md` |
 | C-2 | Minor | Regex con retroceso superlineal en el resumen de `apply_patch` (`(.+?)\s*$` con racha de espacios): 40 KB → 14,8 s de CPU en segundo plano; el launcher corta a 2 s y se pierde el evento | T-44 | corregido (fix1): `[^\n]*` + recorte en Python · RED test_c2_… (1,74 s) · GREEN 320 passed | `agent-activity-store.py:492`; 5k/10k/20k/40k → 0,095/0,42/1,54/14,8 s; CWE-1333 |
 | B2 | Minor | OpenCode: `tool-activity` no se despacha «primero» (comentario) sino tras los `post` esperados en serie (≈1,8 s en Windows, hasta 60 s): `observed_at` llega tarde y el run puede salir «sin señal reciente» | T-47 | corregido (fix1): `tool-activity` delante de `post` en el registro · RED (1514 ms) · GREEN 45 pass | `hooks/opencode-plugin.js:291-304`; orden del catálogo l.17/l.19 |
-| C-3 | Minor | El hueco de `anonimizar` (usuario unido por guion: `notas-jdoe.txt`, `ssh jdoe-laptop`) llega ahora a texto libre de eventos, `api/actividad-run-*` y Agentes en vivo; queda en la máquina (el exportado no lleva eventos) | T-42 | **decisión del usuario** junto a A-4 | `redact.py:205`; `agent-activity-store.py:575`; CWE-359 |
-| A-4 | Minor | CA-41 no tiene excepciones y el test de privacidad usa un corpus que esquiva el caso conocido; lo decidió el implementer sin aceptación | T-51 | **decisión del usuario** junto a C-3 | `tests/test_panel_privacy.py:4-5,20`; `spec.md:230` |
+| C-3 | Minor | El hueco de `anonimizar` (usuario unido por guion: `notas-jdoe.txt`, `ssh jdoe-laptop`) llega ahora a texto libre de eventos, `api/actividad-run-*` y Agentes en vivo; queda en la máquina (el exportado no lleva eventos) | T-42 | deuda aceptada por el usuario (2026-10-20, opción b); CA-41 enmendada en la spec (excepción: usuario unido por guion o tras punto) | `redact.py:205`; `agent-activity-store.py:575`; CWE-359 |
+| A-4 | Minor | CA-41 no tiene excepciones y el test de privacidad usa un corpus que esquiva el caso conocido; lo decidió el implementer sin aceptación | T-51 | deuda aceptada por el usuario (2026-10-20, opción b); CA-41 enmendada en la spec (excepción: usuario unido por guion o tras punto) | `tests/test_panel_privacy.py:4-5,20`; `spec.md:230` |
 | A-5 | Minor | E3: el Catálogo describe `agent-activity` como «Observaciones de sesión opt-in» y ahora captura cada herramienta | T-51/T-52 | backlog (cambiarlo mueve más el golden; CA-28) | `build_panel.py:212`; golden: 4 registros nuevos con ese texto |
 | B3 | Minor | Un evento de herramienta con `cwd` en un subdirectorio del proyecto (tras `cd src`, o un worktree) se descarta como `project_mismatch` | T-44 | backlog (verificar qué `cwd` manda Claude Code tras un `cd` antes de cambiar la regla, que también rige `SubagentStart`/`Stop`) | `agent-activity-store.py:440`; sonda: `cwd=root/src` → `project_mismatch` |
 | D4 | Minor | OpenCode con la captura apagada (el defecto) lanza igualmente un `node` + `session.get` por herramienta (≈80 ms de CPU cada uno, en segundo plano) | T-47 | backlog | `hooks/opencode-plugin.js:239-254` |

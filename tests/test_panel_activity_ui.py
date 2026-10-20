@@ -192,6 +192,15 @@ AGENTES_SCENARIOS = {
  'refresh_every_5s_one_inflight': "await reply(runs());const t=[...timers.values()].filter(x=>x.delay===5000);assert.equal(t.length,1);t[0].fn();await settle();assert.equal(pending('api/actividad-runs').length,2);",
  'request_timeout_4s': "assert.equal([...timers.values()].filter(x=>x.delay===4000).length,1);",
  'hidden_pauses': "await reply(runs());document.hidden=true;docEvents.visibilitychange();assert.equal([...timers.values()].filter(x=>x.delay===5000).length,0);document.hidden=false;docEvents.visibilitychange();assert.equal(pending('api/actividad-runs').length,2);",
+ # T-49 fix1 (A-1, TDD debt accepted by the user and verified by mutation): one scenario per surviving mutant
+ 'null_run_duration_is_sin_datos_ca40': "await reply(runs([run({duracion_s:null})]));assert.equal(rows()[0].children[3].textContent,'sin datos');",
+ 'null_result_is_sin_datos_ca40': "await reply(runs());await open();await reply(line([ev({resultado:null})]),requests.findIndex(r=>r.url==='api/actividad-run-'+K));const t=text('agentes-eventos');assert.ok(t.includes('resultado: sin datos'));assert.ok(!t.includes('resultado: ok'));",
+ 'over_64_runs_rejected': "await reply(runs(Array.from({length:65},()=>run())));assert.equal(rows().length,0);assert.match(text('agentes-estado'),/No se pudo actualizar/);",
+ 'over_150_events_rejected': "await reply(runs());await open();await reply(line(Array.from({length:151},(_,i)=>ev({revision:i+1}))),requests.findIndex(r=>r.url==='api/actividad-run-'+K));assert.equal(ids['agentes-eventos'].children.length,0);assert.match(text('agentes-linea-estado'),/No se pudo leer/);",
+ 'visible_again_while_inflight_keeps_one_request': "assert.equal(pending('api/actividad-runs').length,1);docEvents.visibilitychange();await settle();assert.equal(pending('api/actividad-runs').length,1);",
+ 'requests_bypass_the_cache': "assert.equal(requests[0].options.cache,'no-store');",
+ 'non_ok_response_is_not_painted': "requests[0].resolve({ok:false,status:503,json:async()=>runs()});await settle();assert.equal(rows().length,0);assert.match(text('agentes-estado'),/No se pudo actualizar/);",
+ 'late_response_of_an_older_generation_is_ignored': "document.hidden=true;docEvents.visibilitychange();await reply(runs(),0);assert.equal(rows().length,0);assert.equal(text('agentes-estado'),'Consultando el historial…');",
 }
 
 
