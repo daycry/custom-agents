@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 9 | 10 | 90% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 11 | 15 | 73% | 0 / 45,6h | 1,09 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **52** | **58** | **90%** | **0 / 159,2h** | **9,30 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 12 | 15 | 80% | 0 / 45,6h | 1,18 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **53** | **58** | **91%** | **0 / 159,2h** | **9,39 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1789,9 +1789,10 @@ Decisiones: la sección «Actividad reciente» la construye `page-inicio.js` (si
 ### T-51 — Golden de `build_panel.py --json` actualizado solo con los hooks nuevos y grep de datos personales en eventos
 
 - **Descripción**: El inventario de `--json` cambia porque hay hooks nuevos: el golden de T-01 se actualiza con un diff limitado a esos registros y revisado. Se añade el grep de CA-41 sobre `events.json` y sobre las respuestas de las API de actividad.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 1,2h · real —
-- **Tiempo IA (ejec.)**: est. 0,2h · real —
+- **Tiempo IA (ejec.)**: est. 0,2h · real 0,09h (medido)
 - **Supervisión**: est. 0,05h (≈25 % IA) · real —
 - **Previsión IA**: 91k in / 15k out tok · 1,40 €
 - **Dependencias**: T-45, T-48
@@ -1800,13 +1801,22 @@ Decisiones: la sección «Actividad reciente» la construye `page-inicio.js` (si
 - **Cubre (tests)**: E2E-08
 - **Verificación**: `python3 -m pytest -q tests/test_panel_contract_golden.py tests/test_panel_privacy.py` → `passed` · lectura: el diff del golden solo añade los grupos de hook de actividad (pegado en `Notas`)
 
+- **Changelog**: El inventario del panel (`--json`) declara los nuevos registros de actividad por herramienta en los tres runtimes, y una prueba de privacidad comprueba que ni el historial ni las respuestas de actividad ni la copia exportada llevan la ruta del home, el usuario o correos.
+
 **Criterios de aceptación**
-- [ ] CA-28: el único cambio del golden son los registros de hook nuevos; `dashboard.json` y `dashboard.md` intactos.
-- [ ] CA-41: ningún HTML, JSON ni evento con la ruta del home, el usuario o correos, en servido y exportado.
+- [x] CA-28: el único cambio del golden son los registros de hook nuevos; `dashboard.json` y `dashboard.md` intactos.
+- [x] CA-41: ningún HTML, JSON ni evento con la ruta del home, el usuario o correos, en servido y exportado.
 
 **Subtareas**
-- [ ] Regenerar el golden y revisar el diff.
-- [ ] Test de privacidad sobre toda la salida.
+- [x] Regenerar el golden y revisar el diff.
+- [x] Test de privacidad sobre toda la salida.
+
+- **Evidencia TDD**: RED: con los registros nuevos en el bundle de la fixture (`hooks/hooks.json`: grupo `PostToolUse` de actividad y `PostToolUseFailure`; `interop/codex/hooks.json`: `PostToolUse` de actividad; `opencode-plugin.js`: binding `tool-activity`), `test_panel_contract_golden.py::test_panel_json_igual_a_su_golden` falló con «panel.json cambió respecto a su golden (CA-28)» · 2026-10-20; después `PANEL_GOLDEN_UPDATE=1`. `test_panel_privacy.py` es de caracterización (la protección ya existía desde T-42/T-48): su primer rojo vino de un corpus fuera del contrato de `redact.anonimizar` (usuario pegado con guion en un nombre de fichero, ver Notas); con el corpus del contrato pasa, y una mutación que quita `anonimizar` del resumen del almacén lo vuelve rojo (`1 failed, 2 passed`).
+- **Verificación ejecutada**: `pytest tests/test_panel_contract_golden.py tests/test_panel_privacy.py` → 9 passed · `git diff --stat tests/fixtures/panel-redesign/golden/dashboard.json …/dashboard.md` → vacío (intactos) · todas las `tests/test_panel_*.py` (salvo los servidores de memoria/revisión) + `test_plugin_panel` → 947 passed, 6 skipped · `lint_plugin.py` → 0 errores.
+
+Diff revisado del golden (`golden/panel.json`, +90 / −2): 4 registros nuevos con `handler: agent-activity` — `claude-code` `PostToolUse` (`hooks/PostToolUse/1/0`, `timeout: 5` s, `matcher: ""`), `claude-code` `PostToolUseFailure` (`hooks/PostToolUseFailure/0/0`), `codex` `PostToolUse` (`interop/codex/hooks.json`, `hooks/PostToolUse/0/0`) y `opencode` `PostToolUse` (`tool.execute.after`, `hook-catalog/bindings/tool-activity/handlers/0`, 2.500 ms, `adapter-supervision`); y los contadores `hook_group_count` 12 → 14 y `counts.hooks` 15 → 19. Nada más cambia.
+
+Aviso para la revisión: (1) `redact.anonimizar` (T-04) sustituye el usuario solo como palabra entera, y trata `-` como parte de la palabra: un nombre de cuenta pegado con guion o letras (`notas-jdoe.txt`) se conserva en el resumen. Es el contrato vigente (evita falsos positivos como «ana» en «ana-lisis») y no se toca aquí; la prueba lo deja escrito. (2) El título y la descripción del manejador `agent-activity` en el inventario («Señales recientes de actividad» / «Observaciones de sesión opt-in…») siguen describiendo solo las señales de sesión; ahora también captura herramientas. Cambiarlos movería más el golden: queda para la revisión.
 
 **Notas**: riesgo «CA-28 choca con la fase 3» de `design.md` §6.
 
