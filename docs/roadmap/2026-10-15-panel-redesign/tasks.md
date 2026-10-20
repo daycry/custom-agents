@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 9 | 10 | 90% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 9 | 15 | 60% | 0 / 45,6h | 1,01 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **50** | **58** | **86%** | **0 / 159,2h** | **9,22 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 10 | 15 | 67% | 0 / 45,6h | 1,06 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **51** | **58** | **88%** | **0 / 159,2h** | **9,27 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1725,25 +1725,33 @@ Decisiones: (1) Proyección en `panel_data.actividad_runs`/`actividad_run` (pura
 ### T-49 — Página Agentes en vivo: runs, línea de tiempo y declaraciones por runtime
 
 - **Descripción**: `agentes.html` muestra una fila por run (runtime, rol, inicio, duración, última herramienta) y, al abrirlo, su línea de tiempo. Estados «sin señal reciente», «tarea: sin atribuir», «historial recortado a los últimos N eventos», «captura informativa: puede tener huecos», «actividad desactivada» con cómo activarla, y por runtime «este runtime no emite eventos de herramienta» o «Codex no identifica el subagente: se agrupan por sesión».
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 3,6h · real —
-- **Tiempo IA (ejec.)**: est. 0,8h · real —
+- **Tiempo IA (ejec.)**: est. 0,8h · real 0,05h (medido; el JS y su arnés se redactaron dentro de la ventana de T-48, ≈ 0,1h más)
 - **Supervisión**: est. 0,2h (≈25 % IA) · real —
 - **Previsión IA**: 366k in / 60k out tok · 5,60 €
 - **Dependencias**: T-48
 - **Tipo**: frontend
-- **Archivos**: `skills/plugin-panel/assets/page-agentes.js`, `skills/plugin-panel/assets/panel-activity.js`, `skills/plugin-panel/scripts/panel_pages.py`, `tests/test_panel_activity_ui.py`
+- **Archivos**: `skills/plugin-panel/assets/page-agentes.js`, `skills/plugin-panel/assets/panel-activity.js` (sin cambios: el snapshot vivo sigue igual), `skills/plugin-panel/scripts/panel_pages.py`, `tests/test_panel_activity_ui.py`
 - **Cubre (tests)**: E2E-17, E2E-18, E2E-19, E2E-09
 - **Verificación**: `python3 -m pytest -q tests/test_panel_activity_ui.py` → `passed` (escenarios: run activo, run > 60 s, evento sin atribuir, historial recortado, captura desactivada, Codex por sesión)
 
+- **Changelog**: Nueva vista Agentes en vivo en el panel servido: una fila por run (runtime, rol, inicio, duración, última herramienta y estado) y, al abrirlo, su línea de tiempo con la tarea atribuida o «sin atribuir»; dice qué no aporta cada runtime y que la captura puede tener huecos.
+
 **Criterios de aceptación**
-- [ ] CA-15, CA-16, CA-18, CA-19, CA-20 y CA-21 visibles con sus textos.
-- [ ] CA-42: cada runtime declara lo que no aporta; nada se omite en silencio.
-- [ ] Refresco de 5 s como hoy; sin `innerHTML`.
+- [x] CA-15, CA-16, CA-18, CA-19, CA-20 y CA-21 visibles con sus textos.
+- [x] CA-42: cada runtime declara lo que no aporta; nada se omite en silencio.
+- [x] Refresco de 5 s como hoy; sin `innerHTML`.
 
 **Subtareas**
-- [ ] RED en el arnés.
-- [ ] Página.
+- [x] RED en el arnés.
+- [x] Página.
+
+- **Evidencia TDD**: RED: 20 tests nuevos de test_panel_activity_ui.py (`test_agentes_dom_contract[*]` ×18, `…never_writes_html…`, `test_served_agentes_page_loads_its_script…`) fallaron con FileNotFoundError: …/assets/page-agentes.js y con `'src="assets/page-agentes.js"' in …` falso · 2026-10-20. Transparencia: el primer borrador de `page-agentes.js` se escribió antes que el test; se retiró del árbol, se escribió el arnés, se obtuvo el rojo con el asset ausente y después se restauró y se cableó (constitución §1: el rojo es real, pero el orden de redacción no fue el ideal).
+- **Verificación ejecutada**: `pytest tests/test_panel_activity_ui.py` → 44 passed (run activo con runtime, rol, inicio, duración y última herramienta; run de 120 s «sin señal reciente» con duración congelada de 8 min; línea de tiempo con hora, herramienta, resumen, «tarea: sin atribuir», `panel/T-07`, duración y resultado; «Historial recortado a los últimos 150 eventos» en el run y «…500 eventos» en la lista; «Actividad desactivada» con cómo activarla, sin usar el texto del servidor; Codex «agrupa por sesión» y «sin eventos de herramienta»; declaraciones por runtime y «Captura informativa: puede tener huecos» siempre visibles; filas o eventos fuera de forma no llegan al DOM; refresco de 5 s, un pedido en vuelo, plazo de 4 s, pausa con la pestaña oculta; el arnés lanza error ante `innerHTML`) · todas las `tests/test_panel_*.py` (salvo los servidores de memoria/revisión, ya verdes en T-48) + `test_plugin_panel` → 940 passed, 6 skipped · `lint_plugin.py` → 0 errores.
+
+Decisiones: `page-agentes.js` solo en servido (`LIVE_ASSET_FILES` y `LIVE_SCRIPTS['agentes']`; si falta, el servidor lo omite como al resto de vivos) y construye su propio DOM debajo de la sección del snapshot vivo, sin tocar `build_panel.py`; la tabla lleva `caption` y `th scope=col`; el texto de «cómo activarla» es una constante local (no se pinta texto libre del servidor).
 
 **Notas**: JS de actividad actual en `skills/plugin-panel/assets/panel-activity.js` (movido en T-12; refresco en su l. 67 original de `references/`). Lente C.
 

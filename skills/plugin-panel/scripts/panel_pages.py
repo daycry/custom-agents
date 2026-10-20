@@ -43,7 +43,7 @@ CSP_SERVIDO = ("default-src 'none'; style-src 'self' 'unsafe-inline'; script-src
 ASSET_FILES = ('panel.css', 'panel-core.js', 'panel-charts.js', 'page-catalogo.js', 'page-diagnostico.js',
                'page-cartera.js', 'page-inicio.js', 'page-iniciativas.js', 'page-plan.js', 'panel-graph.js', 'page-memoria.js')
 # Solo el modo servido los usa (consultan api/*); el exportado no los copia.
-LIVE_ASSET_FILES = ('panel-live.js', 'panel-memory.js', 'panel-activity.js', 'panel-review.js')
+LIVE_ASSET_FILES = ('panel-live.js', 'panel-memory.js', 'panel-activity.js', 'page-agentes.js', 'panel-review.js')
 # Script propio de cada página (después de panel-core.js y panel-charts.js), y los vivos del modo servido.
 PAGE_SCRIPTS = {'catalogo': ('page-catalogo.js',), 'diagnostico': ('page-diagnostico.js',),
                 'inicio': ('page-cartera.js', 'page-inicio.js'),
@@ -56,7 +56,7 @@ PLAN_SCRIPTS = ('page-cartera.js', 'page-plan.js')
 PLAN_LIVE_SCRIPTS = ('panel-review.js',)
 ID16_RE = re.compile(r'[a-f0-9]{16}')
 LIVE_SCRIPTS = {'inicio': ('panel-live.js',), 'plan': ('panel-live.js', 'panel-review.js'),
-                'agentes': ('panel-activity.js',), 'memoria': ('panel-memory.js',),
+                'agentes': ('panel-activity.js', 'page-agentes.js'), 'memoria': ('panel-memory.js',),
                 'iniciativas': ('panel-review.js',)}  # T-58: solo con ámbito de revisión (el servidor lo omite sin él)
 VENDOR_FILES = ('vendor/chart.js/chart.umd.min.js', 'vendor/chart.js/LICENSE.md', 'vendor/chart.js/PROVENANCE.json')
 
