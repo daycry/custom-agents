@@ -218,6 +218,7 @@ sustituye, y aquí está dicho.
 | Journal de sesión | `SessionEnd`: captura canónica aislada; evidencia headless sin ampliar el presupuesto nativo, con límites de arranque documentados | `SessionEnd`: export con 3 s y captura canónica; verificado al archivar el hilo activo en el mismo app-server | `session.execution.succeeded/failed/interrupted`; captura canónica y replay acotado en el siguiente contexto |
 | Captura del turno del usuario | ✅ `UserPromptSubmit` | ✅ `UserPromptSubmit` | `session.prompt`, antes de admisión: petición provisional, con exclusión `<private>` |
 | Fin de subagente | ✅ `SubagentStop` | ✅ `SubagentStop` | ❌ sin evento equivalente |
+| **Eventos de herramienta** (Agentes en vivo, opt-in `sesion.actividad`) | `PostToolUse` + `PostToolUseFailure`, `async`: duración (`duration_ms`), resultado `ok`/`error` y subagente identificado (`agent_id`/`agent_type`) | `PostToolUse` `async` (el grupo de actividad conserva su matcher; sin `PostToolUseFailure`). **No identifica el subagente** en eventos de herramienta: se agrupan por sesión. Sin duración; resultado «sin datos». Las búsquedas web alojadas no emiten eventos; las herramientas MCP corren en síncrono (un único intento sin espera) | Binding `tool-activity` en `tool.execute.after`, sin esperar al hijo: `status` → `ok`/`error`, `agent` y `sessionID` de la sesión (hija si es un subagente). Sin duración. **No validado en un OpenCode V2 real**: si V2 no trae `sessionID` el evento se descarta (`invalid_identity`) y sin `agent` el rol queda vacío. Un adaptador anterior sin el binding no emite eventos de herramienta |
 | **Guardia por agente** (`implementer`, `architect`) | Dispatcher global `PreToolUse` por ID propio; `hooks:` del agente de plugin se ignora | Dispatcher `PreToolUse` por ID propio | V2 `tool.execute.before` por ID propio; validación final de los tres runtimes en el roadmap |
 | `reviewer` de solo lectura | Sin Write/Edit; Bash sigue sujeto a permisos y responsabilidad del rol | El TOML no impone sandbox independiente; hereda permisos del padre | Regla `edit` con efecto `deny` en `permissions`; no equivale a prohibir toda escritura desde shell |
 | Statusline del roadmap | ✅ opt-in | ❌ | ❌ |
@@ -332,6 +333,13 @@ Contratos contrastados el 2026-10-08; evidencia en [contratos del roadmap](roadm
 [Claude Code](https://code.claude.com/docs/en/hooks), [OpenCode](https://opencode.ai/docs/plugins/).
 
 Los tres huecos que más importan:
+
+- **Agentes en vivo no ve lo mismo en cada runtime.** Codex no documenta un identificador de subagente
+  en `PreToolUse`/`PostToolUse` (solo en `SubagentStart`/`SubagentStop`; los subagentes usan el
+  `session_id` del padre) ni la duración: sus eventos se agrupan por sesión y la página lo dice
+  («Codex no identifica el subagente en eventos de herramienta: se agrupan por sesión»). Fuente:
+  [hooks de Codex](https://learn.chatgpt.com/docs/hooks) (redirección de developers.openai.com/codex/hooks), consultada el 2026-10-16.
+  OpenCode V2 no se ha validado en un runtime real para eventos de herramienta.
 
 - **Copiar el bundle no instala el plugin.** Es el hueco que más se nota y el más fácil de no ver:
   con `--mode copy` (o copiando `.claude/` a mano) está el bundle entero y no está ninguna de las

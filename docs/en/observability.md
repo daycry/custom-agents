@@ -221,6 +221,27 @@ runs the hooks of a plugin loaded with `--plugin-dir`, when the plugin loads und
 witness the job retries WITHOUT `--bare` and records (`::warning::`) which mode produced the evidence.
 Steps 2 and 3 remain manual (an interactive session). Job details: `evals/README.md`.
 
+## Live agents: tool capture (opt-in)
+
+The served panel (`/plugin-catalog --serve`) has a **Agentes en vivo** (Live agents) page that answers, in a
+bounded and local way, the question only an external monitor used to cover: which tools each run used. It is
+**opt-in** and **informative**: it decides nothing and does not replace a session monitor.
+
+| What | How |
+|---|---|
+| Turning it on | `{"sesion": {"actividad": true}}` in `.claude/dev.json` (without replacing the rest of the configuration). Absent, `false`, unreadable, larger than 64 KiB or invalid JSON = off. |
+| What is recorded | One event per finished tool: time, tool, summary of the argument (≤ 160 characters, per-tool allowlist, redacted and anonymized), `T-XX` when it could be attributed, duration and result (`ok`/`error`). Never file contents, outputs, prompts, chain-of-thought or absolute paths. |
+| Task attribution | Only from the meter's exact command (`usage-meter.py start\|close --artefacto <slug>/T-XX`) in a Bash/shell event; a `T-07` in a commit, a grep or a prompt never attributes. An event less than 5 s after a window change stays "sin atribuir" (unattributed). |
+| Cost | The `agent-activity` `PostToolUse` and `PostToolUseFailure` groups are `async`: 0 ms of added synchronous latency in Claude Code and Codex (exception: Codex MCP tools, which the runtime runs synchronously; there the store makes a single attempt without waiting). Without the opt-in, the Node launcher exits before starting Python: about 80 ms in the background (measured on 2026-10-20 on Windows, p50 78 ms). In OpenCode the adapter does not wait for the child process. |
+| Limits | History of 500 events or 256 KiB (whichever comes first) and 24 h; past that the oldest is dropped and counted in `recortado`. An input over 2 MiB is not read: it only adds to `descartados_por_tamano`. |
+| Gaps | An event that could not be written (lock busy, interrupted write) is lost and never retried; the page always says so ("captura informativa: puede tener huecos"). Events are listed in reception order, not execution order. |
+| Turning it off | `sesion.actividad: false` (or remove the key): nothing more is written (at most the writes already in flight, ≤ 2 s). When it is turned back on, open attribution windows expire. |
+| Deleting the history | The panel **never** deletes. To delete it, remove the project's `.claude/agent-activity/` directory by hand (with capture off or no session running); the next capture recreates it. It is also the remedy when the page says "historial no disponible (`invalid_state`)" or `unowned_state`. |
+
+The state lives in `.claude/agent-activity/` (owner: `agent-kits/shared/agent-activity-store.py`), with its own
+`.gitignore`. What each runtime provides is in [`INTEROP.md`](INTEROP.md) §4; the page is described in
+[`PLUGIN-PANEL.md`](PLUGIN-PANEL.md) ("Agentes en vivo").
+
 ## Cost of the Jira cycle (why a script writes it)
 
 With Jira enabled, each task fires up to 6 events (`arrancar`, `implementado`, `revision`/`gaps` per
@@ -262,7 +283,7 @@ the agent already at work.
 - Actual cost per artifact: the `generacion:` block in the frontmatter of spec/eval/plan/tasks.
 - Tokens→hour calibration: `docs/roadmap/CALIBRATION.md` (fed by `/retro`).
 - Progress of the initiative in flight: the hook's progress line, the session context and the opt-in status line (`progress-report.py line|active|session`).
-- Live session activity, tools, subagents: the external monitor.
+- Live session activity, tools, subagents: the external monitor. A bounded, opt-in view of the tools per run: Live agents in the served panel (`sesion.actividad: true`).
 
 **How many of those numbers are actually a measurement (`fuente: estimado` in aggregate).** Every `generacion:` block declares `fuente: medido` or `fuente: estimado`, but on its own it goes unnoticed: an `estimado` is a judgement call **shaped like a measurement**, and in aggregate it can be most of the roadmap without anyone noticing (edge E7 of [`docs/agents/CONTRACTS.md`](../agents/CONTRACTS.md)). The process report produced by `build_dashboard.py --metrics-md` — the one `/roadmap-metrics` consumes — closes the table with the line **«N de M bloques `generacion:` con `fuente: estimado`»**, and `--json` carries the additive keys `estimados`, `medidos` and `generacion_total` per initiative (the aggregate is their sum; `--json` is still the same LIST of initiatives it always was). The chain continues in `docs/roadmap/CALIBRATION.md`: a row whose `tokens/hora` was not measured is marked **`(estimado)`** in the cell with its reason, and `usage-meter.py` **drops it from the median** — without that filter, a row that inherited the current ratio fed it straight back into the median and calibration ran on its own output.
 

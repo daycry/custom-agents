@@ -516,6 +516,27 @@ flowchart LR
     SL -.->|"[Opus] $0.01 ctx 8% · 📋 slug T-04/12 33%"| U
 ```
 
+### Captura de herramientas para Agentes en vivo (opt-in, panel-redesign F3)
+
+> Un evento por herramienta terminada, en segundo plano: `PostToolUse`/`PostToolUseFailure` de
+> `agent-activity` son `async` en Claude Code y Codex, y el adaptador de OpenCode no espera al hijo. Sin
+> `sesion.actividad: true` el launcher Node sale antes de arrancar Python; el almacén vuelve a comprobarlo.
+> El hook nunca reintenta: un evento que no se escribe se pierde (la página lo avisa). Detalle:
+> [`observability.md`](observability.md) («Agentes en vivo») e [`INTEROP.md`](INTEROP.md) §4.
+
+```mermaid
+flowchart LR
+    T["herramienta terminada"] --> CC["Claude: PostToolUse · PostToolUseFailure<br/>(async, timeout 5)"]
+    T --> CX["Codex: PostToolUse (async)<br/>sin subagente ni duración"]
+    T --> OC["OpenCode: tool.execute.after<br/>binding tool-activity, sin await"]
+    CC & CX & OC --> L["hooks/run-hook.mjs agent-activity"]
+    L -->|"sin sesion.actividad: true<br/>(dev.json ≤ 64 KiB)"| X(["sale con 0<br/>sin Python"])
+    L -->|"opt-in"| S["agent-activity-store.py<br/>capture → record"]
+    S -->|"resumen por lista blanca, redactado<br/>T-XX solo por usage-meter.py start/close<br/>CAS, sin reintento"| E[(".claude/agent-activity/events.json<br/>runs · ventanas · eventos<br/>500 / 256 KiB / 24 h")]
+    E -->|"history() sin cerrojo"| A["serve_panel.py<br/>api/actividad-runs<br/>api/actividad-run-key16 (≤ 64 KiB)"]
+    A --> P(["agentes.html: runs + línea de tiempo<br/>index.html: actividad reciente"])
+```
+
 ## 6c · Guardrails deterministas de `implementer` y `architect` (alcance de agente)
 
 > Las guardias distribuidas usan un dispatcher global previo a la tool, por IDs nativos

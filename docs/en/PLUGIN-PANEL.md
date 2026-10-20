@@ -71,7 +71,7 @@ the same seven-page panel with a shared menu, in two modes:
 | Inicio (Home) | `index.html` | Summary and, in served mode, ledger progress |
 | Iniciativas (Initiatives) | `iniciativas.html` | Portfolio from `docs/roadmap/` (state, budget); the landing page of `/roadmap-status` |
 | Plan | `plan.html` (index) and `plan-<id16>.html` | Task kanban per initiative, charts and burndown; in served mode, plan review from the panel |
-| Agentes en vivo (Live agents) | `agentes.html` | Recent activity signals (served only; opt-in) |
+| Agentes en vivo (Live agents) | `agentes.html` | Runs, timeline and recent activity signals (served only; opt-in) |
 | Memoria (Memory) | `memoria.html` | Entries, curator tray, timeline, relations, backends and journal; local queries (served; on demand) |
 | Catálogo (Catalogue) | `catalogo.html` | Agents, skills, commands, tools and hooks |
 | Diagnóstico (Diagnostics) | `diagnostico.html` | Imported doctor report, with date and scope |
@@ -241,6 +241,42 @@ No cookies or access logs; nonce CSP, same-origin connections, no-store,
 no-referrer and no framing. The capability does not isolate other processes
 owned by the same user. Consuming a plan decision requires the common CLI and
 an authorized workflow. Memory publication/rebuild retain their consumers and tests.
+
+## Live agents (redesign phase 3)
+
+Served mode only, and only with `sesion.actividad: true` (see [`observability.md`](observability.md),
+"Live agents"). The `agentes.html` page keeps the recent signals of the live snapshot at the top (next
+section) and adds, with `assets/page-agentes.js`:
+
+- **Runs de agentes** (agent runs): one row per run of the last 24 h, most recent first: runtime, role (or
+  "sesión"; in Codex "sesión (Codex agrupa por sesión)"), start, duration, last tool and state. The states are
+  `en curso` (signal less than 60 s old), `sin señal reciente` (over 60 s; the duration freezes at the last
+  signal) and `respuesta terminada` (only when the subagent's end was observed). Never an inferred
+  "finished" or "dead".
+- **Timeline** of a run when opened: per event, time, tool, redacted summary of the argument,
+  `tarea: <slug>/T-XX` or `tarea: sin atribuir`, duration (or "sin datos") and result (`ok`/`error`/"sin datos").
+  These are the run's last 150 events; if there are more, "Historial recortado a los últimos N eventos".
+- **Permanent statements**: what each runtime provides and what it does not (Codex does not identify the
+  subagent in tool events; OpenCode has no duration; an adapter without the tool binding emits no events),
+  "captura informativa: puede tener huecos" and "orden de recepción, no de ejecución".
+- **Capture off**: "Actividad desactivada" and how to turn it on; without history, "Aún no hay actividad
+  registrada"; a damaged history, "Historial no disponible (`<reason>`)", with nothing partial.
+
+Home (Inicio) adds **Actividad reciente** (the last 10 events: who, runtime, tool, task and how long ago) with a
+link to Live agents; in the exported copy it says activity only exists in the served panel.
+
+APIs (GET, same capability and Host/Origin guards as the rest, no `?` in the route, ≤ 64 KiB, refreshed every
+5 s from the page):
+
+| Route | Returns |
+|---|---|
+| `api/actividad-runs` | `runs` (with `key16`, never the full key), `recientes`, `eventos`, `recortado`, `descartados_por_tamano`; with capture off, `status: unavailable`, `reason` and `activar` |
+| `api/actividad-run-<key16>` | one run's timeline (`eventos`, `recortado`, `recortado_historial`); an unknown `key16`, or one that matches two runs → 404 |
+
+Both read `agent-activity-store.history` (no lock, no initialization, no repair) and project with
+`panel_data.actividad_runs`/`actividad_run`; displayed text goes through the panel's single scrubber. If the
+content does not fit in 64 KiB the oldest events are dropped and counted in `recortado`. `api/activity` does
+not change. The panel never deletes the history: to delete it, remove `.claude/agent-activity/` by hand.
 
 ## Recent activity signals
 

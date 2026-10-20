@@ -516,6 +516,27 @@ flowchart LR
     SL -.->|"[Opus] $0.01 ctx 8% · 📋 slug T-04/12 33%"| U
 ```
 
+### Tool capture for Live agents (opt-in, panel-redesign F3)
+
+> One event per finished tool, in the background: the `agent-activity` `PostToolUse`/`PostToolUseFailure`
+> hooks are `async` in Claude Code and Codex, and the OpenCode adapter does not wait for the child. Without
+> `sesion.actividad: true` the Node launcher exits before starting Python; the store checks again. The hook
+> never retries: an event that is not written is lost (the page says so). Details:
+> [`observability.md`](observability.md) ("Live agents") and [`INTEROP.md`](INTEROP.md) §4.
+
+```mermaid
+flowchart LR
+    T["tool finished"] --> CC["Claude: PostToolUse · PostToolUseFailure<br/>(async, timeout 5)"]
+    T --> CX["Codex: PostToolUse (async)<br/>no subagent, no duration"]
+    T --> OC["OpenCode: tool.execute.after<br/>tool-activity binding, no await"]
+    CC & CX & OC --> L["hooks/run-hook.mjs agent-activity"]
+    L -->|"no sesion.actividad: true<br/>(dev.json ≤ 64 KiB)"| X(["exits 0<br/>no Python"])
+    L -->|"opt-in"| S["agent-activity-store.py<br/>capture → record"]
+    S -->|"allowlisted, redacted summary<br/>T-XX only from usage-meter.py start/close<br/>CAS, no retry"| E[(".claude/agent-activity/events.json<br/>runs · windows · events<br/>500 / 256 KiB / 24 h")]
+    E -->|"history() without lock"| A["serve_panel.py<br/>api/actividad-runs<br/>api/actividad-run-key16 (≤ 64 KiB)"]
+    A --> P(["agentes.html: runs + timeline<br/>index.html: recent activity"])
+```
+
 ## 6c · Deterministic `implementer` and `architect` guardrails (agent scope)
 
 > Distributed guards use a global dispatcher before tool execution, matching exact owned

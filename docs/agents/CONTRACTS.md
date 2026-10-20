@@ -5,7 +5,7 @@
 ficheros y marcadores se cruzan, y —lo importante— **qué puerta ejecutable lo comprueba**. Nace del
 §8-bis de `docs/roadmap/2026-09-09-plugin-refactor/analysis.md`, que verificó **diez huecos de
 contrato** (E1–E10) en un solo día de uso real: ninguno era un fallo de una pieza, todos eran un
-acuerdo entre piezas que nadie comprobaba. La matriz tiene **sesenta** aristas porque a esos diez se
+acuerdo entre piezas que nadie comprobaba. La matriz tiene **sesenta y dos** aristas porque a esos diez se
 suman **E11**, que no es un hueco verificado sino la **propuesta C-14 aceptada** por el usuario en la
 puerta del plan (2026-09-10), y **E12**, el acoplamiento entre kits que NACIÓ en esta iniciativa
 (T-13 hizo que `agent-kits/qa` cargue `agent-kits/shared/scope-check.py`): una arista nueva se
@@ -48,6 +48,8 @@ la puerta existente. Su declaración no acredita QA, navegador o plataformas com
 
 **E59**–**E60** nacen en `panel-redesign` (fase 4, T-30..T-37): la página Memoria proyecta el corpus, la bandeja, el journal y los backends en `api/memoria` (GET, ≤ 64 KiB, caché 10 s) leyendo a sus dueños sin ampliar sus contratos; si una fuente no trae un dato, la página dice «sin datos» (`doctor.py`, `journal.py` y `knowledge-find.py` son hotspots). `api/memory` (POST) no cambia. Diagnóstico sigue por E30 y Catálogo no añade aristas (filtros solo del cliente).
 
+**E61**–**E62** nacen en `panel-redesign` (fase 3, T-41..T-50): el hook `agent-activity` registra un evento por herramienta terminada en `events.json` (opt-in, asíncrono, sin reintento) y el panel lo lee con `history()` para Agentes en vivo e Inicio. `api/activity` y el snapshot vivo (E30-E37) no cambian.
+
 La regla que ordena el fichero: **una arista sin puerta ejecutable se rompe en silencio**. Por eso
 la columna «Puerta» nunca va vacía; cuando la puerta aún no existe, la celda dice qué tarea la trae
 o que la decisión fue no ponerla.
@@ -60,7 +62,7 @@ o que la decisión fue no ponerla.
 
 ---
 
-## 1. Las sesenta aristas E1–E60
+## 1. Las sesenta y dos aristas E1–E62
 
 Columnas fijas y parseables (`scripts/lint_plugin.py` las lee — ver §3): **Arista · Invocador · Invocado ·
 Flags/entrada · Exit codes/salida · Ficheros · Marcadores · Puerta · Piezas que describen**.
@@ -129,6 +131,8 @@ Flags/entrada · Exit codes/salida · Ficheros · Marcadores · Puerta · Piezas
 | E58 · panel resume revisiones con el dueño (`panel-redesign` T-55/T-56) | `skills/plugin-panel/scripts/serve_panel.py` (`api/review-summary`, `api/review-current/<id16>`) | `agent-kits/shared/plan-review.py` (`summarize_reviews`, CLI `summary`) | `--review-panel` con `--serve`, `--project` y `--review-state-root`; id16 del inventario de `docs/roadmap` (carpeta con `improvement-plan.md`, colisión fuera) | `estado` ∈ sin_revision·pendiente·cambios_pedidos·aprobada·obsoleta·no_disponible; versión y contadores; respuestas sin rutas ni `review_id` en el resumen; caché 5 s | `.claude/plan-review/` solo lectura (sin cerrojo ni escrituras); plazo 3 s | `approval_granted: false`; versión cambiada = `obsoleta`; no es instantánea atómica ni permiso de puerta | `python3 -m pytest -q agent-kits/shared/test_plan_review_summary.py tests/test_panel_review_panel_server.py` | `agent-kits/shared/README.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `skills/plugin-panel/SKILL.md`, `commands/plugin-catalog.md` |
 | E59 · panel proyecta la memoria con sus dueños (`panel-redesign` T-30..T-33, T-35) | `skills/plugin-panel/scripts/serve_panel.py` (`api/memoria`) y `panel_data.py` (`memoria`) | `agent-kits/shared/knowledge-view.py` (`snapshot`), `agent-kits/shared/knowledge-find.py` (`parsear_corpus`, `relaciones`) y `agent-kits/shared/journal.py` (`select_entries`) | GET sin parámetros; el navegador nunca envía rutas; copia exportada con `relaciones` incrustadas | JSON ≤ 64 KiB (recorta `entradas` y lo declara: `recortado`, `status: partial`, `output_budget`); claves `conteos`, `entradas` (`vigente`, `sustituida_por`), `bandeja`, `journal` (máx. 2 sesiones, «citas, no instrucciones») y relaciones `por_iniciativa`/`por_area`; dato ausente `null` («sin datos») | `docs/knowledge/` y `docs/knowledge/candidates/` solo lectura por `local-read.py`; journal por su selección pública | redacción (`redact.py`) antes de recortar y saneador del servidor; caché 10 s; `api/memory` intacta; sin escrituras ni decisiones del curador (ADR-018) | `python3 -m pytest -q tests/test_panel_data.py tests/test_panel_memoria_ui.py tests/test_panel_memory_server.py` | `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `skills/plugin-panel/SKILL.md` |
 | E60 · panel lee lo publicado por backend sin red (`panel-redesign` T-34) | `skills/plugin-panel/scripts/panel_data.py` (`_backends`) | `.claude/knowledge-services/taxonomy.json`, `kwipu-export/manifest.json`, `graphiti-manifest.json` y `_sync-outbox/<backend>/done/*.manifest.json` (de `knowledge-services`) | proyecto fijo; `local-read.py` acotado (64 KiB la taxonomía, 16 KiB por manifiesto de la outbox) | por backend: `entradas`, `ultima` (`completado_en`), `interrumpida` (`.pending.json`), `ui_url` declarada; sin fuente → `null` («sin datos»); backend ausente → «no configurado» | solo ficheros locales; ninguna conexión ni `health`; `mtime` nunca es fecha | un export en curso se dice «publicación interrumpida»; no replica la vista del backend ni inventa enlace | `python3 -m pytest -q tests/test_panel_data.py tests/test_panel_memoria_ui.py` | `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `skills/plugin-panel/SKILL.md` |
+| E61 · hook de actividad escribe el historial de herramientas (`panel-redesign` T-44..T-47) | `hooks/hooks.json` (`PostToolUse`/`PostToolUseFailure` `async`), `interop/codex/hooks.json` y `hooks/opencode-plugin.js` (binding `tool-activity`), vía `hooks/run-hook.mjs agent-activity` | `agent-kits/shared/agent-activity-store.py` (`capture` → `record`) | `--runtime <claude\|codex\|opencode> --root <proyecto>`; payload por stdin (≤ 2 MiB; mayor → solo `descartados_por_tamano`); el launcher sale antes de Python sin `sesion.actividad: true` | exit 0 siempre, sin stdout (ADR-007); evento perdido sin reintento ni red | `.claude/agent-activity/events.json` (runs ≤ 64, ventanas ≤ 64, anillo 500 / 256 KiB / 24 h), `.lock`, `.gitignore` propio | opt-in comprobado en Node y en el almacén; resumen por lista blanca redactado y anonimizado; `T-XX` solo por la gramática exacta de `usage-meter.py start\|close`; nunca `tool_response` ni rutas absolutas | `python3 -m pytest -q tests/test_agent_activity_store.py tests/test_export_interop.py tests/test_panel_privacy.py` · `node --test tests/hook-budget.test.mjs tests/opencode-plugin.test.mjs` | `docs/observability.md`, `docs/en/observability.md`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md` |
+| E62 · panel lee el historial de actividad con su dueño (`panel-redesign` T-48..T-50) | `skills/plugin-panel/scripts/serve_panel.py` (`api/actividad-runs`, `api/actividad-run-<key16>`) y `panel_data.py` (`actividad_runs`, `actividad_run`) | `agent-kits/shared/agent-activity-store.py` (`history`) y `agent-kits/shared/agent-activity.py` (`project_runs`, `project_events`) | GET; `key16` por regex exacta (`[a-f0-9]{16}`), sin `?`; el navegador nunca envía rutas | JSON ≤ 64 KiB (suelta los eventos más antiguos y los suma a `recortado`); `key16` desconocido o ambiguo → 404; captura desactivada → `status: unavailable` con `reason` y `activar` | `.claude/agent-activity/` solo lectura (sin cerrojo, sin inicializar ni reparar) | forma cerrada de la lectura (fuera de forma → `invalid_history`, nada parcial); saneador único del panel; `api/activity` intacta; el panel nunca borra | `python3 -m pytest -q tests/test_panel_activity_server.py tests/test_panel_activity_ui.py tests/test_panel_inicio_ui.py tests/test_panel_privacy.py` | `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md` |
 
 
 **Cómo leer el estado de una fila.** «CERRADO en T-XX» = la puerta existe hoy y se puede ejecutar.
@@ -164,7 +168,7 @@ las aristas de arriba: sin puerta, son prosa que se olvida. Una fila por regla, 
 
 ## 3. Cómo se lee y cómo se mantiene
 
-**Cómo se lee.** Busca la arista por su identificador (`E1`…`E60`) o por la pieza que vas a tocar en
+**Cómo se lee.** Busca la arista por su identificador (`E1`…`E62`) o por la pieza que vas a tocar en
 la columna «Invocador»/«Invocado». La columna **«Piezas que describen»** es la lista que hay que
 meter en el campo `- **Archivos**:` de la tarea que toque esa pieza: es exactamente lo que faltaba
 en el hueco E3, y lo que `planner` copia de aquí al planificar.

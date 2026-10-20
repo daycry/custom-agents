@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 9 | 10 | 90% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 12 | 15 | 80% | 0 / 45,6h | 1,18 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **53** | **58** | **91%** | **0 / 159,2h** | **9,39 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 13 | 15 | 87% | 0 / 45,6h | 1,31 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **54** | **58** | **93%** | **0 / 159,2h** | **9,52 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1823,24 +1823,32 @@ Aviso para la revisión: (1) `redact.anonimizar` (T-04) sustituye el usuario sol
 ### T-52 — Documentación de F3: observabilidad, interop, flujos y contratos
 
 - **Descripción**: `docs/observability.md` (+EN): captura de herramientas, opt-in, topes, borrado manual del directorio; `docs/INTEROP.md`: degradación por runtime con la cita de Codex; `docs/FLOWS.md` (+EN): flujo del hook asíncrono; `docs/PLUGIN-PANEL.md` (+EN): página Agentes; `docs/agents/CONTRACTS.md`: arista hook → `events.json` y panel → API de actividad.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,6h · real —
+- **Tiempo IA (ejec.)**: est. 0,6h · real 0,13h (medido)
 - **Supervisión**: est. 0,15h (≈25 % IA) · real —
 - **Previsión IA**: 274k in / 45k out tok · 4,20 €
 - **Dependencias**: T-41..T-51
 - **Tipo**: docs
-- **Archivos**: `docs/observability.md`, `docs/en/observability.md`, `docs/INTEROP.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/agents/CONTRACTS.md`
+- **Archivos**: `docs/observability.md`, `docs/en/observability.md`, `docs/INTEROP.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/agents/CONTRACTS.md`, `docs/en/INTEROP.md` (añadido: espejo EN de `docs/INTEROP.md`; regla bilingüe)
 - **Cubre (tests)**: —
 - **Verificación**: `python3 scripts/lint_plugin.py` → exit 0 (aristas nuevas con Puerta; sin citas rotas) · lectura: espejos EN y la cita de Codex con URL
 
+- **Changelog**: La documentación explica Agentes en vivo: cómo activar la captura de herramientas, qué registra y qué no, sus topes, cómo borrar el historial a mano y qué aporta cada runtime.
+
 **Criterios de aceptación**
-- [ ] Cada runtime documenta lo que emite y lo que no.
-- [ ] La guía dice cómo borrar el historial (el panel no borra).
-- [ ] ES y EN en el mismo cambio.
+- [x] Cada runtime documenta lo que emite y lo que no.
+- [x] La guía dice cómo borrar el historial (el panel no borra).
+- [x] ES y EN en el mismo cambio.
 
 **Subtareas**
-- [ ] Redactar y espejar.
+- [x] Redactar y espejar.
+
+- **Evidencia TDD**: TDD n/a: prosa (documentación de F3); la puerta es el linter (citas y Puerta de las aristas nuevas) y las suites que leen la doc.
+- **Verificación ejecutada**: `lint_plugin.py` → exit 0, «10 agentes · 0 errores · 8 avisos» (los mismos 8 avisos previos de citas `/skills` y `/health`; ninguno nuevo; E61 y E62 con Puerta y scripts existentes) · `evals/check.py` → 0 errores · suites que leen la doc (`test_cifras_medidas`, `test_codex_command_transport`, `test_coverage_check`, `test_knowledge_services`, `test_lint_plugin`, `test_panel_pages`, `test_review_jira_owner`, `test_training_data_services`, `test_usage_meter`) → 606 passed, 1 skipped · `test_graphiti_security` → 121 passed. Lectura: `docs/observability.md` + EN (sección «Agentes en vivo: captura de herramientas (opt-in)»: activar, qué registra, atribución, coste medido, topes, huecos, desactivar y **borrar a mano `.claude/agent-activity/`**; chuleta), `docs/INTEROP.md` + EN (fila «Eventos de herramienta» en la tabla de degradación por runtime y hueco con la cita https://learn.chatgpt.com/docs/hooks consultada el 2026-10-16; OpenCode V2 «no validado en un runtime real»), `docs/FLOWS.md` + EN (§6b «Captura de herramientas para Agentes en vivo», diagrama del hook asíncrono), `docs/PLUGIN-PANEL.md` + EN (sección «Agentes en vivo», APIs y actividad reciente de Inicio; fila de la tabla de páginas), `docs/agents/CONTRACTS.md` (E61 hook → `events.json`, E62 panel → API de actividad; recuento «sesenta y dos», E1–E62).
+
+Nota: `docs/agents/CONTRACTS.md` es solo ES (como el resto de `docs/agents/`).
 
 **Notas**: TDD n/a: prosa. No hay arista de actividad en CONTRACTS hoy: regla base de P3-bis (`docs/observability.md`, FLOWS).
 

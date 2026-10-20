@@ -74,7 +74,7 @@ el mismo panel de siete páginas con un menú común, en dos modos:
 | Inicio | `index.html` | Resumen y, en modo servido, progreso del ledger |
 | Iniciativas | `iniciativas.html` | Cartera de `docs/roadmap/` (estado, presupuesto); es la página de aterrizaje de `/roadmap-status` |
 | Plan | `plan.html` (índice) y `plan-<id16>.html` | Kanban de tareas por iniciativa, gráficos y burndown; en modo servido, la revisión del plan desde el panel |
-| Agentes en vivo | `agentes.html` | Señales recientes de actividad (solo servido; opt-in) |
+| Agentes en vivo | `agentes.html` | Runs, línea de tiempo y señales recientes de actividad (solo servido; opt-in) |
 | Memoria | `memoria.html` | Entradas, bandeja del curador, línea de tiempo, relaciones, backends y journal; consulta local (servido; bajo demanda) |
 | Catálogo | `catalogo.html` | Agentes, skills, comandos, tools y hooks |
 | Diagnóstico | `diagnostico.html` | Informe de doctor importado, con fecha y alcance |
@@ -240,6 +240,42 @@ ni logs de acceso; CSP con nonce, conexión al mismo origen, no-store, no-referr
 y marcos prohibidos. La capacidad no aísla frente a procesos del mismo usuario.
 Consumir una decisión de plan requiere el CLI común y el workflow autorizado.
 Publicar/reconstruir memoria conserva sus consumidores y pruebas.
+
+## Agentes en vivo (fase 3 del rediseño)
+
+Solo en servido y solo con `sesion.actividad: true` (ver [`observability.md`](observability.md),
+«Agentes en vivo»). La página `agentes.html` conserva arriba las señales recientes del snapshot vivo
+(sección siguiente) y añade, con `assets/page-agentes.js`:
+
+- **Runs de agentes**: una fila por run de las últimas 24 h, la más reciente primero: runtime, rol (o
+  «sesión»; en Codex «sesión (Codex agrupa por sesión)»), inicio, duración, última herramienta y estado. Los
+  estados son `en curso` (señal de hace menos de 60 s), `sin señal reciente` (más de 60 s; la duración se
+  congela en la última señal) y `respuesta terminada` (solo si se observó el fin del subagente). Nunca
+  «terminado» ni «muerto» inferidos.
+- **Línea de tiempo** de un run al abrirlo: por evento, hora, herramienta, resumen redactado del argumento,
+  `tarea: <slug>/T-XX` o `tarea: sin atribuir`, duración (o «sin datos») y resultado (`ok`/`error`/«sin datos»).
+  Son los últimos 150 eventos del run; si hay más, «Historial recortado a los últimos N eventos».
+- **Declaraciones permanentes**: qué aporta y qué no cada runtime (Codex no identifica el subagente en eventos
+  de herramienta; OpenCode sin duración; un adaptador sin el binding de herramientas no emite eventos), «captura
+  informativa: puede tener huecos» y «orden de recepción, no de ejecución».
+- **Captura desactivada**: «Actividad desactivada» y cómo activarla; sin historial, «Aún no hay actividad
+  registrada»; un historial dañado, «Historial no disponible (`<motivo>`)», sin nada parcial.
+
+Inicio añade **Actividad reciente** (los 10 últimos eventos: quién, runtime, herramienta, tarea y hace cuánto)
+con enlace a Agentes en vivo; en la copia exportada dice que la actividad solo existe en el panel servido.
+
+APIs (GET, misma capacidad y guardias Host/Origin que el resto, sin `?` en la ruta, ≤ 64 KiB, refresco de 5 s
+desde la página):
+
+| Ruta | Devuelve |
+|---|---|
+| `api/actividad-runs` | `runs` (con `key16`, nunca la clave completa), `recientes`, `eventos`, `recortado`, `descartados_por_tamano`; con la captura desactivada, `status: unavailable`, `reason` y `activar` |
+| `api/actividad-run-<key16>` | la línea de tiempo de un run (`eventos`, `recortado`, `recortado_historial`); `key16` desconocido o que casa con dos runs → 404 |
+
+Las dos leen `agent-activity-store.history` (sin cerrojo, sin inicializar ni reparar) y proyectan con
+`panel_data.actividad_runs`/`actividad_run`; el texto mostrado pasa por el saneador único del panel. Si el
+contenido no cabe en 64 KiB se sueltan los eventos más antiguos y se cuentan en `recortado`. `api/activity` no
+cambia. El panel nunca borra el historial: para borrarlo, borra a mano `.claude/agent-activity/`.
 
 ## Señales recientes de actividad
 
