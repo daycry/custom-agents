@@ -17,6 +17,7 @@ import types
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+# No hyphen-glued user in the corpus: CA-41 as amended in spec.md on 2026-10-20 (user decision, C-3/A-4) exempts it.
 USER = 'jdoeprivacy'
 MAIL = 'ana.lopez@example.com'
 
