@@ -108,50 +108,45 @@ def _redactar_asignaciones(texto):
     return "".join(partes)
 
 
-# Credenciales como argumento de un comando conocido (T-42 fix1 C-1, fix2 2-2/2-3): `curl -u|-U|--user|
-# --proxy-user usuario:clave` (tambien agrupadas, `-sSu`) y `mysql*`/`mariadb* -p<clave>|--password=<clave>`.
-# Se trocea como un shell (palabras con comillas; `|`, `;`, `&` y salto de linea separan comandos fuera de
-# comillas; un `&` pegado por los dos lados, como en una URL, no separa) y solo se miran las opciones que van
-# DESPUES del programa real: la palabra exacta `curl`/`mysql…` (con ruta, solo en posicion de comando).
-# Asi `cp -pr /var/lib/mysql`, `docker run -p3306:3306 mysql:8`, `docker run -u 1000:1000 img curl …`,
-# `ssh -p 22`, `mysql -p appdb` (sin clave) o `--user-agent "Foo:bar"` no se tocan. Lineal e idempotente.
-_PALABRA_RE = re.compile(r"(?:[^\s\"'|;&]+|\"(?:\\.|[^\"\\\n])*\"?|'[^'\n]*'?|(?<=[^\s|;&])&(?=[^\s|;&]))+|[|;&\n]")
-_PROGRAMA_RE = re.compile(r"(?i)(?:(?P<curl>curl)|mysql[a-z]*|mariadb(?:-[a-z]+)?)(?:\.exe)?")
-_ENVOLTORIOS = frozenset(("sudo", "doas", "env", "exec", "nohup", "time", "command", "nice"))
-_VARIABLE_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
+# Credenciales como argumento de un comando conocido (T-42 fix1 C-1, fix2 2-2/2-3, fix3 3-1): `curl -u|-U|
+# --user|--proxy-user usuario:clave` (tambien agrupadas, `-sSu`) y `mysql*`/`mariadb* -p<clave>|--password=`.
+# Se trocea como un shell: `|`, `;`, `&` y salto de linea separan comandos fuera de comillas (un `&` pegado por
+# los dos lados, como en una URL, no separa). Una credencial se tapa si el programa (`curl`, `mysql…`, por
+# nombre, con o sin ruta y en CUALQUIER posicion: tras `sudo -u x`, `--`, `timeout 10`, `xargs`, `$(`) aparece
+# ANTES en el mismo comando (las formas con `=`, en cualquier punto del comando); asi `cp -pr /var/lib/mysql`, `docker run -p3306:3306 mysql:8` o `docker run -u
+# 1000:1000 img curl …` no se tocan (el programa va despues). Una comilla solo agrupa si cierra en la misma
+# linea: la que no cierra (`can't`) es un caracter mas y no esconde nada. Lo que va entre comillas se trocea
+# ademas como comando anidado (`sh -c "…"`, `ssh host '…'`; dentro de `"…"`, `\"` vuelve a ser comilla).
+# Ante la duda, tapar de mas. Lineal (cada nivel de comillas recorre su texto una vez) e idempotente.
+_TROZO_RE = re.compile(r"[^\s\"'\\|;&]+")
+_DOBLE_CIERRE_RE = re.compile(r"(?:\\.|[^\"\\\n])*\"")
+_ESCAPE_DOBLE_RE = re.compile(r"\\([\"\\$`])")
+_PROGRAMA_RE = re.compile(r"(?i)(?<![\w.\-])(?:(?P<curl>curl)|mysql[a-z]*|mariadb(?:-[a-z]+)?)(?:\.exe)?(?![\w.\-:])")
+_VALOR_DE_OPCION = frozenset(("--name", "--hostname"))  # `docker run --name mysql -p3306:3306`: un nombre
 _CURL_SIN_ARGUMENTO = frozenset("0123456#aBfgGIijJkLlMnNOpqRsSvZ")
+_PROFUNDIDAD_MAX = 4
+
+
+def _desescapar(escape):
+    r"""`\"` -> `\x01"` y `\\` -> `\x01\x01` (mismo largo): dentro de `"…"`, lo escapado vuelve a ser texto."""
+    return "\x01" + ("\x01" if escape.group(1) == "\\" else escape.group(1))
 
 
 def _sin_comillas(palabra):
     return palabra.replace('"', "").replace("'", "")
 
 
-def _posicion_de_comando(limpias):
-    """Indice de la primera palabra que no es `VAR=valor`, un envoltorio (`sudo`, `env`...) ni opcion de este."""
-    envuelto = False
-    for k, p in enumerate(limpias):
-        if p in _ENVOLTORIOS:
-            envuelto = True
-        elif not (_VARIABLE_RE.match(p) or (envuelto and p.startswith("-"))):
-            return k
-    return len(limpias)
-
-
-def _programa(limpias, k, posicion):
-    """'curl', 'mysql' o None para la palabra k de un comando (ya sin comillas)."""
-    base = re.split(r"[\\/]", limpias[k])[-1]
-    m = _PROGRAMA_RE.fullmatch(base)
-    if m is None or not base:
+def _programa(palabra, anterior):
+    """'curl', 'mysql' o None para una palabra (sin comillas) de un comando; `anterior`, la palabra previa."""
+    m = _PROGRAMA_RE.search(palabra)
+    if m is None or ":" in palabra[2:m.start()]:
+        return None  # `/data/x:/var/lib/mysql` (volumen) o `https://h/curl` (URL) no son el programa
+    if anterior in _VALOR_DE_OPCION:
         return None
-    if base != limpias[k]:  # con ruta: solo en posicion de comando
-        if k != posicion:
-            return None
-    elif k and limpias[k - 1].startswith("--") and "=" not in limpias[k - 1]:
-        return None  # valor de una opcion larga (`--name mysql`), no el programa
     return "curl" if m.group("curl") else "mysql"
 
 
-def _tapar(texto, inicio, fin, cambios, curl):
+def _tapar(texto, inicio, fin, base, cambios, curl):
     """Tapa la clave de texto[inicio:fin] (tras el primer `:` en curl); respeta comillas e idempotencia."""
     valor = texto[inicio:fin]
     if curl:
@@ -159,67 +154,140 @@ def _tapar(texto, inicio, fin, cambios, curl):
         if dos_puntos < 0:
             return
         inicio += dos_puntos + 1
-    while inicio < fin and texto[inicio] in "\"'":
+    while inicio < fin and texto[inicio] in "\"'\x01":
         inicio += 1
     final = fin
-    while final > inicio and texto[final - 1] in "\"'":
+    while final > inicio and texto[final - 1] in "\"'\x01":
         final -= 1
     if final > inicio and not texto.startswith(REDACTADO, inicio):
-        cambios.append((inicio, final))
+        cambios.append((base + inicio, base + final))
 
 
-def _redactar_comando(texto, palabras, cambios):
+def _redactar_comando(texto, palabras, base, cambios, heredado):
+    """Redacta un comando y devuelve, por palabra, los programas vistos ANTES de ella (y todos los del comando).
+
+    Las formas cortas o separadas (`-u x:y`, `-pX`) se anclan a un programa anterior; las de `=` (`--user=`,
+    `--proxy-user=`, `--password=`), a un programa en cualquier punto del comando, como fix1. `heredado` son
+    los programas del comando que envuelve a unas comillas (`curl '-u' 'a:X'`, `mysql "-pX"`)."""
     limpias = [_sin_comillas(texto[a:b]) for a, b in palabras]
-    posicion = _posicion_de_comando(limpias)
-    k = 0
-    while k < len(palabras):
-        programa = _programa(limpias, k, posicion)
-        if programa is None:
-            k += 1
+    programas = [_programa(p, limpias[k - 1] if k else None) for k, p in enumerate(limpias)]
+    vistos, todos = heredado
+    todos = todos.union(programas)
+    antes, j = [], 0
+    while j < len(palabras):
+        a, b = palabras[j]
+        w = texto[a:b]
+        programa = programas[j]
+        antes.append(vistos)
+        j += 1
+        if programa is not None:
+            vistos = vistos | {programa}
             continue
-        j = k + 1
-        while j < len(palabras):
-            if _programa(limpias, j, posicion) is not None:
-                break  # otro programa del mismo comando (`docker exec … mysql`): lo mira la vuelta exterior
-            a, b = palabras[j]
-            w = texto[a:b]
-            if programa == "mysql":
-                if w.startswith("-p") and len(w) > 2:
-                    _tapar(texto, a + 2, b, cambios, False)
-                elif w.startswith("--password="):
-                    _tapar(texto, a + 11, b, cambios, False)
-            elif w in ("-u", "-U", "--user", "--proxy-user"):
-                if j + 1 < len(palabras):
-                    j += 1
-                    _tapar(texto, palabras[j][0], palabras[j][1], cambios, True)
-            elif w.startswith(("--user=", "--proxy-user=")):
-                _tapar(texto, a + w.index("=") + 1, b, cambios, True)
-            elif w.startswith("-") and not w.startswith("--"):
-                for i in range(1, len(w)):
-                    if w[i] in "uU":
-                        if i + 1 < len(w):
-                            _tapar(texto, a + i + 1, b, cambios, True)
-                        elif j + 1 < len(palabras):
-                            j += 1
-                            _tapar(texto, palabras[j][0], palabras[j][1], cambios, True)
-                        break
-                    if w[i] not in _CURL_SIN_ARGUMENTO:
-                        break
-            j += 1
-        k = j
+        q = len(w) - len(w.lstrip("\"'\x01"))  # `"-pX"`: la opcion entre comillas tambien cuenta
+        a, w = a + q, w[q:]
+        if w.startswith("--password=") and "mysql" in todos:
+            _tapar(texto, a + 11, b, base, cambios, False)
+        elif w.startswith(("--user=", "--proxy-user=")) and "curl" in todos:
+            _tapar(texto, a + w.index("=") + 1, b, base, cambios, True)
+        if "mysql" in vistos and w.startswith("-p") and len(w.rstrip("\"'\x01")) > 2:
+            _tapar(texto, a + 2, b, base, cambios, False)
+        if "curl" not in vistos:
+            continue
+        if limpias[j - 1] in ("-u", "-U", "--user", "--proxy-user"):
+            if j < len(palabras):  # el valor se mira tambien como palabra: `-u -pX` tras curl y mysql
+                _tapar(texto, palabras[j][0], palabras[j][1], base, cambios, True)
+        elif w.startswith("-") and not w.startswith("--"):
+            for i in range(1, len(w)):
+                if w[i] in "uU":
+                    if i + 1 < len(w.rstrip("\"'\x01")):
+                        _tapar(texto, a + i + 1, b, base, cambios, True)
+                    elif j < len(palabras):
+                        _tapar(texto, palabras[j][0], palabras[j][1], base, cambios, True)
+                    break
+                if w[i] not in _CURL_SIN_ARGUMENTO:
+                    break
+    antes.append(vistos)
+    return antes, todos
+
+
+def _trocear(texto, base, profundidad, cambios, heredado=(frozenset(), frozenset())):
+    """Trocea `texto` en comandos y redacta cada uno; el contenido de cada comilla cerrada, tambien, como
+    comando anidado que hereda los programas que su comando tenia antes de esa palabra."""
+    palabras, pendientes, anidados, inicio, i, n = [], [], [], None, 0, len(texto)
+    fin_linea, sin_cierre = -1, {"'": -1, '"': -1}
+
+    def cerrar_comando():
+        antes, todos = _redactar_comando(texto, palabras, base, cambios, heredado)
+        anidados.extend((a, b, c, (antes[k], todos)) for a, b, c, k in pendientes)
+        palabras.clear()
+        pendientes.clear()
+
+    while i < n:
+        m = _TROZO_RE.match(texto, i)
+        if m is not None:
+            inicio = i if inicio is None else inicio
+            i = m.end()
+            continue
+        c = texto[i]
+        if c == "\\":
+            salto = 2 if texto.startswith("\n", i + 1) else 3 if texto.startswith("\r\n", i + 1) else 0
+            if salto:  # continuacion de linea: separa palabras, no comandos
+                if inicio is not None:
+                    palabras.append((inicio, i))
+                    inicio = None
+                i += salto
+                continue
+            inicio = i if inicio is None else inicio
+            i += 2
+            continue
+        if c in "\"'":
+            inicio = i if inicio is None else inicio
+            if i >= fin_linea:
+                fin_linea = texto.find("\n", i)
+                fin_linea = n if fin_linea < 0 else fin_linea
+            cierre = -1
+            if i >= sin_cierre[c]:
+                if c == "'":
+                    cierre = texto.find("'", i + 1, fin_linea)
+                else:
+                    d = _DOBLE_CIERRE_RE.match(texto, i + 1, fin_linea)
+                    cierre = d.end() - 1 if d else -1
+                if cierre < 0:
+                    sin_cierre[c] = fin_linea  # ninguna comilla de este tipo cierra ya en esta linea
+            if cierre < 0:
+                i += 1  # una comilla que no cierra es un caracter mas
+            else:
+                if cierre > i + 1 and profundidad < _PROFUNDIDAD_MAX:
+                    pendientes.append((i + 1, cierre, c, len(palabras)))
+                i = cierre + 1
+            continue
+        if c == "&" and inicio is not None and i + 1 < n and not (texto[i + 1].isspace() or texto[i + 1] in "|;&"):
+            i += 1  # `&` pegado por los dos lados (`?a=1&b=2`): parte de la palabra
+            continue
+        if inicio is not None:
+            palabras.append((inicio, i))
+            inicio = None
+        if c in "|;&\n":
+            cerrar_comando()
+        i += 1
+    if inicio is not None:
+        palabras.append((inicio, n))
+    cerrar_comando()
+    for a, b, c, contexto in anidados:
+        interior = texto[a:b]
+        if c == '"':  # mismo largo: `\"` -> `\x01"`, para que la comilla escapada vuelva a agrupar
+            interior = _ESCAPE_DOBLE_RE.sub(_desescapar, interior)
+        _trocear(interior, base + a, profundidad + 1, cambios, contexto)
 
 
 def _redactar_argumentos(texto):
-    cambios, palabras = [], []
-    for m in _PALABRA_RE.finditer(texto):
-        if m.group() in ("|", ";", "&", "\n"):
-            _redactar_comando(texto, palabras, cambios)
-            palabras = []
-        else:
-            palabras.append(m.span())
-    _redactar_comando(texto, palabras, cambios)
+    cambios = []
+    _trocear(texto, 0, 0, cambios)
     partes, cursor = [], 0
-    for inicio, fin in cambios:
+    for inicio, fin in sorted(cambios):
+        if inicio < cursor:  # solapa con lo ya tapado (comando y comando anidado): una sola marca
+            cursor = max(cursor, fin)
+            continue
         partes.extend((texto[cursor:inicio], REDACTADO))
         cursor = fin
     partes.append(texto[cursor:])

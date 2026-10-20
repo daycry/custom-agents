@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 17 | 17 | 100% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 10 | 10 | 100% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 12 | 15 | 80% | 0 / 45,6h | 5,41 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **55** | **58** | **95%** | **0 / 159,2h** | **13,62 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 13 | 15 | 87% | 0 / 45,6h | 6,38 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **56** | **58** | **97%** | **0 / 159,2h** | **14,59 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1500,14 +1500,14 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 ### T-42 — Resumen redactado por lista blanca y `Authorization: Basic` en el redactor
 
 - **Descripción**: Resumen del argumento por herramienta en lista blanca (`design.md` §2.4 I-07: 1.ª línea del comando, rutas relativas, patrón + ruta, host, tipo de subagente, nombre de skill, «—» para MCP y desconocidas), en el orden fijo redactar → anonimizar → quitar controles → recortar a 160. Amplía `_SECRETOS_RE` con `Authorization: Basic …` en el canónico y en su copia declarada.
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 3,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,6h · real 2,14h (medido: fix1 1,17h, ventana común con los 8 gaps de fix1 + fix2 0,97h)
+- **Tiempo IA (ejec.)**: est. 0,6h · real 3,11h (medido: fix1 1,17h, ventana común con los 8 gaps de fix1 + fix2 0,97h + fix3 0,97h)
 - **Supervisión**: est. 0,15h (≈25 % IA) · real —
 - **Previsión IA**: 274k in / 45k out tok · 4,20 €
 - **Dependencias**: T-41
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/agent-activity-store.py`, `agent-kits/shared/redact.py`, `agent-kits/shared/journal.py`, `agent-kits/shared/test_redact.py`, `tests/test_agent_activity_store.py`, `tests/test_copias_declaradas.py`
+- **Archivos**: `agent-kits/shared/agent-activity-store.py`, `agent-kits/shared/redact.py`, `agent-kits/shared/journal.py`, `agent-kits/shared/test_redact.py`, `tests/test_agent_activity_store.py`, `tests/test_copias_declaradas.py`, `tests/test_redact_fix3.py` (añadido fix3)
 - **Cubre (tests)**: E2E-18
 - **Verificación**: `python3 -m pytest -q agent-kits/shared/test_redact.py tests/test_agent_activity_store.py tests/test_copias_declaradas.py` → `passed` (corpus de secretos de `redact.py` + `Authorization: Basic`: ningún secreto en el resumen persistido ni mostrado)
 
@@ -1523,14 +1523,17 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - [x] RED con el corpus.
 - [x] Lista blanca y orden fijo; ampliar `_SECRETOS_RE` en los dos sitios.
 
-- **Evidencia TDD**: RED: test_agent_activity_store.py (≈120 casos de resumen) falló con AttributeError: sin `summarize`; test_redact.py `test_authorization_basic_*` (6) falló con la cabecera sin redactar · 2026-10-16 (antes del código). fix1 (C-1) RED: test_redact.py::test_c1_clave_sensible_tras_prefijo… (5), ::test_c1_curl_usuario_y_clave… (6), ::test_c1_mysql_clave_pegada… (3) y ::test_c1_idem_en_el_respaldo_de_journal fallaron con el secreto intacto (`DB_PASSWORD=Hunter2xyz! psql -h db` sin cambios); test_agent_activity_store.py::test_c1_prefixed_and_argument_secrets… falló con el secreto en events.json · 2026-10-20 (antes del código). fix2 RED: test_2_2_credenciales_de_curl_y_mysql_se_redactan, 13 de 19 con el secreto en claro (`-su`/`-sSu`, `-U`/`--proxy-user`, `-u` tras URL con `&`, comillas con espacio, `-u` tras `docker run -u … img curl`); test_2_3_rutas_imagenes…, 4 de 20 redactados de más (`cp -pr /var/lib/mysql`, `mkdir -pv /etc/mysql/…`, `docker run -p3306:3306 mysql:8`, `docker run -u 1000:1000 img curl`) · 2026-10-20 (antes del código)
+- **Evidencia TDD**: RED: test_agent_activity_store.py (≈120 casos de resumen) falló con AttributeError: sin `summarize`; test_redact.py `test_authorization_basic_*` (6) falló con la cabecera sin redactar · 2026-10-16 (antes del código). fix1 (C-1) RED: test_redact.py::test_c1_clave_sensible_tras_prefijo… (5), ::test_c1_curl_usuario_y_clave… (6), ::test_c1_mysql_clave_pegada… (3) y ::test_c1_idem_en_el_respaldo_de_journal fallaron con el secreto intacto (`DB_PASSWORD=Hunter2xyz! psql -h db` sin cambios); test_agent_activity_store.py::test_c1_prefixed_and_argument_secrets… falló con el secreto en events.json · 2026-10-20 (antes del código). fix2 RED: test_2_2_credenciales_de_curl_y_mysql_se_redactan, 13 de 19 con el secreto en claro (`-su`/`-sSu`, `-U`/`--proxy-user`, `-u` tras URL con `&`, comillas con espacio, `-u` tras `docker run -u … img curl`); test_2_3_rutas_imagenes…, 4 de 20 redactados de más (`cp -pr /var/lib/mysql`, `mkdir -pv /etc/mysql/…`, `docker run -p3306:3306 mysql:8`, `docker run -u 1000:1000 img curl`) · 2026-10-20 (antes del código). fix3 (3-1) RED sobre `4142ad0`: `tests/test_redact_fix3.py` 374 failed (corpus 342 de 542 en claro, sonda 12 de 23, causas 15 de 17, comillas 5 de 7) · 2026-10-20 (antes del código)
 - **Verificación ejecutada**: `pytest agent-kits/shared/test_redact.py tests/test_agent_activity_store.py tests/test_copias_declaradas.py` → 204 passed, 1 skipped (corpus de secretos + Authorization: Basic; bloque replicado de journal.py idéntico).
   - fix1 (C-1): `pytest agent-kits/shared/test_redact.py tests/test_copias_declaradas.py` → 118 passed (bloque replicado idéntico; casos lineales nuevos < 1,5 s) · `pytest agent-kits/shared/test_journal.py` → 192 passed, 10 skipped · `test_agent_activity_store.py` (con el resto de fix1) → verde · usuarios de `redactar` (training-data, receipts, curación, plan-review, privacidad) → verdes salvo 6 rojos de MAX_PATH de Windows ajenos (`test_case_recorder …gap87…`, `test_propose_from_case …long_gold…` ×5: `FileNotFoundError` en rutas > 260).
   - fix2 (2-2, 2-3): `pytest agent-kits/shared/test_redact.py tests/test_copias_declaradas.py` → 159 passed (bloque replicado idéntico; 360 KB patológicos < 0,3 s) · usuarios de `redactar` (journal, journal_selection, knowledge_view, plan_review*, work_resume, doctor, case_recorder, propose_from_case, backend_markdown_read) → 1451 passed, 21 skipped, 8 failed preexistentes de MAX_PATH (los 6 de fix1 + 2 `test_doctor …long_absolute_path…`, rojos también sin el cambio; `test_knowledge_curation` igual) · `pytest tests/test_agent_activity_store.py tests/test_graphiti_security.py` → 360 passed, 1 skipped.
+  - fix3 (3-1): `test_redact_fix3.py` + `test_redact.py` + copias → 779 passed (corpus 542/542, sonda 23/23, 2-3 limpios 20/20, 2-2 19/19) · corpus de 565 frente a `96ae4f7`: fix1 tapa 336, HEAD 211, fix3 565, 0 perdidos · perf ≤ 0,75 s hasta 1 MB · journal 192, almacén 239, graphiti 121 passed.
 
 Decisión fix1 (C-1): sin `\b` a la izquierda en `_ASIGNACION_RE` (el final se mantiene: `my_token_count=`/`tokens=` no casan); `curl -u|--user usuario:clave` y `mysql*/mariadb* -p<clave>` solo dentro del mismo comando (segmento hasta `\n|;&`), así `sort -u`, `mkdir -p`, `ssh -p2222` o `docker -u 1000:1000` no se tocan; idempotente; `es_clave_sensible` no cambia.
 
 Decisión fix2 (2-2, 2-3): troceado tipo shell (palabras con comillas; `|;&`/salto separan fuera de comillas; `&` pegado por ambos lados no separa) y solo opciones DESPUÉS del programa real: palabra exacta `curl`/`mysql*`/`mariadb*`; con ruta, solo en posición de comando (tras `VAR=`, `sudo`/`env`…); sin ruta, no si es valor de una opción larga (`--name mysql`). curl: `-u`/`-U`/`--user`/`--proxy-user` (separado, `=`, pegado o agrupado tras banderas sin argumento), solo lo que sigue al primer `:`. mysql: `-p<clave>` y `--password=`. Respeta comillas; lineal e idempotente.
+
+Decisión fix3 (3-1): programa (`curl`/`mysql…`, con o sin ruta, en cualquier posición) ANTES en el comando; formas `=`, en cualquier punto (fix1). Comilla sin cierre en la línea = carácter; el interior de cada comilla se trocea como comando anidado con los programas previos. Residuo (fuzz de 20.000: 158 que fix1 tapaba): forma corta antes del programa (clase 2-3) y `\ ` pegado. Falso positivo aceptado: `docker run --user=1000:1000 img curl`.
 
 **Notas**: `_SECRETOS_RE` en `agent-kits/shared/redact.py:35`; copia declarada en `agent-kits/shared/copias.json:297-310` (canónico `redact.py`, respaldo `journal.py`). Precedente de 160 caracteres en `skills/plugin-panel/scripts/serve_panel.py:139`. Lente C. `anonimizar` ya existía (T-04). El host de WebFetch se extrae por regex, sin `urllib` (la puerta de red de test_graphiti_security lo marca). Un PEM sin cierre se tapa entero antes de recortar.
 
@@ -2071,6 +2074,8 @@ Sin hallazgos en el resto:
 - **Ledger:** 2-3 dice «4 de 20» en rojo y en la base fallaban 5; se queda corto, no promete de más.
 
 Siguen abiertos: la deuda que aceptó el usuario (A-1, C-3/A-4) y el backlog (A-5, B3, D4).
+
+**Decisión del usuario (2026-10-20): seguir con un fix3 acotado y una confirmación dirigida.** 3-1 (T-42) y 3-2 (T-43) se corrigen en fix3; después, una revisión de confirmación con las lentes B+C mira solo ese diff y no abre más rondas: si encuentra algo, vuelve a decidir el usuario. 3-3 pasa al backlog y se corrige la cifra de 23 ms. Aprueba también las esperas de `design.md` §2.5, que escribe el architect: eventos de herramienta 1 s de cerrojo y 1,3 s de plazo, ciclo de vida 100 ms y 1 s, MCP de Codex un intento sin espera.
 
 ## Historial archivado
 
