@@ -190,6 +190,49 @@ test('malformed Windows job confirmation is rejected before forwarding diagnosti
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+// panel-redesign T-46 (design O5, CA-20, I-05): without the opt-in no Python process starts. The spy is a
+// copied bundle whose agent-activity-store.py only writes a marker into the project root; with the
+// opt-in it must appear (positive control), without it it never does. A payload larger than any pipe
+// buffer must not make the launcher fail when it exits early.
+function activityBundle(dir) {
+  const bundle = join(dir, 'plugin');
+  cpSync(join(root, 'hooks'), join(bundle, 'hooks'), { recursive: true });
+  mkdirSync(join(bundle, 'agent-kits', 'shared'), { recursive: true });
+  writeFileSync(join(bundle, 'agent-kits', 'shared', 'agent-activity-store.py'),
+    "import sys, pathlib\nargs = sys.argv\npathlib.Path(args[args.index('--root') + 1], 'python-spawned').write_text('1')\n");
+  return join(bundle, 'hooks', 'run-hook.mjs');
+}
+
+function runActivity(launcher, project, input) {
+  return spawnSync(process.execPath, [launcher, 'agent-activity'], {
+    cwd: project, input, encoding: 'utf8', timeout: 15000,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: project, CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python' },
+  });
+}
+
+test('agent-activity without the opt-in never launches Python; with it, it does', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'custom-agents-activity-optin-'));
+  try {
+    const launcher = activityBundle(dir);
+    const payload = JSON.stringify({ hook_event_name: 'PostToolUse', tool_name: 'Read', tool_input: { file_path: 'a.md' },
+      tool_response: { content: 'x'.repeat(3 * 1024 * 1024) } });
+    const cases = [['absent', null], ['disabled', '{"sesion": {"actividad": false}}'], ['invalid', '{"sesion": '],
+      ['oversized', '{"sesion": {"actividad": true}, "pad": "' + 'x'.repeat(70000) + '"}'], ['enabled', '{"sesion": {"actividad": true}}']];
+    for (const [name, config] of cases) {
+      const project = join(dir, name);
+      mkdirSync(join(project, '.claude'), { recursive: true });
+      if (config !== null) writeFileSync(join(project, '.claude', 'dev.json'), config);
+      // The positive control uses a small payload: past 2 MiB the store stops reading (T-43), which is not this test.
+      const result = runActivity(launcher, project, name === 'enabled' ? JSON.stringify({ hook_event_name: 'PostToolUse' }) : payload);
+      assert.equal(result.error, undefined, `${name}: ${result.error}`);
+      assert.equal(result.status, 0, `${name}: ${result.stderr}`);
+      assert.equal(result.stdout, '', name);
+      assert.equal(result.stderr, '', name);
+      assert.equal(existsSync(join(project, 'python-spawned')), name === 'enabled', name);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('unknown hook is never executed', () => {
   const result = invoke('../../install/install.mjs', {}, root);
   assert.equal(result.status, 0);

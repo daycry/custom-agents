@@ -50,3 +50,60 @@ test('hook budget: run-hook.mjs takes its child budget from the shared function'
   const src = readFileSync(new URL('../hooks/run-hook.mjs', import.meta.url), 'utf8')
   assert.match(src, /childBudgetMs\(hook, runtime, process\.env\)/)
 })
+
+// panel-redesign T-46 (design O5): for agent-activity, Node reads .claude/dev.json (≤ 64 KiB) and
+// returns before launching Python unless `sesion.actividad === true`. The block is evaluated from
+// the launcher source like child-budget, with the real node:fs.
+import * as fs from 'node:fs'
+import {mkdtempSync, rmSync, writeFileSync, mkdirSync} from 'node:fs'
+import {tmpdir} from 'node:os'
+import {join} from 'node:path'
+const optin = launcher.match(/\/\/ activity-optin:start[\s\S]*?\/\/ activity-optin:end/)
+const activityEnabled = optin && new Function('fs', `${optin[0]}\nreturn activityEnabled`)(fs)
+
+function withConfig(content, check) {
+  const dir = mkdtempSync(join(tmpdir(), 'custom-agents-optin-'))
+  try {
+    const path = join(dir, 'dev.json')
+    if (content === 'directory') mkdirSync(path)
+    else if (content !== undefined) writeFileSync(path, content)
+    check(path)
+  } finally { rmSync(dir, {recursive: true, force: true}) }
+}
+
+test('activity opt-in: the shortcut block exists in the launcher', () => {
+  assert.ok(optin, 'activity-optin block not found in hooks/run-hook.mjs')
+})
+
+test('activity opt-in: only sesion.actividad === true enables the capture', () => {
+  withConfig('{"sesion": {"actividad": true}}', path => assert.equal(activityEnabled(path), true))
+  withConfig('﻿{"sesion": {"actividad": true}}', path => assert.equal(activityEnabled(path), true))
+  for (const value of ['false', '"true"', '1', 'null', '{}', '[]']) {
+    withConfig(`{"sesion": {"actividad": ${value}}}`, path => assert.equal(activityEnabled(path), false, value))
+  }
+  for (const value of ['{}', '[]', '{"sesion": []}', '{"sesion": true}', '{"actividad": true}']) {
+    withConfig(value, path => assert.equal(activityEnabled(path), false, value))
+  }
+})
+
+test('activity opt-in: absent, unreadable, invalid or oversized dev.json means disabled', () => {
+  withConfig(undefined, path => assert.equal(activityEnabled(path), false))
+  withConfig('directory', path => assert.equal(activityEnabled(path), false))
+  withConfig('{"sesion": {"actividad": true', path => assert.equal(activityEnabled(path), false))
+  withConfig(Buffer.from([0xff, 0xfe, 0x00]), path => assert.equal(activityEnabled(path), false))
+  const head = '{"sesion": {"actividad": true}, "pad": "'
+  const exact = head + 'x'.repeat(65536 - head.length - 2) + '"}'
+  assert.equal(Buffer.byteLength(exact), 65536)
+  withConfig(exact, path => assert.equal(activityEnabled(path), true))
+  const over = head + 'x'.repeat(65537 - head.length - 2) + '"}'
+  withConfig(over, path => assert.equal(activityEnabled(path), false))
+})
+
+test('activity opt-in: the launcher checks it before discovering or spawning Python', () => {
+  const src = launcher.replaceAll('\r\n', '\n')
+  const main = src.slice(src.indexOf('async function main()'))
+  const check = main.indexOf('activityEnabled(')
+  assert.ok(check > 0, 'main must call activityEnabled')
+  assert.ok(check < main.indexOf('const py = python();'), 'opt-in check must precede Python discovery')
+  assert.ok(check < main.indexOf('spawn('), 'opt-in check must precede any spawn')
+})

@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 9 | 10 | 90% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 6 | 15 | 40% | 0 / 45,6h | 0,58 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **47** | **58** | **81%** | **0 / 159,2h** | **8,79 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 7 | 15 | 47% | 0 / 45,6h | 0,69 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **48** | **58** | **83%** | **0 / 159,2h** | **8,90 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1626,9 +1626,10 @@ Decisión: un grupo es «de actividad» solo si TODOS sus hooks son el launcher 
 ### T-46 — Atajo del launcher: sin opt-in no se lanza Python
 
 - **Descripción**: En `hooks/run-hook.mjs`, para `agent-activity`, Node lee `.claude/dev.json` (≤ 64 KiB, `node:fs`) y sale con 0 antes de lanzar Python si `sesion.actividad !== true`. Nueva huella del launcher tras revisión.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 2,4h · real —
-- **Tiempo IA (ejec.)**: est. 0,6h · real —
+- **Tiempo IA (ejec.)**: est. 0,6h · real 0,11h (medido; los tests se redactaron dentro de la ventana de T-45)
 - **Supervisión**: est. 0,15h (≈25 % IA) · real —
 - **Previsión IA**: 274k in / 45k out tok · 4,20 €
 - **Dependencias**: T-45
@@ -1637,15 +1638,23 @@ Decisión: un grupo es «de actividad» solo si TODOS sus hooks son el launcher 
 - **Cubre (tests)**: E2E-19
 - **Verificación**: `node --test tests/hook-budget.test.mjs tests/hook-runtime.test.mjs` → `pass` · `python3 -m pytest -q tests/test_graphiti_security.py` → `passed` (nuevo `_LAUNCHER_NODE_HASH`; solo `child_process`, `fs`, `path`, `url`)
 
+- **Changelog**: Sin `sesion.actividad: true`, el hook de actividad ya no arranca Python: sale en unos 80 ms en lugar de cerca de un segundo.
+
 **Criterios de aceptación**
-- [ ] Con la captura desactivada, el hook no lanza ningún proceso Python (test que espía `spawn`).
-- [ ] `dev.json` ausente, ilegible, > 64 KiB o con JSON inválido → sale con 0 sin Python.
-- [ ] I-05: latencia síncrona añadida 0 ms en Claude y Codex (`async`), medida y anotada; excepción documentada: MCP en Codex.
-- [ ] Exit 0 siempre (ADR-007); sin red.
+- [x] Con la captura desactivada, el hook no lanza ningún proceso Python (test que espía `spawn`).
+- [x] `dev.json` ausente, ilegible, > 64 KiB o con JSON inválido → sale con 0 sin Python.
+- [x] I-05: latencia síncrona añadida 0 ms en Claude y Codex (`async`), medida y anotada; excepción documentada: MCP en Codex.
+- [x] Exit 0 siempre (ADR-007); sin red.
 
 **Subtareas**
-- [ ] RED en `hook-budget.test.mjs`.
-- [ ] Bloque aislado del atajo; huella revisada.
+- [x] RED en `hook-budget.test.mjs`.
+- [x] Bloque aislado del atajo; huella revisada.
+
+- **Evidencia TDD**: RED: hook-budget.test.mjs «activity opt-in: …» (4 casos) falló con «activity-optin block not found» / TypeError: activityEnabled is not a function / «main must call activityEnabled»; hook-runtime.test.mjs «agent-activity without the opt-in never launches Python…» falló con «absent: Error: spawnSync … EOF» (el launcher lanzaba el hijo y le pasaba la entrada) · 2026-10-20 (antes del código)
+- **Verificación ejecutada**: `node --test tests/hook-budget.test.mjs tests/hook-runtime.test.mjs` → tests 30 · pass 30 · fail 0 · `pytest tests/test_graphiti_security.py tests/test_hook_launcher_security.py tests/test_hook_supervisor.py` → 143 passed (huella nueva `f86f0a1e…2599`; imports del launcher: `child_process`, `fs`, `path`, `url`) · `node --test tests/hook-post-preflight.test.mjs tests/hook-guard-delivery.test.mjs tests/session-end-budget.test.mjs` → 127 pass, 0 fail · `export-interop.py --check` → 88 al día · `lint_plugin.py` → 0 errores · `evals/check.py` → 0 errores.
+- **Medición I-05** (`run-hook.mjs agent-activity` real, 12 ejecuciones, Windows, mismo método que T-40): captura desactivada p50 78 ms / p90 97 ms (antes 1.018 / 1.085 ms: ya no arranca Python); captura activa p50 393 ms / p90 420 ms. Los dos corren con `async: true` (T-45): la latencia síncrona añadida a la herramienta es 0 ms en Claude Code y Codex; la excepción son las herramientas MCP de Codex, que el runtime ejecuta siempre en síncrono (con un único intento sin espera, P-EI-3, T-44).
+
+Revisión de la huella: el diff del launcher solo añade el bloque `activity-optin` (lee `dev.json` con `openSync`/`fstatSync`/`readSync`/`closeSync` de `node:fs`, ≤ 64 KiB + 1 byte, `TextDecoder` estricto, `JSON.parse`, `sesion.actividad === true`) y su llamada antes de buscar Python; sin red, sin procesos nuevos, sin escritura. Con la captura desactivada se drena stdin (una entrada grande nunca choca con una tubería cerrada) y se sale con 0, como mucho a 1 s.
 
 **Notas**: presupuesto por hook en `hooks/run-hook.mjs:24-31` (`childBudgetMs`); hooks conocidos en `:36-38`. Huella en `tests/test_graphiti_security.py:122` y módulos admitidos en `:787`. Lente C.
 

@@ -119,7 +119,7 @@ _BOOTSTRAP_NODE_HASHES = {
 }
 # The scanner admits exactly the audited launcher, not arbitrary JavaScript.
 # Normalize only line endings; a code change must update this fingerprint after review.
-_LAUNCHER_NODE_HASH = "caf8e7cde0c9c1ddb58034dbc334fc8a4a7fdc2f9fef8307999997ca3135afe6"
+_LAUNCHER_NODE_HASH = "f86f0a1e529c1a15cfaa3071630c36cc3ab8d82f067a4c6eb62cd365f3b02599"
 _EXT_RE = "|".join(_EXT_ESCANEABLES + _EXT_NO_ESCANEABLES)
 # Gap #155 (Important, fix1 Fase 4): el lookahead final quita los falsos positivos del escaneo de
 # CODIGO (`hashlib.sha256` casaba como `hashlib.sh`). Hace falta porque a partir de este fix una

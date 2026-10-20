@@ -1,6 +1,6 @@
 // Shared launcher for Claude Code, Codex and OpenCode. No shell interprets the payload.
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { closeSync, existsSync, fstatSync, openSync, readSync } from 'node:fs';
 import { dirname, delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -31,6 +31,33 @@ function childBudgetMs(hook, runtime, env) {
 }
 // child-budget:end
 
+// activity-optin:start — agent-activity shortcut (panel-redesign T-46, design O5). Without
+// `sesion.actividad === true` in .claude/dev.json no Python process is started. The store checks
+// the opt-in again (defence in depth, CA-20). Absent, unreadable, non-regular, larger than 64 KiB
+// or invalid JSON means disabled. tests/hook-budget.test.mjs evaluates this block with node:fs.
+const ACTIVITY_CONFIG_MAX = 65536;
+
+function activityEnabled(path) {
+  let fd;
+  try {
+    fd = fs.openSync(path, 'r');
+    const info = fs.fstatSync(fd);
+    if (!info.isFile() || info.size > ACTIVITY_CONFIG_MAX) return false;
+    const buffer = Buffer.alloc(ACTIVITY_CONFIG_MAX + 1);
+    let size = 0, read;
+    while (size < buffer.length && (read = fs.readSync(fd, buffer, size, buffer.length - size, size)) > 0) size += read;
+    if (size > ACTIVITY_CONFIG_MAX) return false;
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, size)); // drops a leading BOM
+    const config = JSON.parse(text);
+    if (!config || typeof config !== 'object' || Array.isArray(config)) return false;
+    const session = config.sesion;
+    return !!session && typeof session === 'object' && !Array.isArray(session) && session.actividad === true;
+  } catch { return false; }
+  finally { if (fd !== undefined) try { fs.closeSync(fd); } catch { /* already closed */ } }
+}
+// activity-optin:end
+
+const fs = { closeSync, fstatSync, openSync, readSync };
 const here = dirname(fileURLToPath(import.meta.url));
 const root = dirname(here);
 const known = new Set(['session-journal.sh', 'user-prompt-capture.sh', 'session-context.sh',
@@ -132,6 +159,13 @@ async function main() {
   if (!known.has(hook)) { warn('unknown hook'); return; }
   if (!['--runtime=claude', '--runtime=codex', '--runtime=opencode'].includes(runtime)) {
     warn('unknown runtime'); return;
+  }
+  if (activity && !activityEnabled(join(env.CLAUDE_PROJECT_DIR || process.cwd(), '.claude', 'dev.json'))) {
+    // Drain the payload so a large one never meets a closed pipe; the runtime closes stdin after writing.
+    process.stdin.on('error', () => {});
+    process.stdin.resume();
+    setTimeout(() => process.exit(0), 1000).unref();
+    return;
   }
   const post = ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh'].includes(hook);
   let input;
