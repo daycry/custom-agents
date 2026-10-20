@@ -353,3 +353,16 @@ def test_http_routes_exact_and_guarded(running_history):
     assert raw_request(running_history, suffix='api/actividad-runs', headers=[('Host', 'outside.invalid')])[0] == 403
     assert raw_request(running_history, method='POST', suffix='api/actividad-runs')[0] == 405
     assert len(running_history[1]) == calls  # rejected requests never read the history
+
+
+# ---- panel-redesign T-48 fix1 (D1): the projector module is loaded once per request, not per event ----
+@pytest.mark.parametrize('route', ['runs', 'run'])
+def test_d1_history_validation_loads_agent_activity_once_per_request(service, tmp_path, monkeypatch, route):
+    events = [event_row(A, n) for n in range(1, 501)]
+    install_history(service, monkeypatch, history([run_row(A)], events))
+    patched, loads = service._load_shared, []
+    monkeypatch.setattr(service, '_load_shared', lambda name: (loads.append(name), patched(name))[1])
+    server = service.create_server(tmp_path, DATA)
+    body = server.actividad_runs() if route == 'runs' else server.actividad_run(A[:16])
+    assert json.loads(body)['status'] == 'ok'
+    assert loads.count('agent-activity.py') <= 1, loads.count('agent-activity.py')

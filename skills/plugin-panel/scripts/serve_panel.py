@@ -559,8 +559,8 @@ def _unavailable_history(reason, key16=None):
     return body
 
 
-def _valid_history_event(row):
-    roles = _load_shared('agent-activity.py').ROLES
+def _valid_history_event(row, roles):
+    """`roles` is loaded once per request by the caller (T-48 fix1, D1): never one module load per event."""
     return (type(row) is dict and set(row) == _HISTORY_EVENT_KEYS and row['runtime'] in ('claude', 'codex', 'opencode')
             and type(row['run_key']) is str and _HEX64.fullmatch(row['run_key']) is not None
             and (row['role'] is None or row['role'] in roles)
@@ -586,8 +586,13 @@ def activity_history(project):
             else 'invalid_history'
     if (value['status'] != 'ok' or value['reason'] is not None or type(value['runs']) is not list
             or type(value['events']) is not list or len(value['events']) > 500 or len(value['runs']) > 64
-            or not _count(value['recortado']) or not _count(value['descartados_por_tamano'])
-            or not all(_valid_history_event(row) for row in value['events'])):
+            or not _count(value['recortado']) or not _count(value['descartados_por_tamano'])):
+        return None, 'invalid_history'
+    try:
+        roles = _load_shared('agent-activity.py').ROLES
+    except Exception:
+        return None, 'reader_unavailable'
+    if not all(_valid_history_event(row, roles) for row in value['events']):
         return None, 'invalid_history'
     return value, None
 
