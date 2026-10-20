@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 17 | 17 | 100% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 10 | 10 | 100% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 14 | 15 | 93% | 0 / 45,6h | 2,28 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **57** | **58** | **98%** | **0 / 159,2h** | **10,49 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 9 | 15 | 60% | 0 / 45,6h | 2,28 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **52** | **58** | **90%** | **0 / 159,2h** | **10,49 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1498,8 +1498,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 ### T-42 — Resumen redactado por lista blanca y `Authorization: Basic` en el redactor
 
 - **Descripción**: Resumen del argumento por herramienta en lista blanca (`design.md` §2.4 I-07: 1.ª línea del comando, rutas relativas, patrón + ruta, host, tipo de subagente, nombre de skill, «—» para MCP y desconocidas), en el orden fijo redactar → anonimizar → quitar controles → recortar a 160. Amplía `_SECRETOS_RE` con `Authorization: Basic …` en el canónico y en su copia declarada.
-- **Estado**: completado
-- **Cerrada**: 2026-10-16
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 3,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,6h · real —
 - **Supervisión**: est. 0,15h (≈25 % IA) · real —
@@ -1530,8 +1529,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 ### T-43 — Almacén `events.json`: anillo acotado, CAS, retención y opt-out sin escritura
 
 - **Descripción**: `agent-activity-store.py` añade `events.json` al directorio propio (inventario de 4 a 5 nombres + `.lock`): `runs` (≤ 64), `ventanas` (≤ 64) y `events` (anillo 500 / 256 KiB / 24 h), reemplazo atómico con CAS como `snapshot.json`, `recortado`, `descartados_por_tamano` sin identidad y tope de entrada de 2 MiB solo en memoria. Sin `sesion.actividad: true` no escribe nada.
-- **Estado**: completado
-- **Cerrada**: 2026-10-16
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 4,2h · real —
 - **Tiempo IA (ejec.)**: est. 1,0h · real —
 - **Supervisión**: est. 0,25h (≈25 % IA) · real —
@@ -1699,8 +1697,7 @@ Decisiones: (1) binding propio `tool-activity` en el catálogo (dominio `tool`, 
 ### T-48 — API `api/actividad-runs` y `api/actividad-run-<key16>`
 
 - **Descripción**: Dos rutas nuevas: la lista de runs y la línea de tiempo de un run (≤ 150 últimos eventos, con `recortado`), ambas ≤ 64 KiB y redactadas. `api/activity` no cambia.
-- **Estado**: completado
-- **Cerrada**: 2026-10-20
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 2,4h · real —
 - **Tiempo IA (ejec.)**: est. 0,5h · real 0,17h (medido)
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
@@ -1764,8 +1761,7 @@ Decisiones: `page-agentes.js` solo en servido (`LIVE_ASSET_FILES` y `LIVE_SCRIPT
 ### T-50 — Inicio: actividad reciente
 
 - **Descripción**: En servido, Inicio muestra los últimos eventos de actividad (agente, rol, herramienta, tarea si la hay, hace cuánto) con enlace a Agentes en vivo; con la captura desactivada, «actividad desactivada» y cómo activarla.
-- **Estado**: completado
-- **Cerrada**: 2026-10-20
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 1,2h · real —
 - **Tiempo IA (ejec.)**: est. 0,2h · real 0,03h (medido)
 - **Supervisión**: est. 0,05h (≈25 % IA) · real —
@@ -1861,8 +1857,7 @@ Nota: `docs/agents/CONTRACTS.md` es solo ES (como el resto de `docs/agents/`).
 ### T-53 — Cierre transversal (C-05): multi-runtime, evals, interop, tamaño de skills y réplica Linux
 
 - **Descripción**: Comprueba que las 7 páginas se generan desde Claude Code, Codex y OpenCode; que `SKILL.md` de `plugin-panel` y `roadmap-dashboard` caben en 200 líneas; que `evals/` casa con las `description` reales; que `interop/` está al día; y replica `ci.yml` en un contenedor Linux antes del push. Deja el campo `- **Changelog**:` en las tareas con cambio visible; los CHANGELOG los escribe `changelog-sync` en la Fase 6 de `/dev-cycle`.
-- **Estado**: completado
-- **Cerrada**: 2026-10-20
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 9,6h · real —
 - **Tiempo IA (ejec.)**: est. 1,2h · real 0,97h (medido; incluye la espera de la réplica Linux, 13 min de pytest)
 - **Supervisión**: est. 0,3h (≈25 % IA) · real —
@@ -1900,7 +1895,7 @@ Nota: `docs/agents/CONTRACTS.md` es solo ES (como el resto de `docs/agents/`).
 ### T-54 — Cierre de la Fase 3: revisión de dos lentes con Lente C obligatoria y revisión visual del usuario (M-04)
 
 - **Descripción**: Puerta final: suites de CA-44, linter y evals; revisión adversarial de dos lentes **más la Lente C de seguridad obligatoria** sobre todo el diff de la fase (hooks, almacén, redactor, launcher, servidor); bucle acotado a 3 con Minor al backlog; el usuario revisa Agentes en vivo y el panel completo en el navegador (M-04).
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 2,4h · real —
 - **Tiempo IA (ejec.)**: est. 15,0h · real — (revisión + corrección: f = 2,0 de C-03 + f = 0,5 de C-05)
 - **Supervisión**: est. 4,75h (≈25 % IA + 1h de revisión manual) · real —
@@ -2029,6 +2024,29 @@ Confirmación de fix1 sobre `01a1adc..469db9a` (2026-10-16), un revisor `reviewe
 | F4-13 | Minor | «Actualizar» con la caché vencida devuelve la versión vieja sin reintentar | T-30 | deuda (backlog F3) | `serve_panel.py:676-684`; `page-memoria.js:530-532` |
 
 **Revisión visual del usuario — Fase 4: aprobada 2026-10-20** (M-03, panel servido en `3ca861b`): Memoria, Catálogo y Diagnóstico aprobados sin hallazgos.
+
+## Revisión de dos lentes — intento 1: Fase 3 (T-40..T-53) — 7 Important, 7 Minor, 0 Critical (lentes: A+C, B+D)
+
+Diff `8fc3eb3..3ca861b` (2026-10-20), dos revisores `reviewer` (opus) en paralelo. C **forzada** por la condición 4 de la evaluación (además `review-lens-select` la activó: `private-key` en `agent-activity-store.py:493`, `authorization-header` en `journal.py:279` y `redact.py:47`); D activada por `await-en-bucle` en `hooks/opencode-plugin.js:301,303` (falso positivo: `tool-activity` es síncrona y `post` ya se esperaba). Puerta previa: `scope-check --base 14ef84b` → exit 0, 0 fuera de alcance. `export-interop.py --check` → «88 ficheros al día». Gaps reproducidos por los revisores y, los Important, comprobados por el orquestador (`redact` con `DB_PASSWORD=` sin redactar; `retry=` sin uso en el store; `_load_shared` sin caché; sección «phase 3» del CHANGELOG con T-41..T-44 solo). A-2 y D3 eran el mismo gap: fusionados.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| C-1 | Important | El resumen de Bash/PowerShell se guarda y se sirve **sin redactar** con secretos en variable con prefijo (`DB_PASSWORD=`, `API_TOKEN=`, `AWS_SECRET_ACCESS_KEY=`, `PGPASSWORD=`), `curl -u user:pass` y `mysql -p…`: `_ASIGNACION_RE` exige `\b` y `_` es carácter de palabra. Fallo anterior a la fase, pero la F3 lo lleva a `events.json`, `api/actividad-run-*` y Agentes en vivo (CA-17) | T-42 | pendiente (fix1): `_ASIGNACION_RE` casa la clave sensible también tras `_`/prefijo, `-u user:pass` y `-p<secreto>`; el bloque replicado de `journal.py` igual (T-42 exige copia idéntica) | `redact.py:39`; `agent-activity-store.py:530-531,570`; sonda: `DB_PASSWORD=Hunter2xyz! psql -h db` sale igual en events.json y `api/actividad-run-<key16>`; CWE-532/312 |
+| A-2 | Important | P-EI-3 (decisión del usuario 2026-10-16) a medias: `nowait` quita la espera del cerrojo, pero `_publish_events` no pasa `retry=False` y `os.replace` reintenta hasta 4 veces (≈140 ms síncronos en Codex MCP en Windows); docstring y ledger dicen lo contrario; sin test | T-43 | pendiente (fix1): `retry=False` con `nowait` + test del intento único | `agent-activity-store.py:296` frente a `:631`; `local-state.py:53-55,75`; `design.md:398` (= D3 de la Lente D) |
+| D2 | Important | El cerrojo se tiene ≈85-135 ms por escritura (revalida los 500 eventos carácter a carácter) y la espera es 100 ms: con herramientas en paralelo se pierde la mayoría de los eventos (8 hooks a la vez → 3 escritos, 5 perdidos, con anillo vacío o lleno); si cae un `usage-meter.py start`, lo siguiente queda «sin atribuir» | T-43 | pendiente (fix1): no revalidar el anillo entero dentro del cerrojo (validar lo nuevo; lo leído ya validado por firma) y/o espera ≥ tiempo de retención medido; test de ráfaga | `agent-activity-store.py:243-256,635-640`; `local-state.py:99`; bench: p50 128-136 ms con anillo lleno; cProfile `_validate_events` 124 de 264 ms |
+| D1 | Important | `_valid_history_event` recarga `agent-activity.py` (`exec_module` sin caché) por CADA evento: 500 por petición, ≈180-190 ms; servidor de un hilo con Inicio + Agentes sondeando cada 5 s → ≈0,2 s de bloqueo por petición al resto de rutas | T-48 | pendiente (fix1): cargar `ROLES` una vez por petición (o por proceso) | `serve_panel.py:37-45,563`; bench: `500 _load_shared ms 185.0` |
+| B1 | Important | «Actividad reciente» de Inicio deja de refrescarse para siempre tras ocultar la pestaña una vez: `leer()` solo se reprograma si `!document.hidden` y no hay escucha de `visibilitychange` (sí la hay en `page-agentes.js:232`, `panel-live.js:84`) | T-50 | pendiente (fix1): escucha de `visibilitychange` que reanuda el sondeo + test | `page-inicio.js:212-229`; arnés de `test_panel_inicio_ui.py`: tras volver, 1 pedido y 0 temporizadores pendientes |
+| A-3 | Important | Los bullets de T-45..T-52 no están en ningún CHANGELOG y no llegarán solos: la sección ya lleva el slug y `changelog-sync` descarta todo slug presente | T-53 | pendiente (fix1): bullets EN/ES de T-45..T-52 a mano en la sección «phase 3 (live agents)», desde su campo `Changelog` | `changelog-sync.py:12,824`; `CHANGELOG.md` «phase 3»: 3 bullets (T-41..T-44); el ledger lo advirtió en la F1 |
+| A-1 | Important | T-49: `page-agentes.js` se escribió antes que su test y se **restauró** tras el rojo, no se reescribió; constitución §1 y ley dura de `tdd` («el código anterior al rojo se borra»). El rojo es un único `FileNotFoundError` para 18 casos | T-49 | **pendiente: decisión del usuario** (reescribir tras el rojo por assert, o aceptar como deuda con verificación por mutación, como el gap 6 de la F1) | `tasks.md` T-49 (nota transparente); `docs/CONSTITUTION.md` §1; `skills/tdd/SKILL.md` |
+| C-2 | Minor | Regex con retroceso superlineal en el resumen de `apply_patch` (`(.+?)\s*$` con racha de espacios): 40 KB → 14,8 s de CPU en segundo plano; el launcher corta a 2 s y se pierde el evento | T-44 | pendiente (fix1, mismo fichero) | `agent-activity-store.py:492`; 5k/10k/20k/40k → 0,095/0,42/1,54/14,8 s; CWE-1333 |
+| B2 | Minor | OpenCode: `tool-activity` no se despacha «primero» (comentario) sino tras los `post` esperados en serie (≈1,8 s en Windows, hasta 60 s): `observed_at` llega tarde y el run puede salir «sin señal reciente» | T-47 | pendiente (fix1, orden del registro) | `hooks/opencode-plugin.js:291-304`; orden del catálogo l.17/l.19 |
+| C-3 | Minor | El hueco de `anonimizar` (usuario unido por guion: `notas-jdoe.txt`, `ssh jdoe-laptop`) llega ahora a texto libre de eventos, `api/actividad-run-*` y Agentes en vivo; queda en la máquina (el exportado no lleva eventos) | T-42 | **decisión del usuario** junto a A-4 | `redact.py:205`; `agent-activity-store.py:575`; CWE-359 |
+| A-4 | Minor | CA-41 no tiene excepciones y el test de privacidad usa un corpus que esquiva el caso conocido; lo decidió el implementer sin aceptación | T-51 | **decisión del usuario** junto a C-3 | `tests/test_panel_privacy.py:4-5,20`; `spec.md:230` |
+| A-5 | Minor | E3: el Catálogo describe `agent-activity` como «Observaciones de sesión opt-in» y ahora captura cada herramienta | T-51/T-52 | backlog (cambiarlo mueve más el golden; CA-28) | `build_panel.py:212`; golden: 4 registros nuevos con ese texto |
+| B3 | Minor | Un evento de herramienta con `cwd` en un subdirectorio del proyecto (tras `cd src`, o un worktree) se descarta como `project_mismatch` | T-44 | backlog (verificar qué `cwd` manda Claude Code tras un `cd` antes de cambiar la regla, que también rige `SubagentStart`/`Stop`) | `agent-activity-store.py:440`; sonda: `cwd=root/src` → `project_mismatch` |
+| D4 | Minor | OpenCode con la captura apagada (el defecto) lanza igualmente un `node` + `session.get` por herramienta (≈80 ms de CPU cada uno, en segundo plano) | T-47 | backlog | `hooks/opencode-plugin.js:239-254` |
+
+Sin hallazgos en el resto: páginas solo con `textContent`; rutas nuevas tras `_allowed()` y capacidad `hmac.compare_digest`; `key16` por regex exacta y prefijo ambiguo → 404; JSON estricto; symlinks y `nlink>1` rechazados; opt-in comprobado en Node y en Python; binding `tool-activity` opcional justificado (solo él puede faltar, `test_opencode_optional_binding_never_replaces_a_required_one`); golden de T-51 cambia solo en las altas y los dos contadores; ningún test relajado. **T-48 «sin token → 403»: Verificación mal redactada, no gap** (el 404 sin capacidad ya existía en `8fc3eb3`; copia el literal de CA-34, que diverge del servidor desde la F1 → `/spec-drift`). Fragilidad de `test_plan_review_summary.py` bajo carga: ningún cambio de la fase la explica (plazos absolutos de 0,3-0,4 s en el propio test). Fuera de lente, anotado: el hueco de `_ASIGNACION_RE` afecta también al journal versionado (lo cubre la corrección de C-1); `_clean_temps` borra `.tmp-*` regulares de > 60 s sin probar autoría (P-EI-1 aceptada por el usuario).
 
 ## Historial archivado
 
