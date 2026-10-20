@@ -9,6 +9,7 @@ import importlib.util
 import os
 from pathlib import Path
 import subprocess
+import time
 import sys
 import pytest
 
@@ -599,3 +600,62 @@ def test_c1_idem_en_el_respaldo_de_journal():
     exec(compile(source[start:end], 'journal_backup_c1', 'exec'), namespace)
     for texto in ("DB_PASSWORD=Hunter2xyz! psql", "curl -u admin:S3cretPw! https://x.test", "mysql -pS3cretPw1 db"):
         assert namespace['redactar'](texto) == redact.redactar(texto) != texto, texto
+
+
+# ---- panel-redesign T-42 fix2 (2-2 fugas, 2-3 falsos positivos): argumentos anclados al programa real -----
+@pytest.mark.parametrize("texto,secreto,conserva", [
+    ("curl -su admin:S3cretPw1 https://x.test", "S3cretPw1", "admin:"),
+    ("curl -sSu admin:S3cretPw1 https://x.test", "S3cretPw1", "admin:"),
+    ("curl -sSuadmin:S3cretPw1 https://x.test", "S3cretPw1", "admin:"),
+    ("curl -U proxy:Pr0xyPw https://x.test", "Pr0xyPw", "proxy:"),
+    ("curl --proxy-user proxy:Pr0xyPw https://x.test", "Pr0xyPw", "proxy:"),
+    ("curl --proxy-user=proxy:Pr0xyPw https://x.test", "Pr0xyPw", "proxy:"),
+    ('curl "https://api.x.test/v1/items?page=1&limit=5" -u admin:S3cretPw!', "S3cretPw!", "admin:"),
+    ("curl 'https://x.test/a?b=1&c=2' -u admin:S3cretPw!", "S3cretPw!", "admin:"),
+    ('curl -u "admin:pw 2xyz" https://x.test', "2xyz", "admin:"),
+    ("curl -u 'admin:pw 2xyz' https://x.test", "2xyz", "admin:"),
+    ('mysql -p"S3cret Pw1" appdb', "Pw1", "mysql -p"),
+    ("mysql -p'S3cret Pw1' appdb", "Pw1", "mysql -p"),
+    ("mysql --password=S3cretPw appdb", "S3cretPw", "--password="),
+    ("/usr/bin/mysql -uroot -pS3cretPw1 appdb", "S3cretPw1", "-uroot"),
+    ("sudo mysql -pS3cretPw1 appdb", "S3cretPw1", "sudo mysql"),
+    (r"C:\tools\curl.exe -u admin:S3cretPw1 x", "S3cretPw1", "admin:"),
+    ("sudo -E /usr/bin/mysql -pS3cretPw1", "S3cretPw1", "-E"),
+    ("docker exec -it db mysql -uroot -pS3cretPw1", "S3cretPw1", "docker exec"),
+    ("docker run -u 1000:1000 img curl -u admin:S3cretPw1 https://x.test", "S3cretPw1", "-u 1000:1000"),
+])
+def test_2_2_credenciales_de_curl_y_mysql_se_redactan(texto, secreto, conserva):
+    salida = redact.redactar(texto)
+    assert secreto not in salida and redact.REDACTADO in salida and conserva in salida, salida
+    assert redact.redactar(salida) == salida  # idempotente
+
+
+@pytest.mark.parametrize("limpio", [
+    "cp -pr /var/lib/mysql /backup", "mkdir -pv /etc/mysql/conf.d", "docker run -p3306:3306 mysql:8",
+    "docker run -u 1000:1000 img curl https://x.test", "ssh -p 22 host", "git log -p", "mkdir -p out",
+    "pytest -p no:cacheprovider tests", "mysql -p appdb", "curl --user-agent \"Foo:bar\" https://x.test",
+    "curl -A 'Foo:bar' https://x.test", "max_tokens=12345678a", "ls /opt/curl -u", "tar -cpf a.tar /srv/mysql",
+    "curl -u admin https://x.test", "rsync -pu a:b c", "curl -o out:file https://x.test",
+    "docker run --name mysql -p3306:3306 mysql:8", "service mysql restart", "cat /etc/mysql -p",
+])
+def test_2_3_rutas_imagenes_y_opciones_ajenas_no_se_tocan(limpio):
+    assert redact.redactar(limpio) == limpio
+
+
+def test_2_2_lineal_con_muchas_comillas_y_operadores():
+    for texto in (('curl "a&b" -u x:y ' * 2000) + ("'" * 5000) + ('&|;' * 5000), 'curl -u x:y ' * 30000,
+                  'mysql ' * 60000, '/a/mysql ' * 40000, 'sudo -x ' * 45000 + '/a/mysql -pX'):
+        started = time.perf_counter()  # cuadratico antes de precalcular la posicion de comando: ~18 s
+        salida = redact.redactar(texto)
+        assert time.perf_counter() - started < 1.5 and "x:y" not in salida and "-pX" not in salida
+
+
+def test_2_2_idem_en_el_respaldo_de_journal():
+    import re
+    source = Path(HERE, 'journal.py').read_text(encoding='utf8')
+    start = source.index('# --8<-- redact (redactar + constantes)')
+    end = source.index('# --8<-- fin redact (redactar + constantes)', start)
+    namespace = {'re': re}
+    exec(compile(source[start:end], 'journal_backup_fix2', 'exec'), namespace)
+    for texto in ("curl -sSu admin:S3cretPw1 x", 'mysql -p"S3cret Pw1" db', "cp -pr /var/lib/mysql /b"):
+        assert namespace['redactar'](texto) == redact.redactar(texto), texto

@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 17 | 17 | 100% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 10 | 10 | 100% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 13 | 15 | 87% | 0 / 45,6h | 4,44 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **56** | **58** | **97%** | **0 / 159,2h** | **12,65 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 14 | 15 | 93% | 0 / 45,6h | 5,41 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **57** | **58** | **98%** | **0 / 159,2h** | **13,62 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1500,9 +1500,9 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 ### T-42 — Resumen redactado por lista blanca y `Authorization: Basic` en el redactor
 
 - **Descripción**: Resumen del argumento por herramienta en lista blanca (`design.md` §2.4 I-07: 1.ª línea del comando, rutas relativas, patrón + ruta, host, tipo de subagente, nombre de skill, «—» para MCP y desconocidas), en el orden fijo redactar → anonimizar → quitar controles → recortar a 160. Amplía `_SECRETOS_RE` con `Authorization: Basic …` en el canónico y en su copia declarada.
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 3,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,6h · real 1,17h (medido: fix1, ventana común con el código y los RED de los 8 gaps de fix1)
+- **Tiempo IA (ejec.)**: est. 0,6h · real 2,14h (medido: fix1 1,17h, ventana común con los 8 gaps de fix1 + fix2 0,97h)
 - **Supervisión**: est. 0,15h (≈25 % IA) · real —
 - **Previsión IA**: 274k in / 45k out tok · 4,20 €
 - **Dependencias**: T-41
@@ -1511,6 +1511,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Cubre (tests)**: E2E-18
 - **Verificación**: `python3 -m pytest -q agent-kits/shared/test_redact.py tests/test_agent_activity_store.py tests/test_copias_declaradas.py` → `passed` (corpus de secretos de `redact.py` + `Authorization: Basic`: ningún secreto en el resumen persistido ni mostrado)
 
+- **Cerrada**: 2026-10-20
 - **Changelog**: Los resúmenes de herramientas del panel y el redactor ocultan también las cabeceras «Authorization: Basic …», y nunca muestran rutas absolutas, usuario ni correos.
 
 **Criterios de aceptación**
@@ -1523,11 +1524,14 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - [x] RED con el corpus.
 - [x] Lista blanca y orden fijo; ampliar `_SECRETOS_RE` en los dos sitios.
 
-- **Evidencia TDD**: RED: test_agent_activity_store.py (≈120 casos de resumen) falló con AttributeError: sin `summarize`; test_redact.py `test_authorization_basic_*` (6) falló con la cabecera sin redactar · 2026-10-16 (antes del código). fix1 (C-1) RED: test_redact.py::test_c1_clave_sensible_tras_prefijo… (5), ::test_c1_curl_usuario_y_clave… (6), ::test_c1_mysql_clave_pegada… (3) y ::test_c1_idem_en_el_respaldo_de_journal fallaron con el secreto intacto (`DB_PASSWORD=Hunter2xyz! psql -h db` sin cambios); test_agent_activity_store.py::test_c1_prefixed_and_argument_secrets… falló con el secreto en events.json · 2026-10-20 (antes del código)
+- **Evidencia TDD**: RED: test_agent_activity_store.py (≈120 casos de resumen) falló con AttributeError: sin `summarize`; test_redact.py `test_authorization_basic_*` (6) falló con la cabecera sin redactar · 2026-10-16 (antes del código). fix1 (C-1) RED: test_redact.py::test_c1_clave_sensible_tras_prefijo… (5), ::test_c1_curl_usuario_y_clave… (6), ::test_c1_mysql_clave_pegada… (3) y ::test_c1_idem_en_el_respaldo_de_journal fallaron con el secreto intacto (`DB_PASSWORD=Hunter2xyz! psql -h db` sin cambios); test_agent_activity_store.py::test_c1_prefixed_and_argument_secrets… falló con el secreto en events.json · 2026-10-20 (antes del código). fix2 RED: test_2_2_credenciales_de_curl_y_mysql_se_redactan, 13 de 19 con el secreto en claro (`-su`/`-sSu`, `-U`/`--proxy-user`, `-u` tras URL con `&`, comillas con espacio, `-u` tras `docker run -u … img curl`); test_2_3_rutas_imagenes…, 4 de 20 redactados de más (`cp -pr /var/lib/mysql`, `mkdir -pv /etc/mysql/…`, `docker run -p3306:3306 mysql:8`, `docker run -u 1000:1000 img curl`) · 2026-10-20 (antes del código)
 - **Verificación ejecutada**: `pytest agent-kits/shared/test_redact.py tests/test_agent_activity_store.py tests/test_copias_declaradas.py` → 204 passed, 1 skipped (corpus de secretos + Authorization: Basic; bloque replicado de journal.py idéntico).
   - fix1 (C-1): `pytest agent-kits/shared/test_redact.py tests/test_copias_declaradas.py` → 118 passed (bloque replicado idéntico; casos lineales nuevos < 1,5 s) · `pytest agent-kits/shared/test_journal.py` → 192 passed, 10 skipped · `test_agent_activity_store.py` (con el resto de fix1) → verde · usuarios de `redactar` (training-data, receipts, curación, plan-review, privacidad) → verdes salvo 6 rojos de MAX_PATH de Windows ajenos (`test_case_recorder …gap87…`, `test_propose_from_case …long_gold…` ×5: `FileNotFoundError` en rutas > 260).
+  - fix2 (2-2, 2-3): `pytest agent-kits/shared/test_redact.py tests/test_copias_declaradas.py` → 159 passed (bloque replicado idéntico; 360 KB patológicos < 0,3 s) · usuarios de `redactar` (journal, journal_selection, knowledge_view, plan_review*, work_resume, doctor, case_recorder, propose_from_case, backend_markdown_read) → 1451 passed, 21 skipped, 8 failed preexistentes de MAX_PATH (los 6 de fix1 + 2 `test_doctor …long_absolute_path…`, rojos también sin el cambio; `test_knowledge_curation` igual) · `pytest tests/test_agent_activity_store.py tests/test_graphiti_security.py` → 360 passed, 1 skipped.
 
 Decisión fix1 (C-1): sin `\b` a la izquierda en `_ASIGNACION_RE` (el final se mantiene: `my_token_count=`/`tokens=` no casan); `curl -u|--user usuario:clave` y `mysql*/mariadb* -p<clave>` solo dentro del mismo comando (segmento hasta `\n|;&`), así `sort -u`, `mkdir -p`, `ssh -p2222` o `docker -u 1000:1000` no se tocan; idempotente; `es_clave_sensible` no cambia.
+
+Decisión fix2 (2-2, 2-3): troceado tipo shell (palabras con comillas; `|;&`/salto separan fuera de comillas; `&` pegado por ambos lados no separa) y solo opciones DESPUÉS del programa real: palabra exacta `curl`/`mysql*`/`mariadb*`; con ruta, solo en posición de comando (tras `VAR=`, `sudo`/`env`…); sin ruta, no si es valor de una opción larga (`--name mysql`). curl: `-u`/`-U`/`--user`/`--proxy-user` (separado, `=`, pegado o agrupado tras banderas sin argumento), solo lo que sigue al primer `:`. mysql: `-p<clave>` y `--password=`. Respeta comillas; lineal e idempotente.
 
 **Notas**: `_SECRETOS_RE` en `agent-kits/shared/redact.py:35`; copia declarada en `agent-kits/shared/copias.json:297-310` (canónico `redact.py`, respaldo `journal.py`). Precedente de 160 caracteres en `skills/plugin-panel/scripts/serve_panel.py:139`. Lente C. `anonimizar` ya existía (T-04). El host de WebFetch se extrae por regex, sin `urllib` (la puerta de red de test_graphiti_security lo marca). Un PEM sin cierre se tapa entero antes de recortar.
 
@@ -2055,8 +2059,8 @@ Diff `8b98065..8fbb61e` (fix1, 2026-10-20), dos revisores `reviewer` (opus) en p
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
 | 2-1 | Important | Regresión de fix1: las señales de ciclo de vida (`SubagentStart`/`SubagentStop`, espera de 100 ms) pierden el cerrojo frente a una ráfaga de herramientas, que ahora espera 1 s y reintenta cada 5 ms. La pérdida pasa a los eventos que definen los runs: un `SubagentStop` perdido deja el run «en curso» hasta 60 s (A2-1 = B-4) | T-43 | corregido (fix2): prioridad al ciclo de vida (byte 1 de `.lock`) y anillo leído antes del cerrojo; esperas sin cambio · RED 8 de 8 `state_busy` · GREEN 8 de 8 (×9, con carga) | `agent-activity-store.py:37,658` frente a `:704`; anillo lleno, 8 herramientas y `SubagentStart` a 250 ms: perdido en 2 de 5 (orquestador), 4 de 9 (A) y 2 de 3 (B); con la espera de herramienta a 0,1 s, 0 de 5 |
-| 2-2 | Important | C-1 incompleta: siguen en claro `curl -su`/`-sSu user:pass` (opciones agrupadas), `curl -U` y `--proxy-user`, un `-u` tras una URL con `&` (el comando se corta en `&` y ese trozo ya no lleva `curl`) y los secretos entre comillas con espacio (`mysql -p"S3cret Pw1"` → `-p"[secreto redactado] Pw1"`). Es C2-1 + B-5 (CWE-532) | T-42 | pendiente (fix2) | `redact.py:115-121`; `journal.py:347`; reproducido por el orquestador |
-| 2-3 | Minor | Redacta de más cuando `mysql` o `curl` aparecen como ruta o imagen en el mismo trozo: `cp -pr /var/lib/mysql /backup` → `cp -p[secreto redactado]…`; también `mkdir -pv /etc/mysql/conf.d`, `docker run -p3306:3306 mysql:8` y `docker run -u 1000:1000 img curl …` | T-42 | pendiente (fix2, mismo código que 2-2) | `redact.py:118-121` (igual en `journal.py`) |
+| 2-2 | Important | C-1 incompleta: siguen en claro `curl -su`/`-sSu user:pass` (opciones agrupadas), `curl -U` y `--proxy-user`, un `-u` tras una URL con `&` (el comando se corta en `&` y ese trozo ya no lleva `curl`) y los secretos entre comillas con espacio (`mysql -p"S3cret Pw1"` → `-p"[secreto redactado] Pw1"`). Es C2-1 + B-5 (CWE-532) | T-42 | corregido (fix2): troceado tipo shell con comillas y opciones solo tras el programa real (curl `-u/-U/--user/--proxy-user`, también agrupadas; mysql `-p`/`--password=`) · RED 13 de 19 fugas · GREEN 19 de 19 | `redact.py:115-121`; `journal.py:347`; reproducido por el orquestador |
+| 2-3 | Minor | Redacta de más cuando `mysql` o `curl` aparecen como ruta o imagen en el mismo trozo: `cp -pr /var/lib/mysql /backup` → `cp -p[secreto redactado]…`; también `mkdir -pv /etc/mysql/conf.d`, `docker run -p3306:3306 mysql:8` y `docker run -u 1000:1000 img curl …` | T-42 | corregido (fix2, con 2-2): `curl`/`mysql` solo como programa (con ruta, en posición de comando) · RED 4 de 20 falsos positivos · GREEN 20 de 20 | `redact.py:118-121` (igual en `journal.py`) |
 | 2-4 | Minor | `test_d2_burst…` no tiene margen: 1 s ≈ 7 retenciones de p90, justo lo que necesita el 8.º escritor, y con carga pierde 1 de 8 (3 de 6 en el arnés de B). Además, el «0 de 8 perdidos» solo vale hasta ≈ 8: con 16 herramientas en paralelo y el anillo lleno se pierden 4 de 16 (25 %); no es regresión | T-43 | corregido (fix2): retención p90 84 → 37 ms; afirmación del ledger acotada a lo medido (8 → 0, 12 → 0-2, 16 → 1-5 perdidos) · GREEN 8 de 8 con 6 procesos de CPU al 100 % (×4) | `tests/test_agent_activity_store.py:1349`; `agent-activity-store.py:37-38,658` |
 
 Sin hallazgos en el resto. B1 no tiene carreras: un pedido en vuelo, un solo temporizador, y Cartera tiene su propio listener. En B2, `tool-activity` es síncrona y no lanza excepciones. D1 tarda 0,04 s por petición con 500 eventos. Los arneses de test quedan más estrictos, no más laxos. La redacción no tiene regresiones frente a la base: es idempotente y lineal (360 KB en 0,17 s). No quedan cerrojos huérfanos. El DOM solo recibe texto por `textContent`. Los CHANGELOG son espejo EN/ES.

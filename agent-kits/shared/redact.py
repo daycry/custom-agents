@@ -108,28 +108,122 @@ def _redactar_asignaciones(texto):
     return "".join(partes)
 
 
-# Credenciales como argumento de un comando conocido (T-42 fix1, C-1): `curl -u usuario:clave` y
-# `mysql -p<clave>`. Solo dentro del MISMO comando (segmento hasta salto de linea, `|`, `;` o `&`) en
-# el que aparece ese programa, para no tocar `sort -u`, `mkdir -p`, `ssh -p2222` ni `docker -u 1000:1000`.
-# Lineal: cada segmento se recorre una vez por patron; lo ya redactado no se vuelve a redactar.
-_SEGMENTO_RE = re.compile(r"[^\n|;&]+")
-_YA_REDACTADO = r"(?!" + re.escape(REDACTADO) + r")"
-_CREDENCIAL_ARG_RE = (
-    (re.compile(r"(?i)(?<![\w.\-])curl(?:\.exe)?(?![\w.\-])"),
-     re.compile(r"(?P<pre>(?<!\S)(?:-u|--user)(?:\s+|=)?[\"']?[^\s:\"']*:)" + _YA_REDACTADO + r"(?P<sec>[^\s\"']+)")),
-    (re.compile(r"(?i)(?<![\w.\-])(?:mysql[a-z]*|mariadb(?:-[a-z]+)?)(?:\.exe)?(?![\w.\-])"),
-     re.compile(r"(?P<pre>(?<!\S)-p[\"']?)" + _YA_REDACTADO + r"(?P<sec>[^\s\"']+)")),
-)
+# Credenciales como argumento de un comando conocido (T-42 fix1 C-1, fix2 2-2/2-3): `curl -u|-U|--user|
+# --proxy-user usuario:clave` (tambien agrupadas, `-sSu`) y `mysql*`/`mariadb* -p<clave>|--password=<clave>`.
+# Se trocea como un shell (palabras con comillas; `|`, `;`, `&` y salto de linea separan comandos fuera de
+# comillas; un `&` pegado por los dos lados, como en una URL, no separa) y solo se miran las opciones que van
+# DESPUES del programa real: la palabra exacta `curl`/`mysql…` (con ruta, solo en posicion de comando).
+# Asi `cp -pr /var/lib/mysql`, `docker run -p3306:3306 mysql:8`, `docker run -u 1000:1000 img curl …`,
+# `ssh -p 22`, `mysql -p appdb` (sin clave) o `--user-agent "Foo:bar"` no se tocan. Lineal e idempotente.
+_PALABRA_RE = re.compile(r"(?:[^\s\"'|;&]+|\"(?:\\.|[^\"\\\n])*\"?|'[^'\n]*'?|(?<=[^\s|;&])&(?=[^\s|;&]))+|[|;&\n]")
+_PROGRAMA_RE = re.compile(r"(?i)(?:(?P<curl>curl)|mysql[a-z]*|mariadb(?:-[a-z]+)?)(?:\.exe)?")
+_ENVOLTORIOS = frozenset(("sudo", "doas", "env", "exec", "nohup", "time", "command", "nice"))
+_VARIABLE_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
+_CURL_SIN_ARGUMENTO = frozenset("0123456#aBfgGIijJkLlMnNOpqRsSvZ")
+
+
+def _sin_comillas(palabra):
+    return palabra.replace('"', "").replace("'", "")
+
+
+def _posicion_de_comando(limpias):
+    """Indice de la primera palabra que no es `VAR=valor`, un envoltorio (`sudo`, `env`...) ni opcion de este."""
+    envuelto = False
+    for k, p in enumerate(limpias):
+        if p in _ENVOLTORIOS:
+            envuelto = True
+        elif not (_VARIABLE_RE.match(p) or (envuelto and p.startswith("-"))):
+            return k
+    return len(limpias)
+
+
+def _programa(limpias, k, posicion):
+    """'curl', 'mysql' o None para la palabra k de un comando (ya sin comillas)."""
+    base = re.split(r"[\\/]", limpias[k])[-1]
+    m = _PROGRAMA_RE.fullmatch(base)
+    if m is None or not base:
+        return None
+    if base != limpias[k]:  # con ruta: solo en posicion de comando
+        if k != posicion:
+            return None
+    elif k and limpias[k - 1].startswith("--") and "=" not in limpias[k - 1]:
+        return None  # valor de una opcion larga (`--name mysql`), no el programa
+    return "curl" if m.group("curl") else "mysql"
+
+
+def _tapar(texto, inicio, fin, cambios, curl):
+    """Tapa la clave de texto[inicio:fin] (tras el primer `:` en curl); respeta comillas e idempotencia."""
+    valor = texto[inicio:fin]
+    if curl:
+        dos_puntos = valor.find(":")
+        if dos_puntos < 0:
+            return
+        inicio += dos_puntos + 1
+    while inicio < fin and texto[inicio] in "\"'":
+        inicio += 1
+    final = fin
+    while final > inicio and texto[final - 1] in "\"'":
+        final -= 1
+    if final > inicio and not texto.startswith(REDACTADO, inicio):
+        cambios.append((inicio, final))
+
+
+def _redactar_comando(texto, palabras, cambios):
+    limpias = [_sin_comillas(texto[a:b]) for a, b in palabras]
+    posicion = _posicion_de_comando(limpias)
+    k = 0
+    while k < len(palabras):
+        programa = _programa(limpias, k, posicion)
+        if programa is None:
+            k += 1
+            continue
+        j = k + 1
+        while j < len(palabras):
+            if _programa(limpias, j, posicion) is not None:
+                break  # otro programa del mismo comando (`docker exec … mysql`): lo mira la vuelta exterior
+            a, b = palabras[j]
+            w = texto[a:b]
+            if programa == "mysql":
+                if w.startswith("-p") and len(w) > 2:
+                    _tapar(texto, a + 2, b, cambios, False)
+                elif w.startswith("--password="):
+                    _tapar(texto, a + 11, b, cambios, False)
+            elif w in ("-u", "-U", "--user", "--proxy-user"):
+                if j + 1 < len(palabras):
+                    j += 1
+                    _tapar(texto, palabras[j][0], palabras[j][1], cambios, True)
+            elif w.startswith(("--user=", "--proxy-user=")):
+                _tapar(texto, a + w.index("=") + 1, b, cambios, True)
+            elif w.startswith("-") and not w.startswith("--"):
+                for i in range(1, len(w)):
+                    if w[i] in "uU":
+                        if i + 1 < len(w):
+                            _tapar(texto, a + i + 1, b, cambios, True)
+                        elif j + 1 < len(palabras):
+                            j += 1
+                            _tapar(texto, palabras[j][0], palabras[j][1], cambios, True)
+                        break
+                    if w[i] not in _CURL_SIN_ARGUMENTO:
+                        break
+            j += 1
+        k = j
 
 
 def _redactar_argumentos(texto):
-    def segmento(m):
-        trozo = m.group()
-        for programa, credencial in _CREDENCIAL_ARG_RE:
-            if programa.search(trozo):
-                trozo = credencial.sub(lambda c: c.group("pre") + REDACTADO, trozo)
-        return trozo
-    return _SEGMENTO_RE.sub(segmento, texto)
+    cambios, palabras = [], []
+    for m in _PALABRA_RE.finditer(texto):
+        if m.group() in ("|", ";", "&", "\n"):
+            _redactar_comando(texto, palabras, cambios)
+            palabras = []
+        else:
+            palabras.append(m.span())
+    _redactar_comando(texto, palabras, cambios)
+    partes, cursor = [], 0
+    for inicio, fin in cambios:
+        partes.extend((texto[cursor:inicio], REDACTADO))
+        cursor = fin
+    partes.append(texto[cursor:])
+    return "".join(partes)
 
 
 def es_clave_sensible(clave):
