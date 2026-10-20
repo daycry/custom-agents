@@ -105,6 +105,14 @@ agentes ni prueba presencia o destrucción. El HTML estático explica la ausenci
 de servicio. La guía documenta `sesion.actividad: true`, desactivado por defecto,
 y el estado local excluido de Git por su propio `.gitignore`.
 
+Agentes en vivo (servido, mismo opt-in) añade una fila por run y su línea de
+tiempo desde el historial de herramientas (`events.json`: 500 eventos / 256 KiB /
+24 h) por GET `api/actividad-runs` y `api/actividad-run-<key16>` (≤ 64 KiB,
+`assets/page-agentes.js`); Inicio muestra la actividad reciente. La tarea solo se
+atribuye por el comando exacto de `usage-meter.py`; si no, «tarea: sin atribuir».
+Cada runtime declara lo que no aporta (Codex agrupa por sesión). El panel nunca
+borra el historial: se borra a mano `.claude/agent-activity/`.
+
 El cierre portable requiere referencias explícitas a
 `agent-kits/shared/agent-activity-store.py`, `agent-kits/shared/agent-activity.py`,
 `agent-kits/shared/local-state.py` y `agent-kits/shared/local-read.py`. La revisión

@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 9 | 10 | 90% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 13 | 15 | 87% | 0 / 45,6h | 1,31 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **54** | **58** | **93%** | **0 / 159,2h** | **9,52 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 14 | 15 | 93% | 0 / 45,6h | 2,28 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **55** | **58** | **95%** | **0 / 159,2h** | **10,49 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1422,7 +1422,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 
 ## Fase 3 — Agentes en vivo + cierre transversal
 
-**Estado**: en-progreso · **Estimado**: 45,6h humanas · 23,4h IA · **Real**: — · **Coste est.**: 2.444 € referencia · ≈ 506 € ejecución · **Tokens est.**: 12,44 M
+**Estado**: en-progreso · **Estimado**: 45,6h humanas · 23,4h IA · **Real**: 2,28h IA medida (T-45..T-53; T-40..T-44 sin medir; falta T-54) · **Coste est.**: 2.444 € referencia · ≈ 506 € ejecución · **Tokens est.**: 12,44 M
 
 Última fase. Criterios de la spec: CA-04, CA-15 a CA-21 y CA-42 (eventos); además, el cierre transversal C-05. **Lente C obligatoria** en toda tarea de captura (condición 4 de la evaluación). Valores de diseño: 0 ms síncronos añadidos (O5), historial de 500 eventos / 256 KiB / 24 h, entrada ≤ 2 MiB, resumen ≤ 160.
 
@@ -1855,9 +1855,10 @@ Nota: `docs/agents/CONTRACTS.md` es solo ES (como el resto de `docs/agents/`).
 ### T-53 — Cierre transversal (C-05): multi-runtime, evals, interop, tamaño de skills y réplica Linux
 
 - **Descripción**: Comprueba que las 7 páginas se generan desde Claude Code, Codex y OpenCode; que `SKILL.md` de `plugin-panel` y `roadmap-dashboard` caben en 200 líneas; que `evals/` casa con las `description` reales; que `interop/` está al día; y replica `ci.yml` en un contenedor Linux antes del push. Deja el campo `- **Changelog**:` en las tareas con cambio visible; los CHANGELOG los escribe `changelog-sync` en la Fase 6 de `/dev-cycle`.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 9,6h · real —
-- **Tiempo IA (ejec.)**: est. 1,2h · real —
+- **Tiempo IA (ejec.)**: est. 1,2h · real 0,97h (medido; incluye la espera de la réplica Linux, 13 min de pytest)
 - **Supervisión**: est. 0,3h (≈25 % IA) · real —
 - **Previsión IA**: 549k in / 89k out tok · 8,40 €
 - **Dependencias**: T-52
@@ -1870,14 +1871,23 @@ Nota: `docs/agents/CONTRACTS.md` es solo ES (como el resto de `docs/agents/`).
   - lectura: generación de las 7 páginas en los tres runtimes anotada con su runtime
 
 **Criterios de aceptación**
-- [ ] CA-42: las 7 páginas se generan en los tres runtimes; lo que falta se declara.
-- [ ] Sin rojos que solo salgan en Linux (CRLF de `.sh`, rutas).
-- [ ] Las tareas con cambio visible llevan `- **Changelog**:`.
+- [x] CA-42: las 7 páginas se generan en los tres runtimes; lo que falta se declara.
+- [x] Sin rojos que solo salgan en Linux (CRLF de `.sh`, rutas).
+- [x] Las tareas con cambio visible llevan `- **Changelog**:`.
 
 **Subtareas**
-- [ ] Generación por runtime.
-- [ ] Réplica Linux.
-- [ ] Campos `Changelog`.
+- [x] Generación por runtime.
+- [x] Réplica Linux.
+- [x] Campos `Changelog`.
+
+- **Evidencia TDD**: TDD n/a: verificación transversal y prosa (`skills/plugin-panel/SKILL.md`).
+- **Verificación ejecutada** (2026-10-20, árbol de `T-52` + este cambio, `git stash create` → `d8265cd`):
+  - Windows: `export-interop.py --check` → «88 ficheros al día» · `evals/check.py` → «52 ficheros · 192 casos … 0 errores» · `pytest tests/test_skill_size.py tests/test_export_interop.py` → 78 passed · `lint_plugin.py` → 0 errores, 8 avisos (los previos) · `skills/plugin-panel/SKILL.md` 133 líneas y `skills/roadmap-dashboard/SKILL.md` 63 (≤ 200) · `scope-check.py docs/roadmap/2026-10-15-panel-redesign --base 9c47821` → exit 0, 38 cambiados, 38 en alcance, 0 fuera, 0 avisos, 0 criterios alterados.
+  - Réplica de `ci.yml.MANUAL-COPY` en `python:3.11-slim` (Python 3.11.17, Node v22.23.3; `git -c core.autocrlf=false archive`): `lint_plugin` 0 errores · `evals/check` 0 errores · suites en modo script 0 fallos · pytest **8701 passed, 54 skipped, 0 failed** (incluye los dos `test_doctor …long_absolute_path…` que en Windows chocan con MAX_PATH) · bench p95 8,37 ms / p99 9,92 ms (exit 0) · `export-interop --check` 88 al día · `node --test` **354 tests, 338 pass, 0 fail** · sintaxis y JSON OK · `release.py --check` OK · exit 0. Mismos verdes que en Windows.
+  - Generación por runtime (`build_panel.py --root . --project . --runtime <r> --export`, más el servidor con el inventario de cada runtime): **claude-code**, **codex** y **opencode** → exit 0 y las 7 páginas (`index`, `iniciativas`, `plan`, `agentes`, `memoria`, `catalogo`, `diagnostico`); el `agentes.html` exportado dice «Sin servicio» y no carga `page-agentes.js`; el servido sí. Hooks de actividad declarados: claude-code `PostToolUse`, `PostToolUseFailure`, `SubagentStart`, `SubagentStop`; codex `PostToolUse`, `SubagentStart`, `SubagentStop` (sin `PostToolUseFailure`: lo declara la página); opencode `PostToolUse` (`tool.execute.after`) y `ActivityObserved`. No se ejecutaron Codex ni OpenCode reales en esta máquina: la generación usa el inventario de cada runtime.
+  - Campos `Changelog`: T-41..T-52 los llevan; sin él solo quedan las tareas de puerta sin cambio visible (T-16, T-29, T-39, T-40, T-53, T-54).
+
+`skills/plugin-panel/SKILL.md`: párrafo de Agentes en vivo (historial, APIs, atribución, declaración por runtime y borrado a mano); la `description` no cambia (los evals siguen casando).
 
 **Notas**: TDD n/a: verificación y prosa. Nota de memoria «verificar en Linux antes de push» (normalizar CRLF de los `.sh`). Release fuera de este plan: `python3 scripts/release.py X.Y.Z` tras el PR.
 
