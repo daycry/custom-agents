@@ -394,4 +394,66 @@ def test_el_js_de_inicio_no_usa_innerhtml_ni_red_ajena_ni_eval():
     for nombre in ('page-cartera.js', 'page-inicio.js'):
         fuente = (ASSETS / nombre).read_text(encoding='utf8')
         assert not re.search(r'innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval\(|new Function|XMLHttpRequest|WebSocket|importScripts|localStorage|sessionStorage', fuente), nombre
-        assert re.findall(r"fetch\(\s*'([^']+)'", fuente) in ([], ['api/cartera'])
+        # page-cartera.js: only api/cartera; page-inicio.js: only api/actividad-runs (T-50, CA-04)
+        assert re.findall(r"fetch\(\s*'([^']+)'", fuente) == {'page-cartera.js': ['api/cartera'], 'page-inicio.js': ['api/actividad-runs']}[nombre]
+
+
+# --- T-50: actividad reciente en Inicio (CA-04, E2E-19) ----------------------------------------------------------
+
+ACTIVIDAD_EXTRA = r'''
+ids.main=new El('main');
+const seccion=()=>walk(ids.main,n=>n.attrs.id==='inicio-actividad'||n.id==='inicio-actividad')[0];
+const textoActividad=()=>seccion().textContent;
+const actividad=(o={})=>({schema_version:1,status:'ok',reason:null,collection_complete:false,recortado:0,descartados_por_tamano:0,eventos:2,runs:[],
+  recientes:[{key16:'a1'.repeat(8),runtime:'claude',role:'implementer',scope:'subagent',tool:'Edit',tarea:'panel/T-07',observed_at:1000,edad_s:12},
+             {key16:'b2'.repeat(8),runtime:'codex',role:null,scope:'session',tool:'Bash',tarea:null,observed_at:990,edad_s:125}],...o});
+const pedidos=url=>requests.map((r,i)=>[r,i]).filter(([r])=>r.url===url);
+const responderA=async(url,data)=>{const p=pedidos(url);assert.ok(p.length,'sin pedido a '+url);await respond(data,p.at(-1)[1]);};
+'''
+
+
+def _servido(**extra):
+    return {'pagina': 'inicio', 'modo': 'servido', 'chartjs_disponible': True, **extra}
+
+
+def test_ca04_servido_muestra_los_ultimos_eventos_con_enlace_a_agentes(tmp_path):
+    _correr(tmp_path, '''
+await settle();
+assert.equal(pedidos('api/actividad-runs').length,1);
+const r=pedidos('api/actividad-runs')[0][0];assert.equal(r.options.credentials,'omit');assert.ok(!r.options.body);
+await responderA('api/actividad-runs',actividad());
+const t=textoActividad();
+for(const s of ['Actividad reciente','implementer','Claude Code','Edit','tarea: panel/T-07','hace 12 s','Codex','sesión','Bash','tarea: sin atribuir','hace 2 min'])assert.ok(t.includes(s),s);
+const enlace=walk(seccion(),n=>n.tagName==='a')[0];assert.equal(enlace.attrs.href,'agentes.html');assert.match(enlace.textContent,/Agentes en vivo/);
+assert.ok(t.includes('puede tener huecos'));
+''', datos=_servido(), extra=ACTIVIDAD_EXTRA)
+
+
+def test_ca04_servido_con_la_captura_desactivada_dice_como_activarla(tmp_path):
+    _correr(tmp_path, '''
+await settle();
+await responderA('api/actividad-runs',{schema_version:1,status:'unavailable',reason:'disabled',collection_complete:false,recortado:0,descartados_por_tamano:0,eventos:0,runs:[],recientes:[],activar:'TEXTO-DEL-SERVIDOR'});
+const t=textoActividad();
+assert.ok(t.includes('Actividad desactivada'));assert.ok(t.includes('"sesion": {"actividad": true}')&&t.includes('.claude/dev.json'));
+assert.ok(!t.includes('TEXTO-DEL-SERVIDOR'));assert.equal(walk(seccion(),n=>n.tagName==='li').length,0);
+''', datos=_servido(), extra=ACTIVIDAD_EXTRA)
+
+
+def test_ca04_sin_eventos_y_datos_fuera_de_forma_no_se_pintan(tmp_path):
+    _correr(tmp_path, '''
+await settle();
+await responderA('api/actividad-runs',actividad({recientes:[]}));
+assert.ok(textoActividad().includes('Aún sin eventos registrados'));
+fire(5000);await settle();
+await responderA('api/actividad-runs',actividad({recientes:[{key16:'zz',runtime:'claude',role:'<img>',scope:'subagent',tool:'Edit',tarea:null,observed_at:1,edad_s:1}]}));
+assert.equal(walk(seccion(),n=>n.tagName==='li').length,0);assert.ok(!textoActividad().includes('<img>'));
+assert.match(textoActividad(),/No se pudo leer la actividad/);
+''', datos=_servido(), extra=ACTIVIDAD_EXTRA)
+
+
+def test_exportado_dice_que_la_actividad_solo_existe_en_servido_y_no_pide_nada(tmp_path, cartera):
+    _correr(tmp_path, '''
+await settle();
+assert.equal(pedidos('api/actividad-runs').length,0);
+assert.ok(textoActividad().includes('La actividad de los agentes solo existe en el panel servido'));
+''', datos=_exportado(cartera), extra=ACTIVIDAD_EXTRA)

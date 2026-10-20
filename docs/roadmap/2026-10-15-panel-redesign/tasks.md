@@ -42,8 +42,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 16 | 17 | 94% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 9 | 10 | 90% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 10 | 15 | 67% | 0 / 45,6h | 1,06 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **51** | **58** | **88%** | **0 / 159,2h** | **9,27 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 11 | 15 | 73% | 0 / 45,6h | 1,09 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **52** | **58** | **90%** | **0 / 159,2h** | **9,30 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1758,9 +1758,10 @@ Decisiones: `page-agentes.js` solo en servido (`LIVE_ASSET_FILES` y `LIVE_SCRIPT
 ### T-50 — Inicio: actividad reciente
 
 - **Descripción**: En servido, Inicio muestra los últimos eventos de actividad (agente, rol, herramienta, tarea si la hay, hace cuánto) con enlace a Agentes en vivo; con la captura desactivada, «actividad desactivada» y cómo activarla.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cerrada**: 2026-10-20
 - **Tiempo humano**: est. 1,2h · real —
-- **Tiempo IA (ejec.)**: est. 0,2h · real —
+- **Tiempo IA (ejec.)**: est. 0,2h · real 0,03h (medido)
 - **Supervisión**: est. 0,05h (≈25 % IA) · real —
 - **Previsión IA**: 91k in / 15k out tok · 1,40 €
 - **Dependencias**: T-49
@@ -1769,12 +1770,19 @@ Decisiones: `page-agentes.js` solo en servido (`LIVE_ASSET_FILES` y `LIVE_SCRIPT
 - **Cubre (tests)**: E2E-19
 - **Verificación**: `python3 -m pytest -q tests/test_panel_inicio_ui.py` → `passed`
 
+- **Changelog**: Inicio muestra en el panel servido los últimos eventos de actividad (agente o sesión, runtime, herramienta, tarea y hace cuánto) con enlace a Agentes en vivo; si la captura está desactivada dice cómo activarla, y la copia exportada avisa de que la actividad solo existe en servido.
+
 **Criterios de aceptación**
-- [ ] CA-04 en sus dos ramas (activa / desactivada).
-- [ ] En modo exportado, la sección dice que la actividad solo existe en servido.
+- [x] CA-04 en sus dos ramas (activa / desactivada).
+- [x] En modo exportado, la sección dice que la actividad solo existe en servido.
 
 **Subtareas**
-- [ ] RED; sección.
+- [x] RED; sección.
+
+- **Evidencia TDD**: RED: 4 tests nuevos de test_panel_inicio_ui.py (`test_ca04_*` ×3, `test_exportado_dice_que_la_actividad_solo_existe_en_servido…`) fallaron con «sin pedido a api/actividad-runs», `0 == 1` pedidos y TypeError: Cannot read properties of undefined (reading 'textContent') (sin sección) · 2026-10-20 (antes del código)
+- **Verificación ejecutada**: `pytest tests/test_panel_inicio_ui.py` → 30 passed · `pytest tests/test_panel_inicio_ui.py tests/test_panel_export.py tests/test_panel_server.py tests/test_panel_pages.py tests/test_panel_live_ui.py tests/test_panel_iniciativas_ui.py tests/test_panel_charts_ui.py` → 297 passed, 3 skipped.
+
+Decisiones: la sección «Actividad reciente» la construye `page-inicio.js` (sin tocar `build_panel.py`) y lee `recientes` de `api/actividad-runs` (T-48) cada 5 s, solo en servido; en exportado no pide nada y lo dice. El test que fija las rutas de red del JS de Inicio pasa de «solo `api/cartera`» a una lista exacta por fichero (`page-cartera.js` → `api/cartera`; `page-inicio.js` → `api/actividad-runs`).
 
 **Notas**: página de T-18; datos de `api/actividad-runs` (T-48).
 
