@@ -31,9 +31,11 @@ IGNORE = b'*\n'
 # T-43 fix1 (D2): a tool-event writer holds the lock for one read + validation + replace of the whole ring,
 # measured at p50 ~105 ms / p90 ~130 ms on Windows with a full 500-event ring (a freshly replaced events.json
 # is re-scanned on open). With 100 ms of wait, a burst of 8 parallel async hooks wrote 1 and lost 7. Tool events
-# run asynchronously (I-05: 0 ms synchronous), so they wait up to 0.8 s, inside the same 1 s deadline; lifecycle
-# signals (synchronous) keep `StateIO`'s 100 ms and Codex MCP tools keep a single attempt (P-EI-3).
-TOOL_LOCK_WAIT = 0.8
+# run asynchronously (I-05: 0 ms synchronous), so they wait up to 1 s (>= 7 holds at p90) inside a 1.3 s
+# deadline, still under the launcher's 2 s child budget (Python start ~0.3 s); lifecycle signals (synchronous)
+# keep `StateIO`'s 100 ms and the 1 s deadline, and Codex MCP tools keep a single attempt (P-EI-3).
+TOOL_LOCK_WAIT = 1.0
+TOOL_DEADLINE = 1.3
 
 
 def _mkdir_private(path, **kwargs):
@@ -646,8 +648,9 @@ def record(project, entry):
     """Append one tool event to the ring (design 2.5). The hook never retries: a lost event stays lost.
     `entry['nowait']` makes a single lock and replace attempt (Codex MCP tools run synchronously, P-EI-3)."""
     try:
-        deadline, io = time.monotonic() + 1, _io(MAX_EVENTS_FILE)
+        started, io = time.monotonic(), _io(MAX_EVENTS_FILE)
         entry = _entry(entry)
+        deadline = started + (1 if entry['nowait'] else TOOL_DEADLINE)
         root = _root(project, io)
         config_signature = _enabled(root, io)
         state = root / '.claude' / 'agent-activity'
