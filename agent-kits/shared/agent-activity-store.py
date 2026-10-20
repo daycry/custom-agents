@@ -28,6 +28,12 @@ MAX_CLEAN = 8  # P-EI-1: own old temporaries removed per write
 CLEAN_AGE = 60
 MAX_REVISION = 2**53 - 1
 IGNORE = b'*\n'
+# T-43 fix1 (D2): a tool-event writer holds the lock for one read + validation + replace of the whole ring,
+# measured at p50 ~105 ms / p90 ~130 ms on Windows with a full 500-event ring (a freshly replaced events.json
+# is re-scanned on open). With 100 ms of wait, a burst of 8 parallel async hooks wrote 1 and lost 7. Tool events
+# run asynchronously (I-05: 0 ms synchronous), so they wait up to 0.8 s, inside the same 1 s deadline; lifecycle
+# signals (synchronous) keep `StateIO`'s 100 ms and Codex MCP tools keep a single attempt (P-EI-3).
+TOOL_LOCK_WAIT = 0.8
 
 
 def _mkdir_private(path, **kwargs):
@@ -114,8 +120,12 @@ def _enabled(root, io):
     return signature
 
 
+_HEX64 = re.compile(r'[0-9a-f]{64}')
+_CONTROL = re.compile(r'[\x00-\x1f\x7f]')
+
+
 def _hex(value):
-    return type(value) is str and len(value) == 64 and all(ch in '0123456789abcdef' for ch in value)
+    return type(value) is str and len(value) == 64 and _HEX64.fullmatch(value) is not None
 
 
 def _owner(root, state, io):
@@ -214,7 +224,9 @@ def _count(value):
 
 
 def _clean_text(value, limit):
-    return type(value) is str and len(value) <= limit and all(ord(ch) >= 32 and ord(ch) != 127 for ch in value)
+    """Same rule as before (no code point below 32 nor 127), as one C-level regex search: the writer
+    re-validates the whole 500-event ring under the lock, so a per-character loop held it ~120 ms (T-43 fix1, D2)."""
+    return type(value) is str and len(value) <= limit and _CONTROL.search(value) is None
 
 
 def _valid_window(row):
@@ -279,8 +291,9 @@ def _prune(doc, now):
     doc['ventanas'] = windows[max(0, len(windows) - _projection.MAX_WINDOWS):]
 
 
-def _publish_events(root, state, io, doc, signature, ignore_signature, deadline, now):
-    """Trim the ring, re-check opt-in and the ignore file, then replace with CAS (`expected=signature`)."""
+def _publish_events(root, state, io, doc, signature, ignore_signature, deadline, now, nowait=False):
+    """Trim the ring, re-check opt-in and the ignore file, then replace with CAS (`expected=signature`).
+    `nowait` (Codex MCP, P-EI-3) makes a single `os.replace` attempt, without the sharing-violation backoff."""
     _prune(doc, now)
     overhead = len(_json(dict(doc, events=[])))
     doc['events'], trimmed = _projection.trim_events(doc['events'], now=now, overhead=overhead)
@@ -293,10 +306,10 @@ def _publish_events(root, state, io, doc, signature, ignore_signature, deadline,
     _need(len(raw) <= MAX_EVENTS_FILE, 'state_budget')
     _enabled(root, io)  # An observed opt-out before publication prevents this update.
     _need(_ignore(state, io) == ignore_signature, 'unsafe_state')
-    io.write(state / EVENTS, raw, deadline, expected=signature)
+    io.write(state / EVENTS, raw, deadline, expected=signature, retry=not nowait)
 
 
-def _update_events(root, state, io, config_signature, deadline, mutate):
+def _update_events(root, state, io, config_signature, deadline, mutate, nowait=False):
     marker, _, ignore_signature = _base(root, state, io)
     now = time.time()
     _need(type(now) in (int, float) and math.isfinite(now) and 0 <= now <= MAX_REVISION, 'invalid_clock')
@@ -306,7 +319,7 @@ def _update_events(root, state, io, config_signature, deadline, mutate):
         doc['ventanas'] = _projection.expire_open(doc['ventanas'], now)
         doc['config_sig'] = stamp
     mutate(doc, marker, now)
-    _publish_events(root, state, io, doc, signature, ignore_signature, deadline, now)
+    _publish_events(root, state, io, doc, signature, ignore_signature, deadline, now, nowait)
 
 
 def _run_keys(marker, runtime, scope, session, agent):
@@ -639,9 +652,9 @@ def record(project, entry):
         config_signature = _enabled(root, io)
         state = root / '.claude' / 'agent-activity'
         created = _ensure_state(root, state, io, deadline)
-        with io.locked(state, deadline, created, wait=0 if entry['nowait'] else 0.1):
+        with io.locked(state, deadline, created, wait=0 if entry['nowait'] else TOOL_LOCK_WAIT):
             _clean_temps(state)
-            _update_events(root, state, io, config_signature, deadline, _tool_mutation(entry))
+            _update_events(root, state, io, config_signature, deadline, _tool_mutation(entry), entry['nowait'])
         return {'status': 'ok', 'reason': None}
     except _Failure as exc:
         return {'status': 'unavailable', 'reason': str(exc)}

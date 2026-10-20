@@ -88,11 +88,11 @@ def test_activity_git_exclusion_is_effective_without_external_rules(api, project
 def test_ignore_is_published_before_any_identifying_state(api, project, monkeypatch):
     original = api._state_io.StateIO.write
     order = []
-    def write(io, path, raw, deadline, expected=None):
+    def write(io, path, raw, deadline, expected=None, retry=True):
         path = Path(path)
         if path.name in ('owner.json', 'snapshot.json', 'events.json'):
             assert (path.parent / '.gitignore').read_bytes() == b'*\n'
-        original(io, path, raw, deadline, expected)
+        original(io, path, raw, deadline, expected, retry)
         order.append(path.name)
     monkeypatch.setattr(api._state_io.StateIO, 'write', write)
     assert api.capture(project, runtime='claude', payload=native(project))['status'] == 'ok'

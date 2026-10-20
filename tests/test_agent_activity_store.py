@@ -374,8 +374,8 @@ def test_initial_publication_barrier_rejects_partial_without_adoption(api, proje
     original = api._state_io.StateIO.write
     results = []
 
-    def write(io, path, raw, deadline, expected=None):
-        original(io, path, raw, deadline, expected)
+    def write(io, path, raw, deadline, expected=None, retry=True):
+        original(io, path, raw, deadline, expected, retry)
         if Path(path).name == 'owner.json':
             published.set()
             assert release.wait(1), 'test owner publication barrier was not released'
@@ -762,10 +762,10 @@ def test_cas_failure_loses_the_event_and_removes_the_temporary(api, project, mon
     boot(api, project)
     original = api._state_io.StateIO.write
 
-    def write(io, path, raw, deadline, expected=None):
+    def write(io, path, raw, deadline, expected=None, retry=True):
         if Path(path).name == 'events.json':
             os.utime(path, ns=(1, 1))  # foreign actor touches the file
-        return original(io, path, raw, deadline, expected)
+        return original(io, path, raw, deadline, expected, retry)
 
     monkeypatch.setattr(api._state_io.StateIO, 'write', write)
     assert api.record(project, entry())['reason'] == 'unsafe_state'
@@ -1280,6 +1280,48 @@ def test_c1_prefixed_and_argument_secrets_are_redacted_in_events_and_history(api
     assert raw.count(b'[secreto redactado]') == 3
 
 
+# ---- panel-redesign T-43 fix1 (A-2, P-EI-3): Codex MCP publishes with ONE replace attempt --------------
+def _spy_writes(api, monkeypatch):
+    original, calls = api._state_io.StateIO.write, []
+
+    def write(io, path, raw, deadline, expected=None, retry=True):
+        calls.append((Path(path).name, retry))
+        return original(io, path, raw, deadline, expected, retry)
+    monkeypatch.setattr(api._state_io.StateIO, 'write', write)
+    return calls
+
+
+def test_a2_codex_mcp_publishes_events_without_replace_retries(api, project, monkeypatch):
+    boot(api, project)
+    calls = _spy_writes(api, monkeypatch)
+    assert api.record(project, entry(runtime='codex', nowait=True))['status'] == 'ok'
+    assert calls == [('events.json', False)]
+
+
+def test_a2_ordinary_tool_events_keep_the_bounded_replace_retries(api, project, monkeypatch):
+    boot(api, project)
+    calls = _spy_writes(api, monkeypatch)
+    assert api.record(project, entry())['status'] == 'ok'
+    assert calls == [('events.json', True)]
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='the sharing-violation backoff only exists on Windows')
+def test_a2_single_attempt_on_a_windows_sharing_violation(api, project, monkeypatch):
+    """With `nowait`, a sharing violation (WinError 32) loses the event after ONE os.replace, no backoff."""
+    boot(api, project)
+    attempts, sleeps = [], []
+
+    def busy(src, dst):
+        attempts.append(dst)
+        error = PermissionError(13, 'sharing violation')
+        error.winerror = 32
+        raise error
+    monkeypatch.setattr(api._state_io.os, 'replace', busy)
+    monkeypatch.setattr(api._state_io.time, 'sleep', sleeps.append)
+    assert api.record(project, entry(runtime='codex', nowait=True))['status'] == 'unavailable'
+    assert len(attempts) == 1 and sleeps == []
+
+
 # ---- panel-redesign T-44 fix1 (C-2, CWE-1333): the apply_patch summary is linear on whitespace runs ---------
 def test_c2_patch_summary_with_a_long_whitespace_run_is_linear(api, project):
     command = '*** Update File: a' + ' ' * 20000 + 'b\n*** Add File: c.py   \n'
@@ -1293,3 +1335,31 @@ def test_c2_patch_summary_with_a_long_whitespace_run_is_linear(api, project):
 def test_c2_patch_summary_keeps_the_trailing_space_and_cr_trim(api, project):
     assert api.summarize(project, 'apply_patch', {'command': '*** Update File: docs/a.md  \r\n+x'}) == 'docs/a.md'
     assert api.summarize(project, 'apply_patch', {'command': '*** Delete File:    \n'}) == '—'
+
+
+# ---- panel-redesign T-43 fix1 (D2): a burst of parallel tool hooks on a FULL ring loses nothing ------------
+_BURST = ('import importlib.util,json,sys,time;'
+    's=importlib.util.spec_from_file_location("s",sys.argv[1]);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);'
+    'e=json.loads(sys.argv[3]);e["tool"]="T%s"%sys.argv[4];'
+    'time.sleep(max(0,float(sys.argv[5])-time.time()));print(json.dumps(m.record(sys.argv[2],e)))')
+
+
+def test_d2_burst_of_eight_parallel_tool_events_on_a_full_ring_loses_none(api, project):
+    boot(api, project)
+    now = time.time()
+    heavy = [dict(old_event(i, now - 5), resumen=('git status %d ' % i).ljust(160, 'y')) for i in range(1, 501)]
+    seed(api, project, revision=500, events=heavy)
+    start = time.time() + 4  # every child is loaded before the common instant: they hit the lock together
+    children = [subprocess.Popen([sys.executable, '-I', '-X', 'utf8', '-B', '-c', _BURST, str(SHARED / 'agent-activity-store.py'),
+        str(project), json.dumps(entry()), str(index), repr(start)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=project)
+        for index in range(8)]
+    results = []
+    for p in children:
+        out, err = p.communicate(timeout=60)
+        assert p.returncode == 0, err
+        results.append(json.loads(out))
+    lost = [r for r in results if r['status'] != 'ok']
+    assert lost == [], lost  # design 2.5 (a): a lost event is only an exceptional gap, not the rule of a burst
+    value = doc(project)
+    assert len(value['events']) == 500 and value['recortado'] == 8
+    assert sorted(e['tool'] for e in value['events'][-8:]) == sorted('T%d' % i for i in range(8))
