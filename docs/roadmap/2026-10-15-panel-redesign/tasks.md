@@ -68,7 +68,7 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 - **Dependencias**: ninguna
 - **Tipo**: test
 - **Archivos**: `tests/fixtures/panel-redesign/**`, `tests/test_panel_contract_golden.py`, `.gitattributes` (añadido: ver Notas)
-- **Cubre (tests)**: —
+- **Cubre (tests)**: E2E-02, E2E-11
 - **Verificación**: `python3 -m pytest -q tests/test_panel_contract_golden.py` → `3 passed` (o más) en el código ACTUAL, antes de tocar ningún generador
 
 **Criterios de aceptación**
@@ -410,7 +410,7 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 - **Verificación**: `python3 -m pytest -q tests/test_panel_server.py` → `passed` (403 sin token / Host / Origin ajenos; 404 en activo fuera de lista; CSP `default-src 'none'` con `script-src 'nonce-…'` y `connect-src 'self'`)
 
 **Criterios de aceptación**
-- [x] Escucha solo en `127.0.0.1` con la URL de token del proceso; sin token, `Host` u `Origin` distintos → 403 (CA-34).
+- [x] Escucha solo en `127.0.0.1` con la URL de token del proceso; sin token, `Host` u `Origin` distintos → 403 (CA-34) — **enmienda 2026-10-21 (planner, qa):** sin token u otro token → 404 sin contenido; el 403 es para `Host` u `Origin` distintos.
 - [x] Activos servidos solo desde la lista blanca precargada; cualquier otra ruta → 404; sin lectura de disco por petición.
 - [x] Si el hash de Chart.js no coincide al arrancar, las páginas se sirven sin él (tablas + aviso), no fallan.
 - [x] Sigue rechazando `?`, `%`, `\` y `#` en la ruta.
@@ -469,7 +469,7 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 - **Dependencias**: T-01
 - **Tipo**: backend
 - **Archivos**: `skills/roadmap-dashboard/scripts/build_dashboard.py`, `tests/test_dashboard.py`
-- **Cubre (tests)**: —
+- **Cubre (tests)**: API-01, E2E-11
 - **Verificación**: `python3 -m pytest -q tests/test_panel_contract_golden.py tests/test_dashboard.py` → `passed` (`--json` y `--md` idénticos al golden)
 
 **Criterios de aceptación**
@@ -532,7 +532,7 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 - **Dependencias**: T-12, T-14
 - **Tipo**: docs
 - **Archivos**: `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `skills/plugin-panel/SKILL.md`, `skills/plugin-panel/references/**`, `CHANGELOG.md`, `CHANGELOG.es.md`
-- **Cubre (tests)**: —
+- **Cubre (tests)**: M-01
 - **Verificación**: `python3 -m pytest -q tests/test_skill_size.py` → `passed` · `python3 scripts/lint_plugin.py` → exit 0 · lectura: ES y EN describen lo mismo (modos, páginas, CSP, procedencia de Chart.js)
 
 **Criterios de aceptación**
@@ -730,7 +730,7 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 - **Dependencias**: T-16
 - **Tipo**: backend
 - **Archivos**: `agent-kits/shared/ledger-view.py`, `agent-kits/shared/test_ledger_view.py`, `agent-kits/shared/README.md`, `agent-kits/shared/ledger-lint.py` (añadido: `parse_ledger` lee los campos que el panel proyecta, sin segundo lector), `tests/test_console_encoding.py` (añadido: modos de `ledger-view.py` y `panel_data.py`)
-- **Cubre (tests)**: —
+- **Cubre (tests)**: API-02, E2E-14
 - **Verificación**: `python3 -m pytest -q agent-kits/shared/test_ledger_view.py` → `passed` (incluye el caso `intento N:` sin paréntesis, un `—` en horas que sale `null` y una tarea con historia en `execution-history.md` marcada «archivado»)
 
 **Criterios de aceptación**
@@ -762,7 +762,7 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 - **Dependencias**: T-21
 - **Tipo**: backend
 - **Archivos**: `agent-kits/shared/ledger-lint.py`, `tests/test_ledger_lint.py`, `agent-kits/shared/ledger-view.py`, `agent-kits/shared/test_ledger_view.py`, `agent-kits/shared/task-brief.py`, `skills/jira-sync/scripts/jira-flow.py` (sin cambios: no replica el patrón), `agent-kits/shared/copias.json` (sin cambios: `CAMPO_LEDGER_PATTERN` no es un bloque replicado), `skills/changelog-sync/scripts/changelog-sync.py` (añadido: su copia literal de `CAMPO_LEDGER_PATTERN`), `agent-kits/planner/templates/tasks.md`, `agents/implementer.md`, `commands/dev-cycle.md`, `docs/agents/implementer.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `interop/**` (regenerado: `agents/` y `commands/` tocados)
-- **Cubre (tests)**: —
+- **Cubre (tests)**: E2E-15
 - **Verificación**: `python3 -m pytest -q tests/test_ledger_lint.py agent-kits/shared/test_ledger_view.py tests/test_copias_declaradas.py` → `passed` · `python3 agent-kits/shared/ledger-lint.py docs/roadmap/2026-10-15-panel-redesign/tasks.md` → 0 incoherencias · `python3 scripts/export-interop.py --check` → exit 0
 
 **Criterios de aceptación**
@@ -1077,7 +1077,7 @@ Criterios de la spec: CA-01 a CA-03, CA-05 a CA-14 y CA-45 a CA-54 (enmienda 202
 - **Dependencias**: T-18..T-27, T-55..T-58
 - **Tipo**: docs
 - **Archivos**: `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/agents/CONTRACTS.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `agent-kits/shared/README.md`, `skills/plugin-panel/SKILL.md`
-- **Cubre (tests)**: —
+- **Cubre (tests)**: M-02
 - **Verificación**: `python3 scripts/lint_plugin.py` → exit 0 (ninguna fila de CONTRACTS sin Puerta) · `grep -n "review-panel" docs/PLUGIN-PANEL.md docs/en/PLUGIN-PANEL.md` → al menos una coincidencia en cada fichero · lectura: espejos EN iguales en contenido
 
 **Criterios de aceptación**
@@ -1366,7 +1366,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Dependencias**: T-30..T-37
 - **Tipo**: docs
 - **Archivos**: `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/agents/CONTRACTS.md`, `skills/plugin-panel/SKILL.md`, `skills/plugin-panel/references/**`
-- **Cubre (tests)**: —
+- **Cubre (tests)**: M-03
 - **Verificación**: `python3 -m pytest -q tests/test_skill_size.py` → `passed` · `python3 scripts/lint_plugin.py` → exit 0 · lectura: espejo EN
 
 **Criterios de aceptación**
@@ -1428,7 +1428,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
 - **Previsión IA**: 137k in / 22k out tok · 2,10 €
 - **Dependencias**: T-39
-- **Cubre (tests)**: —
+- **Cubre (tests)**: M-04
 - **Archivos**: `docs/roadmap/2026-10-15-panel-redesign/tasks.md`
 - **Verificación**: lectura: en `Notas` de esta tarea, las cuatro condiciones marcadas con su evidencia (sección de `design.md`, respuesta del usuario con fecha, URL de la doc de Codex, configuración de la Lente C) y las líneas `Hooks: PostToolUse:… (Nms)` del log de Claude Code con la latencia base
 
@@ -1849,7 +1849,7 @@ Aviso para la revisión: (1) `redact.anonimizar` (T-04) sustituye el usuario sol
 - **Dependencias**: T-41..T-51
 - **Tipo**: docs
 - **Archivos**: `docs/observability.md`, `docs/en/observability.md`, `docs/INTEROP.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/agents/CONTRACTS.md`, `docs/en/INTEROP.md` (añadido: espejo EN de `docs/INTEROP.md`; regla bilingüe)
-- **Cubre (tests)**: —
+- **Cubre (tests)**: M-04
 - **Verificación**: `python3 scripts/lint_plugin.py` → exit 0 (aristas nuevas con Puerta; sin citas rotas) · lectura: espejos EN y la cita de Codex con URL
 
 - **Changelog**: La documentación explica Agentes en vivo: cómo activar la captura de herramientas, qué registra y qué no, sus topes, cómo borrar el historial a mano y qué aporta cada runtime.
@@ -1921,7 +1921,7 @@ Nota: `docs/agents/CONTRACTS.md` es solo ES (como el resto de `docs/agents/`).
 - **Previsión IA**: 6,86 M in / 1,12 M out tok · 104,95 €
 - **Dependencias**: T-40..T-53
 - **Tipo**: test
-- **Archivos**: `docs/roadmap/2026-10-15-panel-redesign/tasks.md`
+- **Archivos**: `docs/roadmap/2026-10-15-panel-redesign/tasks.md`, `docs/roadmap/2026-10-15-panel-redesign/testing/**` (añadido: evidencia de qa)
 - **Cubre (tests)**: M-04
 - **Verificación**: `python3 -m pytest -q tests/test_plugin_panel.py tests/test_panel_*.py tests/test_dashboard.py tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py tests/test_export_interop.py agent-kits/shared/test_agent_activity.py agent-kits/shared/test_redact.py` → `0 failed` · `node --test tests/hook-budget.test.mjs tests/hook-runtime.test.mjs… Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `269846632451`.
 

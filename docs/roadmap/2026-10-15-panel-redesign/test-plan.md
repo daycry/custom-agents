@@ -31,17 +31,17 @@ Datos de prueba: las fixtures de `tests/fixtures/panel-redesign/` (T-01): roadma
 - **Aserciones**:
   - [ ] Un HTML por página, `vendor/chart.js/chart.umd.min.js`, `LICENSE.md`, `PROVENANCE.json` y los datos de la instantánea.
   - [ ] Los gráficos se dibujan; 0 eventos `securitypolicyviolation`; 0 peticiones a otros orígenes.
-  - [ ] Cabecera con la fecha de generación e «instantánea: no se actualiza».
+  - [ ] Cabecera con la fecha de generación y el texto aprobado «Copia estática del <fecha> · para verla en vivo, abre el panel servido con `/plugin-catalog --serve`». **(Enmienda 2026-10-21, qa)**
 - **Capturas esperadas**: Inicio exportado con gráficos.
 - **Cubre tareas**: T-02, T-03, T-08
 
 ### E2E-03 — Servido: solo loopback con token
-- **Objetivo**: CA-34 — 403 sin token, con `Host` u `Origin` ajenos.
+- **Objetivo**: CA-34 — sin token u otro token → 404 sin contenido; `Host` u `Origin` ajenos → 403. **(Enmienda 2026-10-21, qa)** (el 404 ya era el comportamiento previo; fija `tests/test_panel_server.py`).
 - **Precondiciones**: `--serve` sobre la fixture.
 - **Pasos**:
   1. Pedir una página con el token, sin token, con `Host` distinto y con `Origin` distinto.
 - **Aserciones**:
-  - [ ] Solo la petición con token y cabeceras propias responde 200; el resto 403.
+  - [ ] Solo la petición con token y cabeceras propias responde 200; sin token u otro token → 404 sin contenido; `Host` u `Origin` ajenos → 403; el estado no cambia. **(Enmienda 2026-10-21, qa)**
   - [ ] El proceso escucha solo en `127.0.0.1`.
 - **Capturas esperadas**: —
 - **Cubre tareas**: T-11
@@ -142,7 +142,7 @@ Datos de prueba: las fixtures de `tests/fixtures/panel-redesign/` (T-01): roadma
   - [ ] Tras cambiar el plan, el estado pasa a «obsoleta por cambio de versión» y la UI exige una nueva decisión.
   - [ ] Bajo cada comentario con `result` se ve la respuesta del agente y su disposición; sin respuesta, «sin respuesta del agente».
   - [ ] Sin `--review-panel`: ni botón ni JS de revisión y la página explica cómo activarlo; en `--export`: ni controles ni `api/review` y «estado de revisión: solo en modo servido».
-  - [ ] `gate_key` en el cuerpo → 400; `Origin` ajeno o sin token → 403; id16 desconocido → 404; en los tres casos el directorio de estado no cambia; un `plan-ok` abierto por otro proceso se ve sin controles de escritura.
+  - [ ] `gate_key` en el cuerpo → 400; `Origin` ajeno → 403; sin token u otro token → 404 sin contenido **(Enmienda 2026-10-21, qa)**; id16 desconocido → 404; en los tres casos el directorio de estado no cambia; un `plan-ok` abierto por otro proceso se ve sin controles de escritura.
 - **Capturas esperadas**: tarjeta con estado; Plan con revisión abierta y respuesta del agente.
 - **Cubre tareas**: T-55, T-56, T-57, T-58
 
@@ -436,4 +436,4 @@ Rutas relativas a `http://127.0.0.1:<puerto>/<token>/`; todas con `Host` propio 
 | T-53 | E2E-09 |
 | T-54 | M-04 |
 
-Criterios de la spec por escenario: CA-01..03 → E2E-11 · CA-04 → E2E-19 · CA-05/06/08 → E2E-12 · CA-07 → E2E-13 · CA-09/10 → E2E-14 · CA-11/12/13 → E2E-15 · CA-14 → E2E-16 · CA-15/16/19 → E2E-17 · CA-17/18 → E2E-18 · CA-20/21 → E2E-19 · CA-22/23/24 → E2E-20 · CA-25/26/27 → E2E-21 · CA-28/29 → E2E-22 · CA-30/31 → E2E-23 · CA-32 → E2E-01 · CA-33/36 → E2E-02 · CA-34 → E2E-03 · CA-35 → E2E-02, E2E-04 · CA-37 → E2E-05 · CA-38 → A11Y-01 · CA-39 → E2E-06 · CA-40 → E2E-07 · CA-41 → E2E-08 · CA-42 → E2E-09 · CA-43 → E2E-10, E2E-24 · CA-44 → M-01..M-04 · CA-45..CA-53 → E2E-24 (CA-49 también API-07) · CA-54 → suites de `plan-review.py` y `tests/test_panel_review_*` (T-55, T-56, T-57).
+Criterios de la spec por escenario: CA-01..03 → E2E-11 · CA-04 → E2E-19 · CA-05/06/08 → E2E-12 · CA-07 → E2E-13 · CA-09/10 → E2E-14 · CA-11/12/13 → E2E-15 · CA-14 → E2E-16 · CA-15/16/19 → E2E-17 · CA-17/18 → E2E-18 · CA-20/21 → E2E-19 · CA-22/23/24 → E2E-20 · CA-25/26/27 → E2E-21 · CA-28/29 → E2E-22 · CA-30/31 → E2E-23 · CA-32 → E2E-01 · CA-33/36 → E2E-02 · CA-34 → E2E-03 · CA-35 → E2E-02, E2E-04 · CA-37 → E2E-05 · CA-38 → A11Y-01 · CA-39 → E2E-06 · CA-40 → E2E-07 · CA-41 → E2E-08 · CA-42 → E2E-09 · CA-43 → E2E-10, E2E-24 · CA-44 → M-01..M-04 · CA-45, CA-46, CA-47, CA-48, CA-49, CA-50, CA-51, CA-52, CA-53 → E2E-24 (CA-49 también API-07) · CA-54 → suites de `plan-review.py` y `tests/test_panel_review_*` (T-55, T-56, T-57).
