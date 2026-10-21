@@ -3,7 +3,7 @@ design: panel-redesign
 titulo: "Rediseño del panel local: multi-página, kanban y gráficos"
 estado: aprobado              # borrador | aprobado | obsoleto
 creado: "2026-10-15"
-actualizado: "2026-10-16"
+actualizado: "2026-10-20"
 spec: spec.md                 # enlace hacia atrás (misma carpeta)
 evaluacion: evaluation.md
 plan: improvement-plan.md     # creado por el planner el 2026-10-15
@@ -285,11 +285,15 @@ Se registran `PreToolUse` y `PostToolUse`, los dos asíncronos. El par da «herr
 
 ### 2.5 Estados intermedios y su recuperación (`events.json`)
 
-Añadida el 2026-10-16 para la condición 1 de la puerta de la Fase 3 (`tasks.md`, T-40). No cambia D-A1 (O1), D-A2 (O5), I-03, I-04, I-05 ni I-07: precisa cómo se comporta el almacén cuando una escritura no llega a su fin. Todo lo prometido se apoya en `StateIO` (`agent-kits/shared/local-state.py`), que ya usan `agent-activity-store.py` y `plan-review.py`.
+Añadida el 2026-10-16 para la condición 1 de la puerta de la Fase 3 (`tasks.md`, T-40); esperas del cerrojo ajustadas el 2026-10-20 (decisión del usuario). No cambia D-A1 (O1), D-A2 (O5), I-03, I-04, I-05 ni I-07: precisa cómo se comporta el almacén cuando una escritura no llega a su fin. Todo lo prometido se apoya en `StateIO` (`agent-kits/shared/local-state.py`), que ya usan `agent-activity-store.py` y `plan-review.py`.
 
 **Principios comunes**
 
-- **El hook no reintenta.** Un evento que no se escribe se pierde: no se reencola, no se relanza y no se deja para el siguiente proceso. Solo quedan las dos esperas acotadas que `StateIO` ya tiene: hasta 100 ms por el cerrojo (`local-state.py:121`, `state_busy` en l. 135) y hasta 3 reintentos de `os.replace` ante bloqueo de compartición en Windows (l. 82-86). Todo cabe en el plazo de 1 s de `capture` (`agent-activity-store.py:188`) y corre en segundo plano con O5, así que la latencia síncrona sigue siendo 0 ms (I-05). La única excepción es la que I-05 ya reconoce: las herramientas MCP de Codex (ver P-EI-3).
+- **El hook no reintenta.** Un evento que no se escribe se pierde: no se reencola, no se relanza y no se deja para el siguiente proceso. La espera acotada por el cerrojo no es un reintento del evento: es el mismo proceso esperando su turno dentro de su plazo. Hay tres casos:
+  - **Eventos de herramienta (`PostToolUse`):** hasta 1 s de espera por el cerrojo (`TOOL_LOCK_WAIT`, `agent-activity-store.py:36`) dentro de un plazo total de 1,3 s (`TOOL_DEADLINE`, l. 37; uso en l. 674 y 679). Corren en segundo plano con O5, así que la latencia síncrona sigue siendo 0 ms (I-05), y caben en el SIGKILL de 2.000 ms del lanzador (`hooks/run-hook.mjs:26`). Ceden el turno: mientras una señal de ciclo de vida anuncia que espera, no entran en el cerrojo.
+  - **Señales de ciclo de vida (`SubagentStart`/`SubagentStop` y eventos de sesión de OpenCode):** hasta 100 ms de espera (`StateIO.locked`, `local-state.py:120`; `state_busy` en l. 158) dentro de un plazo de 1 s (`agent-activity-store.py:723`). Tienen prioridad sobre los eventos de herramienta (l. 734-736 y 748).
+  - **Herramientas MCP en Codex (síncronas, excepción de I-05):** un único intento, sin esperar el cerrojo ni reintentar el reemplazo (P-EI-3; `nowait` en `agent-activity-store.py:498`, plazo de 1 s en l. 674).
+  - Fuera del caso MCP de Codex se suman hasta 3 reintentos de `os.replace` ante bloqueo de compartición en Windows (`local-state.py:75-87`), dentro del mismo plazo.
 - **El lector no bloquea, no inicializa, no purga y no repara.** La lectura nueva `history(project)` copia el contrato de `snapshot()` (`agent-activity-store.py:235-250`). Comprueba el opt-in antes y después de leer (l. 240 y 244), valida el fichero entero antes de proyectar y filtra lo que tenga más de 24 h (I-03). Si la firma del fichero cambia durante la lectura, devuelve `unsafe_state` (`local-state.py:47-50`). El único «reintento» es el siguiente refresco del panel (5 s). Vive en el lector y no cuesta nada al hook.
 - **Escritura atómica con CAS.** `events.json` se escribe con `StateIO.write(..., expected=firma)` (`local-state.py:53-95`): temporal hermano `.tmp-*` (l. 59), `fsync` (l. 66), comprobación de la firma justo antes de reemplazar (l. 77), `os.replace` (l. 79) y borrado del temporal propio (l. 93-95). Es el mismo patrón que `snapshot.json` (`agent-activity-store.py:227`) y que `plan-review.py:196-197`. `ledger-archive.py:381-395` (`escribir_atomico`) es la versión sin CAS del mismo patrón. `events.json` lleva su propia instancia de `StateIO` con `maximum` = 256 KiB (I-03), porque la actual tiene 64 KiB (`agent-activity-store.py:64`).
 - **Dos ficheros, ninguna invariante entre ellos.** Los eventos de herramienta solo escriben `events.json`; el contrato de `snapshot.json` no cambia. `SubagentStart`/`SubagentStop` y los eventos de sesión de OpenCode escriben los dos, en serie y bajo el mismo cerrojo: primero `snapshot.json`, como hoy, y después `events.json`. Es el mismo principio que «primero el histórico, después el ledger» de `ledger-archive.py:41`: un corte entre las dos escrituras deja cada fichero coherente por sí solo. Además, un `events.json` dañado no puede impedir que se actualice el `snapshot.json` en vivo. Cada fichero tiene su propio `revision`, y ni el lector ni el panel los comparan entre sí.
@@ -297,8 +301,12 @@ Añadida el 2026-10-16 para la condición 1 de la puerta de la Fase 3 (`tasks.md
 
 **(a) Cerrojo ocupado (`.lock` tomado por otro proceso)**
 
-- Origen: varios hooks asíncronos a la vez (hasta 8 en Codex), o dos sesiones del mismo proyecto.
-- Escritor: espera como máximo 100 ms y devuelve `state_busy` (`local-state.py:121`, l. 135). No crea temporal (la escritura va dentro del cerrojo, `agent-activity-store.py:210`) y no toca el `.lock` de otro (`local-state.py:99`). El evento se pierde y queda sin contar: para anotar la pérdida haría falta el cerrojo que no se consiguió.
+- Origen: varios hooks asíncronos a la vez (hasta 8 en Codex, o una ráfaga de herramientas en paralelo), o dos sesiones del mismo proyecto.
+- Escritor de herramienta: intentos sin bloqueo durante hasta 1 s (`agent-activity-store.py:679-691`); si no consigue el cerrojo, devuelve `state_busy`. Pérdida medida con el anillo lleno: 8 en paralelo → 0 perdidos; 12 → 0-2; 16 → 1-5 (con 100 ms se perdían 6-7 de 8; con 0,5 s, 0-1 de 8).
+- Escritor de ciclo de vida: espera como máximo 100 ms, con prioridad. Anuncia que espera y los eventos de herramienta le ceden el turno. Se introdujo en fix2 (2-1) porque una ráfaga de herramientas dejaba sin cerrojo al `SubagentStop`.
+- MCP de Codex: un único intento; si el cerrojo está tomado, `state_busy` al momento.
+- En los tres casos: no crea temporal (la escritura va dentro del cerrojo, `agent-activity-store.py:683-685`; el anillo se lee antes y solo se reutiliza si su firma no cambió) y no toca el `.lock` de otro (`local-state.py:121`). El evento se pierde y queda sin contar: para anotar la pérdida haría falta el cerrojo que no se consiguió.
+- Coste aceptado (Minor 3-3, al backlog): en ráfaga sube la retención del cerrojo (p50 ≈ 79 ms con 8 herramientas; los 23 ms solo valen en secuencial) y la CPU total de una ráfaga de 16 pasa de ~0,75 s a ~2,7 s.
 - Lector y panel: no les afecta, porque el lector no toma el cerrojo. El hueco no se ve como hueco; queda cubierto por el aviso permanente «puede tener huecos».
 - Recuperación: no hay nada que recuperar. El siguiente evento entra normalmente. Si el que se perdió era un `usage-meter.py start`, los eventos siguientes quedan «sin atribuir» hasta el próximo `start`, que es un fallo seguro. Si se perdió un `close`, ver P-EI-2.
 
@@ -343,7 +351,7 @@ Añadida el 2026-10-16 para la condición 1 de la puerta de la Fase 3 (`tasks.md
 **(e) Opt-out a mitad (`sesion.actividad` pasa a `false` con escrituras en vuelo)**
 
 - Escritor: comprueba el opt-in al entrar (`agent-activity-store.py:191`) y otra vez justo antes de publicar, bajo el cerrojo (l. 225). `events.json` repite la segunda comprobación antes de su propio `write`. Si el usuario edita `dev.json` a medias, el JSON inválido da `invalid_config` y se trata como desactivado. El atajo de Node (O5) deja de lanzar Python para los eventos nuevos.
-- Cota: solo puede publicarse una escritura por proceso que ya hubiera pasado la última comprobación, y cada proceso acaba en ≤ 2 s (plazo de 1 s, `agent-activity-store.py:188`, y SIGKILL a los 2.000 ms, `run-hook.mjs:26`). Pasados 2 s desde el opt-out no se escribe nada más. Así se cumple I-03 («no se escribe nada más») con una cota medible.
+- Cota: solo puede publicarse una escritura por proceso que ya hubiera pasado la última comprobación, y cada proceso acaba en ≤ 2 s (plazo de 1,3 s en eventos de herramienta y de 1 s en los demás, `agent-activity-store.py:674` y l. 723, y SIGKILL a los 2.000 ms, `run-hook.mjs:26`). Pasados 2 s desde el opt-out no se escribe nada más. Así se cumple I-03 («no se escribe nada más») con una cota medible.
 - Lector y panel: `disabled` (o `invalid_config`). La página muestra «captura desactivada» (`panel-activity.js:63`) y ningún evento, aunque el fichero siga en disco. No se borra nada (I-03).
 - Al volver a activar:
   - El historial reaparece filtrado a 24 h.
@@ -368,7 +376,7 @@ Añadida el 2026-10-16 para la condición 1 de la puerta de la Fase 3 (`tasks.md
 
 | Estado | Motivo en `history`/`snapshot` | Duración | Quién lo recupera |
 |---|---|---|---|
-| (a) Cerrojo ocupado | ninguno (el lector no lo nota) | un evento | nadie: hueco declarado |
+| (a) Cerrojo ocupado | ninguno (el lector no lo nota) | un evento (espera ≤ 1 s en herramienta, ≤ 100 ms en ciclo de vida, 0 en MCP de Codex) | nadie: hueco declarado |
 | (b) CAS fallido | `unsafe_state` en el lector, si coincide | transitorio | la siguiente captura o el siguiente refresco |
 | (c) Temporal huérfano | ninguno; `state_budget` con más de 8 | hasta la limpieza | el escritor (P-EI-1) o el usuario |
 | (c) JSON inválido o truncado | `invalid_state` | persistente | el usuario (borrar el directorio) |
@@ -383,7 +391,7 @@ Todos los estados se pueden reproducir en test de forma determinista: otro descr
 **Preguntas abiertas de esta sección (para el usuario, en la condición 2 de T-40)**
 
 - **P-EI-1 — Limpieza de temporales huérfanos propios.** Con `claude -p` serán frecuentes.
-  - Recomendado: el escritor, bajo el cerrojo, borra como máximo 8 `.tmp-*` por escritura, solo los que sean ficheros regulares con `nlink == 1` y tengan más de 60 s (mucho más que el plazo de 1 s de cualquier escritor vivo).
+  - Recomendado: el escritor, bajo el cerrojo, borra como máximo 8 `.tmp-*` por escritura, solo los que sean ficheros regulares con `nlink == 1` y tengan más de 60 s (mucho más que el plazo de cualquier escritor vivo, 1,3 s como máximo).
   - Alternativa: no borrar nunca, tolerar hasta 8 y después `state_budget`, con el remedio manual.
   - Por qué es del usuario: hoy `StateIO` solo borra el temporal exacto de su propia invocación (`local-state.py:95`) y la constitución §4 limita lo que una pieza puede quitar. Es su propio residuo en su propio directorio, pero es un borrado nuevo dentro de `.claude/`.
 - **P-EI-2 — Atribución en los bordes de una ventana (CA-18).** Son dos cosas:
@@ -396,6 +404,7 @@ Todos los estados se pueden reproducir en test de forma determinista: otro descr
 - P-EI-1: sí; el escritor, bajo el cerrojo, borra como máximo 8 `.tmp-*` propios por escritura (ficheros regulares, `nlink == 1`, más de 60 s).
 - P-EI-2: (i) cuarentena de 5 s tras cada transición de ventana (`tarea: null`); (ii) un cierre perdido se declara en la página, sin contrato nuevo con `usage-meter.py`.
 - P-EI-3: sí; con `runtime == codex` y herramienta MCP, un único intento sin espera.
+- **2026-10-20 (bucle de revisión de la Fase 3):** esperas del almacén. Herramienta: 1 s de cerrojo y 1,3 s de plazo, en segundo plano; ciclo de vida: 100 ms y 1 s, con prioridad; MCP de Codex: sin cambios (P-EI-3). Coste de ráfaga aceptado (Minor 3-3, al backlog). Medidas en «Principios comunes» y en (a).
 
 ## 3. Criterios de decisión
 
@@ -675,3 +684,4 @@ El planner las numera como `T-XX` de la Fase 2. Dependen de T-12 (JS a `assets/`
 | 2026-10-15 | Diseño creado; D-A1 (O1-O3) y D-A2 (O4-O6) con recomendación O1+O5, fijada por instrucción del orquestador sobre la estructura aprobada por el usuario (`aprobado`, revisable) |
 | 2026-10-15 | Adenda §8 por la enmienda de la spec (CA-43 reformulado, CA-45 a CA-54, I-10): O7 (operación de solo lectura `summarize_reviews` en `plan-review.py`) elegida por decisión técnica delegada; O8 (proyección en el servidor) descartada; rutas `api/review-summary`, `api/review-current/<id16>` y `api/review-open/<id16>`; flag `--review-panel`; candidato de decisión al Curator. Estado sin cambio (`aprobado`) |
 | 2026-10-16 | §2.5 «Estados intermedios y su recuperación» de `events.json` (condición 1 de T-40): cerrojo ocupado, CAS fallido, escritura cortada, fuera de orden, opt-out a mitad y directorio borrado, sobre `StateIO`; fila de riesgo del inventario cerrado; preguntas P-EI-1 a P-EI-3 para el usuario. D-A1, D-A2, I-03, I-04, I-05 e I-07 sin cambio; estado sin cambio (`aprobado`) |
+| 2026-10-20 | §2.5: esperas del cerrojo por decisión del usuario en el bucle de revisión de la Fase 3. Herramienta 1 s de espera y 1,3 s de plazo (`TOOL_LOCK_WAIT`/`TOOL_DEADLINE`); ciclo de vida 100 ms y 1 s, con prioridad (fix2, 2-1); MCP de Codex sin espera (P-EI-3). Principios comunes, caso (a), cota de (e), P-EI-1 y fila (a) del resumen al día; línea nueva en «Decisiones del usuario». D-A1, D-A2 (O5), I-03 e I-05 sin cambio; estado sin cambio (`aprobado`) |
