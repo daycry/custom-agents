@@ -427,7 +427,7 @@ def test_f23_real_cross_process_lock_busy_and_recovery(owned, operation):
     holder_source = owned.root/'lock_holder.py'
     holder_source.write_text("import os,sys\nf=open(sys.argv[1],'r+b')\n"
         "if os.name=='nt':\n import msvcrt\n msvcrt.locking(f.fileno(),msvcrt.LK_NBLCK,1)\n"
-        "else:\n import fcntl\n fcntl.flock(f.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)\n"
+        "else:\n import fcntl\n fcntl.lockf(f.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB,1,0,0)\n"
         "print('locked',flush=True)\nsys.stdin.readline()\nf.close()\n", encoding='utf8')
     holder = subprocess.Popen([sys.executable, '-I', '-X', 'utf8', '-B', str(holder_source), str(owned.state/'.lock')],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

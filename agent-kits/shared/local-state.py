@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import stat
 import tempfile
+import threading
 import time
 
 
@@ -114,7 +115,7 @@ class StateIO:
                 with contextlib.suppress(OSError):
                     release()
             if fd is not None:
-                os.close(fd)
+                _close(fd)
 
     @contextlib.contextmanager
     def locked(self, state, deadline, initialize, wait=0.1, priority=None):
@@ -169,12 +170,43 @@ class StateIO:
                 if release:
                     with contextlib.suppress(OSError):
                         release()
+            _close(fd)
+
+
+# POSIX: ONE lock type for both bytes (panel-redesign T-43 fix3, 3-2). fix2 mixed `flock` (byte 0) with
+# `fcntl.lockf` (byte 1); on macOS/BSD both share one lock manager with different owners (open file vs
+# process) and on Linux over NFS `flock` is emulated with `fcntl`, so a process's own intent on byte 1
+# blocked its `flock` and every lifecycle signal ended in `state_busy`. Now both bytes are `lockf` ranges.
+# Record locks belong to the PROCESS, so two rules restore what `flock` gave for free inside one process:
+# byte 0 is also exclusive between `locked()` calls of the same process (threads, or a nested call), and
+# a descriptor of `.lock` is closed only when the process holds no lock on it (closing ANY descriptor drops
+# all of the process's record locks on that file). Windows (`msvcrt.locking`, per handle) is unchanged.
+_HELD_GUARD = threading.Lock()
+_HELD = {}  # (st_dev, st_ino) -> {'byte0': bool, 'count': locks held, 'closing': deferred descriptors}
+
+
+def _key(fd):
+    info = os.fstat(fd)
+    return info.st_dev, info.st_ino
+
+
+def _close(fd):
+    """Close a descriptor of `.lock`; on POSIX, deferred while this process holds any lock on the file.
+    Closed under the guard, so no other thread can take a lock between the check and the close."""
+    if os.name == 'nt':
+        os.close(fd)
+        return
+    with _HELD_GUARD:
+        entry = _HELD.get(_key(fd))
+        if entry is not None:
+            entry['closing'].append(fd)
+        else:
             os.close(fd)
 
 
 def _byte_lock(fd, offset):
     """Non-blocking exclusive lock of one byte of `fd` (OSError when taken); returns its release.
-    Byte 0 keeps `flock` on POSIX (the historical whole-file lock); byte 1 is an independent range lock."""
+    POSIX: `fcntl.lockf` for both bytes (one lock type); byte 0 also excludes the rest of this process."""
     if os.name == 'nt':
         import msvcrt
         os.lseek(fd, offset, os.SEEK_SET)
@@ -184,8 +216,36 @@ def _byte_lock(fd, offset):
             msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
         return release
     import fcntl
-    if offset == 0:
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        return lambda: fcntl.flock(fd, fcntl.LOCK_UN)
-    fcntl.lockf(fd, fcntl.LOCK_EX | fcntl.LOCK_NB, 1, offset, os.SEEK_SET)
-    return lambda: fcntl.lockf(fd, fcntl.LOCK_UN, 1, offset, os.SEEK_SET)
+    with _HELD_GUARD:
+        key = _key(fd)
+        entry = _HELD.setdefault(key, {'byte0': False, 'count': 0, 'closing': []})
+        try:
+            if offset == 0 and entry['byte0']:
+                raise BlockingIOError(11, 'byte 0 of .lock is held by this process')
+            fcntl.lockf(fd, fcntl.LOCK_EX | fcntl.LOCK_NB, 1, offset, os.SEEK_SET)
+        except OSError:
+            if not entry['count']:
+                del _HELD[key]
+            raise
+        entry['count'] += 1
+        entry['byte0'] = entry['byte0'] or offset == 0
+    released = []
+
+    def release():
+        if released:
+            return
+        released.append(True)
+        with _HELD_GUARD:
+            try:
+                fcntl.lockf(fd, fcntl.LOCK_UN, 1, offset, os.SEEK_SET)
+            finally:
+                entry['count'] -= 1
+                if offset == 0:
+                    entry['byte0'] = False
+                if not entry['count']:
+                    pending, entry['closing'] = entry['closing'], []
+                    _HELD.pop(key, None)
+                    for descriptor in pending:
+                        with contextlib.suppress(OSError):
+                            os.close(descriptor)
+    return release

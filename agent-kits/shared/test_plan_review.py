@@ -290,7 +290,7 @@ def test_plan_edit_during_comment_preparation_is_rechecked_before_commit(owned, 
 
 def test_cross_process_lock_contention_prevents_mutation(owned):
     o = owned; r = ready(o); lock = o.state / '.lock'
-    code = "import os,sys,time;f=open(sys.argv[1],'r+b');\nif os.name=='nt':\n import msvcrt;msvcrt.locking(f.fileno(),msvcrt.LK_NBLCK,1)\nelse:\n import fcntl;fcntl.flock(f.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)\nprint('locked',flush=True);sys.stdin.readline()"
+    code = "import os,sys,time;f=open(sys.argv[1],'r+b');\nif os.name=='nt':\n import msvcrt;msvcrt.locking(f.fileno(),msvcrt.LK_NBLCK,1)\nelse:\n import fcntl;fcntl.lockf(f.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB,1,0,0)\nprint('locked',flush=True);sys.stdin.readline()"
     process = subprocess.Popen([sys.executable, '-X', 'utf8', '-B', '-c', code, str(lock)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
     try:
         assert process.stdout.readline().strip() == 'locked'
