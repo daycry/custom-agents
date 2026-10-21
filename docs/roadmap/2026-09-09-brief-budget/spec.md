@@ -7,9 +7,9 @@ descripcion: >
   (O1 topes por sección · O2 diseño bajo demanda · O3 gaps solo de la tarea · O4 verificación sin evidencia ·
   O5 guardarraíl sobre todos los ledgers), sin subir el tope, sin recortar la tarea ni el contrato, sin tocar la
   persona ni la memoria. Fuente única del alcance: `analysis.md` de esta carpeta.
-estado: aprobada
+estado: implementada
 creado: 2026-09-09
-actualizado: 2026-10-06
+actualizado: 2026-10-21
 evaluacion: evaluation.md
 design: n/a
 plan: improvement-plan.md
