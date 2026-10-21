@@ -844,8 +844,8 @@ def _seccion_memoria():
 <button id="memory-search" type="submit">Buscar</button></form>
 <p id="memory-status" role="status" aria-live="polite">Sin consultas realizadas. Pulsa Buscar para leer la memoria local.</p>
 <p id="memory-freshness">Sin lectura disponible todavía.</p><p id="memory-results-date"></p>
-<div id="memory-results" class="grid"></div><div id="memory-selected" tabindex="-1" aria-label="Entrada seleccionada"></div>
-<div id="memory-related" tabindex="-1" aria-label="Relaciones del conocimiento"></div>
+<div id="memory-results" class="grid"></div><div id="memory-selected" role="region" tabindex="-1" aria-label="Entrada seleccionada"></div>
+<div id="memory-related" role="region" tabindex="-1" aria-label="Relaciones del conocimiento"></div>
 <p class="filter-note">Estados y evidencia declarados conservan su procedencia. Una cita o un hash no prueban aprobación humana; los límites de lectura se muestran en cada consulta.</p></section>'''
 
 

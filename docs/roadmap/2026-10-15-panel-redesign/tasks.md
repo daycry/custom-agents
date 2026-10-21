@@ -1155,6 +1155,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Cerrada**: 2026-10-16
 - **Evidencia TDD**: `RED: 35 tests (test_panel_memoria_ui.py 29, test_panel_data.py 3, test_panel_memory_server.py 3) fallaron con AttributeError: no existe panel_data.memoria, FileNotFoundError: page-memoria.js y 404 en api/memoria · 2026-10-16 (antes del código)`
 - **Verificación ejecutada** (2026-10-16): `pytest tests/test_panel_memoria_ui.py tests/test_panel_data.py tests/test_panel_memory_server.py tests/test_panel_fix4.py` → `105 passed`. Navegador (Edge y Firefox, servido y file://): 0 violaciones CSP, 0 peticiones externas, 0 errores.
+- fix qa (A11Y-01): `role="region"` en #memory-selected/#memory-related. RED: test_aria_label_solo_en_elementos_con_rol_fix_qa_a11y01[servido] falló con AssertionError (2 div con aria-label sin role) · 2026-10-21; GREEN: 4 suites → 238 passed. IA 0,02h (medido)
 
 **Notas**: T-29 sigue en-progreso por M-02 aplazado por el usuario; no bloquea F4 (decisión del orquestador). Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `0fdd1d9608a7`.
 

@@ -157,6 +157,16 @@ def test_servido_no_incrusta_la_memoria_lleva_nonce_y_conserva_la_consulta(panel
     assert orden[-3:] == ['assets/panel-graph.js', 'assets/page-memoria.js', 'assets/panel-memory.js']
     assert 'id="memory-query"' in html
 
+@pytest.mark.parametrize('modo', ['exportado', 'servido'])
+def test_aria_label_solo_en_elementos_con_rol_fix_qa_a11y01(panel, inventory, memoria, modo):
+    """A11Y-01 (axe aria-prohibited-attr): un div/span/p sin role no admite aria-label."""
+    html = _html(panel, inventory, memoria, modo)
+    malos = [t for t in re.findall(r'<(?:div|span|p)\b[^>]*>', html) if 'aria-label=' in t and ' role="' not in t]
+    assert malos == []
+    if modo == 'servido':
+        for ident in ('memory-selected', 'memory-related'):
+            assert re.search(rf'<div id="{ident}"[^>]*role="region"', html), ident
+
 
 def test_exportar_sitio_copia_los_js_de_memoria(panel, inventory, memoria, tmp_path):
     escritos, _ = panel._load_pages().exportar_sitio(tmp_path / 's', inventory, memoria=memoria,
