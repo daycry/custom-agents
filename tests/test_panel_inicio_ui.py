@@ -163,7 +163,7 @@ for(const id of IDS)ids[id]=new El('div');
 ids['panel-data']=new El('script');
 const docEvents={},docListeners={};  // T-50 fix1: every page script may listen (cartera and actividad)
 global.document={hidden:false,createElement:t=>new El(t),documentElement:new El('html'),getElementById:id=>ids[id]||null,
-  addEventListener(t,f){(docListeners[t]=docListeners[t]||[]).push(f);docEvents[t]=()=>docListeners[t].forEach(g=>g());},readyState:'complete',querySelector:()=>null,querySelectorAll:()=>[]};
+  addEventListener(t,f){(docListeners[t]=docListeners[t]||[]).push(f);docEvents[t]=(...a)=>docListeners[t].forEach(g=>g(...a));},readyState:'complete',querySelector:()=>null,querySelectorAll:()=>[]};
 let seq=0;const timers=new Map();
 global.setTimeout=(f,d)=>{timers.set(++seq,{f,d});return seq;};
 global.clearTimeout=id=>timers.delete(id);
