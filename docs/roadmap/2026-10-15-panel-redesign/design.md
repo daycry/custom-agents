@@ -3,7 +3,7 @@ design: panel-redesign
 titulo: "Rediseño del panel local: multi-página, kanban y gráficos"
 estado: aprobado              # borrador | aprobado | obsoleto
 creado: "2026-10-15"
-actualizado: "2026-10-20"
+actualizado: "2026-10-21"
 spec: spec.md                 # enlace hacia atrás (misma carpeta)
 evaluacion: evaluation.md
 plan: improvement-plan.md     # creado por el planner el 2026-10-15
@@ -291,13 +291,13 @@ Añadida el 2026-10-16 para la condición 1 de la puerta de la Fase 3 (`tasks.md
 
 - **El hook no reintenta.** Un evento que no se escribe se pierde: no se reencola, no se relanza y no se deja para el siguiente proceso. La espera acotada por el cerrojo no es un reintento del evento: es el mismo proceso esperando su turno dentro de su plazo. Hay tres casos:
   - **Eventos de herramienta (`PostToolUse`):** hasta 1 s de espera por el cerrojo (`TOOL_LOCK_WAIT`, `agent-activity-store.py:36`) dentro de un plazo total de 1,3 s (`TOOL_DEADLINE`, l. 37; uso en l. 674 y 679). Corren en segundo plano con O5, así que la latencia síncrona sigue siendo 0 ms (I-05), y caben en el SIGKILL de 2.000 ms del lanzador (`hooks/run-hook.mjs:26`). Ceden el turno: mientras una señal de ciclo de vida anuncia que espera, no entran en el cerrojo.
-  - **Señales de ciclo de vida (`SubagentStart`/`SubagentStop` y eventos de sesión de OpenCode):** hasta 100 ms de espera (`StateIO.locked`, `local-state.py:120`; `state_busy` en l. 158) dentro de un plazo de 1 s (`agent-activity-store.py:723`). Tienen prioridad sobre los eventos de herramienta (l. 734-736 y 748).
+  - **Señales de ciclo de vida (`SubagentStart`/`SubagentStop` y eventos de sesión de OpenCode):** hasta 100 ms de espera (`StateIO.locked`, `local-state.py:121`; `state_busy` en l. 159) dentro de un plazo de 1 s (`agent-activity-store.py:723`). Tienen prioridad sobre los eventos de herramienta (l. 735-737 y 748).
   - **Herramientas MCP en Codex (síncronas, excepción de I-05):** un único intento, sin esperar el cerrojo ni reintentar el reemplazo (P-EI-3; `nowait` en `agent-activity-store.py:498`, plazo de 1 s en l. 674).
-  - Fuera del caso MCP de Codex se suman hasta 3 reintentos de `os.replace` ante bloqueo de compartición en Windows (`local-state.py:75-87`), dentro del mismo plazo.
-- **El lector no bloquea, no inicializa, no purga y no repara.** La lectura nueva `history(project)` copia el contrato de `snapshot()` (`agent-activity-store.py:235-250`). Comprueba el opt-in antes y después de leer (l. 240 y 244), valida el fichero entero antes de proyectar y filtra lo que tenga más de 24 h (I-03). Si la firma del fichero cambia durante la lectura, devuelve `unsafe_state` (`local-state.py:47-50`). El único «reintento» es el siguiente refresco del panel (5 s). Vive en el lector y no cuesta nada al hook.
-- **Escritura atómica con CAS.** `events.json` se escribe con `StateIO.write(..., expected=firma)` (`local-state.py:53-95`): temporal hermano `.tmp-*` (l. 59), `fsync` (l. 66), comprobación de la firma justo antes de reemplazar (l. 77), `os.replace` (l. 79) y borrado del temporal propio (l. 93-95). Es el mismo patrón que `snapshot.json` (`agent-activity-store.py:227`) y que `plan-review.py:196-197`. `ledger-archive.py:381-395` (`escribir_atomico`) es la versión sin CAS del mismo patrón. `events.json` lleva su propia instancia de `StateIO` con `maximum` = 256 KiB (I-03), porque la actual tiene 64 KiB (`agent-activity-store.py:64`).
+  - Fuera del caso MCP de Codex se suman hasta 3 reintentos de `os.replace` ante bloqueo de compartición en Windows (`local-state.py:76-88`), dentro del mismo plazo.
+- **El lector no bloquea, no inicializa, no purga y no repara.** La lectura nueva `history(project)` copia el contrato de `snapshot()` (`agent-activity-store.py:775-790`). Comprueba el opt-in antes y después de leer (l. 799 y 805), valida el fichero entero antes de proyectar y filtra lo que tenga más de 24 h (I-03). Si la firma del fichero cambia durante la lectura, devuelve `unsafe_state` (`local-state.py:48-51`). El único «reintento» es el siguiente refresco del panel (5 s). Vive en el lector y no cuesta nada al hook.
+- **Escritura atómica con CAS.** `events.json` se escribe con `StateIO.write(..., expected=firma)` (`local-state.py:54-97`): temporal hermano `.tmp-*` (l. 61), `fsync` (l. 68), comprobación de la firma justo antes de reemplazar (l. 79), `os.replace` (l. 81) y borrado del temporal propio (l. 95-97). Es el mismo patrón que `snapshot.json` (`agent-activity-store.py:766`) y que `plan-review.py:196-197`. `ledger-archive.py:381-395` (`escribir_atomico`) es la versión sin CAS del mismo patrón. `events.json` lleva su propia instancia de `StateIO` con `maximum` = 256 KiB (I-03; `MAX_EVENTS_FILE = 256 * 1024`, `agent-activity-store.py:24`). Los 64 KiB de `MAX_BYTES` (l. 23) son el tope de `snapshot.json` (`_read_snapshot`, l. 202).
 - **Dos ficheros, ninguna invariante entre ellos.** Los eventos de herramienta solo escriben `events.json`; el contrato de `snapshot.json` no cambia. `SubagentStart`/`SubagentStop` y los eventos de sesión de OpenCode escriben los dos, en serie y bajo el mismo cerrojo: primero `snapshot.json`, como hoy, y después `events.json`. Es el mismo principio que «primero el histórico, después el ledger» de `ledger-archive.py:41`: un corte entre las dos escrituras deja cada fichero coherente por sí solo. Además, un `events.json` dañado no puede impedir que se actualice el `snapshot.json` en vivo. Cada fichero tiene su propio `revision`, y ni el lector ni el panel los comparan entre sí.
-- **Los motivos son los del conjunto cerrado que ya existe** (`ACTIVITY_REASONS`, `skills/plugin-panel/scripts/serve_panel.py:499-503`, y su espejo en `assets/panel-activity.js:9`). No hay texto libre ni datos parciales: si `history` no es `ok`, la página muestra «historial no disponible (`<motivo>`)», sin eventos (CA-40). Además, la página dice siempre «captura informativa: puede tener huecos».
+- **Los motivos son los del conjunto cerrado que ya existe** (`ACTIVITY_REASONS`, `skills/plugin-panel/scripts/serve_panel.py:500-504`, y su espejo en `assets/panel-activity.js:9`). No hay texto libre ni datos parciales: si `history` no es `ok`, la página muestra «historial no disponible (`<motivo>`)», sin eventos (CA-40). Además, la página dice siempre «captura informativa: puede tener huecos».
 
 **(a) Cerrojo ocupado (`.lock` tomado por otro proceso)**
 
@@ -305,7 +305,7 @@ Añadida el 2026-10-16 para la condición 1 de la puerta de la Fase 3 (`tasks.md
 - Escritor de herramienta: intentos sin bloqueo durante hasta 1 s (`agent-activity-store.py:679-691`); si no consigue el cerrojo, devuelve `state_busy`. Pérdida medida con el anillo lleno: 8 en paralelo → 0 perdidos; 12 → 0-2; 16 → 1-5 (con 100 ms se perdían 6-7 de 8; con 0,5 s, 0-1 de 8).
 - Escritor de ciclo de vida: espera como máximo 100 ms, con prioridad. Anuncia que espera y los eventos de herramienta le ceden el turno. Se introdujo en fix2 (2-1) porque una ráfaga de herramientas dejaba sin cerrojo al `SubagentStop`.
 - MCP de Codex: un único intento; si el cerrojo está tomado, `state_busy` al momento.
-- En los tres casos: no crea temporal (la escritura va dentro del cerrojo, `agent-activity-store.py:683-685`; el anillo se lee antes y solo se reutiliza si su firma no cambió) y no toca el `.lock` de otro (`local-state.py:121`). El evento se pierde y queda sin contar: para anotar la pérdida haría falta el cerrojo que no se consiguió.
+- En los tres casos: no crea temporal (la escritura va dentro del cerrojo, `agent-activity-store.py:683-686`; el anillo se lee antes y solo se reutiliza si su firma no cambió) y no toca el `.lock` de otro (`local-state.py:122`). El evento se pierde y queda sin contar: para anotar la pérdida haría falta el cerrojo que no se consiguió.
 - Coste aceptado (Minor 3-3, al backlog): en ráfaga sube la retención del cerrojo (p50 ≈ 79 ms con 8 herramientas; los 23 ms solo valen en secuencial) y la CPU total de una ráfaga de 16 pasa de ~0,75 s a ~2,7 s.
 - Lector y panel: no les afecta, porque el lector no toma el cerrojo. El hueco no se ve como hueco; queda cubierto por el aviso permanente «puede tener huecos».
 - Recuperación: no hay nada que recuperar. El siguiente evento entra normalmente. Si el que se perdió era un `usage-meter.py start`, los eventos siguientes quedan «sin atribuir» hasta el próximo `start`, que es un fallo seguro. Si se perdió un `close`, ver P-EI-2.
@@ -313,59 +313,59 @@ Añadida el 2026-10-16 para la condición 1 de la puerta de la Fase 3 (`tasks.md
 **(b) CAS fallido (otro escritor cambió el fichero entre la lectura y la escritura)**
 
 - Origen: bajo el cerrojo cooperativo ningún escritor del almacén puede causarlo. Solo lo causa un actor que no toma el cerrojo: una edición a mano, un sincronizador como OneDrive o un antivirus que reescribe el fichero, o una versión vieja del almacén.
-- Escritor: la firma `(dev, ino, size, mtime_ns, ctime_ns)` (`local-state.py:42`) no coincide antes del `os.replace` y la escritura devuelve `unsafe_state` (l. 77). El temporal propio se borra (l. 93-95) y el evento se pierde, sin reintento.
-- Residuo aceptado: la comprobación y el reemplazo no son una sola operación atómica. Un actor externo que escriba justo entre l. 77 y l. 79 queda pisado. Es el mismo margen que `snapshot.json` acepta hoy.
-- Lector y panel: si el lector coincide con un reemplazo, devuelve `unsafe_state` (`local-state.py:50`). Es transitorio y se resuelve en el siguiente refresco.
+- Escritor: la firma `(dev, ino, size, mtime_ns, ctime_ns)` (`local-state.py:43`) no coincide antes del `os.replace` y la escritura devuelve `unsafe_state` (l. 79). El temporal propio se borra (l. 95-97) y el evento se pierde, sin reintento.
+- Residuo aceptado: la comprobación y el reemplazo no son una sola operación atómica. Un actor externo que escriba justo entre l. 79 y l. 81 queda pisado. Es el mismo margen que `snapshot.json` acepta hoy.
+- Lector y panel: si el lector coincide con un reemplazo, devuelve `unsafe_state` (`local-state.py:51`). Es transitorio y se resuelve en el siguiente refresco.
 - Recuperación: automática en la siguiente captura, que vuelve a leer bajo el cerrojo. Si el actor externo dejó un JSON válido, se sigue sobre él. Si no, se pasa al caso (c).
 
 **(c) Escritura cortada (proceso matado, temporal huérfano, fichero truncado o JSON inválido)**
 
-- **Proceso matado antes del `os.replace`.** Causas: un SIGKILL del launcher al pasar 2.000 ms (`hooks/run-hook.mjs:26`, l. 194), la cancelación de los hooks asíncronos al cerrar `claude -p` (riesgo (c) de O5) o un apagado.
+- **Proceso matado antes del `os.replace`.** Causas: un SIGKILL del launcher al pasar 2.000 ms (`hooks/run-hook.mjs:26`, l. 260-264), la cancelación de los hooks asíncronos al cerrar `claude -p` (riesgo (c) de O5) o un apagado.
   - `events.json` queda intacto, porque el reemplazo es atómico.
-  - Queda un `.tmp-*` huérfano. Hoy eso **bloquea el almacén para siempre**: el inventario es cerrado (`agent-activity-store.py:119-122`, `max_entries=5` y nombres exactos), así que escritor y lector devolverían `invalid_state` de forma permanente.
+  - Queda un `.tmp-*` huérfano. Antes de P-EI-1 eso **bloqueaba el almacén para siempre**: el inventario era cerrado (`max_entries=5` y nombres exactos), así que escritor y lector devolvían `invalid_state` de forma permanente. Hoy está resuelto: `_inventory` admite `.tmp-*` hasta `MAX_TEMPS = 8` (`agent-activity-store.py:145-157`) y el escritor, bajo el cerrojo, borra los suyos según P-EI-1 (`_clean_temps`, l. 175-197).
   - Cambio que pide este diseño: el inventario admite nombres `\.tmp-[A-Za-z0-9_-]+` como hace `plan-review.py:228-229`, hasta un tope de 8. El lector los ignora. Si hay más de 8, el resultado es `state_budget`.
   - Limpieza: ver P-EI-1. La recomendación es que el escritor, bajo el cerrojo, borre sus propios huérfanos.
-- **Proceso matado entre `os.replace` y `sync_dir`** (solo POSIX, `local-state.py:89-92`). Tras un apagado, el fichero puede volver al contenido anterior, que es válido. Se pierde ese evento.
+- **Proceso matado entre `os.replace` y `sync_dir`** (solo POSIX, `local-state.py:91-94`). Tras un apagado, el fichero puede volver al contenido anterior, que es válido. Se pierde ese evento.
 - **Corte entre `snapshot.json` y `events.json`** (`SubagentStart`/`Stop`). El vivo ve la señal y el historial no la tiene. El run del historial pasa de «en curso» a «sin señal reciente» y nunca a «terminado» inferido (§1). No hay nada que reparar.
 - **`events.json` truncado, con JSON inválido o fuera de esquema.**
   - Origen: el camino de escritura propio no puede producirlo (`fsync` y reemplazo atómico). Solo lo produce un actor externo o un fallo del disco.
-  - Escritor: la validación completa falla y devuelve `invalid_state`. No escribe, no reinicializa y no repara, igual que hoy con `snapshot.json` («Foreign or partial existing state is never initialized», `agent-activity-store.py:209`; el lector no recupera, l. 236). `snapshot.json` sigue actualizándose, porque se escribe antes.
+  - Escritor: la validación completa falla y devuelve `invalid_state`. No escribe, no reinicializa y no repara, igual que hoy con `snapshot.json` («Foreign or partial existing state is never initialized», `agent-activity-store.py:645`; el lector no recupera, l. 776). `snapshot.json` sigue actualizándose, porque se escribe antes.
   - Lector y panel: «historial no disponible (`invalid_state`)». La guía da el remedio: borrar `.claude/agent-activity/` y dejar que la siguiente captura lo cree de nuevo, como en (f). El panel nunca borra (I-03).
 - **`events.json` ausente en un almacén válido.** Pasa al actualizar desde la versión que solo tiene `snapshot.json`, o si se cortó su primera escritura.
-  - Escritor: bajo el cerrojo lo crea en exclusiva (`os.link`, `expected=None`, `local-state.py:71-72`).
+  - Escritor: bajo el cerrojo lo crea en exclusiva (`os.link`, `expected=None`, `local-state.py:73-74`).
   - Lector: devuelve `ok` con el historial vacío, y el panel muestra «aún sin eventos registrados». La ausencia del fichero se trata como «no hay eventos», nunca como «hay cobertura».
-- **Inicialización cortada** (existe el directorio pero falta `owner.json`). El escritor nunca adopta un estado parcial: devuelve `unowned_state` (`agent-activity-store.py:209`; mismo criterio en `plan-review.py:208`). El lector también lo devuelve. Se queda así hasta que el usuario borre el directorio.
+- **Inicialización cortada** (existe el directorio pero falta `owner.json`). El escritor nunca adopta un estado parcial: devuelve `unowned_state` (`agent-activity-store.py:645`; mismo criterio en `plan-review.py:208`). El lector también lo devuelve. Se queda así hasta que el usuario borre el directorio.
 
 **(d) Eventos asíncronos fuera de orden**
 
-- Origen: el orden en que se toma el cerrojo no es el orden en que terminaron las herramientas. Ninguno de los tres runtimes manda una marca de tiempo nativa en el evento de herramienta. `observed_at` se toma dentro del cerrojo (`agent-activity-store.py:212`), así que `revision` y `observed_at` ordenan por **recepción**.
-- Cota del desorden: un proceso de captura vive como mucho 2.000 ms (`run-hook.mjs:26`) dentro del `timeout: 5` del grupo (`hooks/hooks.json:40,51`). Un evento no puede llegar más de 5 s después de otro posterior.
+- Origen: el orden en que se toma el cerrojo no es el orden en que terminaron las herramientas. Ninguno de los tres runtimes manda una marca de tiempo nativa en el evento de herramienta. `observed_at` se toma dentro del cerrojo (`agent-activity-store.py:333` y 751), así que `revision` y `observed_at` ordenan por **recepción**.
+- Cota del desorden: un proceso de captura vive como mucho 2.000 ms (`run-hook.mjs:26`) dentro del `timeout: 5` del grupo (`hooks/hooks.json:39,51`). Un evento no puede llegar más de 5 s después de otro posterior.
 - Reglas de proyección (en `agent-activity.py`, sin E/S):
   - Los eventos se listan por `revision`, y la página lo dice: «orden de recepción, no de ejecución».
   - Un `SubagentStop` observado manda: el run queda en «respuesta terminada». Un `PostToolUse` posterior del mismo `run_key` se lista, pero no devuelve el run a «en curso» ni alarga su duración, que queda fijada en `Start → Stop`.
   - Un run sin `Start` observado (por ejemplo, porque se perdió en (a)) nace con su primer evento de herramienta. Su estado sale de la frescura y nunca es «terminado» sin `Stop`.
   - Una `observed_at` futura (reloj retrasado) da «edad: sin datos», como hoy (`agent-activity.py:69-74`). El orden por `revision` no se ve afectado.
-- Dos sesiones intercaladas: cada run tiene su `run_key` (HMAC con `scope_id` sobre runtime, ámbito, sesión y agente; `agent-activity-store.py:214-215`). Las ventanas viven en el ámbito de su run (§2.3), así que intercalar no mezcla atribuciones. El anillo es global (500 / 256 KiB, I-03): una sesión muy activa puede expulsar los eventos de otra, y eso queda en `recortado`.
+- Dos sesiones intercaladas: cada run tiene su `run_key` (HMAC con `scope_id` sobre runtime, ámbito, sesión y agente; `agent-activity-store.py:348-352` y 621-622). Las ventanas viven en el ámbito de su run (§2.3), así que intercalar no mezcla atribuciones. El anillo es global (500 / 256 KiB, I-03): una sesión muy activa puede expulsar los eventos de otra, y eso queda en `recortado`.
 - Atribución en los bordes: un evento que se procesa después del `start` de la tarea siguiente, aunque ocurrió antes, se atribuiría a esa tarea siguiente. CA-18 no lo permite. Ver P-EI-2 (cuarentena tras cada transición de ventana).
 
 **(e) Opt-out a mitad (`sesion.actividad` pasa a `false` con escrituras en vuelo)**
 
-- Escritor: comprueba el opt-in al entrar (`agent-activity-store.py:191`) y otra vez justo antes de publicar, bajo el cerrojo (l. 225). `events.json` repite la segunda comprobación antes de su propio `write`. Si el usuario edita `dev.json` a medias, el JSON inválido da `invalid_config` y se trata como desactivado. El atajo de Node (O5) deja de lanzar Python para los eventos nuevos.
+- Escritor: comprueba el opt-in al entrar (`agent-activity-store.py:732`) y otra vez justo antes de publicar, bajo el cerrojo (l. 764). `events.json` repite la segunda comprobación antes de su propio `write`. Si el usuario edita `dev.json` a medias, el JSON inválido da `invalid_config` y se trata como desactivado. El atajo de Node (O5) deja de lanzar Python para los eventos nuevos.
 - Cota: solo puede publicarse una escritura por proceso que ya hubiera pasado la última comprobación, y cada proceso acaba en ≤ 2 s (plazo de 1,3 s en eventos de herramienta y de 1 s en los demás, `agent-activity-store.py:674` y l. 723, y SIGKILL a los 2.000 ms, `run-hook.mjs:26`). Pasados 2 s desde el opt-out no se escribe nada más. Así se cumple I-03 («no se escribe nada más») con una cota medible.
 - Lector y panel: `disabled` (o `invalid_config`). La página muestra «captura desactivada» (`panel-activity.js:63`) y ningún evento, aunque el fichero siga en disco. No se borra nada (I-03).
 - Al volver a activar:
   - El historial reaparece filtrado a 24 h.
-  - Las ventanas que estaban abiertas al desactivar pueden haberse cerrado sin que nadie lo viera. Para no atribuir con una ventana rancia, `events.json` guarda en su cabecera la firma de `dev.json` (la que ya devuelve `io.read`, `local-state.py:51`, leída en `_enabled`, `agent-activity-store.py:96`).
+  - Las ventanas que estaban abiertas al desactivar pueden haberse cerrado sin que nadie lo viera. Para no atribuir con una ventana rancia, `events.json` guarda en su cabecera la firma de `dev.json` (la que ya devuelve `io.read`, `local-state.py:52`, leída en `_enabled`, `agent-activity-store.py:115`).
   - Si en la siguiente escritura la firma es otra, todas las ventanas abiertas pasan a `caducada`. Es el vocabulario que ya existe (§1), sin estados nuevos.
   - Cualquier edición de `dev.json` invalida las ventanas: es conservador y, en el peor caso, deja eventos «sin atribuir» hasta el siguiente `start`.
 
 **(f) Directorio borrado a mano por el usuario**
 
 - Borrado completo con el almacén en reposo:
-  - Escritor: la siguiente captura recrea el directorio (`agent-activity-store.py:194-207`) con un `scope_id` **nuevo**. Los `run_key` cambian y no hay ventanas abiertas, así que los eventos quedan «sin atribuir» hasta el próximo `start`.
-  - Lector y panel: `state_missing` (l. 242) hasta esa captura, y la página muestra «aún no hay actividad registrada».
+  - Escritor: la siguiente captura recrea el directorio (`agent-activity-store.py:629-643`) con un `scope_id` **nuevo**. Los `run_key` cambian y no hay ventanas abiertas, así que los eventos quedan «sin atribuir» hasta el próximo `start`.
+  - Lector y panel: `state_missing` (l. 801) hasta esa captura, y la página muestra «aún no hay actividad registrada».
 - Borrado con un escritor dentro:
-  - En POSIX, la comprobación de directorios (`local-state.py:32-36`, que se repite antes de cada paso) o el `os.replace` fallan con `unsafe_state` o con un `OSError` que se convierte en `invalid_state`. Ese evento se pierde.
+  - En POSIX, la comprobación de directorios (`local-state.py:33-37`, que se repite antes de cada paso) o el `os.replace` fallan con `unsafe_state` o con un `OSError` que se convierte en `invalid_state`. Ese evento se pierde.
   - En Windows, el borrado falla sobre el `.lock` abierto y puede quedar a medias.
 - Borrado a medias:
   - Sin `owner.json`: `unowned_state` permanente, como en «inicialización cortada» de (c).
@@ -393,7 +393,7 @@ Todos los estados se pueden reproducir en test de forma determinista: otro descr
 - **P-EI-1 — Limpieza de temporales huérfanos propios.** Con `claude -p` serán frecuentes.
   - Recomendado: el escritor, bajo el cerrojo, borra como máximo 8 `.tmp-*` por escritura, solo los que sean ficheros regulares con `nlink == 1` y tengan más de 60 s (mucho más que el plazo de cualquier escritor vivo, 1,3 s como máximo).
   - Alternativa: no borrar nunca, tolerar hasta 8 y después `state_budget`, con el remedio manual.
-  - Por qué es del usuario: hoy `StateIO` solo borra el temporal exacto de su propia invocación (`local-state.py:95`) y la constitución §4 limita lo que una pieza puede quitar. Es su propio residuo en su propio directorio, pero es un borrado nuevo dentro de `.claude/`.
+  - Por qué es del usuario: hoy `StateIO` solo borra el temporal exacto de su propia invocación (`local-state.py:97`) y la constitución §4 limita lo que una pieza puede quitar. Es su propio residuo en su propio directorio, pero es un borrado nuevo dentro de `.claude/`.
 - **P-EI-2 — Atribución en los bordes de una ventana (CA-18).** Son dos cosas:
   - (i) Cuarentena: un evento observado menos de 5 s (la cota de (d)) después de una transición de su ventana (`start`, `close` o reemplazo) se guarda con `tarea: null`. Recomendado. A cambio, cada tarea pierde la atribución de sus primeros segundos.
   - (ii) Cierre perdido por (a)-(c): la ventana sigue abierta y atribuye de más hasta el siguiente `start`. Opciones: declararlo en la página, o confirmar cada ventana contra `.claude/usage-state.json` (dueño: `usage-meter.py`). Lo segundo crea un contrato de lectura nuevo con otra pieza y toca la subdecisión de atribución de §2.3, así que lo decide el usuario.
