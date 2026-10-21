@@ -563,11 +563,7 @@ Criterios de la spec: CA-32 a CA-41 y CA-43 (+ la parte base de CA-42 y la prime
 - **Tipo**: test
 - **Archivos**: `docs/roadmap/2026-10-15-panel-redesign/tasks.md`, `docs/roadmap/2026-10-15-panel-redesign/{spec,design,improvement-plan,test-plan}.md` (enmienda 2026-10-15 aprobada por el usuario, commit ee8e7cc), `skills/confluence-publish/SKILL.md`, `skills/confluence-publish/references/config-and-policy.md`, `skills/confluence-publish/scripts/confluence-scope.py`, `tests/test_confluence_scope.py`, `tests/test_panel_fix1.py` (bucle de corrección intento 1: gaps 1-4, 7-10), `tests/test_hook_supervisor.py`, `tests/test_knowledge_find.py`, `hooks/runtime-supervisor.py`, `tests/codex-plugin-state.test.mjs` (cambios del orquestador durante el bucle, declarados aquí para la puerta de alcance; el límite de tiempo de `codex-plugin-state.test.mjs` pasó de 7500 a 9500 ms en b09e07f, justificado por la lente A del intento 2: el techo real es el plazo de 3 s más el SIGKILL exterior de 4 s y el descendiente vive 12 s), `tests/test_panel_fix2.py`, `skills/confluence-publish/references/publish-and-sync.md` (bucle de corrección intento 2: gaps 2-2..2-8), `tests/opencode-plugin.test.mjs` y `tests/hook-runtime.test.mjs` (orquestador, bucle fix2: reporter TAP fijado ante Node ≥ 23 y plazo de SessionEnd por defecto, sin heredar `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` del entorno del desarrollador), `tests/test_panel_fix3.py` (intento 3: lista blanca de texto servido, alias 8.3, manifiesto con hash y panel real; `tests/test_panel_fix4.py` (confirmación del intento 3: contrato del saneado servido y topes tras anonimizar); `tests/test_hook_supervisor.py` con reloj controlado)
 - **Cubre (tests)**: M-01
-- **Verificación**:
-  - `python3 -m pytest -q tests/test_plugin_panel.py tests/test_panel_*.py tests/test_dashboard.py tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py agent-kits/shared/test_agent_activity.py` → `0 failed`
-  - `python3 scripts/lint_plugin.py` → exit 0 · `python3 evals/check.py` → exit 0 · `python3 scripts/export-interop.py --check` → exit 0
-  - `python3 agent-kits/shared/scope-check.py docs/roadmap/2026-10-15-panel-redesign` → exit 0
-  - lectura: sección «Revisión de dos lentes — intento N: …» de la Fase 1 sin Critical ni Important abiertos, y línea «Revisión visual del usuario — Fase 1: aprobada AAAA-MM-DD» con el resultado de M-01
+- **Verificación**: `python3 -m pytest -q tests/test_plugin_panel.py tests/test_panel_*.py tests/test_dashboard.py tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py agent-kits/shared/test_agent_activity.py` → `0 failed` · `python3 scripts/lint_plugin.py` → exit 0 · `python3 evals/check.py` → exit 0 · `python3 scripts/export-interop.py --check` → exit 0 · `python3… Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `b37033dd172a`.
 
 **Criterios de aceptación**
 - [x] CA-44 de la Fase 1: suites, linter y evals en verde.
@@ -1214,7 +1210,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Evidencia TDD**: `RED: 35 tests (test_panel_memoria_ui.py 29, test_panel_data.py 3, test_panel_memory_server.py 3) fallaron con AttributeError: no existe panel_data.memoria, FileNotFoundError: page-memoria.js y 404 en api/memoria · 2026-10-16 (antes del código)`
 - **Verificación ejecutada** (2026-10-16): `pytest tests/test_panel_memoria_ui.py tests/test_panel_data.py tests/test_panel_memory_server.py tests/test_panel_fix4.py` → `105 passed`. Navegador (Edge y Firefox, servido y file://): 0 violaciones CSP, 0 peticiones externas, 0 errores.
 
-**Notas**: sucesión desde `knowledge-find.py` (`--related`, `agent-kits/shared/knowledge-find.py:102`). «vigente» = sin sucesor y no obsoleta, calculado con `knowledge-find` (`_relaciones_sucesion`).
+**Notas**: sucesión desde `knowledge-find.py` (`--related`, `agent-kits/shared/knowledge-find.py:102`). Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `a91b9d44ba36`.
 
 ### T-33 — Memoria: relaciones de UNA entrada en un SVG pequeño y lista textual
 
@@ -1301,7 +1297,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Evidencia TDD**: `RED: 35 tests (test_panel_memoria_ui.py 29, test_panel_data.py 3, test_panel_memory_server.py 3) fallaron con AttributeError: no existe panel_data.memoria, FileNotFoundError: page-memoria.js y 404 en api/memoria · 2026-10-16 (antes del código)`
 - **Verificación ejecutada** (2026-10-16): `pytest tests/test_panel_memoria_ui.py tests/test_panel_data.py tests/test_panel_memory_server.py tests/test_panel_fix4.py` → `105 passed`. Navegador (Edge y Firefox, servido y file://): 0 violaciones CSP, 0 peticiones externas, 0 errores.
 
-**Notas**: campos en `agent-kits/shared/journal.py:244-246` (`CONTINUIDAD`); lectura por `journal.py status --json` (`journal.py:41`) sin ampliar su contrato. `journal.select_entries` devuelve como mucho 2 sesiones (su contrato, sin ampliar).
+**Notas**: campos en `agent-kits/shared/journal.py:244-246` (`CONTINUIDAD`); lectura por `journal.py status --json` (`journal.py:41`) sin ampliar su contrato. Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `dbd8ff294c72`.
 
 ### T-36 — Catálogo: filtros por tipo, origen y runtime
 
@@ -1329,7 +1325,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Evidencia TDD**: `RED: 4 tests de test_panel_catalogo_ui.py fallaron (AssertionError: sin desglose «Por origen»/«results-detail» ausente) · 2026-10-16 (antes del código)`.
 - **Verificación ejecutada** (2026-10-16): `pytest tests/test_panel_catalogo_ui.py tests/test_panel_contract_golden.py tests/test_plugin_panel.py` → `117 passed, 2 skipped`. Edge y Firefox, servido y `file://`: 0 CSP, 0 externas, 0 errores.
 
-**Notas**: página de T-09. T-29 sigue en-progreso (M-02 aplazada por el usuario a la revisión final); no bloquea. «Origen» = ámbito de extensiones (proyecto/usuario/local); el bundle no lo declara. Filtros solo del cliente: `--json` igual al golden.
+**Notas**: página de T-09. Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `3f5ef6b5bacc`.
 ### T-37 — Diagnóstico: veredicto en texto, fecha, alcance y resumen
 
 - **Descripción**: Una fila por comprobación con su veredicto ✅/⚠️/❌ también en texto, su fecha y su alcance, y un resumen con el número de cada veredicto; sin informe, de otro proyecto u otro formato, «sin informe» o el motivo del rechazo y el comando para generarlo.
@@ -1400,11 +1396,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Archivos**: `docs/roadmap/2026-10-15-panel-redesign/tasks.md`, `agent-kits/shared/ledger-archive.py` (archivado de Notas: tope 256 KiB), `agent-kits/shared/test_ledger_archive.py` (archivado de Notas: tope 256 KiB), `agent-kits/shared/README.md` (archivado de Notas: tope 256 KiB)
 - **Evidencia TDD**: modo D de `ledger-archive.py`: `RED: 7 tests nuevos de agent-kits/shared/test_ledger_archive.py fallaron con KeyError: 'notas' / --notas-max desconocido · 2026-10-16 (antes del código)`; verde 22 passed.
 - **Cubre (tests)**: M-03
-- **Verificación**:
-  - `python3 -m pytest -q tests/test_plugin_panel.py tests/test_panel_*.py tests/test_dashboard.py tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py agent-kits/shared/test_agent_activity.py` → `0 failed`
-  - `python3 scripts/lint_plugin.py` → exit 0 · `python3 evals/check.py` → exit 0 · `python3 scripts/export-interop.py --check` → exit 0
-  - `python3 agent-kits/shared/scope-check.py docs/roadmap/2026-10-15-panel-redesign` → exit 0
-  - lectura: «Revisión de dos lentes — intento N: …» de la Fase 4 sin Critical ni Important abiertos y «Revisión visual del usuario — Fase 4: aprobada AAAA-MM-DD»
+- **Verificación**: `python3 -m pytest -q tests/test_plugin_panel.py tests/test_panel_*.py tests/test_dashboard.py tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py agent-kits/shared/test_agent_activity.py` → `0 failed` · `python3 scripts/lint_plugin.py` → exit 0 · `python3 evals/check.py` → exit 0 · `python3 scripts/export-interop.py --check` → exit 0 · `python3… Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `fc9d63a101bd`.
 
 **Criterios de aceptación**
 - [x] CA-44 de la Fase 4.
@@ -1414,7 +1406,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 **Subtareas**
 - [x] Suites y puertas; `adversarial-review`; M-03.
 
-**Notas**: la Lente A comprueba que ningún hotspot (`doctor.py`, `journal.py`, `knowledge-find.py`) cambió de contrato. **2026-10-20:** M-03 aprobada por el usuario en el navegador (Memoria, Catálogo y Diagnóstico, panel servido).
+**Notas**: la Lente A comprueba que ningún hotspot (`doctor.py`, `journal.py`, `knowledge-find.py`) cambió de contrato. Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `86ffd34f23f7`.
 
 - **Verificación ejecutada** (2026-10-20, HEAD `3ca861b`): la misma tanda que T-29 (cubre todas las suites de esta Verificación) → `3 failed, 1604 passed, 20 skipped`; los 3 fallos son de plazo en `test_plan_review_summary.py`, fuera de esta Verificación, y en solitario pasan (`19 passed`) · `lint_plugin.py` → exit 0 · `evals/check.py` → 0 errores · `export-interop.py --check` → «88 ficheros al día» · `scope-check.py --base 14ef84b` → exit 0 · lectura: intento 2 de la Fase 4 sin Critical ni Important; «Revisión visual del usuario — Fase 4: aprobada 2026-10-20».
 
@@ -1457,7 +1449,7 @@ Se ejecuta ANTES que la Fase 3 (orden de la evaluación). Criterios de la spec: 
 - **Evidencia TDD**: TDD n/a: puerta de entrada, sin código del producto.
 - **Verificación ejecutada**: (1) `design.md` §2.5 «Estados intermedios y su recuperación» (architect, `d448942`). (2) El usuario acepta I-05, I-03 y P-EI-1..P-EI-3 (2026-10-16, «acepto la decisión de 1 a 4»; anotado en §2.5). (3) https://learn.chatgpt.com/docs/hooks (redirección de developers.openai.com/codex/hooks, consultada 2026-10-16): `PreToolUse`/`PostToolUse` sin `agent_id`/`agent_type` (solo `SubagentStart`/`SubagentStop`), los subagentes usan el `session_id` del padre, sin duración; `async` admitido salvo MCP. (4) Lente C obligatoria en T-54 (orquestador; T-54 ya lo exige). (5) Latencia base (`run-hook.mjs` real, 12 ejecuciones, Windows): `PostToolUse` `progress-line.sh` p50 589 ms / p90 714 ms (síncrono); `SubagentStop` `agent-activity` con captura desactivada p50 1.018 ms / p90 1.085 ms (lanza Python: lo corrige T-46).
 
-**Notas**: condiciones en `evaluation.md` «Recomendación». Medición de I-05 según `design.md` §2.4 («líneas `Hooks: PostToolUse:… (Nms)`»). Presupuesto actual del hook en `hooks/run-hook.mjs:26`.
+**Notas**: condiciones en `evaluation.md` «Recomendación». Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `607cb72eb3f7`.
 
 ### T-41 — Proyección pura de runs, ventanas y eventos en `agent-activity.py`
 
@@ -1677,7 +1669,7 @@ Decisión: un grupo es «de actividad» solo si TODOS sus hooks son el launcher 
 
 Revisión de la huella: el diff del launcher solo añade el bloque `activity-optin` (lee `dev.json` con `openSync`/`fstatSync`/`readSync`/`closeSync` de `node:fs`, ≤ 64 KiB + 1 byte, `TextDecoder` estricto, `JSON.parse`, `sesion.actividad === true`) y su llamada antes de buscar Python; sin red, sin procesos nuevos, sin escritura. Con la captura desactivada se drena stdin (una entrada grande nunca choca con una tubería cerrada) y se sale con 0, como mucho a 1 s.
 
-**Notas**: presupuesto por hook en `hooks/run-hook.mjs:24-31` (`childBudgetMs`); hooks conocidos en `:36-38`. Huella en `tests/test_graphiti_security.py:122` y módulos admitidos en `:787`. Lente C.
+**Notas**: presupuesto por hook en `hooks/run-hook.mjs:24-31` (`childBudgetMs`); hooks conocidos en `:36-38`. Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `6b225aeb8610`.
 
 ### T-47 — OpenCode: binding de actividad en `tool.execute.after` sin esperar al hijo
 
@@ -1710,7 +1702,7 @@ Revisión de la huella: el diff del launcher solo añade el bloque `activity-opt
 
 Decisiones: (1) binding propio `tool-activity` en el catálogo (dominio `tool`, `execute.after`, `PostToolUse`, 2.500 ms); comparte el evento nativo con `post`, así que el adaptador registra UNA función por evento nativo que llama a `tool-activity` (sin esperar) y luego a `post` (como hoy). (2) La búsqueda de la sesión y el hijo corren en segundo plano; la tarea en vuelo se guarda en `inflight` y el hijo en `children`, y el cierre espera a los dos. (3) Al hijo solo le llegan `sessionID`, `tool`, `status`, `agent` y las claves que lee la lista blanca del resumen del almacén (`_raw_summary`); de un parche, solo sus líneas `*** Add|Update|Delete File:`. (4) El inventario del panel acepta el catálogo con o sin `tool-activity` (un adaptador anterior no declara eventos de herramienta; ningún otro binding es opcional): así el golden de `--json` no cambia aquí y su actualización queda en T-51. No validado en un OpenCode V2 real (sin runtime en esta máquina): si V2 no trae `sessionID`/`agent`, lo declaran la página (T-49) y `docs/INTEROP.md` (T-52).
 
-**Notas**: binding de actividad actual en `hooks/opencode-plugin.js:19` y despacho en `:263-270` (hoy con `await run(...)`); `agent` ya usado por la guardia (`design.md` §1, l. 163). Gotcha `custom-agents.GOT-022`. Lente C.
+**Notas**: binding de actividad actual en `hooks/opencode-plugin.js:19` y despacho en `:263-270` (hoy con `await run(...)`); `agent` ya usado por la guardia (`design.md` §1, l. Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `5ee2dac64aff`.
 
 ### T-48 — API `api/actividad-runs` y `api/actividad-run-<key16>`
 
@@ -1743,7 +1735,7 @@ Decisiones: (1) binding propio `tool-activity` en el catálogo (dominio `tool`, 
 
 Decisiones: (1) Proyección en `panel_data.actividad_runs`/`actividad_run` (pura, con `project_runs`/`project_events` de `agent-activity.py`); el servidor valida la lectura de `agent-activity-store.history` con un conjunto cerrado de claves y motivos (fuera de forma → `invalid_history`, nada parcial), sanea `tool`/`resumen`/`tarea`/`ultima_herramienta` con el saneador único del panel y recorta a 64/160/200. (2) Respuesta de runs: `runs` (más reciente primero, `key16` = 16 primeros hex del `run_key`; nunca las claves completas), `recientes` (10 últimos eventos, para Inicio en T-50), `eventos` (total), `recortado` y `descartados_por_tamano`. (3) Tope de 64 KiB: la lista suelta primero `recientes` y luego runs; la línea de tiempo suelta los eventos más antiguos y los suma a `recortado`. (4) `key16` que casa con dos runs → 404 (nunca se adivina). (5) «Sin token → 403» de la Verificación: el contrato vigente del servidor (`test_no_capability_never_calls_snapshot`) responde 404 sin capacidad y 403 con Host/Origin ajenos; se mantiene y se prueba así. (6) Captura desactivada o `invalid_config` → `status: unavailable` con `reason` y `activar` (cómo activarla).
 
-**Notas**: snapshot de actividad actual en `skills/plugin-panel/scripts/serve_panel.py:206-226` (`_unavailable_activity`, `activity_snapshot`, 222 líneas: no ampliarla, crear función nueva). Lente C.
+**Notas**: snapshot de actividad actual en `skills/plugin-panel/scripts/serve_panel.py:206-226` (`_unavailable_activity`, `activity_snapshot`, 222 líneas: no ampliarla, crear función nueva). Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `c9db77626377`.
 
 ### T-49 — Página Agentes en vivo: runs, línea de tiempo y declaraciones por runtime
 
@@ -1843,7 +1835,7 @@ Diff revisado del golden (`golden/panel.json`, +90 / −2): 4 registros nuevos c
 
 Aviso para la revisión: (1) `redact.anonimizar` (T-04) sustituye el usuario solo como palabra entera, y trata `-` como parte de la palabra: un nombre de cuenta pegado con guion o letras (`notas-jdoe.txt`) se conserva en el resumen. Es el contrato vigente (evita falsos positivos como «ana» en «ana-lisis») y no se toca aquí; la prueba lo deja escrito. (2) El título y la descripción del manejador `agent-activity` en el inventario («Señales recientes de actividad» / «Observaciones de sesión opt-in…») siguen describiendo solo las señales de sesión; ahora también captura herramientas. Cambiarlos movería más el golden: queda para la revisión.
 
-**Notas**: riesgo «CA-28 choca con la fase 3» de `design.md` §6. A-4/C-3 (fix1): deuda aceptada por el usuario (2026-10-20, opción b); CA-41 enmendada en la spec (usuario unido por guion o tras punto); comentario en el corpus de `test_panel_privacy.py`.
+**Notas**: riesgo «CA-28 choca con la fase 3» de `design.md` §6. Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `90c1bc01204a`.
 
 ### T-52 — Documentación de F3: observabilidad, interop, flujos y contratos
 
@@ -1917,7 +1909,7 @@ Nota: `docs/agents/CONTRACTS.md` es solo ES (como el resto de `docs/agents/`).
 
 `skills/plugin-panel/SKILL.md`: párrafo de Agentes en vivo (historial, APIs, atribución, declaración por runtime y borrado a mano); la `description` no cambia (los evals siguen casando).
 
-**Notas**: TDD n/a: verificación y prosa. Nota de memoria «verificar en Linux antes de push» (normalizar CRLF de los `.sh`). Release fuera de este plan: `python3 scripts/release.py X.Y.Z` tras el PR.
+**Notas**: TDD n/a: verificación y prosa. Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `ec816c40c3a9`.
 
 ### T-54 — Cierre de la Fase 3: revisión de dos lentes con Lente C obligatoria y revisión visual del usuario (M-04)
 
@@ -2084,6 +2076,8 @@ Siguen abiertos: la deuda que aceptó el usuario (A-1, C-3/A-4) y el backlog (A-
 Sin gap: sobre-redacción nueva frente a fix2 (`docker run -e DB_HOST=mysql -p8080:80 wordpress` → `-p[secreto redactado]`), dentro de «ante la duda, tapar de más»; credenciales en URL, ya en claro en `96ae4f7`; `flock`/`lockf` mezclados, residuo aceptado en «Decisión fix3». En Windows, D2 y el coste lineal de redact fallan por carga, no por fix3 (D2 igual en `9a28de8`).
 
 **Decisión del usuario (2026-10-21): «soluciona los errores».** fix4 de C4-1, B4-1, B4-2 y B4-3 (T-42, T-43). Sin otra ronda completa: lo confirma el orquestador con los corpus de las lentes (sonda de 23, 658 casos de la Lente C, 20 limpios y fuzz de la Lente B).
+
+**Confirmación de fix4 (orquestador, `43a3014`, 2026-10-21): sin gaps.** `redact.py` y la copia de `journal.py`: sonda 23/23, 714 casos y 20 limpios sin fuga ni sobre-redacción; fuzz de 150.000, 0 no idempotentes. Fase 3 cerrada en revisión.
 
 ## Historial archivado
 

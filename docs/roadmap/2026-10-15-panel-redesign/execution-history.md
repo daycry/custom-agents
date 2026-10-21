@@ -416,3 +416,83 @@ SHA-256 del bloque: `71ba6bf29f4e77b78759e5be64cb3c92c55a8297eabb706478926badd16
 SHA-256 del bloque: `424c4bc019ef2b92c0824e6b703bf4c2bb38a992cf529bc40c18d1ab7943920c`.
 
 **Notas**: JS de actividad actual en `skills/plugin-panel/assets/panel-activity.js` (movido en T-12; refresco en su l. 67 original de `references/`). Lente C. A-1 (fix1): deuda TDD aceptada por el usuario (2026-10-20, opción b), cerrada con 32/32 mutantes cazados.
+
+## Archivado 2026-10-21 — T-16 · Verificación (bytes sin cambios)
+
+SHA-256 del bloque: `b37033dd172a5cb23149a46ff69fc63b0dbabdea4eb78d7e360e531811a16f19`.
+
+- **Verificación**:
+  - `python3 -m pytest -q tests/test_plugin_panel.py tests/test_panel_*.py tests/test_dashboard.py tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py agent-kits/shared/test_agent_activity.py` → `0 failed`
+  - `python3 scripts/lint_plugin.py` → exit 0 · `python3 evals/check.py` → exit 0 · `python3 scripts/export-interop.py --check` → exit 0
+  - `python3 agent-kits/shared/scope-check.py docs/roadmap/2026-10-15-panel-redesign` → exit 0
+  - lectura: sección «Revisión de dos lentes — intento N: …» de la Fase 1 sin Critical ni Important abiertos, y línea «Revisión visual del usuario — Fase 1: aprobada AAAA-MM-DD» con el resultado de M-01
+
+## Archivado 2026-10-21 — T-39 · Verificación (bytes sin cambios)
+
+SHA-256 del bloque: `fc9d63a101bd7da8c38376b5463c1f1bc358e5b358ba6ffee76ff8a03acfb19f`.
+
+- **Verificación**:
+  - `python3 -m pytest -q tests/test_plugin_panel.py tests/test_panel_*.py tests/test_dashboard.py tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py agent-kits/shared/test_agent_activity.py` → `0 failed`
+  - `python3 scripts/lint_plugin.py` → exit 0 · `python3 evals/check.py` → exit 0 · `python3 scripts/export-interop.py --check` → exit 0
+  - `python3 agent-kits/shared/scope-check.py docs/roadmap/2026-10-15-panel-redesign` → exit 0
+  - lectura: «Revisión de dos lentes — intento N: …» de la Fase 4 sin Critical ni Important abiertos y «Revisión visual del usuario — Fase 4: aprobada AAAA-MM-DD»
+
+## Archivado 2026-10-21 — T-32 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `a91b9d44ba36b04126d448b19c3cae54dd07952c5cdfc1164edbc6e2c0dcba87`.
+
+**Notas**: sucesión desde `knowledge-find.py` (`--related`, `agent-kits/shared/knowledge-find.py:102`). «vigente» = sin sucesor y no obsoleta, calculado con `knowledge-find` (`_relaciones_sucesion`).
+
+## Archivado 2026-10-21 — T-35 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `dbd8ff294c726ad4b37a77b51f9b6e65cd424a6fd52b1b904608c4845a644eb0`.
+
+**Notas**: campos en `agent-kits/shared/journal.py:244-246` (`CONTINUIDAD`); lectura por `journal.py status --json` (`journal.py:41`) sin ampliar su contrato. `journal.select_entries` devuelve como mucho 2 sesiones (su contrato, sin ampliar).
+
+## Archivado 2026-10-21 — T-36 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `3f5ef6b5bacc0b8ef485f3c407450bfd46e425129afcfe89c0058139c939838c`.
+
+**Notas**: página de T-09. T-29 sigue en-progreso (M-02 aplazada por el usuario a la revisión final); no bloquea. «Origen» = ámbito de extensiones (proyecto/usuario/local); el bundle no lo declara. Filtros solo del cliente: `--json` igual al golden.
+
+## Archivado 2026-10-21 — T-39 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `86ffd34f23f7219e6345438bc9112a418fd88541a886dd665c934be6c70c769f`.
+
+**Notas**: la Lente A comprueba que ningún hotspot (`doctor.py`, `journal.py`, `knowledge-find.py`) cambió de contrato. **2026-10-20:** M-03 aprobada por el usuario en el navegador (Memoria, Catálogo y Diagnóstico, panel servido).
+
+## Archivado 2026-10-21 — T-40 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `607cb72eb3f7e8737b5930725ab5ef8bf523b5c5ca9c88e83ba2214dc2a60214`.
+
+**Notas**: condiciones en `evaluation.md` «Recomendación». Medición de I-05 según `design.md` §2.4 («líneas `Hooks: PostToolUse:… (Nms)`»). Presupuesto actual del hook en `hooks/run-hook.mjs:26`.
+
+## Archivado 2026-10-21 — T-46 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `6b225aeb8610097a780e1f397b104060d7d68b689dac6fcb8fda451ead0d0deb`.
+
+**Notas**: presupuesto por hook en `hooks/run-hook.mjs:24-31` (`childBudgetMs`); hooks conocidos en `:36-38`. Huella en `tests/test_graphiti_security.py:122` y módulos admitidos en `:787`. Lente C.
+
+## Archivado 2026-10-21 — T-47 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `5ee2dac64aff35919a051ef779325329e5bda1e0d4cd548b2844faaa4f977519`.
+
+**Notas**: binding de actividad actual en `hooks/opencode-plugin.js:19` y despacho en `:263-270` (hoy con `await run(...)`); `agent` ya usado por la guardia (`design.md` §1, l. 163). Gotcha `custom-agents.GOT-022`. Lente C.
+
+## Archivado 2026-10-21 — T-48 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `c9db776263773a11b8e4e88a1e6a81dd5b1c0a211e1dcfd8a4211b9d29a4604d`.
+
+**Notas**: snapshot de actividad actual en `skills/plugin-panel/scripts/serve_panel.py:206-226` (`_unavailable_activity`, `activity_snapshot`, 222 líneas: no ampliarla, crear función nueva). Lente C.
+
+## Archivado 2026-10-21 — T-51 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `90c1bc01204a27865fd418fa352b70df5f3c216abf897a6da61ae190f9f39555`.
+
+**Notas**: riesgo «CA-28 choca con la fase 3» de `design.md` §6. A-4/C-3 (fix1): deuda aceptada por el usuario (2026-10-20, opción b); CA-41 enmendada en la spec (usuario unido por guion o tras punto); comentario en el corpus de `test_panel_privacy.py`.
+
+## Archivado 2026-10-21 — T-53 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `ec816c40c3a9af7bc5eae97011468b081160c0329272590ccb70919f62aa63f3`.
+
+**Notas**: TDD n/a: verificación y prosa. Nota de memoria «verificar en Linux antes de push» (normalizar CRLF de los `.sh`). Release fuera de este plan: `python3 scripts/release.py X.Y.Z` tras el PR.
