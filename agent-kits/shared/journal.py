@@ -349,8 +349,13 @@ def _redactar_asignaciones(texto):
 # 1000:1000 img curl …` no se tocan (el programa va despues). Una comilla solo agrupa si cierra en la misma
 # linea: la que no cierra (`can't`) es un caracter mas y no esconde nada. Lo que va entre comillas se trocea
 # ademas como comando anidado (`sh -c "…"`, `ssh host '…'`; dentro de `"…"`, `\"` vuelve a ser comilla).
+# fix4 (C4-1): si el texto lleva comillas se trocea OTRA vez con las comillas como un caracter mas
+# (`_TROZO_LITERAL_RE`, sin emparejar ni anidar) y se suman las dos pasadas: un apostrofo de la prosa que
+# cierra con la comilla de la credencial (`can't … -p'X'`) ya no la esconde. Una palabra que empieza por `-`
+# nunca es el programa (fix4 B4-1: `-pRoot!mysql`, `--password=mysql`).
 # Ante la duda, tapar de mas. Lineal (cada nivel de comillas recorre su texto una vez) e idempotente.
 _TROZO_RE = re.compile(r"[^\s\"'\\|;&]+")
+_TROZO_LITERAL_RE = re.compile(r"[^\s\\|;&]+")  # comillas como un caracter mas
 _DOBLE_CIERRE_RE = re.compile(r"(?:\\.|[^\"\\\n])*\"")
 _ESCAPE_DOBLE_RE = re.compile(r"\\([\"\\$`])")
 _PROGRAMA_RE = re.compile(r"(?i)(?<![\w.\-])(?:(?P<curl>curl)|mysql[a-z]*|mariadb(?:-[a-z]+)?)(?:\.exe)?(?![\w.\-:])")
@@ -370,6 +375,8 @@ def _sin_comillas(palabra):
 
 def _programa(palabra, anterior):
     """'curl', 'mysql' o None para una palabra (sin comillas) de un comando; `anterior`, la palabra previa."""
+    if palabra.startswith("-"):
+        return None  # `-pRoot!mysql`, `--password=mysql`: el valor de una opcion no es el programa
     m = _PROGRAMA_RE.search(palabra)
     if m is None or ":" in palabra[2:m.start()]:
         return None  # `/data/x:/var/lib/mysql` (volumen) o `https://h/curl` (URL) no son el programa
@@ -442,7 +449,7 @@ def _redactar_comando(texto, palabras, base, cambios, heredado):
     return antes, todos
 
 
-def _trocear(texto, base, profundidad, cambios, heredado=(frozenset(), frozenset())):
+def _trocear(texto, base, profundidad, cambios, heredado=(frozenset(), frozenset()), trozo=_TROZO_RE):
     """Trocea `texto` en comandos y redacta cada uno; el contenido de cada comilla cerrada, tambien, como
     comando anidado que hereda los programas que su comando tenia antes de esa palabra."""
     palabras, pendientes, anidados, inicio, i, n = [], [], [], None, 0, len(texto)
@@ -455,7 +462,7 @@ def _trocear(texto, base, profundidad, cambios, heredado=(frozenset(), frozenset
         pendientes.clear()
 
     while i < n:
-        m = _TROZO_RE.match(texto, i)
+        m = trozo.match(texto, i)
         if m is not None:
             inicio = i if inicio is None else inicio
             i = m.end()
@@ -515,6 +522,8 @@ def _trocear(texto, base, profundidad, cambios, heredado=(frozenset(), frozenset
 def _redactar_argumentos(texto):
     cambios = []
     _trocear(texto, 0, 0, cambios)
+    if "'" in texto or '"' in texto:  # fix4 C4-1: segunda pasada ciega a las comillas, unida a la primera
+        _trocear(texto, 0, 0, cambios, trozo=_TROZO_LITERAL_RE)
     partes, cursor = [], 0
     for inicio, fin in sorted(cambios):
         if inicio < cursor:  # solapa con lo ya tapado (comando y comando anidado): una sola marca

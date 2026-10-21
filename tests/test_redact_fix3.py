@@ -254,3 +254,53 @@ def test_idempotent_on_the_whole_corpus():
     for texto in [c.values[0] for c in CASOS] + [t for t, _ in SONDA]:
         una = redact.redactar(texto)
         assert redact.redactar(una) == una, texto
+
+
+# ---- fix4 (C4-1, B4-1, B4-2): prose apostrophe paired with the credential quote; option value naming
+# the program ------------------------------------------------------------------------------------------
+FIX4 = [
+    # C4-1: an apostrophe of the prose closes on the same line as the quote that opens the credential
+    ("I can't connect: mysql -u root -p'S3cretPw1' db", "S3cretPw1"),
+    ("it doesn't work: curl -u 'admin:S3cretPw1' https://x", "S3cretPw1"),
+    ("the server doesn't answer; I ran curl --user='admin:S3cretPw1' x", "S3cretPw1"),
+    ("the users' table: curl -u 'admin:S3cretPw1' x", "S3cretPw1"),
+    ("I can't connect: /usr/bin/mysql -u root -p'S3cretPw1' db", "S3cretPw1"),
+    ("it doesn't work: /usr/bin/curl -u 'admin:S3cretPw1' https://x", "S3cretPw1"),
+    ('he said "it fails: curl -u "admin:S3cretPw1" x', "S3cretPw1"),
+    # B4-1: the value of an option that contains mysql/mariadb is not the program
+    ("mysql -uroot -pRoot!mysql db", "Root!"),
+    ("mysql -uroot -pS3cr3t@mysql db", "S3cr3t@"),
+    ('mysql -uroot -p"S3cr3t@mysql" db', "S3cr3t@"),
+    ("mariadb -pTopSecret=mariadb db", "TopSecret"),
+    ("mysql -pApp#2024/mysql db", "App#2024"),
+    ("mysql -uroot --password=mysql db", "--password=mysql"),
+    ("/usr/bin/mysql -uroot -pRoot!mysql db", "Root!"),
+    ("/usr/bin/mariadb -pTopSecret=mariadb db", "TopSecret"),
+    ("/usr/bin/mysql -uroot --password=mysql db", "--password=mysql"),
+]
+
+
+@pytest.mark.parametrize("texto,secreto", FIX4)
+def test_fix4_apostrophe_and_option_value_naming_the_program(texto, secreto):
+    salida = redact.redactar(texto)
+    assert secreto not in salida, salida
+
+
+def test_fix4_slash_only_password_is_covered():
+    salida = redact.redactar("mysql -uroot -p/mysql db")
+    assert "-p/mysql" not in salida, salida
+
+
+# B4-2: on fix3, `-p/mysql` was the program and the quoted word only named curl after a first pass
+NO_IDEMPOTENTES_FIX3 = ['--user=a:b!curl -p/mysql " password=Abcd1234!mysql curl "']
+
+
+@pytest.mark.parametrize("texto", [t for t, _ in FIX4] + ["mysql -uroot -p/mysql db"] + NO_IDEMPOTENTES_FIX3)
+def test_fix4_idempotent(texto):
+    una = redact.redactar(texto)
+    assert redact.redactar(una) == una, una
+
+
+@pytest.mark.parametrize("texto,secreto", FIX4)
+def test_fix4_same_in_the_journal_backup(texto, secreto):
+    assert secreto not in _respaldo_de_journal()(texto)
