@@ -65,6 +65,9 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - El redactor (resúmenes de actividad y journal de sesión) también enmascara secretos en variables con prefijo (`DB_PASSWORD=`, `API_TOKEN=`, `AWS_SECRET_ACCESS_KEY=`, `PGPASSWORD=`), `curl -u usuario:clave` y `mysql -p<clave>`.
 - Una ráfaga de herramientas en paralelo ya no pierde la mayoría de sus eventos mientras se escribe el historial; las herramientas MCP de Codex hacen un único intento de escritura, sin reintentos; el resumen de `apply_patch` ya no consume CPU con líneas muy largas; OpenCode registra el evento de herramienta antes de las notificaciones posteriores.
 - La «Actividad reciente» de Inicio vuelve a refrescarse cuando la pestaña vuelve a estar visible, y la API de actividad valida el historial sin recargar un módulo por evento.
+- El redactor tapa una credencial de `curl`/`mysql` siempre que el programa aparece antes en el mismo comando: tras `sudo`, `--`, `timeout` o `$(`, dentro de comillas (`sh -c "…"`, `ssh host '…'`) y cuando un apóstrofo de prosa abre una comilla suelta; el valor de una opción que contiene el nombre de un programa ya no se toma por el programa.
+- Las señales de ciclo de vida conservan la prioridad frente a una ráfaga de eventos de herramienta y, en macOS/BSD y sobre NFS, ya no se bloquean con su propio cerrojo: los dos bytes de `.lock` usan `lockf` de un byte (Windows sin cambios).
+- Los paneles de entrada seleccionada y de relaciones de la página Memoria son regiones con nombre, así que los lectores de pantalla aceptan su etiqueta (WCAG 2.2 AA; axe sin violaciones en las siete páginas).
 
 ### Added — iniciativa `panel-redesign`, fase 4 (memoria, catálogo y diagnóstico)
 

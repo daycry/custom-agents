@@ -65,6 +65,9 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - The redactor (activity summaries and the session journal) also masks secrets in prefixed variables (`DB_PASSWORD=`, `API_TOKEN=`, `AWS_SECRET_ACCESS_KEY=`, `PGPASSWORD=`), `curl -u user:password` and `mysql -p<password>`.
 - A burst of parallel tool calls no longer loses most of its events while the history is being written; Codex MCP tools make a single write attempt with no retries; the `apply_patch` summary no longer burns CPU on very long lines; OpenCode records the tool event before the post-tool notifications.
 - Home's «Actividad reciente» resumes refreshing when the tab becomes visible again, and the activity API validates the history without reloading a module per event.
+- The redactor masks a `curl`/`mysql` credential wherever the program appears earlier in the same command: after `sudo`, `--`, `timeout` or `$(`, inside quotes (`sh -c "…"`, `ssh host '…'`) and when a prose apostrophe opens a stray quote; an option value that contains a program name is no longer mistaken for the program.
+- Lifecycle signals keep priority over a burst of tool events, and on macOS/BSD and over NFS they no longer block on their own lock: both bytes of `.lock` use one-byte `lockf` (Windows unchanged).
+- The Memory page's selected-entry and relations panels are named regions, so screen readers accept their label (WCAG 2.2 AA, axe clean on all seven pages).
 
 ### Added — `panel-redesign` initiative, phase 4 (memory, catalog and diagnostics)
 

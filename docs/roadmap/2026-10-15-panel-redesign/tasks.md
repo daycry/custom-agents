@@ -17,6 +17,7 @@ generacion:               # usage-meter.py close · ventana compartida con impro
   duracion: 1h 1m           # duracion_reloj: 22m
   ratio_usado: 531798.5     # CALIBRATION.md (mediana de 6)
   avisos: ["CALIBRATION: 7 filas marcadas (estimado) fuera de la mediana", "tarifa verificada el 2026-08-18", "2 transcripts leídos (1 de subagente)"]
+estado: completado        # borrador | en-progreso | completado | cancelado
 verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige ledger-lint (exit 1 si falta)
 ---
 
@@ -24,7 +25,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | | |
 |---|---|
-| **Estado** | en-progreso |
+| **Estado** | completado |
 | **Fecha** | 2026-10-15 |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
 | **Diseño** | [`design.md`](./design.md) — opción O1+O5 (D-A1 = O1, D-A2 = O5) |
@@ -42,8 +43,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Base común | 16 | 16 | 100% | 0 / 28,8h | 3,99 / 10,5h | 0,24 / 3,6h | 0,70 / 5,58 M |
 | Fase 2 — Inicio, Iniciativas y Plan | 17 | 17 | 100% | 0 / 58,4h | 4,22 / 19,1h | 0 / 6,25h | 0 / 10,16 M |
 | Fase 4 — Memoria, Catálogo y Diagnóstico | 10 | 10 | 100% | 0 / 26,4h | 0 / 7,2h | 0 / 2,8h | 0 / 3,83 M |
-| Fase 3 — Agentes en vivo + cierre transversal | 14 | 15 | 93% | 0 / 45,6h | 6,62 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
-| **TOTAL** | **57** | **58** | **98%** | **0 / 159,2h** | **14,83 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
+| Fase 3 — Agentes en vivo + cierre transversal | 15 | 15 | 100% | 0 / 45,6h | 6,62 / 23,4h | 0 / 6,9h | 0 / 12,44 M |
+| **TOTAL** | **58** | **58** | **100%** | **0 / 159,2h** | **14,83 / 60,2h** | **0,24 / 19,6h** | **0,70 / 32,01 M** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -1916,27 +1917,28 @@ Nota: `docs/agents/CONTRACTS.md` es solo ES (como el resto de `docs/agents/`).
 ### T-54 — Cierre de la Fase 3: revisión de dos lentes con Lente C obligatoria y revisión visual del usuario (M-04)
 
 - **Descripción**: Puerta final: suites de CA-44, linter y evals; revisión adversarial de dos lentes **más la Lente C de seguridad obligatoria** sobre todo el diff de la fase (hooks, almacén, redactor, launcher, servidor); bucle acotado a 3 con Minor al backlog; el usuario revisa Agentes en vivo y el panel completo en el navegador (M-04).
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 2,4h · real —
 - **Tiempo IA (ejec.)**: est. 15,0h · real — (revisión + corrección: f = 2,0 de C-03 + f = 0,5 de C-05)
 - **Supervisión**: est. 4,75h (≈25 % IA + 1h de revisión manual) · real —
 - **Previsión IA**: 6,86 M in / 1,12 M out tok · 104,95 €
 - **Dependencias**: T-40..T-53
 - **Tipo**: test
-- **Archivos**: `docs/roadmap/2026-10-15-panel-redesign/tasks.md`, `docs/roadmap/2026-10-15-panel-redesign/testing/**` (añadido: evidencia de qa)
+- **Archivos**: `docs/roadmap/2026-10-15-panel-redesign/tasks.md`, `docs/roadmap/2026-10-15-panel-redesign/testing/**` (añadido: evidencia de qa), `docs/roadmap/2026-10-15-panel-redesign/retro.md`, `docs/roadmap/CALIBRATION.md`, `docs/roadmap/README.md` (añadido: cierre)
 - **Cubre (tests)**: M-04
 - **Verificación**: `python3 -m pytest -q tests/test_plugin_panel.py tests/test_panel_*.py tests/test_dashboard.py tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py tests/test_export_interop.py agent-kits/shared/test_agent_activity.py agent-kits/shared/test_redact.py` → `0 failed` · `node --test tests/hook-budget.test.mjs tests/hook-runtime.test.mjs… Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `269846632451`.
+- **Verificación ejecutada** (2026-10-21): suites de la Verificación → 1730 passed; los 3 rojos de `test_panel_plan_ui.py` eran el arnés (T-50-fix2, `e2a4431`) y el 4.º, carga (pasa solo) · node 56/56 · lint, evals, interop `--check` y scope-check exit 0 · qa VERDE 32/32 (`1165e43`).
 
 **Criterios de aceptación**
-- [ ] CA-44 de la Fase 3.
-- [ ] Lente C despachada aunque `review-lens-select.py` no la active (condición 4 de la evaluación), con su salida en el ledger.
-- [ ] Revisión cerrada en ≤ 3 intentos; las huellas de `test_graphiti_security.py` cambiadas tienen su revisión explícita.
-- [ ] El usuario aprueba M-04.
+- [x] CA-44 de la Fase 3.
+- [x] Lente C despachada aunque `review-lens-select.py` no la active (condición 4 de la evaluación), con su salida en el ledger.
+- [x] Revisión cerrada en ≤ 3 intentos; las huellas de `test_graphiti_security.py` cambiadas tienen su revisión explícita.
+- [x] El usuario aprueba M-04 (2026-10-21: «de momento está bien así, en un futuro tendremos que hacer la ui más amigable, pero de momento nos sirve»; la UI amigable va a una iniciativa futura).
 
 **Subtareas**
-- [ ] Suites y puertas.
-- [ ] `adversarial-review` con A + B + C (+ D si `review-lens-select.py` la activa por la latencia del hook).
-- [ ] M-04.
+- [x] Suites y puertas.
+- [x] `adversarial-review` con A + B + C (+ D si `review-lens-select.py` la activa por la latencia del hook).
+- [x] M-04.
 
 **Notas**: `skills/adversarial-review/scripts/review-lens-select.py:573` (modo `siempre`); el orquestador fuerza C sin tocar `.claude/dev.json` del usuario. Si el bucle llega al 3.er rojo de qa, `debug-root-cause` antes de preguntar.
 

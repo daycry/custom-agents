@@ -1,7 +1,7 @@
 ---
 spec: panel-redesign
 descripcion: Panel local multi-página (Inicio, Iniciativas, Plan, Agentes en vivo, Memoria, Catálogo, Diagnóstico) con menú común, kanban y gráficos Chart.js incluidos en el plugin, sin red, accesible y con datos ausentes declarados como tales.
-estado: aprobada          # borrador | aprobada | implementada | obsoleta
+estado: implementada      # borrador | aprobada | implementada | obsoleta
 creado: 2026-10-15
 actualizado: 2026-10-21   # enmienda 2026-10-21: CA-34, CA-47 y caso exportado (correcciones de hecho de qa) · enmienda 2026-10-15: revisión del plan desde el panel (CA-45 a CA-54) · enmienda 2026-10-16: CA-10 «archivado» como texto · enmienda 2026-10-20: CA-41 usuario unido por guion
 evaluacion: evaluation.md
