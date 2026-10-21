@@ -322,3 +322,97 @@ Sin hallazgos en el resto. B1 no tiene carreras: un pedido en vuelo, un solo tem
 
 Del intento 1 (archivado en `execution-history.md`) siguen abiertos: la deuda aceptada por el usuario A-1 (T-49) y C-3/A-4 (T-42/T-51), y el backlog A-5, B3 y D4.
 
+
+## Archivado 2026-10-21 — T-29 · Verificación (bytes sin cambios)
+
+SHA-256 del bloque: `d20097099752c8576a518522a14ec3df402dd397ae1faece98ed411b985c9ba1`.
+
+- **Verificación**:
+  - `python3 -m pytest -q tests/test_plugin_panel.py tests/test_panel_*.py tests/test_dashboard.py tests/test_ledger_lint.py tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py agent-kits/shared/test_agent_activity.py agent-kits/shared/test_ledger_view.py` → `0 failed`
+  - `python3 scripts/lint_plugin.py` → exit 0 · `python3 evals/check.py` → exit 0 · `python3 scripts/export-interop.py --check` → exit 0
+  - `python3 agent-kits/shared/scope-check.py docs/roadmap/2026-10-15-panel-redesign` → exit 0
+  - `python3 -m pytest -q agent-kits/shared/test_plan_review_summary.py tests/test_panel_review_panel_server.py tests/test_panel_review_panel_ui.py tests/test_plan_review_caller.py` → `0 failed` (CA-54: las suites de `plan-review.py` y `tests/test_panel_review_*` sin cambiar expectativas)
+  - lectura: «Revisión de dos lentes — intento N: …» de la Fase 2 con la lente C ejecutada (obligatoria) y sin Critical ni Important abiertos, y «Revisión visual del usuario — Fase 2: aprobada AAAA-MM-DD»
+
+## Archivado 2026-10-21 — T-54 · Verificación (bytes sin cambios)
+
+SHA-256 del bloque: `26984663245169c09175e9fcaef2da34b447b3caf305f71b3eb4b60c52c2ad05`.
+
+- **Verificación**:
+  - `python3 -m pytest -q tests/test_plugin_panel.py tests/test_panel_*.py tests/test_dashboard.py tests/test_agent_activity_store.py tests/test_agent_activity_git.py tests/test_graphiti_security.py tests/test_export_interop.py agent-kits/shared/test_agent_activity.py agent-kits/shared/test_redact.py` → `0 failed` · `node --test tests/hook-budget.test.mjs tests/hook-runtime.test.mjs tests/opencode-plugin.test.mjs` → `pass`
+  - `python3 scripts/lint_plugin.py` → exit 0 · `python3 evals/check.py` → exit 0 · `python3 scripts/export-interop.py --check` → exit 0
+  - `python3 agent-kits/shared/scope-check.py docs/roadmap/2026-10-15-panel-redesign` → exit 0
+  - lectura: «Revisión de dos lentes — intento N: …» con la Lente C incluida, sin Critical ni Important abiertos, y «Revisión visual del usuario — Fase 3: aprobada AAAA-MM-DD»
+
+## Archivado 2026-10-21 — T-13 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `de51578658afcd14595887322eb187e108a01013ebbd9a65ef1df2661b656e09`.
+
+**Notas**: bloque a extraer en `skills/roadmap-dashboard/scripts/build_dashboard.py:1157-1170`; `scan()` en `:451`. **Implementación (2026-10-15):** `vista_json(inits)` (antes de `main()`) recibe las iniciativas de `scan()` y les añade, en sitio y devolviendo la misma lista, `estimados`, `medidos`, `generacion_total`, `generacion_otros` y `procedencia`; `main()` hace `print(json.dumps(vista_json(inits), …))`. El test nuevo compara su resultado con lo que imprime `--json` de la CLI sobre la misma fixture, comprueba que no imprime y que no abre ficheros (`builtins.open` parcheado para fallar).
+
+## Archivado 2026-10-21 — T-26 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `0622c91240c35492dcecbd4db047ae80f0c4ce07a225b0d842d805ca57f67f26`.
+
+**Notas**: Regla de `design.md` §2.4 I-02. Pendientes = tareas no canceladas menos las cerradas hasta cada fecha; los puntos son solo las fechas de cierre reales. Decisión: con CERO tareas completadas no hay mensaje de «N de M» (sería «0 de 0») sino «Sin datos: ninguna tarea completada todavía».
+
+## Archivado 2026-10-21 — T-27 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `44ffb58fb9ce5051feec203b389b2d1ecd89a346c7bb3be315279bbfd84407b8`.
+
+**Notas**: Patrón de `panel-live.js` (sondeo con `setTimeout` de 5 s, `inFlight`, pausa por `visibilitychange`, abort del plazo) y conservación de DOM: las tarjetas con la misma fila reutilizan su nodo; las movidas se reinsertan y el foco se restaura por id; `ctx.boton` apunta siempre al botón vigente para que Escape devuelva el foco. El texto de `plan-estado` ya no lleva la fecha (pasa a `plan-frescura`, no viva) para no anunciar cada ciclo.
+
+## Archivado 2026-10-21 — T-28 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `464cc3f8272220923e4a1fc87905c6790a24f5a9864d38029980178e2b1baa73`.
+
+**Notas**: TDD n/a: prosa. Formato de arista en `docs/agents/CONTRACTS.md:96-103` (E30-E37).
+ Desviaciones: aristas nuevas E56 (panel→build_dashboard, T-17), E57 (panel→ledger-view, T-21) y E58 (panel resume revisiones, T-55/T-56); E49-E51 actualizados y E51 con Puerta ejecutable. `skills/plugin-panel/SKILL.md` añadido a `Archivos` (flag `--review-panel`, +2 líneas, sin tocar `commands/`; `interop --check` verde). La UI de T-58 se describe según spec/design y `panel-review.js` vigente (cuadra al 2026-10-16).
+
+## Archivado 2026-10-21 — T-33 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `cc4ff3b3b55e3e1ea9a27638e78da75ceafcabd7899b21e3a4223c3d88077aa9`.
+
+**Notas**: Chart.js no dibuja grafos (riesgo de la evaluación C-04). Operación `related` en `agent-kits/shared/knowledge-view.py:50-57`. Relaciones incrustadas con claves `por_iniciativa`/`por_area` (`area` es clave de texto mostrado del saneador). Tope 20 relaciones como `api/memory`.
+
+## Archivado 2026-10-21 — T-34 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `39ea2c09e100350ea4de9bdc7fcef7e4a821225e4e1b631c66eacf43c26e6f90`.
+
+**Notas**: fuentes de `design.md` §2.4 I-09; lector acotado `agent-kits/shared/local-read.py`. El enlace a la interfaz queda «no declarada»: añadir `ui_url` a la taxonomía es pregunta abierta del diseño (§7), fuera de este plan. Sin `ui_url` en la taxonomía: «interfaz: no declarada». Fecha solo de `completado_en` de la outbox.
+
+## Archivado 2026-10-21 — T-37 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `b3ec03ab55fa20e888caaafc2e88b79e994ef417e4e8fd7064c5a4d4c6bc2886`.
+
+**Notas**: `page-diagnostico.js` sin cambios (la fila ya se filtra por `data-state`); el HTML sale de `build_panel.py`. Fecha y alcance son del informe (no hay fecha por fila en el contrato de doctor). Comando: el de `commands/doctor.md`. Proyección `doctor.py --panel-json` (`agent-kits/shared/doctor.py:87-88`, `:2795`); validador de CONTRACTS E30.
+
+## Archivado 2026-10-21 — T-41 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `266520416f61361633097f3cf6d2259cb586af039fd793baf1122785a7bf4a0a`.
+
+**Notas**: patrón de proyección pura con `now` inyectado en `agent-kits/shared/agent-activity.py:48` (`project_activity`); constantes en `:9-10`. Estados de `design.md` §1 «Invariantes». Decisión: `recortado` cuenta solo el recorte por tope (500/256 KiB); la retención de 24 h purga sin contar. Cuarentena de 5 s en `attribute` (P-EI-2 i).
+
+## Archivado 2026-10-21 — T-42 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `d7f1e2de4f1b7e0d584963653770ff1813a78eb8b9b7f2882ac492f450e6df48`.
+
+**Notas**: `_SECRETOS_RE` en `agent-kits/shared/redact.py:35`; copia declarada en `agent-kits/shared/copias.json:297-310` (canónico `redact.py`, respaldo `journal.py`). Precedente de 160 caracteres en `skills/plugin-panel/scripts/serve_panel.py:139`. Lente C. `anonimizar` ya existía (T-04). El host de WebFetch se extrae por regex, sin `urllib` (la puerta de red de test_graphiti_security lo marca). Un PEM sin cierre se tapa entero antes de recortar.
+
+## Archivado 2026-10-21 — T-43 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `a7d684a5ad176c459507af14e05bafeebcf2da173c3550654bcbfbdf69e63ac2`.
+
+**Notas**: inventario cerrado en `agent-kits/shared/agent-activity-store.py:119-122`; opt-in en `:92-100` (`_enabled`); tope de entrada actual en `:20` y `:264-266`; captura y CAS en `:185-233` (`capture`). Huella en `tests/test_graphiti_security.py:159-165`. Familia de riesgo de `session-end-durable-capture` (LES-016). Lente C. Añadido `history()` (lector) y `local-state.py` `wait=`/`retry=` (P-EI-3, un solo intento). Huella revisada del almacén y `redact.py` en `dependencies`. Limpieza P-EI-1 antes del inventario, solo si el resto de nombres es el esperado.
+
+## Archivado 2026-10-21 — T-44 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `71ba6bf29f4e77b78759e5be64cb3c92c55a8297eabb706478926badd1665457`.
+
+**Notas**: `_payload` actual en `agent-kits/shared/agent-activity-store.py:155-178`; argumento `--artefacto` en `agent-kits/shared/usage-meter.py:730`. Tabla de runtimes de `design.md` §1. Lente C. Los eventos Post de un comando fallido (`PostToolUseFailure`/`status: error`) no abren ventana. Codex trae el resultado como «sin datos». Nombres de herramienta de OpenCode en minúsculas se normalizan solo para el resumen.
+
+## Archivado 2026-10-21 — T-49 · Notas (bytes sin cambios)
+
+SHA-256 del bloque: `424c4bc019ef2b92c0824e6b703bf4c2bb38a992cf529bc40c18d1ab7943920c`.
+
+**Notas**: JS de actividad actual en `skills/plugin-panel/assets/panel-activity.js` (movido en T-12; refresco en su l. 67 original de `references/`). Lente C. A-1 (fix1): deuda TDD aceptada por el usuario (2026-10-20, opción b), cerrada con 32/32 mutantes cazados.
