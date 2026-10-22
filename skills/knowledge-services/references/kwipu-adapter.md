@@ -34,7 +34,8 @@ No añade endpoint o modelo por defecto:
 ```
 
 Para habilitar la consulta, el operador cambia esos tres valores y proporciona
-`config.health.url` del bridge que ya administra. La URL termina en `/health`;
+`config.health.url` del bridge que ya administra. La URL termina en la ruta `…/health`
+(p. ej. `http://127.0.0.1:8765/health`);
 el adaptador deriva las rutas de snapshot y query. No admite credenciales en URL
 ni direcciones externas: solo loopback, RFC1918 o IPv6 ULA, con comprobación DNS.
 El operador también declara `routing.kwipu` por categoría y publica la proyección actual.

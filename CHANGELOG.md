@@ -11,6 +11,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed — plugin linter citations
+
+- **`lint_plugin.py` no longer flags `/skills` or a URL path as a missing command.** `/skills` is native to Claude Code and Codex, and the Kwipu adapter reference now cites its health URL in full. The linter is back to the 3 warnings of `master`. (`scripts/lint_plugin.py`, `tests/test_lint_plugin.py`, `skills/knowledge-services/references/kwipu-adapter.md`)
+
 ## [2.0.0] - 2026-10-22
 
 ### Added — `panel-redesign` initiative, phase 1 (foundations)

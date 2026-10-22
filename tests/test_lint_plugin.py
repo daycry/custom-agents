@@ -362,6 +362,18 @@ def caso_citas_comandos_exit_resume():
             f"/exit y /resume son nativos de sesion (COMANDOS_TOLERADOS): no deben avisar\n{out}"
 
 
+def caso_citas_comandos_skills_nativo():
+    """`/skills` es nativo de Claude Code y de Codex (lista las skills; lo citan `docs/INSTALL.md` e
+    `INTEROP.md` en ES y EN): no es una pieza de este plugin y no debe avisar."""
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "agents/alpha.md", AGENT_OK.format(name="alpha")
+                 + "\nInvócalo sin argumentos, o selecciónalo en `/skills`.\n")
+        code, out = run(tmp)
+        assert code == 0, out
+        assert "/skills" not in out, f"/skills es nativo (COMANDOS_TOLERADOS): no debe avisar\n{out}"
+
+
 def casos_matriz_contratos():
     """51-52) `docs/agents/CONTRACTS.md`: una fila de arista con la columna Puerta VACIA avisa con
     la arista, y una Puerta que nombra un script inexistente tambien; una matriz sana no avisa."""
@@ -1144,6 +1156,7 @@ dependencies:
     caso_citas_rutas_skill_knowledge_services()
     casos_citas_comandos()
     caso_citas_comandos_exit_resume()
+    caso_citas_comandos_skills_nativo()
     casos_matriz_contratos()
     casos_citas_en_docs()
     caso_citas_memoria_local()

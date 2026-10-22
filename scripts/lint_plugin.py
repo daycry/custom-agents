@@ -190,7 +190,7 @@ STEMS_PLACEHOLDER = {"x", "test_x"}
 # TOLERANCIA 3 — comandos que NO son piezas de este plugin: nativos de Claude Code y comodines de
 # la documentación. `/doctor`, `/retro`… sí son nuestros y NO van aquí.
 COMANDOS_TOLERADOS = {
-    "clear", "agents", "reload-plugins", "help", "config", "skill", "statusline",  # nativos
+    "clear", "agents", "reload-plugins", "help", "config", "skill", "skills", "statusline",  # nativos
     "exit", "resume",                                                              # nativos (sesión)
     "plugin",                                                                      # nativo
     "algo", "nombre", "comando", "x",                                              # comodines
