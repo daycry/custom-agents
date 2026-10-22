@@ -11,6 +11,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+## [2.0.0] - 2026-10-22
+
 ### Added — iniciativa `panel-redesign`, fase 1 (base)
 
 - El panel incluye Chart.js 4.5.1 sin modificar, con su licencia MIT y un fichero de procedencia; un test comprueba su huella y que no hay otra copia. Una prueba en navegador (Chromium y Firefox, servido y `file://`) confirmó que las páginas exportadas lo cargan con `script-src 'self' file:` sin violaciones de CSP ni peticiones de red.
@@ -1206,6 +1208,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[2.0.0]: https://github.com/daycry/custom-agents/releases/tag/v2.0.0
 [1.22.0]: https://github.com/daycry/custom-agents/releases/tag/v1.22.0
 [1.21.1]: https://github.com/daycry/custom-agents/releases/tag/v1.21.1
 [1.21.0]: https://github.com/daycry/custom-agents/releases/tag/v1.21.0
