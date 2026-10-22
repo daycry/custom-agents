@@ -1379,7 +1379,8 @@ _INTENT = ('import os,sys,time\n'
 
 def _intent_holder(project):
     child = subprocess.Popen([sys.executable, '-I', '-c', _INTENT, str(_state(project) / '.lock')],
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        encoding='utf-8')
     assert child.stdout.readline().strip() == 'held', child.stderr.read()
     return child
 

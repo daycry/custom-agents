@@ -206,7 +206,7 @@ def test_fix2_yield_waits_for_an_announced_intent_and_the_rest_ignore_it(tmp_pat
     with io.locked(tmp_path, time.monotonic() + 1, True):
         pass
     child = subprocess.Popen([sys.executable, '-I', '-c', _INTENT, str(tmp_path / '.lock')],
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, encoding='utf-8')
     try:
         assert child.stdout.readline().strip() == 'held'
         with pytest.raises(Failure, match='state_busy'):

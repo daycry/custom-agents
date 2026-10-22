@@ -690,10 +690,18 @@ _TERMINOS_RED_PROHIBIDOS = (
 # scripts que los hooks/frontmatter invocan hoy (`agent-kits/shared/{guardrail-check,ledger-lint,
 # progress-report,journal,skill-index,knowledge-find}.py`) usa `socket`/`urllib`/`http.client`/
 # `requests`/`curl`/`wget` para nada, legítimo o no. Si alguno lo necesitase en el futuro (p. ej.
-# una resolución DNS puramente local), se declara aquí con su ruta relativa al repo y el motivo —
-# ese script queda excluido del escaneo de scripts invocados, nunca de los hooks/frontmatter
-# directos.
-_ALLOWLIST_USOS_LOCALES_DE_RED = frozenset()
+# una resolución DNS puramente local), se declara aquí con su ruta relativa al repo, los términos
+# y el motivo — nunca para los hooks/frontmatter directos.
+#
+# Por PAR (script, término), no por script entero (2026-10-22, CI del PR #17): el redactor
+# (`redact.py` y su copia declarada en `journal.py`, T-42 fix2/fix3) RECONOCE `curl` en el texto
+# que tapa (`curl -u usuario:clave`) — literal de su regex y de su análisis de palabras, no una
+# invocación: ninguno de los dos lanza `curl`. El resto de términos se sigue buscando en esos
+# scripts y lo que invocan (`journal.py -> outbox.py`, gap 181) se sigue recorriendo.
+_ALLOWLIST_USOS_LOCALES_DE_RED = {
+    "agent-kits/shared/redact.py": frozenset({"curl"}),
+    "agent-kits/shared/journal.py": frozenset({"curl"}),
+}
 
 _RUTA_SCRIPT_RE = re.compile(r"[\w./-]+\.(?:py|sh)")
 
@@ -854,12 +862,13 @@ def _ofensores_de_scripts_invocados(rutas_rel, root, vistos, profundidad=1):
             continue
         vistos.add(resuelta)
         etiqueta = os.path.relpath(resuelta, root).replace(os.sep, "/")
-        if etiqueta in _ALLOWLIST_USOS_LOCALES_DE_RED:
-            continue
+        permitidos = _ALLOWLIST_USOS_LOCALES_DE_RED.get(etiqueta, frozenset())
         texto_script = _texto_o_fallo_si_no_decodifica(resuelta)
         texto_script_l = (_hook_security.local_urlparse_code(texto_script)
                           if resuelta.endswith(".py") else texto_script).lower()
         for termino in _TERMINOS_RED_PROHIBIDOS:
+            if termino in permitidos:
+                continue
             if _termino_en_codigo(texto_script_l, termino, os.path.basename(resuelta)):
                 ofensores.append((etiqueta, termino))
         siguientes_rutas |= _rutas_script_invocadas(texto_script, os.path.basename(resuelta))
@@ -969,6 +978,23 @@ def test_mutante_hook_con_curl_en_subcarpeta_muere(tmp_path):
     (sub / "malo.sh").write_text("#!/bin/sh\ncurl https://ejemplo.invalido/x\n", encoding="utf-8")
     ofensores = _ofensores_de_red_en_hooks(str(tmp_path), root=str(tmp_path))
     assert ofensores == [(os.path.join("sub", "malo.sh"), "curl")]
+
+
+def test_allowlist_por_par_no_apaga_el_resto_ni_el_seguimiento(tmp_path):
+    """Mutante: el par (`redact.py`, `curl`) de la allowlist no tapa OTRO término en el mismo script
+    ni corta el seguimiento de lo que ese script invoca (gap 181)."""
+    shared = tmp_path / "agent-kits" / "shared"
+    shared.mkdir(parents=True)
+    (shared / "redact.py").write_text('import socket\nPROGRAMA = "curl"\nSIGUIENTE = "outbox.py"\n',
+                                      encoding="utf-8")
+    (shared / "outbox.py").write_text("import urllib.request\n", encoding="utf-8")
+    hooks = tmp_path / "hooks"
+    hooks.mkdir()
+    (hooks / "captura.sh").write_text('#!/bin/sh\npython3 "$SHARED/redact.py"\n', encoding="utf-8")
+    ofensores = _ofensores_de_red_en_hooks(str(hooks), root=str(tmp_path))
+    assert ("agent-kits/shared/redact.py", "curl") not in ofensores
+    assert ("agent-kits/shared/redact.py", "socket") in ofensores
+    assert ("agent-kits/shared/outbox.py", "urllib") in ofensores
 
 
 def test_bytecode_de_hooks_no_cuenta_como_hook(tmp_path):
