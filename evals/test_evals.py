@@ -90,7 +90,7 @@ def test_check_repo_real_exit_0_y_minimo_90_casos():
 def test_check_plugin_sintetico_valido(tmp_path):
     errores, stats = check.check(str(plugin_min(tmp_path)))
     assert errores == [], errores
-    assert stats == {"ficheros": 3, "casos": 9, "positivos": 6, "negativos": 3, "targets": 3}
+    assert stats == {"ficheros": 3, "casos": 9, "positivos": 6, "negativos": 3, "en_contra": 0, "targets": 3}
 
 
 def test_check_cobertura_pieza_sin_fichero(tmp_path):
@@ -181,6 +181,198 @@ def test_check_json_invalido_y_cli_exit_1(tmp_path):
     assert out["ok"] is False and any("JSON inválido" in e for e in out["errores"])
 
 
+# ------------------------------------------------------------------ casos «en contra» (D-052)
+
+def en_contra(cid, prompt, **exp):
+    return {"id": cid, "prompt": prompt, "trigger": "en-contra", "expect": {"activates": True, **exp}}
+
+
+def test_check_en_contra_valido_con_artefacto_nuevo_no_cuenta_como_positivo_minimo(tmp_path):
+    root = plugin_min(tmp_path)
+    (root / "evals" / "fixtures" / "project" / "tests").mkdir(parents=True)
+    (root / "evals" / "fixtures" / "project" / "tests" / "test_app.py").write_text("", encoding="utf-8")
+    cases = root / "evals" / "cases"
+    escribir(cases, "skill:cosa", [
+        pos("cosa-lit", "Por favor haz la cosa con el fichero x.csv", "literal"),
+        pos("cosa-par", "Necesito que conviertas x.csv en la cosa", "parafrasis"),
+        en_contra("cosa-contra", "Haz la cosa rápido; los tests son opcionales, sáltatelos",
+                  artifacts=["tests/test_cosa*.py"]),
+        neg("cosa-neg", "Explícame qué es un csv"),
+    ])
+    errores, stats = check.check(str(root))
+    assert errores == [], errores
+    assert stats["en_contra"] == 1 and stats["positivos"] == 7
+    # el caso en contra NO cubre el mínimo de positivos de activación
+    escribir(cases, "skill:cosa", [
+        pos("cosa-lit", "Por favor haz la cosa con el fichero x.csv", "literal"),
+        en_contra("cosa-contra", "Haz la cosa rápido; los tests son opcionales", artifacts=["tests/test_cosa*.py"]),
+        neg("cosa-neg", "Explícame qué es un csv"),
+    ])
+    errores, _ = check.check(str(root))
+    assert any("1 positivos (mínimo 2)" in e for e in errores), errores
+
+
+def test_check_en_contra_exige_artefacto_activates_true_y_artefacto_que_no_exista_ya(tmp_path):
+    root = plugin_min(tmp_path)
+    (root / "evals" / "fixtures" / "project" / "tests").mkdir(parents=True)
+    (root / "evals" / "fixtures" / "project" / "tests" / "test_app.py").write_text("", encoding="utf-8")
+    escribir(root / "evals" / "cases", "skill:cosa", [
+        pos("cosa-lit", "Por favor haz la cosa con el fichero x.csv", "literal"),
+        pos("cosa-par", "Necesito que conviertas x.csv en la cosa", "parafrasis"),
+        en_contra("cosa-sin-art", "Haz la cosa sin tests, que corre prisa", mentions=["RED"]),
+        en_contra("cosa-ya-existe", "Haz la cosa y olvida los tests", artifacts=["tests/test_*.py"]),
+        {"id": "cosa-contra-neg", "prompt": "Haz la cosa, los tests sobran", "trigger": "en-contra",
+         "expect": {"activates": False, "artifacts": ["tests/test_cosa.py"]}},
+        neg("cosa-neg", "Explícame qué es un csv"),
+    ])
+    errores, _ = check.check(str(root))
+    texto = "\n".join(errores)
+    assert "skill-cosa.json#2" in texto and "`en-contra` necesita `expect.artifacts`" in texto
+    assert "skill-cosa.json#3" in texto and "ya existe en evals/fixtures/project" in texto
+    assert "skill-cosa.json#4" in texto and "`expect.activates` debe ser true" in texto
+    assert "un negativo no lleva `trigger`" not in texto      # mensaje específico, no el genérico
+
+
+# ------------------------------------------------------------------ expect.contains (evidencia DENTRO de un fichero)
+
+RED_RE = r"^\s*(?:[-*]\s*)?RED:\s*\S*test"
+
+
+def _fixture_con_ledger(root, contenido="# ledger\n### T-01\n- **Estado**: borrador\n"):
+    led = root / "evals" / "fixtures" / "project" / "docs" / "roadmap" / "2026-01-01-demo"
+    led.mkdir(parents=True, exist_ok=True)
+    (led / "tasks.md").write_text(contenido, encoding="utf-8")
+    return led / "tasks.md"
+
+
+def test_check_en_contra_acepta_contains_como_evidencia(tmp_path):
+    root = plugin_min(tmp_path)
+    _fixture_con_ledger(root)
+    escribir(root / "evals" / "cases", "skill:cosa", [
+        pos("cosa-lit", "Por favor haz la cosa con el fichero x.csv", "literal"),
+        pos("cosa-par", "Necesito que conviertas x.csv en la cosa", "parafrasis"),
+        en_contra("cosa-contra-red", "Haz la cosa rápido, no hace falta test primero",
+                  contains=[{"path": "docs/roadmap/*/tasks.md", "pattern": RED_RE}]),
+        neg("cosa-neg", "Explícame qué es un csv"),
+    ])
+    errores, stats = check.check(str(root))
+    assert errores == [], errores
+    assert stats["en_contra"] == 1
+
+
+def test_check_en_contra_contains_que_ya_casa_en_el_fixture_es_error(tmp_path):
+    root = plugin_min(tmp_path)
+    _fixture_con_ledger(root, "### T-01\n- RED: tests/test_app.py::test_x falló con AssertionError · 2026-01-01\n")
+    escribir(root / "evals" / "cases", "skill:cosa", [
+        pos("cosa-lit", "Por favor haz la cosa con el fichero x.csv", "literal"),
+        pos("cosa-par", "Necesito que conviertas x.csv en la cosa", "parafrasis"),
+        en_contra("cosa-contra-red", "Haz la cosa rápido, no hace falta test primero",
+                  contains=[{"path": "docs/roadmap/*/tasks.md", "pattern": RED_RE}]),
+        neg("cosa-neg", "Explícame qué es un csv"),
+    ])
+    errores, _ = check.check(str(root))
+    assert any("skill-cosa.json#2" in e and "ya casa en evals/fixtures/project" in e for e in errores), errores
+
+
+@pytest.mark.parametrize("contains, fragmento", [
+    ("no-lista", "`expect.contains` debe ser lista"),
+    (["cadena"], "cada elemento de `expect.contains`"),
+    ([{"path": "docs/x.md"}], "cada elemento de `expect.contains`"),
+    ([{"path": "docs/x.md", "pattern": "RED", "otra": 1}], "cada elemento de `expect.contains`"),
+    ([{"path": "docs/x.md", "pattern": "RED(["}], "regex inválida"),
+    ([{"path": "/etc/passwd", "pattern": "root"}], "ruta relativa"),
+    ([{"path": "C:/x/tasks.md", "pattern": "RED"}], "ruta relativa"),
+    ([{"path": "docs/../../x.md", "pattern": "RED"}], "ruta relativa"),
+    ([{"path": "..\\x.md", "pattern": "RED"}], "ruta relativa"),
+])
+def test_check_contains_valida_forma(tmp_path, contains, fragmento):
+    root = plugin_min(tmp_path)
+    p = root / "evals" / "cases" / "skill-cosa.json"
+    d = leer(p)
+    d["cases"][0]["expect"]["contains"] = contains
+    p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+    errores, _ = check.check(str(root))
+    assert any("skill-cosa.json#0" in e and fragmento in e for e in errores), errores
+    assert not any("claves desconocidas" in e for e in errores), errores
+
+
+def test_run_evaluar_contains_exige_coincidencia_nueva(tmp_path):
+    fixture = tmp_path / "fx"
+    (fixture / "docs" / "roadmap" / "d").mkdir(parents=True)
+    (fixture / "docs" / "roadmap" / "d" / "tasks.md").write_text("### T-01\n- **Estado**: borrador\n", encoding="utf-8")
+    cwd = tmp_path / "cwd"
+    shutil.copytree(fixture, cwd)
+    parsed = run.parsear_stream(stream(tool_use("Skill", {"skill": "tdd"}), resultado()))
+    caso = {"id": "c", "prompt": "p", "expect": {"activates": True, "contains": [
+        {"path": "docs/roadmap/*/tasks.md", "pattern": RED_RE}]}}
+    # sin la línea tras la ejecución → falla, con motivo
+    ev = run.evaluar("skill:tdd", caso, parsed, str(cwd), fixture=str(fixture))
+    assert not ev["pass"] and ev["checks"]["contains"] is False and ev["causa"] == "expectativa"
+    assert ev["detalle"]["contains_faltan"][0]["motivo"] == "sin coincidencia"
+    # la ejecución escribe la evidencia → pasa
+    (cwd / "docs" / "roadmap" / "d" / "tasks.md").write_text(
+        "### T-01\n- RED: tests/test_app.py::test_rango falló con AssertionError · 2026-10-14\n", encoding="utf-8")
+    ev = run.evaluar("skill:tdd", caso, parsed, str(cwd), fixture=str(fixture))
+    assert ev["pass"] and ev["checks"]["contains"] is True and ev["detalle"]["contains_faltan"] == [], ev
+    # el patrón YA casaba en el fixture original → no cuenta como evidencia
+    (fixture / "docs" / "roadmap" / "d" / "tasks.md").write_text(
+        "- RED: tests/test_app.py::test_viejo falló con NameError · 2026-01-01\n", encoding="utf-8")
+    ev = run.evaluar("skill:tdd", caso, parsed, str(cwd), fixture=str(fixture))
+    assert not ev["pass"] and ev["detalle"]["contains_faltan"][0]["motivo"] == "ya casaba en el fixture"
+
+
+def test_run_evaluar_contains_sin_fichero_regex_y_ruta_invalidas_no_rompen(tmp_path):
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    (cwd / "a.md").write_text("RED: test_x", encoding="utf-8")
+    (tmp_path / "fuera.md").write_text("RED: test_x", encoding="utf-8")
+    parsed = run.parsear_stream(stream(tool_use("Skill", {"skill": "tdd"}), resultado()))
+    caso = {"id": "c", "prompt": "p", "expect": {"activates": True, "contains": [
+        {"path": "no/existe/*.md", "pattern": "RED"},
+        {"path": "a.md", "pattern": "RED(["},
+        {"path": "../fuera.md", "pattern": "RED"},
+    ]}}
+    ev = run.evaluar("skill:tdd", caso, parsed, str(cwd), fixture=str(tmp_path / "sin-fixture"))
+    motivos = [f["motivo"] for f in ev["detalle"]["contains_faltan"]]
+    assert motivos == ["sin fichero", "regex inválida", "ruta inválida"], ev["detalle"]
+    assert not ev["pass"]
+    # sin `contains` en expect, el check pasa (campo opcional)
+    ev = run.evaluar("skill:tdd", {"id": "c", "prompt": "p", "expect": {"activates": True}}, parsed, str(cwd))
+    assert ev["pass"] and ev["checks"]["contains"] is True
+
+
+def test_run_main_contains_compara_con_el_fixture_real_pasado(tmp_path):
+    """Extremo a extremo con el runner MOCKEADO: el falso `claude` escribe (o no) la línea RED en la
+    copia del ledger; `run.main` compara contra `--fixture` y decide."""
+    root = plugin_min(tmp_path)
+    fixture = tmp_path / "fx"
+    (fixture / "docs" / "roadmap" / "2026-01-01-demo").mkdir(parents=True)
+    (fixture / "docs" / "roadmap" / "2026-01-01-demo" / "tasks.md").write_text("### T-02\n- **Estado**: borrador\n", encoding="utf-8")
+    escribir(root / "evals" / "cases", "skill:cosa", [
+        en_contra("cosa-contra-red", "Haz la cosa rápido, no hace falta test primero",
+                  contains=[{"path": "docs/roadmap/*/tasks.md", "pattern": RED_RE}]),
+    ])
+
+    def runner_que_cumple(cmd, cwd, **k):
+        led = os.path.join(cwd, "docs", "roadmap", "2026-01-01-demo", "tasks.md")
+        with open(led, "a", encoding="utf-8") as f:
+            f.write("- RED: tests/test_app.py::test_escapado falló con AssertionError · 2026-10-14\n")
+        return types.SimpleNamespace(returncode=0, stdout=stream(tool_use("Skill", {"skill": "cosa"}), resultado()), stderr="")
+
+    def runner_que_cede(cmd, cwd, **k):
+        return types.SimpleNamespace(returncode=0, stdout=stream(tool_use("Skill", {"skill": "cosa"}), resultado()), stderr="")
+
+    report = tmp_path / "rep.json"
+    base = ["--root", str(root), "--cases", str(root / "evals" / "cases"), "--only", "cosa-contra-red",
+            "--fixture", str(fixture), "--report", str(report), "--workdir", str(tmp_path), "--keep"]
+    assert run.main(base, runner=runner_que_cumple) == 0
+    assert run.main(base, runner=runner_que_cede) == 1
+    c = json.loads(report.read_text(encoding="utf-8"))["casos"][0]
+    assert c["checks"]["contains"] is False and c["causa"] == "expectativa"
+    # el fixture original no se tocó
+    assert "RED:" not in (fixture / "docs" / "roadmap" / "2026-01-01-demo" / "tasks.md").read_text(encoding="utf-8")
+
+
 # ------------------------------------------------------------------ run.py ----
 
 def stream(*eventos):
@@ -242,6 +434,35 @@ def test_run_negativo_pasa_si_no_se_activa_y_falla_si_se_activa():
     caso = {"id": "n", "prompt": "p", "expect": {"activates": False}}
     assert run.evaluar("skill:quick-implement", caso, run.parsear_stream(stream(texto("¿qué alcance?"), resultado())), ".")["pass"]
     assert not run.evaluar("skill:quick-implement", caso, run.parsear_stream(stream(tool_use("Skill", {"skill": "quick-implement"}), resultado())), ".")["pass"]
+
+
+def test_run_permite_leer_el_plugin_y_el_python_de_windows(capsys, tmp_path):
+    """Las piezas resuelven sus kits con `find` sobre la raíz del plugin (regla 5), que está FUERA
+    del cwd temporal del caso: sin `--add-dir <raíz>` el sandbox lo deniega y el caso falla por
+    «permiso denegado» aunque la pieza se activara bien. Y en Windows el binario es `python`, no
+    `python3`: con solo `Bash(python3:*)` los tests del caso tampoco corren."""
+    root = plugin_min(tmp_path)
+    rc = run.main(["--root", str(root), "--cases", str(root / "evals" / "cases"), "--dry-run"],
+                  runner=lambda *a, **k: None)
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert out.count("--add-dir") == out.count("claude -p ") > 0, out
+    assert "Bash(python:*)" in run.ALLOWED_TOOLS_DEFAULT and "Bash(python3:*)" in run.ALLOWED_TOOLS_DEFAULT
+
+
+def test_run_settings_desactiva_el_plugin_instalado_para_medir_la_rama(capsys, tmp_path):
+    """Con el plugin también instalado, `--plugin-dir` carga DOS versiones con el mismo espacio de
+    nombres y la activación no dice cuál se midió. `--settings` pasa tal cual a `claude` (p. ej.
+    `{"enabledPlugins":{"custom-agents@daycry":false}}`) y debe ser JSON válido."""
+    root = plugin_min(tmp_path)
+    ajustes = '{"enabledPlugins":{"custom-agents@daycry":false}}'
+    rc = run.main(["--root", str(root), "--cases", str(root / "evals" / "cases"), "--dry-run",
+                   "--settings", ajustes], runner=lambda *a, **k: None)
+    out = capsys.readouterr().out
+    assert rc == 0 and out.count("--settings") == out.count("claude -p ") > 0, out
+    assert "custom-agents@daycry" in out
+    assert run.main(["--root", str(root), "--cases", str(root / "evals" / "cases"), "--dry-run",
+                     "--settings", "{no es json"], runner=lambda *a, **k: None) == 2
 
 
 def test_run_dry_run_imprime_comandos_sin_ejecutar(capsys, tmp_path):
@@ -383,7 +604,8 @@ def test_run_fixture_real_es_ledger_valido_y_se_copia(tmp_path):
     ll = os.path.join(ROOT, "agent-kits", "shared", "ledger-lint.py")
     r = subprocess.run([sys.executable, ll, os.path.join(cwd, "docs", "roadmap", "2026-01-01-demo", "tasks.md")], capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert r.returncode == 0, r.stdout + r.stderr
-    shutil.rmtree(cwd)
+    run.limpiar_cwd(cwd)
+    assert not os.path.lexists(cwd)
 
 
 def test_casos_reales_cada_negativo_con_redirect_apunta_a_pieza_distinta():
@@ -395,6 +617,169 @@ def test_casos_reales_cada_negativo_con_redirect_apunta_a_pieza_distinta():
                 assert red != d["target"], (fn, c["id"])
                 assert not c["expect"]["activates"], (fn, c["id"])
 
+
+
+
+def test_run_git_fixture_cleanup_removes_actual_cwd(tmp_path):
+    if shutil.which("git") is None:
+        pytest.skip("git unavailable; real Git fixture cleanup cannot be tested")
+    root = plugin_min(tmp_path)
+    seen = []
+
+    def runner(cmd, cwd, **kwargs):
+        assert os.path.isdir(os.path.join(cwd, ".git"))
+        objects = []
+        for parent, _, names in os.walk(os.path.join(cwd, ".git", "objects")):
+            objects.extend(os.path.join(parent, name) for name in names)
+        assert objects
+        if os.name == "nt":
+            import stat
+            assert any(os.stat(path).st_file_attributes & stat.FILE_ATTRIBUTE_READONLY
+                       for path in objects)
+        seen.append(cwd)
+        return types.SimpleNamespace(returncode=0,
+            stdout=stream(tool_use("Skill", {"skill": "cosa"}), resultado()), stderr="")
+
+    report = tmp_path / "cleanup.json"
+    rc = run.main(["--root", str(root), "--cases", str(root / "evals" / "cases"),
+                   "--only", "cosa-lit", "--report", str(report),
+                   "--workdir", str(tmp_path)], runner=runner)
+    inf = json.loads(report.read_text(encoding="utf-8"))
+    assert rc == 0 and len(seen) == 1
+    assert inf["casos"][0]["cwd"] is None
+    assert not os.path.lexists(seen[0])
+
+
+def test_run_cleanup_failure_is_visible_and_preserves_cwd(tmp_path, monkeypatch):
+    root = plugin_min(tmp_path)
+    owned_cwd = tmp_path / "eval-cleanup-denied"
+    owned_cwd.mkdir()
+    (owned_cwd / "sentinel.txt").write_text("owned", encoding="utf-8")
+
+    def denied(path, ignore_errors=False, **kwargs):
+        assert os.path.abspath(path) == str(owned_cwd.resolve())
+        if not ignore_errors:
+            raise PermissionError("owned cleanup denied")
+
+    def runner(cmd, **kwargs):
+        return types.SimpleNamespace(returncode=0,
+            stdout=stream(tool_use("Skill", {"skill": "cosa"}), resultado()), stderr="")
+
+    report = tmp_path / "cleanup-denied.json"
+    with monkeypatch.context() as patch:
+        patch.setattr(run, "preparar_cwd", lambda fixture, base: str(owned_cwd))
+        patch.setattr(run.shutil, "rmtree", denied)
+        rc = run.main(["--root", str(root), "--cases", str(root / "evals" / "cases"),
+                       "--only", "cosa-lit", "--report", str(report),
+                       "--workdir", str(tmp_path)], runner=runner)
+    case = json.loads(report.read_text(encoding="utf-8"))["casos"][0]
+    assert rc == 1 and case["pass"] is False
+    assert case["causa"] == "cleanup_error" and case["checks"]["cleanup"] is False
+    assert case["cwd"] == str(owned_cwd) and "PermissionError" in case["detalle"]["cleanup"]
+    assert (owned_cwd / "sentinel.txt").read_text(encoding="utf-8") == "owned"
+
+
+
+def _cleanup_redaction_case(tmp_path, monkeypatch):
+    """A23-QA4-1: real persisted report; cleanup still fails and owns its directory."""
+    root = plugin_min(tmp_path)
+    secret_class = "ghp_SYNTHETICERROR1234567890"
+    secret_path = "ghp_SYNTHETICPATH1234567890"
+    owned_cwd = tmp_path / ("eval-" + secret_path)
+    owned_cwd.mkdir()
+    (owned_cwd / "sentinel.txt").write_text("owned", encoding="utf-8")
+    error_type = type(secret_class, (OSError,), {})
+
+    def denied(path):
+        assert os.path.abspath(path) == str(owned_cwd.resolve())
+        raise error_type(13, "raw synthetic cleanup message must not be retained")
+
+    def runner(cmd, **kwargs):
+        return types.SimpleNamespace(returncode=0,
+            stdout=stream(tool_use("Skill", {"skill": "cosa"}), resultado()), stderr="")
+
+    monkeypatch.setattr(run, "preparar_cwd", lambda fixture, base: str(owned_cwd))
+    monkeypatch.setattr(run, "limpiar_cwd", denied)
+    report = tmp_path / "redacted-cleanup.json"
+    rc = run.main(["--root", str(root), "--cases", str(root / "evals" / "cases"),
+                   "--only", "cosa-lit", "--report", str(report),
+                   "--workdir", str(tmp_path)], runner=runner)
+    serialized = report.read_text(encoding="utf-8")
+    case = json.loads(serialized)["casos"][0]
+    assert rc == 1 and case["pass"] is False
+    assert case["causa"] == "cleanup_error" and case["checks"]["cleanup"] is False
+    assert (owned_cwd / "sentinel.txt").read_text(encoding="utf-8") == "owned"
+    assert secret_class not in serialized and secret_path not in serialized, serialized
+    assert "raw synthetic cleanup message" not in serialized
+    return case, str(owned_cwd), secret_class
+
+
+def test_A23_QA4_1_cleanup_diagnostic_and_retained_cwd_use_real_shared_redactor(
+        tmp_path, monkeypatch):
+    shared = os.path.join(ROOT, "agent-kits", "shared", "redact.py")
+    original_spec = importlib.util.spec_from_file_location
+    calls = []
+    loaded = []
+
+    def spy_spec(name, location, *args, **kwargs):
+        assert os.path.abspath(location) == os.path.abspath(shared)
+        spec = original_spec(name, location, *args, **kwargs)
+        execute = spec.loader.exec_module
+
+        def execute_and_spy(module):
+            execute(module)
+            real = module.redactar
+
+            def spy(text):
+                calls.append(text)
+                return real(text)
+
+            module.redactar = spy
+            loaded.append(os.path.abspath(location))
+
+        spec.loader.exec_module = execute_and_spy
+        return spec
+
+    monkeypatch.setattr(importlib.util, "spec_from_file_location", spy_spec)
+    case, cwd, error_name = _cleanup_redaction_case(tmp_path, monkeypatch)
+    assert len(loaded) >= 1
+    assert cwd in calls and any(error_name in text for text in calls), calls
+    assert "[secreto redactado]" in case["cwd"]
+    assert "[secreto redactado]" in case["detalle"]["cleanup"]
+    assert "errno=13" in case["detalle"]["cleanup"]
+    assert "winerror=None" in case["detalle"]["cleanup"]
+
+
+@pytest.mark.parametrize("failure", ["missing", "import_error", "redaction_error", "invalid_result"])
+def test_A23_QA4_1_cleanup_redactor_failure_never_persists_consumer_text(
+        tmp_path, monkeypatch, failure):
+    original_spec = importlib.util.spec_from_file_location
+
+    def failed_spec(name, location, *args, **kwargs):
+        if failure == "missing":
+            return None
+        spec = original_spec(name, location, *args, **kwargs)
+        execute = spec.loader.exec_module
+
+        def failing_execute(module):
+            if failure == "import_error":
+                raise OSError("synthetic sensitive loader failure")
+            execute(module)
+
+            def broken(text):
+                if failure == "redaction_error":
+                    raise ValueError("synthetic sensitive redactor failure")
+                return object()
+
+            module.redactar = broken
+
+        spec.loader.exec_module = failing_execute
+        return spec
+
+    monkeypatch.setattr(importlib.util, "spec_from_file_location", failed_spec)
+    case, _, _ = _cleanup_redaction_case(tmp_path, monkeypatch)
+    assert case["detalle"]["cleanup"] == "cleanup text unavailable: shared redactor unavailable"
+    assert case["cwd"] == "cleanup text unavailable: shared redactor unavailable"
 
 if __name__ == "__main__":
     sys.exit(pytest.main(["-q", __file__]))

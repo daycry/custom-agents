@@ -1,0 +1,687 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-10-08",
+  "status": "partial-diagnosis",
+  "private_builder_sha256": "194bbfbddc6cf9e54127eebc84771750a602e4de1bb69b684609ee830f9bc6ec",
+  "scope": "Owned synthetic native root/child load observations; broad initiative, native memory and guard reliability remain open",
+  "historical_failure_references": [
+    {
+      "reference": "native-role-integration-evidence.json#codex.memory_closure_checks",
+      "plugin_status": "failed",
+      "duration_ms": 3041,
+      "observer_status": "failed",
+      "observer_duration_ms": 3018,
+      "envelope_before_exit": false,
+      "protocol_sha256": "7ff54af02b8998f962c82a4949aebbbba4cbbddd21dff2868bc920fd4dac3228"
+    },
+    {
+      "reference": "native-role-integration-evidence.json#codex.parser_regression_delta.memory_closure_checks",
+      "plugin_status": "failed",
+      "duration_ms": 3025,
+      "observer_status": "completed",
+      "observer_duration_ms": 2410,
+      "envelope_before_exit": false,
+      "protocol_sha256": "c9a26d5f75e7e62a6aeb534c8fcb1e9741c912db7f8a3cc09fd11ee73d3e8436"
+    }
+  ],
+  "cohorts": [
+    {
+      "id": "closure-load-01",
+      "owned_run_id": "root-1791487472567004000",
+      "variant": "root-only-venv",
+      "runtime": "0.161.0",
+      "native_sha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
+      "recorded_project_revision": "b8e6192fab8ecbe82c7e829e8164fb59ead40ed9",
+      "private_timing_instrumentation": true,
+      "interpreter_selection": "venv",
+      "model_turn_used": true,
+      "provider_scope": "owned-loopback-stub",
+      "provider_requests_by_role": {
+        "root": 2
+      },
+      "provider_authorization_present": false,
+      "natural_process_exit": 0,
+      "envelope_before_exit": true,
+      "envelope_session_matches_root": true,
+      "session_end_nominal_timeout_seconds": 3,
+      "native_hook_results": [
+        {
+          "event": "sessionEnd",
+          "source": "user",
+          "call": null,
+          "status": "completed",
+          "duration_ms": 875,
+          "entries": []
+        },
+        {
+          "event": "sessionEnd",
+          "source": "plugin",
+          "call": null,
+          "status": "completed",
+          "duration_ms": 1308,
+          "entries": []
+        }
+      ],
+      "observed_file_states": [
+        {
+          "role": "root",
+          "path": "docs/roadmap/main/spec.md",
+          "expected_exists": true,
+          "exists": true
+        }
+      ],
+      "all_exercised_expected_file_states": true,
+      "guard_efficacy_observation": "not-exercised",
+      "private_stage_deltas_ms": {
+        "capture_call": 22,
+        "confirmed_cleanup": 188,
+        "node_ready_to_resolve": 430
+      },
+      "exact_notification_to_node_ready_ms": null,
+      "guard_business_budget_expirations": [],
+      "timing_trace_invalid_records": [],
+      "source_snapshot": [
+        {
+          "source": "hooks/run-hook.mjs",
+          "sha256": "0543243de0761d38116e055f55e11854ba0875e9a89eb2af44b0c4b635251111",
+          "unmodified_source_sha256": "b47ca085a7b8ac66b583579b67013a97ee370e88c1eb90a8798afe433cb3687b",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "hooks/runtime-supervisor.py",
+          "sha256": "94ee94cbd46dd3243c1c0818ea7cc868b0a13118905726d651c1e53959040136",
+          "unmodified_source_sha256": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "agent-kits/shared/journal-capture.py",
+          "sha256": "e5256fdd5966fcc4bf4deb5da54176ab220d0be2c851bd7a55ff4e2d36d03607",
+          "unmodified_source_sha256": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "agent-kits/shared/native-guardrail.py",
+          "sha256": "17fcd2ba07097e84287fbb3ffb8d53677dadf5285681e213dd50d35ae2d869e0"
+        },
+        {
+          "source": "agent-kits/shared/outbox.py",
+          "sha256": "9ff5cb708fb8794b552171c6521218aba939b5df5e288c01e84609d85b8cb12d"
+        },
+        {
+          "source": "interop/codex/hooks.json",
+          "sha256": "71a7c40991695d9dbadfd971efb3402b667b772f4537941e2d4b454fb3397fa2"
+        }
+      ],
+      "full_source_manifest": {
+        "file_count": 326,
+        "fixture_distribution_and_cache_bytes_match": true,
+        "canonical_path_hash_mapping_sha256": "ddd03dc8dd3eb1f2b181659733f36d441b2ee6931634f24a2313e16645bc24d9"
+      },
+      "actual_private_plugin_hook_events": [
+        "SessionStart",
+        "UserPromptSubmit",
+        "SubagentStop",
+        "SessionEnd",
+        "PreToolUse",
+        "PostToolUse"
+      ],
+      "raw_evidence_sha256": {
+        "summary.json": "856ef5bc0508bdeaf794c22fe0ec2bf37741a9184e1e5074a2058029badca3fe",
+        "protocol.json": "0b506a27afef8e9a94c507f6326838d9327288cc7010e3e8d33243e7d101b88e",
+        "requests.json": "3b0293baf04c11eb352290f0dc224211c643c64580949e21ba5b7e093fddf43c",
+        "events.jsonl": "ceb4ad3fabf47cc19167edb3665714110a2f032dee3d470b1a79546953db5531",
+        "source-provenance.json": "d9de1c8d7388f8cb48577f3f56193feb5c58379006d372adb615090c5ec85007",
+        "probe-source.py": "4e73ac5c3d177f54249dd21d57b5e3d11c1925f6eed2ba5fe80b04aa2d1bad14",
+        "timing.jsonl": "e36d1f67cbdcea5084286f7521513f3c92033c27c9ae27b9b5bf03f54b0f6310",
+        "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "id": "closure-load-02",
+      "owned_run_id": "children-1791487507119034700",
+      "variant": "two-native-children-venv",
+      "runtime": "0.161.0",
+      "native_sha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
+      "recorded_project_revision": "b8e6192fab8ecbe82c7e829e8164fb59ead40ed9",
+      "private_timing_instrumentation": true,
+      "interpreter_selection": "venv",
+      "model_turn_used": true,
+      "provider_scope": "owned-loopback-stub",
+      "provider_requests_by_role": {
+        "root": 8,
+        "implementer": 3,
+        "architect": 3
+      },
+      "provider_authorization_present": false,
+      "natural_process_exit": 0,
+      "envelope_before_exit": true,
+      "envelope_session_matches_root": true,
+      "session_end_nominal_timeout_seconds": 3,
+      "native_hook_results": [
+        {
+          "event": "preToolUse",
+          "source": "user",
+          "call": "call_architect_0",
+          "status": "completed",
+          "duration_ms": 2836,
+          "entries": []
+        },
+        {
+          "event": "preToolUse",
+          "source": "plugin",
+          "call": "call_architect_0",
+          "status": "completed",
+          "duration_ms": 7665,
+          "entries": []
+        },
+        {
+          "event": "sessionEnd",
+          "source": "user",
+          "call": null,
+          "status": "completed",
+          "duration_ms": 1579,
+          "entries": []
+        },
+        {
+          "event": "sessionEnd",
+          "source": "plugin",
+          "call": null,
+          "status": "completed",
+          "duration_ms": 2338,
+          "entries": []
+        }
+      ],
+      "observed_file_states": [
+        {
+          "role": "implementer",
+          "path": "docs/roadmap/implementer/spec.md",
+          "expected_exists": false,
+          "exists": false
+        },
+        {
+          "role": "implementer",
+          "path": "docs/roadmap/implementer/tasks.md",
+          "expected_exists": true,
+          "exists": true
+        },
+        {
+          "role": "architect",
+          "path": "src/architect.txt",
+          "expected_exists": false,
+          "exists": true
+        },
+        {
+          "role": "architect",
+          "path": "docs/roadmap/architect/design.md",
+          "expected_exists": true,
+          "exists": true
+        },
+        {
+          "role": "root",
+          "path": "docs/roadmap/main/spec.md",
+          "expected_exists": true,
+          "exists": true
+        }
+      ],
+      "all_exercised_expected_file_states": false,
+      "guard_efficacy_observation": "rejected-protected-file-created",
+      "private_stage_deltas_ms": {
+        "capture_call": 37,
+        "confirmed_cleanup": 283,
+        "node_ready_to_resolve": 748
+      },
+      "exact_notification_to_node_ready_ms": null,
+      "guard_business_budget_expirations": [
+        {
+          "pid": 26428,
+          "node_to_resolve_ms": 5065,
+          "spawn_event_to_budget_expiry_ms": 4511,
+          "recorded_stages": [
+            "node-ready",
+            "spawn-request",
+            "spawn-event",
+            "business-budget-expired",
+            "business-exit",
+            "business-close",
+            "node-resolve"
+          ],
+          "job_header_recorded": false,
+          "business_stdout_recorded": false
+        }
+      ],
+      "timing_trace_invalid_records": [
+        {
+          "line": 224,
+          "kind": "invalid-json-record",
+          "line_sha256": "b9eb619d0aa79c65aa2f7ed36f193eb4949f34aaaac052bfa4876b3cb476ffdc",
+          "excluded_from_stage_deltas": true
+        }
+      ],
+      "source_snapshot": [
+        {
+          "source": "hooks/run-hook.mjs",
+          "sha256": "0543243de0761d38116e055f55e11854ba0875e9a89eb2af44b0c4b635251111",
+          "unmodified_source_sha256": "b47ca085a7b8ac66b583579b67013a97ee370e88c1eb90a8798afe433cb3687b",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "hooks/runtime-supervisor.py",
+          "sha256": "94ee94cbd46dd3243c1c0818ea7cc868b0a13118905726d651c1e53959040136",
+          "unmodified_source_sha256": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "agent-kits/shared/journal-capture.py",
+          "sha256": "e5256fdd5966fcc4bf4deb5da54176ab220d0be2c851bd7a55ff4e2d36d03607",
+          "unmodified_source_sha256": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "agent-kits/shared/native-guardrail.py",
+          "sha256": "17fcd2ba07097e84287fbb3ffb8d53677dadf5285681e213dd50d35ae2d869e0"
+        },
+        {
+          "source": "agent-kits/shared/outbox.py",
+          "sha256": "9ff5cb708fb8794b552171c6521218aba939b5df5e288c01e84609d85b8cb12d"
+        },
+        {
+          "source": "interop/codex/hooks.json",
+          "sha256": "71a7c40991695d9dbadfd971efb3402b667b772f4537941e2d4b454fb3397fa2"
+        }
+      ],
+      "full_source_manifest": {
+        "file_count": 326,
+        "fixture_distribution_and_cache_bytes_match": true,
+        "canonical_path_hash_mapping_sha256": "ddd03dc8dd3eb1f2b181659733f36d441b2ee6931634f24a2313e16645bc24d9"
+      },
+      "actual_private_plugin_hook_events": [
+        "SessionStart",
+        "UserPromptSubmit",
+        "SubagentStop",
+        "SessionEnd",
+        "PreToolUse",
+        "PostToolUse"
+      ],
+      "raw_evidence_sha256": {
+        "summary.json": "4254aa08c1e2a97deb1c01aca655ab2986f38ef3b5de51f84830042f99cbf01f",
+        "protocol.json": "3c90153a3bca7efaaea2b6617d13d26e56fab589ee26b5dd0c0ce323191a1b10",
+        "requests.json": "a23c7b7436856d1f6c36001ca3f8dc9631f1b59e5103bef807f813eb6690dc3f",
+        "events.jsonl": "edcd56fb9b92863539c64d4502f33b08ea2dcb556bc0ab4c5ae9819a629bc80e",
+        "source-provenance.json": "d9de1c8d7388f8cb48577f3f56193feb5c58379006d372adb615090c5ec85007",
+        "probe-source.py": "4e73ac5c3d177f54249dd21d57b5e3d11c1925f6eed2ba5fe80b04aa2d1bad14",
+        "timing.jsonl": "58721c073e54585c1a737ab6264b64069608509d27ee59b796cfcf9c436cbba0",
+        "stderr.log": "0c33ce588c83d4e1d1fa4759eac621aa25621f5945be30a38a72f16b96ca5d5f"
+      }
+    },
+    {
+      "id": "closure-load-03",
+      "owned_run_id": "children-1791487907545316300",
+      "variant": "two-native-children-base-python",
+      "runtime": "0.161.0",
+      "native_sha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
+      "recorded_project_revision": "b8e6192fab8ecbe82c7e829e8164fb59ead40ed9",
+      "private_timing_instrumentation": true,
+      "interpreter_selection": "base",
+      "model_turn_used": true,
+      "provider_scope": "owned-loopback-stub",
+      "provider_requests_by_role": {
+        "root": 6,
+        "implementer": 3,
+        "architect": 3
+      },
+      "provider_authorization_present": false,
+      "natural_process_exit": 0,
+      "envelope_before_exit": true,
+      "envelope_session_matches_root": true,
+      "session_end_nominal_timeout_seconds": 3,
+      "native_hook_results": [
+        {
+          "event": "preToolUse",
+          "source": "user",
+          "call": "call_architect_0",
+          "status": "completed",
+          "duration_ms": 899,
+          "entries": []
+        },
+        {
+          "event": "preToolUse",
+          "source": "plugin",
+          "call": "call_architect_0",
+          "status": "blocked",
+          "duration_ms": 1278,
+          "entries": [
+            {
+              "kind": "feedback",
+              "text": "«src/architect.txt» está fuera del alcance del architect: escribe SOLO docs/roadmap/<inic>/design.md, el enlace `design:` en spec/plan (Edit) y docs/knowledge/adr/ + README.md. Ni código, ni tasks.md, ni evaluation.md — anótalo en «Preguntas abiertas» de design.md y sigue."
+            }
+          ]
+        },
+        {
+          "event": "sessionEnd",
+          "source": "user",
+          "call": null,
+          "status": "completed",
+          "duration_ms": 1329,
+          "entries": []
+        },
+        {
+          "event": "sessionEnd",
+          "source": "plugin",
+          "call": null,
+          "status": "completed",
+          "duration_ms": 1807,
+          "entries": []
+        }
+      ],
+      "observed_file_states": [
+        {
+          "role": "implementer",
+          "path": "docs/roadmap/implementer/spec.md",
+          "expected_exists": false,
+          "exists": false
+        },
+        {
+          "role": "implementer",
+          "path": "docs/roadmap/implementer/tasks.md",
+          "expected_exists": true,
+          "exists": true
+        },
+        {
+          "role": "architect",
+          "path": "src/architect.txt",
+          "expected_exists": false,
+          "exists": false
+        },
+        {
+          "role": "architect",
+          "path": "docs/roadmap/architect/design.md",
+          "expected_exists": true,
+          "exists": true
+        },
+        {
+          "role": "root",
+          "path": "docs/roadmap/main/spec.md",
+          "expected_exists": true,
+          "exists": true
+        }
+      ],
+      "all_exercised_expected_file_states": true,
+      "guard_efficacy_observation": "accepted-for-this-observation",
+      "private_stage_deltas_ms": {
+        "capture_call": 24,
+        "confirmed_cleanup": 154,
+        "node_ready_to_resolve": 399
+      },
+      "exact_notification_to_node_ready_ms": null,
+      "guard_business_budget_expirations": [],
+      "timing_trace_invalid_records": [
+        {
+          "line": 207,
+          "kind": "invalid-json-record",
+          "line_sha256": "a20233125da556ecbb79e91ecf1c78388fd4d70b7f742db068be5449ab0915b4",
+          "excluded_from_stage_deltas": true
+        }
+      ],
+      "source_snapshot": [
+        {
+          "source": "hooks/run-hook.mjs",
+          "sha256": "0543243de0761d38116e055f55e11854ba0875e9a89eb2af44b0c4b635251111",
+          "unmodified_source_sha256": "b47ca085a7b8ac66b583579b67013a97ee370e88c1eb90a8798afe433cb3687b",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "hooks/runtime-supervisor.py",
+          "sha256": "94ee94cbd46dd3243c1c0818ea7cc868b0a13118905726d651c1e53959040136",
+          "unmodified_source_sha256": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "agent-kits/shared/journal-capture.py",
+          "sha256": "e5256fdd5966fcc4bf4deb5da54176ab220d0be2c851bd7a55ff4e2d36d03607",
+          "unmodified_source_sha256": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "agent-kits/shared/native-guardrail.py",
+          "sha256": "17fcd2ba07097e84287fbb3ffb8d53677dadf5285681e213dd50d35ae2d869e0"
+        },
+        {
+          "source": "agent-kits/shared/outbox.py",
+          "sha256": "9ff5cb708fb8794b552171c6521218aba939b5df5e288c01e84609d85b8cb12d"
+        },
+        {
+          "source": "interop/codex/hooks.json",
+          "sha256": "71a7c40991695d9dbadfd971efb3402b667b772f4537941e2d4b454fb3397fa2"
+        }
+      ],
+      "full_source_manifest": {
+        "file_count": 326,
+        "fixture_distribution_and_cache_bytes_match": true,
+        "canonical_path_hash_mapping_sha256": "ddd03dc8dd3eb1f2b181659733f36d441b2ee6931634f24a2313e16645bc24d9"
+      },
+      "actual_private_plugin_hook_events": [
+        "SessionStart",
+        "UserPromptSubmit",
+        "SubagentStop",
+        "SessionEnd",
+        "PreToolUse",
+        "PostToolUse"
+      ],
+      "raw_evidence_sha256": {
+        "summary.json": "4177ee3dee83813f1dd28d37fdc6ec73679683a1f9914615411ef395dbfa381f",
+        "protocol.json": "f8c795948589b18a57c9c2e8196557786aa7b574fb8656af9088c2b151488771",
+        "requests.json": "7008900c4998eac252f3caff6ef839cc721c95ac73b1c9aaf356a0ab4304a46d",
+        "events.jsonl": "79ddc0fbe0d115b963ae7a3041b385e03c18dfececb4cd8f283f8ed5ae24d416",
+        "source-provenance.json": "d9de1c8d7388f8cb48577f3f56193feb5c58379006d372adb615090c5ec85007",
+        "probe-source.py": "9491fe0c8840de45473bee2dcd821a08c1db80076786e4196198221ddba06b1f",
+        "timing.jsonl": "123da8a96c27b7bc7cf72caf96abd0d6bd275c161e88af1c2b1c185a86d6c793",
+        "stderr.log": "c03ba705147bb3f1faa2af2198266ff22b9d3552e9ac186880062df169c25766"
+      }
+    },
+    {
+      "id": "closure-load-04",
+      "owned_run_id": "children-1791488169603872500",
+      "variant": "two-native-children-venv-confirmation",
+      "runtime": "0.161.0",
+      "native_sha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
+      "recorded_project_revision": "b8e6192fab8ecbe82c7e829e8164fb59ead40ed9",
+      "private_timing_instrumentation": true,
+      "interpreter_selection": "venv",
+      "model_turn_used": true,
+      "provider_scope": "owned-loopback-stub",
+      "provider_requests_by_role": {
+        "root": 7,
+        "implementer": 3,
+        "architect": 3
+      },
+      "provider_authorization_present": false,
+      "natural_process_exit": 0,
+      "envelope_before_exit": true,
+      "envelope_session_matches_root": true,
+      "session_end_nominal_timeout_seconds": 3,
+      "native_hook_results": [
+        {
+          "event": "preToolUse",
+          "source": "user",
+          "call": "call_architect_0",
+          "status": "completed",
+          "duration_ms": 1591,
+          "entries": []
+        },
+        {
+          "event": "preToolUse",
+          "source": "plugin",
+          "call": "call_architect_0",
+          "status": "blocked",
+          "duration_ms": 2931,
+          "entries": [
+            {
+              "kind": "feedback",
+              "text": "«src/architect.txt» está fuera del alcance del architect: escribe SOLO docs/roadmap/<inic>/design.md, el enlace `design:` en spec/plan (Edit) y docs/knowledge/adr/ + README.md. Ni código, ni tasks.md, ni evaluation.md — anótalo en «Preguntas abiertas» de design.md y sigue."
+            }
+          ]
+        },
+        {
+          "event": "sessionEnd",
+          "source": "user",
+          "call": null,
+          "status": "completed",
+          "duration_ms": 1819,
+          "entries": []
+        },
+        {
+          "event": "sessionEnd",
+          "source": "plugin",
+          "call": null,
+          "status": "completed",
+          "duration_ms": 3075,
+          "entries": []
+        }
+      ],
+      "observed_file_states": [
+        {
+          "role": "implementer",
+          "path": "docs/roadmap/implementer/spec.md",
+          "expected_exists": false,
+          "exists": false
+        },
+        {
+          "role": "implementer",
+          "path": "docs/roadmap/implementer/tasks.md",
+          "expected_exists": true,
+          "exists": true
+        },
+        {
+          "role": "architect",
+          "path": "src/architect.txt",
+          "expected_exists": false,
+          "exists": false
+        },
+        {
+          "role": "architect",
+          "path": "docs/roadmap/architect/design.md",
+          "expected_exists": true,
+          "exists": true
+        },
+        {
+          "role": "root",
+          "path": "docs/roadmap/main/spec.md",
+          "expected_exists": true,
+          "exists": true
+        }
+      ],
+      "all_exercised_expected_file_states": true,
+      "guard_efficacy_observation": "accepted-for-this-observation",
+      "private_stage_deltas_ms": {
+        "capture_call": 38,
+        "confirmed_cleanup": 384,
+        "node_ready_to_resolve": 970
+      },
+      "exact_notification_to_node_ready_ms": null,
+      "guard_business_budget_expirations": [],
+      "timing_trace_invalid_records": [
+        {
+          "line": 135,
+          "kind": "blank-line",
+          "line_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "excluded_from_stage_deltas": true
+        }
+      ],
+      "source_snapshot": [
+        {
+          "source": "hooks/run-hook.mjs",
+          "sha256": "0543243de0761d38116e055f55e11854ba0875e9a89eb2af44b0c4b635251111",
+          "unmodified_source_sha256": "b47ca085a7b8ac66b583579b67013a97ee370e88c1eb90a8798afe433cb3687b",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "hooks/runtime-supervisor.py",
+          "sha256": "94ee94cbd46dd3243c1c0818ea7cc868b0a13118905726d651c1e53959040136",
+          "unmodified_source_sha256": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "agent-kits/shared/journal-capture.py",
+          "sha256": "e5256fdd5966fcc4bf4deb5da54176ab220d0be2c851bd7a55ff4e2d36d03607",
+          "unmodified_source_sha256": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "agent-kits/shared/native-guardrail.py",
+          "sha256": "17fcd2ba07097e84287fbb3ffb8d53677dadf5285681e213dd50d35ae2d869e0"
+        },
+        {
+          "source": "agent-kits/shared/outbox.py",
+          "sha256": "9ff5cb708fb8794b552171c6521218aba939b5df5e288c01e84609d85b8cb12d"
+        },
+        {
+          "source": "interop/codex/hooks.json",
+          "sha256": "71a7c40991695d9dbadfd971efb3402b667b772f4537941e2d4b454fb3397fa2"
+        }
+      ],
+      "full_source_manifest": {
+        "file_count": 326,
+        "fixture_distribution_and_cache_bytes_match": true,
+        "canonical_path_hash_mapping_sha256": "ddd03dc8dd3eb1f2b181659733f36d441b2ee6931634f24a2313e16645bc24d9"
+      },
+      "actual_private_plugin_hook_events": [
+        "SessionStart",
+        "UserPromptSubmit",
+        "SubagentStop",
+        "SessionEnd",
+        "PreToolUse",
+        "PostToolUse"
+      ],
+      "raw_evidence_sha256": {
+        "summary.json": "c52444c3dfff642034ddbdec939e1c06f14925e5c1475f79b5a59daacdfaf2c5",
+        "protocol.json": "36f534312172ce716a20ec8cad8d33d1f63475a7b861efae530faef12b7302da",
+        "requests.json": "0a765b43c825bf88e3732bc68d14c40e6bb72221d90a739176ef960207c43d4f",
+        "events.jsonl": "1788fe81b3dcb2caf7665fdd4b54396cd9f231fd999191c640973778588a0a76",
+        "source-provenance.json": "4d021326dd5451946619bdb495fa8d4083cb5357d81f2a029acf57bdffe8994d",
+        "probe-source.py": "d026eb608b6f15c8fec9d348ae01ee9e5a9764f60725eb405c1e39bd2d0a94e3",
+        "timing.jsonl": "f5f1c1b7bf99be5b72eb67457f5e3f6be6bd0c02f5323c79a0b6e057a8122e48",
+        "stderr.log": "73fae522c5e4b9f7cce22eaa89fcbbac733bc4c89eb60c57efb7b21ea5c7b5e2"
+      }
+    }
+  ],
+  "source_equivalence": {
+    "all_four_complete_manifests_match_first_child": true,
+    "fourth_has_at_least_326_files_and_matches_first_child_and_actual_bytes": true,
+    "equivalence_is_private_snapshot_evidence_not_current_worktree_execution": true,
+    "stale_raw_provenance_annotation": "First three raw manifests inherit private_session_end_only=true despite full actual hooks; raw hashes retained, annotation excluded from selected snapshots."
+  },
+  "direct_evaluator_replay": {
+    "decision": "deny",
+    "role": "architect",
+    "diagnostic": null,
+    "tool_use_id": "call_architect_0",
+    "events_sha256": "edcd56fb9b92863539c64d4502f33b08ea2dcb556bc0ab4c5ae9819a629bc80e",
+    "source_sha256": "17fcd2ba07097e84287fbb3ffb8d53677dadf5285681e213dd50d35ae2d869e0",
+    "fixture_home_contained": true,
+    "actual_tool_mutation_executed": false,
+    "native_launcher_executed": false,
+    "interpreter": "owned probe venv interpreter",
+    "result_sha256": "76aeeed095dd425e228e98b1a5e522c63e30422a726632d0fc3f181fe3dc8200",
+    "helper_sha256": "77bbf2ed1838270dad9575231e88960b5e68531bcf3c97edd4fe5e9213d83f7a"
+  },
+  "diagnosis": {
+    "closure": "All four new captures completed with a root-matching envelope before natural exit; historical native closure deadline failures were not reproduced and remain retained.",
+    "closure_causal_hypothesis": "Shared startup or dispatch variability under native hook and child scenario load can consume the closure deadline.",
+    "closure_causal_hypothesis_proven": false,
+    "new_guard_failure": "First child cohort created src/architect.txt although denied by policy. Native handler reported completed with empty entries. Private Node trace recorded guard child-budget expiry without a job header or business stdout, and direct evaluator replay denied the exact owned payload.",
+    "guard_stage_conclusion": "Decision delivery failed in one native diagnostic observation; a deterministic evaluator or parser policy failure is contradicted by direct replay. Missing trace stages alone do not prove how far Python executed.",
+    "base_interpreter_control": "Base interpreter and subsequent venv observations blocked the architect patch. This does not establish interpreter causality or a production fix.",
+    "native_3075_ms_completed": "Fourth SessionEnd native status completed and recorded 3075ms are preserved together; no deadline guarantee is inferred.",
+    "production_fix_from_this_evidence": null
+  },
+  "limits": [
+    "Synthetic loopback model, isolated owned homes/projects/cache/native binary; no consumer installation or remote provider execution.",
+    "Private timing instrumentation changes launcher, supervisor and capture bytes; original hashes are recorded separately.",
+    "Native startedAt has second precision and current protocol lacks received_ms/emittedAtMs; no exact notification-to-Node timing is claimed.",
+    "Malformed and blank private trace rows are retained by raw and per-row hashes, with line numbers, and excluded from stage arithmetic. Concurrent trace loss limits absence claims.",
+    "Root polling/wait request counts differ between cohorts; scheduling, process startup and run order are uncontrolled variables.",
+    "Complete byte equivalence does not establish a clean interpreter-only performance experiment.",
+    "One original launcher guard degradation remains rejected evidence for universal guard efficacy; successful subsequent observations do not erase it.",
+    "No native deadline change, production timeout fix, globally closed guard matrix or broad memory closure is established."
+  ]
+}

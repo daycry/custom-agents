@@ -19,6 +19,9 @@ code-health.py — informe DETERMINISTA y agnóstico de lenguaje de la salud de 
                       solo el recuento).
 
 Sin git (o fuera de un repo) se omiten 3 y la antigüedad de 4, con AVISO dentro del informe.
+Con git, los ficheros VERSIONADOS bajo directorios de terceros o de build que el recorrido excluye
+(`vendor/`, `node_modules/`, `dist/`, `build/`, `target/`…) se CUENTAN por directorio y se avisan,
+sin analizarlos (`excluidos_versionados` en el JSON; null sin git).
 
 Uso:
   code-health.py <ruta> [--json] [--min-lines 6] [--langs py,js,ts,…] [--window 8]
@@ -48,6 +51,10 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 LANGS_DEFAULT = "py,js,ts,tsx,jsx,php,go,java,rb,cs,kt,rs"
 EXCLUDE_DIRS = {"vendor", "node_modules", "dist", "build", ".git", "__pycache__", ".venv", "venv",
                 "target", ".next", "coverage", ".idea", ".vscode"}
+# Subconjunto de EXCLUDE_DIRS que es código de terceros o salida de build: si git los versiona,
+# el informe lo avisa (sin analizarlos). Fuera quedan .git y las carpetas de editor.
+VENDOR_BUILD_DIRS = {"vendor", "node_modules", "dist", "build", "target", ".next", "coverage",
+                     ".venv", "venv", "__pycache__"}
 TEST_RE = re.compile(r"(^|/)(tests?|__tests__|spec|specs)(/|$)|(^|/)test_[^/]+\.py$|[._-](test|spec)\.[a-z]+$")
 # Marcador = la palabra seguida (con o sin espacio) de `:`/`-`/`—`, o PEGADA (sin espacio) a `(`
 # (estilo `TODO(alice):`); o al COMIENZO de un comentario («# TODO revisar»), en cuyo caso solo
@@ -420,6 +427,28 @@ def hay_git(root):
     return git(root, "rev-parse", "--is-inside-work-tree") is not None
 
 
+def excluidos_versionados(root, exclude_paths=()):
+    """Ficheros VERSIONADOS en git (cualquier extensión) bajo un directorio de terceros o de build
+    que el análisis excluye por defecto (`VENDOR_BUILD_DIRS`): código incrustado o artefactos
+    commiteados que ninguna medida ve. Solo se cuentan, agrupados por el prefijo hasta el primer
+    directorio excluido; no se analizan. Las rutas bajo `--exclude-path` no cuentan (exclusión
+    deliberada). None sin git."""
+    out = git(root, "ls-files", "-z")
+    if out is None:
+        return None
+    prefijos = [p.strip().strip("/\\").replace(os.sep, "/") for p in exclude_paths if p.strip()]
+    por_dir = defaultdict(int)
+    for rel in out.split("\0"):
+        if not rel or (prefijos and _bajo_prefijo(rel, prefijos)):
+            continue
+        partes = rel.split("/")[:-1]
+        for i, parte in enumerate(partes):
+            if parte in VENDOR_BUILD_DIRS:
+                por_dir["/".join(partes[:i + 1]) + "/"] += 1
+                break
+    return {"total": sum(por_dir.values()), "por_directorio": dict(sorted(por_dir.items()))}
+
+
 def hotspots(root, since, tam_por_fichero, rels, top):
     log = git(root, "log", f"--since={since} days ago", "--name-only", "--pretty=format:")
     if log is None:
@@ -505,6 +534,13 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_
     if not con_git:
         avisos.append("git no disponible o la ruta no es un repositorio: hotspots omitidos y TODO sin antigüedad")
     tod = marcadores(root, src, con_git, top)
+    ev = excluidos_versionados(root, exclude_paths) if con_git else None
+    if ev and ev["total"]:
+        dirs = sorted(ev["por_directorio"].items(), key=lambda kv: (-kv[1], kv[0]))
+        lista_dirs = ", ".join(f"`{d}` ({n})" for d, n in dirs[:5]) + (", …" if len(dirs) > 5 else "")
+        avisos.append(f"{ev['total']} ficheros versionados en git bajo directorios de terceros o de build "
+                      f"que el análisis excluye: {lista_dirs}. Código incrustado o artefactos commiteados "
+                      "que ninguna medida ve; no se analizan")
     prefijos_norm = sorted({p.strip().strip("/\\").replace(os.sep, "/")
                             for p in exclude_paths if p.strip()})
     return {"ruta": os.path.abspath(root), "fecha": _dt.date.today().isoformat(),
@@ -517,7 +553,8 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_
                         "anidamiento_max": tam["anidamiento_max"],
                         "hotspots": hs["ficheros_cambiados"] if hs else None,
                         "todos": tod["total"], "todo_edad_max_dias": tod["edad_max_dias"]},
-            "duplicados": dup, "tamano": tam, "hotspots": hs, "marcadores": tod, "avisos": avisos}
+            "duplicados": dup, "tamano": tam, "hotspots": hs, "marcadores": tod,
+            "excluidos_versionados": ev, "avisos": avisos}
 
 
 # Métricas comparables con --baseline: (clave del resumen, «menos es mejor»)

@@ -7,7 +7,7 @@ actualizado: "{{FECHA}}"
 spec: spec.md                 # enlace hacia atrás (misma carpeta)
 evaluacion: "{{EVALUACION}}"    # evaluation.md | n/a
 plan: pendiente               # improvement-plan.md cuando el planner lo cree
-adr: "{{ADR}}"                  # docs/knowledge/adr/ADR-NNN-<slug>.md | n/a (no cruzó el umbral)
+adr: "{{ADR}}"                  # ruta candidates/pending devuelta por propose | pendiente (sin servicio) | n/a (no cruzó el umbral); SHA en handoff a Curator
 opcion_elegida: "{{OPCION}}"    # pendiente | O1 | O2 | O3 — se fija SOLO tras la validación del usuario (pasada 2 / diálogo manual)
 generacion:
   fuente: "{{FUENTE}}"          # medido | estimado (usage-meter.py)
@@ -35,6 +35,11 @@ generacion:
 
 - {{RESTRICCION_1}}
 - {{RESTRICCION_2}}
+
+<!-- Solo si el cambio cruza servicios o procesos (si no, borra la línea): qué debe cumplirse siempre,
+     qué servicio es dueño de cada dato (el único que lo escribe) y los estados con sus transiciones
+     permitidas (p. ej. `pendiente → pagado → enviado`; `pagado → pendiente` prohibida). -->
+**Invariantes, propiedad de los datos y estados:** {{INVARIANTES}}
 
 ## 2. Opciones (2-3)
 
@@ -95,6 +100,8 @@ generacion:
 Descartadas: {{DESCARTADAS}} (motivo por opción).
 
 ## 5. Impacto en módulos y ficheros
+
+Usa rutas concretas del repositorio entre backticks en la primera columna. El generador del brief compara estas rutas con `Archivos` y `Dependencias` de la tarea; conserva el diseño acotado si la tabla no es parseable.
 
 | Módulo / fichero (ruta real) | Cambio | Nuevo / modificado |
 |---|---|---|

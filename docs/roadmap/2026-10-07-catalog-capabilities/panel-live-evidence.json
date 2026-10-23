@@ -1,0 +1,549 @@
+{
+  "version": 1,
+  "block": 15,
+  "base": "ada60e2c7e78f9c70f90b5e856bc7c1ca81774c1",
+  "scope": "Explicit local panel transport and canonical ledger progress, doctor long-path presentation, and documented memory component comparison; no live-agent producers, plan approval or new retrieval delivered.",
+  "source_sha256": {
+    "CLAUDE.md": "eb2dc7157c4f4731d19e5ecacf4d0d16cb7bf75b73ddfdd9ece7b3419c8eb4b5",
+    "agent-kits/shared/doctor.py": "36f1fb2579afb8f078a083375e5b873d6299482b7c6aa33c72fbaf12d002f4dd",
+    "agent-kits/shared/test_doctor.py": "02b4d0d4159698206fcedeb6c017d6809164e5eacdce30be629c46b666581d9a",
+    "commands/plugin-catalog.md": "cf138fb4d3ccdf8682acecd68011143fcb25439f81488d1fe47576f098e089f3",
+    "evals/cases/command-plugin-catalog.json": "ec12ece847cf43a41e557079435a48211550ca55208c16242577b93a4e426daa",
+    "evals/cases/skill-plugin-panel.json": "b08ab032ea470d6dbd3af84f6a24d0980e39bfcf98b6561d244952274dcd7325",
+    "interop/codex/prompts/plugin-catalog.md": "c6ec2a3a7a0ad3c42fda5dff0c40362b424de94491148be232e399c1bbdd5dfd",
+    "interop/opencode/commands/plugin-catalog.md": "e0ea5bdc867951a5b53071a5a7c8c8fe2819b65f7fe5fb7a3eff24361047bddd",
+    "skills/plugin-panel/SKILL.md": "fcef1af20cdf143f458bda6fd86e3738a37204568102d8affb4c5087a6a9d9a8",
+    "skills/plugin-panel/references/panel-live.js": "fa9c1fba9c06b79d8b8106512a16525afd2e0cba37f322765aa9431837fb72ea",
+    "skills/plugin-panel/references/panel.html": "d340a0aef147ee03edc452eb2a8f2931c83e2f592077b6b8699ebec37a31681d",
+    "skills/plugin-panel/scripts/build_panel.py": "9a3dc4c4cf7d0562017268ba5a662a10aeb811606cc3c345096b64c4c8be5f22",
+    "skills/plugin-panel/scripts/serve_panel.py": "57d417e48eaf7c72ddb7b4ca25e9683e606081e61636f80c566658158236b6f8",
+    "tests/test_panel_diagnostics.py": "8d6e784bd025eee4a9794916277674e49a92c5b60f9fedd04aa5ae568732dd03",
+    "tests/test_panel_live_ui.py": "30164e02207147613f691ab83336d177e1d16b36404db6cd40c1f1d4450e44d6",
+    "tests/test_panel_server.py": "6b75d5bc5e6931712c4c09cbe984bc4cb74488be61cfd38272e4b38bbeef9cc7"
+  },
+  "reviews": [
+    {
+      "attempt": 1,
+      "lenses": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "critical": 0,
+      "important": 2,
+      "minor": 0,
+      "result": "Two duplicate A/B findings corrected: title clipping and unknown task states were not marked partial."
+    },
+    {
+      "attempt": 2,
+      "lenses": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "critical": 0,
+      "important": 0,
+      "minor": 0,
+      "result": "Corrections accepted; new memory comparison and browser cases reviewed; final QA remained pending."
+    },
+    {
+      "attempt": 3,
+      "lenses": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "critical": 0,
+      "important": 0,
+      "minor": 0,
+      "result": "Additional lifecycle verification, test-plan and traces accepted; previously approved production unchanged."
+    }
+  ],
+  "review_scope": {
+    "files": 35,
+    "out_of_scope": 0,
+    "excluded": 0,
+    "reviewer": "fresh generic fallback; native reviewer dispatch unavailable; tier informational only",
+    "consumer_settings_read": false,
+    "conditional_lenses": "explicit owned fixture C=always/D=always; no actual project dev.json read"
+  },
+  "jira_review": "each attempt uses explicitly disabled owned fixture; exit 0 with ops=[]; no external account or publication",
+  "qa": {
+    "windows": {
+      "expected": 1113,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 9,
+      "gate_exit_code": 0,
+      "report_sha256": "6a504254507e60ab578f4718af951bb5c439f2ff5b33c17039ced7aa7c45cb8a",
+      "cohort": "qa4"
+    },
+    "linux": {
+      "expected": 1120,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 2,
+      "gate_exit_code": 0,
+      "report_sha256": "86666e619897cec0a451dad9c62dfccaf65d322b3af04d40fe917cfe3ccc0c8d",
+      "cohort": "qa4"
+    }
+  },
+  "coverage": {
+    "method": "Coverage.py executable statements intersected with added Git diff lines vs ada60e2; pure new transport includes all executable statements.",
+    "covered": 225,
+    "total": 236,
+    "percent": 95.34,
+    "files": [
+      {
+        "file": "skills/plugin-panel/scripts/serve_panel.py",
+        "covered": 181,
+        "total": 190,
+        "uncovered_lines": [
+          25,
+          83,
+          88,
+          100,
+          105,
+          133,
+          140,
+          141,
+          170
+        ]
+      },
+      {
+        "file": "agent-kits/shared/doctor.py",
+        "covered": 19,
+        "total": 19,
+        "uncovered_lines": []
+      },
+      {
+        "file": "skills/plugin-panel/scripts/build_panel.py",
+        "covered": 25,
+        "total": 27,
+        "uncovered_lines": [
+          733,
+          734
+        ]
+      }
+    ]
+  },
+  "jobs": {
+    "windows": [
+      {
+        "name": "python",
+        "exit_code": 0,
+        "duration_ms": 402254
+      },
+      {
+        "name": "coverage",
+        "exit_code": 0,
+        "duration_ms": 4139
+      },
+      {
+        "name": "lint",
+        "exit_code": 0,
+        "duration_ms": 3401
+      },
+      {
+        "name": "evals",
+        "exit_code": 0,
+        "duration_ms": 238
+      },
+      {
+        "name": "export",
+        "exit_code": 0,
+        "duration_ms": 231
+      },
+      {
+        "name": "ledger",
+        "exit_code": 0,
+        "duration_ms": 160
+      }
+    ],
+    "linux": [
+      {
+        "name": "python",
+        "exit_code": 0,
+        "duration_ms": 135316
+      },
+      {
+        "name": "export",
+        "exit_code": 0,
+        "duration_ms": 728
+      }
+    ]
+  },
+  "prior_complete_qa": {
+    "windows": {
+      "passed": 1112,
+      "skipped": 9,
+      "unexpected": 0
+    },
+    "linux": {
+      "passed": 1119,
+      "skipped": 2,
+      "unexpected": 0
+    },
+    "coverage_gate": "rejected: 212/236 executable added statements, 89.83%, below 90%; meaningful lifecycle verification added, production unchanged"
+  },
+  "rejected_harness_qa": {
+    "cohort": "qa3",
+    "windows_exit_code": 4,
+    "linux_exit_code": 1,
+    "test_cases_executed": 0,
+    "cause": "QA launched before isolated source copy completed; source file/manifest absent. New copy finished before qa4 launch; rejection preserved privately."
+  },
+  "doctor_regression": {
+    "cohorts": [
+      {
+        "mode": "red",
+        "exit": 1,
+        "sources": {
+          "agent-kits/shared/doctor.py": "c8a123bbaf2118d494f7eb1b0e709c6654d945b587c165d214bd74a9906bfd51",
+          "agent-kits/shared/test_doctor.py": "02b4d0d4159698206fcedeb6c017d6809164e5eacdce30be629c46b666581d9a"
+        },
+        "testcases": 8,
+        "passed": 0,
+        "failures": [
+          "test_config_error_long_absolute_path_keeps_file_and_field[taxonomy.json-categories]",
+          "test_config_error_long_absolute_path_keeps_file_and_field[training.json-id_prefix]",
+          "test_config_error_long_path_in_detail_keeps_backend_field[True-/-/owned]",
+          "test_config_error_long_path_in_detail_keeps_backend_field[True-\\\\-C:\\\\owned]",
+          "test_config_error_long_path_in_detail_keeps_backend_field[False-/-/owned]",
+          "test_config_error_long_path_in_detail_keeps_backend_field[False-\\\\-C:\\\\owned]",
+          "test_config_error_redacts_before_path_compaction_and_control_cleanup",
+          "test_config_error_missing_redactor_is_opaque"
+        ],
+        "errors": [],
+        "skips": []
+      },
+      {
+        "mode": "green",
+        "exit": 0,
+        "sources": {
+          "agent-kits/shared/doctor.py": "36f1fb2579afb8f078a083375e5b873d6299482b7c6aa33c72fbaf12d002f4dd",
+          "agent-kits/shared/test_doctor.py": "02b4d0d4159698206fcedeb6c017d6809164e5eacdce30be629c46b666581d9a"
+        },
+        "testcases": 8,
+        "passed": 8,
+        "failures": [],
+        "errors": [],
+        "skips": []
+      },
+      {
+        "mode": "suite",
+        "exit": 0,
+        "sources": {
+          "agent-kits/shared/doctor.py": "36f1fb2579afb8f078a083375e5b873d6299482b7c6aa33c72fbaf12d002f4dd",
+          "agent-kits/shared/test_doctor.py": "02b4d0d4159698206fcedeb6c017d6809164e5eacdce30be629c46b666581d9a"
+        },
+        "testcases": 221,
+        "passed": 220,
+        "failures": [],
+        "errors": [],
+        "skips": [
+          "test_hook_sin_bit_ejecutable_es_aviso_con_chmod"
+        ]
+      }
+    ],
+    "replicated_sanitizer_unchanged": true,
+    "isolation": "public copies; own homes/programdata/temp; own runtime stubs; pytest plugin auto-load disabled; no bytecode",
+    "limits": "directed doctor suite; synthetic configurations only; no native hook/backend acceptance",
+    "change": "canonical redaction before sanitizing; file tail and validation detail independently bounded at 200 characters; repeated leading path removed before message limit; opaque failure if trusted redactor missing"
+  },
+  "lifecycle_verification": {
+    "directed_passed": 1,
+    "deselected": 46,
+    "production_changed": false,
+    "claims": "Trusted helper load, owned loopback startup, operator-only output, interruption and socket/port closure; no invented RED for existing behavior."
+  },
+  "linux_runtime": {
+    "image_id": "sha256:ee6b1d8543257a61226665c0c2168c3b565885c8af50b846f2d46b19aa0630ac",
+    "network": "none",
+    "init": true
+  },
+  "linux_eol": {
+    "shell_lf_normalized": [
+      "hooks/implementer-guardrail.sh",
+      "hooks/ledger-lint-warn.sh",
+      "hooks/progress-line.sh",
+      "hooks/session-context.sh",
+      "hooks/session-journal.sh",
+      "hooks/subagent-progress.sh",
+      "hooks/user-prompt-capture.sh",
+      "statusline/roadmap-statusline.sh"
+    ],
+    "mode": "0755"
+  },
+  "edge": {
+    "browser": "Edge",
+    "browser_version": "154.0.4258.62",
+    "playwright_version": "1.63.0",
+    "source_sha256": {
+      "skills/plugin-panel/scripts/serve_panel.py": "57d417e48eaf7c72ddb7b4ca25e9683e606081e61636f80c566658158236b6f8",
+      "skills/plugin-panel/scripts/build_panel.py": "9a3dc4c4cf7d0562017268ba5a662a10aeb811606cc3c345096b64c4c8be5f22",
+      "skills/plugin-panel/references/panel.html": "d340a0aef147ee03edc452eb2a8f2931c83e2f592077b6b8699ebec37a31681d",
+      "skills/plugin-panel/references/panel-live.js": "fa9c1fba9c06b79d8b8106512a16525afd2e0cba37f322765aa9431837fb72ea",
+      "docs/roadmap/2026-10-07-catalog-capabilities/testing/panel-live.spec.cjs": "22d1801e7e3b336cd74f4666f660cdd283422ffa1050460c881d7ef2cb3138f8",
+      "docs/roadmap/2026-10-07-catalog-capabilities/testing/panel-live.config.cjs": "d128e5ed871601185848a408271e5c7d2714dc8babe84725edcb7e9bc25559bf"
+    },
+    "accepted": {
+      "mode": "real_playwright_api_public_callbacks",
+      "runner_cli": false,
+      "retries": 0,
+      "version": "154.0.4258.62",
+      "results": [
+        {
+          "title": "E-01 real served scripts respect nonce CSP and progress navigation",
+          "status": "passed",
+          "duration_ms": 2952
+        },
+        {
+          "title": "E-02 changing owned ledger refreshes hash and counts through polling",
+          "status": "passed",
+          "duration_ms": 6184
+        },
+        {
+          "title": "E-03 HTTP failure and incompatible reply retain prior view and date",
+          "status": "passed",
+          "duration_ms": 5907
+        },
+        {
+          "title": "E-04 keyboard and mobile layout preserve usable progress controls",
+          "status": "passed",
+          "duration_ms": 1190
+        },
+        {
+          "title": "E-05 offline output retains no live progress or HTTP fetch",
+          "status": "passed",
+          "duration_ms": 743
+        },
+        {
+          "title": "E-06 malformed owned ledger shows partial replacement explicitly",
+          "status": "passed",
+          "duration_ms": 5973
+        }
+      ],
+      "passed": 6,
+      "failed": 0,
+      "callbacks_expected": 6,
+      "callbacks_executed": 6,
+      "bypassCSP": false,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    "api_gate": {
+      "verdict": "VERDE",
+      "counts": {
+        "passed": 6,
+        "failed": 0,
+        "flaky": 0,
+        "skipped": 0,
+        "interrupted": 0
+      },
+      "flaky_sin_justificar": [],
+      "flaky_justificados": {},
+      "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+    },
+    "cli_rejected": [
+      {
+        "cohort": "run-20261009-152716-e1d99a9f",
+        "stats": {
+          "startTime": "2026-10-09T13:27:24.656Z",
+          "duration": 5938.082,
+          "expected": 0,
+          "skipped": 5,
+          "unexpected": 1,
+          "flaky": 0
+        },
+        "stage": "browser_fixture_before_page",
+        "accepted": false,
+        "classification": "launcher_failure_not_product_failure",
+        "report_sha256": "dd17b70b2ebe4ff052bb4d9ac11aa58ead9ccc024f4df2321b0b87f99210313c"
+      },
+      {
+        "cohort": "run-20261009-152936-5621f1fa",
+        "stats": {
+          "startTime": "2026-10-09T13:29:37.533Z",
+          "duration": 4638.311000000001,
+          "expected": 0,
+          "skipped": 5,
+          "unexpected": 1,
+          "flaky": 0
+        },
+        "stage": "browser_fixture_before_page",
+        "accepted": false,
+        "classification": "launcher_failure_not_product_failure",
+        "report_sha256": "9b5bc86e71e7ad5be3f007dd166dfc887adb3c4d74674469b8aec2327c166048"
+      },
+      {
+        "cohort": "run-20261009-153531-cf90ccfc",
+        "stats": {
+          "startTime": "2026-10-09T13:35:32.820Z",
+          "duration": 2648.9120000000003,
+          "expected": 0,
+          "skipped": 5,
+          "unexpected": 1,
+          "flaky": 0
+        },
+        "stage": "browser_fixture_before_page",
+        "accepted": false,
+        "classification": "launcher_failure_not_product_failure",
+        "report_sha256": "275f91bca86dd84a05997d3f1f1a4dea2a8a58fba687f9404651b0ec625d5a31"
+      },
+      {
+        "cohort": "run-20261009-154254-81dde59a",
+        "stats": {
+          "startTime": "2026-10-09T13:43:11.138Z",
+          "duration": 4838.758,
+          "expected": 0,
+          "skipped": 5,
+          "unexpected": 1,
+          "flaky": 0
+        },
+        "stage": "browser_fixture_before_page",
+        "accepted": false,
+        "classification": "launcher_failure_not_product_failure",
+        "report_sha256": "18a0c791e6c210474019fa585803f86c696d3f8b8b9e3b1af551d47182337f2e"
+      }
+    ],
+    "closure": {
+      "server_closed": true,
+      "sources_unchanged": true
+    },
+    "images": [
+      {
+        "name": "desktop.png",
+        "sha256": "2c622c4caa153b23a073696b6dcad7639f078c8515441c7b824a5eb6c960c755"
+      },
+      {
+        "name": "mobile.png",
+        "sha256": "de6442683fcb1e93deae42cbefb4880633995935fedd3bfc10e1a0c81fe53843"
+      }
+    ],
+    "network": "public callbacks reject page requests outside their owned loopback origin; offline callback observes no HTTP fetch",
+    "privacy": "no real consumer configs, journal, transcripts, memory entries, native backends or browser profile used",
+    "limits": [
+      "API browser checks reuse unchanged public callbacks and assertions; they are not CLI runner success",
+      "CLI failed before any page check; remaining cases are not-run, not product failures",
+      "launch options, directory length, PATH, cwd and parent stdio probes did not establish a sole cause",
+      "ledger progress does not prove live agents or native hook acceptance"
+    ]
+  },
+  "memory_comparison": {
+    "evidence_sha256": "718d349bf73a7b4364a5df7e9c41e4858fda2365fb425cd0acb1b83a378d09f0",
+    "components": [
+      "Kwipu",
+      "Graphiti",
+      "Graphify"
+    ],
+    "selection_final": false,
+    "benchmark_executed": false,
+    "canonical_authority": "local approved Markdown; continuity and structural context retain separate owners"
+  },
+  "deployment_observation": {
+    "observed_at": "2026-10-09T13:39:21.512086+00:00",
+    "operation": "read_only_current_deployment",
+    "services": [
+      {
+        "service": "kwipu",
+        "port": 8765,
+        "operation": "health_or_model_inventory",
+        "mutates": false,
+        "http_status": 200,
+        "response_bytes": 405,
+        "bounded": true,
+        "response_sha256": "a1fdcb3f19170d18f9a9f99d61a001bcd6b8afcb1e0c4bbf2caaac960b849daf",
+        "status": "ok",
+        "end_to_end_retrieval_verified": false
+      },
+      {
+        "service": "graphiti",
+        "port": 8001,
+        "operation": "health_or_model_inventory",
+        "mutates": false,
+        "http_status": 200,
+        "response_bytes": 45,
+        "bounded": true,
+        "response_sha256": "57722a2dc6a1901791fd991f49d3dd0460fb7d1065c3e02eac1af7c481b92e27",
+        "status": "healthy",
+        "end_to_end_retrieval_verified": false
+      },
+      {
+        "service": "ollama",
+        "port": 11434,
+        "operation": "health_or_model_inventory",
+        "mutates": false,
+        "http_status": 200,
+        "response_bytes": 1829,
+        "bounded": true,
+        "response_sha256": "8ca363fecdb7ba7ca72ec6a5f040ac26e24f045be3af28dc4098cf98410f2417",
+        "models": [
+          "gpt-oss:120b-cloud",
+          "gpt-oss:20b-cloud",
+          "qwen3.5:0.8b",
+          "nomic-embed-text:latest"
+        ],
+        "end_to_end_retrieval_verified": false
+      }
+    ],
+    "limits": "Health and model inventory only; no memory queries, corpus reads, ingestion, logs or container changes."
+  },
+  "isolation": {
+    "public_source_only": true,
+    "excluded_before_read": [
+      ".claude/",
+      "docs/knowledge/",
+      "scratchpad/",
+      ".venv/",
+      "bytecode",
+      "root generated panel.html"
+    ],
+    "homes": "owned synthetic HOME/USERPROFILE/runtime/XDG/TEMP/PROGRAMDATA; native CLI stubs; no actual consumer configurations",
+    "native_hooks_executed": false,
+    "memory_queries_executed": false,
+    "memory_backends_changed": false,
+    "upstream_code_executed": false
+  },
+  "transport_contract": {
+    "bind": "127.0.0.1",
+    "port": "ephemeral by default",
+    "capability": "fresh random process-local URL prefix, never persisted",
+    "routes": [
+      "page",
+      "api/progress"
+    ],
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "mutable_actions": false,
+    "catalog": "startup snapshot",
+    "progress": "canonical ledger declaration, not live-agent proof",
+    "max_scan_entries": 128,
+    "max_file_bytes": 262144,
+    "max_read_bytes": 1048576,
+    "max_initiatives": 64,
+    "max_active_tasks_per_initiative": 8,
+    "max_response_bytes": 65536,
+    "source_hash": "SHA-256 of decoded UTF-8 text without BOM, preserving line endings",
+    "snapshot_cache_seconds": 2,
+    "poll_seconds": 5,
+    "request_deadline_seconds": 4,
+    "hidden_polling": false,
+    "http_request_overlap": false
+  },
+  "limits": [
+    "Directed suites and owned browser fixtures, not complete repository CI or native-runtime acceptance.",
+    "Real Playwright API executes unchanged public callbacks; four CLI browser-launch failures remain rejected, not relabelled green or product failures.",
+    "Additional canonical parsing is bounded and linear; measurements describe synthetic fixtures, not a universal latency guarantee.",
+    "Component documentation and local service health do not establish retrieval quality, costs, effective inference model, durability or restoration.",
+    "Memory bounded query, synthetic backend comparison, live-agent events, plan review and mutable actions remain future work.",
+    "New skills paused at 79/293 evaluated, 214 remaining; global objective remains open."
+  ]
+}

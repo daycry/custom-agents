@@ -1,9 +1,17 @@
 ---
 description: Diagnóstico de la instalación del plugin en este proyecto — herramientas (python3, git, jq, node, Playwright), plugin y hooks registrados, statusline, configs de .claude (rates, dev, jira, confluence) y estado del trabajo (marcadores de medición huérfanos, iniciativas en progreso, memoria técnica —curadas, índice, FTS5, journal, calibración—, evals), con veredicto ✅/⚠️/❌ y el arreglo concreto de cada línea. Solo lee; no toca nada. Sin red salvo la comprobación en vivo de capacidades opcionales activadas en `taxonomy.json`, acotada a hosts locales/privados y a un tope total de tiempo (p. ej. `kwipu` o la memoria de grafo `graphiti`). Úsalo cuando el usuario diga "¿está bien instalado?", "diagnostica el plugin", "por qué no funciona el hook", "comprueba mi configuración", "doctor".
-argument-hint: "(opcional) --json para la salida en JSON · --verbose para ver también las capacidades opt-in sin configurar"
+argument-hint: "(opcional) --json · --panel-json para el panel · --verbose para las capacidades opt-in sin configurar"
 ---
 
 # /doctor — ¿está todo en su sitio?
+
+`--panel-json` solicita una proyección portable para plugin-panel; es excluyente
+con `--json`. Conserva fecha UTC, alcance por clave de ruta, estados, títulos
+públicos permitidos y referencias de prioridades. Excluye rutas, detalles y
+arreglos libres; estos siguen en las salidas habituales. Exit 1 puede acompañar
+un JSON válido con errores encontrados; exit 2 indica que no se pudo producir
+la proyección. Usa el diagnóstico actual, incluidas las comprobaciones de
+capacidades opt-in ya activadas; el panel nunca lo ejecuta por su cuenta.
 
 Primera parada cuando algo "no salta": el hook que no aparece, la statusline que no se ve, el
 coste que sale a 0, la skill que no encuentra su script. Comprueba la instalación **sin tocar
@@ -19,10 +27,15 @@ nada**: cada línea lleva su veredicto y, si algo falla, **qué comando lo arreg
    python3 "$DOC" --verbose  # incluye las capacidades opt-in sin su fichero de config (alias --all)
    ```
 
-2. Presenta el informe tal cual y **resume en 2-3 líneas**: cuántos ✅/⚠️/❌ y, si hay ❌, el
-   primero con su arreglo. No repitas la tabla en prosa.
-3. Si hay ❌ o ⚠️ que el usuario quiera resolver ahora, ofrece el arreglo que indica la propia
-   línea (normalmente `/setup`, `rates-verify`, o un `chmod +x`); no lo apliques sin su OK.
+2. Presenta el informe tal cual y **resume en 2-3 líneas** los conteos y las
+   `acciones_prioritarias` calculadas por el script. Son hasta tres filas con
+   arreglo: errores antes de avisos, con su bloque y ordinal originales; el
+   total y las tablas conservan el resto. No inventes un score ni reordenes
+   por cantidad de piezas. Sin acciones no se acredita salud o ejecución global.
+3. Si el usuario quiere resolver los hallazgos, usa los arreglos de sus propias
+   filas. Aplica los ajustes que ya haya autorizado; si falta autorización para
+   un cambio, presenta ese cambio concreto antes de pedir aprobación. El
+   diagnóstico y su lista de prioridades no ejecutan los remedios.
 
 ## Notas
 - **Qué es cada símbolo**: ✅ correcto · ⚠️ funciona pero a medias (opt-in a medio configurar,
@@ -70,6 +83,14 @@ nada**: cada línea lleva su veredicto y, si algo falla, **qué comando lo arreg
   porque quien teclea lo hace antes de llegar a ella. Los registros fechados (`docs/roadmap/`,
   `docs/knowledge/`, CHANGELOG) no se miran: quedan como se escribieron.
 - **Ocho bloques**: herramientas · plugin y hooks · statusline · configs de `.claude/` · estado del trabajo · **capacidades opcionales** (`agent-kits/shared/capabilities.py`, T-09/T-13, CA-14: una fila por capacidad registrada —hoy el Knowledge Gate y, si el proyecto lo declara, un backend de `knowledge-services` o la captura de casos `training`— SIN código específico por capacidad; config inválida → ❌ con fichero+campo+arreglo, desactivada → ℹ️ —y **omitida** si su `config_path` no existe en el proyecto (regla genérica: un opt-in sin configurar no pinta nada; `--verbose`/`--all` la muestra)—, activa con backend declarado → comprobación de red EN VIVO vía SU adaptador —✅ sano sin desfase, ⚠️ export atrasado con el remedio que nombra `verify()` [nunca lo ejecuta], ⚠️ verificación incompleta (el tercer veredicto de `verify()`, gap #133 de `graphiti-memory`: el tope de lectura cortó la ventana) con el conteo de entradas sin confirmar y el aviso del adaptador, ⚠️ sano con aviso (el aviso del adaptador llega al usuario en vez de tirarse), ⚠️/❌ degradado/error, ℹ️ sin conexión o timeout— y sin backend, el texto genérico de la propia capacidad; una capacidad puede además publicar su propio estado de configuración —la memoria de grafo `graphiti` dice `off`/`shadow`/`read` según su `mode`, y `degradado` si está habilitada con la config incompleta, siempre con el arreglo concreto—; la captura de casos `training` añade el `root`, el recuento de casos por estado leído de `cases/` [nunca del índice], las versiones incompletas, los temporales huérfanos y las que superan el tope de 1 MiB de `metadata.json`/`validation.json`, y la frescura del dataset [la firma de la entrada —los Gold humanos con su `content_hash`— frente a la de la marca del último ensamblado, `exports/.ultimo.json`, sin leer ningún manifiesto: al día con los parámetros de ese ensamblado, ⚠️ con omisiones —Gold que el último ensamblado dejó fuera por un fichero ausente, ilegible o sin permisos: corrige la causa y reensambla—, desactualizado, ningún export, o no verificable sin marca, con una ajena o con una bloqueada —vuelve a pasar `/doctor`, nunca la retires—]; acotado a 2 s (entre ~1 000 y ~2 000 versiones en caliente según la carga; en frío depende del antivirus y del sistema de ficheros) —dentro del presupuesto total del bloque, que arranca antes de evaluar las capacidades— y declarado **PARCIAL** si no llega a recorrerlo todo: `dataset-assembler.py --estado` lo verifica sin tope; los topes valen para **sistemas de ficheros locales** (una sola llamada del sistema que se bloquea —SMB colgado, un placeholder de OneDrive— no la acota nada)—; el presupuesto del bloque solo recorta las capacidades que requieren red —las demás pintan siempre su fila, así que un ❌ de configuración nunca se pierde— y `backends`/`backends.<id>` que no son objetos son un ❌ de configuración de esa capacidad) · **memoria técnica** (`docs/knowledge/`: entradas curadas por familia y estado, índice README —❌ si rompe la biyección—, índice FTS5, journal a 0 con memoria curada, `CALIBRATION.md` desfasada con iniciativas cerradas sin retro — la retro es puerta de cierre desde `memory-retrieval` T-17) · **Journal** (session-end-durable-capture T-06: lee `journal.py status --json` — contadores outbox/processing/done/dead-letter, huérfanas, backoff pendiente con el remedio nombrado, y triage del «Hook cancelled»: aviso del runtime sin pérdida vs. pérdida posible).
+- **Automatizaciones: configuración, no ejecución.** Fuera de los ocho bloques (no suma ✅/⚠️/❌
+  ni cambia el exit), la sección «Automatizaciones» y la clave `automatizaciones` del `--json`
+  listan cada hook de `hooks/hooks.json`, la `statusLine` de los ajustes de proyecto, locales y de
+  usuario, y cada workflow de `.github/workflows/` (hasta 20). Cada fila lleva `fuente`, `alcance`,
+  `fecha_fuente` (cuándo cambió la config, no cuándo corrió), `estado` (`configurado` ·
+  `no_configurado` · `no_cargado` en una copia o un plugin inactivo · `roto` con su `firma_fallo`,
+  p. ej. «script ausente: hooks/x.sh») y `ejecucion: no_verificada`: `/doctor` no observa despachos
+  ni consulta el CI remoto, así que no presentes ninguna fila como «funcionando».
 - **La versión del plugin es sin red por diseño**: `/doctor` no consulta el marketplace, así que
   no puede decir si hay una versión más nueva del plugin; solo informa de la versión instalada.
   (Esto NO es una afirmación general de "sin red": las capacidades opcionales activadas en

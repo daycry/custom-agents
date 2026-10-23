@@ -204,7 +204,8 @@ def test_apply_roto_reencola_con_backoff_y_no_borra_publicacion_anterior(tmp_pat
                               "--backends-dir", FIXTURES_BACKENDS])
     assert exit_code == 1
     err = capsys.readouterr().err
-    assert "apply()" in err and "publicación anterior intacta" in err
+    assert "apply()" in err and "puede haberse aplicado parcialmente" in err
+    assert "--outbox-status" in err
     assert "envelope: reencolado" in err  # gap 116: NO dead-letter al primer fallo
 
     dead = os.path.join(dir_outbox, "dead-letter")

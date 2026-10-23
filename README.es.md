@@ -21,16 +21,17 @@
 [![npx](https://img.shields.io/badge/instalaci%C3%B3n-npx-cb3837.svg?logo=npm&logoColor=white)](docs/INTEROP.md)
 [![SDD](https://img.shields.io/badge/metodolog%C3%ADa-Spec--Driven-2ea44f.svg)](docs/FLOWS.md)
 [![Agentes](https://img.shields.io/badge/agentes-10-0ea5e9.svg)](docs/README.md)
-[![Skills](https://img.shields.io/badge/skills-19-0ea5e9.svg)](docs/README.md)
-[![Comandos](https://img.shields.io/badge/comandos-12-0ea5e9.svg)](docs/README.md)
+[![Skills](https://img.shields.io/badge/skills-27-0ea5e9.svg)](docs/README.md)
+[![Comandos](https://img.shields.io/badge/comandos-15-0ea5e9.svg)](docs/README.md)
 [![Skills portables](https://img.shields.io/badge/skills%20portables-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/INSTALL.md#usar-las-skills-fuera-de-claude-code-paquete-portable)
 
-De la idea al código probado y documentado: `requisitos → presupuesto → plan → implementación → revisión adversarial → E2E → docs`, con **puertas de control** en cada paso, **coste real medido en tokens** y aprendizaje que calibra las siguientes estimaciones. Diez agentes, doce comandos, autosuficiente (sin dependencias de otros plugins) — y funciona en **tres runtimes**: Claude Code, Codex y OpenCode.
+De la idea al código probado y documentado: `requisitos → presupuesto → plan → implementación → revisión adversarial → E2E → docs`, con **puertas de control** en cada paso, **coste real medido en tokens** y aprendizaje que calibra las siguientes estimaciones. Diez agentes, quince comandos, autosuficiente (sin dependencias de otros plugins) — y funciona en **tres runtimes**: Claude Code, Codex y OpenCode.
 
 > **Cómo se teclean los comandos.** En Claude Code instalado como plugin, el nombre real lleva el
 > espacio de nombres del plugin: **`/custom-agents:dev-cycle`**, `/custom-agents:retro`,
-> `/custom-agents:doctor`… En Codex aparece como prompt sin namespace (`/prompt:dev-cycle`, y a
-> veces también `/prompts:dev-cycle`). En OpenCode es `/dev-cycle`.
+> `/custom-agents:doctor`… En Codex usa el adaptador nativo generado
+> **`$custom-agents:custom-agents-dev-cycle`**, seguido de sus argumentos, o selecciónalo en `/skills`.
+> En OpenCode es `/dev-cycle`.
 > `/custom-agents:doctor` te dice cuál aplica en una instalación de Claude Code.
 
 ```mermaid
@@ -64,8 +65,10 @@ Casi todo el utillaje alrededor de los agentes de código responde a *cómo* esc
 | **Jira sin fricción** (opt-in) | Un issue por tarea o por fase, tipo deducido de la jerarquía, worklog al completar con tope de jornada, resultado de la revisión publicado como comentario |
 | **Confluence bidireccional** (opt-in) | `docs/` ⇄ Confluence, idempotente, con **alcance de publicación curado** (`exclude` opt-out sobre `include: ["**/*.md"]`, `confluence-scope.py`) para que un PM sin git vea siempre el estado actual — nunca el tablero de ejecución del roadmap |
 | **Cadena spec → eval → plan → tasks** | Una carpeta por iniciativa, artefactos enlazados en ambos sentidos y `tasks.md` como **ledger canónico** validado por `ledger-lint.py` |
-| **Memoria técnica que sobrevive al chat** | `docs/knowledge/` (ADR/gotchas/lecciones, un fichero por entrada) recoge decisiones de diseño, trampas comprobadas y lecciones de proceso; la leen en su puerta `evaluator`/`planner`/`implementer`/`qa`, y la indexa `documenter` |
-| **Journal de sesión (memoria episódica, sin MCP)** | `SessionEnd` solo captura un envelope durable (< 100 ms, sin git/IA/red); la entrada determinista en `docs/knowledge/journal/` (iniciativa activa, ficheros tocados, tareas que cambiaron de estado, marcadores del meter; idempotente por `session_id`) se materializa después en `SessionStart` o a demanda (`journal.py replay`/`recover`), y `SessionStart` reinyecta la última — retomas con *qué pasó*, no solo con *qué tarea está abierta*. `/doctor` muestra el estado de la cola (outbox/processing/done/dead-letter). Excluido de Confluence; sin resumen por IA salvo que lo actives |
+| **Memoria técnica que sobrevive al chat** | `docs/knowledge/` recoge decisiones de diseño, trampas comprobadas y lecciones de proceso. `knowledge-find.py` recupera ADR/gotchas/lecciones legados y entradas válidas de `approved/`, conservando ID, versión y evidencia en JSON; el respaldo local también funciona al fallar una lectura autorizada del backend. Consultar no aprueba entradas ni activa servicios |
+| **Consulta documental opcional** | Kwipu requiere lectura habilitada e intent autorizado. Se comprueban canon, proyección y todos los chunks antes y después; un desfase devuelve búsqueda local. La respuesta generada conserva fuentes enlazadas, pero queda no verificada y sin autoridad |
+| **Contexto de código con vigencia explícita** | Selectores AST exactos y recibos de bytes sobre los archivos declarados; cambios o lecturas incompletas suprimen el contexto. El productor usa Graphify externo elegido explícitamente. No instala dependencias ni certifica cobertura del repositorio; [contrato y límites](docs/CODE_CONTEXT.md) |
+| **Journal de sesión (memoria episódica, sin MCP)** | `SessionEnd` solo persiste un envelope local (sin git/IA/red durante la captura; el tiempo total del hook incluye también el arranque del launcher/shell y depende del contrato del runtime y del entorno); la entrada determinista en `docs/knowledge/journal/` (iniciativa activa, ficheros tocados, tareas que cambiaron de estado, marcadores del meter; idempotente por `session_id`) se materializa después en `SessionStart` o a demanda (`journal.py replay`/`recover`). Startup/resume selecciona historial mediante el resolver del ledger actual; `/work-resume` ofrece selección manual exacta con ambigüedad y límites visibles. `/doctor` muestra el estado de la cola (outbox/processing/done/dead-letter). Excluido de Confluence; sin resumen por IA salvo que lo actives |
 | **Salud del código medida** | `code-health.py` (skill `code-health`): duplicados por shingles de tokens con pares `fichero:línea`, funciones largas/anidamiento, hotspots (`git log` × tamaño) y TODO/FIXME envejecidos — Markdown o JSON, `--baseline` para ver si mejora; `evaluator` lo usa para fundamentar el riesgo, `planner` para abrir deuda medida |
 | **Actualizar dependencias como spec, no como apuesta** | `deps-inventory.py` (skill `dependency-upgrade`): 7 manifiestos + lockfiles, declarada/bloqueada/latest (solo del `outdated` oficial, nunca inventado), saltos patch/minor/major; la skill lee el changelog upstream de cada major y redacta la spec `upgrade-<paquete>` para `evaluator` → `planner`. Las vulnerabilidades siguen siendo de `nemesis` |
 | **Constitución del proyecto con enforcement** | Principios permanentes que leen todos los agentes que escriben — y la revisión convierte una violación en un gap de corrección con cita de línea |
@@ -76,7 +79,7 @@ Casi todo el utillaje alrededor de los agentes de código responde a *cómo* esc
 | **Tiering de modelos configurable** | Cada agente declara `model` + `effort` (lo valida el linter); `.claude/dev.json` `modelos` los sobreescribe por agente y `model-tier.py` resuelve el tier efectivo que los orquestadores pasan al Agent tool — documentado con honestidad: el `effort` de dev.json es informativo y `@agente` a mano sigue el frontmatter |
 | **Depuración a causa raíz** | Al tercer intento fallido de qa, `debug-root-cause` diagnostica con evidencia en 4 fases antes de preguntarte — nada de parches a ciegas |
 | **Puertas deterministas** | Los veredictos salen de scripts con exit codes y tests propios (`qa-gate`, `ledger-lint`, `coverage-check`), nunca de la prosa del agente |
-| **Guardrails deterministas del implementer** | Un hook `PreToolUse` con alcance del agente (nunca global) deniega, con razón, escribir en `docs/roadmap/` fuera de `tasks.md`, editar en `main`/`master` y el git destructivo (`push --force`, `branch -D`, `rm -rf /`); `scope-check.py` condiciona la revisión a «ficheros cambiados ⊆ `Archivos` del ledger». Ambos son scripts con tests, desactivables por regla en `.claude/dev.json` |
+| **Guardrails deterministas del implementer** | Un dispatcher previo selecciona IDs propios exactos de cada rol en Claude, Codex y OpenCode. El evaluador compartido deniega escrituras fuera del alcance del rol, ediciones del implementer en `main`/`master` y Git destructivo. Su regla `git` también deniega commits que desactivan la verificación o sustituyen explícitamente `core.hooksPath`; `scope-check.py` condiciona la revisión a «ficheros cambiados ⊆ `Archivos` del ledger». Consulta [las reglas y límites del parser](docs/agents/implementer.md); desactivación por regla en `.claude/dev.json` |
 | **Progreso en vivo mientras corren las tareas** | Hooks no bloqueantes leen el ledger canónico y muestran una línea de progreso por edición (`📋 slug · T-04/12 (33%) · en curso T-05`), el estado de las iniciativas activas al terminar un subagente y reinyectan el contexto de retoma al arrancar/retomar/compactar; una **statusline opt-in** añade modelo · coste de sesión · contexto · progreso del roadmap |
 | **Activación fiable** | Un hook `SessionStart` inyecta un **índice compacto de todos los comandos, skills y agentes** (una línea por pieza, ≤ 3.500 caracteres, caché por hash) para que la pieza correcta se dispare aunque el usuario no la nombre; `evals/` guarda prompts positivos y negativos vecinos por pieza, validados en CI (`evals/check.py`) y ejecutables de verdad en local (`evals/run.py`) |
 
@@ -106,8 +109,8 @@ npx @daycry/custom-agents            # menú interactivo; marca los runtimes que
 
 | Runtime | Instalación | Qué obtienes |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 10 agentes, 12 comandos, 18 skills, hooks y statusline |
-| **Codex** | `codex plugin marketplace add daycry/custom-agents` (o el instalador) | Skills, agentes como `.toml`, comandos como `/prompt:<nombre>` (a veces `/prompts:<nombre>`), hooks de sesión |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 10 agentes, 15 comandos, 27 skills, hooks y statusline |
+| **Codex** | `codex plugin marketplace add daycry/custom-agents` (o el instalador) | Skills, agentes como `.toml`, adaptadores de comandos generados (`$custom-agents:custom-agents-<nombre>`), hooks de sesión |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agentes, comandos y adaptador de hooks |
 
 El instalador **da de alta el plugin en cada runtime**, no se limita a copiar ficheros: registro de
@@ -206,7 +209,7 @@ flowchart LR
 ```
 
 <details>
-<summary><b>Los 10 agentes y los 12 comandos</b> (clic para desplegar)</summary>
+<summary><b>Los 10 agentes y los 15 comandos</b> (clic para desplegar)</summary>
 
 | Agente | Qué hace |
 |--------|----------|
@@ -215,7 +218,7 @@ flowchart LR
 | **architect** | Diseño con opciones (opt-in): 2-3 alternativas con trade-offs → `design.md` validado contigo por trozos, más el ADR. No estima ni planifica. |
 | **planner** | Plan ejecutable: fases y tareas `T-XX` con criterios de aceptación verificables y presupuesto por fase. |
 | **implementer** | Escribe el código fase a fase sobre rama/worktree, con `tasks.md` como ledger canónico y coste medido por tarea. |
-| **reviewer** | Una lente de revisión (A/B/C) en contexto fresco, solo lectura por construcción; salida estructurada que `adversarial-review` fusiona. |
+| **reviewer** | Una lente de revisión (A/B/C) en contexto fresco, revisa sin modificar el código; salida estructurada que `adversarial-review` fusiona. |
 | **qa** | E2E con Playwright (solo hosts locales), veredicto por `qa-gate.py`, informe md+pdf con evidencias. |
 | **documenter** | Documentación técnica y de producto derivada del propio proyecto, una vez al cierre del ciclo. |
 | **knowledge-curator** | Revisa y aprueba/rechaza candidatos en `docs/knowledge/candidates/`; único escritor de `approved/` y `rejected/` (`curator-gate.py`). |
@@ -236,9 +239,16 @@ flowchart LR
 | `/spec-drift` | ¿El código sigue cumpliendo las specs implementadas? |
 | `/retro` | Cierra el bucle: desviaciones + causas → `CALIBRATION.md`. |
 | `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
+| `/plugin-catalog` | Busca capacidades del bundle y extensiones de proyecto/usuario, con fuentes y conflictos. |
+| `/work-context` | Guías pertinentes y extensiones seleccionadas explícitamente para la tarea. |
+| `/work-resume` | Ledger actual e historial de sesión seleccionado en un dossier acotado de solo lectura. [Selección y límites](docs/WORK-RESUME.md). |
 | `/doctor` | Diagnóstico determinista de la instalación: herramientas, plugin/hooks, statusline, configs de `.claude/`, estado del trabajo — veredicto ✅/⚠️/❌ con el arreglo por línea, solo lectura, sin red. |
 
-Skills compartidas: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services`. Scripts deterministas (todos con tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
+Tus agentes, skills, personas, fuentes de tools y MCP permanecen en las carpetas
+nativas del proyecto/usuario. El descubrimiento conserva tus archivos y distingue
+declaraciones de disponibilidad en sesión. [Guía de extensiones](docs/PROJECT-EXTENSIONS.md).
+
+Skills compartidas: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services` · `research-first` · `plugin-panel` · `stack-practices` · `backend-practices` · `frontend-quality` · `delivery-practices` · `capability-audit` · `outcome-evals`. Scripts deterministas (todos con tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
 
 </details>
 

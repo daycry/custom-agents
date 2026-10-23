@@ -1,0 +1,501 @@
+{
+  "schema_version": 1,
+  "observed_on": "2026-10-08",
+  "proof_scope": "Native role identity and preexecution control using owned fixture dispatchers",
+  "production_dispatch_delivered": false,
+  "claude": {
+    "runtime": "Claude Code 2.1.287",
+    "runtime_sha256": "6d5be51f0edfe3429cd1a9885950db31c1e59eb9a2c9a30a47e64179d2ff98b4",
+    "proof_scope": "Owned plugin fixture dispatcher, not production integration",
+    "external_credentials_inherited": false,
+    "identity_transcript_inference": false,
+    "all_fixture_checks_passed": true,
+    "source_urls": [
+      "https://code.claude.com/docs/en/hooks",
+      "https://code.claude.com/docs/en/sub-agents",
+      "https://code.claude.com/docs/en/plugins-reference"
+    ],
+    "identity_trust_limitation": "CLI --agents can override the same scoped identifier; event agent_type does not attest agent source.",
+    "cases": [
+      {
+        "case": "plugin-main-baseline",
+        "written": true,
+        "native_write_denial": false,
+        "frontmatter_hook_executed": false,
+        "identities": [],
+        "loopback_requests": 2
+      },
+      {
+        "case": "plugin-main-deny",
+        "written": false,
+        "native_write_denial": true,
+        "frontmatter_hook_executed": false,
+        "identities": [
+          {
+            "event": "PreToolUse",
+            "agent_type": "custom-agents:implementer",
+            "agent_id_present": false,
+            "deny": true
+          }
+        ],
+        "loopback_requests": 2
+      },
+      {
+        "case": "plugin-main-planner",
+        "written": true,
+        "native_write_denial": false,
+        "frontmatter_hook_executed": false,
+        "identities": [
+          {
+            "event": "PreToolUse",
+            "agent_type": "custom-agents:planner",
+            "agent_id_present": false,
+            "deny": false
+          }
+        ],
+        "loopback_requests": 2
+      },
+      {
+        "case": "main-missing",
+        "written": true,
+        "native_write_denial": false,
+        "frontmatter_hook_executed": false,
+        "identities": [
+          {
+            "event": "PreToolUse",
+            "agent_type": null,
+            "agent_id_present": false,
+            "deny": false
+          }
+        ],
+        "loopback_requests": 2
+      },
+      {
+        "case": "custom-bare-implementer",
+        "written": true,
+        "native_write_denial": false,
+        "frontmatter_hook_executed": false,
+        "identities": [
+          {
+            "event": "PreToolUse",
+            "agent_type": "implementer",
+            "agent_id_present": false,
+            "deny": false
+          }
+        ],
+        "loopback_requests": 2
+      },
+      {
+        "case": "custom-unknown",
+        "written": true,
+        "native_write_denial": false,
+        "frontmatter_hook_executed": false,
+        "identities": [
+          {
+            "event": "PreToolUse",
+            "agent_type": "outsider",
+            "agent_id_present": false,
+            "deny": false
+          }
+        ],
+        "loopback_requests": 2
+      },
+      {
+        "case": "plugin-subagent-baseline",
+        "written": true,
+        "native_write_denial": false,
+        "frontmatter_hook_executed": false,
+        "identities": [],
+        "loopback_requests": 4
+      },
+      {
+        "case": "plugin-subagent-deny",
+        "written": false,
+        "native_write_denial": true,
+        "frontmatter_hook_executed": false,
+        "identities": [
+          {
+            "event": "SubagentStart",
+            "agent_type": "custom-agents:implementer",
+            "agent_id_present": true,
+            "deny": false
+          },
+          {
+            "event": "PreToolUse",
+            "agent_type": "custom-agents:implementer",
+            "agent_id_present": true,
+            "deny": true
+          },
+          {
+            "event": "SubagentStop",
+            "agent_type": "custom-agents:implementer",
+            "agent_id_present": true,
+            "deny": false
+          }
+        ],
+        "loopback_requests": 4
+      },
+      {
+        "case": "plugin-subagent-planner",
+        "written": true,
+        "native_write_denial": false,
+        "frontmatter_hook_executed": false,
+        "identities": [
+          {
+            "event": "SubagentStart",
+            "agent_type": "custom-agents:planner",
+            "agent_id_present": true,
+            "deny": false
+          },
+          {
+            "event": "PreToolUse",
+            "agent_type": "custom-agents:planner",
+            "agent_id_present": true,
+            "deny": false
+          },
+          {
+            "event": "SubagentStop",
+            "agent_type": "custom-agents:planner",
+            "agent_id_present": true,
+            "deny": false
+          }
+        ],
+        "loopback_requests": 4
+      },
+      {
+        "case": "custom-subagent-bare",
+        "written": true,
+        "native_write_denial": false,
+        "frontmatter_hook_executed": false,
+        "identities": [
+          {
+            "event": "SubagentStart",
+            "agent_type": "implementer",
+            "agent_id_present": true,
+            "deny": false
+          },
+          {
+            "event": "PreToolUse",
+            "agent_type": "implementer",
+            "agent_id_present": true,
+            "deny": false
+          },
+          {
+            "event": "SubagentStop",
+            "agent_type": "implementer",
+            "agent_id_present": true,
+            "deny": false
+          }
+        ],
+        "loopback_requests": 4
+      },
+      {
+        "case": "parent-role-child-unknown",
+        "written": true,
+        "native_write_denial": false,
+        "frontmatter_hook_executed": false,
+        "identities": [
+          {
+            "event": "SubagentStart",
+            "agent_type": "outsider",
+            "agent_id_present": true,
+            "deny": false
+          },
+          {
+            "event": "PreToolUse",
+            "agent_type": "outsider",
+            "agent_id_present": true,
+            "deny": false
+          },
+          {
+            "event": "SubagentStop",
+            "agent_type": "outsider",
+            "agent_id_present": true,
+            "deny": false
+          }
+        ],
+        "loopback_requests": 4
+      },
+      {
+        "case": "scoped-cli-collision",
+        "written": false,
+        "native_write_denial": true,
+        "frontmatter_hook_executed": false,
+        "identities": [
+          {
+            "event": "PreToolUse",
+            "agent_type": "custom-agents:implementer",
+            "agent_id_present": false,
+            "deny": true
+          }
+        ],
+        "loopback_requests": 2
+      },
+      {
+        "case": "plugin-main-alias",
+        "written": false,
+        "native_write_denial": true,
+        "frontmatter_hook_executed": false,
+        "identities": [
+          {
+            "event": "PreToolUse",
+            "agent_type": "custom-agents:implementer",
+            "agent_id_present": false,
+            "deny": true
+          }
+        ],
+        "loopback_requests": 2
+      },
+      {
+        "case": "plugin-subagent-alias",
+        "written": false,
+        "native_write_denial": false,
+        "frontmatter_hook_executed": false,
+        "identities": [],
+        "loopback_requests": 2
+      }
+    ],
+    "private_summary_sha256": "c511a8dbecc4d90008e5daf5837dbaf3a636b0c616bc525b836c92ff4a0d96e8",
+    "limits": [
+      "Fixture policy denies Write for the exact implementer ID; production scope/architect integration is not yet validated.",
+      "Explicit --plugin-dir headless load, not marketplace deployment or managed-policy trust.",
+      "Bare Agent subagent alias failure is resolution failure, not a guard denial."
+    ]
+  },
+  "codex": {
+    "runtime": "0.161.0",
+    "source_commit": "979011409de0a60b52f179721948e65531d26144",
+    "native_sha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
+    "checks": {
+      "native_pretooluse_has_optional_child_identity": true,
+      "root_pretooluse_omits_identity": true,
+      "all_child_events_share_root_session_id": true,
+      "child_agent_ids_differ_from_session_id": true,
+      "namespaced_toml_name_discovered_from_unrelated_filename": true,
+      "production_guard_denied_before_execution": true,
+      "consumer_role_same_tool_not_hook_denied": true,
+      "guarded_and_consumer_harmless_commands_executed": true,
+      "role_read_only_sandbox_key_accepted_but_children_wrote": true,
+      "no_selected_role_config_origin_in_pretooluse": true,
+      "no_authorization_header": true,
+      "native_process_exit_zero": true
+    },
+    "provenance": {
+      "guard_source_sha256": "a9ab9d070dfa8d64a0309cbc4a3428695c72dc4df3bf1149c515463f64aeb982",
+      "hook_fixture_sha256": "e52f1366d10a4967ab4a94d2ca23e97ba565711cedf0144eea714712768da1d3",
+      "trust_bypass_is_persisted_trust": false,
+      "own_private_home_only": true,
+      "credentials_inherited": false,
+      "provider": "127.0.0.1 only",
+      "consumer_cli_executed": false,
+      "production_files_edited": false,
+      "transcript_files_read_by_dispatcher": false
+    },
+    "scope_limitations": [
+      "Observer dispatcher is owned fixture code; production guardrail-check.py supplies the deny decision.",
+      "Only destructive Bash guard and harmless Bash allow proved; apply_patch path-scope normalization/parity remains unproved.",
+      "agent_type selects effective role name, not role source/config path. Higher config layers can override names, including namespaced names.",
+      "This proves optional identity in pinned 0.161.0, not all clients/versions.",
+      "bypass_hook_trust is fixture authorization, not persisted user hook trust."
+    ],
+    "native_events": [
+      {
+        "event": "PreToolUse",
+        "tool": "spawn_agent",
+        "agent_type": null,
+        "agent_id_present": false,
+        "model_supplied_type_is_not_top_level_identity": true
+      },
+      {
+        "event": "PreToolUse",
+        "tool": "Bash",
+        "agent_type": "custom-agents-architect",
+        "agent_id_present": true,
+        "model_supplied_type_is_not_top_level_identity": false
+      },
+      {
+        "event": "PreToolUse",
+        "tool": "Bash",
+        "agent_type": "consumer-reviewer",
+        "agent_id_present": true,
+        "model_supplied_type_is_not_top_level_identity": false
+      },
+      {
+        "event": "PreToolUse",
+        "tool": "Bash",
+        "agent_type": "custom-agents-architect",
+        "agent_id_present": true,
+        "model_supplied_type_is_not_top_level_identity": false
+      }
+    ],
+    "private_summary_sha256": "bba4afe6fc326337723e538cd00cebea2ff3318fff7ca03993d154f1797efcf8"
+  },
+  "opencode": {
+    "runtime": "2.0.12",
+    "source_commit": "2670273ff17da96f85c5826ced57aa1b368754fa",
+    "native_sha256": "58d550b26e9241759a6906c65f1e0605eaf512d63cbaf6d8eb472375b9311c95",
+    "runs": [
+      {
+        "fixture_mode": "permission",
+        "private_result_sha256": "fa880641dd11bdd5dacb41f0246cdca775a8405b3839e9fb44dd02536f3e3ccf",
+        "cases": [
+          {
+            "agent": "custom-agents-implementer",
+            "path": "docs/roadmap/own/spec.md",
+            "expected_exists": false,
+            "exists": false,
+            "outcome": "succeeded"
+          },
+          {
+            "agent": "custom-agents-implementer",
+            "path": "docs/roadmap/own/tasks.md",
+            "expected_exists": true,
+            "exists": true,
+            "outcome": "succeeded"
+          },
+          {
+            "agent": "custom-agents-architect",
+            "path": "src/forbidden.js",
+            "expected_exists": false,
+            "exists": false,
+            "outcome": "succeeded"
+          },
+          {
+            "agent": "custom-agents-architect",
+            "path": "docs/roadmap/own/design.md",
+            "expected_exists": true,
+            "exists": true,
+            "outcome": "succeeded"
+          },
+          {
+            "agent": "planner",
+            "path": "docs/roadmap/own/planner-spec.md",
+            "expected_exists": true,
+            "exists": true,
+            "outcome": "succeeded"
+          },
+          {
+            "agent": "architect",
+            "path": "src/user-owned.js",
+            "expected_exists": true,
+            "exists": true,
+            "outcome": "succeeded"
+          },
+          {
+            "agent": "before-deny",
+            "path": "src/before-deny.js",
+            "expected_exists": false,
+            "exists": false,
+            "outcome": "succeeded"
+          }
+        ],
+        "server_exit_code": 0,
+        "process_terminal": true,
+        "loopback_requests": 14,
+        "external_provider_requests": 0
+      },
+      {
+        "fixture_mode": "before",
+        "private_result_sha256": "43963027f964d0141a2de21a958cd3fac4259e7ed05501516413147dfdb082a3",
+        "cases": [
+          {
+            "agent": "custom-agents-implementer",
+            "path": "docs/roadmap/own/spec.md",
+            "expected_exists": false,
+            "exists": false,
+            "outcome": "succeeded"
+          },
+          {
+            "agent": "custom-agents-implementer",
+            "path": "docs/roadmap/own/tasks.md",
+            "expected_exists": true,
+            "exists": true,
+            "outcome": "succeeded"
+          },
+          {
+            "agent": "custom-agents-architect",
+            "path": "src/forbidden.js",
+            "expected_exists": false,
+            "exists": false,
+            "outcome": "succeeded"
+          },
+          {
+            "agent": "custom-agents-architect",
+            "path": "docs/roadmap/own/design.md",
+            "expected_exists": true,
+            "exists": true,
+            "outcome": "succeeded"
+          },
+          {
+            "agent": "planner",
+            "path": "docs/roadmap/own/planner-spec.md",
+            "expected_exists": true,
+            "exists": true,
+            "outcome": "succeeded"
+          },
+          {
+            "agent": "architect",
+            "path": "src/user-owned.js",
+            "expected_exists": true,
+            "exists": true,
+            "outcome": "succeeded"
+          },
+          {
+            "agent": "before-deny",
+            "path": "src/before-deny.js",
+            "expected_exists": false,
+            "exists": false,
+            "outcome": "succeeded"
+          }
+        ],
+        "server_exit_code": 0,
+        "process_terminal": true,
+        "loopback_requests": 14,
+        "external_provider_requests": 0
+      },
+      {
+        "fixture_mode": "children",
+        "private_result_sha256": "55ab6bda7f5ba5bba26434e4cbc087f70568aa1a5dfe515eb0f5c9a470107d39",
+        "cases": [
+          {
+            "agent": "custom-agents-implementer",
+            "path": "docs/roadmap/own/child-spec.md",
+            "expected_exists": false,
+            "exists": false,
+            "outcome": "succeeded"
+          },
+          {
+            "agent": "architect",
+            "path": "src/user-child.js",
+            "expected_exists": true,
+            "exists": true,
+            "outcome": "succeeded"
+          }
+        ],
+        "server_exit_code": 0,
+        "process_terminal": true,
+        "loopback_requests": 8,
+        "external_provider_requests": 0,
+        "child_identity_and_parent_relationship_verified": true,
+        "child_count": 2
+      }
+    ],
+    "private_provenance_sha256": "bb5bd782135a7e1c1f71cb19d16d144f7b8c7d90ca3d9777a102459bb1e99eb0",
+    "limits": [
+      "Before-hook ordinary Error appears as unknown tool error with policy reason; session can continue.",
+      "Permission-hook deny appears as permission.rejected; correlation map by toolcall ID is not selected.",
+      "CodeMode nested-call dispatch is source-verified, not natively probed here.",
+      "Agent ID does not attest prompt origin; input normalization for every tool remains pending.",
+      "Private observer plugin calls the unchanged central policy; production adapter has not integrated the guard."
+    ]
+  },
+  "decision": {
+    "native_names": "custom-agents:<role> in Claude; planned custom-agents-<role> in Codex/OpenCode",
+    "exact_protected_id_override_retains_role_policy": true,
+    "native_identity_is_source_provenance": false,
+    "selected_context_is_native_metadata": true,
+    "transcript_inference": false
+  },
+  "comparison_corpus_executed": false,
+  "consumer_state_mutated": false
+}

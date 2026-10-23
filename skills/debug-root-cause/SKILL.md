@@ -18,6 +18,14 @@ Reduce el fallo al caso más pequeño que lo dispara: un test concreto, un input
 comando concreto. Quita todo lo que no haga falta para que falle. Si no consigues reproducirlo
 de forma determinista, documenta las condiciones en que aparece/desaparece — eso YA es
 información (sugiere carrera, estado compartido o dependencia del entorno).
+En un fallo de build o compilación, la reproducción mínima es el comando de build del
+proyecto (con el gestor que indica el lockfile). Aborda un error cada vez, el primero que
+emite, y vuelve a compilar tras su fix: un error nuevo que aparece después es otro
+diagnóstico, no se arregla en el mismo cambio. Silenciar el aviso o el tipo no es un arreglo.
+Los comandos de diagnóstico dejan intacto el estado de partida: uno que reescribe manifiestos
+o lockfiles, refresca dependencias o limpia cachés (`composer update`, `pip install -U`,
+`npm install` en vez de `npm ci`) no es una lectura sino una intervención, y como tal va a la
+Fase 2 como experimento declarado (ver Reglas).
 *Evidencia:* el comando/test mínimo y su salida de fallo, pegados.
 
 **Fase 2 — Aislamiento de la causa.**
@@ -32,7 +40,13 @@ Enuncia la causa en una frase falsable: "falla porque X hace Y cuando Z". Diseñ
 más barata que la confirme o la tumbe (un assert, un input diseñado, un log en el punto
 exacto) y ejecútala. Si la hipótesis cae, vuelve a la Fase 2 con lo aprendido — NO pases a
 arreglar "por si acaso".
-*Evidencia:* la hipótesis literal + el resultado de la prueba que la confirma.
+La hipótesis tiene que explicar **todos** los síntomas recogidos en las Fases 1-2: un síntoma
+que no explica es otra causa (conjunción, abajo) o la señal de que la hipótesis es falsa.
+Si la evidencia muestra una **conjunción de causas** (el fallo solo aparece cuando X **y** Y
+coinciden), no la fuerces a una sola frase: enuncia y prueba cada causa por separado, y cada una
+lleva su propio test de regresión en la Fase 4. Arreglar solo una reduce la frecuencia del fallo
+sin eliminarlo.
+*Evidencia:* la hipótesis literal + el resultado de la prueba que la confirma (una por causa).
 
 **Fase 4 — Fix + test de regresión.**
 Arregla LA CAUSA (no el síntoma) con el cambio mínimo que la hipótesis justifica, y deja un
@@ -46,13 +60,13 @@ cosa.
 Con la Fase 4 completa (fix aplicado, no propuesto), comprueba el umbral de
 `"$SHAREDKIT/knowledge-write.md"`: si esta causa raíz
 costó **≥1 ciclo de depuración** (llegaste a esta skill) o **rompió/casi rompió una garantía del
-producto**, escribe un gotcha en un fichero nuevo `docs/knowledge/gotchas/GOT-NNN-<slug>.md` con los 4 campos — **síntoma** (de la
-Fase 1), **causa raíz** (de la Fase 3, la hipótesis probada), **qué hacer en su lugar**, y
-**evidencia** (enlace/referencia al test de regresión de esta misma fase) — y actualiza el índice
-`docs/knowledge/README.md` en el mismo cambio. Si no cruza el umbral (fix trivial, o causa ya
-documentada en un gotcha existente — enlázalo, no dupliques), **no escribas nada**: decláralo así
-en la evidencia de cierre. Si `docs/knowledge/` no existe, créala en este primer registro; si el
-fragmento no está disponible, no bloquea: sigue sin escribir gotcha.
+producto**, propón un gotcha mediante `knowledge-curation.py propose`, productor
+`debug-root-cause`, según el fragmento compartido: **síntoma** (Fase 1), **causa raíz**
+(hipótesis probada de Fase 3), **qué hacer en su lugar** y **evidencia** (test de regresión).
+No incluyas `estado`; conserva ruta pending/SHA para Curator. No crees GOT legacy ni índice
+manual. Si no cruza el umbral, o la causa ya está documentada, enlaza la entrada existente
+sin duplicar y decláralo en el cierre. Sin fragmento/servicio, informa propuesta pendiente
+de persistir en la evidencia de cierre y continúa, nunca fallback Write/Edit de memoria.
 
 ## Integración con /dev-cycle (gancho del 3.er rojo)
 
@@ -72,7 +86,7 @@ completas. Resultado del gancho:
 
 En el gancho, el cierre de Fase 4 (memoria técnica) **solo aplica cuando la Fase 4 se completa de
 verdad** (el usuario decidió "seguir con el fix" y el fix quedó aplicado con su test). Con
-diagnóstico parcial, o con Fase 4 detenida en "fix propuesto sin aplicar", no se escribe gotcha —
+diagnóstico parcial, o con Fase 4 detenida en "fix propuesto sin aplicar", no se propone gotcha —
 no hay causa raíz probada en la mano, solo hipótesis vivas o un fix sin confirmar.
 
 Si el usuario elige "seguir con el fix", aplicarlo (Fase 4) abre un ciclo de qa nuevo con el
@@ -89,6 +103,16 @@ preguntar.
 - **Evidencia o no ocurrió**: cada fase cierra con su dato pegado, no con "ya lo miré".
 - **Los descartes se registran** — la siguiente persona (o pasada) no debe repetir el camino.
 - **El síntoma no es la causa**: si el fix no se deduce de la hipótesis probada, es un parche.
+- **Limpiar cachés o reinstalar dependencias es un experimento de la Fase 2, no un fix**: se
+  registra como tal y, si el fallo desaparece, la causa era el estado previo (versión resuelta,
+  artefacto obsoleto) y hay que nombrarla con evidencia. Una caché global afecta a otros
+  proyectos: borrarla requiere el OK del usuario.
 - **Instrumentación temporal se retira** al cerrar (logs/asserts de diagnóstico fuera del diff final).
 - Si el fallo resulta ser de la SPEC (comportamiento esperado mal definido), no lo "arregles"
   en código: repórtalo — eso es una decisión de producto (spec → `/pm-cycle`).
+
+## Referencias
+
+| Referencia | Cuándo leerla |
+|---|---|
+| [Fallos de ejecución de un agente](references/agent-runtime-failures.md) | Solo si lo que falla es la ejecución del agente (repite la misma herramienta o fix, pierde el objetivo, trabaja en otra rama o carpeta), al empezar la Fase 1 |

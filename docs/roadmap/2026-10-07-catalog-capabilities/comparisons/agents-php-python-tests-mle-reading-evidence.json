@@ -1,0 +1,158 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_agent_ids": [
+    "A040",
+    "A048",
+    "A050",
+    "A051"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "A040",
+      "sha256": "c505be5fccea9d067775b86fed76bc4b84e63e17090855ac135694adbc83a7f8",
+      "bytes": 10253,
+      "lines": 162,
+      "read_ranges": [
+        [
+          1,
+          162
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A048",
+      "sha256": "5ea9c18d0adedcf6ef7d46cc35ec91cdde2fa8fc3cfe1d1ece477347cb1a4a30",
+      "bytes": 5712,
+      "lines": 109,
+      "read_ranges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A050",
+      "sha256": "5432aaf7e5fcb0813ac21828382971cc00f17d56ee95eac6d0ce180fc5d58016",
+      "bytes": 1937,
+      "lines": 54,
+      "read_ranges": [
+        [
+          1,
+          54
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A051",
+      "sha256": "d2180b115f5840383268c13d5d075b0541fe7ef2a1ac8ecd5d835266ca1b27ce",
+      "bytes": 4391,
+      "lines": 107,
+      "read_ranges": [
+        [
+          1,
+          107
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "a62f6e912bb8cd095918224661ade80cae70c3e962235eaadcf94f73f04923a5"
+    },
+    {
+      "path": "agents/qa.md",
+      "sha256": "4e2a545764ce588c28165247f1ce124f7d0153467d0616f859f9168327b9ac56"
+    },
+    {
+      "path": "skills/stack-practices/SKILL.md",
+      "sha256": "2634a69d18da4d0006de56439783b5337c80cd1405de256be6e8cf89cf655132"
+    },
+    {
+      "path": "skills/stack-practices/references/python.md",
+      "sha256": "1fdef37162afdf214fe78441642d5b90949590d98dac8a60d3bca3f77a3a49b8"
+    },
+    {
+      "path": "skills/stack-practices/references/php-codeigniter.md",
+      "sha256": "b52c7cf1c890229bbf05b22afc57aa149562c670dbf557a10d581baae5dc6844"
+    },
+    {
+      "path": "skills/adversarial-review/references/lens-prompts.md",
+      "sha256": "53309deeda86aaedb1daf00dbb5f8d9e23aa246da038f1f6a281dc52ab2c278c"
+    },
+    {
+      "path": "skills/cybersecurity/references/language-patterns/php.md",
+      "sha256": "d10dab51427732d2d4fe5debec94f522b738aba8a5489313c2433d03b33eccdb"
+    },
+    {
+      "path": "skills/cybersecurity/references/language-patterns/python.md",
+      "sha256": "b65652d35198bb1f5f685ea0f0580e9310a79ff6bd349feaacc4be8cab6e5439"
+    },
+    {
+      "path": "skills/cybersecurity/references/agent-prompts.md",
+      "sha256": "013d6a0b14c32d25880ac2e4d2b65875ab34768407a9abcd6d56044412fcbe30"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "ea3b6fe98737ab2d310a83855181061fd2d2ee883d448daa3d4310aa78adcb4a"
+    },
+    {
+      "path": "skills/unit-tests/references/pyramid.md",
+      "sha256": "1602a67732793741eb2f9e24f7b4a1ee71d74d977558f657383cc607a86cd39f"
+    },
+    {
+      "path": "agent-kits/shared/personas/test.md",
+      "sha256": "310da3ce8e02d2b1612cbdce412faaa94042295bb20165278a8a65389be3a420"
+    },
+    {
+      "path": "skills/tdd/references/anti-patterns.md",
+      "sha256": "fb05bcfbb32c66f7bc52d7f84c2b7a20dd7606531c57553e1b7c56748ec204e1"
+    },
+    {
+      "path": "skills/outcome-evals/SKILL.md",
+      "sha256": "8b3d65b247db25ee086861227df88ddae92410533f0f9f82b9d8af7e4ce849ff"
+    },
+    {
+      "path": "skills/debug-root-cause/SKILL.md",
+      "sha256": "6d17fa65be26f7222b679f3c7126e00df0d774f6b5b30ea1dffd5c0628804d7c"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-destinations.md",
+      "sha256": "ef595ccb3b92157ba3df5fe2b0823db6dd2df51a47f803a8d59591b461b02e7e"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-python-pytorch.md",
+      "sha256": "6cd9e40742138acbe01814e8aa41426976f97b66d6a7342b3e28f8373146544d"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-ml-adoption-mle.md",
+      "sha256": "180fb5b6d967675e4278fcf14ec80f6fb747876b7f12a4cdbf571b318f317c97"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-laravel-family.md",
+      "sha256": "5365bf8343945cd56c24c0a01f09b5aaae79d4c318c2da4001e92e308fe4e7dd"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

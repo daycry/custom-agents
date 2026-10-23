@@ -1,0 +1,34 @@
+[
+  {
+    "id": "C01",
+    "query": "¿Qué función calcula el límite usado por accept?",
+    "expected_target": "src/policy.py:1",
+    "source": "src/gateway.py:5",
+    "relation": "calls",
+    "forbidden_targets": [
+      "src/unused.py:1"
+    ]
+  },
+  {
+    "id": "C02",
+    "query": "¿Quién llama append?",
+    "expected_target": "src/gateway.py:6",
+    "source": "src/storage.py:1",
+    "direction": "incoming"
+  },
+  {
+    "id": "C03",
+    "query": "¿Hay un camino de llamadas desde append hasta accept?",
+    "source": "src/storage.py:1",
+    "target": "src/gateway.py:4",
+    "direction": "outgoing",
+    "expected_action": "not_found"
+  },
+  {
+    "id": "C04",
+    "query": "Si policy.deadline cambia, ¿qué función recibe el impacto?",
+    "expected_target": "src/gateway.py:4",
+    "source": "src/policy.py:1",
+    "direction": "incoming"
+  }
+]

@@ -26,6 +26,8 @@ flowchart LR
 
 `planner` define los tests en `test-plan.md`; `qa` los ejecuta. Antes de nada corre dos **puertas deterministas**: `ledger-lint.py` (ledger coherente) y `coverage-check.py` (cobertura criterios↔tests — incluye los **criterios `[GWT]`** de la spec: cada `- [ ] [GWT] CA-XX — Dado…, Cuando…, Entonces…` debe tener su bloque E2E; un GWT sin cubrir es rojo). Luego traduce cada escenario `E2E-xx` a un test Playwright (los `[GWT]` se traducen 1:1: Dado→setup, Cuando→acciones, Entonces→aserciones), los corre contra la URL local, captura screenshots y recoge resultados en JSON. El **veredicto verde/rojo lo emite `qa-gate.py`** sobre ese JSON (verde ⟺ 0 fallos, 0 flaky sin justificar, 0 interrumpidos, ≥1 test ejecutado). El informe incluye estado global, resultado por escenario con capturas, checklist manual `M-xx` y trazabilidad tarea→resultado; el PDF se genera con **`to-pdf`**.
 
+QA entrega al orquestador el veredicto, los exits de las puertas y las rutas de evidencia, y hace handoff a `documenter` con verde. El orquestador controla las transiciones: plan/tasks a `completado` en Fase 6 y spec a `implementada` sólo después de documentación y `retro-gate.py` en exit 0. Una invocación suelta de QA informa de ese cierre pendiente. Con rojo, identifica las tareas afectadas para que el orquestador las devuelva a `en-progreso`.
+
 **Iniciativa sin UI (`test-plan: n/a (sin UI)`).** Cuando el `improvement-plan.md` declara ese marcador en su frontmatter, no hay `test-plan.md` **por diseño**: `qa` corre solo sus dos puertas deterministas (`ledger-lint.py` y `coverage-check.py`, que reconoce el marcador y sale en exit 0 diciéndolo), deja UNA línea en el informe — «sin UI por diseño» — y termina; ni Playwright, ni URL, ni petición de regenerar nada. Los criterios `[GWT]` de una spec sin UI no se cubren con E2E: `coverage-check` los lista para que la revisión los vea, y su evidencia es el campo `Verificación` de la tarea que los cierra en `tasks.md`. Sin marcador **y** sin `test-plan.md`, el aviso es **uno** —con el comando que lo fija— y `qa` termina: no es un bucle. Dos avisos más del mismo JSON van al informe cuando aparecen: **`marcador_no_canonico`** (el marcador exime, pero escrito con mayúsculas, tabulador, doble espacio o comillas el `grep -F` del literal no lo encuentra y el resto de la cadena no lo ve) y **`rutas_ui_degradado`** (el diff no se ha mirado: sin `git`, fuera de un repo, con un `.git` presente cuyo `git rev-parse` falla —config rota, `safe.directory`, repo corrupto: el motivo cita el stderr de git—, sin base determinable, o con una base que no aporta diff —`HEAD` en la rama principal—; ahí solo se ha mirado el alcance declarado, y eso no es «no hay interfaz»). Las «rutas con pinta de interfaz» se leen del diff y de los campos `Archivos`: una carpeta declarada SIN barra final (`src/components`, `frontend`) cuenta si de verdad es un directorio —la misma pregunta al sistema de ficheros que hace `scope-check.casa()`—, y cuando la única pista es el nombre de la carpeta, la extensión tiene que ser de interfaz (`db/views/v.sql`, `templates/mail.json` o `assets/fuente.ttf` son datos, no vistas). Decisión: `ADR-017`; hueco E1 de [`CONTRACTS.md`](CONTRACTS.md).
 
 ---
@@ -39,7 +41,7 @@ flowchart LR
 
 ## 4. Relación con `planner`
 
-`planner` genera el `test-plan.md` (y las etiquetas **Cubre (tests)** en las tareas de UI); `qa` lo consume. Si un plan no tiene `test-plan.md`, hay que (re)generarlo con `planner` antes de auditar.
+`planner` genera el `test-plan.md` (y las etiquetas **Cubre (tests)** en las tareas de UI); `qa` lo consume. Con `test-plan: n/a (sin UI)`, aplica el modo sin UI descrito arriba. Sin ese marcador y sin `test-plan.md`, informa una vez de que `planner` debe generarlo y termina la auditoría.
 
 ---
 
@@ -57,7 +59,14 @@ La primera vez pide permiso para instalar Playwright/Chromium y confirma la URL 
 
 ## 5-bis. Memoria técnica del proyecto
 
-Antes de auditar, lee el índice de `docs/knowledge/` (si existe) y abre las entradas de `gotchas/` que apliquen — útil para no reabrir un flaky ya diagnosticado (paso compartido `agent-kits/shared/knowledge-check.md`). Cuando un flaky justificado resulta ser un **patrón** (no un accidente: ya hay una entrada sobre ese test/motivo en `gotchas/`, o el mismo motivo se repite en otro test de la tanda actual), escribe un fichero nuevo `docs/knowledge/gotchas/GOT-NNN-<slug>.md` citando la entrada existente — excepción declarada a "no toca `docs/roadmap/`" (`agent-kits/shared/knowledge-write.md`).
+Consulta memoria pertinente con `agent-kits/shared/knowledge-check.md`: legado aceptado y
+approved conservan estados/autoridad; propuestas no se aplican como doctrina. Un patrón de flaky/depuración confirmado se propone con resultado y evidencia; QA verde no aprueba conocimiento.
+Usa `agent-kits/shared/knowledge-curation.py propose --root <proyecto> --filename <nombre.md>
+--producer qa` con Markdown por stdin y salida JSON. El servicio redacta, crea sólo pending
+sin `estado` y devuelve ruta/SHA. No escribe ni promueve nuevas entradas en legado. Sin servicio,
+informa pendiente y no recurre a Write/Edit. Curator decide; `apply` persiste ligado al SHA original,
+con motivo y metadatos válidos. Conflicto/alto impacto requieren resolución humana, no fecha.
+[Contrato](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).
 
 ---
 
@@ -68,3 +77,12 @@ Antes de auditar, lee el índice de `docs/knowledge/` (si existe) y abre las ent
 - `qa-gate.py` — **veredicto determinista** verde/rojo sobre `results.json` (exit code; con tests).
 - `coverage-check.py` — cobertura criterios↔tests: `tasks.md` ↔ `test-plan.md` ↔ criterios `[GWT]` de la spec (con tests).
 - `templates/report.md` — plantilla del informe.
+
+## Contexto técnico común
+
+Aplica `agent-kits/shared/capability-check.md` con tu rol y el paquete/áreas de
+la tarea. La selección comparte criterios y escenarios del ledger; consulta
+solo mapas/referencias pertinentes. Stack-practices consolida PHP/CodeIgniter,
+Python y React. Los métodos, artefactos y puertas del rol conservan su dueño.
+Sin selector o guía disponible, avisa del límite y continúa con el contrato de
+la tarea; no confundas selección con ejecución, tools o permisos.

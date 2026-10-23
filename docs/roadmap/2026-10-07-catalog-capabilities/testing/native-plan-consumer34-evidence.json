@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "source_manifest_sha256": "984dd92d9dd8459690ea8efdc52ce80dc81ee7e31070b3b414ef29aaccc6ed1f",
+  "native_version": "2.1.295",
+  "scope": "Native Claude owner CLI receive, ack, mandatory fresh view and changed-version status in a synthetic fixture",
+  "steps": [
+    {
+      "operation": "receive",
+      "status": "ok",
+      "state": "entregada",
+      "validity": "current",
+      "review_id": "27b1dd6b7761b1c5da960473ce270a6b118fd9c0efc66a46f1ed8e208f7da850",
+      "gate_key": "plan-ok",
+      "decision_id": "6f275abfaedc173618b9a9cb93cea427b9612f2ae24a8006d16c010eda54500a",
+      "delivery_id": "2b7558bb3d293d2cf5b84de02a565e272511e424af6f62456802dddd8aa4e31b"
+    },
+    {
+      "operation": "ack",
+      "status": "ok",
+      "state": "consumida",
+      "validity": "current",
+      "review_id": "27b1dd6b7761b1c5da960473ce270a6b118fd9c0efc66a46f1ed8e208f7da850",
+      "gate_key": "plan-ok",
+      "decision_id": "6f275abfaedc173618b9a9cb93cea427b9612f2ae24a8006d16c010eda54500a",
+      "delivery_id": "2b7558bb3d293d2cf5b84de02a565e272511e424af6f62456802dddd8aa4e31b"
+    },
+    {
+      "operation": "fresh_view",
+      "status": "ok",
+      "state": "consumida",
+      "validity": "current",
+      "review_id": "27b1dd6b7761b1c5da960473ce270a6b118fd9c0efc66a46f1ed8e208f7da850",
+      "gate_key": "plan-ok",
+      "decision_id": "6f275abfaedc173618b9a9cb93cea427b9612f2ae24a8006d16c010eda54500a",
+      "delivery_id": "2b7558bb3d293d2cf5b84de02a565e272511e424af6f62456802dddd8aa4e31b"
+    },
+    {
+      "operation": "stale_status",
+      "status": "version_changed",
+      "state": "consumida",
+      "validity": "version_changed",
+      "review_id": "27b1dd6b7761b1c5da960473ce270a6b118fd9c0efc66a46f1ed8e208f7da850",
+      "gate_key": "plan-ok",
+      "decision_id": "6f275abfaedc173618b9a9cb93cea427b9612f2ae24a8006d16c010eda54500a",
+      "delivery_id": "2b7558bb3d293d2cf5b84de02a565e272511e424af6f62456802dddd8aa4e31b"
+    }
+  ],
+  "case_accepted": true,
+  "tasks_unchanged": true,
+  "source_bundle_and_executable_preserved": true,
+  "version_change_actor": "ROOT fixture controller after the native fresh view",
+  "decision_source": "Synthetic setup through owner API; not a real human UI decision",
+  "implementation_started": false,
+  "memory_published": false,
+  "external_model_inferences": 0,
+  "synthetic_usage_not_billable": true,
+  "real_human_ui_decision_accepted": false,
+  "real_model_judgment_accepted": false,
+  "owner_observations_sha256": "f3e40c44ff49480cb3d759771ed29673b060a1110aa9bc1631268903b42bde92",
+  "native_result_sha256": "39e362d0c8ee7ab3a79ef8534e9ee2ef6dfbaae948672c072679fa78369d88a5",
+  "runner_terminal_sha256": "66cffd535ef7dfdcee375d5f0e096e5fa92a10e039914cfa15398b686e566c9a",
+  "cleanup_confirmed": true,
+  "observed_job_process_total": 100,
+  "first_setup_failure_preserved": {
+    "reason": "Invalid fixture runtime claude; owner contract requires claude-code",
+    "runner_terminal_sha256": "6669d8c7236734c56cedf16b2bba45411534072673cec0646c35659c56be4e90"
+  },
+  "fresh_independent_review_accepted": false,
+  "visual_ui_accepted": false,
+  "all_native_workflows_accepted": false,
+  "global_product_accepted": false,
+  "root_promoted": false
+}

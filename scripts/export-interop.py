@@ -17,17 +17,17 @@ Qué se genera (y por qué ese formato, verificado en la doc oficial de cada her
     .agents/plugins/marketplace.json   marketplace local/remoto que lista este plugin.
     interop/codex/hooks.json           hooks con los eventos y matchers que Codex SÍ dispara.
     interop/codex/agents/<n>.toml      agentes custom (`name`/`description`/`developer_instructions`).
-    interop/codex/prompts/<n>.md       comandos como prompts (`/prompts:<n>`, `$ARGUMENTS`).
-  Las `skills/` NO se copian: el manifiesto apunta a `./skills/` y Codex las lee tal cual
-  (el `SKILL.md` del plugin ya cumple su frontmatter: `name` + `description`).
+    interop/codex/command-skills/      transporte nativo generado de `commands/*.md`.
+  Las `skills/` canónicas NO se duplican: son la primera raíz del manifiesto. La segunda
+  raíz contiene sólo mapas/referencias de comandos generados, con invocación explícita.
 
-  OpenCode (opencode.ai/docs, 2026-09-08)
-    interop/opencode/opencode.json     `instructions` + permisos de la herramienta `skill`.
-    interop/opencode/agents/<n>.md     agentes (`mode`, `temperature`, `permission`).
+  OpenCode V2 (opencode.ai/v2/docs/build/plugins, 2026-10-08)
+    interop/opencode/opencode.json     `plugins` con un paquete local; preserva permisos del consumidor.
+    interop/opencode/agents/<n>.md     agentes (`mode`, `permissions`); modelo y parámetros heredados.
     interop/opencode/commands/<n>.md   comandos (`$ARGUMENTS` funciona igual).
-    interop/opencode/plugins/…js       copia de `hooks/opencode-plugin.js` (adaptador de hooks).
-    interop/opencode/custom-agents-index.md   índice de piezas (`skill-index.py`) para `instructions`:
-                                       OpenCode no tiene hook de SessionStart que inyecte contexto.
+    interop/opencode/plugins/custom-agents/   paquete V2 de `hooks/opencode-plugin.js`.
+    interop/opencode/custom-agents-index.md   snapshot consultable del índice de piezas.
+                                       El hook nativo `session.context` inyecta el contexto actual.
   Las `skills/` NO se traducen: su `SKILL.md` ya vale para los dos runtimes (`name` + `description`
   es exactamente lo que ambos exigen). Quien las pone en su sitio es el instalador
   (`install/install.mjs`: `.opencode/skills/` u `.codex/plugins/…/skills/`), no este script.
@@ -49,6 +49,7 @@ import argparse
 import json
 import os
 import re
+import stat
 import sys
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
@@ -68,19 +69,17 @@ DOC = "docs/INTEROP.md"
 # para haiku/sonnet/opus, así que el agente HEREDA el modelo de la sesión padre (comportamiento
 # documentado) y el tiering se declara solo como esfuerzo de razonamiento.
 EFFORT_CODEX = {"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"}
-# Capa de modelo → `temperature` de OpenCode. Toda pieza de este plugin es analítica (decidir,
-# planificar, auditar), y la doc de OpenCode sitúa ese trabajo en 0.0-0.2.
-TEMP_OPENCODE = {"opus": 0.1, "sonnet": 0.2, "haiku": 0.2, "inherit": 0.2}
 HERR_ESCRITURA = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 
 # --- Preámbulos de adaptación ------------------------------------------------------------------
 # Lo ÚNICO que se añade al cuerpo de una pieza. Tres traducciones y una honestidad.
 PRE_AGENTE_CODEX = """> **Adaptación a Codex** (fichero generado; la fuente es `agents/{nombre}.md`).
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en Codex se
->   menciona `$X` (o se deja que Codex la active por su `description`). Las skills del plugin se
+>   menciona `$custom-agents:X` (o se deja que Codex la active por su `description`). Las skills del plugin se
 >   cargan desde el propio plugin.
-> - **Delegar en otro agente:** no hay herramienta Agent; se pide en lenguaje natural nombrando al
->   agente («delega en `reviewer` la lente B»). Codex no auto-invoca agentes custom: hay que pedirlo.
+> - **Delegar en otro agente:** usa `spawn_agent` con `agent_type` igual al ID nativo del rol
+>   (por ejemplo `custom-agents-reviewer`) si la sesión ofrece esta herramienta.
+>   {delegaciones}
 > - **Guardrail:** {guardrail}
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
 >   `$PWD/.codex` y `$HOME/.codex` (donde el instalador deja el plugin en Codex).
@@ -88,9 +87,10 @@ PRE_AGENTE_CODEX = """> **Adaptación a Codex** (fichero generado; la fuente es 
 
 PRE_AGENTE_OPENCODE = """> **Adaptación a OpenCode** (fichero generado; la fuente es `agents/{nombre}.md`).
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en OpenCode se
->   usa la herramienta `skill` (`skill({{ name: "X" }})`). OpenCode las descubre en
+>   usa la herramienta `skill` (`skill({{ id: "X" }})`). OpenCode las descubre en
 >   `.opencode/skills/<nombre>/SKILL.md` (y también en `.claude/skills/`, por compatibilidad).
-> - **Delegar en otro agente:** herramienta `task` con el nombre del subagente (o `@nombre`).
+> - **Delegar en otro agente:** herramienta `subagent` con `agent: "custom-agents-reviewer"`.
+>   {delegaciones}
 > - **Guardrail:** {guardrail}
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
 >   `$PWD/.opencode` y `$HOME/.config/opencode` (el global de OpenCode no es `~/.opencode`).
@@ -98,38 +98,47 @@ PRE_AGENTE_OPENCODE = """> **Adaptación a OpenCode** (fichero generado; la fuen
 
 PRE_COMANDO = """> **Adaptación a {runtime}** (fichero generado; la fuente es `commands/{nombre}.md`).
 > Este comando ORQUESTA agentes. En {runtime} no hay herramienta Agent: {delegar}
+> {delegaciones}
 > Las skills se invocan {skills}. Todo lo demás (puertas, artefactos, ledger) no cambia.
 """
 
-# Guardrail por agente: qué se pierde y qué se puede recuperar en cada runtime. Honestidad
-# explícita — un hook `PreToolUse` con `deny` de alcance por-agente solo existe en Claude Code
-# (ADR-007), así que aquí el agente lo aplica él mismo o el sandbox lo cubre en parte.
+# El control declarado depende de carga/confianza y herramientas soportadas.
 GUARDRAIL_CON_HOOK = {
-    "implementer": ("el hook de guardia `implementer-guardrail.sh` (alcance en `docs/roadmap/`, rama de "
-                    "trabajo, git no destructivo) **no está impuesto** en este runtime. Antes de un "
-                    "`git push --force`, `git branch -D`, `rm -rf` o de escribir en `docs/roadmap/` "
-                    "fuera de `tasks.md`, comprueba la regla tú mismo con "
-                    "`agent-kits/shared/guardrail-check.py pre-tool --agent implementer` (lee el JSON "
-                    "del evento por stdin) y respeta su veredicto."),
-    "architect": ("el hook de guardia `architect-guardrail.sh` (escribes SOLO `design.md`, "
-                  "`docs/knowledge/adr/**` y el enlace `design:` en spec/plan) **no está impuesto** en "
-                  "este runtime: es tu responsabilidad no tocar nada más. Puedes verificarlo con "
-                  "`agent-kits/shared/guardrail-check.py pre-tool --agent architect`."),
+    "implementer": ("la distribución registra control previo para el ID exacto "
+                    "`{native_id}`: limita cambios en `docs/roadmap/` a `tasks.md`, "
+                    "la rama de trabajo y operaciones Git destructivas reconocidas. Requiere "
+                    "plugin cargado, hooks confiados y Python disponible. Solo cubre herramientas "
+                    "y payloads soportados; entradas desconocidas o errores degradan con diagnóstico. "
+                    "Conserva el opt-out de proyecto y no impone un sandbox universal. "
+                    "La política canónica es `guardrail-check.py pre-tool --agent implementer`."),
+    "architect": ("la distribución registra control previo para el ID exacto "
+                  "`{native_id}`: restringe edición a `design.md`, `docs/knowledge/adr/**` "
+                  "y enlaces `design:` en spec/plan. Requiere plugin cargado, hooks confiados y Python. "
+                  "Solo cubre herramientas y payloads soportados; entradas desconocidas o errores "
+                  "degradan con diagnóstico. Conserva el opt-out y no impone un sandbox universal. "
+                  "La política canónica es `guardrail-check.py pre-tool --agent architect`."),
 }
-GUARDRAIL_SOLO_LECTURA = ("eres de SOLO LECTURA por construcción. Aquí se declara además en la "
-                          "configuración del agente (`sandbox_mode`/`permission`), pero la regla es la "
-                          "misma: si crees que hay que cambiar algo, es un gap para tu salida.")
+GUARDRAIL_SOLO_LECTURA = {
+    "Codex": ("tu responsabilidad es revisar sin modificar archivos. El subagente usa los permisos "
+              "heredados del padre: su TOML no impone un sandbox de solo lectura independiente. "
+              "Una sesión padre con permisos de escritura también permite escribir al subagente. "
+              "Si hace falta cambiar algo, devuelve el gap al implementador."),
+    "OpenCode": ("tu responsabilidad es revisar sin modificar archivos; el agente declara "
+                 "una regla en `permissions` con `action: edit` y `effect: deny`. Esto restringe las herramientas de edición sujetas a "
+                 "ese permiso, no toda posible escritura desde una shell. Si hace falta cambiar "
+                 "algo, devuelve el gap al implementador."),
+}
 GUARDRAIL_NINGUNO = "este agente no tiene hook de guardia propio; se aplican los guardrails del proyecto."
 
 DELEGAR = {
-    "Codex": "se delega pidiéndolo en lenguaje natural y nombrando al agente (`reviewer`, `implementer`…), "
-             "y los agentes custom se copian a `.codex/agents/`.",
-    "OpenCode": "se delega con la herramienta `task` nombrando al subagente (o `@nombre`), definido en "
-                "`.opencode/agents/`.",
+    "Codex": "usa `spawn_agent` con `agent_type` igual al ID nativo del rol, si está disponible; "
+             "las definiciones se copian a `.codex/agents/`.",
+    "OpenCode": "usa `subagent` con el campo `agent` igual al ID nativo, definido en `.opencode/agents/`.",
 }
 SKILLS_EN = {
-    "Codex": "mencionándolas con `$nombre`",
-    "OpenCode": 'con la herramienta `skill` (`skill({ name: "nombre" })`)',
+    "Codex": "mencionándolas con `$custom-agents:nombre` para las skills de este plugin; "
+             "conserva el nombre nativo de las skills del consumidor",
+    "OpenCode": 'con la herramienta `skill` (`skill({ id: "nombre" })`)',
 }
 
 
@@ -185,10 +194,36 @@ def tools_de(bloque):
     return [t.strip() for t in campo(bloque, "tools").split(",") if t.strip()]
 
 
-def guardrail_de(nombre, tools):
+def native_roles(root):
+    """Mapa generado de los roles propios; nunca enumera agentes del consumidor."""
+    roles = [n for n, _, _ in piezas(root, "agents")]
+    return {"schema_version": 1, "runtimes": {
+        runtime: {n: ("custom-agents:" if runtime == "claude" else "custom-agents-") + n
+                  for n in roles} for runtime in ("claude", "codex", "opencode")}}
+
+
+def delegaciones(runtime, mapping=None):
+    roles = (mapping or native_roles(ROOT_DEFAULT))["runtimes"][runtime]
+    return ("En el cuerpo, los roles propios se resuelven con este mapa: "
+            + "; ".join(f"{role} → `{native}`" for role, native in roles.items())
+            + ". Conserva nombres y rutas de agentes del consumidor.")
+
+
+def guardrail_de(nombre, tools, runtime, mapping=None):
     if nombre in GUARDRAIL_CON_HOOK:
-        return GUARDRAIL_CON_HOOK[nombre]
-    return GUARDRAIL_NINGUNO if (set(tools) & HERR_ESCRITURA) else GUARDRAIL_SOLO_LECTURA
+        mapping = mapping or native_roles(ROOT_DEFAULT)
+        return GUARDRAIL_CON_HOOK[nombre].format(native_id=mapping["runtimes"][runtime.lower()][nombre])
+    if nombre == 'knowledge-curator':
+        shared = ('decide la curación y persiste exclusivamente mediante el servicio compartido '
+                  '`knowledge-curation.py apply` o `recover` desde Bash, tras validar propuesta, '
+                  'evidencia y conflictos. No edita candidatos ni approved directamente. ')
+        if runtime == 'Codex':
+            return shared + ('Hereda los permisos del padre; su TOML no impone un sandbox independiente. '
+                             'El servicio valida la persistencia, no autentica el rol nativo.')
+        return shared + ('Declara una regla `edit` con efecto `deny` en `permissions` y conserva el permiso de shell. '
+                         'Ese permiso de edición no confina toda escritura desde shell; '
+                         'el servicio no autentica el rol nativo.')
+    return GUARDRAIL_NINGUNO if (set(tools) & HERR_ESCRITURA) else GUARDRAIL_SOLO_LECTURA[runtime]
 
 
 # --- Serialización ------------------------------------------------------------------------------
@@ -256,7 +291,7 @@ def codex_plugin_json(root):
         # Punteros relativos a la raíz del plugin. `skills/` se lee TAL CUAL (el frontmatter
         # `name` + `description` del plugin ya es el que Codex exige). `hooks` apunta al fichero
         # adaptado, no al global: Codex no dispara los mismos eventos que Claude Code.
-        "skills": "./skills/",
+        "skills": ["./skills/", "./interop/codex/command-skills/"],
         "hooks": "./interop/codex/hooks.json",
         "interface": {
             "displayName": src["displayName"],
@@ -295,14 +330,18 @@ def codex_marketplace_json(root):
 
 _ARG_SEGURO_RE = re.compile(r"^[A-Za-z0-9_${}/.\-]+$")
 _COMANDOS_SHELL_TRADUCIBLES = ("bash", "sh")
+_HOOK_RUNTIME_TARGETS = ("native-guardrail", "agent-activity", "session-context.sh", "session-journal.sh",
+                         "user-prompt-capture.sh", "subagent-progress.sh", "mark-docs-pending.sh",
+                         "ledger-lint-warn.sh", "progress-line.sh")
 
 
 def _hook_a_shell_form(h, evento="?"):
     """Codex no tiene el contrato de `args` (exec form) VERIFICADO como Claude Code (gap 16 de la
     revisión intento 1 de `session-end-durable-capture`, C5 · CWE-78): un hook en exec form
     (`command: bash`, `args: ["<ruta>"]`) se traduce a SHELL FORM (`command: 'bash "<ruta>"'`), más
-    portable, y sin depender de que el runtime destino soporte `args` sueltos. El resto de campos
-    (p.ej. `timeout`) se conserva tal cual.
+    portable, y sin depender de que el runtime destino soporte `args` sueltos. También admite
+    el launcher Node del plugin con el argumento literal session-journal.sh. El resto de campos
+    se conserva aquí; codex_hooks_json aplica el máximo SessionEnd de 3 segundos.
 
     Un hook SIN `args` (ya en shell form: la mayoría) pasa TAL CUAL, sin tocar — no es de la
     incumbencia de esta función. Un hook CON `args` (exec form) traduce a shell form SOLO si
@@ -329,6 +368,15 @@ def _hook_a_shell_form(h, evento="?"):
         return dict(h)               # no es exec form: nada que traducir (la mayoría de los hooks)
     cmd = h.get("command")
     args = h.get("args")
+    if (cmd == "node" and isinstance(args, list) and len(args) == 2
+            and args[0] == "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs"
+            and args[1] in ("session-journal.sh",)):
+        nh = dict(h)
+        nh["command"] = 'node "%s" "%s"' % tuple(args)
+        if evento == "SessionEnd":
+            nh["command"] += " --runtime=codex"
+        nh.pop("args")
+        return nh
     if not (cmd in _COMANDOS_SHELL_TRADUCIBLES and isinstance(args, list) and len(args) == 1
             and isinstance(args[0], str) and _ARG_SEGURO_RE.match(args[0])):
         raise ValueError(f"_hook_a_shell_form: el hook de {evento!r} (command={cmd!r}) tiene args "
@@ -339,142 +387,208 @@ def _hook_a_shell_form(h, evento="?"):
     return nh
 
 
+_LAUNCHER_ACTIVIDAD = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" agent-activity'
+
+
+def _grupo_de_actividad(g):
+    """True si TODOS los hooks del grupo son el launcher de `agent-activity` (con o sin
+    `--runtime=claude`). Un grupo mixto no lo es y sigue la regla general del evento."""
+    hooks = g.get("hooks") if isinstance(g, dict) else None
+    return bool(hooks) and all(isinstance(h, dict) and h.get("command") in
+                               (_LAUNCHER_ACTIVIDAD, _LAUNCHER_ACTIVIDAD + " --runtime=claude")
+                               for h in hooks)
+
+
 def codex_hooks_json(root):
     """`interop/codex/hooks.json` — los hooks del plugin filtrados y corregidos para Codex:
 
-    - `SessionStart`: matcher `startup|resume|clear` (Codex NO tiene `compact`; la compactación
-      son sus eventos `PreCompact`/`PostCompact`, que este plugin no usa).
-    - `SessionEnd` y `UserPromptSubmit`: iguales (el journal y la captura del turno funcionan);
-      `SessionEnd` en exec form se traduce a shell form (`_hook_a_shell_form`, gap 16).
+    - `SessionStart`: matcher `startup|resume|clear|compact`.
+    - `SessionEnd`: exec form a shell form y timeout máximo 3 s (contrato Codex).
+    - `UserPromptSubmit`: captura del turno con launcher compartido.
     - `SubagentStop`: existe en Codex; se mantiene.
-    - `PostToolUse`: **se omite**. Codex solo dispara Pre/PostToolUse para la herramienta `Bash`,
-      y los tres hooks del plugin reaccionan a `Write|Edit|MultiEdit`: registrarlos sería declarar
-      un aviso que nunca llega. Lo cubre `docs/INTEROP.md` (tabla de degradación).
+    - `PostToolUse`: apply_patch; run-hook.mjs convierte tool_input.command a edits[].file_path.
+      Excepción: un grupo SOLO de `agent-activity` (panel-redesign T-45) conserva su matcher (sin
+      matcher = toda herramienta) y su `async`; es la captura de herramientas de Agentes en vivo.
+    - `PostToolUseFailure`: no existe en Codex (su `PostToolUse` también salta con salida ≠ 0); se omite.
     """
     src = json.loads(leer(os.path.join(root, "hooks", "hooks.json")))["hooks"]
     out = {}
-    for evento in ("SessionStart", "UserPromptSubmit", "SubagentStop", "SessionEnd"):
+    for evento in ("SessionStart", "UserPromptSubmit", "SubagentStart", "SubagentStop", "SessionEnd", "PreToolUse", "PostToolUse"):
         grupos = []
         for g in src.get(evento, []):
             ng = {}
             if evento == "SessionStart":
-                ng["matcher"] = "startup|resume|clear"
+                ng["matcher"] = "startup|resume|clear|compact"
+            elif evento == "PostToolUse" and _grupo_de_actividad(g):
+                if "matcher" in g:
+                    ng["matcher"] = g["matcher"]
+            elif evento == "PostToolUse":
+                ng["matcher"] = "^apply_patch$"
+            elif evento == "PreToolUse":
+                ng["matcher"] = "^(Bash|apply_patch|PowerShell)$"
             elif "matcher" in g:
                 ng["matcher"] = g["matcher"]
             ng["hooks"] = [_hook_a_shell_form(h, evento) for h in g.get("hooks", [])]
+            launcher = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" '
+            for hook in ng["hooks"]:
+                command = hook.get("command", "")
+                if command.startswith(launcher):
+                    # Solo los comandos conocidos del launcher propio; no mutar scripts arbitrarios.
+                    suffix = command[len(launcher):]
+                    for target in _HOOK_RUNTIME_TARGETS:
+                        for quote in ("", '"'):
+                            literal = quote + target + quote
+                            if suffix in (literal, literal + " --runtime=claude"):
+                                hook["command"] = launcher + literal + " --runtime=codex"
+            if evento == "SessionEnd":
+                for hook in ng["hooks"]:
+                    if hook.get("timeout", 1) > 3:
+                        hook["timeout"] = 3
             grupos.append(ng)
         if grupos:
             out[evento] = grupos
     return json_txt({"hooks": out})
 
 
-def codex_agente(nombre, bloque, cuerpo):
+def codex_agente(nombre, bloque, cuerpo, mapping=None):
     tools = tools_de(bloque)
-    pre = PRE_AGENTE_CODEX.format(nombre=nombre, guardrail=guardrail_de(nombre, tools))
+    mapping = mapping or native_roles(ROOT_DEFAULT)
+    pre = PRE_AGENTE_CODEX.format(nombre=nombre, guardrail=guardrail_de(nombre, tools, "Codex", mapping),
+                                 delegaciones=delegaciones("codex", mapping))
     lineas = [cabecera("toml", "agents/%s.md" % nombre),
               "# Copia este fichero a `.codex/agents/` (proyecto) o `~/.codex/agents/` (usuario).\n",
-              "name = %s" % toml_str(nombre),
+              "name = %s" % toml_str(mapping["runtimes"]["codex"][nombre]),
               "description = %s" % toml_str(campo(bloque, "description"))]
     efecto = EFFORT_CODEX.get(campo(bloque, "effort"))
     if efecto:
         lineas.append("model_reasoning_effort = %s" % toml_str(efecto))
-    # Un agente sin herramienta de escritura es de solo lectura POR CONSTRUCCIÓN (reviewer): en
-    # Codex eso se declara, no se recuerda.
-    if not (set(tools) & HERR_ESCRITURA):
-        lineas.append('sandbox_mode = "read-only"')
+    # Codex 0.161.0 no proyecta sandbox_mode desde el TOML del rol; hereda permisos del padre.
     lineas.append("developer_instructions = %s" % toml_multi(pre + "\n" + cuerpo.lstrip("\n")))
     return "\n".join(lineas) + "\n"
 
 
-def codex_prompt(nombre, bloque, cuerpo):
+def codex_command_skill(nombre, bloque, cuerpo, mapping=None):
+    """Short explicit native map plus complete unchanged canonical command body."""
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", nombre) or len(nombre) > 50:
+        raise ValueError("invalid command name: %r" % nombre)
+    name = "custom-agents-" + nombre
+    description = campo(bloque, "description")
+    if not description.strip() or not cuerpo.strip():
+        raise ValueError("command %s requires description and body" % nombre)
     pre = PRE_COMANDO.format(runtime="Codex", nombre=nombre,
-                             delegar=DELEGAR["Codex"], skills=SKILLS_EN["Codex"])
-    # Description ENTRECOMILLADA (json.dumps): varias llevan `: ` dentro y un escalar plano de YAML
-    # con `: ` es inválido — GitHub lo pinta como «Error in user YAML: mapping values not allowed in
-    # this context» y el lector de frontmatter de Codex podría tropezar igual.
-    pares = [("description", json.dumps(campo(bloque, "description"), ensure_ascii=False))]
+                             delegar=DELEGAR["Codex"], skills=SKILLS_EN["Codex"],
+                             delegaciones=delegaciones("codex", mapping))
     hint = campo(bloque, "argument-hint")
-    if hint:
-        pares.append(("argument-hint", json.dumps(hint, ensure_ascii=False)))
-    return (fm_yaml(pares) + cabecera("html", "commands/%s.md" % nombre)
-            + "\n" + pre + "\n" + cuerpo.lstrip("\n"))
+    header = cabecera("html", "commands/%s.md" % nombre)
+    wrapper = (fm_yaml([("name", name),
+                       ("description", json.dumps(description, ensure_ascii=False))])
+               + header + "\n# Comando /" + nombre + "\n\n"
+               + "Invocación explícita: `$custom-agents:" + name + " <argumentos>`.\n"
+               + ("Argumentos esperados: `" + hint + "`.\n" if hint else "")
+               + "\n1. Lee íntegramente `references/command.md`, relativa a esta skill, antes de actuar.\n"
+               + "   Si no puedes leerla completa, comunica la limitación y no improvises el workflow.\n"
+               + "2. Sigue su adaptación Codex y el comando canónico con sus dueños, puertas y ledger.\n"
+               + "3. En su prosa, `$ARGUMENTS` representa los argumentos del mensaje invocante.\n"
+               + "   No hay sustitución del compositor de prompts; conserva literalmente los dólares\n"
+               + "   de las recetas y resuelve sus variables sólo al ejecutar la shell correspondiente.\n"
+               + "\n| Referencia | Cuándo leerla |\n|---|---|\n"
+               + "| [Comando completo](references/command.md) | Siempre, antes de ejecutar el comando |\n")
+    policy = (cabecera("toml", "commands/%s.md" % nombre)
+              + "interface:\n  display_name: " + json.dumps("/" + nombre, ensure_ascii=False)
+              + "\n  short_description: \"Comando explícito de custom-agents\"\n"
+              + "policy:\n  allow_implicit_invocation: false\n")
+    return {"SKILL.md": wrapper, "agents/openai.yaml": policy,
+            "references/command.md": header + "\n" + pre + "\n" + cuerpo}
+
+
+def _command_skill_names(root, commands):
+    """Validate the single native skill namespace before generating any outputs."""
+    names = set()
+    for directory in sorted(os.listdir(os.path.join(root, "skills"))):
+        path = os.path.join(root, "skills", directory, "SKILL.md")
+        if os.path.isfile(path):
+            name = campo(partir_frontmatter(leer(path))[0], "name")
+            if not name or name in names:
+                raise ValueError("missing or duplicate canonical skill name: %s" % directory)
+            names.add(name)
+    for nombre, _, _ in commands:
+        name = "custom-agents-" + nombre
+        if name in names:
+            raise ValueError("native command skill collision: %s" % name)
+        names.add(name)
 
 
 # --- OpenCode -----------------------------------------------------------------------------------
 
 def permisos_opencode(tools):
-    """`tools` de Claude Code → `permission` de OpenCode. Traducción literal de lo DECLARADO:
-    un agente sin Write/Edit sale con `edit: deny` (así el `reviewer` sigue sin poder escribir)."""
+    """`tools` de Claude Code → acciones y efectos de `permissions` de OpenCode. Traducción de lo DECLARADO:
+    sin Write/Edit se declara `edit: deny`; la shell conserva su permiso independiente."""
     t = set(tools)
     return {
         "read": "allow", "grep": "allow", "glob": "allow", "list": "allow",
         "edit": "allow" if (t & HERR_ESCRITURA) else "deny",
-        "bash": "allow" if "Bash" in t else "deny",
+        "shell": "allow" if "Bash" in t else "deny",
         "webfetch": "allow" if "WebFetch" in t else "deny",
         "websearch": "allow" if "WebSearch" in t else "deny",
-        "task": "allow" if "Agent" in t else "deny",
+        "subagent": "allow" if "Agent" in t else "deny",
         "skill": "allow",
     }
 
 
-def opencode_agente(nombre, bloque, cuerpo):
+def opencode_agente(nombre, bloque, cuerpo, mapping=None):
     tools = tools_de(bloque)
-    pre = PRE_AGENTE_OPENCODE.format(nombre=nombre, guardrail=guardrail_de(nombre, tools))
+    pre = PRE_AGENTE_OPENCODE.format(nombre=nombre, guardrail=guardrail_de(nombre, tools, "OpenCode", mapping),
+                                    delegaciones=delegaciones("opencode", mapping))
     pares = [
         ("description", json.dumps(campo(bloque, "description"), ensure_ascii=False)),
         # Todas las piezas del plugin son subagentes: las despacha un orquestador por nombre.
         ("mode", "subagent"),
-        ("temperature", TEMP_OPENCODE.get(campo(bloque, "model"), 0.2)),
-        ("permission", permisos_opencode(tools)),
+        ("permissions", json.dumps([{"action": action, "resource": "*", "effect": effect}
+                                   for action, effect in permisos_opencode(tools).items()], ensure_ascii=False)),
     ]
     return (fm_yaml(pares) + cabecera("html", "agents/%s.md" % nombre)
             + "\n" + pre + "\n" + cuerpo.lstrip("\n"))
 
 
-def opencode_comando(nombre, bloque, cuerpo):
+def opencode_comando(nombre, bloque, cuerpo, mapping=None):
     pre = PRE_COMANDO.format(runtime="OpenCode", nombre=nombre,
-                             delegar=DELEGAR["OpenCode"], skills=SKILLS_EN["OpenCode"])
+                             delegar=DELEGAR["OpenCode"], skills=SKILLS_EN["OpenCode"],
+                             delegaciones=delegaciones("opencode", mapping))
     pares = [("description", json.dumps(campo(bloque, "description"), ensure_ascii=False))]
     return (fm_yaml(pares) + cabecera("html", "commands/%s.md" % nombre)
             + "\n" + pre + "\n" + cuerpo.lstrip("\n"))
 
 
 def opencode_config():
-    """`interop/opencode/opencode.json`. `instructions` es el sustituto del hook `SessionStart`
-    que OpenCode no tiene: inyecta el índice de piezas (y el CLAUDE.md del proyecto) en cada
-    sesión. `permission.skill` deja pasar las skills del plugin."""
+    """Registro V2 del paquete local; el contexto llega por hook sin grants globales."""
     return json_txt({
         "$schema": "https://opencode.ai/config.json",
-        "instructions": [
-            ".opencode/custom-agents-index.md",
-            "CLAUDE.md",
-        ],
-        "permission": {"skill": {"*": "allow"}},
+        "plugins": ["./.opencode/plugins/custom-agents"],
     })
 
 
 def opencode_indice(root):
-    """Snapshot del índice de piezas (`skill-index.py`) como fichero de `instructions`.
+    """Snapshot consultable del índice de piezas (`skill-index.py`).
 
-    OpenCode no tiene un hook que inyecte contexto al arrancar, así que lo que en Claude Code
-    hace `hooks/session-context.sh` (parte 1: el índice) aquí es un fichero estático que
-    `--check` mantiene al día. Lo dinámico (roadmap, journal, memoria) no viaja: se pide a mano.
+    `--check` mantiene este fichero estático al día como referencia consultable.
+    El adaptador V2 inyecta el índice y las fuentes dinámicas (roadmap, journal,
+    memoria) mediante session.context, reutilizando hooks/session-context.sh.
     """
     texto = ""
     try:
         mod = _cargar_skill_index(root)
         # `construir` devuelve el dict con métricas del índice; lo que viaja es su `texto`. Sin
         # caché: aquí el fichero ES el artefacto, y `--check` es quien detecta que ha caducado.
-        texto = (mod.construir(mod.piezas(root)) or {}).get("texto") or ""
+        texto = (mod.construir(mod.piezas(root), runtime="opencode", mapping=native_roles(root)) or {}).get("texto") or ""
     except Exception:  # noqa: BLE001 — si `skill-index.py` cambia de API, índice propio (degrada)
         texto = ""
     if not texto.strip():
         texto = _indice_fallback(root)
     return ("<!-- %s desde las piezas del repo — no lo edites a mano. -->\n\n" % MARCA
             + "# custom-agents — índice de piezas\n\n"
-            + "Este fichero lo lee OpenCode como `instructions` (sustituto del hook `SessionStart`\n"
-              "de Claude Code). Antes de improvisar, comprueba si aplica una de estas piezas: las\n"
-              "skills se invocan con la herramienta `skill`, los agentes con `task`.\n\n"
+            + "Snapshot consultable del catálogo. OpenCode V2 recibe el contexto mediante el hook\n"
+              "nativo de sesión, no mediante `instructions`. Comprueba si aplica una de estas piezas: las\n"
+              "skills se invocan con la herramienta `skill`, los agentes con `subagent` y su ID nativo.\n\n"
             + texto.rstrip("\n") + "\n")
 
 
@@ -490,8 +604,10 @@ def _cargar_skill_index(root):
 def _indice_fallback(root):
     """Índice mínimo propio si `skill-index.py` cambia de API: una línea por pieza."""
     trozos = []
+    roles = native_roles(root)["runtimes"]["opencode"]
     for titulo, carpeta, sufijo in (("Comandos", "commands", ""), ("Agentes", "agents", "")):
-        filas = ["- `%s%s` — %s" % (n, sufijo, campo(b, "description").split(".")[0])
+        filas = ["- `%s%s` — %s" % (roles[n] if carpeta == "agents" else n,
+                                    sufijo, campo(b, "description").split(".")[0])
                  for n, b, _ in piezas(root, carpeta)]
         trozos.append("**%s**\n%s" % (titulo, "\n".join(filas)))
     filas = []
@@ -509,22 +625,100 @@ def _indice_fallback(root):
 def generar(root):
     """{ruta relativa: contenido} de TODO lo que este script produce. Orden fijo."""
     out = {}
+    commands = piezas(root, "commands")
+    _command_skill_names(root, commands)
+    mapping = native_roles(root)
+    out["agent-kits/shared/native-roles.json"] = json_txt(mapping)
     out[".codex-plugin/plugin.json"] = codex_plugin_json(root)
     out[".agents/plugins/marketplace.json"] = codex_marketplace_json(root)
     out["interop/codex/hooks.json"] = codex_hooks_json(root)
     for nombre, bloque, cuerpo in piezas(root, "agents"):
-        out["interop/codex/agents/%s.toml" % nombre] = codex_agente(nombre, bloque, cuerpo)
-        out["interop/opencode/agents/%s.md" % nombre] = opencode_agente(nombre, bloque, cuerpo)
-    for nombre, bloque, cuerpo in piezas(root, "commands"):
-        out["interop/codex/prompts/%s.md" % nombre] = codex_prompt(nombre, bloque, cuerpo)
-        out["interop/opencode/commands/%s.md" % nombre] = opencode_comando(nombre, bloque, cuerpo)
+        out["interop/codex/agents/%s.toml" % mapping["runtimes"]["codex"][nombre]] = codex_agente(nombre, bloque, cuerpo, mapping)
+        out["interop/opencode/agents/%s.md" % mapping["runtimes"]["opencode"][nombre]] = opencode_agente(nombre, bloque, cuerpo, mapping)
+    for nombre, bloque, cuerpo in commands:
+        for relative, content in codex_command_skill(nombre, bloque, cuerpo, mapping).items():
+            out["interop/codex/command-skills/custom-agents-%s/%s" % (nombre, relative)] = content
+        out["interop/opencode/commands/%s.md" % nombre] = opencode_comando(nombre, bloque, cuerpo, mapping)
     out["interop/opencode/opencode.json"] = opencode_config()
     out["interop/opencode/custom-agents-index.md"] = opencode_indice(root)
     # El adaptador de hooks de OpenCode es CÓDIGO fuente (vive en hooks/, con el resto de hooks);
     # aquí solo viaja su copia, para que el árbol de interop sea completo y copiable de una vez.
-    out["interop/opencode/plugins/custom-agents-hooks.js"] = leer(
+    out["interop/opencode/plugins/custom-agents/index.js"] = leer(
         os.path.join(root, "hooks", "opencode-plugin.js"))
+    out["interop/opencode/plugins/custom-agents/package.json"] = json_txt({
+        "name": "custom-agents-hooks", "type": "module", "main": "index.js",
+    })
     return dict(sorted(out.items()))
+
+
+def obsoletos(root, plan):
+    """Exports propios retirados: nombre y cabecera exactos, sin barrer otros árboles."""
+    out = []
+    for runtime, extension, estilo in (("codex", ".toml", "toml"), ("opencode", ".md", "html")):
+        folder = os.path.join(root, "interop", runtime, "agents")
+        if not _regular_export_path(root, folder, directory=True):
+            continue
+        for filename in sorted(os.listdir(folder)):
+            relative = f"interop/{runtime}/agents/{filename}"
+            if relative in plan or not filename.endswith(extension):
+                continue
+            path = os.path.join(folder, filename)
+            if not _regular_export_path(root, path):
+                continue
+            text = leer(path)
+            if estilo == "html":
+                _, text = partir_frontmatter(text)
+            pattern = (r"^# " if estilo == "toml" else r"^<!-- ") + re.escape(MARCA) + r" desde agents/([a-z0-9-]+)\.md — no lo edites a mano\."
+            match = re.match(pattern, text)
+            if not match:
+                continue
+            role = match.group(1)
+            if filename in (role + extension, "custom-agents-" + role + extension):
+                out.append(relative)
+    prompts = os.path.join(root, "interop", "codex", "prompts")
+    if _regular_export_path(root, prompts, directory=True):
+        for filename in sorted(os.listdir(prompts)):
+            relative = "interop/codex/prompts/" + filename
+            path = os.path.join(prompts, filename)
+            if relative in plan or not filename.endswith(".md") or not _regular_export_path(root, path):
+                continue
+            _, text = partir_frontmatter(leer(path))
+            if text.startswith(cabecera("html", "commands/%s" % filename)):
+                out.append(relative)
+    adapters = os.path.join(root, "interop", "codex", "command-skills")
+    if _regular_export_path(root, adapters, directory=True):
+        for directory in sorted(os.listdir(adapters)):
+            if not re.fullmatch(r"custom-agents-[a-z0-9]+(?:-[a-z0-9]+)*", directory):
+                continue
+            name = directory[len("custom-agents-"):]
+            for filename, style in (("SKILL.md", "html"), ("agents/openai.yaml", "toml"),
+                                    ("references/command.md", "html")):
+                relative = "interop/codex/command-skills/%s/%s" % (directory, filename)
+                path = os.path.join(root, relative)
+                if relative in plan or not _regular_export_path(root, path):
+                    continue
+                _, text = partir_frontmatter(leer(path))
+                if text.startswith(cabecera(style, "commands/%s.md" % name)):
+                    out.append(relative)
+    return sorted(out)
+
+
+def _regular_export_path(root, path, directory=False):
+    """Do not read or retire exports through linked parents or shared hardlinks."""
+    base = os.path.abspath(root)
+    absolute = os.path.abspath(path)
+    if os.path.commonpath((base, absolute)) != base:
+        return False
+    current = base
+    for part in os.path.relpath(absolute, base).split(os.sep):
+        current = os.path.join(current, part)
+        try:
+            info = os.lstat(current)
+        except OSError:
+            return False
+        if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400):
+            return False
+    return stat.S_ISDIR(info.st_mode) if directory else stat.S_ISREG(info.st_mode) and info.st_nlink == 1
 
 
 def escribir(root, plan, quiet=False):
@@ -533,28 +727,51 @@ def escribir(root, plan, quiet=False):
         os.makedirs(os.path.dirname(p), exist_ok=True)
         with open(p, "w", encoding="utf-8", newline="\n") as f:
             f.write(contenido)
+    for relative in obsoletos(root, plan):
+        os.unlink(os.path.join(root, relative.replace("/", os.sep)))
     if not quiet:
         print("export-interop: %d ficheros escritos (codex + opencode)" % len(plan))
     return 0
 
 
+# Ruta de home ABSOLUTA (`/home/<u>`, `/Users/<u>`, `C:\Users\<u>`): lo generado viaja a otras
+# máquinas, así que filtra un usuario y no resuelve en el destino. `~` y `$HOME` no casan.
+RUTA_HOME_ABSOLUTA = re.compile(r"(?<![\w.$~/\\])(?:/home/|/Users/|[A-Za-z]:[\\/]Users[\\/])[A-Za-z0-9._-]+")
+
+
+def rutas_absolutas(plan):
+    """[(rel, línea)] de lo generado que lleva una ruta de home absoluta."""
+    return [(rel, n) for rel, contenido in sorted(plan.items())
+            for n, linea in enumerate(contenido.splitlines(), 1) if RUTA_HOME_ABSOLUTA.search(linea)]
+
+
 def comprobar(root, plan):
     faltan, distintos = [], []
+    retirados = obsoletos(root, plan)
+    absolutas = rutas_absolutas(plan)
     for rel, contenido in plan.items():
         p = os.path.join(root, rel.replace("/", os.sep))
         if not os.path.isfile(p):
             faltan.append(rel)
         elif leer(p) != contenido:
             distintos.append(rel)
-    if not faltan and not distintos:
+    if not faltan and not distintos and not retirados and not absolutas:
         print("export-interop --check: %d ficheros al día" % len(plan))
         return 0
     for rel in faltan:
         print("FALTA         %s" % rel)
     for rel in distintos:
         print("DESINCRONIZADO %s" % rel)
-    print("\nERROR: la interop de Codex/OpenCode no refleja las piezas del repo.\n"
-          "       Arréglalo con: python3 scripts/export-interop.py")
+    for rel in retirados:
+        print("OBSOLETO      %s" % rel)
+    for rel, n in absolutas:
+        print("RUTA ABSOLUTA %s:%d" % (rel, n))
+    if faltan or distintos or retirados:
+        print("\nERROR: la interop de Codex/OpenCode no refleja las piezas del repo.\n"
+              "       Arréglalo con: python3 scripts/export-interop.py")
+    if absolutas:
+        print("\nERROR: lo generado lleva rutas de usuario absolutas; corrige la pieza de origen "
+              "(rutas relativas, `~` o variables) y regenera.")
     return 1
 
 

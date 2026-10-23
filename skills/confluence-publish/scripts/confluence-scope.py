@@ -5,7 +5,8 @@ publicación en Confluence (skill `confluence-publish`). Es la **fuente de
 verdad** del alcance: la skill lo invoca en vez de reinterpretar los
 patrones `include`/`exclude` por su cuenta, para que la semántica de glob
 nunca diverja entre "lo que dice el verificador" y "lo que de verdad se
-publica" (riesgo señalado en `evaluation.md`).
+publica" (riesgo señalado en `evaluation.md`). Candidates y journal quedan
+fuera del alcance incluso si la config los incluye: no son conocimiento curado.
 
 Subcomandos (exactamente uno por invocación):
   --check   Verifica las invariantes NO NEGOCIABLES de la config resuelta
@@ -79,8 +80,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_ASSET = SCRIPT_DIR.parent / "assets" / "confluence.example.json"
 
 # Exclusión NO negociable, SIEMPRE activa aunque falte de la config del
-# proyecto: la carpeta staged se autoexcluye (D5, spec confluence-policy).
-ALWAYS_EXCLUDE = ["docs/confluence/**"]
+# proyecto: staging no se anida; candidates y journal no se publican.
+ALWAYS_EXCLUDE = ["docs/confluence/**", "docs/knowledge/candidates/**",
+                  "docs/knowledge/journal/**"]
 
 # Nombre RESERVADO del fichero de aviso del staging. Nunca es un fichero
 # canónico real: se excluye del alcance en CUALQUIER carpeta bajo docs/ (no
@@ -245,6 +247,73 @@ def always_exclude_for(root, out_dir):
     return [str(rel).replace(os.sep, "/") + "/**"]
 
 
+PANEL_EXPORT_MANIFEST = "export-manifest.json"
+PANEL_EXPORT_GENERATOR = "custom-agents plugin-panel"
+# Literal del MARKER que plugin-panel (`panel_pages.MARKER`) escribe al principio de cada página; un test lo
+# compara con el real. Una carpeta solo cuenta como exportación del panel si su `index.html` lo lleva.
+PANEL_INDEX_MARKER = "<!doctype html><!-- custom-agents plugin-panel v1 -->"
+
+
+def _ruta_listada_valida(ruta):
+    """Ruta relativa POSIX a la carpeta del manifiesto, validada como en el exportador de plugin-panel: sin
+    barra invertida, unidad, raíz, `:`, NUL ni componentes `.`, `..` o vacíos."""
+    if not isinstance(ruta, str) or not ruta or ruta.startswith("/") or any(c in ruta for c in ("\\", ":", chr(0))):
+        return False
+    return all(parte not in ("", ".", "..") for parte in ruta.split("/"))
+
+
+_SUFIJOS_TEXTO = (".md", ".txt", ".html", ".json")   # Git puede convertirles el fin de línea; Chart.js (.js) se escribe tal cual
+
+
+def _sha_coincide(fichero, declarado):
+    """True solo si `fichero` es un fichero regular cuyo sha256 es el declarado por el manifiesto. Tolera la
+    conversión de fin de línea de Git (CRLF <-> LF) solo en ficheros de texto: vale el hash de los bytes tal
+    cual o el de los bytes con CRLF normalizado a LF."""
+    if not isinstance(declarado, str) or not fichero.is_file() or fichero.is_symlink():
+        return False
+    try:
+        datos = fichero.read_bytes()
+    except OSError:
+        return False
+    declarado = declarado.lower()
+    if hashlib.sha256(datos).hexdigest() == declarado:
+        return True
+    return fichero.suffix.lower() in _SUFIJOS_TEXTO and hashlib.sha256(datos.replace(b"\r\n", b"\n")).hexdigest() == declarado
+
+
+def panel_export_files(docs_root, root):
+    """{ruta relativa a `root` (casefold) -> manifiesto que la declara} de los ficheros que una EXPORTACIÓN
+    de plugin-panel lista en `ficheros` (HTML + `vendor/` con licencias y procedencia de terceros). Se
+    reconoce por su `export-manifest.json` con el generador del plugin, no por un nombre fijo
+    (`docs/roadmap/panel/` es solo el destino por defecto de `/roadmap-status`). El manifiesto es un fichero
+    plantable (CWE-807): solo excluye lo que LISTA (no toda su carpeta) Y que existe con el `sha256` declarado
+    (es lo que escribió el exportador), y solo si junto al manifiesto hay un `index.html` con el MARKER del
+    panel. Un manifiesto ilegible, de otro generador, sin entradas, sin panel al lado o ubicado en la propia
+    `docs/` no excluye nada, y las rutas inválidas se ignoran."""
+    listados = {}
+    raiz_docs = Path(docs_root).resolve()
+    for dirpath, dirnames, filenames in os.walk(docs_root):
+        dirnames.sort()
+        if PANEL_EXPORT_MANIFEST not in filenames or Path(dirpath).resolve() == raiz_docs:
+            continue
+        try:
+            datos = json.loads((Path(dirpath) / PANEL_EXPORT_MANIFEST).read_text(encoding="utf-8"))
+            if datos.get("generador") != PANEL_EXPORT_GENERATOR:
+                continue
+            rutas = [(f.get("ruta"), f.get("sha256")) for f in datos.get("ficheros", [])]
+            with open(Path(dirpath) / "index.html", "rb") as pagina:
+                if not pagina.read(len(PANEL_INDEX_MARKER)).decode("utf-8", "replace") == PANEL_INDEX_MARKER:
+                    continue
+        except (OSError, ValueError, UnicodeError, AttributeError, TypeError):
+            continue
+        carpeta = rel_from_root(dirpath, root)
+        manifiesto = carpeta + "/" + PANEL_EXPORT_MANIFEST
+        for ruta, sha in rutas:
+            if _ruta_listada_valida(ruta) and _sha_coincide(Path(dirpath) / ruta, sha):
+                listados.setdefault((carpeta + "/" + ruta).casefold(), manifiesto)
+    return listados
+
+
 def resolve_scope(root, publish, docs_dirname="docs", out_dir=None):
     """Devuelve (en_alcance, excluidos): listas ordenadas de rutas
     'docs/...' relativas a `root`. `excluidos` es lista de tuplas
@@ -261,8 +330,20 @@ def resolve_scope(root, publish, docs_dirname="docs", out_dir=None):
     en_alcance, excluidos = [], []
     if not docs_root.is_dir():
         return en_alcance, excluidos
+    paneles = panel_export_files(docs_root, root)
     for f in iter_md_files(docs_root):
         rel = rel_from_root(f, root)
+        exportacion = paneles.get(rel.casefold())
+        if exportacion:
+            excluidos.append((rel, f"exportación de plugin-panel (listado en {exportacion})"))
+            continue
+        # Memory queues and episodic notes never become curated publication.
+        # Case folding also protects Windows projects with noncanonical casing.
+        private_memory = next((p for p in ALWAYS_EXCLUDE[1:]
+                               if glob_match(p, rel.casefold())), None)
+        if private_memory:
+            excluidos.append((rel, private_memory))
+            continue
         if f.name == STAGE_MARKER_NAME:
             excluidos.append((rel, f"nombre reservado ({STAGE_MARKER_NAME})"))
             continue

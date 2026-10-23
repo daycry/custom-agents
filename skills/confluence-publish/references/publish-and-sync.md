@@ -71,7 +71,7 @@ DASH="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOM
 Luego sigue el flujo normal: `docs/roadmap/dashboard.md` entra en el espejo como cualquier `.md`
 (su hash cambiará y se publicará/actualizará su página). Notas:
 
-- **Solo el `.md` va a Confluence.** El `dashboard.html` es vista local y, al no ser `.md`, el espejo lo ignora; no lo publiques.
+- **Solo el `dashboard.md` va a Confluence, no el panel.** La exportación del panel (`docs/roadmap/panel/` u otra carpeta con su `export-manifest.json` de `plugin-panel`) es vista local, pero lleva `.md` de terceros (`vendor/chart.js/LICENSE.md`): `confluence-scope.py` excluye por código (`panel_export_files`) los `.md` que ese manifiesto LISTA en `ficheros` (no la carpeta entera: un `.md` propio en esa carpeta sigue en alcance, y un manifiesto vacío, ilegible o situado en `docs/` no excluye nada), así que no entran en `--status` ni en el staging; no los publiques. Un `dashboard.html` antiguo, al no ser `.md`, el espejo ya lo ignora.
 - Así el disparo es determinista y honesto: la página se refresca **en la misma publicación** que provocó el cambio del roadmap, y su cabecera lleva la marca `generado <fecha/hora>` para que se vea la frescura. No es tiempo real: si nadie publica, el PM ve la última versión con su fecha.
 - Si `docs/roadmap/` no existe, no generes nada.
 

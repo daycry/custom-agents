@@ -7,8 +7,569 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versioning follows [SemVer](https://semver.org/).
 
+Historical ADR/LES/GOT identifiers remain as references; their documents are not shipped with the plugin.
+
 ## [Unreleased]
 
+### Fixed — plugin linter citations
+
+- **`lint_plugin.py` no longer flags `/skills` or a URL path as a missing command.** `/skills` is native to Claude Code and Codex, and the Kwipu adapter reference now cites its health URL in full. The linter is back to the 3 warnings of `master`. (`scripts/lint_plugin.py`, `tests/test_lint_plugin.py`, `skills/knowledge-services/references/kwipu-adapter.md`)
+
+## [2.0.0] - 2026-10-22
+
+### Added — `panel-redesign` initiative, phase 1 (foundations)
+
+- The panel bundles Chart.js 4.5.1 unmodified, with its MIT licence and a provenance file; a test checks its fingerprint and that no other copy exists. A browser spike (Chromium and Firefox, served and `file://`) confirmed the exported pages can load it under `script-src 'self' file:` with no CSP violation and no network request.
+- New `redact.anonimizar` primitive strips the project path, home directory, system user and e-mails from panel output before it is shown or exported.
+- Dashboard JSON/Markdown and the panel catalogue JSON are pinned by golden tests, so the panel redesign cannot change them unnoticed.
+- `build_panel.py --export <dir>` writes a seven-page site with a shared accessible menu, a WCAG 2.2 AA palette, charts that always come with an equivalent table (missing data shown as "sin datos", never 0), bundled Chart.js with its licence and an `export-manifest.json`. The export needs no network, strips paths, user name and e-mails, and never overwrites files it does not own.
+- The panel's Catalog page gathers the catalog, extensions, workflow and source notes, with a pieces-by-type chart and its equivalent table; the Diagnostics page keeps the doctor snapshot with the same rejections and filters, without running doctor.
+- `roadmap-dashboard`'s JSON projection is now a pure function (`vista_json`) the panel reuses, with byte-identical `--json` and `--md` output.
+
+### Changed — `panel-redesign` initiative, panel export
+
+- `build_panel.py --html` is replaced by `--export <dir>`; `--json` and `--serve` are unchanged.
+- The local panel server serves the seven pages and their assets from a closed allowlist under a strict CSP, with a per-start nonce on every script and no disk reads per request; if Chart.js is missing or altered, pages fall back to tables. The live progress, memory, activity and plan-review scripts load as files on their own page, and the single-page template is gone.
+- `roadmap-dashboard` no longer generates HTML and only computes portfolio data (`--md`, `--metrics-md`, `--json`); `/roadmap-status` writes `dashboard.md` and exports the multi-page panel to `docs/roadmap/panel/`, never deleting an old `dashboard.html`. `plugin-panel` is now the only dashboard, and the panel guide documents the seven pages, both modes, each mode's CSP and the provenance of the bundled Chart.js.
+
+### Added — `panel-redesign` initiative, phase 2 (home, initiatives and plan)
+
+- The served panel offers the roadmap portfolio (spec state of each initiative, completed tasks, real vs estimated hours and cost, provenance and alerts) with the same figures as the dashboard and the progress report.
+- The Home page shows how many initiatives are in each spec state, the overall task progress and real vs estimated cost with its provenance.
+- The Initiatives page is a read-only kanban with one column per spec state; each card carries date, tasks, hours, cost, provenance and its alerts in text, and links to its Plan. Two charts, hours and cost per initiative, each come with their table; initiatives without data appear in the table as "sin datos" and not in the bars.
+- The static copy now says it is a static copy and how to see it live (`/plugin-catalog --serve`).
+- `agent-kits/shared/ledger-view.py` is a read-only projection of a `tasks.md` for views: tasks with phase and state (unknown states listed apart with their literal), AI/supervision/human hours real vs estimated with their provenance (`—` is `null`, never 0), criteria with their checkbox, `Verificación` (capped at 2,000 characters) and its output, dependencies, closing date, an «archived» mark for tasks with history in `execution-history.md` (never read), and the latest review with its open gaps. It reuses the `ledger-lint.py` parsers and the 256 KiB bounded read.
+- Tasks may carry an optional `- **Cerrada**: YYYY-MM-DD` field written when they are marked `completado`; `ledger-lint` validates only its format (a real date) and that it is not earlier than the ledger creation date, and ledgers without it validate as before.
+- Every initiative with a plan gets its own Plan page (`plan-<id16>.html`) with a read-only kanban: one column per ledger state, an «unrecognised state» strip with the literal, and a card per task with phase, AI hours with provenance and open-gap count. `plan.html` lists every plan, the Initiatives card link no longer returns 404, and the static export writes one page per plan.
+- `api/plan-<id16>` and `api/plan-<id16>-<T-XX>` serve the kanban and the task detail (under 64 KiB, trimmed with an explicit indicator, text scrubbed by the single panel scrubber). Opening a card with a click or Enter shows description, criteria, verification and its output, dependencies, latest review with open gaps and the archived mark; focus moves to the detail, Escape or «Cerrar detalle» closes it and returns focus to the card, and both are announced in a live region.
+- The panel scrubber no longer splits the redactor's `[secreto redactado]` mark when cutting text.
+- The Plan page shows progress per phase and real vs estimated AI hours per phase and per task, each chart with its equivalent table and the «(medido)»/«(estimado)» provenance; missing data reads «sin datos», never 0.
+- The Plan draws a burndown of pending tasks only when every completed task has a closing date; otherwise it says how many are missing and draws no partial chart.
+- When served, the Plan board refreshes every 5 seconds and moves cards without closing the open task or losing focus; on a network failure it keeps the last view with a warning.
+- `plan-review.py` gains a read-only `summary` operation that returns the review state (none, pending, changes requested, approved, outdated, unavailable) of several initiatives at once without creating or modifying anything under `.claude/plan-review/`.
+- The panel server can open a plan review for any initiative from the Plan page (`POST api/review-open/<id>`) and publishes the review state of every initiative (`api/review-summary`, `api/review-current/<id>`), with the same token, `Origin`, CSP and 16 KiB limits as before; the browser can only open `requested-review`, never `plan-ok`.
+- New opt-in `--review-panel` flag (needs `--serve --project … --review-state-root …`) turns on plan review from every Plan page; `--review-initiative` keeps working as before, the exported copy never carries review controls, and Plan explains how to enable it.
+- From the Plan page you can open a plan review, comment per section and decide; each initiative's review status shows as text on its Initiatives card and in the Plan header, with the agent's replies under each comment.
+- Documented the Home, Initiatives and Plan pages, the `Cerrada` ledger field and plan review from the panel (`--review-panel`), with the new contract edges E56–E58.
+
+### Added — `panel-redesign` initiative, phase 3 (live agents)
+
+- Live-agents history is computed with pure rules: after 60 s without a signal a run is «sin señal reciente», never an inferred «finished».
+- Tool events from Claude Code, Codex and OpenCode are recorded in a bounded ring (500 events or 256 KiB, 24 h) written only with `sesion.actividad: true`; each event is attributed to its task only by the exact meter command, never by free text, with a 5 s quarantine after each window change.
+- Argument summaries are whitelisted and redacted (the redactor now also masks `Authorization: Basic …`), with no absolute paths, usernames or emails; the writer cleans up its own orphaned temporaries.
+- Live agents receives one event per finished tool call (failed ones too in Claude Code) without making the tool wait: the hook runs in the background in Claude Code and Codex.
+- Without `sesion.actividad: true` the activity hook no longer starts Python: it exits in about 80 ms instead of nearly a second.
+- In OpenCode, Live agents also receives one event per finished tool call, without making the tool wait and sending the capture process only what the summary needs.
+- The served panel offers two new activity reads: the list of runs with their recent events and one run's timeline (its last 150 events), always within 64 KiB and with scrubbed text.
+- New Live agents view in the served panel: one row per run (runtime, role, start, duration, last tool and state) and, when opened, its timeline with the attributed task or «sin atribuir»; it says what each runtime does not provide and that capture may have gaps.
+- Home shows, in the served panel, the latest activity events (agent or session, runtime, tool, task and how long ago) with a link to Live agents; with capture off it says how to turn it on, and the exported copy warns that activity exists only when served.
+- The panel inventory (`--json`) declares the new per-tool activity registrations in the three runtimes, and a privacy test checks that neither the history, the activity responses nor the exported copy carry the home path, the username or emails.
+- The documentation explains Live agents: how to turn on tool capture, what it records and what not, its caps, how to delete the history by hand and what each runtime provides.
+
+### Fixed — `panel-redesign` initiative, phase 3 review
+
+- The redactor (activity summaries and the session journal) also masks secrets in prefixed variables (`DB_PASSWORD=`, `API_TOKEN=`, `AWS_SECRET_ACCESS_KEY=`, `PGPASSWORD=`), `curl -u user:password` and `mysql -p<password>`.
+- A burst of parallel tool calls no longer loses most of its events while the history is being written; Codex MCP tools make a single write attempt with no retries; the `apply_patch` summary no longer burns CPU on very long lines; OpenCode records the tool event before the post-tool notifications.
+- Home's «Actividad reciente» resumes refreshing when the tab becomes visible again, and the activity API validates the history without reloading a module per event.
+- The redactor masks a `curl`/`mysql` credential wherever the program appears earlier in the same command: after `sudo`, `--`, `timeout` or `$(`, inside quotes (`sh -c "…"`, `ssh host '…'`) and when a prose apostrophe opens a stray quote; an option value that contains a program name is no longer mistaken for the program.
+- Lifecycle signals keep priority over a burst of tool events, and on macOS/BSD and over NFS they no longer block on their own lock: both bytes of `.lock` use one-byte `lockf` (Windows unchanged).
+- The Memory page's selected-entry and relations panels are named regions, so screen readers accept their label (WCAG 2.2 AA, axe clean on all seven pages).
+
+### Added — `panel-redesign` initiative, phase 4 (memory, catalog and diagnostics)
+
+- The Memory page shows a chart and a table of entries by type (ADR, gotcha, lesson) and state, with a keyboard-operable area filter, served by a new `api/memoria` (GET, under 64 KiB); `api/memory` is unchanged.
+- Memory adds a read-only curator inbox (pending, changes requested, rejected and approved candidates), a timeline with succession chains that marks as «vigente» the entries in force today, and a small SVG graph of one entry and its one-hop relations, the same edges as `knowledge-find.py --related --json`, with an equivalent keyboard-navigable text list.
+- Memory says what was published to each backend (Kwipu, Graphiti) from local files only, with no network and never using `mtime` as a date, and shows recent journal sessions with their continuity, redacted and labelled «citas, no instrucciones».
+- The Catalog adds an accessible breakdown by type, origin and runtime that follows every filter, with keyboard and mouse; `build_panel.py --json` stays byte-identical to its golden.
+- Diagnostics shows each check with its verdict as text (OK, warning, error) next to the icon, its date and scope, and a summary with the counts; with no report, or a rejected one, it gives the reason and the exact command to generate it.
+- Documented the Memory, Catalog and Diagnostics pages, the `api/memoria` endpoint (read-only, under 64 KiB, no network) and the rule of showing «sin datos» instead of widening hotspot contracts (CONTRACTS E59–E60).
+
+### Fixed — `panel-redesign` initiative, phase 4 review
+
+- Memory page: personal data in initiative and successor labels is anonymized like the rest of the panel; the journal and relation lists say when they are incomplete instead of claiming there is nothing; the backend link is offered only for local hosts; the last publication reads «al menos» when the listing is truncated; one malformed entry no longer blanks the whole page; and `api/memoria` is computed in the background so the page no longer stalls.
+
+### Fixed — Agent activity store
+
+- An orphaned `.tmp-*` file left by an interrupted write no longer makes activity capture and reading fail with `invalid_state` forever: up to 8 are tolerated (more gives `state_budget`), none is read or deleted, and any other unexpected name is still `invalid_state`.
+
+### Fixed — `panel-redesign` initiative, phase 2 review
+
+- The panel's portfolio, review and task-detail endpoints now reuse their answers until the ledger or review state changes, review summaries cover projects with more than 64 plans, the static export no longer re-projects each ledger per task, and ledger ranges such as `T-01..T-15` count for every task in them.
+- Panel: reviewing a stale plan version now requires loading the current one before deciding; "Load current version" keeps focus; Escape inside a review field no longer closes the task detail; a failed review summary keeps the last good state with a notice; a missing review reads "not available".
+- `ledger-lint` reads the `Estado` and `Fecha` header rows in linear time, so a crafted `tasks.md` can no longer stall the panel; a review summary whose deadline runs out returns what it already read as `partial`.
+- Panel review actions (refresh, save, submit, open) show at once in the current review and the card summary, and "Load current version" keeps keyboard focus; ledger range expansion has a global budget with an explicit warning; a full review registry neither writes before answering 429 nor evicts the orchestrator's write entry; cache signatures cover file content, so a same-mtime `[ ]`→`[x]` edit shows at once.
+- The portfolio and plan caches sign file contents with the panel's protected read (no symlinks, no FIFO hangs, capped bytes) and hit on the real 10 s poll; the Plan shows an "unexpanded task ranges" warning; 1,000-task ledgers project in under 2 s; a review write that ends in a timeout or an oversized response drops the stale review cache.
+- The Initiatives kanban no longer depends on a slow cold portfolio read: the server computes it at startup, recomputes it in the background and the page says "Calculando la cartera… (reintento en 3 s)" until it arrives; progress cards on Home link to their Plan with the read hash moved to a closed "Detalle técnico"; Agentes en vivo says activity is disabled (opt-in) and how to enable it; project-piece metadata parsing is about twice as fast on long block scalars.
+
+### Changed — Ledger archiving
+
+- `ledger-archive.py` also trims long `**Notas**:` paragraphs of completed tasks (`--notas-max`, default 600) to their first sentence plus a pointer and SHA-256, moving the original to `execution-history.md`.
+
+### Fixed — `panel-redesign` initiative, phase 1 review
+
+- The panel export no longer trusts a previous `export-manifest.json`: an entry with `..`, an absolute path, a drive letter, a backslash or a linked parent aborts the export before anything is written or deleted. It also refuses to create the output's parent folders and detects a file standing where a folder is needed before writing, without printing absolute paths.
+- Anonymizing the panel no longer rewrites closed-vocabulary values (scope, kind, runtime): an account named `user`, `project`, `agent` or `codex` no longer crashes the export or hides hooks from the filters. Text is anonymized before it is cut to length, so an e-mail or home path crossing the cut is not leaked in pieces.
+- The served panel applies the same anonymization as the exported one, including the progress titles. `/roadmap-status` writes nothing when `docs/roadmap/` is missing or the dashboard fails, and its description now says what it writes.
+- Confluence sync leaves out any `plugin-panel` export folder (recognized by its `export-manifest.json`), so the bundled Chart.js licence is no longer published.
+- A real user name written between angle brackets (`<jdoe>`) is now anonymised; only the module's own marks (`<usuario>`, `<correo>`) are kept. The served panel passes `api/memory` and the plan-review answers through the same anonymiser, and agent `model` and `tools` values are anonymised like any other free text.
+- Export cleanup re-checks, right before each delete, that nothing in the path became a link or junction, and never deletes a file the export just wrote (case or trailing-dot aliases); manifest entries with a trailing dot or space are rejected. A panel export manifest now excludes from Confluence only the files it lists, so an empty manifest, or one placed in `docs/`, excludes nothing.
+- The served panel now anonymizes only the free text it displays (memory notes, plan text, agent answers); the comments you write and closed vocabularies such as the runtime travel back untouched, so a review can be approved again on a `codex` account and is delivered with your exact words. Re-exporting can no longer delete a file just written through a Windows 8.3 short name, and Confluence only skips files that a real panel export lists with a matching hash.
+- The served panel anonymizes every free-text field it displays, including memory area, category, state, type and relations, and a contract test fails if a new field is left unclassified. Anonymized text is cut to the browser validators' limits without splitting a mark, and the Confluence check tolerates Git's CRLF conversion of the panel's licence file.
+
+### Added — Ledger archiving
+
+- `ledger-archive.py` moves closed history out of `tasks.md` into `execution-history.md`, keeping each block's bytes with its SHA-256 and leaving a pointer in the ledger. Superseded review rounds go only if every task keeps the same pending gaps, latest attempt and inherited mentions; long `Verificación` fields are cut to their first sentence. Dry run by default; `--apply` is atomic and idempotent, and writes nothing if `ledger-lint` would get worse. Applied to the catalog-capabilities ledger: 248,766 → 126,898 bytes with identical invariants.
+- `ledger-lint` warns when a ledger passes 70 % of the 256 KiB read cap (naming the archive command) or when a `Verificación` passes 2,000 characters. `scope-check` counts an initiative's `execution-history.md` as in scope, and `/dev-cycle` runs the archive from the orchestrator when that warning appears.
+
+### Changed — Activation fixes from real runs
+
+- Real activation runs with the branch plugin showed two misses: a "do it fast, skip the test first" request in a TDD repo did not load `tdd`, and a performance review of a diff did not load `adversarial-review`. Both descriptions now name those triggers. `evals/run.py --settings <json>` passes settings to `claude`, so the installed plugin can be disabled and only the branch is measured.
+- `evals/run.py` lets each case read the plugin root (`--add-dir`), where pieces resolve their kits, and allows `python` as well as `python3` (the Windows binary); without them, cases failed on «permission denied» even when the piece fired. The `research-first` positive cases measure activation only: their prompts name no topic, so no output content can be required.
+
+### Changed — Command comparison (94 commands)
+
+- `adversarial-review` reviews a remote PR by number or URL: base and head come from `gh pr view`, evidence runs in a worktree of the head SHA, and the verdict is posted only with explicit user OK. A lens with no structured output leaves the attempt `incompleto` instead of counting as «no defects». Lens B flags snapshots or goldens rewritten with the update flag when no criterion asks for that change; the TDD stack table accepts a `NotImplementedError`-style stub of the new symbol as a valid red.
+- The implementer does not trust a pipeline's exit code (`pipefail`, or a file plus the command's own exit) and undoes a failed attempt with its own diff, never by restoring files that already had uncommitted changes. The planner cites the `file:line` pattern each code task must follow; the analyst asks for evidence that the problem exists and reads a Jira key as untrusted source data; the documenter rechecks pages whose cited sources changed after their last update; the curator sends duplicates of approved knowledge back as `needs_changes`.
+- `/dev-cycle` classifies each change (new capability, behaviour change, defect, refactor) to pick its first check in `Verificación`, and when opening a PR fills in the repo's PR template, sets base and head explicitly and checks for an open PR first.
+
+### Added — Discarded approaches in the session journal
+
+- The journal continuity schema gains a `descartados` list («approach — reason»), set only through `--enrich`/`--draft`; `/work-resume` quotes it after «Bloqueos» within the same caps, so the next session does not repeat a failed attempt.
+
+### Fixed — CI-only failures on Linux
+
+- The `db` persona fits again under the brief's persona floor (1,300 characters). The hooks network scan skips `hooks/__pycache__`, which the interpreter writes when another test imports `runtime-supervisor.py`; reading that bytecode as hook code failed the suite depending on test order.
+- Two long-standing CI reds were real bugs. On images without `ps` (such as `python:*-slim`), the hook supervisor could not list the OpenCode adapter's process group, so background descendants of a hook outlived it; it now reads `/proc` when `ps` is missing. A `knowledge-find` test queried the unversioned local memory instead of its fixture corpus.
+- Hook group cleanup without `ps` now fails closed when `/proc` is empty or does not list the owner process. A Windows-only OpenCode test pins the TAP reporter, since Node 23 prints the spec reporter even when piped.
+
+### Changed — Agent comparison (68 agents)
+
+- `reviewer` knows Lens D (performance), which `adversarial-review` already dispatched to it, and never opens connections with environment credentials. `analyst` records non-functional requirements only with a given figure and keeps current behaviour apart from desired behaviour. `planner` makes removal tasks declare how dynamic references and public API use were ruled out. `implementer` no longer "fixes" a broken build by deleting lockfiles, bumping packages, clearing global caches, `--fake` migrations or killing processes by port, and its rationalization table covers lint/type suppressions. `documenter` checks cited paths and links; the `db` persona warns that `EXPLAIN ANALYZE` executes; `qa` runs new specs with `--repeat-each=3`.
+- `debug-root-cause` treats build failures and dependency state (project build as repro, one error at a time, diagnostics that do not write, cache clearing as a declared experiment, a hypothesis that explains every symptom). Lens B follows a caller before reporting missing handling and flags a fallback only when it hides the failure. `stack-practices` adds CodeIgniter 4 uploads, the Python mutable default argument, stable React keys, "Invalid hook call" from mismatched React and unawaited promises in TypeScript; `plugin-dev` adds the "weakening a guard for cost or latency" anti-pattern.
+
+### Fixed — Launcher review and script-mode tests
+
+- The SessionEnd budget function lives inside `hooks/run-hook.mjs` again, so the launcher keeps importing Node builtins only; its reviewed fingerprint and the reviewed fingerprint of `agent-activity-store.py` are updated after review. `tests/test_export_interop.py` in script mode skips cases that need pytest fixtures instead of crashing.
+
+### Changed — Early recovery of orphaned sessions
+
+- Orphaned sessions (common on Windows, where the `SessionEnd` capture does not fit the 1.5 s budget) are recovered once the prompt log and the session transcript have both been idle for `sesion.journal.ventanaInactividadMin` (default 30 min), instead of after 24 h. `journal.py capture` keeps the validated transcript path in the local, unversioned prompt log. A recovered entry records `log_hasta`; if the session continues, the next `recover` redoes that entry. `materializado` entries are never reopened or downgraded.
+
+### Changed — Session continuity, measurement provenance and SessionEnd budget
+
+- `/work-resume` shows the continuity recorded in each journal entry (objective, where it stopped, next steps, blockers) as `history[i].continuidad` and as a bounded historical-quote group, telling explicitly cleared fields from omitted ones; output caps are unchanged.
+- `build_dashboard.py` (`/roadmap-metrics`, `/roadmap-status`) aggregates the meter's provenance and coverage keys: measured tokens (complete/partial) versus unmeasured and unknown provenance, and complete versus incomplete estimated cost, per initiative and for the portfolio. Older blocks count as unknown provenance.
+- The SessionEnd launcher honours `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS`: when the user raises the budget, the journal capture gets it (capped by its declared 5 s timeout, minus a 700 ms launcher margin) instead of being cut at 800 ms. `/doctor` reports the effective budget and how to raise it in `~/.claude/settings.json`; nothing is written for the user. On Windows, starting `node` alone exceeds the default 1.5 s, so without that opt-in the session keeps being recovered later by `journal.py recover`.
+
+### Added — Content checks for activation evals
+
+- `expect.contains` (`[{path, pattern}]`) checks file content after a real run: the regex must match in the run's copy and must not already match in the fixture. First executable against-case, `tdd-en-contra-prisa`, requires a new `RED:` line in the fixture ledger.
+
+### Fixed — Eval fixture cleanup on Windows
+
+- `evals/run.py` clears the read-only attribute that `copytree` copies from the fixture folders onto its temporary copy, so cleanup no longer fails with `WinError 5`.
+
+### Added — Catalog comparison destinations (P3)
+
+- On-demand references: `delivery-practices` (rollout and recovery, post-deploy observation, repository connectors, agent-assisted delivery); `backend-practices` (HTTP contract design, service boundaries, result caches and jobs, pipeline throughput, database migrations for PostgreSQL 18 / MySQL 8.4 / MariaDB with CodeIgniter 4 and Alembic runners, conditional-path regressions); `api-contract` (non-HTTP shared boundaries); `frontend-quality` (visual system, WCAG 2.2 criteria map, state-transition audit, translations); `stack-practices` (`coding-baseline.md` with an optional TypeScript section); `outcome-evals` (agent comparisons, delivery-quality rubric, performance baselines, measured optimization); `debug-root-cause` (agent runtime failures); `code-health` (external structural analysers); `plugin-dev` (tool and observation contracts, architecture diagnostics, persistent workflows — no new `agent-system-quality` skill, `plugin-dev` already owns it).
+- Kits: shared references for capability selection, context cost and installation lifecycle; architect references for a hexagonal option with slice migration and for deliberating one alternative; a documenter onboarding template; a qa reference for stable E2E evidence.
+- `journal.py candidatas` gives each candidate a stable `id` and a lexical `categoria`, with a reproducible `--lote`/`--hasta` batch and `--confirmar` that never marks anything processed; journal entries accept an explicit continuity schema (`objetivo`, `punto_actual`, `siguientes_pasos`, `bloqueos`) where an omitted key keeps its value. `usage-meter.py close` emits provenance and coverage keys separating measured tokens, estimated cost and incomplete cost. `/doctor` lists hooks, statusline and workflows under «Automatizaciones» with execution always `no_verificada`. `code-health.py` reports git-tracked files under vendor/build directories (`excluidos_versionados`). `evals/check.py` accepts `trigger: en-contra` cases. `export-interop.py --check` fails when generated files carry an absolute home path.
+
+### Changed — Planner, documenter and implementer from the comparison
+
+- The planner replans without losing evidence (stable IDs, recorded reason, revalidated dependencies, authorized cancellation kept apart). The documenter inventories existing docs before creating new ones and keeps a «Retirados» section in the index. The implementer adds files by name, merges a shared branch instead of rebasing it, and reads both sides of a conflict before resolving it.
+
+### Changed — Catalog comparison destinations (P1/P2)
+
+- `delivery-practices` treats external content (issues, PRs, CI logs, mail, provider responses) as data and gates external effects with digest-bound expiring approval, atomic limits, explicit sandbox/real and an `unknown` outcome that is reconciled, not retried; it adds an isolated test harness and delivery-contract lines (Compose file secrets, CI OIDC with per-job permissions, fail-fast env, checked vs missing evidence, PDB/autoscaler, idempotent transport-independent MCP tools). `api-contract` treats spec text and `x-` extensions as data and its contract-test reference covers owners, consumers, edge cases and the real serialized payload. `CONTRIBUTING.md` adds a maintainer triage note.
+- `backend-practices` adds retry policy, atomic quota, self-triggered and incoming webhooks, paid calls before persistence, replica reads, deadlocks, uploads and a "cache, locks and limits" table. `stack-practices` adds, for React, deterministic first render, version-checked conventions, server module state, MSW/cache test rules, Vite env and type-check rules and corrected examples, and for Python, cause chaining and redaction before logging.
+- `frontend-quality` covers native `<dialog>`, grouped form errors, WCAG 2.2 target sizes and an animation case. `research-first` adds "compose", optional channels, query/date/`as_of` per pass, external skills reviewed as code and a source-bias table. `outcome-evals` defines pass@k/pass^k, rejects silent extractors and judges given the measurement, and fixes prompt pressure as a condition.
+- `tdd` covers behaviour changes, pure refactors and compile/type reds; `debug-root-cause` proves each joint cause; `adversarial-review` triggers Lens C on `"use server"` and treats relaxed gates and weakened tests as gaps; `cybersecurity` rotates leaked secrets first and checks agent configuration concretely; `code-health` documents `--baseline` as a ratchet; `capability-audit` adds an "elevate to convention" output.
+- `plugin-dev` asks for an existing owner first, an extraction criterion, a sanitizing checklist for imported pieces and a "lines that change nothing" anti-pattern. `jira-sync`, `/roadmap-live` and `confluence-pull` treat ticket and page content as untrusted data; `plugin-panel` documents non-blocking feedback and no CDN.
+- Agents: the implementer checks importers and the real data format before editing and asks before a risky `Verificación`; qa locates controls by role; the analyst classifies constraints and bans vague criteria; spec and design templates separate facts from business constraints and record invariants; the planner cuts vertical slices; `/dev-cycle` serializes tasks on the same store and re-runs verifications on each reintegration; `/setup` proposes constitution principles from the code with a signal threshold.
+- Shared kit: `guardrail-check.py` also denies `npm|pnpm|yarn publish`, `docker|podman system|volume prune`, `kubectl delete` and `DROP` through SQL clients; `scope-check.py` fails when an approved acceptance criterion is rewritten or deleted; the task brief asks for domain synonyms before `NEEDS_CONTEXT`; memory fragments, the ADR template, the rationalization table and the outbox contract gain the agreed lines.
+
+### Fixed — Skill frontmatter keys
+
+- Five skills used `user-invokable`, which Claude Code ignores silently; they now use `user-invocable`. `lint_plugin.py` warns on undocumented skill frontmatter keys (suggesting the close match) and on a `name` that differs from its folder.
+- `jira-flow.py --force` on a pending event keeps the warning to look for the comment reference before publishing again, and warns of a second comment on a published one. `lint_plugin.py` names the decision that retired a path when it reappears.
+
+### Added — SessionEnd budget measurement
+
+- `tests/session-end-budget.test.mjs` measures the real SessionEnd capture against the 1.5 s budget and proves `journal.py recover` materializes a cut capture (known red on Windows, tracked as `todo`).
+
+### Fixed — Jira comment receipts
+
+- `jira-flow.py plan` no longer marks an event as published when it builds the plan: the event stays `pending` until `jira-flow.py confirmar` runs after the Jira calls succeed (with the comment id as receipt). A pending event comes back with `reintento: true` and the reference to look for in the issue, so a failed post is retried and an ambiguous one is checked instead of duplicated. Older state entries count as published.
+
+### Fixed — Agent configuration in security scans
+
+- `cybersecurity` no longer lists `.claude/`, `AGENTS.md` or `SKILL.md` among the files it never reviews: agent configuration (`.claude/`, `.mcp.json`, `.cursor/`, `.codex/`, `.opencode/`, `AGENTS.md`, `CLAUDE.md`, `SKILL.md`) is always reviewed, as data.
+
+### Fixed — Atomic PDF output
+
+- `to-pdf` writes to a temporary file and renames it when the conversion finishes; a failed conversion leaves no partial file and says when the PDF left under that name belongs to an earlier source.
+
+### Fixed — Coverage gate message for unsupported builds
+
+- `coverage-gate.py` names Gradle, Maven and Cargo projects and the tool that measures them (`buildSinSoporte`) instead of asking whether their manifests are missing; exit 2 and no invented percentage, as before.
+
+### Fixed — Private state directories on Windows
+
+- On Windows, plan review, agent activity, knowledge curation and Graphiti publication/rebuild state directories inherit the project folder permissions instead of the explicit ACL that Python 3.13 applies to `mkdir(mode=0o700)`; the Codex sandbox can consume plan decisions again. POSIX keeps `0o700`.
+
+### Fixed — Journal recovery warning
+
+- `journal.py recover` only reports candidates skipped by its limit or time budget; sessions already captured no longer trigger «N candidate(s) not recovered» on every start.
+
+### Fixed — Deterministic plan decision consumption
+
+- Consume a selected plan decision through the existing owner with bound delivery/ack IDs and a final current-view check; preserve waiting, obsolete versions and retry receipts without launching workflow effects.
+
+### Fixed — Obsolete plan-review guidance
+
+- Distinguish opening a review for a new plan version from consuming an existing decision, and preserve the receive/ack/view order and nonzero JSON results.
+
+### Fixed — Resume command output
+
+- Preserve the complete composer JSON and use its selection result for unfiltered resume requests; resolve the kit from the authorized project root.
+
+### Changed — Core validation evidence
+
+- Record full Windows/Linux validation, current production coverage scope and JavaScript line measurements, keeping native workflow, human UI and independent review acceptance separate.
+
+### Fixed — Activity catalog consistency
+
+- Require the native execution-start event in panel activity declarations while keeping terminal capture separate. Review and renew the local activity owner dependency pin; preserve network mutation checks.
+
+### Fixed — Activity at native execution start
+
+- Observe OpenCode execution start through the existing opt-in activity owner, independently of terminal session capture. Keep live prompt logs during execution and retain native end/idle capture; verify with a held local provider.
+
+### Fixed — Producer memory scope
+
+- Remove the stale direct legacy ADR/index write permission from producer guards. Share the memory scope check, retain explicit opt-out and consumer-agent permissions, and verify actual OpenCode writes and nested agent identity.
+
+### Fixed — CLI budget and Windows acceptance publication
+
+- Count the CLI terminating newline in brief overflow diagnostics. Stabilize synthetic restore/audit publication against bounded Windows sharing contention, preserving persistent failures and existing restore destinations.
+
+### Fixed — Native query deadline
+
+- Count synchronous CLI startup against the original Codex plugin-state deadline and discard late successful output. Add an actual-process regression and prepare platform fixtures before testing responsive queries.
+
+
+### Fixed — Native graph source linkage
+
+- Reject invalid prior versions and prevent coincident Entity names from bypassing native UUID provenance. Require episode references for modern facts, retain derivative labels, and validate source identities in full without truncation.
+
+
+- Retain the original sanitized submission failure across uncertain retries without resending; validate bounded diagnostic fields in owned receipts.
+
+
+- Preserve derivative authority labels and source UUIDs in shared JSON and compact reads; retain exact bounded identities and reject inconsistent claims. Keep the authority label visible when shortening compact output.
+
+
+- Resolve native fact episode UUIDs and Entity membership to confirmed current source identities, with bounded lookup and no name fallback for malformed native references. Preserve independently bound facts when membership is unavailable and label extracted text as derivative without approval or claim-level authority.
+
+### Changed — Recoverable memory reconstruction
+
+- Build and verify a separate generation before switching publication; retain the prior group, snapshots and uncertain abandoned stages. Recover interrupted submissions without resending, rebind version history to confirmed UUIDs, and repair remote loss from exact owned snapshots or canonical source.
+
+### Changed — Memory generation resolution
+
+- Resolve published physical groups bound to the project's logical scope without activating pending descriptors or adopting another projection. Revalidate under lock and close gates for unsafe descriptors or concurrent changes; establish the scope foundation for generation-based reconstruction.
+
+### Fixed — Remote memory history verification
+
+- Verify transition markers, retired versions and historical edges with exact identity and content, including manifests without current entries. Reject contradictory manifests, duplicate names and out-of-group responses; distinguish incomplete windows from successful verification without state mutation.
+
+### Fixed — Interrupted memory succession
+
+- Record and recover transition intent before withdrawing abandoned versions or confirming replacements; reuse existing relationships and defer dependent operations after failure. Prevent receipts from expanding the configured mode and reuse shared manifest I/O with Windows retry and target identity checks.
+
+### Fixed — Context and types for memory control markers
+
+- Isolate succession and withdrawal markers from prior episode context; exclude Entity and declared custom types before validating their attributes. Validate configuration without changing extraction for approved knowledge entries.
+
+### Fixed — Memory submissions withdrawn before confirmation
+
+- Recover pending publications removed from the approved corpus through exact readback and version-scoped withdrawal without resubmission. Retain withdrawn identity before pruning receipts; interrupted commits and stale replay preserve provenance and later generations.
+
+### Fixed — Typed Graphiti errors
+
+- Reject typed MCP ErrorResponse results even when isError is false, preserving successful envelopes and sanitizing diagnostics. Align the remaining security assertion with partial-publication recovery.
+
+### Fixed — Recoverable memory publication
+
+- Reconcile outbox replay before fresh planning so withdrawn or superseded knowledge cannot remain as the final projection. Retry bounded Windows final-manifest sharing denials while checking observed file identities; report possible partial publication and recovery without promising global rollback.
+
+### Fixed — Native OpenCode teardown
+
+- Resolve Windows process termination through the system executable so cleanup completes with a restricted PATH; isolate capture assertions from informational activity.
+
+### Fixed — Owned metadata publication
+
+- Recover transient Windows sharing denials when replacing owned state within the caller deadline, while rechecking the observed generation and avoiding overwrite after replacement rejection.
+
+- Preserve ledger heading markers when moving execution details into history, keeping command consumers and resume compatible.
+
+### Fixed — Read-only local queries
+
+- Stabilize Windows metadata-only reads through one bounded, identical-payload reread while retaining path and identity checks; prevent helper bytecode writes from project-local resume and plan review CLI queries.
+
+### Changed — Review continuity
+
+- Graphiti confirms server-assigned UUIDs and retains asynchronous receipts; succession and withdrawal bind individual versions. Documentary relationships are the default; direct edges require opt-in and a server with verified group write isolation.
+
+- Show scoped plan review receipts when resuming work and in session progress, preserving versions, states and omission notices without delivering, acknowledging or approving decisions.
+
+### Fixed — Cumulative process measurements
+
+- Use exclusive temporary files for meter state and bounded replacement attempts for Windows access and sharing errors. Preserve the previous snapshot and visible failure state when replacement is exhausted, without retrying unrelated errors.
+
+- Identify persisted measurement windows and revisions so shared plan/task snapshots use the latest whole close instead of adding cumulative tokens, hours and cost. Preserve independent windows and legacy exact copies, and show partial data for failed persistence, conflicting revisions or invalid identities.
+
+### Changed — Development request continuity
+
+- Carry the requested outcome, explicit requirements and their sources into both development paths. Keep project patterns and open assumptions in existing task notes, and connect acceptance criteria with verification in the implementation brief.
+
+### Added — Local knowledge transfer
+
+- Export explicitly selected approved notes as a bounded, hash-bound package and import them as pending proposals in another project. Preserve source bytes and provenance, validate the whole batch before persistence and report partial effects without automatic approval or backend activation.
+
+### Added — Optional agent activity
+
+- Display recent native activity signals in the local panel with manual refresh, polling and expiry. Keep incomplete collection and unknown states visible; separate response and execution events from task progress and process liveness. Capture is opt-in, bounded and excludes local activity files from Git.
+
+### Changed — Reviewed commit selection
+
+- Preview and revalidate exact selected paths before the workflow's native Git commit, preserving unrelated staging. Report conflicting selections and changed snapshots through one shared read-only CLI; verify the resulting commit and retain discrepancies for review.
+
+### Fixed — Activity configuration and panel labels
+
+- Recognize the activity boolean in the installation diagnostic and retain correctly encoded accessible labels in the memory view.
+
+### Added — Plan review responses
+
+- Record results for individual consumed plan comments, show producer actors as declared or unknown, and retain optional human observations through the existing owner CLI. Distinguish consumption, attention and communicated verification in versioned panel history without adding approval gates or browser write endpoints.
+
+### Added — Explicit curation continuity
+
+- Show curation associated with the current initiative through exact candidate paths and hashes recorded by the ledger owner. Observe pending operations and validated persistence receipts without recovery, promotion or implied QA; retain complete identities and count references omitted by bounded output across generated runtime commands.
+- Resume a selected curation operation explicitly using complete IDs, the candidate SHA256 and validated persistence receipts. Reject stale bindings and preserve local recovery state without automatically approving or publishing.
+
+### Fixed — Workflow ownership
+
+- Reserve initiative closeout for the orchestrator after review, QA, documentation and the retro gate; keep standalone QA evidence separate from final states. Align Jira completion, design proposals and diagrams with their existing owners and persistence contracts across all three runtimes.
+
+### Fixed — Regression suite execution
+
+- Exercise publication CLI boundaries, recoverable curation failures and Gold proposal handoffs with real local fixtures; verify preserved bytes and receipts without requiring external memory services.
+- Include Confluence scope tests in CI and exercise the visual review envelope validator with valid UTF-8 input in Windows console tests.
+- Distinguish runtime configuration values and local URL parsing from network calls in hook security tests, follow the capture and native guard dependencies, and preserve the real local policy reader when spying on backend loading.
+- Keep parser mutations visible to hook security checks across nested scopes and aliases, including class changes, internal methods and attribute setters; conservatively withhold argparse exemptions when object attributes may have changed.
+- Make Windows shell and permission test environments explicit, preserve resolver values independently of timeout arguments in backend spies, and document the executable gate for the training-to-curator handoff.
+- Copy the local reader dependencies into the relocated memory brief test and retain backend verification results in assertion diagnostics.
+- Quote Windows Python paths in coverage fixtures and remove temporary evaluation repositories with read-only Git objects; report cleanup failures through the shared redactor, retaining the directory and using a fixed notice if redaction is unavailable.
+- Preserve the first publication exception in test support with its cause and failing stage. Retain the temporary file and re-raise the original error without retries or a secondary cleanup write masking it.
+
+### Changed — Shared knowledge curation
+
+- Route new proposals through one shared persistence service and reserve approval decisions for the curator. Validate the original hash and final knowledge metadata before publication, preserve recovery intents and exclude candidates and session journals from Confluence publication.
+
+### Changed — Native Codex command transport
+
+- Generate explicit command adapters inside the plugin from canonical workflows, preserving their full bodies and literal shell syntax. Keep canonical skills in their own manifest root. Install adapters within the selected scope and preserve existing personal prompts while releasing obsolete installer ownership.
+
+### Fixed — Portable visual plan review caller
+
+- Invoke the existing plan-review gate from Bash or PowerShell using literal arguments, a real Python executable and a common owner/panel bundle. Keep opening, server lifetime and decision consumption separate; ambiguous installations and failed opening do not start a review server.
+
+### Fixed — Quoted local knowledge links
+
+- Normalize matching quotes consistently in simple inline and block lists; malformed link values remain subject to validation. Add synthetic local-memory recovery drills accepted for the frozen Block20 selection on Windows and Linux. Reject linked roots and ancestors before synthetic backup or restore changes any fixture.
+
+
+### Added — Optional visual plan review
+
+- Review an explicitly selected plan as a complete redacted text view with section comments and durable version/gate receipts. The common CLI validates and acknowledges the decision before an authorized workflow continues; prior conversational approval and local fallback remain available.
+
+### Fixed — Portable code receipt validation
+
+- Reject case-colliding and artifact-aliased receipt paths before reading source files on every platform. Exercise UTF-8 context payloads in console checks and keep the knowledge-services description within the OpenCode limit.
+
+### Added — Optional document reads and explicit code receipts
+
+- Authorize document queries by explicit intent against current approved sources, exports and native chunks. Reject stale bindings and preserve local fallback; generated answers remain unverified and have no authority.
+- Add exact AST selectors and byte receipts for declared inputs, plus an explicit producer using caller-selected external Graphify. Partial reads and changed inputs suppress context; receipts establish no repository coverage or producer authentication.
+
+### Added — Synthetic memory evaluation
+
+- Document native document retrieval, temporal fact retrieval and AST code-context experiments against a local control. Publish synthetic sources, questions, response evidence and limits; define the next opt-in integration contract without enabling consumer services.
+
+### Added — Bounded canonical memory queries
+
+- Share bounded legacy/approved snapshots between CLI and served-panel Search, Show and Relations. Preserve full IDs, knowledge versions, evidence, collisions and partial reads; portable exports include transitive Python helpers without executing them.
+
+### Fixed — Document bridge HTTP bounds
+
+- Bound response bytes, JSON nesting and cumulative request time, with private IP pinning, redirect cleanup and preserved HTTPS verification. Publication remains owned by the existing adapter.
+
+### Fixed — Bounded redaction work
+
+- Scan PEM markers and secret assignments in linear time before clipping memory text. Preserve canonical redaction semantics and the journal's declared standalone fallback.
+
+### Added — Local operational dashboard
+
+- Add explicit loopback serving with capability access and a bounded canonical-ledger progress view, polling, filters and visible read freshness. Keep catalog snapshots and live ledger reads distinct; no automatic runtime or memory actions.
+
+### Fixed — Diagnostic filenames
+
+- Preserve configuration filenames and validation fields when doctor reports long absolute paths, with redaction before truncation and an opaque fallback when the redactor is unavailable.
+
+### Added — Explicit panel diagnostics
+
+- Import an explicitly selected portable doctor snapshot into the capability panel, with scope binding, UTC date, public check labels and priority references. Keep private details in doctor and distinguish missing, rejected, old and truncated snapshots from live hook execution.
+
+### Added — Directed work resume
+
+- Add `/work-resume` as a read-only facade over the current ledger and selected journal history. Share bounded local reads and exact selection across manual and startup history views; show ambiguous identities, invalid records and incomplete searches without substituting another session. Preserve legacy unknown runtimes and distinguish historical quotations from current task state and QA evidence.
+
+### Fixed — Git commit verification guards
+
+- Extend the shared `git` rule for exact owned implementer and architect IDs in Claude, Codex and OpenCode. Deny commits that disable verification or explicitly override `core.hooksPath`, including recognized literal environment and wrapper forms. Preserve later `--verify`, commit messages, path arguments, ordinary amend and per-project opt-out; document the parser's limits.
+
+### Fixed — Branch guards and hook startup work
+
+- Preserve branch protection before the first commit within the existing query budget. Skip PostToolUse business processes for recognized edits outside each handler's scope while retaining unknown-input handling; keep guard and capture timeouts unchanged.
+
+### Fixed — Guard decision delivery
+
+- Validate bounded structured guard results before native delivery. Make missing or invalid evaluations visible in Claude, Codex and OpenCode while retaining normal permissions; preserve complete denials across later evaluator or cleanup failures. Keep runtime budgets unchanged and the startup-under-load diagnosis open.
+
+### Fixed — Approved memory retrieval
+
+- Include valid approved Markdown in local search, complete-entry views, declared relations and backend fallback. Preserve namespaced IDs, knowledge versions and evidence across the cache and plain reader; share local taxonomy and approved parsing without loading network services. Diagnose invalid corpora, ambiguous IDs and paths outside declared folders.
+
+### Changed — Session continuity evidence
+
+- Compare session command contracts and propose a read-only continuation view over the existing ledger and journal. Record four isolated Codex closure probes, including a guard degradation under child load; retain unsuccessful evidence without claiming a launcher fix or a three-second guarantee.
+
+### Fixed — Memory capabilities and lifecycle documentation
+
+- Reconcile the existing Kwipu projection and opt-in Graphiti retrieval contracts, server provider guidance and local fallback. Distinguish runtime capture budgets from launcher startup; update lifecycle diagrams to match the distributed native guard dispatcher.
+- Write memory test fixtures with explicit LF on Windows and check complete relations through JSON while retaining compact-output limits and truncation notices. Keep the hook scanner strict; validate clean source snapshots without generated bytecode.
+
+### Fixed — Runtime hook contracts in the panel
+
+- Read separate Claude, Codex and OpenCode hook sources; group runtime plus event and expose handler purpose, activation, source, role identities and budget provenance. Consume the same declarative catalog in the OpenCode adapter; retain unknown loading/execution and accessible filters, action links, history and mobile Sources.
+
+### Changed — Prioritized diagnostic remedies
+
+- Derive up to three doctor actions from existing error and warning rows, retaining block/row references, the complete report and exit codes. Keep JSON and Markdown priorities identical; reconcile setup's optional network checks and authorization already granted for fixes.
+
+### Fixed — Native role guards and conservative migration
+
+- Route owned Claude, Codex and OpenCode identities through one mutation normalizer and central policy. Preserve Unicode/context/heredoc grammar, bound incomplete heredoc scans and migrate only attributable legacy exports; retain customized agents and ambiguous bindings. Record independent review and native cohort hashes, keeping SessionEnd efficacy separate.
+
+### Fixed — Codex reviewer permission claims
+
+- Remove an ineffective per-role sandbox field from the reviewer export and explain inherited Codex permissions. Distinguish OpenCode edit-tool restrictions from shell permissions; document native role identity and preexecution checks without presenting fixture dispatchers as installed guards.
+
+### Fixed — Codex native installation and diagnosis
+
+- Validate native cache before project activation, prepare registration in an isolated home and preserve global marketplace preferences. Handle equivalent quoted TOML keys and scoped native paths; distinguish configuration from the bounded native CLI listing in status and doctor.
+
+### Fixed — Canonical terminal capture
+
+- Isolate durable capture from deferred journal materialization, use a single log snapshot for event identity and sequence, and resolve packaged runtime versions. Bound child work by runtime, terminate its process tree on timeout, and retain prompt recovery; verify native headless closure without changing consumer timeout settings.
+
+### Changed — Native hook evidence and operational comparison
+
+- Record isolated native Claude/Codex findings, terminal-budget limits and recovery evidence. Compare operational panels and 18 command bodies while keeping incomplete dependencies and proposed integrations explicit.
+
+### Fixed — OpenCode V2 transport
+
+- Replace the incompatible V1 adapter with a native local package for prompt capture, bounded session context and durable execution-end capture. Preserve consumer permissions and instructions; retire only known unchanged legacy copies. Native guard validation remains open.
+
+### Fixed — Session checkpoint integrity
+
+- Honor the disabled journal object during prompt capture, rotate logs atomically with bounded reads, and serialize queue claims across consumers. Journal CLI paths use `/` on Windows as well. Native runtime dispatch validation remains in progress.
+
+### Added — `project-extensions` initiative (2026-10-06)
+
+- **T-01 — Extension contracts and architecture** Define native contracts and extension discovery limits across the three runtimes. (`docs/roadmap/2026-10-06-project-extensions/**`, `docs/roadmap/README.md`, `docs/INTEGRATION-ROADMAP.md`)
+- **T-02 — Bounded discovery across runtimes** Recognize local agents, skills, personas, tool sources and MCP declarations without executing them or exposing private configuration. (`agent-kits/shared/project-pieces.py`, `tests/test_project_pieces.py`, `tests/test_console_encoding.py`)
+- **T-03 — Verifiable ownership, identity and conflicts** Distinguish ownership and identity and show source and invocation conflicts without overwriting user components. (`agent-kits/shared/project-pieces.py`, `tests/test_project_pieces.py`)
+- **T-04 — Shared explicit extension selection** Share explicit extension selections across roles and tasks using IDs and provenance. (`agent-kits/shared/capability-check.md`, `agent-kits/shared/project-pieces.py`, `commands/work-context.md`)
+- **T-05 — Task briefs and project personas** Transfer bounded references into task briefs and preserve project persona priority. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/project-pieces.py`)
+- **T-06 — Panel extensions with sources and conflicts** Show user extensions in the panel with search, filters, sources and identifiable conflicts. (`skills/plugin-panel/**`, `tests/test_plugin_panel.py`, `evals/cases/skill-plugin-panel.json`)
+- **T-07 — Workflow, distribution and bilingual documentation** Integrate the shared method, exports and bilingual documentation with verified portable distribution.
+- **T-08 — Review, coverage and QA across runtimes** Verify parsing, privacy, selection, briefs and the panel on Windows, Linux and Edge with independent review and make release tests portable. (`tests/**`, `docs/roadmap/2026-10-06-project-extensions/testing/**`)
+- **T-09 — Retrospective, states and changelogs** Record integration outcomes, limits and the retrospective, and synchronize change notes. (`docs/**`, `CHANGELOG.md`, `CHANGELOG.es.md`)
+- **T-10 — Publish the branch and verify the remote commit** Publish the extension branch and verify its remote SHA without merging or releasing. (`docs/roadmap/2026-10-06-project-extensions/tasks.md`)
+
+### Changed — `workflow-integration` initiative (2026-10-06)
+
+- **T-01 — Traceable catalog decisions and workflow contract** Document decisions and limits of adapted capabilities, preserve legal notices and use native public names.
+- **T-02 — Shared catalog and deterministic guidance selection** Select guidance by role, stack and area from bounded manifests without executing project code. (`agent-kits/shared/capability-catalog.json`, `agent-kits/shared/capability-route.py`, `tests/test_capability_route.py`)
+- **T-03 — Consolidated stack guidance and retirement of initial maps** Consolidate initial guidance into stack-practices and retire replaced maps and references. (`skills/stack-practices/**`, `skills/codeigniter-practices/**`, `skills/python-practices/**`)
+- **T-04 — Backend, frontend and delivery guidance** Add backend, frontend and delivery criteria with concrete references and evaluated activation. (`skills/backend-practices/**`, `skills/frontend-quality/**`, `skills/delivery-practices/**`)
+- **T-05 — Capability audit and outcome evaluation** Audit capabilities and compare observed JUnit outcomes under explicit conditions without invented metrics. (`skills/capability-audit/**`, `skills/outcome-evals/**`, `evals/**`)
+- **T-06 — Memory context and isolated structural pilot** Add cited AST queries and an isolated pilot while preserving existing memory governance. (`agent-kits/shared/**`, `tests/test_code_context.py`, `docs/WORK-CONTEXT.md`)
+- **T-07 — Guidance selection across roles, cycles and briefs** Share guidance across roles, cycles and briefs while preserving size limits and quality gates. (`agents/**`, `commands/dev-cycle.md`, `commands/pm-cycle.md`)
+- **T-08 — Interactive panel for the native workflow** Modernize the panel with descriptive hooks, accessible navigation and six stages showing their native roles. (`skills/plugin-panel/**`, `commands/work-context.md`, `tests/test_plugin_panel.py`)
+- **T-09 — Retire replaced assets and refresh generated distribution** Refresh distribution and multi-runtime exports from their canonical sources and retire replaced assets.
+- **T-10 — Independent review, coverage and Windows/Linux/browser QA** Validate Windows, Linux, Edge and coverage; resolve every verified review finding. (`docs/roadmap/2026-10-06-workflow-integration/testing/**`, `tests/**`)
+- **T-11 — Bilingual documentation, retrospective and closure records** Synchronize bilingual documentation, evidence, retrospective, changelogs and future phases with explicit limits. (`docs/**`, `CHANGELOG.md`, `CHANGELOG.es.md`)
+- **T-12 — Publish the branch and verify the remote commit** Publish the authorized branch and verify that the remote commit matches the local delivery. (`docs/roadmap/2026-10-06-workflow-integration/tasks.md`)
+
+### Added — `capability-foundation` initiative (2026-10-06)
+
+- **T-01 — Compare reference capabilities, Graphify and current memory** Documents selective capability adoption and Graphify as a possible structural complement to curated memory. (`docs/roadmap/2026-10-06-capability-foundation/**`, `docs/roadmap/README.md`)
+- **T-02 — Research before building** Analyst and architect can compare existing solutions before designing integrations or tools with research-first.
+- **T-03 — Capability control panel** plugin-catalog generates a searchable local catalog with central redaction and runtime/memory source presence.
+- **T-04 — Practices for the three stacks** Development roles gain task-specific guidance for CodeIgniter 4, Python and React.
+- **T-05 — Validate, document and push the branch** The first capability integration preserves contracts across all three runtimes and documents its capabilities and memory limits.
+
+### Fixed — `plugin-refactor` initiative (2026-09-09)
+
+- **T-01 — Accurate TODO detection** The code health report excludes its own detector descriptions and Spanish prose, removing eight false positives.
+- **T-02 — Exclude generated code** Add --exclude-path to code health; the default output stays unchanged.
+- **T-03 — Task brief functions** Split brief sections and persona sizing into functions while preserving the emitted bytes.
+- **T-04 — Bounded usage windows** Exclude responses before the measurement window, tolerate timestamps without time zones and report independent wall time.
+- **T-05 — Knowledge lookup functions** Split lookup responsibilities while preserving its JSON contract.
+- **T-06 — Doctor functions** Separate diagnostic blocks and installation states while preserving verdicts and exit codes.
+- **T-07 — Dashboard functions** Separate rendering responsibilities while preserving HTML, Markdown and JSON.
+- **T-08 — Linter functions** Separate checks while preserving error, warning and CLI contracts.
+- **T-09 — Declared copies** Register portable shared code copies and verify their literal identity with one test gate.
+- **T-10 — Unregistered copy gate** Fail lint when shared sentinels or fallback blocks are not registered.
+- **T-11 — Scope exclusions** Exclude orchestrator files by default and accept additional project exclusions.
+- **T-12 — Installed command names** Show marketplace command namespaces in doctor and current documentation.
+- **T-13 — Plans without UI** Use the shared test-plan: n/a (sin UI) marker so QA can verify a project without requesting nonexistent UI tests.
+- **T-14 — Component contracts** Document calls, flags, outputs, files, markers and executable gates between plugin components.
+- **T-15 — Dependent files and exports** Declare generated files and their documentation in task scope; regenerate and verify interop exports.
+- **T-16 — Reference checks** Warn about missing scripts, commands and executable contract gates.
+- **T-17 — Measured versus estimated usage** Expose estimated measurement blocks and exclude inherited ratios from calibration samples.
+- **T-18 — Prompt security review** Select the security lens when consumer-controlled text reaches a prompt or brief.
+- **T-19 — Dated historical figures** Freeze figures in historical documents while continuing to verify live measurements.
+- **T-20 — Independent reviews** Review each refactor stage with two independent lenses and retain contract evidence in the ledger.
+- **T-21 — Review corrections** Resolve review findings while preserving pure-refactor tests and contracts; verify the Node launcher traversal and the byte-hash Confluence fixture.
+- **T-22 — Technical closure** Reduce the five hotspots from 36 to 15 long functions and record the retrospective and partial measured calibration of 849708 tokens/hour. PR integration remains pending.
+
+### Fixed — `brief-budget` initiative (2026-09-09)
+
+- **T-01 — Budget regression across roadmap ledgers** Real ledgers are checked with design, constitution and memory; briefs fit the budget or report the exact irreducible minimum. (`docs/roadmap/CALIBRATION.md`, `agent-kits/shared/test_task_brief.py`)
+- **T-02 — Relevant design modules** Concrete file paths select relevant design modules; designs without a module table use a bounded fallback. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/architect/templates/design.md`)
+- **T-03 — Verification without execution history** Evidence links back to the ledger; commands, expected results, acceptance criteria and current decisions remain intact. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+- **T-04 — Bounded review gaps** Only the task's relevant gaps from the latest attempt are included, within a dedicated section budget. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+- **T-05 — Section budgets** Design, gaps and verification have individual caps; global adjustment preserves memory and the persona floor, warning when a contract requires task division. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+- **T-06 — Review and closure** Independent review and regressions close the brief-budget initiative with measured behavior, a retrospective and synchronized exports. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+
+### Fixed — `hooks-runtime` initiative (2026-10-06)
+
+- **T-01 — Portable interpreters and runtime limits** All three runtimes use native Python and Git Bash on Windows. Codex exports SessionEnd at 3 s; apply_patch/Edit preserve messages and sensitive-document exclusions, and SessionStart includes compact.
 ### Changed — `setup-statusline-polish` initiative (2026-09-29)
 
 - **T-01 — C-06 - Test de 200 upserts sin reloj** The Markdown exporter's 200-upsert test no longer fails depending on machine load: it counts operations instead of seconds. (`skills/knowledge-services/scripts/test_backend_markdown_export.py`)
@@ -279,14 +840,14 @@ and versioning follows [SemVer](https://semver.org/).
 
 ### Added — `parity-core` initiative (2026-09-03)
 
-- **Configurable model tiering, two layers** ([`ADR-009`](docs/knowledge/adr/)): every agent declares `model` **and `effort`** (official values `low|medium|high|xhigh|max`, linter-enforced), and `.claude/dev.json` `"modelos": {"<agent>": {...}}` overrides it per agent. `agent-kits/shared/model-tier.py` resolves the effective tier (frontmatter + config, with `fuente` per field) and the four orchestrators pass `model` to the Agent tool. Honest limit: the Agent tool documents no per-invocation `effort`, so that key is informative — only the frontmatter's is effective. `/setup` step 5-quater edits it.
+- **Configurable model tiering, two layers** (`ADR-009`): every agent declares `model` **and `effort`** (official values `low|medium|high|xhigh|max`, linter-enforced), and `.claude/dev.json` `"modelos": {"<agent>": {...}}` overrides it per agent. `agent-kits/shared/model-tier.py` resolves the effective tier (frontmatter + config, with `fuente` per field) and the four orchestrators pass `model` to the Agent tool. Honest limit: the Agent tool documents no per-invocation `effort`, so that key is informative — only the frontmatter's is effective. `/setup` step 5-quater edits it.
 - **`architect` agent + `design.md`**: from an approved spec it explores the repo and produces 2-3 options with trade-offs, criteria and a recommendation; the **orchestrator** presents them in digestible chunks (AskUserQuestion in Cowork, numbered list in CLI), collects the choice and re-invokes the agent to fix `opcion_elegida`, write the ADR and move `design.md` to `aprobado`. Opt-in from `/pm-cycle` (after go) and `/dev-cycle` Phase 2-a; `planner` reads it and respects the chosen option. Its own `PreToolUse` guard hook (writes only `design.md`, the `design:` frontmatter and `docs/knowledge/adr/`).
 - **`tdd` skill** — single source of RED-GREEN-REFACTOR: the iron law (code written before its test is deleted and rewritten after the red), mandatory red evidence in the ledger, what TDD is *not*, declared exceptions, an 8-row rationalisation table, `references/anti-patterns.md` and `references/by-stack.md` (how to run one failing test in pytest/jest/vitest/phpunit/go). `implementer` and `task-brief.py` reference it instead of repeating the method.
 - **`reviewer` agent (read-only)** executes each lens for `adversarial-review` (no `Write`/`Edit` in `tools`, by construction), with a fixed output contract; falls back to a generic subagent when unavailable. Plus shared references `docs-style` (ES/EN technical writing rules, loaded by documenter/analyst/planner/architect) and `plugin-dev/references/claude-code-contracts.md` (every official contract used, with URL and verification date, so pieces stop re-fetching the docs).
 
 ### Added — `memory-health` initiative (2026-09-03)
 
-- **`session-journal`** ([`ADR-010`](docs/knowledge/adr/)): a `SessionEnd` hook plus `agent-kits/shared/journal.py` writes one deterministic entry per session in `docs/knowledge/journal/` (active initiative, files touched, tasks that changed state, closed meter markers), idempotent by `session_id`, re-injected on startup/resume (≤ 25 lines). Only writes in projects that use the plugin; excluded from the Confluence mirror; entries are versioned (opt-out documented). **No AI summary**: the official `SessionEnd` contract ignores hook output, and that is recorded rather than faked.
+- **`session-journal`** (`ADR-010`): a `SessionEnd` hook plus `agent-kits/shared/journal.py` writes one deterministic entry per session in `docs/knowledge/journal/` (active initiative, files touched, tasks that changed state, closed meter markers), idempotent by `session_id`, re-injected on startup/resume (≤ 25 lines). Only writes in projects that use the plugin; excluded from the Confluence mirror; entries are versioned (opt-out documented). **No AI summary**: the official `SessionEnd` contract ignores hook output, and that is recorded rather than faked.
 - **`code-health` skill** (`code-health.py`): language-agnostic report with four measures — duplication by normalised token shingles with `file:line` pairs, size/nesting/long functions, hotspots (git churn × size) and aged TODO/FIXME — with MD, `--json` and `--baseline`; `evaluator` uses it to weigh risk, `planner` to open debt tasks.
 - **`dependency-upgrade` skill** (`deps-inventory.py`): 7 manifest formats plus lockfiles, official `outdated` when the toolchain is present (never invents a "latest"), semver jump classification, and a drafted upgrade spec for `evaluator` to price. Bounded against `nemesis` (vulnerabilities).
 
@@ -294,39 +855,39 @@ and versioning follows [SemVer](https://semver.org/).
 
 - **`/doctor`**: deterministic, side-effect-free diagnosis of the installation — tools, plugin resolution, registered hooks, statusline, `.claude/` configs, work state (orphan meter markers, active initiatives, last journal entry) and plugin version without network — with a ✅/⚠️/❌ verdict and a **suggested fix per line**; MD and `--json`, exit 0/1. `/setup` offers it when it finds prior config.
 - **`changelog-sync` skill**: `[Unreleased]`/`[Sin publicar]` entries in both CHANGELOGs derived from closed ledgers (one bullet per task, category by heuristic with a `changelog:` override), idempotent by slug, `--dry-run`/`--only`/`--check`; `release.py` runs `--check` as a warning in its preconditions.
-- **`unit-tests` skill** ([`LES-013`](docs/knowledge/lessons/)): the testing pyramid and `coverage-gate.py` (pytest/jest/vitest/phpunit/go, `--changed-only` measures just the diff's files, exit 2 rather than inventing a percentage). Deliberately a **shared skill used by `implementer` and `qa`, not a new agent** — the first application of the "one role, one owner" rule.
+- **`unit-tests` skill** (`LES-013`): the testing pyramid and `coverage-gate.py` (pytest/jest/vitest/phpunit/go, `--changed-only` measures just the diff's files, exit 2 rather than inventing a percentage). Deliberately a **shared skill used by `implementer` and `qa`, not a new agent** — the first application of the "one role, one owner" rule.
 - **Performance lens (D)** in `adversarial-review`, conditional like the security lens: `review-lens-select.py` detects N+1 patterns, I/O in loops, `await` inside `for`, and repository/query/cache paths; configurable via `revision.lenteRendimiento`.
 - **`api-contract` skill**: `openapi-lint.py` validates OpenAPI 3.x structure with no external dependencies and `--diff` reports breaking changes between two versions; contract-first flow wired into `planner` and Lens A.
 
 ### Changed — `roles-and-jira-flow` initiative (2026-09-03)
 
-- **One role, one owner** ([`ADR-011`](docs/knowledge/adr/), matrix in [`docs/agents/ROLES.md`](docs/agents/ROLES.md)): the plugin **removes** pieces for the first time instead of only adding them. `pdfy` is retired (it wrapped the `to-pdf` skill, which already self-invokes) and the `discovery` skill is absorbed into `analyst` (both promised "turn a vague idea into a spec"); the `qa` ↔ `unit-tests` and `adversarial-review` ↔ `reviewer` boundaries are written down. The linter gains a heuristic guard against two pieces claiming the same literal trigger. **9 agents, 17 skills, 12 commands.**
-- **Full Jira cycle, deterministic and signed by agent** ([`LES-014`](docs/knowledge/lessons/)): `jira-flow.py` turns the cycle into seven events — `arrancar` (→ *In progress*), `implementado` (what was done, evidence, files, measured hours), `revision`/`gaps` per review attempt, `qa-verde`/`qa-rojo`, and `aprobado` (→ *Done*) — returning ordered `ops` (label → transition → comment → worklog). **Every comment carries the agent that wrote it** on its first line (`> 🤖 [custom-agents · implementer]`) and a per-agent label (`ca-implementer`, `ca-reviewer`, `ca-qa`, `ca-orquestador`) so Jira can be filtered by author. The model neither drafts comments nor composes calls: templates are fixed (5 files, 742 bytes; only the event's own template is loaded) and the sequence is described **once**, in `/dev-cycle` Phase 3.
+- **One role, one owner** (`ADR-011`, matrix in [`docs/agents/ROLES.md`](docs/agents/ROLES.md)): the plugin **removes** pieces for the first time instead of only adding them. `pdfy` is retired (it wrapped the `to-pdf` skill, which already self-invokes) and the `discovery` skill is absorbed into `analyst` (both promised "turn a vague idea into a spec"); the `qa` ↔ `unit-tests` and `adversarial-review` ↔ `reviewer` boundaries are written down. The linter gains a heuristic guard against two pieces claiming the same literal trigger. **9 agents, 17 skills, 12 commands.**
+- **Full Jira cycle, deterministic and signed by agent** (`LES-014`): `jira-flow.py` turns the cycle into seven events — `arrancar` (→ *In progress*), `implementado` (what was done, evidence, files, measured hours), `revision`/`gaps` per review attempt, `qa-verde`/`qa-rojo`, and `aprobado` (→ *Done*) — returning ordered `ops` (label → transition → comment → worklog). **Every comment carries the agent that wrote it** on its first line (`> 🤖 [custom-agents · implementer]`) and a per-agent label (`ca-implementer`, `ca-reviewer`, `ca-qa`, `ca-orquestador`) so Jira can be filtered by author. The model neither drafts comments nor composes calls: templates are fixed (5 files, 742 bytes; only the event's own template is loaded) and the sequence is described **once**, in `/dev-cycle` Phase 3.
   - **Done is earned, not announced**: `aprobado` is the orchestrator's alone and is refused (exit 2) without a gap-free review section in the ledger **and** `--qa-verde` (the exit 0 of `qa-gate.py`); `gaps` reopens the issue.
   - **The implementer is notified through its brief**, not through Jira: `task-brief.py` injects the last attempt's gaps from the ledger. Jira is the mirror for the team; the ledger stays the source.
   - Idempotent per event in `jira-state.json` (`--force` to repeat), grouped per task (`--batch` per phase), hour logging still delegated to `worklog.py` (daily cap and bank untouched), and with Jira disabled the whole cycle returns `ops: []` in silence. Cost of the cycle measured and documented in `docs/observability.md`.
 
 ### Added — `activation-reliability` initiative (2026-09-03)
 
-- **Behaviour evals for every piece of the plugin (`evals/`).** A `description` is a promise of activation; now it is tested: 31 case files (12 skills · 11 commands · 8 agents) with 96 cases — 62 positives (literal trigger or paraphrase, expected artifacts/mentions) and 34 *neighbour* negatives (same vocabulary, different intent, with the expected redirect). `evals/check.py` runs statically in CI (schema, coverage ≥ 2 positives + 1 negative per piece, unique ids, literal triggers really present in the description, no corporate data); `evals/run.py` runs them locally in headless sessions (`claude -p --plugin-dir … --output-format stream-json`, flags verified against the official CLI reference) over a copy of `evals/fixtures/project/`, detects activation from the `Skill`/`Agent` tool calls, classifies failures (`no activó` · `activó sin deber` · `permiso denegado` · `expectativa` · `timeout`) and writes `evals/reports/<date>.json`. Recorded as lesson [`LES-011`](docs/knowledge/lessons/).
+- **Behaviour evals for every piece of the plugin (`evals/`).** A `description` is a promise of activation; now it is tested: 31 case files (12 skills · 11 commands · 8 agents) with 96 cases — 62 positives (literal trigger or paraphrase, expected artifacts/mentions) and 34 *neighbour* negatives (same vocabulary, different intent, with the expected redirect). `evals/check.py` runs statically in CI (schema, coverage ≥ 2 positives + 1 negative per piece, unique ids, literal triggers really present in the description, no corporate data); `evals/run.py` runs them locally in headless sessions (`claude -p --plugin-dir … --output-format stream-json`, flags verified against the official CLI reference) over a copy of `evals/fixtures/project/`, detects activation from the `Skill`/`Agent` tool calls, classifies failures (`no activó` · `activó sin deber` · `permiso denegado` · `expectativa` · `timeout`) and writes `evals/reports/<date>.json`. Recorded as lesson `LES-011`.
 - **Piece index injected at session start** (`agent-kits/shared/skill-index.py` + `hooks/session-context.sh`, the `using-superpowers` pattern): a deterministic, cached, ≤ 45-line / ≤ 3,500-char index of commands, skills and agents built from the frontmatters, with the rule "check whether a piece applies before any task", re-injected after compaction (`startup|resume|compact`). Opt-out with `.claude/dev.json` `"sesion": {"indice": false}`. Commands are invoked by `/` **or by description**, like skills — the index, `CONVENTIONS` and `quick-implement` no longer claim otherwise.
 - **Rationalisation tables** (shared fragment `agent-kits/shared/rationalization-table.md`, the "iron law" pattern): 8 rows of *excuse the model gives itself → why it does not hold → what to do instead*, placed right before the DoD/verdict of `implementer`, `adversarial-review` and `qa`, replacing equivalent prose. `lint_plugin.py` now warns when a piece has no positive eval case or when a description exceeds 1,200 characters.
 
 ### Added — `plan-and-diet` initiative (2026-09-03)
 
-- **Token diet of the three big skills** (progressive disclosure, [`ADR-008`](docs/knowledge/adr/)): `jira-sync` 289 → 149 lines, `confluence-publish` 432 → 196, `cybersecurity` 976 → 167, with the detail moved verbatim to `skills/<skill>/references/*.md` (12 new files) and a "read X only when you reach step Y" table in each SKILL.md. Zero loss verified paragraph by paragraph (`tests/test_skill_size.py --diet-check <skill> <ref>`); every step anchor other pieces cite (`Paso 0-ter/7/8/9`, "Qué sube y qué no"…) is preserved. Hard limit 250 lines (test) and linter warning from 200.
+- **Token diet of the three big skills** (progressive disclosure, `ADR-008`): `jira-sync` 289 → 149 lines, `confluence-publish` 432 → 196, `cybersecurity` 976 → 167, with the detail moved verbatim to `skills/<skill>/references/*.md` (12 new files) and a "read X only when you reach step Y" table in each SKILL.md. Zero loss verified paragraph by paragraph (`tests/test_skill_size.py --diet-check <skill> <ref>`); every step anchor other pieces cite (`Paso 0-ter/7/8/9`, "Qué sube y qué no"…) is preserved. Hard limit 250 lines (test) and linter warning from 200.
 - **Mandatory `Verificación` field per task**: the planner template (and the fast-track lightweight ledger) declare `verificacion: obligatoria` and each `T-XX` carries `- **Verificación**: \`<command>\` → <expected result>` (inline with `·` or as a sub-list; `lectura: …` for prose). `ledger-lint.py` makes a missing or empty field a hard incoherence only when the ledger declares it (the 20 existing ledgers validate byte-identically); `task-brief.py` injects it into the subagent brief (also when the field already records a previous execution — it asks to re-run); `implementer`/`planner`/Lens A require the evidence.
 - **Optional headless CI** (`headless.yml`, `workflow_dispatch` + weekly): with `ANTHROPIC_API_KEY` as a job-level `env` (secrets cannot be used in `if:`), it installs Claude Code, runs a cheap eval subset (`run.py --bare --target …`) and a real-hooks check on the fixture whose evidence is the witness file `.claude/.progress-last` written by `progress-line.sh` plus the plugin listed in `system/init.plugins`; without the secret every step is skipped and a guard step fails if any ran. Closes the "hooks in a real session" verification that was manual.
 
 ### Added — `distribution` initiative (2026-09-03)
 
 - **Portable "skills only" export** (`scripts/export-skills.py --format claude|agents-md|cursor|all`): a Claude-Code-agnostic package with the 10 portable skills, their `references/` and pure-Python scripts, the 13 shared fragments they cite, an `AGENTS.md` index (Codex, Copilot…) and a `.cursor/rules/*.mdc` rule, with `find "$PWD/.claude"` lookups rewritten to `${PORTABLE_ROOT:-.}`, a README (ES+EN) with the "what travels / what does not / why" table and a sha256, a dedicated marker file before any overwrite, and `--check`. Deterministic (`diff -r` empty between runs); the Release workflow attaches `custom-agents-skills-portable-<ver>.zip` reproducibly (`SOURCE_DATE_EPOCH`).
-- **`release.py` now does the whole release** (lesson [`LES-012`](docs/knowledge/lessons/) — the two traps of the v1.15.0 release): moves `[Unreleased]`/`[Sin publicar]` to `## [X.Y.Z] - date` in both CHANGELOGs and adds the release link (aborts on empty notes unless `--allow-empty-notes`), refuses a version ≤ current, a dirty tree or an existing tag, runs `lint_plugin.py` + `evals/check.py` and checks the `*.MANUAL-COPY` copies before writing anything, restores the executable bit of versioned `.sh` files (`git update-index --chmod=+x`, the Windows trap), keeps CRLF, and offers `--dry-run`/`--check`. Default behaviour (bump + commit + tag) unchanged.
+- **`release.py` now does the whole release** (lesson `LES-012` — the two traps of the v1.15.0 release): moves `[Unreleased]`/`[Sin publicar]` to `## [X.Y.Z] - date` in both CHANGELOGs and adds the release link (aborts on empty notes unless `--allow-empty-notes`), refuses a version ≤ current, a dirty tree or an existing tag, runs `lint_plugin.py` + `evals/check.py` and checks the `*.MANUAL-COPY` copies before writing anything, restores the executable bit of versioned `.sh` files (`git update-index --chmod=+x`, the Windows trap), keeps CRLF, and offers `--dry-run`/`--check`. Default behaviour (bump + commit + tag) unchanged.
 - Distribution polish: `displayName` and 18 keywords in `plugin.json`, `marketplace.json` synchronised (`tests/test_manifests.py` checks listed skills/commands == real ones, both directions); README ES/EN with a copy-paste 5-step quickstart, "What you'll see" and an honest "Compared with superpowers" section; `CONTRIBUTING.md`; GitHub issue forms + PR template (`github-templates.MANUAL-COPY/` mirrored to `.github/`, watched by `tests/test_ci_manual_copy.py`). The 7 legacy `.sh` of `agent-kits/nemesis` and `agent-kits/qa` recover their executable bit.
 
 ### Fixed — `windows-console` initiative (2026-09-03)
 
-- **Every script survives a non-UTF-8 console** ([`GOT-005`](docs/knowledge/gotchas/)): on Windows with a `cp1252` locale, `python scripts/release.py` died with `UnicodeEncodeError: 'charmap' codec can't encode characters` — reported with a real traceback. Root cause: the crash happens in the **piped child**, where Python falls back to the locale ANSI codepage, not in the PowerShell console itself. The 28 versioned scripts that print symbols or read `stdin` now reconfigure `sys.stdin`/`stdout`/`stderr` to UTF-8 with `errors="replace"` at startup, and the **parent** side is fixed too: 56 `subprocess` calls capture with an explicit `encoding`, and the eight inline `python3 -c` blocks in `hooks/` and `statusline/` carry `PYTHONIOENCODING=utf-8:replace`. No ASCII fallback mode: measured, `reconfigure` beats `PYTHONIOENCODING`, so the output stays UTF-8 and `errors="replace"` never fires.
+- **Every script survives a non-UTF-8 console** (`GOT-005`): on Windows with a `cp1252` locale, `python scripts/release.py` died with `UnicodeEncodeError: 'charmap' codec can't encode characters` — reported with a real traceback. Root cause: the crash happens in the **piped child**, where Python falls back to the locale ANSI codepage, not in the PowerShell console itself. The 28 versioned scripts that print symbols or read `stdin` now reconfigure `sys.stdin`/`stdout`/`stderr` to UTF-8 with `errors="replace"` at startup, and the **parent** side is fixed too: 56 `subprocess` calls capture with an explicit `encoding`, and the eight inline `python3 -c` blocks in `hooks/` and `statusline/` carry `PYTHONIOENCODING=utf-8:replace`. No ASCII fallback mode: measured, `reconfigure` beats `PYTHONIOENCODING`, so the output stays UTF-8 and `errors="replace"` never fires.
 - **The scope guard no longer fails open**: `guardrail-check.py` read the hook payload with the locale codec and turned the resulting `UnicodeDecodeError` into a silent *allow* — under `cp1252`, a single emoji in the written content disabled the `implementer`'s branch and scope guards. It now decodes as UTF-8 and denies as intended.
 - **A crash is never presented as a verdict**: `release.py` told you `changelog-sync --check: PENDIENTE` when the check had actually crashed (both exit 1). The three preconditions now distinguish `OK` · `FALLA (exit N)` · `ERROR al ejecutar` (traceback in stderr, or exit ∉ {0,1}), print the last three stderr lines and **block** the release — while a legitimate "notes pending" stays a non-blocking warning.
 - **The rule is enforced, not just written**: `lint_plugin.py` warns structurally (`ast`, so a snippet buried inside `main()` or quoted in a docstring no longer passes) and `tests/test_console_encoding.py` runs every script under `PYTHONIOENCODING=cp1252` and `ascii`, discovering the list dynamically so a new script that prints symbols fails until it carries the snippet. Three adversarial review passes are recorded in the initiative's ledger, including the two attempts where the guard was found to have holes.
@@ -340,13 +901,13 @@ and versioning follows [SemVer](https://semver.org/).
 
 ### Added — `deterministic-guardrails` initiative (2026-09-02)
 
-- **The implementer's hard guardrails move from prose to a PreToolUse hook with tests.** `agent-kits/shared/guardrail-check.py` (+ wrapper `hooks/implementer-guardrail.sh`) denies, with a one-sentence reason: writes under `docs/roadmap/**` other than `tasks.md` (incl. `testing/**`), writes under `docs/security-scan/**`, writes to code while on `main`/`master`, `git push --force|-f|--force-with-lease|+refspec`, `git branch -D`, leaving the feature branch via `checkout/switch main`, `rm -rf` on `/`, `~`, `.git` or `.` — also inside `sh -c "…"`/`bash -c`/`eval`, without false positives on commit messages, `grep` or `echo`. Registered **only** in the agent's frontmatter `hooks:` (never in the global `hooks/hooks.json`: planner/evaluator/analyst legitimately write to `docs/roadmap/`) — recorded as [`ADR-007`](docs/knowledge/adr/). Configurable in `.claude/dev.json` → `"guardrails": false | {"alcance","git","ramaPrincipal"}`; without python3 it never blocks (warns once).
+- **The implementer's hard guardrails move from prose to a PreToolUse hook with tests.** `agent-kits/shared/guardrail-check.py` (+ wrapper `hooks/implementer-guardrail.sh`) denies, with a one-sentence reason: writes under `docs/roadmap/**` other than `tasks.md` (incl. `testing/**`), writes under `docs/security-scan/**`, writes to code while on `main`/`master`, `git push --force|-f|--force-with-lease|+refspec`, `git branch -D`, leaving the feature branch via `checkout/switch main`, `rm -rf` on `/`, `~`, `.git` or `.` — also inside `sh -c "…"`/`bash -c`/`eval`, without false positives on commit messages, `grep` or `echo`. Registered **only** in the agent's frontmatter `hooks:` (never in the global `hooks/hooks.json`: planner/evaluator/analyst legitimately write to `docs/roadmap/`) — recorded as `ADR-007`. Configurable in `.claude/dev.json` → `"guardrails": false | {"alcance","git","ramaPrincipal"}`; without python3 it never blocks (warns once).
 - **`scope-check.py`** compares the branch diff (committed + uncommitted + untracked) against the ledger's `Archivos` fields (globs, `(nuevo)`, folders; `**/` = zero or more dirs) and gates the adversarial review: exit 1 sends out-of-scope files back to the implementer as an Important gap without spending reviewers. Replaces the manual "git diff --stat only in scope" check in the implementer's DoD and in `quick-implement`.
 - `lint_plugin.py` validates the native agent frontmatter fields `skills:` (exists, ⊆ `dependencies.skills`, warns above 16 KB of preloaded content) and `hooks:` (commands exist). Conventions ES+EN: two hook classes — informative (global, always exit 0) and guard (PreToolUse deny, agent-scoped only, script+tests, opt-out). `ledger-lint.py` recognises «Fase única» summary rows (no more false legacy warning on fast-track ledgers).
 
 ### Added — `adversarial-review` skill (2026-09-02)
 
-- **The two-lens adversarial review becomes a reusable skill** (`skills/adversarial-review/`) — the single source of the method that `/dev-cycle` Phase 3 and `quick-implement` now invoke, also usable on demand on a branch or range without a ledger ("review this diff"). Lens A (spec/plan/constitution conformity, per-criterion ✓/✗) and Lens B (correctness defects only) keep their literal prompts; a **conditional Lens C (security)** runs only when `scripts/review-lens-select.py` detects sensitive paths (auth/session/token/secret/crypt/permissions/upload/payment/.env/Dockerfile/workflows, token-anchored, prose and `docs/**` excluded) or added lines (`eval(`, `os.system`, `innerHTML`, `pickle.loads`, `yaml.load(`, SQL concatenation, keys/tokens…) — configurable via `.claude/dev.json` `"revision": {"lenteSeguridad": "auto|siempre|nunca"}`. Merge + Critical/Important/Minor grading, 3-attempt loop with state hand-over, rebuttal with evidence, ledger table «Revisión de dos lentes — intento N», `docs/knowledge/` promotion and Jira comment are all in the skill; `commands/dev-cycle.md` shrinks by 25 lines and keeps only the orchestrator's part (attempt counter, `[revisión]` worklog per attempt). Lesson [`LES-010`](docs/knowledge/lessons/) records why (real catch rate across 5 initiatives). CI (`ci.yml.MANUAL-COPY`) now runs pytest per folder, so the new suites are covered.
+- **The two-lens adversarial review becomes a reusable skill** (`skills/adversarial-review/`) — the single source of the method that `/dev-cycle` Phase 3 and `quick-implement` now invoke, also usable on demand on a branch or range without a ledger ("review this diff"). Lens A (spec/plan/constitution conformity, per-criterion ✓/✗) and Lens B (correctness defects only) keep their literal prompts; a **conditional Lens C (security)** runs only when `scripts/review-lens-select.py` detects sensitive paths (auth/session/token/secret/crypt/permissions/upload/payment/.env/Dockerfile/workflows, token-anchored, prose and `docs/**` excluded) or added lines (`eval(`, `os.system`, `innerHTML`, `pickle.loads`, `yaml.load(`, SQL concatenation, keys/tokens…) — configurable via `.claude/dev.json` `"revision": {"lenteSeguridad": "auto|siempre|nunca"}`. Merge + Critical/Important/Minor grading, 3-attempt loop with state hand-over, rebuttal with evidence, ledger table «Revisión de dos lentes — intento N», `docs/knowledge/` promotion and Jira comment are all in the skill; `commands/dev-cycle.md` shrinks by 25 lines and keeps only the orchestrator's part (attempt counter, `[revisión]` worklog per attempt). Lesson `LES-010` records why (real catch rate across 5 initiatives). CI (`ci.yml.MANUAL-COPY`) now runs pytest per folder, so the new suites are covered.
 
 ### Fixed — `debt-cleanup` (2026-09-02)
 
@@ -354,7 +915,7 @@ and versioning follows [SemVer](https://semver.org/).
 
 ### Changed
 
-- **`jira-granularity` closed**: the manual dry-run gate (T-08) ran against a disposable issue on the test project and verified the four connector capabilities (markdown checklist in the description via `editJiraIssue`, several worklogs per issue, review comment with the fixed template, `[revisión]` worklog). Two findings, recorded as [`GOT-004`](docs/knowledge/gotchas/) and applied to `jira-sync`: the closing transition is resolved by `statusCategory.key == "done"` (never by name or fixed id — transition "Done" landed on a localised status), and issues are created with an **explicit `assignee`** (`me` | `none`, asked once and persisted in `.claude/jira.json`) so a project default assignee never notifies a teammate. `docs/atlassian-connector-notes.md` extended (markdown in description/comments/worklogs, `\|` escaping in cells).
+- **`jira-granularity` closed**: the manual dry-run gate (T-08) ran against a disposable issue on the test project and verified the four connector capabilities (markdown checklist in the description via `editJiraIssue`, several worklogs per issue, review comment with the fixed template, `[revisión]` worklog). Two findings, recorded as `GOT-004` and applied to `jira-sync`: the closing transition is resolved by `statusCategory.key == "done"` (never by name or fixed id — transition "Done" landed on a localised status), and issues are created with an **explicit `assignee`** (`me` | `none`, asked once and persisted in `.claude/jira.json`) so a project default assignee never notifies a teammate. `docs/atlassian-connector-notes.md` extended (markdown in description/comments/worklogs, `\|` escaping in cells).
 
 ## [1.14.1] - 2026-08-20
 
@@ -370,7 +931,7 @@ and versioning follows [SemVer](https://semver.org/).
 
 ### Added — `knowledge-split` initiative (2026-08-20)
 
-- **One file per entry for `docs/knowledge/gotchas` and `LESSONS`, matching `adr/`'s pattern.** Predictable growth, selective reading and parallel-write collisions motivated the split: `docs/knowledge/gotchas/<slug>.md` and `docs/knowledge/lessons/<agent>-<slug>.md` replace the two aggregate files, migrated verbatim (same text, same acceptance trace) — recorded as [`ADR-006`](docs/knowledge/adr/).
+- **One file per entry for `docs/knowledge/gotchas` and `LESSONS`, matching `adr/`'s pattern.** Predictable growth, selective reading and parallel-write collisions motivated the split: `docs/knowledge/gotchas/<slug>.md` and `docs/knowledge/lessons/<agent>-<slug>.md` replace the two aggregate files, migrated verbatim (same text, same acceptance trace) — recorded as `ADR-006`.
   - **`README.md` becomes the entry index**: every row now links straight to its own file instead of `gotchas.md`/`LESSONS.md#agent`.
   - **`agent-kits/shared/knowledge-check.md` goes SELECTIVE**: read the index, then open only the specific entry file that matches the task's area — never the whole folder.
   - **File collision disappears for gotchas/lessons** (like `adr/` already had it): only the ADR's `id:` collision risk remains (D4, still deferred).
@@ -379,7 +940,7 @@ and versioning follows [SemVer](https://semver.org/).
 
 ### Added — `knowledge-ids` extension (2026-08-20)
 
-- **ADR-style IDs for gotchas and lessons, agent kept in the slug.** Extends `knowledge-split`'s one-file-per-entry split with sequential IDs matching the `ADR-NNN` pattern: `docs/knowledge/gotchas/GOT-NNN-<slug>.md` and `docs/knowledge/lessons/LES-NNN-<agent>-<slug>.md`, with `id: GOT-NNN`/`id: LES-NNN` in the frontmatter — the 12 existing files were `git mv`'d (real renames, content untouched) and numbered chronologically (backfill first, then by index order). `README.md` shows the ID per row; `knowledge-check.md`'s selective-reading globs and every writer/reader that cited a path pattern were updated to match. The `id:` collision note in `knowledge-write.md` now applies to all three families (ADR/GOT/LES), same mitigation (renumber + declare in the retro) — recorded as an amendment to [`ADR-006`](docs/knowledge/adr/).
+- **ADR-style IDs for gotchas and lessons, agent kept in the slug.** Extends `knowledge-split`'s one-file-per-entry split with sequential IDs matching the `ADR-NNN` pattern: `docs/knowledge/gotchas/GOT-NNN-<slug>.md` and `docs/knowledge/lessons/LES-NNN-<agent>-<slug>.md`, with `id: GOT-NNN`/`id: LES-NNN` in the frontmatter — the 12 existing files were `git mv`'d (real renames, content untouched) and numbered chronologically (backfill first, then by index order). `README.md` shows the ID per row; `knowledge-check.md`'s selective-reading globs and every writer/reader that cited a path pattern were updated to match. The `id:` collision note in `knowledge-write.md` now applies to all three families (ADR/GOT/LES), same mitigation (renumber + declare in the retro) — recorded as an amendment to `ADR-006`.
 
 ### Added — `knowledge-capture` initiative (2026-08-20)
 
@@ -647,6 +1208,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[2.0.0]: https://github.com/daycry/custom-agents/releases/tag/v2.0.0
 [1.22.0]: https://github.com/daycry/custom-agents/releases/tag/v1.22.0
 [1.21.1]: https://github.com/daycry/custom-agents/releases/tag/v1.21.1
 [1.21.0]: https://github.com/daycry/custom-agents/releases/tag/v1.21.0

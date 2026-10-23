@@ -164,7 +164,7 @@ def test_status_sync_classification():
         proj = fresh_root(tmp)
         readme = proj / "docs" / "README.md"
         state = {
-            "docs/README.md": {"hash": sha256_text(readme.read_text(encoding="utf-8")), "pageId": "1"},
+            "docs/README.md": {"hash": hashlib.sha256(readme.read_bytes()).hexdigest(), "pageId": "1"},
             "docs/roadmap/init1/spec.md": {"hash": "0" * 64, "pageId": "2"},
             # docs/roadmap/init1/... no tiene entrada equivalente para todo -> el resto sale pendiente
         }
@@ -193,7 +193,7 @@ def test_stage_creates_exact_scope_and_marker():
         code, out, _ = run(["--stage", "--root", str(proj), "--config", str(proj / "confluence.json")])
         assert code == 0, out
         out_dir = proj / "docs" / "confluence"
-        staged = sorted(str(p.relative_to(out_dir)) for p in out_dir.rglob("*") if p.is_file())
+        staged = sorted(p.relative_to(out_dir).as_posix() for p in out_dir.rglob("*") if p.is_file())
         # exactamente los 4 en alcance (incluido docs/knowledge/README.md, T-16 de
         # knowledge-capture, y docs/knowledge/gotchas/ejemplo.md, knowledge-split)
         # + el marcador de staging (gap C1: NO se llama README.md, para no
@@ -254,6 +254,179 @@ def test_default_policy_excludes_staging_marker_from_publish_walk():
         run(["--stage", "--root", str(proj), "--config", str(proj / "confluence.json")])
         assert (proj / "docs" / "confluence" / cs.STAGE_MARKER_NAME).is_file()
     print("test_default_policy_excludes_staging_marker_from_publish_walk: OK")
+
+
+PANEL_MARKER = "<!doctype html><!-- custom-agents plugin-panel v1 -->"
+
+
+def _panel_export(proj, carpeta, generador="custom-agents plugin-panel", ficheros=("vendor/chart.js/LICENSE.md",),
+                  panel=True, sha=None):
+    """Exportación sintética: LICENSE.md real, manifiesto con su hash real y, con `panel`, el `index.html` del panel."""
+    base = Path(proj) / "docs" / carpeta
+    (base / "vendor" / "chart.js").mkdir(parents=True)
+    licencia = base / "vendor" / "chart.js" / "LICENSE.md"
+    licencia.write_text("# MIT\n", encoding="utf-8")
+    if panel:
+        (base / "index.html").write_text(PANEL_MARKER + "<html></html>", encoding="utf-8")
+    real = hashlib.sha256(licencia.read_bytes()).hexdigest()
+    (base / "export-manifest.json").write_text(json.dumps(
+        {"generador": generador, "ficheros": [{"ruta": r, "sha256": sha or real, "bytes": 1} for r in ficheros]}),
+        encoding="utf-8")
+    return base
+
+
+def test_panel_export_folder_is_out_of_scope_wherever_it_lives():
+    # panel-redesign (revisión intento 1, gap 9): el LICENSE.md de Chart.js que exporta plugin-panel bajo docs/
+    # entraba en el alcance y `publish-and-sync.md` afirmaba lo contrario. Se reconoce la carpeta por su
+    # `export-manifest.json` del plugin (no por un nombre fijo) y se excluye entera.
+    with tempfile.TemporaryDirectory() as tmp:
+        proj = Path(tmp) / "proj"
+        (proj / "docs").mkdir(parents=True)
+        (proj / "docs" / "README.md").write_text("# docs\n", encoding="utf-8")
+        _panel_export(proj, "roadmap/panel")
+        _panel_export(proj, "otro-sitio/vista")
+        ajeno = _panel_export(proj, "terceros/export", generador="otro-generador")
+        publish = {"include": ["**/*.md"], "exclude": []}
+        en_alcance, excluidos = cs.resolve_scope(str(proj), publish)
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" not in en_alcance
+        assert "docs/otro-sitio/vista/vendor/chart.js/LICENSE.md" not in en_alcance
+        assert "docs/README.md" in en_alcance
+        motivos = dict(excluidos)
+        assert "export-manifest.json" in motivos["docs/roadmap/panel/vendor/chart.js/LICENSE.md"]
+        # Una carpeta con un manifiesto de OTRO generador no es del panel: sigue en alcance.
+        assert "docs/terceros/export/vendor/chart.js/LICENSE.md" in en_alcance
+        # Un manifiesto ilegible tampoco excluye nada (degrada a la política normal).
+        (ajeno / "export-manifest.json").write_text("{no es json", encoding="utf-8")
+        en_alcance, _ = cs.resolve_scope(str(proj), publish)
+        assert "docs/terceros/export/vendor/chart.js/LICENSE.md" in en_alcance
+    print("test_panel_export_folder_is_out_of_scope_wherever_it_lives: OK")
+
+
+def test_panel_manifest_only_excludes_the_files_it_lists():
+    # panel-redesign (revisión intento 2, gap 2-6): el manifiesto es un fichero plantable; solo saca del alcance
+    # lo que LISTA en `ficheros` (rutas relativas a su carpeta), no toda la carpeta ni `docs/` entera.
+    publish = {"include": ["**/*.md"], "exclude": []}
+    with tempfile.TemporaryDirectory() as tmp:
+        proj = Path(tmp) / "proj"
+        (proj / "docs").mkdir(parents=True)
+        (proj / "docs" / "README.md").write_text("# docs\n", encoding="utf-8")
+        legit = _panel_export(proj, "roadmap/panel")
+        (legit / "NOTAS.md").write_text("# nota propia\n", encoding="utf-8")
+        vacio = _panel_export(proj, "plantado", ficheros=())
+        (vacio / "guia.md").write_text("# guia\n", encoding="utf-8")
+        hostil = _panel_export(proj, "hostil", ficheros=("../README.md", "/etc/x.md", "a\\b.md", "vendor/chart.js/../chart.js/LICENSE.md"))
+        # Un manifiesto en la propia `docs/` no excluye nada (ni siquiera lo que liste).
+        (proj / "docs" / "export-manifest.json").write_text(json.dumps(
+            {"generador": "custom-agents plugin-panel",
+             "ficheros": [{"ruta": "README.md", "sha256": "0" * 64, "bytes": 1}]}), encoding="utf-8")
+        en_alcance, excluidos = cs.resolve_scope(str(proj), publish)
+        motivos = dict(excluidos)
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" in motivos          # listado: excluido
+        assert "export-manifest.json" in motivos["docs/roadmap/panel/vendor/chart.js/LICENSE.md"]
+        assert "docs/roadmap/panel/NOTAS.md" in en_alcance                          # no listado: en alcance
+        assert "docs/plantado/vendor/chart.js/LICENSE.md" in en_alcance             # ficheros: []
+        assert "docs/plantado/guia.md" in en_alcance
+        assert "docs/README.md" in en_alcance                                        # manifiesto en docs/
+        assert "docs/hostil/vendor/chart.js/LICENSE.md" in en_alcance                # rutas inválidas
+    print("test_panel_manifest_only_excludes_the_files_it_lists: OK")
+
+
+def test_panel_manifest_entry_tolerates_git_line_ending_conversion():
+    # panel-redesign (confirmacion del intento 3, C-2): Git for Windows saca el LICENSE.md con CRLF aunque el
+    # exportador lo escribiera con LF; el cotejo acepta el sha256 de los bytes tal cual o con CRLF -> LF.
+    publish = {"include": ["**/*.md"], "exclude": []}
+    with tempfile.TemporaryDirectory() as tmp:
+        proj = Path(tmp) / "proj"
+        (proj / "docs").mkdir(parents=True)
+        base = _panel_export(proj, "roadmap/panel")
+        licencia = base / "vendor" / "chart.js" / "LICENSE.md"
+        licencia.write_bytes(licencia.read_bytes().replace(b"\n", b"\r\n"))
+        assert b"\r\n" in licencia.read_bytes()
+        en_alcance, excluidos = cs.resolve_scope(str(proj), publish)
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" not in en_alcance      # CRLF: sigue excluido
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" in dict(excluidos)
+        licencia.write_bytes(b"# GPL\r\n")                                           # otro contenido: no se excluye
+        en_alcance, _ = cs.resolve_scope(str(proj), publish)
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" in en_alcance
+    print("test_panel_manifest_entry_tolerates_git_line_ending_conversion: OK")
+
+
+def test_panel_manifest_binary_or_js_is_compared_as_is():
+    # El Chart.js minificado no es texto del repo: solo cuenta el hash exacto (no se normaliza CRLF).
+    with tempfile.TemporaryDirectory() as tmp:
+        js = Path(tmp) / "chart.umd.min.js"
+        js.write_bytes(b"a\nb")
+        exacto = hashlib.sha256(b"a\nb").hexdigest()
+        assert cs._sha_coincide(js, exacto)
+        js.write_bytes(b"a\r\nb")
+        assert not cs._sha_coincide(js, exacto)
+        md = Path(tmp) / "LICENSE.md"
+        md.write_bytes(b"a\r\nb")
+        assert cs._sha_coincide(md, exacto)
+    print("test_panel_manifest_binary_or_js_is_compared_as_is: OK")
+
+
+def test_panel_marker_matches_the_exporter():
+    # La copia del literal en confluence-scope.py debe ser la que escribe plugin-panel.
+    spec = importlib.util.spec_from_file_location("panel_pages_marker", ROOT / "skills/plugin-panel/scripts/panel_pages.py")
+    pp = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(spec.origin and Path(spec.origin).parent))
+    try:
+        spec.loader.exec_module(pp)
+    finally:
+        sys.path.pop(0)
+    assert pp.MARKER == PANEL_MARKER == cs.PANEL_INDEX_MARKER
+    print("test_panel_marker_matches_the_exporter: OK")
+
+
+def test_panel_manifest_entry_needs_matching_hash():
+    # panel-redesign (revisión intento 3, gap 3-4): una entrada se excluye solo si el fichero es el que escribió el exportador.
+    publish = {"include": ["**/*.md"], "exclude": []}
+    with tempfile.TemporaryDirectory() as tmp:
+        proj = Path(tmp) / "proj"
+        (proj / "docs").mkdir(parents=True)
+        _panel_export(proj, "roadmap/panel")
+        _panel_export(proj, "otro/ajeno", sha="1" * 64)
+        en_alcance, excluidos = cs.resolve_scope(str(proj), publish)
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" not in en_alcance
+        assert "docs/otro/ajeno/vendor/chart.js/LICENSE.md" in en_alcance      # hash distinto: no se excluye
+        assert "docs/otro/ajeno/vendor/chart.js/LICENSE.md" not in dict(excluidos)
+    print("test_panel_manifest_entry_needs_matching_hash: OK")
+
+
+def test_panel_manifest_without_a_real_panel_beside_it_excludes_nothing():
+    publish = {"include": ["**/*.md"], "exclude": []}
+    with tempfile.TemporaryDirectory() as tmp:
+        proj = Path(tmp) / "proj"
+        (proj / "docs").mkdir(parents=True)
+        _panel_export(proj, "plantado/sin-panel", panel=False)
+        falso = _panel_export(proj, "plantado/index-falso")
+        (falso / "index.html").write_text("<html>otra cosa</html>", encoding="utf-8")
+        en_alcance, _ = cs.resolve_scope(str(proj), publish)
+        assert "docs/plantado/sin-panel/vendor/chart.js/LICENSE.md" in en_alcance
+        assert "docs/plantado/index-falso/vendor/chart.js/LICENSE.md" in en_alcance
+    print("test_panel_manifest_without_a_real_panel_beside_it_excludes_nothing: OK")
+
+
+def test_real_panel_export_excludes_license():
+    spec = importlib.util.spec_from_file_location("panel_pages_real", ROOT / "skills/plugin-panel/scripts/panel_pages.py")
+    pp = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(Path(spec.origin).parent))
+    try:
+        spec.loader.exec_module(pp)
+    finally:
+        sys.path.pop(0)
+    datos = {"counts": dict.fromkeys(("agents", "skills", "commands", "tools", "hooks"), 0),
+             "agents": [], "skills": [], "commands": [], "tools": [], "hooks": [],
+             "runtimes": {}, "memory": {}, "warnings": [], "workflow": {"roles": {}}}
+    with tempfile.TemporaryDirectory() as tmp:
+        proj = Path(tmp) / "proj"
+        (proj / "docs" / "roadmap").mkdir(parents=True)
+        pp.exportar_sitio(proj / "docs" / "roadmap" / "panel", datos)
+        en_alcance, excluidos = cs.resolve_scope(str(proj), {"include": ["**/*.md"], "exclude": []})
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" not in en_alcance
+        assert "docs/roadmap/panel/vendor/chart.js/LICENSE.md" in dict(excluidos)
+    print("test_real_panel_export_excludes_license: OK")
 
 
 def test_stage_is_idempotent():
@@ -415,8 +588,10 @@ def run_hook(file_path, project_dir):
     payload = json.dumps({"tool_input": {"file_path": file_path}})
     env = dict(os.environ)
     env["CLAUDE_PROJECT_DIR"] = str(project_dir)
-    r = subprocess.run(["bash", str(HOOK)], input=payload, capture_output=True,
-                        text=True, encoding="utf-8", errors="replace", cwd=str(project_dir), env=env)
+    env["CUSTOM_AGENTS_PYTHON"] = sys.executable
+    r = subprocess.run(["node", str(ROOT / "hooks" / "run-hook.mjs"), HOOK.name],
+                        input=payload, capture_output=True, text=True, encoding="utf-8",
+                        errors="replace", cwd=str(project_dir), env=env, timeout=25)
     return r.returncode, project_dir / ".claude" / ".confluence-pending"
 
 
@@ -468,6 +643,14 @@ def main():
         test_stage_creates_exact_scope_and_marker,
         test_stage_copies_readme_byte_for_byte,
         test_default_policy_excludes_staging_marker_from_publish_walk,
+        test_panel_export_folder_is_out_of_scope_wherever_it_lives,
+        test_panel_manifest_only_excludes_the_files_it_lists,
+        test_panel_marker_matches_the_exporter,
+        test_panel_manifest_entry_tolerates_git_line_ending_conversion,
+        test_panel_manifest_binary_or_js_is_compared_as_is,
+        test_panel_manifest_entry_needs_matching_hash,
+        test_panel_manifest_without_a_real_panel_beside_it_excludes_nothing,
+        test_real_panel_export_excludes_license,
         test_stage_is_idempotent,
         test_stage_wipes_previous_contents,
         test_stage_refuses_unsafe_out_target,

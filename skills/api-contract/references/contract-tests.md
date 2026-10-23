@@ -1,10 +1,31 @@
 # Plantillas de tests de contrato (sugerencia, sin instalar)
 
-Léelo desde `SKILL.md` **solo** al elegir o adaptar una plantilla para el stack del proyecto. Las
-tres opciones verifican lo MISMO por caminos distintos: que la IMPLEMENTACIÓN cumple lo que la spec
-OpenAPI promete (tipos, códigos de estado, campos obligatorios). Ninguna sustituye a
+Léelo desde `SKILL.md` **solo** al elegir o adaptar una plantilla para el stack del proyecto o al
+valorar qué deja sin cubrir el linter. Las tres opciones verifican lo MISMO por caminos distintos:
+que la IMPLEMENTACIÓN cumple lo que la spec OpenAPI promete (tipos, códigos de estado, campos obligatorios). Ninguna sustituye a
 `openapi-lint.py` (que valida la SPEC en sí, sin tocar la implementación) ni a los tests E2E de
 `qa-gate.py` (que verifican comportamiento de negocio, no conformidad de contrato).
+
+## Qué debe cubrir un test de contrato
+
+Antes de elegir herramienta, fija qué se prueba:
+
+| Punto | Qué exige |
+|---|---|
+| Dueño y consumidores | Quién aprueba cambios del contrato y qué consumidores lo leen (UI, otro servicio, un job). Cada consumidor aporta al menos un caso con el payload que de verdad espera. |
+| Casos límite | Campo ausente frente a `null` frente a colección vacía; identificadores grandes; valores de `enum` en los bordes; respuestas de error (4xx/5xx) con su cuerpo, no solo el código. |
+| Payload serializado real | El test valida la respuesta que produce el handler tras serializar, no un objeto en memoria. Un `satisfies` de TypeScript sobre fixtures estáticas comprueba esas fixtures, no el handler ni un dato de producción. |
+| Precisión de enteros grandes | Un `bigint` que el driver ya devolvió como `Number` está redondeado; convertirlo después a `string` no recupera la precisión. La representación correcta se conserva desde el driver y se comprueba en el payload. |
+
+## Alcance mínimo de `openapi-lint.py`
+
+Exit 0 significa «sin hallazgos en lo que mira», no «contrato cubierto». El `--diff` compara solo
+los parámetros declarados en la operación (no los heredados del path ni los que son `$ref`) y las
+propiedades inmediatas de las respuestas 2xx `application/json`. No detecta cambios en
+`requestBody`, en objetos anidados, en esquemas compuestos (`allOf`/`oneOf`/`anyOf`), en la lista
+`required` de una respuesta, en respuestas de error ni en otros media types. La validación no
+comprueba el dialecto JSON Schema 2020-12 de OpenAPI 3.1. Lo que queda fuera se cubre con los
+tests de contrato de abajo o se declara como no verificado.
 
 ## Python — `pytest` + `schemathesis`
 

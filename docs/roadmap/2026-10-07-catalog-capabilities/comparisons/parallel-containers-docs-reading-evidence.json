@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": ["S083", "S084", "S085"],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "unread_referenced_sources": ["scripts/orchestrate-worktrees.js", "docker/plugin-setup/compose.yaml"],
+  "source": [
+    {"id": "S083", "sha256": "6e4028d61a556d58fa2cdc6162d6837c082974a7161b2d703967bec472308c56", "bytes": 6336, "lines": 192, "read_ranges": [[1, 192]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S084", "sha256": "2a880cf2f6401874151daa9bcc0eacd10cf79f5f48b97f98e93a877a8f3fd12b", "bytes": 14937, "lines": 520, "read_ranges": [[1, 520]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S085", "sha256": "81ad2b5b4acbe02259f4b6cbfd9111d81d5cfe51025051b6048959c45f6516c1", "bytes": 4912, "lines": 91, "read_ranges": [[1, 91]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []}
+  ],
+  "own_counterparts": [
+    {"path": "skills/delivery-practices/references/delivery-tools.md", "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9"},
+    {"path": "skills/research-first/SKILL.md", "sha256": "ae43e6baaad2124c1613e981489b5ed6933c54bfd12c63e5897004b4a80bf760"},
+    {"path": "skills/adversarial-review/SKILL.md", "sha256": "234bafc53ac9e6f581baaddb2f1896806e30781dafbf75c3e1d431f171b11904"},
+    {"path": "commands/dev-cycle.md", "sha256": "ec9504fb23b8eadb209e83ce347eee8c9a63c8d03e09d0f7e7c4bb204d65ad5c"}
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

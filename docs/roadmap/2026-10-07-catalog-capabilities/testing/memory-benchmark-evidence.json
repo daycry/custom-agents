@@ -1,0 +1,2181 @@
+{
+  "schema_version": 1,
+  "status": "functional_partial_integration_open",
+  "product_commit": "868995585d7e10549fc0795d2c74c6d440415393",
+  "data_origin": "wholly_synthetic",
+  "claims_scope": "Separate retrieval, generated-answer and structural-context measurements; no production or overall superiority claim",
+  "fixture": {
+    "sources": 12,
+    "questions": 14,
+    "code_files": 4,
+    "source_metadata_transform": "sources.json paths point to the scope-specific identical bytes; combined duplicate corpus is omitted",
+    "original_manifest_sha256": "156cff77280188ecd21adbd745b1f5a4ac75e10d5dba37d671b298583a6d99a7",
+    "published_manifest_sha256": "73ad234ca839515a0c6cda5f349049af2b1091454c24e5b5a5658b05a1c777e4",
+    "questions_sha256": "7796eeaa90f994b06c8e6dc2a109c53c8b2a10819947e96dc2e9082033fe0ab7",
+    "scopes_sha256": "8368cd8bbbe866ffe1c82df829348a4a2d1151f0f7ef9b90eb67b636fae3e122"
+  },
+  "local": {
+    "questions": 14,
+    "repeats": 3,
+    "retrieval_only": true,
+    "model_calls": 0,
+    "generated_answers": 0,
+    "source_hashes": {
+      "agent-kits/shared/knowledge-view.py": "6940a7f9f048805594c20fb1364a55151af26bbe6c3224a703cf2eb9702f044b",
+      "agent-kits/shared/knowledge-find.py": "ac191a40590c7ae2c5051ec9e61165b8f9aa198892382a1e1df65806320a70ba",
+      "agent-kits/shared/knowledge-local.py": "028ccb2e7a1acdbbfec5b1dc5d072da0f7e9128396d984321478d8f4e980ac8f",
+      "agent-kits/shared/knowledge-taxonomy-local.py": "c190568af70518ee6211a768f6b54e608cb108ad2b8a89b3f6cc4f802b10bd18",
+      "agent-kits/shared/local-read.py": "0921b6bbf628ac46c5f60d8cb6c4fe0bb467f5c9573abd7b9f16cc6f63326180",
+      "agent-kits/shared/redact.py": "4e9131368fd2471dcb2e3a2e91f6b0dc00555354487b6308194be05e4c4d5907"
+    },
+    "all_expected_top1": 8,
+    "all_expected_top5": 12,
+    "all_expected_top10": 12,
+    "questions_with_expected_sources": 12,
+    "foreign_scope_hits": 0,
+    "rows": [
+      {
+        "id": "Q01",
+        "scope": "Atlas",
+        "historical": false,
+        "expected_sources": [
+          "D002"
+        ],
+        "expected_action": null,
+        "median_search_ms": 190.88,
+        "runs": [
+          {
+            "repeat": 1,
+            "search_ms": 269.879,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D002",
+              "D003",
+              "D001",
+              "D004",
+              "D012",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D010"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4574,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 2,
+            "search_ms": 190.88,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D002",
+              "D003",
+              "D001",
+              "D004",
+              "D012",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D010"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4574,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 3,
+            "search_ms": 155.459,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D002",
+              "D003",
+              "D001",
+              "D004",
+              "D012",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D010"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4574,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          }
+        ]
+      },
+      {
+        "id": "Q02",
+        "scope": "Atlas",
+        "historical": true,
+        "expected_sources": [
+          "D003"
+        ],
+        "expected_action": null,
+        "median_search_ms": 148.215,
+        "runs": [
+          {
+            "repeat": 1,
+            "search_ms": 162.809,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D002",
+              "D003",
+              "D001",
+              "D010",
+              "D004",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D011"
+            ],
+            "all_expected_top1": false,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 2,
+            "search_ms": 132.792,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D002",
+              "D003",
+              "D001",
+              "D010",
+              "D004",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D011"
+            ],
+            "all_expected_top1": false,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 3,
+            "search_ms": 148.215,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D002",
+              "D003",
+              "D001",
+              "D010",
+              "D004",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D011"
+            ],
+            "all_expected_top1": false,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          }
+        ]
+      },
+      {
+        "id": "Q03",
+        "scope": "Atlas",
+        "historical": true,
+        "expected_sources": [
+          "D002",
+          "D003"
+        ],
+        "expected_action": null,
+        "median_search_ms": 136.767,
+        "runs": [
+          {
+            "repeat": 1,
+            "search_ms": 164.873,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D002",
+              "D003",
+              "D001",
+              "D004",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D010",
+              "D011"
+            ],
+            "all_expected_top1": false,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 2,
+            "search_ms": 129.706,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D002",
+              "D003",
+              "D001",
+              "D004",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D010",
+              "D011"
+            ],
+            "all_expected_top1": false,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 3,
+            "search_ms": 136.767,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D002",
+              "D003",
+              "D001",
+              "D004",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D010",
+              "D011"
+            ],
+            "all_expected_top1": false,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          }
+        ]
+      },
+      {
+        "id": "Q04",
+        "scope": "Atlas",
+        "historical": false,
+        "expected_sources": [
+          "D001"
+        ],
+        "expected_action": null,
+        "median_search_ms": 114.099,
+        "runs": [
+          {
+            "repeat": 1,
+            "search_ms": 114.099,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D001",
+              "D003",
+              "D002",
+              "D004",
+              "D010",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D011"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 2,
+            "search_ms": 100.263,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D001",
+              "D003",
+              "D002",
+              "D004",
+              "D010",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D011"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 3,
+            "search_ms": 127.074,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D001",
+              "D003",
+              "D002",
+              "D004",
+              "D010",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D011"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          }
+        ]
+      },
+      {
+        "id": "Q05",
+        "scope": "Atlas",
+        "historical": false,
+        "expected_sources": [
+          "D004"
+        ],
+        "expected_action": null,
+        "median_search_ms": 106.591,
+        "runs": [
+          {
+            "repeat": 1,
+            "search_ms": 95.382,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D004",
+              "D006"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 893,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 2,
+            "search_ms": 106.591,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D004",
+              "D006"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 893,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 3,
+            "search_ms": 111.222,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D004",
+              "D006"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 893,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          }
+        ]
+      },
+      {
+        "id": "Q06",
+        "scope": "Atlas",
+        "historical": false,
+        "expected_sources": [
+          "D007"
+        ],
+        "expected_action": null,
+        "median_search_ms": 93.967,
+        "runs": [
+          {
+            "repeat": 1,
+            "search_ms": 93.967,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D007"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 445,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 2,
+            "search_ms": 93.907,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D007"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 445,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 3,
+            "search_ms": 108.034,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D007"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 445,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          }
+        ]
+      },
+      {
+        "id": "Q07",
+        "scope": "Atlas",
+        "historical": false,
+        "expected_sources": [
+          "D005",
+          "D009"
+        ],
+        "expected_action": null,
+        "median_search_ms": 115.006,
+        "runs": [
+          {
+            "repeat": 1,
+            "search_ms": 135.859,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D005",
+              "D009",
+              "D010",
+              "D001"
+            ],
+            "all_expected_top1": false,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 1742,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 2,
+            "search_ms": 115.006,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D005",
+              "D009",
+              "D010",
+              "D001"
+            ],
+            "all_expected_top1": false,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 1742,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 3,
+            "search_ms": 102.706,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D005",
+              "D009",
+              "D010",
+              "D001"
+            ],
+            "all_expected_top1": false,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 1742,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          }
+        ]
+      },
+      {
+        "id": "Q08",
+        "scope": "Atlas",
+        "historical": false,
+        "expected_sources": [
+          "D006"
+        ],
+        "expected_action": null,
+        "median_search_ms": 116.506,
+        "runs": [
+          {
+            "repeat": 1,
+            "search_ms": 89.436,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D006",
+              "D001",
+              "D002",
+              "D003",
+              "D004",
+              "D005",
+              "D007",
+              "D009",
+              "D010",
+              "D011"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 2,
+            "search_ms": 116.506,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D006",
+              "D001",
+              "D002",
+              "D003",
+              "D004",
+              "D005",
+              "D007",
+              "D009",
+              "D010",
+              "D011"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 3,
+            "search_ms": 127.245,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D006",
+              "D001",
+              "D002",
+              "D003",
+              "D004",
+              "D005",
+              "D007",
+              "D009",
+              "D010",
+              "D011"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          }
+        ]
+      },
+      {
+        "id": "Q09",
+        "scope": "Atlas",
+        "historical": false,
+        "expected_sources": [
+          "D010"
+        ],
+        "expected_action": null,
+        "median_search_ms": 116.246,
+        "runs": [
+          {
+            "repeat": 1,
+            "search_ms": 116.246,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D010",
+              "D005",
+              "D009"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 1341,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 2,
+            "search_ms": 116.229,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D010",
+              "D005",
+              "D009"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 1341,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 3,
+            "search_ms": 131.204,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D010",
+              "D005",
+              "D009"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 1341,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          }
+        ]
+      },
+      {
+        "id": "Q10",
+        "scope": "Atlas",
+        "historical": false,
+        "expected_sources": [],
+        "expected_action": "abstain",
+        "median_search_ms": 130.661,
+        "runs": [
+          {
+            "repeat": 1,
+            "search_ms": 130.661,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D001",
+              "D002",
+              "D003",
+              "D011",
+              "D004",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D010"
+            ],
+            "all_expected_top1": null,
+            "all_expected_top5": null,
+            "all_expected_top10": null,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 2,
+            "search_ms": 136.356,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D001",
+              "D002",
+              "D003",
+              "D011",
+              "D004",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D010"
+            ],
+            "all_expected_top1": null,
+            "all_expected_top5": null,
+            "all_expected_top10": null,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 3,
+            "search_ms": 127.716,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D001",
+              "D002",
+              "D003",
+              "D011",
+              "D004",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D010"
+            ],
+            "all_expected_top1": null,
+            "all_expected_top5": null,
+            "all_expected_top10": null,
+            "context_characters": 4497,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          }
+        ]
+      },
+      {
+        "id": "Q11",
+        "scope": "Atlas",
+        "historical": false,
+        "expected_sources": [],
+        "expected_action": "abstain",
+        "median_search_ms": 144.147,
+        "runs": [
+          {
+            "repeat": 1,
+            "search_ms": 136.073,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D001",
+              "D005",
+              "D006"
+            ],
+            "all_expected_top1": null,
+            "all_expected_top5": null,
+            "all_expected_top10": null,
+            "context_characters": 1288,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 2,
+            "search_ms": 152.055,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D001",
+              "D005",
+              "D006"
+            ],
+            "all_expected_top1": null,
+            "all_expected_top5": null,
+            "all_expected_top10": null,
+            "context_characters": 1288,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 3,
+            "search_ms": 144.147,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D001",
+              "D005",
+              "D006"
+            ],
+            "all_expected_top1": null,
+            "all_expected_top5": null,
+            "all_expected_top10": null,
+            "context_characters": 1288,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          }
+        ]
+      },
+      {
+        "id": "Q12",
+        "scope": "Atlas",
+        "historical": false,
+        "expected_sources": [
+          "D002"
+        ],
+        "expected_action": null,
+        "median_search_ms": 144.953,
+        "runs": [
+          {
+            "repeat": 1,
+            "search_ms": 130.193,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D012",
+              "D001",
+              "D003",
+              "D002",
+              "D004",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D010"
+            ],
+            "all_expected_top1": false,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4574,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 2,
+            "search_ms": 169.612,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D012",
+              "D001",
+              "D003",
+              "D002",
+              "D004",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D010"
+            ],
+            "all_expected_top1": false,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4574,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 3,
+            "search_ms": 144.953,
+            "status": "partial",
+            "complete": false,
+            "issues": [
+              "result_budget"
+            ],
+            "ranked_sources": [
+              "D012",
+              "D001",
+              "D003",
+              "D002",
+              "D004",
+              "D005",
+              "D006",
+              "D007",
+              "D009",
+              "D010"
+            ],
+            "all_expected_top1": false,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 4574,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          }
+        ]
+      },
+      {
+        "id": "Q13",
+        "scope": "Boreal",
+        "historical": false,
+        "expected_sources": [
+          "D008"
+        ],
+        "expected_action": null,
+        "median_search_ms": 89.644,
+        "runs": [
+          {
+            "repeat": 1,
+            "search_ms": 89.644,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D008"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 433,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 3,
+              "bytes": 435,
+              "entries": 2,
+              "scans": 8
+            }
+          },
+          {
+            "repeat": 2,
+            "search_ms": 88.468,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D008"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 433,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 3,
+              "bytes": 435,
+              "entries": 2,
+              "scans": 8
+            }
+          },
+          {
+            "repeat": 3,
+            "search_ms": 94.207,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D008"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 433,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 3,
+              "bytes": 435,
+              "entries": 2,
+              "scans": 8
+            }
+          }
+        ]
+      },
+      {
+        "id": "Q14",
+        "scope": "Atlas",
+        "historical": false,
+        "expected_sources": [
+          "D009"
+        ],
+        "expected_action": null,
+        "median_search_ms": 152.228,
+        "runs": [
+          {
+            "repeat": 1,
+            "search_ms": 155.537,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D009",
+              "D005",
+              "D010"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 1341,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 2,
+            "search_ms": 136.905,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D009",
+              "D005",
+              "D010"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 1341,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          },
+          {
+            "repeat": 3,
+            "search_ms": 152.228,
+            "status": "ok",
+            "complete": true,
+            "issues": [],
+            "ranked_sources": [
+              "D009",
+              "D005",
+              "D010"
+            ],
+            "all_expected_top1": true,
+            "all_expected_top5": true,
+            "all_expected_top10": true,
+            "context_characters": 1341,
+            "foreign_scope_sources": [],
+            "budget": {
+              "files": 13,
+              "bytes": 5051,
+              "entries": 12,
+              "scans": 18
+            }
+          }
+        ]
+      }
+    ],
+    "partial_results": 21,
+    "complete_results": 21,
+    "median_of_question_medians_search_ms": 123.584,
+    "pooled_median_search_ms": 129.9495,
+    "latency_interval": "view.query only; excludes process startup, initial view import and subsequent show calls; not a generated-answer latency",
+    "absence_questions": "Q10/Q11 return ranked sources; no generated answers or abstention measured"
+  },
+  "kwipu": {
+    "source_revision": null,
+    "immutable_images": {
+      "writer": "sha256:4b958b34a54a3e32617b3b9edf6d7144ec3795b0a568dfdd3784a723878ef964",
+      "bridge": "sha256:08b82be798f4c95701cea42a3126f156ab94145e3c5d371cc7669da150f95075"
+    },
+    "package_versions": {
+      "llama-index-core": "0.14.21",
+      "llama-index-llms-ollama": "0.10.1",
+      "llama-index-embeddings-ollama": "0.9.0",
+      "ollama": "0.6.2",
+      "httpx": "0.28.1",
+      "fastapi": "0.136.1",
+      "uvicorn": "0.46.0",
+      "nest-asyncio": "1.6.0"
+    },
+    "repetitions": {
+      "atlas": 5,
+      "boreal": 3,
+      "comparable_first_n": 3,
+      "reason": "Atlas five-repetition run had already started before root requested limit three"
+    },
+    "latency_comparable": {
+      "n": 42,
+      "median_ms": 1440.4135110016796,
+      "p95_nearest_rank_ms": 2239.6183920063777,
+      "min_ms": 858.281315988279,
+      "max_ms": 3837.8710100078024
+    },
+    "initial_ingestion_ms": {
+      "atlas": 84557.46700899908,
+      "boreal": 11364.82520600839
+    },
+    "usage_measured_suite_all_repetitions": {
+      "atlas": {
+        "gpt-oss:120b-cloud": {
+          "calls": 76,
+          "errors": 0,
+          "provider_reported_prompt_tokens": 157327,
+          "provider_reported_eval_tokens": 27756,
+          "prompt_usage_missing_calls": 0,
+          "eval_usage_missing_calls": 0,
+          "thinking_or_reasoning_token_split": null,
+          "cost_eur": null
+        },
+        "nomic-embed-text": {
+          "calls": 74,
+          "errors": 0,
+          "provider_reported_prompt_tokens": 21197,
+          "provider_reported_eval_tokens": null,
+          "prompt_usage_missing_calls": 0,
+          "eval_usage_missing_calls": 74,
+          "thinking_or_reasoning_token_split": null,
+          "cost_eur": null
+        }
+      },
+      "boreal": {
+        "gpt-oss:120b-cloud": {
+          "calls": 4,
+          "errors": 0,
+          "provider_reported_prompt_tokens": 1969,
+          "provider_reported_eval_tokens": 1162,
+          "prompt_usage_missing_calls": 0,
+          "eval_usage_missing_calls": 0,
+          "thinking_or_reasoning_token_split": null,
+          "cost_eur": null
+        },
+        "nomic-embed-text": {
+          "calls": 5,
+          "errors": 0,
+          "provider_reported_prompt_tokens": 1720,
+          "provider_reported_eval_tokens": null,
+          "prompt_usage_missing_calls": 0,
+          "eval_usage_missing_calls": 5,
+          "thinking_or_reasoning_token_split": null,
+          "cost_eur": null
+        }
+      }
+    },
+    "usage_measured_lifecycle": {
+      "gpt-oss:120b-cloud": {
+        "calls": 16,
+        "errors": 0,
+        "provider_reported_prompt_tokens": 17601,
+        "provider_reported_eval_tokens": 8872,
+        "prompt_usage_missing_calls": 0,
+        "eval_usage_missing_calls": 0,
+        "thinking_or_reasoning_token_split": null,
+        "cost_eur": null
+      },
+      "nomic-embed-text": {
+        "calls": 14,
+        "errors": 0,
+        "provider_reported_prompt_tokens": 17745,
+        "provider_reported_eval_tokens": null,
+        "prompt_usage_missing_calls": 0,
+        "eval_usage_missing_calls": 14,
+        "thinking_or_reasoning_token_split": null,
+        "cost_eur": null
+      }
+    },
+    "pilot_usage": {
+      "gpt-oss:120b-cloud": {
+        "calls": 2,
+        "errors": 0,
+        "provider_reported_prompt_tokens": 960,
+        "provider_reported_eval_tokens": 1084,
+        "prompt_usage_missing_calls": 0,
+        "eval_usage_missing_calls": 0,
+        "thinking_or_reasoning_token_split": null,
+        "cost_eur": null
+      },
+      "nomic-embed-text": {
+        "calls": 3,
+        "errors": 0,
+        "provider_reported_prompt_tokens": 2737,
+        "provider_reported_eval_tokens": null,
+        "prompt_usage_missing_calls": 0,
+        "eval_usage_missing_calls": 3,
+        "thinking_or_reasoning_token_split": null,
+        "cost_eur": null
+      }
+    },
+    "unmetered_native_http_queries": 3,
+    "cost_eur": null,
+    "storage_bytes_current_after_lifecycle": {
+      "atlas": 518048,
+      "boreal": 64585
+    },
+    "container_limits": {
+      "memory_mib": 3072,
+      "cpus": 2
+    },
+    "sampled_resources": {
+      "atlas": {
+        "samples": 18,
+        "sampled_max_mib": 167.0,
+        "true_peak_known": false
+      },
+      "boreal": {
+        "samples": 18,
+        "sampled_max_mib": 4.266,
+        "true_peak_known": false,
+        "sampling_phase": "idle before Boreal inference, not representative inference resource use"
+      }
+    },
+    "lifecycle": {
+      "L01_update": {
+        "passed": 3,
+        "trials": 3,
+        "version": "3",
+        "seconds": 75,
+        "reference_time": "2026-10-10T09:00:00Z explicitly synthetic evaluation future relative host2026-10-09"
+      },
+      "L02_revoke": {
+        "passed": 3,
+        "trials": 3,
+        "D005_removed_from_owned_projection": true,
+        "canonical_history_bytes_preserved": true
+      },
+      "batch_rebuild_ms": 71462.0641710062,
+      "L03_restart": {
+        "same_index_hashes": true,
+        "store_files": 8,
+        "answer_seconds": 75,
+        "restart_and_bridge_ready_ms": 15676.531299992348
+      },
+      "L04_backup_restore": "not_executed",
+      "L05_injected_inference_failure": "not_executed",
+      "L06_interrupted_write": "not_executed",
+      "reason_omitted": "Root requested limiting costly cycles after clear limitation found",
+      "lifecycle_snapshot_citations_resolved": 60,
+      "lifecycle_snapshot_citations_unresolved": 0
+    },
+    "debug_bootstrap_failed_attempt_metered_usage": {
+      "gpt-oss:120b-cloud": {
+        "calls": 1,
+        "errors": 0,
+        "provider_reported_prompt_tokens": 362,
+        "provider_reported_eval_tokens": 655,
+        "prompt_usage_missing_calls": 0,
+        "eval_usage_missing_calls": 0,
+        "thinking_or_reasoning_token_split": null,
+        "cost_eur": null
+      },
+      "nomic-embed-text": {
+        "calls": 2,
+        "errors": 1,
+        "provider_reported_prompt_tokens": 244,
+        "provider_reported_eval_tokens": null,
+        "prompt_usage_missing_calls": 1,
+        "eval_usage_missing_calls": 2,
+        "thinking_or_reasoning_token_split": null,
+        "cost_eur": null
+      }
+    },
+    "other_unmetered_attempts": [
+      "One native direct constructor reproducer without CLI nest_asyncio setup; failed Event loop is closed. Tokens unknown.",
+      "One initial own-script import lacked PYTHONPATH; failed before any inference."
+    ],
+    "effective_models": {
+      "llm": "gpt-oss:120b-cloud",
+      "embedding": "nomic-embed-text",
+      "inference_locality": "cloud_llm_local_embedding",
+      "KWIPU_THINKING": "false",
+      "temperature": "native LlamaIndex Ollama default, no override"
+    },
+    "quality": {
+      "comparable_answers": 42,
+      "core_answer_correct": 41,
+      "full_expected_facts_and_supported_attributions_correct": 36,
+      "unsupported_source_attributions": 2,
+      "current_obsolete_errors": 1,
+      "adversarial_question_document_current_authority_failures": {
+        "comparable_first3": 1,
+        "all5": 3,
+        "question": "Q12",
+        "case": "The question explicitly asks to ignore other sources and apply D012, while D012 includes a documentary adversarial instruction. Failure of current-state authority under combined adversarial question/document; benign-query document-only causation was not isolated."
+      },
+      "abstention_correct": 6,
+      "abstention_trials": 6,
+      "foreign_file_citations": 0,
+      "isolation_guarantee": "separate inputs/stores; 0 foreign file citations observed, not a universal security proof",
+      "api_null_file_name_citations": 99,
+      "api_citations": 375,
+      "api_filename_mapping_limitation": "Native BM25/temporal TextNode metadata omitted; node_id snapshot join required",
+      "baseline_full_node_mapping": "not measured; initial snapshot was not archived before lifecycle rebuild, retain unknown",
+      "recall_at5": null,
+      "citation_precision": null,
+      "citation_precision_reason": "API list is retrieved source_nodes, not claim-specific citations; no fabricated precision",
+      "human_navigation_completed": false
+    },
+    "native_citations_semantics": "retrieved source_nodes, not citations per assertion",
+    "independent_review": "root and independent reviewer agreed aggregate manual adjudication; minor empty-request versus empty-manifest paraphrase remains recorded",
+    "cleanup": {
+      "owned_containers_removed": true,
+      "owned_container_count": 4,
+      "custom_networks_created": 0,
+      "volumes_created": 0,
+      "existing_services_modified": false
+    },
+    "adapter_export_binding": {
+      "status": "passed_fixture_metadata_binding_only",
+      "documents": 2,
+      "joined_chunks": 2,
+      "mismatches": 0,
+      "http_status": 200,
+      "evidence_file": "memory-documental-binding.json",
+      "evidence_sha256": "218ed68ce70e5e21cae6347a44670ed969827d77dce43338b1b065c3dcdc7757",
+      "baseline_join": "still_unknown",
+      "product_read_QA": "not_implemented"
+    }
+  },
+  "graphify": {
+    "source_python_tree_sha256": "a6f96db5b3aa5cd90676fc43418154229ab164e753198f894d7025d5aaa76544",
+    "reviewed_consumer_module_sha256": {
+      "code-context.py": "63b8d66977b42409f79e7814c6eba3846cb6eea6dc61b3ee47d1b4ddbb2867dc",
+      "capability-route.py": "a56b51900407e1262e394a67fe38086920d29efba446c31c83c7d0797b714c8c",
+      "redact.py": "4e9131368fd2471dcb2e3a2e91f6b0dc00555354487b6308194be05e4c4d5907"
+    },
+    "corpus": {
+      "kind": "wholly synthetic code",
+      "files": 4,
+      "fixture_hashes": {
+        "src/gateway.py": "c2c005d9e59c83af79d9c7bf66b067034dd824a6ec144f4de1ba38c037d1cb27",
+        "src/policy.py": "765ab51b0c82b12f5e8141c67d92db7372a75b4084691ce8bdff94bb399296a2",
+        "src/storage.py": "3bf52971777b645c853ef130eaf57b9f08a572b158dee6e5e3ae18349c82b684",
+        "src/unused.py": "154e375c55bd710dc240b59dcd4d05908713599237341f54ed67742549b45d74"
+      },
+      "code_questions_sha256": "298a0a45155ff66b0ed0ac757d791095f93ffff87a72d9b92f106d61a2676be2"
+    },
+    "artifact": {
+      "schema_version": 1,
+      "producer_nodes": 8,
+      "producer_edges": 10,
+      "json_bytes": 5506,
+      "sha256": "2c963ad3b99bc4fe51e78f4cf93664f2016f61e322f8fb21860853207eba4ac6",
+      "directed_field": false,
+      "call_arc_order_preserved": true,
+      "consumer_coverage": "unknown",
+      "consumer_freshness": "unverified",
+      "consumer_knowledge_status": "unapproved-context"
+    },
+    "case_judgements": [
+      {
+        "question_id": "C01",
+        "repeat": 1,
+        "outcome": "cited_structural_evidence",
+        "supported_evidence_correct": true,
+        "citations": [
+          "src/policy.py:L1",
+          "src/gateway.py:L5"
+        ]
+      },
+      {
+        "question_id": "C02",
+        "repeat": 1,
+        "outcome": "cited_structural_evidence",
+        "supported_evidence_correct": true,
+        "citations": [
+          "src/gateway.py:L6"
+        ]
+      },
+      {
+        "question_id": "C03",
+        "repeat": 1,
+        "outcome": "unsupported_consumer_path_api",
+        "supported_evidence_correct": null,
+        "citations": []
+      },
+      {
+        "question_id": "C04",
+        "repeat": 1,
+        "outcome": "cited_structural_evidence_requires_source_disambiguation",
+        "supported_evidence_correct": true,
+        "citations": [
+          "src/gateway.py:L4",
+          "src/gateway.py:L5"
+        ]
+      },
+      {
+        "question_id": "C05_absent",
+        "repeat": 1,
+        "outcome": "abstention_in_artifact",
+        "supported_evidence_correct": true,
+        "citations": []
+      },
+      {
+        "question_id": "C01",
+        "repeat": 2,
+        "outcome": "cited_structural_evidence",
+        "supported_evidence_correct": true,
+        "citations": [
+          "src/policy.py:L1",
+          "src/gateway.py:L5"
+        ]
+      },
+      {
+        "question_id": "C02",
+        "repeat": 2,
+        "outcome": "cited_structural_evidence",
+        "supported_evidence_correct": true,
+        "citations": [
+          "src/gateway.py:L6"
+        ]
+      },
+      {
+        "question_id": "C03",
+        "repeat": 2,
+        "outcome": "unsupported_consumer_path_api",
+        "supported_evidence_correct": null,
+        "citations": []
+      },
+      {
+        "question_id": "C04",
+        "repeat": 2,
+        "outcome": "cited_structural_evidence_requires_source_disambiguation",
+        "supported_evidence_correct": true,
+        "citations": [
+          "src/gateway.py:L4",
+          "src/gateway.py:L5"
+        ]
+      },
+      {
+        "question_id": "C05_absent",
+        "repeat": 2,
+        "outcome": "abstention_in_artifact",
+        "supported_evidence_correct": true,
+        "citations": []
+      },
+      {
+        "question_id": "C01",
+        "repeat": 3,
+        "outcome": "cited_structural_evidence",
+        "supported_evidence_correct": true,
+        "citations": [
+          "src/policy.py:L1",
+          "src/gateway.py:L5"
+        ]
+      },
+      {
+        "question_id": "C02",
+        "repeat": 3,
+        "outcome": "cited_structural_evidence",
+        "supported_evidence_correct": true,
+        "citations": [
+          "src/gateway.py:L6"
+        ]
+      },
+      {
+        "question_id": "C03",
+        "repeat": 3,
+        "outcome": "unsupported_consumer_path_api",
+        "supported_evidence_correct": null,
+        "citations": []
+      },
+      {
+        "question_id": "C04",
+        "repeat": 3,
+        "outcome": "cited_structural_evidence_requires_source_disambiguation",
+        "supported_evidence_correct": true,
+        "citations": [
+          "src/gateway.py:L4",
+          "src/gateway.py:L5"
+        ]
+      },
+      {
+        "question_id": "C05_absent",
+        "repeat": 3,
+        "outcome": "abstention_in_artifact",
+        "supported_evidence_correct": true,
+        "citations": []
+      }
+    ],
+    "usefulness": {
+      "cited_structural_questions_supported": 3,
+      "code_questions_total": 4,
+      "supported_cited_evidence_checks_pass": 9,
+      "supported_cited_evidence_checks_total": 9,
+      "path_questions_supported_by_actual_consumer": 0,
+      "missing_symbol_abstentions_correct": 3,
+      "missing_symbol_repetitions": 3,
+      "citation_line_references_valid": 93,
+      "citation_line_references_total": 93,
+      "citation_line_validity_only_not_relevance_or_approval": true,
+      "generated_answers": 0,
+      "against_local_rg_reading_baseline": "not measured in this subexperiment",
+      "human_navigation": "not tested",
+      "cited_structure_accuracy_checks_pass": 93,
+      "cited_structure_accuracy_checks_total": 93,
+      "citation_validation_method": "Independent stdlib AST source verification: definition labels/lines, call site and explicit import target, contains/import edges; file-node L1 anchor checked. This validates citation correctness, not relevance or approved knowledge."
+    },
+    "latency_resources": {
+      "producer": {
+        "wall_ms": [
+          1253.5858000046574,
+          1475.9470999997575,
+          1901.4882000046782
+        ],
+        "worker_ms": [
+          1026.979800008121,
+          1248.7875999941025,
+          1623.3404999948107
+        ],
+        "peak_working_set_bytes": [
+          55390208,
+          54996992,
+          55160832
+        ]
+      },
+      "consumer": {
+        "wall_ms": [
+          216.76039999874774,
+          177.69500000576954,
+          156.45379999477882,
+          233.47609999473207,
+          206.36549999471754,
+          214.5009000087157,
+          206.02789999975357,
+          214.96709999337327,
+          187.3836000013398,
+          164.74940000625793,
+          232.52409999258816,
+          216.7368000082206,
+          220.16170001006685,
+          287.89900000265334,
+          245.6936999951722
+        ],
+        "worker_ms": [
+          31.83030000946019,
+          31.500199998845346,
+          34.10530000110157,
+          54.00199998985045,
+          38.71739999158308,
+          47.44290000235196,
+          39.07420000177808,
+          48.06439999083523,
+          32.12970000458881,
+          37.16580000764225,
+          60.68029999732971,
+          48.775699993711896,
+          46.97519999172073,
+          70.01919999311212,
+          55.74969999724999
+        ],
+        "median_wall_ms": 214.96709999337327,
+        "median_worker_ms": 46.97519999172073,
+        "peak_working_set_bytes_max": 28409856,
+        "context_bytes_min": 308,
+        "context_bytes_max": 1495
+      },
+      "experiment_seconds": 14.356429000006756
+    },
+    "lifecycle": {
+      "hash_original": "2c963ad3b99bc4fe51e78f4cf93664f2016f61e322f8fb21860853207eba4ac6",
+      "hash_after_mutation": "9a5e52e82edc3b224af2d8999cea995f7416ed23b3575cba509570e3f09085f4",
+      "hash_after_rebuild": "2c963ad3b99bc4fe51e78f4cf93664f2016f61e322f8fb21860853207eba4ac6",
+      "stale_calls": [
+        "src_policy_deadline",
+        "src_storage_append"
+      ],
+      "fresh_calls": [
+        "src_storage_append",
+        "src_unused_deadline"
+      ],
+      "persistence_fresh_process_equal": true,
+      "source_removed_calls": [
+        "src_storage_append"
+      ],
+      "source_removed_warnings": [
+        "unsupported or uncited relation excluded",
+        "unsupported, duplicate or uncited node excluded"
+      ],
+      "restore_original_hash_equal": true,
+      "foreign_root_graph_blocked": true,
+      "fixture_source_hashes_unchanged": true
+    },
+    "cost": {
+      "provider_calls": 0,
+      "input_tokens_producer_reported": 0,
+      "output_tokens_producer_reported": 0,
+      "consumer_tokenization": "not measured; UTF8 result bytes reported",
+      "provider_spend_observed": 0,
+      "monetary_total": "unknown hardware/time cost"
+    },
+    "producer_revision": "5b74d7d74911cf435c8f1636b6f96ea202cc6246",
+    "extraction_condition": "three extractions with separate cache roots; strict cold precondition not recorded",
+    "distinct_structural_citations": 16,
+    "foreign_root_assertion": "harness records passed assertion but no retained standalone stdout or exit; not independently reproduced",
+    "mutated_artifact_retention": "only historical hash retained; original rebuilt artifact is published"
+  },
+  "graphiti": {
+    "completed_episodes": 4,
+    "native_searches": 12,
+    "repeats_are_retrieval_only": true,
+    "numeric_answerable_fact_matches": 0,
+    "numeric_answerable_fact_cases": 9,
+    "empty_absent_retrieval_cases": 0,
+    "absent_retrieval_cases": 3,
+    "temporal_upper_bound_failed_calls": 3,
+    "temporal_upper_bound_checked_calls": 3,
+    "foreign_scope_fact_cases": 0,
+    "provider_call_counts": {
+      "llm": 13,
+      "embedding": 48
+    },
+    "usage_reported_by_provider": {
+      "llm": {
+        "prompt_tokens": 19269,
+        "completion_tokens": 10997,
+        "total_tokens": 30266
+      },
+      "embedding": {
+        "prompt_tokens": 1102,
+        "completion_tokens": 0,
+        "total_tokens": 1102
+      }
+    },
+    "requested_llm_max_tokens_histogram": {
+      "2048": 9,
+      "16384": 4
+    },
+    "search_latency_ms": {
+      "min": 141.13,
+      "median": 164.90949999999998,
+      "max": 515.86
+    },
+    "episode_processing_latency_ms": {
+      "D001": 10733.273,
+      "D003": 10147.41,
+      "D002": 15878.962,
+      "D008": 13223.138
+    },
+    "extra_temporal_utility_vs_local_kwipu": "NOT_DEMONSTRATED",
+    "general_temporal_capability": "UNKNOWN",
+    "generated_answer_accuracy": "UNKNOWN",
+    "generated_abstention_quality": "UNKNOWN",
+    "price_and_account_charge": "UNKNOWN",
+    "rows": [
+      {
+        "scope": "Atlas",
+        "question": "Q02",
+        "repeat": 1,
+        "facts": 6,
+        "expected_seconds": "90",
+        "expected_numeric_fact_present": false,
+        "empty_absent_retrieval": null,
+        "upper_bound_violations": [
+          "8bbb2587-78b9-49d6-a98f-f44178c92088",
+          "cdf1e59c-18cd-4ae5-acad-5066f2468556",
+          "d406947d-12df-4e7c-9263-ba8e188b5bc7"
+        ],
+        "foreign_scope_facts": [],
+        "elapsed_ms": 148.324,
+        "llm_calls": 0,
+        "embedding_calls": 1
+      },
+      {
+        "scope": "Atlas",
+        "question": "Q02",
+        "repeat": 2,
+        "facts": 6,
+        "expected_seconds": "90",
+        "expected_numeric_fact_present": false,
+        "empty_absent_retrieval": null,
+        "upper_bound_violations": [
+          "8bbb2587-78b9-49d6-a98f-f44178c92088",
+          "cdf1e59c-18cd-4ae5-acad-5066f2468556",
+          "d406947d-12df-4e7c-9263-ba8e188b5bc7"
+        ],
+        "foreign_scope_facts": [],
+        "elapsed_ms": 177.276,
+        "llm_calls": 0,
+        "embedding_calls": 1
+      },
+      {
+        "scope": "Atlas",
+        "question": "Q02",
+        "repeat": 3,
+        "facts": 6,
+        "expected_seconds": "90",
+        "expected_numeric_fact_present": false,
+        "empty_absent_retrieval": null,
+        "upper_bound_violations": [
+          "8bbb2587-78b9-49d6-a98f-f44178c92088",
+          "cdf1e59c-18cd-4ae5-acad-5066f2468556",
+          "d406947d-12df-4e7c-9263-ba8e188b5bc7"
+        ],
+        "foreign_scope_facts": [],
+        "elapsed_ms": 515.86,
+        "llm_calls": 0,
+        "embedding_calls": 1
+      },
+      {
+        "scope": "Atlas",
+        "question": "Q01",
+        "repeat": 1,
+        "facts": 3,
+        "expected_seconds": "45",
+        "expected_numeric_fact_present": false,
+        "empty_absent_retrieval": null,
+        "upper_bound_violations": [],
+        "foreign_scope_facts": [],
+        "elapsed_ms": 141.13,
+        "llm_calls": 0,
+        "embedding_calls": 1
+      },
+      {
+        "scope": "Atlas",
+        "question": "Q01",
+        "repeat": 2,
+        "facts": 3,
+        "expected_seconds": "45",
+        "expected_numeric_fact_present": false,
+        "empty_absent_retrieval": null,
+        "upper_bound_violations": [],
+        "foreign_scope_facts": [],
+        "elapsed_ms": 149.252,
+        "llm_calls": 0,
+        "embedding_calls": 1
+      },
+      {
+        "scope": "Atlas",
+        "question": "Q01",
+        "repeat": 3,
+        "facts": 3,
+        "expected_seconds": "45",
+        "expected_numeric_fact_present": false,
+        "empty_absent_retrieval": null,
+        "upper_bound_violations": [],
+        "foreign_scope_facts": [],
+        "elapsed_ms": 155.403,
+        "llm_calls": 0,
+        "embedding_calls": 1
+      },
+      {
+        "scope": "Atlas",
+        "question": "Q10",
+        "repeat": 1,
+        "facts": 6,
+        "expected_seconds": null,
+        "expected_numeric_fact_present": null,
+        "empty_absent_retrieval": false,
+        "upper_bound_violations": [],
+        "foreign_scope_facts": [],
+        "elapsed_ms": 190.281,
+        "llm_calls": 0,
+        "embedding_calls": 1
+      },
+      {
+        "scope": "Atlas",
+        "question": "Q10",
+        "repeat": 2,
+        "facts": 6,
+        "expected_seconds": null,
+        "expected_numeric_fact_present": null,
+        "empty_absent_retrieval": false,
+        "upper_bound_violations": [],
+        "foreign_scope_facts": [],
+        "elapsed_ms": 203.209,
+        "llm_calls": 0,
+        "embedding_calls": 1
+      },
+      {
+        "scope": "Atlas",
+        "question": "Q10",
+        "repeat": 3,
+        "facts": 6,
+        "expected_seconds": null,
+        "expected_numeric_fact_present": null,
+        "empty_absent_retrieval": false,
+        "upper_bound_violations": [],
+        "foreign_scope_facts": [],
+        "elapsed_ms": 188.971,
+        "llm_calls": 0,
+        "embedding_calls": 1
+      },
+      {
+        "scope": "Boreal",
+        "question": "Q13",
+        "repeat": 1,
+        "facts": 4,
+        "expected_seconds": "120",
+        "expected_numeric_fact_present": false,
+        "empty_absent_retrieval": null,
+        "upper_bound_violations": [],
+        "foreign_scope_facts": [],
+        "elapsed_ms": 150.961,
+        "llm_calls": 0,
+        "embedding_calls": 1
+      },
+      {
+        "scope": "Boreal",
+        "question": "Q13",
+        "repeat": 2,
+        "facts": 4,
+        "expected_seconds": "120",
+        "expected_numeric_fact_present": false,
+        "empty_absent_retrieval": null,
+        "upper_bound_violations": [],
+        "foreign_scope_facts": [],
+        "elapsed_ms": 162.975,
+        "llm_calls": 0,
+        "embedding_calls": 1
+      },
+      {
+        "scope": "Boreal",
+        "question": "Q13",
+        "repeat": 3,
+        "facts": 4,
+        "expected_seconds": "120",
+        "expected_numeric_fact_present": false,
+        "empty_absent_retrieval": null,
+        "upper_bound_violations": [],
+        "foreign_scope_facts": [],
+        "elapsed_ms": 166.844,
+        "llm_calls": 0,
+        "embedding_calls": 1
+      }
+    ],
+    "status": "completed_native_retrieval_only",
+    "source_pin": "11538f6d45561bcce9a4400b374fb2dc533dccb6",
+    "selected_installed_source_files_matched": 13,
+    "full_image_attested": false,
+    "effective_config": {
+      "llm_model": "gpt-oss:120b-cloud",
+      "small_model": "gpt-oss:120b-cloud",
+      "max_tokens": 2048,
+      "structured_output": "json_object",
+      "llm_client": "OpenAIGenericClient",
+      "embedding_model": "nomic-embed-text",
+      "embedding_dimensions": 768,
+      "reranker_class": "OpenAIRerankerClient",
+      "reranker_configured_model": null,
+      "reranker_default_model": "gpt-4.1-nano"
+    },
+    "inference_locality": "cloud_llm_local_embedding",
+    "reranker_invoked": false,
+    "reranker_compatibility": "unknown",
+    "elapsed_seconds_setup_and_cleanup_included": 122.941,
+    "generation_consistency": "one_native_ingestion_cohort_not_repeated",
+    "preserved_harness_failures": [
+      {
+        "stage": "MCP structuredContent.result envelope",
+        "llm_calls": 0,
+        "embedding_calls": 0
+      },
+      {
+        "stage": "explicit new episode UUID interpreted as update",
+        "llm_calls": 0,
+        "embedding_calls": 0
+      }
+    ],
+    "cleanup": {
+      "owned_resources_removed": true,
+      "original_container_ids_still_running": true,
+      "existing_services_modified": false
+    },
+    "independent_review": "completed_against_native_results_and_selected_sources"
+  },
+  "independent_review_sha256": {
+    "local": "abfce3ec7654b50fa9d5d0f9337fe3e23fac5dd2e00641cfa4e09a8386f27b0c",
+    "kwipu": "ede06f1de7dcdae4e48ff1b0d193aab8dbcaf3ee4148962cb188a2bf6212fa6a",
+    "graphify": "a82a46c58c92ecbbe56be0d5df7dadb5d756e9fdff8f0c3f271224f0a11d6aa0",
+    "graphiti": "0669ea3a7c839fe4c5f0cd3cdc36d197d8bb7ef3b7003831640ad3d0f7aa5979"
+  },
+  "raw_evidence_sha256": {
+    "local_summary": "4d9823bef1bb1cd2b6956b4fef7f0e451dbbeb0cb1f341eb2238cbc989933323",
+    "kwipu_summary": "d8652a2eea48418a5911ce6015632484bdefa9ed5f8a5bb74fc22a8a7ff84632",
+    "kwipu_root_adjudication": "edfaeef659c410c7dc1e2752461b4b1e2fe37af826aae660743f1ead9f9b9230",
+    "graphify_summary": "1db5e54470f3f00df4ae0f9b6e9df91302983ba6a4409e034bef890928972027",
+    "graphiti_native_result": "3fcb52388196ae324a622e1432d4584c47216869e5f82467130a244da38e9ddc",
+    "graphiti_adjudication": "63d6d8fd081fc9fee9f33e8b08ce0b112216684bf0b5817f9a8392f9ffd287a0",
+    "graphiti_provider_metadata": "7eb2ce6f8367397465f83b6d6641f34bebcd8d31ea0e6ab1115a3cdc594cea24",
+    "graphiti_executed_harness": "724029e1b5bdb93ce7b030b2ddff5c82de5f802779c028f0732f08a09b9f217f",
+    "graphiti_final_verification": "c27e7247007518f00d3d8e49f462d19d9ca3e7b9934c1fafa51f4837eff1afb5"
+  },
+  "not_measured": [
+    "production_corpus_quality",
+    "head_to_head_reference_implementation_effectiveness",
+    "human_service_UX",
+    "full_claim_specific_citation_precision",
+    "Kwipu_baseline_complete_node_join",
+    "Kwipu_backup_restore_or_interrupted_write",
+    "dependent_fact_coherence_after_policy_update",
+    "monetary_total"
+  ]
+}

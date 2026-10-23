@@ -1,9 +1,13 @@
 # Agente: reviewer (una lente, solo lectura)
 
 ## Propósito
-Dar cuerpo a las **lentes** de la skill `adversarial-review` con un agente de contexto fresco que **no
-puede escribir**: `tools: Read, Grep, Glob, Bash` (Bash solo para ejecutar tests/scripts como evidencia;
-Write/Edit no están en la lista, así que no hay regla que recordar — no tiene la herramienta). Antes las
+Dar cuerpo a las **lentes** de la skill `adversarial-review` con un agente de contexto fresco que
+revisa sin modificar el código: `tools: Read, Grep, Glob, Bash` (Bash solo para ejecutar
+tests/scripts como evidencia; Write/Edit no están en la lista de Claude). Esa lista no
+constituye un sandbox completo: una shell conserva los permisos del runtime. En Codex
+0.161.0 el subagente hereda permisos del padre; un campo sandbox_mode en el TOML de su
+rol no impone solo lectura. OpenCode declara deny para herramientas de edición, con
+sus límites documentados en [INTEROP](../INTEROP.md). Antes las
 lentes iban a subagentes genéricos con las herramientas del padre; ahora el revisor es una pieza con
 tier propio (`opus` · `effort: high`, override en `dev.json` `modelos.reviewer`) y contrato de salida fijo.
 
@@ -34,3 +38,12 @@ tier propio (`opus` · `effort: high`, override en `dev.json` `modelos.reviewer`
 ## Dependencias
 - Skill `adversarial-review` (método, graduación, tabla del revisor, prompts literales).
 - Fragmentos `agent-kits/shared`: `personas/`, `docs-style.md`, `constitution-check.md`, `output-discipline.md`.
+
+## Contexto técnico común
+
+Aplica `agent-kits/shared/capability-check.md` con tu rol y el paquete/áreas de
+la tarea. La selección comparte criterios y escenarios del ledger; consulta
+solo mapas/referencias pertinentes. Stack-practices consolida PHP/CodeIgniter,
+Python y React. Los métodos, artefactos y puertas del rol conservan su dueño.
+Sin selector o guía disponible, avisa del límite y continúa con el contrato de
+la tarea; no confundas selección con ejecución, tools o permisos.

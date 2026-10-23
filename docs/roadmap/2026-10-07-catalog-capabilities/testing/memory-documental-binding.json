@@ -1,0 +1,285 @@
+{
+  "schema_version": 1,
+  "data_origin": "wholly_synthetic",
+  "status": "passed_fixture_metadata_binding_only",
+  "claims_scope": "Two real adapter exports through native ingestion, persisted chunks, native serializer and real internal HTTP; no generative-query or product-read acceptance",
+  "fixtures": [
+    {
+      "knowledge_id": "bindingfixture.DECISION.D001",
+      "version": 7,
+      "canonical_utf8": "---\nid: bindingfixture.DECISION.D001\nversion: 7\ncategory: DECISION\nestado: aprobado\nevidencia: validated_case\ntitulo: Synthetic binding fixture 1\n---\n\n# Synthetic binding fixture 1\n\nThe synthetic calibration label for fixture 1 is Saffron.\nThis document contains no user or project information.\n",
+      "canonical_sha256": "54a4f039a4a563bd7a7b52f867b361da42ccbc4f2a2f130c886d56360866f20f",
+      "projection_utf8": "---\r\nknowledge_id: bindingfixture.DECISION.D001\r\nproject: bindingfixture\r\nscope: project\r\ncategory: DECISION\r\nsource: agent\r\nconfidence: medium\r\nversion: 7\r\nhash: 984f8fd1d6c993659354f4a304c55e21969a02eab569ff24733f158f04dae120\r\n---\r\n\r\n# Synthetic binding fixture 1\r\n\r\nThe synthetic calibration label for fixture 1 is Saffron.\r\nThis document contains no user or project information.\r\n",
+      "projection_bytes_sha256": "891d98a6ae76cddbade9413ac2d1f380e3f86a051750403ef4a695a6344a2e17",
+      "export_semantic_hash": "984f8fd1d6c993659354f4a304c55e21969a02eab569ff24733f158f04dae120"
+    },
+    {
+      "knowledge_id": "bindingfixture.DECISION.D002",
+      "version": 11,
+      "canonical_utf8": "---\nid: bindingfixture.DECISION.D002\nversion: 11\ncategory: DECISION\nestado: aprobado\nevidencia: validated_case\ntitulo: Synthetic binding fixture 2\n---\n\n# Synthetic binding fixture 2\n\nThe synthetic calibration label for fixture 2 is Cobalt.\nThis document contains no user or project information.\n",
+      "canonical_sha256": "defaced22da1e91e41be0242178ec2827ee2a678960c11583642bedc6a654866",
+      "projection_utf8": "---\r\nknowledge_id: bindingfixture.DECISION.D002\r\nproject: bindingfixture\r\nscope: project\r\ncategory: DECISION\r\nsource: agent\r\nconfidence: medium\r\nversion: 11\r\nhash: eebbb14462ddc6d840b8082e49292949fec52873f63c8db87d002c911c39d674\r\n---\r\n\r\n# Synthetic binding fixture 2\r\n\r\nThe synthetic calibration label for fixture 2 is Cobalt.\r\nThis document contains no user or project information.\r\n",
+      "projection_bytes_sha256": "5242e0867cb2c9d12bcafedff8357766f0a80ddf363c628bdfda6f745ef13645",
+      "export_semantic_hash": "eebbb14462ddc6d840b8082e49292949fec52873f63c8db87d002c911c39d674"
+    }
+  ],
+  "observed_chunk_bindings": {
+    "scope": "captured real native persisted text_chunk -> real HTTP chunk bindings for two exact adapter exports",
+    "snapshot_sha256": "832372892b815f4ebc11cd7c8bf154fd6c6343698feffa62ad7af086e959eca9",
+    "snapshot_bytes": 7367,
+    "persisted_chunk_count": 2,
+    "http_chunk_count": 2,
+    "all_chunk_ids_equal": true,
+    "duplicate_http_chunk_ids": false,
+    "expected_id_chunk_counts": {
+      "bindingfixture.DECISION.D001": 1,
+      "bindingfixture.DECISION.D002": 1
+    },
+    "bindings_checked": [
+      "knowledge_id",
+      "version",
+      "hash",
+      "project",
+      "scope"
+    ],
+    "joined_ok": 2,
+    "joined_failed": 0,
+    "chunks": [
+      {
+        "node_id": "25822953-d117-4c2a-b100-789409459169",
+        "type": "chunk",
+        "file_name": "bindingfixture.DECISION.D001.md",
+        "file_path": "bindingfixture.DECISION.D001.md",
+        "observed_fm": {
+          "knowledge_id": "bindingfixture.DECISION.D001",
+          "project": "bindingfixture",
+          "scope": "project",
+          "category": "DECISION",
+          "source": "agent",
+          "confidence": "medium",
+          "version": "7",
+          "hash": "984f8fd1d6c993659354f4a304c55e21969a02eab569ff24733f158f04dae120"
+        },
+        "expected_id_resolved": true,
+        "checks": {
+          "knowledge_id": true,
+          "version": true,
+          "hash": true,
+          "project": true,
+          "scope": true,
+          "input_bytes_unchanged": true,
+          "canonical_bytes_unchanged": true,
+          "persisted_chunk_same_id": true,
+          "persisted_fm_equals_http_fm": true
+        },
+        "ok": true
+      },
+      {
+        "node_id": "7680c74d-94ac-4dde-93e5-6dd40aadac8e",
+        "type": "chunk",
+        "file_name": "bindingfixture.DECISION.D002.md",
+        "file_path": "bindingfixture.DECISION.D002.md",
+        "observed_fm": {
+          "knowledge_id": "bindingfixture.DECISION.D002",
+          "project": "bindingfixture",
+          "scope": "project",
+          "category": "DECISION",
+          "source": "agent",
+          "confidence": "medium",
+          "version": "11",
+          "hash": "eebbb14462ddc6d840b8082e49292949fec52873f63c8db87d002c911c39d674"
+        },
+        "expected_id_resolved": true,
+        "checks": {
+          "knowledge_id": true,
+          "version": true,
+          "hash": true,
+          "project": true,
+          "scope": true,
+          "input_bytes_unchanged": true,
+          "canonical_bytes_unchanged": true,
+          "persisted_chunk_same_id": true,
+          "persisted_fm_equals_http_fm": true
+        },
+        "ok": true
+      }
+    ],
+    "entities_excluded_from_binding_proof": 11,
+    "entities_with_filename_null": 2,
+    "no_id_or_basename_fallback": true,
+    "queries": 0,
+    "claim_citations": "UNTESTED",
+    "answer_authority": "NOT_ESTABLISHED",
+    "state": "passed_fixture_binding_only"
+  },
+  "native_read": {
+    "provider_requests": 0,
+    "inferences": 0,
+    "queries": 0,
+    "constructors": 0,
+    "init_llm_calls": 0,
+    "http_status": 200,
+    "native_snapshot_bytes": 7367,
+    "native_snapshot_sha256": "832372892b815f4ebc11cd7c8bf154fd6c6343698feffa62ad7af086e959eca9",
+    "http_snapshot_bytes": 7367,
+    "http_snapshot_sha256": "832372892b815f4ebc11cd7c8bf154fd6c6343698feffa62ad7af086e959eca9",
+    "http_equals_native_json": true,
+    "source_hashes_verified": {
+      "kwipu_config.py": "2672eba9543e3b56bcfe82b13113faa4be97f857dbd732bbda9ff516c0fd057f",
+      "geode_graph.py": "db784f38a552fb11dd1c52215b7e3666e1e3c4766799499f5d78da8ff3880b22",
+      "kwipu_storage.py": "2d81e5f691305b0c7bd7dcfa370cbfc0a7a02e2a7e6de700f12bdd6cab2f3afd",
+      "bridge__query.py": "8e375ebe0b24f1a4a57d26de5e6c8be355892bca43c09f17222d21e4600eabf0",
+      "bridge__app.py": "4afde13a5a2caf86bbb354d85a4444fca718b6ccbbe6f73d17249b15b7644efd",
+      "bridge__config.py": "e5b3314048fac314df25cd1cf08883372e17cbbb936264a29edc58e81120eeb6",
+      "bridge__graph.py": "ca6d20594f10359ec8276934ee817f0234e2ce88b5e87fdeb3b9a56c92f5d61c",
+      "bridge__models.py": "cf84e3b29552418fde187c086d08f2edddfd224318ec17a9666a3369070f3752",
+      "lang_config.py": "1e15a48d3d95982211a58955f1019a7b8f05edc411dd9724e170846b9a18d1d6"
+    },
+    "storage_hashes_before": {
+      ".file_hashes.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+      ".kwipu_meta.json": "b5ed431bff0dd10f2e72a044f83d6550e137a5d2a3cfc17e2739f34bc07c81e0",
+      "default__vector_store.json": "714ac9857bf8c34e8e068088067110d008fbbc5e030a9f91c947b7e01af7b9fc",
+      "docstore.json": "540577f08defa1e39043cfc8a5dc5093c08331c2848379fec53cfb09f4c0a1c6",
+      "graph_store.json": "8e0a77744010862225c69da83c585f4f8a42fd551b044ce530dbb1eb6e16742c",
+      "image__vector_store.json": "d17ed74c1649a438e518a8dc56a7772913dfe1ea7a7605bce069c63872431455",
+      "index_store.json": "54c142518e4c093130d1dcc5a63f2e9bf55d6a4eeba6585720746a3081f4712b",
+      "property_graph_store.json": "d9802eab0f435fcfc379a09cf730c828b26e29a726a09e88ef480c27f7f7837d"
+    },
+    "storage_hashes_after": {
+      ".file_hashes.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+      ".kwipu_meta.json": "b5ed431bff0dd10f2e72a044f83d6550e137a5d2a3cfc17e2739f34bc07c81e0",
+      "default__vector_store.json": "714ac9857bf8c34e8e068088067110d008fbbc5e030a9f91c947b7e01af7b9fc",
+      "docstore.json": "540577f08defa1e39043cfc8a5dc5093c08331c2848379fec53cfb09f4c0a1c6",
+      "graph_store.json": "8e0a77744010862225c69da83c585f4f8a42fd551b044ce530dbb1eb6e16742c",
+      "image__vector_store.json": "d17ed74c1649a438e518a8dc56a7772913dfe1ea7a7605bce069c63872431455",
+      "index_store.json": "54c142518e4c093130d1dcc5a63f2e9bf55d6a4eeba6585720746a3081f4712b",
+      "property_graph_store.json": "d9802eab0f435fcfc379a09cf730c828b26e29a726a09e88ef480c27f7f7837d"
+    },
+    "storage_unchanged": true
+  },
+  "native_ingestion": {
+    "queries": 0,
+    "thinking": false,
+    "models": {
+      "llm": "gpt-oss:120b-cloud",
+      "embedding": "nomic-embed-text"
+    },
+    "inference_events": [
+      {
+        "call": 1,
+        "api": "/api/chat",
+        "model": "gpt-oss:120b-cloud",
+        "started_at": "2026-10-09T17:32:28.944214+00:00",
+        "think": false,
+        "error_type": null,
+        "status_code": 200,
+        "prompt_eval_count": 368,
+        "eval_count": 740,
+        "total_duration": 2398182009,
+        "done": true,
+        "elapsed_ms": 8901.065184007166
+      },
+      {
+        "call": 2,
+        "api": "/api/chat",
+        "model": "gpt-oss:120b-cloud",
+        "started_at": "2026-10-09T17:32:37.865669+00:00",
+        "think": false,
+        "error_type": null,
+        "status_code": 200,
+        "prompt_eval_count": 365,
+        "eval_count": 258,
+        "total_duration": 1182993191,
+        "done": true,
+        "elapsed_ms": 1325.288947991794
+      },
+      {
+        "call": 3,
+        "api": "/api/embed",
+        "model": "nomic-embed-text",
+        "started_at": "2026-10-09T17:32:39.248177+00:00",
+        "think": null,
+        "error_type": null,
+        "status_code": 200,
+        "prompt_eval_count": 482,
+        "total_duration": 2371367225,
+        "load_duration": 536666858,
+        "elapsed_ms": 2407.5004559999797
+      },
+      {
+        "call": 4,
+        "api": "/api/embed",
+        "model": "nomic-embed-text",
+        "started_at": "2026-10-09T17:32:41.713272+00:00",
+        "think": null,
+        "error_type": null,
+        "status_code": 200,
+        "prompt_eval_count": 2865,
+        "total_duration": 10436866065,
+        "load_duration": 45668336,
+        "elapsed_ms": 10554.74877099914
+      },
+      {
+        "call": 5,
+        "api": "/api/embed",
+        "model": "nomic-embed-text",
+        "started_at": "2026-10-09T17:32:41.749789+00:00",
+        "think": null,
+        "error_type": null,
+        "status_code": 200,
+        "prompt_eval_count": 2912,
+        "total_duration": 18427292766,
+        "load_duration": 57065586,
+        "elapsed_ms": 18483.897770987824
+      },
+      {
+        "call": 6,
+        "api": "/api/embed",
+        "model": "nomic-embed-text",
+        "started_at": "2026-10-09T17:32:41.777635+00:00",
+        "think": null,
+        "error_type": null,
+        "status_code": 200,
+        "prompt_eval_count": 573,
+        "total_duration": 19696105101,
+        "load_duration": 64097537,
+        "elapsed_ms": 19722.105969995027
+      }
+    ],
+    "inference_locality": "cloud_llm_local_embedding"
+  },
+  "preserved_harness_failures": [
+    {
+      "stage": "missing native PYTHONPATH before ingestion",
+      "inferences": 0
+    },
+    {
+      "stage": "required model metadata API blocked before ingestion",
+      "inferences": 0
+    },
+    {
+      "stage": "snapshot GET before verified server readiness",
+      "error": "RemoteDisconnected",
+      "internal_cause": "unknown",
+      "completed_ingestion_inferences": 6
+    }
+  ],
+  "cleanup": {
+    "owned_resources_removed": true,
+    "existing_services_modified": false
+  },
+  "raw_evidence_sha256": {
+    "parser": "87be987e1f5211d738589aa8d1b341cc428cb50427cce17ec7de978534825703",
+    "ingestion": "416c85a299afc09c7931e16a22852aa46d5fd645ad76bdd5adda3073949dc0be",
+    "join": "c2fcd61f6d57a9ab88a42ac36e314914d575e78d21433c1c972c93bd64182b91",
+    "native_read": "0986141de3332d0bb899b3c116850329aa574ef0793fd9ccd3933f61062c3496",
+    "report": "758348a69a57220381567f44c6db3e5aa86ac52f868d8113407d8fc622ccadc5"
+  },
+  "not_measured": [
+    "baseline_375_node_binding",
+    "generative_claim_citations",
+    "routing_authorization",
+    "concurrent_reload",
+    "product_read_QA"
+  ]
+}

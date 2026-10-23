@@ -38,8 +38,24 @@ def make_plugin(tmp, agents):
         open(os.path.join(tmp, "agents", name + ".md"), "w", encoding="utf-8").write(body)
 
 
-def run(tmp):
-    r = subprocess.run([sys.executable, SCRIPT, "--root", tmp],
+def run(tmp, deny_exec=None):
+    argv = [sys.executable, SCRIPT, "--root", tmp]
+    if deny_exec is not None:
+        # Controlled permission input for the warning branch. Windows chmod
+        # cannot remove X_OK; this does not claim native POSIX mode evidence.
+        wrapper = """import os, runpy, sys
+denied = os.path.normcase(os.path.abspath(sys.argv.pop(1)))
+original = os.access
+def access(path, mode, *args, **kwargs):
+    if mode & os.X_OK and os.path.normcase(os.path.abspath(path)) == denied:
+        return False
+    return original(path, mode, *args, **kwargs)
+os.access = access
+sys.argv = sys.argv[1:]
+runpy.run_path(sys.argv[0], run_name="__main__")
+"""
+        argv = [sys.executable, "-c", wrapper, deny_exec, SCRIPT, "--root", tmp]
+    r = subprocess.run(argv,
                        capture_output=True, text=True, encoding="utf-8", errors="replace")
     return r.returncode, r.stdout + r.stderr
 
@@ -346,6 +362,18 @@ def caso_citas_comandos_exit_resume():
             f"/exit y /resume son nativos de sesion (COMANDOS_TOLERADOS): no deben avisar\n{out}"
 
 
+def caso_citas_comandos_skills_nativo():
+    """`/skills` es nativo de Claude Code y de Codex (lista las skills; lo citan `docs/INSTALL.md` e
+    `INTEROP.md` en ES y EN): no es una pieza de este plugin y no debe avisar."""
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "agents/alpha.md", AGENT_OK.format(name="alpha")
+                 + "\nInvócalo sin argumentos, o selecciónalo en `/skills`.\n")
+        code, out = run(tmp)
+        assert code == 0, out
+        assert "/skills" not in out, f"/skills es nativo (COMANDOS_TOLERADOS): no debe avisar\n{out}"
+
+
 def casos_matriz_contratos():
     """51-52) `docs/agents/CONTRACTS.md`: una fila de arista con la columna Puerta VACIA avisa con
     la arista, y una Puerta que nombra un script inexistente tambien; una matriz sana no avisa."""
@@ -475,9 +503,67 @@ def casos_tolerancias_caducadas():
                  "---\nname: specialize\ndescription: prueba de caducidad de la tolerancia\n---\n\nx\n")
         code, out = run(tmp)
         assert "PIEZAS_PLANIFICADAS" in out, f"la tolerancia caducada tiene que avisar\n{out}"
+    # Una ruta RETIRADA que reaparece no es solo una tolerancia que sobra: contradice la decisión
+    # que la retiró. El aviso nombra esa decisión y pide registrarla ANTES de quitar la tolerancia.
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "docs/knowledge/LESSONS.md", "# lecciones\n")
+        code, out = run(tmp)
+        assert "`docs/knowledge/LESSONS.md` vuelve a existir y la retiró ADR-006" in out, \
+            f"el aviso tiene que nombrar la decisión que la retiró\n{out}"
+        assert "registra la decisión" in out and "luego quítala de RUTAS_RETIRADAS" in out, \
+            f"el aviso tiene que pedir registrar la decisión antes de quitar la tolerancia\n{out}"
+
+
+
+def casos_claves_frontmatter_skill():
+    """59) Claude Code ignora EN SILENCIO una clave de frontmatter de skill que no reconoce: con
+    `user-invokable` (sin la c) un `false` no oculta nada y nadie se entera. Se avisa por nombre y,
+    si es una errata de una clave real, se propone la buena."""
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "skills/typo/SKILL.md",
+                 "---\nname: typo\ndescription: prueba de claves\nuser-invokable: false\n"
+                 "argument-hint: \"[ruta]\"\nmetadata:\n  origin: x\n---\n\nx\n")
+        code, out = run(tmp)
+        assert "skill `typo`: clave `user-invokable`" in out and "`user-invocable`" in out, \
+            f"la errata tiene que avisarse con la clave buena\n{out}"
+        assert "`argument-hint`" not in out and "`metadata`" not in out, \
+            f"las claves documentadas no avisan\n{out}"
+        _escribe(tmp, "skills/typo/SKILL.md",
+                 "---\nname: typo\ndescription: prueba de claves\nuser-invocable: false\n---\n\nx\n")
+        code, out = run(tmp)
+        assert "skill `typo`: clave" not in out, f"una clave válida no avisa\n{out}"
+        assert "no coincide con su carpeta" not in out, out
+        _escribe(tmp, "skills/typo/SKILL.md", "---\nname: otra\ndescription: prueba\n---\n\nx\n")
+        code, out = run(tmp)
+        assert "skill `typo`: `name: otra` no coincide con su carpeta" in out, \
+            f"un name distinto de la carpeta cambia el comando del plugin\n{out}"
+
+
+def caso_permiso_controlado_no_oculta_el_resto():
+    """The permission probe is exact-path and preserves unrelated existence/access."""
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        hook = _escribe(tmp, "hooks/noexec.sh", "exit 0\n")
+        other = _escribe(tmp, "hooks/other.sh", "exit 0\n")
+        os.chmod(other, 0o755)
+        def config(path):
+            _escribe(tmp, "hooks/hooks.json", json.dumps({"hooks": {
+                "PostToolUse": [{"hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/" + path}]}]}}))
+        config("hooks/noexec.sh")
+        code, out = run(tmp, deny_exec=hook)
+        assert code == 0 and "hooks/noexec.sh` no es ejecutable" in out, out
+        config("hooks/other.sh")
+        code, out = run(tmp, deny_exec=hook)
+        assert code == 0 and "no es ejecutable" not in out, out
+        config("hooks/missing.sh")
+        code, out = run(tmp, deny_exec=hook)
+        assert code == 1 and "missing.sh" in out and "no existe" in out, out
 
 
 def main():
+    caso_permiso_controlado_no_oculta_el_resto()
     # 1) Plugin válido → exit 0
     with tempfile.TemporaryDirectory() as tmp:
         make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
@@ -594,7 +680,7 @@ def main():
         os.chmod(hook, 0o644)
         open(os.path.join(tmp, "hooks", "hooks.json"), "w").write(json.dumps({"hooks": {
             "PostToolUse": [{"hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/noexec.sh"}]}]}}))
-        code, out = run(tmp)
+        code, out = run(tmp, deny_exec=hook if os.name == "nt" else None)
         assert code == 0 and "no es ejecutable" in out, f"ejecutable es aviso, no error\n{out}"
         open(os.path.join(tmp, "hooks", "hooks.json"), "w").write("{ esto no es json")
         code, out = run(tmp)
@@ -672,7 +758,7 @@ dependencies:
         open(hj, "w").write(json.dumps({"hooks": {"PostToolUse": [{"hooks": [
             {"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/ok.sh"}]}]}}))
         os.chmod(hj, 0o644)
-        code, out = run(tmp)
+        code, out = run(tmp, deny_exec=hj if os.name == "nt" else None)
         assert code == 0 and "no debería ser ejecutable" not in out, out
         os.chmod(hj, 0o755)
         code, out = run(tmp)
@@ -1070,14 +1156,16 @@ dependencies:
     caso_citas_rutas_skill_knowledge_services()
     casos_citas_comandos()
     caso_citas_comandos_exit_resume()
+    caso_citas_comandos_skills_nativo()
     casos_matriz_contratos()
     casos_citas_en_docs()
     caso_citas_memoria_local()
     casos_cita_de_comando_con_argumento()
     casos_matriz_fila_en_negrita()
     casos_tolerancias_caducadas()
+    casos_claves_frontmatter_skill()
 
-    print("test_lint_plugin: 60/60 OK")
+    print("test_lint_plugin: OK")
 
 
 if __name__ == "__main__":

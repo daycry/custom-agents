@@ -1,3 +1,11 @@
+*.sh text eol=lf
+hooks/runtime-bin/python3 text eol=lf
 # Corpus fijo de conocimiento (setup-statusline-polish fix1 #14): siempre LF, tambien con
 # core.autocrlf=true en Windows (CA-17 compara byte a byte la salida de `--show`).
 tests/fixtures/knowledge-corpus/** text eol=lf
+# Fixtures y goldens del rediseño del panel (panel-redesign T-01): siempre LF, también con
+# core.autocrlf=true en Windows (los goldens se comparan byte a byte).
+tests/fixtures/panel-redesign/** text eol=lf
+# Chart.js incluido (panel-redesign T-02): binario a efectos de git, sin conversión de fin de línea;
+# el SHA-256 de PROVENANCE.json se calcula sobre los bytes publicados en npm.
+skills/plugin-panel/assets/vendor/** -text

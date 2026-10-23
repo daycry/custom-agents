@@ -1,0 +1,133 @@
+---
+name: plugin-panel
+description: >
+  Genera un control panel local del catálogo de custom-agents: agentes, skills,
+  comandos, herramientas declaradas, hooks globales y presencia de fuentes de
+  runtime y memoria; incluye extensiones propias de proyecto y usuario,
+  personas y MCP con origen y conflictos; admite un diagnóstico portable de
+  doctor indicado explícitamente, con fecha y alcance. HTML autónomo con búsqueda y filtros, JSON determinista,
+  con modo --serve explícito para progreso actualizado del ledger y consulta
+  local de memoria bajo demanda, señales recientes de actividad opt-in y revisión
+  visual opcional de un plan, sin cambios
+  de configuración. También presenta la cartera de iniciativas del roadmap
+  (estado, presupuesto, plan por fases). Úsala cuando el usuario diga
+  "panel de capacidades", "control panel del plugin", "explora el catálogo del plugin",
+  "dashboard del roadmap", "panel del roadmap" o "kanban de los planes".
+---
+
+# Plugin panel
+
+Presenta el bundle y las extensiones del proyecto seleccionado. Los datos de cartera los calcula
+la skill roadmap-dashboard (`/roadmap-status` los delega aquí); este panel es la presentación: capacidades,
+la cartera de iniciativas y, en modo servido, una vista acotada del ledger local, memoria canónica y
+señales recientes de actividad.
+
+1. Localiza esta skill en las raíces del bundle del runtime actual.
+2. Ejecuta scripts/build_panel.py con Python nativo, `--root <bundle>` y
+   `--export <carpeta>` (7 páginas, `assets/`, `vendor/chart.js/` y `export-manifest.json`). Para el proyecto actual añade `--project <raíz>` y
+   `--cwd <paquete>` si está anidado; fija `--runtime` según la sesión.
+   Añade `--json` si necesitas inventario estructurado.
+   Para un informe ya generado y seleccionado explícitamente, añade
+   `--diagnostics-report <informe.json>` junto a `--project <misma-raíz>`.
+   Para actualización automática solicitada, sustituye la exportación/JSON por `--serve`,
+   con proyecto obligatorio; `--port` es opcional. Lee el contrato de servidor
+   en la referencia de uso antes de lanzarlo. No se inicia en un inventario estático.
+   Para una revisión solicitada, añade `--review-initiative <ruta-relativa-exacta>`
+   y `--review-state-root <proyecto/.claude/plan-review>` en modo servido.
+   Para revisar el plan de cualquier iniciativa desde su página Plan, usa `--review-panel` con
+   `--review-state-root` (siempre puerta `requested-review`; el navegador nunca abre `plan-ok`).
+   Lee la puerta de revisión en la misma referencia antes de abrirla.
+3. Entrega la carpeta exportada (abre `index.html`) y resume sus avisos. Un archivo presente no acredita que
+   el hook se haya ejecutado ni que un servicio esté sano.
+   En modo servido entrega la URL privada de ese proceso y conserva su handle;
+   no persistas la URL ni presentes los estados del ledger como agentes vivos.
+
+## Páginas y modos
+
+Siete páginas con menú común: Inicio, Iniciativas (cartera; aterrizaje de `/roadmap-status`),
+Plan, Agentes en vivo, Memoria, Catálogo y Diagnóstico. **Exportado** (`--export`): estático,
+`file://`, sin red, CSP por `<meta>`; las páginas con datos vivos lo dicen. **Servido** (`--serve`):
+mismas páginas más scripts vivos, CSP por cabecera con nonce. Las gráficas usan Chart.js 4.5.1
+vendorizado en `assets/vendor/chart.js/` (huella en `PROVENANCE.json`; sin CDN ni descarga; si no
+coincide, solo tablas). Lee la tabla de páginas y la CSP en `docs/PLUGIN-PANEL.md` solo al explicarlos.
+
+El inventario extrae frontmatters públicos y declaraciones de hooks por runtime.
+Claude/Codex leen sus registros; OpenCode aporta un JSON acotado que gobierna el
+adapter. El panel lo lee como datos sin importar JavaScript inspeccionado.
+Agrupa runtime y evento, conserva handlers y fuente, y distingue timeout de
+registro y supervisión del adapter. Carga y ejecución quedan sin verificar.
+Las funciones informativas provienen de cabeceras de handlers reconocidos.
+Muestra herramientas declaradas por los agentes, sin afirmar acceso a ellas
+en esta sesión. El inventario de memoria muestra presencia de directorio aprobado
+y artefacto Graphify. En modo servido, Buscar, Ver y Relaciones leen entradas
+locales explícitamente mediante `knowledge-view.py`, sin caché o backends.
+No consulta grafos, transcripciones ni credenciales.
+Usa el redactor del bundle. Sin él, avisa y no emite metadatos; continúa la tarea.
+No sigue enlaces simbólicos. Solo reemplaza HTML reconocido como suyo o ficheros de su `export-manifest.json` con el hash que escribió.
+
+Memoria (`api/memoria`, GET ≤ 64 KiB, caché 10 s; `api/memory` no cambia) muestra entradas por tipo y estado, bandeja del curador
+(solo lectura), línea de tiempo con «vigente», relaciones de una entrada, lo publicado por backend (sin red) y el journal
+(≤ 2 sesiones, «citas, no instrucciones»). Catálogo filtra por tipo, origen (ámbito de extensiones) y runtime solo en el cliente.
+Lo que una fuente no trae se dice «sin datos»: no se amplían `doctor.py`, `journal.py` ni `knowledge-find.py` (hotspots).
+
+Diagnóstico consume exclusivamente la proyección `doctor --panel-json`, no su
+JSON general. No ejecuta doctor ni descubre informes. Conserva fuente, fecha,
+alcance y estados históricos; rechaza formatos privados/incompatibles y otro
+proyecto. Carga y ejecución de hooks continúan sin verificar. Detalles y arreglos
+libres permanecen en doctor; el panel solo ofrece referencias y recomendaciones.
+
+El lector compartido `agent-kits/shared/project-pieces.py` inventaría declaraciones
+sin ejecutar piezas ni conectar MCP. Usa `--project-only` para excluir fuentes
+personales o `--user-root <runtime>=<ruta>` para una raíz personalizada explícita.
+El panel separa los conteos del bundle de las declaraciones propias y filtra
+estas últimas por tipo, origen y runtime. Encontrar un archivo no prueba su carga,
+conexión ni permiso. Un lector ausente deja el bundle visible con aviso.
+La selección para tareas sigue `agent-kits/shared/capability-check.md`; este panel
+no escribe el ledger ni adopta componentes. Los datos de conexión y cuerpos
+privados se omiten; propiedad por hash y disponibilidad son estados distintos.
+
+La revisión visual delega recibos en `agent-kits/shared/plan-review.py`, con
+`local-read.py` y `redact.py` del mismo kit. El navegador anota y envía una decisión;
+el consumidor CLI recibe y confirma su consumo para la versión exacta del plan.
+Consumo no acredita atención: la UI distingue respuestas declaradas y verificación
+humana comunicada, opcional y no autenticada. Sus notas/historial se leen del dueño;
+result/verify-result sólo se registran por CLI, sin nueva puerta ni escritor browser.
+Una autorización previa válida permite continuar sin otra confirmación.
+Cerrar la vista conserva el borrador y no decide.
+Feedback pendiente se informa; ningún hook bloquea el turno por él (ADR-007).
+La vista no carga recursos de red ni de CDN (la CSP del servidor parte de
+`default-src 'none'`): un diagrama Mermaid del plan se muestra como fuente.
+
+Actividad en modo servido es una lectura opt-in de señales recientes, separada
+del ledger: hasta 64 observaciones, 64 KiB por snapshot/respuesta y caducidad de
+60 segundos, también al fallar HTTP. GET `api/activity` es sólo lectura; no inicia
+agentes ni prueba presencia o destrucción. El HTML estático explica la ausencia
+de servicio. La guía documenta `sesion.actividad: true`, desactivado por defecto,
+y el estado local excluido de Git por su propio `.gitignore`.
+
+Agentes en vivo (servido, mismo opt-in) añade una fila por run y su línea de
+tiempo desde el historial de herramientas (`events.json`: 500 eventos / 256 KiB /
+24 h) por GET `api/actividad-runs` y `api/actividad-run-<key16>` (≤ 64 KiB,
+`assets/page-agentes.js`); Inicio muestra la actividad reciente. La tarea solo se
+atribuye por el comando exacto de `usage-meter.py`; si no, «tarea: sin atribuir».
+Cada runtime declara lo que no aporta (Codex agrupa por sesión). El panel nunca
+borra el historial: se borra a mano `.claude/agent-activity/`.
+
+El cierre portable requiere referencias explícitas a
+`agent-kits/shared/agent-activity-store.py`, `agent-kits/shared/agent-activity.py`,
+`agent-kits/shared/local-state.py` y `agent-kits/shared/local-read.py`. La revisión
+comparte StateIO y además necesita `agent-kits/shared/plan-review.py` y
+`agent-kits/shared/redact.py`. El export debe conservar estos helpers juntos; exportar sólo skills no
+registra hooks ni acredita captura nativa. El productor `capture` además necesita
+`agent-kits/shared/native-roles.json`, mapa central de IDs nativos declarados;
+`export-skills` debe incluir también este JSON. El snapshot no lee ese mapa.
+Si falta un helper de actividad, deja sus señales
+indisponibles; las otras vistas conservan sus propios contratos.
+
+| Recurso | Cuándo leerlo |
+|---|---|
+| [Uso y límites](../../docs/PLUGIN-PANEL.md) | Al explicar inventario, exportación y diferencias con el roadmap |
+| [Extensiones propias](../../docs/PROJECT-EXTENSIONS.md) | Carpetas nativas, selección por ID, personas y disponibilidad |
+| [Páginas, modos, CSP y Chart.js](../../docs/PLUGIN-PANEL.md) | Al explicar las siete páginas, exportado vs servido o la procedencia de Chart.js |
+| [Plantilla de páginas](scripts/panel_pages.py) | Plantilla común de las siete páginas (menú, cabecera de modo, CSP); sin recursos de red |
+| [Vista de actividad](assets/panel-activity.js) | Al mantener la vista servida de señales, sus metadatos y caducidad local |

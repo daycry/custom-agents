@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# panel-title: Contexto de sesión
+# panel-description: Recupera trabajo pendiente del journal y aporta contexto al iniciar, retomar o compactar una sesión.
 # Hook SessionStart (matcher `startup|resume|compact`): inyecta como contexto de sesión
 #   (0) RECONCILIACIÓN PRESUPUESTADA del journal (session-end-durable-capture T-05, gap 13 de la
 #       revisión: hasta esta pieza nadie invocaba `journal.py replay` fuera de una prueba manual, así
@@ -10,7 +12,7 @@
 #         `journal.py recover --current-session-id <session_id del payload>`
 #       materializa como `recuperado_sin_cierre` las sesiones huérfanas (CA-07: log de prompts sin
 #       envelope, sin sesión viva, pasada `sesion.journal.ventanaHuerfanaMin`). Solo entradas YA
-#       ESCRITAS en disco llegan a (3): `journal.py latest` lee del fichero, nunca de lo que
+#       ESCRITAS en disco llegan a (3): el compositor dirigido lee del fichero, nunca de lo que
 #       `replay`/`recover` acaban de decidir en memoria (CA-08: nunca se inyecta una entrada sin
 #       materializar). Todo esto degrada en silencio sin `journal.py`/`outbox.py` (exit 0 igual).
 #   (1) el ÍNDICE DE PIEZAS del plugin (`skill-index.py`: comandos/skills/agentes, ≤ 45 líneas /
@@ -21,8 +23,8 @@
 #       curso, marcadores abiertos del usage-meter y la línea de retoma del ledger canónico
 #       (solo si hay algo activo);
 #   (3) SOLO en `startup|resume` (no en `compact`: el journal no cambia dentro de la sesión), la
-#       ÚLTIMA entrada del journal de sesión (`journal.py latest --n 2 --max-lines 25`: memoria
-#       episódica que dejó el hook SessionEnd `session-journal.sh` — qué pasó, qué quedó pendiente);
+#       historial de la iniciativa vigente (`progress-report.py resume --history-only`,
+#       ≤25 líneas). Una selección ambigua o incompleta no inyecta otra sesión;
 #   (4) la MEMORIA TÉCNICA del ÁREA de la iniciativa activa (memory-retrieval T-06): NO el corpus
 #       (27.100 tokens no caben en TOPE_CHARS) sino los mejores aciertos compactos de
 #       `knowledge-find.py --contexto <título del ledger> --iniciativa <slug>` (enrutado por ÁREA, la
@@ -51,6 +53,16 @@
 # Prueba manual:
 #   echo '{"hook_event_name":"SessionStart","source":"startup"}' | bash hooks/session-context.sh
 set -u
+
+# Selector del launcher, nunca de los campos del payload ni de variables del consumidor.
+RUNTIME="claude"
+case "${1:-}" in
+  --runtime=claude) RUNTIME="claude" ;;
+  --runtime=codex) RUNTIME="codex" ;;
+  --runtime=opencode) RUNTIME="opencode" ;;
+  "") ;;
+  *) exit 0 ;;
+esac
 
 INPUT="$(cat 2>/dev/null || true)"
 
@@ -178,7 +190,7 @@ fi
 
 # (1) Índice de piezas (el script decide caché, dev.json y localización del plugin; exit 0 siempre).
 if [ -f "$SHARED/skill-index.py" ]; then
-  idx="$(CLAUDE_PROJECT_DIR="$ROOT" python3 "$SHARED/skill-index.py" 2>/dev/null || true)"
+  idx="$(CLAUDE_PROJECT_DIR="$ROOT" python3 "$SHARED/skill-index.py" --runtime "$RUNTIME" 2>/dev/null || true)"
   [ -n "$idx" ] && partes="${partes:+$partes
 
 }$idx"
@@ -199,8 +211,10 @@ fi
 #     una prueba manual): la compactación no cambia el journal, así que en `compact` no se repite.
 case "${P_SOURCE:-startup}" in
   startup|resume)
-    if [ -f "$SHARED/journal.py" ] && [ -d "$ROOT/docs/knowledge/journal" ]; then
-      jr="$(python3 "$SHARED/journal.py" latest --root "$ROOT" --n 2 --max-lines 25 2>/dev/null || true)"
+    if [ -f "$SHARED/progress-report.py" ] && [ -d "$ROOT/docs/knowledge/journal" ]; then
+      # The common compositor selects the current initiative; ambiguity never falls
+      # back to another initiative's globally latest journal entry.
+      jr="$(python3 "$SHARED/progress-report.py" resume --root "$ROOT" --history-only 2>/dev/null || true)"
       [ -n "$jr" ] && partes="${partes:+$partes
 
 }$jr"

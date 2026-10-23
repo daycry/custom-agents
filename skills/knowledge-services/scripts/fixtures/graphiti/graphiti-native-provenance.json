@@ -1,0 +1,179 @@
+{
+  "get_status": {
+    "content": [
+      {
+        "text": "{\n  \"status\": \"ok\",\n  \"message\": \"Graphiti MCP server is running and connected to falkordb database\"\n}",
+        "type": "text"
+      }
+    ],
+    "isError": false,
+    "structuredContent": {
+      "status": "ok",
+      "message": "Graphiti MCP server is running and connected to falkordb database"
+    }
+  },
+  "get_episodes": {
+    "content": [
+      {
+        "text": "{\n  \"message\": \"Episodes retrieved successfully\",\n  \"episodes\": [\n    {\n      \"uuid\": \"381d46f1-6b44-4e68-a1ba-bd2fe9f942e6\",\n      \"name\": \"owned61.gotcha.lyra@1@superseded\",\n      \"content\": \"knowledge_id: owned61.gotcha.lyra\\nepisodio: owned61.gotcha.lyra@1\\nstatus: invalidado\\nsource_episode_uuid: 4ede1e43-2e93-410e-aa1e-c64a155831e1\\nreplacement_episode_uuid: ca6d3107-ccac-42ae-9a8b-37e8c09172cc\\n\\nVersion superada por `owned61.gotcha.lyra@2`.\\nrelation: SUPERSEDES\\nsource_ref: custom-agents:knowledge:owned61.gotcha.lyra@2\\ntarget_ref: custom-agents:knowledge:owned61.gotcha.lyra@1\\n\",\n      \"created_at\": \"2026-10-12T01:09:04.476674+00:00\",\n      \"source\": \"text\",\n      \"source_description\": \"custom-agents:graphiti-memory\",\n      \"group_id\": \"custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35\"\n    },\n    {\n      \"uuid\": \"ca6d3107-ccac-42ae-9a8b-37e8c09172cc\",\n      \"name\": \"owned61.gotcha.lyra@2\",\n      \"content\": \"--- procedencia ---\\nknowledge_id: owned61.gotcha.lyra\\nversion: 2\\nstatus: aprobado\\ncategory: GOTCHA\\nentity_type: Document\\nlocal_folder: gotchas\\narea: testing\\nevidence_level: validated_case\\nsource_path: docs/knowledge/approved/gotchas/lyra.md\\nhash: db76d37ad0dfbcaa56fb6456b12112d94305e7ad69fb44b504ef04ebc25b389c\\n--- contenido ---\\nProject Lyra stores technical documentation in Aurora. Aurora is a documentation database. This is a disposable recovery fixture. Version two adds daily checks of the documentation.\",\n      \"created_at\": \"2026-10-12T01:08:50.885654+00:00\",\n      \"source\": \"text\",\n      \"source_description\": \"custom-agents:graphiti-memory\",\n      \"group_id\": \"custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35\"\n    },\n    {\n      \"uuid\": \"4ede1e43-2e93-410e-aa1e-c64a155831e1\",\n      \"name\": \"owned61.gotcha.lyra@1\",\n      \"content\": \"--- procedencia ---\\nknowledge_id: owned61.gotcha.lyra\\nversion: 1\\nstatus: aprobado\\ncategory: GOTCHA\\nentity_type: Document\\nlocal_folder: gotchas\\narea: testing\\nevidence_level: validated_case\\nsource_path: docs/knowledge/approved/gotchas/lyra.md\\nhash: 637dd1056c589f976c94c7ca0b0af6779c2a7b2ea851c5dd13415398eaf6d55b\\n--- contenido ---\\nProject Lyra stores technical documentation in Aurora. Aurora is a documentation database. This is a disposable recovery fixture.\",\n      \"created_at\": \"2026-10-12T01:08:41.273495+00:00\",\n      \"source\": \"text\",\n      \"source_description\": \"custom-agents:graphiti-memory\",\n      \"group_id\": \"custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35\"\n    }\n  ]\n}",
+        "type": "text"
+      }
+    ],
+    "isError": false,
+    "structuredContent": {
+      "result": {
+        "message": "Episodes retrieved successfully",
+        "episodes": [
+          {
+            "uuid": "381d46f1-6b44-4e68-a1ba-bd2fe9f942e6",
+            "name": "owned61.gotcha.lyra@1@superseded",
+            "content": "knowledge_id: owned61.gotcha.lyra\nepisodio: owned61.gotcha.lyra@1\nstatus: invalidado\nsource_episode_uuid: 4ede1e43-2e93-410e-aa1e-c64a155831e1\nreplacement_episode_uuid: ca6d3107-ccac-42ae-9a8b-37e8c09172cc\n\nVersion superada por `owned61.gotcha.lyra@2`.\nrelation: SUPERSEDES\nsource_ref: custom-agents:knowledge:owned61.gotcha.lyra@2\ntarget_ref: custom-agents:knowledge:owned61.gotcha.lyra@1\n",
+            "created_at": "2026-10-12T01:09:04.476674+00:00",
+            "source": "text",
+            "source_description": "custom-agents:graphiti-memory",
+            "group_id": "custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35"
+          },
+          {
+            "uuid": "ca6d3107-ccac-42ae-9a8b-37e8c09172cc",
+            "name": "owned61.gotcha.lyra@2",
+            "content": "--- procedencia ---\nknowledge_id: owned61.gotcha.lyra\nversion: 2\nstatus: aprobado\ncategory: GOTCHA\nentity_type: Document\nlocal_folder: gotchas\narea: testing\nevidence_level: validated_case\nsource_path: docs/knowledge/approved/gotchas/lyra.md\nhash: db76d37ad0dfbcaa56fb6456b12112d94305e7ad69fb44b504ef04ebc25b389c\n--- contenido ---\nProject Lyra stores technical documentation in Aurora. Aurora is a documentation database. This is a disposable recovery fixture. Version two adds daily checks of the documentation.",
+            "created_at": "2026-10-12T01:08:50.885654+00:00",
+            "source": "text",
+            "source_description": "custom-agents:graphiti-memory",
+            "group_id": "custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35"
+          },
+          {
+            "uuid": "4ede1e43-2e93-410e-aa1e-c64a155831e1",
+            "name": "owned61.gotcha.lyra@1",
+            "content": "--- procedencia ---\nknowledge_id: owned61.gotcha.lyra\nversion: 1\nstatus: aprobado\ncategory: GOTCHA\nentity_type: Document\nlocal_folder: gotchas\narea: testing\nevidence_level: validated_case\nsource_path: docs/knowledge/approved/gotchas/lyra.md\nhash: 637dd1056c589f976c94c7ca0b0af6779c2a7b2ea851c5dd13415398eaf6d55b\n--- contenido ---\nProject Lyra stores technical documentation in Aurora. Aurora is a documentation database. This is a disposable recovery fixture.",
+            "created_at": "2026-10-12T01:08:41.273495+00:00",
+            "source": "text",
+            "source_description": "custom-agents:graphiti-memory",
+            "group_id": "custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35"
+          }
+        ]
+      }
+    }
+  },
+  "search_nodes": {
+    "content": [
+      {
+        "text": "{\n  \"message\": \"Nodes retrieved successfully\",\n  \"nodes\": [\n    {\n      \"uuid\": \"7aca7310-8436-4c41-895f-c021a96438d8\",\n      \"name\": \"Project Lyra\",\n      \"labels\": [\n        \"Entity\",\n        \"Project\"\n      ],\n      \"created_at\": \"2026-10-12T01:08:44.318486+00:00\",\n      \"summary\": \"Project Lyra stores technical documentation in Aurora.\",\n      \"group_id\": \"custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35\",\n      \"attributes\": {}\n    },\n    {\n      \"uuid\": \"6874dbc2-7a72-4535-b34a-88f8560692ad\",\n      \"name\": \"owned61.gotcha.lyra\",\n      \"labels\": [\n        \"Entity\",\n        \"Document\"\n      ],\n      \"created_at\": \"2026-10-12T01:08:53.906890+00:00\",\n      \"summary\": \"owned61.gotcha.lyra is an approved Document (version 2) in category GOTCHA, stored in local folder gotchas, area testing. It records that Project Lyra stores technical documentation in Aurora, a documentation database. The fixture is disposable for recovery, and version two adds daily documentation checks.\",\n      \"group_id\": \"custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35\",\n      \"attributes\": {\n        \"title\": \"Project Lyra\",\n        \"description\": \"Project Lyra stores technical documentation in Aurora, a documentation database. This is a disposable recovery fixture. Version two adds daily checks of the documentation.\"\n      }\n    },\n    {\n      \"uuid\": \"d7bef943-764c-4038-9a61-ba01be74ac7d\",\n      \"name\": \"Aurora\",\n      \"labels\": [\n        \"Entity\"\n      ],\n      \"created_at\": \"2026-10-12T01:08:44.318572+00:00\",\n      \"summary\": \"Project Lyra stores technical documentation in Aurora.\",\n      \"group_id\": \"custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35\",\n      \"attributes\": {}\n    }\n  ]\n}",
+        "type": "text"
+      }
+    ],
+    "isError": false,
+    "structuredContent": {
+      "result": {
+        "message": "Nodes retrieved successfully",
+        "nodes": [
+          {
+            "uuid": "7aca7310-8436-4c41-895f-c021a96438d8",
+            "name": "Project Lyra",
+            "labels": [
+              "Entity",
+              "Project"
+            ],
+            "created_at": "2026-10-12T01:08:44.318486+00:00",
+            "summary": "Project Lyra stores technical documentation in Aurora.",
+            "group_id": "custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35",
+            "attributes": {}
+          },
+          {
+            "uuid": "6874dbc2-7a72-4535-b34a-88f8560692ad",
+            "name": "owned61.gotcha.lyra",
+            "labels": [
+              "Entity",
+              "Document"
+            ],
+            "created_at": "2026-10-12T01:08:53.906890+00:00",
+            "summary": "owned61.gotcha.lyra is an approved Document (version 2) in category GOTCHA, stored in local folder gotchas, area testing. It records that Project Lyra stores technical documentation in Aurora, a documentation database. The fixture is disposable for recovery, and version two adds daily documentation checks.",
+            "group_id": "custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35",
+            "attributes": {
+              "title": "Project Lyra",
+              "description": "Project Lyra stores technical documentation in Aurora, a documentation database. This is a disposable recovery fixture. Version two adds daily checks of the documentation."
+            }
+          },
+          {
+            "uuid": "d7bef943-764c-4038-9a61-ba01be74ac7d",
+            "name": "Aurora",
+            "labels": [
+              "Entity"
+            ],
+            "created_at": "2026-10-12T01:08:44.318572+00:00",
+            "summary": "Project Lyra stores technical documentation in Aurora.",
+            "group_id": "custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35",
+            "attributes": {}
+          }
+        ]
+      }
+    }
+  },
+  "search_memory_facts": {
+    "content": [
+      {
+        "text": "{\n  \"message\": \"Facts retrieved successfully\",\n  \"facts\": [\n    {\n      \"uuid\": \"08303633-42a2-4149-925c-99ea75e5004e\",\n      \"group_id\": \"custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35\",\n      \"source_node_uuid\": \"7aca7310-8436-4c41-895f-c021a96438d8\",\n      \"target_node_uuid\": \"d7bef943-764c-4038-9a61-ba01be74ac7d\",\n      \"created_at\": \"2026-10-12T01:08:47.374200Z\",\n      \"name\": \"STORES_IN\",\n      \"fact\": \"Project Lyra stores technical documentation in Aurora.\",\n      \"episodes\": [\n        \"4ede1e43-2e93-410e-aa1e-c64a155831e1\",\n        \"ca6d3107-ccac-42ae-9a8b-37e8c09172cc\"\n      ],\n      \"expired_at\": null,\n      \"valid_at\": \"2026-10-12T01:08:41.273489Z\",\n      \"invalid_at\": null,\n      \"reference_time\": \"2026-10-12T01:08:41.273489Z\",\n      \"attributes\": {}\n    }\n  ]\n}",
+        "type": "text"
+      }
+    ],
+    "isError": false,
+    "structuredContent": {
+      "result": {
+        "message": "Facts retrieved successfully",
+        "facts": [
+          {
+            "uuid": "08303633-42a2-4149-925c-99ea75e5004e",
+            "group_id": "custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35",
+            "source_node_uuid": "7aca7310-8436-4c41-895f-c021a96438d8",
+            "target_node_uuid": "d7bef943-764c-4038-9a61-ba01be74ac7d",
+            "created_at": "2026-10-12T01:08:47.374200Z",
+            "name": "STORES_IN",
+            "fact": "Project Lyra stores technical documentation in Aurora.",
+            "episodes": [
+              "4ede1e43-2e93-410e-aa1e-c64a155831e1",
+              "ca6d3107-ccac-42ae-9a8b-37e8c09172cc"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-10-12T01:08:41.273489Z",
+            "invalid_at": null,
+            "reference_time": "2026-10-12T01:08:41.273489Z",
+            "attributes": {}
+          }
+        ]
+      }
+    }
+  },
+  "manifest": {
+    "entradas": {
+      "owned61.gotcha.lyra": {
+        "binding": "verified_readback",
+        "category": "GOTCHA",
+        "episode_body_sha256": "f225a2920cc4b3a7cb6114d802f60477efdbd8ca69b32d4649a0c76f533dbedc",
+        "hash": "db76d37ad0dfbcaa56fb6456b12112d94305e7ad69fb44b504ef04ebc25b389c",
+        "uuid": "ca6d3107-ccac-42ae-9a8b-37e8c09172cc",
+        "version": 2
+      }
+    },
+    "group_id": "custom_agents_5c960da48caa8d1144b1e0a6703751cc_gen_28a8c22e4a414e85ab40a582cf57fa35",
+    "logical_group_id": "custom_agents_owned61_b01949b38bc94b5d9930315954289ba4",
+    "transitions": {
+      "owned61.gotcha.lyra@1@superseded": {
+        "action": "superseded",
+        "episode_body_sha256": "4e86e39ef2e38ea20aab33947b1596ebc8feaa16b95d887c15f029e4c3696def",
+        "id": "owned61.gotcha.lyra",
+        "replacement_episode_uuid": "ca6d3107-ccac-42ae-9a8b-37e8c09172cc",
+        "representation": "episode",
+        "retired_episode": {
+          "episode_body_sha256": "bda615028aeb33ec26225264a21a7cdc167639631c1822fdccb1f9f786327c89",
+          "name": "owned61.gotcha.lyra@1",
+          "uuid": "4ede1e43-2e93-410e-aa1e-c64a155831e1"
+        },
+        "source_episode_uuid": "4ede1e43-2e93-410e-aa1e-c64a155831e1",
+        "source_ref": "custom-agents:knowledge:owned61.gotcha.lyra@2",
+        "target_ref": "custom-agents:knowledge:owned61.gotcha.lyra@1",
+        "target_version": 1,
+        "uuid": "381d46f1-6b44-4e68-a1ba-bd2fe9f942e6"
+      }
+    }
+  }
+}

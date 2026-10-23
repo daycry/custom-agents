@@ -1,16 +1,17 @@
 # Documentación del agente `knowledge-curator`
 
 Único agente que **aprueba, rechaza o pide cambios** sobre conocimiento propuesto bajo
-`docs/knowledge/candidates/`, y el **único que escribe** en `docs/knowledge/approved/`
+`docs/knowledge/candidates/`, y el **único dueño del juicio y las transiciones** a `docs/knowledge/approved/`
 (`ADR-018`, `knowledge-services` T-04). El veredicto de contrato (evidencia mínima, `fuentes`,
 `tags`, lista negra, token de `estado`) **no es una impresión**: lo da un script determinista con
 exit code.
 
 ```mermaid
 flowchart LR
-    IN["docs/knowledge/candidates/pending/<br/>(de documenter, T-05, o del usuario)"] --> P2["curator decide<br/>categoria EXACTA"]
+    IN["servicio propose<br/>pending + SHA · sin estado"] --> P2["curator decide<br/>categoria EXACTA"]
     P2 --> GATE{"curator-gate.py<br/>--decision approve"}
-    GATE -->|"errores == []"| OK["docs/knowledge/approved/&lt;folder&gt;/<br/>estado: aprobado"]
+    GATE -->|"juicio resuelto + contrato válido"| APPLY["servicio apply<br/>SHA original + motivo + metadata"]
+    APPLY --> OK["destino verificado<br/>intención + recibo / recover"]
     GATE -.->|"errores"| NC["needs_changes / rejected<br/>(o pregunta al usuario<br/>si es contradiccion/alto impacto)"]
     style OK fill:#e8f5e9,stroke:#81c784
     style NC fill:#fdecea,stroke:#ef9a9a
@@ -21,17 +22,24 @@ flowchart LR
 ## 1. Entrada y salida
 
 - **Entrada:** candidatos bajo `docs/knowledge/candidates/{pending,needs_changes}/`
-  (propuestos por `documenter`, T-05, o directamente por el usuario) y el índice de
-  `docs/knowledge/approved/` (para detectar contradicciones/duplicados). `rejected/` es
+  (propuestos mediante el servicio compartido por los productores) y el índice de
+  `docs/knowledge/approved/` junto al legado aceptado pertinente (contradicciones/duplicados). `rejected/` es
   **terminal** (gap 49/67 de la revisión de dos lentes de la Fase 2): una vez ahí, un candidato
   solo admite `--decision reject` (idempotente) — el curador no lo vuelve a leer para `approve`
   ni `needs_changes`, y el disparador de la Fase 4-bis de `/dev-cycle` tampoco reacciona a
   `rejected/**` (`commands/dev-cycle.md`).
-- **Salida:** el propio árbol de `docs/knowledge/candidates/**` (mueve/actualiza ficheros dentro) y
-  `docs/knowledge/approved/<folder>/` (candidatos aprobados, con frontmatter completo). Nunca
-  escribe fuera de `docs/knowledge/**`, no exporta a ningún backend y no toca `docs/roadmap/`.
+- **Salida:** decisiones persistidas por `agent-kits/shared/knowledge-curation.py apply` sobre
+  candidates/approved, con intención y recibo. Curator no mueve/escribe a mano ni modifica
+  incidentalmente legado; no exporta a backend ni toca roadmap. Needs changes conserva
+  propuesta/motivo, sin editar en sitio; rejected es terminal.
 
 ## 2. Cómo funciona
+
+Los enlaces YAML simples admiten listas en bloques e inline, con o sin comillas
+coincidentes en sus valores. Conservan los mismos IDs y la validación de evidencia
+y relaciones. Las comillas mal formadas no se corrigen para aceptar un enlace.
+El [contrato de recuperación local](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-local-recovery-contract.md)
+incluye su regresión y conserva la separación entre autoridad heredada y aprobación.
 
 Carga la taxonomía del proyecto (`.claude/knowledge-services/taxonomy.json`, o el default del
 plugin) con `agent-kits/shared/knowledge-schema.py` y el índice de lo ya aprobado con
@@ -39,8 +47,8 @@ plugin) con `agent-kits/shared/knowledge-schema.py` y el índice de lo ya aproba
 `folder` puede servir a varias categorías — p. ej. `PATTERN` y `GOTCHA` comparten `gotchas/` en el
 default del plugin — así que solo el Curator, que conoce la categoría con la que aprueba, puede
 comparar la evidencia contra el `min_evidence` correcto; delegado desde el **gap 3** de la revisión
-de dos lentes de T-01/T-02, porque `knowledge-index.py` solo valida FORMA, nunca presencia ni
-semántica de categoría).
+de dos lentes de T-01/T-02: el índice exige id/version/category/estado final y valida forma,
+pero no acredita juicio semántico ni aprobación humana).
 
 Ejecuta `agent-kits/knowledge-curator/curator-gate.py <candidato.md> --decision approve|reject|needs_changes
 [--category KEY] --root . --json` por cada candidato. `approve` exige el contrato completo:
@@ -60,7 +68,7 @@ en las tres decisiones. El candidato, además, debe vivir bajo
 contención por `realpath`): cualquier otra ruta es un error de uso, no un candidato.
 
 El gate **no mueve ficheros ni detecta contradicciones semánticas**: eso es juicio del agente. Ante
-una contradicción con una entrada ya `approved/`, o un candidato de **alto impacto** (afecta a 2+
+una contradicción con una entrada ya `approved/` o legado aceptado pertinente, o un candidato de **alto impacto** (afecta a 2+
 piezas, o reescribe una decisión ya tomada), el Curator **pregunta al usuario** antes de decidir —
 nunca resuelve solo.
 
@@ -93,8 +101,9 @@ Ver `agent-kits/knowledge-curator/README.md` para el detalle del contrato y
 
 ## 4. Relación con el resto de la cadena
 
-- **`documenter` (T-05) propone, nunca aprueba.** Detecta candidatos al cerrar el ciclo y escribe
-  la propuesta en `docs/knowledge/candidates/pending/`; el Curator es quien decide.
+- **Productores proponen, nunca aprueban.** Architect/planner/implementer/debug-root-cause/qa/documenter,
+  retro y bridge solicitan `propose`; el servicio persiste y Curator juzga. Design/revisión/QA,
+  Gold y repetición son evidencia. Retro posterior al Gate entrega handoff o deja ruta/ID pendientes.
 - **`/dev-cycle` Fase 4-bis "Knowledge Gate" (T-06)** invoca al Curator sobre los candidatos de una
   iniciativa **después** de QA verde y `documenter`, con **omisión honesta** si no hay candidatos.
 - **No exporta a backends.** `knowledge-sync.py` y los adaptadores (Kwipu de T-07..T-09,
@@ -105,7 +114,55 @@ Ver `agent-kits/knowledge-curator/README.md` para el detalle del contrato y
 
 ## 5. Guardrails
 
-- **Un rol, un dueño** (`ADR-011`, `docs/agents/ROLES.md`): único escritor de
-  `docs/knowledge/candidates/**` y `docs/knowledge/approved/**`.
+- **Propuesta, juicio y persistencia separados.** Productores solicitan `propose`; Curator
+  decide y solicita `apply_decision` ligado al SHA. Sólo el servicio persiste/transiciona.
+  No hay fallback Write/Edit si falta el bundle. El gate sigue de solo lectura.
 - **El gate decide el contrato, el agente decide el juicio.** Nunca aprueba con `errores != []`.
 - **Sin exportación ni roadmap.** Fuera de `docs/knowledge/**`, no toca nada.
+
+## Contexto técnico común
+
+Aplica `agent-kits/shared/capability-check.md` con tu rol y el paquete/áreas de
+la tarea. La selección comparte criterios y escenarios del ledger; consulta
+solo mapas/referencias pertinentes. Stack-practices consolida PHP/CodeIgniter,
+Python y React. Los métodos, artefactos y puertas del rol conservan su dueño.
+Sin selector o guía disponible, avisa del límite y continúa con el contrato de
+la tarea; no confundas selección con ejecución, tools o permisos.
+
+## Persistencia compartida (Bloque 23; aceptación pendiente)
+
+Todas las operaciones del servicio devuelven `(resultado, código)` con `status`, `errores`,
+`avisos` y rutas relativas verificadas: 0 operación confirmada; 1 contrato rechazado;
+2 uso/dependencia/IO no verificable. La CLI ofrece salida JSON y `--root <proyecto>`.
+
+- `propose(root, filename, text, producer=...)`: Markdown por stdin en CLI `propose
+  --filename <nombre.md> --producer <rol>`; redacta antes de crear pending sin estado,
+  no sobrescribe nombres existentes y devuelve SHA de bytes finales.
+- `apply_decision(root, candidate, decision, expected_sha256=..., metadata=None,
+  replacement_text=None, reason=..., decider="knowledge-curator")`: CLI `apply <ruta-relativa> --decision
+  <decisión> --expected-sha256 <sha> --reason <motivo> [--metadata-json <objeto>] [--replacement-stdin]`.
+  SHA y motivo obligatorios; approve exige id válido/prefijado, categoría exacta, versión
+  inicial 1, evidencia/fuentes/tags y estado aprobado finales. Errores de índice/colisión bloquean.
+- `inspect_reference(root, candidate, expected_sha256, *, operation_id=None)`:
+  observación de solo lectura usada por `/work-resume` para asociaciones explícitas
+  del ledger. No decide ni persiste; no limpia staging ni recupera. Un recibo completo
+  no certifica QA ni cuerpos approved vigentes. No añade un subcomando CLI.
+- `recover(root, operation_id, decider="knowledge-curator")`: CLI `recover <operation-id>`.
+  Recupera intención existente sin nuevo juicio ni aprobación de contenido cambiado; fuente
+  modificada no se elimina y fallo queda pendiente visible.
+
+Sólo `approve` admite `replacement_text` (CLI `--replacement-stdin`): una corrección final
+redactada y validada, conservando el original y ambos hashes en la intención. No edita
+approved ni cambia candidatos en sitio para needs_changes/reject.
+
+La intención inmutable vincula bytes originales/finales y política/taxonomía. Se publica
+destino sin sobrescritura, se verifica y sólo después se retira fuente exacta y se registra
+recibo final. Approved puede ser visible antes del recibo; no hay atomicidad multiarchivo.
+Curator devuelve candidate/SHA originales, operation-id y recibo al dueño del
+ledger según `knowledge-write.md`; sólo ese dueño registra la asociación para
+retoma. No amplía el permiso de Curator sobre roadmap.
+El cerrojo es cooperativo, no excluye editores externos; decider declarado no autentica actor
+ni garantiza sandbox. Legado mantiene bytes/estados/autoridad sin migración/reaprobación.
+Fecha/score/ranking no resuelven contradicción; Constitución prima y conflicto/alto impacto
+requieren resolución humana trazada. Sin servicio, informa pendiente. Aceptación nativa y de
+implementación pendientes. [Contrato](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).

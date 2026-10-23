@@ -1,0 +1,885 @@
+{
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "validation": "static source comparison only; reference code not executed",
+  "declared_dashboard_entries": 3,
+  "related_terminal_analytics_resource": "R-64efaae5166e",
+  "closed_fiches": 0,
+  "integrated": 0,
+  "pending": [
+    "Readiness platform report dependency",
+    "Control-plane Rust/storage/runtime consumers",
+    "Compatible observation-source measurement",
+    "Native routing scenarios and full current own backend closure"
+  ],
+  "records": [
+    {
+      "id": "R-8ab9d88e012a",
+      "sha256": "4ad4c54fb7be1d0b543317a2874006784a390346ef8939b986d4ceb3fcd5ad17",
+      "hash_match": true,
+      "bytes": 41621,
+      "lines": 956,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          956
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "4ad4c54fb7be1d0b543317a2874006784a390346ef8939b986d4ceb3fcd5ad17",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-7b761940e6db",
+      "sha256": "686e865a6a2ffc35d15ac932f52d181b059e06daf06b7dd0bc3174402b94c813",
+      "hash_match": true,
+      "bytes": 68144,
+      "lines": 954,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          954
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "686e865a6a2ffc35d15ac932f52d181b059e06daf06b7dd0bc3174402b94c813",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-ec2c637e28f7",
+      "sha256": "65a4a24ec7a1780879490a6cc1a8a13b601e11be61da8dab5982aa487fc63150",
+      "hash_match": true,
+      "bytes": 55632,
+      "lines": 1191,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          1191
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "65a4a24ec7a1780879490a6cc1a8a13b601e11be61da8dab5982aa487fc63150",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-2169b7ad85cf",
+      "sha256": "d43b6b19924b0d8e51384a91fc99008d9e759ea237ebb2e7dec4f653e97f1ce5",
+      "hash_match": true,
+      "bytes": 15363,
+      "lines": 358,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          358
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "d43b6b19924b0d8e51384a91fc99008d9e759ea237ebb2e7dec4f653e97f1ce5",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-eb81734c4b22",
+      "sha256": "2c2a07631930713a55b18c6e24f92eec22b020e12253f0e2464dea1d19340374",
+      "hash_match": true,
+      "bytes": 15886,
+      "lines": 357,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          357
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "2c2a07631930713a55b18c6e24f92eec22b020e12253f0e2464dea1d19340374",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-394d830c518a",
+      "sha256": "ef7696bec0c434af2eb8b72aa9b511eb9000533ec35c9083bda83f742dd46dd0",
+      "hash_match": true,
+      "bytes": 2008,
+      "lines": 70,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "ef7696bec0c434af2eb8b72aa9b511eb9000533ec35c9083bda83f742dd46dd0",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-64efaae5166e",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "8e817cdbdd354c3641e64f1edca4f6405203f3b36de948b4d881e516197eeb50",
+      "hash_match": true,
+      "bytes": 11877,
+      "lines": 401,
+      "ranges": [
+        [
+          1,
+          401
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "S068",
+      "sha256": "6823d9984c060597a312b867c317e0969e1cb0a2dec19730ce944fe789f41d38",
+      "hash_match": true,
+      "bytes": 2358,
+      "lines": 109,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "6823d9984c060597a312b867c317e0969e1cb0a2dec19730ce944fe789f41d38",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "S182",
+      "sha256": "086650c5a5d797530086a1f7a5f6d853034a30c75c53e2e4aa80e8df7192b52b",
+      "hash_match": true,
+      "bytes": 2639,
+      "lines": 49,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "086650c5a5d797530086a1f7a5f6d853034a30c75c53e2e4aa80e8df7192b52b",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-06bb05bdeb56",
+      "sha256": "765d863356ba7de108816a62247a3748c6878fee0ff018e8ab1ea07c6fa92b27",
+      "hash_match": true,
+      "bytes": 277,
+      "lines": 4,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          4
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "765d863356ba7de108816a62247a3748c6878fee0ff018e8ab1ea07c6fa92b27",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-aad1fe03e214",
+      "sha256": "3efcc93c9c631876f824e61f97945a8260fba9ad7ea14baffee3de0781b74bcb",
+      "hash_match": true,
+      "bytes": 1801,
+      "lines": 57,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          57
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "3efcc93c9c631876f824e61f97945a8260fba9ad7ea14baffee3de0781b74bcb",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-76c4ca3b8cd8",
+      "sha256": "a6294088a8b539f3529db6253170734983a4b8e7247adfd176b2066a39249b2e",
+      "hash_match": true,
+      "bytes": 2211,
+      "lines": 97,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          97
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "a6294088a8b539f3529db6253170734983a4b8e7247adfd176b2066a39249b2e",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-63a3f246ea91",
+      "sha256": "1f956ee3f98c43213b247d347389fb202c40bbab9e908a3fdc78b760f2891808",
+      "hash_match": true,
+      "bytes": 11269,
+      "lines": 318,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          318
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "1f956ee3f98c43213b247d347389fb202c40bbab9e908a3fdc78b760f2891808",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-1cc73263eabb",
+      "sha256": "4724276f27684b45dd05282fd8b1e2b7e1dcf76eb72952b8b491bc3da7c4f846",
+      "hash_match": true,
+      "bytes": 9745,
+      "lines": 270,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          270
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "4724276f27684b45dd05282fd8b1e2b7e1dcf76eb72952b8b491bc3da7c4f846",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-c8c82b0ac61c",
+      "sha256": "0ecf96121ebf4da473f9f24010c29d4daaecb926bd597605fdec68814a3bc61a",
+      "hash_match": true,
+      "bytes": 23044,
+      "lines": 680,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          680
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "0ecf96121ebf4da473f9f24010c29d4daaecb926bd597605fdec68814a3bc61a",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-184a32b0e1b5",
+      "sha256": "1ad71814702e9bcfeb87c49e61fd30173b628d61f1a852506c1ec295772f6509",
+      "hash_match": true,
+      "bytes": 3068,
+      "lines": 133,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          133
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "1ad71814702e9bcfeb87c49e61fd30173b628d61f1a852506c1ec295772f6509",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-09d91020bb19",
+      "sha256": "8b743a1b80d9adbeb273c4ea67b5823a432d7c3855d648a9ba641c4dcb113ec8",
+      "hash_match": true,
+      "bytes": 13398,
+      "lines": 414,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          414
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "8b743a1b80d9adbeb273c4ea67b5823a432d7c3855d648a9ba641c4dcb113ec8",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-7a75470787e2",
+      "sha256": "a870aa12299d2ce8365ca1186429972bbf281581d597416dbaf7d038a94e823b",
+      "hash_match": true,
+      "bytes": 1562,
+      "lines": 63,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          63
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "a870aa12299d2ce8365ca1186429972bbf281581d597416dbaf7d038a94e823b",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-ae6b92060b7c",
+      "sha256": "e9b46ebcfdeef9e9b831a2719dc96a80bffb7cfb9bc60a70ffa6f43ef524f116",
+      "hash_match": true,
+      "bytes": 3588,
+      "lines": 121,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          121
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "e9b46ebcfdeef9e9b831a2719dc96a80bffb7cfb9bc60a70ffa6f43ef524f116",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-7754e063e597",
+      "sha256": "d26b12a896d361e27411910bb40e423cb1e84fc6b3b8ba3227f00b6d84ae9b4f",
+      "hash_match": true,
+      "bytes": 9147,
+      "lines": 274,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          274
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "d26b12a896d361e27411910bb40e423cb1e84fc6b3b8ba3227f00b6d84ae9b4f",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-4d520fb19258",
+      "sha256": "91a71f073e0358678d8e5357b28b22fca396ee996ae8152b5410c58f06c1e5ed",
+      "hash_match": true,
+      "bytes": 26373,
+      "lines": 797,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          797
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "91a71f073e0358678d8e5357b28b22fca396ee996ae8152b5410c58f06c1e5ed",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-c01714e02ad5",
+      "sha256": "bfc86bea11715af50f0f0a099bd38b5ad50c16ca937eb47ac8bb29d1bfb071e9",
+      "hash_match": true,
+      "bytes": 8905,
+      "lines": 141,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "bfc86bea11715af50f0f0a099bd38b5ad50c16ca937eb47ac8bb29d1bfb071e9",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-6f541e764aed",
+      "sha256": "47120cfba167191f04cc81b2e9278d922172678e6d14b7a0cf862291e2e91228",
+      "hash_match": true,
+      "bytes": 5744,
+      "lines": 81,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          81
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "47120cfba167191f04cc81b2e9278d922172678e6d14b7a0cf862291e2e91228",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-d82cc926e4eb",
+      "sha256": "99bf23b96dfea69ccfc3f1f57bf470c31003a075319559416985edb98b968ca7",
+      "hash_match": true,
+      "bytes": 27474,
+      "lines": 327,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          327
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "99bf23b96dfea69ccfc3f1f57bf470c31003a075319559416985edb98b968ca7",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-39e8237de789",
+      "sha256": "f520afae854c5fbad2c829ea2b69ed4978dc2f1a18362bdf105bf45b0ad0f25d",
+      "hash_match": true,
+      "bytes": 4784,
+      "lines": 142,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          142
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "f520afae854c5fbad2c829ea2b69ed4978dc2f1a18362bdf105bf45b0ad0f25d",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "R-bd1a34e14842",
+      "sha256": "d148be4433d2c84d34d0a79ddbc43617c4d9a91d13a1137f5398f4dd181049ef",
+      "hash_match": true,
+      "bytes": 4521,
+      "lines": 79,
+      "model_read": "complete",
+      "ranges": [
+        [
+          1,
+          79
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "d148be4433d2c84d34d0a79ddbc43617c4d9a91d13a1137f5398f4dd181049ef",
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated"
+    },
+    {
+      "id": "own:skills/plugin-panel/SKILL.md",
+      "sha256": "396a3f0a779abc4705f202f3ddf1b0769240de5f8002f50ad84fbf5f01610c85",
+      "bytes": 2877,
+      "lines": 47,
+      "model_read": "complete",
+      "execution": "not executed",
+      "revalidated_sha256": "396a3f0a779abc4705f202f3ddf1b0769240de5f8002f50ad84fbf5f01610c85",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "skills/plugin-panel/SKILL.md"
+    },
+    {
+      "id": "own:skills/plugin-panel/scripts/build_panel.py",
+      "sha256": "6d4ad34c7bd098e8522eb74848bbb628b2b296d420487f5c97b050fa4312a044",
+      "bytes": 24528,
+      "lines": 439,
+      "model_read": "complete",
+      "execution": "not executed",
+      "revalidated_sha256": "6d4ad34c7bd098e8522eb74848bbb628b2b296d420487f5c97b050fa4312a044",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "skills/plugin-panel/scripts/build_panel.py"
+    },
+    {
+      "id": "own:skills/plugin-panel/references/panel.html",
+      "sha256": "aced28dd176d8904d292606443d20acfbe9d4997cd986c308178584f77a0ad51",
+      "bytes": 16206,
+      "lines": 41,
+      "model_read": "complete",
+      "execution": "not executed",
+      "revalidated_sha256": "aced28dd176d8904d292606443d20acfbe9d4997cd986c308178584f77a0ad51",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "skills/plugin-panel/references/panel.html"
+    },
+    {
+      "id": "own:commands/plugin-catalog.md",
+      "sha256": "e82d282d3f456cf0a5e91b36e31d8c5b2720f8f66dbdd4c4c1b93322af3349f5",
+      "bytes": 1798,
+      "lines": 31,
+      "model_read": "complete",
+      "execution": "not executed",
+      "revalidated_sha256": "e82d282d3f456cf0a5e91b36e31d8c5b2720f8f66dbdd4c4c1b93322af3349f5",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "commands/plugin-catalog.md"
+    },
+    {
+      "id": "own:docs/PLUGIN-PANEL.md",
+      "sha256": "ef017d8e1790f03dbaa6fec156c05786033a4b83e4730d2673a86e5d665eb308",
+      "bytes": 4715,
+      "lines": 81,
+      "model_read": "complete",
+      "execution": "not executed",
+      "revalidated_sha256": "ef017d8e1790f03dbaa6fec156c05786033a4b83e4730d2673a86e5d665eb308",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "docs/PLUGIN-PANEL.md"
+    },
+    {
+      "id": "own:docs/PROJECT-EXTENSIONS.md",
+      "sha256": "b37c2dfd826652015489870097a133ff56b68094cd3c89d8f2f3164556ff217c",
+      "bytes": 8169,
+      "lines": 136,
+      "model_read": "complete",
+      "execution": "not executed",
+      "revalidated_sha256": "b37c2dfd826652015489870097a133ff56b68094cd3c89d8f2f3164556ff217c",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "docs/PROJECT-EXTENSIONS.md"
+    },
+    {
+      "id": "own:agent-kits/shared/capability-check.md",
+      "sha256": "c0dfede7cdd890952ebf4eab114fe6fef01c123350c6060b3053121797a48c20",
+      "bytes": 4559,
+      "lines": 70,
+      "model_read": "complete",
+      "execution": "not executed",
+      "revalidated_sha256": "c0dfede7cdd890952ebf4eab114fe6fef01c123350c6060b3053121797a48c20",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "agent-kits/shared/capability-check.md"
+    },
+    {
+      "id": "own:agent-kits/shared/capability-route.py",
+      "sha256": "a56b51900407e1262e394a67fe38086920d29efba446c31c83c7d0797b714c8c",
+      "bytes": 9552,
+      "lines": 205,
+      "model_read": "complete",
+      "execution": "not executed",
+      "revalidated_sha256": "a56b51900407e1262e394a67fe38086920d29efba446c31c83c7d0797b714c8c",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "agent-kits/shared/capability-route.py"
+    },
+    {
+      "id": "own:agent-kits/shared/project-pieces.py",
+      "sha256": "7ea4bfb07323c8b84242aa246d6e3ee24a5bf11bbf045f706b519a583256a3cd",
+      "bytes": 38009,
+      "lines": 805,
+      "model_read": "complete",
+      "execution": "not executed",
+      "revalidated_sha256": "7ea4bfb07323c8b84242aa246d6e3ee24a5bf11bbf045f706b519a583256a3cd",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "agent-kits/shared/project-pieces.py"
+    },
+    {
+      "id": "own:agent-kits/shared/progress-report.py",
+      "sha256": "54670550bac41af028dcb96b8d98d64e67924310b0ef72d435b03f91cb97ea03",
+      "bytes": 11090,
+      "lines": 287,
+      "model_read": "complete",
+      "execution": "not executed",
+      "revalidated_sha256": "54670550bac41af028dcb96b8d98d64e67924310b0ef72d435b03f91cb97ea03",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "agent-kits/shared/progress-report.py"
+    },
+    {
+      "id": "own:skills/roadmap-dashboard/SKILL.md",
+      "sha256": "bddffa7c3f46bf5caee7bdb765c1b3560f718f43f0e241cbcf72c5a9407add17",
+      "bytes": 4824,
+      "lines": 67,
+      "model_read": "complete",
+      "execution": "not executed",
+      "revalidated_sha256": "bddffa7c3f46bf5caee7bdb765c1b3560f718f43f0e241cbcf72c5a9407add17",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "skills/roadmap-dashboard/SKILL.md"
+    },
+    {
+      "id": "own:commands/doctor.md",
+      "sha256": "f02191bc7f87dbafc19d826bb5e9ef4f3dd85c11847329484b8a74088ef6307e",
+      "bytes": 13577,
+      "lines": 115,
+      "model_read": "complete",
+      "execution": "not executed",
+      "revalidated_sha256": "f02191bc7f87dbafc19d826bb5e9ef4f3dd85c11847329484b8a74088ef6307e",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "commands/doctor.md"
+    },
+    {
+      "id": "own:skills/knowledge-services/SKILL.md",
+      "sha256": "b0ea2a944ffc08a46416dea76eac7e93bed9f52c6eb6bb7776a67b9452646121",
+      "bytes": 6756,
+      "lines": 101,
+      "model_read": "complete",
+      "execution": "not executed",
+      "revalidated_sha256": "b0ea2a944ffc08a46416dea76eac7e93bed9f52c6eb6bb7776a67b9452646121",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "skills/knowledge-services/SKILL.md"
+    },
+    {
+      "id": "own:hooks/hooks.json",
+      "sha256": "b06c6120e183576a3607d1851e0813dec5a177b64b733ccb91cfbf494e2f8191",
+      "bytes": 1666,
+      "lines": 67,
+      "model_read": "complete",
+      "execution": "not executed",
+      "revalidated_sha256": "b06c6120e183576a3607d1851e0813dec5a177b64b733ccb91cfbf494e2f8191",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "hooks/hooks.json"
+    },
+    {
+      "id": "own:agent-kits/shared/doctor.py",
+      "sha256": "61f1b2651869693251a10b4a6e5d6c36b3919cdaa2e224fe9e6be534cfe94e32",
+      "bytes": 144837,
+      "lines": 2539,
+      "model_read": "partial",
+      "ranges": [
+        [
+          2390,
+          2471
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "61f1b2651869693251a10b4a6e5d6c36b3919cdaa2e224fe9e6be534cfe94e32",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "agent-kits/shared/doctor.py"
+    },
+    {
+      "id": "own:agent-kits/shared/journal.py",
+      "sha256": "bc6eb7ba0a8b295b5dce756f28f434fd523a65a55e5db350606b7333354efd77",
+      "bytes": 130801,
+      "lines": 2365,
+      "model_read": "partial",
+      "ranges": [
+        [
+          1088,
+          1160
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "bc6eb7ba0a8b295b5dce756f28f434fd523a65a55e5db350606b7333354efd77",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "agent-kits/shared/journal.py"
+    },
+    {
+      "id": "own:agent-kits/shared/capabilities.py",
+      "sha256": "cf70c3821115e1cd196262e2f2e1888e60845af2e32aa3c973ce96e3b8dcdf6e",
+      "bytes": 31815,
+      "lines": 646,
+      "model_read": "partial",
+      "ranges": [
+        [
+          91,
+          216
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "cf70c3821115e1cd196262e2f2e1888e60845af2e32aa3c973ce96e3b8dcdf6e",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "agent-kits/shared/capabilities.py"
+    },
+    {
+      "id": "own:skills/roadmap-dashboard/scripts/build_dashboard.py",
+      "sha256": "f2ba04d0bed5e526f46afe4110b5a18d8fb38f2110b49bb5d1969ee273d7edef",
+      "bytes": 37771,
+      "lines": 888,
+      "model_read": "partial",
+      "ranges": [
+        [
+          436,
+          515
+        ],
+        [
+          609,
+          673
+        ]
+      ],
+      "execution": "not executed",
+      "revalidated_sha256": "f2ba04d0bed5e526f46afe4110b5a18d8fb38f2110b49bb5d1969ee273d7edef",
+      "hash_match": true,
+      "semantic_complete": false,
+      "integrated": false,
+      "read_origin": "previous full/partial read manifest; hash revalidated",
+      "own_path": "skills/roadmap-dashboard/scripts/build_dashboard.py"
+    },
+    {
+      "id": "R-05dcbc3bbd0f",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "85966ad7f337ea1ade297ef62d54fa5483e6e69ee857ec7c26098f1ad04205bd",
+      "hash_match": true,
+      "bytes": 3437,
+      "lines": 132,
+      "ranges": [
+        [
+          1,
+          132
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-dde3f40a27b5",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "a4aaf552a06e45e5ccb1fe76c4ec98566ff088967102f86f968dadb6b102054b",
+      "hash_match": true,
+      "bytes": 6081,
+      "lines": 196,
+      "ranges": [
+        [
+          1,
+          196
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-d256c2010315",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "a11a8eab2d7425bae51233d10a28ceb28060948bb07c1c7fafd65ed44b9887cc",
+      "hash_match": true,
+      "bytes": 7587,
+      "lines": 263,
+      "ranges": [
+        [
+          1,
+          263
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-d0dc5f4d4d90",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "ad7f4ce120ff04f3340fec49d486df3c90c11749998cf46356b6802ba1c24a0f",
+      "hash_match": true,
+      "bytes": 6209,
+      "lines": 237,
+      "ranges": [
+        [
+          1,
+          237
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-7636391bd59d",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "6480ff6d2a9cf8974e046fb049e26ceca81568ccba761cdc661feece7e515905",
+      "hash_match": true,
+      "bytes": 4790,
+      "lines": 187,
+      "ranges": [
+        [
+          1,
+          187
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    }
+  ]
+}

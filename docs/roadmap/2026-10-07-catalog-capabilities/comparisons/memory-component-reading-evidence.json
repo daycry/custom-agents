@@ -1,0 +1,848 @@
+{
+  "schema_version": 1,
+  "review_date": "2026-10-09",
+  "purpose": "memory_component_comparison",
+  "primary_components": [
+    {
+      "repository": "benmaster82/Kwipu",
+      "url": "https://github.com/benmaster82/Kwipu",
+      "branch": "main",
+      "revision": "01dd7d40fd5b071fc158aec4fcd69b85be4c0a22",
+      "checked_at": "2026-10-09T13:31:26.1076662Z",
+      "commit_at": "2026-09-07T23:58:11Z",
+      "sources": [
+        {
+          "sha256": "c8484adb0276f6fba72498bcf41c372966abd75e00b19711fd4279fcc1639331",
+          "bytes": 25113,
+          "lines": 597,
+          "read_ranges": [
+            [
+              1,
+              62
+            ],
+            [
+              70,
+              86
+            ],
+            [
+              338,
+              441
+            ],
+            [
+              467,
+              506
+            ],
+            [
+              527,
+              597
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "README.md",
+          "url": "https://github.com/benmaster82/Kwipu/blob/01dd7d40fd5b071fc158aec4fcd69b85be4c0a22/README.md"
+        },
+        {
+          "sha256": "4afde13a5a2caf86bbb354d85a4444fca718b6ccbbe6f73d17249b15b7644efd",
+          "bytes": 12757,
+          "lines": 359,
+          "read_ranges": [
+            [
+              222,
+              336
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "bridge/app.py",
+          "url": "https://github.com/benmaster82/Kwipu/blob/01dd7d40fd5b071fc158aec4fcd69b85be4c0a22/bridge/app.py"
+        },
+        {
+          "sha256": "8e375ebe0b24f1a4a57d26de5e6c8be355892bca43c09f17222d21e4600eabf0",
+          "bytes": 6228,
+          "lines": 188,
+          "read_ranges": [
+            [
+              1,
+              174
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "bridge/query.py",
+          "url": "https://github.com/benmaster82/Kwipu/blob/01dd7d40fd5b071fc158aec4fcd69b85be4c0a22/bridge/query.py"
+        },
+        {
+          "sha256": "ca6d20594f10359ec8276934ee817f0234e2ce88b5e87fdeb3b9a56c92f5d61c",
+          "bytes": 18222,
+          "lines": 507,
+          "read_ranges": [],
+          "read_status": "downloaded_not_reviewed",
+          "source": "bridge/graph.py",
+          "url": "https://github.com/benmaster82/Kwipu/blob/01dd7d40fd5b071fc158aec4fcd69b85be4c0a22/bridge/graph.py"
+        },
+        {
+          "sha256": "5d9d18bd2d07a44c75901a499e12732590d5c23303a9c5260eb3578999cfcfd6",
+          "bytes": 4483,
+          "lines": 146,
+          "read_ranges": [
+            [
+              35,
+              143
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "kwipu_mcp_server.py",
+          "url": "https://github.com/benmaster82/Kwipu/blob/01dd7d40fd5b071fc158aec4fcd69b85be4c0a22/kwipu_mcp_server.py"
+        },
+        {
+          "sha256": "2672eba9543e3b56bcfe82b13113faa4be97f857dbd732bbda9ff516c0fd057f",
+          "bytes": 6475,
+          "lines": 185,
+          "read_ranges": [
+            [
+              157,
+              185
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "kwipu_config.py",
+          "url": "https://github.com/benmaster82/Kwipu/blob/01dd7d40fd5b071fc158aec4fcd69b85be4c0a22/kwipu_config.py"
+        },
+        {
+          "sha256": "2d81e5f691305b0c7bd7dcfa370cbfc0a7a02e2a7e6de700f12bdd6cab2f3afd",
+          "bytes": 9130,
+          "lines": 298,
+          "read_ranges": [
+            [
+              182,
+              298
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "kwipu_storage.py",
+          "url": "https://github.com/benmaster82/Kwipu/blob/01dd7d40fd5b071fc158aec4fcd69b85be4c0a22/kwipu_storage.py"
+        },
+        {
+          "sha256": "d1d0b3cbcb42a59dc609f9fcb34ec744c4024e4da7bd1e5087a76c19985ce6e5",
+          "bytes": 67463,
+          "lines": 1828,
+          "read_ranges": [
+            [
+              696,
+              719
+            ],
+            [
+              798,
+              833
+            ],
+            [
+              991,
+              1085
+            ],
+            [
+              1601,
+              1638
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "geode_graph.py",
+          "url": "https://github.com/benmaster82/Kwipu/blob/01dd7d40fd5b071fc158aec4fcd69b85be4c0a22/geode_graph.py"
+        }
+      ]
+    },
+    {
+      "repository": "getzep/graphiti",
+      "url": "https://github.com/getzep/graphiti",
+      "branch": "main",
+      "revision": "1026ae7ae25e7e4cfcc1c7ebe00347b8a90f52a0",
+      "checked_at": "2026-10-09T13:31:26.7013556Z",
+      "commit_at": "2026-10-09T03:11:34Z",
+      "sources": [
+        {
+          "sha256": "72c09aa0f12b7835f8c2919000788bca43306cf847269d4c3a7f35c957218689",
+          "bytes": 31417,
+          "lines": 799,
+          "read_ranges": [
+            [
+              95,
+              150
+            ],
+            [
+              156,
+              175
+            ],
+            [
+              270,
+              278
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "README.md",
+          "url": "https://github.com/getzep/graphiti/blob/1026ae7ae25e7e4cfcc1c7ebe00347b8a90f52a0/README.md"
+        },
+        {
+          "sha256": "4397db54fd39755e50451d2995612b5f6bc4dfc9b76aab5214fee9ad84a93038",
+          "bytes": 24903,
+          "lines": 719,
+          "read_ranges": [
+            [
+              1,
+              96
+            ],
+            [
+              685,
+              719
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "mcp_server/README.md",
+          "url": "https://github.com/getzep/graphiti/blob/1026ae7ae25e7e4cfcc1c7ebe00347b8a90f52a0/mcp_server/README.md"
+        },
+        {
+          "sha256": "c70b2a8b5e13e15a1e54fac9a6aa3576a6260bdf270b4b1d4aabaa6c4e60c1a7",
+          "bytes": 2589,
+          "lines": 78,
+          "read_ranges": [],
+          "read_status": "downloaded_not_reviewed",
+          "source": "server/README.md",
+          "url": "https://github.com/getzep/graphiti/blob/1026ae7ae25e7e4cfcc1c7ebe00347b8a90f52a0/server/README.md"
+        },
+        {
+          "sha256": "52b58f16f325fe923ec1d05e35f3157df458e36b5a460ccf4fc34b2623fba0ac",
+          "bytes": 2847,
+          "lines": 107,
+          "read_ranges": [],
+          "read_status": "downloaded_not_reviewed",
+          "source": "pyproject.toml",
+          "url": "https://github.com/getzep/graphiti/blob/1026ae7ae25e7e4cfcc1c7ebe00347b8a90f52a0/pyproject.toml"
+        },
+        {
+          "sha256": "ddb12a685f474ed5a05bf08654922a0c69a6b6a484aa2c43740e57a27433f1d3",
+          "bytes": 56385,
+          "lines": 1379,
+          "read_ranges": [
+            [
+              460,
+              709
+            ],
+            [
+              1058,
+              1102
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "mcp_server/src/graphiti_mcp_server.py",
+          "url": "https://github.com/getzep/graphiti/blob/1026ae7ae25e7e4cfcc1c7ebe00347b8a90f52a0/mcp_server/src/graphiti_mcp_server.py"
+        }
+      ]
+    },
+    {
+      "repository": "Graphify-Labs/graphify",
+      "url": "https://github.com/Graphify-Labs/graphify",
+      "branch": "v8",
+      "revision": "5b74d7d74911cf435c8f1636b6f96ea202cc6246",
+      "checked_at": "2026-10-09T13:31:27.2367814Z",
+      "commit_at": "2026-10-09T01:51:25Z",
+      "sources": [
+        {
+          "sha256": "528e960cd5d6a7e33b5d89bf94d249fc65e4a06ed1c839e14b7dee1f89f6b849",
+          "bytes": 65527,
+          "lines": 931,
+          "read_ranges": [
+            [
+              32,
+              74
+            ],
+            [
+              456,
+              556
+            ],
+            [
+              594,
+              600
+            ],
+            [
+              608,
+              617
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "README.md",
+          "url": "https://github.com/Graphify-Labs/graphify/blob/5b74d7d74911cf435c8f1636b6f96ea202cc6246/README.md"
+        },
+        {
+          "sha256": "69b355194f545e7d125a0ef0e92999efa3608188c296508de09265fe66b5997d",
+          "bytes": 8175,
+          "lines": 125,
+          "read_ranges": [
+            [
+              1,
+              125
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "ARCHITECTURE.md",
+          "url": "https://github.com/Graphify-Labs/graphify/blob/5b74d7d74911cf435c8f1636b6f96ea202cc6246/ARCHITECTURE.md"
+        },
+        {
+          "sha256": "fee06d7c60dd26e8649dd1fe5cd7067e52c849ccf8251824080eb2b0383aa713",
+          "bytes": 134282,
+          "lines": 2842,
+          "read_ranges": [
+            [
+              2156,
+              2174
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "graphify/serve.py",
+          "url": "https://github.com/Graphify-Labs/graphify/blob/5b74d7d74911cf435c8f1636b6f96ea202cc6246/graphify/serve.py"
+        },
+        {
+          "sha256": "0dc7c6c4f31cb9adb5d44b78d3d33726b898cea18b4789f5e4069b5f73acd244",
+          "bytes": 8667,
+          "lines": 189,
+          "read_ranges": [],
+          "read_status": "downloaded_not_reviewed",
+          "source": "pyproject.toml",
+          "url": "https://github.com/Graphify-Labs/graphify/blob/5b74d7d74911cf435c8f1636b6f96ea202cc6246/pyproject.toml"
+        },
+        {
+          "sha256": "28bdbd3920eb5aeaa0e62e6dd04d5eb6276cf142b101b2ec9c69079794bf1904",
+          "bytes": 24838,
+          "lines": 555,
+          "read_ranges": [
+            [
+              509,
+              536
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "graphify/paths.py",
+          "url": "https://github.com/Graphify-Labs/graphify/blob/5b74d7d74911cf435c8f1636b6f96ea202cc6246/graphify/paths.py"
+        },
+        {
+          "sha256": "e93ecfd43fead7688aecaa9b4e14512e4a9219cc8c2c895a3a0288aff620078d",
+          "bytes": 62126,
+          "lines": 1412,
+          "read_ranges": [
+            [
+              287,
+              314
+            ],
+            [
+              383,
+              404
+            ],
+            [
+              439,
+              478
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "graphify/export.py",
+          "url": "https://github.com/Graphify-Labs/graphify/blob/5b74d7d74911cf435c8f1636b6f96ea202cc6246/graphify/export.py"
+        },
+        {
+          "sha256": "953ad5fece9d380795a70e7dda4b72069ed7a57f56d8648fd339fea959a150a4",
+          "bytes": 2841,
+          "lines": 80,
+          "read_ranges": [
+            [
+              1,
+              80
+            ]
+          ],
+          "read_status": "selected_ranges",
+          "source": "graphify/querylog.py",
+          "url": "https://github.com/Graphify-Labs/graphify/blob/5b74d7d74911cf435c8f1636b6f96ea202cc6246/graphify/querylog.py"
+        }
+      ]
+    }
+  ],
+  "compared_reference": {
+    "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+    "revision_verified_read_only": true,
+    "sources": [
+      {
+        "sha256": "83461fea071d2a96ca29a9e9767df770a0363b98721e3eebd2b371ddc48453ab",
+        "bytes": 25966,
+        "lines": 808,
+        "read_ranges": [
+          [
+            1,
+            140
+          ],
+          [
+            319,
+            716
+          ]
+        ],
+        "read_status": "selected_ranges",
+        "resource": "R01",
+        "kind": "reference_source"
+      },
+      {
+        "sha256": "a5589f0cd0fd8a414436775e74243c39b068c86ddc99a4732d71ee54409a50c2",
+        "bytes": 10536,
+        "lines": 309,
+        "read_ranges": [
+          [
+            1,
+            120
+          ]
+        ],
+        "read_status": "selected_ranges",
+        "resource": "R02",
+        "kind": "reference_source"
+      },
+      {
+        "sha256": "c5266a07230d5917c84665fff55c4f17a50a6f74bc55bf403d3d4a6b9cc2620c",
+        "bytes": 14974,
+        "lines": 504,
+        "read_ranges": [
+          [
+            427,
+            447
+          ]
+        ],
+        "read_status": "selected_ranges",
+        "resource": "R03",
+        "kind": "reference_source"
+      },
+      {
+        "sha256": "5c549220aa8a6b2d8ed60d99b7f3c688b6ee36f3c76e464f0f8767667c6e2ecc",
+        "bytes": 21574,
+        "lines": 691,
+        "read_ranges": [
+          [
+            174,
+            239
+          ],
+          [
+            273,
+            335
+          ]
+        ],
+        "read_status": "selected_ranges",
+        "resource": "R04",
+        "kind": "reference_source"
+      },
+      {
+        "sha256": "dd9ccaa2abcf4afa867648154812a7b680fae226ca95678e19db5328404c3799",
+        "bytes": 6296,
+        "lines": 115,
+        "read_ranges": [
+          [
+            1,
+            110
+          ]
+        ],
+        "read_status": "selected_ranges",
+        "resource": "R05",
+        "kind": "reference_source"
+      },
+      {
+        "sha256": "dad58b43af2ea3ed46ec802334d65c5cf327998b6ce818b5a3e6c482088e2730",
+        "bytes": 14183,
+        "lines": 360,
+        "read_ranges": [
+          [
+            22,
+            103
+          ],
+          [
+            242,
+            320
+          ]
+        ],
+        "read_status": "selected_ranges",
+        "resource": "R06",
+        "kind": "reference_source"
+      },
+      {
+        "sha256": "7e26a5f0812a3717d053367d9b4db2f70e9d40434b7a05c849051266e8c1e75c",
+        "bytes": 30775,
+        "lines": 840,
+        "read_ranges": [
+          [
+            287,
+            352
+          ],
+          [
+            700,
+            800
+          ]
+        ],
+        "read_status": "selected_ranges",
+        "resource": "R07",
+        "kind": "reference_source"
+      },
+      {
+        "sha256": "ddad12451a0d582c6ef1b197b7be193bef613cbc74eba4117fcb74fc7a4ecd00",
+        "bytes": 14149,
+        "lines": 377,
+        "read_ranges": [
+          [
+            1,
+            145
+          ]
+        ],
+        "read_status": "selected_ranges",
+        "resource": "R08",
+        "kind": "reference_source"
+      }
+    ]
+  },
+  "plugin_sources": [
+    {
+      "sha256": "7ee4523c055ac4fba7eccfe036c512736a49be9f1e4def67e61800b51d73ac42",
+      "bytes": 84967,
+      "lines": 1630,
+      "read_ranges": [
+        [
+          483,
+          533
+        ],
+        [
+          702,
+          748
+        ],
+        [
+          964,
+          980
+        ],
+        [
+          1286,
+          1388
+        ]
+      ],
+      "read_status": "selected_ranges",
+      "source": "agent-kits/shared/knowledge-find.py",
+      "kind": "plugin_source"
+    },
+    {
+      "sha256": "7122dfa8294ccb79903784cf830a880dd643ba6c49a970b855cb8ca106bcd564",
+      "bytes": 22831,
+      "lines": 413,
+      "read_ranges": [
+        [
+          255,
+          327
+        ]
+      ],
+      "read_status": "selected_ranges",
+      "source": "agent-kits/shared/knowledge-local.py",
+      "kind": "plugin_source"
+    },
+    {
+      "sha256": "45794372ea22fcc72e55a97717216cdef1a505400087b098f08bb33aea1a6d76",
+      "bytes": 127192,
+      "lines": 2383,
+      "read_ranges": [
+        [
+          881,
+          928
+        ],
+        [
+          1581,
+          1600
+        ],
+        [
+          1803,
+          1881
+        ],
+        [
+          2082,
+          2114
+        ]
+      ],
+      "read_status": "selected_ranges",
+      "source": "agent-kits/shared/journal.py",
+      "kind": "plugin_source"
+    },
+    {
+      "sha256": "63b8d66977b42409f79e7814c6eba3846cb6eea6dc61b3ee47d1b4ddbb2867dc",
+      "bytes": 6245,
+      "lines": 108,
+      "read_ranges": [
+        [
+          1,
+          108
+        ]
+      ],
+      "read_status": "selected_ranges",
+      "source": "agent-kits/shared/code-context.py",
+      "kind": "plugin_source"
+    },
+    {
+      "sha256": "d128966047a52981a86cd8b8f613a5d40a92297cf9be2ce8028a44598f2550c1",
+      "bytes": 58315,
+      "lines": 1039,
+      "read_ranges": [
+        [
+          615,
+          679
+        ],
+        [
+          954,
+          1028
+        ]
+      ],
+      "read_status": "selected_ranges",
+      "source": "skills/knowledge-services/backends/markdown_export.py",
+      "kind": "plugin_source"
+    },
+    {
+      "sha256": "4c12dc268dfa3fb0cccf17ab70addd450c2e4d46147c047dd647ac9e9625eac1",
+      "bytes": 138197,
+      "lines": 2422,
+      "read_ranges": [
+        [
+          1588,
+          1613
+        ],
+        [
+          1684,
+          1714
+        ],
+        [
+          1844,
+          1991
+        ],
+        [
+          2300,
+          2422
+        ]
+      ],
+      "read_status": "selected_ranges",
+      "source": "skills/knowledge-services/backends/graphiti.py",
+      "kind": "plugin_source"
+    },
+    {
+      "sha256": "6317eda31746983a66acce0961271d97d3a7603724e0932bb7e74af5ee56cb75",
+      "bytes": 30322,
+      "lines": 515,
+      "read_ranges": [
+        [
+          294,
+          460
+        ]
+      ],
+      "read_status": "selected_ranges",
+      "source": "skills/knowledge-services/scripts/knowledge-sync.py",
+      "kind": "plugin_source"
+    }
+  ],
+  "deployment_documents": [
+    {
+      "resource": "D-b33563055168",
+      "sha256": "8906f86b4b99232530ee86c5e231d62f7b77af170717f3bdc5e4c637af74984d",
+      "lines": 66,
+      "kind": "deployment_documentation",
+      "read_ranges": [
+        [
+          1,
+          66
+        ]
+      ],
+      "reader": "coordinator_and_memory_reviewer",
+      "read_status": "document_read",
+      "state_verified": false,
+      "bytes": 2464
+    },
+    {
+      "resource": "D-ad0976306757",
+      "sha256": "be1788021135fd5da2c9d2cf70f0051feb53c14cced64246719a5c356ea1ffd1",
+      "lines": 118,
+      "kind": "deployment_documentation",
+      "read_ranges": [
+        [
+          1,
+          118
+        ]
+      ],
+      "reader": "coordinator",
+      "read_status": "document_read",
+      "state_verified": false
+    },
+    {
+      "resource": "D-412ea76009f6",
+      "sha256": "495865332d8dfe566056194c6e15757ee87790d0661e039edc37a353e49d99b3",
+      "lines": 50,
+      "kind": "deployment_documentation",
+      "read_ranges": [
+        [
+          1,
+          50
+        ]
+      ],
+      "reader": "coordinator_and_memory_reviewer",
+      "read_status": "document_read",
+      "state_verified": false,
+      "bytes": 913
+    },
+    {
+      "resource": "D-8757b6be2319",
+      "sha256": "92e3570f90e631dbe33eabb32d4b44ec5bb77ea5de6483f09829982f39dfe1ee",
+      "lines": 180,
+      "kind": "deployment_documentation",
+      "read_ranges": [
+        [
+          1,
+          180
+        ]
+      ],
+      "reader": "coordinator_and_memory_reviewer",
+      "read_status": "document_read",
+      "state_verified": false,
+      "bytes": 6913
+    },
+    {
+      "resource": "D-5f4953335790",
+      "sha256": "0d3b65fd1f8c7be85200f6a115e3b5ee50ffe559f83bec3bbc62cfdd5d6abf0d",
+      "lines": 163,
+      "kind": "deployment_documentation",
+      "read_ranges": [
+        [
+          1,
+          163
+        ]
+      ],
+      "reader": "coordinator_and_memory_reviewer",
+      "read_status": "document_read",
+      "state_verified": false,
+      "bytes": 5303
+    },
+    {
+      "sha256": "64b578424f2b87a39202ad7c70e540cce7e36a8a20e897fc163ff64661b9015d",
+      "bytes": 4951,
+      "lines": 93,
+      "read_ranges": [
+        [
+          1,
+          93
+        ]
+      ],
+      "read_status": "document_read",
+      "reader": "memory_reviewer",
+      "kind": "deployment_documentation",
+      "state_verified": false,
+      "resource": "D-64b578424f2b"
+    },
+    {
+      "sha256": "45d1f549c5ccef500913101eb787fbed2c3d7ca4043fe4dc563875a4fde1c2dd",
+      "bytes": 5101,
+      "lines": 179,
+      "read_ranges": [
+        [
+          1,
+          179
+        ]
+      ],
+      "read_status": "document_read",
+      "reader": "memory_reviewer",
+      "kind": "deployment_documentation",
+      "state_verified": false,
+      "resource": "D-45d1f549c5cc"
+    },
+    {
+      "sha256": "8ca5e8f0cf56e3b6b631e67e906b43216b4ae0e3414a3f09eb6ef6620694f5f8",
+      "bytes": 1829,
+      "lines": 81,
+      "read_ranges": [
+        [
+          1,
+          81
+        ]
+      ],
+      "read_status": "document_read",
+      "reader": "memory_reviewer",
+      "kind": "deployment_documentation",
+      "state_verified": false,
+      "resource": "D-8ca5e8f0cf56"
+    },
+    {
+      "sha256": "1a575ba12bf817f1406d3c764bb5754787a71b236cd2984b8cf404e73993fabc",
+      "bytes": 6343,
+      "lines": 147,
+      "read_ranges": [
+        [
+          1,
+          147
+        ]
+      ],
+      "read_status": "document_read",
+      "reader": "memory_reviewer",
+      "kind": "deployment_documentation",
+      "state_verified": false,
+      "resource": "D-1a575ba12bf8"
+    }
+  ],
+  "current_availability_observation": {
+    "observed_at": "2026-10-09T13:39:21.512086+00:00",
+    "operation": "read_only_current_deployment",
+    "services": [
+      {
+        "service": "kwipu",
+        "port": 8765,
+        "operation": "health_or_model_inventory",
+        "mutates": false,
+        "http_status": 200,
+        "response_bytes": 405,
+        "bounded": true,
+        "response_sha256": "a1fdcb3f19170d18f9a9f99d61a001bcd6b8afcb1e0c4bbf2caaac960b849daf",
+        "status": "ok",
+        "end_to_end_retrieval_verified": false
+      },
+      {
+        "service": "graphiti",
+        "port": 8001,
+        "operation": "health_or_model_inventory",
+        "mutates": false,
+        "http_status": 200,
+        "response_bytes": 45,
+        "bounded": true,
+        "response_sha256": "57722a2dc6a1901791fd991f49d3dd0460fb7d1065c3e02eac1af7c481b92e27",
+        "status": "healthy",
+        "end_to_end_retrieval_verified": false
+      },
+      {
+        "service": "ollama",
+        "port": 11434,
+        "operation": "health_or_model_inventory",
+        "mutates": false,
+        "http_status": 200,
+        "response_bytes": 1829,
+        "bounded": true,
+        "response_sha256": "8ca363fecdb7ba7ca72ec6a5f040ac26e24f045be3af28dc4098cf98410f2417",
+        "models": [
+          "gpt-oss:120b-cloud",
+          "gpt-oss:20b-cloud",
+          "qwen3.5:0.8b",
+          "nomic-embed-text:latest"
+        ],
+        "end_to_end_retrieval_verified": false
+      }
+    ],
+    "limits": "Health and model inventory only; no memory queries, corpus reads, ingestion, logs or container changes.",
+    "reader": "coordinator",
+    "container_summary": {
+      "running": 8,
+      "healthy": [
+        "graphiti",
+        "ollama",
+        "falkordb",
+        "open-webui"
+      ],
+      "source": "coordinator_read_only_observation"
+    },
+    "image_revision_compatibility_verified": false
+  },
+  "limits": [
+    "No memory queries, ingestion, benchmarks, restoration or UI evaluation.",
+    "No installation, source execution, service mutation or native configuration read.",
+    "Documentation describes policy; it does not verify the current corpus or configuration.",
+    "Availability does not verify retrieval utility, source authority, inference locality or durability.",
+    "Primary pinned revisions are not claimed to match deployed images.",
+    "Opaque resource identifiers omit private paths and original source branding."
+  ]
+}

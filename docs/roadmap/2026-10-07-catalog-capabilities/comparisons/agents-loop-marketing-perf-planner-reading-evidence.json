@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_agent_ids": [
+    "A038",
+    "A039",
+    "A047",
+    "A049"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "A038",
+      "sha256": "51f8283a56b799c2bd2c2455b3480e949656cbf997ea2feb34a972d3d6400f22",
+      "bytes": 1903,
+      "lines": 45,
+      "read_ranges": [
+        [
+          1,
+          45
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A039",
+      "sha256": "9d9cdcde2f90ba36ac488065beaa4fc3b74ff5a91507e504b9ea2cc608213cf8",
+      "bytes": 7275,
+      "lines": 159,
+      "read_ranges": [
+        [
+          1,
+          159
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A047",
+      "sha256": "76d00a70fcc07a0b207f6b517d54078fa7a59f29e157fea72bf5f1d9cab8f9b2",
+      "bytes": 13454,
+      "lines": 455,
+      "read_ranges": [
+        [
+          1,
+          455
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A049",
+      "sha256": "63aba865206bac9cb5887542fb01b97656e7701faff98e091aa77057ba9860bc",
+      "bytes": 8055,
+      "lines": 221,
+      "read_ranges": [
+        [
+          1,
+          221
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/plugin-dev/references/persistent-workflows.md",
+      "sha256": "0e3e609ce7b98f24d223c32ba48486c4f727759bef0813bc78771bc754a033c8"
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "b6e03985d8ed921cf629b53af25f6c671df9792f1512acf4d2db14e1297442b9"
+    },
+    {
+      "path": "agent-kits/shared/usage-meter.py",
+      "sha256": "f06ea2c2fd3195b39a5fa9ff64d1ced765fafef540657cb57d21804d311a1933"
+    },
+    {
+      "path": "skills/adversarial-review/references/lens-prompts.md",
+      "sha256": "53309deeda86aaedb1daf00dbb5f8d9e23aa246da038f1f6a281dc52ab2c278c"
+    },
+    {
+      "path": "skills/adversarial-review/references/lens-d-heuristics.md",
+      "sha256": "7b0e5a00b68e9a29a7b24d4ce43f6876a167a388624d8ff0c1dc0b54854e23b9"
+    },
+    {
+      "path": "skills/outcome-evals/references/performance-baselines.md",
+      "sha256": "e0bf3ff2c5c94d0be11ede402ebc8fbb2b7da4e310f20af6996d49cbfd6a1ede"
+    },
+    {
+      "path": "skills/frontend-quality/SKILL.md",
+      "sha256": "ec2843326f2a2a103747bb648d59ccbc330496c3242c1f313579ee6fc60cf379"
+    },
+    {
+      "path": "skills/frontend-quality/references/interaction-performance.md",
+      "sha256": "a18f59a90a0220f1e0b729af9b795914b38cfca0793247a90b8578d63b1b510f"
+    },
+    {
+      "path": "skills/stack-practices/references/react.md",
+      "sha256": "2ce419b2bcf0000c9dca9b138ab40952d143969382ec49b7ff91178e3e8eb1bd"
+    },
+    {
+      "path": "agents/implementer.md",
+      "sha256": "c8df51df5d618690e8f2bcae747999448eb95ae3904ac1bcbbc7f470fbb53a19"
+    },
+    {
+      "path": "agents/planner.md",
+      "sha256": "ca0e7d162045ede38414c0a8ba0934c167d71e778119fd9a0b2c59fff8fab5b9"
+    },
+    {
+      "path": "agents/analyst.md",
+      "sha256": "6a5fb1f6f20249183a93fea3210bf5886901e35c90d99022089539c01f9dda62"
+    },
+    {
+      "path": "agents/architect.md",
+      "sha256": "4c60c41cf4e17499ee99369401a305c2a68193c70576e788c579dcd3634ec99c"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-leads-logistics-research-agreements.md",
+      "sha256": "5373c5c5efd3b8ee7ba6d2156d0a822892fe9c0e96aa183c8b999fcd1c253bff"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-seo-social-graph-publisher.md",
+      "sha256": "5c05c0cddc7f5791f9ddf59909b2ffdb808fc83972d1f697d63dcc3c93a225dc"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-destinations.md",
+      "sha256": "ef595ccb3b92157ba3df5fe2b0823db6dd2df51a47f803a8d59591b461b02e7e"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

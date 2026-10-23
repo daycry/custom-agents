@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "base": "470e92e61d94d37ece49c1adda8479200e9f997d",
+  "scope": "Existing memory documentation and test fixtures; native closure diagnosis remains partial",
+  "coverage": "not-applicable-no-production-executable-diff",
+  "qa_gate": {
+    "verdict": "VERDE",
+    "counts": {
+      "passed": 438,
+      "failed": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "interrupted": 0
+    },
+    "flaky_sin_justificar": [],
+    "flaky_justificados": {},
+    "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+  },
+  "unique_test_items": 438,
+  "public_scan": {
+    "files": 872,
+    "violations": [],
+    "user_settings_excluded_before_read": true
+  },
+  "final_source_sha256": "fa9f91bbb3c32fec19b1785416b103daabfd2b64e9929046704665f148683855",
+  "curated_fixture_sha256": "2ced78fa7d7a9de9e6ef0d6dc603e15c36dd90a30d3941f59bd1f68c38c3ddb6",
+  "initial_rejected_attempt": {
+    "junit_elements": 405,
+    "failed": 4,
+    "passed_items": 399,
+    "passed_subtests": 2,
+    "log_sha256": "cdcbdd2c89613ca1c2d662b6ab96e4872d44aaa75e937d700b11d74b9554eaf6"
+  },
+  "diagnosis_reference": "memory-contract-test-diagnosis-evidence.json",
+  "raw_evidence_sha256": {
+    "final-results.json": "9a29008f7f6b79488d94b6a564edfb0ad0c6a42921ff451ee46be2cfbd1f3051",
+    "final-qa-gate.json": "c0f2e4c2128bed5d4b22b2aeb1e8b7451889b015ee280b27de4f522f505408a0",
+    "final-public-scan.json": "6cd320cf9bbb2c9747ea0583dfdc247c263af09078a3b2d389518b7c753788d5"
+  },
+  "independent_review": {
+    "attempt": 2,
+    "lenses": [
+      "A",
+      "B"
+    ],
+    "approved": true,
+    "context": "fresh generic fallback; native reviewer unavailable",
+    "pending_gaps": []
+  },
+  "limits": [
+    "Final tests use owned clean source snapshots, isolated Git and homes, and loopback mocks.",
+    "The frozen 52-file curated fixture predates GOT-017; later documentation and evidence metadata are validated separately.",
+    "Prior rejected QA environments remain separate; they are not counted as final successes.",
+    "No new skills, backend activation, measured memory efficacy, native closure fix or global task closure."
+  ]
+}

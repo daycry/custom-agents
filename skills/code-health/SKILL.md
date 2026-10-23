@@ -54,7 +54,10 @@ python3 "$CHSKILL/scripts/code-health.py" <ruta> [--json] [--exclude-tests] [--e
 
 Extensiones por defecto: `py js ts tsx jsx php go java rb cs kt rs` (`--langs`). Siempre fuera:
 `vendor/ node_modules/ dist/ build/ .git/ __pycache__/ target/`; con `--exclude-tests` también
-`tests/`, `test_*.py`, `*.spec.*`/`*.test.*`.
+`tests/`, `test_*.py`, `*.spec.*`/`*.test.*`. Con git, los ficheros **versionados** bajo esos
+directorios de terceros o de build (código incrustado, artefactos commiteados) se **cuentan** por
+directorio en un aviso de cabecera y en `excluidos_versionados` del JSON, sin analizarlos: decide si
+son dependencias a declarar (`dependency-upgrade`) o salida de build a sacar del repo.
 
 ## Proceso
 
@@ -75,6 +78,13 @@ Extensiones por defecto: `py js ts tsx jsx php go java rb cs kt rs` (`--langs`).
    - `/roadmap-brief`: una fila «Salud del código» con la cabecera del informe (opcional).
    - A demanda: entrega el MD tal cual (o la sección que pidan) sin adornos.
 
+**`--baseline` como trinquete** (si el proyecto quiere que la deuda no crezca): versiona un JSON
+cuyo techo es el **peor valor medido** hoy más un margen pequeño; nunca se alcanza el techo
+excluyendo ficheros (`--exclude-path` es para código generado, no para esconder deuda), y el techo
+se **baja a mano, en un commit propio**, cuando se simplifica un punto caliente. Imponerlo (fallar
+ante «↑ empeora») es trabajo de la CI del proyecto, que lee el `--json`; el script sigue saliendo
+con 0.
+
 ## Guardrails
 
 - **Solo lectura.** El script no toca ningún fichero del proyecto; si guardas el JSON, hazlo bajo
@@ -92,9 +102,15 @@ No refactoriza, no propone el diseño del refactor (eso es `architect`/`implemen
 cobertura de tests (`qa`), no detecta vulnerabilidades ni dependencias inseguras (`nemesis`,
 `cybersecurity`), no versiona dependencias (`dependency-upgrade`) y no es un linter de estilo.
 
+## Referencias
+
+| Referencia | Cuándo leerla |
+|---|---|
+| [Análisis externo](references/external-analysis.md) | Solo si el proyecto ya tiene configurado un analizador estructural externo y se pide su baseline o el delta de una rama |
+
 ## Scripts propios
 
 | Fichero | Qué es |
 |---|---|
 | `scripts/code-health.py` | El informe (MD/JSON, `--baseline`, `--exclude-tests`, `--exclude-path`, `--langs`, `--window`, `--min-lines`, `--since`, `--top`); exit 0 · 2 uso |
-| Tests (junto al script; no viajan en el paquete portable) | 14 casos con fixture multi-lenguaje (py/js/php) generada en tmp y git real si está: `python3 -m pytest -q skills/code-health/scripts` |
+| Tests (junto al script; no viajan en el paquete portable) | 31 casos con fixture multi-lenguaje (py/js/php) generada en tmp y git real si está: `python3 -m pytest -q skills/code-health/scripts` |

@@ -1,0 +1,330 @@
+// Shared launcher for Claude Code, Codex and OpenCode. No shell interprets the payload.
+import { spawn, spawnSync } from 'node:child_process';
+import { closeSync, existsSync, fstatSync, openSync, readSync } from 'node:fs';
+import { dirname, delimiter, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// child-budget:start — child budget per hook; tests/hook-budget.test.mjs evaluates this block.
+// Native guard registrations also leave room for launcher startup and confirmed tree cleanup;
+// capture does no deferred work. SessionEnd in Claude Code has a 1.5 s global budget by default
+// and a plugin's `timeout` does not raise it (code.claude.com/docs/en/hooks, «SessionEnd»,
+// 2026-10-14). The user can raise it with CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS; then this hook
+// may run up to its declared `timeout: 5`.
+const SESSION_END_DEFAULT_MS = 1500;
+const SESSION_END_HOOK_TIMEOUT_MS = 5000;   // hooks/hooks.json SessionEnd `timeout: 5`
+const LAUNCHER_MARGIN_MS = 700;             // launcher startup + tree cleanup inside the budget
+const SESSION_END_CHILD_MS = 800;           // SESSION_END_DEFAULT_MS - LAUNCHER_MARGIN_MS
+
+function sessionEndBudgetMs(env) {
+  const raw = env.CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS;
+  if (typeof raw !== 'string' || !/^[0-9]{1,7}$/.test(raw)) return SESSION_END_DEFAULT_MS;
+  return Math.max(SESSION_END_DEFAULT_MS, Number(raw));
+}
+
+function childBudgetMs(hook, runtime, env) {
+  if (hook === 'native-guardrail') return 4500;
+  if (hook === 'agent-activity') return 2000;
+  if (hook !== 'session-journal.sh') return 20000;
+  if (runtime !== '--runtime=claude') return 2200;
+  const budget = Math.min(sessionEndBudgetMs(env), SESSION_END_HOOK_TIMEOUT_MS);
+  return Math.max(SESSION_END_CHILD_MS, budget - LAUNCHER_MARGIN_MS);
+}
+// child-budget:end
+
+// activity-optin:start — agent-activity shortcut (panel-redesign T-46, design O5). Without
+// `sesion.actividad === true` in .claude/dev.json no Python process is started. The store checks
+// the opt-in again (defence in depth, CA-20). Absent, unreadable, non-regular, larger than 64 KiB
+// or invalid JSON means disabled. tests/hook-budget.test.mjs evaluates this block with node:fs.
+const ACTIVITY_CONFIG_MAX = 65536;
+
+function activityEnabled(path) {
+  let fd;
+  try {
+    fd = fs.openSync(path, 'r');
+    const info = fs.fstatSync(fd);
+    if (!info.isFile() || info.size > ACTIVITY_CONFIG_MAX) return false;
+    const buffer = Buffer.alloc(ACTIVITY_CONFIG_MAX + 1);
+    let size = 0, read;
+    while (size < buffer.length && (read = fs.readSync(fd, buffer, size, buffer.length - size, size)) > 0) size += read;
+    if (size > ACTIVITY_CONFIG_MAX) return false;
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, size)); // drops a leading BOM
+    const config = JSON.parse(text);
+    if (!config || typeof config !== 'object' || Array.isArray(config)) return false;
+    const session = config.sesion;
+    return !!session && typeof session === 'object' && !Array.isArray(session) && session.actividad === true;
+  } catch { return false; }
+  finally { if (fd !== undefined) try { fs.closeSync(fd); } catch { /* already closed */ } }
+}
+// activity-optin:end
+
+const fs = { closeSync, fstatSync, openSync, readSync };
+const here = dirname(fileURLToPath(import.meta.url));
+const root = dirname(here);
+const known = new Set(['session-journal.sh', 'user-prompt-capture.sh', 'session-context.sh',
+  'subagent-progress.sh', 'mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh',
+  'implementer-guardrail.sh', 'architect-guardrail.sh', 'native-guardrail', 'agent-activity']);
+const hook = process.argv[2];
+const runtime = process.argv[3] || '--runtime=claude';
+const activity = hook === 'agent-activity';
+const warn = message => { if (!activity) process.stderr.write(`custom-agents hooks: ${message}\n`); };
+const windows = process.platform === 'win32';
+const env = { ...process.env, CLAUDE_PLUGIN_ROOT: root, PYTHONIOENCODING: 'utf-8:replace' };
+const guard = hook === 'native-guardrail';
+const guardMessage = 'custom-agents: role guard unavailable; normal permissions continue';
+const guardDiagnostics = new Set(['input-unrecognized', 'role-map-unavailable', 'guardrails-disabled',
+  'branch-unavailable', 'evaluator-unavailable', 'input-too-large', 'input-invalid-json', 'input-unavailable']);
+let guardEmitted = false;
+
+function emitGuard(result) {
+  if (guardEmitted) return;
+  guardEmitted = true;
+  const value = result || { decision: 'continue', role: null, reason: null, diagnostic: 'guard-unavailable' };
+  if (runtime === '--runtime=opencode') {
+    process.stdout.write(JSON.stringify(value) + '\n');
+    return;
+  }
+  const output = {};
+  if (value.decision === 'deny') output.hookSpecificOutput = { hookEventName: 'PreToolUse',
+    permissionDecision: 'deny', permissionDecisionReason: value.reason };
+  if (value.diagnostic) output.systemMessage = value.diagnostic === 'guardrails-disabled'
+    ? 'custom-agents: role guards disabled by project configuration' : guardMessage;
+  if (Object.keys(output).length) process.stdout.write(JSON.stringify(output) + '\n');
+}
+
+function guardResult(output) {
+  try {
+    const value = JSON.parse(output);
+    if (!value || typeof value !== 'object' || Array.isArray(value)
+      || !['deny', 'continue'].includes(value.decision)
+      || ![null, 'implementer', 'architect'].includes(value.role)
+      || !(value.diagnostic === null || guardDiagnostics.has(value.diagnostic))) return null;
+    if (value.decision === 'deny') {
+      if (!value.role || typeof value.reason !== 'string' || !value.reason.trim() || [...value.reason].length > 2048) return null;
+    } else if (value.reason !== null) return null;
+    return { decision: value.decision, role: value.role, reason: value.reason, diagnostic: value.diagnostic };
+  } catch { return null; }
+}
+
+function candidates(names) {
+  return (env.PATH || env.Path || '').split(delimiter).filter(Boolean).flatMap(dir =>
+    names.map(name => join(dir.replace(/^"|"$/g, ''), name))).filter(path =>
+      existsSync(path) && (!windows || !/[/\\](WindowsApps|System32)[/\\]/i.test(path)));
+}
+
+function python() {
+  const override = env.CUSTOM_AGENTS_PYTHON;
+  if (override) return { command: override, args: [] };
+  const found = candidates(windows ? ['python3.exe', 'python.exe'] : ['python3', 'python'])[0];
+  if (found) return { command: found, args: [] };
+  if (windows) {
+    const launcher = candidates(['py.exe'])[0];
+    if (launcher) {
+      const result = spawnSync(launcher, ['-3', '-c', 'import sys;print(sys.executable)'],
+        { encoding: 'utf8', timeout: 500, windowsHide: true });
+      const executable = result.stdout?.trim();
+      if (result.status === 0 && executable && existsSync(executable)) return { command: executable, args: [] };
+    }
+  }
+  return null;
+}
+
+function postPaths(payload) {
+  const value = payload?.tool_input;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const paths = [];
+  if ('file_path' in value) {
+    if (typeof value.file_path !== 'string' || !value.file_path || /[\r\n]/.test(value.file_path)) return null;
+    paths.push(value.file_path);
+  }
+  if ('edits' in value) {
+    if (!Array.isArray(value.edits)) return null;
+    for (const edit of value.edits) {
+      if (!edit || typeof edit.file_path !== 'string' || !edit.file_path || /[\r\n]/.test(edit.file_path)) return null;
+      paths.push(edit.file_path);
+    }
+  }
+  return paths.length ? paths : null;
+}
+
+function postApplies(paths) {
+  return paths.some(path => {
+    const value = path.replaceAll('\\', '/');
+    if (hook === 'mark-docs-pending.sh') return value.includes('docs/')
+      && !value.includes('docs/security-scan/') && !value.includes('docs/confluence/');
+    return value.includes('docs/roadmap/') && value.endsWith('tasks.md');
+  });
+}
+
+async function main() {
+  if (!known.has(hook)) { warn('unknown hook'); return; }
+  if (!['--runtime=claude', '--runtime=codex', '--runtime=opencode'].includes(runtime)) {
+    warn('unknown runtime'); return;
+  }
+  if (activity && !activityEnabled(join(env.CLAUDE_PROJECT_DIR || process.cwd(), '.claude', 'dev.json'))) {
+    // Drain the payload so a large one never meets a closed pipe; the runtime closes stdin after writing.
+    process.stdin.on('error', () => {});
+    process.stdin.resume();
+    setTimeout(() => process.exit(0), 1000).unref();
+    return;
+  }
+  const post = ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh'].includes(hook);
+  let input;
+  if (post) {
+    process.stdin.setEncoding('utf8');
+    input = '';
+    for await (const chunk of process.stdin) input += chunk;
+    try {
+      const payload = JSON.parse(input);
+      let paths;
+      if (payload.tool_name === 'apply_patch' && typeof payload.tool_input?.command === 'string') {
+        const normalized = [...payload.tool_input.command.matchAll(/^\*\*\* (?:Add File: |Update File: |Delete File: |Move to: )([^\r\n]+)$/gm)]
+          .map(match => match[1].replaceAll('\\', '/'));
+        payload.tool_input = { edits: [...new Set(normalized)].map(file_path => ({ file_path })) };
+        input = JSON.stringify(payload);
+        paths = normalized.length ? normalized : null;
+      } else paths = postPaths(payload);
+      if (paths && !postApplies(paths)) return;
+    } catch { /* Unknown input keeps the shell hook's existing degradation. */ }
+  }
+  const py = python();
+  if (!py) { warn('Python unavailable; hook skipped'); if (guard) emitGuard(); return; }
+  let command, args;
+  // Capture and native guards use contained Python without shell startup.
+  if (guard || activity || hook === 'session-journal.sh' || hook === 'user-prompt-capture.sh') {
+    command = py.command;
+    args = activity
+      ? [...py.args, '-I', '-S', ...(!windows ? ['-X', 'utf8', '-B'] : []), join(root, 'agent-kits', 'shared', 'agent-activity-store.py'),
+        '--runtime', runtime.slice('--runtime='.length), '--root', env.CLAUDE_PROJECT_DIR || process.cwd()]
+      : guard
+      ? [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'native-guardrail.py'),
+        '--runtime', runtime.slice('--runtime='.length), '--output', 'structured']
+      : hook === 'session-journal.sh'
+      ? [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'journal-capture.py')]
+      : [...py.args, join(root, 'agent-kits', 'shared', 'journal.py'), 'capture'];
+    if (guard) args.push('--project-dir', env.CLAUDE_PROJECT_DIR || process.cwd());
+    else if (activity) { /* The activity root is explicit above. */ }
+    else if (env.CLAUDE_PROJECT_DIR) args.push('--root', env.CLAUDE_PROJECT_DIR);
+  } else {
+    command = windows ? candidates(['bash.exe'])[0] : 'bash';
+    if (!command) { warn('Git Bash unavailable; hook skipped'); return; }
+    env.CUSTOM_AGENTS_PYTHON = windows ? py.command.replaceAll('\\', '/') : py.command;
+    if (windows) {
+      env.CLAUDE_PLUGIN_ROOT = root.replaceAll('\\', '/');
+      if (env.CLAUDE_PROJECT_DIR) env.CLAUDE_PROJECT_DIR = env.CLAUDE_PROJECT_DIR.replaceAll('\\', '/');
+    }
+    args = [join(here, 'runtime-entry.sh'), hook];
+    if (hook === 'session-context.sh') args.push(runtime);
+  }
+  if (windows) {
+    const mode = guard || activity || ['session-journal.sh', 'user-prompt-capture.sh'].includes(hook) ? 'python' : 'exec';
+    args = [...py.args, '-I', '-S', ...(activity ? ['-X', 'utf8', '-B'] : []), join(here, 'runtime-supervisor.py'), 'run', String(process.pid), mode, command, ...args];
+    command = py.command;
+  }
+  await new Promise(resolve => {
+    const inheritedGroup = !windows && runtime === '--runtime=opencode' && env.CUSTOM_AGENTS_HOOK_OWN_GROUP === '1';
+    const child = spawn(command, args, { env, windowsHide: true, detached: !windows && !inheritedGroup, stdio: ['pipe', 'pipe', 'pipe'] });
+    let timedOut = false, jobHandle, stopping, supervisionFailed = false, outputOverflow = false;
+    const abandon = () => {
+      child.kill('SIGKILL');
+      child.stdout.destroy(); child.stderr.destroy(); child.stdin.destroy();
+    };
+    const stop = () => {
+      if (stopping) return stopping;
+      stopping = new Promise(done => {
+        if (inheritedGroup || (windows && jobHandle)) {
+          const operation = inheritedGroup ? ['close-group', String(process.pid)] : ['close', String(process.pid), jobHandle];
+          const cleanup = spawn(py.command, [...py.args, '-I', '-S', join(here, 'runtime-supervisor.py'),
+            ...operation], { env, windowsHide: true, detached: inheritedGroup, stdio: 'ignore' });
+          const cleanupTimer = setTimeout(() => {
+            cleanup.kill('SIGKILL'); warn('child cleanup confirmation timed out'); abandon();
+          }, 500);
+          cleanup.on('error', () => { clearTimeout(cleanupTimer); warn('child job cleanup unavailable'); abandon(); done(); });
+          cleanup.on('close', code => {
+            clearTimeout(cleanupTimer);
+            if (code) { warn('child job cleanup failed'); abandon(); }
+            done();
+          });
+        } else if (windows) {
+          // Before bootstrap confirmation, no business code may run. Closing the
+          // launcher also closes any job handle transferred during bootstrap.
+          abandon();
+          done();
+        } else {
+          try { process.kill(-child.pid, 'SIGKILL'); }
+          catch (error) { if (error.code !== 'ESRCH') { child.kill('SIGKILL'); warn('child tree cleanup failed'); } }
+          done();
+        }
+      });
+      return stopping;
+    };
+    const timer = setTimeout(() => {
+      if (!child.pid) return;
+      timedOut = true;
+      void stop();
+    }, childBudgetMs(hook, runtime, process.env));
+    let output = '';
+    if (guard) {
+      let bytes = 0;
+      child.stdout.setEncoding('utf8');
+      child.stdout.on('data', chunk => {
+        bytes += Buffer.byteLength(chunk, 'utf8');
+        if (bytes > 16384) { outputOverflow = true; output = ''; void stop(); }
+        else if (!outputOverflow) output += chunk;
+      });
+    } else if (post) {
+      child.stdout.setEncoding('utf8');
+      child.stdout.on('data', chunk => { output += chunk; });
+    } else if (activity) child.stdout.resume();
+    else child.stdout.pipe(process.stdout);
+    if (windows) {
+      let header = '', pendingHeader = true;
+      child.stderr.setEncoding('utf8');
+      child.stderr.on('data', chunk => {
+        if (!pendingHeader) { if (!guard && !activity) process.stderr.write(chunk); return; }
+        header += chunk;
+        const end = header.indexOf('\n');
+        if (end < 0 && header.length <= 512) return;
+        pendingHeader = false;
+        try {
+          const control = JSON.parse(header.slice(0, end));
+          if (control.owner !== process.pid || !/^[1-9][0-9]{0,19}$/.test(control.customAgentsJob)) throw Error();
+          jobHandle = control.customAgentsJob;
+          if (!guard && !activity && header.slice(end + 1)) process.stderr.write(header.slice(end + 1));
+        } catch { supervisionFailed = true; warn('process supervision unavailable; hook skipped'); void stop(); }
+        header = '';
+      });
+    } else if (guard || activity) child.stderr.resume();
+    else child.stderr.pipe(process.stderr);
+    child.stdin.on('error', () => {});
+    if (post) child.stdin.end(input, 'utf8');
+    else process.stdin.pipe(child.stdin);
+    child.on('error', error => { warn(guard ? 'role guard could not start' : error.message);
+      if (guard) emitGuard(); clearTimeout(timer); resolve(); });
+    child.on('exit', () => { clearTimeout(timer); void stop(); });
+    child.on('close', async code => {
+      await stopping;
+      if (guard) {
+        const result = !outputOverflow && !supervisionFailed && (!windows || jobHandle) ? guardResult(output) : null;
+        // A complete denial must never become permission to continue because
+        // cleanup or the remaining evaluator lifetime exceeded its budget.
+        emitGuard(result && (result.decision === 'deny' || (!timedOut && code === 0)) ? result : null);
+      }
+      if (post && output.trim()) {
+        let message = output.trim();
+        try { message = output.trim().split('\n').map(line => JSON.parse(line).systemMessage).filter(Boolean).join('\n'); }
+        catch { /* ledger-lint emits plain text; wrap it in the universal message field */ }
+        if (message) process.stdout.write(JSON.stringify({ systemMessage: message }) + '\n');
+      }
+      if (timedOut) warn(hook === 'session-journal.sh'
+        ? 'capture timed out; journal recover can reconcile the retained prompt log'
+        : 'hook timed out');
+      else if (code) warn(`hook failed (${code})`);
+      clearTimeout(timer); resolve();
+    });
+  });
+}
+
+main().catch(error => {
+  warn(guard ? 'role guard unavailable' : error.message);
+  if (guard && ['--runtime=claude', '--runtime=codex', '--runtime=opencode'].includes(runtime)) emitGuard();
+}); // Informational hooks always exit 0.

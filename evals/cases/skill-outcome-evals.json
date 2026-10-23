@@ -1,0 +1,35 @@
+{
+  "target": "skill:outcome-evals",
+  "cases": [
+    {
+      "id": "outcome-evals-literal",
+      "prompt": "evalúa resultados",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "outcome-evals"
+        ]
+      }
+    },
+    {
+      "id": "outcome-evals-parafrasis",
+      "prompt": "Quiero comparar resolución de las mismas tareas con el workflow actual y el anterior usando checks y condiciones iguales.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "outcome-evals"
+        ]
+      }
+    },
+    {
+      "id": "outcome-evals-negativo",
+      "prompt": "Captura casos de entrenamiento y prepara un dataset con aprobaciones Gold.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:training-data-services"
+      }
+    }
+  ]
+}

@@ -170,6 +170,30 @@ def test_graphiti_config_valida_no_da_error():
     assert errores == []
 
 
+def test_graphiti_transition_relations_supported_modes():
+    for mode in ('episode', 'triplet'):
+        assert ks.validar(_con_graphiti(_graphiti_config(transition_relations=mode)), 't.json') == []
+
+
+def test_graphiti_transition_relations_invalid_modes():
+    for mode in ('guess', '', None, False, 1, [], {}):
+        errors = ks.validar(_con_graphiti(_graphiti_config(transition_relations=mode)), 't.json')
+        assert any(e['campo'] == 'backends.graphiti.config.transition_relations'
+                   and 'episode' in e['mensaje'] for e in errors)
+
+
+def test_graphiti_control_exclusions_accept_declared_server_types():
+    for value in ([], ['Organization','Document'], ['Entity','Entity']):
+        assert ks.validar(_con_graphiti(_graphiti_config(transition_excluded_entity_types=value)), 't.json') == []
+
+
+def test_graphiti_control_exclusions_reject_invalid_types():
+    for value in (None,False,'Organization',[''],['Org\nInjected'],list(map(str,range(129)))):
+        errors=ks.validar(_con_graphiti(_graphiti_config(transition_excluded_entity_types=value)), 't.json')
+        assert any(e['campo']=='backends.graphiti.config.transition_excluded_entity_types'
+                   and 'lista' in e['mensaje'] for e in errors)
+
+
 def test_graphiti_mode_invalido():
     cfg = _con_graphiti(_graphiti_config(mode="lectura-total"))
     errores = ks.validar(cfg, "t.json")

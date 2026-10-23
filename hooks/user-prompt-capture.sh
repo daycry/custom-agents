@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# panel-title: Checkpoint del turno
+# panel-description: Guarda localmente un checkpoint del turno del usuario con secretos redactados para recuperar sesiones interrumpidas.
 # Hook UserPromptSubmit (sin matcher: el evento no lo admite): acumula el TURNO DEL USUARIO en un log crudo
 # NO versionado, `.claude/session-prompts-<session_id>.log` (una línea JSON por turno; `*.log` está en el
 # .gitignore), para que el hook SessionEnd (`session-journal.sh` → `journal.py write`) extraiga de ahí las

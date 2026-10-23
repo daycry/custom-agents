@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S137",
+    "S138",
+    "S139",
+    "S140"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S137",
+      "sha256": "e2c8d64412e2af9a2def3144b3d1e32f0fd69c724f2d17615fcf5a9bfa5f01cc",
+      "bytes": 2735,
+      "lines": 97,
+      "read_ranges": [
+        [
+          1,
+          97
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S138",
+      "sha256": "e5d4918dcbc62eb25d42829b56683ae6befe3a623f7ce6ed66bef37ce1a57c65",
+      "bytes": 2655,
+      "lines": 92,
+      "read_ranges": [
+        [
+          1,
+          92
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S139",
+      "sha256": "893627c44e6d209f9b2e02de2f4879188649d22ae9723cd5b9445de6df3d6482",
+      "bytes": 5653,
+      "lines": 158,
+      "read_ranges": [
+        [
+          1,
+          158
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "scripts/generate_icons.swift",
+          "sha256": "41efd2b2dc30a744e65252d7715b36ae951c489262262b42d96e06d42fd3ca2e",
+          "bytes": 8371,
+          "lines": 258,
+          "read_ranges": [
+            [
+              1,
+              258
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "scripts/iconify_gen.sh",
+          "sha256": "5a0efeece4dfd4b60d345b5e2034ab152557793a4248ef6cba2f8fa4d6533c4a",
+          "bytes": 7098,
+          "lines": 235,
+          "read_ranges": [
+            [
+              1,
+              235
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    },
+    {
+      "id": "S140",
+      "sha256": "b453b16d3e36174b8487c05ab807d0321a66c2d058812b2ae129d82824183725",
+      "bytes": 6786,
+      "lines": 212,
+      "read_ranges": [
+        [
+          1,
+          212
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agent-kits/shared/task-brief.py",
+      "sha256": "41e3f4261f0f9107b6189882cac410481fe33f51f16de6fb68e2bb56aaebddb5"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-find.py",
+      "sha256": "c8209657bb1be5d4ae3a65b0a9fbf4ba71ef6d25c9646f1c9cf0d9508bdd3612"
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "ec9504fb23b8eadb209e83ce347eee8c9a63c8d03e09d0f7e7c4bb204d65ad5c"
+    },
+    {
+      "path": "skills/frontend-quality/SKILL.md",
+      "sha256": "7b6916e32d90731b8f81ee3eb36695dd9f62d498f132ac61bd7b9fd39066f4b0"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

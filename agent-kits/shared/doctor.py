@@ -72,11 +72,20 @@ línea ⚠️/❌, el **arreglo sugerido** en llano:
                    para descartar pérdida (ℹ️), huérfana confirmada → PÉRDIDA POSIBLE (⚠️). Sin
                    `.claude/journal/` → informativo (normal en un proyecto recién instalado).
 
+  i) automatizaciones  (D-087) clave aparte `automatizaciones` del `--json` y sección propia del MD, FUERA de
+                   los ocho bloques (no suma ✅/⚠️/❌ ni cambia el exit): una fila por hook de `hooks/hooks.json`,
+                   por `statusLine` (ajustes de proyecto, locales y de usuario) y por workflow de
+                   `.github/workflows/`, con `fuente`, `alcance`, `fecha_fuente` (mtime de la config, NO de una
+                   ejecución), `estado` (`configurado` · `no_configurado` · `no_cargado` · `roto`) y `firma_fallo`.
+                   `ejecucion` es siempre `no_verificada`: doctor no observa despachos ni consulta CI remoto, así
+                   que nunca afirma que algo esté «vivo» por estar configurado.
+
 **No escribe nada en el proyecto** (ni configs, ni estado, ni caché): es un diagnóstico de solo
 lectura, así que se puede lanzar sin miedo tantas veces como haga falta.
 
 Uso:
-  doctor.py [--root DIR] [--plugin-root DIR] [--json] [--verbose|--all] [--hoy AAAA-MM-DD]
+  doctor.py [--root DIR] [--plugin-root DIR] [--json|--panel-json] [--verbose|--all] [--hoy AAAA-MM-DD]
+  --panel-json: proyección portable acotada para el panel, con fecha y alcance; omite datos libres.
   (`--hoy` fija la fecha de referencia de la antigüedad de CALIBRATION.md; default: hoy. Para tests.)
 Exit:
   0  sin ❌ (los ⚠️/ℹ️ no bloquean: el plugin degrada, no rompe)
@@ -85,6 +94,7 @@ Exit:
 """
 import argparse
 import datetime
+import importlib.util
 import json
 import os
 import re
@@ -113,7 +123,7 @@ BACKTICK_RE = re.compile(r"`([^`]+)`")
 DEV_BOOLES = ("tdd", "worktree", "subagentes", "constitucion", "statusline")
 DEV_LENTES = ("auto", "siempre", "nunca")
 DEV_GUARDRAIL_REGLAS = ("alcance", "ramaPrincipal", "git")
-DEV_SESION_CLAVES = ("indice", "journal", "memoria", "captura", "resumen")   # memoria: bloque (4) de session-context.sh (T-06);
+DEV_SESION_CLAVES = ("indice", "journal", "memoria", "captura", "resumen", "actividad")   # memoria: bloque (4) de session-context.sh (T-06);
                                                                               # captura/resumen: log crudo del turno y resumen por IA opt-in (memory-retrieval T-11/T-13)
 DEV_CLAVES = set(DEV_BOOLES) | {"guardrails", "revision", "sesion", "modelos", "tests"}
 
@@ -130,7 +140,7 @@ PLAYWRIGHT_REL = os.path.join(".claude", "tool-cache", "qa", "node_modules", "@p
 PLUGIN_NOMBRE = "custom-agents"
 PLUGIN_PREFIJO = PLUGIN_NOMBRE + "@"
 MARKETPLACE = "daycry"           # el marketplace que publica ESTE plugin
-ADAPTADOR_OPENCODE = "custom-agents-hooks.js"   # el que registra `plugin` de `opencode.json`
+ADAPTADOR_OPENCODE = "custom-agents"   # paquete V2 registrado en `plugins` de `opencode.json`
 ARREGLO_INSTALAR = ("npx @daycry/custom-agents install -p claude-code  (o, dentro de Claude Code, "
                     "`/plugin marketplace add daycry/custom-agents` + `/plugin install custom-agents`)")
 
@@ -366,6 +376,20 @@ def _bloque_plugin_hooks_recorrer(plugin_root, datos):
     return eventos, errs, warns, fuente
 
 
+def _avisos_hooks_lineas(errs, warns):
+    ls = []
+    for msg in errs:
+        rel = _rel_de(msg)
+        ls.append(linea(ERROR, "hook sin script", msg,
+                        f"falta `{rel}`: reinstala o actualiza el plugin (`claude plugin update "
+                        f"custom-agents`); un hook roto es una pieza muerta"))
+    for msg in warns:
+        rel = _rel_de(msg)
+        ls.append(linea(AVISO, "hook no ejecutable", msg,
+                        f"`chmod +x {rel}` (y `git update-index --chmod=+x {rel}` si lo versionas)"))
+    return ls
+
+
 def _bloque_plugin_hooks_lineas(eventos, errs, warns, fuente, modo="plugin"):
     """Traduce el recuento de eventos/errores/avisos a líneas del informe.
 
@@ -392,15 +416,7 @@ def _bloque_plugin_hooks_lineas(eventos, errs, warns, fuente, modo="plugin"):
                                                  f"existen y son ejecutables ({fuente})"))
     else:
         ls.append(linea(INFO, "hooks registrados", f"{' · '.join(eventos) or 'ninguno'} ({fuente})"))
-    for msg in errs:
-        rel = _rel_de(msg)
-        ls.append(linea(ERROR, "hook sin script", msg,
-                        f"falta `{rel}`: reinstala o actualiza el plugin (`claude plugin update "
-                        f"custom-agents`); un hook roto es una pieza muerta"))
-    for msg in warns:
-        rel = _rel_de(msg)
-        ls.append(linea(AVISO, "hook no ejecutable", msg,
-                        f"`chmod +x {rel}` (y `git update-index --chmod=+x {rel}` si lo versionas)"))
+    ls.extend(_avisos_hooks_lineas(errs, warns))
     return ls
 
 
@@ -486,25 +502,7 @@ def _misma_ruta(a, b):
     return _clave_ruta(a) == _clave_ruta(b)
 
 
-def _fuentes_instalados(path, clave, project):
-    """Entradas de `installed_plugins.json` para `clave`, con el scope que ellas mismas declaran.
-
-    Una entrada de scope `project` **o `local`** vale para SU proyecto (`projectPath`), no para
-    cualquiera: un alta hecha desde otro repo no dice nada de esta raíz. Un `scope` que no sea
-    ninguno de los tres documentados NO cuenta (antes caía a `user`, el lado permisivo: una
-    entrada ajena valía para todos) y se avisa.
-    """
-    datos, _err = _leer_json(path)
-    if not isinstance(datos, dict):
-        return []
-    nodo = datos.get("plugins")
-    if not isinstance(nodo, dict) or clave not in nodo:
-        return []
-    entradas = nodo[clave]
-    if isinstance(entradas, dict):
-        entradas = [entradas]
-    if not isinstance(entradas, list):
-        return []
+def _fuentes_de_entradas(entradas, path, clave, project):
     fuentes = []
     for e in entradas:
         e = e if isinstance(e, dict) else {}
@@ -530,6 +528,28 @@ def _fuentes_instalados(path, clave, project):
                         "fuente": "installed_plugins.json", "habilitado": None, "valor": None,
                         "invalido": False, "aplica": aplica, "motivo": motivo})
     return fuentes
+
+
+def _fuentes_instalados(path, clave, project):
+    """Entradas de `installed_plugins.json` para `clave`, con el scope que ellas mismas declaran.
+
+    Una entrada de scope `project` **o `local`** vale para SU proyecto (`projectPath`), no para
+    cualquiera: un alta hecha desde otro repo no dice nada de esta raíz. Un `scope` que no sea
+    ninguno de los tres documentados NO cuenta (antes caía a `user`, el lado permisivo: una
+    entrada ajena valía para todos) y se avisa.
+    """
+    datos, _err = _leer_json(path)
+    if not isinstance(datos, dict):
+        return []
+    nodo = datos.get("plugins")
+    if not isinstance(nodo, dict) or clave not in nodo:
+        return []
+    entradas = nodo[clave]
+    if isinstance(entradas, dict):
+        entradas = [entradas]
+    if not isinstance(entradas, list):
+        return []
+    return _fuentes_de_entradas(entradas, path, clave, project)
 
 
 def _fuentes_enabled(path, scope, clave):
@@ -599,6 +619,23 @@ def _niveles_settings(project, cfg):
     return list(vistos.values())
 
 
+def _estado_de_fuentes(clave, fuentes):
+    aplican = [f for f in fuentes if f["aplica"]]
+    explicitas = [f for f in aplican if isinstance(f["valor"], bool)]
+    mandan = []
+    for nivel in ORDEN_SCOPES:
+        mandan = [f for f in explicitas if f["scope"] == nivel]
+        if mandan:
+            break
+    altas = [f for f in aplican if not f["invalido"] and f["valor"] is not False]
+    habilitado = all(f["valor"] is True for f in mandan) if mandan else bool(altas)
+    return {"clave": clave, "habilitado": habilitado, "fuentes": fuentes, "aplican": aplican,
+            "mandan": mandan, "apagadas": [f for f in mandan if f["valor"] is False],
+            "invalidas": [f for f in aplican if f["invalido"]],
+            "ignoradas": [f for f in fuentes if not f["aplica"]],
+            "desconocidas": [f for f in fuentes if f.get("scope_desconocido")]}
+
+
 def estado_plugin(plugin_root, project, cfg=None):
     """**Estado EFECTIVO** del plugin para ESTA raíz: la única definición de «está activo».
 
@@ -629,20 +666,7 @@ def estado_plugin(plugin_root, project, cfg=None):
     for scope, path in _niveles_settings(project, cfg):
         fuentes += _fuentes_enabled(path, scope, clave)
 
-    aplican = [f for f in fuentes if f["aplica"]]
-    explicitas = [f for f in aplican if isinstance(f["valor"], bool)]
-    mandan = []
-    for nivel in ORDEN_SCOPES:
-        mandan = [f for f in explicitas if f["scope"] == nivel]
-        if mandan:
-            break
-    altas = [f for f in aplican if not f["invalido"] and f["valor"] is not False]
-    habilitado = all(f["valor"] is True for f in mandan) if mandan else bool(altas)
-    return {"clave": clave, "habilitado": habilitado, "fuentes": fuentes, "aplican": aplican,
-            "mandan": mandan, "apagadas": [f for f in mandan if f["valor"] is False],
-            "invalidas": [f for f in aplican if f["invalido"]],
-            "ignoradas": [f for f in fuentes if not f["aplica"]],
-            "desconocidas": [f for f in fuentes if f.get("scope_desconocido")]}
+    return _estado_de_fuentes(clave, fuentes)
 
 
 def registro_plugin(project, cfg=None, plugin_root=None):
@@ -656,6 +680,13 @@ def registro_plugin(project, cfg=None, plugin_root=None):
     est = estado_plugin(plugin_root, project, cfg)
     return [{k: f[k] for k in ("fichero", "scope", "clave", "fuente", "habilitado")}
             for f in est["aplican"]]
+
+
+def _raiz_y_cache_plugin(plugin_root, cfg):
+    raiz = os.path.normcase(os.path.abspath(plugin_root)) if plugin_root else ""
+    cache = os.path.normcase(os.path.abspath(os.path.join(cfg, "plugins", "cache")))
+    en_cache = bool(raiz) and (raiz == cache or raiz.startswith(cache + os.sep))
+    return raiz, en_cache
 
 
 def modo_instalacion(plugin_root, project, cfg=None):
@@ -674,9 +705,7 @@ def modo_instalacion(plugin_root, project, cfg=None):
     est = estado_plugin(plugin_root, project, cfg)
     hits = [{k: f[k] for k in ("fichero", "scope", "clave", "fuente", "habilitado")}
             for f in est["aplican"]]
-    raiz = os.path.normcase(os.path.abspath(plugin_root)) if plugin_root else ""
-    cache = os.path.normcase(os.path.abspath(os.path.join(cfg, "plugins", "cache")))
-    en_cache = bool(raiz) and (raiz == cache or raiz.startswith(cache + os.sep))
+    raiz, en_cache = _raiz_y_cache_plugin(plugin_root, cfg)
     base = {"registro": hits, "estado": est}
     if est["habilitado"]:
         razon = ("la raíz cuelga de `plugins/cache/` y el registro lo da por activo" if en_cache
@@ -790,10 +819,38 @@ def _toml_habilitado(path, clave):
                                                   else f"`enabled` vale `{v!r}`, que no es un booleano")
 
 
-def _bloque_registro_codex(project, clave_cc):
-    """Fila «registro en Codex»: `enabled = true` en el `config.toml` del scope, que es lo único
-    que hace que Codex cargue el plugin (copiar sus ficheros no basta). Mismo criterio que
-    `install.mjs status`.
+def _registro_codex_explicito(activos, apagados, errores, claves):
+    if activos:
+        return [linea(OK, "registro en Codex",
+                      "Declaración: " + " · ".join(f"`{c}` con `enabled = true` en {p} (scope {s})"
+                                 for p, s, c in activos))]
+    if apagados:
+        p, s, c = apagados[0]
+        return [linea(AVISO, "registro en Codex",
+                      f"`{c}` está en {p} (scope {s}) con `enabled = false` en esa configuración",
+                      f"pon `enabled = true` en `[plugins.\"{c}\"]` de {p} o reinstala con "
+                      f"`npx @daycry/custom-agents install -p codex`")]
+    if errores:
+        return [linea(AVISO, "registro en Codex", " · ".join(dict.fromkeys(errores)),
+                      "usa Python 3.11+ para este diagnóstico, o mira a mano `[plugins."
+                      f"\"{claves[0]}\"] enabled` en tu `config.toml`")]
+    return None
+
+
+def _clasificar_claves_codex(fuentes, claves, activos, apagados, errores):
+    for path, scope, _base in fuentes:
+        for clave in claves:
+            valor, err = _toml_habilitado(path, clave)
+            if err:
+                errores.append(f"{path}: {err}")
+            if valor is True:
+                activos.append((path, scope, clave))
+            elif valor is False:
+                apagados.append((path, scope, clave))
+
+
+def _bloque_config_codex(project, clave_cc):
+    """Configuración declarada por scope; no demuestra instalación, confianza ni ejecución.
 
     Se miran DOS claves: la que escribe siempre el instalador (`PLUGIN_ID` de
     `install/providers.mjs`, `custom-agents@daycry`) y la que se dedujo de la raíz de Claude Code,
@@ -807,29 +864,10 @@ def _bloque_registro_codex(project, clave_cc):
     activos, apagados, errores = [], [], []
     copiado = [base for _p, _s, base in fuentes
                if os.path.isdir(os.path.join(base, "plugins", PLUGIN_NOMBRE))]
-    for path, scope, _base in fuentes:
-        for clave in claves:
-            valor, err = _toml_habilitado(path, clave)
-            if err:
-                errores.append(f"{path}: {err}")
-            if valor is True:
-                activos.append((path, scope, clave))
-            elif valor is False:
-                apagados.append((path, scope, clave))
-    if activos:
-        return [linea(OK, "registro en Codex",
-                      " · ".join(f"`{c}` con `enabled = true` en {p} (scope {s})"
-                                 for p, s, c in activos))]
-    if apagados:
-        p, s, c = apagados[0]
-        return [linea(AVISO, "registro en Codex",
-                      f"`{c}` está en {p} (scope {s}) con `enabled = false`: Codex no lo carga",
-                      f"pon `enabled = true` en `[plugins.\"{c}\"]` de {p} o reinstala con "
-                      f"`npx @daycry/custom-agents install -p codex`")]
-    if errores:
-        return [linea(AVISO, "registro en Codex", " · ".join(dict.fromkeys(errores)),
-                      "usa Python 3.11+ para este diagnóstico, o mira a mano `[plugins."
-                      f"\"{claves[0]}\"] enabled` en tu `config.toml`")]
+    _clasificar_claves_codex(fuentes, claves, activos, apagados, errores)
+    explicito = _registro_codex_explicito(activos, apagados, errores, claves)
+    if explicito is not None:
+        return explicito
     if copiado:
         return [linea(AVISO, "registro en Codex",
                       f"los ficheros del plugin están en {os.path.join(copiado[0], 'plugins', PLUGIN_NOMBRE)} "
@@ -844,8 +882,68 @@ def _bloque_registro_codex(project, clave_cc):
     return [linea(INFO, "registro en Codex", "Codex no está en esta máquina: nada que comprobar")]
 
 
+def _estado_codex_nativo(project):
+    """Consulta el helper compartido; nunca expone stdout/stderr del runtime ni repara configs."""
+    project = os.path.abspath(project)
+    unknown = {"state": "unknown", "enabled": None, "version": None, "reason": "query-unavailable"}
+    node = shutil.which("node")
+    if not node:
+        return dict(unknown, reason="node-unavailable")
+    try:
+        result = subprocess.run(
+            [node, os.path.join(HERE, "codex-plugin-state.mjs"), "--project", project],
+            cwd=project, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
+        if result.returncode or len(result.stdout) > 4096:
+            return unknown
+        native = json.loads(result.stdout)
+        if not isinstance(native, dict) or native.get("state") not in ("installed", "absent", "unknown"):
+            return unknown
+        enabled, version = native.get("enabled"), native.get("version")
+        if native["state"] == "installed":
+            if not isinstance(enabled, bool) or not isinstance(version, str) or not re.fullmatch(r"[A-Za-z0-9.+-]{1,64}", version):
+                return unknown
+        elif enabled is not None or version is not None:
+            return unknown
+        reasons = {"cli-unavailable", "cli-timeout", "cli-failed", "invalid-json", "unsupported-schema"}
+        reason = native.get("reason")
+        return {"state": native["state"], "enabled": enabled, "version": version,
+                "reason": reason if isinstance(reason, str) and reason in reasons else ""}
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return unknown
+
+
+def _bloque_registro_codex(project, clave_cc):
+    rows = _bloque_config_codex(project, clave_cc)
+    if not (os.path.isdir(_codex_home()) or os.path.isdir(os.path.join(project, ".codex"))):
+        return rows
+    native = _estado_codex_nativo(project)
+    if native["state"] == "unknown":
+        reasons = {"node-unavailable": "Node no está disponible", "cli-unavailable": "la CLI de Codex no está disponible",
+                   "cli-timeout": "la consulta nativa agotó su tiempo", "cli-failed": "la CLI no completó la consulta",
+                   "invalid-json": "la CLI devolvió JSON ilegible", "unsupported-schema": "la respuesta usa un esquema no compatible"}
+        reason = reasons.get(native.get("reason"), "no se pudo consultar la instalación nativa en este proyecto")
+        rows.append(linea(INFO, "estado nativo en Codex",
+                          f"Estado desconocido: {reason}. "
+                          "La declaración de config no acredita carga ni ejecución.",
+                          "codex plugin list --marketplace daycry --available --json"))
+    elif native["state"] == "absent":
+        rows.append(linea(AVISO, "estado nativo en Codex",
+                          "El plugin no figura en el listado local de la CLI en este proyecto; "
+                          "este resultado no prueba ausencia de archivos ni ejecución de hooks.",
+                          "npx @daycry/custom-agents install -p codex"))
+    elif not native["enabled"]:
+        rows.append(linea(AVISO, "estado nativo en Codex",
+                          f"El runtime reconoce la versión {native['version']}, desactivado en este proyecto.",
+                          "revisa la configuración de plugins del proyecto y del usuario"))
+    else:
+        rows.append(linea(OK, "estado nativo en Codex",
+                          f"El runtime reconoce la versión {native['version']} habilitada en este proyecto; "
+                          "la confianza de los hooks y su ejecución requieren evidencia de una sesión."))
+    return rows
+
+
 def _resolver_spec_opencode(spec, cfg_path):
-    """Ruta a la que apunta un spec de `plugin`. **Un spec con forma de ruta se resuelve contra la
+    """Ruta a la que apunta un spec de `plugins`. **Un spec con forma de ruta se resuelve contra la
     carpeta del fichero de config que lo declara** (`config/plugin.ts`, `resolvePluginSpec`), que
     es justo lo que escribe el instalador (`rutaPluginOpencode`)."""
     if not isinstance(spec, str) or not spec:
@@ -857,11 +955,11 @@ def _resolver_spec_opencode(spec, cfg_path):
 
 
 def _bloque_registro_opencode(project):
-    """Fila «registro en OpenCode»: el adaptador de hooks dado de alta en `plugin` de
-    `opencode.json` (OpenCode también autodescubre `plugins/*.js`; el alta es lo comprobable).
+    """Fila «registro en OpenCode»: el adaptador de hooks dado de alta en `plugins` de
+    `opencode.json` (OpenCode también autodescubre paquetes locales; el alta es lo comprobable).
 
     Se compara la RUTA RESUELTA contra la que escribe el instalador, no el nombre del fichero:
-    casar por basename daba ✅ a cualquier `custom-agents-hooks.js` de cualquier sitio, y `status`
+    casar por basename daba ✅ a cualquier `custom-agents` de cualquier sitio, y `status`
     —que compara la ruta exacta— decía lo contrario sobre el MISMO `opencode.json`.
     """
     fuentes = [(os.path.join(_opencode_home(), "opencode.json"), "user", _opencode_home()),
@@ -870,7 +968,7 @@ def _bloque_registro_opencode(project):
     altas, ajenas, copiado, errores = [], [], [], []
     for path, scope, base in fuentes:
         esperado = os.path.join(base, "plugins", ADAPTADOR_OPENCODE)
-        if os.path.isfile(esperado):
+        if os.path.isfile(os.path.join(esperado, "index.js")):
             copiado.append(base)
         datos, err = _leer_json(path)
         if err:
@@ -880,10 +978,10 @@ def _bloque_registro_opencode(project):
             continue
         if not isinstance(datos, dict):
             continue
-        nodo = datos.get("plugin")
+        nodo = datos.get("plugins")
         if nodo is not None and not isinstance(nodo, list):
             # `status` solo cuenta una lista (descriptor `json-array`): un escalar no es el alta.
-            errores.append(f"{path}: `plugin` no es una lista, así que el alta no se puede comprobar")
+            errores.append(f"{path}: `plugins` no es una lista, así que el alta no se puede comprobar")
             continue
         for e in (nodo or []):
             if _misma_ruta(_resolver_spec_opencode(e, path), esperado):
@@ -892,24 +990,24 @@ def _bloque_registro_opencode(project):
                 ajenas.append((path, scope, e, esperado))
     if altas:
         return [linea(OK, "registro en OpenCode",
-                      " · ".join(f"`{e}` en `plugin` de {p} (scope {s})" for p, s, e in altas))]
+                      " · ".join(f"`{e}` en `plugins` de {p} (scope {s})" for p, s, e in altas))]
     if errores:
         return [linea(AVISO, "registro en OpenCode", " · ".join(errores),
                       "corrige tu `opencode.json` (es tuyo, no del plugin): tiene que ser JSON válido "
-                      "y `plugin`, una lista de specs")]
+                      "y `plugins`, una lista de specs")]
     if ajenas:
         p, s, e, esperado = ajenas[0]
         return [linea(AVISO, "registro en OpenCode",
-                      f"`plugin` de {p} (scope {s}) declara `{e}`, que resuelve a "
+                      f"`plugins` de {p} (scope {s}) declara `{e}`, que resuelve a "
                       f"{_resolver_spec_opencode(e, p)} y NO es el adaptador instalado ({esperado}): "
-                      f"OpenCode carga otro fichero, o ninguno",
-                      "npx @daycry/custom-agents install -p opencode  (deja en `plugin` la ruta del "
+                      f"OpenCode declara otro paquete, o ninguno",
+                      "npx @daycry/custom-agents install -p opencode  (deja en `plugins` la ruta del "
                       "adaptador que instala)")]
     if copiado:
         return [linea(AVISO, "registro en OpenCode",
                       f"el adaptador está en {os.path.join(copiado[0], 'plugins', ADAPTADOR_OPENCODE)} pero "
-                      f"no aparece en `plugin` de ningún `opencode.json`: el alta comprobable no está",
-                      "npx @daycry/custom-agents install -p opencode  (añade el adaptador a `plugin` "
+                      f"no aparece en `plugins` de ningún `opencode.json`: el alta comprobable no está",
+                      "npx @daycry/custom-agents install -p opencode  (añade el adaptador a `plugins` "
                       "de tu `opencode.json`)")]
     if detectados:
         return [linea(INFO, "registro en OpenCode",
@@ -1168,13 +1266,13 @@ def _dev_valida_revision(rev):
 
 
 def _dev_valida_sesion(ses):
-    """Líneas de `sesion` (índice, journal, memoria, captura, resumen)."""
+    """Líneas de `sesion` (índice, journal, memoria, captura, resumen, actividad)."""
     ls = []
     if ses is None:
         return ls
     if not isinstance(ses, dict):
         ls.append(linea(ERROR, "dev.json `sesion`", f"{ses!r} no es un objeto",
-                        "usa `{\"indice\": true, \"journal\": true, \"memoria\": true, \"captura\": true, \"resumen\": false}`"))
+                        "usa `{\"indice\": true, \"journal\": true, \"memoria\": true, \"captura\": true, \"resumen\": false, \"actividad\": false}`"))
         return ls
     for sk in sorted(ses):
         if sk not in DEV_SESION_CLAVES:
@@ -1576,6 +1674,27 @@ def _sanear_detalle(texto):
 # --8<-- fin sanear_detalle (funcion)
 
 
+def _config_error_parts(fichero, detalle):
+    """Keep the file's tail and validation field under separate bounded budgets."""
+    try:
+        path = os.path.join(HERE, "redact.py")
+        spec = importlib.util.spec_from_file_location("doctor_config_redact", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        name = _CONTROL_O_ANSI_RE.sub(" ", module.redactar(str(fichero)))
+        message = _CONTROL_O_ANSI_RE.sub(" ", module.redactar(str(detalle)))
+    except (OSError, ImportError, AttributeError, SyntaxError, TypeError, ValueError):
+        return "configuración", "detalle no disponible: redactor ausente"
+    compact = name if len(name) <= _SANEADO_TOPE_CHARS else "…" + name[-(_SANEADO_TOPE_CHARS - 1):]
+    # Backend validation may include the same absolute path before the field.
+    # It is displayed separately, so it must not consume the field's budget.
+    if name and message.startswith(name + ":"):
+        message = message[len(name) + 1:].lstrip()
+    elif name:
+        message = message.replace(name, compact)
+    return _sanear_detalle(compact), _sanear_detalle(message)
+
+
 CAPACIDAD_TIMEOUT_MS_TOPE = 2000  # gap 94: ninguna comprobación de red individual pasa de esto
 CAPACIDADES_PRESUPUESTO_S = 5.0  # gap 94: tope TOTAL del bloque completo, no solo por capacidad
 _CAPACIDAD_TOPE_MS_MINIMO = 300  # gap 133 (fix3, knowledge-services): nunca recortar `tope_ms`
@@ -1639,6 +1758,105 @@ def _cfg_con_timeout_topado(cfg_adaptador, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
     return cfg
 
 
+def _verificacion_incompleta(cap_id, verificacion, cfg_adaptador, aviso_verify):
+    sin_confirmar = verificacion.get("no_verificado") or "?"
+    # gap #148 (Important, fix4 de la Fase 3 del ciclo en curso): esa rama se combinaba con
+    # el recorte de ventana de #119 (`CAPACIDAD_VENTANA_TOPE`) y convertia TODA instalacion
+    # con mas entradas que la ventana en un ⚠️ permanente, con un remedio («sube
+    # `max_respuesta_kb`/`max_episodes`») que el propio /doctor pisa al recortar. Si el
+    # backend declara un `total` (entradas a verificar) MAYOR que la ventana que /doctor le
+    # paso, el limite es NUESTRO, no suyo: la fila lo dice (informativa) y manda a la
+    # verificacion completa, que no la hace un diagnostico rapido.
+    ventana = cfg_adaptador.get("max_episodes")
+    total = verificacion.get("total")
+    if (isinstance(total, int) and not isinstance(total, bool)
+            and isinstance(ventana, int) and total > ventana):
+        return linea(INFO, f"{cap_id} (backend)",
+                     f"verificación acotada a {ventana} de {total} entrada(s) por /doctor "
+                     f"(diagnóstico rápido): {sin_confirmar} sin confirmar; un desfase "
+                     f"fuera de esa ventana no se ve desde aquí",
+                     "verificación completa: `python skills/knowledge-services/scripts/"
+                     "knowledge-sync.py --backend <id> --check`")
+    # El conteo se dice UNA vez: el `aviso` del adaptador ya lo trae (#148), asi que ese
+    # fragmento no se repite detras del nuestro.
+    extra = " · ".join(t for t in aviso_verify.split(" · ")
+                       if f"{sin_confirmar} entrada(s) sin confirmar" not in t)
+    return linea(AVISO, f"{cap_id} (backend)",
+                 f"verificación incompleta: {sin_confirmar} entrada(s) sin confirmar"
+                 + (f" · {extra}" if extra else ""),
+                 _sanear_detalle(verificacion.get("remedio") or "")
+                 or "sube los topes de lectura del backend (`max_respuesta_kb`/"
+                    "`max_episodes`) en `taxonomy.json` y vuelve a pasar /doctor")
+
+
+def _linea_verificacion_backend(cap_id, verificacion, aviso_verify):
+    if verificacion.get("estado") == "no_verificable":
+        # gap #152 (Minor, fix4 de la Fase 3 del ciclo en curso): el CUARTO veredicto («no he
+        # podido verificar»: backend en `mode: off`, sin endpoint, respuesta ilegible) caia en
+        # la rama de desfase y salia como «export atrasado (0 desfase(s)): sin motivo
+        # detallado» — un atraso inventado sobre una verificacion que no llego a hacerse.
+        return linea(INFO, f"{cap_id} (backend)",
+                     "verificación no disponible: "
+                     + (_sanear_detalle(verificacion.get("razon") or "") or "sin motivo detallado"),
+                     _sanear_detalle(verificacion.get("remedio") or "")
+                     or "normal si el backend no está en modo verificable; revisa su `config` "
+                        "en `taxonomy.json` si esperabas verificación")
+    if verificacion.get("ok", True):
+        if aviso_verify:
+            # gap #133/#147: el `aviso` de un `verify` SIN desfase (p. ej. el remedio de
+            # migracion `--rebuild` del gap #126) se tiraba: ningun consumidor lo mostraba.
+            return linea(AVISO, f"{cap_id} (backend)", f"sano, sin desfase, con aviso: {aviso_verify}",
+                         _sanear_detalle(verificacion.get("remedio") or "")
+                         or "sigue el remedio que nombra el aviso del backend")
+        return linea(OK, f"{cap_id} (backend)", "sano, sin desfase")
+    if verificacion.get("razon") == "nunca_sincronizado":
+        # gap 119: distinto de un desfase real (gap 87) — todavía no hay ninguna publicación
+        # previa, así que "export atrasado (0 desfase(s))" sería engañoso (no hay nada atrasado,
+        # simplemente no se ha sincronizado nunca).
+        return linea(AVISO, f"{cap_id} (backend)", "nunca sincronizado (sin publicación previa)",
+                     "publica por primera vez: `python skills/knowledge-services/scripts/knowledge-sync.py --rebuild`")
+    desfases = verificacion.get("desfase") or []
+    primero = desfases[0] if desfases else {}
+    extra = f" · … y {len(desfases) - 1} más" if len(desfases) > 1 else ""
+    return linea(AVISO, f"{cap_id} (backend)",
+                 f"export atrasado ({len(desfases)} desfase(s)): {primero.get('motivo', 'sin motivo detallado')}{extra}",
+                 primero.get("remedio", "reindexa el backend externo"))
+
+
+def _verificacion_backend(cap_id, adaptador, cfg_adaptador):
+    try:
+        verificacion = adaptador.verify(cfg_adaptador) or {}
+    except Exception as e:       # noqa: BLE001
+        return linea(AVISO, f"{cap_id} (backend)", f"`verify()` lanzó {type(e).__name__}: {e}",
+                     "revisa la configuración de red del backend en `taxonomy.json`")
+    # gap #133 (Important, fix3 de la Fase 3 del ciclo en curso): `verify()` tiene TRES
+    # veredictos, no dos. Con la ventana de lectura cortada (`estado: incompleto`), «sin
+    # desfase» es mentira: el adaptador no ha podido mirar. Y como /doctor recorta la ventana
+    # a `CAPACIDAD_VENTANA_TOPE`, esa rama es la NORMAL en cuanto el grupo crece — pintarla
+    # como OK dejaba a /doctor estructuralmente incapaz de avisar de un desfase real.
+    aviso_verify = _sanear_detalle(verificacion.get("aviso") or "")
+    if verificacion.get("estado") == "incompleto" or verificacion.get("no_verificado"):
+        return _verificacion_incompleta(cap_id, verificacion, cfg_adaptador, aviso_verify)
+    return _linea_verificacion_backend(cap_id, verificacion, aviso_verify)
+
+
+def _linea_backend_no_sano(cap_id, estado, detalle):
+    if estado == "off":
+        if "timeout" in detalle.lower():
+            return linea(INFO, f"{cap_id} (backend)", f"timeout comprobando la salud ({detalle})",
+                         "normal si el stack externo está apagado o es lento; enciéndelo/ajusta el timeout y vuelve a pasar /doctor")
+        return linea(INFO, f"{cap_id} (backend)", detalle or "sin conexión",
+                     "normal si el stack externo está apagado; enciéndelo y vuelve a pasar /doctor")
+    if estado == "degradado":
+        return linea(AVISO, f"{cap_id} (backend)", detalle or "degradado", "revisa el estado del stack externo")
+    if estado == "error":
+        # gap 100: el ❌ de /doctor se reserva para un error de CONFIG de la propia capacidad
+        # (taxonomy.json inválido, ver `_linea_capacidad`); un backend externo en error es un
+        # AVISO — /doctor no debe salir con exit 1 solo porque el stack externo esté caído/mal.
+        return linea(AVISO, f"{cap_id} (backend)", detalle or "error", "revisa el stack externo y `taxonomy.json`")
+    return linea(INFO, f"{cap_id} (backend)", f"estado desconocido: {estado!r}", "revisa el adaptador de este backend")
+
+
 def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends_dir,
                              project=None, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
     """Envoltorio con TOPE DURO (C-09a, CA-16): ejecuta `_linea_capacidad_backend_sonda` en un hilo
@@ -1695,91 +1913,8 @@ def _linea_capacidad_backend_sonda(cap_id, tipo, cfg_adaptador, backends_mod, ba
     estado = salud.get("estado")
     detalle = salud.get("detalle", "") or ""
     if estado == "sano":
-        try:
-            verificacion = adaptador.verify(cfg_adaptador) or {}
-        except Exception as e:       # noqa: BLE001
-            return linea(AVISO, f"{cap_id} (backend)", f"`verify()` lanzó {type(e).__name__}: {e}",
-                         "revisa la configuración de red del backend en `taxonomy.json`")
-        # gap #133 (Important, fix3 de la Fase 3 del ciclo en curso): `verify()` tiene TRES
-        # veredictos, no dos. Con la ventana de lectura cortada (`estado: incompleto`), «sin
-        # desfase» es mentira: el adaptador no ha podido mirar. Y como /doctor recorta la ventana
-        # a `CAPACIDAD_VENTANA_TOPE`, esa rama es la NORMAL en cuanto el grupo crece — pintarla
-        # como OK dejaba a /doctor estructuralmente incapaz de avisar de un desfase real.
-        aviso_verify = _sanear_detalle(verificacion.get("aviso") or "")
-        if verificacion.get("estado") == "incompleto" or verificacion.get("no_verificado"):
-            sin_confirmar = verificacion.get("no_verificado") or "?"
-            # gap #148 (Important, fix4 de la Fase 3 del ciclo en curso): esa rama se combinaba con
-            # el recorte de ventana de #119 (`CAPACIDAD_VENTANA_TOPE`) y convertia TODA instalacion
-            # con mas entradas que la ventana en un ⚠️ permanente, con un remedio («sube
-            # `max_respuesta_kb`/`max_episodes`») que el propio /doctor pisa al recortar. Si el
-            # backend declara un `total` (entradas a verificar) MAYOR que la ventana que /doctor le
-            # paso, el limite es NUESTRO, no suyo: la fila lo dice (informativa) y manda a la
-            # verificacion completa, que no la hace un diagnostico rapido.
-            ventana = cfg_adaptador.get("max_episodes")
-            total = verificacion.get("total")
-            if (isinstance(total, int) and not isinstance(total, bool)
-                    and isinstance(ventana, int) and total > ventana):
-                return linea(INFO, f"{cap_id} (backend)",
-                             f"verificación acotada a {ventana} de {total} entrada(s) por /doctor "
-                             f"(diagnóstico rápido): {sin_confirmar} sin confirmar; un desfase "
-                             f"fuera de esa ventana no se ve desde aquí",
-                             "verificación completa: `python skills/knowledge-services/scripts/"
-                             "knowledge-sync.py --backend <id> --check`")
-            # El conteo se dice UNA vez: el `aviso` del adaptador ya lo trae (#148), asi que ese
-            # fragmento no se repite detras del nuestro.
-            extra = " · ".join(t for t in aviso_verify.split(" · ")
-                               if f"{sin_confirmar} entrada(s) sin confirmar" not in t)
-            return linea(AVISO, f"{cap_id} (backend)",
-                         f"verificación incompleta: {sin_confirmar} entrada(s) sin confirmar"
-                         + (f" · {extra}" if extra else ""),
-                         _sanear_detalle(verificacion.get("remedio") or "")
-                         or "sube los topes de lectura del backend (`max_respuesta_kb`/"
-                            "`max_episodes`) en `taxonomy.json` y vuelve a pasar /doctor")
-        if verificacion.get("estado") == "no_verificable":
-            # gap #152 (Minor, fix4 de la Fase 3 del ciclo en curso): el CUARTO veredicto («no he
-            # podido verificar»: backend en `mode: off`, sin endpoint, respuesta ilegible) caia en
-            # la rama de desfase y salia como «export atrasado (0 desfase(s)): sin motivo
-            # detallado» — un atraso inventado sobre una verificacion que no llego a hacerse.
-            return linea(INFO, f"{cap_id} (backend)",
-                         "verificación no disponible: "
-                         + (_sanear_detalle(verificacion.get("razon") or "") or "sin motivo detallado"),
-                         _sanear_detalle(verificacion.get("remedio") or "")
-                         or "normal si el backend no está en modo verificable; revisa su `config` "
-                            "en `taxonomy.json` si esperabas verificación")
-        if verificacion.get("ok", True):
-            if aviso_verify:
-                # gap #133/#147: el `aviso` de un `verify` SIN desfase (p. ej. el remedio de
-                # migracion `--rebuild` del gap #126) se tiraba: ningun consumidor lo mostraba.
-                return linea(AVISO, f"{cap_id} (backend)", f"sano, sin desfase, con aviso: {aviso_verify}",
-                             _sanear_detalle(verificacion.get("remedio") or "")
-                             or "sigue el remedio que nombra el aviso del backend")
-            return linea(OK, f"{cap_id} (backend)", "sano, sin desfase")
-        if verificacion.get("razon") == "nunca_sincronizado":
-            # gap 119: distinto de un desfase real (gap 87) — todavía no hay ninguna publicación
-            # previa, así que "export atrasado (0 desfase(s))" sería engañoso (no hay nada atrasado,
-            # simplemente no se ha sincronizado nunca).
-            return linea(AVISO, f"{cap_id} (backend)", "nunca sincronizado (sin publicación previa)",
-                         "publica por primera vez: `python skills/knowledge-services/scripts/knowledge-sync.py --rebuild`")
-        desfases = verificacion.get("desfase") or []
-        primero = desfases[0] if desfases else {}
-        extra = f" · … y {len(desfases) - 1} más" if len(desfases) > 1 else ""
-        return linea(AVISO, f"{cap_id} (backend)",
-                     f"export atrasado ({len(desfases)} desfase(s)): {primero.get('motivo', 'sin motivo detallado')}{extra}",
-                     primero.get("remedio", "reindexa el backend externo"))
-    if estado == "off":
-        if "timeout" in detalle.lower():
-            return linea(INFO, f"{cap_id} (backend)", f"timeout comprobando la salud ({detalle})",
-                         "normal si el stack externo está apagado o es lento; enciéndelo/ajusta el timeout y vuelve a pasar /doctor")
-        return linea(INFO, f"{cap_id} (backend)", detalle or "sin conexión",
-                     "normal si el stack externo está apagado; enciéndelo y vuelve a pasar /doctor")
-    if estado == "degradado":
-        return linea(AVISO, f"{cap_id} (backend)", detalle or "degradado", "revisa el estado del stack externo")
-    if estado == "error":
-        # gap 100: el ❌ de /doctor se reserva para un error de CONFIG de la propia capacidad
-        # (taxonomy.json inválido, ver `_linea_capacidad`); un backend externo en error es un
-        # AVISO — /doctor no debe salir con exit 1 solo porque el stack externo esté caído/mal.
-        return linea(AVISO, f"{cap_id} (backend)", detalle or "error", "revisa el stack externo y `taxonomy.json`")
-    return linea(INFO, f"{cap_id} (backend)", f"estado desconocido: {estado!r}", "revisa el adaptador de este backend")
+        return _verificacion_backend(cap_id, adaptador, cfg_adaptador)
+    return _linea_backend_no_sano(cap_id, estado, detalle)
 
 
 def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE,
@@ -1805,16 +1940,16 @@ def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD
         # multi-backend pero no ESTA rama, que interpola crudos el `detalle` de validación de
         # `taxonomy.json` y su `fichero` — los dos vienen del proyecto, no del plugin (probe: 711
         # caracteres con ESC/RLO/C1 en la línea de /doctor).
-        detalle = _sanear_detalle(salud.get("detalle", "") if isinstance(salud, dict) else "")
-        fichero = _sanear_detalle(
-            (salud.get("fichero") if isinstance(salud, dict) else None) or cap.get("config_path") or "?")
+        fichero, detalle = _config_error_parts(
+            (salud.get("fichero") if isinstance(salud, dict) else None) or cap.get("config_path") or "?",
+            salud.get("detalle", "") if isinstance(salud, dict) else "")
         return linea(ERROR, cap["id"], f"{fichero}: {detalle}", f"corrige `{fichero}`")
     if entradas is None:
         entradas = _leer_backend_entries(project, cap)
     for entrada in entradas.values():
         if isinstance(entrada, _EntradaInvalida):                               # #179
-            fichero = _sanear_detalle(cap.get("config_path") or "?")
-            return linea(ERROR, cap["id"], _sanear_detalle(entrada.detalle), f"corrige `{fichero}`")
+            fichero, detalle = _config_error_parts(cap.get("config_path") or "?", entrada.detalle)
+            return linea(ERROR, cap["id"], f"{fichero}: {detalle}", f"corrige `{fichero}`")
     if not cap.get("enabled"):
         return linea(INFO, cap["id"], "desactivado", "opcional: sigue el `setup_step` del registro si quieres activarla")
     if backends_mod is not None:
@@ -2283,27 +2418,22 @@ AVISO_SIN_RED = ("sin red por diseño: `/doctor` NO consulta el marketplace, as�
                  "decirte si hay una versión más nueva")
 
 
-def _bloque_version_plugin(plugin_root):
-    """Líneas + versión detectada del manifiesto del plugin (o None si no se pudo leer).
+def _avisos_version_sin_manifiestos(errores, ls):
+    if errores:
+        ls.append(linea(ERROR, "plugin.json", " · ".join(errores),
+                        "restaura el manifiesto: reinstálalo "
+                        "(`npx @daycry/custom-agents install -p <runtime>`)"))
+    else:
+        ls.append(linea(AVISO, "versión del plugin",
+                        "sin manifiesto del plugin: no hay `.claude-plugin/plugin.json` ni "
+                        "`.codex-plugin/plugin.json` en la raíz detectada",
+                        "actualiza la instalación (`npx @daycry/custom-agents install -p <runtime>`) "
+                        "para que viaje el manifiesto"))
 
-    Dos manifiestos posibles: `.claude-plugin/plugin.json` (el de la fuente; viaja a Claude Code y
-    a la instalación de OpenCode) y `.codex-plugin/plugin.json` (Codex). Se prueban en ese orden y
-    la versión es la misma en los dos (la garantiza `tests/test_export_interop.py`).
 
-    El DETALLE de un fichero AUSENTE no es «falta el campo `version`»: `_leer_json` devuelve
-    `(None, None)` cuando el path no existe (solo da error si el fichero existe y está roto), y el
-    `else` de antes interpretaba ese `None` como «manifiesto sin versión» — decía «añade el campo»
-    para un fichero que no estaba, y el remedio no arreglaba nada. Hoy se distinguen los tres
-    casos: ausente (instalación que no copia el manifiesto), presente sin campo, y presente roto.
-    """
+def _version_plugin_localizado(plugin_root):
     ls = []
     version = None
-    if not plugin_root:
-        ls.append(linea(INFO, "versión del plugin", "no legible: el plugin no está localizado",
-                        "ver la línea ❌ del bloque Plugin; "
-                        + AVISO_SIN_RED))
-        return ls, None
-
     manifiestos = [(".claude-plugin", "plugin.json"), (".codex-plugin", "plugin.json")]
     errores = []
     for carpeta, nombre in manifiestos:
@@ -2326,17 +2456,32 @@ def _bloque_version_plugin(plugin_root):
         ls.append(linea(INFO, "versión del plugin", f"{version}{origen} — {AVISO_SIN_RED}"))
         return ls, version
 
-    if errores:
-        ls.append(linea(ERROR, "plugin.json", " · ".join(errores),
-                        "restaura el manifiesto: reinstálalo "
-                        "(`npx @daycry/custom-agents install -p <runtime>`)"))
-    else:
-        ls.append(linea(AVISO, "versión del plugin",
-                        "sin manifiesto del plugin: no hay `.claude-plugin/plugin.json` ni "
-                        "`.codex-plugin/plugin.json` en la raíz detectada",
-                        "actualiza la instalación (`npx @daycry/custom-agents install -p <runtime>`) "
-                        "para que viaje el manifiesto"))
+    _avisos_version_sin_manifiestos(errores, ls)
     return ls, version
+
+
+def _bloque_version_plugin(plugin_root):
+    """Líneas + versión detectada del manifiesto del plugin (o None si no se pudo leer).
+
+    Dos manifiestos posibles: `.claude-plugin/plugin.json` (el de la fuente; viaja a Claude Code y
+    a la instalación de OpenCode) y `.codex-plugin/plugin.json` (Codex). Se prueban en ese orden y
+    la versión es la misma en los dos (la garantiza `tests/test_export_interop.py`).
+
+    El DETALLE de un fichero AUSENTE no es «falta el campo `version`»: `_leer_json` devuelve
+    `(None, None)` cuando el path no existe (solo da error si el fichero existe y está roto), y el
+    `else` de antes interpretaba ese `None` como «manifiesto sin versión» — decía «añade el campo»
+    para un fichero que no estaba, y el remedio no arreglaba nada. Hoy se distinguen los tres
+    casos: ausente (instalación que no copia el manifiesto), presente sin campo, y presente roto.
+    """
+    ls = []
+    version = None
+    if not plugin_root:
+        ls.append(linea(INFO, "versión del plugin", "no legible: el plugin no está localizado",
+                        "ver la línea ❌ del bloque Plugin; "
+                        + AVISO_SIN_RED))
+        return ls, None
+
+    return _version_plugin_localizado(plugin_root)
 
 
 def _bloque_version_vista(project, version):
@@ -2424,11 +2569,146 @@ def _bloque_journal_lineas(plugin_root, project):
     return out
 
 
+def _presupuesto_session_end():
+    """SessionEnd tiene 1,5 s globales por defecto y el `timeout` de un hook de plugin no los eleva
+    (code.claude.com/docs/en/hooks, «SessionEnd», 2026-10-14). Se lee la variable que ve este proceso;
+    no se escribe nada. En Windows, arrancar node + Python suele pasar de 1,5 s y la captura queda para
+    `recover` (medido en tests/session-end-budget.test.mjs)."""
+    raw = os.environ.get("CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS")
+    if raw and re.fullmatch(r"[0-9]{1,7}", raw) and int(raw) > 1500:
+        segundos = int(raw) / 1000
+        return linea(INFO, "presupuesto de SessionEnd",
+                     f"elevado a {segundos:g} s por `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` "
+                     "(la captura del journal usa hasta 5 s, su `timeout` declarado)")
+    detalle = "1,5 s por defecto"
+    if raw:
+        detalle += f" (`CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS={raw[:20]}` no es un número de ms mayor que 1500)"
+    if os.name == "nt":
+        detalle += "; en Windows arrancar node + Python suele superarlo y la sesión se recupera más tarde con `recover`"
+    return linea(INFO, "presupuesto de SessionEnd", detalle,
+                 "opcional, decisión tuya: `\"env\": {\"CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS\": \"5000\"}` en "
+                 "`~/.claude/settings.json` (o lanzar `claude` con esa variable); retrasa el cierre de la sesión "
+                 "hasta 5 s como máximo")
+
+
 def bloque_journal(plugin_root, project):
-    return {"clave": "journal", "titulo": "Journal", "lineas": _bloque_journal_lineas(plugin_root, project)}
+    return {"clave": "journal", "titulo": "Journal",
+            "lineas": _bloque_journal_lineas(plugin_root, project) + [_presupuesto_session_end()]}
 
 
 # ------------------------------------------------------------------ informe
+
+# ------------------------------------------------------------------ i) inventario de automatizaciones (D-087)
+
+AUTOMATIZACION_ESTADOS = ("configurado", "no_configurado", "no_cargado", "roto")
+AUTOMATIZACION_MAX_JOBS = 20
+AUTOMATIZACION_NOTA = ("Inventario de la configuración leída en disco, no de la ejecución: doctor no observa "
+                       "despachos de hooks ni consulta CI remoto, así que `ejecucion` es siempre `no_verificada` "
+                       "y ninguna fila afirma que la automatización esté viva.")
+
+
+def _fecha_fuente(path):
+    """mtime UTC del fichero de configuración (cuándo cambió la config, NO cuándo se ejecutó); None si no se lee."""
+    try:
+        return datetime.datetime.fromtimestamp(os.path.getmtime(path), datetime.timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ")
+    except (OSError, ValueError, OverflowError):
+        return None
+
+
+def _automatizacion(tipo, ident, fuente, alcance, fecha, estado, firma=None):
+    return {"tipo": tipo, "id": ident, "fuente": fuente, "alcance": alcance, "fecha_fuente": fecha,
+            "estado": estado, "ejecucion": "no_verificada", "firma_fallo": firma}
+
+
+def _automatizaciones_hooks(plugin_root, modo):
+    """Una fila por command de `hooks/hooks.json`: roto (script ausente) > no_cargado (copia/inactivo) > configurado."""
+    if not plugin_root:
+        return []
+    hpath = os.path.join(plugin_root, "hooks", "hooks.json")
+    datos, err = _leer_json(hpath)
+    if datos is None and not err:
+        return []
+    fecha, alcance = _fecha_fuente(hpath), f"plugin ({modo})"
+    if err or not isinstance(datos.get("hooks"), dict):
+        return [_automatizacion("hook", "hooks/hooks.json", "hooks/hooks.json", alcance, fecha, "roto",
+                                "hooks/hooks.json: " + (err or "falta la raíz `hooks`"))]
+    out = []
+    for evento, grupos in datos["hooks"].items():
+        for g in grupos if isinstance(grupos, list) else []:
+            for h in (g.get("hooks", []) if isinstance(g, dict) else []):
+                if not (isinstance(h, dict) and h.get("type") == "command"):
+                    continue
+                args = h.get("args") if isinstance(h.get("args"), list) else []
+                cmd = " ".join([str(h.get("command", ""))] + [str(a) for a in args])
+                rels = HOOK_PATH_RE.findall(cmd)
+                ausentes = [r for r in rels if not os.path.isfile(os.path.join(plugin_root, r))]
+                if ausentes:
+                    estado, firma = "roto", "script ausente: " + ", ".join(ausentes)
+                elif modo in ("copia", "inactivo"):
+                    estado, firma = "no_cargado", f"instalación {modo}: Claude Code no carga `hooks/hooks.json`"
+                else:
+                    estado, firma = "configurado", None
+                out.append(_automatizacion("hook", f"{evento}:{rels[0] if rels else 'command'}", "hooks/hooks.json",
+                                           alcance, fecha, estado, firma))
+    return out
+
+
+def _automatizaciones_statusline(project):
+    """`statusLine` en los ajustes del proyecto, locales y de usuario; sin ninguna → una fila `no_configurado`."""
+    out = []
+    for fuente, alcance, path in ((".claude/settings.json", "proyecto", os.path.join(project, ".claude", "settings.json")),
+                                  (".claude/settings.local.json", "local",
+                                   os.path.join(project, ".claude", "settings.local.json")),
+                                  ("<CLAUDE_CONFIG_DIR>/settings.json", "usuario",
+                                   os.path.join(claude_config_dir(), "settings.json"))):
+        datos, err = _leer_json(path)
+        if err:
+            out.append(_automatizacion("statusline", "statusLine", fuente, alcance, _fecha_fuente(path), "roto",
+                                       f"{fuente}: {err}"))
+            continue
+        sl = datos.get("statusLine") if isinstance(datos, dict) else None
+        cmd = sl.get("command", "") if isinstance(sl, dict) else ""
+        if not cmd:
+            continue
+        roto = "roadmap-statusline.sh" in cmd and not os.path.isfile(cmd.strip('"\' '))
+        out.append(_automatizacion("statusline", "statusLine", fuente, alcance, _fecha_fuente(path),
+                                   "roto" if roto else "configurado",
+                                   "el script de la statusline no existe en la ruta configurada" if roto else None))
+    return out or [_automatizacion("statusline", "statusLine", None, None, None, "no_configurado")]
+
+
+def _automatizaciones_jobs(project):
+    """Workflows de GitHub Actions del proyecto (configurados; su ejecución vive en el CI remoto, que no se consulta)."""
+    d = os.path.join(project, ".github", "workflows")
+    try:
+        nombres = sorted(n for n in os.listdir(d) if n.endswith((".yml", ".yaml")))
+    except OSError:
+        return [], False
+    return ([_automatizacion("job", n, f".github/workflows/{n}", "repositorio (CI remoto)",
+                             _fecha_fuente(os.path.join(d, n)), "configurado")
+             for n in nombres[:AUTOMATIZACION_MAX_JOBS]], len(nombres) > AUTOMATIZACION_MAX_JOBS)
+
+
+def inventario_automatizaciones(plugin_root, project, modo):
+    jobs, truncado = _automatizaciones_jobs(project)
+    return {"nota": AUTOMATIZACION_NOTA, "truncado": truncado,
+            "elementos": _automatizaciones_hooks(plugin_root, modo) + _automatizaciones_statusline(project) + jobs}
+
+
+def _acciones_prioritarias(bloques):
+    """Recomienda hasta tres arreglos existentes: errores antes de avisos, orden estable."""
+    acciones = []
+    for estado in (ERROR, AVISO):
+        for bloque in bloques:
+            for ordinal, fila in enumerate(bloque["lineas"], 1):
+                arreglo = fila["arreglo"]
+                if fila["estado"] == estado and isinstance(arreglo, str) and arreglo.strip():
+                    acciones.append({"bloque": bloque["clave"], "linea": ordinal,
+                                     "estado": fila["estado"], "que": fila["que"],
+                                     "detalle": fila["detalle"], "arreglo": arreglo})
+    return {"total": len(acciones), "limite": 3, "acciones": acciones[:3]}
+
 
 def diagnostico(project, plugin_root_explicito=None, hoy=None, verbose=False):
     plugin_root = localizar_plugin(plugin_root_explicito)
@@ -2448,6 +2728,8 @@ def diagnostico(project, plugin_root_explicito=None, hoy=None, verbose=False):
             "plugin_root": plugin_root,
             "bloques": bloques,
             "resumen": resumen,
+            "acciones_prioritarias": _acciones_prioritarias(bloques),
+            "automatizaciones": inventario_automatizaciones(plugin_root, project, bloques[1].get("modo", "desconocido")),
             "exit": 1 if resumen[ERROR] else 0}
 
 
@@ -2459,23 +2741,45 @@ def render_md(inf):
     plug = f"`{inf['plugin_root']}`" if inf["plugin_root"] else "no localizado"
     out = ["# `/doctor` — diagnóstico de la instalación", "",
            f"**Proyecto**: `{inf['proyecto']}` · **Plugin**: {plug}", ""]
+    prioridades = inf["acciones_prioritarias"]
+    out += ["## Acciones prioritarias", "",
+            f"**{len(prioridades['acciones'])} de {prioridades['total']} hallazgo(s) con arreglo** "
+            f"(máximo {prioridades['limite']}; errores antes de avisos).", ""]
+    for ordinal, accion in enumerate(prioridades["acciones"], 1):
+        out.append(f"{ordinal}. [{_celda(accion['bloque'])} · fila {accion['linea']}] "
+                   f"{ICONO[accion['estado']]} {_celda(accion['que'])}: {_celda(accion['detalle'])}. "
+                   f"Arreglo sugerido: {_celda(accion['arreglo'])}")
+    if not prioridades["acciones"]:
+        out.append("No hay recomendaciones con arreglo en las comprobaciones realizadas.")
+    out += ["", "Los arreglos son recomendaciones; este diagnóstico no los ejecuta.", ""]
     for b in inf["bloques"]:
         out += [f"## {b['titulo']}", "", "| | Comprobación | Detalle | Arreglo sugerido |", "|---|---|---|---|"]
         for l in b["lineas"]:
             out.append(f"| {ICONO[l['estado']]} | {_celda(l['que'])} | {_celda(l['detalle'])} "
                        f"| {_celda(l['arreglo'])} |")
         out.append("")
+    autos = inf.get("automatizaciones")
+    if autos:
+        out += ["## Automatizaciones (configuración leída, no ejecución)", "", autos["nota"], "",
+                "| Tipo | Automatización | Estado | Fuente · alcance · fecha | Firma de fallo |", "|---|---|---|---|---|"]
+        for a in autos["elementos"]:
+            origen = " · ".join(x for x in (a["fuente"], a["alcance"], a["fecha_fuente"]) if x) or "—"
+            out.append(f"| {a['tipo']} | {_celda(a['id'])} | {a['estado']} | {_celda(origen)} "
+                       f"| {_celda(a['firma_fallo'])} |")
+        if autos.get("truncado"):
+            out.append(f"\nSolo se listan los primeros {AUTOMATIZACION_MAX_JOBS} workflows.")
+        out.append("")
     r = inf["resumen"]
     out += ["## Resumen", "",
             f"**{r[OK]} ✅ · {r[AVISO]} ⚠️ · {r[ERROR]} ❌ · {r[INFO]} ℹ️**", ""]
     if r[ERROR]:
-        out.append(f"Hay {r[ERROR]} problema(s) que **rompen** algo del plugin: aplica el arreglo de "
+        out.append(f"Las comprobaciones realizadas detectan {r[ERROR]} error(es): aplica el arreglo de "
                    f"cada línea ❌ y vuelve a pasar `/doctor` (exit 1).")
     elif r[AVISO]:
-        out.append(f"Nada roto: {r[AVISO]} aviso(s) de cosas a medias que **degradan sin bloquear** "
+        out.append(f"Sin errores en las comprobaciones realizadas: {r[AVISO]} aviso(s) que **degradan sin bloquear** "
                    f"(exit 0).")
     else:
-        out.append("Instalación sana: nada roto ni a medias (exit 0).")
+        out.append("Sin errores ni avisos en las comprobaciones realizadas (exit 0).")
     out.append("")
     out.append("Las líneas ℹ️ son informativas (opcional no instalado, opt-in apagado, estado del "
                "trabajo): no hay nada que arreglar en ellas.")
@@ -2486,7 +2790,9 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="diagnóstico determinista de la instalación del plugin")
     ap.add_argument("--root", default=".", help="proyecto a diagnosticar (default: cwd)")
     ap.add_argument("--plugin-root", default=None, help="raíz del plugin (default: autodetección)")
-    ap.add_argument("--json", action="store_true")
+    output = ap.add_mutually_exclusive_group()
+    output.add_argument("--json", action="store_true")
+    output.add_argument("--panel-json", action="store_true", help="proyección portable sin detalles privados para el panel")
     ap.add_argument("--verbose", "--all", dest="verbose", action="store_true",
                     help="incluye las capacidades opcionales desactivadas sin su fichero de config")
     ap.add_argument("--hoy", default=None, help="fecha de referencia AAAA-MM-DD para la antigüedad de CALIBRATION.md (tests)")
@@ -2507,6 +2813,20 @@ def main(argv=None):
         return 2
 
     inf = diagnostico(args.root, args.plugin_root, hoy, verbose=args.verbose)
+    if args.panel_json:
+        try:
+            path = os.path.join(HERE, 'diagnostic-report.py')
+            spec = importlib.util.spec_from_file_location('doctor_diagnostic_report', path)
+            projection = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(projection)
+            redact_spec = importlib.util.spec_from_file_location('doctor_panel_redact', os.path.join(HERE, 'redact.py'))
+            redactor = importlib.util.module_from_spec(redact_spec)
+            redact_spec.loader.exec_module(redactor)
+            print(redactor.redactar(json.dumps(projection.project(inf), ensure_ascii=False, indent=2)))
+        except (OSError, ValueError, TypeError, KeyError, ImportError, AttributeError, SyntaxError):
+            print('doctor: portable panel report unavailable', file=sys.stderr)
+            return 2
+        return inf["exit"]
     print(json.dumps(inf, ensure_ascii=False, indent=2) if args.json else render_md(inf))
     return inf["exit"]
 

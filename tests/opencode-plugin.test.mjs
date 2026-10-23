@@ -1,210 +1,545 @@
-// opencode-plugin.test.mjs — suite del adaptador de hooks de OpenCode (`hooks/opencode-plugin.js`).
-//   node --test tests/opencode-plugin.test.mjs
-//
-// El adaptador es el puente entre los eventos de OpenCode y los hooks de shell del plugin, que
-// hablan el contrato de Claude Code. Lo que se prueba aquí es el contrato del puente:
-//   · localiza `hooks/` por `import.meta.url` (viaja junto a ellos), no adivinando el proyecto;
-//   · traduce `tool.execute.after` → payload `PostToolUse` y muestra el `systemMessage` del script;
-//   · traduce `session.idle` → payload `SessionEnd` una sola vez por sesión;
-//   · **nunca lanza**: un hook que revienta abortaría la herramienta en OpenCode (ADR-007: los
-//     hooks informan, no deciden).
-//
-// Si no hay `bash` (Windows sin Git Bash), los casos que ejecutan scripts se SALTAN, como hace
-// `tests/test_hooks_shell.py`.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { cpSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { pathToFileURL, fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import plugin from '../hooks/opencode-plugin.js';
+import { opencodeContext, until } from './helpers/opencode-context.mjs';
 
-import { test, describe } from "node:test"
-import assert from "node:assert/strict"
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join, dirname, resolve } from "node:path"
-import { fileURLToPath } from "node:url"
-import { execFileSync } from "node:child_process"
+function project() {
+  const dir = mkdtempSync(join(tmpdir(), 'custom-agents-v2-test-'));
+  mkdirSync(join(dir, '.claude'), { recursive: true });
+  mkdirSync(join(dir, 'docs', 'roadmap'), { recursive: true });
+  return dir;
+}
 
-import { CustomAgentsHooks } from "../hooks/opencode-plugin.js"
-
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
-
-const disponible = (cmd, args) => {
+test('V2 default definition registers native domains and cleans up', async () => {
+  const dir = project();
   try {
-    execFileSync(cmd, args, { stdio: "ignore" })
-    return true
-  } catch {
-    return false
+    assert.equal(plugin.id, 'custom-agents');
+    const ctx = opencodeContext(dir);
+    const cleanup = await plugin.setup(ctx);
+    for (const name of ['tool.execute.after', 'session.prompt', 'session.context']) assert.ok(ctx.hooks.has(name));
+    await cleanup();
+    assert.equal(ctx.stopped, true);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('prompt captures UTF8 without mutating input and honors private turns', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const ctx = opencodeContext(dir); cleanup = await plugin.setup(ctx);
+    const event = { sessionID: 'v2-capture', prompt: { text: 'Decidimos usar Python 🐍' }, delivery: 'steer' };
+    const original = structuredClone(event);
+    await ctx.hooks.get('session.prompt')(event);
+    assert.deepEqual(event, original);
+    assert.match(readFileSync(join(dir, '.claude', 'session-prompts-v2-capture.log'), 'utf8'), /Python 🐍/);
+    await ctx.hooks.get('session.prompt')({ sessionID: 'private-turn', prompt: { text: '<private> petición privada' } });
+    assert.equal(existsSync(join(dir, '.claude', 'session-prompts-private-turn.log')), false);
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('idle captures envelope and the next context replays and injects bounded local sources', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const ctx = opencodeContext(dir); cleanup = await plugin.setup(ctx);
+    await ctx.hooks.get('session.prompt')({ sessionID: 'v2-idle', prompt: { text: 'Decidimos verificar el contexto' } });
+    ctx.emit({ type: 'session.execution.succeeded', data: { sessionID: 'v2-idle' } });
+    const queue = join(dir, '.claude', 'journal', 'outbox');
+    await until(() => existsSync(queue) && readdirSync(queue).some(name => name.endsWith('.json')));
+    const event = { sessionID: 'v2-resume', system: [{ type: 'text', text: 'Instrucciones propias' }] };
+    await ctx.hooks.get('session.context')(event);
+    assert.equal(event.system[0].text, 'Instrucciones propias');
+    assert.equal(event.system.length, 2);
+    assert.match(event.system[1].text, /custom-agents|Plugin|plugin/);
+    assert.ok(event.system[1].text.length <= 10000);
+    assert.ok(readdirSync(join(dir, 'docs', 'knowledge', 'journal')).some(name => name.endsWith('.md') && name !== 'README.md'));
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('foreign sessions and workspace events never write or inject into this project', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const ctx = opencodeContext(dir);
+    ctx.session.get = async () => ({ data: { location: { directory: resolve(dir, '..', 'other-project') } } });
+    cleanup = await plugin.setup(ctx);
+    await ctx.hooks.get('session.prompt')({ sessionID: 'foreign', prompt: { text: 'texto ajeno' } });
+    const event = { sessionID: 'foreign', system: [] };
+    await ctx.hooks.get('session.context')(event);
+    assert.deepEqual(event.system, []);
+    ctx.emit({ type: 'session.status', location: { directory: dir, workspaceID: 'other-workspace' }, data: { sessionID: 'foreign', status: { type: 'idle' } } });
+    await cleanup(); cleanup = null;
+    assert.equal(existsSync(join(dir, '.claude', 'journal')), false);
+    assert.equal(existsSync(join(dir, '.claude', 'session-prompts-foreign.log')), false);
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('completed writes use native input and preserve result content and existing metadata', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const ctx = opencodeContext(dir); cleanup = await plugin.setup(ctx);
+    const path = join(dir, 'docs', 'plan.md'); writeFileSync(path, '# Plan\n', 'utf8');
+    const event = { sessionID: 'v2-write', tool: 'edit', status: 'completed', input: { path }, result: { content: 'edited', metadata: { own: true } } };
+    await ctx.hooks.get('tool.execute.after')(event);
+    assert.equal(event.result.content, 'edited'); assert.equal(event.result.metadata.own, true);
+    assert.equal(existsSync(join(dir, '.claude', '.confluence-pending')), true);
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('native applied targets dispatch indented patches and normalized write paths', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const ctx = opencodeContext(dir); cleanup = await plugin.setup(ctx);
+    const target = join(dir, 'docs', 'native.md'); writeFileSync(target, '# Native\n');
+    for (const event of [
+      { tool: 'patch', input: { patchText: '  *** Add File: docs/native.md' }, output: { applied: [{ type: 'add', target, resource: 'docs/native.md' }] } },
+      { tool: 'write', input: { path: '~/not-the-project.md' }, output: { target, resource: 'docs/native.md' } },
+    ]) {
+      rmSync(join(dir, '.claude', '.confluence-pending'), { force: true });
+      await ctx.hooks.get('tool.execute.after')({ sessionID: 'native-target', status: 'completed', tool: event.tool, input: event.input, result: { output: event.output } });
+      assert.equal(existsSync(join(dir, '.claude', '.confluence-pending')), true, event.tool);
+    }
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a native move out of docs preserves the deleted source notification', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const ctx=opencodeContext(dir); cleanup=await plugin.setup(ctx);
+    const source=join(dir,'docs','source.md'), target=join(dir,'moved.md');
+    const event={sessionID:'native-move',tool:'patch',status:'completed',
+      input:{patchText:'*** Update File: docs/source.md\n*** Move to: moved.md'},
+      result:{output:{applied:[{type:'update',target,resource:'moved.md'}],
+        files:[{file:'moved.md',patch:`Index: ${source}\n===\n--- ${source}\n+++ ${source}\n@@ -1 +1 @@\n-old\n+new\n`,additions:1,deletions:1,status:'modified'}]}}};
+    await ctx.hooks.get('tool.execute.after')(event);
+    assert.equal(existsSync(join(dir,'.claude','.confluence-pending')),true);
+  } finally { await cleanup?.(); rmSync(dir,{recursive:true,force:true}); }
+});
+
+test('unchanged context is reused while prompts, tools and canonical files invalidate it', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
+      if(process.argv[2]==='session-context.sh') {
+        const n=fs.existsSync('runs') ? Number(fs.readFileSync('runs','utf8'))+1 : 1;
+        fs.writeFileSync('runs',String(n));
+        process.stdout.write(JSON.stringify({hookSpecificOutput:{additionalContext:'context '+n}}));
+      }`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    const call = async (sessionID='cache') => {
+      const event={sessionID,system:[]}; await ctx.hooks.get('session.context')(event); return event.system[0].text;
+    };
+    assert.equal(await call(), 'context 1'); assert.equal(await call(), 'context 1');
+    await ctx.hooks.get('tool.execute.after')({sessionID:'cache',tool:'read',status:'completed'});
+    assert.equal(await call(), 'context 1');
+    await ctx.hooks.get('session.prompt')({sessionID:'cache',prompt:{text:'next turn'}});
+    assert.equal(await call(), 'context 2');
+    await ctx.hooks.get('tool.execute.after')({sessionID:'cache',tool:'bash',status:'completed'});
+    assert.equal(await call(), 'context 3');
+    mkdirSync(join(dir,'docs','roadmap','fixture'));
+    writeFileSync(join(dir,'docs','roadmap','fixture','tasks.md'),'ledger changed');
+    assert.equal(await call(), 'context 4');
+    mkdirSync(join(dir,'docs','knowledge'),{recursive:true});
+    writeFileSync(join(dir,'docs','knowledge','memory.md'),'memory changed');
+    assert.equal(await call(), 'context 5');
+    writeFileSync(join(dir,'.claude','dev.json'),'{}');
+    assert.equal(await call(), 'context 6');
+    assert.equal(await call('other-session'), 'context 7');
+    const clock = Date.now;
+    try { Date.now = () => clock() + 31000; assert.equal(await call('other-session'), 'context 8'); }
+    finally { Date.now = clock; }
+    writeFileSync(join(dir,'.claude','dev.json'),'{"sesion":{"journal":{"dir":"own-queue"}}}');
+    assert.equal(await call('other-session'), 'context 9');
+    assert.equal(await call('other-session'), 'context 10');
+    writeFileSync(join(dir,'.claude','dev.json'),'{');
+    assert.equal(await call('other-session'), 'context 11');
+    assert.equal(await call('other-session'), 'context 12');
+    ctx.session.get = async () => ({location:{directory:resolve(dir,'..','foreign')}});
+    const foreign={sessionID:'other-session',system:[]}; await ctx.hooks.get('session.context')(foreign);
+    assert.deepEqual(foreign.system,[]);
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a concurrent mutation prevents saving an in-flight context', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
+      if(process.argv[2]==='session-context.sh') {
+        const n=fs.existsSync('runs') ? Number(fs.readFileSync('runs','utf8'))+1 : 1;
+        fs.writeFileSync('runs',String(n));
+        setTimeout(()=>process.stdout.write(JSON.stringify({hookSpecificOutput:{additionalContext:'context '+n}})),250);
+      }`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    const event={sessionID:'concurrent',system:[]};
+    const pending=ctx.hooks.get('session.context')(event);
+    await until(()=>existsSync(join(dir,'runs')));
+    await ctx.hooks.get('tool.execute.after')({sessionID:'concurrent',tool:'unknown-tool',status:'completed'});
+    await pending;
+    const second={sessionID:'concurrent',system:[]}; await ctx.hooks.get('session.context')(second);
+    assert.equal(second.system[0].text,'context 2');
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+async function isolatedPlugin(dir, launcher, changeCatalog) {
+  const folder = join(dir, 'hooks'); mkdirSync(folder, { recursive: true });
+  writeFileSync(join(dir, 'package.json'), '{"type":"module"}');
+  let source = readFileSync(new URL('../hooks/opencode-plugin.js', import.meta.url), 'utf8');
+  if (changeCatalog) {
+    const expression = /(\/\/ custom-agents hook-catalog:start\r?\nconst hookCatalog = JSON\.parse\(`)([\s\S]*?)(`\);\r?\n\/\/ custom-agents hook-catalog:end)/;
+    const match = source.match(expression);
+    assert.ok(match, 'The adapter must carry its own strict JSON registration catalog');
+    const catalog = JSON.parse(match[2]); changeCatalog(catalog);
+    source = source.replace(expression, (_, before, body, after) => before + JSON.stringify(catalog) + after);
   }
-}
-// Los hooks del plugin necesitan `bash` Y `python3`; sin uno de los dos salen en silencio con
-// exit 0 (degradación por diseño), así que los casos que esperan SALIDA se saltan — afirmar lo
-// contrario sería afirmar el entorno, no el adaptador. Mismo criterio que tests/test_hooks_shell.py.
-// El gate EJECUTA python3, no solo `command -v`: en Windows el alias de la Microsoft Store deja
-// un `python3` en PATH que «existe» pero solo imprime «Python was not found» (exit 1). Con
-// `command -v` el gate pasaba, `progress-report.py` nunca corría, el hook se callaba por diseño
-// y el test de toast caía con «visto: (nada)» — rojo preexistente en Windows.
-const HAY_BASH = disponible("bash", ["-c", "exit 0"])
-const HAY_PYTHON3 = HAY_BASH && disponible("bash", ["-c", "python3 -c \"import sys\""])
-const PUEDE_EJECUTAR_HOOKS = HAY_BASH && HAY_PYTHON3
-
-// Ledger REAL del repo como fixture, igual que `tests/test_hooks_shell.py`: el formato que
-// `progress-report.py` reconoce es el del plugin, no uno inventado aquí (si el formato cambia,
-// las dos suites lo notan a la vez).
-const LEDGER_FUENTE = join(ROOT, "docs", "roadmap", "2026-09-02-adversarial-review", "tasks.md")
-
-/** Proyecto temporal con ese ledger puesto EN PROGRESO (es lo que dispara la línea). */
-function proyectoConLedger() {
-  const dir = mkdtempSync(join(tmpdir(), "ca-oc-"))
-  const inic = join(dir, "docs", "roadmap", "2026-01-01-demo")
-  mkdirSync(inic, { recursive: true })
-  mkdirSync(join(dir, ".claude"), { recursive: true })
-  // Copia TAL CUAL: `progress-report.py line` emite su línea también con la iniciativa cerrada,
-  // y lo que se prueba aquí es el PUENTE, no el informe (reescribir el estado a mano solo daba
-  // ocasión de corromper la fixture).
-  writeFileSync(join(inic, "tasks.md"), readFileSync(LEDGER_FUENTE, "utf8"), "utf8")
-  return dir
+  writeFileSync(join(folder, 'adapter.js'), source);
+  writeFileSync(join(folder, 'run-hook.mjs'), launcher);
+  return (await import(pathToFileURL(join(folder, 'adapter.js')).href)).default;
 }
 
-/** Cliente falso: registra los toasts y los logs en vez de pintarlos. */
-function clienteFalso() {
-  const toasts = [], logs = []
-  return {
-    toasts, logs,
-    app: { log: (x) => logs.push(x?.body?.message) },
-    tui: { showToast: async (x) => { toasts.push(x?.body?.message) } },
+test('native adapter identifies its runtime independently of consumer payload', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
+      if(process.argv[2]==='session-journal.sh') fs.writeFileSync('end-argv.json',JSON.stringify(process.argv.slice(2)));`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    ctx.emit({ type: 'session.execution.succeeded', data: { sessionID: 'runtime-test', runtime: 'claude' } });
+    await until(() => existsSync(join(dir, 'end-argv.json')));
+    assert.deepEqual(JSON.parse(readFileSync(join(dir, 'end-argv.json'), 'utf8')), ['session-journal.sh', '--runtime=opencode']);
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('catalog binding and handler edits govern native registration and dispatch', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `process.stdout.write(JSON.stringify({systemMessage:process.argv[2]}));`, catalog => {
+      const post = catalog.bindings.find(item => item.id === 'post');
+      post.native_event = 'own.after'; post.handlers = ['progress-line.sh'];
+      catalog.bindings.find(item => item.id === 'tool-activity').native_event = 'own.after'; // T-47: shares the event
+    });
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    assert.ok(ctx.hooks.has('tool.own.after'));
+    assert.equal(ctx.hooks.has('tool.execute.after'), false);
+    const event = { sessionID:'catalog', tool:'write', status:'completed', input:{filePath:'docs/own.md'}, result:{metadata:{own:true}} };
+    await ctx.hooks.get('tool.own.after')(event);
+    assert.deepEqual(event.result.metadata.customAgentsMessages, ['progress-line.sh']);
+    assert.equal(event.result.metadata.own, true);
+  } finally { await cleanup?.(); rmSync(dir, { recursive:true, force:true }); }
+});
+
+test('catalog stream events drive capture without changing native payload translation', async () => {
+  const dir = project(); let cleanup;
+  try {
+    // Activity handlers may run independently; the stream fixture observes capture only.
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
+      if(process.argv[2]==='session-journal.sh') fs.writeFileSync('stream-args.json',JSON.stringify(process.argv.slice(2)));`, catalog => {
+      catalog.bindings.find(item => item.id === 'capture').native_events = ['own.completed'];
+    });
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    ctx.emit({type:'session.execution.succeeded', data:{sessionID:'catalog'}});
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(existsSync(join(dir,'stream-args.json')), false);
+    ctx.emit({type:'own.completed', data:{sessionID:'catalog'}});
+    await until(() => existsSync(join(dir,'stream-args.json')));
+    assert.deepEqual(JSON.parse(readFileSync(join(dir,'stream-args.json'),'utf8')), ['session-journal.sh','--runtime=opencode']);
+  } finally { await cleanup?.(); rmSync(dir,{recursive:true,force:true}); }
+});
+
+test('catalog supervision budget terminates a delayed informational handler', async () => {
+  const dir = project(); let cleanup;
+  const saved = console.warn; console.warn = () => {};
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';setTimeout(()=>fs.writeFileSync('late-catalog-handler','late'),3000);`, catalog => {
+      catalog.bindings.find(item => item.id === 'prompt').timeout_ms = 1;
+    });
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    await ctx.hooks.get('session.prompt')({sessionID:'catalog-budget',prompt:{text:'own bounded fixture'}});
+    await new Promise(resolve => setTimeout(resolve,400));
+    assert.equal(existsSync(join(dir,'late-catalog-handler')), false);
+  } finally { console.warn=saved; await cleanup?.(); rmSync(dir,{recursive:true,force:true}); }
+});
+
+test('cleanup terminates its launcher tree and settles the pending hook', async () => {
+  const dir = project(); let cleanup, pending, pid;
+  try {
+    const adapter = await isolatedPlugin(dir, `import {spawn} from 'node:child_process'; import fs from 'node:fs';
+      const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});
+      fs.writeFileSync('child.pid',String(child.pid));setInterval(()=>{},1000);`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    pending = ctx.hooks.get('session.prompt')({ sessionID: 'cancelled', prompt: { text: 'own cancellation fixture' } });
+    await until(() => existsSync(join(dir, 'child.pid')));
+    pid = Number(readFileSync(join(dir, 'child.pid'), 'utf8'));
+    await cleanup(); cleanup = null;
+    await until(() => { try { process.kill(pid, 0); return false; } catch { return true; } });
+    await pending; pending = null;
+  } finally {
+    if (pid) {
+      if (process.platform === 'win32') { try { execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }); } catch {} }
+      else { try { process.kill(pid, 'SIGKILL'); } catch {} }
+    }
+    await cleanup?.(); await pending;
+    rmSync(dir, { recursive: true, force: true });
   }
-}
+});
 
-describe("localización de hooks/", () => {
-  test("encuentra hooks/ relativo al propio fichero, sin depender del cwd", async () => {
-    const client = clienteFalso()
-    // `directory` apunta a un temporal VACÍO: si el adaptador dependiera del proyecto, saldría inerte.
-    const vacio = mkdtempSync(join(tmpdir(), "ca-oc-vacio-"))
-    try {
-      const h = await CustomAgentsHooks({ directory: vacio, worktree: vacio, client, $: null })
-      assert.ok(h["tool.execute.after"], "el adaptador salió inerte: no localizó hooks/")
-      assert.ok(h.event, "falta el suscriptor de eventos")
-    } finally {
-      rmSync(vacio, { recursive: true, force: true })
-    }
-  })
-
-  test("sin hooks/ en ningún candidato queda inerte y lo registra, sin lanzar", async () => {
-    // Se simula importando el módulo con un AQUI que no existe: no se puede, así que se comprueba
-    // el contrato equivalente — el adaptador nunca lanza al construirse.
-    const client = clienteFalso()
-    const h = await CustomAgentsHooks({ directory: undefined, worktree: undefined, client, $: null })
-    assert.equal(typeof h, "object", "construirse nunca puede lanzar")
-  })
-})
-
-describe("tool.execute.after → PostToolUse", () => {
-  test("con un ledger canónico emite la línea de progreso como toast", { skip: !PUEDE_EJECUTAR_HOOKS }, async () => {
-    const dir = proyectoConLedger()
-    const client = clienteFalso()
-    try {
-      const h = await CustomAgentsHooks({ directory: dir, worktree: dir, client, $: null })
-      await h["tool.execute.after"](
-        { tool: "edit" },
-        { args: { filePath: join(dir, "docs", "roadmap", "2026-01-01-demo", "tasks.md") } },
-      )
-      const visto = [...client.toasts, ...client.logs].join(" | ")
-      assert.match(visto, /T-0|demo|1\/2|50/, `no salió progreso; visto: ${visto || "(nada)"}`)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
-  test("una herramienta de lectura no dispara nada", async () => {
-    const dir = proyectoConLedger()
-    const client = clienteFalso()
-    try {
-      const h = await CustomAgentsHooks({ directory: dir, worktree: dir, client, $: null })
-      await h["tool.execute.after"]({ tool: "read" }, { args: { filePath: join(dir, "x.md") } })
-      assert.deepEqual(client.toasts, [], "`read` no es una escritura: no debe informar de nada")
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
-  test("un fichero que no es un ledger no informa de nada", { skip: !HAY_BASH }, async () => {
-    const dir = proyectoConLedger()
-    const client = clienteFalso()
-    try {
-      writeFileSync(join(dir, "app.js"), "// código\n", "utf8")
-      const h = await CustomAgentsHooks({ directory: dir, worktree: dir, client, $: null })
-      await h["tool.execute.after"]({ tool: "write" }, { args: { filePath: join(dir, "app.js") } })
-      assert.deepEqual(client.toasts, [])
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
-  test("payload roto o sin ruta no lanza (un hook nunca aborta la herramienta)", async () => {
-    const dir = proyectoConLedger()
-    const client = clienteFalso()
-    try {
-      const h = await CustomAgentsHooks({ directory: dir, worktree: dir, client, $: null })
-      for (const [input, output] of [[{ tool: "edit" }, {}], [{}, {}], [null, null],
-                                     [{ tool: "edit" }, { args: {} }]]) {
-        await h["tool.execute.after"](input, output)   // no debe lanzar
+test('Windows teardown completes when PATH omits system tools', {skip:process.platform !== 'win32'}, async () => {
+  // The assertions read TAP lines; Node >= 23 defaults to the spec reporter even when piped.
+  const args = ['--test', '--test-reporter=tap', '--test-name-pattern=^cleanup terminates its launcher tree and settles the pending hook$',
+    fileURLToPath(import.meta.url)];
+  const environment = {...process.env, PATH:dirname(process.execPath)};
+  delete environment.NODE_TEST_CONTEXT; // Start an independent native test runner.
+  const child = spawn(process.execPath, args, {
+    env:environment, windowsHide:true,
+    stdio:['ignore','pipe','pipe'],
+  });
+  let output = '', errors = '', expired = false;
+  child.stdout.on('data', data => {output += data.toString('utf8');});
+  child.stderr.on('data', data => {errors += data.toString('utf8');});
+  const code = await new Promise((resolveDone, reject) => {
+    const timer = setTimeout(() => {
+      expired = true;
+      if(child.exitCode === null && child.pid) {
+        const taskkill = join(process.env.SystemRoot || process.env.WINDIR || 'C:\\Windows', 'System32', 'taskkill.exe');
+        try {execFileSync(taskkill, ['/PID',String(child.pid),'/T','/F'], {windowsHide:true,stdio:'ignore'});} catch {}
       }
-      assert.ok(true)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-})
+    }, 15000);
+    child.once('error', error => {clearTimeout(timer);reject(error);});
+    child.once('close', status => {clearTimeout(timer);resolveDone(status);});
+  });
+  assert.equal(expired, false, 'Teardown must settle with a restricted PATH');
+  assert.equal(code, 0, errors || output);
+  assert.match(output, /^# pass 1\s*$/m, 'The child must execute the real teardown case');
+  assert.match(output, /^# fail 0\s*$/m);
+});
 
-describe("session.idle → SessionEnd (journal)", () => {
-  test("escribe la entrada del journal una sola vez por sesión", { skip: !PUEDE_EJECUTAR_HOOKS }, async () => {
-    const dir = proyectoConLedger()
-    const client = clienteFalso()
-    try {
-      mkdirSync(join(dir, "docs", "knowledge", "journal"), { recursive: true })
-      const h = await CustomAgentsHooks({ directory: dir, worktree: dir, client, $: null })
-      const ev = { type: "session.idle", properties: { sessionID: "sesion-de-prueba" } }
-      await h.event({ event: ev })
-      await h.event({ event: ev })
-      const journal = join(dir, "docs", "knowledge", "journal")
-      assert.ok(existsSync(journal), "no se creó el directorio del journal")
-      // `journal.py` es idempotente por session_id: dos reposos = una entrada (más su índice).
-      const entradas = readdirSync(journal).filter((f) => f.endsWith(".md") && f !== "README.md")
-      assert.ok(entradas.length <= 1, `el journal se duplicó: ${entradas.join(", ")}`)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
+test('cleanup of the real launcher reaches its Python process', async () => {
+  const dir = project(); let cleanup, pid;
+  try {
+    const adapter = await isolatedPlugin(dir, readFileSync(new URL('../hooks/run-hook.mjs', import.meta.url), 'utf8'));
+    cpSync(new URL('../hooks/runtime-supervisor.py', import.meta.url), join(dir, 'hooks', 'runtime-supervisor.py'));
+    mkdirSync(join(dir, 'agent-kits', 'shared'), { recursive: true });
+    const marker = join(dir, 'after-cleanup');
+    const pidfile = join(dir, 'python.pid');
+    writeFileSync(join(dir, 'agent-kits', 'shared', 'journal-capture.py'),
+      `import os,time,pathlib\npathlib.Path(${JSON.stringify(pidfile)}).write_text(str(os.getpid()))\ntime.sleep(3)\npathlib.Path(${JSON.stringify(marker)}).write_text('late')\n`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    ctx.emit({ type: 'session.execution.succeeded', data: { sessionID: 'own-real-cleanup' } });
+    await until(() => existsSync(pidfile));
+    pid = Number(readFileSync(pidfile, 'utf8'));
+    await cleanup(); cleanup = null;
+    await new Promise(resolve => setTimeout(resolve, 3300));
+    assert.equal(existsSync(marker), false, 'Python must not continue after adapter cleanup');
+  } finally {
+    if (pid) {
+      if (process.platform === 'win32') { try { execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }); } catch {} }
+      else { try { process.kill(pid, 'SIGKILL'); } catch {} }
     }
-  })
+    await cleanup?.(); rmSync(dir, { recursive: true, force: true });
+  }
+});
 
-  test("otros eventos se ignoran y no lanzan", async () => {
-    const dir = proyectoConLedger()
-    const client = clienteFalso()
-    try {
-      const h = await CustomAgentsHooks({ directory: dir, worktree: dir, client, $: null })
-      for (const event of [{ type: "session.created" }, { type: "file.edited" },
-                           { type: "session.idle" } /* sin sessionID */, undefined]) {
-        await h.event({ event })
-      }
-      assert.ok(true)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
+test('real adapter teardown cleans background descendants after the capture parent exits', async () => {
+  const dir = project(); let cleanup, pid;
+  try {
+    const adapter = await isolatedPlugin(dir, readFileSync(new URL('../hooks/run-hook.mjs', import.meta.url), 'utf8'));
+    cpSync(new URL('../hooks/runtime-supervisor.py', import.meta.url), join(dir, 'hooks', 'runtime-supervisor.py'));
+    mkdirSync(join(dir, 'agent-kits', 'shared'), { recursive: true });
+    const marker = join(dir, 'late-background');
+    const pidfile = join(dir, 'background.pid');
+    writeFileSync(join(dir, 'agent-kits', 'shared', 'journal-capture.py'),
+      `import subprocess,sys,pathlib\nchild=subprocess.Popen([sys.executable,'-I','-S','-c',"import time,pathlib; time.sleep(3); pathlib.Path("+repr(${JSON.stringify(marker)})+").write_text('late')"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\npathlib.Path(${JSON.stringify(pidfile)}).write_text(str(child.pid))\n`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    ctx.emit({ type: 'session.execution.succeeded', data: { sessionID: 'own-background' } });
+    await until(() => existsSync(pidfile));
+    pid = Number(readFileSync(pidfile, 'utf8'));
+    await new Promise(resolve => setTimeout(resolve, 3300));
+    assert.equal(existsSync(marker), false, 'normal completion must clean descendants with redirected pipes');
+  } finally {
+    if (pid) {
+      if (process.platform === 'win32') { try { execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }); } catch {} }
+      else { try { process.kill(pid, 'SIGKILL'); } catch {} }
     }
-  })
-})
+    await cleanup?.(); rmSync(dir, { recursive: true, force: true });
+  }
+});
 
-describe("robustez", () => {
-  test("sin cliente (arranque temprano) tampoco lanza", async () => {
-    const dir = proyectoConLedger()
-    try {
-      const h = await CustomAgentsHooks({ directory: dir, worktree: dir, client: undefined, $: null })
-      await h["tool.execute.after"]({ tool: "edit" },
-        { args: { filePath: join(dir, "docs", "roadmap", "2026-01-01-demo", "tasks.md") } })
-      assert.ok(true)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
+test('stderr failures warn without exposing consumer payloads and context is capped', async () => {
+  const dir = project(); let cleanup;
+  const oldWarn = console.warn, messages = []; console.warn = text => messages.push(text);
+  try {
+    const adapter = await isolatedPlugin(dir, `process.stderr.write('PRIVATE_SENTINEL');
+      process.stdout.write(JSON.stringify({hookSpecificOutput:{additionalContext:'x'.repeat(12000)}}));`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    const event = { sessionID: 'bounded', system: [] };
+    await ctx.hooks.get('session.context')(event);
+    assert.equal(event.system[0].text.length, 10000);
+    assert.ok(messages.length > 0);
+    assert.equal(messages.join('').includes('PRIVATE_SENTINEL'), false);
+  } finally { console.warn = oldWarn; await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('patch metadata carries diagnostics while malformed and oversized context stays empty', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `process.stdout.write(JSON.stringify({systemMessage:'Own diagnostic'}));`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    const event = { sessionID: 'patch', tool: 'patch', status: 'completed', input: { patchText: '*** Add File: docs/x.md' }, result: { content: [{ type: 'text', text: 'own result' }], metadata: { own: true } } };
+    await ctx.hooks.get('tool.execute.after')(event);
+    assert.equal(event.result.content[0].text, 'own result');
+    assert.equal(event.result.metadata.own, true);
+    assert.deepEqual(event.result.metadata.customAgentsMessages, ['Own diagnostic', 'Own diagnostic', 'Own diagnostic']);
+    await cleanup(); cleanup = null;
+    for (const source of ["process.stdout.write('invalid JSON');", "process.stdout.write('x'.repeat(70000));"]) {
+      writeFileSync(join(dir, 'hooks', 'run-hook.mjs'), source);
+      cleanup = await adapter.setup(ctx);
+      const context = { sessionID: 'broken', system: [] };
+      await ctx.hooks.get('session.context')(context);
+      assert.deepEqual(context.system, []);
+      await cleanup(); cleanup = null;
     }
-  })
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
 
-  test("el adaptador no importa nada fuera de node: (cero dependencias)", () => {
-    const src = readFileSync(join(ROOT, "hooks", "opencode-plugin.js"), "utf8")
-    const imports = [...src.matchAll(/^import\s.*?from\s+"([^"]+)"/gm)].map((m) => m[1])
-    const externos = imports.filter((i) => !i.startsWith("node:"))
-    assert.deepEqual(externos, [], `el adaptador no puede depender de paquetes: ${externos}`)
-  })
-})
+test('failed writes, reads and broken payloads degrade without claiming edits', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const ctx = opencodeContext(dir); cleanup = await plugin.setup(ctx);
+    for (const event of [null, {}, { tool: 'edit', status: 'error', input: { filePath: join(dir, 'docs', 'x.md') } }, { tool: 'read', status: 'completed', input: { filePath: join(dir, 'docs', 'x.md') } }]) await ctx.hooks.get('tool.execute.after')(event);
+    ctx.session.get = async () => { throw new Error('unavailable'); };
+    await ctx.hooks.get('session.prompt')({ sessionID: 'unavailable', prompt: { text: 'texto' } });
+    assert.equal(existsSync(join(dir, '.claude', '.confluence-pending')), false);
+    assert.equal(existsSync(join(dir, '.claude', 'session-prompts-unavailable.log')), false);
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+
+test('native execution start informs activity without premature session capture', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
+      let input=''; process.stdin.setEncoding('utf8'); process.stdin.on('data',chunk=>input+=chunk);
+      process.stdin.on('end',()=>{
+        if(process.argv[2]==='agent-activity') fs.appendFileSync('activity-start.jsonl',JSON.stringify({argv:process.argv.slice(2),payload:JSON.parse(input)})+'\\n');
+        if(process.argv[2]==='session-journal.sh') fs.appendFileSync('premature-capture.jsonl',input+'\\n');
+      });`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    for(let n=0;n<2;n++)ctx.emit({type:'session.execution.started',data:{sessionID:'started',prompt:'RAW-START-PROMPT'},error:'RAW-START-ERROR'});
+    const trace=join(dir,'activity-start.jsonl');
+    await until(()=>existsSync(trace)&&readFileSync(trace,'utf8').trim().split('\n').length===2);
+    const rows=readFileSync(trace,'utf8').trim().split('\n').map(line=>JSON.parse(line));
+    assert.equal(existsSync(join(dir,'premature-capture.jsonl')),false);
+    for(const row of rows){
+      assert.deepEqual(row.argv,['agent-activity','--runtime=opencode']);
+      assert.deepEqual(row.payload,{type:'session.execution.started',data:{sessionID:'started'},cwd:dir});
+    }
+  }finally{await cleanup?.();rmSync(dir,{recursive:true,force:true});}
+});
+
+// panel-redesign T-47 (design O5, I-05, CA-42): OpenCode tool activity is a catalog binding of its own on
+// tool.execute.after. The event promise resolves before the child ends (no await of the launcher) and the
+// child is tracked for cleanup. Only the keys the store's summary whitelist reads cross the boundary.
+test('catalog declares tool activity apart from the post and session activity bindings', async () => {
+  const source = readFileSync(new URL('../hooks/opencode-plugin.js', import.meta.url), 'utf8');
+  const catalog = JSON.parse(source.match(/hook-catalog:start\r?\nconst hookCatalog = JSON\.parse\(`([\s\S]*?)`\);/)[1]);
+  const tool = catalog.bindings.find(item => item.id === 'tool-activity');
+  assert.deepEqual([tool.domain, tool.native_event, tool.event, tool.behavior, tool.handlers, tool.timeout_ms],
+    ['tool', 'execute.after', 'PostToolUse', 'informative', ['agent-activity'], 2500]);
+  assert.deepEqual(catalog.bindings.find(item => item.id === 'post').handlers,
+    ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh']);
+  assert.equal(catalog.bindings.find(item => item.id === 'activity').domain, 'event');
+});
+
+test('tool activity resolves before its child ends and sends only summary arguments', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
+      let input=''; process.stdin.setEncoding('utf8'); process.stdin.on('data',chunk=>input+=chunk);
+      process.stdin.on('end',()=>{ if(process.argv[2]!=='agent-activity') return;
+        setTimeout(()=>fs.appendFileSync('tool-activity.jsonl',JSON.stringify({argv:process.argv.slice(2),payload:JSON.parse(input)})+'\\n'),1200); });`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    const events = [
+      { sessionID: 'tool-s', tool: 'read', status: 'completed', agent: 'build', input: { filePath: 'docs/x.md', content: 'RAW-CONTENT-FORBIDDEN' },
+        result: { output: 'RAW-OUTPUT-FORBIDDEN' } },
+      { sessionID: 'tool-s', tool: 'patch', status: 'error', input: { patchText: '  *** Update File: docs/a.md\n+RAW-PATCH-LINE' } },
+    ];
+    const started = Date.now();
+    for (const event of events) await ctx.hooks.get('tool.execute.after')(event);
+    assert.ok(Date.now() - started < 1000, 'the event must not wait for the activity child');
+    assert.equal(existsSync(join(dir, 'tool-activity.jsonl')), false);
+    const trace = join(dir, 'tool-activity.jsonl');
+    await until(() => existsSync(trace) && readFileSync(trace, 'utf8').trim().split('\n').length === 2);
+    const text = readFileSync(trace, 'utf8');
+    assert.doesNotMatch(text, /RAW-(CONTENT|OUTPUT|PATCH)/);
+    const rows = text.trim().split('\n').map(line => JSON.parse(line)).sort((a, b) => a.payload.data.tool.localeCompare(b.payload.data.tool));
+    assert.deepEqual(rows.map(row => row.argv), [['agent-activity', '--runtime=opencode'], ['agent-activity', '--runtime=opencode']]);
+    assert.deepEqual(rows[0].payload, { type: 'tool.execute.after', cwd: dir,
+      data: { sessionID: 'tool-s', tool: 'patch', status: 'error', args: { command: '*** Update File: docs/a.md' } } });
+    assert.deepEqual(rows[1].payload, { type: 'tool.execute.after', cwd: dir,
+      data: { sessionID: 'tool-s', tool: 'read', status: 'completed', agent: 'build', args: { filePath: 'docs/x.md' } } });
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('tool activity child is tracked and cleanup terminates it', async () => {
+  const dir = project(); let cleanup, pid;
+  try {
+    const adapter = await isolatedPlugin(dir, `import {spawn} from 'node:child_process'; import fs from 'node:fs';
+      if(process.argv[2]==='agent-activity'){const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});
+      fs.writeFileSync('tool-child.pid',String(child.pid));setInterval(()=>{},1000);}`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    await ctx.hooks.get('tool.execute.after')({ sessionID: 'tool-cleanup', tool: 'bash', status: 'completed', input: { command: 'ls' } });
+    await until(() => existsSync(join(dir, 'tool-child.pid')));
+    pid = Number(readFileSync(join(dir, 'tool-child.pid'), 'utf8'));
+    await cleanup(); cleanup = null;
+    await until(() => { try { process.kill(pid, 0); return false; } catch { return true; } });
+  } finally {
+    if (pid) {
+      if (process.platform === 'win32') { try { execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }); } catch {} }
+      else { try { process.kill(pid, 'SIGKILL'); } catch {} }
+    }
+    await cleanup?.(); rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('tool activity ignores foreign sessions and keeps the post notifications', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
+      let input=''; process.stdin.setEncoding('utf8'); process.stdin.on('data',chunk=>input+=chunk);
+      process.stdin.on('end',()=>{ if(process.argv[2]==='agent-activity') fs.appendFileSync('tool-activity.jsonl',input+'\\n');
+        else process.stdout.write(JSON.stringify({systemMessage:process.argv[2]})); });`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    const own = ctx.session.get;
+    ctx.session.get = async () => ({ location: { directory: join(dir, 'elsewhere') } });
+    await ctx.hooks.get('tool.execute.after')({ sessionID: 'foreign', tool: 'bash', status: 'completed', input: { command: 'ls' } });
+    await new Promise(resolve => setTimeout(resolve, 300));
+    assert.equal(existsSync(join(dir, 'tool-activity.jsonl')), false);
+    ctx.session.get = own;
+    const event = { sessionID: 'own', tool: 'write', status: 'completed', input: { filePath: 'docs/own.md' }, result: { metadata: {} } };
+    await ctx.hooks.get('tool.execute.after')(event);
+    assert.deepEqual(event.result.metadata.customAgentsMessages, ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh']);
+    await until(() => existsSync(join(dir, 'tool-activity.jsonl')));
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+// panel-redesign T-47 fix1 (B2): the unawaited activity binding is dispatched BEFORE the awaited post
+// handlers share execute.after, so its observed_at is not delayed by the serial notifications.
+test('tool activity is dispatched before the awaited post handlers of the same event', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
+      fs.appendFileSync('starts.jsonl', JSON.stringify({ handler: process.argv[2], at: Date.now() }) + '\\n');
+      let input=''; process.stdin.setEncoding('utf8'); process.stdin.on('data',chunk=>input+=chunk);
+      process.stdin.on('end',()=>{ if(process.argv[2]!=='agent-activity') setTimeout(()=>{},400); });`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    await ctx.hooks.get('tool.execute.after')({ sessionID: 'order', tool: 'write', status: 'completed',
+      input: { filePath: 'docs/order.md' }, result: { metadata: {} } });
+    const trace = join(dir, 'starts.jsonl');
+    await until(() => existsSync(trace) && readFileSync(trace, 'utf8').trim().split('\n').length === 4);
+    const rows = readFileSync(trace, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+    const activity = rows.find(row => row.handler === 'agent-activity');
+    const firstPost = rows.filter(row => row.handler !== 'agent-activity').sort((a, b) => a.at - b.at)[0];
+    assert.ok(activity.at < firstPost.at + 300,
+      'activity started ' + (activity.at - firstPost.at) + ' ms after the first post handler: it waited for the serial posts');
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});

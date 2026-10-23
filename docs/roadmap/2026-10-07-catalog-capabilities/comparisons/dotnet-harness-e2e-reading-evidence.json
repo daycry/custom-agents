@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": ["S086", "S087", "S088"],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {"id": "S086", "sha256": "61bc21a6c6d6d1230d90f0bbebca55101b1b63de68ece8574152cbad152cef07", "bytes": 9316, "lines": 322, "read_ranges": [[1, 322]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S087", "sha256": "bdf7902e4e213c6f2e7bdc417757004d118e8e36267239b707670e2875ebf7bf", "bytes": 5389, "lines": 124, "read_ranges": [[1, 124]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S088", "sha256": "b0e00e7e17cb259101139900816c5528aed18dd10bcf5f9cb42cfc35baf8a755", "bytes": 8170, "lines": 327, "read_ranges": [[1, 327]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []}
+  ],
+  "own_counterparts": [
+    {"path": "agents/qa.md", "sha256": "5ab45acfb5905dc26a3294fbf1fdd3b62e36cb525e9e0772108190556c8073f2"},
+    {"path": "skills/plugin-dev/SKILL.md", "sha256": "5b2cb087181ea5fb91f19ba45a2a24e42eaa99ad1ff1b73ced2486a70608f3da"},
+    {"path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-cpp-dotnet-distribution-billing.md", "sha256": "98c8de4d8213c9cce17ef7fe25199f4005c7f5ab3536400503498d10c9697fcb"}
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

@@ -7,7 +7,569 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus documentos no se distribuyen con el plugin.
+
 ## [Sin publicar]
+
+### Fixed — citas en el linter del plugin
+
+- **`lint_plugin.py` ya no avisa de `/skills` ni de una ruta de URL como comando inexistente.** `/skills` es nativo de Claude Code y de Codex, y la referencia del adaptador de Kwipu cita entera su URL de salud. El linter vuelve a los 3 avisos de `master`. (`scripts/lint_plugin.py`, `tests/test_lint_plugin.py`, `skills/knowledge-services/references/kwipu-adapter.md`)
+
+## [2.0.0] - 2026-10-22
+
+### Added — iniciativa `panel-redesign`, fase 1 (base)
+
+- El panel incluye Chart.js 4.5.1 sin modificar, con su licencia MIT y un fichero de procedencia; un test comprueba su huella y que no hay otra copia. Una prueba en navegador (Chromium y Firefox, servido y `file://`) confirmó que las páginas exportadas lo cargan con `script-src 'self' file:` sin violaciones de CSP ni peticiones de red.
+- Nueva primitiva `redact.anonimizar`: quita del panel la ruta del proyecto, el directorio personal, el usuario del sistema y los correos antes de mostrarlos o exportarlos.
+- Las salidas JSON y Markdown del dashboard y el JSON del catálogo del panel quedan fijadas con goldens: el rediseño no puede cambiarlas sin que falle un test.
+- `build_panel.py --export <carpeta>` escribe un sitio de siete páginas con menú accesible común, paleta WCAG 2.2 AA, gráficos siempre acompañados de su tabla equivalente (el dato ausente se muestra como «sin datos», nunca como 0), Chart.js incluido con su licencia y un `export-manifest.json`. No necesita red, quita rutas, usuario y correos, y nunca sobrescribe ficheros que no son suyos.
+- La página Catálogo del panel reúne el catálogo, las extensiones, el workflow y las notas de fuentes, con un gráfico de piezas por tipo y su tabla equivalente; la página Diagnóstico conserva la instantánea de doctor con los mismos rechazos y filtros, sin ejecutar doctor.
+- La proyección JSON de `roadmap-dashboard` es ahora una función pura (`vista_json`) que reutiliza el panel, con `--json` y `--md` idénticos byte a byte.
+
+### Changed — iniciativa `panel-redesign`, exportación del panel
+
+- `build_panel.py --html` se sustituye por `--export <carpeta>`; `--json` y `--serve` no cambian.
+- El servidor local del panel sirve las siete páginas y sus activos desde una lista cerrada con una CSP estricta, un nonce por arranque en cada script y sin leer disco en cada petición; si Chart.js falta o está alterado, las páginas muestran solo tablas. Los scripts vivos de progreso, memoria, actividad y revisión del plan se cargan como ficheros en su página, y la plantilla de una sola página desaparece.
+- `roadmap-dashboard` deja de generar HTML y solo calcula los datos de cartera (`--md`, `--metrics-md`, `--json`); `/roadmap-status` escribe `dashboard.md` y exporta el panel multi-página a `docs/roadmap/panel/`, sin borrar nunca un `dashboard.html` antiguo. `plugin-panel` es ya el único dashboard, y su guía documenta las siete páginas, los dos modos, la CSP de cada uno y la procedencia de Chart.js incluido.
+
+### Added — iniciativa `panel-redesign`, fase 2 (inicio, iniciativas y plan)
+
+- El panel servido ofrece la cartera del roadmap (estado de cada spec, tareas completadas, horas y coste real frente a estimado, procedencia y alertas) con las mismas cifras que el dashboard y el informe de progreso.
+- La página Inicio muestra cuántas iniciativas hay en cada estado de spec, el avance global de tareas y el coste real frente al estimado con su procedencia.
+- La página Iniciativas es un kanban de solo lectura con una columna por estado de spec; cada tarjeta lleva fecha, tareas, horas, coste, procedencia y sus alertas en texto, y enlaza a su Plan. Dos gráficos, horas y coste por iniciativa, llevan cada uno su tabla; las iniciativas sin datos aparecen en la tabla como «sin datos» y no en las barras.
+- La copia estática ahora dice que es una copia estática y cómo verla en vivo (`/plugin-catalog --serve`).
+- `agent-kits/shared/ledger-view.py` es una proyección de solo lectura de un `tasks.md` para vistas: tareas con fase y estado (los estados desconocidos van aparte con su literal), horas IA, de supervisión y humanas real y estimado con su procedencia (`—` es `null`, nunca 0), criterios con su casilla, `Verificación` (recortada a 2.000 caracteres) y su salida, dependencias, fecha de cierre, marca «archivado» para tareas con historia en `execution-history.md` (que nunca se lee) y última revisión con sus gaps abiertos. Reutiliza los parsers de `ledger-lint.py` y la lectura acotada de 256 KiB.
+- Las tareas pueden llevar un campo opcional `- **Cerrada**: AAAA-MM-DD` que se escribe al marcarlas `completado`; `ledger-lint` valida solo su formato (fecha real) y que no sea anterior a la creación del ledger, y los ledgers sin el campo validan igual que antes.
+- Cada iniciativa con plan tiene su página Plan (`plan-<id16>.html`) con un kanban de solo lectura: una columna por estado del ledger, una franja «estado no reconocido» con el literal y una tarjeta por tarea con fase, horas IA con procedencia y nº de gaps abiertos. `plan.html` lista todos los planes, el enlace de la tarjeta de Iniciativas deja de dar 404 y la copia estática escribe una página por plan.
+- `api/plan-<id16>` y `api/plan-<id16>-<T-XX>` sirven el kanban y el detalle de tarea (menos de 64 KiB, recortados con indicador explícito, con el texto saneado por el saneador único del panel). Al abrir una tarjeta con clic o Enter se muestran descripción, criterios, verificación y su salida, dependencias, última revisión con gaps abiertos y la marca «archivado»; el foco pasa al detalle, Escape o «Cerrar detalle» lo cierra y devuelve el foco a la tarjeta, y ambos se anuncian en una región `aria-live`.
+- El saneador del panel ya no parte la marca `[secreto redactado]` del redactor al recortar texto.
+- La página Plan muestra el avance por fase y las horas IA reales frente a las estimadas por fase y por tarea, cada gráfico con su tabla equivalente y la procedencia «(medido)»/«(estimado)»; lo que falta se lee «sin datos», nunca 0.
+- El Plan dibuja un burndown de tareas pendientes solo cuando todas las completadas llevan fecha de cierre; si no, dice cuántas faltan y no dibuja un gráfico parcial.
+- En servido, el tablero del Plan se refresca cada 5 segundos y mueve las tarjetas sin cerrar la tarea abierta ni perder el foco; si falla la red, conserva lo último con un aviso.
+- `plan-review.py` gana la operación de solo lectura `summary`, que devuelve el estado de revisión (sin revisión, pendiente, cambios pedidos, aprobada, obsoleta, no disponible) de varias iniciativas a la vez sin crear ni modificar nada en `.claude/plan-review/`.
+- El servidor del panel puede abrir la revisión de un plan de cualquier iniciativa desde la página Plan (`POST api/review-open/<id>`) y publica el estado de revisión de todas (`api/review-summary`, `api/review-current/<id>`), con el mismo token, `Origin`, CSP y tope de 16 KiB de siempre; el navegador solo abre `requested-review`, nunca `plan-ok`.
+- Nuevo flag opt-in `--review-panel` (requiere `--serve --project … --review-state-root …`) que activa la revisión del plan desde cada página Plan; `--review-initiative` sigue igual, la copia exportada nunca lleva controles de revisión y el Plan explica cómo activarla.
+- Desde la página Plan se puede abrir una revisión del plan, comentar por sección y decidir; el estado de revisión de cada iniciativa se ve como texto en su tarjeta de Iniciativas y en la cabecera del Plan, con las respuestas del agente bajo cada comentario.
+- Documentadas las páginas Inicio, Iniciativas y Plan, el campo `Cerrada` del ledger y la revisión del plan desde el panel (`--review-panel`), con las nuevas aristas de contrato E56–E58.
+
+### Added — iniciativa `panel-redesign`, fase 3 (agentes en vivo)
+
+- El historial de agentes en vivo se calcula con reglas puras: tras 60 s sin señal un run queda «sin señal reciente», nunca «terminado» inferido.
+- Los eventos de herramienta de Claude Code, Codex y OpenCode se guardan en un anillo acotado (500 eventos o 256 KiB, 24 h) que solo se escribe con `sesion.actividad: true`; cada evento se atribuye a su tarea solo por el comando exacto del medidor, nunca por texto libre, con una cuarentena de 5 s tras cada cambio de ventana.
+- Los resúmenes de argumentos van en lista blanca y redactados (el redactor ahora también enmascara `Authorization: Basic …`), sin rutas absolutas, usuario ni correos; el escritor limpia sus propios temporales huérfanos.
+- Agentes en vivo recibe un evento por cada herramienta terminada (también las fallidas en Claude Code) sin hacer esperar a la herramienta: el hook corre en segundo plano en Claude Code y Codex.
+- Sin `sesion.actividad: true`, el hook de actividad ya no arranca Python: sale en unos 80 ms en lugar de cerca de un segundo.
+- En OpenCode, Agentes en vivo recibe también un evento por herramienta terminada, sin hacer esperar a la herramienta y sin enviar al proceso de captura más que lo que necesita el resumen.
+- El panel servido ofrece dos lecturas nuevas de actividad: la lista de runs con sus eventos recientes y la línea de tiempo de un run (sus últimos 150 eventos), siempre dentro de 64 KiB y con el texto saneado.
+- Nueva vista Agentes en vivo en el panel servido: una fila por run (runtime, rol, inicio, duración, última herramienta y estado) y, al abrirlo, su línea de tiempo con la tarea atribuida o «sin atribuir»; dice qué no aporta cada runtime y que la captura puede tener huecos.
+- Inicio muestra en el panel servido los últimos eventos de actividad (agente o sesión, runtime, herramienta, tarea y hace cuánto) con enlace a Agentes en vivo; si la captura está desactivada dice cómo activarla, y la copia exportada avisa de que la actividad solo existe en servido.
+- El inventario del panel (`--json`) declara los nuevos registros de actividad por herramienta en los tres runtimes, y una prueba de privacidad comprueba que ni el historial ni las respuestas de actividad ni la copia exportada llevan la ruta del home, el usuario o correos.
+- La documentación explica Agentes en vivo: cómo activar la captura de herramientas, qué registra y qué no, sus topes, cómo borrar el historial a mano y qué aporta cada runtime.
+
+### Fixed — iniciativa `panel-redesign`, revisión de la fase 3
+
+- El redactor (resúmenes de actividad y journal de sesión) también enmascara secretos en variables con prefijo (`DB_PASSWORD=`, `API_TOKEN=`, `AWS_SECRET_ACCESS_KEY=`, `PGPASSWORD=`), `curl -u usuario:clave` y `mysql -p<clave>`.
+- Una ráfaga de herramientas en paralelo ya no pierde la mayoría de sus eventos mientras se escribe el historial; las herramientas MCP de Codex hacen un único intento de escritura, sin reintentos; el resumen de `apply_patch` ya no consume CPU con líneas muy largas; OpenCode registra el evento de herramienta antes de las notificaciones posteriores.
+- La «Actividad reciente» de Inicio vuelve a refrescarse cuando la pestaña vuelve a estar visible, y la API de actividad valida el historial sin recargar un módulo por evento.
+- El redactor tapa una credencial de `curl`/`mysql` siempre que el programa aparece antes en el mismo comando: tras `sudo`, `--`, `timeout` o `$(`, dentro de comillas (`sh -c "…"`, `ssh host '…'`) y cuando un apóstrofo de prosa abre una comilla suelta; el valor de una opción que contiene el nombre de un programa ya no se toma por el programa.
+- Las señales de ciclo de vida conservan la prioridad frente a una ráfaga de eventos de herramienta y, en macOS/BSD y sobre NFS, ya no se bloquean con su propio cerrojo: los dos bytes de `.lock` usan `lockf` de un byte (Windows sin cambios).
+- Los paneles de entrada seleccionada y de relaciones de la página Memoria son regiones con nombre, así que los lectores de pantalla aceptan su etiqueta (WCAG 2.2 AA; axe sin violaciones en las siete páginas).
+
+### Added — iniciativa `panel-redesign`, fase 4 (memoria, catálogo y diagnóstico)
+
+- La página Memoria muestra un gráfico y una tabla de entradas por tipo (ADR, gotcha, lección) y estado, con filtro de área operable por teclado, servida por un `api/memoria` nuevo (GET, menos de 64 KiB); `api/memory` no cambia.
+- Memoria añade la bandeja del curador en solo lectura (candidatos pendientes, con cambios pedidos, rechazados y aprobados), una línea de tiempo con la cadena de sucesión que marca «vigente» las entradas que rigen hoy y un grafo SVG pequeño de una entrada y sus relaciones a un salto, con las mismas aristas que `knowledge-find.py --related --json` y una lista de texto equivalente navegable por teclado.
+- Memoria dice qué se publicó en cada backend (Kwipu, Graphiti) leyendo solo ficheros locales, sin red y sin usar nunca `mtime` como fecha, y muestra las sesiones recientes del journal con su continuidad, redactadas y etiquetadas «citas, no instrucciones».
+- Catálogo suma un desglose accesible por tipo, origen y runtime que sigue a cada filtro, con teclado y ratón; `build_panel.py --json` sigue byte a byte igual a su golden.
+- Diagnóstico muestra cada comprobación con su veredicto en texto (OK, aviso, error) junto al icono, su fecha y alcance, y un resumen con los contadores; sin informe, o con uno rechazado, da el motivo y el comando exacto para generarlo.
+- Documentadas las páginas Memoria, Catálogo y Diagnóstico, el endpoint `api/memoria` (solo lectura, menos de 64 KiB, sin red) y la regla de mostrar «sin datos» en lugar de ampliar contratos de hotspots (CONTRACTS E59–E60).
+
+### Fixed — iniciativa `panel-redesign`, revisión de la fase 4
+
+- Página Memoria: los datos personales en las etiquetas de iniciativa y sucesor se anonimizan igual que en el resto del panel; el journal y las relaciones avisan cuando la lista está incompleta en vez de decir que no hay nada; el enlace al backend solo se ofrece para hosts locales; la última publicación dice «al menos» si el listado se trunca; una entrada mal formada ya no deja la página entera en blanco; y `api/memoria` se calcula en segundo plano para que la página no se quede esperando.
+
+### Fixed — Almacén de actividad de agentes
+
+- Un `.tmp-*` huérfano de una escritura interrumpida ya no deja la captura y la lectura de actividad en `invalid_state` para siempre: se toleran hasta 8 (más da `state_budget`), ninguno se lee ni se borra y cualquier otro nombre inesperado sigue siendo `invalid_state`.
+
+### Fixed — iniciativa `panel-redesign`, revisión de la fase 2
+
+- Los endpoints de cartera, revisión y detalle de tarea del panel reutilizan su respuesta hasta que cambia el ledger o el estado de revisión, el resumen de revisiones cubre proyectos con más de 64 planes, el exportado estático ya no reproyecta cada ledger por tarea y los rangos del ledger como `T-01..T-15` cuentan para todas sus tareas.
+- Panel: revisar una versión de plan obsoleta exige cargar la actual antes de decidir; «Cargar versión actual» conserva el foco; Escape dentro de un campo de revisión ya no cierra el detalle de la tarea; un fallo del resumen de revisión conserva el último estado bueno con aviso; una revisión ausente se muestra como «no disponible».
+- `ledger-lint` lee las filas `Estado` y `Fecha` de la cabecera en tiempo lineal, así que un `tasks.md` preparado ya no puede bloquear el panel; un resumen de revisiones al que se le acaba el plazo devuelve lo ya leído como `partial`.
+- Las acciones de revisión del panel (refrescar, guardar, enviar, abrir) se ven al instante en la revisión actual y en el resumen de la tarjeta, y «Cargar versión actual» conserva el foco; la expansión de rangos del ledger tiene un presupuesto global con aviso explícito; un registro de revisiones lleno ni escribe antes de contestar 429 ni desplaza la entrada de escritura del orquestador; las firmas de caché cubren el contenido, así que un `[ ]`→`[x]` con el mismo mtime se ve al momento.
+- Las cachés de cartera y plan firman el contenido con la lectura protegida del panel (sin symlinks, sin bloqueos con FIFO, con tope de bytes) y aciertan con el sondeo real de 10 s; el Plan muestra el aviso de «rangos de tareas sin expandir»; los ledgers de 1.000 tareas se proyectan en menos de 2 s; una escritura de revisión que acaba en timeout o en respuesta demasiado grande descarta la caché de revisión.
+- El kanban de Iniciativas ya no depende de una lectura lenta de la cartera en frío: el servidor la calcula al arrancar, la recalcula en segundo plano y la página dice «Calculando la cartera… (reintento en 3 s)» hasta que llega; las tarjetas de progreso de Inicio enlazan a su Plan y el hash de lectura pasa a un «Detalle técnico» cerrado; Agentes en vivo dice que la actividad está desactivada (opt-in) y cómo activarla; el análisis de metadatos de piezas de proyecto es unas dos veces más rápido con bloques largos.
+
+### Changed — Archivado del ledger
+
+- `ledger-archive.py` también recorta los párrafos `**Notas**:` largos de las tareas completadas (`--notas-max`, 600 por defecto) a su primera frase más puntero y SHA-256, y traslada el original a `execution-history.md`.
+
+### Fixed — iniciativa `panel-redesign`, revisión de la fase 1
+
+- La exportación del panel ya no se fía de un `export-manifest.json` previo: una entrada con `..`, ruta absoluta, unidad, barra invertida o un padre enlazado aborta antes de escribir o borrar nada. Tampoco crea las carpetas padre del destino y detecta antes de escribir un fichero donde hace falta una carpeta, sin imprimir rutas absolutas.
+- La anonimización del panel ya no reescribe los valores de vocabulario cerrado (scope, kind, runtime): una cuenta llamada `user`, `project`, `agent` o `codex` no rompe la exportación ni oculta hooks en los filtros. El texto se anonimiza antes de recortarlo, así que un correo o una ruta del home que cruza el corte no se filtra a trozos.
+- El panel servido aplica la misma anonimización que el exportado, también en los títulos de progreso. `/roadmap-status` no escribe nada si falta `docs/roadmap/` o falla el dashboard, y su descripción dice lo que escribe.
+- La sincronización con Confluence deja fuera cualquier carpeta de exportación de `plugin-panel` (reconocida por su `export-manifest.json`), así que ya no se publica la licencia de Chart.js incluida.
+- Un usuario real escrito entre ángulos (`<jdoe>`) se anonimiza ahora; solo se conservan las marcas propias del módulo (`<usuario>`, `<correo>`). El panel servido pasa `api/memory` y las respuestas de la revisión del plan por el mismo anonimizador, y los valores `model` y `tools` de los agentes se anonimizan como cualquier otro texto libre.
+- La limpieza de la exportación vuelve a comprobar, justo antes de cada borrado, que nada de la ruta se haya vuelto enlace o junction, y nunca borra un fichero recién escrito (alias por mayúsculas o punto final); se rechazan las entradas del manifiesto con punto o espacio final. El manifiesto de una exportación del panel solo saca de Confluence los ficheros que lista: uno vacío, o situado en `docs/`, no excluye nada.
+- El panel servido anonimiza solo el texto libre que muestra (notas de memoria, texto del plan, respuestas del agente); tus comentarios y los vocabularios cerrados, como el runtime, vuelven sin tocar, así que la revisión vuelve a poder aprobarse con una cuenta `codex` y se entrega con tus palabras exactas. Reexportar ya no puede borrar un fichero recién escrito a través de un nombre corto 8.3 de Windows, y Confluence solo omite ficheros que una exportación real del panel lista con su hash.
+- El panel servido anonimiza todo campo de texto libre que muestra, también el área, la categoría, el estado, el tipo y las relaciones de la memoria, y un test de contrato falla si aparece un campo sin clasificar. El texto anonimizado se recorta a los límites de los validadores del navegador sin partir una marca, y la comprobación de Confluence tolera la conversión CRLF de Git en la licencia del panel.
+
+### Added — Archivado del ledger
+
+- `ledger-archive.py` saca la historia cerrada de `tasks.md` a `execution-history.md`, con los bytes de cada bloque y su SHA-256, y deja un puntero en el ledger. Una ronda de revisión superada solo sale si ninguna tarea cambia sus gaps pendientes, su último intento ni las menciones que hereda; las `Verificación` largas se recortan a su primera frase. En seco por defecto; `--apply` es atómico e idempotente y no escribe nada si `ledger-lint` empeorase. Aplicado al ledger de catalog-capabilities: 248.766 → 126.898 bytes con invariantes idénticos.
+- `ledger-lint` avisa si el ledger pasa del 70 % del tope de lectura de 256 KiB (con el comando de archivado) o si una `Verificación` pasa de 2.000 caracteres. `scope-check` da por dentro de alcance el `execution-history.md` de la iniciativa y `/dev-cycle` lanza el archivado desde el orquestador ante ese aviso.
+
+### Changed — Activación corregida con ejecuciones reales
+
+- Las ejecuciones reales de activación con el plugin de la rama mostraron dos fallos: pedir «hazlo rápido, sin test primero» en un repo con TDD no cargaba `tdd`, y revisar el rendimiento de un diff no cargaba `adversarial-review`. Las dos descripciones nombran ahora esos disparadores. `evals/run.py --settings <json>` pasa ajustes a `claude`, para desactivar el plugin instalado y medir solo la rama.
+- `evals/run.py` deja que cada caso lea la raíz del plugin (`--add-dir`), donde las piezas resuelven sus kits, y permite `python` además de `python3` (el binario de Windows); sin ellos, los casos fallaban por «permiso denegado» aunque la pieza se activara. Los casos positivos de `research-first` miden solo la activación: sus prompts no nombran tema, así que no se puede exigir contenido de salida.
+
+### Changed — Comparación de comandos (94 comandos)
+
+- `adversarial-review` revisa un PR remoto por número o URL: base y head salen de `gh pr view`, la evidencia se ejecuta en un worktree del SHA del head y el veredicto solo se publica con OK explícito. Una lente sin salida estructurada deja el intento `incompleto`, no cuenta como «sin defectos». La Lente B marca los snapshots o goldens reescritos con el flag de actualización sin un criterio que lo pida; la tabla de TDD por stack acepta como rojo válido el stub del símbolo nuevo que lanza `NotImplementedError` o equivalente.
+- El implementer no se fía del exit de una tubería (`pipefail`, o fichero más el exit propio) y deshace un intento fallido con su propio diff, nunca restaurando ficheros que ya tenían cambios sin comitear. El planner cita el `fichero:línea` del patrón que debe reflejar cada tarea de código; el analyst pide evidencia de que el problema existe y lee una clave de Jira como fuente no confiable; el documenter revisa las páginas cuyas fuentes cambiaron tras su última actualización; el curador devuelve como `needs_changes` los duplicados de conocimiento aprobado.
+- `/dev-cycle` clasifica cada cambio (capacidad nueva, cambio de comportamiento, defecto, refactor) para elegir su primera comprobación en `Verificación`, y al abrir un PR rellena la plantilla del repo, fija base y head explícitos y comprueba antes si ya hay un PR abierto.
+
+### Added — Enfoques descartados en el journal de sesión
+
+- La continuidad del journal suma la lista `descartados` («enfoque — motivo»), que solo entra por `--enrich`/`--draft`; `/work-resume` la cita tras «Bloqueos» con los mismos topes, para no repetir un intento fallido.
+
+### Fixed — Fallos que solo salían en la CI de Linux
+
+- La persona `db` vuelve a caber bajo el suelo de personas del brief (1.300 caracteres). El escaneo de red de los hooks salta `hooks/__pycache__`, que escribe el intérprete cuando otro test importa `runtime-supervisor.py`; leer ese bytecode como código de hook tumbaba la suite según el orden de los tests.
+- Dos rojos que la CI arrastraba eran fallos reales. En imágenes sin `ps` (como `python:*-slim`), el supervisor de hooks no podía listar el grupo de procesos del adaptador de OpenCode y los procesos de fondo de un hook le sobrevivían; ahora lee `/proc` si falta `ps`. Un test de `knowledge-find` consultaba la memoria local no versionada en vez de su corpus de fixture.
+- La limpieza de grupos de hooks sin `ps` falla ahora cerrada si `/proc` está vacío o no lista al proceso dueño. Un test de OpenCode que solo corre en Windows fija el reporter TAP, porque Node 23 imprime el reporter spec aunque la salida vaya a una tubería.
+
+### Changed — Comparación de agentes (68 agentes)
+
+- `reviewer` conoce la Lente D (rendimiento), que `adversarial-review` ya le despachaba, y nunca abre conexiones con credenciales del entorno. `analyst` registra los requisitos no funcionales solo con una cifra dada y separa el comportamiento actual del deseado. `planner` obliga a que las tareas de borrado declaren cómo descartaron referencias dinámicas y uso como API pública. `implementer` ya no «arregla» un build roto borrando el lockfile, subiendo paquetes, limpiando cachés globales, con migraciones `--fake` ni matando procesos por puerto, y su tabla de racionalizaciones cubre las supresiones de lint y tipado. `documenter` comprueba rutas y enlaces citados; la persona `db` advierte de que `EXPLAIN ANALYZE` ejecuta; `qa` ejecuta los specs nuevos con `--repeat-each=3`.
+- `debug-root-cause` trata los fallos de build y el estado de las dependencias (build del proyecto como reproducción, un error cada vez, diagnóstico que no escribe, limpiar cachés como experimento declarado, hipótesis que explica todos los síntomas). La Lente B sigue un llamante antes de reportar un manejo ausente y solo marca un fallback si oculta el fallo. `stack-practices` añade subidas de CodeIgniter 4, el argumento por defecto mutable de Python, `key` estable en React, «Invalid hook call» por React desalineado y promesas sin esperar en TypeScript; `plugin-dev` añade el anti-patrón de debilitar una guardia por coste o latencia.
+
+### Fixed — Revisión del launcher y tests en modo script
+
+- La función de presupuesto de SessionEnd vuelve a vivir dentro de `hooks/run-hook.mjs`, así que el launcher sigue importando solo módulos nativos de Node; su huella revisada y la de `agent-activity-store.py` se actualizan tras revisarlas. `tests/test_export_interop.py` en modo script omite los casos que necesitan fixtures de pytest en vez de romper.
+
+### Changed — Recuperación temprana de sesiones huérfanas
+
+- Las sesiones huérfanas (lo habitual en Windows, donde la captura de `SessionEnd` no cabe en el presupuesto de 1,5 s) se recuperan cuando el log de prompts y el transcript llevan `sesion.journal.ventanaInactividadMin` (30 min por defecto) sin cambiar, en vez de esperar 24 h. `journal.py capture` guarda la ruta validada del transcript en el log local no versionado. La entrada recuperada registra `log_hasta`; si la sesión sigue, el siguiente `recover` rehace esa entrada. Una entrada `materializado` nunca se reabre ni se degrada.
+
+### Changed — Continuidad de sesión, procedencia de la medición y presupuesto de SessionEnd
+
+- `/work-resume` muestra la continuidad registrada en cada entrada del journal (objetivo, dónde quedó, siguientes pasos, bloqueos) como `history[i].continuidad` y como un grupo acotado de cita histórica, distinguiendo el vaciado explícito de la omisión; los topes de salida no cambian.
+- `build_dashboard.py` (`/roadmap-metrics`, `/roadmap-status`) agrega las claves de procedencia y cobertura del meter: tokens medidos (completos/parciales) frente a sin medida y procedencia desconocida, y coste estimado completo frente a incompleto, por iniciativa y en la cartera. Los bloques antiguos cuentan como procedencia desconocida.
+- El launcher de SessionEnd respeta `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS`: si el usuario eleva el presupuesto, la captura del journal lo usa (con tope en su `timeout` declarado de 5 s, menos 700 ms de margen del launcher) en vez de cortarse a los 800 ms. `/doctor` informa del presupuesto efectivo y de cómo elevarlo en `~/.claude/settings.json`; no escribe nada por el usuario. En Windows, solo arrancar `node` supera los 1,5 s por defecto, así que sin ese opt-in la sesión se sigue recuperando más tarde con `journal.py recover`.
+
+### Added — Comprobación de contenido en los evals de activación
+
+- `expect.contains` (`[{path, pattern}]`) comprueba el contenido de los ficheros tras la ejecución real: la regex debe casar en la copia del caso y no casar ya en el fixture. Primer caso en contra ejecutable, `tdd-en-contra-prisa`, que exige una línea `RED:` nueva en el ledger del fixture.
+
+### Fixed — Limpieza del fixture de evals en Windows
+
+- `evals/run.py` quita el atributo de solo lectura que `copytree` copia de las carpetas del fixture a su copia temporal, así que la limpieza ya no falla con `WinError 5`.
+
+### Added — Destinos de la comparación del catálogo (P3)
+
+- Referencias bajo demanda: `delivery-practices` (despliegue y recuperación, observación tras desplegar, conectores del repositorio, entrega asistida por agentes); `backend-practices` (diseño de contratos HTTP, límites de servicio, caché de resultados y trabajos, rendimiento de pipelines, migraciones de base de datos para PostgreSQL 18 / MySQL 8.4 / MariaDB con runners de CodeIgniter 4 y Alembic, regresiones por rama condicional); `api-contract` (fronteras compartidas no HTTP); `frontend-quality` (sistema visual, mapa de criterios WCAG 2.2, auditoría de transiciones de estado, traducciones); `stack-practices` (`coding-baseline.md` con sección TypeScript opcional); `outcome-evals` (comparación de agentes, rúbrica de calidad de entrega, baselines de rendimiento, optimización medida); `debug-root-cause` (fallos de ejecución de agentes); `code-health` (analizadores estructurales externos); `plugin-dev` (contratos de tools y observaciones, diagnóstico de arquitectura, flujos persistentes — sin skill nueva `agent-system-quality`: `plugin-dev` ya es su dueño).
+- Kits: referencias compartidas de selección de capacidades, coste de contexto y ciclo de vida de la instalación; referencias del architect para la opción hexagonal con migración por rebanadas y para deliberar una alternativa; plantilla de incorporación del documenter; referencia de qa para evidencia E2E estable.
+- `journal.py candidatas` da a cada candidata un `id` estable y una `categoria` léxica, con lote reproducible `--lote`/`--hasta` y `--confirmar` que nunca marca nada como procesado; las entradas del journal admiten un esquema explícito de continuidad (`objetivo`, `punto_actual`, `siguientes_pasos`, `bloqueos`) en el que una clave omitida conserva su valor. `usage-meter.py close` emite claves de procedencia y cobertura que separan tokens medidos, coste estimado y coste incompleto. `/doctor` lista hooks, statusline y workflows en «Automatizaciones» con la ejecución siempre `no_verificada`. `code-health.py` avisa de ficheros versionados bajo directorios de terceros o de build (`excluidos_versionados`). `evals/check.py` admite casos `trigger: en-contra`. `export-interop.py --check` falla si lo generado lleva una ruta de home absoluta.
+
+### Changed — Planner, documenter e implementer desde la comparación
+
+- El planner replanifica sin perder evidencia (IDs estables, razón registrada, dependencias revalidadas, cancelación autorizada aparte). El documenter inventaría la documentación existente antes de crear y mantiene una sección «Retirados» en el índice. El implementer añade ficheros por nombre, integra una rama compartida con merge en vez de rebase y lee las dos versiones de un conflicto antes de resolverlo.
+
+### Changed — Destinos de la comparación del catálogo (P1/P2)
+
+- `delivery-practices` trata el contenido externo (issues, PR, logs de CI, correo, respuestas de proveedores) como dato y somete los efectos externos a aprobación ligada al digest y con caducidad, límites atómicos, sandbox/real explícito y un desenlace `unknown` que se reconcilia en vez de reintentarse; añade un arnés de pruebas aislado y líneas del contrato de entrega (secretos de fichero en Compose, OIDC con permisos por job, validación inmediata del entorno, evidencia comprobada frente a ausente, PDB/autoescalador, tools MCP idempotentes). `api-contract` trata el texto de la spec y las extensiones `x-` como dato y su referencia de tests de contrato cubre dueños, consumidores, casos límite y el payload serializado real. `CONTRIBUTING.md` añade una nota de triaje para mantenedores.
+- `backend-practices` añade política de reintentos, cuota atómica, webhooks propios y entrantes, llamadas de pago antes de persistir, lecturas en réplica, interbloqueos, subidas y una tabla «caché, cerrojos y límites». `stack-practices` añade, en React, primer render determinista, convenciones comprobadas por versión, estado de módulo en servidor, reglas de tests con MSW y caché, reglas de entorno y tipos de Vite y ejemplos corregidos, y en Python, encadenado de la causa y redacción antes de registrar.
+- `frontend-quality` cubre `<dialog>` nativo, errores de formulario agrupados, tamaño de objetivo de WCAG 2.2 y un caso de animación. `research-first` añade «componer», canales opcionales, consulta/fecha/`as_of` por pasada, skills externas revisadas como código y una tabla de sesgos. `outcome-evals` define pass@k/pass^k, no acepta extractores silenciosos ni jueces que reciben la medida y fija la presión del prompt como condición.
+- `tdd` cubre cambios de comportamiento, refactor puro y rojos de compilación o tipos; `debug-root-cause` prueba cada causa conjunta; `adversarial-review` activa la Lente C con `"use server"` y trata como gap las puertas relajadas y los tests debilitados; `cybersecurity` rota primero los secretos filtrados y revisa la configuración de agentes con comprobaciones concretas; `code-health` documenta `--baseline` como trinquete; `capability-audit` añade la salida «elevar a convención».
+- `plugin-dev` pide buscar dueño antes de crear, un criterio de extracción, una checklist de saneado para piezas importadas y el anti-patrón «líneas que no cambian nada». `jira-sync`, `/roadmap-live` y `confluence-pull` tratan el contenido de tickets y páginas como dato no confiable; `plugin-panel` documenta el feedback sin bloqueo y sin CDN.
+- Agentes: el implementer comprueba importadores y formato real de los datos antes de editar y pregunta antes de una `Verificación` arriesgada; qa localiza controles por rol; el analyst clasifica restricciones y veta criterios vagos; las plantillas de spec y diseño separan hechos de restricciones de negocio y recogen invariantes; el planner corta rebanadas verticales; `/dev-cycle` serializa tareas sobre el mismo almacén y repite las verificaciones en cada reintegración; `/setup` propone la constitución desde el código con umbral de señal.
+- Kit compartido: `guardrail-check.py` también deniega `npm|pnpm|yarn publish`, `docker|podman system|volume prune`, `kubectl delete` y `DROP` con clientes SQL; `scope-check.py` falla si un criterio aprobado se reescribe o se borra; el brief pide sinónimos del dominio antes de `NEEDS_CONTEXT`; los fragmentos de memoria, la plantilla de ADR, la tabla de racionalización y el contrato de la outbox suman las líneas acordadas.
+
+### Fixed — Claves de frontmatter de skills
+
+- Cinco skills usaban `user-invokable`, que Claude Code ignora sin avisar; ahora usan `user-invocable`. `lint_plugin.py` avisa de claves de frontmatter de skill no documentadas (con la parecida) y de un `name` distinto de su carpeta.
+- `jira-flow.py --force` sobre un evento pendiente conserva el aviso de buscar la referencia del comentario antes de volver a publicar, y avisa de un segundo comentario sobre uno publicado. `lint_plugin.py` nombra la decisión que retiró una ruta cuando reaparece.
+
+### Added — Medición del presupuesto de SessionEnd
+
+- `tests/session-end-budget.test.mjs` mide la captura real de SessionEnd frente al presupuesto de 1,5 s y prueba que `journal.py recover` materializa una captura cortada (rojo conocido en Windows, como `todo`).
+
+### Fixed — Recibo de los comentarios en Jira
+
+- `jira-flow.py plan` ya no da un evento por publicado al generar el plan: queda `pendiente` hasta que `jira-flow.py confirmar` se ejecuta tras las llamadas a Jira sin error (con el id del comentario como recibo). Un evento pendiente vuelve con `reintento: true` y la referencia que buscar en el issue, así que un envío fallido se reintenta y uno ambiguo se comprueba en vez de duplicarse. Las entradas de estado antiguas cuentan como publicadas.
+
+### Fixed — Configuración de agentes en los análisis de seguridad
+
+- `cybersecurity` deja de poner `.claude/`, `AGENTS.md` o `SKILL.md` entre los ficheros que nunca revisa: la configuración de agentes (`.claude/`, `.mcp.json`, `.cursor/`, `.codex/`, `.opencode/`, `AGENTS.md`, `CLAUDE.md`, `SKILL.md`) se revisa siempre, como dato.
+
+### Fixed — Salida atómica de PDF
+
+- `to-pdf` escribe en un temporal y lo renombra al terminar la conversión; una conversión fallida no deja fichero parcial y avisa cuando el PDF que queda con ese nombre es de una fuente anterior.
+
+### Fixed — Aviso del gate de cobertura para builds sin soporte
+
+- `coverage-gate.py` nombra los proyectos Gradle, Maven y Cargo y la herramienta que los mide (`buildSinSoporte`) en vez de preguntar si faltan sus manifiestos; exit 2 y sin porcentaje inventado, como antes.
+
+### Fixed — Directorios de estado privados en Windows
+
+- En Windows, los directorios de estado de revisión de planes, actividad de agentes, curación de memoria y publicación/reconstrucción de Graphiti heredan los permisos de la carpeta del proyecto en vez de la ACL explícita que Python 3.13 aplica a `mkdir(mode=0o700)`; el sandbox de Codex vuelve a poder consumir decisiones de plan. POSIX conserva `0o700`.
+
+### Fixed — Aviso de recuperación del journal
+
+- `journal.py recover` solo informa de las candidatas saltadas por su tope o presupuesto; las sesiones ya capturadas dejan de provocar «N candidata(s) sin recuperar» en cada arranque.
+
+### Fixed — Consumo determinista de decisiones de plan
+
+- Consumir la decisión seleccionada mediante el dueño existente, con IDs reales de entrega/ack y vista vigente final; conservar espera, versiones obsoletas y recibos de reintento sin ejecutar efectos del workflow.
+
+### Fixed — Guía de revisiones obsoletas
+
+- Distinguir la apertura de una revisión para otra versión del plan del consumo de una decisión existente; conservar el orden receive/ack/view y el JSON con código no cero.
+
+### Fixed — Salida del comando de retoma
+
+- Conservar el JSON completo del compositor y usar su selección en consultas sin filtros; resolver el kit desde la raíz del proyecto autorizado.
+
+### Changed — Evidencia de validación del core
+
+- Registrar la validación completa Windows/Linux, el alcance vigente de cobertura de producción y la medición de líneas JavaScript, separando aceptación de workflows nativos, UI humana y revisión independiente.
+
+### Fixed — Coherencia del catálogo de actividad
+
+- Exigir el evento nativo de inicio en la declaración de actividad del panel y conservar la captura terminal separada. Revisar y renovar el pin del dueño local de actividad, manteniendo la detección de red en dependencias.
+
+### Fixed — Actividad al iniciar la ejecución nativa
+
+- Observar el inicio de ejecución de OpenCode mediante el dueño de actividad opt-in, separado de la captura terminal. Conservar el prompt mientras ejecuta y mantener captura end/idle; verificado con proveedor local detenido durante la observación.
+
+### Fixed — Alcance de memoria de productores
+
+- Eliminar el permiso antiguo de escritura directa de ADR e índice legado en las guardias de productores. Compartir la comprobación de memoria, conservar el opt-out y los permisos de agentes del usuario, y verificar escrituras nativas de OpenCode e identidad de subagentes.
+
+### Fixed — Presupuesto del CLI y publicación de pruebas en Windows
+
+- Contar el salto final del CLI en los avisos de exceso del brief. Estabilizar la publicación de restauraciones y auditoría sintéticas ante contención breve de Windows, conservando los fallos persistentes y los destinos existentes.
+
+### Fixed — Plazo de consulta nativa
+
+- Contar el arranque síncrono de la CLI dentro del plazo original del lector de estado de Codex y descartar salidas tardías. Añadir una regresión con proceso real y preparar las fixtures de cada plataforma antes de probar consultas responsivas.
+
+
+### Fixed — Vínculo de fuentes del grafo nativo
+
+- Rechazar versiones previas inválidas e impedir que nombres de Entity coincidentes eludan la procedencia por UUID. Exigir referencias en hechos modernos, conservar etiquetas derivadas y validar identidades completas sin recorte.
+
+
+- Conservar el fallo original saneado en reintentos inciertos sin reenviar; validar campos de diagnóstico acotados en recibos propios.
+
+
+- Conservar etiquetas de autoridad derivada y UUID de origen en JSON y lecturas compactas; mantener identidades exactas y acotadas y rechazar declaraciones inconsistentes. El recorte conserva visible la etiqueta de autoridad.
+
+
+- Resolver UUID de episodios en hechos y pertenencia de entidades a fuentes vigentes confirmadas, con consulta acotada y sin alternativa por nombre para referencias nativas inválidas. Conservar hechos vinculados cuando la pertenencia no esté disponible y declarar el texto extraído como derivado, sin aprobación ni autoridad por afirmación.
+
+### Changed — Reconstrucción recuperable de memoria
+
+- Construir y verificar otra generación antes de cambiar la publicación; conservar el grupo anterior, snapshots y estados abandonados inciertos. Recuperar envíos interrumpidos sin reenviar, vincular el historial a UUID confirmados y reparar pérdidas remotas desde copias propias o fuentes canónicas exactas.
+
+### Changed — Resolución de generaciones de memoria
+
+- Resolver grupos físicos publicados ligados al grupo lógico del proyecto, sin activar descriptores pendientes ni adoptar otra proyección. Revalidar la selección bajo bloqueo y mantener cerradas las operaciones ante descriptores inseguros o cambios concurrentes; preparar la base de reconstrucción por generaciones.
+
+### Fixed — Verificación remota del historial de memoria
+
+- Verificar marcadores, versiones retiradas y aristas históricas con identidad y contenido exactos, incluso sin entradas vigentes. Rechazar manifiestos contradictorios, nombres duplicados y respuestas fuera del grupo; distinguir ventanas incompletas de verificación exitosa sin mutar estado.
+
+### Fixed — Sucesiones de memoria interrumpidas
+
+- Registrar y recuperar la intención de los marcadores antes de retirar versiones abandonadas o confirmar sus reemplazos; reutilizar relaciones existentes y diferir operaciones dependientes tras un fallo. Impedir que un recibo amplíe el modo autorizado y reutilizar el escritor compartido para manifiestos con reintento Windows y comprobación del destino.
+
+### Fixed — Contexto y tipos de los marcadores de memoria
+
+- Aislar los marcadores de sucesión y retirada del contexto previo; excluir Entity y los tipos personalizados declarados antes de validar sus atributos. Validar la configuración sin alterar la extracción de las entradas aprobadas.
+
+### Fixed — Envíos de memoria retirados antes de confirmación
+
+- Recuperar publicaciones pendientes que desaparecen del corpus aprobado mediante lectura exacta y retirada por versión, sin reenvío. Conservar la identidad retirada antes de podar recibos; un corte antes del commit o un replay antiguo mantiene la trazabilidad y las generaciones posteriores.
+
+### Fixed — Errores tipados de Graphiti
+
+- Rechazar resultados MCP ErrorResponse aunque isError sea false, conservando los envelopes de éxito y saneando diagnósticos. Alinear la aserción restante de seguridad con la recuperación de publicación parcial.
+
+### Fixed — Publicación recuperable de memoria
+
+- Reconciliar el replay de la outbox antes del plan fresco para que conocimiento retirado o reemplazado no permanezca como proyección final. Reintentar de forma acotada los rechazos Windows del manifiesto final comprobando las identidades observadas; informar de publicación parcial y recuperación sin prometer rollback global.
+
+### Fixed — Cierre nativo OpenCode
+
+- Resolver la terminación de procesos Windows mediante el ejecutable del sistema para cerrar con PATH restringido; separar las comprobaciones de captura de la actividad informativa.
+
+### Fixed — Publicación de metadatos propios
+
+- Recuperar rechazos transitorios de acceso compartido en Windows al reemplazar estado propio dentro del plazo del caller, comprobando la generación observada y evitando sobrescribir tras un rechazo del reemplazo.
+
+- Conserva los encabezados usados como marcadores al trasladar el detalle al historial, manteniendo compatibles los comandos y la retoma.
+
+### Fixed — Consultas locales de solo lectura
+
+- Estabilizar lecturas Windows con cambios exclusivos de metadatos mediante una única relectura acotada de bytes idénticos, conservando controles de rutas e identidad; evitar bytecode de helpers al consultar retoma y revisión de planes desde kits locales de proyecto.
+
+### Changed — Continuidad de revisiones
+
+- Graphiti confirma UUID asignados por el servidor y conserva recibos asíncronos; sucesión y retirada se vinculan por versión. Las relaciones documentales son predeterminadas y las aristas directas requieren opt-in y servidor aislado por grupo.
+
+- Mostrar los recibos de revisión de la iniciativa al retomar trabajo y en el progreso de sesión, conservando versiones, estados y omisiones sin entregar, consumir ni aprobar decisiones.
+
+### Fixed — Mediciones acumuladas del proceso
+
+- Usar temporales exclusivos para el estado del medidor y reintentos acotados de reemplazo ante errores de acceso y compartición en Windows. Conservar el snapshot anterior y el fallo visible al agotarlos, sin reintentar otros errores.
+
+- Identificar ventanas y revisiones de medición persistidas para que las copias compartidas de plan y tareas usen el último cierre completo, sin sumar tokens, horas y coste acumulados. Conservar ventanas independientes y copias legacy exactas, y mostrar datos parciales ante fallos de persistencia, revisiones contradictorias o identidades inválidas.
+
+### Changed — Continuidad del encargo de desarrollo
+
+- Conservar el resultado solicitado, los requisitos explícitos y sus fuentes en las dos vías de desarrollo. Registrar los patrones del proyecto y las hipótesis pendientes en las notas existentes de cada tarea, y conectar los criterios de aceptación con su verificación en el brief de implementación.
+
+### Added — Traslado local de conocimiento
+
+- Exportar notas aprobadas seleccionadas explícitamente en un paquete acotado y ligado al hash, e importarlas como propuestas pendientes en otro proyecto. Conservar bytes y procedencia, validar todo el lote antes de persistir e informar de efectos parciales sin aprobación ni activación de backends automáticas.
+
+### Added — Actividad opcional de agentes
+
+- Mostrar señales nativas recientes en el panel local con actualización manual, consulta periódica y vencimiento. Mantener visibles la colección incompleta y los estados desconocidos; separar eventos de respuesta y ejecución del progreso de tareas y la presencia de procesos. La captura es opt-in, acotada y excluye los archivos locales de actividad de Git.
+
+### Changed — Selección revisada de commits
+
+- Previsualizar y revalidar rutas seleccionadas exactas antes del commit Git nativo del workflow, conservando el staging ajeno. Informar de selecciones conflictivas y snapshots cambiados mediante un CLI compartido de solo lectura; verificar el commit resultante y conservar discrepancias para revisión.
+
+### Fixed — Configuración de actividad y etiquetas del panel
+
+- Reconocer el booleano de actividad en el diagnóstico de instalación y conservar la codificación correcta de las etiquetas accesibles de memoria.
+
+### Added — Respuestas a la revisión de planes
+
+- Registrar resultados por comentario de plan consumido, mostrar actores del productor como declarados o desconocidos y conservar observaciones humanas opcionales por el CLI del dueño existente. Distinguir consumo, atención y verificación comunicada en el historial por versión del panel, sin nuevas puertas de aprobación ni endpoints de escritura del navegador.
+
+### Added — Continuidad explícita de curación
+
+- Mostrar la curación ligada a la iniciativa actual mediante rutas y hashes exactos registrados por el dueño del ledger. Observar operaciones pendientes y recibos de persistencia validados sin recuperar, promover ni atribuir QA implícita; conservar identidades completas y contar referencias omitidas por la salida acotada en los comandos generados para los tres runtimes.
+- Retomar explícitamente una operación de curación seleccionada usando IDs completos, el SHA256 del candidato y recibos de persistencia validados. Rechazar enlaces desactualizados y conservar el estado local de recuperación sin aprobar ni publicar automáticamente.
+
+### Fixed — Responsabilidades del workflow
+
+- Reservar el cierre de la iniciativa al orquestador tras revisión, QA, documentación y puerta de retro; separar la evidencia de QA suelta de los estados finales. Alinear el cierre de Jira, las propuestas de diseño y los diagramas con sus dueños y contratos de persistencia existentes en los tres runtimes.
+
+### Fixed — Ejecución de suites de regresión
+
+- Probar los límites del CLI de publicación, fallos recuperables de curación y propuestas Gold con fixtures locales reales; comprobar bytes y recibos conservados sin requerir servicios externos de memoria.
+- Incluir las pruebas de alcance de Confluence en CI y comprobar el validador de apertura de revisión visual con entrada UTF-8 válida en las pruebas de consola Windows.
+- Distinguir valores de configuración de runtime y análisis local de URLs de llamadas de red en las pruebas de seguridad de hooks, recorrer las dependencias de captura y guardia nativa y conservar el lector real de política local al espiar la carga de backends.
+- Mantener visibles para las comprobaciones de seguridad de hooks las mutaciones del parser entre scopes anidados y aliases, incluidos cambios de clase, métodos internos y setters de atributos; retirar de forma conservadora la exención argparse si pueden haber cambiado atributos del objeto.
+- Declarar el entorno de las pruebas de shell y permisos en Windows, conservar los valores del resolver independientemente del timeout en los espías de backends y documentar la puerta ejecutable del handoff de entrenamiento al curador.
+- Copiar las dependencias del lector local en la prueba del brief de memoria trasladado y conservar los resultados de verificación del backend en los diagnósticos de aserción.
+- Escapar las rutas Python de Windows en las fixtures de cobertura y retirar repositorios temporales de evaluación con objetos Git de solo lectura; informar de los fallos de limpieza mediante el redactor compartido, conservar el directorio y usar un aviso fijo si la redacción no está disponible.
+- Conservar en el soporte de tests la primera excepción de publicación con su causa y etapa. Mantener el temporal y repropagar el error original sin reintentos ni otra escritura de limpieza que lo oculte.
+
+### Changed — Curación compartida de conocimiento
+
+- Canalizar propuestas nuevas mediante un servicio compartido de persistencia y reservar la decisión de aprobación al curador. Validar el hash original y los metadatos finales antes de publicar, conservar intenciones de recuperación y excluir candidatos y journals de sesión de la publicación a Confluence.
+
+### Changed — Transporte nativo de comandos Codex
+
+- Generar adaptadores explícitos dentro del plugin desde los workflows canónicos, conservando sus cuerpos completos y sintaxis shell literal. Mantener las skills canónicas en su propia raíz del manifiesto. Instalar adaptadores en el scope elegido y conservar los prompts personales existentes retirando la propiedad obsoleta del instalador.
+
+### Fixed — Invocación portable de revisión visual de planes
+
+- Invocar la puerta existente de revisión desde Bash o PowerShell con argumentos literales, Python real y dueño/panel del mismo bundle. Separar apertura, vida del servidor y consumo de decisión; una instalación ambigua o apertura fallida no inicia el servidor de revisión.
+
+### Fixed — Enlaces entrecomillados de conocimiento local
+
+- Normalizar comillas coincidentes de forma común en listas simples inline y en bloques; los enlaces mal formados siguen sujetos a validación. Añadir pruebas sintéticas de recuperación local aceptadas para la selección congelada del Bloque20 en Windows y Linux. Rechazar raíces y ancestros enlazados antes de que el backup o restauración sintéticos modifiquen una fixture.
+
+
+### Added — Revisión visual opcional de planes
+
+- Revisar un plan seleccionado explícitamente como vista textual íntegra redactada, con comentarios por sección y recibos durables de versión/puerta. El CLI común valida y confirma consumo antes de continuar el workflow autorizado; se conservan el OK conversacional previo y el fallback local.
+
+### Fixed — Validación portable de recibos de código
+
+- Rechazar rutas de recibos que colisionan por mayúsculas o apuntan al artefacto antes de leer fuentes en cualquier plataforma. Probar payloads UTF-8 de contexto en las comprobaciones de consola y ajustar la descripción de knowledge-services al límite de OpenCode.
+
+### Added — Lectura documental opcional y recibos de código explícitos
+
+- Autorizar consultas documentales por intent explícito contra aprobados, exports y chunks nativos vigentes. Rechazar enlaces desactualizados y conservar el respaldo local; las respuestas generadas permanecen no verificadas y sin autoridad.
+- Añadir selectores AST exactos y recibos de bytes de los inputs declarados, con productor explícito sobre Graphify externo elegido por el caller. Lecturas parciales y cambios suprimen contexto; los recibos no acreditan cobertura del repositorio ni identidad del productor.
+
+### Added — Evaluación sintética de memoria
+
+- Documentar experimentos nativos de consulta documental, hechos temporales y contexto AST frente al control local. Publicar fuentes, preguntas, respuestas y límites; definir el siguiente contrato opt-in sin activar servicios del consumidor.
+
+### Added — Consulta canónica de memoria acotada
+
+- Compartir snapshots acotados de legado/aprobado entre CLI y Buscar, Ver y Relaciones del panel servido. Conservar IDs completos, versiones, evidencia, colisiones y lecturas parciales; los exports portables incluyen helpers Python transitivos sin ejecutarlos.
+
+### Fixed — Límites HTTP del bridge documental
+
+- Acotar bytes de respuesta, profundidad JSON y plazo acumulado, con IP privada fijada, cierre de redirecciones y verificación HTTPS conservada. La publicación sigue siendo del adaptador existente.
+
+### Fixed — Trabajo acotado de redacción
+
+- Recorrer marcadores PEM y asignaciones de secretos en tiempo lineal antes de recortar la memoria. Conservar la semántica del redactor canónico y el respaldo standalone declarado del journal.
+
+### Added — Dashboard operativo local
+
+- Añadir servidor loopback explícito con capacidad de acceso y vista acotada del ledger canónico, actualización, filtros y frescura visible. Distinguir catálogo al arranque de lecturas actualizadas; sin acciones automáticas de runtime o memoria.
+
+### Fixed — Nombres de archivo en diagnóstico
+
+- Conservar nombres de configuración y campos de validación en errores de doctor con rutas absolutas largas, con redacción anterior al recorte y fallback opaco si falta el redactor.
+
+### Added — Diagnóstico explícito en el panel
+
+- Importar una instantánea portable de doctor seleccionada explícitamente, con alcance, fecha UTC, etiquetas públicas y referencias de prioridades. Mantener el detalle privado en doctor y diferenciar informes ausentes, rechazados, antiguos o recortados de la ejecución real de hooks.
+
+### Added — Retoma dirigida del trabajo
+
+- Añadir `/work-resume` como fachada de solo lectura sobre el ledger actual y el historial seleccionado del journal. Compartir lectura local acotada y selección exacta entre la vista manual y el historial de arranque; mostrar identidades ambiguas, registros inválidos y búsquedas incompletas sin sustituir la sesión. Conservar runtimes antiguos desconocidos y distinguir citas históricas del estado actual de tareas y de la evidencia QA.
+
+### Fixed — Guardias de verificación de commits Git
+
+- Ampliar la regla compartida `git` para IDs propios exactos de implementer y architect en Claude, Codex y OpenCode. Denegar commits que desactivan la verificación o sustituyen explícitamente `core.hooksPath`, incluidas formas reconocidas de entorno literal y wrappers. Conservar `--verify` posterior, mensajes, rutas, amend ordinario y desactivación por proyecto; documentar los límites del parser.
+
+### Fixed — Guardias de rama y trabajo al arrancar hooks
+
+- Conservar la protección de rama antes del primer commit dentro del presupuesto existente. Omitir procesos de negocio PostToolUse para ediciones reconocidas fuera del alcance de cada handler y conservar el tratamiento de entradas desconocidas; mantener los timeouts de guardia y captura.
+
+### Fixed — Entrega de decisiones de guardia
+
+- Validar resultados estructurados acotados antes de la entrega nativa. Hacer visibles las evaluaciones ausentes o inválidas en Claude, Codex y OpenCode conservando permisos normales; preservar bloqueos completos ante fallos posteriores del evaluador o de limpieza. Mantener los presupuestos y el diagnóstico de arranque bajo carga abierto.
+
+### Fixed — Recuperación de memoria aprobada
+
+- Incluir Markdown aprobado válido en búsqueda local, vista completa, relaciones declaradas y respaldo del backend. Conservar IDs completos, versiones y evidencia en caché y recorrido plano; compartir taxonomía local y lector aprobado sin cargar servicios de red. Diagnosticar corpus inválidos, IDs ambiguos y rutas fuera de carpetas declaradas.
+
+### Changed — Evidencia de continuidad de sesión
+
+- Comparar contratos de comandos de sesión y proponer una vista de retoma de solo lectura sobre ledger y journal existentes. Registrar cuatro pruebas Codex aisladas de cierre, incluida una degradación de guardia bajo carga de hijos; conservar fallos sin declarar corregido el launcher ni garantizar tres segundos.
+
+### Fixed — Capacidades de memoria y documentación del ciclo de sesión
+
+- Reconciliar la proyección Kwipu y la lectura opt-in Graphiti existentes, las indicaciones de proveedor al servidor y el respaldo local. Distinguir presupuestos de captura por runtime y arranque del launcher; actualizar diagramas con el dispatcher de guardias nativas distribuido.
+- Escribir fixtures de memoria con LF explícito en Windows y comprobar relaciones completas mediante JSON, conservando límites y avisos de truncamiento de la vista compacta. Mantener el escáner de hooks estricto; validar copias limpias de fuentes sin bytecode generado.
+
+### Fixed — Contratos de hooks por runtime en el panel
+
+- Leer fuentes de hooks separadas de Claude, Codex y OpenCode; agrupar runtime y evento y mostrar función, activación, fuente, identidades y procedencia del presupuesto. Consumir el mismo catálogo declarativo en el adapter OpenCode; conservar carga/ejecución desconocidas y filtros, enlaces, historial y Fuentes accesibles en móvil.
+
+### Changed — Arreglos prioritarios del diagnóstico
+
+- Derivar hasta tres acciones de doctor desde sus filas de error y aviso, conservando referencias de bloque/fila, informe completo y exit codes. Mantener la misma prioridad en JSON y Markdown; reconciliar comprobaciones opcionales de red en setup y la autorización ya concedida para arreglos.
+
+### Fixed — Guardias nativas y migración conservadora
+
+- Enrutar identidades propias de Claude, Codex y OpenCode mediante un normalizador de mutaciones y política central. Conservar gramática Unicode/contexto/heredoc, acotar scans de heredocs incompletos y migrar solo exports antiguos atribuibles; preservar agentes personalizados y bindings ambiguos. Registrar revisión independiente y hashes de cohortes nativas, manteniendo separada la eficacia SessionEnd.
+
+### Fixed — Permisos declarados del reviewer en Codex
+
+- Retirar del export del reviewer un campo de sandbox por rol sin efecto y explicar los permisos heredados en Codex. Diferenciar permisos de edición de OpenCode y permisos de shell; documentar identidad y bloqueo nativos sin presentar los dispatchers de prueba como guardias instaladas.
+
+### Fixed — Instalación y diagnóstico nativos de Codex
+
+- Validar la caché nativa antes de activar el proyecto, preparar el registro en un home aislado y conservar las preferencias globales del marketplace. Resolver claves TOML entrecomilladas equivalentes y rutas nativas por scope; separar configuración y listado acotado de la CLI en status y doctor.
+
+### Fixed — Captura canónica de cierre
+
+- Aislar la captura durable de la materialización del journal, usar una sola lectura del log para identidad y secuencia y resolver versiones del bundle instalado. Acotar el trabajo hijo por runtime, terminar su árbol al agotar el tiempo y conservar la recuperación de prompts; verificar cierre headless nativo sin cambiar los timeouts del consumidor.
+
+### Changed — Evidencia nativa de hooks y comparación operativa
+
+- Registrar pruebas nativas aisladas de Claude/Codex, límites de cierre y recuperación. Comparar paneles operativos y 18 cuerpos de comandos, con dependencias incompletas e integraciones propuestas explícitas.
+
+### Fixed — Transporte OpenCode V2
+
+- Sustituir el adaptador V1 incompatible por un paquete local nativo con captura de peticiones, contexto acotado y captura durable al terminar la ejecución. Conservar permisos e instrucciones del usuario; retirar solo copias antiguas conocidas sin modificaciones. La validación de guardias nativas sigue abierta.
+
+### Fixed — Integridad del checkpoint de sesión
+
+- Respetar el objeto journal desactivado al capturar turnos, rotar logs atómicamente con lectura acotada y serializar la reclamación de la cola entre consumidores. Las rutas de la CLI del journal usan `/` también en Windows. La validación del despacho nativo sigue en curso.
+
+### Added — iniciativa `project-extensions` (2026-10-06)
+
+- **T-01 — Contratos y arquitectura de extensiones** Define contratos nativos y límites del reconocimiento de extensiones en los tres runtimes. (`docs/roadmap/2026-10-06-project-extensions/**`, `docs/roadmap/README.md`, `docs/INTEGRATION-ROADMAP.md`)
+- **T-02 — Descubrimiento multi-runtime acotado** Reconoce agentes, skills, personas, fuentes de tools y MCP locales sin ejecutarlos ni exponer su configuración privada. (`agent-kits/shared/project-pieces.py`, `tests/test_project_pieces.py`, `tests/test_console_encoding.py`)
+- **T-03 — Propiedad, identidad y colisiones verificables** Distingue propiedad e identidad y muestra conflictos de origen e invocación sin sobrescribir piezas propias. (`agent-kits/shared/project-pieces.py`, `tests/test_project_pieces.py`)
+- **T-04 — Selección explícita compartida de extensiones** Comparte la selección explícita de extensiones entre los roles y la tarea mediante IDs y procedencia. (`agent-kits/shared/capability-check.md`, `agent-kits/shared/project-pieces.py`, `commands/work-context.md`)
+- **T-05 — Briefs y personas de proyecto** Transfiere referencias acotadas al brief y conserva la prioridad de personas del proyecto. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/project-pieces.py`)
+- **T-06 — Extensiones en panel con fuentes y conflictos** Muestra las extensiones propias en el panel con búsqueda, filtros, fuentes y conflictos identificables. (`skills/plugin-panel/**`, `tests/test_plugin_panel.py`, `evals/cases/skill-plugin-panel.json`)
+- **T-07 — Workflow, distribución y documentos bilingües** Integra el método compartido, exports y documentación bilingüe con distribución portable comprobada.
+- **T-08 — Revisión, cobertura y QA multi-runtime** Verifica parsing, privacidad, selección, briefs y panel en Windows, Linux y Edge con revisión independiente y hace portables las pruebas de release. (`tests/**`, `docs/roadmap/2026-10-06-project-extensions/testing/**`)
+- **T-09 — Retro, estados y changelogs** Registra resultados, límites y retrospectiva de la integración y sincroniza las notas de cambios. (`docs/**`, `CHANGELOG.md`, `CHANGELOG.es.md`)
+- **T-10 — Push y comprobación remota** Publica la rama de extensiones y contrasta su SHA con el remoto sin merge ni release. (`docs/roadmap/2026-10-06-project-extensions/tasks.md`)
+
+### Changed — iniciativa `workflow-integration` (2026-10-06)
+
+- **T-01 — Decisiones trazables del catálogo y contrato del workflow** Documenta decisiones y límites de las capacidades adaptadas; conserva fuentes legales y usa nombres públicos propios.
+- **T-02 — Registro y selector común con contratos deterministas** Selecciona guías por rol, stack y área desde manifiestos acotados sin ejecutar código del proyecto. (`agent-kits/shared/capability-catalog.json`, `agent-kits/shared/capability-route.py`, `tests/test_capability_route.py`)
+- **T-03 — Stack-practices completo y retirada de tres guías iniciales** Consolida las guías iniciales en stack-practices y retira mapas y referencias sustituidos. (`skills/stack-practices/**`, `skills/codeigniter-practices/**`, `skills/python-practices/**`)
+- **T-04 — Guías transversales backend, frontend y entrega** Añade criterios de backend, frontend y entrega con referencias concretas y activación evaluada. (`skills/backend-practices/**`, `skills/frontend-quality/**`, `skills/delivery-practices/**`)
+- **T-05 — Auditoría de capacidades y evaluación de resultados** Audita capacidades y compara resultados JUnit observados con condiciones explícitas, sin métricas ficticias. (`skills/capability-audit/**`, `skills/outcome-evals/**`, `evals/**`)
+- **T-06 — Memoria/contexto: mejoras justificadas y piloto aislado** Añade consultas AST citadas y un piloto aislado; conserva la gobernanza de memoria existente. (`agent-kits/shared/**`, `tests/test_code_context.py`, `docs/WORK-CONTEXT.md`)
+- **T-07 — Integrar selección en roles, pm/dev-cycle y briefs** Comparte capacidades entre roles, ciclos y briefs sin aumentar límites ni duplicar puertas de calidad. (`agents/**`, `commands/dev-cycle.md`, `commands/pm-cycle.md`)
+- **T-08 — Panel y entrada de usuario para el workflow real** Moderniza el panel con hooks descriptivos, navegación accesible y seis etapas con contenido de sus roles. (`skills/plugin-panel/**`, `commands/work-context.md`, `tests/test_plugin_panel.py`)
+- **T-09 — Retirar sustituciones y actualizar activos/generados** Actualiza distribución y exports multi-runtime desde fuentes únicas y retira activos sustituidos.
+- **T-10 — Revisión independiente, cobertura y QA Windows/Linux/navegador** Valida Windows, Linux, Edge y cobertura; cierra todos los gaps verificados de revisión. (`docs/roadmap/2026-10-06-workflow-integration/testing/**`, `tests/**`)
+- **T-11 — Documentación bilingüe, retro, estados y changelogs** Sincroniza documentación bilingüe, evidencias, retro, changelogs y fases futuras con límites explícitos. (`docs/**`, `CHANGELOG.md`, `CHANGELOG.es.md`)
+- **T-12 — Publicación de rama y comprobación remota** Publica la rama autorizada y comprueba que el commit remoto coincide con la entrega local. (`docs/roadmap/2026-10-06-workflow-integration/tasks.md`)
+
+### Added — iniciativa `capability-foundation` (2026-10-06)
+
+- **T-01 — Comparar catálogo de referencia, Graphify y memoria actual** Se documenta la adopción selectiva de catálogo de referencia y el encaje de Graphify como complemento estructural de la memoria curada. (`docs/roadmap/2026-10-06-capability-foundation/**`, `docs/roadmap/README.md`)
+- **T-02 — Investigar antes de construir** Analyst y architect pueden comparar soluciones existentes antes de diseñar integraciones o herramientas con research-first.
+- **T-03 — Control panel de capacidades** plugin-catalog genera un panel local buscable del catálogo, con redacción central y presencia de fuentes de runtime y memoria.
+- **T-04 — Guías específicas de los tres stacks** Los roles de desarrollo disponen de guías específicas para CodeIgniter 4, Python y React, cargadas según el stack de la tarea.
+- **T-05 — Validar, documentar y publicar la rama** La primera integración de catálogo de referencia conserva los contratos de los tres runtimes y documenta sus capacidades y límites de memoria.
+
+### Fixed — iniciativa `plugin-refactor` (2026-09-09)
+
+- **T-01 — C-04: detector de TODO de `code-health.py`, 8 → 0** El informe de salud del código deja de contar como TODO su propia descripción del detector y la prosa castellana («TODO el histórico…»): los 8 falsos positivos pasan a 0.
+- **T-02 — C-05: `code-health.py --exclude-path` (rutas generadas) + segunda línea base** `code-health.py` admite `--exclude-path` para sacar del informe carpetas generadas como `interop/`; sin el flag la salida es la de siempre.
+- **T-03 — C-01: `task-brief.py` — `main()` en siete secciones y las reglas de la persona en una función** El generador del brief del subagente queda partido en funciones por sección, con las reglas del tamaño de la persona en un solo sitio; el brief que produce es el mismo byte a byte. (`agent-kits/shared/task-brief.py`)
+- **T-04 — C-13 (ii-a): `usage-meter.py` robusto a marcadores anteriores al arreglo y ventana por `timestamp`** `usage-meter.py` ya no cuenta transcripciones anteriores al inicio de la ventana, no se cae con timestamps sin zona horaria y añade `duracion_reloj` junto a la `duracion` derivada de tokens. (`agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter.py`, `docs/observability.md`)
+- **T-05 — C-02 (1/4): `knowledge-find.py` — `main()` y las otras dos funciones largas** `knowledge-find.py` queda partido en funciones cortas; la salida `--json` que consumen el brief y el hook de sesión es la misma byte a byte. (`agent-kits/shared/knowledge-find.py`)
+- **T-06 — C-02 (2/4): `doctor.py` — 8 funciones largas → ≤ 4** `/doctor` queda partido en funciones cortas por bloque de diagnóstico; veredictos, `--json` y exit code son los mismos. (`agent-kits/shared/doctor.py`)
+- **T-07 — C-02 (3/4): `build_dashboard.py` — 8 funciones largas → ≤ 4** El generador del dashboard del roadmap queda partido en funciones cortas por sección; HTML, Markdown y JSON que produce son los mismos byte a byte. (`skills/roadmap-dashboard/scripts/build_dashboard.py`)
+- **T-08 — C-02 (4/4): `lint_plugin.py` — `lint()` y las otras 8 funciones largas → ≤ 5** El linter del plugin queda partido en una comprobación por función; avisos, errores, resumen y exit code son idénticos a los de antes. (`scripts/lint_plugin.py`)
+- **T-09 — C-03 (1/2): registro `agent-kits/shared/copias.json` + `tests/test_copias_declaradas.py`** Las copias de código compartidas entre scripts del plugin quedan declaradas en un registro (`copias.json`) y un único test comprueba que siguen idénticas byte a byte.
+- **T-10 — C-03 (2/2): `lint_plugin.py` falla ante un bloque `--8<--` o `_*_FALLBACK` no registrado** El linter del plugin falla si aparece un bloque de código copiado (`--8<--` o `_*_FALLBACK`) que no esté declarado en `copias.json`. (`scripts/lint_plugin.py`, `tests/test_lint_plugin.py`, `docs/CONVENTIONS.md`)
+- **T-11 — C-12 (E6): exclusiones por defecto en `scope-check.py` + `dev.json` `alcance.excluir`** `scope-check.py` deja de marcar como fuera de alcance los ficheros del orquestador (`CONTINUE-HERE*.md`, `.claude/**`, journal) y admite más exclusiones en `dev.json` `alcance.excluir`.
+- **T-12 — C-11 (E5): nombre real del comando instalado como plugin (`/custom-agents:<cmd>`) en `/doctor` y en la doc viva** `/doctor` informa del nombre real de los comandos cuando el plugin va instalado desde el marketplace (`/custom-agents:<cmd>`) y la documentación viva cita esa forma.
+- **T-13 — C-08 (E1): `test-plan: n/a (sin UI)` en `planner`, `dev-cycle` y `qa` a la vez** Una iniciativa sin interfaz declara `test-plan: n/a (sin UI)` en su plan y `qa` termina limpio en vez de pedir un test-plan que no existe.
+- **T-14 — C-06: matriz de contratos pieza → pieza (`docs/agents/CONTRACTS.md`)** Nueva matriz `docs/agents/CONTRACTS.md` con los contratos entre piezas del plugin (quién invoca a quién, con qué flags, exit codes, ficheros, marcadores y puerta ejecutable).
+- **T-15 — C-09 (E2 + E3): piezas dependientes enumeradas en `Archivos`, regeneradas por `implementer` y comprobadas por la Lente A** Las tareas que tocan un agente, comando o hook enumeran `interop/**` y las piezas que lo describen; `implementer` regenera `interop/` y la Lente A comprueba `export-interop.py --check`.
+- **T-16 — C-07: linter — rutas citadas existen · `/comandos` citados existen · filas de la matriz con puerta** El linter avisa si un agente, comando o skill cita una ruta de script o un `/comando` que no existe, y si una fila de la matriz de contratos no tiene puerta ejecutable.
+- **T-17 — C-13 (ii-b): agregado `fuente: estimado` visible en `/roadmap-metrics` y `/retro`; filas estimadas marcadas en `CALIBRATION.md` y fuera de la mediana** `/roadmap-metrics` muestra cuántos bloques de medición son estimados y no medidos; `/retro` marca las filas estimadas de `CALIBRATION.md` y el ratio calibrado deja de contarlas.
+- **T-18 — C-10 (E4): la Lente C se dispara ante texto controlado por el consumidor que acaba en un prompt o brief** La selección de la lente de seguridad reconoce cuando un diff abre un canal de texto controlado por el consumidor hacia un prompt o brief, y lo dispara con el motivo.
+- **T-19 — C-14 (E11, propuesta ACEPTADA por el usuario el 2026-09-10 en la puerta del plan): `test_cifras_medidas.py` vigila solo los documentos vivos; los históricos congelan cifra y fecha** Las cifras medidas que viven en documentos históricos (ADR, ledgers cerrados) quedan congeladas con su fecha y ya no rompen la suite al abrir o cerrar una iniciativa; las vivas siguen vigiladas.
+- **T-20 — P-2: revisión de dos lentes por tramo (R1 · R2 · R3 · R4)** Cada tramo del refactor pasa una revisión adversarial de dos lentes con las capturas de contratos como evidencia, y la traza queda en el ledger. (`docs/roadmap/2026-09-09-plugin-refactor/tasks.md`, `docs/knowledge/adr/ADR-016-copias-declaradas-con-test-de-identidad.md`, `ADR-017-…`)
+- **T-21 — P-3: corrección post-revisión (igual a la revisión)** Se resuelven los gaps de revisión; el refactor conserva contratos y tests. La validación complementaria sigue el launcher Node y usa hashes de bytes en el fixture Confluence.
+- **T-22 — P-4: cierre — `changelog-sync`, `release.py --dry-run`, `/retro` + `retro-gate`** Cierre técnico del refactor: 36→15 funciones largas, copias y contratos verificados, retro y calibración parcial de 849708 tokens/hora. Integración por PR pendiente.
+
+### Fixed — iniciativa `brief-budget` (2026-09-09)
+
+- **T-01 — C-05: test CA-08 sobre todos los ledgers (`xfail` fechado en fase inicial)** La prueba del presupuesto recorre los ledgers reales con diseño, constitución y memoria; exige tamaño acotado o aviso exacto del mínimo irreducible. (`docs/roadmap/CALIBRATION.md`, `agent-kits/shared/test_task_brief.py`)
+- **T-02 — O2: diseño solo si la tarea lo necesita** El brief selecciona módulos de diseño por rutas concretas y omite los ajenos; el diseño sin tabla conserva un respaldo acotado. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/architect/templates/design.md`)
+- **T-03 — O4: `Verificación` sin salida pegada** El brief enlaza la evidencia ejecutada al ledger y conserva comandos, resultados esperados, criterios y decisiones vigentes. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+- **T-04 — O3: `## Gaps pendientes de revisión` acotado y por tarea** Los gaps relevantes se limitan a la tarea y al último intento; su sección tiene presupuesto propio. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+- **T-05 — C-01: constantes `*_TOPE_CHARS` por sección** Diseño, gaps y verificación tienen topes propios; el ajuste global preserva memoria y suelo de persona e informa contratos que requieren dividirse. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+- **T-06 — Revisión de dos lentes y cierre** Revisión y regresiones cierran el presupuesto del brief con informe real, retrospectiva y exportación sin deriva. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+
+### Fixed — iniciativa `hooks-runtime` (2026-10-06)
+
+- **T-01 — Resolver intérpretes y respetar los límites de cada runtime** Los tres runtimes usan Python nativo y Git Bash en Windows; Codex respeta SessionEnd de 3 s y los eventos apply_patch/Edit conservan avisos y exclusiones de documentación.
 
 ### Changed — iniciativa `setup-statusline-polish` (2026-09-29)
 
@@ -282,14 +844,14 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ### Added — iniciativa `parity-core` (2026-09-03)
 
-- **Tiering de modelos configurable en dos capas** ([`ADR-009`](docs/knowledge/adr/)): cada agente declara `model` **y `effort`** (valores oficiales `low|medium|high|xhigh|max`, exigidos por el linter), y `.claude/dev.json` `"modelos": {"<agente>": {...}}` lo sobrescribe por agente. `agent-kits/shared/model-tier.py` resuelve el tier efectivo (frontmatter + config, con `fuente` por campo) y los cuatro orquestadores pasan `model` al Agent tool. Límite declarado con honestidad: el Agent tool no documenta `effort` por invocación, así que esa clave es informativa — solo el del frontmatter es efectivo. `/setup` paso 5-quater lo edita.
+- **Tiering de modelos configurable en dos capas** (`ADR-009`): cada agente declara `model` **y `effort`** (valores oficiales `low|medium|high|xhigh|max`, exigidos por el linter), y `.claude/dev.json` `"modelos": {"<agente>": {...}}` lo sobrescribe por agente. `agent-kits/shared/model-tier.py` resuelve el tier efectivo (frontmatter + config, con `fuente` por campo) y los cuatro orquestadores pasan `model` al Agent tool. Límite declarado con honestidad: el Agent tool no documenta `effort` por invocación, así que esa clave es informativa — solo el del frontmatter es efectivo. `/setup` paso 5-quater lo edita.
 - **Agente `architect` + `design.md`**: desde una spec aprobada explora el repo y produce 2-3 opciones con trade-offs, criterios y recomendación; el **orquestador** las presenta por trozos (AskUserQuestion en Cowork, lista numerada en CLI), recoge la elección y re-invoca al agente para fijar `opcion_elegida`, escribir el ADR y pasar `design.md` a `aprobado`. Opt-in desde `/pm-cycle` (tras el go) y `/dev-cycle` Fase 2-a; `planner` lo lee y respeta la opción elegida. Con su propio hook de guardia `PreToolUse` (solo escribe `design.md`, el frontmatter `design:` y `docs/knowledge/adr/`).
 - **Skill `tdd`** — fuente única de RED-GREEN-REFACTOR: la ley dura (el código escrito antes de su test se borra y se reescribe tras el rojo), evidencia obligatoria del rojo en el ledger, qué NO es TDD, excepciones declaradas, tabla de racionalización de 8 filas, `references/anti-patterns.md` y `references/by-stack.md` (cómo correr UN solo test rojo en pytest/jest/vitest/phpunit/go). `implementer` y `task-brief.py` la referencian en vez de repetir el método.
 - **Agente `reviewer` (solo lectura)** ejecuta cada lente para `adversarial-review` (sin `Write`/`Edit` en `tools`, por construcción), con contrato de salida fijo y degradación a subagente genérico. Más las referencias compartidas `docs-style` (reglas de redacción técnica ES/EN que cargan documenter/analyst/planner/architect) y `plugin-dev/references/claude-code-contracts.md` (cada contrato oficial usado, con URL y fecha de verificación, para que las piezas dejen de re-consultar la doc).
 
 ### Added — iniciativa `memory-health` (2026-09-03)
 
-- **`session-journal`** ([`ADR-010`](docs/knowledge/adr/)): un hook `SessionEnd` más `agent-kits/shared/journal.py` escriben una entrada determinista por sesión en `docs/knowledge/journal/` (iniciativa activa, ficheros tocados, tareas que cambiaron de estado, marcadores cerrados del meter), idempotente por `session_id` y reinyectada al arrancar/retomar (≤ 25 líneas). Solo escribe en proyectos que usan el plugin; excluida del espejo de Confluence; las entradas se versionan (opt-out documentado). **Sin resumen por IA**: el contrato oficial de `SessionEnd` ignora la salida de los hooks, y eso queda registrado en vez de fingido.
+- **`session-journal`** (`ADR-010`): un hook `SessionEnd` más `agent-kits/shared/journal.py` escriben una entrada determinista por sesión en `docs/knowledge/journal/` (iniciativa activa, ficheros tocados, tareas que cambiaron de estado, marcadores cerrados del meter), idempotente por `session_id` y reinyectada al arrancar/retomar (≤ 25 líneas). Solo escribe en proyectos que usan el plugin; excluida del espejo de Confluence; las entradas se versionan (opt-out documentado). **Sin resumen por IA**: el contrato oficial de `SessionEnd` ignora la salida de los hooks, y eso queda registrado en vez de fingido.
 - **Skill `code-health`** (`code-health.py`): informe agnóstico de lenguaje con cuatro medidas — duplicación por shingles de tokens normalizados con pares `fichero:línea`, tamaño/anidamiento/funciones largas, hotspots (churn de git × tamaño) y TODO/FIXME envejecidos — con MD, `--json` y `--baseline`; el `evaluator` lo usa para pesar el riesgo y el `planner` para abrir tareas de deuda.
 - **Skill `dependency-upgrade`** (`deps-inventory.py`): 7 formatos de manifiesto más lockfiles, `outdated` oficial cuando la herramienta está presente (nunca inventa un «latest»), clasificación del salto semver y una spec de actualización redactada para que `evaluator` la presupueste. Delimitada frente a `nemesis` (vulnerabilidades).
 
@@ -297,39 +859,39 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 - **`/doctor`**: diagnóstico determinista y sin efectos de la instalación — herramientas, resolución del plugin, hooks registrados, statusline, configs de `.claude/`, estado del trabajo (marcadores huérfanos, iniciativas activas, última entrada del journal) y versión del plugin sin red — con veredicto ✅/⚠️/❌ y **arreglo sugerido por línea**; MD y `--json`, exit 0/1. `/setup` lo ofrece cuando encuentra config previa.
 - **Skill `changelog-sync`**: entradas `[Unreleased]`/`[Sin publicar]` en ambos CHANGELOG derivadas de los ledgers cerrados (un bullet por tarea, categoría por heurística con override `changelog:`), idempotente por slug, `--dry-run`/`--only`/`--check`; `release.py` ejecuta `--check` como aviso en sus precondiciones.
-- **Skill `unit-tests`** ([`LES-013`](docs/knowledge/lessons/)): la pirámide de pruebas y `coverage-gate.py` (pytest/jest/vitest/phpunit/go, `--changed-only` mide solo los ficheros del diff, exit 2 antes que inventar un porcentaje). Deliberadamente una **skill compartida que usan `implementer` y `qa`, no un agente nuevo** — la primera aplicación de la regla «un rol, un dueño».
+- **Skill `unit-tests`** (`LES-013`): la pirámide de pruebas y `coverage-gate.py` (pytest/jest/vitest/phpunit/go, `--changed-only` mide solo los ficheros del diff, exit 2 antes que inventar un porcentaje). Deliberadamente una **skill compartida que usan `implementer` y `qa`, no un agente nuevo** — la primera aplicación de la regla «un rol, un dueño».
 - **Lente D de rendimiento** en `adversarial-review`, condicional como la de seguridad: `review-lens-select.py` detecta patrones N+1, I/O en bucles, `await` dentro de `for` y rutas de repositorio/consulta/caché; configurable con `revision.lenteRendimiento`.
 - **Skill `api-contract`**: `openapi-lint.py` valida la estructura de OpenAPI 3.x sin dependencias externas y `--diff` informa de cambios rompedores entre dos versiones; flujo contract-first cableado en `planner` y en la Lente A.
 
 ### Changed — iniciativa `roles-and-jira-flow` (2026-09-03)
 
-- **Un rol, un dueño** ([`ADR-011`](docs/knowledge/adr/), matriz en [`docs/agents/ROLES.md`](docs/agents/ROLES.md)): el plugin **retira** piezas por primera vez en lugar de solo añadirlas. `pdfy` se retira (envolvía la skill `to-pdf`, que ya se auto-invoca) y la skill `discovery` se absorbe en `analyst` (ambas prometían «convertir una idea vaga en spec»); las fronteras `qa` ↔ `unit-tests` y `adversarial-review` ↔ `reviewer` quedan escritas. El linter gana un guardarraíl heurístico contra dos piezas que declaren el mismo disparador literal. **9 agentes, 17 skills, 12 comandos.**
-- **Ciclo Jira completo, determinista y firmado por agente** ([`LES-014`](docs/knowledge/lessons/)): `jira-flow.py` convierte el ciclo en siete eventos — `arrancar` (→ *En curso*), `implementado` (qué se hizo, evidencia, ficheros, horas medidas), `revision`/`gaps` por intento de revisión, `qa-verde`/`qa-rojo` y `aprobado` (→ *Done*) — devolviendo `ops` ordenadas (etiqueta → transición → comentario → worklog). **Cada comentario lleva el agente que lo escribió** en su primera línea (`> 🤖 [custom-agents · implementer]`) y una etiqueta por agente (`ca-implementer`, `ca-reviewer`, `ca-qa`, `ca-orquestador`) para poder filtrar en Jira por autor. El modelo no redacta comentarios ni compone llamadas: las plantillas son fijas (5 ficheros, 742 bytes; solo se carga la del evento) y la secuencia se describe **una vez**, en la Fase 3 de `/dev-cycle`.
+- **Un rol, un dueño** (`ADR-011`, matriz en [`docs/agents/ROLES.md`](docs/agents/ROLES.md)): el plugin **retira** piezas por primera vez en lugar de solo añadirlas. `pdfy` se retira (envolvía la skill `to-pdf`, que ya se auto-invoca) y la skill `discovery` se absorbe en `analyst` (ambas prometían «convertir una idea vaga en spec»); las fronteras `qa` ↔ `unit-tests` y `adversarial-review` ↔ `reviewer` quedan escritas. El linter gana un guardarraíl heurístico contra dos piezas que declaren el mismo disparador literal. **9 agentes, 17 skills, 12 comandos.**
+- **Ciclo Jira completo, determinista y firmado por agente** (`LES-014`): `jira-flow.py` convierte el ciclo en siete eventos — `arrancar` (→ *En curso*), `implementado` (qué se hizo, evidencia, ficheros, horas medidas), `revision`/`gaps` por intento de revisión, `qa-verde`/`qa-rojo` y `aprobado` (→ *Done*) — devolviendo `ops` ordenadas (etiqueta → transición → comentario → worklog). **Cada comentario lleva el agente que lo escribió** en su primera línea (`> 🤖 [custom-agents · implementer]`) y una etiqueta por agente (`ca-implementer`, `ca-reviewer`, `ca-qa`, `ca-orquestador`) para poder filtrar en Jira por autor. El modelo no redacta comentarios ni compone llamadas: las plantillas son fijas (5 ficheros, 742 bytes; solo se carga la del evento) y la secuencia se describe **una vez**, en la Fase 3 de `/dev-cycle`.
   - **El Done se gana, no se anuncia**: `aprobado` es solo del orquestador y se rechaza (exit 2) sin una sección de revisión sin gaps en el ledger **y** `--qa-verde` (el exit 0 de `qa-gate.py`); `gaps` reabre el issue.
   - **Al implementer se le avisa por su brief**, no por Jira: `task-brief.py` le inyecta los gaps del último intento desde el ledger. Jira es el espejo para el equipo; el ledger sigue siendo la fuente.
   - Idempotente por evento en `jira-state.json` (`--force` para repetir), agrupado por tarea (`--batch` por fase), la imputación de horas sigue delegada en `worklog.py` (tope de jornada y banco intactos), y con Jira desactivado el ciclo entero devuelve `ops: []` en silencio. Coste del ciclo medido y documentado en `docs/observability.md`.
 
 ### Added — iniciativa `activation-reliability` (2026-09-03)
 
-- **Evals de comportamiento para cada pieza del plugin (`evals/`).** Una `description` es una promesa de activación; ahora se prueba: 31 ficheros de casos (12 skills · 11 comandos · 8 agentes) con 96 casos — 62 positivos (disparador literal o paráfrasis, artefactos/menciones esperadas) y 34 negativos *vecinos* (mismo vocabulario, otra intención, con la redirección esperada). `evals/check.py` corre en CI de forma estática (esquema, cobertura ≥ 2 positivos + 1 negativo por pieza, ids únicos, disparadores literales presentes de verdad en la description, sin datos corporativos); `evals/run.py` los ejecuta en local en sesiones headless (`claude -p --plugin-dir … --output-format stream-json`, flags verificados contra la referencia oficial de la CLI) sobre una copia de `evals/fixtures/project/`, detecta la activación por las llamadas a las tools `Skill`/`Agent`, clasifica los fallos (`no activó` · `activó sin deber` · `permiso denegado` · `expectativa` · `timeout`) y escribe `evals/reports/<fecha>.json`. Registrado como lección [`LES-011`](docs/knowledge/lessons/).
+- **Evals de comportamiento para cada pieza del plugin (`evals/`).** Una `description` es una promesa de activación; ahora se prueba: 31 ficheros de casos (12 skills · 11 comandos · 8 agentes) con 96 casos — 62 positivos (disparador literal o paráfrasis, artefactos/menciones esperadas) y 34 negativos *vecinos* (mismo vocabulario, otra intención, con la redirección esperada). `evals/check.py` corre en CI de forma estática (esquema, cobertura ≥ 2 positivos + 1 negativo por pieza, ids únicos, disparadores literales presentes de verdad en la description, sin datos corporativos); `evals/run.py` los ejecuta en local en sesiones headless (`claude -p --plugin-dir … --output-format stream-json`, flags verificados contra la referencia oficial de la CLI) sobre una copia de `evals/fixtures/project/`, detecta la activación por las llamadas a las tools `Skill`/`Agent`, clasifica los fallos (`no activó` · `activó sin deber` · `permiso denegado` · `expectativa` · `timeout`) y escribe `evals/reports/<fecha>.json`. Registrado como lección `LES-011`.
 - **Índice de piezas inyectado al arrancar la sesión** (`agent-kits/shared/skill-index.py` + `hooks/session-context.sh`, el patrón `using-superpowers`): índice determinista y cacheado de ≤ 45 líneas / ≤ 3.500 caracteres con comandos, skills y agentes generado desde los frontmatters, con la regla «antes de cualquier tarea comprueba si aplica una pieza», reinyectado tras la compactación (`startup|resume|compact`). Desactivable con `.claude/dev.json` `"sesion": {"indice": false}`. Los comandos se invocan por `/` **o por descripción**, como las skills — el índice, `CONVENTIONS` y `quick-implement` dejan de afirmar lo contrario.
 - **Tablas de racionalización** (fragmento compartido `agent-kits/shared/rationalization-table.md`, patrón «iron law»): 8 filas de *excusa que el modelo se da → por qué no vale → qué hacer en su lugar*, justo antes del DoD/veredicto de `implementer`, `adversarial-review` y `qa`, sustituyendo la prosa equivalente. `lint_plugin.py` avisa cuando una pieza no tiene caso positivo en los evals o su description supera 1.200 caracteres.
 
 ### Added — iniciativa `plan-and-diet` (2026-09-03)
 
-- **Dieta de tokens de las tres skills grandes** (progressive disclosure, [`ADR-008`](docs/knowledge/adr/)): `jira-sync` 289 → 149 líneas, `confluence-publish` 432 → 196, `cybersecurity` 976 → 167, moviendo el detalle literal a `skills/<skill>/references/*.md` (12 ficheros nuevos) con una tabla «lee X solo cuando llegues al paso Y» en cada SKILL.md. Cero pérdida verificada párrafo a párrafo (`tests/test_skill_size.py --diet-check <skill> <ref>`); todos los anclajes que citan otras piezas (`Paso 0-ter/7/8/9`, «Qué sube y qué no»…) se conservan. Tope duro de 250 líneas (test) y aviso del linter desde 200.
+- **Dieta de tokens de las tres skills grandes** (progressive disclosure, `ADR-008`): `jira-sync` 289 → 149 líneas, `confluence-publish` 432 → 196, `cybersecurity` 976 → 167, moviendo el detalle literal a `skills/<skill>/references/*.md` (12 ficheros nuevos) con una tabla «lee X solo cuando llegues al paso Y» en cada SKILL.md. Cero pérdida verificada párrafo a párrafo (`tests/test_skill_size.py --diet-check <skill> <ref>`); todos los anclajes que citan otras piezas (`Paso 0-ter/7/8/9`, «Qué sube y qué no»…) se conservan. Tope duro de 250 líneas (test) y aviso del linter desde 200.
 - **Campo `Verificación` obligatorio por tarea**: la plantilla del planner (y el ledger ligero de la vía rápida) declaran `verificacion: obligatoria` y cada `T-XX` lleva `- **Verificación**: \`<comando>\` → <resultado esperado>` (en línea con `·` o como sub-lista; `lectura: …` para prosa). `ledger-lint.py` convierte el campo ausente o vacío en incoherencia dura solo cuando el ledger lo declara (los 20 ledgers existentes validan byte-idénticos); `task-brief.py` lo inyecta en el brief del subagente (también cuando el campo ya registra una ejecución previa: pide re-ejecutarla); `implementer`/`planner`/Lente A exigen la evidencia.
 - **CI headless opcional** (`headless.yml`, `workflow_dispatch` + semanal): con `ANTHROPIC_API_KEY` como `env` del job (los secrets no pueden usarse en `if:`), instala Claude Code, ejecuta un subconjunto barato de evals (`run.py --bare --target …`) y una comprobación de hooks reales sobre el fixture cuya evidencia es el fichero-testigo `.claude/.progress-last` que escribe `progress-line.sh` más el plugin listado en `system/init.plugins`; sin el secret todos los pasos se saltan y un paso guardia falla si alguno corrió. Cierra la verificación «hooks en sesión real» que era manual.
 
 ### Added — iniciativa `distribution` (2026-09-03)
 
 - **Exportación portable «solo skills»** (`scripts/export-skills.py --format claude|agents-md|cursor|all`): paquete agnóstico de Claude Code con las 10 skills portables, sus `references/` y scripts Python puros, los 13 fragmentos compartidos que citan, un índice `AGENTS.md` (Codex, Copilot…) y una regla `.cursor/rules/*.mdc`, con las búsquedas `find "$PWD/.claude"` reescritas a `${PORTABLE_ROOT:-.}`, README (ES+EN) con la tabla «qué viaja / qué no / por qué» y un sha256, fichero-marcador dedicado antes de cualquier sobrescritura y `--check`. Determinista (`diff -r` vacío entre ejecuciones); el workflow de Release adjunta `custom-agents-skills-portable-<ver>.zip` reproducible (`SOURCE_DATE_EPOCH`).
-- **`release.py` hace ahora TODO el release** (lección [`LES-012`](docs/knowledge/lessons/) — las dos trampas del release v1.15.0): mueve `[Unreleased]`/`[Sin publicar]` a `## [X.Y.Z] - fecha` en ambos CHANGELOG y añade el enlace de la release (aborta con notas vacías salvo `--allow-empty-notes`), rechaza una versión ≤ la actual, un árbol sucio o un tag existente, ejecuta `lint_plugin.py` + `evals/check.py` y comprueba las copias `*.MANUAL-COPY` antes de escribir nada, restaura el bit ejecutable de los `.sh` versionados (`git update-index --chmod=+x`, la trampa de Windows), conserva CRLF y ofrece `--dry-run`/`--check`. El comportamiento por defecto (bump + commit + tag) no cambia.
+- **`release.py` hace ahora TODO el release** (lección `LES-012` — las dos trampas del release v1.15.0): mueve `[Unreleased]`/`[Sin publicar]` a `## [X.Y.Z] - fecha` en ambos CHANGELOG y añade el enlace de la release (aborta con notas vacías salvo `--allow-empty-notes`), rechaza una versión ≤ la actual, un árbol sucio o un tag existente, ejecuta `lint_plugin.py` + `evals/check.py` y comprueba las copias `*.MANUAL-COPY` antes de escribir nada, restaura el bit ejecutable de los `.sh` versionados (`git update-index --chmod=+x`, la trampa de Windows), conserva CRLF y ofrece `--dry-run`/`--check`. El comportamiento por defecto (bump + commit + tag) no cambia.
 - Pulido de distribución: `displayName` y 18 keywords en `plugin.json`, `marketplace.json` sincronizado (`tests/test_manifests.py` comprueba que skills/comandos listados == reales, en ambos sentidos); README ES/EN con quickstart de 5 pasos copiables, «¿Qué verás?» y una sección honesta «Comparado con superpowers»; `CONTRIBUTING.md`; issue forms de GitHub + plantilla de PR (`github-templates.MANUAL-COPY/` espejado en `.github/`, vigilado por `tests/test_ci_manual_copy.py`). Los 7 `.sh` legacy de `agent-kits/nemesis` y `agent-kits/qa` recuperan el bit ejecutable.
 
 ### Fixed — iniciativa `windows-console` (2026-09-03)
 
-- **Todo script sobrevive a una consola que no es UTF-8** ([`GOT-005`](docs/knowledge/gotchas/)): en Windows con locale `cp1252`, `python scripts/release.py` moría con `UnicodeEncodeError: 'charmap' codec can't encode characters` — reportado con traceback real. Causa raíz: el crash ocurre en el **hijo canalizado**, donde Python cae al codepage ANSI del locale, no en la consola de PowerShell. Los 28 scripts versionados que imprimen símbolos o leen `stdin` reconfiguran ahora `sys.stdin`/`stdout`/`stderr` a UTF-8 con `errors="replace"` al arrancar, y el lado **padre** también queda arreglado: 56 llamadas a `subprocess` capturan con `encoding` explícito, y los ocho `python3 -c` en línea de `hooks/` y `statusline/` llevan `PYTHONIOENCODING=utf-8:replace`. Sin modo ASCII: medido, `reconfigure` gana a `PYTHONIOENCODING`, así que la salida sale en UTF-8 y `errors="replace"` no llega a dispararse.
+- **Todo script sobrevive a una consola que no es UTF-8** (`GOT-005`): en Windows con locale `cp1252`, `python scripts/release.py` moría con `UnicodeEncodeError: 'charmap' codec can't encode characters` — reportado con traceback real. Causa raíz: el crash ocurre en el **hijo canalizado**, donde Python cae al codepage ANSI del locale, no en la consola de PowerShell. Los 28 scripts versionados que imprimen símbolos o leen `stdin` reconfiguran ahora `sys.stdin`/`stdout`/`stderr` a UTF-8 con `errors="replace"` al arrancar, y el lado **padre** también queda arreglado: 56 llamadas a `subprocess` capturan con `encoding` explícito, y los ocho `python3 -c` en línea de `hooks/` y `statusline/` llevan `PYTHONIOENCODING=utf-8:replace`. Sin modo ASCII: medido, `reconfigure` gana a `PYTHONIOENCODING`, así que la salida sale en UTF-8 y `errors="replace"` no llega a dispararse.
 - **El guardarraíl de alcance deja de abrirse solo**: `guardrail-check.py` leía el payload del hook con el codec del locale y convertía el `UnicodeDecodeError` en un *allow* silencioso — bajo `cp1252`, un solo emoji en el contenido escrito desactivaba los guardarraíles de rama y de alcance del `implementer`. Ahora decodifica como UTF-8 y deniega como debe.
 - **Un crash nunca se presenta como veredicto**: `release.py` decía `changelog-sync --check: PENDIENTE` cuando el check había reventado (el exit 1 es el mismo). Las tres precondiciones distinguen ahora `OK` · `FALLA (exit N)` · `ERROR al ejecutar` (traceback en stderr, o exit ∉ {0,1}), imprimen las tres últimas líneas de stderr y **bloquean** el release — mientras que una deuda de notas legítima sigue siendo un aviso que no bloquea.
 - **La regla se vigila, no solo se escribe**: `lint_plugin.py` avisa de forma estructural (`ast`, así que un snippet metido dentro de `main()` o citado en un docstring ya no cuela) y `tests/test_console_encoding.py` ejecuta cada script bajo `PYTHONIOENCODING=cp1252` y `ascii`, descubriendo la lista dinámicamente para que un script nuevo que imprima símbolos falle hasta que lleve el snippet. Las tres pasadas de revisión adversarial quedan en el ledger de la iniciativa, incluidos los dos intentos en que se encontró que el propio guardarraíl tenía agujeros.
@@ -343,13 +905,13 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ### Added — iniciativa `deterministic-guardrails` (2026-09-02)
 
-- **Los guardrails duros del implementer pasan de prosa a un hook PreToolUse con tests.** `agent-kits/shared/guardrail-check.py` (+ wrapper `hooks/implementer-guardrail.sh`) deniega, con una razón de una frase: escrituras bajo `docs/roadmap/**` que no sean `tasks.md` (incl. `testing/**`), bajo `docs/security-scan/**`, escrituras de código estando en `main`/`master`, `git push --force|-f|--force-with-lease|+refspec`, `git branch -D`, salir de la rama de trabajo con `checkout/switch main`, `rm -rf` sobre `/`, `~`, `.git` o `.` — también dentro de `sh -c "…"`/`bash -c`/`eval`, sin falsos positivos en mensajes de commit, `grep` o `echo`. Registrado **solo** en el frontmatter `hooks:` del agente (nunca en `hooks/hooks.json` global: planner/evaluator/analyst escriben en `docs/roadmap/` legítimamente) — registrado como [`ADR-007`](docs/knowledge/adr/). Configurable en `.claude/dev.json` → `"guardrails": false | {"alcance","git","ramaPrincipal"}`; sin python3 nunca bloquea (avisa una vez).
+- **Los guardrails duros del implementer pasan de prosa a un hook PreToolUse con tests.** `agent-kits/shared/guardrail-check.py` (+ wrapper `hooks/implementer-guardrail.sh`) deniega, con una razón de una frase: escrituras bajo `docs/roadmap/**` que no sean `tasks.md` (incl. `testing/**`), bajo `docs/security-scan/**`, escrituras de código estando en `main`/`master`, `git push --force|-f|--force-with-lease|+refspec`, `git branch -D`, salir de la rama de trabajo con `checkout/switch main`, `rm -rf` sobre `/`, `~`, `.git` o `.` — también dentro de `sh -c "…"`/`bash -c`/`eval`, sin falsos positivos en mensajes de commit, `grep` o `echo`. Registrado **solo** en el frontmatter `hooks:` del agente (nunca en `hooks/hooks.json` global: planner/evaluator/analyst escriben en `docs/roadmap/` legítimamente) — registrado como `ADR-007`. Configurable en `.claude/dev.json` → `"guardrails": false | {"alcance","git","ramaPrincipal"}`; sin python3 nunca bloquea (avisa una vez).
 - **`scope-check.py`** compara el diff de la rama (comiteado + sin comitear + sin seguimiento) con los campos `Archivos` del ledger (globs, `(nuevo)`, carpetas; `**/` = cero o más directorios) y hace de puerta de la revisión adversarial: exit 1 devuelve los ficheros fuera de alcance al implementer como gap Important sin gastar revisores. Sustituye el check manual «git diff --stat solo dentro del alcance» del DoD del implementer y de `quick-implement`.
 - `lint_plugin.py` valida los campos nativos del frontmatter de agente `skills:` (existe, ⊆ `dependencies.skills`, avisa por encima de 16 KB precargados) y `hooks:` (commands existentes). Convenciones ES+EN: dos clases de hooks — informativos (globales, siempre exit 0) y de guardia (PreToolUse deny, solo con alcance de agente, script+tests, desactivables). `ledger-lint.py` reconoce las filas «Fase única» del resumen (adiós al aviso legacy falso en los ledgers de vía rápida).
 
 ### Added — skill `adversarial-review` (2026-09-02)
 
-- **La revisión adversarial de dos lentes pasa a skill reutilizable** (`skills/adversarial-review/`) — fuente única del método que ahora invocan `/dev-cycle` Fase 3 y `quick-implement`, y utilizable a demanda sobre una rama o rango sin ledger («revisa este diff»). Lente A (conformidad con spec/plan/constitución, ✓/✗ por criterio) y Lente B (solo defectos de corrección) conservan sus prompts literales; una **Lente C condicional (seguridad)** corre solo cuando `scripts/review-lens-select.py` detecta rutas sensibles (auth/session/token/secret/crypt/permisos/upload/payment/.env/Dockerfile/workflows, ancladas a token, prosa y `docs/**` excluidos) o líneas añadidas (`eval(`, `os.system`, `innerHTML`, `pickle.loads`, `yaml.load(`, SQL concatenado, claves/tokens…) — configurable en `.claude/dev.json` `"revision": {"lenteSeguridad": "auto|siempre|nunca"}`. Fusión + graduación Critical/Important/Minor, bucle de 3 intentos con traspaso de estado, rebate con evidencia, tabla «Revisión de dos lentes — intento N» en el ledger, promoción de `docs/knowledge/` y comentario en Jira viven en la skill; `commands/dev-cycle.md` pierde 25 líneas y conserva solo lo del orquestador (contador de intentos, worklog `[revisión]` por intento). La lección [`LES-010`](docs/knowledge/lessons/) recoge el porqué (tasa de captura real en 5 iniciativas). La CI (`ci.yml.MANUAL-COPY`) pasa a ejecutar pytest por carpetas, así que las suites nuevas quedan cubiertas.
+- **La revisión adversarial de dos lentes pasa a skill reutilizable** (`skills/adversarial-review/`) — fuente única del método que ahora invocan `/dev-cycle` Fase 3 y `quick-implement`, y utilizable a demanda sobre una rama o rango sin ledger («revisa este diff»). Lente A (conformidad con spec/plan/constitución, ✓/✗ por criterio) y Lente B (solo defectos de corrección) conservan sus prompts literales; una **Lente C condicional (seguridad)** corre solo cuando `scripts/review-lens-select.py` detecta rutas sensibles (auth/session/token/secret/crypt/permisos/upload/payment/.env/Dockerfile/workflows, ancladas a token, prosa y `docs/**` excluidos) o líneas añadidas (`eval(`, `os.system`, `innerHTML`, `pickle.loads`, `yaml.load(`, SQL concatenado, claves/tokens…) — configurable en `.claude/dev.json` `"revision": {"lenteSeguridad": "auto|siempre|nunca"}`. Fusión + graduación Critical/Important/Minor, bucle de 3 intentos con traspaso de estado, rebate con evidencia, tabla «Revisión de dos lentes — intento N» en el ledger, promoción de `docs/knowledge/` y comentario en Jira viven en la skill; `commands/dev-cycle.md` pierde 25 líneas y conserva solo lo del orquestador (contador de intentos, worklog `[revisión]` por intento). La lección `LES-010` recoge el porqué (tasa de captura real en 5 iniciativas). La CI (`ci.yml.MANUAL-COPY`) pasa a ejecutar pytest por carpetas, así que las suites nuevas quedan cubiertas.
 
 ### Fixed — `debt-cleanup` (2026-09-02)
 
@@ -357,7 +919,7 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ### Changed
 
-- **`jira-granularity` cerrada**: la puerta manual de dry-run (T-08) se ejecutó contra un issue desechable del proyecto de pruebas y verificó las cuatro capacidades del conector (checklist markdown en la descripción vía `editJiraIssue`, varios worklogs por issue, comentario de revisión con la plantilla fija, worklog `[revisión]`). Dos hallazgos, registrados como [`GOT-004`](docs/knowledge/gotchas/) y aplicados a `jira-sync`: la transición de cierre se resuelve por `statusCategory.key == "done"` (nunca por nombre ni id fijo — la transición «Done» aterrizó en un estado localizado), y los issues se crean con **`assignee` explícito** (`me` | `none`, se pregunta una vez y se persiste en `.claude/jira.json`) para que el asignado por defecto del proyecto nunca notifique a un compañero. `docs/atlassian-connector-notes.md` ampliado (markdown en descripción/comentarios/worklogs, escape `\|` en celdas).
+- **`jira-granularity` cerrada**: la puerta manual de dry-run (T-08) se ejecutó contra un issue desechable del proyecto de pruebas y verificó las cuatro capacidades del conector (checklist markdown en la descripción vía `editJiraIssue`, varios worklogs por issue, comentario de revisión con la plantilla fija, worklog `[revisión]`). Dos hallazgos, registrados como `GOT-004` y aplicados a `jira-sync`: la transición de cierre se resuelve por `statusCategory.key == "done"` (nunca por nombre ni id fijo — la transición «Done» aterrizó en un estado localizado), y los issues se crean con **`assignee` explícito** (`me` | `none`, se pregunta una vez y se persiste en `.claude/jira.json`) para que el asignado por defecto del proyecto nunca notifique a un compañero. `docs/atlassian-connector-notes.md` ampliado (markdown en descripción/comentarios/worklogs, escape `\|` en celdas).
 
 ## [1.14.1] - 2026-08-20
 
@@ -373,7 +935,7 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ### Añadido — iniciativa `knowledge-split` (2026-08-20)
 
-- **Un fichero por entrada para `docs/knowledge/gotchas` y `LESSONS`, igualando el patrón de `adr/`.** Crecimiento previsible, lectura selectiva y colisiones de escritura en paralelo motivan el split: `docs/knowledge/gotchas/<slug>.md` y `docs/knowledge/lessons/<agente>-<slug>.md` sustituyen a los dos ficheros agregados, migrados sin retocar texto ni traza de validación — registrado como [`ADR-006`](docs/knowledge/adr/).
+- **Un fichero por entrada para `docs/knowledge/gotchas` y `LESSONS`, igualando el patrón de `adr/`.** Crecimiento previsible, lectura selectiva y colisiones de escritura en paralelo motivan el split: `docs/knowledge/gotchas/<slug>.md` y `docs/knowledge/lessons/<agente>-<slug>.md` sustituyen a los dos ficheros agregados, migrados sin retocar texto ni traza de validación — registrado como `ADR-006`.
   - **`README.md` pasa a ser el índice de entrada**: cada fila enlaza directo a su fichero en vez de a `gotchas.md`/`LESSONS.md#agente`.
   - **`agent-kits/shared/knowledge-check.md` pasa a lectura SELECTIVA**: leer el índice y abrir solo el fichero de la entrada concreta que toque el área de la tarea — nunca la carpeta entera.
   - **La colisión de FICHERO desaparece para gotchas/lecciones** (como ya le pasaba a `adr/`): solo queda el riesgo de colisión de `id:` del ADR (D4, sigue diferido).
@@ -382,7 +944,7 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ### Añadido — extensión `knowledge-ids` (2026-08-20)
 
-- **IDs con nomenclatura ADR para gotchas y lecciones, conservando el agente en el slug.** Extiende el split de un fichero por entrada de `knowledge-split` con numeración secuencial igual al patrón `ADR-NNN`: `docs/knowledge/gotchas/GOT-NNN-<slug>.md` y `docs/knowledge/lessons/LES-NNN-<agente>-<slug>.md`, con `id: GOT-NNN`/`id: LES-NNN` en el frontmatter — los 12 ficheros existentes se movieron con `git mv` (renombrado real, contenido intacto) y se numeraron por orden cronológico (backfill primero, luego por orden del índice). `README.md` muestra el ID en cada fila; los globs de lectura selectiva de `knowledge-check.md` y todo escritor/lector que citaba un patrón de ruta se actualizaron. La nota de colisión de `id:` de `knowledge-write.md` pasa a aplicar a las tres familias (ADR/GOT/LES), misma mitigación (renumerar + declararlo en la retro) — registrado como enmienda a [`ADR-006`](docs/knowledge/adr/).
+- **IDs con nomenclatura ADR para gotchas y lecciones, conservando el agente en el slug.** Extiende el split de un fichero por entrada de `knowledge-split` con numeración secuencial igual al patrón `ADR-NNN`: `docs/knowledge/gotchas/GOT-NNN-<slug>.md` y `docs/knowledge/lessons/LES-NNN-<agente>-<slug>.md`, con `id: GOT-NNN`/`id: LES-NNN` en el frontmatter — los 12 ficheros existentes se movieron con `git mv` (renombrado real, contenido intacto) y se numeraron por orden cronológico (backfill primero, luego por orden del índice). `README.md` muestra el ID en cada fila; los globs de lectura selectiva de `knowledge-check.md` y todo escritor/lector que citaba un patrón de ruta se actualizaron. La nota de colisión de `id:` de `knowledge-write.md` pasa a aplicar a las tres familias (ADR/GOT/LES), misma mitigación (renumerar + declararlo en la retro) — registrado como enmienda a `ADR-006`.
 
 ### Añadido — iniciativa `knowledge-capture` (2026-08-20)
 
@@ -650,6 +1212,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[2.0.0]: https://github.com/daycry/custom-agents/releases/tag/v2.0.0
 [1.22.0]: https://github.com/daycry/custom-agents/releases/tag/v1.22.0
 [1.21.1]: https://github.com/daycry/custom-agents/releases/tag/v1.21.1
 [1.21.0]: https://github.com/daycry/custom-agents/releases/tag/v1.21.0

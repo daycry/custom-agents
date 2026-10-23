@@ -92,6 +92,78 @@ def test_dos_reclamar_concurrentes_uno_gana_otro_none(tmp_path):
     assert ganadores[0]["clave"] == "ev1"
 
 
+def test_reclamacion_exclusiva_bajo_contencion_repetida(tmp_path):
+    """Un rename concurrente no constituye un cerrojo de propiedad en todos los filesystems."""
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        for i in range(100):
+            d = tmp_path / str(i)
+            outbox.escribir(str(d), "ev1", {"a": i})
+            futuros = [ex.submit(outbox.reclamar, str(d)) for _ in range(2)]
+            resultados = [f.result() for f in futuros]
+            assert sum(r is not None for r in resultados) == 1, (i, resultados)
+
+
+def test_reclamar_sin_cerrojo_disponible_conserva_pendiente(tmp_path, monkeypatch):
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    real_open = os.open
+    def fail_lock(path, *args, **kwargs):
+        if os.path.basename(path) == ".claim.lock":
+            raise PermissionError("cerrojo no escribible")
+        return real_open(path, *args, **kwargs)
+    monkeypatch.setattr(outbox.os, "open", fail_lock)
+    assert outbox.reclamar(str(d)) is None
+    assert (d / "outbox" / "ev1.json").is_file()
+
+
+def test_reclamar_error_de_transaccion_no_parece_cola_vacia(tmp_path):
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    (d / "processing").write_text("carpeta dañada", encoding="utf-8")
+    with pytest.raises(OSError):
+        outbox.reclamar(str(d))
+    assert (d / "outbox" / "ev1.json").is_file()
+    (d / "processing").unlink()
+    assert outbox.reclamar(str(d))["clave"] == "ev1"
+
+
+def test_reclamar_rechaza_cerrojo_enlace_sin_abrirlo(tmp_path, monkeypatch):
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    externo = tmp_path / "externo"
+    externo.write_text("contenido ajeno", encoding="utf-8")
+    try:
+        (d / ".claim.lock").symlink_to(externo)
+    except OSError:
+        pytest.skip("El sistema no permite crear enlaces simbólicos")
+    real_open = os.open
+    def no_abrir_enlace(path, *args, **kwargs):
+        assert os.path.basename(path) != ".claim.lock", "se abrió un enlace ajeno"
+        return real_open(path, *args, **kwargs)
+    monkeypatch.setattr(outbox.os, "open", no_abrir_enlace)
+    assert outbox.reclamar(str(d)) is None
+    assert (d / "outbox" / "ev1.json").is_file()
+    assert externo.read_text(encoding="utf-8") == "contenido ajeno"
+
+
+def test_reclamar_rechaza_cerrojo_sustituido_antes_de_abrir(tmp_path, monkeypatch):
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    (d / ".claim.lock").touch()
+    externo = tmp_path / "externo"
+    externo.write_text("contenido ajeno", encoding="utf-8")
+    real_open = os.open
+    def sustituir(path, *args, **kwargs):
+        if os.path.basename(path) == ".claim.lock":
+            # Simula que la ruta cambia mientras open entrega otro objeto.
+            return real_open(externo, *args, **kwargs)
+        return real_open(path, *args, **kwargs)
+    monkeypatch.setattr(outbox.os, "open", sustituir)
+    assert outbox.reclamar(str(d)) is None
+    assert (d / "outbox" / "ev1.json").is_file()
+    assert externo.read_text(encoding="utf-8") == "contenido ajeno"
+
+
 # ------------------------------------------------------------------ completar / dead_letter
 
 def test_completar_mueve_a_done_con_manifiesto_y_hash(tmp_path):
@@ -289,6 +361,7 @@ def test_purgar_antiguos_sin_manifiesto_o_sin_completado_en_no_purga(tmp_path):
     assert os.path.isfile(dst)
 
 
+@pytest.mark.skipif(os.name == "nt", reason="bits de permisos POSIX; Windows requiere comprobación de ACL")
 def test_directorios_y_ficheros_de_la_cola_son_privados(tmp_path):
     """Gap 9 (B5/C1 · CWE-538/732): la cola no debe ser world-readable ni sembrarse en git status
     sin control."""

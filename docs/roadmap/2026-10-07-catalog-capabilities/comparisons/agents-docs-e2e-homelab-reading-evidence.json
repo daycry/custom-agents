@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_agent_ids": [
+    "A019",
+    "A020",
+    "A021",
+    "A033"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "A019",
+      "sha256": "5018d3a0bf740d2263fd4b7a92412d53a62d4be151a71221d6549cacba62d72c",
+      "bytes": 4376,
+      "lines": 116,
+      "read_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A020",
+      "sha256": "11560171e4535419e7917158d0de3bc7bbbf0408f83f61f0f3558b356802419e",
+      "bytes": 4566,
+      "lines": 77,
+      "read_ranges": [
+        [
+          1,
+          77
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A021",
+      "sha256": "94811f4bbc491c351cdf220ab103d6bd251fb1d88d9d46ba4c8162637a236a5b",
+      "bytes": 5079,
+      "lines": 116,
+      "read_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A033",
+      "sha256": "d851727c8d07d2c44ea953d1ccab812865de3ba4b693d0392e86ba52187664bc",
+      "bytes": 4505,
+      "lines": 107,
+      "read_ranges": [
+        [
+          1,
+          107
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/documenter.md",
+      "sha256": "6305ad471be234d3862c9ed1cd95d9776e1cc8d087a3f87d0b5d92872ed33244"
+    },
+    {
+      "path": "agent-kits/documenter/taxonomy.md",
+      "sha256": "1e3df54dd093c9cada7ee3ef877f65783ddc8ff94553aa63450d80bdad8ee9e9"
+    },
+    {
+      "path": "skills/research-first/SKILL.md",
+      "sha256": "2771d49527560d132e1ed58996b840aa1802af71c06708471576f9790030df3a"
+    },
+    {
+      "path": "agents/qa.md",
+      "sha256": "4e2a545764ce588c28165247f1ce124f7d0153467d0616f859f9168327b9ac56"
+    },
+    {
+      "path": "agent-kits/qa/references/e2e-evidence.md",
+      "sha256": "fda841f914722335d095b6cd48faf573b15ac3c9ec74137f4298cb1c41c27bfe"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-hexagonal-hipaa-homelab.md",
+      "sha256": "ef23e6ef35277c885bdb1151af6397ea2319b365649568eeeb103fdf8743e76b"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

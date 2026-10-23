@@ -1,0 +1,294 @@
+{
+  "version": 1,
+  "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "execution": "source reading only; integration test inspected, not executed",
+  "consumer_data_access": "none",
+  "global_command_evaluation_complete": false,
+  "resources": [
+    {
+      "id": "R-977a20b4bd1a",
+      "sha256": "7c5869ed155e88a1bf78f760b983d958e913f2594752bd9c5f78134e32eaf1df",
+      "line_count": 46,
+      "read_ranges": [
+        [
+          1,
+          46
+        ]
+      ]
+    },
+    {
+      "id": "R-dbe89d282313",
+      "sha256": "8d0caa8380eba2f2550937553c9c8c8f253c627cff662f0c333e6ad982706e3e",
+      "line_count": 207,
+      "read_ranges": [
+        [
+          1,
+          117
+        ],
+        [
+          174,
+          207
+        ]
+      ]
+    },
+    {
+      "id": "R-965b3e6aa66d",
+      "sha256": "34f6cb463a65d35149d3e1f9f059380264ce7499850d5240c7600acbfd5afa2a",
+      "line_count": 275,
+      "read_ranges": [
+        [
+          60,
+          68
+        ],
+        [
+          245,
+          275
+        ]
+      ]
+    },
+    {
+      "id": "R-881752eabe6f",
+      "sha256": "6a519875b519d52aaa68d2695d5252ba419021b420c45c6605cb68169ab2d95a",
+      "line_count": 198,
+      "read_ranges": [
+        [
+          98,
+          108
+        ],
+        [
+          156,
+          198
+        ]
+      ]
+    },
+    {
+      "id": "R-f0641ea256e1",
+      "sha256": "daef0378434ae10f9c329d67854eb9750732dfe52d83e0c28fba30fcbda2323e",
+      "line_count": 277,
+      "read_ranges": [
+        [
+          1,
+          35
+        ]
+      ]
+    },
+    {
+      "id": "R-d6c09c287a66",
+      "sha256": "0ee9356f9305eb8ceec671753700a0a7a438c76dca9983ed87c66be0b5681b64",
+      "line_count": 199,
+      "read_ranges": [
+        [
+          1,
+          199
+        ]
+      ]
+    },
+    {
+      "id": "R-27c5638c82ea",
+      "sha256": "d104fb71594fd9385c4a7c23e4835907be124b8effb34f49fa5cf7d28e3494e3",
+      "line_count": 264,
+      "read_ranges": [
+        [
+          1,
+          90
+        ],
+        [
+          215,
+          226
+        ]
+      ]
+    },
+    {
+      "id": "R-01e4b2ea43e3",
+      "sha256": "26707fc276a0a8489a5919c48af22f0c2c2d12724d3e031080200281f26a3f2e",
+      "line_count": 122,
+      "read_ranges": [
+        [
+          65,
+          91
+        ]
+      ]
+    },
+    {
+      "id": "R-fc41ec2caa2e",
+      "sha256": "6f79952c1498c2748ea13d74ca665c7508ae72068e014e848dee0754e3d650e5",
+      "line_count": 239,
+      "read_ranges": [
+        [
+          1,
+          185
+        ],
+        [
+          196,
+          225
+        ]
+      ]
+    },
+    {
+      "id": "R-5cfa1fa3014f",
+      "sha256": "e3bb945047cd5bd0a43479e5d3f0fad6c06e59a6504b6bb5321cba11ec1040d1",
+      "line_count": 407,
+      "read_ranges": [
+        [
+          1,
+          407
+        ]
+      ]
+    },
+    {
+      "id": "R-5b405c303a19",
+      "sha256": "12c0d16b99910bbaff7d462f4fab6865e92426fc2b179f577bb920011ead7d32",
+      "line_count": 270,
+      "read_ranges": [
+        [
+          1,
+          270
+        ]
+      ]
+    },
+    {
+      "id": "R-eb6ff08db625",
+      "sha256": "a617d3a0fb0f18b9e7a2257c70e6e585a75615598c087d2d217efbfe63fa59c3",
+      "line_count": 766,
+      "read_ranges": [
+        [
+          1,
+          35
+        ],
+        [
+          235,
+          335
+        ],
+        [
+          350,
+          595
+        ],
+        [
+          606,
+          710
+        ]
+      ]
+    },
+    {
+      "id": "R-90614daade3c",
+      "sha256": "73ee795cb6ce3960b3ac38c1bfdf1cef9f0ace8f412a4673280503ac60451d93",
+      "line_count": 629,
+      "read_ranges": [
+        [
+          14,
+          49
+        ],
+        [
+          203,
+          287
+        ],
+        [
+          366,
+          464
+        ],
+        [
+          467,
+          529
+        ]
+      ]
+    },
+    {
+      "id": "R-c132a4a3032f",
+      "sha256": "26c0618591cbf6aac5cebf1b9555dc364ba87ad8213876a886318712b0324359",
+      "line_count": 238,
+      "read_ranges": [
+        [
+          68,
+          185
+        ]
+      ]
+    },
+    {
+      "id": "R-5f85c39068f7",
+      "sha256": "18feb739884b028791b432b8185888451fa27fe23f94adc96747c9b9c773f018",
+      "line_count": 227,
+      "read_ranges": [
+        [
+          1,
+          35
+        ],
+        [
+          69,
+          105
+        ],
+        [
+          125,
+          145
+        ],
+        [
+          196,
+          227
+        ]
+      ]
+    },
+    {
+      "id": "R-03b492bcef1e",
+      "sha256": "f894fdc9a38ba2c4b92035e026d58775dcec4679ea5035e7df0fe1d2b359445b",
+      "line_count": 69,
+      "read_ranges": [
+        [
+          1,
+          69
+        ]
+      ]
+    },
+    {
+      "id": "R-fe000d2a37ea",
+      "sha256": "57edf21eb83d9c8144cfdc19f621700a854b6fd4abc4c368ddaeb5c74488b43c",
+      "line_count": 19,
+      "read_ranges": [
+        [
+          1,
+          19
+        ]
+      ]
+    },
+    {
+      "id": "R-a48aec12c9dd",
+      "sha256": "0375d4675abee59ff38a187e5df19db50b8795d962d4c735672f305094f558d9",
+      "line_count": 255,
+      "read_ranges": [
+        [
+          107,
+          125
+        ],
+        [
+          160,
+          185
+        ]
+      ]
+    },
+    {
+      "id": "R-05660b433f33",
+      "sha256": "6a9a7734bfd8763a488ed57758c80047c91969a352c5eba3f1fccd4167f134fc",
+      "line_count": 636,
+      "read_ranges": [
+        [
+          338,
+          414
+        ]
+      ]
+    },
+    {
+      "id": "R-6102e84932bd",
+      "sha256": "084f18c30eedfb5db016443771ec48da11c9465f0575f25f308a0a89b15b5702",
+      "line_count": 266,
+      "read_ranges": [
+        [
+          1,
+          18
+        ],
+        [
+          120,
+          235
+        ]
+      ]
+    }
+  ],
+  "limits": "Directed visual plan approval workflow; no execution, native plan mode validation or claim of full command/skill evaluation."
+}

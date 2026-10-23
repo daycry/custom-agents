@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "block": 24,
+  "status": "root_verified_scoped_linux72_and_static_checks",
+  "scope": "Two feedback regression modules on the reviewed source bundle; static checks separately bind the combined public manifest. No integrated QA or global acceptance.",
+  "source_binding": {
+    "source_bundle_seal_sha256": "666c64b6b1e669ae900a623b29dd2277fe042034c6176e4af5d48b1c3de855c2",
+    "public_files_in_read_only_bundle": 17,
+    "public_source_sha256": {
+      "agent-kits/shared/plan-review.py": "6ecc5c43806395dfea5ba992379f72a1b0462199aaf53c8bc38814a0ed66ade1",
+      "agent-kits/shared/local-read.py": "eee670d4c2e43a84724bc72de413a15379cd6681af20875ea3f091f9ef9dca65",
+      "agent-kits/shared/redact.py": "95b3b5c0cd8b0de4835664e80f6442b489663a793edb1bb1be0fe307f3d90bd2",
+      "agent-kits/shared/plan-review-open.py": "c9e76a67d37665ac808fc784d9fdc91f10d6757d37841e785fe2409478d419a1",
+      "agent-kits/shared/test_plan_review.py": "c9614e39cf7cb1f57fe60c91963125bfcb92273971b4e4bd0de52c388f5e8c9d",
+      "skills/plugin-panel/scripts/serve_panel.py": "5b0c653483a6529b0813a83e1d3834fecb5c44cd985ef710da2d12cb9573dd2a",
+      "skills/plugin-panel/scripts/build_panel.py": "46774c04d88d8a42aeaa65c09e313d3eb450f703a6d8668c73422a71a6ac8b01",
+      "skills/plugin-panel/references/panel.html": "88aae52801ce884c4f1d59252247d0e2488cf05179a38132143f7979dcba7c4c",
+      "skills/plugin-panel/references/panel-review.js": "62c0c72f5cb287f4ec45b8c444c375ef3a667d11d3351bde8379d0cd42a0d8ae",
+      "skills/plugin-panel/references/panel-live.js": "fa9c1fba9c06b79d8b8106512a16525afd2e0cba37f322765aa9431837fb72ea",
+      "skills/plugin-panel/references/panel-memory.js": "a04de2483130469dda89c58a291a056548f199f0cf4ec7df48540bfd37f6f4a4",
+      "tests/test_panel_review_server.py": "f9a982c34a7f1d53d1d2d6266ed928f4e8130d4b0f0f72e1500e43c85b42b9de",
+      "tests/test_panel_review_ui.py": "69b2fff3a803bbd7652367c950b95122c84a8820acef2e347fa850687a9a9ec5",
+      "tests/test_plan_review_open.py": "184553a5a291202932fdd6f6d08276cc18f6d51fa02b8753a062789f44c3603e",
+      "agent-kits/shared/test_plan_review_feedback.py": "5cd7a89e90b1632281d1edee170746841ada12aeea79dd6ac783ca359f872298",
+      "agent-kits/shared/test_plan_review_feedback_contract.py": "8f78e20abe3f3eb4c43c9d614365031596af3be614c467bb862c99d0f633362e",
+      "agent-kits/shared/test_plan_review_feedback_cleanup.py": "c18f23ff8cf8b8903b0dc40505f647e4999e90194fba6acf8627de10382568ac"
+    },
+    "selected_tests": [
+      "agent-kits/shared/test_plan_review_feedback_contract.py",
+      "agent-kits/shared/test_plan_review_feedback_cleanup.py"
+    ]
+  },
+  "linux": {
+    "accepted": true,
+    "scope": "Linux72 feedback regressions only",
+    "image_id": "sha256:ee6b1d8543257a61226665c0c2168c3b565885c8af50b846f2d46b19aa0630ac",
+    "python_version": "3.11.16",
+    "pytest_version": "9.1.1",
+    "collection": 72,
+    "passed": 72,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "pytest_elapsed_seconds": 209.89,
+    "elapsed_basis": "pytest stdout; not a product latency bound",
+    "runs_in_accepted_execution": 1,
+    "registered_children": 29,
+    "terminal_children": 29,
+    "pending_children": 0,
+    "source_before_after_equal": true,
+    "owned_container_absence_verified": true,
+    "raw_pipe_capture": "Actual bytes before decoding, including POSIX selector reads; prior incomplete tapes preserved.",
+    "junit_sha256": "03f0cff8c803aee6757361c9e81561cc381806ee54dc6f52080befca0006fbb8",
+    "run_seal_sha256": "5e3929ba6725ca4b95f2ea33ea39947a311b8ead65fa855069c23772e3306b16",
+    "root_receipt_sha256": "a2e38bb3d99325bff393c8361a89ac8bb0df5bf304efc08718be2f3f14b66694"
+  },
+  "historical_linux_attempt": {
+    "status": "incomplete_external_runner_timeout",
+    "outer_guard_seconds": 240,
+    "junit_available": false,
+    "accepted": false,
+    "stdout_progress_markers": 68,
+    "primary_cause_of_total_elapsed_cost": "unknown",
+    "original_output_preserved": true,
+    "raw_capture_was_incomplete": true,
+    "old_tapes_reconstructed": false
+  },
+  "operational_helper_correction": {
+    "scope": "private runner helper, no product or accepted panel test change",
+    "real_raw_probes_red": 4,
+    "real_raw_probes_green": 4,
+    "accepted_execution_outer_guard_seconds": 600,
+    "accepted_execution_attach_guard_seconds": 660,
+    "phase_trace_after_seconds": 30,
+    "guardrail_is_performance_guarantee": false,
+    "product_deadline_seconds": 3,
+    "product_lock_budget_seconds": 0.1,
+    "product_limits_changed": false
+  },
+  "static_checks": {
+    "accepted": true,
+    "scope": "Canonical static checks of the combined public manifest; tests not executed",
+    "source_manifest_sha256": "ee9088c6763148cde3f794e6ead7eb7cbe935ba1b6e7346a1830a04c90003836",
+    "public_files": 1040,
+    "export": {
+      "exit": 0,
+      "exports_current": 88
+    },
+    "lint": {
+      "exit": 0,
+      "errors": 0,
+      "warnings": 9,
+      "warning_source_files_unchanged": true,
+      "optional_git_executed": false,
+      "executable_warning_basis": "official filesystem fallback; no Git index validation"
+    },
+    "ledger": {
+      "exit": 0,
+      "incoherences": 0,
+      "warnings": 1,
+      "historical_warning_unchanged": true,
+      "warning": "Same REVISION_HDR_PATTERN warning at line 731 before and after"
+    },
+    "source_before_after_equal": true,
+    "summary_sha256": "fbe5ed136f205c7c9d067142fcb64864f033cee3f5496332c7a83c29b2fe859c",
+    "seal_sha256": "d8ce4c3e63c004617db39e6e88780035b5f289e49041e27f4c460b9d6a4e33a1",
+    "root_receipt_sha256": "3428fe1b3aa380a77c5c8f246dbdf0ac5c0d7490350c8b1913fa1e853d859ff6"
+  },
+  "coverage_percentage": null,
+  "real_browser_acceptance": false,
+  "native_acceptance": false,
+  "full_integrated_qa_acceptance": false,
+  "global_acceptance": false,
+  "remaining": [
+    "Integrated QA of the combined public source",
+    "V01–V08 real browser observations",
+    "Expanded native acceptance"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "runtimes": {
+    "claude": {
+      "analyst": "custom-agents:analyst",
+      "architect": "custom-agents:architect",
+      "implementer": "custom-agents:implementer"
+    },
+    "codex": {
+      "analyst": "custom-agents-analyst",
+      "architect": "custom-agents-architect",
+      "implementer": "custom-agents-implementer"
+    },
+    "opencode": {
+      "analyst": "custom-agents-analyst",
+      "architect": "custom-agents-architect",
+      "implementer": "custom-agents-implementer"
+    }
+  }
+}

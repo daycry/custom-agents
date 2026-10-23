@@ -1,0 +1,946 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-07",
+  "evaluated_skill_ids": [
+    "S014"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source": [
+    {
+      "id": "S014",
+      "sha256": "28ee37a8cf63add48fffc7c8676c6368aee35f3042525e79769b5a3d4e01aed1",
+      "bytes": 11021,
+      "lines": 155,
+      "read_ranges": [
+        [
+          1,
+          155
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        "R-1b6aca69a8fe",
+        "R-e8c8f4955c9f",
+        "R-0ca3282fa344",
+        "R-68ec47921ec4",
+        "R-00f9e1953a14",
+        "R-47c8bcd1b934",
+        "R-ba4eb9c8566c",
+        "R-6929a9b4abef",
+        "R-5961fe0d8a05",
+        "R-a580bf113c49",
+        "R-719cdeaa86ab",
+        "R-cc051ee21fea",
+        "R-674af3d9490f",
+        "R-6a448fa67883",
+        "R-4a89a03ccc55",
+        "R-0297a37e91d8",
+        "R-e1edbd390693",
+        "R-a7c5ec410a4c",
+        "R-2311c0f14c28",
+        "R-aa965b152db3",
+        "R-38dc57294569",
+        "R-590ed8e4becb",
+        "R-cc95f35e9ff9",
+        "R-828c6f44d983",
+        "R-e98b54ec26d3",
+        "R-48ffb3f964f0",
+        "R-b5904490f704",
+        "R-552e863eaa0d",
+        "R-aeab52b5a816",
+        "R-d8d85827b748",
+        "R-a915a4440240",
+        "R-11045afb9b08",
+        "R-14265f040690",
+        "R-a0e354278b00",
+        "R-c4942d40eb1e"
+      ]
+    },
+    {
+      "id": "R-1b6aca69a8fe",
+      "sha256": "0361278cabc4925807c8a93ebce717f1c8d52d553870ddd8634b1075b0395dbc",
+      "bytes": 3955,
+      "lines": 160,
+      "read_ranges": [
+        [
+          1,
+          160
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-e8c8f4955c9f",
+      "sha256": "96daed398824f2947c5f4221065cdeabf82ac020874f99cb4338e5e84cd96aa1",
+      "bytes": 12642,
+      "lines": 410,
+      "read_ranges": [
+        [
+          1,
+          410
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-0ca3282fa344",
+      "sha256": "b7a5f9f85125659966fe087b623939fe2b89ea5d7cdf53265476adf1666e37d9",
+      "bytes": 3714,
+      "lines": 86,
+      "read_ranges": [
+        [
+          1,
+          86
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-68ec47921ec4",
+      "sha256": "ffa4258a4877fe4e200c2fca5eb65507dafc85296e2861ba420765f43cd98d16",
+      "bytes": 2903,
+      "lines": 59,
+      "read_ranges": [
+        [
+          1,
+          59
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-00f9e1953a14",
+      "sha256": "de3351fdb72174361c6eee150940193f20d148afaceab0f22107758a3cb2d787",
+      "bytes": 2531,
+      "lines": 91,
+      "read_ranges": [
+        [
+          1,
+          91
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-47c8bcd1b934",
+      "sha256": "dbfb520f2dddd017acb617369c45544374440fcb0b178d9648fab7ada0178468",
+      "bytes": 3422,
+      "lines": 117,
+      "read_ranges": [
+        [
+          1,
+          117
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-ba4eb9c8566c",
+      "sha256": "9b0d8b6d627ec33e5957638049877eac655cd31444cd4afa440597e191e4cb94",
+      "bytes": 2700,
+      "lines": 97,
+      "read_ranges": [
+        [
+          1,
+          97
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-6929a9b4abef",
+      "sha256": "0a6eb7ee89b29d1766941ed88881803b32870e705f2e438a7cae1c4e59ed8289",
+      "bytes": 1587,
+      "lines": 69,
+      "read_ranges": [
+        [
+          1,
+          69
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-5961fe0d8a05",
+      "sha256": "1288b38bad6cc9749e9d0fd35a294771ea2181dd712bfc2887d80e8b40fab7e6",
+      "bytes": 1727,
+      "lines": 67,
+      "read_ranges": [
+        [
+          1,
+          67
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-a580bf113c49",
+      "sha256": "e654c23a080c642cf7031b5cc5de1101b8c75030c15256f7e3b81b0336953c6d",
+      "bytes": 2256,
+      "lines": 72,
+      "read_ranges": [
+        [
+          1,
+          72
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-719cdeaa86ab",
+      "sha256": "45d4431765c46d7492d1daeb2de2aecc326e3255518e95b7b8303e259a4d8a64",
+      "bytes": 3594,
+      "lines": 120,
+      "read_ranges": [
+        [
+          1,
+          120
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-cc051ee21fea",
+      "sha256": "50aa1fa9a832666407b66c524ffc05fb2fe8e7063300fb26e304dc278cb907fc",
+      "bytes": 1904,
+      "lines": 56,
+      "read_ranges": [
+        [
+          1,
+          56
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-674af3d9490f",
+      "sha256": "c06ad02460be7f57d024bb8e263a3390e72059815879bf6bcd0583e510a2b4ad",
+      "bytes": 2758,
+      "lines": 83,
+      "read_ranges": [
+        [
+          1,
+          83
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-6a448fa67883",
+      "sha256": "05546d8043b93a2ab8deccdc2bd9c1704350883107701139e790ff8adb0f626a",
+      "bytes": 2091,
+      "lines": 43,
+      "read_ranges": [
+        [
+          1,
+          43
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-4a89a03ccc55",
+      "sha256": "b898bab74d518feba3c527dbf9694abe6d3ec7bfa44d81b34cff119016984080",
+      "bytes": 2114,
+      "lines": 80,
+      "read_ranges": [
+        [
+          1,
+          80
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-0297a37e91d8",
+      "sha256": "0ab76274d761da9c8ad5d789be2a4b4158d637f06074908d6fb4540cb8f45a34",
+      "bytes": 1927,
+      "lines": 63,
+      "read_ranges": [
+        [
+          1,
+          63
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-e1edbd390693",
+      "sha256": "229a6e37f7006a6f3426cc2bc42baa67ecbbab77c343d141e44b10c1bb11de09",
+      "bytes": 2445,
+      "lines": 101,
+      "read_ranges": [
+        [
+          1,
+          101
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-a7c5ec410a4c",
+      "sha256": "4971692a36c4d470b5c8efec1a8106418ac28cdc33601e554ecff9dded95d289",
+      "bytes": 2584,
+      "lines": 59,
+      "read_ranges": [
+        [
+          1,
+          59
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-2311c0f14c28",
+      "sha256": "fa82c48573532a7f5e3ccf7eaa50dc7a2db1f23a8599638d9c18e023dbd73e2f",
+      "bytes": 1457,
+      "lines": 61,
+      "read_ranges": [
+        [
+          1,
+          61
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-aa965b152db3",
+      "sha256": "7197d06d79bb57084a5c4ff203ddf9d86a30116dddb103b9d4fc138bf2dd8cb1",
+      "bytes": 4079,
+      "lines": 108,
+      "read_ranges": [
+        [
+          1,
+          108
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-38dc57294569",
+      "sha256": "ea3c3d53b5db47b4f8d8b05124330e72bea92fc908d42c06aa7edb9e652b425e",
+      "bytes": 1639,
+      "lines": 69,
+      "read_ranges": [
+        [
+          1,
+          69
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-590ed8e4becb",
+      "sha256": "a191f8982d9ac6868023d56c887f362052c4fccc70a89adc8a6bc546f851e5dc",
+      "bytes": 2604,
+      "lines": 86,
+      "read_ranges": [
+        [
+          1,
+          86
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-cc95f35e9ff9",
+      "sha256": "e71118562247c94141dfaca74efd246e38226bf26ffedbd7f3337f1866113283",
+      "bytes": 3561,
+      "lines": 122,
+      "read_ranges": [
+        [
+          1,
+          122
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-828c6f44d983",
+      "sha256": "329aa9aa35c85dd2048c899f26025439d3b0244067dbb508e724d291fdad7c97",
+      "bytes": 1828,
+      "lines": 44,
+      "read_ranges": [
+        [
+          1,
+          44
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-e98b54ec26d3",
+      "sha256": "ff03e5f21219cb0cb6e8ea9fe3c47ead2308471a15a925cbcaf051473669c40c",
+      "bytes": 2714,
+      "lines": 77,
+      "read_ranges": [
+        [
+          1,
+          77
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-48ffb3f964f0",
+      "sha256": "eda1452f85ce05f3f28753cc77cd8c31c7a52515d7ccebbb35de0ec1e3beb374",
+      "bytes": 1688,
+      "lines": 56,
+      "read_ranges": [
+        [
+          1,
+          56
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-b5904490f704",
+      "sha256": "491a93cb49fbcba04f7e8ffcd0f784fce7319ca3e2fe393c553f3d683a68424c",
+      "bytes": 1397,
+      "lines": 52,
+      "read_ranges": [
+        [
+          1,
+          52
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-552e863eaa0d",
+      "sha256": "4abc8cb8dfeb2e9f57dc11c117d5f4a5b756b39dc076910d9ced9da640effc2d",
+      "bytes": 1534,
+      "lines": 45,
+      "read_ranges": [
+        [
+          1,
+          45
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-aeab52b5a816",
+      "sha256": "42bdaa9ac7d523093fb44ab945f3235ff72715ac4faeb99176bb0ae2fc406213",
+      "bytes": 3840,
+      "lines": 87,
+      "read_ranges": [
+        [
+          1,
+          87
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-d8d85827b748",
+      "sha256": "43a2ed62ea2edafa8569bf7045f20928110f8f844d5890bfb6a2f2dde45e754b",
+      "bytes": 1672,
+      "lines": 68,
+      "read_ranges": [
+        [
+          1,
+          68
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-a915a4440240",
+      "sha256": "7ff19051876697eeb43058fb52ab01ec9bc6bd486fd8674be723978dcde16b90",
+      "bytes": 24203,
+      "lines": 795,
+      "read_ranges": [
+        [
+          1,
+          795
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-11045afb9b08",
+      "sha256": "f0a4d5fe4a88a3f06d81683cedddf1b65ee1c771ef3eaaec4ff1ca5d804e45a3",
+      "bytes": 2841,
+      "lines": 94,
+      "read_ranges": [
+        [
+          1,
+          94
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-14265f040690",
+      "sha256": "bdb952d0dd2d415560a796ecaf843cacff5ac20d8ef961eaaf75656fef9b9263",
+      "bytes": 1868,
+      "lines": 69,
+      "read_ranges": [
+        [
+          1,
+          69
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-a0e354278b00",
+      "sha256": "52e83e576b0c6dc05f854e903c4cfda1222bcd55c50ddee07344d1e53d02c1df",
+      "bytes": 3752,
+      "lines": 114,
+      "read_ranges": [
+        [
+          1,
+          114
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-c4942d40eb1e",
+      "sha256": "94fe1a3b42f4cc299d71d3dcc12190485913bba00fc1d0757097c91306084356",
+      "bytes": 2640,
+      "lines": 65,
+      "read_ranges": [
+        [
+          1,
+          65
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "S229",
+      "sha256": "f3208d44a5d553038c42e046cec4dc16e4a3d90a9dbf931f883a2e21919a64a9",
+      "bytes": 11466,
+      "lines": 342,
+      "read_ranges": [
+        [
+          254,
+          275
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-591e7a1672e1",
+      "sha256": "59e855c382ccab4670dcd293721365d88d400c5d499fd93c1572ce9c1ccb6b6d",
+      "bytes": 31763,
+      "lines": 1199,
+      "read_ranges": [
+        [
+          146,
+          172
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-03ffcc8e6e9e",
+      "sha256": "9583fe1ac4109a8a3c94c5ffaf8a331d6e9997c8657494ef2a95dbf3a65b5414",
+      "bytes": 22743,
+      "lines": 482,
+      "read_ranges": [
+        [
+          39,
+          51
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    }
+  ],
+  "native": [
+    {
+      "path": "skills/frontend-quality/SKILL.md",
+      "sha256": "7b6916e32d90731b8f81ee3eb36695dd9f62d498f132ac61bd7b9fd39066f4b0",
+      "bytes": 1062,
+      "lines": 23,
+      "read_ranges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/frontend-quality/references/interaction-performance.md",
+      "sha256": "aa2fbb759c0854e7db4b4db13141469f10573e19138301078b9ad0846157322f",
+      "bytes": 2483,
+      "lines": 40,
+      "read_ranges": [
+        [
+          1,
+          40
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/stack-practices/SKILL.md",
+      "sha256": "c44933dab261ee24ae0daf38b9d1d11e02084ad04cd05fb84d03ab2110f60751",
+      "bytes": 1490,
+      "lines": 28,
+      "read_ranges": [
+        [
+          1,
+          28
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/stack-practices/references/react.md",
+      "sha256": "97cc70d0da0fb6e9686222704084c7c0309f994d492b0487abb96a6bfb29c4d5",
+      "bytes": 3562,
+      "lines": 51,
+      "read_ranges": [
+        [
+          1,
+          51
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "agent-kits/shared/capability-catalog.json",
+      "sha256": "0b0b2e9d866effd26ddbcfbfd909fc3227688e97071916dff2bf08428c9973a8",
+      "bytes": 1822,
+      "lines": 20,
+      "read_ranges": [
+        [
+          1,
+          20
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/capability-audit/SKILL.md",
+      "sha256": "0a8579a37efbc067bfb6b4dc3f8759a49f50a2a72acc89116f24bbd125406dd9",
+      "bytes": 2109,
+      "lines": 39,
+      "read_ranges": [
+        [
+          1,
+          39
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/capability-audit/references/method.md",
+      "sha256": "13928d323c2a19dabdafac3d98fb396e40aa82600e3ff13191fd03c4872c03ed",
+      "bytes": 2001,
+      "lines": 34,
+      "read_ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "agent-kits/shared/capability-check.md",
+      "sha256": "c0dfede7cdd890952ebf4eab114fe6fef01c123350c6060b3053121797a48c20",
+      "bytes": 4559,
+      "lines": 70,
+      "read_ranges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "architecture-reading-evidence.json"
+    },
+    {
+      "path": "docs/PROJECT-EXTENSIONS.md",
+      "sha256": "555001170f339a4bb0ff9a69a4833e3c25dc2b9fc435c3b3639a3652a837d54c",
+      "bytes": 7629,
+      "lines": 128,
+      "read_ranges": [
+        [
+          1,
+          128
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "architecture-reading-evidence.json"
+    },
+    {
+      "path": "skills/api-contract/SKILL.md",
+      "sha256": "d96c34a0322650b43b69c47901f07b721f6f41751157db1abb5c27fecf725524",
+      "bytes": 8366,
+      "lines": 112,
+      "read_ranges": [
+        [
+          1,
+          110
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "architecture-reading-evidence.json"
+    },
+    {
+      "path": "skills/backend-practices/references/contracts-data.md",
+      "sha256": "589af44a6c37b7355ed8d088c7a8e341b42a131ce5b0d1c89c06e6cde2d2bdab",
+      "bytes": 3093,
+      "lines": 43,
+      "read_ranges": [
+        [
+          1,
+          43
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "architecture-reading-evidence.json"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9",
+      "bytes": 2653,
+      "lines": 44,
+      "read_ranges": [
+        [
+          1,
+          44
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "architecture-reading-evidence.json"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "8d144cd02ca19b8e08c083cf9a79d66ed3961127ada437bc2a3f548b94666716",
+      "bytes": 8959,
+      "lines": 119,
+      "read_ranges": [
+        [
+          1,
+          119
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "workflow-reading-evidence.json"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "bfb1b3899fd657b8beb70522e5f7d834869d22609da94b028c6dc82c7d577bc7",
+      "bytes": 7017,
+      "lines": 109,
+      "read_ranges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "workflow-reading-evidence.json"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "67702b1115bc6d57c4eafbf9dab8d10abaab6b333d4ab330d828f30353770c96",
+      "bytes": 1132,
+      "lines": 24,
+      "read_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "workflow-reading-evidence.json"
+    }
+  ],
+  "local_resource_totals": {
+    "read": 35,
+    "inventoried": 35,
+    "bytes": 120171,
+    "lines": 3845
+  },
+  "resolves_pending_reading_from": "architecture-reading-evidence.json",
+  "pending_reading": [],
+  "dependency_observations": [
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/api/core/resource",
+      "scope": "stable since v22.0; read operations and AbortSignal, not mutations",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "document_http_status": 200,
+      "document_sha256": "141a2117aafa1f07dac3ae63bf6804ebc9a2fc2e2e5d86e5e6358fa6fe065921"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/api/core/afterRenderEffect",
+      "scope": "prior-phase results are Signals; browser-only and explicit phases",
+      "checked_at": "2026-10-07",
+      "api_executed": false
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/api/core/runInInjectionContext",
+      "scope": "inject only synchronously, not after await",
+      "checked_at": "2026-10-07",
+      "api_executed": false
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://v21.angular.dev/api/forms/signals/form",
+      "scope": "experimental since v21.0; do not confuse availability and stability",
+      "checked_at": "2026-10-07",
+      "api_executed": false
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/api/forms/signals/FormField",
+      "scope": "stable since v22.0; directive distinct from FieldTree/FieldState",
+      "checked_at": "2026-10-07",
+      "api_executed": false
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/guide/forms/signals/overview",
+      "scope": "Angular v21+; existing reactive forms remain valid",
+      "checked_at": "2026-10-07",
+      "api_executed": false
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/essentials/signal-forms",
+      "scope": "radio value required for option identity; select multiple currently unsupported",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "document_http_status": 200,
+      "document_sha256": "4940266505fbb9f9ed203cba16276c9900a8a29b6e96b6df334228c9b61db5e9"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/guide/forms/signals/model-design",
+      "scope": "undefined removes fields; null can represent compatible empty values",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "document_http_status": 200,
+      "document_sha256": "85eee775ffee1f42d71e1fdeafbf1fa394e6a63b898e82b8aa2646100460560c"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/api/forms/signals/submit",
+      "scope": "Promise action/result; same field or ancestor concurrent submission rejected",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "document_http_status": 200,
+      "document_sha256": "e1bce0439a64d0099631da9cb78d1a5f236b07e8a9babfe10fa8907efce00ed8"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/api/forms/signals/validateAsync",
+      "scope": "stable since v22.0; async validation contract, no fixture executed",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "document_http_status": 200,
+      "document_sha256": "f950fba78c48a106d6e95f11898526cd352d4b2183504acd18d5b84e6b1b8c56"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/api/router/testing/RouterTestingHarness",
+      "scope": "navigateByUrl and route elements; no router or getHarness members",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "document_http_status": 200,
+      "document_sha256": "32ffa04364921fb1c440b51c743ba60aeef4bdd39a04e4f2d80e4910956d979c"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/api/router/ViewTransitionInfo",
+      "scope": "from/to are ActivatedRouteSnapshot; developer preview marker",
+      "checked_at": "2026-10-07",
+      "api_executed": false
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/api/router/ActivatedRouteSnapshot",
+      "scope": "url is UrlSegment[]",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "document_http_status": 200,
+      "document_sha256": "ea11b4444da21ba02026e6e3c947ca1053de48365ebd25110da0044b799687dc"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/api/aria/tree/TreeItemGroup",
+      "scope": "current structural ngTreeItemGroup, ownedBy; not universal old-version verdict",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "document_http_status": 200,
+      "document_sha256": "2acc91c94596564d54bd777bd06cf9041fb45e1a80d8dac981c8233f1ffa8ac4"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/guide/aria/menu",
+      "scope": "MenuTrigger import for ngMenuTrigger",
+      "checked_at": "2026-10-07",
+      "api_executed": false
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/api/core/ViewEncapsulation",
+      "scope": "ExperimentalIsolatedShadowDom member marked experimental",
+      "checked_at": "2026-10-07",
+      "api_executed": false
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/guide/animations",
+      "scope": "enter/leave and legacy mixing within same component, completion",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "document_http_status": 200,
+      "document_sha256": "272c3cc9229e702e545ddeb7f9f9ecce861ca48c5321c013375f186ef3b350e7"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://tailwindcss.com/docs/upgrade-guide",
+      "scope": "explicit JS @config remains supported; Sass preprocessor incompatibility",
+      "checked_at": "2026-10-07",
+      "api_executed": false
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://tailwindcss.com/docs/installation/framework-guides/angular",
+      "scope": "Angular CSS/PostCSS integration, no SDK installation",
+      "checked_at": "2026-10-07",
+      "api_executed": false
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/ai/mcp",
+      "scope": "current devserver/run_target defaults and read-only/local-only; dispatch not executed",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "document_http_status": 200,
+      "document_sha256": "dc4f94beb0ac6c2713ff9dad697168084ebf645b2556598360aea9f3b3e1b0db"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://angular.dev/api/core/@switch",
+      "scope": "exhaustive default never syntax in current docs, version-sensitive",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "document_http_status": 200,
+      "document_sha256": "5eca9b7ff8dd10ac3097b0f49d8545826daec8f2a6b8362079bf26179b340fb2"
+    }
+  ],
+  "measurements": {
+    "tokens": null,
+    "latency_seconds": null
+  }
+}

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# panel-title: Captura del cierre
+# panel-description: Guarda un pequeño envelope local al cerrar la sesión para procesarlo después. El cierre no lee transcripciones ni ejecuta Git, IA o red.
 # Hook SessionEnd (sin matcher: también `clear`, porque un /clear cierra una unidad de trabajo):
 # CAPTURA ULTRALIGERA y ATÓMICA (session-end-durable-capture T-03, spec CA-01): deja un *envelope*
 # en la outbox local (`.claude/journal/outbox/`, vía `agent-kits/shared/journal.py capture-end`) y
@@ -15,24 +17,37 @@
 #              reason: clear|resume|logout|prompt_input_exit|other }
 #   stdout → se IGNORA («Output and exit code are ignored, except terminalSequence»): SessionEnd
 #            no puede bloquear ni inyectar contexto; por eso el hook solo escribe a disco.
-#   tiempo → todos los hooks de SessionEnd comparten un presupuesto de 1,5 s que sube hasta el
-#            `timeout` por hook (máx. 60 s) → hooks.json declara `timeout: 5` (era 45: el trabajo
-#            pesado —git, IA, log de prompts— ya no corre aquí, corre en `replay`) y pasa a EXEC
-#            FORM (`command: bash`, `args: [...]`, CA-09) para que el runtime no tenga que
-#            tokenizar una línea de shell en el camino más corto posible.
+#   tiempo → SessionEnd tiene un presupuesto global de 1,5 s por defecto. El `timeout`
+#            declarado por un hook de plugin NO eleva ese presupuesto; `timeout: 5` en
+#            hooks.json es una declaración por hook, no evidencia de cinco segundos efectivos.
+#            Los timeouts de settings pueden elevarlo (máx. 60 s); una variable de entorno
+#            explícita también lo cambia. No configuramos esa variable automáticamente.
+#            EXEC FORM (`command: node`, `args: [launcher, script]`) está soportada desde
+#            Claude Code 2.1.139 y evita tokenizar una línea de shell.
+#            Referencia interna: skills/plugin-dev/references/claude-code-contracts.md
+#            SessionEnd y command-hook-fields, verificada 2026-10-11. El respeto del límite requiere medición.
+#   medido → `tests/session-end-budget.test.mjs` (launcher `run-hook.mjs` → `journal-capture.py`, la
+#            ruta real de Claude Code; este script queda para la prueba manual). 2026-10-13: Linux
+#            mediana 0,45-0,7 s y 0-1 de cada 5 cierres cortados por los 800 ms del hijo; Windows con
+#            carga, mediana 2,8 s y todos cortados. Un cierre cortado no pierde la sesión: el log de
+#            prompts queda y `journal.py recover` la materializa (mismo test). 2026-10-14, Windows
+#            sin otras suites: arrancar `node` ya cuesta 1-3,3 s (mediana 2,3 s), así que dentro de
+#            1,5 s no cabe nada; la única palanca es elevar el presupuesto. Si el usuario define
+#            CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS, el bloque `child-budget` de `run-hook.mjs` da al hijo ese
+#            presupuesto (tope: el `timeout: 5` declarado) menos 700 ms de margen; `/doctor` lo informa.
 #
 # Prueba manual:
 #   echo '{"hook_event_name":"SessionEnd","session_id":"s1","reason":"other","cwd":"'"$PWD"'"}' | bash hooks/session-journal.sh
 #
 # Nota de seguridad (gap 16 de la revisión intento 1, C5 · CWE-78): `hooks/hooks.json` declara este
-# hook en EXEC FORM (`command: bash`, `args: [...]`) — un contrato VERIFICADO en Claude Code
+# hook en EXEC FORM (`command: node`, `args: [...]`) — un contrato VERIFICADO en Claude Code
 # (`hooks.md`, 2026-09-17): el runtime pasa `args` como argv, nunca por una shell que interprete
 # el payload. Si un runtime NO soportara `args` y en su lugar ejecutara literalmente `bash` a
 # secas (sin fichero de script) leyendo el payload de la sesión por stdin como si fuera un script
 # de shell, este propio fichero JAMÁS llegaría a correr — no hay ninguna guarda que este script
 # pueda poner para defenderse de un escenario en el que él mismo no se invoca; es técnicamente
 # imposible resolverlo desde dentro. La mitigación real está en NO declarar exec form para
-# runtimes sin verificar: `export-interop.py` traduce este hook a SHELL FORM (`bash "<ruta>"`)
+# runtimes sin verificar: `export-interop.py` traduce este hook a SHELL FORM (`node "<launcher>" "<script>"`)
 # para `interop/codex/hooks.json`, así que Codex nunca ve `args` sueltos. Ver `M-01` en el ledger
 # de la iniciativa (checklist manual: verificar en Codex real que el hook SessionEnd honra `args`).
 set -u

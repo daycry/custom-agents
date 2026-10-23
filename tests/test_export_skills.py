@@ -255,3 +255,96 @@ def test_repo_real_exporta_y_pasa_el_check(tmp_path):
     ag = (out / "AGENTS.md").read_text(encoding="utf-8")
     assert all(f"`skills/{s}/SKILL.md`" in ag for s in esperadas)
     shutil.rmtree(out)
+
+
+def test_portable_panel_includes_extension_reader_dependencies_and_runs(tmp_path):
+    import json
+    out, project, home = tmp_path / 'portable', tmp_path / 'consumer', tmp_path / 'home'
+    project.mkdir(); home.mkdir()
+    agents = project / '.claude/agents'
+    agents.mkdir(parents=True)
+    (agents / 'billing.md').write_text('---\nname: billing\ndescription: Bills\n---\nPRIVATE BODY\n', encoding='utf-8')
+    ES.exportar(ROOT, str(out), 'all', quiet=True)
+    for name in ('project-pieces.py', 'capability-route.py', 'redact.py'):
+        assert (out / 'agent-kits/shared' / name).is_file(), name
+    result = subprocess.run([sys.executable, str(out / 'skills/plugin-panel/scripts/build_panel.py'), '--project', str(project), '--home', str(home), '--runtime', 'claude-code', '--json'], capture_output=True, encoding='utf-8', timeout=20)
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert not data['extensions']['partial']
+    assert [p['name'] for p in data['extensions']['pieces']] == ['billing']
+    assert 'PRIVATE BODY' not in result.stdout
+
+
+def test_shared_reader_transitive_dependencies_are_closed_without_other_skills():
+    assert set(ES.fragmentos_shared(ROOT, ['agent-kits/shared/project-pieces.py'])) >= {
+        'agent-kits/shared/project-pieces.py', 'agent-kits/shared/capability-route.py', 'agent-kits/shared/redact.py',
+    }
+
+
+@pytest.mark.parametrize("literal", ["'child.py'", '"child.py"', "'child' '.py'", "r'child.py'"])
+def test_shared_python_closure_uses_constants_and_ignores_comments(plugin, literal):
+    shared = plugin / 'agent-kits/shared'
+    (shared / 'util.py').write_text(
+        "from pathlib import Path\n"
+        f"dependency = Path(__file__).with_name({literal})\n"
+        '# Documentation sample: "comment-only.py"\n', encoding='utf-8')
+    (shared / 'child.py').write_text("filename = 'leaf.py'\n", encoding='utf-8')
+    (shared / 'leaf.py').write_text('value = 7\n', encoding='utf-8')
+    (shared / 'comment-only.py').write_text('raise RuntimeError("not a dependency")\n', encoding='utf-8')
+    assert ES.fragmentos_shared(str(plugin), ['agent-kits/shared/util.py']) == [
+        'agent-kits/shared/child.py', 'agent-kits/shared/leaf.py', 'agent-kits/shared/util.py',
+    ]
+
+
+def test_portable_memory_query_runs_bounded_reader_without_cache(tmp_path):
+    import json
+    from pathlib import Path
+
+    portable = tmp_path / 'portable-memory'
+    consumer = tmp_path / 'consumer-memory'
+    home = tmp_path / 'memory-home'
+    home.mkdir()
+    approved = consumer / 'docs/knowledge/approved/adr'
+    approved.mkdir(parents=True)
+    (approved / 'decision.md').write_text(
+        '---\nid: custom.DECISION.7\ncategory: DECISION\nversion: 2\n'
+        'estado: aprobado\n---\n\n# Ventana sintética\n\n'
+        'La ventana sintética vigente permite 45 segundos.\n', encoding='utf-8')
+    source_plugin = tmp_path / 'memory-source'
+    skill = source_plugin / 'skills/memory-reader'
+    skill.mkdir(parents=True)
+    (skill / 'SKILL.md').write_text(
+        '---\nname: memory-reader\ndescription: Consulta local.\n---\n'
+        'Ejecuta `agent-kits/shared/knowledge-find.py`.\n', encoding='utf-8')
+    shared = source_plugin / 'agent-kits/shared'
+    shared.mkdir(parents=True)
+    dependencies = ('knowledge-view.py', 'local-read.py', 'knowledge-local.py',
+                    'knowledge-taxonomy-local.py', 'knowledge-find.py', 'redact.py')
+    for name in dependencies:
+        shutil.copyfile(Path(ROOT) / 'agent-kits/shared' / name, shared / name)
+    ES.exportar(str(source_plugin), str(portable), 'all', quiet=True)
+    env = {key: value for key, value in os.environ.items()
+           if key in {'PATH', 'SystemRoot', 'SYSTEMROOT', 'WINDIR', 'COMSPEC'}}
+    env.update(HOME=str(home), USERPROFILE=str(home), APPDATA=str(home / 'appdata'),
+               LOCALAPPDATA=str(home / 'localappdata'), XDG_CONFIG_HOME=str(home / 'config'),
+               CODEX_HOME=str(home / 'codex'), CLAUDE_CONFIG_DIR=str(home / 'claude'),
+               PROGRAMDATA=str(home / 'programdata'), TEMP=str(home / 'temp'),
+               TMP=str(home / 'temp'), PYTHONDONTWRITEBYTECODE='1', PYTHONIOENCODING='utf-8')
+    Path(env['TEMP']).mkdir()
+    before = {str(path.relative_to(consumer)): path.read_bytes()
+              for path in consumer.rglob('*') if path.is_file()}
+    result = subprocess.run(
+        [sys.executable, '-B', str(portable / 'agent-kits/shared/knowledge-find.py'),
+         '--root', str(consumer), '--view', 'ventana'], cwd=consumer, env=env,
+        capture_output=True, encoding='utf-8', errors='replace', timeout=20)
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert data['status'] == 'ok', data
+    assert data['complete'] is True
+    assert [entry['id'] for entry in data['entries']] == ['custom.DECISION.7']
+    assert data['budget']['files'] >= 1
+    after = {str(path.relative_to(consumer)): path.read_bytes()
+             for path in consumer.rglob('*') if path.is_file()}
+    assert before == after
+    for name in dependencies:
+        assert (portable / 'agent-kits/shared' / name).is_file(), name

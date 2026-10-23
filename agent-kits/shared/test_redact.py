@@ -7,6 +7,11 @@ Extraído de `journal.py:redactar` (única fuente): mismos casos de redacción q
 password… = valor`, sin falsos positivos evidentes."""
 import importlib.util
 import os
+from pathlib import Path
+import subprocess
+import time
+import sys
+import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "redact.py")
@@ -45,6 +50,133 @@ def test_solo_stdlib():
         assert prohibido not in src
 
 
+@pytest.mark.parametrize('case', ['pem', 'assignment', 'quoted_json', 'show', 'prefixed_assignment',
+                                  'curl_args', 'mysql_args'])
+def test_bounded_memory_inputs_redact_without_superlinear_delay(tmp_path, case):
+    """A pathological owned input cannot occupy the serial memory endpoint."""
+    pem = '-----BEGIN PRIVATE KEY-----\nx' * 9000
+    payload = {'pem': pem, 'assignment': 'token=' * 43000,
+               'quoted_json': '"token":"' + '\\a' * 125000,
+               # T-42 fix1 (C-1): prefixed keys and per-command credentials stay linear
+               'prefixed_assignment': 'DB_TOKEN=' * 40000, 'curl_args': 'curl ' + '-u ' * 120000,
+               'mysql_args': 'mysql' + ' -p' * 120000}.get(case, pem)
+    own = tmp_path / 'owned'
+    own.mkdir()
+    fixture = own / 'input.txt'
+    fixture.write_text(payload, encoding='utf8', newline='')
+    root = own / 'project'
+    entry = root / 'docs/knowledge/adr/ADR-001.md'
+    if case == 'show':
+        entry.parent.mkdir(parents=True)
+        entry.write_text('---\nid: ADR-001\nestado: aceptada\ntitulo: Owned\narea: Cache\n---\n' + payload,
+                         encoding='utf8', newline='')
+        assert entry.stat().st_size <= 256 * 1024
+    for variable in ('HOME','USERPROFILE','PROGRAMDATA','APPDATA','LOCALAPPDATA','TEMP','TMP',
+                     'CODEX_HOME','CLAUDE_CONFIG_DIR','XDG_CONFIG_HOME'):
+        (own / variable.lower()).mkdir()
+    env = {'PATH': os.environ.get('PATH',''), 'SystemRoot': os.environ.get('SystemRoot','C:/Windows'),
+           'PYTHONDONTWRITEBYTECODE':'1','PYTEST_DISABLE_PLUGIN_AUTOLOAD':'1','PYTHONIOENCODING':'utf8',
+           **{name:str(own / name.lower()) for name in ('HOME','USERPROFILE','PROGRAMDATA','APPDATA',
+                'LOCALAPPDATA','TEMP','TMP','CODEX_HOME','CLAUDE_CONFIG_DIR','XDG_CONFIG_HOME')}}
+    program = '''import importlib.util,pathlib,sys,time
+script,fixture,case,root=sys.argv[1:]
+spec=importlib.util.spec_from_file_location('owned_redactor',script)
+module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+started=time.monotonic()
+if case=='show':
+    result=module.query(root,operation='show',id='ADR-001')
+    assert result['selected']['id']=='ADR-001' and len(result['selected']['texto'])<=12000
+    assert result['status']=='partial' and 'text_budget' in result['issues']
+else:
+    text=pathlib.Path(fixture).read_text(encoding='utf8')
+    assert module.redactar(text)==text
+print(round(time.monotonic()-started,4))
+'''
+    script = str(Path(HERE) / ('knowledge-view.py' if case == 'show' else 'redact.py'))
+    try:
+        result = subprocess.run([sys.executable,'-X','utf8','-B','-c',program,script,str(fixture),case,str(root)],
+                                cwd=own,env=env,capture_output=True,encoding='utf8',errors='replace',timeout=3)
+    except subprocess.TimeoutExpired:
+        pytest.fail('owned bounded input exceeded 3s redaction deadline: ' + case)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert float(result.stdout.strip()) < 1.5
+
+
+@pytest.mark.parametrize('text', [
+    'before -----BEGIN PRIVATE KEY-----\ndata\n-----END PRIVATE KEY----- after',
+    '-----BEGIN RSA PRIVATE KEY-----x-----END OPENSSH PRIVATE KEY-----',
+    '-----BEGIN  PRIVATE KEY-----x-----END EC PRIVATE KEY-----',
+    '-----BEGIN PRIVATE KEY-----a-----BEGIN EC PRIVATE KEY-----b-----END PRIVATE KEY-----c-----END EC PRIVATE KEY-----',
+    '-----BEGIN PRIVATE KEY-----x-----END PRIVATE KEY----- -----BEGIN DSA PRIVATE KEY-----y-----END DSA PRIVATE KEY-----',
+    '-----END PRIVATE KEY----- -----BEGIN PRIVATE KEY-----unterminated',
+    '-----BEGIN private key-----unchanged-----END private key-----',
+    '-----BEGIN RSA2 PRIVATE KEY-----unchanged-----END RSA2 PRIVATE KEY-----',
+    '-----BEGIN PRIVATE KEY-----unfinished -----BEGIN EC PRIVATE KEY-----x-----END EC PRIVATE KEY-----',
+])
+def test_linear_pem_preserves_previous_marker_semantics(text):
+    import re
+    previous = re.compile(r'-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----', re.S)
+    assert redact.redactar(text) == previous.sub(redact.REDACTADO, text)
+
+
+def test_linear_assignment_preserves_previous_precision_and_greedy_values():
+    import random
+    import re
+    previous = re.compile(r'(?i)(?P<pre>\b(?:' + redact._CLAVES_SENSIBLES + r')\b\s*[:=]\s*["\']?)'
+                          r'(?P<sec>(?=[^\s"\']*[A-Za-z])(?=[^\s"\']*[0-9!@#$%^&*])[^\s"\']{8,})')
+    rng = random.Random(20261009)
+    keys = ['token','secret','api_key','password','pwd','contraseña','Password','token_hint']
+    values = ['abcdef1234','abcdefghi','token=token=','token=123','İıſK1111','áéíóú1234','abcdefgh١٢٣٤',
+              '1234567890','a!bcdefgh','a=bcdefgh','abc','\\abc123456','abcDEF$%&*','""abc12345']
+    for _ in range(500):
+        text = ''.join(rng.choice(keys) + rng.choice(['=',' = ',':\n','="',"='"]) +
+                       rng.choice(values) + rng.choice([' ','\n',';','/']) for _ in range(8))
+        expected = previous.sub(lambda match: match['pre'] + redact.REDACTADO, text)
+        assert redact.redactar(text) == expected, repr(text)
+
+
+def test_unterminated_pem_preserves_content_but_later_secret_is_redacted_before_clip():
+    secret = 'sk-' + 'A' * 30
+    text = '-----BEGIN PRIVATE KEY-----\n' + 'x' * 11965 + ' ' + secret + ' suffix'
+    result = redact.redactar(text)
+    assert result.startswith('-----BEGIN PRIVATE KEY-----\n')
+    assert secret not in result and redact.REDACTADO in result
+    assert 'sk-' not in result[:12000]
+
+
+def test_journal_standalone_backup_has_helpers_in_its_own_globals():
+    import re
+    source = Path(HERE,'journal.py').read_text(encoding='utf8')
+    start = source.index('# --8<-- redact (redactar + constantes)')
+    end = source.index('# --8<-- fin redact (redactar + constantes)',start)
+    namespace = {'re':re}
+    exec(compile(source[start:end],'owned_journal_backup','exec'),namespace)
+    text = '-----BEGIN RSA PRIVATE KEY-----x-----END EC PRIVATE KEY----- token=abc1234567'
+    assert namespace['redactar'](text) == redact.redactar(text)
+
+
+def test_journal_real_fallback_without_redact_module(tmp_path):
+    """The shipped backup executes in journal's globals when its sibling is absent."""
+    bundle = tmp_path / 'owned-journal'
+    bundle.mkdir()
+    for filename in ('journal.py', 'journal-capture.py'):
+        (bundle / filename).write_bytes(Path(HERE, filename).read_bytes())
+    assert not (bundle / 'redact.py').exists()
+    spec = importlib.util.spec_from_file_location('owned_journal_fallback', bundle / 'journal.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module._redact_mod is None
+    assert module._capture_mod is not None
+    assert module.redactar.__globals__ is module.__dict__
+    for text in (
+        '-----BEGIN RSA PRIVATE KEY-----x-----END EC PRIVATE KEY----- token=abc1234567',
+        '-----BEGIN PRIVATE KEY-----\nx' * 9000,
+        'token=' * 43000,
+        '{"token":"a\\\"b c"}',
+    ):
+        assert module.redactar(text) == redact.redactar(text)
+
+
 def test_139_redacta_el_par_json_de_una_clave_sensible():
     """#139 (training-data-services fix2, CWE-312): la forma JSON `"password": "…"` no casaba con
     `password=`/`password:` (la comilla de cierre de la clave va antes de los dos puntos)."""
@@ -77,9 +209,6 @@ def test_139_es_clave_sensible():
 # subprocess`— lo mide: su CLI solo lo ejercitaban subprocesos (`test_journal.py`). Estos tests lo llaman
 # EN PROCESO; los helpers vienen de `test_journal.py`, cargado por ruta (sus tests no se recogen aqui).
 import json  # noqa: E402
-import sys  # noqa: E402
-
-import pytest  # noqa: E402,F401
 
 _TJ_SPEC = importlib.util.spec_from_file_location("test_journal_helpers_178", os.path.join(HERE, "test_journal.py"))
 _tj = importlib.util.module_from_spec(_TJ_SPEC)
@@ -273,3 +402,260 @@ def test_t10fix2_178_dir_de_la_cola_y_enrich_ramas(tmp_path, monkeypatch, capsys
     lista = tmp_path / "lista.json"
     lista.write_text("[1]", encoding="utf-8")
     assert journal.cargar_enrich(str(lista), avisos) == {}
+
+
+# ---- anonimizar (panel-redesign T-04, CA-41) ---------------------------------------------------
+# Datos FALSOS: ninguna ruta, usuario ni correo de esta máquina.
+_RAIZ_WIN = r"C:\Users\anaperez2024\Proyectos\demo"
+_HOME_WIN = r"C:\Users\anaperez2024"
+
+
+def test_anonimizar_raiz_y_home_windows_con_ambos_separadores_y_mayusculas():
+    texto = (r"edita C:\Users\anaperez2024\Proyectos\demo\docs\a.md y "
+             "c:/users/ANAPEREZ2024/proyectos/DEMO/skills/x.py; caché en C:/Users/AnaPerez2024/AppData/Local/t")
+    assert redact.anonimizar(texto, _RAIZ_WIN, _HOME_WIN, "anaperez2024") == (
+        r"edita .\docs\a.md y ./skills/x.py; caché en ~/AppData/Local/t")
+
+
+def test_anonimizar_formas_alternativas_de_la_misma_ruta_windows():
+    # Git Bash (/c/Users/…), URL file:/// y el nombre corto 8.3 del perfil (ANAPER~1).
+    texto = r"/c/Users/anaperez2024/x · file:///C:/Users/anaperez2024/Proyectos/demo/i.html · C:\Users\ANAPER~1\AppData\Local\Temp\y"
+    assert redact.anonimizar(texto, _RAIZ_WIN, _HOME_WIN, "anaperez2024") == (
+        r"~/x · file:///./i.html · ~\AppData\Local\Temp\y")
+
+
+def test_anonimizar_posix_distingue_mayusculas_y_respeta_limites_de_componente():
+    texto = "/home/ana/proj/src/a.py · /home/ana/.ssh/config · /home/anabel/z · /HOME/ANA/w · /home/ana."
+    assert redact.anonimizar(texto, "/home/ana/proj", "/home/ana", "ana") == (
+        "./src/a.py · ~/.ssh/config · /home/anabel/z · /HOME/<usuario>/w · ~.")
+
+
+def test_anonimizar_correo_antes_que_usuario():
+    texto = "Autor: Ana <ana.perez@example.org>, revisó ana.perez y anaperez2024@corp.example.com"
+    assert redact.anonimizar(texto, None, None, "ana.perez") == (
+        "Autor: Ana <<correo>>, revisó <usuario> y <correo>")
+
+
+def test_anonimizar_usuario_como_palabra_sin_distinguir_mayusculas():
+    texto = "lo lanzó anaperez2024 y luego ANAPEREZ2024; no toca anaperez20245 ni x_anaperez2024"
+    assert redact.anonimizar(texto, None, None, "anaperez2024") == (
+        "lo lanzó <usuario> y luego <usuario>; no toca anaperez20245 ni x_anaperez2024")
+
+
+def test_anonimizar_sin_falsos_positivos_en_rutas_relativas_y_paquetes():
+    for limpio in ("docs/roadmap/2026-10-15-panel-redesign/tasks.md", r"skills\plugin-panel\assets\x.js",
+                   "home/ana/proj/a.py", "docs/home/ana/b.md", "@playwright/test", "chart.js@4.5.1",
+                   '"root_id": "project"', "npm i left-pad@1.3.0", "--root roadmap"):
+        assert redact.anonimizar(limpio, "/home/ana/proj", "/home/ana", "root") == limpio, limpio
+
+
+def test_anonimizar_parametros_ausentes_o_inservibles_no_tocan_nada():
+    texto = "texto sin datos C:/otra/ruta"
+    assert redact.anonimizar(texto, None, None, None) == texto
+    assert redact.anonimizar(texto, "", "", "") == texto
+    # Un usuario de < 3 caracteres destrozaría el texto («a», «yo»): se ignora (documentado).
+    assert redact.anonimizar("a la ruta yo", None, None, "a") == "a la ruta yo"
+    assert redact.anonimizar("a la ruta yo", None, None, "yo") == "a la ruta yo"
+    # Raíz «/» o una unidad sola no son una raíz anonimizable: borrarían toda ruta absoluta.
+    assert redact.anonimizar(r"/etc/hosts y C:\Windows", "/", "C:\\", None) == r"/etc/hosts y C:\Windows"
+
+
+def test_anonimizar_es_pura_y_determinista(monkeypatch):
+    monkeypatch.setenv("HOME", _HOME_WIN)
+    monkeypatch.setenv("USERPROFILE", _HOME_WIN)
+    monkeypatch.setenv("USERNAME", "anaperez2024")
+    monkeypatch.setenv("USER", "anaperez2024")
+    texto = r"C:\Users\anaperez2024\x y anaperez2024"
+    # Sin argumentos no lee el entorno: la entrada sale tal cual.
+    assert redact.anonimizar(texto, None, None, None) == texto
+    primera = redact.anonimizar(texto, _RAIZ_WIN, _HOME_WIN, "anaperez2024")
+    assert primera == redact.anonimizar(texto, _RAIZ_WIN, _HOME_WIN, "anaperez2024") == r"~\x y <usuario>"
+    # Acepta pathlib y una lista de alias equivalentes (p. ej. la raíz real y la resuelta por un enlace).
+    assert redact.anonimizar("/srv/real/p/a /home/ana/p/b", ["/home/ana/p", Path("/srv/real/p")], None, None) == "./a ./b"
+
+
+def test_anonimizar_fuera_del_bloque_replicado_y_redactar_intacto():
+    fuente = Path(HERE, "redact.py").read_text(encoding="utf8")
+    inicio = fuente.index("# --8<-- redact (redactar + constantes)")
+    fin = fuente.index("# --8<-- fin redact (redactar + constantes)")
+    assert "def anonimizar" in fuente and "def anonimizar" not in fuente[inicio:fin]
+    assert fuente.index("def anonimizar") > fin
+    # Orden fijo del saneado, documentado en el módulo (lo siguen panel_data.py y el almacén de actividad).
+    assert "redactar → anonimizar → quitar controles → recortar" in redact.__doc__
+
+
+@pytest.mark.parametrize("usuario", ["usuario", "correo", "jdoeuser"])
+def test_anonimizar_es_idempotente_con_usuarios_que_coinciden_con_sus_marcas(usuario):
+    # Un texto se anonimiza dos veces (en origen y en la pasada final del panel): la marca `<usuario>`
+    # no puede volver a sustituirse (`<<usuario>>`), ni `<correo>` quedar partida por el usuario `correo`.
+    texto = f"cuenta {usuario}, correo jdoe@example.org, ruta /home/{usuario}/p"
+    una = redact.anonimizar(texto, None, "/home/" + usuario, usuario)
+    assert redact.anonimizar(una, None, "/home/" + usuario, usuario) == una
+    assert "<<" not in una and ">>" not in una and "<correo>" in una
+
+
+@pytest.mark.parametrize("texto", [
+    "Pregunta a <jdoeuser> antes", "owner: <JDoeUser>", "git log --author=<jdoeuser>",
+])
+def test_un_usuario_real_entre_angulares_se_anonimiza(texto):
+    # Gap 2-2: solo se conservan las marcas exactas del módulo; `<jdoeuser>` es el usuario real.
+    out = redact.anonimizar(texto, None, None, "jdoeuser")
+    assert "jdoeuser" not in out.lower()
+    assert redact.anonimizar(out, None, None, "jdoeuser") == out
+
+
+@pytest.mark.parametrize("usuario", ["usuario", "correo"])
+def test_las_marcas_exactas_se_conservan_y_aplicar_dos_veces_es_una(usuario):
+    una = redact.anonimizar(f"hola {usuario} y <usuario> y <correo> a@b.org", None, None, usuario)
+    assert "<usuario>" in una and "<correo>" in una and "<<" not in una
+    assert redact.anonimizar(una, None, None, usuario) == una
+
+
+# ---- panel-redesign T-42: `Authorization: Basic` (activity summaries; CA-17) --------------------
+@pytest.mark.parametrize("texto,secreto", [
+    ("curl -H 'Authorization: Basic dXNlcjpwYXNzd29yZA==' https://x.test", "dXNlcjpwYXNzd29yZA"),
+    ('Authorization: basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==', "QWxhZGRpbjpvcGVuIHNlc2FtZQ"),
+    ('{"Authorization":"Basic dXNlcjpwYXNz"}', "dXNlcjpwYXNz"),
+    ("Proxy-Authorization: Basic YWxhZGRpbjpvcGVu", "YWxhZGRpbjpvcGVu"),
+])
+def test_authorization_basic_se_redacta(texto, secreto):
+    salida = redact.redactar(texto)
+    assert secreto not in salida and redact.REDACTADO in salida
+
+
+def test_authorization_basic_conserva_el_prefijo_y_no_toca_prosa():
+    assert redact.redactar("Authorization: Basic dXNlcjpwYXNzd29yZA==") == f"Authorization: Basic {redact.REDACTADO}"
+    for limpio in ("a basic configuration of the authorization flow", "basic authentication guide",
+                   "Authorization: none", "Authorization header is required"):
+        assert redact.redactar(limpio) == limpio
+
+
+def test_authorization_basic_idem_en_el_respaldo_de_journal():
+    spec = importlib.util.spec_from_file_location("journal_basic_t42", os.path.join(HERE, "journal.py"))
+    journal = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(journal)
+    assert "dXNlcjpwYXNzd29yZA" not in journal.redactar("Authorization: Basic dXNlcjpwYXNzd29yZA==")
+
+
+# ---- panel-redesign T-42 fix1 (C-1, CWE-532/312): secretos en argumentos de comandos -----------
+@pytest.mark.parametrize("texto,secreto", [
+    ("DB_PASSWORD=Hunter2xyz! psql -h db", "Hunter2xyz!"),
+    ("export API_TOKEN=abc123def456 && make", "abc123def456"),
+    ("AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENG aws s3 ls", "wJalrXUtnFEMIK7MDENG"),
+    ("PGPASSWORD=s3cretPass1 psql -U app", "s3cretPass1"),
+    ("app --db-password=Hunter2xyz! run", "Hunter2xyz!"),
+])
+def test_c1_clave_sensible_tras_prefijo_o_guion_bajo_se_redacta(texto, secreto):
+    salida = redact.redactar(texto)
+    assert secreto not in salida and redact.REDACTADO in salida, salida
+
+
+@pytest.mark.parametrize("texto,secreto", [
+    ("curl -u admin:S3cretPw! https://x.test", "S3cretPw!"),
+    ("curl --user admin:pw2xyz https://x.test", "pw2xyz"),
+    ("curl --user=admin:hunter2 https://x.test", "hunter2"),
+    ("curl -uadmin:hunter2 https://x.test", "hunter2"),
+    ("curl -s -u 'admin:hunter2' https://x.test", "hunter2"),
+    ("curl.exe -u admin:123456 https://x.test", "123456"),
+])
+def test_c1_curl_usuario_y_clave_se_redacta(texto, secreto):
+    salida = redact.redactar(texto)
+    assert secreto not in salida and redact.REDACTADO in salida, salida
+    assert "admin:" in salida  # el usuario y el resto del comando se conservan
+
+
+@pytest.mark.parametrize("texto,secreto", [
+    ("mysql -uroot -pS3cretPw1 appdb", "S3cretPw1"),
+    ("mysqldump -h db -p'hunter2' appdb", "hunter2"),
+    ("mariadb -proot -e 'select 1'", "root"),
+])
+def test_c1_mysql_clave_pegada_a_p_se_redacta(texto, secreto):
+    salida = redact.redactar(texto)
+    assert "-p" + secreto not in salida and "-p'" + secreto not in salida and redact.REDACTADO in salida, salida
+
+
+@pytest.mark.parametrize("limpio", [
+    "mkdir -p src/dir", "cp -pr a b", "ls -p", "git log -p", "ssh -p2222 host", "tar -xpf a.tar",
+    "sort -u lista.txt", "docker run -u 1000:1000 img", "git push -u origin main", "mysql -p appdb",
+    "my_token_count=12345678a", "tokens=12345678a", "mkdir -p x; mysql -p db", "curl https://x.test -o out",
+])
+def test_c1_argumentos_corrientes_no_se_tocan(limpio):
+    assert redact.redactar(limpio) == limpio
+
+
+def test_c1_redactar_dos_veces_es_una():
+    for texto in ("DB_PASSWORD=Hunter2xyz! psql", "curl -u admin:S3cretPw! https://x.test",
+                  "mysql -uroot -pS3cretPw1 appdb", "mysqldump -p'hunter2' db"):
+        una = redact.redactar(texto)
+        assert redact.redactar(una) == una, una
+
+
+def test_c1_idem_en_el_respaldo_de_journal():
+    """El bloque replicado de journal.py (respaldo sin redact.py) redacta lo mismo."""
+    import re
+    source = Path(HERE, 'journal.py').read_text(encoding='utf8')
+    start = source.index('# --8<-- redact (redactar + constantes)')
+    end = source.index('# --8<-- fin redact (redactar + constantes)', start)
+    namespace = {'re': re}
+    exec(compile(source[start:end], 'journal_backup_c1', 'exec'), namespace)
+    for texto in ("DB_PASSWORD=Hunter2xyz! psql", "curl -u admin:S3cretPw! https://x.test", "mysql -pS3cretPw1 db"):
+        assert namespace['redactar'](texto) == redact.redactar(texto) != texto, texto
+
+
+# ---- panel-redesign T-42 fix2 (2-2 fugas, 2-3 falsos positivos): argumentos anclados al programa real -----
+@pytest.mark.parametrize("texto,secreto,conserva", [
+    ("curl -su admin:S3cretPw1 https://x.test", "S3cretPw1", "admin:"),
+    ("curl -sSu admin:S3cretPw1 https://x.test", "S3cretPw1", "admin:"),
+    ("curl -sSuadmin:S3cretPw1 https://x.test", "S3cretPw1", "admin:"),
+    ("curl -U proxy:Pr0xyPw https://x.test", "Pr0xyPw", "proxy:"),
+    ("curl --proxy-user proxy:Pr0xyPw https://x.test", "Pr0xyPw", "proxy:"),
+    ("curl --proxy-user=proxy:Pr0xyPw https://x.test", "Pr0xyPw", "proxy:"),
+    ('curl "https://api.x.test/v1/items?page=1&limit=5" -u admin:S3cretPw!', "S3cretPw!", "admin:"),
+    ("curl 'https://x.test/a?b=1&c=2' -u admin:S3cretPw!", "S3cretPw!", "admin:"),
+    ('curl -u "admin:pw 2xyz" https://x.test', "2xyz", "admin:"),
+    ("curl -u 'admin:pw 2xyz' https://x.test", "2xyz", "admin:"),
+    ('mysql -p"S3cret Pw1" appdb', "Pw1", "mysql -p"),
+    ("mysql -p'S3cret Pw1' appdb", "Pw1", "mysql -p"),
+    ("mysql --password=S3cretPw appdb", "S3cretPw", "--password="),
+    ("/usr/bin/mysql -uroot -pS3cretPw1 appdb", "S3cretPw1", "-uroot"),
+    ("sudo mysql -pS3cretPw1 appdb", "S3cretPw1", "sudo mysql"),
+    (r"C:\tools\curl.exe -u admin:S3cretPw1 x", "S3cretPw1", "admin:"),
+    ("sudo -E /usr/bin/mysql -pS3cretPw1", "S3cretPw1", "-E"),
+    ("docker exec -it db mysql -uroot -pS3cretPw1", "S3cretPw1", "docker exec"),
+    ("docker run -u 1000:1000 img curl -u admin:S3cretPw1 https://x.test", "S3cretPw1", "-u 1000:1000"),
+])
+def test_2_2_credenciales_de_curl_y_mysql_se_redactan(texto, secreto, conserva):
+    salida = redact.redactar(texto)
+    assert secreto not in salida and redact.REDACTADO in salida and conserva in salida, salida
+    assert redact.redactar(salida) == salida  # idempotente
+
+
+@pytest.mark.parametrize("limpio", [
+    "cp -pr /var/lib/mysql /backup", "mkdir -pv /etc/mysql/conf.d", "docker run -p3306:3306 mysql:8",
+    "docker run -u 1000:1000 img curl https://x.test", "ssh -p 22 host", "git log -p", "mkdir -p out",
+    "pytest -p no:cacheprovider tests", "mysql -p appdb", "curl --user-agent \"Foo:bar\" https://x.test",
+    "curl -A 'Foo:bar' https://x.test", "max_tokens=12345678a", "ls /opt/curl -u", "tar -cpf a.tar /srv/mysql",
+    "curl -u admin https://x.test", "rsync -pu a:b c", "curl -o out:file https://x.test",
+    "docker run --name mysql -p3306:3306 mysql:8", "service mysql restart", "cat /etc/mysql -p",
+])
+def test_2_3_rutas_imagenes_y_opciones_ajenas_no_se_tocan(limpio):
+    assert redact.redactar(limpio) == limpio
+
+
+def test_2_2_lineal_con_muchas_comillas_y_operadores():
+    for texto in (('curl "a&b" -u x:y ' * 2000) + ("'" * 5000) + ('&|;' * 5000), 'curl -u x:y ' * 30000,
+                  'mysql ' * 60000, '/a/mysql ' * 40000, 'sudo -x ' * 45000 + '/a/mysql -pX'):
+        started = time.perf_counter()  # cuadratico antes de precalcular la posicion de comando: ~18 s
+        salida = redact.redactar(texto)
+        assert time.perf_counter() - started < 1.5 and "x:y" not in salida and "-pX" not in salida
+
+
+def test_2_2_idem_en_el_respaldo_de_journal():
+    import re
+    source = Path(HERE, 'journal.py').read_text(encoding='utf8')
+    start = source.index('# --8<-- redact (redactar + constantes)')
+    end = source.index('# --8<-- fin redact (redactar + constantes)', start)
+    namespace = {'re': re}
+    exec(compile(source[start:end], 'journal_backup_fix2', 'exec'), namespace)
+    for texto in ("curl -sSu admin:S3cretPw1 x", 'mysql -p"S3cret Pw1" db', "cp -pr /var/lib/mysql /b"):
+        assert namespace['redactar'](texto) == redact.redactar(texto), texto

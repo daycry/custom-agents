@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "source52_manifest_sha256": "454107ad779a83ab70abda5d88e549acd211b0e0815a8d177c00137d77efa11a",
+  "cases_per_platform": 7295,
+  "changed_python_targets": 32,
+  "windows": {
+    "counts": {
+      "cases": 7295,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 99,
+      "passed": 7196
+    },
+    "coverage": 90.85306519623744,
+    "collection_preserved": true,
+    "dashboard_direct_passed": true,
+    "source_preserved": true,
+    "job_cleanup_confirmed": true,
+    "result_sha256": "e7adf3272dc646dd835c88f5ef1f63ad6d0555c320ca7691887011a8eb34f125"
+  },
+  "linux": {
+    "counts": {
+      "cases": 7295,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 61,
+      "passed": 7234
+    },
+    "coverage": 90.969834576711,
+    "collection_preserved": true,
+    "dashboard_direct_passed": true,
+    "source_preserved": true,
+    "container_removed": true,
+    "result_sha256": "e5509406b5f26864e581fadc032cf067ee2307c03de7b18dff87a3e6d98fe07a"
+  },
+  "coverage_provider": "Coverage.py 7.16.2 official parent CTracer",
+  "child_coverage_attributed": false,
+  "source52_python_qa_accepted": true,
+  "source53_full_qa_accepted": false,
+  "human_ui_accepted": false,
+  "independent_review_accepted": false,
+  "global_product_accepted": false
+}

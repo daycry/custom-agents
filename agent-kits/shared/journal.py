@@ -9,9 +9,11 @@ ver `knowledge-write.md`). Los turnos del usuario los acumula el hook `hooks/use
 `decisiones` y `pendientes` (memory-retrieval F4).
 
 CAPTURA vs MATERIALIZACIÓN (session-end-durable-capture, T-03/T-04): el hook `hooks/session-journal.sh`
-(SessionEnd) YA NO escribe la entrada directamente — llama a `capture-end`, que deja un *envelope*
-atómico en la outbox local (`agent-kits/shared/outbox.py`) en < 100 ms, sin git, sin IA y sin red
-(CA-01 de la spec). La entrada real la escribe `replay`, reclamando la outbox y reutilizando el
+(SessionEnd) YA NO escribe la entrada directamente — el launcher llama a `journal-capture.py`,
+que deja un *envelope* atómico en la outbox local (`agent-kits/shared/outbox.py`), sin cargar la
+materialización, sin git, sin IA y sin red (CA-01 de la spec). `capture-end` reutiliza ese mismo
+writer; el tiempo total del launcher se verifica aparte para cada runtime. La entrada real la
+escribe `replay`, reclamando la outbox y reutilizando el
 camino de siempre (`draft`/`render`/`write`, git, log de prompts, resumen IA opt-in); lo invoca
 `hooks/session-context.sh` en SessionStart con presupuesto (T-05, iniciativa aparte) o `journal.py
 replay` a demanda. La última entrada materializada la reinyecta `hooks/session-context.sh`
@@ -49,6 +51,13 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
       sin envelope en la cola NI entrada de journal, cuyo mtime lleva más de `--ventana-min` (default
       `sesion.journal.ventanaHuerfanaMin`, 1440) sin actividad, se materializa con `draft`/`write` como
       `cierre: recuperado_sin_cierre` (nunca inventa: el resumen sale del propio log, CA-05).
+      Recuperación TEMPRANA: también es candidata antes de esa ventana si el ÚLTIMO `transcript`
+      registrado en su log (cola acotada, TRANSCRIPT_COLA_BYTES) pasa `_transcript_seguro` y tanto él
+      como el log llevan más de `sesion.journal.ventanaInactividadMin` (default 30, mínimo 1) sin
+      cambiar — en Windows la captura de SessionEnd no cabe en su presupuesto de 1,5 s y casi toda
+      sesión queda huérfana. La entrada recuperada lleva `log_hasta` (mtime UTC del log usado): si el
+      log cambia DESPUÉS (la sesión siguió), vuelve a ser candidata y se rehace la MISMA entrada; una
+      entrada `materializado` (o una sesión con envelope) nunca se reabre ni se degrada.
       `--current-session-id` (la sesión que está arrancando, invocado por `session-context.sh`) nunca
       se recupera, aunque su log supere la ventana: una sesión concurrente viva no es una huérfana.
       `--session-id` fuerza una sesión concreta, ignorando ventana/sesión actual (a demanda). Una
@@ -59,8 +68,10 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
       `candidatas > recuperadas` al terminar (presupuesto/`--max` insuficiente) avisa cuántas quedan
       y sugiere repetir `recover` o subir `--max`.
   capture [--root DIR]                                   ← stdin: payload del hook UserPromptSubmit
-      Añade el turno del usuario (`prompt`) como UNA línea JSON `{"ts", "prompt"}` a
-      `.claude/session-prompts-<session_id>.log` (no versionado: `*.log` está en .gitignore). Reglas:
+      Añade el turno del usuario (`prompt`) como UNA línea JSON `{"ts", "prompt"[, "transcript"]}` a
+      `.claude/session-prompts-<session_id>.log` (no versionado: `*.log` está en .gitignore);
+      `transcript` = `transcript_path` del payload SOLO si pasa `_transcript_seguro` (señal de
+      inactividad para `recover`; nunca llega a la entrada versionada, los lectores la ignoran). Reglas:
       (1) con la etiqueta `<private>` en cualquier parte del turno el log NO se toca (ni se crea, ni
       mtime, ni tamaño); (2) solo en proyectos con rastro del plugin (mismo criterio que `write`) y sin
       `dev.json` → `sesion.journal: false` ni `sesion.captura: false`; (3) topes: CAPTURA_MAX_CHARS por
@@ -120,12 +131,27 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
       de la primera formulación vista; agrupación voraz en orden cronológico, determinista) en
       `decisiones` o `pendientes` de ≥ N entradas de SESIONES distintas (N = CANDIDATA_MIN = 2; una entrada
       cuenta una vez aunque lo repita) sale como candidata con `estado: propuesta` y su EVIDENCIA (fecha,
-      fichero, session_id de cada entrada). NUNCA nace `aceptada`: la curación sigue siendo la revisión de dos
-      lentes o el usuario, por la puerta de `/retro` (que es quien invoca esto). Sin journal, con una
+      fichero, session_id de cada entrada). NUNCA nace `aceptada`: `/retro` puede convertir la evidencia
+      en pending mediante `knowledge-curation.py propose`; `knowledge-curator` decide su curación.
+      Este comando sólo lee y agrupa el journal. Sin journal, con una
       sola entrada o sin patrón repetido → sin salida, exit 0.
+      Cada candidata lleva `id` estable (`cand-` + hash de campo y clave) y `categoria` por marcadores
+      léxicos sin modelo (CATEGORIAS: `correccion_usuario` · `resolucion_error` · `workaround` ·
+      `tecnica_depuracion` · `convencion` · `otra`): una pista para quien revisa, no un juicio.
+      Lote estable (D-084): `--lote` imprime `{lote: {id, cursor, entradas_leidas, posteriores_al_cursor,
+      ilegibles}, candidatas}` con las entradas en orden (fecha, fichero); `--hasta <cursor>` reproduce ese
+      lote aunque lleguen entradas nuevas (se cuentan como `posteriores_al_cursor`, no se dan por leídas);
+      `--confirmar <id>` comprueba que lo leído ahora es ese lote (`confirmado: true|false` + `motivo`,
+      exit 0). Nada se marca como procesado: la propuesta la hace quien llama (`knowledge-curation.py
+      propose`) y la decide `knowledge-curator`. `--hasta` mal formado → exit 2.
 
 `--enrich JSON` (fichero o `-` para stdin): {"resumen": "...", "decisiones": [...], "pendientes": [...]}
-— entrada MANUAL que manda sobre lo extraído del log y sobre la IA. Sobre el contrato: la doc oficial
+— entrada MANUAL que manda sobre lo extraído del log y sobre la IA. Continuidad operativa (D-085), con el
+mismo `--enrich`: `objetivo` y `punto_actual` (texto), `siguientes_pasos`, `bloqueos` y `descartados` (listas
+de texto; `descartados` = «enfoque — motivo o evidencia del fallo», para no repetir un intento fallido). Se
+escriben en el frontmatter y en la sección «Continuidad» solo si se declaran; al re-escribir la misma sesión,
+una clave OMITIDA conserva su valor previo y una VACIADA (`""`, `[]` o `null`) se limpia; tipo inválido →
+aviso y cuenta como omitida. Ningún extractor las rellena: `latest`/`select` y `/work-resume` solo las leen. Sobre el contrato: la doc oficial
 (hooks.md, 2026-09-03) sigue sin permitir que un hook `prompt`/`agent` en SessionEnd DEVUELVA texto
 (solo decisión `ok/reason`, y en SessionEnd la salida se ignora) — eso sigue siendo cierto y por eso el
 hook `command` no devuelve nada: ESCRIBE (ADR-010, revisada 2026-09-08 por memory-retrieval T-12/T-13).
@@ -143,6 +169,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
@@ -158,14 +185,11 @@ LISTAS = ("decisiones", "pendientes", "ficheros_tocados", "tareas_cambiadas", "m
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 # --- log crudo del turno del usuario (hook UserPromptSubmit → `capture`; memory-retrieval T-11) ---
-LOG_DIR_REL = ".claude"
-LOG_PREFIX = "session-prompts-"
 PRIVATE_TAG = "<private>"          # en cualquier parte del turno, sin distinguir mayúsculas → el log NO se toca
 CAPTURA_MAX_CHARS = 4000           # tope por turno (un turno gigantesco no llena el disco)
 LOG_MAX_BYTES = 256 * 1024         # tope por fichero: al superarlo se conservan los ÚLTIMOS turnos (½ del tope)
 LOG_RETENCION_DIAS = 30            # purga de `session-prompts-*.log` más viejos (mtime) al capturar
 LOG_GITIGNORE = "session-prompts-*"       # log y su `.lock`; se siembra en `.claude/.gitignore` del consumidor (revisión F4, Lente C gap 2)
-_SID_RE = re.compile(r"[^A-Za-z0-9._-]")
 _MSG_SEGURO_RE = re.compile(r"[^\w .:/\-]")   # gap 90 de la revisión tramo 2 (seguridad): caracteres
 # permitidos en un mensaje de excepción saneado para `avisos` — todo lo demás (saltos de línea,
 # control, marcas bidireccionales, comillas) se descarta, no se sustituye por un separador que
@@ -196,6 +220,33 @@ IA_ENV_GUARD = "CUSTOM_AGENTS_JOURNAL_IA"   # =0 en el hijo: si algo re-entrara 
 CANDIDATA_MIN = 2                  # entradas (sesiones distintas) en las que debe repetirse el patrón
 CANDIDATA_MIN_RAICES = 2           # un patrón de una sola raíz («ok», «tests») no es un patrón
 CANDIDATA_JACCARD = 0.6            # dos formulaciones son el MISMO patrón si sus raíces solapan ≥ 60 % (Jaccard)
+# Categoría de la candidata: marcadores léxicos ES/EN sobre su primera formulación, SIN modelo; gana la primera
+# regla que casa (orden de CATEGORIAS) y sin marcador queda `otra`. Es una pista para quien revisa, no un juicio.
+CATEGORIAS = ("correccion_usuario", "resolucion_error", "workaround", "tecnica_depuracion", "convencion", "otra")
+_CORRECCION_RE = re.compile(r"(?<!\w)(?:no es as[ií]|eso no|as[ií] no|te equivocas|est[aá] mal|incorrect[oa]|"
+                            r"en realidad|that'?s (?:not|wrong)|wrong|actually)(?!\w)", re.I)
+_ERROR_RE = re.compile(r"(?<!\w)(?:error(?:es)?|fall(?:o|a|ó|aba)|excepci[oó]n|traceback|crash|bug|roto|rompe|"
+                       r"failed|failure|exception)(?!\w)", re.I)
+_ARREGLO_RE = re.compile(r"(?<!\w)(?:arregl\w*|solucion\w*|resuel\w*|resolv\w*|corregi\w*|corrig\w*|"
+                         r"fix(?:ed|es)?|solved|resolved)(?!\w)", re.I)
+_WORKAROUND_RE = re.compile(r"(?<!\w)(?:workaround|apa[ñn]o|parche temporal|soluci[oó]n temporal|rodeo|de momento|"
+                            r"por ahora|mientras tanto|temporary fix|for now|stopgap)(?!\w)", re.I)
+_DEPURACION_RE = re.compile(r"(?<!\w)(?:depur\w*|debug\w*|bisect\w*|reproduc\w*|a[ií]sl\w*|traza\w*|stack ?trace|"
+                            r"breakpoints?|logs?)(?!\w)", re.I)
+_CONVENCION_RE = re.compile(r"(?<!\w)(?:siempre|nunca|convenci[oó]n|por norma|regla|always|never|convention|"
+                            r"naming)(?!\w)", re.I)
+CURSOR_RE = re.compile(r"\d{4}-\d{2}-\d{2}/[^/\\\x00-\x1f]+\.md")   # `AAAA-MM-DD/<fichero>.md`: (fecha, fichero) de la última entrada leída
+
+# --- continuidad operativa de la sesión (D-085): esquema explícito, solo por `--enrich`/`--draft` ---
+# Clave AUSENTE = omitida (al re-escribir la misma sesión se conserva lo que hubiera); `""`/`[]`/`null` =
+# VACIADO explícito (la clave queda en el frontmatter, vacía). Ningún extractor la rellena por su cuenta.
+CONTINUIDAD_ESCALARES = ("objetivo", "punto_actual")
+CONTINUIDAD_LISTAS = ("siguientes_pasos", "bloqueos", "descartados")   # descartados: «enfoque — motivo»
+CONTINUIDAD = CONTINUIDAD_ESCALARES + CONTINUIDAD_LISTAS
+_LISTAS_FM = LISTAS + CONTINUIDAD_LISTAS     # listas que admite el frontmatter (lector acotado `_selected_parse`)
+_CONTINUIDAD_ETIQUETA = {"objetivo": "Objetivo", "punto_actual": "Punto actual",
+                         "siguientes_pasos": "Siguientes pasos", "bloqueos": "Bloqueos",
+                         "descartados": "Descartados"}
 
 
 def _load_module(name, filename):
@@ -215,18 +266,273 @@ def _load_module(name, filename):
 REDACTADO = "[secreto redactado]"
 _CLAVES_SENSIBLES = r"api[_-]?key|secret[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|pwd|clave|contrase[ñn]a"
 _CLAVE_SENSIBLE_RE = re.compile(r"(?i)(?:" + _CLAVES_SENSIBLES + r")")
+_PEM_BEGIN_RE = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")
+_PEM_END_RE = re.compile(r"-----END [A-Z ]*PRIVATE KEY-----")
+# Sin `\b` a la izquierda: la clave casa tambien tras `_`, `-` o un prefijo (`DB_PASSWORD=`, `API_TOKEN=`,
+# `AWS_SECRET_ACCESS_KEY=`, `PGPASSWORD=`; panel-redesign T-42 fix1, C-1). El `\b` final se mantiene:
+# `my_token_count=` o `tokens=` no son claves sensibles.
+_ASIGNACION_RE = re.compile(r"(?i)(?:" + _CLAVES_SENSIBLES + r")\b\s*[:=]\s*[\"']?")
+_ASIGNACION_FIN_RE = re.compile(r"[\s\"']")
+_ASIGNACION_LETRA_RE = re.compile(r"[A-Za-z]", re.I)
+_ASIGNACION_VARIADA_RE = re.compile(r"[0-9!@#$%^&*]")
 _SECRETOS_RE = (
-    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
     re.compile(r"\b(?:sk-ant-|sk-|ghp_|gho_|ghu_|ghs_|ghr_|github_pat_|xox[baprs]-|glpat-|AKIA|ASIA)[A-Za-z0-9_\-]{16,}"),
     re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
     re.compile(r"(?i)(?P<pre>\bbearer\s+)(?P<sec>[A-Za-z0-9._~+/=\-]{20,})"),
-    re.compile(r"(?i)(?P<pre>\b(?:" + _CLAVES_SENSIBLES + r")\b\s*[:=]\s*[\"']?)"
-               r"(?P<sec>(?=[^\s\"']*[A-Za-z])(?=[^\s\"']*[0-9!@#$%^&*])[^\s\"']{8,})"),
+    # `Authorization: Basic <base64>` (cabecera HTTP, tambien como par JSON o con `Proxy-`): panel-redesign T-42
+    re.compile(r"(?i)(?P<pre>\bauthorization[\"']?\s*[:=]\s*[\"']?basic\s+)(?P<sec>[A-Za-z0-9+/=_\-]{6,})"),
     # par clave-valor JSON (o repr de Python) con la clave sensible ENTRECOMILLADA: el valor entero, sea
     # cual sea su forma (#139 de training-data-services: `"password": "…"` no casaba con `password=`)
     re.compile(r"(?i)(?P<pre>(?P<q>[\"'])(?:" + _CLAVES_SENSIBLES + r")(?P=q)\s*:\s*(?P<q2>[\"']))"
                r"(?P<sec>(?:\\.|(?!(?P=q2))[^\\])+)(?=(?P=q2))"),
 )
+
+
+def _redactar_pem(texto):
+    """First valid BEGIN through the next valid END, independently of family.
+
+    An unterminated block remains intact. Search its missing END only once,
+    rather than retrying the entire remaining body at every nested BEGIN.
+    """
+    partes, cursor = [], 0
+    while True:
+        inicio = _PEM_BEGIN_RE.search(texto, cursor)
+        if inicio is None:
+            break
+        fin = _PEM_END_RE.search(texto, inicio.end())
+        if fin is None:
+            break
+        partes.extend((texto[cursor:inicio.start()], REDACTADO))
+        cursor = fin.end()
+    partes.append(texto[cursor:])
+    return "".join(partes)
+
+
+def _redactar_asignaciones(texto):
+    """Preserve the original >=8, letter and diverse-character classification.
+
+    Cache each whitespace/quote-delimited value's end and last qualifying
+    characters. Repeated sensitive prefixes inside a failed candidate reuse
+    that scan instead of rescanning the remaining suffix quadratically.
+    """
+    partes, cursor, posicion = [], 0, 0
+    token_fin = -1
+    ultima_letra = ultimo_variado = -1
+    while True:
+        prefijo = _ASIGNACION_RE.search(texto, posicion)
+        if prefijo is None:
+            break
+        inicio = prefijo.end()
+        if inicio >= token_fin:
+            fin = _ASIGNACION_FIN_RE.search(texto, inicio)
+            token_fin = fin.start() if fin else len(texto)
+            ultima_letra = ultimo_variado = -1
+            for match in _ASIGNACION_LETRA_RE.finditer(texto, inicio, token_fin):
+                ultima_letra = match.start()
+            for match in _ASIGNACION_VARIADA_RE.finditer(texto, inicio, token_fin):
+                ultimo_variado = match.start()
+        if token_fin - inicio >= 8 and ultima_letra >= inicio and ultimo_variado >= inicio:
+            partes.extend((texto[cursor:prefijo.start()], prefijo.group(), REDACTADO))
+            cursor = posicion = token_fin
+        else:
+            posicion = inicio
+    partes.append(texto[cursor:])
+    return "".join(partes)
+
+
+# Credenciales como argumento de un comando conocido (T-42 fix1 C-1, fix2 2-2/2-3, fix3 3-1): `curl -u|-U|
+# --user|--proxy-user usuario:clave` (tambien agrupadas, `-sSu`) y `mysql*`/`mariadb* -p<clave>|--password=`.
+# Se trocea como un shell: `|`, `;`, `&` y salto de linea separan comandos fuera de comillas (un `&` pegado por
+# los dos lados, como en una URL, no separa). Una credencial se tapa si el programa (`curl`, `mysql…`, por
+# nombre, con o sin ruta y en CUALQUIER posicion: tras `sudo -u x`, `--`, `timeout 10`, `xargs`, `$(`) aparece
+# ANTES en el mismo comando (las formas con `=`, en cualquier punto del comando); asi `cp -pr /var/lib/mysql`, `docker run -p3306:3306 mysql:8` o `docker run -u
+# 1000:1000 img curl …` no se tocan (el programa va despues). Una comilla solo agrupa si cierra en la misma
+# linea: la que no cierra (`can't`) es un caracter mas y no esconde nada. Lo que va entre comillas se trocea
+# ademas como comando anidado (`sh -c "…"`, `ssh host '…'`; dentro de `"…"`, `\"` vuelve a ser comilla).
+# fix4 (C4-1): si el texto lleva comillas se trocea OTRA vez con las comillas como un caracter mas
+# (`_TROZO_LITERAL_RE`, sin emparejar ni anidar) y se suman las dos pasadas: un apostrofo de la prosa que
+# cierra con la comilla de la credencial (`can't … -p'X'`) ya no la esconde. Una palabra que empieza por `-`
+# nunca es el programa (fix4 B4-1: `-pRoot!mysql`, `--password=mysql`).
+# Ante la duda, tapar de mas. Lineal (cada nivel de comillas recorre su texto una vez) e idempotente.
+_TROZO_RE = re.compile(r"[^\s\"'\\|;&]+")
+_TROZO_LITERAL_RE = re.compile(r"[^\s\\|;&]+")  # comillas como un caracter mas
+_DOBLE_CIERRE_RE = re.compile(r"(?:\\.|[^\"\\\n])*\"")
+_ESCAPE_DOBLE_RE = re.compile(r"\\([\"\\$`])")
+_PROGRAMA_RE = re.compile(r"(?i)(?<![\w.\-])(?:(?P<curl>curl)|mysql[a-z]*|mariadb(?:-[a-z]+)?)(?:\.exe)?(?![\w.\-:])")
+_VALOR_DE_OPCION = frozenset(("--name", "--hostname"))  # `docker run --name mysql -p3306:3306`: un nombre
+_CURL_SIN_ARGUMENTO = frozenset("0123456#aBfgGIijJkLlMnNOpqRsSvZ")
+_PROFUNDIDAD_MAX = 4
+
+
+def _desescapar(escape):
+    r"""`\"` -> `\x01"` y `\\` -> `\x01\x01` (mismo largo): dentro de `"…"`, lo escapado vuelve a ser texto."""
+    return "\x01" + ("\x01" if escape.group(1) == "\\" else escape.group(1))
+
+
+def _sin_comillas(palabra):
+    return palabra.replace('"', "").replace("'", "")
+
+
+def _programa(palabra, anterior):
+    """'curl', 'mysql' o None para una palabra (sin comillas) de un comando; `anterior`, la palabra previa."""
+    if palabra.startswith("-"):
+        return None  # `-pRoot!mysql`, `--password=mysql`: el valor de una opcion no es el programa
+    m = _PROGRAMA_RE.search(palabra)
+    if m is None or ":" in palabra[2:m.start()]:
+        return None  # `/data/x:/var/lib/mysql` (volumen) o `https://h/curl` (URL) no son el programa
+    if anterior in _VALOR_DE_OPCION:
+        return None
+    return "curl" if m.group("curl") else "mysql"
+
+
+def _tapar(texto, inicio, fin, base, cambios, curl):
+    """Tapa la clave de texto[inicio:fin] (tras el primer `:` en curl); respeta comillas e idempotencia."""
+    valor = texto[inicio:fin]
+    if curl:
+        dos_puntos = valor.find(":")
+        if dos_puntos < 0:
+            return
+        inicio += dos_puntos + 1
+    while inicio < fin and texto[inicio] in "\"'\x01":
+        inicio += 1
+    final = fin
+    while final > inicio and texto[final - 1] in "\"'\x01":
+        final -= 1
+    if final > inicio and not texto.startswith(REDACTADO, inicio):
+        cambios.append((base + inicio, base + final))
+
+
+def _redactar_comando(texto, palabras, base, cambios, heredado):
+    """Redacta un comando y devuelve, por palabra, los programas vistos ANTES de ella (y todos los del comando).
+
+    Las formas cortas o separadas (`-u x:y`, `-pX`) se anclan a un programa anterior; las de `=` (`--user=`,
+    `--proxy-user=`, `--password=`), a un programa en cualquier punto del comando, como fix1. `heredado` son
+    los programas del comando que envuelve a unas comillas (`curl '-u' 'a:X'`, `mysql "-pX"`)."""
+    limpias = [_sin_comillas(texto[a:b]) for a, b in palabras]
+    programas = [_programa(p, limpias[k - 1] if k else None) for k, p in enumerate(limpias)]
+    vistos, todos = heredado
+    todos = todos.union(programas)
+    antes, j = [], 0
+    while j < len(palabras):
+        a, b = palabras[j]
+        w = texto[a:b]
+        programa = programas[j]
+        antes.append(vistos)
+        j += 1
+        if programa is not None:
+            vistos = vistos | {programa}
+            continue
+        q = len(w) - len(w.lstrip("\"'\x01"))  # `"-pX"`: la opcion entre comillas tambien cuenta
+        a, w = a + q, w[q:]
+        if w.startswith("--password=") and "mysql" in todos:
+            _tapar(texto, a + 11, b, base, cambios, False)
+        elif w.startswith(("--user=", "--proxy-user=")) and "curl" in todos:
+            _tapar(texto, a + w.index("=") + 1, b, base, cambios, True)
+        if "mysql" in vistos and w.startswith("-p") and len(w.rstrip("\"'\x01")) > 2:
+            _tapar(texto, a + 2, b, base, cambios, False)
+        if "curl" not in vistos:
+            continue
+        if limpias[j - 1] in ("-u", "-U", "--user", "--proxy-user"):
+            if j < len(palabras):  # el valor se mira tambien como palabra: `-u -pX` tras curl y mysql
+                _tapar(texto, palabras[j][0], palabras[j][1], base, cambios, True)
+        elif w.startswith("-") and not w.startswith("--"):
+            for i in range(1, len(w)):
+                if w[i] in "uU":
+                    if i + 1 < len(w.rstrip("\"'\x01")):
+                        _tapar(texto, a + i + 1, b, base, cambios, True)
+                    elif j < len(palabras):
+                        _tapar(texto, palabras[j][0], palabras[j][1], base, cambios, True)
+                    break
+                if w[i] not in _CURL_SIN_ARGUMENTO:
+                    break
+    antes.append(vistos)
+    return antes, todos
+
+
+def _trocear(texto, base, profundidad, cambios, heredado=(frozenset(), frozenset()), trozo=_TROZO_RE):
+    """Trocea `texto` en comandos y redacta cada uno; el contenido de cada comilla cerrada, tambien, como
+    comando anidado que hereda los programas que su comando tenia antes de esa palabra."""
+    palabras, pendientes, anidados, inicio, i, n = [], [], [], None, 0, len(texto)
+    fin_linea, sin_cierre = -1, {"'": -1, '"': -1}
+
+    def cerrar_comando():
+        antes, todos = _redactar_comando(texto, palabras, base, cambios, heredado)
+        anidados.extend((a, b, c, (antes[k], todos)) for a, b, c, k in pendientes)
+        palabras.clear()
+        pendientes.clear()
+
+    while i < n:
+        m = trozo.match(texto, i)
+        if m is not None:
+            inicio = i if inicio is None else inicio
+            i = m.end()
+            continue
+        c = texto[i]
+        if c == "\\":
+            salto = 2 if texto.startswith("\n", i + 1) else 3 if texto.startswith("\r\n", i + 1) else 0
+            if salto:  # continuacion de linea: separa palabras, no comandos
+                if inicio is not None:
+                    palabras.append((inicio, i))
+                    inicio = None
+                i += salto
+                continue
+            inicio = i if inicio is None else inicio
+            i += 2
+            continue
+        if c in "\"'":
+            inicio = i if inicio is None else inicio
+            if i >= fin_linea:
+                fin_linea = texto.find("\n", i)
+                fin_linea = n if fin_linea < 0 else fin_linea
+            cierre = -1
+            if i >= sin_cierre[c]:
+                if c == "'":
+                    cierre = texto.find("'", i + 1, fin_linea)
+                else:
+                    d = _DOBLE_CIERRE_RE.match(texto, i + 1, fin_linea)
+                    cierre = d.end() - 1 if d else -1
+                if cierre < 0:
+                    sin_cierre[c] = fin_linea  # ninguna comilla de este tipo cierra ya en esta linea
+            if cierre < 0:
+                i += 1  # una comilla que no cierra es un caracter mas
+            else:
+                if cierre > i + 1 and profundidad < _PROFUNDIDAD_MAX:
+                    pendientes.append((i + 1, cierre, c, len(palabras)))
+                i = cierre + 1
+            continue
+        if c == "&" and inicio is not None and i + 1 < n and not (texto[i + 1].isspace() or texto[i + 1] in "|;&"):
+            i += 1  # `&` pegado por los dos lados (`?a=1&b=2`): parte de la palabra
+            continue
+        if inicio is not None:
+            palabras.append((inicio, i))
+            inicio = None
+        if c in "|;&\n":
+            cerrar_comando()
+        i += 1
+    if inicio is not None:
+        palabras.append((inicio, n))
+    cerrar_comando()
+    for a, b, c, contexto in anidados:
+        interior = texto[a:b]
+        if c == '"':  # mismo largo: `\"` -> `\x01"`, para que la comilla escapada vuelva a agrupar
+            interior = _ESCAPE_DOBLE_RE.sub(_desescapar, interior)
+        _trocear(interior, base + a, profundidad + 1, cambios, contexto)
+
+
+def _redactar_argumentos(texto):
+    cambios = []
+    _trocear(texto, 0, 0, cambios)
+    if "'" in texto or '"' in texto:  # fix4 C4-1: segunda pasada ciega a las comillas, unida a la primera
+        _trocear(texto, 0, 0, cambios, trozo=_TROZO_LITERAL_RE)
+    partes, cursor = [], 0
+    for inicio, fin in sorted(cambios):
+        if inicio < cursor:  # solapa con lo ya tapado (comando y comando anidado): una sola marca
+            cursor = max(cursor, fin)
+            continue
+        partes.extend((texto[cursor:inicio], REDACTADO))
+        cursor = fin
+    partes.append(texto[cursor:])
+    return "".join(partes)
 
 
 def es_clave_sensible(clave):
@@ -237,9 +543,12 @@ def es_clave_sensible(clave):
 
 def redactar(texto):
     """Sustituye los secretos evidentes (_SECRETOS_RE) por REDACTADO conservando el prefijo (`token=`, `Bearer `)."""
-    texto = str(texto)
-    for pat in _SECRETOS_RE:
+    texto = _redactar_pem(str(texto))
+    for pat in _SECRETOS_RE[:-1]:
         texto = pat.sub(lambda m: (m.group("pre") if "pre" in m.groupdict() else "") + REDACTADO, texto)
+    texto = _redactar_argumentos(texto)
+    texto = _redactar_asignaciones(texto)
+    texto = _SECRETOS_RE[-1].sub(lambda m: m.group("pre") + REDACTADO, texto)
     return texto
 # --8<-- fin redact (redactar + constantes)
 
@@ -267,251 +576,46 @@ def slugify(s):
     return s or "sesion"
 
 
-def proyecto_con_plugin(root):
-    """¿Hay rastro del plugin en el proyecto? Solo entonces se escribe la bitácora (T-fix1)."""
-    return any(os.path.exists(os.path.join(root, *p)) for p in
-               (("docs", "roadmap"), ("docs", "knowledge"), (".claude", "dev.json")))
-
-
-def _dev_sesion(root):
-    """Bloque `sesion` de `.claude/dev.json` ({} si no hay fichero, está corrupto o no es un objeto)."""
-    try:
-        d = json.load(open(os.path.join(root, ".claude", "dev.json"), encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
-    s = d.get("sesion") if isinstance(d, dict) else None
-    return s if isinstance(s, dict) else {}
-
-
 # ------------------------------------------------------------------ captura durable de SessionEnd
 # (session-end-durable-capture T-03/T-04: envelope atómico en la outbox + materialización recuperable)
 
-def _schema_aceptados(version):
-    """{version, version - 1} ∩ ≥ 1: al subir `SCHEMA_VERSION` a 2, la 1 sigue aceptándose durante
-    esa versión (gap 17 de la revisión: con `SCHEMA_VERSION == 1` la rama N-1 era código muerto sin
-    test que la ejercitara)."""
-    return frozenset(v for v in (version, version - 1) if v >= 1)
-
-
-SCHEMA_VERSION = 1                 # versión del envelope; `replay` acepta esta Y la anterior (N y N-1)
-SCHEMA_ACEPTADOS = _schema_aceptados(SCHEMA_VERSION)
-ENVELOPE_STR_MAX = 2000            # tope defensivo de cwd/transcript_path: el envelope entero ≤ 64 KiB (spec C-01)
-SESSION_ID_MAX = 200               # tope defensivo de session_id (gap 4 de la revisión: sin él, 200.000
-                                    # chars de `session_id` producían un envelope de ~196 KiB)
-ENVELOPE_MAX_BYTES = 64 * 1024     # CA de la spec: el envelope ≤ 64 KiB
-
-_OB = {"cargado": False, "mod": None}
-
-
-def _outbox_mod():
-    """`agent-kits/shared/outbox.py` cargado una vez (o `None` si no viaja junto a journal.py:
-    entonces capture-end/replay degradan en silencio, nunca bloquean SessionEnd/SessionStart)."""
-    if not _OB["cargado"]:
-        _OB["cargado"], _OB["mod"] = True, _load_module("outbox", "outbox.py")
-    return _OB["mod"]
-
-
-_DIR_DEFAULT = os.path.join(".claude", "journal")
-_QUEUE_MARKER = ".custom-agents-journal"    # marcador: este directorio lo creó/gestiona la cola (gap 34)
-
-
-_CONTENIDO_DE_LA_COLA = frozenset(
-    {"outbox", "processing", "done", "dead-letter", ".gitignore", ".replay.lock", _QUEUE_MARKER,
-     ".durabilidad-degradada", ".permisos-degradados", ".reclamacion-degradada"})
-
-
-def _dir_es_de_la_cola_o_vacio(dirpath):
-    """True si `dirpath` no existe todavía, existe pero está vacío, o YA lleva el marcador de la
-    cola Y todo su contenido son piezas conocidas de la cola (`outbox/`, `processing/`, `done/`,
-    `dead-letter/`, `.gitignore`, `.replay.lock`, los sentinelas de degradación y el propio
-    marcador). Gap 34 de la revisión intento 2: `sesion.journal.dir` con contención solo LÉXICA
-    dejaba pasar `"."` o `"docs"` (rutas realmente contenidas en la raíz del proyecto, así que
-    ninguna comprobación de escape las rechaza) y `_asegurar_gitignore_local` plantaba
-    `.gitignore`/`chmod 0700` en la raíz o en `docs/` del proyecto consumidor. Gap 62 de la revisión
-    intento 3: el marcador SOLO no bastaba — un repo con `journal.dir: "docs"` y
-    `docs/.custom-agents-journal` VERSIONADO (por el motivo que fuera) hacía que el hook tratara
-    `docs/` entero como cola aunque llevara `README.md` y el resto de la documentación del proyecto;
-    ahora, con marcador, se exige ADEMÁS que no haya NINGÚN fichero ajeno."""
-    if not os.path.isdir(dirpath):
-        return True
-    try:
-        contenido = os.listdir(dirpath)
-    except OSError:
-        return False
-    if not contenido:
-        return True
-    if _QUEUE_MARKER not in contenido:
-        return False        # tiene contenido y ni siquiera lleva el marcador: no es (ni puede ser) nuestro
-    return all(nombre in _CONTENIDO_DE_LA_COLA for nombre in contenido)
-
-
-def _journal_queue_dir(root):
-    """Carpeta de la cola de outbox: `.claude/journal` por defecto; `dev.json` →
-    `{"sesion": {"journal": {"dir": "..."}}}` la puede mover (el booleano `sesion.journal` sigue
-    valiendo para el opt-out, ver `_journal_activo`). Se rechaza (con aviso, usando el default) si
-    `dir`:
-      - es absoluto, o relativo a una UNIDAD de Windows (`"C:evil"` — `ntpath.splitdrive` detecta
-        esto en cualquier SO, gap 34: la contención léxica anterior solo miraba `..`/absolutos
-        POSIX);
-      - sale de la raíz del proyecto tras resolver symlinks (`os.path.realpath` +
-        `os.path.commonpath`: un symlink versionado `esc -> /fuera` pasaba la comprobación léxica
-        de antes);
-      - ya existe con CONTENIDO ajeno a la cola (gap 34: `"."`/`"docs"` están léxicamente
-        contenidos y no son symlinks, pero mutar la raíz del proyecto o `docs/` con `chmod 0700` y
-        un `.gitignore` con `*` es peligroso — se usa el default en vez de tocar un directorio que
-        no es nuestro)."""
-    jr = _dev_sesion(root).get("journal")
-    d = jr.get("dir") if isinstance(jr, dict) else None
-    if not (isinstance(d, str) and d.strip()):
-        return os.path.join(root, _DIR_DEFAULT)
-    d = d.strip()
-    if os.path.isabs(d) or ntpath.splitdrive(d)[0]:
-        print(f"journal: sesion.journal.dir {d!r} es absoluto o relativo a una unidad; se usa el "
-              f"default {_DIR_DEFAULT}", file=sys.stderr)
-        return os.path.join(root, _DIR_DEFAULT)
-    candidato = os.path.join(root, d)
-    real_root, real_cand = os.path.realpath(root), os.path.realpath(candidato)
-    try:
-        contenido = os.path.commonpath([real_root, real_cand]) == real_root
-    except ValueError:              # unidades distintas en Windows: nunca contenido
-        contenido = False
-    if not contenido:
-        print(f"journal: sesion.journal.dir {d!r} sale de la raíz del proyecto (symlink u otra "
-              f"ruta); se usa el default {_DIR_DEFAULT}", file=sys.stderr)
-        return os.path.join(root, _DIR_DEFAULT)
-    if not _dir_es_de_la_cola_o_vacio(candidato):
-        print(f"journal: sesion.journal.dir {d!r} ya existe con contenido ajeno a la cola; se usa "
-              f"el default {_DIR_DEFAULT} (gap 34)", file=sys.stderr)
-        return os.path.join(root, _DIR_DEFAULT)
-    return candidato
-
-
-def _journal_activo(root):
-    """`dev.json` → `{"sesion": {"journal": false}}` (o el objeto `{"activo": false}`) apaga
-    captura y replay; cualquier otra cosa (ausente, `true`, objeto sin `activo: false`) los deja
-    activos — el booleano sigue valiendo (compatibilidad; gap 12 de la revisión: el objeto también
-    tiene que poder apagar la captura)."""
-    v = _dev_sesion(root).get("journal")
-    if isinstance(v, dict):
-        return v.get("activo") is not False
-    return v is not False
-
-
-def _plugin_version():
-    """`version` de `.claude-plugin/plugin.json` del propio plugin (dos carpetas por encima de
-    `agent-kits/shared/`, INDEPENDIENTE del proyecto consumidor); `0.0.0` si no se puede leer."""
-    try:
-        p = os.path.join(os.path.dirname(os.path.dirname(HERE)), ".claude-plugin", "plugin.json")
-        with open(p, encoding="utf-8") as fh:
-            v = json.load(fh).get("version")
-        return str(v) if v else "0.0.0"
-    except (OSError, ValueError):
-        return "0.0.0"
-
-
-def _hash_log_prompts(root, session_id):
-    """sha256 del CONTENIDO ÍNTEGRO del log crudo de la sesión (`sha256("")` si no existe): la base
-    de `event_id` (gap 28 de la revisión intento 2, reemplaza a `sequence`). `sequence` (nº de
-    líneas) NO es monótono cuando el log rota (`_rotar`, `LOG_MAX_BYTES`): puede volver a un valor
-    YA USADO tras rotar, y entonces `event_id` colisionaba con uno ya en `done/` — el cierre
-    legítimo nunca se encolaba. El HASH del contenido cambia con cualquier turno nuevo o rotación,
-    y es estable si nada cambió (CA-03 se mantiene: repetir la captura sin turnos nuevos entre
-    medias no cambia el hash)."""
-    try:
-        with open(log_path(root, session_id), "rb") as fh:
-            data = fh.read()
-    except OSError:
-        data = b""
-    return hashlib.sha256(data).hexdigest()
-
-
-def _event_id(session_id, reason, schema_version, log_hash):
-    """`sha256(session_id·reason·schema_version·hash_del_log)[:16]`: determinista, sin texto de
-    conversación — la clave de idempotencia de `outbox.escribir` (CA-03: el mismo evento capturado
-    varias veces produce un único envelope lógico). `log_hash` (gap 28 de la revisión intento 2)
-    sustituye a `sequence` (nº de líneas, NO monótono si el log rota) como lo que distingue dos
-    cierres legítimos de la misma sesión: un turno nuevo, o una rotación, cambian el contenido del
-    log y por tanto el hash, aunque el nº de líneas coincida con uno ya usado."""
-    clave = "|".join(str(x) for x in (session_id, reason, schema_version, log_hash))
-    return hashlib.sha256(clave.encode("utf-8")).hexdigest()[:16]
-
-
-def _contar_lineas_log(root, session_id):
-    """Nº de turnos ya capturados de la sesión (líneas del log crudo `.claude/session-prompts-<sid>.log`)
-    en el momento del cierre; 0 si el log no existe. Puramente INFORMATIVO en el envelope
-    (`sequence`) desde el gap 28 de la revisión intento 2: la idempotencia (`event_id`) ya no
-    depende de este número (ver `_hash_log_prompts`), porque no es monótono cuando el log rota."""
-    try:
-        with open(log_path(root, session_id), encoding="utf-8", errors="replace") as fh:
-            return sum(1 for _ in fh)
-    except OSError:
-        return 0
-
-
-def capture_end(root, payload):
-    """Lo que corre en el teardown de SessionEnd (CA-01 de la spec): escribe un envelope atómico en
-    la outbox y NADA MÁS — no abre `transcript_path` (referencia no confiable), no ejecuta git, no
-    llama a IA, no usa red. Devuelve la ruta escrita, o `None` si no se escribe (payload sin
-    `session_id`, `sesion.journal: false`/`{"activo": false}`, sin rastro del plugin, o
-    `outbox.py` no disponible): nunca lanza, nunca bloquea el cierre de la sesión."""
-    if not isinstance(payload, dict):
-        return None
-    sid = payload.get("session_id")
-    if not isinstance(sid, str) or not sid.strip():
-        return None
-    sid = sid[:SESSION_ID_MAX]
-    if not proyecto_con_plugin(root) or not _journal_activo(root):
-        return None
-    ob = _outbox_mod()
-    if ob is None:
-        return None
-    reason_crudo = str(payload.get("reason") or "manual")
-    reason = _REASON_RE_SANEA.sub("_", reason_crudo.lower())[:40] or "other"
-    log_hash = _hash_log_prompts(root, sid)             # gap 28: base del event_id, no `sequence`
-    sequence = _contar_lineas_log(root, sid)            # informativo (líneas del log en el cierre)
-    envelope = {
-        "schema_version": SCHEMA_VERSION,
-        "event_id": _event_id(sid, reason, SCHEMA_VERSION, log_hash),
-        "session_id": sid,
-        "hook_event_name": str(payload.get("hook_event_name") or "SessionEnd")[:64],
-        "reason": reason,
-        "cwd": str(payload.get("cwd") or "")[:ENVELOPE_STR_MAX],
-        "transcript_path": str(payload.get("transcript_path") or "")[:ENVELOPE_STR_MAX],
-        "captured_at": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "plugin_version": _plugin_version(),
-        "sequence": sequence,
-    }
-    dir_ = _journal_queue_dir(root)
-    _asegurar_gitignore_local(dir_)         # gap 9: nunca se cuela en `git status` del consumidor
-    return ob.escribir(dir_, envelope["event_id"], envelope)
-
-
-def _asegurar_gitignore_local(dirpath):
-    """`.gitignore` + marcador de la cola (`_QUEUE_MARKER`, gap 34) DENTRO de la propia carpeta:
-    funciona aunque `sesion.journal.dir` mueva la cola fuera de `.claude/` (gap 9 de la revisión:
-    sin esto, los envelopes se cuelan en `git status` y en `ficheros_tocados`, y se pueden
-    commitear). `_journal_queue_dir` ya garantiza que `dirpath` es seguro (contenido en la raíz,
-    sin symlinks de escape, y de la cola o vacío) antes de llegar aquí, así que esta función no
-    vuelve a comprobarlo: solo crea/marca. La llama también `replay()` (gap 41: creaba la carpeta y
-    el cerrojo sin sembrar `.gitignore`)."""
-    try:
-        os.makedirs(dirpath, exist_ok=True)
-        with contextlib.suppress(OSError):
-            os.chmod(dirpath, 0o700)
-        marker = os.path.join(dirpath, _QUEUE_MARKER)
-        if not os.path.isfile(marker):
-            open(marker, "w", encoding="utf-8").close()
-        gi = os.path.join(dirpath, ".gitignore")
-        if not os.path.isfile(gi):
-            # Gap 61 de la revisión intento 3 (B-55): `!.gitignore` deshacía la ignorancia del PROPIO
-            # `.gitignore`, así que `git status -uall` seguía viéndolo como `??` — el único fichero de
-            # la cola que se colaba. Con solo `*` (sin excepción), la cola entera —incluido su propio
-            # `.gitignore`— queda ignorada; no hace falta versionarlo para que git lo respete, porque
-            # `_asegurar_gitignore_local` se encarga de recrearlo si faltara.
-            with open(gi, "w", encoding="utf-8") as fh:
-                fh.write("# custom-agents: outbox del journal, nunca versionar (session-end-durable-capture)\n*\n")
-    except OSError:
-        pass
+_capture_mod = _load_module("journal_capture", "journal-capture.py")
+if _capture_mod is None:
+    if __name__ == "__main__":
+        print("journal: journal-capture.py unavailable; reinstall the complete bundle", file=sys.stderr)
+        sys.exit(0)
+    raise ImportError("journal-capture.py unavailable: durable capture policy is required")
+for _capture_name in (
+    'ENVELOPE_MAX_BYTES',
+    'ENVELOPE_STR_MAX',
+    'LOG_DIR_REL',
+    'LOG_PREFIX',
+    'SCHEMA_ACEPTADOS',
+    'SCHEMA_VERSION',
+    'SESSION_ID_MAX',
+    '_CONTENIDO_DE_LA_COLA',
+    '_DIR_DEFAULT',
+    '_OB',
+    '_QUEUE_MARKER',
+    '_REASON_RE_SANEA',
+    '_SID_RE',
+    '_asegurar_gitignore_local',
+    '_contar_lineas_log',
+    '_dev_sesion',
+    '_dir_es_de_la_cola_o_vacio',
+    '_event_id',
+    '_hash_log_prompts',
+    '_journal_activo',
+    '_journal_queue_dir',
+    '_outbox_mod',
+    '_plugin_version',
+    '_schema_aceptados',
+    '_sid_seguro',
+    'capture_end',
+    'log_path',
+    'proyecto_con_plugin',
+):
+    globals()[_capture_name] = getattr(_capture_mod, _capture_name)
 
 
 def _transcripts_permitidos_root():
@@ -551,7 +655,6 @@ def _transcript_seguro(path, session_id):
     return path if os.path.isfile(path) else None
 
 
-_REASON_RE_SANEA = re.compile(r"[^a-z_]+")            # capture_end: sanea `reason` a lo que acepta el validador
 _REASON_RE = re.compile(r"^[a-z_]{1,40}$")
 _CAPTURED_AT_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
@@ -824,6 +927,15 @@ VENTANA_HUERFANA_MIN_DEFAULT = 1440   # min sin envelope ni sesión viva para tr
 # ociosa (portátil en suspensión, fin de semana) podía recuperarse ANTES de tiempo como
 # `recuperado_sin_cierre`; la limitación se acepta por diseño (ver design.md, «Estados»): se
 # autocorrige sola al cerrar de verdad (`materializado` sobrescribe la entrada por `session_id`).
+VENTANA_INACTIVIDAD_MIN_DEFAULT = 30  # min sin tocar transcript NI log para recuperar ANTES de las 24 h.
+# En Windows la captura de `SessionEnd` no cabe en el presupuesto de cierre (1,5 s; arrancar el
+# launcher ya cuesta más), así que casi toda sesión acaba huérfana: esperar 24 h para verla al
+# arrancar era el caso normal, no la excepción. El transcript que `capture` registró en el log
+# (`_transcript_seguro`) es la señal de inactividad: si NI él NI el log cambian en esta ventana, la
+# sesión no está escribiendo. Si luego sigue, la recuperación se rehace (`log_hasta`).
+TRANSCRIPT_COLA_BYTES = 32 * 1024     # cola del log que se lee para hallar el ÚLTIMO `transcript`:
+# cubre siempre una línea completa (CAPTURA_MAX_CHARS × 4 bytes UTF-8 + escapes < 32 KiB) sin leer
+# el log entero (hasta LOG_MAX_BYTES) en el arranque presupuestado de `SessionStart`.
 
 
 def _extraer_sid_de_log(fn):
@@ -846,16 +958,92 @@ def _ventana_huerfana_min(root):
     return VENTANA_HUERFANA_MIN_DEFAULT
 
 
+def _ventana_inactividad_min(root):
+    """`sesion.journal.ventanaInactividadMin` (minutos; default VENTANA_INACTIVIDAD_MIN_DEFAULT = 30,
+    mínimo 1): inactividad de transcript Y log que basta para recuperar una huérfana antes de
+    `ventanaHuerfanaMin`."""
+    v = _dev_sesion(root).get("journal")
+    if isinstance(v, dict) and "ventanaInactividadMin" in v:
+        try:
+            return max(1, int(v["ventanaInactividadMin"]))
+        except (TypeError, ValueError):
+            pass
+    return VENTANA_INACTIVIDAD_MIN_DEFAULT
+
+
+def _ultimo_transcript(log_path_, session_id):
+    """Ruta del transcript de la ÚLTIMA línea del log que lleva `transcript`, SOLO si pasa
+    `_transcript_seguro` (si esa última no vale, `None`: no se busca una anterior). Lee únicamente
+    la cola del log (TRANSCRIPT_COLA_BYTES); la primera línea de la cola, posiblemente cortada, se
+    descarta. Nunca lanza."""
+    try:
+        with open(log_path_, "rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            tam = fh.tell()
+            fh.seek(max(0, tam - TRANSCRIPT_COLA_BYTES))
+            cola = fh.read(TRANSCRIPT_COLA_BYTES)
+    except OSError:
+        return None
+    lineas = cola.split(b"\n")
+    if tam > TRANSCRIPT_COLA_BYTES:
+        lineas = lineas[1:]
+    for raw in reversed(lineas):
+        if b'"transcript"' not in raw:
+            continue
+        try:
+            rec = json.loads(raw.decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            continue
+        if isinstance(rec, dict) and isinstance(rec.get("transcript"), str):
+            return _transcript_seguro(rec["transcript"], session_id)
+    return None
+
+
+def _transcript_inactivo(log_path_, session_id, ahora, ventana_min):
+    """True si el último transcript registrado en el log es válido y su mtime lleva más de
+    `ventana_min` minutos sin cambiar (el del log lo comprueba el llamador antes). Un `stat`."""
+    t = _ultimo_transcript(log_path_, session_id)
+    if not t:
+        return False
+    try:
+        return (ahora - os.stat(t).st_mtime) >= ventana_min * 60
+    except OSError:
+        return False
+
+
 def _indice_sids_capturados(root, ob, dir_):
-    """Conjunto de `session_id` YA capturados: entradas del journal + envelopes en
-    `outbox`/`processing`/`done` (gap 68 de la revisión tramo 2: `dead-letter/` NO cuenta — un
-    envelope descartado ahí no es una captura viva, es la señal de que el LOG es la única fuente
-    para recuperar esa sesión; antes `dead-letter` se contaba como «ya capturada» y la sesión se
-    perdía sin vía de recuperación). Construido UNA VEZ por llamada a `recover` (gap 80: antes se
-    reconstruía por candidata, O(n·m) en el arranque con muchas huérfanas)."""
-    sids = {e.get("session_id") for e in entradas(root) if e.get("session_id")}
-    if ob is None:
-        return sids
+    """`(capturados, reabribles)`. `capturados`: `session_id` YA capturados — entradas del journal +
+    envelopes en `outbox`/`processing`/`done` (gap 68 de la revisión tramo 2: `dead-letter/` NO
+    cuenta — un envelope descartado ahí no es una captura viva, es la señal de que el LOG es la
+    única fuente para recuperar esa sesión; antes `dead-letter` se contaba como «ya capturada» y la
+    sesión se perdía sin vía de recuperación). `reabribles`: `{sid: log_hasta}` de las entradas
+    `recuperado_sin_cierre` con `log_hasta` válido y SIN envelope ni entrada de otro cierre — si su
+    log cambió después de `log_hasta`, la sesión siguió tras una recuperación temprana y `recover`
+    la rehace; una entrada `materializado` (o una sesión con envelope) nunca es reabrible.
+    Construido UNA VEZ por llamada a `recover` (gap 80: antes se reconstruía por candidata, O(n·m)
+    en el arranque con muchas huérfanas)."""
+    sids, otras, recuperadas = set(), set(), {}
+    for e in entradas(root):
+        sid = e.get("session_id")
+        if not sid:
+            continue
+        sids.add(sid)
+        if e.get("cierre") == "recuperado_sin_cierre":
+            lh = e.get("log_hasta")
+            valido = isinstance(lh, str) and _CAPTURED_AT_RE.match(lh) and sid not in recuperadas
+            recuperadas[sid] = lh if valido else None     # duplicada o sin marca: no se reabre
+        else:
+            otras.add(sid)
+    envelopes = set()
+    if ob is not None:
+        envelopes = _sids_con_envelope(dir_)
+    sids |= envelopes
+    reabribles = {s: lh for s, lh in recuperadas.items() if lh and s not in otras and s not in envelopes}
+    return sids, reabribles
+
+
+def _sids_con_envelope(dir_):
+    sids = set()
     for sub in ("outbox", "processing", "done"):
         p = os.path.join(dir_, sub)
         try:
@@ -904,15 +1092,16 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
     (gap 65); `git_timeout` es el mismo timeout ACOTADO que usa `replay` bajo presupuesto, no el
     `GIT_TIMEOUT` de 5 s fijo. El índice de `session_id` ya capturados se construye UNA vez (gap 80)."""
     ventana_min = ventana_min if ventana_min is not None else _ventana_huerfana_min(root)
+    ventana_inactividad = _ventana_inactividad_min(root)
     d = os.path.join(root, LOG_DIR_REL)
     try:
         nombres = os.listdir(d)
     except OSError:
         return
     ahora = time.time()
-    capturados = _indice_sids_capturados(root, ob, dir_)
+    capturados, reabribles = _indice_sids_capturados(root, ob, dir_)
     recuperados_n = 0
-    agotado_por_presupuesto = False      # gap 84/85: al menos una candidata se saltó por max_n/deadline
+    saltadas_por_presupuesto = 0         # gap 84/85: candidatas que se saltaron por max_n/deadline
     for fn in sorted(nombres):
         sid = _extraer_sid_de_log(fn)
         if not sid:
@@ -928,11 +1117,24 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
                 mtime = os.stat(log_path_).st_mtime
             except OSError:
                 continue
-            if (ahora - mtime) < ventana_min * 60:
-                continue                                     # todavía dentro de la ventana: podría seguir viva
+            quieto_s = ahora - mtime
+            if quieto_s < ventana_min * 60:
+                # Dentro de la ventana larga podría seguir viva — salvo que el log Y el último
+                # transcript registrado lleven `ventanaInactividadMin` sin cambiar (un `stat` del
+                # transcript y la cola del log, solo si el log ya está quieto). Sin transcript
+                # válido, la regla de la ventana larga queda tal cual.
+                if quieto_s < ventana_inactividad * 60 or \
+                        not _transcript_inactivo(log_path_, sid, ahora, ventana_inactividad):
+                    continue
         resumen["candidatas"] += 1
         if not forzada and sid in capturados:               # gap 68: `--session-id` fuerza aunque ya conste
-            continue
+            # Recuperación temprana que la sesión dejó atrás: la entrada `recuperado_sin_cierre`
+            # se hizo con el log hasta `log_hasta`; si el log cambió DESPUÉS, se rehace (misma
+            # entrada, `write` sobrescribe por `session_id`). `materializado` nunca es reabrible.
+            log_hasta = reabribles.get(sid)
+            actual = _mtime_utc_iso(log_path_) if log_hasta else None
+            if not (actual and actual > log_hasta):
+                continue
         if forzada and any(prev.get("session_id") == sid and prev.get("cierre") == "materializado"
                           for prev in entradas(root)):
             # gap 82: el bypass de `--session-id` NUNCA sobrescribe en silencio una entrada YA
@@ -948,10 +1150,10 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
             resumen["recuperadas"] += 1
             continue
         if max_n is not None and recuperados_n >= max_n:
-            agotado_por_presupuesto = True
+            saltadas_por_presupuesto += 1
             continue                                        # gap 65: tope de esta pasada, el resto queda para la próxima
         if deadline is not None and time.monotonic() >= deadline:
-            agotado_por_presupuesto = True
+            saltadas_por_presupuesto += 1
             continue                                        # gap 65: presupuesto agotado, el resto queda para la próxima
         try:
             captured_at = _mtime_utc_iso(log_path_)          # gap 67: fecha/derivados del CIERRE, no de "ahora"
@@ -964,6 +1166,10 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
             e = draft(root, sid, None, "orphan_recovery", captured_at=captured_at, git_timeout=git_timeout)
             e["cierre"] = "recuperado_sin_cierre"
             e["derivados_en"] = "replay"                     # `recover` corre bajo el mismo cerrojo/pasada que replay
+            if captured_at:
+                # mtime del log LEÍDO antes de `draft`: un turno que entre durante la lectura deja
+                # `log_hasta` atrás y la próxima pasada rehace la entrada (nunca se pierde el turno).
+                e["log_hasta"] = captured_at
             p = write(root, e, fuente="recover")
             if p:
                 resumen["recuperadas"] += 1
@@ -976,14 +1182,14 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
             # incluye la ruta en su texto) y de ahí a `additionalContext` de `SessionStart` sin que
             # nadie lo cite como dato: `_msg_seguro` se queda con el tipo + 80 caracteres saneados.
             resumen["avisos"].append(f"{_sid_seguro(sid)}: {_msg_seguro(ex)}")
-    if not dry_run and resumen["candidatas"] > resumen["recuperadas"]:
+    if not dry_run and saltadas_por_presupuesto:
         # gap 91: antes solo avisaba con `recuperados_n == 0` (agotamiento total) — con `--max`
         # bajo (o el compartido de `SessionStart`) una recuperación PARCIAL (p. ej. 3 de 10
-        # candidatas) quedaba sin decir que faltan 7 por recuperar, así que nadie sabía que hacía
-        # falta repetir `recover`/`replay --con-recover` o subir `--max`.
-        faltan = resumen["candidatas"] - resumen["recuperadas"]
+        # candidatas) quedaba sin decir que faltan 7 por recuperar. Solo cuentan las saltadas por
+        # tope/presupuesto: los logs ya capturados (entrada o envelope) siguen siendo candidatas por
+        # ventana pero no están pendientes, y contarlos repetía el aviso en cada arranque.
         resumen["avisos"].append(
-            f"{faltan} candidata(s) sin recuperar en esta pasada; repite `recover` o sube `--max`")
+            f"{saltadas_por_presupuesto} candidata(s) sin recuperar en esta pasada; repite `recover` o sube `--max`")
 
 
 def recover(root, ventana_min=None, current_session_id=None, session_id=None, dry_run=False,
@@ -992,7 +1198,12 @@ def recover(root, ventana_min=None, current_session_id=None, session_id=None, dr
     prompts (`.claude/session-prompts-<sid>.log`) sin envelope ni entrada de journal, cuyo mtime
     lleva más de `ventana_min` minutos (default `sesion.journal.ventanaHuerfanaMin`, 1440) sin
     actividad, y que no sea la sesión ACTUAL (`current_session_id`, la del payload de `SessionStart`:
-    una sesión concurrente viva nunca se toca). `session_id`: fuerza la recuperación de UNA sesión
+    una sesión concurrente viva nunca se toca). Antes de esa ventana, también si el último transcript
+    registrado en el log (válido por `_transcript_seguro`) y el propio log llevan más de
+    `sesion.journal.ventanaInactividadMin` (30) sin cambiar — en Windows `SessionEnd` no cabe en su
+    presupuesto y esperar 24 h dejaba la sesión anterior invisible al arrancar. Una entrada
+    `recuperado_sin_cierre` cuyo log cambió después de su `log_hasta` se rehace (la sesión siguió);
+    `materializado` nunca. `session_id`: fuerza la recuperación de UNA sesión
     concreta ignorando ventana/sesión actual (uso a demanda; recupera aunque ya conste capturada en
     dead-letter, gap 68). Reutiliza `draft`/`write` (CA-05: nunca inventa contenido — el resumen sale
     del propio log de prompts).
@@ -1280,9 +1491,6 @@ def _abrir_log(path):
     return os.fdopen(fd, "a", encoding="utf-8")
 
 
-def _sid_seguro(session_id):
-    """`session_id` como trozo de nombre de fichero: nunca sale de `.claude/` (sin separadores)."""
-    return _SID_RE.sub("_", str(session_id))[:80]
 
 
 def _msg_seguro(ex):
@@ -1298,24 +1506,35 @@ def _msg_seguro(ex):
     return f"{tipo}: {limpio}" if limpio else tipo
 
 
-def log_path(root, session_id):
-    return os.path.join(root, LOG_DIR_REL, f"{LOG_PREFIX}{_sid_seguro(session_id)}.log")
 
 
 def _rotar(path):
-    """Si el log supera LOG_MAX_BYTES, conserva los ÚLTIMOS ~½ LOG_MAX_BYTES cortando por línea."""
+    """Conserva la cola por líneas mediante reemplazo atómico; un fallo deja el original intacto."""
+    temporal = None
     try:
         if os.path.getsize(path) <= LOG_MAX_BYTES:
             return
+        tope = LOG_MAX_BYTES // 2
         with open(path, "rb") as fh:
-            data = fh.read()
-        cola = data[-(LOG_MAX_BYTES // 2):]
+            fh.seek(-tope, os.SEEK_END)
+            cola = fh.read(tope)
         salto = cola.find(b"\n")
-        cola = cola[salto + 1:] if salto != -1 else cola
-        with open(path, "wb") as fh:
+        if salto == -1:
+            return
+        cola = cola[salto + 1:]
+        fd, temporal = tempfile.mkstemp(prefix=os.path.basename(path) + ".tmp-",
+                                       dir=os.path.dirname(os.path.abspath(path)))
+        with os.fdopen(fd, "wb") as fh:
             fh.write(cola)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(temporal, path)
     except OSError:
         pass
+    finally:
+        if temporal:
+            with contextlib.suppress(OSError):
+                os.remove(temporal)
 
 
 def _purgar_logs(dirpath, excepto=None, ahora=None):
@@ -1351,7 +1570,7 @@ def capture(root, payload):
     if not proyecto_con_plugin(root):
         return None
     ses = _dev_sesion(root)
-    if ses.get("journal") is False or ses.get("captura") is False:
+    if not _journal_activo(root) or ses.get("captura") is False:
         return None
     texto = redactar(prompt.strip())
     if len(texto) > CAPTURA_MAX_CHARS:
@@ -1361,6 +1580,11 @@ def capture(root, payload):
     _asegurar_gitignore(d)
     path = log_path(root, sid)
     rec = {"ts": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "prompt": texto}
+    # Señal de inactividad para `recover` (huérfanas de Windows antes de 24 h): la ruta del transcript
+    # SOLO si pasa `_transcript_seguro`. Vive en este log local no versionado; nunca llega a la entrada.
+    tp = payload.get("transcript_path")
+    if isinstance(tp, str) and len(tp) <= ENVELOPE_STR_MAX and _transcript_seguro(tp, sid):
+        rec["transcript"] = tp
     with _cerrojo(path):
         with _abrir_log(path) as fh:
             fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -1600,6 +1824,29 @@ def _recorta(texto, max_chars=160):
     return texto if len(texto) <= max_chars else texto[:max_chars - 1].rstrip() + "…"
 
 
+def continuidad_de(datos, avisos):
+    """Campos de continuidad PRESENTES en `datos` (el `--enrich` o el `continuidad` de un `--draft`), validados
+    y redactados. Ausente → no aparece (omitido); `""`/`[]`/`null` → vaciado explícito; tipo inválido → aviso
+    y se trata como omitido (nunca borra lo que hubiera)."""
+    out = {}
+    if not isinstance(datos, dict):
+        return out
+    for k in CONTINUIDAD:
+        if k not in datos:
+            continue
+        v = datos[k]
+        if k in CONTINUIDAD_ESCALARES:
+            if v is None or isinstance(v, str):
+                out[k] = _recorta(redactar(v), ITEM_MAX_CHARS) if v else ""
+                continue
+            avisos.append(f"continuidad.{k}: se esperaba texto (o \"\"/null para vaciar); se ignora")
+        elif v is None or (isinstance(v, list) and all(isinstance(x, str) for x in v)):
+            out[k] = _acotar(redactar(x) for x in (v or []))
+        else:
+            avisos.append(f"continuidad.{k}: se esperaba una lista de textos (o []/null para vaciar); se ignora")
+    return out
+
+
 def _fecha_local_de_captured_at(captured_at):
     """`captured_at` (UTC, `AAAA-MM-DDTHH:MM:SSZ`) -> fecha en hora LOCAL (gap 44 de la revisión
     intento 2): `draft` usaba `captured_at[:10]` (UTC) mientras el resto del módulo usa `hoy()`
@@ -1636,7 +1883,9 @@ def draft(root, session_id=None, transcript=None, reason=None, enrich=None, capt
             # (gap 17 de la revisión: la rama de «declara la carencia» no tenía test).
             avisos.append("resumen: sin turnos capturados ni transcript legible — usando "
                           f"«Sesión sobre {iniciativa}» (CA-05: no se inventa contenido)")
+    continuidad = continuidad_de(enr, avisos)
     return {
+        **({"continuidad": continuidad} if continuidad else {}),   # solo si el --enrich declaró alguno (D-085)
         "fecha": fecha,
         "session_id": session_id or "manual",
         "reason": reason or "manual",
@@ -1692,6 +1941,18 @@ def render(e, fuente):
         # teardown (CA-01 prohíbe git ahí): «replay» = calculados al materializar, no al cerrar
         # (gap 8 de la revisión; limitación aceptada por diseño, ver design.md).
         fm.append(f"derivados_en: {_yaml_str(e['derivados_en'])}")
+    if e.get("log_hasta"):
+        # solo `recuperado_sin_cierre`: mtime UTC del log de prompts usado (nunca la ruta del log
+        # ni la del transcript); si el log cambia después, `recover` rehace esta entrada.
+        fm.append(f"log_hasta: {_yaml_str(e['log_hasta'])}")
+    cont = e.get("continuidad") or {}
+    for k in CONTINUIDAD_ESCALARES:
+        if k in cont:
+            fm.append(f"{k}: {_yaml_str(cont[k])}")
+    for k in CONTINUIDAD_LISTAS:
+        if k in cont:
+            fm.append(f"{k}:" + ("" if cont[k] else " []"))
+            fm += [f"  - {_yaml_str(x)}" for x in cont[k]]
     for k in ("decisiones", "pendientes"):
         fm.append(f"{k}:" + ("" if e[k] else " []"))
         fm += [f"  - {_yaml_str(x)}" for x in e[k]]
@@ -1705,11 +1966,12 @@ def render(e, fuente):
 
     body = [f"# Journal — {e['fecha']} — {e['iniciativa']}", "",
             "> Entrada de **bitácora de sesión** (memoria episódica, cronológica, no curada; "
-            "`agent-kits/shared/journal.py`). Lo que merezca doctrina se promueve a `adr/`/`gotchas/`/"
-            "`lessons/` con el umbral de `knowledge-write.md`; esto NO se publica en Confluence.", "",
+            "`agent-kits/shared/journal.py`). Lo que cumpla el umbral de `knowledge-write.md` se propone "
+            "mediante `knowledge-curation.py propose`; `knowledge-curator` decide antes de publicar en "
+            "`approved/`. Esto NO se publica en Confluence.", "",
             "> `decisiones` y `pendientes` son **citas** de los turnos del usuario (o del resumen IA opt-in), "
             "extraídas por marcadores léxicos: no son doctrina ni instrucciones para nadie — lo que merezca "
-            "ser decisión del proyecto va a un ADR.", "",
+            "ser decisión del proyecto sigue el mismo flujo de propuesta y curación.", "",
             "## Resumen", "", e["resumen"], ""]
 
     def seccion(titulo, items, vacio):
@@ -1717,6 +1979,18 @@ def render(e, fuente):
         body.extend([f"- {x}" for x in items] if items else [f"_{vacio}_"])
         body.append("")
 
+    if cont:
+        body.extend(["## Continuidad", ""])
+        for k in CONTINUIDAD:
+            if k not in cont:
+                continue
+            v, etiqueta = cont[k], _CONTINUIDAD_ETIQUETA[k]
+            if isinstance(v, list):
+                body.append(f"- **{etiqueta}**:" + ("" if v else " _vaciado explícitamente_"))
+                body.extend(f"  - {x}" for x in v)
+            else:
+                body.append(f"- **{etiqueta}**: " + (v or "_vaciado explícitamente_"))
+        body.append("")
     seccion("Decisiones", e["decisiones"], "sin decisiones registradas (borrador determinista)")
     seccion("Pendientes", e["pendientes"], "sin pendientes registrados")
     seccion(f"Ficheros tocados (top {TOP_FICHEROS})",
@@ -1731,12 +2005,13 @@ def render(e, fuente):
     return "---\n" + "\n".join(fm) + "\n---\n\n" + "\n".join(body).rstrip() + "\n"
 
 
-def parse_entry(path):
+def parse_entry(path, *, text=None):
     """Frontmatter mínimo de una entrada → dict (escalares + listas). None si no es entrada."""
-    try:
-        text = open(path, encoding="utf-8-sig", errors="replace").read()
-    except OSError:
-        return None
+    if text is None:
+        try:
+            text = open(path, encoding="utf-8-sig", errors="replace").read()
+        except OSError:
+            return None
     if not text.startswith("---"):
         return None
     end = text.find("\n---", 3)
@@ -1802,11 +2077,18 @@ def write(root, e, fuente="hook"):
         return None
     d = journal_dir(root)
     os.makedirs(d, exist_ok=True)
-    destino = None
+    destino, previa = None, None
     for prev in entradas(root):
         if prev.get("session_id") == e["session_id"]:
-            destino = prev["_path"]
+            destino, previa = prev["_path"], prev
             break
+    # Continuidad (D-085): lo OMITIDO en esta escritura conserva el valor de la entrada previa de la misma
+    # sesión; lo vaciado explícitamente lo sustituye. Un replay del hook sin `--enrich` no borra nada.
+    cont = {k: previa[k] for k in CONTINUIDAD if previa is not None and k in previa
+            and isinstance(previa[k], list if k in CONTINUIDAD_LISTAS else str)}
+    cont.update(continuidad_de(e.get("continuidad"), e.setdefault("avisos", [])))
+    if cont:
+        e["continuidad"] = cont
     if destino is None:
         base = f"{e['fecha']}-{slugify(e['iniciativa'])}"
         destino = os.path.join(d, base + ".md")
@@ -1840,8 +2122,9 @@ def index(root):
     es = entradas(root)
     lines = ["# `docs/knowledge/journal/` — bitácora de sesión (memoria episódica)", "",
              "Una entrada por sesión, **generada** por `agent-kits/shared/journal.py` (hook `SessionEnd`; la",
-             "última se reinyecta al arrancar/retomar). Cronológica y **no curada**: lo que merezca doctrina",
-             "se promueve a `adr/`, `gotchas/` o `lessons/` con el umbral de `knowledge-write.md`. **Excluida de",
+             "última se reinyecta al arrancar/retomar). Cronológica y **no curada**: lo que cumpla el umbral de",
+             "`knowledge-write.md` se propone mediante `knowledge-curation.py propose`; `knowledge-curator`",
+             "decide antes de publicar en `approved/`. **Excluida de",
              "Confluence** (`docs/knowledge/journal/**`). Nombre: `AAAA-MM-DD-<iniciativa activa | sesion>.md` (sufijo `-2`",
              "si otra sesión del día ya lo usó). **Las entradas se versionan** (memoria del proyecto, como ADR y lecciones);",
              "quien no quiera versionarlas añade `docs/knowledge/journal/*.md` (no este README) a su `.gitignore`.",
@@ -1852,7 +2135,9 @@ def index(root):
              "| `fuente` | `hook` · `recover` · `manual` | Quién generó la entrada: `replay` del envelope del hook, `recover` sobre una sesión huérfana, o `--enrich` a mano |",
              "| `reason` | motivo del envelope (`clear`, `resume`, `logout`, `prompt_input_exit`, `other`) o `orphan_recovery` | Motivo de cierre; `orphan_recovery` = nunca hubo envelope |",
              "| `derivados_en` | `replay` | `ficheros_tocados`/`tareas_cambiadas` se calculan con git al materializar (también para huérfanas), nunca en el teardown de `SessionEnd` (CA-01) |",
-             "| `materializado_en` | timestamp ISO UTC | Cuándo se escribió la entrada final; la `fecha` es la del cierre (`captured_at`) |", "",
+             "| `materializado_en` | timestamp ISO UTC | Cuándo se escribió la entrada final; la `fecha` es la del cierre (`captured_at`) |",
+             "| `log_hasta` | timestamp ISO UTC (solo `recuperado_sin_cierre`) | mtime del log de prompts con el que se recuperó; si el log cambia después, `recover` rehace la entrada |",
+             "| `objetivo` · `punto_actual` · `siguientes_pasos` · `bloqueos` · `descartados` | texto · texto · lista · lista · lista (opcionales) | Continuidad declarada con `--enrich`; clave ausente = nunca declarada, vacía = vaciada a propósito |", "",
              "| Fecha | Iniciativa | Resumen | Fuente |", "|---|---|---|---|"]
     for e in reversed(es):
         fn = os.path.basename(e["_path"])
@@ -1886,7 +2171,239 @@ def _corta(items, n=3):
     return "; ".join(items[:n]) + f" (+{len(items) - n})"
 
 
-def latest(root, n=2, max_lines=25):
+def _lineas_continuidad(c):
+    """Líneas de continuidad (D-085) para el contexto: solo los campos con contenido, saneados."""
+    out = []
+    for k in CONTINUIDAD_ESCALARES:
+        if isinstance(c.get(k), str) and c[k]:
+            out.append(f"  {_CONTINUIDAD_ETIQUETA[k].lower()}: {_linea_segura(c[k])}")
+    for k in CONTINUIDAD_LISTAS:
+        if isinstance(c.get(k), list) and c[k]:
+            out.append(f"  {_CONTINUIDAD_ETIQUETA[k].lower()}: {_corta(c[k])}")
+    return out
+
+
+def public_text(value, limit=240):
+    """Redact before truncating; flatten controls on every exposed history surface."""
+    text = _linea_segura(redactar(value))[:limit]
+    # Account for both UTF-8 and JSON escaping so structured output has a byte cap.
+    while len(json.dumps(text, ensure_ascii=False).encode('utf8')) > limit + 2:
+        text = text[:-1]
+    return text
+
+
+def _selected_parse(text):
+    """Validate the writer's flat YAML subset before using the existing parser.
+
+    This is intentionally not a general YAML loader: nested mappings, duplicate
+    fields, malformed quotes and mismatched scalar/list types are not accepted.
+    Unknown flat metadata may be parsed but never reaches the public projection.
+    """
+    lines = text.splitlines()
+    if not lines or lines[0] != '---':
+        return None
+    try:
+        end = lines.index('---', 1)
+    except ValueError:
+        return None
+    seen, current = set(), None
+    def quoted_string(value):
+        try:
+            decoded = json.loads(value)
+            if not isinstance(decoded, str):
+                return False
+            decoded.encode('utf8')  # Reject unpaired escaped surrogates.
+            return True
+        except (ValueError, UnicodeError):
+            return False
+    def plain_string(value):
+        numeric = value.replace('_', '')
+        return (bool(re.fullmatch(r'\w[\w ./:+\-]*', value)) and not value.endswith(':')
+                and ': ' not in value and ' #' not in value
+                and value.lower() not in ('null', 'true', 'false', 'yes', 'no', 'on', 'off', '~', '.inf', '.nan')
+                and not re.fullmatch(r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?', numeric)
+                and not re.fullmatch(r'[+-]?0(?:[xX][0-9a-fA-F]+|[oO][0-7]+|[bB][01]+)', numeric))
+    for raw in lines[1:end]:
+        if not raw.strip():
+            continue
+        if raw.startswith('  - '):
+            if current not in _LISTAS_FM:
+                return None
+            value = raw[4:].strip()
+            try:
+                if value.startswith('"'):
+                    if not quoted_string(value):
+                        return None
+                elif not plain_string(value):
+                    return None
+            except ValueError:
+                return None
+            continue
+        match = re.fullmatch(r'([a-z_]+):\s*(.*)', raw)
+        if not match or match[1] in seen:
+            return None
+        key, value = match.groups()
+        seen.add(key)
+        current = key if key in _LISTAS_FM and value == '' else None
+        if key in _LISTAS_FM:
+            if value not in ('', '[]'):
+                return None
+        elif key == 'turnos':
+            if not re.fullmatch(r'\d+', value):
+                return None
+        else:
+            if not value or value == '[]':
+                return None
+            if value.startswith('"'):
+                try:
+                    if not quoted_string(value):
+                        return None
+                except ValueError:
+                    return None
+            elif not plain_string(value):
+                return None
+    parsed = parse_entry('', text='\n'.join(lines))
+    if not parsed or not isinstance(parsed.get('session_id'), str) or not parsed['session_id']:
+        return None
+    try:
+        _dt.date.fromisoformat(parsed['fecha'])
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', parsed['fecha']):
+            return None
+    except (TypeError, ValueError):
+        return None
+    if parsed.get('runtime') not in (None, 'claude', 'codex', 'opencode'):
+        return None
+    return parsed
+
+
+def _public_entry(entry, name):
+    out = {'entry': public_text(name, 180), 'runtime': entry.get('runtime')}
+    truncated = len(name) > 180
+    for key in ('fecha', 'session_id', 'iniciativa', 'resumen', 'fuente', 'cierre', 'reason', 'materializado_en', 'resumen_por'):
+        value = str(entry.get(key, ''))
+        out[key] = public_text(value, 240)
+        truncated |= _linea_segura(redactar(value)) != out[key]
+    for key in LISTAS:
+        values = entry.get(key, [])
+        out[key] = [public_text(value, 120) for value in values[:3]]
+        truncated |= len(values) > 3 or any(_linea_segura(redactar(v)) != s for v, s in zip(values[:3], out[key]))
+    continuidad = {}
+    for key in CONTINUIDAD_ESCALARES:
+        if isinstance(entry.get(key), str):
+            continuidad[key] = public_text(entry[key], 240)
+            truncated |= _linea_segura(redactar(entry[key])) != continuidad[key]
+    for key in CONTINUIDAD_LISTAS:
+        if isinstance(entry.get(key), list):
+            values = entry[key]
+            continuidad[key] = [public_text(value, 120) for value in values[:3]]
+            truncated |= len(values) > 3 or any(_linea_segura(redactar(v)) != s for v, s in zip(values[:3], continuidad[key]))
+    out['continuidad'] = continuidad
+    out['output_truncated'] = bool(truncated)
+    out['identity_resolvable'] = (name == out['entry'] and
+                                  all(str(entry.get(k, '')) == out[k]
+                                      for k in ('session_id', 'iniciativa')))
+    return out
+
+
+def select_entries(root, *, initiative=None, session_id=None, runtime=None, entry=None,
+                   max_entries=128, max_total_bytes=1024 * 1024):
+    """Exact, bounded read-only selection; an incomplete scan never certifies absence.
+
+    Recency is date then filename, a deterministic tie-break rather than a claim
+    about ordering within one day. Explicit session identity collisions require
+    another filter; legacy entries keep their runtime unknown.
+    """
+    result = {'status': 'empty', 'entries': [], 'candidates': [], 'issues': [], 'complete': True}
+    if (type(max_entries) is not int or not 0 < max_entries <= 128 or
+            type(max_total_bytes) is not int or not 0 < max_total_bytes <= 1024 * 1024):
+        result.update(status='invalid_limit', complete=False)
+        return result
+    for value in (initiative, session_id):
+        if value is not None and (not isinstance(value, str) or not value or len(value) > 4096 or _linea_segura(value) != value):
+            result.update(status='invalid_selection', complete=False)
+            return result
+    if runtime is not None and runtime not in ('claude', 'codex', 'opencode'):
+        result.update(status='invalid_selection', complete=False)
+        return result
+    if entry is not None and (not isinstance(entry, str) or not entry.endswith('.md') or
+                              entry == 'README.md' or any(c in entry for c in '/\\:\x00') or
+                              entry in ('.', '..') or _linea_segura(entry) != entry):
+        result.update(status='invalid_selection', complete=False)
+        return result
+    reader = _load_module('journal_local_read', 'local-read.py')
+    if reader is None:
+        result.update(status='reader_unavailable', complete=False)
+        return result
+    if entry is not None:
+        names = [entry]
+    else:
+        listing = reader.list_names(root, JOURNAL_REL, max_entries=max_entries)
+        if listing['status'] not in ('ok', 'incomplete'):
+            result.update(status=listing['status'], complete=False)
+            return result
+        result['complete'] = listing['complete']
+        names = [name for name in listing['names'] if name.endswith('.md') and name != 'README.md']
+    matches, remaining = [], max_total_bytes
+    for name in names:
+        if remaining <= 0:
+            result['complete'] = False
+            result['issues'].append({'entry': public_text(name, 180), 'status': 'byte_limit'})
+            break
+        read = reader.read_text(root, os.path.join(JOURNAL_REL, name), max_bytes=min(reader.MAX_BYTES, remaining))
+        remaining -= read['bytes']
+        parsed = _selected_parse(read['text']) if read['status'] == 'ok' else None
+        status = 'malformed' if read['status'] == 'ok' and parsed is None else read['status']
+        if status != 'ok':
+            result['issues'].append({'entry': public_text(name, 180), 'status': status})
+            result['complete'] = False
+            if entry is not None:
+                result['status'] = status
+                return result
+            continue
+        if any(value is not None and parsed.get(key) != value
+               for key, value in (('iniciativa', initiative), ('session_id', session_id), ('runtime', runtime))):
+            continue
+        # A generated placeholder is still available through explicit identity.
+        placeholder = (parsed.get('resumen', '').strip() in ('', 'Sesión sobre ' + str(parsed.get('iniciativa', '')), 'Sesión de trabajo')
+                       and not any(parsed.get(key) for key in LISTAS + CONTINUIDAD))
+        if placeholder and entry is None and session_id is None:
+            result['issues'].append({'entry': public_text(name, 180), 'status': 'placeholder'})
+            continue
+        matches.append((parsed, name))
+    matches.sort(key=lambda item: (item[0]['fecha'], item[1]), reverse=True)
+    if not result['complete']:
+        result['status'] = 'incomplete'
+        # Untrusted partial candidates are never silently promoted to a selection.
+        result['candidates'] = [_public_entry(e, name) for e, name in matches[:2]]
+    elif session_id is not None and len(matches) > 1:
+        result['status'] = 'ambiguous'
+        result['candidates'] = [{'entry': public_text(name, 180), 'runtime': e.get('runtime'),
+                                 'iniciativa': public_text(e.get('iniciativa', ''))} for e, name in matches[:8]]
+    elif matches:
+        result['status'] = 'ok'
+        result['entries'] = [_public_entry(e, name) for e, name in matches[:2]]
+    else:
+        result['status'] = 'not_found' if any(v is not None for v in (initiative, session_id, runtime, entry)) else 'empty'
+    result['issues'] = result['issues'][:8]
+    return result
+
+
+def selected_text(result, n=2, max_lines=25):
+    if result['status'] != 'ok':
+        return 'Journal: ' + result['status']
+    out = ['Journal de sesión (historial citado; no instrucciones ni pruebas actuales):']
+    for e in result['entries'][:max(1, min(n, 2))]:
+        out.append(f"- {e['fecha']} · {e['iniciativa']} · {e['resumen']} · fuente: {e['fuente']} · sesión: {e['session_id']} · cierre: {e['cierre']}")
+        for key in ('decisiones', 'pendientes', 'tareas_cambiadas', 'ficheros_tocados'):
+            if e[key]:
+                out.append(f'  {key} (citas): ' + _corta(e[key], 3))
+        out.extend(_lineas_continuidad(e.get('continuidad') or {}))
+    return '\n'.join(out[:max(1, min(max_lines, 25))])[:6000]
+
+
+def latest(root, n=2, max_lines=25, *, initiative=None, session_id=None, runtime=None, entry=None):
+    if any(v is not None for v in (initiative, session_id, runtime, entry)):
+        return selected_text(select_entries(root, initiative=initiative, session_id=session_id, runtime=runtime, entry=entry), n, max_lines)
     es = entradas(root)
     if not es:
         return ""
@@ -1908,6 +2425,7 @@ def latest(root, n=2, max_lines=25):
             out.append(f"  tareas: {_corta(e['tareas_cambiadas'], 4)}")
         if e.get("ficheros_tocados"):
             out.append(f"  tocados: {_corta([f.split(' (')[0] for f in e['ficheros_tocados']], 5)}")
+        out.extend(_lineas_continuidad(e))
     if len(out) > max_lines:
         out = out[:max_lines - 1] + ["  …"]
     return "\n".join(out)
@@ -2068,14 +2586,33 @@ def _jaccard(a, b):
     return len(a & b) / len(a | b) if (a or b) else 0.0
 
 
+def categoria_de(texto):
+    """Categoría (CATEGORIAS) de una formulación por marcadores léxicos, sin modelo: corrección del usuario >
+    resolución de error (marcador de error Y de arreglo) > workaround > técnica de depuración > convención > otra."""
+    texto = str(texto)
+    if _CORRECCION_RE.search(texto):
+        return "correccion_usuario"
+    if _ERROR_RE.search(texto) and _ARREGLO_RE.search(texto):
+        return "resolucion_error"
+    for categoria, patron in (("workaround", _WORKAROUND_RE), ("tecnica_depuracion", _DEPURACION_RE),
+                              ("convencion", _CONVENCION_RE)):
+        if patron.search(texto):
+            return categoria
+    return "otra"
+
+
 def candidatas(root, minimo=CANDIDATA_MIN, iniciativa=None):
     """Patrones de `decisiones`/`pendientes` repetidos en ≥ `minimo` entradas de sesiones distintas →
-    [{"estado": "propuesta", "tipo": "lección", "campo", "texto", "clave", "entradas": n, "evidencia": [...]}],
-    ordenados por nº de entradas desc. `texto` es la primera formulación vista (la más antigua)."""
+    [{"id", "estado": "propuesta", "tipo": "lección", "categoria", "campo", "texto", "clave", "entradas": n,
+    "evidencia": [...]}], ordenados por nº de entradas desc. `texto` es la primera formulación vista (la más
+    antigua); `id` = hash de campo + clave (estable mientras la primera formulación sea la misma)."""
+    return _agrupar_candidatas([e for e in entradas(root)       # orden cronológico (fecha, mtime): determinista
+                                if not iniciativa or str(e.get("iniciativa")) == iniciativa], minimo)
+
+
+def _agrupar_candidatas(es, minimo):
     grupos = {"decisiones": [], "pendientes": []}     # agrupación voraz: el primer grupo que solape ≥ CANDIDATA_JACCARD
-    for e in entradas(root):                             # orden cronológico (fecha, mtime): determinista
-        if iniciativa and str(e.get("iniciativa")) != iniciativa:
-            continue
+    for e in es:
         sid = str(e.get("session_id"))
         for campo in ("decisiones", "pendientes"):
             items = e.get(campo)
@@ -2087,8 +2624,11 @@ def candidatas(root, minimo=CANDIDATA_MIN, iniciativa=None):
                     continue
                 g = next((g for g in grupos[campo] if _jaccard(g["_raices"], r) >= CANDIDATA_JACCARD), None)
                 if g is None:
-                    g = {"estado": "propuesta", "tipo": "lección", "campo": campo, "texto": " ".join(str(item).split()),
-                         "clave": " ".join(sorted(r)), "_raices": r, "evidencia": []}
+                    clave = " ".join(sorted(r))
+                    g = {"id": "cand-" + hashlib.sha256(f"{campo}\0{clave}".encode("utf-8")).hexdigest()[:12],
+                         "estado": "propuesta", "tipo": "lección", "categoria": categoria_de(item),
+                         "campo": campo, "texto": " ".join(str(item).split()),
+                         "clave": clave, "_raices": r, "evidencia": []}
                     grupos[campo].append(g)
                 if any(ev["session_id"] == sid for ev in g["evidencia"]):
                     continue                                   # una entrada cuenta UNA vez
@@ -2103,14 +2643,49 @@ def candidatas(root, minimo=CANDIDATA_MIN, iniciativa=None):
     return out
 
 
+def _clave_cursor(e):
+    return str(e.get("fecha")), os.path.basename(e["_path"])
+
+
+def _lista_str(v):
+    return [str(x) for x in v] if isinstance(v, list) else []
+
+
+def lote_candidatas(root, minimo=CANDIDATA_MIN, iniciativa=None, hasta=None):
+    """Lote ESTABLE de candidatas (D-084): entradas en orden (fecha, fichero) —sin mtime—, cortadas en el cursor
+    `hasta` (`AAAA-MM-DD/<fichero>.md`, inclusive) si se da. Devuelve {"lote": {id, cursor, entradas_leidas,
+    posteriores_al_cursor, ilegibles}, "candidatas": [...]}. `id` es un hash del contenido leído (fichero,
+    sesión, decisiones y pendientes de cada entrada + umbral + filtro): mismo lote → mismo id aunque lleguen
+    entradas nuevas tras el cursor, que se CUENTAN como posteriores y no se dan por leídas. Sólo lee."""
+    validas = entradas(root)
+    todas = sorted((e for e in validas if not iniciativa or str(e.get("iniciativa")) == iniciativa),
+                   key=_clave_cursor)
+    tope = tuple(hasta.split("/", 1)) if hasta else None
+    leidas = [e for e in todas if tope is None or _clave_cursor(e) <= tope]
+    try:
+        md = [f for f in os.listdir(journal_dir(root)) if f.endswith(".md") and f != "README.md"]
+    except OSError:
+        md = []
+    huella = json.dumps([[os.path.basename(e["_path"]), str(e.get("session_id")),
+                          _lista_str(e.get("decisiones")), _lista_str(e.get("pendientes"))] for e in leidas]
+                        + [max(1, int(minimo)), iniciativa or ""], ensure_ascii=False)
+    return {"lote": {"id": "lote-" + hashlib.sha256(huella.encode("utf-8")).hexdigest()[:16],
+                     "cursor": "/".join(_clave_cursor(leidas[-1])) if leidas else None,
+                     "entradas_leidas": len(leidas), "posteriores_al_cursor": len(todas) - len(leidas),
+                     "ilegibles": max(0, len(md) - len(validas))},
+            "candidatas": _agrupar_candidatas(leidas, minimo)}
+
+
 def render_candidatas(lista, minimo=CANDIDATA_MIN):
     if not lista:
         return ""
     out = [f"Candidatas a lección desde el journal (patrón repetido en ≥ {minimo} entradas de sesiones distintas; "
-           f"nacen `propuesta` — la curación sigue siendo la revisión de dos lentes o el usuario, por /retro):"]
+           "nacen `propuesta`; /retro entrega la evidencia mediante `knowledge-curation.py propose` "
+           "y `knowledge-curator` decide la curación; este listado no aprueba ni persiste candidatos):"]
     for g in lista:
         ev = " · ".join(f"{x['fecha']} {x['fichero']}" for x in g["evidencia"])
-        out.append(f"- [{g['estado']}] «{g['texto']}» · {g['campo']} · {g['entradas']} entradas: {ev}")
+        out.append(f"- [{g['estado']}] «{g['texto']}» · {g['campo']} · {g['entradas']} entradas: {ev}"
+                   f" · categoría: {g.get('categoria', 'otra')} · {g.get('id', '')}")
     return "\n".join(out)
 
 
@@ -2191,7 +2766,26 @@ def cmd_status(a):
 
 def cmd_candidatas(a):
     minimo = max(1, int(a.min))                      # el umbral anunciado en la cabecera es el aplicado (Lente B gap 6)
-    lista = candidatas(a.root, minimo, a.iniciativa)
+    if a.hasta is not None and not CURSOR_RE.fullmatch(a.hasta):
+        print(f"journal: --hasta espera AAAA-MM-DD/<fichero>.md (el `cursor` de --lote); recibido {a.hasta!r}",
+              file=sys.stderr)
+        return 2
+    if a.lote or a.hasta or a.confirmar:
+        r = lote_candidatas(a.root, minimo, a.iniciativa, a.hasta)
+        if a.confirmar:
+            ok = r["lote"]["id"] == a.confirmar
+            salida = {"confirmado": ok, "lote": r["lote"], "candidatas": r["candidatas"] if ok else []}
+            if not ok:
+                salida["motivo"] = (f"el lote leído ahora ({r['lote']['id']}) no es {a.confirmar}: hay entradas "
+                                    "nuevas o reescritas hasta el cursor; vuelve a listar con --lote --hasta <cursor>")
+            print(json.dumps(salida, ensure_ascii=False, indent=2))
+            return 0
+        if a.lote:
+            print(json.dumps(r, ensure_ascii=False, indent=2))
+            return 0
+        lista = r["candidatas"]
+    else:
+        lista = candidatas(a.root, minimo, a.iniciativa)
     if not lista:
         return 0
     if a.json:
@@ -2225,21 +2819,29 @@ def cmd_write(a):
         p, _ = escribir_sesion(a.root, a.session_id, a.reason, a.transcript, a.fuente, a.enrich, a.ia)
     if p is None:                       # sin rastro del plugin: silencio (exit 0, sin stdout)
         return 0
-    print(os.path.relpath(p, a.root))
+    print(os.path.relpath(p, a.root).replace(os.sep, "/"))
     return 0
 
 
 def cmd_latest(a):
-    t = latest(a.root, a.n, a.max_lines)
+    t = latest(a.root, a.n, a.max_lines, initiative=a.initiative, session_id=a.session_id,
+               runtime=a.runtime, entry=a.entry)
     if t:
         print(t)
+    return 0
+
+
+def cmd_select(a):
+    result = select_entries(a.root, initiative=a.initiative, session_id=a.session_id,
+                            runtime=a.runtime, entry=a.entry)
+    print(json.dumps(result, ensure_ascii=False) if a.json else selected_text(result))
     return 0
 
 
 def cmd_index(a):
     p = index(a.root)
     if p:
-        print(os.path.relpath(p, a.root))
+        print(os.path.relpath(p, a.root).replace(os.sep, "/"))
     return 0
 
 
@@ -2286,7 +2888,8 @@ def main(argv=None):
     sp = sub.add_parser("recover", help="materializa como recuperado_sin_cierre las sesiones huérfanas (log sin envelope, sin sesión viva)")
     comunes(sp)
     sp.add_argument("--ventana-min", type=int, default=None,
-                    help="minutos sin actividad para tratar un log como huérfano (default: sesion.journal.ventanaHuerfanaMin, 1440)")
+                    help="minutos sin actividad para tratar un log como huérfano (default: sesion.journal.ventanaHuerfanaMin, 1440); "
+                         "antes, si log y transcript llevan sesion.journal.ventanaInactividadMin (30) quietos")
     sp.add_argument("--current-session-id", default=None, help="session_id de la sesión actual: nunca se recupera aunque supere la ventana (CA-07)")
     sp.add_argument("--session-id", default=None, help="fuerza la recuperación de esta sesión concreta, ignorando ventana/sesión actual")
     sp.add_argument("--budget-ms", type=int, default=0,
@@ -2326,7 +2929,20 @@ def main(argv=None):
     comunes(sp)
     sp.add_argument("--n", type=int, default=2)
     sp.add_argument("--max-lines", type=int, default=25)
+    sp.add_argument("--initiative")
+    sp.add_argument("--session-id")
+    sp.add_argument("--runtime", choices=('claude', 'codex', 'opencode'))
+    sp.add_argument("--entry")
     sp.set_defaults(fn=cmd_latest)
+
+    sp = sub.add_parser('select', help='selección exacta y acotada de historial, sólo lectura')
+    comunes(sp)
+    sp.add_argument('--initiative')
+    sp.add_argument('--session-id')
+    sp.add_argument('--runtime', choices=('claude', 'codex', 'opencode'))
+    sp.add_argument('--entry')
+    sp.add_argument('--json', action='store_true')
+    sp.set_defaults(fn=cmd_select)
 
     sp = sub.add_parser("index", help="regenera journal/README.md")
     comunes(sp)
@@ -2337,6 +2953,9 @@ def main(argv=None):
     sp.add_argument("--min", type=int, default=CANDIDATA_MIN, help=f"entradas mínimas (sesiones distintas); default {CANDIDATA_MIN}")
     sp.add_argument("--iniciativa", help="solo entradas de esta iniciativa (slug)")
     sp.add_argument("--json", action="store_true")
+    sp.add_argument("--lote", action="store_true", help="JSON del lote estable: {lote: {id, cursor, …}, candidatas}")
+    sp.add_argument("--hasta", help="cursor AAAA-MM-DD/<fichero>.md: solo entradas hasta él (reproduce un lote)")
+    sp.add_argument("--confirmar", metavar="LOTE_ID", help="comprueba que el lote leído es ese id (sólo lee, exit 0)")
     sp.set_defaults(fn=cmd_candidatas)
 
     a = p.parse_args(argv)

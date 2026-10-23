@@ -7,6 +7,8 @@ import subprocess
 import sys
 import tempfile
 
+import pytest
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "guardrail-check.py")
 
@@ -49,8 +51,8 @@ def test_alcance_deny_security_scan():
     assert r and "security-scan" in r
 
 
-def test_alcance_allow_knowledge():
-    assert decide(write("docs/knowledge/adr/ADR-009-x.md")) is None
+def test_alcance_deny_direct_knowledge():
+    assert "knowledge-curation.py" in decide(write("docs/knowledge/adr/ADR-009-x.md"))
 
 
 def test_alcance_ruta_absoluta_relativa_al_proyecto():
@@ -166,6 +168,63 @@ def test_fix1_normpath_resuelve_dotdot_sin_falsos_positivos():
     assert gc.normalize_path("", PROJ) == "" and gc.normalize_path(".", PROJ) == ""
 
 
+# ------------------------------------------- órdenes con efecto fuera del repo ----
+@pytest.mark.parametrize("cmd,marca", [
+    ("npm publish", "publish"),
+    ("npm publish --access public", "publish"),
+    ("pnpm publish --no-git-checks", "publish"),
+    ("yarn npm publish", "publish"),
+    ("cd pkg && npm publish", "publish"),
+    ("npm run publish", "publish"),               # script del proyecto con ese nombre: publica
+    ("docker system prune -af", "prune"),
+    ("docker system prune --volumes", "prune"),
+    ("docker volume prune -f", "prune"),
+    ("podman system prune", "prune"),
+    ("kubectl delete pod web-1", "kubectl delete"),
+    ("kubectl -n prod delete deployment api", "kubectl delete"),
+    ("psql -U app -c 'DROP TABLE users'", "DROP"),
+    ("mysql -e \"drop table if exists users\" app", "DROP"),
+    ("sqlite3 app.db 'DROP TABLE users;'", "DROP"),
+    ("docker compose exec db psql -c \"DROP DATABASE app\"", "DROP"),
+    ("bash -c 'npm publish'", "publish"),
+    ("env CI=1 kubectl delete ns staging", "kubectl delete"),
+])
+def test_ordenes_externas_destructivas_deny(cmd, marca):
+    r = decide(bash(cmd))
+    assert r and marca in r
+
+
+@pytest.mark.parametrize("cmd", [
+    "npm publish --dry-run",                     # simulación: no publica
+    "npm pack",
+    "npm install publish",                       # paquete llamado así, no la orden
+    "npm run build",
+    "docker compose down",
+    "docker container prune -f",                 # solo contenedores parados del host
+    "docker image ls",
+    "kubectl get pods -n prod",
+    "kubectl apply -f k8s/",
+    "kubectl delete pod web-1 --dry-run=client",  # simulación
+    "psql -c 'SELECT 1'",
+    "psql -f migrations/001.sql",                # fichero: lo revisa la revisión del diff, no el hook
+    "git commit -m 'DROP TABLE legacy en la migración'",
+    "grep -rn 'DROP TABLE' migrations/",
+    "echo npm publish",
+])
+def test_ordenes_externas_permitidas_sin_falsos_positivos(cmd):
+    assert decide(bash(cmd)) is None
+
+
+def test_ordenes_externas_se_apagan_con_la_regla_git():
+    cfg = {"alcance": True, "git": False, "ramaPrincipal": True}
+    assert decide(bash("npm publish"), cfg=cfg) is None
+    assert decide(bash("kubectl delete ns x"), cfg=cfg) is None
+
+
+def test_ordenes_externas_tambien_en_architect():
+    assert gc.decide(bash("docker system prune -a"), PROJ, None, branch="feature/x", agent="architect")
+
+
 # ------------------------------------------------------- rama principal ----
 def test_rama_principal_deny_codigo_allow_ledger():
     r = decide(write("src/app.py"), branch="main")
@@ -268,10 +327,10 @@ def edit(path, old, new):
     return {"tool_name": "Edit", "tool_input": {"file_path": path, "old_string": old, "new_string": new}}
 
 
-def test_architect_allow_design_adr_e_indice_knowledge():
+def test_architect_design_permitido_memoria_solo_por_servicio():
     assert arch(write("docs/roadmap/2026-01-01-x/design.md")) is None
-    assert arch(write("docs/knowledge/adr/ADR-010-x.md")) is None
-    assert arch(write("docs/knowledge/README.md", "Edit")) is None
+    assert "knowledge-curation.py" in arch(write("docs/knowledge/adr/ADR-010-x.md"))
+    assert "knowledge-curation.py" in arch(write("docs/knowledge/README.md", "Edit"))
 
 
 def test_architect_deny_codigo_y_tasks_y_evaluation():
@@ -280,7 +339,7 @@ def test_architect_deny_codigo_y_tasks_y_evaluation():
     r = arch(write("docs/roadmap/2026-01-01-x/tasks.md", "Edit"))
     assert r and "architect" in r
     assert arch(write("docs/roadmap/2026-01-01-x/evaluation.md", "Edit"))
-    assert arch(write("docs/knowledge/gotchas/GOT-009-x.md"))          # solo adr/ + README
+    assert arch(write("docs/knowledge/gotchas/GOT-009-x.md"))          # memoria directa fuera del alcance del productor
     assert arch(write("docs/security-scan/x.md"))
 
 
@@ -324,3 +383,96 @@ def test_cli_agent_flag_y_env(tmp_path):
     r = subprocess.run([sys.executable, SCRIPT, "pre-tool", "--project-dir", str(tmp_path)],
                        input=payload, capture_output=True, text=True, encoding="utf-8", errors="replace", env={k: v for k, v in os.environ.items() if k != "CLAUDE_AGENT_NAME"})
     assert r.returncode == 0 and r.stdout.strip() == "", "implementer por defecto: src/app.py permitido en rama (sin git → sin ramaPrincipal)"
+
+
+def test_branch_query_accepts_hook_budget_and_degrades_on_timeout(monkeypatch):
+    def timed_out(*args, **kwargs):
+        assert kwargs["timeout"] == 0.5
+        raise subprocess.TimeoutExpired(args[0], kwargs["timeout"])
+    monkeypatch.setattr(gc.subprocess, "run", timed_out)
+    assert gc.current_branch(PROJ, timeout=0.5) is None
+
+
+def test_unborn_main_keeps_principal_branch_protection(tmp_path):
+    _git(str(tmp_path), "init", "-q", "-b", "main")
+    assert gc.current_branch(str(tmp_path)) == "main"
+    code, output, _ = run_cli(json.dumps(write(str(tmp_path / "src/app.py"))), str(tmp_path))
+    assert code == 0 and "feature/<slug>" in output
+
+
+def test_unborn_feature_keeps_checkout_main_protection(tmp_path):
+    _git(str(tmp_path), "init", "-q", "-b", "feature/first-task")
+    assert gc.current_branch(str(tmp_path)) == "feature/first-task"
+    code, output, _ = run_cli(json.dumps(bash("git checkout main")), str(tmp_path))
+    assert code == 0 and "feature/first-task" in output
+
+
+def test_symbolic_branch_fallback_uses_only_remaining_budget(monkeypatch):
+    from types import SimpleNamespace
+    clock = iter([20.0, 20.35])
+    monkeypatch.setattr(gc, "time", SimpleNamespace(monotonic=lambda: next(clock)))
+    calls = []
+    def query(command, **kwargs):
+        calls.append((command, kwargs["timeout"]))
+        return subprocess.CompletedProcess(command, 128 if len(calls) == 1 else 0,
+                                           "" if len(calls) == 1 else "main\n", "")
+    monkeypatch.setattr(gc.subprocess, "run", query)
+    assert gc.current_branch(PROJ, timeout=0.5) == "main"
+    assert calls[0][1] == 0.5
+    assert 0 < calls[1][1] < 0.151
+    assert calls[1][0] == ["git", "symbolic-ref", "--quiet", "--short", "HEAD"]
+
+
+def test_exhausted_branch_budget_does_not_launch_fallback(monkeypatch):
+    from types import SimpleNamespace
+    clock = iter([20.0, 20.5])
+    monkeypatch.setattr(gc, "time", SimpleNamespace(monotonic=lambda: next(clock)))
+    calls = []
+    def query(command, **kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 128, "", "")
+    monkeypatch.setattr(gc.subprocess, "run", query)
+    assert gc.current_branch(PROJ, timeout=0.5) is None
+    assert len(calls) == 1
+
+
+def test_detached_head_and_missing_repository_keep_existing_results(tmp_path, monkeypatch):
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
+    assert gc.current_branch(str(tmp_path)) is None
+    _git(str(tmp_path), "init", "-q", "-b", "feature/detached-test")
+    _git(str(tmp_path), "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-qm", "owned fixture")
+    _git(str(tmp_path), "checkout", "--detach", "-q")
+    assert gc.current_branch(str(tmp_path)) == "HEAD"
+
+
+def test_config_hook_limit_does_not_accept_oversized_optout(tmp_path):
+    folder = tmp_path / ".claude"
+    folder.mkdir()
+    path = folder / "dev.json"
+    path.write_text(json.dumps({"guardrails": False, "notes": "x" * 65536}), encoding="utf-8")
+    assert gc.load_config(str(tmp_path), max_bytes=65536) == (gc.DEFAULTS, True)
+    path.write_text('{"guardrails":false}', encoding="utf-8")
+    assert gc.load_config(str(tmp_path), max_bytes=65536) == (dict.fromkeys(gc.DEFAULTS, False), False)
+
+
+@pytest.mark.parametrize("agent", ["architect", "implementer"])
+@pytest.mark.parametrize("tool", ["Write", "Edit", "MultiEdit", "NotebookEdit"])
+@pytest.mark.parametrize("path", [
+    "docs/knowledge/adr/legacy.md", "docs/knowledge/README.md",
+    "docs/knowledge/gotchas/legacy.md", "docs/knowledge/approved/adr/current.md",
+    "docs/knowledge/candidates/pending/proposal.md", "docs/knowledge/candidates/.curation/receipts/a.json",
+])
+def test_memory_scope_direct_writes_require_service(agent, tool, path):
+    reason = gc.decide(write(path, tool), PROJ, None, branch="feature/x", agent=agent)
+    assert reason and "knowledge-curation.py" in reason and "Write/Edit" in reason
+
+
+@pytest.mark.parametrize("agent", ["architect", "implementer"])
+def test_memory_scope_explicit_optout_is_preserved(agent):
+    assert gc.decide(write("docs/knowledge/adr/legacy.md"), PROJ,
+                     {"alcance": False}, branch="feature/x", agent=agent) is None
+
+
+def test_memory_scope_does_not_match_other_project_docs():
+    assert decide(write("docs/knowledge-howto.md")) is None
+    assert arch(write("docs/roadmap/own/design.md")) is None

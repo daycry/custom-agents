@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-08",
+  "runtime": "Codex 0.161.0",
+  "native_sha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
+  "source_commit": "979011409de0a60b52f179721948e65531d26144",
+  "fixture_scope": "owned homes, projects, credentials-free environment and pinned official CLI; no consumer configuration",
+  "tested_component": "native cache installation and raw native listing; asynchronous state-reader correction validated separately",
+  "installer_sha256_lf": {
+    "install/install.mjs": "94a456fecbca0e2ef481c8ee86659c56030cd490ef2f0de9968843cffcc61483",
+    "install/providers.mjs": "220944e024d00ae2f5030082e64d645e265bb592a91ca1f091b464ae40cebb64"
+  },
+  "global_config_bytes_preserved": true,
+  "global_foreign_source_preserved": true,
+  "project_A": {
+    "state": "installed",
+    "enabled": true,
+    "version": "1.22.0",
+    "reason": null
+  },
+  "project_B": {
+    "state": "installed",
+    "enabled": true,
+    "version": "1.22.0",
+    "reason": null
+  },
+  "outside_projects": {
+    "state": "installed",
+    "enabled": false,
+    "version": "1.22.0",
+    "reason": null
+  },
+  "shared_cache_latest_source": "B",
+  "force_project_source_conflict_verified": true,
+  "limits": [
+    "Listing does not prove hook trust or execution.",
+    "Version cache is shared and content may be replaced by another project.",
+    "No inference about consumer pre-incident configuration; its preimage is unavailable."
+  ]
+}

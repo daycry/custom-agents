@@ -1,31 +1,37 @@
 ---
 name: knowledge-services
 description: >
-  Publica `docs/knowledge/approved/` a backends externos (Kwipu, futuros como Graphiti) por
-  config de proyecto (`taxonomy.json`), sin acoplar el plugin a ninguno — `knowledge-sync.py
-  --backend <id> [--dry-run|--check|--rebuild]` carga un adaptador por `type` (6 funciones:
-  `health/plan/apply/verify/rebuild/revoke`), aplica `routing` ANTES de construir entradas
-  (fail-closed) y usa `outbox.py` para staging/dead-letter — un fallo de `apply()` nunca borra la
-  publicación anterior. Adaptador Kwipu (`markdown-export`): un Markdown por entrada con el
-  frontmatter del Knowledge Gate (`project`/`scope`/`category`/`source`/`confidence`/
-  `knowledge_id`/`version`/`hash`) + `manifest.json`; `verify` NOMBRA el reindexado sin
-  ejecutarlo. Úsala cuando el usuario diga "sincroniza el conocimiento con Kwipu", "publica
+  Publica `docs/knowledge/approved/` a backends externos (Kwipu y Graphiti) por
+  config de proyecto (`taxonomy.json`). `knowledge-sync.py --backend <id>
+  [--dry-run|--check|--rebuild]` carga el adaptador por `type`, aplica `routing` antes de
+  construir entradas (fail-closed) y usa `outbox.py` para staging/dead-letter; un fallo de
+  `apply()` puede dejar una publicación parcial recuperable, sin rollback global. Kwipu (`markdown-export`) genera un Markdown
+  por entrada con frontmatter del Knowledge Gate y `manifest.json`; `verify` nombra el
+  reindexado sin ejecutarlo. La lectura documental opcional usa `knowledge-find.py --intent`, con backend,
+  `read.enabled` e intent habilitados; devuelve fuentes vinculadas y respuesta no verificada.
+  Úsala cuando el usuario diga "sincroniza el conocimiento con Kwipu", "publica
   docs/knowledge en el grafo", "exporta approved a Kwipu", "por qué Kwipu no ve esta entrada",
   "añade un backend de knowledge-services", o al activar la capacidad `kwipu` desde `/setup`.
 ---
 
 # knowledge-services — de `approved/` a un backend externo, sin acoplar el plugin a ninguno
 
-`docs/knowledge/approved/` es el origen canónico (Git, revisado, curado por `knowledge-curator`).
-Esta skill lo **proyecta** hacia fuera: hoy Kwipu (grafo local), mañana cualquier otro backend que
-declare su propio `type` — el núcleo (`knowledge-sync.py`) no cambia al añadir uno.
+`docs/knowledge/approved/` es el origen Markdown canónico, curado por `knowledge-curator`.
+Su versionado en Git depende de la política del proyecto; la memoria propia de este repositorio
+está excluida de Git. La recuperación local consulta tanto este corpus como ADR/GOT/LES legados.
+Esta skill lo **proyecta** hacia fuera mediante los adaptadores Kwipu y Graphiti; otros backends
+pueden declarar su propio `type` sin cambiar el núcleo (`knowledge-sync.py`). Instalar la skill
+no habilita ni configura ningún servicio externo.
 
 ## Cuándo NO usarla
 
-- Para curar o aprobar conocimiento: eso es `knowledge-curator` (`curator-gate.py`) sobre
-  `docs/knowledge/candidates/`. Esta skill solo lee `approved/`, nunca escribe ahí.
-- Para consultar el grafo ya publicado (queries, respuestas): eso es del stack de Kwipu/Graphiti,
-  fuera del plugin.
+- Para curar o aprobar conocimiento: productores proponen por `agent-kits/shared/knowledge-curation.py`;
+  `knowledge-curator` juzga, `curator-gate.py` valida sin persistir y el servicio aplica con SHA
+  original/motivo/metadatos. Esta skill sólo lee `approved/`, nunca escribe ahí ni aprueba por sync.
+- Para consultar conocimiento: usa `agent-kits/shared/knowledge-find.py`. Su router por `--intent`
+  puede consultar Graphiti en modo `read` o Kwipu mediante lectura documental opt-in.
+  El router exige autorización explícita y conserva el respaldo local con su motivo.
+  Lee `references/kwipu-adapter.md` solo al configurar o depurar la lectura documental.
 - Para reindexar Kwipu de verdad (`build_view`, reiniciar contenedores): esta skill **nombra** el
   remedio (`verify`), nunca lo ejecuta — es responsabilidad del stack externo (CA-16).
 - Sin `taxonomy.json` con `backends.<id>.enabled: true`, no hay nada que sincronizar: `/doctor`
@@ -39,9 +45,14 @@ declare su propio `type` — el núcleo (`knowledge-sync.py`) no cambia al añad
 | `scripts/kwipu-project-add.py` | Alta del proyecto en `<stack>/kwipu/config/projects.yaml` (`/setup` 5-sexies, C-07): **solo añade** un bloque marcado, con vista previa + `sha256`, confirmación (`--apply --esperado`) y copia `.bak-<AAAAMMDDTHHMMSSZ>`. Exit 0 ok/no-op · 1 E/S o fichero cambiado · 2 uso · 3 forma no reconocida (imprime el bloque) · 4 conflicto. Contrato en `references/kwipu-adapter.md`. |
 | `backends/__init__.py` | Carga y valida el adaptador por `type` (`backends/README.md`: contrato completo de las 6 funciones). |
 | `backends/markdown_export.py` | Adaptador Kwipu (`type: "markdown-export"`): CA-17/CA-16, ver `references/kwipu-adapter.md`. |
-| `backends/graphiti.py` + `backends/graphiti_providers.py` | Adaptador Graphiti (`type: "graphiti"`, ADR-018): cliente MCP, `mode: shadow`/`read`, `rebuild`/`revoke` — ver `backends/README.md`. |
+| `backends/graphiti.py` + `backends/graphiti_providers.py` | Adaptador Graphiti (`type: "graphiti"`, ADR-018): cliente MCP, `mode: off`/`shadow`/`read` (default `shadow`), `rebuild`/`revoke`; los proveedores orientan la extracción del servidor — ver `backends/README.md`. |
+| `agent-kits/shared/knowledge-find.py` | Recuperación local y router por `--intent`: lectura externa autorizada o fallback local con motivo; lee `backends/README.md` al configurar esa lectura. |
 | `agent-kits/shared/knowledge-schema.py` | Taxonomía del proyecto (`taxonomy.json`), fail-closed; `--setup-id-prefix` propone/valida/guarda el `id_prefix` y avisa al renombrar con conocimiento ya exportado (CA-14/CA-15). Aviso de grupo ajeno de Graphiti: `knowledge-sync.py --avisos-grupo [--consultar-servidor]`. |
+| `agent-kits/shared/knowledge-curation.py` + `agent-kits/shared/knowledge-curation-rules.py` | Dueños de persistencia y validación reutilizable en la fase anterior a sync; propose/apply/recover no se invocan para publicar ni sustituyen juicio del Curator. Referencias del bundle compartido, no un segundo gate. |
 | `agent-kits/shared/knowledge-index.py` | Índice de `approved/`. |
+| `agent-kits/shared/knowledge-local.py` + `knowledge-taxonomy-local.py` | Lectores compartidos sin red: corpus aprobado y reglas locales de taxonomía. |
+| `agent-kits/shared/knowledge-view.py` | Snapshot acotado y consulta local compartidos por CLI/panel; validación aprobada pura sobre textos ya leídos, sin caché o backends. |
+| `agent-kits/shared/knowledge-read-context.py` + `agent-kits/shared/local-read.py` | Autorización canónica y lectura estable acotada para el opt-in documental; dependencias del bundle portable. |
 | `agent-kits/shared/outbox.py` | Staging/dead-letter reutilizado (CA-15), nunca reimplementado aquí. |
 | `agent-kits/shared/capabilities.py` | Registro de capacidades opcionales (`/setup`, `/doctor`, T-09). |
 
@@ -70,8 +81,8 @@ python3 "$KSSKILL" --backend kwipu --root . --outbox-status
   llegar a `MAX_INTENTOS`) — y LUEGO hace `plan()` + `apply()` reales del sync fresco, con
   staging/dead-letter de `outbox.py`. Un envelope de OTRO backend que bloquee el reclamo se cede
   con `outbox.ceder_paso()` sin tocar su presupuesto de reintentos. Un fallo de `apply()` en el
-  sync fresco reencola con backoff (nunca dead-letter directo por un solo fallo); la publicación
-  anterior queda intacta.
+  sync fresco reencola con backoff (nunca dead-letter directo por un solo fallo); la proyección
+  puede quedar parcialmente actualizada; el diario del adaptador conserva el objetivo pendiente.
 - `--rebuild`: `rebuild(entries, cfg)` sobre TODAS las entradas ya enrutadas para ese backend
   (equivale a `plan(entries, cfg, force=True)` + `apply`, fuerza `upsert` en todo).
 - `--outbox-status`: imprime `outbox.estado()` de la cola de este backend y sale — no publica ni
@@ -87,14 +98,38 @@ Añadir un backend nuevo: un fichero `backends/<type>.py` con las 6 funciones �
 
 - **Fail-closed por routing**: una categoría sin `routing` declarado, o `routing.<id>: false`,
   jamás llega al adaptador — ni siquiera para "solo probar".
-- **Nunca se borra la publicación anterior en error**: `apply()` publica fichero a fichero con un
+- **Recuperación por diario**: `apply()` de Markdown publica fichero a fichero con un
   diario (`manifest.pending.json` → publica → `manifest.json`, ver `references/kwipu-adapter.md`);
   nunca borra ni mueve ficheros ajenos a los que el propio manifiesto controla. Un fallo va primero
   a reencolado con backoff (`outbox.py`) y solo escala a `dead-letter` al agotar los reintentos —
-  no se reintenta dentro de la misma corrida, sí en la siguiente (drenaje antes del sync fresco).
+  no se repite el apply fresco dentro de la misma corrida, sí en la siguiente. El drenaje
+  precede al plan fresco para reconciliar el destino con el canon actual. El lote no es atómico;
+  archivos ya publicados o revocados no se revierten. El manifiesto final reintenta sólo rechazos
+  Windows 5/32/33, hasta cuatro intentos y conservando las identidades observadas.
 - **`verify` nombra, no ejecuta** (CA-16): el reindexado real es del stack, nunca de este plugin.
+- **Lectura opt-in separada de publicar**: backend habilitado, `read.enabled: true` e intent
+  declarado como `true`. Canon, routing, filtros y manifiesto preceden a la red/inferencia.
+  El snapshot debe vincular todos los chunks antes de consultar; incoherencias vuelven a local.
+- **Respuesta generada sin autoridad**: `source_nodes` identifica fuentes recuperadas, no citas
+  por afirmación. El lector no aprueba ni ejecuta instrucciones de esa respuesta.
+- **Local sin Docker**: panel y hooks mantienen lectura local; no consultan ni arrancan servicios.
+- **Validación no es aprobación/persistencia**: gate e índice verifican contrato/forma; Curator
+  decide y `apply_decision` persiste ligado al SHA. Design/revisión/QA/Gold/repetición no aprueban
+  memoria nueva. Legado conserva bytes/estados/autoridad sin migración ni reaprobación automática;
+  conflicto/alto impacto exige resolución humana trazada, no fecha/score.
+- **Límites de la capa de curación**: cerrojo cooperativo, etiquetas de actor no autenticadas,
+  publicación/retirada/recibo separados; sin atomicidad multiarchivo ni sandbox universal.
+  POSIX sincroniza directorios; el helper Windows no lo hace. La implementación y su revisión/QA
+  no acreditan aceptación nativa o supervivencia a corte eléctrico. Esta skill no añade esos permisos.
 - **Una sola excepción a «no toca el stack»** (enmienda de ADR-018 / PAT-001, diseño O1): `kwipu-project-add.py` puede AÑADIR un bloque a `projects.yaml`, nunca modificar ni borrar; `build_view` y el reinicio de contenedores solo se imprimen.
 - **Sin dependencias externas**: todo el código de esta skill es stdlib puro.
+
+Los errores tipados de Graphiti se rechazan incluso con `isError: false`.
+Los episodios nuevos se confirman con el UUID asignado por el servidor. Sucesión y
+retirada tienen marcadores por versión; las relaciones documentales son el camino
+predeterminado. Lee [publicación y recuperación](../../docs/knowledge-services-graphiti.md)
+al operar Graphiti. La aceptación integral de recuperación, reconstrucción e historial
+sigue pendiente; la base local y el opt-in conservan sus contratos.
 
 ## Qué NO hace
 

@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": ["S101", "S102", "S103"],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {"id": "S101", "sha256": "f54c2bf5a61eeda47c939da265b1431d609c231611e71b688b0b734a064b18f3", "bytes": 15637, "lines": 514, "read_ranges": [[1, 514]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S102", "sha256": "823a1b8f75495022227bb9af4537eb5c0b1c62793d68b74c6bd1af14eea79786", "bytes": 3831, "lines": 128, "read_ranges": [[1, 128]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S103", "sha256": "aa6b276961f8e6bd627d64ed5c23c61a90954601b21a572eba3b1421d5ac4335", "bytes": 14168, "lines": 497, "read_ranges": [[1, 497]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []}
+  ],
+  "own_counterparts": [
+    {"path": "skills/stack-practices/references/python.md", "sha256": "b2ec29e4ded82c5cd9968abfb91bf46e2d3e7b7e17233ad3cb0a01d055a6bb20"},
+    {"path": "skills/backend-practices/references/contracts-data.md", "sha256": "589af44a6c37b7355ed8d088c7a8e341b42a131ce5b0d1c89c06e6cde2d2bdab"},
+    {"path": "skills/dependency-upgrade/SKILL.md", "sha256": "69b22380b27f56c58e9e15253c719e93753805f6a8325059d9b64d4ea0df1e12"}
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

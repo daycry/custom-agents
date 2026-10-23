@@ -1,0 +1,30 @@
+{
+  "source_commit": "8b51edd",
+  "normalization": "LF",
+  "runtimes": {
+    "codex": {
+      "analyst": "90b79ebcd8f08d211419ae7dbdfee5faf7e86aa981a4f780a7e82f4c7c81ab16",
+      "architect": "e2be3cd9c5a587aa5041d948e263ef54c9f2030883e7bc048dc9872e677ed71e",
+      "documenter": "e2b9c31f99bbaf1a9a5acace10d146ed25190b550f5d66751563dd24f587984d",
+      "evaluator": "741feb29e4a4c6c1e9f2dfc2de3391ab94ea6dd4772a190ec4f28c662c46943c",
+      "implementer": "4b9519bb261992143f78d268a44fd1e30f61d73d1387766e415e1e19257fd99c",
+      "knowledge-curator": "6dade0a995697a37a0cb0342a8dc1f8cd1b7f7e47b80ad7ef8e80fbe1fd73599",
+      "nemesis": "62bfc018208a70add1975cb8b2b146db913dcad33de38e0e997d83d7076659c5",
+      "planner": "5d4d03ad9232016299a0b250837d8c39ee792245e5e94ed219fdbda1d1217908",
+      "qa": "2f345afc4496291eb3c4e71b96249fbc80326bae827d4e20c1142531c26e04a7",
+      "reviewer": "42b0a4a51af726e04167f0a574710cda281c01f89c7b50546d42940939b3f30d"
+    },
+    "opencode": {
+      "analyst": "3846194ff88a0bc3f5ab6f5727fc5ca6b22dccc0a57f7fbc272fcc535c6a7e3d",
+      "architect": "ceeceacb2e1e808c44b7106739231e29b121a4161327de33f908e9763b636b44",
+      "documenter": "3da0ab835fa5dca8b935c690a004221d32f6d359376d0ed4d5e5e9a7e54cd15b",
+      "evaluator": "80f96d96d8efdcf647350de3daff5c231688ff1f98895da2a3cf66f92092d4d9",
+      "implementer": "274fa120114776ea137136435b076a8a2aa2030c9e9c9cd5765765ba846ec26b",
+      "knowledge-curator": "ea61b25a4a61d41b26fb8d7b812301617a5df43eb658cb5b45a528f7c7cdf9ba",
+      "nemesis": "e526d068021b138f6cfbca5b22fb8a53f9e1d02f0ec500628fa7daa00d30238c",
+      "planner": "01b9c0b8fa8cfab8de0cfef5f010e9357740edc1948c63d30011f229e863db5d",
+      "qa": "9004a947809b80efe0e79b503b84d5ef4a183e81055efa92e99c524b4a173ef6",
+      "reviewer": "120803faa610e85d79bd3aff666531d51ed6b46e08f71c423e363b85b10849b4"
+    }
+  }
+}

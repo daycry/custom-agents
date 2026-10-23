@@ -1,37 +1,17 @@
 #!/usr/bin/env python3
-"""
-backends/graphiti.py — adaptador Graphiti (`type: "graphiti"`, ADR-018) del contrato de
-`backends/__init__.py`. Cliente MCP streamable-HTTP minimo (stdlib, sin librerias) contra el
-servidor de `dockers/knowledge-graphs`: `initialize` -> `notifications/initialized` ->
-`tools/call`; sesion (`Mcp-Session-Id`) capturada y reenviada; el endpoint fijo del protocolo es
-`/mcp` SIN barra final (CA-15) — un `307`/`308` hacia esa forma se sigue manualmente (nunca en
-silencio), revalidando el guardarrail de red en CADA salto.
+"""Graphiti projection adapter implementing the knowledge-services contract.
 
-`health`/`verify` NUNCA lanzan (contrato de adaptador, design.md): degradan a
-`off · sano · degradado · error`. `verify` NOMBRA el remedio sin ejecutarlo (CA-16). `rebuild` es
-el UNICO camino que llama a `clear_graph` (acotado al `group_id` propio) y reproduce el mismo
-manifiesto que la sincronizacion incremental. `revoke` escribe un episodio de invalidacion (+
-triplete `SUPERSEDES` opcional) y NUNCA llama a `delete_episode` (design.md, enmienda 2026-09-18).
-
-Decision de diseno documentada (plan ambiguo -T-04/T-05-, elegida por el implementer):
-  - La extraccion de entidades la hace el SERVIDOR (su `config.yaml`); `graphiti_providers.py`
-    solo orienta esa extraccion con `custom_extraction_instructions`, sin llamar a ningun modelo
-    desde este proceso (ver docstring de ese modulo).
-  - Idempotencia de `apply()` via un manifiesto LOCAL propio (`graphiti-manifest.json` bajo
-    `.claude/knowledge-services/`, patron diario pendiente->publicado calcado de
-    `markdown_export.py`) — el reintento acotado y el dead-letter de `outbox.py` los orquesta
-    `knowledge-sync.py` UNA capa por encima (T-05 solo necesita ser idempotente ante reintentos
-    ajenos, no reimplementar la cola).
-  - `status` de cada episodio es la constante `"aprobado"`: toda entrada que llega aqui viene de
-    `approved/`, donde `estado: aprobado` ya es invariante (`knowledge-index.py`).
-
-Sin dependencias externas; solo stdlib (`hashlib`, `ipaddress`, `json`, `socket`, `threading`,
-`urllib.request`, `uuid`).
-
-Uso: cargado por `backends/__init__.py::cargar_adaptador("graphiti", ...)`, nunca ejecutado solo.
-Exit: N/A (modulo de libreria, sin CLI propia)
+Uses the standard-library streamable-HTTP MCP client and explicit project group.
+Providers guide server-side extraction; this process calls no language model.
+New episodes use server-assigned UUIDs, durable submission receipts and exact
+readback confirmation. Unknown acknowledgments never trigger automatic resends.
+Version markers retain withdrawal/succession provenance; direct Entity triplets
+are an explicit opt-in requiring a server with verified group write isolation.
+Local canonical memory remains the fallback. Cooperative locking does not provide
+exactly-once delivery, server authentication or protection against external writers.
 """
 import hashlib
+import functools
 import http.client
 import ipaddress
 import json
@@ -39,13 +19,11 @@ import os
 import re
 import socket
 import sys
-import tempfile
 import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-import uuid
 
 for _s in (sys.stdin, sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
@@ -70,6 +48,43 @@ except ImportError:  # cargado por importlib.util.spec_from_file_location (backe
     _spec2.loader.exec_module(_gm)
 
 
+try:
+    from . import graphiti_publication as _gpub
+except ImportError:
+    import importlib.util as _ilu_publication
+    _publication_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "graphiti_publication.py")
+    _publication_spec = _ilu_publication.spec_from_file_location("ks_graphiti_publication", _publication_path)
+    _gpub = _ilu_publication.module_from_spec(_publication_spec)
+    _publication_spec.loader.exec_module(_gpub)
+
+try:
+    from . import graphiti_scope as _gscope
+except ImportError:
+    import importlib.util as _ilu_scope
+    _scope_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'graphiti_scope.py')
+    _scope_spec = _ilu_scope.spec_from_file_location('ks_graphiti_scope', _scope_path)
+    _gscope = _ilu_scope.module_from_spec(_scope_spec)
+    _scope_spec.loader.exec_module(_gscope)
+
+try:
+    from . import graphiti_rebuild as _grebuild
+except ImportError:
+    import importlib.util as _ilu_rebuild
+    _rebuild_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'graphiti_rebuild.py')
+    _rebuild_spec = _ilu_rebuild.spec_from_file_location('ks_graphiti_rebuild', _rebuild_path)
+    _grebuild = _ilu_rebuild.module_from_spec(_rebuild_spec)
+    _rebuild_spec.loader.exec_module(_grebuild)
+
+try:
+    from . import graphiti_provenance as _gprov
+except ImportError:
+    import importlib.util as _ilu_provenance
+    _provenance_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'graphiti_provenance.py')
+    _provenance_spec = _ilu_provenance.spec_from_file_location('ks_graphiti_provenance', _provenance_path)
+    _gprov = _ilu_provenance.module_from_spec(_provenance_spec)
+    _provenance_spec.loader.exec_module(_gprov)
+
+
 # --8<-- hosts locales COMPARTIDO (graphiti-memory T-01-fix1) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py, agent-kits/shared/knowledge-schema.py y skills/knowledge-services/backends/graphiti.py
 _SUFIJOS_LOCALES = (".test", ".local", ".internal")
 _HOSTS_LOCALES_LITERALES = {"localhost", "host.docker.internal"}
@@ -90,7 +105,6 @@ _DNS_CACHE_TTL_S_LENTO = 5  # resolución vacía o colgada: TTL corto, para no p
 _dns_cache = {}  # {host: (lista_de_ips, expira_epoch_s)}
 _MAX_REDIRECCIONES = 3  # gap #34: solo 307/308 se siguen (preservan método); como máximo 3 saltos
 _PROTOCOLO_MCP = "2025-03-26"
-_NAMESPACE_EPISODIOS = uuid.UUID("6f9c9b0a-6f1e-4a4a-9c1e-6f6f6f6f6f6f")  # constante propia, estable
 
 
 class ConfigInvalida(Exception):
@@ -659,10 +673,13 @@ class ClienteMCP:
         llamadas se contaban como aplicadas con exito en `apply()` en vez de caer a
         `fallidos`/dead-letter."""
         resultado = self._peticion("tools/call", {"name": nombre, "arguments": argumentos or {}})
+        contenido = _contenido_tool_call(resultado)
         if isinstance(resultado, dict) and resultado.get("isError"):
-            contenido = _contenido_tool_call(resultado)
             detalle = contenido if contenido is not None else resultado.get("content")
             raise ErrorMCP(f"tool `{nombre}` devolvio isError=true: {_sanear_detalle(detalle)}")
+        # ErrorResponse es una salida tipada del servidor, aunque MCP marque isError=false.
+        if isinstance(contenido, dict) and "error" in contenido:
+            raise ErrorMCP(f"tool `{nombre}` devolvio ErrorResponse: {_sanear_detalle(contenido['error'])}")
         return resultado
 
     def get_status(self):
@@ -945,60 +962,49 @@ def _leer_manifest(cfg):
 
 
 def _escribir_manifest(cfg, datos, sufijo=""):
-    """Escritura atomica (`os.replace`) con temporal UNICO en el mismo directorio (gap #81: con
-    un `<ruta>.tmp` FIJO, dos `knowledge-sync` concurrentes competian por el mismo fichero —en
-    POSIX mezclando JSON, en Windows con un `PermissionError` fuera de todo `try`—; mismo patron
-    que `markdown_export.py`, que ya usaba `mkstemp`)."""
-    directorio = _manifest_dir(cfg)
-    os.makedirs(directorio, exist_ok=True)
+    """Replace only the observed owned leaf through shared state I/O primitives."""
     ruta = _manifest_path(cfg, sufijo)
-    descriptor, tmp = tempfile.mkstemp(prefix=os.path.basename(ruta) + ".", suffix=".tmp",
-                                       dir=directorio)
+    logical = cfg.get('_logical_group_id')
+    if logical and logical != cfg.get('group_id') and datos.get('group_id') == cfg.get('group_id'):
+        datos = {**datos, 'logical_group_id': logical}
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as f:
-            json.dump(datos, f, ensure_ascii=False, indent=2, sort_keys=True)
-        os.replace(tmp, ruta)
-    except BaseException:
-        try:
-            os.remove(tmp)
-        except OSError:
-            pass
-        raise
+        raw = json.dumps(datos, ensure_ascii=False, indent=2, sort_keys=True, allow_nan=False).encode('utf8')
+        _gpub.write_manifest(cfg, ruta, raw)
+    except _gpub.PublicationError as error:
+        raise ErrorMCP(str(error)) from error
     return ruta
-
-
-def _uuid_episodio(group_id, knowledge_id, version):
-    return str(uuid.uuid5(_NAMESPACE_EPISODIOS, f"{group_id}:{knowledge_id}:{version}"))
-
-
-def _uuid_tombstone(group_id, knowledge_id):
-    return str(uuid.uuid5(_NAMESPACE_EPISODIOS, f"{group_id}:{knowledge_id}:tombstone"))
 
 
 def plan(entries, cfg, force=False):
     """Puro/idempotente: mismas `entries` -> mismos `ops`. Compara contra el manifiesto OBJETIVO
     (pendiente si hay una publicacion interrumpida, publicado si no) para decidir que entradas
     cambiaron (hash+version) y que ids quedaron fuera de `approved/` (-> `revoke`). `force=True`
-    (usado por `rebuild`) trata TODO como `upsert` y omite los `revoke` (el grafo se vacia antes)."""
+    trata TODO como `upsert` y omite los `revoke`; no borra el grupo."""
     cfg = cfg or {}
     group_id = cfg.get("group_id")
     if not group_id:
         raise ConfigInvalida("`group_id` vacio: no se puede planificar sin un grupo estable")
     manifest, _pendiente = _leer_manifest(cfg)
     objetivo = _entradas_del_grupo(manifest, group_id)
+    for id_, previous in objetivo.items():
+        if (not isinstance(previous, dict) or type(previous.get('version')) is not int
+                or previous['version'] < 1):
+            raise ErrorMCP('manifiesto con version previa invalida; no se inventa una identidad')
     ops = []
     vistos = set()
+    desired_names = set()
     for entrada in sorted(entries, key=lambda e: e["id"]):
         id_ = entrada["id"]
         vistos.add(id_)
         version = entrada.get("version")
+        desired_names.add(_nombre_episodio(id_, version))
         cuerpo = entrada.get("cuerpo") or ""
         hash_ = hashlib.sha256(cuerpo.encode("utf-8")).hexdigest()
         previo = objetivo.get(id_)
         if not force and previo and previo.get("version") == version and previo.get("hash") == hash_:
             continue
         ops.append({
-            "tipo": "upsert", "id": id_, "version": version, "hash": hash_,
+            "tipo": "upsert", "id": id_, "version": version, "hash": hash_, "group_id": group_id,
             "category": entrada.get("category"), "evidencia": entrada.get("evidencia"),
             "fuentes": entrada.get("fuentes") or [], "ruta": entrada.get("ruta"),
             "resumen": entrada.get("resumen"), "modo": entrada.get("modo"), "cuerpo": cuerpo,
@@ -1009,7 +1015,30 @@ def plan(entries, cfg, force=False):
         })
     if not force:
         for id_ in sorted(set(objetivo) - vistos):
-            ops.append({"tipo": "revoke", "id": id_})
+            ops.append(_operacion_revoke(id_, objetivo[id_], group_id))
+        try:
+            receipts = _gpub.submissions(cfg)
+        except _gpub.PublicationError as error:
+            raise ErrorMCP(str(error)) from error
+        retirements = []
+        recoveries = []
+        for receipt in receipts:
+            if 'transition' in receipt:
+                intent = receipt['transition']
+                recoveries.append({'tipo': 'recover_transition', 'id': intent['id'],
+                                   'version': intent['target_version'], 'group_id': group_id,
+                                   'submission_name': receipt['name'], 'episode_body_sha256': receipt['body_sha256']})
+                continue
+            matched = re.fullmatch(r"(.+)@([1-9][0-9]*)", receipt['name'])
+            if not matched or receipt['name'] in desired_names:
+                continue
+            id_, version = matched[1], int(matched[2])
+            if (objetivo.get(id_) or {}).get('version') == version:
+                continue  # The bound ordinary withdrawal already handles this entry.
+            retirements.append({'tipo': 'retire_submission', 'id': id_, 'version': version,
+                                'group_id': group_id, 'submission_name': receipt['name'],
+                                'episode_body_sha256': receipt['body_sha256']})
+        ops = recoveries + retirements + ops
     return ops
 
 
@@ -1160,7 +1189,6 @@ def _episodio_upsert(group_id, op, cfg=None):
         "group_id": group_id,
         "source": "text",
         "source_description": "custom-agents:graphiti-memory",
-        "uuid": _uuid_episodio(group_id, op["id"], op["version"]),
         "category": categoria,
         "entity_type": entity_type,
         "hash_enviado": hash_enviado,
@@ -1173,20 +1201,12 @@ def _nombre_episodio(id_, version):
     return f"{id_}@{version}"
 
 
-# Campos que el adaptador CONSUME despues de `add_memory` (`uuid` -lo que se devuelve y lo que
-# usa el `SUPERSEDES` de #40- y `name`) o que exige NUESTRO episodio construido (`episode_body`,
-# `group_id`, `source`, `source_description`, los que `_episodio_upsert` siempre rellena): ninguno
-# puede faltar ni venir vacio en lo que devuelve el proveedor (gap #154). Gap #185 (fix2 Fase 4):
-# no es el servidor quien los exige -el `inputSchema` real de `add_memory` solo declara
-# `required: ["name", "episode_body"]`-; los exigimos nosotros para que el grafo reciba siempre la
-# procedencia y el `group_id` del proyecto, y no los defaults del servidor.
-_CAMPOS_EPISODIO_OBLIGATORIOS = ("uuid", "name", "episode_body", "group_id", "source",
+# Required project provenance, independent of the server's permissive input schema.
+_CAMPOS_EPISODIO_OBLIGATORIOS = ("name", "episode_body", "group_id", "source",
                                  "source_description")
-# Identidad del episodio: el proveedor ORIENTA la extraccion (instrucciones, `source`); no
-# re-nombra ni re-identifica el episodio. El manifiesto recalcula el `uuid` con `_uuid_episodio`,
-# asi que un `uuid`/`name`/`group_id` distinto del construido dejaria grafo y manifiesto
-# desalineados: el mismo dano que un `uuid` ausente.
-_CAMPOS_EPISODIO_IDENTIDAD = ("uuid", "name", "group_id")
+# El proveedor conserva nombre y grupo. El UUID lo asigna el servidor y solo se
+# vincula al manifiesto despues de confirmar el contenido por lectura remota.
+_CAMPOS_EPISODIO_IDENTIDAD = ("name", "group_id")
 
 
 def _vacio_para_add_memory(valor):
@@ -1203,6 +1223,8 @@ def _validar_episodio_del_proveedor(episodio, episodio_base):
         raise ErrorMCP(
             f"proveedor devolvio una estructura invalida para `add_memory` (no es un objeto): "
             f"{_sanear_detalle(episodio)}")
+    if "uuid" in episodio:
+        raise ErrorMCP("un episodio nuevo no puede declarar un UUID remoto")
     base = episodio_base if isinstance(episodio_base, dict) else {}
     faltan = [c for c in _CAMPOS_EPISODIO_OBLIGATORIOS if _vacio_para_add_memory(episodio.get(c))]
     perdidos = [c for c, v in sorted(base.items())
@@ -1217,7 +1239,7 @@ def _validar_episodio_del_proveedor(episodio, episodio_base):
             f"alterada: {alterados}): {_sanear_detalle(episodio)}")
 
 
-def _aplicar_upsert(cliente, proveedor, provider_cfg, group_id, op, cfg=None, entrada_previa=None):
+def _aplicar_upsert(cliente, proveedor, provider_cfg, group_id, op, cfg=None, entrada_previa=None, publication_session=None, transition_store=None):
     """Gap #40: si `entrada_previa` (la versión publicada anterior de este `id`) existe y su
     `version` cambió, se emite ADEMÁS un tombstone de esa versión anterior + `SUPERSEDES` hacia
     ella (sucesión observable, CA-11) — el nuevo episodio nunca sustituye a la anterior en
@@ -1232,120 +1254,251 @@ def _aplicar_upsert(cliente, proveedor, provider_cfg, group_id, op, cfg=None, en
             f"el episodio anterior para el `SUPERSEDES` (no se inventa un nombre de nodo)")
     episodio_base, aviso_tope = _episodio_upsert(group_id, op, cfg)
     episodio = proveedor(provider_cfg, episodio_base)
-    # Gap #46 (CA-14): un proveedor que devuelve una estructura invalida (p. ej. un bug de un
-    # proveedor futuro) NUNCA debe llegar a `add_memory` -se rechaza aqui y la op cae a
-    # `fallidos`/dead-letter como cualquier otro `ErrorMCP`, sin gastar una llamada de red con
-    # datos incompletos.
-    #
-    # Gap #154 (Important, fix1 Fase 4): la validacion miraba `name`/`episode_body`/`group_id`
-    # pero NO `uuid`, que es justo el campo que el adaptador consume DESPUES de la llamada (el
-    # `SUPERSEDES` de #40 y el valor que devuelve esta funcion). Un proveedor que no lo devolvia
-    # pasaba la validacion, el episodio SALIA al grafo y solo entonces reventaba con
-    # `KeyError: 'uuid'`: la op caia a dead-letter dejando un episodio VIVO en el grafo que el
-    # manifiesto no registra y que `revoke` no puede invalidar -datos corruptos, justo lo que
-    # CA-14 prohibe-. Ahora se valida ANTES, fail-closed, todo lo que se consume despues.
+    # Validate source fields before submitting. UUID belongs to server readback,
+    # not provider output or the new-episode wire payload.
     _validar_episodio_del_proveedor(episodio, episodio_base)
-    cliente.tools_call("add_memory", episodio)
+    wire_keys = ("name", "episode_body", "group_id", "source", "source_description",
+                 "custom_extraction_instructions", "reference_time", "excluded_entity_types",
+                 "previous_episode_uuids", "update_communities", "saga", "saga_previous_episode_uuid")
+    wire = {key: episodio[key] for key in wire_keys if key in episodio}
+    known_uuid = (entrada_previa.get("uuid") if entrada_previa
+                  and entrada_previa.get("version") == op.get("version")
+                  and entrada_previa.get("hash") == op.get("hash") else None)
+    try:
+        actual_uuid = _gpub.publish(cfg or {}, wire, cliente, _contenido_tool_call, known_uuid, publication_session)
+    except _gpub.PublicationError as error:
+        raise ErrorMCP(str(error)) from error
     if entrada_previa and entrada_previa.get("version") != op.get("version") and entrada_previa.get("uuid"):
-        _tombstone_supersedes(cliente, group_id, op["id"], entrada_previa["uuid"], episodio["uuid"],
+        _tombstone_supersedes(cliente, group_id, op["id"], entrada_previa["uuid"], actual_uuid,
                               f"{op['id']} superado por version {op.get('version')}",
                               nombre_anterior=_nombre_episodio(op["id"], entrada_previa["version"]),
-                              nombre_nuevo=episodio["name"])
-    return episodio["uuid"], aviso_tope
+                              nombre_nuevo=episodio["name"], cfg=cfg, publication_session=publication_session,
+                              transition_store=transition_store, entrada_anterior=entrada_previa)
+    return actual_uuid, aviso_tope
 
 
 _SUFIJO_TOMBSTONE = "@tombstone"      # revoke: invalida la ENTRADA entera (todas sus versiones)
 _SUFIJO_SUPERSEDED = "@superseded"    # sucesion: invalida SOLO el episodio de la version superada
 
 
+def _transition_marker(cliente, cfg, publication_session, id_, version, name,
+                       body, source_ref, target_ref, action, transition_store, intent_context=None):
+    representation = _transition_relation_mode(cfg)
+    intent = {'id': id_, 'target_version': version, 'action': action, 'representation': representation,
+              'source_ref': source_ref, 'target_ref': target_ref, **(intent_context or {})}
+    body += f"\nrelation: SUPERSEDES\nsource_ref: {source_ref}\ntarget_ref: {target_ref}\n"
+    if body != _transition_body(intent):
+        raise ErrorMCP('contenido del marcador no coincide con su intencion')
+    episode = {"name": name, "episode_body": body, "group_id": cfg["group_id"],
+               "source": "text", "source_description": "custom-agents:graphiti-memory",
+               "previous_episode_uuids": [],
+               "excluded_entity_types": _control_exclusion_types(cfg),
+               "custom_extraction_instructions": (
+                   "This is a control record for a knowledge version, not a domain document. "
+                   "Extract no domain entities or facts. IDs and reference strings are opaque "
+                   "provenance, not organizations, people or projects. Preserve the episode.")}
+    try:
+        actual_uuid = _gpub.publish(cfg, episode, cliente, _contenido_tool_call,
+                                   publication_session=publication_session, transition=intent)
+        receipt = _gpub.receipt(publication_session, name, actual_uuid)
+        relation = None
+        if representation == "triplet":
+            request = {"source_node_name": source_ref, "target_node_name": target_ref,
+                       "edge_name": "SUPERSEDES", "fact": f"{source_ref} supersedes {target_ref}.",
+                       "group_id": cfg["group_id"]}
+            relation = _gpub.link(cfg, request, cliente, _contenido_tool_call, publication_session)
+    except _gpub.PublicationError as error:
+        raise ErrorMCP(str(error)) from error
+    value = {**intent, "uuid": actual_uuid, "episode_body_sha256": receipt["body_sha256"]}
+    if relation is not None:
+        value.update({key: relation[key] for key in ("edge_uuid", "source_uuid", "target_uuid")})
+    if transition_store is not None:
+        transition_store[name] = value
+    return actual_uuid
+
+
+def _record_reference(name):
+    return "custom-agents:knowledge:" + name
+
+
+def _transition_body(intent):
+    name = _nombre_episodio(intent['id'], intent['target_version'])
+    body = (f"knowledge_id: {intent['id']}\nepisodio: {name}\nstatus: invalidado\n"
+            f"source_episode_uuid: {intent['source_episode_uuid']}\n")
+    if intent['action'] == 'superseded':
+        replacement = intent['source_ref'][len('custom-agents:knowledge:'):]
+        body += (f"replacement_episode_uuid: {intent['replacement_episode_uuid']}\n\n"
+                 f"Version superada por `{replacement}`.")
+    else:
+        body += "\nVersion retirada de `approved/`."
+    return body + (f"\nrelation: SUPERSEDES\nsource_ref: {intent['source_ref']}\n"
+                   f"target_ref: {intent['target_ref']}\n")
+
+
+def _recover_transition(cliente, cfg, publication_session, op, transitions, entries):
+    record = publication_session[0]
+    key = _gpub._digest({'name': op['submission_name'], 'group_id': cfg['group_id']})
+    recorded_intent = (record['operations'].get(key) or {}).get('transition')
+    if not recorded_intent or recorded_intent['representation'] != _transition_relation_mode(cfg):
+        raise ErrorMCP('representacion del marcador incompatible con la configuracion actual; no se cambia durante recuperacion')
+    confirmed = _gpub.confirm_existing(cfg, op['submission_name'], op['episode_body_sha256'],
+                                      cliente, _contenido_tool_call, publication_session, include_content=True)
+    intent = confirmed.get('transition')
+    if not intent or confirmed['remote_content'] != _transition_body(intent):
+        raise ErrorMCP('marcador remoto no confirma su intencion registrada')
+    current = entries.get(intent['id'])
+    if current and current.get('version') == intent['target_version'] and current.get('uuid') != intent['source_episode_uuid']:
+        raise ErrorMCP('intencion de sucesion contradice la identidad publicada')
+    value = {**intent, 'uuid': confirmed['uuid'], 'episode_body_sha256': confirmed['body_sha256']}
+    if intent['representation'] == 'triplet':
+        request = {'source_node_name': intent['source_ref'], 'target_node_name': intent['target_ref'],
+                   'edge_name': 'SUPERSEDES', 'fact': f"{intent['source_ref']} supersedes {intent['target_ref']}.",
+                   'group_id': cfg['group_id']}
+        relation = _gpub.link(cfg, request, cliente, _contenido_tool_call, publication_session)
+        value.update({key: relation[key] for key in ('edge_uuid','source_uuid','target_uuid')})
+    transitions[op['submission_name']] = value
+    if current and current.get('version') == intent['target_version']:
+        entries.pop(intent['id'])
+    return intent
+
+
 def _tombstone_supersedes(cliente, group_id, id_, uuid_anterior, uuid_nuevo, fact,
-                          nombre_anterior=None, nombre_nuevo=None):
-    """Episodio tombstone de `uuid_anterior` + triplete `SUPERSEDES` (`uuid_nuevo` ->
-    `uuid_anterior`).
-
-    Gap #69 (Critical, fix4): el CONTRATO REAL de la tool (fixture capturado
-    `fixtures/graphiti/graphiti-mcp-tools-list-2026-09-18.json`) declara
-    `required: [source_node_name, edge_name, fact, target_node_name]` y deja los `*_uuid` como
-    OPCIONALES — el arbitraje de #40 ("usa `*_uuid`") era incompleto: hay que enviar nombre Y
-    uuid. Sin los nombres, el servidor real responde `isError` y TODO camino de
-    sucesion/invalidacion (CA-11) caia a `fallidos`/dead-letter. NUNCA llama a `delete_episode`
-    (design.md, enmienda 2026-09-18).
-
-    Gap #94 (Minor, fix5): los fallbacks `_nombre_episodio(id_, "anterior"/"actual")` fabricaban
-    nombres de nodos INEXISTENTES cuando el llamante no sabia el nombre real; pasaban el
-    `required` del servidor y colgaban la arista de un fantasma. Ahora es un error explicito."""
-    if not nombre_anterior or not nombre_nuevo:
-        raise ErrorMCP(
-            f"`SUPERSEDES` de `{id_}` sin los nombres REALES de los nodos (anterior/nuevo): no se "
-            f"fabrican nombres (`add_triplet` los exige y uno inventado crea un nodo fantasma)")
-    # Gap #96 (Critical, fix1 Fase 3): el tombstone de SUCESION DE VERSION no puede llamarse
-    # igual que el de REVOKE (`<id>@tombstone`): `_indice_procedencia` invalidaba por `id`, asi
-    # que subir de version dejaba invalidada tambien la version nueva (toda entrada que alguna
-    # vez subio de version se servia como `invalidado`). Aqui se nombra la VERSION superada
-    # (`<id>@<version>@superseded`), y solo esa; el `@tombstone` queda para el revoke, que si
-    # invalida la entrada entera.
-    tombstone_uuid = _uuid_tombstone(group_id, f"{id_}:{uuid_anterior}")
-    cliente.tools_call("add_memory", {
-        "name": f"{nombre_anterior}{_SUFIJO_SUPERSEDED}",
-        "episode_body": (f"knowledge_id: {id_}\nepisodio: {nombre_anterior}\n"
-                         f"status: invalidado\n\nVersion superada por `{nombre_nuevo}`."),
-        "group_id": group_id,
-        "source": "text",
-        "source_description": "custom-agents:graphiti-memory",
-        "uuid": tombstone_uuid,
-    })
-    cliente.tools_call("add_triplet", {
-        "source_node_name": nombre_nuevo,
-        "source_node_uuid": uuid_nuevo,
-        "edge_name": "SUPERSEDES",
-        "fact": fact,
-        "target_node_name": nombre_anterior,
-        "target_node_uuid": uuid_anterior,
-        "group_id": group_id,
-    })
-    return tombstone_uuid
+                          nombre_anterior=None, nombre_nuevo=None, cfg=None,
+                          publication_session=None, transition_store=None, entrada_anterior=None):
+    """Confirm a version marker and a separate Entity reference relationship."""
+    if not nombre_anterior or not nombre_nuevo or not uuid_anterior or not uuid_nuevo:
+        raise ErrorMCP("sucesion sin identidades reales y nombres de version")
+    if cfg is None or cfg.get("group_id") != group_id or publication_session is None:
+        raise ErrorMCP("sucesion sin contexto de publicacion propio")
+    version = int(nombre_anterior.rsplit("@", 1)[1])
+    body = (f"knowledge_id: {id_}\nepisodio: {nombre_anterior}\nstatus: invalidado\n"
+            f"source_episode_uuid: {uuid_anterior}\nreplacement_episode_uuid: {uuid_nuevo}\n\n"
+            f"Version superada por `{nombre_nuevo}`.")
+    context = {'source_episode_uuid': uuid_anterior, 'replacement_episode_uuid': uuid_nuevo}
+    if entrada_anterior and entrada_anterior.get('episode_body_sha256'):
+        context['retired_episode'] = {'name': nombre_anterior, 'uuid': uuid_anterior,
+                                     'episode_body_sha256': entrada_anterior['episode_body_sha256']}
+    return _transition_marker(cliente, cfg, publication_session, id_, version,
+        nombre_anterior + _SUFIJO_SUPERSEDED, body, _record_reference(nombre_nuevo),
+        _record_reference(nombre_anterior), "superseded", transition_store, context)
 
 
-def _aplicar_revoke(cliente, group_id, entrada_previa, id_):
-    """Tombstone: un episodio de invalidacion + (si habia un uuid previo publicado) un triplete
-    `SUPERSEDES` hacia el. NUNCA llama a `delete_episode` (design.md, enmienda 2026-09-18).
+_SUFIJO_WITHDRAWN = "@withdrawn"
 
-    Gap #94 (Minor, fix5): con `uuid` previo pero sin `version` en el manifiesto, el
-    `target_node_name` salia como `<id>@None` (nodo inexistente): se rechaza antes de emitir
-    nada y la op cae a `fallidos` con causa explicita."""
-    if not entrada_previa:
-        return None
-    if entrada_previa.get("uuid") and entrada_previa.get("version") is None:
-        raise ErrorMCP(
-            f"entrada publicada de `{id_}` sin `version` en el manifiesto: no se puede nombrar el "
-            f"episodio a invalidar para el `SUPERSEDES` (no se inventa un nombre de nodo)")
-    tombstone_uuid = _uuid_tombstone(group_id, id_)
-    cliente.tools_call("add_memory", {
-        "name": f"{id_}{_SUFIJO_TOMBSTONE}",
-        "episode_body": f"knowledge_id: {id_}\nstatus: invalidado\n\nEntrada retirada de `approved/`.",
-        "group_id": group_id,
-        "source": "text",
-        "source_description": "custom-agents:graphiti-memory",
-        "uuid": tombstone_uuid,
-    })
-    if entrada_previa.get("uuid"):
-        cliente.tools_call("add_triplet", {
-            # Gap #56 (Important, mutante N6) + gap #69 (Critical, fix4): este camino -el de
-            # REVOKE- es DISTINTO del de version-superada y tambien enviaba solo los `*_uuid`.
-            # El contrato REAL de `add_triplet` exige los NOMBRES (`required` del fixture
-            # `tools/list`) y acepta los uuid como refuerzo: se envian los cuatro campos.
-            "source_node_name": f"{id_}{_SUFIJO_TOMBSTONE}",
-            "source_node_uuid": tombstone_uuid,
-            "edge_name": "SUPERSEDES",
-            "fact": f"{id_} invalidado",
-            "target_node_name": _nombre_episodio(id_, entrada_previa["version"]),
-            "target_node_uuid": entrada_previa["uuid"],
-            "group_id": group_id,
-        })
-    return tombstone_uuid
+
+def _aplicar_revoke(cliente, group_id, entrada_previa, id_, cfg=None,
+                    publication_session=None, transition_store=None):
+    """Retain history with a confirmed version-scoped withdrawal marker."""
+    if not entrada_previa or not entrada_previa.get("uuid") or entrada_previa.get("version") is None:
+        raise ErrorMCP("retirada sin identidad real y version publicada")
+    if cfg is None or cfg.get("group_id") != group_id or publication_session is None:
+        raise ErrorMCP("retirada sin contexto de publicacion propio")
+    name = _nombre_episodio(id_, entrada_previa["version"])
+    marker = name + _SUFIJO_WITHDRAWN
+    body = (f"knowledge_id: {id_}\nepisodio: {name}\nstatus: invalidado\n"
+            f"source_episode_uuid: {entrada_previa['uuid']}\n\nVersion retirada de `approved/`.")
+    context = {'source_episode_uuid': entrada_previa['uuid']}
+    if entrada_previa.get('episode_body_sha256'):
+        context['retired_episode'] = {
+            'name': name, 'uuid': entrada_previa['uuid'],
+            'episode_body_sha256': entrada_previa['episode_body_sha256']}
+    return _transition_marker(cliente, cfg, publication_session, id_, entrada_previa["version"],
+        marker, body, _record_reference(marker), _record_reference(name), "withdrawn", transition_store, context)
+
+
+def _manifest_data(group_id, entries, transitions):
+    return {"group_id": group_id, "entradas": entries, "transitions": transitions}
+
+
+def _transition_relation_mode(cfg):
+    """Portable episode records by default; direct Entity writes require an explicit opt-in.
+
+    A triplet server must route writes to the configured group. Output schema alone
+    cannot prove its physical database routing; this option is an operator choice.
+    """
+    mode = cfg.get("transition_relations", "episode")
+    if mode not in ("episode", "triplet"):
+        raise ErrorMCP("transition_relations debe ser episode o triplet")
+    return mode
+
+
+def _control_exclusion_types(cfg):
+    """Exclude the SDK default Entity plus explicitly declared server types for controls."""
+    values = cfg.get('transition_excluded_entity_types', [])
+    if type(values) is not list or len(values) > 128 or any(
+            type(value) is not str or not 0 < len(value) <= 256 or value != value.strip()
+            or not value.isprintable() for value in values):
+        raise ErrorMCP('transition_excluded_entity_types debe ser una lista de hasta 128 nombres validos')
+    return ['Entity', *sorted(set(values) - {'Entity'})]
+
+
+def _operacion_revoke(id_, entry, group_id):
+    return {"tipo": "revoke", "id": id_, "group_id": group_id,
+            "version": entry.get("version"), "uuid": entry.get("uuid"), "hash": entry.get("hash")}
+
+
+def _operacion_obsoleta(op, entries, transitions, group_id):
+    """Validate queued identity and reject backward publication before remote mutation."""
+    if op.get("tipo") not in ("upsert", "revoke", "retire_submission", "recover_transition") or not isinstance(op.get("id"), str):
+        raise ErrorMCP("operacion de publicacion invalida")
+    version = op.get("version")
+    if type(version) is not int or version < 1:
+        raise ErrorMCP("operacion sin version positiva vinculada")
+    if not isinstance(op.get("group_id"), str) or not op["group_id"]:
+        raise ErrorMCP("operacion sin grupo vinculado")
+    if op["group_id"] != group_id:
+        return True
+    if op['tipo'] == 'recover_transition':
+        marker = op.get('submission_name');body_hash = op.get('episode_body_sha256')
+        if marker not in (_nombre_episodio(op['id'],version)+'@superseded', _nombre_episodio(op['id'],version)+'@withdrawn') or type(body_hash) is not str or not re.fullmatch('[a-f0-9]{64}',body_hash):
+            raise ErrorMCP('recuperacion de marcador sin nombre y hash vinculados')
+        current = transitions.get(marker)
+        if current is not None:
+            if current.get('episode_body_sha256') != body_hash:
+                raise ErrorMCP('recuperacion contradice el marcador registrado')
+            return True
+        return False
+    if op['tipo'] == 'retire_submission':
+        name = _nombre_episodio(op['id'], version)
+        body_hash = op.get('episode_body_sha256')
+        if op.get('submission_name') != name or type(body_hash) is not str or not re.fullmatch('[a-f0-9]{64}', body_hash):
+            raise ErrorMCP('retirada de envio sin nombre y hash vinculados')
+        retired = (transitions.get(name + '@withdrawn') or {}).get('retired_episode')
+        if retired is not None:
+            if retired.get('name') != name or retired.get('episode_body_sha256') != body_hash:
+                raise ErrorMCP('retirada de envio contradice la identidad historica')
+            return True
+        return False
+    current = entries.get(op["id"])
+    if op["tipo"] == "revoke":
+        if not op.get("uuid") or not op.get("hash") or not op.get("group_id"):
+            raise ErrorMCP("retirada sin identidad, hash y grupo vinculados")
+        return (not current or
+                any(op[key] != current.get(key) for key in ("version", "uuid", "hash")))
+    if current:
+        if version < current["version"]:
+            return True
+        if version == current["version"] and op.get("hash") != current.get("hash"):
+            raise ErrorMCP("contenido distinto para una version ya publicada; incrementa la version")
+    return any(meta.get("id") == op["id"] and
+               type(meta.get("target_version")) is int and meta["target_version"] >= version
+               for meta in transitions.values())
 
 
 def apply(ops, cfg):
+    cfg = cfg or {}
+    if _modo(cfg) == "off":
+        raise ConfigInvalida("`mode: off`: el adaptador no aplica cambios")
+    _transition_relation_mode(cfg)
+    _control_exclusion_types(cfg)
+    try:
+        with _gpub.session(cfg) as publication_session:
+            return _apply_locked(ops, cfg, publication_session)
+    except _gpub.PublicationError as error:
+        raise ErrorMCP(str(error)) from error
+
+
+def _apply_locked(ops, cfg, publication_session):
     """Diario pendiente->publicado (idempotencia PROPIA ante reintentos). Gap #32 (Critical): el
     `.pending` se escribe INCREMENTALMENTE -una vez por op, justo DESPUES de que esa op tuvo
     exito contra el servidor-, nunca el objetivo completo ANTES de tocar el servidor: si el
@@ -1362,6 +1515,13 @@ def apply(ops, cfg):
     resolucion DNS (`_resolver_host_cacheado`, TTL corto) es la mitigacion real del coste de
     "una conexion + una resolucion DNS por operacion" que motivo este gap."""
     cfg = cfg or {}
+    if cfg.get('_logical_group_id'):
+        try:
+            current = _gscope.read_config(cfg,_gpub)
+        except _gscope.ScopeError as error:
+            raise ErrorMCP(str(error)) from error
+        if current['group_id'] != cfg.get('group_id'):
+            raise ErrorMCP('generacion activa cambio antes de adquirir la publicacion; replanifica')
     if _modo(cfg) == "off":
         raise ConfigInvalida("`mode: off`: el adaptador no aplica cambios (gap #35)")
     _aplicar_telemetria(cfg)
@@ -1369,6 +1529,7 @@ def apply(ops, cfg):
     if not group_id:
         raise ConfigInvalida("`group_id` vacio: no se puede aplicar sin un grupo estable")
     manifest, _pendiente = _leer_manifest(cfg)
+    transitions = dict(manifest.get("transitions") or {})
     avisos = []
     # Gap #89 (Important, fix5): copia del manifiesto OBJETIVO ANTES de cualquier poda. La
     # reconciliacion de #68 puede quitar de `publicado` una entrada que el servidor no confirma
@@ -1393,6 +1554,7 @@ def apply(ops, cfg):
         # Los `uuid` del manifiesto viejo pertenecen a OTRO `group_id`: no sirven para revocar
         # nada en el grupo actual (gap #73), asi que tampoco se heredan (gap #89).
         heredado = {}
+        transitions = {}
     else:
         publicado = dict(manifest.get("entradas") or {})
 
@@ -1440,11 +1602,25 @@ def apply(ops, cfg):
                     "`upsert` solo si siguen en `approved/`: " + ", ".join(sin_operacion))
         publicado = confirmadas
 
+    retained_ops = []
+    omitidos_obsoletos = 0
+    for op in ops:
+        if _operacion_obsoleta(op, heredado, transitions, group_id):
+            omitidos_obsoletos += 1
+        else:
+            retained_ops.append(op)
+    ops = retained_ops
+    if not ops and omitidos_obsoletos and not _pendiente:
+        return {"aplicados": 0, "revocados": 0, "omitidos_obsoletos": omitidos_obsoletos}
+
     if not ops:
-        _escribir_manifest(cfg, {"group_id": group_id, "entradas": publicado})
+        _escribir_manifest(cfg, _manifest_data(group_id, publicado, transitions))
         _borrar_pending(cfg)
         _invalidar_cache_verify(cfg)  # gap #95: el manifiesto cambio, el `verify` cacheado sobra
+        _gpub.prune_confirmed(cfg, publicado, publication_session, transitions)
         resultado = {"aplicados": 0, "revocados": 0}
+        if omitidos_obsoletos:
+            resultado["omitidos_obsoletos"] = omitidos_obsoletos
         if avisos:
             resultado["avisos"] = avisos
         return resultado
@@ -1458,35 +1634,78 @@ def apply(ops, cfg):
     cliente.initialize()
 
     progreso = dict(publicado)  # se muta y se persiste tras CADA op con éxito, no al final
-    _escribir_manifest(cfg, {"group_id": group_id, "entradas": progreso}, sufijo=".pending")
+    _escribir_manifest(cfg, _manifest_data(group_id, progreso, transitions), sufijo=".pending")
     aplicados, revocados, fallidos = 0, 0, []
+    retirados_pendientes = 0
+    transiciones_recuperadas = 0
+    blocked_ids = set()
+    retained_for_revoke = dict(heredado)
     for op in ops:
         try:
+            if op['id'] in blocked_ids:
+                raise ErrorMCP('operacion diferida tras un fallo previo de la misma entrada')
+            known_generations = {**retained_for_revoke, **progreso}
+            if _operacion_obsoleta(op, known_generations, transitions, group_id):
+                omitidos_obsoletos += 1
+                continue
             if op["tipo"] == "upsert":
-                _uuid_devuelto, aviso_tope = _aplicar_upsert(
+                uuid_devuelto, aviso_tope = _aplicar_upsert(
                     cliente, proveedor, provider_cfg, group_id, op, cfg=cfg,
-                    entrada_previa=publicado.get(op["id"]))
+                    entrada_previa=known_generations.get(op["id"]), publication_session=publication_session, transition_store=transitions)
                 if aviso_tope:
                     avisos.append(aviso_tope)
+                confirmed_receipt = _gpub.receipt(publication_session, f"{op['id']}@{op['version']}", uuid_devuelto)
                 progreso[op["id"]] = {
                     "version": op["version"], "hash": op["hash"], "category": op.get("category"),
-                    "uuid": _uuid_episodio(group_id, op["id"], op["version"]),
+                    "uuid": uuid_devuelto, "binding": "verified_readback",
+                    "episode_body_sha256": confirmed_receipt["body_sha256"],
                 }
                 aplicados += 1
+            elif op['tipo'] == 'recover_transition':
+                old_current = progreso.get(op['id'])
+                owned_source_name = _nombre_episodio(op['id'], op['version'])
+                owned_source_receipt = next((value for value in publication_session[0]['operations'].values()
+                                             if value['name'] == owned_source_name), None)
+                intent = _recover_transition(cliente, cfg, publication_session, op, transitions, progreso)
+                if intent['action'] == 'withdrawn':
+                    revocados += 1
+                    if (owned_source_receipt and owned_source_receipt.get('phase') == 'confirmed'
+                            and owned_source_receipt.get('uuid') == intent['source_episode_uuid']
+                            and not (old_current and old_current.get('version') == intent['target_version'])):
+                        retirados_pendientes += 1
+                prior = retained_for_revoke.get(op['id'])
+                if prior and prior.get('version') == intent['target_version']:
+                    retained_for_revoke.pop(op['id'])
+                transiciones_recuperadas += 1
+            elif op['tipo'] == 'retire_submission':
+                confirmed = _gpub.confirm_existing(cfg, op['submission_name'], op['episode_body_sha256'],
+                                                   cliente, _contenido_tool_call, publication_session)
+                entry = {'version': op['version'], 'uuid': confirmed['uuid'],
+                         'episode_body_sha256': confirmed['body_sha256']}
+                _aplicar_revoke(cliente, group_id, entry, op['id'], cfg=cfg,
+                                publication_session=publication_session, transition_store=transitions)
+                current = progreso.get(op['id'])
+                if current and current.get('version') == entry['version'] and current.get('uuid') == entry['uuid']:
+                    progreso.pop(op['id'], None)
+                    retained_for_revoke.pop(op['id'], None)
+                revocados += 1
+                retirados_pendientes += 1
             else:
                 # Gap #89: `revocados` SOLO se incrementa despues de que el tombstone (y su
                 # `SUPERSEDES`) hayan salido de verdad hacia el servidor; si no hay datos para
                 # reconstruir el nombre/uuid, `_entrada_para_revoke` levanta y la op cae a
                 # `fallidos` con causa explicita, nunca a `revocados`.
                 _aplicar_revoke(cliente, group_id,
-                                _entrada_para_revoke(group_id, op["id"], publicado, heredado),
-                                op["id"])
+                                _entrada_para_revoke(group_id, op["id"], progreso, retained_for_revoke),
+                                op["id"], cfg=cfg, publication_session=publication_session, transition_store=transitions)
                 progreso.pop(op["id"], None)
+                retained_for_revoke.pop(op["id"], None)
                 revocados += 1
         except Exception as e:  # noqa: BLE001 - un fallo de una op no debe perder las demas
+            blocked_ids.add(op['id'])
             fallidos.append({"id": op["id"], "tipo": op["tipo"], "error": f"{type(e).__name__}: {e}"})
             continue
-        _escribir_manifest(cfg, {"group_id": group_id, "entradas": progreso}, sufijo=".pending")
+        _escribir_manifest(cfg, _manifest_data(group_id, progreso, transitions), sufijo=".pending")
 
     if fallidos:
         # Gap #92 (Minor, fix5): los `avisos` acumulados (archivado de #73, poda de #68/#89,
@@ -1501,23 +1720,31 @@ def apply(ops, cfg):
         error.avisos = list(avisos)
         raise error
 
-    _escribir_manifest(cfg, {"group_id": group_id, "entradas": progreso})
+    _escribir_manifest(cfg, _manifest_data(group_id, progreso, transitions))
     _borrar_pending(cfg)
     _invalidar_cache_verify(cfg)  # gap #95: acaba de cambiar el grafo y el manifiesto
+    try:
+        _gpub.prune_confirmed(cfg, progreso, publication_session, transitions)
+    except Exception as error:
+        avisos.append(f"recibos confirmados retenidos: {_sanear_detalle(error)}")
     resultado = {"aplicados": aplicados, "revocados": revocados}
+    if retirados_pendientes:
+        resultado['retirados_pendientes'] = retirados_pendientes
+    if transiciones_recuperadas:
+        resultado['transiciones_recuperadas'] = transiciones_recuperadas
+    if omitidos_obsoletos:
+        resultado["omitidos_obsoletos"] = omitidos_obsoletos
     if avisos:  # gap #64: solo se añade la clave si hay algo que avisar (compatibilidad con
         resultado["avisos"] = avisos  # las comparaciones exactas de tests existentes)
     return resultado
 
 
 def _entrada_para_revoke(group_id, id_, publicado, heredado):
-    """Gap #89 (Important, fix5): datos con los que emitir el tombstone de un `revoke`. Se prefiere
-    el manifiesto ya reconciliado (`publicado`) y, si la poda de #68/#89 quito la entrada de ahi,
-    se cae al manifiesto HEREDADO (`.pending`/publicado previo): el nombre del episodio
-    (`<id>@<version>`) y el `uuid` (uuid5 determinista, reconstruible desde
-    `group_id:id:version`) bastan para invalidarlo en el grafo. Sin `version` no hay forma de
-    nombrar el nodo: se levanta y la op cae a `fallidos` con causa explicita (nunca se cuenta como
-    revocada)."""
+    """Read the actual remote identity retained for a version-scoped withdrawal.
+
+    A reconciled manifest may omit an episode outside its observation window;
+    the retained manifest still supplies its real UUID. Missing identities fail.
+    """
     entrada = publicado.get(id_) or heredado.get(id_)
     if not entrada:
         raise ErrorMCP(
@@ -1528,8 +1755,9 @@ def _entrada_para_revoke(group_id, id_, publicado, heredado):
         raise ErrorMCP(
             f"`revoke` de `{id_}`: la entrada del manifiesto no trae `version`, no se puede "
             f"reconstruir el nombre del episodio (`<id>@<version>`); no se cuenta como revocado")
-    return {**entrada, "version": version,
-            "uuid": entrada.get("uuid") or _uuid_episodio(group_id, id_, version)}
+    if not entrada.get("uuid"):
+        raise ErrorMCP("retirada sin UUID remoto conocido; no se inventa una identidad")
+    return {**entrada, "version": version, "uuid": entrada["uuid"]}
 
 
 _MAX_FALLIDOS_EN_MENSAJE = 5
@@ -1594,31 +1822,17 @@ def _borrar_pending(cfg):
 
 
 def rebuild(entries, cfg):
-    """UNICO camino que llama a `clear_graph`, acotado al `group_id` propio (design.md); vacia el
-    manifiesto local a juego y republica todo via `plan(force=True)` + `apply()` — reproduce el
-    MISMO hash de manifiesto que la sincronizacion incremental (mismos uuid5 deterministas)."""
+    """Build and verify a resumable generation before switching publication."""
     cfg = cfg or {}
     if _modo(cfg) == "off":
-        raise ConfigInvalida("`mode: off`: el adaptador no reconstruye el grafo (gap #35)")
+        raise ConfigInvalida("`mode: off`: el adaptador no reconstruye el grafo")
     _aplicar_telemetria(cfg)
-    group_id = cfg.get("group_id")
-    if not group_id:
+    if not cfg.get("group_id"):
         raise ConfigInvalida("`group_id` vacio: no se puede reconstruir sin un grupo estable")
-    allow_remote = bool(cfg.get("allow_remote", False))
-    cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=_timeout_s(cfg), allow_remote=allow_remote,
-                         max_respuesta_bytes=_max_respuesta_bytes(cfg))
-    cliente.initialize()
-    # Gap #82 (Minor): el `.pending` VACIO se escribe ANTES de `clear_graph` -es la marca de que
-    # hay una reconstruccion en curso-. Si `clear_graph` borra y luego falla la lectura de la
-    # respuesta (timeout), el grafo queda vacio: con la marca, `verify()` dice
-    # "publicacion_incompleta" en vez de afirmar que todo sigue publicado (incremental no-op).
-    _escribir_manifest(cfg, {"group_id": group_id, "entradas": {}}, sufijo=".pending")
-    cliente.tools_call("clear_graph", {"group_ids": [group_id]})
-    _escribir_manifest(cfg, {"group_id": group_id, "entradas": {}})
-    _borrar_pending(cfg)
-    _invalidar_cache_verify(cfg)  # gap #95: el grafo acaba de vaciarse; el verify cacheado miente
-    ops = plan(entries, cfg, force=True)
-    return apply(ops, cfg)
+    try:
+        return _grebuild.rebuild(entries, cfg, globals())
+    except (_grebuild.GenerationError, _gpub.PublicationError, _gscope.ScopeError, OSError, ValueError) as error:
+        raise ErrorMCP(_sanear_detalle(error)) from error
 
 
 def revoke(knowledge_id, cfg):
@@ -1628,11 +1842,12 @@ def revoke(knowledge_id, cfg):
     if _modo(cfg) == "off":
         raise ConfigInvalida("`mode: off`: el adaptador no revoca (gap #35)")
     manifest, _pendiente = _leer_manifest(cfg)
-    if knowledge_id not in (manifest.get("entradas") or {}):
+    entries = _entradas_del_grupo(manifest, cfg.get("group_id"))
+    if knowledge_id not in entries:
         return {"revocado": False, "razon": "no publicado", "id": knowledge_id}
-    resultado = apply([{"tipo": "revoke", "id": knowledge_id}], cfg)
+    resultado = apply([_operacion_revoke(knowledge_id, entries[knowledge_id], cfg.get("group_id"))], cfg)
     _invalidar_cache_verify(cfg)  # gap #95 (`apply` ya invalida; explicito por si cambia)
-    return {"revocado": True, "id": knowledge_id, "resultado": resultado}
+    return {"revocado": resultado.get("revocados", 0) == 1, "id": knowledge_id, "resultado": resultado}
 
 
 _CACHE_VERIFY_TTL_S = 5  # gap #70 (lente D): ventana corta, solo para no repetir el barrido
@@ -1668,12 +1883,29 @@ def _invalidar_cache_verify(cfg):
         _cache_verify.pop(clave, None)
 
 
+def _submission_status(cfg):
+    try:
+        status = _gpub.observe(cfg or {})
+    except Exception as error:
+        return {"ok": False, "estado": "no_verificable", "razon": "submission_state_invalid",
+                "detalle": _sanear_detalle(error), "desfase": []}
+    unresolved = status["unconfirmed"] + status.get("uncommitted", 0)
+    if unresolved:
+        return {"ok": False, "estado": "incompleto", "razon": "submissions_pending",
+                "no_verificado": unresolved, "desfase": [],
+                "remedio": "observar o resolver el envio existente antes de servir lecturas; no reenviar automaticamente"}
+    return None
+
+
 def _verify_cacheado(cfg):
     """Gap #70 (Important, lente D): `puede_leer()` encadena `health()` + `verify()` y el router
     de T-07 la llamara POR CONSULTA — sin cache, cada consulta barria el grafo entero con
     `get_episodes`. El resultado se cachea en PROCESO con un TTL corto (5 s): suficiente para una
     rafaga de consultas, demasiado corto para enmascarar un desfase real."""
     cfg = cfg or {}
+    pending = _submission_status(cfg)
+    if pending is not None:
+        return pending
     clave = _clave_cache_verify(cfg)
     ahora = time.monotonic()
     entrada = _cache_verify.get(clave)
@@ -1704,6 +1936,8 @@ def puede_leer(cfg):
     # #120) no autoriza lectura — CA-10 sigue pidiendo `verify` SIN desfase, y una ventana que no
     # ha confirmado nada no es «sin desfase», es «no he podido mirarlo». Fail-closed con el
     # remedio a la vista (gap #138: la razon viaja a stderr y al contexto del agente, saneada).
+    if veredicto_verify.get("razon") == "submissions_pending":
+        return {"puede": False, "razon": "envios pendientes de confirmacion; observar o resolver antes de consultar"}
     if veredicto_verify.get("estado") == "incompleto" or veredicto_verify.get("no_verificado"):
         return {"puede": False, "razon": _sanear_detalle(
             f"verificacion incompleta: {veredicto_verify.get('no_verificado')} entrada(s) sin "
@@ -1753,7 +1987,7 @@ def _max_episodios_verify(cfg):
     return min(valor, _MAX_EPISODIOS_VERIFY)
 
 
-def _nombres_remotos_confirmados(cliente, group_id, entradas, tope_episodios=None):
+def _nombres_remotos_confirmados(cliente, group_id, entradas, tope_episodios=None, expected_bindings=None):
     """`get_episodes` es una ventana de los MAS RECIENTES, no un filtro por nombre — una entrada
     antigua real puede quedar fuera de una ventana fija (gap #39). Se pide una ventana generosa
     y, si TODAVIA faltan nombres esperados y la respuesta llego "llena" (indicio de que hay mas
@@ -1780,13 +2014,16 @@ def _nombres_remotos_confirmados(cliente, group_id, entradas, tope_episodios=Non
     lo que no se pudo mirar no es lo mismo que lo que no esta (misma distincion del gap #67), y
     `tombstones_de_entradas_vivas` alimenta el aviso de migracion del gap #126."""
     tope = tope_episodios or _MAX_EPISODIOS_VERIFY
-    esperados = {f"{id_}@{meta.get('version')}" for id_, meta in entradas.items()}
+    bindings = {f"{id_}@{meta.get('version')}": meta for id_, meta in entradas.items()}
+    if expected_bindings is not None:
+        bindings = expected_bindings
+    esperados = set(bindings)
     nombres_remotos = set()
     otros_grupos = set()
     uuids_remotos = {}
     tombstones = set()
     ventana_completa = True
-    max_episodes = min(max(len(entradas) * 2, 50), tope)
+    max_episodes = min(max(len(bindings) * 2, 50), tope)
     tamano_previo = -1
     hubo_ventana_buena = False
     for _ in range(6):
@@ -1812,11 +2049,14 @@ def _nombres_remotos_confirmados(cliente, group_id, entradas, tope_episodios=Non
                 raise _RespuestaIlegible()
         else:
             raise _RespuestaIlegible()
+        if not isinstance(episodios_remotos, list) or len(episodios_remotos) > max_episodes:
+            raise _RespuestaIlegible()
         hubo_ventana_buena = True
         nombres_remotos = set()
         otros_grupos = set()
         uuids_remotos = {}
         tombstones = set()
+        seen_expected = set()
         for ep in episodios_remotos:
             if not isinstance(ep, dict):
                 continue
@@ -1825,6 +2065,17 @@ def _nombres_remotos_confirmados(cliente, group_id, entradas, tope_episodios=Non
                 otros_grupos.add(grupo_ep)
                 continue
             if ep.get("name"):
+                binding = bindings.get(ep["name"]) or {}
+                if ep['name'] in esperados:
+                    if ep['name'] in seen_expected:
+                        raise ErrorMCP('nombre de episodio esperado duplicado en la ventana')
+                    seen_expected.add(ep['name'])
+                if binding.get("binding") == "verified_readback":
+                    content = ep.get("content", ep.get("episode_body"))
+                    if (ep.get("group_id") != group_id or ep.get("uuid") != binding.get("uuid")
+                            or not isinstance(content, str)
+                            or hashlib.sha256(content.encode("utf8")).hexdigest() != binding.get("episode_body_sha256")):
+                        continue
                 nombres_remotos.add(ep["name"])
                 if ep.get("uuid"):
                     uuids_remotos[ep["name"]] = ep["uuid"]
@@ -1899,6 +2150,29 @@ def _reconciliar_publicado(cfg, group_id, entradas):
     return confirmadas, True
 
 
+def _history_bindings(transitions):
+    if type(transitions) is not dict:
+        raise ErrorMCP('historial del manifiesto invalido')
+    runtime = {'uuid','episode_body_sha256','edge_uuid','source_uuid','target_uuid'}
+    for name, meta in transitions.items():
+        if type(meta) is not dict:
+            raise ErrorMCP('marcador del manifiesto invalido')
+        intent = {key:value for key,value in meta.items() if key not in runtime}
+        _gpub._validate_transition(intent, name)
+        if hashlib.sha256(_transition_body(intent).encode('utf8')).hexdigest() != meta.get('episode_body_sha256'):
+            raise ErrorMCP('intencion historica no coincide con el hash del marcador')
+        if meta['representation'] == 'triplet':
+            if not all(type(meta.get(key)) is str and 0 < len(meta[key]) <= 200
+                       for key in ('edge_uuid','source_uuid','target_uuid')):
+                raise ErrorMCP('relacion historica sin identidades confirmadas')
+    bindings = {}
+    for name, (uid, body_hash) in _gpub._committed_bindings({'entradas':{},'transitions':transitions}).items():
+        if type(uid) is not str or not 0 < len(uid) <= 200 or type(body_hash) is not str or not re.fullmatch('[a-f0-9]{64}',body_hash):
+            raise ErrorMCP('historial sin UUID y hash confirmados')
+        bindings[name] = {'uuid':uid,'episode_body_sha256':body_hash,'binding':'verified_readback'}
+    return bindings
+
+
 def verify(cfg):
     """Nunca lanza (contrato de adaptador): compara el manifiesto local con `get_episodes` del
     `group_id` propio; NOMBRA el remedio sin ejecutarlo (CA-16)."""
@@ -1909,12 +2183,31 @@ def verify(cfg):
     # adaptador (`health`/`apply`/`rebuild` si respetan `mode: off`).
     if _modo(cfg) == "off":
         return {"ok": None, "estado": "no_verificable", "razon": "mode: off"}
+    pending = _submission_status(cfg)
+    if pending is not None:
+        return pending
     if os.path.isfile(_manifest_path(cfg, ".pending")):
         return {"ok": False, "estado": "desfase", "razon": "publicacion_incompleta", "desfase": [],
                 "remedio": _REMEDIO_PUBLICACION_INCOMPLETA}
-    manifest, _pendiente = _leer_manifest(cfg)
-    entradas = manifest.get("entradas") or {}
-    if not entradas:
+    try:
+        manifest, _pendiente = _leer_manifest(cfg)
+        entradas = manifest.get("entradas") or {}
+        if type(entradas) is not dict:
+            raise ErrorMCP('entradas del manifiesto invalidas')
+        transitions = manifest.get('transitions', {})
+        historical = _history_bindings(transitions)
+        for transition in transitions.values():
+            current = entradas.get(transition['id'])
+            if current and type(current.get('version')) is int and current['version'] <= transition['target_version']:
+                raise ErrorMCP('manifiesto vigente referencia una version invalidada por su historial')
+        bindings = {f"{id_}@{meta.get('version')}":meta for id_,meta in entradas.items()}
+        for name, binding in historical.items():
+            if name in bindings and (bindings[name].get('uuid'),bindings[name].get('episode_body_sha256')) != (binding['uuid'],binding['episode_body_sha256']):
+                raise ErrorMCP('historial contradice una identidad vigente')
+            bindings[name] = binding
+    except Exception as error:
+        return {'ok':False,'estado':'no_verificable','razon':f'manifiesto invalido: {_sanear_detalle(error)}','desfase':[]}
+    if not bindings:
         return {"ok": True, "estado": "ok", "desfase": []}
     group_id = cfg.get("group_id") or manifest.get("group_id")
     if not group_id:
@@ -1927,7 +2220,7 @@ def verify(cfg):
         cliente.initialize()
         (nombres_remotos, otros_grupos, _uuids_remotos, ventana_completa,
          tombstones_vivos) = _nombres_remotos_confirmados(
-            cliente, group_id, entradas, _max_episodios_verify(cfg))
+            cliente, group_id, entradas, _max_episodios_verify(cfg), expected_bindings=bindings)
     except _RespuestaIlegible:
         return {"ok": None, "estado": "no_verificable",
                 "razon": "respuesta de get_episodes ilegible (no es lista ni {\"episodes\": [...]})",
@@ -1936,15 +2229,17 @@ def verify(cfg):
         return {"ok": False, "estado": "no_verificable",
                 "razon": f"no se pudo consultar get_episodes: {type(e).__name__}: {_sanear_detalle(e)}",
                 "desfase": []}
-    no_confirmadas = [id_ for id_, meta in sorted(entradas.items())
-                      if f"{id_}@{meta.get('version')}" not in nombres_remotos]
+    if otros_grupos:
+        return {'ok':False,'estado':'no_verificable','razon':'respuesta fuera del group_id solicitado','desfase':[]}
+    no_confirmadas = sorted(set(bindings)-nombres_remotos)
     # Gap #120 (fix2 Fase 3): con la ventana INCOMPLETA (el tope de lectura corto la ampliacion),
     # lo no confirmado NO es desfase -es "no he podido mirarlo"-. Declararlo desfase dejaba
     # `verify` en falso, `puede_leer` en false y toda consulta enrutada degradada a local en el
     # escenario de referencia con los defaults. Se publica como `no_verificado` + aviso.
     desfase = [] if (no_confirmadas and not ventana_completa) else [
-        {"knowledge_id": id_, "motivo": "episodio no encontrado en el grafo", "remedio": _REMEDIO_DESFASE}
-        for id_ in no_confirmadas
+        {"knowledge_id": name.split('@',1)[0], "episodio":name,
+         "motivo": "episodio no encontrado con su identidad confirmada", "remedio": _REMEDIO_DESFASE}
+        for name in no_confirmadas
     ]
     # Gap #133 (Important, fix3 Fase 3): TRES veredictos, no dos. «No he podido mirarlo» no se
     # puede leer como «sin desfase»: `puede_leer` autorizaba lecturas con CERO entradas
@@ -1953,13 +2248,24 @@ def verify(cfg):
     incompleto = bool(no_confirmadas) and not ventana_completa
     estado = "desfase" if desfase else ("incompleto" if incompleto else "ok")
     salida = {"ok": estado == "ok", "estado": estado, "desfase": desfase}
+    if historical:
+        salida['historico_verificado'] = len(set(historical) & nombres_remotos)
+    if not no_confirmadas and transitions:
+        deadline = time.monotonic() + max(1.0,_timeout_s(cfg)) * 4
+        for name, meta in transitions.items():
+            if meta['representation'] != 'triplet':
+                continue
+            request = {'source_node_name':meta['source_ref'],'target_node_name':meta['target_ref'],
+                       'edge_name':'SUPERSEDES','fact':f"{meta['source_ref']} supersedes {meta['target_ref']}.",'group_id':group_id}
+            expected = {key:meta[key] for key in ('edge_uuid','source_uuid','target_uuid')}
+            try:
+                confirmed = _gpub._observe_relation(cliente,_contenido_tool_call,request,deadline,expected)
+            except Exception as error:
+                return {'ok':False,'estado':'no_verificable','razon':f'no se pudo verificar relacion historica: {_sanear_detalle(error)}','desfase':[]}
+            if confirmed is None:
+                salida['ok'] = False;salida['estado'] = 'desfase'
+                salida['desfase'].append({'knowledge_id':meta['id'],'episodio':name,'motivo':'relacion historica no confirmada','remedio':_REMEDIO_DESFASE})
     avisos = []
-    if otros_grupos:
-        # Gap #138 (Minor, CWE-400/117, fix3 Fase 3): la lista entera de `group_id` ajenos (que
-        # vienen del servidor) acababa cruda en stderr, en `--json` y en el contexto del agente:
-        # 3 000 grupos = 45 KB de aviso. Se resume y se sanea pieza a pieza.
-        avisos.append("el servidor devolvio episodios de otro(s) group_id: "
-                      + _lista_resumida(sorted(otros_grupos)))
     if incompleto:
         salida["no_verificado"] = len(no_confirmadas)
         # Gap #148 (Important, fix4 Fase 3): un veredicto `incompleto` no dice QUIEN corto la
@@ -1967,7 +2273,7 @@ def verify(cfg):
         # distinguir «el backend no llego» de «la ventana que YO le pase no daba para tanto»
         # (`/doctor` recorta `max_episodes` a su tope de diagnostico): con `total` > la ventana
         # que el llamador impuso, el limite es SUYO y no hay nada que avisar del backend.
-        salida["total"] = len(entradas)
+        salida["total"] = len(bindings)
         salida["remedio"] = _REMEDIO_VENTANA_INCOMPLETA
         avisos.append(
             f"{len(no_confirmadas)} entrada(s) sin confirmar: la ventana de `get_episodes` no "
@@ -2156,15 +2462,17 @@ def _indice_procedencia_ventana(cliente, group_id, tope):
                 ajenos += 1
             continue
         nombre = ep.get("name") or ""
-        if nombre.endswith(_SUFIJO_SUPERSEDED):
-            superados.add(nombre[: -len(_SUFIJO_SUPERSEDED)])
+        if nombre.endswith((_SUFIJO_SUPERSEDED, _SUFIJO_WITHDRAWN)):
+            suffix = _SUFIJO_WITHDRAWN if nombre.endswith(_SUFIJO_WITHDRAWN) else _SUFIJO_SUPERSEDED
+            superados.add(nombre[: -len(suffix)])
             continue
         if nombre.endswith(_SUFIJO_TOMBSTONE):
             invalidados.add(nombre[: -len(_SUFIJO_TOMBSTONE)])
             continue
         procedencia = _procedencia_de_episodio(ep)
         if procedencia and procedencia.get("knowledge_id"):
-            por_nombre[nombre] = dict(procedencia, uuid=ep.get("uuid"))
+            por_nombre[nombre] = dict(procedencia, uuid=ep.get("uuid"), _group_id=ep.get('group_id'),
+                                      _body_sha256=hashlib.sha256((ep.get('content') or ep.get('episode_body') or '').encode('utf8')).hexdigest())
     return por_nombre, invalidados, superados, len(episodios), ajenos
 
 
@@ -2179,10 +2487,10 @@ def _es_nombre_de_episodio(nombre):
     if not isinstance(nombre, str) or not nombre:
         return False
     return bool(_RE_NOMBRE_EPISODIO.match(nombre)) or nombre.endswith(
-        (_SUFIJO_TOMBSTONE, _SUFIJO_SUPERSEDED))
+        (_SUFIJO_TOMBSTONE, _SUFIJO_SUPERSEDED, _SUFIJO_WITHDRAWN))
 
 
-def _indice_procedencia(cliente, group_id, tope, nombres_buscados=()):
+def _indice_procedencia(cliente, group_id, tope, nombres_buscados=(), uuids_buscados=()):
     """Gap #121 (Important, fix2 Fase 3): `get_episodes` es una ventana de los MAS RECIENTES
     mientras `search_nodes`/`search_memory_facts` buscan en TODO el grafo, asi que una ventana
     FIJA (200 episodios) dejaba fuera -en silencio- casi todo acierto de un grafo poblado (recall
@@ -2210,6 +2518,7 @@ def _indice_procedencia(cliente, group_id, tope, nombres_buscados=()):
     resuelto (con episodios de ~4 KiB y los defaults, toda consulta enrutada caia a 0). Se
     conserva la ultima ventana buena y se declara incompleta, como ya hacia `verify()` (#120)."""
     buscables = [n for n in nombres_buscados if _es_nombre_de_episodio(n)]
+    uuid_targets = set(uuids_buscados)
     ventana = min(max(len(buscables) * 2, _VENTANA_CONSULTA_INICIAL), tope)
     leidos_previo = -1
     ultima_buena = ({}, set(), set())
@@ -2232,7 +2541,8 @@ def _indice_procedencia(cliente, group_id, tope, nombres_buscados=()):
                 raise
             return (*ultima_buena, False, "ilegible")
         ultima_buena, hubo_ventana_buena = (por_nombre, invalidados, superados), True
-        if all(n in por_nombre for n in buscables):
+        observed_uuids = {value.get('uuid') for value in por_nombre.values()}
+        if all(n in por_nombre for n in buscables) and uuid_targets <= observed_uuids and not ajenos:
             return por_nombre, invalidados, superados, True, ""
         if leidos < ventana or leidos == leidos_previo:
             # El servidor ya devolvio TODO lo que tiene: lo que falta NO esta fuera de la ventana
@@ -2263,14 +2573,25 @@ def _hits_de_busqueda(resultado, clave):
     return [], ""
 
 
+def _identidad_servida(valor, maximo):
+    """Validate an identity in full; never sanitize or truncate it into another one."""
+    if (not isinstance(valor, str) or not 0 < len(valor) <= maximo
+            or not valor.isprintable() or valor.strip() != valor):
+        return None
+    if _gpub._helper('redact').redactar(valor) != valor:
+        return None
+    return valor
+
+
 def _ruta_canonica(valor):
     """`source_path` servido por el grafo, normalizado, o `None` si no es una ruta RELATIVA bajo
     `docs/knowledge/`. Gap #106 (Minor, CWE-22, fix1 Fase 3): la ruta se imprime como «ruta
     canonica» junto a un `estado` de doctrina y la consume quien luego abre el fichero; una ruta
     absoluta, con `..` o fuera de `docs/knowledge/` no se sirve (fail-closed), no se recorta."""
-    if not isinstance(valor, str):
+    completa = _identidad_servida(valor, 4096)
+    if completa is None:
         return None
-    ruta = _sanear_detalle(valor).strip().replace("\\", "/")
+    ruta = completa.replace("\\", "/")
     if not ruta or ruta.startswith("/") or ":" in ruta.split("/")[0]:
         return None
     partes = [p for p in ruta.split("/") if p not in ("", ".")]
@@ -2404,6 +2725,12 @@ def consultar(cfg, consulta):
 
     limit = _limite_consulta(consulta)
     tope_episodios = min(_max_episodios_verify(cfg), _MAX_EPISODIOS_CONSULTA)
+    declared = None
+    try:
+        declared = _gprov.build(cfg, {}, _gpub)
+    except (ValueError, OSError):
+        pass  # Legacy publications may have no confirmed UUID/body bindings.
+    modern = bool(declared and declared['modern'])
     try:
         cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=_timeout_s(cfg),
                              allow_remote=bool(cfg.get("allow_remote", False)),
@@ -2421,40 +2748,77 @@ def consultar(cfg, consulta):
         hits_propios = [(h, c) for h, c in hits if not _grupo_ajeno(h, group_id)]
         descartados = len(hits) - len(hits_propios)
         nombres_buscados = sorted({n for h, _c in hits_propios for n in _nombres_de_hit(h)})
+        uuid_targets = sorted({uid for hit, clase in hits_propios if clase == 'hecho'
+                               and type(hit.get('episodes')) is list
+                               and len(hit['episodes']) <= _gprov.MAX_REFERENCES
+                               for uid in hit['episodes'] if _gprov._identity(uid)})
+        if any(clase == 'nodo' and (modern or not any(_es_nombre_de_episodio(name) for name in _nombres_de_hit(hit)))
+               for hit, clase in hits_propios):
+            try:
+                expected = (declared or _gprov.build(cfg, {}, _gpub))['expected_current']
+                selected = sorted(expected, key=lambda uid: expected[uid])[:_gprov.MAX_MEMBERSHIP_EPISODES]
+                uuid_targets = sorted(set(uuid_targets) | set(selected))
+            except (ValueError, OSError):
+                pass  # Later native resolution reports unavailable committed bindings.
         por_nombre, invalidados, superados, ventana_completa, causa_ventana = _indice_procedencia(
-            cliente, group_id, tope_episodios, nombres_buscados)
+            cliente, group_id, tope_episodios, nombres_buscados, uuid_targets)
     except _RespuestaIlegible as e:
         return dict(vacio, motivo=str(e) or "respuesta de get_episodes ilegible")
     except Exception as e:  # noqa: BLE001 - mismo contrato que health()/verify(): nunca lanza
         return dict(vacio, motivo=f"no se pudo consultar el grafo: {type(e).__name__}: {_sanear_detalle(e)}")
 
+    native_context = None
+    native_warnings = []
+    native_nodes = [hit for hit, clase in hits_propios if clase == 'nodo'
+                    and (modern or not any(name in por_nombre for name in _nombres_de_hit(hit)))]
+    if modern or native_nodes or any('episodes' in hit for hit, clase in hits_propios if clase == 'hecho'):
+        try:
+            native_context = _gprov.build(cfg, por_nombre, _gpub)
+            native_nodes = [hit for hit in native_nodes
+                            if _gprov.episode_name(hit, native_context, por_nombre) is None]
+            _gprov.populate_nodes(native_context, native_nodes, cliente, _contenido_tool_call, cfg)
+            native_warnings.extend(native_context['warnings'])
+        except (ValueError, OSError) as error:
+            native_warnings.append('procedencia nativa no verificable: ' + _sanear_detalle(error))
     candidatos, fuera_de_ventana = {}, 0
     for hit, clase in hits_propios:
-        nombre = next((n for n in _nombres_de_hit(hit) if n in por_nombre), None)
+        native = modern or (clase == 'hecho' and 'episodes' in hit)
+        if clase == 'hecho' and native:
+            nombre = _gprov.fact_name(hit, native_context, por_nombre)
+        elif clase == 'nodo' and modern:
+            nombre = (_gprov.episode_name(hit, native_context, por_nombre)
+                      or _gprov.node_name(hit, native_context, por_nombre))
+        else:
+            nombre = next((n for n in _nombres_de_hit(hit) if n in por_nombre), None)
+            if nombre is None and clase == 'nodo':
+                nombre = _gprov.node_name(hit, native_context, por_nombre)
+                native = nombre is not None
         if nombre is None:
             # Gap #121: «no lo he podido mirar» (la ventana no llego) NO es «no cuadra» -se
             # cuenta aparte y sale en el `motivo`, nunca en silencio. Gap #135 (fix3): y un hit
             # que no cita NINGUN nombre con forma de episodio propio (entidades del LLM) es un
             # descarte legitimo aunque la ventana este incompleta: no hay ventana que lo resuelva.
-            if not ventana_completa and any(_es_nombre_de_episodio(n) for n in _nombres_de_hit(hit)):
+            if not ventana_completa and (any(_es_nombre_de_episodio(n) for n in _nombres_de_hit(hit))
+                                        or (native and type(hit.get('episodes')) is list
+                                            and any(_gprov._identity(uid) for uid in hit['episodes']))):
                 fuera_de_ventana += 1
             else:
                 descartados += 1
             continue
         procedencia = por_nombre[nombre]
-        knowledge_id = procedencia.get("knowledge_id")
+        knowledge_id = _identidad_servida(procedencia.get("knowledge_id"), 512)
         # Fail-closed (gaps #106/#116): sin `status`, sin nivel de evidencia o con una `ruta` que
         # no es canonica, el acierto NO se sirve -antes `status` caia a `"aprobado"` y la ruta se
         # servia tal cual viniera-.
         status = procedencia.get("status")
         evidencia = procedencia.get("evidence_level")
         ruta = _ruta_canonica(procedencia.get("source_path"))
-        if not status or not evidencia or not ruta:
+        if not knowledge_id or not status or not evidencia or not ruta:
             descartados += 1
             continue
         invalidado = knowledge_id in invalidados or nombre in superados
         acierto = {
-            "id": _texto_servido(knowledge_id),
+            "id": knowledge_id,
             "version": _texto_servido(procedencia.get("version")),
             "estado": "invalidado" if invalidado else _texto_servido(status),
             "evidencia": _texto_servido(evidencia),
@@ -2475,6 +2839,8 @@ def consultar(cfg, consulta):
             acierto.update({"fact": _texto_servido(hit.get("fact")),
                             "valid_at": _texto_servido(hit.get("valid_at")),
                             "invalid_at": _texto_servido(hit.get("invalid_at"))})
+        acierto.update({'contenido_derivado': True, 'autoridad': 'ninguna',
+                        'verificacion': 'no_verificada', 'citas_por_afirmacion': False})
         # Gap #118 (Important, fix2 Fase 3; residual de #96): cuando la busqueda devuelve v1 Y v2
         # del mismo `knowledge_id` -el caso NORMAL: dos versiones de la misma entrada casan la
         # misma query- la deduplicacion se quedaba con el PRIMER hit, asi que `[v1, v2]` servia
@@ -2488,8 +2854,41 @@ def consultar(cfg, consulta):
 
     aciertos = list(candidatos.values())
     motivos = [m for m in (motivo_nodos, motivo_hechos) if m]
+    motivos.extend(dict.fromkeys(native_warnings))
     if fuera_de_ventana:
         motivos.append(f"{fuera_de_ventana} acierto(s) fuera de la ventana de procedencia: "
                        + _remedio_ventana(cfg, causa_ventana, tope_episodios))
     return {"aciertos": aciertos[:limit], "descartados": descartados,
             "fuera_de_ventana": fuera_de_ventana, "motivo": "; ".join(motivos)}
+
+
+def _with_project_scope(function, cfg_position, failure=None):
+    """Resolve the committed generation at each public entry; never mutate caller config."""
+    @functools.wraps(function)
+    def scoped(*args, **kwargs):
+        cfg = args[cfg_position] if len(args) > cfg_position else kwargs.get('cfg')
+        cfg = cfg or {}
+        if not cfg.get('group_id') or _modo(cfg) == 'off':
+            return function(*args, **kwargs)
+        try:
+            effective = _gscope.read_config(cfg,_gpub)
+        except _gscope.ScopeError as error:
+            detail = 'alcance del proyecto no disponible: ' + _sanear_detalle(error)
+            if failure is not None:
+                return failure(detail)
+            raise ErrorMCP(detail) from error
+        if len(args) > cfg_position:
+            values = list(args);values[cfg_position] = effective
+            return function(*values, **kwargs)
+        return function(*args, **{**kwargs,'cfg':effective})
+    return scoped
+
+
+health = _with_project_scope(health,0,lambda reason:{'estado':'degradado','detalle':reason})
+plan = _with_project_scope(plan,1)
+apply = _with_project_scope(apply,1)
+rebuild = _with_project_scope(rebuild,1)
+revoke = _with_project_scope(revoke,1)
+verify = _with_project_scope(verify,0,lambda reason:{'ok':False,'estado':'no_verificable','razon':reason,'desfase':[]})
+puede_leer = _with_project_scope(puede_leer,0,lambda reason:{'puede':False,'razon':reason})
+consultar = _with_project_scope(consultar,0,lambda reason:{'aciertos':[],'motivo':reason,'degradado':True})

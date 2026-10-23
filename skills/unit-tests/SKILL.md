@@ -97,8 +97,9 @@ defecto), **1** si no llega, **2** sin herramienta/stack/parseo — con aviso ex
 ## Degradación
 
 Sin la herramienta del stack en PATH (o paquete de cobertura no instalado, p. ej. `pytest-cov`):
-exit 2 con aviso explícito, nunca un % inventado — el ciclo sigue, solo sin gate automático. Sin
-git (o `--changed-only` fuera de un repo): aviso y, si no hay nada que medir, exit 0. Sin
+exit 2 con aviso explícito, nunca un % inventado — el ciclo sigue, solo sin gate automático. Un
+build reconocido pero sin soporte (Gradle, Maven, Cargo) también da exit 2, con `buildSinSoporte`
+y la herramienta propia que lo mide. Sin git (o `--changed-only` fuera de un repo): aviso y, si no hay nada que medir, exit 0. Sin
 `dev.json` o sin la clave `tests.coberturaMinima`: el `implementer` no aplica el gate, solo informa
 si puede.
 

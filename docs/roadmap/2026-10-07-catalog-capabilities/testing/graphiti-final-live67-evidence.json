@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "recorded_utc": "2026-10-12T04:30:49.689814+00:00",
+  "tested_manifest_sha256": "bdd4fc5ad11baa2724aaa3d4f0e331ed3f6afca8f5ca6e9b71ed14a71654c7ae",
+  "actual_semantic_source_linkage_verified": true,
+  "verified_current_version": 2,
+  "actual_creation_requests": 3,
+  "historical_identities_verified": 2,
+  "reads": {
+    "normal": {
+      "hits": 1,
+      "discarded": 0,
+      "reason": ""
+    },
+    "fact-only": {
+      "hits": 1,
+      "discarded": 0,
+      "reason": ""
+    },
+    "node-only": {
+      "hits": 1,
+      "discarded": 0,
+      "reason": ""
+    }
+  },
+  "controlled_filters": [
+    "fact-only",
+    "node-only"
+  ],
+  "compatible_image_id": "sha256:7c14d5f84ef1b74b317b05b7d16df52cae73f28b89b5da56d90dd4d5c9e71522",
+  "compatible_official_revision": "0a3b1711b018e5590cf5c44a3ee3e67d6733ee13",
+  "source_preserved": true,
+  "all_own_workers_terminal_success": true,
+  "all_own_graphs_and_sidecar_removed": true,
+  "current_service_running_and_image_preserved": true,
+  "current_service_replaced": false,
+  "credentials_persisted_to_files": false,
+  "native_client_acceptance": false,
+  "benchmark_accepted": false,
+  "global_product_accepted": false,
+  "root_promoted": false,
+  "committed": false,
+  "pushed": false
+}

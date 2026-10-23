@@ -34,6 +34,7 @@ FALSO de la suite del adaptador y se levantan servidores efimeros propios en `12
 Ejecutar: python -m pytest -q tests/test_graphiti_security.py
 """
 import ast
+import hashlib
 import importlib.util
 import json
 import os
@@ -57,6 +58,10 @@ def _cargar(ruta, nombre):
     sys.modules[nombre] = mod
     spec.loader.exec_module(mod)
     return mod
+
+
+_hook_security = sys.modules.get("custom_agents_hook_security_support") or _cargar(
+    os.path.join(ROOT, "tests", "hook_security_support.py"), "custom_agents_hook_security_support")
 
 
 # El servidor MCP falso (fixtures reales capturadas del stack) y el constructor de entradas se
@@ -93,7 +98,7 @@ _TERMINOS_RED = ("urllib", "urlopen", "http.client", "httpx", "requests.", "sock
 # Binarios de red que solo tienen sentido en una cadena INLINE (no son python): se buscan
 # TOKENIZANDO, no como subcadena (`nc ` casaria dentro de `sync `, `func `...).
 _BINARIOS_DE_RED = {"curl", "wget", "nc", "ncat", "telnet", "ssh", "scp", "invoke-webrequest"}
-_MODULOS_RED = {"urllib", "urllib.request", "urllib.parse", "http.client", "httplib", "socket",
+_MODULOS_RED = {"urllib", "urllib.request", "http.client", "httplib", "socket",
                 "requests", "httpx", "ssl"}
 # Los dos scripts que los hooks SI invocan y que definen en su propio argparse los flags
 # prohibidos: la prohibicion es para quien los LLAMA, no para la herramienta que los declara.
@@ -106,16 +111,25 @@ _MAX_SALTOS = 5
 _EXT_ESCANEABLES = ("py", "sh")
 _EXT_NO_ESCANEABLES = ("js", "mjs", "ps1", "cmd")
 _EJECUTABLES_NO_ESCANEABLES_PERMITIDOS = ()
+# Reviewed full inline bootstraps, not arbitrary `.join(root, 'hooks', name)`.
+# Changes to these commands require a deliberate security review and new fingerprints.
+_BOOTSTRAP_NODE_HASHES = {
+    "d496e3e458dae7e9f20ecad2474c172b3a6dac6c52b3062cb0989ab76cafa961",
+    "bb33644a5fa25a3f796135a0e540d48fc232daed161e1c0c41af3059c246bf0e",
+}
+# The scanner admits exactly the audited launcher, not arbitrary JavaScript.
+# Normalize only line endings; a code change must update this fingerprint after review.
+_LAUNCHER_NODE_HASH = "f86f0a1e529c1a15cfaa3071630c36cc3ab8d82f067a4c6eb62cd365f3b02599"
 _EXT_RE = "|".join(_EXT_ESCANEABLES + _EXT_NO_ESCANEABLES)
 # Gap #155 (Important, fix1 Fase 4): el lookahead final quita los falsos positivos del escaneo de
 # CODIGO (`hashlib.sha256` casaba como `hashlib.sh`). Hace falta porque a partir de este fix una
 # cita que no resuelve YA NO se descarta en silencio: es un fallo. Gap #182 (fix2): el prefijo
 # opcional `$VAR/` o `${VAR:-…}/` se captura aparte (`var`), porque sin fallback por basename una
 # cita `"$SHARED/journal.py"` solo se puede resolver sabiendo a que apunta `SHARED`.
-_RUTA_RE = re.compile(r"""(?:\$\{?(?P<var>\w+)[^}\s"'/]*\}?)?(?P<ruta>[\w./\\-]+\.(?:%s))(?![\w])"""
+_RUTA_RE = re.compile(r"""(?:\$\{?(?P<var>\w+)[^}\s"'/]*\}?)?(?P<ruta>[\w./\\-]+\.(?:%s))(?![\w.])"""
                       % _EXT_RE)
 # Token de una cita dentro de una cadena de shell (`bash "${X}/hooks/a.sh"`, `python3 "$S/b.py"`).
-_TOKEN_SCRIPT_RE = re.compile(r"""[^\s"'`;|&()]*\.(?:%s)(?![\w])""" % _EXT_RE)
+_TOKEN_SCRIPT_RE = re.compile(r"""[^\s"'`;|&()]*\.(?:%s)(?![\w.])""" % _EXT_RE)
 _EXPANSION_SHELL_RE = re.compile(r"\$\{[^}]*\}|\$\w+")
 # Lista blanca EXPLICITA de citas que no corresponden a un fichero del repo. Vacia a proposito:
 # todo hook del plugin invoca scripts del plugin. Añadir una entrada aqui es una decision
@@ -129,11 +143,25 @@ _CITAS_SIN_FICHERO_PERMITIDAS = ()
 # el directorio va en una variable de Python (`os.path.join(shared, "knowledge-find.py")`)- se
 # declaran aqui UNA A UNA: `(fichero que cita, nombre citado) -> destino`.
 _CITAS_POR_NOMBRE = {
+    ("hooks/run-hook.mjs", "journal.py"): "agent-kits/shared/journal.py",
+    ("hooks/run-hook.mjs", "journal-capture.py"): "agent-kits/shared/journal-capture.py",
+    ("hooks/run-hook.mjs", "native-guardrail.py"): "agent-kits/shared/native-guardrail.py",
+    ("hooks/run-hook.mjs", "agent-activity-store.py"): "agent-kits/shared/agent-activity-store.py",
     ("hooks/session-context.sh", "knowledge-find.py"): "agent-kits/shared/knowledge-find.py",
     ("hooks/session-context.sh", "progress-report.py"): "agent-kits/shared/progress-report.py",
     ("agent-kits/shared/knowledge-find.py", "__init__.py"):
         "skills/knowledge-services/backends/__init__.py",
     ("agent-kits/shared/knowledge-find.py", "session-context.sh"): "hooks/session-context.sh",
+}
+# This reviewed owner constructs .py paths in _load(filename); text citations cannot
+# prove those edges. Pin the entire owner, then traverse its three real local modules.
+# This is a closure declaration, never an egress exception. Any owner change needs review.
+_CARGAS_LOCALES_REVISADAS = {
+    "agent-kits/shared/agent-activity-store.py": {
+        "sha256_lf": "7e13711f797135bc60310112d4a38813fecc481cb81454ffeb0753377e6957bc",
+        "dependencies": ("agent-kits/shared/local-read.py", "agent-kits/shared/local-state.py",
+                         "agent-kits/shared/agent-activity.py", "agent-kits/shared/redact.py"),
+    },
 }
 _VARIABLES_DE_RAIZ = ("CLAUDE_PLUGIN_ROOT", "CLAUDE_PROJECT_DIR")
 # Gap #173 (Important, fix2 Fase 4): los binarios de red se buscaban como TOKEN solo en las cadenas
@@ -272,6 +300,218 @@ def _literal(nodo):
     return nodo.value if isinstance(nodo, ast.Constant) and isinstance(nodo.value, str) else None
 
 
+def _datos_runtime_del_ast(arbol):
+    """Admit only proven runtime enums used as comparisons or real argparse choices.
+
+    Unknown receivers, escaped constants, shadowing and method rebinding keep
+    the conservative argv classification. This is a static check, not a sandbox.
+    """
+    nodes = list(ast.walk(arbol))
+    parents = {child: parent for parent in nodes for child in ast.iter_child_nodes(parent)}
+    # Namespace declarations can redirect ordinary assignments outside scope(node).
+    # Deny parser authority for affected names rather than model Python namespaces.
+    namespace_declared_names = {name for node in nodes
+                                if isinstance(node, (ast.Global, ast.Nonlocal))
+                                for name in node.names}
+
+    def scope(node):
+        while node in parents:
+            node = parents[node]
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+                return node
+        return arbol
+
+    bindings, invalid = {}, set()
+    for node in nodes:
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            parent = parents.get(node)
+            key = (scope(node), node.id)
+            if isinstance(parent, ast.Assign) and parent.targets == [node]:
+                bindings.setdefault(key, []).append(parent.value)
+            else:
+                invalid.add(key)
+        elif isinstance(node, ast.arg):
+            invalid.add((scope(node), node.arg))
+        elif isinstance(node, ast.Attribute) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            base = node
+            while isinstance(base, ast.Attribute):
+                base = base.value
+            if isinstance(base, ast.Name):
+                invalid.add((scope(node), base.id))
+
+    # Any attribute write can replace a parser's methods or effective class,
+    # including through aliases and custom setters. Keep argv classification
+    # whenever the module contains such mutations; comparisons stay data.
+    # This conservative static guard does not claim a Python sandbox.
+    attributes_mutated = any(
+        isinstance(node, ast.Attribute)
+        and isinstance(node.ctx, (ast.Store, ast.Del))
+        or isinstance(node, ast.Call)
+        and _nombre_llamada(node) in {'setattr', 'delattr'}
+        for node in nodes
+    )
+
+    argparse_bindings = {(scope(node), alias.asname or alias.name)
+                         for node in nodes if isinstance(node, ast.Import)
+                         for alias in node.names if alias.name == 'argparse'}
+    argparse_names = {name for _scope, name in argparse_bindings}
+    # Definitions bind names too; they must never masquerade as imported modules.
+    argparse_names -= {node.name for node in nodes
+                       if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))}
+    argparse_names = {name for name in argparse_names
+                      if not any(isinstance(node, ast.Name) and node.id == name
+                                 and isinstance(node.ctx, (ast.Store, ast.Del)) for node in nodes)
+                      and not any(isinstance(node, ast.arg) and node.arg == name for node in nodes)}
+
+    argparse_names -= {name for _scope, name in invalid}
+    argparse_names -= namespace_declared_names
+    for node in nodes:
+        if isinstance(node, ast.Import):
+            argparse_names -= {alias.asname or alias.name.split('.')[0] for alias in node.names
+                              if alias.name != 'argparse'}
+        elif isinstance(node, ast.ImportFrom):
+            argparse_names -= {alias.asname or alias.name for alias in node.names}
+
+    def argparse_available(node, name):
+        return name in argparse_names and ((scope(node), name) in argparse_bindings
+                                           or (arbol, name) in argparse_bindings)
+
+    # A local quiet parser changes only error presentation, never add_argument.
+    # Require the exact reviewed error body and an unshadowed builtin; other
+    # subclasses, decorators, extra methods and namespace mutations stay argv.
+    quiet_error = ast.parse("def error(self, message):\n    raise ValueError('invalid_arguments')\n").body[0]
+    value_error_shadowed = any(
+        isinstance(node, ast.Name) and node.id == 'ValueError' and isinstance(node.ctx, (ast.Store, ast.Del))
+        or isinstance(node, ast.arg) and node.arg == 'ValueError'
+        or isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name == 'ValueError'
+        or isinstance(node, (ast.Import, ast.ImportFrom)) and any(
+            (alias.asname or alias.name.split('.')[0]) == 'ValueError' for alias in node.names)
+        for node in nodes)
+    classes = {}
+    for node in nodes:
+        if isinstance(node, ast.ClassDef):
+            classes.setdefault((scope(node), node.name), []).append(node)
+    # Conservative across scopes: a function/import of the same nominal name
+    # invalidates that quiet class. Do not adopt an alias or a factory as parser.
+    quiet_rebound_names = {node.name for node in nodes
+                           if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    quiet_rebound_names |= {alias.asname or alias.name.split('.')[0]
+                            for node in nodes if isinstance(node, (ast.Import, ast.ImportFrom))
+                            for alias in node.names}
+    quiet_classes = set()
+    for key, definitions in classes.items():
+        node = definitions[0]
+        base = node.bases[0] if len(node.bases) == 1 else None
+        if (len(definitions) == 1 and key[1] not in quiet_rebound_names
+                and key[1] not in namespace_declared_names
+                and not value_error_shadowed and not node.decorator_list
+                and not node.keywords and not getattr(node, 'type_params', [])
+                and len(node.body) == 1 and ast.dump(node.body[0]) == ast.dump(quiet_error)
+                and isinstance(base, ast.Attribute) and base.attr == 'ArgumentParser'
+                and isinstance(base.value, ast.Name) and argparse_available(node, base.value.id)
+                and key not in bindings and key not in invalid):
+            quiet_classes.add(key)
+
+    nominal_bindings = set(classes)
+    nominal_bindings |= {(scope(node), node.name) for node in nodes
+                         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    nominal_bindings |= {(scope(node), alias.asname or alias.name.split('.')[0])
+                         for node in nodes if isinstance(node, (ast.Import, ast.ImportFrom))
+                         for alias in node.names}
+
+    def module_fallback_safe(node, name):
+        # Never skip an enclosing lexical binding to adopt module authority.
+        # Outer bindings remain conservative argv, including otherwise quiet classes.
+        current = scope(node)
+        while current is not arbol:
+            key = (current, name)
+            if key in bindings or key in invalid or key in nominal_bindings:
+                return False
+            current = scope(current)
+        return True
+
+    def parser_kind(node, active=frozenset()):
+        if attributes_mutated:
+            return None
+        if isinstance(node, ast.Name):
+            if node.id in namespace_declared_names:
+                return None
+            key = (scope(node), node.id)
+            if key not in bindings and key not in invalid:
+                if not module_fallback_safe(node, node.id):
+                    return None
+                key = (arbol, node.id)
+            if key in invalid or key in active or key not in bindings:
+                return None
+            kinds = {parser_kind(value, active | {key}) for value in bindings[key]}
+            return next(iter(kinds)) if len(kinds) == 1 and None not in kinds else None
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id in namespace_declared_names:
+                return None
+            key = (scope(node), node.func.id)
+            # Local parameters/assignments/unknown classes shadow a global class.
+            # Check the current binding before considering the module fallback.
+            if key in invalid or key in bindings or (key in classes and key not in quiet_classes):
+                return None
+            if key not in quiet_classes:
+                if not module_fallback_safe(node, node.func.id):
+                    return None
+                key = (arbol, node.func.id)
+            if key in quiet_classes and key not in invalid and key not in bindings:
+                return 'parser'
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            method, receiver = node.func.attr, node.func.value
+            if method == 'ArgumentParser' and isinstance(receiver, ast.Name) and argparse_available(node, receiver.id):
+                return 'parser'
+            kind = parser_kind(receiver, active)
+            if method == 'add_subparsers' and kind == 'parser':
+                return 'subparsers'
+            if method == 'add_parser' and kind == 'subparsers':
+                return 'parser'
+        return None
+
+    def data_use(node):
+        parent = parents.get(node)
+        if isinstance(parent, ast.Compare):
+            return any(comparator is node and isinstance(operator, (ast.In, ast.NotIn))
+                       for operator, comparator in zip(parent.ops, parent.comparators))
+        call = parents.get(parent)
+        return (isinstance(parent, ast.keyword) and parent.arg == 'choices'
+                and isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+                and call.func.attr == 'add_argument' and parser_kind(call.func.value) == 'parser')
+
+    data = set()
+    for node in nodes:
+        if not isinstance(node, (ast.List, ast.Tuple)):
+            continue
+        values = [_literal(item) for item in node.elts]
+        if (not values or len(set(values)) != len(values)
+                or any(value not in ('claude', 'codex', 'opencode') for value in values)):
+            continue
+        if data_use(node):
+            data.add(node)
+            continue
+        parent = parents.get(node)
+        if not (isinstance(parent, ast.Assign) and parents.get(parent) is arbol
+                and len(parent.targets) == 1 and isinstance(parent.targets[0], ast.Name)):
+            continue
+        name = parent.targets[0].id
+        stores = [item for item in nodes if isinstance(item, ast.Name) and item.id == name
+                  and isinstance(item.ctx, (ast.Store, ast.Del))]
+        loads = [item for item in nodes if isinstance(item, ast.Name) and item.id == name
+                 and isinstance(item.ctx, ast.Load)]
+        if (stores == parent.targets and loads and all(data_use(item) for item in loads)
+                and not any(isinstance(item, ast.arg) and item.arg == name for item in nodes)):
+            data.add(node)
+    return data
+
+
+def _codigo_red_python(ruta, original):
+    if not ruta or not ruta.endswith('.py'):
+        return original
+    return _hook_security.local_urlparse_code(original)
+
+
 def _egress_por_ast(ruta):
     """Gap #173: motivos de egress en el CODIGO de un `.py` (no en sus comentarios/docstrings):
     `argv <binario>` (lista/tupla literal que arranca por un binario de red o por `claude`),
@@ -282,8 +522,12 @@ def _egress_por_ast(ruta):
     if not ruta.endswith(".py"):
         return []
     motivos = []
-    for nodo in ast.walk(_sin_docstrings(ast.parse(_texto(ruta)))):
+    arbol = _sin_docstrings(ast.parse(_texto(ruta)))
+    datos_runtime = _datos_runtime_del_ast(arbol)
+    for nodo in ast.walk(arbol):
         if isinstance(nodo, (ast.List, ast.Tuple)) and nodo.elts:
+            if nodo in datos_runtime:
+                continue
             elementos = [_literal(e) for e in nodo.elts]
             if elementos[0] is not None:
                 binario = _binario(elementos[0])
@@ -389,6 +633,9 @@ def _resolver_cita_de_codigo(m, ruta_citante, texto_citante, root):
 
 
 def _es_no_escaneable(cita):
+    # Only the known launcher is scanned as JavaScript; other JS remains fail-closed.
+    if _parte_literal(cita).lstrip("/") == "hooks/run-hook.mjs":
+        return False
     return cita.rsplit(".", 1)[-1].lower() in _EXT_NO_ESCANEABLES
 
 
@@ -431,10 +678,8 @@ def _cadenas_inline(root=ROOT):
                 for hook in bloque.get("hooks") or []:
                     # gap #183: el comentario final no es parte de lo que se ejecuta
                     cadenas.append(("hooks/hooks.json %s command" % evento,
-                                    _sin_comentario_shell(str(hook.get("command", "")))))
-                    for indice, arg in enumerate(hook.get("args") or []):
-                        cadenas.append(("hooks/hooks.json %s args[%d]" % (evento, indice),
-                                        _sin_comentario_shell(str(arg))))
+                                    _sin_comentario_shell(str(hook.get("command", ""))) + " " +
+                                    " ".join(str(arg) for arg in hook.get("args") or [])))
     base_agentes = os.path.join(root, "agents")
     if os.path.isdir(base_agentes):
         for nombre in sorted(os.listdir(base_agentes)):
@@ -456,12 +701,22 @@ def _recorrido_hooks(root=ROOT):
     `({etiqueta relativa: ruta absoluta}, [(origen, cita) de las citas que NO resuelven])`."""
     pendientes, sin_resolver = set(), []
     for origen, cadena in _cadenas_inline(root):
+        usa_launcher = "hooks/run-hook.mjs" in cadena or hashlib.sha256(
+            cadena.strip().encode("utf8")).hexdigest() in _BOOTSTRAP_NODE_HASHES
         for cita in sorted(_citas_de_cadena(cadena)):
+            variables = [re.match(r"\$\{?(\w+)", expansion).group(1)
+                         for expansion in _EXPANSION_SHELL_RE.findall(cita)]
+            if any(variable not in _VARIABLES_DE_RAIZ for variable in variables):
+                sin_resolver.append((origen, cita))
+                continue
+            if cita == "run-hook.mjs" and usa_launcher:
+                cita = "hooks/run-hook.mjs"
             if _es_no_escaneable(cita):   # gap #177: nada que la puerta sepa escanear
                 if cita not in _EJECUTABLES_NO_ESCANEABLES_PERMITIDOS:
                     sin_resolver.append((origen, cita))
                 continue
-            resuelta = _resolver(_parte_literal(cita), root)
+            launcher = os.path.join(root, "hooks", "run-hook.mjs") if usa_launcher else None
+            resuelta = _resolver(_parte_literal(cita), root, citante=launcher)
             if resuelta:
                 pendientes.add(resuelta)
             elif cita not in _CITAS_SIN_FICHERO_PERMITIDAS:
@@ -474,7 +729,22 @@ def _recorrido_hooks(root=ROOT):
             if etiqueta in vistos:
                 continue
             vistos[etiqueta] = resuelta
+            # No basename fallback or dynamic module adoption: every edge is nominal.
+            declared = _CARGAS_LOCALES_REVISADAS.get(etiqueta)
+            if declared:
+                raw = _texto(resuelta).replace("\r\n", "\n")
+                if hashlib.sha256(raw.encode("utf8")).hexdigest() != declared["sha256_lf"]:
+                    sin_resolver.append((etiqueta, "cargas locales no revisadas"))
+                else:
+                    for relative in declared["dependencies"]:
+                        destination = _resolver(relative, root)
+                        if destination:
+                            siguientes.add(destination)
+                        else:
+                            sin_resolver.append((etiqueta, relative))
             codigo = _codigo(resuelta)
+            if etiqueta == "hooks/run-hook.mjs":
+                codigo = re.sub(r"(?m)^\s*//.*$", "", codigo)
             for m in sorted(_RUTA_RE.finditer(codigo), key=lambda x: x.group(0)):
                 cita = m.group(0)
                 if _es_no_escaneable(cita):
@@ -501,6 +771,29 @@ def _fuentes_ejecutables(root=ROOT):
     return fuentes
 
 
+def _egress_por_js(texto):
+    """The nominal launcher only imports four local Node builtins; unknown imports fail closed."""
+    motivos = []
+    modules = re.findall(r"\b(?:from|import)\s*['\"]([^'\"]+)['\"]", texto)
+    for args in re.findall(r"\b(?:require|import)\s*\(([^)]*)\)", texto):
+        try:
+            module = ast.literal_eval(args.strip())
+            if not isinstance(module, str):
+                raise ValueError("not a literal module")
+            modules.append(module)
+        except (ValueError, SyntaxError):
+            motivos.append("import JavaScript no literal")
+    for module in modules:
+        if module.removeprefix("node:") not in {"child_process", "fs", "path", "url"}:
+            motivos.append("import JavaScript " + module)
+    if re.search(r"\b(?:fetch|WebSocket)\s*\(", texto):
+        motivos.append("JavaScript fetch/WebSocket")
+    for command in re.findall(r"\b(?:spawn|spawnSync|exec|execSync|execFile|execFileSync)\s*\(\s*['\"]([^'\"]+)['\"]", texto):
+        if command.split() and _binario(command.split()[0]) in _BINARIOS_DE_EGRESS:
+            motivos.append("argv JavaScript " + command.split()[0])
+    return motivos
+
+
 def _ofensores_de_red(root=ROOT, excepciones=None):
     """`[(etiqueta, motivo)]` de todo lo que un hook alcanza y toca la red. `excepciones` (por
     defecto `_EGRESS_OPT_IN_DECLARADO`) retira SOLO los motivos declarados del fichero declarado, y
@@ -508,6 +801,7 @@ def _ofensores_de_red(root=ROOT, excepciones=None):
     excepciones = _EGRESS_OPT_IN_DECLARADO if excepciones is None else excepciones
     ofensores = []
     for etiqueta, texto, ruta in _fuentes_ejecutables(root):
+        texto = _codigo_red_python(ruta, texto)
         bajo = texto.lower()
         propios = []
         for termino in _TERMINOS_RED:
@@ -521,6 +815,11 @@ def _ofensores_de_red(root=ROOT, excepciones=None):
             propios += [t for t in _tokens_de_shell(bajo) if t in _BINARIOS_DE_RED]
         else:                             # gap #173: argv/shell/exec/claude en el AST del codigo
             propios += sorted(set(_egress_por_ast(ruta)))
+            if etiqueta == "hooks/run-hook.mjs":
+                raw = _texto(ruta).replace("\r\n", "\n")
+                if hashlib.sha256(raw.encode("utf8")).hexdigest() != _LAUNCHER_NODE_HASH:
+                    propios.append("launcher JavaScript no revisado")
+                propios += _egress_por_js(texto)
         declarada = excepciones.get(etiqueta)
         if declarada and ruta and not _egress_del_journal_sin_condicion(_texto(ruta)):
             propios = [m for m in propios if m not in declarada["motivos"]]
@@ -612,6 +911,9 @@ def _repo_minimo(tmp_path, hooks_json=None, agente=None, ficheros=None):
     _lf = lambda c: c.replace(chr(13) + chr(10), chr(10))
     if agente:
         _escribir(os.path.join(root, "agents", "implementer.md"), _lf(agente))
+        if "run-hook.mjs" in agente:
+            _escribir(os.path.join(root, "hooks", "run-hook.mjs"),
+                      _lf(_texto(os.path.join(ROOT, "hooks", "run-hook.mjs"))))
     for rel, contenido in (ficheros or {}).items():
         _escribir(os.path.join(root, *rel.split("/")), _lf(contenido))
     return root
@@ -984,7 +1286,15 @@ def _espia_de_carga_de_adaptador(monkeypatch):
         raise RuntimeError("espia: aqui se habria cargado un adaptador con capacidad de red")
 
     monkeypatch.setattr(binit, "cargar_adaptador", _espia)
-    monkeypatch.setattr(kf, "_cargar_modulo", lambda *a, **k: binit)
+    cargar_original = kf._cargar_modulo
+    ruta_backend = os.path.normcase(os.path.abspath(os.path.join(kf._dir_backends(), "__init__.py")))
+
+    def cargar(ruta, nombre):
+        if os.path.normcase(os.path.abspath(ruta)) == ruta_backend:
+            return binit
+        return cargar_original(ruta, nombre)
+
+    monkeypatch.setattr(kf, "_cargar_modulo", cargar)
     return cargas
 
 
@@ -1176,7 +1486,7 @@ def test_ca14_un_doble_de_proveedor_con_estructura_invalida_no_llega_a_add_memor
     Gap #154 (Important, fix1 Fase 4): este test inyecta un DOBLE en la entrada `ollama` de
     `PROVEEDORES` (el proveedor real de `ollama` no se ejerce aqui; el titulo anterior lo vendia
     como si si). Al proveedor REAL, mutado en una copia del modulo, lo ejerce
-    `test_ca14_el_proveedor_real_que_pierde_el_uuid_...`, justo debajo."""
+    `test_ca14_el_proveedor_real_que_inyecta_uuid_...`, justo debajo."""
     root = str(tmp_path)
     with ServidorMCP() as srv:
         monkeypatch.setitem(gr._gp.PROVEEDORES, "ollama", _proveedor_ollama_roto)
@@ -1211,7 +1521,8 @@ def test_ca14_ollama_invalido_acaba_en_dead_letter_sin_tocar_el_manifiesto(tmp_p
         codigo = ks_sync.main(["--backend", "graphiti", "--root", root, "--json"])
         err = capsys.readouterr().err
         assert codigo == 1
-        assert "apply()" in err and "publicación anterior intacta" in err
+        assert "apply()" in err and "puede haberse aplicado parcialmente" in err
+        assert "--outbox-status" in err
         assert "envelope: reencolado" in err          # nunca dead-letter al primer fallo
         assert _dead_letter(dir_outbox) == []
 
@@ -1268,48 +1579,42 @@ def test_ca04_backend_sin_datos_no_bloquea_la_lectura_enrutada(tmp_path):
     assert respuesta.get("aciertos") == []
 
 
-def _backends_con_proveedor_que_pierde_el_uuid(tmp_path):
-    """Copia REAL de los modulos del adaptador con UNA sola mutacion, en el proveedor de verdad
-    (`graphiti_providers._con_instrucciones_de_extraccion`, el que usa `ollama`): reconstruye el
-    episodio y PIERDE el `uuid`. Es el bug que destapo el gap #154 -la validacion previa a
-    `add_memory` miraba `name`/`episode_body`/`group_id` pero no `uuid`, asi que el episodio SALIA
-    al grafo y el `KeyError` posterior mandaba la op a dead-letter: un episodio vivo en el grafo
-    que el manifiesto no conoce y que `revoke` no puede invalidar-.
+def _backends_con_proveedor_que_inyecta_uuid(tmp_path):
+    """Mutate the real provider in a complete private module bundle.
 
-    La copia se carga con `--backends-dir` bajo un `type` propio (`graphiti-sinuuid`), porque el
-    directorio real gana siempre para `type: graphiti`: asi el arbol del repo no se toca.
-    Devuelve `(directorio, tipo)`."""
-    destino = os.path.join(str(tmp_path), "backends-sin-uuid")
-    os.makedirs(destino, exist_ok=True)
-    for origen, nombre in (("graphiti.py", "graphiti_sinuuid.py"),
-                           ("graphiti_providers.py", "graphiti_providers.py"),
-                           ("graphiti_model.py", "graphiti_model.py")):
-        shutil.copy2(os.path.join(KS_BACKENDS, origen), os.path.join(destino, nombre))
+    New episodes must not supply an existing remote identity. The mutation injects
+    one before publication; missing dependencies cannot masquerade as that rejection.
+    """
+    bundle = os.path.join(str(tmp_path), "provider-fixture")
+    destino = os.path.join(bundle, "skills", "knowledge-services", "backends")
+    shutil.copytree(KS_BACKENDS, destino)
+    shutil.copytree(os.path.join(ROOT, "agent-kits", "shared"), os.path.join(bundle, "agent-kits", "shared"))
+    shutil.copy2(os.path.join(destino, "graphiti.py"), os.path.join(destino, "graphiti_inyecta_uuid.py"))
     ruta = os.path.join(destino, "graphiti_providers.py")
     texto = _texto(ruta)
     ancla = "    salida = dict(episodio)"    # sin el salto: el repo usa CRLF
     assert ancla in texto, "cambio `_con_instrucciones_de_extraccion`: la mutacion ya no aplica"
-    _escribir(ruta, texto.replace(ancla, ancla + chr(10) + '    salida.pop("uuid", None)', 1))
-    return destino, "graphiti-sinuuid"
+    _escribir(ruta, texto.replace(ancla, ancla + chr(10) + '    salida["uuid"] = "00000000-0000-0000-0000-000000000000"', 1))
+    return destino, "graphiti-inyecta-uuid"
 
 
-def test_ca14_el_proveedor_real_que_pierde_el_uuid_no_gasta_add_memory_y_acaba_en_dead_letter(
+def test_ca14_el_proveedor_real_que_inyecta_uuid_no_gasta_add_memory_y_acaba_en_dead_letter(
         tmp_path, capsys):
-    """Gap #154: con el proveedor REAL mutado para perder el `uuid`, `apply()` falla ANTES de
+    """Con el proveedor REAL mutado para inyectar un `uuid`, `apply()` falla ANTES de
     `add_memory` (cero llamadas de escritura al grafo), el envelope acaba en `dead-letter/` con la
     causa y ni el manifiesto publicado ni el `.pending` registran la entrada: no queda ni un
     episodio huerfano que `revoke` no pueda invalidar."""
     root = str(tmp_path)
     dir_outbox = os.path.join(root, ".claude", "knowledge-services", "_sync-outbox", "graphiti")
     base_manifiesto = os.path.join(root, ".claude", "knowledge-services")
-    backends, tipo = _backends_con_proveedor_que_pierde_el_uuid(tmp_path)
+    backends, tipo = _backends_con_proveedor_que_inyecta_uuid(tmp_path)
     argv = ["--backend", "graphiti", "--root", root, "--json", "--backends-dir", backends]
     with ServidorMCP() as srv:
         _proyecto_con_datos_excluidos(root, srv.endpoint, tipo=tipo)
         assert ks_sync.main(argv) == 1
         err = capsys.readouterr().err
-        assert "estructura invalida" in err, err
-        assert "uuid" in err, err
+        assert "no puede declarar un UUID remoto" in err, err
+        assert "uuid" in err.lower(), err
         for _ in range(2):                            # intentos 2 y 3 -> MAX_INTENTOS
             ob.reintentar_ahora(dir_outbox)
             ks_sync.main(argv)
@@ -1323,7 +1628,7 @@ def test_ca14_el_proveedor_real_que_pierde_el_uuid_no_gasta_add_memory_y_acaba_e
     with open(os.path.join(dir_outbox, "dead-letter", causa_json), encoding="utf-8") as f:
         causa = json.load(f)
     assert causa["intentos"] >= 3
-    assert "uuid" in causa["causa"], causa["causa"]
+    assert "uuid" in causa["causa"].lower(), causa["causa"]
     assert not os.path.isfile(os.path.join(base_manifiesto, "graphiti-manifest.json"))
     pendiente = os.path.join(base_manifiesto, "graphiti-manifest.pending.json")
     if os.path.isfile(pendiente):                     # se escribe vacio ANTES de la primera op
@@ -1345,7 +1650,7 @@ def _proveedor_que_muta(campo, valor):
 _MUTACIONES_DEL_PROVEEDOR = (
     # (campo, valor, texto que el rechazo debe citar) -- identidad alterada (mutante N3)
     ("group_id", "otro-proyecto", "identidad alterada: ['group_id']"),
-    ("uuid", "00000000-0000-0000-0000-000000000000", "identidad alterada: ['uuid']"),
+    ("uuid", "00000000-0000-0000-0000-000000000000", "no puede declarar un UUID remoto"),
     ("name", "otra-entrada@1", "identidad alterada: ['name']"),
     # campos que `_episodio_upsert` construyo y el proveedor vacia (mutante N4)
     ("category", "", "episodio construido: ['category']"),
@@ -1371,6 +1676,7 @@ def test_f4fix2_un_proveedor_que_altera_la_identidad_o_pierde_campos_no_llega_a_
             cfg = {"_root": os.path.join(str(tmp_path), "caso-%d" % indice),
                    "group_id": "proy-seguridad", "endpoint": srv.endpoint, "allow_remote": False,
                    "timeout_ms": 2000, "provider": {"llm": "ollama", "model": "qwen2.5:7b"}}
+            os.makedirs(cfg['_root'])
             ops = gr.plan([_apoyo_mcp._entrada()], cfg)
             assert ops, "sin operaciones no habria nada que probar"
             fallo = None
@@ -1388,7 +1694,7 @@ def test_f4fix2_la_validacion_exige_source_y_source_description_aunque_no_haya_b
     """Gap #180, mutante N1: `source`/`source_description` fuera de
     `_CAMPOS_EPISODIO_OBLIGATORIOS`. Con un episodio construido que SI los trae, el chequeo de
     «perdidos» lo tapa; sin base contra la que comparar, solo lo ve la lista de obligatorios."""
-    completo = {"uuid": "u-1", "name": "x@1", "episode_body": "b", "group_id": "g",
+    completo = {"name": "x@1", "episode_body": "b", "group_id": "g",
                 "source": "text", "source_description": "custom-agents:graphiti-memory"}
     gr._validar_episodio_del_proveedor(dict(completo), {})          # el completo pasa
     for campo in ("source", "source_description"):
@@ -1406,8 +1712,8 @@ def test_f4fix2_vacio_es_tambien_la_cadena_vacia_o_en_blanco():
     `name=""` y `uuid="   "` cuando no hay base contra la que comparar la identidad."""
     assert gr._vacio_para_add_memory(None) and gr._vacio_para_add_memory("")
     assert gr._vacio_para_add_memory("   ") and not gr._vacio_para_add_memory("x")
-    for campo, valor in (("name", ""), ("uuid", "   ")):
-        episodio = {"uuid": "u-1", "name": "x@1", "episode_body": "b", "group_id": "g",
+    for campo, valor in (("name", ""), ("episode_body", "   ")):
+        episodio = {"name": "x@1", "episode_body": "b", "group_id": "g",
                     "source": "text", "source_description": "d", campo: valor}
         try:
             gr._validar_episodio_del_proveedor(episodio, {})
@@ -2073,3 +2379,477 @@ def test_f4fix2_el_modulo_de_apoyo_mcp_es_solo_ascii():
         crudo = f.read()
     no_ascii = [(n, l[:60]) for n, l in enumerate(crudo.split(b"\n"), 1) if any(c > 127 for c in l)]
     assert no_ascii == [], no_ascii
+
+
+def test_hook_scan_runtime_membership_is_data(tmp_path):
+    script = tmp_path / "membership.py"
+    script.write_text('runtime = "codex"\nif runtime in ("claude", "codex", "opencode"):\n    pass\n', encoding="utf8")
+    assert _egress_por_ast(str(script)) == []
+
+
+def test_hook_scan_runtime_argparse_choices_are_data(tmp_path):
+    script = tmp_path / "choices.py"
+    script.write_text('import argparse\np = argparse.ArgumentParser()\np.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+    assert _egress_por_ast(str(script)) == []
+
+
+def test_hook_scan_runtime_constant_used_only_as_data(tmp_path):
+    script = tmp_path / "constants.py"
+    script.write_text('import argparse\np = argparse.ArgumentParser()\nRUNTIMES = ("claude", "codex", "opencode")\nif runtime not in RUNTIMES:\n    pass\np.add_argument("--runtime", choices=RUNTIMES)\n', encoding="utf8")
+    assert _egress_por_ast(str(script)) == []
+
+
+def test_hook_scan_runtime_values_used_as_command_are_detected(tmp_path):
+    for index, body in enumerate((
+        'import subprocess\nsubprocess.run(("claude", "codex", "opencode"))\n',
+        'import subprocess\nRUNTIMES = ("claude", "codex", "opencode")\nsubprocess.run(RUNTIMES)\n',
+        'import subprocess\nRUNTIMES = ("claude", "codex", "opencode")\nif runtime in RUNTIMES:\n    subprocess.run(RUNTIMES)\n',
+    )):
+        script = tmp_path / ("command-" + str(index) + ".py")
+        script.write_text(body, encoding="utf8")
+        assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_hook_scan_urlparse_is_local(tmp_path):
+    root = _repo_minimo(tmp_path, hooks_json=_hook_que_lanza("agent-kits/shared/probe.py"),
+        ficheros={"agent-kits/shared/probe.py": 'import urllib.parse\nparts = urllib.parse.urlparse("https://example.invalid")\n'})
+    assert _ofensores_de_red(root) == []
+
+
+def test_hook_scan_urlparse_does_not_hide_network(tmp_path):
+    for index, body in enumerate((
+        'import urllib.parse, urllib.request\nurllib.request.urlopen("https://example.invalid")\n',
+        'from urllib import request\nrequest.urlopen("https://example.invalid")\n',
+        'import importlib\nmod = importlib.import_module("urllib" + ".request")\n',
+    )):
+        root = _repo_minimo(tmp_path / str(index), hooks_json=_hook_que_lanza("agent-kits/shared/probe.py"),
+            ficheros={"agent-kits/shared/probe.py": body})
+        assert _ofensores_de_red(root)
+
+
+def test_hook_scan_capture_and_native_guard_paths_resolve():
+    launcher = os.path.join(ROOT, "hooks", "run-hook.mjs")
+    for name in ("journal-capture.py", "native-guardrail.py", "agent-activity-store.py"):
+        assert _resolver(name, ROOT, citante=launcher) == os.path.join(SHARED, name)
+
+
+def test_hook_scan_adapter_spy_preserves_real_local_policy_reader(tmp_path, monkeypatch):
+    root = str(tmp_path)
+    _proyecto_con_backend_de_grafo_habilitado(root)
+    before, reason = kf.taxonomia(root)
+    assert reason is None and before["backends"]["graphiti"]["enabled"] is True
+    loads = _espia_de_carga_de_adaptador(monkeypatch)
+    after, reason = kf.taxonomia(root)
+    assert reason is None and after == before
+    assert loads == []
+
+
+def test_hook_scan_unknown_choices_receiver_is_not_exempt(tmp_path):
+    for index, body in enumerate((
+        'obj.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n',
+        'runner(choices=("claude", "codex", "opencode"))\n',
+        'import argparse\nargparse.ArgumentParser = runner\np = argparse.ArgumentParser()\np.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n',
+        'import argparse\nimport unknown as argparse\np = argparse.ArgumentParser()\np.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n',
+        'import argparse\np = argparse.ArgumentParser()\np.add_argument = runner\np.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n',
+    )):
+        script = tmp_path / ("unknown-" + str(index) + ".py")
+        script.write_text(body, encoding="utf8")
+        assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_hook_scan_runtime_constant_escape_is_not_exempt(tmp_path):
+    for index, suffix in enumerate((
+        'alias = RUNTIMES\nif runtime in RUNTIMES:\n    pass\n',
+        'def f():\n    return RUNTIMES\n',
+        'RUNTIMES = unknown\nif runtime in RUNTIMES:\n    pass\n',
+        'def f(RUNTIMES):\n    return runtime in RUNTIMES\n',
+    )):
+        script = tmp_path / ("escape-" + str(index) + ".py")
+        script.write_text('RUNTIMES = ("claude", "codex", "opencode")\n' + suffix, encoding="utf8")
+        assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_hook_scan_parser_unknown_usage_is_not_exempt(tmp_path):
+    for index, body in enumerate((
+        'import urllib\n',
+        'import urllib.parse\nparser = getattr(urllib.parse, "urlparse")\n',
+        'import urllib.parse\nnamespace = urllib.parse.__dict__\n',
+        'import urllib.parse as unknown\nunknown.urlparse("https://example.invalid")\n',
+        'import urllib.parse\nexec("import urllib.request; urllib.request.urlopen(url)")\n',
+    )):
+        root = _repo_minimo(tmp_path / str(index), hooks_json=_hook_que_lanza("agent-kits/shared/probe.py"),
+            ficheros={"agent-kits/shared/probe.py": body})
+        assert _ofensores_de_red(root)
+
+
+
+import pytest
+
+@pytest.mark.parametrize("mutation", [
+    'def bind():\n    p.add_argument = writer\nbind()\n',
+    'alias = p\ndef bind():\n    alias.add_argument = writer\nbind()\n',
+    'def bind():\n    alias = p\n    alias.add_argument = writer\nbind()\n',
+    'alias = p\nsecond = alias\ndef bind():\n    second.add_argument = writer\nbind()\n',
+    'def bind():\n    del p.add_argument\nbind()\n',
+])
+def test_hook_scan_parser_mutation_across_scopes_and_aliases_is_not_data(tmp_path, mutation):
+    body = ('import argparse, subprocess\np = argparse.ArgumentParser()\n'
+            'def writer(*args, choices):\n    subprocess.run(choices)\n' + mutation +
+            'p.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n')
+    script = tmp_path / 'rebound.py'
+    script.write_text(body, encoding='utf8')
+    assert 'argv claude' in _egress_por_ast(str(script))
+    root = _repo_minimo(tmp_path / 'repo', hooks_json=_hook_que_lanza('agent-kits/shared/probe.py'),
+                        ficheros={'agent-kits/shared/probe.py': body})
+    assert _ofensores_de_red(root)
+
+
+
+@pytest.mark.parametrize("binding", [
+    'alias = second = p\nalias.add_argument = writer\n',
+    'alias: object = p\nalias.add_argument = writer\n',
+    'def bind():\n    alias = second = p\n    alias.add_argument = writer\nbind()\n',
+    'def bind():\n    alias: object = p\n    alias.add_argument = writer\nbind()\n',
+    'alias, other = p, None\nalias.add_argument = writer\n',
+    '(alias := p)\nalias.add_argument = writer\n',
+], ids=["chained", "annotated", "nested-chained", "nested-annotated", "unpacked", "named-expression"])
+def test_hook_scan_parser_mutation_with_assignment_forms_is_not_data(tmp_path, binding):
+    body = ('import argparse, subprocess\np = argparse.ArgumentParser()\n'
+            'def writer(*args, choices):\n    subprocess.run(choices)\n' + binding +
+            'p.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n')
+    script = tmp_path / 'rebound.py'
+    script.write_text(body, encoding='utf8')
+    assert 'argv claude' in _egress_por_ast(str(script))
+    root = _repo_minimo(tmp_path / 'repo', hooks_json=_hook_que_lanza('agent-kits/shared/probe.py'),
+                        ficheros={'agent-kits/shared/probe.py': body})
+    assert _ofensores_de_red(root)
+
+
+
+@pytest.mark.parametrize("mutation", [
+    'alias, *rest = p, None, None\nalias.add_argument = writer\n',
+    '*rest, alias = None, None, p\nalias.add_argument = writer\n',
+    'def bind():\n    alias, *rest = p, None, None\n    alias.add_argument = writer\nbind()\n',
+    'aliases = [p]\naliases[0].add_argument = writer\n',
+    'aliases = {"parser": p}\naliases["parser"].add_argument = writer\n',
+    'alias = p\nsetattr(alias, "add_argument", writer)\n',
+    'alias = p\nmethod = "add_argument"\nsetattr(alias, method, writer)\n',
+], ids=["starred-prefix", "starred-suffix", "nested-starred", "list-alias", "dict-alias", "setattr", "dynamic-setattr"])
+def test_hook_scan_parser_method_mutation_cannot_hide_runtime_argv(tmp_path, mutation):
+    body = ('import argparse, subprocess\np = argparse.ArgumentParser()\n'
+            'def writer(*args, choices):\n    subprocess.run(choices)\n' + mutation +
+            'p.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n')
+    script = tmp_path / 'rebound.py'
+    script.write_text(body, encoding='utf8')
+    assert 'argv claude' in _egress_por_ast(str(script))
+    root = _repo_minimo(tmp_path / 'repo', hooks_json=_hook_que_lanza('agent-kits/shared/probe.py'),
+                        ficheros={'agent-kits/shared/probe.py': body})
+    assert _ofensores_de_red(root)
+
+
+
+@pytest.mark.parametrize("mutation", [
+    'alias.__class__ = Rebound\n',
+    'setattr(alias, "__class__", Rebound)\n',
+    'alias._add_action = intercept\n',
+], ids=["class-alias", "class-setter", "internal-method-alias"])
+def test_B23_QA2_1_parser_identity_mutation_does_not_hide_argv(tmp_path, monkeypatch, mutation):
+    import subprocess
+    body = ('import argparse, subprocess\np = argparse.ArgumentParser()\n'
+            'class Rebound(argparse.ArgumentParser):\n'
+            '    def add_argument(self, *args, choices):\n        return subprocess.run(choices)\n'
+            'def intercept(action):\n    subprocess.run(action.choices)\n    return action\n'
+            'alias = p\n' + mutation +
+            'p.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n')
+    seen = []
+    with monkeypatch.context() as patch:
+        patch.setattr(subprocess, 'run', lambda argv: seen.append(list(argv)))
+        exec(compile(body, '<synthetic-parser-mutation>', 'exec'), {})
+    assert seen == [['claude', 'codex', 'opencode']]
+    script = tmp_path / 'rebound.py'
+    script.write_text(body, encoding='utf8')
+    assert 'argv claude' in _egress_por_ast(str(script))
+    root = _repo_minimo(tmp_path / 'repo', hooks_json=_hook_que_lanza('agent-kits/shared/probe.py'),
+                        ficheros={'agent-kits/shared/probe.py': body})
+    assert _ofensores_de_red(root)
+
+
+def test_activity_hook_closure_includes_real_local_modules():
+    reachable, unresolved = _recorrido_hooks()
+    assert unresolved == [], unresolved
+    for relative in ("agent-kits/shared/agent-activity-store.py",
+                     "agent-kits/shared/local-read.py", "agent-kits/shared/local-state.py",
+                     "agent-kits/shared/agent-activity.py"):
+        assert relative in reachable, (relative, sorted(reachable))
+    assert _EGRESS_OPT_IN_DECLARADO.keys() == {"agent-kits/shared/journal.py"}
+
+
+def _activity_security_repo(tmp_path, mutations=None, missing=()):
+    # Private regular files only; nothing executes. Read the reviewed sources by exact path.
+    relative_paths = ("hooks/run-hook.mjs", "agent-kits/shared/agent-activity-store.py",
+                     "agent-kits/shared/local-read.py", "agent-kits/shared/local-state.py",
+                     "agent-kits/shared/agent-activity.py")
+    contents = {relative: _texto(os.path.join(ROOT, relative)) for relative in relative_paths
+                if relative not in missing}
+    contents.update(mutations or {})
+    return _repo_minimo(tmp_path, hooks_json=_hooks_json_con(
+        'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" agent-activity --runtime=codex'),
+        ficheros=contents)
+
+
+def test_activity_hook_dependency_network_mutations_remain_detected(tmp_path):
+    for index, relative in enumerate(("agent-kits/shared/local-read.py",
+                                      "agent-kits/shared/local-state.py",
+                                      "agent-kits/shared/agent-activity.py")):
+        root = _activity_security_repo(tmp_path / str(index), mutations={relative: 'import socket\n'})
+        assert (relative, "import socket") in _ofensores_de_red(root)
+
+
+def test_activity_hook_loader_mutation_requires_review(tmp_path):
+    relative = "agent-kits/shared/agent-activity-store.py"
+    original = _texto(os.path.join(ROOT, relative))
+    root = _activity_security_repo(tmp_path, mutations={relative: original + '\n_load("extra-module")\n'})
+    reachable, unresolved = _recorrido_hooks(root)
+    assert relative in reachable
+    assert (relative, "cargas locales no revisadas") in unresolved
+
+
+def test_activity_hook_missing_local_dependency_is_not_adopted(tmp_path):
+    relative = "agent-kits/shared/local-state.py"
+    root = _activity_security_repo(tmp_path, missing=(relative,))
+    reachable, unresolved = _recorrido_hooks(root)
+    assert relative not in reachable
+    assert ("agent-kits/shared/agent-activity-store.py", relative) in unresolved
+
+
+def test_activity_launcher_mutation_remains_fail_closed(tmp_path):
+    original = _texto(os.path.join(ROOT, "hooks/run-hook.mjs"))
+    root = _activity_security_repo(tmp_path, mutations={"hooks/run-hook.mjs": original + '\nfetch("https://example.invalid");\n'})
+    offenders = _ofensores_de_red(root)
+    assert ("hooks/run-hook.mjs", "launcher JavaScript no revisado") in offenders
+    assert ("hooks/run-hook.mjs", "JavaScript fetch/WebSocket") in offenders
+
+
+def test_activity_quiet_parser_local_choices_are_data(tmp_path):
+    script = tmp_path / "quiet.py"
+    script.write_text('def main():\n    import argparse\n'
+        '    class QuietParser(argparse.ArgumentParser):\n'
+        '        def error(self, message):\n            raise ValueError("invalid_arguments")\n'
+        '    parser = QuietParser(add_help=False)\n'
+        '    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+    assert _egress_por_ast(str(script)) == []
+
+
+def test_activity_local_argparse_import_does_not_authorize_other_scope(tmp_path):
+    script = tmp_path / "scope.py"
+    script.write_text('def unrelated():\n    import argparse\n'
+        'parser = argparse.ArgumentParser()\n'
+        'parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+    assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_unknown_parser_subclasses_stay_argv(tmp_path):
+    for index, body in enumerate((
+        '        def add_argument(self, *args, choices):\n            return writer(choices)\n',
+        '        def error(self, message):\n            return writer(message)\n',
+        '        def error(self, message):\n            raise ValueError("invalid_arguments")\n'
+        '        def __init__(self, *args, **kwargs):\n            writer(args)\n',
+    )):
+        script = tmp_path / ("unknown-class-" + str(index) + ".py")
+        script.write_text('def main():\n    import argparse\n'
+            '    class QuietParser(argparse.ArgumentParser):\n' + body +
+            '    parser = QuietParser()\n'
+            '    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+        assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_quiet_parser_builtin_rebinding_stays_argv(tmp_path):
+    script = tmp_path / "builtin.py"
+    script.write_text('ValueError = writer\n'
+        'def main():\n    import argparse\n'
+        '    class QuietParser(argparse.ArgumentParser):\n'
+        '        def error(self, message):\n            raise ValueError("invalid_arguments")\n'
+        '    parser = QuietParser()\n'
+        '    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+    assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_runtime_subset_comparisons_are_data(tmp_path):
+    script = tmp_path / "subagent-runtime.py"
+    script.write_text('if runtime in ("claude", "codex"):\n    pass\n', encoding="utf8")
+    assert _egress_por_ast(str(script)) == []
+
+
+def test_activity_runtime_subset_used_as_command_stays_argv(tmp_path):
+    for index, body in enumerate((
+        'import subprocess\nsubprocess.run(("claude", "codex"))\n',
+        'import subprocess\nRUNTIMES = ("claude", "codex")\nsubprocess.run(RUNTIMES)\n',
+    )):
+        script = tmp_path / ("subset-command-" + str(index) + ".py")
+        script.write_text(body, encoding="utf8")
+        assert "argv claude" in _egress_por_ast(str(script))
+
+
+def _quiet_class_definition(indent=""):
+    return (indent + 'class QuietParser(argparse.ArgumentParser):\n' + indent +
+            '    def error(self, message):\n' + indent +
+            '        raise ValueError("invalid_arguments")\n')
+
+
+def test_activity_quiet_parser_function_rebinding_stays_argv(tmp_path):
+    for index, keyword in enumerate(("def", "async def")):
+        script = tmp_path / ("factory-" + str(index) + ".py")
+        script.write_text('def main():\n    import argparse\n' + _quiet_class_definition("    ") +
+            '    ' + keyword + ' QuietParser(*args, **kwargs):\n        return writer\n'
+            '    parser = QuietParser()\n'
+            '    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+        assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_quiet_parser_import_rebinding_stays_argv(tmp_path):
+    for index, binding in enumerate(('from foreign import QuietParser', 'import foreign as QuietParser')):
+        script = tmp_path / ("import-class-" + str(index) + ".py")
+        script.write_text('def main():\n    import argparse\n' + _quiet_class_definition("    ") +
+            '    ' + binding + '\n    parser = QuietParser()\n'
+            '    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+        assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_global_quiet_class_parameter_shadow_stays_argv(tmp_path):
+    script = tmp_path / "parameter.py"
+    script.write_text('import argparse\n' + _quiet_class_definition() +
+        'def main(QuietParser):\n    parser = QuietParser()\n'
+        '    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+    assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_global_quiet_class_local_binding_shadow_stays_argv(tmp_path):
+    for index, binding in enumerate(('QuietParser = writer', 'from foreign import QuietParser',
+                                      'import foreign as QuietParser', 'QuietParser: object = writer')):
+        script = tmp_path / ("local-shadow-" + str(index) + ".py")
+        script.write_text('import argparse\n' + _quiet_class_definition() +
+            'def main():\n    ' + binding + '\n    parser = QuietParser()\n'
+            '    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+        assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_global_quiet_class_unknown_local_class_shadow_stays_argv(tmp_path):
+    script = tmp_path / "local-class.py"
+    script.write_text('import argparse\n' + _quiet_class_definition() +
+        'def main():\n    class QuietParser:\n        pass\n    parser = QuietParser()\n'
+        '    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+    assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_argparse_namespace_definition_shadow_stays_argv(tmp_path):
+    for index, keyword in enumerate(("def", "async def")):
+        script = tmp_path / ("namespace-" + str(index) + ".py")
+        script.write_text('import argparse\n'
+            'def main():\n    ' + keyword + ' argparse(*args):\n        return writer\n'
+            '    parser = argparse.ArgumentParser()\n'
+            '    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+        assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_global_quiet_class_nested_parameter_shadow_stays_argv(tmp_path):
+    script = tmp_path / "nested-parameter.py"
+    script.write_text('import argparse\n' + _quiet_class_definition() +
+        'def outer(QuietParser):\n    def inner():\n        parser = QuietParser()\n'
+        '        parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+    assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_global_quiet_class_nested_assignment_shadow_stays_argv(tmp_path):
+    for index, binding in enumerate(('QuietParser = writer', 'QuietParser: object = writer',
+                                      'class QuietParser:\n        pass')):
+        script = tmp_path / ("nested-binding-" + str(index) + ".py")
+        script.write_text('import argparse\n' + _quiet_class_definition() +
+            'def outer():\n    ' + binding + '\n    def inner():\n        parser = QuietParser()\n'
+            '        parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+        assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_global_parser_receiver_nested_shadow_stays_argv(tmp_path):
+    for index, outer in enumerate(('def outer(parser):\n',
+                                   'def outer():\n    parser = writer\n',
+                                   'def outer():\n    def parser():\n        return writer\n')):
+        script = tmp_path / ("nested-receiver-" + str(index) + ".py")
+        script.write_text('import argparse\nparser = argparse.ArgumentParser()\n' + outer +
+            '    def inner():\n'
+            '        parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+        assert "argv claude" in _egress_por_ast(str(script))
+
+
+def _declared_namespace_writer():
+    return ('import subprocess\n'
+            'class Writer:\n'
+            '    def add_argument(self, *args, choices):\n'
+            '        return subprocess.run(choices)\n'
+            'def writer():\n    return Writer()\n')
+
+
+def test_activity_declared_global_quiet_class_rebinding_stays_argv(tmp_path):
+    script = tmp_path / "declared-global-class.py"
+    script.write_text('import argparse\n' + _quiet_class_definition() +
+        _declared_namespace_writer() +
+        'def replace():\n    global QuietParser\n    QuietParser = writer\n'
+        'replace()\nparser = QuietParser()\n'
+        'parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+    assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_declared_nonlocal_quiet_class_rebinding_stays_argv(tmp_path):
+    script = tmp_path / "declared-nonlocal-class.py"
+    script.write_text('import argparse\n' + _declared_namespace_writer() +
+        'def outer():\n' + _quiet_class_definition("    ") +
+        '    def replace():\n        nonlocal QuietParser\n        QuietParser = writer\n'
+        '    replace()\n    parser = QuietParser()\n'
+        '    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n'
+        'outer()\n', encoding="utf8")
+    assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_declared_parser_receiver_rebinding_stays_argv(tmp_path):
+    cases = (
+        'parser = argparse.ArgumentParser()\n'
+        'def replace():\n    global parser\n    parser = writer()\n'
+        'replace()\nparser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n',
+        'def outer():\n    parser = argparse.ArgumentParser()\n'
+        '    def replace():\n        nonlocal parser\n        parser = writer()\n'
+        '    replace()\n    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n'
+        'outer()\n',
+    )
+    for index, body in enumerate(cases):
+        script = tmp_path / ("declared-receiver-" + str(index) + ".py")
+        script.write_text('import argparse\n' + _declared_namespace_writer() + body, encoding="utf8")
+        assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_declared_argparse_namespace_stays_argv(tmp_path):
+    cases = (
+        'import argparse\n'
+        'def replace():\n    global argparse\n    argparse = writer\n'
+        'replace()\nparser = argparse.ArgumentParser()\n'
+        'parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n',
+        'def outer():\n    import argparse\n'
+        '    def replace():\n        nonlocal argparse\n        argparse = writer\n'
+        '    replace()\n    parser = argparse.ArgumentParser()\n'
+        '    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n'
+        'outer()\n',
+    )
+    for index, body in enumerate(cases):
+        script = tmp_path / ("declared-argparse-" + str(index) + ".py")
+        namespace = ('class Namespace:\n'
+                     '    def ArgumentParser(self):\n        return writer()\n')
+        script.write_text(_declared_namespace_writer() + namespace +
+                          body.replace('argparse = writer', 'argparse = Namespace()'), encoding="utf8")
+        assert "argv claude" in _egress_por_ast(str(script))
+
+
+def test_activity_unrelated_namespace_declaration_keeps_local_quiet_data(tmp_path):
+    script = tmp_path / "unrelated-declaration.py"
+    script.write_text('counter = 0\ndef bump():\n    global counter\n    counter = 1\n'
+        'def main():\n    import argparse\n' + _quiet_class_definition("    ") +
+        '    parser = QuietParser()\n'
+        '    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
+    assert _egress_por_ast(str(script)) == []

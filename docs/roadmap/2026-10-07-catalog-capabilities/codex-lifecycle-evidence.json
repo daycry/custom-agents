@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "observed_on": "2026-10-08",
+  "observation": "final frozen supervised payload; fresh lifecycle-04-supervision",
+  "result": "passed",
+  "runtime": {
+    "name": "codex",
+    "version": "0.161.0",
+    "binary_sha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
+    "source_commit": "979011409de0a60b52f179721948e65531d26144"
+  },
+  "installation": {
+    "source": "private frozen snapshot of final workspace production files",
+    "scope": "owned project and owned user home/cache",
+    "installer_exit": 0,
+    "installer_elapsed_s": 4.658,
+    "activation": "native plugin registration invoked by source installer",
+    "payload_provenance": [
+      {
+        "path": "hooks/run-hook.mjs",
+        "sha256": "5635a84af17a9aeb4911b081bc698d086bf296cc831981dfd27cad99ae128f5b",
+        "bytes": 8618
+      },
+      {
+        "path": "hooks/runtime-supervisor.py",
+        "sha256": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+        "bytes": 9882
+      },
+      {
+        "path": "agent-kits/shared/journal-capture.py",
+        "sha256": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+        "bytes": 15261
+      },
+      {
+        "path": "agent-kits/shared/journal.py",
+        "sha256": "11af8ac4cb15f452c4a94443e3f487758d53ddb68ebc2831f07c76b4f9375c30",
+        "bytes": 115990
+      },
+      {
+        "path": "agent-kits/shared/outbox.py",
+        "sha256": "9ff5cb708fb8794b552171c6521218aba939b5df5e288c01e84609d85b8cb12d",
+        "bytes": 46901
+      },
+      {
+        "path": "interop/codex/hooks.json",
+        "sha256": "d039ece9a523d4b667594a56a378d977a83ab33af87437ae7fd921e5a9e4aea3",
+        "bytes": 1602
+      },
+      {
+        "path": ".codex-plugin/plugin.json",
+        "sha256": "d748f713d9d65a58e57ddd9164fb8ebe7877de769a7c2b397f7c2c346883761a",
+        "bytes": 2675
+      }
+    ],
+    "observer_fixture_provenance": {
+      "loaded_hooks_json_sha256": "c485f4a178b4d5d37209f3bfd2ec6b99e67f673328312d408a521b5ded8543ef",
+      "observer_script_sha256": "24c81859daa1b83134af191a748a1f4465ed33313e8b390d5e0ccc7d5f192c02",
+      "canonical_hooks_json_sha256": "d039ece9a523d4b667594a56a378d977a83ab33af87437ae7fd921e5a9e4aea3",
+      "canonical_session_end_timeout_s": 3
+    }
+  },
+  "native_transport": {
+    "mode": "one app-server process; stdio JSON-RPC; owned Responses SSE loopback",
+    "sequence": [
+      "thread/start",
+      "turn/start",
+      "turn/completed",
+      "thread/archive on loaded root",
+      "native Op::Shutdown observed",
+      "canonical and observer SessionEnd completed",
+      "archive response",
+      "outbox observed while app-server alive",
+      "close stdin",
+      "natural exit 0"
+    ],
+    "native_canonical_and_observer_session_end": [
+      {
+        "role": "canonical",
+        "display_order": 4,
+        "status": "completed",
+        "duration_ms": 1745,
+        "entries": []
+      },
+      {
+        "role": "observer",
+        "display_order": 5,
+        "status": "completed",
+        "duration_ms": 1369,
+        "entries": []
+      }
+    ],
+    "envelope_count": 1,
+    "envelope_native_session_id_matches": true,
+    "envelope_observed_before_appserver_exit": true,
+    "envelope_plugin_versions": [
+      "1.22.0"
+    ],
+    "observer_count": 1,
+    "observer_native_session_id_matches": true,
+    "context_reached_native_model_request": true,
+    "unicode_prompt_captured": true,
+    "native_process_exit": 0,
+    "native_shutdown_forced": false
+  },
+  "isolation": {
+    "own_home_codex_home_project_source_and_cache": true,
+    "environment_keys": [
+      "APPDATA",
+      "CLAUDE_CONFIG_DIR",
+      "CODEX_HOME",
+      "COMSPEC",
+      "CUSTOM_AGENTS_NATIVE_OBSERVER",
+      "CUSTOM_AGENTS_PYTHON",
+      "HOME",
+      "LOCALAPPDATA",
+      "NO_PROXY",
+      "NUMBER_OF_PROCESSORS",
+      "PATH",
+      "PATHEXT",
+      "PROCESSOR_ARCHITECTURE",
+      "PYTHONIOENCODING",
+      "RUST_LOG",
+      "SystemRoot",
+      "TEMP",
+      "TMP",
+      "USERPROFILE",
+      "WINDIR",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME"
+    ],
+    "provider": "owned loopback fixture",
+    "model_requests": 1,
+    "authorization_present": false,
+    "inherited_provider_credential_keys": [],
+    "analytics_enabled": false,
+    "reference_corpus_executed": false,
+    "hook_trust": "bypassed only for the owned thread; persisted trust untested"
+  },
+  "limits": {
+    "one_latency_observation_per_handler": true,
+    "native_tui_exit_tested": false,
+    "exec_exit_is_native_session_end_proof": false,
+    "thread_unsubscribe_or_close_inferred_as_session_end": false,
+    "subagent_guards_functionally_tested": false,
+    "consumer_mcp_connections_tested": false
+  },
+  "private_evidence_references": [
+    "scratchpad/.venv/codex-native/lifecycle-04-supervision/summary.json",
+    "scratchpad/.venv/codex-native/lifecycle-04-supervision/installer.json",
+    "scratchpad/.venv/codex-native/lifecycle-04-supervision/protocol-events.json",
+    "scratchpad/.venv/codex-native/lifecycle-04-supervision/appserver-stderr.log",
+    "scratchpad/.venv/codex-native/lifecycle-04-supervision/payload-provenance.json",
+    "scratchpad/.venv/codex-native/lifecycle-04-supervision/observer-fixture-provenance.json",
+    "scratchpad/.venv/codex-native/lifecycle-04-supervision/observer-events.json",
+    "scratchpad/.venv/codex-native/lifecycle-04-supervision/envelopes.json",
+    "scratchpad/.venv/codex-native/lifecycle-04-supervision/requests.json"
+  ],
+  "previous_capture_extraction_snapshot": {
+    "schema_version": 1,
+    "observed_on": "2026-10-08",
+    "observation": "current payload after bounded capture extraction and explicit Codex runtime export",
+    "runtime": {
+      "name": "codex",
+      "version": "0.161.0",
+      "binary_sha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
+      "source_commit": "979011409de0a60b52f179721948e65531d26144"
+    },
+    "installation": {
+      "source": "private frozen snapshot of current workspace production files",
+      "scope": "owned project; owned user home/cache",
+      "installer_exit": 0,
+      "installer_elapsed_s": 7.152,
+      "activation": "actual native plugin add invoked by current installer",
+      "payload_provenance": [
+        {
+          "path": "hooks/run-hook.mjs",
+          "sha256": "5336285d17d901580defa800604b3de4a587820793e49da523c4ae818596ffc6",
+          "bytes": 6246
+        },
+        {
+          "path": "agent-kits/shared/journal-capture.py",
+          "sha256": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+          "bytes": 15261
+        },
+        {
+          "path": "agent-kits/shared/journal.py",
+          "sha256": "11af8ac4cb15f452c4a94443e3f487758d53ddb68ebc2831f07c76b4f9375c30",
+          "bytes": 115990
+        },
+        {
+          "path": "agent-kits/shared/outbox.py",
+          "sha256": "9ff5cb708fb8794b552171c6521218aba939b5df5e288c01e84609d85b8cb12d",
+          "bytes": 46901
+        },
+        {
+          "path": "interop/codex/hooks.json",
+          "sha256": "d039ece9a523d4b667594a56a378d977a83ab33af87437ae7fd921e5a9e4aea3",
+          "bytes": 1602
+        },
+        {
+          "path": ".codex-plugin/plugin.json",
+          "sha256": "d748f713d9d65a58e57ddd9164fb8ebe7877de769a7c2b397f7c2c346883761a",
+          "bytes": 2675
+        }
+      ]
+    },
+    "native_transport": {
+      "mode": "single app-server process, stdio JSON-RPC, own Responses SSE loopback",
+      "sequence": [
+        "thread/start",
+        "turn/start",
+        "turn/completed",
+        "thread/archive on active loaded root thread",
+        "SessionEnd completed",
+        "archive response",
+        "observe outbox while app-server remains alive",
+        "close stdin",
+        "process exit 0"
+      ],
+      "native_canonical_and_observer_session_end": [
+        {
+          "display_order": 4,
+          "status": "completed",
+          "duration_ms": 2536,
+          "entries": []
+        },
+        {
+          "display_order": 5,
+          "status": "completed",
+          "duration_ms": 1921,
+          "entries": []
+        }
+      ],
+      "envelope_count": 1,
+      "envelope_native_session_id_matches": true,
+      "envelope_observed_before_appserver_exit": true,
+      "envelope_plugin_versions": [
+        "1.22.0"
+      ],
+      "observer_count": 1,
+      "observer_native_session_id_matches": true,
+      "context_reached_native_model_request": true,
+      "unicode_prompt_captured": true,
+      "native_process_exit": 0
+    },
+    "isolation": {
+      "own_home_codex_home_project_source_and_cache": true,
+      "provider": "loopback own fixture",
+      "model_requests": 1,
+      "authorization_present": false,
+      "inherited_provider_credential_keys": [],
+      "analytics_enabled": false,
+      "reference_corpus_executed": false,
+      "hook_trust": "bypassed only for this own thread; no claim of persisted trust"
+    },
+    "limits": {
+      "one_latency_measurement_per_handler": true,
+      "native_tui_exit_tested": false,
+      "exec_exit_is_native_session_end_proof": false,
+      "subagent_guards_functionally_tested": false,
+      "historical_previous_payload_evidence": "Prior native fixture observed version 0.0.0 with earlier payload; preserved privately."
+    },
+    "source_stage": "capture extraction before final process-lifetime corrections; source hashes retained",
+    "final_supervision_evidence": "terminal-capture-evidence.json"
+  }
+}

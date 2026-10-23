@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# panel-title: Documentación pendiente
+# panel-description: Marca la documentación editada como pendiente de sincronizar con Confluence. No publica nada automáticamente.
 # Hook PostToolUse (Write/Edit/MultiEdit): marca que hay documentación pendiente de
 # sincronizar con Confluence. NO publica nada y NO depende de git.
 #
@@ -14,9 +16,11 @@ INPUT="$(cat 2>/dev/null || true)"
 
 # Extrae la(s) ruta(s) de fichero del payload. Usa jq si está; si no, grep de respaldo.
 paths=""
+paths_json_escaped=0
 if command -v jq >/dev/null 2>&1; then
   paths="$(printf '%s' "$INPUT" | jq -r '[.tool_input.file_path, (.tool_input.edits[]?.file_path)] | map(select(. != null)) | .[]' 2>/dev/null)"
 else
+  paths_json_escaped=1
   paths="$(printf '%s' "$INPUT" | grep -oE '"file_path"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*:[[:space:]]*"([^"]+)"/\1/')"
 fi
 
@@ -25,7 +29,8 @@ fi
 hit=0
 while IFS= read -r p; do
   [ -n "$p" ] || continue
-  p="${p//\\//}"   # rutas Windows nativas (C:\proy\docs\roadmap\...) → separador '/'
+  if [ "$paths_json_escaped" = 1 ]; then p="${p//\\\\//}"; fi
+  p="${p//\\//}"   # jq devuelve el backslash nativo ya decodificado
   case "$p" in
     *docs/security-scan/*) continue ;;   # nunca sincronizar datos sensibles de nemesis
     *docs/confluence/*) continue ;;      # carpeta STAGED (D5, generada por --stage): regenerarla

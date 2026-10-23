@@ -35,6 +35,7 @@ Exit 0 si todo va bien; 1 si el `--check` encuentra problemas o la exportación 
 Solo stdlib. Reutiliza `agent-kits/shared/skill-index.py` (lectura de frontmatters + resumen).
 """
 import argparse
+import ast
 import hashlib
 import importlib.util
 import os
@@ -81,7 +82,7 @@ NO_VIAJA = (
 FIND_RE = re.compile(r'find(?:\s+"\$(?:PWD|HOME)/[^"]*")+')
 FIND_COLGANDO = 'find "$PWD/.claude"'
 SHARED_REF_RE = re.compile(r"(?:agent-kits/shared|\$SHAREDKIT)/([A-Za-z0-9_.\-]+)")
-PY_NAME_RE = re.compile(r'"([A-Za-z0-9_\-]+\.py)"')
+PY_NAME_RE = re.compile(r'[A-Za-z0-9_\-]+\.py')
 # referencias a ficheros del paquete citadas en los .md (placeholders <…>/{…} se ignoran)
 REF_RE = re.compile(r"(?<![A-Za-z0-9_/.\-])((?:skills/[a-z0-9\-]+/|agent-kits/shared/)?(?:references|scripts|assets)/[A-Za-z0-9_./\-]+|agent-kits/shared/[A-Za-z0-9_./\-]+)")
 
@@ -165,6 +166,17 @@ def reescribir(texto):
     return FIND_RE.subn('find "${PORTABLE_ROOT:-.}"', texto)
 
 
+def _python_dependencies(src):
+    """Nombres compartidos literales, sin ejecutar Python ni tomar comentarios."""
+    try:
+        tree = ast.parse(src)
+    except (SyntaxError, ValueError, RecursionError):
+        return set()
+    return {node.value for node in ast.walk(tree)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)
+            and PY_NAME_RE.fullmatch(node.value)}
+
+
 def fragmentos_shared(root, textos):
     """Fragmentos de agent-kits/shared/ citados por los textos (+ cierre sobre los .py copiados:
     `scope-check.py` carga `ledger-lint.py` por nombre). Devuelve rutas relativas ordenadas."""
@@ -189,11 +201,11 @@ def fragmentos_shared(root, textos):
         elif os.path.isfile(p):
             out.append(f"agent-kits/shared/{nombre}")
             try:
-                src = read_bytes(p).decode("utf-8")
+                src = read_bytes(p).decode("utf-8-sig")
             except UnicodeDecodeError:
                 src = ""
             if nombre.endswith(".py"):          # scope-check.py carga ledger-lint.py por nombre
-                for otro in PY_NAME_RE.findall(src):
+                for otro in _python_dependencies(src):
                     if otro != nombre and os.path.isfile(os.path.join(shared, otro)):
                         pendientes.add(otro)
             else:                               # un fragmento .md puede citar otro (knowledge-write → templates/adr.md)

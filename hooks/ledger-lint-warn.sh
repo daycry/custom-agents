@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# panel-title: Validación del ledger
+# panel-description: Revisa la estructura de tasks.md tras una edición e informa de incoherencias. Los avisos no bloquean el trabajo.
 # Hook PostToolUse (Write/Edit/MultiEdit): valida el ledger canónico tasks.md
 # con ledger-lint.py en MODO AVISO cada vez que se edita. Determinista: ocurre
 # siempre, sin depender del prompt. NUNCA bloquea la edición (siempre exit 0).
@@ -15,9 +17,11 @@ command -v python3 >/dev/null 2>&1 || exit 0
 # Extraer ruta(s) del payload (jq si está; grep de respaldo — mismo patrón
 # que mark-docs-pending.sh).
 paths=""
+paths_json_escaped=0
 if command -v jq >/dev/null 2>&1; then
   paths="$(printf '%s' "$INPUT" | jq -r '[.tool_input.file_path, (.tool_input.edits[]?.file_path)] | map(select(. != null)) | .[]' 2>/dev/null)"
 else
+  paths_json_escaped=1
   paths="$(printf '%s' "$INPUT" | grep -oE '"file_path"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*:[[:space:]]*"([^"]+)"/\1/')"
 fi
 [ -n "$paths" ] || exit 0
@@ -32,7 +36,8 @@ fi
 
 while IFS= read -r p; do
   [ -n "$p" ] || continue
-  p="${p//\\//}"   # rutas Windows nativas (C:\proy\docs\roadmap\...) → separador '/'
+  if [ "$paths_json_escaped" = 1 ]; then p="${p//\\\\//}"; fi
+  p="${p//\\//}"   # jq devuelve el backslash nativo ya decodificado
   case "$p" in
     *docs/roadmap/*tasks.md)
       python3 "$LINT" "$p" --warn-only 2>/dev/null || true

@@ -635,6 +635,79 @@ def test_reclose_misma_ventana_sustituye(entorno):
     assert res2["tokens_reales"]["entrada"] == res1["tokens_reales"]["entrada"] == 100
 
 
+def test_snapshot_identity_survives_reclose(entorno):
+    """Copies of cumulative snapshots can identify their source and shared window."""
+    _, tdir, state = entorno
+    first = _start_close(tdir, state, antes=[], despues=[_rec("first", inp=150)])
+    with (tdir / "sesion.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(_rec("second", inp=50) + "\n")
+    rc, second = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
+                           "--transcript-dir", str(tdir)])
+    assert rc == 0
+    assert first["fuente_id"] == second["fuente_id"]
+    assert "ventana_id" in first, first
+    assert "ventana_id" in second, second
+    assert first["ventana_id"] == second["ventana_id"]
+    assert first["revision_medicion"] == 1 and second["revision_medicion"] == 2
+    assert second["tokens_reales"]["entrada"] == 200
+    assert str(tdir) not in first["fuente_id"]
+    saved = json.loads(state.read_text(encoding="utf-8"))["a.md"]
+    assert saved["revision_medicion"] == 2
+
+
+def test_new_start_has_distinct_window_even_at_same_time(entorno, monkeypatch):
+    _, tdir, state = entorno
+    monkeypatch.setattr(um, "_now_iso", lambda: "2026-10-11T00:00:00Z")
+    args = ["start", "--artefacto", "a.md", "--state", str(state),
+            "--transcript-dir", str(tdir)]
+    _run(None, args)
+    first = json.loads(state.read_text(encoding="utf-8"))["a.md"]["ventana_id"]
+    _run(None, args)
+    second = json.loads(state.read_text(encoding="utf-8"))["a.md"]["ventana_id"]
+    assert first != second
+
+
+def test_legacy_marker_gets_identity_on_first_measured_close(entorno):
+    _, tdir, state = entorno
+    state.write_text(json.dumps({"a.md": {"version": 2, "inicio": um._now_iso(),
+                                          "transcriptDir": str(tdir), "offsets": {}}}),
+                     encoding="utf-8")
+    _write(tdir / "sesion.jsonl", [_rec("legacy", inp=150)])
+    args = ["close", "--artefacto", "a.md", "--state", str(state),
+            "--transcript-dir", str(tdir)]
+    _, first = _run(None, args)
+    _, second = _run(None, args)
+    assert "ventana_id" in first, first
+    assert "ventana_id" in second, second
+    assert first["ventana_id"] == second["ventana_id"]
+    assert (first["revision_medicion"], second["revision_medicion"]) == (1, 2)
+
+
+def test_failed_state_write_emits_no_persisted_identity(entorno, monkeypatch):
+    _, tdir, state = entorno
+    _write(tdir / "sesion.jsonl", [])
+    _run(None, ["start", "--artefacto", "a.md", "--state", str(state),
+                "--transcript-dir", str(tdir)])
+    with (tdir / "sesion.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(_rec("response", inp=150) + "\n")
+    def fail_replace(*args):
+        raise PermissionError("synthetic state write failure")
+    monkeypatch.setattr(um.os, "replace", fail_replace)
+    rc, result = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
+                           "--transcript-dir", str(tdir)])
+    assert rc == 0 and result["tokens_reales"]["entrada"] == 150
+    assert result["medicion_persistida"] is False
+    assert not any(key in result for key in ("fuente_id", "ventana_id", "revision_medicion"))
+    assert any("guardar" in warning for warning in result["avisos"])
+
+
+def test_estimated_close_has_no_measurement_identity(entorno):
+    _, tdir, state = entorno
+    result = _start_close(tdir, state, antes=[], despues=[])
+    assert result["fuente"] == "estimado"
+    assert not any(key in result for key in ("fuente_id", "ventana_id", "revision_medicion"))
+
+
 def test_marcadores_concurrentes_independientes(entorno):
     _, tdir, state = entorno
     _write(tdir / "sesion.jsonl", [])
@@ -951,5 +1024,153 @@ def test_close_sin_transcript_dir_usa_localizacion_real(monkeypatch, tmp_path):
     assert res["fuente"] == "medido"
 
 
+def test_state_interleaved_saves_keep_their_own_payload(tmp_path, monkeypatch):
+    """A second writer must not consume or overwrite the first writer's temporary."""
+    state = tmp_path / "state.json"
+    replace = um.os.replace
+    interleaved = False
+    sources = []
+    def racing_replace(source, target):
+        nonlocal interleaved
+        sources.append(str(source))
+        if not interleaved:
+            interleaved = True
+            warnings = []
+            assert um._save_state(state, {"inner": {"value": 2}}, warnings), warnings
+        replace(source, target)
+    monkeypatch.setattr(um.os, "replace", racing_replace)
+    warnings = []
+    assert um._save_state(state, {"outer": {"value": 1}}, warnings), warnings
+    assert len(set(sources)) == 2
+    assert json.loads(state.read_text(encoding="utf-8")) == {"outer": {"value": 1}}
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+@pytest.mark.parametrize("winerror", [5, 32, 33])
+def test_state_windows_transient_replace_has_bounded_delay(tmp_path, monkeypatch, winerror):
+    from types import SimpleNamespace
+    state = tmp_path / "state.json"
+    replace = um.os.replace
+    calls, delays = [], []
+    monkeypatch.setattr(um, "_STATE_WINDOWS", True, raising=False)
+    monkeypatch.setattr(um, "time", SimpleNamespace(sleep=delays.append), raising=False)
+    def transient(source, target):
+        calls.append(str(source))
+        if len(calls) == 1:
+            error = OSError("synthetic transient replacement error")
+            error.winerror = winerror
+            raise error
+        replace(source, target)
+    monkeypatch.setattr(um.os, "replace", transient)
+    assert um._save_state(state, {"saved": {"value": 1}})
+    assert len(calls) == 2 and len(set(calls)) == 1 and delays == [.02]
+    assert json.loads(state.read_text(encoding="utf-8")) == {"saved": {"value": 1}}
+
+
+@pytest.mark.parametrize("windows,winerror", [(False, 5), (True, 112), (True, None)])
+def test_state_other_errors_do_not_retry(tmp_path, monkeypatch, windows, winerror):
+    from types import SimpleNamespace
+    state = tmp_path / "state.json"
+    state.write_text('{"old": {"value": 1}}', encoding="utf-8")
+    before = state.read_bytes()
+    calls, delays, warnings = [], [], []
+    monkeypatch.setattr(um, "_STATE_WINDOWS", windows, raising=False)
+    monkeypatch.setattr(um, "time", SimpleNamespace(sleep=delays.append), raising=False)
+    def rejected(source, target):
+        calls.append(str(source))
+        error = OSError("synthetic permanent error")
+        error.winerror = winerror
+        raise error
+    monkeypatch.setattr(um.os, "replace", rejected)
+    assert not um._save_state(state, {"new": {"value": 2}}, warnings)
+    assert len(calls) == 1 and not delays and warnings
+    assert state.read_bytes() == before
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_state_exhausted_replacements_preserve_previous_state(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    state = tmp_path / "state.json"
+    state.write_text('{"old": {"value": 1}}', encoding="utf-8")
+    before = state.read_bytes()
+    calls, delays, warnings = [], [], []
+    monkeypatch.setattr(um, "_STATE_WINDOWS", True, raising=False)
+    monkeypatch.setattr(um, "time", SimpleNamespace(sleep=delays.append), raising=False)
+    def rejected(source, target):
+        calls.append(str(source))
+        error = PermissionError("synthetic busy target")
+        error.winerror = 5
+        raise error
+    monkeypatch.setattr(um.os, "replace", rejected)
+    assert not um._save_state(state, {"new": {"value": 2}}, warnings)
+    assert len(calls) == 4 and delays == [.02, .04, .08]
+    assert state.read_bytes() == before and warnings
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_state_existing_temporary_is_not_owned_or_deleted(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    state = tmp_path / "state.json"
+    token = "a" * 32
+    monkeypatch.setattr(um.uuid, "uuid4", lambda: SimpleNamespace(hex=token))
+    sentinel = tmp_path / ("state.json." + str(um.os.getpid()) + "." + token + ".tmp")
+    sentinel.write_bytes(b"foreign bytes")
+    warnings = []
+    assert not um._save_state(state, {"new": {"value": 1}}, warnings)
+    assert sentinel.read_bytes() == b"foreign bytes" and not state.exists()
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+# ------------------------------------------------------------------ procedencia y cobertura (D-086)
+
+def test_procedencia_medida_completa_con_subagente_y_tarifa(entorno):
+    """Tokens medidos, coste estimado y cobertura van SEPARADOS en claves planas aditivas."""
+    tmp, tdir, state = entorno
+    rates = _rates(tmp, verificado=HOY, extra={"cacheCreacion": 18.75, "cacheLectura": 1.5})
+    _write(tdir / "sesion.jsonl", [])
+    rc, _ = _run(None, ["start", "--artefacto", "a.md", "--state", str(state), "--transcript-dir", str(tdir)])
+    with open(tdir / "sesion.jsonl", "a", encoding="utf-8") as f:
+        f.write(_rec("m1", inp=1000, out=100, cr=50) + "\n")
+    sub = tdir / "s1" / "subagents"
+    sub.mkdir(parents=True)
+    _write(sub / "agent-x.jsonl", [_rec("s1", inp=10, out=1)])
+    rc, res = _run(None, ["close", "--artefacto", "a.md", "--state", str(state), "--transcript-dir", str(tdir),
+                          "--rates", rates])
+    assert rc == 0 and res["fuente"] == "medido"
+    assert res["tokens_procedencia"] == "transcript" and res["tokens_cobertura"] == "completa"
+    assert (res["transcripts_leidos"], res["transcripts_subagente"], res["transcripts_con_error"]) == (2, 1, 0)
+    assert res["coste_procedencia"] == "estimado_tarifa" and res["coste_cobertura"] == "completa"
+    assert res["coste_sin_precio"] == [] and res["tarifa_verificada_el"] == HOY
+
+
+def test_procedencia_coste_incompleto_si_una_clase_no_tiene_precio(entorno):
+    tmp, tdir, state = entorno
+    rates = _rates(tmp, verificado=HOY)
+    res = _start_close(tdir, state, antes=[], despues=[_rec("m1", inp=1000, out=0, cr=5000)],
+                       close_args=["--rates", rates])
+    assert res["eur"] is not None and res["coste_procedencia"] == "estimado_tarifa"
+    assert res["coste_cobertura"] == "incompleta" and res["coste_sin_precio"] == ["cache_lectura"]
+
+
+def test_procedencia_sin_coste_y_sin_medida_no_se_presentan_como_cero(entorno, tmp_path):
+    tmp, tdir, state = entorno
+    res = _start_close(tdir, state, antes=[], despues=[_rec("m1", inp=1000, out=100)],
+                       close_args=["--rates", _rates(tmp, verificado=None)])
+    assert res["tokens_procedencia"] == "transcript" and res["eur"] is None
+    assert res["coste_procedencia"] == "sin_coste" and res["coste_cobertura"] == "sin_coste"
+    st = tmp_path / "otro.json"
+    _run(None, ["start", "--artefacto", "b.md", "--state", str(st), "--transcript-dir", str(tmp_path / "no")])
+    rc, res = _run(None, ["close", "--artefacto", "b.md", "--state", str(st), "--transcript-dir", str(tmp_path / "no")])
+    assert res["tokens_procedencia"] == "sin_medida" and res["tokens_cobertura"] == "sin_medida"
+    assert res["transcripts_leidos"] is None and res["coste_procedencia"] == "sin_coste"
+
+
+def test_procedencia_cobertura_parcial_con_usage_no_numerico(entorno):
+    _, tdir, state = entorno
+    malo = json.loads(_rec("m2", inp=5, out=5))
+    malo["message"]["usage"]["input_tokens"] = "muchos"
+    res = _start_close(tdir, state, antes=[], despues=[_rec("m1", inp=10, out=5), json.dumps(malo)])
+    assert res["fuente"] == "medido" and res["tokens_cobertura"] == "parcial"

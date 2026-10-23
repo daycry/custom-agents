@@ -1,0 +1,261 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S174",
+    "S181",
+    "S182",
+    "S190",
+    "S192"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S174",
+      "sha256": "c2036d3ff01fd13258a2d8af88c04b94f68a10808c799be4e62b975874b263af",
+      "bytes": 2896,
+      "lines": 105,
+      "read_ranges": [
+        [
+          1,
+          105
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S181",
+      "sha256": "75786102fd1a49d1bbed11f75bc014a93e1bb2eed2cdc0088f1bad0e92d29291",
+      "bytes": 1144,
+      "lines": 34,
+      "read_ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S182",
+      "sha256": "086650c5a5d797530086a1f7a5f6d853034a30c75c53e2e4aa80e8df7192b52b",
+      "bytes": 2639,
+      "lines": 49,
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "765d863356ba7de108816a62247a3748c6878fee0ff018e8ab1ea07c6fa92b27",
+          "bytes": 277,
+          "lines": 4,
+          "read_ranges": [
+            [
+              1,
+              4
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    },
+    {
+      "id": "S190",
+      "sha256": "2a8096af72efaeb29a4221929ac1f1ea9d97b95d44316720764fb7c191c7a5b9",
+      "bytes": 6015,
+      "lines": 168,
+      "read_ranges": [
+        [
+          1,
+          168
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S192",
+      "sha256": "3498442cf72ee7efbc4cc56553b48dbbb1a26d1d95eca4037aede69e164a9875",
+      "bytes": 12525,
+      "lines": 289,
+      "read_ranges": [
+        [
+          1,
+          289
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "gacha.py",
+          "sha256": "032aed98c1c93ced971ac223357b2d3a4162f7e6ca8ecd7eb3e35a121fe5d5bc",
+          "bytes": 7969,
+          "lines": 224,
+          "read_ranges": [
+            [
+              1,
+              224
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "gacha.sh",
+          "sha256": "7f37efda4df83e547e37df7fb19d2ce34500cce7a6ab62e6983a2095b3761b67",
+          "bytes": 211,
+          "lines": 5,
+          "read_ranges": [
+            [
+              1,
+              5
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "references/avatar-style.md",
+          "sha256": "b422938377812dff985dd6887756af87a4f866bc27a5fa33f9be1f0db60d8df1",
+          "bytes": 4746,
+          "lines": 124,
+          "read_ranges": [
+            [
+              1,
+              124
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "references/boundary-rules.md",
+          "sha256": "10ceeed8f1290d30de994efc42375619b458083b60d1b49d3a8f4abc645d2bfe",
+          "bytes": 2452,
+          "lines": 53,
+          "read_ranges": [
+            [
+              1,
+              53
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "references/error-handling.md",
+          "sha256": "2e22cdd76b1b119b04f076b71d6fb3834d5a422fc952b3478237de85683bd243",
+          "bytes": 2136,
+          "lines": 53,
+          "read_ranges": [
+            [
+              1,
+              53
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "references/identity-tension.md",
+          "sha256": "e0f0c7ac300ed9c755fa6460197bdc3efe8f8186e738806a0591c779da4d16a9",
+          "bytes": 1656,
+          "lines": 48,
+          "read_ranges": [
+            [
+              1,
+              48
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "references/naming-system.md",
+          "sha256": "ca0e8710c330222d03abf05e25e7a67d1ae3200fb239ebaea2fcb880c6bbb563",
+          "bytes": 1293,
+          "lines": 39,
+          "read_ranges": [
+            [
+              1,
+              39
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "references/output-template.md",
+          "sha256": "4a832227b34b69aec997ae2c4b08cc1df81abcbb048b03e80173ea3f97c8e202",
+          "bytes": 3363,
+          "lines": 166,
+          "read_ranges": [
+            [
+              1,
+              166
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/to-pdf/SKILL.md",
+      "sha256": "c0c4a09b7a4072fc977ed8a8e984eaeefe9ed1762d1cf1d126c62f6be78e5287"
+    },
+    {
+      "path": "install/install.mjs",
+      "sha256": "db99529013a4fd03770a6389c39f89fd45438bf37efef5837d369bd2e803c195"
+    },
+    {
+      "path": "skills/plugin-dev/SKILL.md",
+      "sha256": "5b2cb087181ea5fb91f19ba45a2a24e42eaa99ad1ff1b73ced2486a70608f3da"
+    },
+    {
+      "path": "agent-kits/shared/task-brief.py",
+      "sha256": "41e3f4261f0f9107b6189882cac410481fe33f51f16de6fb68e2bb56aaebddb5"
+    },
+    {
+      "path": "agent-kits/shared/personas/db.md",
+      "sha256": "638fa9f5a5762f1e9e3d1ca3f2fc5066f199758361de6b1cf0448fc1e770e248"
+    },
+    {
+      "path": "agent-kits/shared/journal.py",
+      "sha256": "7a8db1f33d1259b7cff0727582f409c528f94c8367160b33d11eba868029d5b8"
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "ec9504fb23b8eadb209e83ce347eee8c9a63c8d03e09d0f7e7c4bb204d65ad5c"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-008-skill-md-corto-con-references-bajo-demanda.md",
+      "sha256": "d839ddbaf612d60a851a4a2b70daf15d06c8622d8f2ed48e004dcc165e09a095"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-catalog-self-ops-domains.md",
+      "sha256": "e90d5c8c3cd8dcb6842df35263198138f2860495db933653604e24acae7fea3f"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-hexagonal-hipaa-homelab.md",
+      "sha256": "ef23e6ef35277c885bdb1151af6397ea2319b365649568eeeb103fdf8743e76b"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

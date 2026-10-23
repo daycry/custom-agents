@@ -5,8 +5,9 @@ description: "Orquesta el ciclo de PRODUCTO de una iniciativa (spec → evaluaci
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
 
 > **Adaptación a OpenCode** (fichero generado; la fuente es `commands/pm-cycle.md`).
-> Este comando ORQUESTA agentes. En OpenCode no hay herramienta Agent: se delega con la herramienta `task` nombrando al subagente (o `@nombre`), definido en `.opencode/agents/`.
-> Las skills se invocan con la herramienta `skill` (`skill({ name: "nombre" })`). Todo lo demás (puertas, artefactos, ledger) no cambia.
+> Este comando ORQUESTA agentes. En OpenCode no hay herramienta Agent: usa `subagent` con el campo `agent` igual al ID nativo, definido en `.opencode/agents/`.
+> En el cuerpo, los roles propios se resuelven con este mapa: analyst → `custom-agents-analyst`; architect → `custom-agents-architect`; documenter → `custom-agents-documenter`; evaluator → `custom-agents-evaluator`; implementer → `custom-agents-implementer`; knowledge-curator → `custom-agents-knowledge-curator`; nemesis → `custom-agents-nemesis`; planner → `custom-agents-planner`; qa → `custom-agents-qa`; reviewer → `custom-agents-reviewer`. Conserva nombres y rutas de agentes del consumidor.
+> Las skills se invocan con la herramienta `skill` (`skill({ id: "nombre" })`). Todo lo demás (puertas, artefactos, ledger) no cambia.
 
 # /pm-cycle — orquestador del ciclo de producto
 
@@ -18,6 +19,15 @@ Objetivo: **$ARGUMENTS**.
 Comparte la **misma carpeta por iniciativa** que `/dev-cycle` — `docs/roadmap/<fecha>-<slug>/` —
 para que, cuando se decida ejecutar, `/dev-cycle` recoja el testigo sin repetir trabajo
 (ver reglas 7 y 8 de `docs/CONVENTIONS.md`).
+
+## Contexto técnico compartido
+
+Antes de despachar roles, aplica `agent-kits/shared/capability-check.md` sobre
+el paquete y áreas del objetivo. Comparte selección/procedencia con los roles;
+planner registra los IDs y escenarios por tarea. Implementer, reviewer y qa
+usan los mismos criterios técnicos. Repite selección solo ante hechos nuevos.
+Sin selector, avisa y sigue con guías disponibles; conserva las puertas del ciclo.
+Este paso no inicia servicios ni genera piezas de proyecto.
 
 ## Fase 0 — Preparación
 1. Deriva un `<slug>` corto en kebab-case del objetivo y fija/crea la carpeta `docs/roadmap/<fecha>-<slug>/` (reutilízala si ya existe; usa el mismo slug en toda la cadena).

@@ -1,0 +1,675 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-07",
+  "evaluated_skill_ids": [
+    "S033",
+    "S034",
+    "S035"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source": [
+    {
+      "id": "S033",
+      "sha256": "e325d73fd0078a101e826a84178c87aeeb80700d037faf45cda8e9ba9e53b27e",
+      "bytes": 23645,
+      "lines": 206,
+      "read_ranges": [
+        [
+          1,
+          206
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S034",
+      "sha256": "85b6a97574cc236d4a9336b1c74b42aaf4386338417e787cbed0c88677bf1179",
+      "bytes": 5305,
+      "lines": 164,
+      "read_ranges": [
+        [
+          1,
+          164
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S035",
+      "sha256": "4759d9f4959fbec9afc7bc4b06c33d5644fb059e4d74a6c94200d29112b71bf5",
+      "bytes": 5011,
+      "lines": 148,
+      "read_ranges": [
+        [
+          1,
+          148
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        "R-2681f04a6297",
+        "R-d41a4d65532b",
+        "R-fa587407c2cd",
+        "R-d24529acc80a",
+        "R-cb068a1f3ada",
+        "R-5324d275a305",
+        "R-2fa11499e8fa",
+        "R-223ef62fb315",
+        "R-ff1e4ba0b647"
+      ]
+    },
+    {
+      "id": "R-2681f04a6297",
+      "sha256": "af9995621bd68eb3d848a37f5d63b9f0d22a49665ba19c1afd00eeb912e3adfc",
+      "bytes": 1304,
+      "lines": 44,
+      "read_ranges": [
+        [
+          1,
+          44
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-d41a4d65532b",
+      "sha256": "f294480e80aafe155d789ab3e005891efd7aa22635f0392886c36457dd46ba75",
+      "bytes": 650,
+      "lines": 24,
+      "read_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-fa587407c2cd",
+      "sha256": "3ab39c2610548da4252726b7b5212ff5375314b54cd0c2e0b71a41d515ef923d",
+      "bytes": 6146,
+      "lines": 143,
+      "read_ranges": [
+        [
+          1,
+          143
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-d24529acc80a",
+      "sha256": "902d5ef9370d07217492d59968fbe904a7961741c601f8a4420787d98910c2a3",
+      "bytes": 1092,
+      "lines": 40,
+      "read_ranges": [
+        [
+          1,
+          40
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-cb068a1f3ada",
+      "sha256": "7703062eb780c63785870b26290bc4fc386b42eb697e24d91fa87bcb2f13d6b7",
+      "bytes": 7416,
+      "lines": 202,
+      "read_ranges": [
+        [
+          1,
+          202
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-5324d275a305",
+      "sha256": "773a706247bfeb45d7206ec363e695cb42262cccb14851e67d194ace760b309f",
+      "bytes": 949,
+      "lines": 36,
+      "read_ranges": [
+        [
+          1,
+          36
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-2fa11499e8fa",
+      "sha256": "1d096ffd0ce5776ac69f01a8d80b2a158fa3b465d2b5faa33bd539887e63f32b",
+      "bytes": 7574,
+      "lines": 210,
+      "read_ranges": [
+        [
+          1,
+          210
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-223ef62fb315",
+      "sha256": "8da746463ae5e90700e29bdae1e738f54a7bd279cfb0ca6d90b292170a2e1abe",
+      "bytes": 15267,
+      "lines": 387,
+      "read_ranges": [
+        [
+          1,
+          387
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "R-ff1e4ba0b647",
+      "sha256": "4ad0b843a0e1256e72d3b371e126ce1dbdf1baf45819fb3f55f614d1c386bf29",
+      "bytes": 8835,
+      "lines": 224,
+      "read_ranges": [
+        [
+          1,
+          224
+        ]
+      ],
+      "reading_scope": "full-local-resource"
+    },
+    {
+      "id": "A041",
+      "sha256": "1b434aa8496a1cb8c39add08d0c68a4b27af8378de725f370d7682c02a56997e",
+      "bytes": 4823,
+      "lines": 106,
+      "read_ranges": [
+        [
+          25,
+          42
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "A042",
+      "sha256": "12b2b04d8235941f6a9a0d42a679c581ce89963172d5fb0f63abb4202521593f",
+      "bytes": 4351,
+      "lines": 106,
+      "read_ranges": [
+        [
+          1,
+          35
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "A043",
+      "sha256": "64528c41b59eea2cb4ac642bd3197bbadc8c456f3601520e410cf606e848fb07",
+      "bytes": 4292,
+      "lines": 128,
+      "read_ranges": [
+        [
+          1,
+          35
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S186",
+      "sha256": "08ba871a685d55e14e0866de27eb98a37ebf91dc2d0d06976c4acb4e99f76550",
+      "bytes": 7727,
+      "lines": 211,
+      "read_ranges": [
+        [
+          1,
+          35
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S187",
+      "sha256": "612cd44e1b80e10dd56f9a2296348cb48882fe24e2435654dae3b6447555e0a3",
+      "bytes": 5754,
+      "lines": 153,
+      "read_ranges": [
+        [
+          1,
+          35
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S185",
+      "sha256": "44a8d9ba4644f33cb86227e54641930a280fc4417ebce5c1744985b9f4913d03",
+      "bytes": 5641,
+      "lines": 168,
+      "read_ranges": [
+        [
+          157,
+          168
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S184",
+      "sha256": "6dc91c80144c2ad86a5f457c5377dc5193fd0b64dd3e1ca4433f70188a38e104",
+      "bytes": 6046,
+      "lines": 174,
+      "read_ranges": [
+        [
+          162,
+          174
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-591e7a1672e1",
+      "sha256": "59e855c382ccab4670dcd293721365d88d400c5d499fd93c1572ce9c1ccb6b6d",
+      "bytes": 31763,
+      "lines": 1199,
+      "read_ranges": [
+        [
+          336,
+          352
+        ],
+        [
+          888,
+          910
+        ],
+        [
+          958,
+          975
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-03ffcc8e6e9e",
+      "sha256": "9583fe1ac4109a8a3c94c5ffaf8a331d6e9997c8657494ef2a95dbf3a65b5414",
+      "bytes": 22743,
+      "lines": 482,
+      "read_ranges": [
+        [
+          170,
+          185
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    }
+  ],
+  "native": [
+    {
+      "path": "agents/architect.md",
+      "sha256": "53647cef5f8d7b42084446410057de58501b8a7d6989baec5cc6688f6ac19b3a",
+      "bytes": 15544,
+      "lines": 195,
+      "read_ranges": [
+        [
+          1,
+          85
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "hooks/session-journal.sh",
+      "sha256": "aa94df90b96c5a8254684dee709a01614c7ff190f5eef39885123f02be9898e0",
+      "bytes": 5389,
+      "lines": 73,
+      "read_ranges": [
+        [
+          1,
+          73
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "hooks/session-context.sh",
+      "sha256": "c03d51f917c15bcfd7bc3913a309ffd0a9f1b0d8692392cd3f228a73822ed0e2",
+      "bytes": 18029,
+      "lines": 303,
+      "read_ranges": [
+        [
+          1,
+          303
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "agent-kits/shared/journal.py",
+      "sha256": "acfb3802d49f424ea14cbfdbdaae52b72196bd837080767fbe351a78e898be5b",
+      "bytes": 130305,
+      "lines": 2351,
+      "read_ranges": [
+        [
+          451,
+          488
+        ],
+        [
+          629,
+          733
+        ],
+        [
+          1889,
+          1922
+        ],
+        [
+          2005,
+          2043
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "agent-kits/shared/outbox.py",
+      "sha256": "77bd33a5a69b4d97216701a8cf07a8a6fef2163126e5448562767bca4c3794f8",
+      "bytes": 45318,
+      "lines": 837,
+      "read_ranges": [
+        [
+          237,
+          302
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "agent-kits/shared/progress-report.py",
+      "sha256": "54670550bac41af028dcb96b8d98d64e67924310b0ef72d435b03f91cb97ea03",
+      "bytes": 11090,
+      "lines": 287,
+      "read_ranges": [
+        [
+          1,
+          265
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "skills/knowledge-services/SKILL.md",
+      "sha256": "b0ea2a944ffc08a46416dea76eac7e93bed9f52c6eb6bb7776a67b9452646121",
+      "bytes": 6756,
+      "lines": 101,
+      "read_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "skills/research-first/SKILL.md",
+      "sha256": "ae43e6baaad2124c1613e981489b5ed6933c54bfd12c63e5897004b4a80bf760",
+      "bytes": 2996,
+      "lines": 49,
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "skills/research-first/references/comparison.md",
+      "sha256": "09e2fc4a0c15e8a3f8b79afad65ba769f73691a2e5aa26fbfaf578c445349c48",
+      "bytes": 810,
+      "lines": 14,
+      "read_ranges": [
+        [
+          1,
+          14
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "skills/api-contract/SKILL.md",
+      "sha256": "d96c34a0322650b43b69c47901f07b721f6f41751157db1abb5c27fecf725524",
+      "bytes": 8366,
+      "lines": 112,
+      "read_ranges": [
+        [
+          1,
+          110
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "67702b1115bc6d57c4eafbf9dab8d10abaab6b333d4ab330d828f30353770c96",
+      "bytes": 1132,
+      "lines": 24,
+      "read_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9",
+      "bytes": 2653,
+      "lines": 44,
+      "read_ranges": [
+        [
+          1,
+          44
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-check.md",
+      "sha256": "bab98db4ee27fc074ff65252b92739bc913768fc9058e9a8caa9475c3041d1ac",
+      "bytes": 8910,
+      "lines": 104,
+      "read_ranges": [
+        [
+          1,
+          104
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-write.md",
+      "sha256": "9f35f672b961341de66b0cc1061ccb39ef38245fbe78f3629f0e168e800e336e",
+      "bytes": 8330,
+      "lines": 106,
+      "read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/capability-check.md",
+      "sha256": "c0dfede7cdd890952ebf4eab114fe6fef01c123350c6060b3053121797a48c20",
+      "bytes": 4559,
+      "lines": 70,
+      "read_ranges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "docs/PROJECT-EXTENSIONS.md",
+      "sha256": "555001170f339a4bb0ff9a69a4833e3c25dc2b9fc435c3b3639a3652a837d54c",
+      "bytes": 7629,
+      "lines": 128,
+      "read_ranges": [
+        [
+          1,
+          128
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "skills/capability-audit/SKILL.md",
+      "sha256": "0a8579a37efbc067bfb6b4dc3f8759a49f50a2a72acc89116f24bbd125406dd9",
+      "bytes": 2109,
+      "lines": 39,
+      "read_ranges": [
+        [
+          1,
+          39
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "skills/capability-audit/references/method.md",
+      "sha256": "13928d323c2a19dabdafac3d98fb396e40aa82600e3ff13191fd03c4872c03ed",
+      "bytes": 2001,
+      "lines": 34,
+      "read_ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    }
+  ],
+  "local_resource_totals": {
+    "read": 9,
+    "inventoried": 9,
+    "bytes": 49233,
+    "lines": 1310
+  },
+  "pending_reading": [],
+  "dependency_observations": [
+    {
+      "kind": "official-documentation",
+      "url": "https://www.fmcsa.dot.gov/registration/insurance-filing-requirements",
+      "scope": "entity/cargo/weight-specific BIPD, cargo and financial-responsibility table; correct household-goods misclassification",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "web-tool",
+      "sections_read": [
+        "Motor Carriers of Property",
+        "Brokers and Freight Forwarders"
+      ],
+      "document_http_status": null,
+      "document_sha256": null
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://ai.fmcsa.dot.gov/sms",
+      "scope": "SMS performance data is not an overall safety rating; public visibility and authority/insurance source limits",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "web-tool",
+      "sections_read": [
+        "Use of SMS Data/Information",
+        "Notice"
+      ],
+      "document_http_status": null,
+      "document_sha256": null
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://www.cisco.com/c/en/us/td/docs/routers/ios/config/17-x/sec-vpn/b-security-vpn/m_sec-access-list-ov-0.html",
+      "scope": "IOS XE 17.x wildcard bits and noncontiguous masks, implicit deny, creation/application ordering and logging",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "web-tool",
+      "sections_read": [
+        "Helpful Hints for Creating IP Access Lists",
+        "Wildcard Mask for Addresses in an Access List",
+        "Access List Logging"
+      ],
+      "document_http_status": null,
+      "document_sha256": null
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://code.claude.com/docs/en/hooks",
+      "scope": "SessionStart JSON context uses hookSpecificOutput/hookEventName; documentation is not dispatch evidence",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "web-tool",
+      "sections_read": [
+        "Decision control",
+        "SessionStart decision control"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "c6ef1cf169e95a5eaa113fc32ace1e113554af7fec6117ae67615f4e0d385f64"
+    }
+  ],
+  "documentation_transport_attempts": [
+    {
+      "url": "https://www.fmcsa.dot.gov/registration/insurance-filing-requirements",
+      "transport": "stdlib-http",
+      "status": "read-rejected",
+      "http_status": 403,
+      "error": "HTTPError: HTTP Error 403: Forbidden",
+      "api_executed": false
+    },
+    {
+      "url": "https://ai.fmcsa.dot.gov/sms",
+      "transport": "stdlib-http",
+      "status": "read-rejected",
+      "http_status": 403,
+      "error": "HTTPError: HTTP Error 403: Forbidden",
+      "api_executed": false
+    },
+    {
+      "url": "https://www.cisco.com/c/en/us/td/docs/routers/ios/config/17-x/sec-vpn/b-security-vpn/m_sec-access-list-ov-0.html",
+      "transport": "stdlib-http",
+      "status": "read-rejected",
+      "http_status": 403,
+      "error": "HTTPError: HTTP Error 403: Forbidden",
+      "api_executed": false
+    },
+    {
+      "url": "https://code.claude.com/docs/en/hooks",
+      "transport": "stdlib-http",
+      "status": "snapshot-saved",
+      "http_status": 200,
+      "error": null,
+      "api_executed": false
+    }
+  ],
+  "measurements": {
+    "tokens": null,
+    "latency_seconds": null
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "recorded_utc": "2026-10-12T00:23:43.294594+00:00",
+  "milestone": "Recoverable Graphiti generation construction and publication",
+  "source_manifest_sha256": "7505d9a51bdbfe21c8137a464113fb22f86d1ab13c582c7d2bfa606d5bf6ea04",
+  "source_files": 1119,
+  "results": {
+    "windows": {
+      "pytest_exit": 0,
+      "cases": 256,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "coverage_version": "7.16.2",
+      "official_parent_CTracer": true,
+      "source_pins": {
+        "graphiti.py": "b72256440f85e399da54f8599579c2e808670e4aa022b58a1ed44d2bd52ef5d7",
+        "graphiti_rebuild.py": "2a42be0a968dfc792bb869fbd060965f62c6d2bab3213666e7c0a3c5027b7434",
+        "graphiti_scope.py": "f025fa50feb2f1c1748575bcfc8d2827abbc203c3da1561bdec4a268d1461059",
+        "graphiti_publication.py": "a6e1f43f02de5815780bed8e2b2fbcc3440ff121112da080f789099673d15dd3"
+      },
+      "global_product_accepted": false
+    },
+    "linux": {
+      "pytest_exit": 0,
+      "cases": 256,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "coverage_version": "7.16.2",
+      "official_parent_CTracer": true,
+      "source_pins": {
+        "graphiti.py": "b72256440f85e399da54f8599579c2e808670e4aa022b58a1ed44d2bd52ef5d7",
+        "graphiti_rebuild.py": "2a42be0a968dfc792bb869fbd060965f62c6d2bab3213666e7c0a3c5027b7434",
+        "graphiti_scope.py": "f025fa50feb2f1c1748575bcfc8d2827abbc203c3da1561bdec4a268d1461059",
+        "graphiti_publication.py": "a6e1f43f02de5815780bed8e2b2fbcc3440ff121112da080f789099673d15dd3"
+      },
+      "full_module_accepted": true,
+      "global_product_accepted": false
+    }
+  },
+  "tdd_red_cases": {
+    "generation-red": 17,
+    "generation-binding-red": 4,
+    "generation-repair-red": 2
+  },
+  "linux_original_timeout_preserved": true,
+  "linux_native_io_benchmark": {
+    "shared": {
+      "seconds": 0.6857980969944037,
+      "writes": 20
+    },
+    "native": {
+      "seconds": 0.008518679009284824,
+      "writes": 20
+    }
+  },
+  "linux_native_elapsed_ms": 54634.076700000005,
+  "owned_test_containers_removed": true,
+  "source_and_dependencies_preserved": true,
+  "documentation_checks": [
+    {
+      "name": "export",
+      "argv": [
+        "C:\\laragon\\bin\\python\\python-3.13\\python.exe",
+        "-I",
+        "-X",
+        "utf8",
+        "-B",
+        "scripts/export-interop.py",
+        "--root",
+        "C:\\tmp\\core-graphiti-generation59-20261012-01\\project",
+        "--quiet"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "export-check",
+      "argv": [
+        "C:\\laragon\\bin\\python\\python-3.13\\python.exe",
+        "-I",
+        "-X",
+        "utf8",
+        "-B",
+        "scripts/export-interop.py",
+        "--root",
+        "C:\\tmp\\core-graphiti-generation59-20261012-01\\project",
+        "--check",
+        "--quiet"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "lint",
+      "argv": [
+        "C:\\laragon\\bin\\python\\python-3.13\\python.exe",
+        "-I",
+        "-X",
+        "utf8",
+        "-B",
+        "scripts/lint_plugin.py",
+        "--root",
+        "C:\\tmp\\core-graphiti-generation59-20261012-01\\project"
+      ],
+      "exit": 0
+    }
+  ],
+  "real_generation_acceptance": false,
+  "native_semantic_acceptance": false,
+  "independent_review": false,
+  "global_product_accepted": false,
+  "root_promoted": false,
+  "committed": false,
+  "pushed": false
+}

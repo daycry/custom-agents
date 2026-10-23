@@ -5,8 +5,9 @@ description: "Informe real vs estimado del roadmap — compara horas y tokens es
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
 
 > **Adaptación a OpenCode** (fichero generado; la fuente es `commands/roadmap-metrics.md`).
-> Este comando ORQUESTA agentes. En OpenCode no hay herramienta Agent: se delega con la herramienta `task` nombrando al subagente (o `@nombre`), definido en `.opencode/agents/`.
-> Las skills se invocan con la herramienta `skill` (`skill({ name: "nombre" })`). Todo lo demás (puertas, artefactos, ledger) no cambia.
+> Este comando ORQUESTA agentes. En OpenCode no hay herramienta Agent: usa `subagent` con el campo `agent` igual al ID nativo, definido en `.opencode/agents/`.
+> En el cuerpo, los roles propios se resuelven con este mapa: analyst → `custom-agents-analyst`; architect → `custom-agents-architect`; documenter → `custom-agents-documenter`; evaluator → `custom-agents-evaluator`; implementer → `custom-agents-implementer`; knowledge-curator → `custom-agents-knowledge-curator`; nemesis → `custom-agents-nemesis`; planner → `custom-agents-planner`; qa → `custom-agents-qa`; reviewer → `custom-agents-reviewer`. Conserva nombres y rutas de agentes del consumidor.
+> Las skills se invocan con la herramienta `skill` (`skill({ id: "nombre" })`). Todo lo demás (puertas, artefactos, ledger) no cambia.
 
 # /roadmap-metrics — real vs estimado (cierre del presupuesto)
 
@@ -28,6 +29,7 @@ tokens), este comando muestra lo que **de verdad ha costado**, leyendo las horas
 ## Notas
 - **Producción = Tiempo IA (ejec.) + Supervisión** (lo que `jira-sync` imputa). Se compara real/est de la fila TOTAL de cada `tasks.md`; también muestra horas humanas y tokens.
 - El informe incluye la sección **Coste de proceso**: lo que costó *producir* spec/evaluación/plan/tasks (bloque `generacion:` del frontmatter, medido con tokens reales por `usage-meter`), separado del coste de implementación. Duraciones en formato `XhYm`. Iniciativas sin bloque → "sin datos" (no se inventa 0).
+- `usage-meter.py close` emite además claves de procedencia y cobertura (`tokens_procedencia`, `tokens_cobertura`, `coste_procedencia`, `coste_cobertura`, `coste_sin_precio`…; ver `docs/observability.md`) que se copian al bloque `generacion:`. El informe las agrega: columna **Procedencia** por iniciativa y línea **«Procedencia (cartera)»** que separan tokens medidos por transcript (cobertura completa/parcial) de sin medida y de procedencia desconocida, y coste estimado completo de incompleto (con sus clases sin precio), contando cuántos artefactos aportan cada caso. Un bloque antiguo sin esas claves es «procedencia desconocida», nunca medido; un `eur` es tokens × tarifa, nunca una factura, y un dato ausente sale como `—`/`null`, nunca como 0.
 - Desviación negativa = menos horas reales que estimadas (más eficiente); positiva = sobrecoste.
 - El **coste €** sale de multiplicar horas por la tarifa de `.claude/rates.json` (config compartida de presupuesto).
 - Si aún no hay horas `real` registradas, lo indica en vez de inventar cifras.

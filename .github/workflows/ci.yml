@@ -49,7 +49,7 @@ jobs:
         # que 68 casos de tests/ (test_export_skills, test_release, test_roadmap_index) no corrían
         # en CI. Y al revés, las 8 suites de tests/ que son scripts (sin `def test_*`) pytest no las
         # recoge: las ejecuta `tests/test_suites_no_pytest.py`, para que la puerta local sea la de CI.
-        run: python -m pytest tests agent-kits/shared agent-kits/knowledge-curator skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts skills/knowledge-services/scripts skills/training-data-services/scripts evals -q
+        run: python -m pytest tests agent-kits/shared agent-kits/knowledge-curator skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts skills/knowledge-services/scripts skills/training-data-services/scripts skills/confluence-publish/scripts evals -q
 
       - name: "Bench captura de SessionEnd (CA-02: p95 ≤ 100 ms / p99 ≤ 300 ms)"
         # session-end-durable-capture: mide journal.py capture-end end-to-end (30 iteraciones, el
@@ -63,11 +63,10 @@ jobs:
         run: python scripts/export-interop.py --check
 
       - name: Suites de Node (instalador npx + adaptador de hooks de OpenCode)
-        # glob, no lista fija: cualquier tests/*.test.mjs nuevo entra solo en la CI.
-        # SIN comillas a propósito: lo expande la shell. Entrecomillado lo tendría que expandir
-        # node, y eso solo lo sabe hacer a partir de Node 21 — la CI instala 20 (y `engines`
-        # declara >= 18), así que en local (Node 23) pasaba y aquí fallaba.
-        run: node --test tests/*.test.mjs
+        # La shell expande el glob: cada tests/*.test.mjs entra automáticamente.
+        # Dos archivos simultáneos conservan todos los casos y sus plazos nativos;
+        # evitan saturar los procesos de arranque y limpieza de las fixtures.
+        run: node --test --test-concurrency=2 tests/*.test.mjs
 
       - name: Sintaxis de todos los scripts Python
         run: |

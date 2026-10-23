@@ -361,8 +361,130 @@ def main():
     assert code == 0, out
     assert "cabecera de revisión no casa con REVISION_HDR_PATTERN" in out, out
 
-    print("test_ledger_lint: 27/27 OK")
+    # 26) [ledger-archive] aviso (no error) de TAMAÑO por encima del 70 % del tope de lectura
+    #     acotada (256 KiB, `local-read.py` MAX_BYTES): el ledger se acerca a no poder retomarse.
+    #     Por debajo, ninguno.
+    relleno = "\n## Notas\n\n" + ("Texto de relleno del ledger para medir el tamaño.\n" * 3700)
+    grande = doc() + relleno
+    assert len(grande.encode("utf-8")) > 183_500
+    code, out = run(grande)
+    assert code == 0, out
+    assert "tope de lectura 256 KiB" in out and "ledger-archive.py" in out and "--apply" in out, out
+    code, out = run(doc() + "\n## Notas\n\n" + ("x\n" * 1000))
+    assert "tope de lectura" not in out, out
+
+    # 27) [ledger-archive] aviso por `Verificación` de más de 2.000 caracteres: la narrativa va a
+    #     comparisons/ o al histórico; en el ledger, comando → resultado vigente. Hasta 2.000, nada.
+    larga = doc().replace("- **Estado**: {}".format("en-progreso"),
+                          "- **Estado**: en-progreso\n- **Verificación**: " + "a" * 2001, 1)
+    code, out = run(larga)
+    assert code == 0, out
+    assert "T-02" in out and "la narrativa va a comparisons/ o al histórico" in out, out
+    justa = doc().replace("- **Estado**: {}".format("en-progreso"),
+                          "- **Estado**: en-progreso\n- **Verificación**: " + "a" * 2000, 1)
+    code, out = run(justa)
+    assert "la narrativa va a comparisons/" not in out, out
+
+    print("test_ledger_lint: 29/29 OK")
+
+
+
+# --- panel-redesign T-22: campo opcional `- **Cerrada**: AAAA-MM-DD` ------------------------------------------
+
+import re as _re
+
+
+def _con_cerrada(valor, *, creado=None, fecha=None, tarea="T-01"):
+    """`doc()` con `- **Cerrada**: <valor>` en la tarea; `creado` (frontmatter) o `fecha` (tabla de cabecera)."""
+    titulo = "Tarea uno" if tarea == "T-01" else "Tarea dos"
+    texto = doc().replace(f"### {tarea} — {titulo}\n", f"### {tarea} — {titulo}\n\n- **Cerrada**: {valor}\n", 1)
+    if creado:
+        texto = f"---\ncreado: {creado}\n---\n" + texto
+    if fecha:
+        texto = texto.replace("## Resumen de progreso",
+                              f"| | |\n|---|---|\n| **Fecha** | {fecha} |\n\n## Resumen de progreso", 1)
+    return texto
+
+
+def test_un_ledger_sin_cerrada_valida_igual_y_sin_avisos_nuevos():
+    code, out = run(doc())
+    assert code == 0 and "Cerrada" not in out, out
+
+
+def test_cerrada_valida_no_da_incoherencias_ni_avisos():
+    code, out = run(_con_cerrada("2026-10-15", creado="2026-10-01"))
+    assert code == 0 and "Cerrada" not in out, out
+    code, out = run(_con_cerrada("2026-10-01", creado="2026-10-01"))      # el mismo día: válido (>=)
+    assert code == 0, out
+
+
+def test_cerrada_con_formato_invalido_es_incoherencia_con_fichero_y_linea():
+    for malo in ("ayer", "15/10/2026", "2026-1-5", "2026-02-30", "2026-10-15T10:00"):
+        code, out = run(_con_cerrada(malo))
+        assert code == 1, (malo, out)
+        assert _re.search(r"tasks\.md:\d+: T-01: campo \*\*Cerrada\*\*", out), (malo, out)
+
+
+def test_cerrada_vacia_es_incoherencia():
+    code, out = run(_con_cerrada(""))
+    assert code == 1 and "T-01: campo **Cerrada**" in out, out
+
+
+def test_cerrada_anterior_a_la_creacion_es_incoherencia_con_la_fecha_del_frontmatter_o_de_la_tabla():
+    code, out = run(_con_cerrada("2026-09-30", creado="2026-10-01"))
+    assert code == 1 and "anterior a la creación (2026-10-01)" in out, out
+    code, out = run(_con_cerrada("2026-09-30", fecha="2026-10-01"))
+    assert code == 1 and "anterior a la creación (2026-10-01)" in out, out
+    code, out = run(_con_cerrada("2026-09-30"))                           # sin fecha de creación: no se compara
+    assert code == 0, out
+
+
+def test_cerrada_en_una_tarea_no_completada_no_es_incoherencia():
+    code, out = run(_con_cerrada("2026-10-15", tarea="T-02"))
+    assert code == 0, out
+
+
+def test_el_parser_expone_cerrada_y_su_linea_y_una_cerrada_indentada_no_se_la_come_la_verificacion():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("ledger_lint_cerrada", SCRIPT)
+    ll = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ll)
+    texto = ("# L\n\n## Fase 1\n\n### T-01 — a\n\n- **Estado**: completado\n- **Verificación**:\n  - `a` → 1\n"
+             "  - **Cerrada**: 2026-10-15\n\n**Criterios de aceptación**\n- [x] a\n\n### T-02 — b\n\n- **Estado**: borrador\n")
+    t = {x["id"]: x for x in ll.parse_ledger(texto)["tareas"]}
+    assert t["T-01"]["cerrada"] == "2026-10-15" and t["T-01"]["cerrada_linea"] == 10
+    assert t["T-01"]["verificacion_items"] == ["`a` → 1"] and t["T-02"]["cerrada"] is None
+    assert ll.parse_ledger(texto)["creado"] is None
+    assert ll.parse_ledger("---\ncreado: 2026-10-01 # día\n---\n# L\n")["creado"] == "2026-10-01"
+    assert ll.parse_ledger("# L\n\n| **Fecha** | 2026-10-02 |\n")["creado"] == "2026-10-02"
+    assert ll.parse_ledger("# L\n\n| **Fecha** | pronto |\n")["creado"] is None
+
+
+def test_los_ledgers_del_repo_no_tienen_incoherencias_por_cerrada():
+    raiz = os.path.join(ROOT, "docs", "roadmap")
+    if not os.path.isdir(raiz):
+        return
+    for carpeta in sorted(os.listdir(raiz)):
+        ruta = os.path.join(raiz, carpeta, "tasks.md")
+        if os.path.isfile(ruta):
+            code, out = run(open(ruta, encoding="utf-8").read())
+            assert "**Cerrada**" not in out, (carpeta, out)
 
 
 if __name__ == "__main__":
     main()
+def test_las_filas_estado_y_fecha_de_la_cabecera_no_tienen_backtracking_cuadratico():
+    """F2-9 (CWE-1333): 40.000 espacios tras la celda no pueden bloquear el parser (< 1 s)."""
+    import importlib.util, time
+    spec = importlib.util.spec_from_file_location("ledger_lint_redos", SCRIPT)
+    ll = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ll)
+    espacios = " " * 40000
+    texto = (f"| **Estado** |{espacios}\n| **Fecha** |{espacios}\n\n## Fase 1\n\n### T-01 — x\n\n"
+             "- **Estado**: borrador\n")
+    t0 = time.monotonic()
+    parsed = ll.parse_ledger(texto)
+    assert time.monotonic() - t0 < 1.0
+    assert parsed["creado"] is None
+    ok = ll.parse_ledger("| **Estado** | en-progreso |\n| **Fecha** | 2026-10-01 |\n\n### T-01 — x\n")
+    assert ok["creado"] == "2026-10-01" and ok["estado_tabla"] == "en-progreso"

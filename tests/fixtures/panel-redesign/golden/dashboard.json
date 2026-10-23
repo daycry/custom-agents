@@ -1,0 +1,620 @@
+[
+  {
+    "slug": "2026-01-10-alfa",
+    "path": "roadmap/2026-01-10-alfa",
+    "titulo": "Alfa — exportación de informes",
+    "descripcion": "Iniciativa de ejemplo con la cadena completa",
+    "spec_estado": "aprobada",
+    "eval_estado": "completado ✅",
+    "prioridad": "Alta",
+    "coste": "1.300 EUR",
+    "esfuerzo": "26h",
+    "tokens": "1,2 M",
+    "multiplicador": "x3",
+    "caracteristicas": "2",
+    "creado": "2026-01-10",
+    "actualizado": "2026-01-11",
+    "progreso": {
+      "humanas": [
+        3.0,
+        6.0
+      ],
+      "ia": [
+        1.5,
+        2.0
+      ],
+      "supervision": [
+        0.4,
+        0.5
+      ],
+      "tokens": [
+        380000.0,
+        420000.0
+      ]
+    },
+    "has_spec": true,
+    "has_eval": true,
+    "has_plan": true,
+    "has_design": true,
+    "design_estado": "aprobado",
+    "has_tasks": true,
+    "has_testing": false,
+    "via_rapida": false,
+    "generacion": {
+      "spec": {
+        "inicio": "2026-01-10T09:00:00Z",
+        "fin": "2026-01-10T09:20:00Z",
+        "fuente": "medido",
+        "revision_medicion": 1,
+        "medicion_persistida": true,
+        "tokens_reales": {
+          "entrada": 120,
+          "salida": 30000,
+          "cache_creacion": 40000,
+          "cache_lectura": 500000
+        },
+        "tokens_procedencia": "transcript",
+        "tokens_cobertura": "completa",
+        "coste_procedencia": "estimado_tarifa",
+        "coste_cobertura": "completa",
+        "eur": 1.25,
+        "horas_ia": 0.3,
+        "duracion": "20m"
+      },
+      "eval": {
+        "inicio": "2026-01-10T09:00:00Z",
+        "fin": "2026-01-10T09:20:00Z",
+        "fuente": "medido",
+        "revision_medicion": 1,
+        "medicion_persistida": true,
+        "tokens_reales": {
+          "entrada": 120,
+          "salida": 30000,
+          "cache_creacion": 40000,
+          "cache_lectura": 500000
+        },
+        "tokens_procedencia": "transcript",
+        "tokens_cobertura": "completa",
+        "coste_procedencia": "estimado_tarifa",
+        "coste_cobertura": "completa",
+        "eur": 1.25,
+        "horas_ia": 0.3,
+        "duracion": "20m"
+      },
+      "plan": {
+        "inicio": "2026-01-10T09:00:00Z",
+        "fin": "2026-01-10T09:20:00Z",
+        "fuente": "medido",
+        "revision_medicion": 1,
+        "medicion_persistida": true,
+        "tokens_reales": {
+          "entrada": 120,
+          "salida": 30000,
+          "cache_creacion": 40000,
+          "cache_lectura": 500000
+        },
+        "tokens_procedencia": "transcript",
+        "tokens_cobertura": "completa",
+        "coste_procedencia": "estimado_tarifa",
+        "coste_cobertura": "completa",
+        "eur": 1.25,
+        "horas_ia": 0.3,
+        "duracion": "20m"
+      }
+    },
+    "fase": "planificada",
+    "estimados": 0,
+    "medidos": 3,
+    "generacion_total": 3,
+    "generacion_otros": 0,
+    "procedencia": {
+      "tokens": {
+        "transcript_completa": {
+          "artefactos": 3,
+          "tokens": null
+        },
+        "transcript_parcial": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "sin_medida": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "desconocida": {
+          "artefactos": 0,
+          "tokens": null
+        }
+      },
+      "coste": {
+        "estimado_completo": {
+          "artefactos": 3,
+          "eur": null
+        },
+        "estimado_incompleto": {
+          "artefactos": 0,
+          "eur": null,
+          "sin_precio": []
+        },
+        "sin_coste": {
+          "artefactos": 0,
+          "eur": null
+        },
+        "desconocida": {
+          "artefactos": 0,
+          "eur": null
+        }
+      },
+      "transcripts": {
+        "leidos": null,
+        "subagente": null,
+        "con_error": null
+      },
+      "tarifas_verificadas_el": []
+    }
+  },
+  {
+    "slug": "2026-01-11-beta",
+    "path": "roadmap/2026-01-11-beta",
+    "titulo": "Beta — idea en borrador",
+    "descripcion": "Idea en borrador sin evaluar",
+    "spec_estado": "borrador",
+    "eval_estado": null,
+    "prioridad": null,
+    "coste": null,
+    "esfuerzo": null,
+    "tokens": null,
+    "multiplicador": null,
+    "caracteristicas": null,
+    "creado": "2026-01-11",
+    "actualizado": null,
+    "progreso": null,
+    "has_spec": true,
+    "has_eval": false,
+    "has_plan": false,
+    "has_design": false,
+    "design_estado": null,
+    "has_tasks": false,
+    "has_testing": false,
+    "via_rapida": false,
+    "generacion": null,
+    "fase": "solo spec",
+    "estimados": 0,
+    "medidos": 0,
+    "generacion_total": 0,
+    "generacion_otros": 0,
+    "procedencia": {
+      "tokens": {
+        "transcript_completa": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "transcript_parcial": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "sin_medida": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "desconocida": {
+          "artefactos": 0,
+          "tokens": null
+        }
+      },
+      "coste": {
+        "estimado_completo": {
+          "artefactos": 0,
+          "eur": null
+        },
+        "estimado_incompleto": {
+          "artefactos": 0,
+          "eur": null,
+          "sin_precio": []
+        },
+        "sin_coste": {
+          "artefactos": 0,
+          "eur": null
+        },
+        "desconocida": {
+          "artefactos": 0,
+          "eur": null
+        }
+      },
+      "transcripts": {
+        "leidos": null,
+        "subagente": null,
+        "con_error": null
+      },
+      "tarifas_verificadas_el": []
+    }
+  },
+  {
+    "slug": "2026-01-12-gamma",
+    "path": "roadmap/2026-01-12-gamma",
+    "titulo": "Gamma — migración cerrada",
+    "descripcion": null,
+    "spec_estado": "implementada",
+    "eval_estado": "completado",
+    "prioridad": "Media",
+    "coste": "600 EUR",
+    "esfuerzo": "12h",
+    "tokens": "400k",
+    "multiplicador": null,
+    "caracteristicas": null,
+    "creado": "2026-01-12",
+    "actualizado": "2026-01-20",
+    "progreso": {
+      "humanas": [
+        null,
+        4.0
+      ],
+      "ia": [
+        null,
+        1.0
+      ],
+      "supervision": [
+        null,
+        0.25
+      ],
+      "tokens": [
+        null,
+        200000.0
+      ]
+    },
+    "has_spec": true,
+    "has_eval": true,
+    "has_plan": true,
+    "has_design": false,
+    "design_estado": null,
+    "has_tasks": true,
+    "has_testing": true,
+    "via_rapida": false,
+    "generacion": null,
+    "fase": "en pruebas",
+    "estimados": 0,
+    "medidos": 0,
+    "generacion_total": 0,
+    "generacion_otros": 0,
+    "procedencia": {
+      "tokens": {
+        "transcript_completa": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "transcript_parcial": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "sin_medida": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "desconocida": {
+          "artefactos": 0,
+          "tokens": null
+        }
+      },
+      "coste": {
+        "estimado_completo": {
+          "artefactos": 0,
+          "eur": null
+        },
+        "estimado_incompleto": {
+          "artefactos": 0,
+          "eur": null,
+          "sin_precio": []
+        },
+        "sin_coste": {
+          "artefactos": 0,
+          "eur": null
+        },
+        "desconocida": {
+          "artefactos": 0,
+          "eur": null
+        }
+      },
+      "transcripts": {
+        "leidos": null,
+        "subagente": null,
+        "con_error": null
+      },
+      "tarifas_verificadas_el": []
+    }
+  },
+  {
+    "slug": "2026-01-13-delta",
+    "path": "roadmap/2026-01-13-delta",
+    "titulo": "Delta � ilegible",
+    "descripcion": null,
+    "spec_estado": null,
+    "eval_estado": null,
+    "prioridad": null,
+    "coste": null,
+    "esfuerzo": null,
+    "tokens": null,
+    "multiplicador": null,
+    "caracteristicas": null,
+    "creado": null,
+    "actualizado": null,
+    "progreso": null,
+    "has_spec": true,
+    "has_eval": true,
+    "has_plan": false,
+    "has_design": false,
+    "design_estado": null,
+    "has_tasks": false,
+    "has_testing": false,
+    "via_rapida": false,
+    "generacion": null,
+    "fase": "evaluada",
+    "estimados": 0,
+    "medidos": 0,
+    "generacion_total": 0,
+    "generacion_otros": 0,
+    "procedencia": {
+      "tokens": {
+        "transcript_completa": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "transcript_parcial": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "sin_medida": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "desconocida": {
+          "artefactos": 0,
+          "tokens": null
+        }
+      },
+      "coste": {
+        "estimado_completo": {
+          "artefactos": 0,
+          "eur": null
+        },
+        "estimado_incompleto": {
+          "artefactos": 0,
+          "eur": null,
+          "sin_precio": []
+        },
+        "sin_coste": {
+          "artefactos": 0,
+          "eur": null
+        },
+        "desconocida": {
+          "artefactos": 0,
+          "eur": null
+        }
+      },
+      "transcripts": {
+        "leidos": null,
+        "subagente": null,
+        "con_error": null
+      },
+      "tarifas_verificadas_el": []
+    }
+  },
+  {
+    "slug": "2026-01-14-epsilon",
+    "path": "roadmap/2026-01-14-epsilon",
+    "titulo": "Epsilon ledger grande",
+    "descripcion": null,
+    "spec_estado": null,
+    "eval_estado": null,
+    "prioridad": null,
+    "coste": null,
+    "esfuerzo": null,
+    "tokens": null,
+    "multiplicador": null,
+    "caracteristicas": null,
+    "creado": null,
+    "actualizado": null,
+    "progreso": {
+      "humanas": [
+        10.0,
+        12.0
+      ],
+      "ia": [
+        2.0,
+        3.0
+      ],
+      "supervision": [
+        0.5,
+        0.75
+      ],
+      "tokens": [
+        1100000.0,
+        1500000.0
+      ]
+    },
+    "has_spec": false,
+    "has_eval": false,
+    "has_plan": false,
+    "has_design": false,
+    "design_estado": null,
+    "has_tasks": true,
+    "has_testing": false,
+    "via_rapida": true,
+    "generacion": {
+      "tasks": {
+        "fuente": "estimado",
+        "tokens_reales": null,
+        "horas_ia": 0.2,
+        "eur": null,
+        "tokens_procedencia": "sin_medida",
+        "tokens_cobertura": "sin_medida",
+        "coste_procedencia": "sin_coste",
+        "coste_cobertura": "sin_coste"
+      }
+    },
+    "fase": "vía rápida",
+    "estimados": 1,
+    "medidos": 0,
+    "generacion_total": 1,
+    "generacion_otros": 0,
+    "procedencia": {
+      "tokens": {
+        "transcript_completa": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "transcript_parcial": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "sin_medida": {
+          "artefactos": 1,
+          "tokens": null
+        },
+        "desconocida": {
+          "artefactos": 0,
+          "tokens": null
+        }
+      },
+      "coste": {
+        "estimado_completo": {
+          "artefactos": 0,
+          "eur": null
+        },
+        "estimado_incompleto": {
+          "artefactos": 0,
+          "eur": null,
+          "sin_precio": []
+        },
+        "sin_coste": {
+          "artefactos": 1,
+          "eur": null
+        },
+        "desconocida": {
+          "artefactos": 0,
+          "eur": null
+        }
+      },
+      "transcripts": {
+        "leidos": null,
+        "subagente": null,
+        "con_error": null
+      },
+      "tarifas_verificadas_el": []
+    }
+  },
+  {
+    "slug": "2026-01-15-zeta",
+    "path": "roadmap/2026-01-15-zeta",
+    "titulo": "Zeta — sustituida",
+    "descripcion": null,
+    "spec_estado": "obsoleta",
+    "eval_estado": "cancelado",
+    "prioridad": "Baja",
+    "coste": "200 EUR",
+    "esfuerzo": "4h",
+    "tokens": null,
+    "multiplicador": null,
+    "caracteristicas": null,
+    "creado": "2026-01-15",
+    "actualizado": null,
+    "progreso": null,
+    "has_spec": true,
+    "has_eval": true,
+    "has_plan": false,
+    "has_design": false,
+    "design_estado": null,
+    "has_tasks": false,
+    "has_testing": false,
+    "via_rapida": false,
+    "generacion": {
+      "spec": {
+        "inicio": "2026-01-15T10:00:00Z",
+        "fin": "2026-01-15T10:30:00Z",
+        "fuente": "medido",
+        "tokens_reales": {
+          "entrada": 10,
+          "salida": 900
+        },
+        "tokens_procedencia": "transcript",
+        "tokens_cobertura": "parcial",
+        "coste_procedencia": "estimado_tarifa",
+        "coste_cobertura": "incompleta",
+        "coste_sin_precio": [
+          "cache_lectura"
+        ],
+        "eur": 0.4,
+        "horas_ia": 0.05
+      },
+      "eval": {
+        "inicio": "2026-01-15T10:00:00Z",
+        "fin": "2026-01-15T10:30:00Z",
+        "fuente": "medido",
+        "tokens_reales": {
+          "entrada": 10,
+          "salida": 900
+        },
+        "tokens_procedencia": "transcript",
+        "tokens_cobertura": "parcial",
+        "coste_procedencia": "estimado_tarifa",
+        "coste_cobertura": "incompleta",
+        "coste_sin_precio": [
+          "cache_lectura"
+        ],
+        "eur": 0.4,
+        "horas_ia": 0.05
+      }
+    },
+    "fase": "evaluada",
+    "estimados": 0,
+    "medidos": 2,
+    "generacion_total": 2,
+    "generacion_otros": 0,
+    "procedencia": {
+      "tokens": {
+        "transcript_completa": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "transcript_parcial": {
+          "artefactos": 2,
+          "tokens": 910
+        },
+        "sin_medida": {
+          "artefactos": 0,
+          "tokens": null
+        },
+        "desconocida": {
+          "artefactos": 0,
+          "tokens": null
+        }
+      },
+      "coste": {
+        "estimado_completo": {
+          "artefactos": 0,
+          "eur": null
+        },
+        "estimado_incompleto": {
+          "artefactos": 2,
+          "eur": 0.4,
+          "sin_precio": [
+            "cache_lectura"
+          ]
+        },
+        "sin_coste": {
+          "artefactos": 0,
+          "eur": null
+        },
+        "desconocida": {
+          "artefactos": 0,
+          "eur": null
+        }
+      },
+      "transcripts": {
+        "leidos": null,
+        "subagente": null,
+        "con_error": null
+      },
+      "tarifas_verificadas_el": []
+    }
+  }
+]

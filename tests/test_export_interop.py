@@ -8,8 +8,8 @@ Cubre las tres cosas que pueden romper la importación del plugin en otra herram
 2. **Formato** — lo generado es válido y COMPLETO para cada runtime: TOML parseable con las tres
    claves obligatorias de Codex, frontmatter con `description` en OpenCode, manifiesto con los
    punteros que Codex lee, hooks solo con eventos que Codex dispara de verdad.
-3. **Invariantes que no se pueden perder al traducir** — el `reviewer` sigue siendo de SOLO
-   LECTURA en los dos runtimes, y ninguna `description` de skill pasa del tope de OpenCode
+3. **Invariantes que no se pueden perder al traducir** — el `reviewer` declara límites reales
+   de permisos por runtime, y ninguna `description` de skill pasa del tope de OpenCode
    (1.024 caracteres): pasarse no es un aviso, es una skill que NO carga.
 
 Ejecutar: python3 -m pytest -q tests/test_export_interop.py   (o `python3 tests/test_export_interop.py`)
@@ -30,8 +30,7 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Tope de `description` de una skill en OpenCode (doc oficial: «1-1024 characters»).
 OPENCODE_DESC_MAX = 1024
-# Eventos que Codex dispara. `PostToolUse` NO entra: Codex solo lo emite para la herramienta
-# Bash y los hooks del plugin reaccionan a Write/Edit (ver docs/INTEROP.md).
+# Eventos verificados en la documentación oficial de Codex, 2026-10-06.
 CODEX_EVENTOS_OK = {"SessionStart", "UserPromptSubmit", "SubagentStop", "SessionEnd",
                     "PreToolUse", "PostToolUse", "Stop", "PreCompact", "PostCompact",
                     "SubagentStart", "PermissionRequest"}
@@ -46,6 +45,256 @@ def _mod():
 
 
 MOD = _mod()
+
+
+def test_opencode_default_roles_do_not_override_native_model_or_generation_settings():
+    """Logical Claude tiers do not impose a sampling proxy on another runtime."""
+    exports = MOD.generar(ROOT)
+    agents = {path: text for path, text in exports.items() if path.startswith('interop/opencode/agents/')}
+    assert agents
+    for path, text in agents.items():
+        header, _ = MOD.partir_frontmatter(text)
+        fields = set(re.findall(r'^([A-Za-z_]\w*):', header, re.M))
+        assert 'request' not in fields and 'model' not in fields, f'{path}: generated role must inherit native model and generation defaults'
+        assert 'permissions' in fields and 'mode' in fields
+
+
+def test_opencode_agents_use_native_fields_and_preserve_observed_semantics():
+    """Own agent files load through the V2 schema with the same request and permission rules."""
+    with open(os.path.join(ROOT, 'tests/fixtures/opencode-v2-agent-contract.json'), encoding='utf8') as stream:
+        contract = json.load(stream)
+    exports = MOD.generar(ROOT)
+    agents = {path: text for path, text in exports.items() if path.startswith('interop/opencode/agents/')}
+    assert len(agents) == len(contract['owned_semantics'])
+    for path, text in agents.items():
+        block, _ = MOD.partir_frontmatter(text)
+        fields = set(re.findall(r'^([A-Za-z_]\w*):', block, re.M))
+        assert fields <= set(contract['native_config_fields']), f'{path}: non-native agent fields {fields - set(contract["native_config_fields"])}'
+        assert 'permissions' in fields, f'{path}: native permissions required'
+        expected = contract['owned_semantics'][os.path.basename(path)[:-3]]
+        assert MOD.campo(block, 'mode') == expected['mode']
+        description = json.loads(re.search(r'^description:\s*(.*)$', block, re.M).group(1))
+        assert description == expected['description']
+        assert 'request' not in fields and 'model' not in fields
+        permissions = json.loads(MOD.campo(block, 'permissions'))
+        assert permissions == expected['permissions']
+        assert all(set(rule) == {'action', 'resource', 'effect'} for rule in permissions)
+
+
+def test_opencode_skill_examples_match_observed_native_tool_contract():
+    """Every generated adaptation supplies the native V2 skill tool's required ID."""
+    with open(os.path.join(ROOT, 'tests/fixtures/opencode-v2-skill-contract.json'), encoding='utf8') as stream:
+        contract = json.load(stream)
+    schema = contract['parameters']
+    exports = MOD.generar(ROOT)
+    adapted = {path: text for path, text in exports.items()
+               if path.startswith(('interop/opencode/agents/', 'interop/opencode/commands/'))}
+    assert adapted, 'No native role or command instructions checked'
+    for path, text in adapted.items():
+        examples = re.findall(r'skill\(\{\s*(\w+)\s*:\s*"([^"]+)"\s*\}\)', text)
+        assert examples, f'{path}: missing concrete native skill example'
+        for key, value in examples:
+            payload = {key: value}
+            assert set(schema['required']) <= payload.keys(), f'{path}: native skill tool requires {schema["required"]}, got {payload}'
+            assert set(payload) <= schema['properties'].keys(), f'{path}: unsupported native skill field {key}'
+            assert schema['properties'][key]['type'] == 'string' and isinstance(value, str)
+
+
+@pytest.mark.parametrize("runtime", ["Codex", "OpenCode"])
+def test_review_b23_b2_curator_keeps_service_decisions_without_direct_edit_permissions(runtime):
+    frontmatter = "description: Curator\ntools: Read, Glob, Grep, Bash"
+    body = "Curator ejecuta knowledge-curation.py apply y recover.\n"
+    rendered = (MOD.codex_agente if runtime == "Codex" else MOD.opencode_agente)("knowledge-curator", frontmatter, body)
+    prompt = tomllib.loads(rendered)["developer_instructions"] if runtime == "Codex" else rendered
+    assert "knowledge-curation.py" in prompt and "apply" in prompt and "recover" in prompt
+    assert "servicio compartido" in MOD.guardrail_de("knowledge-curator", ["Read", "Glob", "Grep", "Bash"], runtime)
+    assert MOD.guardrail_de("knowledge-curator", ["Read", "Glob", "Grep", "Bash"], runtime) != MOD.GUARDRAIL_SOLO_LECTURA[runtime]
+    assert MOD.guardrail_de("reviewer", ["Read", "Glob", "Grep", "Bash"], runtime) == MOD.GUARDRAIL_SOLO_LECTURA[runtime]
+    if runtime == "OpenCode":
+        permissions = MOD.permisos_opencode(["Read", "Glob", "Grep", "Bash"])
+        assert permissions["edit"] == "deny" and permissions["shell"] == "allow"
+
+
+def test_native_roles_map_and_exports_use_exact_owned_ids():
+    plan = MOD.generar(ROOT)
+    assert 'agent-kits/shared/native-roles.json' in plan
+    mapping = json.loads(plan['agent-kits/shared/native-roles.json'])
+    roles = [n for n, _, _ in MOD.piezas(ROOT, 'agents')]
+    assert mapping == {'schema_version': 1, 'runtimes': {
+        runtime: {n: ('custom-agents:' if runtime == 'claude' else 'custom-agents-') + n
+                  for n in roles} for runtime in ('claude', 'codex', 'opencode')}}
+    for role in roles:
+        native = mapping['runtimes']['codex'][role]
+        assert tomllib.loads(plan[f'interop/codex/agents/{native}.toml'])['name'] == native
+        assert f'interop/opencode/agents/{native}.md' in plan
+        assert f'interop/codex/agents/{role}.toml' not in plan
+
+
+def test_delegation_adapts_owned_ids_without_rewriting_source_body():
+    body = 'Delegate reviewer. Read agents/reviewer.md and user-reviewer instructions.\n'
+    codex = MOD.codex_agente('architect', 'description: Own\ntools: Read', body)
+    assert 'spawn_agent' in codex and 'agent_type' in codex
+    assert 'reviewer → `custom-agents-reviewer`' in codex
+    assert body in codex
+    opencode = MOD.opencode_agente('architect', 'description: Own\ntools: Read', body)
+    assert '`subagent`' in opencode and 'agent: "custom-agents-reviewer"' in opencode
+    assert body in opencode
+
+
+def test_obsolete_generated_exports_are_removed_without_touching_unowned_files(tmp_path, capsys):
+    own = tmp_path / 'interop/codex/agents/architect.toml'
+    own.parent.mkdir(parents=True)
+    own.write_text(MOD.cabecera('toml', 'agents/architect.md') + 'old export\n', encoding='utf8')
+    user = tmp_path / 'interop/codex/agents/consumer.toml'
+    user.write_text('name = "consumer"\n', encoding='utf8')
+    plan = {'interop/codex/agents/custom-agents-architect.toml': 'new export\n'}
+    assert MOD.comprobar(str(tmp_path), plan) == 1
+    assert 'OBSOLETO' in capsys.readouterr().out
+    assert MOD.escribir(str(tmp_path), plan, quiet=True) == 0
+    assert not own.exists() and user.read_text(encoding='utf8') == 'name = "consumer"\n'
+    assert MOD.comprobar(str(tmp_path), plan) == 0
+
+
+@pytest.mark.parametrize('quote', ['', '"'])
+def test_codex_exports_known_launcher_runtime_and_pretool_registration(tmp_path, quote):
+    (tmp_path / 'hooks').mkdir()
+    command = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" ' + quote + 'session-context.sh' + quote
+    guard = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" ' + quote + 'native-guardrail' + quote + ' --runtime=claude'
+    src = {'hooks': {'SessionStart': [{'hooks': [{'command': command, 'timeout': 5}]}],
+                     'PreToolUse': [{'matcher': 'Write|Bash', 'hooks': [{'command': guard, 'timeout': 5}]}]}}
+    (tmp_path / 'hooks/hooks.json').write_text(json.dumps(src), encoding='utf8')
+    hooks = json.loads(MOD.codex_hooks_json(str(tmp_path)))['hooks']
+    assert hooks['SessionStart'][0]['hooks'][0]['command'] == command + ' --runtime=codex'
+    assert hooks['PreToolUse'][0]['matcher'] == '^(Bash|apply_patch|PowerShell)$'
+    assert hooks['PreToolUse'][0]['hooks'][0]['command'] == guard.replace('--runtime=claude', '--runtime=codex')
+
+
+ACTIVIDAD = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" agent-activity'
+
+
+def _grupos_actividad(grupos):
+    return [g for g in grupos if g["hooks"] and all("agent-activity" in h["command"] for h in g["hooks"])]
+
+
+def test_codex_activity_group_keeps_its_matcher_async_and_drops_failure(tmp_path):
+    """panel-redesign T-45: el grupo `PostToolUse` de actividad conserva su matcher (sin matcher =
+    toda herramienta) y su `async`; los demás grupos `PostToolUse` siguen con `^apply_patch$`;
+    `PostToolUseFailure` no existe en Codex y se omite."""
+    (tmp_path / 'hooks').mkdir()
+    act = {'type': 'command', 'command': ACTIVIDAD, 'async': True, 'timeout': 5}
+    src = {'hooks': {
+        'PostToolUse': [
+            {'matcher': 'Write|Edit|MultiEdit', 'hooks': [{'type': 'command', 'command':
+                'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" progress-line.sh'}]},
+            {'hooks': [dict(act)]},
+            {'matcher': 'Bash', 'hooks': [dict(act)]}],
+        'PostToolUseFailure': [{'hooks': [dict(act)]}]}}
+    (tmp_path / 'hooks/hooks.json').write_text(json.dumps(src), encoding='utf8')
+    hooks = json.loads(MOD.codex_hooks_json(str(tmp_path)))['hooks']
+    assert 'PostToolUseFailure' not in hooks
+    post = hooks['PostToolUse']
+    assert post[0]['matcher'] == '^apply_patch$'
+    assert 'matcher' not in post[1] and post[2]['matcher'] == 'Bash'
+    for g in post[1:]:
+        assert g['hooks'] == [{'type': 'command', 'command': ACTIVIDAD + ' --runtime=codex', 'async': True, 'timeout': 5}]
+
+
+def test_codex_mixed_group_with_activity_is_not_an_activity_group(tmp_path):
+    """Un grupo que mezcla actividad con otro hook no es «de actividad»: sigue con `^apply_patch$`."""
+    (tmp_path / 'hooks').mkdir()
+    src = {'hooks': {'PostToolUse': [{'hooks': [
+        {'type': 'command', 'command': ACTIVIDAD, 'async': True},
+        {'type': 'command', 'command': 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" progress-line.sh'}]}]}}
+    (tmp_path / 'hooks/hooks.json').write_text(json.dumps(src), encoding='utf8')
+    hooks = json.loads(MOD.codex_hooks_json(str(tmp_path)))['hooks']
+    assert hooks['PostToolUse'][0]['matcher'] == '^apply_patch$'
+
+
+def test_real_hooks_register_async_tool_activity_and_codex_export_matches():
+    """panel-redesign T-45 (O5): `hooks/hooks.json` registra `agent-activity` en `PostToolUse` (sin
+    matcher) y en `PostToolUseFailure`, `async` y `timeout: 5`; el resto de grupos `PostToolUse` no
+    cambia; `interop/codex/hooks.json` lo refleja sin `PostToolUseFailure`."""
+    src = json.loads(leer("hooks/hooks.json"))["hooks"]
+    for evento in ("PostToolUse", "PostToolUseFailure"):
+        act = _grupos_actividad(src[evento])
+        assert len(act) == 1, evento
+        assert "matcher" not in act[0]
+        assert act[0]["hooks"] == [{"type": "command", "command": ACTIVIDAD, "async": True, "timeout": 5}]
+    otros = [g for g in src["PostToolUse"] if g not in _grupos_actividad(src["PostToolUse"])]
+    assert [g["matcher"] for g in otros] == ["Write|Edit|MultiEdit"]
+    assert not any(h.get("async") for g in otros for h in g["hooks"])
+    codex = json.loads(leer("interop/codex/hooks.json"))["hooks"]
+    assert "PostToolUseFailure" not in codex
+    act = _grupos_actividad(codex["PostToolUse"])
+    assert len(act) == 1 and "matcher" not in act[0]
+    assert act[0]["hooks"] == [{"type": "command", "command": ACTIVIDAD + " --runtime=codex", "async": True, "timeout": 5}]
+    assert codex["PostToolUse"][0]["matcher"] == "^apply_patch$"
+
+
+def test_opencode_v2_permission_actions_match_native_shell_and_subagent():
+    permissions = MOD.permisos_opencode(['Read'])
+    assert permissions['shell'] == 'deny' and permissions['subagent'] == 'deny'
+    assert 'bash' not in permissions and 'task' not in permissions
+    permissions = MOD.permisos_opencode(['Read', 'Bash', 'Agent'])
+    assert permissions['shell'] == 'allow' and permissions['subagent'] == 'allow'
+
+
+def test_guard_description_uses_the_same_native_map_as_exported_name():
+    mapping = {'schema_version': 1, 'runtimes': {'codex': {'architect': 'custom-agents-own-architect'}}}
+    exported = tomllib.loads(MOD.codex_agente('architect', 'description: Owned\ntools: Read, Edit', 'Own body', mapping))
+    assert exported['name'] == 'custom-agents-own-architect'
+    assert 'ID exacto `custom-agents-own-architect`' in exported['developer_instructions']
+    assert '{native_id}' not in exported['developer_instructions']
+
+
+def test_opencode_exporta_paquete_nativo_y_config_sin_instructions():
+    plan = MOD.generar(ROOT)
+    package = json.loads(plan['interop/opencode/plugins/custom-agents/package.json'])
+    assert package['type'] == 'module' and package['main'] == 'index.js'
+    assert 'interop/opencode/plugins/custom-agents/index.js' in plan
+    assert 'interop/opencode/plugins/custom-agents-hooks.js' not in plan
+    config = json.loads(plan['interop/opencode/opencode.json'])
+    assert config['plugins'] == ['./.opencode/plugins/custom-agents']
+    assert 'instructions' not in config
+
+
+def test_exportacion_detecta_artefactos_ausentes_y_modificados(tmp_path, capsys):
+    plan = {'interop/codex/hooks.json': '{"hooks": {}}\n', 'interop/opencode/opencode.json': '{}\n'}
+    assert MOD.escribir(str(tmp_path), plan, quiet=True) == 0
+    assert MOD.comprobar(str(tmp_path), plan) == 0
+    (tmp_path / 'interop/codex/hooks.json').write_text('changed', encoding='utf8')
+    (tmp_path / 'interop/opencode/opencode.json').unlink()
+    assert MOD.comprobar(str(tmp_path), plan) == 1
+    output = capsys.readouterr().out
+    assert 'DESINCRONIZADO interop/codex/hooks.json' in output
+    assert 'FALTA         interop/opencode/opencode.json' in output
+
+
+@pytest.mark.parametrize('ruta', ['/home/alguien/repo/x.md', '/Users/alguien/repo/x.md',
+                                  'C:\\Users\\alguien\\repo\\x.md', 'C:/Users/alguien/x.md'])
+def test_check_falla_si_lo_generado_lleva_una_ruta_de_usuario_absoluta(tmp_path, capsys, ruta):
+    """Lo generado viaja a otras máquinas: una ruta de home absoluta filtra un usuario y no resuelve
+    en el destino. `--check` la denuncia aunque el fichero esté al día con su fuente."""
+    plan = {'interop/opencode/commands/x.md': 'lee %s\n' % ruta, 'interop/codex/hooks.json': '{}\n'}
+    assert MOD.escribir(str(tmp_path), plan, quiet=True) == 0
+    assert MOD.comprobar(str(tmp_path), plan) == 1
+    assert 'RUTA ABSOLUTA interop/opencode/commands/x.md:1' in capsys.readouterr().out
+
+
+def test_check_no_confunde_rutas_relativas_ni_home_simbolico(tmp_path):
+    plan = {'interop/opencode/commands/x.md': 'usa ~/.claude, $HOME/.codex y docs/Users/guia.md\n'}
+    assert MOD.escribir(str(tmp_path), plan, quiet=True) == 0
+    assert MOD.comprobar(str(tmp_path), plan) == 0
+
+
+def test_indice_opencode_degrada_si_falta_el_kit(tmp_path):
+    for folder in ('agents', 'commands', 'skills/demo'):
+        (tmp_path / folder).mkdir(parents=True)
+    (tmp_path / 'agents/demo.md').write_text('---\ndescription: Demo agent.\n---\nBody', encoding='utf8')
+    (tmp_path / 'skills/demo/SKILL.md').write_text('---\nname: demo\ndescription: Demo skill.\n---\nBody', encoding='utf8')
+    index = MOD.opencode_indice(str(tmp_path))
+    assert '**Agentes**' in index and '**Skills**' in index
+    assert 'Demo agent' in index and 'Demo skill' in index
 
 
 def leer(rel):
@@ -79,9 +328,9 @@ def test_cubre_todas_las_piezas():
     plan = MOD.generar(ROOT)
     agentes = [f[:-3] for f in sorted(os.listdir(os.path.join(ROOT, "agents"))) if f.endswith(".md")]
     comandos = [f[:-3] for f in sorted(os.listdir(os.path.join(ROOT, "commands"))) if f.endswith(".md")]
-    faltan = [r for n in agentes for r in (f"interop/codex/agents/{n}.toml",
-                                           f"interop/opencode/agents/{n}.md") if r not in plan]
-    faltan += [r for n in comandos for r in (f"interop/codex/prompts/{n}.md",
+    faltan = [r for n in agentes for r in (f"interop/codex/agents/custom-agents-{n}.toml",
+                                           f"interop/opencode/agents/custom-agents-{n}.md") if r not in plan]
+    faltan += [r for n in comandos for r in (f"interop/codex/command-skills/custom-agents-{n}/SKILL.md",
                                              f"interop/opencode/commands/{n}.md") if r not in plan]
     assert not faltan, "piezas sin traducir: %s" % faltan
 
@@ -106,9 +355,11 @@ def test_codex_manifiesto_apunta_a_lo_que_existe():
     m = json.loads(leer(".codex-plugin/plugin.json"))
     assert m["name"] == "custom-agents"
     for clave in ("skills", "hooks"):
-        destino = m[clave].lstrip("./")
-        assert os.path.exists(os.path.join(ROOT, destino.replace("/", os.sep))), \
-            "plugin.json `%s` apunta a %s, que no existe" % (clave, m[clave])
+        destinos = m[clave] if isinstance(m[clave], list) else [m[clave]]
+        for destino in destinos:
+            assert destino.startswith('./')
+            assert os.path.exists(os.path.join(ROOT, destino[2:].replace("/", os.sep))), \
+                "plugin.json `%s` apunta a %s, que no existe" % (clave, destino)
     # La versión no puede divergir del manifiesto de Claude Code (los bumpea `release.py` juntos).
     assert m["version"] == json.loads(leer(".claude-plugin/plugin.json"))["version"]
     assert m["interface"]["displayName"]
@@ -133,11 +384,10 @@ def test_codex_hooks_solo_eventos_que_dispara():
     assert h, "hooks.json de Codex vacío"
     desconocidos = set(h) - CODEX_EVENTOS_OK
     assert not desconocidos, "eventos que Codex no conoce: %s" % desconocidos
-    # PostToolUse queda fuera A PROPÓSITO: solo dispara para Bash y los hooks miran Write/Edit.
-    assert "PostToolUse" not in h, "PostToolUse no puede viajar a Codex (solo dispara para Bash)"
-    # SessionStart sin `compact`: ese matcher es de Claude Code.
+    assert h["PostToolUse"][0]["matcher"] == "^apply_patch$"
+    assert len(h["PostToolUse"][0]["hooks"]) == 3
     for grupo in h.get("SessionStart", []):
-        assert "compact" not in grupo.get("matcher", ""), "`compact` no es un source de Codex"
+        assert "compact" in grupo.get("matcher", "")
 
 
 def test_codex_session_end_va_en_shell_form_no_exec_form():
@@ -153,11 +403,23 @@ def test_codex_session_end_va_en_shell_form_no_exec_form():
     assert src.get("args"), "hooks/hooks.json ya no declara SessionEnd en exec form: revisa este test"
     h = json.loads(leer("interop/codex/hooks.json"))["hooks"]["SessionEnd"][0]["hooks"][0]
     assert "args" not in h
-    assert h["command"] == 'bash "%s"' % src["args"][0]
-    assert h.get("timeout") == src.get("timeout")
+    assert h["command"] == ('node "%s" "%s"' % tuple(src["args"])) + ' --runtime=codex'
+    assert h.get("timeout") == 3
     # mismo formato (comillas dobles) que los otros hooks de shell form del propio fichero
     otro = json.loads(leer("interop/codex/hooks.json"))["hooks"]["SessionStart"][0]["hooks"][0]["command"]
-    assert otro.startswith('bash "') and h["command"].startswith('bash "')
+    assert otro.startswith('node "') and h["command"].startswith('node "')
+
+
+def test_codex_hooks_respetan_limite_session_end_y_runner_windows():
+    hooks = json.loads(MOD.codex_hooks_json(ROOT))["hooks"]
+    assert hooks["SessionEnd"][0]["hooks"][0]["command"].endswith(' --runtime=codex')
+    assert hooks["SessionEnd"][0]["hooks"][0]["timeout"] == 3
+    assert hooks["UserPromptSubmit"][0]["hooks"][0]["timeout"] == 5
+    for groups in hooks.values():
+        for group in groups:
+            for hook in group["hooks"]:
+                assert hook["command"].startswith('node "')
+                assert 'run-hook.mjs' in hook["command"]
 
 
 def test_hook_a_shell_form_pasa_intacto_lo_que_no_es_exec_form():
@@ -228,7 +490,7 @@ def test_hook_a_shell_form_falla_con_command_no_literal_bash_o_sh_con_args():
 
 
 def test_opencode_agentes_frontmatter():
-    """Frontmatter con `description`, `mode` y `permission`; el cuerpo conserva el prompt."""
+    """Frontmatter con campos V2; el cuerpo conserva el prompt."""
     base = os.path.join(ROOT, "interop", "opencode", "agents")
     for fn in sorted(os.listdir(base)):
         t = leer("interop/opencode/agents/" + fn)
@@ -236,20 +498,21 @@ def test_opencode_agentes_frontmatter():
         assert bloque, "%s: sin frontmatter" % fn
         assert MOD.campo(bloque, "description"), "%s: sin description" % fn
         assert re.search(r"^mode: (subagent|primary|all)$", bloque, re.M), "%s: `mode` inválido" % fn
-        assert re.search(r"^permission:$", bloque, re.M), "%s: sin bloque `permission`" % fn
+        assert isinstance(json.loads(MOD.campo(bloque, "permissions")), list), "%s: sin reglas `permissions`" % fn
+        assert not MOD.campo(bloque, "request") and not MOD.campo(bloque, "model")
         assert len(cuerpo) > 500, "%s: cuerpo sospechosamente corto" % fn
 
 
 def test_opencode_config_valida():
     cfg = json.loads(leer("interop/opencode/opencode.json"))
     assert cfg["$schema"] == "https://opencode.ai/config.json"
-    # El índice de piezas es el sustituto del hook SessionStart: tiene que estar en instructions.
-    assert any("custom-agents-index" in i for i in cfg["instructions"])
+    assert cfg["plugins"] == ["./.opencode/plugins/custom-agents"]
+    assert "instructions" not in cfg
 
 
 def test_opencode_adaptador_de_hooks_es_copia_fiel():
     """El .js de interop es copia EXACTA de su fuente en hooks/ (una sola fuente de verdad)."""
-    assert leer("interop/opencode/plugins/custom-agents-hooks.js") == leer("hooks/opencode-plugin.js")
+    assert leer("interop/opencode/plugins/custom-agents/index.js") == leer("hooks/opencode-plugin.js")
 
 
 def test_generados_llevan_marca():
@@ -261,20 +524,21 @@ def test_generados_llevan_marca():
 
 # --------------------------------------------------------------------- 3. invariantes
 
-def test_reviewer_sigue_siendo_solo_lectura():
-    """El invariante «un revisor que puede escribir deja de ser revisor», en los dos runtimes."""
-    with open(os.path.join(ROOT, "interop", "codex", "agents", "reviewer.toml"), "rb") as f:
+def test_reviewer_no_declara_sandbox_independiente_inexistente():
+    """Codex 0.161.0 conserva permisos del padre: el TOML no impone read-only."""
+    with open(os.path.join(ROOT, "interop", "codex", "agents", "custom-agents-reviewer.toml"), "rb") as f:
         codex = tomllib.load(f)
-    assert codex.get("sandbox_mode") == "read-only", "reviewer sin sandbox de solo lectura en Codex"
-    bloque, _ = MOD.partir_frontmatter(leer("interop/opencode/agents/reviewer.md"))
-    assert re.search(r"^\s+edit: deny$", bloque, re.M), "reviewer con `edit` permitido en OpenCode"
+    assert "sandbox_mode" not in codex, "Codex ignora este campo por rol; no debe exportarse como protección"
+    bloque, _ = MOD.partir_frontmatter(leer("interop/opencode/agents/custom-agents-reviewer.md"))
+    assert {"action": "edit", "resource": "*", "effect": "deny"} in json.loads(MOD.campo(bloque, "permissions")), "reviewer con `edit` permitido en OpenCode"
 
 
 def test_agentes_con_escritura_la_conservan():
     """La traducción no puede DEJAR SIN herramientas a quien las declara (p. ej. implementer)."""
-    bloque, _ = MOD.partir_frontmatter(leer("interop/opencode/agents/implementer.md"))
-    assert re.search(r"^\s+edit: allow$", bloque, re.M)
-    assert re.search(r"^\s+bash: allow$", bloque, re.M)
+    bloque, _ = MOD.partir_frontmatter(leer("interop/opencode/agents/custom-agents-implementer.md"))
+    rules = json.loads(MOD.campo(bloque, "permissions"))
+    assert {"action": "edit", "resource": "*", "effect": "allow"} in rules
+    assert {"action": "shell", "resource": "*", "effect": "allow"} in rules
 
 
 def test_descripciones_de_skill_caben_en_opencode():
@@ -323,7 +587,11 @@ def test_toml_multi_escapa_cuerpo_con_triple_comilla():
 
 
 def _tests():
-    return [(k, v) for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    """Casos sin parámetros: los que piden fixtures (`tmp_path`, `capsys`, parametrize) solo los
+    corre pytest, que la CI ejecuta en su paso propio; en modo script se cuentan como omitidos."""
+    import inspect
+    return [(k, v) for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)
+            and not inspect.signature(v).parameters]
 
 
 if __name__ == "__main__":

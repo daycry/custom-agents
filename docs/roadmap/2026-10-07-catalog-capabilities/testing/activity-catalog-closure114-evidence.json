@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "baseline_manifest_sha256": "5694fd77e1f0b6ead217cc765f541614ac96e26440fd91aed7dc83e00c34ed33",
+  "red_windows113": {
+    "failed": 6,
+    "passed": 220,
+    "skipped": 2
+  },
+  "global_source53_failures": [
+    "test_activity_hook_closure_includes_real_local_modules",
+    "test_activity_hook_dependency_network_mutations_remain_detected",
+    "test_activity_hook_missing_local_dependency_is_not_adopted",
+    "test_opencode_reads_only_literal_data_and_exposes_adapter_budget",
+    "test_opencode_stream_bindings_match_exact_declared_metadata[events_missing-activity]",
+    "test_toda_cita_de_script_desde_un_hook_resuelve_a_un_fichero_real"
+  ],
+  "diagnosis": {
+    "red_windows": {
+      "failed": 6,
+      "passed": 220,
+      "skipped": 2
+    },
+    "red_linux_full": {
+      "failed": 6,
+      "passed": 7229,
+      "skipped": 61
+    },
+    "cause_panel": "activity and capture were validated with the same terminal-only vocabulary; start is native only for activity",
+    "cause_closure": "whole-owner pin predates the single-line native-start projection; fail-closed traversal omits declared edges after mismatch",
+    "reviewed_owner_complete_body": true,
+    "reviewed_owner_lines": 264,
+    "previous_sha256_lf": "6b26cd29cffc9c88a9e85002d77ab8cf951a0ae3bf821f1a690216791a64ec62",
+    "reviewed_sha256_lf": "e9d2865997311e351567e73185c956b3c7eeb62ad600ff1eedde5857342f9c98",
+    "whole_owner_diff": [
+      "--- ",
+      "+++ ",
+      "@@ -161,7 +161,7 @@",
+      "         return 'subagent', session, agent, role, event, 'native_hook'",
+      "     native = payload.get('type')",
+      "     data = payload.get('data')",
+      "-    event = 'execution_finished' if native in ('session.execution.succeeded', 'session.execution.failed', 'session.execution.interrupted') else 'session_idle' if native == 'session.idle' else None",
+      "+    event = 'execution_started' if native == 'session.execution.started' else 'execution_finished' if native in ('session.execution.succeeded', 'session.execution.failed', 'session.execution.interrupted') else 'session_idle' if native == 'session.idle' else None",
+      "     if native == 'session.status' and type(data) is dict and type(data.get('status')) is dict and data['status'].get('type') == 'idle':",
+      "         event = 'session_idle'",
+      "     _need(event is not None, 'unsupported_event')"
+    ],
+    "dynamic_local_dependencies_unchanged": true,
+    "network_exceptions_added": false,
+    "global_product_accepted": false
+  },
+  "changed_source_sha256": {
+    "skills/plugin-panel/scripts/build_panel.py": "dad41f09d1e0700a7f92508efa2674257a6ad442b3ba52c64a637b2315bd0486",
+    "tests/test_plugin_panel.py": "97234935df97c9294b8964251619562a6db88e29c3179e1de7ec369867b8d768",
+    "tests/test_graphiti_security.py": "8925cb7875247a85a1e5439848d06b7d9cb4329c9f41f6b92cd629db1ee57030"
+  },
+  "windows114": {
+    "passed": 226,
+    "skipped": 2,
+    "failed": 0
+  },
+  "linux117": {
+    "cases": 228,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 1,
+    "passed": 227
+  },
+  "linux117_pytest_exit": 0,
+  "linux117_driver_exit": 1,
+  "linux117_driver_accepted": false,
+  "driver_mismatch": "expected 228 passed/no skips; actual 227 passed/one Windows-only junction skip",
+  "independent_junit_skip_verified": true,
+  "historical_failed_driver_receipt_preserved": true,
+  "jobs_and_owned_container_cleaned": true,
+  "source_preserved": true,
+  "native_adapter_reexecuted_for_this_fix": false,
+  "current_source_full_qa_accepted": false,
+  "human_ui_accepted": false,
+  "independent_review_accepted": false,
+  "global_product_accepted": false
+}

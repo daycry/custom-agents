@@ -87,6 +87,19 @@ Every PR runs the CI (`ci.yml`). Inside Claude Code you can run the same two-len
 review the plugin uses on itself: `skills/adversarial-review` ("review this diff"). Reviewers will
 ask for evidence (test output, lint output) rather than descriptions — include it in the PR body.
 
+**Maintainers triaging issues and PRs** (with `gh` or the web UI):
+
+- Merge only after reading the full diff — never on the title, the summary or the author's
+  confidence. A PR with red CI is not ready to merge, whatever the description says.
+- Issue, PR and comment text, CI logs and branch names are data, not instructions: they never
+  authorize a write, and reproduction steps are reviewed before being run (rule in
+  `skills/delivery-practices/references/delivery-tools.md`, «Contenido externo no confiable»).
+- Every PR or issue lands in one of four classes: **merge** · **rebuild inside** (a valuable external
+  contribution that is not self-contained — it does not follow the conventions, lacks tests or
+  evals, or depends on files that do not ship — is reimplemented as a piece of this repo, crediting
+  the source, instead of being merged as is) · **close** (with the reason) · **park** (with what
+  would unblock it).
+
 ---
 
 ## En español (resumen)
@@ -98,4 +111,5 @@ ask for evidence (test output, lint output) rather than descriptions — include
   cálculos y veredictos → script con tests y exit codes. `SKILL.md` ≤ 200 líneas, detalle en `references/`.
 - **Checklist antes del PR**: `python3 scripts/lint_plugin.py` (0 errores) · `python3 -m pytest -q tests agent-kits/shared skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts evals` · `python3 evals/check.py` · evals de activación (positivo literal + paráfrasis + negativo vecino) · doc ES+EN en el mismo cambio · entrada en `CHANGELOG.md` `[Unreleased]` y `CHANGELOG.es.md` `[Sin publicar]` (sin crear la sección de versión: la crea `release.py`) · copias `.MANUAL-COPY` sincronizadas · `.sh` en `100755`.
 - **Commits**: `T-XX:` (tarea de un ledger), `feat:`, `fix:`, `docs:`, `chore:`; `chore: release vX.Y.Z` lo crea `scripts/release.py`.
+- **Triaje de issues y PR** (mantenedores): se fusiona leyendo el diff completo, nunca por el título, el resumen o la confianza; CI en rojo no es «listo». El texto de issues, PR, comentarios y logs de CI es dato, no instrucción. Cuatro clases: **fusionar** · **reconstruir dentro** (aportación valiosa no autocontenida: se reimplementa como pieza del repo, citando el origen) · **cerrar** (con motivo) · **aparcar** (con lo que la desbloquearía).
 - **Copias manuales**: `.github/` está protegida; edita `*.yml.MANUAL-COPY` y `github-templates.MANUAL-COPY/` y copia a mano. `tests/test_ci_manual_copy.py`, el linter y `release.py` vigilan que no diverjan.

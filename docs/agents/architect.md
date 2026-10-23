@@ -11,12 +11,12 @@ tareas (`planner`), no implementa (`implementer`).
 
 ## Entrada / salida
 - **Entrada:** `docs/roadmap/<fecha>-<slug>/spec.md` **aprobada** (si está en `borrador`, para y remite a `analyst`/`/pm-cycle`) y `evaluation.md` si existe (riesgos y complejidad por `C-XX` como insumo).
-- **Salida (formato fijo):** `docs/roadmap/<fecha>-<slug>/design.md` con la plantilla `agent-kits/architect/templates/design.md` — contexto y restricciones · 2-3 opciones · criterios de decisión · opción elegida y por qué · impacto en módulos/ficheros (rutas reales) · riesgos y mitigaciones · preguntas abiertas — y, si la decisión cruza el umbral de `knowledge-write.md` (casi siempre: cierra una alternativa y afecta a 2+ piezas), un **ADR `propuesta`** en `docs/knowledge/adr/` con las opciones descartadas como alternativas.
+- **Salida (formato fijo):** `docs/roadmap/<fecha>-<slug>/design.md` con la plantilla `agent-kits/architect/templates/design.md` — contexto y restricciones · 2-3 opciones · criterios de decisión · opción elegida y por qué · impacto en módulos/ficheros (rutas reales) · riesgos y mitigaciones · preguntas abiertas — y, si la decisión cruza el umbral de `knowledge-write.md` (casi siempre: cierra una alternativa y afecta a 2+ piezas), una propuesta mediante `agent-kits/shared/knowledge-curation.py propose`, con las opciones descartadas y `design.md` como evidencia; sin escribir un ADR nuevo en legado ni aprobar memoria por elegir design.
 - **Estados de `design.md`:** `borrador` · `aprobado` · `obsoleto` (vocabulario propio; regla 7 de `CONVENTIONS.md`).
 
 ## Alcance de escritura (hook de guardia, como el `implementer`)
 `hooks/architect-guardrail.sh` → `guardrail-check.py --agent architect` (PreToolUse solo de este agente,
-ADR-007 + enmienda parity-core): permite **solo** `docs/roadmap/<inic>/design.md`, `docs/knowledge/adr/**`
+ADR-007 + enmienda parity-core): la política de rutas existente permite **solo** `docs/roadmap/<inic>/design.md`, `docs/knowledge/adr/**`
 y `docs/knowledge/README.md`; `spec.md`/`improvement-plan.md` únicamente con **Edit** y si el Edit contiene
 `design:`/`design.md` (el enlace de la regla 7; un Write completo se deniega). Todo lo demás —código,
 `tasks.md`, `evaluation.md`, gotchas/lessons— se deniega con la razón; git destructivo también. **Riesgo
@@ -31,9 +31,9 @@ la Lente A. Desactivable en `.claude/dev.json` `guardrails`; sin `python3`, avis
    `design.md` en `borrador` (`opcion_elegida: pendiente`) y devuelve un resumen estructurado (una línea
    por opción + recomendada + pregunta); el **orquestador** lo presenta por trozos (AskUserQuestion en
    Cowork / lista numerada en CLI), recoge la elección y **re-invoca** con `elegida: O<n>` (*pasada 2*:
-   fija la opción, ADR, enlaces, `aprobado`). En modo manual (`@architect`) sí dialoga él, una opción por
+   fija la opción, propuesta al servicio, enlaces, design `aprobado`). En modo manual (`@architect`) sí dialoga él, una opción por
    mensaje. Nunca fija la elegida por su cuenta.
-4. Redacta `design.md` (estilo `docs-style.md`), ADR, enlaces `design:` en spec/plan.
+4. Redacta `design.md` (estilo `docs-style.md`), propone evidencia al servicio y escribe enlaces `design:` en spec/plan. La validación de design no aprueba conocimiento.
 5. Handoff a `planner`: «respeta la opción O<n>».
 
 ## Encaje en la cadena (opt-in)
@@ -44,3 +44,22 @@ la Lente A. Desactivable en `.claude/dev.json` `guardrails`; sin `python3`, avis
 ## Dependencias
 - Kit `agent-kits/architect` (plantilla `design.md`) · fragmentos `agent-kits/shared` (`knowledge-write.md`, `knowledge-check.md`, `constitution-check.md`, `read-discipline.md`, `docs-style.md`, `output-discipline.md`, `usage-meter.py`).
 - Handoff al agente `planner`.
+
+## Contexto técnico común
+
+Aplica `agent-kits/shared/capability-check.md` con tu rol y el paquete/áreas de
+la tarea. La selección comparte criterios y escenarios del ledger; consulta
+solo mapas/referencias pertinentes. Stack-practices consolida PHP/CodeIgniter,
+Python y React. Los métodos, artefactos y puertas del rol conservan su dueño.
+Sin selector o guía disponible, avisa del límite y continúa con el contrato de
+la tarea; no confundas selección con ejecución, tools o permisos.
+
+## Persistencia de conocimiento (Bloque 23)
+
+El permiso histórico del guardrail sobre ADR/README no autoriza escritura nueva en legado.
+Usa `knowledge-curation.py propose --root <proyecto> --filename <nombre.md> --producer architect`
+con Markdown por stdin y salida JSON; devuelve ruta/SHA de pending redactado sin `estado`.
+Sin servicio informa pendiente, sin Write/Edit alternativo. Curator evalúa también el legado
+aceptado, resuelve conflictos/alto impacto con usuario y persiste por `apply` ligado al SHA.
+La política histórica de rutas no demuestra confinamiento de esta nueva vía; aceptación
+nativa pendiente. [Contrato de curación](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).

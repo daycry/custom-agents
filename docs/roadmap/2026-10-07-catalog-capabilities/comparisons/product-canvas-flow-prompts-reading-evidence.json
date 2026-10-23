@@ -1,0 +1,158 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S205",
+    "S212",
+    "S213",
+    "S216",
+    "S217"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S205",
+      "sha256": "0ee9356f9305eb8ceec671753700a0a7a438c76dca9983ed87c66be0b5681b64",
+      "bytes": 8676,
+      "lines": 198,
+      "read_ranges": [
+        [
+          1,
+          198
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S212",
+      "sha256": "c26114356edb15f0340e5af66b6f4444892bdf376b053a7152312fd04d22aced",
+      "bytes": 4436,
+      "lines": 142,
+      "read_ranges": [
+        [
+          1,
+          142
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S213",
+      "sha256": "58b82c847304b0c4fbf456c1f4ae9205f3733e011f8cbdeed30687f111a098c6",
+      "bytes": 3373,
+      "lines": 93,
+      "read_ranges": [
+        [
+          1,
+          93
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S216",
+      "sha256": "6d59e4118a91419fdc66cf51925371a3f9fad66881c5a1720ed1c5cc490df1f7",
+      "bytes": 3145,
+      "lines": 112,
+      "read_ranges": [
+        [
+          1,
+          112
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S217",
+      "sha256": "e98058f34c3338014d0b9ef0c821d932d6820284d40d1eaf4f716bceb9147db0",
+      "bytes": 16077,
+      "lines": 387,
+      "read_ranges": [
+        [
+          1,
+          387
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/analyst.md",
+      "sha256": "c15e86fa198a20f4bf30fa47077633ce707c91d30268852f6cf090d66c7f1f82"
+    },
+    {
+      "path": "agent-kits/evaluator/templates/spec.md",
+      "sha256": "95af5b74a3b8ec178a10ab240ee9ba1a6a1f7e877a5817826cf8e72d0d47f3d5"
+    },
+    {
+      "path": "agent-kits/architect/templates/design.md",
+      "sha256": "363c085afd618c99ae9df82ccc7de91204ea11897e82ed386a84cc13c807dec6"
+    },
+    {
+      "path": "commands/pm-backlog.md",
+      "sha256": "06567917e2b197a5e01674ec53116a6f82fa37d0c522e000f6d4f4d97ae82871"
+    },
+    {
+      "path": "commands/pm-cycle.md",
+      "sha256": "a31f06cd9f5bf7d02fb5ee0a3ac36b106da00c1e8cd7b35b5f860b5f5813a1d5"
+    },
+    {
+      "path": "commands/work-context.md",
+      "sha256": "830b5f37649bd1c8945013096e5930ca425a3c384e5d1dd52c1765f5f32821ec"
+    },
+    {
+      "path": "agent-kits/shared/plan-review.py",
+      "sha256": "899cd9a885d0b03a72e896f37398e9262ca78a3161fed9fc639c008021439ad2"
+    },
+    {
+      "path": "agent-kits/shared/skill-index.py",
+      "sha256": "5187e70f0226946985fb24fc4ca57c75c4521dab953002ba813b207757cf784c"
+    },
+    {
+      "path": "agent-kits/shared/model-tier.py",
+      "sha256": "9a2ba0874a2380dbe21ad48ac79829d30ba06e7023dd9e52f99b24f3af3572cd"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-007-deny-solo-con-alcance-de-agente.md",
+      "sha256": "2f12b9214bf8e7c71a58b498c890f4631db91fc400598d254edbb6bd1c10d505"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-009-tiering-configurable-en-dos-capas.md",
+      "sha256": "a132f51fc25b0d9cb267be4813690a18efdce2ee800886c4e2f4f19ae8738409"
+    },
+    {
+      "path": "skills/quick-implement/SKILL.md",
+      "sha256": "89735ac0f8aa6d1f421f5ca330c18dd473ca86c7350f3674d85f32c3a5365ee2"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "e81bec881c2a70c7d76ce0dd02abb3d8b5cdb74024b96ecf48d3e9fa9f7655ec"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/panel-plan-review.md",
+      "sha256": "e8058fed551b656eb67a0941d08c93d4e377a00b76db199b593c32355aded648"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-git-github-workspace.md",
+      "sha256": "2529b86e9747ace5a690fdd9bb2f589e3f74116c29da0e2c8fb8cd94685b027d"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

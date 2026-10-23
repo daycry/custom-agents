@@ -1,0 +1,650 @@
+{
+  "schema_version": 1,
+  "native_version": "2.0.12",
+  "native_config_fields": [
+    "model",
+    "request",
+    "system",
+    "description",
+    "mode",
+    "hidden",
+    "color",
+    "steps",
+    "disabled",
+    "permissions"
+  ],
+  "schema_source_sha256": "774b72f81adece727836a08eea7920d2b125bac489dac2249f120fe43d400ec4",
+  "native_registry_sha256": "4aa08fdc9d2d04a68081a16e86ac259753ed1c679f98b5c4b76697c7ddc97af7",
+  "owned_semantics": {
+    "custom-agents-analyst": {
+      "mode": "subagent",
+      "description": "Experto en TOMA DE REQUERIMIENTOS y DESCUBRIMIENTO. Conversa con el humano para convertir una idea o petición vaga en una especificación sólida, eligiendo la técnica adecuada según el caso (entrevista dirigida, ejemplos concretos, user stories, escenarios, contraejemplos \"¿y si…?\"). Puerta de entrada ÚNICA a spec.md — absorbe el paso de descubrimiento previo a evaluar (ADR-011: retira la skill discovery, redundante). El formato de salida es SIEMPRE el mismo: la plantilla spec.md de la cadena (docs/roadmap/<fecha>-<slug>/spec.md), con alcance in/out, criterios de aceptación, restricciones, datos y supuestos/incógnitas. Itera hasta que el usuario APRUEBA los requerimientos (spec → aprobada) y hace handoff a evaluator. No estima, no planifica, no implementa. Úsalo cuando el usuario diga \"toma de requisitos\", \"ayúdame a definir esto\", \"no sé bien lo que necesito\", \"prepara los requerimientos\", \"afinar la idea\", \"discovery\", \"prepara la spec\", \"define bien esto antes de presupuestar\", o cuando /pm-cycle reciba un objetivo poco definido.",
+      "request": {
+        "settings": {},
+        "headers": {},
+        "body": {
+          "temperature": 0.2
+        }
+      },
+      "permissions": [
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "list",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "websearch",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "subagent",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "skill",
+          "resource": "*",
+          "effect": "allow"
+        }
+      ]
+    },
+    "custom-agents-architect": {
+      "mode": "subagent",
+      "description": "Diseña la ARQUITECTURA de una iniciativa antes de planificarla — a partir de una spec aprobada (y su evaluación si existe) explora el repo y produce docs/roadmap/<fecha>-<slug>/design.md con 2-3 OPCIONES de diseño comparadas con trade-offs (complejidad, riesgo, coste relativo, reversibilidad), criterios de decisión, recomendación, impacto en módulos/ficheros, riesgos y preguntas abiertas. La opción elegida la fija SOLO con la validación del usuario: orquestado (/pm-cycle, /dev-cycle) devuelve un resumen estructurado de opciones + recomendación y el orquestador presenta, recoge la elección y lo re-invoca con «elegida: O<n>»; manual (@architect) dialoga por trozos. Entonces propone la decisión al servicio de curación compartido y enlaza spec ↔ design ↔ plan. No estima (evaluator), no planifica (planner), no implementa (implementer). Úsalo cuando el usuario diga \"diseña la arquitectura\", \"explora las opciones de diseño\", \"qué alternativas técnicas hay\", \"compara enfoques antes de planificar\", o cuando /pm-cycle o /dev-cycle ofrezcan el paso de diseño tras el go.",
+      "request": {
+        "settings": {},
+        "headers": {},
+        "body": {
+          "temperature": 0.1
+        }
+      },
+      "permissions": [
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "list",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "websearch",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "subagent",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "skill",
+          "resource": "*",
+          "effect": "allow"
+        }
+      ]
+    },
+    "custom-agents-documenter": {
+      "mode": "subagent",
+      "description": "Genera y mantiene la documentación técnica y de producto de un proyecto, de forma estructurada y detallada, dentro de `docs/`. Explora el repositorio (código, config, dependencias) y produce una taxonomía completa — índice, RAG-INDEX, arquitectura, stack técnico, módulos/componentes, guías de desarrollo y documentación de producto/usuario — con Markdown correcto, tablas y ejemplos reales del código. Idempotente: crea lo que falta, actualiza lo existente y mantiene el índice y la fecha. Al cerrar, si detecta una decisión/patrón/gotcha/lección con evidencia real, propone (nunca aprueba) un candidato mediante `knowledge-curation.py` en `docs/knowledge/candidates/pending/` — el juez es `knowledge-curator`. Al escribir en `docs/` sincroniza con Confluence (opt-in) vía la skill `confluence-publish`. Úsalo cuando el usuario diga \"documenta el proyecto\", \"genera la documentación\", \"crea los docs\", \"documenta la arquitectura/módulos\", \"actualiza la documentación\".",
+      "request": {
+        "settings": {},
+        "headers": {},
+        "body": {
+          "temperature": 0.2
+        }
+      },
+      "permissions": [
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "list",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "websearch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "subagent",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "skill",
+          "resource": "*",
+          "effect": "allow"
+        }
+      ]
+    },
+    "custom-agents-evaluator": {
+      "mode": "subagent",
+      "description": "Evalúa y presupuesta una especificación antes de construirla: esfuerzo (horas), coste económico (horas×tarifa + tokens de IA, en EUR) y consumo de tokens por característica, con complejidad, riesgos e incógnitas; si hay varias características, tabla comparativa y orden recomendado (quick wins vs. costosas). Si la especificación llega por el prompt, crea primero la spec y luego la evalúa. Hace handoff a planner para ejecutar lo aprobado. Úsalo cuando el usuario diga \"presupuesta esto\", \"cuánto costaría\", \"evalúa esta spec\", \"estima el esfuerzo/coste\", \"¿merece la pena?\", o cuando /pm-cycle o /dev-cycle necesiten presupuestar una iniciativa.",
+      "request": {
+        "settings": {},
+        "headers": {},
+        "body": {
+          "temperature": 0.1
+        }
+      },
+      "permissions": [
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "list",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "websearch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "subagent",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "skill",
+          "resource": "*",
+          "effect": "allow"
+        }
+      ]
+    },
+    "custom-agents-implementer": {
+      "mode": "subagent",
+      "description": "Implementa un plan aprobado ejecutándolo fase a fase. Lee el `improvement-plan.md` y el `tasks.md` de una iniciativa en `docs/roadmap/<fecha>-<slug>/`, escribe el código real del proyecto para cumplir cada tarea (T-XX) y sus criterios de aceptación, y mantiene `tasks.md` como **ledger canónico** marcando el estado de cada tarea (checkbox + estado) a medida que avanza. Trabaja sobre una rama, respeta los guardrails del repo y hace handoff a `qa` al terminar. Úsalo cuando el usuario diga \"implementa el plan\", \"ejecuta las tareas\", \"desarrolla el roadmap\", \"implementa la fase X\".",
+      "request": {
+        "settings": {},
+        "headers": {},
+        "body": {
+          "temperature": 0.2
+        }
+      },
+      "permissions": [
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "list",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "websearch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "subagent",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "skill",
+          "resource": "*",
+          "effect": "allow"
+        }
+      ]
+    },
+    "custom-agents-knowledge-curator": {
+      "mode": "subagent",
+      "description": "Único agente que aprueba, rechaza o pide cambios sobre conocimiento propuesto bajo `docs/knowledge/candidates/`; persiste sus decisiones exclusivamente mediante el servicio compartido `knowledge-curation.py` (ADR-018, `knowledge-services`). Valida cada candidato contra la taxonomía del proyecto (`.claude/knowledge-services/taxonomy.json`, o el default del plugin): categoría declarada, evidencia mínima exigida por esa categoría exacta, fuentes, tags `clave:valor` y lista negra (`curator-gate.py`, determinista). Pide confirmación al usuario ante contradicciones con conocimiento existente o candidatos de alto impacto. No exporta a ningún backend (Kwipu, Graphiti) ni toca `docs/roadmap/`. Úsalo cuando el usuario diga \"cura este conocimiento\", \"revisa los candidatos de docs/knowledge\", \"aprueba/rechaza esta propuesta de memoria\", \"promociona esta lección/patrón a conocimiento aprobado\".",
+      "request": {
+        "settings": {},
+        "headers": {},
+        "body": {
+          "temperature": 0.2
+        }
+      },
+      "permissions": [
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "list",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "websearch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "subagent",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "skill",
+          "resource": "*",
+          "effect": "allow"
+        }
+      ]
+    },
+    "custom-agents-nemesis": {
+      "mode": "subagent",
+      "description": "Auditoría de ciberseguridad end-to-end de un proyecto: SAST (skill cybersecurity, 8 dimensiones) + DAST/pentest activo SOLO contra entornos locales/privados propios y autorizados (guardrail impuesto por script), con memoria persistente por proyecto e informe visual por fecha. Úsalo PROACTIVAMENTE cuando el usuario mencione seguridad, vulnerabilidades, \"auditoría de seguridad\", \"pentest\", \"escanea el código\", \"OWASP\", \"¿es segura mi app?\", o tras cambios sensibles en autenticación, sesiones o manejo de datos.",
+      "request": {
+        "settings": {},
+        "headers": {},
+        "body": {
+          "temperature": 0.1
+        }
+      },
+      "permissions": [
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "list",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "websearch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "subagent",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "skill",
+          "resource": "*",
+          "effect": "allow"
+        }
+      ]
+    },
+    "custom-agents-planner": {
+      "mode": "subagent",
+      "description": "Genera planes de implementación detallados y presupuestados: fases y tareas con criterios de aceptación verificables, tiempo, coste (EUR) y tokens por fase, listos para ejecutar y seguir como ledger. Si el plan nace de una spec/evaluación, los enlaza (cadena spec→evaluación→plan). Hace handoff a implementer para ejecutar el plan aprobado. Úsalo cuando el usuario diga \"haz un plan\", \"planifica esta mejora\", \"genera el plan de implementación\", \"divide esto en tareas/fases\", o cuando /dev-cycle tenga una evaluación con veredicto go.",
+      "request": {
+        "settings": {},
+        "headers": {},
+        "body": {
+          "temperature": 0.2
+        }
+      },
+      "permissions": [
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "list",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "websearch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "subagent",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "skill",
+          "resource": "*",
+          "effect": "allow"
+        }
+      ]
+    },
+    "custom-agents-qa": {
+      "mode": "subagent",
+      "description": "Audita un plan ejecutando sus tests E2E con Playwright contra la app local, captura evidencias (screenshots) y genera un informe md + pdf con checklist manual, en docs/roadmap/<fecha>-<slug>/testing/. Lee el test-plan.md del plan (bloques E2E-xx automáticos y M-xx manuales). Solo opera contra hosts locales/privados (guardrail). Instala Playwright bajo permiso. Úsalo cuando el usuario pida QA/E2E, \"prueba la UI\", \"tests end-to-end\", \"audita el plan con Playwright\".",
+      "request": {
+        "settings": {},
+        "headers": {},
+        "body": {
+          "temperature": 0.2
+        }
+      },
+      "permissions": [
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "list",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "websearch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "subagent",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "skill",
+          "resource": "*",
+          "effect": "allow"
+        }
+      ]
+    },
+    "custom-agents-reviewer": {
+      "mode": "subagent",
+      "description": "Revisor ADVERSARIAL de solo lectura y contexto fresco para las lentes de la skill adversarial-review — recibe UNA lente (A conformidad con spec/plan/constitución · B robustez/corrección · C seguridad del diff · D rendimiento del diff), el diff o rango y los artefactos contra los que revisar, y devuelve la salida ESTRUCTURADA que la skill fusiona (tabla por criterio ✓/✗ con fichero:línea, gaps graduados Critical/Important/Minor con escenario concreto, evidencia ejecutada; «sin defectos» es una salida válida). No escribe ni corrige nada (Write/Edit no están en sus tools; Bash solo para ejecutar tests/scripts como evidencia). Lo invoca la skill adversarial-review por nombre (/dev-cycle Fase 3, quick-implement); una petición directa del usuario de revisar el diff entero con las dos lentes fusionadas va a la skill (fuente única del método), no a este agente. Úsalo cuando la skill adversarial-review despache una lente, o cuando el usuario diga \"actúa como revisor de la lente A/B/C/D\", \"revisor de contexto fresco sobre este diff\", \"hazme solo la lente de seguridad del diff\".",
+      "request": {
+        "settings": {},
+        "headers": {},
+        "body": {
+          "temperature": 0.1
+        }
+      },
+      "permissions": [
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "list",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "websearch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "subagent",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "skill",
+          "resource": "*",
+          "effect": "allow"
+        }
+      ]
+    }
+  }
+}

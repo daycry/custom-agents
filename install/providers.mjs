@@ -2,7 +2,7 @@
 // ni una lectura de disco fuera de `detect()` y de la detección de CLIs en el `PATH`. Así el plan
 // se puede imprimir (`--dry-run`), comparar y testear sin tocar nada.
 //
-// Un plan es una lista de pasos. Seis tipos, y ninguno más:
+// Un plan es una lista de pasos:
 //   { type: "copy",  from, to }      copia un fichero o un árbol (recursivo)
 //   { type: "write", to, content }   escribe un fichero generado por el instalador
 //   { type: "merge", to, merge }     fusiona claves en un JSON del usuario SIN pisar lo suyo
@@ -12,6 +12,7 @@
 //                                    apunta cuáles para poder quitarlas al desinstalar)
 //   { type: "toml-set", to, tabla, clave, valor }   pone una clave en una tabla de un TOML,
 //                                    sin reescribir ninguna otra línea del fichero
+//   { type: "retire", to, sha256, config } retira un artefacto conocido sin cambios locales
 //
 // Además, cada proveedor declara con `registro(scope, dir)` DÓNDE mira uno si quiere saber si el
 // runtime tiene el plugin dado de alta de verdad. Son descriptores (fichero + qué buscar), no
@@ -41,6 +42,8 @@ export const PLUGIN_ID = `${PLUGIN}@${MKT}`
 export const FUENTE_DEFECTO = "daycry/custom-agents"
 /** Primera versión de Codex con `codex plugin marketplace add` (la que exige también claude-mem). */
 export const CODEX_MIN = "0.128.0"
+/** Native add/cache isolation contract verified against Codex 0.161.0. */
+export const CODEX_NATIVE_MIN = "0.161.0"
 
 // El HOME se lee EN CADA LLAMADA, nunca al importar: los tests inyectan uno temporal por `env` y
 // el instalador tiene que verlo (antes se congelaba en una constante de módulo).
@@ -339,11 +342,11 @@ const claudeCode = {
 const codex = {
   id: "codex",
   label: "Codex",
-  blurb: "plugin + agentes `.toml` + comandos como prompts",
+  blurb: "plugin + agentes `.toml` + adaptadores nativos de comandos",
   detect: () => existsSync(GLOBAL_DIR.codex),
-  hint: "El plugin solo carga si está HABILITADO: el instalador pone `enabled = true` en tu `config.toml`.",
+  hint: "Comprueba la caché nativa con `codex plugin list --marketplace daycry --available --json`.",
   // En Codex el plugin vive en su propia carpeta y el marketplace lo declara. Los agentes son
-  // TOML en `agents/`, y los prompts SOLO existen en CODEX_HOME (no hay prompts por proyecto).
+  // TOML en `agents/`; los adaptadores de comandos viajan dentro del plugin como skills.
   plan({ root, dir, scope, version }) {
     const base = scope === "user" ? GLOBAL_DIR.codex : join(dir, ".codex")
     const plugin = join(base, "plugins", "custom-agents")
@@ -353,24 +356,9 @@ const codex = {
       ...PAYLOAD_COMUN.map((p) => ({ type: "copy", from: p, to: join(plugin, p) })),
       { type: "copy", from: ".codex-plugin", to: join(plugin, ".codex-plugin") },
       { type: "copy", from: "interop/codex/hooks.json", to: join(plugin, "interop", "codex", "hooks.json") },
-      { type: "copy", from: "interop/codex/agents", to: join(base, "agents") },
-      // Los prompts (`/prompts:<n>`) solo se leen desde CODEX_HOME: Codex no tiene prompts por
-      // proyecto. Se avisa siempre, porque con `--scope project` es lo ÚNICO que sale del proyecto.
-      {
-        type: "copy",
-        from: "interop/codex/prompts",
-        to: join(GLOBAL_DIR.codex, "prompts"),
-        aviso: scope === "project"
-          ? `los comandos van a ${join(GLOBAL_DIR.codex, "prompts")} (fuera del proyecto): Codex solo lee prompts de CODEX_HOME`
-          : null,
-      },
-      // Algunas instalaciones de Codex usan `prompt:` en lugar de `prompts:`; copiamos ambos para
-      // que el comando siga disponible sin depender del nombre exacto del provider.
-      {
-        type: "copy",
-        from: "interop/codex/prompts",
-        to: join(GLOBAL_DIR.codex, "prompt"),
-      },
+      { type: "copy", from: "interop/codex/command-skills", to: join(plugin, "interop", "codex", "command-skills") },
+      { type: "copy", from: "interop/codex/agents", to: join(base, "agents"),
+        nativeAgents: {runtime:"codex", scope, projectDir:dir, base, agentDirs:[join(GLOBAL_DIR.codex,'agents')], configs:[config, join(GLOBAL_DIR.codex,"config.toml")]} },
       {
         type: "merge",
         to: join(mktRoot, "plugins", "marketplace.json"),
@@ -380,11 +368,11 @@ const codex = {
         // reinstalación (gap M-01, verificado con la CLI de Codex en 0.155.1).
         upsert: { plugins: "name" },
       },
-      // Copiar el plugin no basta: Codex solo lo carga si el marketplace está dado de alta y el
-      // plugin HABILITADO. Lo primero es cosa de su CLI (opcional: sin `codex` se dice el comando
-      // pendiente); lo segundo es una línea en el `config.toml` del scope, que sí ponemos nosotros.
-      {
+      // Copying declares the payload. Native add must materialize the runtime cache before
+      // activation. Project marketplace registration happens only in the isolated native home.
+      ...(scope === "user" ? [{
         type: "exec",
+        id: "codex-marketplace",
         cmd: "codex",
         // Codex espera la RAÍZ del marketplace (el padre de `.agents/`): busca el manifiesto en
         // `<raíz>/.agents/plugins/marketplace.json` y resuelve `source.path` contra la raíz (por
@@ -398,6 +386,7 @@ const codex = {
         opcional: true,
         siFalla: "aviso",
         minVersion: CODEX_MIN,
+        codexMarketplace: {config: join(GLOBAL_DIR.codex,"config.toml"), root: resolve(join(mktRoot,".."))},
         // Si el marketplace `daycry` ya existe apuntando a OTRA fuente, es del usuario: el
         // instalador NO lo borra por su cuenta (borrarlo y re-crearlo con la nuestra es pisarle la
         // configuración sin preguntar). Por defecto se avisa con el comando exacto; solo con
@@ -407,19 +396,28 @@ const codex = {
           args: ["plugin", "marketplace", "remove", MKT],
           soloConForce: true,
         },
+      }] : []),
+      {
+        type: "codex-native-add", id: "codex-cache", ...(scope === "user" ? {requires:"codex-marketplace"} : {}),
+        cmd: "codex", args: ["plugin", "add", PLUGIN_ID, "--json"], cwd: dir,
+        scope, version, minVersion: CODEX_NATIVE_MIN, marketplaceRoot: resolve(join(mktRoot,"..")),
+        ...(scope === "project" ? {codexMarketplace:{config,root:resolve(dir)}} : {}),
       },
-      { type: "toml-set", to: config, tabla: `plugins."${PLUGIN_ID}"`, clave: "enabled", valor: true },
+      ...(scope === "project" ? [
+        {type:"toml-set",requires:"codex-cache",to:config,tabla:`marketplaces.${MKT}`,clave:"source_type",valor:"local",restaurar:true},
+        {type:"toml-set",requires:"codex-cache",to:config,tabla:`marketplaces.${MKT}`,clave:"source",valor:resolve(dir),restaurar:true},
+      ] : []),
+      { type: "toml-set", requires: "codex-cache", to: config, tabla: `plugins."${PLUGIN_ID}"`, clave: "enabled", valor: true },
       // `[features] hooks` es una preferencia global del usuario: se enciende (los hooks del plugin
       // no corren sin ella) pero desinstalar NO la apaga, porque puede haberla puesto él.
-      { type: "toml-set", to: config, tabla: "features", clave: "hooks", valor: true, deshacer: false },
+      { type: "toml-set", requires: "codex-cache", to: config, tabla: "features", clave: "hooks", valor: true, deshacer: false },
     ]
     return pasos
   },
   destino: (scope, dir) =>
     join(scope === "user" ? GLOBAL_DIR.codex : join(dir, ".codex"), "plugins", "custom-agents"),
-  restart: "Reinicia Codex (los skills y prompts se leen al arrancar la sesión).",
-  // Codex carga el plugin solo si está HABILITADO en el `config.toml` del scope: es esa línea, y
-  // no la copia de ficheros, la que dice si está instalado de verdad.
+  restart: "Reinicia Codex para cargar las skills y los adaptadores de comandos del plugin.",
+  // This descriptor proves the explicit declaration in this scope. Native cache state is queried separately.
   registro: (scope, dir) => [
     { fichero: join(scope === "user" ? GLOBAL_DIR.codex : join(dir, ".codex"), "config.toml"),
       tipo: "toml-verdadero", ruta: `plugins."${PLUGIN_ID}".enabled` },
@@ -449,11 +447,11 @@ function marketplaceCodex(mktRoot, plugin, version) {
 
 // --------------------------------------------------------------------------- OpenCode
 
-/** Nombre del fichero del adaptador de hooks de OpenCode (el que carga sus eventos). */
-export const ADAPTADOR_OPENCODE = "custom-agents-hooks.js"
+/** Paquete local del adaptador V2, registrado como directorio. */
+export const ADAPTADOR_OPENCODE = "custom-agents"
 
 /**
- * Cómo se declara el adaptador en `plugin` de `opencode.json`. **Un spec con forma de ruta se
+ * Cómo se declara el adaptador en `plugins` de `opencode.json`. Un spec con forma de ruta se
  * resuelve contra la carpeta del fichero de config que lo declara** (`config/plugin.ts`,
  * `resolvePluginSpec`), no contra el directorio de trabajo:
  *
@@ -463,9 +461,8 @@ export const ADAPTADOR_OPENCODE = "custom-agents-hooks.js"
  *   · scope `user` → config y adaptador comparten carpeta (`~/.config/opencode/`); se escribe la
  *     ruta ABSOLUTA, siempre con `/` (un `\` en un JSON hay que escaparlo y confunde al leerlo).
  *
- * Registrarlo NO lo carga dos veces aunque OpenCode también autodescubra `{plugin,plugins}/*.js`
- * de esa misma carpeta: dedupe por URL de fichero (`deduplicatePluginOrigins`). Se declara igual
- * para que el registro sea COMPROBABLE (`/doctor` y `status` lo leen) y no dependa de un barrido.
+ * V2 exige un directorio para rutas configuradas y deduplica el entrypoint descubierto.
+ * El registro es comprobable por status/doctor; su presencia no acredita despacho.
  */
 export function rutaPluginOpencode(base, scope) {
   return scope === "user"
@@ -488,9 +485,20 @@ const opencode = {
       ? join(base, "custom-agents-index.md").split(/[\\/]/).join("/")
       : ".opencode/custom-agents-index.md"
     const adaptador = rutaPluginOpencode(base, scope)
+    const anterior = scope === "user"
+      ? join(base, "plugins", "custom-agents-hooks.js").split(/[\\/]/).join("/")
+      : "./.opencode/plugins/custom-agents-hooks.js"
     return [
+      {
+        type: "retire", to: join(base, "plugins", "custom-agents-hooks.js"),
+        // SHA-256 del adaptador propio publicado, normalizado a LF. No se borra código editado.
+        sha256: ["1092f3b894c5ee208d4eb9a46ed76361015180632207ec7edf630dcd4cb65bf9"],
+        config: { to: cfg, remove: { plugin: [anterior], plugins: [anterior], instructions: [idxRel] } },
+      },
       ...PAYLOAD_COMUN.map((p) => ({ type: "copy", from: p, to: join(base, p) })),
-      { type: "copy", from: "interop/opencode/agents", to: join(base, "agents") },
+      { type: "copy", from: "interop/opencode/agents", to: join(base, "agents"),
+        nativeAgents: {runtime:"opencode", scope, projectDir:dir, base, agentDirs:[join(GLOBAL_DIR.opencode,'agents')], configs:[cfg, cfg.replace(/\.json$/,'.jsonc'),
+          join(GLOBAL_DIR.opencode,'opencode.json'),join(GLOBAL_DIR.opencode,'opencode.jsonc')]} },
       { type: "copy", from: "interop/opencode/commands", to: join(base, "commands") },
       // El manifiesto del plugin viaja también aquí: sin él `/doctor` no puede decir la versión
       // instalada (lee `<raíz>/.claude-plugin/plugin.json`) y OpenCode no tiene ningún otro origen
@@ -507,25 +515,14 @@ const opencode = {
         from: "interop/opencode/custom-agents-index.md",
         to: join(base, "custom-agents-index.md"),
       },
-      // Config del usuario: se FUSIONA. `instructions` se une sin duplicar.
-      //
-      // `permission` va en `onlyIfMissing` A PROPÓSITO: en OpenCode «gana la última regla que
-      // casa», así que añadir `skill: {"*": "allow"}` DESPUÉS de un `"internal-*": "deny"` del
-      // usuario le abriría en silencio una skill que había cerrado. Si ya tiene política de
-      // permisos, se respeta entera y el instalador solo lo dice; si no tiene ninguna, se deja
-      // la mínima para que las skills del plugin carguen sin preguntar.
+      // El contexto V2 llega por hook; no se añaden instrucciones ni grants a la config ajena.
       {
         type: "merge",
         to: cfg,
         merge: {
           $schema: "https://opencode.ai/config.json",
-          instructions: [idxRel],
-          plugin: [adaptador],
-          permission: { skill: { "*": "allow" } },
+          plugins: [adaptador],
         },
-        onlyIfMissing: ["permission"],
-        nota: "si `permission` ya existía, tu política manda: comprueba que las skills `custom-agents` "
-              + "no caigan en un `deny` (OpenCode aplica la ÚLTIMA regla que casa).",
       },
     ]
   },
@@ -534,15 +531,15 @@ const opencode = {
   registro: (scope, dir) => [
     { fichero: scope === "user" ? join(GLOBAL_DIR.opencode, "opencode.json") : join(dir, "opencode.json"),
       tipo: "json-array",
-      ruta: "plugin",
+      ruta: "plugins",
       valor: rutaPluginOpencode(scope === "user" ? GLOBAL_DIR.opencode : join(dir, ".opencode"), scope) },
   ],
-  // `plugin` se queda en `opencode.json` al desinstalar (es config del usuario, como
-  // `instructions`), pero el fichero al que apunta SÍ se borra: hay que decírselo, porque un spec
+  // `plugins` se queda en `opencode.json` al desinstalar (es config del usuario),
+  // pero el paquete al que apunta SÍ se borra: hay que decírselo, porque un spec
   // de ruta que no existe hace que OpenCode publique un «Failed to load plugin» al arrancar.
-  notaDesinstalar: (scope, dir) => "tu `opencode.json` conserva `instructions` y `plugin` "
+  notaDesinstalar: (scope, dir) => "tu `opencode.json` conserva `plugins` "
     + `(\`${rutaPluginOpencode(scope === "user" ? GLOBAL_DIR.opencode : join(dir, ".opencode"), scope)}\`): `
-    + "es tuyo y no lo toco, pero el adaptador ya no está — quita esa entrada de `plugin` o "
+    + "es tuyo y no lo toco, pero el adaptador ya no está — quita esa entrada de `plugins` o "
     + "OpenCode se quejará al arrancar de un plugin que no puede cargar",
 }
 

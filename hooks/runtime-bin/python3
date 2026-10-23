@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# A native interpreter selected by run-hook.mjs, also usable from Git Bash.
+exec "$CUSTOM_AGENTS_PYTHON" "$@"

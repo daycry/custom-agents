@@ -11,7 +11,7 @@ description: >
   preferencias en .claude/confluence.json para que la próxima vez sea de un clic.
   Úsala cuando el usuario diga "publica en Confluence", "sube la doc a Confluence",
   "sincroniza con Confluence", "crea el espacio/árbol del proyecto en Confluence".
-user-invokable: true
+user-invocable: true
 ---
 
 # confluence-publish — publicar en Confluence con asistente guiado
@@ -163,8 +163,12 @@ Formato en `assets/confluence.example.json`: `cloudId`, `spaceKey`, `anchor`, `h
 Política **opt-out** (`include: ["**/*.md"]` + `exclude`). Fuera: `docs/security-scan/**` (**invariante no
 negociable**, `confluence-scope.py --check`), `docs/en/**`, `docs/examples/**`, `docs/agents/**`,
 `atlassian-connector-notes.md`, `improvement-plan.md`/`tasks.md`/`test-plan.md` (D1), `docs/knowledge/journal/**` (bitácora de sesión, no decisión), `**/testing/**` (D4),
-`docs/confluence/**` (staged, D5), `**/node_modules/**`. **Dentro:** `spec.md`, `evaluation.md`,
-`design.md` (decisión de arquitectura, `architect`), `retro.md` y `docs/knowledge/**` (menos `journal/`). Tabla completa con razones, consecuencias y el contrato de la carpeta
+`docs/confluence/**` (staged, D5), `**/node_modules/**`, y toda exportación de `plugin-panel` (carpeta con su `export-manifest.json`, p. ej. `docs/roadmap/panel/`). **Dentro:** `spec.md`, `evaluation.md`,
+`design.md` (decisión de arquitectura, no aprobación de memoria), `retro.md`, legado ADR/GOT/LES
+con su estado original y approved válido. **Journal y candidates se omiten**, también en staging
+y fallback a docs. El recorrido fuerza exclusión de ambos incluso con include explícito y
+mayúsculas; el default también los excluye. La fuente está en revisión, sin aceptación de
+publicación externa/nativa. Si no se verifica la omisión, informa publicación de memoria pendiente. Tabla completa con razones, consecuencias y el contrato de la carpeta
 staged → `references/config-and-policy.md`.
 
 ## Reglas

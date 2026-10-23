@@ -1,0 +1,374 @@
+# Contratos iniciales verificados — 2026-10-07
+
+Versiones iniciales, obtenidas con --version el 2026-10-07: Codex CLI 0.160.1, Claude Code
+2.1.287, OpenCode 2.0.12. Son versiones observadas, no mínimos de soporte
+definitivos. El plan todavía no acredita carga ni ejecución nativa de guardias.
+
+| Runtime | Hecho contrastado | Implicación para la implementación |
+|---|---|---|
+| Claude | Agentes de plugin ignoran hooks, mcpServers y permissionMode de frontmatter; hooks del plugin también reciben eventos de subagentes con agent_id/agent_type | Verificar el despacho desde el plugin y filtrar identidad propia; no atribuir protección al frontmatter ignorado |
+| Codex | PreToolUse cubre herramientas locales, Bash/apply_patch y MCP; su documentación advierte excepciones. Los hooks no gestionados requieren confianza de su definición actual | Contrastar esquema y datos de identidad por evento; probar bloqueo y carga confiada sin anunciar una frontera universal |
+| OpenCode V2 | El API registra callbacks en setup mediante ctx.tool.hook; difiere del objeto V1 de hooks por string | El adaptador actual requiere comparación y prueba de carga V2; no basta su suite de fixtures V1 |
+
+Fuentes abiertas y leídas: [Claude hooks](https://code.claude.com/docs/en/hooks),
+[Claude subagents](https://code.claude.com/docs/en/sub-agents),
+[Codex hooks](https://learn.chatgpt.com/docs/hooks),
+[Codex packaging](https://developers.openai.com/plugins/build/plugins),
+[OpenCode migration](https://opencode.ai/v2/docs/build/plugins/migrate-v1) y
+[OpenCode V2 plugins](https://opencode.ai/v2/docs/build/plugins).
+
+No se infiere agent_type en PreToolUse Codex porque lo documente otro evento o
+Claude. No se usa una transcripción privada como interfaz estable de identidad.
+Los esquemas/código del runtime instalado y una prueba nativa deben resolver
+esas incógnitas antes de elegir el mecanismo de guardia.
+
+La incógnita de identidad se resolvió después con las fuentes fijadas y
+fixtures nativas descritas en la siguiente sección, «Identidad y control previos por rol».
+La distribución todavía requiere conectar ese despacho.
+
+## Identidad y control previos por rol — 2026-10-08
+
+[native-role-contract-evidence.json](native-role-contract-evidence.json)
+conserva 14 casos Claude, 12 comprobaciones Codex y tres experimentos OpenCode.
+Son pruebas de mecanismo con dispatchers privados, no guardias distribuidas.
+Los binarios están fijados por hash; homes, proyectos, permisos de prueba,
+PATH y proveedores loopback son propios, sin credenciales externas ni uso del
+estado del consumidor. El código del corpus no se ejecuta.
+
+| Runtime fijado | Identidad nativa observada | Bloqueo y controles ejecutados |
+|---|---|---|
+| Claude 2.1.287 | PreToolUse agent_type; subagentes también agent_id. Tipo del hijo prevalece sobre el del padre | Sin registro de plugin, frontmatter no bloquea Write. Registro propio devuelve deny y evita escribir; planner, principal sin identidad y agentes bare/desconocidos escriben. Delegación Agent real, no solo selección de agente principal |
+| Codex 0.161.0 | PreToolUse agent_type/agent_id del hijo; principal sin estos campos. session_id compartido con raíz; agent_id identifica el hilo hijo | Evaluador actual rechaza push forzado antes de ejecutarlo; rol ajeno llega a Git local sin refs/remotos. Comando inocuo ejecutado por ambos. Claimed type dentro de tool_input no es identidad del agente ejecutante |
+| OpenCode 2.0.12 | execute.before event.agent y sessionID; API confirma agent y parentID del hijo real | Evaluador actual bloquea spec de implementer y código de architect; permite tasks/design, planner y architect bare del usuario. Dos delegaciones nativas reales, con hijo protegido bloqueado e hijo ajeno permitido |
+
+El ID identifica el rol efectivo, no la procedencia del prompt. Claude acepta
+--agents con el mismo ID scoped y la prueba confirma que sustituye su prompt;
+el evento conserva custom-agents:implementer. Codex permite name en TOML
+independiente del filename, y capas/bindings superiores sustituyen el rol.
+OpenCode Agent.Info carece de ruta/origen. Por ello se protegerán IDs exactos,
+con la misma política ante una personalización deliberada del mismo ID. Los
+IDs bare ajenos no seleccionarán política. Los IDs propios Codex/OpenCode
+custom-agents-<rol> son una decisión de diseño pendiente de export/migración.
+
+No se guarda un registro de rol por session_id ni se infiere desde transcripts.
+El dispatcher debe usar metadata del evento y runtime fijado por su invocador.
+Un deny no concede permisos cuando no bloquea: conserva el flujo nativo normal.
+Confianza persistida, versiones/clientes diferentes y todas las herramientas
+no quedan acreditados por estos experimentos.
+
+### Codex: permisos heredados y corrección del export
+
+Las fuentes del commit 979011409de0a60b52f179721948e65531d26144 proyectan
+overrides tipados del rol y vuelven a aplicar permisos vivos del padre. No
+proyectan sandbox_mode, aprobación ni hooks independientes desde su TOML.
+Dos roles propios con sandbox_mode="read-only" se cargaron y escribieron
+sentinels mediante Set-Content bajo un padre con permiso de escritura.
+El campo se retira del export del reviewer; el preámbulo explica la herencia,
+en vez de declarar una protección que no existe. Una sesión padre con sandbox
+de solo lectura es otro modo de uso, no una autoridad independiente del hijo.
+
+La política de revisión sigue exigiendo no modificar código. Su cumplimiento
+no se acredita por el nombre de un campo ignorado. OpenCode conserva deny
+para herramientas de edición; Bash/shell se sujeta a los permisos respectivos.
+Estas restricciones y la guardia de flujo no son un sandbox universal para
+MCP, herramientas alojadas, procesos continuados o escrituras indirectas.
+
+### OpenCode: rechazo previo sin correlación de llamadas
+
+La Promise API permite lanzar Error en execute.before: el archivo solicitado
+queda ausente y el modelo recibe error unknown con razón de la política; la
+sesión puede continuar. La prueba de permission.evaluate devuelve
+permission.rejected. Se elige el callback previo para recibir input y rol
+directamente. Una llamada rechazada no emite execute.after. CodeMode pasa por
+before en las fuentes, pero reutiliza el ID externo: no se debe correlacionar
+permisos mediante una tabla indexada únicamente por sessionID/toolcallID.
+CodeMode anidado está contrastado en código, no ejecutado por estas fixtures.
+
+Fuentes primarias contrastadas: [Claude hooks](https://code.claude.com/docs/en/hooks)
+y [subagentes](https://code.claude.com/docs/en/sub-agents),
+[Codex hooks](https://learn.chatgpt.com/docs/hooks),
+[Codex roles](https://github.com/openai/codex/blob/979011409de0a60b52f179721948e65531d26144/codex-rs/core/src/agent/role.rs)
+y [herencia de permisos](https://github.com/openai/codex/blob/979011409de0a60b52f179721948e65531d26144/codex-rs/core/src/agent/child_config.rs),
+[OpenCode Promise tool](https://github.com/anomalyco/opencode/blob/2670273ff17da96f85c5826ced57aa1b368754fa/packages/interface/src/promise/tool.ts)
+y [child dispatch](https://github.com/anomalyco/opencode/blob/2670273ff17da96f85c5826ced57aa1b368754fa/packages/core/src/tool/plugin/subagent.ts).
+Los contratos son versionados; no se extrapola su soporte a todos los runtimes.
+
+## Baseline nativo Claude y Codex — 2026-10-08, antes de la corrección
+
+[claude-hook-evidence.json](claude-hook-evidence.json) registra fixtures
+headless propias de Claude 2.1.287 con binario fijado por hash, configuración
+y home temporales y modelo simulado en loopback. Contexto y captura UTF-8
+llegan al runtime. Con el presupuesto predeterminado falta el envelope
+terminal en la prueba fijada, aunque el checkpoint permanece; `recover`
+recupera el turno como recuperado_sin_cierre, exit 0. Con override de 5.000 ms
+la misma definición de hooks conserva contexto, captura y envelope.
+
+Un control propio SessionEnd espera 2.200 ms y declara timeout 5: se cancela
+con el presupuesto predeterminado y termina con override 5.000 ms antes de
+salir el padre. El resultado preliminar había completado una vez sin override;
+se conserva como observación histórica, sin garantía de fiabilidad.
+[Claude hooks](https://code.claude.com/docs/en/hooks) documenta presupuesto
+de 1,5 s, que el timeout de plugin no eleva, y la variable
+CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS. El override se aplicó únicamente a
+fixtures propias; no se añadió a configuración del consumidor. El cierre
+dentro del presupuesto predeterminado sigue pendiente de corrección.
+
+[codex-activation-evidence.json](codex-activation-evidence.json) separa dos
+versiones: el ejecutable instalado cambió de 0.160.1 a 0.161.0 durante las
+pruebas. La evidencia histórica conserva su hash/fuente y sus límites; las
+nuevas pruebas usan copia fijada de 0.161.0 y fuente oficial
+`979011409de0a60b52f179721948e65531d26144`.
+
+El instalador registra marketplace y enabled, pero la caché nativa sigue sin
+instalar y los hooks no cargan. `codex plugin add custom-agents@daycry --json`
+activa la caché; repetirlo refresca contenido de la misma versión.
+`plugin list --available --json` distingue installed de enabled. El alta
+escribe enabled=true en la configuración de usuario, incluso con false
+previo y override CLI false. No ofrece scope ni no-enable; remove borra caché
+y la entrada de usuario, por lo que no sirve de rollback inocuo.
+
+Tras instalar, contexto y captura Unicode funcionan con bypass de confianza
+solo en la fixture. Ese bypass no acredita revisión persistida del hash.
+En cuatro exec actuales no aparece envelope SessionEnd; un observador propio
+tampoco recibe el evento en tres ejecuciones. La lectura del runtime distingue
+ThreadUnsubscribe de shutdown de sesión; no se atribuye la ausencia a timeout
+ni se declara equivalente exec finalizado a SessionEnd emitido. El ciclo
+terminal efectivo y las guardias siguen pendientes.
+
+Un primer error de activación de 0.160.1 desapareció al repetir tras cambiar
+atributos de la copia privada. No se aisló la causa. La matriz posterior no
+fijó versión/hash y no demuestra necesidad de chmod. No se trasladó ese
+workaround a producción.
+
+T-08/T-09 deben corregir instalación sin sobrescribir la preferencia global
+al instalar para proyecto, separar declaración/caché/confianza/carga/ejecución
+en diagnóstico y panel, y validar cierre y allow/deny por rol en los tres
+runtimes. Ningún resultado de este bloque acredita integración terminada.
+
+### Captura canónica y lifecycle verificados después de la corrección
+
+El launcher llama al escritor único `journal-capture.py` con Python `-I -S`.
+`journal.py capture-end` reutiliza esa política; replay/recover conservan la
+materialización. La captura no carga el materializador, no abre transcript,
+no invoca git/IA/red y rechaza payloads sobredimensionados. Hash y número de
+registros proceden de una misma lectura física. La versión se obtiene del
+manifiesto del bundle Claude, Codex o package, sin leer el del consumidor.
+
+El deadline del hijo es 800 ms en Claude y 2.200 ms en Codex/OpenCode,
+seleccionado por un literal del launcher/export/adapter, nunca por metadata
+del payload. Al agotar el tiempo se termina el árbol y se espera `close`.
+No se aumenta el presupuesto en settings del consumidor. Las dos fixtures
+headless finales de Claude 2.1.287 fijado conservan contexto, UTF-8 y envelope
+al observar la salida del padre. Los tiempos externos de arranque siguen
+siendo variables: no se promete un total universal inferior a 1,5 s.
+[claude-hook-evidence.json](claude-hook-evidence.json) separa baseline y fuente
+final, seis rojos reproducidos, QA y límites.
+
+Codex 0.161.0 sí emite `SessionEnd` al archivar un hilo activo en el mismo
+app-server: `thread/start` → `turn/start` → `turn/completed` → `thread/archive`
+→ shutdown. Las pruebas anteriores usaban `exec`/ThreadUnsubscribe o una
+instancia diferente sin el hilo cargado; su ausencia de evento no era prueba
+de un fallo del hook. La fixture del payload corregido registra cierre
+canónico en 2.536 ms, un envelope con UUID exacto y versión 1.22.0 antes de
+terminar app-server, contexto y Unicode, una petición loopback y exit 0.
+[codex-lifecycle-evidence.json](codex-lifecycle-evidence.json) conserva hashes,
+secuencia y límites. Es una medición, sin garantía de latencia universal,
+prueba de salida TUI, confianza persistida ni guardias funcionales.
+
+## Corpus reconciliado
+
+Los 455 hashes de piezas principales coinciden con la revisión fijada y el
+registro de decisiones de fase 1: 293 skills, 68 agentes y 94 comandos. Helper
+privado reconcile_catalog_corpus.py, resultado catalog-corpus-reconciled.json.
+El inventario completo terminó: 4.212 archivos tracked, 455 bundles
+estructurales, tres entradas de panel y 30 archivos relacionados con paneles.
+[corpus.json](corpus.json) conserva hashes, medidas y categorías;
+[corpus.md](corpus.md) delimita la evidencia y
+[audit-contract.md](audit-contract.md) fija las fichas. La pertenencia a un
+directorio no acredita dependencias ni callers; su lectura sigue pendiente.
+
+Al cerrar el inventario T-01 había cero evaluadas semánticamente. El progreso
+actual se registra en [tasks.md](tasks.md); las primeras fichas están en
+[comparisons/skills-foundations.md](comparisons/skills-foundations.md).
+No se ejecuta código de origen.
+
+## Prueba nativa inicial OpenCode 2.0.12
+
+Fuente oficial fijada al tag de la versión instalada, commit
+`2670273ff17da96f85c5826ced57aa1b368754fa`. Se leyeron los esquemas de config,
+tool y permission, normalización V1/V2, loader de módulos, registro/despacho de
+hooks, puente promise, supervisor de activación y fuentes de instrucciones.
+[runtime-probes.json](runtime-probes.json) conserva el resultado público.
+
+La prueba ejecutó el binario instalado con `serve --stdio` y peticiones locales
+a su API. Proyecto, configuración, home de prueba y raíces XDG temporales
+propios; entorno sin credenciales heredadas, discovery de proyecto desactivado,
+actualización/fetch de modelos apagados, MCP de fixture desactivado y sin prompts
+ni warming. El proceso terminó con exit 0. No se ejecutó código del corpus.
+
+Resultados observados:
+
+- Una copia byte a byte del adaptador V1 anterior, SHA-256
+  `1092f3b894c5ee208d4eb9a46ed76361015180632207ec7edf630dcd4cb65bf9`,
+  queda en estado failed: falta la definición default con id y setup/effect.
+- El control positivo propio con id y setup carga como active, ejecuta setup y
+  registra execute.before y evaluate mediante los dominios tool y permission.
+  Es prueba de carga y registro; no acredita todavía bloqueo ni ejecución de tool.
+- Agentes de fixture con agent V1 y agents V2 aparecen en el cargador nativo.
+  command/commands se normalizan a commands; permission a reglas permissions;
+  el MCP V1 a mcp.servers y enabled:false a disabled:true. La compatibilidad de
+  configuración no traduce el export de hooks V1 a V2.
+
+### Transporte V2 validado el 2026-10-08
+
+La distribución instalada ahora carga como active. SHA-256 de fuente/export
+ejecutados: `0694cd50de08a4fbd2a10a3713b62f1264c9d1042e1b8522bd6e02c79e424383`.
+Una fixture propia crea dos sesiones con ejecución, usando cuatro respuestas
+del modelo simulado en loopback; no se solicita ningún proveedor externo ni
+se heredan credenciales. Hay otros dos prompts retenidos sin ejecución.
+Se observan captura UTF-8, exclusión private, contexto, write, cierre terminal
+y replay del journal en la segunda sesión. El servidor termina exit 0.
+La evidencia actual está en transport_validation de runtime-probes.json; el
+resultado inicial conserva sus límites y fecha. Estas pruebas no acreditan
+guardias nativas, despacho de comandos ni conexiones MCP de consumidores.
+- La primera lectura del inventario puede estar vacía durante activación. La
+  prueba espera la activación nativa mediante integration.list antes del veredicto;
+  las observaciones tempranas vacías no se clasifican como fallos del plugin.
+
+El esquema de tool leído incluye agent/sessionID/messageID/id en before/after;
+before permite rechazo mediante Tool.Error. El de permission.evaluate incluye
+agent opcional, action/resources y effect mutable. T-09 debe probar los caminos
+reales y su alcance por rol; no basta registrar callbacks.
+
+El lector propio de extensiones todavía usa las formas de configuración V1 de
+OpenCode. Debe incorporar las formas V2 y su estado disabled con evidencia de
+selección y briefs; ese ajuste forma parte del diseño e integración pendientes.
+Las instrucciones configuradas se conservan en config.get, pero el código de
+la fuente nativa de instrucciones lee AGENTS.md. Conservar un campo no acredita
+cargar su contenido. La integración debe resolverlo y probarlo, sin confundir
+normalización de configuración con aplicación efectiva.
+
+Referencias: [configuración](https://opencode.ai/v2/docs/config/),
+[API de plugins](https://opencode.ai/v2/docs/build/plugins/),
+[normalización de la versión fijada](https://github.com/anomalyco/opencode/blob/2670273ff17da96f85c5826ced57aa1b368754fa/packages/core/src/config/normalize.ts),
+[loader fijado](https://github.com/anomalyco/opencode/blob/2670273ff17da96f85c5826ced57aa1b368754fa/packages/core/src/plugin/module.ts),
+[contrato de herramientas fijado](https://github.com/anomalyco/opencode/blob/2670273ff17da96f85c5826ced57aa1b368754fa/packages/plugin/src/promise/tool.ts).
+
+## Identidad en el código de Codex 0.160.1
+
+Se fijó la fuente oficial al tag rust-v0.160.1, commit
+`d27764b82f7118f674371e6d6e76271d9d606edb`. El esquema generado de PreToolUse
+sí contiene agent_id y agent_type opcionales, aunque la tabla de la página
+de hooks no los enumere. schema.rs omite esos campos cuando no hay contexto
+de subagente; events/pre_tool_use.rs los serializa desde ese contexto.
+
+El constructor de core/src/hook_runtime.rs los proporciona para sesiones
+SubAgent::ThreadSpawn: agent_id es el thread ID del hijo y agent_type el rol
+solicitado, con fallback al rol por defecto. La sesión raíz y otras fuentes
+no reciben ese contexto. tools/registry.rs consulta el resultado del hook
+antes de ejecutar la herramienta y devuelve el bloqueo al modelo.
+
+Esto resuelve la incógnita del contrato de identidad para esa versión; no
+acredita todavía carga del plugin, confianza ni despacho en una sesión real.
+T-09 debe probarlos, incluidos raíz sin campos, otros roles, colisiones con
+agentes del consumidor y los caminos de tool que no emiten PreToolUse.
+No se introduce un registro basado en transcripciones para suplir la identidad.
+
+La [documentación oficial de hooks](https://learn.chatgpt.com/docs/hooks)
+remite a los esquemas y advierte que main puede diferir de la release;
+esta lectura usa la revisión de la versión instalada, no main.
+
+## Registro Codex y propiedad del cierre — corrección final de lifetime
+
+La instalación por proyecto prepara un `CODEX_HOME` privado con una copia
+regular del config de usuario. Solo enlaza el namespace `daycry` de caché;
+el registro CLI usa un cwd neutral de esa copia y overrides literales de
+origen. `plugin add` conserva el cwd del proyecto y los requisitos nativos.
+Tras comprobar ID, versión y ruta de caché, declara origen y activación local.
+No cambia la preferencia global ni la restaura desde una copia completa.
+Las claves TOML equivalentes se decodifican; las rutas relativas nativas se
+rechazan por scope, sin confundir variables de entorno de un MCP.
+[Prueba A/B con origen global ajeno y deshabilitado](codex-installation-evidence.json).
+
+La caché de versión es compartida: el proyecto B puede reemplazar el payload
+usado por A. Uninstall conserva esa caché, deshabilita el plugin y restaura
+cada clave de origen solo si no fue editada después. No apaga hooks globales.
+La consulta nativa compartida de status/doctor es de solo lectura y acotada:
+separa listado local, declaración por scope y ejecución observada.
+
+En Windows, un Job Object cuyo handle no heredable posee Node contiene el
+negocio antes de ejecutarlo. Cerrar Node alcanza los descendientes incluso
+si Python terminó; la contención fallida omite el hook. En POSIX, el adaptador
+posee el grupo del launcher y la limpieza conserva al owner mientras termina
+sus hijos. La supervisión añade confirmación acotada y puede avisar bajo carga
+del sistema; no amplía el presupuesto del runtime ni garantiza latencia total.
+[Fuentes congeladas, regresiones y QA de supervisión](terminal-capture-evidence.json).
+
+Las fichas nativas anteriores conservan sus hashes como snapshots previos.
+La fuente supervisada final también se probó en los tres runtimes:
+Claude conserva envelope antes de salir y confirma status 0 en el log nativo,
+sin override; Codex emite `SessionEnd` tras archive/Shutdown del hilo activo,
+completa el handler canónico en 1.745 ms con timeout de tres segundos y sale
+naturalmente; OpenCode conserva contexto, captura UTF-8/private, write/post,
+cierre y replay en dos loops nativos. Su fixture tarda 43,829 s en conjunto,
+no por hook. [Codex](codex-lifecycle-evidence.json),
+[OpenCode](opencode-lifecycle-evidence.json). Son fixtures propias headless;
+no prueban UI, confianza persistida, guardias por rol ni MCP del consumidor.
+
+## Personas e instrucciones nativas
+
+Contraste documental del 2026-10-07 a petición del usuario. Las páginas oficiales
+consultadas no definen `personas/` como categoría o carpeta de carga nativa.
+Esto describe el contrato documentado; no es una prueba de ejecución nueva.
+
+| Entorno | Mecanismo documentado |
+|---|---|
+| Claude Code | Agentes Markdown con frontmatter YAML en `.claude/agents/` o `~/.claude/agents/`; el cuerpo contiene las instrucciones del especialista. [Subagents](https://code.claude.com/docs/en/sub-agents) |
+| Codex | Agentes TOML en `.codex/agents/` o `~/.codex/agents/`, con `name`, `description` y `developer_instructions`. La especialización se expresa en estas instrucciones. [Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents) |
+| OpenCode V2 | Agentes Markdown en `.opencode/agents/` o `~/.config/opencode/agents/`; el cuerpo es el prompt `system`. En configuración se usa `agents.<id>.system`. [Agents V2](https://opencode.ai/v2/docs/agents) |
+
+Codex también ofrece `personality = none | friendly | pragmatic`: estilo de
+comunicación para modelos compatibles, no perfiles de dominio. No se debe
+mapear `Tipo: facturacion` a esta opción.
+[Configuration Reference](https://learn.chatgpt.com/docs/config-file/config-reference).
+
+Para reglas persistentes comunes, ambos documentan `AGENTS.md`.
+[Codex AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
+En OpenCode V2, `instructions` se acepta en el esquema pero actualmente no
+carga archivos, globs o URLs; tampoco hay fallback a `CLAUDE.md`.
+[Instructions V2](https://opencode.ai/v2/docs/instructions/).
+OpenCode V1 documenta `agent` y `prompt`; el export debe distinguir versiones.
+[Agents V1](https://opencode.ai/docs/agents/).
+
+Matices de la matriz aportada por el usuario: contexto propio significa una
+sesión o ventana del subagente, no aislamiento del filesystem ni ausencia de
+contexto heredado. Configurar tools/permisos por agente está sujeto a los límites
+de la sesión y del entorno; Codex reaplica las restricciones activas del padre.
+En Claude, las capacidades del frontmatter de agentes de proyecto/usuario no
+se deben atribuir automáticamente a agentes del plugin: los campos ignorados
+están registrados al principio de este contrato.
+
+**Criterio para el diseño pendiente:** priorizar las ubicaciones y campos nativos
+cuando se crea un especialista invocable. Una persona que solo aporta criterios
+de dominio a una tarea puede seguir siendo un perfil acotado del brief, sin
+crear otro agente que duplique el rol. La propuesta de nuevas carpetas
+`.codex/personas/` y `.opencode/personas/` no acredita compatibilidad nativa y
+no debe presentarse como estándar. Preservar los perfiles existentes de
+`.claude/personas/` como compatibilidad del plugin; resolver almacenamiento,
+selección y composición compartida en T-08 antes de cambiar el lector.
+
+Estado actual comprobado por lectura: `task-brief.py` sigue resolviendo persona
+proyecto `.claude/personas/` → catálogo → sin persona con aviso. Este contraste
+no modifica el lector, exports ni permisos. T-09/T-11/T-13/T-15 deben alinear
+inventario, brief, export y panel; T-14 debe comprobar carga y contenido efectivo
+por versión, incluyendo perfiles ausentes, colisiones y límites del brief.
+
+**Lectura de agentes TOML del proyecto:** `project-pieces.py` ya descubre
+`.codex/agents/*.toml` en esta rama, exige instrucciones como string y extrae
+metadata pública y referencias. Se ejecutaron tres tests seleccionados por
+`-k codex` y el test de descubrimiento de agentes nativos: cuatro pasaron.
+Son fixtures del lector propio, no prueba de invocación en Codex. Detectar
+una declaración no acredita que el runtime la haya cargado o autorizado.
+La instalación local del plugin 1.22.0 comprobada no contiene ese lector;
+la funcionalidad del repositorio todavía requiere distribución para esa
+instalación. No se modificó el caché del plugin.

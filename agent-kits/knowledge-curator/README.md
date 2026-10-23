@@ -1,9 +1,12 @@
 # `agent-kits/knowledge-curator/` — kit privado del agente `knowledge-curator`
 
-Kit del **único agente que escribe** bajo `docs/knowledge/candidates/**` y
-`docs/knowledge/approved/**` (`ADR-018`, `knowledge-services` T-04). El agente decide (categoría,
-evidencia suficiente, contradicciones, alto impacto); este kit da la **puerta determinista** que
-comprueba esa decisión antes de moverla al disco.
+Kit del **único agente que juzga y decide transiciones** de candidates a approved. Los
+productores proponen mediante `agent-kits/shared/knowledge-curation.py`; ese servicio persiste
+bytes, Curator decide categoría/evidencia/conflictos. Este kit conserva el gate de solo lectura;
+el gate no persiste ni autentica al caller. Contrato del Bloque 23; implementación candidata
+disponible y aceptación global pendiente. La [comprobación técnica nativa](../../docs/roadmap/2026-10-07-catalog-capabilities/testing/native-memory-curation38-evidence.json)
+cubre fixtures de SHA, recuperación y portabilidad en OpenCode; no acepta juicio
+semántico real, identidad autenticada ni todos los clientes/backends.
 
 ## `curator-gate.py`
 
@@ -75,9 +78,27 @@ no un candidato. `rejected/` es **terminal** (gap 67): un candidato que ya vive 
 `--decision reject` (idempotente, `exit 0`); pedirle `approve` o `needs_changes` es error de uso
 (`exit 2`, "`rejected/` es terminal") en vez de volver a evaluar el contrato.
 
-El gate **no mueve ficheros**: el agente lee el veredicto (`--json`) y, si `errores == []`, escribe
-el fichero final (bajo `approved/<folder>/` con `estado: aprobado`, o deja el candidato en su
-carpeta de `candidates/` si `reject`/`needs_changes`) y hace el `git mv`/borrado que corresponda.
+El gate **no mueve ficheros**. Curator conserva el juicio y solicita al servicio
+`apply_decision` con ruta relativa exacta, SHA original, motivo y metadatos finales. No usa
+Write/Edit/git mv para persistir decisiones. Gate exit 0 no aprueba por sí solo conocimiento
+ni confirma una transición. Approve del servicio exige id final/version 1/estado aprobado;
+needs_changes conserva contenido/motivo y rejected es terminal. Sin servicio queda pendiente.
 
 Tests: `agent-kits/knowledge-curator/test_curator_gate.py` (`python3 -m pytest -q
 agent-kits/knowledge-curator/test_curator_gate.py`).
+
+## Servicio compartido y recuperación
+
+`propose --filename <nombre.md> --producer <rol>` lee Markdown por stdin, redacta y crea
+pending sin estado; `apply <ruta-relativa> --decision <decisión> --expected-sha256 <sha>
+--reason <motivo> [--metadata-json <objeto>] [--replacement-stdin]` persiste juicio del Curator; `recover
+<operation-id>` recupera intención existente sin aprobar bytes cambiados. Todas admiten
+`--root <proyecto>` y salida JSON: 0 confirma operación, 1 rechaza contrato, 2 uso/dependencia/IO
+no verificable. No sobrescritura; errores del índice bloquean. Intención y recibo verifican
+destino/fuente, sin transacción multiarchivo atómica: approved puede preceder al recibo final.
+Sólo approve admite `replacement_text` (CLI `--replacement-stdin`): texto final redactado y
+validado, conservando original y ambos hashes; nunca edición de approved ni cambio en sitio
+para reject/needs_changes. Cerrojado cooperativo y etiqueta decider no prueban sandbox/actor autenticado; aceptación
+nativa pendiente. Conflictos/alto impacto con approved o legado aceptado requieren usuario,
+nunca newest-wins. No migración/reaprobación/borrado del legado. Retro tardía deja handoff o
+ruta/ID pendientes. [Contrato](../../docs/roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).

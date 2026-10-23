@@ -151,8 +151,22 @@ def proyecto(tmp_path):
 def _env(raiz, tmp_path):
     home = tmp_path / "home"
     home.mkdir(exist_ok=True)
-    return {"CLAUDE_PLUGIN_ROOT": ROOT, "CLAUDE_PROJECT_DIR": str(raiz), "HOME": str(home),
-            "PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LC_ALL": "C.UTF-8", "LANG": "C.UTF-8"}
+    path = os.environ.get("PATH", "/usr/bin:/bin")
+    if os.name == "nt":
+        # Match the native Python shim used by the launcher and shell fixtures.
+        git_root = os.path.dirname(os.path.dirname(BASH))
+        if os.path.basename(git_root).lower() == "usr":
+            git_root = os.path.dirname(git_root)
+        path = os.pathsep.join((os.path.join(ROOT, "hooks", "runtime-bin"),
+                               os.path.join(git_root, "usr", "bin"), path))
+    result = {"CLAUDE_PLUGIN_ROOT": ROOT, "CLAUDE_PROJECT_DIR": str(raiz), "HOME": str(home),
+              "PATH": path, "LC_ALL": "C.UTF-8", "LANG": "C.UTF-8"}
+    if os.name == "nt":
+        result["SYSTEMROOT"] = os.environ.get("SYSTEMROOT", "")
+        result["CUSTOM_AGENTS_PYTHON"] = sys.executable.replace("\\", "/")
+        for key in ("CLAUDE_PLUGIN_ROOT", "CLAUDE_PROJECT_DIR", "HOME"):
+            result[key] = result[key].replace("\\", "/")
+    return result
 
 
 def brief(inic, tid):

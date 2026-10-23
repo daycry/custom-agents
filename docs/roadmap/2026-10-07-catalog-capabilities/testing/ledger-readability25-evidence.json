@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-11",
+  "status": "native_cli_readability_verified_global_pending",
+  "base_manifest_sha256": "d309a70e290c4c5d1797a544765b98fdea4d72d080504189fd2bd5c1548c3f3b",
+  "global_accepted": false,
+  "root_promoted": false,
+  "result_receipt_sha256": "66c538651d6743018b44e84b530f9dc58ce6457fe87e27caf98c839b5f133dc4",
+  "execution_binding_sha256": "b34cad101ed29b4d5b3e7253032175a7a89238519009814c119d6777f16c2ec3",
+  "before_bytes": 367539,
+  "tested_after_bytes": 220880,
+  "structured_review_count": 23,
+  "structured_reviews_preserved": true,
+  "task_blocks_and_states_preserved": true,
+  "review_boundary_inheritance_preserved": true,
+  "archived_suffix_sha256": "88a7f663af24e5858bec2d2e2ceade7cad6adb4898eb44230b81089a41e98b6e",
+  "archive_bytes_preserved": true,
+  "original_history_sha256": "8a1c206b314f23e2c06b439253f7c94436fdf1628219b155958ac7ccef856bb1",
+  "selection_groups_checked": 20,
+  "attempts_checked": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "brief_gap_and_jira_approval_decisions_preserved": true,
+  "native_before": {
+    "status": "too_large",
+    "exit_code": 0,
+    "stdout_sha256": "97fb2385f81083ad2852b9ac4ac8b861af2496bd2d45872e407bbc38c0c51fc2"
+  },
+  "native_after": {
+    "status": "ok",
+    "exit_code": 0,
+    "stdout_sha256": "66c3841ca5f1422cb7c70801f5e39db023f8428121b0af5b56da192a9ee03efc",
+    "task_count": 16,
+    "state": "en-progreso",
+    "project_file_and_directory_inventory_preserved": true
+  },
+  "limits": [
+    "Exact common CLI was executed; no host/model attention claim",
+    "Historical review decisions remain unchanged",
+    "Full Windows/Linux QA, real UI, resource comparison and independent review remain pending"
+  ]
+}

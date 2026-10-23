@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "recorded_utc": "2026-10-12T03:46:33.047939+00:00",
+  "tested_stage_manifest_sha256": "54188ba42c10a9d1f2beedae48707a9d6f8eba193e7b1419f9561fa2835f4690",
+  "runtime_source_pins": {
+    "graphiti.py": "10662069a42ac0aa4239a670174e4db166bedbe70eaa9abad7a123c10e95f1ac",
+    "graphiti_provenance.py": "250c0649f07bf269fc6b89ff37ac464e24be4538fb84e2c403ab42ddb7c5b44c",
+    "graphiti_rebuild.py": "2a42be0a968dfc792bb869fbd060965f62c6d2bab3213666e7c0a3c5027b7434",
+    "graphiti_scope.py": "f025fa50feb2f1c1748575bcfc8d2827abbc203c3da1561bdec4a268d1461059",
+    "graphiti_publication.py": "6aba41a6d4ee98f1ba3edb4456345aa697f12a12fd274d023ffe9845d0f16519"
+  },
+  "windows_publication_cases": 280,
+  "linux_publication_cases": 280,
+  "publication_failures": 0,
+  "publication_skips": 0,
+  "original_cause_red_failures": 1,
+  "original_cause_preserved_sanitized_and_redacted": true,
+  "diagnostic_detail_limit_chars": 500,
+  "unknown_submissions_never_automatically_resent": true,
+  "security_submission_cases": 3,
+  "security_submission_failures": 0,
+  "broad_pass_before_last_corrections": {
+    "cases": 376,
+    "passed": 356,
+    "failed": 19,
+    "skipped": 1,
+    "errors": 0
+  },
+  "exact_residual_recheck": {
+    "cases": 19,
+    "passed": 4,
+    "failed": 15,
+    "errors": 0
+  },
+  "initial_broad_failures": 68,
+  "broad_contracts_accepted": false,
+  "full_suite_after_last_corrections_pending": true,
+  "obsolete_remote_uuid_fixtures_updated": 7,
+  "fixtures_use_same_endpoint_for_publication_and_query": true,
+  "unreachable_foreign_group_diagnostic_removed": true,
+  "owned_linux_container_removed": true,
+  "source_and_dependencies_preserved": true,
+  "native_client_acceptance": false,
+  "global_product_accepted": false,
+  "root_promoted": false,
+  "committed": false,
+  "pushed": false
+}

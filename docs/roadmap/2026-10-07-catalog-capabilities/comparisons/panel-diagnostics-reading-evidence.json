@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "manifest_sha256": "fb402490203d3f3c940f6112e8340615731f57be0a938e6e017f304cdfa5a670",
+  "purpose": "Directed static diagnostic/readiness comparison for block 14",
+  "upstream_execution": false,
+  "consumer_settings_read": false,
+  "global_dashboard_evaluation_complete": false,
+  "reads": [
+    {
+      "id": "R-ec2c637e28f7",
+      "sha256": "65a4a24ec7a1780879490a6cc1a8a13b601e11be61da8dab5982aa487fc63150",
+      "hash_match": true,
+      "bytes": 55632,
+      "lines": 1191,
+      "ranges": [
+        [
+          1,
+          15
+        ],
+        [
+          574,
+          852
+        ],
+        [
+          939,
+          1037
+        ]
+      ],
+      "model_read": "partial",
+      "execution": "not executed",
+      "dependency_closure_claimed": false
+    },
+    {
+      "id": "R-949360f20153",
+      "sha256": "64436d466c21df587ecf078de633095c8cb12426d9f28e7790c9a1a10cfcced1",
+      "hash_match": true,
+      "bytes": 24466,
+      "lines": 751,
+      "ranges": [
+        [
+          1,
+          110
+        ],
+        [
+          225,
+          579
+        ]
+      ],
+      "model_read": "partial",
+      "execution": "not executed",
+      "dependency_closure_claimed": false
+    },
+    {
+      "id": "R-97af5d1ebf36",
+      "sha256": "fc199932cb8d9ed9f40b96040f335f25219e2eb146a5100821df9ba7abebe513",
+      "hash_match": true,
+      "bytes": 4907,
+      "lines": 159,
+      "ranges": [
+        [
+          1,
+          159
+        ]
+      ],
+      "model_read": "complete",
+      "execution": "not executed",
+      "dependency_closure_claimed": false
+    },
+    {
+      "id": "R-7b761940e6db",
+      "sha256": "686e865a6a2ffc35d15ac932f52d181b059e06daf06b7dd0bc3174402b94c813",
+      "hash_match": true,
+      "bytes": 68144,
+      "lines": 954,
+      "ranges": [
+        [
+          1,
+          148
+        ],
+        [
+          530,
+          608
+        ],
+        [
+          689,
+          817
+        ]
+      ],
+      "model_read": "partial",
+      "execution": "not executed",
+      "dependency_closure_claimed": false
+    },
+    {
+      "id": "R-c01714e02ad5",
+      "sha256": "bfc86bea11715af50f0f0a099bd38b5ad50c16ca937eb47ac8bb29d1bfb071e9",
+      "hash_match": true,
+      "bytes": 8905,
+      "lines": 141,
+      "ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "model_read": "complete",
+      "execution": "not executed",
+      "dependency_closure_claimed": false
+    }
+  ],
+  "own_reads": [
+    {
+      "path": "agent-kits/shared/doctor.py",
+      "sha256": "7fa850aea05f1395f7156cbc76666407bdab7b8cdd26586737764d0fdad7fe7c",
+      "lines": 2627,
+      "ranges": [
+        [
+          1,
+          85
+        ],
+        [
+          2485,
+          2613
+        ]
+      ],
+      "execution": "not executed"
+    }
+  ],
+  "limits": "Directed contracts only; no global dashboard, auxiliary renderer/storage/runtime or native acceptance closure."
+}

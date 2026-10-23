@@ -142,7 +142,7 @@ def test_profundidad_python_ignora_docstrings_y_continuaciones():
 @pytest.mark.skipif(GIT is None, reason="sin git")
 def test_hotspots_y_antiguedad_de_todo_con_git(tmp_path):
     r = analiza(fixture(tmp_path))
-    assert r["avisos"] == [] and r["hotspots"] is not None
+    assert not any("git no disponible" in a for a in r["avisos"]) and r["hotspots"] is not None
     top = r["hotspots"]["top"]
     assert top and top[0]["fichero"] == "src/c.js" and top[0]["cambios"] >= 2 and top[0]["puntuacion"] > 0
     m = r["marcadores"]
@@ -410,3 +410,44 @@ def test_directorio_vacio_informe_sin_error(tmp_path):
     vacio.mkdir()
     rc, out, _ = run(str(vacio))
     assert rc == 0 and "0 ficheros · 0 líneas" in out and "Sin bloques duplicados" in out
+
+
+# ------------------------------------------------------------------ ficheros versionados en exclusiones (D-063)
+
+@pytest.mark.skipif(GIT is None, reason="sin git")
+def test_versionados_bajo_exclusiones_se_cuentan_y_avisan_sin_analizarlos(tmp_path):
+    root = fixture(tmp_path)                                   # vendor/lib/v.py está versionado
+    env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@x",
+           "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@x"}
+    (root / "web" / "dist").mkdir(parents=True)
+    (root / "web" / "dist" / "app.min.js").write_text("var a=1;\n", encoding="utf-8")
+    (root / "web" / "dist" / "app.css").write_text("a{}\n", encoding="utf-8")   # cualquier extensión cuenta
+    subprocess.run([GIT, "-C", str(root), "add", "-A"], check=True, env=env)
+    subprocess.run([GIT, "-C", str(root), "commit", "-q", "-m", "dist"], check=True, env=env)
+    (root / "build").mkdir()
+    (root / "build" / "sin-versionar.js").write_text("x\n", encoding="utf-8")   # no versionado → no cuenta
+    r = analiza(root)
+    ev = r["excluidos_versionados"]
+    assert ev["total"] == 3
+    assert ev["por_directorio"] == {"vendor/": 1, "web/dist/": 2}
+    aviso = [a for a in r["avisos"] if "versionados" in a]
+    assert len(aviso) == 1 and "3 ficheros" in aviso[0] and "`web/dist/` (2)" in aviso[0] and "`vendor/` (1)" in aviso[0]
+    ficheros = {f["fichero"] for f in r["tamano"]["top_ficheros"]}
+    assert not any(f.startswith(("vendor/", "web/dist/")) for f in ficheros)   # siguen sin analizarse
+    assert "versionados" in ch.md(r)
+
+
+@pytest.mark.skipif(GIT is None, reason="sin git")
+def test_versionados_bajo_exclusiones_respeta_exclude_path_y_subcarpeta(tmp_path):
+    root = fixture(tmp_path)
+    r = analiza(root, exclude_paths=["vendor"])                  # el usuario ya lo sacó a propósito
+    assert r["excluidos_versionados"]["total"] == 0
+    assert not any("versionados" in a for a in r["avisos"])
+    sub = analiza(root / "src")                                  # rutas relativas a la carpeta analizada
+    assert sub["excluidos_versionados"] == {"total": 0, "por_directorio": {}}
+
+
+def test_versionados_bajo_exclusiones_sin_git_es_null(tmp_path):
+    r = analiza(fixture(tmp_path, con_git=False))
+    assert r["excluidos_versionados"] is None
+    assert not any("versionados" in a for a in r["avisos"])

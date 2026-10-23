@@ -9,8 +9,9 @@ Comprueba (exit 1 si algo falla, 0 si todo pasa):
   1. Esquema: cada fichero es JSON con `target` (`skill:<n>` | `command:<n>` | `agent:<n>`) y
      `cases` no vacío; cada caso tiene `id` (`^[a-z0-9][a-z0-9-]*$`), `prompt` (texto no vacío),
      `expect.activates` (bool) y, opcionales, `expect.artifacts` / `expect.mentions` /
-     `expect.must_not` (listas de cadenas), `expect.redirect` (`kind:name` de otra pieza),
-     `trigger` (`literal` | `parafrasis`, solo en positivos) y `notes`.
+     `expect.must_not` (listas de cadenas), `expect.contains` (lista de `{"path": <glob relativo>,
+     "pattern": <regex>}`: regex compilable, ruta sin raíz, unidad ni `..`), `expect.redirect`
+     (`kind:name` de otra pieza), `trigger` (`literal` | `parafrasis`, solo en positivos) y `notes`.
   2. Nombre de fichero = target con `:` → `-` (`skill:quick-implement` → `skill-quick-implement.json`).
   3. Cobertura: TODA pieza del repo (skills/*/SKILL.md, commands/*.md, agents/*.md) tiene su fichero
      con ≥ 2 positivos (prompts distintos entre sí) + ≥ 1 negativo.
@@ -23,10 +24,18 @@ Comprueba (exit 1 si algo falla, 0 si todo pasa):
      (salvo localhost/example/127.0.0.1), claves Jira reales (`ABC-123`; se permite `PROJ-` y los
      prefijos del propio método: T-, E2E-, M-, CA-, CWE-, ADR-, GOT-, LES-, API-, A11Y-).
   7. `redirect` apunta a una pieza existente; un negativo no puede tener `trigger`.
+  8. Caso «en contra» (`trigger: en-contra`, para piezas de disciplina): el prompt DESALIENTA el
+     método («hazlo rápido, los tests son opcionales») y se espera que la pieza lo mantenga, así que
+     lleva `expect.activates: true` y ≥ 1 `expect.artifacts` o `expect.contains` — el cumplimiento se
+     comprueba por la evidencia que deja el método (un fichero nuevo o una línea dentro de uno), no
+     clasificando el texto. Ningún glob de `artifacts` puede casar ya con un fichero de
+     `evals/fixtures/project/`, ni ningún `pattern` de `contains` casar ya en los ficheros de su `path`
+     (su existencia no probaría nada). No cuenta para el mínimo de positivos de activación (regla 3).
 
 Uso:  python3 evals/check.py [--root DIR] [--json]
 """
 import argparse
+import glob
 import json
 import os
 import re
@@ -42,6 +51,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 KINDS = ("skill", "command", "agent")
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 TRIGGERS = {"literal", "parafrasis"}
+EN_CONTRA = "en-contra"
 MIN_POS, MIN_NEG, WINDOW = 2, 1, 4
 
 # --- regla anti datos corporativos (repo público) --------------------------------------
@@ -150,13 +160,98 @@ def cargar_casos(cases_dir):
     return out
 
 
+def ruta_relativa_segura(path):
+    """True si `path` es un glob relativo que no puede salir del cwd: sin raíz, sin unidad, sin `..`."""
+    if not isinstance(path, str) or not path.strip():
+        return False
+    if os.path.isabs(path) or path[0] in "/\\" or re.match(r"^[A-Za-z]:", path):
+        return False
+    return ".." not in re.split(r"[\\/]+", path)
+
+
+def _errores_contains(ref, exp):
+    """`expect.contains`: lista de {path: glob relativo, pattern: regex compilable} (exactamente esas claves)."""
+    if "contains" not in exp:
+        return []
+    items = exp["contains"]
+    if not isinstance(items, list):
+        return [f"{ref}: `expect.contains` debe ser lista de {{path, pattern}}"]
+    errs = []
+    for j, it in enumerate(items):
+        if (not isinstance(it, dict) or set(it) != {"path", "pattern"}
+                or not all(isinstance(it[k], str) and it[k] for k in ("path", "pattern"))):
+            errs.append(f"{ref}: cada elemento de `expect.contains` es {{\"path\": <glob>, \"pattern\": <regex>}} "
+                        f"(elemento {j})")
+            continue
+        try:
+            re.compile(it["pattern"], re.M)
+        except re.error as e:
+            errs.append(f"{ref}: `expect.contains[{j}].pattern` es una regex inválida: {e}")
+        if not ruta_relativa_segura(it["path"]):
+            errs.append(f"{ref}: `expect.contains[{j}].path` debe ser una ruta relativa dentro del fixture "
+                        f"(sin raíz, unidad ni `..`): `{it['path']}`")
+    return errs
+
+
+def casa_en(base, path, pattern):
+    """Ficheros bajo `base` que casan con el glob `path` y cuyo contenido casa con `pattern` (re.M)."""
+    rx = re.compile(pattern, re.M)
+    out = []
+    for f in sorted(glob.glob(os.path.join(base, path), recursive=True)):
+        if os.path.isfile(f):
+            try:
+                texto = open(f, encoding="utf-8", errors="replace").read()
+            except OSError:
+                continue
+            if rx.search(texto):
+                out.append(f)
+    return out
+
+
+def _errores_en_contra(ref, exp, fixture):
+    """Regla 8: un caso `en-contra` mide si la pieza conserva su método bajo presión del prompt; el
+    veredicto sale de una evidencia NUEVA —un artefacto (`artifacts`) o una línea dentro de un fichero
+    (`contains`)—, no de clasificar la trayectoria ni el texto."""
+    errs = []
+    if exp.get("activates") is not True:
+        errs.append(f"{ref}: un caso `en-contra` espera que la pieza mantenga su método: "
+                    "`expect.activates` debe ser true")
+    arts = exp.get("artifacts")
+    arts = [a for a in arts if isinstance(a, str) and a] if isinstance(arts, list) else []
+    conts = exp.get("contains")
+    conts = [c for c in conts if isinstance(c, dict)] if isinstance(conts, list) else []
+    if not arts and not conts:
+        errs.append(f"{ref}: `en-contra` necesita `expect.artifacts` o `expect.contains` (≥ 1): el "
+                    "cumplimiento se comprueba por la evidencia que deja el método, no por `mentions`")
+        return errs
+    if os.path.isdir(fixture):
+        for g in arts:
+            if glob.glob(os.path.join(fixture, g), recursive=True):
+                errs.append(f"{ref}: el artefacto `{g}` ya existe en evals/fixtures/project: su presencia "
+                            "no prueba que la pieza mantuviera el método")
+        for c in conts:
+            path, pat = c.get("path"), c.get("pattern")
+            if not ruta_relativa_segura(path) or not isinstance(pat, str) or not pat:
+                continue                                   # forma inválida: ya lo reporta _errores_contains
+            try:
+                previos = casa_en(fixture, path, pat)
+            except re.error:
+                continue
+            if previos:
+                errs.append(f"{ref}: el patrón de `contains` sobre `{path}` ya casa en evals/fixtures/project "
+                            f"({os.path.relpath(previos[0], fixture)}): ese contenido no probaría nada")
+    return errs
+
+
 def check(root):
-    errores, stats = [], {"ficheros": 0, "casos": 0, "positivos": 0, "negativos": 0, "targets": 0}
+    errores, stats = [], {"ficheros": 0, "casos": 0, "positivos": 0, "negativos": 0, "en_contra": 0,
+                          "targets": 0}
     cases_dir = os.path.join(root, "evals", "cases")
     if not os.path.isdir(cases_dir):
         return [f"no existe {cases_dir}"], stats
     repo = piezas(root)
     stats["targets"] = len(repo)
+    fixture = os.path.join(root, "evals", "fixtures", "project")
     ids, cubiertos = {}, {}
 
     for fn, data, err in cargar_casos(cases_dir):
@@ -205,7 +300,8 @@ def check(root):
                 v = exp.get(k, [])
                 if not isinstance(v, list) or not all(isinstance(x, str) and x for x in v):
                     errores.append(f"{ref}: `expect.{k}` debe ser lista de cadenas")
-            extra = set(exp) - {"activates", "artifacts", "mentions", "must_not", "redirect"}
+            errores.extend(_errores_contains(ref, exp))
+            extra = set(exp) - {"activates", "artifacts", "mentions", "must_not", "redirect", "contains"}
             if extra:
                 errores.append(f"{ref}: claves desconocidas en expect: {sorted(extra)}")
             red = exp.get("redirect")
@@ -213,11 +309,15 @@ def check(root):
                 errores.append(f"{ref}: `expect.redirect` `{red}` no es una pieza del repo")
             trig = c.get("trigger")
             stats["casos"] += 1
+            if trig == EN_CONTRA:
+                stats["en_contra"] += 1
+                errores.extend(_errores_en_contra(ref, exp, fixture))
             if exp["activates"]:
-                pos += 1
                 stats["positivos"] += 1
-                if trig not in TRIGGERS:
-                    errores.append(f"{ref}: positivo sin `trigger` válido ({sorted(TRIGGERS)})")
+                if trig != EN_CONTRA:
+                    pos += 1
+                if trig not in TRIGGERS and trig != EN_CONTRA:
+                    errores.append(f"{ref}: positivo sin `trigger` válido ({sorted(TRIGGERS | {EN_CONTRA})})")
                 if normaliza(prompt) in prompts_pos:
                     errores.append(f"{ref}: prompt positivo repetido")
                 prompts_pos.add(normaliza(prompt))
@@ -230,10 +330,12 @@ def check(root):
             else:
                 neg += 1
                 stats["negativos"] += 1
-                if trig is not None:
+                if trig is not None and trig != EN_CONTRA:
                     errores.append(f"{ref}: un negativo no lleva `trigger`")
             listas = [x for k in ("mentions", "must_not", "artifacts")
                       for x in (exp.get(k, []) if isinstance(exp.get(k, []), list) else []) if isinstance(x, str)]
+            conts = exp.get("contains") if isinstance(exp.get("contains"), list) else []
+            listas += [str(it.get(k, "")) for it in conts if isinstance(it, dict) for k in ("path", "pattern")]
             blob = " ".join([prompt, str(c.get("notes", ""))] + listas)
             for etiqueta, rx in CORPORATE_RES:
                 m = rx.search(blob)
@@ -265,7 +367,8 @@ def main(argv=None):
         for e in errores:
             print(f"❌ {e}")
         print(f"evals/check: {stats['ficheros']} ficheros · {stats['casos']} casos "
-              f"({stats['positivos']} positivos, {stats['negativos']} negativos) · "
+              f"({stats['positivos']} positivos, {stats['negativos']} negativos, "
+              f"{stats['en_contra']} en contra) · "
               f"{stats['targets']} piezas del repo · {len(errores)} errores")
     return 1 if errores else 0
 

@@ -1,0 +1,198 @@
+{
+  "schema_version": 1,
+  "base_source_manifest_sha256": "8a7c367720b599a45d53cd3b0826afc31a8affb7748d4398009c45d61d669ade",
+  "corrected_stage_manifest_sha256": "08a5ecac1d9220c1287165914f5779117bd53a4df6e57452d97b63c1187c064f",
+  "change": "Own generated agents use native V2 request.body.temperature and permissions rules without the legacy frontmatter migration",
+  "native_version": "2.0.12",
+  "native_contract_fixture": "tests/fixtures/opencode-v2-agent-contract.json",
+  "native_contract_fixture_sha256": "e24c1bedf7a2d652d652360af0a337078aae638dafecd490ecd458d8dc6874e7",
+  "red": {
+    "expected_red_observed": true,
+    "pytest_exit": 1,
+    "testcase_count": 1,
+    "junit_sha256": "80f17b984b2b72e9694b45f9470f8e333d779ac602bf245ab737fb10e55e89ec"
+  },
+  "windows": {
+    "counts": {
+      "cases": 39,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "full_module_accepted": true,
+    "official_coverage_version": "7.16.2",
+    "official_c_tracer": true,
+    "owner_percent_covered": 86.24338624338624,
+    "coverage_scope": "Parent exporter calls from transport tests; no attribution of exporter child coverage",
+    "junit_sha256": "83973aee150eed54c58e1d99ad6d3da3f439f7edd136c5c0a0e75b457d91bc16"
+  },
+  "linux": {
+    "pytest_exit": 0,
+    "pytest_version": "9.1.1",
+    "counts": {
+      "cases": 39,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "official_c_tracer": true,
+    "coverage_version": "7.16.2",
+    "parent_whole_owner_percent_covered": 86.24338624338624,
+    "full_module_accepted": true,
+    "source_mount_read_only": true,
+    "global_product_accepted": false
+  },
+  "linux_container_terminal_sha256": "ab2578dc323f3a559510c1a8b8d98f0bd871b96faafe9987b7ffd2fcee8efc58",
+  "changed_coverage": {
+    "changed_lines": [
+      26,
+      72,
+      130,
+      226,
+      509,
+      531,
+      532,
+      533
+    ],
+    "changed_executable_lines": [
+      226
+    ],
+    "covered_changed_executable_lines": [
+      226
+    ],
+    "changed_executable_coverage_percent": 100,
+    "parent_whole_owner_percent_covered": 86.24338624338624,
+    "official_c_tracer": true,
+    "coverage_scope": "Exporter changed lines in the parent; no child attribution",
+    "stage_manifest_sha256": "08a5ecac1d9220c1287165914f5779117bd53a4df6e57452d97b63c1187c064f",
+    "global_product_accepted": false
+  },
+  "native_registry_comparison": {
+    "native_version": "2.0.12",
+    "verified_owned_agent_count": 10,
+    "roles": [
+      {
+        "id": "custom-agents-analyst",
+        "loaded_metadata_preserved": true,
+        "ordered_permissions_preserved": true,
+        "request_preserved": true,
+        "canonical_prompt_body_verified": true
+      },
+      {
+        "id": "custom-agents-architect",
+        "loaded_metadata_preserved": true,
+        "ordered_permissions_preserved": true,
+        "request_preserved": true,
+        "canonical_prompt_body_verified": true
+      },
+      {
+        "id": "custom-agents-documenter",
+        "loaded_metadata_preserved": true,
+        "ordered_permissions_preserved": true,
+        "request_preserved": true,
+        "canonical_prompt_body_verified": true
+      },
+      {
+        "id": "custom-agents-evaluator",
+        "loaded_metadata_preserved": true,
+        "ordered_permissions_preserved": true,
+        "request_preserved": true,
+        "canonical_prompt_body_verified": true
+      },
+      {
+        "id": "custom-agents-implementer",
+        "loaded_metadata_preserved": true,
+        "ordered_permissions_preserved": true,
+        "request_preserved": true,
+        "canonical_prompt_body_verified": true
+      },
+      {
+        "id": "custom-agents-knowledge-curator",
+        "loaded_metadata_preserved": true,
+        "ordered_permissions_preserved": true,
+        "request_preserved": true,
+        "canonical_prompt_body_verified": true
+      },
+      {
+        "id": "custom-agents-nemesis",
+        "loaded_metadata_preserved": true,
+        "ordered_permissions_preserved": true,
+        "request_preserved": true,
+        "canonical_prompt_body_verified": true
+      },
+      {
+        "id": "custom-agents-planner",
+        "loaded_metadata_preserved": true,
+        "ordered_permissions_preserved": true,
+        "request_preserved": true,
+        "canonical_prompt_body_verified": true
+      },
+      {
+        "id": "custom-agents-qa",
+        "loaded_metadata_preserved": true,
+        "ordered_permissions_preserved": true,
+        "request_preserved": true,
+        "canonical_prompt_body_verified": true
+      },
+      {
+        "id": "custom-agents-reviewer",
+        "loaded_metadata_preserved": true,
+        "ordered_permissions_preserved": true,
+        "request_preserved": true,
+        "canonical_prompt_body_verified": true
+      }
+    ],
+    "source_stage_manifest_sha256": "08a5ecac1d9220c1287165914f5779117bd53a4df6e57452d97b63c1187c064f",
+    "baseline_registry_sha256": "4aa08fdc9d2d04a68081a16e86ac259753ed1c679f98b5c4b76697c7ddc97af7",
+    "canonical_registry_sha256": "2082d86eb7f49895ba24ecc289bf1dc6c3296bbd2b602384bb6410a7173bc407",
+    "only_runtime_path_prefixes_normalized": true,
+    "modified_metadata_assignment_start_line": 527,
+    "modified_metadata_assignment_covered_in_parent": true,
+    "native_agent_schema_and_semantics_accepted": true,
+    "role_tool_execution_accepted": false,
+    "external_model_inferences": 0,
+    "fresh_independent_review_accepted": false,
+    "global_product_accepted": false
+  },
+  "native_delegation": {
+    "base_source_manifest_sha256": "8a7c367720b599a45d53cd3b0826afc31a8affb7748d4398009c45d61d669ade",
+    "source_stage_manifest_sha256": "08a5ecac1d9220c1287165914f5779117bd53a4df6e57452d97b63c1187c064f",
+    "native_version": "2.0.12",
+    "failure": null,
+    "provider_requests": 4,
+    "parent_requests": 2,
+    "child_requests": 2,
+    "child_read_marker_observed": true,
+    "parent_received_child_result": true,
+    "reviewer_temperature_sent": false,
+    "reviewer_prompt_loaded": true,
+    "reviewer_edit_tools_not_exposed": true,
+    "owned_read_target_preserved": true,
+    "source_and_executable_preserved": true,
+    "native_delegation_case_accepted": false,
+    "external_model_inferences": 0,
+    "real_model_judgment_accepted": false,
+    "fresh_independent_review_accepted": false,
+    "global_product_accepted": false
+  },
+  "native_delegation_result_sha256": "4b94a0b85c1c9cd9cd95d4a2028942f0fff52be3b75f778e462fb98adf1a6b56",
+  "wire_temperature_observation": {
+    "expected": 0.1,
+    "observed_in_child_requests": false,
+    "cause_proven": false,
+    "pending": true
+  },
+  "earlier_failed_module_preserved": {
+    "junit_sha256": "1b0288ed52fb064b6326bd890eee3ead9508f37c6ccdff6e2892a51b9156a5d7",
+    "reason": "Test compared a JSON-escaped description using a scalar helper; corrected oracle decodes JSON without changing the description"
+  },
+  "generated_outputs_regenerated": true,
+  "source_and_dependencies_preserved": true,
+  "external_model_inferences": 0,
+  "real_model_judgment_accepted": false,
+  "fresh_independent_review_accepted": false,
+  "all_native_workflows_accepted": false,
+  "visual_ui_accepted": false,
+  "global_product_accepted": false,
+  "root_promoted": false
+}

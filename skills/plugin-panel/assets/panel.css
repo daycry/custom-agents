@@ -1,0 +1,179 @@
+/* Panel local de custom-agents. Un solo tema, sin fuentes ni recursos externos.
+   Los colores viven SOLO en las propiedades de :root; tests/test_panel_palette.py las lee de aquí. */
+:root {
+  color-scheme: dark;
+  /* Texto: >= 4,5:1 (WCAG 1.4.3). Bordes, foco y marcas de gráficos: >= 3:1 (WCAG 1.4.11). */
+  --fondo: #0b1020;
+  --superficie: #131a2e;
+  --texto: #eef1fb;
+  --tenue: #aab4cf;
+  --acento: #b4a3ff;
+  --ok: #7de5cc;
+  --aviso: #f6c380;
+  --error: #ffb0bd;
+  --borde: #6b7799;
+  --foco: #ffd166;
+  /* Series de gráficos: nunca se distinguen solo por color (forma y etiqueta en panel-charts.js y en la tabla). */
+  --serie-1: #7de5cc;
+  --serie-2: #b4a3ff;
+  --serie-3: #f6c380;
+  --serie-4: #82b8ff;
+  --serie-5: #ff9db1;
+  --serie-6: #c8e07a;
+  font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 1.5rem; scroll-padding-bottom: 1.5rem; }
+body { margin: 0; background: var(--fondo); color: var(--texto); line-height: 1.6; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--foco); outline-offset: 3px; }
+main:focus { outline: none; }
+
+.skip-link { position: absolute; left: .75rem; top: .75rem; padding: .6rem 1rem; transform: translateY(-300%);
+  background: var(--texto); color: var(--fondo); border-radius: .5rem; }
+.skip-link:focus { transform: none; }
+
+.cabecera { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; padding: 1rem 1.5rem; border-bottom: 1px solid var(--borde); }
+.marca { font-weight: 700; letter-spacing: .02em; }
+.modo { margin: 0; font-size: .9rem; }
+#menu-toggle { font: inherit; color: inherit; background: transparent; border: 1px solid var(--borde); border-radius: .5rem; padding: .4rem .9rem; cursor: pointer; }
+
+#panel-nav ul { list-style: none; margin: 0; padding: .75rem 1.5rem; display: flex; flex-wrap: wrap; gap: .5rem; border-bottom: 1px solid var(--borde); }
+#panel-nav a { display: inline-block; padding: .45rem .9rem; border: 1px solid transparent; border-radius: .5rem; text-decoration: none; }
+#panel-nav a:hover { border-color: var(--borde); }
+#panel-nav a[aria-current="page"] { border-color: var(--borde); font-weight: 700; text-decoration: underline; text-underline-offset: .25em; }
+
+main { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+h1 { margin-top: 0; }
+table { border-collapse: collapse; width: 100%; }
+section, figure.grafico { background: var(--superficie); border: 1px solid var(--borde); border-radius: .75rem; padding: 1rem; margin: 0 0 1rem; }
+.modo, th { color: var(--tenue); }
+.ausencia { color: var(--aviso); margin: .5rem 0; }
+.estado-ok { color: var(--ok); } .estado-error { color: var(--error); } .estado-aviso { color: var(--aviso); }
+#panel-nav a:link, #panel-nav a:visited { color: var(--acento); }
+figure.grafico { margin-inline: 0; }
+figure.grafico figcaption { font-weight: 700; margin-bottom: .5rem; }
+.lienzo { position: relative; height: 20rem; }
+.tabla-equivalente { overflow-x: auto; margin-top: .75rem; }
+td.sin-datos { color: var(--tenue); font-style: italic; }
+th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid var(--borde); }
+
+/* --- Componentes de las páginas (Catálogo, Diagnóstico y secciones vivas). Solo variables de :root. --- */
+[hidden] { display: none !important; }
+section > h2 { margin-top: 0; }
+.section-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: .75rem; }
+.section-head h2 { margin: 0; }
+.section-head p { margin: .25rem 0 0; color: var(--tenue); }
+.section-pill { border: 1px solid var(--borde); border-radius: 2rem; padding: .2rem .7rem; font-size: .85rem; color: var(--tenue); white-space: nowrap; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .75rem; }
+.stat { border: 1px solid var(--borde); border-radius: .75rem; padding: .75rem 1rem; }
+.stat strong { display: block; font-size: 1.8rem; }
+.stat span { color: var(--tenue); }
+.controls { display: flex; flex-wrap: wrap; gap: .75rem; margin: .75rem 0; }
+.search-wrap { flex: 1 1 14rem; }
+input, select, textarea, button { font: inherit; color: var(--texto); background: var(--fondo); border: 1px solid var(--borde); border-radius: .5rem; padding: .5rem .75rem; }
+input[type="search"], .controls input[type="text"] { width: 100%; }
+button { cursor: pointer; }
+button:disabled { opacity: .6; cursor: default; }
+.filter-note, .navigation-status, #results, #extension-results, #diagnostic-results { color: var(--tenue); font-size: .9rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: .75rem; }
+.card { border: 1px solid var(--borde); border-radius: .75rem; padding: 1rem; overflow-wrap: anywhere; }
+.card small { color: var(--acento); letter-spacing: .04em; }
+.card h2, .card h3 { margin: .5rem 0; font-size: 1.1rem; }
+.card p { color: var(--tenue); margin: .4rem 0; }
+.card code, code { color: var(--tenue); overflow-wrap: anywhere; }
+.card code { display: block; margin-top: .5rem; }
+summary { cursor: pointer; }
+details { margin-top: .5rem; }
+.hook-handlers { list-style: none; padding: 0; margin: .75rem 0 0; }
+.hook-handlers li { border-top: 1px solid var(--borde); padding: .75rem 0; }
+.hook-meta, .extension-runtime { color: var(--tenue); font-size: .9rem; }
+.hook-link { color: var(--ok); }
+.extension-status, .guide-chip { display: inline-block; border: 1px solid var(--borde); border-radius: .4rem; padding: .1rem .5rem; margin: .2rem .3rem .2rem 0; font-size: .85rem; }
+.extension-conflict { border-left: 3px solid var(--aviso); padding-left: .6rem; color: var(--aviso); }
+.workflow-roles { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: .75rem; }
+.workflow-role { border: 1px solid var(--borde); border-radius: .75rem; padding: 1rem; overflow-wrap: anywhere; }
+.role-heading { display: flex; align-items: center; gap: .75rem; }
+.role-avatar { display: inline-grid; place-items: center; width: 2.2rem; height: 2.2rem; border: 1px solid var(--borde); border-radius: .6rem; color: var(--acento); }
+.role-heading h3 { margin: 0; }
+.flow-steps { display: flex; flex-wrap: wrap; gap: .5rem; margin: .5rem 0; }
+.flow-steps button[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); }
+.flow-detail { border-top: 1px solid var(--borde); padding-top: .75rem; }
+.flow-role-links { display: flex; flex-wrap: wrap; gap: .75rem; color: var(--ok); }
+#source-notes { border: 1px solid var(--borde); border-radius: .75rem; padding: 1rem; margin-bottom: 1rem; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--tenue); }
+footer { color: var(--tenue); font-size: .9rem; margin-top: 1.5rem; }
+.diagnostic-notice { border: 1px solid var(--aviso); border-radius: .6rem; padding: .75rem 1rem; color: var(--aviso); }
+.diagnostic-block { border: 1px solid var(--borde); border-radius: .75rem; padding: .75rem 1rem; margin: .75rem 0; }
+.diagnostic-block ul { list-style: none; padding: 0; margin: .5rem 0 0; }
+.diagnostic-row { display: flex; flex-wrap: wrap; gap: .5rem 1rem; border-top: 1px solid var(--borde); padding: .6rem 0; }
+.diagnostic-row strong { flex: 1 1 12rem; }
+.diagnostic-row small { width: 100%; color: var(--tenue); }
+.diagnostic-row[data-state="error"] .diagnostic-verdict { color: var(--error); }
+.diagnostic-row[data-state="aviso"] .diagnostic-verdict { color: var(--aviso); }
+.diagnostic-row[data-state="ok"] .diagnostic-verdict { color: var(--ok); }
+.diagnostic-priorities li { padding: .3rem 0; color: var(--tenue); }
+.diagnostic-priorities a, .diagnostic-source summary { color: var(--ok); }
+.memory-actions, .review-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+.memory-body { white-space: pre-wrap; overflow-wrap: anywhere; border-top: 1px solid var(--borde); padding-top: 1rem; }
+#review-sections section { margin: 1rem 0; }
+#review-sections textarea { width: 100%; min-height: 6rem; resize: vertical; }
+#progress-status, #progress-freshness, #progress-results, #memory-status, #memory-freshness, #activity-status,
+#activity-freshness, #activity-coverage, #review-status, #review-metadata { color: var(--tenue); overflow-wrap: anywhere; }
+#plan-revision-panel section, #plan-revision-panel article { margin: 1rem 0; }
+#plan-revision-panel textarea { width: 100%; min-height: 6rem; resize: vertical; }
+#plan-revision-panel pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.revision-estado { font-weight: 600; }
+
+@media (max-width: 760px) {
+  #panel-nav ul { flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}
+
+/* --- Inicio e Iniciativas (cartera). Solo variables de :root. --- */
+#coste-cartera dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; margin: 0; }
+#coste-cartera dt { color: var(--tenue); }
+#coste-cartera dd { margin: 0; }
+.kanban { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: .75rem; align-items: start; }
+.kanban .columna { margin: 0; background: var(--fondo); }
+.kanban .columna h2 { font-size: 1.05rem; margin: 0 0 .5rem; }
+.kanban .card { position: relative; margin-bottom: .75rem; background: var(--superficie); }
+.kanban .card h3 { margin: 0 0 .25rem; }
+.kanban .card .tarjeta-titulo { color: var(--texto); }
+.kanban .enlace-tarjeta { color: var(--acento); text-underline-offset: .2em; }
+.progress-card .card-link { color: var(--acento); text-underline-offset: .2em; }
+.kanban .enlace-tarjeta::after { content: ""; position: absolute; inset: 0; border-radius: .75rem; }
+.kanban .card:hover, .kanban .card:focus-within { border-color: var(--acento); }
+.kanban .alertas { margin: .5rem 0 0; padding-left: 1.2rem; color: var(--aviso); }
+.kanban .columna-vacia { color: var(--tenue); font-style: italic; }
+
+/* --- Plan de una iniciativa (kanban de tareas). Solo variables de :root. --- */
+.kanban .columna.desconocidos { border-color: var(--aviso); }
+.kanban .columna.desconocidos h2 { color: var(--aviso); }
+.solo-lectores { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.kanban .abrir-tarea { font: inherit; text-align: left; color: var(--acento); background: transparent; border: 0; padding: 0; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+.kanban .abrir-tarea::after { content: ""; position: absolute; inset: 0; border-radius: .75rem; }
+.detalle { border-color: var(--acento); }
+.detalle .detalle-bloque { background: var(--fondo); }
+.detalle .detalle-bloque h3 { margin: 0 0 .4rem; font-size: 1rem; }
+.detalle ul { margin: .25rem 0; padding-left: 1.2rem; }
+.detalle .gaps { color: var(--aviso); }
+
+/* --- Memoria (grafo de una entrada, línea de tiempo, bandeja, sesiones). Solo variables de :root. --- */
+.linea-tiempo { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--borde); }
+.linea-tiempo li { padding: .35rem 0 .35rem .9rem; overflow-wrap: anywhere; }
+.linea-tiempo li button, #memoria-lista-relaciones li button { margin-left: .4rem; padding: .15rem .6rem; }
+#memoria-lista-relaciones { padding-left: 1.2rem; overflow-wrap: anywhere; }
+#memoria-relaciones:focus { outline: 3px solid var(--foco); outline-offset: 3px; }
+.grafo-memoria { max-width: 100%; height: auto; }
+.grafo-memoria .arista { stroke: var(--borde); stroke-width: 2; fill: none; }
+.grafo-memoria .nodo circle, .grafo-memoria .nodo rect, .grafo-memoria .nodo polygon { fill: var(--superficie); stroke: var(--acento); stroke-width: 2; }
+.grafo-memoria .nodo-centro circle { fill: var(--acento); }
+.grafo-memoria .nodo text { fill: var(--texto); font-size: 12px; }
+.cita-journal { margin: .75rem 0; padding: .5rem 1rem; border-left: 3px solid var(--borde); color: var(--tenue); }
+.cita-journal h3 { margin: 0 0 .25rem; color: var(--texto); font-size: 1rem; }
+.cita-journal dl { margin: .25rem 0 0; display: grid; grid-template-columns: max-content 1fr; gap: .15rem 1rem; }
+.cita-journal dd { margin: 0; overflow-wrap: anywhere; }

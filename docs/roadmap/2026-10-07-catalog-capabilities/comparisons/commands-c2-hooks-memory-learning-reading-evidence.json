@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_command_ids": [
+    "C031",
+    "C032",
+    "C033",
+    "C034",
+    "C035",
+    "C036",
+    "C037",
+    "C042",
+    "C043"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "C031",
+      "sha256": "a059c23f885d36e3597daa03b7bf77cbb79a2a87e5856ca4bede4eb3b816082a",
+      "bytes": 390,
+      "lines": 14,
+      "read_ranges": [
+        [
+          1,
+          14
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C032",
+      "sha256": "11c4beec77187548978f4022cf76b3e077c0a04365f0b0d2464d06ca053c91a2",
+      "bytes": 1187,
+      "lines": 46,
+      "read_ranges": [
+        [
+          1,
+          46
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C033",
+      "sha256": "b513140d7a93527d5d8beabd4cb1aacaa296c00ac96586bc946466014f31a3cc",
+      "bytes": 484,
+      "lines": 21,
+      "read_ranges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C034",
+      "sha256": "af90c5e6a9094ab68df605458628bfc09e2f19d0571665964c94d1eb0e8002ce",
+      "bytes": 1430,
+      "lines": 50,
+      "read_ranges": [
+        [
+          1,
+          50
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C035",
+      "sha256": "cd2052ae1b9c49f75ad81aae6e236be959cc6656d32e3b8f3e6e13d2d3bd2d3c",
+      "bytes": 1645,
+      "lines": 66,
+      "read_ranges": [
+        [
+          1,
+          66
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C036",
+      "sha256": "30514ada563953a1eafa46a09644831969aaae7672068777267e0b801814e7d9",
+      "bytes": 2839,
+      "lines": 114,
+      "read_ranges": [
+        [
+          1,
+          114
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C037",
+      "sha256": "4c6dfbea0a0a9105121410391b05983f71f4317ccf166a52955fc5972600fcce",
+      "bytes": 2648,
+      "lines": 59,
+      "read_ranges": [
+        [
+          1,
+          59
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C042",
+      "sha256": "130ca626905237a4f6c75314c304f26a49f291794fc4a5e8e8747d7850db9082",
+      "bytes": 7439,
+      "lines": 153,
+      "read_ranges": [
+        [
+          1,
+          153
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C043",
+      "sha256": "8fbb0ee1f344f47f4f1b8595231338a28bdc0c015daa4644af3b343194bae0d1",
+      "bytes": 3809,
+      "lines": 107,
+      "read_ranges": [
+        [
+          1,
+          107
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "commands/doctor.md",
+      "sha256": "cfb88392075454952fca87df3b4ed0e7bbe762e6022e4ec9f5109e86e3b43326"
+    },
+    {
+      "path": "commands/setup.md",
+      "sha256": "d10958c2f797efb0980f0a323c9abc4f4bb55d368bda22d304fd7275e6a2d1ad"
+    },
+    {
+      "path": "agents/knowledge-curator.md",
+      "sha256": "594f125574aec362b41f07242544e9cb942bea57bdb882e57255b1d174565dc9"
+    },
+    {
+      "path": "agents/implementer.md",
+      "sha256": "a76c17a9b26466b0b7cde35c78ff9b30fd350a6beaf64c7b434c31f82f7505f3"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-curation.py",
+      "sha256": "c44d25841df77b669c66846eb947fa850b15d35fef089e6e65606ceb2e64a346"
+    },
+    {
+      "path": "agent-kits/shared/journal.py",
+      "sha256": "0930c34ae38c5bae7f297d423eac3f381b28cc1cbe0db93bbf4e9dd101c1a002"
+    },
+    {
+      "path": "docs/MEMORY-PORTABILITY.md",
+      "sha256": "288b8d70f936d61a1f05c716d84eabec6246465ef91ccf38b33ad84f66ee4f78"
+    },
+    {
+      "path": "commands/retro.md",
+      "sha256": "46330c05f9497ff98d2f5835509875fe4d6f95732f449a68d3b488d829c7bd76"
+    },
+    {
+      "path": "docs/agents/ROLES.md",
+      "sha256": "16de05a15de9e81168181de94f22f9d891dda6fdb1adc927815c19605b87b997"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

@@ -1,0 +1,38 @@
+{
+  "fecha": "2026-10-06",
+  "ruta": ".",
+  "parametros": {
+    "langs": [
+      "cs",
+      "go",
+      "java",
+      "js",
+      "jsx",
+      "kt",
+      "php",
+      "py",
+      "rb",
+      "rs",
+      "ts",
+      "tsx"
+    ],
+    "window": 8,
+    "min_lines": 6,
+    "exclude_tests": true,
+    "since_dias": 90,
+    "exclude_path": [
+      "interop"
+    ]
+  },
+  "resumen": {
+    "ficheros": 54,
+    "lineas": 31200,
+    "duplicado_pct": 6.6,
+    "bloques_duplicados": 760,
+    "funciones_largas": 221,
+    "anidamiento_max": 7,
+    "hotspots": 54,
+    "todos": 9,
+    "todo_edad_max_dias": 0
+  }
+}

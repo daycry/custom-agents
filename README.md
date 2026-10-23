@@ -21,16 +21,16 @@
 [![npx](https://img.shields.io/badge/install-npx-cb3837.svg?logo=npm&logoColor=white)](docs/en/INTEROP.md)
 [![SDD](https://img.shields.io/badge/methodology-Spec--Driven-2ea44f.svg)](docs/en/FLOWS.md)
 [![Agents](https://img.shields.io/badge/agents-10-0ea5e9.svg)](docs/en/README.md)
-[![Skills](https://img.shields.io/badge/skills-19-0ea5e9.svg)](docs/en/README.md)
-[![Commands](https://img.shields.io/badge/commands-12-0ea5e9.svg)](docs/en/README.md)
+[![Skills](https://img.shields.io/badge/skills-27-0ea5e9.svg)](docs/en/README.md)
+[![Commands](https://img.shields.io/badge/commands-15-0ea5e9.svg)](docs/en/README.md)
 [![Portable skills](https://img.shields.io/badge/portable%20skills-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/en/INSTALL.md#using-the-skills-outside-claude-code-portable-package)
 
-From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Ten agents, twelve commands, self-contained (no dependencies on other plugins) — and it runs in **three runtimes**: Claude Code, Codex and OpenCode.
+From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Ten agents, fifteen commands, self-contained (no dependencies on other plugins) — and it runs in **three runtimes**: Claude Code, Codex and OpenCode.
 
 > **How you type the commands.** Installed as a plugin, the real name carries the plugin
 > namespace: **`/custom-agents:dev-cycle`**, `/custom-agents:retro`, `/custom-agents:doctor`…
-> In Codex, it appears as prompts: `/prompt:dev-cycle` (or `/prompts:dev-cycle` depending on
-> provider). In OpenCode it stays short: `/dev-cycle`.
+> In Codex, use the generated native adapter: **`$custom-agents:custom-agents-dev-cycle`**
+> followed by its arguments, or select it in `/skills`. In OpenCode it stays short: `/dev-cycle`.
 > This document uses the short form (`/dev-cycle`) for brevity.
 
 ```mermaid
@@ -64,8 +64,9 @@ Most tooling around coding agents answers *how* to write the code. This plugin a
 | **Jira without friction** (opt-in) | One issue per task or per phase, issue type inferred from the hierarchy, worklog on completion with a daily cap, review outcome posted as a comment |
 | **Bidirectional Confluence** (opt-in) | `docs/` ⇄ Confluence, idempotent, with a **curated publish scope** (opt-out `exclude` over `include: ["**/*.md"]`, `confluence-scope.py`) so a PM without git always sees the current state — never the roadmap's execution board |
 | **spec → eval → plan → tasks chain** | One folder per initiative, artifacts linked both ways, `tasks.md` as the **canonical ledger** validated by `ledger-lint.py` |
-| **Technical memory that outlives a chat** | `docs/knowledge/` (ADR/gotchas/lessons, one file per entry) captures design decisions, proven traps and process lessons; read at the right gate by `evaluator`/`planner`/`implementer`/`qa`, indexed by `documenter` |
-| **Session journal (episodic memory, no MCP)** | `SessionEnd` only captures a durable envelope (< 100 ms, no git/AI/network); the deterministic entry under `docs/knowledge/journal/` (active initiative, files touched, tasks whose state changed, meter markers; idempotent by `session_id`) is materialized afterwards on `SessionStart` or on demand (`journal.py replay`/`recover`), and `SessionStart` re-injects the latest one — you resume with *what happened*, not only *which task is open*. `/doctor` shows the queue's state (outbox/processing/done/dead-letter). Excluded from Confluence; no AI summary unless you opt in |
+| **Technical memory that outlives a chat** | `docs/knowledge/` captures design decisions, proven traps and process lessons. `knowledge-find.py` retrieves legacy ADR/gotchas/lessons and valid `approved/` entries, preserving identity, knowledge version and evidence in JSON; local fallback also works when an authorized backend read fails. Retrieval does not approve entries or activate services |
+| **Cited local AST context** | `code-context.py` selects an exact node ID, an exact file/label pair, or a legacy symbol from an existing artifact. A producer-bound receipt can verify declared input bytes; context stays unapproved, coverage unknown. The optional `code-context-build.py` requires an explicitly trusted external Graphify library and never installs it |
+| **Session journal (episodic memory, no MCP)** | `SessionEnd` only persists a local envelope (no git/AI/network during capture; total hook time also includes launcher/shell startup and depends on the runtime contract and environment); the deterministic entry under `docs/knowledge/journal/` (active initiative, files touched, tasks whose state changed, meter markers; idempotent by `session_id`) is materialized afterwards on `SessionStart` or on demand (`journal.py replay`/`recover`). Startup/resume selects history through the current ledger resolver; `/work-resume` provides an exact manual selection with ambiguity and read limits visible. `/doctor` shows the queue's state (outbox/processing/done/dead-letter). Excluded from Confluence; no AI summary unless you opt in |
 | **Measured code health** | `code-health.py` (skill `code-health`): duplicates by token shingles with `file:line` pairs, long functions/nesting, hotspots (`git log` × size) and aged TODO/FIXME — Markdown or JSON, `--baseline` to see better/worse; `evaluator` uses it to ground risk, `planner` to open measured debt |
 | **Dependency upgrades as a spec, not a gamble** | `deps-inventory.py` (skill `dependency-upgrade`): 7 manifests + lockfiles, declared/locked/latest (only from the official `outdated`, never invented), patch/minor/major jumps; the skill reads each major's upstream changelog and writes the `upgrade-<package>` spec for `evaluator` → `planner`. Vulnerabilities stay with `nemesis` |
 | **Project constitution with enforcement** | Permanent principles that every writing agent reads — and the review turns a violation into a correction gap with a line citation |
@@ -76,13 +77,34 @@ Most tooling around coding agents answers *how* to write the code. This plugin a
 | **Configurable model tiering** | Every agent declares `model` + `effort` (linted); `.claude/dev.json` `modelos` overrides them per agent and `model-tier.py` resolves the effective tier that orchestrators pass to the Agent tool — honestly documented: `effort` overrides are informative, manual `@agent` follows the frontmatter |
 | **Root-cause debugging** | On the third failed qa attempt, `debug-root-cause` diagnoses with evidence in 4 phases before asking you — no blind fixes |
 | **Deterministic gates** | Verdicts come from scripts with exit codes and their own tests (`qa-gate`, `ledger-lint`, `coverage-check`), never from agent prose |
-| **Deterministic guardrails for the implementer** | An agent-scoped `PreToolUse` hook (never global) denies, with a reason, writes to `docs/roadmap/` other than `tasks.md`, edits on `main`/`master` and destructive git (`push --force`, `branch -D`, `rm -rf /`); `scope-check.py` gates the review on "changed files ⊆ the ledger's `Archivos`". Both are scripts with tests, opt-out per rule in `.claude/dev.json` |
+| **Deterministic guardrails for the implementer** | A pre-tool dispatcher selects exact owned role IDs in Claude, Codex and OpenCode. The shared evaluator denies writes outside the role's scope, implementer edits on `main`/`master` and destructive Git commands. Its `git` rule also denies commits that disable verification or explicitly override `core.hooksPath`; `scope-check.py` gates review on "changed files ⊆ the ledger's `Archivos`". See [the flow and parser limits](docs/en/FLOWS.md#6c--deterministic-guardrails-of-the-implementer-agent-scoped-guard-hook); opt-out per rule in `.claude/dev.json` |
 | **Live progress while tasks run** | Non-blocking hooks read the canonical ledger and show one progress line per edit (`📋 slug · T-04/12 (33%) · en curso T-05`), the state of active initiatives when a subagent finishes, and re-inject the resume context on startup/resume/compaction; an **opt-in status line** adds model · session cost · context · roadmap progress |
 | **Reliable activation** | A `SessionStart` hook injects a compact **index of every command, skill and agent** (one line each, ≤ 3,500 chars, hash-cached) so the right piece fires even when the user does not name it; `evals/` holds positive and neighbouring-negative prompts per piece, checked statically in CI (`evals/check.py`) and runnable for real locally (`evals/run.py`) |
 
 > **Portable skills:** the skills (not the agents, commands or hooks) also work **outside Claude Code** — Codex, Copilot, Cursor and any `AGENTS.md` reader — via `python3 scripts/export-skills.py` or the `custom-agents-skills-portable-<version>.zip` attached to every Release ([how](docs/en/INSTALL.md#using-the-skills-outside-claude-code-portable-package)).
 
 > Self-contained: no dependency on other plugins. `tasks.md` is the canonical ledger for whoever implements — any other tool's own log is a mirror, never the source; and it [coexists](docs/en/observability.md) with live session monitors.
+
+## Local memory and explicit external reads
+
+Local memory works without Docker or a service. The panel and hooks keep their local
+readers; they do not start a stack or poll an external backend.
+
+Kwipu's `markdown-export` adapter can serve an explicit `knowledge-find.py --intent`
+request when the backend, `read.enabled` and that intent are enabled. Canonical entries,
+routing, full-scope filters, manifest and snapshot bindings gate the query before inference.
+Every chunk must match the authorized projection. An incompatible or changing source
+returns local fallback with a reason.
+
+The generated answer remains `no_verificada`, with `autoridad: ninguna` and
+`citas_por_afirmacion: false`. Its `source_nodes` identify retrieved sources; they do
+not prove each claim or approve the answer. See the [Kwipu read contract](skills/knowledge-services/references/kwipu-adapter.md#cómo-habilitar-la-lectura-documental).
+
+AST queries use a separate local artifact. The optional producer declares inputs and
+publishes an artifact-bound receipt; the reader rehashes every declared input per query.
+`verified-declared-inputs` proves observed byte agreement only. It does not authenticate
+the producer, find new files, establish global coverage or verify semantics.
+See [selectors, receipts and portable dependencies](docs/en/CODE_CONTEXT.md).
 
 ## What makes it different
 
@@ -106,8 +128,8 @@ npx @daycry/custom-agents            # interactive menu; marks the runtimes it d
 
 | Runtime | Install | What you get |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 12 commands, 18 skills, hooks, status line |
-| **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, commands as `/prompt:<name>` (sometimes `/prompts:<name>`), session hooks |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 15 commands, 27 skills, hooks, status line |
+| **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, generated command adapters (`$custom-agents:custom-agents-<name>`), session hooks |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agents, commands, hook adapter |
 
 The installer **registers the plugin with each runtime**, it does not just copy files: Claude Code's
@@ -206,7 +228,7 @@ flowchart LR
 ```
 
 <details>
-<summary><b>The 10 agents and the 12 commands</b> (click to expand)</summary>
+<summary><b>The 10 agents and the 15 commands</b> (click to expand)</summary>
 
 | Agent | What it does |
 |--------|----------|
@@ -215,7 +237,7 @@ flowchart LR
 | **architect** | Design with options (opt-in): 2-3 alternatives with trade-offs → `design.md` validated in chunks with you, plus the ADR. Does not estimate or plan. |
 | **planner** | Executable plan: phases and `T-XX` tasks with verifiable acceptance criteria and a per-phase budget. |
 | **implementer** | Writes the code phase by phase on a branch/worktree, with `tasks.md` as the canonical ledger and per-task measured cost. |
-| **reviewer** | One review lens (A/B/C) on fresh context, read-only by construction; structured output that `adversarial-review` merges. |
+| **reviewer** | One review lens (A/B/C) on fresh context, reviews without modifying code; structured output that `adversarial-review` merges. |
 | **qa** | E2E with Playwright (local hosts only), verdict via `qa-gate.py`, md+pdf report with evidence. |
 | **documenter** | Technical and product documentation derived from the project itself, once at cycle close. |
 | **knowledge-curator** | Reviews and approves/rejects candidates in `docs/knowledge/candidates/`; only writer of `approved/` and `rejected/` (`curator-gate.py`). |
@@ -236,9 +258,16 @@ flowchart LR
 | `/spec-drift` | Does the code still honor the implemented specs? |
 | `/retro` | Closes the loop: deviations + causes → `CALIBRATION.md`. |
 | `/confluence-pull` | Confluence → local `docs/` (PM without git). |
+| `/plugin-catalog` | Search bundle capabilities and your project/user extensions, with sources and conflicts. |
+| `/work-context` | Relevant guides and explicitly selected extensions for the task. |
+| `/work-resume` | Current ledger and selected session history in a bounded read-only dossier. [Selection and limits](docs/en/WORK-RESUME.md). |
 | `/doctor` | Deterministic install diagnosis: tools, plugin/hooks, statusline, `.claude/` configs, work state — ✅/⚠️/❌ verdict with the fix per line, read-only, no network. |
 
-Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
+Your agents, skills, personas, tool sources and MCP remain in native project/user
+folders. Discovery preserves your files and distinguishes declarations from
+session availability. [Extension guide](docs/en/PROJECT-EXTENSIONS.md).
+
+Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services` · `research-first` · `plugin-panel` · `stack-practices` · `backend-practices` · `frontend-quality` · `delivery-practices` · `capability-audit` · `outcome-evals`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
 
 </details>
 

@@ -1,0 +1,500 @@
+{
+  "version": 1,
+  "base": "2610a276a6526330eb10e3ef70958b914d68a91a",
+  "block": 14,
+  "scope": "Portable explicit doctor diagnostics in capability panel; directed activity and plan review comparison are documented future work.",
+  "source_sha256": {
+    ".gitignore": "2251b9ce64cf0fefa08a7f64ca174bb4f1349e7d30577d5888acb645c96dc24c",
+    "agent-kits/shared/README.md": "d34ff45c328ef15f95ca283ad898129037079795fcd909220f0bf0b63347d3e8",
+    "agent-kits/shared/diagnostic-report.py": "b7a4842abc36b9dddfe2cea3e7c4ac27732016d04630e55cadcbb5a9c807114c",
+    "agent-kits/shared/doctor.py": "c8a123bbaf2118d494f7eb1b0e709c6654d945b587c165d214bd74a9906bfd51",
+    "agent-kits/shared/test_diagnostic_report.py": "f80b107d99cd58b8cebb1737cc2f93ffd481a35092aded593be04b2eefcb6d2b",
+    "agent-kits/shared/test_doctor.py": "d4eaf7ebd79d6aea52722a98256bf54dd9bb205edb61211b76e62a23b2a174d0",
+    "commands/doctor.md": "f892be94d2e8dae401df3752e1c77bff1c160af442569dde2558b496fb727379",
+    "commands/plugin-catalog.md": "ceb86eaf702e8b5f3cac19027c40acb7d0eda2117fccf12a938b81ea6dd78744",
+    "interop/codex/prompts/doctor.md": "d0ac619ca3b39445576c9df58206a9019f6f1c4153568a78dedf134c8fe7b388",
+    "interop/codex/prompts/plugin-catalog.md": "4379b95922c1b69ced924c7e854321da47785fc8d1d8f4f0e45dac8494a75f04",
+    "interop/opencode/commands/doctor.md": "eb6cec76e92bbfddd1653e5987a2a4cae538f0400b9928211b1dd7503ee3a780",
+    "interop/opencode/commands/plugin-catalog.md": "f2b767d5e4294ff91b876ff471e3b6a1048994556a5a6f46cdafab97c8ebe9c7",
+    "interop/opencode/custom-agents-index.md": "cc63d0d2e4e781b602450b9732626e329738f8ed6530ba7c3da47b2bef27440c",
+    "package.json": "f841e86ea91d1dbdef8be75ae2981f24f3eaba6b64a90fad38671c6f91e26d73",
+    "skills/plugin-panel/SKILL.md": "9e0c00bad4a33cd0d1d23b9fb368950a20b85aefb3090708e7bbe32d87494a21",
+    "skills/plugin-panel/references/panel.html": "c45b2d205ad64d768f5c04ac449a4545aa4d2c259996b65c3ad95ce5792291d2",
+    "skills/plugin-panel/scripts/build_panel.py": "348f9fd3988a4679f6b6dd188cfa56326732a5bfd2f7db04da3618af5a7a762a",
+    "tests/test_console_encoding.py": "ac510c568342ca9a2e2e1f158056784959db8e222cc9441c4c01e86dffd76c4c",
+    "tests/test_panel_diagnostics.py": "8c7c754e49d5103077657f2c2b7efa8fa19bb42db5e18f65bb4f0d81c5381baa"
+  },
+  "reviews": [
+    {
+      "attempt": 1,
+      "lenses": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "critical": 0,
+      "important": 2,
+      "minor": 1,
+      "result": "corrected; redactor, contract edges, compact hint"
+    },
+    {
+      "attempt": 2,
+      "lenses": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "critical": 0,
+      "important": 0,
+      "minor": 0,
+      "result": "accepted; prior findings reevaluated without reopening approved criteria"
+    }
+  ],
+  "review_scope": {
+    "files": 37,
+    "out_of_scope": 0,
+    "excluded": 0,
+    "reviewer": "generic fresh context fallback; native reviewer dispatch unavailable",
+    "consumer_settings_read": false
+  },
+  "jira_review": "own disabled fixture; both plans exit 0 with ops=[]; no external publication or real config access",
+  "qa": {
+    "windows": {
+      "expected": 1000,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 9,
+      "gate_exit_code": 0,
+      "report_sha256": "ae9d2e008cd23e492f18166fae511e28f41902629037c9d2a2ae67b75b0c0460",
+      "cohort": "qa-short"
+    },
+    "linux": {
+      "expected": 1007,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 2,
+      "gate_exit_code": 0,
+      "report_sha256": "790125e601cbefe78ebf051b94a2edae7b6c8d11208eb8503ba9de227524dd90",
+      "cohort": "qa"
+    }
+  },
+  "coverage": {
+    "method": "Coverage.py executable statements intersected with added Git diff lines vs 2610a27; pure new diagnostic contract includes all executable statements.",
+    "covered": 187,
+    "total": 196,
+    "percent": 95.41,
+    "files": [
+      {
+        "file": "agent-kits/shared/diagnostic-report.py",
+        "covered": 102,
+        "total": 111,
+        "uncovered_lines": [
+          53,
+          58,
+          65,
+          77,
+          103,
+          119,
+          123,
+          130,
+          133
+        ]
+      },
+      {
+        "file": "agent-kits/shared/doctor.py",
+        "covered": 18,
+        "total": 18,
+        "uncovered_lines": []
+      },
+      {
+        "file": "skills/plugin-panel/scripts/build_panel.py",
+        "covered": 67,
+        "total": 67,
+        "uncovered_lines": []
+      }
+    ]
+  },
+  "jobs": {
+    "windows": [
+      {
+        "name": "python",
+        "exit_code": 0,
+        "duration_ms": 290004
+      },
+      {
+        "name": "coverage",
+        "exit_code": 0,
+        "duration_ms": 3218
+      },
+      {
+        "name": "lint",
+        "exit_code": 0,
+        "duration_ms": 2842
+      },
+      {
+        "name": "evals",
+        "exit_code": 0,
+        "duration_ms": 225
+      },
+      {
+        "name": "export",
+        "exit_code": 0,
+        "duration_ms": 302
+      },
+      {
+        "name": "ledger",
+        "exit_code": 0,
+        "duration_ms": 190
+      }
+    ],
+    "linux": [
+      {
+        "name": "python",
+        "exit_code": 0,
+        "duration_ms": 61034
+      },
+      {
+        "name": "export",
+        "exit_code": 0,
+        "duration_ms": 492
+      }
+    ]
+  },
+  "rejected_windows_qa": {
+    "cohort": "qa",
+    "expected": 998,
+    "skipped": 9,
+    "unexpected": 2,
+    "exit_code": 1,
+    "report_sha256": "e3efc50d3cac207252d076f444791747a7dc1edbf6bfe59a99ea02d5c756f2e5",
+    "cause": "Preexisting raw doctor filename truncation with long absolute fixture paths; not a regression in portable diagnostics."
+  },
+  "path_causal_diagnosis": {
+    "baseline_revision": "2610a27",
+    "comparison": "doctor only; current public helpers and identical tests",
+    "cohorts": [
+      {
+        "cohort": "actual-long",
+        "source_version": "actual",
+        "fixture_kind": "long",
+        "basetemp_chars": 161,
+        "exit_code": 1,
+        "source_hashes": {
+          "agent-kits/shared/doctor.py": "c8a123bbaf2118d494f7eb1b0e709c6654d945b587c165d214bd74a9906bfd51",
+          "agent-kits/shared/test_doctor.py": "d4eaf7ebd79d6aea52722a98256bf54dd9bb205edb61211b76e62a23b2a174d0",
+          "agent-kits/shared/capabilities.py": "cf70c3821115e1cd196262e2f2e1888e60845af2e32aa3c973ce96e3b8dcdf6e"
+        },
+        "tests": [
+          {
+            "id": "agent-kits/shared/test_doctor.py::test_bloque_capacidades_via_capabilities_real_taxonomy_invalida",
+            "result": "fail"
+          },
+          {
+            "id": "agent-kits/shared/test_doctor.py::test_t10_training_config_invalida_es_error_con_fichero_y_campo",
+            "result": "fail"
+          }
+        ],
+        "sanitization_observations": [
+          {
+            "test_id": "agent-kits/shared/test_doctor.py::test_bloque_capacidades_via_capabilities_real_taxonomy_invalida",
+            "token": "taxonomy.json",
+            "input_chars": 239,
+            "output_chars": 200,
+            "token_input_offset": 226,
+            "token_preserved": false
+          },
+          {
+            "test_id": "agent-kits/shared/test_doctor.py::test_t10_training_config_invalida_es_error_con_fichero_y_campo",
+            "token": "id_prefix",
+            "input_chars": 69,
+            "output_chars": 69,
+            "token_input_offset": 0,
+            "token_preserved": true
+          },
+          {
+            "test_id": "agent-kits/shared/test_doctor.py::test_t10_training_config_invalida_es_error_con_fichero_y_campo",
+            "token": "training.json",
+            "input_chars": 239,
+            "output_chars": 200,
+            "token_input_offset": 226,
+            "token_preserved": false
+          }
+        ]
+      },
+      {
+        "cohort": "actual-short",
+        "source_version": "actual",
+        "fixture_kind": "short",
+        "basetemp_chars": 52,
+        "exit_code": 0,
+        "source_hashes": {
+          "agent-kits/shared/doctor.py": "c8a123bbaf2118d494f7eb1b0e709c6654d945b587c165d214bd74a9906bfd51",
+          "agent-kits/shared/test_doctor.py": "d4eaf7ebd79d6aea52722a98256bf54dd9bb205edb61211b76e62a23b2a174d0",
+          "agent-kits/shared/capabilities.py": "cf70c3821115e1cd196262e2f2e1888e60845af2e32aa3c973ce96e3b8dcdf6e"
+        },
+        "tests": [
+          {
+            "id": "agent-kits/shared/test_doctor.py::test_bloque_capacidades_via_capabilities_real_taxonomy_invalida",
+            "result": "pass"
+          },
+          {
+            "id": "agent-kits/shared/test_doctor.py::test_t10_training_config_invalida_es_error_con_fichero_y_campo",
+            "result": "pass"
+          }
+        ],
+        "sanitization_observations": [
+          {
+            "test_id": "agent-kits/shared/test_doctor.py::test_bloque_capacidades_via_capabilities_real_taxonomy_invalida",
+            "token": "taxonomy.json",
+            "input_chars": 131,
+            "output_chars": 131,
+            "token_input_offset": 118,
+            "token_preserved": true
+          },
+          {
+            "test_id": "agent-kits/shared/test_doctor.py::test_t10_training_config_invalida_es_error_con_fichero_y_campo",
+            "token": "id_prefix",
+            "input_chars": 69,
+            "output_chars": 69,
+            "token_input_offset": 0,
+            "token_preserved": true
+          },
+          {
+            "test_id": "agent-kits/shared/test_doctor.py::test_t10_training_config_invalida_es_error_con_fichero_y_campo",
+            "token": "training.json",
+            "input_chars": 131,
+            "output_chars": 131,
+            "token_input_offset": 118,
+            "token_preserved": true
+          }
+        ]
+      },
+      {
+        "cohort": "baseline-long",
+        "source_version": "baseline",
+        "fixture_kind": "long",
+        "basetemp_chars": 163,
+        "exit_code": 1,
+        "source_hashes": {
+          "agent-kits/shared/doctor.py": "d88aa8be838c00f808dd0e64c81ec2b1dccaeea85e858a629886f73e5debf261",
+          "agent-kits/shared/test_doctor.py": "d4eaf7ebd79d6aea52722a98256bf54dd9bb205edb61211b76e62a23b2a174d0",
+          "agent-kits/shared/capabilities.py": "cf70c3821115e1cd196262e2f2e1888e60845af2e32aa3c973ce96e3b8dcdf6e"
+        },
+        "tests": [
+          {
+            "id": "agent-kits/shared/test_doctor.py::test_bloque_capacidades_via_capabilities_real_taxonomy_invalida",
+            "result": "fail"
+          },
+          {
+            "id": "agent-kits/shared/test_doctor.py::test_t10_training_config_invalida_es_error_con_fichero_y_campo",
+            "result": "fail"
+          }
+        ],
+        "sanitization_observations": [
+          {
+            "test_id": "agent-kits/shared/test_doctor.py::test_bloque_capacidades_via_capabilities_real_taxonomy_invalida",
+            "token": "taxonomy.json",
+            "input_chars": 241,
+            "output_chars": 200,
+            "token_input_offset": 228,
+            "token_preserved": false
+          },
+          {
+            "test_id": "agent-kits/shared/test_doctor.py::test_t10_training_config_invalida_es_error_con_fichero_y_campo",
+            "token": "id_prefix",
+            "input_chars": 69,
+            "output_chars": 69,
+            "token_input_offset": 0,
+            "token_preserved": true
+          },
+          {
+            "test_id": "agent-kits/shared/test_doctor.py::test_t10_training_config_invalida_es_error_con_fichero_y_campo",
+            "token": "training.json",
+            "input_chars": 241,
+            "output_chars": 200,
+            "token_input_offset": 228,
+            "token_preserved": false
+          }
+        ]
+      },
+      {
+        "cohort": "baseline-short",
+        "source_version": "baseline",
+        "fixture_kind": "short",
+        "basetemp_chars": 52,
+        "exit_code": 0,
+        "source_hashes": {
+          "agent-kits/shared/doctor.py": "d88aa8be838c00f808dd0e64c81ec2b1dccaeea85e858a629886f73e5debf261",
+          "agent-kits/shared/test_doctor.py": "d4eaf7ebd79d6aea52722a98256bf54dd9bb205edb61211b76e62a23b2a174d0",
+          "agent-kits/shared/capabilities.py": "cf70c3821115e1cd196262e2f2e1888e60845af2e32aa3c973ce96e3b8dcdf6e"
+        },
+        "tests": [
+          {
+            "id": "agent-kits/shared/test_doctor.py::test_bloque_capacidades_via_capabilities_real_taxonomy_invalida",
+            "result": "pass"
+          },
+          {
+            "id": "agent-kits/shared/test_doctor.py::test_t10_training_config_invalida_es_error_con_fichero_y_campo",
+            "result": "pass"
+          }
+        ],
+        "sanitization_observations": [
+          {
+            "test_id": "agent-kits/shared/test_doctor.py::test_bloque_capacidades_via_capabilities_real_taxonomy_invalida",
+            "token": "taxonomy.json",
+            "input_chars": 131,
+            "output_chars": 131,
+            "token_input_offset": 118,
+            "token_preserved": true
+          },
+          {
+            "test_id": "agent-kits/shared/test_doctor.py::test_t10_training_config_invalida_es_error_con_fichero_y_campo",
+            "token": "id_prefix",
+            "input_chars": 69,
+            "output_chars": 69,
+            "token_input_offset": 0,
+            "token_preserved": true
+          },
+          {
+            "test_id": "agent-kits/shared/test_doctor.py::test_t10_training_config_invalida_es_error_con_fichero_y_campo",
+            "token": "training.json",
+            "input_chars": 131,
+            "output_chars": 131,
+            "token_input_offset": 118,
+            "token_preserved": true
+          }
+        ]
+      }
+    ],
+    "method_identity": {
+      "_sanear_detalle": {
+        "actual": "032e1a84a047cda936bb7747511feeaa5ddb37c6d9de156570f7e076f8da20e9",
+        "baseline": "032e1a84a047cda936bb7747511feeaa5ddb37c6d9de156570f7e076f8da20e9",
+        "equal": true
+      },
+      "_linea_capacidad": {
+        "actual": "8381381f40bb18fadcaa23323a54b473f3a6951b217d78fffae869e3162dec36",
+        "baseline": "8381381f40bb18fadcaa23323a54b473f3a6951b217d78fffae869e3162dec36",
+        "equal": true
+      },
+      "bloque_capacidades": {
+        "actual": "a75d7fd8331f15018aa1141ed17b8c59b0b2a7d9845589ad23e5c63b9dc1b63e",
+        "baseline": "a75d7fd8331f15018aa1141ed17b8c59b0b2a7d9845589ad23e5c63b9dc1b63e",
+        "equal": true
+      }
+    },
+    "confirmed_cause": "Absolute filename path is truncated at 200 characters; long paths omit filename, short paths preserve it.",
+    "product_fix_applied": false,
+    "harness_adjustment_legitimate": true,
+    "remaining_limitation": "Preexisting raw doctor filename truncation for long absolute paths; separate regression required for a product fix."
+  },
+  "linux_runtime": {
+    "image_id": "sha256:ee6b1d8543257a61226665c0c2168c3b565885c8af50b846f2d46b19aa0630ac",
+    "network": "none",
+    "init": true
+  },
+  "linux_eol": {
+    "shell_lf_normalized": [
+      "hooks/implementer-guardrail.sh",
+      "hooks/ledger-lint-warn.sh",
+      "hooks/progress-line.sh",
+      "hooks/session-context.sh",
+      "hooks/session-journal.sh",
+      "hooks/subagent-progress.sh",
+      "hooks/user-prompt-capture.sh",
+      "statusline/roadmap-statusline.sh"
+    ],
+    "mode": "0755"
+  },
+  "edge": {
+    "browser": "Edge",
+    "browser_version": "154.0.4258.62",
+    "playwright_version": "1.63.0",
+    "accepted": {
+      "phase": "green",
+      "stats": {
+        "startTime": "2026-10-09T12:16:45.362Z",
+        "duration": 41969.112,
+        "expected": 16,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "report_sha256": "942f1cb6dab96f812f609af74f6b2197aa20698a337c042ec3bbdd8f122e039a",
+      "failures": []
+    },
+    "rejected": {
+      "phase": "red",
+      "stats": {
+        "startTime": "2026-10-09T12:15:09.116Z",
+        "duration": 42571.61,
+        "expected": 14,
+        "skipped": 0,
+        "unexpected": 2,
+        "flaky": 0
+      },
+      "report_sha256": "0050d7a05278ac8d119281d8b6f201bccffb0cb43bd166c0d1dc81b944958a1c",
+      "failures": [
+        {
+          "test": "D-01 imported diagnostics keeps historical scope and hook status separate",
+          "status": "failed",
+          "message": "Error: browserType.launch: Target page, context or browser has been closed"
+        },
+        {
+          "test": "D-07 revisiting the same priority fragment restores a filtered-out row",
+          "status": "failed",
+          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveValue\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed"
+        }
+      ]
+    },
+    "source_sha256": {
+      "skills/plugin-panel/references/panel.html": "c45b2d205ad64d768f5c04ac449a4545aa4d2c259996b65c3ad95ce5792291d2",
+      "skills/plugin-panel/scripts/build_panel.py": "348f9fd3988a4679f6b6dd188cfa56326732a5bfd2f7db04da3618af5a7a762a",
+      "agent-kits/shared/diagnostic-report.py": "b7a4842abc36b9dddfe2cea3e7c4ac27732016d04630e55cadcbb5a9c807114c",
+      "docs/roadmap/2026-10-07-catalog-capabilities/testing/panel-diagnostics.spec.cjs": "0c66ce6a119172048dddf13e52df5c992b5602596e7120c9b771f6b3594271e5",
+      "docs/roadmap/2026-10-07-catalog-capabilities/testing/panel-diagnostics.config.cjs": "04339db6c0fc5eed3946bcda2fd47fe274f48578e4e6ac66aa82f213c93ff3b1",
+      "docs/roadmap/2026-10-07-catalog-capabilities/testing/panel-hooks.spec.cjs": "22e63381f765056d7a8f15d494ecb423c888914ddd0f2cb6d6a619563b4bf406"
+    },
+    "cohort": "owned synthetic report/project/public snapshot; UI code unchanged in final QA",
+    "network": "test assertions observe zero HTTP(S) page requests",
+    "privacy": "private title/detail/command and body sentinels absent from rendered HTML",
+    "limits": "RED D01 rejected before page execution due transient Edge launch; GREEN all 16 passed with retries=0; generic prior launch failure not classified as product failure"
+  },
+  "isolation": {
+    "public_source_only": true,
+    "excluded_before_read": [
+      ".claude/",
+      "docs/knowledge/",
+      "scratchpad/",
+      ".venv/",
+      "bytecode",
+      "root generated panel.html"
+    ],
+    "homes": "owned synthetic HOME/USERPROFILE/runtime/XDG/TEMP/PROGRAMDATA; native CLI stubs, no actual consumer configurations",
+    "native_hooks_executed": false,
+    "memory_backends_activated": false,
+    "upstream_code_executed": false
+  },
+  "contract": {
+    "version": 1,
+    "max_bytes": 65536,
+    "max_rows": 512,
+    "max_blocks": 8,
+    "public_label_count": 49,
+    "source_hash": "decoded UTF-8 text without BOM; not source file bytes",
+    "scope": "normalized absolute path spelling; not physical identity or anonymization",
+    "timestamps": "historical; older than 24h marked old; future rejected",
+    "hook_load_execution": "remain unknown",
+    "automatic_doctor_execution": false,
+    "raw_details_paths_commands_exported": false
+  },
+  "limits": [
+    "Directed suites and owned browser fixtures; not complete repository CI or native runtime acceptance.",
+    "Portable doctor report is not producer authentication or a live health certificate.",
+    "No live server, activity producers or visual approval UI delivered by this block; these remain documented next steps.",
+    "Raw doctor errors can omit filenames after truncating long absolute paths; product correction remains open in the commands block.",
+    "New skills paused at 79/293 evaluated, 214 remaining; global objective remains open."
+  ]
+}

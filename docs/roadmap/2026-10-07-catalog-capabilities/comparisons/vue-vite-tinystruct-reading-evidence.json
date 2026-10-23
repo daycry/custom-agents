@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S278",
+    "S281",
+    "S289",
+    "S290"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S278",
+      "sha256": "6f5d16090aa5b1913002480ecfb00feb3ad894a05c9b84d8f3645e2297b6024b",
+      "bytes": 11879,
+      "lines": 279,
+      "read_ranges": [
+        [
+          1,
+          279
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "references/architecture.md",
+          "sha256": "68b3e856ca7b4e1c7ea6ea49b90dbf9937ff304070f398eb33a67f7f4aeee87f",
+          "bytes": 4057,
+          "lines": 90,
+          "read_ranges": [
+            [
+              1,
+              90
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "references/data-handling.md",
+          "sha256": "4f14344808d3468228cb2f99215c6a340f25e3e34217147709c60f579742bdcf",
+          "bytes": 1893,
+          "lines": 60,
+          "read_ranges": [
+            [
+              1,
+              60
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "references/database.md",
+          "sha256": "904b731361ad3cbdededc50c55ad782676441090a252e88a618e4e496c09df75",
+          "bytes": 2648,
+          "lines": 99,
+          "read_ranges": [
+            [
+              1,
+              99
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "references/routing.md",
+          "sha256": "5accd76c48394eeb0b8f97733c1e928a58c0ee28080951c66979b35b0029cd24",
+          "bytes": 2477,
+          "lines": 64,
+          "read_ranges": [
+            [
+              1,
+              64
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "references/system-usage.md",
+          "sha256": "6ff5f0ffab18340a298712e93170ff2e3207785c6ec3eb65b3e7f84cae2f06bf",
+          "bytes": 2881,
+          "lines": 97,
+          "read_ranges": [
+            [
+              1,
+              97
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "references/testing.md",
+          "sha256": "a4c82b7b9b9877049dcba49b8dbfd88e2713e32ad90ac37f598f9be6b2b864f4",
+          "bytes": 1988,
+          "lines": 72,
+          "read_ranges": [
+            [
+              1,
+              72
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    },
+    {
+      "id": "S281",
+      "sha256": "cb6c17f7ae28a53b31fb2904180521ccdaa31ad0deafa96c6b4f5b2f4bfea480",
+      "bytes": 4809,
+      "lines": 135,
+      "read_ranges": [
+        [
+          1,
+          135
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S289",
+      "sha256": "2238d353196b6732ba897e32f1872078fde7a9d11f5aca43b53da8bfc7e3917d",
+      "bytes": 17115,
+      "lines": 450,
+      "read_ranges": [
+        [
+          1,
+          450
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S290",
+      "sha256": "65e322383510de25bd5fc6fce4b0980d99d38b341f09bea662bd9a410e20c016",
+      "bytes": 13182,
+      "lines": 471,
+      "read_ranges": [
+        [
+          1,
+          471
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/stack-practices/SKILL.md",
+      "sha256": "c44933dab261ee24ae0daf38b9d1d11e02084ad04cd05fb84d03ab2110f60751"
+    },
+    {
+      "path": "skills/stack-practices/references/react.md",
+      "sha256": "97cc70d0da0fb6e9686222704084c7c0309f994d492b0487abb96a6bfb29c4d5"
+    },
+    {
+      "path": "skills/frontend-quality/SKILL.md",
+      "sha256": "7b6916e32d90731b8f81ee3eb36695dd9f62d498f132ac61bd7b9fd39066f4b0"
+    },
+    {
+      "path": "skills/frontend-quality/references/interaction-performance.md",
+      "sha256": "aa2fbb759c0854e7db4b4db13141469f10573e19138301078b9ad0846157322f"
+    },
+    {
+      "path": "skills/backend-practices/references/contracts-data.md",
+      "sha256": "589af44a6c37b7355ed8d088c7a8e341b42a131ce5b0d1c89c06e6cde2d2bdab"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "67702b1115bc6d57c4eafbf9dab8d10abaab6b333d4ab330d828f30353770c96"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-java-jira-knowledge.md",
+      "sha256": "9598ce2e852c0ad370debbdaad73a2920d7e5e3d0ae749c367a59ccd91d86af2"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-installer-golang.md",
+      "sha256": "c8a8021a35728ed521faaa84e9586056e06f870f7c65d7db0ec149e27f98ed60"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-frontend-direction-patterns-slides.md",
+      "sha256": "711feb5f7acc221c50d903588e575d52179bd84b27ca45c9202d56239315a94a"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-django-security-testing-verification.md",
+      "sha256": "76470a800ffa74683c8fc56ebc24a9b4f923e335598b3fe001838bd8bbe0c3e2"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-motion-next-nuxt.md",
+      "sha256": "92f43afe0f48a2b634bd1469554d4e2dbeeeb670b5b14c578c632e611149937e"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

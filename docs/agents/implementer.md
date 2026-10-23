@@ -19,7 +19,7 @@ flowchart LR
 - Implementa cada tarea `T-XX` cumpliendo sus criterios de aceptación. Con `tdd: true`, sigue **RED-GREEN-REFACTOR** con la **evidencia del rojo** registrada en el ledger (`RED: <test> falló con <error> · <fecha>`); tareas sin código testeable se declaran `TDD n/a`.
 - **Regenera lo generado antes de cerrar la tarea** (arista E2 de [`CONTRACTS.md`](CONTRACTS.md)): si tocó `commands/`, `agents/` o `hooks/`, ejecuta `python3 scripts/export-interop.py` y pega la evidencia de `python3 scripts/export-interop.py --check` (exit 0) en el ledger. La Lente A corre ese mismo `--check` por su cuenta, así que llegar a la revisión con `interop/` desincronizado es un gap seguro. Y actualiza en la MISMA tarea las piezas que **describen** lo tocado (arista E3), que el `planner` ya dejó en `Archivos`.
 - **Mide cada tarea** con `usage-meter.py` (tokens reales → horas-IA `(medido)` en el ledger, que son las que se imputan a Jira).
-- Mantiene **`tasks.md` como ledger canónico**: marca cada tarea (checkbox + estado) y actualiza el resumen a medida que avanza.
+- Mantiene **`tasks.md` como ledger canónico**: marca cada tarea (checkbox + estado) y actualiza el resumen a medida que avanza. Al marcarla `completado` escribe además el campo opcional **`- **Cerrada**: AAAA-MM-DD`** (la fecha de cierre, mismo patrón que `Changelog`): lo lee el burndown de la página Plan del panel (`agent-kits/shared/ledger-view.py`) y `ledger-lint` valida solo su formato y que no sea anterior a la creación del ledger.
 - Hace **handoff a `qa`** al terminar. La documentación (`documenter`) va después, solo si `qa` queda en verde.
 
 ## Qué NO hace
@@ -36,16 +36,46 @@ fallando o criterios sin cumplir.
 
 ## Guardrails deterministas (hook de guardia con alcance del agente)
 
-Sus reglas duras no dependen de la prosa: el frontmatter `hooks:` de `agents/implementer.md`
-registra un hook `PreToolUse` (`hooks/implementer-guardrail.sh` → `agent-kits/shared/guardrail-check.py`,
-con tests) que solo corre mientras trabaja este agente — nunca es global, porque `planner`/`evaluator`
-escriben en `docs/roadmap/` legítimamente (ADR-007). Deniega, con la razón y cómo proceder:
+Sus reglas duras usan `agent-kits/shared/guardrail-check.py`. El dispatcher
+`agent-kits/shared/native-guardrail.py` selecciona los IDs propios exactos de
+`implementer` y `architect` en Claude, Codex y OpenCode. No restringe agentes
+ajenos por parecido del nombre. Claude ignora hooks del frontmatter de agentes
+de plugin; una copia local conserva `hooks/implementer-guardrail.sh`.
+El registro global no convierte las reglas del implementer en reglas para
+`planner`/`evaluator`, que escriben en `docs/roadmap/` legítimamente.
+Las reglas del implementer deniegan con una razón y cómo proceder:
 
 | Regla (`dev.json` → `guardrails`) | Qué bloquea |
 |---|---|
-| `alcance` | Write/Edit/MultiEdit/NotebookEdit sobre `docs/roadmap/**` que no sea `tasks.md` (incl. `testing/`, de qa) y sobre `docs/security-scan/**`; rutas case-insensitive (`Docs/Roadmap/…` también). `docs/knowledge/**` se permite (ADR). En la raíz de `docs/roadmap/` solo se permite `README.md` (índice de iniciativas, que el cierre de cada iniciativa actualiza); `CALIBRATION.md`, `DRIFT.md` y `BACKLOG.md` quedan bloqueados **por diseño**: los escriben `/retro`, `/spec-drift` y `/pm-backlog`, que son comandos y no pasan por este hook. |
+| `alcance` | Write/Edit/MultiEdit/NotebookEdit sobre `docs/roadmap/**` que no sea `tasks.md` (incl. `testing/`, de qa) y sobre `docs/security-scan/**`; rutas case-insensitive (`Docs/Roadmap/…` también). `docs/knowledge/**` sigue permitido por la política de rutas histórica; ello no autoriza nuevas escrituras de memoria fuera del servicio compartido ni prueba confinamiento nativo de esa vía. En la raíz de `docs/roadmap/` solo se permite `README.md` (índice de iniciativas, que el cierre de cada iniciativa actualiza); `CALIBRATION.md`, `DRIFT.md` y `BACKLOG.md` quedan bloqueados **por diseño**: los escriben `/retro`, `/spec-drift` y `/pm-backlog`, que son comandos y no pasan por este hook. |
 | `ramaPrincipal` | Escrituras fuera del ledger con HEAD en `main`/`master` («trabaja en `feature/<slug>`»). Sin git → no aplica. |
-| `git` | `git push --force|-f|--force-with-lease`, `git branch -D`, `git checkout|switch main|master` desde una rama de trabajo, `rm -rf` de `/`, `~`, `.git`. Todo lo demás pasa. |
+| `git` | `git push --force|-f|--force-with-lease`, refspec `+rama`, `git branch -D`, `git checkout|switch main|master` desde una rama de trabajo y `rm -rf` de `/`, `~`, `.git` o `.`. También `git commit` con verificación desactivada (`--no-verify`/`-n`) o un override explícito de `core.hooksPath`. Órdenes con efecto fuera del repo: `npm|pnpm|yarn publish`, `docker|podman system|volume prune`, `kubectl delete` (salvo `--dry-run`) y `DROP TABLE|DATABASE|SCHEMA` pasado a un cliente SQL; análisis literal (no ve SQL desde fichero ni por tubería). |
+
+La regla `git` también protege al `architect`. El parser consume valores de
+opciones de commit, incluidos prefijos largos unívocos, y respeta `--` antes
+de las rutas: un mensaje con `-n` no es un flag ejecutable. Un `--verify` o
+`--no-no-verify` posterior restaura la verificación;
+`--amend` por sí solo no la desactiva. Un override de `core.hooksPath` durante
+el commit requiere revisión explícita, incluso si apunta a otra carpeta válida.
+
+Cada orden conserva su propia decisión, también entre líneas. La puntuación
+entre comillas es texto; los comentarios no aportan flags. Un salto de línea
+escapado conserva la orden. Los wrappers reconocen clusters de sus flags
+soportados y valores pegados, como `exec -cl` y `env -C.`.
+
+El parser reconoce asignaciones literales y estos wrappers: `env -i` o
+`--ignore-environment`; `-u NAME`, `-uNAME` o `--unset=NAME`; `-C DIR` o
+`--chdir=DIR`; `command -p`; `exec -a NAME`, `-c` o `-l`. Analiza opciones
+Git `-c` y `--config-env`, `GIT_CONFIG_COUNT` con sus claves y
+`GIT_CONFIG_PARAMETERS`. La comparación del nombre base del ejecutable ignora
+mayúsculas y contempla nombres Windows con `.exe`.
+
+Conserva la recursión existente de shell `-c` y `eval`, hasta profundidad 3.
+No expande variables, resuelve aliases, abre scripts ni inspecciona
+configuración Git externa. El dispatcher reconoce la tool PowerShell, pero
+sus asignaciones y scripts quedan fuera de esta gramática literal. No
+constituye un sandbox. `{"git": false}` desactiva esta regla en
+`.claude/dev.json` → `guardrails`.
 
 Degradación: sin `python3` el hook avisa una vez (`systemMessage`) y no bloquea; un error interno
 del script permite (nunca bloqueo fantasma). Desactivación: `.claude/dev.json` →
@@ -74,7 +104,14 @@ excluido es lo que se quería excluir; el gap aparece si ahí sale código sin d
 
 ## Memoria técnica del proyecto
 
-Antes de tocar código, lee el índice de `docs/knowledge/` (si existe) y abre las entradas de `adr/` + `gotchas/` que apliquen (decisiones que restringen la implementación, trampas ya comprobadas) — paso compartido `agent-kits/shared/knowledge-check.md`. Si resolver una ambigüedad del plan cruza el umbral de `agent-kits/shared/knowledge-write.md` (cierra una alternativa y afecta a 2+ piezas, o se tomó en una puerta), escribe un ADR `estado: propuesta` en `docs/knowledge/adr/` en vez de dejarlo solo como nota en `tasks.md`.
+Consulta memoria pertinente con `agent-kits/shared/knowledge-check.md`: legado aceptado y
+approved conservan estados/autoridad; propuestas no se aplican como doctrina. Una ambigüedad resuelta que cruza el umbral se propone con decisión y evidencia del código.
+Usa `agent-kits/shared/knowledge-curation.py propose --root <proyecto> --filename <nombre.md>
+--producer implementer` con Markdown por stdin y salida JSON. El servicio redacta, crea sólo pending
+sin `estado` y devuelve ruta/SHA. No escribe ni promueve nuevas entradas en legado. Sin servicio,
+informa pendiente y no recurre a Write/Edit. Curator decide; `apply` persiste ligado al SHA original,
+con motivo y metadatos válidos. Conflicto/alto impacto requieren resolución humana, no fecha.
+[Contrato](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).
 
 ## Ledger canónico
 
@@ -101,3 +138,12 @@ cuando un despacho falla dos veces.
 - Agente `qa` (handoff de pruebas al terminar).
 - Kit shared: `usage-meter.py` (medición por tarea), `constitution-check.md`, `ledger-lint.py`.
 - Config `.claude/dev.json` (opt-in: `tdd` · `worktree` · `subagentes`; defaults off).
+
+## Contexto técnico común
+
+Aplica `agent-kits/shared/capability-check.md` con tu rol y el paquete/áreas de
+la tarea. La selección comparte criterios y escenarios del ledger; consulta
+solo mapas/referencias pertinentes. Stack-practices consolida PHP/CodeIgniter,
+Python y React. Los métodos, artefactos y puertas del rol conservan su dueño.
+Sin selector o guía disponible, avisa del límite y continúa con el contrato de
+la tarea; no confundas selección con ejecución, tools o permisos.

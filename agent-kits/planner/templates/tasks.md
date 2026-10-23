@@ -19,12 +19,20 @@
   `verificacion: obligatoria` y `ledger-lint.py` falla (exit 1) si una tarea no la tiene: sin
   verificación ejecutable la tarea no está bien definida. El implementer la ejecuta al cerrar la
   tarea y pega la salida; `task-brief.py` la inyecta en el brief del subagente.
+  Replanificar (regla del planner): los IDs no se renumeran ni se reutilizan — lo nuevo toma el
+  siguiente número libre; una tarea cancelada se queda con `Estado: cancelado` y el motivo
+  autorizado en `Notas` (cuenta en el total del resumen); una `completado` no se reabre; la
+  re-estimación cambia `est.` y deja el valor anterior en `Notas`; revalida las `Dependencias`
+  que apuntaban a la tarea tocada. Nada de lo ejecutado (revisiones, `RED:`, salidas) se borra.
 -->
 ---
 generacion:
   inicio: {{ISO-8601}}
   fin: {{ISO-8601}}
   fuente: medido          # medido | estimado (degradación: nunca bloquea)
+  # Si close devuelve fuente_id, ventana_id y revision_medicion, copia los tres
+  # campos sin modificarlos. Omítelos si no aparecen; no inventes placeholders.
+  # Conserva también medicion_persistida como booleano si aparece, junto con sus avisos.
   tokens_reales: { entrada: {{N}}, salida: {{N}}, cache_creacion: {{N}}, cache_lectura: {{N}} }
   eur: {{N.NN | null}}
   horas_ia: {{N.NN}}
@@ -72,6 +80,9 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 (skill `changelog-sync`, tope 200 caracteres): sin jerga del ledger ni nombres de
 fichero. Sin el campo —o con el `{{…}}` sin sustituir— el bullet degrada al título. -->
 - **Changelog**: {{qué cambia para quien USA el proyecto, en una frase}}
+<!-- Cerrada: OPCIONAL, la escribe quien marca la tarea `completado` (implementer / /dev-cycle):
+`- **Cerrada**: AAAA-MM-DD` con la fecha del día. Lo lee el burndown del panel; `ledger-lint`
+valida solo el formato y que no sea anterior a la creación del ledger. Déjalo fuera al planificar. -->
 - **Estado**: borrador
 - **Tiempo humano**: est. {{0.5}}h · real —
 - **Tiempo IA (ejec.)**: est. {{X}}h · real —

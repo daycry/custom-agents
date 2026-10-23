@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": ["S104", "S105", "S106"],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {"id": "S104", "sha256": "5ceac13c9b99c97340f9a47c081737aceee1f803ed9045b7fbc980243b01db03", "bytes": 23194, "lines": 436, "read_ranges": [[1, 436]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S105", "sha256": "4f239588e43f7ff0d6415cdcd2c85528a854cdd712986c00c690c6d3cb09491e", "bytes": 8255, "lines": 243, "read_ranges": [[1, 243]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S106", "sha256": "e00991a3f4d47fcf1529dd74a080afcf46137dc5061e70dc6e3da7b27f2ae3f3", "bytes": 12861, "lines": 443, "read_ranges": [[1, 443]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []}
+  ],
+  "own_counterparts": [
+    {"path": "skills/frontend-quality/references/interaction-performance.md", "sha256": "aa2fbb759c0854e7db4b4db13141469f10573e19138301078b9ad0846157322f"},
+    {"path": "skills/stack-practices/references/react.md", "sha256": "97cc70d0da0fb6e9686222704084c7c0309f994d492b0487abb96a6bfb29c4d5"},
+    {"path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-trade-flutter-observability.md", "sha256": "2b6aedf803e3036a9659a6599028f3e680e8b3bee85f4778213cf1345c5852e1"}
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

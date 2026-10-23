@@ -2,19 +2,19 @@
 """
 guardrail-check.py — guardrails DETERMINISTAS del `implementer` (hook PreToolUse).
 
-(Iniciativa deterministic-guardrails: las reglas «no toques docs/roadmap/ salvo tasks.md»,
-«trabaja en rama» y «sin git destructivo» pasan de prosa a script con tests. Lo invoca el
-wrapper `hooks/implementer-guardrail.sh`, registrado SOLO en el frontmatter `hooks:` de
-`agents/implementer.md` — nunca en `hooks/hooks.json` global: planner/evaluator/analyst
-escriben en docs/roadmap/ legítimamente. Ver docs/knowledge/adr/ADR-007.)
+Las reglas se comparten entre wrappers locales de agentes y el dispatcher
+native-guardrail.py. El dispatcher selecciona solo IDs propios desde metadata
+nativa; planner/evaluator/analyst y la sesión principal mantienen sus permisos.
+Los hooks del frontmatter no se ejecutan en agentes Claude de plugin ni en TOML
+Codex. Registro y límites: docs/knowledge/adr/ADR-023-guardias-por-identidad-nativa.md.
 
 Uso:
   guardrail-check.py pre-tool [--project-dir DIR] [--agent implementer|architect]   # JSON del hook por stdin
   (sin --agent: $CLAUDE_AGENT_NAME si existe, si no `implementer`)
 
 Modo `architect` (parity-core T-fix1, wrapper hooks/architect-guardrail.sh; enmienda a ADR-007):
-  alcance        permitido SOLO `docs/roadmap/<inic>/design.md`, `docs/knowledge/adr/**` y
-                 `docs/knowledge/README.md`; `spec.md`/`improvement-plan.md` de la iniciativa SOLO con
+  alcance        permitido SOLO `docs/roadmap/<inic>/design.md`; memoria mediante servicio,
+                 sin Write/Edit directo. `spec.md`/`improvement-plan.md` de la iniciativa SOLO con
                  la herramienta Edit y si `old_string`/`new_string` contienen `design:` o `design.md`
                  (el enlace de la regla 7) — un Write completo o un Edit sin esa marca → deny. Riesgo
                  asumido y documentado: un Edit que incluya `design:` junto a otros cambios pasa (el
@@ -25,16 +25,22 @@ Modo `architect` (parity-core T-fix1, wrapper hooks/architect-guardrail.sh; enmi
 Reglas (cada una desactivable en `.claude/dev.json` → `"guardrails": {…}`):
   alcance        Write/Edit/MultiEdit/NotebookEdit sobre docs/roadmap/** que no sea `tasks.md`
                  (incl. testing/**, que es de qa) → deny. docs/security-scan/** → deny.
-                 docs/knowledge/** → permitido (ADR del implementer). Rutas CASE-INSENSITIVE
+                 docs/knowledge/** → deny en herramientas directas; conocimiento nuevo mediante
+                 knowledge-curation.py. Rutas CASE-INSENSITIVE
                  (`Docs/Roadmap/x/Spec.md` también deny: Windows/macOS no distinguen mayúsculas).
                  Excepción en la raíz de docs/roadmap/: `README.md` (índice de iniciativas, que el
                  cierre de cada iniciativa actualiza) → permitido. `CALIBRATION.md`, `DRIFT.md` y
                  `BACKLOG.md` siguen deny POR DISEÑO: los escriben /retro, /spec-drift y /pm-backlog,
                  que son comandos (no pasan por este hook), no el implementer.
-  git            Bash: `git push --force|-f|--force-with-lease` → deny; `git branch -D` → deny;
+  git            Bash: `git commit --no-verify|-n` y overrides explícitos de core.hooksPath en commit → deny;
+                 `git push --force|-f|--force-with-lease` → deny; `git branch -D` → deny;
                  `git checkout|switch main|master` → deny solo si la rama actual es una feature;
                  `rm -rf` sobre `/`, `~`, `.git`, `.` → deny; refspec `+rama` en push = force;
-                 se analizan también las cadenas de `sh -c "…"`/`bash -c '…'`. Todo lo demás permitido.
+                 se analizan también las cadenas de `sh -c "…"`/`bash -c '…'`.
+                 Misma regla, órdenes con efecto fuera del repo: `npm|pnpm|yarn publish`,
+                 `docker|podman system|volume prune`, `kubectl delete` (las dos con `--dry-run` se
+                 permiten) y `DROP TABLE|DATABASE|SCHEMA` como argumento de psql/mysql/mariadb/sqlite3
+                 → deny. Análisis literal: SQL desde fichero o tubería no se ve. Todo lo demás permitido.
   ramaPrincipal  HEAD en main/master + Write/Edit fuera de docs/roadmap/**/tasks.md → deny.
                  Sin git → no aplica.
   `"guardrails": false` apaga todo (aviso una vez por proyecto vía systemMessage).
@@ -55,6 +61,7 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -67,12 +74,19 @@ DEFAULTS = {"alcance": True, "git": True, "ramaPrincipal": True}
 
 
 # ---------------------------------------------------------------- config ----
-def load_config(project_dir):
+def load_config(project_dir, max_bytes=None):
     """Devuelve (config dict con las 3 claves, activo bool). Nunca lanza."""
     path = os.path.join(project_dir, ".claude", "dev.json")
     try:
-        with open(path, encoding="utf-8") as fh:
-            data = json.load(fh)
+        if max_bytes is None:
+            with open(path, encoding="utf-8") as fh:
+                data = json.load(fh)
+        else:
+            with open(path, "rb") as fh:
+                raw = fh.read(max_bytes + 1)
+            if len(raw) > max_bytes:
+                raise ValueError("config limit")
+            data = json.loads(raw.decode("utf-8"))
     except (OSError, ValueError, UnicodeDecodeError):
         return dict(DEFAULTS), True
     g = data.get("guardrails", True) if isinstance(data, dict) else True
@@ -152,13 +166,22 @@ def _inic_fichero(rel):
     return partes[0], partes[1].lower()
 
 
+def _memory_write_reason(rel):
+    """Memory persistence belongs to its services, including legacy trees."""
+    if re.search(r"(?:^|/)docs/knowledge(?:/|$)", rel, re.I):
+        return (f"«{rel}»: la memoria no se modifica con Write/Edit directo. "
+                "Propón conocimiento nuevo con knowledge-curation.py y knowledge-write.md; "
+                "el journal y los índices los persisten sus servicios. Conserva el legado.")
+    return None
+
+
 def check_alcance_architect(rel, tool, tool_input):
-    """Razón de deny o None — alcance del `architect` (solo diseño, ADR e índice de knowledge)."""
-    low = rel.lower()
+    """Razón de deny o None — alcance del `architect` (diseño/enlaces; memoria mediante servicio)."""
     if _SECSCAN_RE.search(rel):
         return f"«{rel}» está bajo docs/security-scan/ (propiedad de nemesis): el architect no escribe ahí."
-    if re.search(r"(?:^|/)docs/knowledge/(adr/[^/]+|readme\.md)$", low):
-        return None
+    memory_reason = _memory_write_reason(rel)
+    if memory_reason:
+        return memory_reason
     inic, fn = _inic_fichero(rel)
     if inic and fn == "design.md":
         return None
@@ -172,7 +195,7 @@ def check_alcance_architect(rel, tool, tool_input):
         return (f"«{rel}»: el architect solo toca el enlace `design:`/`design.md` de spec/plan (regla 7 de "
                 f"CONVENTIONS); ese Edit no lo contiene — deja la observación en «Preguntas abiertas» de design.md.")
     return (f"«{rel}» está fuera del alcance del architect: escribe SOLO docs/roadmap/<inic>/design.md, el enlace "
-            f"`design:` en spec/plan (Edit) y docs/knowledge/adr/ + README.md. Ni código, ni tasks.md, ni "
+            f"`design:` en spec/plan (Edit). Ni código, ni tasks.md, ni "
             f"evaluation.md — anótalo en «Preguntas abiertas» de design.md y sigue.")
 
 
@@ -181,6 +204,9 @@ def check_alcance(rel):
     if _SECSCAN_RE.search(rel):
         return (f"«{rel}» está bajo docs/security-scan/ (propiedad de nemesis): el implementer "
                 f"no escribe ahí — deja el hallazgo en tasks.md y sigue.")
+    memory_reason = _memory_write_reason(rel)
+    if memory_reason:
+        return memory_reason
     m = _ROADMAP_RE.search(rel)
     if m and not es_ledger(rel):
         if "/testing/" in ("/" + m.group(1)).lower():
@@ -199,11 +225,19 @@ def check_alcance(rel):
 
 
 # ------------------------------------------------------------------- git ----
-def current_branch(project_dir):
+def current_branch(project_dir, timeout=5):
     """Nombre de la rama o None si no hay git / no se puede saber."""
+    started = time.monotonic()
     try:
         r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=project_dir or None,
-                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
+        if r.returncode != 0:
+            remaining = timeout - (time.monotonic() - started)
+            if remaining <= 0:
+                return None
+            # HEAD is a valid symbolic branch even before its first commit.
+            r = subprocess.run(["git", "symbolic-ref", "--quiet", "--short", "HEAD"], cwd=project_dir or None,
+                               capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=remaining)
     except (OSError, subprocess.SubprocessError):
         return None
     if r.returncode != 0:
@@ -213,42 +247,267 @@ def current_branch(project_dir):
 
 
 def _segmentos(command):
-    """Trocea por `;`, `&&`, `||`, `|` RESPETANDO comillas (shlex con punctuation_chars): así
-    `sh -c 'cd x && rm -rf .'` es UN segmento cuyo argumento se analiza aparte (intento 2)."""
-    try:
-        lex = shlex.shlex(command, posix=True, punctuation_chars=";&|")
-        lex.whitespace_split = True
-        toks = list(lex)
-    except ValueError:
-        toks = command.split()
-    out, cur = [], []
-    for t in toks:
-        if t and set(t) <= set(";&|"):
-            if cur:
+    """Literal shell words and command boundaries, retaining quoted punctuation as data.
+
+    No expansion, substitution or execution. Newlines outside quotes separate commands;
+    escaped newlines continue the same command. Invalid quoting cannot execute as given.
+    """
+    out, cur, word = [], [], []
+    quote, started, i = None, False, 0
+    while i < len(command):
+        char = command[i]
+        if char == "\\" and quote is None and i + 1 == len(command):
+            return out  # Keep already complete commands; this final word is incomplete.
+        if char == "\\" and quote != "'" and i + 1 < len(command):
+            following = command[i + 1]
+            if following == "\n":
+                i += 2
+                continue
+            if quote is None or following in '\\"$`':
+                word.append(following)
+                started = True
+                i += 2
+                continue
+        if quote:
+            if char == quote:
+                quote = None
+            else:
+                word.append(char)
+        elif char in "\"'":
+            quote, started = char, True
+        elif char == "#" and not started:
+            newline = command.find("\n", i)
+            i = len(command) if newline < 0 else newline
+            continue
+        elif char in " \t\r\n;&|":
+            if started:
+                cur.append("".join(word))
+                word, started = [], False
+            if char in "\n;&|" and cur:
                 out.append(cur)
-            cur = []
+                cur = []
         else:
-            cur.append(t)
+            word.append(char)
+            started = True
+        i += 1
+    if quote:
+        return out
+    if started:
+        cur.append("".join(word))
     if cur:
         out.append(cur)
     return out
 
 
-def _es_git(toks, sub):
-    """toks = ['git', <opciones globales…>, sub, …] → índice del subcomando o -1."""
-    if not toks or os.path.basename(toks[0]) != "git":
-        return -1
+_ASSIGNMENT_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=(.*)\Z", re.DOTALL)
+_GIT_GLOBAL_VALUES = frozenset(("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"))
+# Unique value-option prefixes in Git's commit parser; --fi and --t are ambiguous.
+_COMMIT_LONG_VALUES = {
+    "--m": "--message", "--fil": "--file", "--reu": "--reuse-message",
+    "--ree": "--reedit-message", "--fix": "--fixup", "--sq": "--squash",
+    "--au": "--author", "--da": "--date", "--te": "--template",
+    "--tr": "--trailer", "--c": "--cleanup", "--pathspec-fr": "--pathspec-from-file",
+}
+
+
+def _program_name(token):
+    name = token.replace("\\", "/").rsplit("/", 1)[-1].lower()
+    return name[:-4] if name.endswith(".exe") else name
+
+
+def _literal_invocation(toks, inherited=None):
+    """Unwrap only literal assignment/env/command/exec prefixes; never evaluate shell text."""
+    bindings = dict(inherited or {})
+    i = 0
+    while i < len(toks):
+        assignment = _ASSIGNMENT_RE.fullmatch(toks[i])
+        if assignment:
+            bindings[assignment[1]] = assignment[2]
+            i += 1
+        elif _program_name(toks[i]) in ("env", "command", "exec"):
+            wrapper = _program_name(toks[i])
+            i += 1
+            while i < len(toks) and toks[i].startswith("-") and toks[i] != "--":
+                option = toks[i]
+                if wrapper == "env" and option in ("-", "-i", "--ignore-environment"):
+                    bindings.clear()
+                elif wrapper == "env" and option in ("-u", "--unset") and i + 1 < len(toks):
+                    i += 1
+                    bindings.pop(toks[i], None)
+                elif wrapper == "env" and option.startswith("--unset="):
+                    bindings.pop(option.split("=", 1)[1], None)
+                elif wrapper == "env" and option in ("-C", "--chdir") and i + 1 < len(toks):
+                    i += 1  # Directory changes do not change verification flags.
+                elif wrapper == "env" and option.startswith("--chdir="):
+                    pass
+                elif wrapper == "command" and option == "-p":
+                    pass
+                elif wrapper in ("env", "exec") and not option.startswith("--"):
+                    offset = 1
+                    valid = True
+                    while offset < len(option):
+                        flag = option[offset]
+                        if (wrapper == "env" and flag == "i") or (wrapper == "exec" and flag == "c"):
+                            bindings.clear()
+                        elif wrapper == "exec" and flag == "l":
+                            pass
+                        elif (wrapper == "env" and flag in "uC") or (wrapper == "exec" and flag == "a"):
+                            value = option[offset + 1:]
+                            if not value:
+                                if i + 1 >= len(toks):
+                                    valid = False
+                                    break
+                                i += 1
+                                value = toks[i]
+                            if wrapper == "env" and flag == "u":
+                                bindings.pop(value, None)
+                            break
+                        else:
+                            valid = False
+                            break
+                        offset += 1
+                    if not valid:
+                        break
+                else:
+                    break  # Unknown syntax is outside this literal grammar.
+                i += 1
+            if i < len(toks) and toks[i] == "--":
+                i += 1
+        else:
+            break
+    return toks[i:], bindings
+
+
+def _git_invocation(toks):
+    """Locate the Git subcommand and explicit hooksPath overrides, consuming global values."""
+    if not toks or _program_name(toks[0]) != "git":
+        return -1, False
     i = 1
+    hooks_override = False
     while i < len(toks) and toks[i].startswith("-"):
-        # opciones globales con valor: -C <dir>, -c <k=v>
-        if toks[i] in ("-C", "-c") and i + 1 < len(toks):
+        option = toks[i]
+        config = None
+        if option in _GIT_GLOBAL_VALUES:
+            if i + 1 >= len(toks):
+                return -1, False
+            if option in ("-c", "--config-env"):
+                config = toks[i + 1]
             i += 2
         else:
+            if option.startswith("-c") and not option.startswith("--"):
+                config = option[2:]
+            elif option.startswith("--config-env="):
+                config = option.split("=", 1)[1]
             i += 1
-    return i if i < len(toks) and toks[i] == sub else -1
+        if config is not None and config.split("=", 1)[0].lower() == "core.hookspath":
+            hooks_override = True
+    return (i if i < len(toks) else -1), hooks_override
+
+
+def _es_git(toks, sub):
+    """Index of a recognized Git subcommand, or -1."""
+    i, _override = _git_invocation(toks)
+    return i if i >= 0 and toks[i] == sub else -1
+
+
+def _env_hooks_override(bindings):
+    try:
+        parameters = shlex.split(bindings.get("GIT_CONFIG_PARAMETERS", ""))
+    except ValueError:
+        parameters = []
+    if any(p.split("=", 1)[0].lower() == "core.hookspath" for p in parameters):
+        return True
+    value = bindings.get("GIT_CONFIG_COUNT", "").lstrip(" \t\r\n\v\f")
+    if not re.fullmatch(r"\+?[0-9]+", value):
+        return False
+    value = value.lstrip("+").lstrip("0") or "0"
+    if len(value) > 10:
+        return False  # Invalid Git counters do not execute the commit.
+    count = int(value)
+    if count > 2147483647:
+        return False
+    # Scan supplied keys, never a range controlled by the environment counter.
+    for key, value in bindings.items():
+        match = re.fullmatch(r"GIT_CONFIG_KEY_(0|[1-9][0-9]{0,9})", key)
+        if match and int(match[1]) < count and value.lower() == "core.hookspath":
+            return True
+    return False
+
+
+def _commit_skips_verification(args):
+    skips = False
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token == "--":
+            break
+        if len(token) >= len("--no-veri") and "--no-verify".startswith(token):
+            skips = True
+        elif (len(token) >= len("--veri") and "--verify".startswith(token)) or (
+                len(token) >= len("--no-no-veri") and "--no-no-verify".startswith(token)):
+            skips = False
+        elif any(
+                token.startswith(prefix) and option.startswith(token)
+                for prefix, option in _COMMIT_LONG_VALUES.items()):
+            i += 1
+        elif token.startswith("-") and not token.startswith("--"):
+            for offset, flag in enumerate(token[1:], 1):
+                if flag == "n":
+                    skips = True
+                elif flag in "mFCct":
+                    if offset == len(token) - 1:
+                        i += 1
+                    break
+                elif flag in "Su":
+                    break  # Optional short values attach to this same token.
+        i += 1
+    return skips
 
 
 _SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
+
+# Órdenes cuyo efecto cae FUERA del repositorio y no se deshace desde él (registro público,
+# estado del host, clúster, base de datos). Análisis literal de la invocación, como el resto
+# de reglas Bash: un SQL leído de fichero (`psql -f x.sql`) o por tubería no se ve; lo cubre
+# la revisión del diff. `--dry-run` no produce el efecto y se permite.
+_PAQUETEROS = {"npm", "pnpm", "yarn"}
+_PAQUETE_COMO_ARG = {"install", "i", "add", "uninstall", "remove", "rm", "un", "view", "info",
+                     "show", "search", "help", "docs", "why", "ls", "list", "outdated"}
+_CONTENEDORES = {"docker", "podman"}
+_CLIENTES_SQL = {"psql", "mysql", "mariadb", "sqlite3"}
+_SQL_DESTRUCTIVO_RE = re.compile(r"\bDROP\s+(?:TABLE|DATABASE|SCHEMA)\b", re.I)
+
+
+def _es_simulacion(toks):
+    return any(t == "--dry-run" or (t.startswith("--dry-run=") and t != "--dry-run=none") for t in toks)
+
+
+def check_ordenes_externas(toks):
+    """Razón de deny o None para publicar paquetes, purgar el host de contenedores, borrar
+    recursos de un clúster o ejecutar `DROP TABLE|DATABASE|SCHEMA` con un cliente SQL."""
+    if not toks:
+        return None
+    prog = _program_name(toks[0])
+    palabras = [t for t in toks[1:] if not t.startswith("-")]
+    if prog in _PAQUETEROS and "publish" in palabras and not _es_simulacion(toks) \
+            and palabras[0] not in _PAQUETE_COMO_ARG:
+        return (f"`{prog} publish` bloqueado: publica en un registro público y no se puede retirar "
+                f"limpiamente — la publicación es del usuario o de la release; usa `--dry-run` para verificar.")
+    if prog in _CONTENEDORES and len(palabras) >= 2 and palabras[0] in ("system", "volume") \
+            and palabras[1] == "prune":
+        return (f"`{prog} {palabras[0]} prune` bloqueado: purga contenedores, imágenes o volúmenes de TODO "
+                f"el host, no solo de este proyecto — limpia los del proyecto (`compose down`) o que lo "
+                f"ejecute el usuario.")
+    if prog == "kubectl" and "delete" in palabras and not _es_simulacion(toks):
+        return ("`kubectl delete` bloqueado: borra recursos del clúster del contexto activo, que puede no "
+                "ser local — usa `--dry-run=client` para verificar y deja el borrado al usuario.")
+    for i, t in enumerate(toks):
+        if _program_name(t) in _CLIENTES_SQL:
+            if any(_SQL_DESTRUCTIVO_RE.search(a) for a in toks[i + 1:]):
+                return ("`DROP TABLE|DATABASE|SCHEMA` con un cliente SQL bloqueado: destruye datos que el "
+                        "repositorio no restaura — escríbelo como migración revisable o que lo ejecute el usuario.")
+            break
+    return None
 
 
 def _subcomandos_shell(toks):
@@ -256,7 +515,7 @@ def _subcomandos_shell(toks):
     (también en clusters `-lc`, `-ec`) y los argumentos de `eval`."""
     if not toks:
         return []
-    prog = os.path.basename(toks[0])
+    prog = _program_name(toks[0])
     if prog == "eval":
         return [" ".join(toks[1:])] if len(toks) > 1 else []
     if prog in _SHELLS:
@@ -266,20 +525,32 @@ def _subcomandos_shell(toks):
     return []
 
 
-def check_git(command, branch, _depth=0):
+def check_git(command, branch, _depth=0, _env=None):
     """Razón de deny o None. `branch` = rama actual (None si no hay git).
     Recursivo SOLO sobre lo que una shell ejecutaría (`sh -c "git push --force"`, `bash -c '…'`,
     `eval "…"`); un mensaje de commit con «rm -rf .» dentro es texto y no se analiza."""
     if _depth > 3:
         return None
     for toks in _segmentos(command):
+        toks, bindings = _literal_invocation(toks, _env)
         # Solo se recurre en el argumento de `sh|bash|zsh|dash -c` y en el de `eval` — NO en tokens
         # arbitrarios (`git commit -m "rm -rf . en el mensaje"` es texto, no un comando; regresión
         # cazada en la revisión, intento 2).
         for sub in _subcomandos_shell(toks):
-            razon = check_git(sub, branch, _depth + 1)
+            razon = check_git(sub, branch, _depth + 1, bindings)
             if razon:
                 return razon
+        razon = check_ordenes_externas(toks)
+        if razon:
+            return razon
+        i, hooks_override = _git_invocation(toks)
+        if i >= 0 and toks[i] == "commit":
+            if hooks_override or _env_hooks_override(bindings):
+                return ("`git commit` con override de core.hooksPath bloqueado: conserva los hooks "
+                        "de verificación del proyecto; un cambio de ruta requiere revisión explícita.")
+            if _commit_skips_verification(toks[i + 1:]):
+                return ("`git commit` sin verificación bloqueado: conserva pre-commit y commit-msg; "
+                        "corrige el fallo de los hooks en vez de omitirlos con --no-verify/-n.")
         i = _es_git(toks, "push")
         if i >= 0:
             for t in toks[i + 1:]:

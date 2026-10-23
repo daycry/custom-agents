@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": ["S080", "S081", "S082"],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {"id": "S080", "sha256": "e043c9d300695aea5a9bb4c72a6f47e47ba1f2c7ddc1e82b8191acd0ad70c54a", "bytes": 17269, "lines": 644, "read_ranges": [[1, 644]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S081", "sha256": "20bd5378fb9b76b396916daa8781dd45eef6336e5d4b3a46edb0c3e4eefaf074", "bytes": 21031, "lines": 730, "read_ranges": [[1, 730]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S082", "sha256": "01d2d2a8382737fefff259fe7624e1928e373a7772e220535dbea128373e81a2", "bytes": 11733, "lines": 470, "read_ranges": [[1, 470]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "A018", "sha256": "d116bccee67db3d1f52f54f819a04467fe7dd2b0004ec85d21f218a6aacf6346", "read_ranges": [[164, 165]], "reading_scope": "caller-lines"},
+    {"id": "A017", "sha256": "643f1445336ef801f49cc56a00ad09af3435124ef841f4b023be19ee50662b29", "read_ranges": [[252, 252]], "reading_scope": "caller-lines"}
+  ],
+  "own_counterparts": [
+    {"path": "skills/backend-practices/references/contracts-data.md", "sha256": "589af44a6c37b7355ed8d088c7a8e341b42a131ce5b0d1c89c06e6cde2d2bdab"},
+    {"path": "skills/stack-practices/references/python.md", "sha256": "b2ec29e4ded82c5cd9968abfb91bf46e2d3e7b7e17233ad3cb0a01d055a6bb20"},
+    {"path": "skills/delivery-practices/references/delivery-tools.md", "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9"},
+    {"path": "skills/tdd/references/by-stack.md", "sha256": "e7f4eaa33be28c9595e04203e8429b99e14b87bce3a21492cde9880dce85695c"}
+  ],
+  "official_contrasts": [
+    {"url": "https://docs.djangoproject.com/en/stable/ref/settings/", "version": "Django 6.1", "checked_at": "2026-10-13"},
+    {"url": "https://pytest-django.readthedocs.io/en/latest/database.html", "version": "latest (pytest 9.1.1, Django 6.1 cross-refs)", "checked_at": "2026-10-13"}
+  ],
+  "tokens": null,
+  "latency_ms": null
+}

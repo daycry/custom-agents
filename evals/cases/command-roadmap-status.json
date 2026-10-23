@@ -3,15 +3,15 @@
   "cases": [
     {
       "id": "roadmap-status-literal",
-      "prompt": "Genera un dashboard HTML con el estado de todas las iniciativas del roadmap.",
+      "prompt": "Muestra el estado de todas las iniciativas del roadmap.",
       "trigger": "literal",
       "expect": {
         "activates": true,
         "artifacts": [
-          "docs/roadmap/dashboard.html"
+          "docs/roadmap/panel/iniciativas.html"
         ]
       },
-      "notes": "Ventana literal «dashboard HTML con el estado»."
+      "notes": "Ventana literal «estado de todas las iniciativas» (description real)."
     },
     {
       "id": "roadmap-status-parafrasis",
@@ -20,7 +20,7 @@
       "expect": {
         "activates": true,
         "artifacts": [
-          "docs/roadmap/dashboard.html"
+          "docs/roadmap/panel/iniciativas.html"
         ]
       }
     },

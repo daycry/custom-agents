@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_command_ids": [
+    "C062",
+    "C064",
+    "C065",
+    "C066",
+    "C072"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "C062",
+      "sha256": "daef0378434ae10f9c329d67854eb9750732dfe52d83e0c28fba30fcbda2323e",
+      "bytes": 6804,
+      "lines": 276,
+      "read_ranges": [
+        [
+          1,
+          276
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C064",
+      "sha256": "8e5638640704fedb6271a764036ab4f57bac11f5947a5241492e6b427092e674",
+      "bytes": 4246,
+      "lines": 86,
+      "read_ranges": [
+        [
+          1,
+          86
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C065",
+      "sha256": "dc939242028d24119b985e6ad4fee3d6c8185f6bd19c716535384149bc9876f3",
+      "bytes": 853,
+      "lines": 39,
+      "read_ranges": [
+        [
+          1,
+          39
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C066",
+      "sha256": "8d2faf47b1322c24a1dfa221b2f5e85b9e766fcd1d460c157c472246a3b86846",
+      "bytes": 1263,
+      "lines": 41,
+      "read_ranges": [
+        [
+          1,
+          41
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C072",
+      "sha256": "19addecbc1b224deda7e3a55a16f7412a973958e4be9cdaeeb93449ee9d37598",
+      "bytes": 907,
+      "lines": 31,
+      "read_ranges": [
+        [
+          1,
+          31
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "install/install.mjs",
+      "sha256": "db99529013a4fd03770a6389c39f89fd45438bf37efef5837d369bd2e803c195"
+    },
+    {
+      "path": "commands/setup.md",
+      "sha256": "d10958c2f797efb0980f0a323c9abc4f4bb55d368bda22d304fd7275e6a2d1ad"
+    },
+    {
+      "path": "commands/doctor.md",
+      "sha256": "cfb88392075454952fca87df3b4ed0e7bbe762e6022e4ec9f5109e86e3b43326"
+    },
+    {
+      "path": "commands/work-context.md",
+      "sha256": "181bc6b81c1bf856e2fad27b4ca4f467345acea993a18c977070cdf70bf05b28"
+    },
+    {
+      "path": "agent-kits/shared/installation-lifecycle.md",
+      "sha256": "4a09aa927e4993f2e171977c255d6f1073f6230976dbaef0775de5c4c6a821cf"
+    },
+    {
+      "path": "agent-kits/shared/capability-selection.md",
+      "sha256": "7fbd2a465ea377dcbeced4672260a413de6df1dadcf9bf927670fd3ac41e4654"
+    },
+    {
+      "path": "agent-kits/documenter/templates/onboarding.template.md",
+      "sha256": "24ba25d17f6aad70d84ce7eebfb0554430b69db33e0b678b8d463f460e2f2e36"
+    },
+    {
+      "path": "agents/knowledge-curator.md",
+      "sha256": "594f125574aec362b41f07242544e9cb942bea57bdb882e57255b1d174565dc9"
+    },
+    {
+      "path": "agents/qa.md",
+      "sha256": "4e2a545764ce588c28165247f1ce124f7d0153467d0616f859f9168327b9ac56"
+    },
+    {
+      "path": "agent-kits/planner/templates/test-plan.md",
+      "sha256": "fc14a50de57ed1f505283e7197f9c14f995a94eac7064bf26e82a90a06eb34b0"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "eaae2178c159e6f5aa49261152c3e238a3d55b9e4b139a7f85967efd3bcc144d"
+    },
+    {
+      "path": "docs/agents/ROLES.md",
+      "sha256": "16de05a15de9e81168181de94f22f9d891dda6fdb1adc927815c19605b87b997"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

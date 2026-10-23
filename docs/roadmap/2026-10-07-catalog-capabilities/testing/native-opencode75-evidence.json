@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "source_manifest_sha256": "bf8f381ddec71624ce4ce1533884a66ca68cdad3cfdb447d40f6ab8422d7ed42",
+  "source_files": 1141,
+  "runtime": "OpenCode",
+  "runtime_version": "2.0.12",
+  "runtime_binary_sha256": "58d550b26e9241759a6906c65f1e0605eaf512d63cbaf6d8eb472375b9311c95",
+  "adapter_sha256": "d65c59fa2e325aed7667b962a26f21ab752fc69d48c26f3cf66669d703808533",
+  "official_source_revision": "2670273ff17da96f85c5826ced57aa1b368754fa",
+  "actual_native_plugin_loaded": true,
+  "actual_native_transport_checks": {
+    "native_prompt_capture": true,
+    "private_turn_excluded": true,
+    "native_envelope_root_session_match": true,
+    "native_envelope_observed_before_server_exit": true,
+    "native_replay_tested": true,
+    "native_context_dispatch_tested": true,
+    "native_tool_dispatch_tested": true,
+    "native_terminal_dispatch_tested": true,
+    "native_activity_store_observed": true,
+    "process_terminal": true
+  },
+  "native_held_prompts": 2,
+  "native_agent_loops": 2,
+  "loopback_provider_requests": 4,
+  "external_provider_requests": 0,
+  "external_model_inferences": 0,
+  "native_envelope_versions": [
+    "1.22.0"
+  ],
+  "activity": {
+    "state_files": 2,
+    "record_count": 1,
+    "revision": 1,
+    "events": [
+      "execution_finished"
+    ],
+    "opt_in": true,
+    "collection_complete": false,
+    "live_process_proven": false
+  },
+  "server_exit": 0,
+  "server_exited_naturally": true,
+  "supervised_parent_exit": 0,
+  "owned_job_cleanup_exit": 0,
+  "source_post_terminal_hash_verified": true,
+  "inherited_provider_credentials": false,
+  "personal_config_modified": false,
+  "browser_used": false,
+  "real_human_ui_decision_accepted": false,
+  "protected_role_guard_dispatch_tested": false,
+  "all_native_workflows_accepted": false,
+  "global_product_accepted": false,
+  "historical_probe_prelaunch_failure_preserved": true,
+  "receipts": {
+    "result.json": "03fc207a8487c687bc1fdbe338c98db26a50d6b8e38ba52252c33516b9581768",
+    "installer.json": "cbf7d5bdaa935ea8317e011a950c330a9c7b8cde84911df400376137cb2a992d",
+    "native-version.json": "21513b03a6ee2e00d7cdb1006d58dd91187a4872373e87d93d2d1159768dfd50",
+    "terminal-envelopes.json": "9d0525762f4d58b8cf29b99ccc73c0119589f0b9ad3a332e5b9683d0bc33fcbb",
+    "context-observed.json": "73f5400e2db32925d83c4341bd86965708d00b4f4ae2c5a420f2717b340a6061",
+    "tool-observed.json": "b21f05eaf7f3596c6b9095ba2cb76b382b49ae01c2a0db12ca1daebfec90eff1",
+    "server-output.json": "99ece68c3aca02f58c4f011a7ada863f98419d1f34335e4e781d4506978edc83"
+  },
+  "owned_job_active_after_close": 0,
+  "owned_job_leak": false
+}

@@ -55,10 +55,15 @@ apagado hace daño real en el Jira del equipo:
   · **Opt-in de verdad.** Lee `.claude/jira.json` (`--root`, o cwd hacia arriba: misma resolución
     que `worklog.py`). Si `enabled` no es exactamente `true` → `ops: []`, `jira: "desactivado"`,
     exit 0 y sin ruido: el ciclo es idéntico, simplemente no publica.
-  · **Idempotencia.** Cada plan con `ops` se anota en `jira-state.json` bajo
-    `flow["<issue>|<evento>|<tareas>|<intento>"] = {"fecha": …}`. Repetir el MISMO evento →
-    `ops: []` + `yaRealizado: true` + exit 0 (no un segundo comentario en Jira); `--force` lo
-    repite a propósito. Estado corrupto o de solo lectura → aviso y sigue, nunca bloquea.
+  · **Idempotencia con recibo.** Cada plan con `ops` se anota en `jira-state.json` bajo
+    `flow["<issue>|<evento>|<tareas>|<intento>"] = {"fecha": …, "estado": "pendiente"}` y el
+    comentario lleva la clave al pie. `confirmar --clave … [--comentario-id ID]`, tras ejecutar las
+    ops sin error, la pasa a `publicado`. Repetir un evento publicado → `ops: []` +
+    `yaRealizado: true` + exit 0 (no un segundo comentario en Jira); repetir uno pendiente → las
+    ops otra vez con `reintento: true` y el aviso de buscar la referencia en el issue antes de
+    publicar. Las entradas antiguas sin `estado` cuentan como publicadas. `--force` repite a
+    propósito: sobre un pendiente conserva el aviso de buscar la referencia y sobre uno publicado
+    avisa de que será un segundo comentario. Estado corrupto o de solo lectura → aviso y sigue, nunca bloquea.
   · **`--intento` obligatorio en `revision`/`gaps`.** Antes caía a 1 en silencio: publicaba los gaps
     del intento 1 con el pie «intento 2 de 3». Ahora falta → exit 2, y se usa SIEMPRE la sección de
     ESE intento.
@@ -71,6 +76,8 @@ Uso:
                      --task T-01[,T-02,...] [--batch] [--intento N] [--issue KEY] [--state PATH]
                      [--root DIR] [--force] [--qa-verde] [--resumen TEXTO] [--evidencia RUTA]
                      [--fecha YYYY-MM-DD] [--json]
+  jira-flow.py confirmar --ledger <tasks.md> --clave <claveIdempotencia> [--comentario-id ID]
+                     [--state PATH] [--root DIR] [--json]
   Salida por defecto: resumen legible. --json: el plan completo (ops[], avisos[]) para ejecutar.
 Exit: 0 plan generado (aunque falte el issueKey — degrada con aviso, nunca bloquea; también con
       Jira apagado o evento ya realizado: `ops: []`) ·
@@ -704,13 +711,19 @@ def _leer_estado(state_path):
                     f"comprobar idempotencia — revisa si este evento ya se publicó en Jira")
 
 
-def _anotar_flujo(state_path, clave, fecha):
-    """Anota `flow[clave] = {"fecha": …}` en el estado. Devuelve aviso|None: un estado de SOLO
+def _publicado(entrada):
+    """Una entrada `flow` cuenta como publicada salvo que diga `estado: pendiente`. Las escritas
+    antes del recibo solo tienen `fecha` y se respetan como publicadas (compatibilidad)."""
+    return isinstance(entrada, dict) and entrada.get("estado", "publicado") != "pendiente"
+
+
+def _anotar_flujo(state_path, clave, valor):
+    """Anota `flow[clave] = valor` en el estado. Devuelve aviso|None: un estado de SOLO
     LECTURA (o un disco lleno) degrada con aviso — el plan sigue siendo válido."""
     if not state_path:
         return "sin `jira-state.json` resoluble: no se anota la idempotencia de este evento"
     st, _ = _leer_estado(state_path)
-    st.setdefault("flow", {})[clave] = {"fecha": fecha}
+    st.setdefault("flow", {})[clave] = valor
     try:
         os.makedirs(os.path.dirname(os.path.abspath(state_path)), exist_ok=True)
         with open(state_path, "w", encoding="utf-8") as f:
@@ -831,9 +844,7 @@ def construir_plan(args):
                           f"sigue igual)"]}
         return plan, plan["avisos"], 0
 
-    state_path = args.state or _find_up("jira-state.json", os.path.dirname(os.path.abspath(args.ledger)))
-    if not state_path and cfg_path:   # por defecto, hermano de jira.json (donde vive el manifiesto)
-        state_path = os.path.join(os.path.dirname(cfg_path), "jira-state.json")
+    state_path = _resolver_estado(args, cfg_path)
     for tid in tareas:
         key = args.issue if (args.issue and not args.batch) else _resolver_issue(state_path, tid)
         issue_por_tarea[tid] = key
@@ -848,7 +859,19 @@ def construir_plan(args):
         avisos.append(aviso_estado)
     clave = _clave_flujo(issue_principal, args.event, tareas, args.intento)
     ya = (estado.get("flow") or {}).get(clave) if isinstance(estado.get("flow"), dict) else None
-    if ya and not args.force:
+    # `--force` salta la idempotencia, no la duda: un pendiente pudo llegar, así que el aviso de
+    # buscar la referencia se mantiene; y forzar uno publicado se dice como segundo comentario.
+    reintento = bool(ya) and not _publicado(ya)
+    if ya and _publicado(ya) and args.force:
+        id_previo = f", comentario {ya['comentarioId']}" if ya.get("comentarioId") else ""
+        avisos.append(f"evento ya publicado el {ya.get('fecha', '?')}{id_previo} (clave `{clave}`): "
+                      f"`--force` publica un segundo comentario, no reintenta el anterior")
+    if reintento:
+        avisos.append(f"un plan anterior de este evento ({ya.get('fecha', '?')}) no se confirmó: "
+                      f"antes de publicar, busca en los comentarios del issue la referencia "
+                      f"`{clave}`; si ya está, no lo publiques otra vez y ejecuta solo "
+                      f"`jira-flow.py confirmar --clave \"{clave}\"`")
+    if ya and _publicado(ya) and not args.force:
         plan = {"evento": args.event, "actor": args.actor, "rol": ROL[args.actor], "fecha": fecha,
                "tareas": tareas, "issueKey": issue_principal, "jira": "activado",
                "yaRealizado": True, "ops": [],
@@ -931,15 +954,52 @@ def construir_plan(args):
         ops.append({"tipo": "etiqueta", "issueKey": issue_principal, "add": [f"ca-{args.actor}"]})
         ops.append({"tipo": "comentario", "issueKey": issue_principal, "cuerpo": comentario})
 
-    if ops:   # el plan se anota AL GENERARSE: si no llegas a ejecutarlo, repite con `--force`
-        aviso_anotar = _anotar_flujo(state_path, clave, fecha)
+    for op in ops:   # la referencia permite comprobar en Jira si un envío ambiguo llegó
+        if op["tipo"] == "comentario":
+            op["cuerpo"] = op["cuerpo"].rstrip("\n") + f"\n\n_Ref. custom-agents: `{clave}`_\n"
+    if ops:   # el plan queda PENDIENTE hasta `confirmar`, que se ejecuta tras publicar en Jira
+        aviso_anotar = _anotar_flujo(state_path, clave, {"fecha": fecha, "estado": "pendiente"})
         if aviso_anotar:
             avisos.append(aviso_anotar)
 
     plan = {"evento": args.event, "actor": args.actor, "rol": ROL[args.actor], "fecha": fecha,
            "tareas": tareas, "issueKey": issue_principal, "jira": "activado",
-           "yaRealizado": False, "claveIdempotencia": clave, "ops": ops, "avisos": avisos}
+           "yaRealizado": False, "reintento": reintento, "claveIdempotencia": clave,
+           "confirmar": [sys.executable, os.path.join(HERE, "jira-flow.py"), "confirmar",
+                         "--ledger", args.ledger, "--clave", clave] if ops else None,
+           "ops": ops, "avisos": avisos}
     return plan, avisos, 0
+
+
+def _resolver_estado(args, cfg_path):
+    """`--state`, o `jira-state.json` hacia arriba desde el ledger, o hermano de `jira.json`."""
+    state_path = args.state or _find_up("jira-state.json", os.path.dirname(os.path.abspath(args.ledger)))
+    if not state_path and cfg_path:   # por defecto, hermano de jira.json (donde vive el manifiesto)
+        state_path = os.path.join(os.path.dirname(cfg_path), "jira-state.json")
+    return state_path
+
+
+def confirmar(args):
+    """Recibo tras publicar: `flow[clave]` pasa de `pendiente` a `publicado` (con el id del
+    comentario si lo hay). Una clave que nunca se planificó es un error de uso: confirmar a ciegas
+    escondería un evento que no se publicó."""
+    _activo, cfg_path, _motivo = _jira_activo(args.root or os.getcwd())
+    state_path = _resolver_estado(args, cfg_path)
+    estado, aviso = _leer_estado(state_path)
+    if aviso:
+        return None, [aviso], 2
+    entrada = (estado.get("flow") or {}).get(args.clave) if isinstance(estado.get("flow"), dict) else None
+    if not entrada:
+        return None, [f"no hay ningún plan anotado con la clave `{args.clave}` en "
+                      f"`{state_path or 'jira-state.json'}`: genera el plan antes de confirmarlo"], 2
+    recibo = {"fecha": entrada.get("fecha"), "estado": "publicado",
+              "confirmado": args.fecha or datetime.date.today().isoformat()}
+    if args.comentario_id:
+        recibo["comentarioId"] = args.comentario_id
+    aviso_anotar = _anotar_flujo(state_path, args.clave, recibo)
+    if aviso_anotar:
+        return None, [aviso_anotar], 2
+    return dict(recibo, clave=args.clave), [], 0
 
 
 def _transicion_op(issue_key, logico):
@@ -991,11 +1051,14 @@ def _worklog_op(issue_key, tid, kind, intento, horas):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("cmd", choices=["plan"])
+    ap.add_argument("cmd", choices=["plan", "confirmar"])
     ap.add_argument("--ledger", required=True)
-    ap.add_argument("--event", required=True, choices=EVENTOS)
-    ap.add_argument("--actor", required=True, choices=sorted(ROL))
-    ap.add_argument("--task", required=True)
+    ap.add_argument("--event", choices=EVENTOS)
+    ap.add_argument("--actor", choices=sorted(ROL))
+    ap.add_argument("--task")
+    ap.add_argument("--clave", help="`confirmar`: la `claveIdempotencia` del plan ya publicado")
+    ap.add_argument("--comentario-id", dest="comentario_id",
+                    help="`confirmar`: id del comentario que devolvió Jira (recibo)")
     ap.add_argument("--batch", action="store_true")
     ap.add_argument("--intento", type=int)
     ap.add_argument("--issue")
@@ -1016,6 +1079,21 @@ def main():
     ap.add_argument("--sup-est", type=float, dest="sup_est")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
+
+    if args.cmd == "confirmar":
+        if not args.clave:
+            ap.error("`confirmar` exige --clave")
+        recibo, errores, code = confirmar(args)
+        if code != 0:
+            print(json.dumps({"error": errores}, ensure_ascii=False) if args.json
+                  else "\n".join(f"jira-flow: {e}" for e in errores), file=sys.stdout if args.json else sys.stderr)
+            return code
+        print(json.dumps(recibo, ensure_ascii=False, indent=2) if args.json
+              else f"jira-flow: `{recibo['clave']}` confirmado como publicado")
+        return 0
+    faltan = [f"--{n}" for n in ("event", "actor", "task") if getattr(args, n) is None]
+    if faltan:
+        ap.error("`plan` exige " + ", ".join(faltan))
 
     if not os.path.isfile(args.ledger):
         print(json.dumps({"error": f"no existe el ledger {args.ledger}", "ops": []}), file=sys.stderr)

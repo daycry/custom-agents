@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "tested_source_manifest_sha256": "0733829c4054d8202681cef6a6933512e322d89d74d7e0e48c2dc5c9b2308a5c",
+  "native_version": "2.0.12",
+  "binary_sha256": "c6689706cf1329541077584546e43ed0d769cd7b9360b83a28b4e4e6c18df46e",
+  "runtime": "opencode",
+  "model": "gpt-oss:120b-cloud",
+  "native_entry_loaded_and_expanded": true,
+  "command": "work-resume",
+  "synthetic_fixture_only": true,
+  "user_project_or_profile_mounted": false,
+  "forced_model_outputs_or_tool_calls": false,
+  "real_upstream_requests": 13,
+  "upstream_http_status": 200,
+  "upstream_auth_or_quota_block": false,
+  "cases": [
+    {
+      "case": "explicit",
+      "outcome": "succeeded",
+      "gold_status": "ok",
+      "compositor_invoked": true,
+      "native_question_opened": false,
+      "full_json_equal_gold": true,
+      "ledger_bytes_unchanged": true,
+      "semantic_contract_passed": true
+    },
+    {
+      "case": "ambiguous",
+      "outcome": "succeeded",
+      "gold_status": "ambiguous",
+      "compositor_invoked": true,
+      "native_question_opened": false,
+      "full_json_equal_gold": true,
+      "ledger_bytes_unchanged": true,
+      "semantic_contract_passed": true
+    }
+  ],
+  "equality_scope": "JSON fields and values, not whitespace or raw output bytes",
+  "source_and_binary_preserved": true,
+  "owned_containers_and_network_removed": true,
+  "existing_services_unchanged": true,
+  "prior_source55_semantic_deviations": [
+    "Explicit response omitted top-level status",
+    "Ambiguous request did not invoke composer"
+  ],
+  "prior_failed_receipts_preserved": true,
+  "focused_regressions": {
+    "passed": 118,
+    "skipped": 1,
+    "failures": 0,
+    "platform": "windows"
+  },
+  "two_native_json_resume_cases_accepted": true,
+  "claude_or_codex_model_workflow_accepted": false,
+  "plan_decision_workflow_accepted": false,
+  "human_browser_interaction_accepted": false,
+  "independent_review_accepted": false,
+  "global_product_accepted": false
+}

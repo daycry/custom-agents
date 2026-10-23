@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S125",
+    "S126",
+    "S127",
+    "S128",
+    "S129",
+    "S130"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S125",
+      "sha256": "1579f70e4cd5a2dde39d29a2055d18b39f06b063a308d3b43a498900c99495b7",
+      "bytes": 11520,
+      "lines": 277,
+      "read_ranges": [
+        [
+          1,
+          277
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S126",
+      "sha256": "4bc1f29a3be7986f89bdd7b5ec3894451e67c687a558b683cab62bd8d1fd2264",
+      "bytes": 3631,
+      "lines": 79,
+      "read_ranges": [
+        [
+          1,
+          79
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S127",
+      "sha256": "22ca735343716f296daa024c57128ceb6d5c38d54b3edb3045f6a9ef376a61f8",
+      "bytes": 7782,
+      "lines": 170,
+      "read_ranges": [
+        [
+          1,
+          170
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S128",
+      "sha256": "8104e87516857c7f773da9aba0dd13b61c3e490913adb4555d036614a9a937be",
+      "bytes": 4432,
+      "lines": 130,
+      "read_ranges": [
+        [
+          1,
+          130
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S129",
+      "sha256": "23a801545a4839c4fc04dc287e1122cc3913016a116b2cb5c7720e193edfa6c2",
+      "bytes": 9592,
+      "lines": 275,
+      "read_ranges": [
+        [
+          1,
+          275
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S130",
+      "sha256": "a6e5d6574566881d31e949cc0fad927e1e547d2ebe6f11d1f94f2890ed6ddd5e",
+      "bytes": 10290,
+      "lines": 312,
+      "read_ranges": [
+        [
+          1,
+          312
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/architect.md",
+      "sha256": "dc96da9390c051f6255d3bfea6ed4c056b12e0f33dce5ad472ede3a872126274"
+    },
+    {
+      "path": "skills/stack-practices/references/python.md",
+      "sha256": "b2ec29e4ded82c5cd9968abfb91bf46e2d3e7b7e17233ad3cb0a01d055a6bb20"
+    },
+    {
+      "path": "agent-kits/shared/redact.py",
+      "sha256": "4e9131368fd2471dcb2e3a2e91f6b0dc00555354487b6308194be05e4c4d5907"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

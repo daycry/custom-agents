@@ -1,0 +1,190 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_command_ids": [
+    "C001",
+    "C002",
+    "C004",
+    "C006",
+    "C010",
+    "C018"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "C001",
+      "sha256": "828d2739fce0b0d1cce5b5c69b277c445f21c853547e23b317d7fb0cb63ed800",
+      "bytes": 5946,
+      "lines": 164,
+      "read_ranges": [
+        [
+          1,
+          164
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C002",
+      "sha256": "e9f54487961497cf6c3f65a9802843cf067088029712f4ff6b623807eb97edc8",
+      "bytes": 1935,
+      "lines": 28,
+      "read_ranges": [
+        [
+          1,
+          28
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C004",
+      "sha256": "92926e49d18f18d52244f14d5f0962e69b2fc9c65dcf3b5775b1649a2aa494be",
+      "bytes": 1622,
+      "lines": 78,
+      "read_ranges": [
+        [
+          1,
+          78
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C006",
+      "sha256": "942a25f185062882e67e77a399d04c88ef12d7eb35033f309e053973bb653710",
+      "bytes": 4086,
+      "lines": 81,
+      "read_ranges": [
+        [
+          1,
+          81
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C010",
+      "sha256": "e96cf0365e21f2b54270de6564593c274867ded288b86cd8e8a708b44d12d83d",
+      "bytes": 3166,
+      "lines": 93,
+      "read_ranges": [
+        [
+          1,
+          93
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C018",
+      "sha256": "c8f94e2d2517539fd3e3cf05edb5a7187a887d76f2c936798e93e546f8b30ebb",
+      "bytes": 4521,
+      "lines": 178,
+      "read_ranges": [
+        [
+          1,
+          178
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "commands/work-resume.md",
+      "sha256": "52f8e4bf85eb5c8099abfd7b3c07375bec369853eb9b15f3d3dd6750c70df4c6"
+    },
+    {
+      "path": "commands/plugin-catalog.md",
+      "sha256": "fd70e7acfa5f17bf889dbf8e9c4f77291c1e5372af05f70e81a206b7b9690334"
+    },
+    {
+      "path": "commands/doctor.md",
+      "sha256": "cfb88392075454952fca87df3b4ed0e7bbe762e6022e4ec9f5109e86e3b43326"
+    },
+    {
+      "path": "commands/work-context.md",
+      "sha256": "181bc6b81c1bf856e2fad27b4ca4f467345acea993a18c977070cdf70bf05b28"
+    },
+    {
+      "path": "commands/roadmap-metrics.md",
+      "sha256": "62e704b2df7e865eca651b60a927b55901ea52176ef2ceec238774aeaa3e5c94"
+    },
+    {
+      "path": "agent-kits/shared/usage-meter.py",
+      "sha256": "f06ea2c2fd3195b39a5fa9ff64d1ced765fafef540657cb57d21804d311a1933"
+    },
+    {
+      "path": "agent-kits/shared/journal.py",
+      "sha256": "0930c34ae38c5bae7f297d423eac3f381b28cc1cbe0db93bbf4e9dd101c1a002"
+    },
+    {
+      "path": "agent-kits/shared/skill-index.py",
+      "sha256": "5187e70f0226946985fb24fc4ca57c75c4521dab953002ba813b207757cf784c"
+    },
+    {
+      "path": "install/install.mjs",
+      "sha256": "db99529013a4fd03770a6389c39f89fd45438bf37efef5837d369bd2e803c195"
+    },
+    {
+      "path": "docs/INSTALL.md",
+      "sha256": "80a7f5d3dc5f6975177818ea7f2253c682bbcb29438f1db637e66232b0687766"
+    },
+    {
+      "path": "docs/SPECIALIZATION.md",
+      "sha256": "c61aaac67a54b8932ad6235ec58bbbd51a4702f537f20812424fdd5e38c59936"
+    },
+    {
+      "path": "agents/knowledge-curator.md",
+      "sha256": "594f125574aec362b41f07242544e9cb942bea57bdb882e57255b1d174565dc9"
+    },
+    {
+      "path": "statusline/roadmap-statusline.sh",
+      "sha256": "23eab6d178374c3790f9cdd5bfceb9b2102127d1de4d1f9cf7dcf9a333d3cc86"
+    }
+  ],
+  "official_contrasts": [
+    {
+      "url": "https://code.claude.com/docs/en/commands",
+      "checked_at": "2026-10-14",
+      "items": [
+        "/btw",
+        "/rewind (aliases /checkpoint, /undo)",
+        "/usage (aliases /cost, /stats)",
+        "/plugin"
+      ]
+    }
+  ],
+  "tokens": null,
+  "latency_ms": null,
+  "transitive_resources": [
+    {
+      "path": "scripts/auto-update.js",
+      "sha256": "86f6b3a9254a59d68e51c7066a8939c08e26f70a551dba6394a06fe4ddbc64e7",
+      "bytes": 11973,
+      "lines": 401,
+      "read_ranges": [],
+      "reading_scope": "listed-not-read",
+      "callers": [
+        "C002"
+      ]
+    }
+  ]
+}

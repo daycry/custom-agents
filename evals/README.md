@@ -14,7 +14,7 @@ cosa — p. ej. una petición con incógnitas no debe ir a `quick-implement` sin
 | Fichero | Qué es | Dónde corre |
 |---|---|---|
 | `cases/<kind>-<nombre>.json` | Un fichero por pieza evaluable (`skill-*`, `command-*`, `agent-*`; 12 + 11 + 8 = 31). Formato abajo. | — (datos) |
-| `check.py` | Validación **estática**: esquema, cobertura (toda pieza tiene fichero con ≥ 2 positivos + 1 negativo), ids únicos, sin datos corporativos y, la clave, que el positivo `trigger: literal` **contenga una frase de la `description` real** → si cambias la description, el caso rompe y hay que actualizar ambas. Exit 0/1. | **CI** (`ci.yml`) |
+| `check.py` | Validación **estática**: esquema, cobertura (toda pieza tiene fichero con ≥ 2 positivos + 1 negativo), ids únicos, sin datos corporativos, casos `en-contra` con artefacto nuevo y, la clave, que el positivo `trigger: literal` **contenga una frase de la `description` real** → si cambias la description, el caso rompe y hay que actualizar ambas. Exit 0/1. | **CI** (`ci.yml`) |
 | `run.py` | Runner **local**: lanza cada caso en una sesión headless (`claude -p … --plugin-dir`) sobre una copia de `fixtures/project/`, detecta en la transcripción si la pieza se activó y evalúa `expect`. Cuesta tokens reales. Exit 0/1, **2 si `claude` no está en PATH**. | tu máquina |
 | `fixtures/project/` | Proyecto inventado con una iniciativa `demo` (spec aprobada, evaluación go, plan en borrador) para que los prompts tengan contexto realista. | copia por caso |
 | `test_evals.py` | Tests de `check.py` y de `run.py` con el subprocess **mockeado** (aquí nunca se lanza `claude`). | CI (`pytest evals`) |
@@ -46,7 +46,9 @@ cosa — p. ej. una petición con incógnitas no debe ir a `quick-implement` sin
 
 - `target`: `skill:<n>` · `command:<n>` · `agent:<n>`; el fichero se llama igual con `:` → `-`.
 - `trigger` (solo positivos): `literal` = el prompt contiene una frase de la description (entrecomillada o 4 palabras seguidas; comparación sin acentos ni mayúsculas) · `parafrasis` = misma intención con otras palabras. Cada pieza necesita ≥ 1 de cada.
-- `expect.activates` (obligatorio) · `artifacts` (globs relativos al cwd temporal) · `mentions` / `must_not` (subcadenas en el texto del asistente) · `redirect` (pieza que debería activarse en su lugar; **informativo**, no decide).
+- `expect.activates` (obligatorio) · `artifacts` (globs relativos al cwd temporal) · `contains` (contenido, abajo) · `mentions` / `must_not` (subcadenas en el texto del asistente) · `redirect` (pieza que debería activarse en su lugar; **informativo**, no decide).
+- `expect.contains` (opcional): lista de `{"path": "<glob>", "pattern": "<regex>"}`. `run.py` lo comprueba sobre los ficheros del cwd **después** de la ejecución: la regex (`re.MULTILINE`, así `^` es inicio de línea) debe casar en ≥ 1 fichero del glob y **no** casar ya en esos mismos ficheros del fixture original (`--fixture`) — un contenido preexistente no es evidencia. Si falla, `detalle.contains_faltan` da el motivo por elemento: `sin fichero` · `sin coincidencia` · `ya casaba en el fixture` · `regex inválida` · `ruta inválida`. `check.py` valida la forma: exactamente esas dos claves, regex compilable y `path` relativo dentro del fixture (sin raíz, sin unidad, sin `..`).
+- **Caso en contra** (`trigger: en-contra`, para piezas de disciplina: `tdd`, `quick-implement`, `adversarial-review`…): el prompt **desalienta** el método («hazlo rápido, los tests son opcionales») y se espera que la pieza lo mantenga. Lleva `activates: true` y ≥ 1 `artifacts` **o** `contains` — el cumplimiento se comprueba por la evidencia que deja el método, no clasificando el texto (`mentions` puede acompañar, nunca bastar). Ningún glob de `artifacts` puede casar ya con un fichero de `fixtures/project/` y ningún `pattern` de `contains` puede casar ya en los ficheros de su `path` en el fixture, porque su existencia no probaría nada. `contains` es la vía cuando la evidencia es una línea dentro de un fichero que ya existe: `tdd-en-contra-prisa` exige una línea `RED: <test> falló con …` nueva en el `tasks.md` del fixture. No cuenta para el mínimo de 2 positivos.
 - Prompts en español, naturales, con contexto (ficheros, rutas del fixture); **sin datos corporativos** (correos, hosts `atlassian.net`, URLs externas, claves Jira reales — `check.py` lo vigila; `PROJ-`, `localhost` y `example.com` están permitidos).
 
 ## Cómo se ejecuta
@@ -64,17 +66,33 @@ Comando que lanza `run.py` por caso (contrato de la CLI verificado el 2026-09-03
 `code.claude.com/docs/en/headless` y `cli-reference`):
 
 ```
-claude -p "<prompt>" --output-format stream-json --verbose --plugin-dir <raíz del plugin> --max-turns 8 --permission-mode acceptEdits --allowedTools "Bash(python3:*),Bash(git:*),Bash(find:*)"
+claude -p "<prompt>" --output-format stream-json --verbose --plugin-dir <raíz del plugin> --add-dir <raíz del plugin> --max-turns 8 --permission-mode acceptEdits --allowedTools "Bash(python3:*),Bash(python:*),Bash(git:*),Bash(find:*)"
 ```
 
 **Permisos en `-p`.** Nadie aprueba herramientas en una sesión headless y `acceptEdits` solo cubre
 Write/Edit: una tool use de Bash (los scripts del plugin: `ledger-lint.py`, `usage-meter.py`, `git`,
 `find`) quedaría **denegada** y el caso fallaría por permisos, no por activación. Por eso `run.py`
-pasa `--allowed-tools` (default `Bash(python3:*),Bash(git:*),Bash(find:*)`; se entrega tal cual a
+pasa `--allowed-tools` (default `Bash(python3:*),Bash(python:*),Bash(git:*),Bash(find:*)`; `python` porque en Windows el binario no es `python3`; se entrega tal cual a
 `--allowedTools`; cadena vacía → no se pasa) y, en el informe, cada caso fallido lleva una `causa`:
 `no activó` / `activó sin deber` (lo que mide la suite), `permiso denegado` (la pieza se activó pero
 un `tool_result` con `is_error` habla de permisos — amplía `--allowed-tools`), `expectativa`
-(`mentions`/`must_not`/`artifacts`) o `timeout`.
+(`mentions`/`must_not`/`artifacts`/`contains`) o `timeout`. `--add-dir <raíz del plugin>` va siempre:
+las piezas resuelven sus kits con `find` sobre la raíz del plugin, fuera del cwd temporal, y sin él
+el sandbox lo deniega. Con el plugin también instalado, `--settings
+'{"enabledPlugins":{"custom-agents@daycry":false}}'` desactiva la versión instalada para medir
+solo la rama (con las dos cargadas, la activación no dice cuál se midió).
+
+Sin `--keep`, el runner borra el directorio temporal que acaba de crear, incluidos
+los objetos Git de solo lectura en Windows. Solo declara `cwd: null` tras comprobar
+que desapareció. Si falla la limpieza, el caso falla con `causa: cleanup_error`,
+`checks.cleanup: false` y conserva `cwd` para poder retirarlo después. El diagnóstico
+persiste la clase del error y sus códigos `errno`/`winerror`, sin el mensaje bruto.
+El diagnóstico y la ruta retenida pasan por `agent-kits/shared/redact.py` antes
+del informe: si detecta secretos, `cwd` muestra una ruta redactada, que puede no
+localizar directamente el directorio original. Si el redactor no está disponible
+o falla, ambos campos muestran un aviso fijo sin texto del consumidor; el fallo
+de limpieza sigue visible y el directorio se conserva.
+Con `--keep`, conserva el directorio y su ruta.
 
 **Cómo detecta la activación.** `--output-format json` solo devuelve el resultado final (sin tool
 uses), así que se usa `stream-json` y se leen las tool uses de los mensajes `assistant`:
@@ -147,20 +165,44 @@ contexto de sesión y hook de guardia son interactivos).
 
 ## English
 
+Without `--keep`, the runner removes its freshly created temporary directory,
+including read-only Git objects on Windows, and reports `cwd: null` only after
+confirming its absence. Cleanup failure fails the case with `causa: cleanup_error`
+and `checks.cleanup: false`, retaining `cwd` for later removal. The diagnostic
+records the exception class and `errno`/`winerror` codes, without its raw message.
+The diagnostic and retained path pass through `agent-kits/shared/redact.py` before
+the report: detected secrets produce a redacted `cwd`, which may not directly
+locate the original directory. If the redactor is unavailable or fails, both
+fields contain a fixed notice without consumer text; cleanup still fails visibly
+and the directory remains.
+`--keep` retains the directory and its path.
+
 `evals/` turns each piece's `description` — a *promise* that Claude will invoke it when the user
 says X — into something **tested**, not assumed. One JSON file per skill/command/agent
 (`cases/<kind>-<name>.json`) holds ≥ 2 positive prompts (one containing a literal phrase of the
 real description, one paraphrased) and ≥ 1 *neighbouring* negative (shares vocabulary, should route
 elsewhere — `expect.redirect`). `check.py` is the **static, CI** half: schema, coverage of every
 piece, unique ids, no corporate data, and the literal prompt must still match the current
-description (so changing a description breaks the case until both are updated). `run.py` is the
+description (so changing a description breaks the case until both are updated). An **against case**
+(`trigger: en-contra`, for discipline pieces) has a prompt that discourages the method («do it fast,
+tests are optional»): it needs `activates: true` and ≥ 1 `artifacts` glob or `contains` entry that
+matches nothing already in `fixtures/project/`, because compliance is checked by the evidence the
+method leaves, not by classifying text; it does not count towards the 2-positive minimum. The optional
+`expect.contains` field (`[{"path": "<glob>", "pattern": "<regex>"}]`) checks file CONTENT: after the
+run, the regex (`re.MULTILINE`) must match in ≥ 1 cwd file matching the glob and must NOT already match
+in those files of the original `--fixture` (pre-existing content is not evidence); failures are listed
+in `detalle.contains_faltan` with a reason (`sin fichero` · `sin coincidencia` · `ya casaba en el
+fixture` · `regex inválida` · `ruta inválida`). `check.py` validates its shape (exactly those two keys,
+a compilable regex, a relative `path` with no root, drive or `..`). It is how a line inside an existing
+file becomes executable evidence: `tdd-en-contra-prisa` requires a new `RED: <test> falló con …` line
+in the fixture's `tasks.md`. `run.py` is the
 **local** runner: it launches `claude -p "<prompt>" --output-format stream-json --verbose
---plugin-dir <plugin> --max-turns 8 --permission-mode acceptEdits --allowedTools "<--allowed-tools>"` (default
-`Bash(python3:*),Bash(git:*),Bash(find:*)`: in `-p` nobody approves tools and `acceptEdits` does not cover Bash) per case on a copy of
+--plugin-dir <plugin> --add-dir <plugin> --max-turns 8 --permission-mode acceptEdits --allowedTools "<--allowed-tools>"` (default
+`Bash(python3:*),Bash(python:*),Bash(git:*),Bash(find:*)`: in `-p` nobody approves tools and `acceptEdits` does not cover Bash; `--add-dir` lets pieces read the plugin root outside the temporary cwd; `--settings '{"enabledPlugins":{"custom-agents@daycry":false}}'` measures only the branch when the plugin is also installed) per case on a copy of
 `fixtures/project/`, detects activation from the `Skill`/`Agent` tool uses in the transcript
 (`json` output has no tool uses; commands are invoked through the Skill tool), checks
-`mentions`/`must_not`/`artifacts`, tags each failure with a `causa` (`no activó` · `activó sin deber` · `permiso denegado` — the
-piece fired but a tool_result was denied for permissions — · `expectativa` · `timeout`), writes `reports/<date>.json`, and exits 0/1 (2 when `claude` is
+`mentions`/`must_not`/`artifacts`/`contains`, tags each failure with a `causa` (`no activó` · `activó sin deber` · `permiso denegado` — the
+piece fired but a tool_result was denied for permissions — · `expectativa` · `timeout` · `cleanup_error`), writes `reports/<date>.json`, and exits 0/1 (2 when `claude` is
 not on PATH; `--dry-run` only prints the commands). There is no official `claude plugin eval`
 (plugins-reference, 2026-09-03); the official `skill-creator` `evals/evals.json` measures output
 quality, so this format is our own and maps 1:1 onto its trigger list (`prompt`→`query`,

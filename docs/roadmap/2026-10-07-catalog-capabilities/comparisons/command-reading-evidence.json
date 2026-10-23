@@ -1,0 +1,561 @@
+{
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "inventory_commands": 94,
+  "command_bodies_read": 18,
+  "closed_fiches": 0,
+  "integrated": 0,
+  "validation": "static comparison proposals; native routing not executed",
+  "records": [
+    {
+      "id": "C001",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "828d2739fce0b0d1cce5b5c69b277c445f21c853547e23b317d7fb0cb63ed800",
+      "hash_match": true,
+      "bytes": 5946,
+      "lines": 164,
+      "ranges": [
+        [
+          1,
+          164
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C004",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "92926e49d18f18d52244f14d5f0962e69b2fc9c65dcf3b5775b1649a2aa494be",
+      "hash_match": true,
+      "bytes": 1622,
+      "lines": 78,
+      "ranges": [
+        [
+          1,
+          78
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C006",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "942a25f185062882e67e77a399d04c88ef12d7eb35033f309e053973bb653710",
+      "hash_match": true,
+      "bytes": 4086,
+      "lines": 81,
+      "ranges": [
+        [
+          1,
+          81
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C030",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "dc420f85cdbfab6671338227b5673b4feed564c4294a12c304b6d79cf0346ec2",
+      "hash_match": true,
+      "bytes": 3170,
+      "lines": 84,
+      "ranges": [
+        [
+          1,
+          84
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C047",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "2e9789cb610bfa1a382dbaa46480a03aa976445d23b9ff719e4358bafa7292eb",
+      "hash_match": true,
+      "bytes": 697,
+      "lines": 30,
+      "ranges": [
+        [
+          1,
+          30
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C079",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "b09bcb22feb10adbba50accd5dd97d09b60897aa94d05c6c12b6e579cb69cbac",
+      "hash_match": true,
+      "bytes": 8105,
+      "lines": 181,
+      "ranges": [
+        [
+          1,
+          181
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C085",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "a9488a8819d6c65fe4777f07ea72de6b0c4ee94f90c6bb33b3b8841916222db4",
+      "hash_match": true,
+      "bytes": 9702,
+      "lines": 275,
+      "ranges": [
+        [
+          1,
+          275
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C087",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "87d9eccf2c89fc7dc26f79c83ea1713f3ef51bfe7357c6ff5fa2e09c2d76d5e0",
+      "hash_match": true,
+      "bytes": 14834,
+      "lines": 339,
+      "ranges": [
+        [
+          1,
+          339
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C074",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "a3ed90f43a1cfc2cf9b85163ed22ddb6102c10f7ad4d02b76b4e2545e3330298",
+      "hash_match": true,
+      "bytes": 1909,
+      "lines": 52,
+      "ranges": [
+        [
+          1,
+          52
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C042",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "130ca626905237a4f6c75314c304f26a49f291794fc4a5e8e8747d7850db9082",
+      "hash_match": true,
+      "bytes": 7439,
+      "lines": 153,
+      "ranges": [
+        [
+          1,
+          153
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C043",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "8fbb0ee1f344f47f4f1b8595231338a28bdc0c015daa4644af3b343194bae0d1",
+      "hash_match": true,
+      "bytes": 3809,
+      "lines": 107,
+      "ranges": [
+        [
+          1,
+          107
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C065",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "dc939242028d24119b985e6ad4fee3d6c8185f6bd19c716535384149bc9876f3",
+      "hash_match": true,
+      "bytes": 853,
+      "lines": 39,
+      "ranges": [
+        [
+          1,
+          39
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C066",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "8d2faf47b1322c24a1dfa221b2f5e85b9e766fcd1d460c157c472246a3b86846",
+      "hash_match": true,
+      "bytes": 1263,
+      "lines": 41,
+      "ranges": [
+        [
+          1,
+          41
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C072",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "19addecbc1b224deda7e3a55a16f7412a973958e4be9cdaeeb93449ee9d37598",
+      "hash_match": true,
+      "bytes": 907,
+      "lines": 31,
+      "ranges": [
+        [
+          1,
+          31
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C052",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "6a519875b519d52aaa68d2695d5252ba419021b420c45c6605cb68169ab2d95a",
+      "hash_match": true,
+      "bytes": 8063,
+      "lines": 197,
+      "ranges": [
+        [
+          1,
+          197
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C061",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "8d0caa8380eba2f2550937553c9c8c8f253c627cff662f0c333e6ad982706e3e",
+      "hash_match": true,
+      "bytes": 7766,
+      "lines": 206,
+      "ranges": [
+        [
+          1,
+          206
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C078",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "be911e404a89e79cc878e20ba28b0feeacc2350db8710624622d88a453bf13db",
+      "hash_match": true,
+      "bytes": 2901,
+      "lines": 84,
+      "ranges": [
+        [
+          1,
+          84
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "C090",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "da34a0a3c0fe3ccec6795cbf16252a4253b81baa8ea7bf332cd7a0d1cde1efdf",
+      "hash_match": true,
+      "bytes": 4245,
+      "lines": 54,
+      "ranges": [
+        [
+          1,
+          54
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-6f176fdf443b",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "cbfac8b5aa349b01de0ddced7aeaea99a5df4e8306c3077ef08aacc4d5700555",
+      "hash_match": true,
+      "bytes": 16008,
+      "lines": 545,
+      "ranges": [
+        [
+          1,
+          545
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-4cdf2ec0b48f",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "a601ab52fddf9b2d2010460815eb8820e14dce3268efca0dce79dd4bc4b6d2fc",
+      "hash_match": true,
+      "bytes": 12365,
+      "lines": 481,
+      "ranges": [
+        [
+          1,
+          481
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-4a236023dc1d",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "c36f288d96abcbababfc3284f11ab807eb040853bcdf9b97dcd7ac77506df86c",
+      "hash_match": true,
+      "bytes": 7707,
+      "lines": 167,
+      "ranges": [
+        [
+          1,
+          167
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-e004ae305ac0",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "0a39212f81838cd9756ade0048c296a6f79acf6dc8416ded6b15cd8c5be07ae8",
+      "hash_match": true,
+      "bytes": 7802,
+      "lines": 245,
+      "ranges": [
+        [
+          1,
+          245
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-3d9f69328581",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "cab3a6d0fa74a08fd484a929c1c769f723afbd01818f4ca549d2966d6458c1ea",
+      "hash_match": true,
+      "bytes": 35498,
+      "lines": 1085,
+      "ranges": [
+        [
+          1,
+          1085
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-05dcbc3bbd0f",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "85966ad7f337ea1ade297ef62d54fa5483e6e69ee857ec7c26098f1ad04205bd",
+      "hash_match": true,
+      "bytes": 3437,
+      "lines": 132,
+      "ranges": [
+        [
+          1,
+          132
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-64efaae5166e",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "8e817cdbdd354c3641e64f1edca4f6405203f3b36de948b4d881e516197eeb50",
+      "hash_match": true,
+      "bytes": 11877,
+      "lines": 401,
+      "ranges": [
+        [
+          1,
+          401
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-dde3f40a27b5",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "a4aaf552a06e45e5ccb1fe76c4ec98566ff088967102f86f968dadb6b102054b",
+      "hash_match": true,
+      "bytes": 6081,
+      "lines": 196,
+      "ranges": [
+        [
+          1,
+          196
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-d256c2010315",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "a11a8eab2d7425bae51233d10a28ceb28060948bb07c1c7fafd65ed44b9887cc",
+      "hash_match": true,
+      "bytes": 7587,
+      "lines": 263,
+      "ranges": [
+        [
+          1,
+          263
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-d0dc5f4d4d90",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "ad7f4ce120ff04f3340fec49d486df3c90c11749998cf46356b6802ba1c24a0f",
+      "hash_match": true,
+      "bytes": 6209,
+      "lines": 237,
+      "ranges": [
+        [
+          1,
+          237
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    },
+    {
+      "id": "R-7636391bd59d",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "6480ff6d2a9cf8974e046fb049e26ceca81568ccba761cdc661feece7e515905",
+      "hash_match": true,
+      "bytes": 4790,
+      "lines": 187,
+      "ranges": [
+        [
+          1,
+          187
+        ]
+      ],
+      "model_read": "complete",
+      "read_origin": "current delegated source reading",
+      "semantic_complete": false,
+      "execution": "not executed",
+      "integrated": false
+    }
+  ]
+}

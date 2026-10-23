@@ -9,7 +9,7 @@ descripcion: >
   persona ni la memoria. Fuente única del alcance: `analysis.md` de esta carpeta.
 estado: aprobada
 creado: 2026-09-09
-actualizado: 2026-09-09
+actualizado: 2026-10-06
 evaluacion: evaluation.md
 design: n/a
 plan: improvement-plan.md
@@ -54,7 +54,7 @@ Nadie lo vio (`analysis.md` §2) porque el test que guarda el CA-08
 `agent-kits/shared/test_task_brief.py:781`) recorre solo `memory-retrieval`, sin diseño; `GOT-008` diagnosticó el problema
 anterior con un remedio que presupone que no hay diseño; y hasta F1 no había aviso en runtime.
 
-**Objetivo:** que el brief cumpla el tope que promete — **0 de 22 briefs de `project-specialization` por encima de 10.000**,
+**Objetivo:** que el brief cumpla el tope que promete — **briefs de `project-specialization` dentro de 10.000 o con mínimo protegido explícito**,
 `## Diseño` deja de ser una constante de 3.510, el test del CA-08 recorre todos los ledgers y está en verde, y ningún aviso
 de tope en el despacho de F2 (`analysis.md` §6) — **sin** subir el tope, recortar el contrato, ni tocar la persona o la
 memoria (`analysis.md` §3).
@@ -112,7 +112,7 @@ Cómo se compone el brief hoy y dónde entra cada opción:
 
 1. `main()` lee `tasks.md`, extrae el bloque `### T-XX` (`_seccion_tarea`) y monta cabecera + `## Contexto de fase` +
    `## Contrato de retorno` (fijo ≈ 1.025). **Intocable.**
-2. `## La tarea`: el bloque sin `Verificación` ni presupuesto (`_chunk_sin_verificacion`, `_chunk_sin_presupuesto`). **Intocable.**
+2. `## La tarea`: conserva descripción, criterios, archivos, dependencias y decisiones vigentes. El historial de ejecución se consulta en `tasks.md`; no se recortan requisitos para cumplir el presupuesto.
 3. `## Gaps pendientes de revisión`: filas del último intento para esta tarea (`:723-738`). → **O3** acota lo que entra;
    **O1** le pone `GAPS_TOPE_CHARS`.
 4. `## Verificación`: los `items` del campo, más nota si ya se ejecutó (`:740-752`). → **O4** garantiza que solo entran los
@@ -124,7 +124,7 @@ Cómo se compone el brief hoy y dónde entra cada opción:
 7. `## Persona de dominio`: margen real tras montar el resto, con suelo 1.300 (F1). **No se toca.**
 8. Aviso final si `len(texto) > BRIEF_TOPE_CHARS` con la causa por sección (`:818-833`). Se **amplía** con las nuevas
    secciones recortadas, no se sustituye.
-9. **O5**: el test del CA-08 recorre todos los ledgers y afirma `≤ 10000` en cada brief; entra en `xfail` fechado hasta que
+9. **O5**: el test del CA-08 recorre todos los ledgers y comprueba el tope o el mínimo protegido declarado, conservando todos los criterios; entra en `xfail` fechado hasta que
    O1-O4 bajen los briefs, y pasa a verde al final.
 
 ## Alcance
@@ -143,7 +143,7 @@ Cómo se compone el brief hoy y dónde entra cada opción:
 - **Fuera (por el §3 del análisis — «lo que NO es el problema» — con su motivo):**
   - **Subir el tope de 10.000.** Es el requisito CA-08 de la spec de `memory-retrieval` (≤ 2.500 tokens): un brief más largo
     degrada al subagente. Subirlo esconde el problema.
-  - **Recortar `## La tarea` o `## Contrato de retorno`.** Son el contrato del subagente; recortarlos es lo que este repo ya
+  - **Recortar requisitos de `## La tarea` o `## Contrato de retorno`.** Son el contrato del subagente; recortarlos es lo que este repo ya
     graduó **ALTA** en `test_task_brief.py:190-192` («el brief salía SIN criterios»).
   - **Tocar la persona.** F1 de `project-specialization` (T-01) la acota con suelo garantizado + margen real y la delimita.
     Está fuera de esta iniciativa.
@@ -166,44 +166,47 @@ Cómo se compone el brief hoy y dónde entra cada opción:
 | Test CA-08 sobre un ledger que aún desborda (O5, fase intermedia) | `xfail(reason="brief-budget pendiente de C-0X", strict=True)` con **fecha** en el motivo; nunca `skip` sin fecha |
 | Consola cp1252 (Windows) | El aviso usa el snippet UTF-8 de `GOT-005` ya presente; sin símbolos nuevos fuera de él |
 
+## Ajuste del contrato — 2026-10-06
+
+El corpus actual contiene bloques de tarea mayores que el tope por su historial. La recomendación planteada al usuario distingue el contrato vigente del registro de ejecución: se enlazan evidencias históricas y se preservan descripción, criterios completos, archivos, dependencias y todas las notas de decisión. No se eleva el límite ni se reduce el suelo de persona o memoria. Si el mínimo protegido no cabe, se informa de su tamaño exacto y se exige dividir la tarea antes de delegarla. Esta excepción sustituye la identidad del bloque histórico completo, no la integridad del contrato de retorno. CA-01 y CA-02 aplican la misma excepción que CA-04, también con la constitución real. El ajuste de persona solo contabiliza su nota de recorte y el salto final dentro del margen flexible: constantes, suelo garantizado y delimitación se conservan.
+
 ## Criterios de aceptación
 
 Los criterios se verifican con comandos desde la raíz del repo, con `export PATH="$PWD/.venv/Scripts:$PATH"` en Windows y
 sobre el ledger real de `project-specialization` **solo en lectura**. Los medidos en caracteres se toman en la máquina de
 trabajo (`GOT-008`).
 
-- [ ] [GWT] CA-01 — Dado el ledger real `docs/roadmap/2026-09-09-project-specialization/tasks.md` (22 tareas, `design.md`
-  aprobado), Cuando se genera el brief de cada tarea, Entonces **0 de 22** miden más de 10.000 caracteres.
-  `for t in $(grep -o '^### T-[0-9]*' docs/roadmap/2026-09-09-project-specialization/tasks.md | cut -c5-); do python3 agent-kits/shared/task-brief.py docs/roadmap/2026-09-09-project-specialization $t 2>/dev/null | wc -c; done | awk '$1>10000' | wc -l` → `0` (hoy: `12`).
-- [ ] [GWT] CA-02 — Dado el mismo ledger, Cuando se generan los 22 briefs, Entonces stderr no contiene ningún aviso
-  «por encima de BRIEF_TOPE_CHARS».
-  `for t in $(grep -o '^### T-[0-9]*' docs/roadmap/2026-09-09-project-specialization/tasks.md | cut -c5-); do python3 agent-kits/shared/task-brief.py docs/roadmap/2026-09-09-project-specialization $t 2>&1 >/dev/null; done | grep -c "por encima de BRIEF_TOPE_CHARS"` → `0` (hoy: `12`).
-- [ ] [GWT] CA-03 — Dado el mismo ledger, Cuando se mide la sección `## Diseño` de los 22 briefs, Entonces su tamaño **no es
+- [x] [GWT] CA-01 — Dado el ledger real `docs/roadmap/2026-09-09-project-specialization/tasks.md` (22 tareas, `design.md`
+  aprobado), Cuando se genera el brief de cada tarea, Entonces cada brief cabe en 10.000 caracteres o declara su mínimo protegido irreducible. El informe distingue la invocación normal con constitución de la medición de referencia sin ella; los casos irreducibles requieren dividir la tarea antes de delegarla.
+  `for t in $(grep -o '^### T-[0-9]*' docs/roadmap/2026-09-09-project-specialization/tasks.md | cut -c5-); do python3 agent-kits/shared/task-brief.py docs/roadmap/2026-09-09-project-specialization $t 2>/dev/null | wc -c; done | awk '$1>10000' | wc -l` → medición histórica: `12`; resultado final y mínimos protegidos en `testing/report.md`.
+- [x] [GWT] CA-02 — Dado el mismo ledger, Cuando se generan los 22 briefs, Entonces stderr no contiene ningún aviso
+  «por encima de BRIEF_TOPE_CHARS» sin el tamaño exacto del mínimo obligatorio que lo justifica. No se exige ocultar el aviso de un contrato irreducible.
+  `for t in $(grep -o '^### T-[0-9]*' docs/roadmap/2026-09-09-project-specialization/tasks.md | cut -c5-); do python3 agent-kits/shared/task-brief.py docs/roadmap/2026-09-09-project-specialization $t 2>&1 >/dev/null; done | grep -c "por encima de BRIEF_TOPE_CHARS"` → medición histórica: `12`; resultado final y mínimos protegidos en `testing/report.md`.
+- [x] [GWT] CA-03 — Dado el mismo ledger, Cuando se mide la sección `## Diseño` de los 22 briefs, Entonces su tamaño **no es
   constante** (al menos dos valores distintos; con O2, las tareas sin referencia al §5 llevan solo el puntero).
   `for t in $(grep -o '^### T-[0-9]*' docs/roadmap/2026-09-09-project-specialization/tasks.md | cut -c5-); do python3 agent-kits/shared/task-brief.py docs/roadmap/2026-09-09-project-specialization $t 2>/dev/null | awk '/^## Diseño/{f=1;next} /^## /{f=0} f' | wc -c; done | sort -u | wc -l` → `>= 2` (hoy: `1`, valor 3.510).
-- [ ] [GWT] CA-04 — Dado `test_task_brief.py`, Cuando se ejecuta el test del CA-08, Entonces recorre **todos** los
-  `docs/roadmap/*/tasks.md` (con y sin `design.md`) y está en verde en la máquina de trabajo.
+- [x] [GWT] CA-04 — Dado `test_task_brief.py`, Cuando se ejecuta el test del CA-08, Entonces recorre **todos** los
+  `docs/roadmap/*/tasks.md` (con y sin `design.md`) y está en verde en la máquina de trabajo. Cada brief cabe en 10.000 caracteres o declara un mínimo obligatorio superior al tope después de agotar las secciones auxiliares. En ambos casos conserva todos los criterios. Un mínimo excesivo exige dividir la tarea antes de delegarla.
   `grep -c 'docs/roadmap/\*/tasks.md\|glob("docs/roadmap' agent-kits/shared/test_task_brief.py` → `>= 1` · `python3 -m pytest agent-kits/shared/test_task_brief.py -q -k ca08` → `passed`, `0 xfailed` al cierre.
-- [ ] [GWT] CA-05 — Dada una tarea con `Verificación` que trae la salida pegada `(ejecutada <fecha> — salida: …)`, Cuando se
+- [x] [GWT] CA-05 — Dada una tarea con `Verificación` que trae la salida pegada `(ejecutada <fecha> — salida: …)`, Cuando se
   genera su brief, Entonces la sección `## Verificación` contiene los comandos y **no** la salida grabada (O4).
   `python3 agent-kits/shared/task-brief.py docs/roadmap/2026-09-09-project-specialization T-02 2>/dev/null | awk '/^## Verificación/{f=1;next} /^## /{f=0} f' | wc -c` → `<= 800` (hoy: 2.285); test unitario en `tmp_path` que lo afirma.
-- [ ] [GWT] CA-06 — Dado un ledger con dos intentos de revisión y filas de varias tareas, Cuando se genera el brief de una,
+- [x] [GWT] CA-06 — Dado un ledger con dos intentos de revisión y filas de varias tareas, Cuando se genera el brief de una,
   Entonces `## Gaps pendientes` solo lleva las filas de **esa** tarea del **último** intento y su tamaño queda bajo su tope (O3/O1).
   `python3 -m pytest agent-kits/shared/test_task_brief.py -q -k gaps` → `passed` (test nuevo sobre `tmp_path`).
-- [ ] CA-07 — Cada constante nueva `*_TOPE_CHARS` lleva en comentario **la medición que la justifica** (mediana/máximo del §1
+- [x] CA-07 — Cada constante nueva `*_TOPE_CHARS` lleva en comentario **la medición que la justifica** (mediana/máximo del §1
   del análisis o re-medida) y un test que la afirma, calcando `MEMORIA_TOPE_CHARS`.
   `grep -n "^[A-Z_]*_TOPE_CHARS = " agent-kits/shared/task-brief.py` → las de hoy (`MEMORIA`, `BRIEF`, `PERSONA`) más las nuevas, cada una con `#` de justificación en la misma línea o el bloque inmediatamente anterior.
-- [ ] CA-08 — Los invariantes del §3 del análisis se mantienen: `BRIEF_TOPE_CHARS == 10000`, `MEMORIA_TOPE_CHARS == 2400`,
-  `PERSONA_SUELO_CHARS == 1300`, y `## La tarea` / `## Contrato de retorno` salen **byte a byte iguales** que antes del cambio
-  para las 22 tareas.
-  `grep -c "^BRIEF_TOPE_CHARS = 10000\|^MEMORIA_TOPE_CHARS = 2400\|^PERSONA_SUELO_CHARS = 1300" agent-kits/shared/task-brief.py` → `3` · `python3 -m pytest agent-kits/shared/test_task_brief.py -q -k "fence_no_trunca or contrato or persona"` → `passed` · diff de esas dos secciones entre HEAD y la rama → vacío.
-- [ ] CA-09 — Ningún `skip`/`xfail` sin motivo **y fecha** en la suite; al cierre, ningún `xfail` de esta iniciativa.
+- [x] CA-08 — Los invariantes del §3 del análisis se mantienen: `BRIEF_TOPE_CHARS == 10000`, `MEMORIA_TOPE_CHARS == 2400`,
+  `PERSONA_SUELO_CHARS == 1300`. `## Contrato de retorno` permanece íntegro; `## La tarea` conserva requisitos y decisiones vigentes, enlazando el historial retirado al ledger. La excepción se comprueba con fixtures y con todos los criterios del corpus.
+  `grep -c "^BRIEF_TOPE_CHARS = 10000\|^MEMORIA_TOPE_CHARS = 2400\|^PERSONA_SUELO_CHARS = 1300" agent-kits/shared/task-brief.py` → `3` · `python3 -m pytest agent-kits/shared/test_task_brief.py -q -k "fence_no_trunca or contrato or persona"` → `passed` · fixtures de historial y criterios completos del corpus → verdes.
+- [x] CA-09 — Ningún `skip`/`xfail` sin motivo **y fecha** en la suite; al cierre, ningún `xfail` de esta iniciativa.
   `grep -n "xfail\|pytest.skip\|skipif" agent-kits/shared/test_task_brief.py | grep -v "20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]\|sin el ledger real"` → vacío.
-- [ ] CA-10 — La suite completa del script está en verde y no baja el número de tests.
+- [x] CA-10 — La suite completa del script está en verde y no baja el número de tests.
   `python3 -m pytest agent-kits/shared/test_task_brief.py -q` → `>= 60 passed` (hoy 60 definidos; el del CA-08 falla en Windows en HEAD por `GOT-008`, ruta absoluta — no es de esta iniciativa, pero la versión O5 del test **debe** pasar aquí).
-- [ ] CA-11 — `task-brief.py` sigue siendo standalone (sin `import` de módulos del kit) y conserva el snippet UTF-8 de `GOT-005`.
+- [x] CA-11 — `task-brief.py` sigue siendo standalone (sin `import` de módulos del kit) y conserva el snippet UTF-8 de `GOT-005`.
   `grep -n "^from agent_kits\|^import agent_kits\|^from shared" agent-kits/shared/task-brief.py` → vacío · `python3 -m pytest tests/test_console_encoding.py -q` → `passed`.
-- [ ] CA-12 — Las puertas del repo siguen en verde: `python3 scripts/lint_plugin.py` → `0 errores` · `python3 evals/check.py` → ok
+- [x] CA-12 — Las puertas del repo siguen en verde: `python3 scripts/lint_plugin.py` → `0 errores` · `python3 evals/check.py` → ok
   · `python3 scripts/export-interop.py --check` → sin cambios pendientes (el script no es pieza traducida, pero la puerta se corre igual).
 
 ## Pruebas
@@ -214,7 +217,7 @@ trabajo (`GOT-008`).
   Cada tope se afirma **con recorte que no parte fences** (reutiliza los casos de `_recorte_seguro`).
 - **Integración sobre el corpus real** (solo lectura): CA-01…CA-03 y CA-05 sobre `project-specialization`; CA-04 sobre todos los
   ledgers. Medidas en la máquina de trabajo; el test deja margen (`GOT-008`).
-- **Regresión**: los 60 tests de hoy siguen pasando (CA-10); las secciones intocables salen byte a byte iguales (CA-08).
+- **Regresión**: los 60 tests de hoy siguen pasando (CA-10); el contrato de retorno permanece íntegro y todos los criterios se conservan (CA-08).
 - **Secuenciación de O5**: el test sobre todos los ledgers nace `xfail(strict=True)` fechado (RED evidenciable si `dev.json`
   activa `tdd`) y pasa a verde como **último** paso; su tiempo de ejecución se controla (ver Supuestos).
 - Sin `test-plan.md` E2E: no hay UI. Los `[GWT]` son criterios de CLI que `qa`/`coverage-check.py` cubren con los comandos citados.

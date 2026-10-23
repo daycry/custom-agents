@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "recorded_utc": "2026-10-12T02:51:21.141389+00:00",
+  "tested_stage_manifest_sha256": "1d75680290b30edae4e4138dd9166a5f0a44039306901ec62acbac743b109088",
+  "runtime_source_pins": {
+    "knowledge-find.py": "c8209657bb1be5d4ae3a65b0a9fbf4ba71ef6d25c9646f1c9cf0d9508bdd3612"
+  },
+  "windows": {
+    "cases": 287,
+    "passed": 271,
+    "skipped": 16,
+    "failures": 0,
+    "errors": 0
+  },
+  "linux": {
+    "cases": 287,
+    "passed": 272,
+    "skipped": 15,
+    "failures": 0,
+    "errors": 0
+  },
+  "git_metadata_case_excluded_from_isolated_source_runs": true,
+  "git_metadata_verified_separately": true,
+  "git_metadata_receipt": {
+    "gitignore_sha256": "dc87151ac56606c0252709153ce986429c386938e4e710cc7777c9065027e956",
+    "git_executable_sha256": "37c5725818d602e951ba2563b870d62763322956b73373da4c33a0b566a80bc9",
+    "gitignore_unchanged": true,
+    "index_ignored": true,
+    "check_ignore_stdout": ".gitignore:75:**/.claude/knowledge-index.sqlite\t.claude/knowledge-index.sqlite\n",
+    "checkout_head": "3be4821377d8d3dbb34e454a838b42314352c23e",
+    "scope": "Separate read-only Git metadata check; isolated source tests exclude the unavailable Git context",
+    "global_product_accepted": false
+  },
+  "original_red_failures": 8,
+  "label_red_failures": 1,
+  "identity_red_failures": 5,
+  "derived_metadata_preserved_in_json_and_compact_text": true,
+  "exact_bounded_source_identity_preserved": true,
+  "inconsistent_or_unsafe_derived_identity_discarded": true,
+  "authority_label_survives_compact_truncation": true,
+  "http_fixture_models_server_assigned_uuid_and_readback": true,
+  "router_fixture_uses_same_endpoint_for_publication_and_read": true,
+  "broad_contract_diagnostic": {
+    "cases": 376,
+    "passed": 307,
+    "failed": 68,
+    "skipped": 1,
+    "errors": 0,
+    "accepted": false
+  },
+  "prior_broad_contract_failures": 78,
+  "original_failed_receipts_preserved": true,
+  "owned_linux_container_removed": true,
+  "source_and_dependencies_preserved": true,
+  "native_client_acceptance": false,
+  "global_product_accepted": false,
+  "root_promoted": false,
+  "committed": false,
+  "pushed": false
+}

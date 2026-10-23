@@ -1,0 +1,35 @@
+{
+  "target": "skill:capability-audit",
+  "cases": [
+    {
+      "id": "capability-audit-literal",
+      "prompt": "audita capacidades",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "capability-audit"
+        ]
+      }
+    },
+    {
+      "id": "capability-audit-parafrasis",
+      "prompt": "Dos guías dan instrucciones distintas al mismo rol; revisa contenido, recursos y cuál consolidar.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "capability-audit"
+        ]
+      }
+    },
+    {
+      "id": "capability-audit-negativo",
+      "prompt": "Genera el inventario HTML del plugin para navegarlo.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:plugin-panel"
+      }
+    }
+  ]
+}

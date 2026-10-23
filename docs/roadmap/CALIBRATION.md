@@ -34,8 +34,16 @@ Cada fila sale de un `/retro` de una iniciativa **cerrada**. Lo leen dos piezas:
 | 2026-09-19 | knowledge-services | −100 % humanas (0 h vs 56 h est.: ejecución íntegra por agentes); IA de implementación −63 % (6,15 h vs 16,8 h est., mezcla de medido en ventanas compartidas y estimado) + **11 rondas de corrección y 12 pasadas de lentes no presupuestadas** (185 gaps) | −72 % en ventanas de tarea (~230k vs 815k; sin contar revisores) | **(estimado)** las horas IA son repartos de ventanas compartidas y estimaciones: derivar el ratio sería circular | el coste real fue la revisión adversarial, no la implementación; un diseño fijado por el orquestador en una tabla de gaps produjo 2 Critical | presupuestar la revisión de dos lentes como partida propia; un marcador de usage-meter por tarea sin solape |
 | 2026-09-29 | training-data-services | −100 % humanas (0 h vs 39,5 h est.: ejecución íntegra por agentes); IA **+761 %** (105,86 h medidas vs 12,3 h est.): ≈ 12 h de implementación y ≈ 94 h de revisión y corrección (15 secciones, 206 gaps: 1 C · 31 I · 174 M; 6 diseños rehechos dentro del bucle) | ×6,1 en salida (~3,53 M vs 575k est.); 750,23 € medidos | **(estimado)** — las horas IA las derivó el propio meter con el ratio vigente (479326), así que calcular un ratio con ellas sería circular | Objetivo «sin gaps» que hizo bloqueante cada Minor, más lentes sin modelo de amenaza ni escala declarados; el tope de 3 intentos no funcionó como tope | Nivel de riesgo en la spec (`sdd-proporcional`): ×2,2 de revisión en `alto`; modelo de amenaza y escala obligatorios; Minor al backlog; diseño aprobado antes del bucle; ver [retro](2026-09-16-training-data-services/retro.md) |
 | 2026-10-01 | setup-statusline-polish | −100 % humanas (0 h vs 54,8 h est.: ejecución íntegra por agentes); IA **sin medir** (el meter degradó en todo el ciclo; ≈ 15,5 h de reloj sumadas en las ventanas) | — (sin medición) | **(estimado)** — sin tokens medidos ni horas-IA independientes: derivarlo sería circular | Primer piloto de `sdd-proporcional` (riesgo `medio`): convergió en 3 intentos (18+6+3 gaps, 0 Critical); los Important estaban en la única tarea que escribe en configuración ajena (`kwipu-project-add.py`) | Riesgo por tarea: la que escribe en configuración ajena se trata como `alto` aunque la iniciativa sea `medio`; ver [retro](2026-09-29-setup-statusline-polish/retro.md) |
+| 2026-10-06 | plugin-refactor | no comparable: muestra parcial | no comparable: muestra parcial | 849708 | Revisión y corrección prolongadas; 38 marcadores válidos, 37 intervalos, con streaming y ventanas compartidas deduplicados | Ventanas por tarea desde el inicio; tokens facturables / reloj independiente; conservar límites de la muestra; ver [retro](2026-09-09-plugin-refactor/retro.md) |
+| 2026-10-06 | capability-foundation | no comparable (sin presupuesto) | no medido (estimado) | | Sesión Codex sin respuestas compatibles del meter; no se inventan tokens ni ratio. Primera entrega validada con revisión, cobertura y navegador | Medir el piloto de recuperación por consultas y reloj independiente; conservar la mediana compatible de seis muestras |
+| 2026-10-06 | workflow-integration | no comparable: sin presupuesto ni duración total medida | sin respuestas compatibles; tokens nulos | | Meter fuente estimado; ventana parcial 2h 35m, no muestra de tokens/hora; pruebas, revisión y push comprobados | Mantener mediana 531798.5 (6 muestras); separar inventario de análisis funcional y presupuestar pruebas multi-runtime y refinamientos de UI |
 
-> Ratio vigente: 479326 tokens/hora (mediana de 5 muestras)
+
+| 2026-10-06 | brief-budget | no medido; estimación histórica conservada | no medido (sesión Codex sin meter compatible) | **(estimado)** — sin nueva muestra, ratio vigente intacto | historial acumulado, cortes estructurales y overhead de persona; constitución real no incluida en medición corta | medir comando normal y contexto de referencia por separado; conservar decisiones; dividir contratos irreducibles; ver [retro](2026-09-09-brief-budget/retro.md) |
+| 2026-10-06 | hooks-runtime | no medido | no medido | **(estimado)** — sin nueva muestra, ratio vigente intacto | Windows seleccionaba WSL y no python3; SessionEnd exportaba5 frente a límite3; contrato Codex PostToolUse obsoleto | launcher común, Python nativo en captura, pruebas de payload y caché activa; ver [retro](2026-10-06-hooks-runtime/retro.md) |
+| 2026-10-21 | panel-redesign | IA −75 % (14,83 h vs 60,2 h est.); humanas −100 % (0 h vs 159,2 h: ejecución íntegra por agentes) | no comparable: tokens por tarea solo en la Fase 1 (0,70 M de 32,01 M est.) | **(estimado)** — las horas IA salen de los tokens con el ratio vigente: derivarlo sería circular | La IA se estimó en proporción a la implementación humana, pero el coste real fue revisión y corrección; incógnita cara: captura en vivo multi-runtime (cerrojo en ráfaga; redactor heurístico en 4 rondas) | Estimar la IA de iniciativas con agentes desde las rondas de revisión esperadas; en heurísticas de seguridad, corpus previo o 4 rondas; ver [retro](2026-10-15-panel-redesign/retro.md) |
+
+> Ratio vigente: 531798.5 tokens/hora (mediana de 6 muestras)
 >
 > **Qué cuenta para esa mediana (auditoría de las 10 filas, 2026-09-12, T-17).** Solo las **5**
 > primeras tienen un `tokens/hora` **medido** (tokens facturables ÷ reloj real de sus ventanas):
@@ -45,7 +53,7 @@ Cada fila sale de un `/retro` de una iniciativa **cerrada**. Lo leen dos piezas:
 > marcan ahora **`(estimado)`**: su celda llevaba el ratio **heredado**, no medido, y
 > `usage-meter.py` las estaba contando como muestras —la mediana se alimentaba de su propia
 > salida—. Esta línea-resumen ya decía «mediana de 5» mientras el parser contaba **7**: la prosa
-> tenía razón y el código no. Con el filtro, ambos dicen 5 y el ratio vigente **no cambia**
+> tenía razón y el código no. En aquella corrección, ambos quedaron en 5 y el ratio entonces vigente **no cambió**
 > (mediana de 300050 · 421674 · **479326** · 584271 · 1048061), así que no hay ninguna hora
 > re-derivada por este arreglo.
 
@@ -59,6 +67,18 @@ Cada fila sale de un `/retro` de una iniciativa **cerrada**. Lo leen dos piezas:
 > `.claude/rates.json`, así que el coste de proceso ya sale en euros de verdad: **12,35 € el total
 > de las 5 iniciativas medidas**. Ojo: `tipoCambioUsdEur` (0,92) sigue siendo un **supuesto**, no un
 > dato verificado — revísalo antes de usar estas cifras para facturar.
+
+## Incorporación de la muestra de plugin-refactor (2026-10-06)
+
+El cierre técnico incorpora **849708 tokens/hora**: 14.145.747 tokens facturables /
+(59.932 s /3.600), 38 marcadores válidos y 37 intervalos distintos. La
+[evidencia](2026-09-09-plugin-refactor/testing/calibration.md) explica exclusiones
+y deduplicación. La muestra es parcial: no mide las 22 tareas completas ni el
+cierre actual Codex. No se calculan desviaciones presupuestarias totales.
+
+La mediana automática tiene seis muestras: 300050, 421674, 479326, 584271,
+849708 y 1048061. **(479326+584271)/2 = 531798.5**. El parser se verifica
+independientemente durante el cierre técnico. No se re-derivan las horas históricas ni su ratio_usado.
 
 ## Aprendizajes acumulados (lo que ya no hay que volver a descubrir)
 

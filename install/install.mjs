@@ -12,7 +12,9 @@
 //   · IDEMPOTENTE — reinstalar sobre lo mismo no duplica ni rompe nada.
 //   · NO PISA lo del usuario — los JSON de configuración se FUSIONAN; un valor que ya existe
 //     se respeta y se dice. Los ficheros del PLUGIN sí se sobrescriben siempre: es lo que hace
-//     que reinstalar sirva para actualizar. La excepción declarada es `json-set`, que pone las
+//     que reinstalar sirva para actualizar. Los agentes nativos sólo se actualizan cuando sus
+//     bytes coinciden con el inventario propio; agentes ajenos/modificados se conservan.
+//     La excepción declarada es `json-set`, que pone las
 //     claves del REGISTRO del runtime (las que lo hacen cargar el plugin) y apunta cuáles.
 //   · DESINSTALABLE — cada instalación deja un manifiesto con la lista EXACTA de lo que escribió;
 //     `uninstall` borra eso y nada más (nunca un `rm -rf` de una carpeta que no creó él).
@@ -21,16 +23,18 @@
 
 import {
   readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, statSync, rmSync, readdirSync, rmdirSync,
-  renameSync, chmodSync, realpathSync,
+  renameSync, chmodSync, realpathSync, lstatSync, unlinkSync, mkdtempSync, symlinkSync,
 } from "node:fs"
 import { createHash } from "node:crypto"
-import { dirname, join, resolve, relative, sep } from "node:path"
+import { dirname, join, resolve, relative, sep, isAbsolute } from "node:path"
 import { fileURLToPath } from "node:url"
 import { createInterface, emitKeypressEvents } from "node:readline"
 import { execFileSync } from "node:child_process"
+import { tmpdir } from "node:os"
+import { queryCodexPlugin } from "../agent-kits/shared/codex-plugin-state.mjs"
 import {
   PROVIDERS, IDS, getProvider, buildPlan, MANIFEST, MANIFEST_PLUGIN, MANIFIESTOS,
-  enPath, rutaDe, estadoCli, manifiestoDe, sitiosManifiesto, PRECEDENCIA_SETTINGS,
+  enPath, rutaDe, estadoCli, manifiestoDe, sitiosManifiesto, PRECEDENCIA_SETTINGS, codexHome, MKT, PLUGIN, PLUGIN_ID,
 } from "./providers.mjs"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
@@ -255,6 +259,295 @@ function escribirJson(p, obj, bom = false) {
   }
 }
 
+/** Retira únicamente una copia conocida; las modificaciones locales se conservan. */
+export function retirarArtefacto(paso, destino, dryRun = false) {
+  const raiz = resolve(destino)
+  const dentro = (p) => {
+    const r = relative(raiz, resolve(p))
+    if (!r || isAbsolute(r) || r === ".." || r.startsWith(`..${sep}`)) {
+      throw new Error(`ruta fuera del destino: ${p}`)
+    }
+    // También se verifica el padre existente: una junction no amplía el destino autorizado.
+    let padre = dirname(resolve(p))
+    while (!existsSync(padre)) padre = dirname(padre)
+    if (existsSync(raiz)) {
+      const real = relative(realpathSync(raiz), realpathSync(padre))
+      if (isAbsolute(real) || real === ".." || real.startsWith(`..${sep}`)) {
+        throw new Error(`ruta fuera del destino real: ${p}`)
+      }
+    }
+  }
+  dentro(paso.to)
+  let original = null
+  try { original = lstatSync(paso.to) } catch (e) { if (e.code !== "ENOENT") throw e }
+  if (original) {
+    if (!original.isFile() || original.isSymbolicLink() || original.nlink > 1) {
+      throw new Error(`artefacto no regular en el destino: ${paso.to}`)
+    }
+    const texto = readFileSync(paso.to, "utf8").replace(/\r\n/g, "\n")
+    const hash = createHash("sha256").update(texto).digest("hex")
+    if (!(paso.sha256 || []).includes(hash)) return false
+  }
+  let config = null
+  if (paso.config) {
+    // La configuración de proyecto está en la raíz, fuera de .opencode. Su único
+    // destino permitido es opencode.json junto al directorio de instalación.
+    const esperado = join(dirname(raiz), "opencode.json")
+    const global = join(raiz, "opencode.json")
+    if (![esperado, global].includes(resolve(paso.config.to))) throw new Error("config fuera del destino")
+    if (existsSync(paso.config.to)) {
+      const st = lstatSync(paso.config.to)
+      if (!st.isFile() || st.isSymbolicLink() || st.nlink > 1) throw new Error("config no regular")
+      config = leerJsonEstricto(paso.config.to)
+      for (const [k, valores] of Object.entries(paso.config.remove || {})) {
+        if (Array.isArray(config.valor[k])) config.valor[k] = config.valor[k].filter(v => !valores.includes(v))
+      }
+    }
+  }
+  if (dryRun) return true
+  // Validar y escribir la configuración precede a borrar: un JSON inválido conserva la copia.
+  if (config) escribirJson(paso.config.to, config.valor, config.bom)
+  if (original) {
+    const ahora = lstatSync(paso.to)
+    if (ahora.dev !== original.dev || ahora.ino !== original.ino || ahora.size !== original.size || ahora.mtimeMs !== original.mtimeMs) {
+      throw new Error("el artefacto cambió durante la retirada")
+    }
+    unlinkSync(paso.to)
+  }
+  return true
+}
+
+/** Native role copies are managed by recorded bytes, never by their agent name. */
+export function planificarAgentesNativos(paso, previo = {}, root = ROOT) {
+  previo = previo || {}
+  const {runtime, scope, configs = []} = paso.nativeAgents
+  const map = leerJson(join(root,'agent-kits/shared/native-roles.json'))?.runtimes?.[runtime]
+  if (!map || typeof map !== 'object' || Array.isArray(map)) throw new Error('native role map unavailable')
+  const legacy = leerJson(join(root,'install/native-agent-legacy.json'))?.runtimes?.[runtime] || {}
+  const raiz = resolve(paso.to), ext = runtime === 'codex' ? '.toml' : '.md'
+  const norm = p => resolve(p).split(sep).join('/')
+  const hash = p => createHash('sha256').update(readFileSync(p,'utf8').replace(/\r\n/g,'\n')).digest('hex')
+  const files = new Set((previo.plugin === PLUGIN && previo.provider === runtime ? previo.files || [] : []).map(norm))
+  const recorded = previo.plugin === PLUGIN && previo.provider === runtime ? previo.nativeAgents || {} : {}
+  const actions = [], released = [], warnings = [], bindings = new Set()
+  let agentFilesInspected = false
+  const layers = [...configs]
+  const agentDirs = [raiz,...(paso.nativeAgents.agentDirs || [])]
+  let repositoryBoundary = null
+  // Only repository layers are read here. Parent profiles outside an identified
+  // repository are not permission to inspect unrelated consumer configuration.
+  if (scope === 'project' && paso.nativeAgents.projectDir) {
+    let dir = resolve(paso.nativeAgents.projectDir)
+    const candidates = []
+    while (true) {
+      candidates.push(dir)
+      if (existsSync(join(dir,'.git'))) {
+        const marker = lstatSync(join(dir,'.git'))
+        if (marker.isDirectory() && !marker.isSymbolicLink()) repositoryBoundary = dir
+        break
+      }
+      const parent = dirname(dir)
+      if (parent === dir) break
+      dir = parent
+    }
+    if (repositoryBoundary) for (const folder of candidates) {
+      agentDirs.push(join(folder,`.${runtime}`,'agents'))
+      if (runtime === 'codex') layers.push(join(folder,'.codex','config.toml'))
+      else layers.push(join(folder,'opencode.json'),join(folder,'opencode.jsonc'))
+    }
+  }
+  let uncertain = false
+  let legacyReferencesUncertain = false
+  const nativeName = path => {
+    const st=lstatSync(path)
+    if (!st.isFile() || st.isSymbolicLink() || st.nlink > 1 || st.size > 1024*1024) throw new Error('agent metadata unavailable')
+    const names=rutasToml(readFileSync(path,'utf8')).filter(row=>row.ruta==='name')
+    if (names.length > 1) throw new Error('duplicate native agent name')
+    if (!names.length) return undefined
+    const name=cadenaToml(names[0].valor)
+    if (name === null || !name) throw new Error('native agent name is not verifiable')
+    return name
+  }
+  for (const cfg of [...new Set(layers.map(p => resolve(p)))]) {
+    if (!existsSync(cfg)) continue
+    try {
+      const info=lstatSync(cfg)
+      if (!info.isFile() || info.isSymbolicLink() || info.size>1024*1024) throw new Error('configuration metadata size/type bound')
+      const text = readFileSync(cfg,'utf8')
+      if (runtime === 'codex') {
+        for (const item of rutasToml(text)) {
+          const match = item.ruta.match(/^agents\.([A-Za-z0-9_-]+)(?:\.|$)/)
+          if (match) bindings.add(match[1])
+          // A config_file can bind an arbitrary key to one of the old files.
+          if (item.ruta.startsWith('agents.') && item.ruta.endsWith('.config_file')) {
+            const target = cadenaToml(item.valor)
+            if (typeof target !== 'string') uncertain = true
+            else {
+              const path=resolve(dirname(cfg),target)
+              bindings.add(norm(path))
+              const name=nativeName(path)
+              if (name) bindings.add(name)
+            }
+          }
+        }
+      } else {
+        const parsed = JSON.parse(text.replace(/^\uFEFF/,''))
+        if (typeof parsed.default_agent === 'string') bindings.add(parsed.default_agent)
+        let unresolvedReference = false
+        const references = value => {
+          if (typeof value === 'string') {
+            // Native config substitution covers values and keys before parsing.
+            // Resolve only explicit paths; do not inspect consumer environment.
+            if (/\{env:[^}]+\}/.test(value)) uncertain = unresolvedReference = true
+            for (const match of value.matchAll(/\{file:([^}]+)\}/g)) {
+              if (match[1].startsWith('~/') || match[1].includes('{env:')) uncertain = unresolvedReference = true
+              else bindings.add(norm(resolve(dirname(cfg),match[1])))
+            }
+          } else if (Array.isArray(value)) value.forEach(references)
+          else if (value && typeof value === 'object') for (const [key,item] of Object.entries(value)) {
+            references(key);references(item)
+          }
+        }
+        for (const key of ['agent','agents','mode']) {
+          const agents = parsed[key]
+          if (agents != null && (typeof agents !== 'object' || Array.isArray(agents))) uncertain = true
+          else {
+            for (const name of Object.keys(agents || {})) bindings.add(name)
+          }
+        }
+        for (const key of ['command','commands']) {
+          const commands=parsed[key]
+          if (commands != null && (typeof commands !== 'object' || Array.isArray(commands))) uncertain = true
+          else for (const command of Object.values(commands || {})) {
+            if (typeof command?.agent === 'string') bindings.add(command.agent)
+            else if (command?.agent != null) uncertain = true
+          }
+        }
+        references(parsed)
+        if (unresolvedReference) warnings.push(`${rel(cfg)}: referencia dinámica de configuración no verificable; agentes conservados`)
+      }
+    } catch { uncertain = true; warnings.push(`${rel(cfg)}: configuración no verificable; agentes conservados`) }
+  }
+  // OpenCode loads recursive command Markdown using its full YAML parser.
+  // Without that parser, metadata presence is evidence against safe retirement,
+  // not permission to infer a command's agent or inspect its body.
+  const legacyWarnings = []
+  let legacyCopyPresent = false
+  if (runtime === 'opencode') {
+    const dirs = [...new Set(agentDirs.flatMap(dir=>['command','commands'].map(name=>join(dirname(resolve(dir)),name))))]
+    for (const dir of dirs) {
+      if (!existsSync(dir)) continue
+      try {
+        if (lstatSync(dirname(dir)).isSymbolicLink()) throw new Error('runtime directory link')
+        const pending=[{path:dir,depth:0}]
+        let scanned=0, found=false
+        while (pending.length && !found) {
+          const folder=pending.pop(), info=lstatSync(folder.path)
+          if (!info.isDirectory() || info.isSymbolicLink() || folder.depth>16) throw new Error('command discovery boundary')
+          for (const entry of readdirSync(folder.path,{withFileTypes:true})) {
+            if (++scanned>4096) throw new Error('command discovery count bound')
+            const path=join(folder.path,entry.name), st=lstatSync(path)
+            if (st.isSymbolicLink()) throw new Error('command discovery link')
+            if (st.isDirectory()) pending.push({path,depth:folder.depth+1})
+            else if (entry.name.toLowerCase().endsWith('.md')) {found=true;break}
+          }
+        }
+        if (found) {
+          legacyReferencesUncertain=true
+          legacyWarnings.push(`${rel(dir)}: referencias de comandos Markdown no verificables; copia anterior conservada`)
+        }
+      } catch {
+        legacyReferencesUncertain=true
+        legacyWarnings.push(`${rel(dir)}: descubrimiento de comandos Markdown no verificable; copia anterior conservada`)
+      }
+    }
+  }
+  const seguro = file => {
+    const abs = resolve(file), relativePath = relative(raiz,abs)
+    if (!relativePath || isAbsolute(relativePath) || relativePath === '..' || relativePath.startsWith(`..${sep}`)) throw new Error('native agent path outside destination')
+    let parent = dirname(abs)
+    while (!existsSync(parent)) parent = dirname(parent)
+    const base = resolve(paso.nativeAgents.base || dirname(raiz))
+    if (existsSync(base)) {
+      const real = relative(realpathSync(base),realpathSync(parent))
+      if (isAbsolute(real) || real === '..' || real.startsWith(`..${sep}`)) throw new Error('native agent parent outside runtime base')
+    }
+    if (existsSync(raiz)) {
+      const real = relative(realpathSync(raiz),realpathSync(parent))
+      if (isAbsolute(real) || real === '..' || real.startsWith(`..${sep}`)) throw new Error('native agent parent outside real destination')
+    }
+    let st
+    try { st = lstatSync(abs) } catch (e) { if (e.code !== 'ENOENT') throw e }
+    if (st && (!st.isFile() || st.isSymbolicLink() || st.nlink > 1)) throw new Error('native agent is not a private regular file')
+    if (st && st.size>1024*1024) throw new Error('native agent size bound')
+    return st ? hash(abs) : null
+  }
+  for (const [role,id] of Object.entries(map)) {
+    if (!/^[a-z][a-z0-9-]*$/.test(role) || !/^[a-z][a-z0-9-]*$/.test(id) || id === role) throw new Error('invalid native role map')
+    const target = join(raiz,id+ext), bare = join(raiz,role+ext), source = join(root,paso.from,id+ext)
+    released.push(norm(target),norm(bare))
+    let current, old
+    try { current = seguro(target); old = seguro(bare) }
+    catch (e) { warnings.push(`${rel(target)}: conflicto (${e.message}); conservado`); continue }
+    legacyCopyPresent ||= old !== null
+    // Codex reads the declared TOML name, which may differ from its filename.
+    if (!agentFilesInspected) {
+      agentFilesInspected = true
+      for (const dir of [...new Set(agentDirs.map(p=>resolve(p)))]) {
+        if (!existsSync(dir)) continue
+        const folder=lstatSync(dir)
+        if (!folder.isDirectory() || folder.isSymbolicLink()) {
+          uncertain=true;warnings.push(`${rel(dir)}: directorio de agentes no verificable; agentes conservados`);continue
+        }
+        const paths = [], pending = [{path:dir,depth:0}]
+        let scanned=0
+        try {
+          while (pending.length) {
+            const folder=pending.pop()
+            if (folder.depth>16) throw new Error('agent discovery depth bound')
+            for (const entry of readdirSync(folder.path,{withFileTypes:true})) {
+              if (++scanned>4096) throw new Error('agent discovery count bound')
+              const path=join(folder.path,entry.name)
+              if (entry.isSymbolicLink()) throw new Error('agent discovery link')
+              if (runtime==='codex' && entry.isDirectory()) pending.push({path,depth:folder.depth+1})
+              else if (entry.name.endsWith(ext)) paths.push(path)
+            }
+          }
+        } catch { uncertain=true;warnings.push(`${rel(dir)}: descubrimiento de agentes no verificable; agentes conservados`) }
+        for (const path of paths) {
+        try {
+          if (runtime === 'opencode') {
+            const st=lstatSync(path)
+            if (!st.isFile() || st.isSymbolicLink() || st.nlink > 1) throw new Error('agent metadata is not a private regular file')
+            const name=path.slice(dir.length+1,-ext.length)
+            if (Object.values(map).includes(name) && norm(dir) !== norm(raiz)) bindings.add(name)
+            continue
+          }
+          const name=nativeName(path)
+          if (name && Object.values(map).includes(name) && norm(path) !== norm(join(raiz,name+ext))) bindings.add(name)
+        } catch { uncertain=true;warnings.push(`${rel(path)}: identidad nativa no verificable; agentes conservados`) }
+        }
+      }
+    }
+    if (uncertain || bindings.has(id) || bindings.has(norm(target))) {
+      warnings.push(`${rel(target)}: binding existente o no verificable; conservado`); continue
+    }
+    if (current !== null && (!files.has(norm(target)) || recorded[norm(target)] !== current)) {
+      warnings.push(`${rel(target)}: agente ajeno o modificado; conservado`); continue
+    }
+    if (!existsSync(source)) throw new Error(`native role export missing: ${id}`)
+    actions.push({type:'copy',to:target,from:source,before:current,sha256:hash(source)})
+    if (old !== null) {
+      if (scope === 'project' && repositoryBoundary && !legacyReferencesUncertain && !bindings.has(role) && !bindings.has(norm(bare))
+          && files.has(norm(bare)) && old === legacy[role]) {
+        actions.push({type:'retire',to:bare,before:old})
+      } else warnings.push(`${rel(bare)}: copia anterior conservada; propiedad, bindings o referencias externas no acreditados`)
+    }
+  }
+  if (legacyCopyPresent) warnings.push(...legacyWarnings)
+  return {actions,released,warnings}
+}
+
 /** Fusión conservadora: lo que ya existe MANDA. Devuelve [resultado, claves añadidas]. */
 export function fusionar(actual, nuevo, upsert = {}) {
   const anadidas = []
@@ -390,27 +683,46 @@ export function igualSalvo(a, b, volatiles = []) {
 
 /**
  * Nombre de tabla TOML en forma canónica para poder COMPARARLO: sin espacios sobrantes y con las
- * claves entrecomilladas siempre en comillas dobles. `[ plugins . 'custom-agents@daycry' ]` y
+ * segmentos equivalentes con la misma escritura canónica. `[ plugins . 'custom-agents@daycry' ]` y
  * `[plugins."custom-agents@daycry"]` son la MISMA tabla para Codex; compararlas con `===` creaba
  * una segunda tabla duplicada y dejaba el `config.toml` ilegible.
  */
 export function normalizarTabla(nombre) {
-  const partes = []
-  let cur = "", i = 0
-  const cierra = () => { if (cur.trim()) partes.push(cur.trim()); cur = "" }
-  while (i < nombre.length) {
-    const ch = nombre[i]
-    if (ch === '"' || ch === "'") {
-      const fin = nombre.indexOf(ch, i + 1)
-      if (fin === -1) { cur += nombre.slice(i); break }
-      cierra()
-      partes.push(JSON.stringify(nombre.slice(i + 1, fin)))
-      i = fin + 1
-    } else if (ch === ".") { cierra(); i++ }
-    else { cur += ch; i++ }
+  if(!nombre.trim()) return "" // Empty table prefix means the TOML document root.
+  const partes=[]
+  let i=0
+  while(i<nombre.length) {
+    while(/\s/.test(nombre[i] || "") && i<nombre.length) i++
+    let key
+    if(nombre[i]==='"' || nombre[i]==="'") {
+      const end=finCadenaToml(nombre,i)
+      if(end<0) throw new Error("unsupported or malformed TOML key")
+      key=cadenaToml(nombre.slice(i,end+1))
+      if(key===null) throw new Error("unsupported or malformed TOML key")
+      i=end+1
+    } else {
+      const m=nombre.slice(i).match(/^[A-Za-z0-9_-]+/)
+      if(!m) throw new Error("unsupported or malformed TOML key")
+      key=m[0];i+=key.length
+    }
+    partes.push(/^[A-Za-z0-9_-]+$/.test(key) ? key : JSON.stringify(key))
+    while(/\s/.test(nombre[i] || "") && i<nombre.length) i++
+    if(i===nombre.length) break
+    if(nombre[i]!=="." || ++i===nombre.length) throw new Error("unsupported or malformed TOML key")
   }
-  cierra()
+  if(!partes.length) throw new Error("unsupported or malformed TOML key")
   return partes.join(".")
+}
+
+/** End of a single-line TOML string, respecting escaped quotes in basic strings. */
+function finCadenaToml(text,start) {
+  const quote=text[start]
+  for(let i=start+1;i<text.length;i++) {
+    if(quote==='"' && text[i]==="\\") {i++;continue}
+    if(text[i]===quote) return i
+    if(text[i]==="\n" || text[i]==="\r") return -1
+  }
+  return -1
 }
 
 /**
@@ -436,7 +748,7 @@ function avanzarLexico(linea, st) {
       continue
     }
     if (c === '"' || c === "'") {
-      const j = linea.indexOf(c, i + 1)
+      const j = finCadenaToml(linea,i)
       i = j === -1 ? linea.length : j + 1
       continue
     }
@@ -464,13 +776,16 @@ function analizarToml(lineas) {
   for (let i = 0; i < lineas.length; i++) {
     const fuera = !st.multi && st.corchetes === 0
     libre.push(fuera)
-    const m = fuera && lineas[i].trim().match(/^(\[\[?)\s*(.*?)\s*(\]\]?)$/)
+    const encabezado=fuera ? partirValor(lineas[i].trim())[0].trim() : ""
+    const m = fuera && encabezado.match(/^(\[\[?)\s*(.*?)\s*(\]\]?)$/)
     if (m && m[1].length === m[3].length) {
+      if(!m[2].trim()) throw new Error("unsupported or malformed TOML table")
       const nombre = normalizarTabla(m[2])
       cabeceras.push({ i, nombre, doble: m[1] === "[[" })
       tablaActual = nombre
       continue                                                 // la cabecera no cuenta corchetes
     }
+    if(fuera && encabezado.startsWith("[")) throw new Error("unsupported or malformed TOML table")
     if (fuera) {
       const term = lineas[i].endsWith("\r\n") ? "\r\n" : lineas[i].endsWith("\n") ? "\n" : ""
       const cuerpo = term ? lineas[i].slice(0, -term.length) : lineas[i]
@@ -503,7 +818,7 @@ function partirComas(dentro) {
   while (i < dentro.length) {
     const ch = dentro[i]
     if (ch === '"' || ch === "'") {
-      const fin = dentro.indexOf(ch, i + 1)
+      const fin = finCadenaToml(dentro,i)
       if (fin === -1) return null
       cur += dentro.slice(i, fin + 1)
       i = fin + 1
@@ -560,7 +875,7 @@ export function partirAsignacion(cuerpo) {
   while (i < cuerpo.length) {
     const ch = cuerpo[i]
     if (ch === '"' || ch === "'") {
-      const fin = cuerpo.indexOf(ch, i + 1)
+      const fin = finCadenaToml(cuerpo,i)
       if (fin === -1) return null
       bruta += cuerpo.slice(i, fin + 1)
       i = fin + 1
@@ -584,7 +899,7 @@ function prefijoClave(bruta) {
   while (i < bruta.length) {
     const ch = bruta[i]
     if (ch === '"' || ch === "'") {
-      const fin = bruta.indexOf(ch, i + 1)
+      const fin = finCadenaToml(bruta,i)
       if (fin === -1) { cur += bruta.slice(i); break }
       cur += bruta.slice(i, fin + 1)
       i = fin + 1
@@ -603,7 +918,7 @@ function partirValor(resto) {
   let q = null
   for (let i = 0; i < resto.length; i++) {
     const c = resto[i]
-    if (q) { if (c === q) q = null }
+    if (q) { if(q==='"' && c==="\\") i++; else if (c === q) q = null }
     else if (c === '"' || c === "'") q = c
     else if (c === "#") return [resto.slice(0, i), resto.slice(i)]
   }
@@ -929,10 +1244,10 @@ function matarArbol(pid) {
   }
 }
 
-function correr(cmd, args, cwd) {
+function correr(cmd, args, cwd, env = process.env) {
   if (TIMEOUT.aviso && !avisadoTimeout) { avisadoTimeout = true; say(`  ${WARN} ${dim(TIMEOUT.aviso)}`) }
   const opciones = {
-    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], cwd,
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], cwd, env,
     // Sin timeout, una CLI que se queda pensando (o pidiendo algo por stdin) cuelga el `npx`
     // para siempre y sin una línea en pantalla. 120 s de sobra; `CUSTOM_AGENTS_EXEC_TIMEOUT_MS`
     // para quien tenga una máquina lenta o quiera apretarlo en CI.
@@ -958,6 +1273,218 @@ function correr(cmd, args, cwd) {
     }
     throw e
   }
+}
+
+/**
+ * Native cache installation, with project enablement isolated from the user's config.
+ * Codex 0.161's setter always enables in CODEX_HOME. A private regular config snapshot and
+ * a link only to our marketplace cache let native staging/version replacement stay native.
+ * Relative config paths resolve against the snapshot home: keep native rejections, never
+ * retry using an empty config or the real home. System-managed requirements remain native.
+ */
+export function instalarCodexNativo({dir,scope,version,marketplaceRoot,home=codexHome(),tempRoot=tmpdir(),
+  runner=(args,o)=>correr("codex",args,o.cwd,o.env)}={}) {
+  const realHome=resolve(home)
+  validarCacheCodex(realHome)
+  const args=["plugin","add",PLUGIN_ID,"--json"]
+  let isolated=null, link=null
+  try {
+    let nativeHome=realHome
+    if(scope==="project") {
+      isolated=mkdtempSync(join(tempRoot,"custom-agents-codex-"))
+      nativeHome=isolated
+      const userConfig=join(realHome,"config.toml")
+      // readFile follows any user symlink; the destination is always our own regular file.
+      const contents=existsSync(userConfig) ? readFileSync(userConfig) : Buffer.from("")
+      validarSnapshotCodex(contents.toString("utf8"))
+      writeFileSync(join(isolated,"config.toml"),contents,{flag:"wx",mode:0o600})
+      const namespace=join(realHome,"plugins","cache",MKT)
+      mkdirSync(namespace,{recursive:true})
+      mkdirSync(join(isolated,"plugins","cache"),{recursive:true})
+      link=join(isolated,"plugins","cache",MKT)
+      symlinkSync(namespace,link,process.platform==="win32" ? "junction" : "dir")
+    } else if(scope!=="user") throw new Error("unsupported Codex installation scope")
+    const options={cwd:dir,env:{...process.env,CODEX_HOME:nativeHome}}
+    let nativeArgs=args
+    if(scope==="project") {
+      const sourceRoot=resolve(marketplaceRoot || dir)
+      // A project layer can outrank the snapshot. Pin only the requested marketplace source
+      // for these native operations, while managed admission requirements still apply.
+      const sourceOverrides=["-c",`marketplaces.${MKT}.source_type="local"`,"-c",`marketplaces.${MKT}.source=${JSON.stringify(sourceRoot)}`]
+      const sourceState=comprobarFuenteCodex(join(nativeHome,"config.toml"),sourceRoot)
+      if(sourceState==="unknown") throw new Error("ambiguous marketplace source in isolated Codex config")
+      // Registry mutations must see the snapshot as user config, not a higher-precedence
+      // project entry that Codex refuses to remove. Native add retains the actual project cwd.
+      const registryCwd=join(nativeHome,"registry-cwd")
+      mkdirSync(registryCwd)
+      const registryOptions={...options,cwd:registryCwd}
+      // Replacing only the private snapshot's registry does not change the user's marketplace.
+      if(sourceState==="conflict") runner(["plugin","marketplace","remove",MKT],registryOptions)
+      runner(["plugin","marketplace","add",sourceRoot,...sourceOverrides],registryOptions)
+      nativeArgs=[...args,...sourceOverrides]
+    }
+    const raw=runner(nativeArgs,options)
+    let result
+    try {result=JSON.parse(String(raw))} catch {throw new Error("Codex native add returned invalid JSON")}
+    if(result?.pluginId!==PLUGIN_ID || result.version!==version || typeof result.installedPath!=="string") {
+      throw new Error("Codex native add returned an unexpected plugin or version")
+    }
+    const expected=join(realHome,"plugins","cache",MKT,PLUGIN,version)
+    const alias=join(nativeHome,"plugins","cache",MKT,PLUGIN,version)
+    if(!mismaRuta(result.installedPath,alias) || !existsSync(expected) || !statSync(expected).isDirectory()
+      || !mismaRuta(realpathSync(result.installedPath),expected)) {
+      throw new Error("Codex native add did not materialize the expected cache entry")
+    }
+    return {pluginId:PLUGIN_ID,version:result.version,installedPath:expected}
+  } finally {
+    // Unlink the owned junction first. Cleanup never recursively follows a link into the cache.
+    if(link) {try {unlinkSync(link)} catch {/* creation may have failed */}}
+    if(isolated) rmSync(isolated,{recursive:true,force:true})
+  }
+}
+
+/** The shared native cache must already identify this bundle before we replace it. */
+export function validarCacheCodex(home) {
+  const root=join(home,"plugins","cache",MKT,PLUGIN)
+  if(!existsSync(root)) return
+  const repository=leerJson(join(ROOT,".codex-plugin","plugin.json"))?.repository
+  if(typeof repository!=="string" || !repository) throw new Error("Codex cache ownership cannot be verified")
+  for(const entry of readdirSync(root,{withFileTypes:true})) {
+    if(!entry.isDirectory()) continue
+    const manifest=leerJson(join(root,entry.name,".codex-plugin","plugin.json"))
+    if(manifest?.name!==PLUGIN || manifest.repository!==repository) {
+      throw new Error("foreign or unverifiable Codex cache ownership; native replacement declined")
+    }
+  }
+}
+
+function cadenaToml(raw) {
+  if((raw[0]!=='"' && raw[0]!=="'") || finCadenaToml(raw,0)!==raw.length-1) return null
+  let value=raw.slice(1,-1)
+  if(/[\x00-\x08\x0A-\x1F\x7F]/.test(value)) return null
+  if(raw[0]==="'") return value
+  const escapes={b:"\b",t:"\t",n:"\n",f:"\f",r:"\r",'"':'"',"\\":"\\"}
+  let decoded=""
+  for(let i=0;i<value.length;i++) {
+    if(value[i]!=="\\") {decoded+=value[i];continue}
+    const code=value[++i]
+    if(Object.hasOwn(escapes,code)) decoded+=escapes[code]
+    else if(code==="u" || code==="U") {
+      const n=code==="u" ? 4 : 8, hex=value.slice(i+1,i+1+n)
+      if(hex.length!==n || !/^[0-9a-f]+$/i.test(hex)) return null
+      const point=parseInt(hex,16)
+      if(point>0x10FFFF || point>=0xD800 && point<=0xDFFF) return null
+      decoded+=String.fromCodePoint(point);i+=n
+    } else return null
+  }
+  return decoded
+}
+
+/** Guard the existing source before invoking a native registry mutation. */
+export function comprobarFuenteCodex(file,expectedRoot) {
+  if(!existsSync(file)) return "absent"
+  let text
+  try {text=readFileSync(file,"utf8")} catch {return "unknown"}
+  const prefix=normalizarTabla(`marketplaces.${MKT}`)
+  let entries
+  try {entries=rutasToml(text).filter(entry=>entry.ruta===prefix || entry.ruta.startsWith(`${prefix}.`))}
+  catch {return "unknown"}
+  if(!entries.length) {
+    const declared=analizarToml(text.split(/(?<=\n)/)).cabeceras.some(c=>c.nombre===prefix || c.nombre.startsWith(`${prefix}.`))
+    return declared ? "unknown" : "absent"
+  }
+  const field=name=>entries.filter(e=>e.ruta===`${prefix}.${name}`)
+  const types=field("source_type"), sources=field("source")
+  if(types.length!==1 || sources.length!==1) return "unknown"
+  const type=cadenaToml(types[0].valor), source=cadenaToml(sources[0].valor)
+  if(type===null || source===null) return "unknown"
+  if(type!=="local") return "conflict"
+  if(!isAbsolute(source)) return "unknown"
+  return mismaRuta(source,expectedRoot) ? "same" : "conflict"
+}
+
+/** Typed path fields from the pinned 0.161 config schema; reject ambiguous snapshots. */
+export function validarSnapshotCodex(text) {
+  const rootScalar=new Set(["model_instructions_file","js_repl_node_path","sqlite_home","log_dir","model_catalog_json",
+    "experimental_compact_prompt_file"])
+  const profileScalar=new Set(["model_instructions_file","js_repl_node_path","model_catalog_json","experimental_compact_prompt_file"])
+  for(const entry of rutasToml(text)) {
+    const route=entry.ruta,leaf=route.split(".").at(-1)
+    const profile=/^profiles\.(?:[A-Za-z0-9_-]+|"(?:\\.|[^"\\])*")\.([A-Za-z0-9_-]+)$/.test(route)
+    const scalar=rootScalar.has(route) || profile && profileScalar.has(leaf)
+      || /^agents\.(?:[A-Za-z0-9_-]+|"(?:\\.|[^"\\])*")\.config_file$/.test(route)
+      || /^mcp_servers\.(?:[A-Za-z0-9_-]+|"(?:\\.|[^"\\])*")\.cwd$/.test(route)
+      || route==="skills.config.path"
+      || /^otel\.(?:exporter|trace_exporter|metrics_exporter)\.otlp-(?:http|grpc)\.tls\.(?:ca-certificate|client-certificate|client-private-key)$/.test(route)
+    const vector=route==="js_repl_node_module_dirs" || profile && leaf==="js_repl_node_module_dirs"
+      || route==="sandbox_workspace_write.writable_roots"
+    let values
+    if(route==="skills.config") {
+      if(!entry.valor.startsWith("[") || !entry.valor.endsWith("]")) throw new Error("ambiguous relative config path in skills.config")
+      const selectors=partirComas(entry.valor.slice(1,-1))
+      if(selectors===null) throw new Error("ambiguous relative config path in skills.config")
+      values=[]
+      for(const selector of selectors) {
+        if(!selector.trim().startsWith("{") || !selector.trim().endsWith("}")) throw new Error("ambiguous relative config path in skills.config")
+        const fields=rutasToml(`selector = ${selector}`)
+        if(fields.some(f=>f.ruta==="selector")) throw new Error("ambiguous relative config path in skills.config")
+        values.push(...fields.filter(f=>f.ruta==="selector.path").map(f=>f.valor))
+      }
+    } else if(scalar) values=[entry.valor]
+    else if(vector) {
+      if(!entry.valor.startsWith("[") || !entry.valor.endsWith("]")) throw new Error(`ambiguous relative config path in ${leaf}; use absolute paths before project installation`)
+      values=partirComas(entry.valor.slice(1,-1))
+      if(values===null) throw new Error(`ambiguous relative config path in ${leaf}; use absolute paths before project installation`)
+    } else continue
+    for(const raw of values) {
+      const value=cadenaToml(raw.trim())
+      if(value===null || !isAbsolute(value)) throw new Error(`relative or ambiguous config path in ${leaf}; use absolute paths before project installation`)
+    }
+  }
+}
+
+const mismoValorToml=(a,b)=>a===b || cadenaToml(a)!==null && cadenaToml(a)===cadenaToml(b)
+
+/** Restore only a recorded own key when the user has not subsequently changed its value. */
+export function restaurarClaveToml(text,table,key,record) {
+  const prefix=normalizarTabla(table), target=`${prefix}.${normalizarTabla(key)}`
+  const hits=rutasToml(text).filter(e=>e.ruta===target)
+  if(hits.length!==1 || !mismoValorToml(hits[0].valor,record.escrito)) return text
+  const lines=text.split(/(?<=\n)/), index=analizarToml(lines)
+  const assignment=index.asignaciones.find(e=>e.ruta===target || target.startsWith(`${e.ruta}.`))
+  if(!assignment) throw new Error("cannot safely restore owned TOML key")
+  const editInline=(raw,base)=>{
+    const value=partirValor(raw)[0].trim()
+    if(base===target) return record.previo
+    if(!value.startsWith("{") || !value.endsWith("}")) throw new Error("cannot safely restore inline TOML key")
+    const parts=partirComas(value.slice(1,-1))
+    if(parts===null) throw new Error("cannot safely restore inline TOML key")
+    const remaining=[]
+    for(const part of parts) {
+      const parsed=partirAsignacion(part)
+      if(!parsed) throw new Error("cannot safely restore inline TOML key")
+      const route=`${base}.${normalizarTabla(parsed.bruta)}`
+      if(route===target || target.startsWith(`${route}.`)) {
+        const replacement=editInline(parsed.resto,route)
+        if(replacement!==null) remaining.push(`${parsed.sangria}${parsed.bruta} = ${replacement}`)
+      } else remaining.push(part)
+    }
+    return remaining.length ? `{${remaining.join(",")}}` : "{}"
+  }
+  const replacement=assignment.ruta===target ? record.previo : editInline(assignment.resto,assignment.ruta)
+  const original=lines[assignment.i], end=original.endsWith("\r\n") ? "\r\n" : original.endsWith("\n") ? "\n" : ""
+  const comment=partirValor(assignment.resto)[1]
+  lines[assignment.i]=replacement===null ? (comment ? `${assignment.sangria}${comment}${end}` : "")
+    : `${assignment.sangria}${assignment.bruta} = ${replacement}${comment ? ` ${comment}` : ""}${end}`
+  let updated=lines.join("")
+  if(record.tablaCreada && !rutasToml(updated).some(e=>e.ruta===prefix || e.ruta.startsWith(`${prefix}.`))) {
+    const updatedLines=updated.split(/(?<=\n)/), headers=analizarToml(updatedLines).cabeceras
+    if(!headers.some(h=>h.nombre.startsWith(`${prefix}.`))) {
+      for(const header of headers.filter(h=>h.nombre===prefix)) updatedLines[header.i]=""
+      updated=updatedLines.join("")
+    }
+  }
+  return updated
 }
 
 /** ¿Este fallo de `execFileSync` es el del `timeout`? (Node lo cuenta de dos maneras). */
@@ -1026,14 +1553,43 @@ export function fusionarRegistro(previo, nuevo) {
   return orden.map((k) => por.get(k))
 }
 
+/** Libera sólo inventario legado; no enumera, lee ni borra prompts personales.
+ * Los manifiestos antiguos no registran sus hashes: incluso una copia generada
+ * puede haber sido editada, por lo que la actualización conserva todos sus bytes.
+ * CODEX_HOME puede haber cambiado; los claims externos ambiguos se liberan,
+ * pero el límite explícito del bundle conserva todo su inventario interno.
+ */
+export function liberarPromptsLegacyCodex(previo, home = codexHome(), bundleRoot) {
+  if (previo?.plugin !== PLUGIN || previo?.provider !== 'codex' || !Array.isArray(previo.files)
+      || previo.files.length > 10000 || typeof home !== 'string' || !isAbsolute(home)
+      || typeof bundleRoot !== 'string' || !isAbsolute(bundleRoot)) return []
+  const normal = path => process.platform === 'win32' ? resolve(path).toLowerCase() : resolve(path)
+  const roots = new Set(['prompts','prompt'].map(folder=>normal(join(home,folder))))
+  const bundle = normal(bundleRoot), prefix = bundle.endsWith(sep) ? bundle : bundle + sep
+  return previo.files.filter(file=>{
+    if (typeof file !== 'string' || !isAbsolute(file) || !/\.md$/.test(file)) return false
+    const parts = file.split(/[\\/]/)
+    if (parts.some(part=>part==='..' || part==='.') || parts.at(-1).includes(':')) return false
+    const path = normal(file)
+    if (path===bundle || path.startsWith(prefix)) return false
+    const parent = normal(dirname(file))
+    return roots.has(parent) || ['prompts','prompt'].includes(parent.split(/[\\/]/).at(-1))
+  })
+}
+
 function ejecutar(provider, opts) {
   const plan = buildPlan(provider, {
     root: ROOT, dir: opts.dir, scope: opts.scope, version: VERSION,
     modo: opts.modo, source: opts.source,
   })
   const escritos = []
+  const retirados = new Set()
+  const nativeAgents = {...(leerJson(join(provider.destino(opts.scope,opts.dir,opts.modo),manifiestoDe(provider,opts.modo)))?.nativeAgents || {})}
   const registro = []   // lo que no es un fichero nuestro: comandos y claves de configuración
   const avisos = []
+  const completed = new Set()
+  let nativePending=false
+  let roleMigrationPending=false
   let n = 0
 
   // Qué ficheros del registro habíamos creado NOSOTROS en una instalación anterior. Al reinstalar
@@ -1041,6 +1597,13 @@ function ejecutar(provider, opts) {
   // desinstalar se quedarían ahí para siempre.
   const manPrevio = leerJson(join(provider.destino(opts.scope, opts.dir, opts.modo),
     manifiestoDe(provider, opts.modo)))
+  if (provider.id === 'codex') {
+    const legados = liberarPromptsLegacyCodex(manPrevio,codexHome(),provider.destino(opts.scope,opts.dir,opts.modo))
+    for (const file of legados) {retirados.add(file);delete nativeAgents[file]}
+    if (legados.length) avisos.push(`${legados.length} prompt(s) legado(s) conservado(s) fuera del bundle: `
+      + 'se libera su inventario; el instalador ya no los modifica ni los borra al desinstalar. '
+      + 'Los comandos nuevos viajan como adaptadores de skills dentro del plugin.')
+  }
   const creadosAntes = new Set((manPrevio?.registro || [])
     .filter((e) => e["json-set"] && e.creado).map((e) => e["json-set"]))
   const padresAntes = new Map((manPrevio?.registro || [])
@@ -1065,7 +1628,8 @@ function ejecutar(provider, opts) {
       modo: opts.modo,
       installedAt: new Date().toISOString(),
       ...(estado === "completo" ? {} : { estado, error: String(error?.message || error) }),
-      files: [...new Set([...(manPrevio?.files || []), ...escritos.map((f) => f.split(sep).join("/"))])].sort(),
+      files: [...new Set([...(manPrevio?.files || []).filter(f => !retirados.has(f)), ...escritos.map((f) => f.split(sep).join("/"))])].sort(),
+      ...(Object.keys(nativeAgents).length ? {nativeAgents} : {}),
       registro: fusionarRegistro(manPrevio?.registro || [], registro),
     })
   }
@@ -1101,7 +1665,45 @@ function ejecutar(provider, opts) {
 
   function ejecutarPlan() {
   for (const paso of plan) {
-    if (paso.type === "copy") {
+    if(paso.requires && !completed.has(paso.requires) && !opts.dryRun) {
+      avisos.push(`${paso.type}: pendiente; no se completó ${paso.requires}`)
+      if(provider.id==="codex") nativePending=true
+      continue
+    }
+    if (paso.type === "retire") {
+      if (retirarArtefacto(paso, provider.destino(opts.scope, opts.dir, opts.modo), opts.dryRun)) {
+        retirados.add(paso.to.split(sep).join("/"))
+        say(`  ${ARROW} ${rel(paso.to)} ${dim("(retirada de copia conocida)")}`)
+      } else {
+        avisos.push(`${rel(paso.to)} tiene cambios locales: conservado; migración pendiente de revisión`)
+      }
+    } else if (paso.type === "copy") {
+      if (paso.nativeAgents) {
+        const migration = planificarAgentesNativos(paso,manPrevio)
+        avisos.push(...migration.warnings)
+        if (migration.warnings.length) roleMigrationPending=true
+        const retiring = new Set(migration.actions.filter(a=>a.type==='retire').map(a=>a.to.split(sep).join('/')))
+        for (const path of migration.released) {
+          if (!retiring.has(path)) { retirados.add(path); delete nativeAgents[path] }
+        }
+        for (const action of migration.actions) {
+          say(`  ${ARROW} ${rel(action.to)} ${dim(action.type === 'retire' ? '(retirada de agente propio)' : '(agente nativo)')}`)
+          if (opts.dryRun) continue
+          if (action.type === 'retire') {
+            if (!retirarArtefacto({to:action.to,sha256:[action.before]},paso.to)) throw new Error('native agent changed before retirement')
+            const path = action.to.split(sep).join('/');retirados.add(path);delete nativeAgents[path]
+          } else {
+            const now = existsSync(action.to) ? createHash('sha256').update(readFileSync(action.to,'utf8').replace(/\r\n/g,'\n')).digest('hex') : null
+            if (now !== action.before) throw new Error('native agent changed before copy')
+            escritos.push(action.to); nativeAgents[action.to.split(sep).join('/')] = action.sha256
+            guardar('incompleto',new Error('copiando agente nativo'))
+            mkdirSync(dirname(action.to),{recursive:true})
+            escribirAtomico(action.to,readFileSync(action.from,'utf8'))
+            n++
+          }
+        }
+        continue
+      }
       const abs = join(ROOT, paso.from)
       if (!existsSync(abs)) {
         avisos.push(`no encuentro ${paso.from} en el paquete — paso omitido`)
@@ -1160,9 +1762,51 @@ function ejecutar(provider, opts) {
       else { mkdirSync(dirname(paso.to), { recursive: true }); writeFileSync(paso.to, paso.content, "utf8") }
       escritos.push(paso.to)
       n++
+    } else if (paso.type === "codex-native-add") {
+      const command=[paso.cmd,...paso.args].join(" ")
+      if(paso.codexMarketplace) {
+        const sourceState=comprobarFuenteCodex(paso.codexMarketplace.config,paso.codexMarketplace.root)
+        if(sourceState==="unknown" || sourceState==="conflict" && !opts.forceMarketplace) {
+          avisos.push("marketplace del proyecto: fuente existente ajena o ambigua; registro y activación pendientes (usa --force-marketplace para reemplazar una fuente conocida)")
+          nativePending=true
+          continue
+        }
+      }
+      if(opts.dryRun) {say(`  ${ARROW} ${dim("$")} ${command} ${dim("(caché nativa; activación del scope después del éxito)")}`);continue}
+      const state=estadoCli(paso.cmd), nativeVersion=state==="si" ? versionDe(paso.cmd) : null
+      if(state!=="si" || !versionSuficiente(nativeVersion,paso.minVersion)) {
+        avisos.push(`caché nativa pendiente: se requiere Codex ejecutable >= ${paso.minVersion}; no se habilita el plugin`)
+        nativePending=true
+        continue
+      }
+      say(`  ${ARROW} ${dim("ejecutando")} ${dim("$")} ${command}${dim("…")}`)
+      try {
+        const native=instalarCodexNativo({dir:paso.cwd,scope:paso.scope,version:paso.version,marketplaceRoot:paso.marketplaceRoot})
+        registro.push({exec:command,nativeCache:native.installedPath})
+        completed.add(paso.id)
+        n++
+      } catch(error) {
+        volcar(salidaDe(error))
+        throw new Error(`${command}: ${primeraLinea(salidaDe(error))}; el plugin no se habilita`)
+      }
     } else if (paso.type === "exec") {
       const cmdTexto = [paso.cmd, ...paso.args].join(" ")
       const apunte = { exec: cmdTexto, ...(paso.deshacer ? { deshacer: paso.deshacer } : {}) }
+      let replaceMarketplace=false
+      if(paso.codexMarketplace) {
+        const sourceState=comprobarFuenteCodex(paso.codexMarketplace.config,paso.codexMarketplace.root)
+        if(sourceState==="unknown") {
+          avisos.push("marketplace Codex: no puedo determinar con seguridad la fuente existente; registro y activación pendientes")
+          continue
+        }
+        if(sourceState==="conflict") {
+          if(!opts.forceMarketplace) {
+            avisos.push(`el marketplace ya está dado de alta desde otra fuente y NO lo toco. Si quieres la de custom-agents: ${paso.cmd} plugin marketplace remove ${MKT} && ${cmdTexto} (o repite con --force-marketplace)`)
+            continue
+          }
+          replaceMarketplace=true
+        }
+      }
       if (opts.dryRun) {
         say(`  ${ARROW} ${dim("$")} ${cmdTexto}`)
         registro.push(apunte)
@@ -1192,6 +1836,11 @@ function ejecutar(provider, opts) {
       // en qué está el instalador mientras corre el `timeout`.
       say(`  ${ARROW} ${dim("ejecutando")} ${dim("$")} ${cmdTexto}${dim("…")}`)
       try {
+        if(replaceMarketplace) {
+          correr(paso.cmd,paso.siYaExiste.args,paso.cwd)
+          apunte.forzado=[paso.cmd,...paso.siYaExiste.args].join(" ")
+          avisos.push("--force-marketplace: sustituyo la fuente anterior del marketplace")
+        }
         correr(paso.cmd, paso.args, paso.cwd)
       } catch (e) {
         const salida = salidaDe(e)
@@ -1222,6 +1871,7 @@ function ejecutar(provider, opts) {
       }
       say(`  ${OK} ${dim("$")} ${cmdTexto}`)
       registro.push(apunte)
+      if(paso.id) completed.add(paso.id)
       n++
     } else if (paso.type === "json-set") {
       // A diferencia de `merge`, esto SÍ pisa: son las claves del registro del runtime, las que
@@ -1262,18 +1912,34 @@ function ejecutar(provider, opts) {
       n += cambia ? 1 : 0
     } else if (paso.type === "toml-set") {
       const previo = existsSync(paso.to) ? readFileSync(paso.to, "utf8") : ""
+      let undo
+      if(paso.restaurar) {
+        const prefix=normalizarTabla(paso.tabla), target=`${prefix}.${normalizarTabla(paso.clave)}`
+        const hits=rutasToml(previo).filter(e=>e.ruta===target)
+        if(hits.length>1) throw new Error("ambiguous owned TOML key")
+        const old=(manPrevio?.registro || []).find(e=>e["toml-set"]===paso.to && e.tabla===paso.tabla && e.clave===paso.clave)?.restaurar
+        const wrote=typeof paso.valor==="string" ? JSON.stringify(paso.valor) : String(paso.valor)
+        const tableExists=analizarToml(previo.split(/(?<=\n)/)).cabeceras.some(h=>h.nombre===prefix)
+          || rutasToml(previo).some(e=>e.ruta===prefix || e.ruta.startsWith(`${prefix}.`))
+        const tableOwned=registro.some(e=>e["toml-set"]===paso.to && e.tabla===paso.tabla && e.restaurar?.tablaCreada)
+        undo=old && hits.length===1 && mismoValorToml(hits[0].valor,old.escrito) ? old
+          : {escrito:wrote,previo:hits[0]?.valor ?? null,tablaCreada:!tableExists || tableOwned}
+      }
       const nuevo = ponerToml(previo, paso.tabla, paso.clave, paso.valor, { fichero: rel(paso.to) })
       if (opts.dryRun) {
         say(`  ${ARROW} ${rel(paso.to)} ${dim(`([${paso.tabla}] ${paso.clave} = ${paso.valor})`)}`)
       } else if (nuevo !== previo) {
         escribirAtomico(paso.to, nuevo)
       }
-      if (paso.deshacer !== false) registro.push({ "toml-set": paso.to, tabla: paso.tabla, clave: paso.clave })
+      if (paso.deshacer !== false) registro.push({ "toml-set": paso.to, tabla: paso.tabla, clave: paso.clave,...(undo ? {restaurar:undo} : {}) })
       n += nuevo !== previo ? 1 : 0
     }
   }
 
-  guardar("completo")
+  const pending = nativePending || roleMigrationPending
+  guardar(pending ? "incompleto" : "completo",pending
+    ? [nativePending ? 'registro/caché nativa pendientes' : '',roleMigrationPending ? 'migración de agentes pendiente; conflictos conservados' : ''].filter(Boolean).join('; ')
+    : undefined)
   avisos.push(...drenarAvisosEscritura())
   return { n, avisos }
   }
@@ -1432,9 +2098,12 @@ function manifiestosVivos(p, scope, dir) {
 function deshacerInstalacion(p, dest, file, man, opts) {
   // Un manifiesto sin `files` (viejo o a medio escribir) se deshace igual: sus apuntes de
   // configuración SÍ se pueden quitar y el fichero se retira. Nunca un `TypeError`.
-  const files = Array.isArray(man.files) ? man.files : []
+  const legados = new Set(p.id === 'codex' ? liberarPromptsLegacyCodex(man,codexHome(),dest) : [])
+  const files = Array.isArray(man.files) ? man.files.filter(f=>!legados.has(f)) : []
   say(`\n${bold(p.label)} ${dim(`(v${man.version}, ${man.scope}${man.modo ? ", " + man.modo : ""}` +
       `${man.estado ? ", " + man.estado : ""})`)}`)
+  if (legados.size) say(`  ${WARN} ${dim(`${legados.size} prompt(s) legado(s) externo(s) conservado(s): ` +
+    'se excluyen del borrado y de la poda; sus bytes no se modifican.')}`)
   if (opts.dryRun) {
     say(`  ${ARROW} borraría ${files.length} fichero(s) bajo ${rel(dest)}` +
         (man.registro?.length ? ` y desharía ${man.registro.length} apunte(s) de configuración` : ""))
@@ -1443,6 +2112,14 @@ function deshacerInstalacion(p, dest, file, man, opts) {
   let n = 0
   for (const f of files) {
     const abs = f.split("/").join(sep)
+    if (man.nativeAgents && Object.hasOwn(man.nativeAgents,f)) {
+      const agentRoot = p.id === 'codex' ? join(dirname(dirname(dest)),'agents') : join(dest,'agents')
+      try {
+        if (retirarArtefacto({to:abs,sha256:[man.nativeAgents[f]]},agentRoot)) n++
+        else say(`  ${WARN} ${dim(`${rel(abs)}: agente modificado, conservado`)}`)
+      } catch { say(`  ${WARN} ${dim(`${rel(abs)}: propiedad/ruta no verificable, conservado`)}`) }
+      continue
+    }
     try { if (existsSync(abs)) { rmSync(abs, { force: true }); n++ } } catch { /* sigue */ }
   }
   for (const a of deshacerRegistro(man.registro || [])) say(`  ${WARN} ${dim(a)}`)
@@ -1512,8 +2189,8 @@ function deshacerRegistro(registro) {
       // `soloSiExiste`: si el usuario ya borró la tabla, desinstalar NO se la vuelve a crear.
       let nuevo
       try {
-        nuevo = ponerToml(previo, e.tabla, e.clave, false,
-          { soloSiExiste: true, fichero: rel(e["toml-set"]) })
+        nuevo = e.restaurar ? restaurarClaveToml(previo,e.tabla,e.clave,e.restaurar)
+          : ponerToml(previo, e.tabla, e.clave, false,{ soloSiExiste: true, fichero: rel(e["toml-set"]) })
       } catch (err) {
         avisos.push(err.message)
         continue
@@ -1693,8 +2370,8 @@ function cmdStatus(opts) {
         `${man.estado === "incompleto" ? WARN : OK} ${scope}${man.modo ? `/${man.modo}` : ""}: ` +
         `v${man.version}, ${(man.files || []).length} fichero(s) ${dim(rel(dest))}` +
         (man.estado === "incompleto" ? ` ${yellow("(instalación incompleta)")}` : ""))
-      // Copiar ficheros no es instalar: el registro se mira aparte del manifiesto, y puede
-      // decir «sí» sin manifiesto (instalado por la CLI del runtime) o «no» con él (`--mode copy`).
+      // Registration declarations and installer payload are separate. For Codex, the boolean
+      // proves only a declaration in this scope; native cache state is queried below.
       const { registrado, donde, apagadoEn, invalidoEn } = leerRegistro(
         typeof p.registro === "function" ? p.registro(scope, opts.dir) : [])
       if (registrado || apagadoEn || invalidoEn || delScope.length) {
@@ -1702,7 +2379,7 @@ function cmdStatus(opts) {
           ? `— está dado de alta pero APAGADO en ${rel(apagadoEn)}: el runtime lo ignora`
           : invalidoEn
             ? `— la clave está en ${rel(invalidoEn)} con un valor que no habilita: no cuenta como alta`
-            : "— el runtime no lo carga; falta darlo de alta"
+            : p.id === "codex" ? "— sin declaración de activación en este scope" : "— el runtime no lo carga; falta darlo de alta"
         delScope.push(`${registrado ? OK : WARN} ${scope}: registrado: ${registrado ? "sí" : "no"}` +
           (registrado ? ` ${dim(rel(donde))}` : ` ${dim(porQue)}`))
       }
@@ -1711,6 +2388,12 @@ function cmdStatus(opts) {
     const det = p.detect()
     say(`  ${bold(p.label.padEnd(13))} ${det ? dim("runtime detectado") : dim("runtime no detectado")}`)
     for (const f of filas) say(`      ${f}`)
+    if(p.id === "codex") {
+      const native=queryCodexPlugin({cwd:opts.dir})
+      const state=native.state==="installed" ? `instalado; habilitado: ${native.enabled ? "sí" : "no"}; v${native.version}`
+        : native.state==="absent" ? "ausente" : "desconocido (consulta nativa no disponible)"
+      say(`      ${dim(`estado nativo en Codex: ${state}`)}`)
+    }
     if (!filas.length) say(`      ${dim("— sin instalar por este instalador")}`)
   }
   say(`\n  ${dim("Instala con:")} npx @daycry/custom-agents install -p <${IDS.join("|")}>\n`)

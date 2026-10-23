@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S245",
+    "S246",
+    "S247",
+    "S248",
+    "S249"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S245",
+      "sha256": "5b4c406c73b0fdee3dbbc352fd7d51ee28702d589ea44f3229402fb513354a54",
+      "bytes": 4827,
+      "lines": 176,
+      "read_ranges": [
+        [
+          1,
+          176
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S246",
+      "sha256": "aeb87193dbafc68b5218612e4845ae3d6c3a040203ff8a625ed98661255fef58",
+      "bytes": 6331,
+      "lines": 178,
+      "read_ranges": [
+        [
+          1,
+          178
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S247",
+      "sha256": "9e7f11f0681ad90c91d665689053481a1be70de474855ff51c3d1cc84013d87b",
+      "bytes": 5089,
+      "lines": 167,
+      "read_ranges": [
+        [
+          1,
+          167
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S248",
+      "sha256": "380918f545c7e9b297b23bee4a0432deba977acbdb217232bf1ab9d5aa3c562e",
+      "bytes": 5201,
+      "lines": 193,
+      "read_ranges": [
+        [
+          1,
+          193
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S249",
+      "sha256": "079ed9182c086fbb2168b723f36cb167d4cb2272a10a41b131f38945d2f0b145",
+      "bytes": 4906,
+      "lines": 161,
+      "read_ranges": [
+        [
+          1,
+          161
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/research-first/SKILL.md",
+      "sha256": "ae43e6baaad2124c1613e981489b5ed6933c54bfd12c63e5897004b4a80bf760"
+    },
+    {
+      "path": "skills/research-first/references/comparison.md",
+      "sha256": "09e2fc4a0c15e8a3f8b79afad65ba769f73691a2e5aa26fbfaf578c445349c48"
+    },
+    {
+      "path": "skills/capability-audit/references/method.md",
+      "sha256": "13928d323c2a19dabdafac3d98fb396e40aa82600e3ff13191fd03c4872c03ed"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "234bafc53ac9e6f581baaddb2f1896806e30781dafbf75c3e1d431f171b11904"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-011-un-rol-un-dueno-agentes-retirados-y-responsabilidades-fusionadas.md",
+      "sha256": "6047829c51b5b9c95433f5d33fa34dcfacee03a0cf17a5d7f18422a93edc85b4"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

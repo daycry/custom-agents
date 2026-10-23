@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_command_ids": [
+    "C026",
+    "C027",
+    "C028",
+    "C029",
+    "C039",
+    "C040",
+    "C041"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "C026",
+      "sha256": "916659397d2e01f9bf211fca43a8a2f79eb73d6382fccd516b240b5d0e5f37a0",
+      "bytes": 3792,
+      "lines": 183,
+      "read_ranges": [
+        [
+          1,
+          183
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C027",
+      "sha256": "73a29ec62007e25490d0962ed52fe196eac3df31c6ccd774b10c9a8e07b63b39",
+      "bytes": 3436,
+      "lines": 148,
+      "read_ranges": [
+        [
+          1,
+          148
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C028",
+      "sha256": "4e091753684305224b5b8f5f497cb66f14383530659a95b9d327f3c8b3b2c0e3",
+      "bytes": 5635,
+      "lines": 268,
+      "read_ranges": [
+        [
+          1,
+          268
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C029",
+      "sha256": "c2aa086148316326ae10ee97229d040a0b7a9b743c016bfad4032ce96bb097a9",
+      "bytes": 2550,
+      "lines": 70,
+      "read_ranges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C039",
+      "sha256": "2a5ea5ae245b5ab54d22cd2c539890fee4695ad0bb93b38898f15d4452044564",
+      "bytes": 4351,
+      "lines": 174,
+      "read_ranges": [
+        [
+          1,
+          174
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C040",
+      "sha256": "3b18cb5e03a577a411d77c44bd47cfd1007666701d7aa3c0d850bbb73ab3e3c7",
+      "bytes": 3628,
+      "lines": 140,
+      "read_ranges": [
+        [
+          1,
+          140
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C041",
+      "sha256": "4c6dd961714ecacddf8fc7c72e9930b323100a7a5eef8cc0f40e176f2ee2044c",
+      "bytes": 7609,
+      "lines": 312,
+      "read_ranges": [
+        [
+          1,
+          312
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/implementer.md",
+      "sha256": "a76c17a9b26466b0b7cde35c78ff9b30fd350a6beaf64c7b434c31f82f7505f3"
+    },
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "3e2d1f5c527ccd156961ca0803453b924cd73be6493cb6b09dbd0eafdfa006a2"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "12ccff0790433a793b8229aa20eafb36c871a9c96798bafcbb186dcaabe1c1d6"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "7964b0873f3c285c1178fb2ebc5dcd7c79bb812dbfd57a798cc2f90d10e012e1"
+    },
+    {
+      "path": "skills/tdd/references/by-stack.md",
+      "sha256": "fe49966d3c4ad8cdac03b0b84efcf64e48ff5d42423aba54067ddd2ccd8f6825"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "ea3b6fe98737ab2d310a83855181061fd2d2ee883d448daa3d4310aa78adcb4a"
+    },
+    {
+      "path": "skills/debug-root-cause/SKILL.md",
+      "sha256": "fc5266b71f1f4c2f5213758080e2ba7d31531d5d9b61c800c61e6404363f3170"
+    },
+    {
+      "path": "skills/code-health/SKILL.md",
+      "sha256": "e951e137191f4ebf1d631317fa8ee829e2f6ce87873540c72bd387d8a29cedbe"
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "b6e03985d8ed921cf629b53af25f6c671df9792f1512acf4d2db14e1297442b9"
+    },
+    {
+      "path": "docs/agents/ROLES.md",
+      "sha256": "16de05a15de9e81168181de94f22f9d891dda6fdb1adc927815c19605b87b997"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

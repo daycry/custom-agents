@@ -1,0 +1,486 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S221",
+    "S236",
+    "S239"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S221",
+      "sha256": "6aad53af0d1a5580f12f8901aca65946b29db88c5a394239d580cd0a57322edd",
+      "bytes": 30261,
+      "lines": 253,
+      "read_ranges": [
+        [
+          1,
+          253
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S236",
+      "sha256": "dd727cadc4c1e179932b9736955ff3e537f75eeb759c038345ad9fe7d1bc55a9",
+      "bytes": 3642,
+      "lines": 43,
+      "read_ranges": [
+        [
+          1,
+          43
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "rules/3d.md",
+          "sha256": "d5f3f412ba540d10a98f330dea3cd949d4fc4f9a6bf0d9788cf3f2b21a90f3f4",
+          "bytes": 2279,
+          "lines": 86,
+          "read_ranges": [
+            [
+              1,
+              86
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/animations.md",
+          "sha256": "3b2a9055f720fb5da70af86d4d43ab5722b6229f2c3f7c70100972df0fe4863b",
+          "bytes": 784,
+          "lines": 29,
+          "read_ranges": [
+            [
+              1,
+              29
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/assets.md",
+          "sha256": "664160a48fe6ef76c9b25ea51b3796d39d371cb3632f380b014492412902ad42",
+          "bytes": 1590,
+          "lines": 78,
+          "read_ranges": [
+            [
+              1,
+              78
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/audio.md",
+          "sha256": "06d859b2f463d0e0e823655548e314b59a1d6321377857fca52a09c629170b12",
+          "bytes": 3822,
+          "lines": 172,
+          "read_ranges": [
+            [
+              1,
+              172
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/calculate-metadata.md",
+          "sha256": "b258c788fb3337187245c814f2fd4ddf10f7330ec97cb8117202a0145d4d27a6",
+          "bytes": 2920,
+          "lines": 104,
+          "read_ranges": [
+            [
+              1,
+              104
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/can-decode.md",
+          "sha256": "fb3f9933e45103d72530915b72a844b3454c6acc03289db5efe8f4541b088fad",
+          "bytes": 1587,
+          "lines": 75,
+          "read_ranges": [
+            [
+              1,
+              75
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/charts.md",
+          "sha256": "d79d7a4e41f4939959017a8a43aa5cc79e7c437496e0125afca34ab38aaa22dd",
+          "bytes": 1748,
+          "lines": 58,
+          "read_ranges": [
+            [
+              1,
+              58
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/compositions.md",
+          "sha256": "8939e6ce84d00e98f1813d781b554729d637b932b86fbbbbf6a3b3b34943220f",
+          "bytes": 3442,
+          "lines": 146,
+          "read_ranges": [
+            [
+              1,
+              146
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/display-captions.md",
+          "sha256": "96abde72e0bcb88cdc5871b80b5d6eb0c6aedf0ea9611e6c5157cb0ee980ba99",
+          "bytes": 3698,
+          "lines": 126,
+          "read_ranges": [
+            [
+              1,
+              126
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/extract-frames.md",
+          "sha256": "b7a63f6509a1a33d624f36d3f6772abbc364b0c883520803f3701c26541e7cd7",
+          "bytes": 5496,
+          "lines": 229,
+          "read_ranges": [
+            [
+              1,
+              229
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/fonts.md",
+          "sha256": "1749e4cf82e8b157d4b0a26f46721152d3ef9e5e9a1686753b8bb6a1be83ddbc",
+          "bytes": 3484,
+          "lines": 152,
+          "read_ranges": [
+            [
+              1,
+              152
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/get-audio-duration.md",
+          "sha256": "d5098e8d20b227464e3519c761cba1e03396c77da636d1893c7be3061a0a8e40",
+          "bytes": 1354,
+          "lines": 58,
+          "read_ranges": [
+            [
+              1,
+              58
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/get-video-dimensions.md",
+          "sha256": "839867aa115e09a719096a902a6ad5e304135f2053cce9928776fb4fcb5bf3e1",
+          "bytes": 1627,
+          "lines": 68,
+          "read_ranges": [
+            [
+              1,
+              68
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/get-video-duration.md",
+          "sha256": "7b31fab3cbf9b0771bae41e2c41c9abed2b59d495ffac7160e562fdf86848726",
+          "bytes": 1341,
+          "lines": 58,
+          "read_ranges": [
+            [
+              1,
+              58
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/gifs.md",
+          "sha256": "53d9d658e3093dba4a798945d5c1b7004688ed96a09521cfb22b4cec418a8ae7",
+          "bytes": 3868,
+          "lines": 138,
+          "read_ranges": [
+            [
+              1,
+              138
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/images.md",
+          "sha256": "91d32f6e528b1f1cddc9a0cf70d0faa74491e3a2fe4a32933da0e21010e9aa74",
+          "bytes": 2783,
+          "lines": 130,
+          "read_ranges": [
+            [
+              1,
+              130
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/import-srt-captions.md",
+          "sha256": "38d33be5439714a2ddb577d8c8a6b7bf09bd10f66c0540415fb70536d4374e87",
+          "bytes": 2113,
+          "lines": 67,
+          "read_ranges": [
+            [
+              1,
+              67
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/lottie.md",
+          "sha256": "327673644c436b9f0b52f03ef2f2a6a9cf75d9e18d3384b88969b86942e2b8a1",
+          "bytes": 1776,
+          "lines": 67,
+          "read_ranges": [
+            [
+              1,
+              67
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/measuring-dom-nodes.md",
+          "sha256": "4017103b03f14a041ac433be78c521ec2e9961629fae419c8b196d349637585b",
+          "bytes": 973,
+          "lines": 34,
+          "read_ranges": [
+            [
+              1,
+              34
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/measuring-text.md",
+          "sha256": "88905cbd701e247306645c19f18e01aebe27c4eb0178a4e5d0377687f5ac1478",
+          "bytes": 3000,
+          "lines": 143,
+          "read_ranges": [
+            [
+              1,
+              143
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/sequencing.md",
+          "sha256": "a6bc2ecf64c43d2c496c4a10f00d78151e23dd73f5ec73a09d950436eb5bcee1",
+          "bytes": 2385,
+          "lines": 106,
+          "read_ranges": [
+            [
+              1,
+              106
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/tailwind.md",
+          "sha256": "e6025d703b69d9b4f9b240a80bbe4619872013ebd57c4511912d4be1a1c048a7",
+          "bytes": 423,
+          "lines": 11,
+          "read_ranges": [
+            [
+              1,
+              11
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/text-animations.md",
+          "sha256": "40ac6b1bccf1c57d9edd46c74e847ec6e86fe775d3ef4fd14e1338f4a2606171",
+          "bytes": 700,
+          "lines": 20,
+          "read_ranges": [
+            [
+              1,
+              20
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/timing.md",
+          "sha256": "25d44384f42a2bbf4806e2e1aa6bd0acd0b1bd52160341f0f16dd1332b2a5d3d",
+          "bytes": 3927,
+          "lines": 179,
+          "read_ranges": [
+            [
+              1,
+              179
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/transcribe-captions.md",
+          "sha256": "c3324f7dc728cdb8d6a28ff664581b6a7ec2f1bae10727316b2b596d77d3df62",
+          "bytes": 856,
+          "lines": 19,
+          "read_ranges": [
+            [
+              1,
+              19
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/transitions.md",
+          "sha256": "1b105c06bb968f9ea03678178047da59b82a216e7a879b96d8ec821a8b6dea1e",
+          "bytes": 3726,
+          "lines": 122,
+          "read_ranges": [
+            [
+              1,
+              122
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/trimming.md",
+          "sha256": "9f71fc28200d18a4e75e727cc81506ee30b4e6bf73ca735686dfd55f4bcaee70",
+          "bytes": 1209,
+          "lines": 52,
+          "read_ranges": [
+            [
+              1,
+              52
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/videos.md",
+          "sha256": "6c663a2325df97483c123cc7f26c4db3eca3fcd38135bf7719d2969ce942c489",
+          "bytes": 3507,
+          "lines": 171,
+          "read_ranges": [
+            [
+              1,
+              171
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/assets/charts-bar-chart.tsx",
+          "sha256": "6e5e219c596c8515336570a5bc89c233e32e695d5816dec88eb929e798eeea61",
+          "bytes": 3429,
+          "lines": 173,
+          "read_ranges": [
+            [
+              1,
+              173
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/assets/text-animations-typewriter.tsx",
+          "sha256": "92b5f47d6d18387a0aa008ce9dceefd30f673ae5879e16892bd4b4ea97f5dddb",
+          "bytes": 2183,
+          "lines": 100,
+          "read_ranges": [
+            [
+              1,
+              100
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "rules/assets/text-animations-word-highlight.tsx",
+          "sha256": "5dbba688b875baaa62555c7a243f54739e81edbf34148c87048594a210c3ec2c",
+          "bytes": 2387,
+          "lines": 108,
+          "read_ranges": [
+            [
+              1,
+              108
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    },
+    {
+      "id": "S239",
+      "sha256": "e5091d29cedd093a80321615d9670ebdb3c15856f3a99da644e07335167c86df",
+      "bytes": 24668,
+      "lines": 233,
+      "read_ranges": [
+        [
+          1,
+          233
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/debug-root-cause/SKILL.md",
+      "sha256": "5cd6436c78273b9cd8b6e03a0e052d02a3b92728d3bf4109e540438369c2a82b"
+    },
+    {
+      "path": "commands/retro.md",
+      "sha256": "46330c05f9497ff98d2f5835509875fe4d6f95732f449a68d3b488d829c7bd76"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-write.md",
+      "sha256": "804c8acda8d1d98f450773dde07dc4fe1a044579b62d1c1b520e3f9fb6a3bb68"
+    },
+    {
+      "path": "skills/to-pdf/SKILL.md",
+      "sha256": "c0c4a09b7a4072fc977ed8a8e984eaeefe9ed1762d1cf1d126c62f6be78e5287"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "source52_manifest_sha256": "454107ad779a83ab70abda5d88e549acd211b0e0815a8d177c00137d77efa11a",
+  "tested_source_sha256": {
+    "hooks/opencode-plugin.js": "a5fd9ecc8dfcc9e486fd627f2d699f510ff0b181d9e1fd942594ae1ec9a2fbf7",
+    "interop/opencode/plugins/custom-agents/index.js": "a5fd9ecc8dfcc9e486fd627f2d699f510ff0b181d9e1fd942594ae1ec9a2fbf7",
+    "agent-kits/shared/agent-activity-store.py": "2fd37622edf1f08e790325f02127dc9e6480f22a279e94e8532a7d948d15ed10",
+    "tests/test_agent_activity_store.py": "d8a944f39fc9b61d0c8505dd31163c91a50f32806a2c6de07db6be34d880340d",
+    "tests/opencode-plugin.test.mjs": "80e977c49c3c7b90fe6debee9ca51a2f5cd4551b1ebc92f2cd1b14c6503136b1"
+  },
+  "native_version": "OpenCode 2.0.12",
+  "native_binary_sha256": "58d550b26e9241759a6906c65f1e0605eaf512d63cbaf6d8eb472375b9311c95",
+  "red99_native_start_observed_without_record": true,
+  "red101_python_exit": 1,
+  "red101_node_exit": 1,
+  "windows102": {
+    "passed": 126,
+    "skipped": 1,
+    "node_passed": 21
+  },
+  "linux104": {
+    "cases": 127,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 127
+  },
+  "native103_during": {
+    "native_events": [
+      {
+        "type": "session.execution.started",
+        "data": {
+          "sessionID": "ses_ed00c3556ffevFaskxEmPmFOCw"
+        }
+      }
+    ],
+    "record_count": 1,
+    "events": [
+      "execution_started"
+    ],
+    "model_response_held": true,
+    "prompt_log_present": true,
+    "premature_envelope_count": 0
+  },
+  "native103_after": {
+    "record_count": 1,
+    "events": [
+      "execution_finished"
+    ]
+  },
+  "prompt_captured_prematurely": false,
+  "native_cases": 1,
+  "model_requests": 2,
+  "external_model_inferences": 0,
+  "owned_job_cleanup_confirmed": true,
+  "source_post_terminal_verified": true,
+  "source_eol_preparation_failure_preserved": true,
+  "fixture_anchor_and_temp_preparation_failures_preserved": true,
+  "collection_complete": false,
+  "live_process_proven": false,
+  "human_ui_accepted": false,
+  "current_full_qa_accepted": false,
+  "global_product_accepted": false,
+  "result_sha256": "af943e0baf2c4bb8e235dfe10ad9550d29e01749957431b500ec0cb78fae3cc3"
+}

@@ -1,0 +1,236 @@
+{
+  "schema_version": 1,
+  "observed_on": "2026-10-11",
+  "tested_working_manifest_sha256": "b791b718fa37bdeb2f640b81914f903c3eb2473de401b388518eee1c8a8009fd",
+  "frozen_manifest_sha256": "59d7026b4ed193b02b8c8f5127ada91c42fdda300fc3c8aa1268ef8833db1876",
+  "tested_source_files": 1082,
+  "python": {
+    "planned_cases_per_platform": 7020,
+    "ci_directories": 14,
+    "changed_production_files": 22,
+    "platforms": {
+      "windows": {
+        "planned_case_count": 7020,
+        "changed_percent": 91.92277383766745,
+        "gates_passed_without_rounding": true,
+        "dashboard_direct_passed": true,
+        "children_terminal": 3867,
+        "source_and_dependencies_preserved": true,
+        "mean_percent": 91.78153326836936,
+        "counts": {
+          "passed": 6921,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 99
+        },
+        "audited_children": 3867
+      },
+      "linux": {
+        "planned_case_count": 7020,
+        "changed_percent": 92.04097714736012,
+        "gates_passed_without_rounding": true,
+        "dashboard_direct_passed": true,
+        "children_terminal": 3919,
+        "source_and_dependencies_preserved": true,
+        "mean_percent": 91.88489064128503,
+        "counts": {
+          "passed": 6962,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 58
+        },
+        "audited_children": 3919
+      }
+    },
+    "coverage_provider": "Coverage.py 7.16.2 official CTracer",
+    "minimum_percent": 90,
+    "child_coverage_attributed": false,
+    "linux_additional_passed_subtests": 82,
+    "collection_conservation": "All previous 7009, 6951 and 6612 cases preserved; eleven new regression cases",
+    "receipts": [
+      {
+        "platform": "windows",
+        "artifact": "runner-terminal.json",
+        "sha256": "32e453f6c3793d346a8a50972f651e792d792a4d8946f34fc7e1d360e229d244",
+        "bytes": 748
+      },
+      {
+        "platform": "windows",
+        "artifact": "process-terminal.json",
+        "sha256": "e40554396e52f0334a0494c5c5112215d1ecc67e85415e29d4415eff4590cfb6",
+        "bytes": 448
+      },
+      {
+        "platform": "windows",
+        "artifact": "coverage-gate.json",
+        "sha256": "3e285c83337ab351a602acb820085a28e7927cbe6cdacc6bd053a74c98d4cc31",
+        "bytes": 8613
+      },
+      {
+        "platform": "windows",
+        "artifact": "coverage-tracer.json",
+        "sha256": "792de6b66348e04497e90bc891ac7003c5404038893594c1e73ad8ffc3c12af9",
+        "bytes": 383
+      },
+      {
+        "platform": "windows",
+        "artifact": "junit-summary.json",
+        "sha256": "772371b6253de6ff7ca43a29400dad1b7347d6e6b631a526971fa9f41b79e504",
+        "bytes": 50073
+      },
+      {
+        "platform": "windows",
+        "artifact": "child-audit-summary.json",
+        "sha256": "affc95b7059db4e609401cf0ccba7b4bf5fcc89505f5313b99c3aa45ff6805a3",
+        "bytes": 245
+      },
+      {
+        "platform": "windows",
+        "artifact": "dashboard-direct-acceptance.json",
+        "sha256": "c3ab80a90179a4693f790c2b0ba775b07b970c95f76b438353e936508f5ba349",
+        "bytes": 228
+      },
+      {
+        "platform": "linux",
+        "artifact": "runner-terminal.json",
+        "sha256": "b673478c61a3bfcb61c8444d608164df864c460c2d15ba77648890eaaa7441fa",
+        "bytes": 1033
+      },
+      {
+        "platform": "linux",
+        "artifact": "process-terminal.json",
+        "sha256": "801d54ecfef864eabce2f1b63cefefd8a2f9463fbdd3d2109dd580075f87352d",
+        "bytes": 445
+      },
+      {
+        "platform": "linux",
+        "artifact": "coverage-gate.json",
+        "sha256": "3bccd5c87ec0444b55bd4a73ff38396f4ac7036824df45f7f32d5a8b2f12e5e5",
+        "bytes": 8575
+      },
+      {
+        "platform": "linux",
+        "artifact": "coverage-tracer.json",
+        "sha256": "9fcf3763e5b6dcaa5e44cb196adaaab8d99d9a508b8ecd3fa26c542bcfc6ef5a",
+        "bytes": 326
+      },
+      {
+        "platform": "linux",
+        "artifact": "junit-summary.json",
+        "sha256": "44bf781d64d6f223a697cbf250546ca42d1a8a08c1e4e37385700dee05fd354b",
+        "bytes": 20743
+      },
+      {
+        "platform": "linux",
+        "artifact": "child-audit-summary.json",
+        "sha256": "0941bfc42866d6e30ba71d6a43a6a6222359d6589147641551a64c5ce46ce74d",
+        "bytes": 245
+      },
+      {
+        "platform": "linux",
+        "artifact": "dashboard-direct-acceptance.json",
+        "sha256": "e54bd918279da1bd174b179f9cd24dc014f7e2adc1d8e62fb28a6f31fd9e526d",
+        "bytes": 227
+      }
+    ]
+  },
+  "node": {
+    "version": "v22.23.3",
+    "test_files": 8,
+    "default_concurrency": true,
+    "windows": {
+      "tests": 328,
+      "suites": 0,
+      "pass": 328,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "linux": {
+      "tests": 328,
+      "suites": 0,
+      "pass": 312,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 16,
+      "todo": 0
+    },
+    "linux_skips": "Sixteen Windows-only cases",
+    "receipts": [
+      {
+        "platform": null,
+        "artifact": "result.json",
+        "sha256": "ea05dfaca432f1c389f412682a76cfeb5e91660562c50c49abc311e9a300e9dd",
+        "bytes": 801
+      },
+      {
+        "platform": null,
+        "artifact": "stdout.raw",
+        "sha256": "c45b7126fcc73f2f067ac5002e2f5c3d6dbad59a1d5918f3581a78c460014ba1",
+        "bytes": 82385
+      },
+      {
+        "platform": null,
+        "artifact": "runner-terminal-nodeci03.json",
+        "sha256": "586a58f04a209690b2856b35c71fa255353303c375fd4fdd12366320e8f9684b",
+        "bytes": 1078
+      },
+      {
+        "platform": null,
+        "artifact": "node-result.json",
+        "sha256": "7524e9df7b126abfcd99e41575c921f7ac33c15ea9e9204cbeb9df19d3dacd90",
+        "bytes": 309
+      },
+      {
+        "platform": null,
+        "artifact": "result.json",
+        "sha256": "2f9d6601e5f11d25cd123654fd3178bf1ac55eae8d219ff3d690c6e9b46b213f",
+        "bytes": 605
+      },
+      {
+        "platform": null,
+        "artifact": "node.stdout.raw",
+        "sha256": "d9965a9060d13dcc3e1aa548a36cd924e9a7cf4218a6c5c918b9ec0d37d06b35",
+        "bytes": 82625
+      },
+      {
+        "platform": null,
+        "artifact": "runner-terminal-nodelinux02.json",
+        "sha256": "5a3002b102015a7e1914ed6945b03755eff7f58993cb54389bad632ebb5c7b4b",
+        "bytes": 1081
+      }
+    ]
+  },
+  "lifecycle": {
+    "source_and_dependencies_preserved": true,
+    "linux_owned_containers_removed_and_absent": true,
+    "full_supervisor_pid": 11080,
+    "cleanup_pid": 36140,
+    "cleanup_confirmed": true,
+    "active_after_close": 0,
+    "leak": false
+  },
+  "public_reference_scan": {
+    "files": 1082,
+    "utf8_files": 1081,
+    "pdf_texts": 1,
+    "hits": 0,
+    "receipt_sha256": "b80c2d9bac4d084b1869897932c5a25076af877e1a5aa7129c1a0b6ad6d108c0"
+  },
+  "historical_results": "Preserved unchanged; passing current QA does not identify all historical Windows sharing failures",
+  "source_QA_accepted": true,
+  "final_independent_review_complete": false,
+  "visual_ui_verified": false,
+  "native_workflow_acceptance_complete": false,
+  "root_promoted": false,
+  "global_product_accepted": false,
+  "pending": [
+    "Native workflow acceptance",
+    "Real browser UI verification",
+    "Compared resource dependency closure",
+    "Fresh independent review",
+    "Final documentation, local promotion, commits and ordinary branch push"
+  ],
+  "skills_expansion": "Deferred by user"
+}

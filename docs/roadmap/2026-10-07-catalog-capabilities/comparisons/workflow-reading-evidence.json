@@ -1,0 +1,606 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-07",
+  "scope": "S006-S012 bodies, all S007 resources and necessary caller sections; native counterparts",
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source": [
+    {
+      "id": "S006",
+      "sha256": "78ac50508665d894f1cbf02fe7d121c6ffc5c72cc66d68174db77ffdb30b6b89",
+      "bytes": 10715,
+      "lines": 225,
+      "read_ranges": [
+        [
+          1,
+          225
+        ]
+      ],
+      "reading_scope": "full-body",
+      "directory_resources": []
+    },
+    {
+      "id": "S007",
+      "sha256": "96bb21eb37760f596789f84ec0a5dad4ef92fc2255e35cd7b88dc4234062b8c1",
+      "bytes": 7625,
+      "lines": 182,
+      "read_ranges": [
+        [
+          1,
+          182
+        ]
+      ],
+      "reading_scope": "full-body",
+      "directory_resources": [
+        "R-dacf97dafeeb",
+        "R-4a22d54c38f8",
+        "R-3146d80e35e9",
+        "R-27db0a027721",
+        "R-e4f5a09c931a",
+        "R-bf0243814165"
+      ]
+    },
+    {
+      "id": "S008",
+      "sha256": "5847fc20cf0fd0d00c0c2dbacca03472c5a43af429978cf874dd41ecc144dc53",
+      "bytes": 5922,
+      "lines": 216,
+      "read_ranges": [
+        [
+          1,
+          216
+        ]
+      ],
+      "reading_scope": "full-body",
+      "directory_resources": []
+    },
+    {
+      "id": "S009",
+      "sha256": "41c32c20ec97469341f5d83d8beb15f03d1b6f1c40fb1bdf534c50cd9a38cb6f",
+      "bytes": 1830,
+      "lines": 64,
+      "read_ranges": [
+        [
+          1,
+          64
+        ]
+      ],
+      "reading_scope": "full-body",
+      "directory_resources": []
+    },
+    {
+      "id": "S010",
+      "sha256": "e1d1207353652456ac84a821e5522def1d108677318630af4fd7ac16735b5c04",
+      "bytes": 12349,
+      "lines": 388,
+      "read_ranges": [
+        [
+          1,
+          388
+        ]
+      ],
+      "reading_scope": "full-body",
+      "directory_resources": []
+    },
+    {
+      "id": "S011",
+      "sha256": "114913bdcb6127392df56d96f7f1312f36c74d69c278dece6d377b9bd92123a5",
+      "bytes": 1454,
+      "lines": 52,
+      "read_ranges": [
+        [
+          1,
+          52
+        ]
+      ],
+      "reading_scope": "full-body",
+      "directory_resources": []
+    },
+    {
+      "id": "S012",
+      "sha256": "83f2f5c4083af5762dd658f742d4a390eb3a6f969d835f69e8f47efba296c127",
+      "bytes": 11659,
+      "lines": 386,
+      "read_ranges": [
+        [
+          1,
+          386
+        ]
+      ],
+      "reading_scope": "full-body",
+      "directory_resources": []
+    },
+    {
+      "id": "R-dacf97dafeeb",
+      "sha256": "59467219aaaa41365953f904d7ffebb46b55c13d497e3646b0561a9ef5f56b0e",
+      "bytes": 3545,
+      "lines": 87,
+      "read_ranges": [
+        [
+          1,
+          87
+        ]
+      ],
+      "reading_scope": "full-resource"
+    },
+    {
+      "id": "R-4a22d54c38f8",
+      "sha256": "ee286d3adcbab489c5f277ae094a25e38e9401dc01b6c39987c3f5bf3b61706e",
+      "bytes": 3702,
+      "lines": 86,
+      "read_ranges": [
+        [
+          1,
+          86
+        ]
+      ],
+      "reading_scope": "full-resource"
+    },
+    {
+      "id": "R-3146d80e35e9",
+      "sha256": "d1ccdbc90dfe2485a42e7aef2f06b71506dca3010da1ea8765382b8f038f7c61",
+      "bytes": 5820,
+      "lines": 71,
+      "read_ranges": [
+        [
+          1,
+          71
+        ]
+      ],
+      "reading_scope": "full-resource"
+    },
+    {
+      "id": "R-27db0a027721",
+      "sha256": "65888876994a12410c17723ca768f6715cb33a8ad963264a7caef67e3ef2fa8a",
+      "bytes": 2500,
+      "lines": 64,
+      "read_ranges": [
+        [
+          1,
+          64
+        ]
+      ],
+      "reading_scope": "full-resource"
+    },
+    {
+      "id": "R-e4f5a09c931a",
+      "sha256": "5f21321971c23ffa845a8f25a99338705ff057981681c97cb79c653ce7e505d6",
+      "bytes": 14975,
+      "lines": 408,
+      "read_ranges": [
+        [
+          1,
+          408
+        ]
+      ],
+      "reading_scope": "full-resource"
+    },
+    {
+      "id": "R-bf0243814165",
+      "sha256": "5fc8a0820de9bc74e0a1470e55aaa50b3957aa1b0f947c4b458213b8e39fedbe",
+      "bytes": 3485,
+      "lines": 86,
+      "read_ranges": [
+        [
+          1,
+          86
+        ]
+      ],
+      "reading_scope": "full-resource"
+    },
+    {
+      "id": "A002",
+      "sha256": "7ef0739152e7bbc837e9bab4fbae7164f29719a4d1dbdaa1e3b62b4f34358e3c",
+      "bytes": 9117,
+      "lines": 215,
+      "read_ranges": [
+        [
+          1,
+          215
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "id": "S055",
+      "sha256": "3eaacf16a9bbd92888659e9c1e15b0fa4eb96a41c257dd9e08f2e63b824f0cea",
+      "bytes": 9761,
+      "lines": 287,
+      "read_ranges": [
+        [
+          1,
+          34
+        ],
+        [
+          271,
+          284
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S091",
+      "sha256": "efcc5b7c850d5a2f1b853c25a92b392fa0bf62451e5799b9a5efb905dbf45337",
+      "bytes": 6477,
+      "lines": 161,
+      "read_ranges": [
+        [
+          1,
+          40
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S176",
+      "sha256": "2497888dd543ca7bdf5d0cb4d90fce023eb2c1c14f860f0af8e8be42423131b4",
+      "bytes": 22450,
+      "lines": 348,
+      "read_ranges": [
+        [
+          19,
+          65
+        ],
+        [
+          71,
+          82
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S256",
+      "sha256": "73ac14373108c29e35f6f950b43762e3e50848d693b712f7c3e989ec21e7abe8",
+      "bytes": 4486,
+      "lines": 141,
+      "read_ranges": [
+        [
+          125,
+          141
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-591e7a1672e1",
+      "sha256": "59e855c382ccab4670dcd293721365d88d400c5d499fd93c1572ce9c1ccb6b6d",
+      "bytes": 31763,
+      "lines": 1199,
+      "read_ranges": [
+        [
+          313,
+          348
+        ],
+        [
+          826,
+          871
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-03ffcc8e6e9e",
+      "sha256": "9583fe1ac4109a8a3c94c5ffaf8a331d6e9997c8657494ef2a95dbf3a65b5414",
+      "bytes": 22743,
+      "lines": 482,
+      "read_ranges": [
+        [
+          32,
+          45
+        ],
+        [
+          151,
+          173
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    }
+  ],
+  "native": [
+    {
+      "path": "commands/work-context.md",
+      "sha256": "830b5f37649bd1c8945013096e5930ca425a3c384e5d1dd52c1765f5f32821ec",
+      "bytes": 1610,
+      "lines": 25,
+      "read_ranges": [
+        [
+          1,
+          25
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "agent-kits/shared/capability-check.md",
+      "sha256": "c0dfede7cdd890952ebf4eab114fe6fef01c123350c6060b3053121797a48c20",
+      "bytes": 4559,
+      "lines": 70,
+      "read_ranges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "docs/PROJECT-EXTENSIONS.md",
+      "sha256": "555001170f339a4bb0ff9a69a4833e3c25dc2b9fc435c3b3639a3652a837d54c",
+      "bytes": 7629,
+      "lines": 128,
+      "read_ranges": [
+        [
+          1,
+          128
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "docs/SPECIALIZATION.md",
+      "sha256": "01b1ae964b6de4246355423cd97949195d2ee25c691d736e6906e943ad40173c",
+      "bytes": 7334,
+      "lines": 135,
+      "read_ranges": [
+        [
+          1,
+          60
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "skills/backend-practices/SKILL.md",
+      "sha256": "130015328c98c14cfb7b55385fb6d438eb1c3d0baf46543c49e84e2f2d723f1e",
+      "bytes": 1109,
+      "lines": 24,
+      "read_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/backend-practices/references/contracts-data.md",
+      "sha256": "589af44a6c37b7355ed8d088c7a8e341b42a131ce5b0d1c89c06e6cde2d2bdab",
+      "bytes": 3093,
+      "lines": 43,
+      "read_ranges": [
+        [
+          1,
+          43
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "67702b1115bc6d57c4eafbf9dab8d10abaab6b333d4ab330d828f30353770c96",
+      "bytes": 1132,
+      "lines": 24,
+      "read_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9",
+      "bytes": 2653,
+      "lines": 44,
+      "read_ranges": [
+        [
+          1,
+          44
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-check.md",
+      "sha256": "bab98db4ee27fc074ff65252b92739bc913768fc9058e9a8caa9475c3041d1ac",
+      "bytes": 8910,
+      "lines": 104,
+      "read_ranges": [
+        [
+          1,
+          104
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-write.md",
+      "sha256": "9f35f672b961341de66b0cc1061ccb39ef38245fbe78f3629f0e168e800e336e",
+      "bytes": 8330,
+      "lines": 106,
+      "read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "8d144cd02ca19b8e08c083cf9a79d66ed3961127ada437bc2a3f548b94666716",
+      "bytes": 8959,
+      "lines": 119,
+      "read_ranges": [
+        [
+          1,
+          119
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "bfb1b3899fd657b8beb70522e5f7d834869d22609da94b028c6dc82c7d577bc7",
+      "bytes": 7017,
+      "lines": 109,
+      "read_ranges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "6511ee78dfad3bd5ae2aba956dd268c08f368c8419069784fea72e1d8fd28f36",
+      "bytes": 17719,
+      "lines": 200,
+      "read_ranges": [
+        [
+          1,
+          33
+        ],
+        [
+          69,
+          110
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "agents/planner.md",
+      "sha256": "20c3211e632c102ff9fb6371f8a76275b030aedb7f0eb0768a14446d0bbf7ce8",
+      "bytes": 21386,
+      "lines": 150,
+      "read_ranges": [
+        [
+          70,
+          96
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "72c18ea147c56913d4ec459f1affee63bf14ae01914ef21d78196bf6b4f70b04",
+      "bytes": 32067,
+      "lines": 244,
+      "read_ranges": [
+        [
+          95,
+          120
+        ],
+        [
+          137,
+          177
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "docs/CONVENTIONS.md",
+      "sha256": "ccb6aafb03a2eefce36f91a26682916b96fd7f84871f3e0939898617006b333f",
+      "bytes": 59748,
+      "lines": 355,
+      "read_ranges": [
+        [
+          44,
+          55
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "skills/outcome-evals/references/protocol.md",
+      "sha256": "84dbf7945fde5694c87abd7c7d611ddd6a2aea26ca78062467f3b7d70ca262c6",
+      "bytes": 3323,
+      "lines": 56,
+      "read_ranges": [
+        [
+          1,
+          56
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/frontend-quality/references/interaction-performance.md",
+      "sha256": "aa2fbb759c0854e7db4b4db13141469f10573e19138301078b9ad0846157322f",
+      "bytes": 2483,
+      "lines": 40,
+      "read_ranges": [
+        [
+          1,
+          40
+        ]
+      ],
+      "reading_scope": "full-body"
+    }
+  ],
+  "dependency_observations": [
+    {
+      "kind": "official-package-metadata",
+      "url": "https://registry.npmjs.org/agentwallet-sdk/6.0.0",
+      "http_status": 200,
+      "sha256": "c9a4577a4712e0f1a29cffd8b9f85f284faca87eaecbaa4ec7d2a942e9dd7ca0",
+      "version": "6.0.0",
+      "bin": null,
+      "package_installed": false,
+      "mcp_tool_contract_verified": false
+    },
+    {
+      "kind": "installed-cli-help",
+      "runtime": "claude-code",
+      "version": "2.1.287 (Claude Code)",
+      "version_exit": 0,
+      "help_exit": 0,
+      "help_sha256": "c3f00f03a7a71c68ba39b0cc19c01e212c221c5efbbf7f1a85f45fd8b3450ae6",
+      "help_sha256_basis": "captured stdout text encoded as UTF-8 with LF newlines",
+      "flags_in_help": {
+        "--cwd": false,
+        "--command": false,
+        "--print": true,
+        "--settings": true,
+        "--setting-sources": true,
+        "--strict-mcp-config": true,
+        "--bare": true
+      },
+      "model_prompts": 0,
+      "scope": "version/help only; no dispatch, scheduler or unknown-option execution"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.npmjs.com/cli/v11/commands/npm-exec/",
+      "scope": "executable inference from bin; no package execution"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://www.python-httpx.org/advanced/transports/",
+      "scope": "HTTPTransport retries for connection errors; no SDK execution"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://www.python-httpx.org/advanced/resource-limits/",
+      "scope": "Limits is connection-pool configuration; no SDK execution"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://code.claude.com/docs/en/hooks",
+      "scope": "exit-0 plain stdout delivery exceptions; no hook execution"
+    },
+    {
+      "kind": "official-provider-dispatcher",
+      "url": "https://raw.githubusercontent.com/okx/onchainos-skills/main/skills/okx-agent-payments-protocol/SKILL.md",
+      "declared_version": "4.6.3",
+      "scope": "quote/pay routing; specialized seller APIs and execution not validated"
+    }
+  ],
+  "measurements": {
+    "tokens": null,
+    "latency_seconds": null
+  }
+}

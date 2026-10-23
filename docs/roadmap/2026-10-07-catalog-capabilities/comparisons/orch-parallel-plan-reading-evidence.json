@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S197",
+    "S198",
+    "S199",
+    "S200",
+    "S201",
+    "S206"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S197",
+      "sha256": "d35ee5dfdf5f64e60e8905124eccf73267bc59852e7d11ba5ca5acf7d765c6f8",
+      "bytes": 1711,
+      "lines": 43,
+      "read_ranges": [
+        [
+          1,
+          43
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S198",
+      "sha256": "399e142bbf3751b5a0fdec1ae450f5673bd1a038304a221748c865280e885b2d",
+      "bytes": 1684,
+      "lines": 43,
+      "read_ranges": [
+        [
+          1,
+          43
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S199",
+      "sha256": "26707fc276a0a8489a5919c48af22f0c2c2d12724d3e031080200281f26a3f2e",
+      "bytes": 6402,
+      "lines": 121,
+      "read_ranges": [
+        [
+          1,
+          121
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S200",
+      "sha256": "5f0f468ffa4e220bd8f76684b3df6a14b67b34333e1ae52e0de49ed2c16fa17b",
+      "bytes": 1819,
+      "lines": 44,
+      "read_ranges": [
+        [
+          1,
+          44
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S201",
+      "sha256": "e7de2fff9971d7bc179ac1827d62de701fd8951142d9e17ec7c782481c8b7941",
+      "bytes": 2846,
+      "lines": 74,
+      "read_ranges": [
+        [
+          1,
+          74
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S206",
+      "sha256": "d104fb71594fd9385c4a7c23e4835907be124b8effb34f49fa5cf7d28e3494e3",
+      "bytes": 17965,
+      "lines": 263,
+      "read_ranges": [
+        [
+          1,
+          263
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "ec9504fb23b8eadb209e83ce347eee8c9a63c8d03e09d0f7e7c4bb204d65ad5c"
+    },
+    {
+      "path": "skills/quick-implement/SKILL.md",
+      "sha256": "89735ac0f8aa6d1f421f5ca330c18dd473ca86c7350f3674d85f32c3a5365ee2"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "8d144cd02ca19b8e08c083cf9a79d66ed3961127ada437bc2a3f548b94666716"
+    },
+    {
+      "path": "skills/tdd/references/anti-patterns.md",
+      "sha256": "fb05bcfbb32c66f7bc52d7f84c2b7a20dd7606531c57553e1b7c56748ec204e1"
+    },
+    {
+      "path": "skills/debug-root-cause/SKILL.md",
+      "sha256": "5cd6436c78273b9cd8b6e03a0e052d02a3b92728d3bf4109e540438369c2a82b"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "234bafc53ac9e6f581baaddb2f1896806e30781dafbf75c3e1d431f171b11904"
+    },
+    {
+      "path": "skills/adversarial-review/scripts/review-lens-select.py",
+      "sha256": "18fa57ed8821c07508918df8cd2182daef0959ae23cdb65b8aa073bb732584ba"
+    },
+    {
+      "path": "skills/research-first/SKILL.md",
+      "sha256": "ae43e6baaad2124c1613e981489b5ed6933c54bfd12c63e5897004b4a80bf760"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "bfb1b3899fd657b8beb70522e5f7d834869d22609da94b028c6dc82c7d577bc7"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-022-rigor-proporcional-al-riesgo-y-ledger-fino-con-anexos-enlazados.md",
+      "sha256": "ddc5f31105a805314b67b59cf0328a87ef60244dfb0d7440c6a38e0b033b28de"
+    },
+    {
+      "path": "agents/planner.md",
+      "sha256": "69f4b232cfc383e9c4123502db8c7c198caec413871842a6ad55a2de072335c5"
+    },
+    {
+      "path": "agent-kits/shared/task-brief.py",
+      "sha256": "41e3f4261f0f9107b6189882cac410481fe33f51f16de6fb68e2bb56aaebddb5"
+    },
+    {
+      "path": "agent-kits/shared/model-tier.py",
+      "sha256": "9a2ba0874a2380dbe21ad48ac79829d30ba06e7023dd9e52f99b24f3af3572cd"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

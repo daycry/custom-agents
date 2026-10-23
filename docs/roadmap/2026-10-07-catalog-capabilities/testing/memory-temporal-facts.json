@@ -1,0 +1,1218 @@
+{
+  "schema_version": 1,
+  "data_origin": "wholly_synthetic",
+  "claims_scope": "Native fact retrieval, one ingestion cohort and three retrieval repetitions per question; no generated answer or generated abstention evaluation",
+  "episode_document_mapping": {
+    "c860d161-562e-4c68-957c-a035b57a2b83": {
+      "document": "D001",
+      "scope": "Atlas",
+      "version": 1,
+      "sha256": "c13c865e2d42ea1df7465d51a0ed9d24fe8aafc347d605a6c18fa4bd4c394620"
+    },
+    "4ec68e21-bcaf-4090-b472-3d8290f71280": {
+      "document": "D003",
+      "scope": "Atlas",
+      "version": 1,
+      "sha256": "bf8fea1fb7f809ccd0cac972b04c4b5e2db2666e4830104d8ad9458ed2026e95"
+    },
+    "446584e0-92c3-4d98-85c1-cb2ba5457b3b": {
+      "document": "D002",
+      "scope": "Atlas",
+      "version": 2,
+      "sha256": "3cf8d98e35b312ff9e53e5364de956cc0910cdce3856636778bd825f4efabece"
+    },
+    "d46b3bc9-0927-493d-a6a1-335916e648e1": {
+      "document": "D008",
+      "scope": "Boreal",
+      "version": 1,
+      "sha256": "e7ce8a7a6af1935b238d0735a16c7a39d7032dce82e553feffd957ad6f3f47c8"
+    }
+  },
+  "retrievals": [
+    {
+      "scope": "Atlas",
+      "question": "Q02",
+      "repeat": 1,
+      "query": "¿Qué límite estaba en vigor en Atlas el 1 de abril de 2026?",
+      "date_filters": {
+        "valid_at_before": "2026-04-01T00:00:00Z"
+      },
+      "native_response": {
+        "message": "Facts retrieved successfully",
+        "facts": [
+          {
+            "uuid": "8bbb2587-78b9-49d6-a98f-f44178c92088",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "fd1a6b77-09cc-4203-b98f-06a5874dc3ea",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:18:13.683895Z",
+            "name": "BELONGS_TO",
+            "fact": "El presupuesto de espera de Atlas pertenece al proyecto Atlas.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "73a1b01b-037f-4ab1-8fe1-183e5c348c8a",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "target_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "created_at": "2026-10-09T17:17:49.097071Z",
+            "name": "DELIVERS_REQUESTS_TO",
+            "fact": "Atlas delivers requests to the Faro service.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "cdf1e59c-18cd-4ae5-acad-5066f2468556",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:59.099969Z",
+            "name": "REPLACED",
+            "fact": "D002 replaced the historical waiting budget decision of Atlas on 15 May 2026.",
+            "episodes": [
+              "4ec68e21-bcaf-4090-b472-3d8290f71280"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "f13db2d8-5565-4c03-9616-b2e79f43dce1",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:49.097165Z",
+            "name": "APPLIES_WAITING_BUDGET_OF",
+            "fact": "Faro applies the waiting budget of the Atlas project.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "d406947d-12df-4e7c-9263-ba8e188b5bc7",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "64d2bce1-44da-4089-97a9-4a3a8b9e1abb",
+            "created_at": "2026-10-09T17:18:13.683774Z",
+            "name": "REPLACES",
+            "fact": "La versión 2 reemplaza la decisión histórica D003.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "e011f9a3-6191-495c-b190-74cc0eff6e1c",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "c41fac84-7603-42c6-a64f-eff431bb8a01",
+            "target_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "created_at": "2026-10-09T17:17:49.097495Z",
+            "name": "RESPONSIBLE_FOR",
+            "fact": "Lucía Demo is the person responsible for Faro.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          }
+        ]
+      },
+      "elapsed_ms": 148.324,
+      "model_call_delta": {
+        "llm": 0,
+        "embedding": 1
+      }
+    },
+    {
+      "scope": "Atlas",
+      "question": "Q02",
+      "repeat": 2,
+      "query": "¿Qué límite estaba en vigor en Atlas el 1 de abril de 2026?",
+      "date_filters": {
+        "valid_at_before": "2026-04-01T00:00:00Z"
+      },
+      "native_response": {
+        "message": "Facts retrieved successfully",
+        "facts": [
+          {
+            "uuid": "8bbb2587-78b9-49d6-a98f-f44178c92088",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "fd1a6b77-09cc-4203-b98f-06a5874dc3ea",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:18:13.683895Z",
+            "name": "BELONGS_TO",
+            "fact": "El presupuesto de espera de Atlas pertenece al proyecto Atlas.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "73a1b01b-037f-4ab1-8fe1-183e5c348c8a",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "target_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "created_at": "2026-10-09T17:17:49.097071Z",
+            "name": "DELIVERS_REQUESTS_TO",
+            "fact": "Atlas delivers requests to the Faro service.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "cdf1e59c-18cd-4ae5-acad-5066f2468556",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:59.099969Z",
+            "name": "REPLACED",
+            "fact": "D002 replaced the historical waiting budget decision of Atlas on 15 May 2026.",
+            "episodes": [
+              "4ec68e21-bcaf-4090-b472-3d8290f71280"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "f13db2d8-5565-4c03-9616-b2e79f43dce1",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:49.097165Z",
+            "name": "APPLIES_WAITING_BUDGET_OF",
+            "fact": "Faro applies the waiting budget of the Atlas project.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "d406947d-12df-4e7c-9263-ba8e188b5bc7",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "64d2bce1-44da-4089-97a9-4a3a8b9e1abb",
+            "created_at": "2026-10-09T17:18:13.683774Z",
+            "name": "REPLACES",
+            "fact": "La versión 2 reemplaza la decisión histórica D003.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "e011f9a3-6191-495c-b190-74cc0eff6e1c",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "c41fac84-7603-42c6-a64f-eff431bb8a01",
+            "target_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "created_at": "2026-10-09T17:17:49.097495Z",
+            "name": "RESPONSIBLE_FOR",
+            "fact": "Lucía Demo is the person responsible for Faro.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          }
+        ]
+      },
+      "elapsed_ms": 177.276,
+      "model_call_delta": {
+        "llm": 0,
+        "embedding": 1
+      }
+    },
+    {
+      "scope": "Atlas",
+      "question": "Q02",
+      "repeat": 3,
+      "query": "¿Qué límite estaba en vigor en Atlas el 1 de abril de 2026?",
+      "date_filters": {
+        "valid_at_before": "2026-04-01T00:00:00Z"
+      },
+      "native_response": {
+        "message": "Facts retrieved successfully",
+        "facts": [
+          {
+            "uuid": "8bbb2587-78b9-49d6-a98f-f44178c92088",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "fd1a6b77-09cc-4203-b98f-06a5874dc3ea",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:18:13.683895Z",
+            "name": "BELONGS_TO",
+            "fact": "El presupuesto de espera de Atlas pertenece al proyecto Atlas.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "73a1b01b-037f-4ab1-8fe1-183e5c348c8a",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "target_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "created_at": "2026-10-09T17:17:49.097071Z",
+            "name": "DELIVERS_REQUESTS_TO",
+            "fact": "Atlas delivers requests to the Faro service.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "cdf1e59c-18cd-4ae5-acad-5066f2468556",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:59.099969Z",
+            "name": "REPLACED",
+            "fact": "D002 replaced the historical waiting budget decision of Atlas on 15 May 2026.",
+            "episodes": [
+              "4ec68e21-bcaf-4090-b472-3d8290f71280"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "f13db2d8-5565-4c03-9616-b2e79f43dce1",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:49.097165Z",
+            "name": "APPLIES_WAITING_BUDGET_OF",
+            "fact": "Faro applies the waiting budget of the Atlas project.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "d406947d-12df-4e7c-9263-ba8e188b5bc7",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "64d2bce1-44da-4089-97a9-4a3a8b9e1abb",
+            "created_at": "2026-10-09T17:18:13.683774Z",
+            "name": "REPLACES",
+            "fact": "La versión 2 reemplaza la decisión histórica D003.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "e011f9a3-6191-495c-b190-74cc0eff6e1c",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "c41fac84-7603-42c6-a64f-eff431bb8a01",
+            "target_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "created_at": "2026-10-09T17:17:49.097495Z",
+            "name": "RESPONSIBLE_FOR",
+            "fact": "Lucía Demo is the person responsible for Faro.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          }
+        ]
+      },
+      "elapsed_ms": 515.86,
+      "model_call_delta": {
+        "llm": 0,
+        "embedding": 1
+      }
+    },
+    {
+      "scope": "Atlas",
+      "question": "Q01",
+      "repeat": 1,
+      "query": "¿Cuántos segundos puede esperar Atlas ahora?",
+      "date_filters": {
+        "valid_at_after": "2026-05-15T00:00:00Z"
+      },
+      "native_response": {
+        "message": "Facts retrieved successfully",
+        "facts": [
+          {
+            "uuid": "8bbb2587-78b9-49d6-a98f-f44178c92088",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "fd1a6b77-09cc-4203-b98f-06a5874dc3ea",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:18:13.683895Z",
+            "name": "BELONGS_TO",
+            "fact": "El presupuesto de espera de Atlas pertenece al proyecto Atlas.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "cdf1e59c-18cd-4ae5-acad-5066f2468556",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:59.099969Z",
+            "name": "REPLACED",
+            "fact": "D002 replaced the historical waiting budget decision of Atlas on 15 May 2026.",
+            "episodes": [
+              "4ec68e21-bcaf-4090-b472-3d8290f71280"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "d406947d-12df-4e7c-9263-ba8e188b5bc7",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "64d2bce1-44da-4089-97a9-4a3a8b9e1abb",
+            "created_at": "2026-10-09T17:18:13.683774Z",
+            "name": "REPLACES",
+            "fact": "La versión 2 reemplaza la decisión histórica D003.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          }
+        ]
+      },
+      "elapsed_ms": 141.13,
+      "model_call_delta": {
+        "llm": 0,
+        "embedding": 1
+      }
+    },
+    {
+      "scope": "Atlas",
+      "question": "Q01",
+      "repeat": 2,
+      "query": "¿Cuántos segundos puede esperar Atlas ahora?",
+      "date_filters": {
+        "valid_at_after": "2026-05-15T00:00:00Z"
+      },
+      "native_response": {
+        "message": "Facts retrieved successfully",
+        "facts": [
+          {
+            "uuid": "8bbb2587-78b9-49d6-a98f-f44178c92088",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "fd1a6b77-09cc-4203-b98f-06a5874dc3ea",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:18:13.683895Z",
+            "name": "BELONGS_TO",
+            "fact": "El presupuesto de espera de Atlas pertenece al proyecto Atlas.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "cdf1e59c-18cd-4ae5-acad-5066f2468556",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:59.099969Z",
+            "name": "REPLACED",
+            "fact": "D002 replaced the historical waiting budget decision of Atlas on 15 May 2026.",
+            "episodes": [
+              "4ec68e21-bcaf-4090-b472-3d8290f71280"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "d406947d-12df-4e7c-9263-ba8e188b5bc7",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "64d2bce1-44da-4089-97a9-4a3a8b9e1abb",
+            "created_at": "2026-10-09T17:18:13.683774Z",
+            "name": "REPLACES",
+            "fact": "La versión 2 reemplaza la decisión histórica D003.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          }
+        ]
+      },
+      "elapsed_ms": 149.252,
+      "model_call_delta": {
+        "llm": 0,
+        "embedding": 1
+      }
+    },
+    {
+      "scope": "Atlas",
+      "question": "Q01",
+      "repeat": 3,
+      "query": "¿Cuántos segundos puede esperar Atlas ahora?",
+      "date_filters": {
+        "valid_at_after": "2026-05-15T00:00:00Z"
+      },
+      "native_response": {
+        "message": "Facts retrieved successfully",
+        "facts": [
+          {
+            "uuid": "8bbb2587-78b9-49d6-a98f-f44178c92088",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "fd1a6b77-09cc-4203-b98f-06a5874dc3ea",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:18:13.683895Z",
+            "name": "BELONGS_TO",
+            "fact": "El presupuesto de espera de Atlas pertenece al proyecto Atlas.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "cdf1e59c-18cd-4ae5-acad-5066f2468556",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:59.099969Z",
+            "name": "REPLACED",
+            "fact": "D002 replaced the historical waiting budget decision of Atlas on 15 May 2026.",
+            "episodes": [
+              "4ec68e21-bcaf-4090-b472-3d8290f71280"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "d406947d-12df-4e7c-9263-ba8e188b5bc7",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "64d2bce1-44da-4089-97a9-4a3a8b9e1abb",
+            "created_at": "2026-10-09T17:18:13.683774Z",
+            "name": "REPLACES",
+            "fact": "La versión 2 reemplaza la decisión histórica D003.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          }
+        ]
+      },
+      "elapsed_ms": 155.403,
+      "model_call_delta": {
+        "llm": 0,
+        "embedding": 1
+      }
+    },
+    {
+      "scope": "Atlas",
+      "question": "Q10",
+      "repeat": 1,
+      "query": "¿Cuál es el número de cuenta bancaria de Atlas?",
+      "date_filters": {},
+      "native_response": {
+        "message": "Facts retrieved successfully",
+        "facts": [
+          {
+            "uuid": "8bbb2587-78b9-49d6-a98f-f44178c92088",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "fd1a6b77-09cc-4203-b98f-06a5874dc3ea",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:18:13.683895Z",
+            "name": "BELONGS_TO",
+            "fact": "El presupuesto de espera de Atlas pertenece al proyecto Atlas.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "73a1b01b-037f-4ab1-8fe1-183e5c348c8a",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "target_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "created_at": "2026-10-09T17:17:49.097071Z",
+            "name": "DELIVERS_REQUESTS_TO",
+            "fact": "Atlas delivers requests to the Faro service.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "cdf1e59c-18cd-4ae5-acad-5066f2468556",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:59.099969Z",
+            "name": "REPLACED",
+            "fact": "D002 replaced the historical waiting budget decision of Atlas on 15 May 2026.",
+            "episodes": [
+              "4ec68e21-bcaf-4090-b472-3d8290f71280"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "f13db2d8-5565-4c03-9616-b2e79f43dce1",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:49.097165Z",
+            "name": "APPLIES_WAITING_BUDGET_OF",
+            "fact": "Faro applies the waiting budget of the Atlas project.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "d406947d-12df-4e7c-9263-ba8e188b5bc7",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "64d2bce1-44da-4089-97a9-4a3a8b9e1abb",
+            "created_at": "2026-10-09T17:18:13.683774Z",
+            "name": "REPLACES",
+            "fact": "La versión 2 reemplaza la decisión histórica D003.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "e011f9a3-6191-495c-b190-74cc0eff6e1c",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "c41fac84-7603-42c6-a64f-eff431bb8a01",
+            "target_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "created_at": "2026-10-09T17:17:49.097495Z",
+            "name": "RESPONSIBLE_FOR",
+            "fact": "Lucía Demo is the person responsible for Faro.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          }
+        ]
+      },
+      "elapsed_ms": 190.281,
+      "model_call_delta": {
+        "llm": 0,
+        "embedding": 1
+      }
+    },
+    {
+      "scope": "Atlas",
+      "question": "Q10",
+      "repeat": 2,
+      "query": "¿Cuál es el número de cuenta bancaria de Atlas?",
+      "date_filters": {},
+      "native_response": {
+        "message": "Facts retrieved successfully",
+        "facts": [
+          {
+            "uuid": "8bbb2587-78b9-49d6-a98f-f44178c92088",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "fd1a6b77-09cc-4203-b98f-06a5874dc3ea",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:18:13.683895Z",
+            "name": "BELONGS_TO",
+            "fact": "El presupuesto de espera de Atlas pertenece al proyecto Atlas.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "73a1b01b-037f-4ab1-8fe1-183e5c348c8a",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "target_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "created_at": "2026-10-09T17:17:49.097071Z",
+            "name": "DELIVERS_REQUESTS_TO",
+            "fact": "Atlas delivers requests to the Faro service.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "cdf1e59c-18cd-4ae5-acad-5066f2468556",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:59.099969Z",
+            "name": "REPLACED",
+            "fact": "D002 replaced the historical waiting budget decision of Atlas on 15 May 2026.",
+            "episodes": [
+              "4ec68e21-bcaf-4090-b472-3d8290f71280"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "f13db2d8-5565-4c03-9616-b2e79f43dce1",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:49.097165Z",
+            "name": "APPLIES_WAITING_BUDGET_OF",
+            "fact": "Faro applies the waiting budget of the Atlas project.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "d406947d-12df-4e7c-9263-ba8e188b5bc7",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "64d2bce1-44da-4089-97a9-4a3a8b9e1abb",
+            "created_at": "2026-10-09T17:18:13.683774Z",
+            "name": "REPLACES",
+            "fact": "La versión 2 reemplaza la decisión histórica D003.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "e011f9a3-6191-495c-b190-74cc0eff6e1c",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "c41fac84-7603-42c6-a64f-eff431bb8a01",
+            "target_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "created_at": "2026-10-09T17:17:49.097495Z",
+            "name": "RESPONSIBLE_FOR",
+            "fact": "Lucía Demo is the person responsible for Faro.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          }
+        ]
+      },
+      "elapsed_ms": 203.209,
+      "model_call_delta": {
+        "llm": 0,
+        "embedding": 1
+      }
+    },
+    {
+      "scope": "Atlas",
+      "question": "Q10",
+      "repeat": 3,
+      "query": "¿Cuál es el número de cuenta bancaria de Atlas?",
+      "date_filters": {},
+      "native_response": {
+        "message": "Facts retrieved successfully",
+        "facts": [
+          {
+            "uuid": "8bbb2587-78b9-49d6-a98f-f44178c92088",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "fd1a6b77-09cc-4203-b98f-06a5874dc3ea",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:18:13.683895Z",
+            "name": "BELONGS_TO",
+            "fact": "El presupuesto de espera de Atlas pertenece al proyecto Atlas.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "73a1b01b-037f-4ab1-8fe1-183e5c348c8a",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "target_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "created_at": "2026-10-09T17:17:49.097071Z",
+            "name": "DELIVERS_REQUESTS_TO",
+            "fact": "Atlas delivers requests to the Faro service.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "cdf1e59c-18cd-4ae5-acad-5066f2468556",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:59.099969Z",
+            "name": "REPLACED",
+            "fact": "D002 replaced the historical waiting budget decision of Atlas on 15 May 2026.",
+            "episodes": [
+              "4ec68e21-bcaf-4090-b472-3d8290f71280"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T00:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "f13db2d8-5565-4c03-9616-b2e79f43dce1",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "target_node_uuid": "1ed58553-0673-4913-9c5e-3024329d26c6",
+            "created_at": "2026-10-09T17:17:49.097165Z",
+            "name": "APPLIES_WAITING_BUDGET_OF",
+            "fact": "Faro applies the waiting budget of the Atlas project.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "d406947d-12df-4e7c-9263-ba8e188b5bc7",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "b141bba2-d804-47a2-b37f-dea4f7da8d8f",
+            "target_node_uuid": "64d2bce1-44da-4089-97a9-4a3a8b9e1abb",
+            "created_at": "2026-10-09T17:18:13.683774Z",
+            "name": "REPLACES",
+            "fact": "La versión 2 reemplaza la decisión histórica D003.",
+            "episodes": [
+              "446584e0-92c3-4d98-85c1-cb2ba5457b3b"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "e011f9a3-6191-495c-b190-74cc0eff6e1c",
+            "group_id": "Atlas_82b2c4ed29f6",
+            "source_node_uuid": "c41fac84-7603-42c6-a64f-eff431bb8a01",
+            "target_node_uuid": "447bb95e-2a21-41bf-ae28-1a3a1df38c08",
+            "created_at": "2026-10-09T17:17:49.097495Z",
+            "name": "RESPONSIBLE_FOR",
+            "fact": "Lucía Demo is the person responsible for Faro.",
+            "episodes": [
+              "c860d161-562e-4c68-957c-a035b57a2b83"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-01-05T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-01-05T09:00:00Z",
+            "attributes": {}
+          }
+        ]
+      },
+      "elapsed_ms": 188.971,
+      "model_call_delta": {
+        "llm": 0,
+        "embedding": 1
+      }
+    },
+    {
+      "scope": "Boreal",
+      "question": "Q13",
+      "repeat": 1,
+      "query": "¿Cuánto espera Faro en Boreal?",
+      "date_filters": {},
+      "native_response": {
+        "message": "Facts retrieved successfully",
+        "facts": [
+          {
+            "uuid": "89df6cd0-d202-4c69-9518-000aba38b3d2",
+            "group_id": "Boreal_82b2c4ed29f6",
+            "source_node_uuid": "34e150a2-404a-420e-9109-b1e787accf2f",
+            "target_node_uuid": "b8b2639a-e89a-42f6-9f9a-d2e8f2dd09e3",
+            "created_at": "2026-10-09T17:18:27.046859Z",
+            "name": "PART_OF_PROJECT",
+            "fact": "El servicio Faro forma parte del proyecto Boreal.",
+            "episodes": [
+              "d46b3bc9-0927-493d-a6a1-335916e648e1"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "2fcc8836-de38-43db-85ac-b7fae028e702",
+            "group_id": "Boreal_82b2c4ed29f6",
+            "source_node_uuid": "a497fa08-fe8d-47b1-bf85-59ea3968fc3c",
+            "target_node_uuid": "34e150a2-404a-420e-9109-b1e787accf2f",
+            "created_at": "2026-10-09T17:18:27.046920Z",
+            "name": "IS_RESPONSIBLE_FOR",
+            "fact": "Diego Demo es el responsable del servicio Faro.",
+            "episodes": [
+              "d46b3bc9-0927-493d-a6a1-335916e648e1"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "4e98479c-3011-4d68-af45-354ab0b6bc46",
+            "group_id": "Boreal_82b2c4ed29f6",
+            "source_node_uuid": "5e8fcfdf-04c7-4db9-833d-c9e4a68e5fbc",
+            "target_node_uuid": "b8b2639a-e89a-42f6-9f9a-d2e8f2dd09e3",
+            "created_at": "2026-10-09T17:18:27.046937Z",
+            "name": "BELONGS_EXCLUSIVELY_TO",
+            "fact": "La regla del proyecto vecino pertenece exclusivamente al proyecto Boreal.",
+            "episodes": [
+              "d46b3bc9-0927-493d-a6a1-335916e648e1"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "7671a32f-88f6-4b44-beef-ea98ac0f16fe",
+            "group_id": "Boreal_82b2c4ed29f6",
+            "source_node_uuid": "5e8fcfdf-04c7-4db9-833d-c9e4a68e5fbc",
+            "target_node_uuid": "79f7ce41-35c1-4ab4-b841-d8fb4054c57d",
+            "created_at": "2026-10-09T17:18:27.046950Z",
+            "name": "NOT_APPLICABLE_TO",
+            "fact": "La regla del proyecto vecino no es aplicable al proyecto Atlas.",
+            "episodes": [
+              "d46b3bc9-0927-493d-a6a1-335916e648e1"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          }
+        ]
+      },
+      "elapsed_ms": 150.961,
+      "model_call_delta": {
+        "llm": 0,
+        "embedding": 1
+      }
+    },
+    {
+      "scope": "Boreal",
+      "question": "Q13",
+      "repeat": 2,
+      "query": "¿Cuánto espera Faro en Boreal?",
+      "date_filters": {},
+      "native_response": {
+        "message": "Facts retrieved successfully",
+        "facts": [
+          {
+            "uuid": "89df6cd0-d202-4c69-9518-000aba38b3d2",
+            "group_id": "Boreal_82b2c4ed29f6",
+            "source_node_uuid": "34e150a2-404a-420e-9109-b1e787accf2f",
+            "target_node_uuid": "b8b2639a-e89a-42f6-9f9a-d2e8f2dd09e3",
+            "created_at": "2026-10-09T17:18:27.046859Z",
+            "name": "PART_OF_PROJECT",
+            "fact": "El servicio Faro forma parte del proyecto Boreal.",
+            "episodes": [
+              "d46b3bc9-0927-493d-a6a1-335916e648e1"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "2fcc8836-de38-43db-85ac-b7fae028e702",
+            "group_id": "Boreal_82b2c4ed29f6",
+            "source_node_uuid": "a497fa08-fe8d-47b1-bf85-59ea3968fc3c",
+            "target_node_uuid": "34e150a2-404a-420e-9109-b1e787accf2f",
+            "created_at": "2026-10-09T17:18:27.046920Z",
+            "name": "IS_RESPONSIBLE_FOR",
+            "fact": "Diego Demo es el responsable del servicio Faro.",
+            "episodes": [
+              "d46b3bc9-0927-493d-a6a1-335916e648e1"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "4e98479c-3011-4d68-af45-354ab0b6bc46",
+            "group_id": "Boreal_82b2c4ed29f6",
+            "source_node_uuid": "5e8fcfdf-04c7-4db9-833d-c9e4a68e5fbc",
+            "target_node_uuid": "b8b2639a-e89a-42f6-9f9a-d2e8f2dd09e3",
+            "created_at": "2026-10-09T17:18:27.046937Z",
+            "name": "BELONGS_EXCLUSIVELY_TO",
+            "fact": "La regla del proyecto vecino pertenece exclusivamente al proyecto Boreal.",
+            "episodes": [
+              "d46b3bc9-0927-493d-a6a1-335916e648e1"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "7671a32f-88f6-4b44-beef-ea98ac0f16fe",
+            "group_id": "Boreal_82b2c4ed29f6",
+            "source_node_uuid": "5e8fcfdf-04c7-4db9-833d-c9e4a68e5fbc",
+            "target_node_uuid": "79f7ce41-35c1-4ab4-b841-d8fb4054c57d",
+            "created_at": "2026-10-09T17:18:27.046950Z",
+            "name": "NOT_APPLICABLE_TO",
+            "fact": "La regla del proyecto vecino no es aplicable al proyecto Atlas.",
+            "episodes": [
+              "d46b3bc9-0927-493d-a6a1-335916e648e1"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          }
+        ]
+      },
+      "elapsed_ms": 162.975,
+      "model_call_delta": {
+        "llm": 0,
+        "embedding": 1
+      }
+    },
+    {
+      "scope": "Boreal",
+      "question": "Q13",
+      "repeat": 3,
+      "query": "¿Cuánto espera Faro en Boreal?",
+      "date_filters": {},
+      "native_response": {
+        "message": "Facts retrieved successfully",
+        "facts": [
+          {
+            "uuid": "89df6cd0-d202-4c69-9518-000aba38b3d2",
+            "group_id": "Boreal_82b2c4ed29f6",
+            "source_node_uuid": "34e150a2-404a-420e-9109-b1e787accf2f",
+            "target_node_uuid": "b8b2639a-e89a-42f6-9f9a-d2e8f2dd09e3",
+            "created_at": "2026-10-09T17:18:27.046859Z",
+            "name": "PART_OF_PROJECT",
+            "fact": "El servicio Faro forma parte del proyecto Boreal.",
+            "episodes": [
+              "d46b3bc9-0927-493d-a6a1-335916e648e1"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "2fcc8836-de38-43db-85ac-b7fae028e702",
+            "group_id": "Boreal_82b2c4ed29f6",
+            "source_node_uuid": "a497fa08-fe8d-47b1-bf85-59ea3968fc3c",
+            "target_node_uuid": "34e150a2-404a-420e-9109-b1e787accf2f",
+            "created_at": "2026-10-09T17:18:27.046920Z",
+            "name": "IS_RESPONSIBLE_FOR",
+            "fact": "Diego Demo es el responsable del servicio Faro.",
+            "episodes": [
+              "d46b3bc9-0927-493d-a6a1-335916e648e1"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "4e98479c-3011-4d68-af45-354ab0b6bc46",
+            "group_id": "Boreal_82b2c4ed29f6",
+            "source_node_uuid": "5e8fcfdf-04c7-4db9-833d-c9e4a68e5fbc",
+            "target_node_uuid": "b8b2639a-e89a-42f6-9f9a-d2e8f2dd09e3",
+            "created_at": "2026-10-09T17:18:27.046937Z",
+            "name": "BELONGS_EXCLUSIVELY_TO",
+            "fact": "La regla del proyecto vecino pertenece exclusivamente al proyecto Boreal.",
+            "episodes": [
+              "d46b3bc9-0927-493d-a6a1-335916e648e1"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          },
+          {
+            "uuid": "7671a32f-88f6-4b44-beef-ea98ac0f16fe",
+            "group_id": "Boreal_82b2c4ed29f6",
+            "source_node_uuid": "5e8fcfdf-04c7-4db9-833d-c9e4a68e5fbc",
+            "target_node_uuid": "79f7ce41-35c1-4ab4-b841-d8fb4054c57d",
+            "created_at": "2026-10-09T17:18:27.046950Z",
+            "name": "NOT_APPLICABLE_TO",
+            "fact": "La regla del proyecto vecino no es aplicable al proyecto Atlas.",
+            "episodes": [
+              "d46b3bc9-0927-493d-a6a1-335916e648e1"
+            ],
+            "expired_at": null,
+            "valid_at": "2026-05-15T09:00:00Z",
+            "invalid_at": null,
+            "reference_time": "2026-05-15T09:00:00Z",
+            "attributes": {}
+          }
+        ]
+      },
+      "elapsed_ms": 166.844,
+      "model_call_delta": {
+        "llm": 0,
+        "embedding": 1
+      }
+    }
+  ]
+}

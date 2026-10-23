@@ -7,25 +7,35 @@ description: >
   desarrollo y documentación de producto/usuario — con Markdown correcto, tablas y ejemplos reales del
   código. Idempotente: crea lo que falta, actualiza lo existente y mantiene el índice y la fecha. Al
   cerrar, si detecta una decisión/patrón/gotcha/lección con evidencia real, propone (nunca aprueba)
-  un candidato de conocimiento en `docs/knowledge/candidates/pending/` — el buzón, no el juez; eso es
+  un candidato mediante `knowledge-curation.py` en `docs/knowledge/candidates/pending/` — el juez es
   `knowledge-curator`. Al escribir en `docs/` sincroniza con Confluence (opt-in) vía la skill
   `confluence-publish`. Úsalo
   cuando el usuario diga "documenta el proyecto", "genera la documentación", "crea los docs",
   "documenta la arquitectura/módulos", "actualiza la documentación".
 model: sonnet
 effort: medium
-# tools: Write/Edit SOLO bajo docs/ (excepto docs/roadmap y docs/security-scan). No toca código.
+# tools: Write/Edit SOLO bajo docs/ (excepto docs/roadmap, docs/security-scan y docs/knowledge). Memoria sólo vía servicio; no toca código.
 tools: Read, Grep, Glob, Bash, Write, Edit
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 # Campos informativos: Claude Code ignora claves extra del frontmatter.
 dependencies:
   skills:                    # sincroniza los docs generados en Confluence (opt-in)
+    - knowledge-services
+    - plugin-panel
     - confluence-publish
   kits:                      # taxonomía + plantillas + fragmentos compartidos
     - agent-kits/documenter
     - agent-kits/shared
   agents: []                 # no depende de otros agentes
 ---
+
+## Contexto de capacidades
+
+Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+`documenter` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
+del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
+pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
+stack declarado, avisa del límite y conserva los métodos y puertas de tu rol.
 
 # Agente: Documenter (documentación estructurada del proyecto)
 
@@ -67,6 +77,7 @@ final que capture el estado real ya implementado y probado.
   Lee `taxonomy.md` (guía de estructura) y usa las plantillas de `templates/` como base de formato.
 - **No toques el código** del proyecto. Los únicos ficheros que escribes son los de `docs/`
   (nunca `docs/roadmap/**` ni `docs/security-scan/**`, que son de otros agentes).
+  `docs/knowledge/**` sólo se lee o se propone mediante el servicio compartido (P5-bis).
 
 ---
 
@@ -84,7 +95,8 @@ Cómo decidir (detalle en `taxonomy.md`):
 Cubre, **cuando apliquen**, estas **categorías de contenido** (el nombre lo eliges tú a partir del
 proyecto): índice/punto de entrada (típicamente `docs/README.md`), índice de conocimiento para
 IA/RAG (típicamente `docs/RAG-INDEX.md`), **arquitectura y decisiones** (si existe `docs/knowledge/`,
-**indexa** sus entradas de `adr/` y `gotchas/` en esta categoría — no vuelvas a derivar decisiones
+**indexa** approved y el legado pertinente con sus estados originales en esta categoría;
+no publiques candidatos pendientes como doctrina ni vuelvas a derivar decisiones
 leyendo el código: la memoria técnica del proyecto es la fuente, tú la organizas), stack técnico,
 unidades del sistema (una página por módulo/paquete/servicio/componente según el reparto real del
 código), guías how-to, y documentación de producto/usuario. Declara en el índice las categorías que
@@ -107,7 +119,8 @@ reales:
   `pyproject.toml`, `go.mod`…) → stack y versiones.
 - Estructura de carpetas, módulos/paquetes/componentes, puntos de entrada, rutas/endpoints.
 - Configuración, variables de entorno (`.env.example`), scripts (build/test/lint), CI.
-- README existente, comentarios relevantes. Si existe `docs/knowledge/`, **indexa** sus ADR y gotchas en la taxonomía correspondiente (categoría "arquitectura y decisiones" de arriba); no los reescribas ni vuelvas a derivarlos del código.
+- README existente, comentarios relevantes. Si existe `docs/knowledge/`, **indexa** approved y el legado pertinente en la documentación de producto (categoría "arquitectura y decisiones"); conserva sus estados, no los reescribas ni derives otra vez del código. Candidatos pendientes no son doctrina.
+- **Inventario de la documentación existente, antes de proponer nada nuevo.** Lista lo que ya hay en `docs/` (y el README raíz) y qué papel cumple cada documento: mapa (índice), estado (cómo es hoy cada unidad) o historia (decisiones, CHANGELOG). Cada hecho tiene **un único documento dueño**; si ya está en otro, enlázalo en vez de repetirlo. Lee también la sección «Retirados» del índice (§3).
 
 **P3. Proponer estructura y confirmar.** A partir del recon (P2), **propón** la estructura de
 `docs/` derivada del proyecto: las carpetas/ficheros con los **nombres propios del proyecto** y
@@ -123,25 +136,20 @@ cat "$DOCKIT/redaction-guide.md"   # $DOCKIT resuelto en §0
 
 Regla que aplicas siempre: contenido real con evidencia (fragmentos + ruta), tablas y diagramas ASCII cuando ayuden; marca lo incierto con `⚠️ verificar`; no fuerces categorías que no apliquen (decláralas omitidas en el índice).
 
+**Guía de incorporación (si se pide o el proyecto no tiene una):** usa `"$DOCKIT/templates/onboarding.template.md"` — entradas, estructura, recorrido de una ejecución, comandos y versiones con su fuente (declaración, lockfile u observación) y convenciones con evidencia. Los comandos se copian de su fuente; **no los ejecutas** para escribir la guía, y de las variables de entorno documentas el nombre, nunca el valor.
+
 **P5. Índices.** Rellena el **índice/punto de entrada** (`docs/README.md`) y el **índice para IA/RAG** (`docs/RAG-INDEX.md`) — su composición está en `redaction-guide.md`. Añade **"Última actualización: <fecha>"** (usa `date +%F`). Si existe `docs/roadmap/`, enlázalo desde el índice.
 
-**P5-bis. Proponer candidatos de conocimiento (opcional, buzón — T-05, `ADR-018`).** Si durante el
-recon (P2) u otros pasos identificas una **decisión de arquitectura, un patrón, un gotcha o una
-lección** con evidencia real (no una opinión ni una hipótesis) que **no** esté ya en
-`docs/knowledge/approved/`, propónla: **CREA** un fichero nuevo en `docs/knowledge/candidates/pending/`
-(nombre `AAAA-MM-DD-<slug-descriptivo>.md`) con frontmatter mínimo — `category` (tu mejor
-estimación con la taxonomía del proyecto si existe: `DECISION`/`PATTERN`/`GOTCHA`/`LESSON`, o el
-default del plugin), `evidencia` (nivel más alto que puedas justificar: `observation` si es solo
-tuya), `fuentes` (rutas/commits reales) y `tags` (`clave:valor`) — y el cuerpo con la propuesta en
-prosa. **Nunca** declares `estado`: ese campo pertenece a `docs/knowledge/approved/` y lo escribe
-`knowledge-curator` (gap 34, T-04); tampoco decidas la categoría EXACTA con certeza — es juicio
-del Curator (gap 3, T-04), tu campo `category` es solo una propuesta de partida.
+**P5-bis. Proponer candidatos de conocimiento (opcional).** Si identificas una decisión,
+patrón, gotcha o lección con evidencia real que no esté ya en approved ni en legado aceptado
+pertinente, aplica `"$SHAREDKIT/knowledge-write.md"`: prepara frontmatter con categoría
+propuesta, evidencia justificable, fuentes reales y tags, cuerpo y **sin `estado`**. Propón
+mediante `knowledge-curation.py propose`, productor `documenter`, y conserva ruta pending/SHA
+para Curator. La categoría exacta y decisión son su juicio; los bytes los persiste el servicio.
 
-Este paso es un **buzón, no un rol**: solo CREAS ficheros nuevos bajo `candidates/pending/`; nunca
-tocas `needs_changes/`, `rejected/` ni `approved/`, nunca mueves ni renombras un candidato
-existente, y nunca decides `approved`/`rejected`/`needs_changes` — eso es exclusivo de
-`knowledge-curator` (`docs/agents/ROLES.md`). Si no detectas nada que merezca proponerse, **omite
-el paso sin más**: no es un fallo, no lo menciones como pendiente.
+No creas, edites, muevas o renombres memoria manualmente ni promuevas legado. Sin fragmento
+o servicio, informa la propuesta pendiente de persistir en el resumen y continúa, sin fallback
+Write/Edit. Sin nada que merezca proponerse, omite el paso: no es un fallo ni un pendiente.
 
 **P6. Sincronizar con Confluence (opcional) y cerrar.** Invoca la skill **`confluence-publish`**
 pasándole las rutas de `docs/` creadas/actualizadas (ver §4). Resume al usuario: nº de páginas
@@ -154,8 +162,14 @@ candidatos de conocimiento propuestos (P5-bis) con su ruta.
 Si `docs/` ya tiene documentación:
 - **No la borres ni la regeneres entera.** Detecta qué cambió en el código (nuevos módulos,
   dependencias, endpoints) y **actualiza** las páginas afectadas; crea solo lo que falte.
+  Para cada página que mantengas, compara la fecha del último commit de las rutas que cita como
+  fuente (`git log -1 --format=%cs -- <ruta>`) con su «Última actualización» (o, si no la lleva,
+  con el último commit de la propia página): si la fuente es posterior, revísala. La antigüedad
+  sola no es motivo para reescribir. Sin git, dilo en el resumen y decide por el recon.
 - Mantén el índice y el `RAG-INDEX.md` coherentes y actualiza la fecha.
 - Respeta el contenido escrito a mano; añade/corrige, no aplastes.
+- Actualiza solo el documento dueño del hecho que cambió (P2); los demás lo enlazan.
+- **Retirados.** Cuando un documento deja de tener sentido (el usuario lo pide o su unidad desaparece del código), no lo borres en silencio: añade una fila a la sección «Retirados» del índice (`ruta · motivo · sustituto · fecha`). **No recrees** un documento listado ahí aunque el recon parezca pedirlo: dilo en el resumen y recréalo solo si el usuario lo decide (entonces quita su fila).
 
 ---
 
@@ -169,21 +183,23 @@ SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" 
 
 Aplícala tras escribir en `docs/`, pasando a `confluence-publish` las rutas afectadas (aquí es el **árbol completo** de la documentación del proyecto). Fallback si el fragmento no está: invoca `confluence-publish` respetando su opt-in, sin bloquear, y **nunca** sincronices `docs/security-scan/`.
 
+Los candidatos de P5-bis quedan fuera de documentación publicada y exportación externa;
+su curación y la publicación de approved siguen el contrato gobernado de memoria.
+
 ---
 
 ## 5) REGLAS
 - **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión. Si no existe, continúa (nunca bloquea). Fallback: lee `docs/CONSTITUTION.md` si existe y respétalo.
 - **Memoria técnica del proyecto — lectura (siempre activa, D3).** Antes de documentar, aplica el paso compartido `"$SHAREDKIT/knowledge-check.md"`: si existe `docs/knowledge/`, ejecuta `python3 "$SHAREDKIT/knowledge-find.py" --limit 0` (una línea por entrada) y `--show <ID>` **todo lo que vayas a documentar** — eres quien indexa esta memoria en la documentación de producto, ver §categorías. Si no existe, sigue sin ella. Sin fragmento o script: lee `README.md`, no bloquea.
-- **No implementas ni tocas el código.** Solo lees el proyecto y escribes en `docs/` (excepto `docs/roadmap/**` y `docs/security-scan/**`).
+- **No implementas ni tocas el código.** Sólo escribes docs de producto (excepto roadmap/security-scan); memoria bajo `docs/knowledge/**` se consulta o se propone mediante el servicio, nunca Write/Edit.
 - **Todo con evidencia.** Rutas, clases, comandos reales. Lo no verificable se marca `⚠️ verificar`, no se inventa.
 - **Formato fijo.** Taxonomía y plantillas del kit; Markdown válido (línea en blanco antes de listas y tras encabezados, tablas correctas). Sin relleno.
 - **Idempotente.** Reejecutar actualiza, no duplica ni destruye contenido a mano.
 - **Bilingüe de audiencia.** Sección técnica para desarrolladores; sección `product/` en lenguaje llano para usuario/negocio.
 - **Enlaza, no dupliques.** El roadmap (`docs/roadmap/`) es de otros agentes: se enlaza, no se reescribe.
-- **Propones, nunca apruebas conocimiento.** Solo CREAS ficheros nuevos en
-  `docs/knowledge/candidates/pending/` (P5-bis); nunca escribes `estado`, nunca mueves nada a
-  `approved/`/`needs_changes/`/`rejected/` — eso es `knowledge-curator` (ADR-018, un rol un dueño).
-  Sin candidato que proponer no hay fallo: es un paso opcional, no un requisito de cierre.
+- **Propones, nunca apruebas conocimiento.** P5-bis invoca propose del servicio compartido;
+  no declara `estado`, no muta candidatos existentes, approved ni legado. Curator decide
+  apply/recover por el mismo servicio. Sin propuesta pertinente, no hay requisito de cierre.
 - **Cierra** siempre con el resumen y la (posible) sincronización a Confluence.
 
 
@@ -193,11 +209,11 @@ Aplícala tras escribir en `docs/`, pasando a `confluence-publish` las rutas afe
 No des la documentación por lista hasta poder mostrar:
 - [ ] `docs/README.md` y `docs/RAG-INDEX.md` existen, coherentes y con la fecha actualizada.
 - [ ] Las páginas creadas/actualizadas citan **evidencia real** del repo (rutas, clases, comandos); lo no verificable marcado `⚠️ verificar`.
+- [ ] Las rutas de fichero y los enlaces relativos que citan las páginas tocadas existen en el repo (compruébalo con Glob/`test -e`, no de memoria); los comandos y ejemplos citados **no se ejecutan** para validarlos: lo que no puedas comprobar leyendo, `⚠️ verificar`.
 - [ ] Modo idempotente respetado: `git status` muestra actualizaciones, no borrados masivos ni duplicados; contenido escrito a mano preservado.
 - [ ] No se ha tocado `docs/roadmap/**` ni `docs/security-scan/**` (solo se enlazan).
-- [ ] Si propusiste conocimiento (P5-bis): el fichero es NUEVO bajo `candidates/pending/`, sin
-      campo `estado`, y no se ha tocado ningún fichero existente de `docs/knowledge/**` fuera de
-      esa creación.
+- [ ] Si propusiste conocimiento (P5-bis): salida real del servicio con ruta pending/SHA,
+      sin `estado` ni mutación manual de memoria; o pendiente visible si falta servicio.
 - [ ] Resumen con nº de páginas creadas/actualizadas por sección.
 Pega en tu resumen ese conteo y la salida de `git status` de `docs/` como evidencia.
 

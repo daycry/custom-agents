@@ -1,0 +1,201 @@
+{
+  "observed_on": "2026-10-08",
+  "base": "8b51edd9ae1af020e0eb96bf92933e1f55edbaed",
+  "scope": "Native guard launcher, normalizer, map/context/export, and conservative native-agent migration",
+  "review_approved": true,
+  "pending_important": [],
+  "review_attempt": 5,
+  "review_scope": "This native guard, role IDs and conservative migration block only; global tasks remain open",
+  "qa_gate": {
+    "script": "agent-kits/qa/qa-gate.py",
+    "input_format": "qa-gate outcomes normalized from actual pytest/Node JUnit; not Playwright",
+    "counts": {
+      "passed": 395,
+      "failed": 0,
+      "flaky": 2,
+      "skipped": 0,
+      "interrupted": 0
+    },
+    "verdict": "VERDE",
+    "exit_code": 0,
+    "inputs": [
+      {
+        "input": "native-guard-root-r6-final.xml",
+        "sha256": "7440a86d64afb031f8e355290d6816c4aecd60b168cb97cb1e79cc0f59da042d",
+        "counts": {
+          "passed": 282,
+          "failed": 0,
+          "skipped": 0
+        }
+      },
+      {
+        "input": "native-guardrail-r6-full-green.xml",
+        "sha256": "fd981e67aa846de9dc1246cfcaf8443b9fdcf94c05b6c6caee23390d4ae4bd84",
+        "counts": {
+          "passed": 221,
+          "failed": 0,
+          "skipped": 0
+        }
+      },
+      {
+        "input": "native-role-export-final.xml",
+        "sha256": "4ffa04f4bf6be4c167b850284cb13d527ee653d49b9688b57a362d1e7706d76b",
+        "counts": {
+          "passed": 61,
+          "failed": 0,
+          "skipped": 0
+        }
+      },
+      {
+        "input": "native-role-installer-r5.xml",
+        "sha256": "8ba915f3fccd609cd64edc8f2214a9198031ff5b284548c5a03fe92ee2d4d47a",
+        "counts": {
+          "passed": 19,
+          "failed": 1,
+          "skipped": 0
+        }
+      },
+      {
+        "input": "native-role-installer-r5-ab-recheck.xml",
+        "sha256": "fe7f5d3bf1321430b2661fb4a6fb7828abf21527d5207df9584261a4f1a21679",
+        "counts": {
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0
+        }
+      },
+      {
+        "input": "native-role-installer-r6-ab-recheck.xml",
+        "sha256": "42251a91008822d268a33081e795c4c84402bcffadc34803c25a5b95b3cf2efa",
+        "counts": {
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0
+        }
+      },
+      {
+        "input": "native-guard-root-node-final.xml",
+        "sha256": "8c36be45a6772834180a4a92a281307dd00c63ba1427cf3accad0f5a6523dc77",
+        "counts": {
+          "passed": 36,
+          "failed": 1,
+          "skipped": 0
+        }
+      },
+      {
+        "input": "native-guard-sessionstart-recheck.xml",
+        "sha256": "3b25a7520c41e9410e781217ca846736a9f5a7fe3667d115dcb3d6cee865d55f",
+        "counts": {
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0
+        }
+      }
+    ],
+    "justified_flaky": {
+      "test::Codex project native: A/B preserve global preferences and foreign source; uninstall restores own registry keys": "The current full directed installer run and first directed A/B rerun failed when the bounded fake native CLI query returned unknown. A minimal isolated query and a private diagnostic copy passed; those are diagnostics, not canonical suite passes. One subsequent unchanged canonical A/B test passed with identical installer source. All three canonical reports are retained. No cause is established and no production deadline or assertion was relaxed. This remains explicitly flaky.",
+      "test::SessionStart injects JSON context through Git Bash and native Python": "The unchanged SessionStart launcher emitted a bounded Windows child-cleanup confirmation timeout in the full Node run; the same test passed in the directed rerun with identical production source. Both reports are retained. Cause of Windows startup variation is not established; global memory closure remains open. This is explicitly retained as flaky, not counted as an initial pass."
+    }
+  },
+  "diff_coverage": {
+    "minimum": 90,
+    "covered": 695,
+    "executable_added": 711,
+    "percentage": 97.74964838255977,
+    "files": [
+      {
+        "file": "scripts/export-interop.py",
+        "covered": 67,
+        "executable_added": 69,
+        "missing": [
+          601,
+          604
+        ],
+        "source_sha256_lf": "9fc0001a1a2836875a699219e0c2c710a2b700d30f814d1e61bde4da41f84555",
+        "instrument": "coverage.py"
+      },
+      {
+        "file": "agent-kits/shared/skill-index.py",
+        "covered": 28,
+        "executable_added": 30,
+        "missing": [
+          376,
+          389
+        ],
+        "source_sha256_lf": "60b820871d4721e884477db789fb7a984b87b26ef11786d8b62597bbb0fedf4a",
+        "instrument": "coverage.py"
+      },
+      {
+        "file": "install/install.mjs",
+        "covered": 271,
+        "executable_added": 275,
+        "missing": [
+          500,
+          501,
+          1662,
+          1663
+        ],
+        "source_sha256_lf": "cbcd7d50bd577699a94ac07b89b0d3dc81e02ab054e1a3fc2e312fcf11769066",
+        "instrument": "Official c8 mapped added lines"
+      },
+      {
+        "file": "install/providers.mjs",
+        "covered": 5,
+        "executable_added": 5,
+        "missing": [],
+        "source_sha256_lf": "1ff28cc4e6a257ccf97b9c051ffac5a80450abe3cc70536c6e857ee71dd60d3d",
+        "instrument": "Official c8 mapped added lines"
+      },
+      {
+        "file": "hooks/run-hook.mjs",
+        "instrument": "Official c8 mapped added lines",
+        "covered": 13,
+        "executable_added": 15,
+        "missing": [
+          133,
+          134
+        ],
+        "source_sha256_lf": "b47ca085a7b8ac66b583579b67013a97ee370e88c1eb90a8798afe433cb3687b"
+      },
+      {
+        "file": "hooks/opencode-plugin.js",
+        "instrument": "Official c8 mapped added lines",
+        "covered": 46,
+        "executable_added": 46,
+        "missing": [],
+        "source_sha256_lf": "83e202d25d37a4ec7fb573e2e1b6fb4e1da466766a7ad5b32d248a666e413f8a"
+      },
+      {
+        "file": "agent-kits/shared/guardrail-check.py",
+        "instrument": "Official coverage.py executable added lines",
+        "covered": 10,
+        "executable_added": 10,
+        "missing": [],
+        "source_sha256_lf": "d99c6808cf16b207df8c479dc770fcb62d357e8ab3668d475c4d452fc5de529f"
+      },
+      {
+        "file": "agent-kits/shared/native-guardrail.py",
+        "covered": 255,
+        "executable_added": 261,
+        "missing": [
+          33,
+          56,
+          91,
+          98,
+          219,
+          331
+        ],
+        "source_sha256_lf": "17fcd2ba07097e84287fbb3ffb8d53677dadf5285681e213dd50d35ae2d869e0",
+        "instrument": "coverage.py; new file entirely executable scope"
+      }
+    ]
+  },
+  "limits": [
+    "Repeated case identities are joined, not added as unique tests.",
+    "Native runtime experiments are separate evidence, not counted as unit tests.",
+    "Two case identities retain their initial Node failures and are classified as justified flaky.",
+    "Historical full installer suite predates final migration corrections; current directed tests are used here.",
+    "Generated copies, JSON resources, prose, and tests are excluded from executable source coverage.",
+    "Global initiative, SessionEnd efficacy and memory acceptance remain open."
+  ]
+}

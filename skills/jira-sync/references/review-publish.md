@@ -57,10 +57,15 @@ python3 "$JF" plan --ledger tasks.md --event gaps     --actor reviewer --task T-
    el registro de una `T-XX` real. Las **correcciones** que hace el `implementer` durante el bucle son
    tiempo de **implementación** (`--kind implementacion`, la de por defecto en el evento
    `implementado`), no `[revisión]`.
-5. **Idempotencia: la lleva el script.** `jira-flow.py` anota cada plan con `ops` en
-   `.claude/jira-state.json` bajo `flow["<issue>|<evento>|<tareas>|<intento>"]`, así que reejecutar
-   `/dev-cycle` sobre un intento ya publicado devuelve `ops: []` + `yaRealizado: true` (exit 0) en
-   vez de un segundo comentario y un segundo worklog; `--force` lo repite a propósito. El campo
+5. **Idempotencia: la lleva el script, con recibo.** `jira-flow.py` anota cada plan con `ops` como
+   `pendiente` en `.claude/jira-state.json` bajo `flow["<issue>|<evento>|<tareas>|<intento>"]` y
+   pone esa clave como referencia al pie del comentario. Tras ejecutar las ops sin error, ejecuta el
+   `confirmar` que trae el plan (con `--comentario-id`): el evento pasa a `publicado` y reejecutar
+   `/dev-cycle` sobre ese intento devuelve `ops: []` + `yaRealizado: true` (exit 0) en vez de un
+   segundo comentario y un segundo worklog. Si un plan quedó sin confirmar (fallo o expiración), el
+   siguiente vuelve con `reintento: true`: busca la referencia en los comentarios del issue y, si ya
+   está, confirma sin publicar. `--force` lo repite a propósito (aun así, busca antes la referencia
+   si el plan estaba pendiente). El campo
    `reviewComentado` sigue siendo el resumen legible por tarea/fase (último intento publicado), pero
    ya no eres tú quien tiene que consultarlo para no duplicar.
 

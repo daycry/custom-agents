@@ -43,13 +43,25 @@ Uso:
 La clave --artefacto es una ruta o identificador estable (p. ej. docs/roadmap/<slug>/spec.md
 o <slug>/T-03). `close` emite JSON por stdout; quien llama lo vuelca al bloque
 `generacion:` del frontmatter (re-cerrar ACTUALIZA, no acumula).
+
+Contrato de procedencia y cobertura de `close` (D-086; claves PLANAS y aditivas, siempre presentes):
+  tokens_procedencia    transcript | sin_medida   (de dónde salen los tokens; sin_medida ≠ 0 tokens)
+  tokens_cobertura      completa | parcial | sin_medida  (parcial: fichero ilegible o usage no numérico)
+  transcripts_leidos · transcripts_subagente · transcripts_con_error   enteros, o null sin medida
+  coste_procedencia     estimado_tarifa | sin_coste  (`eur` es tokens × precioTokens: NUNCA una factura)
+  coste_cobertura       completa | incompleta | sin_coste  (incompleta: alguna clase de token sin precio)
+  coste_sin_precio      clases de token con tokens > 0 valoradas a 0 € (lista)
+  tarifa_verificada_el  `precioTokens.verificadoEl` usado, o null
 """
 
 import argparse
 import json
+import hashlib
 import os
 import re
 import sys
+import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -65,6 +77,7 @@ DEFAULT_STATE = ".claude/usage-state.json"
 # horas: depende de la longitud de sesión, no del trabajo del artefacto).
 DEFAULT_RATIO = 300_000
 RATES_MAX_AGE_DAYS = 90
+_STATE_WINDOWS = os.name == "nt"
 
 
 # ---------------------------------------------------------------- utilidades
@@ -182,18 +195,47 @@ def _load_state(path, avisos=None):
     return limpio
 
 
+def _replace_state_file(source, target):
+    """Bound replacement attempts for Windows access/sharing errors only."""
+    for attempt in range(4):
+        try:
+            os.replace(source, target)
+            return
+        except OSError as error:
+            if (not _STATE_WINDOWS or getattr(error, "winerror", None) not in (5, 32, 33)
+                    or attempt == 3):
+                raise
+            time.sleep(.02 * (2 ** attempt))
+
+
 def _save_state(path, state, avisos=None):
-    """Escritura atómica (temp + replace). Si falla, avisa y NO rompe el cierre."""
+    """Replace a whole snapshot; unique owned temporary, no merge or writer lock.
+
+    Failure preserves the previous state and remains visible without blocking.
+    """
+    temporary_owned = False
+    tmp = None
     try:
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_suffix(p.suffix + ".tmp")
-        with open(tmp, "w", encoding="utf-8") as f:
+        tmp = p.with_name(f"{p.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+        with open(tmp, "x", encoding="utf-8") as f:
+            temporary_owned = True
             json.dump(state, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, p)
+        _replace_state_file(tmp, p)
+        temporary_owned = False
+        return True
     except OSError as e:
         if avisos is not None:
             avisos.append(f"no se pudo guardar el state: {e}")
+        return False
+    finally:
+        if temporary_owned:
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                if avisos is not None:
+                    avisos.append("no se pudo retirar el temporal propio del state")
 
 
 def _rel_key(f, tdir):
@@ -233,7 +275,7 @@ def _ventana_descarta(ts_dt, inicio_dt):
         return False, True
 
 
-def _sum_usage_window(tdir, offsets, inicio=None):
+def _sum_usage_window(tdir, offsets, inicio=None, cobertura=None):
     """Suma el usage de los registros NUEVOS (más allá del offset por fichero), con
     dedupe GLOBAL por message.id (registros repetidos de una misma respuesta, incluso
     entre el fichero principal y un subagente) y búsqueda RECURSIVA bajo la carpeta del
@@ -248,6 +290,9 @@ def _sum_usage_window(tdir, offsets, inicio=None):
     honesta: se cuentan, como antes de T-04).
 
     Devuelve (tokens_dict, avisos:list). Lanza excepción solo ante fallo total de lectura.
+    `cobertura` (dict opcional, D-086): se rellena con `leidos` (ficheros con bytes nuevos en la
+    ventana), `subagente` (de esos, bajo `subagents/`), `errores` (ficheros que no se pudieron leer)
+    y `campos_malos` (campos de usage no numéricos contados como 0).
     """
     seen = {}
     avisos = []
@@ -256,6 +301,7 @@ def _sum_usage_window(tdir, offsets, inicio=None):
     inicio_dt = _parse_iso(inicio) if inicio else None
     descartados_por_ventana = 0
     timestamps_no_comparables = 0
+    leidos, de_subagente, errores = 0, 0, 0
     for f in sorted(tdir.rglob("*.jsonl"), key=lambda p: _rel_key(p, tdir)):
         clave = _rel_key(f, tdir)
         start = offsets.get(clave, 0)
@@ -271,6 +317,8 @@ def _sum_usage_window(tdir, offsets, inicio=None):
             if size <= start:
                 continue
             with open(f, encoding="utf-8", errors="replace") as fh:
+                leidos += 1
+                de_subagente += "subagents" in Path(clave).parts
                 if start:
                     # el marcador normalmente cae en frontera de línea (snapshot = tamaño
                     # del fichero tras una escritura completa); solo hay que descartar
@@ -303,6 +351,7 @@ def _sum_usage_window(tdir, offsets, inicio=None):
                            or f"{clave}#{i}")
                     seen[mid] = usage  # la última repetición gana (son idénticas)
         except OSError as e:
+            errores += 1
             avisos.append(f"no se pudo leer {clave}: {e}")
 
     def _int(u, campo):
@@ -328,6 +377,8 @@ def _sum_usage_window(tdir, offsets, inicio=None):
         avisos.append(f"{timestamps_no_comparables} registro(s) con timestamp no comparable "
                        f"contados igualmente (nunca se descarta por un timestamp raro)")
     tokens["respuestas"] = len(seen)
+    if cobertura is not None:
+        cobertura.update(leidos=leidos, subagente=de_subagente, errores=errores, campos_malos=campos_malos)
     return tokens, avisos
 
 
@@ -361,10 +412,11 @@ def _precios_fiables(rates):
     return edad < RATES_MAX_AGE_DAYS
 
 
-def _eur(tokens, rates, avisos):
+def _eur(tokens, rates, avisos, sin_precio=None):
     """€ de la ventana. Caché: solo se valora si rates.json trae precios de caché
     (precioTokens.cacheCreacion / cacheLectura); si no, se informa en tokens y se
-    valora a 0 con aviso (regla de la spec: no inventar precios)."""
+    valora a 0 con aviso (regla de la spec: no inventar precios). `sin_precio` (lista
+    opcional, D-086) recibe las clases de token con tokens > 0 valoradas a 0."""
     if not _precios_fiables(rates):
         avisos.append("precioTokens no fiable (0/ausente/viejo) → eur=null; ejecuta la skill rates-verify")
         return None
@@ -382,6 +434,8 @@ def _eur(tokens, rates, avisos):
             eur += tokens[campo] * pt[clave] / 1e6 * fx
         elif tokens[campo]:
             avisos.append(f"{campo} sin precio en rates.json → valorada a 0 €")
+            if sin_precio is not None:
+                sin_precio.append(campo)
     return round(eur, 2)
 
 
@@ -470,6 +524,32 @@ def _ratio_calibrado(calibration_path, avisos=None):
     return mediana, n
 
 
+def _procedencia(medido, cobertura, eur, sin_precio, rates):
+    """Contrato de procedencia y cobertura (D-086), en claves PLANAS aditivas para que el bloque
+    `generacion:` las pueda copiar tal cual: tokens medidos, coste estimado y coste incompleto van
+    separados. `eur` es SIEMPRE una estimación (tokens × precioTokens de rates.json), nunca una factura."""
+    if medido:
+        parcial = cobertura.get("errores", 0) or cobertura.get("campos_malos", 0)
+        tokens = {"tokens_procedencia": "transcript",
+                  "tokens_cobertura": "parcial" if parcial else "completa",
+                  "transcripts_leidos": cobertura.get("leidos", 0),
+                  "transcripts_subagente": cobertura.get("subagente", 0),
+                  "transcripts_con_error": cobertura.get("errores", 0)}
+    else:
+        tokens = {"tokens_procedencia": "sin_medida", "tokens_cobertura": "sin_medida",
+                  "transcripts_leidos": None, "transcripts_subagente": None, "transcripts_con_error": None}
+    if eur is None:
+        coste = {"coste_procedencia": "sin_coste", "coste_cobertura": "sin_coste", "coste_sin_precio": [],
+                 "tarifa_verificada_el": None}
+    else:
+        pt = (rates or {}).get("precioTokens") or {}
+        coste = {"coste_procedencia": "estimado_tarifa",
+                 "coste_cobertura": "incompleta" if sin_precio else "completa",
+                 "coste_sin_precio": list(sin_precio),
+                 "tarifa_verificada_el": str(pt.get("verificadoEl")) if pt.get("verificadoEl") else None}
+    return {**tokens, **coste}
+
+
 def _horas(tokens, ratio):
     """horas_ia = facturables ÷ ratio. Facturables = entrada + creación de caché + salida
     (la lectura de caché queda fuera: mide longitud de sesión, no trabajo del artefacto)."""
@@ -484,7 +564,8 @@ def cmd_start(args):
     tdir = args.transcript_dir or _project_transcript_dir()
     state = _load_state(args.state, avisos)
     marcador = {"version": 2, "inicio": _now_iso(), "transcriptDir": str(tdir) if tdir else None,
-                "offsets": _snapshot_offsets(tdir)}
+                "offsets": _snapshot_offsets(tdir), "ventana_id": "win-" + uuid.uuid4().hex,
+                "revision_medicion": 0}
     if not tdir:
         marcador["aviso"] = "transcripciones no localizadas; close degradará a fuente=estimado"
     state[args.artefacto] = marcador
@@ -497,6 +578,26 @@ def cmd_start(args):
     return 0
 
 
+def _identidad_medicion(marcador, tdir, avisos):
+    """Opaque source and window identity; revision orders whole cumulative snapshots.
+
+    These identifiers are local provenance, not authentication or proof of complete
+    transcripts. Old markers receive an identity on their first measured close.
+    """
+    ventana = marcador.get("ventana_id")
+    revision = marcador.get("revision_medicion", 0)
+    valida = (isinstance(ventana, str) and re.fullmatch(r"win-[0-9a-f]{32}", ventana)
+              and type(revision) is int and 0 <= revision < 2**63 - 1)
+    if not valida:
+        if ventana is not None or "revision_medicion" in marcador:
+            avisos.append("identidad de medición inválida o agotada; se inicia otra identidad local")
+        ventana, revision = "win-" + uuid.uuid4().hex, 0
+    source = os.path.normcase(str(Path(tdir).resolve()))
+    fuente = hashlib.sha256(("custom-agents:usage-meter:transcripts:v1\0" + source).encode("utf-8")).hexdigest()
+    return {"fuente_id": "src-" + fuente, "ventana_id": ventana,
+            "revision_medicion": revision + 1}
+
+
 def cmd_close(args):
     avisos = []
     state = _load_state(args.state, avisos)
@@ -505,6 +606,7 @@ def cmd_close(args):
     resultado = {"artefacto": args.artefacto,
                  "inicio": marcador.get("inicio") if marcador else None, "fin": fin}
     tokens = None
+    cobertura, sin_precio = {}, []
     if not marcador:
         avisos.append("sin marcador start para este artefacto")
     elif "offsets" not in marcador:
@@ -526,7 +628,7 @@ def cmd_close(args):
         if tdir and Path(tdir).is_dir():
             try:
                 tokens, avs = _sum_usage_window(tdir, marcador.get("offsets") or {},
-                                                 inicio=marcador.get("inicio"))
+                                                 inicio=marcador.get("inicio"), cobertura=cobertura)
                 avisos += avs
             except Exception as e:  # degradación total: nunca bloquear
                 avisos.append(f"lectura de transcripciones falló: {e}")
@@ -564,7 +666,7 @@ def cmd_close(args):
         except (ValueError, OverflowError):
             dur = None
         resultado.update({"fuente": "medido", "tokens_reales": tokens,
-                          "eur": _eur(tokens, rates, avisos),
+                          "eur": _eur(tokens, rates, avisos, sin_precio),
                           "horas_ia": horas, "duracion": dur, "duracion_reloj": dur_reloj,
                           "ratio_usado": ratio, "ratio_origen": ratio_info})
     else:
@@ -574,9 +676,20 @@ def cmd_close(args):
                           "horas_ia": None, "duracion": None, "duracion_reloj": dur_reloj,
                           "ratio_usado": ratio, "ratio_origen": ratio_info,
                           "nota": "estima tokens/horas a juicio y márcalo como estimado"})
+    resultado.update(_procedencia(resultado["fuente"] == "medido", cobertura, resultado["eur"], sin_precio, rates))
     if marcador:
         marcador["ultimoCierre"] = fin  # el marcador se conserva: re-close = misma ventana actualizada
-        _save_state(args.state, state, avisos)
+        identidad = None
+        if resultado["fuente"] == "medido":
+            identidad = _identidad_medicion(marcador, tdir, avisos)
+            marcador.update(identidad)
+        persisted = _save_state(args.state, state, avisos)
+        if identidad:
+            resultado["medicion_persistida"] = persisted
+        if identidad and persisted:
+            resultado.update(identidad)
+        elif identidad:
+            avisos.append("medición sin identidad persistida; no acredita deduplicación entre snapshots")
     if avisos:
         resultado["avisos"] = avisos
     print(json.dumps(resultado, ensure_ascii=False, indent=2))

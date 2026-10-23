@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "recorded_utc": "2026-10-12T10:27:42.551684+00:00",
+  "source50_manifest_sha256": "3c79359c14bc99a65875e0c6c3fbd1facc6d268d7040c48ea97d5dfa274b8adf",
+  "tested_runtime_sha256": {
+    "agent-kits/shared/task-brief.py": "41e3f4261f0f9107b6189882cac410481fe33f51f16de6fb68e2bb56aaebddb5",
+    "agent-kits/shared/test_task_brief.py": "e4c97db023a5364e5cb19ff7ac7908cbc8bb1b588425225d8bc7f324ef9cc7b0",
+    "tests/memory_local_recovery_support/protocol.py": "5787736963cd5febdbb576fb2b5eaf0e1ba64d5890e907235374ad555cd039f4",
+    "tests/test_memory_restore_publication.py": "4368f977f476d2f3249bb7dcd31f9b5ef1a5d42e1a90366ab2adefb75f553f85"
+  },
+  "windows_original_global": {
+    "cases": 7227,
+    "passed": 7126,
+    "failed": 2,
+    "skipped": 99,
+    "accepted": false
+  },
+  "deterministic_red": {
+    "cases": 17,
+    "failed": 12,
+    "passed": 5,
+    "native_directory_error": 32,
+    "native_audit_file_error": 5
+  },
+  "windows_affected_suites": {
+    "cases": 118,
+    "passed": 118,
+    "failed": 0,
+    "skipped": 0,
+    "owned_job_active_after_close": 0
+  },
+  "linux_affected_suites": {
+    "cases": 118,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 2,
+    "passed": 116
+  },
+  "linux_owned_container_removed": true,
+  "source_preserved": true,
+  "global_current_source_accepted": false,
+  "historical_failures_preserved": true,
+  "original_handle_owner_identified": false,
+  "scope": "CLI character accounting and synthetic acceptance protocol; production memory semantics unchanged",
+  "receipts_sha256": {
+    "red79": "407a7c22c8f8e09f488feb128f81cc130fd94fb215e1904d2be7e222465e46fa",
+    "windows80": "cda8f54a6bd4aa97395134f2f7da7e500660f052e32979da3c45233abe8fb870",
+    "linux81": "06425d18c73dfa331454bcab0a7e53523d21c15b19dcf43124268a997773d757",
+    "linux_cleanup81": "f492102e49dd112241ec2be79bdf9ddaf101b1d31ed169627c77a7a72139d673"
+  }
+}

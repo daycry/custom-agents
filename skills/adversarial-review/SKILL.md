@@ -8,9 +8,8 @@ description: >
   con evidencia y traza en el ledger («Revisión de dos lentes — intento N»). Fuente única del
   método que usan /dev-cycle (Fase 3) y quick-implement; también a demanda sobre una rama o rango
   sin ledger. NO sustituye a `qa` (E2E + qa-gate) ni a `nemesis` (auditoría de seguridad completa),
-  y NO revisa estilo ni propone refactors. Úsala cuando el usuario diga "revisa este diff",
-  "revisión adversarial", "pasa las dos lentes", "revisión de dos lentes", "busca gaps en la rama",
-  o cuando /dev-cycle o quick-implement lleguen a la puerta de revisión.
+  y NO revisa estilo ni propone refactors. Úsala cuando el usuario diga "revisa este diff", "revisión adversarial", "pasa las dos lentes", "revisión de dos lentes", "busca gaps en la rama",
+  "revisa el rendimiento del diff", "problemas de seguridad en esta rama", o cuando /dev-cycle o quick-implement lleguen a la puerta de revisión.
 ---
 
 # adversarial-review — dos lentes (+ dos condicionales) contra el diff, con bucle acotado
@@ -42,16 +41,16 @@ REVSKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/skills" "$H
 | Modo | Qué recibes | Contra qué revisa la Lente A |
 |---|---|---|
 | **Con ledger** (desde `/dev-cycle`, `quick-implement`) | `docs/roadmap/<fecha>-<slug>/` (con `tasks.md`; `improvement-plan.md` si existe), nº de intento N, y si N > 1 la tabla de veredictos del intento anterior | `improvement-plan.md` + `tasks.md` (+ `docs/CONSTITUTION.md` si existe) |
-| **Sin plan** (a demanda: «revísame este diff», «revisión de la rama») | rama o rango `<base>..HEAD` (si no lo dan, pregunta la base o usa merge-base con `main`/`master`), más el **objetivo declarado por el usuario** | el objetivo declarado + los mensajes de commit del rango; sin criterios formales, la Lente A emite ✓/✗ por **objetivo** (uno por commit o por el objetivo único) |
+| **Sin plan** (a demanda: «revísame este diff», «revisión de la rama», «revisa el PR 123») | rama o rango `<base>..HEAD` (si no lo dan, pregunta la base o usa merge-base con `main`/`master`), más el **objetivo declarado por el usuario**. **PR remoto:** con un número entero (o el que sale de la URL) y `gh` respondiendo, base y head salen de `gh pr view <n> --json baseRefName,headRefOid`; el diff es `git diff <base>...<headRefOid>`, se anota el SHA en la salida y los tests de evidencia corren en un worktree de ese SHA (tráelo con `git fetch origin pull/<n>/head` y comprueba que coincide), nunca en la rama local. Sin `gh` o sin acceso, pregunta la base. Publicar el veredicto en el PR es un efecto externo (`skills/delivery-practices/references/delivery-tools.md`, «Efectos externos»): se muestra y solo se publica con OK explícito del usuario, nunca como aprobación automática | el objetivo declarado + los mensajes de commit del rango; sin criterios formales, la Lente A emite ✓/✗ por **objetivo** (uno por commit o por el objetivo único) |
 
-En ambos modos el diff es `git diff <base>...HEAD` ∪ cambios sin comitear. Sin git → revisa los
-ficheros que el usuario indique y dilo (la puerta de alcance no aplica).
+En ambos modos el diff es `git diff <base>...HEAD` ∪ cambios sin comitear (PR remoto: `<headRefOid>`, sin cambios
+locales). Sin git → revisa los ficheros que el usuario indique y dilo (la puerta de alcance no aplica).
 
 ## Proceso
 
 ### 0. Puerta previa — alcance del diff (solo con ledger; determinista, sin gastar revisores)
 
-`python3 "$SHAREDKIT/scope-check.py" "docs/roadmap/<fecha>-<slug>"` — **exit 0 obligatorio** para lanzar las lentes. Compara los ficheros cambiados (comiteados + sin comitear) con los campos `Archivos` de TODAS las tareas del ledger (`tasks.md` propio y `docs/knowledge/**` siempre en alcance). **Exit 1** → los ficheros fuera de alcance vuelven al `implementer` como **gap Important** ANTES de lanzar las lentes: o revierte el cambio, o justifica que es necesario — entonces se añade al campo `Archivos` de su tarea con una nota y se relanza el check. **Exit 2** (sin base clara: ni `main` ni `master`) → pásale `--base <ref>`. Sin git → salta la puerta con aviso (la Lente A conserva su comprobación (2) como red).
+`python3 "$SHAREDKIT/scope-check.py" "docs/roadmap/<fecha>-<slug>"` — **exit 0 obligatorio** para lanzar las lentes. Compara los ficheros cambiados (comiteados + sin comitear) con los campos `Archivos` de TODAS las tareas del ledger (`tasks.md` propio y `docs/knowledge/**` siempre en alcance). **Exit 1** → los ficheros fuera de alcance vuelven al `implementer` como **gap Important** ANTES de lanzar las lentes: o revierte el cambio, o justifica que es necesario — entonces se añade al campo `Archivos` de su tarea con una nota y se relanza el check. Exit 1 también si un criterio de aceptación aprobado se reescribió o se borró frente al ledger de la base (`criterios_alterados` del `--json`): gap Important, rebatible con evidencia si el cambio lo hizo `planner` o el usuario. **Exit 2** (sin base clara: ni `main` ni `master`) → pásale `--base <ref>`. Sin git → salta la puerta con aviso (la Lente A conserva su comprobación (2) como red).
 
 **Exit 0 con ⚠️ no es exit 0 a secas**: los avisos salen por **stderr**, y en la clave `avisos` si repites el comando con `--json` (`… "docs/roadmap/<fecha>-<slug>" --json`). El ⚠️ tiene **un solo disparo, con dos formas**: un glob de `alcance.excluir` (`.claude/dev.json`) que esconde **el grueso del diff relevante** —la mitad o más de los ficheros que el default NO excluye, y al menos tres—, ya sea dejándote la lista «fuera de alcance» vacía o comiéndoselo con un único glob. Por debajo de ese volumen NO hay ⚠️: la exclusión que solo quita ruido previsto no es un gap (si avisara en cada pasada verde sería un Important imposible de cerrar). **Léelo y trátalo como gap Important** en la fusión: o el glob se acota, o esos ficheros se declaran en el `Archivos` de su tarea, o el ledger dice por qué la exclusión es deliberada. Y mira **lo excluido** con ojos de lente: está en el diff y no en `Archivos`, que es justo donde se esconde lo que las demás puertas no ven.
 
@@ -82,8 +81,8 @@ revisa, y si N > 1 la tabla del intento anterior (ver §5). Despacho:
 1. **Tier del revisor:** `python3 "$SHAREDKIT/model-tier.py" reviewer --json` → pasa `model` al Agent
    tool si `fuente.model` es `dev.json` (el `effort` de dev.json es informativo; sin script → frontmatter).
 2. **Agente por nombre:** una llamada al Agent tool por lente con `subagent_type: reviewer`
-   (`agents/reviewer.md`: `tools: Read, Grep, Glob, Bash` — NO puede escribir; Bash solo para ejecutar
-   tests/scripts como evidencia) y el prompt literal de la lente. Las 2-4 llamadas van en paralelo.
+   (`agents/reviewer.md`: `tools: Read, Grep, Glob, Bash` — debe preservar el código; Bash conserva permisos
+   del runtime y se usa para ejecutar tests/scripts como evidencia) y el prompt literal de la lente. Las 2-4 llamadas van en paralelo.
 3. **Fallback (degradación, no bloqueo):** si el agente `reviewer` no está disponible (instalación
    parcial, `Agent(reviewer)` rechazado), lanza un subagente genérico con el MISMO prompt y anótalo en la
    salida («lentes por subagente genérico: reviewer no disponible»).
@@ -95,11 +94,13 @@ revisa, y si N > 1 la tabla del intento anterior (ver §5). Despacho:
 ### 3. Fusionar y graduar
 
 **Fusiona** las 2-4 salidas: deduplica gaps que señalen lo mismo (mismo `fichero:línea` o mismo
-escenario); A da el **veredicto por criterio** (✓/✗); B, C y D aportan defectos (los de C con su
-CWE; los de D, el escenario de carga que lo justifica). Gradúa cada gap **`Critical / Important /
-Minor`**: Critical (pérdida de datos, seguridad explotable, criterio incumplido que rompe el
-objetivo) e Important (defecto reproducible, fuera de alcance, constitución violada) **obligan
-corrección**; Minor se anota sin bloquear el cierre.
+escenario); A da el **veredicto por criterio** (✓/✗); B, C y D aportan defectos (los de C con su CWE; los
+de D, el escenario de carga que lo justifica). Gradúa cada gap **`Critical / Important / Minor`**:
+Critical (pérdida de datos, seguridad explotable, criterio incumplido que rompe el objetivo) e Important
+(defecto reproducible, fuera de alcance, constitución violada) **obligan corrección**; Minor se anota sin
+bloquear el cierre. **Lente sin salida estructurada** (error, rechazo también del respaldo, vacía o
+truncada) ≠ «sin defectos»: intento `incompleto`, la traza la nombra y no pasa a `qa` sin relanzarla o OK
+explícito del usuario.
 
 ### 4. Disciplina al RECIBIR (nada de obediencia ciega)
 
@@ -145,13 +146,11 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente 
   y qué lentes corrieron (A+B, o A+B+C/D con sus motivos).
 - **Con ledger, además:** sección **`## Revisión de dos lentes — intento N: …`** al final de
   `tasks.md` (tabla `# · Grado · Gap · Tarea · Corrección · Evidencia`; ver
-  `docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md` como referencia de formato) y, al
-  cerrar el bucle **sin gaps de corrección pendientes** (0 gaps, todos rebatidos con evidencia, o
-  aceptados como deuda por el usuario), **promoción** de las entradas `docs/knowledge/` que la
-  iniciativa escribió con `estado: propuesta` → `estado: aceptada (validada: revisión de dos
-  lentes, AAAA-MM-DD, intento N)` (formato único de `"$SHAREDKIT/knowledge-write.md"` §Autoría).
-  Si el 3.º intento sigue con gaps sin resolver, quedan en `propuesta`. `ledger-lint.py` exit 0
-  tras escribir.
+  `docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md` como referencia de formato).
+  Al cerrar el bucle sin gaps pendientes, la revisión queda como evidencia para Curator;
+  **no** promueve estados de memoria ni aprueba candidatos. Con gaps tras el 3.º intento,
+  conserva la evidencia y las propuestas pendientes sin alterar el legado.
+  `ledger-lint.py` exit 0 tras escribir.
 - **Jira — lo publica ESTA skill, POR CADA intento (dueño único; solo si `.claude/jira.json`
   `enabled` Y el plan se volcó).** Nada más escribir la sección del intento en `tasks.md`, ejecuta
   `python3 "$JF" plan --ledger <tasks.md> --event revision|gaps --actor reviewer --task T-XX[,T-YY]
@@ -167,9 +166,9 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente 
   líneas: veredicto, nº de gaps por grado, lentes que corrieron, ruta del ledger actualizado,
   siguiente paso). El detalle vive en el ledger.
 
-> **Compatibilidad de la etiqueta.** La sección del ledger y el promotor de `docs/knowledge/` siguen
-> llamándose **«Revisión de dos lentes»** aunque corran C y/o D (`/retro` y `knowledge-write.md` lo buscan
-> literal); anota en el texto qué corrió de verdad (p. ej. "lentes: A+B+C", "A+B+D" o "A+B+C+D").
+> **Compatibilidad de la etiqueta.** La sección del ledger sigue llamándose
+> **«Revisión de dos lentes»** aunque corran C y/o D; anota qué corrió de verdad
+> (p. ej. "lentes: A+B+C", "A+B+D" o "A+B+C+D"). No es una aprobación de memoria.
 
 ## Scripts propios
 
@@ -186,7 +185,7 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente 
 
 - No implementa ni corrige: devuelve gaps; corrige el `implementer` (o quien pidió la revisión).
 - No da el verde de pruebas (`qa`/`qa-gate.py`) ni audita seguridad completa (`nemesis`).
-- No toca `docs/roadmap/` salvo la sección de revisión del `tasks.md`, ni `docs/knowledge/` salvo el `estado` de lo que promueve.
+- No toca `docs/roadmap/` salvo la sección de revisión del `tasks.md`; no muta `docs/knowledge/` ni promueve conocimiento. Curator juzga y el servicio persiste.
 - No imputa horas: el worklog `[revisión]` por intento es del orquestador (`/dev-cycle`).
 - No decide qué hacer al 3.º intento con gaps: lo devuelve al orquestador/usuario.
 

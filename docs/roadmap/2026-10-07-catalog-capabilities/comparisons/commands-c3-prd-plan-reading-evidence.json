@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_command_ids": [
+    "C059",
+    "C060",
+    "C061",
+    "C069",
+    "C071"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "C059",
+      "sha256": "7c5869ed155e88a1bf78f760b983d958e913f2594752bd9c5f78134e32eaf1df",
+      "bytes": 1810,
+      "lines": 45,
+      "read_ranges": [
+        [
+          1,
+          45
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C060",
+      "sha256": "eef91fc48d8725238e4a23625156efa046e8ba51fb03e97b4162a2aa7cfb66be",
+      "bytes": 5380,
+      "lines": 162,
+      "read_ranges": [
+        [
+          1,
+          162
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C061",
+      "sha256": "8d0caa8380eba2f2550937553c9c8c8f253c627cff662f0c333e6ad982706e3e",
+      "bytes": 7766,
+      "lines": 206,
+      "read_ranges": [
+        [
+          1,
+          206
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C069",
+      "sha256": "d7dfc27704dac9b98b8755e1324de141503565bbb39e236422307e8046af5acb",
+      "bytes": 13917,
+      "lines": 502,
+      "read_ranges": [
+        [
+          1,
+          502
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "C071",
+      "sha256": "ccd0082c4df1395a272d735765a593891736c48a0bcfbf2f296f84eca5b8509b",
+      "bytes": 14093,
+      "lines": 447,
+      "read_ranges": [
+        [
+          1,
+          447
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/analyst.md",
+      "sha256": "a5fb0d5ed2bc67606d8206e0173daf7c137e8ee63d3a5a44bbb300bf0c8b3be0"
+    },
+    {
+      "path": "agents/planner.md",
+      "sha256": "7877a4e890345bdb8bde9a864db8044d3229dd59b33abb107d034aaf56ab7734"
+    },
+    {
+      "path": "agents/architect.md",
+      "sha256": "4c60c41cf4e17499ee99369401a305c2a68193c70576e788c579dcd3634ec99c"
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "b6e03985d8ed921cf629b53af25f6c671df9792f1512acf4d2db14e1297442b9"
+    },
+    {
+      "path": "commands/pm-cycle.md",
+      "sha256": "a31f06cd9f5bf7d02fb5ee0a3ac36b106da00c1e8cd7b35b5f860b5f5813a1d5"
+    },
+    {
+      "path": "agent-kits/evaluator/templates/spec.md",
+      "sha256": "fc7e170b51c9a6f38e6407770b3bc67196b57606905b2d8303c390828e2a4bd5"
+    },
+    {
+      "path": "agent-kits/planner/templates/tasks.md",
+      "sha256": "719bb930c35ed738112d77bb2c8ec822ab9531fe31ef7bdb8265ae1db7c90ea1"
+    },
+    {
+      "path": "agent-kits/shared/plan-review.py",
+      "sha256": "899cd9a885d0b03a72e896f37398e9262ca78a3161fed9fc639c008021439ad2"
+    },
+    {
+      "path": "skills/research-first/SKILL.md",
+      "sha256": "2771d49527560d132e1ed58996b840aa1802af71c06708471576f9790030df3a"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

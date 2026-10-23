@@ -1,0 +1,749 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-07",
+  "evaluated_skill_ids": [
+    "S073",
+    "S074"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S073",
+      "sha256": "06f662a81b1faebb9930118302d88d649dbc5bcbf7dfe87c3780ddc72f2d6516",
+      "bytes": 5390,
+      "lines": 167,
+      "read_ranges": [
+        [
+          1,
+          167
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S074",
+      "sha256": "147a971c26b7bf4f9fbc3e1f624ec7c888eb8d74911d8ffbbe0418d9aaaa9767",
+      "bytes": 5140,
+      "lines": 126,
+      "read_ranges": [
+        [
+          1,
+          126
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        "R-5887f6d965a7"
+      ]
+    },
+    {
+      "id": "R-5887f6d965a7",
+      "sha256": "76aa0fe8c136be8a760ce74e614463ffb05fb16f1e165c5938daa86f516b87ef",
+      "bytes": 7826,
+      "lines": 220,
+      "read_ranges": [
+        [
+          1,
+          220
+        ]
+      ],
+      "reading_scope": "full-resource"
+    },
+    {
+      "id": "S119",
+      "sha256": "1cfaf2a0bf341087bbeeb8db0dc7c5edd5bad241ce4d89df728d22f2c5c72809",
+      "bytes": 7034,
+      "lines": 128,
+      "read_ranges": [
+        [
+          113,
+          128
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-591e7a1672e1",
+      "sha256": "59e855c382ccab4670dcd293721365d88d400c5d499fd93c1572ce9c1ccb6b6d",
+      "bytes": 31763,
+      "lines": 1199,
+      "read_ranges": [
+        [
+          345,
+          359
+        ],
+        [
+          421,
+          435
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-03ffcc8e6e9e",
+      "sha256": "9583fe1ac4109a8a3c94c5ffaf8a331d6e9997c8657494ef2a95dbf3a65b5414",
+      "bytes": 22743,
+      "lines": 482,
+      "read_ranges": [
+        [
+          193,
+          208
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-fd5d0b342acd",
+      "sha256": "2179ce02372a3e7092e14469bd9502be5b61458fbca4ea8d4d855065ce9a1919",
+      "bytes": 15641,
+      "lines": 270,
+      "read_ranges": [
+        [
+          52,
+          67
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-7ae45ad102ea",
+      "sha256": "d658518a714b2834340704ca0d7eeb383fe1f061a00e66f001f58915a3de7c19",
+      "bytes": 18867,
+      "lines": 551,
+      "read_ranges": [
+        [
+          210,
+          224
+        ],
+        [
+          388,
+          402
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    }
+  ],
+  "native": [
+    {
+      "path": "skills/capability-audit/references/method.md",
+      "sha256": "13928d323c2a19dabdafac3d98fb396e40aa82600e3ff13191fd03c4872c03ed",
+      "bytes": 2001,
+      "lines": 34,
+      "read_ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/cybersecurity/SKILL.md",
+      "sha256": "643742197404f4a7bb4d0ac1520078745bff09908966edb6d0d9deb097f16d46",
+      "bytes": 11255,
+      "lines": 167,
+      "read_ranges": [
+        [
+          1,
+          90
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "skills/cybersecurity/references/recon-and-scope.md",
+      "sha256": "ac5e9ca3bd27fb4eea5e35ada8c01fa094b0d6d72e9bb9dd23a228fd94b61cd2",
+      "bytes": 7382,
+      "lines": 158,
+      "read_ranges": [
+        [
+          1,
+          158
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "agents/nemesis.md",
+      "sha256": "82a534cc0399b39f0f5e990526b656a7e1736d7e4276bb9340f8b1b78e14df78",
+      "bytes": 15017,
+      "lines": 202,
+      "read_ranges": [
+        [
+          1,
+          95
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "67702b1115bc6d57c4eafbf9dab8d10abaab6b333d4ab330d828f30353770c96",
+      "bytes": 1132,
+      "lines": 24,
+      "read_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "agent-kits/qa/qa-gate.py",
+      "sha256": "276f2ae90aa12111c6f5ddac2678c5ac930d97c16f7606e5bc6292f5c0e6a23b",
+      "bytes": 6483,
+      "lines": 150,
+      "read_ranges": [
+        [
+          1,
+          150
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "hooks/hooks.json",
+      "sha256": "b06c6120e183576a3607d1851e0813dec5a177b64b733ccb91cfbf494e2f8191",
+      "bytes": 1666,
+      "lines": 67,
+      "read_ranges": [
+        [
+          1,
+          67
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "interop/codex/hooks.json",
+      "sha256": "df467003a39d842adc76e7f78c6a7a9bb6d1fadbd551bed4dc74db26f5adcecf",
+      "bytes": 1586,
+      "lines": 66,
+      "read_ranges": [
+        [
+          1,
+          66
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "hooks/run-hook.mjs",
+      "sha256": "15957a0c7282db0dec830141edb3252e51dd6751d0d39ca8f1f239b63ad55e21",
+      "bytes": 5026,
+      "lines": 103,
+      "read_ranges": [
+        [
+          1,
+          103
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "agent-kits/shared/doctor.py",
+      "sha256": "10cbf346a8f376a3aff27072acf528122b8cead564bc97c5d3d59bda85a1df34",
+      "bytes": 144805,
+      "lines": 2543,
+      "read_ranges": [
+        [
+          2266,
+          2291
+        ],
+        [
+          2394,
+          2451
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "72c18ea147c56913d4ec459f1affee63bf14ae01914ef21d78196bf6b4f70b04",
+      "bytes": 32067,
+      "lines": 244,
+      "read_ranges": [
+        [
+          90,
+          131
+        ],
+        [
+          190,
+          205
+        ],
+        [
+          220,
+          244
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/contracts.md",
+      "sha256": "59998a0c907ac6fb7081a82b61d60a2bb313607043545c0bc635b927602ea8c1",
+      "bytes": 11388,
+      "lines": 171,
+      "read_ranges": [
+        [
+          1,
+          89
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-write.md",
+      "sha256": "9f35f672b961341de66b0cc1061ccb39ef38245fbe78f3629f0e168e800e336e",
+      "bytes": 8330,
+      "lines": 106,
+      "read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "data-research-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-check.md",
+      "sha256": "bab98db4ee27fc074ff65252b92739bc913768fc9058e9a8caa9475c3041d1ac",
+      "bytes": 8910,
+      "lines": 104,
+      "read_ranges": [
+        [
+          1,
+          104
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "data-research-reading-evidence.json"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "6511ee78dfad3bd5ae2aba956dd268c08f368c8419069784fea72e1d8fd28f36",
+      "bytes": 17719,
+      "lines": 200,
+      "read_ranges": [
+        [
+          1,
+          33
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "data-research-reading-evidence.json"
+    },
+    {
+      "path": "agents/qa.md",
+      "sha256": "914e408cfd3c72d5dc731de9f5665f6414d0b9f8a28a5860c73acdcebe51085e",
+      "bytes": 18622,
+      "lines": 139,
+      "read_ranges": [
+        [
+          85,
+          123
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "data-research-reading-evidence.json"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "bfb1b3899fd657b8beb70522e5f7d834869d22609da94b028c6dc82c7d577bc7",
+      "bytes": 7017,
+      "lines": 109,
+      "read_ranges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "data-research-reading-evidence.json"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9",
+      "bytes": 2653,
+      "lines": 44,
+      "read_ranges": [
+        [
+          1,
+          44
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "data-research-reading-evidence.json"
+    },
+    {
+      "path": "skills/capability-audit/SKILL.md",
+      "sha256": "0a8579a37efbc067bfb6b4dc3f8759a49f50a2a72acc89116f24bbd125406dd9",
+      "bytes": 2109,
+      "lines": 39,
+      "read_ranges": [
+        [
+          1,
+          39
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "data-research-reading-evidence.json"
+    }
+  ],
+  "local_resource_totals": {
+    "read": 1,
+    "inventoried": 1,
+    "bytes": 7826,
+    "lines": 220
+  },
+  "pending_reading": [],
+  "dependency_observations": [
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.openzeppelin.com/contracts/5.x/erc4626",
+      "resolved_url": "https://docs.openzeppelin.com/contracts/5.x/erc4626",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "6e2baaf40dab798ecb405d31ab072085d4d05c1107533e0ecd66a9b006d37d02",
+      "read_ranges": [
+        [
+          51,
+          64
+        ],
+        [
+          80,
+          93
+        ],
+        [
+          109,
+          129
+        ],
+        [
+          139,
+          155
+        ]
+      ],
+      "sections_read": [
+        "oz-vault selected source/document sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.openzeppelin.com/contracts/5.x/access-control",
+      "resolved_url": "https://docs.openzeppelin.com/contracts/5.x/access-control",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "d8dd9928c02c9e3bbfaf34ae888d9619b998522a62c685f6ac53338166463751",
+      "read_ranges": [
+        [
+          46,
+          72
+        ]
+      ],
+      "sections_read": [
+        "oz-access selected source/document sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/v5.4.0/contracts/utils/ReentrancyGuard.sol",
+      "resolved_url": "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/v5.4.0/contracts/utils/ReentrancyGuard.sol",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "32fbb1c908ec1b4de85cc1bb10091aebd5816ffe80dfdd5ca5e084fbea67a462",
+      "read_ranges": [
+        [
+          1,
+          87
+        ]
+      ],
+      "sections_read": [
+        "oz-guard selected source/document sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/Uniswap/v3-periphery/main/contracts/libraries/OracleLibrary.sol",
+      "resolved_url": "https://raw.githubusercontent.com/Uniswap/v3-periphery/main/contracts/libraries/OracleLibrary.sol",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "3e4967a8d77a63127219d22852199551b614f12a16d66c0c415329b8c2cbe5a0",
+      "read_ranges": [
+        [
+          1,
+          180
+        ]
+      ],
+      "sections_read": [
+        "oracle selected source/document sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/Uniswap/v3-core/main/contracts/libraries/FullMath.sol",
+      "resolved_url": "https://raw.githubusercontent.com/Uniswap/v3-core/main/contracts/libraries/FullMath.sol",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "959c52e1c860bfbede3e33c8d04910c11038973173aa3478547cbad2e444880e",
+      "read_ranges": [
+        [
+          1,
+          124
+        ]
+      ],
+      "sections_read": [
+        "fullmath selected source/document sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/crytic/slither/master/README.md",
+      "resolved_url": "https://raw.githubusercontent.com/crytic/slither/master/README.md",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "f2065d562ac5f121a0509f35b0fa9d26d91fd0aa22bc2650a490557e4fd5ea87",
+      "read_ranges": [
+        [
+          3,
+          25
+        ],
+        [
+          41,
+          86
+        ],
+        [
+          95,
+          114
+        ],
+        [
+          309,
+          336
+        ]
+      ],
+      "sections_read": [
+        "slither selected source/document sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/crytic/slither/master/slither/__main__.py",
+      "resolved_url": "https://raw.githubusercontent.com/crytic/slither/master/slither/__main__.py",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "33e1be228f0f94114e089eff68bf9c4bf8cdf9982002a87e942496446a4a175a",
+      "read_ranges": [
+        [
+          401,
+          414
+        ]
+      ],
+      "sections_read": [
+        "slither-cli selected source/document sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/crytic/echidna/master/README.md",
+      "resolved_url": "https://raw.githubusercontent.com/crytic/echidna/master/README.md",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "56c991509faf0d67710fd6b86b3c0fcc2714dac058ba2ce442e84fcd451dfcdf",
+      "read_ranges": [
+        [
+          114,
+          127
+        ],
+        [
+          276,
+          289
+        ]
+      ],
+      "sections_read": [
+        "echidna selected source/document sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://code.claude.com/docs/en/hooks.md",
+      "resolved_url": "https://code.claude.com/docs/en/hooks.md",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "0d73badaaa14e02eaabe13df3fcbbeb1dbd8f8977501f9cb77477e4105154271",
+      "read_ranges": [
+        [
+          2423,
+          2436
+        ],
+        [
+          2440,
+          2453
+        ],
+        [
+          2574,
+          2587
+        ],
+        [
+          2614,
+          2627
+        ],
+        [
+          2655,
+          2668
+        ],
+        [
+          3383,
+          3396
+        ],
+        [
+          425,
+          428
+        ]
+      ],
+      "sections_read": [
+        "claude-hooks selected source/document sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://learn.chatgpt.com/docs/hooks",
+      "resolved_url": "https://learn.chatgpt.com/docs/hooks",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "9c1ed773651c7a779c54e49451fe51e47f06a45f5e9efa9a8848b8cf844507f4",
+      "read_ranges": [
+        [
+          903,
+          918
+        ],
+        [
+          1367,
+          1380
+        ],
+        [
+          1689,
+          1702
+        ],
+        [
+          1698,
+          1713
+        ]
+      ],
+      "sections_read": [
+        "codex-hooks selected source/document sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://opencode.ai/v2/docs/plugins/",
+      "resolved_url": "https://opencode.ai/v2/docs/plugins/",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "dcbda52fee5133e5a7888e147a031330ac3aa77f05fffa2d0efa96228edd3249",
+      "read_ranges": [
+        [
+          1,
+          155
+        ]
+      ],
+      "sections_read": [
+        "opencode-plugins selected source/document sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/foundry-rs/foundry/master/crates/forge/src/cmd/test/mod.rs",
+      "resolved_url": "https://raw.githubusercontent.com/foundry-rs/foundry/master/crates/forge/src/cmd/test/mod.rs",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "aa75a53edc12ef2bd181c11ce372af2cb72e2a04cb9a32b6241e350aaaa80844",
+      "read_ranges": [
+        [
+          621,
+          632
+        ],
+        [
+          1343,
+          1354
+        ],
+        [
+          3093,
+          3104
+        ]
+      ],
+      "sections_read": [
+        "forge-cli-current selected source/document sections"
+      ]
+    }
+  ],
+  "rejected_document_fetches": [
+    {
+      "kind": "official-documentation-fetch-rejected",
+      "url": "https://raw.githubusercontent.com/foundry-rs/foundry/master/crates/forge/bin/cmd/test/mod.rs",
+      "document_http_status": 404,
+      "reason": "Old CLI source location unavailable; current src/cmd location read instead",
+      "replacement_url": "https://raw.githubusercontent.com/foundry-rs/foundry/master/crates/forge/src/cmd/test/mod.rs"
+    },
+    {
+      "kind": "official-documentation-reader-rejected",
+      "url": "https://getfoundry.sh/forge/reference/test/",
+      "document_http_status": null,
+      "reason": "Web reader returned Internal Error; no document considered read",
+      "replacement_url": "https://raw.githubusercontent.com/foundry-rs/foundry/master/crates/forge/src/cmd/test/mod.rs"
+    },
+    {
+      "kind": "official-documentation-reader-rejected",
+      "url": "https://getfoundry.sh/reference/forge/forge-test",
+      "document_http_status": null,
+      "reason": "Web reader returned Internal Error; no document considered read",
+      "replacement_url": "https://raw.githubusercontent.com/foundry-rs/foundry/master/crates/forge/src/cmd/test/mod.rs"
+    }
+  ],
+  "reader_failures": [
+    {
+      "helper": "fetch_security_delivery_docs.py",
+      "outcome": "First batch terminated with AssertionError at document byte cap",
+      "resolution": "Separate bounded Markdown read and recorded per-document rejections; corrected helper completed exit 0"
+    }
+  ],
+  "excluded_from_execution_audit": [
+    "No source code, snippets, tests, Solidity tools, installations, model prompts or authenticated calls executed",
+    "No runtime Stop or SessionEnd dispatch tested by this comparison; native integration remains T-02/T-09/T-14",
+    "Partial counterpart readings do not validate their complete implementations"
+  ],
+  "measurements": {
+    "tokens": null,
+    "latency_seconds": null
+  }
+}

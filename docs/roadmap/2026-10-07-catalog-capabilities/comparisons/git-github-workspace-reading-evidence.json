@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": ["S114", "S115", "S118"],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {"id": "S114", "sha256": "7094ab94802d7e839dc33c6ea230020327260518b1b1ce62b42d56d051c1d7c5", "bytes": 15308, "lines": 716, "read_ranges": [[1, 716]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []},
+    {"id": "S115", "sha256": "281e19fbf138c8d7ac7379864825721aa6f6efcf4008e976a6ea34b3c96e2b54", "bytes": 6202, "lines": 162, "read_ranges": [[1, 162]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": [{"path": "references/ecc-release-checklist.md", "sha256": "abeda37b5364854c0b3610227d3029706d6f42ec287573397abe795f4af8a463", "bytes": 6940, "reading_scope": "full"}]},
+    {"id": "S118", "sha256": "93ab16b44764e3c00472c7dfb0b58cf59a3c7493ac99ab93fcabf280f164b6a1", "bytes": 2736, "lines": 96, "read_ranges": [[1, 96]], "reading_scope": "full-body", "semantic_review": "complete-proposal-not-integrated", "directory_resources": []}
+  ],
+  "own_counterparts": [
+    {"path": "agent-kits/shared/guardrail-check.py", "sha256": "fa9a6874ebee6be2c465bc4772ef9fbcf310d6c0cfedc2ccede9c2fbd393866a"},
+    {"path": "CONTRIBUTING.md", "sha256": "e81bec881c2a70c7d76ce0dd02abb3d8b5cdb74024b96ecf48d3e9fa9f7655ec"},
+    {"path": "scripts/release.py", "sha256": "e5057b48b0a4d3e8b194b8abfa7a483a7eb43795b0bf66c7538f2a43646a450b"},
+    {"path": "skills/delivery-practices/references/delivery-tools.md", "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9"}
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

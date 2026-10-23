@@ -6,7 +6,7 @@ description: >
   headless (puppeteer) y un tema CSS moderno. Úsala cuando el usuario diga
   "convertir a PDF", "pasar a PDF", "exportar a PDF", "genera un PDF de",
   "markdown a pdf", "html a pdf", "word a pdf", "docx a pdf".
-user-invokable: true
+user-invocable: true
 allowed-tools:
   - Bash
   - Read

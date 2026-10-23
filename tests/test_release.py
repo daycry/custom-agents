@@ -49,7 +49,7 @@ def run(repo, *args):
 
 def _w(p, s, mode=None):
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(s, encoding="utf-8")
+    p.write_bytes(s.encode("utf-8"))
     if mode is not None:
         os.chmod(p, mode)
 
@@ -76,6 +76,9 @@ def repo(tmp_path):
     # (GOT-006). Con esto la fixture es hermética: no depende del git config de quien la ejecute.
     git(r, "config", "user.name", "t")
     git(r, "config", "user.email", "t@t")
+    # Conservar los bytes de la fixture incluso si el Git del host convierte LF/CRLF.
+    git(r, "config", "core.autocrlf", "false")
+    git(r, "config", "user.useConfigOnly", "true")
     git(r, "add", "-A")
     git(r, "commit", "-q", "-m", "init")
     return r
@@ -326,7 +329,7 @@ def test_copia_manual_divergente_aborta(repo):
     git(repo, "add", "-A"); git(repo, "commit", "-q", "-m", "copia atrasada")
     r = run(repo, "1.2.3")
     assert r.returncode == 1
-    assert "cp ci.yml.MANUAL-COPY .github/workflows/ci.yml" in r.stderr
+    assert "cp ci.yml.MANUAL-COPY " + os.path.join(".github", "workflows", "ci.yml") in r.stderr
     assert _versions(repo) == ("1.1.0", "1.1.0", "1.1.0")
 
 
@@ -412,7 +415,7 @@ def test_crlf_se_conserva(repo):
         assert f"## [1.2.3] - {HOY}\r\n".encode() in raw
         assert b"[1.2.3]: https://github.com/daycry/custom-agents/releases/tag/v1.2.3\r\n" in raw
     # y un fichero LF sigue LF
-    (repo / "CHANGELOG.md").write_text(CHANGELOG_EN.replace("## [1.1.0]", "## [1.2.3] - x\n\n## [1.1.0]"), encoding="utf-8")
+    (repo / "CHANGELOG.md").write_bytes(CHANGELOG_EN.replace("## [1.1.0]", "## [1.2.3] - x\n\n## [1.1.0]").encode("utf-8"))
     assert b"\r\n" not in (repo / "CHANGELOG.md").read_bytes()
 
 
@@ -435,7 +438,8 @@ def test_la_fixture_configura_la_identidad_DENTRO_del_repo(repo):
             f"release.py falla en cualquier entorno sin identidad global (CI)")
 
 
-def test_sin_identidad_release_degrada_con_mensaje_y_no_revienta(repo):
+@pytest.mark.parametrize("config_via_env", [False, True])
+def test_sin_identidad_release_degrada_con_mensaje_y_no_revienta(repo, monkeypatch, config_via_env):
     """Y el contrato del PRODUCTO bajo esa misma condición: degrada, no revienta.
 
     Un usuario con git recién instalado y sin identidad configurada existe. `release.py` debe
@@ -443,7 +447,14 @@ def test_sin_identidad_release_degrada_con_mensaje_y_no_revienta(repo):
     """
     subprocess.run(["git", "config", "--local", "--unset-all", "user.name"], cwd=repo, capture_output=True)  # bytes: solo se mira el rc
     subprocess.run(["git", "config", "--local", "--unset-all", "user.email"], cwd=repo, capture_output=True)  # bytes: solo se mira el rc
-    entorno = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
+    if config_via_env:
+        for key, value in {"GIT_CONFIG_COUNT": "2", "GIT_CONFIG_KEY_0": "user.name",
+                           "GIT_CONFIG_VALUE_0": "fixture-author", "GIT_CONFIG_KEY_1": "user.email",
+                           "GIT_CONFIG_VALUE_1": "fixture-author@example.invalid"}.items():
+            monkeypatch.setenv(key, value)
+    identidad_env = {"GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "EMAIL"}
+    entorno = {k: v for k, v in os.environ.items() if k not in identidad_env and not k.startswith("GIT_CONFIG")}
+    entorno.update({"GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull})
     r = subprocess.run([sys.executable, SCRIPT, "--root", str(repo), "1.2.3"],
                        capture_output=True, text=True, encoding="utf-8", errors="replace", env=entorno)
     assert "Traceback" not in r.stderr, f"no debe reventar; stderr:\n{r.stderr[-400:]}"

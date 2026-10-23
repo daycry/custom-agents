@@ -29,7 +29,12 @@ PLUGROOT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "
 | Script/plantilla de UN solo agente | **kit privado** | `agent-kits/<agente>/` | — |
 | Trozo de PROMPT idéntico en varios agentes (no invocable) | **fragmento shared** | `agent-kits/shared/` | — |
 | Reacción automática a eventos del ciclo de vida, para INFORMAR | **hook informativo** | `hooks/` + registro global en `hooks/hooks.json` (eventos usados: `PostToolUse`, `SubagentStop`, `SessionStart`). **Informan, no deciden**: `systemMessage`/`additionalContext`, SIEMPRE exit 0, silencio sin `python3`; el linter exige que cada `command` exista y sea ejecutable | `hooks/progress-line.sh` como referencia |
-| Impedir que UN agente haga algo prohibido (deny) | **hook de guardia** | wrapper en `hooks/` registrado SOLO en el frontmatter `hooks:` de ese agente (`PreToolUse` → JSON `permissionDecision: deny`); la decisión en un script de `agent-kits/shared/` con tests; desactivable en `.claude/dev.json`; sin `python3` → aviso y exit 0. **Nunca en `hooks/hooks.json`** (regla 8 de CONVENTIONS, ADR-007) | `hooks/implementer-guardrail.sh` + `agent-kits/shared/guardrail-check.py` |
+| Impedir que UN agente haga algo prohibido (deny) | **hook de guardia** | dispatcher previo por ID nativo propio del mapa generado; decisión central con tests, opt-out en `.claude/dev.json`, degradación con diagnóstico. En copias locales Claude también admite wrapper en frontmatter; los agentes de plugin ignoran ese campo. Regla 8 de CONVENTIONS y ADR-023 | `agent-kits/shared/native-guardrail.py` + `guardrail-check.py` |
+
+**Busca dueño antes de crear.** Antes de abrir una pieza, busca si otra ya tiene esa responsabilidad:
+`python3 agent-kits/shared/skill-index.py --no-cache`, `/plugin-catalog` y la matriz `docs/agents/ROLES.md`.
+Si existe dueño, la propuesta es una línea en él, no una pieza nueva (ADR-011). Si la idea viene de una
+skill o plugin externo, compáralo antes con `research-first` (una skill de terceros es código).
 
 **Contratos oficiales de Claude Code (regla antes de cualquier WebFetch):** consulta
 `references/claude-code-contracts.md` (hooks, frontmatter de agente y skill, CLI headless, `statusLine`,
@@ -37,8 +42,18 @@ PLUGROOT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "
 han pasado > 90 días, re-verifica** con su sección «cómo re-verificar» y actualiza la fecha de la fila en el
 mismo cambio. Redacción de docs/agentes/skills: `agent-kits/shared/docs-style.md`.
 
+El alcance nativo importa: Claude ignora `hooks`, `mcpServers` y `permissionMode`
+del frontmatter de agentes cargados desde plugins. Consulta ese límite en los
+contratos; declarar el campo no acredita que la guardia se ejecute en ese modo.
+
 Duda entre kit privado y skill → **empieza privado**; promociona a `skills/` el día que un
-segundo agente lo necesite (regla 3). Duda entre agente y comando → si decide *puertas* y
+segundo agente lo necesite (regla 3). **Criterio de extracción** a pieza compartida: al menos **2 de
+estas 5 señales** — (1) una segunda pieza lo necesita, (2) el mismo texto o procedimiento ya está copiado
+en 2+ piezas, (3) tiene contrato estable (entradas, salidas, exit codes), (4) el patrón se repite en ≥ 2
+iniciativas (`/retro`, `journal.py candidatas`), (5) no tenerlo compartido ya costó un ciclo (gotcha o
+lección) — **y** sin solape de rol con un dueño existente (ADR-011). Un arnés local no se declara
+reutilizable hasta que otra persona pueda re-ejecutar su eval o su `Verificación` y obtener lo mismo.
+Duda entre agente y comando → si decide *puertas* y
 *orquesta* a otros, es comando; si *hace* un trabajo con criterio propio, es agente.
 Duda entre **skill y agente nuevo** → es agente SOLO si aporta un rol que **decide y escribe un
 artefacto propio** que hoy nadie decide; una **capacidad** que 2+ agentes invocan es skill, aunque
@@ -59,7 +74,7 @@ responsabilidad entre dos piezas («este escribe el test, aquel dice si vale») 
 **Agente** — claves que interpreta Claude Code + las nuestras:
 
 - `name` (== fichero) · `description` (párrafo con disparadores: termina con "Úsalo cuando el usuario diga …") · `tools` (**mínimos**: solo los que usa de verdad; pedir `Bash` sin usarlo es deuda) · `model` + `effort` (**obligatorios**, tabla de tiering de CONVENTIONS: `haiku`/`sonnet` → `effort: medium` · `opus` razonamiento crítico → `effort: high`; el override por proyecto vive en `dev.json` `modelos` y lo resuelve `agent-kits/shared/model-tier.py`, no el agente) · `dependencies` (skills/kits/agents que EXISTEN; sin ciclos A→B→A).
-- Opcionales nativos: `skills:` (precarga el contenido COMPLETO de esas skills al arrancar — solo las que el agente necesita en TODAS sus ejecuciones; las opt-in se invocan bajo demanda con la herramienta Skill; cada una debe estar también en `dependencies.skills` y el linter avisa si la precarga supera 16 KB — regla token-diet) · `hooks:` (hooks con alcance del agente; único sitio para un hook de guardia — `command` con `${CLAUDE_PLUGIN_ROOT}` + fallback `find` en la misma línea, el linter comprueba que el fichero exista). No uses `isolation: worktree` nativo: choca con el opt-in `worktree` de `dev.json`.
+- Opcionales nativos: `skills:` (precarga completa; solo las necesarias en todas las ejecuciones, también en `dependencies.skills`; aviso si supera 16 KB) · `hooks:` (alcance de una copia local Claude, ignorado en agentes de plugin; el linter verifica el destino). Las guardias distribuidas requieren dispatcher por identidad nativa y evidencia real del runtime. No uses `isolation: worktree` nativo: choca con el opt-in `worktree` de `dev.json`.
 
 **Skill** — `name` + `description` (misma regla de disparadores). El cuerpo es el **mapa**, no el manual:
 ≤ 200 líneas (aviso del linter; 250 = umbral duro en `tests/test_skill_size.py`) con propósito, disparadores,
@@ -101,6 +116,14 @@ Reglas de cuerpo (las que más se incumplen):
    `lint_plugin.py` y las prueba `tests/test_console_encoding.py`. En un `.sh`, el `python3 -c` en
    línea que lea `stdin` o imprima símbolos lleva delante `PYTHONIOENCODING=utf-8:replace`.
 
+Referencias bajo demanda (lee cada una **solo** al llegar a su caso):
+
+| Referencia | Cuándo leerla |
+|---|---|
+| [Contratos de herramientas](references/tool-observation-contracts.md) | Al diseñar o cambiar lo que un agente invoca y lee: flags, salida, exit codes, errores, salida de un hook o tool MCP propia |
+| [Diagnóstico de arquitectura](references/architecture-diagnostics.md) | Cuando un agente, hook o memoria del plugin falla y la causa puede estar en su contexto, memoria o tools, no en el modelo |
+| [Flujos persistentes](references/persistent-workflows.md) | Al crear o cambiar estado que sobrevive a la sesión (cola, marcador, contador, tarea programada) o un bucle con reintentos |
+
 ## Paso 3 — Validación (TDD-ish: la puerta se escribe ANTES de dar por hecha la pieza)
 
 Orden estricto; no se avanza con un paso en rojo:
@@ -120,6 +143,16 @@ Orden estricto; no se avanza con un paso en rojo:
 2-ter. **Tabla de racionalización si la pieza tiene DoD o veredicto:** justo antes de ese bloque,
    con el formato de `agent-kits/shared/rationalization-table.md` (6-8 filas en primera persona,
    acción concreta al cierre, ≤ 25 líneas). Añade la pieza a `tests/test_rationalization_tables.py`.
+2-quater. **Saneado si la pieza viene de otro entorno** (flujo local, proyecto de cliente, skill
+   externa), antes de proponerla. Nada de esto puede quedar en lo versionado:
+   - rutas absolutas o de usuario (`/home/…`, `C:\Users\…`, `~/.<herramienta>/…`) → rutas relativas o
+     la resolución `find` de la regla 5: `grep -nE '/(Users|home)/|(^|[^[:alnum:]])[A-Za-z]:[\\/]|~/\.' <ficheros>`;
+   - tokens, claves y credenciales → `redactar()` de `agent-kits/shared/redact.py` no debe cambiar nada:
+     `python3 -c 'import sys; sys.path.insert(0,"agent-kits/shared"); from redact import redactar; [print(p) for p in sys.argv[1:] if redactar(open(p,encoding="utf-8").read()) != open(p,encoding="utf-8").read()]' <ficheros>` → sin salida;
+   - teléfonos, correos, nombres de persona, de cliente o de empresa → roles genéricos («el PM», «el cliente»);
+   - datos de salud o de finanzas, aunque sean de ejemplo → datos inventados y evidentes;
+   - logs o salidas pegadas de sistemas privados (hosts internos, IDs, trazas) → recórtalos o sustitúyelos;
+   - rutas o `/comandos` del entorno de origen que aquí no existen → los avisos de citas de `lint_plugin.py`.
 3. **Suites del repo** (misma invocación que la CI — las de `tests/` son suites-script, pytest
    NO las recoge):
 
@@ -155,9 +188,13 @@ Orden estricto; no se avanza con un paso en rojo:
 - **Prosa que calcula**: "suma las horas y si supera X…" en un agente → script con test.
 - **Ruta fija a un kit** (`.claude/agent-kits/...`) → se rompe como plugin; usa `find`.
 - **Bloquear por una pieza opcional**: medición sin transcripción, Jira sin token → aviso + seguir.
+- **Debilitar una guardia por coste o latencia** (un deny previo pasa a aviso posterior o asíncrono, se
+  quita un patrón, se baja un umbral) → solo con ADR o aprobación explícita; antes, mide y acelera el script.
 - **Duplicar un fragmento de prompt** en dos agentes "porque es corto" → `agent-kits/shared/`.
 - **`tools: *` o tools de más** en un agente → mínimos reales; el linter y la revisión lo cazan.
 - **Skill sin disparadores** en la description → Claude no sabrá cuándo invocarla; termina
   siempre con "Úsala cuando el usuario diga …".
+- **Líneas que no cambian nada**: cada línea de un agente o skill debe cambiar el comportamiento del
+  agente; si al quitarla hace lo mismo, se borra (ADR-008 aplicado línea a línea).
 - **Hardcodear valores del proyecto consumidor** (tarifas, hosts, rutas) → config en `.claude/`
   del consumidor con default documentado.

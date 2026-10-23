@@ -2,20 +2,18 @@
 """
 roadmap-dashboard - generador
 Escanea docs/roadmap/<fecha>-<slug>/ y produce:
-  - un dashboard HTML autocontenido (--html RUTA)   -> vista local
   - un dashboard en Markdown (--md RUTA)             -> para publicar en Confluence
   - un resumen JSON de todas las iniciativas (--json)
+La presentación HTML de la cartera ya no vive aquí: es del panel (skill plugin-panel).
 Sin dependencias externas (solo stdlib). No modifica los ficheros de roadmap.
 
 Uso:
-  python build_dashboard.py --root docs/roadmap --html docs/roadmap/dashboard.html
   python build_dashboard.py --root docs/roadmap --md   docs/roadmap/dashboard.md
   python build_dashboard.py --root docs/roadmap --json
 """
 import argparse
 import datetime
 import glob
-import html
 import json
 import os
 import re
@@ -29,52 +27,6 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 # ---- estados y colores ------------------------------------------------------
 SPEC_STATES = ["borrador", "aprobada", "implementada", "obsoleta"]
 EVAL_STATES = ["borrador", "en-progreso", "en-revision", "completado", "cancelado"]
-
-COLORS = {
-    # spec
-    "borrador": "#94a3b8", "aprobada": "#22c55e", "implementada": "#0ea5e9",
-    "obsoleta": "#64748b",
-    # eval / plan
-    "en-progreso": "#f59e0b", "en-revision": "#a855f7",
-    "completado": "#22c55e", "cancelado": "#ef4444",
-    # fallback
-    "pendiente": "#64748b", "sin-dato": "#334155",
-}
-PRIO_COLORS = {"Baja": "#22c55e", "Media": "#eab308", "Alta": "#f97316", "Crítica": "#ef4444"}
-
-_DASHBOARD_CSS = """
-:root{color-scheme:dark}
-*{box-sizing:border-box}
-body{margin:0;font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-  background:#0b1120;color:#e2e8f0;padding:28px}
-header{display:flex;flex-wrap:wrap;gap:16px;align-items:baseline;justify-content:space-between;margin-bottom:8px}
-h1{font-size:22px;margin:0}
-.meta{color:#94a3b8;font-size:13px}
-.counters{display:flex;flex-wrap:wrap;gap:14px;margin:18px 0 26px}
-.counter{display:flex;align-items:center;gap:8px;background:#111c33;border:1px solid #1e293b;
-  border-radius:10px;padding:8px 12px}
-.cn{font-size:20px;font-weight:700}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
-.card{background:#111c33;border:1px solid #1e293b;border-radius:14px;padding:16px 18px}
-.card h3{margin:10px 0 2px;font-size:16px}
-.slug{margin:0;color:#64748b;font-size:12px;font-family:ui-monospace,monospace}
-.desc{color:#cbd5e1;font-size:13px;margin:10px 0}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.pill{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;
-  color:#0b1120;background:var(--c);white-space:nowrap}
-.metrics{display:flex;flex-wrap:wrap;gap:8px 16px;margin:14px 0 12px}
-.m{display:flex;flex-direction:column}
-.mk{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b}
-.mv{font-size:14px;font-weight:600}
-.nodata{color:#64748b;font-size:13px;font-style:italic}
-.arts{display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid #1e293b;padding-top:12px}
-.art{font-size:11px;padding:2px 8px;border-radius:6px}
-.art.on{background:#14342b;color:#4ade80}
-.art.off{background:#1e293b;color:#475569;text-decoration:line-through}
-.empty{color:#94a3b8}
-code{background:#1e293b;padding:1px 6px;border-radius:5px;font-size:.9em}
-footer{margin-top:28px;color:#475569;font-size:12px}
-"""
 
 
 def parse_frontmatter(text):
@@ -117,14 +69,69 @@ def _gen_tokens_reales(v, lines, i, indent):
     return (toks or None), (j - 1 if toks else i)
 
 
+# Claves de procedencia y cobertura de `usage-meter.py close` (D-086) con tipo propio.
+_GEN_CONTADORES = ("transcripts_leidos", "transcripts_subagente", "transcripts_con_error")
+_GEN_LISTAS = ("coste_sin_precio",)
+
+
+def _gen_lista(v, lines, i, indent):
+    """Lista inline (`[a, 'b']`, `[]`) o en bloque YAML (`- a`); null → None. Devuelve (valor, i)."""
+    if v.startswith("["):
+        cuerpo = v.strip()[1:].rstrip("]").strip()
+        return [x.strip().strip("'\"") for x in cuerpo.split(",") if x.strip().strip("'\"")], i
+    if v:
+        return None, i  # null, ~ o un escalar: no es una lista declarada
+    items, j = [], i + 1
+    while j < len(lines):
+        hijo = re.match(r"(\s+)-\s*(.*?)\s*(?:#.*)?$", lines[j])
+        if not hijo or len(hijo.group(1)) <= len(indent):
+            break
+        if hijo.group(2).strip("'\""):
+            items.append(hijo.group(2).strip("'\""))
+        j += 1
+    return (items, j - 1) if j > i + 1 else (None, i)
+
+
 def _gen_valor(k, v):
     """Valor de una clave `generacion:` que NO es `tokens_reales`."""
+    if k == "medicion_persistida":
+        return {"true": True, "false": False}.get(v.lower())
     if k in ("eur", "horas_ia", "ratio_usado"):
         # numérico solo si el valor EMPIEZA por número (evita "verificar 2026" → 2026)
         mnum = re.match(r"~?\s*(-?[\d]+(?:[.,]\d+)?)", v)
         return float(mnum.group(1).replace(",", ".")) if mnum else None
+    if k == "revision_medicion":
+        return (int(v) if re.fullmatch(r"[1-9][0-9]{0,18}", v)
+                and int(v) <= 2**63 - 1 else None)
+    if k in _GEN_CONTADORES:
+        return int(v) if re.fullmatch(r"[0-9]{1,18}", v) else None  # null/texto → None, nunca 0
     v = v.strip("'\"")
     return None if v.lower() in ("", "null", "~", "none") else v
+
+
+def _generacion_de_lineas(lines, start):
+    gen = {}
+    i = start + 1
+    while i < len(lines):
+        ln = lines[i]
+        if ln.lstrip().startswith("#"):
+            i += 1
+            continue  # comentario suelto (aunque esté a columna 0) no corta el bloque
+        if ln.strip() and not ln.startswith((" ", "\t")):
+            break  # fin del bloque anidado
+        mm = re.match(r"(\s+)[\"']?([\w_]+)[\"']?\s*:\s*(.*)", ln)
+        if not mm:
+            i += 1
+            continue
+        indent, k, v = mm.group(1), mm.group(2), mm.group(3).split("#", 1)[0].strip()
+        if k == "tokens_reales":
+            gen[k], i = _gen_tokens_reales(v, lines, i, indent)
+        elif k in _GEN_LISTAS:
+            gen[k], i = _gen_lista(v, lines, i, indent)
+        else:
+            gen[k] = _gen_valor(k, v)
+        i += 1
+    return gen or None
 
 
 def parse_generacion(text):
@@ -142,26 +149,7 @@ def parse_generacion(text):
     except StopIteration:
         return None
 
-    gen = {}
-    i = start + 1
-    while i < len(lines):
-        ln = lines[i]
-        if ln.lstrip().startswith("#"):
-            i += 1
-            continue  # comentario suelto (aunque esté a columna 0) no corta el bloque
-        if ln.strip() and not ln.startswith((" ", "\t")):
-            break  # fin del bloque anidado
-        mm = re.match(r"(\s+)[\"']?([\w_]+)[\"']?\s*:\s*(.*)", ln)
-        if not mm:
-            i += 1
-            continue
-        indent, k, v = mm.group(1), mm.group(2), mm.group(3).split("#", 1)[0].strip()
-        if k == "tokens_reales":
-            gen[k], i = _gen_tokens_reales(v, lines, i, indent)
-        else:
-            gen[k] = _gen_valor(k, v)
-        i += 1
-    return gen or None
+    return _generacion_de_lineas(lines, start)
 
 
 def _miles(n):
@@ -459,100 +447,6 @@ def warnings_for(inits):
     return warns
 
 
-# ---- HTML (vista local) -----------------------------------------------------
-def pill(text, color):
-    text = html.escape(str(text))
-    return f'<span class="pill" style="--c:{color}">{text}</span>'
-
-
-
-
-def _render_html_card_chips(r):
-    se = r["spec_estado"] or "sin-dato"
-    ee = r["eval_estado"] or "sin-dato"
-    prio = r["prioridad"]
-    chips = [pill("spec: " + se, COLORS.get(se, COLORS["sin-dato"]))]
-    if r["has_eval"]:
-        chips.append(pill("eval: " + ee, COLORS.get(ee, COLORS["sin-dato"])))
-    if prio:
-        chips.append(pill(prio, PRIO_COLORS.get(prio, "#64748b")))
-    chips.append(pill(r["fase"], "#475569"))
-    return chips
-
-
-def _render_html_card_metrics(r):
-    metrics = []
-    for label, key in [("Coste", "coste"), ("Esfuerzo", "esfuerzo"),
-                        ("Tokens", "tokens"), ("Prod.", "multiplicador"),
-                        ("Carac.", "caracteristicas")]:
-        if r.get(key):
-            metrics.append(
-                f'<div class="m"><span class="mk">{label}</span>'
-                f'<span class="mv">{html.escape(str(r[key]))}</span></div>')
-    return metrics
-
-
-def _render_html_card_arts(r):
-    arts = []
-    for label, flag in [("spec", "has_spec"), ("evaluación", "has_eval"),
-                        ("diseño", "has_design"), ("plan", "has_plan"),
-                        ("tasks", "has_tasks"), ("testing", "has_testing")]:
-        cls = "on" if r[flag] else "off"
-        extra = f" · {html.escape(str(r['design_estado']))}" if flag == "has_design" and r.get("design_estado") else ""
-        arts.append(f'<span class="art {cls}">{label}{extra}</span>')
-    return arts
-
-
-def _render_html_card(r):
-    chips = _render_html_card_chips(r)
-    metrics = _render_html_card_metrics(r)
-    arts = _render_html_card_arts(r)
-    desc = html.escape(r["descripcion"]) if r["descripcion"] else ""
-    return f"""
-      <article class="card">
-        <div class="chips">{''.join(chips)}</div>
-        <h3>{html.escape(r['titulo'])}</h3>
-        <p class="slug">{html.escape(r['slug'])}</p>
-        {f'<p class="desc">{desc}</p>' if desc else ''}
-        <div class="metrics">{''.join(metrics) if metrics else '<span class="nodata">Sin evaluación aún</span>'}</div>
-        <div class="arts">{''.join(arts)}</div>
-      </article>"""
-
-
-def _render_html_counters(inits):
-    by_spec = {}
-    for r in inits:
-        by_spec[r["spec_estado"] or "sin-dato"] = by_spec.get(r["spec_estado"] or "sin-dato", 0) + 1
-    return "".join(
-        f'<div class="counter"><span class="cn">{n}</span>'
-        f'<span class="cl">{pill(st, COLORS.get(st, COLORS["sin-dato"]))}</span></div>'
-        for st, n in sorted(by_spec.items(), key=lambda x: -x[1]))
-
-
-def render_html(inits, root):
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    counters = _render_html_counters(inits)
-    cards = [_render_html_card(r) for r in inits]
-
-    body = "".join(cards) if cards else \
-        '<p class="empty">No hay iniciativas en <code>docs/roadmap/</code> todavía. ' \
-        'Crea una con <code>/pm-cycle &lt;objetivo&gt;</code>.</p>'
-
-    return f"""<!doctype html>
-<html lang="es"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Roadmap · dashboard</title>
-<style>{_DASHBOARD_CSS}</style></head><body>
-<header>
-  <h1>🗺️ Roadmap — estado de iniciativas</h1>
-  <span class="meta">{len(inits)} iniciativa(s) · {html.escape(root)} · generado {now}</span>
-</header>
-<div class="counters">{counters}</div>
-<div class="grid">{body}</div>
-<footer>Generado por la skill <code>roadmap-dashboard</code>. Vuelve a ejecutar
-<code>/roadmap-status</code> para refrescar. No editar a mano.</footer>
-</body></html>"""
-
 
 # ---- Markdown (para Confluence) --------------------------------------------
 def md_cell(val):
@@ -711,71 +605,298 @@ def contar_fuentes(inits):
     return {"estimados": estimados, "medidos": medidos, "otros": otros, "total": total}
 
 
+_IDENTIDAD_GENERACION = ("fuente_id", "ventana_id", "revision_medicion")
+
+
+def _identidad_generacion(g):
+    """Validate comparable local metadata; never authenticate a producer."""
+    source, window, revision = (g.get(key) for key in _IDENTIDAD_GENERACION)
+    if (g.get("fuente") == "medido" and isinstance(g.get("tokens_reales"), dict)
+            and isinstance(source, str) and re.fullmatch(r"src-[0-9a-f]{64}", source)
+            and isinstance(window, str) and re.fullmatch(r"win-[0-9a-f]{32}", window)
+            and type(revision) is int and 1 <= revision <= 2**63 - 1):
+        return source, window, revision
+    return None
+
+
+def _seleccionar_snapshots_generacion(gen):
+    """Keep the latest whole revision per identified source/window, without writes.
+
+    Legacy data has no reliable source/window binding: retain its exact-copy
+    compatibility, without inferring cumulative revisions from similar dates.
+    """
+    selected, groups, warnings = [], {}, []
+    for g in gen.values():
+        if not isinstance(g, dict):
+            warnings.append("bloque de generación no verificable")
+            continue
+        if (g.get("fuente") == "medido" and "medicion_persistida" in g
+                and g["medicion_persistida"] is not True):
+            warnings.append("medición sin persistencia acreditada; ventana sin sumar")
+            continue
+        identity = _identidad_generacion(g)
+        if identity:
+            groups.setdefault(identity[:2], []).append((identity[2], g))
+        elif g.get("fuente") == "medido" and ("medicion_persistida" in g
+                or any(key in g for key in _IDENTIDAD_GENERACION)):
+            warnings.append("identidad de medición incompleta o inválida; ventana sin sumar")
+        else:
+            selected.append(g)
+    metric_fields = ("fuente", "inicio", "fin", "tokens_reales", "horas_ia", "eur",
+                     "ratio_usado", "ratio_origen")
+    for snapshots in groups.values():
+        revision = max(item[0] for item in snapshots)
+        latest = [g for rev, g in snapshots if rev == revision]
+        values = tuple(latest[0].get(key) for key in metric_fields)
+        if any(tuple(g.get(key) for key in metric_fields) != values for g in latest[1:]):
+            warnings.append("revisiones de medición contradictorias; ventana sin sumar")
+        else:
+            selected.append(latest[0])
+    return selected, warnings
+
+
+def _clave_ventana_generacion(g, t):
+    identity = _identidad_generacion(g)
+    if identity:
+        return ("identificada", *identity[:2])
+    clave = None
+    if g.get("fuente") == "medido" and isinstance(t, dict) and g.get("inicio") and g.get("fin"):
+        clave = (g.get("inicio"), g.get("fin"), g.get("horas_ia"),
+                 tuple(sorted(t.items())))
+    return clave
+
+
+def _sumar_generacion(g, t, toks, horas, docs_con_tokens, eur, eur_ok):
+    if isinstance(t, dict):
+        # facturables: entrada + creación de caché + salida (convención usage-meter)
+        toks += (t.get("entrada") or 0) + (t.get("cache_creacion") or 0) + (t.get("salida") or 0)
+        docs_con_tokens += 1
+    horas += g.get("horas_ia") or 0
+    if g.get("eur") is not None:
+        eur += g["eur"]
+    else:
+        eur_ok = False
+    return toks, horas, docs_con_tokens, eur, eur_ok
+
+
 def _proceso_gen_stats(gen):
     """Acumula tokens/horas/€ de un `generacion` dict, deduplicando ventanas compartidas.
     Una MISMA ventana de medición puede estar declarada en dos artefactos (el planner mide
     improvement-plan.md + tasks.md juntos y escribe el mismo bloque en los dos). Se cuenta
-    UNA vez: dedupe por (inicio, fin, tokens). Solo se deduplica una medición REAL idéntica
+    UNA vez: identidad de fuente/ventana y última revisión completa cuando están
+    disponibles; legacy por (inicio, fin, tokens). Solo se deduplica una medición REAL idéntica
     (mismos tokens, misma ventana y mismas horas): los bloques `estimado` comparten fechas
     de referencia pero son estimaciones distintas por artefacto y deben sumarse."""
     toks = horas = docs_con_tokens = 0
     eur = 0.0
     eur_ok = True
     fuentes = set()
-    vistas = set()
-    for g in gen.values():
-        t = g.get("tokens_reales")
-        clave = None
-        if isinstance(t, dict) and g.get("inicio") and g.get("fin"):
-            clave = (g.get("inicio"), g.get("fin"), g.get("horas_ia"),
-                     tuple(sorted(t.items())))
-        duplicada = clave is not None and clave in vistas
-        if clave is not None:
-            vistas.add(clave)
-        fuentes.add(g.get("fuente") or "?")
-        if duplicada:
-            continue  # ventana compartida ya contada
-        if isinstance(t, dict):
-            # facturables: entrada + creación de caché + salida (convención usage-meter)
-            toks += (t.get("entrada") or 0) + (t.get("cache_creacion") or 0) + (t.get("salida") or 0)
-            docs_con_tokens += 1
-        horas += g.get("horas_ia") or 0
-        if g.get("eur") is not None:
-            eur += g["eur"]
-        else:
-            eur_ok = False
-    ventanas = len(vistas) or len(gen)
+    ventanas = 0
+    selected, avisos = _seleccionar_snapshots_generacion(gen)
+    fuentes.update(g.get("fuente") or "?" for g in gen.values() if isinstance(g, dict))
+    fuentes.update(g.get("fuente") or "?" for g in selected)
+    for g in _ventanas_a_sumar(selected):
+        ventanas += 1
+        toks, horas, docs_con_tokens, eur, eur_ok = _sumar_generacion(
+            g, g.get("tokens_reales"), toks, horas, docs_con_tokens, eur, eur_ok)
+    if avisos:
+        eur_ok = False
     return {"toks": toks, "horas": horas, "eur": eur, "eur_ok": eur_ok,
-            "fuentes": fuentes, "ventanas": ventanas, "docs_con_tokens": docs_con_tokens}
+            "fuentes": fuentes, "ventanas": ventanas, "docs_con_tokens": docs_con_tokens,
+            "parcial": bool(avisos), "avisos": avisos}
+
+
+def _ventanas_a_sumar(selected):
+    """Bloques seleccionados SIN las ventanas compartidas ya vistas (se cuentan una vez)."""
+    vistas, out = set(), []
+    for g in selected:
+        clave = _clave_ventana_generacion(g, g.get("tokens_reales"))
+        if clave is not None:
+            if clave in vistas:
+                continue  # ventana compartida ya contada
+            vistas.add(clave)
+        out.append(g)
+    return out
+
+
+# ---- Procedencia y cobertura (D-086): claves planas de `usage-meter.py close` ---------------
+_CLASES_TOKENS = (("transcript_completa", "transcript completa"),
+                  ("transcript_parcial", "transcript parcial"),
+                  ("sin_medida", "sin medida"), ("desconocida", "desconocida"))
+_CLASES_COSTE = (("estimado_completo", "completo"), ("estimado_incompleto", "incompleto"),
+                 ("sin_coste", "sin coste"), ("desconocida", "desconocido"))
+_CONTADORES_TRANSCRIPT = (("leidos", "transcripts_leidos"),
+                          ("subagente", "transcripts_subagente"),
+                          ("con_error", "transcripts_con_error"))
+
+
+def _clase_tokens(g):
+    """Bloque sin las claves (anterior a D-086) o con valores no reconocidos → `desconocida`:
+    NUNCA se presume medido aunque declare `fuente: medido`."""
+    if not isinstance(g, dict):
+        return "desconocida"
+    proc, cob = g.get("tokens_procedencia"), g.get("tokens_cobertura")
+    if proc == "transcript" and cob in ("completa", "parcial"):
+        return "transcript_" + cob
+    return "sin_medida" if proc == "sin_medida" else "desconocida"
+
+
+def _clase_coste(g):
+    if not isinstance(g, dict):
+        return "desconocida"
+    proc, cob = g.get("coste_procedencia"), g.get("coste_cobertura")
+    if proc == "estimado_tarifa" and cob in ("completa", "incompleta"):
+        return "estimado_completo" if cob == "completa" else "estimado_incompleto"
+    return "sin_coste" if proc == "sin_coste" else "desconocida"
+
+
+def _sumar_opcional(acc, v):
+    """Suma que conserva el «sin dato»: None + None = None; nunca un 0 inventado."""
+    if v is None:
+        return acc
+    return v if acc is None else acc + v
+
+
+def _procedencia_vacia():
+    return {"tokens": {k: {"artefactos": 0, "tokens": None} for k, _ in _CLASES_TOKENS},
+            "coste": {k: ({"artefactos": 0, "eur": None, "sin_precio": []}
+                          if k == "estimado_incompleto" else {"artefactos": 0, "eur": None})
+                      for k, _ in _CLASES_COSTE},
+            "transcripts": {k: None for k, _ in _CONTADORES_TRANSCRIPT},
+            "tarifas_verificadas_el": []}
+
+
+def _facturables(t):
+    if not isinstance(t, dict):
+        return None
+    return (t.get("entrada") or 0) + (t.get("cache_creacion") or 0) + (t.get("salida") or 0)
+
+
+def procedencia_generacion(gen):
+    """Reparto por procedencia/cobertura de los bloques `generacion:` de UNA iniciativa.
+
+    `artefactos` cuenta cada bloque (como `contar_fuentes`: cada bloque es una declaración);
+    `tokens`/`eur` suman solo las ventanas que el total de la fila ya suma (sin duplicar una
+    ventana compartida ni sumar una medición excluida), así que los tokens por clase cuadran con
+    el total. Ausente = None (JSON `null`), nunca 0."""
+    p = _procedencia_vacia()
+    bloques = list(gen.values()) if isinstance(gen, dict) else ([gen] if gen else [])
+    sin_precio, tarifas = set(), set()
+    for g in bloques:
+        p["tokens"][_clase_tokens(g)]["artefactos"] += 1
+        clase = _clase_coste(g)
+        p["coste"][clase]["artefactos"] += 1
+        if not isinstance(g, dict):
+            continue
+        if clase == "estimado_incompleto" and isinstance(g.get("coste_sin_precio"), list):
+            sin_precio.update(g["coste_sin_precio"])
+        if g.get("tarifa_verificada_el"):
+            tarifas.add(str(g["tarifa_verificada_el"]))
+    if isinstance(gen, dict):
+        selected, _ = _seleccionar_snapshots_generacion(gen)
+        for g in _ventanas_a_sumar(selected):
+            tok = p["tokens"][_clase_tokens(g)]
+            tok["tokens"] = _sumar_opcional(tok["tokens"], _facturables(g.get("tokens_reales")))
+            cos = p["coste"][_clase_coste(g)]
+            cos["eur"] = _sumar_opcional(cos["eur"], g.get("eur"))
+            for corto, clave in _CONTADORES_TRANSCRIPT:
+                v = g.get(clave)
+                if type(v) is int:
+                    p["transcripts"][corto] = _sumar_opcional(p["transcripts"][corto], v)
+    p["coste"]["estimado_incompleto"]["sin_precio"] = sorted(sin_precio)
+    p["tarifas_verificadas_el"] = sorted(tarifas)
+    return p
+
+
+def procedencia_cartera(inits):
+    """Total de cartera: suma las procedencias por iniciativa conservando los None."""
+    tot = _procedencia_vacia()
+    sin_precio, tarifas = set(), set()
+    for r in inits:
+        p = procedencia_generacion(r.get("generacion"))
+        for eje, campo in (("tokens", "tokens"), ("coste", "eur")):
+            for clase, v in p[eje].items():
+                tot[eje][clase]["artefactos"] += v["artefactos"]
+                tot[eje][clase][campo] = _sumar_opcional(tot[eje][clase][campo], v[campo])
+        for corto, v in p["transcripts"].items():
+            tot["transcripts"][corto] = _sumar_opcional(tot["transcripts"][corto], v)
+        sin_precio.update(p["coste"]["estimado_incompleto"]["sin_precio"])
+        tarifas.update(p["tarifas_verificadas_el"])
+    tot["coste"]["estimado_incompleto"]["sin_precio"] = sorted(sin_precio)
+    tot["tarifas_verificadas_el"] = sorted(tarifas)
+    return tot
+
+
+def _procedencia_celda(p):
+    """Texto corto por iniciativa: cuántos artefactos aportan cada caso (solo los no vacíos)."""
+    tok = [f"{p['tokens'][k]['artefactos']} {txt}" for k, txt in _CLASES_TOKENS
+           if p["tokens"][k]["artefactos"]]
+    eur = []
+    for k, txt in _CLASES_COSTE:
+        v = p["coste"][k]
+        if v["artefactos"]:
+            extra = (f" (sin precio: {', '.join(v['sin_precio'])})"
+                     if k == "estimado_incompleto" and v["sin_precio"] else "")
+            eur.append(f"{v['artefactos']} {txt}{extra}")
+    if not tok and not eur:
+        return "—"
+    return f"tok: {' · '.join(tok) or '—'}; €: {' · '.join(eur) or '—'}"
+
+
+def _n_art(n):
+    return f"{n} artefacto" + ("" if n == 1 else "s")
+
+
+def _procedencia_cartera_md(inits):
+    tot = procedencia_cartera(inits)
+    t, c = tot["tokens"], tot["coste"]
+    if not sum(v["artefactos"] for v in t.values()):
+        return []
+    comp, parc = t["transcript_completa"], t["transcript_parcial"]
+    med_tok = _sumar_opcional(comp["tokens"], parc["tokens"])
+    med_tok_txt = f"{_miles(med_tok)} tok" if med_tok is not None else "—"
+    desc = t["desconocida"]
+    desc_tok = f" ({_miles(desc['tokens'])} tok, nunca contados como medidos)" \
+        if desc["tokens"] is not None else ""
+
+    def eur_txt(v):
+        return f"{v['eur']:.2f} €" if v["eur"] is not None else "—"
+    inc = c["estimado_incompleto"]
+    inc_sp = f" (sin precio: {', '.join(inc['sin_precio'])})" if inc["sin_precio"] else ""
+    return ["", f"> **Procedencia (cartera):** tokens medidos por transcript: {med_tok_txt} en "
+                f"{_n_art(comp['artefactos'] + parc['artefactos'])} (cobertura completa: "
+                f"{comp['artefactos']}, parcial: {parc['artefactos']}) · sin medida: "
+                f"{_n_art(t['sin_medida']['artefactos'])} · procedencia desconocida: "
+                f"{_n_art(desc['artefactos'])}{desc_tok}. Coste estimado por tarifa: completo "
+                f"{eur_txt(c['estimado_completo'])} en {_n_art(c['estimado_completo']['artefactos'])}"
+                f" · incompleto {eur_txt(inc)} en {_n_art(inc['artefactos'])}{inc_sp} · sin coste: "
+                f"{_n_art(c['sin_coste']['artefactos'])} · desconocido: "
+                f"{_n_art(c['desconocida']['artefactos'])}. `eur` = tokens × `precioTokens`, "
+                f"nunca una factura; «sin medida» y «sin coste» no son 0."]
 
 
 def _proceso_fila(r):
     """Fila de la tabla de coste de proceso para una iniciativa. None si no tiene datos."""
     gen = r.get("generacion")
     if not gen:
-        return f"| {md_cell(r['titulo'])} | _sin datos_ | — | — | — |", None
+        return f"| {md_cell(r['titulo'])} | _sin datos_ | — | — | — | — |", None
     s = _proceso_gen_stats(gen)
     fuente = "medido" if s["fuentes"] == {"medido"} else "/".join(sorted(s["fuentes"]))
     eur_cell = f"{s['eur']:.2f} €" if s["eur_ok"] else "⚠️ verificar"
     # sin NINGÚN dato de tokens → '—', no un 0 inventado (regla C-04)
-    compartida = " · ventana compartida" if s["ventanas"] < len(gen) else ""
+    compartida = " · ventana compartida" if not s["parcial"] and s["ventanas"] < len(gen) else ""
     tok_cell = (f"{_miles(s['toks'])} tok ({s['docs_con_tokens']}/{len(gen)} docs con medida, "
                 f"{fuente}{compartida})"
                 if s["docs_con_tokens"] else f"— (sin tokens; {len(gen)} docs, {fuente})")
+    if s["parcial"]:
+        tok_cell += " · datos parciales ⚠️"
     fila = (f"| {md_cell(r['titulo'])} | {tok_cell} "
             f"| {_xhym(s['horas']) if s['horas'] else '—'} | {eur_cell} | "
-            f"{', '.join(sorted(gen))} |")
+            f"{', '.join(sorted(gen))} | {md_cell(_procedencia_celda(procedencia_generacion(gen)))} |")
     return fila, s
 
 
-def render_proceso_md(inits):
-    """Sección 'Coste de proceso': lo que costó PRODUCIR los artefactos del ciclo
-    (spec/eval/plan/tasks), medido por usage-meter (bloque generacion:). Separado
-    del coste de implementación. Sin bloque → 'sin datos' (nunca 0 inventado)."""
-    out = ["## 🧾 Coste de proceso (generación de artefactos)", "",
-           "> Lo que costó **producir** spec / evaluación / plan / tasks "
-           "(tokens reales de `usage-meter`; horas = tokens × ratio calibrado; "
-           "fechas solo contexto). Separado del coste de implementación de arriba.", ""]
+def _totales_de_proceso(inits):
     rows, tot_tok, tot_h, tot_eur, con_datos = [], 0, 0.0, 0.0, 0
     eur_incompleto = False
     for r in inits:
@@ -790,23 +911,11 @@ def render_proceso_md(inits):
             tot_eur += s["eur"]
         else:
             eur_incompleto = True
-    out += ["| Iniciativa | Tokens facturables | Horas-IA | Coste | Artefactos medidos |",
-            "|---|---|---|---|---|"]
-    out += rows
-    if con_datos:
-        if eur_incompleto and not tot_eur:
-            tot_eur_cell = "⚠️ verificar"
-        else:
-            tot_eur_cell = f"{tot_eur:.2f} €" + (" (parcial ⚠️)" if eur_incompleto else "")
-        out.append(f"| **TOTAL ({con_datos} con datos)** | "
-                   f"**{_miles(tot_tok) + ' tok' if tot_tok else '—'}** | "
-                   f"**{_xhym(tot_h) if tot_h else '—'}** | **{tot_eur_cell}** | |")
-    else:
-        out += ["", "_Ninguna iniciativa tiene aún bloque `generacion:` "
-                "(se rellena con usage-meter a partir de la iniciativa coste-generacion)._"]
+    return rows, tot_tok, tot_h, tot_eur, con_datos, eur_incompleto
 
-    # E7: cuántos de estos números son una MEDIDA y cuántos una estimación con formato de medida.
-    # Va después de la tabla, no dentro: es un juicio sobre la tabla entera, no sobre una fila.
+
+def _fuentes_de_proceso(inits):
+    out = []
     f = contar_fuentes(inits)
     if f["total"]:
         resto = (f", {f['otros']} sin `fuente:` reconocible" if f["otros"] else "")
@@ -815,19 +924,93 @@ def render_proceso_md(inits):
                     f"`estimado` es una estimación a juicio con formato de medida: no calibra "
                     f"nada. Las filas de `CALIBRATION.md` marcadas `(estimado)` quedan fuera de "
                     f"la mediana que usa `usage-meter.py`."]
+    return out
+
+
+def render_proceso_md(inits):
+    """Sección 'Coste de proceso': lo que costó PRODUCIR los artefactos del ciclo
+    (spec/eval/plan/tasks), medido por usage-meter (bloque generacion:). Separado
+    del coste de implementación. Sin bloque → 'sin datos' (nunca 0 inventado)."""
+    out = ["## 🧾 Coste de proceso (generación de artefactos)", "",
+           "> Lo que costó **producir** spec / evaluación / plan / tasks "
+           "(tokens reales de `usage-meter`; horas = tokens ÷ ratio calibrado; "
+           "fechas solo contexto). Separado del coste de implementación de arriba.", ""]
+    rows, tot_tok, tot_h, tot_eur, con_datos, eur_incompleto = _totales_de_proceso(inits)
+    avisos = sorted({warning for r in inits for warning in
+                     _proceso_gen_stats(r.get("generacion") or {})["avisos"]})
+    out += ["| Iniciativa | Tokens facturables | Horas-IA | Coste | Artefactos medidos | Procedencia |",
+            "|---|---|---|---|---|---|"]
+    out += rows
+    if con_datos:
+        if eur_incompleto and not tot_eur:
+            tot_eur_cell = "⚠️ verificar"
+        else:
+            tot_eur_cell = f"{tot_eur:.2f} €" + (" (parcial ⚠️)" if eur_incompleto else "")
+        parcial = "; parcial" if avisos else ""
+        out.append(f"| **TOTAL ({con_datos} con datos{parcial})** | "
+                   f"**{_miles(tot_tok) + ' tok' if tot_tok else '—'}** | "
+                   f"**{_xhym(tot_h) if tot_h else '—'}** | **{tot_eur_cell}** | | |")
+    else:
+        out += ["", "_Ninguna iniciativa tiene aún bloque `generacion:` "
+                "(se rellena con usage-meter a partir de la iniciativa coste-generacion)._"]
+
+    # E7: cuántos de estos números son una MEDIDA y cuántos una estimación con formato de medida.
+    # Va después de la tabla, no dentro: es un juicio sobre la tabla entera, no sobre una fila.
+    out += _fuentes_de_proceso(inits)
+    # D-086: tokens medidos vs sin medida vs procedencia desconocida, y coste completo vs incompleto.
+    out += _procedencia_cartera_md(inits)
+    if avisos:
+        out += ["", "> ⚠️ Coste de proceso parcial: " + "; ".join(avisos) + "."]
     return "\n".join(out)
 
 
-def main():
+def _dashboard_parser():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default="docs/roadmap")
-    ap.add_argument("--html", help="ruta de salida del HTML (vista local)")
     ap.add_argument("--md", help="ruta de salida del Markdown (para Confluence)")
     ap.add_argument("--metrics-md", dest="metrics_md",
                     help="ruta de salida del informe real vs estimado (Markdown)")
     ap.add_argument("--json", action="store_true", help="volcar JSON a stdout")
     ap.add_argument("--strict", action="store_true",
                     help="salir con código 1 si hay avisos (para CI)")
+    return ap
+
+
+def _dashboard_archivos(args, inits):
+    if args.md:
+        os.makedirs(os.path.dirname(os.path.abspath(args.md)), exist_ok=True)
+        with open(args.md, "w", encoding="utf-8") as f:
+            f.write(render_markdown(inits, args.root))
+        print(f"[roadmap-dashboard] MD: {len(inits)} iniciativa(s) -> {args.md}")
+    if args.metrics_md:
+        os.makedirs(os.path.dirname(os.path.abspath(args.metrics_md)), exist_ok=True)
+        with open(args.metrics_md, "w", encoding="utf-8") as f:
+            f.write(render_metrics_md(inits, args.root))
+        print(f"[roadmap-dashboard] MÉTRICAS: -> {args.metrics_md}")
+
+
+def vista_json(inits):
+    """Proyección pura de `--json`: añade a cada iniciativa su procedencia y sus contadores.
+
+    No lee disco ni imprime: recibe las iniciativas de `scan()` y las devuelve (la misma lista,
+    enriquecida en sitio). Clave ADITIVA por iniciativa (E7). El `--json` sigue siendo la LISTA de
+    iniciativas que ya consumían `/roadmap-metrics` y `/pm-backlog`: añadir un envoltorio
+    `{"proceso": …}` habría roto a todo consumidor existente, así que el agregado se deriva sumando
+    `estimados` (y está escrito tal cual en la línea del informe de proceso, `--metrics-md`; `--md`
+    es el DASHBOARD y esa línea no sale ahí).
+    """
+    for r in inits:
+        f = contar_fuentes([r])
+        r["estimados"], r["medidos"], r["generacion_total"] = (
+            f["estimados"], f["medidos"], f["total"])
+        r["generacion_otros"] = f["otros"]
+        # D-086 (aditiva): reparto por procedencia/cobertura; ausente = null, nunca 0.
+        r["procedencia"] = procedencia_generacion(r.get("generacion"))
+    return inits
+
+
+def main():
+    ap = _dashboard_parser()
     args = ap.parse_args()
 
     if not os.path.isdir(args.root):
@@ -840,33 +1023,9 @@ def main():
         print(f"[roadmap-dashboard][aviso] {w}", file=sys.stderr)
 
     if args.json:
-        # Clave ADITIVA por iniciativa (E7). El `--json` sigue siendo la LISTA de iniciativas que
-        # ya consumían `/roadmap-metrics` y `/pm-backlog`: añadir un envoltorio `{"proceso": …}`
-        # habría roto a todo consumidor existente, así que el agregado se deriva sumando
-        # `estimados` (y está escrito tal cual en la línea del informe de proceso,
-        # `--metrics-md`; `--md` es el DASHBOARD y esa línea no sale ahí).
-        for r in inits:
-            f = contar_fuentes([r])
-            r["estimados"], r["medidos"], r["generacion_total"] = (
-                f["estimados"], f["medidos"], f["total"])
-            r["generacion_otros"] = f["otros"]
-        print(json.dumps(inits, ensure_ascii=False, indent=2))
-    if args.html:
-        os.makedirs(os.path.dirname(os.path.abspath(args.html)), exist_ok=True)
-        with open(args.html, "w", encoding="utf-8") as f:
-            f.write(render_html(inits, args.root))
-        print(f"[roadmap-dashboard] HTML: {len(inits)} iniciativa(s) -> {args.html}")
-    if args.md:
-        os.makedirs(os.path.dirname(os.path.abspath(args.md)), exist_ok=True)
-        with open(args.md, "w", encoding="utf-8") as f:
-            f.write(render_markdown(inits, args.root))
-        print(f"[roadmap-dashboard] MD: {len(inits)} iniciativa(s) -> {args.md}")
-    if args.metrics_md:
-        os.makedirs(os.path.dirname(os.path.abspath(args.metrics_md)), exist_ok=True)
-        with open(args.metrics_md, "w", encoding="utf-8") as f:
-            f.write(render_metrics_md(inits, args.root))
-        print(f"[roadmap-dashboard] MÉTRICAS: -> {args.metrics_md}")
-    if not any([args.html, args.md, args.metrics_md, args.json]):
+        print(json.dumps(vista_json(inits), ensure_ascii=False, indent=2))
+    _dashboard_archivos(args, inits)
+    if not any([args.md, args.metrics_md, args.json]):
         print(f"[roadmap-dashboard] {len(inits)} iniciativa(s) encontradas")
 
     if args.strict and warns:

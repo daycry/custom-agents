@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-09",
+  "block": 12,
+  "base_commit": "ddb06dcfa4327361acc38de40a5cde7a15d41fe7",
+  "policy": "Preserve effective Git commit verification for exact protected role identities.",
+  "runtimes": [
+    "claude",
+    "codex",
+    "opencode"
+  ],
+  "protected_roles": [
+    "implementer",
+    "architect"
+  ],
+  "source": {
+    "files": 884,
+    "manifest_sha256": "1616654f5bdc5472209a8d4c53ae29efd4aa31da72db505826da81fb977fd0c8",
+    "production_and_test_sha256": {
+      "agent-kits/shared/guardrail-check.py": "58e1db8851f22eb753a31356ebd0e5d447ef2dfa8ff9a7cfb78b9664d06646b1",
+      "agent-kits/shared/test_git_verification.py": "a40df2e006e25ac790a488e5b7e83aa94f91497f1d30a1bffbb7cd999237a381",
+      "agent-kits/shared/native-guardrail.py": "17fcd2ba07097e84287fbb3ffb8d53677dadf5285681e213dd50d35ae2d869e0",
+      "agent-kits/shared/native-roles.json": "96d4db96b92b12b264201820969d0938cfdd83381210effb1b833a5f62be672a",
+      "hooks/run-hook.mjs": "7b05e444a5b441f575f5d3ab49ccc16128534c0f3645ebba782254ef9a3a8fc1",
+      "hooks/runtime-supervisor.py": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+      "hooks/opencode-plugin.js": "edff6dedef30057ab9defc44789587d404a4572c17f1b0b31a08c6925aaf4219",
+      "agents/implementer.md": "4c776373fa249debd2eb29cb0ac8b889bc3fae9008ce5d684682adfdd71e7e09",
+      "interop/codex/agents/custom-agents-implementer.toml": "d7cd1d322f8aa063bbf1fc0d15ef5358e02ee044356240a49f531e3837f56aae",
+      "interop/opencode/agents/custom-agents-implementer.md": "2381ae92cd8c230a609cffb92eac0169a90e3426fa31925c2801b312b8612a28"
+    },
+    "scope": "Public source only; consumer config, ignored knowledge and private fixtures excluded before reading.",
+    "linux_shell_normalization": "Only CRLF to LF; shell bytes equal base Git blobs. Executable archive mode 0755."
+  },
+  "review": {
+    "attempts": 2,
+    "lenses": [
+      "A",
+      "B"
+    ],
+    "conditional_lenses": {
+      "C": false,
+      "D": false
+    },
+    "important_corrected_and_revalidated": 2,
+    "pending": {
+      "Critical": 0,
+      "Important": 0,
+      "Minor": 0
+    },
+    "scope_files": 15,
+    "scope_outside": 0,
+    "scope_warnings": 0
+  },
+  "qa": {
+    "reports": {
+      "windows-python": {
+        "expected": 638,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 0,
+        "gate_exit_code": 0,
+        "report_sha256": "e70144ab65dabcff446985eefe4377bd21784bd160e3591b68c1733b69a8e115"
+      },
+      "windows-node": {
+        "expected": 166,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 0,
+        "gate_exit_code": 0,
+        "report_sha256": "d43e1e931a47008b79ef0c921eba66173bf278474985b834201deada7ee838d7"
+      },
+      "linux-python": {
+        "expected": 638,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 0,
+        "gate_exit_code": 0,
+        "report_sha256": "67dde15a2de237ffa6ad099f66443a946dc06b7a4dbca1a6b248f748534f0cec"
+      },
+      "linux-node": {
+        "expected": 154,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 12,
+        "gate_exit_code": 0,
+        "report_sha256": "7ae800298fa8ca652db0ee691f423f466618d322e16e5c685a8cc04bd38be0fa"
+      }
+    },
+    "diff_coverage": {
+      "method": "Coverage.py official executable statements intersected with added Git diff lines vs ddb06dc; canonical shared module.",
+      "covered": 166,
+      "total": 179,
+      "percent": 92.74,
+      "uncovered_lines": [
+        243,
+        341,
+        342,
+        349,
+        350,
+        353,
+        355,
+        358,
+        375,
+        399,
+        400,
+        408,
+        445
+      ],
+      "source_sha256": "58e1db8851f22eb753a31356ebd0e5d447ef2dfa8ff9a7cfb78b9664d06646b1",
+      "coverage_report_sha256": "eb7a7b1b17b609c63681804c0c013c9817da8a2992e8c649573563bc9862b7ea"
+    },
+    "windows_checks": {
+      "python": 0,
+      "coverage": 0,
+      "node": 0,
+      "lint": 0,
+      "evals": 0,
+      "export": 0
+    },
+    "linux": {
+      "image_id": "sha256:ee6b1d8543257a61226665c0c2168c3b565885c8af50b846f2d46b19aa0630ac",
+      "network": "none",
+      "init": true
+    }
+  },
+  "new_policy_transport": {
+    "real_launcher_cases": 18,
+    "decision_inputs_executed": false,
+    "fixture": "Owned isolated unborn Git repositories; real evaluator and native output.",
+    "new_host_cli_acceptance": false
+  },
+  "git_semantics": {
+    "version": "2.53.0.windows.2",
+    "fixture": "Owned synthetic repository, isolated global/system config, rejecting pre-commit marker.",
+    "verification_bypass_and_restoration_confirmed": true,
+    "workspace_commits_for_tests": false
+  },
+  "limits": [
+    "Literal invocation grammar only; no variable expansion, aliases, substitutions or arbitrary scripts.",
+    "PowerShell tool metadata supported; PowerShell assignments and scripts outside literal grammar.",
+    "Existing shell recursion depth and project opt-out preserved.",
+    "Prior native host acceptance is not extrapolated to the new policy. Global roadmap tasks remain open."
+  ]
+}

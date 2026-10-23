@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "resources": [
+    {
+      "id": "R-dbe89d282313",
+      "sha256": "8d0caa8380eba2f2550937553c9c8c8f253c627cff662f0c333e6ad982706e3e",
+      "line_count": 206,
+      "read_ranges": [
+        [
+          1,
+          206
+        ]
+      ],
+      "body_fully_read": true
+    },
+    {
+      "id": "R-977a20b4bd1a",
+      "sha256": "7c5869ed155e88a1bf78f760b983d958e913f2594752bd9c5f78134e32eaf1df",
+      "line_count": 45,
+      "read_ranges": [
+        [
+          1,
+          45
+        ]
+      ],
+      "body_fully_read": true
+    },
+    {
+      "id": "R-c132a4a3032f",
+      "sha256": "26c0618591cbf6aac5cebf1b9555dc364ba87ad8213876a886318712b0324359",
+      "line_count": 237,
+      "read_ranges": [
+        [
+          1,
+          237
+        ]
+      ],
+      "body_fully_read": true
+    },
+    {
+      "id": "R-5b405c303a19",
+      "sha256": "12c0d16b99910bbaff7d462f4fab6865e92426fc2b179f577bb920011ead7d32",
+      "line_count": 269,
+      "read_ranges": [
+        [
+          1,
+          269
+        ]
+      ],
+      "body_fully_read": true
+    },
+    {
+      "id": "R-d6c09c287a66",
+      "sha256": "0ee9356f9305eb8ceec671753700a0a7a438c76dca9983ed87c66be0b5681b64",
+      "line_count": 198,
+      "read_ranges": [
+        [
+          1,
+          198
+        ]
+      ],
+      "body_fully_read": true
+    },
+    {
+      "id": "R-6102e84932bd",
+      "sha256": "084f18c30eedfb5db016443771ec48da11c9465f0575f25f308a0a89b15b5702",
+      "line_count": 265,
+      "read_ranges": [
+        [
+          1,
+          265
+        ]
+      ],
+      "body_fully_read": true
+    },
+    {
+      "id": "R-5cfa1fa3014f",
+      "sha256": "e3bb945047cd5bd0a43479e5d3f0fad6c06e59a6504b6bb5321cba11ec1040d1",
+      "line_count": 406,
+      "read_ranges": [
+        [
+          1,
+          406
+        ]
+      ],
+      "body_fully_read": true
+    },
+    {
+      "id": "R-eb6ff08db625",
+      "sha256": "a617d3a0fb0f18b9e7a2257c70e6e585a75615598c087d2d217efbfe63fa59c3",
+      "line_count": 765,
+      "read_ranges": [
+        [
+          1,
+          765
+        ]
+      ],
+      "body_fully_read": true
+    },
+    {
+      "id": "R-90614daade3c",
+      "sha256": "73ee795cb6ce3960b3ac38c1bfdf1cef9f0ace8f412a4673280503ac60451d93",
+      "line_count": 628,
+      "read_ranges": [
+        [
+          1,
+          628
+        ]
+      ],
+      "body_fully_read": true
+    },
+    {
+      "id": "R-8e6430a821a0",
+      "sha256": "bb68dda565690e3830c93c64fb502dc4dc1ecf036c0cfdbd6d38d78022b58d72",
+      "line_count": 299,
+      "read_ranges": [
+        [
+          1,
+          299
+        ]
+      ],
+      "body_fully_read": true
+    },
+    {
+      "id": "R-aad1fe03e214",
+      "sha256": "3efcc93c9c631876f824e61f97945a8260fba9ad7ea14baffee3de0781b74bcb",
+      "line_count": 57,
+      "read_ranges": [
+        [
+          1,
+          57
+        ]
+      ],
+      "body_fully_read": true
+    },
+    {
+      "id": "R-3b81d9d5b3ff",
+      "sha256": "953683e8c2a7057ac93ae1bc00979665360529431a08d004ba87876dcfee983e",
+      "line_count": 140,
+      "read_ranges": [
+        [
+          1,
+          140
+        ]
+      ],
+      "body_fully_read": true
+    },
+    {
+      "id": "R-7ae45ad102ea",
+      "sha256": "d658518a714b2834340704ca0d7eeb383fe1f061a00e66f001f58915a3de7c19",
+      "line_count": 551,
+      "read_ranges": [
+        [
+          1,
+          551
+        ]
+      ],
+      "body_fully_read": true
+    },
+    {
+      "id": "R-abef87c0372a",
+      "sha256": "286405dbe0dc77315fc45605df467d5bbdd2c193708897f41ac15d03ff5e01ad",
+      "line_count": 120,
+      "read_ranges": [
+        [
+          1,
+          120
+        ]
+      ],
+      "body_fully_read": true
+    }
+  ],
+  "selected_runtime_direct_dependencies_complete": true,
+  "reference_executed": false,
+  "consumer_data_access": false,
+  "global_command_fiches_closed": 0,
+  "new_skills_added": 0,
+  "broader_callers_complete": false,
+  "human_ui_accepted": false
+}

@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_agent_ids": [
+    "A044",
+    "A045",
+    "A046"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "A044",
+      "sha256": "3b302c2d4b080509a1f290e74412eb8076bec9aa42438e74c52fe519f8ff0242",
+      "bytes": 7385,
+      "lines": 207,
+      "read_ranges": [
+        [
+          1,
+          207
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A045",
+      "sha256": "996f528ac789b3c19ded6bf7c25217a3e9e7c1e6d320a4f9d69f17252815cb16",
+      "bytes": 7940,
+      "lines": 258,
+      "read_ranges": [
+        [
+          1,
+          258
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A046",
+      "sha256": "cee1d6cf26759c085fe090ca5ac92d37c5dbeceef0f1b00434369a6e812da371",
+      "bytes": 7153,
+      "lines": 197,
+      "read_ranges": [
+        [
+          1,
+          197
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "skills/cybersecurity/references/agent-prompts.md",
+      "sha256": "013d6a0b14c32d25880ac2e4d2b65875ab34768407a9abcd6d56044412fcbe30"
+    },
+    {
+      "path": "agent-kits/shared/redact.py",
+      "sha256": "4e9131368fd2471dcb2e3a2e91f6b0dc00555354487b6308194be05e4c4d5907"
+    },
+    {
+      "path": "scripts/export-skills.py",
+      "sha256": "ca179e182d0e2c3110f2e7e8ae862a04af8e3ab27c79d860dc9548b7c0eb9353"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "eaae2178c159e6f5aa49261152c3e238a3d55b9e4b139a7f85967efd3bcc144d"
+    },
+    {
+      "path": "agents/documenter.md",
+      "sha256": "6305ad471be234d3862c9ed1cd95d9776e1cc8d087a3f87d0b5d92872ed33244"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "177faf0fa29c068fa7c9b821ced26141004066482be3b2e153548aef9788e671"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-orch-opensource-approval.md",
+      "sha256": "3b38d46065a1d8d78d62e8a6f3f65a135f2001f71ebc52c213d38b1c62987965"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-destinations.md",
+      "sha256": "ef595ccb3b92157ba3df5fe2b0823db6dd2df51a47f803a8d59591b461b02e7e"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

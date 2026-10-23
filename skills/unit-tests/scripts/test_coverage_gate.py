@@ -7,6 +7,7 @@ fixtures de los 4 formatos de informe; repo git temporal para `--changed-only`."
 import importlib.util
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -156,7 +157,7 @@ def _runner_que_escribe(d, rel, contenido):
     write(d, "_runner.py", "import pathlib,sys\n"
          f"pathlib.Path({rel!r}).parent.mkdir(parents=True, exist_ok=True)\n"
          f"pathlib.Path({rel!r}).write_text({contenido!r}, encoding='utf-8')\n")
-    return f"{sys.executable} {script}"
+    return shlex.join([sys.executable, script])
 
 
 def test_min_0_siempre_aprueba():
@@ -193,6 +194,21 @@ def test_sin_stack_exit_2():
     write(d, "README.md", "nada de manifiestos aquí\n")
     code, data, _ = run(d, ".")
     assert code == 2 and "no se detectó ningún stack" in data["aviso"]
+
+
+def test_build_conocido_sin_soporte_lo_nombra_en_vez_de_pedir_manifiestos():
+    """Un proyecto Gradle/Maven/Cargo SÍ tiene manifiesto: decirle «¿faltan sus ficheros de
+    manifiesto?» le manda a buscar un error que no existe. Se nombra el build y su herramienta."""
+    casos = {"build.gradle.kts": ("gradle", "Kover"), "pom.xml": ("maven", "JaCoCo"),
+             "Cargo.toml": ("cargo", "cargo-llvm-cov")}
+    for fichero, (build, herramienta) in casos.items():
+        d = tempfile.mkdtemp(prefix="cg-")
+        write(d, fichero, "\n")
+        code, data, _ = run(d, ".")
+        assert code == 2 and data["stack"] is None
+        assert data["buildSinSoporte"] == build
+        assert fichero in data["aviso"] and herramienta in data["aviso"]
+        assert "faltan sus ficheros" not in data["aviso"]
 
 
 def test_changed_only_filtra_por_diff_en_repo_git_temporal():
@@ -258,7 +274,7 @@ def test_ruta_inexistente_exit_2():
 def test_runner_que_no_deja_fichero_exit_2():
     d = tempfile.mkdtemp(prefix="cg-")
     write(d, "pyproject.toml", "[project]\nname='x'\n")
-    code, data, _ = run(d, ".", "--runner", f"{sys.executable} -c \"pass\"")
+    code, data, _ = run(d, ".", "--runner", shlex.join([sys.executable, "-c", "pass"]))
     assert code == 2 and "no se generó" in data["aviso"]
 
 

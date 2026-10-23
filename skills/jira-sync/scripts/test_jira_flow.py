@@ -1115,6 +1115,7 @@ def test_repetir_el_mismo_evento_no_publica_dos_veces(ledger):
     primero = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
                          "--task", "T-01", "--issue", "PROJ-59")
     assert len(primero["ops"]) == 3 and primero["yaRealizado"] is False
+    assert _confirmar(ledger, primero["claveIdempotencia"])[0] == 0
     segundo = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
                          "--task", "T-01", "--issue", "PROJ-59")
     assert segundo["ops"] == [] and segundo["yaRealizado"] is True
@@ -1131,6 +1132,116 @@ def test_force_repite_el_evento_a_proposito(ledger):
     forzado = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
                          "--task", "T-01", "--issue", "PROJ-59", "--force")
     assert len(forzado["ops"]) == 3 and forzado["yaRealizado"] is False
+
+
+def test_force_sobre_un_pendiente_conserva_el_aviso_de_reconciliar(ledger):
+    """Un plan `pendiente` pudo llegar a Jira aunque nadie lo confirmara. `--force` salta la
+    idempotencia, pero NO la duda: sin el aviso de buscar la referencia en el issue, forzar un
+    pendiente cuyo comentario sí llegó publica un duplicado a ciegas."""
+    primero = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
+                         "--task", "T-01", "--issue", "PROJ-59")
+    clave = primero["claveIdempotencia"]
+    forzado = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
+                         "--task", "T-01", "--issue", "PROJ-59", "--force")
+    assert len(forzado["ops"]) == 3
+    assert forzado["reintento"] is True
+    assert any("no se confirmó" in a and clave in a for a in forzado["avisos"])
+
+
+def test_force_sobre_un_publicado_avisa_de_que_sera_un_segundo_comentario(ledger):
+    """`--force` sobre un evento con recibo es una decisión explícita de publicar OTRA vez; el plan
+    lo dice con la fecha y el id del comentario ya publicado, para que no se confunda con un
+    reintento de un envío fallido."""
+    plan = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
+                      "--task", "T-01", "--issue", "PROJ-59")
+    assert _confirmar(ledger, plan["claveIdempotencia"], "--comentario-id", "10042")[0] == 0
+    forzado = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
+                         "--task", "T-01", "--issue", "PROJ-59", "--force")
+    assert len(forzado["ops"]) == 3 and forzado["reintento"] is False
+    assert any("ya publicado" in a and "10042" in a and "segundo comentario" in a
+               for a in forzado["avisos"]), forzado["avisos"]
+
+
+def test_pendiente_que_si_llego_se_reconcilia_con_confirmar_sin_republicar(ledger):
+    """Camino de reconciliación completo: el reintento trae la referencia; si el comentario ya está
+    en el issue, solo se confirma, y el evento queda publicado sin un segundo envío."""
+    primero = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
+                         "--task", "T-01", "--issue", "PROJ-59")
+    clave = primero["claveIdempotencia"]
+    reintento = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
+                           "--task", "T-01", "--issue", "PROJ-59")
+    assert reintento["reintento"] is True and reintento["confirmar"][-1] == clave
+    assert _confirmar(ledger, clave, "--comentario-id", "10077")[0] == 0
+    despues = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
+                         "--task", "T-01", "--issue", "PROJ-59")
+    assert despues["ops"] == [] and despues["yaRealizado"] is True
+
+
+def test_confirmar_con_estado_corrupto_es_error_y_no_lo_sobrescribe(ledger, tmp_path):
+    """Confirmar sobre un estado ilegible no puede reescribirlo desde cero: se perderían el
+    manifiesto (`T-XX → issueKey`) y los demás recibos."""
+    state = tmp_path / "jira-state.json"
+    state.write_text("{esto no es json", encoding="utf-8")
+    code, out, err = _confirmar(ledger, "PROJ-59|implementado|T-01|-", "--state", str(state))
+    assert code == 2
+    assert "corrupto" in out + err
+    assert state.read_text(encoding="utf-8") == "{esto no es json"
+
+
+def _confirmar(ledger, clave, *extra):
+    cwd = os.path.dirname(os.path.abspath(ledger))
+    r = subprocess.run([sys.executable, SCRIPT, "confirmar", "--ledger", ledger, "--clave", clave,
+                        "--json", *extra], capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", cwd=cwd)
+    return r.returncode, r.stdout, r.stderr
+
+
+def test_un_plan_sin_confirmar_no_se_da_por_publicado(ledger):
+    """El plan se anotaba como publicado AL GENERARSE: si la llamada a Jira fallaba, el evento
+    quedaba como hecho y solo `--force` lo reintentaba (y `--force` duplica si sí había llegado).
+    Ahora el plan queda `pendiente` y el reintento vuelve a traer las ops con la referencia que
+    permite comprobar en Jira si el comentario ya está."""
+    primero = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
+                         "--task", "T-01", "--issue", "PROJ-59")
+    clave = primero["claveIdempotencia"]
+    comentario = next(o for o in primero["ops"] if o["tipo"] == "comentario")
+    assert clave in comentario["cuerpo"], "el comentario lleva su referencia para poder buscarlo"
+    reintento = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
+                           "--task", "T-01", "--issue", "PROJ-59")
+    assert len(reintento["ops"]) == 3 and reintento["yaRealizado"] is False
+    assert reintento["reintento"] is True
+    assert any("no se confirmó" in a and clave in a for a in reintento["avisos"])
+
+
+def test_confirmar_cierra_el_evento_con_recibo(ledger):
+    plan = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
+                      "--task", "T-01", "--issue", "PROJ-59")
+    code, out, err = _confirmar(ledger, plan["claveIdempotencia"], "--comentario-id", "10042")
+    assert code == 0, err
+    recibo = json.loads(out)
+    assert recibo["estado"] == "publicado" and recibo["comentarioId"] == "10042"
+    state = json.load(open(os.path.join(os.path.dirname(ledger), ".claude", "jira-state.json"),
+                           encoding="utf-8"))
+    assert state["flow"][plan["claveIdempotencia"]]["comentarioId"] == "10042"
+    segundo = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
+                         "--task", "T-01", "--issue", "PROJ-59")
+    assert segundo["ops"] == [] and segundo["yaRealizado"] is True
+
+
+def test_confirmar_una_clave_que_no_se_planifico_es_error_de_uso(ledger):
+    code, out, err = _confirmar(ledger, "PROJ-59|implementado|T-01|-")
+    assert code == 2
+    assert "no hay ningún plan" in out + err
+
+
+def test_estado_antiguo_sin_campo_estado_sigue_contando_como_publicado(ledger):
+    """Compatibilidad: las entradas `flow` escritas antes del recibo solo tienen `fecha`."""
+    p = os.path.join(os.path.dirname(ledger), ".claude", "jira-state.json")
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump({"flow": {"PROJ-59|implementado|T-01|-": {"fecha": "2026-09-01"}}}, f)
+    plan = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
+                      "--task", "T-01", "--issue", "PROJ-59")
+    assert plan["ops"] == [] and plan["yaRealizado"] is True
 
 
 def test_estado_corrupto_degrada_con_aviso_sin_bloquear(ledger, tmp_path):

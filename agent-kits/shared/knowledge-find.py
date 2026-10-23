@@ -12,8 +12,16 @@ Sustituye «lee el índice de 3.685 tokens y decide» por «pregunta y recibe» 
   2. --related → grafo CURADO de una entrada (sucesión · misma iniciativa · misma área). NO cronología.
   3. --show    → la entrada completa.
 
-Corpus (fuente de verdad, en git): `<root>/docs/knowledge/{adr,gotchas,lessons}/*.md` más el índice
+Corpus local: `<root>/docs/knowledge/{adr,gotchas,lessons}/*.md` más el índice
 `docs/knowledge/README.md` — que aporta el `Área` y el titular de los ADR (su frontmatter no los lleva).
+También lee `docs/knowledge/approved/` según la taxonomía local compartida: únicamente entradas
+válidas con estado `aprobado`, IDs completos, evidencia y versiones canónicas. Un corpus approved
+inválido degrada al legado con diagnóstico; candidates nunca se consultan. No promueve entradas.
+DECISION/GOTCHA/PATTERN/LESSON se asignan por category a adr/gotcha/gotcha/leccion; categorías
+propias conservan category y usan su etiqueta normalizada en `--tipo`, independientemente del folder.
+`aprobado` comparte prioridad con `aceptada`. Related añade enlaces declarados sin inferir sucesión.
+JSON conserva version del conocimiento; show mantiene envelope version:1 y añade knowledge_version.
+La recuperación local no carga servicios; solo `--intent` permite el backend explícitamente opt-in.
 `<root>` = `--root` → `$CLAUDE_PROJECT_DIR` → directorio actual.
 
 Área y tipo se casan NORMALIZADOS (minúsculas, sin acentos, por token con prefijo), no por cadena
@@ -111,6 +119,8 @@ import os
 import re
 import sqlite3
 import sys
+import math
+import time
 import unicodedata
 from collections import Counter
 
@@ -118,68 +128,6 @@ from collections import Counter
 for _s in (sys.stdin, sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
-
-# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
-# Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
-# falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
-# controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
-# ( / , que muchos visores rompen como salto de linea) y los controles bidi
-# (‪-‮ RLO/LRO..., ⁦-⁩ isolates), con los que un texto hostil del servidor
-# puede reordenar lo que el humano lee sin cambiar un solo byte del resto.
-_CONTROL_O_ANSI_RE = re.compile(
-    r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f-\x9f  ‪-‮⁦-⁩]")
-_SANEADO_TOPE_CHARS = 200
-
-
-def _sanear_detalle(texto):
-    """Recorta a 200 caracteres y sustituye caracteres de control (incluidas las secuencias ANSI
-    `ESC[...`, los C1, los separadores Unicode y los controles bidi) por un espacio; ver
-    comentario arriba para el porque de cada regla."""
-    saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
-    return saneado[:_SANEADO_TOPE_CHARS]
-# --8<-- fin sanear_detalle (funcion)
-
-
-# --8<-- group_id por defecto COMPARTIDO (memoria de grafo, T-07-fix1) — REPLICADO LITERAL en agent-kits/shared/knowledge-schema.py y agent-kits/shared/knowledge-find.py
-# Gap #97 (Critical, fix1 Fase 3): la derivacion del `group_id` por defecto (el slug Unicode del
-# directorio del proyecto) la aplicaba SOLO el validador al cargar la taxonomia, asi que el router
-# de `knowledge-find.py` -que NO carga el validador, para que ningun hook alcance codigo con
-# capacidad de red- servia al adaptador la config CRUDA; con la plantilla de fabrica (que no trae
-# `group_id`) el backend cortaba con «sin group_id» y la consulta devolvia 0 en la configuracion
-# NOMINAL. La regla vive aqui, una sola vez, y sin un solo import de red.
-_SLUG_UNICODE_SEP_RE = re.compile(r"[\W_]+", re.UNICODE)
-
-
-def _slug_unicode(nombre):
-    """Slug consciente de Unicode (NFKC + minusculas + separador de restos no alfanumericos),
-    para `group_id` (T-01-fix2 gap #23). A diferencia de un slug solo ASCII, conserva
-    letras/digitos no latinos (acentos, CJK, cirilico...) en vez de descartarlos todos y caer a
-    cadena vacia. Sin fallback fijo a proposito: ver `_group_id_por_defecto`."""
-    if not nombre:
-        return ""
-    normalizado = unicodedata.normalize("NFKC", nombre).lower()
-    return _SLUG_UNICODE_SEP_RE.sub("-", normalizado).strip("-")
-
-
-def _group_id_por_defecto(root):
-    """Slug Unicode del directorio del proyecto (`root=None` -> cwd real), o `""` si el nombre no
-    aporta ningun caracter alfanumerico. SIN fallback fijo: dos instalaciones con nombres "raros"
-    no pueden acabar compartiendo grupo remoto (fusionaria su memoria)."""
-    return _slug_unicode(os.path.basename(os.path.abspath(root if root is not None else ".")))
-
-
-def _config_con_group_id(cfg, root):
-    """Config EFECTIVA de un backend: la declarada MAS el `group_id` derivado si no lo trae (o lo
-    trae vacio). Nunca pisa un `group_id` explicito."""
-    efectiva = dict(cfg or {})
-    declarado = efectiva.get("group_id")
-    if not (isinstance(declarado, str) and declarado.strip()):
-        derivado = _group_id_por_defecto(root)
-        if derivado:
-            efectiva["group_id"] = derivado
-    return efectiva
-# --8<-- fin group_id por defecto COMPARTIDO
-
 
 VERSION_JSON = 1
 LINEA_MAX = 120            # ≤ 30 tokens por acierto (spec CA-02)
@@ -189,7 +137,7 @@ TITULAR_MIN_DURO = 12      # con la ruta abreviada, el área cede antes de bajar
 CARPETAS = (("adr", "adr"), ("gotchas", "gotcha"), ("lessons", "leccion"))   # carpeta → tipo
 TIPO_DE_PREFIJO = {"ADR": "adr", "GOT": "gotcha", "LES": "leccion"}
 TIPO_ORDEN = {"adr": 0, "gotcha": 1, "leccion": 2}
-ESTADO_ORDEN = {"aceptada": 0, "propuesta": 1, "obsoleta": 2}
+ESTADO_ORDEN = {"aceptada": 0, "aprobado": 0, "propuesta": 1, "obsoleta": 2}
 SINONIMOS_TIPO = {
     "adr": "adr", "adrs": "adr",
     "gotcha": "gotcha", "gotchas": "gotcha", "got": "gotcha",
@@ -255,9 +203,71 @@ PESO_CUERPO = 1
 CUERPO_REPETIDO = 3            # apariciones en el cuerpo a partir de las cuales suma un PESO_CUERPO más
 BONUS_TODAS_EN_CAMPOS = 3      # todas las raíces de la consulta casan en ID/titular/área
 INDICE_NOMBRE = "knowledge-index.sqlite"   # en <root>/.claude/ (+ .gitignore)
-INDICE_VERSION = "1"                        # entra en el hash: cambiar el esquema invalida el índice
+INDICE_VERSION = "5"                        # quoted scalar identity changes parsed relations; old caches rebuild
 CAMPOS = ("id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "ruta_corta", "iniciativa",
-          "fecha", "sucesores", "sustituye", "texto")
+          "fecha", "sucesores", "sustituye", "texto", "version", "evidencia", "enlaces", "category")
+
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
+# Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
+# falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
+# controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
+# ( / , que muchos visores rompen como salto de linea) y los controles bidi
+# (‪-‮ RLO/LRO..., ⁦-⁩ isolates), con los que un texto hostil del servidor
+# puede reordenar lo que el humano lee sin cambiar un solo byte del resto.
+_CONTROL_O_ANSI_RE = re.compile(
+    r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f-\x9f  ‪-‮⁦-⁩]")
+_SANEADO_TOPE_CHARS = 200
+
+
+def _sanear_detalle(texto):
+    """Recorta a 200 caracteres y sustituye caracteres de control (incluidas las secuencias ANSI
+    `ESC[...`, los C1, los separadores Unicode y los controles bidi) por un espacio; ver
+    comentario arriba para el porque de cada regla."""
+    saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
+    return saneado[:_SANEADO_TOPE_CHARS]
+# --8<-- fin sanear_detalle (funcion)
+
+
+# --8<-- group_id por defecto COMPARTIDO (memoria de grafo, T-07-fix1) — REPLICADO LITERAL en agent-kits/shared/knowledge-schema.py y agent-kits/shared/knowledge-find.py
+# Gap #97 (Critical, fix1 Fase 3): la derivacion del `group_id` por defecto (el slug Unicode del
+# directorio del proyecto) la aplicaba SOLO el validador al cargar la taxonomia, asi que el router
+# de `knowledge-find.py` -que NO carga el validador, para que ningun hook alcance codigo con
+# capacidad de red- servia al adaptador la config CRUDA; con la plantilla de fabrica (que no trae
+# `group_id`) el backend cortaba con «sin group_id» y la consulta devolvia 0 en la configuracion
+# NOMINAL. La regla vive aqui, una sola vez, y sin un solo import de red.
+_SLUG_UNICODE_SEP_RE = re.compile(r"[\W_]+", re.UNICODE)
+
+
+def _slug_unicode(nombre):
+    """Slug consciente de Unicode (NFKC + minusculas + separador de restos no alfanumericos),
+    para `group_id` (T-01-fix2 gap #23). A diferencia de un slug solo ASCII, conserva
+    letras/digitos no latinos (acentos, CJK, cirilico...) en vez de descartarlos todos y caer a
+    cadena vacia. Sin fallback fijo a proposito: ver `_group_id_por_defecto`."""
+    if not nombre:
+        return ""
+    normalizado = unicodedata.normalize("NFKC", nombre).lower()
+    return _SLUG_UNICODE_SEP_RE.sub("-", normalizado).strip("-")
+
+
+def _group_id_por_defecto(root):
+    """Slug Unicode del directorio del proyecto (`root=None` -> cwd real), o `""` si el nombre no
+    aporta ningun caracter alfanumerico. SIN fallback fijo: dos instalaciones con nombres "raros"
+    no pueden acabar compartiendo grupo remoto (fusionaria su memoria)."""
+    return _slug_unicode(os.path.basename(os.path.abspath(root if root is not None else ".")))
+
+
+def _config_con_group_id(cfg, root):
+    """Config EFECTIVA de un backend: la declarada MAS el `group_id` derivado si no lo trae (o lo
+    trae vacio). Nunca pisa un `group_id` explicito."""
+    efectiva = dict(cfg or {})
+    declarado = efectiva.get("group_id")
+    if not (isinstance(declarado, str) and declarado.strip()):
+        derivado = _group_id_por_defecto(root)
+        if derivado:
+            efectiva["group_id"] = derivado
+    return efectiva
+# --8<-- fin group_id por defecto COMPARTIDO
+
 
 # ------------------------------------------------------------------ normalización
 
@@ -289,7 +299,31 @@ def estado_corto(estado):
 
 # ------------------------------------------------------------------ lectura del corpus
 
-def frontmatter(text):
+def _frontmatter_value(value):
+    """Preserve a flat quoted scalar and remove comments only outside quotes."""
+    value = value.strip()
+    quote, leading = None, True
+    backslashes = 0
+    for i, char in enumerate(value):
+        # Backslashes are literal in single quotes; only double quotes use escapes.
+        if char in ("'", '"') and (char == "'" or backslashes % 2 == 0):
+            if quote == char:
+                quote = None
+            elif quote is None and leading:
+                quote = char
+        if quote is None and char == "#" and (i == 0 or value[i - 1].isspace()):
+            value = value[:i].rstrip()
+            break
+        if quote is None and char in "[,":
+            leading = True
+        elif not char.isspace():
+            leading = False
+        backslashes = backslashes + 1 if char == "\\" else 0
+    quoted = len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"')
+    return (value[1:-1] if quoted else value), quoted
+
+
+def frontmatter(text, declarations=None):
     """{clave: valor} del frontmatter YAML plano + cuerpo. Nunca lanza; sin frontmatter → ({}, text)."""
     if not text.startswith("---"):
         return {}, text
@@ -302,10 +336,15 @@ def frontmatter(text):
             continue
         if raw[0] not in " \t" and ":" in raw:
             key, val = raw.split(":", 1)
-            key, val = key.strip(), val.split(" #", 1)[0].strip() if not val.strip().startswith("#") else ""
-            out[key] = val.strip("\"'")
+            key = key.strip()
+            val, quoted = _frontmatter_value(val)
+            out[key] = val
+            if declarations is not None:
+                declarations[key] = {"literal": val} if quoted else val
         elif key and raw[0] in " \t":
             out[key] = (out.get(key, "") + " " + raw.strip()).strip()
+            if declarations is not None:
+                declarations[key] = out[key]
     cuerpo = text[end + 4:]
     return out, cuerpo[cuerpo.find("\n") + 1:] if "\n" in cuerpo else ""
 
@@ -408,8 +447,86 @@ def iniciativa_de(fm, fila):
     return ""
 
 
+_RELATION_ID_RE = re.compile(
+    r"(?<![\w./\\:-])((?:[\w-]+\.)*(?:ADR|GOT|LES)-\d{3}(?:[.-][\w-]+)*)"
+    r"(?![\w/\\:-]|\.[\w./\\-])", re.IGNORECASE)
+
+
 def _ids_en(texto):
-    return [f"{a}-{b}" for a, b in ID_RE.findall(texto or "")]
+    """Keep complete declared IDs; route-like tokens never become short aliases."""
+    return [match.group(1) for match in _RELATION_ID_RE.finditer(texto or "")]
+
+
+
+def _relation_values(value, preserve_kind=False):
+    """Parse explicit scalar/inline/block relation declarations, preserving labels.
+
+    A declared identity is a label, never a filesystem path. Quoted comma/dash
+    characters do not split a label; prose scanning belongs to legacy states.
+    """
+    if isinstance(value, dict):
+        literal = value["literal"]
+        return [value if preserve_kind else literal] if literal else []
+    literal = value or ""
+    value = literal.strip()
+    if not value:
+        return []
+    inline = value.startswith("[") and value.endswith("]")
+    block = value.startswith("- ")
+    if not inline and not block:
+        return [literal]
+    value = value[1:-1] if inline else value
+    out, part, quote = [], [], None
+    leading = True
+    backslashes = 0
+    i = 0
+    def emit():
+        nonlocal leading
+        piece = "".join(part).strip()
+        quoted = len(piece) >= 2 and piece[0] == piece[-1] and piece[0] in ("'", '"')
+        if quoted:
+            piece = piece[1:-1]
+        if piece:
+            out.append({"literal": piece} if quoted and preserve_kind else piece)
+        part.clear()
+        leading = True
+    while i < len(value):
+        char = value[i]
+        if char in ("'", '"') and (char == "'" or backslashes % 2 == 0):
+            if quote == char: quote = None
+            elif quote is None and leading: quote = char
+        separator = quote is None and (
+            (inline and char == ",") or
+            (block and value[i:i+2] == "- " and (i == 0 or value[i-1].isspace())))
+        if separator:
+            emit()
+            backslashes = 0
+            i += 2 if block else 1
+            continue
+        part.append(char)
+        if not char.isspace(): leading = False
+        backslashes = backslashes + 1 if char == "\\" else 0
+        i += 1
+    emit()
+    return out
+
+
+def _declared_relation_ids(values, known_ids=None):
+    """Preserve complete declared labels, with explicit old annotation compatibility."""
+    known_ids = known_ids or set()
+    out = []
+    for value in values:
+        for declaration in _relation_values(value, preserve_kind=True):
+            literal = isinstance(declaration, dict)
+            label = declaration["literal"] if literal else declaration
+            if label.casefold() in known_ids:
+                out.append(label)
+            elif not literal and re.fullmatch(r"(?:ADR|GOT|LES)-\d{3}\s+\([^)]*\)", label, re.IGNORECASE):
+                # Only the historical short-ID annotation form is interpreted as prose.
+                out.append(label.split()[0])
+            else:
+                out.append(label)
+    return out
 
 
 _PREFIJO_TAG_AREA = "area:"
@@ -443,19 +560,34 @@ def _area_de_tags(tags):
 
 def leer_entrada(carpeta, tipo, fichero, text, filas_por_ruta):
     ruta_rel = f"{carpeta}/{fichero}"
-    fm, cuerpo = frontmatter(text)
+    declarations = {}
+    fm, cuerpo = frontmatter(text, declarations)
     fila = filas_por_ruta.get(ruta_rel, {})
     m = ID_RE.search(fm.get("id", "")) or ID_RE.search(fichero)
-    id_ = f"{m.group(1)}-{m.group(2)}" if m else fichero[:-3]
+    id_ = fm.get("id") or (f"{m.group(1)}-{m.group(2)}" if m else fichero[:-3])
     estado_detalle = (fm.get("estado") or fila.get("estado") or "").strip()
     titular = fila.get("titular_indice") or fm.get("titulo") or _titular_del_cuerpo(cuerpo) or fichero[:-3]
-    sucesores = _ids_en(" ".join(fm.get(k, "") for k in ("sucesor", "sustituida_por", "sustituida-por",
-                                                             "reemplazada_por", "sucesora")))
+    relation_fields = {
+        "sucesores": [declarations.get(k, "") for k in ("sucesor", "sustituida_por", "sustituida-por", "reemplazada_por", "sucesora")],
+        "sustituye": [declarations.get(k, "") for k in ("sustituye", "sustituye_a", "reemplaza", "predecesora")],
+    }
+    sucesores = _declared_relation_ids(relation_fields["sucesores"])
     if estado_corto(estado_detalle) == "obsoleta":
         sucesores += [i for i in _ids_en(estado_detalle) if i != id_ and i not in sucesores]
-    sustituye = _ids_en(" ".join(fm.get(k, "") for k in ("sustituye", "sustituye_a", "reemplaza", "predecesora")))
+    sustituye = _declared_relation_ids(relation_fields["sustituye"])
+    version = None
+    version_invalid = False
+    if "version" in fm:
+        try:
+            version = int(fm["version"])
+            if version <= 0:
+                version, version_invalid = None, True
+        except (TypeError, ValueError): version_invalid = True
     return {
         "id": id_,
+        "version": version, "_legacy_version_invalid": version_invalid,
+        "_relation_fields": relation_fields,
+        "evidencia": fm.get("evidencia"), "category": fm.get("category"),
         "tipo": tipo,
         "estado": estado_corto(estado_detalle),
         "estado_detalle": estado_detalle,
@@ -472,32 +604,43 @@ def leer_entrada(carpeta, tipo, fichero, text, filas_por_ruta):
     }
 
 
+class CorpusFiles(list):
+    """Source tuples with bounded-read provenance; remains list compatible."""
+    def __init__(self, values=(), corpus_read=None):
+        super().__init__(values)
+        self.corpus_read = corpus_read or {"complete": False, "issues": ["reader_unavailable"], "budget": {"files": 0, "bytes": 0, "entries": 0}}
+
+
 def ficheros_corpus(root):
-    """[(ruta relativa a docs/knowledge, bytes)] del corpus en orden fijo: README.md primero y luego
-    `adr/`, `gotchas/`, `lessons/` por nombre. [] si no hay `docs/knowledge/`. Ficheros ilegibles se saltan."""
-    base = os.path.join(root, "docs", "knowledge")
-    if not os.path.isdir(base):
-        return []
-    out = []
-    readme = os.path.join(base, "README.md")
-    if os.path.isfile(readme):
-        try:
-            with open(readme, "rb") as f:
-                out.append(("README.md", f.read()))
-        except OSError:
-            pass
-    for carpeta, _tipo in CARPETAS:
-        d = os.path.join(base, carpeta)
-        if not os.path.isdir(d):
-            continue
-        for fn in sorted(os.listdir(d)):
-            if fn.endswith(".md") and fn.lower() != "readme.md":
-                try:
-                    with open(os.path.join(d, fn), "rb") as f:
-                        out.append((f"{carpeta}/{fn}", f.read()))
-                except OSError:
-                    continue
-    return out
+    """Common bounded canonical snapshot, without opening caches or services."""
+    try:
+        reader = _cargar_modulo(os.path.join(HERE, "knowledge-view.py"), "kf_view")
+        snap = reader.snapshot(root)
+        if not snap["corpus_read"]["complete"]:
+            print("knowledge-find: lectura parcial del corpus local (legacy/approved/taxonomy)", file=sys.stderr)
+        return CorpusFiles(snap["files"], snap["corpus_read"])
+    except Exception:
+        print("knowledge-find: lector local no disponible", file=sys.stderr)
+        return CorpusFiles()
+
+
+def _entrada_approved(root_rel, meta):
+    """Normalize canonical metadata without shortening namespaced IDs or states."""
+    fm = meta["frontmatter"]
+    category = fm["category"]
+    tipo = {"DECISION": "adr", "GOTCHA": "gotcha", "PATTERN": "gotcha",
+            "LESSON": "leccion"}.get(category, normaliza(category))
+    tags = "- " + " - ".join(meta.get("tags") or [])
+    return {
+        "id": fm["id"], "tipo": tipo, "category": category, "version": meta["version"],
+        "estado": fm["estado"], "estado_detalle": fm["estado"],
+        "evidencia": meta.get("evidencia"), "enlaces": meta["enlaces"],
+        "area": fm.get("area") or _area_de_tags(tags),
+        "titular": fm.get("titulo") or _titular_del_cuerpo(meta["cuerpo"]),
+        "ruta": "docs/knowledge/" + root_rel, "ruta_corta": root_rel,
+        "iniciativa": iniciativa_de(fm, {}), "fecha": fm.get("fecha") or "",
+        "sucesores": [], "sustituye": [], "texto": meta["texto"], "origen": "proyecto",
+    }
 
 
 def hash_corpus(ficheros):
@@ -519,12 +662,30 @@ def parsear_corpus(ficheros):
         if rel == "README.md":
             for fila in parse_indice(_texto(data)):
                 filas_por_ruta[fila["ruta_rel"]] = fila
+    approved = {}
+    for rel, data in ficheros:
+        if rel == "__approved_meta__.json":
+            approved = json.loads(_texto(data))["entries"]
+    approved_by_path = {meta["ruta_rel"]: meta for meta in approved.values()}
     out = []
     for rel, data in ficheros:
         if rel == "README.md" or "/" not in rel:
             continue
         carpeta, fn = rel.split("/", 1)
-        out.append(leer_entrada(carpeta, tipo_de[carpeta], fn, _texto(data), filas_por_ruta))
+        if carpeta == "approved":
+            out.append(_entrada_approved(rel, approved_by_path[rel]))
+        else:
+            out.append(leer_entrada(carpeta, tipo_de[carpeta], fn, _texto(data), filas_por_ruta))
+    known_ids = {entry["id"].casefold() for entry in out}
+    for entry in out:
+        fields = entry.get("_relation_fields")
+        if fields is None: continue
+        entry["sucesores"] = _declared_relation_ids(fields["sucesores"], known_ids)
+        entry["sustituye"] = _declared_relation_ids(fields["sustituye"], known_ids)
+        if entry["estado"] == "obsoleta":
+            entry["sucesores"] += [identifier for identifier in _ids_en(entry["estado_detalle"])
+                                    if identifier.casefold() != entry["id"].casefold()
+                                    and identifier not in entry["sucesores"]]
     return out
 
 
@@ -616,6 +777,9 @@ def _fila_a_entrada(row):
     e = dict(zip(CAMPOS, row))
     e["sucesores"] = json.loads(e["sucesores"] or "[]")
     e["sustituye"] = json.loads(e["sustituye"] or "[]")
+    e["enlaces"] = json.loads(e["enlaces"] or "[]")
+    if e["version"] is not None:
+        e["version"] = int(e["version"])
     return e
 
 
@@ -651,7 +815,7 @@ def construir_indice(path, entradas, h):
             con.executemany("INSERT INTO meta VALUES (?, ?)", [("hash", h), ("version", INDICE_VERSION)])
             con.executemany(
                 f"INSERT INTO entradas(orden, {', '.join(CAMPOS)}) VALUES ({', '.join('?' * (len(CAMPOS) + 1))})",
-                [(n,) + tuple(json.dumps(e[c], ensure_ascii=False) if c in ("sucesores", "sustituye") else e[c]
+                [(n,) + tuple(json.dumps(e.get(c, []), ensure_ascii=False) if c in ("sucesores", "sustituye", "enlaces") else e.get(c)
                               for c in CAMPOS) for n, e in enumerate(entradas)])
             con.executemany("INSERT INTO fts(id, titular, area, texto) VALUES (?, ?, ?, ?)",
                             [(e["id"], e["titular"], e["area"], e["texto"]) for e in entradas])
@@ -669,23 +833,36 @@ def construir_indice(path, entradas, h):
 def abrir_corpus(root, usar_indice=True):
     """(entradas, ruta_del_indice_o_None, {"indice": …[, "indice_motivo": …]}). Nunca lanza."""
     ficheros = ficheros_corpus(root)
+    read_info = {"corpus_read": ficheros.corpus_read}
+    parsed = parsear_corpus(ficheros)
+    if any(e.get("_legacy_version_invalid") for e in parsed):
+        read_info["corpus_read"]["complete"] = False
+        read_info["corpus_read"]["issues"].append("version_invalid")
+        print("knowledge-find: version no valida en corpus legado", file=sys.stderr)
+    identities = Counter(e["id"].casefold() for e in parsed)
+    if any(count > 1 for count in identities.values()):
+        read_info["corpus_read"]["complete"] = False
+        read_info["corpus_read"]["issues"].append("identity_collision")
+        print("knowledge-find: identidad ambigua en corpus local", file=sys.stderr)
+    if not ficheros.corpus_read["complete"]:
+        return parsed, None, dict(read_info, indice="degradado", indice_motivo="lectura parcial del corpus")
     if not ficheros:
-        return [], None, {"indice": "degradado", "indice_motivo": "sin docs/knowledge/"}
+        return [], None, dict(read_info, indice="degradado", indice_motivo="sin docs/knowledge/")
     if not usar_indice:
-        return parsear_corpus(ficheros), None, {"indice": "degradado", "indice_motivo": "--no-index"}
+        return parsed, None, dict(read_info, indice="degradado", indice_motivo="--no-index")
     try:
         if not fts5_disponible():
-            return parsear_corpus(ficheros), None, {"indice": "degradado", "indice_motivo": "sqlite3 sin FTS5"}
+            return parsed, None, dict(read_info, indice="degradado", indice_motivo="sqlite3 sin FTS5")
         path = ruta_indice(root)
         h = hash_corpus(ficheros)
         entradas, estado = leer_indice(path, h)
         if entradas is not None:
-            return entradas, path, {"indice": estado}
-        entradas = parsear_corpus(ficheros)
+            return entradas, path, dict(read_info, indice=estado)
+        entradas = parsed
         construir_indice(path, entradas, h)
-        return entradas, path, {"indice": estado}
+        return entradas, path, dict(read_info, indice=estado)
     except Exception as e:  # noqa: BLE001 — el índice nunca bloquea ni cambia el exit code
-        return parsear_corpus(ficheros), None, {"indice": "degradado", "indice_motivo": f"{type(e).__name__}: {e}"}
+        return parsed, None, dict(read_info, indice="degradado", indice_motivo="indice no disponible")
 
 
 def candidatos_fts(path, toks):
@@ -816,7 +993,7 @@ def buscar_enrutado(entradas, contexto="", tipo_tarea="", iniciativa="", tipo=""
     tipo_n = tipo_normalizado(tipo) if tipo else None
     out = []
     for e in entradas:
-        if tipo and (tipo_n is None or e["tipo"] != tipo_n):
+        if tipo and e["tipo"] != (tipo_n or (normaliza(tipo) if e.get("category") else None)):
             continue
         p = puntuacion_enrutado(e, claves, iniciativa)
         if p > 0:
@@ -840,7 +1017,7 @@ def buscar(entradas, texto="", area="", tipo="", limit=LIMIT_DEFAULT, candidatos
     for e in entradas:
         if candidatos is not None and toks and e["id"] not in candidatos:
             continue
-        if tipo and (tipo_n is None or e["tipo"] != tipo_n):
+        if tipo and e["tipo"] != (tipo_n or (normaliza(tipo) if e.get("category") else None)):
             continue
         if area_toks and not filtra_area(e, area_toks):
             continue
@@ -876,26 +1053,30 @@ def linea_compacta(e, ancho=LINEA_MAX):
     # el LLM del grafo a partir de lo ingerido), y esta linea va a stdout y al contexto del
     # agente: se sanea SIEMPRE (controles/ANSI/bidi/C1 + tope) antes de componerla.
     id_, estado = _sanear_detalle(e["id"]), _sanear_detalle(e["estado"] or "?")
+    prefijo = ()
+    if e.get("contenido_derivado") is True:
+        prefijo = ("derivado sin autoridad",)
+        estado = "fuente " + estado
     area = re.sub(r"\s+", " ", _sanear_detalle(e.get("area") or "—")).strip()
     titular = re.sub(r"\s+", " ", _sanear_detalle(e.get("titular") or "—")).strip()
     ruta = _sanear_detalle(e.get("ruta_corta") or e.get("ruta") or "")
     carpeta = ruta.split("/", 1)[0] if "/" in ruta else ""
 
     def compone(a, t, r):
-        return SEP.join((id_, estado, a, t, r))
+        return SEP.join(prefijo + (id_, estado, a, t, r))
 
     if len(compone(area, titular, ruta)) <= ancho:
         return compone(area, titular, ruta)
-    fijo = len(SEP.join((id_, estado, area, "", ruta)))
+    fijo = len(compone(area, "", ruta))
     if ancho - fijo >= TITULAR_MIN:
         return compone(area, recorta(titular, ancho - fijo), ruta)
     ruta = f"{carpeta}/{id_}-…" if carpeta else f"{id_}-…"
-    fijo = len(SEP.join((id_, estado, area, "", ruta)))
+    fijo = len(compone(area, "", ruta))
     if ancho - fijo >= TITULAR_MIN_DURO:
         return compone(area, recorta(titular, ancho - fijo), ruta)
-    base = len(SEP.join((id_, estado, "", "", ruta)))
+    base = len(compone("", "", ruta))
     area = recorta(area, max(6, ancho - base - TITULAR_MIN_DURO))
-    fijo = len(SEP.join((id_, estado, area, "", ruta)))
+    fijo = len(compone(area, "", ruta))
     return compone(area, recorta(titular, max(1, ancho - fijo)), ruta)[:ancho]
 
 
@@ -910,6 +1091,14 @@ def acierto_json(e):
     # renombrada — los consumidores del corpus local ven exactamente el mismo objeto que antes.
     if e.get("evidencia"):
         salida["evidencia"] = e["evidencia"]
+    if e.get("version") is not None:
+        salida["version"] = e["version"]
+    if e.get("category"):
+        salida["category"] = e["category"]
+    if e.get("contenido_derivado") is True:
+        salida.update(CONTENIDO_DERIVADO)
+        if e.get("uuid"):
+            salida["uuid"] = e["uuid"]
     return salida
 
 
@@ -923,8 +1112,8 @@ def resolver_root(arg_root):
 # ------------------------------------------------------------------ capa 2: grafo curado
 
 def buscar_id(entradas, id_):
-    id_n = (id_ or "").strip().upper()
-    return next((e for e in entradas if e["id"].upper() == id_n), None)
+    id_n = (id_ or "").casefold()
+    return next((e for e in entradas if e["id"].casefold() == id_n), None)
 
 
 def _area_significativa(area):
@@ -935,23 +1124,26 @@ def _relaciones_sucesion(entradas, e):
     """`sustituida por` (sucesores declarados en `e` o quien declara `sustituye: e`) y `sustituye a`
     (lo que `e` declara sustituir, o quien declara a `e` como su `sucesor`). `entrada` es None si el
     ID no está en el corpus."""
-    por_id = {x["id"]: x for x in entradas}
+    identities = Counter(x["id"].casefold() for x in entradas)
+    por_id = {x["id"].casefold(): x for x in entradas if identities[x["id"].casefold()] == 1}
     suc, vistos = [], set()
 
     def add(rel, id_):
-        if (rel, id_) in vistos or id_ == e["id"]:
+        normalized = id_.casefold()
+        if (rel, normalized) in vistos or normalized == e["id"].casefold():
             return
-        vistos.add((rel, id_))
-        suc.append((rel, por_id.get(id_), id_))
+        vistos.add((rel, normalized))
+        target = por_id.get(normalized)
+        suc.append((rel, target, target["id"] if target is not None else id_))
 
     for id_ in e["sucesores"]:
         add("sustituida por", id_)
     for id_ in e["sustituye"]:
         add("sustituye a", id_)
     for x in entradas:
-        if e["id"] in x["sustituye"]:
+        if e["id"].casefold() in {identifier.casefold() for identifier in x["sustituye"]}:
             add("sustituida por", x["id"])
-        if e["id"] in x["sucesores"]:
+        if e["id"].casefold() in {identifier.casefold() for identifier in x["sucesores"]}:
             add("sustituye a", x["id"])
     suc.sort(key=lambda t: (0 if t[0] == "sustituida por" else 1, _numero(t[2]), t[2]))
     return suc
@@ -981,11 +1173,15 @@ def _relaciones_area(entradas, e):
 
 def relaciones(entradas, e):
     """Las tres relaciones CURADAS de `e` (nunca cronología): sucesión, iniciativa, área."""
-    return {
+    result = {
         "sucesion": _relaciones_sucesion(entradas, e),
         "iniciativa": _relaciones_iniciativa(entradas, e),
         "area": _relaciones_area(entradas, e),
     }
+    if e.get("category"):
+        linked = set(e.get("enlaces") or [])
+        result["enlaces"] = sorted((x for x in entradas if x["id"] in linked), key=clave_orden)
+    return result
 
 
 def _linea_sucesion(rel, x, id_):
@@ -1006,6 +1202,8 @@ def texto_related(e, rel):
         (f"Misma área ({e['area']}):" if e["area"] else "Misma área (sin área):",
          [linea_compacta(x) for x in rel["area"]], e["area"]),
     ]
+    if "enlaces" in rel:
+        grupos.append(("Enlaces declarados:", [linea_compacta(x) for x in rel["enlaces"]], None))
     visibles = [min(len(ls), RELATED_MAX_POR_GRUPO) for _t, ls, _a in grupos]
 
     def render():
@@ -1036,6 +1234,8 @@ def json_related(e, rel, indice):
         "iniciativa": {"clave": e["iniciativa"], "aciertos": [acierto_json(x) for x in rel["iniciativa"]]},
         "area": {"clave": e["area"], "aciertos": [acierto_json(x) for x in rel["area"]]},
     }}
+    if "enlaces" in rel:
+        data["relaciones"]["enlaces"] = {"aciertos": [acierto_json(x) for x in rel["enlaces"]]}
     if indice.get("indice_motivo"):
         data["indice_motivo"] = indice["indice_motivo"]
     return data
@@ -1075,31 +1275,43 @@ def _cargar_modulo(ruta, nombre):
 
 
 def taxonomia(root):
-    """`(config, motivo_o_None)` leída de `<root>/.claude/knowledge-services/taxonomy.json` con
-    `json` y nada más. NUNCA lanza: sin fichero, con JSON roto o con una forma inesperada devuelve
-    `(None, motivo)` y la consulta se atiende en local.
+    """Read bounded, duplicate-free JSON through the shared local descriptor reader.
 
-    Decisión del implementer (T-07, el plan no lo fijaba): aquí NO se carga `knowledge-schema.py`
-    para validar la taxonomía, aunque sea el validador canónico. Este script lo invoca el hook
-    `SessionStart` (`session-context.sh`) y el invariante del plan es que ningún hook alcance
-    código con capacidad de red; `knowledge-schema.py` importa `urllib` (solo para PARSEAR URLs,
-    pero el guardarraíl estático de `tests/test_knowledge_services.py` sigue las invocaciones de
-    forma transitiva y no distingue el submódulo de parseo de `urllib` del de peticiones, con la allowlist vacía a
-    propósito). El router no necesita validar: exige `enabled: true`, `type` y
-    `router.intents.<intent> is True` — una taxonomía inválida no enruta, no enruta mal. La
-    validación completa (y la derivación de `group_id`) siguen donde estaban: `knowledge-sync.py`,
-    `capabilities.py` y `/doctor`; un backend sin `group_id` declarado no lee (su adaptador lo
-    rechaza) y se degrada a local con motivo."""
-    ruta = os.path.join(root or ".", ".claude", "knowledge-services", "taxonomy.json")
-    if not os.path.isfile(ruta):
-        return None, f"no hay `{os.path.join('.claude', 'knowledge-services', 'taxonomy.json')}`"
+    Policy errors return fixed reasons and keep the query local. This loader imports
+    only the standard-library file reader, so local views and SessionStart cannot
+    reach a network-capable adapter. Documentary reads have separate strict policy
+    and complete-corpus checks; historical adapters retain their group gate.
+    """
     try:
-        with open(ruta, encoding="utf-8") as f:
-            config = json.load(f)
-    except (OSError, ValueError) as e:
-        return None, f"no se pudo leer `{ruta}`: {type(e).__name__}: {e}"
+        reader = _cargar_modulo(os.path.join(HERE, "local-read.py"), "kf_policy_read")
+        observed = reader.read_text(root or ".", ".claude/knowledge-services/taxonomy.json", max_bytes=256 * 1024)
+        if observed.get("status") != "ok":
+            return None, "taxonomia_no_disponible"
+        text = observed["text"]
+        depth, quoted, escaped = 0, False, False
+        for char in text:
+            if quoted:
+                if escaped: escaped = False
+                elif char == "\\": escaped = True
+                elif char == '"': quoted = False
+            elif char == '"': quoted = True
+            elif char in "[{":
+                depth += 1
+                if depth > 64: raise ValueError("json_depth")
+            elif char in "]}": depth -= 1
+        def pairs(items):
+            result = {}
+            for key, value in items:
+                if key in result: raise ValueError("duplicate_key")
+                result[key] = value
+            return result
+        def nonfinite(_value):
+            raise ValueError("nonfinite_json")
+        config = json.loads(text, object_pairs_hook=pairs, parse_constant=nonfinite)
+    except Exception:  # noqa: BLE001 — optional policy never exposes raw file/error text
+        return None, "taxonomia_json_invalido"
     if not isinstance(config, dict):
-        return None, f"`{ruta}` no es un objeto JSON"
+        return None, "taxonomia_json_invalido"
     return config, None
 
 
@@ -1124,19 +1336,47 @@ def backends_para_intent(config, intent):
     return elegidos
 
 
-def acierto_remoto(bruto, backend_id):
+CONTENIDO_DERIVADO = {"contenido_derivado": True, "autoridad": "ninguna",
+                      "verificacion": "no_verificada", "citas_por_afirmacion": False}
+
+
+def acierto_remoto(bruto, backend_id, identidad_completa=False):
     """Normaliza un acierto servido por un backend al mismo diccionario que usa el corpus local
     (para que `linea_compacta`/`acierto_json` no distingan el origen), o `None` si le falta alguna
     de las `CLAVES_ACIERTO_REMOTO`."""
     if not isinstance(bruto, dict):
         return None
+    derivado = bool(set(bruto) & CONTENIDO_DERIVADO.keys())
+    if derivado:
+        if (bruto.get("contenido_derivado") is not True or bruto.get("autoridad") != "ninguna"
+                or bruto.get("verificacion") != "no_verificada" or bruto.get("citas_por_afirmacion") is not False):
+            return None
+        try:
+            redact = _cargar_modulo(os.path.join(HERE, "redact.py"), "kf_derived_identity_redact").redactar
+            _identidad_generada(bruto.get("id"), 512, redact)
+            _identidad_generada(bruto.get("ruta"), 4096, redact)
+        except (ValueError, TypeError):
+            return None
+        identidad_completa = True
+        uid = bruto.get("uuid")
+        if uid is not None and (not isinstance(uid, str) or not 0 < len(uid) <= 200
+                                or _sanear_detalle(uid) != uid):
+            return None
+    version = bruto.get("version")
+    if version is not None:
+        if isinstance(version, bool) or not isinstance(version, (int, str)):
+            return None
+        if isinstance(version, int) and version < 1:
+            return None
+        if isinstance(version, str) and (not version.strip() or _sanear_detalle(version) != version):
+            return None
     for clave in CLAVES_ACIERTO_REMOTO:
         valor = bruto.get(clave)
         if not isinstance(valor, str) or not valor.strip():
             return None
     # Gap #98: `_sanear_detalle` en CADA campo de origen backend (tope + sin controles/ANSI/bidi):
     # el adaptador ya sanea, pero el nucleo no puede fiarse de que TODO adaptador lo haga.
-    return {
+    result = {
         "id": _sanear_detalle(bruto["id"]).strip(),
         "tipo": _sanear_detalle(bruto.get("tipo") or bruto.get("categoria") or "").strip(),
         "estado": _sanear_detalle(bruto["estado"]).strip(),
@@ -1150,6 +1390,16 @@ def acierto_remoto(bruto, backend_id):
         "fecha": _sanear_detalle(bruto.get("fecha") or "").strip(),
         "origen": f"backend:{backend_id}",
     }
+    if bruto.get("version") is not None:
+        result["version"] = bruto["version"]
+    if identidad_completa:
+        # Generated bindings cannot survive shortening an ID or canonical path.
+        result["id"], result["ruta"] = bruto["id"], bruto["ruta"]
+    if derivado:
+        result.update(CONTENIDO_DERIVADO)
+        if bruto.get("uuid"):
+            result["uuid"] = bruto["uuid"]
+    return result
 
 
 def filtrar_remotos(aciertos, tipo="", area=""):
@@ -1171,7 +1421,7 @@ def filtrar_remotos(aciertos, tipo="", area=""):
     return out
 
 
-def _aciertos_del_backend(respuesta, backend_id, limit, tipo="", area=""):
+def _aciertos_del_backend(respuesta, backend_id, limit, tipo="", area="", identidad_completa=False):
     """`(aciertos, descartados, filtrados)` a partir de lo que devuelve `consultar` del adaptador
     (una lista de aciertos, o un dict con la clave `aciertos`), ya post-filtrados por `tipo`/`area`
     (gap #104). `limit` 0 = sin tope (el adaptador ya trae el suyo).
@@ -1185,7 +1435,7 @@ def _aciertos_del_backend(respuesta, backend_id, limit, tipo="", area=""):
         brutos = []
     aciertos, descartados = [], 0
     for bruto in brutos:
-        normalizado = acierto_remoto(bruto, backend_id)
+        normalizado = acierto_remoto(bruto, backend_id, identidad_completa=identidad_completa)
         if normalizado is None:
             descartados += 1
         else:
@@ -1198,6 +1448,167 @@ def _aciertos_del_backend(respuesta, backend_id, limit, tipo="", area=""):
     return aciertos, descartados, filtrados
 
 
+class _GeneratedInvalid(ValueError):
+    pass
+
+
+def _config_privada(value, depth=0):
+    if depth > 64:
+        return True
+    if isinstance(value, dict):
+        return any(not isinstance(key, str) or key.startswith("_") or
+                   _config_privada(item, depth + 1) for key, item in value.items())
+    if isinstance(value, list):
+        return any(_config_privada(item, depth + 1) for item in value)
+    return False
+
+
+def _generado_seguro(text, redact):
+    if not isinstance(text, str):
+        raise _GeneratedInvalid()
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+    text = "".join(char for char in text if (char in "\n\t" or ord(char) >= 32) and
+                   not 127 <= ord(char) <= 159 and char not in
+                   "\u061c\u200e\u200f\u2028\u2029\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069")
+    return redact(text).strip()
+
+
+def _identidad_generada(value, cap, redact):
+    if (not isinstance(value, str) or not value or len(value) > cap or
+            _generado_seguro(value, redact) != value):
+        raise _GeneratedInvalid()
+    return value
+
+
+def _version_generada(value):
+    if type(value) is int and 0 < value <= 10 ** 18:
+        return value
+    if isinstance(value, str) and re.fullmatch(r"[1-9][0-9]{0,18}", value):
+        return int(value)
+    raise _GeneratedInvalid()
+
+
+def _normalizar_respuesta_generada(respuesta, cfg, context=None):
+    """Generic bounded output, with exact identities and no normative authority."""
+    value = respuesta.get("respuesta_generada")
+    expected = {"texto", "verificacion", "autoridad", "citas_por_afirmacion", "source_nodes", "generation_consistency"}
+    if (not isinstance(value, dict) or set(value) != expected or value.get("verificacion") != "no_verificada" or
+            value.get("autoridad") != "ninguna" or value.get("citas_por_afirmacion") is not False or
+            value.get("generation_consistency") != "observed_stable_not_atomic"):
+        raise _GeneratedInvalid()
+    redact = _cargar_modulo(os.path.join(HERE, "redact.py"), "kf_generated_redact").redactar
+    read = cfg.get("read") if isinstance(cfg.get("read"), dict) else {}
+    limits = {}
+    for key, default, cap in (("max_answer_chars", 4096, 65536), ("max_source_nodes", 64, 1024),
+                              ("max_response_bytes", 262144, 2097152)):
+        bound = read.get(key, default)
+        if type(bound) is not int or not 0 < bound <= cap: raise _GeneratedInvalid()
+        limits[key] = bound
+    if not isinstance(value.get("texto"), str) or len(value["texto"]) > limits["max_answer_chars"]:
+        raise _GeneratedInvalid()
+    text = _generado_seguro(value["texto"], redact)
+    if not text or len(text) > limits["max_answer_chars"]: raise _GeneratedInvalid()
+    raw_hits = respuesta.get("aciertos")
+    if not isinstance(raw_hits, list) or not raw_hits or len(raw_hits) > 2048:
+        raise _GeneratedInvalid()
+    hit_map = {}
+    for hit in raw_hits:
+        if not isinstance(hit, dict) or hit.get("estado") != "aprobado": raise _GeneratedInvalid()
+        id_ = _identidad_generada(hit.get("id"), 512, redact)
+        if id_ in hit_map: raise _GeneratedInvalid()
+        _identidad_generada(hit.get("ruta"), 4096, redact)
+        _version_generada(hit.get("version"))
+        if "puntuacion" in hit and (type(hit["puntuacion"]) not in (int, float) or
+                                     not math.isfinite(hit["puntuacion"])):
+            raise _GeneratedInvalid()
+        hit_map[id_] = hit
+    raw_sources = value.get("source_nodes")
+    if not isinstance(raw_sources, list) or not 0 < len(raw_sources) <= limits["max_source_nodes"]:
+        raise _GeneratedInvalid()
+    required = {"node_id", "file_name", "score", "canonical_id", "knowledge_version", "canonical_path",
+                "canonical_sha256", "projection_hash", "project", "scope", "category"}
+    optional = {"projection_filename", "estado", "evidencia", "modo"}
+    node_ids, documents, filenames, sources = set(), {}, {}, []
+    local = {entry["id"]: entry for entry in context["entries"]} if context else None
+    for source in raw_sources:
+        if not isinstance(source, dict) or not required.issubset(source) or set(source) - (required | optional):
+            raise _GeneratedInvalid()
+        clean = dict(source)
+        for key, cap in (("node_id", 512), ("canonical_id", 512), ("canonical_path", 4096),
+                         ("project", 512), ("category", 128)):
+            _identidad_generada(source.get(key), cap, redact)
+        node_id, id_, path = source["node_id"], source["canonical_id"], source["canonical_path"]
+        if (node_id in node_ids or id_ not in hit_map or source.get("scope") != "project" or
+                not path.startswith("docs/knowledge/approved/") or "\\" in path or ":" in path or
+                any(part in ("", ".", "..") for part in path.split("/"))):
+            raise _GeneratedInvalid()
+        node_ids.add(node_id)
+        version = source["knowledge_version"]
+        if type(version) is not int or _version_generada(version) != _version_generada(hit_map[id_].get("version")):
+            raise _GeneratedInvalid()
+        if path != hit_map[id_].get("ruta"): raise _GeneratedInvalid()
+        for key in ("canonical_sha256", "projection_hash"):
+            if not isinstance(source.get(key), str) or not re.fullmatch(r"[a-f0-9]{64}", source[key]):
+                raise _GeneratedInvalid()
+        name = source.get("file_name")
+        if name is not None:
+            _identidad_generada(name, 1024, redact)
+            if "/" in name or "\\" in name: raise _GeneratedInvalid()
+        if "projection_filename" in source:
+            _identidad_generada(source["projection_filename"], 1024, redact)
+            if name is not None and name != source["projection_filename"]: raise _GeneratedInvalid()
+        for candidate in (name, source.get("projection_filename")):
+            if candidate is not None:
+                if id_ in filenames and filenames[id_] != candidate: raise _GeneratedInvalid()
+                filenames[id_] = candidate
+        if "category" in hit_map[id_] and hit_map[id_]["category"] != source["category"]:
+            raise _GeneratedInvalid()
+        score = source.get("score")
+        if score is not None and (type(score) not in (int, float) or not math.isfinite(score)):
+            raise _GeneratedInvalid()
+        if "estado" in source and source["estado"] != "aprobado": raise _GeneratedInvalid()
+        if "modo" in source and source["modo"] not in ("completo", "resumen"): raise _GeneratedInvalid()
+        if "evidencia" in source: _identidad_generada(source["evidencia"], 128, redact)
+        identity = tuple(source[key] for key in ("canonical_path", "knowledge_version", "canonical_sha256",
+                          "projection_hash", "project", "scope", "category"))
+        if id_ in documents and documents[id_] != identity: raise _GeneratedInvalid()
+        documents[id_] = identity
+        if local is not None:
+            entry = local.get(id_)
+            if (entry is None or entry["canonical_path"] != path or entry["version"] != version or
+                    entry["canonical_sha256"] != source["canonical_sha256"] or
+                    entry["category"] != source["category"] or
+                    source["project"] != id_.split(".", 1)[0] or
+                    (name is not None and name != id_ + ".md") or
+                    ("projection_filename" in source and source["projection_filename"] != id_ + ".md")):
+                raise _GeneratedInvalid()
+        sources.append(clean)
+    if set(documents) != set(hit_map): raise _GeneratedInvalid()
+    result = {"texto": text, "verificacion": "no_verificada", "autoridad": "ninguna",
+              "citas_por_afirmacion": False, "source_nodes": sources,
+              "generation_consistency": "observed_stable_not_atomic"}
+    if len(json.dumps(result, ensure_ascii=False, allow_nan=False).encode("utf-8")) > limits["max_response_bytes"]:
+        raise _GeneratedInvalid()
+    return result
+
+
+def _documental_prepare(root, bid, intent, cfg, filters, deadline):
+    canonical = {}
+    def accept(meta, requested):
+        entry = _entrada_approved(meta["ruta_rel"], meta)
+        if not filtrar_remotos([entry], tipo=requested.get("tipo", ""), area=requested.get("area", "")):
+            return False
+        if ((requested.get("claves") or requested.get("iniciativa")) and
+                puntuacion_enrutado(entry, requested.get("claves") or [], requested.get("iniciativa") or "") <= 0):
+            return False
+        canonical[entry["id"]] = entry
+        return True
+    module = _cargar_modulo(os.path.join(HERE, "knowledge-read-context.py"), "kf_read_context")
+    result = module.prepare(root, bid, intent, expected_config=cfg, filters=filters,
+                            accept_entry=accept, deadline=deadline)
+    return result, dict(canonical)
+
+
 def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo="",
                      directorios=None, config=None, claves=None, iniciativa=""):
     """Aplica el router a `intent`. Devuelve `(aciertos, info)`:
@@ -1205,7 +1616,12 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
       - `aciertos` es `None` si hay que caer al camino local de siempre (el router no resuelve la
         consulta local: la deja íntegra a `buscar()`/`buscar_enrutado()`).
     `info` = `{"intent", "origen": "local"|"backend", "backend": id|None, "motivo"[, "descartados"]}`."""
+    started = time.monotonic()
+    read_deadline = None
     info = {"intent": intent, "origen": "local", "backend": None, "motivo": ""}
+    if not isinstance(intent, str) or not re.fullmatch(r"[a-z][a-z0-9_-]*", intent):
+        info["motivo"] = "intent_no_explicito"
+        return None, info
     if config is None:
         config, motivo = taxonomia(root)
         if config is None:
@@ -1229,9 +1645,46 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
         # Gap #97 (Critical): al adaptador le llega la config EFECTIVA -la declarada mas los
         # defaults derivados-, nunca la cruda de `taxonomy.json`. Sin `group_id` efectivo no se
         # consulta a ciegas: es la clave que acota la lectura al grupo del propio proyecto.
-        cfg = _config_con_group_id(cfg_backend, root)
-        cfg["_root"] = os.path.abspath(root or ".")   # el adaptador resuelve sus rutas contra esto
-        if not cfg.get("group_id"):
+        if _config_privada(cfg_backend):
+            motivos.append(f"`{bid}`: configuracion_privada_no_admitida")
+            continue
+        context, canonical = None, {}
+        if tipo_backend == "markdown-export":
+            read = cfg_backend.get("read")
+            if not isinstance(read, dict) or read.get("enabled") is not True:
+                motivos.append(f"`{bid}`: read_disabled")
+                continue
+            timeout = read.get("timeout_ms", 5000)
+            if type(timeout) is not int or not 0 < timeout <= 30000:
+                motivos.append(f"`{bid}`: read_config_invalida")
+                continue
+            if read_deadline is None:
+                read_deadline = started + timeout / 1000.0
+            try:
+                prepared, canonical = _documental_prepare(root, bid, intent, cfg_backend,
+                    {"tipo": tipo or "", "area": area or "", "iniciativa": iniciativa or "", "claves": list(claves or [])},
+                    read_deadline)
+                context = prepared.get("context")
+                if prepared.get("status") != "ok" or not isinstance(context, dict):
+                    motivos.append(f"`{bid}`: autorizacion_documental_no_disponible")
+                    continue
+                if (context.get("backend_id") != bid or context.get("backend_enabled") is not True or
+                        context.get("intent") != intent or not callable(context.get("refresh")) or
+                        context.get("root") != os.path.realpath(root or ".") or
+                        set(canonical) != {entry["id"] for entry in context["entries"]}):
+                    motivos.append(f"`{bid}`: contexto_documental_invalido")
+                    continue
+            except Exception:  # noqa: BLE001 — fail closed before importing the adapter
+                motivos.append(f"`{bid}`: autorizacion_documental_no_disponible")
+                continue
+            cfg = dict(cfg_backend)
+            cfg["_read_context"] = context
+            cfg["_backend_id"] = bid
+            cfg["_root"] = context["root"]
+        else:
+            cfg = _config_con_group_id(cfg_backend, root)
+            cfg["_root"] = os.path.abspath(root or ".")
+        if tipo_backend != "markdown-export" and not cfg.get("group_id"):
             motivos.append(f"`{bid}`: sin `group_id` efectivo (no esta declarado en "
                            f"`taxonomy.json` y no se pudo derivar del directorio del proyecto)")
             continue
@@ -1260,6 +1713,9 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
             razon = permiso.get("razon") if isinstance(permiso, dict) else permiso
             motivos.append(f"`{bid}` no autoriza la lectura: {_sanear_detalle(razon)}")
             continue
+        if context is not None and time.monotonic() >= read_deadline:
+            motivos.append(f"`{bid}`: read_deadline")
+            continue
         try:
             respuesta = consultar(cfg, {"intent": intent, "texto": texto, "limit": limit,
                                         "area": area, "tipo": tipo, "claves": list(claves or []),
@@ -1267,8 +1723,45 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
         except Exception as e:  # noqa: BLE001 — un adaptador que lanza no tumba la consulta
             motivos.append(f"`{bid}`: `consultar` falló: {type(e).__name__}: {e}")
             continue
+        if context is not None and time.monotonic() >= read_deadline:
+            motivos.append(f"`{bid}`: read_deadline")
+            continue
+        generated = None
+        if context is not None and isinstance(respuesta, dict) and respuesta.get("aciertos"):
+            try:
+                brutos = respuesta["aciertos"]
+                if not isinstance(brutos, list) or len(brutos) > 2048: raise _GeneratedInvalid()
+                local_hits = []
+                for raw in brutos:
+                    if not isinstance(raw, dict) or raw.get("id") not in canonical: raise _GeneratedInvalid()
+                    local = canonical[raw["id"]]
+                    if (raw.get("ruta") != local["ruta"] or raw.get("estado") != "aprobado" or
+                            _version_generada(raw.get("version")) != local["version"] or
+                            ("category" in raw and raw["category"] != local["category"])):
+                        raise _GeneratedInvalid()
+                    score = raw.get("puntuacion", raw.get("score", 0))
+                    if type(score) not in (int, float) or not math.isfinite(score): raise _GeneratedInvalid()
+                    local_hits.append(dict(local, puntuacion=score))
+                respuesta = dict(respuesta, aciertos=local_hits)
+            except Exception:  # noqa: BLE001 — never promote remote metadata to local authority
+                motivos.append(f"`{bid}`: enlace_canonico_invalido")
+                continue
+        if isinstance(respuesta, dict) and "respuesta_generada" in respuesta:
+            try:
+                generated = _normalizar_respuesta_generada(respuesta, cfg, context)
+            except Exception:  # noqa: BLE001 — suppress whole response on any invalid envelope
+                motivos.append(f"`{bid}`: respuesta_generada_invalida")
+                continue
         aciertos, descartados, filtrados = _aciertos_del_backend(respuesta, bid, limit,
-                                                                 tipo=tipo, area=area)
+            tipo=tipo, area=area, identidad_completa=generated is not None or context is not None)
+        if generated is not None and (descartados or filtrados):
+            motivos.append(f"`{bid}`: fuentes_generadas_fuera_de_filtro")
+            continue
+        if generated is not None:
+            redact = _cargar_modulo(os.path.join(HERE, "redact.py"), "kf_hit_redact").redactar
+            for hit in aciertos:
+                for field in ("estado_detalle", "area", "titular", "evidencia", "iniciativa", "fecha", "tipo"):
+                    hit[field] = _generado_seguro(hit[field], redact)
         # Gap #123 (Minor, CWE-117/74): el `motivo` del adaptador era el UNICO campo de origen
         # backend que el nucleo NO saneaba, y fix1 lo convirtio en salida (stderr y `--json`).
         motivo_backend = _sanear_detalle(
@@ -1292,9 +1785,14 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
         # id/estado/evidencia/ruta) y `filtrados` (lo que se llevo el post-filtro `--tipo`/`--area`
         # del usuario, que SI traia las cuatro claves) se fusionaban en un solo contador que el
         # mensaje atribuia entero al adaptador. Se publica el total (compatibilidad) y el desglose.
+        if context is not None and time.monotonic() >= read_deadline:
+            motivos.append(f"`{bid}`: read_deadline")
+            continue
         info.update({"origen": "backend", "backend": bid,
                      "descartados": descartados + filtrados, "sin_terna": descartados,
                      "filtrados": filtrados, "motivo": motivo_backend})
+        if generated is not None:
+            info["respuesta_generada"] = generated
         return aciertos, info
 
     info["motivo"] = "; ".join(motivos)
@@ -1330,6 +1828,7 @@ def _construir_parser():
     ap.add_argument("--tipo", default="", help="adr | gotcha | lesson (y sinónimos)")
     ap.add_argument("--limit", type=_limit, default=LIMIT_DEFAULT, help=f"aciertos máximos (default {LIMIT_DEFAULT}; 0 = sin tope; negativo = error)")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--view", action="store_true", help="vista local acotada JSON, sin indice ni servicios")
     ap.add_argument("--root", help="raíz del proyecto (default: $CLAUDE_PROJECT_DIR → cwd)")
     ap.add_argument("--intent", type=_intent, default=None,
                     help="intent DECLARADO de la consulta (p. ej. `temporal`): si algún backend habilitado "
@@ -1366,6 +1865,12 @@ def _modo_show(args, indice, corpus, e):
         data = {"version": VERSION_JSON, "indice": indice["indice"], "corpus": corpus, "id": e["id"], "tipo": e["tipo"],
                 "estado": e["estado"], "estado_detalle": e["estado_detalle"], "area": e["area"],
                 "titular": e["titular"], "ruta": e["ruta"], "origen": e.get("origen", "proyecto"), "contenido": e["texto"]}
+        if e.get("version") is not None:
+            data["knowledge_version"] = e["version"]
+        if e.get("evidencia"):
+            data["evidencia"] = e["evidencia"]
+        if indice.get("corpus_read"):
+            data["corpus_read"] = indice["corpus_read"]
         if indice.get("indice_motivo"):
             data["indice_motivo"] = indice["indice_motivo"]
         print(json.dumps(data, ensure_ascii=False))
@@ -1378,6 +1883,8 @@ def _modo_related(args, entradas, indice, corpus, e):
     if args.json:
         data = json_related(e, rel, indice)
         data["corpus"] = corpus
+        if indice.get("corpus_read"):
+            data["corpus_read"] = indice["corpus_read"]
         print(json.dumps(data, ensure_ascii=False))
     else:
         sys.stdout.write(texto_related(e, rel))
@@ -1386,6 +1893,9 @@ def _modo_related(args, entradas, indice, corpus, e):
 def _despachar_id(args, entradas, indice, root, corpus):
     """Capas 2 y 3 (`--related`/`--show`): resuelve el ID y despacha. Devuelve el exit code."""
     id_ = args.related or args.show
+    if sum(e["id"].casefold() == id_.casefold() for e in entradas) > 1:
+        print(f"knowledge-find: ID ambiguo `{_sanear_detalle(id_)}` entre corpus locales; no se elige una entrada", file=sys.stderr)
+        return 1
     e = buscar_id(entradas, id_)
     if e is None:
         donde = DOCTRINA_REL if args.doctrina else os.path.join(root, "docs", "knowledge")
@@ -1436,16 +1946,70 @@ def _imprimir_resultado(args, indice, corpus, consulta, total, aciertos, router=
                               "backend": router["backend"],
                               "descartados": router.get("descartados", 0),
                               "motivo": router.get("motivo", "")}
+            if router.get("respuesta_generada") is not None:
+                data["respuesta_generada"] = router["respuesta_generada"]
+                redact = _cargar_modulo(os.path.join(HERE, "redact.py"), "kf_query_display_redact").redactar
+                data["consulta"] = dict(consulta)
+                if "texto" in consulta:
+                    data["consulta"]["texto"] = _generado_seguro(consulta["texto"], redact)
+        if indice.get("corpus_read"):
+            data["corpus_read"] = indice["corpus_read"]
         if indice.get("indice_motivo"):
             data["indice_motivo"] = indice["indice_motivo"]
         print(json.dumps(data, ensure_ascii=False))
     else:
         for a in aciertos:
             print(linea_compacta(a))
+        if router is not None and router.get("respuesta_generada") is not None:
+            print("\nRespuesta generada no verificada (sin autoridad; sin citas por afirmacion):")
+            print(router["respuesta_generada"]["texto"])
 
 
-def main(argv=None):
-    args = _construir_parser().parse_args(argv)
+def _imprimir_consulta_router(args, indice, corpus, texto_router, claves_router, enrutado, aciertos_backend, router):
+    consulta = {"texto": texto_router, "area": args.area, "tipo": args.tipo,
+                "limit": args.limit, "intent": args.intent}
+    if enrutado:
+        consulta.update({"contexto": args.contexto or "", "tipo_tarea": args.tipo_tarea or "",
+                         "iniciativa": args.iniciativa or "", "claves": claves_router})
+    # Gap #141 (fix3 Fase 3): cada descarte con SU causa (el núcleo y el post-filtro no se
+    # depuran igual). Gap #142: el `motivo` del backend que SÍ sirvió (donde viaja
+    # `fuera_de_ventana`) solo salía en `--json`; en texto —la forma que prescribe
+    # `knowledge-check.md`— el recorte de la respuesta era invisible.
+    if router.get("sin_terna"):
+        print(f"knowledge-find: {router['sin_terna']} acierto(s) de `{router['backend']}` "
+              f"descartados por no traer id/estado/evidencia/ruta", file=sys.stderr)
+    if router.get("filtrados"):
+        print(f"knowledge-find: {router['filtrados']} acierto(s) de `{router['backend']}` "
+              f"descartados por el post-filtro `--tipo`/`--area`", file=sys.stderr)
+    if router.get("motivo"):
+        print(f"knowledge-find: `{router['backend']}`: {router['motivo']}", file=sys.stderr)
+    _imprimir_resultado(args, indice, corpus, consulta, len(aciertos_backend),
+                        aciertos_backend, router=router)
+
+
+def _consulta_router_cli(args, root, texto, enrutado, indice, corpus):
+    # Gap #103 (Important): en el camino enrutado se perdian `--contexto/--tipo-tarea/
+    # --iniciativa` (al backend llegaba `texto: ""`), que es justo la forma que prescribe
+    # `knowledge-check.md` y la que usa `session-context.sh`. Ahora se deriva el MISMO texto
+    # que usa el camino local (las claves del enrutado por area) y las claves viajan tambien
+    # como tales; si el backend no sirve nada, `consultar_intent` degrada y se sirve lo local.
+    texto_router, claves_router = texto, []
+    if enrutado:
+        claves_router, _aviso_claves = claves_enrutado(args.contexto or "", args.tipo_tarea or "")
+        texto_router = " ".join(claves_router)
+    aciertos_backend, router = consultar_intent(
+        root, args.intent, texto=texto_router, limit=args.limit, area=args.area, tipo=args.tipo,
+        directorios=args.backends_dir, claves=claves_router, iniciativa=args.iniciativa or "")
+    if router["origen"] == "local":
+        print(f"knowledge-find: intent `{args.intent}` atendido en local: {router['motivo']}",
+              file=sys.stderr)
+    else:
+        _imprimir_consulta_router(args, indice, corpus, texto_router, claves_router, enrutado, aciertos_backend, router)
+        return router, True
+    return router, False
+
+
+def _validar_args_consulta(args):
     if args.intent and (args.related or args.show):
         print("knowledge-find: `--intent` es de la capa 1; no se combina con `--related`/`--show`",
               file=sys.stderr)
@@ -1454,7 +2018,29 @@ def main(argv=None):
         print("knowledge-find: `--intent` enruta la memoria del PROYECTO; no se combina con `--doctrina`",
               file=sys.stderr)
         return 2
+    return None
+
+
+def main(argv=None):
+    args = _construir_parser().parse_args(argv)
+    error = _validar_args_consulta(args)
+    if error is not None:
+        return error
     root = resolver_root(args.root)
+    if args.view:
+        if args.intent or args.doctrina or args.backends_dir or _entradas_enrutado(args):
+            print("knowledge-find: --view solo admite consulta local", file=sys.stderr)
+            return 2
+        try:
+            view = _cargar_modulo(os.path.join(HERE, "knowledge-view.py"), "kf_view_cli")
+            result = view.query(root, operation="show" if args.show else "related" if args.related else "search",
+                                id=args.show or args.related or "", text=" ".join(args.texto),
+                                area=args.area, tipo=args.tipo, limit=args.limit)
+        except Exception:
+            print("knowledge-find: vista local no disponible", file=sys.stderr)
+            return 1
+        print(json.dumps(result, ensure_ascii=False))
+        return 2 if result["status"] == "invalid_request" else 1 if result["status"] in ("ambiguous", "unavailable") else 0
     texto = " ".join(args.texto)
     corpus = "doctrina" if args.doctrina else "proyecto"
     entradas, path, indice = _abrir_corpus_o_doctrina(args, root)
@@ -1469,41 +2055,8 @@ def main(argv=None):
         return 2
     router = None
     if args.intent:
-        # Gap #103 (Important): en el camino enrutado se perdian `--contexto/--tipo-tarea/
-        # --iniciativa` (al backend llegaba `texto: ""`), que es justo la forma que prescribe
-        # `knowledge-check.md` y la que usa `session-context.sh`. Ahora se deriva el MISMO texto
-        # que usa el camino local (las claves del enrutado por area) y las claves viajan tambien
-        # como tales; si el backend no sirve nada, `consultar_intent` degrada y se sirve lo local.
-        texto_router, claves_router = texto, []
-        if enrutado:
-            claves_router, _aviso_claves = claves_enrutado(args.contexto or "", args.tipo_tarea or "")
-            texto_router = " ".join(claves_router)
-        aciertos_backend, router = consultar_intent(
-            root, args.intent, texto=texto_router, limit=args.limit, area=args.area, tipo=args.tipo,
-            directorios=args.backends_dir, claves=claves_router, iniciativa=args.iniciativa or "")
-        if router["origen"] == "local":
-            print(f"knowledge-find: intent `{args.intent}` atendido en local: {router['motivo']}",
-                  file=sys.stderr)
-        else:
-            consulta = {"texto": texto_router, "area": args.area, "tipo": args.tipo,
-                        "limit": args.limit, "intent": args.intent}
-            if enrutado:
-                consulta.update({"contexto": args.contexto or "", "tipo_tarea": args.tipo_tarea or "",
-                                 "iniciativa": args.iniciativa or "", "claves": claves_router})
-            # Gap #141 (fix3 Fase 3): cada descarte con SU causa (el núcleo y el post-filtro no se
-            # depuran igual). Gap #142: el `motivo` del backend que SÍ sirvió (donde viaja
-            # `fuera_de_ventana`) solo salía en `--json`; en texto —la forma que prescribe
-            # `knowledge-check.md`— el recorte de la respuesta era invisible.
-            if router.get("sin_terna"):
-                print(f"knowledge-find: {router['sin_terna']} acierto(s) de `{router['backend']}` "
-                      f"descartados por no traer id/estado/evidencia/ruta", file=sys.stderr)
-            if router.get("filtrados"):
-                print(f"knowledge-find: {router['filtrados']} acierto(s) de `{router['backend']}` "
-                      f"descartados por el post-filtro `--tipo`/`--area`", file=sys.stderr)
-            if router.get("motivo"):
-                print(f"knowledge-find: `{router['backend']}`: {router['motivo']}", file=sys.stderr)
-            _imprimir_resultado(args, indice, corpus, consulta, len(aciertos_backend),
-                                aciertos_backend, router=router)
+        router, atendido = _consulta_router_cli(args, root, texto, enrutado, indice, corpus)
+        if atendido:
             return 0
     aciertos, total, consulta = _ejecutar_consulta(args, entradas, path, texto, enrutado)
     if args.intent:

@@ -42,6 +42,10 @@ def _load(ruta, nombre_modulo):
     return mod
 
 
+_hook_security = sys.modules.get("custom_agents_hook_security_support") or _load(
+    os.path.join(ROOT, "tests", "hook_security_support.py"), "custom_agents_hook_security_support")
+
+
 ks = _load(os.path.join(SHARED, "knowledge-schema.py"), "e2e_knowledge_schema")
 ki = _load(os.path.join(SHARED, "knowledge-index.py"), "e2e_knowledge_index")
 cg = _load(os.path.join(CURATOR_KIT, "curator-gate.py"), "e2e_curator_gate")
@@ -686,10 +690,18 @@ _TERMINOS_RED_PROHIBIDOS = (
 # scripts que los hooks/frontmatter invocan hoy (`agent-kits/shared/{guardrail-check,ledger-lint,
 # progress-report,journal,skill-index,knowledge-find}.py`) usa `socket`/`urllib`/`http.client`/
 # `requests`/`curl`/`wget` para nada, legítimo o no. Si alguno lo necesitase en el futuro (p. ej.
-# una resolución DNS puramente local), se declara aquí con su ruta relativa al repo y el motivo —
-# ese script queda excluido del escaneo de scripts invocados, nunca de los hooks/frontmatter
-# directos.
-_ALLOWLIST_USOS_LOCALES_DE_RED = frozenset()
+# una resolución DNS puramente local), se declara aquí con su ruta relativa al repo, los términos
+# y el motivo — nunca para los hooks/frontmatter directos.
+#
+# Por PAR (script, término), no por script entero (2026-10-22, CI del PR #17): el redactor
+# (`redact.py` y su copia declarada en `journal.py`, T-42 fix2/fix3) RECONOCE `curl` en el texto
+# que tapa (`curl -u usuario:clave`) — literal de su regex y de su análisis de palabras, no una
+# invocación: ninguno de los dos lanza `curl`. El resto de términos se sigue buscando en esos
+# scripts y lo que invocan (`journal.py -> outbox.py`, gap 181) se sigue recorriendo.
+_ALLOWLIST_USOS_LOCALES_DE_RED = {
+    "agent-kits/shared/redact.py": frozenset({"curl"}),
+    "agent-kits/shared/journal.py": frozenset({"curl"}),
+}
 
 _RUTA_SCRIPT_RE = re.compile(r"[\w./-]+\.(?:py|sh)")
 
@@ -850,11 +862,13 @@ def _ofensores_de_scripts_invocados(rutas_rel, root, vistos, profundidad=1):
             continue
         vistos.add(resuelta)
         etiqueta = os.path.relpath(resuelta, root).replace(os.sep, "/")
-        if etiqueta in _ALLOWLIST_USOS_LOCALES_DE_RED:
-            continue
+        permitidos = _ALLOWLIST_USOS_LOCALES_DE_RED.get(etiqueta, frozenset())
         texto_script = _texto_o_fallo_si_no_decodifica(resuelta)
-        texto_script_l = texto_script.lower()
+        texto_script_l = (_hook_security.local_urlparse_code(texto_script)
+                          if resuelta.endswith(".py") else texto_script).lower()
         for termino in _TERMINOS_RED_PROHIBIDOS:
+            if termino in permitidos:
+                continue
             if _termino_en_codigo(texto_script_l, termino, os.path.basename(resuelta)):
                 ofensores.append((etiqueta, termino))
         siguientes_rutas |= _rutas_script_invocadas(texto_script, os.path.basename(resuelta))
@@ -871,12 +885,14 @@ def _ofensores_de_red_en_hooks(hooks_dir=None, root=None):
     ofensores = []
     scripts_invocados = set()
     vistos = set()
-    for raiz, _dirs, ficheros in os.walk(hooks_dir):
+    for raiz, dirs, ficheros in os.walk(hooks_dir):
+        dirs[:] = [d for d in dirs if d != "__pycache__"]   # caché del intérprete, no código del hook
         for nombre in sorted(ficheros):
             ruta = os.path.join(raiz, nombre)
             vistos.add(os.path.normpath(ruta))
             texto = _texto_o_fallo_si_no_decodifica(ruta)
-            texto_l = texto.lower()
+            texto_l = (_hook_security.local_urlparse_code(texto)
+                       if nombre.endswith(".py") else texto).lower()
             for termino in _TERMINOS_RED_PROHIBIDOS:
                 if _termino_en_codigo(texto_l, termino, nombre):
                     ofensores.append((os.path.relpath(ruta, hooks_dir), termino))
@@ -962,6 +978,34 @@ def test_mutante_hook_con_curl_en_subcarpeta_muere(tmp_path):
     (sub / "malo.sh").write_text("#!/bin/sh\ncurl https://ejemplo.invalido/x\n", encoding="utf-8")
     ofensores = _ofensores_de_red_en_hooks(str(tmp_path), root=str(tmp_path))
     assert ofensores == [(os.path.join("sub", "malo.sh"), "curl")]
+
+
+def test_allowlist_por_par_no_apaga_el_resto_ni_el_seguimiento(tmp_path):
+    """Mutante: el par (`redact.py`, `curl`) de la allowlist no tapa OTRO término en el mismo script
+    ni corta el seguimiento de lo que ese script invoca (gap 181)."""
+    shared = tmp_path / "agent-kits" / "shared"
+    shared.mkdir(parents=True)
+    (shared / "redact.py").write_text('import socket\nPROGRAMA = "curl"\nSIGUIENTE = "outbox.py"\n',
+                                      encoding="utf-8")
+    (shared / "outbox.py").write_text("import urllib.request\n", encoding="utf-8")
+    hooks = tmp_path / "hooks"
+    hooks.mkdir()
+    (hooks / "captura.sh").write_text('#!/bin/sh\npython3 "$SHARED/redact.py"\n', encoding="utf-8")
+    ofensores = _ofensores_de_red_en_hooks(str(hooks), root=str(tmp_path))
+    assert ("agent-kits/shared/redact.py", "curl") not in ofensores
+    assert ("agent-kits/shared/redact.py", "socket") in ofensores
+    assert ("agent-kits/shared/outbox.py", "urllib") in ofensores
+
+
+def test_bytecode_de_hooks_no_cuenta_como_hook(tmp_path):
+    """`hooks/runtime-supervisor.py` deja `hooks/__pycache__/*.pyc` en cuanto otro test lo importa:
+    es caché que genera el intérprete (ignorada por git), no código del hook; leerla como texto
+    tumbaba el escaneo de red según el orden de la suite."""
+    cache = tmp_path / "__pycache__"
+    cache.mkdir()
+    (cache / "runtime-supervisor.cpython-311.pyc").write_bytes(b"\xa7\r\r\n\x00\x00\xff\xfe")
+    (tmp_path / "ok.sh").write_text("#!/bin/sh\necho hola\n", encoding="utf-8")
+    assert _ofensores_de_red_en_hooks(str(tmp_path), root=str(tmp_path)) == []
 
 
 def test_mutante_hook_no_decodificable_es_fallo_no_skip(tmp_path):
@@ -1368,3 +1412,32 @@ def test_f3fix1_gap113_e18_declara_la_arista_de_lectura():
     assert "escritura" in fila.lower()
     assert "knowledge-find.py" in fila and "capabilities.py" in fila
     assert "puede_leer" in fila or "consultar" in fila
+
+
+def test_hook_security_services_local_urlparse_is_not_network(tmp_path):
+    helper = tmp_path / "agent-kits" / "shared" / "probe.py"
+    helper.parent.mkdir(parents=True)
+    helper.write_text('import urllib.parse\nparts = urllib.parse.urlparse("https://example.invalid")\n', encoding="utf8")
+    assert _ofensores_de_scripts_invocados({"agent-kits/shared/probe.py"}, str(tmp_path), set()) == []
+
+
+def test_hook_security_services_direct_local_urlparse_is_not_network(tmp_path):
+    hooks = tmp_path / "hooks"
+    hooks.mkdir()
+    (hooks / "probe.py").write_text('import urllib.parse\nparts = urllib.parse.urlparse("https://example.invalid")\n', encoding="utf8")
+    assert _ofensores_de_red_en_hooks(str(hooks), root=str(tmp_path)) == []
+
+
+def test_hook_security_services_local_parser_does_not_hide_unknown_network(tmp_path):
+    for index, body in enumerate((
+        'import urllib.parse, urllib.request\nurllib.request.urlopen("https://example.invalid")\n',
+        'import urllib.parse as unknown\nunknown.urlparse("https://example.invalid")\n',
+        'import urllib.parse\nnamespace = urllib.parse.__dict__\n',
+        'import URLLIB.PARSE\nURLLIB.PARSE.urlparse("https://example.invalid")\n',
+        'import urllib.parse\nexec("import urllib.request; urllib.request.urlopen(url)")\n',
+    )):
+        root = tmp_path / str(index)
+        helper = root / "agent-kits" / "shared" / "probe.py"
+        helper.parent.mkdir(parents=True)
+        helper.write_text(body, encoding="utf8")
+        assert _ofensores_de_scripts_invocados({"agent-kits/shared/probe.py"}, str(root), set())

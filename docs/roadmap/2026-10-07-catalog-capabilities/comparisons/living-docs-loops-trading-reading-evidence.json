@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S163",
+    "S164",
+    "S166"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S163",
+      "sha256": "e8c22a1f69743e256c6d6df138d99e49d22e29effbf008dfe2328b7fdc76247e",
+      "bytes": 8482,
+      "lines": 137,
+      "read_ranges": [
+        [
+          1,
+          137
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S164",
+      "sha256": "8a59b241f6ae86d8f96b88122643b4d27d70adb6c15b31f5163f9586cb81b293",
+      "bytes": 4632,
+      "lines": 147,
+      "read_ranges": [
+        [
+          1,
+          147
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S166",
+      "sha256": "d48c239c8b9ff253d103d7de7b9839c5bf9dbd3c90eddef7c4ac612b28d71bbd",
+      "bytes": 11941,
+      "lines": 143,
+      "read_ranges": [
+        [
+          1,
+          143
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "CLAUDE.md",
+      "sha256": "eb2dc7157c4f4731d19e5ecacf4d0d16cb7bf75b73ddfdd9ece7b3419c8eb4b5"
+    },
+    {
+      "path": "docs/README.md",
+      "sha256": "366ff481bfde2aad0d2d0a41804955e6e67d2a2fd52a2705aafa3286fbe991af"
+    },
+    {
+      "path": "scripts/lint_plugin.py",
+      "sha256": "316fb161b7cfdd13fa38e766966e0a64abdf23c7f01d8319d81961865f79eed1"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-check.md",
+      "sha256": "a7fd7db34d0cb55db534786ce9bbb6a2541efcd35f94fd5c00aeca8c80d256d0"
+    },
+    {
+      "path": "agent-kits/shared/skill-index.py",
+      "sha256": "5187e70f0226946985fb24fc4ca57c75c4521dab953002ba813b207757cf784c"
+    },
+    {
+      "path": "commands/spec-drift.md",
+      "sha256": "5bcbdb1397b745db5f389098e034ae5f64dd9c5bc1e4497b666b074ddb22d441"
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "ec9504fb23b8eadb209e83ce347eee8c9a63c8d03e09d0f7e7c4bb204d65ad5c"
+    },
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "a62f6e912bb8cd095918224661ade80cae70c3e962235eaadcf94f73f04923a5"
+    },
+    {
+      "path": "agent-kits/shared/guardrail-check.py",
+      "sha256": "fa9a6874ebee6be2c465bc4772ef9fbcf310d6c0cfedc2ccede9c2fbd393866a"
+    },
+    {
+      "path": "agent-kits/shared/scope-check.py",
+      "sha256": "78dcf494106323ca3076b54684ae7a9a4b94d2da0567ad7b20ede519e735fb95"
+    },
+    {
+      "path": "agent-kits/shared/ledger-lint.py",
+      "sha256": "c56de53d4cf608ebaac5ad58f66f6e14f1d71950a5a1e94189831b725e71e0cd"
+    },
+    {
+      "path": "agent-kits/shared/rationalization-table.md",
+      "sha256": "a9a612841dce9d2cbe409099987cdadc08c4c626f47374a6ae4fa82ce154727e"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "8d144cd02ca19b8e08c083cf9a79d66ed3961127ada437bc2a3f548b94666716"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-007-deny-solo-con-alcance-de-agente.md",
+      "sha256": "2f12b9214bf8e7c71a58b498c890f4631db91fc400598d254edbb6bd1c10d505"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-011-un-rol-un-dueno-agentes-retirados-y-responsabilidades-fusionadas.md",
+      "sha256": "6047829c51b5b9c95433f5d33fa34dcfacee03a0cf17a5d7f18422a93edc85b4"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

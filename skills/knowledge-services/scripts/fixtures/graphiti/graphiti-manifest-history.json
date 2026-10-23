@@ -1,0 +1,39 @@
+{
+  "entradas": {},
+  "group_id": "custom_agents_owned55_304392048c5f40fca19d0326d57da032",
+  "transitions": {
+    "owned55.gotcha.lyra@1@superseded": {
+      "action": "superseded",
+      "episode_body_sha256": "1a960b0226787ed65f3715aeb099f684d962eee7207e66f14c401441247a2c37",
+      "id": "owned55.gotcha.lyra",
+      "replacement_episode_uuid": "65518c17-7686-4037-b44b-9724b9b7e250",
+      "representation": "episode",
+      "retired_episode": {
+        "episode_body_sha256": "c4de1e5378d21fc81559d171f1217335d3860393102543a9309d7be0842189aa",
+        "name": "owned55.gotcha.lyra@1",
+        "uuid": "468a8046-d9e9-4c62-b50a-9590a57ffc4c"
+      },
+      "source_episode_uuid": "468a8046-d9e9-4c62-b50a-9590a57ffc4c",
+      "source_ref": "custom-agents:knowledge:owned55.gotcha.lyra@2",
+      "target_ref": "custom-agents:knowledge:owned55.gotcha.lyra@1",
+      "target_version": 1,
+      "uuid": "63c8608b-0bad-4d30-a2e6-cb06bb92d224"
+    },
+    "owned55.gotcha.lyra@2@withdrawn": {
+      "action": "withdrawn",
+      "episode_body_sha256": "3993277dd70889bcaee773486405a05a50a5c2bf2435b76943eb095004187d92",
+      "id": "owned55.gotcha.lyra",
+      "representation": "episode",
+      "retired_episode": {
+        "episode_body_sha256": "d6eeaf49d90ae02ff3ddcdfa56987dbfd0940de2ffb9a95f8f7940468595d836",
+        "name": "owned55.gotcha.lyra@2",
+        "uuid": "65518c17-7686-4037-b44b-9724b9b7e250"
+      },
+      "source_episode_uuid": "65518c17-7686-4037-b44b-9724b9b7e250",
+      "source_ref": "custom-agents:knowledge:owned55.gotcha.lyra@2@withdrawn",
+      "target_ref": "custom-agents:knowledge:owned55.gotcha.lyra@2",
+      "target_version": 2,
+      "uuid": "01e476fc-2546-405c-8cd5-026c01adb668"
+    }
+  }
+}

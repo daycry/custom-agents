@@ -1,0 +1,471 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-10-08",
+  "status": "scoped-qa-passed",
+  "base_revision": "b8e6192fab8ecbe82c7e829e8164fb59ead40ed9",
+  "scope": "Approved retrieval correction and distribution; broad integration remains open",
+  "source": {
+    "snapshot_id": "frozen-20261008-03",
+    "file_count": 477,
+    "manifest_sha256": "13308452429e38729694ecb2b0fdd4ba53481edd72fe0e332bea1f5250a5bdef",
+    "owned_current_hashes": {
+      "agent-kits/shared/knowledge-find.py": "7ee4523c055ac4fba7eccfe036c512736a49be9f1e4def67e61800b51d73ac42",
+      "agent-kits/shared/knowledge-index.py": "99c554618302b91e97340c09960986adbbbe6f5cb76a82d75108e9df9df5ff9b",
+      "agent-kits/shared/knowledge-schema.py": "73e0e507ede6b609ca91362180072d6c2aea6f7ed895cb3fceaa3d291b4e1d03",
+      "agent-kits/shared/knowledge-local.py": "7122dfa8294ccb79903784cf830a880dd643ba6c49a970b855cb8ca106bcd564",
+      "agent-kits/shared/knowledge-taxonomy-local.py": "c190568af70518ee6211a768f6b54e608cb108ad2b8a89b3f6cc4f802b10bd18",
+      "agent-kits/shared/copias.json": "c4400b58a307260e509072c2f7a61dd103dca7bd603de8f485d5855080bd1371",
+      "agent-kits/knowledge-curator/test_curator_gate.py": "18b1c948e9e4fcf13a96187918ff39abec18b1de168e57a19269663de03850bf",
+      "tests/test_knowledge_approved_retrieval.py": "9e8a7e0763ac1ca04d6cc0283419c54f2fcfae5a6c4b6e47288be7aa2318d0dd"
+    },
+    "linux_exact_same_source": true,
+    "delivery_owned_hashes_match": true
+  },
+  "history": {
+    "red": [
+      {
+        "failures": 8,
+        "reason": "approved query/show/related/local fallback/cache and remote version absent",
+        "artifact_id": "audit-red-20261008-01/red.log",
+        "sha256": "172ec22f239516aa522c0556287ccecfb0374d05fc3fb8183748dd2a73ca3362"
+      },
+      {
+        "failures": 9,
+        "reason": "invalid approved metadata lacks diagnosis; ID collision selects first; local retrieval depends on service; traversal lacks diagnosis",
+        "artifact_id": "audit-red-20261008-02/red.log",
+        "sha256": "057a10ed5ea4442ad65903b08f2daa3b4ca578f27860be91e273d7faf9d67a78"
+      },
+      {
+        "failures": 2,
+        "reason": "invalid service config shape/enabled suppress valid approved local retrieval",
+        "artifact_id": "audit-red-20261008-03/red.log",
+        "sha256": "0774e5427e7ecd81bc6b88e430338fd50ff3381843cfe0227a848f470462c08e"
+      },
+      {
+        "failures": 9,
+        "reason": "custom categories/folders and rank; explicit links; invalid backend versions; approved junction into candidates",
+        "artifact_id": "audit-red-20261008-04/red.log",
+        "sha256": "2971fcaaff4d402ffe4f80d1d210e82a868c3acddfbdf1dad9ae866c839e1128"
+      },
+      {
+        "failures": 13,
+        "reason": "Fused B1 optional labels fail local/legacy path (10), B2 three partial helper wrapper imports traceback (3)",
+        "artifact_id": "audit-red-20261008-05/red.log",
+        "sha256": "0659641e28356bcc135a065d4ade60432c7e4e48b9dabcce90f7f7887bdf9807"
+      },
+      {
+        "failures": 1,
+        "reason": "Fused A1 wrapper owns duplicate fallback binding instead of forwarding sole owner",
+        "artifact_id": "audit-red-20261008-06/red.log",
+        "sha256": "8f62648b3fbec70ba6d7b7016e648e087fa5a3cc6747caabd98b2868d1bae4ac"
+      },
+      {
+        "failures": 5,
+        "reason": "B1 evidencia list cache/flat (2) and reader non-string nested/object/integer tag metadata (3)",
+        "artifact_id": "audit-red-20261008-07/red.log",
+        "sha256": "daf62020dac0f6f97ac96a93e700959d7b5aa24f5a9445ae4a7e64f57ab7df9d"
+      }
+    ],
+    "rejected_qa": [
+      {
+        "reason": "Fixture LF assertion mismatch from Windows write_text CRLF; fixture corrected with newline empty",
+        "artifact_id": "audit-green-20261008-01/green.log",
+        "sha256": "36fec3b4ff54bbf3e4eb98249e9f2802c1ea8a78c0f6b3d2465cd5a7cc235823"
+      },
+      {
+        "reason": "3 hook shell cases chose WSL without installed distro; scanner saw pre-existing foreign root pyc; missing-index fixture lacked newly mandatory taxonomy helper",
+        "artifact_id": "audit-qa-20261008-01/qa.log",
+        "sha256": "ab898a5b3d6fbc2d3ae6c218a3548b94a9ee311794332ee6b129716fbfa1d368"
+      },
+      {
+        "reason": "Command typo selected nonexistent schema test file; no tests ran, not TDD RED",
+        "artifact_id": "audit-green-20261008-03/green.log",
+        "sha256": "510937d87c34a5cd97f306abda0f2a4a80b1dd4b6fde84a341f1c798c12f6477"
+      },
+      {
+        "reason": "Full index inherited realpath performance contract: new canonical root computation called once unnecessarily; fixed to source mode only",
+        "artifact_id": "audit-green-20261008-04/green.log",
+        "sha256": "639471f39656e380958df3401fbb22af8f62b0ba82fcd08e5074a74223885def"
+      },
+      {
+        "reason": "407 passed, 1 existing symlink skip, 4 harness failures: omitted evals/check.py (3), ancestral Git ignore rule (1)",
+        "artifact_id": "frozen-20261008-01/qa.log",
+        "sha256": "91948ca6206c124ee05cc21538dd31e641a2d3da7566606f5e4996b114966788"
+      }
+    ]
+  },
+  "windows": {
+    "parameter_cases": 431,
+    "unique_parent_cases": 377,
+    "counts": {
+      "passed": 430,
+      "failed": 0,
+      "error": 0,
+      "skipped": 1
+    },
+    "skips": [
+      {
+        "case": "agent-kits.shared.test_knowledge_index_canonico::test_gap6_symlink_fuera_de_la_carpeta_aprobada_falla",
+        "reason": "symlinks no soportados en esta plataforma/permiso"
+      }
+    ],
+    "junit_sha256": "2b7b9b012e0c6ce42ca4807143f716324fc20ecec0b9fd5764c38556a02b54ba",
+    "runtime": {
+      "python": "3.13.0 (tags/v3.13.0:60403a5, Oct  7 2024, 09:38:07) [MSC v.1941 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26100-SP0",
+      "coverage": "7.16.2",
+      "pytest": "9.1.1",
+      "bytecode_disabled": true,
+      "pytest_plugin_autoload": "disabled",
+      "qa_source": "frozen manifest477 files",
+      "network_services": "none; fixture-only adapters",
+      "git": "own snapshot repository; GIT_CONFIG_NOSYSTEM=1; GIT_CONFIG_GLOBAL=os.devnull",
+      "home_tmp": "private snapshot sibling isolated-home"
+    },
+    "duration_seconds": 220.73,
+    "terminal_sha256": "ef9b884f9c28d9a577a73cd207cd2142fe0817f179e00dd1bc107725af08f0a7",
+    "isolated": "Owned Git/HOME/TMP; Git Bash before WSL; no real memory; bytecode disabled",
+    "runtime_sha256": "f1e9461967967da29f5a3134a3753c684f1b7cf12f140035e161763ef9698eb6"
+  },
+  "linux": {
+    "parameter_cases": 425,
+    "unique_parent_cases": 384,
+    "counts": {
+      "passed": 405,
+      "failed": 0,
+      "error": 0,
+      "skipped": 20
+    },
+    "skips": [
+      {
+        "case": "tests.test_knowledge_index::test_el_indice_real_es_biyectivo_y_toda_fila_tiene_area",
+        "reason": "no hay docs/knowledge/README.md"
+      },
+      {
+        "case": "tests.test_knowledge_index::test_las_cifras_del_corpus_de_hoy",
+        "reason": "no hay docs/knowledge/README.md"
+      },
+      {
+        "case": "tests.test_knowledge_index::test_para_los_adr_el_area_solo_vive_en_el_indice",
+        "reason": "no hay docs/knowledge/README.md"
+      },
+      {
+        "case": "tests.test_knowledge_index::test_quitar_una_fila_del_indice_real_pone_rojo_nombrando_el_fichero",
+        "reason": "no hay docs/knowledge/README.md"
+      },
+      {
+        "case": "tests.test_knowledge_index::test_vaciar_el_area_de_una_fila_real_pone_rojo_nombrando_el_id",
+        "reason": "no hay docs/knowledge/README.md"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_ca01_area_estimacion_devuelve_las_9_entradas_en_menos_de_1200_caracteres",
+        "reason": "no hay docs/knowledge/ real"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_ca02_consola_windows_cp1252_pone_got005_primero",
+        "reason": "no hay docs/knowledge/ real"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_todas_las_entradas_reales_caben_en_120_caracteres_por_linea",
+        "reason": "no hay docs/knowledge/ real"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_area_inexistente_sobre_el_corpus_real_no_imprime_nada",
+        "reason": "no hay docs/knowledge/ real"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_real_tokens_por_hora_trae_las_lecciones_de_estimacion_arriba",
+        "reason": "no hay docs/knowledge/ real"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_real_de_y_pato_devuelven_cero",
+        "reason": "no hay docs/knowledge/ real"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_ca03_related_adr010_grafo_curado_en_menos_de_1600_caracteres",
+        "reason": "no hay docs/knowledge/ real"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_ca04_show_adr012_la_entrada_mas_grande_cabe_en_10800_caracteres",
+        "reason": "no hay docs/knowledge/ real"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_sobre_el_corpus_real_indice_y_plano_coinciden[consulta0]",
+        "reason": "no hay docs/knowledge/ real"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_sobre_el_corpus_real_indice_y_plano_coinciden[consulta1]",
+        "reason": "no hay docs/knowledge/ real"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_sobre_el_corpus_real_indice_y_plano_coinciden[consulta2]",
+        "reason": "no hay docs/knowledge/ real"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_sobre_el_corpus_real_indice_y_plano_coinciden[consulta3]",
+        "reason": "no hay docs/knowledge/ real"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_sobre_el_corpus_real_indice_y_plano_coinciden[consulta4]",
+        "reason": "no hay docs/knowledge/ real"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_sobre_el_corpus_real_indice_y_plano_coinciden[consulta5]",
+        "reason": "no hay docs/knowledge/ real"
+      },
+      {
+        "case": "tests.test_knowledge_find::test_enrutado_sobre_el_corpus_real_devops_trae_hooks_y_consola",
+        "reason": "no hay docs/knowledge/ real"
+      }
+    ],
+    "junit_sha256": "a897cfb1745a8f151dda6ae7c07010e128064ef2d6e717b7a4b0a3f84ac06d33",
+    "duration_seconds": 29.3,
+    "network": "none",
+    "image_id": "sha256:ee6b1d8543257a61226665c0c2168c3b565885c8af50b846f2d46b19aa0630ac",
+    "runtime": {
+      "platform": "Linux-6.18.40.1-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+      "python": "3.11.16 (main, Sep  1 2026, 00:12:26) [GCC 14.2.0]",
+      "pytest": "pytest 9.1.1",
+      "node": "v22.23.3",
+      "git": "git version 2.47.3",
+      "procps": "2:4.0.4-9",
+      "ps": "/usr/bin/ps",
+      "pid1": "docker-init",
+      "source_tar_sha256": "e0d780eee722e0628b13e64e39654e24f053157054c38a81795f836026008ec7",
+      "source_file_count": 477,
+      "network": "none",
+      "memory": "test-generated synthetic fixtures; real repository memory absent",
+      "git_config_global_owned": true,
+      "git_config_system_disabled": true
+    },
+    "summary_sha256": "5e035b5e2215738639ff4aeb81d34641f8eecced1341b34656953458a5f6f22b",
+    "source_tar_sha256": "e0d780eee722e0628b13e64e39654e24f053157054c38a81795f836026008ec7"
+  },
+  "portable": {
+    "parameter_cases": 15,
+    "unique_parent_cases": 15,
+    "counts": {
+      "passed": 15,
+      "failed": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "skips": [],
+    "junit_sha256": "ee18fa8ccb84161af3f2898d7c4347856376dd8c07b4c299fb0a94cd039a9e88",
+    "exact_helpers": [
+      "knowledge-local.py",
+      "knowledge-taxonomy-local.py"
+    ],
+    "check_file_count": 189,
+    "source_manifest_sha256": "e0ee6ccfae428a0ba670107fe230913bd3ee8309245a2e5f5bfc8a69c13b7b21"
+  },
+  "coverage": {
+    "tool": "coverage.py 7.16.2 official subprocess patch",
+    "method": "Added executable git diff lines intersected with official executed/missing statements; all executable statements for new helpers",
+    "total": {
+      "diff_executable": 524,
+      "diff_executed": 473,
+      "percent": 90.27
+    },
+    "by_module": {
+      "agent-kits/shared/knowledge-find.py": {
+        "diff_executable": 74,
+        "diff_executed": 69,
+        "percent": 93.24,
+        "missing_diff": [
+          530,
+          531,
+          532,
+          1080,
+          1212
+        ],
+        "module_percent": 91.63952225841477
+      },
+      "agent-kits/shared/knowledge-index.py": {
+        "diff_executable": 23,
+        "diff_executed": 18,
+        "percent": 78.26,
+        "missing_diff": [
+          95,
+          96,
+          97,
+          106,
+          118
+        ],
+        "module_percent": 86.56716417910448
+      },
+      "agent-kits/shared/knowledge-schema.py": {
+        "diff_executable": 39,
+        "diff_executed": 30,
+        "percent": 76.92,
+        "missing_diff": [
+          60,
+          61,
+          62,
+          75,
+          511,
+          633,
+          650,
+          675,
+          676
+        ],
+        "module_percent": 89.97050147492625
+      },
+      "agent-kits/shared/knowledge-local.py": {
+        "diff_executable": 225,
+        "diff_executed": 209,
+        "percent": 92.89,
+        "missing_diff": [
+          72,
+          81,
+          82,
+          106,
+          107,
+          110,
+          222,
+          251,
+          265,
+          329,
+          330,
+          340,
+          341,
+          365,
+          378,
+          381
+        ],
+        "module_percent": 92.88888888888889
+      },
+      "agent-kits/shared/knowledge-taxonomy-local.py": {
+        "diff_executable": 163,
+        "diff_executed": 147,
+        "percent": 90.18,
+        "missing_diff": [
+          121,
+          127,
+          179,
+          189,
+          215,
+          216,
+          224,
+          225,
+          232,
+          239,
+          252,
+          253,
+          256,
+          263,
+          297,
+          345
+        ],
+        "module_percent": 90.1840490797546
+      }
+    },
+    "json_sha256": "8e81f226aeb732f49fa6634d3fff1ac659d5b11cd46e7b05b223f6559382f84a",
+    "diff_json_sha256": "c9016486d0bc00b65b99c23aabe11dee39e77ea8198b6e3580818a3e6e274a45",
+    "attribution_limit": "Partial-wrapper tests execute byte-identical fixture copies outside canonical source filter; their covered branches are not attributed to canonical wrapper files. No per-module 90% claim."
+  },
+  "gates": {
+    "windows": {
+      "exit_code": 0,
+      "result": {
+        "verdict": "VERDE",
+        "counts": {
+          "passed": 430,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 1,
+          "interrupted": 0
+        },
+        "flaky_sin_justificar": [],
+        "flaky_justificados": {},
+        "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+      },
+      "input_sha256": "35bdd686a65b34491281cbb99bdb60bdb2c250b793fb565ee76fa707f425f66f"
+    },
+    "linux": {
+      "exit_code": 0,
+      "result": {
+        "verdict": "VERDE",
+        "counts": {
+          "passed": 405,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 20,
+          "interrupted": 0
+        },
+        "flaky_sin_justificar": [],
+        "flaky_justificados": {},
+        "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+      },
+      "input_sha256": "5a064701a9c237b9fd6a1305d3ca7bb879969e1c9b18568e4fd6b62d11f2cdfd"
+    },
+    "export": {
+      "exit_code": 0,
+      "result": {
+        "verdict": "VERDE",
+        "counts": {
+          "passed": 15,
+          "failed": 0,
+          "flaky": 0,
+          "skipped": 0,
+          "interrupted": 0
+        },
+        "flaky_sin_justificar": [],
+        "flaky_justificados": {},
+        "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+      },
+      "input_sha256": "75aa443eaef478b3c0f2128c51a8db4d38a2f3a30d6ec6c867852fba9f5bf3ff"
+    }
+  },
+  "delivery_checks": [
+    {
+      "id": "lint",
+      "exit_code": 0,
+      "log_sha256": "b01ff4475a0a522cbb303f7079255a11df693388afca92bcf78136358ec21db7"
+    },
+    {
+      "id": "evals",
+      "exit_code": 0,
+      "log_sha256": "7cbe7159bd7f8e93ffcbfc4a69f3b6658f09b5462cee4131333981c4c4a94158"
+    },
+    {
+      "id": "interop",
+      "exit_code": 0,
+      "log_sha256": "50dd802235aa68d69c712379a237364dde3035e159c04805a6c4901dba77d505"
+    },
+    {
+      "id": "ledger",
+      "exit_code": 0,
+      "log_sha256": "4515b817666c9fc338a5ed921d1a3cd8610358cd9f17b086f6002cd2512afe46"
+    },
+    {
+      "id": "portable",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "portable-check",
+      "exit_code": 0,
+      "log_sha256": "5dadae06287925cc7cf03051ba17d81f36fe775bacdfb39dfb265d617a5f7007"
+    },
+    {
+      "id": "export-tests",
+      "exit_code": 0,
+      "log_sha256": "95cc0b9608403e709b7998820972600a3d4441e8c2a779384c238dae1dd4ece6"
+    }
+  ],
+  "public_scan": {
+    "files": 874,
+    "prohibited": [],
+    "untracked_source": "explicit owned allowlist; settings excluded before reading"
+  },
+  "limits": [
+    "Directed suites, not full repository CI",
+    "Real repository memory deliberately absent; skips are not tested corpus cases",
+    "No native retrieval efficacy claim",
+    "No backend activation or consumer configuration change",
+    "Hook load diagnosis separate; no launcher/guard fix",
+    "New skills remain deferred"
+  ],
+  "builder_sha256": "58fb7f34c0abc56f7715a159c25da712b26347a90bb61342cf35f6c7ba439b89"
+}

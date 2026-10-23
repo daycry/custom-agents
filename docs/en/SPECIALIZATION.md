@@ -18,18 +18,26 @@ work but not **where** it is working. The third loop closes that gap with the sa
 > two gates" are the **F2 contract** (`design.md` `ADR-014`, `tasks.md` T-04…T-18): designed and
 > planned, **not in the tree yet**. Same pattern as `docs/agents/ROLES.md` for `/specialize`.
 
+The [user-extension reader](PROJECT-EXTENSIONS.md) recognizes existing pieces
+and validates a project-supplied O1 registry in read-only mode. That derived
+inventory does not deliver F2 generation, adoption, rebuilding or write gates;
+their state remains in the separate specialization ledger.
+
 ## What the loop is
 
 ```
-Memory  ──reads──▶  Specialization  ──feeds──▶  Cycle  ──/retro──▶  Memory
+Memory ──reads──▶ Specialization ──feeds──▶ Cycle
+Cycle ──/retro: service propose──▶ pending + SHA ──judgment──▶ Curator
+Curator ──service apply bound to SHA──▶ Memory
 ```
 
 `docs/knowledge/` (ADR, gotchas, lessons, journal) feeds `/specialize`, which produces **project
 pieces** — personas, tools, skills or agents that live in the consumer's `.claude/` and know THEIR
 domain. Those pieces enter the cycle (`task-brief.py` injects the persona into the brief of tasks
 that carry `- **Tipo**: <type>` — the field is optional; without it, a generic subagent), and
-`/retro` closes the loop by promoting whatever repeats into doctrine. Two distinct terms, so they
-don't get mixed up:
+`/retro` proposes evidence through `agent-kits/shared/knowledge-curation.py`; repetition does not
+approve knowledge. Curator judges and the service persists with original SHA, reason and valid
+metadata. Two distinct terms, so they don't get mixed up:
 
 - **Plugin piece** — an agent, skill, command, kit or hook that lives in this repo and ships with the
   plugin. Domain-agnostic by design.
@@ -114,19 +122,27 @@ a warning and an extra confirmation, never a silent failure.
 ## The direction invariant
 
 **`/specialize` reads `docs/knowledge/` and NEVER writes to it.** It consumes ADR, gotchas, lessons
-and the journal's candidates; it produces pieces. Promotion to doctrine remains exclusive to `/retro`
-and the promotion contract of `adversarial-review`. One direction only, no return path: that's why the
-third loop does not overlap with the memory loop (`ADR-011`, matrix in `docs/agents/ROLES.md`).
+and the journal's candidates as evidence; it produces pieces under the F2 contract. New knowledge
+is proposed through the shared service; `knowledge-curator` decides and requests persistence via
+`apply_decision`, not `/retro` or `adversarial-review`. Design/review/QA/Gold/repetition are evidence,
+not approval. Retro after the Gate hands off or leaves route/ID and pending state visible.
+Legacy preserves bytes/states/authority without automatic migration, reapproval or deletion;
+conflicts/high impact require traced human resolution, not date/score. The third loop neither
+writes nor approves memory (`docs/agents/ROLES.md`).
+
+The curation service does not deliver F2 or prove authenticated actors or a universal sandbox.
+Intent, publication and receipt are recoverable boundaries, not an atomic multi-file transaction;
+native acceptance remains pending. [Curation contract](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).
 
 ## The limit of this iteration
 
-This iteration covers **F1 (Substrate) and F2 (Birth)**: the persona cascade, the `/specialize`
+The planned scope of this iteration covers **F1 (Substrate) and F2 (Birth)**: the persona cascade, the `/specialize`
 command, the registry with its three states, the adoption mode, the non-functional requirements
 (idempotency, concurrency, privacy) and `/doctor`'s own section that audits the registry — the ability
 to generate is not shipped without the ability to check.
 
-**F3 (semantic drift and retiring dead pieces) is deferred, not dropped.** F2 already ships its own
-mechanical audit (`/doctor`), so deferring F3 leaves no life-cycle stage without an owner. It will
-resume as its own initiative once success-criterion data exists. Full detail, reasoning and the named
+**F3 (semantic drift and retiring dead pieces) is deferred, not dropped.** The F2 contract requires
+its own mechanical audit (`/doctor`); F2 remains unimplemented in this tree. F3 will resume as
+its own initiative once success-criterion data exists. Full detail, reasoning and the named
 checkpoint: `docs/roadmap/2026-09-09-project-specialization/spec.md`, section **"Alcance" →
 "Fuera (esta iteración — diferido, no descartado)"**.

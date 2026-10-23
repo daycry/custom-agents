@@ -1,8 +1,8 @@
 ---
 plan: plugin-refactor
-estado: en-progreso       # R1 en revisión; R2–R4 esperan puerta
+estado: completado       # cierre técnico local 2026-10-06; integración pendiente
 creado: 2026-09-10
-actualizado: 2026-09-10
+actualizado: 2026-10-06
 design: design.md         # `aprobado` 2026-09-10 · opción O1 (ADR-016 `propuesta`) — el plan la respeta, no la rediseña
 test-plan: n/a (sin UI)   # marcador de C-08 (E1): esta iniciativa NO tiene UI. Hoy lo lee una persona; tras T-13 lo leen `dev-cycle` (Fase 3) y `qa` (sale limpio sin pedir regenerar). Primera iniciativa que lo usa (ADR-017 `propuesta`)
 generacion:
@@ -23,7 +23,7 @@ generacion:
 | | |
 |---|---|
 | **Fecha** | 2026-09-10 |
-| **Estado** | en-progreso |
+| **Estado** | completado (técnico local) |
 | **Tipo** | Refactor (bloque a) + Bugfix de contratos entre piezas (bloque b) |
 | **Prioridad** | Alta |
 | **Solicitante** | usuario (petición del 2026-09-09 tras tres rondas de corrección sobre `task-brief.py`) |
@@ -40,12 +40,12 @@ generacion:
 
 | Métrica | Estimado | Real | Confianza |
 |--------|---------|------|-----------|
-| Tiempo humano | **88,8 h** (74,0 h base +20 %) | 0 h | Baja (el histórico nunca ha validado horas humanas — `CALIBRATION.md` aprendizaje 2) |
-| Tiempo IA (ejecución) | **10,6 h** (8,83 h base +20 %; + 2,65 h supervisión) | 0 h | Media (`memory-retrieval`: IA real +66 %; aquí la corrección post-revisión ya es línea propia, T-21) |
-| Coste total | **~4.479 €** (3.734 € base; 4.440 € horas + ~39 € tokens con margen) | 0 € | Media |
-| Tokens IA | **5,08 M facturables** (in 3,71 M / out 0,56 M / caché creación 0,81 M; + ~9,6 M lectura de caché) | 0 | Baja |
+| Tiempo humano | **88,8 h** (74,0 h base +20 %) | no medido | Baja (el histórico nunca ha validado horas humanas — `CALIBRATION.md` aprendizaje 2) |
+| Tiempo IA (ejecución) | **10,6 h** (8,83 h base +20 %; + 2,65 h supervisión) | no medido | Media (`memory-retrieval`: IA real +66 %; aquí la corrección post-revisión ya es línea propia, T-21) |
+| Coste total | **~4.479 €** (3.734 € base; 4.440 € horas + ~39 € tokens con margen) | no medido | Media |
+| Tokens IA | **5,08 M facturables** (in 3,71 M / out 0,56 M / caché creación 0,81 M; + ~9,6 M lectura de caché) | no medido (muestra parcial en retro) | Baja |
 | Multiplicador productividad | **×6,7** | — | — |
-| Tareas | **22** (19 de producto + 3 de proceso) en 5 fases · 4 tramos de revisión | 0 hechas | — |
+| Tareas | **22** (19 de producto + 3 de proceso) en 5 fases · 4 tramos de revisión | 22 hechas | — |
 
 **Herencia de la evaluación (regla: no se re-estima).** La evaluación cerró **75,0 h base / 90,0 h con margen / ~4.540 €**. Este plan hereda cada característica tal cual y declara tres diferencias, todas fijadas por la ejecución de hoy: **P-1 (`architect`, 2,0 h) ya está hecha** (`design.md` `aprobado`, medido 0,71 h IA / 9,16 €) → fuera del plan; **C-13 (i) ya está hecha** en la vía rápida `2026-09-10-usage-meter-transcripts` (cerrada, con retro, en `master` `8fee28a`) → de C-13 quedan 3,0 h de las 4,0 h; **E11 entra como propuesta C-14** (+2,0 h, T-19; opt-out en la puerta del plan). Neto: 75,0 − 2,0 − 1,0 + 2,0 = **74,0 h base**. El resto de cifras por característica es idéntico a la evaluación.
 
@@ -345,3 +345,9 @@ Nada de esto cambia en las Fases 1-3. Cada tarea del bloque (a) lo demuestra con
 ## Siguiente paso
 
 Con el **OK del plan** del usuario (puerta de control) —incluida la decisión sobre **C-14 (E11)**—, el agente **`implementer`** ejecuta la Fase 1 sobre `feature/plugin-refactor`, marcando `tasks.md` como **ledger canónico** (checkbox + estado por tarea, medición por tarea con `usage-meter.py`). Al cerrar cada tramo (R1…R4), `/dev-cycle` lanza la **revisión de dos lentes** (skill `adversarial-review`; la Lente B es la que trabaja en las Fases 1-3, la A en la Fase 4) y anota «Revisión de dos lentes — intento N» en el ledger. **Sin `test-plan.md`** (`test-plan: n/a (sin UI)`): `qa` corre `ledger-lint` y sale limpio. Cierre con `changelog-sync`, `release.py --dry-run`, `/retro` + `retro-gate.py` y `documenter` si el usuario lo pide. Después arrancan `brief-budget` (sobre el `task-brief.py` partido) y F2 de `project-specialization`.
+
+## Cierre técnico — 2026-10-06
+
+22/22 tareas implementadas y verificadas localmente. [Informe](testing/closure.md) y [retro](retro.md). Las métricas del cierre se comparan con la fuente anterior al mismo diff; la foto de septiembre se conserva. Hotspots 36→15, nuevas funciones≤32 líneas AST; CA-06 fue corregido por T-01 a 8→0 y los nueve TODO actuales pertenecen a características posteriores. La muestra de calibración es parcial y no acredita el consumo completo. PR a master y CI remota verde quedan pendientes de autorización; no se publica release.
+
+El cuarto pase autorizado por el usuario aprueba las correcciones: A+B, sin gaps pendientes. Cierre técnico local completado; integración pendiente.

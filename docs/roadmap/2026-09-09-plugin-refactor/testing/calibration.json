@@ -1,0 +1,552 @@
+{
+  "runtime": "claude-code",
+  "source": "transcripciones locales; offsets y ventanas version=2",
+  "state_sha256": "253d091d2cf224eb3e47a3cb05af39ab186131add2ea7dd4c9e5aadf8370425f",
+  "period": {
+    "inicio": "2026-09-10T13:22:28+00:00",
+    "fin": "2026-09-12T04:25:15+00:00"
+  },
+  "windows": [
+    {
+      "artefacto": "plugin-refactor/revision-R1-intento1",
+      "inicio": "2026-09-10T13:22:28+00:00",
+      "fin": "2026-09-10T13:59:50+00:00",
+      "segundos": 2242.0,
+      "respuestas": 62,
+      "tokens": {
+        "input_tokens": 189,
+        "output_tokens": 103616,
+        "cache_creation_input_tokens": 507445,
+        "cache_read_input_tokens": 8701765
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-01-fix1",
+      "inicio": "2026-09-10T14:25:42+00:00",
+      "fin": "2026-09-10T14:25:47+00:00",
+      "segundos": 5.0,
+      "respuestas": 1,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 202,
+        "cache_creation_input_tokens": 798,
+        "cache_read_input_tokens": 86107
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-02-fix1",
+      "inicio": "2026-09-10T14:25:56+00:00",
+      "fin": "2026-09-10T14:25:57+00:00",
+      "segundos": 1.0,
+      "respuestas": 0,
+      "tokens": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-04-fix1",
+      "inicio": "2026-09-10T14:25:58+00:00",
+      "fin": "2026-09-10T16:57:12+00:00",
+      "segundos": 9074.0,
+      "respuestas": 174,
+      "tokens": {
+        "input_tokens": 744,
+        "output_tokens": 155801,
+        "cache_creation_input_tokens": 1458467,
+        "cache_read_input_tokens": 28819144
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/revision-R1-intento2",
+      "inicio": "2026-09-10T14:40:37+00:00",
+      "fin": "2026-09-10T16:35:30+00:00",
+      "segundos": 6893.0,
+      "respuestas": 12,
+      "tokens": {
+        "input_tokens": 173,
+        "output_tokens": 26686,
+        "cache_creation_input_tokens": 1020121,
+        "cache_read_input_tokens": 4678068
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-01-fix2",
+      "inicio": "2026-09-10T16:45:19+00:00",
+      "fin": "2026-09-10T16:45:25+00:00",
+      "segundos": 6.0,
+      "respuestas": 1,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 246,
+        "cache_creation_input_tokens": 253,
+        "cache_read_input_tokens": 99687
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-05",
+      "inicio": "2026-09-10T17:33:39+00:00",
+      "fin": "2026-09-10T17:47:23+00:00",
+      "segundos": 824.0,
+      "respuestas": 37,
+      "tokens": {
+        "input_tokens": 74,
+        "output_tokens": 22634,
+        "cache_creation_input_tokens": 193084,
+        "cache_read_input_tokens": 4609108
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-06",
+      "inicio": "2026-09-10T17:48:08+00:00",
+      "fin": "2026-09-10T18:06:49+00:00",
+      "segundos": 1121.0,
+      "respuestas": 48,
+      "tokens": {
+        "input_tokens": 96,
+        "output_tokens": 31334,
+        "cache_creation_input_tokens": 92756,
+        "cache_read_input_tokens": 4030821
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-07",
+      "inicio": "2026-09-10T18:09:38+00:00",
+      "fin": "2026-09-10T18:21:37+00:00",
+      "segundos": 719.0,
+      "respuestas": 57,
+      "tokens": {
+        "input_tokens": 114,
+        "output_tokens": 40753,
+        "cache_creation_input_tokens": 101248,
+        "cache_read_input_tokens": 6002708
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-08",
+      "inicio": "2026-09-10T18:33:00+00:00",
+      "fin": "2026-09-10T18:50:30+00:00",
+      "segundos": 1050.0,
+      "respuestas": 43,
+      "tokens": {
+        "input_tokens": 86,
+        "output_tokens": 36626,
+        "cache_creation_input_tokens": 208771,
+        "cache_read_input_tokens": 5039829
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/revision-R2-intento1",
+      "inicio": "2026-09-10T18:58:11+00:00",
+      "fin": "2026-09-10T19:24:57+00:00",
+      "segundos": 1606.0,
+      "respuestas": 119,
+      "tokens": {
+        "input_tokens": 5926,
+        "output_tokens": 146633,
+        "cache_creation_input_tokens": 454333,
+        "cache_read_input_tokens": 13373376
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-09",
+      "inicio": "2026-09-10T19:55:22+00:00",
+      "fin": "2026-09-10T20:24:52+00:00",
+      "segundos": 1770.0,
+      "respuestas": 47,
+      "tokens": {
+        "input_tokens": 94,
+        "output_tokens": 45786,
+        "cache_creation_input_tokens": 461199,
+        "cache_read_input_tokens": 4749456
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-10",
+      "inicio": "2026-09-10T20:28:15+00:00",
+      "fin": "2026-09-10T20:41:31+00:00",
+      "segundos": 796.0,
+      "respuestas": 35,
+      "tokens": {
+        "input_tokens": 70,
+        "output_tokens": 20683,
+        "cache_creation_input_tokens": 247083,
+        "cache_read_input_tokens": 6261029
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/revision-R3-intento1",
+      "inicio": "2026-09-10T21:06:50+00:00",
+      "fin": "2026-09-10T21:24:45+00:00",
+      "segundos": 1075.0,
+      "respuestas": 74,
+      "tokens": {
+        "input_tokens": 275,
+        "output_tokens": 108834,
+        "cache_creation_input_tokens": 374375,
+        "cache_read_input_tokens": 6296784
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-09-fix1",
+      "inicio": "2026-09-10T21:33:03+00:00",
+      "fin": "2026-09-10T22:03:03+00:00",
+      "segundos": 1800.0,
+      "respuestas": 86,
+      "tokens": {
+        "input_tokens": 172,
+        "output_tokens": 83554,
+        "cache_creation_input_tokens": 308884,
+        "cache_read_input_tokens": 13150427
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-10-fix1",
+      "inicio": "2026-09-10T21:33:03+00:00",
+      "fin": "2026-09-10T22:03:03+00:00",
+      "segundos": 1800.0,
+      "respuestas": 86,
+      "tokens": {
+        "input_tokens": 172,
+        "output_tokens": 83554,
+        "cache_creation_input_tokens": 308884,
+        "cache_read_input_tokens": 13150427
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/revision-R3-intento2",
+      "inicio": "2026-09-10T22:07:11+00:00",
+      "fin": "2026-09-10T22:51:05+00:00",
+      "segundos": 2634.0,
+      "respuestas": 119,
+      "tokens": {
+        "input_tokens": 303,
+        "output_tokens": 129150,
+        "cache_creation_input_tokens": 653081,
+        "cache_read_input_tokens": 11573108
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/R3-fix2",
+      "inicio": "2026-09-10T22:50:00+00:00",
+      "fin": "2026-09-10T23:22:36+00:00",
+      "segundos": 1956.0,
+      "respuestas": 82,
+      "tokens": {
+        "input_tokens": 319,
+        "output_tokens": 72293,
+        "cache_creation_input_tokens": 411140,
+        "cache_read_input_tokens": 8456722
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/revision-R3-intento3",
+      "inicio": "2026-09-10T23:36:12+00:00",
+      "fin": "2026-09-11T00:10:17+00:00",
+      "segundos": 2045.0,
+      "respuestas": 53,
+      "tokens": {
+        "input_tokens": 259,
+        "output_tokens": 68245,
+        "cache_creation_input_tokens": 249692,
+        "cache_read_input_tokens": 6143678
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/R3-fix3",
+      "inicio": "2026-09-11T02:22:44+00:00",
+      "fin": "2026-09-11T02:50:36+00:00",
+      "segundos": 1672.0,
+      "respuestas": 75,
+      "tokens": {
+        "input_tokens": 641,
+        "output_tokens": 64808,
+        "cache_creation_input_tokens": 474056,
+        "cache_read_input_tokens": 9649245
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-11",
+      "inicio": "2026-09-11T17:33:41+00:00",
+      "fin": "2026-09-11T17:39:06+00:00",
+      "segundos": 325.0,
+      "respuestas": 20,
+      "tokens": {
+        "input_tokens": 40,
+        "output_tokens": 14144,
+        "cache_creation_input_tokens": 55629,
+        "cache_read_input_tokens": 1904756
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-12",
+      "inicio": "2026-09-11T17:40:29+00:00",
+      "fin": "2026-09-11T17:45:45+00:00",
+      "segundos": 316.0,
+      "respuestas": 28,
+      "tokens": {
+        "input_tokens": 56,
+        "output_tokens": 15821,
+        "cache_creation_input_tokens": 51537,
+        "cache_read_input_tokens": 4138532
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-13",
+      "inicio": "2026-09-11T17:47:27+00:00",
+      "fin": "2026-09-11T17:55:10+00:00",
+      "segundos": 463.0,
+      "respuestas": 43,
+      "tokens": {
+        "input_tokens": 86,
+        "output_tokens": 23560,
+        "cache_creation_input_tokens": 71419,
+        "cache_read_input_tokens": 8958302
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-14",
+      "inicio": "2026-09-11T17:56:58+00:00",
+      "fin": "2026-09-11T18:11:26+00:00",
+      "segundos": 868.0,
+      "respuestas": 19,
+      "tokens": {
+        "input_tokens": 38,
+        "output_tokens": 17933,
+        "cache_creation_input_tokens": 300865,
+        "cache_read_input_tokens": 4605863
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/revision-R4a-intento1",
+      "inicio": "2026-09-11T18:28:09+00:00",
+      "fin": "2026-09-11T18:58:42+00:00",
+      "segundos": 1833.0,
+      "respuestas": 110,
+      "tokens": {
+        "input_tokens": 220,
+        "output_tokens": 114510,
+        "cache_creation_input_tokens": 1421671,
+        "cache_read_input_tokens": 17184786
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/revision-R4a-intento2",
+      "inicio": "2026-09-11T20:42:21+00:00",
+      "fin": "2026-09-11T21:07:19+00:00",
+      "segundos": 1498.0,
+      "respuestas": 44,
+      "tokens": {
+        "input_tokens": 88,
+        "output_tokens": 59624,
+        "cache_creation_input_tokens": 199250,
+        "cache_read_input_tokens": 6138148
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/R4a-fix2",
+      "inicio": "2026-09-11T21:09:26+00:00",
+      "fin": "2026-09-11T22:01:27+00:00",
+      "segundos": 3121.0,
+      "respuestas": 142,
+      "tokens": {
+        "input_tokens": 3540,
+        "output_tokens": 110462,
+        "cache_creation_input_tokens": 633429,
+        "cache_read_input_tokens": 20452571
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/revision-R4a-intento3",
+      "inicio": "2026-09-11T22:13:30+00:00",
+      "fin": "2026-09-11T22:42:09+00:00",
+      "segundos": 1719.0,
+      "respuestas": 52,
+      "tokens": {
+        "input_tokens": 104,
+        "output_tokens": 62855,
+        "cache_creation_input_tokens": 248118,
+        "cache_read_input_tokens": 7757946
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/R4a-fix3",
+      "inicio": "2026-09-11T23:26:20+00:00",
+      "fin": "2026-09-11T23:30:50+00:00",
+      "segundos": 270.0,
+      "respuestas": 12,
+      "tokens": {
+        "input_tokens": 24,
+        "output_tokens": 17455,
+        "cache_creation_input_tokens": 41014,
+        "cache_read_input_tokens": 2680313
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/revision-R4a-intento4",
+      "inicio": "2026-09-11T23:39:49+00:00",
+      "fin": "2026-09-12T00:04:06+00:00",
+      "segundos": 1457.0,
+      "respuestas": 57,
+      "tokens": {
+        "input_tokens": 114,
+        "output_tokens": 59397,
+        "cache_creation_input_tokens": 220794,
+        "cache_read_input_tokens": 8763748
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/R4a-fix4",
+      "inicio": "2026-09-12T00:04:47+00:00",
+      "fin": "2026-09-12T00:57:49+00:00",
+      "segundos": 3182.0,
+      "respuestas": 134,
+      "tokens": {
+        "input_tokens": 268,
+        "output_tokens": 96212,
+        "cache_creation_input_tokens": 438167,
+        "cache_read_input_tokens": 17792288
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-15",
+      "inicio": "2026-09-12T01:09:20+00:00",
+      "fin": "2026-09-12T01:14:30+00:00",
+      "segundos": 310.0,
+      "respuestas": 32,
+      "tokens": {
+        "input_tokens": 64,
+        "output_tokens": 17251,
+        "cache_creation_input_tokens": 63811,
+        "cache_read_input_tokens": 2689511
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-16",
+      "inicio": "2026-09-12T01:16:42+00:00",
+      "fin": "2026-09-12T01:23:43+00:00",
+      "segundos": 421.0,
+      "respuestas": 23,
+      "tokens": {
+        "input_tokens": 46,
+        "output_tokens": 29478,
+        "cache_creation_input_tokens": 58279,
+        "cache_read_input_tokens": 3422700
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-17",
+      "inicio": "2026-09-12T01:25:08+00:00",
+      "fin": "2026-09-12T01:30:49+00:00",
+      "segundos": 341.0,
+      "respuestas": 29,
+      "tokens": {
+        "input_tokens": 58,
+        "output_tokens": 19686,
+        "cache_creation_input_tokens": 51648,
+        "cache_read_input_tokens": 5847017
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-18",
+      "inicio": "2026-09-12T01:32:12+00:00",
+      "fin": "2026-09-12T01:41:14+00:00",
+      "segundos": 542.0,
+      "respuestas": 28,
+      "tokens": {
+        "input_tokens": 56,
+        "output_tokens": 22248,
+        "cache_creation_input_tokens": 54328,
+        "cache_read_input_tokens": 6997900
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/T-19",
+      "inicio": "2026-09-12T01:42:35+00:00",
+      "fin": "2026-09-12T01:48:43+00:00",
+      "segundos": 368.0,
+      "respuestas": 22,
+      "tokens": {
+        "input_tokens": 44,
+        "output_tokens": 19409,
+        "cache_creation_input_tokens": 44411,
+        "cache_read_input_tokens": 6560663
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/revision-R4b-intento1",
+      "inicio": "2026-09-12T02:49:06+00:00",
+      "fin": "2026-09-12T03:23:41+00:00",
+      "segundos": 2075.0,
+      "respuestas": 130,
+      "tokens": {
+        "input_tokens": 260,
+        "output_tokens": 144228,
+        "cache_creation_input_tokens": 1514636,
+        "cache_read_input_tokens": 18287830
+      }
+    },
+    {
+      "artefacto": "plugin-refactor/R4b-fix1",
+      "inicio": "2026-09-12T03:26:21+00:00",
+      "fin": "2026-09-12T04:25:15+00:00",
+      "segundos": 3534.0,
+      "respuestas": 158,
+      "tokens": {
+        "input_tokens": 316,
+        "output_tokens": 172304,
+        "cache_creation_input_tokens": 341258,
+        "cache_read_input_tokens": 37960216
+      }
+    }
+  ],
+  "excluded": [
+    {
+      "artefacto": "plugin-refactor/T-04",
+      "motivo": "marcador anterior al formato corregido o sin offsets/cierre"
+    },
+    {
+      "artefacto": "plugin-refactor/T-03-fix1",
+      "motivo": "reloj inválido: cierre no posterior al inicio",
+      "inicio": "2026-09-10T14:25:57Z",
+      "fin": "2026-09-10T14:25:57Z"
+    },
+    {
+      "artefacto": "plugin-refactor/R4a-fix1",
+      "motivo": "marcador anterior al formato corregido o sin offsets/cierre"
+    }
+  ],
+  "tokens": {
+    "input_tokens": 14778,
+    "output_tokens": 2138867,
+    "cache_creation_input_tokens": 11992102,
+    "cache_read_input_tokens": 318605132
+  },
+  "unique_responses": 2192,
+  "models_responses": {
+    "<synthetic>": 2,
+    "claude-fable-5-1": 70,
+    "claude-haiku-4-5-20251001": 5,
+    "claude-opus-5": 1777,
+    "claude-sonnet-5": 338
+  },
+  "tokens_facturables_convencion": 14145747,
+  "clock_seconds_sum_windows": 61732.0,
+  "clock_seconds_union_windows": 52968.0,
+  "clock_seconds_unique_windows": 59932.0,
+  "tokens_hour_unique_windows": 849708,
+  "tokens_hour_sum_windows": 824932,
+  "tokens_hour_union_windows": 961424,
+  "source_counts": {
+    "files": 369,
+    "invalid_json_lines": 0
+  },
+  "limits": [
+    "Muestra histórica parcial: no incluye tareas anteriores a los marcadores corregidos ni el cierre Codex actual.",
+    "Lectura de caché conservada aparte y excluida del numerador según CALIBRATION.md.",
+    "Denominador vigente: suma de intervalos distintos, contando cada ventana compartida una vez.",
+    "La unión de solapes se conserva solo como diagnóstico alternativo; no es el ratio publicado."
+  ]
+}

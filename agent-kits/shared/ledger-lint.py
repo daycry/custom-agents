@@ -10,6 +10,9 @@ ERRORES (exit 1, incoherencias duras):
   - IDs de tarea `T-XX` duplicados.
   - Tarea `completado` con criterios de aceptación sin marcar (`- [ ]`).
   - Tabla de resumen que no cuadra con las tareas (completadas/total por fase).
+  - Campo OPCIONAL `- **Cerrada**: AAAA-MM-DD` (fecha en que se marcó `completado` la tarea; lo escribe
+    quien la cierra, como `Changelog`) vacío, con formato inválido o anterior a la creación del ledger
+    (`creado:` del frontmatter o fila `| **Fecha** |`): la línea lleva `fichero:línea`. Sin el campo, nada.
   - Con `verificacion: obligatoria` en el frontmatter: tarea sin campo `- **Verificación**:` o con
     el campo VACÍO (plan-and-diet T-02 — sin verificación ejecutable la tarea no está bien definida).
     Formas aceptadas (T-fix1): en línea `- **Verificación**: cmd → res · cmd2 → res2`, sub-lista
@@ -35,6 +38,11 @@ AVISOS (no rompen; formato/legacy):
     dos casos `changelog-sync` degrada el bullet al título, así que el campo no está escrito. Un
     `{{…}}` CITADO (entre acentos graves, o dentro de una frase que dice algo más) sí está escrito
     y se publica: el criterio es «el campo ES el placeholder», no «lo menciona».
+  - Ledger de más del 70 % del tope de lectura acotada (`local-read.py` `MAX_BYTES` = 256 KiB, que
+    usan la retoma y `plan-review.py`): el aviso da el comando `ledger-archive.py <carpeta> --apply`,
+    que traslada la historia cerrada a `execution-history.md` conservando los bytes con su SHA.
+  - `Verificación` de más de `VERIFICACION_MAX` caracteres: narrativa acumulada, no un
+    `comando → resultado` vigente (`ledger-archive.py` la recorta con el mismo umbral).
 
 Uso:
   python3 ledger-lint.py <ruta/a/tasks.md> [--warn-only]
@@ -44,6 +52,7 @@ Como módulo: `parse_ledger(text)` expone el parser estructural (fases, tareas, 
 horas IA) sin efectos secundarios — lo reutiliza `progress-report.py` (live-visibility).
 """
 import argparse
+import datetime
 import os
 import re
 import sys
@@ -54,6 +63,13 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
 ESTADOS = {"borrador", "en-progreso", "en-revision", "completado", "cancelado"}
+
+# Tamaño del ledger: el tope de lectura acotada es `MAX_BYTES` de `local-read.py` (256 KiB; lo usan
+# la retoma `progress-report.py resume` y `plan-review.py`). Al 70 % se avisa con el comando que
+# archiva la historia cerrada; `ledger-archive.py` reutiliza estas constantes.
+TOPE_LECTURA_BYTES = 256 * 1024
+UMBRAL_TAMANO_BYTES = 183_500          # 70 % de 256 KiB
+VERIFICACION_MAX = 2000                # caracteres de `Verificación` antes de avisar / recortar
 # quita emojis/decoración al comparar estados: "completado ✅" → "completado"
 def norm_estado(s):
     s = re.sub(r"[\s_]+", "-", s.strip().lower())   # "En Progreso" → "en-progreso"
@@ -76,6 +92,14 @@ _SUBITEM_RE = re.compile(r"^\s+[-*]\s+(.*\S)\s*$")
 CHANGELOG_FIELD_PATTERN = \
     r"^[^\S\n]*-[^\S\n]*\*\*Changelog\*\*[^\S\n]*:[^\S\n]*(?P<txt>.*)$"
 CHANGELOG_RE = re.compile(CHANGELOG_FIELD_PATTERN, re.I)
+# `- **Cerrada**: AAAA-MM-DD` — fecha en que se marcó `completado` la tarea (OPCIONAL, mismo patrón que
+# `Changelog`: la escribe quien CIERRA la tarea). La lee `ledger-view.py` (burndown del panel) y este
+# linter valida SOLO su formato y que no sea anterior a la fecha de creación del ledger; un ledger que no la
+# usa valida idéntico. Mismo `[^\S\n]*` que `CHANGELOG_FIELD_PATTERN` (un campo vacío no captura la línea
+# siguiente).
+CERRADA_FIELD_PATTERN = \
+    r"^[^\S\n]*-[^\S\n]*\*\*Cerrada\*\*[^\S\n]*:[^\S\n]*(?P<txt>.*)$"
+CERRADA_FECHA_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # --- Criterios que `changelog-sync.py` REPLICA LITERAL (su paquete portable viaja sin este kit).
 # La suite compara las tres cadenas byte a byte y enfrenta los dos PARSERS sobre bloques de ledger
 # COMPLETOS (con `Verificación` + sub-lista, `### Fase`, valla de código y cola tras la última
@@ -87,7 +111,7 @@ CHANGELOG_RE = re.compile(CHANGELOG_FIELD_PATTERN, re.I)
 VALLA_PATTERN = r"^[^\S\n]*(?:`{3,}|~{3,})"
 # (b) Campos del bloque de una tarea: una línea que es uno de ellos no es prosa de continuación ni
 #     ítem de la sub-lista de `Verificación`.
-CAMPO_LEDGER_PATTERN = (r"^[^\S\n]*(?:[-*+][^\S\n]*)?\*\*(?:Changelog|Descripci[oó]n|Archivos|"
+CAMPO_LEDGER_PATTERN = (r"^[^\S\n]*(?:[-*+][^\S\n]*)?\*\*(?:Changelog|Cerrada|Descripci[oó]n|Archivos|"
                         r"Estado|Verificaci[oó]n|Tiempo[^*]*|Supervisi[oó]n|Notas|"
                         r"Criterios[^*]*)\*\*")
 # (c) Continuación indentada del campo (una persona parte una frase larga en dos líneas): se
@@ -471,6 +495,7 @@ def parse_ledger(text):
     Devuelve un dict:
       frontmatter: {clave: valor} del bloque YAML inicial (solo `clave: valor` planos)
       estado_tabla: valor de la fila `| **Estado** | … |` de la tabla de cabecera (o None)
+      creado: `AAAA-MM-DD` del `creado:` del frontmatter o de la fila `| **Fecha** |` (o None)
       fases: [{"nombre": str, "tareas": [tarea, …]}, …]  (cabeceras `## Fase …`)
       huerfanas: [tarea, …]  (tareas `### T-XX` fuera de toda fase)
       tareas: todas las tareas en orden de aparición
@@ -481,7 +506,15 @@ def parse_ledger(text):
                  "" si el campo existe pero está vacío, None si no existe),
                  "verificacion_items" ([str]: un ítem por comando → resultado),
                  "verificacion_ejecutada" (texto del paréntesis `(ejecutada …)` o None),
-                 "changelog" (texto del campo `- **Changelog**:`, "" si existe vacío, None si no)}.
+                 "changelog" (texto del campo `- **Changelog**:`, "" si existe vacío, None si no),
+                 "criterios" ([str]: texto de cada línea `- [ ]`/`- [x]` del bloque de criterios, sin la
+                 casilla; lo usa `scope-check.py` para detectar criterios aprobados reescritos),
+                 "criterios_marcados" ([bool], paralelo a `criterios`), "descripcion" / "dependencias" /
+                 "verificacion_salida" (texto de `- **Descripción**:` / `- **Dependencias**:` /
+                 `- **Verificación ejecutada** (…):`, None si no existen), "humano_real_h"/"humano_est_h" y
+                 "sup_real_h"/"sup_est_h" (como las horas IA; `—`/`n/d` → None), "cerrada" (texto del
+                 campo `- **Cerrada**:`, "" si existe vacío, None si no) y "cerrada_linea" (su línea)}.
+                 Los consume también `ledger-view.py` (proyección del panel).
     Lo consumen `lint()` (aquí) y `progress-report.py` (línea de progreso).
     """
     text = text.lstrip("\ufeff")          # BOM UTF-8: sin esto el frontmatter no se reconoce
@@ -499,8 +532,13 @@ def parse_ledger(text):
             if m:
                 val = m.group(2).split("#", 1)[0].strip()
                 frontmatter[m.group(1)] = val
-    m = re.search(r"^\|\s*\*\*Estado\*\*\s*\|\s*([^|]+)\|", text, re.M)
+    m = re.search(r"^\|\s*\*\*Estado\*\*\s*\|[ \t]*([^|\s][^|]*)\|", text, re.M)
     estado_tabla = norm_estado(m.group(1)) if m else None
+    # Fecha de creación del ledger: `creado:` del frontmatter o la fila `| **Fecha** | AAAA-MM-DD |` de la
+    # tabla de cabecera (la usa `lint()` para que `Cerrada` no sea anterior). Solo si es una fecha bien formada.
+    m = re.search(r"^\|\s*\*\*Fecha\*\*\s*\|[ \t]*([^|\s][^|]*)\|", text, re.M)
+    creado = (frontmatter.get("creado") or (m.group(1).strip() if m else "")).strip()
+    creado = creado if CERRADA_FECHA_RE.match(creado) else None
 
     # ---- estructura: fases y tareas ----
     fase_re = re.compile(r"^##\s+(Fase\b[^\n]*)")
@@ -512,6 +550,15 @@ def parse_ledger(text):
     # «en-progreso … sin empezar» en la misma fase— y `ledger-lint` salía 0 sin verlo.
     fase_estado_re = re.compile(r"^\s*\*\*Estado\*\*\s*:\s*(.+)$")
     ia_re = re.compile(r"^\s*-\s*\*\*Tiempo IA[^*]*\*\*\s*:\s*(.+)$")
+    # Campos que el panel (`ledger-view.py`) proyecta: se leen AQUÍ, en el parser único, no en un segundo
+    # lector con reglas propias (ADR-011/ADR-016). Primera aparición por tarea, como el resto de campos.
+    humano_re = re.compile(r"^\s*-\s*\*\*Tiempo humano[^*]*\*\*\s*:\s*(.+)$", re.I)
+    sup_re = re.compile(r"^\s*-\s*\*\*Supervisi[oó]n[^*]*\*\*\s*:\s*(.+)$", re.I)
+    desc_re = re.compile(r"^\s*-\s*\*\*Descripci[oó]n\*\*\s*:\s*(.*)$", re.I)
+    dep_re = re.compile(r"^\s*-\s*\*\*Dependencias\*\*\s*:\s*(.*)$", re.I)
+    salida_re = re.compile(r"^\s*-\s*\*\*Verificaci[oó]n ejecutada\*\*\s*(?P<paren>\((?:[^()]|\([^()]*\))*\))?"
+                           r"\s*:\s*(?P<txt>.*)$", re.I)
+    cerrada_re = re.compile(CERRADA_FIELD_PATTERN, re.I)
     check_re = re.compile(r"^\s*[-*]\s*\[( |x|X)\]")
 
     fases = []
@@ -562,7 +609,11 @@ def parse_ledger(text):
                         "tiene_criterios": False, "ia_real_h": None, "ia_est_h": None,
                         "ia_real_fuente": None, "verificacion": None,
                         "verificacion_items": [], "verificacion_ejecutada": None,
-                        "changelog": None}
+                        "changelog": None, "criterios": [], "criterios_marcados": [],
+                        "descripcion": None, "dependencias": None, "verificacion_salida": None,
+                        "humano_real_h": None, "humano_est_h": None,
+                        "sup_real_h": None, "sup_est_h": None,
+                        "cerrada": None, "cerrada_linea": None}
             in_criterios = False
             continue
         if cur_task is not None:
@@ -585,6 +636,36 @@ def parse_ledger(text):
                     idx += 1               # continuación indentada: absorbida, no perdida
                 cur_task["changelog"] = " ".join(p for p in partes if p).strip()
                 continue
+            m = cerrada_re.match(ln)
+            if m and cur_task["cerrada"] is None:
+                cur_task["cerrada"] = m.group("txt").strip()
+                cur_task["cerrada_linea"] = idx          # número de línea (1-based) para `fichero:línea`
+                continue
+            m = desc_re.match(ln)
+            if m and cur_task["descripcion"] is None:
+                partes = [m.group(1).strip()]
+                while idx < len(lines) and es_continuacion(lines[idx]):
+                    partes.append(lines[idx].strip())
+                    idx += 1               # continuación indentada: absorbida, no perdida
+                cur_task["descripcion"] = " ".join(p for p in partes if p).strip()
+                continue
+            m = dep_re.match(ln)
+            if m and cur_task["dependencias"] is None:
+                cur_task["dependencias"] = m.group(1).strip()
+                continue
+            m = salida_re.match(ln)
+            if m and cur_task["verificacion_salida"] is None:
+                cur_task["verificacion_salida"] = (m.group("txt").strip()
+                                                   or (m.group("paren") or "")[1:-1].strip())
+                continue
+            m = humano_re.match(ln)
+            if m and cur_task["humano_est_h"] is None and cur_task["humano_real_h"] is None:
+                cur_task["humano_est_h"], cur_task["humano_real_h"] = _parse_horas(m.group(1))
+                continue
+            m = sup_re.match(ln)
+            if m and cur_task["sup_est_h"] is None and cur_task["sup_real_h"] is None:
+                cur_task["sup_est_h"], cur_task["sup_real_h"] = _parse_horas(m.group(1))
+                continue
             m = ia_re.match(ln)
             if m and cur_task["ia_real_h"] is None and cur_task["ia_est_h"] is None:
                 cur_task["ia_est_h"], cur_task["ia_real_h"] = _parse_horas(m.group(1))
@@ -599,6 +680,8 @@ def parse_ledger(text):
             if in_criterios:
                 mc = check_re.match(ln)
                 if mc:
+                    cur_task["criterios"].append(ln[mc.end():].strip())
+                    cur_task["criterios_marcados"].append(mc.group(1) in ("x", "X"))
                     if mc.group(1) in ("x", "X"):
                         cur_task["checked"] += 1
                     else:
@@ -621,7 +704,7 @@ def parse_ledger(text):
     close_task()
 
     tareas = [t for f in fases for t in f["tareas"]] + huerfanas
-    return {"frontmatter": frontmatter, "estado_tabla": estado_tabla,
+    return {"frontmatter": frontmatter, "estado_tabla": estado_tabla, "creado": creado,
             "fases": fases, "huerfanas": huerfanas, "tareas": tareas}
 
 
@@ -690,6 +773,19 @@ def lint(path):
             errors.append(f"{t['id']}: marcado `completado` con {t['unchecked']} "
                           f"criterio(s) sin marcar `- [ ]` — incoherencia dura")
 
+    # ---- `- **Cerrada**: AAAA-MM-DD` (panel-redesign T-22): opcional; si está, formato y orden ----
+    # Solo se valida el FORMATO (una fecha real) y que no sea anterior a la creación del ledger: el campo
+    # lo lee el burndown del panel y una fecha basura lo falsearía. Un ledger sin el campo valida idéntico.
+    for t in all_tasks:
+        if t["cerrada"] is None:
+            continue
+        donde = f"{path}:{t['cerrada_linea']}: {t['id']}: campo **Cerrada**"
+        if not CERRADA_FECHA_RE.match(t["cerrada"]) or not _fecha_real(t["cerrada"]):
+            errors.append(f"{donde} {'VACÍO' if not t['cerrada'] else 'con «' + t['cerrada'][:40] + '»'} — "
+                          f"el formato es `AAAA-MM-DD` (una fecha real)")
+        elif parsed["creado"] and t["cerrada"] < parsed["creado"]:
+            errors.append(f"{donde} ({t['cerrada']}) anterior a la creación ({parsed['creado']}) del ledger")
+
     # ---- Verificación por tarea (plan-and-diet T-02) ----
     verif_fm = norm_estado(parsed["frontmatter"].get("verificacion", "")) if parsed["frontmatter"].get("verificacion") else ""
     usa_verif = any(t["verificacion"] for t in all_tasks)
@@ -704,6 +800,22 @@ def lint(path):
         elif verif_fm or usa_verif:
             warnings.append(f"{t['id']}: {que}"
                             + (" (otras tareas lo declaran)" if usa_verif else ""))
+    for t in all_tasks:
+        n = len(t["verificacion"] or "")
+        if n > VERIFICACION_MAX:
+            warnings.append(f"{t['id']}: campo **Verificación** de {n} caracteres (> "
+                            f"{VERIFICACION_MAX}) — la narrativa va a comparisons/ o al histórico; "
+                            f"aquí, comando → resultado vigente")
+
+    # ---- tamaño del ledger frente al tope de lectura acotada (ledger-archive) ----
+    try:
+        tam = os.path.getsize(path)
+    except OSError:
+        tam = 0
+    if tam > UMBRAL_TAMANO_BYTES:
+        carpeta = os.path.dirname(path) or "."
+        warnings.append(f"ledger de {tam // 1024} KB (tope de lectura 256 KiB): "
+                        f"`python3 agent-kits/shared/ledger-archive.py {carpeta} --apply`")
 
     # ---- Changelog por tarea (changelog-brief): AVISO, nunca incoherencia ----
     # Opcional por diseño. Solo se avisa en ADOPCIÓN PARCIAL (alguna tarea lo trae y otra no) o
@@ -773,6 +885,15 @@ def lint(path):
                     f"resumen descuadrado en «{nombre.strip()}»: tabla dice "
                     f"{comp}/{total}, las tareas dicen {rdone}/{rtotal}")
     return errors, warnings
+
+
+def _fecha_real(texto):
+    """¿`texto` (ya con forma `AAAA-MM-DD`) es una fecha del calendario? (`2026-02-30` no lo es)."""
+    try:
+        datetime.date.fromisoformat(texto)
+    except ValueError:
+        return False
+    return True
 
 
 def norm_fase(s):

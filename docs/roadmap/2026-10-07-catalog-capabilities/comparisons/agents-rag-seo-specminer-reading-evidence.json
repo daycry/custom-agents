@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-14",
+  "evaluated_agent_ids": [
+    "A053",
+    "A060",
+    "A062"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "A053",
+      "sha256": "793432a0c4e44aa4c640cb85ec24b47062ed044782852b0ba67323d860154fec",
+      "bytes": 6249,
+      "lines": 67,
+      "read_ranges": [
+        [
+          1,
+          67
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A060",
+      "sha256": "40a66d601113669585cf6abbf4c9ae2bf134ef23ffdb78c45223733dbde90a2c",
+      "bytes": 2846,
+      "lines": 71,
+      "read_ranges": [
+        [
+          1,
+          71
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A062",
+      "sha256": "a9270c2012e2dc979f153a481cdfdc7c5413e8774f579ada0319c00ea8903ba2",
+      "bytes": 15108,
+      "lines": 217,
+      "read_ranges": [
+        [
+          1,
+          217
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agents/analyst.md",
+      "sha256": "6a5fb1f6f20249183a93fea3210bf5886901e35c90d99022089539c01f9dda62"
+    },
+    {
+      "path": "agents/documenter.md",
+      "sha256": "6305ad471be234d3862c9ed1cd95d9776e1cc8d087a3f87d0b5d92872ed33244"
+    },
+    {
+      "path": "commands/spec-drift.md",
+      "sha256": "5bcbdb1397b745db5f389098e034ae5f64dd9c5bc1e4497b666b074ddb22d441"
+    },
+    {
+      "path": "skills/outcome-evals/SKILL.md",
+      "sha256": "8b3d65b247db25ee086861227df88ddae92410533f0f9f82b9d8af7e4ce849ff"
+    },
+    {
+      "path": "skills/outcome-evals/references/protocol.md",
+      "sha256": "ecc0dc9db4fd22fd1165324629cef7f1fe094c9de5dc2b58d8b3287a86253e31"
+    },
+    {
+      "path": "skills/frontend-quality/SKILL.md",
+      "sha256": "ec2843326f2a2a103747bb648d59ccbc330496c3242c1f313579ee6fc60cf379"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "1e4dd91857210df7679632f6c6f60241424da85cdd095bb9da59f3b83ca626e3"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-seo-social-graph-publisher.md",
+      "sha256": "5c05c0cddc7f5791f9ddf59909b2ffdb808fc83972d1f697d63dcc3c93a225dc"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-ml-adoption-mle.md",
+      "sha256": "180fb5b6d967675e4278fcf14ec80f6fb747876b7f12a4cdbf571b318f317c97"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-destinations.md",
+      "sha256": "ef595ccb3b92157ba3df5fe2b0823db6dd2df51a47f803a8d59591b461b02e7e"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

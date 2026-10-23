@@ -12,6 +12,9 @@ docs/security-scan/
 # Por si algo cae dentro del árbol, no versionar binarios ni vendored tools.
 **/bin/
 **/vendor/
+# Excepción: Chart.js incluido en el panel (panel-redesign T-02, CA-36): fichero de terceros SIN
+# modificar, con LICENSE.md y PROVENANCE.json; lo vigila tests/test_panel_vendor.py.
+!skills/plugin-panel/assets/vendor/
 **/*.download
 agent-kits/**/tools/bin/
 agent-kits/**/tools/vendor/
@@ -58,6 +61,7 @@ desktop.ini
 # plugin (solo `journal.py purge --confirm` la borra). No confundir con docs/knowledge/journal/,
 # que SÍ se versiona (memoria del proyecto).
 .claude/journal/
+.claude/plan-review/
 # Debounce del hook de progreso (última línea emitida + cerrojo flock; live-visibility, debt-cleanup).
 .claude/.progress-last
 .claude/.progress-last.lock
@@ -109,3 +113,5 @@ CONTINUE-HERE.local.md
 # Traspaso de sesion (CONTINUE-HERE): solo local, acumula rutas y datos de la maquina.
 /CONTINUE-HERE.md
 /CONTINUE-HERE.local.md
+# Instantánea HTML local generada por plugin-panel; la plantilla sí se versiona.
+/panel.html

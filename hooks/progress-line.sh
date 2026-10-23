@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# panel-title: Progreso de la iniciativa
+# panel-description: Muestra el avance de la iniciativa cuando cambia su ledger. Evita repetir actualizaciones idénticas consecutivas.
 # Hook PostToolUse (Write/Edit/MultiEdit): cuando se edita un ledger canónico
 # `docs/roadmap/*/tasks.md`, emite UNA línea de progreso determinista
 # (`progress-report.py line`) como `systemMessage` — el usuario ve el avance sin
@@ -31,9 +33,11 @@ command -v python3 >/dev/null 2>&1 || exit 0
 # Extraer ruta(s) del payload (jq si está; grep de respaldo — mismo patrón que
 # ledger-lint-warn.sh).
 paths=""
+paths_json_escaped=0
 if command -v jq >/dev/null 2>&1; then
   paths="$(printf '%s' "$INPUT" | jq -r '[.tool_input.file_path, (.tool_input.edits[]?.file_path)] | map(select(. != null)) | .[]' 2>/dev/null)"
 else
+  paths_json_escaped=1
   paths="$(printf '%s' "$INPUT" | grep -oE '"file_path"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*:[[:space:]]*"([^"]+)"/\1/')"
 fi
 [ -n "$paths" ] || exit 0
@@ -74,7 +78,8 @@ debounce_repetida() {
 
 while IFS= read -r p; do
   [ -n "$p" ] || continue
-  p="${p//\\//}"   # rutas Windows nativas (C:\proy\docs\roadmap\...) → separador '/'
+  if [ "$paths_json_escaped" = 1 ]; then p="${p//\\\\//}"; fi
+  p="${p//\\//}"   # jq devuelve el backslash nativo ya decodificado
   case "$p" in
     *docs/roadmap/*tasks.md)
       [ -f "$p" ] || continue

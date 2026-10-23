@@ -101,7 +101,7 @@ RE_FIN_BLOQUE = re.compile(r"^##\s", re.M)
 VALLA_PATTERN = r"^[^\S\n]*(?:`{3,}|~{3,})"
 # (b) Campos del bloque de una tarea. Una línea que es uno de ellos NO es prosa de continuación ni
 #     ítem de la sub-lista de `Verificación`, con o sin la viñeta `- ` y con cualquier indentación.
-CAMPO_LEDGER_PATTERN = (r"^[^\S\n]*(?:[-*+][^\S\n]*)?\*\*(?:Changelog|Descripci[oó]n|Archivos|"
+CAMPO_LEDGER_PATTERN = (r"^[^\S\n]*(?:[-*+][^\S\n]*)?\*\*(?:Changelog|Cerrada|Descripci[oó]n|Archivos|"
                         r"Estado|Verificaci[oó]n|Tiempo[^*]*|Supervisi[oó]n|Notas|"
                         r"Criterios[^*]*)\*\*")
 # (c) Continuación indentada del campo: una persona parte una frase larga en dos líneas y el

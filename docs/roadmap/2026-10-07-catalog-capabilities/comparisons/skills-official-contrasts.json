@@ -1,0 +1,397 @@
+[
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-vue-vite-tinystruct.md",
+    "line": 40,
+    "claim": "Rolldown «desde v7» y minificador `oxc` por defecto (afirmación de la pieza S289).",
+    "verdict": "corregida",
+    "official_url": "https://vite.dev/guide/migration",
+    "checked_at": "2026-10-13",
+    "quote": "Vite 8 uses Rolldown and Oxc based tools instead of esbuild and Rollup.",
+    "note": "Rolldown y Oxc por defecto llegan con Vite 8, no con Vite 7. La documentación de Vite 7 mantiene Rollup y `build.minify` por defecto `'esbuild'` («'esbuild' for client build, false for SSR build»).",
+    "additional_urls": [
+      "https://v7.vite.dev/config/build-options"
+    ]
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-vue-vite-tinystruct.md",
+    "line": 40,
+    "claim": "`esbuild` «obsoleto» como minificador.",
+    "verdict": "confirmada",
+    "official_url": "https://vite.dev/config/build-options",
+    "checked_at": "2026-10-13",
+    "quote": "build.minify: 'esbuild' is deprecated and will be removed in the future.",
+    "note": "Vale para Vite 8 (por defecto `'oxc'`; esbuild pasa a dependencia opcional). En Vite 7 esbuild sigue siendo el minificador por defecto."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-terminal-uncloud-x-visa.md",
+    "line": 87,
+    "claim": "La subida de medios usa un endpoint v1.1 que hay que contrastar con la documentación vigente.",
+    "verdict": "confirmada",
+    "official_url": "https://docs.x.com/changelog",
+    "checked_at": "2026-10-13",
+    "quote": "Today, we launched new X API v2 Media Upload endpoints.",
+    "note": "Entrada del 16-01-2025; la vía documentada es `POST /2/media/upload` y, en la subida por partes, `/2/media/upload/initialize`, `/{id}/append` y `/{id}/finalize`. La página «About the X API» describe v1.1 como «Limited support; use v2 for new projects», aunque todavía incluye «Some media upload endpoints» sin decir cuáles. El anuncio de retirada del foro devcommunity.x.com devolvió HTTP 403: la fecha de apagado del endpoint v1.1 queda sin confirmar.",
+    "additional_urls": [
+      "https://docs.x.com/x-api/getting-started/about-x-api",
+      "https://docs.x.com/x-api/media/quickstart/media-upload-chunked"
+    ]
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-terminal-uncloud-x-visa.md",
+    "line": 41,
+    "claim": "`tls_insecure_skip_verify` desactiva la verificación; hay que confiar en la CA concreta.",
+    "verdict": "confirmada",
+    "official_url": "https://caddyserver.com/docs/caddyfile/directives/reverse_proxy",
+    "checked_at": "2026-10-13",
+    "quote": "turns off TLS handshake verification, making the connection insecure and vulnerable to man-in-the-middle attacks.",
+    "note": "La documentación añade «Do not use in production» y propone `tls_trust_pool` (p. ej. `tls_trust_pool file /path/to/cert.pem`) para confiar en una CA concreta."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-terminal-uncloud-x-visa.md",
+    "line": 99,
+    "claim": "«Directivas de confianza de Caddy» (contraste pendiente, sin afirmación concreta).",
+    "verdict": "no concluyente",
+    "official_url": "https://caddyserver.com/docs/caddyfile/options",
+    "checked_at": "2026-10-13",
+    "quote": "By default, no proxies are trusted.",
+    "note": "La ficha no dice qué afirma la pieza sobre la confianza en proxies, así que no hay nada que dictaminar. Queda como referencia lo que dice la documentación: `trusted_proxies` va en el bloque global `servers`, `client_ip_headers` por defecto solo lee `X-Forwarded-For` y `trusted_proxies_strict` (desde v2.8) está desactivado por defecto. La confianza TLS se registra en la fila de la línea 41."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-ui-demo-desktop-e2e.md",
+    "line": 58,
+    "claim": "`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` exige la estructura de límites extendida, no `JOBOBJECT_BASIC_LIMIT_INFORMATION`.",
+    "verdict": "confirmada",
+    "official_url": "https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_limit_information",
+    "checked_at": "2026-10-13",
+    "quote": "This limit requires use of a JOBOBJECT_EXTENDED_LIMIT_INFORMATION structure.",
+    "note": "Los números de clase (2 básica, 9 extendida) y el fallo concreto de la llamada con la estructura básica no figuran en esta página; no se contrastaron."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-ui-demo-desktop-e2e.md",
+    "line": 60,
+    "claim": "`KILL_ON_JOB_CLOSE` no impide crear procesos fuera del job.",
+    "verdict": "confirmada",
+    "official_url": "https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_limit_information",
+    "checked_at": "2026-10-13",
+    "quote": "Causes all processes associated with the job to terminate when the last handle to the job is closed.",
+    "note": "La salida del job se rige por flags distintos (`BREAKAWAY_OK`, `SILENT_BREAKAWAY_OK`)."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-springboot-patterns-security-testing.md",
+    "line": 61,
+    "claim": "`@MockBean` está en desuso a favor de `@MockitoBean` desde Spring Boot 3.4.",
+    "verdict": "confirmada",
+    "official_url": "https://docs.spring.io/spring-boot/3.4/api/java/org/springframework/boot/test/mock/mockito/MockBean.html",
+    "checked_at": "2026-10-13",
+    "quote": "since 3.4.0 for removal in 4.0.0 in favor of MockitoBean",
+    "note": "`@Deprecated(since=\"3.4.0\", forRemoval=true)`; el sustituto es `org.springframework.test.context.bean.override.mockito.MockitoBean` (Spring Framework 6.2)."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-swift-swiftui.md",
+    "line": 30,
+    "claim": "«Swift 5.5+» no basta para `URL.documentsDirectory`: depende de la disponibilidad en el SO.",
+    "verdict": "confirmada",
+    "official_url": "https://developer.apple.com/tutorials/data/documentation/foundation/url/documentsdirectory.json",
+    "checked_at": "2026-10-13",
+    "quote": "introducedAt: iOS 16.0, iPadOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, visionOS 1.0",
+    "note": "Metadatos de disponibilidad de la documentación de Apple (versión JSON de developer.apple.com/documentation/foundation/url/documentsdirectory). Por debajo de esas versiones hace falta `#available` con alternativa (`FileManager.urls(for:in:)`)."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-search-compliance-stocktake-compact.md",
+    "line": 123,
+    "claim": "La memoria automática de Claude Code se guarda por proyecto en `~/.claude/projects/<proyecto>/memory/`, no en `~/.claude/memory/`.",
+    "verdict": "confirmada",
+    "official_url": "https://code.claude.com/docs/en/memory",
+    "checked_at": "2026-10-13",
+    "quote": "Each project gets its own memory directory at ~/.claude/projects/<project>/memory/.",
+    "note": "La ruta se puede cambiar con `autoMemoryDirectory` en `settings.json`; el índice `MEMORY.md` carga sus primeras 200 líneas o 25 KB."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-search-compliance-stocktake-compact.md",
+    "line": 126,
+    "claim": "Versión de Claude Code que retiró las herramientas de tareas (afirmación de la pieza S264, sin contrastar).",
+    "verdict": "no concluyente",
+    "official_url": "https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md",
+    "checked_at": "2026-10-13",
+    "quote": "Todo/task-tracking tools (TaskCreate/Get/Update/List, TodoWrite) are no longer available on Opus 4.8, Sonnet 5, Fable 5, Mythos 5, and newer models",
+    "note": "La ficha no recoge qué versión citaba la pieza, así que no se puede saber si acertaba. Según el registro oficial, 2.1.16 añade el sistema de tareas; 2.1.233 quita las herramientas en los modelos nuevos (se recuperan con `CLAUDE_CODE_ENABLE_TODO_TOOLS=1`) y 2.1.268 las limita a una lista de modelos. Es una retirada por modelo, no general."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-perl-family.md",
+    "line": 45,
+    "claim": "Con las señales diferidas de Perl, `alarm` no interrumpe a tiempo una sola coincidencia de regex larga.",
+    "verdict": "confirmada",
+    "official_url": "https://perldoc.perl.org/perlipc",
+    "checked_at": "2026-10-13",
+    "quote": "a signal that arrives during a long-running opcode (e.g. a regular expression operation on a very large string) will not be seen until",
+    "note": "Sección «Deferred Signals (Safe Signals)», apartado «Long-running opcodes»: el intérprete solo mira las señales antes de empezar cada opcode."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-perl-family.md",
+    "line": 56,
+    "claim": "En la fila Total de `cover`, el primer número es la columna de sentencias, no el total.",
+    "verdict": "confirmada",
+    "official_url": "https://github.com/pjcj/Devel--Cover/blob/main/lib/Devel/Cover/Criterion.pm",
+    "checked_at": "2026-10-13",
+    "quote": "my @Criteria = qw( statement branch condition mcdc subroutine pod time );",
+    "note": "Confirmado en el código fuente del repositorio oficial (commit `fc7d31c`), no en la documentación. `DB.pm` añade `total` detrás de los criterios y `print_summary` pone después una columna `scar`: el total no es ni la primera ni la última columna. Solo salen las columnas de los criterios recogidos.",
+    "additional_urls": [
+      "https://github.com/pjcj/Devel--Cover/blob/main/lib/Devel/Cover/DB.pm"
+    ]
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-plankton-postgres-prisma-audit.md",
+    "line": 56,
+    "claim": "`max_connections` solo cambia al reiniciar; `pg_reload_conf()` no basta.",
+    "verdict": "confirmada",
+    "official_url": "https://www.postgresql.org/docs/current/runtime-config-connection.html",
+    "checked_at": "2026-10-13",
+    "quote": "This parameter can only be set at server start.",
+    "note": "Documentación de PostgreSQL 18 (18.6)."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-python-pytorch.md",
+    "line": 48,
+    "claim": "En SQLAlchemy 2.x, `commit()` con `begin_nested()` confirma la transacción externa; hay que unir la sesión a una transacción externa con savepoint.",
+    "verdict": "confirmada",
+    "official_url": "https://docs.sqlalchemy.org/en/20/orm/session_api.html",
+    "checked_at": "2026-10-13",
+    "quote": "The outermost database transaction is committed unconditionally, automatically releasing any SAVEPOINTs in effect.",
+    "note": "La misma página documenta `join_transaction_mode=\"create_savepoint\"` (desde 2.0.0rc1), pensado para meter una Session en una suite de pruebas sin tocar la transacción externa."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-python-pytorch.md",
+    "line": 49,
+    "claim": "En modo estricto de pytest-asyncio, un fixture async necesita su propio decorador.",
+    "verdict": "confirmada",
+    "official_url": "https://pytest-asyncio.readthedocs.io/en/latest/concepts.html",
+    "checked_at": "2026-10-13",
+    "quote": "will only evaluate async fixtures decorated with @pytest_asyncio.fixture",
+    "note": "El modo estricto es el modo por defecto («This is why strict mode is the default mode»)."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-python-pytorch.md",
+    "line": 27,
+    "claim": "En Ruff actual, `select` va en `[tool.ruff.lint]`, no en `[tool.ruff]`.",
+    "verdict": "confirmada",
+    "official_url": "https://docs.astral.sh/ruff/settings/",
+    "checked_at": "2026-10-13",
+    "quote": "Options specified in the lint section take precedence over the deprecated top-level settings.",
+    "note": "La página no marca `select` como «Deprecated» por su nombre; la selección de reglas solo se documenta como `lint.select`."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-python-pytorch.md",
+    "line": 27,
+    "claim": "Python 3.9 ya no tiene soporte.",
+    "verdict": "confirmada",
+    "official_url": "https://devguide.python.org/versions/",
+    "checked_at": "2026-10-13",
+    "quote": "3.9 | PEP 596 | end-of-life | 2020-10-05 | 2025-10-31",
+    "note": "Fin de vida el 31-10-2025."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-motion-next-nuxt.md",
+    "line": 70,
+    "claim": "Volver a `middleware.ts` en Next.js 16 «romperá» el middleware (afirmación de la pieza S188, no contrastada).",
+    "verdict": "corregida",
+    "official_url": "https://nextjs.org/docs/app/guides/upgrading/version-16",
+    "checked_at": "2026-10-13",
+    "quote": "The middleware filename is deprecated, and has been renamed to proxy … If you want to continue using the edge runtime, keep using middleware.",
+    "note": "En Next.js 16, `middleware.ts` está en desuso, no roto, y sigue siendo la opción para el runtime `edge`, que `proxy` no admite. La propia guía pide que el middleware edge no se renombre a proxy «a ciegas». Se confirma el cambio de nombre `middleware.ts` → `proxy.ts` (línea 61). Página para la versión 16.4.0."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-motion-next-nuxt.md",
+    "line": 50,
+    "claim": "Según la versión de Tailwind, el `transform` en línea de Motion anula el centrado con `-translate-x-1/2`/`-translate-y-1/2`.",
+    "verdict": "confirmada",
+    "official_url": "https://tailwindcss.com/docs/translate",
+    "checked_at": "2026-10-13",
+    "quote": "-translate-x-<fraction> → translate: calc(<fraction> * -100%) var(--tw-translate-y);",
+    "note": "En v4 la utilidad usa la propiedad CSS `translate`; en v3 usa `transform` (`translate-x-1/2` → «transform: translateX(50%);»). Motion pasa `x`/`y` a funciones de `transform` («Server will output translateX(100px)»). Que en v3 el estilo en línea pise la clase y en v4 se compongan es deducción de la cascada CSS: ninguna de las fuentes lo dice literalmente.",
+    "additional_urls": [
+      "https://v3.tailwindcss.com/docs/translate",
+      "https://motion.dev/docs/react-motion-component"
+    ]
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-glass-polish-manim.md",
+    "line": 17,
+    "claim": "APIs de Liquid Glass: `glassEffect`, `GlassEffectContainer`, `glassEffectID` (SwiftUI) y `UIGlassEffect` (UIKit), iOS 26.",
+    "verdict": "confirmada",
+    "official_url": "https://developer.apple.com/tutorials/data/documentation/swiftui/view/glasseffect(_:in:).json",
+    "checked_at": "2026-10-13",
+    "quote": "Applies the Liquid Glass effect to a view.",
+    "note": "`glassEffect(_:in:)`, `GlassEffectContainer` y `glassEffectID(_:in:)` aparecen desde la versión 26.0 de iOS, iPadOS, macOS, tvOS y watchOS; `UIGlassEffect`, desde iOS/iPadOS/tvOS 26.0. No se consultaron los efectos de borde de scroll ni el modo acentuado de WidgetKit.",
+    "additional_urls": [
+      "https://developer.apple.com/tutorials/data/documentation/swiftui/glasseffectcontainer.json",
+      "https://developer.apple.com/tutorials/data/documentation/swiftui/view/glasseffectid(_:in:).json",
+      "https://developer.apple.com/tutorials/data/documentation/uikit/uiglasseffect.json"
+    ]
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-glass-polish-manim.md",
+    "line": 22,
+    "claim": "«Usa siempre `GlassEffectContainer`» solo se justifica por rendimiento y transiciones.",
+    "verdict": "confirmada",
+    "official_url": "https://developer.apple.com/tutorials/data/documentation/swiftui/glasseffectcontainer.json",
+    "checked_at": "2026-10-13",
+    "quote": "SwiftUI renders the effects together, improving rendering performance and allowing the effects to interact with and morph into one another.",
+    "note": "Apple da como motivos el rendimiento y la fusión entre formas; en lo leído no aparece una obligación de usarlo siempre."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-glass-polish-manim.md",
+    "line": 48,
+    "claim": "WCAG 2.2: 24×24 CSS px como mínimo (2.5.8, AA) y 44×44 (2.5.5, AAA).",
+    "verdict": "confirmada",
+    "official_url": "https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html",
+    "checked_at": "2026-10-13",
+    "quote": "The size of the target for pointer inputs is at least 24 by 24 CSS pixels, except when:",
+    "note": "2.5.5 Target Size (Enhanced), nivel AAA: «at least 44 by 44 CSS pixels» (Understanding/target-size-enhanced.html).",
+    "additional_urls": [
+      "https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html"
+    ]
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-foundations.md",
+    "line": 41,
+    "claim": "El tamaño mínimo de 2.5.8 tiene excepciones; no basta imponer un cuadrado a todo control.",
+    "verdict": "confirmada",
+    "official_url": "https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html",
+    "checked_at": "2026-10-13",
+    "quote": "The size of the target for pointer inputs is at least 24 by 24 CSS pixels, except when:",
+    "note": "Excepciones: Spacing, Equivalent, Inline, User Agent Control y Essential."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-kotlin-family.md",
+    "line": 90,
+    "claim": "Versiones de Gradle citadas por S152 (Kotlin, Ktor, Exposed, Kotest).",
+    "verdict": "no concluyente",
+    "official_url": null,
+    "checked_at": "2026-10-13",
+    "quote": null,
+    "note": "La ficha no anota qué versiones citaba la pieza, y el cuerpo fuente no está en el repositorio (solo su hash). Sin la afirmación concreta no hay nada que contrastar; se hará contra la versión que declare el consumidor."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-dotnet-harness-e2e.md",
+    "line": 25,
+    "claim": "Un `DbContext` no admite operaciones concurrentes (`Task.WhenAll` sobre el mismo contexto).",
+    "verdict": "confirmada",
+    "official_url": "https://learn.microsoft.com/en-us/ef/core/dbcontext-configuration/",
+    "checked_at": "2026-10-13",
+    "quote": "Entity Framework Core does not support multiple parallel operations being run on the same DbContext instance.",
+    "note": "La misma página: «DbContext is Not thread-safe» y «always await async calls immediately, or use separate DbContext instances»."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-dotnet-harness-e2e.md",
+    "line": 31,
+    "claim": "Errores HTTP como Problem Details (RFC 9457).",
+    "verdict": "confirmada",
+    "official_url": "https://www.rfc-editor.org/rfc/rfc9457.html",
+    "checked_at": "2026-10-13",
+    "quote": "This document obsoletes RFC 7807.",
+    "note": "Título: «Problem Details for HTTP APIs»."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-dotnet-harness-e2e.md",
+    "line": 79,
+    "claim": "Playwright desaconseja `waitForLoadState('networkidle')` en tests; usar aserciones web-first.",
+    "verdict": "confirmada",
+    "official_url": "https://playwright.dev/docs/api/class-page",
+    "checked_at": "2026-10-13",
+    "quote": "DISCOURAGED wait until there are no network connections for at least 500 ms. Don't use this method for testing, rely on web assertions",
+    "note": "Texto de la opción `state` de `page.waitForLoadState`."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-dotnet-harness-e2e.md",
+    "line": 82,
+    "claim": "`browser.startTracing` es «API de Chromium antigua».",
+    "verdict": "corregida",
+    "official_url": "https://playwright.dev/docs/api/class-browser",
+    "checked_at": "2026-10-13",
+    "quote": "This API controls Chromium Tracing which is a low-level chromium-specific debugging tool.",
+    "note": "No está en desuso (Added in v1.11): es una herramienta de bajo nivel solo para Chromium, distinta del Tracing de Playwright. Matiz menor: la conclusión de la ficha (usar `trace` en la configuración) se mantiene."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-dotnet-harness-e2e.md",
+    "line": 82,
+    "claim": "`videosPath` es una opción inexistente; usar `trace`/`video` del config.",
+    "verdict": "confirmada",
+    "official_url": "https://playwright.dev/docs/api/class-browser",
+    "checked_at": "2026-10-13",
+    "quote": "Enables video recording for all pages into recordVideo.dir directory.",
+    "note": "`videosPath` no figura; la opción de contexto es `recordVideo`. En `use`, `video` y `trace` están apagados por defecto y dejan los artefactos en el «test output directory, typically test-results» (test-use-options; la página no nombra `outputDir`).",
+    "additional_urls": [
+      "https://playwright.dev/docs/test-use-options"
+    ]
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-errors-evals-providers.md",
+    "line": 120,
+    "claim": "Contraste oficial pendiente de S095 sobre RFC 9457.",
+    "verdict": "confirmada",
+    "official_url": "https://www.rfc-editor.org/rfc/rfc9457.html",
+    "checked_at": "2026-10-13",
+    "quote": "This document obsoletes RFC 7807.",
+    "note": "La parte de S097 (pass@k/pass^k) no tiene documentación oficial de proyecto que consultar; queda fuera de este contraste."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-installer-golang.md",
+    "line": 60,
+    "claim": "`tt := tt` con `t.Parallel()` es innecesario desde Go 1.22.",
+    "verdict": "confirmada",
+    "official_url": "https://go.dev/doc/go1.22",
+    "checked_at": "2026-10-13",
+    "quote": "In Go 1.22, each iteration of the loop creates new variables, to avoid accidental sharing bugs.",
+    "note": "Solo en módulos cuyo `go.mod` declara `go 1.22` o superior."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-installer-golang.md",
+    "line": 61,
+    "claim": "Desde Go 1.24 existe `b.Loop()`, que evita que el compilador elimine el trabajo.",
+    "verdict": "confirmada",
+    "official_url": "https://go.dev/doc/go1.24",
+    "checked_at": "2026-10-13",
+    "quote": "Function call parameters and results are kept alive, preventing the compiler from fully optimizing away the loop body.",
+    "note": "Además, la función de benchmark se ejecuta una sola vez por `-count`."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-installer-golang.md",
+    "line": 62,
+    "claim": "`-tags=!generate` no es sintaxis válida de etiquetas.",
+    "verdict": "confirmada",
+    "official_url": "https://pkg.go.dev/cmd/go",
+    "checked_at": "2026-10-13",
+    "quote": "a comma-separated list of additional build tags to consider satisfied during the build.",
+    "note": "Los operadores `!`, `&&` y `||` solo se describen para las líneas `//go:build`; `-tags` lista etiquetas que se dan por satisfechas."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-parallel-containers-docs.md",
+    "line": 38,
+    "claim": "`codex exec --cwd ... --task-file` no son flags del CLI; se usan `--cd` y el prompt posicional.",
+    "verdict": "confirmada",
+    "official_url": "https://learn.chatgpt.com/docs/developer-commands?surface=cli",
+    "checked_at": "2026-10-13",
+    "quote": "Set the workspace root before executing the task.",
+    "note": "Descripción de `--cd, -C`. El prompt es el argumento posicional `PROMPT` («Use - to pipe the prompt from stdin»); `--cwd` y `--task-file` no aparecen. URL de destino de la redirección 308 de developers.openai.com/codex/cli/reference."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-flutter-ondevice-a11y.md",
+    "line": 60,
+    "claim": "`<dialog>` nativo con `showModal()` resuelve la inercia del fondo y el cierre con Escape.",
+    "verdict": "confirmada",
+    "official_url": "https://html.spec.whatwg.org/multipage/interactive-elements.html",
+    "checked_at": "2026-10-13",
+    "quote": "Set subject's node document to be blocked by the modal dialog subject.",
+    "note": "La nota que sigue dice que el área enfocada queda inerte. Para el cierre, la especificación habla de «close request» (estado Auto de `closedby` con `showModal()`, con evento `cancel`). Que Escape sea una close request está en otra sección de la especificación que no se leyó."
+  },
+  {
+    "sheet": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-flutter-ondevice-a11y.md",
+    "line": 64,
+    "claim": "`role=\"status\"` es implícitamente polite.",
+    "verdict": "confirmada",
+    "official_url": "https://www.w3.org/TR/wai-aria-1.2/",
+    "checked_at": "2026-10-13",
+    "quote": "Elements with the role status have an implicit aria-live value of polite and an implicit aria-atomic value of true.",
+    "note": null
+  }
+]

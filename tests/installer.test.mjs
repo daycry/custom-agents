@@ -9,11 +9,13 @@
 
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, chmodSync } from "node:fs"
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, chmodSync, symlinkSync, linkSync, truncateSync } from "node:fs"
 import { tmpdir, homedir } from "node:os"
 import { join, dirname, resolve, delimiter } from "node:path"
 import { fileURLToPath } from "node:url"
 import { execFileSync } from "node:child_process"
+import { createHash } from 'node:crypto'
+import * as installerModule from '../install/install.mjs'
 
 import {
   parseArgs, fusionar, ficherosDe, leerRegistro, mismaRuta,
@@ -28,10 +30,330 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const CLI = join(ROOT, "install", "install.mjs")
 
 const tmpProj = () => mkdtempSync(join(tmpdir(), "ca-install-"))
-const cli = (args, opts = {}) =>
-  execFileSync(process.execPath, [CLI, ...args], { encoding: "utf8", env: { ...process.env, NO_COLOR: "1" }, ...opts })
+// Even old tests with no env override must never register marketplaces in a real Codex home.
+const SUITE_HOME = tmpProj()
+const SUITE_BIN=join(SUITE_HOME,'stub-bin')
+mkdirSync(SUITE_BIN)
+for(const name of ['codex','claude','opencode']) {
+  const executable=join(SUITE_BIN,process.platform==='win32' ? `${name}.cmd` : name)
+  writeFileSync(executable,process.platform==='win32'
+    ? '@echo off\r\nif "%~1"=="--version" (echo fixture 0.0.0 & exit /b 0)\r\nexit /b 69\r\n'
+    : '#!/bin/sh\nif [ "$1" = "--version" ]; then echo "fixture 0.0.0"; exit 0; fi\nexit 69\n')
+  if(process.platform!=='win32') chmodSync(executable,0o755)
+}
+const SAFE_SYSTEM_PATH=process.platform==='win32' ? join(process.env.SystemRoot || 'C:\\Windows','System32') : '/usr/bin:/bin'
+const cli = (args, opts = {}) => {
+  const requested=opts.env || {}
+  const ownedHome=requested.HOME && requested.HOME!==process.env.HOME ? requested.HOME : SUITE_HOME
+  const ownedCodex=requested.CODEX_HOME && requested.CODEX_HOME!==process.env.CODEX_HOME ? requested.CODEX_HOME : join(ownedHome,".codex")
+  const merged={...process.env,...requested}
+  const requestedPath=Object.entries(requested).find(([key])=>/^path$/i.test(key))?.[1]
+  const inheritedPath=process.env.PATH || process.env.Path
+  const allowed=/^(?:SystemRoot|WINDIR|COMSPEC|PATHEXT|OS|PROCESSOR_ARCHITECTURE|NO_COLOR|CI|HOME|USERPROFILE|CODEX_HOME|APPDATA|LOCALAPPDATA|XDG_CONFIG_HOME|CLAUDE_CONFIG_DIR|CODEX_FAKE_LOG|CODEX_FAKE_FAIL_ADD|CUSTOM_AGENTS_EXEC_TIMEOUT_MS|MARCA|NODE_V8_COVERAGE)$/i
+  const env=Object.fromEntries(Object.entries(merged).filter(([key])=>allowed.test(key)))
+  const ownedTemp=join(ownedHome,'temp');mkdirSync(ownedTemp,{recursive:true})
+  Object.assign(env,{NO_COLOR:"1",HOME:ownedHome,USERPROFILE:ownedHome,CODEX_HOME:ownedCodex,
+    TEMP:ownedTemp,TMP:ownedTemp,PATH:requestedPath && requestedPath!==inheritedPath ? requestedPath : [SUITE_BIN,SAFE_SYSTEM_PATH].join(delimiter)})
+  for(const [key,fallback] of [['APPDATA',join(ownedHome,'AppData/Roaming')],['LOCALAPPDATA',join(ownedHome,'AppData/Local')],
+    ['XDG_CONFIG_HOME',join(ownedHome,'.config')],['CLAUDE_CONFIG_DIR',join(ownedHome,'.claude')]]) {
+    if(!requested[key] || requested[key]===process.env[key]) env[key]=fallback
+  }
+  return execFileSync(process.execPath,[CLI,...args],{encoding:"utf8",...opts,env})
+}
 
 const VERSION = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version
+
+test("native role migration preserves consumer agents and explicit bindings", () => {
+  const proj = tmpProj()
+  try {
+    const dir = join(proj, '.opencode', 'agents')
+    mkdirSync(dir, {recursive:true})
+    const bare = join(dir, 'reviewer.md'), native = join(dir, 'custom-agents-reviewer.md')
+    writeFileSync(bare, 'consumer bare reviewer\n')
+    writeFileSync(native, 'consumer named reviewer\n')
+    const cfg = join(proj, 'opencode.json')
+    writeFileSync(cfg, JSON.stringify({agent:{'custom-agents-architect':{prompt:'consumer inline role'}}}))
+    const out = cli(['install','-p','opencode','--dir',proj,'-y'])
+    assert.equal(readFileSync(bare,'utf8'), 'consumer bare reviewer\n')
+    assert.equal(readFileSync(native,'utf8'), 'consumer named reviewer\n')
+    assert.ok(!existsSync(join(dir,'custom-agents-architect.md')))
+    assert.match(out, /conservad|conflict/i)
+    const man = JSON.parse(readFileSync(join(proj,'.opencode',MANIFEST),'utf8'))
+    assert.ok(!man.files.includes(native.split('\\').join('/')))
+    assert.equal(man.estado,'incompleto','conflicted roles must not be declared fully installed')
+  } finally { rmSync(proj,{recursive:true,force:true}) }
+})
+
+test("native role uninstall preserves edits made after installation", () => {
+  const proj = tmpProj()
+  try {
+    const dest = join(proj,'.opencode'), role = join(dest,'agents','custom-agents-reviewer.md')
+    mkdirSync(dirname(role),{recursive:true}); writeFileSync(role,'consumer edit\n')
+    const path = role.split('\\').join('/')
+    writeFileSync(join(dest,MANIFEST),JSON.stringify({plugin:'custom-agents',provider:'opencode',scope:'project',
+      files:[path],nativeAgents:{[path]:createHash('sha256').update('owned original\n').digest('hex')}}))
+    cli(['uninstall','-p','opencode','--dir',proj])
+    assert.equal(readFileSync(role,'utf8'),'consumer edit\n')
+  } finally { rmSync(proj,{recursive:true,force:true}) }
+})
+
+const nativeMigrationFixture = (runtime = 'codex') => {
+  const root = tmpProj(), project = join(root,'project'), out = join(project,`.${runtime}`,'agents')
+  const source = join(root,'exports'), mapDir = join(root,'agent-kits','shared')
+  mkdirSync(out,{recursive:true}); mkdirSync(source); mkdirSync(mapDir,{recursive:true}); mkdirSync(join(root,'install'))
+  mkdirSync(join(project,'.git'))
+  writeFileSync(join(mapDir,'native-roles.json'),JSON.stringify({runtimes:{[runtime]:{reviewer:'custom-agents-reviewer'}}}))
+  const sha = text => createHash('sha256').update(text.replace(/\r\n/g,'\n')).digest('hex')
+  writeFileSync(join(root,'install','native-agent-legacy.json'),JSON.stringify({runtimes:{[runtime]:{reviewer:sha('legacy own\n')}}}))
+  const ext = runtime === 'codex' ? '.toml' : '.md'
+  const bare = join(out,'reviewer'+ext), native = join(out,'custom-agents-reviewer'+ext)
+  writeFileSync(join(source,'custom-agents-reviewer'+ext),'new own\n')
+  const config = join(project,runtime === 'codex' ? 'config.toml' : 'opencode.json')
+  const step = {from:'exports',to:out,nativeAgents:{runtime,scope:'project',projectDir:project,configs:[config]}}
+  const norm = path => path.split('\\').join('/')
+  const manifest = {plugin:'custom-agents',provider:runtime,files:[norm(bare)],nativeAgents:{}}
+  return {root,project,out,bare,native,config,step,manifest,norm,sha}
+}
+
+test("native role migration recognizes only inventoried exact legacy bytes", () => {
+  const f = nativeMigrationFixture()
+  try {
+    writeFileSync(f.bare,'legacy own\r\n')
+    let plan = installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.deepEqual(plan.actions.map(a=>a.type),['copy','retire'])
+    plan = installerModule.planificarAgentesNativos(f.step,{...f.manifest,files:[]},f.root)
+    assert.deepEqual(plan.actions.map(a=>a.type),['copy'])
+    writeFileSync(f.bare,'legacy own\nconsumer change\n')
+    plan = installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.deepEqual(plan.actions.map(a=>a.type),['copy'])
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("native role migration preserves legacy bindings, global copies and ambiguous roots", () => {
+  const f = nativeMigrationFixture()
+  try {
+    writeFileSync(f.bare,'legacy own\n')
+    writeFileSync(f.config,`[agents.consumer]\nconfig_file = ${JSON.stringify(f.bare.split('\\').join('/'))}\n`)
+    assert.deepEqual(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.map(a=>a.type),['copy'])
+    writeFileSync(f.config,'')
+    const globalStep={...f.step,nativeAgents:{...f.step.nativeAgents,scope:'user'}}
+    assert.deepEqual(installerModule.planificarAgentesNativos(globalStep,f.manifest,f.root).actions.map(a=>a.type),['copy'])
+    rmSync(join(f.project,'.git'),{recursive:true}); writeFileSync(join(f.project,'.git'),'gitdir: unknown\n')
+    assert.deepEqual(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.map(a=>a.type),['copy'])
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("native role migration updates own hashes, preserves edits and detects quoted TOML bindings", () => {
+  const f = nativeMigrationFixture()
+  try {
+    writeFileSync(f.native,'previous own\n')
+    f.manifest.files.push(f.norm(f.native));f.manifest.nativeAgents[f.norm(f.native)]=f.sha('previous own\n')
+    assert.equal(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.length,1)
+    writeFileSync(f.native,'consumer changed\n')
+    assert.equal(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.length,0)
+    writeFileSync(f.native,'previous own\n')
+    for (const text of [`[agents.'custom-agents-reviewer']\nconfig_file='consumer.toml'\n`,
+      `agents = { "custom-agents-reviewer" = { config_file = 'consumer.toml' } }\n`]) {
+      writeFileSync(f.config,text)
+      assert.equal(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.length,0)
+    }
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("native role migration never overwrites unverifiable JSONC or file-reference bindings", () => {
+  const f = nativeMigrationFixture('opencode')
+  try {
+    writeFileSync(f.bare,'legacy own\n')
+    writeFileSync(f.config,JSON.stringify({agent:{consumer:{prompt:`{file:${f.bare.split('\\').join('/')}}`}}}))
+    assert.deepEqual(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.map(a=>a.type),['copy'])
+    writeFileSync(f.config,'{ // valid JSONC requiring a native parser\n "agent": {} }')
+    const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,0); assert.match(plan.warnings.join('\n'),/no verificable/)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("OpenCode V2 native role migration preserves agents IDs and file-reference bindings", () => {
+  const f=nativeMigrationFixture('opencode')
+  try {
+    writeFileSync(f.bare,'legacy own\n')
+    writeFileSync(f.config,JSON.stringify({agents:{consumer:{system:`{file:${f.bare.split('\\').join('/')}}`}}}))
+    let plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.deepEqual(plan.actions.map(a=>a.type),['copy'])
+    writeFileSync(f.config,JSON.stringify({agents:{'custom-agents-reviewer':{system:'consumer own role'}}}))
+    plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,0)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("OpenCode V2 native role migration preserves file references outside agent maps", () => {
+  const f=nativeMigrationFixture('opencode')
+  try {
+    writeFileSync(f.bare,'legacy own\n')
+    const relativeBare='.opencode/agents/reviewer.md'
+    for (const config of [
+      {commands:{review:{prompt:`{file:${relativeBare}}`}}},
+      {instructions:[`{file:${relativeBare}}`]},
+      {[`{file:${relativeBare}}`]:'consumer key reference'},
+      {commands:{'custom-agents-reviewer':{prompt:'consumer command ID only'}}}
+    ]) {
+      writeFileSync(f.config,JSON.stringify(config))
+      const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+      assert.deepEqual(plan.actions.map(a=>a.type),config.commands?.['custom-agents-reviewer'] ? ['copy','retire'] : ['copy'])
+    }
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("OpenCode V2 native role migration conserves unresolved home and environment file references", () => {
+  const f=nativeMigrationFixture('opencode')
+  try {
+    writeFileSync(f.bare,'legacy own\n')
+    for (const instructions of [['{file:~/repo/.opencode/agents/reviewer.md}'],['{file:{env:OWN_ROLE_PATH}}'],['{env:OWN_CONFIG_FRAGMENT}']]) {
+      writeFileSync(f.config,JSON.stringify({instructions}))
+      const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+      assert.equal(plan.actions.length,0)
+      assert.match(plan.warnings.join('\n'),/referencia dinámica de configuración no verificable/)
+    }
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("OpenCode native role migration preserves explicit command agent bindings and legacy mode IDs", () => {
+  const f=nativeMigrationFixture('opencode')
+  try {
+    writeFileSync(f.bare,'legacy own\n')
+    for (const config of [
+      {commands:{review:{template:'consumer command',agent:'reviewer'}}},
+      {command:{review:{template:'consumer command',agent:'reviewer'}}},
+      {mode:{reviewer:{prompt:'consumer mode'}}},
+      {mode:{'custom-agents-reviewer':{prompt:'consumer mode'}}},
+      {default_agent:'reviewer'}
+    ]) {
+      writeFileSync(f.config,JSON.stringify(config))
+      const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+      assert.deepEqual(plan.actions.map(a=>a.type),config.mode?.['custom-agents-reviewer'] ? [] : ['copy'])
+    }
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("OpenCode native role migration preserves legacy files when Markdown command references cannot be verified", () => {
+  const f=nativeMigrationFixture('opencode')
+  try {
+    writeFileSync(f.bare,'legacy own\n')
+    for (const directory of ['command','commands']) {
+      const folder=join(f.project,'.opencode',directory,'nested')
+      mkdirSync(folder,{recursive:true})
+      writeFileSync(join(folder,'consumer.md'),'---\nagent: reviewer\n---\nConsumer command\n')
+      const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+      assert.deepEqual(plan.actions.map(a=>a.type),['copy'])
+      assert.match(plan.warnings.join('\n'),/comandos Markdown.*no verificable/)
+      rmSync(join(f.project,'.opencode',directory),{recursive:true})
+    }
+    assert.deepEqual(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.map(a=>a.type),['copy','retire'])
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("OpenCode native role migration has no legacy warning on a fresh namespaced install", () => {
+  const f=nativeMigrationFixture('opencode')
+  try {
+    const folder=join(f.project,'.opencode','commands')
+    mkdirSync(folder,{recursive:true})
+    writeFileSync(join(folder,'consumer.md'),'---\nagent: reviewer\n---\nConsumer command\n')
+    const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.deepEqual(plan.actions.map(a=>a.type),['copy'])
+    assert.deepEqual(plan.warnings,[], 'no legacy file exists whose retirement needs verification')
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("OpenCode native role migration bounds command discovery and conserves legacy files on unsafe layers", () => {
+  for (const scenario of ['junction','depth','count','known-layer']) {
+    const f=nativeMigrationFixture('opencode')
+    try {
+      writeFileSync(f.bare,'legacy own\n')
+      const dir=join(f.project,'.opencode','commands')
+      if (scenario==='junction') {
+        const external=join(f.root,'owned-command-target');mkdirSync(external)
+        writeFileSync(join(external,'consumer.md'),'---\nagent: reviewer\n---\n')
+        symlinkSync(external,dir,process.platform==='win32'?'junction':'dir')
+      } else if (scenario==='depth') {
+        mkdirSync(join(dir,...Array(18).fill('nested')),{recursive:true})
+      } else if (scenario==='count') {
+        mkdirSync(dir)
+        for (let index=0;index<4097;index++) writeFileSync(join(dir,index+'.txt'),'')
+      } else {
+        const layer=join(f.root,'own-known-runtime-layer')
+        mkdirSync(join(layer,'command'),{recursive:true})
+        writeFileSync(join(layer,'command','consumer.md'),'---\nagent: reviewer\n---\n')
+        f.step.nativeAgents.agentDirs=[join(layer,'agents')]
+      }
+      const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+      assert.deepEqual(plan.actions.map(a=>a.type),['copy'])
+      assert.match(plan.warnings.join('\n'),/comandos Markdown.*no verificable/)
+    } finally {rmSync(f.root,{recursive:true,force:true})}
+  }
+})
+
+test("native role migration rejects hardlinks and unsafe role map paths", () => {
+  const f = nativeMigrationFixture()
+  try {
+    const consumer=join(f.root,'consumer');writeFileSync(consumer,'consumer\n');linkSync(consumer,f.native)
+    const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,0);assert.match(plan.warnings.join('\n'),/conflicto/)
+    writeFileSync(join(f.root,'agent-kits','shared','native-roles.json'),JSON.stringify({runtimes:{codex:{reviewer:'../escape'}}}))
+    assert.throws(()=>installerModule.planificarAgentesNativos(f.step,f.manifest,f.root),/invalid native role map/)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("native role migration refuses an agents directory junction outside its runtime base", () => {
+  const f = nativeMigrationFixture()
+  try {
+    const outside=join(f.root,'outside');mkdirSync(outside)
+    rmSync(f.out,{recursive:true});symlinkSync(outside,f.out,process.platform==='win32'?'junction':'dir')
+    const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,0)
+    assert.match(plan.warnings.join('\n'),/outside runtime base/)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("Codex native role migration preserves an agent bound by its TOML name in another file", () => {
+  const f=nativeMigrationFixture()
+  try {
+    const custom=join(f.out,'consumer-choice.toml')
+    writeFileSync(custom,'name="custom-agents-reviewer"\ndeveloper_instructions="consumer prompt"\n')
+    const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,0)
+    assert.equal(readFileSync(custom,'utf8'),'name="custom-agents-reviewer"\ndeveloper_instructions="consumer prompt"\n')
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("Codex native role migration detects TOML name collisions in nested discovery", () => {
+  const f=nativeMigrationFixture()
+  try {
+    const nested=join(f.out,'consumer','nested.toml');mkdirSync(dirname(nested))
+    writeFileSync(nested,'name="custom-agents-reviewer"\ndeveloper_instructions="consumer prompt"\n')
+    assert.equal(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.length,0)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("Codex native role migration recognizes the declared name of an explicitly bound role file", () => {
+  const f=nativeMigrationFixture()
+  try {
+    const custom=join(f.project,'consumer-role.toml')
+    writeFileSync(custom,'name="custom-agents-reviewer"\ndeveloper_instructions="consumer prompt"\n')
+    writeFileSync(f.config,'[agents.consumer_alias]\nconfig_file="consumer-role.toml"\n')
+    assert.equal(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.length,0)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("native role migration conserves oversized agent and configuration files", () => {
+  const f=nativeMigrationFixture()
+  try {
+    writeFileSync(f.native,'');truncateSync(f.native,1024*1024+1)
+    let plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,0);assert.match(plan.warnings.join('\n'),/size bound/)
+    rmSync(f.native);writeFileSync(f.config,'');truncateSync(f.config,1024*1024+1)
+    plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,0);assert.match(plan.warnings.join('\n'),/no verificable/)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
 
 /** PATH sin ninguna CLI de runtime, pero con lo justo para que `where`/`which` sigan funcionando. */
 const SIN_CLI = [tmpdir(), process.platform === "win32"
@@ -51,30 +373,127 @@ const conPath = (ruta, extra = {}) => ({
 
 /** Un `codex` de mentira: contesta a `--version` y apunta en un log lo que le piden. */
 function codexFalso(bin) {
-  if (process.platform === "win32") {
-    writeFileSync(join(bin, "codex.cmd"), [
-      "@echo off",
-      "if \"%~1\"==\"--version\" goto ver",
-      "echo %* >> \"%CODEX_FAKE_LOG%\"",
-      "echo marketplace added",
-      "exit /b 0",
-      ":ver",
-      "echo codex-cli 0.130.0",
-      "exit /b 0",
-      "",
-    ].join("\r\n"))
-  } else {
-    const p = join(bin, "codex")
-    writeFileSync(p, [
-      "#!/bin/sh",
-      "if [ \"$1\" = \"--version\" ]; then echo 'codex-cli 0.130.0'; exit 0; fi",
-      "echo \"$@\" >> \"$CODEX_FAKE_LOG\"",
-      "echo 'marketplace added'",
-      "",
-    ].join("\n"))
-    chmodSync(p, 0o755)
-  }
+  const script=join(bin,"codex-owned.mjs")
+  writeFileSync(script,`
+import {mkdirSync,writeFileSync,readFileSync,existsSync,appendFileSync,cpSync} from 'node:fs'
+import {join,dirname} from 'node:path'
+const args=process.argv.slice(2), home=process.env.CODEX_HOME, realHome=join(process.env.HOME,'.codex')
+if(args[0]==='--version'){console.log('codex-cli 0.161.0');process.exit(0)}
+if(process.env.CODEX_FAKE_LOG) appendFileSync(process.env.CODEX_FAKE_LOG,args.join(' ')+'\\n')
+const marker=join(home,'.owned-marketplace-source')
+if(args[1]==='marketplace'){
+  mkdirSync(realHome,{recursive:true})
+  if(args[2]==='add')writeFileSync(marker,args[3])
+  console.log('marketplace added');process.exit(0)
 }
+
+if(args[1]==='add'){
+  if(process.env.CODEX_FAKE_FAIL_ADD==='1'){console.error('owned native add rejection');process.exit(5)}
+  const root=readFileSync(marker,'utf8')
+  const marketplace=JSON.parse(readFileSync(join(root,'.agents/plugins/marketplace.json'),'utf8'))
+  const entry=marketplace.plugins.find(p=>p.name==='custom-agents')
+  const source=join(root,entry.source.path), installed=join(home,'plugins/cache/daycry/custom-agents',entry.version)
+  mkdirSync(dirname(installed),{recursive:true});cpSync(source,installed,{recursive:true,force:true})
+  console.log(JSON.stringify({pluginId:'custom-agents@daycry',version:entry.version,installedPath:installed}));process.exit(0)
+}
+if(args[1]==='list'){
+  const version=${JSON.stringify(VERSION)}, installed=join(home,'plugins/cache/daycry/custom-agents',version)
+  const config=join(process.cwd(),'.codex/config.toml')
+  const global=join(home,'config.toml')
+  const text=existsSync(config)?readFileSync(config,'utf8'):existsSync(global)?readFileSync(global,'utf8'):''
+  const declared=text.includes('custom-agents@daycry'), enabled=declared && !text.includes('enabled = false')
+  console.log(JSON.stringify({installed:existsSync(installed)&&declared?[{pluginId:'custom-agents@daycry',version,installed:true,enabled}]:[],available:[]}));process.exit(0)
+}
+process.exit(1)
+`)
+  const executable=join(bin,process.platform==='win32'?'codex.cmd':'codex')
+  writeFileSync(executable,process.platform==='win32'
+    ? `@echo off\r\nif "%~2"=="list" goto ownList\r\n"${process.execPath}" "${script}" %*\r\nexit /b %errorlevel%\r\n:ownList\r\nsetlocal\r\nif defined CODEX_FAKE_LOG >>"%CODEX_FAKE_LOG%" echo %*\r\nset "own_config=%CD%\\.codex\\config.toml"\r\nif not exist "%own_config%" set "own_config=%CODEX_HOME%\\config.toml"\r\nset "own_enabled=true"\r\nset "own_declared=0"\r\nset "own_installed=[]"\r\n"%SystemRoot%\\System32\\findstr.exe" /C:"enabled = false" "%own_config%" >nul 2>&1\r\nif not errorlevel 1 set "own_enabled=false"\r\n"%SystemRoot%\\System32\\findstr.exe" /C:"custom-agents@daycry" "%own_config%" >nul 2>&1\r\nif not errorlevel 1 set "own_declared=1"\r\nif exist "%CODEX_HOME%\\plugins\\cache\\daycry\\custom-agents\\${VERSION}\\.codex-plugin\\plugin.json" if "%own_declared%"=="1" set "own_installed=[{\"pluginId\":\"custom-agents@daycry\",\"version\":\"${VERSION}\",\"installed\":true,\"enabled\":%own_enabled%}]"\r\necho {\"installed\":%own_installed%,\"available\":[]}\r\nexit /b 0\r\n`
+    : `#!/bin/sh\nexec '${process.execPath.replace(/'/g,"'\\''")}' '${script.replace(/'/g,"'\\''")}' "$@"\n`)
+  if(process.platform!=='win32') chmodSync(executable,0o755)
+}
+
+test('installer fixture: default CLI execution never inherits a runtime from host PATH',()=>{
+  const temp=tmpProj(),previous=process.env.PATH,previousLog=process.env.CODEX_FAKE_LOG
+  try {
+    const bin=join(temp,'host-bin'),log=join(temp,'host-runtime.log');mkdirSync(bin);codexFalso(bin)
+    process.env.PATH=[bin,SIN_CLI].join(delimiter);process.env.CODEX_FAKE_LOG=log
+    cli(['status','-p','codex','--dir',temp])
+    assert.ok(!existsSync(log),'default wrapper executed inherited host runtime')
+  } finally {
+    if(previous===undefined) delete process.env.PATH; else process.env.PATH=previous
+    if(previousLog===undefined) delete process.env.CODEX_FAKE_LOG; else process.env.CODEX_FAKE_LOG=previousLog
+    rmSync(temp,{recursive:true,force:true})
+  }
+})
+
+test('Codex project native: A/B preserve global preferences and foreign source; uninstall restores own registry keys',()=>{
+  const tmp=tmpProj()
+  try {
+    const hogar=join(tmp,'home'),codex=join(hogar,'.codex'),bin=join(tmp,'bin'),foreign=join(tmp,'foreign')
+    for(const p of [codex,bin,foreign])mkdirSync(p,{recursive:true})
+    codexFalso(bin)
+    const global=join(codex,'config.toml'), before=`# unrelated user settings\n[plugins."custom-agents@daycry"]\nenabled = false\n[marketplaces.daycry]\nsource_type = "local"\nsource = ${JSON.stringify(foreign)}\n`
+    writeFileSync(global,before)
+    const env=conPath([bin,SIN_CLI].join(delimiter),{HOME:hogar,USERPROFILE:hogar,CODEX_HOME:codex})
+    for(const name of ['A','B']) {
+      const project=join(tmp,name);mkdirSync(project)
+      cli(['install','-p','codex','--dir',project,'-y','-q'],{env})
+      assert.equal(readFileSync(global,'utf8'),before)
+      const config=join(project,'.codex/config.toml')
+      assert.match(readFileSync(config,'utf8'),/enabled = true/)
+      assert.match(cli(['status','--dir',project],{env}),/estado nativo en Codex: instalado; habilitado: sí/)
+      // A user's additional setting in our table survives precise removal of our two keys.
+      writeFileSync(config,readFileSync(config,'utf8').replace('source_type = "local"','source_type = "local"\nother = 42'))
+      cli(['uninstall','-p','codex','--dir',project,'-q'],{env})
+      const after=readFileSync(config,'utf8')
+      assert.match(after,/other = 42/)
+      assert.doesNotMatch(after,/source_type|source = /)
+      assert.match(after,/enabled = false/)
+      assert.equal(readFileSync(global,'utf8'),before)
+    }
+  } finally {rmSync(tmp,{recursive:true,force:true})}
+})
+
+test('Codex project native: failure preserves prior activation and a foreign project registry requires force',()=>{
+  const tmp=tmpProj()
+  try {
+    const hogar=join(tmp,'home'),codex=join(hogar,'.codex'),bin=join(tmp,'bin'),project=join(tmp,'project'),foreign=join(tmp,'foreign')
+    for(const p of [codex,bin,join(project,'.codex'),foreign])mkdirSync(p,{recursive:true})
+    codexFalso(bin)
+    const global=join(codex,'config.toml');writeFileSync(global,'# untouched\n')
+    const config=join(project,'.codex/config.toml'),before=`[marketplaces.daycry]\nsource_type = "local"\nsource = ${JSON.stringify(foreign)}\nother = 42\n[plugins."custom-agents@daycry"]\nenabled = false\n`
+    writeFileSync(config,before)
+    const env=conPath([bin,SIN_CLI].join(delimiter),{HOME:hogar,USERPROFILE:hogar,CODEX_HOME:codex})
+    cli(['install','-p','codex','--dir',project,'-y','-q'],{env})
+    assert.equal(readFileSync(config,'utf8'),before)
+    assert.ok(!existsSync(join(codex,'plugins/cache/daycry/custom-agents')))
+    assert.throws(()=>cli(['install','-p','codex','--dir',project,'-y','--force-marketplace','-q'],{env:{...env,CODEX_FAKE_FAIL_ADD:'1'}}))
+    assert.equal(readFileSync(config,'utf8'),before)
+    assert.equal(readFileSync(global,'utf8'),'# untouched\n')
+    cli(['install','-p','codex','--dir',project,'-y','--force-marketplace','-q'],{env})
+    assert.match(readFileSync(config,'utf8'),/enabled = true/)
+    cli(['uninstall','-p','codex','--dir',project,'-q'],{env})
+    assert.equal(readFileSync(config,'utf8'),ponerToml(before,'features','hooks',true))
+    assert.equal(readFileSync(global,'utf8'),'# untouched\n')
+  } finally {rmSync(tmp,{recursive:true,force:true})}
+})
+
+test('Codex user native: foreign marketplace is protected before a CLI that would accept upsert',()=>{
+  const tmp=tmpProj()
+  try {
+    const hogar=join(tmp,'home'),codex=join(hogar,'.codex'),bin=join(tmp,'bin'),foreign=join(tmp,'foreign'),log=join(tmp,'native.log')
+    for(const p of [codex,bin,foreign])mkdirSync(p,{recursive:true})
+    codexFalso(bin)
+    const config=join(codex,'config.toml'),before=`[marketplaces.daycry]\nsource_type = "local"\nsource = ${JSON.stringify(foreign)}\n[plugins."custom-agents@daycry"]\nenabled = false\n`
+    writeFileSync(config,before)
+    const env=conPath([bin,SIN_CLI].join(delimiter),{HOME:hogar,USERPROFILE:hogar,CODEX_HOME:codex,CODEX_FAKE_LOG:log})
+    cli(['install','-p','codex','--scope','user','-y','-q'],{env})
+    assert.equal(readFileSync(config,'utf8'),before)
+    assert.ok(!existsSync(log),'no registration or plugin add command should be invoked')
+    assert.ok(!existsSync(join(codex,'plugins/cache/daycry/custom-agents')))
+  } finally {rmSync(tmp,{recursive:true,force:true})}
+})
 
 /**
  * Un `claude` de mentira que hace lo que hace la CLI real con `plugin install --scope project`:
@@ -189,38 +608,178 @@ test("cada proveedor declara lo mínimo y produce un plan no vacío", () => {
     const plan = buildPlan(p, { root: ROOT, dir: "/proy", scope: "project", version: "9.9.9" })
     assert.ok(plan.length, `${p.id}: plan vacío`)
     for (const paso of plan) {
-      assert.ok(["copy", "merge", "write", "exec", "json-set", "toml-set"].includes(paso.type),
+      assert.ok(["copy", "merge", "write", "exec", "codex-native-add", "json-set", "toml-set", "retire"].includes(paso.type),
         `${p.id}: paso raro ${paso.type}`)
-      if (paso.type === "exec") assert.ok(paso.cmd && Array.isArray(paso.args), `${p.id}: exec sin comando`)
+      if (paso.type === "exec" || paso.type === "codex-native-add") assert.ok(paso.cmd && Array.isArray(paso.args), `${p.id}: exec sin comando`)
       else assert.ok(paso.to, `${p.id}: paso sin destino`)
       if (paso.type === "copy") assert.ok(existsSync(join(ROOT, paso.from)), `${p.id}: falta ${paso.from}`)
     }
   }
 })
 
-test("Codex: agentes en .codex/agents, prompts en CODEX_HOME y marketplace con policy", () => {
+test("Codex command adapters: project and user bundle contain native command skills without global prompts", () => {
+  for (const scope of ['project','user']) {
+    const provider = getProvider('codex')
+    const dir = join('/proy')
+    const plan = buildPlan(provider, {root:ROOT,dir,scope,version:'9.9.9'})
+    const adapter = plan.find(step=>step.from==='interop/codex/command-skills')
+    assert.ok(adapter,'native command adapter tree must be part of the copied plugin')
+    assert.equal(adapter.to,join(provider.destino(scope,dir),'interop','codex','command-skills'))
+    assert.ok(!plan.some(step=>step.from==='interop/codex/prompts'),'default install must not copy personal legacy prompts')
+    assert.ok(plan.indexOf(adapter)<plan.findIndex(step=>step.type==='codex-native-add'),'adapter tree must exist before native cache staging')
+  }
+})
+
+test("Codex command adapters: legacy ownership release is structural and limited to direct absolute prompt Markdown paths", () => {
+  const home = join(tmpdir(),'owned-codex-home')
+  const bundle = join(home,'plugins','custom-agents')
+  const own = join(home,'prompts','dev-cycle.md').split('\\').join('/')
+  const edited = join(home,'prompt','edited.md').split('\\').join('/')
+  const others = [join(home,'prompts','nested','keep.md'),join(home,'prompts-other','keep.md'),join(home,'prompts','keep.txt'),join(home,'agents','keep.md'),
+    'prompts/relative.md',home+'/prompts/../prompts/traversal.md',join(home,'prompts','stream:keep.md')]
+  const previous = {plugin:'custom-agents',provider:'codex',files:[own,edited,...others]}
+  assert.equal(typeof installerModule.liberarPromptsLegacyCodex,'function','legacy files need an explicit ownership migration')
+  assert.deepEqual(installerModule.liberarPromptsLegacyCodex(previous,home,bundle),[own,edited])
+  assert.deepEqual(installerModule.liberarPromptsLegacyCodex({...previous,plugin:'foreign'},home,bundle),[])
+  assert.deepEqual(installerModule.liberarPromptsLegacyCodex({...previous,provider:'opencode'},home,bundle),[])
+  assert.deepEqual(installerModule.liberarPromptsLegacyCodex({...previous,files:'not-an-array'},home,bundle),[])
+  assert.deepEqual(installerModule.liberarPromptsLegacyCodex({...previous,files:[null,42,own]},home,bundle),[own])
+  assert.deepEqual(installerModule.liberarPromptsLegacyCodex(previous,home),[],'bundle boundary must be explicit')
+  assert.deepEqual(installerModule.liberarPromptsLegacyCodex(previous,home,'relative/bundle'),[])
+  const historical = join(tmpdir(),'historical-codex-home','prompts','dev-cycle.md')
+  const inside = join(bundle,'prompts','keep.md'), sibling = join(bundle+'-sibling','prompt','old.md')
+  const boundary = { ...previous, files:[historical,inside,sibling] }
+  assert.deepEqual(installerModule.liberarPromptsLegacyCodex(boundary,home,bundle),[historical,sibling],
+    'external historical claims are released while separator-bound bundle ownership remains')
+  if (process.platform==='win32') assert.deepEqual(installerModule.liberarPromptsLegacyCodex(
+    {...previous,files:[inside.toUpperCase().replace(/\.MD$/,'.md')]},home,bundle),[],
+    'Windows bundle containment is case-insensitive')
+})
+
+test("Codex command adapters: upgrade preserves legacy and personal bytes while uninstall releases only legacy prompt ownership", () => {
+  const tmp = tmpProj()
+  try {
+    const home = join(tmp,'home'), codex = join(home,'.codex'), project = join(tmp,'project'), bin = join(tmp,'bin')
+    for (const path of [home,codex,project,bin]) mkdirSync(path,{recursive:true})
+    codexFalso(bin)
+    const dest = getProvider('codex').destino('project',project)
+    mkdirSync(dest,{recursive:true})
+    const owned = join(codex,'prompts','dev-cycle.md'), edited = join(codex,'prompt','dev-cycle.md'), personal = join(codex,'prompts','personal.md'), otherOwned = join(dest,'legacy-owned.txt')
+    const bytes = new Map([[owned,'legacy generated bytes\n'],[edited,'personal edits to legacy projection\n'],[personal,'untracked personal prompt\n'],[otherOwned,'other inventoried bundle file\n']])
+    for (const [path,body] of bytes) {mkdirSync(dirname(path),{recursive:true});writeFileSync(path,body)}
+    const norm = path=>path.split('\\').join('/')
+    const manPath = join(dest,MANIFEST)
+    writeFileSync(manPath,JSON.stringify({plugin:'custom-agents',provider:'codex',scope:'project',files:[owned,edited,otherOwned].map(norm),registro:[]}))
+    const env = conPath([bin,SIN_CLI].join(delimiter),{HOME:home,USERPROFILE:home,CODEX_HOME:codex})
+    const recipe = ['install','-p','codex','--dir',project,'-y']
+    const output = cli(recipe,{env,cwd:project})
+    assert.match(output,/legacy|legad/i,'upgrade must explain retained personal legacy projections')
+    let man = JSON.parse(readFileSync(manPath,'utf8'))
+    assert.ok(!man.files.includes(norm(owned)) && !man.files.includes(norm(edited)),'old global prompt claims must be released')
+    assert.ok(man.files.includes(norm(otherOwned)),'unrelated file ownership must remain')
+    for (const [path,body] of bytes) assert.equal(readFileSync(path,'utf8'),body,'upgrade must preserve existing bytes')
+    assert.ok(existsSync(join(dest,'interop','codex','command-skills','custom-agents-dev-cycle','SKILL.md')),'installed bundle is missing native adapters')
+    cli(recipe,{env,cwd:project})
+    const second = JSON.parse(readFileSync(manPath,'utf8'))
+    assert.deepEqual(second.files,man.files,'ownership release must be idempotent')
+    cli(['uninstall','-p','codex','--dir',project],{env,cwd:project})
+    for (const path of [owned,edited,personal]) assert.equal(readFileSync(path,'utf8'),bytes.get(path),'later uninstall must preserve released and untracked personal prompts')
+    assert.ok(!existsSync(otherOwned),'normal bundle ownership still participates in uninstall')
+  } finally {rmSync(tmp,{recursive:true,force:true})}
+})
+
+test("Codex command adapters: B01 home A to B upgrade and uninstall preserve historical prompts and bundle ownership", () => {
+  const tmp = tmpProj()
+  try {
+    const home = join(tmp,'home'), homeA = join(tmp,'codex-home-A'), homeB = join(tmp,'codex-home-B')
+    const project = join(tmp,'project'), bin = join(tmp,'bin')
+    for (const path of [home,homeA,homeB,project,bin]) mkdirSync(path,{recursive:true})
+    codexFalso(bin)
+    const envFor = codexHome => conPath([bin,SIN_CLI].join(delimiter),{HOME:home,USERPROFILE:home,CODEX_HOME:codexHome})
+    const recipe = ['install','-p','codex','--dir',project,'-y']
+    cli(recipe,{env:envFor(homeA),cwd:project})
+    const dest = getProvider('codex').destino('project',project), manPath = join(dest,MANIFEST)
+    const oldGenerated = join(homeA,'prompts','dev-cycle.md'), oldEdited = join(homeA,'prompt','edited.md')
+    const personal = join(homeB,'prompts','personal.md'), bundleOwned = join(dest,'prompts','bundle-owned.md')
+    const bodies = new Map([[oldGenerated,'historical generated prompt\n'],[oldEdited,'historical prompt with personal edits\n'],
+      [personal,'new home personal prompt\n'],[bundleOwned,'owned Markdown inside current plugin bundle\n']])
+    for (const [path,body] of bodies) {mkdirSync(dirname(path),{recursive:true});writeFileSync(path,body)}
+    const norm = path=>path.split('\\').join('/')
+    const previous = JSON.parse(readFileSync(manPath,'utf8'))
+    previous.files.push(...[oldGenerated,oldEdited,bundleOwned].map(norm))
+    writeFileSync(manPath,JSON.stringify(previous))
+    cli(recipe,{env:envFor(homeB),cwd:project})
+    const upgraded = JSON.parse(readFileSync(manPath,'utf8'))
+    for (const [path,body] of bodies) assert.equal(readFileSync(path,'utf8'),body,'home switch upgrade must preserve every existing byte')
+    cli(['uninstall','-p','codex','--dir',project],{env:envFor(homeB),cwd:project})
+    for (const path of [oldGenerated,oldEdited,personal]) {
+      assert.ok(existsSync(path),'B01: uninstall after home A to B upgrade must preserve historical and personal prompts')
+      assert.equal(readFileSync(path,'utf8'),bodies.get(path))
+    }
+    assert.ok(!upgraded.files.includes(norm(oldGenerated)) && !upgraded.files.includes(norm(oldEdited)),
+      'historical external prompt claims must be released even when CODEX_HOME changes')
+    assert.ok(upgraded.files.includes(norm(bundleOwned)),'current bundle Markdown ownership must remain')
+    assert.ok(!existsSync(bundleOwned),'current bundle ownership must still participate in uninstall')
+  } finally {rmSync(tmp,{recursive:true,force:true})}
+})
+
+test("Codex command adapters: B22-2 direct legacy uninstall preserves external edited prompts and retires only bundle ownership", async (t) => {
+  for (const scope of ['project','user']) await t.test(scope, () => {
+    const tmp = tmpProj()
+    try {
+      const home = join(tmp,'home'), homeA = join(tmp,'historical-codex-home-A'), homeB = join(tmp,'current-codex-home-B')
+      const project = join(tmp,'project'), bin = join(tmp,'bin')
+      for (const path of [home,homeA,homeB,project,bin]) mkdirSync(path,{recursive:true})
+      codexFalso(bin)
+      const dest = scope==='user' ? join(homeB,'plugins','custom-agents') : getProvider('codex').destino('project',project)
+      const manPath = join(dest,MANIFEST), internal = join(dest,'prompts','internal.md')
+      const historical = [join(homeA,'prompts','dev-cycle.md'),join(homeA,'prompt','edited.md')]
+      const current = [join(homeB,'prompts','edited.md'),join(homeB,'prompt','dev-cycle.md')]
+      const personal = join(homeB,'prompts','personal.md')
+      const bodies = new Map([...historical,...current,personal,internal].map((path,index)=>
+        [path,Buffer.from(`consumer edits ${index}: ñ, literal $ARGUMENTS and $$\r\n`,'utf8')]))
+      for (const [path,body] of bodies) {mkdirSync(dirname(path),{recursive:true});writeFileSync(path,body)}
+      const norm = path=>path.split('\\').join('/')
+      const manifestBytes = Buffer.from(JSON.stringify({plugin:'custom-agents',provider:'codex',scope,version:'0.0.legacy',
+        files:[...historical,...current,internal].map(norm),registro:[]}),'utf8')
+      writeFileSync(manPath,manifestBytes)
+      const env = conPath([bin,SIN_CLI].join(delimiter),{HOME:home,USERPROFILE:home,CODEX_HOME:homeB})
+      const recipe = ['uninstall','-p','codex','--scope',scope,'--dir',project]
+      const dryOutput = cli([...recipe,'--dry-run'],{env,cwd:project})
+      for (const [path,body] of bodies) assert.deepEqual(readFileSync(path),body,'dry-run must preserve every byte')
+      assert.deepEqual(readFileSync(manPath),manifestBytes,'dry-run must preserve legacy manifest bytes')
+      const output = cli(recipe,{env,cwd:project})
+      for (const path of [...historical,...current,personal]) {
+        assert.ok(existsSync(path),'B22-2: direct legacy uninstall must preserve historical/current edited and untracked external prompts')
+        assert.deepEqual(readFileSync(path),bodies.get(path),'external prompt bytes must remain exact')
+      }
+      assert.ok(!existsSync(internal),'owned prompt inside current bundle must uninstall normally')
+      assert.ok(!existsSync(manPath),'legacy manifest must retire normally')
+      assert.match(dryOutput,/borrar.a 1 fichero\(s\)/,'dry-run must not count external prompts as deletions')
+      assert.match(output,/1 fichero\(s\) borrado\(s\)/,'only the internal bundle file may count as deleted')
+    } finally {rmSync(tmp,{recursive:true,force:true})}
+  })
+})
+
+test("Codex: agentes en .codex/agents y marketplace con policy", () => {
   const plan = buildPlan(getProvider("codex"), { root: ROOT, dir: join("/proy"), scope: "project", version: "9.9.9" })
   const agentes = plan.find((s) => s.from === "interop/codex/agents")
   assert.match(agentes.to, /[\\/]\.codex[\\/]agents$/)
-  const prompts = plan.filter((s) => s.from === "interop/codex/prompts")
-  assert.equal(prompts.length, 2, "hay un destino canónico (/prompts) y otro de compatibilidad (/prompt)")
-  assert.ok(prompts.every((p) => p.to.startsWith(GLOBAL_DIR.codex)), "los prompts SOLO viven en CODEX_HOME")
-  assert.ok(prompts.some((p) => /[\\/]prompts$/.test(p.to)), "un destino para la ruta canónica")
-  assert.ok(prompts.some((p) => /[\\/]prompt$/.test(p.to)), "un destino para la ruta alternativa")
-  assert.ok(prompts.some((p) => p.aviso), "si el plan sale del proyecto, debe avisar del destino CODEX_HOME")
+  assert.ok(!plan.some((s) => s.from === "interop/codex/prompts"), "default project installation keeps command adapters inside the plugin")
   const mkt = plan.find((s) => s.type === "merge")
   assert.equal(mkt.merge.plugins[0].policy.installation, "AVAILABLE")
   assert.match(mkt.merge.plugins[0].source.path, /^\.\//, "source.path relativo a la raíz del marketplace")
 })
 
-test("OpenCode: config en la raíz del proyecto y permission en onlyIfMissing", () => {
+test("OpenCode V2: config en raíz, directorio nativo y sin grants ni instructions añadidos", () => {
   const plan = buildPlan(getProvider("opencode"), { root: ROOT, dir: join("/proy"), scope: "project", version: "9.9.9" })
   const merge = plan.find((s) => s.type === "merge")
   assert.match(merge.to, /[\\/]opencode\.json$/)
   assert.ok(!merge.to.includes(".opencode"), "el config de proyecto va en la RAÍZ, no en .opencode/")
-  assert.deepEqual(merge.onlyIfMissing, ["permission"],
-    "permission no se puede fusionar: en OpenCode gana la última regla que casa")
-  assert.ok(merge.merge.instructions.some((i) => i.includes("custom-agents-index")))
+  assert.ok(Array.isArray(merge.merge.plugins))
+  assert.equal(merge.merge.permission, undefined)
+  assert.equal(merge.merge.permissions, undefined)
+  assert.equal(merge.merge.instructions, undefined)
 })
 
 test("OpenCode: el adaptador se REGISTRA en `plugin` con la ruta que resuelve al fichero copiado", () => {
@@ -228,7 +787,7 @@ test("OpenCode: el adaptador se REGISTRA en `plugin` con la ruta que resuelve al
     const plan = buildPlan(getProvider("opencode"), { root: ROOT, dir: "/proy", scope, version: "9.9.9" })
     const copia = plan.find((s) => s.type === "copy" && String(s.to).endsWith(ADAPTADOR_OPENCODE))
     const merge = plan.find((s) => s.type === "merge")
-    const spec = merge.merge.plugin
+    const spec = merge.merge.plugins
     assert.equal(spec.length, 1, `${scope}: una sola entrada`)
     assert.ok(!spec[0].includes("\\"), `${scope}: la ruta del JSON va con "/"`)
     // OpenCode resuelve un spec con forma de ruta contra la CARPETA DEL CONFIG que lo declara:
@@ -249,19 +808,20 @@ test("OpenCode: `plugin` se une sin duplicar y conserva el del usuario; uninstal
     cli(["install", "-p", "opencode", "--dir", proj, "-q"])
     const esperada = rutaPluginOpencode(join(proj, ".opencode"), "project")
     const uno = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
-    assert.deepEqual(uno.plugin, ["otro", esperada], "el `plugin` previo del usuario manda y el nuestro se añade")
+    assert.deepEqual(uno.plugin, ["otro"], "se conserva la configuración previa del usuario")
+    assert.deepEqual(uno.plugins, [esperada])
 
     // reinstalar no duplica
     cli(["install", "-p", "opencode", "--dir", proj, "-q"])
     const dos = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
-    assert.deepEqual(dos.plugin, uno.plugin, "reinstalar duplicó la entrada de `plugin`")
+    assert.deepEqual(dos.plugins, uno.plugins, "reinstalar duplicó la entrada")
 
     // el fichero registrado existe de verdad (si no, OpenCode falla al arrancar)
     assert.ok(existsSync(resolve(proj, esperada)), "`plugin` apunta a un fichero que no está")
 
     const out = cli(["uninstall", "-p", "opencode", "--dir", proj])
     const tras = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
-    assert.deepEqual(tras.plugin, uno.plugin, "uninstall tocó una config que es del usuario")
+    assert.deepEqual(tras.plugins, uno.plugins, "uninstall tocó una config que es del usuario")
     assert.match(out, /plugin/, "hay que avisar de que la entrada de `plugin` queda colgando")
   } finally {
     rmSync(proj, { recursive: true, force: true })
@@ -283,7 +843,71 @@ test("ficherosDe enumera árboles y excluye caché de python", () => {
   assert.deepEqual(ficherosDe("no-existe-nada", "/dst"), [])
 })
 
+test("el panel viaja con sus assets y Chart.js vendorizado (D-A1)", () => {
+  const dst = join("/dst", "skills", "plugin-panel", "assets")
+  const fs_ = ficherosDe(join("skills", "plugin-panel", "assets"), dst).map((f) => f.replaceAll("\\", "/"))
+  for (const rel of ["panel.css", "panel-core.js", "vendor/chart.js/chart.umd.min.js", "vendor/chart.js/PROVENANCE.json", "vendor/chart.js/LICENSE.md"]) {
+    assert.ok(fs_.some((f) => f.endsWith("/assets/" + rel)), `falta assets/${rel} en lo que copia el instalador`)
+  }
+  const proj = tmpProj()
+  try {
+    cli(["install", "-p", "claude-code", "--mode", "copy", "-y", "--dir", proj, "-q"])
+    for (const rel of ["panel.css", "vendor/chart.js/chart.umd.min.js", "vendor/chart.js/PROVENANCE.json"]) {
+      assert.ok(existsSync(join(proj, ".claude", "skills", "plugin-panel", "assets", ...rel.split("/"))), `no se instaló assets/${rel}`)
+    }
+  } finally { rmSync(proj, { recursive: true, force: true }) }
+})
+
 // ------------------------------------------------------------------ end to end
+
+test('retirar artefacto conocido conserva config ajena y es idempotente y dry-run seguro', () => {
+  const dir = tmpProj()
+  try {
+    const old = join(dir, 'adapter.js'), config = join(dir, 'opencode.json')
+    const body = 'known owned adapter\n'
+    writeFileSync(old, body.replaceAll('\n', '\r\n'))
+    writeFileSync(config, JSON.stringify({ plugin: ['old-owned', 'other'], instructions: ['own-index', 'AGENTS.md'], permissions: [{ effect: 'deny' }] }))
+    const step = { to: old, sha256: [createHash('sha256').update(body).digest('hex')], config: { to: config, remove: { plugin: ['old-owned'], instructions: ['own-index'] } } }
+    installerModule.retirarArtefacto(step, dir, true)
+    assert.ok(existsSync(old))
+    assert.equal(JSON.parse(readFileSync(config)).plugin.length, 2)
+    assert.equal(installerModule.retirarArtefacto(step, dir, false), true)
+    assert.equal(existsSync(old), false)
+    assert.deepEqual(JSON.parse(readFileSync(config)), { plugin: ['other'], instructions: ['AGENTS.md'], permissions: [{ effect: 'deny' }] })
+    assert.equal(installerModule.retirarArtefacto(step, dir, false), true)
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('retirar preserva un artefacto modificado y rechaza rutas fuera del destino', () => {
+  const dir = tmpProj()
+  try {
+    const old = join(dir, 'adapter.js')
+    writeFileSync(old, 'local changes')
+    const step = { to: old, sha256: ['not-the-hash'] }
+    assert.equal(installerModule.retirarArtefacto(step, dir, false), false)
+    assert.equal(readFileSync(old, 'utf8'), 'local changes')
+    assert.throws(() => installerModule.retirarArtefacto({ ...step, to: resolve(dir, '..', 'outside') }, dir, false), /destino|scope|fuera/i)
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('retirar rechaza junctions y enlaces duros y conserva copia ante config inválida', () => {
+  const dir = tmpProj(), outside = tmpProj()
+  try {
+    const body = 'owned\n', hash = createHash('sha256').update(body).digest('hex')
+    const target = join(outside, 'old.js'); writeFileSync(target, body)
+    const junction = join(dir, 'linked')
+    symlinkSync(outside, junction, process.platform === 'win32' ? 'junction' : 'dir')
+    assert.throws(() => installerModule.retirarArtefacto({ to: join(junction, 'old.js'), sha256: [hash] }, dir), /destino real/)
+    assert.equal(readFileSync(target, 'utf8'), body)
+    const hard = join(dir, 'hard.js'); linkSync(target, hard)
+    assert.throws(() => installerModule.retirarArtefacto({ to: hard, sha256: [hash] }, dir), /no regular/)
+    const own = join(dir, 'old.js'); writeFileSync(own, body)
+    const cfg = join(dir, 'opencode.json'); writeFileSync(cfg, '{broken')
+    assert.throws(() => installerModule.retirarArtefacto({ to: own, sha256: [hash], config: { to: cfg, remove: { plugin: ['old'] } } }, dir), /JSON/)
+    assert.equal(readFileSync(own, 'utf8'), body)
+    assert.equal(readFileSync(cfg, 'utf8'), '{broken')
+  } finally { rmSync(dir, { recursive: true, force: true }); rmSync(outside, { recursive: true, force: true }) }
+})
 
 test("install → idempotente → uninstall preciso", () => {
   const proj = tmpProj()
@@ -293,8 +917,8 @@ test("install → idempotente → uninstall preciso", () => {
     const man = JSON.parse(readFileSync(join(proj, ".opencode", MANIFEST), "utf8"))
     assert.equal(man.provider, "opencode")
     assert.ok(man.files.length > 100, "el manifiesto debe listar lo instalado")
-    assert.ok(existsSync(join(proj, ".opencode", "agents", "reviewer.md")))
-    assert.ok(existsSync(join(proj, ".opencode", "plugins", "custom-agents-hooks.js")))
+    assert.ok(existsSync(join(proj, ".opencode", "agents", "custom-agents-reviewer.md")))
+    assert.ok(existsSync(join(proj, ".opencode", "plugins", ADAPTADOR_OPENCODE, "index.js")))
     assert.ok(existsSync(join(proj, "opencode.json")))
     // El manifiesto viaja también: `/doctor` lee `<raíz>/.claude-plugin/plugin.json` para decir la
     // versión instalada y OpenCode no tiene otro origen (sin él salía «sin campo `version`» con el
@@ -307,8 +931,8 @@ test("install → idempotente → uninstall preciso", () => {
     const man2 = JSON.parse(readFileSync(join(proj, ".opencode", MANIFEST), "utf8"))
     assert.deepEqual(man2.files, man.files, "reinstalar cambió la lista de ficheros")
     const cfg = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
-    const idx = cfg.instructions.filter((i) => i.includes("custom-agents-index"))
-    assert.equal(idx.length, 1, "instructions duplicado al reinstalar")
+    assert.equal(cfg.instructions, undefined, "V2 no carga instructions: el contexto llega por hook")
+    assert.equal(cfg.plugins.length, 1)
 
     // 3) un fichero ajeno en una carpeta nuestra debe sobrevivir
     const ajeno = join(proj, ".opencode", "plugins", "mi-plugin.js")
@@ -318,7 +942,7 @@ test("install → idempotente → uninstall preciso", () => {
     cli(["uninstall", "-p", "opencode", "--dir", proj, "-q"])
     assert.ok(existsSync(ajeno), "uninstall borró un fichero que no era suyo")
     assert.ok(existsSync(join(proj, "opencode.json")), "uninstall borró la config del usuario")
-    assert.ok(!existsSync(join(proj, ".opencode", "agents", "reviewer.md")))
+    assert.ok(!existsSync(join(proj, ".opencode", "agents", "custom-agents-reviewer.md")))
     assert.ok(!existsSync(join(proj, ".opencode", ".claude-plugin", "plugin.json")),
       "uninstall dejó el manifiesto huérfano")
     assert.ok(!existsSync(join(proj, ".opencode", MANIFEST)))
@@ -348,8 +972,7 @@ test("no pisa el bloque permission del usuario y lo avisa", () => {
     const cfg = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
     assert.deepEqual(cfg.permission, previo.permission, "se tocó la política de permisos del usuario")
     assert.ok(cfg.instructions.includes("AGENTS.md"), "se perdió una instruction del usuario")
-    assert.equal(cfg.instructions.length, 2)
-    assert.match(out, /permission/, "el cambio omitido tiene que anunciarse")
+    assert.equal(cfg.instructions.length, 1)
   } finally {
     rmSync(proj, { recursive: true, force: true })
   }
@@ -431,13 +1054,15 @@ test("status: Codex y OpenCode también dicen si el runtime los tiene dados de a
 
     const proj2 = tmpProj()
     try {
-      cli(["install", "-p", "codex", "--dir", proj2, "-q"])
-      const s = cli(["status", "--dir", proj2])
+      const bin=join(proj2,'bin');mkdirSync(bin);codexFalso(bin)
+      const env=conPath([bin,SIN_CLI].join(delimiter),{HOME:join(proj2,'home'),USERPROFILE:join(proj2,'home')})
+      cli(["install", "-p", "codex", "--dir", proj2, "-q"],{env})
+      const s = cli(["status", "--dir", proj2],{env})
       assert.match(s, /project: registrado: sí/, "Codex: `enabled = true` en config.toml")
       // y si el usuario lo apaga, `status` lo dice: es la única fuente de verdad del runtime
       const toml = join(proj2, ".codex", "config.toml")
       writeFileSync(toml, readFileSync(toml, "utf8").replace("enabled = true", "enabled = false"))
-      assert.match(cli(["status", "--dir", proj2]), /project: registrado: no/)
+      assert.match(cli(["status", "--dir", proj2],{env}), /project: registrado: no/)
     } finally {
       rmSync(proj2, { recursive: true, force: true })
     }
@@ -679,8 +1304,8 @@ test("versionSuficiente compara como un humano, no como una cadena", () => {
   assert.equal(versionSuficiente(null, "0.128.0"), false)
 })
 
-test("Codex: el plan da de alta el marketplace y habilita el plugin en config.toml", () => {
-  const plan = buildPlan(getProvider("codex"), { root: ROOT, dir: "/proy", scope: "project", version: "9.9.9" })
+test("Codex: el plan user registra marketplace y habilita solo tras native add", () => {
+  const plan = buildPlan(getProvider("codex"), { root: ROOT, dir: "/proy", scope: "user", version: "9.9.9" })
   const ex = plan.find((p) => p.type === "exec")
   assert.equal(ex.cmd, "codex")
   assert.deepEqual(ex.args.slice(0, 3), ["plugin", "marketplace", "add"])
@@ -700,7 +1325,7 @@ test("Codex: el plan da de alta el marketplace y habilita el plugin en config.to
     ["features", "hooks", true],
   ])
   assert.equal(tomls[1].deshacer, false, "`[features] hooks` es del usuario: desinstalar no lo apaga")
-  for (const t of tomls) assert.match(t.to, /[\\/]\.codex[\\/]config\.toml$/)
+  for (const t of tomls) assert.equal(t.to, join(GLOBAL_DIR.codex, 'config.toml'), 'user config follows the configured CODEX_HOME')
 })
 
 test("Codex: instala de verdad, llama a su CLI y deja el config.toml del usuario intacto", () => {
@@ -748,7 +1373,7 @@ test("sin la CLI del runtime, el comando pendiente se dice en vez de fallar", ()
     const out = cli(["install", "-p", "codex", "--scope", "user", "-y"],
       { env: conPath(SIN_CLI, { HOME: hogar, USERPROFILE: hogar }) })
     assert.match(out, /codex plugin marketplace add/, "hay que decir el comando que queda pendiente")
-    assert.ok(existsSync(join(hogar, ".codex", "config.toml")), "el resto de la instalación sigue")
+    assert.ok(!existsSync(join(hogar, ".codex", "config.toml")), "sin native add no se declara activación")
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -1105,7 +1730,7 @@ test("gap 8: una CLI colgada no bloquea el instalador (timeout) y se dice qué s
     assert.ok(tardo < 30_000, `el timeout no cortó: ${tardo} ms`)
     assert.match(out, /ejecutando/, "antes de lanzar hay que decir qué se lanza")
     assert.match(out, /codex plugin marketplace add/)
-    assert.ok(existsSync(join(hogar, ".codex", "config.toml")), "y el resto de la instalación sigue")
+    assert.ok(!existsSync(join(hogar, ".codex", "config.toml")), "sin registro exitoso no se habilita")
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -1366,7 +1991,8 @@ function instalarCodexCon(toml) {
   mkdirSync(join(hogar, ".codex"), { recursive: true })
   const config = join(hogar, ".codex", "config.toml")
   writeFileSync(config, toml, "utf8")
-  const env = conPath(SIN_CLI, { HOME: hogar, USERPROFILE: hogar })
+  const bin=join(tmp,'bin');mkdirSync(bin);codexFalso(bin)
+  const env = conPath([bin,SIN_CLI].join(delimiter), { HOME: hogar, USERPROFILE: hogar })
   let salida = "", error = null
   try { salida = cli(["install", "-p", "codex", "--scope", "user", "-y"], { env }) } catch (e) { error = e }
   return { tmp, config, env, salida, error, texto: () => readFileSync(config, "utf8") }
@@ -1785,31 +2411,42 @@ test("gap B-11: un timeout que no es un entero > 0 avisa y cae al defecto", () =
 // ------------------------------------------------------------------ gap B-12: matar el árbol
 
 test("gap B-12: al expirar se mata el ÁRBOL y el mensaje dice cómo subir el timeout",
-  { skip: process.platform !== "win32" ? "solo en Windows" : false }, async () => {
+  { skip: process.platform !== "win32" ? "solo en Windows" : false }, () => {
     const tmp = tmpProj()
     try {
       const hogar = join(tmp, "home"), bin = join(tmp, "bin")
       mkdirSync(join(hogar, ".codex"), { recursive: true })
       mkdirSync(bin)
       const marca = join(tmp, "el-nieto-siguio-vivo.txt")
-      // El nieto (un `node`) escribe la marca a los 3 s: si al expirar solo se mata al `cmd.exe`,
-      // sigue vivo y la marca aparece. Es el síntoma que se midió con `tasklist`.
+      // Identifica un nieto real y comprueba su vida cuando retorna la limpieza. Una marca
+      // escrita durante WMIC/CIM no prueba que siga vivo después de matar el árbol.
       writeFileSync(join(bin, "codex.cmd"), [
         "@echo off",
         "if \"%~1\"==\"--version\" (echo codex-cli 0.130.0& exit /b 0)",
-        `"${process.execPath}" -e "setTimeout(()=>require('fs').writeFileSync(process.env.MARCA,'vivo'),3000)"`,
+        `"${process.execPath}" -e "require('fs').writeFileSync(process.env.MARCA,JSON.stringify({pid:process.pid}));setInterval(()=>{},1000)"`,
         "exit /b 0",
         "",
       ].join("\r\n"))
       const env = conPath([bin, SIN_CLI].join(delimiter), {
-        HOME: hogar, USERPROFILE: hogar, MARCA: marca, CUSTOM_AGENTS_EXEC_TIMEOUT_MS: "1000",
+        HOME: hogar, USERPROFILE: hogar, MARCA: marca, CUSTOM_AGENTS_EXEC_TIMEOUT_MS: "5000",
       })
       const out = cli(["install", "-p", "codex", "--scope", "user", "-y"], { env })
-      assert.match(out, /expiró a los 1 s/, "un `ETIMEDOUT` pelado no dice nada al usuario")
+      assert.match(out, /expiró a los 5 s/, "un `ETIMEDOUT` pelado no dice nada al usuario")
       assert.match(out, /CUSTOM_AGENTS_EXEC_TIMEOUT_MS/)
-      await new Promise((r) => setTimeout(r, 4000))
-      assert.ok(!existsSync(marca), "el nieto sobrevivió al timeout: hay que matar el árbol")
+      assert.ok(existsSync(marca), "la fixture debe iniciar un nieto real antes de comprobar su terminación")
+      const { pid } = JSON.parse(readFileSync(marca, "utf8"))
+      let vivo = true
+      try { process.kill(pid, 0) } catch (e) {
+        if (e.code !== "ESRCH") throw e
+        vivo = false
+      }
+      assert.ok(!vivo, "el nieto sobrevivió a la limpieza del timeout: hay que matar el árbol")
     } finally {
+      // Solo el PID creado por esta fixture; evita un huérfano incluso con la variante roja.
+      if (existsSync(join(tmp, "el-nieto-siguio-vivo.txt"))) {
+        const { pid } = JSON.parse(readFileSync(join(tmp, "el-nieto-siguio-vivo.txt"), "utf8"))
+        try { execFileSync(join(process.env.SystemRoot, "System32", "taskkill.exe"), ["/T", "/F", "/PID", String(pid)], { stdio: "ignore" }) } catch { /* ya terminó */ }
+      }
       rmSync(tmp, { recursive: true, force: true })
     }
   })
@@ -2044,15 +2681,15 @@ test("gap B-5: fusionar una lista sobre un valor del usuario no lo hace desapare
   assert.deepEqual(drenarAvisosEscritura(), [])
 })
 
-test("gap B-5: instalar en OpenCode conserva el `plugin` escalar del usuario y lo avisa", () => {
+test("OpenCode V2: conserva config heredada escalar y registra el paquete en plugins", () => {
   const proj = tmpProj()
   try {
     writeFileSync(join(proj, "opencode.json"), JSON.stringify({ plugin: "mi-plugin.js" }))
     const salida = cli(["install", "-p", "opencode", "-y", "--dir", proj])
     const cfg = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
-    assert.deepEqual(cfg.plugin, ["mi-plugin.js", rutaPluginOpencode(join(proj, ".opencode"), "project")],
+    assert.equal(cfg.plugin, "mi-plugin.js",
       "el plugin del usuario no desaparece, y va el primero")
-    assert.match(salida, /no era una lista/, "y se le dice lo que ha pasado con su clave")
+    assert.deepEqual(cfg.plugins, [rutaPluginOpencode(join(proj, ".opencode"), "project")])
   } finally {
     rmSync(proj, { recursive: true, force: true })
   }

@@ -1,0 +1,564 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-10-09",
+  "source_manifest_sha256": "d928d1af878e029832ec2595f9634a2972c3b2a03c8ad4c0e488564c7d5f7490",
+  "helper_sha256": {
+    "codex.py": "b80c690d5d5113bc8b52b35a5b935db4e5fe22cc56c23cfed27eadd02d5aced6",
+    "claude.py": "c58cd6fddc596d0e9fba5dc36616f70cef209af5c5953bf7821237e7318a1963",
+    "opencode.py": "b131ea9093a322ecd8d55646d4d9c630dfb750840d329aae93c099a7d0f22685"
+  },
+  "commands": [
+    {
+      "case": "codex",
+      "exit_code": 0,
+      "duration_ms": 47692
+    },
+    {
+      "case": "claude-root",
+      "exit_code": 0,
+      "duration_ms": 24297
+    },
+    {
+      "case": "claude-implementer-deny",
+      "exit_code": 0,
+      "duration_ms": 24063
+    },
+    {
+      "case": "claude-implementer-allow",
+      "exit_code": 0,
+      "duration_ms": 25816
+    },
+    {
+      "case": "claude-architect-deny",
+      "exit_code": 0,
+      "duration_ms": 24365
+    },
+    {
+      "case": "claude-architect-allow",
+      "exit_code": 0,
+      "duration_ms": 25230
+    },
+    {
+      "case": "opencode-matrix",
+      "exit_code": 0,
+      "duration_ms": 113070
+    },
+    {
+      "case": "opencode-children",
+      "exit_code": 0,
+      "duration_ms": 134450
+    }
+  ],
+  "commands_run_serially": true,
+  "production_and_installed_sources_unchanged": true,
+  "launcher_instrumentation": false,
+  "extra_native_observer_hooks": false,
+  "provider_endpoint": "Owned loopback synthetic model fixture",
+  "provider_authorization_present": false,
+  "codex": {
+    "runtime": "0.161.0",
+    "native_sha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
+    "distribution_manifest_sha256": "fc329939449968163d0cbbf92e2680c092681cf20d6b9a64308ebf181af056dd",
+    "source_distribution_files": 328,
+    "source_provenance_sha256": "a0fd817f0aa195f6fb06869c7a2a57ece3a74059e1ef6d14de2a8bfa06b6f4e2",
+    "guard_checks_accepted": true,
+    "session_end_accepted": true,
+    "envelope_content_accepted": true,
+    "envelope_observed_before_exit": true,
+    "envelope_root_session_match": true,
+    "model_stub_child_dispatch_verified": true,
+    "role_bodies_loaded": {
+      "implementer": true,
+      "architect": true
+    },
+    "project_git_state": "feature/native-guard with unborn HEAD",
+    "result_sha256": "c41a49a0bb3d624d4ef520e4e7fd8ffd76030dc82337b6fda0d6cd354f04f645",
+    "process_exit": 0,
+    "forced_cleanup": false,
+    "guard_checks": [
+      {
+        "expected": "completed",
+        "statuses": [
+          "completed"
+        ],
+        "duration_ms": [
+          1204
+        ]
+      },
+      {
+        "expected": "blocked",
+        "statuses": [
+          "blocked"
+        ],
+        "duration_ms": [
+          1235
+        ]
+      },
+      {
+        "expected": "completed",
+        "statuses": [
+          "completed"
+        ],
+        "duration_ms": [
+          1293
+        ]
+      },
+      {
+        "expected": "blocked",
+        "statuses": [
+          "blocked"
+        ],
+        "duration_ms": [
+          1198
+        ]
+      },
+      {
+        "expected": "completed",
+        "statuses": [
+          "completed"
+        ],
+        "duration_ms": [
+          1429
+        ]
+      }
+    ],
+    "capture_trigger": "Native SessionEnd on thread archive, durable root envelope observed while app-server alive before natural process exit."
+  },
+  "claude": {
+    "version": "2.1.287",
+    "cases": [
+      {
+        "case": "child-architect-allow",
+        "target": "design",
+        "expected_exists": true,
+        "exists": true,
+        "accepted_native_deny": false,
+        "role_body_loaded": true,
+        "root_capture_before_natural_exit": true,
+        "capture_sha256": [
+          "b00558545c62fc061f908c4560c2361a83a4f0373c87080564be307693761b6e"
+        ],
+        "native_sha256": "6d5be51f0edfe3429cd1a9885950db31c1e59eb9a2c9a30a47e64179d2ff98b4",
+        "distribution_files": 314,
+        "result_sha256": "42c0df6789c6c6a0e3d5908f16cbe0e03be7b9c621aa4f0bcdb146edfd31ed6d",
+        "process_exit": 0,
+        "forced_cleanup": false
+      },
+      {
+        "case": "child-architect-deny",
+        "target": "src",
+        "expected_exists": false,
+        "exists": false,
+        "accepted_native_deny": true,
+        "role_body_loaded": true,
+        "root_capture_before_natural_exit": true,
+        "capture_sha256": [
+          "c3e26f76af6436e5d6b269e6305880fe581f3140b33b3622de4409e310305466"
+        ],
+        "native_sha256": "6d5be51f0edfe3429cd1a9885950db31c1e59eb9a2c9a30a47e64179d2ff98b4",
+        "distribution_files": 314,
+        "result_sha256": "7848cf91b7df8e456b7e76be1cfcb7e58193cd81a372de170cd1db248d61e624",
+        "process_exit": 0,
+        "forced_cleanup": false
+      },
+      {
+        "case": "child-implementer-allow",
+        "target": "tasks",
+        "expected_exists": true,
+        "exists": true,
+        "accepted_native_deny": false,
+        "role_body_loaded": true,
+        "root_capture_before_natural_exit": true,
+        "capture_sha256": [
+          "fc3cf532d5c55bd45242f20e89d5f8d1aabea004b01938576f830fb6aa815302"
+        ],
+        "native_sha256": "6d5be51f0edfe3429cd1a9885950db31c1e59eb9a2c9a30a47e64179d2ff98b4",
+        "distribution_files": 314,
+        "result_sha256": "945e21228c999b6890eb3570a071a78a8ab13daa7b2cdf2816ca29f4f1ae65b4",
+        "process_exit": 0,
+        "forced_cleanup": false
+      },
+      {
+        "case": "child-implementer-deny",
+        "target": "spec",
+        "expected_exists": false,
+        "exists": false,
+        "accepted_native_deny": true,
+        "role_body_loaded": true,
+        "root_capture_before_natural_exit": true,
+        "capture_sha256": [
+          "d50ed7023475f49ce1ca4748286bab59f7bde54be465f7c527c1be84d0ce3e64"
+        ],
+        "native_sha256": "6d5be51f0edfe3429cd1a9885950db31c1e59eb9a2c9a30a47e64179d2ff98b4",
+        "distribution_files": 314,
+        "result_sha256": "73362eeb00923612b5dd1e02a8c4d656879d4122a8eb2514900f2f9554f9cf3e",
+        "process_exit": 0,
+        "forced_cleanup": false
+      },
+      {
+        "case": "root-allowed",
+        "target": "src",
+        "expected_exists": true,
+        "exists": true,
+        "accepted_native_deny": false,
+        "role_body_loaded": true,
+        "root_capture_before_natural_exit": true,
+        "capture_sha256": [
+          "59f53b4d11f2b90cbdbb07adeafd581f277334aa3ae8fd1bb628a7d26b933ede"
+        ],
+        "native_sha256": "6d5be51f0edfe3429cd1a9885950db31c1e59eb9a2c9a30a47e64179d2ff98b4",
+        "distribution_files": 314,
+        "result_sha256": "aee1fb26d151aa8e26562f2d323c1c55c0fc9537091e0b3731b2b837cc130049",
+        "process_exit": 0,
+        "forced_cleanup": false
+      }
+    ]
+  },
+  "opencode": [
+    {
+      "mode": "matrix",
+      "version": "2.0.12",
+      "native_sha256": "58d550b26e9241759a6906c65f1e0605eaf512d63cbaf6d8eb472375b9311c95",
+      "cases": [
+        {
+          "agent": "own-root",
+          "expected_exists": true,
+          "exists": true,
+          "outcome": "succeeded",
+          "root_capture_before_server_exit": true
+        },
+        {
+          "agent": "custom-agents-implementer",
+          "expected_exists": false,
+          "exists": false,
+          "outcome": "succeeded",
+          "root_capture_before_server_exit": true
+        },
+        {
+          "agent": "custom-agents-implementer",
+          "expected_exists": true,
+          "exists": true,
+          "outcome": "succeeded",
+          "root_capture_before_server_exit": true
+        },
+        {
+          "agent": "custom-agents-architect",
+          "expected_exists": false,
+          "exists": false,
+          "outcome": "succeeded",
+          "root_capture_before_server_exit": true
+        },
+        {
+          "agent": "custom-agents-architect",
+          "expected_exists": true,
+          "exists": true,
+          "outcome": "succeeded",
+          "root_capture_before_server_exit": true
+        },
+        {
+          "agent": "custom-agents-planner",
+          "expected_exists": true,
+          "exists": true,
+          "outcome": "succeeded",
+          "root_capture_before_server_exit": true
+        },
+        {
+          "agent": "architect",
+          "expected_exists": true,
+          "exists": true,
+          "outcome": "succeeded",
+          "root_capture_before_server_exit": true
+        }
+      ],
+      "native_child_count": 0,
+      "native_child_parent_agent_outcome_verified": false,
+      "full_native_role_bodies_verified": true,
+      "distribution_files": 94,
+      "capture_sha256": [
+        "d1dd9b1747255871e289b0ccf8fd94c029cb846a6a6924e2ec33a5558368dfa8",
+        "c8e34459e3624d9e71e452721bb531a9370d19760cf9ee8491c52d77de946d54",
+        "5e2bc00cc91acdd7775c865287f821f2a49615972691bde5bbde7493ccf2431e",
+        "d201553573567e7ac344a74d35e594f7e2a133bc0c006a5af6dd3920d381c199",
+        "67efd373b59987f978e352adc6c70980c6cf12d617b1d2d8b9a34abdd4176174",
+        "86ec2890c87e299172480dd3fd978b50a657ae02e480c6b409bacedcb2983076",
+        "52a23928a7a735163415335d437c530a0e952147592c235e9467e9c986f8f7c5"
+      ],
+      "result_sha256": "f1d4ef27704a96ab8c352c881a4d3874a4aea14fb07ffa26b988f5a4cad235ab",
+      "capture_trigger": "OpenCode execution/idle stream; no native SessionEnd teardown claim",
+      "natural_server_exit": true,
+      "forced_cleanup": false,
+      "process_exit": 0,
+      "tool_observer_installed": false
+    },
+    {
+      "mode": "children",
+      "version": "2.0.12",
+      "native_sha256": "58d550b26e9241759a6906c65f1e0605eaf512d63cbaf6d8eb472375b9311c95",
+      "cases": [
+        {
+          "agent": "custom-agents-implementer",
+          "expected_exists": false,
+          "exists": false,
+          "outcome": "succeeded",
+          "root_capture_before_server_exit": true
+        },
+        {
+          "agent": "custom-agents-implementer",
+          "expected_exists": true,
+          "exists": true,
+          "outcome": "succeeded",
+          "root_capture_before_server_exit": true
+        },
+        {
+          "agent": "custom-agents-architect",
+          "expected_exists": false,
+          "exists": false,
+          "outcome": "succeeded",
+          "root_capture_before_server_exit": true
+        },
+        {
+          "agent": "custom-agents-architect",
+          "expected_exists": true,
+          "exists": true,
+          "outcome": "succeeded",
+          "root_capture_before_server_exit": true
+        }
+      ],
+      "native_child_count": 4,
+      "native_child_parent_agent_outcome_verified": true,
+      "full_native_role_bodies_verified": true,
+      "distribution_files": 94,
+      "capture_sha256": [
+        "3f92967328ecd50e6c2816e46415ccacf86ce954429e62104f88281f48f0ad91",
+        "0b0fd3e82e37f1fbdb7009a66dc3c3bfe90995e5335e508ea30f3cf84bc41b5e",
+        "00c85784c99f4e9b6a560505409946b2a87be570ea81b4198e7ba46f2b5fcb9a",
+        "5b1fec57ec2e3a5619c7afdfe256902511090a929a1875eb0542e3fb8f6969c7"
+      ],
+      "result_sha256": "9835dcb604d31c8661c2cc41e50722d553040b2eff1ef376503ae5c242cc541b",
+      "capture_trigger": "OpenCode execution/idle stream; no native SessionEnd teardown claim",
+      "natural_server_exit": true,
+      "forced_cleanup": false,
+      "process_exit": 0,
+      "tool_observer_installed": false
+    }
+  ],
+  "opencode_read_only_crosscheck": {
+    "sha256": "f7628e578ecb6edb3577386b2cbc35e1af23fa0cac6ddc10f5b4f4999c4f3202",
+    "evidence": {
+      "schema_version": 1,
+      "method": "Read-only synthetic native database and preserved payload crosscheck; no rerun",
+      "modes": [
+        {
+          "mode": "matrix",
+          "result_sha256": "f1d4ef27704a96ab8c352c881a4d3874a4aea14fb07ffa26b988f5a4cad235ab",
+          "database_sha256": "0d0887289c338856b695ce8a0f681f64fca0bb3e9d7f985e83fa2cfb290b4dd5",
+          "requests_sha256": "29f2750dac2d6133a1a94dd0a27c76afe9b9ee97caf1fc02ffd3b8103ac0b304",
+          "full_role_bodies_present": {
+            "custom-agents-architect": true,
+            "custom-agents-implementer": true,
+            "custom-agents-planner": true
+          },
+          "native_child_count": 0,
+          "native_child_parent_role_outcome_match": null,
+          "captures": [
+            {
+              "payload_sha256": "d1dd9b1747255871e289b0ccf8fd94c029cb846a6a6924e2ec33a5558368dfa8",
+              "recorded_sha256_match": true,
+              "schema_version": 1,
+              "positive_integer_sequence": true,
+              "recorded_root_session_match": true,
+              "preserved_location": "done",
+              "temporary_filename": false,
+              "native_alive_at_observation_recorded": true
+            },
+            {
+              "payload_sha256": "c8e34459e3624d9e71e452721bb531a9370d19760cf9ee8491c52d77de946d54",
+              "recorded_sha256_match": true,
+              "schema_version": 1,
+              "positive_integer_sequence": true,
+              "recorded_root_session_match": true,
+              "preserved_location": "done",
+              "temporary_filename": false,
+              "native_alive_at_observation_recorded": true
+            },
+            {
+              "payload_sha256": "5e2bc00cc91acdd7775c865287f821f2a49615972691bde5bbde7493ccf2431e",
+              "recorded_sha256_match": true,
+              "schema_version": 1,
+              "positive_integer_sequence": true,
+              "recorded_root_session_match": true,
+              "preserved_location": "done",
+              "temporary_filename": false,
+              "native_alive_at_observation_recorded": true
+            },
+            {
+              "payload_sha256": "d201553573567e7ac344a74d35e594f7e2a133bc0c006a5af6dd3920d381c199",
+              "recorded_sha256_match": true,
+              "schema_version": 1,
+              "positive_integer_sequence": true,
+              "recorded_root_session_match": true,
+              "preserved_location": "done",
+              "temporary_filename": false,
+              "native_alive_at_observation_recorded": true
+            },
+            {
+              "payload_sha256": "67efd373b59987f978e352adc6c70980c6cf12d617b1d2d8b9a34abdd4176174",
+              "recorded_sha256_match": true,
+              "schema_version": 1,
+              "positive_integer_sequence": true,
+              "recorded_root_session_match": true,
+              "preserved_location": "done",
+              "temporary_filename": false,
+              "native_alive_at_observation_recorded": true
+            },
+            {
+              "payload_sha256": "86ec2890c87e299172480dd3fd978b50a657ae02e480c6b409bacedcb2983076",
+              "recorded_sha256_match": true,
+              "schema_version": 1,
+              "positive_integer_sequence": true,
+              "recorded_root_session_match": true,
+              "preserved_location": "outbox",
+              "temporary_filename": true,
+              "native_alive_at_observation_recorded": true
+            },
+            {
+              "payload_sha256": "52a23928a7a735163415335d437c530a0e952147592c235e9467e9c986f8f7c5",
+              "recorded_sha256_match": true,
+              "schema_version": 1,
+              "positive_integer_sequence": true,
+              "recorded_root_session_match": true,
+              "preserved_location": "outbox",
+              "temporary_filename": false,
+              "native_alive_at_observation_recorded": true
+            }
+          ],
+          "natural_exit_recorded": true,
+          "forced_cleanup_recorded": false,
+          "exit_code_recorded": 0
+        },
+        {
+          "mode": "children",
+          "result_sha256": "9835dcb604d31c8661c2cc41e50722d553040b2eff1ef376503ae5c242cc541b",
+          "database_sha256": "b0402b9d7935957b1b723f0e54ad1435f6de4ca3bc167e6b03f121331df1e3ce",
+          "requests_sha256": "11c0319b3b61f1c6d561d6efc2ce6abd2adddbb96f635ae30f81e52ad0223c14",
+          "full_role_bodies_present": {
+            "custom-agents-architect": true,
+            "custom-agents-implementer": true
+          },
+          "native_child_count": 4,
+          "native_child_parent_role_outcome_match": true,
+          "captures": [
+            {
+              "payload_sha256": "3f92967328ecd50e6c2816e46415ccacf86ce954429e62104f88281f48f0ad91",
+              "recorded_sha256_match": true,
+              "schema_version": 1,
+              "positive_integer_sequence": true,
+              "recorded_root_session_match": true,
+              "preserved_location": "done",
+              "temporary_filename": false,
+              "native_alive_at_observation_recorded": true
+            },
+            {
+              "payload_sha256": "0b0fd3e82e37f1fbdb7009a66dc3c3bfe90995e5335e508ea30f3cf84bc41b5e",
+              "recorded_sha256_match": true,
+              "schema_version": 1,
+              "positive_integer_sequence": true,
+              "recorded_root_session_match": true,
+              "preserved_location": "done",
+              "temporary_filename": false,
+              "native_alive_at_observation_recorded": true
+            },
+            {
+              "payload_sha256": "00c85784c99f4e9b6a560505409946b2a87be570ea81b4198e7ba46f2b5fcb9a",
+              "recorded_sha256_match": true,
+              "schema_version": 1,
+              "positive_integer_sequence": true,
+              "recorded_root_session_match": true,
+              "preserved_location": "done",
+              "temporary_filename": false,
+              "native_alive_at_observation_recorded": true
+            },
+            {
+              "payload_sha256": "5b1fec57ec2e3a5619c7afdfe256902511090a929a1875eb0542e3fb8f6969c7",
+              "recorded_sha256_match": true,
+              "schema_version": 1,
+              "positive_integer_sequence": true,
+              "recorded_root_session_match": true,
+              "preserved_location": "outbox",
+              "temporary_filename": false,
+              "native_alive_at_observation_recorded": true
+            }
+          ],
+          "natural_exit_recorded": true,
+          "forced_cleanup_recorded": false,
+          "exit_code_recorded": 0
+        }
+      ],
+      "denials": [
+        {
+          "mode": "matrix",
+          "role": "custom-agents-implementer",
+          "tool": "write",
+          "status": "error",
+          "executed": false,
+          "central_error_prefix": true,
+          "attempted_fixture_path_match": true,
+          "central_scope_message_match": true,
+          "protected_file_absent": true
+        },
+        {
+          "mode": "matrix",
+          "role": "custom-agents-architect",
+          "tool": "write",
+          "status": "error",
+          "executed": false,
+          "central_error_prefix": true,
+          "attempted_fixture_path_match": true,
+          "central_scope_message_match": true,
+          "protected_file_absent": true
+        },
+        {
+          "mode": "children",
+          "role": "custom-agents-implementer",
+          "tool": "write",
+          "status": "error",
+          "executed": false,
+          "central_error_prefix": true,
+          "attempted_fixture_path_match": true,
+          "central_scope_message_match": true,
+          "protected_file_absent": true
+        },
+        {
+          "mode": "children",
+          "role": "custom-agents-architect",
+          "tool": "write",
+          "status": "error",
+          "executed": false,
+          "central_error_prefix": true,
+          "attempted_fixture_path_match": true,
+          "central_scope_message_match": true,
+          "protected_file_absent": true
+        }
+      ],
+      "capture_totals": {
+        "canonical_count": 10,
+        "temporary_count": 1
+      },
+      "limits": [
+        "Before-exit timing and natural exit are established by harness control flow and recorded result, not reconstructed from payload hashes.",
+        "One matrix planner SessionEnd payload is preserved under a temporary filename; canonical publication or replay completion is not established for it.",
+        "OpenCode capture originates from execution/idle, not a native SessionEnd teardown event."
+      ]
+    }
+  },
+  "limits": [
+    "Pinned Windows native binaries and synthetic loopback model exercise real dispatch and hooks; this is not a production TUI soak test.",
+    "Codex uses one root plus two real children in one cohort; Claude uses five separate processes; OpenCode uses seven direct cases and four roots with one child each.",
+    "OpenCode writes prevented/allowed are verified effects with native child identity; the harness does not assert a native guard denial record.",
+    "A separate read-only synthetic native database crosscheck verifies four central guard error records. It preserves ten canonical capture files and one complete temporary capture; canonical publication/replay is not established for that temporary case.",
+    "OpenCode capture is triggered by execution/idle while the server lives, not a native SessionEnd teardown event.",
+    "Provider Authorization absence is measured; no global network-egress capture is claimed.",
+    "Diagnostic recorder-placement results are separate and do not establish a universal latency fix. No timeout budget or Python selection changed.",
+    "No global roadmap initiative or remaining task closure is implied."
+  ]
+}

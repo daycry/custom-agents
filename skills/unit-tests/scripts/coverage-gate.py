@@ -140,6 +140,24 @@ def detectar_stack(ruta):
     return None
 
 
+# Builds que se reconocen para dar un aviso preciso, sin medirlos: el plugin no abre soporte de un
+# stack hasta que un consumidor lo declare (regla única de la comparación de catálogo, T-08).
+BUILDS_SIN_SOPORTE = (
+    (("build.gradle", "build.gradle.kts"), "gradle", "JaCoCo o Kover (`koverVerify`)"),
+    (("pom.xml",), "maven", "JaCoCo (`jacoco:check`)"),
+    (("Cargo.toml",), "cargo", "cargo-llvm-cov (`--fail-under-lines`)"),
+)
+
+
+def build_sin_soporte(ruta):
+    """(build, fichero, herramienta) si `ruta` tiene un build conocido que este gate no mide."""
+    for ficheros, build, herramienta in BUILDS_SIN_SOPORTE:
+        for fichero in ficheros:
+            if os.path.isfile(os.path.join(ruta, fichero)):
+                return build, fichero, herramienta
+    return None
+
+
 # ------------------------------------------------------------ herramienta disponible ----
 
 def _local_bin(ruta, nombre):
@@ -364,6 +382,13 @@ def evaluar(ruta, minimo, changed_only, base_ref, runner, root_arg=None):
     """dict con el resultado completo. Nunca lanza: los fallos se traducen en exit 2 + aviso."""
     stack = detectar_stack(ruta)
     if not stack:
+        sin_soporte = build_sin_soporte(ruta)
+        if sin_soporte:
+            build, fichero, herramienta = sin_soporte
+            return {"ok": False, "exit": 2, "stack": None, "buildSinSoporte": build,
+                    "aviso": f"`{fichero}` es un proyecto {build}, sin soporte en coverage-gate "
+                             f"(pytest/jest/vitest/phpunit/go): mide con {herramienta} y su propio "
+                             f"umbral; aquí no se inventa un porcentaje"}
         return {"ok": False, "exit": 2, "aviso": "no se detectó ningún stack soportado "
                 "(pytest/jest/vitest/phpunit/go): ¿faltan sus ficheros de manifiesto?"}
 

@@ -7,7 +7,10 @@ en una sesión headless de Claude Code con el plugin cargado, en un cwd temporal
 
 Contrato de la CLI usado (code.claude.com/docs/en/headless + cli-reference, verificado 2026-09-03):
   claude -p "<prompt>" --output-format stream-json --verbose --plugin-dir <raíz del plugin>
-         --max-turns N --permission-mode acceptEdits --allowedTools "<--allowed-tools>" [--bare]
+         --add-dir <raíz del plugin> --max-turns N --permission-mode acceptEdits
+         --allowedTools "<--allowed-tools>" [--bare] [--settings <json>]
+  · `--add-dir` deja leer la raíz del plugin, fuera del cwd temporal: las piezas resuelven sus
+    kits con `find` sobre ella (regla 5) y sin él el caso falla por «permiso denegado».
   · `--output-format json` devuelve SOLO el resultado final (result, session_id, coste) — sin las
     tool uses; para ver QUÉ se activó hace falta `stream-json` (+ `--verbose`, obligatorio en -p),
     cuyas líneas `{"type":"assistant","message":{"content":[{"type":"tool_use",…}]}}` traen cada
@@ -31,12 +34,16 @@ Veredicto por caso (pasa si TODO se cumple):
   · `expect.mentions`: cada cadena aparece (sin distinguir mayúsculas) en el texto del asistente
     (bloques `text` + `result`). `expect.must_not`: ninguna aparece.
   · `expect.artifacts`: cada glob (relativo al cwd temporal, `**` recursivo) casa ≥ 1 fichero.
+  · `expect.contains`: cada `{path, pattern}` — la regex (`re.MULTILINE`) casa, TRAS la ejecución, en
+    ≥ 1 fichero del cwd que case con el glob, y NO casaba ya en esos ficheros del `--fixture` original
+    (contenido preexistente no es evidencia). Ruta con raíz/unidad/`..` o regex inválida → falla con
+    motivo; `detalle.contains_faltan` lo lista.
   · `expect.redirect` es INFORMATIVO: se anota si la pieza alternativa se activó, no decide.
   Un `claude` que termina con error o timeout → caso fallido con el motivo.
   · `causa` por caso fallido: `no activó` / `activó sin deber` (activación), `permiso denegado`
     (la pieza SÍ se activó pero una tool use —típicamente Bash— fue denegada: en `-p` nadie
     aprueba y `acceptEdits` no cubre Bash; se detecta en los `tool_result` con `is_error` cuyo
-    texto habla de permisos), `expectativa` (mentions/must_not/artifacts) o `timeout`. Por eso
+    texto habla de permisos), `expectativa` (mentions/must_not/artifacts/contains) o `timeout`. Por eso
     `--allowed-tools` (default `ALLOWED_TOOLS_DEFAULT`, se pasa tal cual a `--allowedTools`).
 
 Informe: evals/reports/<AAAA-MM-DD>.json (o --report) + resumen en consola.
@@ -51,11 +58,13 @@ Uso:
 import argparse
 import datetime as _dt
 import glob
+import importlib.util
 import json
 import os
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -71,7 +80,8 @@ FIXTURE = os.path.join(HERE, "fixtures", "project")
 SKILL_TOOLS = {"Skill", "SlashCommand"}
 # Default de --allowed-tools: lo que los scripts del plugin lanzan por Bash (python3, git, find) — sin
 # esto, en `-p` una tool use de Bash queda denegada y el caso falla por permisos, no por activación.
-ALLOWED_TOOLS_DEFAULT = "Bash(python3:*),Bash(git:*),Bash(find:*)"
+# `python` además de `python3`: en Windows el binario es `python` y los tests del caso no correrían.
+ALLOWED_TOOLS_DEFAULT = "Bash(python3:*),Bash(python:*),Bash(git:*),Bash(find:*)"
 AGENT_TOOLS = {"Agent", "Task"}
 
 
@@ -102,13 +112,28 @@ def cargar_casos(cases_dir, target=None, only=None):
 
 def construir_comando(prompt, root, opts):
     cmd = [opts.claude, "-p", prompt, "--output-format", "stream-json", "--verbose",
-           "--plugin-dir", root, "--max-turns", str(opts.max_turns),
+           "--plugin-dir", root, "--add-dir", root, "--max-turns", str(opts.max_turns),
            "--permission-mode", opts.permission_mode]
     if getattr(opts, "allowed_tools", None):
         cmd += ["--allowedTools", opts.allowed_tools]
     if opts.bare:
         cmd.append("--bare")
+    if getattr(opts, "settings", None):
+        cmd += ["--settings", opts.settings]
     return cmd
+
+
+def _carpetas_escribibles(cwd):
+    """Windows: `copytree` copia el atributo de solo lectura de las carpetas del fixture (OneDrive lo
+    pone) y luego `rmtree` no puede borrarlas. La copia es nuestra: se quita en sus carpetas, nunca
+    en un punto de reanálisis ni fuera de `cwd`."""
+    if os.name != "nt":
+        return
+    rutas = [cwd] + [os.path.join(raiz, nombre) for raiz, carpetas, _ in os.walk(cwd) for nombre in carpetas]
+    for ruta in rutas:
+        atributos = getattr(os.lstat(ruta), "st_file_attributes", 0)
+        if atributos & stat.FILE_ATTRIBUTE_READONLY and not atributos & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+            os.chmod(ruta, stat.S_IWRITE | stat.S_IREAD)
 
 
 def preparar_cwd(fixture, base):
@@ -116,6 +141,7 @@ def preparar_cwd(fixture, base):
     cwd = tempfile.mkdtemp(prefix="eval-", dir=base)
     if os.path.isdir(fixture):
         shutil.copytree(fixture, cwd, dirs_exist_ok=True)
+        _carpetas_escribibles(cwd)
     if shutil.which("git"):
         try:
             for args in (["git", "init", "-q"], ["git", "add", "-A"],
@@ -128,6 +154,40 @@ def preparar_cwd(fixture, base):
 
 
 # ------------------------------------------------------------------ transcripción
+
+
+def limpiar_cwd(cwd):
+    """Clean the cwd returned by preparar_cwd; retry Windows read-only Git files.
+
+    The caller supplies its newly created temporary directory. The eval- prefix
+    checks its format; it does not establish ownership of an arbitrary path.
+    """
+    cwd = os.path.abspath(cwd)
+    if (not os.path.basename(cwd).startswith("eval-") or
+            os.path.islink(cwd) or getattr(os.path, "isjunction", lambda p: False)(cwd)):
+        raise OSError("invalid eval cleanup directory")
+    normalized = os.path.normcase(cwd)
+
+    def readonly_retry(function, path, exc_info):
+        error = exc_info[1]
+        relative = os.path.normcase(os.path.abspath(path))
+        if (os.name != "nt" or not isinstance(error, PermissionError) or
+                function is not os.unlink or
+                os.path.commonpath([normalized, relative]) != normalized):
+            raise error
+        info = os.lstat(path)
+        attributes = getattr(info, "st_file_attributes", 0)
+        if (not stat.S_ISREG(info.st_mode) or
+                not attributes & stat.FILE_ATTRIBUTE_READONLY or
+                attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT):
+            raise error
+        os.chmod(path, stat.S_IWRITE)
+        function(path)
+
+    shutil.rmtree(cwd, onerror=readonly_retry)
+    if os.path.lexists(cwd):
+        raise OSError("eval directory remains after cleanup")
+
 
 def parsear_stream(texto):
     """stream-json (una línea = un evento) → {tool_uses:[{name,input,parent}], textos:[…], result:{…}}."""
@@ -209,8 +269,65 @@ def detectar(tool_uses, target, loose=False):
     return False
 
 
-def evaluar(target, caso, parsed, cwd, loose=False):
-    """→ {pass, checks:{…}, activado, redirect_observado}."""
+def _ruta_relativa_segura(path):
+    """Glob relativo que no puede salir del cwd: sin raíz, sin unidad, sin `..` (mismo criterio que check.py)."""
+    if not isinstance(path, str) or not path.strip():
+        return False
+    if os.path.isabs(path) or path[0] in "/\\" or re.match(r"^[A-Za-z]:", path):
+        return False
+    return ".." not in re.split(r"[\\/]+", path)
+
+
+def _ficheros_que_casan(base, path, rx):
+    """Ficheros regulares bajo `base` (sin escapar por enlaces) que casan con el glob y con la regex."""
+    raiz = os.path.realpath(base)
+    out, vistos = [], 0
+    for f in sorted(glob.glob(os.path.join(base, path), recursive=True)):
+        if not os.path.isfile(f):
+            continue
+        real = os.path.realpath(f)
+        if os.path.commonpath([os.path.normcase(raiz), os.path.normcase(real)]) != os.path.normcase(raiz):
+            continue
+        vistos += 1
+        try:
+            with open(f, encoding="utf-8", errors="replace") as fh:
+                if rx.search(fh.read()):
+                    out.append(f)
+        except OSError:
+            continue
+    return out, vistos
+
+
+def evaluar_contains(items, cwd, fixture=None):
+    """`expect.contains`: cada {path, pattern} debe casar DESPUÉS de la ejecución en algún fichero del
+    cwd y NO casar ya en el fixture original (un contenido preexistente no es evidencia).
+    → [{path, pattern, motivo}] de los que fallan; motivo: `ruta inválida` · `regex inválida` ·
+    `ya casaba en el fixture` · `sin fichero` · `sin coincidencia`."""
+    faltan = []
+    for it in items or []:
+        path = it.get("path") if isinstance(it, dict) else None
+        pattern = it.get("pattern") if isinstance(it, dict) else None
+        fallo = {"path": path, "pattern": pattern}
+        if not _ruta_relativa_segura(path):
+            faltan.append({**fallo, "motivo": "ruta inválida"})
+            continue
+        try:
+            rx = re.compile(pattern, re.M)
+        except (re.error, TypeError):
+            faltan.append({**fallo, "motivo": "regex inválida"})
+            continue
+        if fixture and os.path.isdir(fixture) and _ficheros_que_casan(fixture, path, rx)[0]:
+            faltan.append({**fallo, "motivo": "ya casaba en el fixture"})
+            continue
+        casan, vistos = _ficheros_que_casan(cwd, path, rx)
+        if not casan:
+            faltan.append({**fallo, "motivo": "sin coincidencia" if vistos else "sin fichero"})
+    return faltan
+
+
+def evaluar(target, caso, parsed, cwd, loose=False, fixture=None):
+    """→ {pass, checks:{…}, activado, redirect_observado}. `fixture`: el original (sin ejecutar) contra el
+    que `expect.contains` exige que la coincidencia sea NUEVA."""
     exp = caso.get("expect", {})
     checks = {}
     activado = detectar(parsed["tool_uses"], target, loose)
@@ -223,11 +340,13 @@ def evaluar(target, caso, parsed, cwd, loose=False):
     sin_artefacto = [g for g in exp.get("artifacts", [])
                      if not glob.glob(os.path.join(cwd, g), recursive=True)]
     checks["artifacts"] = not sin_artefacto
+    contains_faltan = evaluar_contains(exp.get("contains", []), cwd, fixture)
+    checks["contains"] = not contains_faltan
     res = parsed["result"] or {}
     checks["sin_error"] = not res.get("is_error", False) and res.get("subtype", "success") == "success"
     permisos = parsed.get("permisos_denegados", [])
     detalle = {"mentions_faltan": faltan, "must_not_presentes": sobran, "artifacts_faltan": sin_artefacto,
-               "permisos_denegados": permisos}
+               "contains_faltan": contains_faltan, "permisos_denegados": permisos}
     ok = all(checks.values())
     if ok:
         causa = None
@@ -260,6 +379,23 @@ def _resumen_input(inp):
 
 # ------------------------------------------------------------------ ejecución
 
+def _texto_cleanup_seguro(texto):
+    """Redact new cleanup text; partial installations retain only a fixed notice."""
+    try:
+        path = os.path.join(os.path.dirname(HERE), "agent-kits", "shared", "redact.py")
+        spec = importlib.util.spec_from_file_location("_eval_cleanup_redact", path)
+        if spec is None or spec.loader is None:
+            raise ImportError("shared redactor unavailable")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        safe = module.redactar(texto)
+        if not isinstance(safe, str):
+            raise TypeError("shared redactor returned non-text")
+        return safe
+    except Exception:
+        return "cleanup text unavailable: shared redactor unavailable"
+
+
 def ejecutar_caso(target, caso, root, opts, runner):
     cmd = construir_comando(caso["prompt"], root, opts)
     cwd = preparar_cwd(opts.fixture, opts.workdir)
@@ -267,7 +403,7 @@ def ejecutar_caso(target, caso, root, opts, runner):
     try:
         r = runner(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=opts.timeout)
         parsed = parsear_stream(r.stdout or "")
-        ev = evaluar(target, caso, parsed, cwd, opts.loose)
+        ev = evaluar(target, caso, parsed, cwd, opts.loose, fixture=opts.fixture)
         if r.returncode != 0:
             ev["checks"]["exit_0"] = False
             ev["pass"] = False
@@ -278,9 +414,19 @@ def ejecutar_caso(target, caso, root, opts, runner):
               "redirect_observado": None, "tool_uses": [], "coste_usd": None, "turnos": None,
               "exit_code": None, "stderr": f"timeout tras {opts.timeout}s"}
     ev.update({"id": caso["id"], "target": target, "segundos": round(time.time() - t0, 1),
-               "cwd": cwd if opts.keep else None})
+               "cwd": cwd})
     if not opts.keep:
-        shutil.rmtree(cwd, ignore_errors=True)
+        try:
+            limpiar_cwd(cwd)
+        except OSError as error:
+            ev["pass"] = False
+            ev["causa"] = "cleanup_error"
+            ev["checks"]["cleanup"] = False
+            ev["detalle"]["cleanup"] = _texto_cleanup_seguro(f"{type(error).__name__}; "
+                f"errno={error.errno}; winerror={getattr(error, 'winerror', None)}")
+            ev["cwd"] = _texto_cleanup_seguro(cwd)
+        else:
+            ev["cwd"] = None
     return ev
 
 
@@ -305,7 +451,16 @@ def main(argv=None, runner=None):
     ap.add_argument("--report", help="ruta del informe JSON (default evals/reports/<fecha>.json)")
     ap.add_argument("--workdir", default=None, help="dónde crear los cwd temporales")
     ap.add_argument("--keep", action="store_true", help="no borrar los cwd temporales")
+    ap.add_argument("--settings", help="JSON que se pasa tal cual a `claude --settings`; p. ej. "
+                    "'{\"enabledPlugins\":{\"custom-agents@daycry\":false}}' para medir la rama sin la "
+                    "versión instalada (con las dos cargadas, la activación no dice cuál se midió)")
     opts = ap.parse_args(argv)
+    if opts.settings:
+        try:
+            json.loads(opts.settings)
+        except ValueError:
+            print("evals/run: --settings no es JSON válido", file=sys.stderr)
+            return 2
 
     root = os.path.abspath(opts.root)
     casos = cargar_casos(opts.cases, opts.target, opts.only)

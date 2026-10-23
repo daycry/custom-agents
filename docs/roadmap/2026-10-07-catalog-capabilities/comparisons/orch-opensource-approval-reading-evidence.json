@@ -1,0 +1,169 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S193",
+    "S194",
+    "S195",
+    "S196"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S193",
+      "sha256": "7032623ed2108d638c1ce5afa7a0738d632551aea2adc9767385375782993a81",
+      "bytes": 7083,
+      "lines": 256,
+      "read_ranges": [
+        [
+          1,
+          256
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S194",
+      "sha256": "6f79952c1498c2748ea13d74ca665c7508ae72068e014e848dee0754e3d650e5",
+      "bytes": 13126,
+      "lines": 238,
+      "read_ranges": [
+        [
+          1,
+          238
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        {
+          "path": "references/approval-ledger.sql",
+          "sha256": "511f41e804d7c1f80849a33860ab8d242048c8cebfbf28833ce2d95d26d516cc",
+          "bytes": 14330,
+          "lines": 230,
+          "read_ranges": [
+            [
+              1,
+              230
+            ]
+          ],
+          "reading_scope": "full"
+        },
+        {
+          "path": "references/approval_claims.py",
+          "sha256": "cf30d615cf8fc4e69dbc279952de11cc0df2a6881380cf759ba607f85e9f1505",
+          "bytes": 7629,
+          "lines": 171,
+          "read_ranges": [
+            [
+              1,
+              171
+            ]
+          ],
+          "reading_scope": "full"
+        }
+      ]
+    },
+    {
+      "id": "S195",
+      "sha256": "6ba858d94cfaa05f3b1e63ad09656285a4a33009e9cd837ebcaf093d39d29a25",
+      "bytes": 1803,
+      "lines": 45,
+      "read_ranges": [
+        [
+          1,
+          45
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S196",
+      "sha256": "ab8591b1b9a2711be93a9690bcee95ff8486faa00522aa8c0847d0481f7f64d9",
+      "bytes": 2399,
+      "lines": 49,
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "ec9504fb23b8eadb209e83ce347eee8c9a63c8d03e09d0f7e7c4bb204d65ad5c"
+    },
+    {
+      "path": "skills/quick-implement/SKILL.md",
+      "sha256": "89735ac0f8aa6d1f421f5ca330c18dd473ca86c7350f3674d85f32c3a5365ee2"
+    },
+    {
+      "path": "agents/planner.md",
+      "sha256": "69f4b232cfc383e9c4123502db8c7c198caec413871842a6ad55a2de072335c5"
+    },
+    {
+      "path": "skills/adversarial-review/scripts/review-lens-select.py",
+      "sha256": "18fa57ed8821c07508918df8cd2182daef0959ae23cdb65b8aa073bb732584ba"
+    },
+    {
+      "path": "docs/knowledge/adr/ADR-011-un-rol-un-dueno-agentes-retirados-y-responsabilidades-fusionadas.md",
+      "sha256": "6047829c51b5b9c95433f5d33fa34dcfacee03a0cf17a5d7f18422a93edc85b4"
+    },
+    {
+      "path": "skills/jira-sync/scripts/jira-flow.py",
+      "sha256": "5dcef53da06e4b614369eab2818d059624231631fd240f41517c66198d311816"
+    },
+    {
+      "path": "agent-kits/shared/outbox.py",
+      "sha256": "9ff5cb708fb8794b552171c6521218aba939b5df5e288c01e84609d85b8cb12d"
+    },
+    {
+      "path": "agent-kits/shared/redact.py",
+      "sha256": "4e9131368fd2471dcb2e3a2e91f6b0dc00555354487b6308194be05e4c4d5907"
+    },
+    {
+      "path": "scripts/export-skills.py",
+      "sha256": "ca179e182d0e2c3110f2e7e8ae862a04af8e3ab27c79d860dc9548b7c0eb9353"
+    },
+    {
+      "path": "skills/cybersecurity/SKILL.md",
+      "sha256": "643742197404f4a7bb4d0ac1520078745bff09908966edb6d0d9deb097f16d46"
+    },
+    {
+      "path": "skills/cybersecurity/references/compliance-matrix.md",
+      "sha256": "cb0b7e672a6993752cbad50545492057f79d62b45cb5464ff5ec9e80b4d382a9"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "67702b1115bc6d57c4eafbf9dab8d10abaab6b333d4ab330d828f30353770c96"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-fsharp-gan-gateguard.md",
+      "sha256": "d2467c808d3a9a9a8ce101858ac28d31b525f1cc73b3d5a1715d847f5d7e517d"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-errors-evals-providers.md",
+      "sha256": "2bb23a98d5ee400657c25566dc46761c1ec982300a0e5d760f4ce58282926072"
+    },
+    {
+      "path": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-catalog-self-ops-domains.md",
+      "sha256": "e90d5c8c3cd8dcb6842df35263198138f2860495db933653604e24acae7fea3f"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

@@ -1,0 +1,290 @@
+{
+  "date": "2026-10-06",
+  "base": "1f2923d",
+  "threshold": 30,
+  "flags": [
+    "--exclude-tests",
+    "--exclude-path",
+    "interop",
+    "--json",
+    "--top",
+    "1000"
+  ],
+  "hotspots": [
+    {
+      "file": "agent-kits/shared/task-brief.py",
+      "before": 5,
+      "after": 3
+    },
+    {
+      "file": "agent-kits/shared/knowledge-find.py",
+      "before": 3,
+      "after": 1
+    },
+    {
+      "file": "agent-kits/shared/doctor.py",
+      "before": 14,
+      "after": 7
+    },
+    {
+      "file": "scripts/lint_plugin.py",
+      "before": 10,
+      "after": 4
+    },
+    {
+      "file": "skills/roadmap-dashboard/scripts/build_dashboard.py",
+      "before": 4,
+      "after": 0
+    }
+  ],
+  "hotspots_total_before": 36,
+  "hotspots_total_after": 15,
+  "new_function_max_ast_lines": 32,
+  "summary_before": {
+    "ficheros": 54,
+    "lineas": 31200,
+    "duplicado_pct": 6.6,
+    "bloques_duplicados": 760,
+    "funciones_largas": 221,
+    "anidamiento_max": 7,
+    "hotspots": 54,
+    "todos": 9,
+    "todo_edad_max_dias": 0
+  },
+  "summary_after": {
+    "ficheros": 54,
+    "lineas": 31287,
+    "duplicado_pct": 6.6,
+    "bloques_duplicados": 760,
+    "funciones_largas": 200,
+    "anidamiento_max": 7,
+    "hotspots": 54,
+    "todos": 9,
+    "todo_edad_max_dias": 0
+  },
+  "comparison": [
+    {
+      "metrica": "% duplicado",
+      "antes": 6.6,
+      "ahora": 6.6,
+      "tendencia": "= igual"
+    },
+    {
+      "metrica": "bloques duplicados",
+      "antes": 760,
+      "ahora": 760,
+      "tendencia": "= igual"
+    },
+    {
+      "metrica": "funciones largas",
+      "antes": 221,
+      "ahora": 200,
+      "tendencia": "â†“ mejora"
+    },
+    {
+      "metrica": "anidamiento mÃ¡x.",
+      "antes": 7,
+      "ahora": 7,
+      "tendencia": "= igual"
+    },
+    {
+      "metrica": "TODO/FIXME/HACK",
+      "antes": 9,
+      "ahora": 9,
+      "tendencia": "= igual"
+    },
+    {
+      "metrica": "edad mÃ¡x. TODO (dÃ­as)",
+      "antes": 0,
+      "ahora": 0,
+      "tendencia": "= igual"
+    },
+    {
+      "metrica": "lÃ­neas de cÃ³digo",
+      "antes": 31200,
+      "ahora": 31287,
+      "tendencia": "â†‘ crece"
+    }
+  ],
+  "cli_contracts": [
+    {
+      "script": "scripts/lint_plugin.py",
+      "args": [
+        "--help"
+      ],
+      "exit": 0,
+      "stdout_sha256": "b0306b17763ad53770fe51b7197503547c67809e47593536cd5fea8740833fa6",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "script": "skills/roadmap-dashboard/scripts/build_dashboard.py",
+      "args": [
+        "--help"
+      ],
+      "exit": 0,
+      "stdout_sha256": "ab5bc63a2da3bc26ce1fce0fa0622198dea3568d438a5e95fc06a54a3b151e0d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "script": "agent-kits/shared/doctor.py",
+      "args": [
+        "--help"
+      ],
+      "exit": 0,
+      "stdout_sha256": "8f938788a742c589f9131fbe1483e69fb78c24ef2ca75e3a16f834fbc6fcbb58",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "script": "agent-kits/shared/knowledge-find.py",
+      "args": [
+        "--help"
+      ],
+      "exit": 0,
+      "stdout_sha256": "45680dc272665cabbc4a56600360658101159a5dc7c15b4a3d866c21d9f64520",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "script": "agent-kits/shared/task-brief.py",
+      "args": [
+        "--help"
+      ],
+      "exit": 0,
+      "stdout_sha256": "6bff1055581e1b19b3b3dc37f8adaaabda8a248d010baafdbb8397a2cb439766",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "script": "agent-kits/shared/ledger-lint.py",
+      "args": [
+        "--help"
+      ],
+      "exit": 0,
+      "stdout_sha256": "2224909c23abc8a8c725000af47af80a95a56d4d9d075ad0cdda33356dcc82c9",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "script": "skills/jira-sync/scripts/jira-flow.py",
+      "args": [
+        "--help"
+      ],
+      "exit": 0,
+      "stdout_sha256": "d43361306dc7362fc31b53f90536c2828920ed9bda0f1b2319c5d7114e049b0b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "script": "scripts/lint_plugin.py",
+      "args": [
+        "."
+      ],
+      "exit": 2,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "d71e081e1d82af4866fa064e872a136d4b5dff69ed6389251ba4b1faa91c0126"
+    },
+    {
+      "script": "skills/roadmap-dashboard/scripts/build_dashboard.py",
+      "args": [
+        "--root",
+        "evals/fixtures/project/docs/roadmap",
+        "--json"
+      ],
+      "exit": 0,
+      "stdout_sha256": "1109125f6343216d97e2f556110b10cee1385a3cbb1bba1b107bc3f82851a851",
+      "stderr_sha256": "35cf6f9798aa5046c7c0d3f0c1b0dec5af9a1dd6f0ec56dfebc483f2cb85aac9"
+    },
+    {
+      "script": "agent-kits/shared/knowledge-find.py",
+      "args": [
+        "--root",
+        "evals/fixtures/project",
+        "--json"
+      ],
+      "exit": 0,
+      "stdout_sha256": "56015a21bc4a69328047a19421005967d5222fb5c0d99888747480ffcf0dc7d5",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "script": "agent-kits/shared/knowledge-find.py",
+      "args": [
+        "--root",
+        "evals/fixtures/project",
+        "--json",
+        "--intent",
+        "session"
+      ],
+      "exit": 0,
+      "stdout_sha256": "59bcdf0b5f2e674386add96e7fb7ce4f525b77fc4e4c6d7e843a8c49e56eb241",
+      "stderr_sha256": "8b9b81fc0ef5c98420f1710daf6e09efd54a632792ca7a0c4964c7d9fb26562b"
+    },
+    {
+      "script": "agent-kits/shared/task-brief.py",
+      "args": [
+        "docs/roadmap/2026-09-09-plugin-refactor",
+        "T-13"
+      ],
+      "exit": 0,
+      "stdout_sha256": "f73221cf12815865770e911de0830131161ca22b0312d7cf3d528109af4ab53d",
+      "stderr_sha256": "b2def144ff9c53d268f7b22e36a4d55018fd4cc127270663fdc0b94688e87a0e"
+    },
+    {
+      "script": "skills/roadmap-dashboard/scripts/build_dashboard.py",
+      "args": [
+        "--root",
+        "docs/roadmap",
+        "--html",
+        "scratchpad\\dashboard-contract.html"
+      ],
+      "exit": 0,
+      "stdout_sha256": "cc72b9ba43456cd03807bfc164d94069ccc701d27db1bfa6cc7ce37fb8707d6b",
+      "stderr_sha256": "7635c26831420c996bbb86324a945e4163678c244f153e3546aaf1221e7c8d0d",
+      "artifact_sha256": "6166802bda5e876401a34e4bd0bc2f6b670cb14910d26f8b6737cfcb6766c5c5"
+    },
+    {
+      "script": "skills/roadmap-dashboard/scripts/build_dashboard.py",
+      "args": [
+        "--root",
+        "docs/roadmap",
+        "--md",
+        "scratchpad\\dashboard-contract.md"
+      ],
+      "exit": 0,
+      "stdout_sha256": "c7a67792c8d1bdead78acda4876d63cbbe98dbec6bf90e705d75361053cb19aa",
+      "stderr_sha256": "7635c26831420c996bbb86324a945e4163678c244f153e3546aaf1221e7c8d0d",
+      "artifact_sha256": "14d11c48cd10d14970a96fe87ff086d19f28127b92017ab0d9a37500a4125138"
+    },
+    {
+      "script": "skills/roadmap-dashboard/scripts/build_dashboard.py",
+      "args": [
+        "--root",
+        "docs/roadmap",
+        "--metrics-md",
+        "scratchpad\\dashboard-contract.metrics-md"
+      ],
+      "exit": 0,
+      "stdout_sha256": "348b3471d074fb7fe43232d3f16b7f5ef06bc2c4194568890ab07bc30fe311ba",
+      "stderr_sha256": "7635c26831420c996bbb86324a945e4163678c244f153e3546aaf1221e7c8d0d",
+      "artifact_sha256": "08300e6f4536d017894bad2f8a0989fbb20bf54dfe81157cf7b15f7fa3e46b81"
+    },
+    {
+      "script": "agent-kits/shared/scope-check.py",
+      "unchanged_source": true,
+      "exit": 0,
+      "stdout_sha256": "cc2b15949e1add4503f5a243db0ffd41217a9805ddfc61b6a0291edce4edc6fa",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "unchanged_existing_tests_in_pure_refactor": true,
+  "literal_copies_preserved": true,
+  "coverage_closure": {
+    "files": {
+      "agent-kits/shared/doctor.py": 93.2,
+      "agent-kits/shared/knowledge-find.py": 91.45,
+      "agent-kits/shared/task-brief.py": 97.13,
+      "scripts/lint_plugin.py": 90.11,
+      "skills/roadmap-dashboard/scripts/build_dashboard.py": 84.56
+    },
+    "mean_percent": 91.29,
+    "minimum_percent": 90,
+    "exit_code": 0,
+    "test_result": "401 passed, 15 skipped; linter script 60/60; dashboard script and CLI fixture outputs passed",
+    "method": "pytest-cov with subprocess patch, coverage.py append/combine for existing script suites and CLI; official changed-only gate against matching pre-closure snapshot"
+  }
+}

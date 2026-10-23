@@ -1,0 +1,27 @@
+{
+  "target": "command:work-resume",
+  "cases": [
+    {
+      "id": "work-resume-literal",
+      "prompt": "Retoma una iniciativa o sesión con el estado actual del ledger y citas del journal local: usa la iniciativa demo.",
+      "trigger": "literal",
+      "expect": { "activates": true, "mentions": ["progress-report", "ledger", "journal"] }
+    },
+    {
+      "id": "work-resume-parafrasis",
+      "prompt": "Quiero continuar demo: enséñame qué tareas constan ahora y qué se registró en su sesión anterior. Si hay dos sesiones con el mismo ID, indícalo antes de escoger.",
+      "trigger": "parafrasis",
+      "expect": { "activates": true, "mentions": ["progress-report", "journal"] }
+    },
+    {
+      "id": "work-resume-negative-guides",
+      "prompt": "Qué guías y agentes propios corresponden a la tarea de diseñar la API de este paquete? No necesito el historial de sesiones.",
+      "expect": { "activates": false, "redirect": "command:work-context" }
+    },
+    {
+      "id": "work-resume-negative-portfolio",
+      "prompt": "Muéstrame el dashboard HTML con todas las iniciativas del roadmap, su prioridad y su presupuesto.",
+      "expect": { "activates": false, "redirect": "command:roadmap-status" }
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-13",
+  "evaluated_skill_ids": [
+    "S131",
+    "S132",
+    "S133",
+    "S134"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S131",
+      "sha256": "38df424e399549d3ba42d6f50c77554d9a88a46b3bac4dd1436158874535c13c",
+      "bytes": 10628,
+      "lines": 306,
+      "read_ranges": [
+        [
+          1,
+          306
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S132",
+      "sha256": "b4dd83139c322577c39f0e8ae1800e75368169323ba6bedb24d34acad7827c18",
+      "bytes": 3712,
+      "lines": 128,
+      "read_ranges": [
+        [
+          1,
+          128
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S133",
+      "sha256": "05fc3e2ae72c2f55cc44fa0e9531688c1112081037d628e1124fd5bf40825325",
+      "bytes": 7051,
+      "lines": 141,
+      "read_ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S134",
+      "sha256": "ccce44b6240e346e2d564a035f45abf01842cfc03f4c0253050b8304c505f709",
+      "bytes": 8416,
+      "lines": 157,
+      "read_ranges": [
+        [
+          1,
+          157
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    }
+  ],
+  "own_counterparts": [
+    {
+      "path": "agent-kits/shared/guardrail-check.py",
+      "sha256": "fa9a6874ebee6be2c465bc4772ef9fbcf310d6c0cfedc2ccede9c2fbd393866a"
+    },
+    {
+      "path": "skills/frontend-quality/SKILL.md",
+      "sha256": "7b6916e32d90731b8f81ee3eb36695dd9f62d498f132ac61bd7b9fd39066f4b0"
+    },
+    {
+      "path": "commands/setup.md",
+      "sha256": "87f1d1a5959d811fd7574d2eb09fed1086814b4db4c3229f43e268bacb0ad480"
+    },
+    {
+      "path": "hooks/hooks.json",
+      "sha256": "ffe4001ade3342f82a379a57ce926815053971959bda4d385da1bae43a31a675"
+    }
+  ],
+  "official_contrasts": [],
+  "tokens": null,
+  "latency_ms": null
+}

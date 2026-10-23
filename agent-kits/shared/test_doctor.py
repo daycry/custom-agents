@@ -13,6 +13,8 @@ import importlib.util
 import json
 import os
 import re
+import shutil
+import shlex
 import subprocess
 import sys
 import time
@@ -22,18 +24,93 @@ import pytest
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 SCRIPT = os.path.join(HERE, "doctor.py")
+_NODE_EXECUTABLE = shutil.which("node")
 
 spec = importlib.util.spec_from_file_location("doctor", SCRIPT)
 doctor = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(doctor)
+_NATIVE_CODEX_QUERY = doctor._estado_codex_nativo
+
+
+def test_panel_json_is_explicit_and_uses_portable_contract(monkeypatch, tmp_path, capsys):
+    source = {'proyecto': str(tmp_path), 'bloques': [{'clave': 'plugin', 'titulo': 'PRIVATE',
+              'lineas': [{'estado': 'error', 'que': 'registro en Codex', 'detalle': 'SECRET', 'arreglo': 'PRIVATE COMMAND'}]}],
+              'acciones_prioritarias': {'acciones': [{'bloque': 'plugin', 'linea': 1}]}, 'exit': 1}
+    calls = []
+    monkeypatch.setattr(doctor, 'diagnostico', lambda *a, **k: calls.append(a) or source)
+    assert doctor.main(['--root', str(tmp_path), '--panel-json']) == 1
+    output = capsys.readouterr().out
+    report = json.loads(output)
+    assert report['producer'] == 'doctor' and report['summary']['error'] == 1
+    assert report['checked_at'].endswith('Z') and len(calls) == 1
+    assert 'SECRET' not in output and 'PRIVATE' not in output and str(tmp_path) not in output
+
+
+def test_json_modes_are_mutually_exclusive(tmp_path):
+    with pytest.raises(SystemExit) as result:
+        doctor.main(['--root', str(tmp_path), '--json', '--panel-json'])
+    assert result.value.code == 2
+
+
+def test_panel_json_missing_helper_is_opaque_and_does_not_break_normal_json(monkeypatch, tmp_path, capsys):
+    source = {'proyecto': str(tmp_path), 'bloques': [],
+              'acciones_prioritarias': {'acciones': []}, 'exit': 0}
+    monkeypatch.setattr(doctor, 'diagnostico', lambda *a, **k: source)
+    monkeypatch.setattr(doctor, 'HERE', str(tmp_path/'PRIVATE_MISSING_HELPER'))
+    assert doctor.main(['--root', str(tmp_path), '--panel-json']) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ''
+    assert captured.err.strip() == 'doctor: portable panel report unavailable'
+    assert doctor.main(['--root', str(tmp_path), '--json']) == 0
+    assert json.loads(capsys.readouterr().out) == source
+
+
+def test_panel_json_uses_canonical_redactor_before_export(monkeypatch, tmp_path, capsys):
+    toolkit = tmp_path/'trusted-kit'; toolkit.mkdir()
+    shutil.copyfile(os.path.join(HERE, 'diagnostic-report.py'), toolkit/'diagnostic-report.py')
+    (toolkit/'redact.py').write_text(
+        "def redactar(text):\n    return text.replace('registro en Codex', 'git')\n", encoding='utf8')
+    source = {'proyecto': str(tmp_path), 'bloques': [{'clave': 'plugin', 'lineas': [
+        {'estado': 'error', 'que': 'registro en Codex'}]}],
+        'acciones_prioritarias': {'acciones': [{'bloque': 'plugin', 'linea': 1}]}, 'exit': 1}
+    monkeypatch.setattr(doctor, 'diagnostico', lambda *a, **k: source)
+    monkeypatch.setattr(doctor, 'HERE', str(toolkit))
+    assert doctor.main(['--root', str(tmp_path), '--panel-json']) == 1
+    output = json.loads(capsys.readouterr().out)
+    assert output['blocks'][0]['rows'][0]['label'] == 'git'
+
+
+def test_panel_json_missing_redactor_does_not_export(monkeypatch, tmp_path, capsys):
+    toolkit = tmp_path/'trusted-kit'; toolkit.mkdir()
+    shutil.copyfile(os.path.join(HERE, 'diagnostic-report.py'), toolkit/'diagnostic-report.py')
+    source = {'proyecto': str(tmp_path), 'bloques': [],
+              'acciones_prioritarias': {'acciones': []}, 'exit': 0}
+    monkeypatch.setattr(doctor, 'diagnostico', lambda *a, **k: source)
+    monkeypatch.setattr(doctor, 'HERE', str(toolkit))
+    assert doctor.main(['--root', str(tmp_path), '--panel-json']) == 2
+    captured = capsys.readouterr()
+    assert captured.out == '' and captured.err.strip() == 'doctor: portable panel report unavailable'
 
 ICONOS = {v: k for k, v in doctor.ICONO.items()}
 
 
 # ------------------------------------------------------------------ utilidades
 
+def _isolated_subprocess_env(extra=None):
+    keys = {"SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "PROCESSOR_ARCHITECTURE",
+            "NUMBER_OF_PROCESSORS", "HOME", "USERPROFILE", "CODEX_HOME", "CLAUDE_CONFIG_DIR",
+            "APPDATA", "LOCALAPPDATA", "PROGRAMDATA", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME",
+            "XDG_STATE_HOME", "TEMP", "TMP", "NO_COLOR", "PYTHONIOENCODING"}
+    env = {k: v for k, v in os.environ.items() if k.upper() in keys}
+    env["PATH"] = os.environ["CUSTOM_AGENTS_TEST_PATH"]
+    env.update(extra or {})
+    if os.name == "nt":
+        env["PATHEXT"] = ".COM;.EXE;.BAT;.CMD"
+    return env
+
+
 def run(*args, root=None):
-    env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PLUGIN_ROOT"}
+    env = _isolated_subprocess_env()
     return subprocess.run([sys.executable, SCRIPT, *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
                           cwd=root or ROOT, env=env)
 
@@ -120,8 +197,109 @@ def _registro_de_la_maquina_fuera(tmp_path_factory, monkeypatch):
     monkeypatch.setenv("CODEX_HOME", str(base / "codex"))
     for var in ("HOME", "USERPROFILE"):
         monkeypatch.setenv(var, str(base / "home"))
+    for var, sub in {"APPDATA": "appdata", "LOCALAPPDATA": "localappdata", "PROGRAMDATA": "programdata",
+                     "XDG_CONFIG_HOME": "xdg-config", "XDG_DATA_HOME": "xdg-data",
+                     "XDG_CACHE_HOME": "xdg-cache", "XDG_STATE_HOME": "xdg-state",
+                     "TEMP": "temp", "TMP": "temp"}.items():
+        (base / sub).mkdir(exist_ok=True)
+        monkeypatch.setenv(var, str(base / sub))
+    own_bin = base / "bin"
+    own_bin.mkdir()
+    shim = own_bin / "runtime-stub.mjs"
+    shim.write_text('console.log(JSON.stringify({installed:[],available:[]}));\n', encoding="utf-8")
+    if _NODE_EXECUTABLE:
+        for name in ("codex", "claude", "opencode"):
+            stub = own_bin / (name + ".cmd" if os.name == "nt" else name)
+            text = (f'@echo off\n"{_NODE_EXECUTABLE}" "{shim}"\n' if os.name == "nt" else
+                    f'#!/bin/sh\nexec {shlex.quote(_NODE_EXECUTABLE)} {shlex.quote(str(shim))}\n')
+            stub.write_text(text, encoding="utf-8")
+            stub.chmod(0o755)
+    tool_dirs = [str(own_bin), os.path.dirname(sys.executable)]
+    if _NODE_EXECUTABLE:
+        tool_dirs.append(os.path.dirname(_NODE_EXECUTABLE))
+    if os.name == "nt":
+        tool_dirs.append(os.path.join(os.environ.get("SYSTEMROOT", "C:\\Windows"), "System32"))
+    monkeypatch.setenv("CUSTOM_AGENTS_TEST_PATH", os.pathsep.join(tool_dirs))
+    monkeypatch.setattr(doctor, "_estado_codex_nativo", lambda project: {
+        "state": "unknown", "enabled": None, "version": None, "reason": "own-fixture"})
+    monkeypatch.setattr(doctor, "managed_settings_path", lambda: "")
 
 # ------------------------------------------------------------------ tests
+
+@pytest.mark.parametrize("native,level,fragment", [
+    ({"state": "absent", "enabled": None, "version": None, "reason": ""}, doctor.AVISO, "no figura"),
+    ({"state": "installed", "enabled": False, "version": "1.22.0", "reason": ""}, doctor.AVISO, "desactivado"),
+    ({"state": "installed", "enabled": True, "version": "1.22.0", "reason": ""}, doctor.OK, "confianza"),
+    ({"state": "unknown", "enabled": None, "version": None, "reason": "cli-unavailable"}, doctor.INFO, "desconocido"),
+])
+def test_codex_declaracion_no_acredita_instalacion_ni_ejecucion(tmp_path, monkeypatch, native, level, fragment):
+    proj = proyecto(tmp_path)
+    (proj / ".codex").mkdir()
+    (proj / ".codex" / "config.toml").write_text(
+        '[plugins."custom-agents@daycry"]\nenabled = true\n', encoding="utf-8")
+    monkeypatch.setattr(doctor, "_estado_codex_nativo", lambda project: native)
+    rows = doctor._bloque_registro_codex(str(proj), "custom-agents@daycry")
+    declared = next(row for row in rows if row["que"] == "registro en Codex")
+    actual = next(row for row in rows if row["que"] == "estado nativo en Codex")
+    assert declared["estado"] == doctor.OK
+    assert actual["estado"] == level
+    assert fragment in actual["detalle"]
+    assert "hooks ejecutados" not in actual["detalle"]
+
+def test_codex_native_wrapper_falla_sin_exponer_error_ni_config(tmp_path, monkeypatch):
+    proj = proyecto(tmp_path)
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: "node")
+    def fake_run(args, **kwargs):
+        assert args[1].endswith("codex-plugin-state.mjs")
+        assert kwargs["cwd"] == str(proj)
+        assert kwargs["encoding"] == "utf-8"
+        assert kwargs["timeout"] <= 10
+        return subprocess.CompletedProcess(args, 1, '{"secret":"PRIVATE_SENTINEL"}', "PRIVATE_SENTINEL")
+    monkeypatch.setattr(doctor.subprocess, "run", fake_run)
+    native = _NATIVE_CODEX_QUERY(str(proj))
+    assert native["state"] == "unknown"
+    assert "PRIVATE_SENTINEL" not in json.dumps(native)
+
+@pytest.mark.parametrize("output,expected", [
+    ('{"state":"installed","enabled":true,"version":"1.22.0","source":"PRIVATE_SENTINEL"}', "installed"),
+    ('{"state":"absent","enabled":null,"version":null}', "absent"),
+    ('{"state":"installed","enabled":"true","version":"1.22.0"}', "unknown"),
+    ('{"state":"installed","enabled":true,"version":"PRIVATE_SENTINEL\\n"}', "unknown"),
+    ('{"state":"absent","enabled":true,"version":null}', "unknown"),
+    ('[]', "unknown"),
+    ('not json PRIVATE_SENTINEL', "unknown"),
+    ('x' * 4097, "unknown"),
+])
+def test_codex_native_wrapper_valida_y_filtra_respuesta(tmp_path, monkeypatch, output, expected):
+    proj = proyecto(tmp_path)
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: "node")
+    monkeypatch.setattr(doctor.subprocess, "run", lambda args, **kwargs:
+                        subprocess.CompletedProcess(args, 0, output, "PRIVATE_SENTINEL"))
+    native = _NATIVE_CODEX_QUERY(str(proj))
+    assert native["state"] == expected
+    assert "PRIVATE_SENTINEL" not in json.dumps(native)
+
+def test_codex_native_wrapper_sin_node_o_timeout_es_desconocido(tmp_path, monkeypatch):
+    proj = proyecto(tmp_path)
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: None)
+    assert _NATIVE_CODEX_QUERY(str(proj))["reason"] == "node-unavailable"
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: "node")
+    def timeout(args, **kwargs):
+        raise subprocess.TimeoutExpired(args, kwargs["timeout"])
+    monkeypatch.setattr(doctor.subprocess, "run", timeout)
+    assert _NATIVE_CODEX_QUERY(str(proj))["state"] == "unknown"
+
+def test_codex_native_wrapper_resuelve_root_relativo_una_sola_vez(tmp_path, monkeypatch):
+    proj = proyecto(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: "node")
+    def fake_run(args, **kwargs):
+        assert args[-1] == str(proj)
+        assert kwargs["cwd"] == str(proj)
+        return subprocess.CompletedProcess(args, 0,
+            '{"state":"installed","enabled":true,"version":"1.22.0"}', "")
+    monkeypatch.setattr(doctor.subprocess, "run", fake_run)
+    assert _NATIVE_CODEX_QUERY("proj")["state"] == "installed"
 
 def test_proyecto_sin_config_no_tiene_errores_y_exit_0(tmp_path):
     """Un proyecto virgen (sin `.claude/`) no está roto: todo ✅ o informativo, exit 0."""
@@ -368,10 +546,10 @@ def test_json_gana_modo_y_registro_sin_perder_ninguna_clave(tmp_path, monkeypatc
     assert plug_b["registro"][0]["habilitado"] is True
 
 
-def test_repo_real_usa_el_criterio_del_linter_para_los_hooks():
+def test_repo_real_usa_el_criterio_del_linter_para_los_hooks(tmp_path):
     """Con el plugin real (que sí trae `scripts/lint_plugin.py`) el veredicto de hooks se delega
     en `lint_hook_commands` — una sola definición de «hook roto» en el repo."""
-    inf = diag(ROOT, ROOT)
+    inf = diag(proyecto(tmp_path), ROOT)
     hooks = [l for l in lineas(inf) if l["que"] == "hooks registrados"]
     assert len(hooks) == 1
     assert "lint_plugin.py" in hooks[0]["detalle"]
@@ -563,6 +741,27 @@ def test_journal_sin_pendientes_ni_huerfanas_es_informativo_y_exit_0(tmp_path):
     assert inf["exit"] == 0
 
 
+def _linea_presupuesto(inf):
+    journ = [b for b in inf["bloques"] if b["clave"] == "journal"][0]
+    return [l for l in journ["lineas"] if l["que"] == "presupuesto de SessionEnd"]
+
+
+def test_journal_informa_el_presupuesto_de_session_end_y_como_elevarlo(tmp_path, monkeypatch):
+    """1,5 s por defecto; en Windows arrancar node + Python suele pasar de ahí y la captura queda
+    para `recover`. El doctor dice el presupuesto efectivo que ve y cómo elevarlo, sin tocar nada."""
+    monkeypatch.delenv("CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS", raising=False)
+    monkeypatch.setattr(doctor.os, "name", "nt")
+    [l] = _linea_presupuesto(diag(proyecto(tmp_path)))
+    assert l["estado"] == doctor.INFO and "1,5 s" in l["detalle"] and "por defecto" in l["detalle"]
+    assert "CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS" in l["arreglo"] and "settings.json" in l["arreglo"]
+    monkeypatch.setenv("CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS", "5000")
+    [l] = _linea_presupuesto(diag(proyecto(tmp_path / "b")))
+    assert "5 s" in l["detalle"] and "elevado" in l["detalle"] and not l["arreglo"]
+    monkeypatch.setenv("CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS", "abc")
+    [l] = _linea_presupuesto(diag(proyecto(tmp_path / "c")))
+    assert "1,5 s" in l["detalle"] and "abc" in l["detalle"]
+
+
 def test_journal_con_dead_letter_avisa_con_el_remedio_nombrado(tmp_path):
     proj = proyecto(tmp_path)
     d = proj / ".claude" / "journal" / "dead-letter"
@@ -713,7 +912,7 @@ def test_memoria_sin_docs_knowledge_es_informativa_y_exit_0(tmp_path):
     assert mem["titulo"].lower().startswith("memoria")
     assert all(l["estado"] == doctor.INFO for l in mem["lineas"]), mem["lineas"]
     assert any("docs/knowledge/" in l["detalle"] for l in mem["lineas"])
-    assert inf["exit"] == 0 and "Instalación sana" in doctor.render_md(inf)
+    assert inf["exit"] == 0 and "Sin errores ni avisos en las comprobaciones realizadas" in doctor.render_md(inf)
 
 
 def test_memoria_curada_se_cuenta_por_familia_y_por_estado(tmp_path):
@@ -999,14 +1198,14 @@ def test_gap_a2_codex_y_opencode_tienen_su_fila_de_registro(tmp_path, monkeypatc
 
     # OpenCode: el adaptador dado de alta en `plugin` de `opencode.json`
     (proj / "opencode.json").write_text(json.dumps(
-        {"plugin": ["./.opencode/plugins/custom-agents-hooks.js"]}), encoding="utf-8")
+        {"plugins": ["./.opencode/plugins/custom-agents"]}), encoding="utf-8")
     oc = fila(diag(proj, plug), "registro en OpenCode")
-    assert oc["estado"] == doctor.OK and "custom-agents-hooks.js" in oc["detalle"]
+    assert oc["estado"] == doctor.OK and "custom-agents" in oc["detalle"]
 
     # copiado pero sin alta: ⚠️ con el comando que lo arregla
-    (proj / "opencode.json").write_text(json.dumps({"plugin": ["otro.js"]}), encoding="utf-8")
-    (proj / ".opencode" / "plugins").mkdir(parents=True)
-    (proj / ".opencode" / "plugins" / "custom-agents-hooks.js").write_text("//", encoding="utf-8")
+    (proj / "opencode.json").write_text(json.dumps({"plugins": ["otro.js"]}), encoding="utf-8")
+    (proj / ".opencode" / "plugins" / "custom-agents").mkdir(parents=True)
+    (proj / ".opencode" / "plugins" / "custom-agents" / "index.js").write_text("//", encoding="utf-8")
     oc = fila(diag(proj, plug), "registro en OpenCode")
     assert oc["estado"] == doctor.AVISO and oc["arreglo"]
 
@@ -1192,30 +1391,30 @@ def test_gap_i2_11_la_fila_informativa_de_codex_nombra_lo_detectado(tmp_path, mo
 
 
 def test_gap_i2_3_el_alta_de_opencode_se_compara_por_ruta_resuelta_no_por_nombre(tmp_path, monkeypatch):
-    """Casar por basename daba OK a cualquier `custom-agents-hooks.js` de cualquier sitio, y
+    """Casar por basename daba OK a cualquier `custom-agents` de cualquier sitio, y
     `status` (ruta exacta) decia lo contrario sobre el MISMO `opencode.json`."""
     _cfg_vacio(tmp_path, monkeypatch)
     proj = proyecto(tmp_path)
     plug = plugin(tmp_path)
-    (proj / ".opencode" / "plugins").mkdir(parents=True)
-    (proj / ".opencode" / "plugins" / "custom-agents-hooks.js").write_text("//", encoding="utf-8")
+    (proj / ".opencode" / "plugins" / "custom-agents").mkdir(parents=True)
+    (proj / ".opencode" / "plugins" / "custom-agents" / "index.js").write_text("//", encoding="utf-8")
 
     # mismo nombre, otra carpeta: NO es el adaptador instalado
     (proj / "opencode.json").write_text(json.dumps(
-        {"plugin": ["./vendor/custom-agents-hooks.js"]}), encoding="utf-8")
+        {"plugins": ["./vendor/custom-agents"]}), encoding="utf-8")
     oc = fila(diag(proj, plug), "registro en OpenCode")
     assert oc["estado"] == doctor.AVISO and "NO es el adaptador instalado" in oc["detalle"]
     assert oc["arreglo"]
 
     # escalar: `status` no lo cuenta como alta (`json-array`), asi que `/doctor` tampoco
     (proj / "opencode.json").write_text(json.dumps(
-        {"plugin": "./.opencode/plugins/custom-agents-hooks.js"}), encoding="utf-8")
+        {"plugins": "./.opencode/plugins/custom-agents"}), encoding="utf-8")
     oc = fila(diag(proj, plug), "registro en OpenCode")
     assert oc["estado"] == doctor.AVISO and "no es una lista" in oc["detalle"] and oc["arreglo"]
 
     # la ruta que escribe el instalador (relativa al fichero de config): OK
     (proj / "opencode.json").write_text(json.dumps(
-        {"plugin": ["./.opencode/plugins/custom-agents-hooks.js"]}), encoding="utf-8")
+        {"plugins": ["./.opencode/plugins/custom-agents"]}), encoding="utf-8")
     assert fila(diag(proj, plug), "registro en OpenCode")["estado"] == doctor.OK
 
 
@@ -1241,7 +1440,7 @@ def _status(proj, cfg, env_extra=None):
     node = shutil.which("node")
     if not node:
         return None
-    env = dict(os.environ, CLAUDE_CONFIG_DIR=str(cfg), NO_COLOR="1", **(env_extra or {}))
+    env = _isolated_subprocess_env(dict(CLAUDE_CONFIG_DIR=str(cfg), NO_COLOR="1", **(env_extra or {})))
     r = subprocess.run([node, os.path.join(ROOT, "install", "install.mjs"), "status", "--dir", str(proj)],
                        capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     assert r.returncode == 0, r.stderr
@@ -1253,6 +1452,42 @@ def _status(proj, cfg, env_extra=None):
         elif re.match(r"^ {2}\S", l):
             actual = re.split(r"\s{2,}", l.strip())[0]
     return out
+
+
+def test_status_subprocess_no_hereda_cli_ni_credenciales_del_host(tmp_path, monkeypatch):
+    """B-I5: el mock del doctor no aísla el subprocess del instalador."""
+    import shutil
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("sin Node para el subprocess propio")
+    host_bin = tmp_path / "host-bin"
+    host_bin.mkdir()
+    monkeypatch.setenv("PATH", str(host_bin) + os.pathsep + os.environ["PATH"])
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "OWN_TEST_SENTINEL")
+    def own_run(args, **kwargs):
+        cli_env = kwargs["env"]
+        assert str(host_bin) not in cli_env["PATH"]
+        assert "ANTHROPIC_API_KEY" not in cli_env
+        assert os.path.isfile(os.path.join(cli_env["PATH"].split(os.pathsep)[0],
+                                           "codex.cmd" if os.name == "nt" else "codex"))
+        return subprocess.CompletedProcess(args, 0, "", "")
+    monkeypatch.setattr(subprocess, "run", own_run)
+    assert _status(proyecto(tmp_path), tmp_path / "cfg") == {}
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PATHEXT is a Windows executable selector")
+def test_status_stubs_no_dependen_de_pathext_del_host(tmp_path, monkeypatch):
+    """B-I5: .EXE solo omitía nuestros .cmd y alcanzaba un runtime vecino a Node."""
+    if not _NODE_EXECUTABLE:
+        pytest.skip("sin Node")
+    monkeypatch.setenv("PATHEXT", ".EXE")
+    def own_run(args, **kwargs):
+        env = kwargs["env"]
+        assert ".CMD" in env["PATHEXT"].upper().split(";")
+        assert os.path.isfile(os.path.join(env["PATH"].split(os.pathsep)[0], "codex.cmd"))
+        return subprocess.CompletedProcess(args, 0, "", "")
+    monkeypatch.setattr(subprocess, "run", own_run)
+    assert _status(proyecto(tmp_path), tmp_path / "cfg") == {}
 
 
 def _registrado(filas):
@@ -1321,13 +1556,13 @@ def test_doctor_y_status_coinciden_tambien_en_opencode(tmp_path, monkeypatch, ca
     cfg = _cfg_vacio(tmp_path, monkeypatch)
     proj = proyecto(tmp_path)
     plug = plugin(tmp_path)
-    (proj / ".opencode" / "plugins").mkdir(parents=True)
-    (proj / ".opencode" / "plugins" / "custom-agents-hooks.js").write_text("//", encoding="utf-8")
-    spec = {"alta-exacta": ["./.opencode/plugins/custom-agents-hooks.js"],
-            "mismo-nombre-otra-ruta": ["./vendor/custom-agents-hooks.js"],
-            "escalar": "./.opencode/plugins/custom-agents-hooks.js",
+    (proj / ".opencode" / "plugins" / "custom-agents").mkdir(parents=True)
+    (proj / ".opencode" / "plugins" / "custom-agents" / "index.js").write_text("//", encoding="utf-8")
+    spec = {"alta-exacta": ["./.opencode/plugins/custom-agents"],
+            "mismo-nombre-otra-ruta": ["./vendor/custom-agents"],
+            "escalar": "./.opencode/plugins/custom-agents",
             "sin-plugin": []}[caso]
-    (proj / "opencode.json").write_text(json.dumps({"plugin": spec}), encoding="utf-8")
+    (proj / "opencode.json").write_text(json.dumps({"plugins": spec}), encoding="utf-8")
 
     doctor_activo = fila(diag(proj, plug), "registro en OpenCode")["estado"] == doctor.OK
     assert doctor_activo == activo, f"{caso}: /doctor dice {doctor_activo}"
@@ -1902,6 +2137,65 @@ def test_linea_capacidad_taxonomy_invalida_reporta_fichero_y_campo():
     assert l["estado"] == doctor.ERROR
     assert "categories" in l["detalle"] and "taxonomy.json" in l["detalle"]
     assert "taxonomy.json" in l["arreglo"]
+
+
+@pytest.mark.parametrize("filename,field", [("taxonomy.json", "categories"),
+                                           ("training.json", "id_prefix")])
+def test_config_error_long_absolute_path_keeps_file_and_field(tmp_path, filename, field):
+    project = tmp_path / ("project-" + "a" * 80) / ("package-" + "b" * 80)
+    project.mkdir(parents=True)
+    directory = project / ".claude" / "knowledge-services"
+    directory.mkdir(parents=True)
+    config = {"version": 1, "categories": []} if filename == "taxonomy.json" else {
+        "version": 1, "enabled": True, "root": "../store"}
+    target = directory / filename
+    target.write_text(json.dumps(config), encoding="utf8")
+    assert target.is_absolute() and len(str(target)) > doctor._SANEADO_TOPE_CHARS
+    before = target.read_bytes()
+    rows = doctor.bloque_capacidades(None, str(project))["lineas"]
+    identifier = "knowledge-gate" if filename == "taxonomy.json" else "training"
+    [row] = [row for row in rows if row["que"] == identifier]
+    assert row["estado"] == doctor.ERROR
+    assert filename in row["detalle"] and field in row["detalle"]
+    assert filename in row["arreglo"]
+    assert len(row["detalle"]) <= 2 * doctor._SANEADO_TOPE_CHARS + 2
+    assert target.read_bytes() == before and not (project / "store").exists()
+
+
+@pytest.mark.parametrize("separator,prefix", [("/", "/owned"), ("\\", "C:\\owned")])
+@pytest.mark.parametrize("health_error", [True, False])
+def test_config_error_long_path_in_detail_keeps_backend_field(separator, prefix, health_error):
+    path = separator.join([prefix, "p" * 240, "taxonomy.json"])
+    detail = path + ": `backends.selected` debe ser un objeto"
+    cap = _cap(config_path=path, health={"estado": "error", "fichero": path,
+                                        "detalle": detail} if health_error else None)
+    entries = {"selected": doctor._EntradaInvalida(detail)}
+    row = doctor._linea_capacidad(".", cap, None, None, entradas=entries)
+    assert row["estado"] == doctor.ERROR
+    assert "taxonomy.json" in row["detalle"] and "backends.selected" in row["detalle"]
+    assert "taxonomy.json" in row["arreglo"]
+    assert len(row["detalle"]) <= 2 * doctor._SANEADO_TOPE_CHARS + 2
+
+
+def test_config_error_redacts_before_path_compaction_and_control_cleanup():
+    secret = "sk-" + "a" * 32
+    path = "/owned/" + secret + "/" + "p" * 220 + "/taxonomy.json"
+    cap = _cap(config_path=path, health={"estado": "error", "fichero": path,
+        "detalle": "token=" + secret + "\x1b[31m\u202e\n categories: no válido"})
+    row = doctor._linea_capacidad(".", cap, None, None)
+    text = json.dumps(row, ensure_ascii=False)
+    assert secret not in text and "[secreto redactado]" in text
+    assert "categories" in row["detalle"] and "taxonomy.json" in row["arreglo"]
+    assert not any(control in text for control in ("\\u001b", "\u202e", "\\n"))
+
+
+def test_config_error_missing_redactor_is_opaque(monkeypatch, tmp_path):
+    monkeypatch.setattr(doctor, "HERE", str(tmp_path / "missing-toolkit"))
+    cap = _cap(config_path="PRIVATE_FILE", health={"estado": "error", "detalle": "PRIVATE_DETAIL"})
+    row = doctor._linea_capacidad(".", cap, None, None)
+    text = json.dumps(row, ensure_ascii=False)
+    assert row["estado"] == doctor.ERROR and row["arreglo"]
+    assert "PRIVATE_FILE" not in text and "PRIVATE_DETAIL" not in text
 
 
 def test_linea_capacidad_activa_sin_backend_usa_el_texto_generico_de_la_propia_capacidad():
@@ -2722,6 +3016,119 @@ def test_f3fix4_gap152_verify_no_verificable_es_informativo_con_su_razon(tmp_pat
     assert "export atrasado" not in linea["detalle"], linea
 
 
+# ------------------------------------------------------------------ acciones prioritarias: contrato de presentación
+
+def _diagnostico_con_filas(monkeypatch, bloques):
+    """Informe real con comprobaciones propias en memoria: no lee configuración del host."""
+    monkeypatch.setattr(doctor, "localizar_plugin", lambda explicit=None: None)
+    nombres = ("bloque_herramientas", "bloque_plugin", "bloque_configs", "bloque_estado",
+               "bloque_capacidades", "bloque_memoria", "bloque_journal", "bloque_version")
+    for i, nombre in enumerate(nombres):
+        bloque = bloques[i] if i < len(bloques) else {
+            "clave": f"vacio-{i}", "titulo": "Vacío", "lineas": []}
+        monkeypatch.setattr(doctor, nombre, lambda *args, _b=bloque, **kwargs: _b)
+    return doctor.diagnostico(".")
+
+
+def test_prioridades_errores_antes_de_avisos_empates_estables_y_limite(monkeypatch):
+    bloques = [
+        {"clave": "herramientas", "titulo": "Herramientas", "lineas": [
+            doctor.linea(doctor.AVISO, "aviso inicial", "aviso", "arreglo común"),
+            doctor.linea(doctor.INFO, "opcional", "información", "opcional"),
+            doctor.linea(doctor.ERROR, "primer error", "roto uno", "arreglo común")]},
+        {"clave": "plugin", "titulo": "Plugin", "lineas": [
+            doctor.linea(doctor.ERROR, "segundo error", "roto dos", "reinstala"),
+            doctor.linea(doctor.AVISO, "aviso posterior", "aviso dos", "revisa")]},
+    ]
+    antes = json.dumps(bloques, ensure_ascii=False)
+    inf = _diagnostico_con_filas(monkeypatch, bloques)
+    prioridades = inf["acciones_prioritarias"]
+    assert prioridades["total"] == 4 and prioridades["limite"] == 3
+    assert [(a["bloque"], a["linea"], a["que"]) for a in prioridades["acciones"]] == [
+        ("herramientas", 3, "primer error"), ("plugin", 1, "segundo error"),
+        ("herramientas", 1, "aviso inicial")]
+    assert [a["arreglo"] for a in prioridades["acciones"]] == [
+        "arreglo común", "reinstala", "arreglo común"]
+    assert all(set(a) == {"bloque", "linea", "estado", "que", "detalle", "arreglo"}
+               for a in prioridades["acciones"])
+    assert json.dumps(bloques, ensure_ascii=False) == antes
+    assert all(set(l) == {"estado", "que", "detalle", "arreglo"} for l in lineas(inf))
+    assert inf["resumen"] == {"ok": 0, "aviso": 2, "error": 2, "info": 1}
+    assert inf["exit"] == 1
+
+
+@pytest.mark.parametrize("filas,total,exit_code", [
+    ([], 0, 0),
+    ([doctor.linea(doctor.INFO, "opcional", "no configurado", "activa si quieres")], 0, 0),
+    ([doctor.linea(doctor.OK, "declarado", "sin prueba de ejecución", "comprueba")], 0, 0),
+    ([doctor.linea(doctor.ERROR, "sin arreglo", "roto", "")], 0, 1),
+    ([doctor.linea(doctor.AVISO, "sin arreglo", "degradado", " \t\r\n")], 0, 0),
+    ([doctor.linea(doctor.AVISO, "con arreglo", "degradado", "  revisa  ")], 1, 0),
+])
+def test_prioridades_vacias_y_sin_remedio_no_cambian_exit(monkeypatch, filas, total, exit_code):
+    inf = _diagnostico_con_filas(monkeypatch, [
+        {"clave": "plugin", "titulo": "Plugin", "lineas": filas}])
+    assert inf["acciones_prioritarias"]["total"] == total
+    assert len(inf["acciones_prioritarias"]["acciones"]) == total
+    if total:
+        assert inf["acciones_prioritarias"]["acciones"][0]["arreglo"] == "  revisa  "
+    assert inf["exit"] == exit_code
+
+
+def test_prioridades_markdown_y_json_comparten_seleccion_y_texto_hostil(monkeypatch):
+    filas = [doctor.linea(doctor.AVISO, f"aviso-{i}", "detalle", f"remedio-{i}")
+             for i in range(4)]
+    filas.append(doctor.linea(doctor.ERROR, "error|propio\nnombre", "detalle|A\nB", "  arregla|C\nD  "))
+    inf = _diagnostico_con_filas(monkeypatch, [{"clave": "plugin", "titulo": "Plugin", "lineas": filas}])
+    js = json.loads(json.dumps(inf, ensure_ascii=False))
+    acciones = js["acciones_prioritarias"]["acciones"]
+    assert [a["linea"] for a in acciones] == [5, 1, 2]
+    assert acciones[0]["arreglo"] == "  arregla|C\nD  "
+    md = doctor.render_md(inf)
+    resumen = md.split("## Acciones prioritarias", 1)[1].split("\n## ", 1)[0]
+    assert "3 de 5" in resumen
+    assert "error\\|propio nombre" in resumen
+    assert "detalle\\|A B" in resumen and "arregla\\|C D" in resumen
+    assert "remedio-0" in resumen and "remedio-1" in resumen
+    assert "remedio-2" not in resumen and "remedio-3" not in resumen
+    assert veredictos_md(md) == [l["estado"] for l in lineas(js)]
+
+
+def test_prioridades_no_afirma_salud_global_con_comprobaciones_vacias(monkeypatch):
+    inf = _diagnostico_con_filas(monkeypatch, [])
+    md = doctor.render_md(inf)
+    assert "Instalación sana" not in md and "Nada roto" not in md
+    assert "comprobaciones realizadas" in md
+    assert "0 de 0" in md
+
+
+def test_prioridades_markdown_muestra_arreglos_antes_de_tablas(monkeypatch):
+    inf = _diagnostico_con_filas(monkeypatch, [{"clave": "plugin", "titulo": "Plugin", "lineas": [
+        doctor.linea(doctor.ERROR, "configuración rota", "config ilegible", "corrige configuración")]}])
+    md = doctor.render_md(inf)
+    assert md.index("**Proyecto**") < md.index("## Acciones prioritarias")
+    assert md.index("## Acciones prioritarias") < md.index("## Plugin")
+    assert md.count("## Acciones prioritarias") == 1
+
+
+def test_prioridades_cli_json_md_sin_escrituras_ni_remedios(tmp_path):
+    proj = proyecto(tmp_path, dev__json={"tdd": "sí", "tddd": True},
+                    rates__json={"precioTokens": {"input": 0, "output": 0}})
+    antes = snapshot(proj)
+    cfg = os.environ["CLAUDE_CONFIG_DIR"]
+    home = os.environ["HOME"]
+    antes_cfg, antes_home = snapshot(cfg), snapshot(home)
+    js = run("--root", str(proj), "--json")
+    md = run("--root", str(proj))
+    assert js.returncode == md.returncode == 1
+    inf = json.loads(js.stdout)
+    assert inf["acciones_prioritarias"]["total"] >= 3
+    seleccion = md.stdout.split("## Acciones prioritarias", 1)[1].split("\n## ", 1)[0]
+    for accion in inf["acciones_prioritarias"]["acciones"]:
+        assert doctor._celda(accion["que"]) in seleccion
+        assert doctor._celda(accion["arreglo"]) in seleccion
+    assert snapshot(proj) == antes
+    assert snapshot(cfg) == antes_cfg and snapshot(home) == antes_home
 # ------------------------------------------------------------------ C-09a: tope_ms estricto (CA-16)
 
 class _AdaptadorLento:
@@ -2780,3 +3187,62 @@ def test_ca16_el_margen_esta_documentado_en_contracts_e17():
                                  "CONTRACTS.md"), encoding="utf-8").read()
     fila = next(l for l in contrato.splitlines() if l.startswith("| E17"))
     assert "CAPACIDAD_MARGEN_MS" in fila and "daemon" in fila
+
+
+# ------------------------------------------------------------------ inventario de automatizaciones (D-087)
+
+def _autos(inf, tipo=None):
+    return [a for a in inf["automatizaciones"]["elementos"] if tipo is None or a["tipo"] == tipo]
+
+
+def test_automatizaciones_hooks_con_fuente_fecha_alcance_y_sin_afirmar_ejecucion(tmp_path):
+    proj = proyecto(tmp_path)
+    inf = diag(proj, plugin(tmp_path))
+    (hook,) = _autos(inf, "hook")
+    assert hook["id"] == "PostToolUse:hooks/demo.sh" and hook["fuente"] == "hooks/hooks.json"
+    assert hook["alcance"].startswith("plugin") and re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", hook["fecha_fuente"])
+    assert hook["estado"] == "configurado" and hook["ejecucion"] == "no_verificada" and hook["firma_fallo"] is None
+    assert set(hook) == {"tipo", "id", "fuente", "alcance", "fecha_fuente", "estado", "ejecucion", "firma_fallo"}
+    estados = {a["estado"] for a in _autos(inf)}
+    assert estados <= set(doctor.AUTOMATIZACION_ESTADOS) and not estados & {"vivo", "activo", "live"}
+    assert "configuración" in inf["automatizaciones"]["nota"]
+
+
+def test_automatizaciones_hook_sin_script_es_roto_con_firma_y_copia_no_cargado(tmp_path, monkeypatch):
+    inf = diag(proyecto(tmp_path), plugin(tmp_path, script_existe=False))
+    (hook,) = _autos(inf, "hook")
+    assert hook["estado"] == "roto" and hook["firma_fallo"] == "script ausente: hooks/demo.sh"
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = tmp_path / "otro"
+    proj.mkdir()
+    inf = diag(proj, plugin(tmp_path, dest=proj / ".claude"))
+    (hook,) = _autos(inf, "hook")
+    assert hook["estado"] == "no_cargado" and "copia" in hook["firma_fallo"]
+
+
+def test_automatizaciones_statusline_y_jobs_del_proyecto(tmp_path):
+    proj = proyecto(tmp_path, settings__json={"statusLine": {"type": "command",
+                                                            "command": str(tmp_path / "x" / "roadmap-statusline.sh")}})
+    wf = proj / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "ci.yml").write_text("on: push\n", encoding="utf-8")
+    inf = diag(proj)
+    (sl,) = _autos(inf, "statusline")
+    assert sl["fuente"] == ".claude/settings.json" and sl["alcance"] == "proyecto"
+    assert sl["estado"] == "roto" and "no existe" in sl["firma_fallo"]
+    (job,) = _autos(inf, "job")
+    assert job["id"] == "ci.yml" and job["fuente"] == ".github/workflows/ci.yml"
+    assert job["estado"] == "configurado" and job["ejecucion"] == "no_verificada"
+    sin = diag(proyecto(tmp_path / "b"))
+    (sl,) = _autos(sin, "statusline")
+    assert sl["estado"] == "no_configurado" and sl["fuente"] is None
+
+
+def test_automatizaciones_en_md_sin_cambiar_veredictos_ni_bloques(tmp_path):
+    proj = proyecto(tmp_path)
+    inf = diag(proj, plugin(tmp_path))
+    md = doctor.render_md(inf)
+    assert "## Automatizaciones" in md and "PostToolUse:hooks/demo.sh" in md
+    assert md.index("## Automatizaciones") < md.index("## Resumen")
+    assert veredictos_md(md) == [l["estado"] for l in lineas(inf)]
+    assert len(inf["bloques"]) == 8

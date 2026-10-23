@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "ledger": {
+      "type": "http",
+      "url": "https://example.test/private-token",
+      "headers": {
+        "Authorization": "private-token"
+      }
+    }
+  }
+}
