@@ -11,6 +11,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Added
+
+- **Benchmark reproducible de hooks.** Informa de la latencia del launcher compartido por runtime y registro, y estima los tokens fijos y bajo demanda. Las fixtures versionadas, los proyectos temporales, el descarte del calentamiento y los fallos estructurados permiten revisar las comparaciones antes/despu?s (`scripts/bench-hooks.py`).
+
 ## [2.0.1] - 2026-10-27
 
 ### Changed — cierre de `catalog-capabilities` y `project-specialization`

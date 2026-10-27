@@ -11,6 +11,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Added
+
+- **Reproducible hook benchmark.** Reports shared-launcher latency by runtime and registration, plus explicitly estimated fixed and on-demand tokens. Versioned fixtures, disposable projects, warmup exclusion and structured failures make before/after comparisons reviewable (`scripts/bench-hooks.py`).
+
 ## [2.0.1] - 2026-10-27
 
 ### Changed — closing `catalog-capabilities` and `project-specialization`

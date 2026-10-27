@@ -295,3 +295,45 @@ llamadas del agente que ya está trabajando.
 **Inventario de automatizaciones en `/doctor`.** La sección «Automatizaciones» (clave `automatizaciones` del `--json`) lista hooks, statusline y workflows de `.github/workflows/` con fuente, alcance, fecha de la configuración, estado (`configurado` · `no_configurado` · `no_cargado` · `roto`) y firma de fallo. `ejecucion` es siempre `no_verificada`: para saber si un hook corre de verdad, mira su efecto (la entrada del journal, la línea de progreso), no esta tabla.
 
 **Continuidad y candidatas del journal.** Con `journal.py write --enrich`, una sesión puede declarar `objetivo`, `punto_actual`, `siguientes_pasos`, `bloqueos` y `descartados` (enfoques que ya fallaron, «enfoque — motivo»); al reescribir la misma sesión, la clave omitida conserva su valor y la vaciada (`""`, `[]`, `null`) se limpia. `latest` y `select` las muestran como citas. `journal.py candidatas` añade a cada candidata un `id` estable y una `categoria` léxica (`correccion_usuario`, `resolucion_error`, `workaround`, `tecnica_depuracion`, `convencion`, `otra`); `--lote` devuelve un cursor e id de lote, `--hasta <cursor>` reproduce ese lote aunque lleguen entradas nuevas (contadas en `posteriores_al_cursor`) y `--confirmar <id>` comprueba que es el mismo, sin marcar nada como procesado.
+
+## Benchmark reproducible de hooks y tokens
+
+`python scripts/bench-hooks.py --runs 10 --warmup 1 --json` genera un informe
+estructurado; `--md` presenta el mismo esquema en tabla. Ejecuta cada registro de
+`hooks/hooks.json` con fixtures versionadas de Claude, Codex y OpenCode, usando
+`hooks/run-hook.mjs --runtime=...` directamente, sin evaluar comandos de shell.
+Es una medida end-to-end del launcher compartido, incluido el arranque de sus
+procesos, no una prueba de que cada runtime dispare esos eventos. En particular,
+los registros can?nicos `PostToolUseFailure` se ejercitan tambi?n con selector
+Codex; eso no significa que Codex ofrezca ese evento.
+
+Cada iteraci?n usa un proyecto temporal nuevo con un ledger m?nimo. Su creaci?n y
+limpieza quedan fuera del cron?metro; `CLAUDE_PROJECT_DIR`, `cwd` y las rutas del
+payload apuntan al temporal. El benchmark no escribe en el proyecto consumidor.
+Se mide el guard sin identidad protegida y actividad desactivada, tal como indica
+la fixture; no se mide el coste del almac?n de actividad opt-in. La captura de
+prompts usa texto inventado y no se habilitan res?menes por IA ni red.
+
+Por registro/runtime se conservan las muestras, mediana, p95 interpolado y m?ximo.
+El calentamiento se ejecuta pero se descarta. Un fallo de proceso, timeout o
+aviso de degradaci?n del launcher produce `FALLO`, sin una mediana de ?xito, y
+exit 1. En captura de prompts y SessionEnd se verifica además el registro persistido
+fuera del cronómetro; un no-op silencioso también falla. `linea_base` solo es verdadero para una pasada completa correcta con
+al menos diez muestras por caso. Exit 2 indica argumentos inv?lidos.
+`--runtime codex --hook native-guardrail` permite comparar una mejora concreta;
+`--runs 3` sirve para smoke, y `--tokens-only` calcula solo el inventario textual.
+
+`tokens_fijos` separa descriptions de agentes/skills/comandos e ?ndice de
+SessionStart por runtime, reutilizando el parser y generador de `skill-index.py`
+sin escribir cach?. `tokens_bajo_demanda` cuenta `dev-cycle.md` y
+`knowledge-check.md`. El m?todo es **estimaci?n caracteres/4 con redondeo superior**:
+no utiliza un tokenizador, no mide consumo facturado y no representa todo el
+prompt del runtime. El inventario de piezas y caracteres acompa?a a la estimaci?n.
+
+Para comparar: guardar JSON y Markdown antes y despu?s, usar el mismo equipo,
+fixtures, int?rpretes y carga, y repetir tres pasadas secuenciales. Registrar SO,
+RAM libre observada, fecha y si el c?digo est? en OneDrive. Comparar medianas por
+registro/runtime y declarar la dispersi?n; no atribuir al cambio el ruido de la
+m?quina. Los temporales est?n en el directorio temporal del sistema, no en
+OneDrive. La CI comprueba el contrato con relojes y procesos controlados, sin
+umbrales absolutos de latencia. La l?nea base local no se extrapola a otros equipos.

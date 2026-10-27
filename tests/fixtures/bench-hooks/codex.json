@@ -1,0 +1,80 @@
+{
+  "PreToolUse": {
+    "hook_event_name": "PreToolUse",
+    "session_id": "bench-hooks",
+    "cwd": "${PROJECT}",
+    "transcript_path": "${PROJECT}/missing-transcript.jsonl",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git status --short"
+    },
+    "tool_response": {
+      "exit_code": 0
+    }
+  },
+  "PostToolUse": {
+    "hook_event_name": "PostToolUse",
+    "session_id": "bench-hooks",
+    "cwd": "${PROJECT}",
+    "transcript_path": "${PROJECT}/missing-transcript.jsonl",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "${PROJECT}/docs/roadmap/bench/tasks.md",
+      "content": "benchmark fixture"
+    },
+    "tool_response": {
+      "exit_code": 0
+    }
+  },
+  "PostToolUseFailure": {
+    "hook_event_name": "PostToolUseFailure",
+    "session_id": "bench-hooks",
+    "cwd": "${PROJECT}",
+    "transcript_path": "${PROJECT}/missing-transcript.jsonl",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "${PROJECT}/docs/roadmap/bench/tasks.md",
+      "content": "benchmark fixture"
+    },
+    "tool_response": {
+      "exit_code": 0
+    }
+  },
+  "SubagentStart": {
+    "hook_event_name": "SubagentStart",
+    "session_id": "bench-hooks",
+    "cwd": "${PROJECT}",
+    "transcript_path": "${PROJECT}/missing-transcript.jsonl",
+    "agent_type": "custom-agents-reviewer",
+    "agent_id": "bench-agent"
+  },
+  "SubagentStop": {
+    "hook_event_name": "SubagentStop",
+    "session_id": "bench-hooks",
+    "cwd": "${PROJECT}",
+    "transcript_path": "${PROJECT}/missing-transcript.jsonl",
+    "agent_type": "custom-agents-reviewer",
+    "agent_id": "bench-agent"
+  },
+  "SessionStart": {
+    "hook_event_name": "SessionStart",
+    "session_id": "bench-hooks",
+    "cwd": "${PROJECT}",
+    "transcript_path": "${PROJECT}/missing-transcript.jsonl",
+    "source": "startup"
+  },
+  "SessionEnd": {
+    "hook_event_name": "SessionEnd",
+    "session_id": "bench-hooks",
+    "cwd": "${PROJECT}",
+    "transcript_path": "${PROJECT}/missing-transcript.jsonl",
+    "reason": "other"
+  },
+  "UserPromptSubmit": {
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "bench-hooks",
+    "cwd": "${PROJECT}",
+    "transcript_path": "${PROJECT}/missing-transcript.jsonl",
+    "prompt": "Benchmark fixture, no private user input."
+  }
+}

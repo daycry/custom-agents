@@ -295,3 +295,46 @@ the agent already at work.
 **Automation inventory in `/doctor`.** The «Automatizaciones» section (the `automatizaciones` key of `--json`) lists hooks, the statusline and `.github/workflows/` workflows with source, scope, configuration date, state (`configurado` · `no_configurado` · `no_cargado` · `roto`) and failure signature. `ejecucion` is always `no_verificada`: to know whether a hook really runs, look at its effect (the journal entry, the progress line), not at this table.
 
 **Journal continuity and candidates.** With `journal.py write --enrich`, a session can declare `objetivo`, `punto_actual`, `siguientes_pasos`, `bloqueos` and `descartados` (approaches that already failed, «approach — reason»); when the same session is rewritten, an omitted key keeps its value and an emptied one (`""`, `[]`, `null`) is cleared. `latest` and `select` show them as quotes. `journal.py candidatas` gives each candidate a stable `id` and a lexical `categoria` (`correccion_usuario`, `resolucion_error`, `workaround`, `tecnica_depuracion`, `convencion`, `otra`); `--lote` returns a cursor and a batch id, `--hasta <cursor>` reproduces that batch even when new entries arrive (counted in `posteriores_al_cursor`) and `--confirmar <id>` checks it is the same batch, without marking anything as processed.
+
+## Reproducible hook and token benchmark
+
+`python scripts/bench-hooks.py --runs 10 --warmup 1 --json` produces a structured
+report; `--md` presents the same schema as a table. Each registration in
+`hooks/hooks.json` is exercised with versioned Claude, Codex and OpenCode fixtures,
+calling `hooks/run-hook.mjs --runtime=...` directly without evaluating shell
+command strings. This measures the shared launcher end-to-end, including child
+process startup, rather than proving native event delivery. In particular,
+canonical `PostToolUseFailure` registrations also run with the Codex selector;
+this does not imply that Codex supports that event.
+
+Each iteration uses a fresh temporary project with a minimal ledger. Setup and
+cleanup are outside the timer; `CLAUDE_PROJECT_DIR`, `cwd` and payload paths point
+to that temporary project. The consumer project is not modified. Fixtures measure
+the guard without a protected identity and with activity disabled; they do not
+measure the opt-in activity store. Prompt capture uses invented text, and AI
+summaries and network access are not enabled.
+
+The report retains samples, median, interpolated p95 and maximum per registration
+and runtime. Warmup executes but is discarded. Process errors, timeouts or launcher
+degradation diagnostics produce `FALLO` without successful summary timings, and
+exit 1. Prompt capture and SessionEnd also require the expected persisted record,
+checked outside the timer; a silent no-op is a failure too. `linea_base` is true only for a successful full pass with at least ten
+samples per case. Exit 2 means invalid arguments. Use
+`--runtime codex --hook native-guardrail` for a targeted comparison, `--runs 3`
+for a smoke run, and `--tokens-only` for the text inventory alone.
+
+`tokens_fijos` separates agent/skill/command descriptions and the SessionStart
+index per runtime, reusing the parser and generator in `skill-index.py` without
+writing a cache. `tokens_bajo_demanda` counts `dev-cycle.md` and
+`knowledge-check.md`. The method is **estimated characters/4 rounded up**, not a
+tokenizer, billed usage, or the complete native runtime prompt. Piece counts and
+character counts accompany the estimate.
+
+For comparison, save JSON and Markdown before and after the change, keep the
+machine, fixtures, interpreters and load comparable, and repeat three sequential
+passes. Record OS, observed free RAM, date and whether the code is in OneDrive.
+Compare medians per registration/runtime and disclose dispersion; machine noise
+must not be attributed to the change. Temporary projects live in the system temp
+directory, outside OneDrive. CI tests the contract with controlled clocks and
+processes, without absolute latency thresholds. Local baselines cannot be
+extrapolated to other machines.
