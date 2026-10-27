@@ -142,7 +142,10 @@ def test_paso_9_no_aparece_en_ningun_md_vivo_del_repo(): # gap #19
     )
     ofensivos = []
     for dirpath, dirnames, filenames in os.walk(ROOT):
-        dirnames[:] = [d for d in dirnames if d not in (".git", "node_modules", "__pycache__")]
+        # `scratchpad/`, `_to_delete/` y `.venv/` son locales y no versionados (notas de trabajo en
+        # cualquier codificación, p. ej. UTF-16): no son docs vivos del repo y en CI no existen.
+        dirnames[:] = [d for d in dirnames if d not in (".git", "node_modules", "__pycache__",
+                                                        "scratchpad", "_to_delete", ".venv")]
         if any(dirpath == d or dirpath.startswith(d + os.sep) for d in excluidos_dir):
             continue
         for fn in filenames:
