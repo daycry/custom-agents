@@ -122,7 +122,8 @@ registry. Missing destinations are reported. Ownership grants no permissions
 or overwrite rights.
 
 Discovery does not create the registry, adopt, generate, rebuild or modify
-components; these operations retain their separate specialization plan. It
+components; these operations do not exist in the plugin (cancelled on 2026-10-27,
+see [specialization](SPECIALIZATION.md)). It
 does not run consumer scripts/CLIs, connect servers or resolve environment/file
 placeholders. Private bodies, MCP commands, arguments, URLs, headers, environment
 values and credentials stay excluded, with central redaction before export.

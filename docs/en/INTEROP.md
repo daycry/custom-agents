@@ -394,7 +394,7 @@ Project and user extensions use the shared `project-pieces.py` reader with nativ
 sources and references; it does not convert formats or infer loading, connection
 or permissions. See the [extension guide](PROJECT-EXTENSIONS.md). Pass the current
 runtime and inventory roots to the brief; extension references occupy at most
-1,000 characters within its auxiliary budget. Generation and adoption retain
-the separate project-specialization plan.
+1,000 characters within its auxiliary budget. The plugin does not generate or
+adopt project pieces (cancelled on 2026-10-27, see [specialization](SPECIALIZATION.md)).
 
 The task brief caps design at 1,600 characters, review gaps at 1,600 and verification at 800. It includes the selected design only for matching task paths and links historical execution evidence to the ledger. Current requirements, decision notes and acceptance criteria remain complete. Optional sections share the remaining global budget before persona allocation. If the protected minimum exceeds 10,000 characters, the generator reports its exact size; split the task before delegation. Memory and persona limits and the return contract retain their existing rules.

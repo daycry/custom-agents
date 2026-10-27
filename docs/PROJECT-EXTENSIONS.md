@@ -119,7 +119,8 @@ modificada, no gestionada o desconocida si el registro es inválido. Los destino
 ausentes se señalan. Este estado no concede permisos ni permite sobrescrituras.
 
 El descubrimiento no crea el registro, adopta, genera, reconstruye o modifica
-piezas; esas operaciones mantienen su plan de especialización independiente.
+piezas; esas operaciones no existen en el plugin (se cancelaron el 2026-10-27, ver
+[especialización](SPECIALIZATION.md)).
 Tampoco ejecuta scripts/CLI del consumidor, conecta servidores ni resuelve
 placeholders de entorno o archivos. Omite cuerpos privados, comandos MCP,
 argumentos, URLs, headers, variables y credenciales; aplica la redacción central.

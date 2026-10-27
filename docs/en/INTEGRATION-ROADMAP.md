@@ -35,7 +35,7 @@ The shared reader feeds `/work-context`, ledger selection, brief references and
 the panel's independent filters. It preserves duplicates and displays sources;
 session capabilities must be checked before invocation. It reuses the
 [specialization](SPECIALIZATION.md) O1 contract to validate ownership read-only;
-generation and adoption retain their separate plan.
+generation and adoption were cancelled on 2026-10-27.
 
 Results, the QA report, the retro and the remote verification are in the
 phase 2 ledger. Closure establishes extension recognition and selection; it

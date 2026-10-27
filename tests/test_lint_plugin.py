@@ -496,13 +496,9 @@ def casos_matriz_fila_en_negrita():
 
 def casos_tolerancias_caducadas():
     """58) Una lista de excepciones sin caducidad es la alfombra bajo la que se barre todo: si la
-    pieza PLANIFICADA aparece en el arbol, el linter pide que se quite la tolerancia."""
-    with tempfile.TemporaryDirectory() as tmp:
-        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
-        _escribe(tmp, "commands/specialize.md",
-                 "---\nname: specialize\ndescription: prueba de caducidad de la tolerancia\n---\n\nx\n")
-        code, out = run(tmp)
-        assert "PIEZAS_PLANIFICADAS" in out, f"la tolerancia caducada tiene que avisar\n{out}"
+    ruta RETIRADA reaparece, el linter pide registrar la decisión antes de quitar la tolerancia.
+    (La tolerancia de piezas PLANIFICADAS se retiró el 2026-10-27 al cancelarse la F2 de
+    project-specialization: ya no queda nada planificado que tolerar.)"""
     # Una ruta RETIRADA que reaparece no es solo una tolerancia que sobra: contradice la decisión
     # que la retiró. El aviso nombra esa decisión y pide registrarla ANTES de quitar la tolerancia.
     with tempfile.TemporaryDirectory() as tmp:

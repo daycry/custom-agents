@@ -11,6 +11,12 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Changed — cierre de `catalog-capabilities` y `project-specialization`
+
+- **`catalog-capabilities` cerrada (15/16, T-12 cancelada).** Lo integrado ya salió en 2.0.0; el ledger, la spec y el índice del roadmap lo reflejan ahora, con retro y fila de calibración. La continuidad manual en tres clientes, la UI en Edge y el benchmark de memoria quedan fuera de alcance.
+- **`project-specialization` cerrada solo con F1; F2 cancelada.** `project-extensions` (`project-pieces.py`, `/work-context`) ya lee el registro `.claude/pieces.json` y descubre las piezas de proyecto en los tres runtimes, así que el antiguo comando specialize, la escritura del registro, el escaneo del proyecto, la puerta de colisión y el modo proyecto de `export-interop.py` no se construirán. `docs/SPECIALIZATION.md`, `FLOWS.md` §6d y `ROLES.md` (ES/EN donde hay espejo) describen solo lo que existe.
+- **`lint_plugin.py` retira la tolerancia `PIEZAS_PLANIFICADAS` / `COMANDOS_PLANIFICADOS`**: ya no queda nada planificado que tolerar, así que una doc que cite una pieza inexistente vuelve a avisar.
+
 ### Fixed — citas en el linter del plugin
 
 - **`lint_plugin.py` ya no avisa de `/skills` ni de una ruta de URL como comando inexistente.** `/skills` es nativo de Claude Code y de Codex, y la referencia del adaptador de Kwipu cita entera su URL de salud. El linter vuelve a los 3 avisos de `master`. (`scripts/lint_plugin.py`, `tests/test_lint_plugin.py`, `skills/knowledge-services/references/kwipu-adapter.md`)

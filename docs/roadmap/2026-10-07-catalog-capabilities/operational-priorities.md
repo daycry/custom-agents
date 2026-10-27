@@ -5,6 +5,10 @@ de nuevas skills y centrar el trabajo en hooks, comandos, dashboard y memoria.
 El [ledger](tasks.md) sigue siendo la fuente única de progreso; este documento
 define secuencia y límites, sin cerrar la iniciativa ni reducir su alcance final.
 
+> **Cierre 2026-10-27.** La comparación se completó después de escribir este documento:
+> **293/293** skills evaluadas (T-03) y 110 destinos integrados (T-10; 47 aparcados y cancelados).
+> Las cifras «79/293» de abajo son el estado del 2026-10-08 y se conservan como historia.
+
 ## Skills aplazadas
 
 Se conservan **79/293 evaluadas**, S001–S079; quedan **214**. S080–S082 tienen
