@@ -11,6 +11,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed
+
+- **OpenCode V2 discovery.** Reads nested MCP servers and declared disabled states, plural agents/commands, and both supported skill forms. Preserves V1 overrides and mixed-source conflicts while excluding timeout options and auxiliary skill folders from the inventory.
+
 ### Added
 
 - **Reproducible hook benchmark.** Reports shared-launcher latency by runtime and registration, plus explicitly estimated fixed and on-demand tokens. Versioned fixtures, disposable projects, warmup exclusion and structured failures make before/after comparisons reviewable (`scripts/bench-hooks.py`).

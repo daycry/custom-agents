@@ -11,6 +11,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed
+
+- **Inventario OpenCode V2.** Lee MCP anidados y estados disabled, agents/commands plurales y las dos formas de skill. Conserva overrides V1 y conflictos entre fuentes, sin inventariar timeouts ni marcar auxiliares como skills incompletas.
+
 ### Added
 
 - **Benchmark reproducible de hooks.** Informa de la latencia del launcher compartido por runtime y registro, y estima los tokens fijos y bajo demanda. Las fixtures versionadas, los proyectos temporales, el descarte del calentamiento y los fallos estructurados permiten revisar las comparaciones antes/despu?s (`scripts/bench-hooks.py`).
