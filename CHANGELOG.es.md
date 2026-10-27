@@ -11,6 +11,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+## [2.0.1] - 2026-10-27
+
 ### Changed — cierre de `catalog-capabilities` y `project-specialization`
 
 - **`catalog-capabilities` cerrada (15/16, T-12 cancelada).** Lo integrado ya salió en 2.0.0; el ledger, la spec y el índice del roadmap lo reflejan ahora, con retro y fila de calibración. La continuidad manual en tres clientes, la UI en Edge y el benchmark de memoria quedan fuera de alcance.
@@ -1218,6 +1220,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[2.0.1]: https://github.com/daycry/custom-agents/releases/tag/v2.0.1
 [2.0.0]: https://github.com/daycry/custom-agents/releases/tag/v2.0.0
 [1.22.0]: https://github.com/daycry/custom-agents/releases/tag/v1.22.0
 [1.21.1]: https://github.com/daycry/custom-agents/releases/tag/v1.21.1
