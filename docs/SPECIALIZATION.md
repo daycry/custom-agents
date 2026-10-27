@@ -1,57 +1,50 @@
-# Especialización por proyecto — el tercer bucle
+# Especialización por proyecto
 
 [English](en/SPECIALIZATION.md) · **Español**
 
-Este documento es la **única puerta de entrada** del tercer bucle del plugin, hermana de
-[`INTEROP.md`](INTEROP.md) y [`observability.md`](observability.md): el plugin sabe **cómo** trabajar
-y no sabe **dónde** está trabajando. El tercer bucle cierra ese hueco con la misma gramática que ya
-tienen el ciclo (`tasks.md`) y la memoria (`docs/knowledge/README.md`): un **registro canónico**, una
-**puerta de entrada** y una **puerta de cierre**.
+El plugin sabe **cómo** trabajar, pero no **dónde** está trabajando. Este documento explica cómo un
+proyecto le enseña su dominio: con **personas de proyecto**, que se inyectan en el brief de cada
+subagente, y con sus **piezas propias** (skills, agentes, comandos, tools, MCP), que el plugin
+descubre en las carpetas nativas de cada runtime.
 
-> **Alcance de esta iteración: F1 + F2.** Ver «El límite de esta iteración» al final. La spec completa
-> vive en `docs/roadmap/2026-09-09-project-specialization/spec.md` (`aprobada`).
->
-> **Lo entregado hoy en este árbol es F1** (`tasks.md` T-01…T-03): la cascada de tres escalones de
-> `task-brief.py` y esta misma puerta documental. **El registro canónico, `/specialize`,
-> `pieces-registry.py`, `role-collision.py`, `project-scan.py`, `.claude/pieces.json` y la sección de
-> `/doctor`** que describen «El registro canónico», «La escalera de decisión» y «Las dos puertas» de
-> más abajo son el **contrato de F2** (`design.md` `ADR-014`, `tasks.md` T-04…T-18): están diseñados y
-> planificados, **no en el árbol todavía**. Mismo patrón que `docs/agents/ROLES.md` con `/specialize`.
+> **Estado (2026-10-27).** La iniciativa `docs/roadmap/2026-09-09-project-specialization/` se cerró
+> con **F1 entregada**: la cascada de personas y este documento. **F2 se canceló**: el comando
+> *specialize*, la escritura del registro, el escaneo del proyecto, la puerta de colisión y el modo
+> proyecto de `export-interop.py` no existen y no están planificados. La superó
+> [extensiones propias](PROJECT-EXTENSIONS.md): `project-pieces.py` y `/work-context` ya descubren,
+> seleccionan y pasan al brief las piezas que el proyecto escribe a mano. Motivo: la enmienda del
+> 2026-10-27 en la spec de la iniciativa.
 
-El lector de [extensiones propias](PROJECT-EXTENSIONS.md) reconoce las piezas
-existentes y valida un registro O1 aportado por el proyecto en modo lectura.
-Ese inventario derivado no entrega la generación, adopción, reconstrucción ni
-las puertas de escritura de F2; su estado se sigue en el ledger independiente.
+## Personas de proyecto (la cascada)
 
-## Qué es el bucle
+Una tarea del ledger puede llevar `- **Tipo**: <tipo>` (campo opcional; sin él, subagente genérico).
+`agent-kits/shared/task-brief.py` resuelve la persona de ese tipo con tres escalones, del más
+específico al más general:
 
-```
-Memoria ──lee──▶ Especialización ──alimenta──▶ Ciclo
-Ciclo ──/retro: servicio propose──▶ pending + SHA ──juicio──▶ Curator
-Curator ──servicio apply ligado SHA──▶ Memoria
-```
+1. **`.claude/personas/<tipo>.md` del proyecto.** Gana siempre: es el dominio de ESTE proyecto.
+2. **Catálogo del plugin** (`agent-kits/shared/personas/`, o el que fije `--personas-dir`).
+3. **Ninguno.** El brief sale sin sección de persona, con un aviso por stderr y exit 0. Nunca bloquea.
 
-`docs/knowledge/` (ADR, gotchas, lecciones, journal) alimenta `/specialize`, que produce **piezas de
-proyecto** — personas, tools, skills o agentes que viven en el `.claude/` del consumidor y saben de SU
-dominio. Esas piezas entran en el ciclo (`task-brief.py` inyecta la persona en el brief de las tareas
-que llevan `- **Tipo**: <tipo>` — el campo es opcional; sin él, subagente genérico). `/retro`
-propone evidencia por `agent-kits/shared/knowledge-curation.py`; repetir no aprueba conocimiento.
-Curator juzga y el servicio persiste con SHA original, motivo y metadatos válidos. Dos términos
-distintos, para no confundirlos:
+No hay lista blanca de tipos: cualquier `<tipo>` con fichero en uno de los dos primeros escalones
+funciona sin tocar código. Una persona escrita a mano ya rinde. Basta con un perfil de dominio de
+unas diez líneas en `.claude/personas/<tipo>.md`.
 
-- **Pieza de plugin** — agente, skill, comando, kit o hook que vive en este repo y viaja con el
-  plugin. Agnóstica de dominio por diseño.
-- **Pieza de proyecto** — persona, tool, skill o agente que vive en el `.claude/` del consumidor, sabe
-  de SU dominio y solo existe ahí. Es lo que este bucle permite tener.
+Las personas son un mecanismo del **brief**. Codex y OpenCode no cargan `personas/` de forma nativa:
+les llegan dentro del brief que reciben sus subagentes, no como agente propio
+(ver [`INTEROP.md`](INTEROP.md)).
 
-## El registro canónico
+## Piezas propias del proyecto
 
-`.claude/pieces.json` es una fila por pieza **generada** o **adoptada**. Lo escrito a mano y nunca
-adoptado sigue siendo ciudadano de primera: aparece como `no gestionada`, que es un estado válido, no
-un error.
+Las skills, agentes, comandos, fuentes de tools y MCP del proyecto se escriben a mano, en la carpeta
+nativa de cada runtime. El plugin las reconoce sin convertirlas ni ejecutarlas. Cómo crearlas, dónde
+van y cómo las usa el ciclo: [`PROJECT-EXTENSIONS.md`](PROJECT-EXTENSIONS.md).
 
-El esquema es la opción **O1** del diseño (`ADR-014`): la **pieza es la raíz**, y sus destinos —el
-canónico de Claude Code más las variantes de cada runtime— van **anidados dentro**, nunca al revés.
+## El registro de propiedad (`.claude/pieces.json`, solo lectura)
+
+Un proyecto **puede** aportar un registro que declare qué piezas son suyas y con qué hash quedaron.
+El plugin lo **lee** y **valida**, pero **no lo escribe**. Lo valida `_registry_entries()` de
+`agent-kits/shared/project-pieces.py`. El esquema es la opción O1 (`ADR-014`): la **pieza es la
+raíz** y sus destinos van anidados dentro.
 
 ```json
 {
@@ -62,86 +55,41 @@ canónico de Claude Code más las variantes de cada runtime— van **anidados de
       "nombre": "hooks",
       "forma": "persona",
       "area": "hooks",
-      "origen": "generada",
+      "origen": "adoptada",
       "creada": "2026-09-09",
-      "evidencia": ["hooks/session-end.sh:12", "GOT-005"],
+      "evidencia": ["hooks/session-end.sh:12"],
       "confirmaciones": { "tools": [], "arbol_plugin": null, "tope": null },
       "destinos": [
-        { "runtime": "claude-code", "ruta": ".claude/personas/hooks.md", "canonica": true,  "hash": "sha256:ab12…" },
-        { "runtime": "codex",       "ruta": ".codex/agents/hooks.toml",  "canonica": false, "hash": "sha256:cd34…" }
+        { "runtime": "claude-code", "ruta": ".claude/personas/hooks.md", "canonica": true, "hash": "sha256:ab12…" }
       ]
     }
   ]
 }
 ```
 
-`runtime` es un **dato** de cada destino, nunca una clave del esquema: un cuarto proveedor es una fila
-más, no una migración. El estado de una fila **no se persiste**: se deriva comparando el hash del
-disco con el hash anotado, en cada lectura.
-
-Los tres estados de una fila (por hash, no por carpeta — `GOT-003`):
+`runtime` es un **dato** de cada destino, no una clave del esquema. El estado de cada pieza no se
+guarda en el registro: se deriva en cada lectura, comparando el hash del disco (con finales de línea
+normalizados a LF) con el anotado.
 
 | Estado | Cuándo |
 |---|---|
-| `gestionada` | El hash del fichero en disco coincide con el hash anotado en su fila |
-| `modificada` | El hash en disco es distinto del anotado (se editó a mano tras generarse, o se adoptó sin línea base). Nunca se pisa: se muestra el diff y se pide confirmación explícita |
-| `no gestionada` | No tiene fila. Es un estado válido, no un error; puede **adoptarse** con `--adopt` |
+| gestionada | El hash en disco coincide con el anotado |
+| modificada | El hash en disco difiere del anotado |
+| no gestionada | La pieza no tiene fila. Es un estado válido, no un error |
 
-## La escalera de decisión
+Un proyecto sin registro funciona igual: todas sus piezas aparecen como no gestionadas. Un registro
+corrupto da un aviso y nunca bloquea. El panel (`/plugin-catalog`) muestra la propiedad de cada pieza.
 
-Del escalón más barato al más caro. `/specialize` empieza siempre por «nada»: duplicar una pieza que
-ya existe se rechaza, nunca se genera.
+## Memoria: el plugin lee, el curador decide
 
-```
-nada → persona → tool → skill → agente
-```
+La especialización **lee** `docs/knowledge/` (ADR, gotchas, lecciones) como indicio y nunca escribe
+en él. El conocimiento nuevo se propone por el servicio compartido
+(`agent-kits/shared/knowledge-curation.py`) y lo aprueba solo `knowledge-curator`
+(`docs/agents/ROLES.md`).
 
-- **nada** — el candidato duplica una pieza instalada o ya generada: se rechaza nombrando la que ya
-  lo cubre (`role-collision.py`).
-- **persona** — perfil de dominio de ~10 líneas; es el escalón por defecto.
-- **tool / skill / agente** — se suben solo cuando la evidencia lo justifica; **agente** es el último
-  recurso, con **override explícito del usuario**.
+## Lo que queda fuera
 
-## Las dos puertas
-
-`/specialize` nunca escribe sin que un humano lo confirme, y separa la **previsualización** de la
-**confirmación**:
-
-1. **`--dry-run`/`--plan`** — previsualiza el **lote completo** de candidatos (forma, evidencia,
-   resultado de la puerta de colisión) y **no crea ningún fichero ni fila**.
-2. **N confirmaciones para N candidatos** — sin `--dry-run`, se pide una confirmación explícita por
-   cada candidato, en el orden previsualizado. Confirmar uno no aprueba los demás; rehusar uno solo
-   omite ese; si no se confirma ninguno, no se escribe nada y la salida es limpia (exit 0).
-
-El **tope de piezas generadas es 5, acumulado en el registro completo del proyecto**, no por
-invocación (motivo: el presupuesto medido de `skill-index.py`, `LIMITE_LINEAS = 45` /
-`LIMITE_CHARS = 3500`, que es el que fija cuánto cabe en el índice de arranque). Superarlo dispara
-aviso y confirmación extra, nunca un fallo silencioso.
-
-## El invariante de dirección
-
-**`/specialize` lee `docs/knowledge/` y NUNCA escribe en él.** Consume ADR, gotchas, lecciones y las
-candidatas del journal como indicios; produce piezas según el contrato de F2. Conocimiento nuevo
-se propone por el servicio compartido; `knowledge-curator` decide y solicita persistencia por
-`apply_decision`, no `/retro` ni `adversarial-review`. Design/revisión/QA/Gold/repetición aportan
-evidencia, no aprobación. Retro posterior al Gate entrega handoff o ruta/ID pendientes visibles.
-Legado mantiene bytes/estados/autoridad sin migración, reaprobación o borrado automáticos;
-conflictos/alto impacto requieren resolución humana trazada, no fecha/score. El tercer bucle
-no escribe ni aprueba memoria (`docs/agents/ROLES.md`).
-
-El servicio de curación no entrega F2 ni demuestra actor autenticado o sandbox universal.
-Intención, publicación y recibo son fronteras recuperables, no una transacción multiarchivo
-atómica; aceptación nativa pendiente. [Contrato de curación](roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).
-
-## El límite de esta iteración
-
-El alcance planificado de esta iteración cubre **F1 (Sustrato) y F2 (Nacimiento)**: la cascada de personas, el comando
-`/specialize`, el registro con sus tres estados, el modo de adopción, los requisitos no funcionales
-(idempotencia, concurrencia, privacidad) y la propia sección de `/doctor` que audita el registro — no
-se entrega la capacidad de generar sin la de comprobar.
-
-**F3 (deriva semántica y retirada de piezas muertas) queda diferida, no descartada.** El contrato de
-F2 exige su propia auditoría mecánica (`/doctor`); F2 sigue sin implementarse en este árbol.
-F3 se retoma como iniciativa propia cuando haya datos del criterio de éxito. Detalle completo,
-motivo y punto de control: `docs/roadmap/2026-09-09-project-specialization/spec.md`, sección
-**«Alcance» → «Fuera (esta iteración — diferido, no descartado)»**.
+- **Generar o adoptar piezas** (el antiguo *specialize*): cancelado. Si se retoma la idea de que el
+  plugin **proponga** piezas a partir de evidencia del repo, será una iniciativa nueva sobre
+  `project-pieces.py`, con sus scripts en `agent-kits/shared/`, para que viajen con el plugin.
+- **Deriva semántica y retirada de piezas muertas** (la antigua F3): sin plan.

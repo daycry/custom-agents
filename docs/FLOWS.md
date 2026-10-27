@@ -589,42 +589,36 @@ sus asignaciones y scripts quedan fuera de la gramática literal. No es
 un sandbox; configurar
 `{"guardrails": {"git": false}}` en `.claude/dev.json` desactiva la regla.
 
-## 6d · El tercer bucle — especialización por proyecto (`/specialize`, opt-in)
+## 6d · Especialización por proyecto — personas y piezas propias
 
-> El plugin sabe **cómo** trabajar y no sabe **dónde** está trabajando. `/specialize` cierra ese hueco
-> con la misma gramática que ya tienen el ciclo (`tasks.md`) y la memoria
-> (`docs/knowledge/README.md`): registro canónico + puerta de entrada + puerta de cierre. Detalle
-> completo: [`SPECIALIZATION.md`](SPECIALIZATION.md). **Invariante de dirección**: `/specialize`
-> **lee** `docs/knowledge/` y **nunca escribe** en él — el conocimiento nuevo se propone por
-> el servicio compartido y lo juzga Curator; especialización no lo aprueba. Esta
-> iteración cubre F1 (sustrato, **entregado**: cascada de personas de `task-brief.py`) y F2
-> (nacimiento, **contrato de diseño, aún no en el árbol**); F3 (deriva semántica) queda diferida,
-> no descartada.
+> El plugin sabe **cómo** trabajar y no sabe **dónde**. El proyecto se lo enseña de dos formas:
+> **personas** (`.claude/personas/<tipo>.md`), que `task-brief.py` inyecta en el brief de las
+> tareas con `- **Tipo**:`, y **piezas propias** escritas a mano en las carpetas nativas de cada
+> runtime, que `project-pieces.py` descubre y `/work-context` selecciona. La especialización
+> **lee** `docs/knowledge/` y **nunca escribe** en él. El antiguo *specialize* (generar y adoptar
+> piezas) se canceló el 2026-10-27. Detalle: [`SPECIALIZATION.md`](SPECIALIZATION.md) ·
+> [`PROJECT-EXTENSIONS.md`](PROJECT-EXTENSIONS.md).
 
 ```mermaid
 flowchart LR
   subgraph MEM["🧠 Memoria — qué sabe el proyecto"]
     K["docs/knowledge/<br/>ADR · gotchas · lecciones · approved"]
-    J["journal/<br/>episódico"]
   end
   subgraph ESP["🧬 Especialización — cómo se comporta aquí"]
-    SP["/specialize<br/>evidencia → escalera → colisión → puerta humana"]
-    REG[".claude/pieces.json<br/>registro canónico"]
-    PZ[".claude/personas · skills · tools · agents"]
+    PE[".claude/personas/&lt;tipo&gt;.md<br/>(cascada: proyecto → catálogo → ninguna)"]
+    PZ["piezas propias por runtime<br/>skills · agents · commands · MCP"]
+    REG[".claude/pieces.json<br/>registro opcional, solo lectura"]
+    INV["project-pieces.py · /work-context"]
   end
   subgraph CIC["⚙️ Ciclo — qué se construye"]
     T["tasks.md<br/>ledger canónico"]
-    CAL["CALIBRATION.md"]
   end
-  K -->|"knowledge-find.py"| SP
-  J -.->|"journal.py candidatas"| SP
-  CAL -.->|"área que desvía siempre"| SP
-  SP --> REG --> PZ
-  PZ -->|"task-brief.py inyecta persona"| T
-  T --> CAL
-  CAL -.->|"/retro: servicio propose"| CP["candidato pending · ruta/SHA<br/>juicio de Curator"]
-  CP -->|"approve + servicio apply"| K
-  REG -.->|"/doctor: salud por fila"| SP
+  PZ --> INV
+  REG -.->|"propiedad por hash"| INV
+  INV -->|"referencias en el brief"| T
+  PE -->|"task-brief.py inyecta persona"| T
+  K -.->|"knowledge-find.py: indicios"| T
+  T -.->|"/retro: servicio propose → Curator"| K
 ```
 
 ## 7 · Configuración (una pasada con `/setup`)

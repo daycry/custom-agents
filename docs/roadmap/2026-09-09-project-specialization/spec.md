@@ -8,9 +8,9 @@ descripcion: >
   gestionada/modificada), modo de adopción, y piezas de proyecto multi-runtime delegadas en
   `export-interop.py --root`. F3 (deriva semántica + «Cuándo aplica») queda diferida a una iteración
   posterior. Fuente única del alcance: `analysis.md` de esta carpeta.
-estado: aprobada
+estado: implementada      # cierre 2026-10-27 · enmienda 2026-10-27: alcance reducido a F1; F2 cancelada (ver §Enmienda)
 creado: 2026-09-09
-actualizado: 2026-09-09
+actualizado: 2026-10-27
 evaluacion: evaluation.md
 design: design.md
 plan: improvement-plan.md
@@ -442,3 +442,7 @@ nueva, delegada en `export-interop.py --root` sin que `/specialize` sepa de runt
 - **Horas humanas sin muestra validada.** Ninguna fila de `CALIBRATION.md` tiene horas humanas reales
   (aprendizaje 2): las horas humanas de la evaluación son estimación no calibrada. No cambia con esta
   reescritura; lo hereda el `evaluator` al rehacer `evaluation.md`.
+
+## Enmienda 2026-10-27 — alcance reducido a F1
+
+Por decisión del usuario tras una auditoría del estado de `master` (v2.0.0), la iniciativa se cierra con **F1 entregada**: la cascada de personas de proyecto en `task-brief.py` y `docs/SPECIALIZATION.md`. **F2 (nacimiento) queda cancelada** porque la superó `2026-10-06-project-extensions`: `project-pieces.py` lee el registro O1 y `/work-context` descubre y transfiere las piezas propias en los tres runtimes. Los criterios de F2 (`/specialize`, escritura del registro, `project-scan.py`, `role-collision.py`, sección de `/doctor`, modo proyecto de `export-interop.py`) **no se cumplen y no se van a cumplir con este plan**. Si se retoma la idea de que el plugin proponga piezas, será una iniciativa nueva sobre `project-pieces.py`, con los scripts en `agent-kits/shared/`.

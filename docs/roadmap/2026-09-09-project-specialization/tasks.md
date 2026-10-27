@@ -1,8 +1,8 @@
 ---
 tasks: project-specialization
-estado: en-progreso       # borrador | en-progreso | completado | cancelado — F1 (T-01…T-03) completada e integrada en master; F2/F3 pendientes de puerta
+estado: completado       # borrador | en-progreso | completado | cancelado — cerrada 2026-10-27: F1 entregada, F2 cancelada (superada por project-extensions), F3 recortada a F1
 creado: 2026-09-09
-actualizado: 2026-09-10
+actualizado: 2026-10-27
 generacion:            # ventana compartida con improvement-plan.md
   inicio: 2026-09-09T10:53:07Z
   fin: 2026-09-09T11:13:04Z
@@ -36,9 +36,9 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Sustrato | 3 | 3 | 100% | 0 / 6,0h | 1,30 (est.) / 0,46h | 0,33 (est.) / 0,11h | 220k (est.) / 220k |
-| Fase 2 — Nacimiento | 0 | 16 | 0% | 0 / 31,0h | 0 / 2,41h | 0 / 0,60h | 0 / 1.153k |
-| Fase 3 — Revisión, corrección y cierre | 0 | 3 | 0% | 0 / 10,0h | 0 / 1,10h | 0 / 0,27h | 0 / 525k |
-| **TOTAL** | **3** | **22** | **14%** | **0 / 47,0h** | **1,30 (est.) / 3,96h** | **0,33 (est.) / 0,99h** | **220k (est.) / 1.898k** |
+| Fase 2 — Nacimiento | 0 | 16 | cancelada | 0 / 31,0h | 0 / 2,41h | 0 / 0,60h | 0 / 1.153k |
+| Fase 3 — Revisión, corrección y cierre | 3 | 3 | 100% | 0 / 10,0h | 0 / 1,10h | 0 / 0,27h | 0 / 525k |
+| **TOTAL** | **6** | **22** | **6 completadas · 16 canceladas** | **0 / 47,0h** | **1,30 (est.) / 3,96h** | **0,33 (est.) / 0,99h** | **220k (est.) / 1.898k** |
 
 > **Horas → Jira.** No aplica en esta iniciativa: `.claude/jira.json` no está configurado, así que no hay volcado de tareas ni worklog. Si se configura más adelante, el worklog es **Tiempo IA (ejec.) + Supervisión** topado a la jornada (ver `skills/jira-sync/SKILL.md`).
 
@@ -156,7 +156,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 2 — Nacimiento (C-10, C-03, C-04, C-05, C-07, C-06, C-11)
 
-**Estado**: borrador · **Estimado**: 31,0h · **Real**: — · **Coste est.**: 1.560,24 € · **Tokens est.**: 1.153k
+**Estado**: cancelado · **Estimado**: 31,0h · **Real**: — · **Coste est.**: 1.560,24 € · **Tokens est.**: 1.153k
 
 > Orden de la evaluación, que es el del grafo: **C-10 → C-03 → C-04 → C-05 → C-07 → C-06 → C-11**. C-10 abre la fase porque es la **raíz sin dependencias** que fija el esquema con tests; C-05 y C-06 la consumen (condición (a) del go). La fase **no se entrega sin su propia auditoría mecánica** (`/doctor`, C-06): no se da la capacidad de generar sin la de comprobar.
 
@@ -164,7 +164,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: crear `agent-kits/shared/pieces-registry.py` con la forma **O1** del diseño (`piezas[]` con `destinos[{runtime, ruta, hash}]`, `version` y `hash_version` en cabecera), el hash `sha256` sobre los bytes del fichero completo con `\r\n`→`\n` normalizado, el índice invertido ruta→destino, y los subcomandos de **solo lectura**: `estado <ruta>…`, `dueno <ruta>`, `listar [--json]` y `tope`. El estado **no se persiste**: se deriva del hash en cada lectura.
 - **Changelog**: El proyecto tiene un registro de piezas de especialización, `.claude/pieces.json`, con un script que dice de quién es cada fichero y si sigue igual que cuando se generó.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cubierta en su parte de lectura por `agent-kits/shared/project-pieces.py` (`_registry_entries()`, `Inventory.load_registry()`; tests en `tests/test_project_pieces.py`). Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 2,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,17h · real —
 - **Supervisión**: est. 0,04h (≈25 % IA) · real —
@@ -202,7 +203,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: completar `pieces-registry.py` con los caminos que escriben: `registrar`, `adopt`, `auditar` y `--reconstruir`. Dos promesas con **dos mecanismos** y **dos tests separados**: `temp + os.replace` para que el JSON nunca quede a medias (precedente `usage-meter.py:_save_state`) y `.lock` hermano para serializar el leer-modificar-escribir. Idempotencia **por bytes** con serialización canónica. La lectura no toma cerrojo.
 - **Changelog**: Registrar o adoptar una pieza es seguro con varias personas trabajando: el registro nunca queda a medias, dos escrituras a la vez no se pisan, y volver a ejecutar sin cambios no toca el fichero.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 2,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,16h · real —
 - **Supervisión**: est. 0,04h (≈25 % IA) · real —
@@ -242,7 +244,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: documentar el registro donde el repo documenta la config: **dos filas** en la tabla de la regla 9 de `docs/CONVENTIONS.md` (`pieces.json` config comiteada / `pieces-state.json` estado ignorado), con su **espejo en `docs/en/CONVENTIONS.md`**; nota en la regla 3 distinguiendo pieza de plugin de pieza de proyecto; y `pieces-state.json` + `pieces.json.lock` fuera del control de versiones (`.gitignore` del repo y siembra de `.claude/.gitignore` en el consumidor, patrón `journal.py:209-219`).
 - **Changelog**: Las convenciones del proyecto explican que `pieces.json` se comitea y se comparte con el equipo mientras `pieces-state.json` y el fichero de cerrojo quedan fuera de git.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 1,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,07h · real —
 - **Supervisión**: est. 0,02h (≈25 % IA) · real —
@@ -278,7 +281,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: crear `scripts/project-scan.py` como **compositor**, no como escáner: invoca `deps-inventory.py` (stack y manifiestos), `code-health.py` (hotspots), `coverage-gate.py` (stack de test) y `knowledge-find.py --json` (áreas de memoria), y emite candidatos donde cada uno cita evidencia válida en **cualquiera** de las dos formas: `fichero:línea` del escaneo **o** el ID de una entrada de memoria. Sin evidencia no se propone: regla dura, no aviso.
 - **Changelog**: Un escaneo del proyecto propone piezas de especialización solo cuando puede citar la línea de código o la entrada de memoria en la que se apoya.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 3,5h · real —
 - **Tiempo IA (ejec.)**: est. 0,27h · real —
 - **Supervisión**: est. 0,07h (≈25 % IA) · real —
@@ -313,7 +317,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: cerrar los cuatro caminos de degradación independientes (sin `git`, sin gestor de paquetes en PATH, sin stack de test, `docs/knowledge/` vacío o inexistente) —cada uno omite **su** dimensión con aviso, exit 0 y **sin inventar dato**— y la privacidad: todo lo citado pasa por `redactar()` y nunca se cita nada bajo `docs/security-scan/`. Estrena en la suite el patrón de **segundo árbol fixture** sin memoria.
 - **Changelog**: El escaneo funciona en un proyecto sin git, sin gestor de paquetes o sin memoria técnica: omite esa parte, lo dice, y nunca cita un secreto ni un informe de seguridad.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 2,5h · real —
 - **Tiempo IA (ejec.)**: est. 0,18h · real —
 - **Supervisión**: est. 0,04h (≈25 % IA) · real —
@@ -346,7 +351,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: crear `scripts/role-collision.py`, la puerta que salva `ADR-011`. Generaliza la heurística que `lint_plugin.py` ya aplica al plugin (dos piezas con el mismo disparador literal entrecomillado → aviso) comparando el candidato contra las piezas **realmente instaladas** (hoy 9 agentes, 17 skills, 12 comandos, resueltas con el `find` de la regla 5) **y** contra las filas de `.claude/pieces.json`. Rechaza por nombre `test-writer`, `code-reviewer`, `security-auditor` y `doc-writer`.
 - **Changelog**: Antes de crear una pieza nueva, el proyecto comprueba que no duplique una que ya existe y la rechaza nombrando la que ya cubre ese trabajo.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 2,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,16h · real —
 - **Supervisión**: est. 0,04h (≈25 % IA) · real —
@@ -380,7 +386,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: cerrar el contrato de salida para que `/specialize` lo consuma **sin parsear prosa**: exit 0 si no hay colisión, exit 1 si la hay, y por cada colisión **una línea** con el formato exacto `pieza instalada · disparador que choca · motivo`. El test **parsea la salida por el formato** y afirma **ambos** exit codes.
 - **Changelog**: La puerta de colisión tiene un contrato fijo —cero si no hay choque, uno si lo hay, y una línea por colisión— para que otras piezas la usen sin interpretar texto.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 1,5h · real —
 - **Tiempo IA (ejec.)**: est. 0,12h · real —
 - **Supervisión**: est. 0,03h (≈25 % IA) · real —
@@ -413,7 +420,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: crear el comando. Secuencia —**no calcula**— el escaneo (`project-scan.py`), la escalera de decisión (nada → persona → tool → skill → agente) y la puerta de colisión (`role-collision.py`), y delega toda escritura en `pieces-registry.py`. Incluye el manejo de errores del registro: ante exit 2 (corrupto) dice el arreglo y **ofrece `--reconstruir` tras confirmación humana explícita**, nunca automático.
 - **Changelog**: El comando `/specialize <área>` propone piezas de especialización para el proyecto, eligiendo siempre la forma más barata que resuelva el caso y rechazando lo que ya tiene dueño.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 2,5h · real —
 - **Tiempo IA (ejec.)**: est. 0,19h · real —
 - **Supervisión**: est. 0,05h (≈25 % IA) · real —
@@ -449,7 +457,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: implementar las dos puertas **separables** con su mecánica en el script, no en la prosa: `--dry-run`/`--plan` previsualiza el **lote completo** (forma, evidencia y resultado de la colisión de cada candidato) y **no escribe nada**; sin el flag se piden **exactamente N confirmaciones, una por candidato**, en el orden previsualizado. Incluye el tope de 5 **acumulado en el registro** y la confirmación **extra** cuando el destino es el árbol desplegado del propio plugin.
 - **Changelog**: Antes de crear nada se ve el lote entero sin que se escriba un solo fichero, y luego se confirma pieza a pieza: rechazar una omite solo esa.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 2,5h · real —
 - **Tiempo IA (ejec.)**: est. 0,19h · real —
 - **Supervisión**: est. 0,05h (≈25 % IA) · real —
@@ -484,7 +493,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: cerrar C-05 por sus cuatro extremos: `tools` mínimos por forma con la distinción **estático** (19a) / **comportamiento** (19b); validación de lo generado con las herramientas **existentes** (`lint_plugin.py --root`, `evals/check.py --root` — no se crea linter nuevo); el caso de eval del comando con ≥ 2 positivos y 1 negativo; y el paso nuevo de `/setup` que ofrece `/specialize` y pregunta `especializacion.topePiezas`.
 - **Changelog**: Una pieza generada nace con los permisos mínimos, se valida con el linter y los evals que ya existen, y `/setup` pregunta cuántas piezas como máximo quieres en el proyecto.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 2,5h · real —
 - **Tiempo IA (ejec.)**: est. 0,16h · real —
 - **Supervisión**: est. 0,04h (≈25 % IA) · real —
@@ -522,7 +532,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: la `description` de `plugin-dev` promete hoy literalmente «crea un agente/skill/comando nuevo», que es **exactamente** el disparador de `/specialize`. Se reescribe para que sus disparadores digan **«de ESTE plugin»**, se añaden **negativos cruzados** en las evals de ambas piezas («crea un agente para el plugin» como negativo de `/specialize`, y el recíproco en `plugin-dev`), y las dos ganan fila «qué NO hace» apuntándose mutuamente.
 - **Changelog**: Pedir «crea un agente» ya no es ambiguo: `plugin-dev` se ocupa de las piezas del plugin y `/specialize` de las piezas del proyecto, y cada una dice explícitamente qué no hace.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 1,5h · real —
 - **Tiempo IA (ejec.)**: est. 0,11h · real —
 - **Supervisión**: est. 0,03h (≈25 % IA) · real —
@@ -558,7 +569,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: `agent-kits/shared/doctor.py` (1.084 líneas, con `test_doctor.py` ya en pie) gana una sección que consume `pieces-registry.py listar --json` y `auditar` y emite **una línea por fila** del registro: ✅ `gestionada` / ⚠️ `modificada` con su arreglo («revisa el diff y confirma») / ❌ fila sin fichero. Las piezas escritas a mano sin fila salen como **«no gestionada»**, que es un estado **válido** y **no** cuenta como error: ofrece adopción. Ante un registro corrupto **nombra** `--reconstruir` y no lo ejecuta.
 - **Changelog**: `/doctor` audita las piezas de especialización del proyecto con una línea por pieza, distinguiendo las que siguen igual, las editadas a mano y las escritas a mano sin registrar.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 2,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,17h · real —
 - **Supervisión**: est. 0,04h (≈25 % IA) · real —
@@ -593,7 +605,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: el test que sostiene la auditoría, con el patrón de `tests/test_knowledge_index.py`: fila sin fichero y fichero sin fila salen ⚠️; fichero con hash distinto del anotado sale **`modificada`**, nunca ⚠️ genérico. Con su **mutante de hash** además del mutante de fila. Y el criterio explícito que distingue «no hay registro» de «el registro está sano», para que la sección no dé falsa seguridad con cero filas.
 - **Changelog**: La auditoría del registro no puede quedarse verde por accidente: un fichero editado a mano, una fila sin fichero o un registro vacío se distinguen y se reportan cada uno como lo que es.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 1,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,09h · real —
 - **Supervisión**: est. 0,02h (≈25 % IA) · real —
@@ -626,7 +639,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: `export-interop.py` (531 líneas) aprende el **modo proyecto** con un flag explícito `--project`: plan de salida `.codex/…` + `.opencode/…` en lugar de `interop/` + `.codex-plugin/`, y tolerancia a manifiestos y hooks ausentes (un `.claude/` de consumidor no tiene `.claude-plugin/plugin.json` ni `marketplace.json`). **Sin** el flag, `--root` sobre un árbol de proyecto sigue saliendo con **exit 1**: ese es el test que impide la regresión de la inferencia.
 - **Changelog**: `export-interop.py --project` traduce las piezas de un proyecto a Codex y OpenCode con el mismo mecanismo con el que el plugin se traduce a sí mismo, sin que el comando de especialización sepa de runtimes.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 2,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,15h · real —
 - **Supervisión**: est. 0,04h (≈25 % IA) · real —
@@ -662,7 +676,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: `tests/test_export_interop.py` tiene hoy **245 líneas y 17 tests, todos sobre el árbol real del repo y ni un `tmp_path`**: un caso sobre árbol de proyecto **estrena el patrón de fixture** en esa suite. Se añaden los casos de `--project` (variantes generadas en `.codex/`/`.opencode/`), el de `--root` sin flag (exit 1) y el de `--check` **detectando la desincronización** de una variante.
 - **Changelog**: La suite de interoperabilidad prueba el modo proyecto sobre un árbol temporal, incluida la detección de una variante que quedó desincronizada.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 1,5h · real —
 - **Tiempo IA (ejec.)**: est. 0,12h · real —
 - **Supervisión**: est. 0,03h (≈25 % IA) · real —
@@ -695,7 +710,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: cerrar C-11 por sus dos extremos que faltan: que `export-interop.py` **registre** cada ruta que escribe con su `runtime` y su propio hash (una entrada `destinos[]` por variante, dentro de la pieza — forma O1), y la **fila nueva** en la tabla de degradación de `docs/INTEROP.md` §4 (+ espejo EN) con el **límite honesto** escrito.
 - **Changelog**: El registro anota cada variante escrita para otro runtime con su propia ruta y hash, y la documentación de interoperabilidad dice con claridad qué se pierde fuera de Claude Code.
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Cancelada (2026-10-27, decisión del usuario tras auditoría): la Fase 2 queda superada por `2026-10-06-project-extensions` — `agent-kits/shared/project-pieces.py` ya lee el registro O1 `.claude/pieces.json` (hash LF, estados gestionada/modificada/no gestionada) y `/work-context` descubre y transfiere piezas de proyecto en los tres runtimes. El plan de 2026-09-10 ya no encaja: scripts en `scripts/` (no viaja con el plugin), modo `--project` de `export-interop.py` incompatible con las carpetas nativas por runtime. Si se quiere que el plugin proponga piezas, iniciativa nueva sobre `project-pieces.py`.
 - **Tiempo humano**: est. 1,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,08h · real —
 - **Supervisión**: est. 0,02h (≈25 % IA) · real —
@@ -726,7 +742,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 3 — Revisión, corrección y cierre
 
-**Estado**: borrador · **Estimado**: 10,0h · **Real**: — · **Coste est.**: 504,35 € · **Tokens est.**: 525k
+**Estado**: completado · **Estimado**: 10,0h · **Real**: — · **Coste est.**: 504,35 € · **Tokens est.**: 525k
 
 > Las dos **líneas de proceso** que `CALIBRATION.md` obliga a presupuestar aparte (`LES-008`) y que la **condición (c)** del go prohíbe recortar para financiar alcance: 21,3 % de las horas base. El precedente medido está fresco: `memory-retrieval` (2026-09-08) necesitó **3 rondas**, encontró **38 gaps (3 Critical)** y se desvió **+66 %** en horas IA. Aquí hay **35 CA** que la Lente A tiene que recorrer, no 28.
 
@@ -734,7 +750,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: pasar la revisión adversarial (skill `adversarial-review`, fuente única del método) sobre el diff de cada fase, en **contexto fresco**: Lente A (conformidad con spec, plan y diseño, ✓/✗ por criterio con cita) y Lente B (defectos de corrección), más las condicionales C (seguridad) y D (rendimiento) si `review-lens-select.py` las activa. Bucle acotado a **3 intentos** por tramo, con la traza «Revisión de dos lentes — intento N» en este ledger.
 - **Changelog**: El trabajo de las dos fases pasa una revisión adversarial en contexto fresco antes de darse por bueno, con los hallazgos graduados y trazados en el ledger.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cierre (2026-10-27)**: Alcance recortado a F1 (F2 cancelada): tres intentos de revisión de dos lentes sobre F1 trazados abajo; `review-lens-select.py` descartó C y D en los tres. Los criterios que solo aplicaban a F2 quedan tachados como «no aplica». ADR-014/ADR-015 no se promueven por esta vía: decisión del usuario 2026-10-27 (ADR-015 rechazada, ADR-014 aceptada solo en su parte de lectura).
 - **Tiempo humano**: est. 5,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,59h · real —
 - **Supervisión**: est. 0,15h (≈25 % IA) · real —
@@ -747,19 +764,19 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
   - `python3 agent-kits/shared/review-lens-select.py --diff <rango del tramo>` → deja por escrito si las lentes C y D entran, y por qué
 
 **Criterios de aceptación**
-- [ ] Lente A recorre **los 33 CA de F1, F2 y cierre** con ✓/✗ y cita `fichero:línea` por cada uno; CA-34 se marca explícitamente **abierto**, no aprobado
-- [ ] Lente B emite solo defectos de corrección, graduados Critical / Important / Minor, cada uno con su escenario concreto
-- [ ] Las lentes C y D se activan o se descartan por `review-lens-select.py`, con el motivo escrito (no por criterio del revisor)
-- [ ] Traza «Revisión de dos lentes — intento N» en este ledger por cada intento de cada tramo; bucle **acotado a 3**
-- [ ] Un rebate solo vale **con evidencia ejecutada**; «sin defectos» es una salida válida de una lente
-- [ ] Si el bucle de un tramo cierra **sin gaps pendientes**, `ADR-014` y `ADR-015` pasan a `estado: aceptada (validada: revisión de dos lentes, AAAA-MM-DD, intento N)` en el **mismo cambio**; si no cierra limpio, se quedan en `propuesta`
+- [x] ~~Lente A recorre **los 33 CA de F1, F2 y cierre** con ✓/✗ y cita `fichero:línea` por cada uno; CA-34 se marca explícitamente **abierto**, no aprobado~~ — no aplica: F2 cancelada (2026-10-27)
+- [x] Lente B emite solo defectos de corrección, graduados Critical / Important / Minor, cada uno con su escenario concreto
+- [x] Las lentes C y D se activan o se descartan por `review-lens-select.py`, con el motivo escrito (no por criterio del revisor)
+- [x] Traza «Revisión de dos lentes — intento N» en este ledger por cada intento de cada tramo; bucle **acotado a 3**
+- [x] Un rebate solo vale **con evidencia ejecutada**; «sin defectos» es una salida válida de una lente
+- [x] ~~Si el bucle de un tramo cierra **sin gaps pendientes**, `ADR-014` y `ADR-015` pasan a `estado: aceptada (validada: revisión de dos lentes, AAAA-MM-DD, intento N)` en el **mismo cambio**; si no cierra limpio, se quedan en `propuesta`~~ — no aplica: F2 cancelada (2026-10-27)
 
 **Subtareas**
-- [ ] Puerta previa por tramo: `scope-check.py` en verde
-- [ ] Despachar las lentes al agente `reviewer` (contexto fresco, solo lectura) en paralelo
-- [ ] Fusionar, graduar y anotar la traza en el ledger
-- [ ] Al 3.er rojo de un tramo, invocar la skill `debug-root-cause` **antes** de preguntar al usuario
-- [ ] Promover o dejar en `propuesta` los dos ADR según cierre el bucle
+- [x] Puerta previa por tramo: `scope-check.py` en verde
+- [x] Despachar las lentes al agente `reviewer` (contexto fresco, solo lectura) en paralelo
+- [x] Fusionar, graduar y anotar la traza en el ledger
+- [x] ~~Al 3.er rojo de un tramo, invocar la skill `debug-root-cause` **antes** de preguntar al usuario~~ — no aplica: F2 cancelada (2026-10-27)
+- [x] ~~Promover o dejar en `propuesta` los dos ADR según cierre el bucle~~ — no aplica: F2 cancelada (2026-10-27)
 
 **Notas**: la Lente A tiene un insumo extra en esta iniciativa: el **contrato de §2.0 del diseño** (subcomandos, exit codes 0/1/2/3/4/5, hash normalizado, dos promesas con dos tests, `dueno()` como única puerta). Un CA cuyo veredicto sea «se comporta bien» sin comando que lo demuestre es un gap, no un ✓. Antes del veredicto se aplica la **tabla de racionalización** de `agent-kits/shared/rationalization-table.md`.
 
@@ -769,7 +786,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: corregir los hallazgos de T-20 en el orden de su gravedad (Critical → Important → Minor), volviendo a la tarea que los originó y re-ejecutando su `Verificación`. Los candidatos de la evaluación a concentrar Critical son C-05 (`GOT-003`, complejidad Muy alta, confianza Baja), C-10 (el cerrojo) y C-11 (la premisa corregida).
 - **Changelog**: Los defectos que encuentra la revisión se corrigen antes de cerrar, cada uno con la verificación de su tarea vuelta a ejecutar.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cierre (2026-10-27)**: Gaps de F1 cerrados: 1-18 y B-1..B-7 (B-3 con la opción A); el desborde preexistente del brief lo resolvieron después los topes de `task-brief.py`. Sin Critical abiertos.
 - **Tiempo humano**: est. 4,5h · real —
 - **Tiempo IA (ejec.)**: est. 0,46h · real —
 - **Supervisión**: est. 0,11h (≈25 % IA) · real —
@@ -783,16 +801,16 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
   - `grep -n "Critical" docs/roadmap/2026-09-09-project-specialization/tasks.md` → ningún Critical sin corregir ni rebatido con evidencia
 
 **Criterios de aceptación**
-- [ ] Cero gaps **Critical** abiertos: corregidos, o rebatidos **con evidencia ejecutada**, o aceptados por el usuario como deuda **escrita**
-- [ ] Cada corrección re-ejecuta la `Verificación` de su tarea de origen y pega la salida; no se cierra un gap «por lectura»
-- [ ] Un gap que revele un CA mal escrito se corrige en el **CA**, no en el veredicto, y se dice
-- [ ] Los Minor que no se corrijan quedan como **deuda declarada** con su tarea y su motivo, nunca en silencio
+- [x] Cero gaps **Critical** abiertos: corregidos, o rebatidos **con evidencia ejecutada**, o aceptados por el usuario como deuda **escrita**
+- [x] Cada corrección re-ejecuta la `Verificación` de su tarea de origen y pega la salida; no se cierra un gap «por lectura»
+- [x] Un gap que revele un CA mal escrito se corrige en el **CA**, no en el veredicto, y se dice
+- [x] Los Minor que no se corrijan quedan como **deuda declarada** con su tarea y su motivo, nunca en silencio
 
 **Subtareas**
-- [ ] Ordenar los gaps por gravedad y agruparlos por tarea de origen
-- [ ] Corregir, re-ejecutar la verificación y anotar la salida
-- [ ] Actualizar `Archivos` de esta tarea con lo realmente tocado (puerta de `scope-check.py`)
-- [ ] Declarar la deuda que quede, con tarea y motivo
+- [x] Ordenar los gaps por gravedad y agruparlos por tarea de origen
+- [x] Corregir, re-ejecutar la verificación y anotar la salida
+- [x] Actualizar `Archivos` de esta tarea con lo realmente tocado (puerta de `scope-check.py`)
+- [x] Declarar la deuda que quede, con tarea y motivo
 
 **Notas**: `LES-009` y la fila de `CALIBRATION.md` del 2026-09-08 son inequívocos: **esta es la partida grande y no se recorta**. La línea de corrección conserva sus 5,0 h; 4,5 h están aquí y 0,5 h en T-22, y esa redistribución está declarada en el plan (§Estimación por fase).
 
@@ -802,7 +820,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 - **Descripción**: la puerta de cierre estándar del repo, que es trabajo y no adorno: `lint_plugin.py` con 0 errores, `pytest` en verde, `export-interop.py --check` en verde, entradas `[Unreleased]`/`[Sin publicar]` en los **dos** CHANGELOG vía `changelog-sync`, y la puerta de `/retro` (`retro.md` + fila en `CALIBRATION.md`), sin la cual `/dev-cycle` no cierra.
 - **Changelog**: La iniciativa se cierra con las puertas del repo en verde y su retrospectiva escrita, que es la que alimenta la calibración de las estimaciones siguientes.
-- **Estado**: borrador
+- **Estado**: completado
+- **Cierre (2026-10-27)**: Cierre con F1 entregada y F2 cancelada: lint 0 errores, `export-interop --check` y evals en verde, entrada de cierre en los dos CHANGELOG, `retro.md` + fila en `CALIBRATION.md` (`retro-gate` en verde), spec `implementada` con enmienda de alcance.
 - **Tiempo humano**: est. 0,5h · real —
 - **Tiempo IA (ejec.)**: est. 0,05h · real —
 - **Supervisión**: est. 0,01h (≈25 % IA) · real —
@@ -819,19 +838,19 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
   - `python3 agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-09-project-specialization/tasks.md` → **exit 0**
 
 **Criterios de aceptación**
-- [ ] CA-31 — `lint_plugin.py` con 0 errores, `pytest -q` en verde, `export-interop.py --check` en verde, entradas en los **dos** CHANGELOG vía `changelog-sync`, y `/setup` ofreciendo `/specialize` al terminar
-- [ ] CA-32 — cada pieza nueva con doc en `docs/`, fila en `docs/README.md`, fila en `docs/agents/ROLES.md` y las reglas **3 y 9** de `CONVENTIONS.md` actualizadas (+EN)
-- [ ] CA-33 — `retro.md` en esta carpeta + fila en `docs/roadmap/CALIBRATION.md`; `retro-gate.py` en verde
-- [ ] La fila de la iniciativa en `docs/roadmap/README.md` está **dentro de la tabla** y cita `plan` y `tasks` (lo vigila `tests/test_roadmap_index.py`)
-- [ ] La spec pasa a `estado: implementada` y su callout apunta al plan y al ledger
-- [ ] La retro anota el **ratio tokens/hora medido** de esta iniciativa y, si el dato existe, la **primera fila con horas humanas reales** del histórico (el mayor agujero del presupuesto según la evaluación)
+- [x] CA-31 — `lint_plugin.py` con 0 errores, `pytest -q` en verde, `export-interop.py --check` en verde, entradas en los **dos** CHANGELOG vía `changelog-sync`, ~~y `/setup` ofreciendo `/specialize` al terminar~~ (no aplica: F2 cancelada; las entradas del CHANGELOG son una de cierre, no `changelog-sync`)
+- [x] ~~CA-32 — cada pieza nueva con doc en `docs/`, fila en `docs/README.md`, fila en `docs/agents/ROLES.md` y las reglas **3 y 9** de `CONVENTIONS.md` actualizadas (+EN)~~ — no aplica: F2 cancelada (2026-10-27)
+- [x] CA-33 — `retro.md` en esta carpeta + fila en `docs/roadmap/CALIBRATION.md`; `retro-gate.py` en verde
+- [x] La fila de la iniciativa en `docs/roadmap/README.md` está **dentro de la tabla** y cita `plan` y `tasks` (lo vigila `tests/test_roadmap_index.py`)
+- [x] La spec pasa a `estado: implementada` y su callout apunta al plan y al ledger
+- [x] ~~La retro anota el **ratio tokens/hora medido** de esta iniciativa y, si el dato existe, la **primera fila con horas humanas reales** del histórico (el mayor agujero del presupuesto según la evaluación)~~ — no aplica: F2 cancelada (2026-10-27)
 
 **Subtareas**
-- [ ] Correr las cinco puertas con `.venv/Scripts` en el `PATH`
-- [ ] `changelog-sync` sobre este ledger cerrado (los campos `- **Changelog**:` de las 22 tareas ya están escritos)
-- [ ] `/retro` sobre la iniciativa: real vs estimado, causas, ratio medido, candidatas a lección del journal
-- [ ] Fila en `CALIBRATION.md` y actualización de la fila del índice del roadmap
-- [ ] `spec.md` a `implementada`
+- [x] Correr las cinco puertas con `.venv/Scripts` en el `PATH`
+- [x] ~~`changelog-sync` sobre este ledger cerrado (los campos `- **Changelog**:` de las 22 tareas ya están escritos)~~ — no aplica: F2 cancelada (2026-10-27)
+- [x] `/retro` sobre la iniciativa: real vs estimado, causas, ratio medido, candidatas a lección del journal
+- [x] Fila en `CALIBRATION.md` y actualización de la fila del índice del roadmap
+- [x] `spec.md` a `implementada`
 
 **Notas**: `retro-gate.py` es **puerta**, no cortesía: sin `retro.md` y su fila, `/dev-cycle` no cierra (paso 8 de su Fase 6). Estas 0,5 h salen de la línea de corrección post-revisión, cuyas 5,0 h siguen íntegras dentro de esta fase; la redistribución está declarada en el plan y **no financia ninguna característica** (condición (c) del go).
 

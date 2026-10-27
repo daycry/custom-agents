@@ -171,18 +171,6 @@ RUTAS_RETIRADAS = {
     "evals/cases/skill-discovery.json": "ADR-011 (skill absorbida por `analyst`)",
 }
 
-# TOLERANCIA 5 — piezas DISEÑADAS Y PLANIFICADAS que la doc describe a propósito antes de que
-# estén en el árbol. No es rot y el propio documento lo dice: `docs/SPECIALIZATION.md` declara que
-# el registro canónico, `/specialize` y sus scripts «son el contrato de F2 … no en el árbol
-# todavía». La lista existe para que esa deuda ENVEJEZCA a la vista: si la pieza aparece, el
-# linter avisa de que sobra la tolerancia (`_tolerancias_caducadas`).
-PIEZAS_PLANIFICADAS = {
-    "commands/specialize.md": "F2 del tercer bucle (docs/SPECIALIZATION.md)",
-    "agent-kits/shared/pieces-registry.py": "F2 del tercer bucle (ADR-014)",
-    "agent-kits/shared/role-collision.py": "F2 del tercer bucle (ADR-014)",
-    "agent-kits/shared/project-scan.py": "F2 del tercer bucle (ADR-014)",
-}
-COMANDOS_PLANIFICADOS = {"specialize": "F2 del tercer bucle (docs/SPECIALIZATION.md)"}
 # TOLERANCIA 2 — `x` es el nombre-comodín del repo en los ejemplos (`commands/x.md`, `docs/x.md`,
 # `tests/test_x.py`, `skills/x/SKILL.md`). No confundir con una ruta real: ningún fichero del repo
 # se llama así.
@@ -1683,7 +1671,7 @@ def _ruta_resuelve(root, ruta, citante):
         return True
     if ruta.startswith(PREFIJOS_MEMORIA_LOCAL):
         return True
-    if ruta in RUTAS_RETIRADAS or ruta in PIEZAS_PLANIFICADAS:
+    if ruta in RUTAS_RETIRADAS:
         return True
     if os.path.splitext(os.path.basename(ruta))[0] in STEMS_PLACEHOLDER:
         return True
@@ -1729,8 +1717,7 @@ def comprobar_comandos_citados(root):
             if not m:
                 continue
             nombre = m.group(1)
-            if nombre in COMANDOS_TOLERADOS or nombre in COMANDOS_PLANIFICADOS \
-                    or (rel, nombre) in vistos:
+            if nombre in COMANDOS_TOLERADOS or (rel, nombre) in vistos:
                 continue
             vistos.add((rel, nombre))
             if not os.path.isfile(os.path.join(root, "commands", nombre + ".md")):
@@ -1741,23 +1728,15 @@ def comprobar_comandos_citados(root):
 
 def _tolerancias_caducadas(root):
     """AVISOS: una tolerancia que ya no hace falta. Una lista de excepciones sin fecha de caducidad
-    se convierte en la alfombra bajo la que se barre todo; estas dos se caducan solas en cuanto la
-    pieza existe (`PIEZAS_PLANIFICADAS`) o vuelve a existir (`RUTAS_RETIRADAS`)."""
+    se convierte en la alfombra bajo la que se barre todo; `RUTAS_RETIRADAS` se caduca sola en
+    cuanto la ruta vuelve a existir."""
     avisos = []
-    for ruta, motivo in sorted(PIEZAS_PLANIFICADAS.items()):
-        if os.path.exists(os.path.join(root, ruta)):
-            avisos.append(f"scripts/lint_plugin.py: `{ruta}` ya existe en el árbol: quítala de "
-                          f"PIEZAS_PLANIFICADAS ({motivo})")
     for ruta, motivo in sorted(RUTAS_RETIRADAS.items()):
         if os.path.exists(os.path.join(root, ruta)):
             # reaparecer contradice la decisión que la retiró: se nombra y se registra antes de quitarla
             avisos.append(f"scripts/lint_plugin.py: `{ruta}` vuelve a existir y la retiró {motivo}; "
                           f"si es intencional, registra la decisión que lo revierte y luego quítala "
                           f"de RUTAS_RETIRADAS")
-    for nombre, motivo in sorted(COMANDOS_PLANIFICADOS.items()):
-        if os.path.isfile(os.path.join(root, "commands", nombre + ".md")):
-            avisos.append(f"scripts/lint_plugin.py: `/{nombre}` ya existe: quítalo de "
-                          f"COMANDOS_PLANIFICADOS ({motivo})")
     return [], avisos
 
 

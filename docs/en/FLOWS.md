@@ -588,41 +588,36 @@ The dispatcher recognizes the PowerShell tool, but PowerShell assignments
 and scripts fall outside the literal grammar. This is not a sandbox; setting
 `{"guardrails": {"git": false}}` in `.claude/dev.json` disables the rule.
 
-## 6d · The third loop — project specialization (`/specialize`, opt-in)
+## 6d · Project specialization — personas and own pieces
 
-> The plugin knows **how** to work but not **where** it is working. `/specialize` closes that gap
-> with the same grammar the cycle (`tasks.md`) and memory (`docs/knowledge/README.md`) already have:
-> canonical registry + entry gate + closing gate. Full detail:
-> [`SPECIALIZATION.md`](SPECIALIZATION.md). **Direction invariant**: `/specialize` **reads**
-> `docs/knowledge/` and **never writes** to it — new knowledge is proposed through the
-> shared service and judged by Curator; specialization does not approve it. This iteration covers F1
-> (substrate, **shipped**: the persona cascade in `task-brief.py`) and F2 (birth, **design
-> contract, not in the tree yet**); F3 (semantic drift) is deferred, not dropped.
+> The plugin knows **how** to work but not **where**. The project teaches it in two ways:
+> **personas** (`.claude/personas/<type>.md`), which `task-brief.py` injects into the brief of
+> tasks carrying `- **Tipo**:`, and **own pieces** written by hand in each runtime's native folders,
+> which `project-pieces.py` discovers and `/work-context` selects. Specialization **reads**
+> `docs/knowledge/` and **never writes** to it. The former *specialize* (generating and adopting
+> pieces) was cancelled on 2026-10-27. Detail: [`SPECIALIZATION.md`](SPECIALIZATION.md) ·
+> [`PROJECT-EXTENSIONS.md`](PROJECT-EXTENSIONS.md).
 
 ```mermaid
 flowchart LR
   subgraph MEM["🧠 Memory — what the project knows"]
     K["docs/knowledge/<br/>ADR · gotchas · lessons · approved"]
-    J["journal/<br/>episodic"]
   end
   subgraph ESP["🧬 Specialization — how it behaves here"]
-    SP["/specialize<br/>evidence → ladder → collision → human gate"]
-    REG[".claude/pieces.json<br/>canonical registry"]
-    PZ[".claude/personas · skills · tools · agents"]
+    PE[".claude/personas/&lt;type&gt;.md<br/>(cascade: project → catalog → none)"]
+    PZ["own pieces per runtime<br/>skills · agents · commands · MCP"]
+    REG[".claude/pieces.json<br/>optional registry, read-only"]
+    INV["project-pieces.py · /work-context"]
   end
   subgraph CIC["⚙️ Cycle — what gets built"]
     T["tasks.md<br/>canonical ledger"]
-    CAL["CALIBRATION.md"]
   end
-  K -->|"knowledge-find.py"| SP
-  J -.->|"journal.py candidatas"| SP
-  CAL -.->|"area that always drifts"| SP
-  SP --> REG --> PZ
-  PZ -->|"task-brief.py injects persona"| T
-  T --> CAL
-  CAL -.->|"/retro: service propose"| CP["pending candidate · route/SHA<br/>Curator judgment"]
-  CP -->|"approve + service apply"| K
-  REG -.->|"/doctor: health per row"| SP
+  PZ --> INV
+  REG -.->|"ownership by hash"| INV
+  INV -->|"references in the brief"| T
+  PE -->|"task-brief.py injects persona"| T
+  K -.->|"knowledge-find.py: hints"| T
+  T -.->|"/retro: propose service → Curator"| K
 ```
 
 ## 7 · Configuration (one pass with `/setup`)

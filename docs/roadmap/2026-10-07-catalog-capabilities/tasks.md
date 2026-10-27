@@ -1,8 +1,8 @@
 ---
 tasks: catalog-capabilities
-estado: en-progreso
+estado: completado
 creado: 2026-10-07
-actualizado: 2026-10-12
+actualizado: 2026-10-27
 verificacion: obligatoria
 changelog: Changed
 ---
@@ -11,9 +11,15 @@ changelog: Changed
 
 > Ledger canónico. Fuente única de progreso de la fase 3.
 
-Autorización: integración por fases, decisiones técnicas delegadas y push
-cuando esté listo. Base 6187b12; rama feat/catalog-capabilities. No PR,
-integración en main ni release. `.claude/settings.json` ajeno intacto y fuera del índice.
+**Cierre (2026-10-27).** La línea de autorización original («No PR, integración en main ni release») quedó
+superada: el trabajo entró en `master` con el PR #17 y se publicó en v2.0.0. El usuario aprobó el cierre
+contable (2026-10-27): 15 tareas `completado` con evidencia citada en su línea «Cierre», T-12 `cancelado`.
+Fuera de alcance y no necesario para cerrar: continuidad manual en los tres clientes, UI en Edge, los 47
+destinos de skills aparcados y el benchmark de memoria (fase 4 de la spec). Ver [retro.md](retro.md).
+
+Autorización original: integración por fases, decisiones técnicas delegadas y push
+cuando esté listo. Base 6187b12; rama feat/catalog-capabilities. Sin PR,
+integración en main ni release en su momento. `.claude/settings.json` ajeno intacto y fuera del índice.
 Meter privado abierto; sin respuestas compatibles no se inventa consumo.
 
 Prioridad del usuario del 2026-10-08: hooks, comandos, dashboard y memoria.
@@ -38,12 +44,12 @@ Actualización 2026-10-12: la QA completa del core source54 pasa los 7.296 casos
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 1 | 7 | 14% |
-| Fase 2 | 0 | 6 | 0% |
-| Fase 3 | 0 | 3 | 0% |
-| **TOTAL** | **1** | **16** | **6%** |
-El porcentaje anterior corresponde a las tareas macro de todo el catálogo,
-incluidas las skills aplazadas. No mide el progreso de este lote operativo.
+| Fase 1 | 7 | 7 | 100% |
+| Fase 2 | 5 | 6 | 83% (T-12 cancelada) |
+| Fase 3 | 3 | 3 | 100% |
+| **TOTAL** | **15** | **16** | **94% · 1 cancelada** |
+
+Cerrado el 2026-10-27; el texto que sigue es la narrativa de los bloques tal como se escribió.
 La copia revisada mantiene las siguientes entregas y pendientes:
 
 | Prioridad | Implementación en la copia revisada | Trabajo pendiente |
@@ -116,7 +122,7 @@ La candidata conserva el encargo de desarrollo en ambas vías: resultado, requis
 
 ## Fase 1 — Comparación
 
-**Estado**: en-progreso
+**Estado**: completado
 
 ### T-01 — Corpus y trazabilidad de la comparación
 
@@ -132,17 +138,19 @@ La candidata conserva el encargo de desarrollo en ambas vías: resultado, requis
 
 ### T-02 — Contratos por runtime y modo de instalación
 
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cierre (2026-10-27)**: Contratos por runtime fijados y contrastados: `runtime-probes.json`, `contracts.md`, `terminal-qa-evidence.json`, `native-role-contract-evidence.json` y `docs/INTEROP.md` (degradación por runtime). La «confianza de instalación real» en los tres clientes queda fuera de alcance (ver nota de cierre).
 - **Descripción**: Contrastar esquemas y código de las versiones instaladas; resolver identidad, confianza, hooks y configuración OpenCode V2 antes de elegir mecanismos.
 - **Dependencias**: T-01.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
 - **Verificación**: Los contratos iniciales y sus fallos quedan preservados en runtime-probes.json/contracts.md. Después se verificaron contexto, captura UTF-8 y cierre natural en Claude 2.1.287, Codex 0.161.0 y OpenCode 2.0.12: evidencia de cierre e instalación en terminal-qa-evidence.json y fichas nativas enlazadas. native-role-contract-evidence.json añade 14 casos Claude, 12 comprobaciones Codex y tres experimentos OpenCode con identidad efectiva, bloqueo previo y controles permitidos en fixtures propias. La identidad nativa no certifica procedencia del prompt. Persisten pendientes la confianza de instalación real, normalización completa e integración de guardias por rol; no se cierra T-02 por las pruebas del mecanismo.
 **Criterios de aceptación**:
-  - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
+  - [x] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 ### T-03 — Comparación semántica de las 293 skills
 
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cierre (2026-10-27)**: 293/293 skills evaluadas (S001–S293): fichas `comparisons/skills-*.md`, `skills-destinations.md` y `skills-official-contrasts.md`.
 - **Descripción**: Leer cuerpos, recursos y callers de todas las skills; registrar contenido único y comparación concreta, incluyendo dominios técnicos y memoria.
 - **Dependencias**: T-01.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
@@ -150,23 +158,25 @@ La candidata conserva el encargo de desarrollo en ambas vías: resultado, requis
 - **Notas**: TDD n/a: prosa/config de comparación, sin modificación de producción. Los consumidores leídos parcialmente no se cuentan como otras piezas evaluadas; las validaciones de activación son estáticas y no acreditan invocación nativa.
 - **Historial de bloques**: hallazgos y comprobaciones de S001–S079 (34 viñetas) trasladados sin cambios a [execution-history.md](execution-history.md) («Traslado 2026-10-13 — T-03», SHA-256 `56676ee3f03ac3c677a4caba28286396771aaa3a806c122d61ca56d309768121`).
 **Criterios de aceptación**:
-  - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
+  - [x] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 
 
 ### T-04 — Comparación de los 68 agentes
 
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cierre (2026-10-27)**: 68/68 agentes comparados (A001–A068): 17 fichas `comparisons/agents-*.md` + JSON.
 - **Descripción**: Evaluar responsabilidades, procedimientos, permisos y resultados frente a roles propios; distinguir especialidad útil de duplicación de fase.
 - **Dependencias**: T-01/T-02.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
 - **Verificación**: 68/68 agentes leídos completos (A001–A068, orden alfabético de `agents/` de la fuente), 17 fichas `comparisons/agents-*.md` con evidencia JSON (hash, bytes, líneas, rangos); comparación por responsabilidad, procedimiento, permisos y salida frente a roles propios citados, sin equivalencias por nombre. Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `2b5626e93867`.
 **Criterios de aceptación**:
-  - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
+  - [x] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 ### T-05 — Comparación de los 94 comandos
 
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cierre (2026-10-27)**: 94/94 comandos comparados: 16 fichas `comparisons/commands-c*.md` (la cifra «17» que citaba la verificación era una errata) más `commands-diagnostics`, `session-continuity` y `workflow-comparison`.
 - **Descripción**: Revisar intención, artefactos y despacho de comandos frente a los ciclos propios; identificar operaciones útiles y callers que cambiarían.
 - **Dependencias**: T-01/T-02.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
@@ -174,50 +184,54 @@ La candidata conserva el encargo de desarrollo en ambas vías: resultado, requis
 - **Comparación operativa parcial (2026-10-08)**: 18/94 cuerpos de comandos leídos, recursos concretos y límites en comparisons/command-reading-evidence.json; quedan 76 cuerpos y closures pendientes. comparisons/operational-panel-commands.md propone consolidar contexto, diagnóstico, coste y criterios de workflow sobre dueños existentes. Cero fichas globales cerradas, cero integraciones y cero routing nativo probado por esta comparación; no se añaden skills.
 - **Ampliación verificada (2026-10-10, bloque24)**: 76 cuerpos nuevos y dos relecturas en cuatro grupos; total94/94. Ocho decisiones estáticas suficientes en planificación y seis en el último grupo, sin aceptación nativa ni integración por analogía; demás fichas conservan recursos/callers pendientes. Las correcciones propias de handoff/estados se documentan en el bloque24, con revisión estática y exports separados de la QA congelada6. No se amplían skills.
 **Criterios de aceptación**:
-  - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
+  - [x] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 ### T-06 — Tools, MCP, hooks, reglas y workflows
 
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cierre (2026-10-27)**: Tools, hooks y panel comparados en lo que tiene consumidor: `hooks-role-policy.md`, `role-hook-reading-evidence.json`, `panel-reading-evidence.json`, `operational-panel-commands.md`. Los 24 + 16 cuerpos de hooks sin leer se **cancelan**: no tienen consumidor en el plugin.
 - **Descripción**: Comparar configuración y scripts realmente usados, dependencias y API, ejecución, permisos y aislamiento; evaluar soporte del control panel.
 - **Dependencias**: T-01/T-02.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
 - **Verificación**: Triaje operativo y valoración de memoria en operational-priorities.md. comparisons/hooks-role-policy.md y role-hook-reading-evidence.json comparan 19 cuerpos completos y un helper parcial, con diferencias y destinos concretos de política previa; quedan 24 cuerpos inmediatos y 16 descendientes de metadata pendientes. No se ejecutó código del corpus. Comparación global, implementación y validación funcional de esos destinos pendientes; la lectura dirigida no acredita eficacia.
 - **Paneles/comandos en paralelo (2026-10-08)**: Tres entradas de dashboard y recursos relacionados contrastados por lectura; IDs, hashes, rangos y fuentes propias en comparisons/panel-reading-evidence.json. Propuestas de proyección read-only, procedencia y desconocidos en comparisons/operational-panel-commands.md. Plataforma de readiness, servicios/almacenamiento del control operativo y fuente de observación compatible pendientes; cero fichas globales cerradas o integraciones nuevas.
 **Criterios de aceptación**:
-  - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
+  - [x] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 ### T-07 — Arquitectura y candidatos de memoria
 
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cierre (2026-10-27)**: Dirección de memoria aprobada por el usuario (2026-10-08) e implementada: `knowledge-local.py`, `knowledge-curation.py`, agente `knowledge-curator`, evidencias `memory-*`/`graphiti-*`. El benchmark comparativo es la fase 4 de la spec, fuera de esta iniciativa.
 - **Descripción**: Comparar recuperación, aprendizaje, persistencia y gobierno frente a memoria propia; delimitar los experimentos que exige la fase 4.
 - **Dependencias**: Comparación pertinente de T-03 (S053–S054 ya disponible) y recursos de memoria de T-06; no espera a las skills aplazadas.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
 - **Decisión del usuario (2026-10-08)**: Aceptada la dirección de memoria en operational-priorities.md: base local canónica, captura/recuperación primero, propuestas con evidencia y revisión, Kwipu como proyección y Graphiti condicionado a medición. No implica backend activado ni tarea completada.
 - **Verificación**: Valoración inicial en operational-priorities.md: Kwipu publica/verifica sin consulta enrutada; Graphiti expone consulta con puerta de salud/verificación y respaldo local. Lectura dirigida de adaptadores/router y comparación S053–S054, sin conexiones ni mediciones nuevas. Auditoría completa de mecanismos/casos y benchmark pendientes.
 **Criterios de aceptación**:
-  - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
+  - [x] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 ## Fase 2 — Integración
 
-**Estado**: en-progreso
+**Estado**: completado
 
 ### T-08 — Diseño nativo de capacidades y workflow
 
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cierre (2026-10-27)**: Diseño nativo cerrado en `design.md` y personas en `agent-kits/shared/personas/`; la implementación se distribuyó en v2.0.0.
 - **Descripción**: Convertir diferencias verificadas en destinos propios, opcionales y compartidos; cerrar diseño y acotar archivos antes de modificar producción.
 - **Dependencias**: Contratos T-02 y comparación pertinente T-03/T-04/T-05/T-06/T-07 por bloque; aceptación global tras completar esas tareas. Hooks/comandos/panel/memoria no esperan al contenido opcional aplazado.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
 - **Verificación**: design.md fija integridad del checkpoint, cierre e instalación y, en el bloque 3, identidad nativa, IDs propios, políticas por rol y migración que preserve personalizaciones. Los mecanismos se prueban en fixtures propias; dispatcher y migración del bloque 3 siguen sin distribuir. Diseño restante de capacidades pendiente; no se declara consolidación global entregada.
 - **Diseño operativo en curso (2026-10-08)**: Panel de catálogo, diagnóstico de consumidor y roadmap conservan responsabilidades separadas. Handoff propuesto reutiliza journal/ledger; observaciones requieren fuente compatible antes de tasas. Codex add habilita globalmente aunque el destino sea proyecto; T-09 debe resolver caché nativa respetando el estado global previo, sin remove como rollback ni confundir installed con enabled. Estos destinos y restricciones no acreditan implementación.
 **Criterios de aceptación**:
-  - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
+  - [x] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 - **Ajuste de personas para T-08/T-09/T-11/T-13/T-15**: el usuario pidió organización por entorno como los agentes y después contrastar los estándares de Codex/OpenCode. [Contraste documental](contracts.md#personas-e-instrucciones-nativas): las carpetas nuevas `.codex/personas/` y `.opencode/personas/` serían convenciones del plugin, no cargadores nativos documentados; la propuesta anterior queda provisional y no se implementará como supuesto estándar. Priorizar agentes e instrucciones nativos para especialistas invocables; conservar perfiles acotados del brief cuando solo complementan un rol, sin agentes duplicados. Mantener compatibilidad de `.claude/personas/` existente. T-08 debe cerrar almacenamiento y composición, selección con runtime all, duplicados, instalación personal, rutas personalizadas y avisos; inventario y brief deben resolver la misma procedencia y conservar sus límites. Distinguir OpenCode V1 agent/prompt de V2 agents/system; no usar personality de Codex para perfiles de dominio. Actualizar panel, documentación y exports con pruebas de carga y contenido efectivo en T-14. Contraste registrado, implementación pendiente.
 
 ### T-09 — Guardias y despacho nativo multi-runtime
 
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cierre (2026-10-27)**: Guardias y despacho nativo: `native-guardrail.py`, `native-roles.json`, `PreToolUse` en `hooks/hooks.json`, `hooks/opencode-plugin.js`; tests `test_native_guard_launcher.py`, `hook-guard-delivery.test.mjs`, `test_git_verification.py`; evidencias `hook-*`.
 - **Descripción**: Implementar mecanismos reales por contrato y versión para Claude/Codex/OpenCode, incluido soporte V2; probar identidad, concurrencia y degradación.
 - **Dependencias**: T-02/T-08.
 - **Archivos**: `hooks/**`, `interop/**`, `agent-kits/shared/**`, `scripts/**`, `install/**`, `tests/**`, `agents/**`, `docs/**`, `statusline/roadmap-statusline.sh` (comprobación LF/CRLF en el cierre; formato original conservado, sin cambio semántico ni selección de publicación)
@@ -227,32 +241,35 @@ La candidata conserva el encargo de desarrollo en ambas vías: resultado, requis
 - **RED de reclamación exclusiva (2026-10-08)**: probe propio con trazas de `os.replace` reprodujo dos movimientos exitosos del mismo origen en Windows (iteración 2); el test de 100 reclamaciones concurrentes falló en la iteración 1 con dos ganadores. El test de cerrojo no disponible también falló: entregó el item en vez de mantenerlo pendiente. Se serializa la transacción de reclamación con cerrojo de SO no bloqueante; pendientes intactos si no se obtiene.
 - **RED nativo de instalación/cierre (2026-10-08)**: Instalador real Codex deja marketplace/enabled pero plugin list lo muestra sin instalar; tras add hay contexto/captura, con efecto global comprobado incluso desde false previo. Claude fijado captura UTF-8/contexto pero no deja envelope con presupuesto predeterminado; misma definición con override propio 5.000 ms sí lo deja. Control SessionEnd propio 2.200 ms/timeout 5 cancela por defecto y completa con override. recover sobre checkpoint de sesión nativa terminada conserva el turno como recuperado_sin_cierre, exit 0. Producción intacta; no se aplica workaround chmod con causa no aislada. Evidencia y límites en contracts.md y JSONs nativos.
 **Criterios de aceptación**:
-  - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
+  - [x] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 ### T-10 — Skills opcionales y consolidación de contenido
 
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cierre (2026-10-27)**: 110 destinos integrados (13 P1, 59 P2, 38 P3) con validación real en `fb2325c` (`claude -p` + quick-implement de punta a punta). Los 47 destinos aparcados se **cancelan** por la regla «sin stack declarado no hay skill» (`comparisons/skills-destinations.md`).
 - **Prioridad acordada (2026-10-10)**: Retomar la ampliación gradual de skills después de implementar y validar comandos, dashboard, hooks y memoria. La ampliación sigue prevista; no se cancela.
 - **Descripción**: Integrar contenido útil de las fichas con referencias y recursos propios; dominios existentes en el corpus, sin paquetes inventados ni carga indiscriminada.
 - **Dependencias**: T-08/T-09.
 - **Archivos**: `skills/**`, `agent-kits/shared/**`, `evals/**`, `tests/**`, `docs/**`
 - **Verificación**: Pendiente: escenarios reales por alta/consolidación, recursos vigentes, tamaño y degradación; mapas sin duplicación ni pérdida. Detalle archivado: [execution-history.md](execution-history.md) · SHA-256 `9bf1ba345154`.
 **Criterios de aceptación**:
-  - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
+  - [x] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 ### T-11 — Agentes, comandos y handoffs coherentes
 
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cierre (2026-10-27)**: Handoffs integrados: `commands/work-resume.md`, `commands/work-context.md`, `docs/WORK-RESUME.md`, `knowledge-curator`, cambios en planner/documenter/implementer (CHANGELOG 2.0.0). El `/dev-cycle` completo con Jira real queda como validación opcional fuera de esta iniciativa.
 - **Descripción**: Integrar procedimientos útiles y despacho en roles/ciclos propios; compartir selección y conservar puertas, artefactos y extensiones del proyecto.
 - **Dependencias**: Diseño y despacho pertinentes de T-08/T-09; comandos requieren su comparación T-05. T-10 solo para consumidores de skills concretas; no bloquea el resto de comandos.
 - **Archivos**: `agents/**`, `commands/**`, `agent-kits/**`, `interop/**`, `evals/**`, `tests/**`, `docs/**`
 - **Verificación**: Pendiente: pruebas de transferencia entre fases, roles y briefs; exports al día y destinos de contenido comprobados.
 **Criterios de aceptación**:
-  - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
+  - [x] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 ### T-12 — Tools e integraciones bajo demanda
 
-- **Estado**: borrador
+- **Estado**: cancelado
+- **Cierre (2026-10-27)**: Nunca arrancó y no tiene caso de uso: la doctrina MCP (límites de acceso) ya vive en la skill `delivery-practices`. Si aparece un consumidor real, iniciativa nueva.
 - **Descripción**: Adaptar recursos ejecutables útiles y configuración MCP documentada al contrato propio, con opt-in y disponibilidad real, sin conectar cuentas por inventario.
 - **Dependencias**: T-06/T-08/T-09.
 - **Archivos**: `skills/**`, `agent-kits/**`, `scripts/**`, `interop/**`, `tests/**`, `docs/**`
@@ -262,48 +279,52 @@ La candidata conserva el encargo de desarrollo en ambas vías: resultado, requis
 
 ### T-13 — Funciones operativas del panel nativo
 
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cierre (2026-10-27)**: Superada por `2026-10-15-panel-redesign` (spec `implementada`, M-04 aprobado, revisión en Edge del usuario «ok»): `skills/plugin-panel/`, `commands/plugin-catalog.md`.
 - **Descripción**: Incorporar funciones útiles del control panel comparado al panel propio, con fuentes, métricas observadas y guardias declaradas/contrastadas diferenciadas.
 - **Dependencias**: Comparación/diseño T-06/T-08 y contratos de los componentes mostrados de T-09/T-11/T-12; T-10 solo para altas concretas. No espera a todas las piezas opcionales.
 - **Archivos**: `skills/plugin-panel/**`, `commands/plugin-catalog.md`, `interop/**`, `evals/**`, `tests/**`, `docs/**`
 - **Verificación**: Pendiente: Edge escritorio/móvil/teclado, filtros y navegación, privacidad y ausencia de datos, sin anunciar un snapshot como servicio vivo.
 **Criterios de aceptación**:
-  - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
+  - [x] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 ## Fase 3 — Verificación y cierre
 
-**Estado**: en-progreso
+**Estado**: completado
 
 ### T-14 — QA funcional, cobertura y revisión
 
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cierre (2026-10-27)**: QA global `testing/global-source54-status.md`: 7.296 casos por SO, 0 fallos, cobertura 91,2 %; revisiones de dos lentes por bloque; CI verde de master tras el PR #17. La continuidad manual en tres clientes y la UI en Edge quedan fuera de alcance.
 - **Descripción**: Verificar aceptación completa y eficacia observable por escenario, carga nativa, regresiones, cobertura y revisión independiente por fase.
 - **Dependencias**: Verificar cada bloque entregado de T-09/T-11/T-12/T-13; aceptación global tras T-09/T-10/T-11/T-12/T-13, sin cerrar por una entrega parcial.
 - **Archivos**: `tests/**`, `evals/**`, `.github/workflows/ci.yml`, `ci.yml.MANUAL-COPY`, `docs/roadmap/2026-10-07-catalog-capabilities/**`
 - **Ajuste de alcance 2026-10-10**: la QA de curación detectó que la nueva suite de Confluence no estaba enumerada en CI. Se incorporan el workflow y su copia canónica idéntica para que la regresión ejecute en CI; no cambia activación ni servicios externos.
 - **Verificación**: Cada bloque conserva su QA por snapshot al final del ledger. Bloque 10: Windows Node 166/Python 287 y Linux Node 154 + 12 skips/Python 287, cuatro qa-gates GREEN y cobertura de diff con método explícito. Bloque 11: 16 controles del observador estricto, siete capturas canónicas nativas y recuperación sobre copia aislada. Las ejecuciones nativas y los casos por plataforma no se suman como unit tests. Pendientes: nuevos escenarios/capacidades de T-09/T-11/T-13, UI Edge y aceptación global.
 **Criterios de aceptación**:
-  - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
+  - [x] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 ### T-15 — Limpieza, distribución y documentación
 
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cierre (2026-10-27)**: lint 0 errores, `export-interop --check` al día, docs ES/EN; cifras obsoletas corregidas en el cierre (`operational-priorities.md`, fila de `docs/roadmap/README.md`).
 - **Descripción**: Retirar recursos y callers sustituidos, refrescar dependencias/manifiestos/exports y docs ES/EN; comprobar referencias y nombres públicos.
 - **Dependencias**: Verificación del bloque pertinente de T-14 para docs/exports de cada entrega; aceptación global tras completar T-14.
 - **Archivos**: `skills/**`, `agents/**`, `commands/**`, `agent-kits/**`, `scripts/**`, `interop/**`, `.codex-plugin/**`, `.agents/plugins/**`, `.claude-plugin/**`, `.gitignore`, `package.json`, `docs/**`, `README.md`, `README.es.md`, `CLAUDE.md`, `tests/**`, `evals/**`
 - **Verificación**: Cada bloque conserva gates de lint del bundle público, exports, alcance y referencias. `2a010a2`: catorce archivos propios, fuentes/tests/JSON idénticos a sus blobs publicados, export 56 al día y cero referencias públicas prohibidas. El lint local por defecto distingue el error YAML de una nota anterior ignorada, ajena al bundle. Bloque 11 actualiza verificación y evidencias sin cambiar producción. Siguen pendientes recursos restantes y aceptación global de limpieza/distribución.
 **Criterios de aceptación**:
-  - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
+  - [x] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 ### T-16 — Retro, changelogs y publicación comprobada
 
-- **Estado**: borrador
+- **Estado**: completado
+- **Cierre (2026-10-27)**: Publicación hecha en v2.0.0 (PR #17, tag `v2.0.0`); retro en `retro.md`, fila en `CALIBRATION.md` y entrada de cierre en los dos CHANGELOG.
 - **Descripción**: Cerrar consumo y resultados sin inventar métricas; sincronizar changelogs ES/EN y publicar la rama con contraste remoto, conservando fase 4 pendiente.
 - **Dependencias**: T-15.
 - **Archivos**: `docs/**`, `CHANGELOG.md`, `CHANGELOG.es.md`
 - **Verificación**: Pendiente: retro/report/ledger, changelog --check y SHA remoto observado; cierre documental publicado después de comprobar la entrega.
 **Criterios de aceptación**:
-  - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
+  - [x] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 ## Qué está entregado y qué falta
 

@@ -11,6 +11,14 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-10-27
+
+### Changed — closing `catalog-capabilities` and `project-specialization`
+
+- **`catalog-capabilities` closed (15/16, T-12 cancelled).** Its integrated work already shipped in 2.0.0; the ledger, spec and roadmap index now reflect that, with a retro and a calibration row. Manual multi-client continuity, Edge UI and the memory benchmark stay out of scope.
+- **`project-specialization` closed with F1 only; F2 cancelled.** `project-extensions` (`project-pieces.py`, `/work-context`) already covers reading the `.claude/pieces.json` registry and discovering project pieces in all three runtimes, so the former specialize command, registry writing, project scan, collision gate and `export-interop.py` project mode will not be built. `docs/SPECIALIZATION.md`, `FLOWS.md` §6d and `ROLES.md` (ES/EN where mirrored) now describe only what exists.
+- **`lint_plugin.py` drops the `PIEZAS_PLANIFICADAS` / `COMANDOS_PLANIFICADOS` tolerance**: nothing planned is left to tolerate, so a doc citing a non-existent piece is flagged again.
+
 ### Fixed — plugin linter citations
 
 - **`lint_plugin.py` no longer flags `/skills` or a URL path as a missing command.** `/skills` is native to Claude Code and Codex, and the Kwipu adapter reference now cites its health URL in full. The linter is back to the 3 warnings of `master`. (`scripts/lint_plugin.py`, `tests/test_lint_plugin.py`, `skills/knowledge-services/references/kwipu-adapter.md`)
@@ -1208,6 +1216,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[2.0.1]: https://github.com/daycry/custom-agents/releases/tag/v2.0.1
 [2.0.0]: https://github.com/daycry/custom-agents/releases/tag/v2.0.0
 [1.22.0]: https://github.com/daycry/custom-agents/releases/tag/v1.22.0
 [1.21.1]: https://github.com/daycry/custom-agents/releases/tag/v1.21.1

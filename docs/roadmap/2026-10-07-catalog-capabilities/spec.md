@@ -1,6 +1,6 @@
 ---
 spec: catalog-capabilities
-estado: aprobada
+estado: implementada      # cierre 2026-10-27 · enmienda 2026-10-27: CA-9 (PR #17 + release v2.0.0)
 creado: 2026-10-07
 evaluacion: evaluation.md
 plan: improvement-plan.md
@@ -72,6 +72,9 @@ se declara completado ni se elimina por ese cambio de secuencia.
    a la marca de origen en nombres, comentarios o contenido. Conservar avisos
    legales obligatorios. Retro, changelogs y push con SHA remoto comprobado;
    sin PR, integración en main ni release. Settings existentes siguen intactos.
+   *Enmienda 2026-10-27:* la restricción «sin PR, integración en main ni release» quedó
+   superada por decisión del usuario: lo integrado entró en `master` con el PR #17 y se
+   publicó en v2.0.0.
 
 ## Memoria y límites entre fases
 

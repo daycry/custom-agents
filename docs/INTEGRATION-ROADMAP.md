@@ -35,7 +35,7 @@ lector compartido alimenta `/work-context`, la selección del ledger, las
 referencias del brief y el panel con filtros independientes. Preserva duplicados
 y muestra fuentes; antes de invocar hay que contrastar las capacidades de la
 sesión. Reutiliza el contrato O1 de [especialización](SPECIALIZATION.md) para
-validar propiedad en modo lectura; generación/adopción siguen en su plan propio.
+validar propiedad en modo lectura; generación/adopción se cancelaron el 2026-10-27.
 
 Los resultados, el informe QA, la retro y la comprobación remota están en el
 ledger de fase 2. El cierre acredita reconocimiento y selección de extensiones;
