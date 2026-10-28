@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "method": "Interleaved before/after/empty-Node controls; 10 cold-process samples plus one discarded warmup, runtime codex. Both launcher copies bind here to the same canonical hooks directory; same helper, role map and fixtures. The empty-Node control is observed startup cost, not a proven physical minimum.",
+  "source_sha256": {
+    "before": "f86f0a1e529c1a15cfaa3071630c36cc3ab8d82f067a4c6eb62cd365f3b02599",
+    "after": "e23e35d2a20a47048dff130cd77143407793d2ed19fc57b5562d567da5c48ad2"
+  },
+  "samples_ms": {
+    "before": [
+      2205.372,
+      1830.021,
+      2469.126,
+      2865.054,
+      2623.296,
+      2380.255,
+      2529.813,
+      3582.359,
+      4581.976,
+      2067.345
+    ],
+    "after": [
+      1019.89,
+      1085.166,
+      1284.845,
+      1811.816,
+      1477.872,
+      1247.331,
+      1125.69,
+      1629.769,
+      1758.946,
+      1097.084
+    ],
+    "empty_node": [
+      862.333,
+      900.455,
+      1045.276,
+      1306.082,
+      1262.164,
+      1037.007,
+      1361.539,
+      1813.258,
+      1405.211,
+      1153.777
+    ]
+  },
+  "median_ms": {
+    "before": null,
+    "after": 1266.088,
+    "empty_node": 1207.9705
+  },
+  "errors": [
+    {
+      "variant": "before",
+      "iteration": 9,
+      "exit": 0,
+      "diagnostic": "custom-agents hooks: child cleanup confirmation timed out"
+    }
+  ],
+  "actual_repository_without_python": {
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "estado": "FALLO_CONTROL_ANTERIOR",
+  "accepted_comparison": false,
+  "diagnostic_median_all_attempts_ms": {
+    "before": 2499.4695,
+    "after": 1266.088,
+    "empty_node": 1207.9705
+  },
+  "diagnostic_reduction_percent_including_failed_samples": 49.35,
+  "paired_reduction_percent": null,
+  "limitation": "The previous launcher control contains a failed cleanup sample; its aggregate is diagnostic only and cannot certify a performance reduction."
+}

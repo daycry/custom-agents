@@ -13,6 +13,20 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ### Fixed
 
+- **Smaller catalog descriptions.** All 52 descriptions fit within 600 characters; 25 move their full scope into bodies or references, retain activation literals and reduce the declared fixed-token estimate by over 3,200 per session.
+
+- **Statusline startup.** Uses one isolated Python on a cache miss and none for identical input and unchanged ledgers, preserves formatting and selects valid interpreters without WindowsApps aliases.
+
+- **Knowledge index temporary cleanup.** Removes old SQLite temporary files and journals only for confirmed dead PIDs, preserves recent or uncertain owners, and cleans both owned files after a rebuild.
+
+- **Startup timeout and isolated prompt capture.** Declares a 30 s SessionStart timeout and runs prompt capture with `-I -S`, preserving redaction and privacy opt-outs.
+
+- **Native guard prefilter.** Skips Python for exact unprotected native identities, retaining evaluation for protected or uncertain inputs. OpenCode refreshes role selection and forwards invalid maps to the existing diagnostic.
+
+- **Cleanup helper startup.** Defers business-only Python imports until the operation that needs them, reducing initialization work within the existing cleanup deadline.
+
+- **Hook benchmark acceptance.** Requires discarded warmup before accepting a baseline and adds optional `--fail-fast` with explicit executed/expected case counts.
+
 - **OpenCode V2 discovery.** Reads nested MCP servers and declared disabled states, plural agents/commands, and both supported skill forms. Preserves V1 overrides and mixed-source conflicts while excluding timeout options and auxiliary skill folders from the inventory.
 
 ### Added

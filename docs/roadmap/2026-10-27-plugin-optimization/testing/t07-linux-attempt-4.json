@@ -1,0 +1,65 @@
+{
+  "status": "FALLO_PENDIENTE",
+  "full_phase_acceptance": false,
+  "stages": [
+    {
+      "stage": "lint",
+      "exit": 0,
+      "started": "2026-10-28T17:16:43Z",
+      "finished": "2026-10-28T17:16:53.068586+00:00"
+    },
+    {
+      "stage": "evals",
+      "exit": 0,
+      "started": "2026-10-28T17:16:53Z",
+      "finished": "2026-10-28T17:16:53.534023+00:00"
+    },
+    {
+      "stage": "script-suites",
+      "exit": 0,
+      "started": "2026-10-28T17:16:53Z",
+      "finished": "2026-10-28T17:20:35.975278+00:00"
+    },
+    {
+      "stage": "pytest",
+      "exit": 1,
+      "started": "2026-10-28T17:20:36Z",
+      "finished": "2026-10-28T17:22:43.154753+00:00"
+    }
+  ],
+  "environment": {
+    "python": "3.11.18 (main, Oct 28 2026, 02:05:49) [GCC 12.2.0]",
+    "node": "v22.23.3",
+    "npm": "10.9.9",
+    "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "memory_limit": "2 GiB",
+    "cpus": 2
+  },
+  "snapshot": {
+    "archive_sha256": "f5116d2df6f8571e177aa0e03cb23f695c330aa5bde9a59302b6a46ade8e6563",
+    "regular_files_verified": 1587,
+    "differences": [],
+    "complete_match": true
+  },
+  "pytest": {
+    "passed": 280,
+    "failed": 1,
+    "skipped": 1,
+    "exit": 1,
+    "failfast": true,
+    "test": "tests/test_bench_session_end.py::test_bench_mide_in_process_no_solo_subproceso",
+    "observed_p50_ms": 29.15,
+    "unchanged_limit_ms": 20,
+    "cause": "not isolated; do not infer product regression or environment-only failure"
+  },
+  "not_executed_after_stop": [
+    "capture-benchmark",
+    "interop Linux stage",
+    "Node full suite",
+    "syntax-json Linux stage",
+    "release-check Linux stage"
+  ],
+  "earlier_directed_validation": "recorded in t03/t04/t05/t06 reports; not a full-suite pass",
+  "stop_request": "user requested commits, push and stop for today; no further roadmap work",
+  "release_created": false
+}

@@ -13,11 +13,17 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ### Fixed
 
+- **Prefiltro de la guardia nativa.** Evita Python para identidades nativas no protegidas y mantiene la evaluación de identidades protegidas o entradas dudosas. OpenCode actualiza su selección de roles y delega mapas inválidos al diagnóstico existente.
+
+- **Arranque del helper de limpieza.** Difiere los imports de Python exclusivos de ejecución hasta la operación que los necesita, reduciendo la inicialización dentro del plazo de limpieza existente.
+
+- **Aceptación del benchmark de hooks.** Exige calentamiento descartado para aceptar una línea base y añade `--fail-fast` opcional con el recuento de casos ejecutados y previstos.
+
 - **Inventario OpenCode V2.** Lee MCP anidados y estados disabled, agents/commands plurales y las dos formas de skill. Conserva overrides V1 y conflictos entre fuentes, sin inventariar timeouts ni marcar auxiliares como skills incompletas.
 
 ### Added
 
-- **Benchmark reproducible de hooks.** Informa de la latencia del launcher compartido por runtime y registro, y estima los tokens fijos y bajo demanda. Las fixtures versionadas, los proyectos temporales, el descarte del calentamiento y los fallos estructurados permiten revisar las comparaciones antes/despu?s (`scripts/bench-hooks.py`).
+- **Benchmark reproducible de hooks.** Informa de la latencia del launcher compartido por runtime y registro, y estima los tokens fijos y bajo demanda. Las fixtures versionadas, los proyectos temporales, el descarte del calentamiento y los fallos estructurados permiten revisar las comparaciones antes/después (`scripts/bench-hooks.py`).
 
 ## [2.0.1] - 2026-10-27
 
@@ -692,6 +698,14 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 ## [1.20.2] - 2026-09-15
 
 ### Corregido
+
+- **Descriptions más breves.** Las 52 caben en 600 caracteres; 25 trasladan el alcance completo a cuerpos o referencias, conservan los literales de activación y reducen la estimación de tokens fijos en más de 3.200 por sesión.
+
+- **Arranque del statusline.** Usa un Python aislado sin caché y ninguno con entrada y ledgers iguales, conserva el formato y selecciona intérpretes válidos evitando alias de WindowsApps.
+
+- **Limpieza de temporales del índice.** Elimina temporales SQLite y journals antiguos solo de PIDs confirmados muertos, conserva los recientes o de dueño dudoso y limpia ambos ficheros propios tras reconstruir.
+
+- **Timeout de arranque y captura aislada.** Declara 30 s para SessionStart y ejecuta la captura de prompts con `-I -S`, conservando la redacción y los opt-outs de privacidad.
 
 - **Coherencia de metadatos de release e indice del roadmap.** Los metadatos y la entrada del marketplace de Claude Code quedan alineados con los manifiestos de runtime, y las iniciativas permanecen dentro de la tabla renderizada del indice.
 

@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "method": "Fresh isolated Python per sample; time compilation and module initialization only, excluding process startup, file reading and job operations. Alternate before/after; discard one warmup per variant.",
+  "python_version": "3.13.0",
+  "source_sha256": {
+    "before": "0f10f34305eed58ecab979d3de7d4c0aca7fcdacf6b757bc67517282cdb843e1",
+    "after": "8c4a4c568a0ec71f885420e99eb9c6e406429e6f2c994a2bdeb20d279d68a04a"
+  },
+  "program": "import sys,time;source=open(sys.argv[1],encoding='utf-8').read();ns={'__name__':'cleanup_import_probe','__file__':sys.argv[1]};start=time.perf_counter();exec(compile(source,sys.argv[1],'exec'),ns);print((time.perf_counter()-start)*1000)",
+  "samples_ms": {
+    "before": [
+      224.439,
+      265.399,
+      471.161,
+      156.302,
+      126.551,
+      318.1,
+      106.53,
+      65.006,
+      77.091,
+      60.2,
+      52.495,
+      35.55,
+      44.995,
+      96.254,
+      68.681,
+      33.964,
+      36.64,
+      36.784,
+      35.55,
+      39.117
+    ],
+    "after": [
+      9.524,
+      9.91,
+      9.4,
+      9.816,
+      28.825,
+      12.215,
+      9.446,
+      9.665,
+      9.198,
+      6.672,
+      9.009,
+      8.024,
+      8.774,
+      6.206,
+      7.22,
+      8.939,
+      7.581,
+      6.966,
+      8.59,
+      6.388
+    ]
+  },
+  "median_ms": {
+    "before": 66.844,
+    "after": 8.974
+  },
+  "reduction_percent": 86.57,
+  "original_supervisor_control": {
+    "exit": 0,
+    "stdout": "\u2714 opencode: multiple results visibly degrades without granting permission (1171.2603ms)\n\u2714 opencode: a complete denial survives later timeout (5310.4548ms)\n\u2139 tests 2\n\u2139 suites 0\n\u2139 pass 2\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 6995.0403\n",
+    "stderr": ""
+  },
+  "fixed_supervisor_restored": true
+}

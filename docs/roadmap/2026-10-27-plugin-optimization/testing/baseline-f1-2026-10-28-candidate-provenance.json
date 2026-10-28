@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source_sha256": {
+    "scripts/bench-hooks.py": "0870e1854adda4f605784a513f9c1cde872b2c0e0870e96635637389e65532d4",
+    "hooks/hooks.json": "7f254b00fcfd387c5e50c94f638b3a4cb1c6f7be4f02db1275296888fcd3a6b6",
+    "hooks/run-hook.mjs": "bb531a1feaad5b284b0388bb918c9f60ccc5d9c75eb491268c4f7cffe30d2069",
+    "hooks/runtime-supervisor.py": "0f10f34305eed58ecab979d3de7d4c0aca7fcdacf6b757bc67517282cdb843e1",
+    "agent-kits/shared/native-roles.json": "277b7da42b154e4ad228084bd7fd70108b5f15e70eb04eb84c489c8216f58082",
+    "tests/fixtures/bench-hooks/claude.json": "5d3ecc0e15e0c3050540d39a4a6d7e487c060cb57ccd1c4295aecf7d8846acff",
+    "tests/fixtures/bench-hooks/codex.json": "164512b9b779fbf25f6f0be117afdcb9e5b9c75354f2e528edf6a46faa21e942",
+    "tests/fixtures/bench-hooks/opencode.json": "164512b9b779fbf25f6f0be117afdcb9e5b9c75354f2e528edf6a46faa21e942"
+  },
+  "node_version": "v23.8.0",
+  "python_version": "3.13.0",
+  "command": "python scripts/bench-hooks.py --runs 10 --warmup 1 --fail-fast --json",
+  "condition": "sequential candidates; no other tests launched by this session during measurement"
+}

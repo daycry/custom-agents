@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "target": "workspace/.claude/knowledge-index.sqlite",
+  "source_sha256": "f4c6eb7f3374d8f425134c8152b66e1221781962dcce4ce2e7dd9d812eba6510",
+  "before_count": 40,
+  "after_count": 2,
+  "removed_count": 38,
+  "remaining_pids": [
+    6
+  ],
+  "minimum_age_seconds": 3600,
+  "entries_count": 70,
+  "index_readable": true,
+  "cache_status": "cache",
+  "document_files_modified": false
+}

@@ -1,0 +1,227 @@
+[
+  {
+    "file": "agents/analyst.md",
+    "before_chars": 1047,
+    "after_chars": 393,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "6ae1a0ed71a77d9cdb0a2251c78eb32c2bd35435921eff0214e733142f5c05d4",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "agents/architect.md",
+    "before_chars": 1075,
+    "after_chars": 381,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "0a07ecbdff4d985048b5fd6a13e10a12b00d4bcba85b583475ee5bdea45174c2",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "agents/documenter.md",
+    "before_chars": 969,
+    "after_chars": 281,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "013bfb38dd9a0931199f63e2697c61fd7898a8c50b5606dbbf223b9d666bd1f8",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "agents/evaluator.md",
+    "before_chars": 647,
+    "after_chars": 329,
+    "moved_to": "agent-kits/evaluator/references/scope.md",
+    "original_sha256": "cf39766accd34de10ae5765f29a05b6e2cd1aec850c0b9e69e02e8aced222a6e",
+    "trigger_tail_preserved": true,
+    "note": "full prior scope moved to an on-demand reference to preserve CA-22 prompt byte cap; triggers retained"
+  },
+  {
+    "file": "agents/knowledge-curator.md",
+    "before_chars": 894,
+    "after_chars": 358,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "90a7d0617a18873b54d43eeb9dcaef0c4a853abe9e3d3331aa07ba3249017292",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "agents/reviewer.md",
+    "before_chars": 1084,
+    "after_chars": 380,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "c664d747d14d00edf2e792d8eeee83fbd4e3d4ebbbe9400367c847ae21658eee",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/adversarial-review/SKILL.md",
+    "before_chars": 1006,
+    "after_chars": 454,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "dcf6dcb5f6fc4b32dad147eecab19eb29b7194de83e9264fbbb0deb6cd551786",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/api-contract/SKILL.md",
+    "before_chars": 993,
+    "after_chars": 415,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "c2cd9554ff43af7c4e211ace4133af4e63d1bdfa0791017478e2334a71bbf6d4",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/changelog-sync/SKILL.md",
+    "before_chars": 926,
+    "after_chars": 302,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "82f7683427af63e84d1d83cf608aed1d30856f38ced77650fc62e78a16491ab2",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/code-health/SKILL.md",
+    "before_chars": 977,
+    "after_chars": 418,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "9aa86a2be5a4cdca752e969888039d0ec2ad1e3865d3b115cdd366266b82fcc3",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/confluence-publish/SKILL.md",
+    "before_chars": 783,
+    "after_chars": 326,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "1c43a03849fba8151d6428ca40ac80f0169cdc1fc38c04d94490d3256d92f830",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/confluence-pull/SKILL.md",
+    "before_chars": 689,
+    "after_chars": 316,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "3892d688c119aaed98b37b7c560754f11a3c9fc6b51f77c2580ffaa79b32d9c7",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/cybersecurity/SKILL.md",
+    "before_chars": 911,
+    "after_chars": 522,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "e653b9efc0470c8f261badcfc71e62695e0c127e1029050f131d1e55b0914a37",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/dependency-upgrade/SKILL.md",
+    "before_chars": 1001,
+    "after_chars": 397,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "eacd9df0a82edf329dc64f75d1c42e28951ea41c7c51b00fdf06ab36afe778bc",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/jira-sync/SKILL.md",
+    "before_chars": 779,
+    "after_chars": 273,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "c9384b280d7c10fd72efd9e257fb4192fd9bc2dc8882ebafb48a2f152428f06d",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/knowledge-services/SKILL.md",
+    "before_chars": 996,
+    "after_chars": 423,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "6456159eedb7a6011c9b50f531ef11957a241db9e3f75d9492d519a4f66bce1b",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/plugin-dev/SKILL.md",
+    "before_chars": 613,
+    "after_chars": 353,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "470e33bc4b423812d961221c995552e2491cda0b4f0e51b7e81545a6a3ebad0b",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/plugin-panel/SKILL.md",
+    "before_chars": 900,
+    "after_chars": 377,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "5e4c2497abb8b57c001a2ac9ed617e890a1468227e4dacf199dadd6f3ba79bb4",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/quick-implement/SKILL.md",
+    "before_chars": 883,
+    "after_chars": 365,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "f18e24922ee389643ff1b0d9d204826864a2ec9fb3fdc2cd3b3b1b1fd9360d79",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/rates-verify/SKILL.md",
+    "before_chars": 633,
+    "after_chars": 350,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "9cd496192ee81704fdac968bdc1c38eec3c3a12a6da51d0e415e84c9c1e93880",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/tdd/SKILL.md",
+    "before_chars": 966,
+    "after_chars": 440,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "e25e8b1c6ac6f8bb53f5b77b6df1f4b3a56141537969dee3f5f62b653866908d",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/training-data-services/SKILL.md",
+    "before_chars": 1011,
+    "after_chars": 438,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "5038fae80d01ba9155bf50df857e1405aec4017fb331fe090e9ee7650a64b582",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "skills/unit-tests/SKILL.md",
+    "before_chars": 824,
+    "after_chars": 385,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "e98d2f377d53ca596826ed943334f64dc2c75b737b6148b6990d0021371916c0",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "commands/doctor.md",
+    "before_chars": 790,
+    "after_chars": 311,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "52014a4ff9368e51e617f3cbfa61d9b3dd495e482d2fdc7942ffde3a1a7e6c8f",
+    "trigger_tail_preserved": true,
+    "note": "all original triggers retained verbatim"
+  },
+  {
+    "file": "commands/setup.md",
+    "before_chars": 793,
+    "after_chars": 263,
+    "moved_to": "same file body: Alcance y activacion",
+    "original_sha256": "5bc287dedc70c6ad7468af14afb006018b1306e4dceb2e715ed46c2943d891ec",
+    "trigger_tail_preserved": false,
+    "note": "setup retains the literal onboarding phrase in its concise purpose"
+  }
+]

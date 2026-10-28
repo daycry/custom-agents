@@ -1,0 +1,16 @@
+{
+  "pytest_selected": {
+    "passed": 25,
+    "deselected": 631
+  },
+  "explicit_new_and_existing_scripts": {
+    "count": 2,
+    "canonical_snippet": true,
+    "runtime_encodings": [
+      "cp1252",
+      "ascii"
+    ],
+    "utf8_symbols_preserved": true
+  },
+  "reason_for_explicit_calls": "host git-based inventory excludes the new unindexed renderer; Linux snapshot indexes it"
+}

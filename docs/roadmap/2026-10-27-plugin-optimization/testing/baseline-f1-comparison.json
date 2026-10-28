@@ -1,0 +1,556 @@
+{
+  "schema_version": 1,
+  "estado": "tres_pasadas_validas_con_variabilidad",
+  "pasadas": [
+    "baseline-f1-2026-10-28-post-cleanup-1.json",
+    "baseline-f1-2026-10-28-post-cleanup-2.json",
+    "baseline-f1-2026-10-28-post-cleanup-3.json"
+  ],
+  "muestras_medidas": 1080,
+  "calentamientos_descartados": 108,
+  "metodo_dispersion": "100 * (max(medianas) / min(medianas) - 1); descriptive, not a CI gate",
+  "estabilidad": "Uniform timing stability is not established. Preserve ranges; do not attribute machine noise to a code change.",
+  "fuentes_sin_cambios_durante_la_serie": true,
+  "casos": [
+    {
+      "runtime": "claude",
+      "registro": "PreToolUse:0:0",
+      "evento": "PreToolUse",
+      "hook": "native-guardrail",
+      "medianas_ms": [
+        1030.024,
+        897.494,
+        808.876
+      ],
+      "mediana_central_ms": 897.494,
+      "min_ms": 808.876,
+      "max_ms": 1030.024,
+      "dispersion_max_min_pct": 27.34
+    },
+    {
+      "runtime": "claude",
+      "registro": "PostToolUse:0:0",
+      "evento": "PostToolUse",
+      "hook": "mark-docs-pending.sh",
+      "medianas_ms": [
+        2052.976,
+        1514.635,
+        1556.499
+      ],
+      "mediana_central_ms": 1556.499,
+      "min_ms": 1514.635,
+      "max_ms": 2052.976,
+      "dispersion_max_min_pct": 35.54
+    },
+    {
+      "runtime": "claude",
+      "registro": "PostToolUse:0:1",
+      "evento": "PostToolUse",
+      "hook": "ledger-lint-warn.sh",
+      "medianas_ms": [
+        2307.118,
+        1716.508,
+        2765.589
+      ],
+      "mediana_central_ms": 2307.118,
+      "min_ms": 1716.508,
+      "max_ms": 2765.589,
+      "dispersion_max_min_pct": 61.12
+    },
+    {
+      "runtime": "claude",
+      "registro": "PostToolUse:0:2",
+      "evento": "PostToolUse",
+      "hook": "progress-line.sh",
+      "medianas_ms": [
+        3124.794,
+        2400.591,
+        2838.419
+      ],
+      "mediana_central_ms": 2838.419,
+      "min_ms": 2400.591,
+      "max_ms": 3124.794,
+      "dispersion_max_min_pct": 30.17
+    },
+    {
+      "runtime": "claude",
+      "registro": "PostToolUse:1:0",
+      "evento": "PostToolUse",
+      "hook": "agent-activity",
+      "medianas_ms": [
+        588.949,
+        454.827,
+        635.168
+      ],
+      "mediana_central_ms": 588.949,
+      "min_ms": 454.827,
+      "max_ms": 635.168,
+      "dispersion_max_min_pct": 39.65
+    },
+    {
+      "runtime": "claude",
+      "registro": "PostToolUseFailure:0:0",
+      "evento": "PostToolUseFailure",
+      "hook": "agent-activity",
+      "medianas_ms": [
+        524.81,
+        471.419,
+        551.863
+      ],
+      "mediana_central_ms": 524.81,
+      "min_ms": 471.419,
+      "max_ms": 551.863,
+      "dispersion_max_min_pct": 17.06
+    },
+    {
+      "runtime": "claude",
+      "registro": "SubagentStart:0:0",
+      "evento": "SubagentStart",
+      "hook": "agent-activity",
+      "medianas_ms": [
+        523.681,
+        495.51,
+        573.033
+      ],
+      "mediana_central_ms": 523.681,
+      "min_ms": 495.51,
+      "max_ms": 573.033,
+      "dispersion_max_min_pct": 15.65
+    },
+    {
+      "runtime": "claude",
+      "registro": "SubagentStop:0:0",
+      "evento": "SubagentStop",
+      "hook": "agent-activity",
+      "medianas_ms": [
+        536.308,
+        552.949,
+        655.067
+      ],
+      "mediana_central_ms": 552.949,
+      "min_ms": 536.308,
+      "max_ms": 655.067,
+      "dispersion_max_min_pct": 22.14
+    },
+    {
+      "runtime": "claude",
+      "registro": "SubagentStop:0:1",
+      "evento": "SubagentStop",
+      "hook": "subagent-progress.sh",
+      "medianas_ms": [
+        2277.409,
+        2068.459,
+        3799.055
+      ],
+      "mediana_central_ms": 2277.409,
+      "min_ms": 2068.459,
+      "max_ms": 3799.055,
+      "dispersion_max_min_pct": 83.67
+    },
+    {
+      "runtime": "claude",
+      "registro": "SessionStart:0:0",
+      "evento": "SessionStart",
+      "hook": "session-context.sh",
+      "medianas_ms": [
+        5501.305,
+        4507.676,
+        4713.391
+      ],
+      "mediana_central_ms": 4713.391,
+      "min_ms": 4507.676,
+      "max_ms": 5501.305,
+      "dispersion_max_min_pct": 22.04
+    },
+    {
+      "runtime": "claude",
+      "registro": "SessionEnd:0:0",
+      "evento": "SessionEnd",
+      "hook": "session-journal.sh",
+      "medianas_ms": [
+        872.296,
+        819.117,
+        847.353
+      ],
+      "mediana_central_ms": 847.353,
+      "min_ms": 819.117,
+      "max_ms": 872.296,
+      "dispersion_max_min_pct": 6.49
+    },
+    {
+      "runtime": "claude",
+      "registro": "UserPromptSubmit:0:0",
+      "evento": "UserPromptSubmit",
+      "hook": "user-prompt-capture.sh",
+      "medianas_ms": [
+        976.927,
+        861.167,
+        1012.711
+      ],
+      "mediana_central_ms": 976.927,
+      "min_ms": 861.167,
+      "max_ms": 1012.711,
+      "dispersion_max_min_pct": 17.6
+    },
+    {
+      "runtime": "codex",
+      "registro": "PreToolUse:0:0",
+      "evento": "PreToolUse",
+      "hook": "native-guardrail",
+      "medianas_ms": [
+        865.589,
+        801.314,
+        1052.274
+      ],
+      "mediana_central_ms": 865.589,
+      "min_ms": 801.314,
+      "max_ms": 1052.274,
+      "dispersion_max_min_pct": 31.32
+    },
+    {
+      "runtime": "codex",
+      "registro": "PostToolUse:0:0",
+      "evento": "PostToolUse",
+      "hook": "mark-docs-pending.sh",
+      "medianas_ms": [
+        1767.576,
+        1506.233,
+        1606.231
+      ],
+      "mediana_central_ms": 1606.231,
+      "min_ms": 1506.233,
+      "max_ms": 1767.576,
+      "dispersion_max_min_pct": 17.35
+    },
+    {
+      "runtime": "codex",
+      "registro": "PostToolUse:0:1",
+      "evento": "PostToolUse",
+      "hook": "ledger-lint-warn.sh",
+      "medianas_ms": [
+        1995.103,
+        2586.761,
+        1895.513
+      ],
+      "mediana_central_ms": 1995.103,
+      "min_ms": 1895.513,
+      "max_ms": 2586.761,
+      "dispersion_max_min_pct": 36.47
+    },
+    {
+      "runtime": "codex",
+      "registro": "PostToolUse:0:2",
+      "evento": "PostToolUse",
+      "hook": "progress-line.sh",
+      "medianas_ms": [
+        2677.485,
+        2639.124,
+        3481.055
+      ],
+      "mediana_central_ms": 2677.485,
+      "min_ms": 2639.124,
+      "max_ms": 3481.055,
+      "dispersion_max_min_pct": 31.9
+    },
+    {
+      "runtime": "codex",
+      "registro": "PostToolUse:1:0",
+      "evento": "PostToolUse",
+      "hook": "agent-activity",
+      "medianas_ms": [
+        468.082,
+        469.178,
+        829.885
+      ],
+      "mediana_central_ms": 469.178,
+      "min_ms": 468.082,
+      "max_ms": 829.885,
+      "dispersion_max_min_pct": 77.29
+    },
+    {
+      "runtime": "codex",
+      "registro": "PostToolUseFailure:0:0",
+      "evento": "PostToolUseFailure",
+      "hook": "agent-activity",
+      "medianas_ms": [
+        466.264,
+        581.485,
+        783.177
+      ],
+      "mediana_central_ms": 581.485,
+      "min_ms": 466.264,
+      "max_ms": 783.177,
+      "dispersion_max_min_pct": 67.97
+    },
+    {
+      "runtime": "codex",
+      "registro": "SubagentStart:0:0",
+      "evento": "SubagentStart",
+      "hook": "agent-activity",
+      "medianas_ms": [
+        481.239,
+        484.193,
+        572.894
+      ],
+      "mediana_central_ms": 484.193,
+      "min_ms": 481.239,
+      "max_ms": 572.894,
+      "dispersion_max_min_pct": 19.05
+    },
+    {
+      "runtime": "codex",
+      "registro": "SubagentStop:0:0",
+      "evento": "SubagentStop",
+      "hook": "agent-activity",
+      "medianas_ms": [
+        499.869,
+        478.645,
+        635.145
+      ],
+      "mediana_central_ms": 499.869,
+      "min_ms": 478.645,
+      "max_ms": 635.145,
+      "dispersion_max_min_pct": 32.7
+    },
+    {
+      "runtime": "codex",
+      "registro": "SubagentStop:0:1",
+      "evento": "SubagentStop",
+      "hook": "subagent-progress.sh",
+      "medianas_ms": [
+        2071.229,
+        2016.248,
+        2328.38
+      ],
+      "mediana_central_ms": 2071.229,
+      "min_ms": 2016.248,
+      "max_ms": 2328.38,
+      "dispersion_max_min_pct": 15.48
+    },
+    {
+      "runtime": "codex",
+      "registro": "SessionStart:0:0",
+      "evento": "SessionStart",
+      "hook": "session-context.sh",
+      "medianas_ms": [
+        4022.319,
+        8127.886,
+        5367.863
+      ],
+      "mediana_central_ms": 5367.863,
+      "min_ms": 4022.319,
+      "max_ms": 8127.886,
+      "dispersion_max_min_pct": 102.07
+    },
+    {
+      "runtime": "codex",
+      "registro": "SessionEnd:0:0",
+      "evento": "SessionEnd",
+      "hook": "session-journal.sh",
+      "medianas_ms": [
+        927.571,
+        1148.621,
+        1180.281
+      ],
+      "mediana_central_ms": 1148.621,
+      "min_ms": 927.571,
+      "max_ms": 1180.281,
+      "dispersion_max_min_pct": 27.24
+    },
+    {
+      "runtime": "codex",
+      "registro": "UserPromptSubmit:0:0",
+      "evento": "UserPromptSubmit",
+      "hook": "user-prompt-capture.sh",
+      "medianas_ms": [
+        954.726,
+        1006.568,
+        1044.586
+      ],
+      "mediana_central_ms": 1006.568,
+      "min_ms": 954.726,
+      "max_ms": 1044.586,
+      "dispersion_max_min_pct": 9.41
+    },
+    {
+      "runtime": "opencode",
+      "registro": "PreToolUse:0:0",
+      "evento": "PreToolUse",
+      "hook": "native-guardrail",
+      "medianas_ms": [
+        830.848,
+        1022.659,
+        1049.497
+      ],
+      "mediana_central_ms": 1022.659,
+      "min_ms": 830.848,
+      "max_ms": 1049.497,
+      "dispersion_max_min_pct": 26.32
+    },
+    {
+      "runtime": "opencode",
+      "registro": "PostToolUse:0:0",
+      "evento": "PostToolUse",
+      "hook": "mark-docs-pending.sh",
+      "medianas_ms": [
+        1699.726,
+        1794.053,
+        1748.903
+      ],
+      "mediana_central_ms": 1748.903,
+      "min_ms": 1699.726,
+      "max_ms": 1794.053,
+      "dispersion_max_min_pct": 5.55
+    },
+    {
+      "runtime": "opencode",
+      "registro": "PostToolUse:0:1",
+      "evento": "PostToolUse",
+      "hook": "ledger-lint-warn.sh",
+      "medianas_ms": [
+        2247.182,
+        2358.073,
+        2041.285
+      ],
+      "mediana_central_ms": 2247.182,
+      "min_ms": 2041.285,
+      "max_ms": 2358.073,
+      "dispersion_max_min_pct": 15.52
+    },
+    {
+      "runtime": "opencode",
+      "registro": "PostToolUse:0:2",
+      "evento": "PostToolUse",
+      "hook": "progress-line.sh",
+      "medianas_ms": [
+        2707.508,
+        2687.266,
+        3014.818
+      ],
+      "mediana_central_ms": 2707.508,
+      "min_ms": 2687.266,
+      "max_ms": 3014.818,
+      "dispersion_max_min_pct": 12.19
+    },
+    {
+      "runtime": "opencode",
+      "registro": "PostToolUse:1:0",
+      "evento": "PostToolUse",
+      "hook": "agent-activity",
+      "medianas_ms": [
+        484.139,
+        478.163,
+        572.519
+      ],
+      "mediana_central_ms": 484.139,
+      "min_ms": 478.163,
+      "max_ms": 572.519,
+      "dispersion_max_min_pct": 19.73
+    },
+    {
+      "runtime": "opencode",
+      "registro": "PostToolUseFailure:0:0",
+      "evento": "PostToolUseFailure",
+      "hook": "agent-activity",
+      "medianas_ms": [
+        498.132,
+        617.859,
+        569.793
+      ],
+      "mediana_central_ms": 569.793,
+      "min_ms": 498.132,
+      "max_ms": 617.859,
+      "dispersion_max_min_pct": 24.04
+    },
+    {
+      "runtime": "opencode",
+      "registro": "SubagentStart:0:0",
+      "evento": "SubagentStart",
+      "hook": "agent-activity",
+      "medianas_ms": [
+        482.678,
+        550.478,
+        630.193
+      ],
+      "mediana_central_ms": 550.478,
+      "min_ms": 482.678,
+      "max_ms": 630.193,
+      "dispersion_max_min_pct": 30.56
+    },
+    {
+      "runtime": "opencode",
+      "registro": "SubagentStop:0:0",
+      "evento": "SubagentStop",
+      "hook": "agent-activity",
+      "medianas_ms": [
+        492.769,
+        489.963,
+        665.105
+      ],
+      "mediana_central_ms": 492.769,
+      "min_ms": 489.963,
+      "max_ms": 665.105,
+      "dispersion_max_min_pct": 35.75
+    },
+    {
+      "runtime": "opencode",
+      "registro": "SubagentStop:0:1",
+      "evento": "SubagentStop",
+      "hook": "subagent-progress.sh",
+      "medianas_ms": [
+        2090.639,
+        2081.083,
+        2214.666
+      ],
+      "mediana_central_ms": 2090.639,
+      "min_ms": 2081.083,
+      "max_ms": 2214.666,
+      "dispersion_max_min_pct": 6.42
+    },
+    {
+      "runtime": "opencode",
+      "registro": "SessionStart:0:0",
+      "evento": "SessionStart",
+      "hook": "session-context.sh",
+      "medianas_ms": [
+        4694.3,
+        4489.142,
+        4722.097
+      ],
+      "mediana_central_ms": 4694.3,
+      "min_ms": 4489.142,
+      "max_ms": 4722.097,
+      "dispersion_max_min_pct": 5.19
+    },
+    {
+      "runtime": "opencode",
+      "registro": "SessionEnd:0:0",
+      "evento": "SessionEnd",
+      "hook": "session-journal.sh",
+      "medianas_ms": [
+        844.313,
+        1090.309,
+        884.561
+      ],
+      "mediana_central_ms": 884.561,
+      "min_ms": 844.313,
+      "max_ms": 1090.309,
+      "dispersion_max_min_pct": 29.14
+    },
+    {
+      "runtime": "opencode",
+      "registro": "UserPromptSubmit:0:0",
+      "evento": "UserPromptSubmit",
+      "hook": "user-prompt-capture.sh",
+      "medianas_ms": [
+        922.791,
+        1024.926,
+        913.231
+      ],
+      "mediana_central_ms": 922.791,
+      "min_ms": 913.231,
+      "max_ms": 1024.926,
+      "dispersion_max_min_pct": 12.23
+    }
+  ]
+}

@@ -58,6 +58,29 @@ of possible overlap.
 3. Quick check: edit a file under `docs/` — the plugin's warning should fire — and
    verify that the session shows up in the monitor's dashboard.
 
+SessionStart declares `timeout: 30` in `hooks/hooks.json` and the regenerated
+Codex manifest. C-06 will revisit a 10 s timeout once startup uses one Python
+process. The shared launcher retains its internal 20 s context budget; the
+native OpenCode adapter also has a separate 20 s limit. The registration
+timeout does not extend either limit. `UserPromptSubmit` invokes
+`journal.py capture` with `-I -S`, preserving the log, redaction and opt-outs
+without loading consumer packages.
+
+Knowledge-index reconstruction sweeps only its own
+`knowledge-index.sqlite.<pid>.tmp` files and journals: every sibling must be
+at least one hour old and its PID confirmed dead. Live or uncertain owners
+and recent files are preserved. Links, junctions and unrelated names are
+excluded; cleanup stays within the index directory and I/O failures warn
+without blocking reconstruction. The `finally` cleans both owned files.
+
+The statusline uses at most one isolated Python process per refresh. With
+identical input and unchanged ledger metadata, `.claude/statusline-cache`
+serves public fields without Python. Cost/context, ledger, usage-state or
+script changes invalidate it; raw input JSON is never stored. Interpreter
+selection honors `CUSTOM_AGENTS_PYTHON` and excludes WindowsApps aliases.
+Missing Python or a renderer error preserves the model and exit 0. Bash keeps
+the existing numeric formatting; `jq` is unnecessary. `/setup` keeps its command.
+
 ## Live visibility (no external monitor)
 
 Between the two questions above there is a third, more modest one that the plugin **does** answer
@@ -114,6 +137,9 @@ adapter owns the launcher group; cleanup verifies ownership, stops and
 terminates child members while keeping the owner alive. Other invocations
 use their own group. Closure confirmation has an additional 500 ms ceiling;
 this does not guarantee immediate operating-system scheduling.
+The `close` helper loads only what it needs to confirm the Job Object. Business
+executors `runpy` and `subprocess`, and serializer `json`, load in the operations
+that use them, keeping their initialization outside the cleanup path.
 [Job Objects contract](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects).
 
 The supervised-payload headless Claude 2.1.287 fixture retained context, UTF-8
@@ -182,6 +208,28 @@ Measurement (CA-02): `python3 scripts/bench-session-end.py --iterations 30 --ass
   not a traceback.
 
 `ci.yml.MANUAL-COPY` runs it with CA-02's thresholds on every build, against the in-process numbers.
+
+### Native guard prefilter
+
+`run-hook.mjs` checks the generated `native-roles.json` map before looking for
+Python. With a valid map and an absent or unprotected native identity, it returns
+the same continuation result without starting Python. Matching is exact:
+`agent_type` in Claude/Codex and `agent` in OpenCode; prefixes, normalization and
+identities inside tool arguments do not select a protected role.
+
+Protected identities and uncertain maps, encodings or payloads retain Python
+evaluation. Input is bounded to 64 KiB, matching the evaluator. Input collection
+and evaluation share a monotonic deadline. The prefilter emits no denials;
+policy decisions remain in Python.
+
+The persistent OpenCode adapter rereads the map per invocation. Invalid maps
+reach the evaluator diagnostic instead of retaining stale identity selection.
+Map validation is a declared copy in `copias.json`, with byte equality and
+semantic parity with Python's protected roles.
+
+Launcher measurements include Node startup. Removing Python processes does not
+guarantee a fixed reduction in total latency. T-02 local comparisons and the
+startup control are in the `plugin-optimization` testing folder.
 
 ### How to check the hooks in a real session
 
@@ -319,9 +367,13 @@ and runtime. Warmup executes but is discarded. Process errors, timeouts or launc
 degradation diagnostics produce `FALLO` without successful summary timings, and
 exit 1. Prompt capture and SessionEnd also require the expected persisted record,
 checked outside the timer; a silent no-op is a failure too. `linea_base` is true only for a successful full pass with at least ten
-samples per case. Exit 2 means invalid arguments. Use
+samples per case and at least one discarded warmup iteration. Exit 2 means invalid arguments. Use
 `--runtime codex --hook native-guardrail` for a targeted comparison, `--runs 3`
 for a smoke run, and `--tokens-only` for the text inventory alone.
+
+`--fail-fast` stops at the first failed case while retaining its samples and
+diagnostic. `casos_ejecutados` and `casos_previstos` expose pass coverage in JSON
+and Markdown; an incomplete pass cannot be a baseline.
 
 `tokens_fijos` separates agent/skill/command descriptions and the SessionStart
 index per runtime, reusing the parser and generator in `skill-index.py` without

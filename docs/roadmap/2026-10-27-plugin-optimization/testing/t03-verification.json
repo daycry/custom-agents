@@ -1,0 +1,26 @@
+{
+  "isolated_capture": true,
+  "private_does_not_change_log": true,
+  "secret_redacted": true,
+  "benchmark_exit": 0,
+  "source_sha256": {
+    "hooks/hooks.json": "b7bb798fc9ddcd68cf077ee2c70d6b3210fe5f42b919bad147fc78cbed34d640",
+    "hooks/run-hook.mjs": "f8a3af68dd02b3b0ca746c2d347e5c2df5276ea610811d94b0dd2f5f7c212e4e",
+    "agent-kits/shared/journal.py": "1bb68a7c8c0f5cc50fa66a891f5c6272acfb60db22d9d744b7f489b4e348a5f9"
+  },
+  "node_runtime": {
+    "passed": 19,
+    "failed": 0
+  },
+  "python_capture_config": {
+    "passed": 33,
+    "skipped": 3,
+    "deselected": 170
+  },
+  "interop_current_files": 88,
+  "review": "sequential self-review, not independent; Linux and phase QA pending T-07",
+  "baseline_median_ms": 1006.568,
+  "after_median_ms": 1074.019,
+  "latency_improvement_claimed": false,
+  "failed_attempt_preserved": "t03-capture-attempt-1.json"
+}

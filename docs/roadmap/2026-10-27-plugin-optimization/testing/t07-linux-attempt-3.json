@@ -1,0 +1,49 @@
+{
+  "stages": [
+    {
+      "stage": "lint",
+      "exit": 0,
+      "started": "2026-10-28T17:02:15Z",
+      "finished": "2026-10-28T17:02:18.960126+00:00"
+    },
+    {
+      "stage": "evals",
+      "exit": 0,
+      "started": "2026-10-28T17:02:19Z",
+      "finished": "2026-10-28T17:02:19.209964+00:00"
+    },
+    {
+      "stage": "script-suites",
+      "exit": 0,
+      "started": "2026-10-28T17:02:19Z",
+      "finished": "2026-10-28T17:04:44.030683+00:00"
+    },
+    {
+      "stage": "pytest",
+      "exit": 2,
+      "started": "2026-10-28T17:04:44Z",
+      "finished": "2026-10-28T17:08:38.651107+00:00"
+    }
+  ],
+  "pytest": {
+    "passed_at_interrupt": 1659,
+    "failed_at_interrupt": 10,
+    "skipped_at_interrupt": 2,
+    "subtests_passed": 39,
+    "exit": 2,
+    "termination": "SIGINT sent only to the main pytest in the owned container after failures appeared; no full-suite pass"
+  },
+  "failures": [
+    "tests/test_console_encoding.py::test_todo_script_no_ascii_lleva_el_snippet[agent-kits/shared/statusline-render.py]",
+    "tests/test_console_encoding.py::test_el_snippet_conserva_su_forma_literal[agent-kits/shared/statusline-render.py]",
+    "tests/test_console_encoding.py::test_arranca_sin_reventar_en_consola_no_utf8[agent-kits/shared/statusline-render.py-cp1252]",
+    "tests/test_console_encoding.py::test_arranca_sin_reventar_en_consola_no_utf8[agent-kits/shared/statusline-render.py-ascii]",
+    "tests/test_console_encoding.py::test_arranca_sin_reventar_en_consola_no_utf8[scripts/bench-hooks.py-cp1252]",
+    "tests/test_console_encoding.py::test_arranca_sin_reventar_en_consola_no_utf8[scripts/bench-hooks.py-ascii]",
+    "tests/test_console_encoding.py::test_la_salida_sigue_siendo_utf8_no_interrogantes[agent-kits/shared/statusline-render.py-cp1252]",
+    "tests/test_console_encoding.py::test_la_salida_sigue_siendo_utf8_no_interrogantes[agent-kits/shared/statusline-render.py-ascii]",
+    "tests/test_console_encoding.py::test_la_salida_sigue_siendo_utf8_no_interrogantes[scripts/bench-hooks.py-cp1252]",
+    "tests/test_console_encoding.py::test_la_salida_sigue_siendo_utf8_no_interrogantes[scripts/bench-hooks.py-ascii]"
+  ],
+  "cause": "console contract integration: canonical snippet spelling in new renderer and missing startup modes for renderer/benchmark"
+}

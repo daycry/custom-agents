@@ -56,6 +56,29 @@ señal de posible solape.
 3. Comprobación rápida: edita un fichero bajo `docs/` — debe dispararse el aviso del plugin — y
    verifica que la sesión aparece en el dashboard del monitor.
 
+SessionStart declara `timeout: 30` en `hooks/hooks.json` y en el manifiesto
+regenerado de Codex. Cuando C-06 unifique el arranque en un solo Python se
+revisará su bajada a 10 s. El launcher compartido conserva su presupuesto
+interno de 20 s para contexto; el adaptador nativo de OpenCode también tiene
+su propio límite de 20 s. El timeout de registro no amplía esos límites.
+`UserPromptSubmit` invoca `journal.py capture` con `-I -S`: mantiene el log,
+la redacción y los opt-outs sin cargar paquetes del consumidor.
+
+Al reconstruir el índice de conocimiento se barren solo sus temporales
+`knowledge-index.sqlite.<pid>.tmp` y `-journal`: ambos deben tener al menos
+una hora y el PID debe estar confirmado como muerto. PIDs vivos, dudosos o
+ficheros recientes se conservan. Se rechazan enlaces, junctions y nombres
+ajenos; la limpieza es local al directorio del índice y un fallo de E/S avisa
+sin impedir reconstruirlo. El `finally` limpia el temporal y el journal propios.
+
+La barra de estado usa como máximo un Python aislado por refresco. Con la
+misma entrada y metadatos de ledgers sin cambios, sirve los campos desde
+`.claude/statusline-cache` sin Python. Cambios de coste/contexto, ledgers,
+usage-state o scripts invalidan la caché; no guarda la entrada JSON cruda.
+Se respeta `CUSTOM_AGENTS_PYTHON`, se excluyen alias de WindowsApps y, sin
+intérprete o ante un error, queda el modelo y exit 0. El formato y redondeo
+siguen en Bash; no se necesita `jq`. El comando de `/setup` no cambia.
+
 ## Visibilidad en vivo (sin monitor externo)
 
 Entre las dos preguntas de arriba hay una tercera, más modesta, que el plugin **sí** responde solo
@@ -111,6 +134,9 @@ En POSIX, el adaptador posee el grupo del launcher; la limpieza comprueba
 esa propiedad, detiene y termina sus miembros hijos y conserva vivo al dueño.
 Los demás lanzamientos usan su propio grupo. La confirmación de cierre tiene
 un límite adicional de 500 ms y no garantiza planificación inmediata del SO.
+El helper `close` carga solo lo necesario para confirmar el Job Object. Los
+ejecutores `runpy` y `subprocess`, y el serializador `json`, se cargan en las
+operaciones que los usan, para no gastar el plazo de limpieza en inicializarlos.
 [Contrato de Job Objects](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects).
 
 La prueba headless del payload supervisado de Claude 2.1.287 conservó contexto,
@@ -181,6 +207,28 @@ Medición (CA-02): `python3 scripts/bench-session-end.py --iterations 30 --asser
 
 `ci.yml.MANUAL-COPY` lo ejecuta con los umbrales de CA-02 en cada build, sobre los números
 in-process.
+
+### Prefiltro de la guardia nativa
+
+`run-hook.mjs` comprueba el mapa generado `native-roles.json` antes de buscar
+Python. Con un mapa válido y una identidad nativa ausente o no protegida, termina
+con el mismo resultado de continuación sin arrancar Python. La comparación es
+exacta: `agent_type` en Claude/Codex y `agent` en OpenCode; no acepta prefijos,
+normalizaciones ni identidades tomadas de los argumentos de herramientas.
+
+Las identidades protegidas y los mapas, codificaciones o payloads dudosos pasan
+al evaluador Python. La entrada se limita a 64 KiB, como el evaluador, y la lectura
+y evaluación comparten el presupuesto con reloj monotónico. El prefiltro no emite
+denegaciones; las decisiones de política siguen en Python.
+
+El adaptador persistente de OpenCode relee el mapa por invocación. Un mapa
+inválido deja llegar al diagnóstico del evaluador; no se conserva una selección
+obsoleta de identidades. La validación del mapa está replicada de forma declarada
+en `copias.json`, con igualdad de bytes y paridad con los roles protegidos de Python.
+
+La medición del launcher incluye el arranque de Node. Evitar procesos Python no
+implica una reducción fija de latencia total. La comparación local de T-02 y el
+control de arranque están en la carpeta de pruebas de `plugin-optimization`.
 
 ### Cómo comprobar los hooks en una sesión real
 
@@ -304,36 +352,39 @@ estructurado; `--md` presenta el mismo esquema en tabla. Ejecuta cada registro d
 `hooks/run-hook.mjs --runtime=...` directamente, sin evaluar comandos de shell.
 Es una medida end-to-end del launcher compartido, incluido el arranque de sus
 procesos, no una prueba de que cada runtime dispare esos eventos. En particular,
-los registros can?nicos `PostToolUseFailure` se ejercitan tambi?n con selector
+los registros canónicos `PostToolUseFailure` se ejercitan también con selector
 Codex; eso no significa que Codex ofrezca ese evento.
 
-Cada iteraci?n usa un proyecto temporal nuevo con un ledger m?nimo. Su creaci?n y
-limpieza quedan fuera del cron?metro; `CLAUDE_PROJECT_DIR`, `cwd` y las rutas del
+Cada iteración usa un proyecto temporal nuevo con un ledger mínimo. Su creación y
+limpieza quedan fuera del cronómetro; `CLAUDE_PROJECT_DIR`, `cwd` y las rutas del
 payload apuntan al temporal. El benchmark no escribe en el proyecto consumidor.
 Se mide el guard sin identidad protegida y actividad desactivada, tal como indica
-la fixture; no se mide el coste del almac?n de actividad opt-in. La captura de
-prompts usa texto inventado y no se habilitan res?menes por IA ni red.
+la fixture; no se mide el coste del almacén de actividad opt-in. La captura de
+prompts usa texto inventado y no se habilitan resúmenes por IA ni red.
 
-Por registro/runtime se conservan las muestras, mediana, p95 interpolado y m?ximo.
+Por registro/runtime se conservan las muestras, mediana, p95 interpolado y máximo.
 El calentamiento se ejecuta pero se descarta. Un fallo de proceso, timeout o
-aviso de degradaci?n del launcher produce `FALLO`, sin una mediana de ?xito, y
+aviso de degradación del launcher produce `FALLO`, sin una mediana de éxito, y
 exit 1. En captura de prompts y SessionEnd se verifica además el registro persistido
 fuera del cronómetro; un no-op silencioso también falla. `linea_base` solo es verdadero para una pasada completa correcta con
-al menos diez muestras por caso. Exit 2 indica argumentos inv?lidos.
+al menos diez muestras por caso y una iteración de calentamiento descartada. Exit 2 indica argumentos inválidos.
 `--runtime codex --hook native-guardrail` permite comparar una mejora concreta;
 `--runs 3` sirve para smoke, y `--tokens-only` calcula solo el inventario textual.
+`--fail-fast` detiene la pasada ante el primer caso fallido y conserva sus muestras
+y diagnóstico. `casos_ejecutados` y `casos_previstos` hacen visible la cobertura
+de la pasada en JSON y Markdown; una pasada incompleta no es línea base.
 
-`tokens_fijos` separa descriptions de agentes/skills/comandos e ?ndice de
+`tokens_fijos` separa descriptions de agentes/skills/comandos e índice de
 SessionStart por runtime, reutilizando el parser y generador de `skill-index.py`
-sin escribir cach?. `tokens_bajo_demanda` cuenta `dev-cycle.md` y
-`knowledge-check.md`. El m?todo es **estimaci?n caracteres/4 con redondeo superior**:
+sin escribir caché. `tokens_bajo_demanda` cuenta `dev-cycle.md` y
+`knowledge-check.md`. El método es **estimación caracteres/4 con redondeo superior**:
 no utiliza un tokenizador, no mide consumo facturado y no representa todo el
-prompt del runtime. El inventario de piezas y caracteres acompa?a a la estimaci?n.
+prompt del runtime. El inventario de piezas y caracteres acompaña a la estimación.
 
-Para comparar: guardar JSON y Markdown antes y despu?s, usar el mismo equipo,
-fixtures, int?rpretes y carga, y repetir tres pasadas secuenciales. Registrar SO,
-RAM libre observada, fecha y si el c?digo est? en OneDrive. Comparar medianas por
-registro/runtime y declarar la dispersi?n; no atribuir al cambio el ruido de la
-m?quina. Los temporales est?n en el directorio temporal del sistema, no en
+Para comparar: guardar JSON y Markdown antes y después, usar el mismo equipo,
+fixtures, intérpretes y carga, y repetir tres pasadas secuenciales. Registrar SO,
+RAM libre observada, fecha y si el código está en OneDrive. Comparar medianas por
+registro/runtime y declarar la dispersión; no atribuir al cambio el ruido de la
+máquina. Los temporales están en el directorio temporal del sistema, no en
 OneDrive. La CI comprueba el contrato con relojes y procesos controlados, sin
-umbrales absolutos de latencia. La l?nea base local no se extrapola a otros equipos.
+umbrales absolutos de latencia. La línea base local no se extrapola a otros equipos.
