@@ -456,6 +456,11 @@ def _modos():
              ("portable JSON", lambda w: ["--root", w, "--panel-json"], (0, 1), None)],
         "agent-kits/shared/guardrail-check.py":
             [("deny", lambda w: ["pre-tool", "--project-dir", "."], (0,), deny)],
+        "agent-kits/shared/statusline-render.py":
+            [("campos de estado UTF-8", lambda w: ["--root", w], (0,),
+              json.dumps({"model": {"display_name": "Modelo " + chr(0x1f41b)}}))],
+        "scripts/bench-hooks.py":
+            [("estimaciones de tokens", lambda w: ["--tokens-only", "--md"], (0,), None)],
         "agent-kits/shared/journal.py":
             [("draft", lambda w: ["draft", "--root", "."], (0,), None)],
         "agent-kits/shared/journal-capture.py":

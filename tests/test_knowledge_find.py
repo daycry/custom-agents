@@ -957,3 +957,219 @@ def test_bounded_corpus_read_is_visible_and_oversize_not_cached(proyecto):
     assert "read_too_large" in data["corpus_read"]["issues"]
     assert data["indice"] == "degradado" and not _indice(proyecto).exists()
     assert "lectura parcial" in err
+
+
+# plugin-optimization T-04: own cache temporaries, never knowledge documents.
+def _temporary_pair(index, pid, age=7200):
+    stamp = __import__('time').time() - age
+    pair = [index.with_name(index.name + f'.{pid}.tmp' + suffix)
+            for suffix in ('', '-journal')]
+    for path in pair:
+        path.write_bytes(b'orphan fixture')
+        os.utime(path, (stamp, stamp))
+    return pair
+
+
+def test_indice_barre_tmp_huerfano_y_journal_antiguos(proyecto, monkeypatch):
+    index = _indice(proyecto)
+    pair = _temporary_pair(index, 2147483000)
+    monkeypatch.setattr(kf, '_proceso_vivo', lambda pid: False, raising=False)
+    kf.construir_indice(str(index), [], 'fixture')
+    assert not any(p.exists() for p in pair), 'dead old tmp and journal must be removed'
+    with kf.sqlite3.connect(index) as con:
+        assert con.execute("SELECT valor FROM meta WHERE clave='hash'").fetchone() == ('fixture',)
+
+
+@pytest.mark.parametrize('alive,age', [(True, 7200), (None, 7200), (False, 10)])
+def test_indice_preserva_tmp_vivo_dudoso_o_reciente(proyecto, monkeypatch, alive, age):
+    index = _indice(proyecto)
+    pair = _temporary_pair(index, 2147483000, age)
+    monkeypatch.setattr(kf, '_proceso_vivo', lambda pid: alive, raising=False)
+    kf.construir_indice(str(index), [], 'fixture')
+    assert all(p.read_bytes() == b'orphan fixture' for p in pair)
+
+
+def test_indice_preserva_pareja_si_un_journal_es_reciente(proyecto, monkeypatch):
+    index = _indice(proyecto)
+    pair = _temporary_pair(index, 2147483000)
+    os.utime(pair[1], None)
+    monkeypatch.setattr(kf, '_proceso_vivo', lambda pid: False, raising=False)
+    kf.construir_indice(str(index), [], 'fixture')
+    assert all(p.exists() for p in pair)
+
+
+@pytest.mark.parametrize('failure', [False, True])
+def test_indice_finally_limpia_tmp_y_journal_propios(proyecto, monkeypatch, failure):
+    from pathlib import Path
+    index = _indice(proyecto)
+    temporary = str(index) + f'.{os.getpid()}.tmp'
+    replace = kf.os.replace
+    def publish(source, target):
+        Path(source + '-journal').write_bytes(b'left after interrupted SQLite cleanup')
+        if failure:
+            raise OSError('simulated publish failure')
+        return replace(source, target)
+    monkeypatch.setattr(kf.os, 'replace', publish)
+    if failure:
+        with pytest.raises(OSError, match='simulated publish'):
+            kf.construir_indice(str(index), [], 'fixture')
+    else:
+        kf.construir_indice(str(index), [], 'fixture')
+    assert not Path(temporary).exists()
+    assert not Path(temporary + '-journal').exists()
+
+
+def test_indice_barrido_fallo_io_avisa_sin_impedir_construccion(proyecto, monkeypatch, capsys):
+    index = _indice(proyecto)
+    pair = _temporary_pair(index, 2147483000)
+    unlink = kf.os.unlink
+    def fail_one(path, *args, **kwargs):
+        if os.fspath(path) == str(pair[0]):
+            raise PermissionError('private path must not be logged')
+        return unlink(path, *args, **kwargs)
+    monkeypatch.setattr(kf.os, 'unlink', fail_one)
+    monkeypatch.setattr(kf, '_proceso_vivo', lambda pid: False, raising=False)
+    kf.construir_indice(str(index), [], 'fixture')
+    assert index.is_file() and pair[0].is_file()
+    err = capsys.readouterr().err
+    assert 'temporales' in err and 'private path' not in err
+
+
+def test_indice_barrido_no_toca_nombres_ajenos_ni_directorios(proyecto, monkeypatch):
+    index = _indice(proyecto)
+    others = [index.with_name(n) for n in ('other.sqlite.42.tmp', index.name + '.0.tmp',
+              index.name + '.abc.tmp', index.name + '.42.tmp.backup', index.name + '.4294967296.tmp')]
+    for p in others:
+        p.write_bytes(b'untouched');os.utime(p, (0, 0))
+    directory = index.with_name(index.name + '.42.tmp-journal')
+    directory.mkdir()
+    monkeypatch.setattr(kf, '_proceso_vivo', lambda pid: False, raising=False)
+    kf.construir_indice(str(index), [], 'fixture')
+    assert all(p.read_bytes() == b'untouched' for p in others) and directory.is_dir()
+
+
+def test_indice_barrido_no_sigue_enlace_de_fichero(proyecto, tmp_path, monkeypatch):
+    index = _indice(proyecto)
+    outside = tmp_path / 'outside';outside.write_bytes(b'untouched')
+    link = index.with_name(index.name + '.42.tmp')
+    try:
+        link.symlink_to(outside)
+    except OSError:
+        pytest.skip('symlinks unavailable')
+    os.utime(outside, (0, 0))
+    journal = index.with_name(link.name + '-journal');journal.write_bytes(b'untouched');os.utime(journal, (0, 0))
+    monkeypatch.setattr(kf, '_proceso_vivo', lambda pid: False, raising=False)
+    kf.construir_indice(str(index), [], 'fixture')
+    assert link.is_symlink() and outside.read_bytes() == b'untouched' and journal.exists()
+
+
+def test_indice_barrido_no_sigue_directorio_enlazado(proyecto, tmp_path, monkeypatch):
+    outside = tmp_path / 'outside-dir';outside.mkdir()
+    link = proyecto / 'linked-dir'
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip('symlinks unavailable')
+    pair = _temporary_pair(outside / kf.INDICE_NOMBRE, 42)
+    monkeypatch.setattr(kf, '_proceso_vivo', lambda pid: False, raising=False)
+    kf.construir_indice(str(link / kf.INDICE_NOMBRE), [], 'fixture')
+    assert all(p.exists() for p in pair)
+
+
+def test_proceso_vivo_no_mata_y_reconoce_pid_actual_y_terminado():
+    assert kf._proceso_vivo(os.getpid()) is True
+    child = subprocess.Popen([sys.executable, '-I', '-S', '-c', 'pass'])
+    child.wait(timeout=10)
+    assert kf._proceso_vivo(child.pid) is False
+    assert kf._proceso_vivo(0) is None
+    assert kf._proceso_vivo(2**32) is None
+
+
+@pytest.mark.parametrize('opened,error,code,query_ok,expected', [
+    (False, 87, 0, True, False), (False, 5, 0, True, None),
+    (True, 0, 259, True, True), (True, 0, 0, True, False),
+    (True, 0, 0, False, None)])
+def test_proceso_vivo_windows_solo_consulta_y_cierra_handle(monkeypatch, opened, error, code, query_ok, expected):
+    import ctypes
+    from types import SimpleNamespace
+    calls = []
+    def open_process(access, inherit, pid):
+        assert (access, inherit, pid) == (0x1000, False, 42)
+        calls.append('open')
+        return 123 if opened else 0
+    def exit_code(handle, pointer):
+        assert handle == 123
+        pointer._obj.value = code
+        return query_ok
+    def close(handle):
+        assert handle == 123
+        calls.append('close')
+        return True
+    api = SimpleNamespace(OpenProcess=open_process, GetExitCodeProcess=exit_code, CloseHandle=close)
+    monkeypatch.setattr(ctypes, 'WinDLL', lambda *a, **kw: api, raising=False)
+    monkeypatch.setattr(ctypes, 'get_last_error', lambda: error, raising=False)
+    monkeypatch.setattr(kf, 'os', SimpleNamespace(name='nt', getpid=lambda: 1))
+    assert kf._proceso_vivo(42) is expected
+    assert calls == (['open', 'close'] if opened else ['open'])
+
+
+@pytest.mark.parametrize('exception,expected', [(None, True), (ProcessLookupError, False), (PermissionError, None), (OSError, None)])
+def test_proceso_vivo_posix_usa_solo_senal_cero(monkeypatch, exception, expected):
+    from types import SimpleNamespace
+    def kill(pid, signal):
+        assert (pid, signal) == (42, 0)
+        if exception:
+            raise exception()
+    monkeypatch.setattr(kf, 'os', SimpleNamespace(name='posix', getpid=lambda: 1, kill=kill))
+    assert kf._proceso_vivo(42) is expected
+
+
+def test_indice_barrido_error_de_inventario_degrada(proyecto, monkeypatch, capsys):
+    index = _indice(proyecto)
+    def fail_scan(*args):
+        raise PermissionError('private fixture')
+    monkeypatch.setattr(kf.os, 'scandir', fail_scan)
+    kf.construir_indice(str(index), [], 'fixture')
+    assert index.is_file()
+    assert capsys.readouterr().err.strip() == 'knowledge-find: limpieza de temporales incompleta'
+
+
+@pytest.mark.parametrize('changed', [True, False])
+def test_indice_barrido_race_preserva_ficheros(proyecto, monkeypatch, changed):
+    index = _indice(proyecto)
+    pair = _temporary_pair(index, 42)
+    identity = kf._identidad_directorio_indice
+    regular = kf._temporal_regular
+    calls = []
+    def directory(path):
+        calls.append(path)
+        return None if changed and len(calls) > 1 else identity(path)
+    def inspect(path):
+        if not changed and str(path) == str(pair[0]):
+            raise FileNotFoundError()
+        return regular(path)
+    monkeypatch.setattr(kf, '_identidad_directorio_indice', directory)
+    monkeypatch.setattr(kf, '_temporal_regular', inspect)
+    monkeypatch.setattr(kf, '_proceso_vivo', lambda pid: False)
+    kf.construir_indice(str(index), [], 'fixture')
+    assert all(p.exists() for p in pair)
+
+
+def test_indice_no_borra_si_directorio_no_es_seguro(proyecto, monkeypatch):
+    index = _indice(proyecto)
+    pair = _temporary_pair(index, 42)
+    monkeypatch.setattr(kf, '_identidad_directorio_indice', lambda path: None)
+    kf.construir_indice(str(index), [], 'fixture')
+    assert all(p.exists() for p in pair)
+
+
+def test_proceso_vivo_windows_error_api_es_desconocido(monkeypatch):
+    import ctypes
+    from types import SimpleNamespace
+    def fail(*args, **kwargs):
+        raise OSError('unavailable')
+    monkeypatch.setattr(ctypes, 'WinDLL', fail, raising=False)
+    monkeypatch.setattr(kf, 'os', SimpleNamespace(name='nt', getpid=lambda: 1))
+    assert kf._proceso_vivo(42) is None
+    monkeypatch.setattr(kf, 'os', SimpleNamespace(name='other', getpid=lambda: 1))
+    assert kf._proceso_vivo(42) is None

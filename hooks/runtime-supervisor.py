@@ -5,10 +5,8 @@ The business script runs in this interpreter after containment is installed.
 The non-inheritable job handle belongs to the launcher. Its termination closes
 that handle even if the Python process exits before its descendants.
 """
-import json
+# Keep cleanup startup free of business executors: its caller has a 500 ms deadline.
 import os
-import runpy
-import subprocess
 import sys
 import time
 
@@ -176,6 +174,8 @@ def close_group(owner_pid):
     ps = next((path for path in ("/bin/ps", "/usr/bin/ps") if os.path.isfile(path)), None)
     if not ps and not os.path.isdir(PROC_ROOT):
         raise OSError("process accounting unavailable")
+    if ps:
+        import subprocess
     # Never stop the Node owner: it must remain able to enforce its deadline
     # even if accounting fails or this cleanup helper is forcibly terminated.
     # Stop observed children before killing them; repeat accounting to include
@@ -228,14 +228,17 @@ def main(argv=None):
         if operation != "run" or len(args) < 5 or args[2] not in ("python", "exec"):
             raise ValueError("invalid supervisor invocation")
         handle = attach(owner)
+        import json
         print(json.dumps({"customAgentsJob": str(handle), "owner": owner}), file=sys.stderr, flush=True)
         mode, command, business_args = args[2], args[3], args[4:]
         if mode == "exec":
+            import subprocess
             return subprocess.call([command, *business_args])
         while business_args and business_args[0] in ("-I", "-S"):
             business_args.pop(0)
         script, *script_args = business_args
         sys.argv = [script, *script_args]
+        import runpy
         runpy.run_path(script, run_name="__main__")
         return 0
     except SystemExit as exc:

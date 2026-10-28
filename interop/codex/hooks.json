@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" session-context.sh --runtime=codex"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" session-context.sh --runtime=codex",
+            "timeout": 30
           }
         ]
       }

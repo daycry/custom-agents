@@ -85,7 +85,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" session-context.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" session-context.sh",
+            "timeout": 30
           }
         ]
       }
@@ -96,7 +97,10 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs", "session-journal.sh"],
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs",
+              "session-journal.sh"
+            ],
             "timeout": 5
           }
         ]

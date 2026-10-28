@@ -193,3 +193,31 @@ def test_capture_requires_matching_persisted_fixture(bench, monkeypatch, tmp_pat
     assert "capture did not persist" in bench.invoke(ROOT, case, payload, tmp_path, 1)["error"]
     path.write_text('{"session_id":"other","prompt":"other"}', encoding="utf-8")
     assert "capture did not persist" in bench.invoke(ROOT, case, payload, tmp_path, 1)["error"]
+
+
+def test_baseline_requires_discarded_warmup(bench, monkeypatch, capsys):
+    monkeypatch.setattr(bench, "measure_case", lambda root, case, runtime, *args: {
+        **case, "runtime": runtime, "estado": "OK", "muestras_ms": [1] * 10,
+        "mediana_ms": 1, "p95_ms": 1, "max_ms": 1})
+    assert bench.main(["--runs", "10", "--warmup", "0", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["linea_base"] is False
+    assert bench.main(["--runs", "10", "--warmup", "1", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["linea_base"] is True
+
+
+def test_fail_fast_retains_first_failure_and_reports_incomplete_inventory(bench, monkeypatch, capsys):
+    calls = []
+    def fail(root, case, runtime, *args):
+        calls.append((case, runtime))
+        return {**case, "runtime": runtime, "estado": "FALLO", "fallo": "cleanup timeout",
+                "muestras_ms": [20], "mediana_ms": None, "p95_ms": None, "max_ms": None}
+    monkeypatch.setattr(bench, "measure_case", fail)
+    assert bench.main(["--runs", "10", "--fail-fast", "--json"]) == 1
+    report = json.loads(capsys.readouterr().out)
+    assert len(calls) == 1
+    assert report["estado"] == "FALLO" and report["linea_base"] is False
+    assert report["casos_ejecutados"] == 1
+    assert report["casos_previstos"] == len(bench.registered_hooks(ROOT)) * len(bench.RUNTIMES)
+    assert report["hooks"][0]["muestras_ms"] == [20]
+    assert report["hooks"][0]["fallo"] == "cleanup timeout"
+    assert f"Casos ejecutados: 1/{report['casos_previstos']}" in bench.markdown(report)

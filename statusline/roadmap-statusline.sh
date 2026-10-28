@@ -1,102 +1,99 @@
 #!/usr/bin/env bash
-# roadmap-statusline.sh — barra de estado OPT-IN de Claude Code: modelo · coste de la
-# sesión · contexto usado · progreso del roadmap (ledger canónico).
-#
-# Se activa en /setup (paso 5-bis) escribiendo en `.claude/settings.json` del proyecto:
-#   {"statusLine": {"type": "command", "command": "/ruta/ABSOLUTA/statusline/roadmap-statusline.sh"}}
-# (la doc oficial solo documenta `~` en `statusLine.command`, no `${CLAUDE_PLUGIN_ROOT}`;
-# por eso /setup resuelve la ruta con `find` y la escribe absoluta). Reversión: borrar
-# la clave `statusLine` de settings.json (o `/statusline remove`).
-#
-# Contrato oficial (code.claude.com/docs/en/statusline, verificado 2026-09-02):
-#   stdin (JSON) → model.display_name · cost.total_cost_usd ·
-#                  context_window.used_percentage (puede ser null al inicio de sesión)
-#   stdout       → lo que se imprime se muestra tal cual (una línea aquí, ≤ ~100 chars).
-#
-# Degradación (nunca falla, siempre exit 0):
-#   - con jq → parsea con jq; sin jq → python3; sin ninguno → imprime solo el modelo
-#     (si se puede extraer con grep) o nada.
-#   - sin progress-report.py o sin docs/roadmap/ → omite el tramo del roadmap.
-#
-# Prueba manual (JSON de ejemplo de la doc):
-#   echo '{"model":{"display_name":"Opus"},"cost":{"total_cost_usd":0.01234},"context_window":{"used_percentage":8}}' \
-#     | bash statusline/roadmap-statusline.sh
+# Opt-in Claude Code statusline: model, session cost, context, canonical roadmap.
+# /setup installs this absolute path; remove statusLine from settings to disable.
+# One isolated Python on a miss; no Python for identical input and unchanged ledgers.
+# Cache also tracks usage-state and renderer sources. Never evals input or cache.
 set -u
-
-INPUT="$(cat 2>/dev/null || true)"
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
-
-model="" cost="" ctx=""
-if command -v jq >/dev/null 2>&1; then
-  model="$(printf '%s' "$INPUT" | jq -r '.model.display_name // empty' 2>/dev/null)"
-  cost="$(printf '%s' "$INPUT" | jq -r '.cost.total_cost_usd // empty' 2>/dev/null)"
-  ctx="$(printf '%s' "$INPUT" | jq -r '.context_window.used_percentage // empty' 2>/dev/null)"
-elif command -v python3 >/dev/null 2>&1; then
-  eval "$(printf '%s' "$INPUT" | PYTHONIOENCODING=utf-8:replace python3 -c '
-import json, sys, shlex
-try:
-    d = json.load(sys.stdin)
-except Exception:
-    d = {}
-g = lambda *ks: (lambda v: "" if v is None else v)(
-    __import__("functools").reduce(lambda a, k: a.get(k) if isinstance(a, dict) else None, ks, d))
-print("model=" + shlex.quote(str(g("model", "display_name"))))
-print("cost=" + shlex.quote(str(g("cost", "total_cost_usd"))))
-print("ctx=" + shlex.quote(str(g("context_window", "used_percentage"))))
-' 2>/dev/null)"
-else
-  # Sin parser JSON: solo el modelo, por grep (mejor esfuerzo).
+INPUT=""
+IFS= read -r -d '' INPUT || true
+source_path="${BASH_SOURCE[0]//\\//}"
+case "$source_path" in */*) directory="${source_path%/*}" ;; *) directory=. ;; esac
+HERE="$(cd "$directory" 2>/dev/null && pwd)"
+ROOT="${CLAUDE_PROJECT_DIR:-$PWD}"
+REPORT="$HERE/../agent-kits/shared/progress-report.py"
+RENDER="$HERE/../agent-kits/shared/statusline-render.py"
+if [ ! -f "$REPORT" ]; then
+  REPORT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "${HOME:-}/.claude" "${HOME:-}/.codex" "${HOME:-}/.config/opencode" -type f -path '*agent-kits/shared/progress-report.py' ! -path '*/.claude/jobs/*' 2>/dev/null | head -1)"
+fi
+if [ ! -f "$RENDER" ]; then
+  RENDER="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared/statusline-render.py"
+  if [ ! -f "$RENDER" ]; then
+    RENDER="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "${HOME:-}/.claude" "${HOME:-}/.codex" "${HOME:-}/.config/opencode" -type f -path '*agent-kits/shared/statusline-render.py' ! -path '*/.claude/jobs/*' 2>/dev/null | head -1)"
+  fi
+fi
+fallback() {
+  local model
   model="$(printf '%s' "$INPUT" | grep -oE '"display_name"[[:space:]]*:[[:space:]]*"[^"]*"' 2>/dev/null | head -1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/' 2>/dev/null)"
   [ -n "$model" ] && printf '[%s]\n' "$model" 2>/dev/null
-  exit 0
-fi
+  return 0
+}
+[ -f "$RENDER" ] || { fallback; exit 0; }
 
+# Hash the input and a single batch of file metadata. GNU stat is used by Git Bash/Linux;
+# BSD stat keeps this optional optimization usable when available on another host.
+files=()
+for path in "$RENDER" "$REPORT" "${REPORT%/*}/ledger-lint.py" "${BASH_SOURCE[0]}" "$ROOT/.claude/usage-state.json" "$ROOT"/docs/roadmap/*/tasks.md; do
+  [ -f "$path" ] && files+=("$path")
+done
+key=""
+if command -v sha256sum >/dev/null 2>&1; then
+  metadata="$(stat -c '%n:%s:%y:%i' -- "${files[@]}" 2>/dev/null || stat -f '%N:%m:%z:%i' "${files[@]}" 2>/dev/null)"
+  if [ -n "$metadata" ]; then
+    key="$(printf 'statusline-v1\000%s\000%s\000%s' "$INPUT" "$ROOT" "$metadata" | sha256sum)"
+    key="${key%% *}"
+  fi
+fi
+DATA="" cached=false
+model="" cost="" ctx="" rm_seg=""
+CACHE="$ROOT/.claude/statusline-cache"
+if [ -n "$key" ] && [ -f "$CACHE" ] && [ ! -L "$CACHE" ]; then
+  if {
+    IFS= read -r saved_key &&
+    IFS= read -r model &&
+    IFS= read -r cost &&
+    IFS= read -r ctx &&
+    IFS= read -r rm_seg &&
+    ! IFS= read -r extra
+  } < "$CACHE"; then
+    [ "$saved_key" = "$key" ] && cached=true
+  fi
+fi
+if [ "$cached" = false ]; then
+  PYTHON=""
+  while IFS= read -r candidate; do
+    [ -n "$candidate" ] || continue
+    candidate_path="${candidate//\\//}"
+    case "$candidate_path" in
+      */[Ww][Ii][Nn][Dd][Oo][Ww][Ss][Aa][Pp][Pp][Ss]/*) continue ;;
+    esac
+    if [ -x "$candidate" ]; then PYTHON="$candidate"; break; fi
+  done < <(printf '%s\n' "${CUSTOM_AGENTS_PYTHON:-}"; type -a -p python3 python 2>/dev/null)
+  [ -n "$PYTHON" ] || { fallback; exit 0; }
+  if ! DATA="$(printf '%s' "$INPUT" | "$PYTHON" -I -S "$RENDER" --root "$ROOT" --report "$REPORT" --cache-key "$key" 2>/dev/null)"; then
+    fallback; exit 0
+  fi
+  model="" cost="" ctx="" rm_seg=""
+  {
+  IFS= read -r model || true
+  IFS= read -r cost || true
+  IFS= read -r ctx || true
+  IFS= read -r rm_seg || true
+  } <<< "$DATA"
+fi
 out=""
 [ -n "$model" ] && out="[$model]"
-# Coste y contexto solo si son numéricos (un valor raro se omite, no se imprime a medias).
-if printf '%s' "$cost" | grep -qE '^[0-9]+([.][0-9]+)?$'; then
-  cost_fmt="$(LC_ALL=C printf '%.2f' "$cost" 2>/dev/null)"
-  # C-03: un coste positivo por debajo del céntimo no se muestra como $0.00.
-  if [ "$cost_fmt" = "0.00" ] && printf '%s' "$cost" | grep -qE '[1-9]'; then
+if [[ "$cost" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  LC_ALL=C printf -v cost_fmt '%.2f' "$cost" 2>/dev/null
+  if [ "$cost_fmt" = "0.00" ] && [[ "$cost" =~ [1-9] ]]; then
     out="${out:+$out }<\$0.01"
   elif [ -n "$cost_fmt" ]; then
     out="${out:+$out }\$${cost_fmt}"
   fi
 fi
-if printf '%s' "$ctx" | grep -qE '^[0-9]+([.][0-9]+)?$'; then
-  ctx_int="$(LC_ALL=C printf '%.0f' "$ctx" 2>/dev/null)"
+if [[ "$ctx" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  LC_ALL=C printf -v ctx_int '%.0f' "$ctx" 2>/dev/null
   [ -n "$ctx_int" ] && out="${out:+$out }ctx ${ctx_int}%"
 fi
-
-# ---- roadmap (progress-report.py active --json) ----
-if command -v python3 >/dev/null 2>&1; then
-  REPORT="$HERE/../agent-kits/shared/progress-report.py"
-  if [ ! -f "$REPORT" ]; then
-    REPORT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "${HOME:-}/.claude" "${HOME:-}/.codex" "${HOME:-}/.config/opencode" -type f -path '*agent-kits/shared/progress-report.py' ! -path '*/.claude/jobs/*' 2>/dev/null | head -1)"
-  fi
-  ROOT="${CLAUDE_PROJECT_DIR:-$PWD}/docs/roadmap"
-  if [ -n "$REPORT" ] && [ -f "$REPORT" ] && [ -d "$ROOT" ]; then
-    rm_seg="$(python3 "$REPORT" active --root "$ROOT" --json 2>/dev/null | PYTHONIOENCODING=utf-8:replace python3 -c '
-import json, sys
-try:
-    d = json.load(sys.stdin)
-    a = d.get("activas", [])
-    cur = d.get("iniciativa_en_curso")
-except Exception:
-    a, cur = [], None
-if len(a) == 1:
-    r = a[0]
-    print("📋 %s T-%02d/%d %d%%" % (r["slug"], r["completadas"], r["total"], r["pct"]))
-elif len(a) > 1:
-    r = next((x for x in a if x.get("slug") == cur), None)
-    if r:  # C-01: la iniciativa en curso (marcador abierto del usage-meter o tasks.md más reciente)
-        print("📋 %d activas · ▶ %s T-%02d/%d %d%%" % (len(a), r["slug"], r["completadas"], r["total"], r["pct"]))
-    else:
-        print("📋 %d iniciativas activas" % len(a))
-' 2>/dev/null)"
-    [ -n "$rm_seg" ] && out="${out:+$out · }$rm_seg"
-  fi
-fi
-
-[ -n "$out" ] && printf '%s\n' "$out"
+[ -n "$rm_seg" ] && out="${out:+$out · }$rm_seg"
+[ -n "$out" ] && printf '%s\n' "$out" | LC_ALL=C tr -d '\000-\010\013\014\016-\037\177'
 exit 0

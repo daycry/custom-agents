@@ -1,6 +1,6 @@
 // Shared launcher for Claude Code, Codex and OpenCode. No shell interprets the payload.
 import { spawn, spawnSync } from 'node:child_process';
-import { closeSync, existsSync, fstatSync, openSync, readSync } from 'node:fs';
+import { constants, closeSync, existsSync, fstatSync, openSync, readSync } from 'node:fs';
 import { dirname, delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -57,7 +57,73 @@ function activityEnabled(path) {
 }
 // activity-optin:end
 
-const fs = { closeSync, fstatSync, openSync, readSync };
+// native-prefilter:start
+const GUARD_INPUT_MAX = 65536;
+// --8<-- native protected role selection
+const PROTECTED_GUARD_ROLES = ['implementer', 'architect'];
+
+function nativeProtectedIDs(mapping, runtime) {
+  const roles = mapping?.runtimes?.[runtime];
+  if (!['claude', 'codex', 'opencode'].includes(runtime) || mapping?.schema_version !== 1
+      || !Object.hasOwn(mapping?.runtimes || {}, runtime)
+      || !roles || typeof roles !== 'object' || Array.isArray(roles)
+      || PROTECTED_GUARD_ROLES.some(role => !Object.hasOwn(roles, role) || typeof roles[role] !== 'string' || !roles[role])) return null;
+  const ids = new Set(PROTECTED_GUARD_ROLES.map(role => roles[role]));
+  return ids.size === PROTECTED_GUARD_ROLES.length ? ids : null;
+}
+// --8<-- fin native protected role selection
+
+function guardNeedsPython(payload, runtime, path) {
+  let fd;
+  try {
+    if (!['claude', 'codex', 'opencode'].includes(runtime)
+        || !payload || typeof payload !== 'object' || Array.isArray(payload)) return true;
+    // Nonblocking/no-follow flags keep uncertain file types on the contained Python path.
+    const flags = fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 0) | (fs.constants.O_NOFOLLOW || 0);
+    fd = fs.openSync(path, flags);
+    const info = fs.fstatSync(fd);
+    if (!info.isFile() || info.size > GUARD_INPUT_MAX) return true;
+    const buffer = Buffer.alloc(GUARD_INPUT_MAX + 1);
+    let size = 0, read;
+    while (size < buffer.length && (read = fs.readSync(fd, buffer, size, buffer.length - size, size)) > 0) size += read;
+    if (size > GUARD_INPUT_MAX) return true;
+    const mapping = JSON.parse(new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(buffer.subarray(0, size)));
+    const ids = nativeProtectedIDs(mapping, runtime);
+    if (!ids) return true;
+    const key = runtime === 'opencode' ? 'agent' : 'agent_type';
+    if (!Object.hasOwn(payload, key)) return false;
+    const identity = payload[key];
+    return typeof identity !== 'string' || ids.has(identity);
+  } catch { return true; }
+  finally { if (fd !== undefined) try { fs.closeSync(fd); } catch { /* already closed */ } }
+}
+// native-prefilter:end
+
+function readGuardInput(deadline) {
+  return new Promise(resolve => {
+    const chunks = [];
+    let size = 0, finished = false;
+    const finish = available => {
+      if (finished) return;
+      finished = true; clearTimeout(timer);
+      process.stdin.off('data', data); process.stdin.off('end', end); process.stdin.off('error', error);
+      // Drain oversized input without retaining it or keeping the launcher alive after its child.
+      process.stdin.resume(); process.stdin.unref?.();
+      resolve({available, raw: Buffer.concat(chunks, size)});
+    };
+    const data = chunk => {
+      const part = chunk.subarray(0, GUARD_INPUT_MAX + 1 - size);
+      chunks.push(part); size += part.length;
+      if (size > GUARD_INPUT_MAX) finish(true);
+    };
+    const end = () => finish(true), error = () => finish(false);
+    const timer = setTimeout(() => finish(false), Math.max(0, deadline - performance.now()));
+    process.stdin.on('error', () => {});
+    process.stdin.on('data', data); process.stdin.once('end', end); process.stdin.once('error', error);
+  });
+}
+
+const fs = { constants, closeSync, fstatSync, openSync, readSync };
 const here = dirname(fileURLToPath(import.meta.url));
 const root = dirname(here);
 const known = new Set(['session-journal.sh', 'user-prompt-capture.sh', 'session-context.sh',
@@ -168,7 +234,22 @@ async function main() {
     return;
   }
   const post = ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh'].includes(hook);
-  let input;
+  let input, guardDeadline;
+  if (guard) {
+    guardDeadline = performance.now() + childBudgetMs(hook, runtime, process.env);
+    const captured = await readGuardInput(guardDeadline);
+    input = captured.raw;
+    if (!captured.available) { warn('role guard input unavailable or timed out'); emitGuard(); return; }
+    if (input.length <= GUARD_INPUT_MAX) {
+      try {
+        const payload = JSON.parse(new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(input));
+        if (!guardNeedsPython(payload, runtime.slice('--runtime='.length), join(root, 'agent-kits', 'shared', 'native-roles.json'))) {
+          emitGuard({decision: 'continue', role: null, reason: null, diagnostic: null});
+          return;
+        }
+      } catch { /* Invalid encoding/JSON keeps the Python diagnostic and its input limit. */ }
+    }
+  }
   if (post) {
     process.stdin.setEncoding('utf8');
     input = '';
@@ -200,7 +281,7 @@ async function main() {
         '--runtime', runtime.slice('--runtime='.length), '--output', 'structured']
       : hook === 'session-journal.sh'
       ? [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'journal-capture.py')]
-      : [...py.args, join(root, 'agent-kits', 'shared', 'journal.py'), 'capture'];
+      : [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'journal.py'), 'capture'];
     if (guard) args.push('--project-dir', env.CLAUDE_PROJECT_DIR || process.cwd());
     else if (activity) { /* The activity root is explicit above. */ }
     else if (env.CLAUDE_PROJECT_DIR) args.push('--root', env.CLAUDE_PROJECT_DIR);
@@ -261,7 +342,7 @@ async function main() {
       if (!child.pid) return;
       timedOut = true;
       void stop();
-    }, childBudgetMs(hook, runtime, process.env));
+    }, guard ? Math.max(0, guardDeadline - performance.now()) : childBudgetMs(hook, runtime, process.env));
     let output = '';
     if (guard) {
       let bytes = 0;
@@ -296,7 +377,7 @@ async function main() {
     } else if (guard || activity) child.stderr.resume();
     else child.stderr.pipe(process.stderr);
     child.stdin.on('error', () => {});
-    if (post) child.stdin.end(input, 'utf8');
+    if (post || guard) child.stdin.end(input, 'utf8');
     else process.stdin.pipe(child.stdin);
     child.on('error', error => { warn(guard ? 'role guard could not start' : error.message);
       if (guard) emitGuard(); clearTimeout(timer); resolve(); });

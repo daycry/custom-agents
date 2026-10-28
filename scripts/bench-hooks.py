@@ -208,7 +208,8 @@ def markdown(report):
     lines = ["# Benchmark de hooks y tokens", "", f"Fecha UTC: {report['fecha']}", "",
              f"Máquina: {report['maquina']['sistema']}; RAM libre: {report['maquina']['ram_libre_bytes']} bytes.",
              "Medición local end-to-end del launcher compartido (no aceptación nativa de los runtimes).",
-             f"Muestras: {report['runs']}; calentamiento descartado: {report['warmup']}; estado: {report['estado']}.", "",
+             f"Muestras: {report['runs']}; calentamiento descartado: {report['warmup']}; estado: {report['estado']}.",
+             f"Casos ejecutados: {report.get('casos_ejecutados', len(report['hooks']))}/{report.get('casos_previstos', len(report['hooks']))}.", "",
              "| Runtime | Evento | Hook | Estado | Mediana ms | p95 ms | Máximo ms |",
              "|---|---|---|---|---:|---:|---:|"]
     for row in report["hooks"]:
@@ -235,6 +236,7 @@ def main(argv=None):
     parser.add_argument("--runtime", choices=RUNTIMES)
     parser.add_argument("--hook", help="Measure only this registered shared hook target")
     parser.add_argument("--tokens-only", action="store_true")
+    parser.add_argument("--fail-fast", action="store_true", help="Stop after the first failed case; retain its samples and diagnostic")
     output = parser.add_mutually_exclusive_group()
     output.add_argument("--json", action="store_true")
     output.add_argument("--md", action="store_true")
@@ -245,7 +247,7 @@ def main(argv=None):
         parser.error("--warmup must be nonnegative and --timeout finite and positive")
     report = {"schema_version": 1, "fecha": datetime.now(timezone.utc).isoformat(), "runs": args.runs, "warmup": args.warmup,
               "maquina": machine_info(), "estado": "OK", "hooks": [],
-              "linea_base": False}
+              "linea_base": False, "casos_previstos": 0, "casos_ejecutados": 0}
     try:
         report.update(token_report(ROOT))
         cases = registered_hooks(ROOT)
@@ -254,14 +256,22 @@ def main(argv=None):
             if not cases:
                 raise ValueError("hook target is not registered")
         if not args.tokens_only:
-            for runtime in (args.runtime,) if args.runtime else RUNTIMES:
+            runtimes = (args.runtime,) if args.runtime else RUNTIMES
+            report["casos_previstos"] = len(cases) * len(runtimes)
+            for runtime in runtimes:
                 for case in cases:
-                    report["hooks"].append(measure_case(ROOT, case, runtime, args.runs, args.warmup, args.timeout))
+                    row = measure_case(ROOT, case, runtime, args.runs, args.warmup, args.timeout)
+                    report["hooks"].append(row)
+                    if args.fail_fast and row["estado"] == "FALLO":
+                        break
+                if args.fail_fast and report["hooks"][-1]["estado"] == "FALLO":
+                    break
         if any(row["estado"] == "FALLO" for row in report["hooks"]):
             report["estado"] = "FALLO"
     except (OSError, ValueError, KeyError) as exc:
         report.update(estado="FALLO", fallo=f"{type(exc).__name__}: {exc}")
-    report["linea_base"] = (report["estado"] == "OK" and args.runs >= 10 and not args.tokens_only
+    report["casos_ejecutados"] = len(report["hooks"])
+    report["linea_base"] = (report["estado"] == "OK" and args.runs >= 10 and args.warmup > 0 and not args.tokens_only
                             and not args.runtime and not args.hook)
     print(json.dumps(report, ensure_ascii=False) if args.json else markdown(report), end="\n" if args.json else "")
     return int(report["estado"] != "OK")
