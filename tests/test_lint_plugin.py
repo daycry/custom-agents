@@ -850,8 +850,8 @@ dependencies:
             "---\nname: my-skill\ndescription: >\n  " + ("palabra " * 200).strip() + "\n---\n# skill\n")
         code, out = run(tmp)
         assert code == 0, out
-        assert f"agent:alpha: description de {len(larga)} caracteres (> 1200)" in out, out
-        assert "skill:my-skill: description de 1599 caracteres (> 1200)" in out, out
+        assert f"agent:alpha: description de {len(larga)} caracteres (> 600)" in out, out
+        assert "skill:my-skill: description de 1599 caracteres (> 600)" in out, out
         # corta → sin aviso
         make_plugin(tmp + "/b", {"alpha": AGENT_OK.format(name="alpha")})
         code, out = run(tmp + "/b")
@@ -1166,3 +1166,28 @@ dependencies:
 
 if __name__ == "__main__":
     main()
+
+
+
+def test_description_warns_above_six_hundred(tmp_path):
+    trigger = ' ' + chr(218) + 'salo cuando el usuario diga "haz X".'
+    description = 'x' * (601 - len(trigger)) + trigger
+    lines = AGENT_OK.format(name='alpha').splitlines()
+    lines = ['description: ' + description if line.startswith('description:') else line for line in lines]
+    make_plugin(str(tmp_path), {'alpha': '\n'.join(lines) + '\n'})
+    code, out = run(str(tmp_path))
+    assert code == 0
+    assert 'agent:alpha: description de 601 caracteres (> 600)' in out
+
+
+def test_repository_descriptions_fit_six_hundred():
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location('description_lint', SCRIPT)
+    lint = importlib.util.module_from_spec(spec);spec.loader.exec_module(lint)
+    paths = [*Path(ROOT, 'agents').glob('*.md'), *Path(ROOT, 'skills').glob('*/SKILL.md'), *Path(ROOT, 'commands').glob('*.md')]
+    oversized = []
+    for path in paths:
+        data = lint.parse_frontmatter(path.read_text(encoding='utf-8')) or {}
+        if len(data.get('description', '')) > 600:
+            oversized.append((str(path.relative_to(ROOT)), len(data['description'])))
+    assert not oversized, oversized

@@ -1,21 +1,18 @@
 ---
 name: plugin-panel
 description: >
-  Genera un control panel local del catálogo de custom-agents: agentes, skills,
-  comandos, herramientas declaradas, hooks globales y presencia de fuentes de
-  runtime y memoria; incluye extensiones propias de proyecto y usuario,
-  personas y MCP con origen y conflictos; admite un diagnóstico portable de
-  doctor indicado explícitamente, con fecha y alcance. HTML autónomo con búsqueda y filtros, JSON determinista,
-  con modo --serve explícito para progreso actualizado del ledger y consulta
-  local de memoria bajo demanda, señales recientes de actividad opt-in y revisión
-  visual opcional de un plan, sin cambios
-  de configuración. También presenta la cartera de iniciativas del roadmap
-  (estado, presupuesto, plan por fases). Úsala cuando el usuario diga
-  "panel de capacidades", "control panel del plugin", "explora el catálogo del plugin",
-  "dashboard del roadmap", "panel del roadmap" o "kanban de los planes".
+  Genera un panel local HTML/JSON del catálogo, extensiones, conflictos y roadmap. Servidor y
+  actividad son opt-in; no modifica configuración. Incluye extensiones propias de proyecto y
+  usuario. Úsala cuando el usuario diga "panel de capacidades", "control panel del plugin", "explora
+  el catálogo del plugin", "dashboard del roadmap", "panel del roadmap" o "kanban de los planes".
 ---
 
 # Plugin panel
+
+## Alcance y activación
+
+Genera un control panel local del catálogo de custom-agents: agentes, skills, comandos, herramientas declaradas, hooks globales y presencia de fuentes de runtime y memoria; incluye extensiones propias de proyecto y usuario, personas y MCP con origen y conflictos; admite un diagnóstico portable de doctor indicado explícitamente, con fecha y alcance. HTML autónomo con búsqueda y filtros, JSON determinista, con modo --serve explícito para progreso actualizado del ledger y consulta local de memoria bajo demanda, señales recientes de actividad opt-in y revisión visual opcional de un plan, sin cambios de configuración. También presenta la cartera de iniciativas del roadmap (estado, presupuesto, plan por fases). Úsala cuando el usuario diga "panel de capacidades", "control panel del plugin", "explora el catálogo del plugin", "dashboard del roadmap", "panel del roadmap" o "kanban de los planes".
+
 
 Presenta el bundle y las extensiones del proyecto seleccionado. Los datos de cartera los calcula
 la skill roadmap-dashboard (`/roadmap-status` los delega aquí); este panel es la presentación: capacidades,

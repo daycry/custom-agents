@@ -1,20 +1,19 @@
 ---
 name: code-health
 description: >
-  Informe DETERMINISTA y agnóstico de lenguaje de la salud de un árbol de código, con el script
-  `code-health.py` (sin modelo, con tests): (1) duplicados por shingles de tokens normalizados entre
-  ficheros con pares `fichero:línea`, (2) tamaño y complejidad aproximada (líneas, anidamiento,
-  funciones largas), (3) hotspots — ficheros grandes Y que cambian mucho según `git log` — y
-  (4) TODO/FIXME/HACK con su antigüedad por `git blame`. Lo usa `evaluator` para ajustar riesgo/complejidad de
-  una spec y `planner` para abrir tareas de deuda; `/roadmap-brief` puede incluir el resumen. NO
-  refactoriza (eso es `quick-implement`/`implementer`) ni busca vulnerabilidades (eso es
-  `nemesis`/`cybersecurity`). Úsala cuando el usuario diga "salud del código", "informe de
-  deuda técnica", "dónde hay código duplicado", "qué ficheros son hotspots", "cuántos TODO viejos
-  hay", "mide la complejidad del repo", o cuando `evaluator` necesite fundamentar el riesgo de una
-  spec sobre un repo grande.
+  Mide duplicación, complejidad aproximada, hotspots y TODO antiguos con evidencia por fichero y
+  línea. No refactoriza ni audita seguridad. Úsala cuando el usuario diga "salud del código",
+  "informe de deuda técnica", "dónde hay código duplicado", "qué ficheros son hotspots", "cuántos
+  TODO viejos hay", "mide la complejidad del repo", o cuando `evaluator` necesite fundamentar el
+  riesgo de una spec sobre un repo grande.
 ---
 
 # code-health — medir la salud del código antes de opinar sobre ella
+
+## Alcance y activación
+
+Informe DETERMINISTA y agnóstico de lenguaje de la salud de un árbol de código, con el script `code-health.py` (sin modelo, con tests): (1) duplicados por shingles de tokens normalizados entre ficheros con pares `fichero:línea`, (2) tamaño y complejidad aproximada (líneas, anidamiento, funciones largas), (3) hotspots — ficheros grandes Y que cambian mucho según `git log` — y (4) TODO/FIXME/HACK con su antigüedad por `git blame`. Lo usa `evaluator` para ajustar riesgo/complejidad de una spec y `planner` para abrir tareas de deuda; `/roadmap-brief` puede incluir el resumen. NO refactoriza (eso es `quick-implement`/`implementer`) ni busca vulnerabilidades (eso es `nemesis`/`cybersecurity`). Úsala cuando el usuario diga "salud del código", "informe de deuda técnica", "dónde hay código duplicado", "qué ficheros son hotspots", "cuántos TODO viejos hay", "mide la complejidad del repo", o cuando `evaluator` necesite fundamentar el riesgo de una spec sobre un repo grande.
+
 
 Cuatro medidas **deterministas** (regex y tokens, sin modelo) sobre un árbol de código, para que
 `evaluator` fundamente complejidad y riesgo con números y `planner` abra deuda con `fichero:línea`,

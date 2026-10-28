@@ -1,19 +1,19 @@
 ---
 name: tdd
 description: >
-  Fuente ÚNICA del método RED-GREEN-REFACTOR del plugin — ley dura («el código escrito antes de su
-  test se borra y se reescribe tras el rojo»), ciclo con EVIDENCIA obligatoria del rojo en el ledger
-  (`RED: <test> falló con <error> · <fecha>`), qué NO es TDD (tests después, tests vacíos, asserts
-  triviales, un test que ya pasaba), excepciones declaradas («TDD n/a: prosa/config») y comandos
-  exactos para correr UN solo test rojo por stack. La sigue el `implementer` (y el subagente del
-  brief) cuando `.claude/dev.json` tiene `tdd: true`; también a demanda. NO corre la suite completa
-  ni da el verde de pruebas (eso es `qa` con `qa-gate`), ni depura fallos ajenos (`debug-root-cause`).
-  Úsala cuando el usuario diga "hazlo con TDD", "escribe primero el test", "test antes del código",
-  "RED-GREEN-REFACTOR", "quiero evidencia del rojo", o cuando dev.json active `tdd`. También si
-  el repo trabaja con TDD y piden saltarse el test por prisa: la prisa no desactiva el método.
+  Método RED-GREEN-REFACTOR: test rojo observado antes del código y evidencia en el ledger. Código
+  previo al test se borra y reescribe; QA da el verde final. Úsala cuando el usuario diga "hazlo con
+  TDD", "escribe primero el test", "test antes del código", "RED-GREEN-REFACTOR", "quiero evidencia
+  del rojo", o cuando dev.json active `tdd`. También si el repo trabaja con TDD y piden saltarse el
+  test por prisa: la prisa no desactiva el método.
 ---
 
 # tdd — test primero, con prueba de que falló
+
+## Alcance y activación
+
+Fuente ÚNICA del método RED-GREEN-REFACTOR del plugin — ley dura («el código escrito antes de su test se borra y se reescribe tras el rojo»), ciclo con EVIDENCIA obligatoria del rojo en el ledger (`RED: <test> falló con <error> · <fecha>`), qué NO es TDD (tests después, tests vacíos, asserts triviales, un test que ya pasaba), excepciones declaradas («TDD n/a: prosa/config») y comandos exactos para correr UN solo test rojo por stack. La sigue el `implementer` (y el subagente del brief) cuando `.claude/dev.json` tiene `tdd: true`; también a demanda. NO corre la suite completa ni da el verde de pruebas (eso es `qa` con `qa-gate`), ni depura fallos ajenos (`debug-root-cause`). Úsala cuando el usuario diga "hazlo con TDD", "escribe primero el test", "test antes del código", "RED-GREEN-REFACTOR", "quiero evidencia del rojo", o cuando dev.json active `tdd`. También si el repo trabaja con TDD y piden saltarse el test por prisa: la prisa no desactiva el método.
+
 
 El TDD de este plugin no es «tener tests»: es **ver el test fallar antes de escribir el código que lo
 hace pasar**, y dejar esa evidencia donde alguien pueda comprobarla (el ledger `tasks.md`). Sin rojo

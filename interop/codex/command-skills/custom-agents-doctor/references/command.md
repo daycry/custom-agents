@@ -9,6 +9,11 @@
 
 # /doctor — ¿está todo en su sitio?
 
+## Alcance y activación
+
+Diagnóstico de la instalación del plugin en este proyecto — herramientas (python3, git, jq, node, Playwright), plugin y hooks registrados, statusline, configs de .claude (rates, dev, jira, confluence) y estado del trabajo (marcadores de medición huérfanos, iniciativas en progreso, memoria técnica —curadas, índice, FTS5, journal, calibración—, evals), con veredicto ✅/⚠️/❌ y el arreglo concreto de cada línea. Solo lee; no toca nada. Sin red salvo la comprobación en vivo de capacidades opcionales activadas en `taxonomy.json`, acotada a hosts locales/privados y a un tope total de tiempo (p. ej. `kwipu` o la memoria de grafo `graphiti`). Úsalo cuando el usuario diga "¿está bien instalado?", "diagnostica el plugin", "por qué no funciona el hook", "comprueba mi configuración", "doctor".
+
+
 `--panel-json` solicita una proyección portable para plugin-panel; es excluyente
 con `--json`. Conserva fecha UTC, alcance por clave de ruta, estados, títulos
 públicos permitidos y referencias de prioridades. Excluye rutas, detalles y

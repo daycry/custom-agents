@@ -1,18 +1,12 @@
 ---
 name: cybersecurity
 description: >
-  Ultimate AI-powered cybersecurity code review skill. Performs comprehensive
-  security audit across 8 dimensions: vulnerability detection (OWASP Top 10:2021,
-  CWE Top 25:2024), secret scanning, dependency/supply chain analysis, IaC security,
-  threat intelligence (malware/backdoor/C2 detection, MITRE ATT&CK mapping),
-  authorization verification, AI-generated code audit, and compliance mapping.
-  Spawns 8 parallel specialist agents with weighted scoring (0-100). Framework-aware
-  false-positive suppression. STRIDE threat modeling. Complements GitHub Advanced Security.
-  Use when user says "security audit", "security review", "cybersecurity",
-  "check for vulnerabilities", "OWASP check", "secure this code",
-  "find security issues", "pentest review", "threat model", "security scan",
-  "check security", "vulnerability scan", "code security", "appsec review",
-  "supply chain check", "secret scan", "hardcoded credentials".
+  Comprehensive cybersecurity audit across eight specialist dimensions, with evidence, severity and
+  framework-aware false-positive checks. Complements GitHub Advanced Security. Use when user says
+  "security audit", "security review", "cybersecurity", "check for vulnerabilities", "OWASP check",
+  "secure this code", "find security issues", "pentest review", "threat model", "security scan",
+  "check security", "vulnerability scan", "code security", "appsec review", "supply chain check",
+  "secret scan", "hardcoded credentials".
 user-invocable: true
 allowed-tools:
   - Read
@@ -26,6 +20,11 @@ argument-hint: "[path] [--scope full|quick|diff] [--compliance pci|hipaa|soc2|gd
 ---
 
 # Claude Cybersecurity — Ultimate Code Security Audit
+
+## Alcance y activación
+
+Ultimate AI-powered cybersecurity code review skill. Performs comprehensive security audit across 8 dimensions: vulnerability detection (OWASP Top 10:2021, CWE Top 25:2024), secret scanning, dependency/supply chain analysis, IaC security, threat intelligence (malware/backdoor/C2 detection, MITRE ATT&CK mapping), authorization verification, AI-generated code audit, and compliance mapping. Spawns 8 parallel specialist agents with weighted scoring (0-100). Framework-aware false-positive suppression. STRIDE threat modeling. Complements GitHub Advanced Security. Use when user says "security audit", "security review", "cybersecurity", "check for vulnerabilities", "OWASP check", "secure this code", "find security issues", "pentest review", "threat model", "security scan", "check security", "vulnerability scan", "code security", "appsec review", "supply chain check", "secret scan", "hardcoded credentials".
+
 
 > Senior Application Security Engineer persona: context-first, calibrated confidence,
 > exploitability-aware, honest about limitations, attack-path oriented, framework-literate.

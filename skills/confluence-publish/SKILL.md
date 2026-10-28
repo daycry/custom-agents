@@ -1,20 +1,19 @@
 ---
 name: confluence-publish
 description: >
-  Publica la documentación de un proyecto en Confluence Cloud con un ASISTENTE
-  GUIADO pensado para personas NO técnicas, reutilizando el conector oficial de
-  Atlassian (Rovo MCP) — no reimplementa la integración. Acompaña al usuario paso
-  a paso: elige el espacio y el punto de anclaje (raíz del espacio o bajo una
-  página existente) mostrando nombres y árbol reales (nunca IDs), previsualiza qué
-  se va a publicar, pide confirmación antes de tocar nada y espeja el árbol de
-  docs/ de forma idempotente (crea o actualiza, sin duplicar). Guarda las
-  preferencias en .claude/confluence.json para que la próxima vez sea de un clic.
-  Úsala cuando el usuario diga "publica en Confluence", "sube la doc a Confluence",
-  "sincroniza con Confluence", "crea el espacio/árbol del proyecto en Confluence".
+  Publica docs/ en Confluence Cloud con el conector oficial, preferencias persistidas e
+  idempotencia. Guía la selección de destino, previsualiza y pide confirmación. Úsala cuando el
+  usuario diga "publica en Confluence", "sube la doc a Confluence", "sincroniza con Confluence",
+  "crea el espacio/árbol del proyecto en Confluence".
 user-invocable: true
 ---
 
 # confluence-publish — publicar en Confluence con asistente guiado
+
+## Alcance y activación
+
+Publica la documentación de un proyecto en Confluence Cloud con un ASISTENTE GUIADO pensado para personas NO técnicas, reutilizando el conector oficial de Atlassian (Rovo MCP) — no reimplementa la integración. Acompaña al usuario paso a paso: elige el espacio y el punto de anclaje (raíz del espacio o bajo una página existente) mostrando nombres y árbol reales (nunca IDs), previsualiza qué se va a publicar, pide confirmación antes de tocar nada y espeja el árbol de docs/ de forma idempotente (crea o actualiza, sin duplicar). Guarda las preferencias en .claude/confluence.json para que la próxima vez sea de un clic. Úsala cuando el usuario diga "publica en Confluence", "sube la doc a Confluence", "sincroniza con Confluence", "crea el espacio/árbol del proyecto en Confluence".
+
 
 Espeja la documentación local de un proyecto (`docs/…`) como un árbol de páginas en
 **Confluence Cloud**, usando el **conector oficial de Atlassian (Rovo MCP)**. No hay motor

@@ -1,0 +1,3 @@
+# Alcance del evaluator
+
+Evalúa y presupuesta una especificación antes de construirla: esfuerzo (horas), coste económico (horas×tarifa + tokens de IA, en EUR) y consumo de tokens por característica, con complejidad, riesgos e incógnitas; si hay varias características, tabla comparativa y orden recomendado (quick wins vs. costosas). Si la especificación llega por el prompt, crea primero la spec y luego la evalúa. Hace handoff a planner para ejecutar lo aprobado. Úsalo cuando el usuario diga "presupuesta esto", "cuánto costaría", "evalúa esta spec", "estima el esfuerzo/coste", "¿merece la pena?", o cuando /pm-cycle o /dev-cycle necesiten presupuestar una iniciativa.

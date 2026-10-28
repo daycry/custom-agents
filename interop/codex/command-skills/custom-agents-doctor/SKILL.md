@@ -1,6 +1,6 @@
 ---
 name: custom-agents-doctor
-description: "Diagnóstico de la instalación del plugin en este proyecto — herramientas (python3, git, jq, node, Playwright), plugin y hooks registrados, statusline, configs de .claude (rates, dev, jira, confluence) y estado del trabajo (marcadores de medición huérfanos, iniciativas en progreso, memoria técnica —curadas, índice, FTS5, journal, calibración—, evals), con veredicto ✅/⚠️/❌ y el arreglo concreto de cada línea. Solo lee; no toca nada. Sin red salvo la comprobación en vivo de capacidades opcionales activadas en `taxonomy.json`, acotada a hosts locales/privados y a un tope total de tiempo (p. ej. `kwipu` o la memoria de grafo `graphiti`). Úsalo cuando el usuario diga \"¿está bien instalado?\", \"diagnostica el plugin\", \"por qué no funciona el hook\", \"comprueba mi configuración\", \"doctor\"."
+description: "Diagnostica instalación, herramientas, hooks, configuración y journal del plugin, con remedios verificables. Solo lectura: no corrige ni instala automáticamente. Úsalo cuando el usuario diga \"¿está bien instalado?\", \"diagnostica el plugin\", \"por qué no funciona el hook\", \"comprueba mi configuración\", \"doctor\"."
 ---
 <!-- GENERADO por scripts/export-interop.py desde commands/doctor.md — no lo edites a mano.
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
