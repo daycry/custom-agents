@@ -381,10 +381,13 @@ sin escribir caché. `tokens_bajo_demanda` cuenta `dev-cycle.md` y
 no utiliza un tokenizador, no mide consumo facturado y no representa todo el
 prompt del runtime. El inventario de piezas y caracteres acompaña a la estimación.
 
-Para comparar: guardar JSON y Markdown antes y después, usar el mismo equipo,
-fixtures, intérpretes y carga, y repetir tres pasadas secuenciales. Registrar SO,
-RAM libre observada, fecha y si el código está en OneDrive. Comparar medianas por
-registro/runtime y declarar la dispersión; no atribuir al cambio el ruido de la
-máquina. Los temporales están en el directorio temporal del sistema, no en
+Para caracterizar la línea base: tres pasadas completas correctas, conservando JSON
+y Markdown, muestras y calentamientos descartados. Registrar fuentes, SO, RAM libre
+observada, fecha y si el código está en OneDrive; declarar la dispersión entre las tres
+medianas por registro/runtime sin afirmar estabilidad uniforme. Para evaluar cada mejora
+temporal: control antes/después intercalado del mismo workload, equipo, fixtures e
+intérpretes, con fuentes identificadas, control de arranque, dispersión y fallos. Una
+comparación inconcluyente no acredita ahorro global; un fallo no es una muestra de éxito.
+No atribuir al cambio el ruido de la máquina. Los temporales están en el directorio temporal del sistema, no en
 OneDrive. La CI comprueba el contrato con relojes y procesos controlados, sin
 umbrales absolutos de latencia. La línea base local no se extrapola a otros equipos.

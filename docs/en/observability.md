@@ -382,11 +382,14 @@ writing a cache. `tokens_bajo_demanda` counts `dev-cycle.md` and
 tokenizer, billed usage, or the complete native runtime prompt. Piece counts and
 character counts accompany the estimate.
 
-For comparison, save JSON and Markdown before and after the change, keep the
-machine, fixtures, interpreters and load comparable, and repeat three sequential
-passes. Record OS, observed free RAM, date and whether the code is in OneDrive.
-Compare medians per registration/runtime and disclose dispersion; machine noise
-must not be attributed to the change. Temporary projects live in the system temp
-directory, outside OneDrive. CI tests the contract with controlled clocks and
-processes, without absolute latency thresholds. Local baselines cannot be
-extrapolated to other machines.
+To characterize the baseline, retain three complete successful sequential runs, JSON
+and Markdown reports, measured samples and discarded warmups. Record source identity,
+OS, observed free RAM, date and whether the code lives in OneDrive; report dispersion
+between the three medians for each registration/runtime without claiming uniform timing
+stability. Evaluate each latency change with an interleaved before/after control using
+the same workload, machine, fixtures and interpreters, identified sources, a startup
+control, dispersion and failures. An inconclusive comparison does not establish global
+savings; a failure is not a successful sample. Do not attribute machine noise to code.
+Temporary projects live in the system temporary directory rather than OneDrive. CI checks
+the contract with controlled clocks and processes, without absolute latency thresholds.
+The local baseline does not generalize to other machines.

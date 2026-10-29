@@ -177,7 +177,7 @@ El plugin cuesta hoy unos 6 minutos de espera síncrona por sesión en esta máq
 
 ## Cambios arquitectónicos
 
-- **Medir antes de cambiar.** C-00 es dependencia de todas las demás: cada tarea de F1 pega en el ledger la tabla antes/después del benchmark (medianas relativas en la misma sesión; sin umbrales absolutos en CI por el ruido de esta máquina).
+- **Medir antes de cambiar.** C-00 es dependencia de todas las demás: tres pasadas completas correctas con muestras, fuentes, entorno y dispersión versionados caracterizan la línea base, sin declarar estabilidad uniforme. Cada mejora temporal de F1 deja un control antes/después intercalado del mismo workload, fuentes identificadas, control de arranque y dispersión/fallos; una comparación inconcluyente no acredita ahorro global ni un fallo se acepta como éxito. Sin umbrales absolutos en CI por el ruido de esta máquina. Opción 2 de T-01 aplicada por delegación expresa del usuario el 2026-10-29.
 - **Prefiltro de guard en node, decisión en Python.** Node solo responde «¿esta identidad nativa exacta es un rol protegido?». La decisión de deny sigue en `native-guardrail.py`. Si el mapa no se puede leer o es inválido, se lanza Python como hoy. Propuesta por defecto (a confirmar por la revisión): no cambiar el esquema de `native-roles.json` (`schema_version` 1) y atar la lista `PROTECTED` con un test de paridad node/Python; si la revisión prefiere una sola fuente física, `schema_version` 2 con compatibilidad. Adenda a ADR-023 propuesta vía `knowledge-curation.py propose` (no se edita el ADR a mano).
 - **Descriptions: contrato de longitud.** El umbral del linter baja de 1.200 a 600; los literales que exige `evals/check.py` se conservan; la activación real no se prueba en CI (sin `ANTHROPIC_API_KEY`) y se declara como riesgo.
 - **Statusline en un proceso.** Un único script Python recibe la entrada, calcula modelo/coste/ctx + segmento de roadmap y guarda caché por mtime de los ledgers activos; el shell solo resuelve el intérprete (sin alias de WindowsApps) y degrada en silencio.
@@ -264,6 +264,7 @@ Los ficheros exactos de cada tarea están en su campo `Archivos` de `tasks.md` (
 |-------|--------|-------|
 | 2026-10-27 | Creación del plan: F1 completa (T-01..T-07) y F2/F3 diferidas (T-08..T-26) según la decisión de la puerta | planner |
 | 2026-10-29 | Usuario aprueba el ajuste de CA-01: cero Python y medición transparente sin mínimo porcentual en F1; 80 % reservado a investigación posterior sin presupuesto nuevo. T-01 estabilidad y T-07 revisión/entrega siguen abiertas. Evidencia: `testing/f1-performance-adjustment-proposal.md`. | usuario («adelante», «adelante con el plan») |
+| 2026-10-29 | El usuario delega la decisión sobre T-01; se elige la opción 2: línea base caracterizada con dispersión y controles intercalados por mejora, sin afirmar estabilidad uniforme ni aceptar comparaciones inconcluyentes. Presupuesto y puertas T-07 intactos. | usuario («lo que consideres mejor»); elección motivada por el agente |
 
 ---
 

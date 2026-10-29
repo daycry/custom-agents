@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-29",
+  "authority": {
+    "user_message": "lo que consideres mejor",
+    "context": "Reply to the separate question offering preservation of T-01 stability or option 2 in t01-stability-decision-proposal.md",
+    "meaning": "Delegated choice; assistant selected option 2, not a claimed explicit user selection."
+  },
+  "selected_option": 2,
+  "reason": "Characterize observed variability and require interleaved comparisons rather than claim unproven uniform machine timing.",
+  "affected": [
+    "tasks.md T-01 subtask",
+    "improvement-plan.md comparison method",
+    "testing/baseline-f1.md interpretation",
+    "docs/observability.md and English mirror"
+  ],
+  "unchanged": [
+    "historical raw evidence",
+    "timing thresholds",
+    "functional tests",
+    "denials",
+    "minimum coverage",
+    "budget",
+    "T-07 review/QA/release gates"
+  ],
+  "T01_closure": "Pending evidence review; incomplete replay excluded.",
+  "scope_gate": {
+    "base": "c6f1bde",
+    "exit": 1,
+    "outside": [],
+    "altered_criteria": [
+      {
+        "tarea": "T-01",
+        "criterio": "Ejecutar el benchmark 3 veces y comprobar que las medianas relativas son estables; anotar la dispersión en la línea base"
+      }
+    ],
+    "rebuttal": "User separately delegated the choice; option 2 applied exactly as proposed. Checker unchanged."
+  }
+}

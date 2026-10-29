@@ -1,11 +1,14 @@
-# T-01: decisión pendiente sobre la estabilidad de la línea base
+# T-01: decisión sobre una línea base con variabilidad documentada
 
-Fecha: 2026-10-29. **Propuesta sin aprobar ni aplicar.** El ajuste aprobado de CA-01
-no autoriza este cambio. T-01 permanece abierta y no se autoriza una release.
+Fecha: 2026-10-29. **Opción 2 autorizada por delegación del usuario y aplicada.**
+Ante esta pregunta independiente, el usuario respondió «lo que consideres mejor». Se elige
+la opción 2 por conservar las muestras y reconocer la incertidumbre sin prometer estabilidad
+de la máquina. Esta autorización es posterior y distinta del ajuste de CA-01. T-01 permanece
+abierta hasta revisar las evidencias; no se autoriza una release.
 
-## Condición vigente
+## Condición anterior (sustituida)
 
-Subtarea original de T-01:
+Subtarea original de T-01, conservada como historial:
 
 > Ejecutar el benchmark 3 veces y comprobar que las medianas relativas son estables;
 > anotar la dispersión en la línea base
@@ -20,16 +23,16 @@ interrumpida y el control Node sin plugin. No demuestra una causa única en Wind
 sustituye las tres pasadas completas. No hay una corrección de código justificada por
 estos datos.
 
-## Opción 1: mantener el requisito actual
+## Opción 1: mantener el requisito anterior (no elegida)
 
-T-01 continúa abierta. Hacen falta tres pasadas completas que acrediten estabilidad
+Esta opción habría mantenido T-01 abierta hasta obtener tres pasadas que acreditasen estabilidad
 en las condiciones declaradas de esta máquina. Un control previo puede detectar ruido
 antes de iniciar una serie larga, pero no garantiza que toda la serie vaya a ser estable.
 No se promete un plazo ni se cambia configuración global de Windows para conseguirlo.
 
-## Opción 2: aceptar una línea base caracterizada, con límites de comparación
+## Opción 2 elegida: línea base caracterizada, con límites de comparación
 
-Sustituir únicamente la subtarea citada por:
+Se sustituye únicamente la subtarea citada por:
 
 > Ejecutar tres pasadas completas correctas con al menos diez muestras por caso/runtime
 > y calentamiento descartado; versionar muestras, procedencia, entorno y dispersión entre
@@ -39,13 +42,14 @@ Sustituir únicamente la subtarea citada por:
 > y declaración de dispersión y fallos; un fallo no se acepta como muestra de éxito.
 
 Esta opción cambia el criterio de aceptación: **no acredita que la máquina sea estable**.
-Las tres pasadas originales aportarían la línea base caracterizada; el diagnóstico parcial
-nuevo seguiría excluido. La revisión debería comprobar su procedencia y cobertura antes
-de cerrar T-01. Una comparación inconcluyente seguiría siendo inconcluyente, aunque las
+Las tres pasadas originales aportan la línea base caracterizada; el diagnóstico parcial
+nuevo sigue excluido. La revisión debe comprobar su procedencia y cobertura antes
+de cerrar T-01. Una comparación inconcluyente sigue siendo inconcluyente, aunque las
 pruebas funcionales o el número de procesos sí estén acreditados.
 
-Si se aprueba esta opción, habría que actualizar de forma coherente la subtarea de T-01,
+Aplicación autorizada: actualizar de forma coherente la subtarea de T-01,
 las instrucciones de comparación de `improvement-plan.md`, los informes de línea base
-y el procedimiento ES/EN de observabilidad. Conservar todos los recibos históricos.
+y el procedimiento ES/EN de observabilidad. Se conservan todos los recibos históricos.
 No cambia límites temporales, reglas de redacción, denegaciones, tests, cobertura mínima,
-presupuesto ni las puertas de revisión, QA y entrega de T-07. No se aplica por silencio.
+presupuesto ni las puertas de revisión, QA y entrega de T-07. Se aplica por la delegación
+expresa del usuario; no por silencio ni por la aprobación anterior del objetivo del 80 %.

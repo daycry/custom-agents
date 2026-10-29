@@ -67,7 +67,7 @@ Milisegundos. Dispersión = `100 × (máximo / mínimo - 1)` entre las tres medi
 | opencode | UserPromptSubmit | user-prompt-capture.sh | 922.791 | 1024.926 | 913.231 | 12.23 |
 
 Mayor dispersión observada: codex/SessionStart/session-context.sh, 102.07 % entre medianas.
-La subtarea original de estabilidad de T-01 sigue abierta con ese resultado variable. Para evaluar una mejora se conservan todas las pasadas y se comprueba que su efecto exceda el rango observado; una fluctuación aislada no acredita ahorro.
+La opción 2 de T-01, autorizada por delegación expresa del usuario el 2026-10-29, acepta una línea base caracterizada con esta dispersión, sin declarar estabilidad uniforme. Su cierre queda pendiente de revisión de las evidencias. Para evaluar cada mejora temporal se requiere un control antes/después intercalado del mismo workload, fuentes identificadas, control de arranque y dispersión/fallos; una comparación inconcluyente no acredita ahorro global.
 
 ## Cambios y diagnósticos conservados
 
@@ -144,7 +144,7 @@ estimación caracteres/4, redondeo superior; no es un tokenizador ni consumo rea
 
 ## Actualización de F1 del 2026-10-29
 
-La línea base y su condición de estabilidad permanecen pendientes en T-01. El nuevo
+La línea base conserva sus muestras y dispersión; el ajuste independiente de T-01 exige caracterización transparente, pendiente de revisión antes del cierre. El nuevo
 [control intercalado del guard](t02-paired-control-2026-10-29.json), sin fallos, mide una
 reducción del 36,71–38,21 % y un arranque Node vacío de 513–534 ms; no alcanza el objetivo
 original del 80 % ni prueba la entrega nativa. El ajuste aprobado de CA-01 exige cero Python
@@ -159,3 +159,5 @@ El 80 % pasa a investigación posterior sujeta a revalidación. T-02 queda compl
 la revisión A/B/C/D sin gaps; T-01 estabilidad y las puertas de T-07 siguen abiertas. No se autoriza una release ni se cierra F1.
 
 El [diagnóstico de estabilidad](t01-stability-diagnostic-2026-10-29.md) conserva una repetición parcial y el control de arranque, sin aceptarlos como nueva línea base.
+
+Decisión independiente posterior: [opción 2 de T-01 autorizada por delegación](t01-stability-decision-proposal.md). [Verificación de las tres pasadas originales](t01-characterized-baseline-verification-2026-10-29.json): 1.080 muestras, 108 calentamientos, sin aceptar estabilidad uniforme ni usar la repetición parcial.
