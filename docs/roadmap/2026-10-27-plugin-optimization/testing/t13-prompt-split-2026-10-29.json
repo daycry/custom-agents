@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "status": "VALIDATED_PHASE_REVIEW_PENDING",
+  "baseline_source": "4bde93b3e2c2d5bc31153faeda393c5a97971819:commands/dev-cycle.md",
+  "source_sha256_lf": {
+    "commands/dev-cycle.md": "59640392e86d806bfe80eac9dab7b5abe7f639669e17552b17fd94a208619c4a",
+    "skills/quick-implement/SKILL.md": "af3c438e68ea9fcbea4569d9d3a350c919c9d77fafde18f98e3041ce4efbd112",
+    "scripts/export-interop.py": "b1533f0ef356d525b822ff2381270be3852b49e4e4f30dc1fc5cf19ce7ee7e34",
+    "agent-kits/dev-cycle/references/phase1-evaluation.md": "7fa1717b48028756cf2cbbb1d44752afe47b1d9cb99561e57798e95715a448c8",
+    "agent-kits/dev-cycle/references/phase2-planning.md": "2d942ccefc2165d904b3d959486919a90d997d573b7773f0fb56c5a97e643da8",
+    "agent-kits/dev-cycle/references/phase3-jira.md": "2cae68816d46739daf3b228ea852730ae005a7e60d834d39ec340b02798ef060",
+    "agent-kits/dev-cycle/references/phase3-subagents.md": "e690b31a2d7ceef63333a587ca8e22bcfee05fdec0a655045ef9449c870476ce",
+    "agent-kits/dev-cycle/references/phase4-knowledge-gate.md": "2e48c8b83cd56ebc6c2f1773b1ef5a7f24e089945caf2094e8f65648f6e9f1d8"
+  },
+  "preservation": {
+    "command_original_paragraphs": 81,
+    "quick_original_paragraphs": 17,
+    "lost_paragraphs": 0,
+    "visual_review_recipes_unchanged_utf8_lf": 8,
+    "unconditional_review_qa_commit_paragraphs_retained_in_core": 3
+  },
+  "token_method": "ceil(chars/4), source readset estimate; not API tokens, native activation quality or a tokenizer",
+  "default_quick_assumptions": [
+    "Successful quick path.",
+    "Documented optional settings subagentes/Jira disabled.",
+    "No pending knowledge candidate/handoff or failed proposal.",
+    "No requested documenter/security audit.",
+    "Common implementation/review/QA/commit/retro gates remain loaded in core."
+  ],
+  "canonical_quick": {
+    "before_estimate": 15066,
+    "core_estimate": 7014,
+    "quick_entry_estimate": 1725,
+    "after_estimate": 8739,
+    "saved_estimate": 6327
+  },
+  "optional_reference_estimates": {
+    "phase1-evaluation.md": 94,
+    "phase2-planning.md": 4591,
+    "phase3-jira.md": 749,
+    "phase3-subagents.md": 1464,
+    "phase4-knowledge-gate.md": 661
+  },
+  "optional_quick_savings": {
+    "jira_enabled": 5578,
+    "subagents_enabled": 4863,
+    "jira_and_subagents_enabled": 4114,
+    "knowledge_pending": 5666,
+    "all_three": 3453
+  },
+  "all_phase_details": {
+    "original_command_estimate": 13433,
+    "core_plus_all_references_estimate": 14573,
+    "qualification": "Loading every optional phase eventually costs more routing text; no universal saving is claimed."
+  },
+  "native_direct_command_default": {
+    "codex": {
+      "readset": [
+        "interop/codex/command-skills/custom-agents-dev-cycle/SKILL.md",
+        "interop/codex/command-skills/custom-agents-dev-cycle/references/command.md"
+      ],
+      "before_estimate": 13968,
+      "after_estimate": 7607,
+      "saved_estimate": 6361
+    },
+    "opencode": {
+      "readset": [
+        "interop/opencode/commands/dev-cycle.md"
+      ],
+      "before_estimate": 13683,
+      "after_estimate": 7320,
+      "saved_estimate": 6363
+    }
+  },
+  "checks": [
+    {
+      "command": "python -m pytest -q tests/test_dev_cycle_split.py tests/test_plan_review_caller.py tests/test_review_jira_owner.py (TEST_PLAN_REVIEW_BASH set to observed Git Bash)",
+      "passed": 43,
+      "failed": 0,
+      "seconds": 73.49,
+      "scope": "Initial five split contracts plus all Bash/PowerShell visual-plan recipes and Jira owner assertions."
+    },
+    {
+      "command": "python -m pytest -q tests/test_dev_cycle_split.py tests/test_skill_size.py tests/test_project_pieces.py tests/test_graphiti_security.py tests/test_export_interop.py tests/test_lint_plugin.py tests/test_copias_declaradas.py tests/test_bench_hooks.py",
+      "passed": 407,
+      "skipped": 1,
+      "failed": 0,
+      "seconds": 160.12
+    },
+    {
+      "command": "python -m pytest -q tests/test_dev_cycle_split.py -k private_kit_lookup",
+      "passed": 4,
+      "failed": 0,
+      "seconds": 2.75,
+      "scope": "Actual Bash/PowerShell, own repo and hidden project Codex layouts."
+    },
+    {
+      "command": "node --test --test-name-pattern=\"upgrade preserves legacy and personal bytes\" tests/installer.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "seconds": 27.1274449,
+      "scope": "Real disposable Codex upgrade/install/uninstall; all five copied references equal canonical bytes."
+    },
+    {
+      "command": "python -m pytest -q tests/test_dev_cycle_split.py",
+      "passed": 10,
+      "failed": 0,
+      "seconds": 4.66
+    }
+  ],
+  "red_evidence": [
+    "Private phase reference missing before source changes.",
+    "Codex wrapper lacked core/deferred label before adapter change.",
+    "Original coupled suites:15 failed,10 passed,13 skipped; moved recipes/table plus one pre-existing local scratch-scan boundary error."
+  ],
+  "scope_fix": "Jira live-source scan now also excludes .pytest_cache, which contained historical baseline clones. Its live-source owner/signature assertions remain unchanged. Recipe tests read the exact new canonical phase2 file.",
+  "lint": {
+    "errors": 0,
+    "existing_advisories": 3
+  },
+  "evals": {
+    "pieces": 52,
+    "cases": 192,
+    "errors": 0
+  },
+  "interop_check": {
+    "files_current": 88
+  },
+  "official_quick_diet": {
+    "long_paragraphs": 43,
+    "lost": 0,
+    "lines": 94
+  },
+  "limitations": [
+    "Conditional source-loading estimate, not measured client/API token consumption.",
+    "Optional features require their details and can reduce the saving below 6,000.",
+    "Independent phase review, coverage and full CI remain T-19."
+  ],
+  "followup_core_review": {
+    "red": "Required candidate-location assertion failed: the core named pending/needs_changes without their canonical parent directory.",
+    "fix": "Name docs/knowledge/candidates/{pending,needs_changes}/ explicitly; allow phase2 details when a plan review needs attention even while resuming authorized work.",
+    "validation": {
+      "command": "python -m pytest -q tests/test_dev_cycle_split.py",
+      "passed": 10,
+      "failed": 0,
+      "seconds": 7.62,
+      "interop_current": 88
+    }
+  }
+}

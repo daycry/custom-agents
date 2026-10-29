@@ -10,7 +10,7 @@ import sys
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-COMMAND = ROOT / 'commands/dev-cycle.md'
+COMMAND = ROOT / 'agent-kits/dev-cycle/references/phase2-planning.md'
 INITIATIVE = 'docs/roadmap/2026-10-10-shell-proof'
 
 

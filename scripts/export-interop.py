@@ -468,7 +468,7 @@ def codex_agente(nombre, bloque, cuerpo, mapping=None):
 
 
 def codex_command_skill(nombre, bloque, cuerpo, mapping=None):
-    """Short explicit native map plus complete unchanged canonical command body."""
+    """Explicit native map and canonical entry; phase references remain lazy."""
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", nombre) or len(nombre) > 50:
         raise ValueError("invalid command name: %r" % nombre)
     name = "custom-agents-" + nombre
@@ -480,6 +480,11 @@ def codex_command_skill(nombre, bloque, cuerpo, mapping=None):
                              delegaciones=delegaciones("codex", mapping))
     hint = campo(bloque, "argument-hint")
     header = cabecera("html", "commands/%s.md" % nombre)
+    label = "Núcleo y mapa de fases" if nombre == "dev-cycle" else "Comando completo"
+    lazy = ("\n`references/command.md` contiene el núcleo. Lee las referencias de fase sólo\n"
+            "cuando lo indique; resuélvelas en `agent-kits/dev-cycle/references/` del mismo\n"
+            "bundle canónico, siguiendo su búsqueda. No precargues el kit entero.\n"
+            if nombre == "dev-cycle" else "")
     wrapper = (fm_yaml([("name", name),
                        ("description", json.dumps(description, ensure_ascii=False))])
                + header + "\n# Comando /" + nombre + "\n\n"
@@ -491,8 +496,9 @@ def codex_command_skill(nombre, bloque, cuerpo, mapping=None):
                + "3. En su prosa, `$ARGUMENTS` representa los argumentos del mensaje invocante.\n"
                + "   No hay sustitución del compositor de prompts; conserva literalmente los dólares\n"
                + "   de las recetas y resuelve sus variables sólo al ejecutar la shell correspondiente.\n"
+               + lazy
                + "\n| Referencia | Cuándo leerla |\n|---|---|\n"
-               + "| [Comando completo](references/command.md) | Siempre, antes de ejecutar el comando |\n")
+               + "| [" + label + "](references/command.md) | Siempre, antes de ejecutar el comando |\n")
     policy = (cabecera("toml", "commands/%s.md" % nombre)
               + "interface:\n  display_name: " + json.dumps("/" + nombre, ensure_ascii=False)
               + "\n  short_description: \"Comando explícito de custom-agents\"\n"
@@ -554,6 +560,10 @@ def opencode_comando(nombre, bloque, cuerpo, mapping=None):
     pre = PRE_COMANDO.format(runtime="OpenCode", nombre=nombre,
                              delegar=DELEGAR["OpenCode"], skills=SKILLS_EN["OpenCode"],
                              delegaciones=delegaciones("opencode", mapping))
+    if nombre == "dev-cycle":
+        pre += ("\nEste comando contiene el núcleo y mapa de fases. Lee los detalles sólo\n"
+                "cuando lo indique; `agent-kits/dev-cycle/references/` pertenece al mismo\n"
+                "bundle canónico. Resuélvelo con la búsqueda del núcleo, sin precargar el kit.\n")
     pares = [("description", json.dumps(campo(bloque, "description"), ensure_ascii=False))]
     return (fm_yaml(pares) + cabecera("html", "commands/%s.md" % nombre)
             + "\n" + pre + "\n" + cuerpo.lstrip("\n"))

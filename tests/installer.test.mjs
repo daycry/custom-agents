@@ -679,6 +679,11 @@ test("Codex command adapters: upgrade preserves legacy and personal bytes while 
     assert.ok(man.files.includes(norm(otherOwned)),'unrelated file ownership must remain')
     for (const [path,body] of bytes) assert.equal(readFileSync(path,'utf8'),body,'upgrade must preserve existing bytes')
     assert.ok(existsSync(join(dest,'interop','codex','command-skills','custom-agents-dev-cycle','SKILL.md')),'installed bundle is missing native adapters')
+    for (const name of ['phase1-evaluation.md','phase2-planning.md','phase3-subagents.md','phase3-jira.md','phase4-knowledge-gate.md']) {
+      const relative = join('agent-kits','dev-cycle','references',name)
+      assert.equal(readFileSync(join(dest,relative),'utf8'),readFileSync(join(ROOT,relative),'utf8'),
+        `installed bundle must retain canonical deferred phase ${name}`)
+    }
     cli(recipe,{env,cwd:project})
     const second = JSON.parse(readFileSync(manPath,'utf8'))
     assert.deepEqual(second.files,man.files,'ownership release must be idempotent')
