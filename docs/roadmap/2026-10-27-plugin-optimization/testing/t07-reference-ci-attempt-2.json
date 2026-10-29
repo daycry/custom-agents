@@ -1,0 +1,180 @@
+{
+  "conclusion": "success",
+  "headSha": "d29868d8c574bd9845b5d99b5c7abffc59cc9035",
+  "jobs": [
+    {
+      "completedAt": "2026-10-29T11:18:25Z",
+      "conclusion": "success",
+      "databaseId": 123410295338,
+      "name": "test",
+      "startedAt": "2026-10-29T11:07:14Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-10-29T11:07:16Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-29T11:07:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:07:18Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-10-29T11:07:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:07:18Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@v5",
+          "number": 3,
+          "startedAt": "2026-10-29T11:07:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:07:22Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 4,
+          "startedAt": "2026-10-29T11:07:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:07:25Z",
+          "conclusion": "success",
+          "name": "Instalar pytest",
+          "number": 5,
+          "startedAt": "2026-10-29T11:07:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:07:27Z",
+          "conclusion": "success",
+          "name": "Linter del plugin",
+          "number": 6,
+          "startedAt": "2026-10-29T11:07:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:07:27Z",
+          "conclusion": "success",
+          "name": "Evals — validación estática (cobertura y disparadores literales)",
+          "number": 7,
+          "startedAt": "2026-10-29T11:07:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:08:12Z",
+          "conclusion": "success",
+          "name": "Tests (suites del repo)",
+          "number": 8,
+          "startedAt": "2026-10-29T11:07:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:17:33Z",
+          "conclusion": "success",
+          "name": "Tests (pytest — tests/ + scripts shared + skills con suite propia + evals)",
+          "number": 9,
+          "startedAt": "2026-10-29T11:08:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:17:33Z",
+          "conclusion": "success",
+          "name": "Bench captura de SessionEnd (CA-02: p95 ≤ 100 ms / p99 ≤ 300 ms)",
+          "number": 10,
+          "startedAt": "2026-10-29T11:17:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:17:33Z",
+          "conclusion": "success",
+          "name": "Interop Codex/OpenCode — ¿los ficheros generados reflejan las piezas?",
+          "number": 11,
+          "startedAt": "2026-10-29T11:17:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:18:20Z",
+          "conclusion": "success",
+          "name": "Suites de Node (instalador npx + adaptador de hooks de OpenCode)",
+          "number": 12,
+          "startedAt": "2026-10-29T11:17:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:18:21Z",
+          "conclusion": "success",
+          "name": "Sintaxis de todos los scripts Python",
+          "number": 13,
+          "startedAt": "2026-10-29T11:18:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:18:21Z",
+          "conclusion": "success",
+          "name": "JSONs válidos + versiones coherentes",
+          "number": 14,
+          "startedAt": "2026-10-29T11:18:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:18:21Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 26,
+          "startedAt": "2026-10-29T11:18:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:18:21Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@v5",
+          "number": 27,
+          "startedAt": "2026-10-29T11:18:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:18:21Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 28,
+          "startedAt": "2026-10-29T11:18:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-29T11:18:21Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-10-29T11:18:21Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/daycry/custom-agents/actions/runs/40862893418/job/123410295338"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/daycry/custom-agents/actions/runs/40862893418",
+  "pytest": {
+    "passed": 9653,
+    "skipped": 38,
+    "subtests_passed": 82,
+    "warnings": 1,
+    "seconds": 559.64
+  },
+  "node": {
+    "passed": 362,
+    "failed": 0,
+    "skipped": 16
+  },
+  "capture_ms": {
+    "p95": 0.69,
+    "p99": 0.72
+  },
+  "scope": "Reference workflow success; not F1 acceptance, final review or release approval."
+}

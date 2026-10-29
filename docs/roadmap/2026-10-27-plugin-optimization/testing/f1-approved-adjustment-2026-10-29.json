@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-29",
+  "classification": "TDD n/a: approved plan/documentation adjustment only",
+  "base": "d29868d8c574bd9845b5d99b5c7abffc59cc9035",
+  "scope_check_exit": 1,
+  "outside_scope": [],
+  "detected_criteria_changes": [
+    {
+      "tarea": "T-02",
+      "criterio": "CA-01: sin rol protegido (sin `agent_type`/`agent`, o identidad no protegida), un Bash o Edit no arranca ningún proceso Python y la mediana del hook baja ≥ 80 % frente a la línea base"
+    },
+    {
+      "tarea": "T-07",
+      "criterio": "`testing/baseline-f1.md` incluye la tabla «después» y el ahorro medido frente a la línea base (CA-01: ≥ 80 % en el guard; ≥ ~2.000 tokens fijos; statusline ≤ 1 Python)"
+    }
+  ],
+  "rebuttal": {
+    "authority": "user",
+    "messages": [
+      "adelante",
+      "adelante con el plan"
+    ],
+    "approved_artifact": "testing/f1-performance-adjustment-proposal.md",
+    "decision": "Apply the prepared F1 CA-01 adjustment and its T-07 reference only; retain T-01 stability and review/release gates."
+  },
+  "runtime_changes": false,
+  "future_80_percent_work": "Investigation subject to later feasibility/scope/cost revalidation; no new task or budget approved."
+}

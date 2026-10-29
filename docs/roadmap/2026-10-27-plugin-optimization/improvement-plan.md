@@ -139,7 +139,7 @@ El plugin cuesta hoy unos 6 minutos de espera síncrona por sesión en esta máq
 ### Objetivos
 
 - Benchmark versionado con mediana por hook (≥ 10 ejecuciones, payloads fixture) y tokens fijos/bajo demanda, con la línea base de esta máquina marcada como tal.
-- PreToolUse sin rol protegido: **cero procesos Python** y mediana ≥ 80 % menor que la línea base (CA-01), sin cambiar una sola expectativa de las suites de guard (CA-02, CA-03).
+- PreToolUse sin rol protegido: **cero procesos Python** y comparación versionada antes/después con ≥ 10 muestras por variante/runtime, calentamiento descartado, control Node, dispersión y fallos (CA-01), sin cambiar una sola expectativa de las suites de guard (CA-02, CA-03). Ajuste aprobado 2026-10-29: F1 no exige un porcentaje mínimo.
 - Ninguna description de agente, skill o comando > 600 caracteres; tokens fijos ≥ ~2.000 menos que la línea base.
 - Statusline: como máximo un proceso Python por refresco sin cambios, servido desde caché y sin el alias `python3` de WindowsApps (CA-04).
 - SessionStart con `timeout: 30` vigilado por test; temporales sqlite huérfanos limpiados y sin acumulación (CA-05).
@@ -220,7 +220,7 @@ Los ficheros exactos de cada tarea están en su campo `Archivos` de `tasks.md` (
 ## Criterios de aceptación (global)
 
 - [ ] Existe `scripts/bench-hooks.py` con tests, procedimiento documentado (ES/EN) y línea base de esta máquina versionada y marcada como tal (T-01).
-- [ ] CA-01: sesión sin rol protegido → PreToolUse no lanza Python y su mediana baja ≥ 80 % frente a la línea base (T-02, tabla antes/después en el ledger).
+- [ ] CA-01: sesión sin rol protegido → PreToolUse no lanza Python; comparación versionada con ≥ 10 muestras por variante/runtime, calentamiento descartado, control Node, dispersión y fallos, sin porcentaje mínimo en F1 (T-02, tabla y recibo en `testing/t02-native-prefilter.md`).
 - [ ] CA-02/CA-03: suites de guard en verde sin cambiar expectativas; con `native-roles.json` corrupto se sigue emitiendo el diagnóstico (T-02).
 - [ ] `hooks/hooks.json` declara `timeout: 30` en SessionStart y `test_hooks_config.py` lo vigila (T-03).
 - [ ] CA-05: temporales sqlite `*.tmp` y `*.tmp-journal` de procesos muertos se eliminan y no se acumulan tras una muerte forzada (T-04).
@@ -250,7 +250,7 @@ Los ficheros exactos de cada tarea están en su campo `Archivos` de `tasks.md` (
 
 ## Métricas de éxito
 
-- Mediana de PreToolUse (guard) en sesión sin rol protegido: **−80 %** o más frente a la línea base (ahorro estimado ≈ 5,7 min/sesión aquí).
+- PreToolUse (guard) sin rol protegido: publicar el cambio de mediana acreditado; control local del 2026-10-29 **36,71–38,21 %**, sin extrapolarlo a minutos por sesión. El objetivo del **80 %** pasa a investigación posterior: requiere spike de viabilidad y revalidación de alcance, coste y aceptación antes de comprometer su implementación; no se asigna a una tarea existente de F2.
 - Tokens fijos por sesión (descriptions + índice): **−~2.000** frente a la línea base; 0 descriptions > 600.
 - Statusline: de 3 a 1 llamadas Python por refresco, con 0 cuando la caché sirve.
 - 0 parejas `*.tmp`/`*.tmp-journal` huérfanas tras reconstruir el índice (hoy 20 en `.claude/`).
@@ -263,6 +263,7 @@ Los ficheros exactos de cada tarea están en su campo `Archivos` de `tasks.md` (
 | Fecha | Cambio | Autor |
 |-------|--------|-------|
 | 2026-10-27 | Creación del plan: F1 completa (T-01..T-07) y F2/F3 diferidas (T-08..T-26) según la decisión de la puerta | planner |
+| 2026-10-29 | Usuario aprueba el ajuste de CA-01: cero Python y medición transparente sin mínimo porcentual en F1; 80 % reservado a investigación posterior sin presupuesto nuevo. T-01 estabilidad y T-07 revisión/entrega siguen abiertas. Evidencia: `testing/f1-performance-adjustment-proposal.md`. | usuario («adelante», «adelante con el plan») |
 
 ---
 

@@ -47,7 +47,7 @@ generacion:
 
 ## 🧭 Resumen ejecutivo
 
-Llegan tres auditorías medidas del 2026-10-27 con un alcance propuesto de 14 características en tres fases. La evidencia del repo confirma los hallazgos clave y pide dos ajustes: **añadir C-00** (benchmark reproducible versionado, porque «medir antes/después» es criterio de aceptación y los scripts de la auditoría solo están en el scratchpad) y **añadir C-15** (opcional): en Windows cada hook lanza un segundo Python `runtime-supervisor.py close` al salir (`hooks/run-hook.mjs:233-240`, llamado en cada `exit`), un coste que pagan TODOS los hooks y que no estaba en la lista. Se presupuesta todo en **152,4 h humanas / 7.808 €**, o **~954 € ejecutado con agentes**. La IA se estima a partir de las rondas de revisión (3 intentos por característica), siguiendo la calibración. La F1 sola (38,4 h / 1.966 €; ~232 € con agentes) elimina la mayor parte de los ~6 min de espera por sesión, y sobre todo el guard de 2,3 s en cada Bash/Edit. Recomendación: **go por tramos**.
+Llegan tres auditorías medidas del 2026-10-27 con un alcance propuesto de 14 características en tres fases. La evidencia del repo confirma los hallazgos clave y pide dos ajustes: **añadir C-00** (benchmark reproducible versionado, porque «medir antes/después» es criterio de aceptación y los scripts de la auditoría solo están en el scratchpad) y **añadir C-15** (opcional): en Windows cada hook lanza un segundo Python `runtime-supervisor.py close` al salir (`hooks/run-hook.mjs:233-240`, llamado en cada `exit`), un coste que pagan TODOS los hooks y que no estaba en la lista. Se presupuesta todo en **152,4 h humanas / 7.808 €**, o **~954 € ejecutado con agentes**. La IA se estima a partir de las rondas de revisión (3 intentos por característica), siguiendo la calibración. La F1 sola (38,4 h / 1.966 €; ~232 € con agentes) evita procesos innecesarios y mide el ahorro real. Ajuste aprobado por el usuario el 2026-10-29: no se garantiza eliminar la mayor parte de la espera; el control del guard acredita un 36,71–38,21 % local, sin extrapolar minutos por sesión. El 80 % pasa a investigación posterior sujeta a viabilidad y revalidación de alcance y coste, sin asignarlo a una tarea existente de F2 ni añadir presupuesto. Decisión y evidencia: `testing/f1-performance-adjustment-proposal.md`. Recomendación: **go por tramos**.
 
 ---
 
@@ -80,7 +80,7 @@ Llegan tres auditorías medidas del 2026-10-27 con un alcance propuesto de 14 ca
 - **Validación de F3:** con 2,8 GB libres, esta máquina no puede correr un modelo de 32B. Los criterios de F3 se validarían aquí solo de forma estática (contratos, interop, doctor). Una prueba real con Ollama necesita otro equipo. Supuesto: validación estática + una prueba manual del usuario fuera de presupuesto.
 - **Presupuesto del listado de skills:** recortar las descriptions (−2.100 tokens) puede no bastar para que las 13 skills sin descripción vuelvan a aparecer: el límite lo pone el runtime y no se ha medido. C-01 incluye medirlo en una sesión real; si no basta, haría falta un segundo recorte (fuera de presupuesto).
 - **Timeout de SessionStart:** la mediana medida (14-22 s) supera cualquier timeout razonable. El timeout solo tiene sentido junto con C-06; sin C-06, hoy cortaría la retoma en esta máquina. Supuesto: C-04 fija un valor alto (≈ 30 s) y C-06 lo baja.
-- Que C-02 elimine casi toda la espera depende de cuántas llamadas son Bash/Edit/Write. Supuesto: ~150 de 200, lo que da ≈ 5,7 min de los ~6 medidos.
+- Supuesto original no acreditado: que C-02 elimine casi toda la espera (~150 de 200 llamadas, ≈ 5,7 min/sesión). El control intercalado del 2026-10-29 mide 36,71–38,21 % de reducción del launcher; el coste de Node sigue presente. No se usa aquel supuesto como beneficio comprometido tras el ajuste aprobado de CA-01.
 
 ---
 
@@ -156,7 +156,7 @@ Llegan tres auditorías medidas del 2026-10-27 con un alcance propuesto de 14 ca
 ### C-02 — Prefiltro del guard nativo en node
 
 - **Requisito origen**: spec §Alcance F1; ADR-023
-- **Descripción**: `run-hook.mjs` lee `native-roles.json`, compara la identidad nativa EXACTA (`agent_type` en Claude/Codex, `agent` en OpenCode) con los roles protegidos del runtime y, si no coincide, termina sin lanzar Python. Si el mapa falta o es inválido, lanza Python como hoy. La decisión de deny sigue en `native-guardrail.py`. Es la partida de mayor retorno: ≈ 2,3 s × ~150 llamadas ≈ 5,7 min por sesión aquí.
+- **Descripción**: `run-hook.mjs` lee `native-roles.json`, compara la identidad nativa EXACTA (`agent_type` en Claude/Codex, `agent` en OpenCode) con los roles protegidos del runtime y, si no coincide, termina sin lanzar Python. Si el mapa falta o es inválido, lanza Python como hoy. La decisión de deny sigue en `native-guardrail.py`. Beneficio observado: 36,71–38,21 % de reducción local del launcher en el control intercalado, con cero Python para identidades no protegidas; no se extrapola a minutos por sesión. CA-01 exige medición versionada transparente, sin mínimo porcentual en F1 (ajuste aprobado 2026-10-29).
 - **Complejidad**: Media
 - **Esfuerzo**: 6 h (7,2 h) · confianza Media
 - **Previsión IA**: 1,4 M in / 140k out tok · 8,37 € · 3,48 h IA (lente C de seguridad en los 3 intentos)
@@ -396,7 +396,7 @@ Llegan tres auditorías medidas del 2026-10-27 con un alcance propuesto de 14 ca
 |---|---------------|-------------|-------|---------|--------|---------------------------|-----------|-----------|
 | C-00 | Benchmark | Media | 7,2 h | 365 € | 0,99 M | prerequisito de aceptación | Alta 🟠 | Alta |
 | C-01 | Descriptions ≤ 600 | Media | 9,6 h | 490 € | 1,76 M | −2.100 tok fijos/sesión | Alta 🟠 | Media |
-| C-02 | Prefiltro guard en node | Media | 7,2 h | 368 € | 1,54 M | ≈ −5,7 min/sesión aquí | Crítica 🔴 | Media |
+| C-02 | Prefiltro guard en node | Media | 7,2 h | 368 € | 1,54 M | Cero Python; 36,71–38,21 % local observado, sin mínimo F1 | Crítica 🔴 | Media |
 | C-03 | Statusline 1 Python | Baja-Media | 6 h | 305 € | 0,99 M | −2 procesos y caché por refresco (9,8 s hoy) | Alta 🟠 | Media |
 | C-04 | Timeout SessionStart + captura aislada | Baja | 2,4 h | 122 € | 0,44 M | acota 14-22 s; parte de 2,6 s/turno | Alta 🟠 | Media |
 | C-05 | Temporales sqlite | Baja | 3,6 h | 183 € | 0,55 M | higiene (20 parejas huérfanas) | Media 🟡 | Alta |
@@ -463,7 +463,7 @@ Por fase:
 ## 🎯 Recomendación
 
 - **Veredicto**: **go por tramos.** Go a F1 ahora. F2 núcleo, condicionada a la medición de F1 y a revalidar el plan. F3, condicionada a resolver las incógnitas de diseño de C-11/C-13 (paso `architect` recomendado) y a tener dónde validar un modelo de 32B. Opcionales de F2: C-16 sí (barata y segura); C-15 solo si su spike sale bien; C-17/C-18 se deciden con datos de C-01/C-09.
-- **Quick wins** (bajo coste, alto valor): **C-02** (la mayor parte de la espera por 368 €), C-04, C-05, C-03, C-08, C-16.
+- **Quick wins** (bajo coste, alto valor): **C-02** (evita Python innecesario por 368 €; ahorro local medido, sin promesa global), C-04, C-05, C-03, C-08, C-16.
 - **Costosas / a valorar**: C-09 y C-06 (alto valor, riesgo de regresión del orquestador y del arranque); C-11 y C-13 (incógnitas de diseño); C-15 (riesgo alto, spike primero).
 - **Orden sugerido**: C-00 → C-02 → C-04 → C-05 → C-03 → C-01 → (release F1) → C-08 → C-07 → C-10 → C-06 → C-09 → C-16 → [C-15 spike] → [C-17, C-18] → (release F2) → C-11 → C-12 → C-14 → C-13 → (release F3). Motivo: medir primero; luego lo que más espera quita al menor riesgo; C-01 al final de F1 para poder medir su efecto en el listado en una sesión real; C-09 antes que C-12/C-13/C-17 para no editar dos veces `dev-cycle.md`; C-13 al final porque depende de C-09 y C-12.
 - **Fuera de alcance recomendado**: reescribir el supervisor como binario nativo, el benchmark de calidad de modelos locales y verificar «Qwen 3.5 9B».

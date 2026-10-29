@@ -1,8 +1,8 @@
 # Propuesta de ajuste del objetivo de rendimiento de F1
 
-Fecha: 2026-10-29. Estado: **propuesta, pendiente de aprobación**.
+Fecha: 2026-10-29. Estado: **aprobada por el usuario y aplicada**.
 
-Preparada a petición del usuario. No modifica la spec, el plan ni los criterios aprobados.
+El usuario aprobó esta propuesta con «adelante» y confirmó «adelante con el plan». Se aplica el cambio descrito a spec, plan, evaluación, ledger e informes de medición. El texto anterior y los recibos se conservan como historial; T-01 estabilidad y T-07 revisión/entrega siguen abiertas.
 
 ## Evidencia
 
@@ -27,13 +27,13 @@ Cambiar el mecanismo de arranque requiere estudiar otra solución y revalidar su
 
 ## Cambio concreto propuesto para T-02 / CA-01
 
-Texto aprobado en la spec:
+Texto original aprobado en la spec (sustituido):
 
 > Dado una sesión principal sin rol protegido, Cuando se ejecuta un Bash o un Edit, Entonces el
 > hook PreToolUse no arranca ningún proceso Python y su mediana baja al menos un 80 % frente a
 > la línea base.
 
-Texto propuesto para F1:
+Texto aprobado para F1 el 2026-10-29:
 
 > Dada una sesión principal sin rol protegido, cuando se ejecuta un Bash o un Edit, el hook
 > PreToolUse no arranca ningún proceso Python. La entrega incluye una comparación versionada
@@ -41,12 +41,12 @@ Texto propuesto para F1:
 > control de arranque de Node y declaración de dispersión y fallos. F1 no exige un porcentaje
 > mínimo de reducción de la mediana; informa de la mejora que la medición permita acreditar.
 
-El 80 % se conservaría como objetivo de investigación de una solución posterior, con un spike
+El 80 % se conserva como objetivo de investigación de una solución posterior, con un spike
 de viabilidad antes de comprometer su implementación. No se presenta como alcanzado ni se
-asume que alguna tarea existente de F2 vaya a conseguirlo. La revalidación de F2 decidiría el
+asume que alguna tarea existente de F2 vaya a conseguirlo. La revalidación de F2 decidirá el
 alcance, el coste y la aceptación de esa investigación.
 
-Si se aprueba, habría que actualizar de forma coherente:
+Aplicación del ajuste aprobado:
 
 - `spec.md`: CA-01 y la expectativa de que F1 resuelva aproximadamente el 80 % de la espera.
 - `tasks.md`: la verificación y el criterio CA-01 de T-02; la referencia cuantitativa de T-07.
@@ -65,9 +65,8 @@ Si se aprueba, habría que actualizar de forma coherente:
   autoriza una release ni cierra automáticamente F1. T-06 ya tiene su comprobación real de
   visibilidad registrada y está completada.
 
-## Decisión solicitada
+## Decisión registrada
 
-Aceptar para F1 la garantía funcional de cero Python y la medición transparente, sin un mínimo
-porcentual, y trasladar el objetivo del 80 % a una investigación posterior aún sin aprobar.
-La alternativa es conservar íntegro el objetivo actual y mantener T-02 y F1 abiertas hasta
-acreditarlo. Los criterios aprobados permanecen vigentes mientras no se apruebe el cambio.
+El usuario acepta para F1 la garantía funcional de cero Python y la medición transparente,
+sin un mínimo porcentual. El objetivo del 80 % pasa a investigación posterior cuya ejecución,
+alcance y coste aún deben revalidarse. No se autoriza una release ni se cierra F1 con esta decisión.

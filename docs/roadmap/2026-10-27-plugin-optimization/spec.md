@@ -40,7 +40,7 @@ Fuentes: auditorías del orquestador del 2026-10-27 (hallazgos verificados en el
 
 | Decisión | Elección | Motivo |
 |---|---|---|
-| Orden de los frentes | **Por tramos: F1 (quick wins medibles) → F2 (reestructuración) → F3 (modelos locales)** | F1 resuelve ~80 % de la espera con cambios pequeños; F2 y F3 tocan contratos y conviene revalidarlos al abrir cada fase (CALIBRATION, project-specialization) |
+| Orden de los frentes | **Por tramos: F1 (quick wins medibles) → F2 (reestructuración) → F3 (modelos locales)** | F1 evita procesos innecesarios y publica el ahorro observado, sin prometer un porcentaje mínimo; F2 y F3 tocan contratos y conviene revalidarlos al abrir cada fase (CALIBRATION, project-specialization) |
 | Medición | **Benchmark reproducible versionado (C-00) como primera tarea y criterio de aceptación de cada característica de rendimiento/tokens** | Sin línea base medida no se puede aceptar un «más rápido»; los scripts de la auditoría no están en el repo |
 | Prefiltro del guard | **Comparación de identidad exacta en node contra `native-roles.json`; si el mapa no se puede leer o validar, se lanza Python como hoy** | Elimina el arranque de Python fuera de rol protegido sin abrir una vía de omisión: la decisión de deny sigue en Python (ADR-023) |
 | Descriptions | **Tope de 600 caracteres con aviso del linter a 600 (hoy 1.200), conservando los literales de `evals/cases/`** | `evals/check.py` exige que los literales casen con la description real |
@@ -100,7 +100,9 @@ Fuentes: auditorías del orquestador del 2026-10-27 (hallazgos verificados en el
 ## Criterios de aceptación
 
 - [ ] Existe un benchmark reproducible versionado que da la mediana por hook (≥ 10 ejecuciones, payloads fixture) y los tokens fijos por sesión; la línea base de esta máquina queda registrada en la iniciativa.
-- [ ] [GWT] CA-01 — Dado una sesión principal sin rol protegido, Cuando se ejecuta un Bash o un Edit, Entonces el hook PreToolUse no arranca ningún proceso Python y su mediana baja al menos un 80 % frente a la línea base.
+- [ ] [GWT] CA-01 — Dada una sesión principal sin rol protegido, cuando se ejecuta un Bash o un Edit, el hook PreToolUse no arranca ningún proceso Python. La entrega incluye una comparación versionada antes/después, con al menos diez muestras por variante y runtime, calentamiento descartado, control de arranque de Node y declaración de dispersión y fallos. F1 no exige un porcentaje mínimo de reducción de la mediana; informa de la mejora que la medición permita acreditar.
+
+Ajuste aprobado por el usuario el 2026-10-29 («adelante», «adelante con el plan»): véase la [decisión y evidencia](testing/f1-performance-adjustment-proposal.md). El 80 % queda como objetivo de investigación posterior, sujeto a viabilidad y revalidación de alcance y coste; no se atribuye a una tarea existente de F2. La estabilidad de T-01 y las puertas de T-07 se conservan.
 - [ ] [GWT] CA-02 — Dado un subagente `implementer` o `architect` con identidad nativa exacta, Cuando intenta una operación prohibida por los guardrails, Entonces el guard la deniega igual que antes (suites de guard en verde sin cambiar expectativas).
 - [ ] [GWT] CA-03 — Dado un `native-roles.json` corrupto, Cuando se ejecuta cualquier herramienta vigilada, Entonces se emite el diagnóstico actual y no se pierde la comprobación.
 - [ ] Ninguna description de agente, skill o comando pasa de 600 caracteres; `lint_plugin.py` avisa a 600; `evals/check.py` en verde; los tokens fijos bajan al menos ~2.000 frente a la línea base.

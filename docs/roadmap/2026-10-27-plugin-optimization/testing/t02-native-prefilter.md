@@ -1,6 +1,6 @@
-# T-02: prefiltro funcional; objetivo de latencia pendiente
+# T-02: prefiltro funcional y medición aceptados; revisión pendiente
 
-Estado: **en-progreso**. Cero Python en identidades no protegidas está verificado; la reducción del 80 % de la mediana total **no está acreditada**.
+Estado: **en-progreso por revisión de seguridad pendiente**. Cero Python en identidades no protegidas está verificado. CA-01, ajustado con aprobación del usuario el 2026-10-29, exige esa garantía y la comparación versionada transparente, sin mínimo porcentual en F1. El 80 % no se ha alcanzado y queda como objetivo de investigación posterior.
 
 ## Control intercalado válido del 2026-10-29
 
@@ -15,8 +15,25 @@ simultáneas y sin fallos. Ambas variantes usan los mismos supervisor, mapa y fi
 
 [Recibo y fuentes](t02-paired-control-2026-10-29.json). Se mide el launcher compartido,
 no la entrega nativa. Node vacío es un control observado, no un mínimo universal.
-El 80 % aprobado sigue incumplido; [propuesta de ajuste](f1-performance-adjustment-proposal.md)
-preparada a petición del usuario, pendiente de aprobar y sin cambiar criterios.
+El [ajuste aprobado](f1-performance-adjustment-proposal.md) elimina el mínimo porcentual de F1.
+El recibo incluye las muestras y su dispersión; se conservan todos los fallos históricos.
+Esta decisión no acredita la estabilidad general de T-01 ni cierra la revisión de T-02.
+
+## Dispersión del control válido
+
+Rango de las diez muestras medidas por variante; no es un umbral de estabilidad general de T-01.
+
+| Runtime | Variante | Mínimo ms | Máximo ms | (máx/mín - 1) % |
+|---|---|---:|---:|---:|
+| claude | before | 789.984 | 1662.071 | 110.39 |
+| claude | after | 503.971 | 888.418 | 76.28 |
+| claude | empty_node | 456.298 | 670.969 | 47.05 |
+| codex | before | 769.818 | 924.020 | 20.03 |
+| codex | after | 495.997 | 575.794 | 16.09 |
+| codex | empty_node | 460.787 | 587.726 | 27.55 |
+| opencode | before | 785.305 | 1051.954 | 33.95 |
+| opencode | after | 479.705 | 728.752 | 51.92 |
+| opencode | empty_node | 446.300 | 564.590 | 26.50 |
 
 ## Histórico: comparación con la línea base de T-01
 
