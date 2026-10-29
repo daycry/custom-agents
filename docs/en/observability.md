@@ -10,6 +10,16 @@ produce a diagnostic without blocking the edit. Existing nonempty files are
 preserved with a warning. Direct invocation of the legacy shell wrapper remains
 available for compatibility.
 
+Ledger edits use one combined lint/progress hook. It reads and parses each ledger
+once and runs one business Python process (plus the Windows supervisor). Lint
+reports on every call; identical progress is emitted once under the cooperative
+`.claude/.progress-last.lock`, with an atomic `.claude/.progress-last` update.
+The separate wrappers remain available. The hook only reads project ledgers and
+rejects observed links; if saving debounce state fails, it warns and emits
+progress, which may be duplicated.
+Emitted messages and the saved progress line pass through the canonical
+redactor, including when a ledger title contains a credential.
+
 Two different questions need two different tools:
 
 | Question | Tool | What you get |

@@ -38,9 +38,9 @@ changelog: Changed
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Quick wins medibles (v2.1.0 publicada) | 7 | 7 | 100% | 0 / 38.4h | 0 / 14.8h | 0 / 3.7h | 0 / 6.0M in + 600k out |
-| Fase 2 — Reestructuración (en ejecución) | 2 | 12 | 16.7% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
+| Fase 2 — Reestructuración (en ejecución) | 3 | 12 | 25.0% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
 | Fase 3 — Modelos locales (diferida) | 0 | 7 | 0% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
-| **TOTAL** | **9** | **26** | **34.6%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
+| **TOTAL** | **10** | **26** | **38.5%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Jira no está activado en este proyecto (no hay `jira.json`). Ver `skills/jira-sync/SKILL.md`.
 
@@ -394,27 +394,28 @@ changelog: Changed
 ### T-10 — C-07 — Hook de ledger fusionado (`ledger-lint-warn` + `progress-line`)
 
 - **Descripción**: Resultado: un solo Python en modo python del launcher parsea `tasks.md` una vez y emite los dos mensajes, conservando el debounce con lock (CA-07). Requisito: evaluation.md §C-07, spec §Criterios CA-07.
-- **Changelog**:
-- **Estado**: borrador
+- **Changelog**: Unifica lint y progreso del ledger con un solo Python y análisis, debounce atómico y mensajes redactados; conserva los wrappers anteriores.
+- **Estado**: completado
+- **Cerrada**: 2026-10-29
 - **Tiempo humano**: est. 7.2h · real —
 - **Tiempo IA (ejec.)**: est. 2.98h · real —
 - **Supervisión**: est. 0.74h (≈25 % IA) · real —
 - **Previsión IA**: 1.2M in / 120k out tok · 7.18 €
 - **Dependencias**: T-08
 - **Tipo**: hooks
-- **Archivos**: `hooks/ledger-post.py`, `hooks/ledger-lint-warn.sh`, `hooks/progress-line.sh`, `hooks/hooks.json`, `hooks/run-hook.mjs`, `hooks/opencode-plugin.js`, `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/progress-report.py`, `tests/test_ledger_post.py`, `tests/hook-post-preflight.test.mjs`, `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `hooks/ledger-post.py`, `hooks/ledger-lint-warn.sh`, `hooks/progress-line.sh`, `hooks/hooks.json`, `hooks/run-hook.mjs`, `hooks/opencode-plugin.js`, `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/progress-report.py`, `tests/test_ledger_post.py`, `tests/hook-post-preflight.test.mjs`, `tests/hook-runtime.test.mjs`, `tests/opencode-plugin.test.mjs`, `tests/test_export_interop.py`, `tests/test_graphiti_security.py`, `scripts/export-interop.py`, `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
 - **Verificación**: `python -m pytest -q tests/test_ledger_post.py tests/test_ledger_lint.py agent-kits/shared/test_progress_report.py` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] CA-07: un Edit de tasks.md analiza el ledger una vez y conserva mensajes lint y progreso; un solo Python de negocio, sin shell, más supervisor Windows. Debounce con cerrojo y escritura atómica, una emisión para llamadas concurrentes idénticas. Mantener compatibilidad de las entradas antiguas y regenerar registros de tres runtimes.
+- [x] CA-07: un Edit de tasks.md analiza el ledger una vez y conserva mensajes lint y progreso; un solo Python de negocio, sin shell, más supervisor Windows. Debounce con cerrojo y escritura atómica, una emisión para llamadas concurrentes idénticas. Mantener compatibilidad de las entradas antiguas y regenerar registros de tres runtimes.
 
 **Subtareas**
-- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
-- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
-- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
+- [x] Caracterizar comportamiento y observar primer oráculo declarado.
+- [x] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [x] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Oráculo = test en ROJO de equivalencia de mensajes con los dos hooks actuales. Patrón: `hooks/ledger-lint-warn.sh`, `hooks/progress-line.sh`. Cambia la lista de hooks de `hooks/hooks.json` en 3 runtimes y lo que `/doctor` espera. Lente D. Se concreta al revalidar. Clasificación: refactor con salida idéntica. Coste estimado de la tarea: 367 € (horas × 50 € + tokens).
+**Notas**: Cierre funcional: API compartida, seis llamadas concurrentes, tres runtimes sin Bash, egress/UTF-8/exportadores y smoke real OneDrive en verde. Comparación intercalada completa conserva **7 diagnósticos de confirmación de cierre**, en antes y después; **no acredita ahorro de latencia** y sus muestras fallidas no cuentan como éxitos. No se amplía el límite de 500 ms. `testing/t10-functional-2026-10-29.json`, `testing/t10-paired-control-2026-10-29.json`, recibo de autoverificación egress y diagnóstico del oráculo. La medición y el margen de cierre Windows se contrastan otra vez en el proceso T-19/spike T-15; la revisión independiente y CI completa siguen pendientes. Integración Windows inicial: 99 pass / 3 fail (dos fixtures seguían contando tres handlers y un oráculo temporal no aislaba spawn). Grupo posterior 8 pass / 1 fail, 1.380 ms frente a 1.000; tres aislados pasan. Control con 700 ms inyectados por spawn reproduce 2.301 ms, explicados por 1.119/1.174 ms síncronos. La prueba ahora retiene las consultas de actividad hasta que retorna el evento, mantiene el segundo y comprueba argv/payload de hijos reales tras liberar. Mutante que espera actividad falla por la dependencia retenida; mismo control lento pasa. Grupo corregido 9/9, seguridad egress 11/11, consola/exportadores 696/696. Diagnóstico `testing/t10-activity-oracle-diagnostic-2026-10-29.json`; no se reconstruye de forma única la causa del episodio histórico ni se cambia el runtime de actividad. RED de redacción: un token sintético del título aparece en mensaje/estado; se aplica el redactor canónico antes de emitir o guardar. GREEN: 14 tests nuevos / 1 skip. CI inicial de T-09 a0f3c50 conserva 2 fallos de huella no revisada, 9.651 pass; recibo histórico preservado. Revisión propia de frontera de red y cierre local explícito, con nuevos mutantes: 5 tests de seguridad pasan; no se presenta como revisión independiente T-19. RED adicional: `resumir(..., parsed=...)` falla por keyword no admitida; hook combinado ausente; registro nativo no contiene el handler nuevo (0 != 1). RED de interop: Codex conserva 3 handlers frente a 2 y OpenCode conserva dos handlers legacy frente al combinado · 2026-10-29. GREEN inicial: 61 tests Python / 1 skip y ejecución real en tres runtimes sin Bash; linter 0 errores/3 avisos. RED: `tests/test_ledger_post.py::test_lint_accepts_a_shared_parse_without_reopening_or_reparsing` falla con `TypeError: lint() got an unexpected keyword argument text` · 2026-10-29. El contrato nuevo permite reutilizar el mismo parse sin reabrir el ledger; antes del código. El debounce exigido es el del mensaje de progreso; lint conserva su informe en cada llamada, como antes. Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Oráculo = test en ROJO de equivalencia de mensajes con los dos hooks actuales. Patrón: `hooks/ledger-lint-warn.sh`, `hooks/progress-line.sh`. Cambia la lista de hooks de `hooks/hooks.json` en 3 runtimes y lo que `/doctor` espera. Lente D. Se concreta al revalidar. Clasificación: refactor con salida idéntica. Coste estimado de la tarea: 367 € (horas × 50 € + tokens).
 
 
 ### T-11 — C-10 — Memoria gobernada condicional en `knowledge-check.md`

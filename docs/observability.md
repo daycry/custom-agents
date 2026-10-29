@@ -10,6 +10,16 @@ de escritura producen un diagnóstico sin bloquear la edición. Un fichero exist
 con contenido se conserva y se avisa. La invocación directa del wrapper shell
 antiguo sigue disponible como compatibilidad.
 
+Los edits de un ledger usan un solo hook de validación y progreso. Lee y analiza
+el ledger una vez y ejecuta un Python de negocio (más el supervisor en Windows).
+Lint informa en cada llamada; el progreso idéntico se emite una sola vez bajo
+cerrojo sobre `.claude/.progress-last.lock`, con actualización atómica de
+`.claude/.progress-last`. Los wrappers separados siguen disponibles. El hook
+solo consulta ledgers del proyecto y rechaza enlaces observados; si no puede
+guardar el debounce, avisa y emite el progreso, que puede repetirse.
+Los mensajes emitidos y la línea de progreso guardada pasan por el redactor
+canónico, también cuando un título del ledger contiene una credencial.
+
 Dos preguntas distintas necesitan herramientas distintas:
 
 | Pregunta | Herramienta | Qué obtienes |

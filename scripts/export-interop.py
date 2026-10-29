@@ -332,7 +332,7 @@ _ARG_SEGURO_RE = re.compile(r"^[A-Za-z0-9_${}/.\-]+$")
 _COMANDOS_SHELL_TRADUCIBLES = ("bash", "sh")
 _HOOK_RUNTIME_TARGETS = ("native-guardrail", "agent-activity", "session-context.sh", "session-journal.sh",
                          "user-prompt-capture.sh", "subagent-progress.sh", "mark-docs-pending.sh",
-                         "ledger-lint-warn.sh", "progress-line.sh")
+                         "ledger-lint-warn.sh", "progress-line.sh", "ledger-post.py")
 
 
 def _hook_a_shell_form(h, evento="?"):

@@ -1,0 +1,1358 @@
+{
+  "kind": "same_path_interleaved_ledger_edit_control",
+  "base": "a0f3c50492baf2d6cd55be6a4a9a78d8949f44a0",
+  "platform": "Windows",
+  "runs": 10,
+  "warmup": 1,
+  "method": "Before sums the two sequential legacy ledger launchers; after invokes ledger-post.py once. Same disposable bundle path, fresh project per variant, literal versioned fixtures and rotated empty-Node control. No concurrent owned local test workload.",
+  "source_sha256_lf": {
+    "before": {
+      "hooks/run-hook.mjs": "90b1caafaccfd48fb5745d805187ed91cbd6c15a3c0f02e404aa43b3069176bf",
+      "agent-kits/shared/ledger-lint.py": "24fdc210e50fa47dc9e490262b797f955138b02a1f64ef66a6bdbcef4e93ad9b",
+      "agent-kits/shared/progress-report.py": "20aac2a2504d09b56ed69978e3e79f37da3d8b8e6ec9084f70d7974024f6b5fc"
+    },
+    "after": {
+      "hooks/run-hook.mjs": "37543c964dca5a1c9fd8132d1800dce9051364632a46b8a8a4957ce55d8f081b",
+      "agent-kits/shared/ledger-lint.py": "6cd9898c42b4d09d72b6dc829d2ce47cf76aaf76fbb43db33ae71ef579ec8748",
+      "agent-kits/shared/progress-report.py": "0c4fd8f5470fdfb7ea18d96cb073606b9ef42c7dd3b484aec57cc93cde5fb078"
+    },
+    "new_service": "1d453c46d8954ba0e34223bde5e4150eb79252c6378974302ab184e5328f6ed4"
+  },
+  "rows": [
+    {
+      "runtime": "claude",
+      "samples": {
+        "before": [
+          {
+            "ms": 12553.773,
+            "error": null,
+            "components": [
+              {
+                "ms": 6021.09,
+                "error": null
+              },
+              {
+                "ms": 6532.683,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 13772.195,
+            "error": null,
+            "components": [
+              {
+                "ms": 6080.561,
+                "error": null
+              },
+              {
+                "ms": 7691.634,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 8566.843,
+            "error": null,
+            "components": [
+              {
+                "ms": 3374.555,
+                "error": null
+              },
+              {
+                "ms": 5192.288,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 10021.859,
+            "error": null,
+            "components": [
+              {
+                "ms": 4287.093,
+                "error": null
+              },
+              {
+                "ms": 5734.766,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 9314.065,
+            "error": null,
+            "components": [
+              {
+                "ms": 4878.427,
+                "error": null
+              },
+              {
+                "ms": 4435.638,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 9737.376,
+            "error": null,
+            "components": [
+              {
+                "ms": 3263.326,
+                "error": null
+              },
+              {
+                "ms": 6474.05,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 7595.987,
+            "error": null,
+            "components": [
+              {
+                "ms": 3560.935,
+                "error": null
+              },
+              {
+                "ms": 4035.052,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 11622.111,
+            "error": null,
+            "components": [
+              {
+                "ms": 5597.729,
+                "error": null
+              },
+              {
+                "ms": 6024.382,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 5897.904,
+            "error": null,
+            "components": [
+              {
+                "ms": 2704.379,
+                "error": null
+              },
+              {
+                "ms": 3193.525,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 5007.362,
+            "error": null,
+            "components": [
+              {
+                "ms": 2144.324,
+                "error": null
+              },
+              {
+                "ms": 2863.038,
+                "error": null
+              }
+            ]
+          }
+        ],
+        "after": [
+          {
+            "ms": 3337.548,
+            "error": null,
+            "components": [
+              {
+                "ms": 3337.548,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2426.112,
+            "error": null,
+            "components": [
+              {
+                "ms": 2426.112,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2702.512,
+            "error": null,
+            "components": [
+              {
+                "ms": 2702.512,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2122.802,
+            "error": null,
+            "components": [
+              {
+                "ms": 2122.802,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1909.083,
+            "error": null,
+            "components": [
+              {
+                "ms": 1909.083,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2388.612,
+            "error": null,
+            "components": [
+              {
+                "ms": 2388.612,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2202.627,
+            "error": null,
+            "components": [
+              {
+                "ms": 2202.627,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2034.125,
+            "error": null,
+            "components": [
+              {
+                "ms": 2034.125,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1578.232,
+            "error": null,
+            "components": [
+              {
+                "ms": 1578.232,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1428.312,
+            "error": null,
+            "components": [
+              {
+                "ms": 1428.312,
+                "error": null
+              }
+            ]
+          }
+        ],
+        "empty_node": [
+          {
+            "ms": 1394.689,
+            "error": null
+          },
+          {
+            "ms": 1098.882,
+            "error": null
+          },
+          {
+            "ms": 985.771,
+            "error": null
+          },
+          {
+            "ms": 925.503,
+            "error": null
+          },
+          {
+            "ms": 895.436,
+            "error": null
+          },
+          {
+            "ms": 881.282,
+            "error": null
+          },
+          {
+            "ms": 1096.13,
+            "error": null
+          },
+          {
+            "ms": 1284.99,
+            "error": null
+          },
+          {
+            "ms": 641.297,
+            "error": null
+          },
+          {
+            "ms": 617.268,
+            "error": null
+          }
+        ]
+      },
+      "warmups": [
+        {
+          "variant": "before",
+          "ms": 25026.032,
+          "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+          "components": [
+            {
+              "ms": 13275.54,
+              "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out"
+            },
+            {
+              "ms": 11750.492,
+              "error": null
+            }
+          ]
+        },
+        {
+          "variant": "after",
+          "ms": 2892.694,
+          "error": null,
+          "components": [
+            {
+              "ms": 2892.694,
+              "error": null
+            }
+          ]
+        },
+        {
+          "variant": "empty_node",
+          "ms": 1535.406,
+          "error": null
+        }
+      ],
+      "order": [
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ]
+      ],
+      "errors": [
+        {
+          "iteration": 0,
+          "variant": "before",
+          "ms": 25026.032,
+          "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+          "components": [
+            {
+              "ms": 13275.54,
+              "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out"
+            },
+            {
+              "ms": 11750.492,
+              "error": null
+            }
+          ]
+        }
+      ],
+      "unvalidated_all_sample_median_ms": {
+        "before": 9525.72,
+        "after": 2162.715,
+        "empty_node": 955.637
+      },
+      "unvalidated_all_sample_p95_ms": {
+        "before": 13223.905,
+        "after": 3051.782,
+        "empty_node": 1345.324
+      },
+      "unvalidated_all_sample_max_ms": {
+        "before": 13772.195,
+        "after": 3337.548,
+        "empty_node": 1394.689
+      },
+      "unvalidated_all_sample_observed_reduction_pct": 77.296,
+      "valid_counts": {
+        "before": 10,
+        "after": 10,
+        "empty_node": 10
+      },
+      "valid_only_median_ms": {
+        "before": 9525.7205,
+        "after": 2162.7145,
+        "empty_node": 955.637
+      },
+      "status": "FAILED"
+    },
+    {
+      "runtime": "codex",
+      "samples": {
+        "before": [
+          {
+            "ms": 6645.454,
+            "error": null,
+            "components": [
+              {
+                "ms": 2232.924,
+                "error": null
+              },
+              {
+                "ms": 4412.53,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 8333.322,
+            "error": null,
+            "components": [
+              {
+                "ms": 4228.39,
+                "error": null
+              },
+              {
+                "ms": 4104.932,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 5372.315,
+            "error": null,
+            "components": [
+              {
+                "ms": 2577.747,
+                "error": null
+              },
+              {
+                "ms": 2794.568,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 15042.273,
+            "error": null,
+            "components": [
+              {
+                "ms": 5137.681,
+                "error": null
+              },
+              {
+                "ms": 9904.592,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 16673.614,
+            "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+            "components": [
+              {
+                "ms": 5047.365,
+                "error": null
+              },
+              {
+                "ms": 11626.249,
+                "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out"
+              }
+            ]
+          },
+          {
+            "ms": 21327.672,
+            "error": null,
+            "components": [
+              {
+                "ms": 10718.123,
+                "error": null
+              },
+              {
+                "ms": 10609.549,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 13952.71,
+            "error": null,
+            "components": [
+              {
+                "ms": 7201.685,
+                "error": null
+              },
+              {
+                "ms": 6751.025,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 10314.743,
+            "error": null,
+            "components": [
+              {
+                "ms": 4070.653,
+                "error": null
+              },
+              {
+                "ms": 6244.09,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 7498.145,
+            "error": null,
+            "components": [
+              {
+                "ms": 3420.695,
+                "error": null
+              },
+              {
+                "ms": 4077.45,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 6624.899,
+            "error": null,
+            "components": [
+              {
+                "ms": 3061.733,
+                "error": null
+              },
+              {
+                "ms": 3563.166,
+                "error": null
+              }
+            ]
+          }
+        ],
+        "after": [
+          {
+            "ms": 1848.395,
+            "error": null,
+            "components": [
+              {
+                "ms": 1848.395,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1998.175,
+            "error": null,
+            "components": [
+              {
+                "ms": 1998.175,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1194.597,
+            "error": null,
+            "components": [
+              {
+                "ms": 1194.597,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1233.393,
+            "error": null,
+            "components": [
+              {
+                "ms": 1233.393,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 4449.516,
+            "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+            "components": [
+              {
+                "ms": 4449.516,
+                "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out"
+              }
+            ]
+          },
+          {
+            "ms": 4576.039,
+            "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+            "components": [
+              {
+                "ms": 4576.039,
+                "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out"
+              }
+            ]
+          },
+          {
+            "ms": 2945.003,
+            "error": null,
+            "components": [
+              {
+                "ms": 2945.003,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2183.583,
+            "error": null,
+            "components": [
+              {
+                "ms": 2183.583,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1547.39,
+            "error": null,
+            "components": [
+              {
+                "ms": 1547.39,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2184.415,
+            "error": null,
+            "components": [
+              {
+                "ms": 2184.415,
+                "error": null
+              }
+            ]
+          }
+        ],
+        "empty_node": [
+          {
+            "ms": 589.314,
+            "error": null
+          },
+          {
+            "ms": 1462.181,
+            "error": null
+          },
+          {
+            "ms": 494.813,
+            "error": null
+          },
+          {
+            "ms": 835.282,
+            "error": null
+          },
+          {
+            "ms": 1102.012,
+            "error": null
+          },
+          {
+            "ms": 1334.49,
+            "error": null
+          },
+          {
+            "ms": 1337.964,
+            "error": null
+          },
+          {
+            "ms": 932.36,
+            "error": null
+          },
+          {
+            "ms": 711.5,
+            "error": null
+          },
+          {
+            "ms": 684.979,
+            "error": null
+          }
+        ]
+      },
+      "warmups": [
+        {
+          "variant": "before",
+          "ms": 5518.406,
+          "error": null,
+          "components": [
+            {
+              "ms": 2713.995,
+              "error": null
+            },
+            {
+              "ms": 2804.411,
+              "error": null
+            }
+          ]
+        },
+        {
+          "variant": "after",
+          "ms": 1541.639,
+          "error": null,
+          "components": [
+            {
+              "ms": 1541.639,
+              "error": null
+            }
+          ]
+        },
+        {
+          "variant": "empty_node",
+          "ms": 691.728,
+          "error": null
+        }
+      ],
+      "order": [
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ]
+      ],
+      "errors": [
+        {
+          "iteration": 5,
+          "variant": "before",
+          "ms": 16673.614,
+          "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+          "components": [
+            {
+              "ms": 5047.365,
+              "error": null
+            },
+            {
+              "ms": 11626.249,
+              "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out"
+            }
+          ]
+        },
+        {
+          "iteration": 5,
+          "variant": "after",
+          "ms": 4449.516,
+          "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+          "components": [
+            {
+              "ms": 4449.516,
+              "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out"
+            }
+          ]
+        },
+        {
+          "iteration": 6,
+          "variant": "after",
+          "ms": 4576.039,
+          "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+          "components": [
+            {
+              "ms": 4576.039,
+              "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out"
+            }
+          ]
+        }
+      ],
+      "unvalidated_all_sample_median_ms": {
+        "before": 9324.033,
+        "after": 2090.879,
+        "empty_node": 883.821
+      },
+      "unvalidated_all_sample_p95_ms": {
+        "before": 19233.346,
+        "after": 4519.104,
+        "empty_node": 1406.283
+      },
+      "unvalidated_all_sample_max_ms": {
+        "before": 21327.672,
+        "after": 4576.039,
+        "empty_node": 1462.181
+      },
+      "unvalidated_all_sample_observed_reduction_pct": 77.575,
+      "valid_counts": {
+        "before": 9,
+        "after": 8,
+        "empty_node": 10
+      },
+      "valid_only_median_ms": {
+        "before": 8333.322,
+        "after": 1923.2849999999999,
+        "empty_node": 883.821
+      },
+      "status": "FAILED"
+    },
+    {
+      "runtime": "opencode",
+      "samples": {
+        "before": [
+          {
+            "ms": 5720.744,
+            "error": null,
+            "components": [
+              {
+                "ms": 2526.466,
+                "error": null
+              },
+              {
+                "ms": 3194.278,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 5376.206,
+            "error": null,
+            "components": [
+              {
+                "ms": 2444.077,
+                "error": null
+              },
+              {
+                "ms": 2932.129,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 6510.428,
+            "error": null,
+            "components": [
+              {
+                "ms": 2861.044,
+                "error": null
+              },
+              {
+                "ms": 3649.384,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 5401.242,
+            "error": null,
+            "components": [
+              {
+                "ms": 2423.044,
+                "error": null
+              },
+              {
+                "ms": 2978.198,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 7243.812,
+            "error": null,
+            "components": [
+              {
+                "ms": 2128.416,
+                "error": null
+              },
+              {
+                "ms": 5115.396,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 23096.029,
+            "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+            "components": [
+              {
+                "ms": 5734.783,
+                "error": null
+              },
+              {
+                "ms": 17361.246,
+                "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out"
+              }
+            ]
+          },
+          {
+            "ms": 14355.309,
+            "error": null,
+            "components": [
+              {
+                "ms": 9889.003,
+                "error": null
+              },
+              {
+                "ms": 4466.306,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 5075.276,
+            "error": null,
+            "components": [
+              {
+                "ms": 2297.634,
+                "error": null
+              },
+              {
+                "ms": 2777.642,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 5113.066,
+            "error": null,
+            "components": [
+              {
+                "ms": 2083.279,
+                "error": null
+              },
+              {
+                "ms": 3029.787,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 4977.352,
+            "error": null,
+            "components": [
+              {
+                "ms": 2264.865,
+                "error": null
+              },
+              {
+                "ms": 2712.487,
+                "error": null
+              }
+            ]
+          }
+        ],
+        "after": [
+          {
+            "ms": 1236.686,
+            "error": null,
+            "components": [
+              {
+                "ms": 1236.686,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1415.393,
+            "error": null,
+            "components": [
+              {
+                "ms": 1415.393,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1607.705,
+            "error": null,
+            "components": [
+              {
+                "ms": 1607.705,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1251.27,
+            "error": null,
+            "components": [
+              {
+                "ms": 1251.27,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 3351.033,
+            "error": null,
+            "components": [
+              {
+                "ms": 3351.033,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 8364.788,
+            "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+            "components": [
+              {
+                "ms": 8364.788,
+                "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out"
+              }
+            ]
+          },
+          {
+            "ms": 6637.825,
+            "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+            "components": [
+              {
+                "ms": 6637.825,
+                "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out"
+              }
+            ]
+          },
+          {
+            "ms": 1109.412,
+            "error": null,
+            "components": [
+              {
+                "ms": 1109.412,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1329.317,
+            "error": null,
+            "components": [
+              {
+                "ms": 1329.317,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1236.429,
+            "error": null,
+            "components": [
+              {
+                "ms": 1236.429,
+                "error": null
+              }
+            ]
+          }
+        ],
+        "empty_node": [
+          {
+            "ms": 520.749,
+            "error": null
+          },
+          {
+            "ms": 594.312,
+            "error": null
+          },
+          {
+            "ms": 550.542,
+            "error": null
+          },
+          {
+            "ms": 634.605,
+            "error": null
+          },
+          {
+            "ms": 534.621,
+            "error": null
+          },
+          {
+            "ms": 2345.605,
+            "error": null
+          },
+          {
+            "ms": 2445.304,
+            "error": null
+          },
+          {
+            "ms": 618.137,
+            "error": null
+          },
+          {
+            "ms": 524.541,
+            "error": null
+          },
+          {
+            "ms": 625.207,
+            "error": null
+          }
+        ]
+      },
+      "warmups": [
+        {
+          "variant": "before",
+          "ms": 6387.119,
+          "error": null,
+          "components": [
+            {
+              "ms": 2956.673,
+              "error": null
+            },
+            {
+              "ms": 3430.446,
+              "error": null
+            }
+          ]
+        },
+        {
+          "variant": "after",
+          "ms": 1413.495,
+          "error": null,
+          "components": [
+            {
+              "ms": 1413.495,
+              "error": null
+            }
+          ]
+        },
+        {
+          "variant": "empty_node",
+          "ms": 560.071,
+          "error": null
+        }
+      ],
+      "order": [
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ]
+      ],
+      "errors": [
+        {
+          "iteration": 6,
+          "variant": "before",
+          "ms": 23096.029,
+          "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+          "components": [
+            {
+              "ms": 5734.783,
+              "error": null
+            },
+            {
+              "ms": 17361.246,
+              "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out"
+            }
+          ]
+        },
+        {
+          "iteration": 6,
+          "variant": "after",
+          "ms": 8364.788,
+          "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+          "components": [
+            {
+              "ms": 8364.788,
+              "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out"
+            }
+          ]
+        },
+        {
+          "iteration": 7,
+          "variant": "after",
+          "ms": 6637.825,
+          "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+          "components": [
+            {
+              "ms": 6637.825,
+              "error": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out"
+            }
+          ]
+        }
+      ],
+      "unvalidated_all_sample_median_ms": {
+        "before": 5560.993,
+        "after": 1372.355,
+        "empty_node": 606.225
+      },
+      "unvalidated_all_sample_p95_ms": {
+        "before": 19162.705,
+        "after": 7587.655,
+        "empty_node": 2400.439
+      },
+      "unvalidated_all_sample_max_ms": {
+        "before": 23096.029,
+        "after": 8364.788,
+        "empty_node": 2445.304
+      },
+      "unvalidated_all_sample_observed_reduction_pct": 75.322,
+      "valid_counts": {
+        "before": 9,
+        "after": 8,
+        "empty_node": 10
+      },
+      "valid_only_median_ms": {
+        "before": 5401.242,
+        "after": 1290.2935,
+        "empty_node": 606.2245
+      },
+      "status": "FAILED"
+    }
+  ],
+  "limitations": [
+    "Summed launcher wall time for the two old business hooks, not native client event delivery.",
+    "Temporary filesystem, not OneDrive. Host scheduling/antivirus not uniquely characterized.",
+    "This comparison does not claim lower runtime supervision budgets or absence of the Windows supervisor/cleanup helper."
+  ],
+  "status": "FAILED_COMPARISON_INCONCLUSIVE",
+  "command_exit": 1,
+  "original_report_sha256": "fb551f39d406a82b1f1a310f88a39745376c7a64da78e83d439b6a16a34c26b3",
+  "interpretation": "Cleanup-confirmation diagnostics occurred in both variants. All samples retained. No latency saving is established and failed samples are not successes."
+}

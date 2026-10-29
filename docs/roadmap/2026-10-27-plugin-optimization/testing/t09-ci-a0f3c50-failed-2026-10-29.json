@@ -1,0 +1,23 @@
+{
+  "run": {
+    "conclusion": "failure",
+    "headSha": "a0f3c50492baf2d6cd55be6a4a9a78d8949f44a0",
+    "status": "completed",
+    "url": "https://github.com/daycry/custom-agents/actions/runs/40895509194"
+  },
+  "python": {
+    "passed": 9651,
+    "failed": 2,
+    "skipped": 38,
+    "subtests_passed": 82,
+    "seconds": 674.62
+  },
+  "failures": [
+    "test_ningun_script_alcanzable_desde_hooks_toca_la_red",
+    "test_f4fix2_el_egress_del_journal_es_una_excepcion_nominal_y_condicionada"
+  ],
+  "reported_cause": "launcher JavaScript no revisado: accepted fingerprint still referred to F1 bytes",
+  "node_stage": "not executed after pytest failure",
+  "log_sha256": "276a9e03b85b508296a9f7675bd26a498cbdda22c278f4fb806ec6405ff9c698",
+  "correction": "Self-audit and exact new fingerprint/declared closure in T-10, with new fail-closed regressions. This historical run remains failed."
+}

@@ -92,7 +92,7 @@ def nombre_fase(nombre):
     return (m.group(1) if m else nombre).strip()
 
 
-def resumir(path, *, text=None):
+def resumir(path, *, text=None, parsed=None):
     """Resume un ledger; con texto suministrado no accede al sistema de archivos."""
     if text is None:
         try:
@@ -100,7 +100,8 @@ def resumir(path, *, text=None):
                 text = source.read()   # tolera BOM para los consumidores históricos
         except OSError as e:
             raise ValueError(f"no se puede leer: {e}") from e
-    parsed = parse_ledger(text)
+    if parsed is None:
+        parsed = parse_ledger(text)
     tareas = parsed["tareas"]
     if not tareas:
         raise ValueError("sin tareas `### T-XX` reconocibles")

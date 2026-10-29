@@ -127,7 +127,7 @@ const fs = { constants, closeSync, fstatSync, openSync, readSync };
 const here = dirname(fileURLToPath(import.meta.url));
 const root = dirname(here);
 const known = new Set(['session-journal.sh', 'user-prompt-capture.sh', 'session-context.sh',
-  'subagent-progress.sh', 'mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh',
+  'subagent-progress.sh', 'mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh', 'ledger-post.py',
   'implementer-guardrail.sh', 'architect-guardrail.sh', 'native-guardrail', 'agent-activity']);
 const hook = process.argv[2];
 const runtime = process.argv[3] || '--runtime=claude';
@@ -255,7 +255,7 @@ async function main() {
     setTimeout(() => process.exit(0), 1000).unref();
     return;
   }
-  const post = ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh'].includes(hook);
+  const post = ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh', 'ledger-post.py'].includes(hook);
   let input, guardDeadline;
   if (guard) {
     guardDeadline = performance.now() + childBudgetMs(hook, runtime, process.env);
@@ -304,11 +304,13 @@ async function main() {
   if (!py) { warn('Python unavailable; hook skipped'); if (guard) emitGuard(); return; }
   let command, args;
   // Capture and native guards use contained Python without shell startup.
-  if (guard || activity || hook === 'session-journal.sh' || hook === 'user-prompt-capture.sh') {
+  if (guard || activity || hook === 'session-journal.sh' || hook === 'user-prompt-capture.sh' || hook === 'ledger-post.py') {
     command = py.command;
     args = activity
       ? [...py.args, '-I', '-S', ...(!windows ? ['-X', 'utf8', '-B'] : []), join(root, 'agent-kits', 'shared', 'agent-activity-store.py'),
         '--runtime', runtime.slice('--runtime='.length), '--root', env.CLAUDE_PROJECT_DIR || process.cwd()]
+      : hook === 'ledger-post.py'
+      ? [...py.args, '-I', '-S', join(here, 'ledger-post.py')]
       : guard
       ? [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'native-guardrail.py'),
         '--runtime', runtime.slice('--runtime='.length), '--output', 'structured']
@@ -330,7 +332,7 @@ async function main() {
     if (hook === 'session-context.sh') args.push(runtime);
   }
   if (windows) {
-    const mode = guard || activity || ['session-journal.sh', 'user-prompt-capture.sh'].includes(hook) ? 'python' : 'exec';
+    const mode = guard || activity || ['session-journal.sh', 'user-prompt-capture.sh', 'ledger-post.py'].includes(hook) ? 'python' : 'exec';
     args = [...py.args, '-I', '-S', ...(activity ? ['-X', 'utf8', '-B'] : []), join(here, 'runtime-supervisor.py'), 'run', String(process.pid), mode, command, ...args];
     command = py.command;
   }

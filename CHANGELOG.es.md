@@ -13,6 +13,7 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ### Cambiado
 
+- Las ediciones del ledger comparten un hook Python y un análisis para validación y progreso, conservando los avisos y el debounce atómico entre llamadas concurrentes. Se mantienen los wrappers antiguos separados.
 - Las ediciones de documentación crean el marcador de sincronización pendiente directamente en Node en los tres runtimes, conservando exclusiones y evitando arrancar Python o shell. Las entradas inválidas y los marcadores existentes inseguros informan sin bloquear la edición.
 
 ## [2.1.0] - 2026-10-29

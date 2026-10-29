@@ -391,7 +391,8 @@ def test_codex_hooks_solo_eventos_que_dispara():
     desconocidos = set(h) - CODEX_EVENTOS_OK
     assert not desconocidos, "eventos que Codex no conoce: %s" % desconocidos
     assert h["PostToolUse"][0]["matcher"] == "^apply_patch$"
-    assert len(h["PostToolUse"][0]["hooks"]) == 3
+    assert len(h["PostToolUse"][0]["hooks"]) == 2
+    assert h["PostToolUse"][0]["hooks"][1]["command"].endswith('ledger-post.py --runtime=codex')
     for grupo in h.get("SessionStart", []):
         assert "compact" in grupo.get("matcher", "")
 
