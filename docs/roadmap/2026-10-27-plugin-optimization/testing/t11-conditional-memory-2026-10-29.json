@@ -1,0 +1,83 @@
+{
+  "source_base": "v2.1.0",
+  "method": "Canonical bench-hooks.estimate (ceil characters/4); text footprint only, not observed API tokens or activation quality",
+  "before": {
+    "caracteres": 9133,
+    "tokens_estimados": 2284
+  },
+  "router": {
+    "caracteres": 3842,
+    "tokens_estimados": 961
+  },
+  "conditional_detail": {
+    "caracteres": 6278,
+    "tokens_estimados": 1570
+  },
+  "without_consumer_memory_tokens": 961,
+  "with_consumer_memory_tokens": 2531,
+  "saved_per_read_without_memory": 1323,
+  "illustrative_8_reads_without_memory_savings": 10584,
+  "active_memory_extra_tokens_per_read": 247,
+  "condition": "docs/knowledge/ exists in consumer project; legacy/approved both covered, no remote-backend requirement",
+  "invariants": [
+    "Plugin estimation doctrine stays available to evaluator even without consumer memory",
+    "Journal and previously generated code-context remain in router",
+    "All role queries and legacy/approved/candidate boundaries preserved in same-kit detail",
+    "When the memory router is selected for portable export, its deferred reference is retained by the canonical dependency closure. The current skills-only catalog selects neither fragment by default."
+  ],
+  "lost_long_paragraphs_official_diet_helper": 0,
+  "all_original_paragraphs_sha_regression": "tests/fixtures/knowledge-check-paragraphs.json",
+  "green": [
+    {
+      "command": "python -m pytest -q tests/test_knowledge_prompt_split.py",
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "command": "python -m pytest -q tests/test_knowledge_router.py tests/test_graphiti_security.py",
+      "passed": 171,
+      "failed": 0,
+      "seconds": 103.24
+    }
+  ],
+  "limitations": [
+    "Current repository has consumer memory: both files are read; no token saving claimed for that scenario",
+    "Eight reads is an illustrative scenario, not an observed count for every workflow",
+    "Live model routing/activation is not evaluated by static prose tests"
+  ],
+  "portable": {
+    "steps": [
+      {
+        "command": [
+          "python",
+          "scripts/export-skills.py",
+          "--out",
+          "<portable-output>",
+          "--format",
+          "all"
+        ],
+        "exit": 0,
+        "tail": [
+          "hash: 1dbeba848648f5ed3753edbd9f5c78692ebb1e528319cac0a9393e2c811f6452"
+        ]
+      },
+      {
+        "command": [
+          "python",
+          "scripts/export-skills.py",
+          "--check",
+          "<portable-output>"
+        ],
+        "exit": 0,
+        "tail": [
+          "export-skills --check: 254 ficheros · 0 problema(s)"
+        ]
+      }
+    ],
+    "default_portable_memory_router_present": false,
+    "default_portable_governed_detail_present": false,
+    "default_selection_note": "Current portable catalog includes skills only; reader is cited by agents, so neither fragment is selected by default. No missing dependency is asserted for an unused reader.",
+    "explicit_router_dependency_closure_contains_detail": true,
+    "files": 254
+  }
+}

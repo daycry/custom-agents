@@ -20,6 +20,13 @@ progress, which may be duplicated.
 Emitted messages and the saved progress line pass through the canonical
 redactor, including when a ledger title contains a credential.
 
+The memory reader loads its governed detail when the consumer project has
+`docs/knowledge/`; that condition covers legacy and approved memory and does not
+depend on a remote backend. The journal, code context and plugin estimation
+doctrine retain their own rules. Projects without that directory read only the
+router; projects with it read both files, so no text saving is claimed for the
+latter case.
+
 Two different questions need two different tools:
 
 | Question | Tool | What you get |

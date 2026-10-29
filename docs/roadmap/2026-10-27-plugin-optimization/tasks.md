@@ -38,9 +38,9 @@ changelog: Changed
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Quick wins medibles (v2.1.0 publicada) | 7 | 7 | 100% | 0 / 38.4h | 0 / 14.8h | 0 / 3.7h | 0 / 6.0M in + 600k out |
-| Fase 2 — Reestructuración (en ejecución) | 3 | 12 | 25.0% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
+| Fase 2 — Reestructuración (en ejecución) | 4 | 12 | 33.3% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
 | Fase 3 — Modelos locales (diferida) | 0 | 7 | 0% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
-| **TOTAL** | **10** | **26** | **38.5%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
+| **TOTAL** | **11** | **26** | **42.3%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Jira no está activado en este proyecto (no hay `jira.json`). Ver `skills/jira-sync/SKILL.md`.
 
@@ -421,27 +421,28 @@ changelog: Changed
 ### T-11 — C-10 — Memoria gobernada condicional en `knowledge-check.md`
 
 - **Descripción**: Resultado: los ~7k caracteres de «Consulta de la memoria gobernada» pasan a una referencia que solo se lee si el proyecto tiene memoria gobernada activa (ahorro estimado 10-14k tokens por ciclo; lo leen 8 agentes). Requisito: evaluation.md §C-10.
-- **Changelog**:
-- **Estado**: borrador
+- **Changelog**: Difiere el detalle de memoria gobernada hasta que exista docs/knowledge en el consumidor; conserva consultas, doctrina del plugin, journal y contexto de código.
+- **Estado**: completado
+- **Cerrada**: 2026-10-29
 - **Tiempo humano**: est. 4.8h · real —
 - **Tiempo IA (ejec.)**: est. 1.99h · real —
 - **Supervisión**: est. 0.50h (≈25 % IA) · real —
 - **Previsión IA**: 0.8M in / 80k out tok · 4.78 €
 - **Dependencias**: T-08
 - **Tipo**: docs
-- **Archivos**: `agent-kits/shared/knowledge-check.md`, `agent-kits/shared/knowledge-check-governed.md`, `tests/test_knowledge_prompt_split.py`, `tests/test_knowledge_router.py`, `tests/test_graphiti_security.py`
+- **Archivos**: `agent-kits/shared/knowledge-check.md`, `agent-kits/shared/knowledge-check-governed.md`, `tests/test_knowledge_prompt_split.py`, `tests/fixtures/knowledge-check-paragraphs.json`, `tests/test_knowledge_router.py`, `tests/test_graphiti_security.py`
 - **Cubre (tests)**: —
 - **Verificación**: `python -m pytest -q tests/test_knowledge_prompt_split.py tests/test_knowledge_router.py tests/test_graphiti_security.py` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Condición determinista: existencia de docs/knowledge/ en el consumidor, conservando memoria legacy y approved, sin condicionar lectura local a backend remoto. Detalle gobernado cargado solo entonces; 0 párrafos perdidos, consultas y contratos de seguridad intactos. Registrar ahorro estimado por lectura/ciclo sin equipararlo a consumo API.
+- [x] Condición determinista: existencia de docs/knowledge/ en el consumidor, conservando memoria legacy y approved, sin condicionar lectura local a backend remoto. Detalle gobernado cargado solo entonces; 0 párrafos perdidos, consultas y contratos de seguridad intactos. Registrar ahorro estimado por lectura/ciclo sin equipararlo a consumo API.
 
 **Subtareas**
-- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
-- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
-- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
+- [x] Caracterizar comportamiento y observar primer oráculo declarado.
+- [x] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [x] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Incógnita abierta de la evaluación: condición exacta de activación (¿`docs/knowledge/approved/`? ¿capacidad `kwipu`/`graphiti`?) — decidirla al revalidar con una condición determinista comprobable en una línea. Suites acopladas: `tests/test_knowledge_router.py`, `tests/test_graphiti_security.py`. Se concreta al revalidar. Clasificación: cambio de comportamiento (lectura condicional). Coste estimado de la tarea: 245 € (horas × 50 € + tokens).
+**Notas**: GREEN: 5 contratos estáticos y 171 tests de consultas/seguridad; cero párrafos perdidos por el helper oficial y hashes de todos los párrafos originales. Estimación chars/4: antes 2.284; núcleo 961; con memoria activa 2.531 (247 más, sin ahorro atribuido). Sin memoria: 1.323 tokens estimados menos por lectura; escenario ilustrativo de ocho lecturas 10.584. No son uso API ni calidad de activación medidos. Exportación portable 254 ficheros/0 problemas: el catálogo skills no selecciona este lector de agentes; si se selecciona el núcleo, su cierre incluye la referencia nueva. `testing/t11-conditional-memory-2026-10-29.json`. RED: `tests/test_knowledge_prompt_split.py::test_memory_detail_has_a_conditional_same_kit_reference` falla porque no existe el detalle gobernado extraído · 2026-10-29. La tabla incluye doctrina del plugin para evaluator aun sin memoria del consumidor: se conserva esa orden fuera de la condición. Journal y grafo de código permanecen en el núcleo. Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Incógnita abierta de la evaluación: condición exacta de activación (¿`docs/knowledge/approved/`? ¿capacidad `kwipu`/`graphiti`?) — decidirla al revalidar con una condición determinista comprobable en una línea. Suites acopladas: `tests/test_knowledge_router.py`, `tests/test_graphiti_security.py`. Se concreta al revalidar. Clasificación: cambio de comportamiento (lectura condicional). Coste estimado de la tarea: 245 € (horas × 50 € + tokens).
 
 
 ### T-12 — C-06 — `session-context` en un único Python

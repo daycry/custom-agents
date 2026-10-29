@@ -1,14 +1,3 @@
-<!--
-  FRAGMENTO COMPARTIDO: memoria técnica del proyecto (bucle de lectura, fuente única).
-  Lo referencian los agentes que LEEN antes de trabajar (evaluator, planner, implementer,
-  qa, documenter, reviewer, architect). Calcado del patrón de `constitution-check.md` y del
-  protocolo de bookends de `agents/nemesis.md` (§1, "apertura lee / cierre actualiza" sobre
-  `docs/security-scan/STATE.md`+`MEMORY.md`) — aquí no hay cierre porque la escritura la
-  hacen otros fragmentos (`knowledge-write.md`), no el lector.
-  Si cambias la regla aquí, cambia para todos — no la dupliques en prompts: cada agente lleva
-  UNA línea con su orden y remite aquí (memory-retrieval T-07).
--->
-
 # Memoria técnica del proyecto — paso compartido (bucle de lectura)
 
 ## Recuperación dirigida y contexto de código
@@ -34,60 +23,16 @@ el Knowledge Gate evalúa en solo lectura; Graphify no reemplaza journal, approv
 
 ## Consulta de la memoria gobernada
 
-**Antes de trabajar**, comprueba si el proyecto consumidor tiene memoria técnica acumulada:
+Comprueba si existe `docs/knowledge/` en la raíz del **proyecto consumidor**.
+La presencia de esa carpeta es la condición; no depende de un backend remoto.
 
-```bash
-[ -d docs/knowledge/ ] && echo "memoria técnica presente"
-```
+- **Si existe:** lee `"$SHAREDKIT/knowledge-check-governed.md"` ([detalle](knowledge-check-governed.md)), del mismo kit compartido, antes de consultar memoria. Contiene las consultas por rol, los estados legacy/approved y los límites de lectura; aplica sus reglas completas.
+- **Si no existe:** continúa sin cargar ese detalle. El servicio puede crear la cola cuando se propone el primer conocimiento; su ausencia no bloquea el trabajo ni autoriza leer la memoria de otro proyecto.
 
-- **Si existe `docs/knowledge/`:** **pregunta, no leas el índice entero.** `README.md` (índice de
-  entrada, 31 filas ≈ 3.685 tokens) se sigue vigilando como fuente, pero el camino de lectura es
-  `knowledge-find.py` (mismo kit): una consulta devuelve **una línea por acierto**
-  (`ID · estado · área · titular · ruta`, ≤ 120 caracteres) y **solo entonces** abres, por ID, la
-  entrada concreta que necesites — lectura SELECTIVA (progressive disclosure): nunca "todo `gotchas/`"
-  ni "todo `lessons/`", nunca el corpus entero. Localiza el script como cualquier pieza del kit
-  (regla 5 de `CONVENTIONS`):
-
-  ```bash
-  SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
-  python3 "$SHAREDKIT/knowledge-find.py" --area estimacion --tipo lesson          # capa 1: aciertos compactos de un área (normalizada, sin acentos)
-  python3 "$SHAREDKIT/knowledge-find.py" --tipo-tarea devops --contexto "<título de la tarea>" --iniciativa <slug>   # capa 1 ENRUTADA por área (la del brief)
-  python3 "$SHAREDKIT/knowledge-find.py" --related ADR-010                        # capa 2: grafo curado (sucesión · misma iniciativa · misma área)
-  python3 "$SHAREDKIT/knowledge-find.py" --show GOT-005                           # capa 3: la entrada completa — SOLO la que vayas a aplicar
-  ```
-
-  - **Distingue los corpus y estados antes de aplicar nada.** En el legado ADR/GOT/LES,
-    `estado: aceptada` conserva su autoridad y traza original; `propuesta` es indicio pendiente,
-    no doctrina vinculante, y `obsoleta` no se aplica: sigue su sucesor explícito.
-    En `approved/`, exige la representación gobernada con `estado: aprobado`. No equipares
-    aceptada con aprobado ni migres, reapruebes o corrijas estados legacy al leer.
-    `candidates/**` no entra en búsqueda ni exportación; su existencia no acredita aprobación.
-  - Aplica sólo conocimiento pertinente, vigente y con fuentes verificadas. Una contradicción
-    entre approved y legado aceptado requiere resolución humana trazada: ni fecha, score ni
-    ranking deciden cuál gana. La constitución (`constitution-check.md`) prima. Una sucesión
-    explícita conserva referencias; el lector no modifica incidentalmente el legado.
-  - **Preguntas «¿por qué X?»** (por qué este almacén, por qué se descartó una alternativa):
-    `knowledge-find.py --tipo adr --contexto "<X>"`, abre solo la decisión que responde y contesta
-    con su ID, `estado`, ruta y `fecha`; si está `obsoleta`, con la de su sucesor. Sin aciertos,
-    di que no consta una decisión registrada: no la reconstruyas ni propongas una entrada por eso.
-- **Si NO existe `docs/knowledge/`:** continúa sin ella — es **siempre activa pero degrada en
-  silencio** (D3 de la iniciativa `knowledge-capture`): el servicio crea la cola al persistir la primera propuesta
-  (`knowledge-write.md`), nunca bloquea a un lector que llega antes de que exista. Si el script no
-  está (instalación parcial), lee `README.md` y abre solo las filas cuya columna «Área» toque tu tarea.
-
-**Reparto de qué lee cada agente** — la orden exacta, no una intención (evita que todos abran todo —
-protege la inversión de `2026-08-10-token-diet`). `$SHAREDKIT` es el kit localizado arriba; sustituye
-`<…>` por los datos de tu iniciativa/tarea; con 0 aciertos, sigue sin abrir nada:
-
-| Agente | Ejecuta (capa 1) | Y abre con `--show <ID>` solo… |
-|---|---|---|
-| `evaluator` | `python3 "$SHAREDKIT/knowledge-find.py" --area estimacion --tipo lesson` (memoria del proyecto) **y** `python3 "$SHAREDKIT/knowledge-find.py" --doctrina --area estimacion --limit 0` (doctrina del plugin: las 9 lecciones `LES-001…009`, disponibles también sin `docs/knowledge/`; T-16) | las lecciones de estimación/calibración que condicionen ESTA estimación (`--doctrina --show <ID>` para las del plugin) |
-| `planner` | `python3 "$SHAREDKIT/knowledge-find.py" --contexto "<título de la spec>" --iniciativa <slug>` y, además, `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --limit 0` | los ADR que acoten el diseño del plan y las lecciones de proceso del área |
-| `architect` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --contexto "<título de la spec>"` | decisiones de approved y ADR legacy `aceptada` que acotan las opciones (uno vigente no se re-abre sin decirlo) |
-| `implementer` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo-tarea <Tipo de la T-XX> --contexto "<título de la T-XX>" --iniciativa <slug>` (con `subagentes: true` **ya viene en el brief**: sección «Memoria técnica del proyecto» de `task-brief.py`) | los ADR que restringen la implementación y los gotchas del área (trampas ya comprobadas) |
-| `reviewer` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --tipo-tarea <Tipo> --contexto "<título de la T-XX>" --iniciativa <slug>` | la decisión approved o ADR legacy `aceptada` que el diff parezca contradecir: si lo contradice, es un gap con su ID como evidencia |
-| `qa` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo gotcha --contexto "<título de la iniciativa>"` (con 0 aciertos, `--tipo gotcha --limit 0`: son pocos y baratos) | el gotcha que evite reabrir un flaky ya diagnosticado |
-| `documenter` | `python3 "$SHAREDKIT/knowledge-find.py" --limit 0` (una línea por entrada del corpus: es quien indexa/deriva la documentación de producto) | lo que vaya a documentar |
+**Doctrina del plugin, independiente de esa condición.** `evaluator` consulta
+`python3 "$SHAREDKIT/knowledge-find.py" --doctrina --area estimacion --limit 0`
+incluso sin `docs/knowledge/`; abre solo las lecciones de estimación que afectan
+a la evaluación. Resuelve el kit de la fuente activa según la regla 5.
 
 **Journal de sesión (`docs/knowledge/journal/`, memoria EPISÓDICA — iniciativa `memory-health`).**
 Es la bitácora cronológica que deja el hook `SessionEnd` (`agent-kits/shared/journal.py`): qué pasó en

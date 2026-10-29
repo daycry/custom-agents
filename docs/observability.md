@@ -20,6 +20,13 @@ guardar el debounce, avisa y emite el progreso, que puede repetirse.
 Los mensajes emitidos y la línea de progreso guardada pasan por el redactor
 canónico, también cuando un título del ledger contiene una credencial.
 
+El lector de memoria carga su detalle gobernado cuando el proyecto consumidor
+tiene `docs/knowledge/`; la condición incluye tanto legado como approved y no
+depende de un backend remoto. El journal, el contexto de código y la doctrina
+de estimación del plugin conservan sus reglas propias. Sin esa carpeta se lee
+solo el núcleo; con ella se leen núcleo y referencia, por lo que no se atribuye
+ahorro de texto a ese segundo caso.
+
 Dos preguntas distintas necesitan herramientas distintas:
 
 | Pregunta | Herramienta | Qué obtienes |
