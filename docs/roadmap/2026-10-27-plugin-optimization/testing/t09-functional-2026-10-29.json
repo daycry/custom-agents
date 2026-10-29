@@ -1,0 +1,51 @@
+{
+  "task": "T-09",
+  "platform": "Windows",
+  "red": {
+    "command": [
+      "node",
+      "--test",
+      "--test-name-pattern=claude: documentation marker works without Python or shell",
+      "tests/hook-docs-marker.test.mjs"
+    ],
+    "result": "Expected empty stderr and a created marker; actual Git Bash unavailable; hook skipped",
+    "exit": 1,
+    "production_changed_after_red": true
+  },
+  "green": [
+    {
+      "command": "node --test tests/hook-post-preflight.test.mjs tests/hook-docs-marker.test.mjs",
+      "passed": 88,
+      "failed": 0,
+      "skipped": 1,
+      "skip": "Windows file-symlink privilege unavailable; directory junction coverage passes",
+      "seconds": 29.4500784
+    },
+    {
+      "command": "node --test tests/hook-runtime.test.mjs tests/opencode-plugin.test.mjs",
+      "passed": 45,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 82.2439047
+    }
+  ],
+  "lint_errors": 0,
+  "lint_generic_name_advisories": 3,
+  "activation_cases": 192,
+  "activation_errors": 0,
+  "interop_current_files": 88,
+  "measurement": "t09-paired-control-2026-10-29.json",
+  "contract": [
+    "Applicable documentation paths create a regular empty marker with no interpreter or child-process path",
+    "Write/Edit/MultiEdit, native backslashes, Unicode paths and normalized apply_patch moves covered across three launcher runtimes",
+    "Security-scan, staged Confluence and non-documentation paths excluded",
+    "Invalid input, unusable state directory and observed directory redirects degrade without failing edits",
+    "Existing nonempty files preserved with a diagnostic; empty regular marker reused without truncation",
+    "Legacy direct shell wrapper retained; registrations and generated interop remain current"
+  ],
+  "limits": [
+    "Full Linux CI and independent F2 review remain phase-level gates under T-19",
+    "The filesystem checks observe boundaries; they do not provide a sandbox against concurrent directory replacement",
+    "Measured launcher latency does not certify native client delivery"
+  ]
+}

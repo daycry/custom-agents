@@ -1,6 +1,6 @@
 // Shared launcher for Claude Code, Codex and OpenCode. No shell interprets the payload.
 import { spawn, spawnSync } from 'node:child_process';
-import { constants, closeSync, existsSync, fstatSync, openSync, readSync } from 'node:fs';
+import { constants, closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readSync } from 'node:fs';
 import { dirname, delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -221,6 +221,28 @@ function postApplies(paths) {
   });
 }
 
+function markDocumentation() {
+  const directory = join(env.CLAUDE_PROJECT_DIR || process.cwd(), '.claude');
+  let fd;
+  try {
+    try { mkdirSync(directory); }
+    catch (error) { if (error.code !== 'EEXIST') throw error; }
+    const info = lstatSync(directory);
+    if (!info.isDirectory() || info.isSymbolicLink()) throw new Error('unsafe state directory');
+    const marker = join(directory, '.confluence-pending');
+    try {
+      // Never truncate an existing file or follow a marker link. An already empty
+      // regular marker is the complete state; no interpreter or child is needed.
+      fd = openSync(marker, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, 0o600);
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      const previous = lstatSync(marker);
+      if (!previous.isFile() || previous.isSymbolicLink() || previous.size !== 0) throw error;
+    }
+  } catch { warn('documentation marker unavailable; hook skipped'); }
+  finally { if (fd !== undefined) try { closeSync(fd); } catch { /* Best-effort informative hook. */ } }
+}
+
 async function main() {
   if (!known.has(hook)) { warn('unknown hook'); return; }
   if (!['--runtime=claude', '--runtime=codex', '--runtime=opencode'].includes(runtime)) {
@@ -265,7 +287,18 @@ async function main() {
         paths = normalized.length ? normalized : null;
       } else paths = postPaths(payload);
       if (paths && !postApplies(paths)) return;
-    } catch { /* Unknown input keeps the shell hook's existing degradation. */ }
+      if (hook === 'mark-docs-pending.sh') {
+        if (paths) markDocumentation();
+        else warn('documentation paths unavailable; hook skipped');
+        return;
+      }
+    } catch {
+      if (hook === 'mark-docs-pending.sh') {
+        warn('documentation input unavailable; hook skipped');
+        return;
+      }
+      // Other hooks retain their existing conservative shell fallback.
+    }
   }
   const py = python();
   if (!py) { warn('Python unavailable; hook skipped'); if (guard) emitGuard(); return; }

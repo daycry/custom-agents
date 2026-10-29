@@ -11,6 +11,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Cambiado
+
+- Las ediciones de documentación crean el marcador de sincronización pendiente directamente en Node en los tres runtimes, conservando exclusiones y evitando arrancar Python o shell. Las entradas inválidas y los marcadores existentes inseguros informan sin bloquear la edición.
+
 ## [2.1.0] - 2026-10-29
 
 ### Changed — Optimización del plugin, fase 1

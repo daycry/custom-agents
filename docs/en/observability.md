@@ -2,6 +2,14 @@
 
 **English** · [Español](../observability.md)
 
+The pending documentation marker (`.claude/.confluence-pending`) is created
+directly by the Node launcher for all three runtimes, without Python or a shell.
+It retains the `docs/` filter and excludes `docs/security-scan/` and `docs/confluence/`.
+The marker is an empty file; invalid inputs, observed links and write failures
+produce a diagnostic without blocking the edit. Existing nonempty files are
+preserved with a warning. Direct invocation of the legacy shell wrapper remains
+available for compatibility.
+
 Two different questions need two different tools:
 
 | Question | Tool | What you get |

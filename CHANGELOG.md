@@ -11,6 +11,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Changed
+
+- Documentation edits create the pending-sync marker directly in Node across all three runtimes, preserving exclusions and avoiding Python/shell startup. Invalid inputs and unsafe existing markers report a diagnostic without blocking edits.
+
 ## [2.1.0] - 2026-10-29
 
 ### Changed — Plugin optimization, phase 1

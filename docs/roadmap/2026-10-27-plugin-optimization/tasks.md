@@ -38,9 +38,9 @@ changelog: Changed
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Quick wins medibles (v2.1.0 publicada) | 7 | 7 | 100% | 0 / 38.4h | 0 / 14.8h | 0 / 3.7h | 0 / 6.0M in + 600k out |
-| Fase 2 — Reestructuración (en ejecución) | 1 | 12 | 8.3% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
+| Fase 2 — Reestructuración (en ejecución) | 2 | 12 | 16.7% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
 | Fase 3 — Modelos locales (diferida) | 0 | 7 | 0% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
-| **TOTAL** | **8** | **26** | **30.8%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
+| **TOTAL** | **9** | **26** | **34.6%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Jira no está activado en este proyecto (no hay `jira.json`). Ver `skills/jira-sync/SKILL.md`.
 
@@ -367,8 +367,9 @@ changelog: Changed
 ### T-09 — C-08 — `mark-docs-pending` dentro de node
 
 - **Descripción**: Resultado: el hook que solo crea un fichero vacío tras escribir en `docs/` (3,6-4,6 s por Write/Edit) pasa a `hooks/run-hook.mjs` con los mismos filtros de ruta y exclusiones. Requisito: evaluation.md §C-08, spec §Alcance F2.
-- **Changelog**:
-- **Estado**: borrador
+- **Changelog**: Crea el marcador de documentación pendiente en Node sin Python ni shell, conservando exclusiones y avisando ante entradas o destinos inseguros.
+- **Estado**: completado
+- **Cerrada**: 2026-10-29
 - **Tiempo humano**: est. 3.6h · real —
 - **Tiempo IA (ejec.)**: est. 1.24h · real —
 - **Supervisión**: est. 0.31h (≈25 % IA) · real —
@@ -380,14 +381,14 @@ changelog: Changed
 - **Verificación**: `node --test tests/hook-post-preflight.test.mjs tests/hook-docs-marker.test.mjs` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Mismo marcador vacío y filtros docs/, security-scan y confluence; Write/Edit/MultiEdit y apply_patch en tres runtimes; ruta aplicable sin Python ni shell. Entradas inválidas y IO denegada degradan con exit 0. Rechazar enlaces observados en .claude y en el marcador antes de escribir. Mediana con 10 muestras, calentamiento y control intercalado.
+- [x] Mismo marcador vacío y filtros docs/, security-scan y confluence; Write/Edit/MultiEdit y apply_patch en tres runtimes; ruta aplicable sin Python ni shell. Entradas inválidas y IO denegada degradan con exit 0. Rechazar enlaces observados en .claude y en el marcador antes de escribir. Mediana con 10 muestras, calentamiento y control intercalado.
 
 **Subtareas**
-- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
-- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
-- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
+- [x] Caracterizar comportamiento y observar primer oráculo declarado.
+- [x] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [x] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Clasificación: refactor; oráculo = test de equivalencia en ROJO antes del cambio. Patrón: filtros de ruta ya en node (`postApplies` en `run-hook.mjs`). Equivalencia con el adaptador de OpenCode (`hooks/opencode-plugin.js`). Se concreta al revalidar. Clasificación: refactor (comportamiento igual, sin Python). Coste estimado de la tarea: 183 € (horas × 50 € + tokens).
+**Notas**: GREEN: 88 pass / 1 skip (enlace de fichero Windows sin privilegio), más 45 tests de runtime/adaptador; 0 fallos. Lint 0 errores/3 avisos genéricos, evals 192 e interop 88 vigentes. Control intercalado en la misma ruta temporal: Claude 1.616,995 a 577,301 ms (64,298 %), Codex 1.775,389 a 596,821 ms (66,384 %), OpenCode 2.123,034 a 644,218 ms (69,656 %); diez muestras por variante/runtime y calentamiento descartado, cero errores. No extrapolar a entrega nativa ni al path OneDrive. Recibos `testing/t09-functional-2026-10-29.json` y `testing/t09-paired-control-2026-10-29.json`. Revisión y CI Linux de la fase pendientes en T-19. RED: `node --test --test-name-pattern="claude: documentation marker works without Python or shell" tests/hook-docs-marker.test.mjs` falla: stderr `Git Bash unavailable; hook skipped` en lugar de crear el marcador sin intérpretes · 2026-10-29. Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Clasificación: refactor; oráculo = test de equivalencia en ROJO antes del cambio. Patrón: filtros de ruta ya en node (`postApplies` en `run-hook.mjs`). Equivalencia con el adaptador de OpenCode (`hooks/opencode-plugin.js`). Se concreta al revalidar. Clasificación: refactor (comportamiento igual, sin Python). Coste estimado de la tarea: 183 € (horas × 50 € + tokens).
 
 
 ### T-10 — C-07 — Hook de ledger fusionado (`ledger-lint-warn` + `progress-line`)

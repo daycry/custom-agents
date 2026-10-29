@@ -2,6 +2,14 @@
 
 [English](en/observability.md) · **Español**
 
+El marcador de documentación pendiente (`.claude/.confluence-pending`) se crea
+directamente en el launcher Node para los tres runtimes, sin Python ni shell.
+Conserva los filtros de `docs/` y excluye `docs/security-scan/` y `docs/confluence/`.
+El marcador es un fichero vacío; entradas inválidas, enlaces observados y fallos
+de escritura producen un diagnóstico sin bloquear la edición. Un fichero existente
+con contenido se conserva y se avisa. La invocación directa del wrapper shell
+antiguo sigue disponible como compatibilidad.
+
 Dos preguntas distintas necesitan herramientas distintas:
 
 | Pregunta | Herramienta | Qué obtienes |
