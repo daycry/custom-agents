@@ -13,6 +13,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ### Fixed
 
+- **Activity priority validation.** Makes the sustained-contention fixture announce priority before the burst, checks all eight lifecycle signals and excludes tool writes during priority. A separate model checks early announcement; the occupied-lock failure contract and runtime deadlines are unchanged.
+
 - **Redaction CPU cost.** Skips command analysis for text without option prefixes, preserving credential masking and the portable journal copy; the pathological-input timing limit remains unchanged. Restores the final roadmap row inside its Markdown table.
 
 - **F1 validation inventories.** Updates the shell encoding inventory after moving statusline snippets and refreshes the reviewed launcher fingerprint while retaining network detection and mutation checks.

@@ -13,6 +13,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ### Fixed
 
+- **Validación de prioridad de actividad.** La fixture de contención anuncia la prioridad antes de la ráfaga, exige las ocho señales y excluye escrituras de herramientas durante la prioridad. Un modelo separado comprueba el anuncio temprano; mantiene el contrato de cerrojo ocupado y los plazos de producción.
+
 - **Coste de CPU del redactor.** Evita analizar comandos en texto sin prefijos de opción, conservando la ocultación de credenciales y la copia portable del journal; mantiene el límite temporal de entradas patológicas. Reintegra la fila final del roadmap en su tabla Markdown.
 
 - **Inventarios de validación F1.** Actualiza el inventario de codificación shell tras trasladar los fragmentos de statusline y renueva la huella del launcher revisado, conservando la detección de red y los controles mutantes.
