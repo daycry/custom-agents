@@ -175,7 +175,7 @@ def _catalog(root, kind, warnings):
 
 HOOK_HANDLERS = frozenset(('native-guardrail', 'mark-docs-pending.sh', 'ledger-lint-warn.sh',
                          'progress-line.sh', 'subagent-progress.sh', 'session-context.sh',
-                         'session-journal.sh', 'user-prompt-capture.sh', 'agent-activity'))
+                         'session-journal.sh', 'user-prompt-capture.sh', 'agent-activity', 'ledger-post.py'))
 RUNTIME_NAMES = {'claude-code': 'claude', 'codex': 'codex', 'opencode': 'opencode'}
 HOOK_SOURCES = {'claude-code': 'hooks/hooks.json', 'codex': 'interop/codex/hooks.json',
                 'opencode': 'hooks/opencode-plugin.js'}
@@ -313,7 +313,12 @@ def _opencode_bindings(text):
         handlers = binding.get('handlers')
         if not isinstance(handlers, list) or not 1 <= len(handlers) <= 8 or any(type(item) is not str or item not in HOOK_HANDLERS for item in handlers) or len(set(handlers)) != len(handlers):
             raise ValueError('invalid binding handlers')
-        if set(handlers) != allowed_handlers[identifier]:
+        # Installed adapters may still declare the two legacy ledger handlers.
+        # Accept either complete contract, never an arbitrary subset or mixture.
+        valid_handlers = [allowed_handlers[identifier]]
+        if identifier == 'post':
+            valid_handlers.append({'mark-docs-pending.sh', 'ledger-post.py'})
+        if set(handlers) not in valid_handlers:
             raise ValueError('invalid callback handler')
         if not _positive_number(binding.get('timeout_ms')):
             raise ValueError('invalid adapter budget')

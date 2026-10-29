@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "run_id": 40905120413,
+  "url": "https://github.com/daycry/custom-agents/actions/runs/40905120413",
+  "head_sha": "0ed4a85c905256a4d560aede1b07d7dd28ee1188",
+  "conclusion": "failure",
+  "python": {
+    "passed": 9672,
+    "failed": 6,
+    "skipped": 38,
+    "subtests_passed": 82,
+    "duration_seconds": 520.09
+  },
+  "causes": [
+    "Four console encoding cases: hooks/ledger-post.py had no real launch mode registered in MODOS.",
+    "Two panel cases: closed OpenCode catalog reader rejected ledger-post.py; fixtures still expected the legacy handler count."
+  ],
+  "local_red": {
+    "command": "python -m pytest -q tests/test_console_encoding.py tests/test_plugin_panel.py -k \"ledger-post or opencode_reads_only_literal_data or opencode_adapter_without_tool_activity\"",
+    "failed": 6,
+    "passed": 4,
+    "deselected": 757
+  },
+  "regression_red": {
+    "new_catalog_failed": 1,
+    "legacy_catalog_passed": 1
+  },
+  "directed_green": {
+    "passed": 58,
+    "deselected": 710,
+    "seconds": 9.01
+  },
+  "fix": [
+    "Register a real ledger payload under a temporary consumer root for cp1252/ascii checks.",
+    "Accept either complete legacy or combined post-handler contract as literal data; retain all validation and never execute catalog JavaScript.",
+    "Assert exact handlers and legacy/current inventory counts."
+  ],
+  "full_suites": {
+    "command": "python -m pytest -q tests/test_console_encoding.py tests/test_plugin_panel.py",
+    "passed": 766,
+    "skipped": 2,
+    "failed": 0,
+    "seconds": 182.84
+  },
+  "log_sha256": "865dbd5308da333b94b45c9bc7097ddabaf31ffaf264c304d75c21220003c550",
+  "lint": {
+    "errors": 0,
+    "existing_advisories": 3
+  }
+}
