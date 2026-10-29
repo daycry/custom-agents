@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-29",
+  "attempt": 3,
+  "head": "07e78b6434085f5f75663cce64674eda66b1467c",
+  "corrective_range": "8f83ecc..07e78b6",
+  "previous_attempts": [
+    "t07-f1-review-attempt-1-2026-10-29.json",
+    "t07-f1-review-attempt-2-2026-10-29.json"
+  ],
+  "method": "Fresh A/B reviewers; prior C/D verdicts retained on unchanged runtime code, incremental selector C=false,D=false. Complete prior findings transferred; no reopening without new evidence.",
+  "A": {
+    "reviewer": "/root/f1_final_conformance",
+    "verdict": "approved, no remaining gaps",
+    "checked": [
+      "T01..06 prior conformity retained; A1/A2 resolved",
+      "Linux oracle accepts only Z/X or absent PID; living/stopped/unknown states retained",
+      "3000ms deadline and9500ms ceiling unchanged; both mutations rejected",
+      "scope check0,no outside/altered criteria/warnings",
+      "all36 after medians/p95/maxima recalculated, no differences;8source hashes match",
+      "concurrent load and isolated guard control separated; no global latency-savings claim",
+      "official Python mean90.74% for7measured changed files, documentary exclusion/JS limitation stated",
+      "both changelogs and pending CI/release status coherent"
+    ],
+    "interop": {
+      "exit": 0,
+      "files": 88
+    },
+    "directed_windows": {
+      "passed": 6,
+      "failed": 0,
+      "skipped": 1
+    },
+    "ledger_lint": {
+      "exit": 0,
+      "warnings": 19,
+      "scope": "deferred-phase empty Changelog placeholders"
+    }
+  },
+  "B": {
+    "reviewer": "/root/f1_final_correctness",
+    "verdict": "no defects",
+    "evidence": [
+      "tests/codex-plugin-state.test.mjs:10",
+      "tests/codex-plugin-state.test.mjs:35",
+      "tests/codex-plugin-state.test.mjs:129"
+    ],
+    "checked": "Only terminal or absent PIDs yield false; stopped/live/unknown cases remain detectable, unexpected errors fail. Regression owns and reaps its terminal child; no runtime/deadline changes."
+  },
+  "fusion": {
+    "Critical": 0,
+    "Important": 0,
+    "Minor": 0,
+    "implementation_review": "closed in3attempts",
+    "T07": "full CI and release pending",
+    "release_approved": false
+  },
+  "limits": [
+    "The original CI PID state was not recorded, so controlled reaping is not a unique historical reconstruction.",
+    "Instrumented timing failure is preserved; normal full CI must pass with the oracle fix.",
+    "No JavaScript coverage percentage or uniform machine stability claimed."
+  ],
+  "jira": {
+    "enabled": false,
+    "ops": []
+  }
+}

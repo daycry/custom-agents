@@ -1,0 +1,65 @@
+{
+  "source_head": "07e78b6434085f5f75663cce64674eda66b1467c",
+  "version": "2.1.0",
+  "steps": [
+    {
+      "command": [
+        "python",
+        "scripts/release.py",
+        "2.1.0",
+        "--dry-run"
+      ],
+      "exit": 0,
+      "stdout": "Checks previos:\n  scripts\\lint_plugin.py: OK\n  evals\\check.py: OK\n  scripts\\export-interop.py: OK\n  ci.yml.MANUAL-COPY → .github\\workflows\\ci.yml: ok\n  headless.yml.MANUAL-COPY → .github\\workflows\\headless.yml: ok\n  release.yml.MANUAL-COPY → .github\\workflows\\release.yml: ok\n  github-templates.MANUAL-COPY\\PULL_REQUEST_TEMPLATE.md → .github\\PULL_REQUEST_TEMPLATE.md: ok\n  github-templates.MANUAL-COPY\\ISSUE_TEMPLATE\\bug.yml → .github\\ISSUE_TEMPLATE\\bug.yml: ok\n  github-templates.MANUAL-COPY\\ISSUE_TEMPLATE\\mejora.yml → .github\\ISSUE_TEMPLATE\\mejora.yml: ok\n  github-templates.MANUAL-COPY\\ISSUE_TEMPLATE\\pieza-nueva.yml → .github\\ISSUE_TEMPLATE\\pieza-nueva.yml: ok\n  changelog-sync --check: OK\n\nPlan release 2.0.1 -> 2.1.0 (2026-10-29):\n  CHANGELOG.md: mover 14 línea(s) de Unreleased a `## [2.1.0] - 2026-10-29` + enlace\n  CHANGELOG.es.md: mover 14 línea(s) de Unreleased a `## [2.1.0] - 2026-10-29` + enlace\n  git add manifiestos + CHANGELOG · commit 'chore: release v2.1.0' · tag v2.1.0\n  .claude-plugin\\plugin.json: 1 campo(s) -> 2.1.0\n  .claude-plugin\\marketplace.json: 2 campo(s) -> 2.1.0\n  .codex-plugin\\plugin.json: 1 campo(s) -> 2.1.0\n  .agents\\plugins\\marketplace.json: 1 campo(s) -> 2.1.0\n  package.json: 1 campo(s) -> 2.1.0\n\n--dry-run: no se ha tocado nada.\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "scripts/release.py",
+        "2.1.0",
+        "--no-git"
+      ],
+      "exit": 0,
+      "stdout": "Checks previos:\n  scripts\\lint_plugin.py: OK\n  evals\\check.py: OK\n  scripts\\export-interop.py: OK\n  ci.yml.MANUAL-COPY → .github\\workflows\\ci.yml: ok\n  headless.yml.MANUAL-COPY → .github\\workflows\\headless.yml: ok\n  release.yml.MANUAL-COPY → .github\\workflows\\release.yml: ok\n  github-templates.MANUAL-COPY\\PULL_REQUEST_TEMPLATE.md → .github\\PULL_REQUEST_TEMPLATE.md: ok\n  github-templates.MANUAL-COPY\\ISSUE_TEMPLATE\\bug.yml → .github\\ISSUE_TEMPLATE\\bug.yml: ok\n  github-templates.MANUAL-COPY\\ISSUE_TEMPLATE\\mejora.yml → .github\\ISSUE_TEMPLATE\\mejora.yml: ok\n  github-templates.MANUAL-COPY\\ISSUE_TEMPLATE\\pieza-nueva.yml → .github\\ISSUE_TEMPLATE\\pieza-nueva.yml: ok\n  changelog-sync --check: OK\n\nPlan release 2.0.1 -> 2.1.0 (2026-10-29):\n  CHANGELOG.md: mover 14 línea(s) de Unreleased a `## [2.1.0] - 2026-10-29` + enlace\n  CHANGELOG.es.md: mover 14 línea(s) de Unreleased a `## [2.1.0] - 2026-10-29` + enlace\n\nAplicando:\n  .claude-plugin\\plugin.json: 1 campo(s) -> 2.1.0\n  .claude-plugin\\marketplace.json: 2 campo(s) -> 2.1.0\n  .codex-plugin\\plugin.json: 1 campo(s) -> 2.1.0\n  .agents\\plugins\\marketplace.json: 1 campo(s) -> 2.1.0\n  package.json: 1 campo(s) -> 2.1.0\n  CHANGELOG.md: sección [2.1.0] creada (CRLF conservado)\n  CHANGELOG.es.md: sección [2.1.0] creada (CRLF conservado)\nplugin.json           : 2.1.0\nmarketplace metadata  : 2.1.0\nmarketplace plugins   : ['2.1.0', '2.1.0', '2.1.0', '2.1.0']\nOK: todas coinciden en 2.1.0\n\nHecho (sin git). Recuerda commit + tag + push manuales.\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "scripts/release.py",
+        "--check"
+      ],
+      "exit": 0,
+      "stdout": "plugin.json           : 2.1.0\nmarketplace metadata  : 2.1.0\nmarketplace plugins   : ['2.1.0', '2.1.0', '2.1.0', '2.1.0']\nOK: todas coinciden en 2.1.0\nCHANGELOG.md    : sección [2.1.0] presente\nCHANGELOG.es.md : sección [2.1.0] presente\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "scripts/export-interop.py",
+        "--check"
+      ],
+      "exit": 0,
+      "stdout": "export-interop --check: 88 ficheros al día\n",
+      "stderr": ""
+    }
+  ],
+  "patch_sha256": "2673ea9ea0fcb47f9b9cd0fbecae9ab747986b31b38c4c3a84e222d417fb45a1",
+  "changed_files": [
+    ".agents/plugins/marketplace.json",
+    ".claude-plugin/marketplace.json",
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+    "CHANGELOG.es.md",
+    "CHANGELOG.md",
+    "package.json"
+  ],
+  "head_after": "07e78b6434085f5f75663cce64674eda66b1467c",
+  "preview_isolated": true,
+  "branch_manifests_version": "2.0.1",
+  "tag_created": false,
+  "remote_tag_v2_1_0_exists_at_check": false,
+  "approval_status": "Version2.1.0 prepared as a local preview only; merge/publication requires user confirmation under T-07.",
+  "patch_local_artifact": ".pytest_cache/release-2.1.0-preview.patch"
+}
