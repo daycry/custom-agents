@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-29",
+  "ui": "none by design",
+  "marker": "test-plan: n/a (sin UI)",
+  "coverage_check_exit": 0,
+  "coverage_gate_executed": false,
+  "gwt_exemptions": [
+    "CA-01",
+    "CA-02",
+    "CA-03",
+    "CA-04",
+    "CA-05",
+    "CA-06",
+    "CA-07",
+    "CA-08",
+    "CA-09",
+    "CA-10"
+  ],
+  "ui_paths": [],
+  "ui_diff_check_degraded": false,
+  "meaning": "Declared no-UI exemption, not measured coverage or global QA approval. Unit coverage and full-phase review remain pending in T-07."
+}
