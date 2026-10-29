@@ -29,7 +29,7 @@ changelog: Changed
 
 > **⚠️ Ledger canónico de progreso.** Este fichero es la **fuente única de verdad** del avance del plan. **Cualquier** implementador —el agente `implementer`, el chat principal, o un orquestador SDD externo— **debe** marcar aquí cada tarea (checkbox + estado) al completarla y actualizar el resumen. Los ledgers propios de otras herramientas son **espejo**, no fuente.
 
-> **Alcance de ejecución hoy:** solo **F1** (T-01..T-07). F2 y F3 son fases **diferidas**: su primera tarea (T-08, T-20) revalida el plan contra `master` y las verificaciones marcadas «se concreta al revalidar» se fijan entonces. Cada fase se publica en su propia release.
+> **Alcance autorizado 2026-10-29:** F1 publicada como **v2.1.0**; el usuario autoriza continuar **F2 y F3**. Se ejecutan secuencialmente: T-08 revalida F2 contra `master` publicado; F3 conserva su revalidación T-20 tras la release de F2 y la puerta de diseño T-21. Cada fase se publica en su propia release.
 
 ---
 
@@ -37,10 +37,10 @@ changelog: Changed
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Quick wins medibles (ejecutable ahora) | 6 | 7 | 85.7% | 0 / 38.4h | 0 / 14.8h | 0 / 3.7h | 0 / 6.0M in + 600k out |
-| Fase 2 — Reestructuración (diferida) | 0 | 12 | 0% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
+| Fase 1 — Quick wins medibles (v2.1.0 publicada) | 7 | 7 | 100% | 0 / 38.4h | 0 / 14.8h | 0 / 3.7h | 0 / 6.0M in + 600k out |
+| Fase 2 — Reestructuración (en ejecución) | 1 | 12 | 8.3% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
 | Fase 3 — Modelos locales (diferida) | 0 | 7 | 0% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
-| **TOTAL** | **6** | **26** | **23.1%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
+| **TOTAL** | **8** | **26** | **30.8%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Jira no está activado en este proyecto (no hay `jira.json`). Ver `skills/jira-sync/SKILL.md`.
 
@@ -66,7 +66,7 @@ changelog: Changed
 
 ## Fase 1 — Quick wins medibles
 
-**Estado**: en-progreso · **Estimado**: 38.4h · **Real**: — · **Coste est.**: 1956 € · **Tokens est.**: 6.0M in / 600k out.
+**Estado**: completado · **Estimado**: 38.4h · **Real**: — · **Coste est.**: 1956 € · **Tokens est.**: 6.0M in / 600k out.
 
 ### T-01 — C-00 — Benchmark reproducible de hooks y tokens (línea base de esta máquina)
 
@@ -294,7 +294,8 @@ changelog: Changed
 
 - **Descripción**: Resultado: F1 cerrada y publicable: revisión de dos lentes de la fase completa (3 intentos como máximo, con corrección), tabla final antes/después del benchmark, CHANGELOG ES/EN actualizados desde los ledgers cerrados, docs espejo coherentes, `export-interop.py --check` verde, réplica de `ci.yml` en Linux verde y release de la fase con `scripts/release.py`. Requisito: evaluation.md §Partidas de proceso (P-F1) y decisión 6 de la puerta (una release por fase).
 - **Changelog**: Refuerza las pruebas de prioridad y terminación, evita análisis de redacción innecesarios y actualiza inventarios y evidencias de QA manteniendo los plazos.
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cerrada**: 2026-10-29
 - **Tiempo humano**: est. 2.4h · real —
 - **Tiempo IA (ejec.)**: est. 0.64h · real —
 - **Supervisión**: est. 0.16h (≈25 % IA) · real —
@@ -316,7 +317,7 @@ changelog: Changed
 - [x] `testing/baseline-f1.md` incluye la tabla «después» y el ahorro medido frente a la línea base (CA-01: cero Python y comparación versionada con ≥ 10 muestras por variante/runtime, calentamiento descartado, control Node, dispersión y fallos; sin porcentaje mínimo del guard en F1, ajuste aprobado 2026-10-29; ≥ ~2.000 tokens fijos; statusline ≤ 1 Python).
 - [x] Los dos CHANGELOG (`[Unreleased]` EN y `[Sin publicar]` ES) recogen F1 con un bullet por tarea; docs espejo ES/EN actualizados en el mismo cambio.
 - [x] La réplica Linux de `ci.yml` pasa sin rojos aceptados «de siempre».
-- [ ] El release de F1 se publica con `scripts/release.py` (nunca a mano) previa confirmación del usuario sobre la versión; `--check` posterior en verde.
+- [x] El release de F1 se publica con `scripts/release.py` (nunca a mano) previa confirmación del usuario sobre la versión; `--check` posterior en verde.
 - [x] El índice `docs/roadmap/README.md` refleja el estado de F1.
 
 **Subtareas**
@@ -324,21 +325,22 @@ changelog: Changed
 - [x] Ejecutar `bench-hooks.py` «después» y completar `testing/baseline-f1.md`.
 - [x] Sincronizar CHANGELOG ×2 con `changelog-sync` desde los ledgers cerrados y revisar docs espejo.
 - [x] Verificación en Linux (réplica de `ci.yml`).
-- [ ] `release.py --dry-run`, confirmar versión con el usuario, publicar y `--check`.
+- [x] `release.py --dry-run`, confirmar versión con el usuario, publicar y `--check`.
 
-**Notas**: CI completa de referencia VERDE sobre `5ede2a6`: https://github.com/daycry/custom-agents/actions/runs/40884197169; 9.653 Python / 38 skip / 82 subtests y Node 364 pass / 0 fail / 16 skip. Captura p95 8,18 ms / p99 8,61 ms, límites intactos. Recibo `testing/t07-reference-ci-5ede2a6-success-2026-10-29.json`; resumen `testing/t07-qa-summary-2026-10-29.md`. Preview portable: 254 ficheros / 25 skills / 0 problemas; `plugin-dev` y `quick-implement` excluidas por diseño existente, con la referencia nueva presente en el plugin completo. Memoria de la causa probada del oráculo: propose rechazado con `incomplete_inventory` (exit 2); borrador externo conservado y persistencia pendiente, sin candidato ni aprobación (`testing/t07-liveness-memory-handoff-2026-10-29.json`). **T-07 sigue abierta solo para confirmar la versión y entregar la release**; F2/F3 diferidas. **Histórico:** Revisión de implementación cerrada en intento 3 sobre `07e78b6`, A/B sin gaps; C/D previos conservados para producción idéntica. Preview local aislada 2.1.0: dry-run, aplicación sin git, `release --check` e interop 88 al día pasan. El patch solo toca cinco manifiestos y ambos changelogs; HEAD/tag de la preview y manifiestos de la rama no se publican ni cambian. Fuente `testing/t07-release-2.1.0-preview-2026-10-29.json`; sigue pendiente CI completa del fix y confirmación del usuario para fusionar/publicar. **Histórico:** Tabla final antes/después consolidada: guard con control intercalado aislado, tokens estimados y garantías funcionales, más los 36 registros de la observación posterior bajo carga declarada (sin atribuir ahorro global). Las notas ES/EN tienen un bullet por T-01..T-06 cerrado y uno por los cambios de validación/redacción realmente implementados en T-07; OpenCode V2 se conserva. `changelog-sync --check --json`: exit0 sin pendientes. Como el ledger completo26tareas sigue en progreso, se usa su renderer sin modificar sobre registros F1 completados y se traducen/editan ambos textos; no se finge una iniciativa cerrada. Proyección `testing/f1-changelog-projection-2026-10-29.json`. **Histórico:** Cobertura oficial completa recogida en Linux sobre `8f83ecc`: gate changed-only Python 90,74 % de media en siete ficheros medidos, mínimo 90; helper de medición documental sin datos excluido explícitamente por el gate. Perfil instrumentado: 9.635 pass / 1 fail temporal / 55 skip, 82 subtests; no se declara corrida global verde. Fallo del redactor: 500.012 caracteres sudo, 1,818 s frente al límite intacto 1,5 s. Exportación recuperada con la misma semántica ignore_errors de pytest-cov para cinco nombres compile virtuales; 285 resúmenes idénticos, sin cambiar datos ni exclusiones de fuente. `testing/t07-phase-python-coverage-2026-10-29.json`. Pasada después completa: 36/36, 360 muestras +36 calentamientos, exit 0 y fuentes estables; carga concurrente declarada, sin ahorro global atribuido (`testing/f1-after-hooks-2026-10-29.json`). **Histórico:** CI `40872615290` sobre `8f83ecc` falla en el oráculo de limpieza nativa Codex (PID visible); no se acepta como verde. Cinco repeticiones originales no reproducen el fallo; cinco con un subreaper propio que retiene estados terminales muestran `kill(pid,0)` visible y `/proc` estado Z, sin cambiar el helper ni su deadline. Esto prueba un defecto del oráculo, no el estado exacto del PID histórico CI. RED: `Codex state liveness oracle recognizes an exited child before it is reaped` falla con true != false y estado Z confirmado · 2026-10-29. Fix solo de test: reconoce Z/X terminales en Linux; R/S/T y errores inciertos no se aceptan como terminación. No cambia producción ni plazos. GREEN Linux: 7 tests; mutantes sin matar el grupo y con oráculo siempre false fallan por el motivo previsto. Revisión final se reabre para el intento 3 y nueva CI completa; se declaran fuente de test y evidencia como prerrequisito QA. **Histórico:** CI de referencia completa VERDE sobre `d29868d8c574bd9845b5d99b5c7abffc59cc9035`: https://github.com/daycry/custom-agents/actions/runs/40862893418; 9.653 pass / 38 skip / 82 subtests, Node 362 pass / 0 fail / 16 skip; captura p95 0,69 ms / p99 0,72 ms con límites intactos. Recibo `testing/t07-reference-ci-attempt-2.json`. El ajuste aprobado de CA-01 elimina solo el mínimo porcentual de F1; no cierra T-01, T-02 ni T-07. Los checks Linux de esta implementación se acreditan con ese SHA, sin afirmar validación de futuros cambios. **Histórico de QA previo al ajuste:** GREEN de la fixture de prioridad: 262 pruebas de actividad/modelo/IO pasan en Linux, 1 skip; tras reforzar la limpieza de hijos propios, la prueba real de contención vuelve a pasar en Windows. Ambos mutantes relevantes siguen rechazados. Evidencias `testing/t07-reference-ci-attempt-1.json` y `testing/t07-activity-contention-diagnostic-2026-10-29.json`. La siguiente CI de referencia validará la rama completa; no se marca aún QA global como verde. CI de referencia `40858130024` sobre `7e002a0`: 9.651 pass / 1 fail / 38 skip; las pruebas temporales del redactor pasan. Falla una de ocho señales con `state_busy` bajo contención. Diagnóstico sin cambiar producción: tres repeticiones originales y tres instrumentadas pasan; se observa una retención de 130,17 ms frente a la espera contractual de 100 ms. No se reconstruye la causa exacta del fallo CI; la fixture no garantizaba que el escritor previo liberase dentro del plazo. Se controla la prioridad antes de la ráfaga, manteniendo 8/8 señales, ocho escritores activos y cero eventos de herramienta admitidos bajo la prioridad; se conserva el test de `state_busy` observable con cerrojo ocupado. Un nuevo modelo comprueba el anuncio antes de la preparación. Mutantes sin anuncio temprano y sin cesión de herramientas fallan; positivos dirigidos 3 pass, modelo/IO 22 pass / 1 skip. TDD n/a: corrección de fixture y caracterización de contrato existente, sin cambios en el almacén ni sus presupuestos. Validación de referencia prevista mediante el workflow CI original en un PR en borrador de `feat/plugin-optimization`; los recibos locales conservan sus fallos y no se declaran verdes. Comprobaciones complementarias sobre el mismo código normalizado pasan: captura p95 19,39 ms / p99 21,70 ms, interop 88, Node 362 pass / 0 fail / 16 skip, sintaxis/JSON y `release --check`; no constituyen suite completa verde (`testing/t07-supplementary-linux-2026-10-29.json`). Intento Linux 8 detenido tras un fallo conocido: 5.554 pass / 1 fail / 36 skip, salida pytest 2 por SIGINT propio, no suite completa (`testing/t07-linux-attempt-8.json`). El primer caso de apóstrofos pasa; otro de 30.000 comandos curl repetidos mide 1,619 s. Caché acotada explorada solo en memoria: 1.470 comparaciones de salida coinciden; se descarta su incorporación al observar fallos temporales en rutas que no modifica. Control Windows posterior: 9,09–9,65 s reales frente a 0,72–0,89 s de CPU. La variación no demuestra la causa exacta del fallo Linux; se conserva el límite original y se busca validación en runner de referencia (`testing/t07-local-timing-variability-2026-10-29.json`). GREEN 2026-10-29: 809 pruebas dirigidas de redacción pasan con el límite original; otras 85 de índice y copias pasan. Cobertura oficial del módulo canónico: 99,23 %, 2/2 sentencias añadidas ejecutadas; no es cobertura del módulo journal ni gate global de F1 (`testing/t07-redact-coverage-2026-10-29.json`). QA completa intento 7: 9.631 pass / 3 fail / 55 skip, 82 subtests; recibo `testing/t07-linux-attempt-7.json`. Dos fallos comparten la fila de OpenCode fuera de la tabla Markdown: se elimina solo la línea vacía que cerraba la tabla. El redactor supera el límite intacto de 1,5 s en prosa patológica. Perfil: 50.002 análisis de comandos; hipótesis temporal probada evita analizar subtextos sin prefijo de opción `-`, reduce los análisis a 2 y la mediana 722,01 a 455,34 ms, conservando salida e idempotencia. Se declaran canónico, respaldo y test como prerrequisito de QA sin relajar umbrales. RED: `tests/test_redact_fix3.py::test_quoted_prose_without_options_avoids_nested_command_scans` falló con 200 análisis innecesarios en el ejemplo pequeño · 2026-10-29. RED de integración 2026-10-29: `test_todo_python_en_linea_del_repo_lleva_la_variable_incluido_el_que_no_la_necesitaba` esperaba 8 fragmentos shell y encontró 6. Causa: T-05 trasladó dos fragmentos de statusline al renderer standalone; el inventario del test no se había actualizado. Se ajusta solo el recuento a 6 y su explicación; la exigencia de UTF-8 para todos los fragmentos permanece. GREEN: 2 pruebas dirigidas pasan. Intento Linux 5: 1.684 pass / 1 fail / 2 skip, conservado en `testing/t07-linux-attempt-5.json`; intento 6 en curso con la corrección y snapshot verificado de 1.592 archivos, sin diferencias de contenido ni modos. **Reanudada por el usuario el 2026-10-29.** Diagnostico sin cambios de codigo: el test de captura con limite original <20 ms pasa tres veces aislado. En tres series de 30 muestras sobre disco la mediana queda entre 14,82 y 15,15 ms; el perfil atribuye el 92,6 % del tiempo de `capture_end` a `fsync`. El control en RAM solo sirve para aislamiento; no sustituye la QA sobre disco ni demuestra la causa exacta del rojo anterior. Evidencia: `testing/t07-resume-diagnostic-2026-10-29.json`. Nueva replica Linux completa en curso sobre el commit entregado `4de24ea`, 2 GiB/2 CPU, mismos umbrales. TDD n/a: diagnostico y proceso, sin cambios de codigo. **Historico: pausa solicitada por el usuario 2026-10-28, tras commits y push.** Última QA Linux: linter, evals y todas las suites-script pasan; pytest se detiene con **280 pass / 1 fail / 1 skip**, `test_bench_mide_in_process_no_solo_subproceso`: **p50 29,15 ms frente a <20 ms**. La causa no está aislada y no se cambia el umbral. No se ejecutan las etapas posteriores de esa corrida; **no es una suite global verde**. Snapshot verificado por bytes y modos de 1.587 ficheros (0 diferencias), limitado a 2 GiB/2 CPU; recibo `testing/t07-linux-attempt-4.json`. Los fallos anteriores de consola se corrigieron y pasan 25 tests seleccionados más arranques reales de los dos scripts bajo cp1252/ascii. Continúan pendientes T-01 estabilidad, T-02 reducción del 80 %, T-06 sesión real y el resto del cierre de T-07; sin release ni cambio de versión. Se adelanta QA Linux de la implementación independiente con snapshot del árbol actual; T-01 (estabilidad), T-02 (80 %) y T-06 (sesión real) siguen abiertos. No se bumpea versión, publica release ni cierra F1 con esas condiciones pendientes. Clasificación: proceso. Primer oráculo = `ledger-lint` + `scope-check` en rojo/verde sobre la iniciativa (sin tareas abiertas de F1). Release: `scripts/release.py` mueve `[Unreleased]`/`[Sin publicar]` a la sección de la versión en los dos CHANGELOG, corre lint + evals, exige copias `.MANUAL-COPY` al día, corrige `.sh` en 100644, bumpea los 5 manifiestos y comprueba `export-interop.py --check`; hacer `--dry-run` primero y `--check` después (LES-012). Versión propuesta: **2.1.0** (capacidad nueva —benchmark— y umbral de description más estricto para los consumidores); confirmar con el usuario antes de publicar. Verificación en Linux: réplica de `ci.yml` en `python:3.11-slim` con `git -c core.autocrlf=false archive` (los rojos «de siempre» no se aceptan: se investigan). Cierre de iniciativa = PR a master + release (lo coordina `/dev-cycle`). La retro (`/retro`) es puerta del cierre: `retro-gate.py`. No correr la suite completa en local (poca RAM): la completa se corre en Linux/CI. Clasificación: proceso (sin código nuevo). Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
+**Notas**: Publicada v2.1.0 tras la confirmación explícita del usuario («Sí, publicar F1 y continuar»). PR #19 fusionada; script de release, --check, interop y workflow 40891518461 correctos; dos ZIP publicados. Recibo `testing/t07-published-2.1.0-2026-10-29.json`. F1 completada; la iniciativa sigue en progreso. **Histórico:** CI completa de referencia VERDE sobre `5ede2a6`: https://github.com/daycry/custom-agents/actions/runs/40884197169; 9.653 Python / 38 skip / 82 subtests y Node 364 pass / 0 fail / 16 skip. Captura p95 8,18 ms / p99 8,61 ms, límites intactos. Recibo `testing/t07-reference-ci-5ede2a6-success-2026-10-29.json`; resumen `testing/t07-qa-summary-2026-10-29.md`. Preview portable: 254 ficheros / 25 skills / 0 problemas; `plugin-dev` y `quick-implement` excluidas por diseño existente, con la referencia nueva presente en el plugin completo. Memoria de la causa probada del oráculo: propose rechazado con `incomplete_inventory` (exit 2); borrador externo conservado y persistencia pendiente, sin candidato ni aprobación (`testing/t07-liveness-memory-handoff-2026-10-29.json`). **T-07 sigue abierta solo para confirmar la versión y entregar la release**; F2/F3 diferidas. **Histórico:** Revisión de implementación cerrada en intento 3 sobre `07e78b6`, A/B sin gaps; C/D previos conservados para producción idéntica. Preview local aislada 2.1.0: dry-run, aplicación sin git, `release --check` e interop 88 al día pasan. El patch solo toca cinco manifiestos y ambos changelogs; HEAD/tag de la preview y manifiestos de la rama no se publican ni cambian. Fuente `testing/t07-release-2.1.0-preview-2026-10-29.json`; sigue pendiente CI completa del fix y confirmación del usuario para fusionar/publicar. **Histórico:** Tabla final antes/después consolidada: guard con control intercalado aislado, tokens estimados y garantías funcionales, más los 36 registros de la observación posterior bajo carga declarada (sin atribuir ahorro global). Las notas ES/EN tienen un bullet por T-01..T-06 cerrado y uno por los cambios de validación/redacción realmente implementados en T-07; OpenCode V2 se conserva. `changelog-sync --check --json`: exit0 sin pendientes. Como el ledger completo26tareas sigue en progreso, se usa su renderer sin modificar sobre registros F1 completados y se traducen/editan ambos textos; no se finge una iniciativa cerrada. Proyección `testing/f1-changelog-projection-2026-10-29.json`. **Histórico:** Cobertura oficial completa recogida en Linux sobre `8f83ecc`: gate changed-only Python 90,74 % de media en siete ficheros medidos, mínimo 90; helper de medición documental sin datos excluido explícitamente por el gate. Perfil instrumentado: 9.635 pass / 1 fail temporal / 55 skip, 82 subtests; no se declara corrida global verde. Fallo del redactor: 500.012 caracteres sudo, 1,818 s frente al límite intacto 1,5 s. Exportación recuperada con la misma semántica ignore_errors de pytest-cov para cinco nombres compile virtuales; 285 resúmenes idénticos, sin cambiar datos ni exclusiones de fuente. `testing/t07-phase-python-coverage-2026-10-29.json`. Pasada después completa: 36/36, 360 muestras +36 calentamientos, exit 0 y fuentes estables; carga concurrente declarada, sin ahorro global atribuido (`testing/f1-after-hooks-2026-10-29.json`). **Histórico:** CI `40872615290` sobre `8f83ecc` falla en el oráculo de limpieza nativa Codex (PID visible); no se acepta como verde. Cinco repeticiones originales no reproducen el fallo; cinco con un subreaper propio que retiene estados terminales muestran `kill(pid,0)` visible y `/proc` estado Z, sin cambiar el helper ni su deadline. Esto prueba un defecto del oráculo, no el estado exacto del PID histórico CI. RED: `Codex state liveness oracle recognizes an exited child before it is reaped` falla con true != false y estado Z confirmado · 2026-10-29. Fix solo de test: reconoce Z/X terminales en Linux; R/S/T y errores inciertos no se aceptan como terminación. No cambia producción ni plazos. GREEN Linux: 7 tests; mutantes sin matar el grupo y con oráculo siempre false fallan por el motivo previsto. Revisión final se reabre para el intento 3 y nueva CI completa; se declaran fuente de test y evidencia como prerrequisito QA. **Histórico:** CI de referencia completa VERDE sobre `d29868d8c574bd9845b5d99b5c7abffc59cc9035`: https://github.com/daycry/custom-agents/actions/runs/40862893418; 9.653 pass / 38 skip / 82 subtests, Node 362 pass / 0 fail / 16 skip; captura p95 0,69 ms / p99 0,72 ms con límites intactos. Recibo `testing/t07-reference-ci-attempt-2.json`. El ajuste aprobado de CA-01 elimina solo el mínimo porcentual de F1; no cierra T-01, T-02 ni T-07. Los checks Linux de esta implementación se acreditan con ese SHA, sin afirmar validación de futuros cambios. **Histórico de QA previo al ajuste:** GREEN de la fixture de prioridad: 262 pruebas de actividad/modelo/IO pasan en Linux, 1 skip; tras reforzar la limpieza de hijos propios, la prueba real de contención vuelve a pasar en Windows. Ambos mutantes relevantes siguen rechazados. Evidencias `testing/t07-reference-ci-attempt-1.json` y `testing/t07-activity-contention-diagnostic-2026-10-29.json`. La siguiente CI de referencia validará la rama completa; no se marca aún QA global como verde. CI de referencia `40858130024` sobre `7e002a0`: 9.651 pass / 1 fail / 38 skip; las pruebas temporales del redactor pasan. Falla una de ocho señales con `state_busy` bajo contención. Diagnóstico sin cambiar producción: tres repeticiones originales y tres instrumentadas pasan; se observa una retención de 130,17 ms frente a la espera contractual de 100 ms. No se reconstruye la causa exacta del fallo CI; la fixture no garantizaba que el escritor previo liberase dentro del plazo. Se controla la prioridad antes de la ráfaga, manteniendo 8/8 señales, ocho escritores activos y cero eventos de herramienta admitidos bajo la prioridad; se conserva el test de `state_busy` observable con cerrojo ocupado. Un nuevo modelo comprueba el anuncio antes de la preparación. Mutantes sin anuncio temprano y sin cesión de herramientas fallan; positivos dirigidos 3 pass, modelo/IO 22 pass / 1 skip. TDD n/a: corrección de fixture y caracterización de contrato existente, sin cambios en el almacén ni sus presupuestos. Validación de referencia prevista mediante el workflow CI original en un PR en borrador de `feat/plugin-optimization`; los recibos locales conservan sus fallos y no se declaran verdes. Comprobaciones complementarias sobre el mismo código normalizado pasan: captura p95 19,39 ms / p99 21,70 ms, interop 88, Node 362 pass / 0 fail / 16 skip, sintaxis/JSON y `release --check`; no constituyen suite completa verde (`testing/t07-supplementary-linux-2026-10-29.json`). Intento Linux 8 detenido tras un fallo conocido: 5.554 pass / 1 fail / 36 skip, salida pytest 2 por SIGINT propio, no suite completa (`testing/t07-linux-attempt-8.json`). El primer caso de apóstrofos pasa; otro de 30.000 comandos curl repetidos mide 1,619 s. Caché acotada explorada solo en memoria: 1.470 comparaciones de salida coinciden; se descarta su incorporación al observar fallos temporales en rutas que no modifica. Control Windows posterior: 9,09–9,65 s reales frente a 0,72–0,89 s de CPU. La variación no demuestra la causa exacta del fallo Linux; se conserva el límite original y se busca validación en runner de referencia (`testing/t07-local-timing-variability-2026-10-29.json`). GREEN 2026-10-29: 809 pruebas dirigidas de redacción pasan con el límite original; otras 85 de índice y copias pasan. Cobertura oficial del módulo canónico: 99,23 %, 2/2 sentencias añadidas ejecutadas; no es cobertura del módulo journal ni gate global de F1 (`testing/t07-redact-coverage-2026-10-29.json`). QA completa intento 7: 9.631 pass / 3 fail / 55 skip, 82 subtests; recibo `testing/t07-linux-attempt-7.json`. Dos fallos comparten la fila de OpenCode fuera de la tabla Markdown: se elimina solo la línea vacía que cerraba la tabla. El redactor supera el límite intacto de 1,5 s en prosa patológica. Perfil: 50.002 análisis de comandos; hipótesis temporal probada evita analizar subtextos sin prefijo de opción `-`, reduce los análisis a 2 y la mediana 722,01 a 455,34 ms, conservando salida e idempotencia. Se declaran canónico, respaldo y test como prerrequisito de QA sin relajar umbrales. RED: `tests/test_redact_fix3.py::test_quoted_prose_without_options_avoids_nested_command_scans` falló con 200 análisis innecesarios en el ejemplo pequeño · 2026-10-29. RED de integración 2026-10-29: `test_todo_python_en_linea_del_repo_lleva_la_variable_incluido_el_que_no_la_necesitaba` esperaba 8 fragmentos shell y encontró 6. Causa: T-05 trasladó dos fragmentos de statusline al renderer standalone; el inventario del test no se había actualizado. Se ajusta solo el recuento a 6 y su explicación; la exigencia de UTF-8 para todos los fragmentos permanece. GREEN: 2 pruebas dirigidas pasan. Intento Linux 5: 1.684 pass / 1 fail / 2 skip, conservado en `testing/t07-linux-attempt-5.json`; intento 6 en curso con la corrección y snapshot verificado de 1.592 archivos, sin diferencias de contenido ni modos. **Reanudada por el usuario el 2026-10-29.** Diagnostico sin cambios de codigo: el test de captura con limite original <20 ms pasa tres veces aislado. En tres series de 30 muestras sobre disco la mediana queda entre 14,82 y 15,15 ms; el perfil atribuye el 92,6 % del tiempo de `capture_end` a `fsync`. El control en RAM solo sirve para aislamiento; no sustituye la QA sobre disco ni demuestra la causa exacta del rojo anterior. Evidencia: `testing/t07-resume-diagnostic-2026-10-29.json`. Nueva replica Linux completa en curso sobre el commit entregado `4de24ea`, 2 GiB/2 CPU, mismos umbrales. TDD n/a: diagnostico y proceso, sin cambios de codigo. **Historico: pausa solicitada por el usuario 2026-10-28, tras commits y push.** Última QA Linux: linter, evals y todas las suites-script pasan; pytest se detiene con **280 pass / 1 fail / 1 skip**, `test_bench_mide_in_process_no_solo_subproceso`: **p50 29,15 ms frente a <20 ms**. La causa no está aislada y no se cambia el umbral. No se ejecutan las etapas posteriores de esa corrida; **no es una suite global verde**. Snapshot verificado por bytes y modos de 1.587 ficheros (0 diferencias), limitado a 2 GiB/2 CPU; recibo `testing/t07-linux-attempt-4.json`. Los fallos anteriores de consola se corrigieron y pasan 25 tests seleccionados más arranques reales de los dos scripts bajo cp1252/ascii. Continúan pendientes T-01 estabilidad, T-02 reducción del 80 %, T-06 sesión real y el resto del cierre de T-07; sin release ni cambio de versión. Se adelanta QA Linux de la implementación independiente con snapshot del árbol actual; T-01 (estabilidad), T-02 (80 %) y T-06 (sesión real) siguen abiertos. No se bumpea versión, publica release ni cierra F1 con esas condiciones pendientes. Clasificación: proceso. Primer oráculo = `ledger-lint` + `scope-check` en rojo/verde sobre la iniciativa (sin tareas abiertas de F1). Release: `scripts/release.py` mueve `[Unreleased]`/`[Sin publicar]` a la sección de la versión en los dos CHANGELOG, corre lint + evals, exige copias `.MANUAL-COPY` al día, corrige `.sh` en 100644, bumpea los 5 manifiestos y comprueba `export-interop.py --check`; hacer `--dry-run` primero y `--check` después (LES-012). Versión propuesta: **2.1.0** (capacidad nueva —benchmark— y umbral de description más estricto para los consumidores); confirmar con el usuario antes de publicar. Verificación en Linux: réplica de `ci.yml` en `python:3.11-slim` con `git -c core.autocrlf=false archive` (los rojos «de siempre» no se aceptan: se investigan). Cierre de iniciativa = PR a master + release (lo coordina `/dev-cycle`). La retro (`/retro`) es puerta del cierre: `retro-gate.py`. No correr la suite completa en local (poca RAM): la completa se corre en Linux/CI. Clasificación: proceso (sin código nuevo). Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
 
 ---
 
 ## Fase 2 — Reestructuración
 
-**Estado**: borrador · **Estimado**: 69.0h · **Real**: — · **Coste est.**: 3518 € · **Tokens est.**: 11.4M in / 1140k out. **Diferida**: esqueleto, se concreta al revalidar (primera tarea de la fase).
+**Estado**: en-progreso · **Estimado**: 69.0h · **Real**: — · **Coste est.**: 3518 € · **Tokens est.**: 11.4M in / 1140k out. **Autorizada el 2026-10-29**: revalidación T-08 contra v2.1.0; las verificaciones concretas siguen debajo.
 
 ### T-08 — Revalidar el plan de F2 contra `master`
 
 - **Descripción**: Resultado: el esqueleto de F2 (T-09..T-19) queda confirmado o reajustado contra el `master` posterior a la release de F1 (cambios en hooks, comandos y suites que cita el plan), con los datos de F1 (medición de descriptions y benchmark) para decidir C-17/C-18. Requisito: decisión 2 de la puerta (+0,5 h de revalidación por fase diferida); evaluation.md §Riesgos transversales «envejecimiento del plan».
-- **Changelog**:
-- **Estado**: borrador
+- **Changelog**: Revalida las rutas, pruebas y opciones de F2 contra v2.1.0; mantiene el presupuesto como provisional sin inventar costes reales.
+- **Estado**: completado
+- **Cerrada**: 2026-10-29
 - **Tiempo humano**: est. 0.6h · real —
 - **Tiempo IA (ejec.)**: est. 0.10h · real —
 - **Supervisión**: est. 0.03h (≈25 % IA) · real —
@@ -350,16 +352,16 @@ changelog: Changed
 - **Verificación**: `python3 agent-kits/shared/ledger-lint.py docs/roadmap/2026-10-27-plugin-optimization/tasks.md` → exit 0 tras el reajuste
 
 **Criterios de aceptación**
-- [ ] Cada tarea T-09..T-19 tiene `Verificación` y `Archivos` concretos y vigentes contra `master`.
-- [ ] Decisión explícita sobre C-15 (spike), C-17 y C-18 registrada en el `Changelog del plan`.
-- [ ] Las estimaciones diferidas se recalculan con el real de F1 (`CALIBRATION.md`); la diferencia queda anotada.
+- [x] Cada tarea T-09..T-19 tiene `Verificación` y `Archivos` concretos y vigentes contra `master`.
+- [x] Decisión explícita sobre C-15 (spike), C-17 y C-18 registrada en el `Changelog del plan`.
+- [x] Las estimaciones diferidas se recalculan con el real de F1 (`CALIBRATION.md`); la diferencia queda anotada.
 
 **Subtareas**
-- [ ] Comparar `master` con la base del plan (hooks, `dev-cycle.md`, suites citadas).
-- [ ] Concretar verificaciones y archivos de F2.
-- [ ] Decidir C-15/C-17/C-18 y anotar en el changelog del plan.
+- [x] Comparar `master` con la base del plan (hooks, `dev-cycle.md`, suites citadas).
+- [x] Concretar verificaciones y archivos de F2.
+- [x] Decidir C-15/C-17/C-18 y anotar en el changelog del plan.
 
-**Notas**: Primera tarea de F2; no se arranca nada de F2 sin ella. Al revalidar: concretar los `Verificación` marcados «se concreta al revalidar», actualizar `Archivos`, decidir C-17 y C-18 con los datos de C-01 (¿volvieron las 13 skills al listado?) y de C-09, y registrar los cambios en el `Changelog del plan`. IDs estables: lo nuevo toma el siguiente número libre. Clasificación: proceso. Coste estimado de la tarea: 30 € (horas × 50 € + tokens).
+**Notas**: TDD n/a: proceso y prosa. Revalidación cerrada con `testing/t08-revalidation-2026-10-29.md`; 69,0 h F2 / 45,0 h F3 conservadas (delta 0 h) porque el real de implementación F1 no es medible en esta sesión. Se documenta ese límite y no se inventa desviación ni se modifica CALIBRATION. Verificación ledger: exit 0, avisos de tareas futuras. En revalidación contra `a157679`, release v2.1.0 verificada. Pruebas/rutas actualizadas; decisiones iniciales C-15 spike go, C-17 go condicionado a ahorro seguro tras T-13, C-18 no-go productivo por falta de evidencia de activación. Falta cerrar el informe y el contraste de estimaciones; no se inventan horas reales de F1. **Histórico:** Primera tarea de F2; no se arranca nada de F2 sin ella. Al revalidar: concretar los `Verificación` marcados «se concreta al revalidar», actualizar `Archivos`, decidir C-17 y C-18 con los datos de C-01 (¿volvieron las 13 skills al listado?) y de C-09, y registrar los cambios en el `Changelog del plan`. IDs estables: lo nuevo toma el siguiente número libre. Clasificación: proceso. Coste estimado de la tarea: 30 € (horas × 50 € + tokens).
 
 
 ### T-09 — C-08 — `mark-docs-pending` dentro de node
@@ -373,17 +375,19 @@ changelog: Changed
 - **Previsión IA**: 0.5M in / 50k out tok · 2.99 €
 - **Dependencias**: T-08
 - **Tipo**: hooks
-- **Archivos**: `hooks/mark-docs-pending.sh`, `hooks/run-hook.mjs`, `hooks/opencode-plugin.js`, `hooks/hooks.json`, `tests/hook-post-preflight.test.mjs`, `interop/**` (regenerado: `hooks/`|`agents/`|`commands/` tocados), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `hooks/mark-docs-pending.sh`, `hooks/run-hook.mjs`, `hooks/opencode-plugin.js`, `tests/hook-post-preflight.test.mjs`, `tests/hook-docs-marker.test.mjs`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `node --test tests/hook-post-preflight.test.mjs tests/hook-docs-marker.test.mjs` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): mismo fichero marcador y mismas exclusiones que el hook actual, sin lanzar Python ni shell; mediana medida con el benchmark. Se concreta al revalidar.
+- [ ] Mismo marcador vacío y filtros docs/, security-scan y confluence; Write/Edit/MultiEdit y apply_patch en tres runtimes; ruta aplicable sin Python ni shell. Entradas inválidas y IO denegada degradan con exit 0. Rechazar enlaces observados en .claude y en el marcador antes de escribir. Mediana con 10 muestras, calentamiento y control intercalado.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
+- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Esqueleto diferido. Clasificación: refactor; oráculo = test de equivalencia en ROJO antes del cambio. Patrón: filtros de ruta ya en node (`postApplies` en `run-hook.mjs`). Equivalencia con el adaptador de OpenCode (`hooks/opencode-plugin.js`). Se concreta al revalidar. Clasificación: refactor (comportamiento igual, sin Python). Coste estimado de la tarea: 183 € (horas × 50 € + tokens).
+**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Clasificación: refactor; oráculo = test de equivalencia en ROJO antes del cambio. Patrón: filtros de ruta ya en node (`postApplies` en `run-hook.mjs`). Equivalencia con el adaptador de OpenCode (`hooks/opencode-plugin.js`). Se concreta al revalidar. Clasificación: refactor (comportamiento igual, sin Python). Coste estimado de la tarea: 183 € (horas × 50 € + tokens).
 
 
 ### T-10 — C-07 — Hook de ledger fusionado (`ledger-lint-warn` + `progress-line`)
@@ -397,17 +401,19 @@ changelog: Changed
 - **Previsión IA**: 1.2M in / 120k out tok · 7.18 €
 - **Dependencias**: T-08
 - **Tipo**: hooks
-- **Archivos**: `hooks/ledger-lint-warn.sh`, `hooks/progress-line.sh`, `hooks/hooks.json`, `hooks/run-hook.mjs`, `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/progress-report.py`, `tests/hook-post-preflight.test.mjs`, `interop/**` (regenerado: `hooks/`|`agents/`|`commands/` tocados), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `hooks/ledger-post.py`, `hooks/ledger-lint-warn.sh`, `hooks/progress-line.sh`, `hooks/hooks.json`, `hooks/run-hook.mjs`, `hooks/opencode-plugin.js`, `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/progress-report.py`, `tests/test_ledger_post.py`, `tests/hook-post-preflight.test.mjs`, `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `python -m pytest -q tests/test_ledger_post.py tests/test_ledger_lint.py agent-kits/shared/test_progress_report.py` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): CA-07 — un Edit sobre `tasks.md` parsea el ledger una vez y salen los mismos mensajes. Se concreta al revalidar.
+- [ ] CA-07: un Edit de tasks.md analiza el ledger una vez y conserva mensajes lint y progreso; un solo Python de negocio, sin shell, más supervisor Windows. Debounce con cerrojo y escritura atómica, una emisión para llamadas concurrentes idénticas. Mantener compatibilidad de las entradas antiguas y regenerar registros de tres runtimes.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
+- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Esqueleto diferido. Oráculo = test en ROJO de equivalencia de mensajes con los dos hooks actuales. Patrón: `hooks/ledger-lint-warn.sh`, `hooks/progress-line.sh`. Cambia la lista de hooks de `hooks/hooks.json` en 3 runtimes y lo que `/doctor` espera. Lente D. Se concreta al revalidar. Clasificación: refactor con salida idéntica. Coste estimado de la tarea: 367 € (horas × 50 € + tokens).
+**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Oráculo = test en ROJO de equivalencia de mensajes con los dos hooks actuales. Patrón: `hooks/ledger-lint-warn.sh`, `hooks/progress-line.sh`. Cambia la lista de hooks de `hooks/hooks.json` en 3 runtimes y lo que `/doctor` espera. Lente D. Se concreta al revalidar. Clasificación: refactor con salida idéntica. Coste estimado de la tarea: 367 € (horas × 50 € + tokens).
 
 
 ### T-11 — C-10 — Memoria gobernada condicional en `knowledge-check.md`
@@ -421,17 +427,19 @@ changelog: Changed
 - **Previsión IA**: 0.8M in / 80k out tok · 4.78 €
 - **Dependencias**: T-08
 - **Tipo**: docs
-- **Archivos**: `agent-kits/shared/knowledge-check.md`, `agent-kits/shared/knowledge-check-governed.md`, `tests/test_knowledge_router.py`, `tests/test_graphiti_security.py`
+- **Archivos**: `agent-kits/shared/knowledge-check.md`, `agent-kits/shared/knowledge-check-governed.md`, `tests/test_knowledge_prompt_split.py`, `tests/test_knowledge_router.py`, `tests/test_graphiti_security.py`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `python -m pytest -q tests/test_knowledge_prompt_split.py tests/test_knowledge_router.py tests/test_graphiti_security.py` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): ahorro por ciclo medido y registrado; un consumidor con memoria gobernada activa sigue consultándola. Se concreta al revalidar.
+- [ ] Condición determinista: existencia de docs/knowledge/ en el consumidor, conservando memoria legacy y approved, sin condicionar lectura local a backend remoto. Detalle gobernado cargado solo entonces; 0 párrafos perdidos, consultas y contratos de seguridad intactos. Registrar ahorro estimado por lectura/ciclo sin equipararlo a consumo API.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
+- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Esqueleto diferido. Incógnita abierta de la evaluación: condición exacta de activación (¿`docs/knowledge/approved/`? ¿capacidad `kwipu`/`graphiti`?) — decidirla al revalidar con una condición determinista comprobable en una línea. Suites acopladas: `tests/test_knowledge_router.py`, `tests/test_graphiti_security.py`. Se concreta al revalidar. Clasificación: cambio de comportamiento (lectura condicional). Coste estimado de la tarea: 245 € (horas × 50 € + tokens).
+**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Incógnita abierta de la evaluación: condición exacta de activación (¿`docs/knowledge/approved/`? ¿capacidad `kwipu`/`graphiti`?) — decidirla al revalidar con una condición determinista comprobable en una línea. Suites acopladas: `tests/test_knowledge_router.py`, `tests/test_graphiti_security.py`. Se concreta al revalidar. Clasificación: cambio de comportamiento (lectura condicional). Coste estimado de la tarea: 245 € (horas × 50 € + tokens).
 
 
 ### T-12 — C-06 — `session-context` en un único Python
@@ -445,17 +453,19 @@ changelog: Changed
 - **Previsión IA**: 2.4M in / 240k out tok · 14.35 €
 - **Dependencias**: T-08, T-11 (orden recomendado)
 - **Tipo**: hooks
-- **Archivos**: `hooks/session-context.sh`, `hooks/session-context.py`, `hooks/hooks.json`, `hooks/run-hook.mjs`, `agent-kits/shared/journal.py`, `agent-kits/shared/skill-index.py`, `agent-kits/shared/progress-report.py`, `agent-kits/shared/knowledge-find.py`, `tests/test_hooks_shell.py`, `tests/hook-runtime.test.mjs`, `interop/**` (regenerado: `hooks/`|`agents/`|`commands/` tocados), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `hooks/session-context.sh`, `hooks/session-context.py`, `hooks/hooks.json`, `hooks/run-hook.mjs`, `agent-kits/shared/journal.py`, `agent-kits/shared/skill-index.py`, `agent-kits/shared/progress-report.py`, `agent-kits/shared/knowledge-find.py`, `tests/test_session_context.py`, `tests/test_hooks_shell.py`, `tests/hook-runtime.test.mjs`, `tests/hook-budget.test.mjs`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `python -m pytest -q tests/test_session_context.py tests/test_hooks_shell.py; node --test tests/hook-runtime.test.mjs tests/hook-budget.test.mjs` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): CA-06 — un único proceso Python (más el supervisor en Windows) y salida idéntica por runtime; timeout de SessionStart bajado a 10 s. Se concreta al revalidar.
+- [ ] CA-06: misma salida byte a byte y efectos propios sobre fixtures por runtime (startup/resume/compact, sin proyecto, índice off, replay, iniciativa ambigua, memoria y errores). Un solo Python de negocio, más supervisor Windows; sin subprocesos Python internos ni contaminación de globals. Mantener wrapper shell para invocación directa. Bajar timeout SessionStart a 10 s solo con prueba medida que satisface el criterio, sin ocultar fallos.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
+- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Esqueleto diferido. Oráculo = test de caracterización de salida por runtime en ROJO. Riesgo: estado global de los módulos importados contamina la salida; es la característica de F2 con más probabilidad de agotar los 3 intentos. Incógnita: ¿se conserva `session-context.sh` como envoltorio sin node? Lente D. Se concreta al revalidar. Clasificación: refactor de alto riesgo con salida idéntica. Coste estimado de la tarea: 734 € (horas × 50 € + tokens).
+**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Oráculo = test de caracterización de salida por runtime en ROJO. Riesgo: estado global de los módulos importados contamina la salida; es la característica de F2 con más probabilidad de agotar los 3 intentos. Incógnita: ¿se conserva `session-context.sh` como envoltorio sin node? Lente D. Se concreta al revalidar. Clasificación: refactor de alto riesgo con salida idéntica. Coste estimado de la tarea: 734 € (horas × 50 € + tokens).
 
 
 ### T-13 — C-09 — `dev-cycle.md` núcleo + fases bajo demanda
@@ -469,17 +479,19 @@ changelog: Changed
 - **Previsión IA**: 3.0M in / 300k out tok · 17.94 €
 - **Dependencias**: T-08
 - **Tipo**: docs
-- **Archivos**: `commands/dev-cycle.md`, `skills/quick-implement/SKILL.md`, `scripts/export-interop.py`, `tests/test_skill_size.py`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `interop/**` (regenerado: `hooks/`|`agents/`|`commands/` tocados), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/*.md`, `skills/quick-implement/SKILL.md`, `scripts/export-interop.py`, `tests/test_dev_cycle_split.py`, `tests/test_skill_size.py`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `python -m pytest -q tests/test_dev_cycle_split.py tests/test_skill_size.py tests/test_plan_review_caller.py tests/test_project_pieces.py tests/test_review_jira_owner.py tests/test_graphiti_security.py; python scripts/export-interop.py --check` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): vía rápida sin cargar fases que no usa (≥ 6k tokens medidos), `--diet-check` con 0 párrafos perdidos, `export-interop.py --check` en verde. Se concreta al revalidar.
+- [ ] Núcleo y fases resueltas por regla 5 en agent-kits/dev-cycle/references; vía rápida sin cargar fases ajenas con ahorro estimado >= 6.000 tokens. Cero párrafos perdidos; preservar puertas, identidad de dueños Jira/Knowledge Gate y contratos Bash/PowerShell; exportaciones e instalador transportan todas las referencias.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
+- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Esqueleto diferido. Incógnita abierta: dónde viven las referencias de un comando (los comandos no tienen `references/`) y cómo las resuelve la regla 5 en Codex/OpenCode — decidir al revalidar (candidato a nota de diseño). 6 suites acopladas (`test_lint_plugin.py`, `test_plan_review_caller.py`, `test_project_pieces.py`, `test_review_jira_owner.py`, `test_graphiti_security.py`, `installer.test.mjs`) y `tests/test_skill_size.py --diet-check`. Se concreta al revalidar. Clasificación: refactor de alto riesgo (comportamiento del orquestador). Coste estimado de la tarea: 858 € (horas × 50 € + tokens).
+**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Incógnita abierta: dónde viven las referencias de un comando (los comandos no tienen `references/`) y cómo las resuelve la regla 5 en Codex/OpenCode — decidir al revalidar (candidato a nota de diseño). 6 suites acopladas (`test_lint_plugin.py`, `test_plan_review_caller.py`, `test_project_pieces.py`, `test_review_jira_owner.py`, `test_graphiti_security.py`, `installer.test.mjs`) y `tests/test_skill_size.py --diet-check`. Se concreta al revalidar. Clasificación: refactor de alto riesgo (comportamiento del orquestador). Coste estimado de la tarea: 858 € (horas × 50 € + tokens).
 
 
 ### T-14 — C-16 — `review-lens-select` con una lectura por fichero
@@ -495,15 +507,17 @@ changelog: Changed
 - **Tipo**: backend
 - **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py`, `skills/adversarial-review/scripts/test_review_lens_select.py`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `python -m pytest -q skills/adversarial-review/scripts/test_review_lens_select.py` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): mismo veredicto de lentes con una lectura por fichero; tiempo medido sobre un diff grande. Se concreta al revalidar.
+- [ ] Mismo veredicto C/D y motivos, con una apertura de contenido por fichero en --files y fallback untracked. Detectar binarios antes de analizar y mantener lecturas acotadas, errores y exclusiones. Verificar conteo de IO con test dedicado y comparación medida de diff grande con control intercalado.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
+- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Esqueleto diferido. Oráculo = test de equivalencia de veredicto en ROJO. Patrón: `skills/adversarial-review/scripts/review-lens-select.py` y su test. Lente D. Se concreta al revalidar. Clasificación: refactor de rendimiento. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
+**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Oráculo = test de equivalencia de veredicto en ROJO. Patrón: `skills/adversarial-review/scripts/review-lens-select.py` y su test. Lente D. Se concreta al revalidar. Clasificación: refactor de rendimiento. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
 
 
 ### T-15 — C-15 (spike, 2 h) — ¿Cierre del Job Object sin segundo Python?
@@ -517,17 +531,19 @@ changelog: Changed
 - **Previsión IA**: 0.3M in / 30k out tok · 1.79 €
 - **Dependencias**: T-08
 - **Tipo**: hooks
-- **Archivos**: `docs/roadmap/2026-10-27-plugin-optimization/testing/spike-c15.md`
+- **Archivos**: `docs/roadmap/2026-10-27-plugin-optimization/testing/spike-c15.md`, `docs/roadmap/2026-10-27-plugin-optimization/testing/t15-windows-experiment.json`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen; el entregable es `testing/spike-c15.md` con medidas y decisión go/no-go
+- **Verificación**: `lectura: testing/spike-c15.md y testing/t15-windows-experiment.json, con comandos reales, estados terminales y decisión go/no-go, sin cambio de producción` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): nota con el experimento, las medidas en Windows y la decisión go/no-go argumentada. Se concreta al revalidar.
+- [ ] Spike Windows acotado a 2 h: medir propiedad/cierre de Job Object y terminación de hijos/nietos propios tanto en salida limpia como timeout y cancelación. Go solo con garantía equivalente y una invocación Python menos; si exige dependencia nativa o rediseño no presupuestado, no-go motivado y T-16 cancelada.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
+- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Esqueleto diferido. Riesgo alto: el supervisor existe por los gotchas de hooks-runtime (huérfanos). El spike NO modifica código de producción: produce una nota con medidas y la decisión. Si es no-go, T-16 se cancela con el motivo citado en Notas (decisión autorizada por la puerta). Lente C y D en la implementación posterior. Clasificación: investigación (go/no-go). Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
+**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Riesgo alto: el supervisor existe por los gotchas de hooks-runtime (huérfanos). El spike NO modifica código de producción: produce una nota con medidas y la decisión. Si es no-go, T-16 se cancela con el motivo citado en Notas (decisión autorizada por la puerta). Lente C y D en la implementación posterior. Clasificación: investigación (go/no-go). Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
 
 
 ### T-16 — C-15 (implementación, condicional al spike) — Cierre del Job Object sin segundo Python
@@ -541,17 +557,19 @@ changelog: Changed
 - **Previsión IA**: 1.3M in / 130k out tok · 7.77 €
 - **Dependencias**: T-15 (go)
 - **Tipo**: hooks
-- **Archivos**: `hooks/run-hook.mjs`, `hooks/runtime-supervisor.py`, `tests/test_hook_supervisor.py`, `tests/hook-budget.test.mjs`, `interop/**` (regenerado: `hooks/`|`agents/`|`commands/` tocados), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `hooks/run-hook.mjs`, `hooks/runtime-supervisor.py`, `tests/test_hook_supervisor.py`, `tests/hook-budget.test.mjs`, `tests/hook-runtime.test.mjs`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `python -m pytest -q tests/test_hook_supervisor.py; node --test tests/hook-budget.test.mjs tests/hook-runtime.test.mjs` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): sin procesos huérfanos tras 100 ejecuciones y un arranque de Python menos por hook en Windows. Se concreta al revalidar.
+- [ ] Solo si T-15 es go. Cero procesos propios vivos tras 100 ejecuciones, incluidas salida limpia, timeout y cancelación; una invocación Python menos en Windows. C/D obligatorias y mutante de limpieza rechazado. Sin go, cancelar con enlace al experimento.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
+- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Esqueleto diferido y condicional. Suites: `tests/test_hook_supervisor.py`, `tests/hook-budget.test.mjs`. Lente C y D obligatorias. Se concreta al revalidar. Clasificación: refactor de alto riesgo, condicional. Coste estimado de la tarea: 368 € (horas × 50 € + tokens).
+**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido y condicional. Suites: `tests/test_hook_supervisor.py`, `tests/hook-budget.test.mjs`. Lente C y D obligatorias. Se concreta al revalidar. Clasificación: refactor de alto riesgo, condicional. Coste estimado de la tarea: 368 € (horas × 50 € + tokens).
 
 
 ### T-17 — C-17 — Kit shared resuelto una vez por fichero (se decide al abrir F2)
@@ -564,17 +582,19 @@ changelog: Changed
 - **Supervisión**: est. 0.50h (≈25 % IA) · real —
 - **Previsión IA**: 0.8M in / 80k out tok · 4.78 €
 - **Dependencias**: T-08, T-13
-- **Archivos**: `agents/*.md`, `commands/*.md`, `agent-kits/shared/*.md`, `scripts/lint_plugin.py`, `interop/**` (regenerado: `hooks/`|`agents/`|`commands/` tocados), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `agents/*.md`, `commands/*.md`, `agent-kits/shared/*.md`, `agent-kits/dev-cycle/references/*.md`, `scripts/lint_plugin.py`, `tests/test_shared_resolution.py`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `python -m pytest -q tests/test_shared_resolution.py tests/test_lint_plugin.py; python scripts/export-interop.py --check` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): ahorro medido por `/dev-cycle` y regla 5 del linter intacta. Se concreta al revalidar.
+- [ ] Go condicionado a T-13: resolver bundle una vez por pieza y reutilizar la ruta observada, reasignándola en cada bloque shell nuevo; nunca asumir entorno persistente. Mantener seis raíces y precedencia proyecto/usuario, degradación parcial y regla 5. Ahorro por dev-cycle medido; si no es positivo o no es seguro, registrar no-go en vez de debilitar resolución.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
+- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Esqueleto diferido. Incógnita: mecanismo (los shells no comparten estado entre llamadas Bash: variable por bloque o ruta escrita por el agente). Acoplado a la regla 5 de `lint_plugin.py`. Se concreta al revalidar. Clasificación: refactor de prosa, condicional. Coste estimado de la tarea: 245 € (horas × 50 € + tokens).
+**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Incógnita: mecanismo (los shells no comparten estado entre llamadas Bash: variable por bloque o ruta escrita por el agente). Acoplado a la regla 5 de `lint_plugin.py`. Se concreta al revalidar. Clasificación: refactor de prosa, condicional. Coste estimado de la tarea: 245 € (horas × 50 € + tokens).
 
 
 ### T-18 — C-18 — `skill-index` solo con nombres en Claude Code (se decide al abrir F2)
@@ -588,17 +608,19 @@ changelog: Changed
 - **Previsión IA**: 0.4M in / 40k out tok · 2.39 €
 - **Dependencias**: T-08, T-06
 - **Tipo**: hooks
-- **Archivos**: `agent-kits/shared/skill-index.py`, `hooks/session-context.sh`, `tests/test_skill_index.py`, `interop/**` (regenerado: `hooks/`|`agents/`|`commands/` tocados), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `agent-kits/shared/skill-index.py`, `hooks/session-context.sh`, `agent-kits/shared/test_skill_index.py`, `docs/roadmap/2026-10-27-plugin-optimization/testing/t18-activation-decision.md`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `lectura: testing/t18-activation-decision.md; python -m pytest -q agent-kits/shared/test_skill_index.py` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): −650 tokens/sesión en Claude Code sin degradar la activación. Se concreta al revalidar.
+- [ ] Decisión inicial no-go para recorte productivo: la sesión nativa F1 acredita visibilidad, pero no no-degradación de activación. Conservar índice completo en Claude y otros runtimes. Si se obtiene comparación de activación válida antes de T-19, reconsiderar explícitamente; no sustituirla por evals literales. La tarea condicional se cancela con el motivo registrado.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
+- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Esqueleto diferido. Interactúa con T-06 y T-12. Se decide en T-08 con la medición de T-06. Se concreta al revalidar. Clasificación: cambio de comportamiento, condicional. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
+**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Interactúa con T-06 y T-12. Se decide en T-08 con la medición de T-06. Se concreta al revalidar. Clasificación: cambio de comportamiento, condicional. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
 
 
 ### T-19 — P-F2 — Proceso de la fase 2: revisión, CHANGELOG doble, Linux y release
@@ -612,17 +634,19 @@ changelog: Changed
 - **Previsión IA**: 0.3M in / 30k out tok · 1.79 €
 - **Dependencias**: T-09, T-10, T-11, T-12, T-13, T-14
 - **Tipo**: devops
-- **Archivos**: `CHANGELOG.md`, `CHANGELOG.es.md`, `docs/observability.md`, `docs/en/observability.md`, `docs/roadmap/README.md`, `interop/**` (regenerado: `hooks/`|`agents/`|`commands/` tocados), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `CHANGELOG.md`, `CHANGELOG.es.md`, `docs/observability.md`, `docs/en/observability.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/roadmap/README.md`, `docs/roadmap/2026-10-27-plugin-optimization/testing/**`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `python agent-kits/shared/ledger-lint.py docs/roadmap/2026-10-27-plugin-optimization/tasks.md; python scripts/export-interop.py --check; lectura: CI Linux completa y scripts/release.py con versión confirmada` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): los mismos que T-07 aplicados a F2. Se concreta al revalidar.
+- [ ] F2 revisada en <= 3 intentos; CA funcionales, tablas antes/después con controles, cobertura cambiada >= 90 según gate oficial, lint/evals/interop verdes; CI completa Linux sin rojos aceptados, notas ES/EN y docs espejo. Publicar por release.py tras confirmar versión. Las tareas condicionales canceladas conservan su motivo y no se cuentan como implementadas.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
+- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Esqueleto diferido; mismo procedimiento que T-07. Se concreta al revalidar. Clasificación: proceso. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
+**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido; mismo procedimiento que T-07. Se concreta al revalidar. Clasificación: proceso. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
 
 ---
 
