@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "classification": "TDD n/a: prose extraction and truthful verification declaration",
+  "checks": [
+    {
+      "command": [
+        "python",
+        "tests/test_skill_size.py",
+        "--diet-check",
+        "plugin-dev",
+        "05ea2e0"
+      ],
+      "exit": 0,
+      "env": {
+        "PYTHONIOENCODING": "utf-8:replace"
+      },
+      "stdout": "diet-check plugin-dev vs 05ea2e0: 118 párrafos (> 80 chars) · 0 párrafos perdidos · SKILL.md 199 líneas\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "scripts/lint_plugin.py"
+      ],
+      "exit": 0,
+      "stdout": "⚠️  command `retro`: nombre genérico — sin instalar como plugin (namespace `custom-agents:`) puede chocar con otro `.claude/`. Ok si se usa como plugin.\n⚠️  command `roadmap-status`: nombre genérico — sin instalar como plugin (namespace `custom-agents:`) puede chocar con otro `.claude/`. Ok si se usa como plugin.\n⚠️  command `setup`: nombre genérico — sin instalar como plugin (namespace `custom-agents:`) puede chocar con otro `.claude/`. Ok si se usa como plugin.\n\nlint_plugin: 10 agentes · 0 errores · 3 avisos\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "evals/check.py"
+      ],
+      "exit": 0,
+      "stdout": "evals/check: 52 ficheros · 192 casos (120 positivos, 72 negativos, 1 en contra) · 52 piezas del repo · 0 errores\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "scripts/export-interop.py",
+        "--check"
+      ],
+      "exit": 0,
+      "stdout": "export-interop --check: 88 ficheros al día\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_lint_plugin.py",
+        "tests/test_skill_size.py",
+        "tests/test_export_interop.py"
+      ],
+      "exit": 0,
+      "stdout": "........................................................................ [ 90%]\n........                                                                 [100%]\n80 passed in 2.72s\n",
+      "stderr": ""
+    }
+  ],
+  "capture_note": "Initial diet-check output used cp1252; repeated with explicit UTF-8 and replaced only that diagnostic capture. Initial raw capture retained locally."
+}

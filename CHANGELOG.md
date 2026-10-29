@@ -13,6 +13,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ### Fixed
 
+- **Plugin development map.** Moves piece selection criteria to an on-demand reference, keeping the skill within 200 lines without losing guidance; records the exact tokens-only catalog verification.
+
 - **Activity priority validation.** Makes the sustained-contention fixture announce priority before the burst, checks all eight lifecycle signals and excludes tool writes during priority. A separate model checks early announcement; the occupied-lock failure contract and runtime deadlines are unchanged.
 
 - **Redaction CPU cost.** Skips command analysis for text without option prefixes, preserving credential masking and the portable journal copy; the pathological-input timing limit remains unchanged. Restores the final roadmap row inside its Markdown table.

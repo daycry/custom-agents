@@ -3,8 +3,8 @@
 Fecha: 2026-10-29. **Opción 2 autorizada por delegación del usuario y aplicada.**
 Ante esta pregunta independiente, el usuario respondió «lo que consideres mejor». Se elige
 la opción 2 por conservar las muestras y reconocer la incertidumbre sin prometer estabilidad
-de la máquina. Esta autorización es posterior y distinta del ajuste de CA-01. T-01 permanece
-abierta hasta revisar las evidencias; no se autoriza una release.
+de la máquina. Esta autorización es posterior y distinta del ajuste de CA-01. T-01 se cierra tras la revisi?n fresca A de las evidencias originales; no se autoriza
+una release ni se acredita estabilidad uniforme.
 
 ## Condición anterior (sustituida)
 

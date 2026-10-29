@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-29",
+  "attempt": 1,
+  "scope": "F1 full implementation, T-01 through T-07; excludes intervening OpenCode V2 initiative",
+  "head": "05ea2e09e394aebe05fd849e58687fb1c1efe7f4",
+  "ranges": [
+    "80d5836..8825414",
+    "bae4e46..05ea2e09e394aebe05fd849e58687fb1c1efe7f4"
+  ],
+  "method": "Four fresh generic read-only reviewers; A/B/C/D, no full test suites or benchmarks",
+  "A": {
+    "reviewer": "/root/f1_conformance",
+    "T01": "eligible for closure under separately delegated characterization criterion; 3 original source hashes, 1080 samples/108 warmups/36 cases per pass and all 8 historical sources verified; benchmark coverage hash matches98% receipt",
+    "T02": "prior attempt3 preserved, no new evidence to reopen",
+    "T03": "functional criteria and verification conform",
+    "T04": "dead-owner/old regular temporary cleanup, retention and I/O cases conform",
+    "T05": "one cold Python/zero cached, parity and invalidation conform",
+    "T06": "description limits, preserved scope/literals, fixed-token estimate and real session conform; two Important gaps below",
+    "interop": {
+      "exit": 0,
+      "current_files": 88
+    },
+    "T07": "review, phase coverage/QA and delivery pending, correctly open"
+  },
+  "B": {
+    "reviewer": "/root/f1_correctness",
+    "result": "no correctness defects",
+    "checked": [
+      "benchmark and fixtures",
+      "launcher and supervisor",
+      "SQLite cleanup and callers",
+      "statusline renderer/cache",
+      "canonical redactor and portable copy",
+      "linter and catalog",
+      "activity fixture:8/8 retained, writer attempts and no H under priority; separate state_busy contract"
+    ]
+  },
+  "C": {
+    "reviewer": "/root/f1_security",
+    "result": "no introduced/reopened findings",
+    "evidence": [
+      "knowledge-find.py:809,849,859,866,915",
+      "roadmap-statusline.sh:48,65,72",
+      "statusline-render.py:30,75",
+      "run-hook.mjs:284,301,317",
+      "runtime-supervisor.py:169,217",
+      "bench-hooks.py:74,84,143"
+    ],
+    "limits": "Previously documented ancestor-replacement race retained; no new exploitation scenario. No new T02 interaction."
+  },
+  "D": {
+    "reviewer": "/root/f1_performance",
+    "result": "no findings",
+    "checked": [
+      "deliberate benchmark isolation/repetitions",
+      "deferred supervisor imports and unchanged waits",
+      "bounded native map",
+      "single directory scan grouped by PID only on rebuild",
+      "batched statusline metadata and cached Python avoidance",
+      "linear no-option redaction shortcut",
+      "reduced catalog"
+    ]
+  },
+  "gaps": [
+    {
+      "id": "A1",
+      "severity": "Important",
+      "file": "skills/plugin-dev/SKILL.md:12",
+      "principle": "docs/CONSTITUTION.md:28",
+      "scenario": "Map grew from200 to209 lines; constitutional maximum200, not hard-test maximum250.",
+      "disposition": "accepted; T06 reopened; detail moved to references/piece-boundaries.md,199 lines,0 paragraphs lost"
+    },
+    {
+      "id": "A2",
+      "severity": "Important",
+      "file": "tasks.md T06 Verification",
+      "scenario": "Declared --runs3 --md has no receipt; actual old t06-tokens was tokens-only and executed no hook cases.",
+      "disposition": "accepted; declare pertinent --tokens-only --json and execute exact command again, without inventing a historical hook workload"
+    }
+  ],
+  "fusion": {
+    "Critical": 0,
+    "Important": 2,
+    "Minor": 0,
+    "T01": "closed independently after A verified its evidence",
+    "T06": "reopened pending review of fixes",
+    "T07": "open"
+  },
+  "fix_evidence": [
+    "t06-tokens-verification-2026-10-29.json",
+    "t07-f1-review-fix-verification-2026-10-29.json"
+  ],
+  "no_coverage_percentage_invented": true,
+  "jira": {
+    "enabled": false,
+    "ops": []
+  }
+}

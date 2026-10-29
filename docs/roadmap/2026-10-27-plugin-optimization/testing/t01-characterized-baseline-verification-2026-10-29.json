@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "date": "2026-10-29",
-  "status": "evidence_verified_pending_fresh_review",
+  "status": "verified_by_fresh_conformance_review",
   "approved_decision": "t01-approved-adjustment-2026-10-29.json",
   "baseline_reports": [
     {
@@ -40,5 +40,8 @@
     "required_percent": 90
   },
   "coverage_source": "verification-2026-10-28.json",
-  "runtime_changes": false
+  "runtime_changes": false,
+  "reviewer": "/root/f1_conformance",
+  "reviewed_head": "05ea2e09e394aebe05fd849e58687fb1c1efe7f4",
+  "finding": "T-01 eligible for closure under independently authorized criterion; no uniform stability claim."
 }

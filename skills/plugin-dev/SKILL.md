@@ -55,19 +55,8 @@ El alcance nativo importa: Claude ignora `hooks`, `mcpServers` y `permissionMode
 del frontmatter de agentes cargados desde plugins. Consulta ese límite en los
 contratos; declarar el campo no acredita que la guardia se ejecute en ese modo.
 
-Duda entre kit privado y skill → **empieza privado**; promociona a `skills/` el día que un
-segundo agente lo necesite (regla 3). **Criterio de extracción** a pieza compartida: al menos **2 de
-estas 5 señales** — (1) una segunda pieza lo necesita, (2) el mismo texto o procedimiento ya está copiado
-en 2+ piezas, (3) tiene contrato estable (entradas, salidas, exit codes), (4) el patrón se repite en ≥ 2
-iniciativas (`/retro`, `journal.py candidatas`), (5) no tenerlo compartido ya costó un ciclo (gotcha o
-lección) — **y** sin solape de rol con un dueño existente (ADR-011). Un arnés local no se declara
-reutilizable hasta que otra persona pueda re-ejecutar su eval o su `Verificación` y obtener lo mismo.
-Duda entre agente y comando → si decide *puertas* y
-*orquesta* a otros, es comando; si *hace* un trabajo con criterio propio, es agente.
-Duda entre **skill y agente nuevo** → es agente SOLO si aporta un rol que **decide y escribe un
-artefacto propio** que hoy nadie decide; una **capacidad** que 2+ agentes invocan es skill, aunque
-suene a oficio («tester», «revisor de rendimiento»). Síntoma de haber elegido mal: repartir la misma
-responsabilidad entre dos piezas («este escribe el test, aquel dice si vale») — `LES-013`, `ADR-011`.
+Si dudas entre kit, skill, agente o comando, lee [los criterios de separación](references/piece-boundaries.md)
+antes de decidir el tipo de pieza; conserva un dueño por responsabilidad.
 
 ## Paso 1 — Nombre y colisiones
 
@@ -129,6 +118,7 @@ Referencias bajo demanda (lee cada una **solo** al llegar a su caso):
 
 | Referencia | Cuándo leerla |
 |---|---|
+| [Tipo de pieza y extracción](references/piece-boundaries.md) | En el Paso 0, al dudar entre kit/skill/agente/comando o al proponer una extracción |
 | [Contratos de herramientas](references/tool-observation-contracts.md) | Al diseñar o cambiar lo que un agente invoca y lee: flags, salida, exit codes, errores, salida de un hook o tool MCP propia |
 | [Diagnóstico de arquitectura](references/architecture-diagnostics.md) | Cuando un agente, hook o memoria del plugin falla y la causa puede estar en su contexto, memoria o tools, no en el modelo |
 | [Flujos persistentes](references/persistent-workflows.md) | Al crear o cambiar estado que sobrevive a la sesión (cola, marcador, contador, tarea programada) o un bucle con reintentos |
