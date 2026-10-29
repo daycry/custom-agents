@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "status": "FUNCTIONAL_VALIDATED_PHASE_GATE_PENDING",
+  "legacy_shell": {
+    "passed": 79,
+    "failed": 0,
+    "seconds": 264.93,
+    "qualification": "Retained shell suite before explicit in-process API; final shared regressions and byte comparisons verify default CLI compatibility."
+  },
+  "red": [
+    {
+      "test": "test_native_compositor_exists",
+      "failure": "single-process compositor absent"
+    },
+    {
+      "test": "claude: session context runs without Bash",
+      "failure": "Git Bash unavailable; hook skipped"
+    },
+    {
+      "test": "test_failed_memory_service_stdout_is_not_a_success",
+      "failure": "failed query stdout incorrectly accepted"
+    },
+    {
+      "test": "test_invalid_runtime_does_not_block_or_emit_context",
+      "failure": "argparse exit 2 and stderr instead of informative exit 0"
+    },
+    {
+      "tests": "two t12 static dependency/owner regressions",
+      "failure": "dependency socket missed; modified loader owner not rejected"
+    }
+  ],
+  "byte_fixtures": [
+    "startup",
+    "resume",
+    "compact",
+    "index off with no active work",
+    "directed history",
+    "ambiguous initiative",
+    "invalid replay settings",
+    "local memory",
+    "due envelope replay",
+    "open/closed usage markers"
+  ],
+  "replay_evidence": "Both consumers materialize one actual closed-session envelope, empty their outboxes and retain recorded user content; stdout equal byte for byte. Different root-bound receipts are not asserted byte-identical.",
+  "final_whitespace_owner_recheck": {
+    "passed": 4,
+    "failed": 0,
+    "seconds": 7.97
+  },
+  "lint": {
+    "errors": 0,
+    "existing_advisories": 3
+  },
+  "interop_check": {
+    "files_current": 88
+  },
+  "pending": [
+    "Independent review, coverage and full phase CI under T-19"
+  ],
+  "timeout": "Retained 30s native declaration and existing launcher/adapter budgets. The measured fixture is below 10s but omits a populated knowledge corpus and due journal workload, so it does not justify lowering the global deadline.",
+  "limitations": [
+    "Author checks do not replace T-19 independent phase review.",
+    "No native app delivery, OneDrive latency or thread-safety claim.",
+    "One business Python interpreter; Windows supervisor/job and cleanup remain."
+  ],
+  "initial_source_sha256_lf": {
+    "hooks/session-context.py": "c96e9d42f16730263ef5b96b71acd3b9094f8a0de5dd0c3e26644f66605dfd51",
+    "hooks/session-context.sh": "e17d12526124df2324660362a55354a6d596b8087029b158cc85692569fe9398",
+    "hooks/run-hook.mjs": "54292fd7352c960ec2ef7b995c3939e080c7d438788a8a40de7bb6df80474e0b"
+  },
+  "source_sha256_lf": {
+    "hooks/session-context.py": "ef68ca4c03ac360b8b1609aab84f58b350a8cb5a5fa37321ed3a288a4da3630c",
+    "hooks/session-context.sh": "e17d12526124df2324660362a55354a6d596b8087029b158cc85692569fe9398",
+    "hooks/run-hook.mjs": "54292fd7352c960ec2ef7b995c3939e080c7d438788a8a40de7bb6df80474e0b",
+    "agent-kits/shared/progress-report.py": "79c14bf3635b4eb4c24123404474dffd41995ddc26aab6d924022e0329330a7c",
+    "agent-kits/shared/usage-meter.py": "2a7f75bcc2717e495434f74ee6b2749d3ba9357dd0abbf9680b032d3a067ed68"
+  },
+  "initial_python": {
+    "command": "python -m pytest -q tests/test_session_context.py tests/test_graphiti_security.py tests/test_console_encoding.py -k \"not test_hooks\"",
+    "passed": 821,
+    "failed": 0,
+    "seconds": 388.81,
+    "scope": "27 byte-equivalence fixture/runtime combinations plus five native compositor cases, 125 security cases and 664 console cases",
+    "qualification": "Before the additional populated in-process check exposed the transitive usage-meter Python spawn; not proof of the single-interpreter contract."
+  },
+  "initial_native_node": {
+    "command": "node --test tests/hook-runtime.test.mjs tests/hook-budget.test.mjs",
+    "passed": 36,
+    "failed": 0,
+    "seconds": 61.453069,
+    "scope": "three runtimes without Bash, startup, capture, forced process termination and unchanged budgets"
+  },
+  "python_final": {
+    "command": "python -m pytest -q tests/test_session_context.py agent-kits/shared/test_progress_report.py agent-kits/shared/test_usage_meter.py",
+    "passed": 156,
+    "failed": 0,
+    "seconds": 153.66,
+    "scope": "39 compositor cases, including 30 fixture/runtime byte comparisons, plus 117 progress/meter regressions"
+  },
+  "additional_final": {
+    "command": "python -m pytest -q tests/test_session_context.py::test_in_process_due_replay_never_spawns_another_python tests/test_console_encoding.py -k \"in_process_due_replay or session-context.py or progress-report.py or usage-meter.py\"",
+    "passed": 26,
+    "deselected": 639,
+    "seconds": 7.68,
+    "scope": "Real due replay forbids further Python; affected console cases retain UTF-8."
+  },
+  "native_node_final": {
+    "passed": 4,
+    "failed": 0,
+    "seconds": 10.08756,
+    "scope": "Three runtimes without Bash and native SessionStart after the explicit marker API change."
+  },
+  "transitive_python_red": {
+    "failed": 3,
+    "cause": "progress-report spawned usage-meter status under populated active work; empty-project check had not exercised it.",
+    "fix": "Canonical usage-meter.status API plus explicit in_process=True only for native progress composition; standalone CLI retains its subprocess and 10s timeout.",
+    "default_cli_red": "Global replacement failed the default timeout regression; explicit keyword fixed it without mutable globals.",
+    "final_popen_proof": "All three populated memory/history/reentry runtime cases forbid subprocesses; due replay case forbids Python and permits existing git calls."
+  },
+  "package_check": {
+    "command": "npm pack --dry-run --json --ignore-scripts",
+    "native_compositor": true,
+    "legacy_shell": true,
+    "launcher": true
+  },
+  "performance": {
+    "receipt": "t12-paired-control-2026-10-29.json",
+    "status": "VALID",
+    "errors": 0,
+    "observed_reduction_pct": [
+      67.13,
+      69.486,
+      67.232
+    ]
+  },
+  "comment_only_source_delta": {
+    "path": "hooks/session-context.py",
+    "measured_sha256_lf": "28ee8ef85239b428b3acab2408079e64bd3d7b0a5066489ad22f66dd4c55df9f",
+    "final_sha256_lf": "ef68ca4c03ac360b8b1609aab84f58b350a8cb5a5fa37321ed3a288a4da3630c",
+    "replacement_before": "(un subproceso cada una)",
+    "replacement_after": "(una consulta en proceso por iniciativa)",
+    "ast_sha256_before": "6c9c511994046080951a8bcdd5c70c5d590fd2e610a07e7456c8e600da2f12b9",
+    "ast_sha256_after": "6c9c511994046080951a8bcdd5c70c5d590fd2e610a07e7456c8e600da2f12b9",
+    "reason": "Correct inherited shell comment after measurements; executable AST identical. Original measured source hash remains preserved."
+  }
+}

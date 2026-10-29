@@ -11,6 +11,26 @@ const root = resolve('.');
 const runner = join(root, 'hooks', 'run-hook.mjs');
 
 for (const runtime of ['claude', 'codex', 'opencode']) {
+  test(`${runtime}: session context runs without Bash`, () => {
+    const dir = mkdtempSync(join(tmpdir(), 'custom-agents-context-native-'));
+    try {
+      const located = spawnSync(process.env.TEST_PYTHON || 'python', ['-c', 'import sys;print(sys.executable)'], { encoding: 'utf8' });
+      assert.equal(located.status, 0, located.stderr);
+      const absent = join(dir, 'no-binaries');
+      const result = spawnSync(process.execPath, [runner, 'session-context.sh', `--runtime=${runtime}`], {
+        cwd: dir, input: JSON.stringify({ source: 'startup', session_id: 'native-context' }),
+        encoding: 'utf8', timeout: 25000,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: dir, CUSTOM_AGENTS_PYTHON: located.stdout.trim(), PATH: absent, Path: absent },
+      });
+      assert.ifError(result.error);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stderr, '');
+      const output = JSON.parse(result.stdout).hookSpecificOutput;
+      assert.equal(output.hookEventName, 'SessionStart');
+      assert.match(output.additionalContext, /Plugin custom-agents/);
+      assert.ok(existsSync(join(dir, '.claude', '.skill-index.cache')));
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
   test(`${runtime}: combined ledger hook runs without Bash and retains lint plus debounced progress`, () => {
     const dir = mkdtempSync(join(tmpdir(), 'custom-agents-ledger-native-'));
     try {
@@ -52,7 +72,7 @@ function invoke(hook, payload, cwd) {
   });
 }
 
-test('SessionStart injects JSON context through Git Bash and native Python', () => {
+test('SessionStart injects JSON context through native Python', () => {
   const dir = mkdtempSync(join(tmpdir(), 'custom-agents-start-'));
   try {
     const result = spawnSync(process.execPath, [runner, 'session-context.sh'], {

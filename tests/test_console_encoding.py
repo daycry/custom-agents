@@ -396,6 +396,9 @@ def _modos():
         'session_id': 'consola-🐛', 'agent_id': 'agente-👍',
         'agent_type': 'custom-agents:implementer'}, ensure_ascii=False)
     return {
+        'hooks/session-context.py':
+            [('contexto UTF-8', lambda w: ['--root', os.path.join(w, 'session-context')], (0,),
+              '{"source":"startup","session_id":"console-context"}')],
         'hooks/ledger-post.py':
             [('ledger UTF-8', lambda w: ['--root', os.path.join(w, 'ledger-post')], (0,),
               json.dumps({'tool_name': 'Edit', 'tool_input': {
@@ -613,6 +616,7 @@ def taller(tmp_path_factory):
     """Espacio de trabajo con los fixtures mínimos que piden algunos modos. Nada se escribe en el repo."""
     import json
     w = tmp_path_factory.mktemp("consola")
+    (w / 'session-context').mkdir()
     ledger = w / 'ledger-post' / 'docs/roadmap/2026-09-03-windows-console/tasks.md'
     ledger.parent.mkdir(parents=True)
     ledger.write_text('# Ledger de revisión\n\n## T-01 — Comprobación\n\n- **Estado**: borrador\n', encoding='utf-8')

@@ -304,13 +304,15 @@ async function main() {
   if (!py) { warn('Python unavailable; hook skipped'); if (guard) emitGuard(); return; }
   let command, args;
   // Capture and native guards use contained Python without shell startup.
-  if (guard || activity || hook === 'session-journal.sh' || hook === 'user-prompt-capture.sh' || hook === 'ledger-post.py') {
+  if (guard || activity || hook === 'session-journal.sh' || hook === 'user-prompt-capture.sh' || hook === 'ledger-post.py' || hook === 'session-context.sh') {
     command = py.command;
     args = activity
       ? [...py.args, '-I', '-S', ...(!windows ? ['-X', 'utf8', '-B'] : []), join(root, 'agent-kits', 'shared', 'agent-activity-store.py'),
         '--runtime', runtime.slice('--runtime='.length), '--root', env.CLAUDE_PROJECT_DIR || process.cwd()]
       : hook === 'ledger-post.py'
       ? [...py.args, '-I', '-S', join(here, 'ledger-post.py')]
+      : hook === 'session-context.sh'
+      ? [...py.args, '-I', '-S', join(here, 'session-context.py'), runtime]
       : guard
       ? [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'native-guardrail.py'),
         '--runtime', runtime.slice('--runtime='.length), '--output', 'structured']
@@ -332,7 +334,7 @@ async function main() {
     if (hook === 'session-context.sh') args.push(runtime);
   }
   if (windows) {
-    const mode = guard || activity || ['session-journal.sh', 'user-prompt-capture.sh', 'ledger-post.py'].includes(hook) ? 'python' : 'exec';
+    const mode = guard || activity || ['session-journal.sh', 'user-prompt-capture.sh', 'ledger-post.py', 'session-context.sh'].includes(hook) ? 'python' : 'exec';
     args = [...py.args, '-I', '-S', ...(activity ? ['-X', 'utf8', '-B'] : []), join(here, 'runtime-supervisor.py'), 'run', String(process.pid), mode, command, ...args];
     command = py.command;
   }

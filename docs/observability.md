@@ -2,6 +2,13 @@
 
 [English](en/observability.md) · **Español**
 
+El launcher de `SessionStart` conserva la identidad `session-context.sh`, pero
+ejecuta `session-context.py` sin Bash. Importa los servicios de journal, índice,
+progreso y memoria en el mismo intérprete, conserva el orden y los topes del
+contexto y fuerza `--ia no` durante replay. En Windows sigue usando el supervisor
+y su cierre de procesos. La invocación directa del shell anterior permanece
+disponible. El timeout se mantiene hasta completar su validación medida.
+
 El marcador de documentación pendiente (`.claude/.confluence-pending`) se crea
 directamente en el launcher Node para los tres runtimes, sin Python ni shell.
 Conserva los filtros de `docs/` y excluye `docs/security-scan/` y `docs/confluence/`.

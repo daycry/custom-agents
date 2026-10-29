@@ -1,0 +1,708 @@
+{
+  "schema_version": 1,
+  "kind": "same_path_interleaved_session_start_control",
+  "base": "97f5151d58987e62ea5af9b1cb862d828eada92a",
+  "platform": "Windows",
+  "runs": 10,
+  "warmup": 1,
+  "status": "VALID",
+  "method": "Same disposable plugin bundle path with launcher/progress/meter versions swapped together. Fresh fixture consumer per variant; full agent/command/skill index metadata copied. Before legacy shell and original meter subprocess, after in-process compositor and canonical meter status API; rotated empty-Node control. No concurrent owned local tests.",
+  "source_sha256_lf": {
+    "before": {
+      "hooks/run-hook.mjs": "37543c964dca5a1c9fd8132d1800dce9051364632a46b8a8a4957ce55d8f081b",
+      "agent-kits/shared/progress-report.py": "0c4fd8f5470fdfb7ea18d96cb073606b9ef42c7dd3b484aec57cc93cde5fb078",
+      "agent-kits/shared/usage-meter.py": "f4d248f7bbec52e6dc48955a5968cbfc30e82f564d4b2fc40ea4f441e5481f98"
+    },
+    "after": {
+      "hooks/run-hook.mjs": "54292fd7352c960ec2ef7b995c3939e080c7d438788a8a40de7bb6df80474e0b",
+      "agent-kits/shared/progress-report.py": "79c14bf3635b4eb4c24123404474dffd41995ddc26aab6d924022e0329330a7c",
+      "agent-kits/shared/usage-meter.py": "2a7f75bcc2717e495434f74ee6b2749d3ba9357dd0abbf9680b032d3a067ed68"
+    },
+    "new_compositor": "28ee8ef85239b428b3acab2408079e64bd3d7b0a5066489ad22f66dd4c55df9f"
+  },
+  "limitations": [
+    "Temporary filesystem; does not measure OneDrive or native client event delivery.",
+    "Fixture includes index and active roadmap, not a populated knowledge corpus or due journal workload.",
+    "All diagnostics retained as failed samples, including cleanup confirmation. No scheduling/antivirus causal attribution."
+  ],
+  "rows": [
+    {
+      "runtime": "claude",
+      "samples": {
+        "before": [
+          {
+            "ms": 3863.692,
+            "error": null
+          },
+          {
+            "ms": 4172.72,
+            "error": null
+          },
+          {
+            "ms": 4076.676,
+            "error": null
+          },
+          {
+            "ms": 4552.839,
+            "error": null
+          },
+          {
+            "ms": 4380.072,
+            "error": null
+          },
+          {
+            "ms": 4822.118,
+            "error": null
+          },
+          {
+            "ms": 4487.166,
+            "error": null
+          },
+          {
+            "ms": 4515.918,
+            "error": null
+          },
+          {
+            "ms": 4646.967,
+            "error": null
+          },
+          {
+            "ms": 4580.37,
+            "error": null
+          }
+        ],
+        "after": [
+          {
+            "ms": 1457.258,
+            "error": null
+          },
+          {
+            "ms": 1330.304,
+            "error": null
+          },
+          {
+            "ms": 1481.715,
+            "error": null
+          },
+          {
+            "ms": 1477.576,
+            "error": null
+          },
+          {
+            "ms": 1512.559,
+            "error": null
+          },
+          {
+            "ms": 1391.86,
+            "error": null
+          },
+          {
+            "ms": 1638.974,
+            "error": null
+          },
+          {
+            "ms": 1444.959,
+            "error": null
+          },
+          {
+            "ms": 1529.117,
+            "error": null
+          },
+          {
+            "ms": 1614.182,
+            "error": null
+          }
+        ],
+        "empty_node": [
+          {
+            "ms": 521.41,
+            "error": null
+          },
+          {
+            "ms": 529.645,
+            "error": null
+          },
+          {
+            "ms": 617.371,
+            "error": null
+          },
+          {
+            "ms": 545.787,
+            "error": null
+          },
+          {
+            "ms": 694.808,
+            "error": null
+          },
+          {
+            "ms": 583.18,
+            "error": null
+          },
+          {
+            "ms": 579.958,
+            "error": null
+          },
+          {
+            "ms": 650.902,
+            "error": null
+          },
+          {
+            "ms": 598.755,
+            "error": null
+          },
+          {
+            "ms": 533.539,
+            "error": null
+          }
+        ]
+      },
+      "warmups": [
+        {
+          "variant": "before",
+          "ms": 10932.151,
+          "error": null
+        },
+        {
+          "variant": "after",
+          "ms": 1670.433,
+          "error": null
+        },
+        {
+          "variant": "empty_node",
+          "ms": 508.74,
+          "error": null
+        }
+      ],
+      "order": [
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ]
+      ],
+      "errors": [],
+      "valid_count": {
+        "before": 10,
+        "after": 10,
+        "empty_node": 10
+      },
+      "valid_only_median_ms": {
+        "before": 4501.542,
+        "after": 1479.646,
+        "empty_node": 581.569
+      },
+      "valid_only_max_ms": {
+        "before": 4822.118,
+        "after": 1638.974,
+        "empty_node": 694.808
+      },
+      "observed_reduction_pct": 67.13
+    },
+    {
+      "runtime": "codex",
+      "samples": {
+        "before": [
+          {
+            "ms": 5508.195,
+            "error": null
+          },
+          {
+            "ms": 5229.254,
+            "error": null
+          },
+          {
+            "ms": 4485.543,
+            "error": null
+          },
+          {
+            "ms": 4788.006,
+            "error": null
+          },
+          {
+            "ms": 4333.933,
+            "error": null
+          },
+          {
+            "ms": 4490.405,
+            "error": null
+          },
+          {
+            "ms": 4632.711,
+            "error": null
+          },
+          {
+            "ms": 4606.932,
+            "error": null
+          },
+          {
+            "ms": 4332.402,
+            "error": null
+          },
+          {
+            "ms": 4415.428,
+            "error": null
+          }
+        ],
+        "after": [
+          {
+            "ms": 1398.834,
+            "error": null
+          },
+          {
+            "ms": 1374.054,
+            "error": null
+          },
+          {
+            "ms": 1377.155,
+            "error": null
+          },
+          {
+            "ms": 1498.729,
+            "error": null
+          },
+          {
+            "ms": 1647.773,
+            "error": null
+          },
+          {
+            "ms": 1290.949,
+            "error": null
+          },
+          {
+            "ms": 1374.609,
+            "error": null
+          },
+          {
+            "ms": 1451.919,
+            "error": null
+          },
+          {
+            "ms": 1427.914,
+            "error": null
+          },
+          {
+            "ms": 1351.621,
+            "error": null
+          }
+        ],
+        "empty_node": [
+          {
+            "ms": 546.448,
+            "error": null
+          },
+          {
+            "ms": 677.659,
+            "error": null
+          },
+          {
+            "ms": 516.319,
+            "error": null
+          },
+          {
+            "ms": 506.18,
+            "error": null
+          },
+          {
+            "ms": 662.979,
+            "error": null
+          },
+          {
+            "ms": 612.811,
+            "error": null
+          },
+          {
+            "ms": 549.935,
+            "error": null
+          },
+          {
+            "ms": 612.666,
+            "error": null
+          },
+          {
+            "ms": 713.849,
+            "error": null
+          },
+          {
+            "ms": 537.335,
+            "error": null
+          }
+        ]
+      },
+      "warmups": [
+        {
+          "variant": "before",
+          "ms": 4481.402,
+          "error": null
+        },
+        {
+          "variant": "after",
+          "ms": 1434.451,
+          "error": null
+        },
+        {
+          "variant": "empty_node",
+          "ms": 561.846,
+          "error": null
+        }
+      ],
+      "order": [
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ]
+      ],
+      "errors": [],
+      "valid_count": {
+        "before": 10,
+        "after": 10,
+        "empty_node": 10
+      },
+      "valid_only_median_ms": {
+        "before": 4548.668,
+        "after": 1387.995,
+        "empty_node": 581.301
+      },
+      "valid_only_max_ms": {
+        "before": 5508.195,
+        "after": 1647.773,
+        "empty_node": 713.849
+      },
+      "observed_reduction_pct": 69.486
+    },
+    {
+      "runtime": "opencode",
+      "samples": {
+        "before": [
+          {
+            "ms": 3755.46,
+            "error": null
+          },
+          {
+            "ms": 3804.943,
+            "error": null
+          },
+          {
+            "ms": 4239.515,
+            "error": null
+          },
+          {
+            "ms": 3934.975,
+            "error": null
+          },
+          {
+            "ms": 4296.439,
+            "error": null
+          },
+          {
+            "ms": 4083.971,
+            "error": null
+          },
+          {
+            "ms": 4633.247,
+            "error": null
+          },
+          {
+            "ms": 4463.75,
+            "error": null
+          },
+          {
+            "ms": 4906.32,
+            "error": null
+          },
+          {
+            "ms": 4376.039,
+            "error": null
+          }
+        ],
+        "after": [
+          {
+            "ms": 1393.376,
+            "error": null
+          },
+          {
+            "ms": 1319.124,
+            "error": null
+          },
+          {
+            "ms": 1271.737,
+            "error": null
+          },
+          {
+            "ms": 1403.515,
+            "error": null
+          },
+          {
+            "ms": 1393.525,
+            "error": null
+          },
+          {
+            "ms": 1384.036,
+            "error": null
+          },
+          {
+            "ms": 1445.598,
+            "error": null
+          },
+          {
+            "ms": 1482.779,
+            "error": null
+          },
+          {
+            "ms": 1450.242,
+            "error": null
+          },
+          {
+            "ms": 1423.844,
+            "error": null
+          }
+        ],
+        "empty_node": [
+          {
+            "ms": 506.069,
+            "error": null
+          },
+          {
+            "ms": 516.623,
+            "error": null
+          },
+          {
+            "ms": 507.253,
+            "error": null
+          },
+          {
+            "ms": 524.475,
+            "error": null
+          },
+          {
+            "ms": 492.398,
+            "error": null
+          },
+          {
+            "ms": 530.512,
+            "error": null
+          },
+          {
+            "ms": 601.175,
+            "error": null
+          },
+          {
+            "ms": 501.699,
+            "error": null
+          },
+          {
+            "ms": 580.044,
+            "error": null
+          },
+          {
+            "ms": 592.857,
+            "error": null
+          }
+        ]
+      },
+      "warmups": [
+        {
+          "variant": "before",
+          "ms": 4577.383,
+          "error": null
+        },
+        {
+          "variant": "after",
+          "ms": 1272.849,
+          "error": null
+        },
+        {
+          "variant": "empty_node",
+          "ms": 533.195,
+          "error": null
+        }
+      ],
+      "order": [
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ]
+      ],
+      "errors": [],
+      "valid_count": {
+        "before": 10,
+        "after": 10,
+        "empty_node": 10
+      },
+      "valid_only_median_ms": {
+        "before": 4267.977,
+        "after": 1398.52,
+        "empty_node": 520.549
+      },
+      "valid_only_max_ms": {
+        "before": 4906.32,
+        "after": 1482.779,
+        "empty_node": 601.175
+      },
+      "observed_reduction_pct": 67.232
+    }
+  ],
+  "command_exit": 0,
+  "after_fixture_under_10s": true,
+  "comment_only_source_delta": {
+    "path": "hooks/session-context.py",
+    "measured_sha256_lf": "28ee8ef85239b428b3acab2408079e64bd3d7b0a5066489ad22f66dd4c55df9f",
+    "final_sha256_lf": "ef68ca4c03ac360b8b1609aab84f58b350a8cb5a5fa37321ed3a288a4da3630c",
+    "replacement_before": "(un subproceso cada una)",
+    "replacement_after": "(una consulta en proceso por iniciativa)",
+    "ast_sha256_before": "6c9c511994046080951a8bcdd5c70c5d590fd2e610a07e7456c8e600da2f12b9",
+    "ast_sha256_after": "6c9c511994046080951a8bcdd5c70c5d590fd2e610a07e7456c8e600da2f12b9",
+    "reason": "Correct inherited shell comment after measurements; executable AST identical. Original measured source hash remains preserved."
+  }
+}

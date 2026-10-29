@@ -13,6 +13,7 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ### Changed
 
+- Compose SessionStart context in one Python interpreter across all three runtimes, retaining journal recovery, context order and limits, with the direct shell entry still available.
 - Load governed-memory reading instructions only when the consumer has `docs/knowledge/`, retaining role queries, plugin estimation doctrine, journal and code-context rules.
 - Ledger edits share one Python hook and one parse for lint and progress, retaining lint messages and atomic progress debounce across concurrent calls. Separate legacy wrappers remain available; the panel recognizes both complete OpenCode handler versions.
 - Documentation edits create the pending-sync marker directly in Node across all three runtimes, preserving exclusions and avoiding Python/shell startup. Invalid inputs and unsafe existing markers report a diagnostic without blocking edits.

@@ -123,7 +123,7 @@ _BOOTSTRAP_NODE_HASHES = {
 # prompt capture; same local executables/imports, no network path (review 2026-10-29).
 # F2 T-09/T-10: fixed local marker and combined local parser only; self-audit in
 # testing/t10-egress-boundary-review-2026-10-29.json. Independent phase review remains T-19.
-_LAUNCHER_NODE_HASH = "37543c964dca5a1c9fd8132d1800dce9051364632a46b8a8a4957ce55d8f081b"
+_LAUNCHER_NODE_HASH = "54292fd7352c960ec2ef7b995c3939e080c7d438788a8a40de7bb6df80474e0b"
 _EXT_RE = "|".join(_EXT_ESCANEABLES + _EXT_NO_ESCANEABLES)
 # Gap #155 (Important, fix1 Fase 4): el lookahead final quita los falsos positivos del escaneo de
 # CODIGO (`hashlib.sha256` casaba como `hashlib.sh`). Hace falta porque a partir de este fix una
@@ -152,6 +152,11 @@ _CITAS_POR_NOMBRE = {
     ("hooks/run-hook.mjs", "native-guardrail.py"): "agent-kits/shared/native-guardrail.py",
     ("hooks/run-hook.mjs", "agent-activity-store.py"): "agent-kits/shared/agent-activity-store.py",
     ("hooks/run-hook.mjs", "ledger-post.py"): "hooks/ledger-post.py",
+    ("hooks/run-hook.mjs", "session-context.py"): "hooks/session-context.py",
+    ("hooks/session-context.py", "journal.py"): "agent-kits/shared/journal.py",
+    ("hooks/session-context.py", "skill-index.py"): "agent-kits/shared/skill-index.py",
+    ("hooks/session-context.py", "progress-report.py"): "agent-kits/shared/progress-report.py",
+    ("hooks/session-context.py", "knowledge-find.py"): "agent-kits/shared/knowledge-find.py",
     ("hooks/ledger-post.py", "ledger-lint.py"): "agent-kits/shared/ledger-lint.py",
     ("hooks/ledger-post.py", "progress-report.py"): "agent-kits/shared/progress-report.py",
     ("hooks/ledger-post.py", "local-read.py"): "agent-kits/shared/local-read.py",
@@ -167,6 +172,11 @@ _CITAS_POR_NOMBRE = {
 # prove those edges. Pin the entire owner, then traverse its three real local modules.
 # This is a closure declaration, never an egress exception. Any owner change needs review.
 _CARGAS_LOCALES_REVISADAS = {
+    "hooks/session-context.py": {
+        "sha256_lf": "ef68ca4c03ac360b8b1609aab84f58b350a8cb5a5fa37321ed3a288a4da3630c",
+        "dependencies": ("agent-kits/shared/journal.py", "agent-kits/shared/skill-index.py",
+                         "agent-kits/shared/progress-report.py", "agent-kits/shared/knowledge-find.py"),
+    },
     "hooks/ledger-post.py": {
         "sha256_lf": "1d453c46d8954ba0e34223bde5e4150eb79252c6378974302ab184e5328f6ed4",
         "dependencies": ("agent-kits/shared/ledger-lint.py", "agent-kits/shared/progress-report.py",
@@ -905,6 +915,24 @@ def test_t10_unreviewed_combined_loader_change_fails_closed(tmp_path):
     root = _repo_minimo(tmp_path, hooks_json=_hook_que_lanza("hooks/ledger-post.py"), ficheros=files)
     _reachable, unresolved = _recorrido_hooks(root)
     assert ("hooks/ledger-post.py", "cargas locales no revisadas") in unresolved
+
+
+def test_t12_context_dependencies_are_scanned_for_egress(tmp_path):
+    files = {"hooks/session-context.py": _texto(os.path.join(ROOT, "hooks", "session-context.py"))}
+    for name in ("journal.py", "skill-index.py", "progress-report.py", "knowledge-find.py"):
+        files["agent-kits/shared/" + name] = "pass\n"
+    files["agent-kits/shared/knowledge-find.py"] = "import socket\n"
+    root = _repo_minimo(tmp_path, hooks_json=_hook_que_lanza("hooks/session-context.py"), ficheros=files)
+    assert ("agent-kits/shared/knowledge-find.py", "import socket") in _ofensores_de_red(root)
+
+
+def test_t12_unreviewed_context_loader_change_fails_closed(tmp_path):
+    files = {"hooks/session-context.py": _texto(os.path.join(ROOT, "hooks", "session-context.py")) + "\n# Unreviewed owner change\n"}
+    for name in ("journal.py", "skill-index.py", "progress-report.py", "knowledge-find.py"):
+        files["agent-kits/shared/" + name] = "pass\n"
+    root = _repo_minimo(tmp_path, hooks_json=_hook_que_lanza("hooks/session-context.py"), ficheros=files)
+    _reachable, unresolved = _recorrido_hooks(root)
+    assert ("hooks/session-context.py", "cargas locales no revisadas") in unresolved
 
 
 def test_ningun_script_alcanzable_desde_hooks_toca_la_red():

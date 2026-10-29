@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "run_id": 40908579625,
+  "url": "https://github.com/daycry/custom-agents/actions/runs/40908579625",
+  "head_sha": "97f5151d58987e62ea5af9b1cb862d828eada92a",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "name": "test",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-python@v5",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Instalar pytest",
+          "conclusion": "success"
+        },
+        {
+          "name": "Linter del plugin",
+          "conclusion": "success"
+        },
+        {
+          "name": "Evals — validación estática (cobertura y disparadores literales)",
+          "conclusion": "success"
+        },
+        {
+          "name": "Tests (suites del repo)",
+          "conclusion": "success"
+        },
+        {
+          "name": "Tests (pytest — tests/ + scripts shared + skills con suite propia + evals)",
+          "conclusion": "success"
+        },
+        {
+          "name": "Bench captura de SessionEnd (CA-02: p95 ≤ 100 ms / p99 ≤ 300 ms)",
+          "conclusion": "success"
+        },
+        {
+          "name": "Interop Codex/OpenCode — ¿los ficheros generados reflejan las piezas?",
+          "conclusion": "success"
+        },
+        {
+          "name": "Suites de Node (instalador npx + adaptador de hooks de OpenCode)",
+          "conclusion": "success"
+        },
+        {
+          "name": "Sintaxis de todos los scripts Python",
+          "conclusion": "success"
+        },
+        {
+          "name": "JSONs válidos + versiones coherentes",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-python@v5",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ],
+  "summary_lines": [
+    "test\tTests (suites del repo)\t2026-10-29T16:08:36.1734455Z 389 passed, 1 warning in 0.84s",
+    "test\tTests (suites del repo)\t2026-10-29T16:08:43.6158590Z 10 passed, 1 skipped in 1.05s",
+    "test\tTests (suites del repo)\t2026-10-29T16:09:10.3225905Z 78 passed, 1 skipped in 25.01s",
+    "test\tTests (suites del repo)\t2026-10-29T16:09:33.2340724Z 7 passed in 4.25s",
+    "test\tTests (suites del repo)\t2026-10-29T16:09:35.3951456Z 21 passed in 1.84s",
+    "test\tTests (pytest — tests/ + scripts shared + skills con suite propia + evals)\t2026-10-29T16:21:01.4491527Z 9684 passed, 38 skipped, 1 warning, 82 subtests passed in 685.06s (0:11:25)",
+    "test\tSuites de Node (instalador npx + adaptador de hooks de OpenCode)\t2026-10-29T16:21:52.3382716Z # tests 427",
+    "test\tSuites de Node (instalador npx + adaptador de hooks de OpenCode)\t2026-10-29T16:21:52.3383082Z # pass 411",
+    "test\tSuites de Node (instalador npx + adaptador de hooks de OpenCode)\t2026-10-29T16:21:52.3383263Z # fail 0"
+  ],
+  "log_sha256": "3c34bde14d7d2a14723ad6015a403e56419bfb9b70fe4e305f9cbfc17156a446",
+  "node": {
+    "tests": 427,
+    "passed": 411,
+    "failed": 0,
+    "skipped": 16,
+    "cancelled": 0,
+    "todo": 0
+  }
+}
