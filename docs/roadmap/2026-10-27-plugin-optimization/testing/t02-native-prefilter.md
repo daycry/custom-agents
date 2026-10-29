@@ -2,7 +2,23 @@
 
 Estado: **en-progreso**. Cero Python en identidades no protegidas está verificado; la reducción del 80 % de la mediana total **no está acreditada**.
 
-## Comparación con la línea base de T-01
+## Control intercalado válido del 2026-10-29
+
+Diez muestras + calentamiento por variante y runtime, orden rotado, sin otras suites propias
+simultáneas y sin fallos. Ambas variantes usan los mismos supervisor, mapa y fixtures.
+
+| Runtime | Antes ms | Después ms | Reducción % | Node vacío ms |
+|---|---:|---:|---:|---:|
+| Claude | 933,702 | 576,892 | 38,21 | 534,270 |
+| Codex | 854,110 | 540,547 | 36,71 | 530,265 |
+| OpenCode | 893,032 | 554,176 | 37,94 | 513,177 |
+
+[Recibo y fuentes](t02-paired-control-2026-10-29.json). Se mide el launcher compartido,
+no la entrega nativa. Node vacío es un control observado, no un mínimo universal.
+El 80 % aprobado sigue incumplido; [propuesta de ajuste](f1-performance-adjustment-proposal.md)
+preparada a petición del usuario, pendiente de aprobar y sin cambiar criterios.
+
+## Histórico: comparación con la línea base de T-01
 
 Tres pasadas de diez muestras por runtime, con un calentamiento descartado; misma fixture y launcher compartido. Se compara la mediana de las tres medianas. La carga del entorno varía; estos valores separados en el tiempo no prueban una regresión causal del código.
 

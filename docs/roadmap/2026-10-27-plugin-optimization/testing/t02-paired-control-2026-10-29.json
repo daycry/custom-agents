@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "date_utc": "2026-10-29T09:40:19.242402+00:00",
+  "method": "One pass per runtime, ten measured fresh-process samples and one discarded warmup per variant, rotated interleaving of before/after/empty Node. Old launcher from bae4e46 and current launcher use the same current supervisor, role map and fixtures; only the prefilter launcher differs. No test suite launched by this session during measurements.",
+  "source_commit": "4de24ea540388d6391c3f0cec908187a83ec8f2c",
+  "launcher_sha256_lf": {
+    "before": "f86f0a1e529c1a15cfaa3071630c36cc3ab8d82f067a4c6eb62cd365f3b02599",
+    "after": "f8a3af68dd02b3b0ca746c2d347e5c2df5276ea610811d94b0dd2f5f7c212e4e"
+  },
+  "shared_sha256_lf": {
+    "hooks/runtime-supervisor.py": "8c4a4c568a0ec71f885420e99eb9c6e406429e6f2c994a2bdeb20d279d68a04a",
+    "agent-kits/shared/native-roles.json": "96d4db96b92b12b264201820969d0938cfdd83381210effb1b833a5f62be672a"
+  },
+  "node_version": "v23.8.0",
+  "python_version": "3.13.0",
+  "machine": {
+    "sistema": "Windows",
+    "version": "11",
+    "python": "3.13.0",
+    "ram_libre_bytes": 8899940352,
+    "repositorio_en_onedrive": true
+  },
+  "runtimes": {
+    "claude": {
+      "samples_ms": {
+        "before": [
+          852.366,
+          884.787,
+          874.018,
+          982.617,
+          1019.178,
+          1011.272,
+          789.984,
+          837.612,
+          1662.071,
+          985.653
+        ],
+        "after": [
+          503.971,
+          605.119,
+          505.431,
+          514.332,
+          596.534,
+          611.782,
+          522.816,
+          557.249,
+          888.418,
+          694.998
+        ],
+        "empty_node": [
+          456.298,
+          493.628,
+          553.285,
+          541.249,
+          533.523,
+          500.234,
+          518.389,
+          535.016,
+          670.969,
+          556.707
+        ]
+      },
+      "warmups_ms": {
+        "before": 1053.407,
+        "after": 623.571,
+        "empty_node": 454.069
+      },
+      "errors": [],
+      "diagnostic_median_ms": {
+        "before": 933.702,
+        "after": 576.8915,
+        "empty_node": 534.2695
+      },
+      "accepted_comparison": true,
+      "median_ms": {
+        "before": 933.702,
+        "after": 576.8915,
+        "empty_node": 534.2695
+      },
+      "reduction_percent": 38.21,
+      "target_80_percent_met": false
+    },
+    "codex": {
+      "samples_ms": {
+        "before": [
+          837.874,
+          924.02,
+          783.659,
+          870.345,
+          910.85,
+          778.99,
+          873.803,
+          906.274,
+          825.447,
+          769.818
+        ],
+        "after": [
+          516.53,
+          524.256,
+          538.176,
+          559.701,
+          546.15,
+          575.794,
+          495.997,
+          574.059,
+          542.917,
+          525.703
+        ],
+        "empty_node": [
+          460.787,
+          516.638,
+          536.09,
+          587.726,
+          524.439,
+          557.982,
+          475.699,
+          500.958,
+          538.226,
+          536.506
+        ]
+      },
+      "warmups_ms": {
+        "before": 986.263,
+        "after": 578.137,
+        "empty_node": 566.557
+      },
+      "errors": [],
+      "diagnostic_median_ms": {
+        "before": 854.1095,
+        "after": 540.5465,
+        "empty_node": 530.2645
+      },
+      "accepted_comparison": true,
+      "median_ms": {
+        "before": 854.1095,
+        "after": 540.5465,
+        "empty_node": 530.2645
+      },
+      "reduction_percent": 36.71,
+      "target_80_percent_met": false
+    },
+    "opencode": {
+      "samples_ms": {
+        "before": [
+          834.059,
+          937.492,
+          909.203,
+          890.388,
+          857.786,
+          833.527,
+          1051.954,
+          895.676,
+          934.88,
+          785.305
+        ],
+        "after": [
+          636.078,
+          526.024,
+          484.151,
+          589.668,
+          582.407,
+          574.909,
+          728.752,
+          479.705,
+          532.387,
+          533.443
+        ],
+        "empty_node": [
+          521.078,
+          532.453,
+          519.918,
+          446.3,
+          506.436,
+          564.59,
+          464.387,
+          493.456,
+          537.613,
+          473.896
+        ]
+      },
+      "warmups_ms": {
+        "before": 852.481,
+        "after": 549.466,
+        "empty_node": 520.936
+      },
+      "errors": [],
+      "diagnostic_median_ms": {
+        "before": 893.032,
+        "after": 554.1759999999999,
+        "empty_node": 513.177
+      },
+      "accepted_comparison": true,
+      "median_ms": {
+        "before": 893.032,
+        "after": 554.1759999999999,
+        "empty_node": 513.177
+      },
+      "reduction_percent": 37.94,
+      "target_80_percent_met": false
+    }
+  }
+}

@@ -13,6 +13,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ### Fixed
 
+- **Redaction CPU cost.** Skips command analysis for text without option prefixes, preserving credential masking and the portable journal copy; the pathological-input timing limit remains unchanged. Restores the final roadmap row inside its Markdown table.
+
+- **F1 validation inventories.** Updates the shell encoding inventory after moving statusline snippets and refreshes the reviewed launcher fingerprint while retaining network detection and mutation checks.
+
 - **Smaller catalog descriptions.** All 52 descriptions fit within 600 characters; 25 move their full scope into bodies or references, retain activation literals and reduce the declared fixed-token estimate by over 3,200 per session.
 
 - **Statusline startup.** Uses one isolated Python on a cache miss and none for identical input and unchanged ledgers, preserves formatting and selects valid interpreters without WindowsApps aliases.

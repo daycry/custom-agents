@@ -141,3 +141,17 @@ estimación caracteres/4, redondeo superior; no es un tokenizador ni consumo rea
 |---|---:|---:|
 | commands/dev-cycle.md | 53732 | 13433 |
 | agent-kits/shared/knowledge-check.md | 9133 | 2284 |
+
+## Actualización de F1 del 2026-10-29
+
+La línea base y su condición de estabilidad permanecen pendientes en T-01. El nuevo
+[control intercalado del guard](t02-paired-control-2026-10-29.json), sin fallos, mide una
+reducción del 36,71–38,21 % y un arranque Node vacío de 513–534 ms; no cumple el 80 %
+aprobado ni prueba la entrega nativa. Tabla actual en [el informe de T-02](t02-native-prefilter.md).
+
+T-06 queda completada: la [sesión real autenticada](t06-native-visibility-authenticated-2026-10-29.json)
+registra descripción para las 27 skills (26 textos fuente y el comando homónimo de confluence-pull).
+El ahorro fijo estimado de 3.233–3.275 tokens se conserva; no es consumo API medido.
+
+El usuario solicitó una [propuesta de ajuste de F1](f1-performance-adjustment-proposal.md).
+Es un documento para decidir; los criterios aprobados siguen vigentes y F1 continúa abierta.

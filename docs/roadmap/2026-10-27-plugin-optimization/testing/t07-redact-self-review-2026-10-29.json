@@ -1,0 +1,26 @@
+{
+  "review_type": "sequential self-review, no independent reviewers; not a full phase approval",
+  "changed_runtime": [
+    "agent-kits/shared/redact.py::_trocear",
+    "agent-kits/shared/journal.py::_trocear (declared portable copy)"
+  ],
+  "invariant": "Argument-redaction edits require a literal hyphen option prefix in the scanned text. The routine returns no value and cannot add a redaction without such a token.",
+  "reasoning": [
+    "All option redaction paths in _redactar_comando are anchored to --password=, --user=, --proxy-user=, -p, -u/-U or a short flag cluster; each requires a hyphen in the same substring.",
+    "Inherited program context alone never redacts a bare positional token; parent option-value masking still runs for quoted values.",
+    "Double-quote escape normalization can introduce quote/dollar/backtick/control placeholders, never a hyphen.",
+    "PEM, API-token, bearer, sensitive assignment and quoted key/value redaction remain outside this shortcut and still execute.",
+    "The portable backup is byte-identical under the existing declared-copy guard, and both paths retain their corpus."
+  ],
+  "regression_verification": {
+    "red_observed": "200 unnecessary option-free command analyses in a 200-repeat example",
+    "green_redaction_tests": 809,
+    "index_and_declared_copy_tests": 85,
+    "canonical_coverage_percent": 99.23371647509579,
+    "new_statement_lines_covered": 2,
+    "original_pathological_time_limit_seconds": 1.5,
+    "limit_changed": false
+  },
+  "full_linux_validation": "Local attempt8 interrupted after one unchanged wall-clock timing failure on a different fixture; CPU/wall diagnostic retained. Reference CI pending; no global green claim.",
+  "cache_experiment": "Not shipped; only the original no-option shortcut is in runtime source."
+}

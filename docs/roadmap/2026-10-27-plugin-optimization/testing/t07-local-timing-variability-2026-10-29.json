@@ -1,0 +1,52 @@
+{
+  "wall_vs_cpu_windows": [
+    {
+      "variant": "before",
+      "trial": 1,
+      "wall_seconds": 0.6101641999557614,
+      "cpu_seconds": 0.578125
+    },
+    {
+      "variant": "candidate",
+      "trial": 1,
+      "wall_seconds": 0.6937098000198603,
+      "cpu_seconds": 0.625
+    },
+    {
+      "variant": "candidate",
+      "trial": 2,
+      "wall_seconds": 0.6046314999694005,
+      "cpu_seconds": 0.5625
+    },
+    {
+      "variant": "before",
+      "trial": 2,
+      "wall_seconds": 0.8403013000497594,
+      "cpu_seconds": 0.65625
+    },
+    {
+      "variant": "before",
+      "trial": 3,
+      "wall_seconds": 9.085656399955042,
+      "cpu_seconds": 0.71875
+    },
+    {
+      "variant": "candidate",
+      "trial": 3,
+      "wall_seconds": 9.645101000089198,
+      "cpu_seconds": 0.890625
+    }
+  ],
+  "candidate_functional_validation": {
+    "passed": 814,
+    "failed": 1,
+    "failure": "Unchanged 1.5s wall-clock limit on a different 1000000-char unquoted input; 5.13s observed. The candidate does not change that parsing path."
+  },
+  "differential_validation": {
+    "cases": 1470,
+    "mismatches": 0,
+    "method": "deterministic quote/nesting/context combinations compared byte-for-byte against uncached current canonical redactor"
+  },
+  "cache_disposition": "Experimental in-memory prototype only; not applied. Temporary cache-specific tests removed with the unshipped feature. Retain the independently validated no-option shortcut and original 1.5s test.",
+  "conclusion": "A later pair measured 9.09-9.65s wall time but 0.72-0.89s CPU for the same pure parsing workload in both variants. This demonstrates substantial non-CPU elapsed time locally; it does not uniquely reconstruct the Linux failure. Obtain reference-runner validation before asserting a product timing regression or global green."
+}

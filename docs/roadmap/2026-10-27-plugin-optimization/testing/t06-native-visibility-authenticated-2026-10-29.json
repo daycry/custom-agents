@@ -1,0 +1,568 @@
+{
+  "date_utc": "2026-10-29T09:16:57.300013+00:00",
+  "cli_version": "2.1.311 (Claude Code)",
+  "source_commit": "4de24ea540388d6391c3f0cec908187a83ec8f2c",
+  "expected_skills": [
+    "adversarial-review",
+    "api-contract",
+    "backend-practices",
+    "capability-audit",
+    "changelog-sync",
+    "code-health",
+    "confluence-publish",
+    "confluence-pull",
+    "cybersecurity",
+    "debug-root-cause",
+    "delivery-practices",
+    "dependency-upgrade",
+    "frontend-quality",
+    "jira-sync",
+    "knowledge-services",
+    "outcome-evals",
+    "plugin-dev",
+    "plugin-panel",
+    "quick-implement",
+    "rates-verify",
+    "research-first",
+    "roadmap-dashboard",
+    "stack-practices",
+    "tdd",
+    "to-pdf",
+    "training-data-services",
+    "unit-tests"
+  ],
+  "settings_for_session_only": {
+    "disableAllHooks": true,
+    "disableSkillShellExecution": true
+  },
+  "global_install_changed": false,
+  "tools_permitted": [
+    "Skill"
+  ],
+  "tool_uses": [],
+  "source_sha256": {
+    "skills/adversarial-review/SKILL.md": "c9ed92c21e50fe6c6b0d4c40beed439e1e71edd4760bfb3022fb4eca9d4209be",
+    "skills/api-contract/SKILL.md": "346cea02c379f05d2452c7607469045a36699a73b1e0cb1c7401ada902ec16f0",
+    "skills/backend-practices/SKILL.md": "e598c50aa602b0ff76a013f793ca52067333537b4cc6bcd4cd5898193fee26a2",
+    "skills/capability-audit/SKILL.md": "0a8579a37efbc067bfb6b4dc3f8759a49f50a2a72acc89116f24bbd125406dd9",
+    "skills/changelog-sync/SKILL.md": "b944299ead1a39abfb4bf8207b1567bf7f5e5ef7d64f05763b2902496d616791",
+    "skills/code-health/SKILL.md": "16d84350c5376b65c32e9e11aae0303e158020742d596fb58c47f1dd297f4f28",
+    "skills/confluence-publish/SKILL.md": "a1c3b3e19ffd267255baa179671aac517d855931845ba84816963799cd1361e3",
+    "skills/confluence-pull/SKILL.md": "5972be814dcdfabcc56f68f2ca7a1f13ba9e646da883c2e172719b8aa5f4acdb",
+    "skills/cybersecurity/SKILL.md": "de2baa6dec575acf15f35e9ac09fd5ac2b218f1ca5f31f6c042c995f28099634",
+    "skills/debug-root-cause/SKILL.md": "fc5266b71f1f4c2f5213758080e2ba7d31531d5d9b61c800c61e6404363f3170",
+    "skills/delivery-practices/SKILL.md": "eaae2178c159e6f5aa49261152c3e238a3d55b9e4b139a7f85967efd3bcc144d",
+    "skills/dependency-upgrade/SKILL.md": "d23e67332b085b6a9a5fc4c603f6b8c9e814322fbd65b9863290964f9e82fdfd",
+    "skills/frontend-quality/SKILL.md": "ec2843326f2a2a103747bb648d59ccbc330496c3242c1f313579ee6fc60cf379",
+    "skills/jira-sync/SKILL.md": "37d26401f335f130939729e879ae17af209894837f325ea60d510222003bc5ac",
+    "skills/knowledge-services/SKILL.md": "e5b0623f448148e521ad71255b4defc33dbc8417ad5560c75fd7ca830b4106ee",
+    "skills/outcome-evals/SKILL.md": "8b3d65b247db25ee086861227df88ddae92410533f0f9f82b9d8af7e4ce849ff",
+    "skills/plugin-dev/SKILL.md": "16b3fe7167e17eb3a47349c49adb26b6b29f9122aba62ef0a278ce8370705a54",
+    "skills/plugin-panel/SKILL.md": "fed7286e6773402494cbc40e0863ecea2c832bf887f1893c9d9d39fada7dc646",
+    "skills/quick-implement/SKILL.md": "549407168d983fba5b044f3a8a8788cd60c284cb6ce12cac3992e5a54a90ff65",
+    "skills/rates-verify/SKILL.md": "557035d9f6bb8379fb5169970f8b5d10e57f4740b57b7e2cc3b56cc3172e3bf0",
+    "skills/research-first/SKILL.md": "2771d49527560d132e1ed58996b840aa1802af71c06708471576f9790030df3a",
+    "skills/roadmap-dashboard/SKILL.md": "4344f927275f8a9db0607655723afb7ac79f7d6084581002ab63851ccc2ed1f9",
+    "skills/stack-practices/SKILL.md": "2634a69d18da4d0006de56439783b5337c80cd1405de256be6e8cf89cf655132",
+    "skills/tdd/SKILL.md": "f20a4114c447a9008635dead509e14ec838a98f741f5e840fb607119210353ec",
+    "skills/to-pdf/SKILL.md": "2aef8747035472d41c05a44857b7b004af0dbfea9328eddce2ca98e796c10486",
+    "skills/training-data-services/SKILL.md": "16423b6ffe1118d88f58eff4330d23a3a883080400e2c25443e7beb9450c577e",
+    "skills/unit-tests/SKILL.md": "1832b046bbf2d5afd881d817bc1b6920d704d91a65b5cc8cf6ed838d4e59595a"
+  },
+  "method": "Fresh real Claude CLI print session; local checkout via --plugin-dir, no persistence, project-only settings, no MCP, hooks disabled only for this inventory experiment; model asked to report visible descriptions without tools. No custom listing-budget or context/model override.",
+  "exit": 0,
+  "stderr_nonempty": false,
+  "model": "claude-opus-5-5",
+  "native_commands": [
+    "custom-agents:confluence-pull",
+    "custom-agents:dev-cycle",
+    "custom-agents:doctor",
+    "custom-agents:plugin-catalog",
+    "custom-agents:pm-backlog",
+    "custom-agents:pm-cycle",
+    "custom-agents:retro",
+    "custom-agents:roadmap-brief",
+    "custom-agents:roadmap-live",
+    "custom-agents:roadmap-metrics",
+    "custom-agents:roadmap-status",
+    "custom-agents:setup",
+    "custom-agents:spec-drift",
+    "custom-agents:work-context",
+    "custom-agents:work-resume",
+    "custom-agents:adversarial-review",
+    "custom-agents:api-contract",
+    "custom-agents:backend-practices",
+    "custom-agents:capability-audit",
+    "custom-agents:changelog-sync",
+    "custom-agents:code-health",
+    "custom-agents:confluence-publish",
+    "custom-agents:cybersecurity",
+    "custom-agents:debug-root-cause",
+    "custom-agents:delivery-practices",
+    "custom-agents:dependency-upgrade",
+    "custom-agents:frontend-quality",
+    "custom-agents:jira-sync",
+    "custom-agents:knowledge-services",
+    "custom-agents:outcome-evals",
+    "custom-agents:plugin-dev",
+    "custom-agents:plugin-panel",
+    "custom-agents:quick-implement",
+    "custom-agents:rates-verify",
+    "custom-agents:research-first",
+    "custom-agents:roadmap-dashboard",
+    "custom-agents:stack-practices",
+    "custom-agents:tdd",
+    "custom-agents:to-pdf",
+    "custom-agents:training-data-services",
+    "custom-agents:unit-tests"
+  ],
+  "plugin_names": [
+    "custom-agents"
+  ],
+  "plugin_error_count": 0,
+  "result_subtype": "success",
+  "total_cost_usd": 0.2367922,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 10856,
+    "cache_read_input_tokens": 1581,
+    "output_tokens": 7481,
+    "output_tokens_details": {
+      "thinking_tokens": 177
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 10856,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 7481,
+        "cache_read_input_tokens": 1581,
+        "cache_creation_input_tokens": 10856,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 10856
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "reported_skills": [
+    {
+      "name": "custom-agents:confluence-pull",
+      "description": "Trae a tu carpeta local (docs/) el estado actual de Confluence, sin git. Sentido inverso de la publicación: baja Confluence → docs/, preservando tu frontmatter y avisando de conflictos antes de escribir. Pensado para PMs que no usan git. Usa la skill confluence-pull."
+    },
+    {
+      "name": "custom-agents:dev-cycle",
+      "description": "Orquesta el ciclo completo de una iniciativa (spec → evaluación → plan → implementación → pruebas → documentación) con la cadena nativa del plugin como único motor (autosuficiente: TDD, worktrees, subagentes frescos y debugging sistemático opt-in). Invoca los agentes por nombre y con puertas de control."
+    },
+    {
+      "name": "custom-agents:doctor",
+      "description": "Diagnostica instalación, herramientas, hooks, configuración y journal del plugin, con remedios verificables. Solo lectura: no corrige ni instala automáticamente. Úsalo cuando el usuario diga \"¿está bien instalado?\", \"diagnostica el plugin\", \"por qué no funciona el hook\", \"comprueba mi configuración\", \"doctor\"."
+    },
+    {
+      "name": "custom-agents:plugin-catalog",
+      "description": "Explora el catálogo del plugin en un control panel HTML local: agentes, skills, comandos, herramientas declaradas y hooks; incluye extensiones de proyecto y usuario, personas y MCP con fuentes y conflictos. Usa plugin-panel; no configura servicios ni ejecuta hooks. El modo --serve abre un dashboard local con progreso actualizado desde el ledger y consulta local de memoria bajo demanda, sin dirigir agentes ni conectar backends."
+    },
+    {
+      "name": "custom-agents:pm-backlog",
+      "description": "Rol PM de cartera. Lee todas las evaluaciones del roadmap (docs/roadmap/*/evaluation.md) y produce un backlog PRIORIZADO cross-iniciativa (quick wins vs. costosas) en docs/roadmap/BACKLOG.md, para decidir el orden de ejecución. No planifica ni implementa; solo lee y prioriza."
+    },
+    {
+      "name": "custom-agents:pm-cycle",
+      "description": "Orquesta el ciclo de PRODUCTO de una iniciativa (spec → evaluación) y CIERRA ahí. Separa el rol PM (definir y presupuestar) del rol de desarrollo. Invoca al evaluator por nombre, aplica la puerta go/no-go y, si es go, ofrece el handoff a /dev-cycle sobre la misma carpeta (sin ejecutarlo)."
+    },
+    {
+      "name": "custom-agents:retro",
+      "description": "Retrospectiva de una iniciativa CERRADA — compara estimado vs real (horas, tokens, coste), captura causas de desviación y aprendizajes, y alimenta el histórico de calibración que el evaluator usa para estimar mejor las siguientes. Escribe retro.md en la carpeta de la iniciativa y una fila en docs/roadmap/CALIBRATION.md."
+    },
+    {
+      "name": "custom-agents:roadmap-brief",
+      "description": "Genera un brief ejecutivo de la cartera (one-pager para dirección) combinando estado del roadmap, priorización y métricas real vs estimado, y lo exporta a PDF con aspecto moderno. Solo lee docs/roadmap/. Usa las skills roadmap-dashboard y to-pdf."
+    },
+    {
+      "name": "custom-agents:roadmap-live",
+      "description": "Abre un dashboard VIVO del estado del roadmap leyendo Jira en tiempo real (issues + horas imputadas por label). En Cowork/escritorio como artefacto interactivo; en CLI/VS Code como resumen conversacional. Requiere el conector Atlassian y que el plan se haya volcado con jira-sync. Usa la skill roadmap-dashboard."
+    },
+    {
+      "name": "custom-agents:roadmap-metrics",
+      "description": "Informe real vs estimado del roadmap — compara horas y tokens estimados (evaluación/plan) contra los reales imputados en tasks.md, con desviaciones y un total de cartera. Solo lee; no modifica nada. Usa la skill roadmap-dashboard."
+    },
+    {
+      "name": "custom-agents:roadmap-status",
+      "description": "Muestra el estado de todas las iniciativas del roadmap (spec, evaluación, plan, tasks, testing), sus estados, prioridad y presupuesto. Lee docs/roadmap/ y ESCRIBE docs/roadmap/dashboard.md y la carpeta docs/roadmap/panel/ (panel multi-página exportado); no toca spec, evaluación, plan ni tasks, y no crea docs/roadmap/ si falta. Usa las skills roadmap-dashboard (datos) y plugin-panel (presentación)."
+    },
+    {
+      "name": "custom-agents:setup",
+      "description": "Onboarding del plugin en un proyecto: presupuesto, desarrollo, hooks, statusline, memoria y capacidades opcionales en una pasada guiada. Conserva preferencias existentes. Úsalo con /setup o cuando el usuario pida configurar el plugin o preparar un proyecto nuevo."
+    },
+    {
+      "name": "custom-agents:spec-drift",
+      "description": "Detecta la DERIVA entre las specs implementadas y el código actual (el /speckit.analyze del plugin) — por cada spec `implementada`, subagentes de contexto fresco verifican cada criterio de aceptación contra el código de HOY y emiten veredicto vigente/derivado/no-verificable con evidencia. Escribe docs/roadmap/DRIFT.md y ofrece abrir iniciativa para lo derivado. Solo lectura del código."
+    },
+    {
+      "name": "custom-agents:work-context",
+      "description": "Selecciona las guías del plugin por rol, fase, stack y área desde manifiestos locales; reconoce agentes, skills, personas, tools y MCP propios, mostrando procedencia, conflictos y referencias sin iniciar otro ciclo ni ejecutar código del proyecto."
+    },
+    {
+      "name": "custom-agents:adversarial-review",
+      "description": "Revisa diffs con lentes A/B y C/D condicionales, evidencia y hasta tres intentos. Coordina revisores de contexto fresco; no sustituye a QA ni a auditoría completa. Úsala cuando el usuario diga \"revisa este diff\", \"revisión adversarial\", \"pasa las dos lentes\", \"revisión de dos lentes\", \"busca gaps en la rama\", \"revisa el rendimiento del diff\", \"problemas de seguridad en esta rama\", o cuando /dev-cycle o quick-implement lleguen a la puerta de revisión."
+    },
+    {
+      "name": "custom-agents:api-contract",
+      "description": "Valida OpenAPI 3.x y compara versiones para detectar cambios incompatibles antes de implementar; el contrato manda. No documenta ni audita seguridad. Detecta, por ejemplo, un campo de respuesta eliminado. Úsala cuando el usuario diga \"valida este OpenAPI\", \"¿esta spec es válida?\", \"¿qué cambios rompen el contrato de la API?\", \"compara estas dos versiones del OpenAPI\", o antes de implementar un endpoint con spec."
+    },
+    {
+      "name": "custom-agents:backend-practices",
+      "description": "Diseño y revisión de límites backend: APIs, errores, autorización por recurso, idempotencia, consultas y migraciones compatibles durante despliegues. Úsala cuando el usuario diga \"criterios backend\", \"diseña la API\", \"revisa una migración\" o \"evita escrituras duplicadas\"."
+    },
+    {
+      "name": "custom-agents:capability-audit",
+      "description": "Auditoría semántica de skills, agentes y comandos: utilidad, solapes, vigencia, coste de carga, recursos y dueño de cada artefacto, con evidencia por pieza. Úsala cuando el usuario diga \"audita capacidades\", \"limpia el catálogo\" o \"qué skills debemos consolidar\"."
+    },
+    {
+      "name": "custom-agents:changelog-sync",
+      "description": "Genera de forma determinista las secciones sin publicar ES/EN desde tareas cerradas del roadmap. No crea versiones ni inventa alcance. Úsala cuando el usuario diga \"escribe el changelog\", \"sincroniza el CHANGELOG\", \"genera las notas de la release\", \"actualiza [Unreleased]\", o al cerrar una iniciativa."
+    },
+    {
+      "name": "custom-agents:code-health",
+      "description": "Mide duplicación, complejidad aproximada, hotspots y TODO antiguos con evidencia por fichero y línea. No refactoriza ni audita seguridad. Úsala cuando el usuario diga \"salud del código\", \"informe de deuda técnica\", \"dónde hay código duplicado\", \"qué ficheros son hotspots\", \"cuántos TODO viejos hay\", \"mide la complejidad del repo\", o cuando `evaluator` necesite fundamentar el riesgo de una spec sobre un repo grande."
+    },
+    {
+      "name": "custom-agents:confluence-publish",
+      "description": "Publica docs/ en Confluence Cloud con el conector oficial, preferencias persistidas e idempotencia. Guía la selección de destino, previsualiza y pide confirmación. Úsala cuando el usuario diga \"publica en Confluence\", \"sube la doc a Confluence\", \"sincroniza con Confluence\", \"crea el espacio/árbol del proyecto en Confluence\"."
+    },
+    {
+      "name": "custom-agents:cybersecurity",
+      "description": "Comprehensive cybersecurity audit across eight specialist dimensions, with evidence, severity and framework-aware false-positive checks. Complements GitHub Advanced Security. Use when user says \"security audit\", \"security review\", \"cybersecurity\", \"check for vulnerabilities\", \"OWASP check\", \"secure this code\", \"find security issues\", \"pentest review\", \"threat model\", \"security scan\", \"check security\", \"vulnerability scan\", \"code security\", \"appsec review\", \"supply chain check\", \"secret scan\", \"hardcoded credentials\"."
+    },
+    {
+      "name": "custom-agents:debug-root-cause",
+      "description": "Depuración SISTEMÁTICA hasta la causa raíz en 4 fases con evidencia obligatoria (reproducción mínima → aislamiento → hipótesis probada → fix + test de regresión). Prohibido \"arreglar a ciegas\". La invoca /dev-cycle automáticamente al 3.er rojo del bucle qa→implementer (antes de rendirse y preguntar), y se puede usar a demanda. Úsala cuando el usuario diga \"depura esto a fondo\", \"encuentra la causa raíz\", \"por qué falla esto\", \"lleva tres intentos y sigue rojo\"."
+    },
+    {
+      "name": "custom-agents:delivery-practices",
+      "description": "Preparación verificable de entrega: contenedores, configuración, readiness, migraciones, recuperación e integración MCP con límites de permisos. Úsala cuando el usuario diga \"preparar entrega\", \"revisa Docker\", \"planifica el despliegue\" o \"integra un servidor MCP\"."
+    },
+    {
+      "name": "custom-agents:dependency-upgrade",
+      "description": "Prepara inventario y spec de actualización desde manifiestos, lockfiles y outdated oficial; revisa saltos major. No actualiza dependencias ni busca CVE. Úsala cuando el usuario diga \"actualiza las dependencias\", \"qué dependencias están desactualizadas\", \"prepara el upgrade de &lt;paquete&gt;\", \"inventario de dependencias\", \"qué breaking changes tiene subir a la versión X\", \"plan para subir de major\"."
+    },
+    {
+      "name": "custom-agents:frontend-quality",
+      "description": "Criterios de UI para teclado, foco, formularios, estados remotos y rendimiento medido, compartidos por architect, implementer, reviewer y qa. Úsala cuando el usuario diga \"calidad frontend\", \"revisa accesibilidad\", \"mejora rendimiento de la UI\" o \"prueba navegación con teclado\"."
+    },
+    {
+      "name": "custom-agents:jira-sync",
+      "description": "Vuelca tareas del roadmap a Jira con el conector oficial. Guía la selección de destino, previsualiza, pide confirmación y evita duplicados. Úsala cuando el usuario diga \"vuelca el plan a Jira\", \"crea las tareas en Jira\", \"sincroniza el plan con Jira\", \"pásame esto a Jira\"."
+    },
+    {
+      "name": "custom-agents:knowledge-services",
+      "description": "Publica conocimiento aprobado en Kwipu/Graphiti mediante adaptadores, routing cerrado y outbox recuperable. Lectura externa solo opt-in; no promueve candidatos. Úsala cuando el usuario diga \"sincroniza el conocimiento con Kwipu\", \"publica docs/knowledge en el grafo\", \"exporta approved a Kwipu\", \"por qué Kwipu no ve esta entrada\", \"añade un backend de knowledge-services\", o al activar la capacidad `kwipu` desde `/setup`."
+    },
+    {
+      "name": "custom-agents:outcome-evals",
+      "description": "Evaluación de resultados de tareas con corpus versionado, checks deterministas, ejecuciones comparables y mediciones compatibles. Separa éxito de activación. Úsala cuando el usuario diga \"evalúa resultados\", \"compara dos workflows\" o \"mide si las nuevas skills mejoran las tareas\"."
+    },
+    {
+      "name": "custom-agents:plugin-dev",
+      "description": "Desarrolla agentes, skills, comandos, kits y hooks de custom-agents con sus convenciones, plantillas y validaciones. Úsala cuando el usuario diga \"crea un agente/skill/comando nuevo\", \"añade una skill al plugin\", \"modifica el agente X\", \"extiende el plugin\", o cuando cualquier tarea toque agents/, skills/, commands/, agent-kits/ o hooks/ de este repo."
+    },
+    {
+      "name": "custom-agents:plugin-panel",
+      "description": "Genera un panel local HTML/JSON del catálogo, extensiones, conflictos y roadmap. Servidor y actividad son opt-in; no modifica configuración. Incluye extensiones propias de proyecto y usuario. Úsala cuando el usuario diga \"panel de capacidades\", \"control panel del plugin\", \"explora el catálogo del plugin\", \"dashboard del roadmap\", \"panel del roadmap\" o \"kanban de los planes\"."
+    },
+    {
+      "name": "custom-agents:quick-implement",
+      "description": "Implementa un cambio pequeño y definido por la vía rápida de dev-cycle, con ledger, revisión y QA. No usar con incógnitas, varias fases o petición de presupuesto. Úsala cuando el usuario pida implementar algo concreto SIN escribir el comando y diga \"implementa X rápido\", \"hazme este cambio pequeño\", \"añade X directo\", \"arréglalo sin papeleo\", \"solo impleméntalo\"."
+    },
+    {
+      "name": "custom-agents:rates-verify",
+      "description": "Verifica precios de tokens de Claude en fuentes oficiales y actualiza rates.json con fecha. Sin fuente legible conserva el aviso; nunca inventa tarifas. Úsala cuando el usuario diga \"verifica las tarifas\", \"actualiza el precio de tokens\", \"pon los precios al día\", o cuando una evaluación detecte el precio sin verificar. También se ofrece en /setup."
+    },
+    {
+      "name": "custom-agents:research-first",
+      "description": "Compara soluciones existentes antes de diseñar una integración, añadir una dependencia o crear una herramienta: repo, skills, conectores disponibles, documentación oficial y proyectos originales. Registra compatibilidad, licencia, mantenimiento y límites de acceso. Úsala cuando el usuario diga \"investiga antes de construir\", \"compara soluciones existentes\" o \"evalúa adoptar una herramienta\"."
+    },
+    {
+      "name": "custom-agents:roadmap-dashboard",
+      "description": "Escanea docs/roadmap/&lt;fecha&gt;-&lt;slug&gt;/ y calcula los datos de cartera de cada iniciativa (spec/evaluación/plan/tasks/testing) con estados, prioridad y presupuesto (coste €, esfuerzo, tokens), como dashboard.md para Confluence, informe real-vs-estimado y resumen JSON que consumen otros comandos. No genera HTML (la presentación es de plugin-panel) y no modifica los ficheros del roadmap. Úsala cuando el usuario diga \"estado del roadmap\", \"cómo van las iniciativas\", o desde los comandos /roadmap-status, /pm-backlog y /roadmap-metrics."
+    },
+    {
+      "name": "custom-agents:stack-practices",
+      "description": "Criterios de implementación, revisión y pruebas para PHP/CodeIgniter 4, Python y React, seleccionados por manifiestos y versión mínima del proyecto. Úsala cuando el usuario diga \"guías de stack\", \"patrones CodeIgniter\", \"patrones Python\", \"patrones React\" o \"revisa cancelación asyncio\"."
+    },
+    {
+      "name": "custom-agents:tdd",
+      "description": "Método RED-GREEN-REFACTOR: test rojo observado antes del código y evidencia en el ledger. Código previo al test se borra y reescribe; QA da el verde final. Úsala cuando el usuario diga \"hazlo con TDD\", \"escribe primero el test\", \"test antes del código\", \"RED-GREEN-REFACTOR\", \"quiero evidencia del rojo\", o cuando dev.json active `tdd`. También si el repo trabaja con TDD y piden saltarse el test por prisa: la prisa no desactiva el método."
+    },
+    {
+      "name": "custom-agents:to-pdf",
+      "description": "Convierte archivos a PDF con aspecto moderno. Soporta Markdown (.md/.markdown), HTML (.html/.htm) y Word (.docx). Tubería HTML/CSS renderizada con Chromium headless (puppeteer) y un tema CSS moderno. Úsala cuando el usuario diga \"convertir a PDF\", \"pasar a PDF\", \"exportar a PDF\", \"genera un PDF de\", \"markdown a pdf\", \"html a pdf\", \"word a pdf\", \"docx a pdf\"."
+    },
+    {
+      "name": "custom-agents:training-data-services",
+      "description": "Captura casos fuera de Git con esquema validado y ensambla datasets solo con Gold aprobado por humanos. Opt-in; el plugin no decide métricas, no marca Gold ni entrena. Úsala cuando el usuario diga \"guarda este intento como caso\", \"captura casos para entrenar un modelo local\", \"valida el esquema del caso\", \"prepara un dataset con los casos aprobados\", \"activa training-data-services\", o al activar la capacidad `training` desde `/setup`."
+    },
+    {
+      "name": "custom-agents:unit-tests",
+      "description": "Pirámide de pruebas y gate de cobertura oficial, global o sobre ficheros cambiados. Sin herramienta avisa, no inventa porcentajes. No sustituye a TDD ni a E2E. Úsala cuando el usuario diga \"sube la cobertura de tests\", \"qué % de cobertura tenemos\", \"pon un gate de cobertura\", \"pirámide de pruebas\", \"cuántos tests unitarios faltan\", o cuando `dev.json` traiga `tests.coberturaMinima`."
+    }
+  ],
+  "missing_skill_descriptions": [],
+  "unexpected_tool_use": false,
+  "all_skills_report_descriptions": true,
+  "limitation": "Model self-report plus native init inventory; not a direct dump of the rendered Skill tool schema. Does not reconstruct the exact 13 historical omissions or establish activation quality. Any truncated description is reported, not inferred.",
+  "comparison": [
+    {
+      "name": "adversarial-review",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "api-contract",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "backend-practices",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "capability-audit",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "changelog-sync",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "code-health",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "confluence-publish",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "confluence-pull",
+      "visible": true,
+      "exact_skill_description": false,
+      "exact_command_description": true,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "cybersecurity",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "debug-root-cause",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "delivery-practices",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "dependency-upgrade",
+      "visible": true,
+      "exact_skill_description": false,
+      "exact_command_description": false,
+      "html_entity_only_difference": true
+    },
+    {
+      "name": "frontend-quality",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "jira-sync",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "knowledge-services",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "outcome-evals",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "plugin-dev",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "plugin-panel",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "quick-implement",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "rates-verify",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "research-first",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "roadmap-dashboard",
+      "visible": true,
+      "exact_skill_description": false,
+      "exact_command_description": false,
+      "html_entity_only_difference": true
+    },
+    {
+      "name": "stack-practices",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "tdd",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "to-pdf",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "training-data-services",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    },
+    {
+      "name": "unit-tests",
+      "visible": true,
+      "exact_skill_description": true,
+      "exact_command_description": false,
+      "html_entity_only_difference": false
+    }
+  ],
+  "authentication": {
+    "loggedIn": true,
+    "authMethod": "claude.ai"
+  },
+  "description_visibility_observed": true,
+  "status": "PASS_VISIBILITY_CHECK",
+  "exact_skill_descriptions": 24,
+  "command_wrapper_descriptions": 1,
+  "unmatched_descriptions": [
+    "dependency-upgrade",
+    "roadmap-dashboard"
+  ],
+  "cli_cost_note": "Reported by Claude CLI for this one inventory probe; not an invoice or roadmap execution cost. Usage fields describe this probe only.",
+  "description_comparison_normalization": "Whitespace folding and HTML entity unescaping only; Claude renders angle brackets as &lt;/&gt;.",
+  "skill_descriptions_matching_after_render_normalization": 26,
+  "unmatched_descriptions_after_render_normalization": [],
+  "scope_limitation": "Local plugin in a fresh project-only CLI session, default model/context budget. All 27 skill capabilities have descriptions here (26 source skills, confluence-pull command wrapper). Does not reconstruct the historical session configuration, prove causality for its 13 omissions, guarantee every command description, or measure activation quality. work-resume command absent from model self-report although present in native init.",
+  "mechanical_source_comparison": {
+    "matching_skills": [
+      "adversarial-review",
+      "api-contract",
+      "backend-practices",
+      "capability-audit",
+      "changelog-sync",
+      "code-health",
+      "confluence-publish",
+      "cybersecurity",
+      "debug-root-cause",
+      "delivery-practices",
+      "dependency-upgrade",
+      "frontend-quality",
+      "jira-sync",
+      "knowledge-services",
+      "outcome-evals",
+      "plugin-dev",
+      "plugin-panel",
+      "quick-implement",
+      "rates-verify",
+      "research-first",
+      "roadmap-dashboard",
+      "stack-practices",
+      "tdd",
+      "to-pdf",
+      "training-data-services",
+      "unit-tests"
+    ],
+    "matching_command_wrapper": [
+      "confluence-pull"
+    ],
+    "all_27_covered": true,
+    "tool_invocations": 0
+  }
+}

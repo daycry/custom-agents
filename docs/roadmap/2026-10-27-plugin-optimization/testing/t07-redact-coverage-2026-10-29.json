@@ -1,0 +1,30 @@
+{
+  "tool": "coverage.py 7.16.2, official measurement",
+  "tests": {
+    "passed": 808,
+    "deselected": 1,
+    "reason": "Only fixed-wall-clock performance test excluded from instrumented coverage; all 809 ran separately uninstrumented and passed."
+  },
+  "canonical_module": {
+    "covered_lines": 259,
+    "num_statements": 261,
+    "percent_covered": 99.23371647509579,
+    "percent_covered_display": "99",
+    "missing_lines": 2,
+    "excluded_lines": 0,
+    "percent_statements_covered": 99.23371647509579,
+    "percent_statements_covered_display": "99"
+  },
+  "missing_lines": [
+    246,
+    247
+  ],
+  "changed_statement_lines": [
+    224,
+    225
+  ],
+  "changed_statements_covered": 2,
+  "source_sha256_lf": "42e2d332de62d4c451d697129c271787c12ca2390290c6746be51fed604dca63",
+  "portable_backup": "Identical declared copy in journal.py; exercised by corpus and 85 copy/index directed tests. Not a 99% journal.py module coverage claim.",
+  "phase_gate": "F1 not closed; phase-wide coverage gate not certified by this directed measurement."
+}

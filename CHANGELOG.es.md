@@ -13,6 +13,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ### Fixed
 
+- **Coste de CPU del redactor.** Evita analizar comandos en texto sin prefijos de opción, conservando la ocultación de credenciales y la copia portable del journal; mantiene el límite temporal de entradas patológicas. Reintegra la fila final del roadmap en su tabla Markdown.
+
+- **Inventarios de validación F1.** Actualiza el inventario de codificación shell tras trasladar los fragmentos de statusline y renueva la huella del launcher revisado, conservando la detección de red y los controles mutantes.
+
 - **Prefiltro de la guardia nativa.** Evita Python para identidades nativas no protegidas y mantiene la evaluación de identidades protegidas o entradas dudosas. OpenCode actualiza su selección de roles y delega mapas inválidos al diagnóstico existente.
 
 - **Arranque del helper de limpieza.** Difiere los imports de Python exclusivos de ejecución hasta la operación que los necesita, reduciendo la inicialización dentro del plazo de limpieza existente.

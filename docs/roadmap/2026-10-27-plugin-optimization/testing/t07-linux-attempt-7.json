@@ -1,0 +1,78 @@
+{
+  "status": "FAILED",
+  "full_phase_acceptance": false,
+  "stages": [
+    {
+      "stage": "lint",
+      "exit": 0,
+      "started": "2026-10-29T09:20:49Z",
+      "finished": "2026-10-29T09:20:52.927920+00:00"
+    },
+    {
+      "stage": "evals",
+      "exit": 0,
+      "started": "2026-10-29T09:20:52Z",
+      "finished": "2026-10-29T09:20:53.075298+00:00"
+    },
+    {
+      "stage": "script-suites",
+      "exit": 0,
+      "started": "2026-10-29T09:20:53Z",
+      "finished": "2026-10-29T09:22:31.339879+00:00"
+    },
+    {
+      "stage": "pytest",
+      "exit": 1,
+      "started": "2026-10-29T09:22:31Z",
+      "finished": "2026-10-29T09:39:45.262181+00:00"
+    }
+  ],
+  "environment": {
+    "python": "3.11.18 (main, Oct 28 2026, 02:05:49) [GCC 12.2.0]",
+    "node": "v22.23.3",
+    "npm": "10.9.9",
+    "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "memory_limit": "2 GiB",
+    "cpus": 2
+  },
+  "snapshot": {
+    "regular_files": 1596,
+    "bytes_and_modes_verified": true,
+    "differences": [],
+    "complete_match": true
+  },
+  "archive_sha256": "e2e7d99d65fd4b167b3563185fe2a596fa6dfd52ba9a0e60ae0f46fdf86a79b5",
+  "pytest": {
+    "passed": 9631,
+    "failed": 3,
+    "skipped": 55,
+    "subtests_passed": 82,
+    "warnings": 1,
+    "failfast": false,
+    "duration_seconds": 1032.2,
+    "failures": [
+      {
+        "test": "tests/test_redact_fix3.py::test_linear_cost_on_pathological_inputs",
+        "observed_seconds": 1.742439619,
+        "limit_seconds": 1.5,
+        "input_chars": 500009,
+        "input_kind": "repeated prose apostrophes followed by mysql credential"
+      },
+      {
+        "test": "tests/test_roadmap_index.py::test_ninguna_fila_se_queda_fuera_de_la_tabla",
+        "cause": "Blank line before final opencode-reader-fixes row closes Markdown table"
+      },
+      {
+        "test": "tests/test_roadmap_index.py::test_cada_iniciativa_con_ledger_tiene_su_fila_dentro_de_la_tabla[2026-10-27-opencode-reader-fixes]",
+        "cause": "Same misplaced final row"
+      }
+    ]
+  },
+  "not_run": [
+    "capture-benchmark",
+    "interop",
+    "node",
+    "syntax-json",
+    "release-check"
+  ]
+}
