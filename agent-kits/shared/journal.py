@@ -452,6 +452,9 @@ def _redactar_comando(texto, palabras, base, cambios, heredado):
 def _trocear(texto, base, profundidad, cambios, heredado=(frozenset(), frozenset()), trozo=_TROZO_RE):
     """Trocea `texto` en comandos y redacta cada uno; el contenido de cada comilla cerrada, tambien, como
     comando anidado que hereda los programas que su comando tenia antes de esa palabra."""
+    # Credential arguments always start with '-'; option-free quoted prose needs no scan.
+    if "-" not in texto:
+        return
     palabras, pendientes, anidados, inicio, i, n = [], [], [], None, 0, len(texto)
     fin_linea, sin_cierre = -1, {"'": -1, '"': -1}
 
