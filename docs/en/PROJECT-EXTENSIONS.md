@@ -14,16 +14,34 @@ plugin cache, which updates replace.
 
 | Component | Claude Code | Codex | OpenCode |
 |---|---|---|---|
-| Project agents | `.claude/agents/<name>.md` | `.codex/agents/<name>.toml`; also roles in `.codex/config.toml` | `.opencode/agents/<name>.md`; also `agent` in `opencode.json`/`.jsonc` |
+| Project agents | `.claude/agents/<name>.md` | `.codex/agents/<name>.toml`; also roles in `.codex/config.toml` | `.opencode/agents/<name>.md`; also `agents` (V2) or `agent` (V1) in `opencode.json`/`.jsonc` |
 | Project skills | `.claude/skills/<name>/SKILL.md` | `.agents/skills/<name>/SKILL.md` | `.opencode/skills`, `.claude/skills` or `.agents/skills`, containing `<name>/SKILL.md` |
-| User commands | `.claude/commands/<name>.md` | The reader does not infer Codex commands from a project directory | `.opencode/commands/<name>.md`; also configured `command` entries |
+| User commands | `.claude/commands/<name>.md` | The reader does not infer Codex commands from a project directory | `.opencode/commands/<name>.md`; also configured `commands` (V2) or `command` (V1) entries |
 | Tool sources | Agent-declared names; no generic plugin executor | Session-declared names; no inference of script exports | `.opencode/tools/*.{js,ts}`; sources are listed without running exports |
-| Project MCP | `.mcp.json`, `mcpServers`; also agent-scoped declarations | `.codex/config.toml` and agent TOML, `mcp_servers` | `opencode.json`/`.jsonc`, `mcp` |
+| Project MCP | `.mcp.json`, `mcpServers`; also agent-scoped declarations | `.codex/config.toml` and agent TOML, `mcp_servers` | `opencode.json`/`.jsonc`, `mcp.servers` (V2) or `mcp` (V1) |
+
+
+OpenCode MCP declarations support V1 `mcp.<name>` and V2 `mcp.servers.<name>`.
+Global `mcp.timeout` options are excluded even without a `servers` block. A V1
+server named `servers` or `timeout` remains a declaration when it supplies a
+transport/endpoint or an `enabled` boolean override. An explicit `disabled`
+boolean maps to its inverse `enabled` state; invalid flags or contradictory
+`enabled`/`disabled` values produce a partial inventory.
+
+V1 and V2 declarations can coexist. Both source locators are retained and
+same-name conflicts stay visible, without claiming native precedence. This also
+applies to `agent`/`agents` and `command`/`commands` entries. No server command,
+URL, environment, agent system prompt or command template is exported or run.
+
+Supporting directories without `SKILL.md` and non-skill files are ignored in
+skill roots. A real skill named `references` is still discovered. Present but
+invalid skill declarations and unsafe links continue to produce warnings.
 
 Markdown agents use native frontmatter. Standalone Codex agents declare `name`,
-`description` and `developer_instructions`. Skills use `name`/`description`
-frontmatter and an on-demand body. Extracting public metadata does not replace
-native loader validation.
+`description` and `developer_instructions`. Codex skills use `name`/`description`
+frontmatter. OpenCode also accepts flat `<name>.md` skill files; when no name is
+declared, the reader uses the directory or file name. Bodies remain on demand;
+public metadata does not replace native loader validation.
 
 Normal user roots are `~/.claude`, `~/.codex`, `~/.agents/skills` and
 `~/.config/opencode`. Claude stores personal and project-local MCP in
@@ -97,7 +115,8 @@ characters and share the brief's auxiliary budget.
 
 Claude MCP definitions with invalid transport or missing endpoint are flagged.
 Disabling is read from the selected project's preferences in `~/.claude.json`;
-other runtimes retain their declared enabled field. Neither proves connection.
+Codex retains its declared enabled field; OpenCode also maps an explicit disabled
+flag to enabled. None of these states proves connection.
 
 ## Ownership and limits
 

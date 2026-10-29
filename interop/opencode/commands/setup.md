@@ -1,5 +1,5 @@
 ---
-description: "Onboarding del plugin en un proyecto — en UNA pasada guiada crea la config compartida de presupuesto (.claude/rates.json), decide los opt-ins de Confluence y Jira, ofrece la constitución del proyecto (docs/CONSTITUTION.md), las opciones de disciplina de desarrollo (.claude/dev.json: TDD, worktrees, subagentes), la statusline opt-in (progreso del roadmap + coste de sesión), las lentes condicionales de la revisión adversarial (dev.json revision.lenteSeguridad/lenteRendimiento: auto/siempre/nunca cada una), la cobertura mínima de tests opt-in (dev.json tests.coberturaMinima, skill unit-tests) y el modelo por agente (dev.json modelos, tabla efectiva con model-tier.py), en vez de que cada skill pregunte por su cuenta la primera vez. Idempotente; se puede relanzar para cambiar decisiones."
+description: "Onboarding del plugin en un proyecto: presupuesto, desarrollo, hooks, statusline, memoria y capacidades opcionales en una pasada guiada. Conserva preferencias existentes. Úsalo con /setup o cuando el usuario pida configurar el plugin o preparar un proyecto nuevo."
 ---
 <!-- GENERADO por scripts/export-interop.py desde commands/setup.md — no lo edites a mano.
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
@@ -10,6 +10,11 @@ description: "Onboarding del plugin en un proyecto — en UNA pasada guiada crea
 > Las skills se invocan con la herramienta `skill` (`skill({ id: "nombre" })`). Todo lo demás (puertas, artefactos, ledger) no cambia.
 
 # /setup — dejar el proyecto listo en una pasada
+
+## Alcance y activación
+
+Onboarding del plugin en un proyecto — en UNA pasada guiada crea la config compartida de presupuesto (.claude/rates.json), decide los opt-ins de Confluence y Jira, ofrece la constitución del proyecto (docs/CONSTITUTION.md), las opciones de disciplina de desarrollo (.claude/dev.json: TDD, worktrees, subagentes), la statusline opt-in (progreso del roadmap + coste de sesión), las lentes condicionales de la revisión adversarial (dev.json revision.lenteSeguridad/lenteRendimiento: auto/siempre/nunca cada una), la cobertura mínima de tests opt-in (dev.json tests.coberturaMinima, skill unit-tests) y el modelo por agente (dev.json modelos, tabla efectiva con model-tier.py), en vez de que cada skill pregunte por su cuenta la primera vez. Idempotente; se puede relanzar para cambiar decisiones.
+
 
 Evita el onboarding disperso (cada skill preguntando su opt-in la primera vez que se activa).
 Una conversación corta y el proyecto queda configurado. **Idempotente**: si ya hay config, muestra

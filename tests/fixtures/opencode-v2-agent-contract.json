@@ -18,7 +18,7 @@
   "owned_semantics": {
     "custom-agents-analyst": {
       "mode": "subagent",
-      "description": "Experto en TOMA DE REQUERIMIENTOS y DESCUBRIMIENTO. Conversa con el humano para convertir una idea o petición vaga en una especificación sólida, eligiendo la técnica adecuada según el caso (entrevista dirigida, ejemplos concretos, user stories, escenarios, contraejemplos \"¿y si…?\"). Puerta de entrada ÚNICA a spec.md — absorbe el paso de descubrimiento previo a evaluar (ADR-011: retira la skill discovery, redundante). El formato de salida es SIEMPRE el mismo: la plantilla spec.md de la cadena (docs/roadmap/<fecha>-<slug>/spec.md), con alcance in/out, criterios de aceptación, restricciones, datos y supuestos/incógnitas. Itera hasta que el usuario APRUEBA los requerimientos (spec → aprobada) y hace handoff a evaluator. No estima, no planifica, no implementa. Úsalo cuando el usuario diga \"toma de requisitos\", \"ayúdame a definir esto\", \"no sé bien lo que necesito\", \"prepara los requerimientos\", \"afinar la idea\", \"discovery\", \"prepara la spec\", \"define bien esto antes de presupuestar\", o cuando /pm-cycle reciba un objetivo poco definido.",
+      "description": "Aclara objetivos y requisitos mediante discovery; produce una spec verificable antes de evaluar o presupuestar. Úsalo cuando el usuario diga \"toma de requisitos\", \"ayúdame a definir esto\", \"no sé bien lo que necesito\", \"prepara los requerimientos\", \"afinar la idea\", \"discovery\", \"prepara la spec\", \"define bien esto antes de presupuestar\", o cuando /pm-cycle reciba un objetivo poco definido.",
       "request": {
         "settings": {},
         "headers": {},
@@ -77,11 +77,12 @@
           "resource": "*",
           "effect": "allow"
         }
-      ]
+      ],
+      "description_body": "Experto en TOMA DE REQUERIMIENTOS y DESCUBRIMIENTO. Conversa con el humano para convertir una idea o petición vaga en una especificación sólida, eligiendo la técnica adecuada según el caso (entrevista dirigida, ejemplos concretos, user stories, escenarios, contraejemplos \"¿y si…?\"). Puerta de entrada ÚNICA a spec.md — absorbe el paso de descubrimiento previo a evaluar (ADR-011: retira la skill discovery, redundante). El formato de salida es SIEMPRE el mismo: la plantilla spec.md de la cadena (docs/roadmap/<fecha>-<slug>/spec.md), con alcance in/out, criterios de aceptación, restricciones, datos y supuestos/incógnitas. Itera hasta que el usuario APRUEBA los requerimientos (spec → aprobada) y hace handoff a evaluator. No estima, no planifica, no implementa. Úsalo cuando el usuario diga \"toma de requisitos\", \"ayúdame a definir esto\", \"no sé bien lo que necesito\", \"prepara los requerimientos\", \"afinar la idea\", \"discovery\", \"prepara la spec\", \"define bien esto antes de presupuestar\", o cuando /pm-cycle reciba un objetivo poco definido."
     },
     "custom-agents-architect": {
       "mode": "subagent",
-      "description": "Diseña la ARQUITECTURA de una iniciativa antes de planificarla — a partir de una spec aprobada (y su evaluación si existe) explora el repo y produce docs/roadmap/<fecha>-<slug>/design.md con 2-3 OPCIONES de diseño comparadas con trade-offs (complejidad, riesgo, coste relativo, reversibilidad), criterios de decisión, recomendación, impacto en módulos/ficheros, riesgos y preguntas abiertas. La opción elegida la fija SOLO con la validación del usuario: orquestado (/pm-cycle, /dev-cycle) devuelve un resumen estructurado de opciones + recomendación y el orquestador presenta, recoge la elección y lo re-invoca con «elegida: O<n>»; manual (@architect) dialoga por trozos. Entonces propone la decisión al servicio de curación compartido y enlaza spec ↔ design ↔ plan. No estima (evaluator), no planifica (planner), no implementa (implementer). Úsalo cuando el usuario diga \"diseña la arquitectura\", \"explora las opciones de diseño\", \"qué alternativas técnicas hay\", \"compara enfoques antes de planificar\", o cuando /pm-cycle o /dev-cycle ofrezcan el paso de diseño tras el go.",
+      "description": "Explora alternativas técnicas y diseña la arquitectura de una spec aprobada en design.md, antes de planificar. No implementa ni sustituye a planner. Úsalo cuando el usuario diga \"diseña la arquitectura\", \"explora las opciones de diseño\", \"qué alternativas técnicas hay\", \"compara enfoques antes de planificar\", o cuando /pm-cycle o /dev-cycle ofrezcan el paso de diseño tras el go.",
       "request": {
         "settings": {},
         "headers": {},
@@ -140,11 +141,12 @@
           "resource": "*",
           "effect": "allow"
         }
-      ]
+      ],
+      "description_body": "Diseña la ARQUITECTURA de una iniciativa antes de planificarla — a partir de una spec aprobada (y su evaluación si existe) explora el repo y produce docs/roadmap/<fecha>-<slug>/design.md con 2-3 OPCIONES de diseño comparadas con trade-offs (complejidad, riesgo, coste relativo, reversibilidad), criterios de decisión, recomendación, impacto en módulos/ficheros, riesgos y preguntas abiertas. La opción elegida la fija SOLO con la validación del usuario: orquestado (/pm-cycle, /dev-cycle) devuelve un resumen estructurado de opciones + recomendación y el orquestador presenta, recoge la elección y lo re-invoca con «elegida: O<n>»; manual (@architect) dialoga por trozos. Entonces propone la decisión al servicio de curación compartido y enlaza spec ↔ design ↔ plan. No estima (evaluator), no planifica (planner), no implementa (implementer). Úsalo cuando el usuario diga \"diseña la arquitectura\", \"explora las opciones de diseño\", \"qué alternativas técnicas hay\", \"compara enfoques antes de planificar\", o cuando /pm-cycle o /dev-cycle ofrezcan el paso de diseño tras el go."
     },
     "custom-agents-documenter": {
       "mode": "subagent",
-      "description": "Genera y mantiene la documentación técnica y de producto de un proyecto, de forma estructurada y detallada, dentro de `docs/`. Explora el repositorio (código, config, dependencias) y produce una taxonomía completa — índice, RAG-INDEX, arquitectura, stack técnico, módulos/componentes, guías de desarrollo y documentación de producto/usuario — con Markdown correcto, tablas y ejemplos reales del código. Idempotente: crea lo que falta, actualiza lo existente y mantiene el índice y la fecha. Al cerrar, si detecta una decisión/patrón/gotcha/lección con evidencia real, propone (nunca aprueba) un candidato mediante `knowledge-curation.py` en `docs/knowledge/candidates/pending/` — el juez es `knowledge-curator`. Al escribir en `docs/` sincroniza con Confluence (opt-in) vía la skill `confluence-publish`. Úsalo cuando el usuario diga \"documenta el proyecto\", \"genera la documentación\", \"crea los docs\", \"documenta la arquitectura/módulos\", \"actualiza la documentación\".",
+      "description": "Genera y mantiene documentación técnica y de producto en docs/, a partir del código real y con estructura navegable. Úsalo cuando el usuario diga \"documenta el proyecto\", \"genera la documentación\", \"crea los docs\", \"documenta la arquitectura/módulos\", \"actualiza la documentación\".",
       "request": {
         "settings": {},
         "headers": {},
@@ -203,11 +205,12 @@
           "resource": "*",
           "effect": "allow"
         }
-      ]
+      ],
+      "description_body": "Genera y mantiene la documentación técnica y de producto de un proyecto, de forma estructurada y detallada, dentro de `docs/`. Explora el repositorio (código, config, dependencias) y produce una taxonomía completa — índice, RAG-INDEX, arquitectura, stack técnico, módulos/componentes, guías de desarrollo y documentación de producto/usuario — con Markdown correcto, tablas y ejemplos reales del código. Idempotente: crea lo que falta, actualiza lo existente y mantiene el índice y la fecha. Al cerrar, si detecta una decisión/patrón/gotcha/lección con evidencia real, propone (nunca aprueba) un candidato mediante `knowledge-curation.py` en `docs/knowledge/candidates/pending/` — el juez es `knowledge-curator`. Al escribir en `docs/` sincroniza con Confluence (opt-in) vía la skill `confluence-publish`. Úsalo cuando el usuario diga \"documenta el proyecto\", \"genera la documentación\", \"crea los docs\", \"documenta la arquitectura/módulos\", \"actualiza la documentación\"."
     },
     "custom-agents-evaluator": {
       "mode": "subagent",
-      "description": "Evalúa y presupuesta una especificación antes de construirla: esfuerzo (horas), coste económico (horas×tarifa + tokens de IA, en EUR) y consumo de tokens por característica, con complejidad, riesgos e incógnitas; si hay varias características, tabla comparativa y orden recomendado (quick wins vs. costosas). Si la especificación llega por el prompt, crea primero la spec y luego la evalúa. Hace handoff a planner para ejecutar lo aprobado. Úsalo cuando el usuario diga \"presupuesta esto\", \"cuánto costaría\", \"evalúa esta spec\", \"estima el esfuerzo/coste\", \"¿merece la pena?\", o cuando /pm-cycle o /dev-cycle necesiten presupuestar una iniciativa.",
+      "description": "Evalúa una spec: esfuerzo, coste en EUR, tokens, complejidad, riesgos y orden recomendado. Presupuesta antes de construir. Úsalo cuando el usuario diga \"presupuesta esto\", \"cuánto costaría\", \"evalúa esta spec\", \"estima el esfuerzo/coste\", \"¿merece la pena?\", o cuando /pm-cycle o /dev-cycle necesiten presupuestar una iniciativa.",
       "request": {
         "settings": {},
         "headers": {},
@@ -266,7 +269,9 @@
           "resource": "*",
           "effect": "allow"
         }
-      ]
+      ],
+      "description_body": "Evalúa y presupuesta una especificación antes de construirla: esfuerzo (horas), coste económico (horas×tarifa + tokens de IA, en EUR) y consumo de tokens por característica, con complejidad, riesgos e incógnitas; si hay varias características, tabla comparativa y orden recomendado (quick wins vs. costosas). Si la especificación llega por el prompt, crea primero la spec y luego la evalúa. Hace handoff a planner para ejecutar lo aprobado. Úsalo cuando el usuario diga \"presupuesta esto\", \"cuánto costaría\", \"evalúa esta spec\", \"estima el esfuerzo/coste\", \"¿merece la pena?\", o cuando /pm-cycle o /dev-cycle necesiten presupuestar una iniciativa.",
+      "description_reference": "agent-kits/evaluator/references/scope.md"
     },
     "custom-agents-implementer": {
       "mode": "subagent",
@@ -333,7 +338,7 @@
     },
     "custom-agents-knowledge-curator": {
       "mode": "subagent",
-      "description": "Único agente que aprueba, rechaza o pide cambios sobre conocimiento propuesto bajo `docs/knowledge/candidates/`; persiste sus decisiones exclusivamente mediante el servicio compartido `knowledge-curation.py` (ADR-018, `knowledge-services`). Valida cada candidato contra la taxonomía del proyecto (`.claude/knowledge-services/taxonomy.json`, o el default del plugin): categoría declarada, evidencia mínima exigida por esa categoría exacta, fuentes, tags `clave:valor` y lista negra (`curator-gate.py`, determinista). Pide confirmación al usuario ante contradicciones con conocimiento existente o candidatos de alto impacto. No exporta a ningún backend (Kwipu, Graphiti) ni toca `docs/roadmap/`. Úsalo cuando el usuario diga \"cura este conocimiento\", \"revisa los candidatos de docs/knowledge\", \"aprueba/rechaza esta propuesta de memoria\", \"promociona esta lección/patrón a conocimiento aprobado\".",
+      "description": "Único agente que decide sobre candidatos de conocimiento; persiste mediante knowledge-curation.py, exige evidencia y evita promover secretos o instrucciones. Úsalo cuando el usuario diga \"cura este conocimiento\", \"revisa los candidatos de docs/knowledge\", \"aprueba/rechaza esta propuesta de memoria\", \"promociona esta lección/patrón a conocimiento aprobado\".",
       "request": {
         "settings": {},
         "headers": {},
@@ -392,7 +397,8 @@
           "resource": "*",
           "effect": "allow"
         }
-      ]
+      ],
+      "description_body": "Único agente que aprueba, rechaza o pide cambios sobre conocimiento propuesto bajo `docs/knowledge/candidates/`; persiste sus decisiones exclusivamente mediante el servicio compartido `knowledge-curation.py` (ADR-018, `knowledge-services`). Valida cada candidato contra la taxonomía del proyecto (`.claude/knowledge-services/taxonomy.json`, o el default del plugin): categoría declarada, evidencia mínima exigida por esa categoría exacta, fuentes, tags `clave:valor` y lista negra (`curator-gate.py`, determinista). Pide confirmación al usuario ante contradicciones con conocimiento existente o candidatos de alto impacto. No exporta a ningún backend (Kwipu, Graphiti) ni toca `docs/roadmap/`. Úsalo cuando el usuario diga \"cura este conocimiento\", \"revisa los candidatos de docs/knowledge\", \"aprueba/rechaza esta propuesta de memoria\", \"promociona esta lección/patrón a conocimiento aprobado\"."
     },
     "custom-agents-nemesis": {
       "mode": "subagent",
@@ -585,7 +591,7 @@
     },
     "custom-agents-reviewer": {
       "mode": "subagent",
-      "description": "Revisor ADVERSARIAL de solo lectura y contexto fresco para las lentes de la skill adversarial-review — recibe UNA lente (A conformidad con spec/plan/constitución · B robustez/corrección · C seguridad del diff · D rendimiento del diff), el diff o rango y los artefactos contra los que revisar, y devuelve la salida ESTRUCTURADA que la skill fusiona (tabla por criterio ✓/✗ con fichero:línea, gaps graduados Critical/Important/Minor con escenario concreto, evidencia ejecutada; «sin defectos» es una salida válida). No escribe ni corrige nada (Write/Edit no están en sus tools; Bash solo para ejecutar tests/scripts como evidencia). Lo invoca la skill adversarial-review por nombre (/dev-cycle Fase 3, quick-implement); una petición directa del usuario de revisar el diff entero con las dos lentes fusionadas va a la skill (fuente única del método), no a este agente. Úsalo cuando la skill adversarial-review despache una lente, o cuando el usuario diga \"actúa como revisor de la lente A/B/C/D\", \"revisor de contexto fresco sobre este diff\", \"hazme solo la lente de seguridad del diff\".",
+      "description": "Revisor adversarial de solo lectura y contexto fresco para una lente A/B/C/D. Devuelve criterios, defectos graduados y evidencia. No sustituye a qa ni a nemesis. Úsalo cuando la skill adversarial-review despache una lente, o cuando el usuario diga \"actúa como revisor de la lente A/B/C/D\", \"revisor de contexto fresco sobre este diff\", \"hazme solo la lente de seguridad del diff\".",
       "request": {
         "settings": {},
         "headers": {},
@@ -644,7 +650,8 @@
           "resource": "*",
           "effect": "allow"
         }
-      ]
+      ],
+      "description_body": "Revisor ADVERSARIAL de solo lectura y contexto fresco para las lentes de la skill adversarial-review — recibe UNA lente (A conformidad con spec/plan/constitución · B robustez/corrección · C seguridad del diff · D rendimiento del diff), el diff o rango y los artefactos contra los que revisar, y devuelve la salida ESTRUCTURADA que la skill fusiona (tabla por criterio ✓/✗ con fichero:línea, gaps graduados Critical/Important/Minor con escenario concreto, evidencia ejecutada; «sin defectos» es una salida válida). No escribe ni corrige nada (Write/Edit no están en sus tools; Bash solo para ejecutar tests/scripts como evidencia). Lo invoca la skill adversarial-review por nombre (/dev-cycle Fase 3, quick-implement); una petición directa del usuario de revisar el diff entero con las dos lentes fusionadas va a la skill (fuente única del método), no a este agente. Úsalo cuando la skill adversarial-review despache una lente, o cuando el usuario diga \"actúa como revisor de la lente A/B/C/D\", \"revisor de contexto fresco sobre este diff\", \"hazme solo la lente de seguridad del diff\"."
     }
   }
 }

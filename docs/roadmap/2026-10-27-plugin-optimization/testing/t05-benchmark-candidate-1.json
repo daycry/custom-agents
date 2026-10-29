@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "runs": 10,
+  "discarded_warmup_per_variant": 1,
+  "before_commit": "bae4e46",
+  "source_sha256": {
+    "before": "23eab6d178374c3790f9cdd5bfceb9b2102127d1de4d1f9cf7dcf9a333d3cc86",
+    "after": "035c2bf3a722160b4ddeec0baa1055e093aee06cf56cbe2cd1f8117bd9cb8ef8",
+    "renderer": "9002f69b103bec5b74a9dc300ad513cbf56984c96a388cad6c39664d770ed056"
+  },
+  "scope": "Windows Git Bash with the same valid native Python; opt-in statusline only",
+  "samples_ms": {
+    "before": [
+      1982.775,
+      1780.81,
+      1811.151,
+      1783.202,
+      1608.505,
+      1746.845,
+      2628.066,
+      2237.311,
+      1935.646,
+      1882.814
+    ],
+    "after_cold": [
+      2544.319,
+      1735.475,
+      2167.873,
+      1984.764,
+      1675.361,
+      1865.665,
+      2949.183,
+      2091.285,
+      2495.687,
+      2165.111
+    ],
+    "after_cached": [
+      2203.57,
+      1678.71,
+      2368.811,
+      1903.692,
+      1669.41,
+      2070.099,
+      3323.824,
+      1684.431,
+      2190.445,
+      2325.678
+    ]
+  },
+  "status": "OK",
+  "outputs_equal": true,
+  "median_ms": {
+    "before": 1846.9825,
+    "after_cold": 2128.198,
+    "after_cached": 2130.272
+  }
+}

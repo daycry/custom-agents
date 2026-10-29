@@ -1,0 +1,29 @@
+{
+  "stages": [
+    {
+      "stage": "lint",
+      "exit": 0,
+      "started": "2026-10-28T16:54:51Z",
+      "finished": "2026-10-28T16:54:55.805927+00:00"
+    },
+    {
+      "stage": "evals",
+      "exit": 0,
+      "started": "2026-10-28T16:54:56Z",
+      "finished": "2026-10-28T16:54:56.793048+00:00"
+    },
+    {
+      "stage": "script-suites",
+      "exit": 1,
+      "started": "2026-10-28T16:54:56Z",
+      "finished": "2026-10-28T16:55:43.316836+00:00"
+    }
+  ],
+  "failure": {
+    "test": "test_ca22_el_prompt_del_evaluator_no_engorda_y_cita_la_doctrina_en_vez_de_los_ficheros",
+    "observed_bytes": 15856,
+    "unchanged_limit_bytes": 15513,
+    "reason": "moving the full prior description into the evaluator prompt added its new concise description on top"
+  },
+  "full_ci_passed": false
+}

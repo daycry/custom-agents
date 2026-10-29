@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-28",
+  "method": "Sequential self-review; subagentes false; not independent review",
+  "security_lens": "forced by T-02 even though the automatic filename heuristic returned false",
+  "attempts": [
+    {
+      "attempt": 1,
+      "A": "Exact runtime identity and Python policy authority retained; latency criterion pending",
+      "B": "Bounded UTF-8 input and conservative fallback reviewed",
+      "C": "Found non-monotonic input deadline; regression failed before fix",
+      "D": "Bounded map read loop; Node startup must remain part of measured latency"
+    },
+    {
+      "attempt": 2,
+      "A": "Functional criteria verified; 80 percent latency target not met",
+      "B": "Map generation refreshed per OpenCode invocation; declared copies and Python parity checked",
+      "C": "Monotonic deadline regression passes; no JavaScript denials or payload logging",
+      "D": "Unpaired comparisons and interleaved control retained, including failed prior-control sample"
+    }
+  ],
+  "tests": {
+    "python_directed_passed": 153,
+    "node_directed_initial_passed": 110,
+    "node_map_and_budget_after_shared_refactor_passed": 36,
+    "python_parity_and_copies_passed": 46,
+    "monotonic_input_deadline_passed": 2,
+    "node_last_complete": {
+      "passed": 97,
+      "failed": 1,
+      "failure": "opencode: spawn failure process wait timeout"
+    },
+    "isolated_failed_case_repeat": "1/1 passed"
+  },
+  "latency_target_met": false,
+  "source_sha256": {
+    "hooks/run-hook.mjs": "e23e35d2a20a47048dff130cd77143407793d2ed19fc57b5562d567da5c48ad2",
+    "hooks/opencode-plugin.js": "3d9fa6d9848b36948118dcd25cc47b11e26ff1b3abbd0030792153193b8c7b7a",
+    "agent-kits/shared/native-roles.json": "96d4db96b92b12b264201820969d0938cfdd83381210effb1b833a5f62be672a",
+    "agent-kits/shared/copias.json": "a90937ecd33ded2c5eea4daa0814e45c7496b901634ba01125e0d1b3fdc6f121"
+  }
+}

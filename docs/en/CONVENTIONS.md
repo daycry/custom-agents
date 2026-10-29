@@ -4,6 +4,10 @@
 
 Rules for adding agents without them stepping on each other, while allowing some to depend on others or on shared resources. **Read this before creating or moving anything.**
 
+
+Agent, skill and command descriptions have a recommended maximum of **600 characters** (`DESC_WARN_CHARS = 600`). Keep their purpose and literal triggers; preserve scope, method and exclusions in the body or references. `evals/check.py` checks that literal activation cases still match.
+
+
 ## 1. Principle
 
 Three artifact types, three fixed locations. Anything **shared** lives in common folders keyed by unique name; anything **private** to an agent lives in its own namespace. Documentation goes **always** in `docs/`, never next to the code.

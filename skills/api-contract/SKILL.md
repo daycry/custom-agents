@@ -1,19 +1,19 @@
 ---
 name: api-contract
 description: >
-  Flujo CONTRACT-FIRST para APIs con `scripts/openapi-lint.py` (SIN dependencias externas): valida
-  la estructura MÍNIMA de una spec OpenAPI 3.x (`operationId` único, `responses` con 2xx y 4xx/5xx, `$ref` internos resueltos, parámetros con schema/content) y,
-  con `--diff <old> <new>`, detecta cambios ROMPEDORES — path u operación eliminada, parámetro
-  obligatorio nuevo, campo de respuesta eliminado, tipo cambiado, enum que pierde valores — frente a
-  cambios compatibles informativos (path o campo opcional nuevo). Regla: el CONTRATO manda, el
-  código se adapta. `planner` abre tareas de contrato cuando la spec toca una API; la Lente A de
-  `adversarial-review` ejecuta `--diff` si el diff toca la spec. NO documenta la API para humanos
-  (`documenter`) ni audita su seguridad (`nemesis`). Úsala cuando el usuario diga "valida este
-  OpenAPI", "¿esta spec es válida?", "¿qué cambios rompen el contrato de la API?", "compara estas
-  dos versiones del OpenAPI", o antes de implementar un endpoint con spec.
+  Valida OpenAPI 3.x y compara versiones para detectar cambios incompatibles antes de implementar;
+  el contrato manda. No documenta ni audita seguridad. Detecta, por ejemplo, un campo de respuesta
+  eliminado. Úsala cuando el usuario diga "valida este OpenAPI", "¿esta spec es válida?", "¿qué
+  cambios rompen el contrato de la API?", "compara estas dos versiones del OpenAPI", o antes de
+  implementar un endpoint con spec.
 ---
 
 # api-contract — el contrato manda; el código se adapta
+
+## Alcance y activación
+
+Flujo CONTRACT-FIRST para APIs con `scripts/openapi-lint.py` (SIN dependencias externas): valida la estructura MÍNIMA de una spec OpenAPI 3.x (`operationId` único, `responses` con 2xx y 4xx/5xx, `$ref` internos resueltos, parámetros con schema/content) y, con `--diff <old> <new>`, detecta cambios ROMPEDORES — path u operación eliminada, parámetro obligatorio nuevo, campo de respuesta eliminado, tipo cambiado, enum que pierde valores — frente a cambios compatibles informativos (path o campo opcional nuevo). Regla: el CONTRATO manda, el código se adapta. `planner` abre tareas de contrato cuando la spec toca una API; la Lente A de `adversarial-review` ejecuta `--diff` si el diff toca la spec. NO documenta la API para humanos (`documenter`) ni audita su seguridad (`nemesis`). Úsala cuando el usuario diga "valida este OpenAPI", "¿esta spec es válida?", "¿qué cambios rompen el contrato de la API?", "compara estas dos versiones del OpenAPI", o antes de implementar un endpoint con spec.
+
 
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 ```bash

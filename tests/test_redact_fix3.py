@@ -250,6 +250,28 @@ def test_linear_cost_on_pathological_inputs():
         assert redact.redactar(salida) == salida, texto[:40]
 
 
+def test_quoted_prose_without_options_avoids_nested_command_scans(monkeypatch):
+    """Apostrophes must not trigger command analysis for option-free quoted prose.
+
+    Keep the trailing credential oracle: skipping the prose must still redact the real
+    command, including the quote-blind pass that handles unmatched prose apostrophes.
+    """
+    original = redact._redactar_comando
+    redundant = []
+
+    def observe(texto, *args, **kwargs):
+        if "-" not in texto:
+            redundant.append(len(texto))
+        return original(texto, *args, **kwargs)
+
+    monkeypatch.setattr(redact, "_redactar_comando", observe)
+    prose = "it's " * 200
+    output = redact.redactar(prose + "mysql -pRegressionPw1")
+    assert output == prose + "mysql -p" + redact.REDACTADO
+    assert redact.redactar(output) == output
+    assert not redundant, f"unnecessary command scans over option-free prose: {len(redundant)}"
+
+
 def test_idempotent_on_the_whole_corpus():
     for texto in [c.values[0] for c in CASOS] + [t for t, _ in SONDA]:
         una = redact.redactar(texto)

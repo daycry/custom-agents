@@ -1,0 +1,5861 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-28",
+  "method": "Temporary instrumentation of cleanup spawn, Python entry, validation, termination and confirmation. All timers unchanged.",
+  "limitations": [
+    "Not a native runtime acceptance test.",
+    "One timeout captured with disk-writing instrumentation before close_job; possible observer effect. Pipe-instrumented pass had 264 successful closures. These data do not prove a sole cause for the uninstrumented failures.",
+    "Some copied-source attempts overlapped an already failed full diagnostic pass; these timings are not an accepted baseline.",
+    "The initial 265 probes used the repository working directory; later probes reproduce benchmark cwd and fixtures."
+  ],
+  "groups": [
+    {
+      "trace": "trace.txt",
+      "attempts": 40,
+      "timeouts": 0,
+      "max_python_entry_ms": 267.01,
+      "median_helper_close_ms": 196.5,
+      "measurements": [
+        {
+          "epoch_ms": 1793182665477.0,
+          "python-entry": 241.165,
+          "close-entry": 305.744,
+          "owner-validated": 323.518,
+          "terminated": 324.365,
+          "confirmed": 325.131,
+          "node-close:0": 355.0
+        },
+        {
+          "epoch_ms": 1793182666641.0,
+          "python-entry": 117.051,
+          "close-entry": 150.014,
+          "owner-validated": 166.927,
+          "terminated": 167.701,
+          "confirmed": 168.219,
+          "node-close:0": 177.0
+        },
+        {
+          "epoch_ms": 1793182667862.0,
+          "python-entry": 229.535,
+          "close-entry": 264.195,
+          "owner-validated": 278.785,
+          "terminated": 279.438,
+          "confirmed": 279.887,
+          "node-close:0": 290.0
+        },
+        {
+          "epoch_ms": 1793182669008.0,
+          "python-entry": 146.103,
+          "close-entry": 259.638,
+          "owner-validated": 312.898,
+          "terminated": 314.762,
+          "confirmed": 315.626,
+          "node-close:0": 327.0
+        },
+        {
+          "epoch_ms": 1793182670126.0,
+          "python-entry": 108.716,
+          "close-entry": 139.705,
+          "owner-validated": 154.771,
+          "terminated": 155.545,
+          "confirmed": 156.235,
+          "node-close:0": 166.0
+        },
+        {
+          "epoch_ms": 1793182671008.0,
+          "python-entry": 89.736,
+          "close-entry": 124.798,
+          "owner-validated": 141.897,
+          "terminated": 142.74,
+          "confirmed": 143.51,
+          "node-close:0": 152.0
+        },
+        {
+          "epoch_ms": 1793182671951.0,
+          "python-entry": 117.064,
+          "close-entry": 147.923,
+          "owner-validated": 160.644,
+          "terminated": 161.38,
+          "confirmed": 162.054,
+          "node-close:0": 170.0
+        },
+        {
+          "epoch_ms": 1793182672845.0,
+          "python-entry": 132.249,
+          "close-entry": 163.794,
+          "owner-validated": 179.442,
+          "terminated": 180.278,
+          "confirmed": 180.936,
+          "node-close:0": 191.0
+        },
+        {
+          "epoch_ms": 1793182673700.0,
+          "python-entry": 100.539,
+          "close-entry": 130.473,
+          "owner-validated": 146.376,
+          "terminated": 147.185,
+          "confirmed": 147.856,
+          "node-close:0": 158.0
+        },
+        {
+          "epoch_ms": 1793182674587.0,
+          "python-entry": 105.991,
+          "close-entry": 138.566,
+          "owner-validated": 151.317,
+          "terminated": 152.139,
+          "confirmed": 152.863,
+          "node-close:0": 160.0
+        },
+        {
+          "epoch_ms": 1793182675459.0,
+          "python-entry": 90.57,
+          "close-entry": 120.583,
+          "owner-validated": 134.696,
+          "terminated": 135.445,
+          "confirmed": 139.84,
+          "node-close:0": 149.0
+        },
+        {
+          "epoch_ms": 1793182676332.0,
+          "python-entry": 107.938,
+          "close-entry": 141.11,
+          "owner-validated": 157.171,
+          "terminated": 157.881,
+          "confirmed": 158.536,
+          "node-close:0": 168.0
+        },
+        {
+          "epoch_ms": 1793182677189.0,
+          "python-entry": 124.047,
+          "close-entry": 160.579,
+          "owner-validated": 172.164,
+          "terminated": 172.796,
+          "confirmed": 173.717,
+          "node-close:0": 182.0
+        },
+        {
+          "epoch_ms": 1793182678080.0,
+          "python-entry": 91.749,
+          "close-entry": 127.561,
+          "owner-validated": 144.676,
+          "terminated": 145.349,
+          "confirmed": 146.084,
+          "node-close:0": 154.0
+        },
+        {
+          "epoch_ms": 1793182679112.0,
+          "python-entry": 213.275,
+          "close-entry": 255.265,
+          "owner-validated": 268.973,
+          "terminated": 269.838,
+          "confirmed": 270.641,
+          "node-close:0": 279.0
+        },
+        {
+          "epoch_ms": 1793182680162.0,
+          "python-entry": 141.269,
+          "close-entry": 169.322,
+          "owner-validated": 184.859,
+          "terminated": 185.699,
+          "confirmed": 186.352,
+          "node-close:0": 196.0
+        },
+        {
+          "epoch_ms": 1793182681144.0,
+          "python-entry": 85.742,
+          "close-entry": 133.8,
+          "owner-validated": 150.13,
+          "terminated": 151.375,
+          "confirmed": 152.459,
+          "node-close:0": 172.0
+        },
+        {
+          "epoch_ms": 1793182682096.0,
+          "python-entry": 130.741,
+          "close-entry": 166.978,
+          "owner-validated": 184.169,
+          "terminated": 184.956,
+          "confirmed": 185.718,
+          "node-close:0": 197.0
+        },
+        {
+          "epoch_ms": 1793182683103.0,
+          "python-entry": 196.6,
+          "close-entry": 238.442,
+          "owner-validated": 256.996,
+          "terminated": 257.861,
+          "confirmed": 258.894,
+          "node-close:0": 268.0
+        },
+        {
+          "epoch_ms": 1793182684214.0,
+          "python-entry": 116.374,
+          "close-entry": 157.87,
+          "owner-validated": 176.383,
+          "terminated": 177.267,
+          "confirmed": 178.234,
+          "node-close:0": 195.0
+        },
+        {
+          "epoch_ms": 1793182685431.0,
+          "python-entry": 247.723,
+          "close-entry": 280.585,
+          "owner-validated": 296.263,
+          "terminated": 296.964,
+          "confirmed": 297.543,
+          "node-close:0": 316.0
+        },
+        {
+          "epoch_ms": 1793182686863.0,
+          "python-entry": 189.103,
+          "close-entry": 249.258,
+          "owner-validated": 265.268,
+          "terminated": 265.965,
+          "confirmed": 266.739,
+          "node-close:0": 299.0
+        },
+        {
+          "epoch_ms": 1793182688147.0,
+          "python-entry": 140.824,
+          "close-entry": 193.474,
+          "owner-validated": 212.783,
+          "terminated": 213.584,
+          "confirmed": 214.294,
+          "node-close:0": 226.0
+        },
+        {
+          "epoch_ms": 1793182689348.0,
+          "python-entry": 133.865,
+          "close-entry": 228.206,
+          "owner-validated": 246.524,
+          "terminated": 247.356,
+          "confirmed": 248.061,
+          "node-close:0": 268.0
+        },
+        {
+          "epoch_ms": 1793182690670.0,
+          "python-entry": 129.635,
+          "close-entry": 190.362,
+          "owner-validated": 208.742,
+          "terminated": 209.885,
+          "confirmed": 210.654,
+          "node-close:0": 221.0
+        },
+        {
+          "epoch_ms": 1793182691780.0,
+          "python-entry": 112.909,
+          "close-entry": 185.283,
+          "owner-validated": 210.647,
+          "terminated": 211.411,
+          "confirmed": 212.018,
+          "node-close:0": 224.0
+        },
+        {
+          "epoch_ms": 1793182692938.0,
+          "python-entry": 109.224,
+          "close-entry": 157.239,
+          "owner-validated": 177.351,
+          "terminated": 178.315,
+          "confirmed": 179.079,
+          "node-close:0": 193.0
+        },
+        {
+          "epoch_ms": 1793182693919.0,
+          "python-entry": 205.135,
+          "close-entry": 243.75,
+          "owner-validated": 260.745,
+          "terminated": 261.641,
+          "confirmed": 262.288,
+          "node-close:0": 276.0
+        },
+        {
+          "epoch_ms": 1793182695095.0,
+          "python-entry": 267.01,
+          "close-entry": 298.246,
+          "owner-validated": 314.113,
+          "terminated": 314.82,
+          "confirmed": 315.348,
+          "node-close:0": 325.0
+        },
+        {
+          "epoch_ms": 1793182696297.0,
+          "python-entry": 141.329,
+          "close-entry": 168.481,
+          "owner-validated": 183.541,
+          "terminated": 184.534,
+          "confirmed": 185.262,
+          "node-close:0": 196.0
+        },
+        {
+          "epoch_ms": 1793182697260.0,
+          "python-entry": 126.942,
+          "close-entry": 186.605,
+          "owner-validated": 199.568,
+          "terminated": 200.301,
+          "confirmed": 201.123,
+          "node-close:0": 211.0
+        },
+        {
+          "epoch_ms": 1793182698393.0,
+          "python-entry": 100.497,
+          "close-entry": 128.854,
+          "owner-validated": 142.428,
+          "terminated": 143.256,
+          "confirmed": 144.034,
+          "node-close:0": 152.0
+        },
+        {
+          "epoch_ms": 1793182699751.0,
+          "python-entry": 117.402,
+          "close-entry": 212.72,
+          "owner-validated": 228.491,
+          "terminated": 229.378,
+          "confirmed": 230.091,
+          "node-close:0": 241.0
+        },
+        {
+          "epoch_ms": 1793182700850.0,
+          "python-entry": 185.675,
+          "close-entry": 263.077,
+          "owner-validated": 278.443,
+          "terminated": 279.17,
+          "confirmed": 279.648,
+          "node-close:0": 289.0
+        },
+        {
+          "epoch_ms": 1793182702666.0,
+          "python-entry": 165.953,
+          "close-entry": 222.142,
+          "owner-validated": 237.482,
+          "terminated": 238.319,
+          "confirmed": 238.943,
+          "node-close:0": 253.0
+        },
+        {
+          "epoch_ms": 1793182704029.0,
+          "python-entry": 207.384,
+          "close-entry": 252.646,
+          "owner-validated": 270.385,
+          "terminated": 283.769,
+          "confirmed": 305.923,
+          "node-close:0": 339.0
+        },
+        {
+          "epoch_ms": 1793182705237.0,
+          "python-entry": 97.625,
+          "close-entry": 129.642,
+          "owner-validated": 146.101,
+          "terminated": 146.824,
+          "confirmed": 147.544,
+          "node-close:0": 159.0
+        },
+        {
+          "epoch_ms": 1793182706174.0,
+          "python-entry": 140.638,
+          "close-entry": 174.046,
+          "owner-validated": 187.938,
+          "terminated": 188.629,
+          "confirmed": 189.235,
+          "node-close:0": 198.0
+        },
+        {
+          "epoch_ms": 1793182707034.0,
+          "python-entry": 93.809,
+          "close-entry": 127.876,
+          "owner-validated": 142.207,
+          "terminated": 143.043,
+          "confirmed": 143.715,
+          "node-close:0": 155.0
+        },
+        {
+          "epoch_ms": 1793182708015.0,
+          "python-entry": 103.609,
+          "close-entry": 134.333,
+          "owner-validated": 148.357,
+          "terminated": 149.038,
+          "confirmed": 149.791,
+          "node-close:0": 160.0
+        }
+      ],
+      "working_directory": "repository root; different from the benchmark",
+      "max_successful_helper_close_ms": 355.0
+    },
+    {
+      "trace": "progress-trace.txt",
+      "attempts": 25,
+      "timeouts": 0,
+      "max_python_entry_ms": 180.495,
+      "median_helper_close_ms": 185.0,
+      "measurements": [
+        {
+          "epoch_ms": 1793183395141.0,
+          "python-entry": 169.408,
+          "close-entry": 207.591,
+          "owner-validated": 221.361,
+          "terminated": 221.923,
+          "confirmed": 222.737,
+          "node-close:0": 231.0
+        },
+        {
+          "epoch_ms": 1793183398517.0,
+          "python-entry": 132.004,
+          "close-entry": 158.804,
+          "owner-validated": 171.118,
+          "terminated": 171.743,
+          "confirmed": 172.228,
+          "node-close:0": 186.0
+        },
+        {
+          "epoch_ms": 1793183402414.0,
+          "python-entry": 180.495,
+          "close-entry": 209.862,
+          "owner-validated": 221.317,
+          "terminated": 222.162,
+          "confirmed": 222.814,
+          "node-close:0": 231.0
+        },
+        {
+          "epoch_ms": 1793183405346.0,
+          "python-entry": 94.621,
+          "close-entry": 126.11,
+          "owner-validated": 148.042,
+          "terminated": 148.922,
+          "confirmed": 149.598,
+          "node-close:0": 159.0
+        },
+        {
+          "epoch_ms": 1793183408200.0,
+          "python-entry": 113.685,
+          "close-entry": 149.686,
+          "owner-validated": 163.886,
+          "terminated": 164.616,
+          "confirmed": 165.332,
+          "node-close:0": 176.0
+        },
+        {
+          "epoch_ms": 1793183410895.0,
+          "python-entry": 96.325,
+          "close-entry": 134.11,
+          "owner-validated": 149.975,
+          "terminated": 150.816,
+          "confirmed": 151.425,
+          "node-close:0": 161.0
+        },
+        {
+          "epoch_ms": 1793183413565.0,
+          "python-entry": 138.385,
+          "close-entry": 230.503,
+          "owner-validated": 245.635,
+          "terminated": 246.452,
+          "confirmed": 247.135,
+          "node-close:0": 259.0
+        },
+        {
+          "epoch_ms": 1793183416826.0,
+          "python-entry": 96.555,
+          "close-entry": 137.274,
+          "owner-validated": 151.367,
+          "terminated": 152.134,
+          "confirmed": 152.714,
+          "node-close:0": 164.0
+        },
+        {
+          "epoch_ms": 1793183419673.0,
+          "python-entry": 143.949,
+          "close-entry": 172.623,
+          "owner-validated": 197.624,
+          "terminated": 198.405,
+          "confirmed": 199.026,
+          "node-close:0": 207.0
+        },
+        {
+          "epoch_ms": 1793183422442.0,
+          "python-entry": 120.996,
+          "close-entry": 158.667,
+          "owner-validated": 173.543,
+          "terminated": 174.431,
+          "confirmed": 175.098,
+          "node-close:0": 185.0
+        },
+        {
+          "epoch_ms": 1793183426162.0,
+          "python-entry": 173.826,
+          "close-entry": 218.482,
+          "owner-validated": 232.477,
+          "terminated": 233.203,
+          "confirmed": 234.085,
+          "node-close:0": 244.0
+        },
+        {
+          "epoch_ms": 1793183429113.0,
+          "python-entry": 93.104,
+          "close-entry": 120.502,
+          "owner-validated": 133.85,
+          "terminated": 134.584,
+          "confirmed": 135.503,
+          "node-close:0": 143.0
+        },
+        {
+          "epoch_ms": 1793183431861.0,
+          "python-entry": 84.95,
+          "close-entry": 114.47,
+          "owner-validated": 128.394,
+          "terminated": 129.239,
+          "confirmed": 130.001,
+          "node-close:0": 140.0
+        },
+        {
+          "epoch_ms": 1793183434618.0,
+          "python-entry": 100.178,
+          "close-entry": 136.043,
+          "owner-validated": 150.694,
+          "terminated": 151.397,
+          "confirmed": 152.093,
+          "node-close:0": 163.0
+        },
+        {
+          "epoch_ms": 1793183437397.0,
+          "python-entry": 125.008,
+          "close-entry": 167.552,
+          "owner-validated": 181.917,
+          "terminated": 182.745,
+          "confirmed": 183.576,
+          "node-close:0": 191.0
+        },
+        {
+          "epoch_ms": 1793183439929.0,
+          "python-entry": 167.058,
+          "close-entry": 213.94,
+          "owner-validated": 228.04,
+          "terminated": 228.843,
+          "confirmed": 229.621,
+          "node-close:0": 239.0
+        },
+        {
+          "epoch_ms": 1793183443222.0,
+          "python-entry": 126.739,
+          "close-entry": 151.738,
+          "owner-validated": 166.172,
+          "terminated": 166.789,
+          "confirmed": 167.492,
+          "node-close:0": 175.0
+        },
+        {
+          "epoch_ms": 1793183446054.0,
+          "python-entry": 91.932,
+          "close-entry": 127.149,
+          "owner-validated": 139.814,
+          "terminated": 140.502,
+          "confirmed": 141.244,
+          "node-close:0": 149.0
+        },
+        {
+          "epoch_ms": 1793183448574.0,
+          "python-entry": 91.842,
+          "close-entry": 123.525,
+          "owner-validated": 138.563,
+          "terminated": 139.314,
+          "confirmed": 139.851,
+          "node-close:0": 150.0
+        },
+        {
+          "epoch_ms": 1793183451538.0,
+          "python-entry": 109.701,
+          "close-entry": 172.806,
+          "owner-validated": 187.91,
+          "terminated": 188.564,
+          "confirmed": 189.204,
+          "node-close:0": 202.0
+        },
+        {
+          "epoch_ms": 1793183455309.0,
+          "python-entry": 108.004,
+          "close-entry": 160.127,
+          "owner-validated": 175.668,
+          "terminated": 176.435,
+          "confirmed": 177.05,
+          "node-close:0": 192.0
+        },
+        {
+          "epoch_ms": 1793183458196.0,
+          "python-entry": 77.956,
+          "close-entry": 111.788,
+          "owner-validated": 125.934,
+          "terminated": 126.64,
+          "confirmed": 127.248,
+          "node-close:0": 134.0
+        },
+        {
+          "epoch_ms": 1793183461229.0,
+          "python-entry": 144.362,
+          "close-entry": 172.575,
+          "owner-validated": 186.503,
+          "terminated": 187.292,
+          "confirmed": 187.833,
+          "node-close:0": 197.0
+        },
+        {
+          "epoch_ms": 1793183463670.0,
+          "python-entry": 130.159,
+          "close-entry": 162.385,
+          "owner-validated": 184.893,
+          "terminated": 185.604,
+          "confirmed": 186.206,
+          "node-close:0": 197.0
+        },
+        {
+          "epoch_ms": 1793183466068.0,
+          "python-entry": 85.544,
+          "close-entry": 115.382,
+          "owner-validated": 128.41,
+          "terminated": 129.092,
+          "confirmed": 129.703,
+          "node-close:0": 140.0
+        }
+      ],
+      "working_directory": "repository root; different from the benchmark",
+      "max_successful_helper_close_ms": 259.0
+    },
+    {
+      "trace": "progress-trace-extended.txt",
+      "attempts": 120,
+      "timeouts": 0,
+      "max_python_entry_ms": 306.098,
+      "median_helper_close_ms": 190.5,
+      "measurements": [
+        {
+          "epoch_ms": 1793183518060.0,
+          "python-entry": 106.546,
+          "close-entry": 136.676,
+          "owner-validated": 149.722,
+          "terminated": 150.498,
+          "confirmed": 151.062,
+          "node-close:0": 160.0
+        },
+        {
+          "epoch_ms": 1793183520379.0,
+          "python-entry": 96.43,
+          "close-entry": 130.477,
+          "owner-validated": 145.927,
+          "terminated": 146.729,
+          "confirmed": 147.434,
+          "node-close:0": 157.0
+        },
+        {
+          "epoch_ms": 1793183523580.0,
+          "python-entry": 112.744,
+          "close-entry": 162.114,
+          "owner-validated": 178.75,
+          "terminated": 179.505,
+          "confirmed": 181.252,
+          "node-close:0": 194.0
+        },
+        {
+          "epoch_ms": 1793183526436.0,
+          "python-entry": 106.331,
+          "close-entry": 154.377,
+          "owner-validated": 180.294,
+          "terminated": 181.08,
+          "confirmed": 181.854,
+          "node-close:0": 194.0
+        },
+        {
+          "epoch_ms": 1793183529037.0,
+          "python-entry": 97.846,
+          "close-entry": 137.371,
+          "owner-validated": 151.335,
+          "terminated": 152.094,
+          "confirmed": 152.69,
+          "node-close:0": 164.0
+        },
+        {
+          "epoch_ms": 1793183531512.0,
+          "python-entry": 99.753,
+          "close-entry": 162.7,
+          "owner-validated": 182.686,
+          "terminated": 183.469,
+          "confirmed": 184.04,
+          "node-close:0": 193.0
+        },
+        {
+          "epoch_ms": 1793183534511.0,
+          "python-entry": 112.252,
+          "close-entry": 142.26,
+          "owner-validated": 158.23,
+          "terminated": 158.974,
+          "confirmed": 159.724,
+          "node-close:0": 169.0
+        },
+        {
+          "epoch_ms": 1793183537291.0,
+          "python-entry": 122.613,
+          "close-entry": 153.542,
+          "owner-validated": 167.861,
+          "terminated": 168.545,
+          "confirmed": 169.154,
+          "node-close:0": 181.0
+        },
+        {
+          "epoch_ms": 1793183540327.0,
+          "python-entry": 89.479,
+          "close-entry": 123.064,
+          "owner-validated": 137.63,
+          "terminated": 138.355,
+          "confirmed": 139.021,
+          "node-close:0": 148.0
+        },
+        {
+          "epoch_ms": 1793183543561.0,
+          "python-entry": 121.716,
+          "close-entry": 165.706,
+          "owner-validated": 203.853,
+          "terminated": 204.727,
+          "confirmed": 205.578,
+          "node-close:0": 224.0
+        },
+        {
+          "epoch_ms": 1793183546512.0,
+          "python-entry": 105.407,
+          "close-entry": 140.801,
+          "owner-validated": 158.995,
+          "terminated": 159.854,
+          "confirmed": 160.461,
+          "node-close:0": 171.0
+        },
+        {
+          "epoch_ms": 1793183549571.0,
+          "python-entry": 87.405,
+          "close-entry": 136.663,
+          "owner-validated": 155.762,
+          "terminated": 156.685,
+          "confirmed": 157.44,
+          "node-close:0": 170.0
+        },
+        {
+          "epoch_ms": 1793183552248.0,
+          "python-entry": 121.233,
+          "close-entry": 212.411,
+          "owner-validated": 227.369,
+          "terminated": 228.113,
+          "confirmed": 228.782,
+          "node-close:0": 236.0
+        },
+        {
+          "epoch_ms": 1793183555755.0,
+          "python-entry": 113.885,
+          "close-entry": 148.515,
+          "owner-validated": 165.446,
+          "terminated": 166.176,
+          "confirmed": 166.743,
+          "node-close:0": 178.0
+        },
+        {
+          "epoch_ms": 1793183558726.0,
+          "python-entry": 140.619,
+          "close-entry": 183.734,
+          "owner-validated": 200.56,
+          "terminated": 201.432,
+          "confirmed": 201.951,
+          "node-close:0": 213.0
+        },
+        {
+          "epoch_ms": 1793183561753.0,
+          "python-entry": 85.145,
+          "close-entry": 119.797,
+          "owner-validated": 134.831,
+          "terminated": 135.629,
+          "confirmed": 136.316,
+          "node-close:0": 147.0
+        },
+        {
+          "epoch_ms": 1793183564312.0,
+          "python-entry": 86.846,
+          "close-entry": 115.238,
+          "owner-validated": 128.547,
+          "terminated": 129.441,
+          "confirmed": 130.056,
+          "node-close:0": 139.0
+        },
+        {
+          "epoch_ms": 1793183567051.0,
+          "python-entry": 99.763,
+          "close-entry": 130.875,
+          "owner-validated": 145.249,
+          "terminated": 146.043,
+          "confirmed": 146.669,
+          "node-close:0": 159.0
+        },
+        {
+          "epoch_ms": 1793183569824.0,
+          "python-entry": 87.444,
+          "close-entry": 118.389,
+          "owner-validated": 134.15,
+          "terminated": 135.106,
+          "confirmed": 145.425,
+          "node-close:0": 155.0
+        },
+        {
+          "epoch_ms": 1793183572422.0,
+          "python-entry": 106.389,
+          "close-entry": 136.874,
+          "owner-validated": 152.345,
+          "terminated": 153.44,
+          "confirmed": 154.314,
+          "node-close:0": 163.0
+        },
+        {
+          "epoch_ms": 1793183575034.0,
+          "python-entry": 119.7,
+          "close-entry": 149.572,
+          "owner-validated": 163.237,
+          "terminated": 163.954,
+          "confirmed": 164.605,
+          "node-close:0": 174.0
+        },
+        {
+          "epoch_ms": 1793183577853.0,
+          "python-entry": 81.912,
+          "close-entry": 114.229,
+          "owner-validated": 128.685,
+          "terminated": 129.529,
+          "confirmed": 133.03,
+          "node-close:0": 143.0
+        },
+        {
+          "epoch_ms": 1793183580193.0,
+          "python-entry": 106.516,
+          "close-entry": 143.615,
+          "owner-validated": 160.306,
+          "terminated": 161.302,
+          "confirmed": 162.004,
+          "node-close:0": 171.0
+        },
+        {
+          "epoch_ms": 1793183582648.0,
+          "python-entry": 133.569,
+          "close-entry": 183.508,
+          "owner-validated": 197.65,
+          "terminated": 198.235,
+          "confirmed": 198.866,
+          "node-close:0": 207.0
+        },
+        {
+          "epoch_ms": 1793183585226.0,
+          "python-entry": 76.896,
+          "close-entry": 125.489,
+          "owner-validated": 141.566,
+          "terminated": 142.381,
+          "confirmed": 143.096,
+          "node-close:0": 154.0
+        },
+        {
+          "epoch_ms": 1793183588076.0,
+          "python-entry": 90.095,
+          "close-entry": 127.767,
+          "owner-validated": 141.762,
+          "terminated": 142.419,
+          "confirmed": 142.908,
+          "node-close:0": 154.0
+        },
+        {
+          "epoch_ms": 1793183590937.0,
+          "python-entry": 136.045,
+          "close-entry": 186.299,
+          "owner-validated": 219.914,
+          "terminated": 220.765,
+          "confirmed": 221.621,
+          "node-close:0": 232.0
+        },
+        {
+          "epoch_ms": 1793183593958.0,
+          "python-entry": 116.432,
+          "close-entry": 148.612,
+          "owner-validated": 165.514,
+          "terminated": 166.141,
+          "confirmed": 166.92,
+          "node-close:0": 177.0
+        },
+        {
+          "epoch_ms": 1793183596535.0,
+          "python-entry": 85.05,
+          "close-entry": 137.532,
+          "owner-validated": 152.966,
+          "terminated": 153.682,
+          "confirmed": 154.533,
+          "node-close:0": 163.0
+        },
+        {
+          "epoch_ms": 1793183599537.0,
+          "python-entry": 85.815,
+          "close-entry": 120.188,
+          "owner-validated": 136.178,
+          "terminated": 137.031,
+          "confirmed": 138.126,
+          "node-close:0": 147.0
+        },
+        {
+          "epoch_ms": 1793183601886.0,
+          "python-entry": 72.892,
+          "close-entry": 106.486,
+          "owner-validated": 124.872,
+          "terminated": 125.765,
+          "confirmed": 126.508,
+          "node-close:0": 135.0
+        },
+        {
+          "epoch_ms": 1793183604776.0,
+          "python-entry": 191.987,
+          "close-entry": 232.645,
+          "owner-validated": 249.618,
+          "terminated": 250.481,
+          "confirmed": 251.03,
+          "node-close:0": 261.0
+        },
+        {
+          "epoch_ms": 1793183608323.0,
+          "python-entry": 115.151,
+          "close-entry": 183.375,
+          "owner-validated": 199.566,
+          "terminated": 200.449,
+          "confirmed": 201.171,
+          "node-close:0": 213.0
+        },
+        {
+          "epoch_ms": 1793183611885.0,
+          "python-entry": 251.484,
+          "close-entry": 308.189,
+          "owner-validated": 329.839,
+          "terminated": 330.695,
+          "confirmed": 331.31,
+          "node-close:0": 342.0
+        },
+        {
+          "epoch_ms": 1793183615477.0,
+          "python-entry": 98.786,
+          "close-entry": 141.473,
+          "owner-validated": 156.317,
+          "terminated": 157.23,
+          "confirmed": 158.005,
+          "node-close:0": 168.0
+        },
+        {
+          "epoch_ms": 1793183619247.0,
+          "python-entry": 209.185,
+          "close-entry": 259.744,
+          "owner-validated": 276.284,
+          "terminated": 277.354,
+          "confirmed": 278.19,
+          "node-close:0": 291.0
+        },
+        {
+          "epoch_ms": 1793183623169.0,
+          "python-entry": 89.974,
+          "close-entry": 118.677,
+          "owner-validated": 133.013,
+          "terminated": 133.926,
+          "confirmed": 134.505,
+          "node-close:0": 143.0
+        },
+        {
+          "epoch_ms": 1793183627565.0,
+          "python-entry": 119.02,
+          "close-entry": 159.643,
+          "owner-validated": 177.856,
+          "terminated": 178.937,
+          "confirmed": 179.713,
+          "node-close:0": 189.0
+        },
+        {
+          "epoch_ms": 1793183636779.0,
+          "python-entry": 163.275,
+          "close-entry": 195.084,
+          "owner-validated": 209.997,
+          "terminated": 210.893,
+          "confirmed": 211.592,
+          "node-close:0": 221.0
+        },
+        {
+          "epoch_ms": 1793183641679.0,
+          "python-entry": 220.737,
+          "close-entry": 275.308,
+          "owner-validated": 290.565,
+          "terminated": 291.171,
+          "confirmed": 291.789,
+          "node-close:0": 301.0
+        },
+        {
+          "epoch_ms": 1793183647385.0,
+          "python-entry": 210.415,
+          "close-entry": 247.973,
+          "owner-validated": 264.556,
+          "terminated": 265.428,
+          "confirmed": 266.035,
+          "node-close:0": 277.0
+        },
+        {
+          "epoch_ms": 1793183651738.0,
+          "python-entry": 143.26,
+          "close-entry": 178.955,
+          "owner-validated": 196.024,
+          "terminated": 196.85,
+          "confirmed": 197.534,
+          "node-close:0": 209.0
+        },
+        {
+          "epoch_ms": 1793183656055.0,
+          "python-entry": 210.982,
+          "close-entry": 241.797,
+          "owner-validated": 253.579,
+          "terminated": 255.089,
+          "confirmed": 255.729,
+          "node-close:0": 275.0
+        },
+        {
+          "epoch_ms": 1793183661017.0,
+          "python-entry": 269.388,
+          "close-entry": 303.238,
+          "owner-validated": 315.757,
+          "terminated": 316.316,
+          "confirmed": 317.218,
+          "node-close:0": 326.0
+        },
+        {
+          "epoch_ms": 1793183666682.0,
+          "python-entry": 112.1,
+          "close-entry": 154.554,
+          "owner-validated": 172.991,
+          "terminated": 173.931,
+          "confirmed": 174.85,
+          "node-close:0": 184.0
+        },
+        {
+          "epoch_ms": 1793183671901.0,
+          "python-entry": 220.86,
+          "close-entry": 252.466,
+          "owner-validated": 267.354,
+          "terminated": 268.319,
+          "confirmed": 269.089,
+          "node-close:0": 278.0
+        },
+        {
+          "epoch_ms": 1793183676345.0,
+          "python-entry": 137.682,
+          "close-entry": 196.307,
+          "owner-validated": 212.294,
+          "terminated": 212.967,
+          "confirmed": 213.566,
+          "node-close:0": 222.0
+        },
+        {
+          "epoch_ms": 1793183681028.0,
+          "python-entry": 148.132,
+          "close-entry": 181.952,
+          "owner-validated": 198.169,
+          "terminated": 199.105,
+          "confirmed": 199.619,
+          "node-close:0": 209.0
+        },
+        {
+          "epoch_ms": 1793183685682.0,
+          "python-entry": 221.892,
+          "close-entry": 277.506,
+          "owner-validated": 291.744,
+          "terminated": 292.614,
+          "confirmed": 293.495,
+          "node-close:0": 307.0
+        },
+        {
+          "epoch_ms": 1793183690804.0,
+          "python-entry": 123.877,
+          "close-entry": 153.791,
+          "owner-validated": 172.613,
+          "terminated": 173.455,
+          "confirmed": 174.268,
+          "node-close:0": 183.0
+        },
+        {
+          "epoch_ms": 1793183694922.0,
+          "python-entry": 138.167,
+          "close-entry": 185.209,
+          "owner-validated": 198.572,
+          "terminated": 199.276,
+          "confirmed": 199.868,
+          "node-close:0": 211.0
+        },
+        {
+          "epoch_ms": 1793183698478.0,
+          "python-entry": 174.327,
+          "close-entry": 215.108,
+          "owner-validated": 229.199,
+          "terminated": 230.085,
+          "confirmed": 230.848,
+          "node-close:0": 241.0
+        },
+        {
+          "epoch_ms": 1793183703067.0,
+          "python-entry": 306.098,
+          "close-entry": 342.244,
+          "owner-validated": 354.994,
+          "terminated": 355.712,
+          "confirmed": 356.337,
+          "node-close:0": 364.0
+        },
+        {
+          "epoch_ms": 1793183707527.0,
+          "python-entry": 224.071,
+          "close-entry": 279.495,
+          "owner-validated": 291.936,
+          "terminated": 292.691,
+          "confirmed": 293.226,
+          "node-close:0": 302.0
+        },
+        {
+          "epoch_ms": 1793183710948.0,
+          "python-entry": 141.573,
+          "close-entry": 173.366,
+          "owner-validated": 186.594,
+          "terminated": 187.239,
+          "confirmed": 187.854,
+          "node-close:0": 197.0
+        },
+        {
+          "epoch_ms": 1793183714921.0,
+          "python-entry": 159.119,
+          "close-entry": 203.934,
+          "owner-validated": 222.284,
+          "terminated": 223.412,
+          "confirmed": 224.066,
+          "node-close:0": 233.0
+        },
+        {
+          "epoch_ms": 1793183719513.0,
+          "python-entry": 155.478,
+          "close-entry": 185.853,
+          "owner-validated": 200.24,
+          "terminated": 200.992,
+          "confirmed": 201.652,
+          "node-close:0": 226.0
+        },
+        {
+          "epoch_ms": 1793183723584.0,
+          "python-entry": 147.882,
+          "close-entry": 198.323,
+          "owner-validated": 212.764,
+          "terminated": 213.465,
+          "confirmed": 214.05,
+          "node-close:0": 224.0
+        },
+        {
+          "epoch_ms": 1793183727406.0,
+          "python-entry": 188.257,
+          "close-entry": 241.077,
+          "owner-validated": 258.32,
+          "terminated": 259.138,
+          "confirmed": 259.973,
+          "node-close:0": 267.0
+        },
+        {
+          "epoch_ms": 1793183731453.0,
+          "python-entry": 141.718,
+          "close-entry": 170.594,
+          "owner-validated": 183.708,
+          "terminated": 184.432,
+          "confirmed": 184.853,
+          "node-close:0": 193.0
+        },
+        {
+          "epoch_ms": 1793183735139.0,
+          "python-entry": 192.469,
+          "close-entry": 257.683,
+          "owner-validated": 271.342,
+          "terminated": 272.069,
+          "confirmed": 272.64,
+          "node-close:0": 280.0
+        },
+        {
+          "epoch_ms": 1793183739189.0,
+          "python-entry": 151.803,
+          "close-entry": 206.954,
+          "owner-validated": 221.03,
+          "terminated": 221.644,
+          "confirmed": 222.39,
+          "node-close:0": 231.0
+        },
+        {
+          "epoch_ms": 1793183743513.0,
+          "python-entry": 121.668,
+          "close-entry": 151.641,
+          "owner-validated": 164.986,
+          "terminated": 165.718,
+          "confirmed": 166.38,
+          "node-close:0": 177.0
+        },
+        {
+          "epoch_ms": 1793183746612.0,
+          "python-entry": 242.011,
+          "close-entry": 274.1,
+          "owner-validated": 288.583,
+          "terminated": 289.249,
+          "confirmed": 290.008,
+          "node-close:0": 299.0
+        },
+        {
+          "epoch_ms": 1793183751579.0,
+          "python-entry": 171.862,
+          "close-entry": 199.596,
+          "owner-validated": 215.809,
+          "terminated": 216.481,
+          "confirmed": 217.373,
+          "node-close:0": 227.0
+        },
+        {
+          "epoch_ms": 1793183757177.0,
+          "python-entry": 141.376,
+          "close-entry": 179.328,
+          "owner-validated": 196.628,
+          "terminated": 197.62,
+          "confirmed": 198.329,
+          "node-close:0": 211.0
+        },
+        {
+          "epoch_ms": 1793183759955.0,
+          "python-entry": 129.58,
+          "close-entry": 202.16,
+          "owner-validated": 229.223,
+          "terminated": 229.92,
+          "confirmed": 230.447,
+          "node-close:0": 240.0
+        },
+        {
+          "epoch_ms": 1793183763856.0,
+          "python-entry": 147.77,
+          "close-entry": 196.46,
+          "owner-validated": 221.968,
+          "terminated": 222.76,
+          "confirmed": 223.411,
+          "node-close:0": 235.0
+        },
+        {
+          "epoch_ms": 1793183768088.0,
+          "python-entry": 127.99,
+          "close-entry": 207.854,
+          "owner-validated": 229.456,
+          "terminated": 230.248,
+          "confirmed": 230.888,
+          "node-close:0": 241.0
+        },
+        {
+          "epoch_ms": 1793183771659.0,
+          "python-entry": 208.494,
+          "close-entry": 265.274,
+          "owner-validated": 283.145,
+          "terminated": 283.894,
+          "confirmed": 284.467,
+          "node-close:0": 294.0
+        },
+        {
+          "epoch_ms": 1793183774573.0,
+          "python-entry": 140.301,
+          "close-entry": 177.785,
+          "owner-validated": 193.762,
+          "terminated": 194.617,
+          "confirmed": 195.483,
+          "node-close:0": 206.0
+        },
+        {
+          "epoch_ms": 1793183777292.0,
+          "python-entry": 121.254,
+          "close-entry": 179.893,
+          "owner-validated": 202.51,
+          "terminated": 203.669,
+          "confirmed": 206.86,
+          "node-close:0": 220.0
+        },
+        {
+          "epoch_ms": 1793183780388.0,
+          "python-entry": 100.172,
+          "close-entry": 140.712,
+          "owner-validated": 156.133,
+          "terminated": 156.884,
+          "confirmed": 157.459,
+          "node-close:0": 169.0
+        },
+        {
+          "epoch_ms": 1793183783112.0,
+          "python-entry": 107.401,
+          "close-entry": 144.015,
+          "owner-validated": 161.883,
+          "terminated": 162.671,
+          "confirmed": 163.373,
+          "node-close:0": 175.0
+        },
+        {
+          "epoch_ms": 1793183785783.0,
+          "python-entry": 89.815,
+          "close-entry": 126.67,
+          "owner-validated": 145.023,
+          "terminated": 146.349,
+          "confirmed": 147.258,
+          "node-close:0": 162.0
+        },
+        {
+          "epoch_ms": 1793183788258.0,
+          "python-entry": 93.383,
+          "close-entry": 126.821,
+          "owner-validated": 143.762,
+          "terminated": 144.705,
+          "confirmed": 145.467,
+          "node-close:0": 155.0
+        },
+        {
+          "epoch_ms": 1793183790601.0,
+          "python-entry": 87.447,
+          "close-entry": 122.967,
+          "owner-validated": 144.433,
+          "terminated": 145.19,
+          "confirmed": 145.74,
+          "node-close:0": 154.0
+        },
+        {
+          "epoch_ms": 1793183793017.0,
+          "python-entry": 101.599,
+          "close-entry": 140.411,
+          "owner-validated": 156.729,
+          "terminated": 157.511,
+          "confirmed": 158.286,
+          "node-close:0": 170.0
+        },
+        {
+          "epoch_ms": 1793183795557.0,
+          "python-entry": 85.339,
+          "close-entry": 125.423,
+          "owner-validated": 144.606,
+          "terminated": 145.539,
+          "confirmed": 146.054,
+          "node-close:0": 155.0
+        },
+        {
+          "epoch_ms": 1793183797951.0,
+          "python-entry": 92.609,
+          "close-entry": 132.634,
+          "owner-validated": 149.393,
+          "terminated": 150.233,
+          "confirmed": 150.871,
+          "node-close:0": 161.0
+        },
+        {
+          "epoch_ms": 1793183800271.0,
+          "python-entry": 97.612,
+          "close-entry": 134.749,
+          "owner-validated": 152.398,
+          "terminated": 153.466,
+          "confirmed": 154.405,
+          "node-close:0": 166.0
+        },
+        {
+          "epoch_ms": 1793183803283.0,
+          "python-entry": 115.316,
+          "close-entry": 157.541,
+          "owner-validated": 174.419,
+          "terminated": 175.226,
+          "confirmed": 175.957,
+          "node-close:0": 187.0
+        },
+        {
+          "epoch_ms": 1793183805990.0,
+          "python-entry": 166.237,
+          "close-entry": 193.687,
+          "owner-validated": 206.201,
+          "terminated": 206.862,
+          "confirmed": 207.307,
+          "node-close:0": 216.0
+        },
+        {
+          "epoch_ms": 1793183808824.0,
+          "python-entry": 85.172,
+          "close-entry": 119.924,
+          "owner-validated": 132.772,
+          "terminated": 133.727,
+          "confirmed": 134.464,
+          "node-close:0": 145.0
+        },
+        {
+          "epoch_ms": 1793183811148.0,
+          "python-entry": 77.329,
+          "close-entry": 108.504,
+          "owner-validated": 122.992,
+          "terminated": 123.972,
+          "confirmed": 124.596,
+          "node-close:0": 135.0
+        },
+        {
+          "epoch_ms": 1793183813961.0,
+          "python-entry": 164.103,
+          "close-entry": 195.18,
+          "owner-validated": 212.446,
+          "terminated": 214.709,
+          "confirmed": 215.485,
+          "node-close:0": 225.0
+        },
+        {
+          "epoch_ms": 1793183816653.0,
+          "python-entry": 78.084,
+          "close-entry": 108.667,
+          "owner-validated": 123.581,
+          "terminated": 124.445,
+          "confirmed": 125.173,
+          "node-close:0": 135.0
+        },
+        {
+          "epoch_ms": 1793183819206.0,
+          "python-entry": 81.51,
+          "close-entry": 112.514,
+          "owner-validated": 125.329,
+          "terminated": 125.922,
+          "confirmed": 126.715,
+          "node-close:0": 135.0
+        },
+        {
+          "epoch_ms": 1793183822705.0,
+          "python-entry": 118.493,
+          "close-entry": 154.443,
+          "owner-validated": 170.752,
+          "terminated": 171.583,
+          "confirmed": 172.228,
+          "node-close:0": 183.0
+        },
+        {
+          "epoch_ms": 1793183825401.0,
+          "python-entry": 112.789,
+          "close-entry": 164.788,
+          "owner-validated": 181.505,
+          "terminated": 182.364,
+          "confirmed": 183.31,
+          "node-close:0": 194.0
+        },
+        {
+          "epoch_ms": 1793183828099.0,
+          "python-entry": 83.439,
+          "close-entry": 113.861,
+          "owner-validated": 130.946,
+          "terminated": 131.947,
+          "confirmed": 132.698,
+          "node-close:0": 142.0
+        },
+        {
+          "epoch_ms": 1793183830370.0,
+          "python-entry": 81.882,
+          "close-entry": 109.533,
+          "owner-validated": 123.102,
+          "terminated": 123.897,
+          "confirmed": 124.536,
+          "node-close:0": 133.0
+        },
+        {
+          "epoch_ms": 1793183833075.0,
+          "python-entry": 90.161,
+          "close-entry": 129.319,
+          "owner-validated": 147.088,
+          "terminated": 147.954,
+          "confirmed": 148.91,
+          "node-close:0": 161.0
+        },
+        {
+          "epoch_ms": 1793183836008.0,
+          "python-entry": 79.31,
+          "close-entry": 110.357,
+          "owner-validated": 126.178,
+          "terminated": 127.086,
+          "confirmed": 127.748,
+          "node-close:0": 137.0
+        },
+        {
+          "epoch_ms": 1793183838486.0,
+          "python-entry": 94.901,
+          "close-entry": 151.816,
+          "owner-validated": 166.686,
+          "terminated": 167.448,
+          "confirmed": 168.2,
+          "node-close:0": 177.0
+        },
+        {
+          "epoch_ms": 1793183841058.0,
+          "python-entry": 110.738,
+          "close-entry": 142.676,
+          "owner-validated": 157.043,
+          "terminated": 157.86,
+          "confirmed": 158.523,
+          "node-close:0": 169.0
+        },
+        {
+          "epoch_ms": 1793183843692.0,
+          "python-entry": 84.249,
+          "close-entry": 119.511,
+          "owner-validated": 137.014,
+          "terminated": 137.986,
+          "confirmed": 138.947,
+          "node-close:0": 151.0
+        },
+        {
+          "epoch_ms": 1793183846446.0,
+          "python-entry": 118.209,
+          "close-entry": 188.703,
+          "owner-validated": 206.416,
+          "terminated": 207.241,
+          "confirmed": 207.872,
+          "node-close:0": 217.0
+        },
+        {
+          "epoch_ms": 1793183848995.0,
+          "python-entry": 80.23,
+          "close-entry": 119.062,
+          "owner-validated": 133.081,
+          "terminated": 133.881,
+          "confirmed": 134.493,
+          "node-close:0": 145.0
+        },
+        {
+          "epoch_ms": 1793183851676.0,
+          "python-entry": 107.263,
+          "close-entry": 165.071,
+          "owner-validated": 182.567,
+          "terminated": 183.295,
+          "confirmed": 183.916,
+          "node-close:0": 194.0
+        },
+        {
+          "epoch_ms": 1793183854755.0,
+          "python-entry": 170.632,
+          "close-entry": 221.843,
+          "owner-validated": 257.77,
+          "terminated": 258.56,
+          "confirmed": 259.383,
+          "node-close:0": 269.0
+        },
+        {
+          "epoch_ms": 1793183857728.0,
+          "python-entry": 107.013,
+          "close-entry": 147.807,
+          "owner-validated": 167.816,
+          "terminated": 168.729,
+          "confirmed": 169.774,
+          "node-close:0": 182.0
+        },
+        {
+          "epoch_ms": 1793183860415.0,
+          "python-entry": 86.107,
+          "close-entry": 121.168,
+          "owner-validated": 137.164,
+          "terminated": 137.993,
+          "confirmed": 161.708,
+          "node-close:0": 172.0
+        },
+        {
+          "epoch_ms": 1793183865631.0,
+          "python-entry": 96.856,
+          "close-entry": 159.414,
+          "owner-validated": 176.32,
+          "terminated": 177.097,
+          "confirmed": 177.762,
+          "node-close:0": 193.0
+        },
+        {
+          "epoch_ms": 1793183869584.0,
+          "python-entry": 160.049,
+          "close-entry": 253.119,
+          "owner-validated": 271.762,
+          "terminated": 272.85,
+          "confirmed": 273.544,
+          "node-close:0": 287.0
+        },
+        {
+          "epoch_ms": 1793183873190.0,
+          "python-entry": 113.126,
+          "close-entry": 153.133,
+          "owner-validated": 177.841,
+          "terminated": 178.742,
+          "confirmed": 179.486,
+          "node-close:0": 192.0
+        },
+        {
+          "epoch_ms": 1793183876726.0,
+          "python-entry": 127.755,
+          "close-entry": 171.879,
+          "owner-validated": 190.138,
+          "terminated": 191.139,
+          "confirmed": 192.131,
+          "node-close:0": 204.0
+        },
+        {
+          "epoch_ms": 1793183879735.0,
+          "python-entry": 116.952,
+          "close-entry": 151.263,
+          "owner-validated": 165.984,
+          "terminated": 166.723,
+          "confirmed": 167.679,
+          "node-close:0": 176.0
+        },
+        {
+          "epoch_ms": 1793183882566.0,
+          "python-entry": 142.709,
+          "close-entry": 228.34,
+          "owner-validated": 252.255,
+          "terminated": 253.657,
+          "confirmed": 254.642,
+          "node-close:0": 268.0
+        },
+        {
+          "epoch_ms": 1793183886227.0,
+          "python-entry": 170.76,
+          "close-entry": 219.333,
+          "owner-validated": 248.545,
+          "terminated": 249.5,
+          "confirmed": 250.181,
+          "node-close:0": 262.0
+        },
+        {
+          "epoch_ms": 1793183889105.0,
+          "python-entry": 105.694,
+          "close-entry": 145.733,
+          "owner-validated": 163.084,
+          "terminated": 163.932,
+          "confirmed": 164.611,
+          "node-close:0": 175.0
+        },
+        {
+          "epoch_ms": 1793183891997.0,
+          "python-entry": 133.793,
+          "close-entry": 175.399,
+          "owner-validated": 199.597,
+          "terminated": 200.578,
+          "confirmed": 201.236,
+          "node-close:0": 216.0
+        },
+        {
+          "epoch_ms": 1793183895152.0,
+          "python-entry": 137.887,
+          "close-entry": 190.86,
+          "owner-validated": 215.209,
+          "terminated": 216.255,
+          "confirmed": 217.057,
+          "node-close:0": 232.0
+        },
+        {
+          "epoch_ms": 1793183898069.0,
+          "python-entry": 138.435,
+          "close-entry": 168.404,
+          "owner-validated": 184.452,
+          "terminated": 185.344,
+          "confirmed": 186.039,
+          "node-close:0": 196.0
+        },
+        {
+          "epoch_ms": 1793183901327.0,
+          "python-entry": 95.93,
+          "close-entry": 132.824,
+          "owner-validated": 148.496,
+          "terminated": 149.356,
+          "confirmed": 150.001,
+          "node-close:0": 161.0
+        },
+        {
+          "epoch_ms": 1793183904100.0,
+          "python-entry": 119.959,
+          "close-entry": 178.042,
+          "owner-validated": 205.685,
+          "terminated": 206.691,
+          "confirmed": 207.525,
+          "node-close:0": 219.0
+        },
+        {
+          "epoch_ms": 1793183907243.0,
+          "python-entry": 135.148,
+          "close-entry": 166.691,
+          "owner-validated": 181.149,
+          "terminated": 182.039,
+          "confirmed": 182.685,
+          "node-close:0": 204.0
+        },
+        {
+          "epoch_ms": 1793183910321.0,
+          "python-entry": 125.177,
+          "close-entry": 159.625,
+          "owner-validated": 174.452,
+          "terminated": 175.111,
+          "confirmed": 175.765,
+          "node-close:0": 184.0
+        },
+        {
+          "epoch_ms": 1793183913700.0,
+          "python-entry": 122.561,
+          "close-entry": 155.651,
+          "owner-validated": 173.826,
+          "terminated": 174.653,
+          "confirmed": 175.278,
+          "node-close:0": 186.0
+        },
+        {
+          "epoch_ms": 1793183916440.0,
+          "python-entry": 90.354,
+          "close-entry": 118.941,
+          "owner-validated": 133.43,
+          "terminated": 134.273,
+          "confirmed": 134.963,
+          "node-close:0": 144.0
+        }
+      ],
+      "working_directory": "repository root; different from the benchmark",
+      "max_successful_helper_close_ms": 364.0
+    },
+    {
+      "trace": "canonical-trace.txt",
+      "attempts": 80,
+      "timeouts": 0,
+      "max_python_entry_ms": 329.003,
+      "median_helper_close_ms": 200.0,
+      "measurements": [
+        {
+          "epoch_ms": 1793183979703.0,
+          "python-entry": 138.406,
+          "close-entry": 177.024,
+          "owner-validated": 195.181,
+          "terminated": 196.133,
+          "confirmed": 197.202,
+          "node-close:0": 207.0
+        },
+        {
+          "epoch_ms": 1793183982357.0,
+          "python-entry": 108.108,
+          "close-entry": 143.573,
+          "owner-validated": 160.046,
+          "terminated": 164.227,
+          "confirmed": 165.349,
+          "node-close:0": 175.0
+        },
+        {
+          "epoch_ms": 1793183985275.0,
+          "python-entry": 94.14,
+          "close-entry": 128.353,
+          "owner-validated": 158.526,
+          "terminated": 159.431,
+          "confirmed": 160.082,
+          "node-close:0": 171.0
+        },
+        {
+          "epoch_ms": 1793183988481.0,
+          "python-entry": 76.094,
+          "close-entry": 107.276,
+          "owner-validated": 121.346,
+          "terminated": 122.051,
+          "confirmed": 123.591,
+          "node-close:0": 133.0
+        },
+        {
+          "epoch_ms": 1793183990716.0,
+          "python-entry": 80.817,
+          "close-entry": 113.823,
+          "owner-validated": 130.172,
+          "terminated": 130.997,
+          "confirmed": 131.698,
+          "node-close:0": 141.0
+        },
+        {
+          "epoch_ms": 1793183993356.0,
+          "python-entry": 107.08,
+          "close-entry": 135.054,
+          "owner-validated": 149.487,
+          "terminated": 150.165,
+          "confirmed": 150.857,
+          "node-close:0": 161.0
+        },
+        {
+          "epoch_ms": 1793183995656.0,
+          "python-entry": 155.361,
+          "close-entry": 188.485,
+          "owner-validated": 202.989,
+          "terminated": 203.749,
+          "confirmed": 204.319,
+          "node-close:0": 213.0
+        },
+        {
+          "epoch_ms": 1793183998172.0,
+          "python-entry": 74.391,
+          "close-entry": 114.927,
+          "owner-validated": 129.516,
+          "terminated": 130.237,
+          "confirmed": 130.785,
+          "node-close:0": 141.0
+        },
+        {
+          "epoch_ms": 1793184001021.0,
+          "python-entry": 71.519,
+          "close-entry": 98.098,
+          "owner-validated": 112.866,
+          "terminated": 113.615,
+          "confirmed": 114.245,
+          "node-close:0": 124.0
+        },
+        {
+          "epoch_ms": 1793184003624.0,
+          "python-entry": 72.898,
+          "close-entry": 125.398,
+          "owner-validated": 154.144,
+          "terminated": 154.886,
+          "confirmed": 155.588,
+          "node-close:0": 165.0
+        },
+        {
+          "epoch_ms": 1793184006980.0,
+          "python-entry": 227.173,
+          "close-entry": 310.232,
+          "owner-validated": 334.243,
+          "terminated": 335.51,
+          "confirmed": 336.488,
+          "node-close:0": 350.0
+        },
+        {
+          "epoch_ms": 1793184011600.0,
+          "python-entry": 329.003,
+          "close-entry": 384.914,
+          "owner-validated": 400.375,
+          "terminated": 401.196,
+          "confirmed": 402.815,
+          "node-close:0": 412.0
+        },
+        {
+          "epoch_ms": 1793184016521.0,
+          "python-entry": 121.448,
+          "close-entry": 153.609,
+          "owner-validated": 167.347,
+          "terminated": 168.039,
+          "confirmed": 168.661,
+          "node-close:0": 176.0
+        },
+        {
+          "epoch_ms": 1793184021054.0,
+          "python-entry": 149.728,
+          "close-entry": 223.049,
+          "owner-validated": 244.215,
+          "terminated": 245.046,
+          "confirmed": 245.635,
+          "node-close:0": 255.0
+        },
+        {
+          "epoch_ms": 1793184025321.0,
+          "python-entry": 208.264,
+          "close-entry": 313.392,
+          "owner-validated": 326.432,
+          "terminated": 327.015,
+          "confirmed": 327.715,
+          "node-close:0": 423.0
+        },
+        {
+          "epoch_ms": 1793184031715.0,
+          "python-entry": 189.817,
+          "close-entry": 240.851,
+          "owner-validated": 264.271,
+          "terminated": 265.306,
+          "confirmed": 266.126,
+          "node-close:0": 281.0
+        },
+        {
+          "epoch_ms": 1793184036016.0,
+          "python-entry": 238.184,
+          "close-entry": 303.289,
+          "owner-validated": 329.463,
+          "terminated": 330.395,
+          "confirmed": 331.519,
+          "node-close:0": 353.0
+        },
+        {
+          "epoch_ms": 1793184040508.0,
+          "python-entry": 137.952,
+          "close-entry": 194.786,
+          "owner-validated": 223.924,
+          "terminated": 224.699,
+          "confirmed": 225.354,
+          "node-close:0": 236.0
+        },
+        {
+          "epoch_ms": 1793184043835.0,
+          "python-entry": 122.751,
+          "close-entry": 173.383,
+          "owner-validated": 195.218,
+          "terminated": 196.198,
+          "confirmed": 196.973,
+          "node-close:0": 210.0
+        },
+        {
+          "epoch_ms": 1793184047222.0,
+          "python-entry": 131.079,
+          "close-entry": 193.632,
+          "owner-validated": 211.772,
+          "terminated": 212.736,
+          "confirmed": 213.586,
+          "node-close:0": 225.0
+        },
+        {
+          "epoch_ms": 1793184050942.0,
+          "python-entry": 170.335,
+          "close-entry": 356.8,
+          "owner-validated": 387.233,
+          "terminated": 388.369,
+          "confirmed": 389.153,
+          "node-close:0": 403.0
+        },
+        {
+          "epoch_ms": 1793184054784.0,
+          "python-entry": 118.662,
+          "close-entry": 163.299,
+          "owner-validated": 182.713,
+          "terminated": 183.67,
+          "confirmed": 184.553,
+          "node-close:0": 197.0
+        },
+        {
+          "epoch_ms": 1793184058351.0,
+          "python-entry": 195.337,
+          "close-entry": 249.937,
+          "owner-validated": 265.968,
+          "terminated": 266.722,
+          "confirmed": 267.391,
+          "node-close:0": 277.0
+        },
+        {
+          "epoch_ms": 1793184061954.0,
+          "python-entry": 83.381,
+          "close-entry": 114.242,
+          "owner-validated": 129.135,
+          "terminated": 130.067,
+          "confirmed": 130.898,
+          "node-close:0": 140.0
+        },
+        {
+          "epoch_ms": 1793184064766.0,
+          "python-entry": 113.411,
+          "close-entry": 191.151,
+          "owner-validated": 205.484,
+          "terminated": 206.313,
+          "confirmed": 206.922,
+          "node-close:0": 221.0
+        },
+        {
+          "epoch_ms": 1793184067345.0,
+          "python-entry": 107.434,
+          "close-entry": 159.498,
+          "owner-validated": 186.468,
+          "terminated": 187.481,
+          "confirmed": 188.247,
+          "node-close:0": 211.0
+        },
+        {
+          "epoch_ms": 1793184070408.0,
+          "python-entry": 120.347,
+          "close-entry": 179.19,
+          "owner-validated": 198.835,
+          "terminated": 199.848,
+          "confirmed": 200.706,
+          "node-close:0": 213.0
+        },
+        {
+          "epoch_ms": 1793184073199.0,
+          "python-entry": 93.137,
+          "close-entry": 133.97,
+          "owner-validated": 151.0,
+          "terminated": 152.129,
+          "confirmed": 153.001,
+          "node-close:0": 163.0
+        },
+        {
+          "epoch_ms": 1793184075675.0,
+          "python-entry": 93.384,
+          "close-entry": 124.155,
+          "owner-validated": 138.026,
+          "terminated": 138.998,
+          "confirmed": 139.711,
+          "node-close:0": 148.0
+        },
+        {
+          "epoch_ms": 1793184078631.0,
+          "python-entry": 85.993,
+          "close-entry": 116.355,
+          "owner-validated": 130.375,
+          "terminated": 131.115,
+          "confirmed": 131.69,
+          "node-close:0": 140.0
+        },
+        {
+          "epoch_ms": 1793184081282.0,
+          "python-entry": 145.661,
+          "close-entry": 188.633,
+          "owner-validated": 208.774,
+          "terminated": 209.913,
+          "confirmed": 210.79,
+          "node-close:0": 222.0
+        },
+        {
+          "epoch_ms": 1793184084026.0,
+          "python-entry": 105.357,
+          "close-entry": 139.814,
+          "owner-validated": 156.065,
+          "terminated": 156.738,
+          "confirmed": 157.206,
+          "node-close:0": 165.0
+        },
+        {
+          "epoch_ms": 1793184087446.0,
+          "python-entry": 105.183,
+          "close-entry": 142.42,
+          "owner-validated": 158.708,
+          "terminated": 159.646,
+          "confirmed": 160.545,
+          "node-close:0": 170.0
+        },
+        {
+          "epoch_ms": 1793184090077.0,
+          "python-entry": 71.081,
+          "close-entry": 104.499,
+          "owner-validated": 117.572,
+          "terminated": 118.249,
+          "confirmed": 118.895,
+          "node-close:0": 127.0
+        },
+        {
+          "epoch_ms": 1793184092870.0,
+          "python-entry": 102.544,
+          "close-entry": 139.125,
+          "owner-validated": 156.89,
+          "terminated": 157.759,
+          "confirmed": 158.329,
+          "node-close:0": 169.0
+        },
+        {
+          "epoch_ms": 1793184095491.0,
+          "python-entry": 78.977,
+          "close-entry": 107.719,
+          "owner-validated": 122.704,
+          "terminated": 123.594,
+          "confirmed": 124.637,
+          "node-close:0": 133.0
+        },
+        {
+          "epoch_ms": 1793184097953.0,
+          "python-entry": 100.028,
+          "close-entry": 137.25,
+          "owner-validated": 150.542,
+          "terminated": 151.29,
+          "confirmed": 151.944,
+          "node-close:0": 159.0
+        },
+        {
+          "epoch_ms": 1793184100765.0,
+          "python-entry": 198.51,
+          "close-entry": 236.002,
+          "owner-validated": 257.788,
+          "terminated": 258.781,
+          "confirmed": 259.558,
+          "node-close:0": 272.0
+        },
+        {
+          "epoch_ms": 1793184104686.0,
+          "python-entry": 216.393,
+          "close-entry": 311.072,
+          "owner-validated": 328.393,
+          "terminated": 329.419,
+          "confirmed": 330.117,
+          "node-close:0": 340.0
+        },
+        {
+          "epoch_ms": 1793184108682.0,
+          "python-entry": 295.396,
+          "close-entry": 350.21,
+          "owner-validated": 369.047,
+          "terminated": 369.861,
+          "confirmed": 370.55,
+          "node-close:0": 382.0
+        },
+        {
+          "epoch_ms": 1793184113691.0,
+          "python-entry": 143.025,
+          "close-entry": 202.743,
+          "owner-validated": 225.266,
+          "terminated": 226.257,
+          "confirmed": 226.948,
+          "node-close:0": 247.0
+        },
+        {
+          "epoch_ms": 1793184117757.0,
+          "python-entry": 154.149,
+          "close-entry": 190.769,
+          "owner-validated": 206.889,
+          "terminated": 207.668,
+          "confirmed": 208.329,
+          "node-close:0": 218.0
+        },
+        {
+          "epoch_ms": 1793184121255.0,
+          "python-entry": 119.848,
+          "close-entry": 170.08,
+          "owner-validated": 188.396,
+          "terminated": 189.293,
+          "confirmed": 190.022,
+          "node-close:0": 202.0
+        },
+        {
+          "epoch_ms": 1793184124553.0,
+          "python-entry": 166.165,
+          "close-entry": 193.534,
+          "owner-validated": 208.852,
+          "terminated": 209.586,
+          "confirmed": 210.165,
+          "node-close:0": 219.0
+        },
+        {
+          "epoch_ms": 1793184127636.0,
+          "python-entry": 100.395,
+          "close-entry": 135.863,
+          "owner-validated": 148.272,
+          "terminated": 148.945,
+          "confirmed": 149.659,
+          "node-close:0": 158.0
+        },
+        {
+          "epoch_ms": 1793184130905.0,
+          "python-entry": 109.773,
+          "close-entry": 146.756,
+          "owner-validated": 162.889,
+          "terminated": 163.725,
+          "confirmed": 178.425,
+          "node-close:0": 188.0
+        },
+        {
+          "epoch_ms": 1793184133755.0,
+          "python-entry": 140.367,
+          "close-entry": 172.611,
+          "owner-validated": 186.375,
+          "terminated": 187.217,
+          "confirmed": 187.916,
+          "node-close:0": 198.0
+        },
+        {
+          "epoch_ms": 1793184136481.0,
+          "python-entry": 84.167,
+          "close-entry": 113.972,
+          "owner-validated": 128.115,
+          "terminated": 128.977,
+          "confirmed": 129.699,
+          "node-close:0": 139.0
+        },
+        {
+          "epoch_ms": 1793184138826.0,
+          "python-entry": 89.266,
+          "close-entry": 118.21,
+          "owner-validated": 133.412,
+          "terminated": 134.236,
+          "confirmed": 135.075,
+          "node-close:0": 144.0
+        },
+        {
+          "epoch_ms": 1793184141121.0,
+          "python-entry": 79.103,
+          "close-entry": 110.007,
+          "owner-validated": 129.945,
+          "terminated": 131.136,
+          "confirmed": 132.021,
+          "node-close:0": 143.0
+        },
+        {
+          "epoch_ms": 1793184143583.0,
+          "python-entry": 78.171,
+          "close-entry": 114.654,
+          "owner-validated": 130.98,
+          "terminated": 131.668,
+          "confirmed": 132.173,
+          "node-close:0": 141.0
+        },
+        {
+          "epoch_ms": 1793184146210.0,
+          "python-entry": 87.639,
+          "close-entry": 127.663,
+          "owner-validated": 145.223,
+          "terminated": 146.039,
+          "confirmed": 146.683,
+          "node-close:0": 156.0
+        },
+        {
+          "epoch_ms": 1793184148731.0,
+          "python-entry": 129.784,
+          "close-entry": 164.253,
+          "owner-validated": 178.641,
+          "terminated": 179.529,
+          "confirmed": 180.221,
+          "node-close:0": 190.0
+        },
+        {
+          "epoch_ms": 1793184151798.0,
+          "python-entry": 95.326,
+          "close-entry": 130.43,
+          "owner-validated": 144.355,
+          "terminated": 145.275,
+          "confirmed": 145.925,
+          "node-close:0": 154.0
+        },
+        {
+          "epoch_ms": 1793184154683.0,
+          "python-entry": 133.251,
+          "close-entry": 188.647,
+          "owner-validated": 212.89,
+          "terminated": 214.239,
+          "confirmed": 215.14,
+          "node-close:0": 230.0
+        },
+        {
+          "epoch_ms": 1793184160574.0,
+          "python-entry": 165.639,
+          "close-entry": 236.312,
+          "owner-validated": 258.341,
+          "terminated": 259.413,
+          "confirmed": 260.331,
+          "node-close:0": 273.0
+        },
+        {
+          "epoch_ms": 1793184166840.0,
+          "python-entry": 177.892,
+          "close-entry": 282.188,
+          "owner-validated": 306.1,
+          "terminated": 307.445,
+          "confirmed": 308.879,
+          "node-close:0": 324.0
+        },
+        {
+          "epoch_ms": 1793184170090.0,
+          "python-entry": 148.021,
+          "close-entry": 197.692,
+          "owner-validated": 218.965,
+          "terminated": 220.181,
+          "confirmed": 221.23,
+          "node-close:0": 234.0
+        },
+        {
+          "epoch_ms": 1793184173605.0,
+          "python-entry": 116.005,
+          "close-entry": 165.084,
+          "owner-validated": 185.212,
+          "terminated": 186.326,
+          "confirmed": 187.233,
+          "node-close:0": 201.0
+        },
+        {
+          "epoch_ms": 1793184177849.0,
+          "python-entry": 181.354,
+          "close-entry": 338.906,
+          "owner-validated": 364.333,
+          "terminated": 365.552,
+          "confirmed": 366.639,
+          "node-close:0": 388.0
+        },
+        {
+          "epoch_ms": 1793184182682.0,
+          "python-entry": 111.455,
+          "close-entry": 161.266,
+          "owner-validated": 188.687,
+          "terminated": 189.739,
+          "confirmed": 190.577,
+          "node-close:0": 202.0
+        },
+        {
+          "epoch_ms": 1793184186014.0,
+          "python-entry": 115.308,
+          "close-entry": 157.603,
+          "owner-validated": 174.68,
+          "terminated": 175.485,
+          "confirmed": 176.114,
+          "node-close:0": 186.0
+        },
+        {
+          "epoch_ms": 1793184189040.0,
+          "python-entry": 66.368,
+          "close-entry": 102.191,
+          "owner-validated": 117.287,
+          "terminated": 118.224,
+          "confirmed": 119.065,
+          "node-close:0": 128.0
+        },
+        {
+          "epoch_ms": 1793184191837.0,
+          "python-entry": 134.842,
+          "close-entry": 164.029,
+          "owner-validated": 179.563,
+          "terminated": 180.283,
+          "confirmed": 181.001,
+          "node-close:0": 189.0
+        },
+        {
+          "epoch_ms": 1793184197348.0,
+          "python-entry": 165.975,
+          "close-entry": 249.094,
+          "owner-validated": 268.518,
+          "terminated": 269.546,
+          "confirmed": 270.344,
+          "node-close:0": 284.0
+        },
+        {
+          "epoch_ms": 1793184201034.0,
+          "python-entry": 143.531,
+          "close-entry": 176.156,
+          "owner-validated": 189.361,
+          "terminated": 190.083,
+          "confirmed": 190.628,
+          "node-close:0": 199.0
+        },
+        {
+          "epoch_ms": 1793184204282.0,
+          "python-entry": 90.921,
+          "close-entry": 118.667,
+          "owner-validated": 131.393,
+          "terminated": 132.065,
+          "confirmed": 132.758,
+          "node-close:0": 141.0
+        },
+        {
+          "epoch_ms": 1793184206672.0,
+          "python-entry": 94.096,
+          "close-entry": 128.163,
+          "owner-validated": 144.805,
+          "terminated": 145.631,
+          "confirmed": 146.286,
+          "node-close:0": 155.0
+        },
+        {
+          "epoch_ms": 1793184210045.0,
+          "python-entry": 98.294,
+          "close-entry": 140.87,
+          "owner-validated": 155.138,
+          "terminated": 156.088,
+          "confirmed": 156.81,
+          "node-close:0": 166.0
+        },
+        {
+          "epoch_ms": 1793184212413.0,
+          "python-entry": 90.448,
+          "close-entry": 128.829,
+          "owner-validated": 143.189,
+          "terminated": 143.922,
+          "confirmed": 144.685,
+          "node-close:0": 154.0
+        },
+        {
+          "epoch_ms": 1793184214690.0,
+          "python-entry": 81.32,
+          "close-entry": 116.505,
+          "owner-validated": 131.794,
+          "terminated": 132.63,
+          "confirmed": 133.229,
+          "node-close:0": 141.0
+        },
+        {
+          "epoch_ms": 1793184217002.0,
+          "python-entry": 84.344,
+          "close-entry": 122.798,
+          "owner-validated": 138.293,
+          "terminated": 138.983,
+          "confirmed": 139.772,
+          "node-close:0": 147.0
+        },
+        {
+          "epoch_ms": 1793184221537.0,
+          "python-entry": 180.878,
+          "close-entry": 347.014,
+          "owner-validated": 366.039,
+          "terminated": 366.912,
+          "confirmed": 367.764,
+          "node-close:0": 382.0
+        },
+        {
+          "epoch_ms": 1793184227497.0,
+          "python-entry": 202.792,
+          "close-entry": 302.758,
+          "owner-validated": 337.01,
+          "terminated": 338.183,
+          "confirmed": 339.084,
+          "node-close:0": 358.0
+        },
+        {
+          "epoch_ms": 1793184234026.0,
+          "python-entry": 261.73,
+          "close-entry": 442.987,
+          "owner-validated": 469.428,
+          "terminated": 470.691,
+          "confirmed": 471.787,
+          "node-close:0": 502.0
+        },
+        {
+          "epoch_ms": 1793184238938.0,
+          "python-entry": 159.096,
+          "close-entry": 203.281,
+          "owner-validated": 225.554,
+          "terminated": 226.537,
+          "confirmed": 227.442,
+          "node-close:0": 241.0
+        },
+        {
+          "epoch_ms": 1793184244229.0,
+          "python-entry": 168.363,
+          "close-entry": 245.1,
+          "owner-validated": 277.437,
+          "terminated": 278.595,
+          "confirmed": 279.476,
+          "node-close:0": 293.0
+        },
+        {
+          "epoch_ms": 1793184248511.0,
+          "python-entry": 243.028,
+          "close-entry": 335.32,
+          "owner-validated": 356.047,
+          "terminated": 357.109,
+          "confirmed": 357.859,
+          "node-close:0": 371.0
+        },
+        {
+          "epoch_ms": 1793184253655.0,
+          "python-entry": 133.506,
+          "close-entry": 191.839,
+          "owner-validated": 212.952,
+          "terminated": 214.179,
+          "confirmed": 215.134,
+          "node-close:0": 229.0
+        },
+        {
+          "epoch_ms": 1793184258843.0,
+          "python-entry": 178.131,
+          "close-entry": 229.956,
+          "owner-validated": 251.749,
+          "terminated": 252.924,
+          "confirmed": 253.972,
+          "node-close:0": 269.0
+        }
+      ],
+      "working_directory": "repository root; different from the benchmark",
+      "max_successful_helper_close_ms": 502.0
+    },
+    {
+      "trace": "exact-trace.txt",
+      "working_directory": "fresh benchmark fixture project",
+      "attempts": 113,
+      "timeouts": 1,
+      "method": "helper writes phases to disk",
+      "max_python_entry_ms": 402.418,
+      "module_initialization_median_ms": 42.365,
+      "module_initialization_max_ms": 181.528,
+      "measurements": [
+        {
+          "epoch_ms": 1793184403368.0,
+          "python-entry": 113.776,
+          "close-entry": 143.56,
+          "owner-validated": 158.119,
+          "terminated": 158.853,
+          "confirmed": 176.894,
+          "node-close:0": 186.0
+        },
+        {
+          "epoch_ms": 1793184404389.0,
+          "python-entry": 119.127,
+          "close-entry": 152.717,
+          "owner-validated": 169.944,
+          "terminated": 170.664,
+          "confirmed": 171.289,
+          "node-close:0": 183.0
+        },
+        {
+          "epoch_ms": 1793184405364.0,
+          "python-entry": 192.01,
+          "close-entry": 218.889,
+          "owner-validated": 233.355,
+          "terminated": 234.1,
+          "confirmed": 234.883,
+          "node-close:0": 249.0
+        },
+        {
+          "epoch_ms": 1793184406622.0,
+          "python-entry": 143.947,
+          "close-entry": 192.515,
+          "owner-validated": 216.256,
+          "terminated": 217.448,
+          "confirmed": 218.462,
+          "node-close:0": 232.0
+        },
+        {
+          "epoch_ms": 1793184408092.0,
+          "python-entry": 137.872,
+          "close-entry": 212.844,
+          "owner-validated": 238.229,
+          "terminated": 239.302,
+          "confirmed": 240.253,
+          "node-close:0": 258.0
+        },
+        {
+          "epoch_ms": 1793184409774.0,
+          "python-entry": 185.199,
+          "close-entry": 281.029,
+          "owner-validated": 299.446,
+          "terminated": 300.769,
+          "confirmed": 301.648,
+          "node-close:0": 316.0
+        },
+        {
+          "epoch_ms": 1793184411283.0,
+          "python-entry": 155.66,
+          "close-entry": 201.195,
+          "owner-validated": 224.117,
+          "terminated": 225.177,
+          "confirmed": 226.1,
+          "node-close:0": 240.0
+        },
+        {
+          "epoch_ms": 1793184413185.0,
+          "python-entry": 232.554,
+          "close-entry": 414.082,
+          "owner-validated": 439.144,
+          "terminated": 440.288,
+          "confirmed": 441.171,
+          "node-close:0": 472.0
+        },
+        {
+          "epoch_ms": 1793184414888.0,
+          "python-entry": 158.798,
+          "close-entry": 263.587,
+          "owner-validated": 296.737,
+          "terminated": 297.953,
+          "confirmed": 298.776,
+          "node-close:0": 311.0
+        },
+        {
+          "epoch_ms": 1793184416222.0,
+          "python-entry": 179.709,
+          "close-entry": 239.156,
+          "owner-validated": 264.461,
+          "terminated": 265.613,
+          "confirmed": 266.608,
+          "node-close:0": 282.0
+        },
+        {
+          "epoch_ms": 1793184417488.0,
+          "python-entry": 189.731,
+          "close-entry": 278.205,
+          "owner-validated": 296.229,
+          "terminated": 297.214,
+          "confirmed": 297.932,
+          "node-close:0": 308.0
+        },
+        {
+          "epoch_ms": 1793184420336.0,
+          "python-entry": 200.156,
+          "close-entry": 253.936,
+          "owner-validated": 271.936,
+          "terminated": 272.746,
+          "confirmed": 273.528,
+          "node-close:0": 288.0
+        },
+        {
+          "epoch_ms": 1793184423254.0,
+          "python-entry": 141.68,
+          "close-entry": 183.881,
+          "owner-validated": 202.017,
+          "terminated": 203.037,
+          "confirmed": 203.759,
+          "node-close:0": 217.0
+        },
+        {
+          "epoch_ms": 1793184425631.0,
+          "python-entry": 183.036,
+          "close-entry": 211.898,
+          "owner-validated": 226.219,
+          "terminated": 227.153,
+          "confirmed": 228.211,
+          "node-close:0": 240.0
+        },
+        {
+          "epoch_ms": 1793184428115.0,
+          "python-entry": 180.769,
+          "close-entry": 239.821,
+          "owner-validated": 263.078,
+          "terminated": 264.172,
+          "confirmed": 265.141,
+          "node-close:0": 282.0
+        },
+        {
+          "epoch_ms": 1793184430957.0,
+          "python-entry": 123.735,
+          "close-entry": 173.059,
+          "owner-validated": 196.637,
+          "terminated": 197.763,
+          "confirmed": 198.672,
+          "node-close:0": 213.0
+        },
+        {
+          "epoch_ms": 1793184433488.0,
+          "python-entry": 130.112,
+          "close-entry": 197.56,
+          "owner-validated": 218.97,
+          "terminated": 220.118,
+          "confirmed": 221.032,
+          "node-close:0": 235.0
+        },
+        {
+          "epoch_ms": 1793184436124.0,
+          "python-entry": 142.616,
+          "close-entry": 172.392,
+          "owner-validated": 187.22,
+          "terminated": 188.15,
+          "confirmed": 188.843,
+          "node-close:0": 198.0
+        },
+        {
+          "epoch_ms": 1793184438495.0,
+          "python-entry": 119.981,
+          "close-entry": 151.085,
+          "owner-validated": 166.018,
+          "terminated": 166.845,
+          "confirmed": 175.389,
+          "node-close:0": 185.0
+        },
+        {
+          "epoch_ms": 1793184440877.0,
+          "python-entry": 153.618,
+          "close-entry": 189.439,
+          "owner-validated": 210.952,
+          "terminated": 211.808,
+          "confirmed": 212.413,
+          "node-close:0": 221.0
+        },
+        {
+          "epoch_ms": 1793184442948.0,
+          "python-entry": 111.551,
+          "close-entry": 141.118,
+          "owner-validated": 158.591,
+          "terminated": 160.071,
+          "confirmed": 160.961,
+          "node-close:0": 171.0
+        },
+        {
+          "epoch_ms": 1793184445034.0,
+          "python-entry": 112.639,
+          "close-entry": 150.59,
+          "owner-validated": 170.255,
+          "terminated": 171.322,
+          "confirmed": 172.223,
+          "node-close:0": 186.0
+        },
+        {
+          "epoch_ms": 1793184447555.0,
+          "python-entry": 133.317,
+          "close-entry": 178.708,
+          "owner-validated": 198.838,
+          "terminated": 199.913,
+          "confirmed": 200.536,
+          "node-close:0": 211.0
+        },
+        {
+          "epoch_ms": 1793184449632.0,
+          "python-entry": 107.694,
+          "close-entry": 170.29,
+          "owner-validated": 185.925,
+          "terminated": 186.592,
+          "confirmed": 187.055,
+          "node-close:0": 198.0
+        },
+        {
+          "epoch_ms": 1793184451802.0,
+          "python-entry": 121.052,
+          "close-entry": 153.774,
+          "owner-validated": 173.395,
+          "terminated": 174.274,
+          "confirmed": 175.111,
+          "node-close:0": 187.0
+        },
+        {
+          "epoch_ms": 1793184454116.0,
+          "python-entry": 144.311,
+          "close-entry": 195.996,
+          "owner-validated": 220.411,
+          "terminated": 221.491,
+          "confirmed": 222.356,
+          "node-close:0": 237.0
+        },
+        {
+          "epoch_ms": 1793184456839.0,
+          "python-entry": 188.063,
+          "close-entry": 258.718,
+          "owner-validated": 278.851,
+          "terminated": 279.815,
+          "confirmed": 288.15,
+          "node-close:0": 301.0
+        },
+        {
+          "epoch_ms": 1793184459373.0,
+          "python-entry": 145.784,
+          "close-entry": 179.921,
+          "owner-validated": 196.403,
+          "terminated": 197.296,
+          "confirmed": 198.025,
+          "node-close:0": 208.0
+        },
+        {
+          "epoch_ms": 1793184461527.0,
+          "python-entry": 130.798,
+          "close-entry": 165.351,
+          "owner-validated": 181.919,
+          "terminated": 182.848,
+          "confirmed": 183.862,
+          "node-close:0": 195.0
+        },
+        {
+          "epoch_ms": 1793184463882.0,
+          "python-entry": 104.653,
+          "close-entry": 143.652,
+          "owner-validated": 161.022,
+          "terminated": 161.796,
+          "confirmed": 162.527,
+          "node-close:0": 173.0
+        },
+        {
+          "epoch_ms": 1793184465971.0,
+          "python-entry": 111.003,
+          "close-entry": 157.176,
+          "owner-validated": 176.883,
+          "terminated": 177.894,
+          "confirmed": 178.676,
+          "node-close:0": 190.0
+        },
+        {
+          "epoch_ms": 1793184468484.0,
+          "python-entry": 147.915,
+          "close-entry": 211.135,
+          "owner-validated": 232.198,
+          "terminated": 233.376,
+          "confirmed": 234.339,
+          "node-close:0": 249.0
+        },
+        {
+          "epoch_ms": 1793184471294.0,
+          "python-entry": 136.42,
+          "close-entry": 184.886,
+          "owner-validated": 200.0,
+          "terminated": 201.029,
+          "confirmed": 201.958,
+          "node-close:0": 213.0
+        },
+        {
+          "epoch_ms": 1793184474593.0,
+          "python-entry": 108.925,
+          "close-entry": 140.919,
+          "owner-validated": 162.554,
+          "terminated": 163.568,
+          "confirmed": 164.603,
+          "node-close:0": 179.0
+        },
+        {
+          "epoch_ms": 1793184477670.0,
+          "python-entry": 140.618,
+          "close-entry": 178.582,
+          "owner-validated": 198.572,
+          "terminated": 199.594,
+          "confirmed": 200.465,
+          "node-close:0": 208.0
+        },
+        {
+          "epoch_ms": 1793184480773.0,
+          "python-entry": 154.734,
+          "close-entry": 223.205,
+          "owner-validated": 240.913,
+          "terminated": 241.681,
+          "confirmed": 242.312,
+          "node-close:0": 255.0
+        },
+        {
+          "epoch_ms": 1793184483679.0,
+          "python-entry": 112.901,
+          "close-entry": 153.399,
+          "owner-validated": 169.729,
+          "terminated": 170.646,
+          "confirmed": 171.251,
+          "node-close:0": 181.0
+        },
+        {
+          "epoch_ms": 1793184486583.0,
+          "python-entry": 110.77,
+          "close-entry": 158.529,
+          "owner-validated": 178.347,
+          "terminated": 179.212,
+          "confirmed": 180.059,
+          "node-close:0": 191.0
+        },
+        {
+          "epoch_ms": 1793184489396.0,
+          "python-entry": 102.008,
+          "close-entry": 143.004,
+          "owner-validated": 161.303,
+          "terminated": 162.482,
+          "confirmed": 163.248,
+          "node-close:0": 175.0
+        },
+        {
+          "epoch_ms": 1793184492327.0,
+          "python-entry": 218.654,
+          "close-entry": 259.966,
+          "owner-validated": 287.462,
+          "terminated": 288.602,
+          "confirmed": 289.573,
+          "node-close:0": 321.0
+        },
+        {
+          "epoch_ms": 1793184496947.0,
+          "python-entry": 146.333,
+          "close-entry": 208.047,
+          "owner-validated": 230.701,
+          "terminated": 231.678,
+          "confirmed": 245.952,
+          "node-close:0": 268.0
+        },
+        {
+          "epoch_ms": 1793184501469.0,
+          "python-entry": 193.418,
+          "close-entry": 261.288,
+          "owner-validated": 283.663,
+          "terminated": 284.743,
+          "confirmed": 285.674,
+          "node-close:0": 304.0
+        },
+        {
+          "epoch_ms": 1793184505341.0,
+          "python-entry": 222.762,
+          "close-entry": 391.923,
+          "owner-validated": 442.186,
+          "terminated": 443.279,
+          "confirmed": 444.219,
+          "node-close:0": 460.0
+        },
+        {
+          "epoch_ms": 1793184509671.0,
+          "python-entry": 120.832,
+          "close-entry": 164.792,
+          "owner-validated": 185.236,
+          "terminated": 186.201,
+          "confirmed": 187.065,
+          "node-close:0": 200.0
+        },
+        {
+          "epoch_ms": 1793184540572.0,
+          "python-entry": 106.344,
+          "close-entry": 150.729,
+          "owner-validated": 170.917,
+          "terminated": 171.742,
+          "confirmed": 172.364,
+          "node-close:0": 186.0
+        },
+        {
+          "epoch_ms": 1793184542834.0,
+          "python-entry": 101.959,
+          "close-entry": 142.976,
+          "owner-validated": 159.766,
+          "terminated": 160.677,
+          "confirmed": 161.63,
+          "node-close:0": 175.0
+        },
+        {
+          "epoch_ms": 1793184544994.0,
+          "python-entry": 102.963,
+          "close-entry": 151.452,
+          "owner-validated": 175.179,
+          "terminated": 176.166,
+          "confirmed": 176.886,
+          "node-close:0": 188.0
+        },
+        {
+          "epoch_ms": 1793184547723.0,
+          "python-entry": 124.432,
+          "close-entry": 170.926,
+          "owner-validated": 188.712,
+          "terminated": 189.727,
+          "confirmed": 190.508,
+          "node-close:0": 204.0
+        },
+        {
+          "epoch_ms": 1793184550351.0,
+          "python-entry": 113.348,
+          "close-entry": 151.532,
+          "owner-validated": 168.8,
+          "terminated": 169.856,
+          "confirmed": 170.662,
+          "node-close:0": 182.0
+        },
+        {
+          "epoch_ms": 1793184553109.0,
+          "python-entry": 115.814,
+          "close-entry": 154.035,
+          "owner-validated": 170.939,
+          "terminated": 171.834,
+          "confirmed": 172.667,
+          "node-close:0": 184.0
+        },
+        {
+          "epoch_ms": 1793184555456.0,
+          "python-entry": 101.032,
+          "close-entry": 133.355,
+          "owner-validated": 149.419,
+          "terminated": 150.549,
+          "confirmed": 151.287,
+          "node-close:0": 162.0
+        },
+        {
+          "epoch_ms": 1793184557482.0,
+          "python-entry": 106.801,
+          "close-entry": 140.973,
+          "owner-validated": 156.38,
+          "terminated": 157.384,
+          "confirmed": 158.24,
+          "node-close:0": 167.0
+        },
+        {
+          "epoch_ms": 1793184560057.0,
+          "python-entry": 97.589,
+          "close-entry": 140.347,
+          "owner-validated": 155.078,
+          "terminated": 155.917,
+          "confirmed": 156.583,
+          "node-close:0": 174.0
+        },
+        {
+          "epoch_ms": 1793184562417.0,
+          "python-entry": 154.671,
+          "close-entry": 232.452,
+          "owner-validated": 284.988,
+          "terminated": 286.282,
+          "confirmed": 287.4,
+          "node-close:0": 301.0
+        },
+        {
+          "epoch_ms": 1793184564919.0,
+          "python-entry": 116.045,
+          "close-entry": 174.022,
+          "owner-validated": 197.436,
+          "terminated": 198.617,
+          "confirmed": 199.461,
+          "node-close:0": 214.0
+        },
+        {
+          "epoch_ms": 1793184569636.0,
+          "python-entry": 107.408,
+          "close-entry": 151.379,
+          "owner-validated": 167.492,
+          "terminated": 168.275,
+          "confirmed": 169.102,
+          "node-close:0": 181.0
+        },
+        {
+          "epoch_ms": 1793184574633.0,
+          "python-entry": 122.474,
+          "close-entry": 160.355,
+          "owner-validated": 178.646,
+          "terminated": 179.706,
+          "confirmed": 180.508,
+          "node-close:0": 213.0
+        },
+        {
+          "epoch_ms": 1793184579757.0,
+          "python-entry": 184.672,
+          "close-entry": 304.096,
+          "owner-validated": 353.953,
+          "terminated": 355.379,
+          "confirmed": 356.36,
+          "node-close:0": 381.0
+        },
+        {
+          "epoch_ms": 1793184587431.0,
+          "python-entry": 224.562,
+          "close-entry": 333.407,
+          "owner-validated": 358.396,
+          "terminated": 359.358,
+          "confirmed": 360.13,
+          "node-close:0": 387.0
+        },
+        {
+          "epoch_ms": 1793184595354.0,
+          "python-entry": 240.792,
+          "close-entry": 329.796,
+          "owner-validated": 358.359,
+          "terminated": 359.343,
+          "confirmed": 360.226,
+          "node-close:0": 376.0
+        },
+        {
+          "epoch_ms": 1793184606047.0,
+          "python-entry": 201.355,
+          "close-entry": 268.332,
+          "owner-validated": 286.136,
+          "terminated": 287.159,
+          "confirmed": 287.966,
+          "node-close:0": 300.0
+        },
+        {
+          "epoch_ms": 1793184614500.0,
+          "python-entry": 127.935,
+          "close-entry": 183.123,
+          "owner-validated": 199.284,
+          "terminated": 200.157,
+          "confirmed": 201.124,
+          "node-close:0": 212.0
+        },
+        {
+          "epoch_ms": 1793184620101.0,
+          "python-entry": 179.269,
+          "close-entry": 218.409,
+          "owner-validated": 238.134,
+          "terminated": 239.058,
+          "confirmed": 239.866,
+          "node-close:0": 252.0
+        },
+        {
+          "epoch_ms": 1793184625414.0,
+          "python-entry": 135.654,
+          "close-entry": 186.802,
+          "owner-validated": 209.758,
+          "terminated": 210.905,
+          "confirmed": 211.438,
+          "node-close:0": 223.0
+        },
+        {
+          "epoch_ms": 1793184630174.0,
+          "python-entry": 131.968,
+          "close-entry": 173.027,
+          "owner-validated": 198.392,
+          "terminated": 199.339,
+          "confirmed": 200.097,
+          "node-close:0": 213.0
+        },
+        {
+          "epoch_ms": 1793184634810.0,
+          "python-entry": 114.141,
+          "close-entry": 160.938,
+          "owner-validated": 178.659,
+          "terminated": 179.599,
+          "confirmed": 180.24,
+          "node-close:0": 190.0
+        },
+        {
+          "epoch_ms": 1793184635933.0,
+          "python-entry": 165.477,
+          "close-entry": 200.981,
+          "owner-validated": 220.686,
+          "terminated": 221.679,
+          "confirmed": 232.487,
+          "node-close:0": 243.0
+        },
+        {
+          "epoch_ms": 1793184637235.0,
+          "python-entry": 127.547,
+          "close-entry": 177.287,
+          "owner-validated": 201.919,
+          "terminated": 202.857,
+          "confirmed": 203.599,
+          "node-close:0": 215.0
+        },
+        {
+          "epoch_ms": 1793184638389.0,
+          "python-entry": 77.688,
+          "close-entry": 101.992,
+          "owner-validated": 116.192,
+          "terminated": 116.948,
+          "confirmed": 117.664,
+          "node-close:0": 127.0
+        },
+        {
+          "epoch_ms": 1793184639339.0,
+          "python-entry": 105.107,
+          "close-entry": 139.253,
+          "owner-validated": 153.765,
+          "terminated": 154.579,
+          "confirmed": 155.157,
+          "node-close:0": 165.0
+        },
+        {
+          "epoch_ms": 1793184640380.0,
+          "python-entry": 132.009,
+          "close-entry": 161.604,
+          "owner-validated": 175.675,
+          "terminated": 176.511,
+          "confirmed": 177.124,
+          "node-close:0": 188.0
+        },
+        {
+          "epoch_ms": 1793184641387.0,
+          "python-entry": 118.46,
+          "close-entry": 155.667,
+          "owner-validated": 183.252,
+          "terminated": 184.368,
+          "confirmed": 185.167,
+          "node-close:0": 197.0
+        },
+        {
+          "epoch_ms": 1793184643552.0,
+          "python-entry": 288.888,
+          "close-entry": 360.67,
+          "owner-validated": 400.453,
+          "terminated": 401.608,
+          "confirmed": 402.821,
+          "node-close:0": 433.0
+        },
+        {
+          "epoch_ms": 1793184645042.0,
+          "python-entry": 121.229,
+          "close-entry": 155.81,
+          "owner-validated": 172.13,
+          "terminated": 173.207,
+          "confirmed": 173.932,
+          "node-close:0": 191.0
+        },
+        {
+          "epoch_ms": 1793184646074.0,
+          "python-entry": 124.087,
+          "close-entry": 161.139,
+          "owner-validated": 178.448,
+          "terminated": 179.506,
+          "confirmed": 180.226,
+          "node-close:0": 190.0
+        },
+        {
+          "epoch_ms": 1793184647248.0,
+          "python-entry": 159.948,
+          "close-entry": 198.79,
+          "owner-validated": 215.876,
+          "terminated": 216.687,
+          "confirmed": 217.433,
+          "node-close:0": 227.0
+        },
+        {
+          "epoch_ms": 1793184648378.0,
+          "python-entry": 120.666,
+          "close-entry": 153.636,
+          "owner-validated": 170.77,
+          "terminated": 171.552,
+          "confirmed": 172.489,
+          "node-close:0": 185.0
+        },
+        {
+          "epoch_ms": 1793184649519.0,
+          "python-entry": 117.865,
+          "close-entry": 150.67,
+          "owner-validated": 171.514,
+          "terminated": 172.39,
+          "confirmed": 173.048,
+          "node-close:0": 192.0
+        },
+        {
+          "epoch_ms": 1793184650619.0,
+          "python-entry": 110.997,
+          "close-entry": 151.278,
+          "owner-validated": 170.226,
+          "terminated": 171.395,
+          "confirmed": 172.397,
+          "node-close:0": 187.0
+        },
+        {
+          "epoch_ms": 1793184651783.0,
+          "python-entry": 117.353,
+          "close-entry": 164.206,
+          "owner-validated": 182.916,
+          "terminated": 184.035,
+          "confirmed": 185.069,
+          "node-close:0": 198.0
+        },
+        {
+          "epoch_ms": 1793184652920.0,
+          "python-entry": 113.003,
+          "close-entry": 156.439,
+          "owner-validated": 175.254,
+          "terminated": 176.142,
+          "confirmed": 176.695,
+          "node-close:0": 186.0
+        },
+        {
+          "epoch_ms": 1793184654034.0,
+          "python-entry": 111.671,
+          "close-entry": 148.383,
+          "owner-validated": 166.938,
+          "terminated": 167.836,
+          "confirmed": 169.016,
+          "node-close:0": 179.0
+        },
+        {
+          "epoch_ms": 1793184655125.0,
+          "python-entry": 127.425,
+          "close-entry": 159.505,
+          "owner-validated": 173.135,
+          "terminated": 174.116,
+          "confirmed": 174.758,
+          "node-close:0": 185.0
+        },
+        {
+          "epoch_ms": 1793184656418.0,
+          "python-entry": 107.441,
+          "close-entry": 159.065,
+          "owner-validated": 180.573,
+          "terminated": 181.643,
+          "confirmed": 182.401,
+          "node-close:0": 194.0
+        },
+        {
+          "epoch_ms": 1793184657720.0,
+          "python-entry": 136.485,
+          "close-entry": 175.966,
+          "owner-validated": 191.229,
+          "terminated": 192.613,
+          "confirmed": 193.561,
+          "node-close:0": 204.0
+        },
+        {
+          "epoch_ms": 1793184658976.0,
+          "python-entry": 122.43,
+          "close-entry": 167.916,
+          "owner-validated": 191.746,
+          "terminated": 192.571,
+          "confirmed": 193.26,
+          "node-close:0": 203.0
+        },
+        {
+          "epoch_ms": 1793184660112.0,
+          "python-entry": 226.847,
+          "close-entry": 257.833,
+          "owner-validated": 273.641,
+          "terminated": 274.377,
+          "confirmed": 275.217,
+          "node-close:0": 284.0
+        },
+        {
+          "epoch_ms": 1793184661420.0,
+          "python-entry": 115.706,
+          "close-entry": 168.961,
+          "owner-validated": 190.525,
+          "terminated": 191.546,
+          "confirmed": 192.417,
+          "node-close:0": 206.0
+        },
+        {
+          "epoch_ms": 1793184662834.0,
+          "python-entry": 117.089,
+          "close-entry": 153.631,
+          "owner-validated": 171.159,
+          "terminated": 171.997,
+          "confirmed": 172.79,
+          "node-close:0": 183.0
+        },
+        {
+          "epoch_ms": 1793184663986.0,
+          "python-entry": 146.181,
+          "close-entry": 203.203,
+          "owner-validated": 223.293,
+          "terminated": 224.282,
+          "confirmed": 225.189,
+          "node-close:0": 237.0
+        },
+        {
+          "epoch_ms": 1793184665117.0,
+          "python-entry": 115.769,
+          "close-entry": 214.856,
+          "owner-validated": 235.088,
+          "terminated": 236.033,
+          "confirmed": 236.902,
+          "node-close:0": 249.0
+        },
+        {
+          "epoch_ms": 1793184666324.0,
+          "python-entry": 138.462,
+          "close-entry": 225.406,
+          "owner-validated": 249.613,
+          "terminated": 250.759,
+          "confirmed": 251.74,
+          "node-close:0": 266.0
+        },
+        {
+          "epoch_ms": 1793184667527.0,
+          "python-entry": 131.522,
+          "close-entry": 166.075,
+          "owner-validated": 181.786,
+          "terminated": 182.856,
+          "confirmed": 183.51,
+          "node-close:0": 194.0
+        },
+        {
+          "epoch_ms": 1793184668495.0,
+          "python-entry": 151.623,
+          "close-entry": 193.506,
+          "owner-validated": 211.587,
+          "terminated": 212.508,
+          "confirmed": 221.021,
+          "node-close:0": 235.0
+        },
+        {
+          "epoch_ms": 1793184669655.0,
+          "python-entry": 168.496,
+          "close-entry": 201.85,
+          "owner-validated": 216.967,
+          "terminated": 218.264,
+          "confirmed": 219.227,
+          "node-close:0": 228.0
+        },
+        {
+          "epoch_ms": 1793184670692.0,
+          "python-entry": 107.071,
+          "close-entry": 144.689,
+          "owner-validated": 159.915,
+          "terminated": 160.989,
+          "confirmed": 161.936,
+          "node-close:0": 174.0
+        },
+        {
+          "epoch_ms": 1793184671838.0,
+          "python-entry": 123.911,
+          "close-entry": 150.847,
+          "owner-validated": 165.915,
+          "terminated": 166.979,
+          "confirmed": 167.549,
+          "node-close:0": 176.0
+        },
+        {
+          "epoch_ms": 1793184672770.0,
+          "python-entry": 130.452,
+          "close-entry": 158.865,
+          "owner-validated": 175.967,
+          "terminated": 176.813,
+          "confirmed": 178.153,
+          "node-close:0": 187.0
+        },
+        {
+          "epoch_ms": 1793184673756.0,
+          "python-entry": 99.647,
+          "close-entry": 142.176,
+          "owner-validated": 165.358,
+          "terminated": 166.421,
+          "confirmed": 167.077,
+          "node-close:0": 178.0
+        },
+        {
+          "epoch_ms": 1793184675522.0,
+          "python-entry": 92.756,
+          "close-entry": 121.198,
+          "owner-validated": 136.473,
+          "terminated": 137.251,
+          "confirmed": 137.79,
+          "node-close:0": 147.0
+        },
+        {
+          "epoch_ms": 1793184677380.0,
+          "python-entry": 136.554,
+          "close-entry": 182.7,
+          "owner-validated": 197.223,
+          "terminated": 198.065,
+          "confirmed": 198.598,
+          "node-close:0": 208.0
+        },
+        {
+          "epoch_ms": 1793184679106.0,
+          "python-entry": 125.889,
+          "close-entry": 174.953,
+          "owner-validated": 198.386,
+          "terminated": 199.307,
+          "confirmed": 200.323,
+          "node-close:0": 213.0
+        },
+        {
+          "epoch_ms": 1793184681177.0,
+          "python-entry": 113.753,
+          "close-entry": 151.632,
+          "owner-validated": 168.298,
+          "terminated": 169.152,
+          "confirmed": 171.026,
+          "node-close:0": 182.0
+        },
+        {
+          "epoch_ms": 1793184683111.0,
+          "python-entry": 138.945,
+          "close-entry": 177.332,
+          "owner-validated": 190.298,
+          "terminated": 191.078,
+          "confirmed": 191.804,
+          "node-close:0": 203.0
+        },
+        {
+          "epoch_ms": 1793184685097.0,
+          "python-entry": 136.792,
+          "close-entry": 167.68,
+          "owner-validated": 181.928,
+          "terminated": 182.632,
+          "confirmed": 183.456,
+          "node-close:0": 190.0
+        },
+        {
+          "epoch_ms": 1793184686828.0,
+          "python-entry": 82.154,
+          "close-entry": 111.801,
+          "owner-validated": 124.823,
+          "terminated": 125.615,
+          "confirmed": 126.42,
+          "node-close:0": 135.0
+        },
+        {
+          "epoch_ms": 1793184688429.0,
+          "python-entry": 88.334,
+          "close-entry": 127.432,
+          "owner-validated": 143.848,
+          "terminated": 144.787,
+          "confirmed": 145.57,
+          "node-close:0": 155.0
+        },
+        {
+          "epoch_ms": 1793184690082.0,
+          "python-entry": 101.737,
+          "close-entry": 132.607,
+          "owner-validated": 146.708,
+          "terminated": 147.461,
+          "confirmed": 155.611,
+          "node-close:0": 165.0
+        },
+        {
+          "epoch_ms": 1793184692040.0,
+          "python-entry": 152.069,
+          "close-entry": 200.144,
+          "owner-validated": 241.253,
+          "terminated": 242.518,
+          "confirmed": 243.628,
+          "node-close:0": 256.0
+        },
+        {
+          "epoch_ms": 1793184694921.0,
+          "python-entry": 213.216,
+          "close-entry": 289.903,
+          "owner-validated": 312.528,
+          "terminated": 313.701,
+          "confirmed": 314.493,
+          "node-close:0": 339.0
+        },
+        {
+          "epoch_ms": 1793184698985.0,
+          "python-entry": 204.755,
+          "close-entry": 259.899,
+          "owner-validated": 280.995,
+          "terminated": 282.07,
+          "confirmed": 282.959,
+          "node-close:0": 295.0
+        },
+        {
+          "epoch_ms": 1793184702469.0,
+          "python-entry": 260.285,
+          "close-entry": 337.58,
+          "owner-validated": 370.031,
+          "terminated": 371.24,
+          "confirmed": 372.297,
+          "node-close:0": 407.0
+        },
+        {
+          "epoch_ms": 1793184706431.0,
+          "python-entry": 402.418,
+          "node-timeout": 578.0,
+          "node-close:null": 600.0
+        }
+      ],
+      "max_successful_helper_close_ms": 472.0
+    },
+    {
+      "trace": "exact-pipe-trace.txt",
+      "working_directory": "fresh benchmark fixture project",
+      "attempts": 264,
+      "timeouts": 0,
+      "method": "helper writes phases to a drained pipe; parent persists after helper close",
+      "max_python_entry_ms": 328.558,
+      "module_initialization_median_ms": 33.592,
+      "module_initialization_max_ms": 157.791,
+      "measurements": [
+        {
+          "epoch_ms": 1793184909385.0,
+          "python-entry": 99.008,
+          "close-entry": 139.553,
+          "owner-validated": 151.765,
+          "terminated": 151.921,
+          "confirmed": 151.954,
+          "node-close:0": 159.0
+        },
+        {
+          "epoch_ms": 1793184910369.0,
+          "python-entry": 137.661,
+          "close-entry": 174.253,
+          "owner-validated": 195.29,
+          "terminated": 195.461,
+          "confirmed": 195.5,
+          "node-close:0": 204.0
+        },
+        {
+          "epoch_ms": 1793184911345.0,
+          "python-entry": 85.451,
+          "close-entry": 118.989,
+          "owner-validated": 132.098,
+          "terminated": 132.274,
+          "confirmed": 132.312,
+          "node-close:0": 140.0
+        },
+        {
+          "epoch_ms": 1793184912275.0,
+          "python-entry": 127.55,
+          "close-entry": 156.941,
+          "owner-validated": 169.323,
+          "terminated": 169.468,
+          "confirmed": 169.497,
+          "node-close:0": 178.0
+        },
+        {
+          "epoch_ms": 1793184913195.0,
+          "python-entry": 118.92,
+          "close-entry": 148.773,
+          "owner-validated": 162.387,
+          "terminated": 162.543,
+          "confirmed": 162.575,
+          "node-close:0": 171.0
+        },
+        {
+          "epoch_ms": 1793184914165.0,
+          "python-entry": 127.961,
+          "close-entry": 191.8,
+          "owner-validated": 217.781,
+          "terminated": 218.13,
+          "confirmed": 218.213,
+          "node-close:0": 228.0
+        },
+        {
+          "epoch_ms": 1793184915161.0,
+          "python-entry": 82.91,
+          "close-entry": 113.432,
+          "owner-validated": 126.115,
+          "terminated": 126.246,
+          "confirmed": 126.278,
+          "node-close:0": 132.0
+        },
+        {
+          "epoch_ms": 1793184915989.0,
+          "python-entry": 108.559,
+          "close-entry": 151.36,
+          "owner-validated": 165.182,
+          "terminated": 165.379,
+          "confirmed": 165.42,
+          "node-close:0": 174.0
+        },
+        {
+          "epoch_ms": 1793184916899.0,
+          "python-entry": 98.411,
+          "close-entry": 128.319,
+          "owner-validated": 142.33,
+          "terminated": 142.554,
+          "confirmed": 142.597,
+          "node-close:0": 150.0
+        },
+        {
+          "epoch_ms": 1793184917772.0,
+          "python-entry": 191.274,
+          "close-entry": 301.275,
+          "owner-validated": 315.755,
+          "terminated": 315.899,
+          "confirmed": 315.927,
+          "node-close:0": 327.0
+        },
+        {
+          "epoch_ms": 1793184918842.0,
+          "python-entry": 100.425,
+          "close-entry": 132.672,
+          "owner-validated": 146.791,
+          "terminated": 146.965,
+          "confirmed": 147.002,
+          "node-close:0": 155.0
+        },
+        {
+          "epoch_ms": 1793184920841.0,
+          "python-entry": 85.304,
+          "close-entry": 112.748,
+          "owner-validated": 123.733,
+          "terminated": 123.89,
+          "confirmed": 123.924,
+          "node-close:0": 130.0
+        },
+        {
+          "epoch_ms": 1793184922401.0,
+          "python-entry": 122.779,
+          "close-entry": 168.437,
+          "owner-validated": 179.514,
+          "terminated": 179.657,
+          "confirmed": 179.685,
+          "node-close:0": 187.0
+        },
+        {
+          "epoch_ms": 1793184924157.0,
+          "python-entry": 97.377,
+          "close-entry": 128.597,
+          "owner-validated": 144.642,
+          "terminated": 144.829,
+          "confirmed": 144.867,
+          "node-close:0": 154.0
+        },
+        {
+          "epoch_ms": 1793184926122.0,
+          "python-entry": 66.962,
+          "close-entry": 94.062,
+          "owner-validated": 105.791,
+          "terminated": 105.934,
+          "confirmed": 105.966,
+          "node-close:0": 116.0
+        },
+        {
+          "epoch_ms": 1793184928182.0,
+          "python-entry": 143.875,
+          "close-entry": 173.425,
+          "owner-validated": 185.127,
+          "terminated": 185.306,
+          "confirmed": 185.345,
+          "node-close:0": 193.0
+        },
+        {
+          "epoch_ms": 1793184929958.0,
+          "python-entry": 143.11,
+          "close-entry": 170.302,
+          "owner-validated": 182.108,
+          "terminated": 182.271,
+          "confirmed": 182.305,
+          "node-close:0": 192.0
+        },
+        {
+          "epoch_ms": 1793184931814.0,
+          "python-entry": 204.367,
+          "close-entry": 234.46,
+          "owner-validated": 248.472,
+          "terminated": 248.601,
+          "confirmed": 248.626,
+          "node-close:0": 256.0
+        },
+        {
+          "epoch_ms": 1793184933642.0,
+          "python-entry": 79.047,
+          "close-entry": 106.286,
+          "owner-validated": 119.412,
+          "terminated": 119.58,
+          "confirmed": 119.617,
+          "node-close:0": 130.0
+        },
+        {
+          "epoch_ms": 1793184935221.0,
+          "python-entry": 103.438,
+          "close-entry": 133.915,
+          "owner-validated": 146.578,
+          "terminated": 146.737,
+          "confirmed": 146.77,
+          "node-close:0": 153.0
+        },
+        {
+          "epoch_ms": 1793184937028.0,
+          "python-entry": 102.156,
+          "close-entry": 143.542,
+          "owner-validated": 163.481,
+          "terminated": 163.699,
+          "confirmed": 163.745,
+          "node-close:0": 178.0
+        },
+        {
+          "epoch_ms": 1793184938790.0,
+          "python-entry": 117.32,
+          "close-entry": 150.753,
+          "owner-validated": 164.76,
+          "terminated": 164.905,
+          "confirmed": 164.934,
+          "node-close:0": 172.0
+        },
+        {
+          "epoch_ms": 1793184940956.0,
+          "python-entry": 154.344,
+          "close-entry": 178.955,
+          "owner-validated": 190.718,
+          "terminated": 191.081,
+          "confirmed": 191.219,
+          "node-close:0": 200.0
+        },
+        {
+          "epoch_ms": 1793184943347.0,
+          "python-entry": 97.954,
+          "close-entry": 124.991,
+          "owner-validated": 135.901,
+          "terminated": 136.062,
+          "confirmed": 136.094,
+          "node-close:0": 143.0
+        },
+        {
+          "epoch_ms": 1793184945498.0,
+          "python-entry": 87.079,
+          "close-entry": 122.963,
+          "owner-validated": 138.36,
+          "terminated": 138.586,
+          "confirmed": 138.641,
+          "node-close:0": 148.0
+        },
+        {
+          "epoch_ms": 1793184948715.0,
+          "python-entry": 110.004,
+          "close-entry": 141.345,
+          "owner-validated": 155.205,
+          "terminated": 155.338,
+          "confirmed": 155.363,
+          "node-close:0": 164.0
+        },
+        {
+          "epoch_ms": 1793184950971.0,
+          "python-entry": 100.68,
+          "close-entry": 128.638,
+          "owner-validated": 140.654,
+          "terminated": 140.822,
+          "confirmed": 140.859,
+          "node-close:0": 149.0
+        },
+        {
+          "epoch_ms": 1793184953634.0,
+          "python-entry": 182.786,
+          "close-entry": 234.301,
+          "owner-validated": 256.917,
+          "terminated": 257.176,
+          "confirmed": 257.231,
+          "node-close:0": 278.0
+        },
+        {
+          "epoch_ms": 1793184957484.0,
+          "python-entry": 146.134,
+          "close-entry": 184.223,
+          "owner-validated": 202.838,
+          "terminated": 203.01,
+          "confirmed": 203.045,
+          "node-close:0": 215.0
+        },
+        {
+          "epoch_ms": 1793184961371.0,
+          "python-entry": 169.781,
+          "close-entry": 237.907,
+          "owner-validated": 256.969,
+          "terminated": 257.185,
+          "confirmed": 257.234,
+          "node-close:0": 270.0
+        },
+        {
+          "epoch_ms": 1793184963549.0,
+          "python-entry": 150.323,
+          "close-entry": 185.319,
+          "owner-validated": 203.633,
+          "terminated": 203.906,
+          "confirmed": 203.954,
+          "node-close:0": 215.0
+        },
+        {
+          "epoch_ms": 1793184965904.0,
+          "python-entry": 169.072,
+          "close-entry": 198.61,
+          "owner-validated": 211.14,
+          "terminated": 211.311,
+          "confirmed": 211.347,
+          "node-close:0": 221.0
+        },
+        {
+          "epoch_ms": 1793184967973.0,
+          "python-entry": 141.608,
+          "close-entry": 178.725,
+          "owner-validated": 191.698,
+          "terminated": 191.863,
+          "confirmed": 191.899,
+          "node-close:0": 200.0
+        },
+        {
+          "epoch_ms": 1793184970561.0,
+          "python-entry": 123.635,
+          "close-entry": 157.29,
+          "owner-validated": 171.891,
+          "terminated": 172.115,
+          "confirmed": 172.159,
+          "node-close:0": 182.0
+        },
+        {
+          "epoch_ms": 1793184973186.0,
+          "python-entry": 89.751,
+          "close-entry": 120.594,
+          "owner-validated": 134.0,
+          "terminated": 134.16,
+          "confirmed": 134.191,
+          "node-close:0": 142.0
+        },
+        {
+          "epoch_ms": 1793184975994.0,
+          "python-entry": 78.886,
+          "close-entry": 106.941,
+          "owner-validated": 118.823,
+          "terminated": 118.998,
+          "confirmed": 119.034,
+          "node-close:0": 128.0
+        },
+        {
+          "epoch_ms": 1793184979156.0,
+          "python-entry": 165.28,
+          "close-entry": 193.693,
+          "owner-validated": 205.564,
+          "terminated": 205.694,
+          "confirmed": 205.719,
+          "node-close:0": 213.0
+        },
+        {
+          "epoch_ms": 1793184982122.0,
+          "python-entry": 113.198,
+          "close-entry": 154.217,
+          "owner-validated": 170.877,
+          "terminated": 171.11,
+          "confirmed": 171.158,
+          "node-close:0": 181.0
+        },
+        {
+          "epoch_ms": 1793184985677.0,
+          "python-entry": 122.821,
+          "close-entry": 156.977,
+          "owner-validated": 169.914,
+          "terminated": 170.101,
+          "confirmed": 170.139,
+          "node-close:0": 178.0
+        },
+        {
+          "epoch_ms": 1793184988518.0,
+          "python-entry": 145.516,
+          "close-entry": 194.931,
+          "owner-validated": 211.695,
+          "terminated": 211.92,
+          "confirmed": 211.967,
+          "node-close:0": 222.0
+        },
+        {
+          "epoch_ms": 1793184991433.0,
+          "python-entry": 123.308,
+          "close-entry": 157.641,
+          "owner-validated": 187.478,
+          "terminated": 187.99,
+          "confirmed": 188.203,
+          "node-close:0": 201.0
+        },
+        {
+          "epoch_ms": 1793184996132.0,
+          "python-entry": 130.508,
+          "close-entry": 167.414,
+          "owner-validated": 183.515,
+          "terminated": 183.704,
+          "confirmed": 183.798,
+          "node-close:0": 193.0
+        },
+        {
+          "epoch_ms": 1793184999040.0,
+          "python-entry": 120.438,
+          "close-entry": 154.301,
+          "owner-validated": 165.993,
+          "terminated": 166.137,
+          "confirmed": 166.166,
+          "node-close:0": 177.0
+        },
+        {
+          "epoch_ms": 1793185002098.0,
+          "python-entry": 127.955,
+          "close-entry": 180.591,
+          "owner-validated": 204.903,
+          "terminated": 205.111,
+          "confirmed": 205.162,
+          "node-close:0": 218.0
+        },
+        {
+          "epoch_ms": 1793185030204.0,
+          "python-entry": 85.918,
+          "close-entry": 115.814,
+          "owner-validated": 133.157,
+          "terminated": 133.317,
+          "confirmed": 133.35,
+          "node-close:0": 144.0
+        },
+        {
+          "epoch_ms": 1793185032820.0,
+          "python-entry": 140.912,
+          "close-entry": 190.009,
+          "owner-validated": 203.238,
+          "terminated": 203.399,
+          "confirmed": 203.436,
+          "node-close:0": 212.0
+        },
+        {
+          "epoch_ms": 1793185035528.0,
+          "python-entry": 104.876,
+          "close-entry": 133.149,
+          "owner-validated": 146.296,
+          "terminated": 146.513,
+          "confirmed": 146.554,
+          "node-close:0": 153.0
+        },
+        {
+          "epoch_ms": 1793185037479.0,
+          "python-entry": 83.965,
+          "close-entry": 114.346,
+          "owner-validated": 127.665,
+          "terminated": 127.939,
+          "confirmed": 127.981,
+          "node-close:0": 137.0
+        },
+        {
+          "epoch_ms": 1793185039477.0,
+          "python-entry": 102.361,
+          "close-entry": 151.42,
+          "owner-validated": 171.387,
+          "terminated": 171.578,
+          "confirmed": 171.62,
+          "node-close:0": 183.0
+        },
+        {
+          "epoch_ms": 1793185041703.0,
+          "python-entry": 126.234,
+          "close-entry": 160.475,
+          "owner-validated": 174.379,
+          "terminated": 174.585,
+          "confirmed": 174.629,
+          "node-close:0": 182.0
+        },
+        {
+          "epoch_ms": 1793185044274.0,
+          "python-entry": 143.226,
+          "close-entry": 171.068,
+          "owner-validated": 182.647,
+          "terminated": 182.768,
+          "confirmed": 182.793,
+          "node-close:0": 190.0
+        },
+        {
+          "epoch_ms": 1793185046646.0,
+          "python-entry": 154.517,
+          "close-entry": 187.206,
+          "owner-validated": 202.109,
+          "terminated": 202.261,
+          "confirmed": 202.289,
+          "node-close:0": 212.0
+        },
+        {
+          "epoch_ms": 1793185048914.0,
+          "python-entry": 92.019,
+          "close-entry": 115.194,
+          "owner-validated": 128.794,
+          "terminated": 128.968,
+          "confirmed": 129.003,
+          "node-close:0": 137.0
+        },
+        {
+          "epoch_ms": 1793185051284.0,
+          "python-entry": 216.143,
+          "close-entry": 243.572,
+          "owner-validated": 256.449,
+          "terminated": 256.583,
+          "confirmed": 256.607,
+          "node-close:0": 264.0
+        },
+        {
+          "epoch_ms": 1793185053648.0,
+          "python-entry": 109.619,
+          "close-entry": 133.449,
+          "owner-validated": 144.447,
+          "terminated": 144.577,
+          "confirmed": 144.602,
+          "node-close:0": 153.0
+        },
+        {
+          "epoch_ms": 1793185058211.0,
+          "python-entry": 86.298,
+          "close-entry": 121.957,
+          "owner-validated": 137.257,
+          "terminated": 137.413,
+          "confirmed": 137.445,
+          "node-close:0": 147.0
+        },
+        {
+          "epoch_ms": 1793185064814.0,
+          "python-entry": 190.375,
+          "close-entry": 224.396,
+          "owner-validated": 242.35,
+          "terminated": 242.54,
+          "confirmed": 242.592,
+          "node-close:0": 254.0
+        },
+        {
+          "epoch_ms": 1793185070409.0,
+          "python-entry": 110.169,
+          "close-entry": 138.281,
+          "owner-validated": 150.269,
+          "terminated": 150.411,
+          "confirmed": 150.446,
+          "node-close:0": 158.0
+        },
+        {
+          "epoch_ms": 1793185075404.0,
+          "python-entry": 116.196,
+          "close-entry": 146.06,
+          "owner-validated": 157.328,
+          "terminated": 157.464,
+          "confirmed": 157.489,
+          "node-close:0": 165.0
+        },
+        {
+          "epoch_ms": 1793185080923.0,
+          "python-entry": 89.668,
+          "close-entry": 124.249,
+          "owner-validated": 137.344,
+          "terminated": 137.525,
+          "confirmed": 137.563,
+          "node-close:0": 145.0
+        },
+        {
+          "epoch_ms": 1793185085898.0,
+          "python-entry": 100.92,
+          "close-entry": 135.794,
+          "owner-validated": 149.494,
+          "terminated": 149.657,
+          "confirmed": 149.694,
+          "node-close:0": 158.0
+        },
+        {
+          "epoch_ms": 1793185090835.0,
+          "python-entry": 89.997,
+          "close-entry": 121.901,
+          "owner-validated": 135.751,
+          "terminated": 135.913,
+          "confirmed": 135.948,
+          "node-close:0": 143.0
+        },
+        {
+          "epoch_ms": 1793185095816.0,
+          "python-entry": 188.211,
+          "close-entry": 260.331,
+          "owner-validated": 284.866,
+          "terminated": 285.055,
+          "confirmed": 285.096,
+          "node-close:0": 295.0
+        },
+        {
+          "epoch_ms": 1793185100573.0,
+          "python-entry": 96.416,
+          "close-entry": 133.458,
+          "owner-validated": 144.708,
+          "terminated": 144.838,
+          "confirmed": 144.864,
+          "node-close:0": 152.0
+        },
+        {
+          "epoch_ms": 1793185105238.0,
+          "python-entry": 79.183,
+          "close-entry": 105.933,
+          "owner-validated": 117.968,
+          "terminated": 118.122,
+          "confirmed": 118.153,
+          "node-close:0": 127.0
+        },
+        {
+          "epoch_ms": 1793185110197.0,
+          "python-entry": 95.046,
+          "close-entry": 121.267,
+          "owner-validated": 132.732,
+          "terminated": 132.872,
+          "confirmed": 132.899,
+          "node-close:0": 139.0
+        },
+        {
+          "epoch_ms": 1793185111193.0,
+          "python-entry": 110.451,
+          "close-entry": 136.722,
+          "owner-validated": 150.202,
+          "terminated": 150.343,
+          "confirmed": 150.368,
+          "node-close:0": 158.0
+        },
+        {
+          "epoch_ms": 1793185112101.0,
+          "python-entry": 102.35,
+          "close-entry": 127.695,
+          "owner-validated": 139.395,
+          "terminated": 139.584,
+          "confirmed": 139.627,
+          "node-close:0": 148.0
+        },
+        {
+          "epoch_ms": 1793185113053.0,
+          "python-entry": 96.92,
+          "close-entry": 125.237,
+          "owner-validated": 137.552,
+          "terminated": 137.728,
+          "confirmed": 137.767,
+          "node-close:0": 146.0
+        },
+        {
+          "epoch_ms": 1793185114011.0,
+          "python-entry": 152.511,
+          "close-entry": 186.771,
+          "owner-validated": 199.98,
+          "terminated": 200.149,
+          "confirmed": 200.189,
+          "node-close:0": 209.0
+        },
+        {
+          "epoch_ms": 1793185114976.0,
+          "python-entry": 103.438,
+          "close-entry": 133.977,
+          "owner-validated": 146.626,
+          "terminated": 146.804,
+          "confirmed": 146.842,
+          "node-close:0": 154.0
+        },
+        {
+          "epoch_ms": 1793185115913.0,
+          "python-entry": 109.283,
+          "close-entry": 146.187,
+          "owner-validated": 158.711,
+          "terminated": 158.865,
+          "confirmed": 158.895,
+          "node-close:0": 168.0
+        },
+        {
+          "epoch_ms": 1793185116848.0,
+          "python-entry": 138.768,
+          "close-entry": 171.731,
+          "owner-validated": 187.774,
+          "terminated": 187.967,
+          "confirmed": 188.01,
+          "node-close:0": 197.0
+        },
+        {
+          "epoch_ms": 1793185117977.0,
+          "python-entry": 133.436,
+          "close-entry": 170.427,
+          "owner-validated": 187.729,
+          "terminated": 187.887,
+          "confirmed": 187.919,
+          "node-close:0": 200.0
+        },
+        {
+          "epoch_ms": 1793185119151.0,
+          "python-entry": 245.228,
+          "close-entry": 323.178,
+          "owner-validated": 363.014,
+          "terminated": 363.241,
+          "confirmed": 363.289,
+          "node-close:0": 375.0
+        },
+        {
+          "epoch_ms": 1793185120543.0,
+          "python-entry": 121.317,
+          "close-entry": 158.02,
+          "owner-validated": 175.292,
+          "terminated": 175.478,
+          "confirmed": 175.536,
+          "node-close:0": 187.0
+        },
+        {
+          "epoch_ms": 1793185121914.0,
+          "python-entry": 148.179,
+          "close-entry": 186.391,
+          "owner-validated": 207.32,
+          "terminated": 207.549,
+          "confirmed": 207.597,
+          "node-close:0": 222.0
+        },
+        {
+          "epoch_ms": 1793185123164.0,
+          "python-entry": 197.462,
+          "close-entry": 231.107,
+          "owner-validated": 245.718,
+          "terminated": 245.911,
+          "confirmed": 245.95,
+          "node-close:0": 256.0
+        },
+        {
+          "epoch_ms": 1793185124388.0,
+          "python-entry": 165.002,
+          "close-entry": 192.115,
+          "owner-validated": 206.139,
+          "terminated": 206.3,
+          "confirmed": 206.331,
+          "node-close:0": 214.0
+        },
+        {
+          "epoch_ms": 1793185125396.0,
+          "python-entry": 131.557,
+          "close-entry": 155.714,
+          "owner-validated": 167.851,
+          "terminated": 168.016,
+          "confirmed": 168.052,
+          "node-close:0": 176.0
+        },
+        {
+          "epoch_ms": 1793185126454.0,
+          "python-entry": 125.146,
+          "close-entry": 156.552,
+          "owner-validated": 172.554,
+          "terminated": 172.761,
+          "confirmed": 172.829,
+          "node-close:0": 182.0
+        },
+        {
+          "epoch_ms": 1793185127506.0,
+          "python-entry": 120.272,
+          "close-entry": 158.739,
+          "owner-validated": 171.212,
+          "terminated": 171.372,
+          "confirmed": 171.402,
+          "node-close:0": 180.0
+        },
+        {
+          "epoch_ms": 1793185128562.0,
+          "python-entry": 170.669,
+          "close-entry": 199.521,
+          "owner-validated": 211.036,
+          "terminated": 211.19,
+          "confirmed": 211.226,
+          "node-close:0": 220.0
+        },
+        {
+          "epoch_ms": 1793185129693.0,
+          "python-entry": 99.405,
+          "close-entry": 127.021,
+          "owner-validated": 140.111,
+          "terminated": 140.253,
+          "confirmed": 140.282,
+          "node-close:0": 147.0
+        },
+        {
+          "epoch_ms": 1793185130662.0,
+          "python-entry": 156.5,
+          "close-entry": 187.727,
+          "owner-validated": 199.567,
+          "terminated": 199.73,
+          "confirmed": 199.764,
+          "node-close:0": 208.0
+        },
+        {
+          "epoch_ms": 1793185131782.0,
+          "python-entry": 115.281,
+          "close-entry": 153.428,
+          "owner-validated": 171.883,
+          "terminated": 172.091,
+          "confirmed": 172.134,
+          "node-close:0": 186.0
+        },
+        {
+          "epoch_ms": 1793185132792.0,
+          "python-entry": 106.734,
+          "close-entry": 138.405,
+          "owner-validated": 149.565,
+          "terminated": 149.698,
+          "confirmed": 149.723,
+          "node-close:0": 158.0
+        },
+        {
+          "epoch_ms": 1793185133752.0,
+          "python-entry": 118.07,
+          "close-entry": 150.506,
+          "owner-validated": 169.998,
+          "terminated": 170.256,
+          "confirmed": 170.333,
+          "node-close:0": 180.0
+        },
+        {
+          "epoch_ms": 1793185134701.0,
+          "python-entry": 87.966,
+          "close-entry": 127.576,
+          "owner-validated": 139.425,
+          "terminated": 139.571,
+          "confirmed": 139.603,
+          "node-close:0": 147.0
+        },
+        {
+          "epoch_ms": 1793185135498.0,
+          "python-entry": 201.42,
+          "close-entry": 229.182,
+          "owner-validated": 240.578,
+          "terminated": 240.732,
+          "confirmed": 240.764,
+          "node-close:0": 248.0
+        },
+        {
+          "epoch_ms": 1793185136461.0,
+          "python-entry": 102.133,
+          "close-entry": 134.983,
+          "owner-validated": 148.864,
+          "terminated": 149.044,
+          "confirmed": 149.084,
+          "node-close:0": 157.0
+        },
+        {
+          "epoch_ms": 1793185137298.0,
+          "python-entry": 118.107,
+          "close-entry": 150.143,
+          "owner-validated": 162.982,
+          "terminated": 163.358,
+          "confirmed": 163.449,
+          "node-close:0": 171.0
+        },
+        {
+          "epoch_ms": 1793185138122.0,
+          "python-entry": 172.6,
+          "close-entry": 202.919,
+          "owner-validated": 217.452,
+          "terminated": 217.636,
+          "confirmed": 217.676,
+          "node-close:0": 226.0
+        },
+        {
+          "epoch_ms": 1793185139293.0,
+          "python-entry": 141.858,
+          "close-entry": 233.545,
+          "owner-validated": 247.983,
+          "terminated": 248.167,
+          "confirmed": 248.207,
+          "node-close:0": 257.0
+        },
+        {
+          "epoch_ms": 1793185140279.0,
+          "python-entry": 81.446,
+          "close-entry": 114.364,
+          "owner-validated": 128.723,
+          "terminated": 128.907,
+          "confirmed": 128.948,
+          "node-close:0": 137.0
+        },
+        {
+          "epoch_ms": 1793185141157.0,
+          "python-entry": 173.934,
+          "close-entry": 231.507,
+          "owner-validated": 249.468,
+          "terminated": 249.749,
+          "confirmed": 249.821,
+          "node-close:0": 262.0
+        },
+        {
+          "epoch_ms": 1793185142142.0,
+          "python-entry": 116.878,
+          "close-entry": 144.211,
+          "owner-validated": 158.598,
+          "terminated": 158.731,
+          "confirmed": 158.757,
+          "node-close:0": 165.0
+        },
+        {
+          "epoch_ms": 1793185142951.0,
+          "python-entry": 83.586,
+          "close-entry": 112.835,
+          "owner-validated": 126.399,
+          "terminated": 126.614,
+          "confirmed": 126.664,
+          "node-close:0": 136.0
+        },
+        {
+          "epoch_ms": 1793185143804.0,
+          "python-entry": 105.425,
+          "close-entry": 150.013,
+          "owner-validated": 170.164,
+          "terminated": 170.312,
+          "confirmed": 170.343,
+          "node-close:0": 178.0
+        },
+        {
+          "epoch_ms": 1793185145700.0,
+          "python-entry": 93.789,
+          "close-entry": 133.588,
+          "owner-validated": 150.368,
+          "terminated": 150.578,
+          "confirmed": 150.628,
+          "node-close:0": 160.0
+        },
+        {
+          "epoch_ms": 1793185147349.0,
+          "python-entry": 155.836,
+          "close-entry": 193.145,
+          "owner-validated": 206.55,
+          "terminated": 206.7,
+          "confirmed": 206.734,
+          "node-close:0": 215.0
+        },
+        {
+          "epoch_ms": 1793185149034.0,
+          "python-entry": 149.012,
+          "close-entry": 201.811,
+          "owner-validated": 228.308,
+          "terminated": 228.523,
+          "confirmed": 228.564,
+          "node-close:0": 238.0
+        },
+        {
+          "epoch_ms": 1793185150770.0,
+          "python-entry": 106.162,
+          "close-entry": 160.596,
+          "owner-validated": 180.622,
+          "terminated": 180.879,
+          "confirmed": 180.945,
+          "node-close:0": 191.0
+        },
+        {
+          "epoch_ms": 1793185152422.0,
+          "python-entry": 80.627,
+          "close-entry": 119.544,
+          "owner-validated": 140.552,
+          "terminated": 140.758,
+          "confirmed": 140.797,
+          "node-close:0": 150.0
+        },
+        {
+          "epoch_ms": 1793185154008.0,
+          "python-entry": 130.196,
+          "close-entry": 160.627,
+          "owner-validated": 173.88,
+          "terminated": 174.064,
+          "confirmed": 174.103,
+          "node-close:0": 184.0
+        },
+        {
+          "epoch_ms": 1793185156023.0,
+          "python-entry": 97.307,
+          "close-entry": 129.004,
+          "owner-validated": 146.521,
+          "terminated": 146.8,
+          "confirmed": 146.874,
+          "node-close:0": 157.0
+        },
+        {
+          "epoch_ms": 1793185157988.0,
+          "python-entry": 156.717,
+          "close-entry": 203.682,
+          "owner-validated": 220.364,
+          "terminated": 220.541,
+          "confirmed": 220.583,
+          "node-close:0": 229.0
+        },
+        {
+          "epoch_ms": 1793185159761.0,
+          "python-entry": 161.812,
+          "close-entry": 207.433,
+          "owner-validated": 223.598,
+          "terminated": 223.73,
+          "confirmed": 223.792,
+          "node-close:0": 235.0
+        },
+        {
+          "epoch_ms": 1793185161267.0,
+          "python-entry": 80.263,
+          "close-entry": 111.726,
+          "owner-validated": 124.061,
+          "terminated": 124.211,
+          "confirmed": 124.241,
+          "node-close:0": 132.0
+        },
+        {
+          "epoch_ms": 1793185163329.0,
+          "python-entry": 133.181,
+          "close-entry": 185.504,
+          "owner-validated": 208.632,
+          "terminated": 208.857,
+          "confirmed": 208.904,
+          "node-close:0": 221.0
+        },
+        {
+          "epoch_ms": 1793185166210.0,
+          "python-entry": 154.848,
+          "close-entry": 193.658,
+          "owner-validated": 212.928,
+          "terminated": 213.317,
+          "confirmed": 213.41,
+          "node-close:0": 222.0
+        },
+        {
+          "epoch_ms": 1793185168523.0,
+          "python-entry": 118.941,
+          "close-entry": 158.185,
+          "owner-validated": 173.474,
+          "terminated": 173.726,
+          "confirmed": 173.783,
+          "node-close:0": 183.0
+        },
+        {
+          "epoch_ms": 1793185170697.0,
+          "python-entry": 123.531,
+          "close-entry": 153.33,
+          "owner-validated": 168.865,
+          "terminated": 169.063,
+          "confirmed": 169.113,
+          "node-close:0": 181.0
+        },
+        {
+          "epoch_ms": 1793185172671.0,
+          "python-entry": 74.901,
+          "close-entry": 101.234,
+          "owner-validated": 113.334,
+          "terminated": 113.478,
+          "confirmed": 113.508,
+          "node-close:0": 120.0
+        },
+        {
+          "epoch_ms": 1793185175219.0,
+          "python-entry": 104.63,
+          "close-entry": 134.466,
+          "owner-validated": 157.864,
+          "terminated": 158.054,
+          "confirmed": 158.093,
+          "node-close:0": 169.0
+        },
+        {
+          "epoch_ms": 1793185177488.0,
+          "python-entry": 115.015,
+          "close-entry": 158.502,
+          "owner-validated": 177.658,
+          "terminated": 177.906,
+          "confirmed": 177.957,
+          "node-close:0": 189.0
+        },
+        {
+          "epoch_ms": 1793185179780.0,
+          "python-entry": 160.184,
+          "close-entry": 209.88,
+          "owner-validated": 224.453,
+          "terminated": 224.634,
+          "confirmed": 224.672,
+          "node-close:0": 233.0
+        },
+        {
+          "epoch_ms": 1793185182682.0,
+          "python-entry": 164.818,
+          "close-entry": 198.866,
+          "owner-validated": 218.611,
+          "terminated": 218.826,
+          "confirmed": 218.874,
+          "node-close:0": 234.0
+        },
+        {
+          "epoch_ms": 1793185185358.0,
+          "python-entry": 92.932,
+          "close-entry": 121.594,
+          "owner-validated": 133.308,
+          "terminated": 133.481,
+          "confirmed": 133.515,
+          "node-close:0": 141.0
+        },
+        {
+          "epoch_ms": 1793185187525.0,
+          "python-entry": 121.409,
+          "close-entry": 147.845,
+          "owner-validated": 161.979,
+          "terminated": 162.114,
+          "confirmed": 162.141,
+          "node-close:0": 171.0
+        },
+        {
+          "epoch_ms": 1793185190302.0,
+          "python-entry": 122.852,
+          "close-entry": 154.334,
+          "owner-validated": 167.845,
+          "terminated": 167.977,
+          "confirmed": 168.002,
+          "node-close:0": 176.0
+        },
+        {
+          "epoch_ms": 1793185193463.0,
+          "python-entry": 75.246,
+          "close-entry": 103.05,
+          "owner-validated": 116.522,
+          "terminated": 116.694,
+          "confirmed": 116.728,
+          "node-close:0": 124.0
+        },
+        {
+          "epoch_ms": 1793185197004.0,
+          "python-entry": 111.003,
+          "close-entry": 140.489,
+          "owner-validated": 152.661,
+          "terminated": 152.831,
+          "confirmed": 152.859,
+          "node-close:0": 162.0
+        },
+        {
+          "epoch_ms": 1793185199764.0,
+          "python-entry": 157.828,
+          "close-entry": 184.79,
+          "owner-validated": 197.679,
+          "terminated": 197.844,
+          "confirmed": 197.882,
+          "node-close:0": 206.0
+        },
+        {
+          "epoch_ms": 1793185203477.0,
+          "python-entry": 98.704,
+          "close-entry": 125.396,
+          "owner-validated": 136.766,
+          "terminated": 136.917,
+          "confirmed": 136.95,
+          "node-close:0": 144.0
+        },
+        {
+          "epoch_ms": 1793185206348.0,
+          "python-entry": 82.918,
+          "close-entry": 106.063,
+          "owner-validated": 117.83,
+          "terminated": 117.964,
+          "confirmed": 117.99,
+          "node-close:0": 126.0
+        },
+        {
+          "epoch_ms": 1793185209170.0,
+          "python-entry": 124.938,
+          "close-entry": 177.813,
+          "owner-validated": 192.585,
+          "terminated": 192.958,
+          "confirmed": 192.994,
+          "node-close:0": 202.0
+        },
+        {
+          "epoch_ms": 1793185212169.0,
+          "python-entry": 99.922,
+          "close-entry": 126.598,
+          "owner-validated": 137.661,
+          "terminated": 137.813,
+          "confirmed": 137.842,
+          "node-close:0": 145.0
+        },
+        {
+          "epoch_ms": 1793185215168.0,
+          "python-entry": 157.017,
+          "close-entry": 190.304,
+          "owner-validated": 209.837,
+          "terminated": 210.076,
+          "confirmed": 210.119,
+          "node-close:0": 220.0
+        },
+        {
+          "epoch_ms": 1793185218434.0,
+          "python-entry": 202.667,
+          "close-entry": 234.708,
+          "owner-validated": 246.553,
+          "terminated": 246.686,
+          "confirmed": 246.711,
+          "node-close:0": 253.0
+        },
+        {
+          "epoch_ms": 1793185221448.0,
+          "python-entry": 106.666,
+          "close-entry": 149.803,
+          "owner-validated": 161.466,
+          "terminated": 161.609,
+          "confirmed": 161.635,
+          "node-close:0": 171.0
+        },
+        {
+          "epoch_ms": 1793185224328.0,
+          "python-entry": 98.969,
+          "close-entry": 123.742,
+          "owner-validated": 134.479,
+          "terminated": 134.63,
+          "confirmed": 134.661,
+          "node-close:0": 143.0
+        },
+        {
+          "epoch_ms": 1793185249755.0,
+          "python-entry": 75.46,
+          "close-entry": 99.613,
+          "owner-validated": 110.988,
+          "terminated": 111.142,
+          "confirmed": 111.175,
+          "node-close:0": 118.0
+        },
+        {
+          "epoch_ms": 1793185251817.0,
+          "python-entry": 92.986,
+          "close-entry": 117.225,
+          "owner-validated": 128.425,
+          "terminated": 128.558,
+          "confirmed": 128.583,
+          "node-close:0": 135.0
+        },
+        {
+          "epoch_ms": 1793185254113.0,
+          "python-entry": 154.15,
+          "close-entry": 202.411,
+          "owner-validated": 216.539,
+          "terminated": 216.695,
+          "confirmed": 216.733,
+          "node-close:0": 224.0
+        },
+        {
+          "epoch_ms": 1793185256283.0,
+          "python-entry": 110.603,
+          "close-entry": 146.203,
+          "owner-validated": 163.195,
+          "terminated": 163.354,
+          "confirmed": 163.381,
+          "node-close:0": 171.0
+        },
+        {
+          "epoch_ms": 1793185258601.0,
+          "python-entry": 151.112,
+          "close-entry": 191.88,
+          "owner-validated": 211.275,
+          "terminated": 211.519,
+          "confirmed": 211.579,
+          "node-close:0": 225.0
+        },
+        {
+          "epoch_ms": 1793185261343.0,
+          "python-entry": 144.455,
+          "close-entry": 169.44,
+          "owner-validated": 181.748,
+          "terminated": 181.887,
+          "confirmed": 181.914,
+          "node-close:0": 189.0
+        },
+        {
+          "epoch_ms": 1793185263216.0,
+          "python-entry": 68.41,
+          "close-entry": 91.926,
+          "owner-validated": 103.301,
+          "terminated": 103.43,
+          "confirmed": 103.457,
+          "node-close:0": 110.0
+        },
+        {
+          "epoch_ms": 1793185265305.0,
+          "python-entry": 109.368,
+          "close-entry": 145.626,
+          "owner-validated": 158.615,
+          "terminated": 158.752,
+          "confirmed": 158.777,
+          "node-close:0": 167.0
+        },
+        {
+          "epoch_ms": 1793185267427.0,
+          "python-entry": 104.734,
+          "close-entry": 147.59,
+          "owner-validated": 161.698,
+          "terminated": 161.872,
+          "confirmed": 161.908,
+          "node-close:0": 169.0
+        },
+        {
+          "epoch_ms": 1793185269617.0,
+          "python-entry": 135.097,
+          "close-entry": 162.033,
+          "owner-validated": 173.7,
+          "terminated": 173.876,
+          "confirmed": 173.913,
+          "node-close:0": 182.0
+        },
+        {
+          "epoch_ms": 1793185271850.0,
+          "python-entry": 144.742,
+          "close-entry": 200.777,
+          "owner-validated": 225.311,
+          "terminated": 225.713,
+          "confirmed": 225.797,
+          "node-close:0": 241.0
+        },
+        {
+          "epoch_ms": 1793185277069.0,
+          "python-entry": 146.77,
+          "close-entry": 169.414,
+          "owner-validated": 180.701,
+          "terminated": 180.841,
+          "confirmed": 180.874,
+          "node-close:0": 187.0
+        },
+        {
+          "epoch_ms": 1793185281730.0,
+          "python-entry": 127.965,
+          "close-entry": 169.406,
+          "owner-validated": 187.188,
+          "terminated": 187.38,
+          "confirmed": 187.424,
+          "node-close:0": 198.0
+        },
+        {
+          "epoch_ms": 1793185287032.0,
+          "python-entry": 87.263,
+          "close-entry": 111.034,
+          "owner-validated": 124.423,
+          "terminated": 124.608,
+          "confirmed": 124.644,
+          "node-close:0": 133.0
+        },
+        {
+          "epoch_ms": 1793185291769.0,
+          "python-entry": 75.577,
+          "close-entry": 110.023,
+          "owner-validated": 123.995,
+          "terminated": 124.23,
+          "confirmed": 124.281,
+          "node-close:0": 134.0
+        },
+        {
+          "epoch_ms": 1793185298341.0,
+          "python-entry": 86.5,
+          "close-entry": 115.61,
+          "owner-validated": 128.6,
+          "terminated": 128.75,
+          "confirmed": 128.786,
+          "node-close:0": 136.0
+        },
+        {
+          "epoch_ms": 1793185303008.0,
+          "python-entry": 150.853,
+          "close-entry": 175.503,
+          "owner-validated": 186.712,
+          "terminated": 186.844,
+          "confirmed": 186.869,
+          "node-close:0": 195.0
+        },
+        {
+          "epoch_ms": 1793185307743.0,
+          "python-entry": 133.786,
+          "close-entry": 177.929,
+          "owner-validated": 192.398,
+          "terminated": 192.547,
+          "confirmed": 192.574,
+          "node-close:0": 200.0
+        },
+        {
+          "epoch_ms": 1793185312901.0,
+          "python-entry": 72.512,
+          "close-entry": 102.867,
+          "owner-validated": 113.38,
+          "terminated": 113.509,
+          "confirmed": 113.534,
+          "node-close:0": 123.0
+        },
+        {
+          "epoch_ms": 1793185317439.0,
+          "python-entry": 88.195,
+          "close-entry": 112.739,
+          "owner-validated": 125.541,
+          "terminated": 125.677,
+          "confirmed": 125.703,
+          "node-close:0": 133.0
+        },
+        {
+          "epoch_ms": 1793185322470.0,
+          "python-entry": 140.03,
+          "close-entry": 207.688,
+          "owner-validated": 224.79,
+          "terminated": 225.05,
+          "confirmed": 225.108,
+          "node-close:0": 234.0
+        },
+        {
+          "epoch_ms": 1793185327598.0,
+          "python-entry": 99.467,
+          "close-entry": 122.151,
+          "owner-validated": 134.709,
+          "terminated": 134.85,
+          "confirmed": 134.882,
+          "node-close:0": 143.0
+        },
+        {
+          "epoch_ms": 1793185328449.0,
+          "python-entry": 106.088,
+          "close-entry": 138.222,
+          "owner-validated": 153.949,
+          "terminated": 154.16,
+          "confirmed": 154.199,
+          "node-close:0": 166.0
+        },
+        {
+          "epoch_ms": 1793185329368.0,
+          "python-entry": 130.934,
+          "close-entry": 183.485,
+          "owner-validated": 202.477,
+          "terminated": 202.618,
+          "confirmed": 202.644,
+          "node-close:0": 212.0
+        },
+        {
+          "epoch_ms": 1793185330343.0,
+          "python-entry": 96.71,
+          "close-entry": 123.605,
+          "owner-validated": 137.038,
+          "terminated": 137.16,
+          "confirmed": 137.185,
+          "node-close:0": 144.0
+        },
+        {
+          "epoch_ms": 1793185331213.0,
+          "python-entry": 126.935,
+          "close-entry": 152.608,
+          "owner-validated": 163.476,
+          "terminated": 163.623,
+          "confirmed": 163.654,
+          "node-close:0": 171.0
+        },
+        {
+          "epoch_ms": 1793185332209.0,
+          "python-entry": 127.885,
+          "close-entry": 151.67,
+          "owner-validated": 164.39,
+          "terminated": 164.646,
+          "confirmed": 164.677,
+          "node-close:0": 172.0
+        },
+        {
+          "epoch_ms": 1793185333188.0,
+          "python-entry": 91.293,
+          "close-entry": 131.163,
+          "owner-validated": 151.629,
+          "terminated": 151.816,
+          "confirmed": 151.858,
+          "node-close:0": 159.0
+        },
+        {
+          "epoch_ms": 1793185334124.0,
+          "python-entry": 179.756,
+          "close-entry": 218.71,
+          "owner-validated": 231.219,
+          "terminated": 231.377,
+          "confirmed": 231.41,
+          "node-close:0": 238.0
+        },
+        {
+          "epoch_ms": 1793185335253.0,
+          "python-entry": 222.116,
+          "close-entry": 267.494,
+          "owner-validated": 282.895,
+          "terminated": 283.054,
+          "confirmed": 283.151,
+          "node-close:0": 293.0
+        },
+        {
+          "epoch_ms": 1793185336251.0,
+          "python-entry": 77.05,
+          "close-entry": 101.893,
+          "owner-validated": 113.36,
+          "terminated": 113.519,
+          "confirmed": 113.546,
+          "node-close:0": 121.0
+        },
+        {
+          "epoch_ms": 1793185337189.0,
+          "python-entry": 177.003,
+          "close-entry": 219.335,
+          "owner-validated": 250.105,
+          "terminated": 250.288,
+          "confirmed": 250.325,
+          "node-close:0": 262.0
+        },
+        {
+          "epoch_ms": 1793185338225.0,
+          "python-entry": 120.883,
+          "close-entry": 152.943,
+          "owner-validated": 163.953,
+          "terminated": 164.105,
+          "confirmed": 164.137,
+          "node-close:0": 172.0
+        },
+        {
+          "epoch_ms": 1793185339305.0,
+          "python-entry": 102.071,
+          "close-entry": 138.61,
+          "owner-validated": 155.864,
+          "terminated": 156.048,
+          "confirmed": 156.083,
+          "node-close:0": 167.0
+        },
+        {
+          "epoch_ms": 1793185340310.0,
+          "python-entry": 87.169,
+          "close-entry": 113.415,
+          "owner-validated": 125.889,
+          "terminated": 126.07,
+          "confirmed": 126.105,
+          "node-close:0": 135.0
+        },
+        {
+          "epoch_ms": 1793185341216.0,
+          "python-entry": 102.25,
+          "close-entry": 136.531,
+          "owner-validated": 150.399,
+          "terminated": 150.561,
+          "confirmed": 150.595,
+          "node-close:0": 157.0
+        },
+        {
+          "epoch_ms": 1793185342776.0,
+          "python-entry": 154.814,
+          "close-entry": 237.996,
+          "owner-validated": 267.182,
+          "terminated": 267.391,
+          "confirmed": 267.444,
+          "node-close:0": 279.0
+        },
+        {
+          "epoch_ms": 1793185344658.0,
+          "python-entry": 328.558,
+          "close-entry": 486.349,
+          "owner-validated": 504.043,
+          "terminated": 504.243,
+          "confirmed": 504.287,
+          "node-close:0": 514.0
+        },
+        {
+          "epoch_ms": 1793185346562.0,
+          "python-entry": 84.634,
+          "close-entry": 126.652,
+          "owner-validated": 147.575,
+          "terminated": 147.746,
+          "confirmed": 147.785,
+          "node-close:0": 158.0
+        },
+        {
+          "epoch_ms": 1793185347638.0,
+          "python-entry": 86.371,
+          "close-entry": 116.681,
+          "owner-validated": 132.827,
+          "terminated": 133.035,
+          "confirmed": 133.079,
+          "node-close:0": 143.0
+        },
+        {
+          "epoch_ms": 1793185348675.0,
+          "python-entry": 189.441,
+          "close-entry": 228.457,
+          "owner-validated": 243.946,
+          "terminated": 244.115,
+          "confirmed": 244.149,
+          "node-close:0": 252.0
+        },
+        {
+          "epoch_ms": 1793185349948.0,
+          "python-entry": 194.1,
+          "close-entry": 234.99,
+          "owner-validated": 254.19,
+          "terminated": 254.433,
+          "confirmed": 254.48,
+          "node-close:0": 266.0
+        },
+        {
+          "epoch_ms": 1793185351151.0,
+          "python-entry": 104.059,
+          "close-entry": 143.772,
+          "owner-validated": 158.292,
+          "terminated": 158.418,
+          "confirmed": 158.444,
+          "node-close:0": 166.0
+        },
+        {
+          "epoch_ms": 1793185352254.0,
+          "python-entry": 161.878,
+          "close-entry": 207.746,
+          "owner-validated": 222.068,
+          "terminated": 222.246,
+          "confirmed": 222.287,
+          "node-close:0": 229.0
+        },
+        {
+          "epoch_ms": 1793185353326.0,
+          "python-entry": 143.35,
+          "close-entry": 190.968,
+          "owner-validated": 209.114,
+          "terminated": 209.265,
+          "confirmed": 209.297,
+          "node-close:0": 220.0
+        },
+        {
+          "epoch_ms": 1793185354385.0,
+          "python-entry": 175.167,
+          "close-entry": 231.332,
+          "owner-validated": 249.56,
+          "terminated": 249.729,
+          "confirmed": 249.764,
+          "node-close:0": 258.0
+        },
+        {
+          "epoch_ms": 1793185355429.0,
+          "python-entry": 171.782,
+          "close-entry": 202.029,
+          "owner-validated": 215.287,
+          "terminated": 215.433,
+          "confirmed": 215.461,
+          "node-close:0": 224.0
+        },
+        {
+          "epoch_ms": 1793185356373.0,
+          "python-entry": 110.975,
+          "close-entry": 162.715,
+          "owner-validated": 179.619,
+          "terminated": 179.762,
+          "confirmed": 179.788,
+          "node-close:0": 187.0
+        },
+        {
+          "epoch_ms": 1793185357396.0,
+          "python-entry": 176.579,
+          "close-entry": 220.95,
+          "owner-validated": 234.912,
+          "terminated": 235.08,
+          "confirmed": 235.115,
+          "node-close:0": 244.0
+        },
+        {
+          "epoch_ms": 1793185358351.0,
+          "python-entry": 92.401,
+          "close-entry": 126.992,
+          "owner-validated": 140.475,
+          "terminated": 140.66,
+          "confirmed": 140.7,
+          "node-close:0": 149.0
+        },
+        {
+          "epoch_ms": 1793185359326.0,
+          "python-entry": 77.235,
+          "close-entry": 103.276,
+          "owner-validated": 116.503,
+          "terminated": 116.681,
+          "confirmed": 116.718,
+          "node-close:0": 126.0
+        },
+        {
+          "epoch_ms": 1793185360179.0,
+          "python-entry": 103.22,
+          "close-entry": 141.237,
+          "owner-validated": 163.197,
+          "terminated": 163.371,
+          "confirmed": 163.403,
+          "node-close:0": 177.0
+        },
+        {
+          "epoch_ms": 1793185361222.0,
+          "python-entry": 101.28,
+          "close-entry": 144.596,
+          "owner-validated": 159.919,
+          "terminated": 160.13,
+          "confirmed": 160.173,
+          "node-close:0": 169.0
+        },
+        {
+          "epoch_ms": 1793185362151.0,
+          "python-entry": 271.252,
+          "close-entry": 327.471,
+          "owner-validated": 347.389,
+          "terminated": 347.696,
+          "confirmed": 347.767,
+          "node-close:0": 359.0
+        },
+        {
+          "epoch_ms": 1793185363318.0,
+          "python-entry": 135.081,
+          "close-entry": 162.931,
+          "owner-validated": 174.844,
+          "terminated": 174.998,
+          "confirmed": 175.028,
+          "node-close:0": 183.0
+        },
+        {
+          "epoch_ms": 1793185365677.0,
+          "python-entry": 131.873,
+          "close-entry": 165.755,
+          "owner-validated": 182.607,
+          "terminated": 182.824,
+          "confirmed": 182.919,
+          "node-close:0": 195.0
+        },
+        {
+          "epoch_ms": 1793185367839.0,
+          "python-entry": 125.391,
+          "close-entry": 156.14,
+          "owner-validated": 181.957,
+          "terminated": 182.135,
+          "confirmed": 182.174,
+          "node-close:0": 192.0
+        },
+        {
+          "epoch_ms": 1793185370291.0,
+          "python-entry": 149.49,
+          "close-entry": 194.69,
+          "owner-validated": 224.656,
+          "terminated": 224.862,
+          "confirmed": 224.899,
+          "node-close:0": 235.0
+        },
+        {
+          "epoch_ms": 1793185372316.0,
+          "python-entry": 135.092,
+          "close-entry": 168.472,
+          "owner-validated": 182.093,
+          "terminated": 182.282,
+          "confirmed": 182.32,
+          "node-close:0": 193.0
+        },
+        {
+          "epoch_ms": 1793185374409.0,
+          "python-entry": 153.551,
+          "close-entry": 184.002,
+          "owner-validated": 198.022,
+          "terminated": 198.207,
+          "confirmed": 198.246,
+          "node-close:0": 206.0
+        },
+        {
+          "epoch_ms": 1793185376869.0,
+          "python-entry": 231.382,
+          "close-entry": 329.85,
+          "owner-validated": 350.928,
+          "terminated": 351.157,
+          "confirmed": 351.204,
+          "node-close:0": 364.0
+        },
+        {
+          "epoch_ms": 1793185379273.0,
+          "python-entry": 124.158,
+          "close-entry": 151.069,
+          "owner-validated": 165.793,
+          "terminated": 165.985,
+          "confirmed": 166.022,
+          "node-close:0": 176.0
+        },
+        {
+          "epoch_ms": 1793185381441.0,
+          "python-entry": 143.55,
+          "close-entry": 184.575,
+          "owner-validated": 196.563,
+          "terminated": 196.696,
+          "confirmed": 196.72,
+          "node-close:0": 204.0
+        },
+        {
+          "epoch_ms": 1793185383544.0,
+          "python-entry": 186.896,
+          "close-entry": 251.895,
+          "owner-validated": 272.529,
+          "terminated": 272.794,
+          "confirmed": 272.854,
+          "node-close:0": 285.0
+        },
+        {
+          "epoch_ms": 1793185385871.0,
+          "python-entry": 154.254,
+          "close-entry": 207.903,
+          "owner-validated": 223.932,
+          "terminated": 224.103,
+          "confirmed": 224.137,
+          "node-close:0": 232.0
+        },
+        {
+          "epoch_ms": 1793185387607.0,
+          "python-entry": 88.029,
+          "close-entry": 120.904,
+          "owner-validated": 138.986,
+          "terminated": 139.218,
+          "confirmed": 139.261,
+          "node-close:0": 151.0
+        },
+        {
+          "epoch_ms": 1793185389489.0,
+          "python-entry": 99.094,
+          "close-entry": 136.398,
+          "owner-validated": 149.255,
+          "terminated": 149.41,
+          "confirmed": 149.44,
+          "node-close:0": 158.0
+        },
+        {
+          "epoch_ms": 1793185391397.0,
+          "python-entry": 137.313,
+          "close-entry": 164.999,
+          "owner-validated": 178.599,
+          "terminated": 178.748,
+          "confirmed": 178.776,
+          "node-close:0": 188.0
+        },
+        {
+          "epoch_ms": 1793185393750.0,
+          "python-entry": 147.682,
+          "close-entry": 181.475,
+          "owner-validated": 194.061,
+          "terminated": 194.291,
+          "confirmed": 194.327,
+          "node-close:0": 203.0
+        },
+        {
+          "epoch_ms": 1793185395589.0,
+          "python-entry": 143.781,
+          "close-entry": 182.721,
+          "owner-validated": 194.616,
+          "terminated": 194.811,
+          "confirmed": 194.847,
+          "node-close:0": 202.0
+        },
+        {
+          "epoch_ms": 1793185397647.0,
+          "python-entry": 81.465,
+          "close-entry": 117.005,
+          "owner-validated": 132.753,
+          "terminated": 132.919,
+          "confirmed": 132.952,
+          "node-close:0": 142.0
+        },
+        {
+          "epoch_ms": 1793185399552.0,
+          "python-entry": 91.493,
+          "close-entry": 126.436,
+          "owner-validated": 139.236,
+          "terminated": 139.414,
+          "confirmed": 139.455,
+          "node-close:0": 147.0
+        },
+        {
+          "epoch_ms": 1793185401634.0,
+          "python-entry": 95.425,
+          "close-entry": 130.102,
+          "owner-validated": 143.834,
+          "terminated": 143.996,
+          "confirmed": 144.027,
+          "node-close:0": 154.0
+        },
+        {
+          "epoch_ms": 1793185404120.0,
+          "python-entry": 92.408,
+          "close-entry": 129.274,
+          "owner-validated": 149.059,
+          "terminated": 149.291,
+          "confirmed": 149.336,
+          "node-close:0": 160.0
+        },
+        {
+          "epoch_ms": 1793185406086.0,
+          "python-entry": 121.005,
+          "close-entry": 153.265,
+          "owner-validated": 168.213,
+          "terminated": 168.382,
+          "confirmed": 168.42,
+          "node-close:0": 176.0
+        },
+        {
+          "epoch_ms": 1793185407974.0,
+          "python-entry": 132.481,
+          "close-entry": 161.035,
+          "owner-validated": 175.092,
+          "terminated": 175.253,
+          "confirmed": 175.287,
+          "node-close:0": 182.0
+        },
+        {
+          "epoch_ms": 1793185410296.0,
+          "python-entry": 144.883,
+          "close-entry": 203.155,
+          "owner-validated": 222.899,
+          "terminated": 223.112,
+          "confirmed": 223.16,
+          "node-close:0": 237.0
+        },
+        {
+          "epoch_ms": 1793185414494.0,
+          "python-entry": 126.328,
+          "close-entry": 171.026,
+          "owner-validated": 191.609,
+          "terminated": 191.825,
+          "confirmed": 192.133,
+          "node-close:0": 207.0
+        },
+        {
+          "epoch_ms": 1793185417679.0,
+          "python-entry": 165.096,
+          "close-entry": 206.292,
+          "owner-validated": 219.621,
+          "terminated": 219.768,
+          "confirmed": 219.797,
+          "node-close:0": 226.0
+        },
+        {
+          "epoch_ms": 1793185420682.0,
+          "python-entry": 114.526,
+          "close-entry": 145.387,
+          "owner-validated": 162.336,
+          "terminated": 162.485,
+          "confirmed": 162.515,
+          "node-close:0": 172.0
+        },
+        {
+          "epoch_ms": 1793185423663.0,
+          "python-entry": 104.773,
+          "close-entry": 141.213,
+          "owner-validated": 154.437,
+          "terminated": 154.593,
+          "confirmed": 154.624,
+          "node-close:0": 163.0
+        },
+        {
+          "epoch_ms": 1793185426771.0,
+          "python-entry": 112.893,
+          "close-entry": 141.747,
+          "owner-validated": 156.06,
+          "terminated": 156.274,
+          "confirmed": 156.317,
+          "node-close:0": 167.0
+        },
+        {
+          "epoch_ms": 1793185429554.0,
+          "python-entry": 114.22,
+          "close-entry": 149.095,
+          "owner-validated": 165.02,
+          "terminated": 165.186,
+          "confirmed": 165.222,
+          "node-close:0": 175.0
+        },
+        {
+          "epoch_ms": 1793185432194.0,
+          "python-entry": 123.873,
+          "close-entry": 155.62,
+          "owner-validated": 169.531,
+          "terminated": 169.695,
+          "confirmed": 169.727,
+          "node-close:0": 179.0
+        },
+        {
+          "epoch_ms": 1793185435545.0,
+          "python-entry": 160.413,
+          "close-entry": 211.748,
+          "owner-validated": 230.846,
+          "terminated": 231.089,
+          "confirmed": 231.151,
+          "node-close:0": 241.0
+        },
+        {
+          "epoch_ms": 1793185438590.0,
+          "python-entry": 116.165,
+          "close-entry": 153.756,
+          "owner-validated": 169.861,
+          "terminated": 170.044,
+          "confirmed": 170.086,
+          "node-close:0": 179.0
+        },
+        {
+          "epoch_ms": 1793185441290.0,
+          "python-entry": 92.456,
+          "close-entry": 121.192,
+          "owner-validated": 135.964,
+          "terminated": 136.151,
+          "confirmed": 136.192,
+          "node-close:0": 146.0
+        },
+        {
+          "epoch_ms": 1793185444472.0,
+          "python-entry": 130.713,
+          "close-entry": 160.617,
+          "owner-validated": 177.493,
+          "terminated": 177.639,
+          "confirmed": 177.666,
+          "node-close:0": 186.0
+        },
+        {
+          "epoch_ms": 1793185470762.0,
+          "python-entry": 133.512,
+          "close-entry": 164.062,
+          "owner-validated": 176.5,
+          "terminated": 176.671,
+          "confirmed": 176.707,
+          "node-close:0": 183.0
+        },
+        {
+          "epoch_ms": 1793185472933.0,
+          "python-entry": 90.862,
+          "close-entry": 115.446,
+          "owner-validated": 129.58,
+          "terminated": 129.771,
+          "confirmed": 129.808,
+          "node-close:0": 136.0
+        },
+        {
+          "epoch_ms": 1793185475298.0,
+          "python-entry": 88.354,
+          "close-entry": 112.334,
+          "owner-validated": 123.211,
+          "terminated": 123.363,
+          "confirmed": 123.396,
+          "node-close:0": 131.0
+        },
+        {
+          "epoch_ms": 1793185477584.0,
+          "python-entry": 165.066,
+          "close-entry": 202.895,
+          "owner-validated": 220.811,
+          "terminated": 221.029,
+          "confirmed": 221.07,
+          "node-close:0": 233.0
+        },
+        {
+          "epoch_ms": 1793185480251.0,
+          "python-entry": 148.357,
+          "close-entry": 193.875,
+          "owner-validated": 213.615,
+          "terminated": 213.828,
+          "confirmed": 213.876,
+          "node-close:0": 230.0
+        },
+        {
+          "epoch_ms": 1793185482764.0,
+          "python-entry": 126.023,
+          "close-entry": 152.96,
+          "owner-validated": 165.949,
+          "terminated": 166.089,
+          "confirmed": 166.115,
+          "node-close:0": 172.0
+        },
+        {
+          "epoch_ms": 1793185484941.0,
+          "python-entry": 194.038,
+          "close-entry": 222.29,
+          "owner-validated": 234.256,
+          "terminated": 234.416,
+          "confirmed": 234.449,
+          "node-close:0": 242.0
+        },
+        {
+          "epoch_ms": 1793185487898.0,
+          "python-entry": 166.599,
+          "close-entry": 206.005,
+          "owner-validated": 222.461,
+          "terminated": 222.691,
+          "confirmed": 222.739,
+          "node-close:0": 236.0
+        },
+        {
+          "epoch_ms": 1793185490354.0,
+          "python-entry": 93.497,
+          "close-entry": 128.924,
+          "owner-validated": 141.621,
+          "terminated": 141.76,
+          "confirmed": 141.786,
+          "node-close:0": 150.0
+        },
+        {
+          "epoch_ms": 1793185492452.0,
+          "python-entry": 245.609,
+          "close-entry": 282.383,
+          "owner-validated": 295.594,
+          "terminated": 295.733,
+          "confirmed": 295.759,
+          "node-close:0": 304.0
+        },
+        {
+          "epoch_ms": 1793185494856.0,
+          "python-entry": 87.49,
+          "close-entry": 111.611,
+          "owner-validated": 122.513,
+          "terminated": 122.653,
+          "confirmed": 122.697,
+          "node-close:0": 131.0
+        },
+        {
+          "epoch_ms": 1793185498941.0,
+          "python-entry": 85.072,
+          "close-entry": 114.94,
+          "owner-validated": 130.098,
+          "terminated": 130.266,
+          "confirmed": 130.303,
+          "node-close:0": 138.0
+        },
+        {
+          "epoch_ms": 1793185503240.0,
+          "python-entry": 140.999,
+          "close-entry": 171.273,
+          "owner-validated": 183.529,
+          "terminated": 183.703,
+          "confirmed": 183.738,
+          "node-close:0": 192.0
+        },
+        {
+          "epoch_ms": 1793185508403.0,
+          "python-entry": 114.437,
+          "close-entry": 140.806,
+          "owner-validated": 153.173,
+          "terminated": 153.334,
+          "confirmed": 153.368,
+          "node-close:0": 162.0
+        },
+        {
+          "epoch_ms": 1793185513206.0,
+          "python-entry": 86.098,
+          "close-entry": 126.75,
+          "owner-validated": 142.549,
+          "terminated": 142.749,
+          "confirmed": 142.794,
+          "node-close:0": 156.0
+        },
+        {
+          "epoch_ms": 1793185519011.0,
+          "python-entry": 102.228,
+          "close-entry": 130.206,
+          "owner-validated": 142.093,
+          "terminated": 142.385,
+          "confirmed": 142.506,
+          "node-close:0": 151.0
+        },
+        {
+          "epoch_ms": 1793185523405.0,
+          "python-entry": 183.278,
+          "close-entry": 226.845,
+          "owner-validated": 239.233,
+          "terminated": 239.409,
+          "confirmed": 239.446,
+          "node-close:0": 250.0
+        },
+        {
+          "epoch_ms": 1793185528470.0,
+          "python-entry": 123.275,
+          "close-entry": 151.956,
+          "owner-validated": 163.626,
+          "terminated": 163.774,
+          "confirmed": 163.802,
+          "node-close:0": 172.0
+        },
+        {
+          "epoch_ms": 1793185532706.0,
+          "python-entry": 109.518,
+          "close-entry": 144.079,
+          "owner-validated": 159.743,
+          "terminated": 159.903,
+          "confirmed": 159.934,
+          "node-close:0": 219.0
+        },
+        {
+          "epoch_ms": 1793185537259.0,
+          "python-entry": 108.475,
+          "close-entry": 144.072,
+          "owner-validated": 156.479,
+          "terminated": 156.638,
+          "confirmed": 156.664,
+          "node-close:0": 164.0
+        },
+        {
+          "epoch_ms": 1793185542022.0,
+          "python-entry": 86.727,
+          "close-entry": 109.684,
+          "owner-validated": 122.488,
+          "terminated": 122.637,
+          "confirmed": 122.668,
+          "node-close:0": 129.0
+        },
+        {
+          "epoch_ms": 1793185547009.0,
+          "python-entry": 160.287,
+          "close-entry": 208.996,
+          "owner-validated": 220.688,
+          "terminated": 220.846,
+          "confirmed": 220.88,
+          "node-close:0": 228.0
+        },
+        {
+          "epoch_ms": 1793185548000.0,
+          "python-entry": 73.821,
+          "close-entry": 102.334,
+          "owner-validated": 115.092,
+          "terminated": 115.231,
+          "confirmed": 115.258,
+          "node-close:0": 123.0
+        },
+        {
+          "epoch_ms": 1793185548923.0,
+          "python-entry": 89.761,
+          "close-entry": 113.002,
+          "owner-validated": 124.173,
+          "terminated": 124.33,
+          "confirmed": 124.361,
+          "node-close:0": 131.0
+        },
+        {
+          "epoch_ms": 1793185549752.0,
+          "python-entry": 109.57,
+          "close-entry": 144.677,
+          "owner-validated": 157.347,
+          "terminated": 157.504,
+          "confirmed": 157.531,
+          "node-close:0": 165.0
+        },
+        {
+          "epoch_ms": 1793185550671.0,
+          "python-entry": 96.397,
+          "close-entry": 126.537,
+          "owner-validated": 139.435,
+          "terminated": 139.615,
+          "confirmed": 139.653,
+          "node-close:0": 147.0
+        },
+        {
+          "epoch_ms": 1793185551626.0,
+          "python-entry": 92.134,
+          "close-entry": 138.793,
+          "owner-validated": 152.523,
+          "terminated": 152.752,
+          "confirmed": 152.802,
+          "node-close:0": 161.0
+        },
+        {
+          "epoch_ms": 1793185552473.0,
+          "python-entry": 155.7,
+          "close-entry": 210.198,
+          "owner-validated": 226.378,
+          "terminated": 226.639,
+          "confirmed": 226.695,
+          "node-close:0": 237.0
+        },
+        {
+          "epoch_ms": 1793185553695.0,
+          "python-entry": 110.908,
+          "close-entry": 155.816,
+          "owner-validated": 172.317,
+          "terminated": 172.517,
+          "confirmed": 172.56,
+          "node-close:0": 182.0
+        },
+        {
+          "epoch_ms": 1793185554827.0,
+          "python-entry": 93.692,
+          "close-entry": 126.799,
+          "owner-validated": 143.026,
+          "terminated": 143.233,
+          "confirmed": 143.276,
+          "node-close:0": 155.0
+        },
+        {
+          "epoch_ms": 1793185555933.0,
+          "python-entry": 149.616,
+          "close-entry": 183.464,
+          "owner-validated": 197.529,
+          "terminated": 197.68,
+          "confirmed": 197.71,
+          "node-close:0": 205.0
+        },
+        {
+          "epoch_ms": 1793185557058.0,
+          "python-entry": 140.382,
+          "close-entry": 188.332,
+          "owner-validated": 204.491,
+          "terminated": 204.676,
+          "confirmed": 204.718,
+          "node-close:0": 214.0
+        },
+        {
+          "epoch_ms": 1793185558054.0,
+          "python-entry": 99.316,
+          "close-entry": 134.763,
+          "owner-validated": 146.906,
+          "terminated": 147.057,
+          "confirmed": 147.091,
+          "node-close:0": 156.0
+        },
+        {
+          "epoch_ms": 1793185559074.0,
+          "python-entry": 155.058,
+          "close-entry": 207.328,
+          "owner-validated": 219.87,
+          "terminated": 220.015,
+          "confirmed": 220.042,
+          "node-close:0": 228.0
+        },
+        {
+          "epoch_ms": 1793185560096.0,
+          "python-entry": 83.994,
+          "close-entry": 114.657,
+          "owner-validated": 131.251,
+          "terminated": 131.38,
+          "confirmed": 131.406,
+          "node-close:0": 140.0
+        },
+        {
+          "epoch_ms": 1793185561112.0,
+          "python-entry": 95.386,
+          "close-entry": 118.015,
+          "owner-validated": 130.937,
+          "terminated": 131.099,
+          "confirmed": 131.132,
+          "node-close:0": 138.0
+        },
+        {
+          "epoch_ms": 1793185562071.0,
+          "python-entry": 90.418,
+          "close-entry": 120.599,
+          "owner-validated": 132.537,
+          "terminated": 132.694,
+          "confirmed": 132.723,
+          "node-close:0": 140.0
+        },
+        {
+          "epoch_ms": 1793185563083.0,
+          "python-entry": 127.03,
+          "close-entry": 151.61,
+          "owner-validated": 163.928,
+          "terminated": 164.078,
+          "confirmed": 164.104,
+          "node-close:0": 173.0
+        },
+        {
+          "epoch_ms": 1793185564503.0,
+          "python-entry": 147.575,
+          "close-entry": 176.422,
+          "owner-validated": 217.074,
+          "terminated": 217.283,
+          "confirmed": 217.323,
+          "node-close:0": 227.0
+        },
+        {
+          "epoch_ms": 1793185565544.0,
+          "python-entry": 94.582,
+          "close-entry": 122.658,
+          "owner-validated": 135.386,
+          "terminated": 135.526,
+          "confirmed": 135.554,
+          "node-close:0": 144.0
+        },
+        {
+          "epoch_ms": 1793185566513.0,
+          "python-entry": 136.861,
+          "close-entry": 174.009,
+          "owner-validated": 186.264,
+          "terminated": 186.426,
+          "confirmed": 186.46,
+          "node-close:0": 193.0
+        },
+        {
+          "epoch_ms": 1793185567495.0,
+          "python-entry": 124.538,
+          "close-entry": 161.308,
+          "owner-validated": 173.554,
+          "terminated": 173.766,
+          "confirmed": 173.806,
+          "node-close:0": 181.0
+        },
+        {
+          "epoch_ms": 1793185568441.0,
+          "python-entry": 146.288,
+          "close-entry": 202.683,
+          "owner-validated": 216.276,
+          "terminated": 216.461,
+          "confirmed": 216.502,
+          "node-close:0": 225.0
+        },
+        {
+          "epoch_ms": 1793185569534.0,
+          "python-entry": 116.072,
+          "close-entry": 152.564,
+          "owner-validated": 165.539,
+          "terminated": 165.688,
+          "confirmed": 165.717,
+          "node-close:0": 173.0
+        }
+      ],
+      "max_successful_helper_close_ms": 514.0
+    }
+  ],
+  "source_sha256_before": "0f10f34305eed58ecab979d3de7d4c0aca7fcdacf6b757bc67517282cdb843e1",
+  "source_sha256_after": "8c4a4c568a0ec71f885420e99eb9c6e406429e6f2c994a2bdeb20d279d68a04a",
+  "temporary_instrumentation_removed": true
+}

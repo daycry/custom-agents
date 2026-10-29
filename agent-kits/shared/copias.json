@@ -539,6 +539,29 @@
         }
       ],
       "guardarrail_previo": "tests/test_cloud_paths.py"
+    },
+    {
+      "id": "native_protected_role_selection",
+      "mecanismo": "A",
+      "que_es": "Validacion identica del mapa de identidades protegidas en el launcher y el adaptador OpenCode; paridad semantica con PROTECTED de Python.",
+      "canonico": "hooks/run-hook.mjs",
+      "copias": [
+        {
+          "ruta": "hooks/run-hook.mjs",
+          "inicio": "// --8<-- native protected role selection",
+          "fin": "// --8<-- fin native protected role selection"
+        },
+        {
+          "ruta": "hooks/opencode-plugin.js",
+          "inicio": "// --8<-- native protected role selection",
+          "fin": "// --8<-- fin native protected role selection"
+        },
+        {
+          "ruta": "interop/opencode/plugins/custom-agents/index.js",
+          "inicio": "// --8<-- native protected role selection",
+          "fin": "// --8<-- fin native protected role selection"
+        }
+      ]
     }
   ]
 }

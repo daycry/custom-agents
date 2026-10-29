@@ -105,7 +105,7 @@ VALID_MODELS = {"haiku", "sonnet", "opus", "inherit"}
 VALID_EFFORTS = {"low", "medium", "high", "xhigh", "max"}   # sub-agents.md (2026-09-03); el override por
                                                             # proyecto lo resuelve agent-kits/shared/model-tier.py
 PRELOAD_WARN_BYTES = 16 * 1024   # `skills:` precarga >16 KB (≈4k tokens) → aviso token-diet
-DESC_WARN_CHARS = 1200           # description > 1.200 caracteres → aviso token-diet (índice de piezas)
+DESC_WARN_CHARS = 600           # description > 600 caracteres → aviso token-diet (índice de piezas)
 SKILL_WARN_LINES = 200           # SKILL.md > 200 líneas → aviso token-diet (detalle a references/)
 MARCAS_BLOQUE = (">", ">-", ">+", "|", "|-", "|+")   # escalares de bloque de YAML
 BLOQUE_PLEGABLE = ("description",)                   # claves cuyo bloque `>`/`|` se pliega

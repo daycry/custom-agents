@@ -1,0 +1,16 @@
+{
+  "new_tests": 17,
+  "compatibility_tests": 14,
+  "progress_tests": 39,
+  "renderer_coverage_percent": 96,
+  "python_launches": {
+    "cold": 1,
+    "cache_hit": 0
+  },
+  "benchmark_median_ms": {
+    "before": 1763.356,
+    "after_cold": 1208.365,
+    "after_cached": 1110.1815000000001
+  },
+  "review": "sequential self-review, not independent; Linux and phase QA pending"
+}

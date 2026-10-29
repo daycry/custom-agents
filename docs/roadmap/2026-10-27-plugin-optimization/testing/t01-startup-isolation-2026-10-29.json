@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "date_utc": "2026-10-29T11:42:13.943384+00:00",
+  "purpose": "Isolate startup and fixture overhead after interrupted replay; not a baseline or acceptance run.",
+  "source_provenance": "t01-baseline-replay-provenance-2026-10-29.json",
+  "machine": {
+    "sistema": "Windows",
+    "version": "11",
+    "python": "3.13.0",
+    "ram_libre_bytes": 7501025280,
+    "repositorio_en_onedrive": true
+  },
+  "samples": [
+    {
+      "node_elapsed_ms": 547.574,
+      "node_internal": {
+        "uptime_ms": 28.5828,
+        "cpu_ms": 61
+      },
+      "fixture_prepare_ms": 7.449,
+      "guard": {
+        "ms": 1016.063,
+        "error": null
+      },
+      "fixture_cleanup_ms": 5.996
+    },
+    {
+      "node_elapsed_ms": 933.439,
+      "node_internal": {
+        "uptime_ms": 35.432199999999995,
+        "cpu_ms": 61
+      },
+      "fixture_prepare_ms": 11.68,
+      "guard": {
+        "ms": 1642.403,
+        "error": null
+      },
+      "fixture_cleanup_ms": 9.46
+    },
+    {
+      "node_elapsed_ms": 925.304,
+      "node_internal": {
+        "uptime_ms": 31.234399999999997,
+        "cpu_ms": 109
+      },
+      "fixture_prepare_ms": 14.238,
+      "guard": {
+        "ms": 1401.957,
+        "error": null
+      },
+      "fixture_cleanup_ms": 7.676
+    },
+    {
+      "node_elapsed_ms": 1116.23,
+      "node_internal": {
+        "uptime_ms": 34.4644,
+        "cpu_ms": 46
+      },
+      "fixture_prepare_ms": 50.438,
+      "guard": {
+        "ms": 1299.085,
+        "error": null
+      },
+      "fixture_cleanup_ms": 10.864
+    },
+    {
+      "node_elapsed_ms": 892.279,
+      "node_internal": {
+        "uptime_ms": 26.846999999999998,
+        "cpu_ms": 46
+      },
+      "fixture_prepare_ms": 12.208,
+      "guard": {
+        "ms": 1382.168,
+        "error": null
+      },
+      "fixture_cleanup_ms": 16.914
+    }
+  ],
+  "warmup": {
+    "node_elapsed_ms": 580.212,
+    "node_internal": {
+      "uptime_ms": 30.1107,
+      "cpu_ms": 62
+    },
+    "fixture_prepare_ms": 9.471,
+    "guard": {
+      "ms": 958.267,
+      "error": null
+    },
+    "fixture_cleanup_ms": 2.626
+  },
+  "complete": true,
+  "medians_ms": {
+    "node_elapsed_ms": 925.304,
+    "fixture_prepare_ms": 12.208,
+    "fixture_cleanup_ms": 9.46,
+    "guard_elapsed_ms": 1382.168
+  },
+  "errors": [],
+  "node_internal_scope": "Node uptime and CPU exclude work before Node process initialization; elapsed covers process launch to exit. Differences do not identify a unique Windows cause."
+}

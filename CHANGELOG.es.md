@@ -11,6 +11,21 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Changed — Optimización del plugin, fase 1
+
+- **T-01 — Benchmark de hooks y tokens.** Añade fixtures versionadas, proyectos temporales, calentamiento descartado y fallos estructurados; informa variabilidad y tokens estimados. Difiere imports exclusivos de ejecución en el helper de limpieza.
+- **T-02 — Prefiltro de la guardia nativa.** Evita Python para identidades exactas no protegidas, manteniendo la evaluación protegida y el fallback conservador. Informa la mejora medida sin un porcentaje mínimo para F1.
+- **T-03 — Arranque y captura de prompts.** Declara timeout de 30 s en SessionStart y usa Python aislado en captura, conservando redacción y opt-outs de privacidad.
+- **T-04 — Temporales SQLite.** Elimina archivos regulares antiguos solo de dueños confirmados muertos, conserva archivos recientes y dueños vivos o inciertos y limpia ambos archivos propios tras reconstruir.
+- **T-05 — Arranque de statusline.** Usa un Python aislado cuando falta caché y ninguno en un acierto válido, manteniendo formato y evitando alias WindowsApps.
+- **T-06 — Catálogo más corto.** Mantiene las 52 descriptions dentro de 600 caracteres, con literales de activación y alcance completo; ahorra más de 3.200 tokens fijos estimados. La skill de desarrollo queda dentro de 200 líneas con su detalle en una referencia.
+
+### Fixed
+
+- **T-07 — Validación F1 y redacción.** Refuerza las pruebas de prioridad y terminación de procesos, evita análisis de redacción redundantes y actualiza inventarios de validación sin cambiar los plazos de producción.
+
+- **Inventario OpenCode V2.** Lee MCP anidados y estados disabled, agents/commands plurales y las dos formas de skill. Conserva overrides V1 y conflictos entre fuentes, sin inventariar timeouts ni marcar auxiliares como skills incompletas.
+
 ## [2.0.1] - 2026-10-27
 
 ### Changed — cierre de `catalog-capabilities` y `project-specialization`
@@ -684,6 +699,14 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 ## [1.20.2] - 2026-09-15
 
 ### Corregido
+
+- **Descriptions más breves.** Las 52 caben en 600 caracteres; 25 trasladan el alcance completo a cuerpos o referencias, conservan los literales de activación y reducen la estimación de tokens fijos en más de 3.200 por sesión.
+
+- **Arranque del statusline.** Usa un Python aislado sin caché y ninguno con entrada y ledgers iguales, conserva el formato y selecciona intérpretes válidos evitando alias de WindowsApps.
+
+- **Limpieza de temporales del índice.** Elimina temporales SQLite y journals antiguos solo de PIDs confirmados muertos, conserva los recientes o de dueño dudoso y limpia ambos ficheros propios tras reconstruir.
+
+- **Timeout de arranque y captura aislada.** Declara 30 s para SessionStart y ejecuta la captura de prompts con `-I -S`, conservando la redacción y los opt-outs de privacidad.
 
 - **Coherencia de metadatos de release e indice del roadmap.** Los metadatos y la entrada del marketplace de Claude Code quedan alineados con los manifiestos de runtime, y las iniciativas permanecen dentro de la tabla renderizada del indice.
 

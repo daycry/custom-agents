@@ -67,7 +67,7 @@ def test_opencode_agents_use_native_fields_and_preserve_observed_semantics():
     agents = {path: text for path, text in exports.items() if path.startswith('interop/opencode/agents/')}
     assert len(agents) == len(contract['owned_semantics'])
     for path, text in agents.items():
-        block, _ = MOD.partir_frontmatter(text)
+        block, body = MOD.partir_frontmatter(text)
         fields = set(re.findall(r'^([A-Za-z_]\w*):', block, re.M))
         assert fields <= set(contract['native_config_fields']), f'{path}: non-native agent fields {fields - set(contract["native_config_fields"])}'
         assert 'permissions' in fields, f'{path}: native permissions required'
@@ -75,6 +75,12 @@ def test_opencode_agents_use_native_fields_and_preserve_observed_semantics():
         assert MOD.campo(block, 'mode') == expected['mode']
         description = json.loads(re.search(r'^description:\s*(.*)$', block, re.M).group(1))
         assert description == expected['description']
+        if expected.get('description_reference'):
+            assert expected['description_reference'] in body
+            with open(os.path.join(ROOT, expected['description_reference']), encoding='utf8') as stream:
+                assert expected['description_body'] in stream.read()
+        elif expected.get('description_body'):
+            assert expected['description_body'] in body
         assert 'request' not in fields and 'model' not in fields
         permissions = json.loads(MOD.campo(block, 'permissions'))
         assert permissions == expected['permissions']

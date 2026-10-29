@@ -1,0 +1,30 @@
+{
+  "tests_passed": 80,
+  "legacy_linter_suite": "OK",
+  "evals": {
+    "pieces": 52,
+    "cases": 192,
+    "positive": 120,
+    "negative": 72,
+    "errors": 0
+  },
+  "lint_errors": 0,
+  "lint_warnings": 4,
+  "description_warnings": 0,
+  "unchanged_eval_cases": true,
+  "actual_new_session_visibility": "pending",
+  "fixed_tokens_before": {
+    "claude": 8752,
+    "codex": 8745,
+    "opencode": 8783
+  },
+  "fixed_tokens_after": {
+    "claude": 5519,
+    "codex": 5512,
+    "opencode": 5508
+  },
+  "token_method": "estimated chars/4; not API usage",
+  "post_prompt_cap_fix_tests_passed": 89,
+  "evaluator_scope_reference": "agent-kits/evaluator/references/scope.md",
+  "old_prompt_byte_cap_unchanged": 15513
+}

@@ -1,0 +1,504 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-29",
+  "source_head": "8f83eccd46b640cbec38c8d77907d223880ca665",
+  "classification": "test-harness correctness fix, TDD regression, no production or deadline change",
+  "ci_failure": "t07-reference-ci-8f83ecc-failed-2026-10-29.json",
+  "hypothesis": "PID existence alone can classify an already terminal unreaped Linux child as a surviving process.",
+  "original_trials": {
+    "platform": "linux",
+    "trials": [
+      {
+        "trial": 0,
+        "query_state": {
+          "state": "unknown",
+          "enabled": null,
+          "version": null,
+          "reason": "cli-timeout"
+        },
+        "elapsed_ms": 3012.4283029999997,
+        "child_ready": true,
+        "immediate": {
+          "signal_zero_visible": false,
+          "state": null,
+          "error": "ENOENT"
+        },
+        "later": [
+          {
+            "delay_ms": 1,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          },
+          {
+            "delay_ms": 10,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          },
+          {
+            "delay_ms": 50,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          }
+        ]
+      },
+      {
+        "trial": 1,
+        "query_state": {
+          "state": "unknown",
+          "enabled": null,
+          "version": null,
+          "reason": "cli-timeout"
+        },
+        "elapsed_ms": 3010.658147,
+        "child_ready": true,
+        "immediate": {
+          "signal_zero_visible": false,
+          "state": null,
+          "error": "ENOENT"
+        },
+        "later": [
+          {
+            "delay_ms": 1,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          },
+          {
+            "delay_ms": 10,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          },
+          {
+            "delay_ms": 50,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          }
+        ]
+      },
+      {
+        "trial": 2,
+        "query_state": {
+          "state": "unknown",
+          "enabled": null,
+          "version": null,
+          "reason": "cli-timeout"
+        },
+        "elapsed_ms": 3010.0716280000006,
+        "child_ready": true,
+        "immediate": {
+          "signal_zero_visible": false,
+          "state": null,
+          "error": "ENOENT"
+        },
+        "later": [
+          {
+            "delay_ms": 1,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          },
+          {
+            "delay_ms": 10,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          },
+          {
+            "delay_ms": 50,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          }
+        ]
+      },
+      {
+        "trial": 3,
+        "query_state": {
+          "state": "unknown",
+          "enabled": null,
+          "version": null,
+          "reason": "cli-timeout"
+        },
+        "elapsed_ms": 3009.7879310000008,
+        "child_ready": true,
+        "immediate": {
+          "signal_zero_visible": false,
+          "state": null,
+          "error": "ENOENT"
+        },
+        "later": [
+          {
+            "delay_ms": 1,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          },
+          {
+            "delay_ms": 10,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          },
+          {
+            "delay_ms": 50,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          }
+        ]
+      },
+      {
+        "trial": 4,
+        "query_state": {
+          "state": "unknown",
+          "enabled": null,
+          "version": null,
+          "reason": "cli-timeout"
+        },
+        "elapsed_ms": 3016.895705000001,
+        "child_ready": true,
+        "immediate": {
+          "signal_zero_visible": false,
+          "state": null,
+          "error": "ENOENT"
+        },
+        "later": [
+          {
+            "delay_ms": 1,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          },
+          {
+            "delay_ms": 10,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          },
+          {
+            "delay_ms": 50,
+            "signal_zero_visible": false,
+            "state": null,
+            "error": "ENOENT"
+          }
+        ]
+      }
+    ]
+  },
+  "controlled_subreaper_trials": {
+    "platform": "linux",
+    "trials": [
+      {
+        "trial": 0,
+        "query_state": {
+          "state": "unknown",
+          "enabled": null,
+          "version": null,
+          "reason": "cli-timeout"
+        },
+        "elapsed_ms": 3007.154755,
+        "child_ready": true,
+        "immediate": {
+          "signal_zero_visible": true,
+          "state": "Z",
+          "ppid": 11501,
+          "group": 11523
+        },
+        "later": [
+          {
+            "delay_ms": 1,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11523
+          },
+          {
+            "delay_ms": 10,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11523
+          },
+          {
+            "delay_ms": 50,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11523
+          }
+        ]
+      },
+      {
+        "trial": 1,
+        "query_state": {
+          "state": "unknown",
+          "enabled": null,
+          "version": null,
+          "reason": "cli-timeout"
+        },
+        "elapsed_ms": 3011.293061,
+        "child_ready": true,
+        "immediate": {
+          "signal_zero_visible": true,
+          "state": "Z",
+          "ppid": 11501,
+          "group": 11547
+        },
+        "later": [
+          {
+            "delay_ms": 1,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11547
+          },
+          {
+            "delay_ms": 10,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11547
+          },
+          {
+            "delay_ms": 50,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11547
+          }
+        ]
+      },
+      {
+        "trial": 2,
+        "query_state": {
+          "state": "unknown",
+          "enabled": null,
+          "version": null,
+          "reason": "cli-timeout"
+        },
+        "elapsed_ms": 3010.089627000001,
+        "child_ready": true,
+        "immediate": {
+          "signal_zero_visible": true,
+          "state": "Z",
+          "ppid": 11501,
+          "group": 11574
+        },
+        "later": [
+          {
+            "delay_ms": 1,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11574
+          },
+          {
+            "delay_ms": 10,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11574
+          },
+          {
+            "delay_ms": 50,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11574
+          }
+        ]
+      },
+      {
+        "trial": 3,
+        "query_state": {
+          "state": "unknown",
+          "enabled": null,
+          "version": null,
+          "reason": "cli-timeout"
+        },
+        "elapsed_ms": 3011.8849279999995,
+        "child_ready": true,
+        "immediate": {
+          "signal_zero_visible": true,
+          "state": "Z",
+          "ppid": 11501,
+          "group": 11600
+        },
+        "later": [
+          {
+            "delay_ms": 1,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11600
+          },
+          {
+            "delay_ms": 10,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11600
+          },
+          {
+            "delay_ms": 50,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11600
+          }
+        ]
+      },
+      {
+        "trial": 4,
+        "query_state": {
+          "state": "unknown",
+          "enabled": null,
+          "version": null,
+          "reason": "cli-timeout"
+        },
+        "elapsed_ms": 3009.112081000001,
+        "child_ready": true,
+        "immediate": {
+          "signal_zero_visible": true,
+          "state": "Z",
+          "ppid": 11501,
+          "group": 11628
+        },
+        "later": [
+          {
+            "delay_ms": 1,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11628
+          },
+          {
+            "delay_ms": 10,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11628
+          },
+          {
+            "delay_ms": 50,
+            "signal_zero_visible": true,
+            "state": "Z",
+            "ppid": 11501,
+            "group": 11628
+          }
+        ]
+      }
+    ]
+  },
+  "subreaper_receipt": {
+    "controlled_condition": "An owned PR_SET_CHILD_SUBREAPER parent waits for the diagnostic Node process before reaping adopted terminal descendants.",
+    "native_helper_or_deadline_changed": false,
+    "node_exit": 0,
+    "adopted_terminal_children_reaped_after_probe": [
+      {
+        "pid": 11530,
+        "status": 9
+      },
+      {
+        "pid": 11523,
+        "status": 9
+      },
+      {
+        "pid": 11554,
+        "status": 9
+      },
+      {
+        "pid": 11547,
+        "status": 9
+      },
+      {
+        "pid": 11581,
+        "status": 9
+      },
+      {
+        "pid": 11574,
+        "status": 9
+      },
+      {
+        "pid": 11607,
+        "status": 9
+      },
+      {
+        "pid": 11600,
+        "status": 9
+      },
+      {
+        "pid": 11635,
+        "status": 9
+      },
+      {
+        "pid": 11628,
+        "status": 9
+      }
+    ]
+  },
+  "red": {
+    "test": "Codex state liveness oracle recognizes an exited child before it is reaped",
+    "exit": 1,
+    "actual": true,
+    "expected": false,
+    "kernel_state": "Z",
+    "milliseconds": 11.121054
+  },
+  "green_linux": {
+    "passed": 7,
+    "failed": 0,
+    "test_file": "codex-plugin-state.test.mjs"
+  },
+  "mutation_controls": [
+    {
+      "command": [
+        "node",
+        "--test",
+        "--test-name-pattern",
+        "timeout kills non-cooperative",
+        "/tmp/codex-no-kill.test.mjs"
+      ],
+      "exit": 1,
+      "expected_error": "native descendant survived query timeout cleanup",
+      "expected_failure_observed": true,
+      "stdout": "TAP version 13\n# Subtest: Codex state: timeout kills non-cooperative native process and descendants before returning\nnot ok 1 - Codex state: timeout kills non-cooperative native process and descendants before returning\n  ---\n  duration_ms: 3021.90992\n  type: 'test'\n  location: '/tmp/codex-no-kill.test.mjs:115:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    native descendant survived query timeout cleanup\n    \n    true !== false\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: false\n  actual: true\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///tmp/codex-no-kill.test.mjs:129:12)\n    Test.runInAsyncScope (node:async_hooks:214:14)\n    Test.run (node:internal/test_runner/test:1047:25)\n    Test.start (node:internal/test_runner/test:944:17)\n    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)\n  ...\n1..1\n# tests 1\n# suites 0\n# pass 0\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 3205.490078\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "node",
+        "--test",
+        "--test-name-pattern",
+        "oracle rejects a surviving",
+        "/tmp/codex-false-oracle.test.mjs"
+      ],
+      "exit": 1,
+      "expected_error": "false !== true",
+      "expected_failure_observed": true,
+      "stdout": "TAP version 13\n# Subtest: Codex state liveness oracle rejects a surviving process, including a stopped one\nnot ok 1 - Codex state liveness oracle rejects a surviving process, including a stopped one\n  ---\n  duration_ms: 20.21312\n  type: 'test'\n  location: '/tmp/codex-false-oracle.test.mjs:23:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    false !== true\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: true\n  actual: false\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///tmp/codex-false-oracle.test.mjs:27:12)\n    Test.runInAsyncScope (node:async_hooks:214:14)\n    Test.run (node:internal/test_runner/test:1047:25)\n    Test.start (node:internal/test_runner/test:944:17)\n    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)\n  ...\n1..1\n# tests 1\n# suites 0\n# pass 0\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 168.99529\n",
+      "stderr": ""
+    }
+  ],
+  "limit": "Original CI did not record PID state; controlled reaping proves a separate reproducible oracle defect, not a unique reconstruction of that historical event.",
+  "preserved": [
+    "3000ms query deadline",
+    "9500ms test ceiling",
+    "non-cooperative descendant fixture",
+    "runtime termination implementation",
+    "live/stopped-process rejection",
+    "unknown-error rejection"
+  ],
+  "phase_review": "attempt3 pending",
+  "green_windows": {
+    "passed": 6,
+    "failed": 0,
+    "skipped": 1,
+    "reason": "kernel Z regression Linux-only; original Windows cleanup checks and live-process rejection passed"
+  }
+}

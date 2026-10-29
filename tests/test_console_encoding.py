@@ -456,6 +456,11 @@ def _modos():
              ("portable JSON", lambda w: ["--root", w, "--panel-json"], (0, 1), None)],
         "agent-kits/shared/guardrail-check.py":
             [("deny", lambda w: ["pre-tool", "--project-dir", "."], (0,), deny)],
+        "agent-kits/shared/statusline-render.py":
+            [("campos de estado UTF-8", lambda w: ["--root", w], (0,),
+              json.dumps({"model": {"display_name": "Modelo " + chr(0x1f41b)}}))],
+        "scripts/bench-hooks.py":
+            [("estimaciones de tokens", lambda w: ["--tokens-only", "--md"], (0,), None)],
         "agent-kits/shared/journal.py":
             [("draft", lambda w: ["draft", "--root", "."], (0,), None)],
         "agent-kits/shared/journal-capture.py":
@@ -1385,13 +1390,15 @@ def test_todo_python_en_linea_del_repo_lleva_la_variable_incluido_el_que_no_la_n
     no en una línea de shell), así que el recuento baja de 8 a 6. T-05 añade DOS python en línea
     nuevos a `session-context.sh` (leer `sesion.journal.replay.{budgetMs,max}` de `dev.json` y
     resumir en una línea el `bloqueado`/`errores` de `replay`, antes de componer el contexto), así
-    que sube de 6 a 8."""
+    que sube de 6 a 8. plugin-optimization T-05 mueve los DOS fragmentos en linea
+    de statusline a `statusline-render.py`, cuyo arranque real y snippet UTF-8 se prueban
+    en esta suite: quedan 6 fragmentos shell, todos sujetos a la misma regla."""
     sitios = []
     for rel in _shell_versionados() or []:
         texto = open(os.path.join(ROOT, rel), encoding="utf-8").read()
         sitios += [(rel, ENV_ESPERADA in (m.group("env") or ""))
                    for m in PY_EN_LINEA.finditer(texto)]
-    assert len(sitios) == 8, f"esperaba 8 python en línea versionados, hay {len(sitios)}"
+    assert len(sitios) == 6, f"esperaba 6 python en línea versionados, hay {len(sitios)}"
     assert all(ok for _, ok in sitios), f"sin la variable: {[r for r, ok in sitios if not ok]}"
 
 

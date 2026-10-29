@@ -1,0 +1,63 @@
+{
+  "status": "FAILED",
+  "full_phase_acceptance": false,
+  "stages": [
+    {
+      "stage": "lint",
+      "exit": 0,
+      "started": "2026-10-29T09:09:09Z",
+      "finished": "2026-10-29T09:09:11.718984+00:00"
+    },
+    {
+      "stage": "evals",
+      "exit": 0,
+      "started": "2026-10-29T09:09:11Z",
+      "finished": "2026-10-29T09:09:11.856210+00:00"
+    },
+    {
+      "stage": "script-suites",
+      "exit": 0,
+      "started": "2026-10-29T09:09:11Z",
+      "finished": "2026-10-29T09:11:05.824246+00:00"
+    },
+    {
+      "stage": "pytest",
+      "exit": 1,
+      "started": "2026-10-29T09:11:05Z",
+      "finished": "2026-10-29T09:15:09.539620+00:00"
+    }
+  ],
+  "environment": {
+    "python": "3.11.18 (main, Oct 28 2026, 02:05:49) [GCC 12.2.0]",
+    "node": "v22.23.3",
+    "npm": "10.9.9",
+    "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "memory_limit": "2 GiB",
+    "cpus": 2
+  },
+  "snapshot": {
+    "regular_files": 1592,
+    "bytes_and_modes_verified": true,
+    "differences": [],
+    "complete_match": true
+  },
+  "archive_sha256": "7707312b16b51183f729752d2d78b9a0be83953f38652d8964509dcd715d0520",
+  "pytest": {
+    "passed": 1895,
+    "failed": 1,
+    "skipped": 3,
+    "subtests_passed": 39,
+    "warnings": 1,
+    "failfast": true,
+    "failed_test": "tests/test_graphiti_security.py::test_ningun_script_alcanzable_desde_hooks_toca_la_red",
+    "observed": "launcher JavaScript no revisado",
+    "root_cause": "Launcher fingerprint still admitted only pre-F1 source f86f0a1e...; bounded local prefilter and isolated capture changed bytes. This finding is an unreviewed fingerprint, not evidence of actual network traffic."
+  },
+  "not_run": [
+    "capture-benchmark",
+    "interop",
+    "node",
+    "syntax-json",
+    "release-check"
+  ]
+}

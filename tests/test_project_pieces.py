@@ -764,3 +764,251 @@ def test_claude_skill_directory_alias_participates_in_invocation_conflicts(reade
     assert set(skill['invocation_names'])=={'special-guidance', 'tdd'}
     conflict = next(c for c in result['conflicts'] if c['name']=='tdd' and 'bundled_source' not in c)
     assert set(conflict['ids'])=={p['id'] for p in result['pieces']}
+
+
+@pytest.mark.parametrize('disabled,enabled', [(False, True), (True, False)])
+def test_opencode_v2_nested_mcp_keeps_declared_disabled_state(reader, locations, disabled, enabled):
+    project, home = locations
+    put(project, 'opencode.jsonc', json.dumps({'mcp': {
+        'timeout': {'startup': 45000, 'catalog': 30000, 'execution': 600000},
+        'servers': {'blender': {'type': 'local', 'command': ['private-command'],
+                                'disabled': disabled, 'environment': {'TOKEN': 'private-value'}}},
+    }}))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    servers = [p for p in result['pieces'] if p['kind']=='mcp']
+    assert [p['name'] for p in servers]==['blender']
+    assert servers[0]['locator']=='mcp.servers.blender'
+    assert servers[0]['transport']=='local'
+    assert servers[0]['enabled'] is enabled
+    assert servers[0]['availability']=='unverified'
+    assert not result['partial']
+    assert 'private-' not in json.dumps(result)
+
+
+def test_opencode_v2_empty_server_block_does_not_invent_timeout_server(reader, locations):
+    project, home = locations
+    put(project, 'opencode.json', json.dumps({'mcp': {'servers': {}, 'timeout': {'startup': 45}}}))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    assert not [p for p in result['pieces'] if p['kind']=='mcp']
+    assert not result['partial']
+
+
+def test_opencode_v1_real_servers_named_servers_and_timeout_are_preserved(reader, locations):
+    project, home = locations
+    put(project, 'opencode.json', json.dumps({'mcp': {
+        'servers': {'type': 'local', 'command': ['private-command'], 'enabled': False},
+        'timeout': {'type': 'remote', 'url': 'https://example.invalid/mcp', 'enabled': True},
+    }}))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    servers = {p['name']:p for p in result['pieces'] if p['kind']=='mcp'}
+    assert set(servers)=={'servers','timeout'}
+    assert servers['servers']['locator']=='mcp.servers'
+    assert servers['servers']['enabled'] is False
+    assert servers['timeout']['enabled'] is True
+    assert not result['partial']
+
+
+def test_opencode_v2_server_names_may_match_definition_fields(reader, locations):
+    project, home = locations
+    put(project, 'opencode.json', json.dumps({'mcp': {'servers': {
+        'type': {'type':'local', 'command':['private-one']},
+        'command': {'type':'local', 'command':['private-two']},
+        'enabled': {'type':'local', 'command':['private-three']},
+        'url': {'type':'local', 'command':['private-four']},
+    }}}))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    assert {p['name'] for p in result['pieces'] if p['kind']=='mcp'}=={'type','command','enabled','url'}
+    assert not result['partial']
+
+
+@pytest.mark.parametrize('disabled', ['false', 0])
+def test_opencode_invalid_disabled_is_not_reported_as_enabled(reader, locations, disabled):
+    project, home = locations
+    put(project, 'opencode.json', json.dumps({'mcp': {'servers': {
+        'blender': {'type':'local', 'command':['private-command'], 'disabled': disabled},
+    }}}))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    assert result['partial']
+    assert not [p for p in result['pieces'] if p['kind']=='mcp']
+
+
+def test_opencode_conflicting_enabled_and_disabled_is_partial(reader, locations):
+    project, home = locations
+    put(project, 'opencode.json', json.dumps({'mcp': {'servers': {
+        'blender': {'type':'local', 'command':['private-command'], 'disabled': False, 'enabled': False},
+    }}}))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    assert result['partial']
+    assert not [p for p in result['pieces'] if p['kind']=='mcp']
+
+
+@pytest.mark.parametrize('nested', [None, [], 'invalid'])
+def test_opencode_invalid_v2_container_does_not_export_timeout(reader, locations, nested):
+    project, home = locations
+    put(project, 'opencode.json', json.dumps({'mcp': {
+        'timeout': {'startup': 45}, 'servers': nested,
+    }}))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    assert result['partial']
+    assert not [p for p in result['pieces'] if p['kind']=='mcp']
+
+
+def test_opencode_v2_keeps_legacy_servers_during_partial_config_migration(reader, locations):
+    project, home = locations
+    put(project, 'opencode.json', json.dumps({'mcp': {
+        'timeout': {'startup': 45000},
+        'servers': {'native': {'type':'local', 'command':['private-one'], 'disabled':False}},
+        'legacy': {'type':'remote', 'url':'https://example.invalid/mcp', 'enabled':False},
+    }}))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    servers = {p['name']:p for p in result['pieces'] if p['kind']=='mcp'}
+    assert set(servers)=={'native','legacy'}
+    assert servers['native']['locator']=='mcp.servers.native'
+    assert servers['legacy']['locator']=='mcp.legacy'
+    assert servers['legacy']['enabled'] is False
+    assert not result['partial']
+
+
+def test_opencode_same_mcp_name_across_v1_and_v2_keeps_conflict_visible(reader, locations):
+    project, home = locations
+    put(project, 'opencode.json', json.dumps({'mcp': {
+        'servers': {'shared': {'type':'local', 'command':['private-one'], 'disabled':False}},
+        'shared': {'type':'local', 'command':['private-two'], 'enabled':True},
+    }}))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    servers = [p for p in result['pieces'] if p['kind']=='mcp']
+    assert len(servers)==2 and len({p['id'] for p in servers})==2
+    assert result['conflicts'][0]['name']=='shared'
+
+
+@pytest.mark.parametrize('enabled', [False, True])
+def test_opencode_v1_enabled_only_servers_override_keeps_siblings_and_agents(reader, locations, enabled):
+    project, home = locations
+    put(project, 'opencode.json', json.dumps({
+        'mcp': {'servers': {'enabled': enabled}, 'other': {'type': 'local', 'command': ['private-command']}},
+        'agent': {'local-review': {'description': 'Review'}},
+    }))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    assert {(p['kind'],p['name']) for p in result['pieces']} == {('mcp','servers'),('mcp','other'),('agent','local-review')}
+    server = next(p for p in result['pieces'] if p['name']=='servers')
+    assert server['enabled'] is enabled and server['locator']=='mcp.servers'
+    assert not result['partial']
+
+@pytest.mark.parametrize('timeouts', [{}, {'startup': 45000}, {'execution': 600000, 'catalog': 30000}])
+def test_opencode_v2_timeout_only_never_invents_mcp(reader, locations, timeouts):
+    project, home = locations
+    put(project, 'opencode.json', json.dumps({'mcp': {'timeout': timeouts}}))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    assert not result['pieces'] and not result['partial']
+
+@pytest.mark.parametrize('enabled', [True, False])
+def test_opencode_v1_timeout_enabled_only_is_a_real_declaration(reader, locations, enabled):
+    project, home = locations
+    put(project, 'opencode.json', json.dumps({'mcp': {'timeout': {'enabled': enabled}}}))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    assert [(p['name'],p['enabled']) for p in result['pieces']] == [('timeout',enabled)]
+    assert not result['partial']
+
+@pytest.mark.parametrize('scope', ['project','user'])
+def test_opencode_v2_agents_and_commands_keep_public_metadata_only(reader, locations, scope):
+    project, home = locations
+    base, relative = (project,'opencode.jsonc') if scope=='project' else (home,'.config/opencode/opencode.jsonc')
+    put(base, relative, json.dumps({
+        'agents': {'local-review': {'description': 'Review', 'mode':'subagent', 'system':'private-system'}},
+        'commands': {'local-command': {'description':'Command', 'template':'private-template'}},
+    }))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=scope=='user')
+    assert {(p['kind'],p['name'],p['locator']) for p in result['pieces']} == {
+        ('agent','local-review','agents.local-review'),('command','local-command','commands.local-command')}
+    assert not result['partial'] and 'private-' not in json.dumps(result)
+
+@pytest.mark.parametrize('legacy,current,kind', [('agent','agents','agent'),('command','commands','command')])
+def test_opencode_v1_v2_inline_collisions_remain_visible(reader, locations, legacy, current, kind):
+    project, home = locations
+    put(project, 'opencode.json', json.dumps({legacy:{'same':{'description':'Legacy'}},current:{'same':{'description':'Current'}}}))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    assert len(result['pieces'])==2 and {p['kind'] for p in result['pieces']}=={kind}
+    assert len({p['id'] for p in result['pieces']})==2
+    assert result['conflicts'][0]['name']=='same'
+
+@pytest.mark.parametrize('runtime,relative', [
+    ('opencode','.opencode/skills'),('claude-code','.claude/skills'),('codex','.agents/skills')])
+def test_auxiliary_skill_directories_are_not_invalid_declarations(reader, locations, runtime, relative):
+    project, home = locations
+    put(project, relative+'/references/guide.md', 'Supporting reference')
+    put(project, relative+'/notes.txt', 'Supporting note')
+    put(project, relative+'/real/SKILL.md', markdown('real'))
+    result = reader.discover(project, home=home, runtime=runtime, include_user=False)
+    assert [(p['kind'],p['name']) for p in result['pieces']]==[('skill','real')]
+    assert not result['partial'] and not result['warnings']
+
+
+def test_real_skill_called_references_is_still_discovered(reader, locations):
+    project, home = locations
+    put(project, '.opencode/skills/references/SKILL.md', markdown('references'))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    assert [p['name'] for p in result['pieces']]==['references']
+    assert not result['partial']
+
+
+def test_opencode_flat_skill_and_directory_without_name_use_native_source(reader, locations):
+    project, home = locations
+    put(project, '.opencode/skills/flat-guide.md', markdown('flat-guide'))
+    put(project, '.opencode/skills/dir-guide/SKILL.md', '---\ndescription: Directory guidance\n---\nPrivate body\n'.replace('\\n','\n'))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    assert {p['name'] for p in result['pieces']}=={'flat-guide','dir-guide'}
+    assert not result['partial']
+
+
+
+def test_invalid_declared_skill_still_warns_without_exposing_body(reader, locations):
+    project, home = locations
+    put(project, '.opencode/skills/references/guide.md', 'private-auxiliary')
+    put(project, '.opencode/skills/bad/SKILL.md', 'private-invalid-body')
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    assert result['partial'] and not result['pieces']
+    assert len(result['warnings'])==1 and '/bad/SKILL.md' in result['warnings'][0]
+    assert 'private-' not in json.dumps(result)
+
+
+def test_linked_auxiliary_skill_directory_is_rejected_before_filtering(reader, locations, monkeypatch):
+    project, home = locations
+    put(project, '.opencode/skills/references/guide.md', 'private-auxiliary')
+    linked = project / '.opencode/skills/references'
+    original = reader.GUARD._linked
+    monkeypatch.setattr(reader.GUARD, '_linked', lambda path: Path(path)==linked or original(path))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    assert result['partial'] and not result['pieces']
+    assert '/references/' in result['warnings'][0] and 'private-' not in json.dumps(result)
+
+
+
+def test_opencode_v2_cli_is_read_only_and_omits_private_configuration(locations):
+    import subprocess
+    import sys
+    project, home = locations
+    put(project, 'opencode.json', json.dumps({
+        'mcp': {'servers': {'docs': {'type':'local','command':['private-command'],'disabled':True,
+                                    'environment':{'TOKEN':'private-token'}}},'timeout':{'startup':45000}},
+        'agents': {'local-review': {'description':'Review','system':'private-system'}},
+        'commands': {'local-command': {'description':'Command','template':'private-template'}},
+    }))
+    put(project, '.opencode/skills/references/guide.md', 'private-reference')
+    originals = {p:p.read_bytes() for root in locations for p in root.rglob('*') if p.is_file()}
+    result = subprocess.run([sys.executable,str(SCRIPT),'--project',str(project),'--home',str(home),
+                             '--runtime','opencode','--project-only','--json'],
+                            capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=15)
+    assert result.returncode==0, result.stderr
+    data = json.loads(result.stdout)
+    assert {(p['kind'],p['name']) for p in data['pieces']}=={('mcp','docs'),('agent','local-review'),('command','local-command')}
+    assert not data['partial'] and 'private-' not in result.stdout
+    assert next(p for p in data['pieces'] if p['kind']=='mcp')['enabled'] is False
+    assert originals == {p:p.read_bytes() for root in locations for p in root.rglob('*') if p.is_file()}
+
+
+@pytest.mark.parametrize('enabled', ['false', 0, [], {}])
+def test_opencode_invalid_v1_timeout_override_is_not_silently_ignored(reader, locations, enabled):
+    project, home = locations
+    put(project, 'opencode.json', json.dumps({'mcp': {'timeout': {'enabled': enabled}}}))
+    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
+    assert result['partial'] and not result['pieces']

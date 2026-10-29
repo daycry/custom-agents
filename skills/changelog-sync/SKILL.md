@@ -1,19 +1,18 @@
 ---
 name: changelog-sync
 description: >
-  Genera las entradas `[Unreleased]` (EN) y `[Sin publicar]` (ES) del CHANGELOG a partir de los
-  ledgers CERRADOS del roadmap (`docs/roadmap/*/tasks.md` con `estado: completado`), de forma
-  DETERMINISTA e idempotente: un bullet por tarea `T-XX` con su título, un resumen de UNA o DOS
-  frases y sus ficheros clave, con la categoría `Added|Changed|Fixed` deducida (o declarada en el
-  frontmatter). El resumen sale de una ESCALERA: el campo `- **Changelog**:` de la tarea si está
-  (la vía buena, lo escribe quien la cerró) → la primera frase de la `Descripción` si cabe en el
-  tope → su oración principal → solo el título con puntero al ledger. Nunca trunca una frase con
-  `…`. No crea la sección de versión (eso es el script de release del proyecto) ni inventa
-  alcance. Úsala cuando el usuario diga "escribe el changelog", "sincroniza el CHANGELOG",
-  "genera las notas de la release", "actualiza [Unreleased]", o al cerrar una iniciativa.
+  Genera de forma determinista las secciones sin publicar ES/EN desde tareas cerradas del roadmap.
+  No crea versiones ni inventa alcance. Úsala cuando el usuario diga "escribe el changelog",
+  "sincroniza el CHANGELOG", "genera las notas de la release", "actualiza [Unreleased]", o al cerrar
+  una iniciativa.
 ---
 
 # changelog-sync — el CHANGELOG sale del ledger, no de la memoria
+
+## Alcance y activación
+
+Genera las entradas `[Unreleased]` (EN) y `[Sin publicar]` (ES) del CHANGELOG a partir de los ledgers CERRADOS del roadmap (`docs/roadmap/*/tasks.md` con `estado: completado`), de forma DETERMINISTA e idempotente: un bullet por tarea `T-XX` con su título, un resumen de UNA o DOS frases y sus ficheros clave, con la categoría `Added|Changed|Fixed` deducida (o declarada en el frontmatter). El resumen sale de una ESCALERA: el campo `- **Changelog**:` de la tarea si está (la vía buena, lo escribe quien la cerró) → la primera frase de la `Descripción` si cabe en el tope → su oración principal → solo el título con puntero al ledger. Nunca trunca una frase con `…`. No crea la sección de versión (eso es el script de release del proyecto) ni inventa alcance. Úsala cuando el usuario diga "escribe el changelog", "sincroniza el CHANGELOG", "genera las notas de la release", "actualiza [Unreleased]", o al cerrar una iniciativa.
+
 
 Al cerrar una iniciativa hay que dejar constancia en el CHANGELOG. Escribirlo «de memoria» al
 final del día es justo cuando se olvidan tareas y se inventa alcance (pasó en la v1.15.0: las

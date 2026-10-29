@@ -32,3 +32,7 @@ assets, y sin la bandera un proyecto sin memoria devuelve 0 aciertos (spec CA-21
 y `tests/test_doctrina_viaja.py` lo exige (mismo patrón que las copias `.MANUAL-COPY`). Para cambiar una lección:
 edita la de `docs/knowledge/lessons/` y copia el fichero. La carpeta no lleva README: contiene exactamente las 9.
 No viaja en el paquete portable «solo skills» (`scripts/export-skills.py`): sin `evaluator` no hay quien la aplique.
+
+## Alcance bajo demanda
+
+- [Alcance del evaluator](references/scope.md): detalle conservado fuera del prompt para respetar su presupuesto.

@@ -3,6 +3,7 @@ import importlib.util
 import os
 from pathlib import Path
 import signal
+import runpy
 import subprocess
 from types import SimpleNamespace
 import ctypes
@@ -51,7 +52,7 @@ def test_group_cleanup_keeps_owner_running_and_kills_children(monkeypatch, reloj
     monkeypatch.setattr(supervisor.os.path, "isfile", lambda path: True)
     monkeypatch.setattr(supervisor.os, "killpg", lambda pid, sig: calls.append(("group", pid, sig)), raising=False)
     monkeypatch.setattr(supervisor.os, "kill", lambda pid, sig: calls.append(("process", pid, sig)))
-    monkeypatch.setattr(supervisor.subprocess, "run", lambda *a, **kw: subprocess.CompletedProcess(a, 0, next(accounting), ""))
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: subprocess.CompletedProcess(a, 0, next(accounting), ""))
     supervisor.close_group(owner)
     assert ("process", child, signal.SIGKILL) in calls
     assert ("process", child, signal.SIGSTOP) in calls
@@ -79,7 +80,7 @@ def test_group_cleanup_without_ps_reads_proc(monkeypatch, tmp_path, reloj):
         if sig == signal.SIGKILL:
             (tmp_path / str(pid) / "stat").unlink()
     monkeypatch.setattr(supervisor.os, "kill", kill)
-    monkeypatch.setattr(supervisor.subprocess, "run", lambda *a, **kw: pytest.fail("no ps is installed"))
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: pytest.fail("no ps is installed"))
     supervisor.close_group(owner)
     assert (child, signal.SIGKILL) in calls and (child, signal.SIGSTOP) in calls
     assert all(pid == child for pid, _ in calls), calls
@@ -109,7 +110,7 @@ def test_failed_containment_never_runs_business_or_exposes_arguments(monkeypatch
     def unavailable(owner):
         raise OSError("PRIVATE_BACKEND_DETAIL")
     monkeypatch.setattr(supervisor, "attach", unavailable)
-    monkeypatch.setattr(supervisor.runpy, "run_path", lambda *a, **kw: pytest.fail("uncontained business ran"))
+    monkeypatch.setattr(runpy, "run_path", lambda *a, **kw: pytest.fail("uncontained business ran"))
     assert supervisor.main(["run", "41001", "python", "python", "PRIVATE_CONSUMER_SCRIPT"]) == 1
     output = capsys.readouterr()
     assert output.out == ""
@@ -211,3 +212,41 @@ def test_group_cleanup_reports_unconfirmed_when_the_deadline_passes(monkeypatch,
     monkeypatch.setattr(supervisor.os, "kill", lambda pid, sig: None)
     with pytest.raises(OSError, match="could not be confirmed"):
         supervisor.close_group(owner)
+
+
+def test_windows_close_does_not_initialize_business_execution_modules(monkeypatch):
+    # Exercise the real close path with a fake Windows API; no real process is signalled.
+    import builtins
+    observed, calls, closed = [], [], []
+    class Accounting(ctypes.Structure):
+        _fields_ = [("active", ctypes.c_uint32)]
+    def duplicate(owner, remote, process, local, access, inherit, flags):
+        assert owner == 100 and remote.value == 900 and flags == 3 and inherit is False
+        local._obj.value = 200
+        return 1
+    def terminate(job, code):
+        calls.append(("terminate", job.value, code))
+        return 1
+    def query(job, kind, accounting, size, needed):
+        calls.append(("confirm", job.value, kind))
+        accounting._obj.active = 0
+        return 1
+    api = SimpleNamespace(OpenProcess=lambda *a: 100, DuplicateHandle=duplicate,
+                          GetCurrentProcess=lambda: -1, TerminateJobObject=terminate,
+                          QueryInformationJobObject=query, CloseHandle=lambda handle: closed.append(getattr(handle, "value", handle)))
+    original_import = builtins.__import__
+    def record_import(name, *args, **kwargs):
+        if name in ("json", "runpy", "subprocess"):
+            observed.append(name)
+        return original_import(name, *args, **kwargs)
+    path = Path(__file__).parents[1] / "hooks" / "runtime-supervisor.py"
+    namespace = {"__name__": "cleanup_import_probe", "__file__": str(path)}
+    with monkeypatch.context() as patch:
+        patch.setattr(builtins, "__import__", record_import)
+        exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), namespace)
+        namespace["windows_api"] = lambda: (ctypes, wintypes, api, None, Accounting, None)
+        namespace["validate_owner"] = lambda *args: None
+        assert namespace["main"](["close", "41001", "900"]) == 0
+    assert calls == [("terminate", 200, 0), ("confirm", 200, 1)]
+    assert closed == [200, 100]
+    assert observed == [], f"cleanup initialized business modules: {observed}"

@@ -1,19 +1,19 @@
 ---
 name: confluence-pull
 description: >
-  Trae a local (docs/) el estado actual de Confluence — el sentido INVERSO de
-  confluence-publish — para que una persona NO técnica (p. ej. un PM sin git)
-  tenga su copia al día sin clonar ni hacer pull de git. Reutiliza el conector
-  oficial de Atlassian (Rovo MCP) y el mismo mapeo página↔fichero del manifiesto
-  .claude/confluence-state.json. Es un asistente guiado: comprueba conexión,
-  previsualiza qué se va a crear/actualizar, avisa de conflictos y pide
-  confirmación antes de escribir nada en local. Preserva el frontmatter local.
-  Úsala cuando el usuario diga "actualiza mis docs desde Confluence", "baja/trae
-  la doc de Confluence", "sincroniza desde Confluence", "ponme al día el roadmap".
+  Trae cambios de Confluence a docs/ mediante el conector y manifiesto compartidos. Previsualiza
+  conflictos, pide confirmación y respeta el frontmatter local. Úsala cuando el usuario diga
+  "actualiza mis docs desde Confluence", "baja/trae la doc de Confluence", "sincroniza desde
+  Confluence", "ponme al día el roadmap".
 user-invocable: true
 ---
 
 # confluence-pull — traer la doc desde Confluence (sentido inverso)
+
+## Alcance y activación
+
+Trae a local (docs/) el estado actual de Confluence — el sentido INVERSO de confluence-publish — para que una persona NO técnica (p. ej. un PM sin git) tenga su copia al día sin clonar ni hacer pull de git. Reutiliza el conector oficial de Atlassian (Rovo MCP) y el mismo mapeo página↔fichero del manifiesto .claude/confluence-state.json. Es un asistente guiado: comprueba conexión, previsualiza qué se va a crear/actualizar, avisa de conflictos y pide confirmación antes de escribir nada en local. Preserva el frontmatter local. Úsala cuando el usuario diga "actualiza mis docs desde Confluence", "baja/trae la doc de Confluence", "sincroniza desde Confluence", "ponme al día el roadmap".
+
 
 Espeja **de Confluence a `docs/` local** las páginas del proyecto, usando el **conector oficial de
 Atlassian (Rovo MCP)**. Es la pareja inversa de `confluence-publish`: donde aquella sube

@@ -1,18 +1,18 @@
 ---
 name: quick-implement
 description: >
-  Atajo en lenguaje natural para la VÍA RÁPIDA de /dev-cycle — implementa UN cambio pequeño y bien
-  definido conservando el ledger canónico y las puertas de calidad (revisión de dos lentes + qa-gate),
-  sin papeleo de PM (sin spec, evaluación ni plan). No duplica el método: delega en la vía rápida de
-  `commands/dev-cycle.md`, su fuente única. NO la uses si el trabajo tiene incógnitas o varias fases,
-  toca muchos ficheros, el usuario quiere presupuesto o traza PM (eso es /pm-cycle o el flujo completo
-  de /dev-cycle), el usuario ya escribió /dev-cycle (respeta el comando), o el cambio es trivial de
-  una línea (hazlo directamente, sin ciclo); ante la duda, PREGUNTA antes de arrancar. Úsala cuando el
-  usuario pida implementar algo concreto SIN escribir el comando y diga "implementa X rápido", "hazme
-  este cambio pequeño", "añade X directo", "arréglalo sin papeleo", "solo impleméntalo".
+  Implementa un cambio pequeño y definido por la vía rápida de dev-cycle, con ledger, revisión y QA.
+  No usar con incógnitas, varias fases o petición de presupuesto. Úsala cuando el usuario pida
+  implementar algo concreto SIN escribir el comando y diga "implementa X rápido", "hazme este cambio
+  pequeño", "añade X directo", "arréglalo sin papeleo", "solo impleméntalo".
 ---
 
 # quick-implement — la vía rápida, sin tener que escribir el comando
+
+## Alcance y activación
+
+Atajo en lenguaje natural para la VÍA RÁPIDA de /dev-cycle — implementa UN cambio pequeño y bien definido conservando el ledger canónico y las puertas de calidad (revisión de dos lentes + qa-gate), sin papeleo de PM (sin spec, evaluación ni plan). No duplica el método: delega en la vía rápida de `commands/dev-cycle.md`, su fuente única. NO la uses si el trabajo tiene incógnitas o varias fases, toca muchos ficheros, el usuario quiere presupuesto o traza PM (eso es /pm-cycle o el flujo completo de /dev-cycle), el usuario ya escribió /dev-cycle (respeta el comando), o el cambio es trivial de una línea (hazlo directamente, sin ciclo); ante la duda, PREGUNTA antes de arrancar. Úsala cuando el usuario pida implementar algo concreto SIN escribir el comando y diga "implementa X rápido", "hazme este cambio pequeño", "añade X directo", "arréglalo sin papeleo", "solo impleméntalo".
+
 
 Existe por una razón histórica: cuando nació, los **commands** (`/dev-cycle`) solo se disparaban
 con la barra. Hoy Claude Code los invoca también por descripción (como a las skills), pero esta

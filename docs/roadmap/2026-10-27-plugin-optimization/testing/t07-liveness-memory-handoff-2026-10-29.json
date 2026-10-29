@@ -1,0 +1,25 @@
+{
+  "producer": "debug-root-cause",
+  "status": "persistence_pending",
+  "service": "agent-kits/shared/knowledge-curation.py propose",
+  "requested_filename": "2026-10-29-linux-terminal-pid-oracle.md",
+  "exit": 2,
+  "receipt": {
+    "status": "incomplete_inventory",
+    "errores": [
+      {
+        "mensaje": "incomplete_inventory",
+        "campo": "$"
+      }
+    ],
+    "avisos": []
+  },
+  "draft_local_artifact": ".pytest_cache/liveness-gotcha-proposal.md",
+  "draft_sha256": "902705e128db76bbcd5ac05b5bf98697f6c4bffa686d89e7005325acdcdd4cc1",
+  "candidate_created": false,
+  "candidate_sha256": null,
+  "ledger_reference_added": false,
+  "next_step": "Retry the service once inventory is verifiable. Do not bypass it with direct memory writes. Associate only the actual candidate path/SHA returned by a successful propose.",
+  "authority": "agent-kits/shared/knowledge-write.md; debug-root-cause/SKILL.md phase-4 closure",
+  "threshold_note": "Three existing references remain. A successful fourth distinct proposal requires threshold calibration to be noted at the later initiative retrospective."
+}

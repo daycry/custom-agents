@@ -1,0 +1,486 @@
+diff --git a/agent-kits/shared/project-pieces.py b/agent-kits/shared/project-pieces.py
+--- a/agent-kits/shared/project-pieces.py
++++ b/agent-kits/shared/project-pieces.py
+@@ -359,6 +359,13 @@
+     enabled = None if runtime == 'claude-code' else server.get('enabled')
+     if enabled is not None and type(enabled) is not bool:
+         raise ValueError('invalid enabled declaration')
++    if runtime == 'opencode' and 'disabled' in server:
++        if type(server['disabled']) is not bool:
++            raise ValueError('invalid disabled declaration')
++        declared_enabled = not server['disabled']
++        if 'enabled' in server and enabled is not declared_enabled:
++            raise ValueError('conflicting enabled and disabled declarations')
++        enabled = declared_enabled
+     transport = server.get('type')
+     if runtime == 'claude-code':
+         if declaration == 'reference':
+@@ -377,6 +384,32 @@
+         if transport not in ('stdio', 'http', 'sse', 'local', 'remote'):
+             transport = 'unknown'
+     return {'transport': transport, 'enabled': enabled}
++
++
++
++def _opencode_mcp_sections(definitions):
++    """Separate V2 containers/options from V1 server declarations, retaining sources."""
++    def is_server(value):
++        # V1 also permits an enabled-only override, including a server named servers/timeout.
++        return isinstance(value, dict) and (
++            isinstance(value.get('type'), str)
++            or isinstance(value.get('command'), (str, list))
++            or isinstance(value.get('url'), str)
++            # Scalar/list flags also identify a V1 declaration so metadata validation
++            # can reject invalid enabled values instead of discarding them as options.
++            or ('enabled' in value and not isinstance(value['enabled'], dict))
++        )
++
++    legacy = dict(_object(definitions))
++    sections = []
++    if 'servers' in legacy and not is_server(legacy['servers']):
++        sections.append(('mcp.servers', _object(legacy.pop('servers'))))
++    if 'timeout' in legacy and not is_server(legacy['timeout']):
++        options = _object(legacy.pop('timeout'))  # Runtime options are not server identities.
++        if 'enabled' in options:
++            raise ValueError('invalid enabled declaration')
++    sections.append(('mcp', legacy))
++    return sections
+ 
+ 
+ def _registry_entries(data):
+@@ -547,6 +580,17 @@
+                 continue
+             source = scope + '/' + path.relative_to(base).as_posix()
+             try:
++                if kind == 'skill':
++                    _safe_path(candidate)
++                    if candidate.is_dir():
++                        _safe_path(path)
++                        if not path.exists():
++                            continue  # A supporting directory is not a skill declaration.
++                    elif runtime == 'opencode' and candidate.suffix == '.md':
++                        path = candidate
++                        source = scope + '/' + path.relative_to(base).as_posix()
++                    else:
++                        continue
+                 raw = self.read(path).decode('utf-8-sig')
+                 extra = {}
+                 if kind in ('persona','tool-source'):
+@@ -562,6 +606,8 @@
+                     metadata = {} if optional and raw.partition('\n')[0].rstrip('\r') != '---' else _metadata(raw, ignore_name=file_named)
+                     if optional:
+                         metadata.setdefault('name', path.parent.name if kind == 'skill' else path.stem)
++                    if runtime == 'opencode' and kind == 'skill':
++                        metadata.setdefault('name', path.parent.name if path.name == 'SKILL.md' else path.stem)
+                     if file_named:
+                         metadata['name'] = path.stem
+                     if runtime == 'claude-code' and kind == 'skill':
+@@ -615,11 +661,14 @@
+                 return
+             data = _config(self.read(path).decode('utf-8-sig'), path.suffix)
+             field = 'mcp_servers' if runtime == 'codex' else 'mcp' if runtime == 'opencode' else 'mcpServers'
+-            self.servers(base, scope, path, runtime, data.get(field, {}), field)
++            definitions = data.get(field, {})
++            sections = _opencode_mcp_sections(definitions) if runtime == 'opencode' else [(field, definitions)]
++            for section, servers in sections:
++                self.servers(base, scope, path, runtime, servers, section)
+             if runtime == 'codex':
+                 self.codex_roles(base, scope, path, data.get('agents', {}))
+             if runtime == 'opencode':
+-                for field, kind in (('agent','agent'),('command','command')):
++                for field, kind in (('agent','agent'),('agents','agent'),('command','command'),('commands','command')):
+                     for name, definition in _object(data.get(field, {})).items():
+                         _object(definition)
+                         metadata = {'name':name,'description':definition.get('description','')}
+diff --git a/tests/test_project_pieces.py b/tests/test_project_pieces.py
+--- a/tests/test_project_pieces.py
++++ b/tests/test_project_pieces.py
+@@ -764,3 +764,251 @@
+     assert set(skill['invocation_names'])=={'special-guidance', 'tdd'}
+     conflict = next(c for c in result['conflicts'] if c['name']=='tdd' and 'bundled_source' not in c)
+     assert set(conflict['ids'])=={p['id'] for p in result['pieces']}
++
++
++@pytest.mark.parametrize('disabled,enabled', [(False, True), (True, False)])
++def test_opencode_v2_nested_mcp_keeps_declared_disabled_state(reader, locations, disabled, enabled):
++    project, home = locations
++    put(project, 'opencode.jsonc', json.dumps({'mcp': {
++        'timeout': {'startup': 45000, 'catalog': 30000, 'execution': 600000},
++        'servers': {'blender': {'type': 'local', 'command': ['private-command'],
++                                'disabled': disabled, 'environment': {'TOKEN': 'private-value'}}},
++    }}))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    servers = [p for p in result['pieces'] if p['kind']=='mcp']
++    assert [p['name'] for p in servers]==['blender']
++    assert servers[0]['locator']=='mcp.servers.blender'
++    assert servers[0]['transport']=='local'
++    assert servers[0]['enabled'] is enabled
++    assert servers[0]['availability']=='unverified'
++    assert not result['partial']
++    assert 'private-' not in json.dumps(result)
++
++
++def test_opencode_v2_empty_server_block_does_not_invent_timeout_server(reader, locations):
++    project, home = locations
++    put(project, 'opencode.json', json.dumps({'mcp': {'servers': {}, 'timeout': {'startup': 45}}}))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    assert not [p for p in result['pieces'] if p['kind']=='mcp']
++    assert not result['partial']
++
++
++def test_opencode_v1_real_servers_named_servers_and_timeout_are_preserved(reader, locations):
++    project, home = locations
++    put(project, 'opencode.json', json.dumps({'mcp': {
++        'servers': {'type': 'local', 'command': ['private-command'], 'enabled': False},
++        'timeout': {'type': 'remote', 'url': 'https://example.invalid/mcp', 'enabled': True},
++    }}))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    servers = {p['name']:p for p in result['pieces'] if p['kind']=='mcp'}
++    assert set(servers)=={'servers','timeout'}
++    assert servers['servers']['locator']=='mcp.servers'
++    assert servers['servers']['enabled'] is False
++    assert servers['timeout']['enabled'] is True
++    assert not result['partial']
++
++
++def test_opencode_v2_server_names_may_match_definition_fields(reader, locations):
++    project, home = locations
++    put(project, 'opencode.json', json.dumps({'mcp': {'servers': {
++        'type': {'type':'local', 'command':['private-one']},
++        'command': {'type':'local', 'command':['private-two']},
++        'enabled': {'type':'local', 'command':['private-three']},
++        'url': {'type':'local', 'command':['private-four']},
++    }}}))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    assert {p['name'] for p in result['pieces'] if p['kind']=='mcp'}=={'type','command','enabled','url'}
++    assert not result['partial']
++
++
++@pytest.mark.parametrize('disabled', ['false', 0])
++def test_opencode_invalid_disabled_is_not_reported_as_enabled(reader, locations, disabled):
++    project, home = locations
++    put(project, 'opencode.json', json.dumps({'mcp': {'servers': {
++        'blender': {'type':'local', 'command':['private-command'], 'disabled': disabled},
++    }}}))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    assert result['partial']
++    assert not [p for p in result['pieces'] if p['kind']=='mcp']
++
++
++def test_opencode_conflicting_enabled_and_disabled_is_partial(reader, locations):
++    project, home = locations
++    put(project, 'opencode.json', json.dumps({'mcp': {'servers': {
++        'blender': {'type':'local', 'command':['private-command'], 'disabled': False, 'enabled': False},
++    }}}))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    assert result['partial']
++    assert not [p for p in result['pieces'] if p['kind']=='mcp']
++
++
++@pytest.mark.parametrize('nested', [None, [], 'invalid'])
++def test_opencode_invalid_v2_container_does_not_export_timeout(reader, locations, nested):
++    project, home = locations
++    put(project, 'opencode.json', json.dumps({'mcp': {
++        'timeout': {'startup': 45}, 'servers': nested,
++    }}))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    assert result['partial']
++    assert not [p for p in result['pieces'] if p['kind']=='mcp']
++
++
++def test_opencode_v2_keeps_legacy_servers_during_partial_config_migration(reader, locations):
++    project, home = locations
++    put(project, 'opencode.json', json.dumps({'mcp': {
++        'timeout': {'startup': 45000},
++        'servers': {'native': {'type':'local', 'command':['private-one'], 'disabled':False}},
++        'legacy': {'type':'remote', 'url':'https://example.invalid/mcp', 'enabled':False},
++    }}))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    servers = {p['name']:p for p in result['pieces'] if p['kind']=='mcp'}
++    assert set(servers)=={'native','legacy'}
++    assert servers['native']['locator']=='mcp.servers.native'
++    assert servers['legacy']['locator']=='mcp.legacy'
++    assert servers['legacy']['enabled'] is False
++    assert not result['partial']
++
++
++def test_opencode_same_mcp_name_across_v1_and_v2_keeps_conflict_visible(reader, locations):
++    project, home = locations
++    put(project, 'opencode.json', json.dumps({'mcp': {
++        'servers': {'shared': {'type':'local', 'command':['private-one'], 'disabled':False}},
++        'shared': {'type':'local', 'command':['private-two'], 'enabled':True},
++    }}))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    servers = [p for p in result['pieces'] if p['kind']=='mcp']
++    assert len(servers)==2 and len({p['id'] for p in servers})==2
++    assert result['conflicts'][0]['name']=='shared'
++
++
++@pytest.mark.parametrize('enabled', [False, True])
++def test_opencode_v1_enabled_only_servers_override_keeps_siblings_and_agents(reader, locations, enabled):
++    project, home = locations
++    put(project, 'opencode.json', json.dumps({
++        'mcp': {'servers': {'enabled': enabled}, 'other': {'type': 'local', 'command': ['private-command']}},
++        'agent': {'local-review': {'description': 'Review'}},
++    }))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    assert {(p['kind'],p['name']) for p in result['pieces']} == {('mcp','servers'),('mcp','other'),('agent','local-review')}
++    server = next(p for p in result['pieces'] if p['name']=='servers')
++    assert server['enabled'] is enabled and server['locator']=='mcp.servers'
++    assert not result['partial']
++
++@pytest.mark.parametrize('timeouts', [{}, {'startup': 45000}, {'execution': 600000, 'catalog': 30000}])
++def test_opencode_v2_timeout_only_never_invents_mcp(reader, locations, timeouts):
++    project, home = locations
++    put(project, 'opencode.json', json.dumps({'mcp': {'timeout': timeouts}}))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    assert not result['pieces'] and not result['partial']
++
++@pytest.mark.parametrize('enabled', [True, False])
++def test_opencode_v1_timeout_enabled_only_is_a_real_declaration(reader, locations, enabled):
++    project, home = locations
++    put(project, 'opencode.json', json.dumps({'mcp': {'timeout': {'enabled': enabled}}}))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    assert [(p['name'],p['enabled']) for p in result['pieces']] == [('timeout',enabled)]
++    assert not result['partial']
++
++@pytest.mark.parametrize('scope', ['project','user'])
++def test_opencode_v2_agents_and_commands_keep_public_metadata_only(reader, locations, scope):
++    project, home = locations
++    base, relative = (project,'opencode.jsonc') if scope=='project' else (home,'.config/opencode/opencode.jsonc')
++    put(base, relative, json.dumps({
++        'agents': {'local-review': {'description': 'Review', 'mode':'subagent', 'system':'private-system'}},
++        'commands': {'local-command': {'description':'Command', 'template':'private-template'}},
++    }))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=scope=='user')
++    assert {(p['kind'],p['name'],p['locator']) for p in result['pieces']} == {
++        ('agent','local-review','agents.local-review'),('command','local-command','commands.local-command')}
++    assert not result['partial'] and 'private-' not in json.dumps(result)
++
++@pytest.mark.parametrize('legacy,current,kind', [('agent','agents','agent'),('command','commands','command')])
++def test_opencode_v1_v2_inline_collisions_remain_visible(reader, locations, legacy, current, kind):
++    project, home = locations
++    put(project, 'opencode.json', json.dumps({legacy:{'same':{'description':'Legacy'}},current:{'same':{'description':'Current'}}}))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    assert len(result['pieces'])==2 and {p['kind'] for p in result['pieces']}=={kind}
++    assert len({p['id'] for p in result['pieces']})==2
++    assert result['conflicts'][0]['name']=='same'
++
++@pytest.mark.parametrize('runtime,relative', [
++    ('opencode','.opencode/skills'),('claude-code','.claude/skills'),('codex','.agents/skills')])
++def test_auxiliary_skill_directories_are_not_invalid_declarations(reader, locations, runtime, relative):
++    project, home = locations
++    put(project, relative+'/references/guide.md', 'Supporting reference')
++    put(project, relative+'/notes.txt', 'Supporting note')
++    put(project, relative+'/real/SKILL.md', markdown('real'))
++    result = reader.discover(project, home=home, runtime=runtime, include_user=False)
++    assert [(p['kind'],p['name']) for p in result['pieces']]==[('skill','real')]
++    assert not result['partial'] and not result['warnings']
++
++
++def test_real_skill_called_references_is_still_discovered(reader, locations):
++    project, home = locations
++    put(project, '.opencode/skills/references/SKILL.md', markdown('references'))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    assert [p['name'] for p in result['pieces']]==['references']
++    assert not result['partial']
++
++
++def test_opencode_flat_skill_and_directory_without_name_use_native_source(reader, locations):
++    project, home = locations
++    put(project, '.opencode/skills/flat-guide.md', markdown('flat-guide'))
++    put(project, '.opencode/skills/dir-guide/SKILL.md', '---\ndescription: Directory guidance\n---\nPrivate body\n'.replace('\\n','\n'))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    assert {p['name'] for p in result['pieces']}=={'flat-guide','dir-guide'}
++    assert not result['partial']
++
++
++
++def test_invalid_declared_skill_still_warns_without_exposing_body(reader, locations):
++    project, home = locations
++    put(project, '.opencode/skills/references/guide.md', 'private-auxiliary')
++    put(project, '.opencode/skills/bad/SKILL.md', 'private-invalid-body')
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    assert result['partial'] and not result['pieces']
++    assert len(result['warnings'])==1 and '/bad/SKILL.md' in result['warnings'][0]
++    assert 'private-' not in json.dumps(result)
++
++
++def test_linked_auxiliary_skill_directory_is_rejected_before_filtering(reader, locations, monkeypatch):
++    project, home = locations
++    put(project, '.opencode/skills/references/guide.md', 'private-auxiliary')
++    linked = project / '.opencode/skills/references'
++    original = reader.GUARD._linked
++    monkeypatch.setattr(reader.GUARD, '_linked', lambda path: Path(path)==linked or original(path))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    assert result['partial'] and not result['pieces']
++    assert '/references/' in result['warnings'][0] and 'private-' not in json.dumps(result)
++
++
++
++def test_opencode_v2_cli_is_read_only_and_omits_private_configuration(locations):
++    import subprocess
++    import sys
++    project, home = locations
++    put(project, 'opencode.json', json.dumps({
++        'mcp': {'servers': {'docs': {'type':'local','command':['private-command'],'disabled':True,
++                                    'environment':{'TOKEN':'private-token'}}},'timeout':{'startup':45000}},
++        'agents': {'local-review': {'description':'Review','system':'private-system'}},
++        'commands': {'local-command': {'description':'Command','template':'private-template'}},
++    }))
++    put(project, '.opencode/skills/references/guide.md', 'private-reference')
++    originals = {p:p.read_bytes() for root in locations for p in root.rglob('*') if p.is_file()}
++    result = subprocess.run([sys.executable,str(SCRIPT),'--project',str(project),'--home',str(home),
++                             '--runtime','opencode','--project-only','--json'],
++                            capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=15)
++    assert result.returncode==0, result.stderr
++    data = json.loads(result.stdout)
++    assert {(p['kind'],p['name']) for p in data['pieces']}=={('mcp','docs'),('agent','local-review'),('command','local-command')}
++    assert not data['partial'] and 'private-' not in result.stdout
++    assert next(p for p in data['pieces'] if p['kind']=='mcp')['enabled'] is False
++    assert originals == {p:p.read_bytes() for root in locations for p in root.rglob('*') if p.is_file()}
++
++
++@pytest.mark.parametrize('enabled', ['false', 0, [], {}])
++def test_opencode_invalid_v1_timeout_override_is_not_silently_ignored(reader, locations, enabled):
++    project, home = locations
++    put(project, 'opencode.json', json.dumps({'mcp': {'timeout': {'enabled': enabled}}}))
++    result = reader.discover(project, home=home, runtime='opencode', include_user=False)
++    assert result['partial'] and not result['pieces']
+diff --git a/docs/PROJECT-EXTENSIONS.md b/docs/PROJECT-EXTENSIONS.md
+--- a/docs/PROJECT-EXTENSIONS.md
++++ b/docs/PROJECT-EXTENSIONS.md
+@@ -14,15 +14,37 @@
+ 
+ | Componente | Claude Code | Codex | OpenCode |
+ |---|---|---|---|
+-| Agentes del proyecto | `.claude/agents/<nombre>.md` | `.codex/agents/<nombre>.toml`; también roles en `.codex/config.toml` | `.opencode/agents/<nombre>.md`; también `agent` en `opencode.json`/`.jsonc` |
++| Agentes del proyecto | `.claude/agents/<nombre>.md` | `.codex/agents/<nombre>.toml`; también roles en `.codex/config.toml` | `.opencode/agents/<nombre>.md`; también `agents` (V2) o `agent` (V1) en `opencode.json`/`.jsonc` |
+ | Skills del proyecto | `.claude/skills/<nombre>/SKILL.md` | `.agents/skills/<nombre>/SKILL.md` | `.opencode/skills`, `.claude/skills` o `.agents/skills`, con `<nombre>/SKILL.md` |
+-| Comandos propios | `.claude/commands/<nombre>.md` | El lector no atribuye comandos a Codex por una carpeta de proyecto | `.opencode/commands/<nombre>.md`; también `command` en la configuración |
++| Comandos propios | `.claude/commands/<nombre>.md` | El lector no atribuye comandos a Codex por una carpeta de proyecto | `.opencode/commands/<nombre>.md`; también `commands` (V2) o `command` (V1) en la configuración |
+ | Fuentes de tools | Nombres declarados por agentes; no hay ejecutor genérico del plugin | Nombres declarados en la sesión; no se deducen exports de scripts | `.opencode/tools/*.{js,ts}`; el lector lista fuentes y no ejecuta sus exports |
+-| MCP del proyecto | `.mcp.json`, clave `mcpServers`; también declaraciones por agente | `.codex/config.toml` y agentes TOML, clave `mcp_servers` | `opencode.json`/`.jsonc`, clave `mcp` |
++| MCP del proyecto | `.mcp.json`, clave `mcpServers`; también declaraciones por agente | `.codex/config.toml` y agentes TOML, clave `mcp_servers` | `opencode.json`/`.jsonc`, `mcp.servers` (V2) o `mcp` (V1) |
++
++
++El lector admite MCP OpenCode V1 en `mcp.<nombre>` y V2 en
++`mcp.servers.<nombre>`. Excluye las opciones globales `mcp.timeout` aunque no
++haya un bloque `servers`. Un servidor V1 llamado `servers` o `timeout` conserva
++su identidad cuando declara transporte/endpoint o un override booleano `enabled`.
++Un `disabled` booleano explícito se refleja como estado `enabled` inverso;
++flags inválidos o valores `enabled`/`disabled` contradictorios producen
++inventario parcial.
++
++Las declaraciones V1 y V2 pueden coexistir. Se conservan sus localizadores de
++fuente y se muestran los conflictos de nombre, sin inventar precedencia nativa.
++Esto también se aplica a `agent`/`agents` y `command`/`commands`. El lector
++no exporta ni ejecuta comandos MCP, URLs, variables, prompts de agentes ni
++plantillas de comandos.
++
++En las raíces de skills se ignoran auxiliares sin `SKILL.md` y ficheros que
++no declaran una skill. Una skill real llamada `references` sigue apareciendo.
++Las declaraciones presentes pero inválidas y los enlaces inseguros siguen
++produciendo avisos.
+ 
+ Los agentes Markdown necesitan frontmatter de su runtime. Los agentes Codex
+ independientes usan `name`, `description` y `developer_instructions`. Las skills
+-Codex/OpenCode usan frontmatter `name`/`description`; Claude admite campos
++Codex usan frontmatter `name`/`description`; OpenCode admite también skills
++planas `<nombre>.md` y, sin nombre declarado, el lector usa el directorio o
++el fichero. Claude admite campos
+ opcionales y comandos Markdown sin frontmatter, con nombre derivado de la ruta.
+ Cuando no hay descripción declarada, el lector la deja vacía sin extraer el cuerpo.
+ El contenido se consulta bajo demanda. Este inventario
+@@ -96,7 +118,8 @@
+ Cada pieza muestra fuente, ID, conflictos, propiedad y disponibilidad sin verificar.
+ Los MCP con una definición Claude inválida se señalan. Su desactivación se lee
+ de las preferencias del proyecto en `~/.claude.json`; los otros runtimes
+-conservan el campo enabled declarado. Ninguno de esos estados prueba conexión.
++conservan el campo enabled declarado; OpenCode también invierte el disabled
++explícito. Ninguno de esos estados prueba conexión.
+ 
+ ```powershell
+ python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --export panel
+diff --git a/docs/en/PROJECT-EXTENSIONS.md b/docs/en/PROJECT-EXTENSIONS.md
+--- a/docs/en/PROJECT-EXTENSIONS.md
++++ b/docs/en/PROJECT-EXTENSIONS.md
+@@ -14,16 +14,34 @@
+ 
+ | Component | Claude Code | Codex | OpenCode |
+ |---|---|---|---|
+-| Project agents | `.claude/agents/<name>.md` | `.codex/agents/<name>.toml`; also roles in `.codex/config.toml` | `.opencode/agents/<name>.md`; also `agent` in `opencode.json`/`.jsonc` |
++| Project agents | `.claude/agents/<name>.md` | `.codex/agents/<name>.toml`; also roles in `.codex/config.toml` | `.opencode/agents/<name>.md`; also `agents` (V2) or `agent` (V1) in `opencode.json`/`.jsonc` |
+ | Project skills | `.claude/skills/<name>/SKILL.md` | `.agents/skills/<name>/SKILL.md` | `.opencode/skills`, `.claude/skills` or `.agents/skills`, containing `<name>/SKILL.md` |
+-| User commands | `.claude/commands/<name>.md` | The reader does not infer Codex commands from a project directory | `.opencode/commands/<name>.md`; also configured `command` entries |
++| User commands | `.claude/commands/<name>.md` | The reader does not infer Codex commands from a project directory | `.opencode/commands/<name>.md`; also configured `commands` (V2) or `command` (V1) entries |
+ | Tool sources | Agent-declared names; no generic plugin executor | Session-declared names; no inference of script exports | `.opencode/tools/*.{js,ts}`; sources are listed without running exports |
+-| Project MCP | `.mcp.json`, `mcpServers`; also agent-scoped declarations | `.codex/config.toml` and agent TOML, `mcp_servers` | `opencode.json`/`.jsonc`, `mcp` |
++| Project MCP | `.mcp.json`, `mcpServers`; also agent-scoped declarations | `.codex/config.toml` and agent TOML, `mcp_servers` | `opencode.json`/`.jsonc`, `mcp.servers` (V2) or `mcp` (V1) |
++
++
++OpenCode MCP declarations support V1 `mcp.<name>` and V2 `mcp.servers.<name>`.
++Global `mcp.timeout` options are excluded even without a `servers` block. A V1
++server named `servers` or `timeout` remains a declaration when it supplies a
++transport/endpoint or an `enabled` boolean override. An explicit `disabled`
++boolean maps to its inverse `enabled` state; invalid flags or contradictory
++`enabled`/`disabled` values produce a partial inventory.
++
++V1 and V2 declarations can coexist. Both source locators are retained and
++same-name conflicts stay visible, without claiming native precedence. This also
++applies to `agent`/`agents` and `command`/`commands` entries. No server command,
++URL, environment, agent system prompt or command template is exported or run.
++
++Supporting directories without `SKILL.md` and non-skill files are ignored in
++skill roots. A real skill named `references` is still discovered. Present but
++invalid skill declarations and unsafe links continue to produce warnings.
+ 
+ Markdown agents use native frontmatter. Standalone Codex agents declare `name`,
+-`description` and `developer_instructions`. Skills use `name`/`description`
+-frontmatter and an on-demand body. Extracting public metadata does not replace
+-native loader validation.
++`description` and `developer_instructions`. Codex skills use `name`/`description`
++frontmatter. OpenCode also accepts flat `<name>.md` skill files; when no name is
++declared, the reader uses the directory or file name. Bodies remain on demand;
++public metadata does not replace native loader validation.
+ 
+ Normal user roots are `~/.claude`, `~/.codex`, `~/.agents/skills` and
+ `~/.config/opencode`. Claude stores personal and project-local MCP in
+@@ -97,7 +115,8 @@
+ 
+ Claude MCP definitions with invalid transport or missing endpoint are flagged.
+ Disabling is read from the selected project's preferences in `~/.claude.json`;
+-other runtimes retain their declared enabled field. Neither proves connection.
++Codex retains its declared enabled field; OpenCode also maps an explicit disabled
++flag to enabled. None of these states proves connection.
+ 
+ ## Ownership and limits
+ 
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -10,6 +10,10 @@
+ Historical ADR/LES/GOT identifiers remain as references; their documents are not shipped with the plugin.
+ 
+ ## [Unreleased]
++
++### Fixed
++
++- **OpenCode V2 discovery.** Reads nested MCP servers and declared disabled states, plural agents/commands, and both supported skill forms. Preserves V1 overrides and mixed-source conflicts while excluding timeout options and auxiliary skill folders from the inventory.
+ 
+ ## [2.0.1] - 2026-10-27
+ 
+diff --git a/CHANGELOG.es.md b/CHANGELOG.es.md
+--- a/CHANGELOG.es.md
++++ b/CHANGELOG.es.md
+@@ -10,6 +10,10 @@
+ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus documentos no se distribuyen con el plugin.
+ 
+ ## [Sin publicar]
++
++### Fixed
++
++- **Inventario OpenCode V2.** Lee MCP anidados y estados disabled, agents/commands plurales y las dos formas de skill. Conserva overrides V1 y conflictos entre fuentes, sin inventariar timeouts ni marcar auxiliares como skills incompletas.
+ 
+ ## [2.0.1] - 2026-10-27
+ 

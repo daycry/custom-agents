@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-28",
+  "python_directed": {
+    "passed": 51
+  },
+  "benchmark_coverage": {
+    "statements": 220,
+    "missed": 5,
+    "reported_percent": 98,
+    "required_percent": 90
+  },
+  "node_initial": {
+    "passed": 103,
+    "failed": 2,
+    "failed_cases": [
+      "opencode: multiple results",
+      "opencode: a complete denial survives later timeout"
+    ]
+  },
+  "node_guard_repeat": {
+    "passed": 75,
+    "failed": 0
+  },
+  "isolated_controls": {
+    "fixed": "2/2",
+    "original": "2/2"
+  },
+  "lint": {
+    "errors": 0,
+    "existing_warnings": 3
+  },
+  "interop": {
+    "current_files": 88
+  },
+  "scope": {
+    "outside": []
+  },
+  "baseline": {
+    "complete_successful_passes": 3,
+    "registered_runtime_pairs_per_pass": 36,
+    "measured_samples": 1080,
+    "uniform_timing_stability_confirmed": false
+  },
+  "review": {
+    "method": "sequential self-review of conformance, correctness, containment and performance; subagentes false",
+    "independent": false
+  },
+  "limitations": [
+    "No native client event-delivery acceptance run.",
+    "Full F1 QA/Linux checks remain in T-07.",
+    "Historical timeout causality remains open; timings are variable."
+  ],
+  "source_sha256": {
+    "scripts/bench-hooks.py": "0870e1854adda4f605784a513f9c1cde872b2c0e0870e96635637389e65532d4",
+    "hooks/hooks.json": "7f254b00fcfd387c5e50c94f638b3a4cb1c6f7be4f02db1275296888fcd3a6b6",
+    "hooks/run-hook.mjs": "bb531a1feaad5b284b0388bb918c9f60ccc5d9c75eb491268c4f7cffe30d2069",
+    "hooks/runtime-supervisor.py": "8c4a4c568a0ec71f885420e99eb9c6e406429e6f2c994a2bdeb20d279d68a04a",
+    "agent-kits/shared/native-roles.json": "277b7da42b154e4ad228084bd7fd70108b5f15e70eb04eb84c489c8216f58082",
+    "tests/fixtures/bench-hooks/claude.json": "5d3ecc0e15e0c3050540d39a4a6d7e487c060cb57ccd1c4295aecf7d8846acff",
+    "tests/fixtures/bench-hooks/codex.json": "164512b9b779fbf25f6f0be117afdcb9e5b9c75354f2e528edf6a46faa21e942",
+    "tests/fixtures/bench-hooks/opencode.json": "164512b9b779fbf25f6f0be117afdcb9e5b9c75354f2e528edf6a46faa21e942"
+  }
+}

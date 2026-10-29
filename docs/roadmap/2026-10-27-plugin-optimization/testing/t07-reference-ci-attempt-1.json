@@ -1,0 +1,111 @@
+{
+  "run_id": 40858130024,
+  "url": "https://github.com/daycry/custom-agents/actions/runs/40858130024",
+  "head_sha": "7e002a095f129ef7c3eabe09f2d3fd704215a151",
+  "status": "completed",
+  "conclusion": "failure",
+  "pytest": {
+    "passed": 9651,
+    "failed": 1,
+    "skipped": 38,
+    "subtests_passed": 82,
+    "warnings": 1,
+    "duration_seconds": 579.41,
+    "failed_test": "tests/test_agent_activity_store.py::test_2_1_lifecycle_signals_survive_sustained_tool_contention_on_a_full_ring",
+    "observed": "one of eight lifecycle captures returned state_busy"
+  },
+  "redaction_timing_tests": "passed with unchanged limits",
+  "steps": [
+    {
+      "name": "Set up job",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Run actions/checkout@v4",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Run actions/setup-python@v5",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Run actions/setup-node@v4",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Instalar pytest",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Linter del plugin",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Evals \u2014 validaci\u00f3n est\u00e1tica (cobertura y disparadores literales)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Tests (suites del repo)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Tests (pytest \u2014 tests/ + scripts shared + skills con suite propia + evals)",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "name": "Bench captura de SessionEnd (CA-02: p95 \u2264 100 ms / p99 \u2264 300 ms)",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Interop Codex/OpenCode \u2014 \u00bflos ficheros generados reflejan las piezas?",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Suites de Node (instalador npx + adaptador de hooks de OpenCode)",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Sintaxis de todos los scripts Python",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "JSONs v\u00e1lidos + versiones coherentes",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Post Run actions/setup-node@v4",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Post Run actions/setup-python@v5",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Post Run actions/checkout@v4",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Complete job",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "full_phase_acceptance": false
+}

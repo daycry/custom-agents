@@ -1,0 +1,68 @@
+{
+  "status": "FAILED_INTERRUPTED_AFTER_KNOWN_FAILURE",
+  "full_phase_acceptance": false,
+  "stages": [
+    {
+      "stage": "lint",
+      "exit": 0,
+      "started": "2026-10-29T09:51:43Z",
+      "finished": "2026-10-29T09:51:46.457997+00:00"
+    },
+    {
+      "stage": "evals",
+      "exit": 0,
+      "started": "2026-10-29T09:51:46Z",
+      "finished": "2026-10-29T09:51:46.888249+00:00"
+    },
+    {
+      "stage": "script-suites",
+      "exit": 0,
+      "started": "2026-10-29T09:51:47Z",
+      "finished": "2026-10-29T09:53:25.096745+00:00"
+    },
+    {
+      "stage": "pytest",
+      "exit": 2,
+      "started": "2026-10-29T09:53:25Z",
+      "finished": "2026-10-29T10:03:16.649116+00:00"
+    }
+  ],
+  "environment": {
+    "python": "3.11.18 (main, Oct 28 2026, 02:05:49) [GCC 12.2.0]",
+    "node": "v22.23.3",
+    "npm": "10.9.9",
+    "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "memory_limit": "2 GiB",
+    "cpus": 2
+  },
+  "snapshot": {
+    "regular_files": 1600,
+    "bytes_and_modes_verified": true,
+    "differences": [],
+    "complete_match": true
+  },
+  "archive_sha256": "43560f8802c5c6aeb797b6ddeaceb19789d58247e956e913901c3d85ea415024",
+  "pytest": {
+    "passed": 5554,
+    "failed": 1,
+    "skipped": 36,
+    "subtests_passed": 47,
+    "warnings": 1,
+    "exit": 2,
+    "duration_seconds": 589.99,
+    "failed_test": "tests/test_redact_fix3.py::test_linear_cost_on_pathological_inputs",
+    "fixture_kind": "30000 repeated quoted curl credential commands",
+    "input_chars": 510000,
+    "observed_seconds": 1.61889536,
+    "unchanged_limit_seconds": 1.5
+  },
+  "interruption": "SIGINT sent only to the exact full-pytest process in the owned validation container after a known failure, to obtain traceback. Runner/container then exited; not a complete-suite pass.",
+  "not_run": [
+    "remaining pytest",
+    "capture-benchmark",
+    "interop",
+    "node",
+    "syntax-json",
+    "release-check"
+  ]
+}

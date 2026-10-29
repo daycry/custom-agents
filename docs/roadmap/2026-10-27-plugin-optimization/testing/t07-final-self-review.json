@@ -1,0 +1,44 @@
+{
+  "review_type": "sequential self-review; not independent agents",
+  "release_approved": false,
+  "scope_base": "bae4e46",
+  "scope_check": {
+    "outside": [],
+    "altered_criteria": []
+  },
+  "conformance": {
+    "implemented": [
+      "T-03",
+      "T-04",
+      "T-05"
+    ],
+    "open": [
+      "T-01 relative median stability",
+      "T-02 at least 80 percent latency reduction",
+      "T-06 fresh native session visibility",
+      "T-07 complete QA and delivery"
+    ]
+  },
+  "correctness_evidence": [
+    "directed runtime, capture, cleanup, statusline and catalog results in the adjacent task reports",
+    "preserved red/green failures and discarded benchmark warmups",
+    "full Linux pytest is not green: 280 passed, one failed, one skipped in final fail-fast run"
+  ],
+  "guard_review": [
+    "exact protected-role identity selection, uncertain input retained for Python",
+    "shared validation copies and Python parity tested",
+    "monotonic input/evaluation deadline; existing denial relay preserved"
+  ],
+  "cleanup_review": [
+    "dead owner AND old regular siblings; live, recent or uncertain owners retained",
+    "symlinks/reparse points and changed directory identities skipped; no recursive deletion",
+    "not atomic against a privileged actor replacing ancestor directories between path checks and syscalls"
+  ],
+  "performance": [
+    "statusline paired median 1763.356ms to 1110.182ms cached at the measured source revision",
+    "canonical console follow-up preserves field protocol; measured source hashes remain in the benchmark report",
+    "fixed-token estimates reduced by 3233 to 3275 depending on runtime; no real API usage claim",
+    "guard 80 percent target and baseline stability unproven"
+  ],
+  "delivery": "feature branch commits/push requested; user asked to stop for today; no release/global plugin update"
+}

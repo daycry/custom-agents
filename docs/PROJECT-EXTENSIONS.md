@@ -14,15 +14,37 @@ al caché del plugin: una actualización sustituye ese bundle.
 
 | Componente | Claude Code | Codex | OpenCode |
 |---|---|---|---|
-| Agentes del proyecto | `.claude/agents/<nombre>.md` | `.codex/agents/<nombre>.toml`; también roles en `.codex/config.toml` | `.opencode/agents/<nombre>.md`; también `agent` en `opencode.json`/`.jsonc` |
+| Agentes del proyecto | `.claude/agents/<nombre>.md` | `.codex/agents/<nombre>.toml`; también roles en `.codex/config.toml` | `.opencode/agents/<nombre>.md`; también `agents` (V2) o `agent` (V1) en `opencode.json`/`.jsonc` |
 | Skills del proyecto | `.claude/skills/<nombre>/SKILL.md` | `.agents/skills/<nombre>/SKILL.md` | `.opencode/skills`, `.claude/skills` o `.agents/skills`, con `<nombre>/SKILL.md` |
-| Comandos propios | `.claude/commands/<nombre>.md` | El lector no atribuye comandos a Codex por una carpeta de proyecto | `.opencode/commands/<nombre>.md`; también `command` en la configuración |
+| Comandos propios | `.claude/commands/<nombre>.md` | El lector no atribuye comandos a Codex por una carpeta de proyecto | `.opencode/commands/<nombre>.md`; también `commands` (V2) o `command` (V1) en la configuración |
 | Fuentes de tools | Nombres declarados por agentes; no hay ejecutor genérico del plugin | Nombres declarados en la sesión; no se deducen exports de scripts | `.opencode/tools/*.{js,ts}`; el lector lista fuentes y no ejecuta sus exports |
-| MCP del proyecto | `.mcp.json`, clave `mcpServers`; también declaraciones por agente | `.codex/config.toml` y agentes TOML, clave `mcp_servers` | `opencode.json`/`.jsonc`, clave `mcp` |
+| MCP del proyecto | `.mcp.json`, clave `mcpServers`; también declaraciones por agente | `.codex/config.toml` y agentes TOML, clave `mcp_servers` | `opencode.json`/`.jsonc`, `mcp.servers` (V2) o `mcp` (V1) |
+
+
+El lector admite MCP OpenCode V1 en `mcp.<nombre>` y V2 en
+`mcp.servers.<nombre>`. Excluye las opciones globales `mcp.timeout` aunque no
+haya un bloque `servers`. Un servidor V1 llamado `servers` o `timeout` conserva
+su identidad cuando declara transporte/endpoint o un override booleano `enabled`.
+Un `disabled` booleano explícito se refleja como estado `enabled` inverso;
+flags inválidos o valores `enabled`/`disabled` contradictorios producen
+inventario parcial.
+
+Las declaraciones V1 y V2 pueden coexistir. Se conservan sus localizadores de
+fuente y se muestran los conflictos de nombre, sin inventar precedencia nativa.
+Esto también se aplica a `agent`/`agents` y `command`/`commands`. El lector
+no exporta ni ejecuta comandos MCP, URLs, variables, prompts de agentes ni
+plantillas de comandos.
+
+En las raíces de skills se ignoran auxiliares sin `SKILL.md` y ficheros que
+no declaran una skill. Una skill real llamada `references` sigue apareciendo.
+Las declaraciones presentes pero inválidas y los enlaces inseguros siguen
+produciendo avisos.
 
 Los agentes Markdown necesitan frontmatter de su runtime. Los agentes Codex
 independientes usan `name`, `description` y `developer_instructions`. Las skills
-Codex/OpenCode usan frontmatter `name`/`description`; Claude admite campos
+Codex usan frontmatter `name`/`description`; OpenCode admite también skills
+planas `<nombre>.md` y, sin nombre declarado, el lector usa el directorio o
+el fichero. Claude admite campos
 opcionales y comandos Markdown sin frontmatter, con nombre derivado de la ruta.
 Cuando no hay descripción declarada, el lector la deja vacía sin extraer el cuerpo.
 El contenido se consulta bajo demanda. Este inventario
@@ -96,7 +118,8 @@ del bundle y las extensiones; permite buscar y filtrar por tipo, origen y runtim
 Cada pieza muestra fuente, ID, conflictos, propiedad y disponibilidad sin verificar.
 Los MCP con una definición Claude inválida se señalan. Su desactivación se lee
 de las preferencias del proyecto en `~/.claude.json`; los otros runtimes
-conservan el campo enabled declarado. Ninguno de esos estados prueba conexión.
+conservan el campo enabled declarado; OpenCode también invierte el disabled
+explícito. Ninguno de esos estados prueba conexión.
 
 ```powershell
 python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --export panel

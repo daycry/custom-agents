@@ -359,6 +359,13 @@ def _server_metadata(server, runtime, declaration):
     enabled = None if runtime == 'claude-code' else server.get('enabled')
     if enabled is not None and type(enabled) is not bool:
         raise ValueError('invalid enabled declaration')
+    if runtime == 'opencode' and 'disabled' in server:
+        if type(server['disabled']) is not bool:
+            raise ValueError('invalid disabled declaration')
+        declared_enabled = not server['disabled']
+        if 'enabled' in server and enabled is not declared_enabled:
+            raise ValueError('conflicting enabled and disabled declarations')
+        enabled = declared_enabled
     transport = server.get('type')
     if runtime == 'claude-code':
         if declaration == 'reference':
@@ -377,6 +384,32 @@ def _server_metadata(server, runtime, declaration):
         if transport not in ('stdio', 'http', 'sse', 'local', 'remote'):
             transport = 'unknown'
     return {'transport': transport, 'enabled': enabled}
+
+
+
+def _opencode_mcp_sections(definitions):
+    """Separate V2 containers/options from V1 server declarations, retaining sources."""
+    def is_server(value):
+        # V1 also permits an enabled-only override, including a server named servers/timeout.
+        return isinstance(value, dict) and (
+            isinstance(value.get('type'), str)
+            or isinstance(value.get('command'), (str, list))
+            or isinstance(value.get('url'), str)
+            # Scalar/list flags also identify a V1 declaration so metadata validation
+            # can reject invalid enabled values instead of discarding them as options.
+            or ('enabled' in value and not isinstance(value['enabled'], dict))
+        )
+
+    legacy = dict(_object(definitions))
+    sections = []
+    if 'servers' in legacy and not is_server(legacy['servers']):
+        sections.append(('mcp.servers', _object(legacy.pop('servers'))))
+    if 'timeout' in legacy and not is_server(legacy['timeout']):
+        options = _object(legacy.pop('timeout'))  # Runtime options are not server identities.
+        if 'enabled' in options:
+            raise ValueError('invalid enabled declaration')
+    sections.append(('mcp', legacy))
+    return sections
 
 
 def _registry_entries(data):
@@ -547,6 +580,17 @@ class Inventory:
                 continue
             source = scope + '/' + path.relative_to(base).as_posix()
             try:
+                if kind == 'skill':
+                    _safe_path(candidate)
+                    if candidate.is_dir():
+                        _safe_path(path)
+                        if not path.exists():
+                            continue  # A supporting directory is not a skill declaration.
+                    elif runtime == 'opencode' and candidate.suffix == '.md':
+                        path = candidate
+                        source = scope + '/' + path.relative_to(base).as_posix()
+                    else:
+                        continue
                 raw = self.read(path).decode('utf-8-sig')
                 extra = {}
                 if kind in ('persona','tool-source'):
@@ -562,6 +606,8 @@ class Inventory:
                     metadata = {} if optional and raw.partition('\n')[0].rstrip('\r') != '---' else _metadata(raw, ignore_name=file_named)
                     if optional:
                         metadata.setdefault('name', path.parent.name if kind == 'skill' else path.stem)
+                    if runtime == 'opencode' and kind == 'skill':
+                        metadata.setdefault('name', path.parent.name if path.name == 'SKILL.md' else path.stem)
                     if file_named:
                         metadata['name'] = path.stem
                     if runtime == 'claude-code' and kind == 'skill':
@@ -615,11 +661,14 @@ class Inventory:
                 return
             data = _config(self.read(path).decode('utf-8-sig'), path.suffix)
             field = 'mcp_servers' if runtime == 'codex' else 'mcp' if runtime == 'opencode' else 'mcpServers'
-            self.servers(base, scope, path, runtime, data.get(field, {}), field)
+            definitions = data.get(field, {})
+            sections = _opencode_mcp_sections(definitions) if runtime == 'opencode' else [(field, definitions)]
+            for section, servers in sections:
+                self.servers(base, scope, path, runtime, servers, section)
             if runtime == 'codex':
                 self.codex_roles(base, scope, path, data.get('agents', {}))
             if runtime == 'opencode':
-                for field, kind in (('agent','agent'),('command','command')):
+                for field, kind in (('agent','agent'),('agents','agent'),('command','command'),('commands','command')):
                     for name, definition in _object(data.get(field, {})).items():
                         _object(definition)
                         metadata = {'name':name,'description':definition.get('description','')}

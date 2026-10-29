@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-29",
+  "attempt": 3,
+  "base": "bae4e46",
+  "head": "78c20709fd0894d2a5be1a9e25aedc7a2f3b920b",
+  "scope": "T-02 native guard prefilter only; not full F1 review",
+  "method": "Four fresh generic read-only reviewers, one per lens; named Agent(reviewer) unavailable in this runtime. Implementation was not delegated. Prior attempts 1/2 were sequential self-review and remain identified as such.",
+  "prior_attempts": "t02-review.json",
+  "scope_gate": {
+    "base_approved_plan": "78c2070",
+    "exit": 0,
+    "outside": [],
+    "altered_criteria": [],
+    "full_diff_gate": "Against bae4e46: outside=0, exactly T-02 CA-01 and T-07 reference altered; rebutted with explicit user approval in f1-approved-adjustment-2026-10-29.json. Checker unchanged."
+  },
+  "lens_selection": {
+    "C": "Forced by T-02 security contract despite automatic false",
+    "D": "Required by the hot path; global selector also returns true"
+  },
+  "A": {
+    "reviewer": "/root/t02_conformance",
+    "implementation_gaps": [],
+    "criteria": [
+      {
+        "criterion": "CA-01 no Python",
+        "verdict": "pass",
+        "evidence": [
+          "hooks/run-hook.mjs:76",
+          "hooks/run-hook.mjs:238",
+          "tests/hook-guard-prefilter.test.mjs:28",
+          "tests/test_native_prefilter_parity.py:40"
+        ]
+      },
+      {
+        "criterion": "CA-01 approved measurement protocol",
+        "verdict": "pass",
+        "evidence": [
+          "testing/t02-paired-control-2026-10-29.json:4",
+          "testing/t02-native-prefilter.md:22"
+        ],
+        "details": "Ten samples per variant/runtime, discarded warmup, Node control, dispersion, errors and source hashes verified; no minimum percentage in approved F1."
+      },
+      {
+        "criterion": "CA-02 protected denials",
+        "verdict": "pass",
+        "evidence": [
+          "hooks/run-hook.mjs:96",
+          "hooks/run-hook.mjs:281",
+          "hooks/run-hook.mjs:391",
+          "tests/hook-guard-prefilter.test.mjs:39"
+        ],
+        "details": "Existing guard-delivery, launcher-security and guardrail-check expectations unchanged."
+      },
+      {
+        "criterion": "CA-03 uncertain map fallback",
+        "verdict": "pass",
+        "evidence": [
+          "hooks/run-hook.mjs:76",
+          "hooks/opencode-plugin.js:81",
+          "hooks/opencode-plugin.js:203",
+          "tests/hook-guard-prefilter.test.mjs:54"
+        ]
+      },
+      {
+        "criterion": "Exact Node/Python parity",
+        "verdict": "pass",
+        "evidence": [
+          "tests/test_native_prefilter_parity.py:40",
+          "tests/test_native_prefilter_parity.py:66",
+          "tests/test_native_prefilter_parity.py:78",
+          "tests/test_native_prefilter_parity.py:83",
+          "tests/test_native_prefilter_parity.py:87"
+        ]
+      },
+      {
+        "criterion": "No JavaScript policy or payload disclosure",
+        "verdict": "pass",
+        "evidence": [
+          "hooks/run-hook.mjs:242",
+          "hooks/run-hook.mjs:247",
+          "tests/hook-guard-prefilter.test.mjs:107"
+        ]
+      },
+      {
+        "criterion": "Security trace",
+        "verdict_at_reviewed_head": "pending, correctly open",
+        "closure": "This report and canonical ledger record all four final lens outputs; no remaining findings."
+      },
+      {
+        "criterion": "ADR-023 addendum proposed",
+        "verdict": "pass",
+        "candidate": "docs/knowledge/candidates/pending/2026-10-28-adr023-native-prefilter.md",
+        "sha256": "f4633d214b5f07194d16270dd1752a7dbe1fe785baba515454432f9577bb5e46"
+      },
+      {
+        "criterion": "OpenCode decision documented",
+        "verdict": "pass",
+        "evidence": [
+          "docs/observability.md:224",
+          "docs/en/observability.md:225",
+          "testing/t02-native-prefilter.md:63"
+        ]
+      }
+    ],
+    "generated_check": {
+      "command": "python scripts/export-interop.py --check",
+      "exit": 0,
+      "output": "export-interop --check: 88 ficheros al día"
+    },
+    "constitution": "No violation observed; explicit principles checked at docs/CONSTITUTION.md:10,11,12,17,20,26.",
+    "unjustified_gate_relaxation": false,
+    "openapi": "not applicable"
+  },
+  "B": {
+    "reviewer": "/root/t02_correctness",
+    "verdict": "no correctness defects",
+    "findings": [],
+    "checked": [
+      "exact identity and callers",
+      "map/schema uncertainty",
+      "UTF-8/BOM/JSON",
+      "64 KiB input limit",
+      "incomplete input and monotonic deadline",
+      "Python fallback and diagnostics",
+      "OpenCode map refresh and generated copy",
+      "preserved test expectations and reviewed launcher fingerprint"
+    ],
+    "directed_tests": {
+      "python_parity_passed": 16,
+      "node_prefilter_passed": 23
+    },
+    "persona": "generic; hooks persona absent"
+  },
+  "C": {
+    "reviewer": "/root/t02_security",
+    "verdict": "no introduced or reopened security findings",
+    "findings": [],
+    "checked": [
+      "exact identity and own-property validation",
+      "schema/prototypes and conservative fallback",
+      "UTF-8/JSON/size uncertainty",
+      "monotonic input/evaluation deadline",
+      "no payload disclosure",
+      "Python denial authority",
+      "OpenCode refresh",
+      "routes, generated copy and reviewed fingerprint"
+    ],
+    "adr": "Read local original ADR-023 and proposed addendum; proposal not treated as approved doctrine.",
+    "directed_tests": {
+      "python_parity_passed": 16,
+      "seconds": 22.51
+    }
+  },
+  "D": {
+    "reviewer": "/root/t02_performance",
+    "verdict": "no introduced performance findings",
+    "findings": [],
+    "checked": [
+      "bounded map/input reads",
+      "constant protected-role selection",
+      "async bounded map refresh per OpenCode decision",
+      "no growth with history, tool count or project tree",
+      "shared monotonic deadline",
+      "Node startup retained in before/after measurement",
+      "failed historical control excluded from accepted savings"
+    ],
+    "benchmarks_executed": false
+  },
+  "fusion": {
+    "Critical": 0,
+    "Important": 0,
+    "Minor": 0,
+    "pending_trace_at_reviewed_head": "Resolved by recording all final outputs; no code correction required.",
+    "T02": "eligible to close",
+    "T01": "open",
+    "T07": "open",
+    "release_approved": false
+  },
+  "limitations": [
+    "No measured coverage percentage for the T-02 diff; phase-wide coverage/QA gate remains open.",
+    "Launcher measurement does not establish native event delivery.",
+    "Baseline stability is unproven; no 80 percent reduction claim.",
+    "This review does not replace the full-phase T-07 review or approve memory candidates."
+  ],
+  "reference_ci": {
+    "run": 40866395200,
+    "head": "78c20709fd0894d2a5be1a9e25aedc7a2f3b920b",
+    "conclusion": "success",
+    "receipt": "t07-reference-ci-approved-plan-2026-10-29.json"
+  },
+  "jira": {
+    "enabled": false,
+    "ops": [],
+    "warning": "Jira disabled; ledger review proceeds without external publication."
+  }
+}

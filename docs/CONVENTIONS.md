@@ -4,6 +4,10 @@
 
 Reglas para añadir agentes sin que se pisen entre sí, permitiendo que unos dependan de otros o de recursos compartidos. **Léela antes de crear o mover nada.**
 
+
+Las descriptions de agentes, skills y comandos tienen un máximo recomendado de **600 caracteres** (`DESC_WARN_CHARS = 600`). Conservan propósito y disparadores literales; el detalle de alcance, método y exclusiones se mantiene en el cuerpo de la pieza o en sus referencias. `evals/check.py` valida que los literales sigan casando.
+
+
 ## 1. Principio
 
 Tres tipos de artefacto, tres ubicaciones fijas. Lo **compartido** vive en carpetas comunes por nombre único; lo **privado** de un agente vive en su propio namespace. La documentación va **siempre** en `docs/`, nunca junto al código.

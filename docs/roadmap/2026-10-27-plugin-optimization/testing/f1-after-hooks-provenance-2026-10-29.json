@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "date_utc": "2026-10-29T12:30:01.789499+00:00",
+  "source_head": "8f83eccd46b640cbec38c8d77907d223880ca665",
+  "command": "python scripts/bench-hooks.py --runs 10 --warmup 1 --fail-fast --json",
+  "source_sha256_lf": {
+    "scripts/bench-hooks.py": "0870e1854adda4f605784a513f9c1cde872b2c0e0870e96635637389e65532d4",
+    "hooks/hooks.json": "b7bb798fc9ddcd68cf077ee2c70d6b3210fe5f42b919bad147fc78cbed34d640",
+    "hooks/run-hook.mjs": "f8a3af68dd02b3b0ca746c2d347e5c2df5276ea610811d94b0dd2f5f7c212e4e",
+    "hooks/runtime-supervisor.py": "8c4a4c568a0ec71f885420e99eb9c6e406429e6f2c994a2bdeb20d279d68a04a",
+    "agent-kits/shared/native-roles.json": "96d4db96b92b12b264201820969d0938cfdd83381210effb1b833a5f62be672a",
+    "tests/fixtures/bench-hooks/claude.json": "78babdbd1cb18a765d0db75b11f6405c6eaa0558bf8bd8a09fb251c231397df7",
+    "tests/fixtures/bench-hooks/codex.json": "1c495de7c0f781b29cc2ab7c20f580ea5affae320313bf522d8344784b2de2d8",
+    "tests/fixtures/bench-hooks/opencode.json": "1c495de7c0f781b29cc2ab7c20f580ea5affae320313bf522d8344784b2de2d8"
+  },
+  "condition": "Post-F1 functional/timing observation on Windows/OneDrive. A bounded 2 GiB/2 CPU Linux coverage collection is running concurrently. Not a controlled before/after latency comparison.",
+  "purpose": "Complete the after-hook execution/table required by T-07; does not replace the historical characterized baseline or establish global savings. T-02 paired isolated control remains separately identified.",
+  "exit": 0,
+  "completed_utc": "2026-10-29T12:50:49.021448+00:00",
+  "recorded_source_unchanged": true,
+  "additional_concurrent_owned_work": "Directed native-query liveness probes and their test/mutation controls ran during this observation, in addition to the bounded Linux coverage collection; no latency savings inferred."
+}

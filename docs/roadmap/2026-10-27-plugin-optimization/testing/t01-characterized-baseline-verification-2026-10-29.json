@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-29",
+  "status": "verified_by_fresh_conformance_review",
+  "approved_decision": "t01-approved-adjustment-2026-10-29.json",
+  "baseline_reports": [
+    {
+      "path": "baseline-f1-2026-10-28-post-cleanup-1.json",
+      "sha256": "a408db1b50e9ac248e49792d2448879043c67eeab375a15c30ae453c6957d139",
+      "cases": 36,
+      "measured_samples": 360,
+      "discarded_warmups": 36
+    },
+    {
+      "path": "baseline-f1-2026-10-28-post-cleanup-2.json",
+      "sha256": "836f103b2574fc557cb3d692e0946817f81209d30e17d8cd6dcad9c6f0dee53d",
+      "cases": 36,
+      "measured_samples": 360,
+      "discarded_warmups": 36
+    },
+    {
+      "path": "baseline-f1-2026-10-28-post-cleanup-3.json",
+      "sha256": "61ea33061d868b490e34c08c90e6d8427c829924e1aea0b7b90186bb7b76656b",
+      "cases": 36,
+      "measured_samples": 360,
+      "discarded_warmups": 36
+    }
+  ],
+  "source_provenance": "baseline-f1-2026-10-28-post-cleanup-provenance.json",
+  "reconstruction_crosscheck": "t01-baseline-replay-provenance-2026-10-29.json",
+  "measured_samples": 1080,
+  "discarded_warmups": 108,
+  "max_between_median_dispersion_percent": 102.07,
+  "uniform_stability_claimed": false,
+  "interrupted_replay_used_as_baseline": false,
+  "benchmark_coverage": {
+    "statements": 220,
+    "missed": 5,
+    "reported_percent": 98,
+    "required_percent": 90
+  },
+  "coverage_source": "verification-2026-10-28.json",
+  "runtime_changes": false,
+  "reviewer": "/root/f1_conformance",
+  "reviewed_head": "05ea2e09e394aebe05fd849e58687fb1c1efe7f4",
+  "finding": "T-01 eligible for closure under independently authorized criterion; no uniform stability claim."
+}

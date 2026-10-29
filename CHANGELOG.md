@@ -11,6 +11,21 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Changed — Plugin optimization, phase 1
+
+- **T-01 — Hook and token benchmark.** Adds versioned fixtures, disposable projects, discarded warmup and structured failures; reports latency variability and estimated tokens. Defers execution-only imports in the cleanup helper.
+- **T-02 — Native guard prefilter.** Avoids Python for exact unprotected identities while retaining protected evaluation and conservative fallback. Reports the measured improvement without a minimum percentage for F1.
+- **T-03 — Startup and prompt capture.** Declares a 30 s SessionStart timeout and uses isolated Python for capture, preserving redaction and privacy opt-outs.
+- **T-04 — SQLite temporaries.** Removes old regular files only for confirmed dead owners, keeps recent files and live or uncertain owners, and cleans both owned files after rebuilds.
+- **T-05 — Statusline startup.** Uses one isolated Python on a cache miss and none on a valid hit, preserving formatting and avoiding WindowsApps aliases.
+- **T-06 — Smaller catalog.** Keeps all 52 descriptions within 600 characters and preserves activation literals and full scope; saves over 3,200 estimated fixed tokens. The development skill stays within 200 lines with its detail in a reference.
+
+### Fixed
+
+- **T-07 — F1 validation and redaction.** Strengthens priority and process-termination tests, skips redundant redaction scans, and aligns validation inventories while preserving runtime deadlines.
+
+- **OpenCode V2 discovery.** Reads nested MCP servers and declared disabled states, plural agents/commands, and both supported skill forms. Preserves V1 overrides and mixed-source conflicts while excluding timeout options and auxiliary skill folders from the inventory.
+
 ## [2.0.1] - 2026-10-27
 
 ### Changed — closing `catalog-capabilities` and `project-specialization`

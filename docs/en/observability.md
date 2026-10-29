@@ -58,6 +58,29 @@ of possible overlap.
 3. Quick check: edit a file under `docs/` — the plugin's warning should fire — and
    verify that the session shows up in the monitor's dashboard.
 
+SessionStart declares `timeout: 30` in `hooks/hooks.json` and the regenerated
+Codex manifest. C-06 will revisit a 10 s timeout once startup uses one Python
+process. The shared launcher retains its internal 20 s context budget; the
+native OpenCode adapter also has a separate 20 s limit. The registration
+timeout does not extend either limit. `UserPromptSubmit` invokes
+`journal.py capture` with `-I -S`, preserving the log, redaction and opt-outs
+without loading consumer packages.
+
+Knowledge-index reconstruction sweeps only its own
+`knowledge-index.sqlite.<pid>.tmp` files and journals: every sibling must be
+at least one hour old and its PID confirmed dead. Live or uncertain owners
+and recent files are preserved. Links, junctions and unrelated names are
+excluded; cleanup stays within the index directory and I/O failures warn
+without blocking reconstruction. The `finally` cleans both owned files.
+
+The statusline uses at most one isolated Python process per refresh. With
+identical input and unchanged ledger metadata, `.claude/statusline-cache`
+serves public fields without Python. Cost/context, ledger, usage-state or
+script changes invalidate it; raw input JSON is never stored. Interpreter
+selection honors `CUSTOM_AGENTS_PYTHON` and excludes WindowsApps aliases.
+Missing Python or a renderer error preserves the model and exit 0. Bash keeps
+the existing numeric formatting; `jq` is unnecessary. `/setup` keeps its command.
+
 ## Live visibility (no external monitor)
 
 Between the two questions above there is a third, more modest one that the plugin **does** answer
@@ -114,6 +137,9 @@ adapter owns the launcher group; cleanup verifies ownership, stops and
 terminates child members while keeping the owner alive. Other invocations
 use their own group. Closure confirmation has an additional 500 ms ceiling;
 this does not guarantee immediate operating-system scheduling.
+The `close` helper loads only what it needs to confirm the Job Object. Business
+executors `runpy` and `subprocess`, and serializer `json`, load in the operations
+that use them, keeping their initialization outside the cleanup path.
 [Job Objects contract](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects).
 
 The supervised-payload headless Claude 2.1.287 fixture retained context, UTF-8
@@ -183,6 +209,28 @@ Measurement (CA-02): `python3 scripts/bench-session-end.py --iterations 30 --ass
 
 `ci.yml.MANUAL-COPY` runs it with CA-02's thresholds on every build, against the in-process numbers.
 
+### Native guard prefilter
+
+`run-hook.mjs` checks the generated `native-roles.json` map before looking for
+Python. With a valid map and an absent or unprotected native identity, it returns
+the same continuation result without starting Python. Matching is exact:
+`agent_type` in Claude/Codex and `agent` in OpenCode; prefixes, normalization and
+identities inside tool arguments do not select a protected role.
+
+Protected identities and uncertain maps, encodings or payloads retain Python
+evaluation. Input is bounded to 64 KiB, matching the evaluator. Input collection
+and evaluation share a monotonic deadline. The prefilter emits no denials;
+policy decisions remain in Python.
+
+The persistent OpenCode adapter rereads the map per invocation. Invalid maps
+reach the evaluator diagnostic instead of retaining stale identity selection.
+Map validation is a declared copy in `copias.json`, with byte equality and
+semantic parity with Python's protected roles.
+
+Launcher measurements include Node startup. Removing Python processes does not
+guarantee a fixed reduction in total latency. T-02 local comparisons and the
+startup control are in the `plugin-optimization` testing folder.
+
 ### How to check the hooks in a real session
 
 The hooks have an automated suite (`tests/test_hooks_shell.py`: every `hooks/*.sh` run with `bash`
@@ -234,7 +282,7 @@ bounded and local way, the question only an external monitor used to cover: whic
 | Task attribution | Only from the meter's exact command (`usage-meter.py start\|close --artefacto <slug>/T-XX`) in a Bash/shell event; a `T-07` in a commit, a grep or a prompt never attributes. An event less than 5 s after a window change stays "sin atribuir" (unattributed). |
 | Cost | The `agent-activity` `PostToolUse` and `PostToolUseFailure` groups are `async`: 0 ms of added synchronous latency in Claude Code and Codex (exception: Codex MCP tools, which the runtime runs synchronously; there the store makes a single attempt without waiting). Without the opt-in, the Node launcher exits before starting Python: about 80 ms in the background (measured on 2026-10-20 on Windows, p50 78 ms). In OpenCode the adapter does not wait for the child process. |
 | Limits | History of 500 events or 256 KiB (whichever comes first) and 24 h; past that the oldest is dropped and counted in `recortado`. An input over 2 MiB is not read: it only adds to `descartados_por_tamano`. |
-| Waits | A tool event waits for the lock up to 1 s inside a 1.3 s deadline (`TOOL_LOCK_WAIT`/`TOOL_DEADLINE`, `agent-kits/shared/agent-activity-store.py:36-37`), in the background. Lifecycle signals (`SubagentStart`/`SubagentStop`) wait 100 ms inside 1 s and go first: they announce their wait in byte 1 of `.lock` and tool events yield. Codex MCP tools make a single attempt with no wait. Decision and measurements: `design.md` §2.5 of the `panel-redesign` initiative. |
+| Waits | A tool event waits for the lock up to 1 s inside a 1.3 s deadline (`TOOL_LOCK_WAIT`/`TOOL_DEADLINE`, `agent-kits/shared/agent-activity-store.py:36-37`), in the background. Lifecycle signals (`SubagentStart`/`SubagentStop`) wait 100 ms inside 1 s and go first: they announce their wait in byte 1 of `.lock` and tool events yield. Priority excludes new writers but does not preempt one already holding the lock: if its hold exceeds 100 ms, the signal may return `state_busy`. Codex MCP tools make a single attempt with no wait. Decision and measurements: `design.md` §2.5 of the `panel-redesign` initiative. |
 | Gaps | An event that could not be written (lock busy, interrupted write) is lost and never retried (`state_busy`); the page always says so ("captura informativa: puede tener huecos"). Measured loss in a burst with a full ring: 8 parallel writers, 0 lost; 12, 0-2; 16, 1-5. Events are listed in reception order, not execution order. |
 | Lock | `agent-kits/shared/local-state.py` uses two bytes of `.lock`: byte 0 excludes other writers and byte 1 is the lifecycle intent. On POSIX both are one-byte `fcntl.lockf` (a single lock type: mixing `flock` and `lockf` on one file makes a process block itself on macOS/BSD and NFS); on Windows, `msvcrt.locking`. |
 | Redaction | The argument summary goes through `agent-kits/shared/redact.py` before it is written. Besides keys and tokens, it masks credentials of `curl -u/--user/--proxy-user` and `mysql*`/`mariadb* -p/--password=` when the program appears earlier in the same command: also inside quotes (`sh -c "…"`, `ssh host '…'`) and after `sudo`, `--`, `timeout`, `xargs` or `$(`. When in doubt, it masks too much. |
@@ -295,3 +343,53 @@ the agent already at work.
 **Automation inventory in `/doctor`.** The «Automatizaciones» section (the `automatizaciones` key of `--json`) lists hooks, the statusline and `.github/workflows/` workflows with source, scope, configuration date, state (`configurado` · `no_configurado` · `no_cargado` · `roto`) and failure signature. `ejecucion` is always `no_verificada`: to know whether a hook really runs, look at its effect (the journal entry, the progress line), not at this table.
 
 **Journal continuity and candidates.** With `journal.py write --enrich`, a session can declare `objetivo`, `punto_actual`, `siguientes_pasos`, `bloqueos` and `descartados` (approaches that already failed, «approach — reason»); when the same session is rewritten, an omitted key keeps its value and an emptied one (`""`, `[]`, `null`) is cleared. `latest` and `select` show them as quotes. `journal.py candidatas` gives each candidate a stable `id` and a lexical `categoria` (`correccion_usuario`, `resolucion_error`, `workaround`, `tecnica_depuracion`, `convencion`, `otra`); `--lote` returns a cursor and a batch id, `--hasta <cursor>` reproduces that batch even when new entries arrive (counted in `posteriores_al_cursor`) and `--confirmar <id>` checks it is the same batch, without marking anything as processed.
+
+## Reproducible hook and token benchmark
+
+`python scripts/bench-hooks.py --runs 10 --warmup 1 --json` produces a structured
+report; `--md` presents the same schema as a table. Each registration in
+`hooks/hooks.json` is exercised with versioned Claude, Codex and OpenCode fixtures,
+calling `hooks/run-hook.mjs --runtime=...` directly without evaluating shell
+command strings. This measures the shared launcher end-to-end, including child
+process startup, rather than proving native event delivery. In particular,
+canonical `PostToolUseFailure` registrations also run with the Codex selector;
+this does not imply that Codex supports that event.
+
+Each iteration uses a fresh temporary project with a minimal ledger. Setup and
+cleanup are outside the timer; `CLAUDE_PROJECT_DIR`, `cwd` and payload paths point
+to that temporary project. The consumer project is not modified. Fixtures measure
+the guard without a protected identity and with activity disabled; they do not
+measure the opt-in activity store. Prompt capture uses invented text, and AI
+summaries and network access are not enabled.
+
+The report retains samples, median, interpolated p95 and maximum per registration
+and runtime. Warmup executes but is discarded. Process errors, timeouts or launcher
+degradation diagnostics produce `FALLO` without successful summary timings, and
+exit 1. Prompt capture and SessionEnd also require the expected persisted record,
+checked outside the timer; a silent no-op is a failure too. `linea_base` is true only for a successful full pass with at least ten
+samples per case and at least one discarded warmup iteration. Exit 2 means invalid arguments. Use
+`--runtime codex --hook native-guardrail` for a targeted comparison, `--runs 3`
+for a smoke run, and `--tokens-only` for the text inventory alone.
+
+`--fail-fast` stops at the first failed case while retaining its samples and
+diagnostic. `casos_ejecutados` and `casos_previstos` expose pass coverage in JSON
+and Markdown; an incomplete pass cannot be a baseline.
+
+`tokens_fijos` separates agent/skill/command descriptions and the SessionStart
+index per runtime, reusing the parser and generator in `skill-index.py` without
+writing a cache. `tokens_bajo_demanda` counts `dev-cycle.md` and
+`knowledge-check.md`. The method is **estimated characters/4 rounded up**, not a
+tokenizer, billed usage, or the complete native runtime prompt. Piece counts and
+character counts accompany the estimate.
+
+To characterize the baseline, retain three complete successful sequential runs, JSON
+and Markdown reports, measured samples and discarded warmups. Record source identity,
+OS, observed free RAM, date and whether the code lives in OneDrive; report dispersion
+between the three medians for each registration/runtime without claiming uniform timing
+stability. Evaluate each latency change with an interleaved before/after control using
+the same workload, machine, fixtures and interpreters, identified sources, a startup
+control, dispersion and failures. An inconclusive comparison does not establish global
+savings; a failure is not a successful sample. Do not attribute machine noise to code.
+Temporary projects live in the system temporary directory rather than OneDrive. CI checks
+the contract with controlled clocks and processes, without absolute latency thresholds.
+The local baseline does not generalize to other machines.

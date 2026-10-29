@@ -176,6 +176,28 @@ def test_bsd_model_lifecycle_signal_with_intent_writes_instead_of_state_busy(bsd
     assert len(api.history(project)['runs']) >= 2
 
 
+def test_lifecycle_announces_priority_before_unlocked_preparation(bsd, project, monkeypatch):
+    api = load('agent-activity-store')
+    bsd.install(api._state_io)
+    assert api.capture(project, runtime='claude', payload=native(project, 'SubagentStart', 'agent-one'))['status'] == 'ok'
+    original, probes = api._preload, []
+
+    def preload(root, state, io):
+        info = (state / '.lock').stat()
+        inode, foreign = (info.st_dev, info.st_ino), ('proc', -1234)
+        try:
+            with pytest.raises(BlockingIOError):
+                bsd._take(inode, foreign, 1, 2)  # a foreign tool probe must already be excluded
+            probes.append(True)
+        finally:
+            bsd._drop(inode, foreign)
+        return original(root, state, io)
+
+    monkeypatch.setattr(api, '_preload', preload)
+    assert api.capture(project, runtime='claude', payload=native(project, 'SubagentStop', 'agent-one'))['status'] == 'ok'
+    assert probes
+
+
 def test_bsd_model_another_process_on_byte_0_still_excludes(bsd, tmp_path):
     io = owner(bsd.install(load('local-state')))
     with io.locked(tmp_path, time.monotonic() + 1, True):

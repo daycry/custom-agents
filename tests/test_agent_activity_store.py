@@ -1463,27 +1463,51 @@ _LIFECYCLE = ('import importlib.util,json,sys,time;'
 _HAMMER = ('import importlib.util,json,sys,time;'
     's=importlib.util.spec_from_file_location("s",sys.argv[1]);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);'
     'e=json.loads(sys.argv[3]);start,stop=float(sys.argv[4]),float(sys.argv[5]);time.sleep(max(0,start-time.time()));n=0\n'
-    'while time.time()<stop:\n e["tool"]="H%s-%d"%(sys.argv[6],n);n+=1;m.record(sys.argv[2],e)\n')
+    'while time.time()<stop:\n e["tool"]="H%s-%d"%(sys.argv[6],n);n+=1;m.record(sys.argv[2],e)\n'
+    'print(n)\n')
 
 
 def test_2_1_lifecycle_signals_survive_sustained_tool_contention_on_a_full_ring(api, project):
-    """Far harsher than a real burst: 8 writers re-entering the lock non-stop for 2.4 s on a full ring.
-    Before fix2 a lifecycle signal (100 ms of wait) won ~1 hand-off in 9 and was lost most of the time."""
+    """Eight writers contend against an announced lifecycle intent on a full ring.
+
+    A writer already holding byte 0 can exceed the signal's 100 ms wait; that case has an
+    explicit state_busy contract in test_busy_lock_observable_and_unchanged. Announce intent
+    before the burst here, so this test isolates priority instead of assuming a scheduler bound.
+    The separate model test checks that capture itself announces intent before preparation.
+    """
     boot(api, project)
     now = time.time()
     seed(api, project, revision=500, events=[dict(old_event(i, now - 5), resumen=('git status %d ' % i).ljust(160, 'y')) for i in range(1, 501)])
     store = str(SHARED / 'agent-activity-store.py')
-    start = time.time() + 4
-    hammers = [subprocess.Popen([sys.executable, '-I', '-X', 'utf8', '-B', '-c', _HAMMER, store, str(project), json.dumps(entry()),
-        repr(start), repr(start + 2.4), str(i)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=project) for i in range(8)]
-    times = [start + 0.3 + 0.25 * k for k in range(8)]
-    lifecycle = subprocess.Popen([sys.executable, '-I', '-X', 'utf8', '-B', '-c', _LIFECYCLE, store, str(project),
-        json.dumps(native(project)), json.dumps(times)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=project)
-    out, err = lifecycle.communicate(timeout=90)
-    for p in hammers:
-        assert p.communicate(timeout=90)[0] is not None and p.returncode == 0
-    assert lifecycle.returncode == 0, err
-    reasons = json.loads(out)
-    assert reasons == [None] * 8, reasons  # every SubagentStart/SubagentStop kept: N of N
-    runs = api.history(project)['runs']
-    assert len([r for r in runs if r['scope'] == 'subagent' and r['started_at'] is not None]) >= 4
+    holder = _intent_holder(project)
+    hammers, lifecycle = [], None
+    try:
+        start = time.time() + 4
+        for i in range(8):
+            hammers.append(subprocess.Popen([sys.executable, '-I', '-X', 'utf8', '-B', '-c', _HAMMER, store, str(project), json.dumps(entry()),
+                repr(start), repr(start + 2.4), str(i)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=project))
+        times = [start + 0.3 + 0.25 * k for k in range(8)]
+        lifecycle = subprocess.Popen([sys.executable, '-I', '-X', 'utf8', '-B', '-c', _LIFECYCLE, store, str(project),
+            json.dumps(native(project)), json.dumps(times)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=project)
+        out, err = lifecycle.communicate(timeout=90)
+        for p in hammers:
+            attempts, error = p.communicate(timeout=90)
+            assert p.returncode == 0, error
+            assert int(attempts) > 0, 'tool writer missed the contention window'
+        assert lifecycle.returncode == 0, err
+        reasons = json.loads(out)
+        assert reasons == [None] * 8, reasons  # every SubagentStart/SubagentStop kept: N of N
+        runs = api.history(project)['runs']
+        assert len([r for r in runs if r['scope'] == 'subagent' and r['started_at'] is not None]) >= 4
+        assert not any(row['tool'].startswith('H') for row in doc(project)['events'])
+    finally:
+        for child in [*hammers, *([lifecycle] if lifecycle is not None else [])]:
+            if child.poll() is None:
+                child.kill()
+            child.communicate(timeout=10)
+        try:
+            holder.communicate('', timeout=10)
+        except subprocess.TimeoutExpired:
+            holder.kill()
+            holder.communicate(timeout=10)
+            raise

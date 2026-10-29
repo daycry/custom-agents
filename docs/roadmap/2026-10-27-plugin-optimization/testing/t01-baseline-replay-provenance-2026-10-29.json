@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "date_utc": "2026-10-29T11:36:15.237922+00:00",
+  "recipe": "git archive bae4e46; scripts/bench-hooks.py and hooks/runtime-supervisor.py from dc18d94",
+  "archive_sha256": "c095946a02e5e44f041e7b5b0fcbe09cceaa3d5a9bf1b5c98e6644aea763be1c",
+  "source_files": 1544,
+  "source_manifest_sha256": "57551b1131a75f494e554edc11efabc8f22837551b01f11e06784a3c056fbd4b",
+  "historical_provenance_comparison": {
+    "scripts/bench-hooks.py": {
+      "sha256_lf": "0870e1854adda4f605784a513f9c1cde872b2c0e0870e96635637389e65532d4",
+      "historical_raw_sha256": "0870e1854adda4f605784a513f9c1cde872b2c0e0870e96635637389e65532d4",
+      "historical_match_allowing_eol": true
+    },
+    "hooks/hooks.json": {
+      "sha256_lf": "be8d5eb99ddbb60b0f21bc4a1a55f537ecbbdda8e3221a305d7fcd74a9c5b466",
+      "historical_raw_sha256": "7f254b00fcfd387c5e50c94f638b3a4cb1c6f7be4f02db1275296888fcd3a6b6",
+      "historical_match_allowing_eol": true
+    },
+    "hooks/run-hook.mjs": {
+      "sha256_lf": "f86f0a1e529c1a15cfaa3071630c36cc3ab8d82f067a4c6eb62cd365f3b02599",
+      "historical_raw_sha256": "bb531a1feaad5b284b0388bb918c9f60ccc5d9c75eb491268c4f7cffe30d2069",
+      "historical_match_allowing_eol": true
+    },
+    "hooks/runtime-supervisor.py": {
+      "sha256_lf": "8c4a4c568a0ec71f885420e99eb9c6e406429e6f2c994a2bdeb20d279d68a04a",
+      "historical_raw_sha256": "8c4a4c568a0ec71f885420e99eb9c6e406429e6f2c994a2bdeb20d279d68a04a",
+      "historical_match_allowing_eol": true
+    },
+    "agent-kits/shared/native-roles.json": {
+      "sha256_lf": "96d4db96b92b12b264201820969d0938cfdd83381210effb1b833a5f62be672a",
+      "historical_raw_sha256": "277b7da42b154e4ad228084bd7fd70108b5f15e70eb04eb84c489c8216f58082",
+      "historical_match_allowing_eol": true
+    },
+    "tests/fixtures/bench-hooks/claude.json": {
+      "sha256_lf": "78babdbd1cb18a765d0db75b11f6405c6eaa0558bf8bd8a09fb251c231397df7",
+      "historical_raw_sha256": "5d3ecc0e15e0c3050540d39a4a6d7e487c060cb57ccd1c4295aecf7d8846acff",
+      "historical_match_allowing_eol": true
+    },
+    "tests/fixtures/bench-hooks/codex.json": {
+      "sha256_lf": "1c495de7c0f781b29cc2ab7c20f580ea5affae320313bf522d8344784b2de2d8",
+      "historical_raw_sha256": "164512b9b779fbf25f6f0be117afdcb9e5b9c75354f2e528edf6a46faa21e942",
+      "historical_match_allowing_eol": true
+    },
+    "tests/fixtures/bench-hooks/opencode.json": {
+      "sha256_lf": "1c495de7c0f781b29cc2ab7c20f580ea5affae320313bf522d8344784b2de2d8",
+      "historical_raw_sha256": "164512b9b779fbf25f6f0be117afdcb9e5b9c75354f2e528edf6a46faa21e942",
+      "historical_match_allowing_eol": true
+    }
+  },
+  "scope": "Reconstructed pre-F1 timing source; all eight historical recorded source hashes match allowing LF/CRLF. Other historical unrecorded environment state cannot be reconstructed.",
+  "condition": "Same Windows/OneDrive workspace, system temporary fixture projects; three sequential passes, ten samples plus discarded warmup per case. No concurrent test suite launched locally by this session.",
+  "python_version": "3.13.0",
+  "node_version": "v23.8.0",
+  "command": "python scripts/bench-hooks.py --runs 10 --warmup 1 --fail-fast --json",
+  "original_evidence_preserved": true,
+  "replay_status": "interrupted_diagnostic_not_a_baseline",
+  "eight_recorded_sources_unchanged_after_interruption": true,
+  "complete_passes": 0
+}

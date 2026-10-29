@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "fecha": "2026-10-28T15:44:48.458206+00:00",
+  "runs": 10,
+  "warmup": 1,
+  "maquina": {
+    "sistema": "Windows",
+    "version": "11",
+    "python": "3.13.0",
+    "ram_libre_bytes": 4452282368,
+    "repositorio_en_onedrive": true
+  },
+  "estado": "FALLO",
+  "hooks": [
+    {
+      "evento": "UserPromptSubmit",
+      "hook": "user-prompt-capture.sh",
+      "registro": "UserPromptSubmit:0:0",
+      "async": false,
+      "runtime": "codex",
+      "estado": "FALLO",
+      "muestras_ms": [],
+      "mediana_ms": null,
+      "p95_ms": null,
+      "max_ms": null,
+      "fallo": "launcher diagnostic: custom-agents hooks: child cleanup confirmation timed out",
+      "iteracion": 0,
+      "calentamiento": true
+    }
+  ],
+  "linea_base": false,
+  "casos_previstos": 1,
+  "casos_ejecutados": 1,
+  "tokens_fijos": {
+    "metodo": "estimaci\u00f3n caracteres/4, redondeo superior; no es un tokenizador ni consumo real",
+    "descriptions": {
+      "caracteres": 31633,
+      "tokens_estimados": 7909,
+      "piezas": 52,
+      "por_tipo": {
+        "command": {
+          "caracteres": 5527,
+          "tokens_estimados": 1382
+        },
+        "skill": {
+          "caracteres": 18291,
+          "tokens_estimados": 4573
+        },
+        "agent": {
+          "caracteres": 7815,
+          "tokens_estimados": 1954
+        }
+      }
+    },
+    "indice_por_runtime": {
+      "claude": {
+        "caracteres": 3372,
+        "tokens_estimados": 843
+      },
+      "codex": {
+        "caracteres": 3343,
+        "tokens_estimados": 836
+      },
+      "opencode": {
+        "caracteres": 3493,
+        "tokens_estimados": 874
+      }
+    },
+    "por_runtime": {
+      "claude": 8752,
+      "codex": 8745,
+      "opencode": 8783
+    }
+  },
+  "tokens_bajo_demanda": {
+    "commands/dev-cycle.md": {
+      "caracteres": 53732,
+      "tokens_estimados": 13433
+    },
+    "agent-kits/shared/knowledge-check.md": {
+      "caracteres": 9133,
+      "tokens_estimados": 2284
+    }
+  }
+}

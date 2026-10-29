@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-29",
+  "attempt": 2,
+  "head": "8f83eccd46b640cbec38c8d77907d223880ca665",
+  "corrective_range": "05ea2e0..8f83ecc",
+  "previous_attempt": "t07-f1-review-attempt-1-2026-10-29.json",
+  "prior_verdicts_carried": true,
+  "A": {
+    "reviewer": "/root/f1_fix_conformance",
+    "A1": "resolved:199 lines;13 original lines preserved verbatim in references/piece-boundaries.md, frontmatter/description identical, links valid",
+    "A2": "resolved:declared tokens-only command actually executed with exact receipt;5519/5512/5508 estimated tokens,0hooks;original savings criterion retained",
+    "interop": {
+      "exit": 0,
+      "current_files": 88
+    },
+    "diet_check": {
+      "exit": 0,
+      "lost_paragraphs": 0,
+      "skill_lines": 199
+    },
+    "scope_check": {
+      "exit": 0,
+      "outside": [],
+      "altered_criteria": []
+    }
+  },
+  "B": {
+    "reviewer": "/root/f1_fix_correctness",
+    "result": "no defects",
+    "source_hashes_verified": 4,
+    "new_reference": "entire original procedure retained, both links valid",
+    "functional_code_or_test_changes": false
+  },
+  "C_D": {
+    "disposition": "Prior positive verdicts preserved for identical runtime/test/generated code; corrective diff only prose, references, ledger and receipts. No new channel or evidence requiring reopening.",
+    "runtime_code_diff": [],
+    "source_head_previous": "05ea2e0"
+  },
+  "fusion": {
+    "Critical": 0,
+    "Important": 0,
+    "Minor": 0,
+    "A1": "resolved",
+    "A2": "resolved",
+    "implementation_review": "closed",
+    "T06": "eligible to close",
+    "T07": "QA/coverage/measurement/delivery remain open",
+    "release_approved": false
+  },
+  "limitations": [
+    "No new global coverage percentage claimed.",
+    "No uniform timing stability or native event delivery claim.",
+    "No automatic memory approval or release."
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "changed_statements": 100,
+  "changed_missing": [
+    855,
+    890,
+    903,
+    945,
+    946
+  ],
+  "changed_coverage_percent": 95.0,
+  "scope": "new temporary cleanup lines only; in-process directed tests",
+  "tests": {
+    "passed": 24,
+    "skipped": 2,
+    "deselected": 82
+  },
+  "full_directed_run_before_four_extra_tests": {
+    "passed": 151,
+    "skipped": 3
+  },
+  "global_coverage_previous_run": 44,
+  "global_limit": "CLI subprocess tests not included in in-process coverage; not a full module coverage claim"
+}

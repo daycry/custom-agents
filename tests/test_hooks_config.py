@@ -47,3 +47,9 @@ def test_lint_plugin_da_error_si_el_script_de_args_no_existe(tmp_path):
     }), encoding="utf-8")
     errs, warns = lint_plugin.lint_hooks(str(tmp_path))
     assert any("hooks/no-existe.sh" in e and "no existe" in e for e in errs), errs
+
+
+def test_session_start_declares_thirty_second_timeout():
+    with open(HOOKS_JSON, encoding="utf-8") as source:
+        config = json.load(source)
+    assert config["hooks"]["SessionStart"][0]["hooks"][0].get("timeout") == 30

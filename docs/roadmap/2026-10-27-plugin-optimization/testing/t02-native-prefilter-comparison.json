@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "method": "median of three per-pass medians; 10 measured samples and one discarded warmup per runtime/pass; direct shared launcher, not native client event delivery",
+  "baseline": "baseline-f1-comparison.json",
+  "after_files": [
+    "t02-native-prefilter-1.json",
+    "t02-native-prefilter-2.json",
+    "t02-native-prefilter-3.json"
+  ],
+  "rows": [
+    {
+      "runtime": "claude",
+      "before_ms": [
+        1030.024,
+        897.494,
+        808.876
+      ],
+      "after_ms": [
+        959.465,
+        1126.693,
+        960.182
+      ],
+      "before_central_ms": 897.494,
+      "after_central_ms": 960.182,
+      "reduction_percent": -6.98,
+      "target_percent": 80,
+      "target_met": false
+    },
+    {
+      "runtime": "codex",
+      "before_ms": [
+        865.589,
+        801.314,
+        1052.274
+      ],
+      "after_ms": [
+        1059.097,
+        1271.99,
+        1798.182
+      ],
+      "before_central_ms": 865.589,
+      "after_central_ms": 1271.99,
+      "reduction_percent": -46.95,
+      "target_percent": 80,
+      "target_met": false
+    },
+    {
+      "runtime": "opencode",
+      "before_ms": [
+        830.848,
+        1022.659,
+        1049.497
+      ],
+      "after_ms": [
+        1098.927,
+        1164.369,
+        1519.985
+      ],
+      "before_central_ms": 1022.659,
+      "after_central_ms": 1164.369,
+      "reduction_percent": -13.86,
+      "target_percent": 80,
+      "target_met": false
+    }
+  ],
+  "target_met": false
+}

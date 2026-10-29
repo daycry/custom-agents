@@ -1,12 +1,25 @@
 // OpenCode V2 server plugin. Business rules remain in the shared hook services.
 import { execFile, spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { constants, existsSync } from 'node:fs';
 import { lstat, open, readdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const home = process.env.HOME || process.env.USERPROFILE || '.';
+// --8<-- native protected role selection
+const PROTECTED_GUARD_ROLES = ['implementer', 'architect'];
+
+function nativeProtectedIDs(mapping, runtime) {
+  const roles = mapping?.runtimes?.[runtime];
+  if (!['claude', 'codex', 'opencode'].includes(runtime) || mapping?.schema_version !== 1
+      || !Object.hasOwn(mapping?.runtimes || {}, runtime)
+      || !roles || typeof roles !== 'object' || Array.isArray(roles)
+      || PROTECTED_GUARD_ROLES.some(role => !Object.hasOwn(roles, role) || typeof roles[role] !== 'string' || !roles[role])) return null;
+  const ids = new Set(PROTECTED_GUARD_ROLES.map(role => roles[role]));
+  return ids.size === PROTECTED_GUARD_ROLES.length ? ids : null;
+}
+// --8<-- fin native protected role selection
 // custom-agents hook-catalog:start
 const hookCatalog = JSON.parse(`{
   "schema_version": 1,
@@ -64,25 +77,27 @@ export default {
     const invalidate = () => { cached = undefined; generation++; };
     const warn = () => console.warn('custom-agents: informational hook unavailable; continuing');
     const warnGuard = () => console.warn('custom-agents: role guard unavailable; normal permissions continue');
-    let guardedIDs;
-    // The generated map also drives exports and the Python dispatcher.
-    try {
-      const path = join(hooks, '..', 'agent-kits', 'shared', 'native-roles.json');
-      const info = await lstat(path);
-      if (!info.isFile() || info.size > 65536) throw new Error('role map');
-      const file = await open(path, 'r');
+    // Re-read the generated map for each decision; an uncertain map delegates to Python.
+    async function loadGuardedIDs() {
       try {
-        const buffer = Buffer.alloc(65537);
-        const { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
-        if (bytesRead > 65536) throw new Error('role map');
-        const mapping = JSON.parse(buffer.subarray(0, bytesRead).toString('utf8'));
-        const roles = mapping?.runtimes?.opencode;
-        if (mapping?.schema_version !== 1 || typeof roles?.implementer !== 'string'
-            || typeof roles?.architect !== 'string' || !roles.implementer || !roles.architect
-            || roles.implementer === roles.architect) throw new Error('role map');
-        guardedIDs = new Set([roles.implementer, roles.architect]);
-      } finally { await file.close(); }
-    } catch { warnGuard(); }
+        const path = join(hooks, '..', 'agent-kits', 'shared', 'native-roles.json');
+        const info = await lstat(path);
+        if (!info.isFile() || info.size > 65536) return;
+        const flags = constants.O_RDONLY | (constants.O_NONBLOCK || 0) | (constants.O_NOFOLLOW || 0);
+        const file = await open(path, flags);
+        try {
+          const opened = await file.stat();
+          if (!opened.isFile() || opened.size > 65536) return;
+          const buffer = Buffer.alloc(65537);
+          let size = 0, read;
+          while (size < buffer.length && (read = (await file.read(buffer, size, buffer.length - size, size)).bytesRead) > 0) size += read;
+          if (size > 65536) return;
+          const mapping = JSON.parse(new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(buffer.subarray(0, size)));
+          return nativeProtectedIDs(mapping, 'opencode') || undefined;
+        } finally { await file.close(); }
+      } catch { /* The contained Python dispatcher owns diagnostics. */ }
+    }
+    if (!await loadGuardedIDs()) warnGuard();
 
     // Only metadata is scanned; unsafe or oversized trees disable reuse.
     async function signature(cwd) {
@@ -183,9 +198,11 @@ export default {
     }
 
     const callbacks = { guard: async event => {
-      if (!guardedIDs?.has(event?.agent)) return;
       let decision;
       try {
+        const guardedIDs = await loadGuardedIDs();
+        if (guardedIDs && (!Object.hasOwn(event || {}, 'agent')
+            || (typeof event.agent === 'string' && !guardedIDs.has(event.agent)))) return;
         const cwd = await project(event.sessionID);
         if (!cwd) return;
         const output = await run(bindings.guard.handlers[0], {

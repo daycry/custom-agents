@@ -1,0 +1,34 @@
+{
+  "review_type": "sequential source review, not independent reviewers; full phase gate remains open",
+  "source_sha256_lf": "f8a3af68dd02b3b0ca746c2d347e5c2df5276ea610811d94b0dd2f5f7c212e4e",
+  "base": "bae4e46",
+  "scope": "Complete hooks/run-hook.mjs and diff against pre-F1 version",
+  "imports": [
+    "node:child_process",
+    "node:fs",
+    "node:path",
+    "node:url"
+  ],
+  "changes_reviewed": [
+    "bounded native role-map reads with regular-file/nonblocking/no-follow checks and strict UTF-8/JSON parsing",
+    "exact native identity selection; uncertain input retains Python evaluation",
+    "bounded stdin with monotonic deadline shared by input and child execution",
+    "isolated -I -S prompt capture; same existing local executables and argument arrays, no shell payload interpolation"
+  ],
+  "network_changes": "No network import, client call, URL, remote executable or new executable target introduced. Existing no-egress scanner and mutation tests retained.",
+  "fingerprint_action": "Refresh exact LF-normalized fingerprint only; no allowlist expansion, wildcard or scanner suppression.",
+  "negative_control": "tests/test_graphiti_security.py::test_activity_launcher_mutation_remains_fail_closed",
+  "directed_verification": {
+    "passed": 3,
+    "tests": [
+      "test_ningun_script_alcanzable_desde_hooks_toca_la_red",
+      "test_f4fix2_el_egress_del_journal_es_una_excepcion_nominal_y_condicionada",
+      "test_activity_launcher_mutation_remains_fail_closed"
+    ]
+  },
+  "retained_failed_host_attempt": {
+    "passed": 119,
+    "failed": 2,
+    "cause": "First refresh mistakenly used the earlier T-02 measurement fingerprint e23e35d2... rather than current reviewed LF bytes f8a3af68...; corrected from mechanical hash of reviewed file. No production source changed."
+  }
+}

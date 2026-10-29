@@ -1,20 +1,19 @@
 ---
 name: knowledge-services
 description: >
-  Publica `docs/knowledge/approved/` a backends externos (Kwipu y Graphiti) por
-  config de proyecto (`taxonomy.json`). `knowledge-sync.py --backend <id>
-  [--dry-run|--check|--rebuild]` carga el adaptador por `type`, aplica `routing` antes de
-  construir entradas (fail-closed) y usa `outbox.py` para staging/dead-letter; un fallo de
-  `apply()` puede dejar una publicación parcial recuperable, sin rollback global. Kwipu (`markdown-export`) genera un Markdown
-  por entrada con frontmatter del Knowledge Gate y `manifest.json`; `verify` nombra el
-  reindexado sin ejecutarlo. La lectura documental opcional usa `knowledge-find.py --intent`, con backend,
-  `read.enabled` e intent habilitados; devuelve fuentes vinculadas y respuesta no verificada.
-  Úsala cuando el usuario diga "sincroniza el conocimiento con Kwipu", "publica
-  docs/knowledge en el grafo", "exporta approved a Kwipu", "por qué Kwipu no ve esta entrada",
-  "añade un backend de knowledge-services", o al activar la capacidad `kwipu` desde `/setup`.
+  Publica conocimiento aprobado en Kwipu/Graphiti mediante adaptadores, routing cerrado y outbox
+  recuperable. Lectura externa solo opt-in; no promueve candidatos. Úsala cuando el usuario diga
+  "sincroniza el conocimiento con Kwipu", "publica docs/knowledge en el grafo", "exporta approved a
+  Kwipu", "por qué Kwipu no ve esta entrada", "añade un backend de knowledge-services", o al activar
+  la capacidad `kwipu` desde `/setup`.
 ---
 
 # knowledge-services — de `approved/` a un backend externo, sin acoplar el plugin a ninguno
+
+## Alcance y activación
+
+Publica `docs/knowledge/approved/` a backends externos (Kwipu y Graphiti) por config de proyecto (`taxonomy.json`). `knowledge-sync.py --backend <id> [--dry-run|--check|--rebuild]` carga el adaptador por `type`, aplica `routing` antes de construir entradas (fail-closed) y usa `outbox.py` para staging/dead-letter; un fallo de `apply()` puede dejar una publicación parcial recuperable, sin rollback global. Kwipu (`markdown-export`) genera un Markdown por entrada con frontmatter del Knowledge Gate y `manifest.json`; `verify` nombra el reindexado sin ejecutarlo. La lectura documental opcional usa `knowledge-find.py --intent`, con backend, `read.enabled` e intent habilitados; devuelve fuentes vinculadas y respuesta no verificada. Úsala cuando el usuario diga "sincroniza el conocimiento con Kwipu", "publica docs/knowledge en el grafo", "exporta approved a Kwipu", "por qué Kwipu no ve esta entrada", "añade un backend de knowledge-services", o al activar la capacidad `kwipu` desde `/setup`.
+
 
 `docs/knowledge/approved/` es el origen Markdown canónico, curado por `knowledge-curator`.
 Su versionado en Git depende de la política del proyecto; la memoria propia de este repositorio

@@ -1,18 +1,19 @@
 ---
 name: adversarial-review
 description: >
-  Revisión ADVERSARIAL de un diff con lentes de contexto fresco en paralelo — A (conformidad con
-  spec/plan/constitución, ✓/✗ por criterio), B (defectos de corrección), C (seguridad, CONDICIONAL)
-  y D (rendimiento, CONDICIONAL — ambas por `review-lens-select.py` sobre ficheros/líneas sensibles
-  o costosas) — con fusión, graduación Critical/Important/Minor, bucle acotado a 3 intentos, rebate
-  con evidencia y traza en el ledger («Revisión de dos lentes — intento N»). Fuente única del
-  método que usan /dev-cycle (Fase 3) y quick-implement; también a demanda sobre una rama o rango
-  sin ledger. NO sustituye a `qa` (E2E + qa-gate) ni a `nemesis` (auditoría de seguridad completa),
-  y NO revisa estilo ni propone refactors. Úsala cuando el usuario diga "revisa este diff", "revisión adversarial", "pasa las dos lentes", "revisión de dos lentes", "busca gaps en la rama",
-  "revisa el rendimiento del diff", "problemas de seguridad en esta rama", o cuando /dev-cycle o quick-implement lleguen a la puerta de revisión.
+  Revisa diffs con lentes A/B y C/D condicionales, evidencia y hasta tres intentos. Coordina
+  revisores de contexto fresco; no sustituye a QA ni a auditoría completa. Úsala cuando el usuario
+  diga "revisa este diff", "revisión adversarial", "pasa las dos lentes", "revisión de dos lentes",
+  "busca gaps en la rama", "revisa el rendimiento del diff", "problemas de seguridad en esta rama",
+  o cuando /dev-cycle o quick-implement lleguen a la puerta de revisión.
 ---
 
 # adversarial-review — dos lentes (+ dos condicionales) contra el diff, con bucle acotado
+
+## Alcance y activación
+
+Revisión ADVERSARIAL de un diff con lentes de contexto fresco en paralelo — A (conformidad con spec/plan/constitución, ✓/✗ por criterio), B (defectos de corrección), C (seguridad, CONDICIONAL) y D (rendimiento, CONDICIONAL — ambas por `review-lens-select.py` sobre ficheros/líneas sensibles o costosas) — con fusión, graduación Critical/Important/Minor, bucle acotado a 3 intentos, rebate con evidencia y traza en el ledger («Revisión de dos lentes — intento N»). Fuente única del método que usan /dev-cycle (Fase 3) y quick-implement; también a demanda sobre una rama o rango sin ledger. NO sustituye a `qa` (E2E + qa-gate) ni a `nemesis` (auditoría de seguridad completa), y NO revisa estilo ni propone refactors. Úsala cuando el usuario diga "revisa este diff", "revisión adversarial", "pasa las dos lentes", "revisión de dos lentes", "busca gaps en la rama", "revisa el rendimiento del diff", "problemas de seguridad en esta rama", o cuando /dev-cycle o quick-implement lleguen a la puerta de revisión.
+
 
 Patrón que más críticos reales ha cazado en este repo (`docs/knowledge/lessons/LES-010-*`): revisores
 de **contexto fresco** que NO han visto implementar, cada uno con una lente, sobre el **diff**. Fuente

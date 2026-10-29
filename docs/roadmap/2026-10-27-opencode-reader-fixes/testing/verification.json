@@ -1,0 +1,28 @@
+{
+  "base_commit": "cfc65ae61ddd2c2f79f0f3881e01492cbeb56dc5",
+  "patch_sha256": "173a7b7a10ee6d677fb1030b225349ce8ddc94dadf0ac855d6464ebd31fc9798",
+  "tests": {
+    "passed": 138,
+    "skipped": 1,
+    "skip_reason": "symlink privileges unavailable"
+  },
+  "coverage": {
+    "covered_lines": 684,
+    "num_statements": 741,
+    "percent_covered": 92.3076923076923,
+    "percent_covered_display": "92",
+    "missing_lines": 57,
+    "excluded_lines": 0,
+    "percent_statements_covered": 92.3076923076923,
+    "percent_statements_covered_display": "92"
+  },
+  "callers": "8 targeted extension/brief tests plus 2 CLI/catalog privacy checks passed",
+  "checks": {
+    "lint_errors": 0,
+    "lint_existing_warnings": 3,
+    "interop_current_files": 88,
+    "standalone_patch_apply_check": 0
+  },
+  "scope": "reader source, regression tests and bilingual documentation; no workers, global configuration or hook runtime changes",
+  "release": "not published"
+}

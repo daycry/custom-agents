@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "date_utc": "2026-10-29T13:07:20.664181+00:00",
+  "source_head": "8f83eccd46b640cbec38c8d77907d223880ca665",
+  "test": "tests/test_redact_fix3.py::test_linear_cost_on_pathological_inputs",
+  "source_sha256": "3266732c050a4619c8f2c53b5fe7146581ff19d33daf08ddef2e7a29190d8943",
+  "condition": "Fresh pytest process per sample in one otherwise idle owned 2 GiB/2 CPU container; alternating order, same immutable source and unchanged 1.5s assertion.",
+  "trials": [
+    {
+      "pair": 0,
+      "mode": "plain",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_redact_fix3.py::test_linear_cost_on_pathological_inputs"
+      ],
+      "exit": 0,
+      "elapsed_seconds": 12.720920736999688,
+      "stdout": ".                                                                        [100%]\n1 passed in 12.30s\n",
+      "stderr": ""
+    },
+    {
+      "pair": 0,
+      "mode": "traced",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_redact_fix3.py::test_linear_cost_on_pathological_inputs",
+        "--cov=.",
+        "--cov-config=/tmp/redact-timing-0.rc",
+        "--cov-report="
+      ],
+      "exit": 1,
+      "elapsed_seconds": 7.63959414799865,
+      "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n___________________ test_linear_cost_on_pathological_inputs ____________________\n\n    def test_linear_cost_on_pathological_inputs():\n        for texto in _patologicos():\n            started = time.perf_counter()\n            salida = redact.redactar(texto)\n>           assert time.perf_counter() - started < 1.5, (len(texto), texto[:40])\nE           AssertionError: (1000000, '--x mysql --x mysql --x mysql --x mysql ')\nE           assert (14854.970979744 - 14852.350863853) < 1.5\nE            +  where 14854.970979744 = <built-in function perf_counter>()\nE            +    where <built-in function perf_counter> = time.perf_counter\n\ntests/test_redact_fix3.py:249: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_redact_fix3.py::test_linear_cost_on_pathological_inputs - A...\n1 failed in 7.06s\n",
+      "stderr": ""
+    },
+    {
+      "pair": 1,
+      "mode": "traced",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_redact_fix3.py::test_linear_cost_on_pathological_inputs",
+        "--cov=.",
+        "--cov-config=/tmp/redact-timing-1.rc",
+        "--cov-report="
+      ],
+      "exit": 1,
+      "elapsed_seconds": 6.560066685000493,
+      "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n___________________ test_linear_cost_on_pathological_inputs ____________________\n\n    def test_linear_cost_on_pathological_inputs():\n        for texto in _patologicos():\n            started = time.perf_counter()\n            salida = redact.redactar(texto)\n>           assert time.perf_counter() - started < 1.5, (len(texto), texto[:40])\nE           AssertionError: (1000000, '--x mysql --x mysql --x mysql --x mysql ')\nE           assert (14861.699141267 - 14860.130894084) < 1.5\nE            +  where 14861.699141267 = <built-in function perf_counter>()\nE            +    where <built-in function perf_counter> = time.perf_counter\n\ntests/test_redact_fix3.py:249: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_redact_fix3.py::test_linear_cost_on_pathological_inputs - A...\n1 failed in 6.02s\n",
+      "stderr": ""
+    },
+    {
+      "pair": 1,
+      "mode": "plain",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_redact_fix3.py::test_linear_cost_on_pathological_inputs"
+      ],
+      "exit": 0,
+      "elapsed_seconds": 13.762767397000061,
+      "stdout": ".                                                                        [100%]\n1 passed in 13.36s\n",
+      "stderr": ""
+    },
+    {
+      "pair": 2,
+      "mode": "plain",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_redact_fix3.py::test_linear_cost_on_pathological_inputs"
+      ],
+      "exit": 0,
+      "elapsed_seconds": 12.447403471000143,
+      "stdout": ".                                                                        [100%]\n1 passed in 12.18s\n",
+      "stderr": ""
+    },
+    {
+      "pair": 2,
+      "mode": "traced",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_redact_fix3.py::test_linear_cost_on_pathological_inputs",
+        "--cov=.",
+        "--cov-config=/tmp/redact-timing-2.rc",
+        "--cov-report="
+      ],
+      "exit": 1,
+      "elapsed_seconds": 8.306873400000768,
+      "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n___________________ test_linear_cost_on_pathological_inputs ____________________\n\n    def test_linear_cost_on_pathological_inputs():\n        for texto in _patologicos():\n            started = time.perf_counter()\n            salida = redact.redactar(texto)\n>           assert time.perf_counter() - started < 1.5, (len(texto), texto[:40])\nE           AssertionError: (1000000, '--x mysql --x mysql --x mysql --x mysql ')\nE           assert (14896.272848813 - 14893.305712799) < 1.5\nE            +  where 14896.272848813 = <built-in function perf_counter>()\nE            +    where <built-in function perf_counter> = time.perf_counter\n\ntests/test_redact_fix3.py:249: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_redact_fix3.py::test_linear_cost_on_pathological_inputs - A...\n1 failed in 7.69s\n",
+      "stderr": ""
+    }
+  ],
+  "complete": true,
+  "interpretation": "Three normal executions of the unchanged test pass; three traced executions fail its fixed1.5s assertion. Whole pytest duration is not a speed comparison because traced tests stop at the first failed case. This demonstrates tracing sensitivity; paired traces fail an earlier mysql workload, not a unique reconstruction of the original sudo-case failure. No threshold or test exclusion changed."
+}

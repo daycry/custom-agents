@@ -1,19 +1,19 @@
 ---
 name: dependency-upgrade
 description: >
-  Prepara la ACTUALIZACIÓN de dependencias de un proyecto sin tocarlas: inventario DETERMINISTA con
-  `deps-inventory.py` (manifiestos package.json · composer.json · requirements*.txt · pyproject.toml
-  · go.mod · Gemfile · *.csproj y sus lockfiles; versión declarada y bloqueada; «latest» SOLO del
-  `outdated` oficial (npm/composer/pip/go) si está en PATH — nunca inventado), clasifica cada
-  salto en patch/minor/major («major = breaking probable»), lee el changelog/UPGRADING de los major y redacta la `spec.md` de una iniciativa
-  «upgrade-<paquete|lote>» con la plantilla del evaluator, para que `evaluator` la presupueste y
-  `planner` la planifique. NO actualiza nada por su cuenta y NO busca vulnerabilidades/CVE (eso es
-  `nemesis` con la skill `cybersecurity`). Úsala cuando el usuario diga "actualiza las dependencias",
-  "qué dependencias están desactualizadas", "prepara el upgrade de <paquete>", "inventario de
-  dependencias", "qué breaking changes tiene subir a la versión X", "plan para subir de major".
+  Prepara inventario y spec de actualización desde manifiestos, lockfiles y outdated oficial; revisa
+  saltos major. No actualiza dependencias ni busca CVE. Úsala cuando el usuario diga "actualiza las
+  dependencias", "qué dependencias están desactualizadas", "prepara el upgrade de <paquete>",
+  "inventario de dependencias", "qué breaking changes tiene subir a la versión X", "plan para subir
+  de major".
 ---
 
 # dependency-upgrade — inventariar, clasificar y especificar el upgrade (no ejecutarlo)
+
+## Alcance y activación
+
+Prepara la ACTUALIZACIÓN de dependencias de un proyecto sin tocarlas: inventario DETERMINISTA con `deps-inventory.py` (manifiestos package.json · composer.json · requirements*.txt · pyproject.toml · go.mod · Gemfile · *.csproj y sus lockfiles; versión declarada y bloqueada; «latest» SOLO del `outdated` oficial (npm/composer/pip/go) si está en PATH — nunca inventado), clasifica cada salto en patch/minor/major («major = breaking probable»), lee el changelog/UPGRADING de los major y redacta la `spec.md` de una iniciativa «upgrade-<paquete|lote>» con la plantilla del evaluator, para que `evaluator` la presupueste y `planner` la planifique. NO actualiza nada por su cuenta y NO busca vulnerabilidades/CVE (eso es `nemesis` con la skill `cybersecurity`). Úsala cuando el usuario diga "actualiza las dependencias", "qué dependencias están desactualizadas", "prepara el upgrade de <paquete>", "inventario de dependencias", "qué breaking changes tiene subir a la versión X", "plan para subir de major".
+
 
 Subir dependencias «a ojo» es la forma más cara de romper un proyecto. Esta skill separa tres cosas
 que suelen mezclarse: **qué hay** (inventario determinista), **qué se rompe** (changelog upstream de

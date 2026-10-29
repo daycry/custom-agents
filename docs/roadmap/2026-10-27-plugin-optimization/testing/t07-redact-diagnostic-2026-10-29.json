@@ -1,0 +1,38 @@
+{
+  "profile": {
+    "input_chars": 500009,
+    "samples_ms": [
+      894.9022090000653,
+      830.007766000108,
+      812.5405490000048
+    ],
+    "profile": "         5200118 function calls (5150118 primitive calls) in 2.888 seconds\n\n   Ordered by: cumulative time\n   List reduced from 33 to 22 due to restriction <22>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    2.888    2.888 redact.py:312(redactar)\n        1    0.004    0.004    2.761    2.761 redact.py:290(_redactar_argumentos)\n  50002/2    0.624    0.000    2.756    1.378 redact.py:220(_trocear)\n    50002    0.105    0.000    1.836    0.000 redact.py:226(cerrar_comando)\n    50002    0.663    0.000    1.627    0.000 redact.py:173(_redactar_comando)\n    50002    0.130    0.000    0.388    0.000 redact.py:180(<listcomp>)\n    50002    0.126    0.000    0.324    0.000 redact.py:179(<listcomp>)\n   250004    0.151    0.000    0.258    0.000 redact.py:144(_programa)\n   250004    0.127    0.000    0.198    0.000 redact.py:140(_sin_comillas)\n   550006    0.194    0.000    0.194    0.000 {method 'match' of 're.Pattern' objects}\n   750012    0.135    0.000    0.135    0.000 {method 'startswith' of 'str' objects}\n   250004    0.131    0.000    0.131    0.000 {method 'search' of 're.Pattern' objects}\n   900014    0.093    0.000    0.093    0.000 {built-in method builtins.len}\n    50003    0.037    0.000    0.081    0.000 {method 'extend' of 'list' objects}\n   500008    0.071    0.000    0.071    0.000 {method 'replace' of 'str' objects}\n        1    0.000    0.000    0.071    0.071 redact.py:79(_redactar_asignaciones)\n   600015    0.068    0.000    0.068    0.000 {method 'append' of 'list' objects}\n        5    0.056    0.011    0.056    0.011 {method 'sub' of 're.Pattern' objects}\n   100002    0.044    0.000    0.044    0.000 redact.py:228(<genexpr>)\n   300004    0.041    0.000    0.041    0.000 {method 'end' of 're.Match' objects}\n   250002    0.030    0.000    0.030    0.000 {method 'lstrip' of 'str' objects}\n   100004    0.023    0.000    0.023    0.000 {method 'clear' of 'list' objects}\n\n\n"
+  },
+  "hypothesis_experiment": {
+    "method": "Temporary in-memory candidate only; no product source edit; alternating disk-independent CPU samples, three each. Same 500009-char failing fixture. Both variants must preserve prose, redact final credential and remain idempotent.",
+    "samples_ms": {
+      "before": [
+        743.8802010001382,
+        714.2905219998283,
+        722.0096309997643
+      ],
+      "candidate": [
+        455.33768299992516,
+        440.66414399958376,
+        459.39604500017595
+      ]
+    },
+    "command_scans": {
+      "before": 50002,
+      "candidate": 2
+    },
+    "median_ms": {
+      "before": 722.0096309997643,
+      "candidate": 455.33768299992516
+    },
+    "reduction_percent": 36.934680169096836
+  },
+  "original_full_suite_failure_seconds": 1.742439619,
+  "unchanged_limit_seconds": 1.5,
+  "limitation": "Isolated pre-fix timings pass the fixed limit; the original full-run slowdown is not uniquely reconstructed. The profile and deterministic regression establish redundant parser work, and the candidate removes that work without changing the measured outputs."
+}

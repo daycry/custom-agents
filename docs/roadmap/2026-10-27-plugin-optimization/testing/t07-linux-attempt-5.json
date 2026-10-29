@@ -1,0 +1,59 @@
+{
+  "status": "FAILED",
+  "full_phase_acceptance": false,
+  "source_commit": "4de24ea540388d6391c3f0cec908187a83ec8f2c",
+  "source_archive_sha256": "af0de2eccfb40c1eddedfc74bb38d8382399ae76f68adfe8776e7d0b69105f9f",
+  "stages": [
+    {
+      "stage": "lint",
+      "exit": 0,
+      "started": "2026-10-29T09:02:12Z",
+      "finished": "2026-10-29T09:02:16.385744+00:00"
+    },
+    {
+      "stage": "evals",
+      "exit": 0,
+      "started": "2026-10-29T09:02:16Z",
+      "finished": "2026-10-29T09:02:16.624470+00:00"
+    },
+    {
+      "stage": "script-suites",
+      "exit": 0,
+      "started": "2026-10-29T09:02:16Z",
+      "finished": "2026-10-29T09:04:39.825147+00:00"
+    },
+    {
+      "stage": "pytest",
+      "exit": 1,
+      "started": "2026-10-29T09:04:39Z",
+      "finished": "2026-10-29T09:07:17.886707+00:00"
+    }
+  ],
+  "environment": {
+    "python": "3.11.18 (main, Oct 28 2026, 02:05:49) [GCC 12.2.0]",
+    "node": "v22.23.3",
+    "npm": "10.9.9",
+    "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "memory_limit": "2 GiB",
+    "cpus": 2
+  },
+  "pytest": {
+    "passed": 1684,
+    "failed": 1,
+    "skipped": 2,
+    "subtests_passed": 39,
+    "warnings": 1,
+    "failfast": true,
+    "failed_test": "tests/test_console_encoding.py::test_todo_python_en_linea_del_repo_lleva_la_variable_incluido_el_que_no_la_necesitaba",
+    "observed": "6 inline Python shell fragments; inventory still expected 8",
+    "root_cause": "T-05 moved two inline snippets from statusline Bash into the tested standalone statusline-render.py. Inventory assertion was not updated; remaining fragments all carry UTF-8 environment."
+  },
+  "previous_capture_benchmark_test": "passed unchanged in this full pytest run",
+  "not_run": [
+    "capture-benchmark",
+    "interop",
+    "node",
+    "syntax-json",
+    "release-check"
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "method": "Same original sustained-contention fixture, three fresh trials without instrumentation then three with temporary child wrappers. Product source unchanged. Instrumented holds include observer overhead; use controls and do not infer a unique CI cause.",
+  "trials": [
+    {
+      "traced": false,
+      "trial": 1,
+      "status": "pass",
+      "error": null,
+      "maximum_tool_hold_ms": null
+    },
+    {
+      "traced": false,
+      "trial": 2,
+      "status": "pass",
+      "error": null,
+      "maximum_tool_hold_ms": null
+    },
+    {
+      "traced": false,
+      "trial": 3,
+      "status": "pass",
+      "error": null,
+      "maximum_tool_hold_ms": null
+    },
+    {
+      "traced": true,
+      "trial": 1,
+      "status": "pass",
+      "error": null,
+      "maximum_tool_hold_ms": 48.49731200010865
+    },
+    {
+      "traced": true,
+      "trial": 2,
+      "status": "pass",
+      "error": null,
+      "maximum_tool_hold_ms": 130.1686939996216
+    },
+    {
+      "traced": true,
+      "trial": 3,
+      "status": "pass",
+      "error": null,
+      "maximum_tool_hold_ms": 97.2572009995929
+    }
+  ],
+  "interpretation": "All three original and three instrumented trials pass. One observed tool hold 130.17ms exceeds the documented 100ms lifecycle lock wait. Does not uniquely reconstruct the reference failure. Original fixture did not control the precondition for zero-loss priority; occupied-lock state_busy behavior is already explicitly tested.",
+  "fixture_change": "Announce priority before burst, keep all eight captures required, require all eight tool writers to participate, and assert no tool writes enter while priority is announced. Add separate deterministic model of capture announcing intent before unlocked preparation. Runtime, writers count, ring size and deadlines unchanged.",
+  "mutation_controls": [
+    {
+      "mutation": "remove early intent",
+      "result": "expected failure, foreign tool probe unexpectedly acquired byte1 during preparation"
+    },
+    {
+      "mutation": "tool writers ignore yield",
+      "result": "expected failure, lifecycle state_busy violates unchanged eight-of-eight assertion"
+    }
+  ],
+  "directed_positive": {
+    "windows_selected": 3,
+    "model_io_windows": {
+      "passed": 22,
+      "skipped": 1
+    },
+    "linux_activity_model_io": {
+      "passed": 262,
+      "skipped": 1
+    }
+  },
+  "tdd": "test-harness repair and characterization; no activity runtime change"
+}

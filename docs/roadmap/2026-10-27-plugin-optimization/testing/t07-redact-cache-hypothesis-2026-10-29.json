@@ -1,0 +1,22 @@
+{
+  "method": "Temporary in-memory bounded per-call memo of short quoted analyses, keyed by normalized text, depth and inherited program context; source files unchanged. Three alternating timings per variant, same 510000-char fixture; exact output and idempotence required.",
+  "samples_ms": {
+    "before": [
+      743.2545689998733,
+      783.0562949993691,
+      1782.252852000056
+    ],
+    "candidate": [
+      671.5846840006634,
+      644.8300519996337,
+      520.4113710005913
+    ]
+  },
+  "profile_before": "         4170046 function calls (4140046 primitive calls) in 2.245 seconds\n\n   Ordered by: cumulative time\n   List reduced from 32 to 18 due to restriction <18>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.003    0.003    2.245    2.245 redact.py:315(redactar)\n        1    0.022    0.022    2.091    2.091 redact.py:293(_redactar_argumentos)\n  30002/2    0.375    0.000    2.056    1.028 redact.py:220(_trocear)\n    30002    0.054    0.000    1.487    0.000 redact.py:229(cerrar_comando)\n    30002    0.474    0.000    1.384    0.000 redact.py:173(_redactar_comando)\n    30002    0.092    0.000    0.396    0.000 redact.py:180(<listcomp>)\n   210000    0.156    0.000    0.304    0.000 redact.py:144(_programa)\n    30002    0.091    0.000    0.233    0.000 redact.py:179(<listcomp>)\n   150002    0.198    0.000    0.198    0.000 {method 'search' of 're.Pattern' objects}\n    60000    0.111    0.000    0.143    0.000 redact.py:156(_tapar)\n   210000    0.089    0.000    0.142    0.000 redact.py:140(_sin_comillas)\n   420000    0.136    0.000    0.136    0.000 {method 'match' of 're.Pattern' objects}\n        1    0.000    0.000    0.108    0.108 redact.py:79(_redactar_asignaciones)\n   570000    0.092    0.000    0.092    0.000 {method 'startswith' of 'str' objects}\n   420000    0.053    0.000    0.053    0.000 {method 'replace' of 'str' objects}\n   600004    0.053    0.000    0.053    0.000 {built-in method builtins.len}\n    30005    0.051    0.000    0.051    0.000 {method 'sub' of 're.Pattern' objects}\n   540005    0.051    0.000    0.051    0.000 {method 'append' of 'list' objects}\n\n\n",
+  "median_ms": {
+    "before": 783.0562949993691,
+    "candidate": 644.8300519996337
+  },
+  "reduction_percent": 17.652146324913552,
+  "limitation": "Observed before samples vary (743-1782ms). Percentage describes these three alternating samples only, not a universal guarantee; exact output/idempotence and bounded analysis reuse require regression validation."
+}

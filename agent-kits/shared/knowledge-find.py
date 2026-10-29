@@ -118,6 +118,7 @@ import json
 import os
 import re
 import sqlite3
+import stat
 import sys
 import math
 import time
@@ -801,9 +802,120 @@ def leer_indice(path, h):
         return None, "reconstruido"          # bytes basura, esquema viejo, fichero a medias…
 
 
+# A dead PID alone is insufficient: allow another process time to finish startup.
+TEMPORAL_EDAD_MIN = 3600  # seconds; cleanup happens only on index reconstruction.
+
+
+def _proceso_vivo(pid):
+    """True/live, False/confirmed dead, None/unknown. Never signal a Windows process."""
+    if not 0 < pid < 2**32:
+        return None
+    if pid == os.getpid():
+        return True
+    if os.name == 'nt':
+        try:
+            import ctypes
+            from ctypes import wintypes as wt
+            api = ctypes.WinDLL('kernel32', use_last_error=True)
+            api.OpenProcess.argtypes = [wt.DWORD, wt.BOOL, wt.DWORD]
+            api.OpenProcess.restype = wt.HANDLE
+            api.GetExitCodeProcess.argtypes = [wt.HANDLE, ctypes.POINTER(wt.DWORD)]
+            api.GetExitCodeProcess.restype = wt.BOOL
+            api.CloseHandle.argtypes = [wt.HANDLE]
+            api.CloseHandle.restype = wt.BOOL
+            handle = api.OpenProcess(0x1000, False, pid)  # QUERY_LIMITED_INFORMATION
+            if not handle:
+                return False if ctypes.get_last_error() == 87 else None
+            try:
+                code = wt.DWORD()
+                if not api.GetExitCodeProcess(handle, ctypes.byref(code)):
+                    return None
+                return code.value == 259  # STILL_ACTIVE; ambiguity preserves the files.
+            finally:
+                api.CloseHandle(handle)
+        except (OSError, AttributeError, OverflowError):
+            return None
+    if os.name == 'posix':
+        try:
+            os.kill(pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
+        except OSError:
+            return None
+    return None
+
+
+def _identidad_directorio_indice(directory):
+    """Reject a symlink/junction in the directory path; do not resolve deletion elsewhere."""
+    info = os.lstat(directory)
+    if (not stat.S_ISDIR(info.st_mode) or
+            getattr(info, 'st_file_attributes', 0) & 0x400 or
+            os.path.normcase(os.path.realpath(directory)) != os.path.normcase(directory)):
+        return None
+    return info.st_dev, info.st_ino
+
+
+def _temporal_regular(path):
+    info = os.lstat(path)
+    if not stat.S_ISREG(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
+        return None
+    return info.st_dev, info.st_ino, info.st_mtime_ns
+
+
+def barrer_temporales_indice(path):
+    """Delete only old regular sibling pairs belonging to confirmed dead PIDs. Best effort."""
+    directory = os.path.dirname(os.path.abspath(path))
+    pattern = re.compile(re.escape(os.path.basename(path)) + r'\.([1-9][0-9]{0,9})\.tmp(?:-journal)?\Z')
+    deleted = 0
+    warned = False
+    def warning():
+        nonlocal warned
+        if not warned:
+            print('knowledge-find: limpieza de temporales incompleta', file=sys.stderr)
+            warned = True
+    try:
+        identity = _identidad_directorio_indice(directory)
+        if identity is None:
+            return 0
+        groups = {}
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                match = pattern.fullmatch(entry.name)
+                if match and 0 < int(match[1]) < 2**32:
+                    groups.setdefault(int(match[1]), []).append(entry.path)
+        cutoff = time.time() - TEMPORAL_EDAD_MIN
+        for pid, paths in groups.items():
+            if pid == os.getpid():
+                continue
+            try:
+                snapshots = [_temporal_regular(p) for p in paths]
+                if any(i is None or i[2] / 1e9 > cutoff for i in snapshots):
+                    continue
+                if _proceso_vivo(pid) is not False:
+                    continue
+                # Recheck the complete pair before deleting either sibling.
+                if (identity != _identidad_directorio_indice(directory) or
+                        snapshots != [_temporal_regular(p) for p in paths]):
+                    continue
+                for p in paths:
+                    if identity != _identidad_directorio_indice(directory):
+                        break
+                    os.unlink(p)  # direct child only, no recursive operation
+                    deleted += 1
+            except FileNotFoundError:
+                continue  # a concurrent cleanup won the race
+            except OSError:
+                warning()
+    except OSError:
+        warning()
+    return deleted
+
+
 def construir_indice(path, entradas, h):
     """Escribe el índice ENTERO en un temporal y lo mueve encima (atómico). Lanza OSError/sqlite3.Error."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    barrer_temporales_indice(path)
     tmp = f"{path}.{os.getpid()}.tmp"
     try:
         con = sqlite3.connect(tmp)
@@ -824,10 +936,14 @@ def construir_indice(path, entradas, h):
             con.close()
         os.replace(tmp, path)
     finally:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
+        for temporary in (tmp, tmp + '-journal'):
+            try:
+                if _temporal_regular(temporary) is not None:
+                    os.unlink(temporary)
+            except FileNotFoundError:
+                pass
+            except OSError:
+                print('knowledge-find: limpieza de temporales incompleta', file=sys.stderr)
 
 
 def abrir_corpus(root, usar_indice=True):
