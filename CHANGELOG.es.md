@@ -11,6 +11,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+## [2.1.0] - 2026-10-29
+
 ### Changed — Optimización del plugin, fase 1
 
 - **T-01 — Benchmark de hooks y tokens.** Añade fixtures versionadas, proyectos temporales, calentamiento descartado y fallos estructurados; informa variabilidad y tokens estimados. Difiere imports exclusivos de ejecución en el helper de limpieza.
@@ -1243,6 +1245,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[2.1.0]: https://github.com/daycry/custom-agents/releases/tag/v2.1.0
 [2.0.1]: https://github.com/daycry/custom-agents/releases/tag/v2.0.1
 [2.0.0]: https://github.com/daycry/custom-agents/releases/tag/v2.0.0
 [1.22.0]: https://github.com/daycry/custom-agents/releases/tag/v1.22.0
