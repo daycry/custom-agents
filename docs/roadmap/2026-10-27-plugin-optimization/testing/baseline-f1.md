@@ -156,10 +156,89 @@ El ahorro fijo estimado de 3.233–3.275 tokens se conserva; no es consumo API m
 
 El usuario aprobó el [ajuste de F1](f1-performance-adjustment-proposal.md) el 2026-10-29.
 El 80 % pasa a investigación posterior sujeta a revalidación. T-02 queda completada tras
-la revisión A/B/C/D sin gaps; T-01 estabilidad y las puertas de T-07 siguen abiertas. No se autoriza una release ni se cierra F1.
+la revisión A/B/C/D sin gaps; T-01 queda completada con caracterización autorizada y T-07 sigue abierta. No se autoriza una release ni se cierra F1.
 
 El [diagnóstico de estabilidad](t01-stability-diagnostic-2026-10-29.md) conserva una repetición parcial y el control de arranque, sin aceptarlos como nueva línea base.
 
 Decisión independiente posterior: [opción 2 de T-01 autorizada por delegación](t01-stability-decision-proposal.md). [Verificación de las tres pasadas originales](t01-characterized-baseline-verification-2026-10-29.json): 1.080 muestras, 108 calentamientos, sin aceptar estabilidad uniforme ni usar la repetición parcial.
 
-T-01 completada el 2026-10-29 tras la revisión A de F1. T-06 se reabre durante esa revisión por dos correcciones de prosa/trazabilidad; su prueba real de visibilidad sigue siendo válida. T-07 permanece abierta.
+T-01 completada el 2026-10-29 tras la revisión A de F1. T-06 se reabrió durante esa revisión por dos correcciones de prosa/trazabilidad; su prueba real de visibilidad sigue siendo válida. T-07 permanece abierta.
+
+T-06 completada de nuevo tras resolver A1/A2 en el intento 2 de revisión F1; la revisión de implementación queda cerrada. F1 6/7; T-07 conserva QA/entrega y reabre la revisión para el posterior fix del oráculo de procesos.
+
+## Resumen de mediciones de F1 al 2026-10-29
+
+La pasada después completa ejecuta **36/36 casos**, con **360 muestras y 36 calentamientos descartados**, exit 0 y las ocho fuentes registradas sin cambios. Se recogió bajo carga concurrente de cobertura Linux y diagnósticos dirigidos; **no acredita ahorro global de latencia** frente a la base antigua. La [procedencia](f1-after-hooks-provenance-2026-10-29.json) y las [muestras](f1-after-hooks-2026-10-29.json) declaran esa condición. `linea_base: true` es la etiqueta estructural de pasada completa con calentamiento; no sustituye la base histórica caracterizada.
+
+### Guard: control intercalado separado
+
+Recogido antes, sin otras suites propias en ejecución, con diez muestras y un calentamiento por variante/runtime. El launcher medido conserva su hash actual. Node forma parte de la latencia; no se acredita entrega nativa ni un mínimo del 80 %.
+
+| Runtime | Antes ms | Después ms | Reducción observada % | Node vacío ms |
+|---|---:|---:|---:|---:|
+| claude | 933.702 | 576.891 | 38.21 | 534.269 |
+| codex | 854.110 | 540.547 | 36.71 | 530.264 |
+| opencode | 893.032 | 554.176 | 37.94 | 513.177 |
+
+Fuente: [control y procedencia](t02-paired-control-2026-10-29.json); rangos en [T-02](t02-native-prefilter.md).
+
+### Tokens fijos: estimación por runtime
+
+| Runtime | Base estimada | Después estimado | Ahorro estimado |
+|---|---:|---:|---:|
+| claude | 8752 | 5519 | 3233 |
+| codex | 8745 | 5512 | 3233 |
+| opencode | 8783 | 5508 | 3275 |
+
+Método caracteres/4, no consumo API. [Comando real](t06-tokens-verification-2026-10-29.json).
+
+### Otras garantías funcionales
+
+| Pieza | Resultado verificado | Fuente |
+|---|---|---|
+| Statusline | 1 Python en frío; 0 en caché válida; formato e invalidación conservados | `t05-verification.json` y tests/CI |
+| Captura | Python aislado, redacción y opt-out privado conservados; timeout SessionStart 30 s | `t03-verification.json` |
+| Temporales SQLite | Reconstrucción controlada: 40 archivos antes, 2 retenidos después; archivos recientes y dueños vivos/inciertos conservados | `t04-real-rebuild.json` |
+
+Las medianas históricas de statusline (1.763,356 ms antes; 1.208,365 en frío; 1.110,182 en caché) pertenecen a los hashes de `t05-benchmark.json`. Ese recibo no documenta el orden intercalado y hubo ajustes posteriores de consola: no se usa para atribuir ahorro causal al código actual. La garantía de procesos se verifica aparte. La captura tampoco presenta una mejora temporal aceptada.
+
+### Pasada después por registro/runtime, sin inferencia causal
+
+| Runtime | Registro | Evento | Hook | Mediana ms | p95 ms | Máximo ms |
+|---|---|---|---|---:|---:|---:|
+| claude | PreToolUse:0:0 | PreToolUse | native-guardrail | 664.287 | 692.387 | 702.445 |
+| claude | PostToolUse:0:0 | PostToolUse | mark-docs-pending.sh | 1714.278 | 1984.071 | 2102.322 |
+| claude | PostToolUse:0:1 | PostToolUse | ledger-lint-warn.sh | 1903.845 | 2242.403 | 2379.949 |
+| claude | PostToolUse:0:2 | PostToolUse | progress-line.sh | 2707.512 | 3061.678 | 3114.005 |
+| claude | PostToolUse:1:0 | PostToolUse | agent-activity | 838.88 | 1201.797 | 1257.19 |
+| claude | PostToolUseFailure:0:0 | PostToolUseFailure | agent-activity | 767.51 | 1277.177 | 1293.104 |
+| claude | SubagentStart:0:0 | SubagentStart | agent-activity | 710.654 | 1011.509 | 1160.727 |
+| claude | SubagentStop:0:0 | SubagentStop | agent-activity | 718.508 | 864.135 | 888.828 |
+| claude | SubagentStop:0:1 | SubagentStop | subagent-progress.sh | 2095.32 | 2527.449 | 2675.994 |
+| claude | SessionStart:0:0 | SessionStart | session-context.sh | 4886.039 | 7879.781 | 8051.256 |
+| claude | SessionEnd:0:0 | SessionEnd | session-journal.sh | 1366.429 | 1935.886 | 2087.575 |
+| claude | UserPromptSubmit:0:0 | UserPromptSubmit | user-prompt-capture.sh | 1435.057 | 2484.465 | 2489.984 |
+| codex | PreToolUse:0:0 | PreToolUse | native-guardrail | 881.863 | 1824.806 | 2429.452 |
+| codex | PostToolUse:0:0 | PostToolUse | mark-docs-pending.sh | 3043.328 | 7700.069 | 10657.99 |
+| codex | PostToolUse:0:1 | PostToolUse | ledger-lint-warn.sh | 4818.336 | 8238.975 | 9939.3 |
+| codex | PostToolUse:0:2 | PostToolUse | progress-line.sh | 7848.9 | 14254.783 | 15635.807 |
+| codex | PostToolUse:1:0 | PostToolUse | agent-activity | 1774.294 | 2731.256 | 2814.741 |
+| codex | PostToolUseFailure:0:0 | PostToolUseFailure | agent-activity | 2047.976 | 3179.073 | 3297.716 |
+| codex | SubagentStart:0:0 | SubagentStart | agent-activity | 3021.108 | 4590.472 | 5108.278 |
+| codex | SubagentStop:0:0 | SubagentStop | agent-activity | 3258.282 | 4256.876 | 4318.511 |
+| codex | SubagentStop:0:1 | SubagentStop | subagent-progress.sh | 6700.341 | 7967.226 | 8210.982 |
+| codex | SessionStart:0:0 | SessionStart | session-context.sh | 13855.747 | 16704.488 | 17187.305 |
+| codex | SessionEnd:0:0 | SessionEnd | session-journal.sh | 3208.703 | 5448.466 | 5911.123 |
+| codex | UserPromptSubmit:0:0 | UserPromptSubmit | user-prompt-capture.sh | 2662.207 | 3163.69 | 3205.605 |
+| opencode | PreToolUse:0:0 | PreToolUse | native-guardrail | 1583.21 | 2820.145 | 2994.495 |
+| opencode | PostToolUse:0:0 | PostToolUse | mark-docs-pending.sh | 2948.35 | 3464.532 | 3484.626 |
+| opencode | PostToolUse:0:1 | PostToolUse | ledger-lint-warn.sh | 3005.167 | 3819.842 | 3909.315 |
+| opencode | PostToolUse:0:2 | PostToolUse | progress-line.sh | 3919.364 | 5165.576 | 5750.286 |
+| opencode | PostToolUse:1:0 | PostToolUse | agent-activity | 1004.666 | 1823.04 | 1957.626 |
+| opencode | PostToolUseFailure:0:0 | PostToolUseFailure | agent-activity | 1282.284 | 2475.435 | 2993.688 |
+| opencode | SubagentStart:0:0 | SubagentStart | agent-activity | 883.702 | 1926.778 | 2410.601 |
+| opencode | SubagentStop:0:0 | SubagentStop | agent-activity | 992.11 | 1427.283 | 1437.878 |
+| opencode | SubagentStop:0:1 | SubagentStop | subagent-progress.sh | 2911.362 | 3296.997 | 3397.734 |
+| opencode | SessionStart:0:0 | SessionStart | session-context.sh | 6722.064 | 10089.195 | 11785.363 |
+| opencode | SessionEnd:0:0 | SessionEnd | session-journal.sh | 2251.536 | 5033.681 | 6561.76 |
+| opencode | UserPromptSubmit:0:0 | UserPromptSubmit | user-prompt-capture.sh | 1932.562 | 2865.395 | 2908.975 |

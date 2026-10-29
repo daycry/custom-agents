@@ -11,27 +11,20 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Changed — Optimización del plugin, fase 1
+
+- **T-01 — Benchmark de hooks y tokens.** Añade fixtures versionadas, proyectos temporales, calentamiento descartado y fallos estructurados; informa variabilidad y tokens estimados. Difiere imports exclusivos de ejecución en el helper de limpieza.
+- **T-02 — Prefiltro de la guardia nativa.** Evita Python para identidades exactas no protegidas, manteniendo la evaluación protegida y el fallback conservador. Informa la mejora medida sin un porcentaje mínimo para F1.
+- **T-03 — Arranque y captura de prompts.** Declara timeout de 30 s en SessionStart y usa Python aislado en captura, conservando redacción y opt-outs de privacidad.
+- **T-04 — Temporales SQLite.** Elimina archivos regulares antiguos solo de dueños confirmados muertos, conserva archivos recientes y dueños vivos o inciertos y limpia ambos archivos propios tras reconstruir.
+- **T-05 — Arranque de statusline.** Usa un Python aislado cuando falta caché y ninguno en un acierto válido, manteniendo formato y evitando alias WindowsApps.
+- **T-06 — Catálogo más corto.** Mantiene las 52 descriptions dentro de 600 caracteres, con literales de activación y alcance completo; ahorra más de 3.200 tokens fijos estimados. La skill de desarrollo queda dentro de 200 líneas con su detalle en una referencia.
+
 ### Fixed
 
-- **Mapa de desarrollo del plugin.** Traslada los criterios de selección de piezas a una referencia bajo demanda y mantiene la skill dentro de 200 líneas sin perder instrucciones; registra la verificación exacta del inventario de tokens.
-
-- **Validación de prioridad de actividad.** La fixture de contención anuncia la prioridad antes de la ráfaga, exige las ocho señales y excluye escrituras de herramientas durante la prioridad. Un modelo separado comprueba el anuncio temprano; mantiene el contrato de cerrojo ocupado y los plazos de producción.
-
-- **Coste de CPU del redactor.** Evita analizar comandos en texto sin prefijos de opción, conservando la ocultación de credenciales y la copia portable del journal; mantiene el límite temporal de entradas patológicas. Reintegra la fila final del roadmap en su tabla Markdown.
-
-- **Inventarios de validación F1.** Actualiza el inventario de codificación shell tras trasladar los fragmentos de statusline y renueva la huella del launcher revisado, conservando la detección de red y los controles mutantes.
-
-- **Prefiltro de la guardia nativa.** Evita Python para identidades nativas no protegidas y mantiene la evaluación de identidades protegidas o entradas dudosas. OpenCode actualiza su selección de roles y delega mapas inválidos al diagnóstico existente.
-
-- **Arranque del helper de limpieza.** Difiere los imports de Python exclusivos de ejecución hasta la operación que los necesita, reduciendo la inicialización dentro del plazo de limpieza existente.
-
-- **Aceptación del benchmark de hooks.** Exige calentamiento descartado para aceptar una línea base y añade `--fail-fast` opcional con el recuento de casos ejecutados y previstos.
+- **T-07 — Validación F1 y redacción.** Refuerza las pruebas de prioridad y terminación de procesos, evita análisis de redacción redundantes y actualiza inventarios de validación sin cambiar los plazos de producción.
 
 - **Inventario OpenCode V2.** Lee MCP anidados y estados disabled, agents/commands plurales y las dos formas de skill. Conserva overrides V1 y conflictos entre fuentes, sin inventariar timeouts ni marcar auxiliares como skills incompletas.
-
-### Added
-
-- **Benchmark reproducible de hooks.** Informa de la latencia del launcher compartido por runtime y registro, y estima los tokens fijos y bajo demanda. Las fixtures versionadas, los proyectos temporales, el descarte del calentamiento y los fallos estructurados permiten revisar las comparaciones antes/después (`scripts/bench-hooks.py`).
 
 ## [2.0.1] - 2026-10-27
 

@@ -3,9 +3,53 @@ import assert from 'node:assert/strict'
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync,chmodSync,copyFileSync,symlinkSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join,resolve,delimiter} from 'node:path'
-import {execFileSync} from 'node:child_process'
+import {execFileSync,spawn} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
 import {queryCodexPlugin,runCodexQuery,terminateProcessTree} from '../agent-kits/shared/codex-plugin-state.mjs'
+
+function nativeProcessIsLive(pid) {
+  try {process.kill(pid,0)}
+  catch(error) {if(error.code==='ESRCH')return false;throw error}
+  if(process.platform!=='linux')return true
+  try {
+    const raw=readFileSync(`/proc/${pid}/stat`,'utf8')
+    const state=raw.slice(raw.lastIndexOf(')')+2).split(' ')[0]
+    // A terminal PID can remain visible until its parent reaps it; it cannot run.
+    // Keep stopped, sleeping, running and unknown states observable as survivors.
+    return state!=='Z' && state!=='X'
+  } catch(error) {if(error.code==='ENOENT' || error.code==='ESRCH')return false;throw error}
+}
+
+test('Codex state liveness oracle rejects a surviving process, including a stopped one',()=>{
+  const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'})
+  try {
+    assert.ok(Number.isInteger(child.pid),'fixture must own a real child')
+    assert.equal(nativeProcessIsLive(child.pid),true)
+    if(process.platform==='linux') {
+      process.kill(child.pid,'SIGSTOP')
+      assert.equal(nativeProcessIsLive(child.pid),true,'a stopped child is not terminated')
+    }
+  } finally {try {child.kill('SIGKILL')} catch {}}
+})
+
+test('Codex state liveness oracle recognizes an exited child before it is reaped',{skip:process.platform!=='linux'},()=>{
+  const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'})
+  try {
+    assert.ok(Number.isInteger(child.pid),'fixture must own a real child')
+    process.kill(child.pid,'SIGKILL')
+    const until=Date.now()+5000,wait=new Int32Array(new SharedArrayBuffer(4))
+    let state
+    do {
+      const raw=readFileSync(`/proc/${child.pid}/stat`,'utf8')
+      state=raw.slice(raw.lastIndexOf(')')+2).split(' ')[0]
+      if(state==='Z')break
+      Atomics.wait(wait,0,0,5)
+    } while(Date.now()<until)
+    assert.equal(state,'Z','fixture must create a terminal child while its owner cannot reap yet')
+    assert.doesNotThrow(()=>process.kill(child.pid,0),'terminal PID must still exist for this regression')
+    assert.equal(nativeProcessIsLive(child.pid),false,'an unreaped terminal child cannot survive cleanup')
+  } finally {try {child.kill('SIGKILL')} catch {}}
+})
 
 function fixture() {
   const root=mkdtempSync(join(tmpdir(),'ca-state-owned-')),bin=join(root,'bin')
@@ -82,7 +126,7 @@ test('Codex state: timeout kills non-cooperative native process and descendants 
     assert.ok(Date.now()-began<9500,'query waited for non-cooperative process after its deadline')
     assert.ok(existsSync(pidFile),'fixture must start its descendant before the deadline')
     const pid=Number(readFileSync(pidFile,'utf8'))
-    assert.throws(()=>process.kill(pid,0),'native descendant survived query timeout cleanup')
+    assert.equal(nativeProcessIsLive(pid),false,'native descendant survived query timeout cleanup')
   } finally {
     for(const file of [pidFile,parentFile]) if(existsSync(file)) {
       try {process.kill(Number(readFileSync(file,'utf8')),'SIGKILL')} catch {}

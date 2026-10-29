@@ -1,0 +1,898 @@
+{
+  "schema_version": 1,
+  "fecha": "2026-10-29T12:30:02.167558+00:00",
+  "runs": 10,
+  "warmup": 1,
+  "maquina": {
+    "sistema": "Windows",
+    "version": "11",
+    "python": "3.13.0",
+    "ram_libre_bytes": 6813888512,
+    "repositorio_en_onedrive": true
+  },
+  "estado": "OK",
+  "hooks": [
+    {
+      "evento": "PreToolUse",
+      "hook": "native-guardrail",
+      "registro": "PreToolUse:0:0",
+      "async": false,
+      "runtime": "claude",
+      "estado": "OK",
+      "muestras_ms": [
+        535.662,
+        594.733,
+        665.556,
+        702.445,
+        663.017,
+        665.881,
+        609.174,
+        678.522,
+        680.094,
+        627.325
+      ],
+      "mediana_ms": 664.287,
+      "p95_ms": 692.387,
+      "max_ms": 702.445
+    },
+    {
+      "evento": "PostToolUse",
+      "hook": "mark-docs-pending.sh",
+      "registro": "PostToolUse:0:0",
+      "async": false,
+      "runtime": "claude",
+      "estado": "OK",
+      "muestras_ms": [
+        1588.645,
+        1830.719,
+        1591.241,
+        2102.322,
+        1839.543,
+        1839.127,
+        1764.546,
+        1664.01,
+        1660.823,
+        1653.879
+      ],
+      "mediana_ms": 1714.278,
+      "p95_ms": 1984.071,
+      "max_ms": 2102.322
+    },
+    {
+      "evento": "PostToolUse",
+      "hook": "ledger-lint-warn.sh",
+      "registro": "PostToolUse:0:1",
+      "async": false,
+      "runtime": "claude",
+      "estado": "OK",
+      "muestras_ms": [
+        1853.91,
+        2379.949,
+        1890.448,
+        1917.241,
+        1808.237,
+        1872.964,
+        2010.638,
+        1754.166,
+        1938.117,
+        2074.291
+      ],
+      "mediana_ms": 1903.845,
+      "p95_ms": 2242.403,
+      "max_ms": 2379.949
+    },
+    {
+      "evento": "PostToolUse",
+      "hook": "progress-line.sh",
+      "registro": "PostToolUse:0:2",
+      "async": false,
+      "runtime": "claude",
+      "estado": "OK",
+      "muestras_ms": [
+        2802.519,
+        2967.552,
+        2509.683,
+        2997.723,
+        2728.57,
+        2532.265,
+        2566.53,
+        3114.005,
+        2488.534,
+        2686.453
+      ],
+      "mediana_ms": 2707.512,
+      "p95_ms": 3061.678,
+      "max_ms": 3114.005
+    },
+    {
+      "evento": "PostToolUse",
+      "hook": "agent-activity",
+      "registro": "PostToolUse:1:0",
+      "async": true,
+      "runtime": "claude",
+      "estado": "OK",
+      "muestras_ms": [
+        693.934,
+        818.008,
+        1257.19,
+        717.388,
+        787.042,
+        1134.095,
+        1005.894,
+        830.119,
+        866.489,
+        847.641
+      ],
+      "mediana_ms": 838.88,
+      "p95_ms": 1201.797,
+      "max_ms": 1257.19
+    },
+    {
+      "evento": "PostToolUseFailure",
+      "hook": "agent-activity",
+      "registro": "PostToolUseFailure:0:0",
+      "async": true,
+      "runtime": "claude",
+      "estado": "OK",
+      "muestras_ms": [
+        760.572,
+        774.448,
+        1138.199,
+        630.374,
+        704.284,
+        651.628,
+        1108.165,
+        1293.104,
+        1257.71,
+        726.648
+      ],
+      "mediana_ms": 767.51,
+      "p95_ms": 1277.177,
+      "max_ms": 1293.104
+    },
+    {
+      "evento": "SubagentStart",
+      "hook": "agent-activity",
+      "registro": "SubagentStart:0:0",
+      "async": false,
+      "runtime": "claude",
+      "estado": "OK",
+      "muestras_ms": [
+        665.783,
+        712.596,
+        1160.727,
+        682.603,
+        829.131,
+        698.613,
+        758.415,
+        741.406,
+        675.328,
+        708.713
+      ],
+      "mediana_ms": 710.654,
+      "p95_ms": 1011.509,
+      "max_ms": 1160.727
+    },
+    {
+      "evento": "SubagentStop",
+      "hook": "agent-activity",
+      "registro": "SubagentStop:0:0",
+      "async": false,
+      "runtime": "claude",
+      "estado": "OK",
+      "muestras_ms": [
+        592.862,
+        694.236,
+        698.974,
+        747.652,
+        888.828,
+        685.248,
+        833.954,
+        738.041,
+        697.894,
+        816.656
+      ],
+      "mediana_ms": 718.508,
+      "p95_ms": 864.135,
+      "max_ms": 888.828
+    },
+    {
+      "evento": "SubagentStop",
+      "hook": "subagent-progress.sh",
+      "registro": "SubagentStop:0:1",
+      "async": false,
+      "runtime": "claude",
+      "estado": "OK",
+      "muestras_ms": [
+        1822.211,
+        2193.962,
+        1956.948,
+        2345.894,
+        2675.994,
+        2127.837,
+        2103.264,
+        1981.847,
+        2087.376,
+        1831.231
+      ],
+      "mediana_ms": 2095.32,
+      "p95_ms": 2527.449,
+      "max_ms": 2675.994
+    },
+    {
+      "evento": "SessionStart",
+      "hook": "session-context.sh",
+      "registro": "SessionStart:0:0",
+      "async": false,
+      "runtime": "claude",
+      "estado": "OK",
+      "muestras_ms": [
+        5069.788,
+        4398.417,
+        4122.957,
+        4218.077,
+        4395.585,
+        7670.201,
+        8051.256,
+        5617.901,
+        5893.169,
+        4702.291
+      ],
+      "mediana_ms": 4886.039,
+      "p95_ms": 7879.781,
+      "max_ms": 8051.256
+    },
+    {
+      "evento": "SessionEnd",
+      "hook": "session-journal.sh",
+      "registro": "SessionEnd:0:0",
+      "async": false,
+      "runtime": "claude",
+      "estado": "OK",
+      "muestras_ms": [
+        1175.603,
+        1407.462,
+        1325.397,
+        1145.869,
+        1026.565,
+        1750.488,
+        2087.575,
+        1417.892,
+        1588.711,
+        1110.929
+      ],
+      "mediana_ms": 1366.429,
+      "p95_ms": 1935.886,
+      "max_ms": 2087.575
+    },
+    {
+      "evento": "UserPromptSubmit",
+      "hook": "user-prompt-capture.sh",
+      "registro": "UserPromptSubmit:0:0",
+      "async": false,
+      "runtime": "claude",
+      "estado": "OK",
+      "muestras_ms": [
+        1256.832,
+        2477.719,
+        1337.984,
+        1232.538,
+        1448.752,
+        1421.362,
+        1220.396,
+        2489.984,
+        1596.365,
+        2142.389
+      ],
+      "mediana_ms": 1435.057,
+      "p95_ms": 2484.465,
+      "max_ms": 2489.984
+    },
+    {
+      "evento": "PreToolUse",
+      "hook": "native-guardrail",
+      "registro": "PreToolUse:0:0",
+      "async": false,
+      "runtime": "codex",
+      "estado": "OK",
+      "muestras_ms": [
+        1085.795,
+        831.207,
+        2429.452,
+        1021.492,
+        880.184,
+        831.16,
+        936.172,
+        827.673,
+        883.542,
+        854.443
+      ],
+      "mediana_ms": 881.863,
+      "p95_ms": 1824.806,
+      "max_ms": 2429.452
+    },
+    {
+      "evento": "PostToolUse",
+      "hook": "mark-docs-pending.sh",
+      "registro": "PostToolUse:0:0",
+      "async": false,
+      "runtime": "codex",
+      "estado": "OK",
+      "muestras_ms": [
+        2723.343,
+        2619.932,
+        2621.953,
+        4084.832,
+        2933.008,
+        1991.576,
+        3153.649,
+        3185.429,
+        4051.441,
+        10657.99
+      ],
+      "mediana_ms": 3043.328,
+      "p95_ms": 7700.069,
+      "max_ms": 10657.99
+    },
+    {
+      "evento": "PostToolUse",
+      "hook": "ledger-lint-warn.sh",
+      "registro": "PostToolUse:0:1",
+      "async": false,
+      "runtime": "codex",
+      "estado": "OK",
+      "muestras_ms": [
+        4160.782,
+        4723.273,
+        3452.807,
+        6160.801,
+        4497.684,
+        4913.399,
+        3924.744,
+        5950.991,
+        9939.3,
+        5478.545
+      ],
+      "mediana_ms": 4818.336,
+      "p95_ms": 8238.975,
+      "max_ms": 9939.3
+    },
+    {
+      "evento": "PostToolUse",
+      "hook": "progress-line.sh",
+      "registro": "PostToolUse:0:2",
+      "async": false,
+      "runtime": "codex",
+      "estado": "OK",
+      "muestras_ms": [
+        8131.201,
+        12566.864,
+        12312.295,
+        11310.512,
+        5313.557,
+        6363.817,
+        5463.15,
+        7566.6,
+        15635.807,
+        6522.105
+      ],
+      "mediana_ms": 7848.9,
+      "p95_ms": 14254.783,
+      "max_ms": 15635.807
+    },
+    {
+      "evento": "PostToolUse",
+      "hook": "agent-activity",
+      "registro": "PostToolUse:1:0",
+      "async": true,
+      "runtime": "codex",
+      "estado": "OK",
+      "muestras_ms": [
+        1712.708,
+        1506.492,
+        2629.219,
+        1150.899,
+        1976.158,
+        1476.63,
+        1201.816,
+        1835.881,
+        2814.741,
+        2556.487
+      ],
+      "mediana_ms": 1774.294,
+      "p95_ms": 2731.256,
+      "max_ms": 2814.741
+    },
+    {
+      "evento": "PostToolUseFailure",
+      "hook": "agent-activity",
+      "registro": "PostToolUseFailure:0:0",
+      "async": true,
+      "runtime": "codex",
+      "estado": "OK",
+      "muestras_ms": [
+        2739.406,
+        2069.975,
+        3034.064,
+        1760.836,
+        1848.842,
+        2025.977,
+        3297.716,
+        2755.449,
+        1466.835,
+        1673.789
+      ],
+      "mediana_ms": 2047.976,
+      "p95_ms": 3179.073,
+      "max_ms": 3297.716
+    },
+    {
+      "evento": "SubagentStart",
+      "hook": "agent-activity",
+      "registro": "SubagentStart:0:0",
+      "async": false,
+      "runtime": "codex",
+      "estado": "OK",
+      "muestras_ms": [
+        2817.666,
+        2348.626,
+        1220.335,
+        1516.167,
+        1436.503,
+        5108.278,
+        3957.598,
+        3854.45,
+        3224.55,
+        3928.508
+      ],
+      "mediana_ms": 3021.108,
+      "p95_ms": 4590.472,
+      "max_ms": 5108.278
+    },
+    {
+      "evento": "SubagentStop",
+      "hook": "agent-activity",
+      "registro": "SubagentStop:0:0",
+      "async": false,
+      "runtime": "codex",
+      "estado": "OK",
+      "muestras_ms": [
+        2740.211,
+        2384.824,
+        3250.432,
+        3153.314,
+        4181.545,
+        3266.133,
+        4318.511,
+        3419.616,
+        2938.805,
+        3608.484
+      ],
+      "mediana_ms": 3258.282,
+      "p95_ms": 4256.876,
+      "max_ms": 4318.511
+    },
+    {
+      "evento": "SubagentStop",
+      "hook": "subagent-progress.sh",
+      "registro": "SubagentStop:0:1",
+      "async": false,
+      "runtime": "codex",
+      "estado": "OK",
+      "muestras_ms": [
+        8210.982,
+        7669.303,
+        5449.939,
+        5107.958,
+        6285.232,
+        5238.117,
+        7115.449,
+        6101.522,
+        7384.577,
+        7119.604
+      ],
+      "mediana_ms": 6700.341,
+      "p95_ms": 7967.226,
+      "max_ms": 8210.982
+    },
+    {
+      "evento": "SessionStart",
+      "hook": "session-context.sh",
+      "registro": "SessionStart:0:0",
+      "async": false,
+      "runtime": "codex",
+      "estado": "OK",
+      "muestras_ms": [
+        12129.86,
+        12699.427,
+        17187.305,
+        12286.03,
+        16114.379,
+        14007.515,
+        14455.271,
+        14213.781,
+        13703.979,
+        13165.705
+      ],
+      "mediana_ms": 13855.747,
+      "p95_ms": 16704.488,
+      "max_ms": 17187.305
+    },
+    {
+      "evento": "SessionEnd",
+      "hook": "session-journal.sh",
+      "registro": "SessionEnd:0:0",
+      "async": false,
+      "runtime": "codex",
+      "estado": "OK",
+      "muestras_ms": [
+        3959.43,
+        5911.123,
+        3351.103,
+        3248.687,
+        3168.719,
+        1733.881,
+        2194.007,
+        3093.985,
+        4882.996,
+        2229.189
+      ],
+      "mediana_ms": 3208.703,
+      "p95_ms": 5448.466,
+      "max_ms": 5911.123
+    },
+    {
+      "evento": "UserPromptSubmit",
+      "hook": "user-prompt-capture.sh",
+      "registro": "UserPromptSubmit:0:0",
+      "async": false,
+      "runtime": "codex",
+      "estado": "OK",
+      "muestras_ms": [
+        2589.275,
+        3112.461,
+        2706.545,
+        3205.605,
+        2566.958,
+        2617.87,
+        2823.215,
+        2317.148,
+        2917.306,
+        2564.454
+      ],
+      "mediana_ms": 2662.207,
+      "p95_ms": 3163.69,
+      "max_ms": 3205.605
+    },
+    {
+      "evento": "PreToolUse",
+      "hook": "native-guardrail",
+      "registro": "PreToolUse:0:0",
+      "async": false,
+      "runtime": "opencode",
+      "estado": "OK",
+      "muestras_ms": [
+        1266.708,
+        2607.051,
+        1596.314,
+        2994.495,
+        1329.479,
+        1141.143,
+        1570.106,
+        1710.329,
+        1480.678,
+        1931.787
+      ],
+      "mediana_ms": 1583.21,
+      "p95_ms": 2820.145,
+      "max_ms": 2994.495
+    },
+    {
+      "evento": "PostToolUse",
+      "hook": "mark-docs-pending.sh",
+      "registro": "PostToolUse:0:0",
+      "async": false,
+      "runtime": "opencode",
+      "estado": "OK",
+      "muestras_ms": [
+        3017.323,
+        3286.761,
+        2588.517,
+        3439.972,
+        2887.055,
+        2658.819,
+        2918.503,
+        2978.197,
+        3484.626,
+        2857.914
+      ],
+      "mediana_ms": 2948.35,
+      "p95_ms": 3464.532,
+      "max_ms": 3484.626
+    },
+    {
+      "evento": "PostToolUse",
+      "hook": "ledger-lint-warn.sh",
+      "registro": "PostToolUse:0:1",
+      "async": false,
+      "runtime": "opencode",
+      "estado": "OK",
+      "muestras_ms": [
+        3325.623,
+        2930.365,
+        2863.878,
+        3710.486,
+        2891.33,
+        2859.605,
+        3664.7,
+        2510.097,
+        3079.97,
+        3909.315
+      ],
+      "mediana_ms": 3005.167,
+      "p95_ms": 3819.842,
+      "max_ms": 3909.315
+    },
+    {
+      "evento": "PostToolUse",
+      "hook": "progress-line.sh",
+      "registro": "PostToolUse:0:2",
+      "async": false,
+      "runtime": "opencode",
+      "estado": "OK",
+      "muestras_ms": [
+        5750.286,
+        3447.157,
+        3951.256,
+        4450.93,
+        3704.621,
+        4169.305,
+        4052.67,
+        3887.473,
+        2858.47,
+        3415.162
+      ],
+      "mediana_ms": 3919.364,
+      "p95_ms": 5165.576,
+      "max_ms": 5750.286
+    },
+    {
+      "evento": "PostToolUse",
+      "hook": "agent-activity",
+      "registro": "PostToolUse:1:0",
+      "async": true,
+      "runtime": "opencode",
+      "estado": "OK",
+      "muestras_ms": [
+        1445.413,
+        828.851,
+        785.239,
+        747.941,
+        870.217,
+        1116.051,
+        1957.626,
+        1010.15,
+        999.181,
+        1658.547
+      ],
+      "mediana_ms": 1004.666,
+      "p95_ms": 1823.04,
+      "max_ms": 1957.626
+    },
+    {
+      "evento": "PostToolUseFailure",
+      "hook": "agent-activity",
+      "registro": "PostToolUseFailure:0:0",
+      "async": true,
+      "runtime": "opencode",
+      "estado": "OK",
+      "muestras_ms": [
+        1072.592,
+        936.141,
+        1507.759,
+        1842.014,
+        1314.145,
+        2993.688,
+        1250.424,
+        1130.063,
+        1101.509,
+        1588.806
+      ],
+      "mediana_ms": 1282.284,
+      "p95_ms": 2475.435,
+      "max_ms": 2993.688
+    },
+    {
+      "evento": "SubagentStart",
+      "hook": "agent-activity",
+      "registro": "SubagentStart:0:0",
+      "async": false,
+      "runtime": "opencode",
+      "estado": "OK",
+      "muestras_ms": [
+        914.102,
+        2410.601,
+        853.301,
+        741.551,
+        771.328,
+        822.067,
+        1335.439,
+        959.918,
+        810.111,
+        934.46
+      ],
+      "mediana_ms": 883.702,
+      "p95_ms": 1926.778,
+      "max_ms": 2410.601
+    },
+    {
+      "evento": "SubagentStop",
+      "hook": "agent-activity",
+      "registro": "SubagentStop:0:0",
+      "async": false,
+      "runtime": "opencode",
+      "estado": "OK",
+      "muestras_ms": [
+        743.822,
+        892.897,
+        986.361,
+        909.514,
+        1191.496,
+        1414.333,
+        997.858,
+        758.609,
+        1437.878,
+        1406.348
+      ],
+      "mediana_ms": 992.11,
+      "p95_ms": 1427.283,
+      "max_ms": 1437.878
+    },
+    {
+      "evento": "SubagentStop",
+      "hook": "subagent-progress.sh",
+      "registro": "SubagentStop:0:1",
+      "async": false,
+      "runtime": "opencode",
+      "estado": "OK",
+      "muestras_ms": [
+        2889.292,
+        3173.873,
+        2456.694,
+        2933.432,
+        2533.436,
+        2841.027,
+        2953.319,
+        3397.734,
+        3108.192,
+        2279.355
+      ],
+      "mediana_ms": 2911.362,
+      "p95_ms": 3296.997,
+      "max_ms": 3397.734
+    },
+    {
+      "evento": "SessionStart",
+      "hook": "session-context.sh",
+      "registro": "SessionStart:0:0",
+      "async": false,
+      "runtime": "opencode",
+      "estado": "OK",
+      "muestras_ms": [
+        5539.572,
+        5144.412,
+        5176.961,
+        5674.021,
+        6382.601,
+        7061.527,
+        7770.946,
+        11785.363,
+        8016.101,
+        7514.17
+      ],
+      "mediana_ms": 6722.064,
+      "p95_ms": 10089.195,
+      "max_ms": 11785.363
+    },
+    {
+      "evento": "SessionEnd",
+      "hook": "session-journal.sh",
+      "registro": "SessionEnd:0:0",
+      "async": false,
+      "runtime": "opencode",
+      "estado": "OK",
+      "muestras_ms": [
+        6561.76,
+        3098.284,
+        3166.029,
+        2202.341,
+        1493.917,
+        2230.944,
+        2374.615,
+        1588.326,
+        2272.128,
+        1764.808
+      ],
+      "mediana_ms": 2251.536,
+      "p95_ms": 5033.681,
+      "max_ms": 6561.76
+    },
+    {
+      "evento": "UserPromptSubmit",
+      "hook": "user-prompt-capture.sh",
+      "registro": "UserPromptSubmit:0:0",
+      "async": false,
+      "runtime": "opencode",
+      "estado": "OK",
+      "muestras_ms": [
+        2812.131,
+        2908.975,
+        1600.518,
+        1780.426,
+        2605.326,
+        2132.228,
+        1530.701,
+        1456.785,
+        1361.009,
+        2084.699
+      ],
+      "mediana_ms": 1932.562,
+      "p95_ms": 2865.395,
+      "max_ms": 2908.975
+    }
+  ],
+  "linea_base": true,
+  "casos_previstos": 36,
+  "casos_ejecutados": 36,
+  "tokens_fijos": {
+    "metodo": "estimación caracteres/4, redondeo superior; no es un tokenizador ni consumo real",
+    "descriptions": {
+      "caracteres": 18693,
+      "tokens_estimados": 4674,
+      "piezas": 52,
+      "por_tipo": {
+        "command": {
+          "caracteres": 4518,
+          "tokens_estimados": 1130
+        },
+        "skill": {
+          "caracteres": 9954,
+          "tokens_estimados": 2489
+        },
+        "agent": {
+          "caracteres": 4221,
+          "tokens_estimados": 1056
+        }
+      }
+    },
+    "indice_por_runtime": {
+      "claude": {
+        "caracteres": 3380,
+        "tokens_estimados": 845
+      },
+      "codex": {
+        "caracteres": 3351,
+        "tokens_estimados": 838
+      },
+      "opencode": {
+        "caracteres": 3333,
+        "tokens_estimados": 834
+      }
+    },
+    "por_runtime": {
+      "claude": 5519,
+      "codex": 5512,
+      "opencode": 5508
+    }
+  },
+  "tokens_bajo_demanda": {
+    "commands/dev-cycle.md": {
+      "caracteres": 53732,
+      "tokens_estimados": 13433
+    },
+    "agent-kits/shared/knowledge-check.md": {
+      "caracteres": 9133,
+      "tokens_estimados": 2284
+    }
+  }
+}

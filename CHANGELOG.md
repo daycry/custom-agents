@@ -11,35 +11,20 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Changed — Plugin optimization, phase 1
+
+- **T-01 — Hook and token benchmark.** Adds versioned fixtures, disposable projects, discarded warmup and structured failures; reports latency variability and estimated tokens. Defers execution-only imports in the cleanup helper.
+- **T-02 — Native guard prefilter.** Avoids Python for exact unprotected identities while retaining protected evaluation and conservative fallback. Reports the measured improvement without a minimum percentage for F1.
+- **T-03 — Startup and prompt capture.** Declares a 30 s SessionStart timeout and uses isolated Python for capture, preserving redaction and privacy opt-outs.
+- **T-04 — SQLite temporaries.** Removes old regular files only for confirmed dead owners, keeps recent files and live or uncertain owners, and cleans both owned files after rebuilds.
+- **T-05 — Statusline startup.** Uses one isolated Python on a cache miss and none on a valid hit, preserving formatting and avoiding WindowsApps aliases.
+- **T-06 — Smaller catalog.** Keeps all 52 descriptions within 600 characters and preserves activation literals and full scope; saves over 3,200 estimated fixed tokens. The development skill stays within 200 lines with its detail in a reference.
+
 ### Fixed
 
-- **Plugin development map.** Moves piece selection criteria to an on-demand reference, keeping the skill within 200 lines without losing guidance; records the exact tokens-only catalog verification.
-
-- **Activity priority validation.** Makes the sustained-contention fixture announce priority before the burst, checks all eight lifecycle signals and excludes tool writes during priority. A separate model checks early announcement; the occupied-lock failure contract and runtime deadlines are unchanged.
-
-- **Redaction CPU cost.** Skips command analysis for text without option prefixes, preserving credential masking and the portable journal copy; the pathological-input timing limit remains unchanged. Restores the final roadmap row inside its Markdown table.
-
-- **F1 validation inventories.** Updates the shell encoding inventory after moving statusline snippets and refreshes the reviewed launcher fingerprint while retaining network detection and mutation checks.
-
-- **Smaller catalog descriptions.** All 52 descriptions fit within 600 characters; 25 move their full scope into bodies or references, retain activation literals and reduce the declared fixed-token estimate by over 3,200 per session.
-
-- **Statusline startup.** Uses one isolated Python on a cache miss and none for identical input and unchanged ledgers, preserves formatting and selects valid interpreters without WindowsApps aliases.
-
-- **Knowledge index temporary cleanup.** Removes old SQLite temporary files and journals only for confirmed dead PIDs, preserves recent or uncertain owners, and cleans both owned files after a rebuild.
-
-- **Startup timeout and isolated prompt capture.** Declares a 30 s SessionStart timeout and runs prompt capture with `-I -S`, preserving redaction and privacy opt-outs.
-
-- **Native guard prefilter.** Skips Python for exact unprotected native identities, retaining evaluation for protected or uncertain inputs. OpenCode refreshes role selection and forwards invalid maps to the existing diagnostic.
-
-- **Cleanup helper startup.** Defers business-only Python imports until the operation that needs them, reducing initialization work within the existing cleanup deadline.
-
-- **Hook benchmark acceptance.** Requires discarded warmup before accepting a baseline and adds optional `--fail-fast` with explicit executed/expected case counts.
+- **T-07 — F1 validation and redaction.** Strengthens priority and process-termination tests, skips redundant redaction scans, and aligns validation inventories while preserving runtime deadlines.
 
 - **OpenCode V2 discovery.** Reads nested MCP servers and declared disabled states, plural agents/commands, and both supported skill forms. Preserves V1 overrides and mixed-source conflicts while excluding timeout options and auxiliary skill folders from the inventory.
-
-### Added
-
-- **Reproducible hook benchmark.** Reports shared-launcher latency by runtime and registration, plus explicitly estimated fixed and on-demand tokens. Versioned fixtures, disposable projects, warmup exclusion and structured failures make before/after comparisons reviewable (`scripts/bench-hooks.py`).
 
 ## [2.0.1] - 2026-10-27
 

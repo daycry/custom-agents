@@ -1,6 +1,8 @@
 # T-01: diagnóstico de estabilidad del 2026-10-29
 
-**Estado: abierto. No se acepta una nueva línea base.**
+**Diagnóstico previo a la decisión de T-01: abierto en aquel momento. La repetición parcial no se acepta como línea base.**
+
+La decisión posterior acepta las tres pasadas originales como base caracterizada, no esta repetición parcial; véase [la autorización independiente](t01-stability-decision-proposal.md).
 
 Se reconstruye el código previo a F1 con `git archive bae4e46` y el benchmark/supervisor de `dc18d94`. Las ocho huellas de fuente registradas en la procedencia original coinciden al permitir LF/CRLF. Otros estados históricos del entorno no se pueden reconstruir. La preparación inicial de esta copia queda fuera de las medidas de hooks.
 

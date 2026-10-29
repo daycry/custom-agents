@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-29",
+  "canonical_ledger": "docs/roadmap/2026-10-27-plugin-optimization/tasks.md",
+  "closed_tasks": [
+    "T-01",
+    "T-02",
+    "T-03",
+    "T-04",
+    "T-05",
+    "T-06"
+  ],
+  "initiative_closed": false,
+  "method": "Unmodified changelog-sync tareas()/bullets() over completed F1 records. CLI --check returned0; full-initiative generation not invoked for the open26-task ledger. Notes edited/translated from this projection; no completed F2/F3 work claimed.",
+  "paths": {
+    "changelog": 6
+  },
+  "warnings": [],
+  "rendered_bullets_es": [
+    "- **T-01 — C-00 — Benchmark reproducible de hooks y tokens (línea base de esta máquina)** Benchmark de hooks y tokens con fixtures, calentamiento y fallos estructurados; informa variabilidad. El helper de cierre difiere imports exclusivos de ejecución.",
+    "- **T-02 — C-02 — Prefiltro del guard nativo en node** Prefiltro nativo de identidades exactas para evitar Python en sesiones sin rol protegido, con retorno al evaluador ante dudas.",
+    "- **T-03 — C-04 — Timeout de SessionStart y captura de prompt con arranque aislado** SessionStart declara 30 s y la captura de prompts usa Python aislado, conservando redacción y opt-outs.",
+    "- **T-04 — C-05 — Temporales sqlite huérfanos de `knowledge-find.py`** La reconstrucción del índice elimina temporales y journals antiguos de procesos confirmados muertos y limpia los propios incluso al fallar. (`agent-kits/shared/knowledge-find.py`, `tests/test_knowledge_find.py`, `agent-kits/shared/test_knowledge_index_canonico.py`)",
+    "- **T-05 — C-03 — Statusline con una sola llamada Python y caché por mtime** El statusline conserva su formato con un solo Python aislado, sirve caché sin Python y evita alias de WindowsApps.",
+    "- **T-06 — C-01 — Descriptions ≤ 600 caracteres conservando los literales de evals** Descriptions de agentes, skills y comandos por debajo de 600 caracteres con alcance completo conservado en sus cuerpos y disparadores validados."
+  ],
+  "input_fields_sha256": "c2cd40b18ae07ec15a3784d38c4b08f055fddc7b814b232e854369760b760b43"
+}
