@@ -144,7 +144,7 @@ def test_resume_and_session_expose_reminders_without_consuming_or_approving(owne
     text = o.progress.resume_text(result)
     assert r['review_id'] in text and 'pendiente' in text
     assert 'no acredita aprobación' in text
-    monkeypatch.setattr(o.progress, 'marcadores_huerfanos', lambda root: [])
+    monkeypatch.setattr(o.progress, 'marcadores_huerfanos', lambda root, *, in_process=False: [])
     assert o.progress.cmd_session(SimpleNamespace(root=str(o.root))) == 0
     assert r['review_id'] in capsys.readouterr().out
     assert snapshot(o.root) == before
@@ -204,7 +204,7 @@ def test_current_review_precedes_stale_records_and_session_declares_omissions(ow
     result = listing(o)
     assert result['reviews'][0]['review_id'] == current['review_id']
     assert result['reviews'][1]['version_status'] == 'version_changed'
-    monkeypatch.setattr(o.progress, 'marcadores_huerfanos', lambda root: [])
+    monkeypatch.setattr(o.progress, 'marcadores_huerfanos', lambda root, *, in_process=False: [])
     o.progress.cmd_session(SimpleNamespace(root=str(o.root)))
     text = capsys.readouterr().out
     assert current['review_id'] in text and 'detalles omitidos' in text
@@ -234,7 +234,7 @@ def test_session_partial_reader_reports_limit_and_keeps_progress(owned, monkeypa
             raise ImportError('private reader')
         return original(name, filename)
     monkeypatch.setattr(o.progress, '_load_module', partial)
-    monkeypatch.setattr(o.progress, 'marcadores_huerfanos', lambda root: [])
+    monkeypatch.setattr(o.progress, 'marcadores_huerfanos', lambda root, *, in_process=False: [])
     before = snapshot(o.root)
     assert o.progress.cmd_session(SimpleNamespace(root=str(o.root))) == 0
     text = capsys.readouterr().out

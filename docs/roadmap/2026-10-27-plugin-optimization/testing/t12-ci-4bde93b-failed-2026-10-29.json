@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "run_id": 40914558770,
+  "url": "https://github.com/daycry/custom-agents/actions/runs/40914558770",
+  "head_sha": "4bde93b3e2c2d5bc31153faeda393c5a97971819",
+  "conclusion": "failure",
+  "python": {
+    "failed": 3,
+    "passed": 9731,
+    "skipped": 38,
+    "subtests_passed": 82,
+    "seconds": 662.31
+  },
+  "cause": "Three review-resume test doubles still accepted only root, while the real marker-query API now also accepts keyword-only in_process=False. Their TypeError occurred before existing reminder/consumption assertions.",
+  "local_red": {
+    "command": "python -m pytest -q agent-kits/shared/test_review_resume.py -k \"test_resume_and_session_expose_reminders_without_consuming_or_approving or test_current_review_precedes_stale_records_and_session_declares_omissions or test_session_partial_reader_reports_limit_and_keeps_progress\"",
+    "failed": 3,
+    "deselected": 15,
+    "seconds": 1.04
+  },
+  "fix": "Update only the three doubles to the real explicit keyword-only signature; no assertions or production code changed.",
+  "local_green": {
+    "command": "python -m pytest -q agent-kits/shared/test_review_resume.py",
+    "passed": 18,
+    "failed": 0,
+    "seconds": 5.23
+  },
+  "production_source": "unchanged from 4bde93b; performance/source attestations unchanged",
+  "log_sha256": "026e9ae24fbc43b9b4e7142ce4474733003cd1c13832a9432bf11951958a7271",
+  "followup_ci": "pending"
+}
