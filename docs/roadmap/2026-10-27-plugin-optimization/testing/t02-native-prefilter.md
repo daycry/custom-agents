@@ -1,6 +1,6 @@
-# T-02: prefiltro funcional y medición aceptados; revisión pendiente
+# T-02: prefiltro y medición aceptados; revisión completada
 
-Estado: **en-progreso por revisión de seguridad pendiente**. Cero Python en identidades no protegidas está verificado. CA-01, ajustado con aprobación del usuario el 2026-10-29, exige esa garantía y la comparación versionada transparente, sin mínimo porcentual en F1. El 80 % no se ha alcanzado y queda como objetivo de investigación posterior.
+Estado: **completado el 2026-10-29** tras revisión A/B/C/D sin gaps; [traza del intento 3](t02-review-attempt-3-2026-10-29.json). Cero Python en identidades no protegidas está verificado. CA-01, ajustado con aprobación del usuario el 2026-10-29, exige esa garantía y la comparación versionada transparente, sin mínimo porcentual en F1. El 80 % no se ha alcanzado y queda como objetivo de investigación posterior.
 
 ## Control intercalado válido del 2026-10-29
 
@@ -17,7 +17,7 @@ simultáneas y sin fallos. Ambas variantes usan los mismos supervisor, mapa y fi
 no la entrega nativa. Node vacío es un control observado, no un mínimo universal.
 El [ajuste aprobado](f1-performance-adjustment-proposal.md) elimina el mínimo porcentual de F1.
 El recibo incluye las muestras y su dispersión; se conservan todos los fallos históricos.
-Esta decisión no acredita la estabilidad general de T-01 ni cierra la revisión de T-02.
+Esta decisión no acredita la estabilidad general de T-01. La revisión de T-02 se cierra con el intento 3; T-07 conserva la revisión y QA de la fase completa.
 
 ## Dispersión del control válido
 

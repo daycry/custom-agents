@@ -155,5 +155,7 @@ registra descripción para las 27 skills (26 textos fuente y el comando homónim
 El ahorro fijo estimado de 3.233–3.275 tokens se conserva; no es consumo API medido.
 
 El usuario aprobó el [ajuste de F1](f1-performance-adjustment-proposal.md) el 2026-10-29.
-El 80 % pasa a investigación posterior sujeta a revalidación; T-01 estabilidad, la revisión
-de T-02 y las puertas de T-07 siguen abiertas. No se autoriza una release ni se cierra F1.
+El 80 % pasa a investigación posterior sujeta a revalidación. T-02 queda completada tras
+la revisión A/B/C/D sin gaps; T-01 estabilidad y las puertas de T-07 siguen abiertas. No se autoriza una release ni se cierra F1.
+
+El [diagnóstico de estabilidad](t01-stability-diagnostic-2026-10-29.md) conserva una repetición parcial y el control de arranque, sin aceptarlos como nueva línea base.

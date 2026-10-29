@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-29",
+  "status": "interrupted_diagnostic_not_a_baseline",
+  "exit_code": 1,
+  "reason": "Stopped the owned replay after four complete cases to isolate increased launcher elapsed time before committing to three full passes. No historical record or timing threshold changed.",
+  "source_provenance": "t01-baseline-replay-provenance-2026-10-29.json",
+  "complete_cases": [
+    {
+      "runtime": "claude",
+      "hook": "native-guardrail",
+      "median_ms": 2243.55,
+      "state": "OK"
+    },
+    {
+      "runtime": "claude",
+      "hook": "mark-docs-pending.sh",
+      "median_ms": 3922.425,
+      "state": "OK"
+    },
+    {
+      "runtime": "claude",
+      "hook": "ledger-lint-warn.sh",
+      "median_ms": 4523.477,
+      "state": "OK"
+    },
+    {
+      "runtime": "claude",
+      "hook": "progress-line.sh",
+      "median_ms": 6434.319,
+      "state": "OK"
+    }
+  ],
+  "planned_cases_per_pass": 36,
+  "planned_passes": 3,
+  "passes_completed": 0,
+  "raw_samples_available": false,
+  "limitation": "Only progress medians survived the owned runner interruption; cannot use as complete benchmark, stability evidence or performance acceptance.",
+  "stop_method": "Unified exec Ctrl-C; process termination verified separately."
+}

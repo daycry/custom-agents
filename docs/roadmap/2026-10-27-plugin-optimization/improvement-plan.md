@@ -220,7 +220,7 @@ Los ficheros exactos de cada tarea están en su campo `Archivos` de `tasks.md` (
 ## Criterios de aceptación (global)
 
 - [ ] Existe `scripts/bench-hooks.py` con tests, procedimiento documentado (ES/EN) y línea base de esta máquina versionada y marcada como tal (T-01).
-- [ ] CA-01: sesión sin rol protegido → PreToolUse no lanza Python; comparación versionada con ≥ 10 muestras por variante/runtime, calentamiento descartado, control Node, dispersión y fallos, sin porcentaje mínimo en F1 (T-02, tabla y recibo en `testing/t02-native-prefilter.md`).
+- [x] CA-01: sesión sin rol protegido → PreToolUse no lanza Python; comparación versionada con ≥ 10 muestras por variante/runtime, calentamiento descartado, control Node, dispersión y fallos, sin porcentaje mínimo en F1 (T-02, tabla y recibo en `testing/t02-native-prefilter.md`).
 - [ ] CA-02/CA-03: suites de guard en verde sin cambiar expectativas; con `native-roles.json` corrupto se sigue emitiendo el diagnóstico (T-02).
 - [ ] `hooks/hooks.json` declara `timeout: 30` en SessionStart y `test_hooks_config.py` lo vigila (T-03).
 - [ ] CA-05: temporales sqlite `*.tmp` y `*.tmp-journal` de procesos muertos se eliminan y no se acumulan tras una muerte forzada (T-04).
