@@ -49,7 +49,7 @@ const cli = (args, opts = {}) => {
   const merged={...process.env,...requested}
   const requestedPath=Object.entries(requested).find(([key])=>/^path$/i.test(key))?.[1]
   const inheritedPath=process.env.PATH || process.env.Path
-  const allowed=/^(?:SystemRoot|WINDIR|COMSPEC|PATHEXT|OS|PROCESSOR_ARCHITECTURE|NO_COLOR|CI|HOME|USERPROFILE|CODEX_HOME|APPDATA|LOCALAPPDATA|XDG_CONFIG_HOME|CLAUDE_CONFIG_DIR|CODEX_FAKE_LOG|CODEX_FAKE_FAIL_ADD|CUSTOM_AGENTS_EXEC_TIMEOUT_MS|MARCA|NODE_V8_COVERAGE)$/i
+  const allowed=/^(?:SystemRoot|WINDIR|COMSPEC|PATHEXT|OS|PROCESSOR_ARCHITECTURE|NO_COLOR|CI|HOME|USERPROFILE|CODEX_HOME|APPDATA|LOCALAPPDATA|XDG_CONFIG_HOME|CLAUDE_CONFIG_DIR|CODEX_FAKE_LOG|CODEX_FAKE_FAIL_ADD|CUSTOM_AGENTS_EXEC_TIMEOUT_MS|CUSTOM_AGENTS_PYTHON|CODEX_FAKE_MODEL_RACE|MARCA|NODE_V8_COVERAGE)$/i
   const env=Object.fromEntries(Object.entries(merged).filter(([key])=>allowed.test(key)))
   const ownedTemp=join(ownedHome,'temp');mkdirSync(ownedTemp,{recursive:true})
   Object.assign(env,{NO_COLOR:"1",HOME:ownedHome,USERPROFILE:ownedHome,CODEX_HOME:ownedCodex,
@@ -388,6 +388,10 @@ if(args[1]==='marketplace'){
 }
 
 if(args[1]==='add'){
+  if(process.env.CODEX_FAKE_MODEL_RACE==='1') {
+    const config=join(process.cwd(),'.codex/config.toml');mkdirSync(dirname(config),{recursive:true});
+    writeFileSync(config,'[agents.custom-agents-reviewer]\\nconfig_file = "consumer-reviewer.toml"\\n')
+  }
   if(process.env.CODEX_FAKE_FAIL_ADD==='1'){console.error('owned native add rejection');process.exit(5)}
   const root=readFileSync(marker,'utf8')
   const marketplace=JSON.parse(readFileSync(join(root,'.agents/plugins/marketplace.json'),'utf8'))
@@ -2984,4 +2988,179 @@ test("CA-12: uninstall (copy y plugin) nunca toca `.claude/journal/` — es esta
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
+})
+
+
+test('F3 installer parses an explicit consumer model config', () => {
+  const options = parseArgs(['install','--models-config','.claude/dev.json','-p','codex'])
+  assert.equal(options.cmd,'install')
+  assert.equal(options.modelsConfig,'.claude/dev.json')
+})
+
+const modelProjectionFixture = () => {
+  const f = nativeMigrationFixture('codex')
+  f.baseContent = 'name = "custom-agents-reviewer"\ndescription = "Fixture reviewer"\ndeveloper_instructions = "Read only."\n'
+  writeFileSync(join(f.root,'exports/custom-agents-reviewer.toml'),f.baseContent)
+  const content = f.baseContent + 'model = "qwen3:32b"\n'
+  f.step.nativeAgents.projection = {version:1,runtime:'codex',agents:[
+    {role:'reviewer',id:'custom-agents-reviewer',model:'qwen3:32b',provider:'ollama',content,sha256:f.sha(content)}
+  ],warnings:[]}
+  return f
+}
+
+test('F3 native plan uses the projected model content and an explicit owned binding', () => {
+  const f = modelProjectionFixture()
+  try {
+    const plan = installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    const action = plan.actions.find(row=>row.type==='copy' && row.to===f.native)
+    assert.ok(action)
+    assert.equal(action.content,f.step.nativeAgents.projection.agents[0].content)
+    assert.equal(action.sha256,f.sha(action.content))
+    assert.equal(action.binding.to, f.config)
+    assert.equal(action.binding.tabla,'agents.custom-agents-reviewer')
+    assert.equal(action.binding.clave,'config_file')
+    assert.equal(resolve(dirname(f.config),action.binding.valor),resolve(f.native))
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test('F3 a recorded unchanged model binding permits updating only the owned agent', () => {
+  const f = modelProjectionFixture()
+  try {
+    const previous = f.baseContent + 'model = "old-fixture-model"\n'
+    writeFileSync(f.native,previous)
+    f.manifest.files.push(f.norm(f.native));f.manifest.nativeAgents[f.norm(f.native)]=f.sha(previous)
+    const value = f.native.split('\\').join('/')
+    writeFileSync(f.config,'[agents.custom-agents-reviewer]\nconfig_file = '+JSON.stringify(value)+'\n')
+    f.manifest.registro=[{'toml-set':f.config,tabla:'agents.custom-agents-reviewer',clave:'config_file',restaurar:{escrito:JSON.stringify(value),previo:null,tablaCreada:true}}]
+    const plan = installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,1)
+    assert.equal(plan.actions[0].content,f.step.nativeAgents.projection.agents[0].content)
+    writeFileSync(f.config,'[agents.custom-agents-reviewer]\nconfig_file = "consumer-other.toml"\n')
+    writeFileSync(join(dirname(f.config),'consumer-other.toml'),f.baseContent)
+    const conflict = installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(conflict.actions.length,0)
+    assert.ok(conflict.warnings.length)
+    assert.equal(readFileSync(f.native,'utf8'),previous)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+
+const projectionPython = () => execFileSync(process.platform==='win32'?'python':'python3',
+  ['-c','import sys; print(sys.executable)'],{encoding:'utf8'}).trim()
+
+test('F3 explicit model config survives reinstall and clears through valid empty modelos', () => {
+  const proj=tmpProj(), home=tmpProj(), python=projectionPython()
+  const config=join(proj,'models.json'), env={HOME:home,CUSTOM_AGENTS_PYTHON:python}
+  const args=['install','-p','opencode','--dir',proj,'-y']
+  try {
+    mkdirSync(join(proj,'.git'))
+    writeFileSync(config,JSON.stringify({modelos:{reviewer:{model:'ollama/qwen3:32b'}}}))
+    cli([...args,'--models-config','models.json'],{env})
+    const role=join(proj,'.opencode/agents/custom-agents-reviewer.md')
+    assert.match(readFileSync(role,'utf8'),/^model: "ollama\/qwen3:32b"$/m)
+    const manifest=join(proj,'.opencode',MANIFEST)
+    assert.equal(JSON.parse(readFileSync(manifest,'utf8')).modelsConfig,'models.json')
+    writeFileSync(config,JSON.stringify({modelos:{reviewer:{model:'ollama/qwen3:8b'}}}))
+    cli(args,{env})
+    assert.match(readFileSync(role,'utf8'),/^model: "ollama\/qwen3:8b"$/m)
+    const saved=readFileSync(manifest,'utf8'), before=readFileSync(role,'utf8')
+    writeFileSync(config,'{bad')
+    assert.throws(()=>cli(args,{env}), /model config|model projection/i)
+    assert.equal(readFileSync(manifest,'utf8'),saved)
+    assert.equal(readFileSync(role,'utf8'),before)
+    writeFileSync(config,JSON.stringify({modelos:{}}))
+    cli(args,{env})
+    assert.doesNotMatch(readFileSync(role,'utf8'),/^model:/m)
+    cli(['uninstall','-p','opencode','--dir',proj],{env})
+    assert.ok(!existsSync(role))
+    assert.ok(existsSync(config))
+  } finally {rmSync(proj,{recursive:true,force:true});rmSync(home,{recursive:true,force:true})}
+})
+
+test('F3 invalid explicit model input fails before any installation writes', () => {
+  const proj=tmpProj(), home=tmpProj(), outside=tmpProj(), python=projectionPython()
+  const env={HOME:home,CUSTOM_AGENTS_PYTHON:python}
+  try {
+    const external=join(outside,'external.json');writeFileSync(external,'{"modelos":{}}')
+    for(const input of ['missing.json',external]) {
+      assert.throws(()=>cli(['install','-p','opencode','--dir',proj,'--models-config',input,'-y'],{env}),/model config/i)
+      assert.ok(!existsSync(join(proj,'.opencode')))
+    }
+    writeFileSync(join(proj,'hard.json'),'{"modelos":{}}');linkSync(join(proj,'hard.json'),join(proj,'alias.json'))
+    assert.throws(()=>cli(['install','-p','opencode','--dir',proj,'--models-config','hard.json','-y'],{env}),/model config/i)
+    assert.ok(!existsSync(join(proj,'.opencode')))
+    assert.throws(()=>cli(['install','-p','opencode','--scope','user','--dir',proj,'--models-config','hard.json','-y'],{env}),/models-config.*project/i)
+  } finally {rmSync(proj,{recursive:true,force:true});rmSync(home,{recursive:true,force:true});rmSync(outside,{recursive:true,force:true})}
+})
+
+
+test('F3 Codex model binding lifecycle preserves global provider and consumer edits', () => {
+  const temp=tmpProj(), project=join(temp,'project'), home=join(temp,'home'), bin=join(temp,'bin')
+  for(const folder of [project,home,bin]) mkdirSync(folder,{recursive:true})
+  codexFalso(bin)
+  const codex=join(home,'.codex');mkdirSync(codex);mkdirSync(join(project,'.git'))
+  const global=join(codex,'config.toml'), original='# consumer provider\nmodel_provider = "fixture-provider"\n'
+  writeFileSync(global,original)
+  const env=conPath([bin,SIN_CLI].join(delimiter),{HOME:home,CODEX_HOME:codex,CUSTOM_AGENTS_PYTHON:projectionPython()})
+  const args=['install','-p','codex','--dir',project,'-y']
+  const config=join(project,'.codex/config.toml'), role=join(project,'.codex/agents/custom-agents-reviewer.toml')
+  try {
+    writeFileSync(join(project,'models.json'),JSON.stringify({modelos:{reviewer:{model:'ollama/qwen3:32b'}}}))
+    cli([...args,'--models-config','models.json'],{env})
+    assert.match(readFileSync(role,'utf8'),/^model = "qwen3:32b"$/m)
+    assert.match(readFileSync(config,'utf8'),/\[agents.custom-agents-reviewer\]\s+config_file = "agents\/custom-agents-reviewer.toml"/)
+    assert.doesNotMatch(readFileSync(role,'utf8'),/^model_provider/m)
+    assert.equal(readFileSync(global,'utf8'),original)
+    cli(args,{env})
+    assert.match(readFileSync(role,'utf8'),/^model = "qwen3:32b"$/m)
+    const owned=readFileSync(role,'utf8')
+    writeFileSync(config,readFileSync(config,'utf8').replace('config_file = "agents/custom-agents-reviewer.toml"','config_file = "consumer-reviewer.toml"'))
+    writeFileSync(join(project,'.codex/consumer-reviewer.toml'),'name = "custom-agents-reviewer"\n')
+    cli(args,{env})
+    assert.equal(readFileSync(role,'utf8'),owned)
+    assert.match(readFileSync(config,'utf8'),/config_file = "consumer-reviewer.toml"/)
+    cli(['uninstall','-p','codex','--dir',project],{env})
+    assert.match(readFileSync(config,'utf8'),/config_file = "consumer-reviewer.toml"/)
+    assert.ok(existsSync(join(project,'.codex/consumer-reviewer.toml')))
+    assert.equal(readFileSync(role,'utf8'),owned,'conflicted role ownership is released conservatively')
+    assert.equal(readFileSync(global,'utf8'),original)
+  } finally {rmSync(temp,{recursive:true,force:true})}
+})
+
+
+test('F3 Codex refuses a binding edited while native registration was running', () => {
+  const temp=tmpProj(), project=join(temp,'project'), home=join(temp,'home'), bin=join(temp,'bin')
+  for(const folder of [project,home,bin]) mkdirSync(folder,{recursive:true})
+  codexFalso(bin);mkdirSync(join(project,'.git'))
+  const env=conPath([bin,SIN_CLI].join(delimiter),{HOME:home,CODEX_HOME:join(home,'.codex'),
+    CUSTOM_AGENTS_PYTHON:projectionPython(),CODEX_FAKE_MODEL_RACE:'1'})
+  try {
+    writeFileSync(join(project,'models.json'),JSON.stringify({modelos:{reviewer:{model:'ollama/qwen3:32b'}}}))
+    cli(['install','-p','codex','--dir',project,'--models-config','models.json','-y'],{env})
+    assert.match(readFileSync(join(project,'.codex/config.toml'),'utf8'),/config_file = "consumer-reviewer.toml"/)
+    const manifest=JSON.parse(readFileSync(join(project,'.codex/plugins/custom-agents',MANIFEST),'utf8'))
+    assert.equal(manifest.estado,'incompleto')
+    assert.ok(!manifest.registro.some(row=>row.tabla==='agents.custom-agents-reviewer'))
+  } finally {rmSync(temp,{recursive:true,force:true})}
+})
+
+
+test('F3 Codex clears local selection and uninstalls its unchanged explicit binding', () => {
+  const temp=tmpProj(), project=join(temp,'project'), home=join(temp,'home'), bin=join(temp,'bin')
+  for(const folder of [project,home,bin]) mkdirSync(folder,{recursive:true})
+  codexFalso(bin);mkdirSync(join(project,'.git'))
+  const env=conPath([bin,SIN_CLI].join(delimiter),{HOME:home,CODEX_HOME:join(home,'.codex'),CUSTOM_AGENTS_PYTHON:projectionPython()})
+  const args=['install','-p','codex','--dir',project,'-y']
+  try {
+    const models=join(project,'models.json');writeFileSync(models,'{"modelos":{"reviewer":{"model":"ollama/qwen3:32b"}}}')
+    cli([...args,'--models-config','models.json'],{env})
+    writeFileSync(models,'{"modelos":{}}')
+    cli(args,{env})
+    const role=join(project,'.codex/agents/custom-agents-reviewer.toml')
+    assert.doesNotMatch(readFileSync(role,'utf8'),/^model =/m)
+    cli(['uninstall','-p','codex','--dir',project],{env})
+    assert.ok(!existsSync(role))
+    assert.doesNotMatch(readFileSync(join(project,'.codex/config.toml'),'utf8'),/agents.custom-agents-reviewer/)
+    assert.ok(existsSync(models))
+  } finally {rmSync(temp,{recursive:true,force:true})}
 })

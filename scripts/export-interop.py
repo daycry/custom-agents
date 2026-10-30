@@ -46,6 +46,8 @@ Exit 0 si todo va bien; 1 si `--check` encuentra un fichero ausente o desincroni
 Solo stdlib.
 """
 import argparse
+import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -450,7 +452,7 @@ def codex_hooks_json(root):
     return json_txt({"hooks": out})
 
 
-def codex_agente(nombre, bloque, cuerpo, mapping=None):
+def codex_agente(nombre, bloque, cuerpo, mapping=None, model_override=None):
     tools = tools_de(bloque)
     mapping = mapping or native_roles(ROOT_DEFAULT)
     pre = PRE_AGENTE_CODEX.format(nombre=nombre, guardrail=guardrail_de(nombre, tools, "Codex", mapping),
@@ -460,6 +462,9 @@ def codex_agente(nombre, bloque, cuerpo, mapping=None):
               "name = %s" % toml_str(mapping["runtimes"]["codex"][nombre]),
               "description = %s" % toml_str(campo(bloque, "description"))]
     efecto = EFFORT_CODEX.get(campo(bloque, "effort"))
+    if model_override is not None:
+        lineas.append("model = %s" % toml_str(model_override["model"]))
+        efecto = EFFORT_CODEX.get(model_override["effort"])
     if efecto:
         lineas.append("model_reasoning_effort = %s" % toml_str(efecto))
     # Codex 0.161.0 no proyecta sandbox_mode desde el TOML del rol; hereda permisos del padre.
@@ -541,7 +546,7 @@ def permisos_opencode(tools):
     }
 
 
-def opencode_agente(nombre, bloque, cuerpo, mapping=None):
+def opencode_agente(nombre, bloque, cuerpo, mapping=None, model_override=None):
     tools = tools_de(bloque)
     pre = PRE_AGENTE_OPENCODE.format(nombre=nombre, guardrail=guardrail_de(nombre, tools, "OpenCode", mapping),
                                     delegaciones=delegaciones("opencode", mapping))
@@ -552,6 +557,8 @@ def opencode_agente(nombre, bloque, cuerpo, mapping=None):
         ("permissions", json.dumps([{"action": action, "resource": "*", "effect": effect}
                                    for action, effect in permisos_opencode(tools).items()], ensure_ascii=False)),
     ]
+    if model_override is not None:
+        pares.append(("model", json.dumps(model_override["model"], ensure_ascii=False)))
     return (fm_yaml(pares) + cabecera("html", "agents/%s.md" % nombre)
             + "\n" + pre + "\n" + cuerpo.lstrip("\n"))
 
@@ -631,6 +638,63 @@ def _indice_fallback(root):
 
 
 # --- Plan de generación --------------------------------------------------------------------------
+
+def generar_proyeccion(root, config_file, runtime):
+    """Explicit consumer data produces JSON; the canonical tree is never written."""
+    if runtime not in ("codex", "opencode"):
+        raise ValueError("consumer projection requires codex or opencode")
+    owner = os.path.join(ROOT_DEFAULT, "agent-kits", "shared", "model-tier.py")
+    spec = importlib.util.spec_from_file_location("custom_agents_projection_model_tier", owner)
+    tier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tier)
+    reader_path = os.path.join(ROOT_DEFAULT, "agent-kits", "shared", "local-read.py")
+    reader_spec = importlib.util.spec_from_file_location("custom_agents_projection_local_read", reader_path)
+    reader = importlib.util.module_from_spec(reader_spec)
+    reader_spec.loader.exec_module(reader)
+    config_file = os.path.abspath(config_file)
+    initial = os.lstat(config_file)
+    if not stat.S_ISREG(initial.st_mode) or initial.st_nlink != 1:
+        raise ValueError("model config must be a private regular file")
+    snapshot = reader.read_bytes(os.path.dirname(config_file), os.path.basename(config_file),
+                                 max_bytes=256 * 1024, include_digest=True, include_identity=True)
+    if snapshot["status"] != "ok":
+        raise ValueError("model config unavailable: " + snapshot["status"])
+    current = os.lstat(config_file)
+    identity = (current.st_dev, current.st_ino, stat.S_IFMT(current.st_mode))
+    if current.st_nlink != 1 or tuple(snapshot["identity"]) != identity:
+        raise ValueError("model config changed while reading")
+    raw = snapshot["data"]
+    data = json.loads(raw.decode("utf-8-sig"))
+    if not isinstance(data, dict) or not isinstance(data.get("modelos", {}), dict):
+        raise ValueError("model config and modelos must be JSON objects")
+    modelos = data.get("modelos", {})
+    mapping = native_roles(root)
+    known = set(mapping["runtimes"][runtime])
+    for name, override in modelos.items():
+        if name not in known:
+            raise ValueError("model config contains an unknown agent")
+        if not isinstance(override, dict) or set(override) - {"model", "effort"}:
+            raise ValueError("model config contains invalid override fields")
+        if "model" in override and not tier.model_valido(override["model"], runtime=runtime):
+            raise ValueError("model config contains an invalid model id")
+        if "effort" in override and not tier.effort_valido(override["effort"]):
+            raise ValueError("model config contains an invalid effort")
+    agents, warnings = [], []
+    for nombre, bloque, cuerpo in piezas(root, "agents"):
+        result = tier.resolver(nombre, root=root, _modelos=modelos, runtime=runtime)
+        warnings.extend(result["avisos"])
+        if result.get("provider") is None:
+            continue
+        if runtime == "opencode" and "effort" in modelos.get(nombre, {}):
+            warnings.append("OpenCode: effort for %s is not projected; configure a native model variant" % nombre)
+        render = codex_agente if runtime == "codex" else opencode_agente
+        content = render(nombre, bloque, cuerpo, mapping, model_override=result)
+        agents.append({"role": nombre, "id": mapping["runtimes"][runtime][nombre],
+                       "model": result["model"], "provider": result["provider"],
+                       "content": content, "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest()})
+    return {"version": 1, "runtime": runtime, "input_sha256": hashlib.sha256(raw).hexdigest(),
+            "agents": sorted(agents, key=lambda row: row["role"]), "warnings": sorted(set(warnings))}
+
 
 def generar(root):
     """{ruta relativa: contenido} de TODO lo que este script produce. Orden fijo."""
@@ -791,8 +855,21 @@ def main():
     ap.add_argument("--check", action="store_true", help="no escribe: falla si algo está desincronizado")
     ap.add_argument("--list", action="store_true", help="lista los ficheros que genera y sale")
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--model-config", help="explicit consumer JSON; never selected from HOME or cwd")
+    ap.add_argument("--runtime", choices=("codex", "opencode"))
+    ap.add_argument("--projection-json", action="store_true", help="return consumer agent plan without writing files")
     a = ap.parse_args()
     root = os.path.abspath(a.root)
+    if a.model_config or a.projection_json or a.runtime:
+        if not (a.model_config and a.projection_json and a.runtime) or a.check or a.list:
+            ap.error("consumer projection requires --model-config --runtime --projection-json, without --check/--list")
+        try:
+            result = generar_proyeccion(root, a.model_config, a.runtime)
+        except (OSError, ValueError, KeyError, RecursionError) as error:
+            print("ERROR: consumer model projection failed (%s)" % error, file=sys.stderr)
+            return 1
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return 0
     try:
         plan = generar(root)
     except (OSError, KeyError, ValueError) as e:

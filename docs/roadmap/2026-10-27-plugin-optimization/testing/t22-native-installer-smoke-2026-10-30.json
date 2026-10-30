@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "task": "T-22",
+  "verdict": "PASS_INSTALLER_NATIVE_PROJECTION",
+  "native_cli": "0.166.0",
+  "base_commit": "7e5200f39e5498f92de937c456d339393e084d30",
+  "sources_sha256_lf": {
+    "install/install.mjs": "e145ed827a32ff9c814026cb8d213bdb32e26d8d50585c621a0e735aa2d5511a",
+    "scripts/export-interop.py": "84ca763902d996d52251751970b75e36a256f531449cf04cf68b79e64f08f4e6",
+    "agent-kits/shared/model-tier.py": "a700f676701abec4a8f383f8beef8630bd6099c7bbebb21e4b64e6e21306e871",
+    "tests/installer.test.mjs": "84a0f5230977204cc46a26c1e9857e1db9846170eb22693f6e76c59864fc5b13",
+    "tests/test_model_runtime_projection.py": "84961b882871a7748a8a9bd7e32e6fc9c189b993f833c5dd8401a15b049aae9a",
+    "agent-kits/shared/test_model_tier.py": "795618401f8eb9752add9c01d4eb7f359c5a84286b1ab893dbbcce65d35319ba"
+  },
+  "fixtures": {
+    "network": "loopback Responses stub only",
+    "real_inference": false,
+    "credentials": false,
+    "model_override_in_spawn": false
+  },
+  "installation": {
+    "exit": 0,
+    "timeout": false,
+    "job_active_final": 0
+  },
+  "updates": [
+    {
+      "case": "projected",
+      "exit": 0,
+      "timeout": false,
+      "job_active_final": 0
+    },
+    {
+      "case": "cleared",
+      "exit": 0,
+      "timeout": false,
+      "job_active_final": 0
+    }
+  ],
+  "cases": [
+    {
+      "case": "baseline",
+      "expected_child_model": "gpt-6.1-sol",
+      "observed_child_models": [
+        "gpt-6.1-sol"
+      ],
+      "native_child_instructions_preserved": true,
+      "no_explicit_spawn_model": true,
+      "cache_unchanged_during_execution": true,
+      "process": {
+        "exit": 0,
+        "timeout": false,
+        "job_active_final": 0
+      }
+    },
+    {
+      "case": "projected",
+      "expected_child_model": "qwen3:32b",
+      "observed_child_models": [
+        "qwen3:32b"
+      ],
+      "native_child_instructions_preserved": true,
+      "no_explicit_spawn_model": true,
+      "cache_unchanged_during_execution": true,
+      "process": {
+        "exit": 0,
+        "timeout": false,
+        "job_active_final": 0
+      }
+    },
+    {
+      "case": "cleared",
+      "expected_child_model": "gpt-6.1-sol",
+      "observed_child_models": [
+        "gpt-6.1-sol"
+      ],
+      "native_child_instructions_preserved": true,
+      "no_explicit_spawn_model": true,
+      "cache_unchanged_during_execution": true,
+      "process": {
+        "exit": 0,
+        "timeout": false,
+        "job_active_final": 0
+      }
+    }
+  ],
+  "cache": {
+    "files": 493,
+    "payload_unchanged": true,
+    "metadata_updated_by_official_registration": true,
+    "changed_paths": [
+      {
+        "case": "baseline",
+        "paths": []
+      },
+      {
+        "case": "projected",
+        "paths": [
+          "daycry/custom-agents/2.2.0/.custom-agents-install.json"
+        ]
+      },
+      {
+        "case": "cleared",
+        "paths": [
+          "daycry/custom-agents/2.2.0/.custom-agents-install.json"
+        ]
+      }
+    ]
+  },
+  "initial_diagnostic": {
+    "fixture_failed_on_whole_cache_equality": true,
+    "explanation": "Official reinstall updates .custom-agents-install.json; a second run verifies every other cache file and each execution window separately. Initial failed run remains private, not counted as green."
+  },
+  "limits": [
+    "No Ollama inference, quality or context validation",
+    "No claim about native guard delivery",
+    "Own isolated homes and project only; global installed plugin untouched",
+    "Official reinstall updates its cached install manifest; consumer model content is not written into the cache"
+  ]
+}

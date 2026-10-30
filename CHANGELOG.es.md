@@ -11,6 +11,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Añadido
+
+- Selecciona modelos Ollama por agente mediante configuración explícita de proyecto y proyecciones propias Codex/OpenCode. Conserva exports canónicos, cachés nativas, cambios del consumidor y defaults Claude; mantiene la herencia de proveedor y avisa del effort no admitido.
+
 ## [2.2.0] - 2026-10-30
 
 ### Cambiado

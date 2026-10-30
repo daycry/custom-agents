@@ -11,6 +11,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Added
+
+- Select Ollama models per agent through an explicit project config and owned Codex/OpenCode projections. Preserve canonical exports, native caches, consumer edits and Claude defaults; retain provider inheritance and diagnose unsupported effort.
+
 ## [2.2.0] - 2026-10-30
 
 ### Changed

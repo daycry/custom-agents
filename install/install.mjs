@@ -93,6 +93,7 @@ ${bold("COMANDOS")}
   list          Proveedores soportados
 
 ${bold("OPCIONES")}
+  --models-config RUTA      JSON de modelos del proyecto para Codex/OpenCode (opt-in persistente)
   -p, --provider <ids>   ${IDS.join(", ")} (separados por coma) o "all"
       --all              Todos los proveedores soportados
       --scope <ámbito>   project (por defecto) | user
@@ -147,6 +148,7 @@ function parseArgs(argv) {
     else if (a === "--dir") o.dir = resolve(String(val() || "."))
     else if (a === "--mode" || a === "--modo") o.modo = val()
     else if (a === "--source" || a === "--fuente") o.source = val()
+    else if (a === "--models-config") o.modelsConfig = val()
     else if (a === "--force-marketplace") o.forceMarketplace = true
     else if (a === "--dry-run") o.dryRun = true
     else if (a === "-y" || a === "--yes") o.yes = true
@@ -377,6 +379,14 @@ export function planificarAgentesNativos(paso, previo = {}, root = ROOT) {
       if (runtime === 'codex') {
         for (const item of rutasToml(text)) {
           const match = item.ruta.match(/^agents\.([A-Za-z0-9_-]+)(?:\.|$)/)
+          if (match && item.ruta===`agents.${match[1]}.config_file`) {
+            const target=cadenaToml(item.valor), expected=join(raiz,match[1]+ext)
+            const owned=(previo.registro || []).find(row=>row['toml-set']===cfg
+              && normalizarTabla(row.tabla || '')===`agents.${match[1]}` && row.clave==='config_file'
+              && typeof row.restaurar?.escrito==='string' && mismoValorToml(item.valor,row.restaurar.escrito))
+            if (owned && typeof target==='string' && norm(resolve(dirname(cfg),target))===norm(expected)
+                && files.has(norm(expected)) && typeof recorded[norm(expected)]==='string') continue
+          }
           if (match) bindings.add(match[1])
           // A config_file can bind an arbitrary key to one of the old files.
           if (item.ruta.startsWith('agents.') && item.ruta.endsWith('.config_file')) {
@@ -536,7 +546,20 @@ export function planificarAgentesNativos(paso, previo = {}, root = ROOT) {
       warnings.push(`${rel(target)}: agente ajeno o modificado; conservado`); continue
     }
     if (!existsSync(source)) throw new Error(`native role export missing: ${id}`)
-    actions.push({type:'copy',to:target,from:source,before:current,sha256:hash(source)})
+    const projected=paso.nativeAgents.projection?.agents.find(row=>row.role===role)
+    const action={type:'copy',to:target,from:source,before:current,sha256:projected?.sha256 || hash(source)}
+    if (projected) {
+      action.content=projected.content
+      if (runtime==='codex') {
+        const config=configs[0]
+        if (!config) throw new Error('consumer projection requires a project config destination')
+        action.binding={type:'toml-set',to:config,tabla:`agents.${id}`,clave:'config_file',
+          valor:relative(dirname(config),target).split(sep).join('/'),restaurar:true,
+          nativeBefore:rutasToml(existsSync(config)?readFileSync(config,'utf8'):'')
+            .filter(row=>row.ruta===`agents.${id}` || row.ruta.startsWith(`agents.${id}.`))}
+      }
+    }
+    actions.push(action)
     if (old !== null) {
       if (scope === 'project' && repositoryBoundary && !legacyReferencesUncertain && !bindings.has(role) && !bindings.has(norm(bare))
           && files.has(norm(bare)) && old === legacy[role]) {
@@ -1577,16 +1600,79 @@ export function liberarPromptsLegacyCodex(previo, home = codexHome(), bundleRoot
   })
 }
 
-function ejecutar(provider, opts) {
+/** An explicit, persisted project opt-in; no ambient dev.json or provider writes. */
+export function cargarModelosNativos(provider, opts, previous = null) {
+  const remembered=previous?.plugin===PLUGIN && previous.provider===provider.id && previous.scope==='project'
+    ? previous.modelsConfig : undefined
+  const selected=opts.modelsConfig ?? remembered
+  if (selected===undefined) return null
+  if (opts.scope!=='project' || !['codex','opencode'].includes(provider.id)) {
+    throw new Error('--models-config requires project scope and a codex/opencode provider')
+  }
+  if (typeof selected!=='string' || !selected || selected.includes('\0')) throw new Error('model config path is invalid')
+  const project=resolve(opts.dir), absolute=resolve(project,selected), local=relative(project,absolute)
+  if (!local || isAbsolute(local) || local.split(sep).includes('..')) throw new Error('model config must stay inside the project')
+  try {
+    // Never traverse consumer junctions/symlinks, including the project root.
+    const parts=[project,...local.split(sep).slice(0,-1).map((_,i)=>join(project,...local.split(sep).slice(0,i+1)))]
+    for(const folder of parts) {
+      const st=lstatSync(folder)
+      if (!st.isDirectory() || st.isSymbolicLink()) throw new Error('unsafe model config ancestor')
+    }
+    const info=lstatSync(absolute)
+    if (!info.isFile() || info.isSymbolicLink() || info.nlink!==1 || info.size>256*1024) throw new Error('unsafe model config file')
+  } catch {throw new Error('model config must be an available regular project file (maximum 256 KiB; no links)')}
+  let projection
+  try {
+    const python=process.env.CUSTOM_AGENTS_PYTHON || (process.platform==='win32'?'python':'python3')
+    const raw=execFileSync(python,['-I','-S',join(ROOT,'scripts/export-interop.py'),'--root',ROOT,
+      '--model-config',absolute,'--runtime',provider.id,'--projection-json'],
+      {encoding:'utf8',windowsHide:true,cwd:ROOT,timeout:20000,maxBuffer:4*1024*1024,stdio:['ignore','pipe','pipe']})
+    projection=JSON.parse(raw)
+    const map=leerJson(join(ROOT,'agent-kits/shared/native-roles.json'))?.runtimes?.[provider.id]
+    const object=value=>value && typeof value==='object' && !Array.isArray(value)
+    if (!object(projection) || projection.version!==1 || projection.runtime!==provider.id
+        || !/^[a-f0-9]{64}$/.test(projection.input_sha256 || '') || !Array.isArray(projection.agents)
+        || projection.agents.length>Object.keys(map).length || !Array.isArray(projection.warnings)
+        || projection.warnings.some(row=>typeof row!=='string' || row.length>1024)) throw new Error('invalid projection schema')
+    const roles=new Set()
+    for(const row of projection.agents) {
+      if(!object(row) || !Object.hasOwn(map,row.role) || roles.has(row.role) || row.id!==map[row.role]
+          || row.provider!=='ollama' || typeof row.model!=='string' || typeof row.content!=='string'
+          || row.content.length>1024*1024 || row.content.includes('\r')
+          || createHash('sha256').update(row.content,'utf8').digest('hex')!==row.sha256) throw new Error('invalid projected role')
+      roles.add(row.role)
+      const id=provider.id==='codex'?row.model:row.model.replace(/^ollama\//,'')
+      if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/.test(id) || id.length>249 || id.split('/').some(p=>!p || ['.','..'].includes(p))
+          || (provider.id==='opencode' && row.model!=='ollama/'+id)) throw new Error('invalid projected model')
+      if(provider.id==='codex') {
+        const keys=rutasToml(row.content)
+        const names=keys.filter(key=>key.ruta==='name'), models=keys.filter(key=>key.ruta==='model')
+        if(names.length!==1 || cadenaToml(names[0].valor)!==row.id || models.length!==1
+            || cadenaToml(models[0].valor)!==row.model || keys.some(key=>key.ruta==='model_provider')) throw new Error('invalid native binding')
+      } else if(!row.content.startsWith('---\n')
+          || row.content.split('\n---\n',1)[0].split('\n').filter(line=>line==='model: '+JSON.stringify(row.model)).length!==1) {
+        throw new Error('invalid native model header')
+      }
+    }
+  } catch {throw new Error('model config projection failed; validate JSON overrides and Python 3 availability')}
+  return {modelsConfig:local.split(sep).join('/'),projection}
+}
+
+function ejecutar(provider, opts, selectedModels) {
+  const manPrevio = leerJson(join(provider.destino(opts.scope, opts.dir, opts.modo),manifiestoDe(provider, opts.modo)))
+  const models = selectedModels === undefined ? cargarModelosNativos(provider,opts,manPrevio) : selectedModels
   const plan = buildPlan(provider, {
     root: ROOT, dir: opts.dir, scope: opts.scope, version: VERSION,
     modo: opts.modo, source: opts.source,
   })
+  if (models) for(const step of plan) if(step.nativeAgents) step.nativeAgents.projection=models.projection
   const escritos = []
   const retirados = new Set()
   const nativeAgents = {...(leerJson(join(provider.destino(opts.scope,opts.dir,opts.modo),manifiestoDe(provider,opts.modo)))?.nativeAgents || {})}
   const registro = []   // lo que no es un fichero nuestro: comandos y claves de configuración
-  const avisos = []
+  const avisos = models ? [...models.projection.warnings,
+    ...(provider.id==='codex' && models.projection.agents.length ? ['Los agentes seleccionados requieren una sesión padre con el proveedor Ollama; el instalador no configura proveedores.'] : [])] : []
   const completed = new Set()
   let nativePending=false
   let roleMigrationPending=false
@@ -1595,8 +1681,6 @@ function ejecutar(provider, opts) {
   // Qué ficheros del registro habíamos creado NOSOTROS en una instalación anterior. Al reinstalar
   // ya existen, claro: sin esta memoria, la segunda pasada los daría por «del usuario» y al
   // desinstalar se quedarían ahí para siempre.
-  const manPrevio = leerJson(join(provider.destino(opts.scope, opts.dir, opts.modo),
-    manifiestoDe(provider, opts.modo)))
   if (provider.id === 'codex') {
     const legados = liberarPromptsLegacyCodex(manPrevio,codexHome(),provider.destino(opts.scope,opts.dir,opts.modo))
     for (const file of legados) {retirados.add(file);delete nativeAgents[file]}
@@ -1627,6 +1711,7 @@ function ejecutar(provider, opts) {
       scope: opts.scope,
       modo: opts.modo,
       installedAt: new Date().toISOString(),
+      ...(models ? {modelsConfig:models.modelsConfig} : {}),
       ...(estado === "completo" ? {} : { estado, error: String(error?.message || error) }),
       files: [...new Set([...(manPrevio?.files || []).filter(f => !retirados.has(f)), ...escritos.map((f) => f.split(sep).join("/"))])].sort(),
       ...(Object.keys(nativeAgents).length ? {nativeAgents} : {}),
@@ -1698,7 +1783,8 @@ function ejecutar(provider, opts) {
             escritos.push(action.to); nativeAgents[action.to.split(sep).join('/')] = action.sha256
             guardar('incompleto',new Error('copiando agente nativo'))
             mkdirSync(dirname(action.to),{recursive:true})
-            escribirAtomico(action.to,readFileSync(action.from,'utf8'))
+            escribirAtomico(action.to,action.content ?? readFileSync(action.from,'utf8'))
+            if (action.binding) plan.push(action.binding)
             n++
           }
         }
@@ -1912,6 +1998,16 @@ function ejecutar(provider, opts) {
       n += cambia ? 1 : 0
     } else if (paso.type === "toml-set") {
       const previo = existsSync(paso.to) ? readFileSync(paso.to, "utf8") : ""
+      if (paso.nativeBefore) {
+        const prefix=normalizarTabla(paso.tabla)
+        const current=rutasToml(previo).filter(row=>row.ruta===prefix || row.ruta.startsWith(`${prefix}.`))
+        if(current.length!==paso.nativeBefore.length || current.some((row,i)=>row.ruta!==paso.nativeBefore[i].ruta
+            || !mismoValorToml(row.valor,paso.nativeBefore[i].valor))) {
+          avisos.push(`${rel(paso.to)}: binding de agente cambiado durante la instalación; conservado`)
+          roleMigrationPending=true
+          continue
+        }
+      }
       let undo
       if(paso.restaurar) {
         const prefix=normalizarTabla(paso.tabla), target=`${prefix}.${normalizarTabla(paso.clave)}`
@@ -1963,6 +2059,10 @@ async function cmdInstall(opts) {
     console.error(`${ERR} --mode debe ser "plugin" o "copy" (recibí "${opts.modo}")`)
     return 2
   }
+  if (opts.modelsConfig!==undefined && opts.scope!=='project') {
+    console.error('--models-config requires project scope')
+    return 2
+  }
   let ids = opts.providers
   if (!ids.length) {
     if (opts.yes || !process.stdin.isTTY) ids = detectados()
@@ -2003,8 +2103,10 @@ async function cmdInstall(opts) {
     try {
       // DENTRO del try: un manifiesto de copy viejo o ilegible no puede tumbar el run entero
       // (y con él la instalación de los demás proveedores) con un stack crudo.
+      const previous=leerJson(join(p.destino(opts.scope,opts.dir,opts.modo),manifiestoDe(p,opts.modo)))
+      const models=cargarModelosNativos(p,opts,previous)
       migrarDeCopy(p, opts)
-      const { n, avisos } = ejecutar(p, opts)
+      const { n, avisos } = ejecutar(p, opts, models)
       for (const a of avisos) say(`  ${WARN} ${dim(a)}`)
       say(`  ${OK} ${n} paso(s) ${opts.dryRun ? "se aplicarían" : "aplicados"} en ${cyan(rel(p.destino(opts.scope, opts.dir, opts.modo)))}`)
       hechos.push(p)

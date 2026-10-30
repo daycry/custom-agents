@@ -160,3 +160,66 @@ def test_cli_real_del_repo():
     assert r.returncode == 0, r.stderr
     data = json.loads(r.stdout)
     assert data["model"] == "opus" and data["effort"] == "high"
+
+
+@pytest.mark.parametrize("runtime,expected", [("codex", "qwen3:32b"), ("opencode", "ollama/qwen3:32b")])
+def test_f3_runtime_local_model_cli_keeps_provider_separate(plugin, runtime, expected):
+    """A consumer local id projects according to its native runtime, not Claude aliases."""
+    import subprocess
+    root, proj = plugin
+    _dev(proj, {"modelos": {"architect": {"model": "ollama/qwen3:32b"}}})
+    result = subprocess.run(
+        [sys.executable, SCRIPT, "architect", "--root", root, "--project", proj,
+         "--runtime", runtime, "--json"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert data["model"] == expected
+    assert data["provider"] == "ollama"
+    assert data["runtime"] == runtime
+    assert data["fuente"]["model"] == "dev.json"
+    assert data["effort"] == "inherit"
+    assert data["avisos"] == []
+
+
+def test_f3_claude_default_does_not_pass_a_local_id_to_agent_tool(plugin):
+    root, proj = plugin
+    _dev(proj, {"modelos": {"architect": {"model": "ollama/qwen3:32b"}}})
+    result = mt.resolver("architect", root=root, project=proj)
+    assert result["model"] == "opus"
+    assert result["effort"] == "high"
+    assert result["fuente"]["model"] == "frontmatter"
+    assert result["avisos"]
+
+
+@pytest.mark.parametrize("model", [
+    'ollama/model"quoted', "ollama/model with spaces", "ollama/model\nother",
+    "ollama/../model", "ollama/model/../tag", "ollama/" + "x" * 260,
+])
+def test_f3_unsafe_local_id_is_rejected_without_changing_the_native_model(plugin, model):
+    root, proj = plugin
+    _dev(proj, {"modelos": {"architect": {"model": model}}})
+    result = mt.resolver("architect", root=root, project=proj, runtime="codex")
+    assert result["model"] == "inherit"
+    assert result["provider"] is None
+    assert result["avisos"]
+
+
+@pytest.mark.parametrize("runtime,expected", [("codex", "namespace/qwen3:32b"), ("opencode", "ollama/namespace/qwen3:32b")])
+def test_f3_namespaced_local_id_and_explicit_effort_survive_projection(plugin, runtime, expected):
+    root, proj = plugin
+    _dev(proj, {"modelos": {"architect": {"model": "ollama/namespace/qwen3:32b", "effort": "low"}}})
+    result = mt.resolver("architect", root=root, project=proj, runtime=runtime)
+    assert result["model"] == expected
+    assert result["effort"] == "low"
+    assert result["fuente"] == {"model": "dev.json", "effort": "dev.json"}
+
+
+@pytest.mark.parametrize("runtime", ["codex", "opencode"])
+def test_f3_claude_alias_has_no_implicit_native_equivalent(plugin, runtime):
+    root, proj = plugin
+    _dev(proj, {"modelos": {"architect": {"model": "sonnet"}}})
+    result = mt.resolver("architect", root=root, project=proj, runtime=runtime)
+    assert result["model"] == "inherit"
+    assert result["provider"] is None
+    assert result["avisos"]

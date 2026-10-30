@@ -39,6 +39,58 @@ npx @daycry/custom-agents uninstall -p codex   # borra lo que instaló, y solo e
 > `CLAUDE_CONFIG_DIR` se respeta en todo: si lo tienes apuntando a otro sitio, el instalador
 > escribe ahí y no en `~/.claude`.
 
+
+### Modelos locales por agente (opt-in de proyecto)
+
+Crea un JSON del consumidor; puede ser `.claude/dev.json` o un archivo separado:
+
+```json
+{"modelos":{"implementer":{"model":"ollama/qwen3:32b"}}}
+```
+
+```bash
+npx @daycry/custom-agents install -p codex --models-config .claude/dev.json
+npx @daycry/custom-agents install -p opencode --models-config .claude/dev.json
+```
+
+`--models-config` exige Python 3 y una ruta regular dentro del proyecto (máximo
+256 KiB, sin enlaces). El manifiesto conserva la ruta para las reinstalaciones;
+no se busca configuración de modelos por defecto. Una entrada inválida o un
+archivo recordado ausente detiene ese proveedor antes de escribir. Para volver
+al modelo heredado, deja `"modelos": {}` y reinstala. El JSON sigue siendo tuyo.
+
+| Runtime | Proyección efectiva |
+|---|---|
+| Codex | `model = "qwen3:32b"` en el agente propio y `agents.<id>.config_file` en el config del proyecto. El proveedor se hereda de la sesión padre: inicia Codex con Ollama configurado en esa sesión; el instalador no configura proveedores ni autenticación. |
+| OpenCode | `model: "ollama/qwen3:32b"` en el agente propio. Configura el proveedor nativo por separado. |
+| Claude Code | Conserva aliases/ids Claude y el comportamiento anterior; los ids Ollama no se pasan al Agent tool. |
+
+Los ids propios, instrucciones y permisos se conservan; los archivos canónicos de
+`interop/` y el contenido del plugin en la caché nativa no se personalizan. La
+reinstalación oficial puede actualizar su manifiesto de instalación en la caché.
+Agentes o bindings ajenos o
+modificados se conservan con aviso y estado incompleto. Un conflicto puede liberar
+el inventario del agente conservado: desinstalar ya no borra esa copia. Un binding
+propio intacto se restaura al desinstalar, conservando otros campos y cambios del
+usuario. No hay transacción global entre todos los pasos de instalación.
+
+El effort de Claude no se traduce a modelos locales. Codex omite
+`model_reasoning_effort` salvo override explícito; comprueba que el modelo lo
+admita. OpenCode avisa si se declara effort y no lo proyecta: configura su variante
+nativa. No se deduce calidad ni contexto a partir del nombre del modelo.
+
+Para inspeccionar sin instalar ni modificar `interop/`:
+
+```bash
+python scripts/export-interop.py --model-config .claude/dev.json --runtime codex --projection-json
+python agent-kits/shared/model-tier.py implementer --runtime codex --json
+```
+
+El exportador devuelve JSON con contenido y hashes, sin escribir archivos. El
+resolutor usa `--project` para leer otro proyecto y admite también
+`--runtime opencode`; el modo predeterminado continúa siendo Claude. El flag
+`--check` canónico sigue siendo independiente de la configuración del consumidor.
+
 ### Instalar no es copiar: qué hace el instalador en cada runtime
 
 Cada runtime tiene un fichero que decide si el plugin **carga**. Copiar los ficheros no lo toca, y

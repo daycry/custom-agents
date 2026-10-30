@@ -756,11 +756,31 @@ Diseño O1 y decisiones lite aprobados por el usuario el 2026-10-30 («adelante�
 **Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido; depende del diseño de T-21. Hoy `MODELOS_ALIAS` + `^claude-` (`agent-kits/shared/model-tier.py:43-49`) y solo `model_reasoning_effort` en `scripts/export-interop.py:464`. Se concreta al revalidar. Clasificación: capacidad nueva / cambio de comportamiento. Coste estimado de la tarea: 612 € (horas × 50 € + tokens).
 
 
+RED: `agent-kits/shared/test_model_tier.py::test_f3_runtime_local_model_cli_keeps_provider_separate` falla en Codex y OpenCode: CLI exit2, `unrecognized arguments: --runtime <runtime>`; 2 failed/14 deselected, observado antes del código productivo · 2026-10-30.
+
+RED: `test_f3_unsafe_local_id_is_rejected_without_changing_the_native_model` acepta indebidamente comillas, espacios, salto de línea, segmentos parentales y exceso de longitud: 6 failed/20 deselected antes del validador estricto · 2026-10-30.
+
+RED: `tests/test_model_runtime_projection.py::test_f3_explicit_consumer_projection_contains_native_model_without_provider_override` falla en ambos runtimes por CLI sin `--model-config/--runtime/--projection-json`: 2 failed antes del exportador explícito · 2026-10-30.
+
+RED: siete casos de `tests/test_model_runtime_projection.py` detectan traceback para raíz no objeto y aceptación silenciosa de esquema/role/id/campos no válidos, exceso de 256KiB y hardlink: 7 failed/2 deselected antes del lector acotado y validación estricta · 2026-10-30.
+
+RED: `test_f3_opencode_effort_is_not_silently_presented_as_applied` falla porque el exportador ignora effort sin aviso: 1 failed/9 deselected antes de añadir el diagnóstico, sin inventar un parámetro OpenCode · 2026-10-30.
+
+RED: tres tests Node F3 del instalador fallan por flag desconocido, contenido proyectado ausente y binding propio tratado como ajeno (0 acciones frente a 1): 0 pass/3 fail antes de modificar el planner nativo · 2026-10-30.
+
+RED: dos pruebas CLI de proyección explícita fallan: OpenCode instala el agente sin model y acepta una ruta de modelos ausente escribiendo la instalación (2 failed), observado antes de conectar el controlador al exportador · 2026-10-30.
+
+RED: `F3 Codex refuses a binding edited while native registration was running` reproduce cambio concurrente de config_file durante registro nativo; el instalador pisa consumer-reviewer.toml con su binding (1 failed), observado antes del control de precondición al aplicar · 2026-10-30.
+
+La primera inserción de estas dos evidencias no se aplicó por la codificación de la tubería PowerShell; los rojos están observados en las ejecuciones previas al código. Se recuperan aquí sin atribuirles una escritura previa que no ocurrió. Corrección de prosa/fixture, no cambio de criterio.
+
+GREEN parcial T-22: 84 tests Python pasan; 21 casos Node de proyección/migración y las regresiones CLI individuales pasan. CLI real0.166.0 con backend Responses simulado: baseline, modelo proyectado y retirada pasan con instrucciones preservadas y cero procesos del Job Object al final. Contenido de caché idéntico; la reinstalación oficial solo actualiza su manifiesto de instalación. La primera comprobación global de caché falló por ese metadato y se conserva como corrida fallida; comprobación separada posterior en verde. Recibo `testing/t22-native-installer-smoke-2026-10-30.json`. La suite Node completa sigue ejecutándose; T-22 no se cierra todavía. Lint0 errores/3 avisos previos, evals192 sin errores, interop88 vigente, ledger-lint0/0. Ventana de implementación T-22 cerrada a14:40:04Z, tokens/coste/horas IA desconocidos; 51 minutos de reloj no se imputan como IA. Corrección posterior de acentos en textos nuevos, sin cambio de contrato.
+
 ### T-23 — C-12 — `ledger-write.py`
 
 - **Descripción**: Resultado: script determinista con subcomandos para marcar estado de tarea, añadir evidencia `RED:` y abrir la cabecera `## Revisión de dos lentes — intento N:`, con lock y reescritura eficiente; `ledger-lint` lo valida (CA-09). Requisito: evaluation.md §C-12, spec §Criterios CA-09.
 - **Changelog**: Escribir estados, evidencias RED y revisiones del ledger mediante un script determinista con protección de concurrencia.
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 14.4h · real —
 - **Tiempo IA (ejec.)**: est. 5.96h · real —
 - **Supervisión**: est. 1.49h (≈25 % IA) · real —
@@ -781,6 +801,11 @@ Diseño O1 y decisiones lite aprobados por el usuario el 2026-10-30 («adelante�
 
 **Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido. Dueño único del formato: `ledger-lint` valida y `ledger-write` escribe. Riesgos: concurrencia (lock) y ledgers de 260-520 KB. Incógnita: ¿obligatorio también para Claude o solo en `lite`? (lo resuelve T-21). Depende de C-09 para no editar `dev-cycle.md` monolítico. Se concreta al revalidar. Clasificación: capacidad nueva. Coste estimado de la tarea: 734 € (horas × 50 € + tokens).
 
+
+RED: tres casos iniciales de `tests/test_ledger_write.py` fallan porque ledger-write.py no existe (exit2), antes de crear el escritor · 2026-10-30. Fixture UTF-8 corregida antes del siguiente RED por el mismo contrato ausente.
+
+
+RED: `tests/test_ledger_write.py::completion_and_idempotence` falló con Dos casos fallan: completa sin criterios y reescribe el resumen sin cambio de estado (2 failed), antes del fix. · 2026-10-30.
 
 ### T-24 — C-14 — Aviso de contexto corto en `/doctor` y mínimos por tramo
 
