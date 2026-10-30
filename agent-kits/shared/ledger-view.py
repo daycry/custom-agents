@@ -82,7 +82,7 @@ GAP_MAX = 400
 GRADOS = ("Critical", "Important", "Minor")
 _ID_RE = re.compile(r"\bT-\d+\b")
 # Rango de tareas en una cabecera de revisión o en el historial archivado: `T-01..T-15`, `T-01–T-15`, `T-01…T-15`.
-# Los dos extremos llevan `T-` y dos cifras (el formato que `ledger-lint.ids_de_tarea` casa: dos cifras tras `T-`): `T-03… 12 gaps`
+# Los rangos compactos conservan extremos `T-` de dos cifras; los IDs explícitos siguen el parser canónico: `T-03… 12 gaps`
 # o `T-01 — 5 gaps` no son rangos, y no se generan ids que ningún parser casaría. Se expande a la lista de ids para que
 # cubra las intermedias.
 _RANGO_RE = re.compile(r"\bT-(\d{2})[ \t]{0,3}(?:\.{2,3}|…|[–—-])[ \t]{0,3}T-(\d{2})\b")

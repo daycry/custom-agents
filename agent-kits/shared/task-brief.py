@@ -573,7 +573,7 @@ def _persona_delimitada(tipo, contenido, ruta, tope_cuerpo):
     return ["", f"## Persona de dominio (tipo: {tipo})", "", _PERSONA_INICIO, cuerpo, _PERSONA_FIN, ""]
 
 
-def _design_elegida(carpeta):
+def _design_elegida(carpeta, strict=False):
     """(opcion, texto de la sección «opción elegida») de design.md aprobado, o None (con aviso si existe
     pero está en borrador / sin opción). Solo esa sección: token-diet."""
     p = os.path.join(carpeta, "design.md")
@@ -589,13 +589,19 @@ def _design_elegida(carpeta):
                 fm[k.strip()] = v.split("#", 1)[0].strip()
     estado, opcion = fm.get("estado", ""), fm.get("opcion_elegida", "")
     if estado != "aprobado" or not opcion or opcion == "pendiente":
+        if strict and estado == "aprobado":
+            raise ValueError("approved design has no selected option")
         print(f"⚠️  design.md en estado `{estado or '?'}` (opción `{opcion or '?'}`): no se inyecta en el brief — "
               f"cierra la validación del diseño (architect, pasada 2) antes de despachar.", file=sys.stderr)
         return None
-    sec = _seccion_plan(text, r"\d+\.\s*(?:Recomendación\s*·\s*)?[Oo]pci[oó]n elegida")
+    sec = _seccion_plan(text, r"\d+\.\s*(?:Recomendación\s*(?:·|y)\s*)?[Oo]pci[oó]n elegida")
     if not sec:
+        if strict:
+            raise ValueError("approved design section unavailable")
         return None
     cuerpo = "\n".join(sec.splitlines()[1:]).strip()
+    if strict and not cuerpo:
+        raise ValueError("approved design decision is empty")
     return opcion, cuerpo
 
 
@@ -730,7 +736,7 @@ def secciones_revision(texto):
 
 
 def ids_de_tarea(texto):
-    """IDs `T-NN` citados en `texto` (regex `\\bT-\\d{2}\\b`), fuente UNICA de "que tareas cita
+    """IDs numéricos `T-N...` citados en `texto` (regex `\\bT-\\d+\\b`), fuente UNICA de "que tareas cita
     una celda o una cabecera" (jira-review-comments T-03-fix2, gaps #14/#15/#17). Antes cada sitio
     -`menciones()` aqui, el filtro de filas de `revision`/`gaps` y de `aprobado` en `jira-flow.py`,
     `_gaps_pendientes_de_tarea` en `task-brief.py`- comparaba la celda `Tarea` con `==`/`in` sobre
@@ -739,7 +745,7 @@ def ids_de_tarea(texto):
     fila. Con esta funcion, `T-02/T-04` cuenta para T-02 Y para T-04 en TODOS los sitios por
     igual - nunca cuenta si el id aparece dentro de otra palabra mas larga (limite `\\b`) ni si
     solo aparece en `Correccion`/`Evidencia` (esta funcion no las mira; ver `menciones()`)."""
-    return set(re.findall(r"\bT-\d{2}\b", texto))
+    return set(re.findall(r"\bT-\d+\b", texto))
 
 
 def menciones(seccion):
@@ -1229,7 +1235,7 @@ def _seccion_extensiones(chunk, carpeta, *, runtime='all', home=None, cwd=None,
 
 def _seccion_diseno_y_arquitectura(carpeta, plan_p, chunk="", strict=False):
     out = []
-    diseno = _design_elegida(carpeta)
+    diseno = _design_elegida(carpeta, strict=strict)
     if diseno:
         if _tarea_toca_diseno(carpeta, chunk):
             section = [f"## Diseño (design.md · opción elegida {diseno[0]})", "", diseno[1],
@@ -1482,7 +1488,13 @@ def main(argv=None):
                                include_user=not args.extensions_project_only,
                                user_roots=args.extensions_user_root)
     out += _seccion_memoria(args.carpeta, chunk, tipo, args.knowledge_find)
-    out += _seccion_diseno_y_arquitectura(args.carpeta, plan_p, chunk, strict=lite)
+    try:
+        out += _seccion_diseno_y_arquitectura(args.carpeta, plan_p, chunk, strict=lite)
+    except (ValueError, OSError):
+        if not lite:
+            raise
+        print("lite: design.md no verificable; revisa opción y sección elegida antes de despachar.", file=sys.stderr)
+        return 2
     out += _seccion_constitucion(args)
     out += (["", TDD_BRIEF] if args.tdd or profile.get("tdd") else []) if lite else _seccion_tdd(args)
     out += ["", CONTRATO]

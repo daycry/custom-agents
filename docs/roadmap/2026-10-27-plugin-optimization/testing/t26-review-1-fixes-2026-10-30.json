@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "review_attempt": 1,
+  "original_head": "4e5017daec68b0dbe0433ad28abb7e284e58e841",
+  "fixes": [
+    {
+      "id": "B-F3-01",
+      "status": "corrected_by_author_pending_independent_recheck",
+      "test": "tests/test_ledger_write.py::test_b_f3_01_review_sequence_covers_every_canonical_numeric_task_id",
+      "red": 3,
+      "cases": [
+        "T-1",
+        "T-100",
+        "T-1234"
+      ],
+      "change": "Canonical ids_de_tarea and two declared standalone copies accept numeric widths allowed by parse_ledger; limit3 and compact-range format unchanged."
+    },
+    {
+      "id": "A-F3-01",
+      "status": "corrected_by_author_pending_independent_recheck",
+      "test": "tests/test_lite_profile.py::test_a_f3_01_descriptors_explain_lite_and_writer_contracts",
+      "red": true,
+      "change": "Update implementer descriptor, shared registry and E8 runtime contract; no gates removed."
+    },
+    {
+      "id": "A-F3-02",
+      "status": "corrected_by_author_pending_independent_recheck",
+      "tests": "tests/test_lite_profile.py::test_a_f3_02_*",
+      "red": "Conjunction heading omitted; unsupported/empty approved decision dispatched; PermissionError propagated. Each observed before its fix.",
+      "change": "Recognize both approved heading forms; lite blocks missing option, unknown/empty selected section or unavailable design with exit2 and no stdout; normal budgets retained."
+    }
+  ],
+  "windows": {
+    "ledger_and_view_passed": 64,
+    "ledger_and_view_skipped": 2,
+    "lite_latest_passed": 27,
+    "earlier_lite_and_declared_copies_passed": 55,
+    "brief_and_split_passed": 102,
+    "jira_flow_passed": 74
+  },
+  "static": {
+    "ledger_errors": 0,
+    "lint_errors": 0,
+    "existing_warnings": 3,
+    "eval_cases": 192,
+    "interop_current": 88
+  },
+  "immutable_prior_ci": {
+    "run": 41089710780,
+    "head": "4e5017d",
+    "status": "success",
+    "python_passed": 9880,
+    "skipped": 38,
+    "subtests_passed": 82,
+    "limits": "Does not cover these subsequent fixes."
+  },
+  "source_sha256_lf": {
+    "agent-kits/shared/ledger-lint.py": "72a19bb8dd26aa1ea6c6d824cf2befefa9c7838f948c5ef794465d7b99c86b22",
+    "agent-kits/shared/task-brief.py": "f94d01a719c54e01ef2e16086439608e2e58af9bc0f02339a10cc6ca4b40d623",
+    "skills/jira-sync/scripts/jira-flow.py": "31db8c6c0ae33a1ea6163c45e2e004bdb26b088a4afcc0f64036bb422acc4aac",
+    "agent-kits/shared/ledger-view.py": "5a9326679eda850473fffb7df84ce62175b5cc56d777649d33af71b158f8774b",
+    "tests/test_ledger_write.py": "a3b0bdc273dc6adec5ce57227f235237656d9ef769781da0d459b588a3bd7643",
+    "tests/test_lite_profile.py": "d8dfe8f3d9cd247f86c28d5f56885fdbff6e8aeddf12650890d26d8198997e98",
+    "agent-kits/shared/README.md": "9221eaefa7989be7ff18ea3d8cafb6c39d21f2ee02faebf7d1d5c4e8de1a3b24",
+    "docs/agents/CONTRACTS.md": "329749a0abd12bc3446fbc2f299b46dcc78389a363a9903a3263cad9197f25ea",
+    "docs/agents/implementer.md": "f305ab9eb8468cef2bd0294f14eb204b1d7c2f7ca92610f1c8e7057ca4fc7075"
+  },
+  "limits": [
+    "Independent attempt2 and exact corrected Linux CI pending",
+    "Official coverage still in progress",
+    "Real Ollama manual and release version not approved"
+  ]
+}

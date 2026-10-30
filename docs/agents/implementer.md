@@ -22,6 +22,22 @@ flowchart LR
 - Mantiene **`tasks.md` como ledger canónico**: marca cada tarea (checkbox + estado) y actualiza el resumen a medida que avanza. Al marcarla `completado` escribe además el campo opcional **`- **Cerrada**: AAAA-MM-DD`** (la fecha de cierre, mismo patrón que `Changelog`): lo lee el burndown de la página Plan del panel (`agent-kits/shared/ledger-view.py`) y `ledger-lint` valida solo su formato y que no sea anterior a la creación del ledger.
 - Hace **handoff a `qa`** al terminar. La documentación (`documenter`) va después, solo si `qa` queda en verde.
 
+## Ledger y perfil de ejecución
+
+Para estados, evidencias RED y cabeceras de revisión, usa `ledger-write.py` del
+shared según `ledger-write.md`: es preferente en normal y obligatorio en `lite`.
+El writer valida el ledger, conserva campos ajenos y publica tras bloqueo y
+comprobación de versión. Un conflicto exige releer; no sobrescribas su evidencia.
+El fallback manual de una instalación normal parcial conserva `ledger-lint.py`.
+
+`execution-profile.py` resuelve los flags efectivos. Lite implementa en el hilo
+actual, sin paralelismo ni subagentes de implementación. Consume el brief completo
+que genera `task-brief.py`: techo6000, exit2 y stdout vacío si falta el writer o
+el contexto obligatorio no cabe. Diseño aprobado no verificable impide ese
+despacho. No recortes criterios, verificación, diseño, persona ni gates para entrar
+en el techo. Normal conserva sus presupuestos y techo10000. Revisores frescos
+secuenciales, TDD elegido, QA, cobertura y Knowledge Gate conservan sus puertas.
+
 ## Qué NO hace
 
 - No planifica ni evalúa (eso es `planner`/`evaluator`).

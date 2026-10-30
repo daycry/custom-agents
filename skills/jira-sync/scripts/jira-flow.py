@@ -360,7 +360,7 @@ def secciones_revision(texto):
 
 
 def ids_de_tarea(texto):
-    """IDs `T-NN` citados en `texto` (regex `\\bT-\\d{2}\\b`), fuente UNICA de "que tareas cita
+    """IDs numéricos `T-N...` citados en `texto` (regex `\\bT-\\d+\\b`), fuente UNICA de "que tareas cita
     una celda o una cabecera" (jira-review-comments T-03-fix2, gaps #14/#15/#17). Antes cada sitio
     -`menciones()` aqui, el filtro de filas de `revision`/`gaps` y de `aprobado` en `jira-flow.py`,
     `_gaps_pendientes_de_tarea` en `task-brief.py`- comparaba la celda `Tarea` con `==`/`in` sobre
@@ -369,7 +369,7 @@ def ids_de_tarea(texto):
     fila. Con esta funcion, `T-02/T-04` cuenta para T-02 Y para T-04 en TODOS los sitios por
     igual - nunca cuenta si el id aparece dentro de otra palabra mas larga (limite `\\b`) ni si
     solo aparece en `Correccion`/`Evidencia` (esta funcion no las mira; ver `menciones()`)."""
-    return set(re.findall(r"\bT-\d{2}\b", texto))
+    return set(re.findall(r"\bT-\d+\b", texto))
 
 
 def menciones(seccion):

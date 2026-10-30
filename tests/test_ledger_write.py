@@ -342,6 +342,19 @@ def test_atomic_replacement_during_preflight_is_a_conflict(tmp_path, monkeypatch
     assert not (tmp_path / ".ledger-write").exists()
 
 
+@pytest.mark.parametrize("task", ["T-1", "T-100", "T-1234"])
+def test_b_f3_01_review_sequence_covers_every_canonical_numeric_task_id(tmp_path, task):
+    path = tmp_path / "tasks.md"
+    path.write_text(BASE.replace("T-01", task), encoding="utf-8")
+    for attempt in (1, 2, 3):
+        result = call(path, "review", "--tasks", task, "--attempt", str(attempt), "--summary", "Round")
+        assert result.returncode == 0, result.stdout + result.stderr
+    before = path.read_bytes()
+    reset = call(path, "review", "--tasks", task, "--attempt", "1", "--summary", "Reset")
+    assert reset.returncode == 1 and json.loads(reset.stdout)["status"] == "review_sequence"
+    assert path.read_bytes() == before
+
+
 def test_state_preserves_an_unrelated_phases_summary_bytes(tmp_path):
     path = tmp_path / "tasks.md"
     row = "| Fase 2 — Other |   0   |  1  |  0%  |\n"

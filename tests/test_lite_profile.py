@@ -222,3 +222,69 @@ def test_doctor_partial_writer_warns_that_lite_dispatch_is_blocked(tmp_path, mon
     row = next(row for row in doctor._dev(None, str(tmp_path)) if row.get("perfil") == "lite")
     assert row["estado"] == "aviso" and row["blocked"] is True
     assert row["writer_available"] is False and "writer" in row["arreglo"]
+
+
+def approved_design_fixture(project, heading):
+    folder = brief_fixture(project)
+    path = folder / "tasks.md"
+    path.write_text(path.read_text(encoding="utf-8").replace("- **Estado**", "- **Archivos**: `app.py`\n- **Estado**"), encoding="utf-8")
+    (folder / "design.md").write_text("---\nestado: aprobado\nopcion_elegida: O1\n---\n" + heading +
+        "\n\nMANDATORY_DESIGN_O1: preserve the chosen boundary.\n\n## 5. Impacto\n\n"
+        "| Archivo | Cambio |\n|---|---|\n| `app.py` | Implement |\n", encoding="utf-8")
+    return folder
+
+
+@pytest.mark.parametrize("heading", ["## 4. Recomendación y opción elegida", "## 4. Recomendación · opción elegida y por qué"])
+def test_a_f3_02_lite_includes_the_approved_applicable_design(tmp_path, heading):
+    config(tmp_path, {"perfil": "lite"})
+    result = run_brief(approved_design_fixture(tmp_path, heading))
+    assert result.returncode == 0, result.stderr
+    assert "MANDATORY_DESIGN_O1" in result.stdout
+
+
+def test_a_f3_02_unreadable_approved_design_section_blocks_lite_dispatch(tmp_path):
+    config(tmp_path, {"perfil": "lite"})
+    result = run_brief(approved_design_fixture(tmp_path, "## 4. Unrecognized approved decision"))
+    assert result.returncode == 2 and result.stdout == ""
+    assert "design" in result.stderr.lower()
+
+
+def test_a_f3_02_empty_approved_decision_cannot_dispatch_lite(tmp_path):
+    config(tmp_path, {"perfil": "lite"})
+    folder = approved_design_fixture(tmp_path, "## 4. Opción elegida")
+    path = folder / "design.md"
+    path.write_text(path.read_text(encoding="utf-8").replace(
+        "MANDATORY_DESIGN_O1: preserve the chosen boundary.", ""), encoding="utf-8")
+    result = run_brief(folder)
+    assert result.returncode == 2 and result.stdout == ""
+
+
+def test_a_f3_02_unavailable_design_file_blocks_without_a_partial_brief(tmp_path, monkeypatch, capsys):
+    import builtins
+    config(tmp_path, {"perfil": "lite"})
+    folder = approved_design_fixture(tmp_path, "## 4. Opción elegida")
+    spec = importlib.util.spec_from_file_location("lite_unreadable_design", SHARED / "task-brief.py")
+    brief = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(brief)
+    original_open = builtins.open
+
+    def unavailable(path, *args, **kwargs):
+        if str(path) == str(folder / "design.md"):
+            raise PermissionError("fixture unreadable design")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", unavailable)
+    assert brief.main([str(folder), "T-01", "--sin-lint", "--constitucion", str(folder / "absent.md")]) == 2
+    assert capsys.readouterr().out == ""
+
+
+def test_a_f3_01_descriptors_explain_lite_and_writer_contracts():
+    contracts = (ROOT / "docs/agents/CONTRACTS.md").read_text(encoding="utf-8")
+    row = next(line for line in contracts.splitlines() if line.startswith("| E8 "))
+    for marker in ("lite", "6000", "10000", "`2`", "stdout"):
+        assert marker in row, ("E8", marker)
+    shared = (SHARED / "README.md").read_text(encoding="utf-8")
+    for marker in ("execution-profile.py", "ledger-write.py", "6000", "lite"):
+        assert marker in shared, marker
+    implementer = (ROOT / "docs/agents/implementer.md").read_text(encoding="utf-8")
+    assert "ledger-write.py" in implementer and "lite" in implementer

@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "attempt": 1,
+  "base": "c6aee505d200f6354939b8a3dc2305ee82b8ec62",
+  "head": "4e5017daec68b0dbe0433ad28abb7e284e58e841",
+  "lenses": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "fresh_generic_reviewers": true,
+  "native_reviewer_available": false,
+  "critical": 0,
+  "important": 3,
+  "minor": 0,
+  "gaps": [
+    {
+      "id": "A-F3-01",
+      "task": [
+        "T-23",
+        "T-25"
+      ],
+      "status": "pending",
+      "file": "docs/agents/CONTRACTS.md",
+      "line": 79,
+      "scenario": "Descriptive consumers still document subagent-only10000 briefs and omit lite6000/exit2 and required writer."
+    },
+    {
+      "id": "A-F3-02",
+      "task": [
+        "T-25"
+      ],
+      "status": "pending",
+      "file": "agent-kits/shared/task-brief.py",
+      "line": 595,
+      "scenario": "Approved heading Recomendación y opción elegida is not parsed; lite exits0 without applicable design or warning."
+    },
+    {
+      "id": "B-F3-01",
+      "task": [
+        "T-23"
+      ],
+      "status": "pending",
+      "file": "agent-kits/shared/ledger-write.py",
+      "line": 152,
+      "scenario": "T-100 accepted by canonical ledger parser but prior review mentions only match two digits; attempts1,2,1 return0,1,0."
+    }
+  ],
+  "independent_checks": {
+    "interop": {
+      "exit": 0,
+      "current": 88
+    },
+    "security_directed": {
+      "passed": 31,
+      "skipped": 1,
+      "deselected": 66
+    },
+    "performance": {
+      "repetitions": 5,
+      "writer_red_ms_by_kib": {
+        "32": 3.25,
+        "128": 11.93,
+        "240": 21.92
+      },
+      "profile_ms": 131.39,
+      "projection_1_10_roles_ms": [
+        17.98,
+        20.05
+      ],
+      "limits": "No fsync/publication, complete install or inference measurement"
+    }
+  },
+  "limits": [
+    "Not QA or release approval",
+    "Official coverage pending",
+    "T26 real Ollama manual remains pending"
+  ]
+}
