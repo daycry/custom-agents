@@ -1,0 +1,29 @@
+{
+  "target": "skill:relationship-planning",
+  "cases": [
+    {
+      "id": "relationship-planning-literal",
+      "prompt": "revisa mi red de contactos",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "relationship-planning-parafrasis",
+      "prompt": "Ayúdame a priorizar relaciones profesionales para este objetivo.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "relationship-planning-negativo",
+      "prompt": "Prepara una campaña de artículos para nuestro público.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:content-production"
+      }
+    }
+  ]
+}

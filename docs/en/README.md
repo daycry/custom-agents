@@ -119,9 +119,15 @@ This is how roles are separated: **`/pm-cycle`** decides *what* and *how much it
 | **to-pdf** | Converts Markdown/HTML/Word to PDF with a modern theme (headless Chromium + CSS). | qa, `/roadmap-brief` |
 | **confluence-publish** | Publishes/mirrors the project docs to Confluence via the Atlassian connector (Rovo MCP), with a **curated policy** (opt-out over `include: ["**/*.md"]`, summary in its `SKILL.md` "qué sube y qué no" section and normative table in `references/config-and-policy.md`; the wizard and the publish algorithm also live in `references/`) and **generated staging** (`confluence-scope.py --stage` regenerates `docs/confluence/`). Each project chooses a space and anchor (space root or child of the tree) in `.claude/confluence.json`; idempotent (creates/updates). | planner, evaluator, documenter, implementer, `/retro`, `/spec-drift`, `/roadmap-brief` |
 | **confluence-pull** | The **reverse** direction: pulls Confluence → local `docs/`, for PMs without git. Reuses `confluence.json` and the `confluence-state.json` map; preserves local frontmatter, warns about conflicts and confirms before writing. Only reads from Confluence. | command `/confluence-pull` |
+| **voice-profile** | Voice profile from authorized samples, with provenance and channel differences. | On demand; project roles retain their permissions |
+| **content-production** | Articles, newsletters and channel variants with traceable claims and agreed voice. | On demand; project roles retain their permissions |
+| **relationship-planning** | Network review and contact preparation; proposals distinguished from actions. | On demand; project roles retain their permissions |
+| **competitive-analysis** | Competitor scope, profiles and maps with sources and explicit criteria. | On demand; project roles retain their permissions |
+| **llm-pipeline** | LLM application guidance: budget reservation, retries, caching and evaluation. | On demand; project roles retain their permissions |
+| **data-collection** | HTML/RSS/JSON collector guidance with optional enrichment and recovery. | On demand; project roles retain their permissions |
 | **research-first** | Compare existing solutions before integrations or new tooling; original sources and explicit access limits. | analyst, architect |
 | **plugin-panel** | Local bundle and extension panel; hooks by runtime/event, purpose, source and budget. Deterministic JSON and served canonical progress; unverified loading/execution. | `/plugin-catalog` |
-| **stack-practices** | Version-aware PHP/CodeIgniter, Python and React guidance for persistence, concurrency, state and tests. | architect, planner, implementer, reviewer, qa |
+| **stack-practices** | Version-aware guidance for CodeIgniter 4, Laravel, Symfony, Next.js, React, Python, .NET/C# and C. | architect, planner, implementer, reviewer, qa |
 | **backend-practices** | API contracts, resource authorization, errors, idempotency and compatible migrations. | analyst, architect, planner, implementer, reviewer, qa |
 | **frontend-quality** | Keyboard, focus, forms, remote states and measured UI performance. | architect, planner, implementer, reviewer, qa |
 | **delivery-practices** | Containers, readiness, recovery and MCP access boundaries. | architect, planner, implementer, reviewer, qa |

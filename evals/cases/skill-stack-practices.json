@@ -30,6 +30,54 @@
         "activates": false,
         "redirect": "skill:dependency-upgrade"
       }
+    },
+    {
+      "id": "stack-practices-laravel",
+      "prompt": "patrones Laravel",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "stack-practices-symfony",
+      "prompt": "patrones Symfony",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "stack-practices-nextjs",
+      "prompt": "patrones Next.js",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "stack-practices-dotnet",
+      "prompt": "patrones .NET",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "stack-practices-c",
+      "prompt": "patrones C",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "stack-practices-csharp",
+      "prompt": "Revisa el ciclo de vida y la cancelación de este servicio C#.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      }
     }
   ]
 }

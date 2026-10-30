@@ -21,7 +21,7 @@
 [![npx](https://img.shields.io/badge/instalaci%C3%B3n-npx-cb3837.svg?logo=npm&logoColor=white)](docs/INTEROP.md)
 [![SDD](https://img.shields.io/badge/metodolog%C3%ADa-Spec--Driven-2ea44f.svg)](docs/FLOWS.md)
 [![Agentes](https://img.shields.io/badge/agentes-10-0ea5e9.svg)](docs/README.md)
-[![Skills](https://img.shields.io/badge/skills-27-0ea5e9.svg)](docs/README.md)
+[![Skills](https://img.shields.io/badge/skills-33-0ea5e9.svg)](docs/README.md)
 [![Comandos](https://img.shields.io/badge/comandos-15-0ea5e9.svg)](docs/README.md)
 [![Skills portables](https://img.shields.io/badge/skills%20portables-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/INSTALL.md#usar-las-skills-fuera-de-claude-code-paquete-portable)
 
@@ -109,7 +109,7 @@ npx @daycry/custom-agents            # menú interactivo; marca los runtimes que
 
 | Runtime | Instalación | Qué obtienes |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 10 agentes, 15 comandos, 27 skills, hooks y statusline |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 10 agentes, 15 comandos, 33 skills, hooks y statusline |
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (o el instalador) | Skills, agentes como `.toml`, adaptadores de comandos generados (`$custom-agents:custom-agents-<nombre>`), hooks de sesión |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agentes, comandos y adaptador de hooks |
 
@@ -248,7 +248,7 @@ Tus agentes, skills, personas, fuentes de tools y MCP permanecen en las carpetas
 nativas del proyecto/usuario. El descubrimiento conserva tus archivos y distingue
 declaraciones de disponibilidad en sesión. [Guía de extensiones](docs/PROJECT-EXTENSIONS.md).
 
-Skills compartidas: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services` · `research-first` · `plugin-panel` · `stack-practices` · `backend-practices` · `frontend-quality` · `delivery-practices` · `capability-audit` · `outcome-evals`. Scripts deterministas (todos con tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
+Skills compartidas: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services` · `research-first` · `plugin-panel` · `stack-practices` · `backend-practices` · `frontend-quality` · `delivery-practices` · `capability-audit` · `outcome-evals` · `voice-profile` · `content-production` · `relationship-planning` · `competitive-analysis` · `llm-pipeline` · `data-collection`. Scripts deterministas (todos con tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
 
 </details>
 

@@ -11,6 +11,17 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed
+
+- Give owned Codex hooks descriptive names in the hook browser and document how to review changed plugin contents; preserve commands, timeouts and native trust requirements.
+
+### Added
+
+- Version-aware guidance for Laravel, Symfony, Next.js, .NET/C# and C; exact dependency detection for the three web frameworks and explicit C/.NET selection.
+
+- Six optional skills for voice profiles, editorial production, relationship planning, competitive analysis, LLM pipelines and data collection, with a shared external communication contract.
+
+
 ## [2.3.0] - 2026-10-30
 
 ### Added

@@ -11,6 +11,17 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Corregido
+
+- Identifica los hooks propios de Codex con nombres descriptivos y documenta su revisión tras cambiar el plugin; conserva comandos, plazos y aprobación nativa.
+
+### Añadido
+
+- Guías por versión para Laravel, Symfony, Next.js, .NET/C# y C; detección por dependencia exacta de los tres frameworks web y selección explícita de C/.NET.
+
+- Seis skills opcionales para perfiles de voz, producción editorial, relaciones, análisis competitivo, pipelines LLM y recolección de datos, con contrato compartido de comunicación externa.
+
+
 ## [2.3.0] - 2026-10-30
 
 ### Añadido

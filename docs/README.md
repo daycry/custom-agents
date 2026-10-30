@@ -116,9 +116,15 @@ Así se separan los roles: **`/pm-cycle`** decide *qué* y *cuánto cuesta* (una
 | **to-pdf** | Convierte Markdown/HTML/Word a PDF con tema moderno (Chromium headless + CSS). | qa, `/roadmap-brief` |
 | **confluence-publish** | Publica/espeja la doc del proyecto en Confluence vía el conector Atlassian (Rovo MCP), con **política curada** (opt-out sobre `include: ["**/*.md"]`, resumen en su `SKILL.md` sección "qué sube y qué no" y tabla normativa en `references/config-and-policy.md`; el asistente y el algoritmo de publicación también en `references/`) y **staging generado** (`confluence-scope.py --stage` regenera `docs/confluence/`). Cada proyecto elige espacio y anclaje (raíz o hijo del árbol) en `.claude/confluence.json`; idempotente (crea/actualiza). | planner, evaluator, documenter, implementer, `/retro`, `/spec-drift`, `/roadmap-brief` |
 | **confluence-pull** | Sentido **inverso**: baja Confluence → `docs/` local, para PMs sin git. Reutiliza `confluence.json` y el mapa `confluence-state.json`; preserva el frontmatter local, avisa de conflictos y confirma antes de escribir. Solo lee de Confluence. | comando `/confluence-pull` |
+| **voice-profile** | Perfil de voz desde muestras autorizadas, con procedencia y variantes por canal. | A demanda; cada rol conserva sus permisos |
+| **content-production** | Artículos, newsletters y variantes por canal con hechos trazables y voz acordada. | A demanda; cada rol conserva sus permisos |
+| **relationship-planning** | Revisión de red y preparación de contactos; propuestas y acciones diferenciadas. | A demanda; cada rol conserva sus permisos |
+| **competitive-analysis** | Alcance, perfiles y mapas competitivos con fuentes y criterios explícitos. | A demanda; cada rol conserva sus permisos |
+| **llm-pipeline** | Guía de aplicaciones LLM: reserva previa, reintentos, caché y evaluación. | A demanda; cada rol conserva sus permisos |
+| **data-collection** | Guía de recolectores HTML/RSS/JSON con enriquecimiento opcional y recuperación. | A demanda; cada rol conserva sus permisos |
 | **research-first** | Compara soluciones existentes antes de integraciones o nuevas herramientas; fuentes originales y límites explícitos. | analyst, architect |
 | **plugin-panel** | Panel local del bundle y extensiones propias; hooks por runtime/evento, función, fuente y presupuesto. JSON determinista y modo servido para progreso canónico; carga/ejecución sin verificar. | `/plugin-catalog` |
-| **stack-practices** | Guías por versión para PHP/CodeIgniter, Python y React; estado, persistencia, concurrencia y pruebas. | architect, planner, implementer, reviewer, qa |
+| **stack-practices** | Guías por versión para CodeIgniter 4, Laravel, Symfony, Next.js, React, Python, .NET/C# y C; estado, persistencia, concurrencia y pruebas. | architect, planner, implementer, reviewer, qa |
 | **backend-practices** | APIs, autorización por recurso, errores, idempotencia y migraciones compatibles. | analyst, architect, planner, implementer, reviewer, qa |
 | **frontend-quality** | Teclado, foco, formularios, estados remotos y rendimiento medido. | architect, planner, implementer, reviewer, qa |
 | **delivery-practices** | Contenedores, readiness, recuperación y límites de acceso MCP. | architect, planner, implementer, reviewer, qa |
