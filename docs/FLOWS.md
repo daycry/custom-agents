@@ -250,6 +250,11 @@ pendientes. `quick-implement` lee ese núcleo y las referencias que correspondan
 Los adaptadores de Codex/OpenCode conservan esta lectura bajo demanda y usan el
 kit del mismo bundle; el instalador transporta sus referencias junto a los kits.
 
+El selector C/D comparte una lectura de cada fichero entre contenido y cabecera:
+en `--files` y untracked conserva las líneas completas; para ficheros versionados
+analiza las líneas añadidas de Git y solo necesita la cabecera local para el flujo
+de prompts. El sondeo binario y las exclusiones mantienen sus reglas.
+
 ```mermaid
 flowchart TD
     NL(["petición en lenguaje natural<br/>«implementa X rápido»"]) -.->|"skill quick-implement<br/>(filtro de idoneidad)"| Z

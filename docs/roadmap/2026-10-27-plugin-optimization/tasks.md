@@ -38,9 +38,9 @@ changelog: Changed
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Quick wins medibles (v2.1.0 publicada) | 7 | 7 | 100% | 0 / 38.4h | 0 / 14.8h | 0 / 3.7h | 0 / 6.0M in + 600k out |
-| Fase 2 — Reestructuración (en ejecución) | 6 | 12 | 50.0% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
+| Fase 2 — Reestructuración (en ejecución) | 7 | 12 | 58.3% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
 | Fase 3 — Modelos locales (diferida) | 0 | 7 | 0% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
-| **TOTAL** | **13** | **26** | **50.0%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
+| **TOTAL** | **14** | **26** | **53.8%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Jira no está activado en este proyecto (no hay `jira.json`). Ver `skills/jira-sync/SKILL.md`.
 
@@ -504,8 +504,9 @@ changelog: Changed
 ### T-14 — C-16 — `review-lens-select` con una lectura por fichero
 
 - **Descripción**: Resultado: el script abre cada fichero una sola vez y aplica los dos análisis sobre el mismo contenido (38 s con 1.081 ficheros hoy). Decidido «sí» en la puerta. Requisito: evaluation.md §C-16.
-- **Changelog**:
-- **Estado**: borrador
+- **Changelog**: Comparte una lectura por fichero en el selector C/D, conservando motivos, exclusiones y detección de binarios.
+- **Cerrada**: 2026-10-30
+- **Estado**: completado
 - **Tiempo humano**: est. 2.4h · real —
 - **Tiempo IA (ejec.)**: est. 0.99h · real —
 - **Supervisión**: est. 0.25h (≈25 % IA) · real —
@@ -513,18 +514,18 @@ changelog: Changed
 - **Dependencias**: T-08
 - **Tipo**: backend
 - **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py`, `skills/adversarial-review/scripts/test_review_lens_select.py`
-- **Cubre (tests)**: —
+- **Cubre (tests)**: 58 casos del selector, incluidos 13 nuevos de IO/lectura; 30 de copias declaradas y 8 de consola.
 - **Verificación**: `python -m pytest -q skills/adversarial-review/scripts/test_review_lens_select.py` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Mismo veredicto C/D y motivos, con una apertura de contenido por fichero en --files y fallback untracked. Detectar binarios antes de analizar y mantener lecturas acotadas, errores y exclusiones. Verificar conteo de IO con test dedicado y comparación medida de diff grande con control intercalado.
+- [x] Mismo veredicto C/D y motivos, con una apertura de contenido por fichero en --files y fallback untracked. Detectar binarios antes de analizar y mantener lecturas acotadas, errores y exclusiones. Verificar conteo de IO con test dedicado y comparación medida de diff grande con control intercalado.
 
 **Subtareas**
-- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
-- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
-- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
+- [x] Caracterizar comportamiento y observar primer oráculo declarado.
+- [x] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [x] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Oráculo = test de equivalencia de veredicto en ROJO. Patrón: `skills/adversarial-review/scripts/review-lens-select.py` y su test. Lente D. Se concreta al revalidar. Clasificación: refactor de rendimiento. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
+**Notas**: RED: `test_una_apertura_comparte_lineas_y_cabecera` conserva los motivos C/D esperados pero cuenta 4 aperturas en `--files` y fallback untracked, y 2 en tracked frente a 1 · 2026-10-30. La instrumentación usa rutas reales para reconocer tanto el alias Windows 8.3 temporal como el nombre largo de Git. GREEN dirigido: 3 casos de una apertura y 10 casos adicionales de lectura/aislamiento pasan. Cabecera de 8.192 caracteres y sondeo binario de 8.192 bytes; lectura UTF-8 incremental acotada, sin releer bytes ni cachear entre ejecuciones. GREEN: 88 casos selector/copias en 166,36 s y 8 de consola en 2,02 s. Control intercalado con 1.081 ficheros: files 5.947,799 a 1.872,201 ms (68,523 %); untracked 6.741,646 a 2.507,304 ms (62,809 %); tracked 4.538,717 a 2.804,780 ms (38,203 %). Diez muestras por variante/modo y calentamiento descartado; 33 pares con JSON/stderr idénticos y cero errores. Fixture temporal fuera de OneDrive; no reproduce la cifra histórica de 38 s ni mide entrega nativa. Lint 0 errores/3 avisos previos, evals 192/0 errores, interop 88 vigentes. Recibos `testing/t14-functional-2026-10-30.json` y `testing/t14-paired-control-2026-10-30.json`. Revisión independiente, cobertura y CI de fase siguen en T-19; la CI de T-13 8e8bcb4 terminó verde (40920644178), sin extrapolar al nuevo cambio. Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Oráculo = test de equivalencia de veredicto en ROJO. Patrón: `skills/adversarial-review/scripts/review-lens-select.py` y su test. Lente D. Se concreta al revalidar. Clasificación: refactor de rendimiento. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
 
 
 ### T-15 — C-15 (spike, 2 h) — ¿Cierre del Job Object sin segundo Python?

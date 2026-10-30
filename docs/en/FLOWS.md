@@ -248,6 +248,11 @@ planning in full flow, enabled subagents or Jira, and pending knowledge proposal
 adapters retain deferred reading from the same bundle; the installer includes
 these references with the kits.
 
+The C/D selector shares one file read between content and header checks. Explicit
+`--files` and untracked inputs retain the complete lines; tracked inputs analyze
+Git's added lines and only need the local header for prompt-flow detection.
+Binary probing and exclusions retain their existing rules.
+
 ```mermaid
 flowchart TD
     NL(["natural-language request<br/>\"implement X quickly\""]) -.->|"quick-implement skill<br/>(suitability filter)"| Z
