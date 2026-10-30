@@ -123,12 +123,12 @@ HOOK_PATH_RE = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([^\s\"']+)")
 BACKTICK_RE = re.compile(r"`([^`]+)`")
 
 # --- vocabulario de .claude/dev.json (regla 9 de docs/CONVENTIONS.md) -------------------
-DEV_BOOLES = ("tdd", "worktree", "subagentes", "constitucion", "statusline")
+DEV_BOOLES = ("tdd", "worktree", "subagentes", "constitucion", "statusline", "paralelismo")
 DEV_LENTES = ("auto", "siempre", "nunca")
 DEV_GUARDRAIL_REGLAS = ("alcance", "ramaPrincipal", "git")
 DEV_SESION_CLAVES = ("indice", "journal", "memoria", "captura", "resumen", "actividad")   # memoria: bloque (4) de session-context.sh (T-06);
                                                                               # captura/resumen: log crudo del turno y resumen por IA opt-in (memory-retrieval T-11/T-13)
-DEV_CLAVES = set(DEV_BOOLES) | {"guardrails", "revision", "sesion", "modelos", "tests"}
+DEV_CLAVES = set(DEV_BOOLES) | {"guardrails", "revision", "sesion", "modelos", "tests", "perfil"}
 
 JIRA_OBLIGATORIOS = ("cloudId", "granularidad", "assignee", "alCubrirJornada")
 CONFLUENCE_OBLIGATORIOS = ("cloudId", "spaceKey", "anchor", "home")
@@ -1322,6 +1322,8 @@ def _dev_valida(datos):
         if k in datos and not isinstance(datos[k], bool):
             ls.append(linea(ERROR, f"dev.json `{k}`", f"{datos[k]!r} no es booleano",
                             f"pon `\"{k}\": true` o `\"{k}\": false` (o relanza `/setup` paso 5)"))
+    if "perfil" in datos and (not isinstance(datos["perfil"], str) or datos["perfil"] not in ("normal", "lite")):
+        ls.append(linea(ERROR, "dev.json `perfil`", "perfil no válido", "elige normal o lite con `/setup`"))
     ls.extend(_dev_valida_guardrails(datos.get("guardrails")))
     ls.extend(_dev_valida_revision(datos.get("revision")))
     ls.extend(_dev_valida_sesion(datos.get("sesion")))
@@ -1392,6 +1394,21 @@ def _dev(plugin_root, project, runtime="claude"):
         return [linea(ERROR, "dev.json", "la raíz no es un objeto JSON",
                       "recréalo con `/setup` (paso 5)")]
     ls = _dev_valida(datos)
+    if "perfil" in datos:
+        try:
+            spec = importlib.util.spec_from_file_location("doctor_execution_profile", os.path.join(HERE, "execution-profile.py"))
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            profile = module.resolve(project)
+            row = linea(AVISO if profile["blocked"] or profile["warnings"] else OK,
+                        "dev.json `perfil`", f"{profile['perfil']}: brief <= {profile['brief_max_chars']}; "
+                        f"revisores {profile['reviewers']}; revisión y qa-gate obligatorios",
+                        "; ".join(profile["warnings"]) or "cambia el perfil con `/setup`; conserva las puertas")
+            row.update(profile)
+            ls.append(row)
+        except (OSError, ValueError, ImportError, RecursionError):
+            ls.append(linea(AVISO, "dev.json `perfil`", "perfil efectivo no verificable",
+                            "restaura execution-profile.py del mismo bundle antes de usar lite"))
     ls.extend(_modelos(datos, plugin_root, project, **({"runtime": runtime} if runtime != "claude" else {})))
     if not any(x["estado"] in (AVISO, ERROR) for x in ls):
         claves = [k for k in sorted(datos) if not k.startswith("_")]

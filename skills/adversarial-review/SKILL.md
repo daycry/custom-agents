@@ -73,9 +73,9 @@ parser). Config por separado en `.claude/dev.json`: `revision.lenteSeguridad`/`l
 aviso + ambas `false`). Contrato = constantes del script (`RUTA_RE`/`CONTENIDO`/`RUTA_RE_D`/
 `CONTENIDO_D_INDEPENDIENTE`/`PATRONES_TRAS_BUCLE_D`), con tests; detalle en
 `references/lens-c-heuristics.md`/`lens-d-heuristics.md` si un motivo sorprende.
+### 2. Despachar lentes → agente `reviewer` (solo lectura, contexto fresco)
 
-### 2. Lanzar las lentes en PARALELO → agente `reviewer` (solo lectura, contexto fresco)
-
+Consume `reviewers` de `execution-profile.py`: `fresh_sequential` (siempre en lite) exige lentes secuenciales con contexto fresco propio; no suprimas lentes, intentos ni puertas. `fresh_parallel` conserva el despacho paralelo.
 Cada lente recibe SOLO: el diff (o cómo obtenerlo), las rutas de los artefactos contra los que
 revisa, y si N > 1 la tabla del intento anterior (ver §5). Despacho:
 
@@ -83,14 +83,14 @@ revisa, y si N > 1 la tabla del intento anterior (ver §5). Despacho:
    tool si `fuente.model` es `dev.json` (el `effort` de dev.json es informativo; sin script → frontmatter).
 2. **Agente por nombre:** una llamada al Agent tool por lente con `subagent_type: reviewer`
    (`agents/reviewer.md`: `tools: Read, Grep, Glob, Bash` — debe preservar el código; Bash conserva permisos
-   del runtime y se usa para ejecutar tests/scripts como evidencia) y el prompt literal de la lente. Las 2-4 llamadas van en paralelo.
+   del runtime y se usa para ejecutar tests/scripts como evidencia) y el prompt literal de la lente. Las 2-4 llamadas siguen la estrategia efectiva; lite siempre secuencial.
 3. **Fallback (degradación, no bloqueo):** si el agente `reviewer` no está disponible (instalación
    parcial, `Agent(reviewer)` rechazado), lanza un subagente genérico con el MISMO prompt y anótalo en la
    salida («lentes por subagente genérico: reviewer no disponible»).
 
 **Prompts literales de A, B, C y D** (+ criterio docs-style en prosa): lee
 `"$REVSKILL/references/lens-prompts.md"` **al llegar aquí**. C solo si `lente_c: true`; D solo si
-`lente_d: true` (pueden ambas a la vez: hasta 4 lentes en paralelo).
+`lente_d: true` (pueden aplicar ambas: hasta 4 lentes, secuenciales en lite).
 
 ### 3. Fusionar y graduar
 

@@ -24,6 +24,8 @@ un JSON válido con errores encontrados; exit 2 indica que no se pudo producir
 la proyección. Usa el diagnóstico actual, incluidas las comprobaciones de
 capacidades opt-in ya activadas; el panel nunca lo ejecuta por su cuenta.
 
+Si dev.json declara `perfil`, muestra los flags efectivos de `execution-profile.py`: techo del brief, writer disponible y estrategia de revisores. Un lite bloqueado informa del arreglo; no lo presentes como listo para despachar.
+
 En Codex añade `--runtime codex`; en OpenCode, `--runtime opencode`. Claude
 conserva el modo predeterminado. Estos flags validan modelos con el resolutor
 del runtime y añaden el contexto declarado de los agentes propios del proyecto;

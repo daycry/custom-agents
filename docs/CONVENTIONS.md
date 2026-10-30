@@ -457,3 +457,18 @@ formas posibles de fallo del sistema operativo.
 Las pruebas de captura observan sólo ese manejador. La actividad informativa
 puede ejecutar otro proceso para el mismo evento y no comparte su fichero de
 resultado. [Evidencia](roadmap/2026-10-07-catalog-capabilities/testing/opencode-lifecycle27-evidence.json).
+
+
+### Perfil de ejecución normal y lite
+
+`dev.json` admite `perfil: normal|lite` (ausente = normal) y `paralelismo`
+(booleano, normal por defecto true). `execution-profile.py` del shared resuelve
+los flags efectivos en JSON sin escribir configuración. Lite fuerza implementación
+en el hilo actual y sin paralelismo, conserva los toggles pedidos para volver a
+normal y exige `ledger-write.py` operativo. Mantiene TDD elegido, revisores frescos
+secuenciales, qa-gate, cobertura y Knowledge Gate. No certifica calidad ni contexto
+del modelo. El brief lite tiene techo de 6.000 caracteres: tarea, verificación,
+gaps, constitución, diseño aplicable, persona y contrato obligatorio no se truncan;
+si no caben, exit2 y stdout vacío, sin despacho. La memoria conserva su contrato
+acotado de recuperación. Normal conserva techo 10.000, presupuestos y fallback
+parcial. Perfil inválido bloquea su despacho; JSON ilegible avisa y no acredita lite.

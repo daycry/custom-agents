@@ -782,3 +782,23 @@ flowchart LR
 
 
 The hook inventory validates distinct exact event vocabularies: ActivityObserved includes execution.started; SessionEnd does not. The reviewed local owner retains dependency closure and network mutation checks. [Evidence](../roadmap/2026-10-07-catalog-capabilities/testing/activity-catalog-closure114-status.md).
+
+
+## Lite profile
+
+Resolve the effective profile before dispatch. Lite loads the core and only
+references whose conditions remain active; it skips implementation subagent
+details. Each reviewer retains a separate fresh context.
+
+```mermaid
+flowchart LR
+  Config[dev.json perfil lite] --> Resolver[execution-profile.py]
+  Resolver --> Brief[Complete brief up to 6000]
+  Resolver --> Writer[Required writer]
+  Brief --> Implement[Implementation in current thread]
+  Implement --> A[Fresh reviewer A]
+  A --> B[Fresh reviewer B and sequential conditional lenses]
+  B --> QA[qa-gate and coverage]
+  QA --> KG[Knowledge Gate]
+  Brief -->|does not fit| Adjust[No dispatch: split task]
+```

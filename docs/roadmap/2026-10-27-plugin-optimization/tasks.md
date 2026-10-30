@@ -39,10 +39,10 @@ changelog: Changed
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Quick wins medibles (v2.1.0 publicada) | 7 | 7 | 100% | 0 / 38.4h | 0 / 14.8h | 0 / 3.7h | 0 / 6.0M in + 600k out |
 | Fase 2 — Reestructuración (v2.2.0 publicada; 3 canceladas) | 9 | 12 | 75.0% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
-| Fase 3 — Modelos locales (T-22..T-24 funcionales) | 5 | 7 | 71.4% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
-| **TOTAL** | **21** | **26** | **80.8%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
+| Fase 3 — Modelos locales (T-22..T-25 funcionales) | 6 | 7 | 85.7% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
+| **TOTAL** | **22** | **26** | **84.6%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
 
-> **F2 publicada como v2.2.0: 9 tareas completadas y 3 condicionales canceladas (T-16/T-17/T-18, no implementadas).** Revisión aprobada en 2 intentos, coverage Python92,25 y CI completa verde. T-20/T-21/T-22 completadas; O1 y lite aprobados en [el diseño](design.md). T-23/T-24 completadas funcionalmente; T-25 en implementación y puertas finales pendientes. Las cancelaciones no se suman a las completadas.
+> **F2 publicada como v2.2.0: 9 tareas completadas y 3 condicionales canceladas (T-16/T-17/T-18, no implementadas).** Revisión aprobada en 2 intentos, coverage Python92,25 y CI completa verde. T-20/T-21/T-22 completadas; O1 y lite aprobados en [el diseño](design.md). T-22..T-25 completadas funcionalmente; T-26 pendiente. Las cancelaciones no se suman a las completadas.
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Jira no está activado en este proyecto (no hay `jira.json`). Ver `skills/jira-sync/SKILL.md`.
 
@@ -920,7 +920,7 @@ GREEN T-24: 34 casos nuevos en Windows y Linux; vecinos doctor Windows229 pass/1
 
 - **Descripción**: Resultado: `dev.json` `perfil: lite` desactiva paralelismo y subagentes, reduce el tope del brief, obliga a `ledger-write.py` y carga solo el núcleo de `dev-cycle`; NO recorta la revisión de dos lentes ni el `qa-gate` (decisión 3 de la puerta); lo soportan `/setup` y `/doctor`. Requisito: evaluation.md §C-13.
 - **Changelog**: Ofrecer un perfil lite opt-in con menos contexto y ejecución secuencial, conservando las puertas del ciclo.
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 9.6h · real —
 - **Tiempo IA (ejec.)**: est. 3.97h · real —
 - **Supervisión**: est. 0.99h (≈25 % IA) · real —
@@ -932,12 +932,12 @@ GREEN T-24: 34 casos nuevos en Windows y Linux; vecinos doctor Windows229 pass/1
 - **Verificación**: `python -m pytest -q tests/test_lite_profile.py agent-kits/shared/test_task_brief.py tests/test_dev_cycle_split.py; python scripts/export-interop.py --check` → exit 0 tras implementar; suite nueva primero RED. Probar defaults, opt-in, writer requerido, contexto obligatorio y revisión/QA intactas; el techo y los revisores secuenciales dependen de la aprobación T-21.
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): con `perfil: lite` no hay paralelismo, la revisión y el qa-gate siguen activos y el brief respeta el tope reducido. Se concreta al revalidar.
+- [x] Criterio (esqueleto): con `perfil: lite` no hay paralelismo, la revisión y el qa-gate siguen activos y el brief respeta el tope reducido. Se concreta al revalidar.
 
 **Concreción propuesta por T-20, sujeta a T-21:** Con `perfil: lite` no hay paralelismo, revisión y QA siguen activos, el writer es obligatorio y el brief respeta el techo aprobado en T-21 sin omitir contenido obligatorio. La distinción implementadores/revisores y el techo concreto son propuestas hasta aprobar T-21; el perfil normal conserva sus defaults.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [x] Se concreta al revalidar.
 
 **Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido; depende de T-13, T-23 y del diseño de T-21. Choque potencial con las puertas no negociables: si el usuario quisiera recortarlas cambia el alcance y la constitución. Se concreta al revalidar. Clasificación: capacidad nueva. Coste estimado de la tarea: 490 € (horas × 50 € + tokens).
 
@@ -953,6 +953,10 @@ RED: `tests/test_lite_profile.py::test_normal_can_disable_parallelism_without_di
 
 
 RED: `tests/test_lite_profile.py::test_brief_missing_profile_resolver_preserves_only_undeclared_normal_fallback` falló con RED: fallback normal ausente .claude devuelve root_unavailable al usar esa carpeta como raiz. Antes de anclar lector en raiz existente del proyecto. · 2026-10-30.
+
+Medición T-25: ventanas cerradas16:04:37–16:16:51 y16:20:10–16:23:43 UTC (12m y4m reloj). IA, tokens y coste null, sin equivalencia reloj/IA. La depuración del lock tiene su propia ventana T-23-fix4.
+
+GREEN T-25: 21 casos lite nuevos Windows/Linux; bundle Windows31 pass (lite21 + split10), suite previa102 pass (brief92 + lite10). Linux conjunto381 pass/3 skip (lite18, split8, brief92, doctor229 y modelos34); añadido final lite21 pass. Son conteos solapados, no una suma de casos únicos. Perfil, writer, techo6000, verificación larga íntegra, persona completa o rechazo, gaps íntegros o rechazo y fallback ordinario verificados. Dos errores del harness al usar JSON profundo como id pytest en Windows se corrigen con ids cortos, sin cambiar payload/asserts. La primera fixture de gap no llevaba estado pendiente según parser canónico; corregida la fixture, sin cambiar parser. Núcleo conserva párrafos originales y ahorro F2; skill200 líneas. Lint0 errores/3 avisos previos, evals192 sin errores, interop88 vigente, alcance sin criterios alterados. TDD n/a para prosa y exports. Revisión independiente, cobertura oficial, CI exacta, prueba real y release permanecen T-26. Recibo `testing/t25-directed-verification-2026-10-30.json`.
 
 ### T-26 — P-F3 — Proceso de la fase 3: revisión, CHANGELOG doble, Linux, prueba manual y release
 

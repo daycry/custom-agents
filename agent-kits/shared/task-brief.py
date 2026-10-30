@@ -1110,7 +1110,7 @@ def _seccion_acotada(lines, tope, puntero, subsecciones=False):
     return [kept.rstrip() + footer]
 
 
-def _seccion_tarea_y_gaps(chunk_brief, tasks_text, tid):
+def _seccion_tarea_y_gaps(chunk_brief, tasks_text, tid, strict=False):
     out = ["", "## La tarea (de tasks.md — tus criterios de aceptación son EL contrato)",
            "", chunk_brief]
     # gaps pendientes (roles-and-jira-flow T-03): redespacho tras una revisión con gaps para ESTA tarea
@@ -1127,11 +1127,11 @@ def _seccion_tarea_y_gaps(chunk_brief, tasks_text, tid):
                 "señalamiento contra el código y la spec. Si es correcto, corrígelo. Si es INCORRECTO, "
                 "**rebátelo con evidencia** (`fichero:línea` + por qué está bien como está) en tu informe "
                 "— no lo apliques a ciegas ni lo descartes sin evidencia.", ""]
-        out += _seccion_acotada(section, GAPS_TOPE_CHARS, "la última revisión de esta tarea en tasks.md")
+        out += section if strict else _seccion_acotada(section, GAPS_TOPE_CHARS, "la última revisión de esta tarea en tasks.md")
     return out
 
 
-def _seccion_verificacion(verif):
+def _seccion_verificacion(verif, strict=False):
     if not verif:
         return ["## Verificación", "",
                 "> (la tarea no declara `Verificación`: propón una en tu informe — un comando y su resultado "
@@ -1149,7 +1149,7 @@ def _seccion_verificacion(verif):
         out += ["", f"> {verif['omitidos_red']} ítem(s) `RED: …` de la ejecución anterior omitido(s): son evidencia "
                     "del rojo de otra sesión, no comandos; si TDD está activo, produce tu propio rojo."]
     out += [""]
-    return _seccion_acotada(out, VERIFICACION_TOPE_CHARS, "la Verificación de esta tarea en tasks.md")
+    return out if strict else _seccion_acotada(out, VERIFICACION_TOPE_CHARS, "la Verificación de esta tarea en tasks.md")
 
 
 def _seccion_memoria(carpeta, chunk, tipo, knowledge_find):
@@ -1227,14 +1227,14 @@ def _seccion_extensiones(chunk, carpeta, *, runtime='all', home=None, cwd=None,
         return []
 
 
-def _seccion_diseno_y_arquitectura(carpeta, plan_p, chunk=""):
+def _seccion_diseno_y_arquitectura(carpeta, plan_p, chunk="", strict=False):
     out = []
     diseno = _design_elegida(carpeta)
     if diseno:
         if _tarea_toca_diseno(carpeta, chunk):
             section = [f"## Diseño (design.md · opción elegida {diseno[0]})", "", diseno[1],
                        "", "Respeta esta opción: no rediseñes; una duda de arquitectura es `DONE_WITH_CONCERNS`, no un cambio.", ""]
-            out += _seccion_acotada(section, DISENO_TOPE_CHARS, "design.md §4", subsecciones=True)
+            out += section if strict else _seccion_acotada(section, DISENO_TOPE_CHARS, "design.md §4", subsecciones=True)
         else:
             out += [f"> Diseño: design.md §4 · opción {diseno[0]}; sin impacto declarado en esta tarea.", ""]
     if os.path.isfile(plan_p):
@@ -1424,8 +1424,41 @@ def _cargar_chunk(tasks_p, tid):
     return tasks_text, chunk, fase, None
 
 
+def _execution_profile(args):
+    import importlib.util
+    from pathlib import Path
+    shared = Path(__file__).resolve().parent
+    try:
+        spec = importlib.util.spec_from_file_location("brief_execution_profile", shared / "execution-profile.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.resolve(_raiz_de(args.carpeta), dev_json=args.dev_json)
+    except (OSError, ValueError, ImportError, RecursionError):
+        # A partial installation may continue the old normal path only when it
+        # can rule out a declared profile without loading consumer Python code.
+        try:
+            path = Path(args.dev_json) if args.dev_json else Path(_raiz_de(args.carpeta)) / ".claude/dev.json"
+            spec = importlib.util.spec_from_file_location("brief_profile_fallback_read", shared / "local-read.py")
+            reader = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(reader)
+            row = reader.read_bytes(path.absolute().parent if args.dev_json else _raiz_de(args.carpeta),
+                                    path.name if args.dev_json else ".claude/dev.json", max_bytes=256 * 1024)
+            data = json.loads(row["data"].decode("utf-8-sig")) if row["status"] == "ok" else {}
+            safe = row["status"] in ("ok", "not_found") and isinstance(data, dict) and "perfil" not in data
+        except (OSError, ValueError, ImportError, RecursionError):
+            safe = False
+        return {"perfil": "normal", "blocked": not safe,
+                "warnings": ["execution profile unavailable; ordinary fallback only without a declared profile"]}
+
+
 def main(argv=None):
     args = _parse_args(argv)
+    profile = _execution_profile(args)
+    for warning in profile.get("warnings", []):
+        print(warning, file=sys.stderr)
+    if profile["blocked"]:
+        return 2
+    lite = profile["perfil"] == "lite"
     tid = args.tarea.upper()
     if not re.fullmatch(r"T-\d+", tid):
         print(f"❌ id de tarea inválido: {args.tarea} (esperado T-XX)", file=sys.stderr)
@@ -1441,18 +1474,32 @@ def main(argv=None):
     tipo, persona_contenido, persona_ruta, persona_insert_idx = _preparar_persona(chunk, args, len(out))
     verif, chunk_brief = _resolver_verificacion(chunk)
 
-    out += _seccion_tarea_y_gaps(chunk_brief, tasks_text, tid)
-    out += _seccion_verificacion(verif)
+    out += _seccion_tarea_y_gaps(chunk_brief, tasks_text, tid, strict=lite)
+    out += _seccion_verificacion(verif, strict=lite)
     out += _seccion_capacidades(chunk)
     out += _seccion_extensiones(chunk, args.carpeta, runtime=args.runtime,
                                home=args.extensions_home, cwd=args.extensions_cwd,
                                include_user=not args.extensions_project_only,
                                user_roots=args.extensions_user_root)
     out += _seccion_memoria(args.carpeta, chunk, tipo, args.knowledge_find)
-    out += _seccion_diseno_y_arquitectura(args.carpeta, plan_p, chunk)
+    out += _seccion_diseno_y_arquitectura(args.carpeta, plan_p, chunk, strict=lite)
     out += _seccion_constitucion(args)
-    out += _seccion_tdd(args)
+    out += (["", TDD_BRIEF] if args.tdd or profile.get("tdd") else []) if lite else _seccion_tdd(args)
     out += ["", CONTRATO]
+
+    if lite:
+        if persona_insert_idx is not None:
+            out[persona_insert_idx:persona_insert_idx] = ["", f"## Persona de dominio (tipo: {tipo})", "",
+                    _PERSONA_INICIO, _neutraliza_encabezados(persona_contenido), _PERSONA_FIN, ""]
+        out += ["## Perfil lite", "", "Implementa en el hilo actual, sin paralelismo ni subagentes de implementación. "
+                "Usa ledger-write.py; revisión con contexto fresco secuencial y qa-gate obligatorios.", ""]
+        texto = "\n".join(out) + "\n"
+        if len(texto) > profile["brief_max_chars"]:
+            print(f"lite: contenido obligatorio={len(texto)} > 6000; divide la tarea o reduce su contexto explícito. "
+                  "No se emite un brief parcial.", file=sys.stderr)
+            return 2
+        print(texto, end="")
+        return 0
 
     out = _presupuesto_auxiliar(out, persona_insert_idx, tipo, persona_ruta, persona_contenido, args.carpeta)
     out, resto_sin_persona = presupuesto_persona(
