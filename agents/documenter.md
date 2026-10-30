@@ -12,7 +12,7 @@ tools: Read, Grep, Glob, Bash, Write, Edit
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 # Campos informativos: Claude Code ignora claves extra del frontmatter.
 dependencies:
-  skills:                    # sincroniza los docs generados en Confluence (opt-in)
+  skills:                    # capacidades locales; las integraciones externas son opcionales
     - knowledge-services
     - plugin-panel
   kits:                      # taxonomía + plantillas + fragmentos compartidos
