@@ -13,6 +13,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ### Fixed
 
+- Keep the core workflow entrypoints visible when a larger catalog is truncated in the startup index, without raising context limits.
+
 - Give owned Codex hooks descriptive names in the hook browser and document how to review changed plugin contents; preserve commands, timeouts and native trust requirements.
 
 ### Added

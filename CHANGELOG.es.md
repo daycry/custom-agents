@@ -13,6 +13,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ### Corregido
 
+- Conservar las entradas centrales del ciclo cuando se recorta un catálogo mayor en el índice de inicio, sin elevar los límites de contexto.
+
 - Identifica los hooks propios de Codex con nombres descriptivos y documenta su revisión tras cambiar el plugin; conserva comandos, plazos y aprobación nativa.
 
 ### Añadido

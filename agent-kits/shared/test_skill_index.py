@@ -82,6 +82,24 @@ def test_tope_de_tamano_sobre_el_repo_real():
         assert len(l) <= si.LIMITE_LINEA, (len(l), l)
 
 
+@pytest.mark.parametrize('runtime', [None, 'claude', 'codex', 'opencode'])
+def test_core_entrypoints_survive_proportional_catalog_truncation(runtime):
+    ps = [(kind, f'aaa-{i:03d}', 'Una función concreta con evidencia verificable.', '', '')
+          for kind in ('command', 'skill', 'agent') for i in range(60)]
+    ps += [(kind, name, 'Entrada principal del ciclo.', '', '')
+           for kind, name in [('command', 'dev-cycle'), ('skill', 'quick-implement'), ('agent', 'implementer')]]
+    mapping = {'runtimes': {r: {'implementer': 'custom-agents-implementer'}
+                            for r in ('codex', 'opencode')}}
+    idx = si.construir(ps, runtime=runtime, mapping=mapping)
+    agent = 'custom-agents-implementer' if runtime in ('codex', 'opencode') else 'implementer'
+    for name in ('/dev-cycle', 'quick-implement', agent):
+        assert any(line.startswith(name + ' — ') for line in idx['lineas']), name
+    assert idx['n_lineas'] <= si.LIMITE_LINEAS and idx['chars'] <= si.LIMITE_CHARS
+    assert all(len(line) <= si.LIMITE_LINEA for line in idx['lineas'])
+    assert idx == si.construir(ps, runtime=runtime, mapping=mapping)
+    assert idx['texto'].count('piezas más') == 3
+
+
 def test_tope_se_respeta_aunque_haya_muchas_piezas_con_descriptions_largas(tmp_path):
     root = plugin(tmp_path, n_skills=20, n_cmds=10, n_agents=8, desc="Palabra " * 60 + "final.")
     idx = si.construir(si.piezas(str(root)))
