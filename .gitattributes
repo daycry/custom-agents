@@ -9,3 +9,6 @@ tests/fixtures/panel-redesign/** text eol=lf
 # Chart.js incluido (panel-redesign T-02): binario a efectos de git, sin conversión de fin de línea;
 # el SHA-256 de PROVENANCE.json se calcula sobre los bytes publicados en npm.
 skills/plugin-panel/assets/vendor/** -text
+
+# Delivery PDFs: preserve bytes, disable CRLF conversion and stream diffs.
+*.pdf binary

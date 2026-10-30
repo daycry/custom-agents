@@ -47,6 +47,11 @@ def test_gap_a03_core_outputs_degrade_without_optional_presentation_modules():
     qa=(ROOT/'agents/qa.md').read_text(encoding='utf-8')
     assert 'PDF opcional' in qa
     assert 'plantilla `report.md` + PDF vía' not in qa
+    for file in ['README.md','README.es.md','docs/README.md','docs/en/README.md']:
+        text=(ROOT/file).read_text(encoding='utf-8')
+        qa_row=next(line for line in text.splitlines() if line.startswith('| **qa** |'))
+        assert 'opcional' in qa_row.lower() or 'optional' in qa_row.lower(), file
+        assert 'md+pdf' not in qa_row, file
     for command in ['roadmap-status','roadmap-brief']:
         text=(ROOT/f'commands/{command}.md').read_text(encoding='utf-8')
         assert 'sin bloquear' in text and 'opcional' in text.lower()

@@ -3,9 +3,11 @@
 
 **Manual de uso y personalización:** [workflows detallados del core, integraciones opcionales, Atlassian/Redmine y extensiones del proyecto](docs/CUSTOMIZATION.md). Los bundles nativos son completos; configurado no significa conectado ni autorizado.
 
+[Manual PDF para responsables (español, 39 páginas)](output/pdf/custom-agents-manual-operativo.pdf).
+
 [English](README.md) · **Español**
 
-**El ciclo de vida completo de una iniciativa de software — con presupuesto, medición de coste real y trazabilidad en Jira/Confluence — en Claude Code, Codex y OpenCode.**
+**El ciclo de vida completo de una iniciativa de software — con presupuesto, medición de coste real e integraciones elegidas por proyecto — en Claude Code, Codex y OpenCode.**
 
 [![CI](https://github.com/daycry/custom-agents/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/daycry/custom-agents/actions/workflows/ci.yml)
 [![Versión](https://img.shields.io/github/v/tag/daycry/custom-agents?label=versi%C3%B3n&color=informational)](CHANGELOG.es.md)
@@ -222,7 +224,7 @@ flowchart LR
 | **planner** | Plan ejecutable: fases y tareas `T-XX` con criterios de aceptación verificables y presupuesto por fase. |
 | **implementer** | Escribe el código fase a fase sobre rama/worktree, con `tasks.md` como ledger canónico y coste medido por tarea. |
 | **reviewer** | Una lente de revisión (A/B/C) en contexto fresco, revisa sin modificar el código; salida estructurada que `adversarial-review` fusiona. |
-| **qa** | E2E con Playwright (solo hosts locales), veredicto por `qa-gate.py`, informe md+pdf con evidencias. |
+| **qa** | E2E con Playwright (solo hosts locales), veredicto por `qa-gate.py`, informe Markdown con evidencias; PDF opcional con el módulo documents y motor disponibles. |
 | **documenter** | Documentación técnica y de producto derivada del propio proyecto, una vez al cierre del ciclo. |
 | **knowledge-curator** | Revisa y aprueba/rechaza candidatos en `docs/knowledge/candidates/`; único escritor de `approved/` y `rejected/` (`curator-gate.py`). |
 | **nemesis** | Auditoría de ciberseguridad: SAST 8 dimensiones + pentest activo **solo local** (guardrail no negociable). |
@@ -238,7 +240,7 @@ flowchart LR
 | `/roadmap-status` | Dashboard del roadmap (HTML + md para Confluence). |
 | `/roadmap-metrics` | Real vs estimado + **coste de proceso** medido. |
 | `/roadmap-live` | Estado en vivo leyendo Jira. |
-| `/roadmap-brief` | One-pager PDF para dirección. |
+| `/roadmap-brief` | Resumen ejecutivo en Markdown; PDF opcional. |
 | `/spec-drift` | ¿El código sigue cumpliendo las specs implementadas? |
 | `/retro` | Cierra el bucle: desviaciones + causas → `CALIBRATION.md`. |
 | `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
