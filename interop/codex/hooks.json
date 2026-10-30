@@ -7,7 +7,8 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" session-context.sh --runtime=codex",
-            "timeout": 30
+            "timeout": 30,
+            "statusMessage": "Load session context"
           }
         ]
       }
@@ -18,7 +19,8 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" user-prompt-capture.sh --runtime=codex",
-            "timeout": 5
+            "timeout": 5,
+            "statusMessage": "Capture user prompt"
           }
         ]
       }
@@ -29,7 +31,8 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" agent-activity --runtime=codex",
-            "timeout": 5
+            "timeout": 5,
+            "statusMessage": "Record agent activity"
           }
         ]
       }
@@ -40,11 +43,13 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" agent-activity --runtime=codex",
-            "timeout": 5
+            "timeout": 5,
+            "statusMessage": "Record agent activity"
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" subagent-progress.sh --runtime=codex"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" subagent-progress.sh --runtime=codex",
+            "statusMessage": "Report roadmap progress"
           }
         ]
       }
@@ -55,7 +60,8 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" \"session-journal.sh\" --runtime=codex",
-            "timeout": 3
+            "timeout": 3,
+            "statusMessage": "Queue session journal"
           }
         ]
       }
@@ -67,7 +73,8 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" native-guardrail --runtime=codex",
-            "timeout": 10
+            "timeout": 10,
+            "statusMessage": "Check agent guardrails"
           }
         ]
       }
@@ -78,11 +85,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" mark-docs-pending.sh --runtime=codex"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" mark-docs-pending.sh --runtime=codex",
+            "statusMessage": "Mark documentation for review"
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" ledger-post.py --runtime=codex"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" ledger-post.py --runtime=codex",
+            "statusMessage": "Check ledger and report progress"
           }
         ]
       },
@@ -92,7 +101,8 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" agent-activity --runtime=codex",
             "async": true,
-            "timeout": 5
+            "timeout": 5,
+            "statusMessage": "Record agent activity"
           }
         ]
       }

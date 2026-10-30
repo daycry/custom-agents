@@ -332,9 +332,18 @@ def codex_marketplace_json(root):
 
 _ARG_SEGURO_RE = re.compile(r"^[A-Za-z0-9_${}/.\-]+$")
 _COMANDOS_SHELL_TRADUCIBLES = ("bash", "sh")
-_HOOK_RUNTIME_TARGETS = ("native-guardrail", "agent-activity", "session-context.sh", "session-journal.sh",
-                         "user-prompt-capture.sh", "subagent-progress.sh", "mark-docs-pending.sh",
-                         "ledger-lint-warn.sh", "progress-line.sh", "ledger-post.py")
+_HOOK_RUNTIME_TARGETS = {
+    "native-guardrail": "Check agent guardrails",
+    "agent-activity": "Record agent activity",
+    "session-context.sh": "Load session context",
+    "session-journal.sh": "Queue session journal",
+    "user-prompt-capture.sh": "Capture user prompt",
+    "subagent-progress.sh": "Report roadmap progress",
+    "mark-docs-pending.sh": "Mark documentation for review",
+    "ledger-lint-warn.sh": "Check ledger consistency",
+    "progress-line.sh": "Report task progress",
+    "ledger-post.py": "Check ledger and report progress",
+}
 
 
 def _hook_a_shell_form(h, evento="?"):
@@ -437,11 +446,12 @@ def codex_hooks_json(root):
                 if command.startswith(launcher):
                     # Solo los comandos conocidos del launcher propio; no mutar scripts arbitrarios.
                     suffix = command[len(launcher):]
-                    for target in _HOOK_RUNTIME_TARGETS:
+                    for target, label in _HOOK_RUNTIME_TARGETS.items():
                         for quote in ("", '"'):
                             literal = quote + target + quote
-                            if suffix in (literal, literal + " --runtime=claude"):
+                            if suffix in (literal, literal + " --runtime=claude", literal + " --runtime=codex"):
                                 hook["command"] = launcher + literal + " --runtime=codex"
+                                hook.setdefault("statusMessage", label)
             if evento == "SessionEnd":
                 for hook in ng["hooks"]:
                     if hook.get("timeout", 1) > 3:

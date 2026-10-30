@@ -390,6 +390,31 @@ Contract: [V2 plugins](https://opencode.ai/v2/docs/build/plugins/) and
 [V1 migration](https://opencode.ai/v2/docs/build/plugins/migrate-v1), verified on 2026-10-08.
 Native guard validation across all three runtimes remains open in the roadmap.
 
+### Reviewing Codex hooks after an update
+
+`plugin contents changed; hook approval required` means Codex skipped the hook
+because installed contents differ from the approved snapshot. Approval covers
+the hook definition and plugin bundle; an update can require review even if
+that command did not change. Installing or enabling a plugin does not trust its hooks.
+
+In CLI 0.166.0, open `/hooks`, press Enter on the event and select a handler.
+Review its source and command; `t` trusts the selected entry. Enter or Space
+only toggle already reviewed hooks: they do not enable one awaiting review.
+On the event list, `t` applies to all pending entries, including other plugins;
+review that scope before using the action.
+
+Codex uses `statusMessage` as the visible name. The exporter adds labels to owned
+launchers and preserves explicit labels. An older installation can show
+“Unnamed hook” until its bundle is updated and a new session starts. Changing
+these labels also changes the definition requiring review. Labels do not grant
+trust or change commands, permissions or timeouts.
+
+Verified through native `hooks/list`: names, sources and trust status; this does
+not establish Desktop UI behavior. If Desktop cannot review an entry, the CLI
+provides the browser above for the same user and configuration. Do not rewrite
+trusted hashes to silence the warning.
+Contract checked on 2026-10-30: [hook review](https://learn.chatgpt.com/docs/hooks#review-and-trust-hooks).
+
 ### Portable hook startup
 
 All three runtimes use `hooks/run-hook.mjs`, requiring Node 18+ (already required by the installer)

@@ -202,7 +202,8 @@ def test_codex_activity_group_keeps_its_matcher_async_and_drops_failure(tmp_path
     assert post[0]['matcher'] == '^apply_patch$'
     assert 'matcher' not in post[1] and post[2]['matcher'] == 'Bash'
     for g in post[1:]:
-        assert g['hooks'] == [{'type': 'command', 'command': ACTIVIDAD + ' --runtime=codex', 'async': True, 'timeout': 5}]
+        assert g['hooks'] == [{'type': 'command', 'command': ACTIVIDAD + ' --runtime=codex',
+                               'async': True, 'timeout': 5, 'statusMessage': 'Record agent activity'}]
 
 
 def test_codex_mixed_group_with_activity_is_not_an_activity_group(tmp_path):
@@ -233,7 +234,8 @@ def test_real_hooks_register_async_tool_activity_and_codex_export_matches():
     assert "PostToolUseFailure" not in codex
     act = _grupos_actividad(codex["PostToolUse"])
     assert len(act) == 1 and "matcher" not in act[0]
-    assert act[0]["hooks"] == [{"type": "command", "command": ACTIVIDAD + " --runtime=codex", "async": True, "timeout": 5}]
+    assert act[0]["hooks"] == [{"type": "command", "command": ACTIVIDAD + " --runtime=codex",
+                              "async": True, "timeout": 5, "statusMessage": "Record agent activity"}]
     assert codex["PostToolUse"][0]["matcher"] == "^apply_patch$"
 
 
@@ -395,6 +397,42 @@ def test_codex_hooks_solo_eventos_que_dispara():
     assert h["PostToolUse"][0]["hooks"][1]["command"].endswith('ledger-post.py --runtime=codex')
     for grupo in h.get("SessionStart", []):
         assert "compact" in grupo.get("matcher", "")
+
+
+def test_codex_hook_browser_does_not_show_unnamed_own_hooks():
+    """The native hook browser uses statusMessage as the handler's visible name."""
+    hooks = json.loads(MOD.codex_hooks_json(ROOT))["hooks"]
+    missing = []
+    for event, groups in hooks.items():
+        for group_index, group in enumerate(groups):
+            labels = []
+            for index, hook in enumerate(group["hooks"]):
+                label = hook.get("statusMessage")
+                if not isinstance(label, str) or not label.strip():
+                    missing.append(f"{event}:{group_index}:{index}")
+                    continue
+                assert label == label.strip() and "\n" not in label
+                assert len(label) <= 80 and label.casefold() != "unnamed hook"
+                labels.append(label)
+            assert len(set(labels)) == len(labels), "Neighbouring handlers need distinct names"
+    assert not missing, f"Codex would display Unnamed hook for: {missing}"
+
+
+def test_codex_hook_labels_preserve_explicit_names_and_foreign_commands(tmp_path):
+    hooks_dir = tmp_path / "hooks"
+    hooks_dir.mkdir()
+    own_command = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" session-context.sh'
+    foreign_command = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" session-context.sh-custom'
+    (hooks_dir / "hooks.json").write_text(json.dumps({"hooks": {"SessionStart": [
+        {"hooks": [
+            {"type": "command", "command": own_command,
+             "statusMessage": "Project-specific context", "timeout": 17},
+            {"type": "command", "command": foreign_command, "timeout": 19},
+        ]},
+    ]}}), encoding="utf-8")
+    own, foreign = json.loads(MOD.codex_hooks_json(str(tmp_path)))["hooks"]["SessionStart"][0]["hooks"]
+    assert own["statusMessage"] == "Project-specific context" and own["timeout"] == 17
+    assert foreign == {"type": "command", "command": foreign_command, "timeout": 19}
 
 
 def test_codex_session_end_va_en_shell_form_no_exec_form():
