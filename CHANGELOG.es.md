@@ -11,6 +11,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+## [2.2.0] - 2026-10-30
+
 ### Cambiado
 
 - Comparte una lectura de contenido por fichero en el selector de lentes, conservando decisiones C/D, motivos, exclusiones, detección binaria y lecturas UTF-8 acotadas.
@@ -1255,6 +1257,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[2.2.0]: https://github.com/daycry/custom-agents/releases/tag/v2.2.0
 [2.1.0]: https://github.com/daycry/custom-agents/releases/tag/v2.1.0
 [2.0.1]: https://github.com/daycry/custom-agents/releases/tag/v2.0.1
 [2.0.0]: https://github.com/daycry/custom-agents/releases/tag/v2.0.0
