@@ -38,9 +38,9 @@ changelog: Changed
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Quick wins medibles (v2.1.0 publicada) | 7 | 7 | 100% | 0 / 38.4h | 0 / 14.8h | 0 / 3.7h | 0 / 6.0M in + 600k out |
-| Fase 2 — Reestructuración (en ejecución) | 7 | 12 | 58.3% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
+| Fase 2 — Reestructuración (en ejecución) | 8 | 12 | 66.7% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
 | Fase 3 — Modelos locales (diferida) | 0 | 7 | 0% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
-| **TOTAL** | **14** | **26** | **53.8%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
+| **TOTAL** | **15** | **26** | **57.7%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Jira no está activado en este proyecto (no hay `jira.json`). Ver `skills/jira-sync/SKILL.md`.
 
@@ -531,8 +531,9 @@ changelog: Changed
 ### T-15 — C-15 (spike, 2 h) — ¿Cierre del Job Object sin segundo Python?
 
 - **Descripción**: Resultado: decisión go/no-go documentada sobre si el supervisor puede cerrar el Job Object en salida limpia (o node soltar el handle) sin perder la limpieza de procesos nietos; hoy cada hook paga un Python extra en Windows (`hooks/run-hook.mjs:233-240`, `:316`). Requisito: evaluation.md §C-15 y decisión 2 de la puerta (solo entra si el spike sale bien).
-- **Changelog**:
-- **Estado**: borrador
+- **Changelog**: Conserva la limpieza confirmada de procesos Windows tras descartar alternativas sin garantía equivalente.
+- **Cerrada**: 2026-10-30
+- **Estado**: completado
 - **Tiempo humano**: est. 2.4h · real —
 - **Tiempo IA (ejec.)**: est. 0.80h · real —
 - **Supervisión**: est. 0.20h (≈25 % IA) · real —
@@ -544,21 +545,22 @@ changelog: Changed
 - **Verificación**: `lectura: testing/spike-c15.md y testing/t15-windows-experiment.json, con comandos reales, estados terminales y decisión go/no-go, sin cambio de producción` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] Spike Windows acotado a 2 h: medir propiedad/cierre de Job Object y terminación de hijos/nietos propios tanto en salida limpia como timeout y cancelación. Go solo con garantía equivalente y una invocación Python menos; si exige dependencia nativa o rediseño no presupuestado, no-go motivado y T-16 cancelada.
+- [x] Spike Windows acotado a 2 h: medir propiedad/cierre de Job Object y terminación de hijos/nietos propios tanto en salida limpia como timeout y cancelación. Go solo con garantía equivalente y una invocación Python menos; si exige dependencia nativa o rediseño no presupuestado, no-go motivado y T-16 cancelada.
 
 **Subtareas**
-- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
-- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
-- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
+- [x] Caracterizar comportamiento y observar primer oráculo declarado.
+- [x] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [x] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Riesgo alto: el supervisor existe por los gotchas de hooks-runtime (huérfanos). El spike NO modifica código de producción: produce una nota con medidas y la decisión. Si es no-go, T-16 se cancela con el motivo citado en Notas (decisión autorizada por la puerta). Lente C y D en la implementación posterior. Clasificación: investigación (go/no-go). Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
+**Notas**: TDD n/a: investigación, sin código productivo nuevo. **NO-GO** con evidencia en `testing/spike-c15.md` y `testing/t15-windows-experiment.json`: 21 muestras finales con barrera y handles observados; las tres generaciones terminan en todas. En 6/9 salidas del propietario queda algún proceso propio vivo al primer sondeo posterior; cierre desde dentro no retorna para confirmar (3/3), fs.closeSync devuelve EBADF (3/3). Cierre actual confirma 6/6 dentro de 500 ms. Se conserva el primer arnes sin barrera como diagnóstico, no aceptación. Hashes de lanzador/supervisor idénticos antes/después; 15 tests de supervisor pasan en 0,60 s. Investigación dentro de 2 h; sin dependencia ni rediseño nativo. No acredita 100 ejecuciones ni subsana el benchmark T-10. T-16 se cancela por la condición aprobada. Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Riesgo alto: el supervisor existe por los gotchas de hooks-runtime (huérfanos). El spike NO modifica código de producción: produce una nota con medidas y la decisión. Si es no-go, T-16 se cancela con el motivo citado en Notas (decisión autorizada por la puerta). Lente C y D en la implementación posterior. Clasificación: investigación (go/no-go). Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
 
 
 ### T-16 — C-15 (implementación, condicional al spike) — Cierre del Job Object sin segundo Python
 
 - **Descripción**: Resultado: si T-15 es go, el supervisor cierra el job en salida limpia sin lanzar un segundo Python por hook, sin dejar procesos vivos. Requisito: evaluation.md §C-15. Se cancela con motivo si T-15 es no-go.
-- **Changelog**:
-- **Estado**: borrador
+- **Changelog**: Sin implementación: el spike no acredita un cierre sin helper con garantía equivalente.
+- **Cerrada**: 2026-10-30
+- **Estado**: cancelado
 - **Tiempo humano**: est. 7.2h · real —
 - **Tiempo IA (ejec.)**: est. 3.17h · real —
 - **Supervisión**: est. 0.79h (≈25 % IA) · real —
@@ -577,7 +579,7 @@ changelog: Changed
 - [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
 - [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido y condicional. Suites: `tests/test_hook_supervisor.py`, `tests/hook-budget.test.mjs`. Lente C y D obligatorias. Se concreta al revalidar. Clasificación: refactor de alto riesgo, condicional. Coste estimado de la tarea: 368 € (horas × 50 € + tokens).
+**Notas**: **Cancelada, no implementada.** T-15 concluye no-go dentro del alcance aprobado: `testing/spike-c15.md` y recibo `testing/t15-windows-experiment.json`. La condición de entrada no se cumple; no se ejecutan las 100 pasadas de aceptación de una implementación inexistente ni se cuentan como superadas las revisiones C/D. Supervisor y presupuestos conservados. TDD n/a: cancelación condicional sin cambio productivo. Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido y condicional. Suites: `tests/test_hook_supervisor.py`, `tests/hook-budget.test.mjs`. Lente C y D obligatorias. Se concreta al revalidar. Clasificación: refactor de alto riesgo, condicional. Coste estimado de la tarea: 368 € (horas × 50 € + tokens).
 
 
 ### T-17 — C-17 — Kit shared resuelto una vez por fichero (se decide al abrir F2)
