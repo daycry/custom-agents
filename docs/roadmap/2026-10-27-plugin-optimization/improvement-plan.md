@@ -266,17 +266,11 @@ Los ficheros exactos de cada tarea están en su campo `Archivos` de `tasks.md` (
 | 2026-10-29 | Usuario aprueba el ajuste de CA-01: cero Python y medición transparente sin mínimo porcentual en F1; 80 % reservado a investigación posterior sin presupuesto nuevo. T-01 estabilidad y T-07 revisión/entrega siguen abiertas. Evidencia: `testing/f1-performance-adjustment-proposal.md`. | usuario («adelante», «adelante con el plan») |
 | 2026-10-29 | El usuario delega la decisión sobre T-01; se elige la opción 2: línea base caracterizada con dispersión y controles intercalados por mejora, sin afirmar estabilidad uniforme ni aceptar comparaciones inconcluyentes. Presupuesto y puertas T-07 intactos. | usuario («lo que consideres mejor»); elección motivada por el agente |
 | 2026-10-29 | Usuario confirma publicar F1 y continuar F2/F3. T-08 revalida contra v2.1.0: C-15 spike acotado; C-17 condicionado a ahorro seguro tras C-09; C-18 no-go productivo sin evidencia de activación. Rutas y verificaciones concretas en ledger. Presupuesto F2/F3 conservado, delta 0 h, sin inventar real F1. | usuario; revalidación del orquestador |
+| 2026-10-30 | Usuario confirma fusionar PR20 y publicar v2.2.0; publicación y CI verificadas. T-20 concreta F3 contra `c6aee505`; presupuesto provisional45h, delta0h sin inventar real F1/F2. T-21 mantiene aprobación pendiente de opciones y alcance lite. CA-08/09/10 globales sin modificar. | usuario; revalidación del orquestador |
 
 ---
 
 
 ## Siguiente paso
 
-F1 está publicada como v2.1.0 y el usuario autoriza continuar. La ejecución sigue en `feat/plugin-optimization-f2`, con `tasks.md` como ledger canónico y T-08 revalidada contra `a157679`. Se implementa T-09 y el resto de F2 con sus verificaciones concretas. F3 conserva la dependencia de la release de F2, revalidación T-20 y diseño aprobado T-21. La iniciativa completa permanece abierta.
-
-
-## Apertura de F2 y F3 autorizada — 2026-10-29
-
-El usuario confirma «Sí, publicar F1 y continuar». F1 se publica como v2.1.0, commit `a157679`, PR #19 fusionada y workflow de release verde con ambos ZIP. F2 se revalida en T-08 contra ese master antes de implementar; F3 sigue dependiendo de la release de F2, revalidación T-20 y diseño aprobado T-21. No se cambia el requisito de prueba manual Ollama ni se rebajan revisión, QA, cobertura o timeout.
-
-Decisiones de revalidación: C-15 entra como spike acotado, no como implementación aprobada sin resultado; C-17 entra condicionado a ahorro medido y resolución segura tras C-09; C-18 no se recorta en producción sin evidencia de no-degradación de activación. La visibilidad nativa de F1 no acredita esa propiedad. Detalle de verificaciones y rutas en T-09..T-19.
+F1 publicada como v2.1.0 y F2 como v2.2.0 (PR20, `c6aee505`, ambos workflows verdes). T-20 revalidada contra esa release; rutas/verificaciones concretas y límites en el ledger y `testing/t20-revalidation-2026-10-30.md`. Continúa **T-21**: validar el [diseño borrador](design.md), sin seleccionar una opción ni implementar T-22..T-25 antes de esa decisión. Presupuesto provisional F3 45h sin real comparable; no se declara cerrada la iniciativa.

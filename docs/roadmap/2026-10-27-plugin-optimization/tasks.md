@@ -38,11 +38,11 @@ changelog: Changed
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Quick wins medibles (v2.1.0 publicada) | 7 | 7 | 100% | 0 / 38.4h | 0 / 14.8h | 0 / 3.7h | 0 / 6.0M in + 600k out |
-| Fase 2 — Reestructuración (en ejecución) | 8 | 12 | 66.7% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
-| Fase 3 — Modelos locales (diferida) | 0 | 7 | 0% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
-| **TOTAL** | **15** | **26** | **57.7%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
+| Fase 2 — Reestructuración (v2.2.0 publicada; 3 canceladas) | 9 | 12 | 75.0% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
+| Fase 3 — Modelos locales (diseño pendiente) | 1 | 7 | 14.3% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
+| **TOTAL** | **17** | **26** | **65.4%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
 
-> **F2: 8 tareas completadas y revisión aprobada en 2 intentos; 3 condicionales canceladas (T-16/T-17/T-18, no implementadas); T-19 en progreso, QA/cobertura/CI verificadas y publicación pendiente de confirmar versión.** Las cancelaciones no se suman a las completadas.
+> **F2 publicada como v2.2.0: 9 tareas completadas y 3 condicionales canceladas (T-16/T-17/T-18, no implementadas).** Revisión aprobada en 2 intentos, coverage Python92,25 y CI completa verde. T-20 completada; T-21 espera aprobar [el diseño](design.md). Las cancelaciones no se suman a las completadas.
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Jira no está activado en este proyecto (no hay `jira.json`). Ver `skills/jira-sync/SKILL.md`.
 
@@ -640,8 +640,9 @@ changelog: Changed
 ### T-19 — P-F2 — Proceso de la fase 2: revisión, CHANGELOG doble, Linux y release
 
 - **Descripción**: Resultado: F2 cerrada y publicada: revisión de la fase, tabla antes/después del benchmark, CHANGELOG ES/EN, docs espejo, interop, réplica Linux y `scripts/release.py`. Requisito: evaluation.md §P-F2 y decisión 6 de la puerta.
-- **Changelog**:
-- **Estado**: en-progreso
+- **Changelog**: F2 publicada como v2.2.0 con hooks y lecturas optimizados, documentación bilingüe y evidencia verificable de entrega.
+- **Estado**: completado
+- **Fecha cierre**: 2026-10-30
 - **Tiempo humano**: est. 2.4h · real —
 - **Tiempo IA (ejec.)**: est. 0.64h · real —
 - **Supervisión**: est. 0.16h (≈25 % IA) · real —
@@ -653,12 +654,12 @@ changelog: Changed
 - **Verificación**: `python agent-kits/shared/ledger-lint.py docs/roadmap/2026-10-27-plugin-optimization/tasks.md; python scripts/export-interop.py --check; lectura: CI Linux completa y scripts/release.py con versión confirmada` → exit 0; tests nuevos se crean primero en RED antes del código correspondiente
 
 **Criterios de aceptación**
-- [ ] F2 revisada en <= 3 intentos; CA funcionales, tablas antes/después con controles, cobertura cambiada >= 90 según gate oficial, lint/evals/interop verdes; CI completa Linux sin rojos aceptados, notas ES/EN y docs espejo. Publicar por release.py tras confirmar versión. Las tareas condicionales canceladas conservan su motivo y no se cuentan como implementadas.
+- [x] F2 revisada en <= 3 intentos; CA funcionales, tablas antes/después con controles, cobertura cambiada >= 90 según gate oficial, lint/evals/interop verdes; CI completa Linux sin rojos aceptados, notas ES/EN y docs espejo. Publicar por release.py tras confirmar versión. Las tareas condicionales canceladas conservan su motivo y no se cuentan como implementadas.
 
 **Subtareas**
-- [ ] Caracterizar comportamiento y observar primer oráculo declarado.
-- [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
-- [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
+- [x] Caracterizar comportamiento y observar primer oráculo declarado.
+- [x] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
+- [x] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
 **Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido; mismo procedimiento que T-07. Se concreta al revalidar. Clasificación: proceso. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
 
@@ -671,8 +672,9 @@ changelog: Changed
 ### T-20 — Revalidar el plan de F3 contra `master`
 
 - **Descripción**: Resultado: el esqueleto de F3 (T-21..T-26) queda confirmado o reajustado contra el `master` posterior a la release de F2. Requisito: decisión 2 de la puerta (+0,5 h por fase diferida).
-- **Changelog**:
-- **Estado**: borrador
+- **Changelog**: Revalidado el plan de modelos locales contra v2.2.0 y los contratos vigentes de Codex/OpenCode, con verificaciones concretas y diseño pendiente.
+- **Estado**: completado
+- **Fecha cierre**: 2026-10-30
 - **Tiempo humano**: est. 0.6h · real —
 - **Tiempo IA (ejec.)**: est. 0.10h · real —
 - **Supervisión**: est. 0.03h (≈25 % IA) · real —
@@ -684,12 +686,12 @@ changelog: Changed
 - **Verificación**: `python3 agent-kits/shared/ledger-lint.py docs/roadmap/2026-10-27-plugin-optimization/tasks.md` → exit 0 tras el reajuste
 
 **Criterios de aceptación**
-- [ ] Cada tarea T-21..T-26 tiene `Verificación` y `Archivos` concretos y vigentes contra `master`.
-- [ ] Las estimaciones de F3 se recalculan con el real de F1/F2; la diferencia queda anotada.
+- [x] Cada tarea T-21..T-26 tiene `Verificación` y `Archivos` concretos y vigentes contra `master`.
+- [x] Las estimaciones de F3 se recalculan con el real de F1/F2; la diferencia queda anotada.
 
 **Subtareas**
-- [ ] Comparar `master` con la base del plan.
-- [ ] Concretar verificaciones y archivos de F3.
+- [x] Comparar `master` con la base del plan.
+- [x] Concretar verificaciones y archivos de F3.
 
 **Notas**: Primera tarea de F3. Concretar `Verificación`/`Archivos` marcados «se concreta al revalidar». Recordar la validación de F3: estática + prueba manual del usuario en otro equipo con Ollama (decisión 7 de la puerta). Clasificación: proceso. Coste estimado de la tarea: 30 € (horas × 50 € + tokens).
 
@@ -697,8 +699,8 @@ changelog: Changed
 ### T-21 — Paso `architect` — diseño de C-11 (formato de ids y dónde vive el mapeo) y C-13 (qué recorta `lite`)
 
 - **Descripción**: Resultado: `design.md` aprobado por el usuario con la opción elegida para (a) el formato de ids en OpenCode (`ollama/qwen3:32b`) frente a Codex (`model` + `model_provider`) y dónde vive el mapeo del consumidor (instalador o `dev.json` leído en runtime, sin romper el determinismo de interop), y (b) el alcance del perfil `lite`: solo recorta paralelismo y contexto, NO toca la revisión de dos lentes ni el `qa-gate` (decisión 3 de la puerta). Requisito: decisión 4 de la puerta; evaluation.md §C-11, §C-13.
-- **Changelog**:
-- **Estado**: borrador
+- **Changelog**: Diseño pendiente de validar: modelos por runtime y perfil lite que conserva revisión y QA.
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 0.0h · real —
 - **Tiempo IA (ejec.)**: est. 0.00h · real —
 - **Supervisión**: est. 0.00h (≈25 % IA) · real —
@@ -724,7 +726,7 @@ changelog: Changed
 ### T-22 — C-11 — Ids no Claude en `dev.json` y `model` en interop
 
 - **Descripción**: Resultado: `model-tier.py` admite ids de proveedor local y `export-interop.py` emite `model` en `interop/opencode/agents` y `interop/codex/agents/*.toml` cuando haya mapeo, sin romper el determinismo (`--check`); ADR-009 revisado (CA-08). Requisito: evaluation.md §C-11, spec §Criterios CA-08.
-- **Changelog**:
+- **Changelog**: Seleccionar modelos locales por agente con resolución por runtime y proyecciones explícitas, conservando el modo Claude y las cachés instaladas.
 - **Estado**: borrador
 - **Tiempo humano**: est. 12.0h · real —
 - **Tiempo IA (ejec.)**: est. 4.96h · real —
@@ -732,23 +734,25 @@ changelog: Changed
 - **Previsión IA**: 2.0M in / 200k out tok · 11.96 €
 - **Dependencias**: T-21
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/model-tier.py`, `scripts/export-interop.py`, `install/install.mjs`, `tests/test_export_interop.py`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `interop/**` (regenerado: `hooks/`|`agents/`|`commands/` tocados), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `agent-kits/shared/model-tier.py`, `agent-kits/shared/test_model_tier.py`, `scripts/export-interop.py`, `install/install.mjs`, `install/providers.mjs`, `tests/test_export_interop.py`, `tests/test_model_runtime_projection.py` (nuevo), `tests/installer.test.mjs`, `tests/codex-native-install.test.mjs`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `python -m pytest -q agent-kits/shared/test_model_tier.py tests/test_export_interop.py tests/test_model_runtime_projection.py; node --test tests/installer.test.mjs tests/codex-native-install.test.mjs; python scripts/export-interop.py --check` → exit 0 tras implementar; la suite nueva se crea primero en RED. Previamente, spike Codex go/no-go con recibo de binding/identidad/modelo según T-21; sin go se vuelve a diseño.
 
 **Criterios de aceptación**
 - [ ] Criterio (esqueleto): CA-08 — `model-tier.py` acepta ids locales y los agentes de Codex/OpenCode llevan su `model`. Se concreta al revalidar.
 
+**Concreción propuesta por T-20, sujeta a T-21:** CA-08: id local en `modelos.<agente>` aceptado por el resolutor del runtime; proyección explícita de `model` para Codex/OpenCode, determinismo, compatibilidad Claude y caché instalada conservados. El mecanismo y su go/no-go se aprueban en T-21.
+
 **Subtareas**
 - [ ] Se concreta al revalidar.
 
-**Notas**: Esqueleto diferido; depende del diseño de T-21. Hoy `MODELOS_ALIAS` + `^claude-` (`agent-kits/shared/model-tier.py:43-49`) y solo `model_reasoning_effort` en `scripts/export-interop.py:464`. Se concreta al revalidar. Clasificación: capacidad nueva / cambio de comportamiento. Coste estimado de la tarea: 612 € (horas × 50 € + tokens).
+**Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido; depende del diseño de T-21. Hoy `MODELOS_ALIAS` + `^claude-` (`agent-kits/shared/model-tier.py:43-49`) y solo `model_reasoning_effort` en `scripts/export-interop.py:464`. Se concreta al revalidar. Clasificación: capacidad nueva / cambio de comportamiento. Coste estimado de la tarea: 612 € (horas × 50 € + tokens).
 
 
 ### T-23 — C-12 — `ledger-write.py`
 
 - **Descripción**: Resultado: script determinista con subcomandos para marcar estado de tarea, añadir evidencia `RED:` y abrir la cabecera `## Revisión de dos lentes — intento N:`, con lock y reescritura eficiente; `ledger-lint` lo valida (CA-09). Requisito: evaluation.md §C-12, spec §Criterios CA-09.
-- **Changelog**:
+- **Changelog**: Escribir estados, evidencias RED y revisiones del ledger mediante un script determinista con protección de concurrencia.
 - **Estado**: borrador
 - **Tiempo humano**: est. 14.4h · real —
 - **Tiempo IA (ejec.)**: est. 5.96h · real —
@@ -756,23 +760,25 @@ changelog: Changed
 - **Previsión IA**: 2.4M in / 240k out tok · 14.35 €
 - **Dependencias**: T-21, T-13
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/ledger-write.py`, `agent-kits/shared/ledger-lint.py`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `agent-kits/shared/task-brief.py`, `interop/**` (regenerado: `hooks/`|`agents/`|`commands/` tocados), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `agent-kits/shared/ledger-write.py` (nuevo), `tests/test_ledger_write.py` (nuevo), `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/ledger-view.py`, `agent-kits/shared/local-state.py`, `tests/test_ledger_lint.py`, `agent-kits/shared/test_ledger_view.py`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `agent-kits/shared/task-brief.py`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `python -m pytest -q tests/test_ledger_write.py tests/test_ledger_lint.py agent-kits/shared/test_ledger_view.py; python scripts/export-interop.py --check` → exit 0 tras implementar; nuevo test primero RED. Fixture canónica sin avisos, concurrentes, EOL, conflictos y rutas inseguras con cero escritura en error.
 
 **Criterios de aceptación**
 - [ ] Criterio (esqueleto): CA-09 — marcar con `ledger-write.py` deja el ledger sin avisos de `ledger-lint` y en formato canónico. Se concreta al revalidar.
 
+**Concreción propuesta por T-20, sujeta a T-21:** CA-09: fixture canónica escrita con estado, RED y cabecera deja `ledger-lint` sin avisos; lock/publicación atómica preservan datos ajenos y dos escrituras concurrentes, sin cambios en conflicto/error. No se ocultan ni corrigen incidentalmente avisos previos del consumidor.
+
 **Subtareas**
 - [ ] Se concreta al revalidar.
 
-**Notas**: Esqueleto diferido. Dueño único del formato: `ledger-lint` valida y `ledger-write` escribe. Riesgos: concurrencia (lock) y ledgers de 260-520 KB. Incógnita: ¿obligatorio también para Claude o solo en `lite`? (lo resuelve T-21). Depende de C-09 para no editar `dev-cycle.md` monolítico. Se concreta al revalidar. Clasificación: capacidad nueva. Coste estimado de la tarea: 734 € (horas × 50 € + tokens).
+**Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido. Dueño único del formato: `ledger-lint` valida y `ledger-write` escribe. Riesgos: concurrencia (lock) y ledgers de 260-520 KB. Incógnita: ¿obligatorio también para Claude o solo en `lite`? (lo resuelve T-21). Depende de C-09 para no editar `dev-cycle.md` monolítico. Se concreta al revalidar. Clasificación: capacidad nueva. Coste estimado de la tarea: 734 € (horas × 50 € + tokens).
 
 
 ### T-24 — C-14 — Aviso de contexto corto en `/doctor` y mínimos por tramo
 
 - **Descripción**: Resultado: `/doctor` lee la configuración local de OpenCode/Codex (y Ollama solo si es host local y la capacidad está activa) y avisa ⚠️ si el contexto es menor que el mínimo del tramo; `docs/INTEROP.md` (+ EN) documenta los tramos orientativos (8-9B solo lectura; 32B con ≥ 64k para la vía rápida). Requisito: evaluation.md §C-14, spec §Criterios CA-10.
-- **Changelog**:
+- **Changelog**: Advertir en doctor sobre contexto local insuficiente o desconocido, con diagnóstico y sondeo local solo opt-in.
 - **Estado**: borrador
 - **Tiempo humano**: est. 6.0h · real —
 - **Tiempo IA (ejec.)**: est. 2.48h · real —
@@ -780,23 +786,25 @@ changelog: Changed
 - **Previsión IA**: 1.0M in / 100k out tok · 5.98 €
 - **Dependencias**: T-22
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `commands/doctor.md`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `interop/**` (regenerado: `hooks/`|`agents/`|`commands/` tocados), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `agent-kits/shared/test_doctor_local_models.py` (nuevo), `commands/doctor.md`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `python -m pytest -q agent-kits/shared/test_doctor.py agent-kits/shared/test_doctor_local_models.py; python scripts/export-interop.py --check` → exit 0 tras implementar; casos nuevos primero RED. Probar contexto insuficiente/desconocido, config corrupta y cero red por defecto; sondeo opt-in sin redirects ni destinos fuera del alcance local.
 
 **Criterios de aceptación**
 - [ ] Criterio (esqueleto): CA-10 — ⚠️ con el arreglo cuando el contexto es menor que el mínimo, sin red salvo hosts locales y sin bloquear. Se concreta al revalidar.
 
+**Concreción propuesta por T-20, sujeta a T-21:** CA-10: contexto conocido menor que el mínimo orientativo produce aviso con arreglo; contexto desconocido se declara. Sin red por defecto, sondeo local solo opt-in, acotado y sin redirects; ausencia/corrupción no bloquea el ciclo.
+
 **Subtareas**
 - [ ] Se concreta al revalidar.
 
-**Notas**: Esqueleto diferido. Los mínimos salen de la auditoría, no de una prueba real: documentarlos como orientativos. Sin red salvo hosts locales (invariante). Depende de T-22. Se concreta al revalidar. Clasificación: capacidad nueva. Coste estimado de la tarea: 306 € (horas × 50 € + tokens).
+**Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido. Los mínimos salen de la auditoría, no de una prueba real: documentarlos como orientativos. Sin red salvo hosts locales (invariante). Depende de T-22. Se concreta al revalidar. Clasificación: capacidad nueva. Coste estimado de la tarea: 306 € (horas × 50 € + tokens).
 
 
 ### T-25 — C-13 — Perfil `lite`
 
 - **Descripción**: Resultado: `dev.json` `perfil: lite` desactiva paralelismo y subagentes, reduce el tope del brief, obliga a `ledger-write.py` y carga solo el núcleo de `dev-cycle`; NO recorta la revisión de dos lentes ni el `qa-gate` (decisión 3 de la puerta); lo soportan `/setup` y `/doctor`. Requisito: evaluation.md §C-13.
-- **Changelog**:
+- **Changelog**: Ofrecer un perfil lite opt-in con menos contexto y ejecución secuencial, conservando las puertas del ciclo.
 - **Estado**: borrador
 - **Tiempo humano**: est. 9.6h · real —
 - **Tiempo IA (ejec.)**: est. 3.97h · real —
@@ -804,23 +812,25 @@ changelog: Changed
 - **Previsión IA**: 1.6M in / 160k out tok · 9.57 €
 - **Dependencias**: T-21, T-13, T-23
 - **Tipo**: docs
-- **Archivos**: `commands/setup.md`, `commands/dev-cycle.md`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/doctor.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `interop/**` (regenerado: `hooks/`|`agents/`|`commands/` tocados), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `commands/setup.md`, `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/**`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/doctor.py`, `tests/test_lite_profile.py` (nuevo), `tests/test_dev_cycle_split.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `python -m pytest -q tests/test_lite_profile.py agent-kits/shared/test_task_brief.py tests/test_dev_cycle_split.py; python scripts/export-interop.py --check` → exit 0 tras implementar; suite nueva primero RED. Probar defaults, opt-in, writer requerido, contexto obligatorio y revisión/QA intactas; el techo y los revisores secuenciales dependen de la aprobación T-21.
 
 **Criterios de aceptación**
 - [ ] Criterio (esqueleto): con `perfil: lite` no hay paralelismo, la revisión y el qa-gate siguen activos y el brief respeta el tope reducido. Se concreta al revalidar.
 
+**Concreción propuesta por T-20, sujeta a T-21:** Con `perfil: lite` no hay paralelismo, revisión y QA siguen activos, el writer es obligatorio y el brief respeta el techo aprobado en T-21 sin omitir contenido obligatorio. La distinción implementadores/revisores y el techo concreto son propuestas hasta aprobar T-21; el perfil normal conserva sus defaults.
+
 **Subtareas**
 - [ ] Se concreta al revalidar.
 
-**Notas**: Esqueleto diferido; depende de T-13, T-23 y del diseño de T-21. Choque potencial con las puertas no negociables: si el usuario quisiera recortarlas cambia el alcance y la constitución. Se concreta al revalidar. Clasificación: capacidad nueva. Coste estimado de la tarea: 490 € (horas × 50 € + tokens).
+**Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido; depende de T-13, T-23 y del diseño de T-21. Choque potencial con las puertas no negociables: si el usuario quisiera recortarlas cambia el alcance y la constitución. Se concreta al revalidar. Clasificación: capacidad nueva. Coste estimado de la tarea: 490 € (horas × 50 € + tokens).
 
 
 ### T-26 — P-F3 — Proceso de la fase 3: revisión, CHANGELOG doble, Linux, prueba manual y release
 
 - **Descripción**: Resultado: F3 cerrada y publicada: validación estática (contratos, interop, doctor) + prueba manual del usuario en otro equipo con Ollama (fuera de presupuesto; mínimos por tramo orientativos), CHANGELOG ES/EN, docs espejo, interop, réplica Linux y `scripts/release.py`. Requisito: evaluation.md §P-F3, decisiones 6 y 7 de la puerta.
-- **Changelog**:
+- **Changelog**: Validar y publicar la fase de modelos locales con evidencia de CI y prueba manual en el equipo con Ollama.
 - **Estado**: borrador
 - **Tiempo humano**: est. 2.4h · real —
 - **Tiempo IA (ejec.)**: est. 0.64h · real —
@@ -828,17 +838,19 @@ changelog: Changed
 - **Previsión IA**: 0.3M in / 30k out tok · 1.79 €
 - **Dependencias**: T-22, T-23, T-24, T-25
 - **Tipo**: devops
-- **Archivos**: `CHANGELOG.md`, `CHANGELOG.es.md`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `docs/roadmap/README.md`, `interop/**` (regenerado: `hooks/`|`agents/`|`commands/` tocados), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `CHANGELOG.md`, `CHANGELOG.es.md`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `docs/roadmap/README.md`, `docs/roadmap/2026-10-27-plugin-optimization/testing/**`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
-- **Verificación**: lectura: se concreta al revalidar (T-08/T-20 del plan); no inventar comandos que aún no existen
+- **Verificación**: `python agent-kits/shared/ledger-lint.py docs/roadmap/2026-10-27-plugin-optimization/tasks.md; python scripts/lint_plugin.py; python evals/check.py; python scripts/export-interop.py --check` → exit 0; lectura de revisión independiente <=3 intentos, cobertura oficial >=90, CI Linux completa, checklist manual Ollama real y release por script con versión confirmada.
 
 **Criterios de aceptación**
 - [ ] Criterio (esqueleto): los mismos que T-07 aplicados a F3, más resultado de la prueba manual del usuario anotado. Se concreta al revalidar.
 
+**Concreción propuesta por T-20, sujeta a T-21:** F3 revisada en <=3 intentos sin gaps pendientes, cobertura oficial >=90, CI Linux completa sin rojos aceptados, docs/notas ES/EN e interop vigentes. Checklist real del usuario en otro equipo con Ollama registra versión/modelo/contexto, vía rápida y puertas; no se sustituye por mocks ni recomendaciones de parámetros. Publicar por release.py tras confirmar versión.
+
 **Subtareas**
 - [ ] Se concreta al revalidar.
 
-**Notas**: Esqueleto diferido; mismo procedimiento que T-07. Se concreta al revalidar. Clasificación: proceso. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
+**Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido; mismo procedimiento que T-07. Se concreta al revalidar. Clasificación: proceso. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
 
 ---
 
@@ -974,3 +986,12 @@ CI normal Linux sobre el SHA exacto: [41032658988](https://github.com/daycry/cus
 **T-19 sigue abierta exclusivamente por la entrega**: preparar preview 2.2.0, confirmar versión y publicar por `release.py`. Sus CA compuestos conservan checkbox pendiente hasta publicar. Las decisiones no-go T-16/T-17/T-18 no cuentan como implementadas. F3 requiere la release F2, T-20 y aprobación de diseño T-21.
 
 Preview aislada **2.2.0** verificada: dry-run, preparación sin Git, coherencia, interop y paquete portable en verde; cinco manifiestos y dos changelogs. Sin tag/release ni cambio de versión en la rama. Evidencia `testing/f2-release-preview-2.2.0-2026-10-30.json`; falta confirmación de versión exigida por T-19.
+
+
+## Publicación F2 y revalidación F3 — 2026-10-30
+
+Usuario confirma fusionar y publicar v2.2.0. PR20 fusionada en `c13dbcc9`; release por `release.py` en `c6aee505`, patch idéntico a la preview aprobada. Push atómico del commit y tag. [Release](https://github.com/daycry/custom-agents/releases/tag/v2.2.0) publicada con ambos ZIP, hashes/CRC/manifiestos/fuentes verificados. Workflow release41040778564 y CI completa41040778523 verdes. **T-19 completada**; no se modifica la caché instalada. Recibo `testing/f2-publication-2.2.0-2026-10-30.json`.
+
+**T-20 completada:** contratos y rutas concretados contra `c6aee505`; nuevas suites declaradas como entregables futuros, no como tests ejecutados. Presupuesto F3 provisional45h, delta0h; no hay real IA comparable de F1/F2 y no se sustituyen tokens/horas IA por tiempo de reloj. Evidencia `testing/t20-revalidation-2026-10-30.md`. CA-08/09/10 globales conservados y pendientes.
+
+**T-21 en progreso:** `design.md` tiene tres opciones. O1 recomendada, condicionada a spike de bindings Codex sin caché/globales y retorno a diseño si no hay go; O2 distribución derivada requiere reestimar; O3 herencia de sesión requiere cambiar CA-08. Las decisiones de lite (6.000 caracteres, revisores frescos secuenciales, writer obligatorio en lite) son propuestas, no criterios aprobados. No se implementa T-22..T-25 antes de validación del usuario. T-26 mantiene prueba manual real en otro equipo con Ollama.
