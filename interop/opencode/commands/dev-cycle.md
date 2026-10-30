@@ -18,7 +18,9 @@ bundle canónico. Resuélvelo con la búsqueda del núcleo, sin precargar el kit
 Ejecuta el ciclo de una iniciativa de forma explícita y fiable. Objetivo: **$ARGUMENTS**.
 
 Mantén `docs/roadmap/<fecha>-<slug>/tasks.md` como **ledger canónico** de progreso en todo el
-ciclo (ver regla 8 de `docs/CONVENTIONS.md`).
+ciclo (ver regla 8 de `docs/CONVENTIONS.md`). Al escribirlo, lee
+`agent-kits/shared/ledger-write.md`: writer preferente y obligatorio en lite;
+conserva el fallback ordinario y las puertas del ciclo.
 
 ## Detalle por fase: lectura bajo demanda
 

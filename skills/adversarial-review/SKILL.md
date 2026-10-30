@@ -151,7 +151,7 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente 
   Al cerrar el bucle sin gaps pendientes, la revisión queda como evidencia para Curator;
   **no** promueve estados de memoria ni aprueba candidatos. Con gaps tras el 3.º intento,
   conserva la evidencia y las propuestas pendientes sin alterar el legado.
-  `ledger-lint.py` exit 0 tras escribir.
+  Abre la cabecera con el contrato `agent-kits/shared/ledger-write.md` (preferente, obligatorio en lite); `ledger-lint.py` exit 0 tras completar la tabla.
 - **Jira — lo publica ESTA skill, POR CADA intento (dueño único; solo si `.claude/jira.json`
   `enabled` Y el plan se volcó).** Nada más escribir la sección del intento en `tasks.md`, ejecuta
   `python3 "$JF" plan --ledger <tasks.md> --event revision|gaps --actor reviewer --task T-XX[,T-YY]

@@ -25,7 +25,7 @@ changelog: Changed
 | **Estado** | en-progreso |
 | **Fecha** | 2026-10-27 |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
-| **Diseño** | n/a (paso `architect` previsto en T-21, antes de F3) |
+| **Diseño** | [O1 aprobado](design.md) |
 
 > **⚠️ Ledger canónico de progreso.** Este fichero es la **fuente única de verdad** del avance del plan. **Cualquier** implementador —el agente `implementer`, el chat principal, o un orquestador SDD externo— **debe** marcar aquí cada tarea (checkbox + estado) al completarla y actualizar el resumen. Los ledgers propios de otras herramientas son **espejo**, no fuente.
 
@@ -39,10 +39,10 @@ changelog: Changed
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Quick wins medibles (v2.1.0 publicada) | 7 | 7 | 100% | 0 / 38.4h | 0 / 14.8h | 0 / 3.7h | 0 / 6.0M in + 600k out |
 | Fase 2 — Reestructuración (v2.2.0 publicada; 3 canceladas) | 9 | 12 | 75.0% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
-| Fase 3 — Modelos locales (spike T-22) | 2 | 7 | 28.6% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
-| **TOTAL** | **18** | **26** | **69.2%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
+| Fase 3 — Modelos locales (T-22/T-23 funcionales) | 4 | 7 | 57.1% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
+| **TOTAL** | **20** | **26** | **76.9%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
 
-> **F2 publicada como v2.2.0: 9 tareas completadas y 3 condicionales canceladas (T-16/T-17/T-18, no implementadas).** Revisión aprobada en 2 intentos, coverage Python92,25 y CI completa verde. T-20 completada; T-21 espera aprobar [el diseño](design.md). Las cancelaciones no se suman a las completadas.
+> **F2 publicada como v2.2.0: 9 tareas completadas y 3 condicionales canceladas (T-16/T-17/T-18, no implementadas).** Revisión aprobada en 2 intentos, coverage Python92,25 y CI completa verde. T-20/T-21/T-22 completadas; O1 y lite aprobados en [el diseño](design.md). T-23 completada funcionalmente; T-24/T-25 y puertas finales pendientes. Las cancelaciones no se suman a las completadas.
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Jira no está activado en este proyecto (no hay `jira.json`). Ver `skills/jira-sync/SKILL.md`.
 
@@ -734,7 +734,8 @@ Diseño O1 y decisiones lite aprobados por el usuario el 2026-10-30 («adelante�
 
 - **Descripción**: Resultado: `model-tier.py` admite ids de proveedor local y `export-interop.py` emite `model` en `interop/opencode/agents` y `interop/codex/agents/*.toml` cuando haya mapeo, sin romper el determinismo (`--check`); ADR-009 revisado (CA-08). Requisito: evaluation.md §C-11, spec §Criterios CA-08.
 - **Changelog**: Seleccionar modelos locales por agente con resolución por runtime y proyecciones explícitas, conservando el modo Claude y las cachés instaladas.
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Cerrada**: 2026-10-30
 - **Tiempo humano**: est. 12.0h · real —
 - **Tiempo IA (ejec.)**: est. 4.96h · real —
 - **Supervisión**: est. 1.24h (≈25 % IA) · real —
@@ -746,12 +747,14 @@ Diseño O1 y decisiones lite aprobados por el usuario el 2026-10-30 («adelante�
 - **Verificación**: `python -m pytest -q agent-kits/shared/test_model_tier.py tests/test_export_interop.py tests/test_model_runtime_projection.py; node --test tests/installer.test.mjs tests/codex-native-install.test.mjs; python scripts/export-interop.py --check` → exit 0 tras implementar; la suite nueva se crea primero en RED. Previamente, spike Codex go/no-go con recibo de binding/identidad/modelo según T-21; sin go se vuelve a diseño.
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): CA-08 — `model-tier.py` acepta ids locales y los agentes de Codex/OpenCode llevan su `model`. Se concreta al revalidar.
+- [x] Criterio (esqueleto): CA-08 — `model-tier.py` acepta ids locales y los agentes de Codex/OpenCode llevan su `model`. Se concreta al revalidar.
 
 **Concreción propuesta por T-20, sujeta a T-21:** CA-08: id local en `modelos.<agente>` aceptado por el resolutor del runtime; proyección explícita de `model` para Codex/OpenCode, determinismo, compatibilidad Claude y caché instalada conservados. El mecanismo y su go/no-go se aprueban en T-21.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [x] Se concreta al revalidar.
+
+Concreción ejecutada: resolución por runtime, exportador explícito y ciclo de instalación/retirada verificados.
 
 **Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido; depende del diseño de T-21. Hoy `MODELOS_ALIAS` + `^claude-` (`agent-kits/shared/model-tier.py:43-49`) y solo `model_reasoning_effort` en `scripts/export-interop.py:464`. Se concreta al revalidar. Clasificación: capacidad nueva / cambio de comportamiento. Coste estimado de la tarea: 612 € (horas × 50 € + tokens).
 
@@ -776,28 +779,32 @@ La primera inserción de estas dos evidencias no se aplicó por la codificación
 
 GREEN parcial T-22: 84 tests Python pasan; 21 casos Node de proyección/migración y las regresiones CLI individuales pasan. CLI real0.166.0 con backend Responses simulado: baseline, modelo proyectado y retirada pasan con instrucciones preservadas y cero procesos del Job Object al final. Contenido de caché idéntico; la reinstalación oficial solo actualiza su manifiesto de instalación. La primera comprobación global de caché falló por ese metadato y se conserva como corrida fallida; comprobación separada posterior en verde. Recibo `testing/t22-native-installer-smoke-2026-10-30.json`. La suite Node completa sigue ejecutándose; T-22 no se cierra todavía. Lint0 errores/3 avisos previos, evals192 sin errores, interop88 vigente, ledger-lint0/0. Ventana de implementación T-22 cerrada a14:40:04Z, tokens/coste/horas IA desconocidos; 51 minutos de reloj no se imputan como IA. Corrección posterior de acentos en textos nuevos, sin cambio de contrato.
 
+Verificación dirigida final: Python84 pass; Node165 pass/0 fail/0 skip (instalador y registro nativo); interop88 vigente. T-22 completada funcionalmente; revisión independiente, cobertura, Linux final y prueba manual real se conservan en T-26. Recibo `testing/t22-directed-verification-2026-10-30.json`. La corrida Windows se inició antes de la corrección de una tilde en el aviso del instalador y de crear el writer; no se presenta como CI de un SHA inmutable. La CI de la PR comprobará el commit exacto.
+
 ### T-23 — C-12 — `ledger-write.py`
 
 - **Descripción**: Resultado: script determinista con subcomandos para marcar estado de tarea, añadir evidencia `RED:` y abrir la cabecera `## Revisión de dos lentes — intento N:`, con lock y reescritura eficiente; `ledger-lint` lo valida (CA-09). Requisito: evaluation.md §C-12, spec §Criterios CA-09.
 - **Changelog**: Escribir estados, evidencias RED y revisiones del ledger mediante un script determinista con protección de concurrencia.
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 14.4h · real —
 - **Tiempo IA (ejec.)**: est. 5.96h · real —
 - **Supervisión**: est. 1.49h (≈25 % IA) · real —
 - **Previsión IA**: 2.4M in / 240k out tok · 14.35 €
 - **Dependencias**: T-21, T-13
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/ledger-write.py` (nuevo), `tests/test_ledger_write.py` (nuevo), `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/ledger-view.py`, `agent-kits/shared/local-state.py`, `tests/test_ledger_lint.py`, `agent-kits/shared/test_ledger_view.py`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `agent-kits/shared/task-brief.py`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `agent-kits/shared/ledger-write.py` (nuevo), `agent-kits/shared/ledger-write.md` (nuevo), `tests/test_ledger_write.py` (nuevo), `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/ledger-view.py`, `agent-kits/shared/local-state.py`, `tests/test_ledger_lint.py`, `agent-kits/shared/test_ledger_view.py`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
 - **Verificación**: `python -m pytest -q tests/test_ledger_write.py tests/test_ledger_lint.py agent-kits/shared/test_ledger_view.py; python scripts/export-interop.py --check` → exit 0 tras implementar; nuevo test primero RED. Fixture canónica sin avisos, concurrentes, EOL, conflictos y rutas inseguras con cero escritura en error.
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): CA-09 — marcar con `ledger-write.py` deja el ledger sin avisos de `ledger-lint` y en formato canónico. Se concreta al revalidar.
+- [x] Criterio (esqueleto): CA-09 — marcar con `ledger-write.py` deja el ledger sin avisos de `ledger-lint` y en formato canónico. Se concreta al revalidar.
 
 **Concreción propuesta por T-20, sujeta a T-21:** CA-09: fixture canónica escrita con estado, RED y cabecera deja `ledger-lint` sin avisos; lock/publicación atómica preservan datos ajenos y dos escrituras concurrentes, sin cambios en conflicto/error. No se ocultan ni corrigen incidentalmente avisos previos del consumidor.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [x] Se concreta al revalidar.
+
+Concreción ejecutada: estado, RED, revisión, lock, conflictos, EOL y publicación atómica; integración en briefs/roles verificada.
 
 **Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido. Dueño único del formato: `ledger-lint` valida y `ledger-write` escribe. Riesgos: concurrencia (lock) y ledgers de 260-520 KB. Incógnita: ¿obligatorio también para Claude o solo en `lite`? (lo resuelve T-21). Depende de C-09 para no editar `dev-cycle.md` monolítico. Se concreta al revalidar. Clasificación: capacidad nueva. Coste estimado de la tarea: 734 € (horas × 50 € + tokens).
 
@@ -806,6 +813,28 @@ RED: tres casos iniciales de `tests/test_ledger_write.py` fallan porque ledger-w
 
 
 RED: `tests/test_ledger_write.py::completion_and_idempotence` falló con Dos casos fallan: completa sin criterios y reescribe el resumen sin cambio de estado (2 failed), antes del fix. · 2026-10-30.
+
+
+RED: `tests/test_ledger_write.py::test_rejected_input_never_changes_ledger_or_creates_a_lock` falló con Se aceptan fecha compacta y separador Unicode de linea que introduce estructura Markdown (2 failed); antes del validador estricto. · 2026-10-30.
+
+
+RED: `tests/test_ledger_write.py::test_lock_metadata_ignores_itself_and_preserves_an_existing_ignore_file` falló con Falla por ausencia de .ledger-write/.gitignore; el lock local aparece como archivo sin seguimiento antes del fix. · 2026-10-30.
+
+
+RED: `tests/test_ledger_write.py::test_atomic_publication_preserves_existing_file_permissions` falló con Sonda Linux real en python3.11 sin red reproduce 0640 a 0600 al publicar; assertion falla antes de preservar permisos en el temporal. · 2026-10-30.
+
+
+RED: `agent-kits/shared/test_task_brief.py::test_tdd_true_en_dev_json_inyecta_la_skill` falló con El brief TDD omite ledger-write.py (1 failed), antes de integrar el escritor preferente. · 2026-10-30.
+
+
+RED: `agent-kits/shared/test_task_brief.py::test_brief_budget_auxiliares_comparten_margen_sin_recortar_criterios` falló con La instruccion nueva aumenta el brief a10044 frente al tope10000 (1 failed/164 pass/3 skip), antes de compactar su prosa sin tocar umbrales ni bloques obligatorios. · 2026-10-30.
+
+GREEN T-23: fixture canónica sin avisos, tres escritores conservan sus evidencias y hash esperado permite un único escritor. Windows dirigido final165 pass/3 skip; Linux dirigido85 pass/0 fallos, contenedor propio sin red y montaje de fuentes de solo lectura. Las suites se solapan parcialmente. `test_ledger_lint.py`:29/29; lint0 errores/3 avisos previos, evals192/0 errores, interop88 vigentes. El primer dirigido Windows tuvo1 fallo de presupuesto por prosa nueva (10044>10000); corregido compactando instrucciones, sin cambiar topes, criterios ni suelos. Dos casos dirigidos pasan y suite final165/3 en verde. Extensión de Archivos: fragmento compartido y regresión del brief necesarios para integrar el writer; no cambia criterios. TDD n/a para prosa y artefactos generados. Cobertura oficial/revisión/CI exacta de fase y prueba manual permanecen en T-26.
+
+
+RED: `tests/test_ledger_write.py::test_state_preserves_an_unrelated_phases_summary_bytes` falló con El cambio de una tarea reformatea contadores de otra fase sin cambios (1 failed), antes de limitar las filas afectadas. · 2026-10-30.
+
+Corrección propia adicional de T-23: se conserva el espaciado exacto de las fases cuyos contadores no cambian (regresión RED previa). Writer final Windows24 pass/2 skip y Linux26 pass/0 skip; siete regresiones existentes de local-state fix3 pasan. Los 165/3 y 85 anteriores se conservan sobre sus fuentes, sin presentarlos como una nueva ejecución tras esta corrección. La CI exacta del commit T-22 `3b1b338` pasa en run41075410373; no acredita todavía el resto de F3. Medición T-23:14:40:04Z–15:05:24Z, sin tokens/coste/horas IA; 25 minutos de reloj no se imputan como IA. La ventana separada T-23-fix1 conserva la corrección posterior.
 
 ### T-24 — C-14 — Aviso de contexto corto en `/doctor` y mínimos por tramo
 

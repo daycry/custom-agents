@@ -51,7 +51,7 @@ class StateIO:
         self.need(self.file(path) == before, 'unsafe_state')
         return row['data'], before
 
-    def write(self, path, raw, deadline, expected=None, retry=True):
+    def write(self, path, raw, deadline, expected=None, retry=True, mode=None):
         """Exclusive creation or observed owned-leaf replacement; no overwrite fallback.
         `retry=False` makes a single `os.replace` attempt (no sharing-violation backoff)."""
         path = Path(path)
@@ -62,6 +62,8 @@ class StateIO:
         temporary = Path(name)
         try:
             with os.fdopen(fd, 'wb') as handle:
+                if mode is not None:
+                    os.chmod(temporary, mode)
                 handle.write(raw)
                 handle.flush()
                 try:

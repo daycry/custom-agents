@@ -99,8 +99,8 @@ Esta tarea se implementa con RED-GREEN-REFACTOR según la skill **`tdd`** (invó
 Skill; es la fuente única del método — no lo reinterpretes). Resumen del contrato: por cada criterio de
 aceptación, escribe primero el test, córrelo SOLO y míralo fallar por la razón correcta; implementa el
 mínimo; refactoriza en verde. El código escrito antes de su test se borra y se reescribe tras el rojo.
-En tu informe devuelve una línea por criterio `RED: <fichero::test> falló con <error> · <fecha>` (el
-orquestador la copia al ledger); si la tarea no tiene código testeable, devuelve `TDD n/a: <motivo>`.
+Devuelve `RED: <fichero::test> falló con <error> · <fecha>` por criterio; el orquestador lo registra
+con `ledger-write.py` según `ledger-write.md`. Sin código testeable: `TDD n/a: <motivo>`.
 """
 
 
