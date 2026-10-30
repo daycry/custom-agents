@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "base_revision": "707d4ad67c89dca5f74d564ca7be18b2b8ee2e16",
+  "validated_code_revision": "7241e0e127674dd58276c2282491fd280c82d747",
+  "observations_are_separate_runs": true,
+  "python_linux_initial": {
+    "passed": 9931,
+    "failed": 17,
+    "skipped": 57,
+    "subtests_passed": 82,
+    "instrumented": true,
+    "snapshot_sha256": "bfc462081cfc9cb68e423f83763516f1feca104c4e199e4249d514ebcb3a0618",
+    "disposition": "See report.md; affected cases rerun against the current overlay."
+  },
+  "python_linux_affected": {
+    "passed": 983,
+    "failed": 0,
+    "skipped": 2,
+    "exit": 0
+  },
+  "node_linux": {
+    "passed": 451,
+    "failed": 0,
+    "skipped": 16,
+    "todo": 0,
+    "exit": 0,
+    "container_init": true
+  },
+  "node_windows": {
+    "passed": 464,
+    "failed": 0,
+    "skipped": 2,
+    "todo": 1,
+    "exit": 0
+  },
+  "coverage_python": {
+    "method": "official coverage.py; official changed-only gate; arithmetic mean by file",
+    "percent": 91.55,
+    "minimum": 90,
+    "files": {
+      "agent-kits/shared/doctor.py": 93.36,
+      "agent-kits/shared/integration-route.py": 93.88,
+      "agent-kits/shared/module-selection.py": 98.84,
+      "scripts/export-skills.py": 94.61,
+      "skills/jira-sync/scripts/jira-flow.py": 77.05
+    },
+    "missing_files": [],
+    "exit": 0
+  },
+  "coverage_node": {
+    "method": "official Node line coverage",
+    "percent": 96.59,
+    "minimum": 90,
+    "files": {
+      "install/install.mjs": 96.4,
+      "install/modules.mjs": 100
+    },
+    "exit": 0
+  },
+  "production_source_sha256_lf": {
+    "agent-kits/shared/doctor.py": "cb0ddffd3a9871169b8049a6753b6d4b91cb684ca185d57d643c8b26406d6948",
+    "agent-kits/shared/integration-route.py": "56b2c1fddfb982e1fe774d506cbac270995e2c822247fa1fa0456817fb891734",
+    "agent-kits/shared/module-selection.py": "d69a0e13abba8b102db3b8d554729dc9cd6e14197d81fa5104d467244ec990ca",
+    "scripts/export-skills.py": "71acf86b6108499f782f51d8cc56bec040c260fc3f121680adbd7be53738dee6",
+    "skills/jira-sync/scripts/jira-flow.py": "6a2b947c93a4dea39eb8c24c9cf7feb3e7e32128b66ad2f81513621e1a19bf62"
+  },
+  "pdf": {
+    "pages": 39,
+    "workflows": 18,
+    "links": 138,
+    "outline_entries": 62,
+    "visual_review": "all pages",
+    "sha256": "9fd179986feeff8c8c2fcd395fc13a8d9f81fef6ec27624843b1f7452f95cf42"
+  },
+  "windows_extra_standalone": {
+    "suites": 114,
+    "exit_zero": 108,
+    "incidents": 6,
+    "whole_sweep_green": false,
+    "disposition": "Baseline reproductions and platform/timeouts documented in report.md; not represented as a clean run."
+  },
+  "provider_delivery_tested": false,
+  "ollama_tested": false,
+  "release_published": false,
+  "metrics": {
+    "tokens": null,
+    "cost_eur": null,
+    "ai_effort_hours": null,
+    "reason": "No complete compatible transcript measurement; elapsed time is not AI effort."
+  },
+  "ci": {
+    "run_id": 41144112195,
+    "status": "success",
+    "head_sha": "7241e0e127674dd58276c2282491fd280c82d747",
+    "url": "https://github.com/daycry/custom-agents/actions/runs/41144112195",
+    "pytest_summary": "9993 passed, 38 skipped, 1 warning, 82 subtests passed in 719.14s (0:11:59)"
+  }
+}
