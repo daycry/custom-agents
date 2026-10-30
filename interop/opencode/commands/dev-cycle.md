@@ -20,6 +20,10 @@ Ejecuta el ciclo de una iniciativa de forma explícita y fiable. Objetivo: **$AR
 Mantén `docs/roadmap/<fecha>-<slug>/tasks.md` como **ledger canónico** de progreso en todo el
 ciclo (ver regla 8 de `docs/CONVENTIONS.md`).
 
+Al escribirlo, lee
+`agent-kits/shared/ledger-write.md`: writer preferente y obligatorio en lite;
+conserva el fallback ordinario y las puertas del ciclo.
+
 ## Detalle por fase: lectura bajo demanda
 
 Lee este núcleo completo. Las referencias privadas conservan el método de cada
@@ -75,6 +79,19 @@ planner registra los IDs y escenarios por tarea. Implementer, reviewer y qa
 usan los mismos criterios técnicos. Repite selección solo ante hechos nuevos.
 Sin selector, avisa y sigue con guías disponibles; conserva las puertas del ciclo.
 Este paso no inicia servicios ni genera piezas de proyecto.
+
+## Perfil efectivo antes de despachar
+
+Ejecuta `execution-profile.py --project <raíz del proyecto> --json` desde el
+`agent-kits/shared/` del mismo bundle. Consume sus flags efectivos, no los
+recalcules: `blocked: true`/exit 2 impide despachar. En `perfil: lite`, implementa
+en el hilo actual, sin paralelismo ni subagentes de implementación; no abras
+`phase3-subagents.md`. Genera el contexto con `task-brief.py` antes de implementar:
+exit 2 no entrega brief y exige ajustar la tarea. El writer es obligatorio y los
+revisores frescos se despachan secuencialmente; invoca `adversarial-review` con
+ese perfil. TDD, QA, cobertura y Knowledge Gate conservan todas sus puertas.
+La política efectiva prevalece sobre los toggles pedidos en dev.json. El perfil
+normal conserva sus defaults y el fallback parcial de `ledger-write.md`.
 
 ## Fase 0 — Preparación
 1. Deriva un `<slug>` corto en kebab-case del objetivo y fija/crea la carpeta `docs/roadmap/<fecha>-<slug>/` (reutilízala si ya existe).

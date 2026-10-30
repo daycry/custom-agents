@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-30",
+  "version": "2.3.0",
+  "authorization": "User explicitly requests commits, push and a new release; real Ollama test will be performed later.",
+  "approved_change": "Real Ollama manual validation no longer blocks this release or closure of T-26; it remains a documented deferred follow-up.",
+  "manual_status": "deferred_not_executed",
+  "unchanged_gates": [
+    "independent review",
+    "automated CI",
+    "official coverage",
+    "local knowledge curation",
+    "mechanical release.py",
+    "publication verification"
+  ],
+  "code_head": "4596eaf1bec3f21b21d364d5493b92d072f71cac",
+  "metadata_ci": {
+    "head": "f98ffaa8fa28f96b935cf6be0037d8cc655fe86f",
+    "run_id": 41095385574,
+    "conclusion": "success"
+  },
+  "prior_preview": "t26-release-preview-2026-10-30.json",
+  "prior_preview_is_historical": true
+}

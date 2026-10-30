@@ -1,5 +1,5 @@
 ---
-design: n/a               # el paso architect se hará solo antes de F3 (C-11/C-13); F1 y F2 no lo necesitan
+design: design.md
 test-plan: n/a (sin UI)
 generacion:
   inicio: 2026-10-27T14:14:18Z
@@ -18,6 +18,10 @@ generacion:
 ---
 
 # 2026-10-27-plugin-optimization
+
+> **Diseño F3 aprobado:** [O1 y perfil lite](design.md); ejecutar primero el spike Codex obligatorio de T-22.
+
+> **Entrega F3 autorizada 2026-10-30:** publicar v2.3.0; el usuario aplaza la prueba real con Ollama. El requisito manual se conserva como seguimiento, sin bloquear esta entrega ni acreditarlo como superado. [Traza y límites](testing/t26-release-authorization-2026-10-30.json).
 
 > Plan de la optimización del plugin en tres frentes medidos (latencia de hooks, tokens fijos y bajo demanda, viabilidad con modelos locales): F1 detallada y lista para ejecutar; F2 y F3 diferidas, con presupuesto y esqueleto.
 
@@ -266,17 +270,13 @@ Los ficheros exactos de cada tarea están en su campo `Archivos` de `tasks.md` (
 | 2026-10-29 | Usuario aprueba el ajuste de CA-01: cero Python y medición transparente sin mínimo porcentual en F1; 80 % reservado a investigación posterior sin presupuesto nuevo. T-01 estabilidad y T-07 revisión/entrega siguen abiertas. Evidencia: `testing/f1-performance-adjustment-proposal.md`. | usuario («adelante», «adelante con el plan») |
 | 2026-10-29 | El usuario delega la decisión sobre T-01; se elige la opción 2: línea base caracterizada con dispersión y controles intercalados por mejora, sin afirmar estabilidad uniforme ni aceptar comparaciones inconcluyentes. Presupuesto y puertas T-07 intactos. | usuario («lo que consideres mejor»); elección motivada por el agente |
 | 2026-10-29 | Usuario confirma publicar F1 y continuar F2/F3. T-08 revalida contra v2.1.0: C-15 spike acotado; C-17 condicionado a ahorro seguro tras C-09; C-18 no-go productivo sin evidencia de activación. Rutas y verificaciones concretas en ledger. Presupuesto F2/F3 conservado, delta 0 h, sin inventar real F1. | usuario; revalidación del orquestador |
+| 2026-10-30 | Usuario confirma fusionar PR20 y publicar v2.2.0; publicación y CI verificadas. T-20 concreta F3 contra `c6aee505`; presupuesto provisional45h, delta0h sin inventar real F1/F2. T-21 mantiene aprobación pendiente de opciones y alcance lite. CA-08/09/10 globales sin modificar. | usuario; revalidación del orquestador |
 
 ---
 
 
 ## Siguiente paso
 
-F1 está publicada como v2.1.0 y el usuario autoriza continuar. La ejecución sigue en `feat/plugin-optimization-f2`, con `tasks.md` como ledger canónico y T-08 revalidada contra `a157679`. Se implementa T-09 y el resto de F2 con sus verificaciones concretas. F3 conserva la dependencia de la release de F2, revalidación T-20 y diseño aprobado T-21. La iniciativa completa permanece abierta.
+F1 v2.1.0 y F2 v2.2.0 publicadas. T-20 revalidada; el usuario aprueba O1 y el perfil lite de 6.000 caracteres el 2026-10-30. T-21 completada, con memoria candidata pendiente de Curator. El spike de T-22 acredita binding, identidad y modelo mediante un proveedor simulado local, sin modelo real ni cambios en caché. Continúa T-22 con tests RED antes del código; T-26 conserva prueba manual con Ollama y todas las puertas.
 
-
-## Apertura de F2 y F3 autorizada — 2026-10-29
-
-El usuario confirma «Sí, publicar F1 y continuar». F1 se publica como v2.1.0, commit `a157679`, PR #19 fusionada y workflow de release verde con ambos ZIP. F2 se revalida en T-08 contra ese master antes de implementar; F3 sigue dependiendo de la release de F2, revalidación T-20 y diseño aprobado T-21. No se cambia el requisito de prueba manual Ollama ni se rebajan revisión, QA, cobertura o timeout.
-
-Decisiones de revalidación: C-15 entra como spike acotado, no como implementación aprobada sin resultado; C-17 entra condicionado a ahorro medido y resolución segura tras C-09; C-18 no se recorta en producción sin evidencia de no-degradación de activación. La visibilidad nativa de F1 no acredita esa propiedad. Detalle de verificaciones y rutas en T-09..T-19.
+Decisión de diseño 2026-10-30: O1 elegida explícitamente («adelante»); binding nativo con go documentado y límites conservados, brief lite6.000, revisores frescos secuenciales y writer requerido en lite.

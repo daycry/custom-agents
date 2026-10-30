@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "source_head": "4596eaf1bec3f21b21d364d5493b92d072f71cac",
+  "workflow_run": 41092581342,
+  "url": "https://github.com/daycry/custom-agents/actions/runs/41092581342",
+  "conclusion": "success",
+  "python": {
+    "passed": 9889,
+    "skipped": 38,
+    "subtests_passed": 82,
+    "warnings": 1
+  },
+  "node": {
+    "tests": 447,
+    "passed": 431,
+    "skipped": 16,
+    "failed": 0,
+    "cancelled": 0
+  },
+  "other_steps": "lint, evals, standalone suites, SessionEnd benchmark, interop, syntax, JSON and version checks pass",
+  "limits": [
+    "Does not constitute real Ollama inference or manual approval",
+    "Subsequent metadata-only commits are tracked separately"
+  ]
+}

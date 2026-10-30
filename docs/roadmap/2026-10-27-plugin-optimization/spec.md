@@ -5,7 +5,7 @@ estado: aprobada          # borrador | aprobada | implementada | obsoleta
 creado: 2026-10-27
 actualizado: 2026-10-27
 evaluacion: evaluation.md
-design: n/a
+design: design.md
 plan: improvement-plan.md
 generacion:
   fuente: estimado
@@ -13,6 +13,8 @@ generacion:
 ---
 
 # Optimización del plugin: hooks, tokens y modelos locales
+
+> **Diseño F3 aprobado:** [O1 y perfil lite](design.md); ejecutar primero el spike Codex obligatorio de T-22.
 
 > **Evaluación:** [`evaluation.md`](evaluation.md)
 > **Plan de implementación:** [`improvement-plan.md`](improvement-plan.md) · [`tasks.md`](tasks.md)

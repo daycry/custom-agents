@@ -132,6 +132,28 @@ def test_competing_locks_fail_bounded_and_release(tmp_path):
         pass
 
 
+def test_new_lock_has_its_final_generation_when_it_first_becomes_visible(tmp_path, monkeypatch):
+    """Replay a second writer observing the exclusive creation before initialization."""
+    import contextlib
+    io = owner()
+    original_open = Path.open
+    observed = []
+
+    @contextlib.contextmanager
+    def observe_creation(path, mode='r', *args, **kwargs):
+        with original_open(path, mode, *args, **kwargs) as handle:
+            if path == tmp_path / '.lock' and mode == 'xb':
+                observed.append(io.file(path))
+            yield handle
+
+    monkeypatch.setattr(Path, 'open', observe_creation)
+    with io.locked(tmp_path, time.monotonic() + 2, initialize=True):
+        assert len(observed) == 1
+        assert io.file(tmp_path / '.lock') == observed[0]
+        with io.intent(tmp_path) as held:
+            assert held is True  # Both lock bytes work beyond an empty file's EOF.
+
+
 def test_failed_fsync_leaves_no_leaf_or_temp(tmp_path, monkeypatch):
     io = owner()
     monkeypatch.setattr(os, 'fsync', lambda fd: (_ for _ in ()).throw(OSError('fault')))

@@ -39,6 +39,101 @@ npx @daycry/custom-agents uninstall -p codex   # remove what it installed, and o
 > `CLAUDE_CONFIG_DIR` is honoured everywhere: if you point it somewhere else, the installer writes
 > there and not in `~/.claude`.
 
+
+### Local models per agent (project opt-in)
+
+Create a consumer JSON file, either `.claude/dev.json` or a separate file:
+
+```json
+{"modelos":{"implementer":{"model":"ollama/qwen3:32b"}}}
+```
+
+```bash
+npx @daycry/custom-agents install -p codex --models-config .claude/dev.json
+npx @daycry/custom-agents install -p opencode --models-config .claude/dev.json
+```
+
+`--models-config` requires Python 3 and a regular file inside the project (maximum
+256 KiB, no links). The manifest remembers this path for subsequent installations;
+model configuration is never discovered by default. Invalid input or a missing
+remembered file stops that provider before writing. Set `"modelos": {}` and
+reinstall to restore inherited models. The JSON file remains yours.
+
+| Runtime | Effective projection |
+|---|---|
+| Codex | `model = "qwen3:32b"` in the owned agent and `agents.<id>.config_file` in project config. The provider is inherited from the parent session: launch Codex with Ollama configured for that session; the installer does not configure providers or authentication. |
+| OpenCode | `model: "ollama/qwen3:32b"` in the owned agent. Configure its native provider separately. |
+| Claude Code | Existing Claude aliases/ids and behavior remain; Ollama ids are not passed to the Agent tool. |
+
+Owned ids, instructions and permissions are retained; canonical `interop/` files
+and the plugin payload in the native cache are not personalized. Official
+reinstallation may update its cached installation manifest. Foreign or edited agents and bindings
+are preserved with a warning and incomplete status. A conflict may release the
+preserved agent from the inventory: uninstall then leaves that copy alone. An
+unchanged owned binding is undone during uninstall, preserving other fields and
+consumer edits. Installation steps do not form a global transaction.
+
+Claude effort is not mapped to local models. Codex omits
+`model_reasoning_effort` unless explicitly overridden; check model support.
+OpenCode warns when effort is declared and does not project it: configure its
+native variant. Model names do not establish quality or context capacity.
+
+To inspect without installing or modifying `interop/`:
+
+```bash
+python scripts/export-interop.py --model-config .claude/dev.json --runtime codex --projection-json
+python agent-kits/shared/model-tier.py implementer --runtime codex --json
+```
+
+The exporter returns JSON containing content and hashes without writing files.
+The resolver accepts `--project` to read another project and also supports
+`--runtime opencode`; the default remains Claude. Canonical `--check` stays
+independent of consumer configuration.
+
+
+### Local model context in doctor
+
+Run the located kit's `doctor.py --runtime codex` or `--runtime opencode`.
+It reads project config and owned agents; invisible user settings and CLI
+overrides are not inferred. Codex TOML needs Python 3.11; OpenCode supports strict
+JSON (JSONC is reported as unverifiable). Default Claude behavior is preserved.
+
+Output distinguishes `declarado` (declared), `observado` (observed), and
+`desconocido` (unknown). Values below **65,536 tokens** or unknown trigger a warning
+with a remedy; they do not establish model capacity or a session's effective
+context. Codex inherits its provider from the parent. OpenCode aliases with an
+explicit `modelID` are matched against that native id when probing.
+Codex 0.166 does not apply `model_context_window` from a role TOML and may reset
+the parent's window when starting a child: child context stays unknown until
+separately observed, without assuming that inheritance.
+
+| Advisory tier | Scope |
+|---|---|
+| 8–9B | Bounded reading/query tasks; autonomous editing and a universal minimum context are not certified. |
+| 32B with context >=65,536 | Candidate for the quick path with lite; real model testing and every quality gate still apply. |
+
+Configuration does not prove model size or quality: these tiers come from the
+plan and remain subject to manual validation on the other machine.
+To inspect models already loaded on the server, explicitly request:
+
+```bash
+python "$DOC" --runtime codex --probe-ollama http://127.0.0.1:11434 --json
+```
+
+The probe only performs GET `/api/ps`; it does not load or download models.
+It accepts HTTP on numeric loopback or `localhost` pinned to 127.0.0.1, without
+external DNS, proxies, credentials, URL parameters or redirects. Headers and body
+share a two-second deadline, with 16 KiB/256 KiB limits. Compressed or chunked,
+ambiguous, corrupt or incomplete replies produce warnings. An observation is
+about the server at that instant; it does not prove the client's context.
+There are no new network calls by default or from hooks.
+
+Sources checked 2026-10-30: [Ollama /api/ps](https://docs.ollama.com/api/ps),
+[OpenCode V2 models](https://opencode.ai/v2/docs/models/). Codex's
+`model_context_window` and [role field application](https://github.com/openai/codex/blob/6ff1e1ca3b30fc8b914720681fcf5fe62e95f856/codex-rs/core/src/agent/role.rs)
+were checked in local CLI 0.166.0 source; Claude aliases do not establish a native
+model mapping.
+
 ### Installing is not copying: what the installer does per runtime
 
 Every runtime has one file that decides whether the plugin **loads**. Copying files does not touch

@@ -388,7 +388,7 @@ def test_el_presupuesto_de_ids_expandidos_es_global_y_el_resto_queda_tal_cual():
 def test_un_rango_exige_t_a_la_derecha_y_dos_cifras_como_ids_de_tarea():
     assert lv._expandir("T-03… 12 gaps") == "T-03… 12 gaps"
     assert lv._expandir("T-03..12") == "T-03..12"
-    assert lv._expandir("T-1..T-4") == "T-1..T-4"                     # `ids_de_tarea` solo casa `T-NN`: no se generan ids que no casan
+    assert lv._expandir("T-1..T-4") == "T-1..T-4"                     # Los rangos compactos mantienen su formato NN; no se amplían implícitamente.
     assert lv._expandir("T-100..T-102") == "T-100..T-102"
 
 

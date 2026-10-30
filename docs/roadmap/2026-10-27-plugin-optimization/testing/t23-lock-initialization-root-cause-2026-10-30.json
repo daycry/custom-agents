@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "task": "T-23",
+  "correction": 4,
+  "failed_ci": {
+    "run": 41086493281,
+    "sha": "5fdd9e4",
+    "failed": 1,
+    "passed": 9856,
+    "skipped": 38,
+    "subtests_passed": 82
+  },
+  "supersedes": "The preflight attribution in t24-directed-verification was a hypothesis, not proof of this CI failure. Its separate preflight conflict tests remain valid.",
+  "phase1": {
+    "minimal": "Two real writer processes, same expected hash, fresh ledger and lock.",
+    "failure": "Attempt3 returns [0,2], unsafe_state."
+  },
+  "phase2": {
+    "instrumented": "locked acquisition in local-state.py, identity guard before locking",
+    "excluded": "Not an expected hash mismatch or reader changed_path: traced false condition is lock generation guard."
+  },
+  "phase3": {
+    "hypothesis": "Exclusive lock creation exposes size0, then the creator writes a marker byte, changing the generation observed by another opener.",
+    "observed": {
+      "same_device_inode": true,
+      "size_before": 0,
+      "size_after": 1,
+      "location": "local-state.py:149 before fix"
+    },
+    "confirmation": "Instrumented pair attempt9; deterministic regression also observes0->1 on Windows.",
+    "native_windows": "Byte0 and byte1 both acquire and release beyond EOF of an empty regular file."
+  },
+  "phase4": {
+    "fix": "Do not write the unnecessary marker after exclusive creation. Empty lock is in its final generation from first visibility; keep identity guards, durability flush and exclusive byte locks.",
+    "test": "agent-kits/shared/test_local_state.py::test_new_lock_has_its_final_generation_when_it_first_becomes_visible",
+    "red_observed": true,
+    "windows": {
+      "passed": 59,
+      "skipped": 4
+    },
+    "linux": {
+      "passed": 57,
+      "skipped": 6
+    },
+    "stress_linux": {
+      "pairs": 100,
+      "expected_exit_codes": [
+        0,
+        3
+      ],
+      "all_expected": true
+    },
+    "test_diagnostic": "Concurrent test retains both child receipts in assertion failure; expected codes unchanged."
+  },
+  "source_sha256_lf": {
+    "agent-kits/shared/local-state.py": "660836c1061980c34a3305e8448d393a51a77100013b4ee427bf9e6043380c87",
+    "agent-kits/shared/test_local_state.py": "e675a92fbf90c34437c9f595d94fb741682add30cfb31dfa84c3fef51533948b",
+    "tests/test_ledger_write.py": "7c43885bff0ab9ed2f46fe6bde991c6d2e8b3bb22417df28b8eadfa14d63ce45"
+  },
+  "limits": [
+    "Full immutable CI pending on this fix",
+    "No phase review attempt spent on author CI debugging",
+    "No original ACL preservation or universal filesystem isolation claimed"
+  ]
+}

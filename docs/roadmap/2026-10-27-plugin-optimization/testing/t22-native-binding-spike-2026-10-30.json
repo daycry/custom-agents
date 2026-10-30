@@ -1,0 +1,236 @@
+{
+  "date": "2026-10-30",
+  "verdict": "GO_NATIVE_BINDING_PROJECTION_ONLY",
+  "source_head": "298ddfdccf2f2093399eacf51f71dbcee87bdc3f",
+  "native_cli": "codex-cli 0.166.0",
+  "fixture": "Fresh CODEX_HOME and two owned temporary consumers. Actual installer --scope project materializes a native cache; exact installer-produced agent bytes copied to isolated home role directory as the lower-priority baseline. No real user configuration/cache is used.",
+  "backend": "Deterministic loopback Responses stub. Native parent and child issue HTTP requests only to that fake provider; no model software/cloud API or credentials. Reported mock usage is not real AI token/cost measurement.",
+  "native_installation": {
+    "exit": 0,
+    "job_active_final": 0,
+    "native_plugin_listing_exit": 0
+  },
+  "cases": [
+    {
+      "case": "baseline",
+      "expected_child_model": "gpt-6.1-sol",
+      "observed_child_models": [
+        "gpt-6.1-sol"
+      ],
+      "http_request_summary": [
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": true
+        },
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": false
+        }
+      ],
+      "spawn_args": {
+        "task_name": "fixture_child",
+        "message": "Return only the fixed fixture completion. Do not call shell, edit, network or other tools.",
+        "agent_type": "custom-agents-implementer",
+        "fork_turns": "none"
+      },
+      "server_errors": [],
+      "native_child_instructions_preserved": true,
+      "no_explicit_spawn_model": true,
+      "exit": 0,
+      "timeout": false,
+      "job_active_final": 0,
+      "seconds": 1.773508100071922
+    },
+    {
+      "case": "projected",
+      "expected_child_model": "fixture-projected-model",
+      "observed_child_models": [
+        "fixture-projected-model"
+      ],
+      "http_request_summary": [
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "fixture-projected-model",
+          "child": true
+        },
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": false
+        }
+      ],
+      "spawn_args": {
+        "task_name": "fixture_child",
+        "message": "Return only the fixed fixture completion. Do not call shell, edit, network or other tools.",
+        "agent_type": "custom-agents-implementer",
+        "fork_turns": "none"
+      },
+      "server_errors": [],
+      "native_child_instructions_preserved": true,
+      "no_explicit_spawn_model": true,
+      "exit": 0,
+      "timeout": false,
+      "job_active_final": 0,
+      "seconds": 1.3631939999759197
+    },
+    {
+      "case": "withdrawn",
+      "expected_child_model": "gpt-6.1-sol",
+      "observed_child_models": [
+        "gpt-6.1-sol"
+      ],
+      "http_request_summary": [
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": true
+        },
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": false
+        }
+      ],
+      "spawn_args": {
+        "task_name": "fixture_child",
+        "message": "Return only the fixed fixture completion. Do not call shell, edit, network or other tools.",
+        "agent_type": "custom-agents-implementer",
+        "fork_turns": "none"
+      },
+      "server_errors": [],
+      "native_child_instructions_preserved": true,
+      "no_explicit_spawn_model": true,
+      "exit": 0,
+      "timeout": false,
+      "job_active_final": 0,
+      "seconds": 1.2928190999664366
+    },
+    {
+      "case": "wrong_identity",
+      "expected_child_model": "gpt-6.1-sol",
+      "observed_child_models": [
+        "gpt-6.1-sol"
+      ],
+      "http_request_summary": [
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": true
+        },
+        {
+          "method": "POST",
+          "path": "/v1/responses",
+          "model": "gpt-6.1-sol",
+          "child": false
+        }
+      ],
+      "spawn_args": {
+        "task_name": "fixture_child",
+        "message": "Return only the fixed fixture completion. Do not call shell, edit, network or other tools.",
+        "agent_type": "custom-agents-implementer",
+        "fork_turns": "none"
+      },
+      "server_errors": [],
+      "native_child_instructions_preserved": true,
+      "no_explicit_spawn_model": true,
+      "exit": 0,
+      "timeout": false,
+      "job_active_final": 0,
+      "seconds": 1.3822261999594048
+    }
+  ],
+  "cache_unchanged": true,
+  "cache_files": 493,
+  "cache_tree_sha256": "e6a695ed4d939fb6d87e9b8f1f0e6f4f44a0a4e3954c9b813f89acfb6a56c145",
+  "original_installed_role_sha256": "ecaf9c568edbcf486dcbdce038f1d1124f6192f82d288f6674e123383fc4c039",
+  "all_children_terminated": true,
+  "limits": [
+    "Deterministic local Responses stub, no real inference or credentials",
+    "Proves model/identity/instruction selection, not Ollama model quality or native guard delivery",
+    "Actual model/context/quick-path execution remains T26 manual validation"
+  ],
+  "pinned_upstream_source": {
+    "commit": "6ff1e1ca3b30fc8b914720681fcf5fe62e95f856",
+    "archive_sha256": "f4693ca48d5b3ffaf7b13c3c490481c0d7a68ad29f945753fea9cc08a570db72",
+    "archive_bytes": 18853020,
+    "selected_rust_files": 713,
+    "scope": [
+      "codex-rs/core/src/",
+      "codex-rs/core-plugins/src/",
+      "codex-rs/agent-roles/src/"
+    ]
+  },
+  "preliminary_runs": [
+    {
+      "status": "harness error, no go",
+      "reason": "First parser ignored additional_tools namespaces; CLI exit0 was not accepted as proof"
+    },
+    {
+      "status": "harness error, no go",
+      "reason": "Default full history fork conflicts with ephemeral fixture; changed harness to explicit fork_turns none"
+    },
+    {
+      "status": "feasibility only",
+      "reason": "Observed projected native child model; final test uses independent native client_metadata to classify children and adds controls"
+    }
+  ],
+  "reproducer_setup": "Windows, Python >=3.11, Node, Codex0.166.0. Supply .pytest_cache/f3-codex-executable.json with executable path; run the following source from the repo. All other paths are temporary/local. This is a diagnostic fixture, not a plugin dependency.",
+  "reproducer_source": "from pathlib import Path\nimport hashlib,http.server,importlib.util,json,os,subprocess,sys,tempfile,threading,time,tomllib\nsys.stdout.reconfigure(encoding='utf-8')\nroot=Path.cwd();base=Path(tempfile.mkdtemp(prefix='ca-f3-binding-'));home=base/'home';installed=base/'installed';project=base/'consumer';binpath=base/'bin'\nfor p in [home,installed,project,binpath]:p.mkdir()\nexe=json.loads((root/'.pytest_cache/f3-codex-executable.json').read_text())['executable'];role='custom-agents-implementer';parent_model='gpt-6.1-sol';projected_model='fixture-projected-model'\n(binpath/'codex.cmd').write_bytes(('@\"'+exe+'\" %*\\r\\n').encode())\nrequests=[];state={};rows=[]\ndef strings(value):\n if isinstance(value,str):yield value\n elif isinstance(value,dict):\n  for x in value.values():yield from strings(x)\n elif isinstance(value,list):\n  for x in value:yield from strings(x)\ndef tools_of(body):\n def walk(tools,namespace=None):\n  for t in tools:\n   if t.get('type')=='namespace':yield from walk(t.get('tools',[]),t.get('name'))\n   else:yield {**t,'namespace':namespace}\n tools=list(body.get('tools',[]))\n for item in body.get('input',[]):\n  if item.get('type')=='additional_tools':tools.extend(item.get('tools',[]))\n return list(walk(tools))\ndef event(kind,**value):return 'event: '+kind+'\\ndata: '+json.dumps({'type':kind,**value})+'\\n\\n'\ndef message(text):return {'id':'msg_'+str(time.time_ns()),'type':'message','role':'assistant','status':'completed','content':[{'type':'output_text','text':text,'annotations':[]}]}\ndef function(tool,args,label):return {'id':'fc_'+label,'type':'function_call','call_id':'call_'+label,'name':tool['name'],'namespace':tool['namespace'],'arguments':json.dumps(args)}\nclass Backend(http.server.BaseHTTPRequestHandler):\n def log_message(self,*args):pass\n def do_GET(self):requests.append({'method':'GET','path':self.path});self.send_response(404);self.end_headers()\n def do_POST(self):\n  body=json.loads(self.rfile.read(int(self.headers['Content-Length'])));child=body.get('client_metadata',{}).get('x-openai-subagent')=='collab_spawn'\n  requests.append({'method':'POST','path':self.path,'model':body.get('model'),'child':child,'body':body})\n  try:\n   if child:item=message('FIXTURE_CHILD_DONE')\n   else:\n    state['parent_calls']+=1;tools=tools_of(body)\n    if state['parent_calls']==1:\n     tool=next(t for t in tools if t.get('name')=='spawn_agent');assert 'agent_type' in tool['parameters']['properties']\n     args={'task_name':'fixture_child','message':'Return only the fixed fixture completion. Do not call shell, edit, network or other tools.','agent_type':role,'fork_turns':'none'}\n     state['spawn_args']=args;item=function(tool,args,'spawn')\n    elif state['parent_calls']==2:\n     tool=next(t for t in tools if t.get('name')=='wait_agent');item=function(tool,{'timeout_ms':10000},'wait')\n    else:item=message('FIXTURE_PARENT_DONE')\n   identifier='resp_'+str(time.time_ns());response={'id':identifier,'object':'response','status':'completed','output':[item],'usage':{'input_tokens':1,'output_tokens':1,'total_tokens':2}}\n   raw=(event('response.created',response={**response,'status':'in_progress','output':[]})+event('response.output_item.added',output_index=0,item=item)+event('response.output_item.done',output_index=0,item=item)+event('response.completed',response=response)).encode()\n   self.send_response(200);self.send_header('Content-Type','text/event-stream');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)\n  except Exception as exc:\n   state['errors'].append(repr(exc));raw=json.dumps({'error':repr(exc)}).encode();self.send_response(500);self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)\nserver=http.server.ThreadingHTTPServer(('127.0.0.1',0),Backend);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start();port=server.server_address[1]\nconfig='model = \"'+parent_model+'\"\\nmodel_provider = \"fixture_provider\"\\nmodel_reasoning_effort = \"low\"\\n[model_providers.fixture_provider]\\nname = \"Deterministic local fixture\"\\nbase_url = \"http://127.0.0.1:'+str(port)+'/v1\"\\nwire_api = \"responses\"\\nrequires_openai_auth = false\\n[agents]\\nenabled = true\\n[features]\\nplugins = true\\nhooks = false\\nmemories = false\\n[analytics]\\nenabled = false\\n[feedback]\\nenabled = false\\n'\nfor p in [installed,project]:config+='[projects.'+json.dumps(str(p))+']\\ntrust_level = \"trusted\"\\n'\n(home/'config.toml').write_bytes(config.encode())\nenv={k:v for k,v in os.environ.items() if not any(s in k.upper() for s in ['OPENAI','CODEX','ANTHROPIC','OLLAMA','API_KEY','ACCESS_TOKEN','AZURE'])};env['CODEX_HOME']=str(home);env['PATH']=str(binpath)+os.pathsep+env['PATH'];env['OTEL_SDK_DISABLED']='true';env['NO_COLOR']='1'\nspec=importlib.util.spec_from_file_location('fixture_supervisor',root/'hooks/runtime-supervisor.py');supervisor=importlib.util.module_from_spec(spec);spec.loader.exec_module(supervisor)\nct,wt,api,Limits,Accounting,_=supervisor.windows_api()\ndef run(args,cwd,timeout=60):\n job=supervisor.checked(api.CreateJobObjectW(None,None),ct);limits=Limits();limits.basic.flags=0x2000;supervisor.checked(api.SetInformationJobObject(job,9,ct.byref(limits),ct.sizeof(limits)),ct);p=None;started=time.monotonic();timed_out=False\n try:\n  p=subprocess.Popen(args,cwd=cwd,env=env,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE);supervisor.checked(api.AssignProcessToJobObject(job,wt.HANDLE(int(p._handle))),ct)\n  try:stdout,stderr=p.communicate(timeout=timeout)\n  except subprocess.TimeoutExpired:timed_out=True;api.TerminateJobObject(job,124);stdout,stderr=p.communicate(timeout=10)\n finally:\n  if p and p.poll() is None:api.TerminateJobObject(job,125);p.wait(timeout=10)\n  api.TerminateJobObject(job,0);acc=Accounting();supervisor.checked(api.QueryInformationJobObject(job,1,ct.byref(acc),ct.sizeof(acc),None),ct);api.CloseHandle(job)\n return {'exit':p.returncode,'timeout':timed_out,'seconds':time.monotonic()-started,'job_active_final':acc.active,'stdout':stdout.decode('utf-8',errors='replace'),'stderr':stderr.decode('utf-8',errors='replace')}\ndef tree_hash(path):return {p.relative_to(path).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in path.rglob('*') if p.is_file()}\nreport={'fixture_root':str(base),'version':run([exe,'--version'],project),'phase':'bootstrap','cases':rows,'real_models_contacted':0,'stub_only':True,'source_head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()}\ndef save(): (root/'.pytest_cache/f3-binding-spike-final-private.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\\n',encoding='utf-8')\ntry:\n install=run(['node',str(root/'install/install.mjs'),'install','--provider','codex','--scope','project','--dir',str(installed),'--source',str(root),'--yes','--quiet'],root,timeout=120);report['installation']=install;save();assert install['exit']==0 and not install['timeout'],install\n agent_dir=installed/'.codex/agents';assert (agent_dir/(role+'.toml')).is_file()\n # Simulate an already-installed consumer's user role directory using exact installer-produced bytes.\n (home/'agents').mkdir()\n for p in agent_dir.glob('*.toml'):(home/'agents'/p.name).write_bytes(p.read_bytes())\n original=(agent_dir/(role+'.toml')).read_bytes();instructions=tomllib.loads(original.decode('utf-8'))['developer_instructions'];source_hash=hashlib.sha256(original).hexdigest()\n # Only owned fixture configuration is changed; the real CODEX_HOME is never consulted.\n (home/'config.toml').write_bytes((config+'\\n[plugins.\"custom-agents@daycry\"]\\nenabled = true\\n').encode())\n cache=home/'plugins/cache';before=tree_hash(cache);assert before,'native plugin cache missing'\n listing=run([exe,'plugin','list','--marketplace','daycry','--available','--json'],installed);report['native_plugin_listing']=listing;assert listing['exit']==0\n profiles=project/'.codex/model-projections';profiles.mkdir(parents=True);projection=profiles/(role+'.toml');binding=project/'.codex/config.toml'\n for case,bind,wrong in [('baseline',False,False),('projected',True,False),('withdrawn',False,False),('wrong_identity',True,True)]:\n  requests.clear();state.clear();state.update(parent_calls=0,errors=[])\n  content=original\n  if wrong:content=content.replace(('name = \"'+role+'\"').encode(),b'name = \"fixture-other-role\"',1)\n  content+=b'\\nmodel = \"fixture-projected-model\"\\n';projection.write_bytes(content)\n  binding.write_bytes(('[agents.'+role+']\\nconfig_file = \"model-projections/'+role+'.toml\"\\n' if bind else '# No consumer role binding.\\n').encode())\n  result=run([exe,'exec','--json','--ephemeral','--skip-git-repo-check','--cd',str(project),'Deterministic native compatibility fixture.'],project,timeout=40)\n  children=[x for x in requests if x.get('child')];expected=projected_model if case=='projected' else parent_model\n  row={'case':case,'result':result,'expected_child_model':expected,'observed_child_models':[x['model'] for x in children],'http_request_summary':[{k:v for k,v in x.items() if k!='body'} for x in requests],'spawn_args':state.get('spawn_args'),'server_errors':state['errors'],'requests':list(requests)};rows.append(row);save()\n  assert result['exit']==0 and not result['timeout'] and result['job_active_final']==0,row\n  assert not state['errors'] and len(children)==1,row\n  assert children[0]['model']==expected,row\n  assert state['spawn_args']['agent_type']==role and 'model' not in state['spawn_args'],row\n  expected_text=instructions.replace('\\r','');assert any(expected_text in text.replace('\\r','') for text in strings(children[0]['body'])), 'native child instructions changed or missing'\n  row['native_child_instructions_preserved']=True;row['no_explicit_spawn_model']=True;save();print(case,children[0]['model'],'PASS',flush=True)\n after=tree_hash(cache);assert after==before,'native plugin cache changed'\n report.update(phase='complete',verdict='GO_NATIVE_BINDING_PROJECTION_ONLY',original_installed_role_sha256=source_hash,cache_files=len(before),cache_unchanged=True,cache_tree_sha256=hashlib.sha256(json.dumps(before,sort_keys=True).encode()).hexdigest(),all_children_terminated=True,limits=['Deterministic local Responses stub, no real inference or credentials','Proves model/identity/instruction selection, not Ollama model quality or native guard delivery','Actual model/context/quick-path execution remains T26 manual validation']);save();print(report['verdict'],flush=True)\nfinally:server.shutdown();server.server_close();thread.join(timeout=3)\n"
+}

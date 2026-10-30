@@ -453,3 +453,19 @@ without proving every possible OS failure mode.
 Capture tests observe that handler alone. Informational activity can launch
 another process for the same event and must not share its assertion output file.
 [Evidence](../roadmap/2026-10-07-catalog-capabilities/testing/opencode-lifecycle27-evidence.json).
+
+
+### Normal and lite execution profiles
+
+`dev.json` accepts `perfil: normal|lite` (absent = normal) and `paralelismo`
+(boolean, normal default true). The shared `execution-profile.py` resolves effective
+flags as JSON without changing configuration. Lite forces implementation in the
+current thread without parallelism, preserves requested toggles for switching back
+to normal, and requires an operational `ledger-write.py`. Selected TDD, sequential
+fresh reviewers, qa-gate, coverage and Knowledge Gate remain mandatory. It does not
+certify model quality or context. Lite briefs have a 6,000-character ceiling: task,
+verification, gaps, constitution, applicable design, persona and required return
+contract are not truncated; overflow returns exit2 with empty stdout and no dispatch.
+Memory retains its bounded retrieval contract. Normal retains its 10,000 ceiling,
+budgets and partial-install fallback. Invalid profiles block dispatch; unreadable
+JSON warns and does not establish that lite is active.

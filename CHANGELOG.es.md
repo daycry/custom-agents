@@ -11,6 +11,16 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Añadido
+
+- Ofrece perfil lite opt-in con implementación secuencial, writer obligatorio y briefs completos de hasta 6.000 caracteres; conserva revisión fresca secuencial, TDD elegido, QA, cobertura y Knowledge Gate.
+
+- Diagnostica contexto declarado, observado o desconocido en modelos locales Codex/OpenCode, incluidas proyecciones propias por agente; sondeo opcional de modelos cargados en Ollama, acotado a loopback y sin redirects, inferencia ni descargas.
+- Escribe estados del ledger, evidencias RED y cabeceras de revisión con parser compartido, lock cooperativo y reemplazo atómico; conserva evidencias concurrentes, codificación y permisos POSIX, con previsualización de solo lectura y rechazo explícito de lecturas obsoletas.
+- Selecciona modelos Ollama por agente mediante configuración explícita de proyecto y proyecciones propias Codex/OpenCode. Conserva exports canónicos, cachés nativas, cambios del consumidor y defaults Claude; mantiene la herencia de proveedor y avisa del effort no admitido.
+
+Validación de entrega (`plugin-optimization`): CI Linux, revisión independiente y gate de cobertura Python de ficheros cambiados superados. La prueba real con Ollama queda aplazada por decisión del usuario; la inferencia local real y la calidad del modelo siguen sin verificar.
+
 ## [2.2.0] - 2026-10-30
 
 ### Cambiado

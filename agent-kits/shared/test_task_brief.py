@@ -1003,6 +1003,7 @@ def test_tdd_true_en_dev_json_inyecta_la_skill(tmp_path):
     assert rc == 0
     assert "## TDD" in out and "skill `tdd`" in out
     assert "RED:" in out, "el brief recuerda la evidencia del rojo que debe devolver"
+    assert "ledger-write.py" in out, "the orchestrator must use the shared ledger writer"
 
 
 def test_tdd_false_o_ausente_no_inyecta(tmp_path, inic, monkeypatch):

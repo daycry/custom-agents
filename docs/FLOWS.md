@@ -782,3 +782,23 @@ flowchart LR
 
 
 El inventario de hooks valida vocabularios exactos distintos: ActivityObserved incluye execution.started y SessionEnd no. La revisión del dueño local mantiene cerradas sus dependencias; una mutación de red sigue detectándose. [Evidencia](roadmap/2026-10-07-catalog-capabilities/testing/activity-catalog-closure114-status.md).
+
+
+## Perfil lite
+
+El perfil efectivo se resuelve antes de despachar. Lite carga el núcleo y solo
+las referencias cuyas condiciones siguen activas; omite el detalle de subagentes
+de implementación. Cada revisor mantiene un contexto fresco propio.
+
+```mermaid
+flowchart LR
+  Config[dev.json perfil lite] --> Resolver[execution-profile.py]
+  Resolver --> Brief[Brief completo hasta 6000]
+  Resolver --> Writer[Writer obligatorio]
+  Brief --> Implementar[Implementación en hilo actual]
+  Implementar --> A[Revisor A fresco]
+  A --> B[Revisor B fresco y lentes condicionales secuenciales]
+  B --> QA[qa-gate y cobertura]
+  QA --> KG[Knowledge Gate]
+  Brief -->|no cabe| Ajustar[Sin despacho: dividir tarea]
+```

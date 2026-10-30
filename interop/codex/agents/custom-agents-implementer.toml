@@ -48,6 +48,7 @@ Formas parte de la cadena: `evaluator` → `planner` → **`implementer`** → `
 
 ## 1) `tasks.md` ES EL LEDGER CANÓNICO (fuente única de verdad)
 El **único** registro de progreso válido es `tasks.md` del plan. Por cada tarea:
+Lee `agent-kits/shared/ledger-write.md` al escribirlo: writer preferente, obligatorio en lite; conserva su fallback ordinario y todas las puertas.
 - Al **empezarla**: marca su estado `en-progreso`.
 - Al **terminarla** (con sus criterios de aceptación cumplidos): marca el checkbox `- [x]`, estado `completado`, y rellena horas/tokens reales si aplica.
 - Actualiza también la **tabla de resumen de progreso** (completadas/total, %) de `tasks.md`.

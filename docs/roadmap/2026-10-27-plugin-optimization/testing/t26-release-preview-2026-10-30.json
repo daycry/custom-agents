@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "status": "proposal_only_not_published",
+  "source_head": "4596eaf1bec3f21b21d364d5493b92d072f71cac",
+  "version_proposed": "2.3.0",
+  "method": "release.py 2.3.0 --no-git in a clean isolated local clone; no commit, tag, push or global config changes",
+  "changed_paths": [
+    ".agents/plugins/marketplace.json",
+    ".claude-plugin/marketplace.json",
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+    "CHANGELOG.es.md",
+    "CHANGELOG.md",
+    "package.json"
+  ],
+  "patch_sha256": "42e2c1125271315ba3bd1dca53bf5d23b05c80dbbd668b743f4cee8827d30788",
+  "validation": "Release prechecks, copies and changelog-sync pass in isolated clone",
+  "limits": [
+    "Real manual Ollama test pending",
+    "Version confirmation required before actual release"
+  ],
+  "patch_bytes": 10964,
+  "normalization": "Git native attributes/autocrlf projection; CRLF-only churn excluded. Initial oversized preview was replaced before review or approval.",
+  "reverse_apply_check": 0,
+  "projected_blobs": {
+    ".agents/plugins/marketplace.json": "9ecc801d734025055b3c55ccbec427db3951b5d2",
+    ".claude-plugin/marketplace.json": "45d4678f7184d66e8cb5b213ab18c98ff4e6f66e",
+    ".claude-plugin/plugin.json": "e907960dc32df7920681e9db3096e267d56e00a5",
+    ".codex-plugin/plugin.json": "d303a813a7b30bfe428a5a423b30fad6c2ace849",
+    "CHANGELOG.es.md": "d5e0e72ccfe289d8bfd4e8a44f3c5c165cb98a3a",
+    "CHANGELOG.md": "b55978130ee08fe81e725ccc6bb7ee1a775bc42a",
+    "package.json": "d4a571f28d6633f0883ca98c4a7c0a86416b79e5"
+  }
+}

@@ -86,6 +86,8 @@ lectura, así que se puede lanzar sin miedo tantas veces como haga falta.
 Uso:
   doctor.py [--root DIR] [--plugin-root DIR] [--json|--panel-json] [--verbose|--all] [--hoy AAAA-MM-DD]
   --panel-json: proyección portable acotada para el panel, con fecha y alcance; omite datos libres.
+  --runtime codex|opencode: contexto declarado del proyecto; sin red adicional por defecto.
+  --probe-ollama URL: opt-in local HTTP /api/ps (2 s, sin proxies/redirects), sin inferencia.
   (`--hoy` fija la fecha de referencia de la antigüedad de CALIBRATION.md; default: hoy. Para tests.)
 Exit:
   0  sin ❌ (los ⚠️/ℹ️ no bloquean: el plugin degrada, no rompe)
@@ -110,6 +112,7 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.dont_write_bytecode = True
 
 OK, AVISO, ERROR, INFO = "ok", "aviso", "error", "info"
 ICONO = {OK: "✅", AVISO: "⚠️", ERROR: "❌", INFO: "ℹ️"}
@@ -120,12 +123,12 @@ HOOK_PATH_RE = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([^\s\"']+)")
 BACKTICK_RE = re.compile(r"`([^`]+)`")
 
 # --- vocabulario de .claude/dev.json (regla 9 de docs/CONVENTIONS.md) -------------------
-DEV_BOOLES = ("tdd", "worktree", "subagentes", "constitucion", "statusline")
+DEV_BOOLES = ("tdd", "worktree", "subagentes", "constitucion", "statusline", "paralelismo")
 DEV_LENTES = ("auto", "siempre", "nunca")
 DEV_GUARDRAIL_REGLAS = ("alcance", "ramaPrincipal", "git")
 DEV_SESION_CLAVES = ("indice", "journal", "memoria", "captura", "resumen", "actividad")   # memoria: bloque (4) de session-context.sh (T-06);
                                                                               # captura/resumen: log crudo del turno y resumen por IA opt-in (memory-retrieval T-11/T-13)
-DEV_CLAVES = set(DEV_BOOLES) | {"guardrails", "revision", "sesion", "modelos", "tests"}
+DEV_CLAVES = set(DEV_BOOLES) | {"guardrails", "revision", "sesion", "modelos", "tests", "perfil"}
 
 JIRA_OBLIGATORIOS = ("cloudId", "granularidad", "assignee", "alCubrirJornada")
 CONFLUENCE_OBLIGATORIOS = ("cloudId", "spaceKey", "anchor", "home")
@@ -1319,6 +1322,8 @@ def _dev_valida(datos):
         if k in datos and not isinstance(datos[k], bool):
             ls.append(linea(ERROR, f"dev.json `{k}`", f"{datos[k]!r} no es booleano",
                             f"pon `\"{k}\": true` o `\"{k}\": false` (o relanza `/setup` paso 5)"))
+    if "perfil" in datos and (not isinstance(datos["perfil"], str) or datos["perfil"] not in ("normal", "lite")):
+        ls.append(linea(ERROR, "dev.json `perfil`", "perfil no válido", "elige normal o lite con `/setup`"))
     ls.extend(_dev_valida_guardrails(datos.get("guardrails")))
     ls.extend(_dev_valida_revision(datos.get("revision")))
     ls.extend(_dev_valida_sesion(datos.get("sesion")))
@@ -1334,13 +1339,14 @@ def _modelos_localizar_script(plugin_root):
     return script if os.path.isfile(script) else None
 
 
-def _modelos_lineas_de_json(d, mods):
+def _modelos_lineas_de_json(d, mods, runtime="claude"):
     """Líneas a partir del JSON de `model-tier.py --all --json` ya parseado."""
     ls = []
     for a in d.get("avisos", []):
         ls.append(linea(AVISO, "dev.json `modelos`", a,
-                        "corrige el valor en `.claude/dev.json` (model ∈ haiku|sonnet|opus|inherit|"
-                        "claude-… · effort ∈ low|medium|high|xhigh|max) o relanza `/setup` paso 5-quater"))
+                        ("corrige el valor en `.claude/dev.json` (model ∈ haiku|sonnet|opus|inherit|"
+                         "claude-… · effort ∈ low|medium|high|xhigh|max) o relanza `/setup` paso 5-quater"
+                         if runtime == "claude" else f"Valida el override con model-tier.py --runtime {runtime}; ids locales ollama/<modelo>.")))
     aplicados = [f["agente"] for f in d.get("agentes", []) if f.get("fuente", {}).get("model") == "dev.json"]
     if not ls:
         ls.append(linea(OK, "dev.json `modelos`",
@@ -1348,7 +1354,7 @@ def _modelos_lineas_de_json(d, mods):
     return ls
 
 
-def _modelos(datos, plugin_root, project):
+def _modelos(datos, plugin_root, project, runtime="claude"):
     """`modelos` resuelto con el script determinista: sus avisos son los del doctor."""
     mods = datos.get("modelos")
     if mods is None:
@@ -1363,16 +1369,17 @@ def _modelos(datos, plugin_root, project):
                                                   f"`model-tier.py` no está para resolverlos",
                       "instalación parcial: reinstala el plugin si quieres la tabla efectiva")]
     salida, _ok = _correr([sys.executable, script, "--all", "--json",
-                           "--project", project] + (["--root", plugin_root] if plugin_root else []))
+                           "--project", project] + (["--root", plugin_root] if plugin_root else [])
+                          + (["--runtime", runtime] if runtime != "claude" else []))
     d = _json_de(salida)
     if d is None:
         return [linea(AVISO, "dev.json `modelos`", "`model-tier.py --all --json` no devolvió JSON",
                       "ejecútalo a mano para ver el error: "
                       "`python3 agent-kits/shared/model-tier.py --all`")]
-    return _modelos_lineas_de_json(d, mods)
+    return _modelos_lineas_de_json(d, mods, runtime=runtime)
 
 
-def _dev(plugin_root, project):
+def _dev(plugin_root, project, runtime="claude"):
     path = os.path.join(project, ".claude", "dev.json")
     datos, err = _leer_json(path)
     if err:
@@ -1387,7 +1394,22 @@ def _dev(plugin_root, project):
         return [linea(ERROR, "dev.json", "la raíz no es un objeto JSON",
                       "recréalo con `/setup` (paso 5)")]
     ls = _dev_valida(datos)
-    ls.extend(_modelos(datos, plugin_root, project))
+    if "perfil" in datos:
+        try:
+            spec = importlib.util.spec_from_file_location("doctor_execution_profile", os.path.join(HERE, "execution-profile.py"))
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            profile = module.resolve(project)
+            row = linea(AVISO if profile["blocked"] or profile["warnings"] else OK,
+                        "dev.json `perfil`", f"{profile['perfil']}: brief <= {profile['brief_max_chars']}; "
+                        f"revisores {profile['reviewers']}; revisión y qa-gate obligatorios",
+                        "; ".join(profile["warnings"]) or "cambia el perfil con `/setup`; conserva las puertas")
+            row.update(profile)
+            ls.append(row)
+        except (OSError, ValueError, ImportError, RecursionError):
+            ls.append(linea(AVISO, "dev.json `perfil`", "perfil efectivo no verificable",
+                            "restaura execution-profile.py del mismo bundle antes de usar lite"))
+    ls.extend(_modelos(datos, plugin_root, project, **({"runtime": runtime} if runtime != "claude" else {})))
     if not any(x["estado"] in (AVISO, ERROR) for x in ls):
         claves = [k for k in sorted(datos) if not k.startswith("_")]
         ls.insert(0, linea(OK, "dev.json", f"válido · {len(claves)} clave(s): {', '.join(claves) or '—'}"))
@@ -1415,8 +1437,8 @@ def _optin(project, fichero, etiqueta, obligatorios, arreglo_alta):
     return [linea(OK, fichero, f"`enabled: true` · campos obligatorios presentes")]
 
 
-def bloque_configs(plugin_root, project):
-    ls = _rates(project) + _dev(plugin_root, project)
+def bloque_configs(plugin_root, project, runtime="claude"):
+    ls = _rates(project) + _dev(plugin_root, project, **({"runtime": runtime} if runtime != "claude" else {}))
     ls += _optin(project, "jira.json", "volcado a Jira", JIRA_OBLIGATORIOS,
                  "`/setup` paso 3 o la skill `jira-sync`")
     ls += _optin(project, "confluence.json", "espejo en Confluence", CONFLUENCE_OBLIGATORIOS,
@@ -2710,16 +2732,261 @@ def _acciones_prioritarias(bloques):
     return {"total": len(acciones), "limite": 3, "acciones": acciones[:3]}
 
 
-def diagnostico(project, plugin_root_explicito=None, hoy=None, verbose=False):
+def _modelo_local_leer(project, relative_path):
+    """Read consumer data through the bounded, read-only owner; never import it."""
+    path = os.path.join(project, relative_path)
+    try:
+        initial = os.lstat(path)
+    except FileNotFoundError:
+        return None
+    if initial.st_nlink != 1:
+        raise ValueError("shared native config")
+    spec = importlib.util.spec_from_file_location("doctor_model_local_read", os.path.join(HERE, "local-read.py"))
+    reader = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(reader)
+    row = reader.read_bytes(project, relative_path, max_bytes=256 * 1024)
+    if row["status"] == "not_found":
+        return None
+    if row["status"] != "ok":
+        raise ValueError("native config unavailable")
+    current = os.lstat(path)
+    if ((initial.st_dev, initial.st_ino, initial.st_size, initial.st_mtime_ns, initial.st_ctime_ns, initial.st_nlink)
+            != (current.st_dev, current.st_ino, current.st_size, current.st_mtime_ns, current.st_ctime_ns, current.st_nlink)):
+        raise ValueError("native config changed")
+    return row["data"].decode("utf-8-sig")
+
+
+def _ollama_running(endpoint):
+    """Explicit GET to a numeric loopback only; no proxy, DNS, redirects or auth.
+
+    Raw bounded reads share one deadline, including HTTP headers. This avoids a
+    per-read timeout being extended indefinitely by a slow response.
+    """
+    import ipaddress
+    import socket
+    from urllib.parse import urlsplit
+    if not isinstance(endpoint, str) or len(endpoint) > 256 or any(not 33 <= ord(c) <= 126 for c in endpoint):
+        raise ValueError("invalid loopback endpoint")
+    url = urlsplit(endpoint)
+    if (url.scheme != "http" or url.username is not None or url.password is not None
+            or url.query or url.fragment or url.path not in ("", "/", "/v1", "/v1/") or "%" in endpoint):
+        raise ValueError("invalid loopback endpoint")
+    host = "127.0.0.1" if url.hostname == "localhost" else url.hostname
+    address = ipaddress.ip_address(host or "")
+    if not address.is_loopback:
+        raise ValueError("nonlocal endpoint")
+    port = url.port if url.port is not None else 11434
+    if not 0 < port < 65536:
+        raise ValueError("invalid port")
+    deadline = time.monotonic() + 2
+    def remaining():
+        value = deadline - time.monotonic()
+        if value <= 0:
+            raise TimeoutError("probe deadline")
+        return value
+    with socket.socket(socket.AF_INET6 if address.version == 6 else socket.AF_INET, socket.SOCK_STREAM) as connection:
+        connection.settimeout(remaining())
+        connection.connect((str(address), port))
+        header_host = f"[{address}]" if address.version == 6 else str(address)
+        request = (f"GET /api/ps HTTP/1.1\r\nHost: {header_host}:{port}\r\n"
+                   "Accept: application/json\r\nConnection: close\r\n\r\n").encode("ascii")
+        connection.settimeout(remaining())
+        connection.sendall(request)
+        raw = b""
+        while b"\r\n\r\n" not in raw:
+            connection.settimeout(remaining())
+            chunk = connection.recv(4096)
+            if not chunk:
+                raise ValueError("incomplete headers")
+            raw += chunk
+            if len(raw) > 16384:
+                raise ValueError("headers budget")
+        header, body = raw.split(b"\r\n\r\n", 1)
+        rows = header.decode("ascii").split("\r\n")
+        if not re.fullmatch(r"HTTP/1\.[01] 200(?: .*)?", rows[0]):
+            raise ValueError("probe status")
+        headers = {}
+        for row in rows[1:]:
+            key, separator, value = row.partition(":")
+            if not separator or key.lower() in headers:
+                raise ValueError("ambiguous headers")
+            headers[key.lower()] = value.strip()
+        if "transfer-encoding" in headers or "content-encoding" in headers:
+            raise ValueError("unsupported response encoding")
+        size = headers.get("content-length")
+        if size is not None and (not re.fullmatch(r"[0-9]{1,6}", size) or int(size) > 256 * 1024):
+            raise ValueError("body budget")
+        size = int(size) if size is not None else None
+        while size is None or len(body) < size:
+            connection.settimeout(remaining())
+            chunk = connection.recv(min(4096, 256 * 1024 + 1 - len(body)))
+            if not chunk:
+                break
+            body += chunk
+            if len(body) > 256 * 1024:
+                raise ValueError("body budget")
+        if size is not None and len(body) != size:
+            raise ValueError("incomplete body")
+    try:
+        data = json.loads(body.decode("utf-8"))
+    except RecursionError:
+        raise ValueError("JSON nesting budget") from None
+    if not isinstance(data, dict) or not isinstance(data.get("models"), list) or len(data["models"]) > 256:
+        raise ValueError("invalid running models")
+    return data["models"]
+
+
+def _modelos_contexto_targets(project, runtime, data):
+    def context_for(model, own=None):
+        if runtime == "codex":
+            # CLI 0.166 does not apply this role field; child startup can also
+            # reset the parent's window. A server observation is separate.
+            return data.get("model_context_window") if own is None and data.get("model_provider") == "ollama" else None
+        if not isinstance(model, str) or not model.startswith("ollama/"):
+            return None
+        providers = data.get("providers", data.get("provider", {}))
+        return providers.get("ollama", {}).get("models", {}).get(model.split("/", 1)[1], {}).get("limit", {}).get("context")
+    parent = data.get("model")
+    targets = [{"agente": None, "model": parent, "context": context_for(parent)}]
+    with open(os.path.join(HERE, "native-roles.json"), encoding="utf-8") as handle:
+        mapping = json.load(handle)["runtimes"][runtime]
+    for ident in sorted(mapping.values()):
+        try:
+            if runtime == "codex":
+                binding = data.get("agents", {}).get(ident, {}).get("config_file")
+                path = ".codex/agents/" + ident + ".toml"
+                if binding is not None:
+                    if (not isinstance(binding, str) or os.path.isabs(binding) or ":" in binding
+                            or ".." in re.split(r"[\\/]", binding)):
+                        raise ValueError("unverifiable native binding")
+                    path = ".codex/" + binding.replace("\\", "/")
+                raw = _modelo_local_leer(project, path)
+                if raw is None:
+                    if binding is not None:
+                        raise ValueError("missing bound agent")
+                    continue
+                import tomllib
+                own = tomllib.loads(raw)
+                if own.get("name") != ident:
+                    raise ValueError("unverifiable native identity")
+                model = own.get("model")
+                if model is not None:
+                    targets.append({"agente": ident, "model": model, "context": context_for(model, own)})
+            else:
+                models = []
+                for key in ("agent", "agents"):
+                    model = data.get(key, {}).get(ident, {}).get("model")
+                    if model is not None:
+                        models.append(model)
+                for folder in ("agent", "agents"):
+                    raw = _modelo_local_leer(project, f".opencode/{folder}/{ident}.md")
+                    if raw is None:
+                        continue
+                    normalized = raw.replace("\r\n", "\n")
+                    if not normalized.startswith("---\n") or "\n---\n" not in normalized:
+                        raise ValueError("unverifiable native header")
+                    header = normalized.split("\n---\n", 1)[0]
+                    values = re.findall(r"^model:[ \t]*(.+)$", header, re.M)
+                    if re.search(r"^model[ \t]*:", header, re.M):
+                        if len(values) != 1:
+                            raise ValueError("unverifiable native model")
+                        models.append(json.loads(values[0]))
+                if models:
+                    if any(not isinstance(value, str) for value in models) or len(set(models)) != 1:
+                        raise ValueError("ambiguous native models")
+                    targets.append({"agente": ident, "model": models[0], "context": context_for(models[0])})
+        except (OSError, ValueError, TypeError, AttributeError, ImportError):
+            targets.append({"agente": ident, "model": None, "context": None})
+    for target in targets:
+        model = target["model"]
+        target["wire_model"] = model if runtime == "codex" and isinstance(model, str) else None
+        if runtime == "opencode" and isinstance(model, str) and model.startswith("ollama/"):
+            native_id = model.split("/", 1)[1]
+            providers = data.get("providers", data.get("provider", {}))
+            entry = providers.get("ollama", {}).get("models", {}).get(native_id, {})
+            target["wire_model"] = entry.get("modelID", native_id)
+    return targets
+
+
+def bloque_modelos_locales(project, runtime, probe_ollama=None):
+    """Static declarations are not evidence of the server's effective context."""
+    lines = []
+    try:
+        relative_path = ".codex/config.toml" if runtime == "codex" else "opencode.json"
+        raw = _modelo_local_leer(project, relative_path)
+        if raw is None:
+            data = {}
+        elif runtime == "codex":
+            import tomllib
+            data = tomllib.loads(raw)
+        else:
+            data = json.loads(raw)
+        if not isinstance(data, dict):
+            raise ValueError("native config is not an object")
+        # Consumer strings are never echoed without the canonical redactor.
+        spec = importlib.util.spec_from_file_location("doctor_model_redact", os.path.join(HERE, "redact.py"))
+        redactor = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(redactor)
+        targets = _modelos_contexto_targets(project, runtime, data)
+        probe = "no_solicitado"
+        running = None
+        if probe_ollama is not None:
+            try:
+                running = _ollama_running(probe_ollama)
+                probe = "ok"
+            except (OSError, ValueError, TypeError, UnicodeError):
+                probe = "error"
+        for target in targets:
+            model, context = target["model"], target["context"]
+            if type(context) is not int or not 0 < context <= 10_000_000:
+                context = None
+            safe_model = model if isinstance(model, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}", model) else "modelo no determinado"
+            safe_model = redactor.redactar(safe_model)
+            source = "declarado" if context else "desconocido"
+            if running is not None:
+                wanted = target.get("wire_model")
+                if not isinstance(wanted, str):
+                    wanted = None
+                matches = [row for row in running if wanted is not None and isinstance(row, dict)
+                           and wanted in (row.get("name"), row.get("model"))]
+                observed = matches[0].get("context_length") if len(matches) == 1 else None
+                if type(observed) is int and 0 < observed <= 10_000_000:
+                    context, source = observed, "observado"
+                else:
+                    context, source = None, "desconocido"
+            state = OK if context is not None and context >= 65536 and probe != "error" else AVISO
+            detail = (f"{safe_model}: contexto {source} {context}; efectivo de la sesión no verificado"
+                      if context else "Contexto local desconocido; configuración de usuario/sesión y servidor no verificados")
+            if runtime == "codex" and target["agente"] is not None:
+                detail += "; la ventana del subagente no se deduce del padre ni del TOML del rol"
+            row = linea(state, "contexto de modelos locales", detail,
+                    "Para la vía rápida, mínimo orientativo 65536 tokens; comprueba el contexto cargado con ollama ps. "
+                    "Ajusta la configuración nativa y reinicia la sesión; el tamaño del modelo no prueba calidad.")
+            if probe == "error":
+                row["detalle"] += "; sondeo no disponible o rechazado"
+                row["arreglo"] = "Comprueba Ollama y la URL HTTP loopback, sin credenciales ni redirects; respuestas simples JSON y plazo total de 2 segundos."
+            row.update(contexto=context, fuente_contexto=source, minimo_orientativo=65536, sondeo=probe, agente=target["agente"])
+            lines.append(row)
+    except (OSError, ValueError, TypeError, AttributeError, ImportError, RecursionError):
+        row = linea(AVISO, "contexto de modelos locales", "Configuración nativa no verificable; contexto desconocido",
+                    "Valida el JSON/TOML del proyecto (TOML requiere Python3.11) y comprueba ollama ps; no hay contexto efectivo verificado.")
+        row.update(contexto=None, fuente_contexto="desconocido", minimo_orientativo=65536)
+        lines.append(row)
+    return {"clave": "modelos_locales", "titulo": "Modelos locales: contexto orientativo", "lineas": lines}
+
+
+def diagnostico(project, plugin_root_explicito=None, hoy=None, verbose=False, runtime="claude", probe_ollama=None):
     plugin_root = localizar_plugin(plugin_root_explicito)
     bloques = [bloque_herramientas(),
                bloque_plugin(plugin_root, project, plugin_root_explicito),
-               bloque_configs(plugin_root, project),
+               bloque_configs(plugin_root, project, **({"runtime": runtime} if runtime != "claude" else {})),
                bloque_estado(plugin_root, project),
                bloque_capacidades(plugin_root, project, verbose=verbose),
                bloque_memoria(plugin_root, project, hoy),
                bloque_journal(plugin_root, project),
                bloque_version(plugin_root, project)]
+    if runtime != "claude":
+        bloques.append(bloque_modelos_locales(project, runtime, probe_ollama=probe_ollama))
     resumen = {e: 0 for e in ORDEN}
     for b in bloques:
         for l in b["lineas"]:
@@ -2796,6 +3063,9 @@ def main(argv=None):
     ap.add_argument("--verbose", "--all", dest="verbose", action="store_true",
                     help="incluye las capacidades opcionales desactivadas sin su fichero de config")
     ap.add_argument("--hoy", default=None, help="fecha de referencia AAAA-MM-DD para la antigüedad de CALIBRATION.md (tests)")
+    ap.add_argument("--runtime", choices=("claude", "codex", "opencode"), default="claude",
+                    help="diagnóstico de contexto local para el runtime explícito; default Claude")
+    ap.add_argument("--probe-ollama", metavar="URL", help="opt-in: GET /api/ps de un endpoint HTTP loopback, sin redirects")
     args = ap.parse_args(argv)
 
     hoy = None
@@ -2812,7 +3082,12 @@ def main(argv=None):
         print(f"❌ uso: --plugin-root `{args.plugin_root}` no es un directorio", file=sys.stderr)
         return 2
 
-    inf = diagnostico(args.root, args.plugin_root, hoy, verbose=args.verbose)
+    native = {"runtime": args.runtime} if args.runtime != "claude" else {}
+    if args.probe_ollama is not None:
+        if args.runtime == "claude":
+            ap.error("--probe-ollama requires --runtime codex or opencode")
+        native["probe_ollama"] = args.probe_ollama
+    inf = diagnostico(args.root, args.plugin_root, hoy, verbose=args.verbose, **native)
     if args.panel_json:
         try:
             path = os.path.join(HERE, 'diagnostic-report.py')

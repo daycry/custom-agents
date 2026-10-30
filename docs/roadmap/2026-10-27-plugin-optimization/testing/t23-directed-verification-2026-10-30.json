@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "task": "T-23",
+  "status": "functional_directed_checks_passed",
+  "windows": {
+    "passed": 165,
+    "skipped": 3,
+    "failed": 0,
+    "commands": [
+      "python -m pytest -q agent-kits/shared/test_task_brief.py tests/test_ledger_write.py agent-kits/shared/test_local_state.py agent-kits/shared/test_ledger_view.py"
+    ]
+  },
+  "linux": {
+    "passed": 85,
+    "failed": 0,
+    "image": "custom-agents-f1-coverage:20261029",
+    "network": "none",
+    "source_mount": "read-only",
+    "commands": [
+      "python -m pytest -p no:cacheprovider -q tests/test_ledger_write.py tests/test_ledger_lint.py agent-kits/shared/test_ledger_view.py agent-kits/shared/test_local_state.py"
+    ],
+    "permissions_probe": {
+      "red_expected": "0640",
+      "red_observed": "0600",
+      "green_observed": "0640",
+      "runtime": "python3.11"
+    }
+  },
+  "standalone_ledger_lint_tests": {
+    "passed": 29,
+    "failed": 0
+  },
+  "static": {
+    "linter_errors": 0,
+    "existing_warnings": 3,
+    "eval_cases": 192,
+    "eval_errors": 0,
+    "interop_files": 88
+  },
+  "source_sha256_lf": {
+    "agent-kits/shared/ledger-write.py": "a8d39eff9000558a350086efcf424d7d8855e706b5ca696c7c5aef541f623bce",
+    "agent-kits/shared/local-state.py": "ef88f7428a54a16a3a41a1d1e69039fc84d73799dddf1c2557f9bf6e628b7be1",
+    "agent-kits/shared/task-brief.py": "189655fb8641cf7c134b3768483debcee483df1b83262fb0b11731a5cb9cf00f",
+    "tests/test_ledger_write.py": "762f53ecfac1e5a0b8a90108ff2e905e5b6f71429c0d6453c4d5d0af9f9e77d3",
+    "agent-kits/shared/test_task_brief.py": "d1ef8517e894fdcddbc5510d6d98b49e87a0a63c2742b3dd5646f2e778c4f054"
+  },
+  "limits": [
+    "Counts overlap across suites and platforms",
+    "No official coverage percentage yet",
+    "Phase review, exact-commit CI and real Ollama manual test remain pending",
+    "One Windows budget run failed before prose reduction; retained as failed, not reclassified"
+  ],
+  "correction_1": {
+    "reason": "Preserve unchanged phase summary bytes",
+    "windows_writer": {
+      "passed": 24,
+      "skipped": 2,
+      "failed": 0
+    },
+    "linux_writer": {
+      "passed": 26,
+      "skipped": 0,
+      "failed": 0
+    },
+    "existing_local_state_fix3": {
+      "passed": 7,
+      "failed": 0
+    },
+    "source_sha256_lf": {
+      "agent-kits/shared/ledger-write.py": "41a3441607dd57c889932c9588cb363af78ce1c3f1603c820e4e86b705d172c4",
+      "tests/test_ledger_write.py": "fe21fceac83c751b0d2504793d6a8a7a8a8989a326b95e678f831ba47f83d41b"
+    }
+  }
+}

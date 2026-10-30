@@ -42,16 +42,18 @@ class StateIO:
             and not self.reader._redirected(info), 'unsafe_state')
         return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
 
-    def read(self, path, maximum):
+    def read(self, path, maximum, *, changed_status=None):
         path = Path(path)
         self.dirs(path.parent)
         before = self.file(path)
         row = self.reader.read_bytes(path.parent, path.name, max_bytes=maximum)
+        if changed_status is not None:
+            self.need(row['status'] != 'changed_path', changed_status)
         self.need(row['status'] == 'ok', 'invalid_state')
-        self.need(self.file(path) == before, 'unsafe_state')
+        self.need(self.file(path) == before, changed_status or 'unsafe_state')
         return row['data'], before
 
-    def write(self, path, raw, deadline, expected=None, retry=True):
+    def write(self, path, raw, deadline, expected=None, retry=True, mode=None):
         """Exclusive creation or observed owned-leaf replacement; no overwrite fallback.
         `retry=False` makes a single `os.replace` attempt (no sharing-violation backoff)."""
         path = Path(path)
@@ -62,6 +64,8 @@ class StateIO:
         temporary = Path(name)
         try:
             with os.fdopen(fd, 'wb') as handle:
+                if mode is not None:
+                    os.chmod(temporary, mode)
                 handle.write(raw)
                 handle.flush()
                 try:
@@ -131,7 +135,9 @@ class StateIO:
             self.need(initialize, 'invalid_state')
             try:
                 with path.open('xb') as handle:
-                    handle.write(b'0')
+                    # Both platforms lock byte ranges beyond EOF. Publish an
+                    # empty leaf in its final generation: a later marker write
+                    # races observers between exclusive creation and acquisition.
                     handle.flush()
                     os.fsync(handle.fileno())
                 self.sync(state)

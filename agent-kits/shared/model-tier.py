@@ -42,11 +42,18 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODELOS_ALIAS = {"haiku", "sonnet", "opus", "inherit", "fable"}
 MODEL_ID_RE = re.compile(r"^claude-[a-z0-9][a-z0-9.-]*$")
+LOCAL_MODEL_RE = re.compile(r"ollama/[A-Za-z0-9][A-Za-z0-9._:/-]*")
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
 
-def model_valido(v):
-    return isinstance(v, str) and (v in MODELOS_ALIAS or bool(MODEL_ID_RE.match(v)))
+def model_valido(v, runtime="claude"):
+    if not isinstance(v, str):
+        return False
+    if v in MODELOS_ALIAS or bool(MODEL_ID_RE.match(v)):
+        return True
+    return (runtime in ("codex", "opencode") and len(v) <= 256
+            and bool(LOCAL_MODEL_RE.fullmatch(v))
+            and all(part not in ("", ".", "..") for part in v.split("/")))
 
 
 def effort_valido(v):
@@ -140,8 +147,11 @@ def leer_modelos(project, avisos):
 
 # ------------------------------------------------------------------ resolución
 
-def resolver(agente, root=None, project=None, _modelos=None, _avisos=None):
+def resolver(agente, root=None, project=None, _modelos=None, _avisos=None, runtime="claude"):
     """Dict {agente, model, effort, fuente:{model,effort}, avisos:[…]} o None si el agente no existe."""
+    runtime = "claude" if runtime == "claude-code" else runtime
+    if runtime not in ("claude", "codex", "opencode"):
+        raise ValueError("runtime desconocido")
     root = localizar_root(root)
     if not root:
         return None
@@ -163,7 +173,7 @@ def resolver(agente, root=None, project=None, _modelos=None, _avisos=None):
         override = None
     if override:
         if "model" in override:
-            if model_valido(override["model"]):
+            if model_valido(override["model"], runtime=runtime):
                 model, fuente_m = override["model"], "dev.json"
             else:
                 avisos.append(f"dev.json modelos.{agente}.model={override['model']!r} inválido: se ignora")
@@ -172,8 +182,21 @@ def resolver(agente, root=None, project=None, _modelos=None, _avisos=None):
                 effort, fuente_e = override["effort"], "dev.json"
             else:
                 avisos.append(f"dev.json modelos.{agente}.effort={override['effort']!r} inválido: se ignora")
+    native = {}
+    if runtime != "claude":
+        provider = None
+        if model.startswith("ollama/"):
+            provider, local_model = model.split("/", 1)
+            model = local_model if runtime == "codex" else model
+            if not override or not effort_valido(override.get("effort")):
+                effort, fuente_e = "inherit", "heredado(runtime)"
+        else:
+            if fuente_m == "dev.json" and model != "inherit":
+                avisos.append(f"dev.json modelos.{agente}.model: modelo Claude sin equivalente en {runtime}; se hereda la sesion")
+            model, fuente_m = "inherit", "heredado(runtime)"
+        native = {"runtime": runtime, "provider": provider}
     return {"agente": agente, "model": model, "effort": effort,
-            "fuente": {"model": fuente_m, "effort": fuente_e}, "avisos": avisos}
+            "fuente": {"model": fuente_m, "effort": fuente_e}, "avisos": avisos, **native}
 
 
 NOTA = ("Nota: `model` se pasa en el parámetro por invocación del Agent tool; `effort` de dev.json es "
@@ -193,7 +216,12 @@ def main(argv=None):
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--root", default=None, help="raíz del plugin (default: autodetección)")
     ap.add_argument("--project", default=None, help="proyecto consumidor con .claude/dev.json (default: $CLAUDE_PROJECT_DIR o cwd)")
+    ap.add_argument("--runtime", choices=("claude", "claude-code", "codex", "opencode"), default="claude",
+                    help="runtime destino; ids locales: ollama/<modelo>; default Claude")
     args = ap.parse_args(argv)
+    nota = NOTA if args.runtime in ("claude", "claude-code") else (
+        "Nota: el proveedor nativo se hereda de la sesion; resolver un id no cambia el proveedor. "
+        "La proyeccion explicita aplica model; effort no acredita compatibilidad del modelo.")
     if not args.all and not args.agente:
         ap.error("indica <agente> o --all")
 
@@ -205,7 +233,7 @@ def main(argv=None):
     modelos = leer_modelos(proyecto_dir(args.project), avisos_globales)
 
     if args.all:
-        filas = [resolver(a, root=root, project=args.project, _modelos=modelos, _avisos=list(avisos_globales))
+        filas = [resolver(a, root=root, project=args.project, _modelos=modelos, _avisos=list(avisos_globales), runtime=args.runtime)
                  for a in agentes(root)]
         filas = [f for f in filas if f]
         if args.json:
@@ -217,10 +245,10 @@ def main(argv=None):
                 print(f"| {f['agente']} | {f['model']} | {f['effort']} | {f['fuente']['model']} · {f['fuente']['effort']} |")
             for a in avisos_globales:
                 print(f"⚠️  {a}", file=sys.stderr)
-            print(NOTA)
+            print(nota)
         return 0
 
-    r = resolver(args.agente, root=root, project=args.project, _modelos=modelos, _avisos=list(avisos_globales))
+    r = resolver(args.agente, root=root, project=args.project, _modelos=modelos, _avisos=list(avisos_globales), runtime=args.runtime)
     if r is None:
         print(f"❌ agente `{args.agente}` no existe en {os.path.join(root, 'agents')}", file=sys.stderr)
         return 1
@@ -230,7 +258,7 @@ def main(argv=None):
         for a in r["avisos"]:
             print(f"⚠️  {a}", file=sys.stderr)
         print(linea(r))
-        print(NOTA)
+        print(nota)
     return 0
 
 

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "task": "T-23",
+  "correction": 2,
+  "failed_ci": {
+    "run": 41078822941,
+    "commit": "3aafa4e27d35ac0190393b90ea19206f89e8e137",
+    "failed": 5,
+    "passed": 9816,
+    "skipped": 38,
+    "subtests_passed": 82
+  },
+  "causes": [
+    "Missing console execution mode for the new writer (four assertions)",
+    "Original workflow paragraph changed by joining the new writer sentence"
+  ],
+  "fixes": [
+    "Register a real read-only preview with UTF-8 warning in an owned fixture",
+    "Keep the original workflow paragraph verbatim and add the writer instruction separately"
+  ],
+  "unchanged": [
+    "Console expectations and production snippet",
+    "Paragraph baseline fixture and comparison",
+    "Quality thresholds and approved criteria"
+  ],
+  "directed_windows": {
+    "console_passed": 8,
+    "split_workflow_passed": 10,
+    "failed": 0,
+    "interop_current": 88
+  },
+  "source_sha256_lf": {
+    "tests/test_console_encoding.py": "e1d54455e65e0ea743801faf1f89184a575b18040c6978925c3a7d17c173459d",
+    "commands/dev-cycle.md": "24af65cb90562923f2983f6923e409b215403550ac641e191038cde9f47847ab"
+  },
+  "limits": [
+    "Full CI on the correction commit pending",
+    "No independent phase review or coverage percentage claimed"
+  ]
+}

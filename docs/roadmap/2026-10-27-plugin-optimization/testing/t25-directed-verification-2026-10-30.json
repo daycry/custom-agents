@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "task": "T-25",
+  "profile": "Explicit perfil: lite; normal default retained",
+  "windows": {
+    "lite_final_passed": 21,
+    "lite_and_split_passed": 31,
+    "earlier_brief_and_10_lite_passed": 102,
+    "console_directed_passed": 237
+  },
+  "linux": {
+    "joint_passed": 381,
+    "joint_skipped": 3,
+    "joint_components": "18 lite +8 split +92 brief +229 doctor +34 local models passed; live read-only source mount, no immutable SHA claim",
+    "lite_final_passed": 21
+  },
+  "contracts": {
+    "lite_brief_max_chars": 6000,
+    "normal_brief_max_chars": 10000,
+    "implementation": "current thread, sequential, no implementation subagents",
+    "review": "Fresh independent sequential reviewers; all selected lenses and attempt gates retained",
+    "quality": "Selected TDD, QA, coverage and Knowledge Gate retained",
+    "overflow": "Exit2, empty stdout, no partial dispatch",
+    "mandatory_content": "Task, verification, pending gaps, applicable design, constitution, full persona and return contract are not truncated for lite. Memory retains bounded retrieval contract.",
+    "writer": "Same-bundle dependencies and isolated help startup checked; mandatory lite; normal partial fallback visible",
+    "default_new_network": false,
+    "configuration_writes": false
+  },
+  "harness_corrections": [
+    "Use short pytest ids for deep JSON input on Windows; payload/assertions unchanged",
+    "Pending gap fixture uses canonical pendiente status; parser unchanged"
+  ],
+  "static": {
+    "lint_errors": 0,
+    "existing_warnings": 3,
+    "eval_cases": 192,
+    "interop_current": 88,
+    "scope_criteria_altered": [],
+    "skill_lines": 200
+  },
+  "source_sha256_lf": {
+    "agent-kits/shared/execution-profile.py": "9552a0670b32e5666daee1f29079b1ba2bb4638d84c12930b76325250c1b551d",
+    "agent-kits/shared/task-brief.py": "47c32c6a052254f56b6d8c322150e683f173e49447f619e282877660a3498fac",
+    "agent-kits/shared/doctor.py": "75ba7d532bd048d347e37d8cea02ff81a0c88c2c000c1088d0a84faec641728d",
+    "tests/test_lite_profile.py": "43e1b2435d0173295d8a5e9b34b7f235d6f1df2c859b4ab5c37c798320a0ed1d",
+    "commands/dev-cycle.md": "d199f2cf1f5c30297e601f5a110c7632beb6d5aa559a246efa180dc22a04736f",
+    "commands/setup.md": "5cc1311cafaa7a17179af5994d5ee9055c981e3ca0bfdef15c6f42a5b64c4a98",
+    "skills/adversarial-review/SKILL.md": "42b221ba9f7ac196fea58cf3957f3ee380372e588ba0700244844da0f58a025f"
+  },
+  "limits": [
+    "Counts overlap; not unique total",
+    "Full immutable CI and official coverage pending",
+    "No independent F3 review yet",
+    "Manual real Ollama validation remains mandatory"
+  ]
+}

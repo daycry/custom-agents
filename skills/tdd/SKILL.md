@@ -48,7 +48,7 @@ SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" 
    la razón correcta** (la funcionalidad no existe / devuelve otra cosa), no por un import roto o un
    typo del test. Comando por stack: lee `references/by-stack.md` **solo al llegar aquí** si no
    sabes cómo correr un único test en el proyecto. Registra la evidencia en el ledger, en la tarea:
-   `RED: <fichero::test> falló con <error resumido> · <AAAA-MM-DD>`.
+   `RED: <fichero::test> falló con <error resumido> · <AAAA-MM-DD>`; usa el contrato de `agent-kits/shared/ledger-write.md` (writer preferente, obligatorio en lite).
    **Sin esa línea el TDD de la tarea no cuenta** (lo verifica la Lente A de `adversarial-review`
    y lo exige el orquestador al validar un `DONE` de subagente).
 2. **GREEN — el cambio MÍNIMO que hace pasar ese test.** Nada de «ya que estoy». Vuelve a correr

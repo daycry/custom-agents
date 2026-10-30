@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-30",
+  "approved_option": "O1",
+  "user_response": "adelante",
+  "question_scope": "O1 and proposed lite6000 profile",
+  "previous_design_sha256": "ff3ead8b5532cc1e56e38639d799553cb412d11b4a0d202a9f3f996639427809",
+  "conditions": [
+    "Codex bounded binding/model/identity spike before T22 production",
+    "No model requests",
+    "No proven go returns to T21 and re-estimation",
+    "No automatic O2/O3 pivot",
+    "6000-character lite brief; required content retained",
+    "Fresh review sequential; QA/coverage/TDD retained",
+    "ledger-write required lite, preferred normal"
+  ],
+  "curation": {
+    "exit": 0,
+    "result": {
+      "status": "proposed",
+      "errores": [],
+      "avisos": [],
+      "ruta": "docs/knowledge/candidates/pending/2026-10-30-modelos-locales-proyeccion-explicita.md",
+      "sha256": "9cea5eabe87fa15dbb5e2a4c764d36ed3be0b2135ce6c95bd098ff0f6662e473"
+    }
+  },
+  "T21": "complete",
+  "T22": "in_progress_spike",
+  "production_changes": false
+}

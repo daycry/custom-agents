@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "task": "T-24",
+  "new_models_cases": {
+    "windows_passed": 34,
+    "linux_passed": 34,
+    "failed": 0
+  },
+  "earlier_neighbor_runs": {
+    "windows": {
+      "passed": 229,
+      "skipped": 1
+    },
+    "linux_with_28_new_cases": {
+      "passed": 257,
+      "skipped": 1
+    },
+    "limits": "Before final deep JSON, child context and Markdown refinements; not an exact final SHA run."
+  },
+  "environment_diagnostic": {
+    "first_linux_doctor_run": {
+      "failed": 4,
+      "passed": 253,
+      "skipped": 1
+    },
+    "cause": "Docker tmpfs /tmp was noexec; executable fixtures0755 fail X_OK. Explicit exec tmpfs fixes environment; no production or assertions weakened."
+  },
+  "ledger_ci_followup": {
+    "failed_run": 41083750729,
+    "sha": "f1d02e4",
+    "failed": 1,
+    "passed": 9820,
+    "skipped": 38,
+    "cause": "Atomic replacement during preflight surfaced as generic input error2 instead of conflict3.",
+    "fix": "Optional StateIO change status preserves default callers; ledger requests conflict3 for changed_path/observed identity mismatch. No lock metadata for rejected input preserved.",
+    "red": {
+      "deterministic_cases": 2,
+      "observed_codes": [
+        2,
+        2
+      ],
+      "expected_code": 3
+    },
+    "discarded_attempt": "Lock before preflight caused7 existing no-metadata regressions, discarded without changing expectations.",
+    "windows": {
+      "passed": 26,
+      "skipped": 2
+    },
+    "linux": {
+      "passed": 28,
+      "skipped": 0
+    },
+    "neighbor_state_windows": {
+      "passed": 32,
+      "skipped": 2
+    }
+  },
+  "contracts": {
+    "default_new_network": false,
+    "probe": "Explicit HTTP numeric loopback or localhost pinned127.0.0.1; GET /api/ps; total2s; bounded headers/body; no redirects, proxy, auth, inference, downloads or writes.",
+    "context": "Declared project values or instant server observation, never proof of effective client context or model quality.",
+    "codex_child": "Unknown statically: role context field not applied; parent may be reset.",
+    "codex_source_commit": "6ff1e1ca3b30fc8b914720681fcf5fe62e95f856"
+  },
+  "primary_sources": [
+    "https://docs.ollama.com/api/ps",
+    "https://opencode.ai/v2/docs/models/",
+    "https://opencode.ai/v2/docs/providers/",
+    "https://github.com/openai/codex/blob/6ff1e1ca3b30fc8b914720681fcf5fe62e95f856/codex-rs/core/src/agent/role.rs"
+  ],
+  "source_sha256_lf": {
+    "agent-kits/shared/doctor.py": "af915b931f2ed960461c21645543445489eb7412b28840ded9b816ad92ba2176",
+    "agent-kits/shared/test_doctor_local_models.py": "e933c9f0714e3fa89aabf112833c67b54eca3693ce83f1a201ba3f5c3fc59e6d",
+    "agent-kits/shared/ledger-write.py": "80d24f9ef3e6019cba6610dd5c5c3e172c5ed0773244a9818d2123311d050ff6",
+    "agent-kits/shared/local-state.py": "b73e891443880c31c81b9ed3bdf6691c3af13c112aa2574997cd60ca84fdb171",
+    "tests/test_ledger_write.py": "c2a7fdbbe72e1b9851fc63bb8e1f46f2f4dbb0a2f8ad54a3872a24ccdafa2dbb"
+  },
+  "limits": [
+    "Full immutable Linux CI pending on this correction",
+    "No official coverage or independent phase review yet",
+    "Real Ollama manual test on another machine remains mandatory T-26"
+  ]
+}

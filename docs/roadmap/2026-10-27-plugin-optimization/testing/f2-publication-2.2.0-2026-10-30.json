@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-30",
+  "approved_action": "User confirmed merge PR20 and publish v2.2.0",
+  "pr": 20,
+  "merge_commit": "c13dbcc9abcc6e2fbdf0e696ea1661e385b283c9",
+  "release_commit": "c6aee505d200f6354939b8a3dc2305ee82b8ec62",
+  "version": "2.2.0",
+  "release_url": "https://github.com/daycry/custom-agents/releases/tag/v2.2.0",
+  "published_at": "2026-10-30T10:26:47Z",
+  "release_workflow": {
+    "conclusion": "success",
+    "databaseId": 41040778564,
+    "headSha": "c6aee505d200f6354939b8a3dc2305ee82b8ec62",
+    "status": "completed",
+    "url": "https://github.com/daycry/custom-agents/actions/runs/41040778564"
+  },
+  "assets": [
+    {
+      "name": "custom-agents-2.2.0.zip",
+      "bytes": 4490271,
+      "sha256": "025a3655fa3d70b57ddff14fe357f6a0ddb37dc54bcdf163bd38a5aa554b81ce",
+      "zip_crc": "pass",
+      "entries": 1181,
+      "url": "https://github.com/daycry/custom-agents/releases/download/v2.2.0/custom-agents-2.2.0.zip"
+    },
+    {
+      "name": "custom-agents-skills-portable-2.2.0.zip",
+      "bytes": 1506708,
+      "sha256": "7581f731a87f67c29fc30f09fbf465fa68d34fa214ebf8069d37a2a909d241cb",
+      "zip_crc": "pass",
+      "entries": 341,
+      "url": "https://github.com/daycry/custom-agents/releases/download/v2.2.0/custom-agents-skills-portable-2.2.0.zip"
+    }
+  ],
+  "patch_matches_approved_preview": true,
+  "actual_patch_sha256": "99c19e84f1b30ce26f81fd4fab2cb4c365ec0d0d84e6ba4dfaee663c113f3e4a",
+  "mechanical_release_paths": [
+    ".agents/plugins/marketplace.json",
+    ".claude-plugin/marketplace.json",
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+    "CHANGELOG.es.md",
+    "CHANGELOG.md",
+    "package.json"
+  ],
+  "release_checks": [
+    {
+      "command": [
+        "python",
+        "scripts/release.py",
+        "2.2.0"
+      ],
+      "exit": 0
+    },
+    {
+      "command": [
+        "python",
+        "scripts/release.py",
+        "--check"
+      ],
+      "exit": 0
+    },
+    {
+      "command": [
+        "python",
+        "scripts/export-interop.py",
+        "--check"
+      ],
+      "exit": 0
+    }
+  ],
+  "source_ci": {
+    "run": 41038153912,
+    "head": "02845d22c352444a0e1f19893176afc3e01b1c47",
+    "conclusion": "success"
+  },
+  "post_release_ci": {
+    "conclusion": "success",
+    "headSha": "c6aee505d200f6354939b8a3dc2305ee82b8ec62",
+    "status": "completed",
+    "url": "https://github.com/daycry/custom-agents/actions/runs/41040778523"
+  },
+  "installed_plugin_cache_modified": false
+}

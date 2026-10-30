@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "attempt": 2,
+  "base": "c6aee505d200f6354939b8a3dc2305ee82b8ec62",
+  "previous_head": "4e5017daec68b0dbe0433ad28abb7e284e58e841",
+  "head": "4596eaf1bec3f21b21d364d5493b92d072f71cac",
+  "lenses": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "fresh_generic_reviewers": true,
+  "complete_previous_verdicts_read": true,
+  "critical": 0,
+  "important": 0,
+  "minor": 0,
+  "pending_gaps": [],
+  "verified_fixes": [
+    "A-F3-01",
+    "A-F3-02",
+    "B-F3-01"
+  ],
+  "prior_approvals_preserved": true,
+  "independent_tests": {
+    "A": {
+      "passed": 9,
+      "deselected": 49
+    },
+    "B": {
+      "passed": 10
+    },
+    "C": {
+      "passed": 8,
+      "deselected": 50
+    },
+    "interop": {
+      "exit": 0,
+      "current": 88
+    },
+    "D": {
+      "repetitions": 11,
+      "kib": [
+        32,
+        128,
+        240
+      ],
+      "ids_ms": [
+        1.4,
+        5.77,
+        11.73
+      ],
+      "strict_design_ms": [
+        2.11,
+        13.36,
+        20.13
+      ],
+      "limits": "In-memory function measurement; excludes CLI, disk, fsync and inference; instrument encoding corrected before measurement"
+    }
+  },
+  "limits": [
+    "Not QA, memory approval or release authorization",
+    "Counts overlap",
+    "Corrected CI, official coverage and real manual Ollama remain separate gates"
+  ]
+}
