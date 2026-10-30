@@ -39,10 +39,10 @@ changelog: Changed
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Quick wins medibles (v2.1.0 publicada) | 7 | 7 | 100% | 0 / 38.4h | 0 / 14.8h | 0 / 3.7h | 0 / 6.0M in + 600k out |
 | Fase 2 — Reestructuración (v2.2.0 publicada; 3 canceladas) | 9 | 12 | 75.0% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
-| Fase 3 — Modelos locales (T-22/T-23 funcionales) | 5 | 7 | 71.4% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
+| Fase 3 — Modelos locales (T-22..T-24 funcionales) | 5 | 7 | 71.4% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
 | **TOTAL** | **21** | **26** | **80.8%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
 
-> **F2 publicada como v2.2.0: 9 tareas completadas y 3 condicionales canceladas (T-16/T-17/T-18, no implementadas).** Revisión aprobada en 2 intentos, coverage Python92,25 y CI completa verde. T-20/T-21/T-22 completadas; O1 y lite aprobados en [el diseño](design.md). T-23 completada funcionalmente; T-24/T-25 y puertas finales pendientes. Las cancelaciones no se suman a las completadas.
+> **F2 publicada como v2.2.0: 9 tareas completadas y 3 condicionales canceladas (T-16/T-17/T-18, no implementadas).** Revisión aprobada en 2 intentos, coverage Python92,25 y CI completa verde. T-20/T-21/T-22 completadas; O1 y lite aprobados en [el diseño](design.md). T-23/T-24 completadas funcionalmente; T-25 en implementación y puertas finales pendientes. Las cancelaciones no se suman a las completadas.
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Jira no está activado en este proyecto (no hay `jira.json`). Ver `skills/jira-sync/SKILL.md`.
 
@@ -66,6 +66,10 @@ changelog: Changed
   {
     "candidate": "docs/knowledge/candidates/pending/2026-10-30-modelos-locales-proyeccion-explicita.md",
     "sha256": "9cea5eabe87fa15dbb5e2a4c764d36ed3be0b2135ce6c95bd098ff0f6662e473"
+  },
+  {
+    "candidate": "docs/knowledge/candidates/pending/2026-10-30-lock-visible-generation.md",
+    "sha256": "a5642a6b0300ba5de209f73abe2f4128d0ae14b598a7ef111bfd106a8ac668ac"
   }
 ]
 ```
@@ -792,7 +796,7 @@ Verificación dirigida final: Python84 pass; Node165 pass/0 fail/0 skip (instala
 - **Previsión IA**: 2.4M in / 240k out tok · 14.35 €
 - **Dependencias**: T-21, T-13
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/ledger-write.py` (nuevo), `agent-kits/shared/ledger-write.md` (nuevo), `tests/test_ledger_write.py` (nuevo), `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/ledger-view.py`, `agent-kits/shared/local-state.py`, `tests/test_ledger_lint.py`, `agent-kits/shared/test_ledger_view.py`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `tests/test_console_encoding.py`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `agent-kits/shared/ledger-write.py` (nuevo), `agent-kits/shared/ledger-write.md` (nuevo), `tests/test_ledger_write.py` (nuevo), `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/ledger-view.py`, `agent-kits/shared/local-state.py`, `agent-kits/shared/test_local_state.py`, `tests/test_ledger_lint.py`, `agent-kits/shared/test_ledger_view.py`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `tests/test_console_encoding.py`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
 - **Verificación**: `python -m pytest -q tests/test_ledger_write.py tests/test_ledger_lint.py agent-kits/shared/test_ledger_view.py; python scripts/export-interop.py --check` → exit 0 tras implementar; nuevo test primero RED. Fixture canónica sin avisos, concurrentes, EOL, conflictos y rutas inseguras con cero escritura en error.
 
@@ -846,6 +850,11 @@ RED: `tests/test_ledger_write.py::test_mutating_writer_reads_only_inside_its_coo
 
 
 RED: `tests/test_ledger_write.py::test_atomic_replacement_during_preflight_is_a_conflict` falló con Dos RED deterministas: reemplazo durante lector o tras leer devuelve2 en vez de conflicto3. Primer intento de bloquear antes de validar fallo7 casos de no crear metadata para entrada rechazada; se conserva preflight y se clasifica el cambio observado. · 2026-10-30.
+
+
+RED: `agent-kits/shared/test_local_state.py::test_new_lock_has_its_final_generation_when_it_first_becomes_visible` falló con RED determinista: lock visible cambia size0 a1 al inicializar. Stress Linux reproduce unsafe_state2; traza locked149 prueba mismo dev/ino y size0 a1. Bytes0/1 adquiridos sobre EOF en Windows. Antes de retirar escritura inicial del marcador; no se debilita identidad. · 2026-10-30.
+
+Corrección causal T-23 (fix4): CI41086493281 de5fdd9e4 vuelve a fallar1 caso concurrente (9856 pass/38 skip/82 subtests). La explicación preflight del recibo T-24 era hipótesis incompleta, no causa demostrada de esa CI. Stress reproduce a la pasada3 y la instrumentación prueba local-state.locked149: mismo dev/ino, size0→1 durante escritura del marcador inicial. El lock vacío conserva generación desde su creación; Windows soporta bytes0/1 más allá de EOF. Test dedicado RED observado0→1, luego verde. Dirigidos Windows59 pass/4 skip, Linux57 pass/6 skip; stress100 pares reales cumple [0,3], sin cambiar asserts, plazos ni chequeos de identidad. Medición fix4 16:16:51–16:20:10 UTC (3m reloj); IA/tokens/coste null. Recibo `testing/t23-lock-initialization-root-cause-2026-10-30.json`. CI exacta y revisión final pendientes. Propuesta GOTCHA vía servicio debug-root-cause, pendiente de Curator y comprobación de duplicados (búsqueda partial/text_budget); ruta/SHA asociados en curation-refs-v1.
 
 ### T-24 — C-14 — Aviso de contexto corto en `/doctor` y mínimos por tramo
 
@@ -911,14 +920,14 @@ GREEN T-24: 34 casos nuevos en Windows y Linux; vecinos doctor Windows229 pass/1
 
 - **Descripción**: Resultado: `dev.json` `perfil: lite` desactiva paralelismo y subagentes, reduce el tope del brief, obliga a `ledger-write.py` y carga solo el núcleo de `dev-cycle`; NO recorta la revisión de dos lentes ni el `qa-gate` (decisión 3 de la puerta); lo soportan `/setup` y `/doctor`. Requisito: evaluation.md §C-13.
 - **Changelog**: Ofrecer un perfil lite opt-in con menos contexto y ejecución secuencial, conservando las puertas del ciclo.
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 9.6h · real —
 - **Tiempo IA (ejec.)**: est. 3.97h · real —
 - **Supervisión**: est. 0.99h (≈25 % IA) · real —
 - **Previsión IA**: 1.6M in / 160k out tok · 9.57 €
 - **Dependencias**: T-21, T-13, T-23
 - **Tipo**: docs
-- **Archivos**: `commands/setup.md`, `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/**`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/doctor.py`, `tests/test_lite_profile.py` (nuevo), `tests/test_dev_cycle_split.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `skills/adversarial-review/SKILL.md` (excepción secuencial de lite, sin cambiar lentes), `commands/doctor.md`, `commands/setup.md`, `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/**`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/doctor.py`, `agent-kits/shared/execution-profile.py` (nuevo, dueño determinista de perfil efectivo), `tests/test_lite_profile.py` (nuevo), `docs/FLOWS.md`, `docs/en/FLOWS.md`, `tests/test_dev_cycle_split.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
 - **Verificación**: `python -m pytest -q tests/test_lite_profile.py agent-kits/shared/test_task_brief.py tests/test_dev_cycle_split.py; python scripts/export-interop.py --check` → exit 0 tras implementar; suite nueva primero RED. Probar defaults, opt-in, writer requerido, contexto obligatorio y revisión/QA intactas; el techo y los revisores secuenciales dependen de la aprobación T-21.
 
@@ -932,6 +941,18 @@ GREEN T-24: 34 casos nuevos en Windows y Linux; vecinos doctor Windows229 pass/1
 
 **Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido; depende de T-13, T-23 y del diseño de T-21. Choque potencial con las puertas no negociables: si el usuario quisiera recortarlas cambia el alcance y la constitución. Se concreta al revalidar. Clasificación: capacidad nueva. Coste estimado de la tarea: 490 € (horas × 50 € + tokens).
 
+
+
+RED: `tests/test_lite_profile.py` falló con 9 RED iniciales: resolutor ausente y brief entrega overflow o permite writer ausente. Caso pequeno estaba verde por coincidencia de ruta; tras exigir cabecera de perfil da RED independiente. Antes de implementar perfil. · 2026-10-30.
+
+
+RED: `tests/test_lite_profile.py::test_doctor_recognizes_profile_and_reports_effective_lite` falló con RED: doctor trata perfil y paralelismo como claves desconocidas; antes de registrar perfil efectivo, writer disponible y revisores frescos secuenciales. · 2026-10-30.
+
+
+RED: `tests/test_lite_profile.py::test_normal_can_disable_parallelism_without_disabling_review` falló con RED: paralelismo false en normal seguia declarando fresh_parallel; antes de unificar estrategia de revisores con flag efectivo. · 2026-10-30.
+
+
+RED: `tests/test_lite_profile.py::test_brief_missing_profile_resolver_preserves_only_undeclared_normal_fallback` falló con RED: fallback normal ausente .claude devuelve root_unavailable al usar esa carpeta como raiz. Antes de anclar lector en raiz existente del proyecto. · 2026-10-30.
 
 ### T-26 — P-F3 — Proceso de la fase 3: revisión, CHANGELOG doble, Linux, prueba manual y release
 

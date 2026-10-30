@@ -304,9 +304,11 @@ def test_explicit_hash_allows_only_one_concurrent_writer(tmp_path):
                 "--expected-sha256", expected, "--json"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 for i in range(2)]
     try:
+        receipts = []
         for child in children:
-            child.communicate(timeout=20)
-        assert sorted(child.returncode for child in children) == [0, 3]
+            out, err = child.communicate(timeout=20)
+            receipts.append((child.returncode, out.decode('utf-8'), err.decode('utf-8')))
+        assert sorted(child.returncode for child in children) == [0, 3], receipts
         assert path.read_text(encoding="utf-8").count("RED:") == 1
     finally:
         for child in children:

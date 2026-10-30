@@ -135,7 +135,9 @@ class StateIO:
             self.need(initialize, 'invalid_state')
             try:
                 with path.open('xb') as handle:
-                    handle.write(b'0')
+                    # Both platforms lock byte ranges beyond EOF. Publish an
+                    # empty leaf in its final generation: a later marker write
+                    # races observers between exclusive creation and acquisition.
                     handle.flush()
                     os.fsync(handle.fileno())
                 self.sync(state)
