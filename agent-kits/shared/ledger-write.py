@@ -50,7 +50,8 @@ def guard(deadline):
     need(time.monotonic() < deadline, "timeout", 4)
 
 
-IO = STATE.StateIO(READER, lambda condition, status: need(condition, status, 4 if status == "state_busy" else 2),
+IO = STATE.StateIO(READER, lambda condition, status: need(condition, status,
+                   4 if status == "state_busy" else 3 if status == "conflict" else 2),
                    guard, maximum=MAX_BYTES)
 
 
@@ -171,7 +172,7 @@ def prepare(raw, args):
 def write(args):
     path = Path(args.path).absolute()
     need(path.name == "tasks.md" and ".." not in Path(args.path).parts, "invalid_path")
-    raw, identity = IO.read(path, MAX_BYTES)
+    raw, identity = IO.read(path, MAX_BYTES, changed_status="conflict")
     if args.expected_sha256:
         need(digest(raw) == args.expected_sha256, "conflict", 3)
     output, warnings = prepare(raw, args)
@@ -185,7 +186,7 @@ def write(args):
                     handle.write(b"*\n")
             except FileExistsError:
                 pass  # An existing consumer policy is never overwritten.
-            raw, identity = IO.read(path, MAX_BYTES)
+            raw, identity = IO.read(path, MAX_BYTES, changed_status="conflict")
             if args.expected_sha256:
                 need(digest(raw) == args.expected_sha256, "conflict", 3)
             output, warnings = prepare(raw, args)

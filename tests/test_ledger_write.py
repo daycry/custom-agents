@@ -315,6 +315,31 @@ def test_explicit_hash_allows_only_one_concurrent_writer(tmp_path):
             child.wait(timeout=5)
 
 
+@pytest.mark.parametrize("boundary", ["reader", "after_read"])
+def test_atomic_replacement_during_preflight_is_a_conflict(tmp_path, monkeypatch, capsys, boundary):
+    spec = importlib.util.spec_from_file_location("writer_first_read_test", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    path = tmp_path / "tasks.md"
+    path.write_text(BASE, encoding="utf-8")
+    original_read = module.READER.read_bytes
+    external = BASE + "\nConcurrent publication.\n"
+
+    def replaced(*args, **kwargs):
+        row = original_read(*args, **kwargs)
+        temporary = tmp_path / "replacement"
+        temporary.write_text(external, encoding="utf-8")
+        os.replace(temporary, path)
+        return {"status": "changed_path"} if boundary == "reader" else row
+
+    monkeypatch.setattr(module.READER, "read_bytes", replaced)
+    assert module.main(["red", str(path), "--task", "T-02", "--test", "case",
+                        "--error", "missing", "--date", "2026-10-30", "--json"]) == 3
+    assert json.loads(capsys.readouterr().out)["status"] == "conflict"
+    assert path.read_text(encoding="utf-8") == external
+    assert not (tmp_path / ".ledger-write").exists()
+
+
 def test_state_preserves_an_unrelated_phases_summary_bytes(tmp_path):
     path = tmp_path / "tasks.md"
     row = "| Fase 2 — Other |   0   |  1  |  0%  |\n"

@@ -91,6 +91,49 @@ resolutor usa `--project` para leer otro proyecto y admite también
 `--runtime opencode`; el modo predeterminado continúa siendo Claude. El flag
 `--check` canónico sigue siendo independiente de la configuración del consumidor.
 
+
+### Contexto de modelos locales en doctor
+
+Invoca `doctor.py --runtime codex` o `--runtime opencode` desde el kit localizado.
+Lee el config del proyecto y los agentes propios; una declaración de usuario o
+un override de CLI no visible no se deduce. Codex requiere Python 3.11 para TOML;
+OpenCode admite JSON estricto (JSONC se declara no verificable). El modo Claude
+predeterminado conserva su contrato anterior.
+
+La salida distingue `declarado`, `observado` y `desconocido`. Un valor inferior
+a **65.536 tokens** o desconocido avisa con el arreglo; no acredita la capacidad
+ni el contexto efectivo de una sesión. En Codex el proveedor se hereda del padre.
+En OpenCode los alias con `modelID` se contrastan con su id nativo al sondear.
+Codex 0.166 no aplica `model_context_window` desde el TOML del rol y puede
+reiniciar la ventana del padre al crear el subagente: su contexto se declara
+desconocido hasta tener una observación separada, sin asumir esa herencia.
+
+| Tramo orientativo | Alcance |
+|---|---|
+| 8–9B | Lectura/consulta acotada; no se certifica edición autónoma ni un mínimo universal de contexto. |
+| 32B y contexto >=65.536 | Candidato para vía rápida con lite; la prueba real del modelo y todas las puertas siguen siendo necesarias. |
+
+La configuración no prueba el tamaño ni la calidad del modelo: estos tramos
+proceden del plan y siguen pendientes de validación manual en otro equipo.
+Para observar modelos ya cargados, solicita expresamente:
+
+```bash
+python "$DOC" --runtime codex --probe-ollama http://127.0.0.1:11434 --json
+```
+
+El sondeo solo hace GET `/api/ps`: no carga ni descarga modelos. Acepta HTTP con
+IP loopback o `localhost` fijado a 127.0.0.1, sin resolución de nombres externos,
+proxies, credenciales, parámetros de URL ni redirects. Incluye cabeceras y cuerpo
+en un plazo total de dos segundos, con topes 16 KiB/256 KiB. Respuestas comprimidas
+o chunked, ambiguas, corruptas o incompletas degradan a aviso. La observación
+corresponde al servidor en ese instante; no demuestra qué contexto usa el cliente.
+No hay nuevas llamadas de red por defecto ni desde hooks.
+
+Fuentes consultadas 2026-10-30: [Ollama /api/ps](https://docs.ollama.com/api/ps),
+[OpenCode V2 modelos](https://opencode.ai/v2/docs/models/). Contrato Codex comprobado
+en la fuente local de CLI 0.166.0 (`model_context_window` y
+[aplicación de campos del rol](https://github.com/openai/codex/blob/6ff1e1ca3b30fc8b914720681fcf5fe62e95f856/codex-rs/core/src/agent/role.rs)); no se infiere de aliases Claude.
+
 ### Instalar no es copiar: qué hace el instalador en cada runtime
 
 Cada runtime tiene un fichero que decide si el plugin **carga**. Copiar los ficheros no lo toca, y

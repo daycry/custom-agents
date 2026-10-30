@@ -90,6 +90,50 @@ The resolver accepts `--project` to read another project and also supports
 `--runtime opencode`; the default remains Claude. Canonical `--check` stays
 independent of consumer configuration.
 
+
+### Local model context in doctor
+
+Run the located kit's `doctor.py --runtime codex` or `--runtime opencode`.
+It reads project config and owned agents; invisible user settings and CLI
+overrides are not inferred. Codex TOML needs Python 3.11; OpenCode supports strict
+JSON (JSONC is reported as unverifiable). Default Claude behavior is preserved.
+
+Output distinguishes `declarado` (declared), `observado` (observed), and
+`desconocido` (unknown). Values below **65,536 tokens** or unknown trigger a warning
+with a remedy; they do not establish model capacity or a session's effective
+context. Codex inherits its provider from the parent. OpenCode aliases with an
+explicit `modelID` are matched against that native id when probing.
+Codex 0.166 does not apply `model_context_window` from a role TOML and may reset
+the parent's window when starting a child: child context stays unknown until
+separately observed, without assuming that inheritance.
+
+| Advisory tier | Scope |
+|---|---|
+| 8–9B | Bounded reading/query tasks; autonomous editing and a universal minimum context are not certified. |
+| 32B with context >=65,536 | Candidate for the quick path with lite; real model testing and every quality gate still apply. |
+
+Configuration does not prove model size or quality: these tiers come from the
+plan and remain subject to manual validation on the other machine.
+To inspect models already loaded on the server, explicitly request:
+
+```bash
+python "$DOC" --runtime codex --probe-ollama http://127.0.0.1:11434 --json
+```
+
+The probe only performs GET `/api/ps`; it does not load or download models.
+It accepts HTTP on numeric loopback or `localhost` pinned to 127.0.0.1, without
+external DNS, proxies, credentials, URL parameters or redirects. Headers and body
+share a two-second deadline, with 16 KiB/256 KiB limits. Compressed or chunked,
+ambiguous, corrupt or incomplete replies produce warnings. An observation is
+about the server at that instant; it does not prove the client's context.
+There are no new network calls by default or from hooks.
+
+Sources checked 2026-10-30: [Ollama /api/ps](https://docs.ollama.com/api/ps),
+[OpenCode V2 models](https://opencode.ai/v2/docs/models/). Codex's
+`model_context_window` and [role field application](https://github.com/openai/codex/blob/6ff1e1ca3b30fc8b914720681fcf5fe62e95f856/codex-rs/core/src/agent/role.rs)
+were checked in local CLI 0.166.0 source; Claude aliases do not establish a native
+model mapping.
+
 ### Installing is not copying: what the installer does per runtime
 
 Every runtime has one file that decides whether the plugin **loads**. Copying files does not touch

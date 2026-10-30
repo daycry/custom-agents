@@ -39,8 +39,8 @@ changelog: Changed
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Quick wins medibles (v2.1.0 publicada) | 7 | 7 | 100% | 0 / 38.4h | 0 / 14.8h | 0 / 3.7h | 0 / 6.0M in + 600k out |
 | Fase 2 — Reestructuración (v2.2.0 publicada; 3 canceladas) | 9 | 12 | 75.0% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
-| Fase 3 — Modelos locales (T-22/T-23 funcionales) | 4 | 7 | 57.1% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
-| **TOTAL** | **20** | **26** | **76.9%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
+| Fase 3 — Modelos locales (T-22/T-23 funcionales) | 5 | 7 | 71.4% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
+| **TOTAL** | **21** | **26** | **80.8%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
 
 > **F2 publicada como v2.2.0: 9 tareas completadas y 3 condicionales canceladas (T-16/T-17/T-18, no implementadas).** Revisión aprobada en 2 intentos, coverage Python92,25 y CI completa verde. T-20/T-21/T-22 completadas; O1 y lite aprobados en [el diseño](design.md). T-23 completada funcionalmente; T-24/T-25 y puertas finales pendientes. Las cancelaciones no se suman a las completadas.
 
@@ -841,11 +841,17 @@ RED: `CI41078822941::console_and_core_paragraph` falló con CI real3aafa4e: falt
 
 Corrección de CI T-23 (fix2): run41078822941 del SHA3aafa4e falla con5 tests (9816 pass/38 skip/82 subtests): registro ausente del modo consola del nuevo escritor y un párrafo del núcleo unido al añadir la instrucción. Se conserva el párrafo original íntegro y se añade la instrucción en otro; no se cambia la fixture de hashes ni las expectativas. Modo real del writer: preview dry-run sobre fixture propia con aviso UTF-8, sin escribir ledger ni estado. Dirigidos Windows: consola8 pass; dev-cycle split10 pass. T-23 queda funcional tras la corrección; CI exacta y revisión final de F3 permanecen pendientes.
 
+
+RED: `tests/test_ledger_write.py::test_mutating_writer_reads_only_inside_its_cooperative_lock` falló con RED observado: lectura previa al lock; CI exacta f1d02e4 tuvo 1 fallo de concurrencia (exit2 en vez de conflicto3), 9820 pass y38 skip. Antes de mover la primera lectura dentro del lock. · 2026-10-30.
+
+
+RED: `tests/test_ledger_write.py::test_atomic_replacement_during_preflight_is_a_conflict` falló con Dos RED deterministas: reemplazo durante lector o tras leer devuelve2 en vez de conflicto3. Primer intento de bloquear antes de validar fallo7 casos de no crear metadata para entrada rechazada; se conserva preflight y se clasifica el cambio observado. · 2026-10-30.
+
 ### T-24 — C-14 — Aviso de contexto corto en `/doctor` y mínimos por tramo
 
 - **Descripción**: Resultado: `/doctor` lee la configuración local de OpenCode/Codex (y Ollama solo si es host local y la capacidad está activa) y avisa ⚠️ si el contexto es menor que el mínimo del tramo; `docs/INTEROP.md` (+ EN) documenta los tramos orientativos (8-9B solo lectura; 32B con ≥ 64k para la vía rápida). Requisito: evaluation.md §C-14, spec §Criterios CA-10.
 - **Changelog**: Advertir en doctor sobre contexto local insuficiente o desconocido, con diagnóstico y sondeo local solo opt-in.
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 6.0h · real —
 - **Tiempo IA (ejec.)**: est. 2.48h · real —
 - **Supervisión**: est. 0.62h (≈25 % IA) · real —
@@ -857,12 +863,12 @@ Corrección de CI T-23 (fix2): run41078822941 del SHA3aafa4e falla con5 tests (9
 - **Verificación**: `python -m pytest -q agent-kits/shared/test_doctor.py agent-kits/shared/test_doctor_local_models.py; python scripts/export-interop.py --check` → exit 0 tras implementar; casos nuevos primero RED. Probar contexto insuficiente/desconocido, config corrupta y cero red por defecto; sondeo opt-in sin redirects ni destinos fuera del alcance local.
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): CA-10 — ⚠️ con el arreglo cuando el contexto es menor que el mínimo, sin red salvo hosts locales y sin bloquear. Se concreta al revalidar.
+- [x] Criterio (esqueleto): CA-10 — ⚠️ con el arreglo cuando el contexto es menor que el mínimo, sin red salvo hosts locales y sin bloquear. Se concreta al revalidar.
 
 **Concreción propuesta por T-20, sujeta a T-21:** CA-10: contexto conocido menor que el mínimo orientativo produce aviso con arreglo; contexto desconocido se declara. Sin red por defecto, sondeo local solo opt-in, acotado y sin redirects; ausencia/corrupción no bloquea el ciclo.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [x] Se concreta al revalidar.
 
 **Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido. Los mínimos salen de la auditoría, no de una prueba real: documentarlos como orientativos. Sin red salvo hosts locales (invariante). Depende de T-22. Se concreta al revalidar. Clasificación: capacidad nueva. Coste estimado de la tarea: 306 € (horas × 50 € + tokens).
 
@@ -887,6 +893,19 @@ RED: `agent-kits/shared/test_doctor_local_models.py::test_corrupt_provider_schem
 
 
 RED: `agent-kits/shared/test_doctor_local_models.py::test_probe_rejects_nonlocal_or_ambiguous_endpoints_before_opening_socket` falló con Ocho casos no explican el fallo del sondeo en detalle/arreglo humanos (8 failed), antes de hacer visible el diagnostico de red rechazado. · 2026-10-30.
+
+
+RED: `agent-kits/shared/test_doctor_local_models.py::deep_json` falló con Dos casos propagan RecursionError desde JSON profundo de config o servidor (2 failed), antes de convertirlo a diagnostico controlado. · 2026-10-30.
+
+
+RED: `agent-kits/shared/test_doctor_local_models.py::codex_child_context_contract` falló con Dos casos asumen ventana del rol/padre; fuente CLI0.166 role.rs solo aplica campos seleccionados y child_config puede reiniciar ventana. RED observado antes de marcar contexto hijo desconocido. · 2026-10-30.
+
+
+RED: `agent-kits/shared/test_doctor_local_models.py::test_ambiguous_markdown_model_header_is_not_a_valid_context_declaration` falló con Tres cabeceras MD invalidas o modelo multilinea se aceptan como contexto declarado (3 failed), antes del parser estrecho de proyecciones propias. · 2026-10-30.
+
+Medición T-24: ventanas cerradas mediante usage-meter (continuación 15:45:55–16:02:46 UTC, 17m de reloj; incluye corrección CI de T-23). Tokens, coste y tiempo IA sin medida comparable: null, no se convierten los minutos de reloj en IA.
+
+GREEN T-24: 34 casos nuevos en Windows y Linux; vecinos doctor Windows229 pass/1 skip y Linux257 pass/1 skip en revisión anterior de28 casos nuevos. El primer contenedor tuvo4 fallos por /tmp noexec; control con0755 demuestra X_OK falso y montaje exec recupera la suite sin cambiar tests. La observación /api/ps es del servidor, no contexto efectivo de la sesión. Codex0.166 no aplica la ventana del rol y puede reiniciar la del padre: contexto hijo desconocido sin observación. Recibo `testing/t24-directed-verification-2026-10-30.json`. Revisión, cobertura, CI exacta y prueba manual real permanecen en T-26.
 
 ### T-25 — C-13 — Perfil `lite`
 

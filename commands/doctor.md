@@ -22,6 +22,23 @@ un JSON válido con errores encontrados; exit 2 indica que no se pudo producir
 la proyección. Usa el diagnóstico actual, incluidas las comprobaciones de
 capacidades opt-in ya activadas; el panel nunca lo ejecuta por su cuenta.
 
+En Codex añade `--runtime codex`; en OpenCode, `--runtime opencode`. Claude
+conserva el modo predeterminado. Estos flags validan modelos con el resolutor
+del runtime y añaden el contexto declarado de los agentes propios del proyecto;
+contexto desconocido o menor de 65.536 tokens produce aviso con arreglo. Ese
+mínimo de la vía rápida es orientativo y no acredita calidad del modelo.
+El contexto efectivo de la sesión y la configuración de usuario no se presuponen.
+Codex 0.166 no aplica la ventana desde el TOML del rol; no deduzcas el contexto
+del subagente a partir del padre. Una observación del servidor tampoco acredita
+el contexto efectivo del cliente.
+
+Solo si el usuario solicita el sondeo, añade `--probe-ollama
+http://127.0.0.1:11434` al runtime nativo. Es otra excepción explícita de red:
+GET de `/api/ps` sobre HTTP loopback, sin proxy, credenciales ni redirects;
+dos segundos y respuesta acotada. Informa contexto de modelos cargados en el
+servidor, sin ejecutar inferencias, descargar modelos ni cambiar configuración.
+Un fallo del sondeo produce aviso; no lo conviertas en contexto verificado.
+
 Primera parada cuando algo "no salta": el hook que no aparece, la statusline que no se ve, el
 coste que sale a 0, la skill que no encuentra su script. Comprueba la instalación **sin tocar
 nada**: cada línea lleva su veredicto y, si algo falla, **qué comando lo arregla**.

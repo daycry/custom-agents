@@ -42,13 +42,15 @@ class StateIO:
             and not self.reader._redirected(info), 'unsafe_state')
         return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
 
-    def read(self, path, maximum):
+    def read(self, path, maximum, *, changed_status=None):
         path = Path(path)
         self.dirs(path.parent)
         before = self.file(path)
         row = self.reader.read_bytes(path.parent, path.name, max_bytes=maximum)
+        if changed_status is not None:
+            self.need(row['status'] != 'changed_path', changed_status)
         self.need(row['status'] == 'ok', 'invalid_state')
-        self.need(self.file(path) == before, 'unsafe_state')
+        self.need(self.file(path) == before, changed_status or 'unsafe_state')
         return row['data'], before
 
     def write(self, path, raw, deadline, expected=None, retry=True, mode=None):
