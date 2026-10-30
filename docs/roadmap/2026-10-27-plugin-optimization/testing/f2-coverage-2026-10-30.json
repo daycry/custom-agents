@@ -1,0 +1,142 @@
+{
+  "date": "2026-10-30",
+  "source": "e8a59ee8f2f57ed77ed23480b730802bd43fd240",
+  "real_base": "a157679afd27743b1dd1e1a7fa76444cca6aba2a",
+  "tools": {
+    "python": "3.11.18",
+    "coverage.py": "7.16.2",
+    "pytest-cov": "7.0.0",
+    "node": "v22.23.3"
+  },
+  "environment": {
+    "platform": "Linux Docker on WSL2",
+    "memory": "2 GiB",
+    "cpus": 2
+  },
+  "method": "Official subprocess coverage collection, followed by --cov-append existing omitted suites on identical /work source; official coverage-gate.py --changed-only --base <synthetic-a157679> --min 90. No source or test changes, manual line-data merge, production exclusions, or threshold reduction.",
+  "scope": "Unweighted mean of all eight changed production Python files. Not changed-line coverage, weighted project coverage, or JavaScript coverage.",
+  "initial_directed_run": {
+    "passed": 1125,
+    "skipped": 16,
+    "seconds": 480.6,
+    "exit": 0,
+    "legacy_ledger_main_exit": 0,
+    "gate_export_exit": 2,
+    "export_error": "No source for code: review-lens-select.py (synthetic virtual filename in tests)"
+  },
+  "reexport": {
+    "command": "python -m coverage json --ignore-errors --data-file=/tmp/.coverage-f2 --rcfile=/coverage.rc",
+    "strict_error_retained": true,
+    "limitation": "Ignore only unresolvable synthetic filenames; all eight production files required present and unchanged. No production data excluded.",
+    "original_files": 101,
+    "reexported_files": 101,
+    "summary_differences": []
+  },
+  "before_gate": {
+    "ok": false,
+    "exit": 1,
+    "stack": "pytest",
+    "detalle": {
+      "stack": "pytest",
+      "informe": "coverage.json",
+      "global": 50.04,
+      "modo": "changed-only",
+      "base": "c646ed9b1da6e5e4496ee76beb31b80cf44b6fc0",
+      "ficheros": {
+        "agent-kits/shared/ledger-lint.py": 93.02,
+        "agent-kits/shared/progress-report.py": 75.99,
+        "agent-kits/shared/usage-meter.py": 92.27,
+        "hooks/ledger-post.py": 94.38,
+        "hooks/session-context.py": 82.94,
+        "scripts/export-interop.py": 91.94,
+        "skills/adversarial-review/scripts/review-lens-select.py": 89.27,
+        "skills/plugin-panel/scripts/build_panel.py": 80.08
+      },
+      "porcentaje": 87.49,
+      "minimo": 90.0
+    },
+    "avisos": []
+  },
+  "additional_existing_suites": {
+    "passed": 426,
+    "failed": 0,
+    "seconds": 126.84,
+    "exit": 0,
+    "command": "python -m pytest tests/test_resume_projection_additional.py tests/test_resume_curation.py agent-kits/shared/test_work_resume.py agent-kits/shared/test_project_readonly.py tests/test_panel_diagnostics.py tests/test_panel_export.py tests/test_panel_pages.py tests/test_panel_server.py tests/test_panel_fix1.py tests/test_export_skills.py tests/test_copias_declaradas.py --cov=. --cov-append --cov-config=/coverage.rc --cov-report=json:/work/coverage.json -q"
+  },
+  "final_gate": {
+    "ok": true,
+    "exit": 0,
+    "stack": "pytest",
+    "detalle": {
+      "stack": "pytest",
+      "informe": "coverage.json",
+      "global": 55.33,
+      "modo": "changed-only",
+      "base": "c646ed9b1da6e5e4496ee76beb31b80cf44b6fc0",
+      "ficheros": {
+        "agent-kits/shared/ledger-lint.py": 93.02,
+        "agent-kits/shared/progress-report.py": 94.27,
+        "agent-kits/shared/usage-meter.py": 92.27,
+        "hooks/ledger-post.py": 94.38,
+        "hooks/session-context.py": 82.94,
+        "scripts/export-interop.py": 91.94,
+        "skills/adversarial-review/scripts/review-lens-select.py": 92.93,
+        "skills/plugin-panel/scripts/build_panel.py": 96.24
+      },
+      "porcentaje": 92.25,
+      "minimo": 90.0
+    },
+    "avisos": []
+  },
+  "source_verification": {
+    "expected_python_production_files": [
+      "agent-kits/shared/ledger-lint.py",
+      "agent-kits/shared/progress-report.py",
+      "agent-kits/shared/usage-meter.py",
+      "hooks/ledger-post.py",
+      "hooks/session-context.py",
+      "scripts/export-interop.py",
+      "skills/adversarial-review/scripts/review-lens-select.py",
+      "skills/plugin-panel/scripts/build_panel.py"
+    ],
+    "all_present": true,
+    "source_unchanged": true,
+    "source_sha256_lf": {
+      "agent-kits/shared/ledger-lint.py": "6cd9898c42b4d09d72b6dc829d2ce47cf76aaf76fbb43db33ae71ef579ec8748",
+      "agent-kits/shared/progress-report.py": "79c14bf3635b4eb4c24123404474dffd41995ddc26aab6d924022e0329330a7c",
+      "agent-kits/shared/usage-meter.py": "2a7f75bcc2717e495434f74ee6b2749d3ba9357dd0abbf9680b032d3a067ed68",
+      "hooks/ledger-post.py": "116d105306af39b2357cef3d597496c3f00c42d938e39bd572c24c6e606aedbc",
+      "hooks/session-context.py": "ef68ca4c03ac360b8b1609aab84f58b350a8cb5a5fa37321ed3a288a4da3630c",
+      "scripts/export-interop.py": "b1533f0ef356d525b822ff2381270be3852b49e4e4f30dc1fc5cf19ce7ee7e34",
+      "skills/adversarial-review/scripts/review-lens-select.py": "e5b1afc9cb921a002bc35dfb9612e3ce20219b3d2bafcf279bb7e9790403e4e9",
+      "skills/plugin-panel/scripts/build_panel.py": "b52d0fdb2bf4efd123b979f85b7c38eb4f5d26f8f6d5df0a7e392d64ee97084b"
+    },
+    "coverage_percent": {
+      "agent-kits/shared/ledger-lint.py": 93.02325581395348,
+      "agent-kits/shared/progress-report.py": 94.26523297491039,
+      "agent-kits/shared/usage-meter.py": 92.27373068432671,
+      "hooks/ledger-post.py": 94.375,
+      "hooks/session-context.py": 82.93838862559242,
+      "scripts/export-interop.py": 91.93954659949623,
+      "skills/adversarial-review/scripts/review-lens-select.py": 92.92682926829268,
+      "skills/plugin-panel/scripts/build_panel.py": 96.23955431754875
+    }
+  },
+  "artifact_sha256": {
+    "coverage-data": "fb876e962f36e4c4af8c1d151fe3ffe6e326303e2fcd37b8e9499c9c9f3349da",
+    "coverage-before.json": "eda525644714f515973ce9fd4c930887d0e6025740464e607bd2a2e7d64860fb",
+    "coverage-after.json": "027a6097a8e8e0a36cd18ae9e67385744a113e5f99351cfde5aeb5733b3b2d54",
+    "gate-before.json": "3d410c17aeba2e5fb56be81284404b855a6f757004719708000b085fbdd7f410",
+    "gate.json": "65be588254a6e5e3c2014d4f816dda4a98f89554d71348d6f17fe450f99057b4",
+    "source-coverage-verification.json": "0d9884be081c61f8388fadc193c54b2b4c769102d2db9404b34d96d2f40db171",
+    "base.tar": "4a426cb0149908d19e9457f49a6280128fd25afb57e92be7da5386eaf7b330e3",
+    "source.tar": "51ab21005546bb46927d2bfa10489239e0a126bdca2769f992dc6f61676320f5"
+  },
+  "collection_commands": {
+    "initial": "#!/usr/bin/env bash\nset -u\nmkdir -p /work\ncd /work\ntar -xf /base.tar\ngit init -q -b master\ngit config user.name 'Fixture coverage'\ngit config user.email 'ci@example.invalid'\ngit config core.autocrlf false\ngit add .\ngit commit -qm 'F2 directed coverage published baseline a157679'\ncoverage_base=\"$(git rev-parse HEAD)\"\ntar -xf /source.tar\ngit add .\ngit commit -qm 'F2 directed coverage immutable corrected source'\nexport COVERAGE_RCFILE=/coverage.rc\nexport COVERAGE_FILE=/tmp/.coverage-f2\npython - \"$coverage_base\" <<'PY'\nfrom pathlib import Path\nimport json,platform,subprocess,sys\nsource=json.loads(Path('/source-state.json').read_text())\nsource.update({'synthetic_base':sys.argv[1],'python':sys.version,'platform':platform.platform(),\n 'node':subprocess.check_output(['node','--version'],text=True).strip(),'memory_limit':'2 GiB','cpus':2,\n 'coverage_tools':subprocess.check_output(['python','-m','pip','show','coverage','pytest-cov'],text=True),\n 'scope':'Official changed-file Python mean; not changed-line, weighted overall or JavaScript coverage',\n 'warning_scope':'Only no-data-collected diagnostic disabled; no production source exclusions added.'})\nPath('/result/environment.json').write_text(json.dumps(source,indent=2)+'\\n')\nPY\n# Older ledger-lint cases live in the standalone main, in addition to pytest cases.\npython -m coverage run --rcfile=/coverage.rc tests/test_ledger_lint.py > /result/legacy-ledger.log 2>&1\nlegacy_exit=$?\nprintf '%s\\n' \"$legacy_exit\" > /result/legacy-ledger.exit\npython -m pytest tests/test_ledger_post.py tests/test_ledger_lint.py tests/test_session_context.py tests/test_plugin_panel.py tests/test_export_interop.py tests/test_console_encoding.py tests/test_dev_cycle_split.py tests/test_knowledge_prompt_split.py tests/test_review_jira_owner.py tests/test_plan_review_caller.py agent-kits/shared/test_progress_report.py agent-kits/shared/test_usage_meter.py agent-kits/shared/test_review_resume.py skills/adversarial-review/scripts/test_review_lens_select.py --cov=. --cov-append --cov-config=/coverage.rc --cov-report=json:/work/coverage.json -q > /result/pytest.log 2>&1\npytest_exit=$?\nprintf '%s\\n' \"$pytest_exit\" > /result/pytest.exit\nif [ -f /work/coverage.json ]; then cp /work/coverage.json /result/coverage.json; fi\nif [ -f /tmp/.coverage-f2 ]; then cp /tmp/.coverage-f2 /result/coverage-data; fi\npython skills/unit-tests/scripts/coverage-gate.py /work --min 90 --changed-only --base \"$coverage_base\" --runner 'python -m coverage json --rcfile=/coverage.rc -o /work/coverage.json' --json > /result/gate.json 2> /result/gate.stderr\ngate_exit=$?\nprintf '%s\\n' \"$gate_exit\" > /result/gate.exit\nprintf 'legacy=%s pytest=%s gate=%s\\n' \"$legacy_exit\" \"$pytest_exit\" \"$gate_exit\"\nexit \"$gate_exit\"\n",
+    "append": "#!/usr/bin/env bash\nset -u\nmkdir -p /work\ncd /work\ntar -xf /previous/base.tar\ngit init -q -b master\ngit config user.name 'Fixture coverage'\ngit config user.email 'ci@example.invalid'\ngit config core.autocrlf false\ngit add .\ngit commit -qm 'Published F2 coverage baseline a157679'\ncoverage_base=\"$(git rev-parse HEAD)\"\ntar -xf /previous/source.tar\ngit add .\ngit commit -qm 'Exact immutable corrected F2 source e8a59ee'\ncp /previous/coverage-data /tmp/.coverage-f2\nexport COVERAGE_RCFILE=/coverage.rc\nexport COVERAGE_FILE=/tmp/.coverage-f2\npython -m coverage json --data-file=/tmp/.coverage-f2 --rcfile=/coverage.rc -o /work/strict.json > /result/strict.stdout 2> /result/strict.stderr\nprintf '%s\\n' \"$?\" > /result/strict.exit\npython -m coverage json --ignore-errors --data-file=/tmp/.coverage-f2 --rcfile=/coverage.rc -o /work/coverage.json > /result/reexport.stdout 2> /result/reexport.stderr\nreexport_exit=$?\nprintf '%s\\n' \"$reexport_exit\" > /result/reexport.exit\nif [ \"$reexport_exit\" -ne 0 ]; then exit \"$reexport_exit\"; fi\npython - <<'PY'\nfrom pathlib import Path\nimport json\noriginal=json.loads(Path('/previous/coverage.json').read_text())\nfresh=json.loads(Path('/work/coverage.json').read_text())\ndiff=[p for p in original['files'] if original['files'][p]['summary']!=fresh['files'].get(p,{}).get('summary')]\nreport={'original_files':len(original['files']),'reexported_files':len(fresh['files']),'summary_differences':diff}\nPath('/result/reexport-comparison.json').write_text(json.dumps(report,indent=2)+'\\n')\nassert not diff,diff\nPY\nif [ $? -ne 0 ]; then exit 1; fi\ncp /work/coverage.json /result/coverage-before.json\npython skills/unit-tests/scripts/coverage-gate.py /work --min 90 --changed-only --base \"$coverage_base\" --runner 'python -m coverage json --ignore-errors --data-file=/tmp/.coverage-f2 --rcfile=/coverage.rc -o /work/coverage.json' --json > /result/gate-before.json 2> /result/gate-before.stderr\nprintf '%s\\n' \"$?\" > /result/gate-before.exit\n# Existing suites for omitted resume, diagnostic, export and standalone-kit paths.\npython -m pytest tests/test_resume_projection_additional.py tests/test_resume_curation.py agent-kits/shared/test_work_resume.py agent-kits/shared/test_project_readonly.py tests/test_panel_diagnostics.py tests/test_panel_export.py tests/test_panel_pages.py tests/test_panel_server.py tests/test_panel_fix1.py tests/test_export_skills.py tests/test_copias_declaradas.py --cov=. --cov-append --cov-config=/coverage.rc --cov-report=json:/work/coverage.json -q > /result/pytest.log 2>&1\npytest_exit=$?\nprintf '%s\\n' \"$pytest_exit\" > /result/pytest.exit\ncp /tmp/.coverage-f2 /result/coverage-data\ncp /work/coverage.json /result/coverage-after.json\npython skills/unit-tests/scripts/coverage-gate.py /work --min 90 --changed-only --base \"$coverage_base\" --runner 'python -m coverage json --ignore-errors --data-file=/tmp/.coverage-f2 --rcfile=/coverage.rc -o /work/coverage.json' --json > /result/gate.json 2> /result/gate.stderr\ngate_exit=$?\nprintf '%s\\n' \"$gate_exit\" > /result/gate.exit\npython - <<'PY'\nfrom pathlib import Path\nimport hashlib,json,subprocess\nnames=['agent-kits/shared/ledger-lint.py','agent-kits/shared/progress-report.py','agent-kits/shared/usage-meter.py',\n       'hooks/ledger-post.py','hooks/session-context.py','scripts/export-interop.py',\n       'skills/adversarial-review/scripts/review-lens-select.py','skills/plugin-panel/scripts/build_panel.py']\ndata=json.loads(Path('/work/coverage.json').read_text())\nassert all(p in data['files'] for p in names)\nsubprocess.run(['git','diff','--exit-code','HEAD','--',*names],check=True)\nreport={'expected_python_production_files':names,'all_present':True,'source_unchanged':True,\n        'source_sha256_lf':{p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in names},\n        'coverage_percent':{p:data['files'][p]['summary']['percent_covered'] for p in names}}\nPath('/result/source-coverage-verification.json').write_text(json.dumps(report,indent=2)+'\\n')\nPY\nverification_exit=$?\nprintf 'pytest=%s gate=%s sourceVerification=%s\\n' \"$pytest_exit\" \"$gate_exit\" \"$verification_exit\"\nif [ \"$verification_exit\" -ne 0 ]; then exit \"$verification_exit\"; fi\nexit \"$gate_exit\"\n",
+    "configuration": "[run]\nsource = .\nrelative_files = true\npatch = subprocess\ndata_file = /tmp/.coverage-f2\ndisable_warnings = no-data-collected\n"
+  },
+  "historical_aborted_run": "71968b0 partial coverage stopped after confirmed correctness gaps; ABORTED_INCOMPLETE_NO_COVERAGE_VERDICT retained, no percentage claimed"
+}

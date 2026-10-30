@@ -1,0 +1,107 @@
+{
+  "source_head": "e8a59ee8f2f57ed77ed23480b730802bd43fd240",
+  "version": "2.2.0",
+  "preview_root": "<isolated-preview>",
+  "steps": [
+    {
+      "command": [
+        "git",
+        "worktree",
+        "add",
+        "--detach",
+        "<isolated-preview>",
+        "e8a59ee8f2f57ed77ed23480b730802bd43fd240"
+      ],
+      "exit": 0,
+      "stdout_sha256": "94bcba7de2216cea8c47969a35189465d865b97fe0d9ebc33de7dde760a79806",
+      "stderr_sha256": "cb07625aeb74add68e366ceb7b291722d67e6608fe5dcf2010170b8286b363a9"
+    },
+    {
+      "command": [
+        "python",
+        "scripts/release.py",
+        "2.2.0",
+        "--dry-run"
+      ],
+      "exit": 0,
+      "stdout": "Checks previos:\r\n  scripts\\lint_plugin.py: OK\r\n  evals\\check.py: OK\r\n  scripts\\export-interop.py: OK\r\n  ci.yml.MANUAL-COPY → .github\\workflows\\ci.yml: ok\r\n  headless.yml.MANUAL-COPY → .github\\workflows\\headless.yml: ok\r\n  release.yml.MANUAL-COPY → .github\\workflows\\release.yml: ok\r\n  github-templates.MANUAL-COPY\\PULL_REQUEST_TEMPLATE.md → .github\\PULL_REQUEST_TEMPLATE.md: ok\r\n  github-templates.MANUAL-COPY\\ISSUE_TEMPLATE\\bug.yml → .github\\ISSUE_TEMPLATE\\bug.yml: ok\r\n  github-templates.MANUAL-COPY\\ISSUE_TEMPLATE\\mejora.yml → .github\\ISSUE_TEMPLATE\\mejora.yml: ok\r\n  github-templates.MANUAL-COPY\\ISSUE_TEMPLATE\\pieza-nueva.yml → .github\\ISSUE_TEMPLATE\\pieza-nueva.yml: ok\r\n  changelog-sync --check: OK\r\n\r\nPlan release 2.1.0 -> 2.2.0 (2026-10-30):\r\n  CHANGELOG.md: mover 9 línea(s) de Unreleased a `## [2.2.0] - 2026-10-30` + enlace\r\n  CHANGELOG.es.md: mover 9 línea(s) de Unreleased a `## [2.2.0] - 2026-10-30` + enlace\r\n  git add manifiestos + CHANGELOG · commit 'chore: release v2.2.0' · tag v2.2.0\r\n  .claude-plugin\\plugin.json: 1 campo(s) -> 2.2.0\r\n  .claude-plugin\\marketplace.json: 2 campo(s) -> 2.2.0\r\n  .codex-plugin\\plugin.json: 1 campo(s) -> 2.2.0\r\n  .agents\\plugins\\marketplace.json: 1 campo(s) -> 2.2.0\r\n  package.json: 1 campo(s) -> 2.2.0\r\n\r\n--dry-run: no se ha tocado nada.\r\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "scripts/release.py",
+        "2.2.0",
+        "--no-git"
+      ],
+      "exit": 0,
+      "stdout": "Checks previos:\r\n  scripts\\lint_plugin.py: OK\r\n  evals\\check.py: OK\r\n  scripts\\export-interop.py: OK\r\n  ci.yml.MANUAL-COPY → .github\\workflows\\ci.yml: ok\r\n  headless.yml.MANUAL-COPY → .github\\workflows\\headless.yml: ok\r\n  release.yml.MANUAL-COPY → .github\\workflows\\release.yml: ok\r\n  github-templates.MANUAL-COPY\\PULL_REQUEST_TEMPLATE.md → .github\\PULL_REQUEST_TEMPLATE.md: ok\r\n  github-templates.MANUAL-COPY\\ISSUE_TEMPLATE\\bug.yml → .github\\ISSUE_TEMPLATE\\bug.yml: ok\r\n  github-templates.MANUAL-COPY\\ISSUE_TEMPLATE\\mejora.yml → .github\\ISSUE_TEMPLATE\\mejora.yml: ok\r\n  github-templates.MANUAL-COPY\\ISSUE_TEMPLATE\\pieza-nueva.yml → .github\\ISSUE_TEMPLATE\\pieza-nueva.yml: ok\r\n  changelog-sync --check: OK\r\n\r\nPlan release 2.1.0 -> 2.2.0 (2026-10-30):\r\n  CHANGELOG.md: mover 9 línea(s) de Unreleased a `## [2.2.0] - 2026-10-30` + enlace\r\n  CHANGELOG.es.md: mover 9 línea(s) de Unreleased a `## [2.2.0] - 2026-10-30` + enlace\r\n\r\nAplicando:\r\n  .claude-plugin\\plugin.json: 1 campo(s) -> 2.2.0\r\n  .claude-plugin\\marketplace.json: 2 campo(s) -> 2.2.0\r\n  .codex-plugin\\plugin.json: 1 campo(s) -> 2.2.0\r\n  .agents\\plugins\\marketplace.json: 1 campo(s) -> 2.2.0\r\n  package.json: 1 campo(s) -> 2.2.0\r\n  CHANGELOG.md: sección [2.2.0] creada (CRLF conservado)\r\n  CHANGELOG.es.md: sección [2.2.0] creada (CRLF conservado)\r\nplugin.json           : 2.2.0\r\nmarketplace metadata  : 2.2.0\r\nmarketplace plugins   : ['2.2.0', '2.2.0', '2.2.0', '2.2.0']\r\nOK: todas coinciden en 2.2.0\r\n\r\nHecho (sin git). Recuerda commit + tag + push manuales.\r\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "scripts/release.py",
+        "--check"
+      ],
+      "exit": 0,
+      "stdout": "plugin.json           : 2.2.0\r\nmarketplace metadata  : 2.2.0\r\nmarketplace plugins   : ['2.2.0', '2.2.0', '2.2.0', '2.2.0']\r\nOK: todas coinciden en 2.2.0\r\nCHANGELOG.md    : sección [2.2.0] presente\r\nCHANGELOG.es.md : sección [2.2.0] presente\r\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "scripts/export-interop.py",
+        "--check"
+      ],
+      "exit": 0,
+      "stdout": "export-interop --check: 88 ficheros al día\r\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "scripts/export-skills.py",
+        "--out",
+        "<portable-preview>",
+        "--quiet"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "scripts/export-skills.py",
+        "--check",
+        "<portable-preview>"
+      ],
+      "exit": 0,
+      "stdout": "export-skills --check: 254 ficheros · 0 problema(s)\r\n",
+      "stderr": ""
+    }
+  ],
+  "changed": [
+    ".agents/plugins/marketplace.json",
+    ".claude-plugin/marketplace.json",
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+    "CHANGELOG.es.md",
+    "CHANGELOG.md",
+    "package.json"
+  ],
+  "preview_patch_sha256": "99c19e84f1b30ce26f81fd4fab2cb4c365ec0d0d84e6ba4dfaee663c113f3e4a",
+  "current_head_unchanged": true,
+  "tag_created": false,
+  "release_published": false,
+  "source_changelog_sha256": {
+    "CHANGELOG.md": "dcd9caf68ee957758d11630a0f2ee77b767fe0e97bed4331fa918a9ba3f523a7",
+    ".claude-plugin/plugin.json": "6dfc55959cde5ff6e0f67a893c600fb3af156df3ead8a5afc43612c14ad4c6b2",
+    ".codex-plugin/plugin.json": "04da5d49b60b6d8218dbbdd48c1258452f4462a3270bc0b91f981918880955ae",
+    ".claude-plugin/marketplace.json": "ff20746402e61f8d30baeb9b6389b51af366a9761b26af5012daae8b37ac3cb8",
+    "CHANGELOG.es.md": "ff3411342a3e0cfdeefa6677c2036397101ae2201beb014804567d48ccef38ec",
+    ".agents/plugins/marketplace.json": "2891dabeb642f3938d6e14a090a0b24b2574a361ac9a97a7c6b8be7fd32514c6",
+    "package.json": "b6d923c8ab96f8d77d941c1fdae74254b80ccb20ef22a3b797867d8fdf37f847"
+  }
+}
