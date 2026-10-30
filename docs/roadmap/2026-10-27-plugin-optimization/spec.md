@@ -1,9 +1,9 @@
 ---
 spec: plugin-optimization
 descripcion: Optimizar el plugin en tres frentes medidos (latencia síncrona de hooks, tokens fijos y bajo demanda, y viabilidad con modelos locales de 9B-32B vía OpenCode/Codex) con un benchmark reproducible antes y después de cada cambio
-estado: aprobada          # borrador | aprobada | implementada | obsoleta
+estado: implementada      # borrador | aprobada | implementada | obsoleta
 creado: 2026-10-27
-actualizado: 2026-10-27
+actualizado: 2026-10-30
 evaluacion: evaluation.md
 design: design.md
 plan: improvement-plan.md
@@ -15,6 +15,8 @@ generacion:
 # Optimización del plugin: hooks, tokens y modelos locales
 
 > **Diseño F3 aprobado:** [O1 y perfil lite](design.md); ejecutar primero el spike Codex obligatorio de T-22.
+
+> **Entrega cerrada 2026-10-30:** F1 v2.1.0, F2 v2.2.0 y F3 v2.3.0 publicadas. La prueba real con Ollama queda aplazada por decisión expresa del usuario; no se acredita inferencia ni calidad del modelo. [Seguimiento](testing/t26-manual-ollama-checklist.md), [autorización](testing/t26-release-authorization-2026-10-30.json) y [retro](retro.md).
 
 > **Evaluación:** [`evaluation.md`](evaluation.md)
 > **Plan de implementación:** [`improvement-plan.md`](improvement-plan.md) · [`tasks.md`](tasks.md)
@@ -101,24 +103,27 @@ Fuentes: auditorías del orquestador del 2026-10-27 (hallazgos verificados en el
 
 ## Criterios de aceptación
 
-- [ ] Existe un benchmark reproducible versionado que da la mediana por hook (≥ 10 ejecuciones, payloads fixture) y los tokens fijos por sesión; la línea base de esta máquina queda registrada en la iniciativa.
+- [x] Existe un benchmark reproducible versionado que da la mediana por hook (≥ 10 ejecuciones, payloads fixture) y los tokens fijos por sesión; la línea base de esta máquina queda registrada en la iniciativa.
 - [x] [GWT] CA-01 — Dada una sesión principal sin rol protegido, cuando se ejecuta un Bash o un Edit, el hook PreToolUse no arranca ningún proceso Python. La entrega incluye una comparación versionada antes/después, con al menos diez muestras por variante y runtime, calentamiento descartado, control de arranque de Node y declaración de dispersión y fallos. F1 no exige un porcentaje mínimo de reducción de la mediana; informa de la mejora que la medición permita acreditar.
 
 Ajuste aprobado por el usuario el 2026-10-29 («adelante», «adelante con el plan»): véase la [decisión y evidencia](testing/f1-performance-adjustment-proposal.md). El 80 % queda como objetivo de investigación posterior, sujeto a viabilidad y revalidación de alcance y coste; no se atribuye a una tarea existente de F2. La estabilidad de T-01 y las puertas de T-07 se conservan.
-- [ ] [GWT] CA-02 — Dado un subagente `implementer` o `architect` con identidad nativa exacta, Cuando intenta una operación prohibida por los guardrails, Entonces el guard la deniega igual que antes (suites de guard en verde sin cambiar expectativas).
-- [ ] [GWT] CA-03 — Dado un `native-roles.json` corrupto, Cuando se ejecuta cualquier herramienta vigilada, Entonces se emite el diagnóstico actual y no se pierde la comprobación.
-- [ ] Ninguna description de agente, skill o comando pasa de 600 caracteres; `lint_plugin.py` avisa a 600; `evals/check.py` en verde; los tokens fijos bajan al menos ~2.000 frente a la línea base.
-- [ ] [GWT] CA-04 — Dado el statusline activado, Cuando se refresca sin cambios en el ledger, Entonces lanza como máximo un proceso Python, sirve desde caché y no usa el alias `python3` de WindowsApps.
-- [ ] `hooks/hooks.json` declara timeout en SessionStart; `test_hooks_config.py` lo vigila.
-- [ ] [GWT] CA-05 — Dado temporales `knowledge-index.sqlite.<pid>.tmp` (+ `-journal`) de procesos muertos, Cuando se reconstruye el índice, Entonces se eliminan y no se acumulan nuevos tras una muerte forzada.
-- [ ] [GWT] CA-06 — Dado un SessionStart, Cuando se ejecuta `session-context`, Entonces lanza un único proceso Python (más el supervisor en Windows) y su salida es idéntica a la actual por runtime.
-- [ ] [GWT] CA-07 — Dado un Edit sobre `tasks.md`, Cuando corre el PostToolUse, Entonces el ledger se parsea una sola vez y salen los mismos mensajes que con los dos hooks separados.
-- [ ] `quick-implement` y la vía rápida de `/dev-cycle` no cargan las fases que no usan; ahorro medido ≥ 6k tokens; `test_skill_size.py --diet-check` (o equivalente para comandos) con 0 párrafos perdidos; `export-interop.py --check` en verde.
-- [ ] La sección de memoria gobernada de `knowledge-check.md` solo se lee cuando el proyecto la tiene activa; ahorro medido por ciclo registrado.
-- [ ] [GWT] CA-08 — Dado `dev.json` con un id de modelo local en `modelos.<agente>`, Cuando se resuelve el tier y se exporta interop, Entonces `model-tier.py` lo acepta y los agentes de Codex/OpenCode llevan su `model`.
-- [ ] [GWT] CA-09 — Dado una tarea del ledger, Cuando se marca con `ledger-write.py` (estado, evidencia `RED:`, cabecera de revisión), Entonces `ledger-lint` pasa sin avisos y el formato es exactamente el canónico.
-- [ ] [GWT] CA-10 — Dado un runtime con un modelo local de contexto menor que el mínimo del tramo, Cuando se ejecuta `/doctor`, Entonces muestra ⚠️ con el arreglo, sin red salvo hosts locales y sin bloquear.
-- [ ] Docs espejo ES/EN y los dos CHANGELOG actualizados en cada fase; `interop/` regenerado; release por fase con `scripts/release.py`.
+- [x] [GWT] CA-02 — Dado un subagente `implementer` o `architect` con identidad nativa exacta, Cuando intenta una operación prohibida por los guardrails, Entonces el guard la deniega igual que antes (suites de guard en verde sin cambiar expectativas).
+- [x] [GWT] CA-03 — Dado un `native-roles.json` corrupto, Cuando se ejecuta cualquier herramienta vigilada, Entonces se emite el diagnóstico actual y no se pierde la comprobación.
+- [x] Ninguna description de agente, skill o comando pasa de 600 caracteres; `lint_plugin.py` avisa a 600; `evals/check.py` en verde; los tokens fijos bajan al menos ~2.000 frente a la línea base.
+- [x] [GWT] CA-04 — Dado el statusline activado, Cuando se refresca sin cambios en el ledger, Entonces lanza como máximo un proceso Python, sirve desde caché y no usa el alias `python3` de WindowsApps.
+- [x] `hooks/hooks.json` declara timeout en SessionStart; `test_hooks_config.py` lo vigila.
+- [x] [GWT] CA-05 — Dado temporales `knowledge-index.sqlite.<pid>.tmp` (+ `-journal`) de procesos muertos, Cuando se reconstruye el índice, Entonces se eliminan y no se acumulan nuevos tras una muerte forzada.
+- [x] [GWT] CA-06 — Dado un SessionStart, Cuando se ejecuta `session-context`, Entonces lanza un único proceso Python (más el supervisor en Windows) y su salida es idéntica a la actual por runtime.
+- [x] [GWT] CA-07 — Dado un Edit sobre `tasks.md`, Cuando corre el PostToolUse, Entonces el ledger se parsea una sola vez y salen los mismos mensajes que con los dos hooks separados.
+- [x] `quick-implement` y la vía rápida de `/dev-cycle` no cargan las fases que no usan; ahorro medido ≥ 6k tokens; `test_skill_size.py --diet-check` (o equivalente para comandos) con 0 párrafos perdidos; `export-interop.py --check` en verde.
+- [x] La sección de memoria gobernada de `knowledge-check.md` solo se lee cuando el proyecto la tiene activa; ahorro medido por ciclo registrado.
+- [x] [GWT] CA-08 — Dado `dev.json` con un id de modelo local en `modelos.<agente>`, Cuando se resuelve el tier y se exporta interop, Entonces `model-tier.py` lo acepta y los agentes de Codex/OpenCode llevan su `model`.
+- [x] [GWT] CA-09 — Dado una tarea del ledger, Cuando se marca con `ledger-write.py` (estado, evidencia `RED:`, cabecera de revisión), Entonces `ledger-lint` pasa sin avisos y el formato es exactamente el canónico.
+- [x] [GWT] CA-10 — Dado un runtime con un modelo local de contexto menor que el mínimo del tramo, Cuando se ejecuta `/doctor`, Entonces muestra ⚠️ con el arreglo, sin red salvo hosts locales y sin bloquear.
+- [x] Docs espejo ES/EN y los dos CHANGELOG actualizados en cada fase; `interop/` regenerado; release por fase con `scripts/release.py`.
+
+
+**Traza de cierre 2026-10-30.** Las marcas remiten a los criterios y evidencias del [ledger](tasks.md): F1 T-01..T-07 y sus ajustes humanos aprobados; F2 T-08..T-19 con tres no-go condicionales; F3 T-20..T-26 con O1 aprobada y la excepción manual expresa. CA-08 se concreta mediante proyecciones explícitas del consumidor, sin personalizar el export canónico ni la caché. CA-10 diagnostica contexto conocido/desconocido y el sondeo opt-in; no certifica el contexto efectivo de una sesión real. Las marcas no acreditan la prueba real con Ollama, que sigue [aplazada](testing/t26-manual-ollama-checklist.md), ni estabilidad uniforme de la línea base o el 80 % original. Publicación y límites: [recibo](testing/f3-publication-2.3.0-2026-10-30.json).
 
 ## Pruebas
 

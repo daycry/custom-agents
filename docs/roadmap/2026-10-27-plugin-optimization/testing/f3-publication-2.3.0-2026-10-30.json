@@ -1,0 +1,141 @@
+{
+  "date": "2026-10-30",
+  "version": "2.3.0",
+  "pr": 21,
+  "merge_commit": "67245ab3a797fb5401830c4c1b5a3a2e3abf2eda",
+  "release_commit": "89834d7d42f9732cfeac157f6365622973cba029",
+  "release_url": "https://github.com/daycry/custom-agents/releases/tag/v2.3.0",
+  "published_at": "2026-10-30T18:15:02Z",
+  "manual_ollama": "deferred_not_executed_by_user_instruction",
+  "source_ci": {
+    "run_id": 41102484524,
+    "head": "d37e955a135fa1ca6b9f3ead282f46ac32b72a74",
+    "conclusion": "success"
+  },
+  "code_qa": "t26-automated-verification-2026-10-30.md",
+  "assets": [
+    {
+      "name": "custom-agents-2.3.0.zip",
+      "bytes": 4536077,
+      "sha256": "92064106a04a7fbab0c659984361cd45eaf7d96b5fafbf20ba88d79f386f5f78",
+      "digest_matches_github": true,
+      "zip_crc": "pass",
+      "entries": 1188,
+      "url": "https://github.com/daycry/custom-agents/releases/download/v2.3.0/custom-agents-2.3.0.zip"
+    },
+    {
+      "name": "custom-agents-skills-portable-2.3.0.zip",
+      "bytes": 1520850,
+      "sha256": "f070cb1699da9bb7fe4f69c190b935f637090668e37f7593dea99b11a61a9eae",
+      "digest_matches_github": true,
+      "zip_crc": "pass",
+      "entries": 344,
+      "url": "https://github.com/daycry/custom-agents/releases/download/v2.3.0/custom-agents-skills-portable-2.3.0.zip"
+    }
+  ],
+  "mechanical_release_paths": [
+    ".agents/plugins/marketplace.json",
+    ".claude-plugin/marketplace.json",
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+    "CHANGELOG.es.md",
+    "CHANGELOG.md",
+    "package.json"
+  ],
+  "actual_patch_sha256": "706d26529c4bb9f811ed22b8b0809a2d8be37caa22ae4a78b3c411eb26bf4349",
+  "actual_blobs": {
+    ".agents/plugins/marketplace.json": "9ecc801d734025055b3c55ccbec427db3951b5d2",
+    ".claude-plugin/marketplace.json": "45d4678f7184d66e8cb5b213ab18c98ff4e6f66e",
+    ".claude-plugin/plugin.json": "e907960dc32df7920681e9db3096e267d56e00a5",
+    ".codex-plugin/plugin.json": "d303a813a7b30bfe428a5a423b30fad6c2ace849",
+    "CHANGELOG.es.md": "339b2e4bdc663aa63ac5530dbf8c73d65391f5e2",
+    "CHANGELOG.md": "d35500ca1c8a4b69839823e9383a0c0586d4f950",
+    "package.json": "d4a571f28d6633f0883ca98c4a7c0a86416b79e5"
+  },
+  "asset_files_byte_equal_to_tag": [
+    ".agents/plugins/marketplace.json",
+    ".claude-plugin/marketplace.json",
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+    "package.json",
+    "agent-kits/shared/model-tier.py",
+    "agent-kits/shared/ledger-write.py",
+    "agent-kits/shared/local-state.py",
+    "agent-kits/shared/ledger-lint.py",
+    "agent-kits/shared/ledger-view.py",
+    "agent-kits/shared/doctor.py",
+    "agent-kits/shared/task-brief.py",
+    "agent-kits/shared/execution-profile.py",
+    "scripts/export-interop.py",
+    "install/providers.mjs",
+    "install/install.mjs",
+    "commands/dev-cycle.md",
+    "CHANGELOG.md",
+    "CHANGELOG.es.md"
+  ],
+  "release_checks": [
+    {
+      "command": "python scripts/release.py 2.3.0",
+      "exit": 0
+    },
+    {
+      "command": "python scripts/release.py --check",
+      "exit": 0
+    },
+    {
+      "command": "python scripts/export-interop.py --check",
+      "exit": 0
+    }
+  ],
+  "push": "atomic_master_and_tag_success",
+  "privacy_rejection_resolved_with_repository_noreply_identity": true,
+  "installed_plugin_cache_modified": false,
+  "portable_asset_export_check": {
+    "exit": 0,
+    "files": 257
+  },
+  "release_workflow": {
+    "conclusion": "success",
+    "databaseId": 41105242963,
+    "headSha": "89834d7d42f9732cfeac157f6365622973cba029",
+    "status": "completed",
+    "url": "https://github.com/daycry/custom-agents/actions/runs/41105242963"
+  },
+  "post_merge_ci": {
+    "conclusion": "success",
+    "databaseId": 41104594820,
+    "headSha": "67245ab3a797fb5401830c4c1b5a3a2e3abf2eda",
+    "status": "completed",
+    "url": "https://github.com/daycry/custom-agents/actions/runs/41104594820"
+  },
+  "post_release_ci": {
+    "conclusion": "success",
+    "databaseId": 41105243467,
+    "headSha": "89834d7d42f9732cfeac157f6365622973cba029",
+    "status": "completed",
+    "url": "https://github.com/daycry/custom-agents/actions/runs/41105243467"
+  },
+  "clock_window": {
+    "inicio": "2026-10-30T17:52:52Z",
+    "fin": "2026-10-30T18:17:02Z",
+    "duracion_reloj": "24m",
+    "tokens_reales": null,
+    "eur": null,
+    "horas_ia": null
+  },
+  "closure_checks": {
+    "ledger_lint": 0,
+    "retro_gate": 0,
+    "scope_check": 0,
+    "changelog_sync_check": 0,
+    "calibration_ratio": [
+      531798.5,
+      6
+    ]
+  },
+  "cleanup": {
+    "integrated_feature_branch_deleted": true,
+    "initiative_meter_markers": 39,
+    "initiative_open_meter_markers": 0
+  }
+}

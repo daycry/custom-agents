@@ -1,4 +1,5 @@
 ---
+estado: completado
 generacion:
   inicio: 2026-10-27T14:14:18Z
   fin: 2026-10-27T14:23:52Z
@@ -22,7 +23,7 @@ changelog: Changed
 
 | | |
 |---|---|
-| **Estado** | en-progreso |
+| **Estado** | completado |
 | **Fecha** | 2026-10-27 |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
 | **Diseño** | [O1 aprobado](design.md) |
@@ -39,10 +40,10 @@ changelog: Changed
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Quick wins medibles (v2.1.0 publicada) | 7 | 7 | 100% | 0 / 38.4h | 0 / 14.8h | 0 / 3.7h | 0 / 6.0M in + 600k out |
 | Fase 2 — Reestructuración (v2.2.0 publicada; 3 canceladas) | 9 | 12 | 75.0% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
-| Fase 3 — Modelos locales (T-22..T-25 funcionales) | 6 | 7 | 85.7% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
-| **TOTAL** | **22** | **26** | **84.6%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
+| Fase 3 — Modelos locales (v2.3.0 publicada) | 7 | 7 | 100.0% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
+| **TOTAL** | **23** | **26** | **88.5%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
 
-> **F2 publicada como v2.2.0: 9 tareas completadas y 3 condicionales canceladas (T-16/T-17/T-18, no implementadas).** Revisión aprobada en 2 intentos, coverage Python92,25 y CI completa verde. T-20/T-21/T-22 completadas; O1 y lite aprobados en [el diseño](design.md). T-22..T-25 completadas funcionalmente; T-26 pendiente. Las cancelaciones no se suman a las completadas.
+> **F2 publicada como v2.2.0: 9 tareas completadas y 3 condicionales canceladas (T-16/T-17/T-18, no implementadas).** Revisión aprobada en 2 intentos, coverage Python92,25 y CI completa verde. T-20/T-21/T-22 completadas; O1 y lite aprobados en [el diseño](design.md). T-22..T-25 completadas y T-26 cerrada con la excepción manual aprobada; F3 publicada como v2.3.0. La prueba real con Ollama permanece aplazada y no superada. Las cancelaciones no se suman a las completadas.
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Jira no está activado en este proyecto (no hay `jira.json`). Ver `skills/jira-sync/SKILL.md`.
 
@@ -677,7 +678,7 @@ changelog: Changed
 
 ## Fase 3 — Modelos locales
 
-**Estado**: borrador · **Estimado**: 45.0h · **Real**: — · **Coste est.**: 2294 € · **Tokens est.**: 7.3M in / 730k out. **Diferida**: esqueleto, se concreta al revalidar (primera tarea de la fase).
+**Estado**: completado · **Estimado**: 45.0h · **Real**: — · **Coste est.**: 2294 € · **Tokens est.**: 7.3M in / 730k out. **Revalidada y entregada**: O1 aprobada, v2.3.0 publicada; prueba manual aplazada por el usuario.
 
 ### T-20 — Revalidar el plan de F3 contra `master`
 
@@ -980,24 +981,24 @@ Correcciones A-F3-01/02: descriptores del implementer/shared/matriz E8 actualiza
 
 - **Descripción**: Resultado: F3 cerrada y publicada: validación estática (contratos, interop, doctor) + prueba manual del usuario en otro equipo con Ollama (fuera de presupuesto; mínimos por tramo orientativos), CHANGELOG ES/EN, docs espejo, interop, réplica Linux y `scripts/release.py`. Requisito: evaluation.md §P-F3, decisiones 6 y 7 de la puerta.
 - **Changelog**: Publicar la fase de modelos locales con CI y cobertura verificadas; la prueba real con Ollama queda aplazada por decisión del usuario.
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 2.4h · real —
 - **Tiempo IA (ejec.)**: est. 0.64h · real —
 - **Supervisión**: est. 0.16h (≈25 % IA) · real —
 - **Previsión IA**: 0.3M in / 30k out tok · 1.79 €
 - **Dependencias**: T-22, T-23, T-24, T-25
 - **Tipo**: devops
-- **Archivos**: `CHANGELOG.md`, `CHANGELOG.es.md`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `docs/roadmap/README.md`, `docs/roadmap/2026-10-27-plugin-optimization/testing/**`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `CHANGELOG.md`, `CHANGELOG.es.md`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `docs/roadmap/README.md`, `docs/roadmap/CALIBRATION.md`, `docs/roadmap/2026-10-27-plugin-optimization/retro.md`, `docs/roadmap/2026-10-27-plugin-optimization/spec.md`, `docs/roadmap/2026-10-27-plugin-optimization/testing/**`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
 - **Verificación**: `python agent-kits/shared/ledger-lint.py docs/roadmap/2026-10-27-plugin-optimization/tasks.md; python scripts/lint_plugin.py; python evals/check.py; python scripts/export-interop.py --check` → exit 0; lectura de revisión independiente <=3 intentos, cobertura oficial >=90, CI Linux completa, checklist manual Ollama real y release por script con versión confirmada.
 
 **Criterios de aceptación**
-- [ ] Criterio (esqueleto): los mismos que T-07 aplicados a F3, más resultado de la prueba manual del usuario anotado. Se concreta al revalidar.
+- [x] Criterio (esqueleto): los mismos que T-07 aplicados a F3, más resultado de la prueba manual del usuario anotado. Se concreta al revalidar.
 
 **Concreción propuesta por T-20, sujeta a T-21:** F3 revisada en <=3 intentos sin gaps pendientes, cobertura oficial >=90, CI Linux completa sin rojos aceptados, docs/notas ES/EN e interop vigentes. Checklist real del usuario en otro equipo con Ollama registra versión/modelo/contexto, vía rápida y puertas; no se sustituye por mocks ni recomendaciones de parámetros. Publicar por release.py tras confirmar versión.
 
 **Subtareas**
-- [ ] Se concreta al revalidar.
+- [x] Se concreta al revalidar.
 
 **Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido; mismo procedimiento que T-07. Se concreta al revalidar. Clasificación: proceso. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
 
@@ -1014,6 +1015,15 @@ El usuario ordena hacer commits, push y crear una nueva release, y aplaza expres
 QA automática final aceptada sobre4596eaf, revisión2/3 sin gaps, cobertura91,08 y CI completa verde; CI posterior de metadatos f98ffaa también verde (41095385574). Knowledge Curator adopta el rol local tras QA: dos aprobaciones con gate readonly exit0, servicio complete y retirada de fuentes exactas; índice18 entradas/sin errores, sin exportar a backends. IDs y recibos reales: `testing/t26-curation-2026-10-30.json`; operation-id incorporados en curation-refs-v1. Las comprobaciones iniciales con IDs legacy fallaron por prefijo de taxonomía; no se aplicaron y se repitieron con el prefijo del proyecto, sin cambiar candidatos.
 
 T-26 sigue en-progreso exclusivamente hasta verificar la publicación; la prueba manual queda aplazada con seguimiento separado en `testing/t26-manual-ollama-checklist.md`. La preview anterior es histórica: las notas incorporan ahora el aplazamiento y se volverán a comprobar con release.py antes de publicar. TDD n/a: cierre documental y empaquetado, sin cambios productivos.
+
+
+### Cierre de entrega F3 — 2026-10-30
+
+PR21 fusionada en `67245ab` tras CI 41102484524 verde sobre d37e955. `release.py 2.3.0` crea `89834d7`; push atómico de master y v2.3.0. [Release publicada](https://github.com/daycry/custom-agents/releases/tag/v2.3.0), con dos ZIP descargados y comprobados: digest SHA256 de GitHub, CRC, versiones y 19 archivos idénticos al tag; portable de 257 archivos, sin problemas. Workflow de release 41105242963 completado verde. CI final 41105243467 sobre `89834d7` completada verde. El intento local inicial recibió GH007 sin mutación remota; se regeneró con la identidad pública del repositorio, árbol idéntico al diff revisado y sin cambiar la privacidad global.
+
+**T-26 completada conforme al ajuste autorizado:** su checkbox original no representa una prueba manual ejecutada. La validación real con Ollama sigue aplazada en la ficha de seguimiento; no se acredita inferencia/calidad del modelo. Balance: 23 tareas completadas y 3 canceladas por no-go, sin contarlas como implementadas. Retro y fila de calibración sin ratio medido; no se inventan costes/horas/tokens. Conocimiento adicional: sin cambios, las dos entradas técnicas de F3 ya están curadas localmente.
+
+Recibo de publicación: `testing/f3-publication-2.3.0-2026-10-30.json`. Ventana de preparación/publicación 17:52:52–18:17:02 UTC, 24 min de reloj; tokens/coste/horas IA null. La revisión documental posterior no está incluida en esa ventana; no se usa como ratio ni ahorro medido.
 
 ---
 

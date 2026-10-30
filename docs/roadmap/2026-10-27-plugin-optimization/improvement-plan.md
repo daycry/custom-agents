@@ -1,4 +1,5 @@
 ---
+estado: completado
 design: design.md
 test-plan: n/a (sin UI)
 generacion:
@@ -28,14 +29,14 @@ generacion:
 | | |
 |---|---|
 | **Fecha** | 2026-10-27 |
-| **Estado** | en-progreso |
+| **Estado** | completado |
 | **Tipo** | Infra / Refactor (rendimiento y tokens), con una capacidad nueva (benchmark) |
 | **Prioridad** | Alta 🟠 |
 | **Solicitante** | Daycry (vía `/pm-cycle`) |
 | **Responsable** | `implementer` (supervisa Daycry) |
 | **Spec** | [`spec.md`](spec.md) |
 | **Evaluación** | [`evaluation.md`](evaluation.md) — go por tramos, decisión de la puerta del 2026-10-27 |
-| **Diseño** | n/a (paso `architect` previsto solo antes de F3, tarea T-21) |
+| **Diseño** | [O1 y perfil lite aprobados](design.md) |
 
 > **Alcance autorizado 2026-10-29:** F1 publicada como **v2.1.0**. El usuario autoriza continuar F2 y F3; **F2** se revalida en T-08 contra ese `master` y sus verificaciones concretas viven en `tasks.md`. **F3** conserva revalidación T-20 tras publicar F2 y diseño aprobado T-21. Una release por fase (`scripts/release.py`).
 
@@ -275,8 +276,10 @@ Los ficheros exactos de cada tarea están en su campo `Archivos` de `tasks.md` (
 ---
 
 
-## Siguiente paso
+## Resultado y seguimiento
 
-F1 v2.1.0 y F2 v2.2.0 publicadas. T-20 revalidada; el usuario aprueba O1 y el perfil lite de 6.000 caracteres el 2026-10-30. T-21 completada, con memoria candidata pendiente de Curator. El spike de T-22 acredita binding, identidad y modelo mediante un proveedor simulado local, sin modelo real ni cambios en caché. Continúa T-22 con tests RED antes del código; T-26 conserva prueba manual con Ollama y todas las puertas.
+F1 v2.1.0, F2 v2.2.0 y F3 v2.3.0 publicadas. PR21 fusionada; revisión A/B/C/D sin gaps en 2 intentos, cobertura Python 91,08 % y CI del código verdes. Entrega y assets verificados en [el recibo](testing/f3-publication-2.3.0-2026-10-30.json). 23 tareas completadas y 3 condicionales canceladas; no se presentan como implementadas. [Retro](retro.md), calibración sin ratio real comparable y memoria técnica local curada.
 
-Decisión de diseño 2026-10-30: O1 elegida explícitamente («adelante»); binding nativo con go documentado y límites conservados, brief lite6.000, revisores frescos secuenciales y writer requerido en lite.
+Único seguimiento manual: el usuario aplaza la prueba real con Ollama. La [ficha](testing/t26-manual-ollama-checklist.md) sigue sin ejecutar y no condiciona esta entrega por [su decisión expresa](testing/t26-release-authorization-2026-10-30.json). Los mínimos por tramo siguen siendo orientativos. El objetivo original del 80 % conserva su disposición como investigación futura, sin nuevo alcance aprobado.
+
+Decisión de diseño 2026-10-30: O1 y lite de 6.000 caracteres aprobados, bindings propios, revisión fresca secuencial y writer obligatorio en lite. No se ha modificado la caché instalada ni la configuración global.
