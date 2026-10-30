@@ -39,8 +39,8 @@ changelog: Changed
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Quick wins medibles (v2.1.0 publicada) | 7 | 7 | 100% | 0 / 38.4h | 0 / 14.8h | 0 / 3.7h | 0 / 6.0M in + 600k out |
 | Fase 2 — Reestructuración (v2.2.0 publicada; 3 canceladas) | 9 | 12 | 75.0% | 0 / 69.0h | 0 / 28.3h | 0 / 7.1h | 0 / 11.4M in + 1140k out |
-| Fase 3 — Modelos locales (diseño pendiente) | 1 | 7 | 14.3% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
-| **TOTAL** | **17** | **26** | **65.4%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
+| Fase 3 — Modelos locales (spike T-22) | 2 | 7 | 28.6% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
+| **TOTAL** | **18** | **26** | **69.2%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
 
 > **F2 publicada como v2.2.0: 9 tareas completadas y 3 condicionales canceladas (T-16/T-17/T-18, no implementadas).** Revisión aprobada en 2 intentos, coverage Python92,25 y CI completa verde. T-20 completada; T-21 espera aprobar [el diseño](design.md). Las cancelaciones no se suman a las completadas.
 
@@ -62,6 +62,10 @@ changelog: Changed
   {
     "candidate": "docs/knowledge/candidates/pending/2026-10-29-redact-option-free-prose.md",
     "sha256": "d37ad0edf57bb634f4f4180a6b8ea1bd49fe280ca4deabdf8737b551711f8e8a"
+  },
+  {
+    "candidate": "docs/knowledge/candidates/pending/2026-10-30-modelos-locales-proyeccion-explicita.md",
+    "sha256": "9cea5eabe87fa15dbb5e2a4c764d36ed3be0b2135ce6c95bd098ff0f6662e473"
   }
 ]
 ```
@@ -700,7 +704,8 @@ changelog: Changed
 
 - **Descripción**: Resultado: `design.md` aprobado por el usuario con la opción elegida para (a) el formato de ids en OpenCode (`ollama/qwen3:32b`) frente a Codex (`model` + `model_provider`) y dónde vive el mapeo del consumidor (instalador o `dev.json` leído en runtime, sin romper el determinismo de interop), y (b) el alcance del perfil `lite`: solo recorta paralelismo y contexto, NO toca la revisión de dos lentes ni el `qa-gate` (decisión 3 de la puerta). Requisito: decisión 4 de la puerta; evaluation.md §C-11, §C-13.
 - **Changelog**: Diseño pendiente de validar: modelos por runtime y perfil lite que conserva revisión y QA.
-- **Estado**: en-progreso
+- **Estado**: completado
+- **Fecha cierre**: 2026-10-30
 - **Tiempo humano**: est. 0.0h · real —
 - **Tiempo IA (ejec.)**: est. 0.00h · real —
 - **Supervisión**: est. 0.00h (≈25 % IA) · real —
@@ -712,22 +717,24 @@ changelog: Changed
 - **Verificación**: lectura: `design.md` con `estado: aprobado` y opción elegida O<n>; `python3 agent-kits/shared/ledger-lint.py docs/roadmap/2026-10-27-plugin-optimization/tasks.md` → exit 0
 
 **Criterios de aceptación**
-- [ ] `design.md` aprobado cubre formato de ids por runtime, ubicación del mapeo y alcance de `lite`.
-- [ ] T-22..T-26 reajustadas al diseño, con la diferencia anotada en el `Changelog del plan`.
+- [x] `design.md` aprobado cubre formato de ids por runtime, ubicación del mapeo y alcance de `lite`.
+- [x] T-22..T-26 reajustadas al diseño, con la diferencia anotada en el `Changelog del plan`.
 
 **Subtareas**
-- [ ] Invocar `architect` sobre C-11 y C-13.
-- [ ] Validar con el usuario por trozos.
-- [ ] Reajustar tareas.
+- [x] Invocar `architect` sobre C-11 y C-13.
+- [x] Validar con el usuario por trozos.
+- [x] Reajustar tareas.
 
 **Notas**: El coste del paso `architect` NO está presupuestado en la evaluación (0 h aquí); se mide con su propio `usage-meter` en `design.md`. Tras aprobarlo: `design: design.md` en el frontmatter de este plan y `plan: improvement-plan.md` en el del diseño; reajustar T-22..T-26 si cambia el alcance. ADR `propuesta` vía `knowledge-curation.py propose`. Clasificación: proceso (decisión de diseño). Coste estimado de la tarea: 0 € (horas × 50 € + tokens).
 
+
+Diseño O1 y decisiones lite aprobados por el usuario el 2026-10-30 («adelante»). Rol architect aplicado por el orquestador, sin acreditar invocación nativa. TDD n/a: prosa/config. Candidato de memoria según recibo de servicio; sin promoción. El go del spike T-22 no está demostrado.
 
 ### T-22 — C-11 — Ids no Claude en `dev.json` y `model` en interop
 
 - **Descripción**: Resultado: `model-tier.py` admite ids de proveedor local y `export-interop.py` emite `model` en `interop/opencode/agents` y `interop/codex/agents/*.toml` cuando haya mapeo, sin romper el determinismo (`--check`); ADR-009 revisado (CA-08). Requisito: evaluation.md §C-11, spec §Criterios CA-08.
 - **Changelog**: Seleccionar modelos locales por agente con resolución por runtime y proyecciones explícitas, conservando el modo Claude y las cachés instaladas.
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 12.0h · real —
 - **Tiempo IA (ejec.)**: est. 4.96h · real —
 - **Supervisión**: est. 1.24h (≈25 % IA) · real —
@@ -995,3 +1002,13 @@ Usuario confirma fusionar y publicar v2.2.0. PR20 fusionada en `c13dbcc9`; relea
 **T-20 completada:** contratos y rutas concretados contra `c6aee505`; nuevas suites declaradas como entregables futuros, no como tests ejecutados. Presupuesto F3 provisional45h, delta0h; no hay real IA comparable de F1/F2 y no se sustituyen tokens/horas IA por tiempo de reloj. Evidencia `testing/t20-revalidation-2026-10-30.md`. CA-08/09/10 globales conservados y pendientes.
 
 **T-21 en progreso:** `design.md` tiene tres opciones. O1 recomendada, condicionada a spike de bindings Codex sin caché/globales y retorno a diseño si no hay go; O2 distribución derivada requiere reestimar; O3 herencia de sesión requiere cambiar CA-08. Las decisiones de lite (6.000 caracteres, revisores frescos secuenciales, writer obligatorio en lite) son propuestas, no criterios aprobados. No se implementa T-22..T-25 antes de validación del usuario. T-26 mantiene prueba manual real en otro equipo con Ollama.
+
+
+## Aprobación T-21 — 2026-10-30
+
+Usuario aprueba O1 y perfil lite de 6.000 caracteres, con revisores frescos secuenciales y todas las puertas conservadas. T-21 completada y enlaces spec/diseño/plan actualizados. T-22 en progreso comienza por spike sin peticiones a modelos; no se acepta parseo de config como selección efectiva. Sin go se vuelve a diseño. Evidencia `testing/t21-design-approval-2026-10-30.json`.
+
+
+### Spike inicial T-22 — go de proyección nativa, 2026-10-30
+
+Cuatro casos con CLI0.166.0, instalador real en entorno propio y servidor Responses simulado local: baseline solicita gpt-6.1-sol; binding de proyecto solicita fixture-projected-model; retirada y nombre nativo incorrecto solicitan de nuevo el modelo base. Cada caso observa un subagente nativo por client_metadata, sin pasar override de modelo en spawn, y conserva sus instrucciones. Caché de 493 ficheros intacta; Job Object con cero procesos al final de cada caso. **Go limitado al binding/identidad/modelo**, sin inferencia real ni prueba de calidad de Ollama o entrega de guard; T-26 mantiene la validación manual. Recibo `testing/t22-native-binding-spike-2026-10-30.json`. TDD n/a: diagnóstico de contrato nativo, sin código productivo; el primer RED de implementación queda pendiente.

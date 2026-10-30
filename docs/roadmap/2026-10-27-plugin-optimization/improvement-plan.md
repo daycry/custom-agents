@@ -1,5 +1,5 @@
 ---
-design: n/a               # el paso architect se hará solo antes de F3 (C-11/C-13); F1 y F2 no lo necesitan
+design: design.md
 test-plan: n/a (sin UI)
 generacion:
   inicio: 2026-10-27T14:14:18Z
@@ -18,6 +18,8 @@ generacion:
 ---
 
 # 2026-10-27-plugin-optimization
+
+> **Diseño F3 aprobado:** [O1 y perfil lite](design.md); ejecutar primero el spike Codex obligatorio de T-22.
 
 > Plan de la optimización del plugin en tres frentes medidos (latencia de hooks, tokens fijos y bajo demanda, viabilidad con modelos locales): F1 detallada y lista para ejecutar; F2 y F3 diferidas, con presupuesto y esqueleto.
 
@@ -273,4 +275,6 @@ Los ficheros exactos de cada tarea están en su campo `Archivos` de `tasks.md` (
 
 ## Siguiente paso
 
-F1 publicada como v2.1.0 y F2 como v2.2.0 (PR20, `c6aee505`, ambos workflows verdes). T-20 revalidada contra esa release; rutas/verificaciones concretas y límites en el ledger y `testing/t20-revalidation-2026-10-30.md`. Continúa **T-21**: validar el [diseño borrador](design.md), sin seleccionar una opción ni implementar T-22..T-25 antes de esa decisión. Presupuesto provisional F3 45h sin real comparable; no se declara cerrada la iniciativa.
+F1 v2.1.0 y F2 v2.2.0 publicadas. T-20 revalidada; el usuario aprueba O1 y el perfil lite de 6.000 caracteres el 2026-10-30. T-21 completada, con memoria candidata pendiente de Curator. El spike de T-22 acredita binding, identidad y modelo mediante un proveedor simulado local, sin modelo real ni cambios en caché. Continúa T-22 con tests RED antes del código; T-26 conserva prueba manual con Ollama y todas las puertas.
+
+Decisión de diseño 2026-10-30: O1 elegida explícitamente («adelante»); binding nativo con go documentado y límites conservados, brief lite6.000, revisores frescos secuenciales y writer requerido en lite.

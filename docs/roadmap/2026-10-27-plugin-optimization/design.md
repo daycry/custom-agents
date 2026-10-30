@@ -1,14 +1,14 @@
 ---
 design: plugin-optimization-f3
 titulo: Modelos locales y perfil lite
-estado: borrador
+estado: aprobado
 creado: 2026-10-30
 actualizado: 2026-10-30
 spec: spec.md
 evaluacion: evaluation.md
 plan: improvement-plan.md
-adr: pendiente
-opcion_elegida: pendiente
+adr: docs/knowledge/candidates/pending/2026-10-30-modelos-locales-proyeccion-explicita.md
+opcion_elegida: O1
 generacion:
   fuente: estimado
   tokens_reales: null
@@ -23,9 +23,9 @@ generacion:
 
 | | |
 |---|---|
-| Estado | Borrador de T-21; no autoriza implementar T-22..T-25 |
-| Opción elegida | Pendiente |
-| Validada por el usuario | Pendiente |
+| Estado | Aprobado por el usuario; T-22 empieza por el spike obligatorio |
+| Opción elegida | O1, condicionada al go del spike Codex |
+| Validada por el usuario | 2026-10-30, respuesta «adelante» a O1 y perfil lite de 6.000 caracteres |
 | Base | v2.2.0, `c6aee505d200f6354939b8a3dc2305ee82b8ec62` |
 
 ## 1. Contexto y restricciones
@@ -95,9 +95,9 @@ El usuario inicia Codex/OpenCode con el modelo local; todos los agentes heredan 
 
 **Recomendación: O1**, condicionada al spike Codex con go demostrable. Conserva la configuración del consumidor y el criterio por agente sin convertir cada instalación en otra distribución. El diseño no declara validado un binding todavía no probado.
 
-**Opción elegida: pendiente de validación del usuario.** O2 queda como alternativa si se acepta su coste/alcance; O3 requiere aprobar un cambio de CA-08. Ninguna se selecciona por defecto al aprobar publicar F2.
+**Opción elegida: O1, validada por el usuario el 2026-10-30.** Se elige por configuración del consumidor, determinismo y recuperación sin modificar cachés. O2 se descarta en esta fase por distribución/identidad adicional y reestimación; O3 se descarta porque renuncia al mapeo por agente de CA-08. La aprobación incluye la condición go/no-go del spike; un no-go devuelve a diseño, sin pivotar automáticamente.
 
-**Decisiones comunes propuestas para lite y ledger-write (también pendientes):**
+**Decisiones comunes aprobadas junto a O1:**
 
 - Lite es opt-in; ejecución secuencial, sin subagentes de implementación. Los revisores de contexto fresco se conservan y se ejecutan secuencialmente: el toggle no suprime la revisión independiente. QA y coverage90 permanecen intactos.
 - Brief lite de 6.000 caracteres. Los bloques obligatorios nunca se truncan para cumplirlo; si no caben, se informa y no se despacha un brief incompleto. El perfil ordinario conserva 10.000.
@@ -131,8 +131,10 @@ El usuario inicia Codex/OpenCode con el modelo local; todos los agentes heredan 
 
 ## 7. Preguntas abiertas
 
-- Aprobar O1 (con spike y retorno a diseño si no hay go), elegir O2 con reestimación, o cambiar el criterio por agente con O3.
-- Validar las decisiones comunes propuestas: brief lite de 6.000 caracteres, revisores frescos secuenciales y writer obligatorio solo en lite.
+- Ejecutar el spike Codex de O1. Si no hay go acreditado, volver a T-21; las alternativas no quedan aprobadas.
+- Las decisiones comunes quedan aprobadas: brief lite de 6.000 caracteres, revisores frescos secuenciales y writer obligatorio solo en lite. Su implementación y QA están pendientes.
 - La prueba de calidad/funcionamiento de 32B con >=64k se ejecutará por el usuario en su otro equipo; no hay resultado todavía.
 
-Fuentes primarias, versiones observadas y límites: [revalidación](testing/t20-revalidation-2026-10-30.md). Consulta local de memoria parcial por `text_budget`: se aplican solo ADR-009 aceptado y Constitución leídos directamente; no se afirma inventario completo ni se promueve memoria. Capacidades seleccionadas: research-first, delivery-practices. Diseño preparado por el orquestador siguiendo el rol architect, sin subagente ni acreditación de identidad nativa. T-21 sigue abierta.
+Fuentes primarias, versiones observadas y límites: [revalidación](testing/t20-revalidation-2026-10-30.md). Consulta local de memoria parcial por `text_budget`: se aplican solo ADR-009 aceptado y Constitución leídos directamente; no se afirma inventario completo ni se promueve memoria. Capacidades seleccionadas: research-first, delivery-practices. Diseño preparado por el orquestador siguiendo el rol architect, sin subagente ni acreditación de identidad nativa. T-21 cierra por aprobación del diseño; el spike es la primera verificación de T-22.
+
+Candidato de decisión persistido por el servicio: `docs/knowledge/candidates/pending/2026-10-30-modelos-locales-proyeccion-explicita.md`, SHA256 `9cea5eabe87fa15dbb5e2a4c764d36ed3be0b2135ce6c95bd098ff0f6662e473`; pendiente de Curator, sin aprobación de memoria.
