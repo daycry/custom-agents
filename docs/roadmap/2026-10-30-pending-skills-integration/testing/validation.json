@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "base": "b7552a995d6a17d10391f82c8c98433cb7f1493e",
+  "tested_source_tree": "ae2a276005c1dad79f0bcc52cf263d471d777925",
+  "snapshot_sha256": "2d6ffcaa493257baf9d24c6dfa4cb1e5dedc2ea7a5a08d1ee8b08373a90fbd46",
+  "environment": {
+    "system": "Linux container",
+    "python": "3.11.18",
+    "cpus": 2,
+    "memory": "2 GiB",
+    "network": "none",
+    "source": "Git-projected bytes and modes in an isolated index",
+    "personal_settings_included": false
+  },
+  "full_pytest": {
+    "command": "CI pytest command from .github/workflows/ci.yml, all declared test directories",
+    "exit": 1,
+    "passed": 9888,
+    "failed": 2,
+    "skipped": 57,
+    "subtests_passed": 82,
+    "warning": "One pre-existing historical live-metric warning outside this change",
+    "failures": [
+      "tests/test_roadmap_index.py::test_ninguna_fila_se_queda_fuera_de_la_tabla",
+      "tests/test_roadmap_index.py::test_cada_iniciativa_con_ledger_tiene_su_fila_dentro_de_la_tabla[2026-10-30-pending-skills-integration]"
+    ],
+    "resolution": "Move new roadmap row inside its table; re-run the complete affected test file"
+  },
+  "roadmap_regression": {
+    "command": "python -m pytest -q tests/test_roadmap_index.py",
+    "linux_passed": 55,
+    "windows_passed": 55,
+    "exit": 0,
+    "unresolved_failures": 0
+  },
+  "final_python_result": {
+    "method": "Broad suite plus complete affected documentation regression; not a second full-suite run",
+    "unique_passed_after_correction": 9890,
+    "skipped": 57,
+    "functional_code_and_tests_unchanged_since_broad_snapshot": true,
+    "other_nonroadmap_delta": "One punctuation correction in shared README, reviewed literally"
+  },
+  "directed_linux": {
+    "passed": 215,
+    "skipped": 1,
+    "skip_reason": "No comma-decimal locale installed"
+  },
+  "portable_linux": {
+    "passed": 100,
+    "exit": 0
+  },
+  "windows_index_and_hooks": {
+    "passed": 106,
+    "exit": 0
+  },
+  "node": {
+    "command": "node --test --test-concurrency=2 tests/*.test.mjs",
+    "total": 447,
+    "passed": 431,
+    "failed": 0,
+    "skipped": 16,
+    "cancelled": 0,
+    "exit": 0
+  },
+  "coverage": {
+    "tool": "coverage-gate.py --changed-only --min 90",
+    "scope": "Whole changed production files, not changed lines or project-wide coverage",
+    "percentage": 93.0,
+    "minimum": 90,
+    "files": {
+      "agent-kits/shared/capability-route.py": 96.61,
+      "agent-kits/shared/skill-index.py": 92.66,
+      "scripts/export-interop.py": 89.74
+    },
+    "warnings": [],
+    "exit": 0
+  },
+  "static_checks": {
+    "lint_errors": 0,
+    "lint_warnings": 5,
+    "warning_scope": "Three historical generic names and two native Codex /hooks citations",
+    "eval_pieces": 58,
+    "eval_cases": 216,
+    "eval_errors": 0,
+    "interop_current_files": 88,
+    "all_exit_zero": true
+  },
+  "limits": [
+    "No real consumer-stack execution",
+    "Static activation does not prove model task quality",
+    "Real Codex cache remains 2.3.0 until an update is installed",
+    "Claude/OpenCode UI naming not verified"
+  ],
+  "logs_sha256": {
+    "full-pytest.log": "f3c9557b8d8adeb593e70986680308c62f70ab9190aa026bb017468747dcab76",
+    "roadmap-after.log": "a8057800bd2620aac79bf9457aa430ab20cea66692d28b16dade1f3bd30e64cb",
+    "directed-coverage.log": "8c1df7a6e387b98719e521e634fc778d15d9fb5c901258aff48d1a01251bd8f8",
+    "portable.log": "c15416c56c7644509496e04ea8cc9903cf2c178bfc76eefa84fe395979639f8b",
+    "node.log": "d5a317e1724fc9def95991f49e593ff939de0a736cf6da0e52b74a7400c9e085",
+    "gate.json": "510449de3debce65ff4d5c9a5b2ca77c4bfe2ceb6f52e2617e3030e7b67a943a"
+  }
+}

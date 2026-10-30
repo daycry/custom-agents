@@ -1,0 +1,1252 @@
+{
+  "date": "2026-10-30",
+  "base_head": "b7552a995d6a17d10391f82c8c98433cb7f1493e",
+  "historical_source": "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-destinations.json",
+  "historical_source_sha256": "44b21fc2838cd6ce39d78e72b1afa4865fce5cd9f40698218690c79480dcc794",
+  "source_corpus_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "method": "Revalidación incremental de decisiones de entrada; no auditoría de eficacia de stacks sin consumidor. La nueva guía se escribe desde contratos semánticos propios, sin copiar implementaciones ni instalar paquetes del corpus.",
+  "counts": {
+    "awaiting_context_or_dependency": 17,
+    "already_covered": 1,
+    "awaiting_consumer": 19,
+    "ready_for_integration": 9,
+    "requires_state_contract": 1
+  },
+  "directed_validation": {
+    "command": "python -m pytest -q agent-kits/shared/test_local_read.py -k \"binary_reader_preserves_raw_bytes or optional_digest_uses_original_bom or replaced_file_identity\"",
+    "passed": 3,
+    "deselected": 73
+  },
+  "destinations": [
+    {
+      "id": "D-111",
+      "owner": "skills/unit-tests/scripts/coverage-gate.py",
+      "new_file": false,
+      "sources": [
+        "S062",
+        "S064",
+        "S067",
+        "S149",
+        "S150",
+        "S151",
+        "S152",
+        "S153",
+        "S204",
+        "S241",
+        "S262"
+      ],
+      "sheets": [
+        "skills-cpp-dotnet-distribution-billing.md",
+        "skills-kotlin-family.md",
+        "skills-perl-family.md",
+        "skills-rails-redis-rust.md",
+        "skills-springboot-patterns-security-testing.md",
+        "skills-trade-flutter-observability.md"
+      ],
+      "proposal": "Parsers de cobertura de Kover, JaCoCo, CTest, .NET, Dart LCOV, Devel::Cover y cargo-llvm-cov: solo cuando un consumidor declare el stack.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "skills/unit-tests/scripts/coverage-gate.py",
+      "reason": "Esperar stack y formato de cobertura del consumidor. Los avisos de herramientas existentes no son parsers nuevos.",
+      "historical_owner_exists": true,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-cpp-dotnet-distribution-billing.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-kotlin-family.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-perl-family.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-rails-redis-rust.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-springboot-patterns-security-testing.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-trade-flutter-observability.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-112",
+      "owner": "skills/dependency-upgrade/scripts/deps-inventory.py",
+      "new_file": false,
+      "sources": [
+        "S103",
+        "S241"
+      ],
+      "sheets": [
+        "skills-fastapi-billing-flox.md",
+        "skills-rails-redis-rust.md"
+      ],
+      "proposal": "Detección de `.flox/env/manifest.toml` (y línea en `/doctor`) y de `Cargo.toml`: sin consumidor declarado; Flox además no tiene soporte nativo de Windows.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "skills/dependency-upgrade/scripts/deps-inventory.py",
+      "reason": "Esperar proyecto Rust/Flox y plataforma; no se añade dependencia o detección por popularidad.",
+      "historical_owner_exists": true,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-fastapi-billing-flox.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-rails-redis-rust.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-113",
+      "owner": "skills/frontend-quality/references/native-accessibility.md",
+      "new_file": true,
+      "sources": [
+        "S001",
+        "S162"
+      ],
+      "sheets": [
+        "skills-foundations.md",
+        "skills-glass-polish-manim.md"
+      ],
+      "proposal": "Correspondencias de accesibilidad iOS/Android (incluidas transparencia y movimiento reducidos del sistema): sin consumidor nativo.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "skills/frontend-quality/references/native-accessibility.md",
+      "reason": "Esperar aplicación nativa iOS/Android y plataforma de accesibilidad.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-foundations.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-glass-polish-manim.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-114",
+      "owner": "agent-kits/qa/references/desktop-e2e.md",
+      "new_file": true,
+      "sources": [
+        "S291"
+      ],
+      "sheets": [
+        "skills-ui-demo-desktop-e2e.md"
+      ],
+      "proposal": "E2E de escritorio Windows como referencia de `qa` (no agente nuevo) cuando un consumidor lo declare.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "agent-kits/qa/references/desktop-e2e.md",
+      "reason": "Esperar aplicación Windows bajo prueba y herramienta autorizada; el panel web no acredita E2E nativo.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-ui-demo-desktop-e2e.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-115",
+      "owner": "docs/knowledge/adr/ADR-022-rigor-proporcional-al-riesgo-y-ledger-fino-con-anexos-enlazados.md",
+      "new_file": false,
+      "sources": [
+        "S199"
+      ],
+      "sheets": [
+        "skills-orch-parallel-plan.md"
+      ],
+      "proposal": "Fila «contrato público o zona sensible ⇒ nivel mínimo medio» en la tabla de rigor de ADR-022 cuando se implemente `risk-profile.py`.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "docs/knowledge/adr/ADR-022-rigor-proporcional-al-riesgo-y-ledger-fino-con-anexos-enlazados.md",
+      "reason": "Depende del diseño de risk-profile.py; no se edita un ADR aceptado como efecto lateral.",
+      "historical_owner_exists": true,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-orch-parallel-plan.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-116",
+      "owner": "agent-kits/shared/knowledge-curation.py",
+      "new_file": false,
+      "sources": [
+        "S144"
+      ],
+      "sheets": [
+        "skills-ito-family.md"
+      ],
+      "proposal": "Digest calculado sobre el descriptor abierto en `apply` (robusto frente a cambio de ruta entre comprobación y uso): mejora posible sin destino inmediato.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "already_covered",
+      "destination": "agent-kits/shared/knowledge-curation.py",
+      "reason": "knowledge-curation._read usa local-read.read_bytes(include_digest=True, include_identity=True); hash e identidad proceden del descriptor abierto, con validación posterior de ruta y rechazo de hardlinks. Tres regresiones dirigidas pasan.",
+      "historical_owner_exists": true,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-ito-family.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-117",
+      "owner": "agent-kits/shared/journal.py",
+      "new_file": false,
+      "sources": [
+        "S054"
+      ],
+      "sheets": [
+        "skills-session-learning-memory.md"
+      ],
+      "proposal": "Observador automático de sesión por modelo (observer loop, `learning.py`, scheduler propio): fuera hasta que exista contrato de lote, permisos de tools restringidos y curación (ADR-018).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "agent-kits/shared/journal.py",
+      "reason": "Falta contrato del observador, datos, permisos y curación; no se crea un proceso de IA en segundo plano.",
+      "historical_owner_exists": true,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-session-learning-memory.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-118",
+      "owner": "agent-kits/architect/references/external-critique.md",
+      "new_file": true,
+      "sources": [
+        "S059"
+      ],
+      "sheets": [
+        "skills-contracts-costs-decisions.md"
+      ],
+      "proposal": "Crítica externa opcional y transporte `external-review.py`: hasta que haya adaptador por runtime verificado.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "agent-kits/architect/references/external-critique.md",
+      "reason": "Falta proveedor/runtime para crítica externa y adaptador verificable.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-contracts-costs-decisions.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-119",
+      "owner": "skills/agent-system-quality/references/external-dispatch.md",
+      "new_file": true,
+      "sources": [
+        "S036"
+      ],
+      "sheets": [
+        "skills-navigation-quality-data.md"
+      ],
+      "proposal": "Adaptador opt-in de despacho externo de misiones (identidad, base SHA, resultado tipado, sin auto-merge): T-12, sin servidor ni cuenta por defecto.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "skills/agent-system-quality/references/external-dispatch.md",
+      "reason": "T-12 del catálogo fue cancelada; requiere endpoint y contrato de misiones, sin auto-merge.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-navigation-quality-data.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-120",
+      "owner": "agents/documenter.md",
+      "new_file": false,
+      "sources": [
+        "S039"
+      ],
+      "sheets": [
+        "skills-navigation-quality-data.md"
+      ],
+      "proposal": "Recorridos guiados CodeTour con `validate-tour.py`: sin consumidor del formato.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "agents/documenter.md",
+      "reason": "Falta consumidor de CodeTour y validación del formato.",
+      "historical_owner_exists": true,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-navigation-quality-data.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-121",
+      "owner": "skills/angular-practices/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S014"
+      ],
+      "sheets": [
+        "skills-angular.md"
+      ],
+      "proposal": "Angular (nueve referencias de S014 y aviso de que `run_target` del MCP CLI puede desplegar).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/angular-practices/SKILL.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-angular.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-122",
+      "owner": "skills/kotlin-practices/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S013",
+        "S045",
+        "S149",
+        "S150",
+        "S151",
+        "S152",
+        "S153"
+      ],
+      "sheets": [
+        "skills-architecture-operations.md",
+        "skills-kotlin-family.md",
+        "skills-strategy-configuration-context.md"
+      ],
+      "proposal": "Kotlin/Android/KMP/Compose, Exposed, Ktor, Kotest (tablas de correcciones de las fichas).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/kotlin-practices/SKILL.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-architecture-operations.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-kotlin-family.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-strategy-configuration-context.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-123",
+      "owner": "skills/dotnet-practices/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S064",
+        "S086",
+        "S110"
+      ],
+      "sheets": [
+        "skills-cpp-dotnet-distribution-billing.md",
+        "skills-dotnet-harness-e2e.md",
+        "skills-fsharp-gan-gateguard.md"
+      ],
+      "proposal": ".NET/C#/F#: testing, integration-fixtures, design-async y sección F#.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "ready_for_integration",
+      "destination": "skills/stack-practices/references/dotnet-csharp.md",
+      "reason": "Consumidor declarado por el usuario el 2026-10-30; se consolida en stack-practices. La guía aplica versión/SDK del consumidor; no instala servicios ni añade parser de cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-cpp-dotnet-distribution-billing.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-dotnet-harness-e2e.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-fsharp-gan-gateguard.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-124",
+      "owner": "skills/cpp-practices/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S061",
+        "S062"
+      ],
+      "sheets": [
+        "skills-cpp-dotnet-distribution-billing.md"
+      ],
+      "proposal": "C++ moderno y pruebas CMake/CTest con instrumentación (fila de rojo C++ en `by-stack.md` incluida).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/cpp-practices/SKILL.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-cpp-dotnet-distribution-billing.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-125",
+      "owner": "skills/stack-practices/references/go.md",
+      "new_file": true,
+      "sources": [
+        "S116",
+        "S117"
+      ],
+      "sheets": [
+        "skills-installer-golang.md"
+      ],
+      "proposal": "Go: correcciones de versión 1.22 (variable de bucle) y 1.24 (`b.Loop()`) para `by-stack.md` y la especialidad.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/stack-practices/references/go.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-installer-golang.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-126",
+      "owner": "skills/stack-practices/references/java.md",
+      "new_file": true,
+      "sources": [
+        "S145",
+        "S147",
+        "S222",
+        "S223",
+        "S224",
+        "S225",
+        "S260",
+        "S261",
+        "S262",
+        "S263",
+        "S278"
+      ],
+      "sheets": [
+        "skills-java-jira-knowledge.md",
+        "skills-quarkus-family.md",
+        "skills-springboot-patterns-security-testing.md",
+        "skills-vue-vite-tinystruct.md"
+      ],
+      "proposal": "Java/Spring Boot/Quarkus/JPA/tinystruct en una sola `java.md`; comandos Maven/Gradle como entradas de los dueños; JaCoCo en `coverage-gate.py`.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/stack-practices/references/java.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-java-jira-knowledge.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-quarkus-family.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-springboot-patterns-security-testing.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-vue-vite-tinystruct.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-127",
+      "owner": "skills/stack-practices/references/php-laravel.md",
+      "new_file": true,
+      "sources": [
+        "S155",
+        "S156",
+        "S157",
+        "S158",
+        "S159"
+      ],
+      "sheets": [
+        "skills-laravel-family.md"
+      ],
+      "proposal": "Laravel (el consumidor PHP declarado es CodeIgniter 4), incluido el canal LaraPlugins de research-first.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "ready_for_integration",
+      "destination": "skills/stack-practices/references/laravel.md",
+      "reason": "Consumidor declarado por el usuario el 2026-10-30; se consolida en stack-practices. La guía aplica versión/SDK del consumidor; no instala servicios ni añade parser de cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-laravel-family.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-128",
+      "owner": "skills/django-practices/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S078",
+        "S079",
+        "S080",
+        "S081",
+        "S082"
+      ],
+      "sheets": [
+        "skills-django-queues-architecture.md",
+        "skills-django-security-testing-verification.md"
+      ],
+      "proposal": "Django/DRF/Celery: distributed-tasks, architecture-orm, api-cache, security-settings, testing y verification, más su fila en `by-stack.md`.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/django-practices/SKILL.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-django-queues-architecture.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-django-security-testing-verification.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-129",
+      "owner": "skills/stack-practices/references/python.md",
+      "new_file": false,
+      "sources": [
+        "S101",
+        "S219"
+      ],
+      "sheets": [
+        "skills-fastapi-billing-flox.md",
+        "skills-python-pytorch.md"
+      ],
+      "proposal": "FastAPI y SQLAlchemy dentro de `python.md`: framework no declarado (misma regla que Laravel).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/stack-practices/references/python.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": true,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-fastapi-billing-flox.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-python-pytorch.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-130",
+      "owner": "skills/stack-practices/references/rails.md",
+      "new_file": true,
+      "sources": [
+        "S226"
+      ],
+      "sheets": [
+        "skills-rails-redis-rust.md"
+      ],
+      "proposal": "Ruby on Rails.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/stack-practices/references/rails.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-rails-redis-rust.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-131",
+      "owner": "skills/stack-practices/references/rust.md",
+      "new_file": true,
+      "sources": [
+        "S241",
+        "S242"
+      ],
+      "sheets": [
+        "skills-rails-redis-rust.md"
+      ],
+      "proposal": "Rust (`cargo-llvm-cov`, `Cargo.toml`).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/stack-practices/references/rust.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-rails-redis-rust.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-132",
+      "owner": "skills/stack-practices/references/perl.md",
+      "new_file": true,
+      "sources": [
+        "S202",
+        "S203",
+        "S204"
+      ],
+      "sheets": [
+        "skills-perl-family.md"
+      ],
+      "proposal": "Perl moderno, seguridad y pruebas (fila `prove -lv` en `by-stack.md`, Devel::Cover).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/stack-practices/references/perl.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-perl-family.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-133",
+      "owner": "skills/stack-practices/references/swift.md",
+      "new_file": true,
+      "sources": [
+        "S265",
+        "S266",
+        "S267",
+        "S268"
+      ],
+      "sheets": [
+        "skills-swift-swiftui.md"
+      ],
+      "proposal": "Swift/SwiftUI (fila `swift test --filter` en `by-stack.md`).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/stack-practices/references/swift.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-swift-swiftui.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-134",
+      "owner": "skills/dart-flutter-practices/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S067",
+        "S104"
+      ],
+      "sheets": [
+        "skills-flutter-ondevice-a11y.md",
+        "skills-trade-flutter-observability.md"
+      ],
+      "proposal": "Dart/Flutter (seis referencias de S067 y checklist de revisión S104).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/dart-flutter-practices/SKILL.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-flutter-ondevice-a11y.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-trade-flutter-observability.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-135",
+      "owner": "skills/stack-practices/references/vue-nuxt.md",
+      "new_file": true,
+      "sources": [
+        "S191",
+        "S290"
+      ],
+      "sheets": [
+        "skills-motion-next-nuxt.md",
+        "skills-vue-vite-tinystruct.md"
+      ],
+      "proposal": "Vue 3/Nuxt (salvo la línea de render determinista ya llevada a `react.md`).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/stack-practices/references/vue-nuxt.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-motion-next-nuxt.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-vue-vite-tinystruct.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-136",
+      "owner": "skills/stack-practices/references/node-backend.md",
+      "new_file": true,
+      "sources": [
+        "S183",
+        "S211"
+      ],
+      "sheets": [
+        "skills-mysql-nestjs-mcp-keccak.md",
+        "skills-plankton-postgres-prisma-audit.md"
+      ],
+      "proposal": "Backend TypeScript con NestJS/Prisma.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/stack-practices/references/node-backend.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-mysql-nestjs-mcp-keccak.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-plankton-postgres-prisma-audit.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-137",
+      "owner": "skills/stack-practices/references/react-native.md",
+      "new_file": true,
+      "sources": [
+        "S228"
+      ],
+      "sheets": [
+        "skills-react-rn-perf-testing.md"
+      ],
+      "proposal": "React Native/Expo.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/stack-practices/references/react-native.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-react-rn-perf-testing.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-138",
+      "owner": "skills/stack-practices/references/ml.md",
+      "new_file": true,
+      "sources": [
+        "S175",
+        "S176",
+        "S220"
+      ],
+      "sheets": [
+        "skills-ml-adoption-mle.md",
+        "skills-python-pytorch.md"
+      ],
+      "proposal": "ML/PyTorch: contrato de predicción y de datos, fuga en la partición y equivalencia entrenamiento/servicio.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/stack-practices/references/ml.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-ml-adoption-mle.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-python-pytorch.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-139",
+      "owner": "skills/stack-practices/references/bun.md",
+      "new_file": true,
+      "sources": [
+        "S031",
+        "S273"
+      ],
+      "sheets": [
+        "skills-brand-browser-runtime.md",
+        "skills-tdd-verification-ops.md"
+      ],
+      "proposal": "Bun como runtime/toolchain y su fila `bun test` ≠ `bun run test` en `by-stack.md`.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/stack-practices/references/bun.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-brand-browser-runtime.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-tdd-verification-ops.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-140",
+      "owner": "skills/stack-practices/references/clickhouse.md",
+      "new_file": true,
+      "sources": [
+        "S038"
+      ],
+      "sheets": [
+        "skills-navigation-quality-data.md"
+      ],
+      "proposal": "ClickHouse/OLAP (ReplacingMergeTree, vistas incrementales, cohortes y funnel corregidos).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/stack-practices/references/clickhouse.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-navigation-quality-data.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-141",
+      "owner": "skills/stack-practices/references/mysql.md",
+      "new_file": true,
+      "sources": [
+        "S180"
+      ],
+      "sheets": [
+        "skills-mysql-nestjs-mcp-keccak.md"
+      ],
+      "proposal": "Guía MySQL/MariaDB (se lee junto a `php-codeigniter.md` si un consumidor CI4 la declara).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_consumer",
+      "destination": "skills/stack-practices/references/mysql.md",
+      "reason": "El usuario solicita stacks adicionales y aún debe concretar proyectos/frameworks/versiones. Se preserva la condición del catálogo; la ausencia de este fichero no prueba ausencia de otra cobertura.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-mysql-nestjs-mcp-keccak.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-142",
+      "owner": "skills/solidity-security/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S073",
+        "S098",
+        "S164"
+      ],
+      "sheets": [
+        "skills-contract-security-delivery.md",
+        "skills-errors-evals-providers.md",
+        "skills-living-docs-loops-trading.md"
+      ],
+      "proposal": "Solidity: token-accounting, oracle-swap-controls (slippage y plazos de S164) y audit-toolchain; decimales sin fallback silencioso (S098).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "skills/solidity-security/SKILL.md",
+      "reason": "Esperar consumidor Solidity y toolchain; no se amplía una auditoría financiera por defecto.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-contract-security-delivery.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-errors-evals-providers.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-living-docs-loops-trading.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-143",
+      "owner": "skills/network-operations/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S034",
+        "S184",
+        "S185",
+        "S186",
+        "S187"
+      ],
+      "sheets": [
+        "skills-network-netmiko-bgp.md",
+        "skills-operations-session-context.md"
+      ],
+      "proposal": "Red: ios-review, diagnostics, config-preflight y automation, solo con inventario y alcance del usuario.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "skills/network-operations/SKILL.md",
+      "reason": "Falta inventario de red y alcance de operaciones del usuario.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-network-netmiko-bgp.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-operations-session-context.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-144",
+      "owner": "skills/agent-payments/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S006"
+      ],
+      "sheets": [
+        "skills-workflows.md"
+      ],
+      "proposal": "Pagos de APIs por agentes (unidades exactas, reserva atómica, estados terminales).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "skills/agent-payments/SKILL.md",
+      "reason": "Falta API de pagos y contrato de reservas/terminales del consumidor.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-workflows.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-145",
+      "owner": "skills/blender-inspection/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S026"
+      ],
+      "sheets": [
+        "skills-iteration-backend-benchmarks.md"
+      ],
+      "proposal": "Inspección de movimiento en Blender con collector T-12.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "skills/blender-inspection/SKILL.md",
+      "reason": "Falta escena/versión de Blender y collector del runtime.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-iteration-backend-benchmarks.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-146",
+      "owner": "skills/brand-strategy/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S028"
+      ],
+      "sheets": [
+        "skills-brand-browser-runtime.md"
+      ],
+      "proposal": "Descubrimiento de marca con checkpoint por respuesta y ocho plantillas.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "requires_state_contract",
+      "destination": "skills/brand-strategy",
+      "reason": "La entrevista y sus ocho plantillas están comparadas, pero la integración completa necesita checkpoints por respuesta, reanudación e identidad de participantes. Se concreta ese recurso antes de prometer durabilidad.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-brand-browser-runtime.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-147",
+      "owner": "skills/voice-profile/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S018",
+        "S029"
+      ],
+      "sheets": [
+        "skills-architecture-operations.md",
+        "skills-brand-browser-runtime.md"
+      ],
+      "proposal": "Perfil de voz sustentado en muestras y escritura larga (`long-form-writing`) como su consumidor.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "ready_for_integration",
+      "destination": "voice-profile",
+      "reason": "Perfil único desde muestras, reutilizado por contenido y contacto; sin persistencia personal automática.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-architecture-operations.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-brand-browser-runtime.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-148",
+      "owner": "skills/content-production/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S049",
+        "S063"
+      ],
+      "sheets": [
+        "skills-cpp-dotnet-distribution-billing.md",
+        "skills-strategy-configuration-context.md"
+      ],
+      "proposal": "Producción y distribución de contenido por canal con perfil de voz único.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "ready_for_integration",
+      "destination": "content-production",
+      "reason": "Guía de escritura larga y adaptación por canal; reutiliza voz y deja la entrega al canal autorizado.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-cpp-dotnet-distribution-billing.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-strategy-configuration-context.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-149",
+      "owner": "skills/relationship-planning/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S048"
+      ],
+      "sheets": [
+        "skills-strategy-configuration-context.md"
+      ],
+      "proposal": "Revisión de red de contactos y preparación de contacto.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "ready_for_integration",
+      "destination": "relationship-planning",
+      "reason": "Revisión de red y preparación de contacto con evidencias e identidades exactas; sin acciones automáticas.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-strategy-configuration-context.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-150",
+      "owner": "skills/competitive-analysis/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S024",
+        "S043",
+        "S044"
+      ],
+      "sheets": [
+        "skills-iteration-backend-benchmarks.md",
+        "skills-strategy-configuration-context.md"
+      ],
+      "proposal": "Análisis competitivo: scope, profile-scoring y report-assembly.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "ready_for_integration",
+      "destination": "competitive-analysis",
+      "reason": "Selección, perfiles e informe con desconocidos explícitos; sin total compuesto inventado.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-iteration-backend-benchmarks.md",
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-strategy-configuration-context.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-151",
+      "owner": "skills/external-communication/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S060"
+      ],
+      "sheets": [
+        "skills-contracts-costs-decisions.md"
+      ],
+      "proposal": "Audiencia y entrega a destinatarios externos (sin transporte propio en el plugin).",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "ready_for_integration",
+      "destination": "agent-kits/shared/external-communication.md",
+      "reason": "Consolidar el contrato de destinatario y entrega en un fragmento compartido por dos callers, sin crear motor de permisos.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-contracts-costs-decisions.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-152",
+      "owner": "skills/billing-support/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S065"
+      ],
+      "sheets": [
+        "skills-cpp-dotnet-distribution-billing.md"
+      ],
+      "proposal": "Incidentes de facturación de cliente con el conector del proveedor.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "skills/billing-support/SKILL.md",
+      "reason": "Falta proveedor/conector de facturación y alcance de atención autorizado.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-cpp-dotnet-distribution-billing.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-153",
+      "owner": "skills/llm-pipeline/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S056"
+      ],
+      "sheets": [
+        "skills-contracts-costs-decisions.md"
+      ],
+      "proposal": "Coste, routing, caché y reintentos de aplicaciones LLM del consumidor.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "ready_for_integration",
+      "destination": "llm-pipeline",
+      "reason": "Guía del proyecto consumidor para reservas, routing, cache y reintentos; no cambia el modelo ni las tarifas del plugin.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-contracts-costs-decisions.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-154",
+      "owner": "skills/data-collection/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S069"
+      ],
+      "sheets": [
+        "skills-data-pipelines-research.md"
+      ],
+      "proposal": "Colectores y enriquecimiento de datos con contratos de fuente.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "ready_for_integration",
+      "destination": "data-collection",
+      "reason": "Guía de contratos de fuente, enriquecimiento, storage y feedback; no instala adaptadores ni servicios.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-data-pipelines-research.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-155",
+      "owner": "skills/freight-operations/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S033"
+      ],
+      "sheets": [
+        "skills-operations-session-context.md"
+      ],
+      "proposal": "Cartera de transportistas, licitación y seguimiento.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "skills/freight-operations/SKILL.md",
+      "reason": "Falta caso de transporte, inventario y sistemas operativos.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-operations-session-context.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-156",
+      "owner": "skills/trade-compliance/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S066"
+      ],
+      "sheets": [
+        "skills-trade-flutter-observability.md"
+      ],
+      "proposal": "Comercio exterior: clasificación, origen, valoración y screening.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "skills/trade-compliance/SKILL.md",
+      "reason": "Faltan jurisdicción, productos, fuentes normativas y flujo de revisión profesional.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-trade-flutter-observability.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    },
+    {
+      "id": "D-157",
+      "owner": "skills/operational-dashboards/SKILL.md",
+      "new_file": true,
+      "sources": [
+        "S068"
+      ],
+      "sheets": [
+        "skills-trade-flutter-observability.md"
+      ],
+      "proposal": "Dashboards Grafana/SigNoz de observabilidad del consumidor.",
+      "kind": "aparcado",
+      "priority": "aparcado",
+      "original_state": "aparcado",
+      "disposition": "awaiting_context_or_dependency",
+      "destination": "skills/operational-dashboards/SKILL.md",
+      "reason": "Falta consumidor Grafana/SigNoz y contrato de métricas; plugin-panel conserva la presentación del plugin.",
+      "historical_owner_exists": false,
+      "comparison_sources": [
+        "docs/roadmap/2026-10-07-catalog-capabilities/comparisons/skills-trade-flutter-observability.md"
+      ],
+      "evidence_scope": "Fichas y condición de entrada; para candidatos activos, comparación semántica con dueños actuales. Las especialidades sin consumidor no se declaran verificadas en ejecución."
+    }
+  ],
+  "initial_counts": {
+    "awaiting_context_or_dependency": 17,
+    "already_covered": 1,
+    "awaiting_consumer": 21,
+    "requires_state_contract": 1,
+    "ready_for_integration": 7
+  },
+  "implementation_progress": {
+    "state": "implemented_and_validated_as_guidance",
+    "historical_destinations": [
+      "D-123",
+      "D-127",
+      "D-147",
+      "D-148",
+      "D-149",
+      "D-150",
+      "D-151",
+      "D-153",
+      "D-154"
+    ],
+    "additional_user_requested_guides": [
+      "Symfony",
+      "Next.js",
+      "C"
+    ],
+    "existing_guides_reviewed": [
+      "CodeIgniter 4",
+      "Python",
+      "React"
+    ],
+    "limitation": "Guías y selección; no ejecución de proyectos consumidores ni medición de calidad editorial/modelos."
+  }
+}

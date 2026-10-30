@@ -1,0 +1,108 @@
+{
+  "date": "2026-10-30",
+  "runtime": "codex-cli 0.166.0",
+  "source_revision": "6ff1e1ca3b30fc8b914720681fcf5fe62e95f856",
+  "before": {
+    "active_plugin_hooks": 10,
+    "missing_visible_names": 10,
+    "modified": 10,
+    "active_declarations_match_saved_approvals": true,
+    "bundle_hash_matches_native_fingerprint": true,
+    "installed_revision": "89834d7d42f9732cfeac157f6365622973cba029"
+  },
+  "after_isolated_native_listing": {
+    "cli": "codex-cli 0.166.0",
+    "request": "hooks/list",
+    "thread_created": false,
+    "inference_calls": 0,
+    "hooks": [
+      {
+        "key": "custom-agents@daycry:interop/codex/hooks.json:pre_tool_use:0:0",
+        "eventName": "preToolUse",
+        "statusMessage": "Check agent guardrails",
+        "trustStatus": "untrusted"
+      },
+      {
+        "key": "custom-agents@daycry:interop/codex/hooks.json:post_tool_use:0:0",
+        "eventName": "postToolUse",
+        "statusMessage": "Mark documentation for review",
+        "trustStatus": "untrusted"
+      },
+      {
+        "key": "custom-agents@daycry:interop/codex/hooks.json:post_tool_use:0:1",
+        "eventName": "postToolUse",
+        "statusMessage": "Check ledger and report progress",
+        "trustStatus": "untrusted"
+      },
+      {
+        "key": "custom-agents@daycry:interop/codex/hooks.json:post_tool_use:1:0",
+        "eventName": "postToolUse",
+        "statusMessage": "Record agent activity",
+        "trustStatus": "untrusted"
+      },
+      {
+        "key": "custom-agents@daycry:interop/codex/hooks.json:session_start:0:0",
+        "eventName": "sessionStart",
+        "statusMessage": "Load session context",
+        "trustStatus": "untrusted"
+      },
+      {
+        "key": "custom-agents@daycry:interop/codex/hooks.json:session_end:0:0",
+        "eventName": "sessionEnd",
+        "statusMessage": "Queue session journal",
+        "trustStatus": "untrusted"
+      },
+      {
+        "key": "custom-agents@daycry:interop/codex/hooks.json:user_prompt_submit:0:0",
+        "eventName": "userPromptSubmit",
+        "statusMessage": "Capture user prompt",
+        "trustStatus": "untrusted"
+      },
+      {
+        "key": "custom-agents@daycry:interop/codex/hooks.json:subagent_start:0:0",
+        "eventName": "subagentStart",
+        "statusMessage": "Record agent activity",
+        "trustStatus": "untrusted"
+      },
+      {
+        "key": "custom-agents@daycry:interop/codex/hooks.json:subagent_stop:0:0",
+        "eventName": "subagentStop",
+        "statusMessage": "Record agent activity",
+        "trustStatus": "untrusted"
+      },
+      {
+        "key": "custom-agents@daycry:interop/codex/hooks.json:subagent_stop:0:1",
+        "eventName": "subagentStop",
+        "statusMessage": "Report roadmap progress",
+        "trustStatus": "untrusted"
+      }
+    ],
+    "native_hook_count": 10,
+    "fixture_cache_unchanged": true,
+    "real_config_unchanged": true,
+    "owned_processes_remaining": 0,
+    "global_hook_trust_modified": false
+  },
+  "semantic_export_equal_after_removing_only_labels": true,
+  "unit_tests": {
+    "suite": "tests/test_export_interop.py",
+    "passed": 50,
+    "failed": 0,
+    "red_before_code": "ten missing statusMessage entries; 1 failed, 1 passed",
+    "intermediate_full_suite": "2 failures from explicit old activity dictionaries, 48 passed; expected dictionaries extended with the new label while retaining every previous field"
+  },
+  "fixture_correction": "First isolated installation listed zero hooks because its project layer was not trusted; only the owned fixture configuration was corrected. No global trust changed.",
+  "limits": [
+    "Desktop interaction not reproduced",
+    "No hooks executed by the native inventory requests",
+    "Labels on the working branch have not been installed in the real plugin cache",
+    "The history does not establish exactly when each saved bundle hash was approved"
+  ],
+  "sources": [
+    "https://learn.chatgpt.com/docs/hooks",
+    "https://developers.openai.com/plugins/build/plugins"
+  ],
+  "user_confirmed_interface": "Codex CLI terminal",
+  "user_interaction_result": "User confirms t works; installed Codex 2.3.0 still shows unnamed hooks. Labels are verified in repository/isolated fixture, not installed in real cache.",
+  "other_runtime_name_behavior": "Claude and OpenCode UI naming not reported or verified by this diagnosis."
+}
