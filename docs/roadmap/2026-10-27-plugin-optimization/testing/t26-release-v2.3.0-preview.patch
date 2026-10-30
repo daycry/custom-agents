@@ -1,0 +1,113 @@
+diff --git a/.agents/plugins/marketplace.json b/.agents/plugins/marketplace.json
+index fa1043d..9ecc801 100644
+--- a/.agents/plugins/marketplace.json
++++ b/.agents/plugins/marketplace.json
+@@ -6,7 +6,7 @@
+   "plugins": [
+     {
+       "name": "custom-agents",
+-      "version": "2.2.0",
++      "version": "2.3.0",
+       "description": "Agentes custom para Claude Code que cubren el ciclo de una iniciativa (requisitos → presupuesto → plan → implementación → pruebas → documentación) con contabilidad de tiempo/coste y trazabilidad en Jira/Confluence. Agentes: analyst (toma de requerimientos), evaluator, architect (opciones de diseño validadas → design.md), planner, implementer, reviewer (lentes de revisión, solo lectura), qa, documenter, knowledge-curator (único que aprueba conocimiento y escribe docs/knowledge/approved/) y nemesis (auditoría SAST+DAST). Comandos: /confluence-pull, /dev-cycle, /doctor, /plugin-catalog, /pm-backlog, /pm-cycle, /retro, /roadmap-brief, /roadmap-live, /roadmap-metrics, /roadmap-status, /setup, /spec-drift, /work-context, /work-resume. Skills: adversarial-review, api-contract, backend-practices, capability-audit, changelog-sync, code-health, confluence-publish, confluence-pull, cybersecurity, debug-root-cause, delivery-practices, dependency-upgrade, frontend-quality, jira-sync, knowledge-services, outcome-evals, plugin-dev, plugin-panel, quick-implement, rates-verify, research-first, roadmap-dashboard, stack-practices, tdd, to-pdf, training-data-services, unit-tests. SDD autosuficiente: constitución del proyecto, criterios G/W/T, TDD/worktrees/subagentes de contexto fresco con personas de dominio y tiering de modelos configurable por agente (opt-in en .claude/dev.json) y coste real medido por artefacto y tarea (usage-meter); memoria técnica curada (docs/knowledge/) más journal de sesión determinista (hook SessionEnd). Config de presupuesto compartida en .claude/rates.json; integraciones Atlassian opt-in.",
+       "source": {
+         "source": "local",
+diff --git a/.claude-plugin/marketplace.json b/.claude-plugin/marketplace.json
+index 76cfd5b..45d4678 100644
+--- a/.claude-plugin/marketplace.json
++++ b/.claude-plugin/marketplace.json
+@@ -7,14 +7,14 @@
+   },
+   "metadata": {
+     "description": "Marketplace de agentes custom de daycry para Claude Code.",
+-    "version": "2.2.0"
++    "version": "2.3.0"
+   },
+   "plugins": [
+     {
+       "name": "custom-agents",
+       "source": "./",
+       "description": "Agentes custom para Claude Code que cubren el ciclo de una iniciativa (requisitos → presupuesto → plan → implementación → pruebas → documentación) con contabilidad de tiempo/coste y trazabilidad en Jira/Confluence. Agentes: analyst (toma de requerimientos), evaluator, architect (opciones de diseño validadas → design.md), planner, implementer, reviewer (lentes de revisión, solo lectura), qa, documenter, knowledge-curator (único que aprueba conocimiento y escribe docs/knowledge/approved/) y nemesis (auditoría SAST+DAST). Comandos: /confluence-pull, /dev-cycle, /doctor, /plugin-catalog, /pm-backlog, /pm-cycle, /retro, /roadmap-brief, /roadmap-live, /roadmap-metrics, /roadmap-status, /setup, /spec-drift, /work-context, /work-resume. Skills: adversarial-review, api-contract, backend-practices, capability-audit, changelog-sync, code-health, confluence-publish, confluence-pull, cybersecurity, debug-root-cause, delivery-practices, dependency-upgrade, frontend-quality, jira-sync, knowledge-services, outcome-evals, plugin-dev, plugin-panel, quick-implement, rates-verify, research-first, roadmap-dashboard, stack-practices, tdd, to-pdf, training-data-services, unit-tests. SDD autosuficiente: constitución del proyecto, criterios G/W/T, TDD/worktrees/subagentes de contexto fresco con personas de dominio y tiering de modelos configurable por agente (opt-in en .claude/dev.json) y coste real medido por artefacto y tarea (usage-meter); memoria técnica curada (docs/knowledge/) más journal de sesión determinista (hook SessionEnd). Config de presupuesto compartida en .claude/rates.json; integraciones Atlassian opt-in.",
+-      "version": "2.2.0",
++      "version": "2.3.0",
+       "strict": true,
+       "tags": [
+         "security",
+diff --git a/.claude-plugin/plugin.json b/.claude-plugin/plugin.json
+index 41ce47e..e907960 100644
+--- a/.claude-plugin/plugin.json
++++ b/.claude-plugin/plugin.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "custom-agents",
+   "displayName": "Custom Agents — budgeted SDD lifecycle",
+-  "version": "2.2.0",
++  "version": "2.3.0",
+   "description": "Agentes custom para Claude Code que cubren el ciclo de una iniciativa (requisitos → presupuesto → plan → implementación → pruebas → documentación) con contabilidad de tiempo/coste y trazabilidad en Jira/Confluence. Agentes: analyst (toma de requerimientos), evaluator, architect (opciones de diseño validadas → design.md), planner, implementer, reviewer (lentes de revisión, solo lectura), qa, documenter, knowledge-curator (único que aprueba conocimiento y escribe docs/knowledge/approved/) y nemesis (auditoría SAST+DAST). Comandos: /confluence-pull, /dev-cycle, /doctor, /plugin-catalog, /pm-backlog, /pm-cycle, /retro, /roadmap-brief, /roadmap-live, /roadmap-metrics, /roadmap-status, /setup, /spec-drift, /work-context, /work-resume. Skills: adversarial-review, api-contract, backend-practices, capability-audit, changelog-sync, code-health, confluence-publish, confluence-pull, cybersecurity, debug-root-cause, delivery-practices, dependency-upgrade, frontend-quality, jira-sync, knowledge-services, outcome-evals, plugin-dev, plugin-panel, quick-implement, rates-verify, research-first, roadmap-dashboard, stack-practices, tdd, to-pdf, training-data-services, unit-tests. SDD autosuficiente: constitución del proyecto, criterios G/W/T, TDD/worktrees/subagentes de contexto fresco con personas de dominio y tiering de modelos configurable por agente (opt-in en .claude/dev.json) y coste real medido por artefacto y tarea (usage-meter); memoria técnica curada (docs/knowledge/) más journal de sesión determinista (hook SessionEnd). Config de presupuesto compartida en .claude/rates.json; integraciones Atlassian opt-in.",
+   "author": {
+     "name": "daycry",
+diff --git a/.codex-plugin/plugin.json b/.codex-plugin/plugin.json
+index 2b22234..d303a81 100644
+--- a/.codex-plugin/plugin.json
++++ b/.codex-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "custom-agents",
+-  "version": "2.2.0",
++  "version": "2.3.0",
+   "description": "Agentes custom para Claude Code que cubren el ciclo de una iniciativa (requisitos → presupuesto → plan → implementación → pruebas → documentación) con contabilidad de tiempo/coste y trazabilidad en Jira/Confluence. Agentes: analyst (toma de requerimientos), evaluator, architect (opciones de diseño validadas → design.md), planner, implementer, reviewer (lentes de revisión, solo lectura), qa, documenter, knowledge-curator (único que aprueba conocimiento y escribe docs/knowledge/approved/) y nemesis (auditoría SAST+DAST). Comandos: /confluence-pull, /dev-cycle, /doctor, /plugin-catalog, /pm-backlog, /pm-cycle, /retro, /roadmap-brief, /roadmap-live, /roadmap-metrics, /roadmap-status, /setup, /spec-drift, /work-context, /work-resume. Skills: adversarial-review, api-contract, backend-practices, capability-audit, changelog-sync, code-health, confluence-publish, confluence-pull, cybersecurity, debug-root-cause, delivery-practices, dependency-upgrade, frontend-quality, jira-sync, knowledge-services, outcome-evals, plugin-dev, plugin-panel, quick-implement, rates-verify, research-first, roadmap-dashboard, stack-practices, tdd, to-pdf, training-data-services, unit-tests. SDD autosuficiente: constitución del proyecto, criterios G/W/T, TDD/worktrees/subagentes de contexto fresco con personas de dominio y tiering de modelos configurable por agente (opt-in en .claude/dev.json) y coste real medido por artefacto y tarea (usage-meter); memoria técnica curada (docs/knowledge/) más journal de sesión determinista (hook SessionEnd). Config de presupuesto compartida en .claude/rates.json; integraciones Atlassian opt-in.",
+   "author": {
+     "name": "daycry",
+diff --git a/CHANGELOG.es.md b/CHANGELOG.es.md
+index da7647c..d5e0e72 100644
+--- a/CHANGELOG.es.md
++++ b/CHANGELOG.es.md
+@@ -11,6 +11,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
+ 
+ ## [Sin publicar]
+ 
++## [2.3.0] - 2026-10-30
++
+ ### Añadido
+ 
+ - Ofrece perfil lite opt-in con implementación secuencial, writer obligatorio y briefs completos de hasta 6.000 caracteres; conserva revisión fresca secuencial, TDD elegido, QA, cobertura y Knowledge Gate.
+@@ -1265,6 +1267,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
+ 
+ Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
+ 
++[2.3.0]: https://github.com/daycry/custom-agents/releases/tag/v2.3.0
+ [2.2.0]: https://github.com/daycry/custom-agents/releases/tag/v2.2.0
+ [2.1.0]: https://github.com/daycry/custom-agents/releases/tag/v2.1.0
+ [2.0.1]: https://github.com/daycry/custom-agents/releases/tag/v2.0.1
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index c0cb2bd..b559781 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -11,6 +11,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
+ 
+ ## [Unreleased]
+ 
++## [2.3.0] - 2026-10-30
++
+ ### Added
+ 
+ - Offer an opt-in lite profile with sequential implementation, a required ledger writer and complete briefs up to 6,000 characters; retain sequential fresh review, selected TDD, QA, coverage and Knowledge Gate.
+@@ -1253,6 +1255,7 @@ Adoption of best practices from the top agent collections (reference agent colle
+ 
+ Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
+ 
++[2.3.0]: https://github.com/daycry/custom-agents/releases/tag/v2.3.0
+ [2.2.0]: https://github.com/daycry/custom-agents/releases/tag/v2.2.0
+ [2.1.0]: https://github.com/daycry/custom-agents/releases/tag/v2.1.0
+ [2.0.1]: https://github.com/daycry/custom-agents/releases/tag/v2.0.1
+diff --git a/package.json b/package.json
+index acf5f11..d4a571f 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "@daycry/custom-agents",
+-  "version": "2.2.0",
++  "version": "2.3.0",
+   "description": "Ciclo SDD presupuestado (requisitos → presupuesto → plan → implementación → pruebas → documentación) para Claude Code, Codex y OpenCode, con agentes, comandos y skills, panel de capacidades, memoria técnica y trazabilidad en Jira/Confluence.",
+   "keywords": [
+     "claude-code",

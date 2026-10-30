@@ -999,6 +999,11 @@ Correcciones A-F3-01/02: descriptores del implementer/shared/matriz E8 actualiza
 
 **Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido; mismo procedimiento que T-07. Se concreta al revalidar. Clasificación: proceso. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
 
+
+Validación automática T-26 sobre4596eaf: revisión independiente2/3 A+B+C+D sin gaps; CI41092581342 verde, Python9889 pass/38 skip/82 subtests y Node431 pass/16 skip/0 fail. Cobertura oficial media91,08 de10 archivos Python, gate90 exit0; Linux dirigido673 pass/9 skip y ledger-lint29/29, fuentes medidas idénticas al SHA. Corrida completa instrumentada previa no verde por test temporal sin cambios: control aislado pasa sin coverage y falla con coverage, umbral intacto; recibo separado, no se usa como aceptación. Alcance UI n/a declarado; no se inventa Playwright. Informe `testing/t26-automated-verification-2026-10-30.md`.
+
+Prueba real pendiente del usuario: `testing/t26-manual-ollama-checklist.md`, solicitud enviada sin bloquear validaciones independientes. Propuesta v2.3.0 preparada por release.py en clon aislado, patch7 archivos SHA42e2c1125271315ba3bd1dca53bf5d23b05c80dbbd668b743f4cee8827d30788, sin publicar. Mantener T-26 abierta hasta resultado manual, Knowledge Gate posterior a QA y confirmación de versión. Los candidatos O1 y lock siguen pendientes de Curator, no aprobados por revisión. Medición de revisiones:9m/4m de reloj; IA/tokens/coste null. Ventana T-26 cerrada17:00:29 UTC (desde16:48:57,12m reloj); IA/tokens/coste null.
+
 ---
 
 ## Revisión de dos lentes — intento 3: Fase 1 (T-02) — prefiltro y CA-01 ajustado
@@ -1181,3 +1186,21 @@ C sin hallazgos:31 pass/1 skip/66 deselected (symlink no disponible Windows). D 
 
 
 CI completa del candidato4e5017d: run41089710780 verde; Python9880 pass/38 skip/82 subtests, Node/interop/bench verdes. No cubre las correcciones posteriores de la ronda1; nueva CI exacta pendiente.
+
+## Revisión de dos lentes — intento 2: Fase 3, verificacion de correcciones (T-20, T-21, T-22, T-23, T-24, T-25)
+
+Rango general `c6aee505..4596eaf1bec3f21b21d364d5493b92d072f71cac`; delta revisado `4e5017d..4596eaf`. Cuatro revisores genéricos de contexto fresco, solo lectura; traspaso completo de tabla/recibos y conservación de aprobados sin evidencia nueva. **A+B+C+D: cero Critical/Important/Minor, sin gaps pendientes.** Recibo `testing/t26-review-2-2026-10-30.json`. No es QA ni aprobación de memoria o release.
+
+| Criterio corregido | Resultado independiente |
+|---|---|
+| A-F3-01: descriptores E3/E8 | ✓ implementer.md:27, shared README:51, CONTRACTS E8:79 explican lite6000/normal10000, writer y exit2/stdout vacío |
+| A-F3-02: diseño aprobado íntegro o rechazo controlado | ✓ task-brief.py:598/1238/1491; ambas cabeceras reconocidas; falta de opción/sección/cuerpo o lectura fallida bloquea lite sin salida parcial |
+| B-F3-01: secuencia en IDs numéricos canónicos | ✓ ledger-lint.py:302 y dos copias; T-1/T-100/T-1234 admiten1→2→3 y rechazan reinicio1 sin mutar |
+| Copias declaradas y rangos compactos | ✓ identidad y formato anterior conservados |
+| Interop E2 | ✓ ejecución independiente --check exit0,88 ficheros al día |
+| Aprobados T-20..T-25, alcance, RED y puertas | ✓ conservados, sin motivos nuevos para reabrirlos |
+| C | Sin vulnerabilidad introducida/reabierta;8 pass/50 deselected sobre regresiones de diseño/IDs |
+| D | Sin degradación introducida; regex lineal y checks sobre contenido ya leído, sin nuevas lecturas/reintentos |
+
+Pruebas independientes: A9 pass/49 deselected; B10 pass; C8 pass/50 deselected (se solapan). D11 repeticiones en memoria: IDs32/128/240KiB1,40/5,77/11,73ms; diseño2,11/13,36/20,13ms. Excluye CLI, disco, fsync e inferencia; error inicial de codificación de su instrumento corregido antes de medir. T-26 mantiene cobertura, CI corregida, prueba manual real y versión confirmada como pendientes separados. Jira no activado: plan sin operaciones; sin publicación externa.
+

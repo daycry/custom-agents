@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "source_head": "4596eaf1bec3f21b21d364d5493b92d072f71cac",
+  "base": "c6aee505d200f6354939b8a3dc2305ee82b8ec62",
+  "synthetic_base": "21b872fe274743d28330965d38797721dc5d5b74",
+  "measurement": "coverage.py7.16.2 / pytest-cov7.0.0, subprocess patch, directed existing and new suites plus standalone canonical ledger lint",
+  "linux": {
+    "pytest_passed": 673,
+    "pytest_skipped": 9,
+    "pytest_exit": 0,
+    "standalone_ledger_lint_passed": 29,
+    "standalone_exit": 0,
+    "container_exit": 0,
+    "network": "none",
+    "memory_bytes": 4294967296,
+    "cpus": 2.0
+  },
+  "gate": {
+    "ok": true,
+    "exit": 0,
+    "stack": "pytest",
+    "detalle": {
+      "stack": "pytest",
+      "informe": "coverage.json",
+      "global": 49.5,
+      "modo": "changed-only",
+      "base": "21b872fe274743d28330965d38797721dc5d5b74",
+      "ficheros": {
+        "agent-kits/shared/doctor.py": 92.57,
+        "agent-kits/shared/execution-profile.py": 90.77,
+        "agent-kits/shared/ledger-lint.py": 94.29,
+        "agent-kits/shared/ledger-view.py": 97.31,
+        "agent-kits/shared/ledger-write.py": 99.46,
+        "agent-kits/shared/local-state.py": 91.37,
+        "agent-kits/shared/model-tier.py": 81.01,
+        "agent-kits/shared/task-brief.py": 95.63,
+        "scripts/export-interop.py": 89.72,
+        "skills/jira-sync/scripts/jira-flow.py": 78.65
+      },
+      "porcentaje": 91.08,
+      "minimo": 90.0
+    },
+    "avisos": []
+  },
+  "source_sha256": {
+    "agent-kits/shared/doctor.py": "75ba7d532bd048d347e37d8cea02ff81a0c88c2c000c1088d0a84faec641728d",
+    "agent-kits/shared/execution-profile.py": "9552a0670b32e5666daee1f29079b1ba2bb4638d84c12930b76325250c1b551d",
+    "agent-kits/shared/ledger-lint.py": "72a19bb8dd26aa1ea6c6d824cf2befefa9c7838f948c5ef794465d7b99c86b22",
+    "agent-kits/shared/ledger-view.py": "5a9326679eda850473fffb7df84ce62175b5cc56d777649d33af71b158f8774b",
+    "agent-kits/shared/ledger-write.py": "80d24f9ef3e6019cba6610dd5c5c3e172c5ed0773244a9818d2123311d050ff6",
+    "agent-kits/shared/local-state.py": "660836c1061980c34a3305e8448d393a51a77100013b4ee427bf9e6043380c87",
+    "agent-kits/shared/model-tier.py": "a700f676701abec4a8f383f8beef8630bd6099c7bbebb21e4b64e6e21306e871",
+    "agent-kits/shared/task-brief.py": "f94d01a719c54e01ef2e16086439608e2e58af9bc0f02339a10cc6ca4b40d623",
+    "scripts/export-interop.py": "84ca763902d996d52251751970b75e36a256f531449cf04cf68b79e64f08f4e6",
+    "skills/jira-sync/scripts/jira-flow.py": "31db8c6c0ae33a1ea6163c45e2e004bdb26b088a4afcc0f64036bb422acc4aac"
+  },
+  "source_integrity": "Every measured production file copied from the finished container and byte-compared with git show of the recorded immutable source; all match. Synthetic base was built from git archive of the real published base.",
+  "environment_correction": "Raw private environment.json inherited a template label saying full CI command and2GiB. Actual command is directed, and docker inspect proves4GiB/2CPUs. Raw receipt retained; this record corrects those labels.",
+  "limits": [
+    "91.08 is the unweighted mean of10 changed Python files, not global coverage or a per-file minimum",
+    "Directed run global49.5 is not the acceptance metric",
+    "JavaScript validated by native Node suites in CI, not included in Python coverage",
+    "Real Ollama manual and version confirmation remain pending"
+  ]
+}

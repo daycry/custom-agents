@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "full_instrumented_run": {
+    "source_head": "4e5017daec68b0dbe0433ad28abb7e284e58e841",
+    "failed": 1,
+    "passed": 9860,
+    "skipped": 57,
+    "subtests_passed": 82,
+    "pytest_exit": 1,
+    "gate_exit": 2,
+    "status": "not_green",
+    "failed_case": "tests/test_redact_fix3.py::test_linear_cost_on_pathological_inputs",
+    "observed_seconds": 1.924544463,
+    "unchanged_limit_seconds": 1.5,
+    "input_bytes": 1000000
+  },
+  "control": {
+    "same_source_archive": true,
+    "network": "none",
+    "cpus": 2,
+    "memory_bytes": 4294967296,
+    "plain": {
+      "exit": 0,
+      "passed": 1
+    },
+    "coverage_instrumented": {
+      "exit": 1,
+      "failed": 1
+    },
+    "interpretation": "The same unchanged timing case passes without coverage and fails with coverage in isolation. Do not weaken the threshold or report the full instrumented run green."
+  },
+  "source_sha256_unchanged_from_published_base": {
+    "agent-kits/shared/redact.py": "42e2d332de62d4c451d697129c271787c12ca2390290c6746be51fed604dca63",
+    "tests/test_redact_fix3.py": "8cabcffce4a570b5fb0952b6055afad59ccc67a43745d35a4abf87347819faaa"
+  },
+  "accepted_coverage": "Separate corrected immutable source4596eaf directed official run:673 pass/9 skip, canonical lint29/29, coverage gate exit0 mean91.08 over10 changed Python files.",
+  "full_uninstrumented_ci": "4e5017d CI41089710780 passes; corrected immutable CI recorded separately when complete."
+}
