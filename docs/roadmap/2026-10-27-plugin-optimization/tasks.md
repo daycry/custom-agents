@@ -42,6 +42,8 @@ changelog: Changed
 | Fase 3 — Modelos locales (diferida) | 0 | 7 | 0% | 0 / 45.0h | 0 / 18.1h | 0 / 4.5h | 0 / 7.3M in + 730k out |
 | **TOTAL** | **15** | **26** | **57.7%** | **0 / 152.4h** | **0 / 61.2h** | **0 / 15.3h** | **0 / 24.7M in + 2470k out** |
 
+> **F2: 8 tareas completadas, 3 condicionales canceladas (T-16/T-17/T-18, no implementadas); T-19 pendiente.** Las cancelaciones no se suman a las completadas.
+
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Jira no está activado en este proyecto (no hay `jira.json`). Ver `skills/jira-sync/SKILL.md`.
 
 > **Clasificación por tarea y primer oráculo (`dev.json`: `tdd: true`, `subagentes: false`, `coberturaMinima: 90`).** Capacidad nueva y defecto → test en ROJO primero (con evidencia `RED:`); cambio de comportamiento → test de comportamiento/caracterización en ROJO + suites existentes sin cambiar expectativas; refactor → test de caracterización de la salida actual; prosa/proceso → `lint`/`ledger-lint`/`scope-check` como oráculo y lectura declarada. Máquina justa de memoria: las `Verificación` son suites **dirigidas**; la suite completa corre en Linux/CI (T-07).
@@ -585,8 +587,9 @@ changelog: Changed
 ### T-17 — C-17 — Kit shared resuelto una vez por fichero (se decide al abrir F2)
 
 - **Descripción**: Resultado: cada agente/comando resuelve `$SHAREDKIT` una sola vez al principio (el `find` de 6 raíces aparece ~80 veces, ~1.200 tokens por `/dev-cycle`). Requisito: evaluation.md §C-17. Se decide en T-08 con los datos de C-01 y C-09; mejor después de T-13.
-- **Changelog**:
-- **Estado**: borrador
+- **Changelog**: No se modifica la resolución shared: el candidato conservador no acredita ahorro positivo.
+- **Cerrada**: 2026-10-30
+- **Estado**: cancelado
 - **Tiempo humano**: est. 4.8h · real —
 - **Tiempo IA (ejec.)**: est. 1.99h · real —
 - **Supervisión**: est. 0.50h (≈25 % IA) · real —
@@ -604,14 +607,15 @@ changelog: Changed
 - [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
 - [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Incógnita: mecanismo (los shells no comparten estado entre llamadas Bash: variable por bloque o ruta escrita por el agente). Acoplado a la regla 5 de `lint_plugin.py`. Se concreta al revalidar. Clasificación: refactor de prosa, condicional. Coste estimado de la tarea: 245 € (horas × 50 € + tokens).
+**Notas**: **Cancelada, no implementada** por no-go medido en `testing/t17-resolution-decision.md` y `.json`. Se observan 24 asignaciones en 20 piezas, solo tres con duplicados locales. Candidato conserva seis raíces, procedencia/fallbacks y reasignación en cada shell nuevo: delta estimado +270 vía rápida, +420 flujo completo y +77 incluso en las tres piezas duplicadas (chars/4, no API). No se afirma imposibilidad de otro diseño futuro; no cumple la condición de ahorro y se conserva el mecanismo actual. Cuatro pruebas existentes del kit privado pasan en 7,97 s; no se atribuyen a una resolución shared nueva. TDD n/a: cancelación condicional sin cambio de prompts/linter; no nace `tests/test_shared_resolution.py`. Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Incógnita: mecanismo (los shells no comparten estado entre llamadas Bash: variable por bloque o ruta escrita por el agente). Acoplado a la regla 5 de `lint_plugin.py`. Se concreta al revalidar. Clasificación: refactor de prosa, condicional. Coste estimado de la tarea: 245 € (horas × 50 € + tokens).
 
 
 ### T-18 — C-18 — `skill-index` solo con nombres en Claude Code (se decide al abrir F2)
 
 - **Descripción**: Resultado: en Claude Code el índice de SessionStart se reduce a nombres (o nada) para ahorrar ~650 tokens por sesión; Codex/OpenCode quedan igual. Requisito: evaluation.md §C-18. Solo si, tras C-01, las skills ya aparecen en el listado nativo; si no, el índice compacto es la única forma de que el modelo las conozca.
-- **Changelog**:
-- **Estado**: borrador
+- **Changelog**: Se conserva el índice completo: la visibilidad nativa no prueba activación sin degradación.
+- **Cerrada**: 2026-10-30
+- **Estado**: cancelado
 - **Tiempo humano**: est. 2.4h · real —
 - **Tiempo IA (ejec.)**: est. 0.99h · real —
 - **Supervisión**: est. 0.25h (≈25 % IA) · real —
@@ -630,7 +634,7 @@ changelog: Changed
 - [ ] Implementar el alcance concreto y ejecutar las verificaciones dirigidas.
 - [ ] Medir, registrar evidencia y entregar a revisión/QA de F2.
 
-**Notas**: Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Interactúa con T-06 y T-12. Se decide en T-08 con la medición de T-06. Se concreta al revalidar. Clasificación: cambio de comportamiento, condicional. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
+**Notas**: **Cancelada, no implementada** por la condición aprobada en T-08: `testing/t18-activation-decision.md` y recibo `.json`. La sesión nativa F1 ve 27 skills/descripciones pero no usa Skill ni compara activación con/sin índice. Sin evidencia nueva equivalente no se recorta Claude ni otros runtimes, ni se afirma el ahorro de 650. Suite existente `agent-kits/shared/test_skill_index.py`: 23 pass en 34,75 s. TDD n/a: cancelación condicional, sin código productivo nuevo. Evals y pruebas de índice no sustituyen la calidad de activación. Revalidada contra `a157679` (v2.1.0), 2026-10-29. Los ficheros de tests nuevos se declaran como entregables, no como pruebas ya ejecutadas. Oráculo y contratos concretos arriba. **Esqueleto histórico:** Esqueleto diferido. Interactúa con T-06 y T-12. Se decide en T-08 con la medición de T-06. Se concreta al revalidar. Clasificación: cambio de comportamiento, condicional. Coste estimado de la tarea: 122 € (horas × 50 € + tokens).
 
 
 ### T-19 — P-F2 — Proceso de la fase 2: revisión, CHANGELOG doble, Linux y release
