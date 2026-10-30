@@ -21,6 +21,8 @@ generacion:
 
 > **Diseño F3 aprobado:** [O1 y perfil lite](design.md); ejecutar primero el spike Codex obligatorio de T-22.
 
+> **Entrega F3 autorizada 2026-10-30:** publicar v2.3.0; el usuario aplaza la prueba real con Ollama. El requisito manual se conserva como seguimiento, sin bloquear esta entrega ni acreditarlo como superado. [Traza y límites](testing/t26-release-authorization-2026-10-30.json).
+
 > Plan de la optimización del plugin en tres frentes medidos (latencia de hooks, tokens fijos y bajo demanda, viabilidad con modelos locales): F1 detallada y lista para ejecutar; F2 y F3 diferidas, con presupuesto y esqueleto.
 
 | | |

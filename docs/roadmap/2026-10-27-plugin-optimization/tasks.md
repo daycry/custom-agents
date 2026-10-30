@@ -65,11 +65,13 @@ changelog: Changed
   },
   {
     "candidate": "docs/knowledge/candidates/pending/2026-10-30-modelos-locales-proyeccion-explicita.md",
-    "sha256": "9cea5eabe87fa15dbb5e2a4c764d36ed3be0b2135ce6c95bd098ff0f6662e473"
+    "sha256": "9cea5eabe87fa15dbb5e2a4c764d36ed3be0b2135ce6c95bd098ff0f6662e473",
+    "operation_id": "0cc8ac4f641c86cc745a67159d05c072ca172cd3f811408ff3d1d772ff54d549"
   },
   {
     "candidate": "docs/knowledge/candidates/pending/2026-10-30-lock-visible-generation.md",
-    "sha256": "a5642a6b0300ba5de209f73abe2f4128d0ae14b598a7ef111bfd106a8ac668ac"
+    "sha256": "a5642a6b0300ba5de209f73abe2f4128d0ae14b598a7ef111bfd106a8ac668ac",
+    "operation_id": "e21ced6e364b8483dc5261eb71eedac9bee516a3d0f422b7154be9fe062d77c8"
   }
 ]
 ```
@@ -977,7 +979,7 @@ Correcciones A-F3-01/02: descriptores del implementer/shared/matriz E8 actualiza
 ### T-26 — P-F3 — Proceso de la fase 3: revisión, CHANGELOG doble, Linux, prueba manual y release
 
 - **Descripción**: Resultado: F3 cerrada y publicada: validación estática (contratos, interop, doctor) + prueba manual del usuario en otro equipo con Ollama (fuera de presupuesto; mínimos por tramo orientativos), CHANGELOG ES/EN, docs espejo, interop, réplica Linux y `scripts/release.py`. Requisito: evaluation.md §P-F3, decisiones 6 y 7 de la puerta.
-- **Changelog**: Validar y publicar la fase de modelos locales con evidencia de CI y prueba manual en el equipo con Ollama.
+- **Changelog**: Publicar la fase de modelos locales con CI y cobertura verificadas; la prueba real con Ollama queda aplazada por decisión del usuario.
 - **Estado**: en-progreso
 - **Tiempo humano**: est. 2.4h · real —
 - **Tiempo IA (ejec.)**: est. 0.64h · real —
@@ -1003,6 +1005,15 @@ Correcciones A-F3-01/02: descriptores del implementer/shared/matriz E8 actualiza
 Validación automática T-26 sobre4596eaf: revisión independiente2/3 A+B+C+D sin gaps; CI41092581342 verde, Python9889 pass/38 skip/82 subtests y Node431 pass/16 skip/0 fail. Cobertura oficial media91,08 de10 archivos Python, gate90 exit0; Linux dirigido673 pass/9 skip y ledger-lint29/29, fuentes medidas idénticas al SHA. Corrida completa instrumentada previa no verde por test temporal sin cambios: control aislado pasa sin coverage y falla con coverage, umbral intacto; recibo separado, no se usa como aceptación. Alcance UI n/a declarado; no se inventa Playwright. Informe `testing/t26-automated-verification-2026-10-30.md`.
 
 Prueba real pendiente del usuario: `testing/t26-manual-ollama-checklist.md`, solicitud enviada sin bloquear validaciones independientes. Propuesta v2.3.0 preparada por release.py en clon aislado, patch7 archivos SHA42e2c1125271315ba3bd1dca53bf5d23b05c80dbbd668b743f4cee8827d30788, sin publicar. Mantener T-26 abierta hasta resultado manual, Knowledge Gate posterior a QA y confirmación de versión. Los candidatos O1 y lock siguen pendientes de Curator, no aprobados por revisión. Medición de revisiones:9m/4m de reloj; IA/tokens/coste null. Ventana T-26 cerrada17:00:29 UTC (desde16:48:57,12m reloj); IA/tokens/coste null.
+
+
+### Ajuste de entrega aprobado por el usuario — 2026-10-30
+
+El usuario ordena hacer commits, push y crear una nueva release, y aplaza expresamente la prueba con Ollama. Se aprueba publicar **v2.3.0** sin esa ejecución manual. Esta decisión sustituye únicamente su condición de bloqueo para publicar/cerrar T-26; conserva el criterio original arriba como histórico y la ficha como seguimiento abierto. No acredita inferencia real, calidad con un modelo local ni un resultado manual verde. Recibo: `testing/t26-release-authorization-2026-10-30.json`.
+
+QA automática final aceptada sobre4596eaf, revisión2/3 sin gaps, cobertura91,08 y CI completa verde; CI posterior de metadatos f98ffaa también verde (41095385574). Knowledge Curator adopta el rol local tras QA: dos aprobaciones con gate readonly exit0, servicio complete y retirada de fuentes exactas; índice18 entradas/sin errores, sin exportar a backends. IDs y recibos reales: `testing/t26-curation-2026-10-30.json`; operation-id incorporados en curation-refs-v1. Las comprobaciones iniciales con IDs legacy fallaron por prefijo de taxonomía; no se aplicaron y se repitieron con el prefijo del proyecto, sin cambiar candidatos.
+
+T-26 sigue en-progreso exclusivamente hasta verificar la publicación; la prueba manual queda aplazada con seguimiento separado en `testing/t26-manual-ollama-checklist.md`. La preview anterior es histórica: las notas incorporan ahora el aplazamiento y se volverán a comprobar con release.py antes de publicar. TDD n/a: cierre documental y empaquetado, sin cambios productivos.
 
 ---
 

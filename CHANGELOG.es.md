@@ -19,6 +19,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - Escribe estados del ledger, evidencias RED y cabeceras de revisión con parser compartido, lock cooperativo y reemplazo atómico; conserva evidencias concurrentes, codificación y permisos POSIX, con previsualización de solo lectura y rechazo explícito de lecturas obsoletas.
 - Selecciona modelos Ollama por agente mediante configuración explícita de proyecto y proyecciones propias Codex/OpenCode. Conserva exports canónicos, cachés nativas, cambios del consumidor y defaults Claude; mantiene la herencia de proveedor y avisa del effort no admitido.
 
+Validación de entrega (`plugin-optimization`): CI Linux, revisión independiente y gate de cobertura Python de ficheros cambiados superados. La prueba real con Ollama queda aplazada por decisión del usuario; la inferencia local real y la calidad del modelo siguen sin verificar.
+
 ## [2.2.0] - 2026-10-30
 
 ### Cambiado

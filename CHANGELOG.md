@@ -19,6 +19,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - Write ledger states, RED evidence and review headers through a shared parser, cooperative lock and atomic replacement; preserve concurrent evidence, encoding and POSIX permissions, with a read-only preview and explicit stale-read rejection.
 - Select Ollama models per agent through an explicit project config and owned Codex/OpenCode projections. Preserve canonical exports, native caches, consumer edits and Claude defaults; retain provider inheritance and diagnose unsupported effort.
 
+Release validation (`plugin-optimization`): automated Linux CI, independent review and the Python changed-file coverage gate passed. The real Ollama test is deferred at the user’s request; real local inference and model quality remain unverified.
+
 ## [2.2.0] - 2026-10-30
 
 ### Changed

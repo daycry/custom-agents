@@ -1,8 +1,8 @@
 # Prueba real de F3 con Ollama
 
-Estado: **pendiente del usuario**. Esta ficha no acredita una ejecución.
+Estado: **aplazada por decisión del usuario el 2026-10-30**. Esta ficha no acredita una ejecución.
 Código candidato: `4596eaf1bec3f21b21d364d5493b92d072f71cac` de la PR21.
-T-26 exige esta prueba en el otro equipo; los mocks y la revisión no la sustituyen.
+El usuario autoriza publicar v2.3.0 y realizar esta prueba más adelante en el otro equipo. Sigue pendiente como validación posterior; los mocks y la revisión no la sustituyen. [Autorización](t26-release-authorization-2026-10-30.json).
 
 ## Preparar el caso
 

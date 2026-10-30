@@ -1,0 +1,58 @@
+{
+  "role": "knowledge-curator",
+  "scope": "local_only",
+  "taxonomy": "project",
+  "index_before": {
+    "entries": 16,
+    "errors": []
+  },
+  "queries": [
+    "--no-index --tipo adr modelos --limit 8",
+    "--no-index --show ADR-009",
+    "--no-index --tipo gotcha lock --limit 6",
+    "--no-index --tipo gotcha concurrencia --limit 8",
+    "--no-index --tipo adr proyeccion --limit 8"
+  ],
+  "decisions": [
+    {
+      "candidate": "docs/knowledge/candidates/pending/2026-10-30-modelos-locales-proyeccion-explicita.md",
+      "sha256": "9cea5eabe87fa15dbb5e2a4c764d36ed3be0b2135ce6c95bd098ff0f6662e473",
+      "gate_exit": 0,
+      "gate": {
+        "decision": "approve",
+        "categoria": "DECISION",
+        "errores": [],
+        "avisos": []
+      },
+      "service_exit": 0,
+      "receipt": {
+        "status": "complete",
+        "errores": [],
+        "avisos": [],
+        "operation_id": "0cc8ac4f641c86cc745a67159d05c072ca172cd3f811408ff3d1d772ff54d549",
+        "ruta": "docs/knowledge/approved/adr/2026-10-30-modelos-locales-proyeccion-explicita.md",
+        "sha256": "23b3eacf41eb01f1546fa972ad5c67d358cc45b885389bb4e86c668fd56446e9"
+      }
+    },
+    {
+      "candidate": "docs/knowledge/candidates/pending/2026-10-30-lock-visible-generation.md",
+      "sha256": "a5642a6b0300ba5de209f73abe2f4128d0ae14b598a7ef111bfd106a8ac668ac",
+      "gate_exit": 0,
+      "gate": {
+        "decision": "approve",
+        "categoria": "GOTCHA",
+        "errores": [],
+        "avisos": []
+      },
+      "service_exit": 0,
+      "receipt": {
+        "status": "complete",
+        "errores": [],
+        "avisos": [],
+        "operation_id": "e21ced6e364b8483dc5261eb71eedac9bee516a3d0f422b7154be9fe062d77c8",
+        "ruta": "docs/knowledge/approved/gotchas/2026-10-30-lock-visible-generation.md",
+        "sha256": "c0aab232969f6c5a53b6387269a6f0cf6532fedd1bc6fe0c6bb166fb62eed0a3"
+      }
+    }
+  ]
+}

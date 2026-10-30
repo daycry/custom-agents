@@ -50,3 +50,8 @@ Se regenerará si cambian esos archivos o la fecha antes de pedir confirmación
 final. Las dos propuestas de conocimiento de F3 siguen asociadas por ruta/SHA
 en el ledger y pendientes de Curator tras QA; revisión y aprobación del diseño
 no equivalen a aprobación de memoria.
+
+
+## Autorización posterior — 2026-10-30
+
+El usuario autoriza commits, push y v2.3.0 y aplaza la prueba real con Ollama. La propuesta y sus hashes anteriores se conservan como históricos; las notas añaden ese límite y requieren comprobación mecánica actualizada antes de publicar. CI de metadatos f98ffaa:41095385574 verde. Knowledge Curator local cerrado: dos recibos complete, índice18/sin errores. [Traza](t26-release-authorization-2026-10-30.json), [curación](t26-curation-2026-10-30.json). T-26 se cerrará tras verificar la publicación, con la prueba manual registrada como aplazada.
