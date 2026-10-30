@@ -1,6 +1,6 @@
 {
   "name": "@daycry/custom-agents",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Ciclo SDD presupuestado (requisitos → presupuesto → plan → implementación → pruebas → documentación) para Claude Code, Codex y OpenCode, con agentes, comandos y skills, panel de capacidades, memoria técnica y trazabilidad en Jira/Confluence.",
   "keywords": [
     "claude-code",

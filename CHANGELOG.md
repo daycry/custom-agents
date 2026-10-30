@@ -11,6 +11,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-30
+
 ### Added
 
 - Offer an opt-in lite profile with sequential implementation, a required ledger writer and complete briefs up to 6,000 characters; retain sequential fresh review, selected TDD, QA, coverage and Knowledge Gate.
@@ -1255,6 +1257,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[2.3.0]: https://github.com/daycry/custom-agents/releases/tag/v2.3.0
 [2.2.0]: https://github.com/daycry/custom-agents/releases/tag/v2.2.0
 [2.1.0]: https://github.com/daycry/custom-agents/releases/tag/v2.1.0
 [2.0.1]: https://github.com/daycry/custom-agents/releases/tag/v2.0.1

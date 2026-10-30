@@ -11,6 +11,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+## [2.3.0] - 2026-10-30
+
 ### Añadido
 
 - Ofrece perfil lite opt-in con implementación secuencial, writer obligatorio y briefs completos de hasta 6.000 caracteres; conserva revisión fresca secuencial, TDD elegido, QA, cobertura y Knowledge Gate.
@@ -1267,6 +1269,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[2.3.0]: https://github.com/daycry/custom-agents/releases/tag/v2.3.0
 [2.2.0]: https://github.com/daycry/custom-agents/releases/tag/v2.2.0
 [2.1.0]: https://github.com/daycry/custom-agents/releases/tag/v2.1.0
 [2.0.1]: https://github.com/daycry/custom-agents/releases/tag/v2.0.1
