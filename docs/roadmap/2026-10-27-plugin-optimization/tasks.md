@@ -792,7 +792,7 @@ Verificación dirigida final: Python84 pass; Node165 pass/0 fail/0 skip (instala
 - **Previsión IA**: 2.4M in / 240k out tok · 14.35 €
 - **Dependencias**: T-21, T-13
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/ledger-write.py` (nuevo), `agent-kits/shared/ledger-write.md` (nuevo), `tests/test_ledger_write.py` (nuevo), `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/ledger-view.py`, `agent-kits/shared/local-state.py`, `tests/test_ledger_lint.py`, `agent-kits/shared/test_ledger_view.py`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
+- **Archivos**: `agent-kits/shared/ledger-write.py` (nuevo), `agent-kits/shared/ledger-write.md` (nuevo), `tests/test_ledger_write.py` (nuevo), `agent-kits/shared/ledger-lint.py`, `agent-kits/shared/ledger-view.py`, `agent-kits/shared/local-state.py`, `tests/test_ledger_lint.py`, `agent-kits/shared/test_ledger_view.py`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `skills/tdd/SKILL.md`, `commands/dev-cycle.md`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `tests/test_console_encoding.py`, `interop/**` (regenerado), `.codex-plugin/**`, `.agents/plugins/**`
 - **Cubre (tests)**: —
 - **Verificación**: `python -m pytest -q tests/test_ledger_write.py tests/test_ledger_lint.py agent-kits/shared/test_ledger_view.py; python scripts/export-interop.py --check` → exit 0 tras implementar; nuevo test primero RED. Fixture canónica sin avisos, concurrentes, EOL, conflictos y rutas inseguras con cero escritura en error.
 
@@ -836,11 +836,16 @@ RED: `tests/test_ledger_write.py::test_state_preserves_an_unrelated_phases_summa
 
 Corrección propia adicional de T-23: se conserva el espaciado exacto de las fases cuyos contadores no cambian (regresión RED previa). Writer final Windows24 pass/2 skip y Linux26 pass/0 skip; siete regresiones existentes de local-state fix3 pasan. Los 165/3 y 85 anteriores se conservan sobre sus fuentes, sin presentarlos como una nueva ejecución tras esta corrección. La CI exacta del commit T-22 `3b1b338` pasa en run41075410373; no acredita todavía el resto de F3. Medición T-23:14:40:04Z–15:05:24Z, sin tokens/coste/horas IA; 25 minutos de reloj no se imputan como IA. La ventana separada T-23-fix1 conserva la corrección posterior.
 
+
+RED: `CI41078822941::console_and_core_paragraph` falló con CI real3aafa4e: faltan4 modos de consola del writer y se pierde1 hash de parrafo del nucleo (5 failed/9816 passed/38 skipped/82 subtests). Antes del fix, sin cambiar expectativas. · 2026-10-30.
+
+Corrección de CI T-23 (fix2): run41078822941 del SHA3aafa4e falla con5 tests (9816 pass/38 skip/82 subtests): registro ausente del modo consola del nuevo escritor y un párrafo del núcleo unido al añadir la instrucción. Se conserva el párrafo original íntegro y se añade la instrucción en otro; no se cambia la fixture de hashes ni las expectativas. Modo real del writer: preview dry-run sobre fixture propia con aviso UTF-8, sin escribir ledger ni estado. Dirigidos Windows: consola8 pass; dev-cycle split10 pass. T-23 queda funcional tras la corrección; CI exacta y revisión final de F3 permanecen pendientes.
+
 ### T-24 — C-14 — Aviso de contexto corto en `/doctor` y mínimos por tramo
 
 - **Descripción**: Resultado: `/doctor` lee la configuración local de OpenCode/Codex (y Ollama solo si es host local y la capacidad está activa) y avisa ⚠️ si el contexto es menor que el mínimo del tramo; `docs/INTEROP.md` (+ EN) documenta los tramos orientativos (8-9B solo lectura; 32B con ≥ 64k para la vía rápida). Requisito: evaluation.md §C-14, spec §Criterios CA-10.
 - **Changelog**: Advertir en doctor sobre contexto local insuficiente o desconocido, con diagnóstico y sondeo local solo opt-in.
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 6.0h · real —
 - **Tiempo IA (ejec.)**: est. 2.48h · real —
 - **Supervisión**: est. 0.62h (≈25 % IA) · real —
@@ -861,6 +866,27 @@ Corrección propia adicional de T-23: se conserva el espaciado exacto de las fas
 
 **Notas**: Revalidada el 2026-10-30 contra v2.2.0; verificaciones y ficheros actuales arriba, suites nuevas aún no ejecutadas. T-21 debe validar el diseño antes de implementar. Detalle `testing/t20-revalidation-2026-10-30.md`. **Esqueleto histórico:** Esqueleto diferido. Los mínimos salen de la auditoría, no de una prueba real: documentarlos como orientativos. Sin red salvo hosts locales (invariante). Depende de T-22. Se concreta al revalidar. Clasificación: capacidad nueva. Coste estimado de la tarea: 306 € (horas × 50 € + tokens).
 
+
+
+RED: `agent-kits/shared/test_doctor_local_models.py::test_explicit_native_context_is_declared_and_default_never_uses_network` falló con Tres casos fallan por flag --runtime desconocido (exit2), antes de incorporar diagnostico nativo y contexto declarado/desconocido. · 2026-10-30.
+
+
+RED: `agent-kits/shared/test_doctor_local_models.py::probe_contract` falló con Nueve casos fallan por --probe-ollama desconocido, antes del sondeo opt-in acotado a loopback y sin redirects. · 2026-10-30.
+
+
+RED: `agent-kits/shared/test_doctor_local_models.py::test_own_agent_context_is_checked_even_when_parent_has_a_larger_window` falló con Dos casos omiten el modelo del agente y solo diagnostican el padre (StopIteration), antes de comprobar las proyecciones propias. · 2026-10-30.
+
+
+RED: `agent-kits/shared/test_doctor_local_models.py::native_runtime_and_probe_identity` falló con Cuatro casos fallan: puerto0 cambia a11434, modelo anonimo hereda una fila del servidor y resolutor no admite runtime nativo; antes del fix. · 2026-10-30.
+
+
+RED: `agent-kits/shared/test_doctor_local_models.py::native_identity_and_shared_input` falló con Tres rojos: hardlink aceptado, namespace Codex recortado como proveedor y alias OpenCode no resuelto a modelID; antes del fix. · 2026-10-30.
+
+
+RED: `agent-kits/shared/test_doctor_local_models.py::test_corrupt_provider_schema_warns_before_probe` falló con Una config providers invalida llega al sondeo opt-in antes de validarse (1 failed/6 pass); antes de ordenar validacion previa y red. · 2026-10-30.
+
+
+RED: `agent-kits/shared/test_doctor_local_models.py::test_probe_rejects_nonlocal_or_ambiguous_endpoints_before_opening_socket` falló con Ocho casos no explican el fallo del sondeo en detalle/arreglo humanos (8 failed), antes de hacer visible el diagnostico de red rechazado. · 2026-10-30.
 
 ### T-25 — C-13 — Perfil `lite`
 

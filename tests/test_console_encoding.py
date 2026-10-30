@@ -506,6 +506,9 @@ def _modos():
                                      "--root", os.path.join(ROOT, "evals", "fixtures", "project")], (0,), None)],
         "agent-kits/shared/ledger-lint.py":
             [("ledger", lambda w: [L], (0, 1), None)],
+        "agent-kits/shared/ledger-write.py":
+            [("preview con aviso UTF-8", lambda w: ["state", os.path.join(w, "ledger-write", "tasks.md"),
+                "--task", "T-01", "--state", "en-progreso", "--dry-run", "--json"], (0,), None)],
         # Texto: una línea por tarea con `·` y títulos con tildes del ledger real (panel-redesign T-21).
         "agent-kits/shared/ledger-view.py":
             [("ledger", lambda w: [L], (0,), None)],
@@ -616,6 +619,14 @@ def taller(tmp_path_factory):
     """Espacio de trabajo con los fixtures mínimos que piden algunos modos. Nada se escribe en el repo."""
     import json
     w = tmp_path_factory.mktemp("consola")
+    writer = w / "ledger-write" / "tasks.md"
+    writer.parent.mkdir()
+    # The missing optional banner deliberately emits a real UTF-8 warning.
+    # A dry-run must exercise the result without creating state or editing tasks.
+    writer.write_text("## Resumen de progreso\n\n| Fase | Completadas | Total | Progreso |\n"
+        "|---|---|---|---|\n| Fase 1 | 0 | 1 | 0% |\n\n## Fase 1\n\n### T-01 — Consola\n\n"
+        "- **Estado**: borrador\n- **Changelog**: Fixture.\n- **Verificación**: check\n\n"
+        "**Criterios de aceptación**\n- [x] Comprobado.\n", encoding="utf-8")
     (w / 'session-context').mkdir()
     ledger = w / 'ledger-post' / 'docs/roadmap/2026-09-03-windows-console/tasks.md'
     ledger.parent.mkdir(parents=True)
