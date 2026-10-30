@@ -3,16 +3,16 @@
   "cases": [
     {
       "id": "roadmap-live-literal",
-      "prompt": "Abre un dashboard vivo del estado del roadmap leyendo Jira en tiempo real, con las horas imputadas por label.",
+      "prompt": "Consulta el estado remoto del roadmap con la integración de seguimiento elegida por el proyecto.",
       "trigger": "literal",
       "expect": {
         "activates": true
       },
-      "notes": "Ventana literal «dashboard vivo del estado del roadmap»."
+      "notes": "Literal del contrato neutral de proveedor."
     },
     {
       "id": "roadmap-live-parafrasis",
-      "prompt": "Quiero ver cómo va la cartera según lo que hay AHORA en Jira (issues y worklogs por label), no según los ficheros locales.",
+      "prompt": "Quiero ver cómo va la iniciativa en nuestro Redmine ahora, sin modificar el ledger local.",
       "trigger": "parafrasis",
       "expect": {
         "activates": true

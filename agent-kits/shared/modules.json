@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "modules": {
+    "application-data": {
+      "skills": [
+        "data-collection",
+        "llm-pipeline"
+      ],
+      "commands": [],
+      "requires": []
+    },
+    "catalog": {
+      "skills": [
+        "capability-audit",
+        "outcome-evals",
+        "plugin-dev",
+        "plugin-panel"
+      ],
+      "commands": [
+        "plugin-catalog"
+      ],
+      "requires": []
+    },
+    "confluence": {
+      "skills": [
+        "confluence-publish",
+        "confluence-pull"
+      ],
+      "commands": [
+        "confluence-pull"
+      ],
+      "requires": []
+    },
+    "content": {
+      "skills": [
+        "competitive-analysis",
+        "content-production"
+      ],
+      "commands": [],
+      "requires": [
+        "voice"
+      ]
+    },
+    "core": {
+      "skills": [
+        "adversarial-review",
+        "api-contract",
+        "backend-practices",
+        "changelog-sync",
+        "code-health",
+        "debug-root-cause",
+        "delivery-practices",
+        "dependency-upgrade",
+        "frontend-quality",
+        "knowledge-services",
+        "quick-implement",
+        "rates-verify",
+        "research-first",
+        "roadmap-dashboard",
+        "stack-practices",
+        "tdd",
+        "unit-tests"
+      ],
+      "commands": [
+        "dev-cycle",
+        "doctor",
+        "pm-backlog",
+        "pm-cycle",
+        "retro",
+        "roadmap-brief",
+        "roadmap-live",
+        "roadmap-metrics",
+        "roadmap-status",
+        "setup",
+        "spec-drift",
+        "work-context",
+        "work-resume"
+      ],
+      "requires": []
+    },
+    "documents": {
+      "skills": [
+        "to-pdf"
+      ],
+      "commands": [],
+      "requires": []
+    },
+    "jira": {
+      "skills": [
+        "jira-sync"
+      ],
+      "commands": [],
+      "requires": []
+    },
+    "relationships": {
+      "skills": [
+        "relationship-planning"
+      ],
+      "commands": [],
+      "requires": [
+        "voice"
+      ]
+    },
+    "security": {
+      "skills": [
+        "cybersecurity"
+      ],
+      "commands": [],
+      "requires": []
+    },
+    "training": {
+      "skills": [
+        "training-data-services"
+      ],
+      "commands": [],
+      "requires": []
+    },
+    "voice": {
+      "skills": [
+        "voice-profile"
+      ],
+      "commands": [],
+      "requires": []
+    }
+  },
+  "profiles": {
+    "core": [
+      "core"
+    ],
+    "developer": [
+      "core",
+      "security",
+      "application-data"
+    ],
+    "research": [
+      "core",
+      "content"
+    ],
+    "full": [
+      "application-data",
+      "catalog",
+      "confluence",
+      "content",
+      "core",
+      "documents",
+      "jira",
+      "relationships",
+      "security",
+      "training",
+      "voice"
+    ]
+  }
+}

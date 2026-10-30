@@ -1,5 +1,8 @@
 # custom-agents
 
+
+**Manual de uso y personalización:** [workflows detallados del core, integraciones opcionales, Atlassian/Redmine y extensiones del proyecto](docs/CUSTOMIZATION.md). Los bundles nativos son completos; configurado no significa conectado ni autorizado.
+
 [English](README.md) · **Español**
 
 **El ciclo de vida completo de una iniciativa de software — con presupuesto, medición de coste real y trazabilidad en Jira/Confluence — en Claude Code, Codex y OpenCode.**

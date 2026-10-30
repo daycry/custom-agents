@@ -11,6 +11,13 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Cambiado
+
+- Selección de módulos/perfiles, entrega selectiva protegida y puertos de integración locales al proyecto. Jira/Confluence son adaptadores opcionales; los proveedores de proyecto son abiertos.
+- Ciclo del core desacoplado de llamadas de proveedor y manual detallado bilingüe de workflows del core, Atlassian, Redmine y personalización.
+- Preparación de cambio mayor: raíz explícita para opt-ins Jira y conservación de paquetes portable modificados al regenerar.
+
+
 ### Corregido
 
 - Conservar las entradas centrales del ciclo cuando se recorta un catálogo mayor en el índice de inicio, sin elevar los límites de contexto.

@@ -33,4 +33,4 @@ mejor relación valor/coste, favoreciendo quick wins).
 - **Solo lectura del roadmap.** El único fichero que escribes es `docs/roadmap/BACKLOG.md`.
 - **No planifiques ni implementes.** Para ejecutar una iniciativa concreta, remite a `/dev-cycle` sobre su carpeta.
 - **Cifras honestas.** Usa lo que hay en las evaluaciones; marca lo que falte como "sin evaluar", no lo estimes aquí.
-- **Confluence (opt-in):** si el proyecto sincroniza `docs/`, ofrece publicar `BACKLOG.md` vía `confluence-publish`; no lo fuerces.
+- **Documentación externa:** ofrece proyectar BACKLOG.md mediante `project-integrations.md` solo cuando exista un binding y autorización aplicable.

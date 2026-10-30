@@ -104,13 +104,7 @@ bloquean el cierre del ciclo PM.
   a partir de `spec.md` + `evaluation.md` y conviértelo con la skill **`to-pdf`**;
   guárdalo como `docs/roadmap/<fecha>-<slug>/decision-brief.pdf`. Preséntalo al usuario.
 
-- **Épica en Jira (opcional).** El volcado de tareas a Jira vive en el ciclo de desarrollo (skill
-  **`jira-sync`**, al crear el plan): ahí se crea un issue por tarea bajo el proyecto/épica elegidos,
-  con selector visual o conversacional. En pm-cycle **no dupliques esa mecánica**; como mucho, si el
-  usuario quiere adelantar un contenedor, ofrece crear **una épica** desde la spec aprobada (título +
-  resumen ejecutivo + presupuesto de la evaluación) con `jira-sync`, y **anota su clave** en el
-  frontmatter de la spec (`jira: PROJ-123`) para que `/dev-cycle` cuelgue después las tareas de ella.
-  Confirma proyecto antes de crear nada; no asumas.
+- **Contenedor externo opcional.** La creación de tareas pertenece al plan de desarrollo. Si el usuario pide adelantar un contenedor, resuelve `plan.container` por `agent-kits/shared/project-integrations.md` con la spec aprobada y el presupuesto; el adaptador valida tipo, destino y permisos, presenta una vista previa y guarda el ID confirmado. No dupliques tareas ni inventes una épica universal. Una petición sin binding se resuelve localmente.
 
 > Si el usuario no quiere ninguna, cierra sin más. Estas salidas convierten la decisión en algo
 > accionable (documento para decidir / ticket para el equipo) sin salir del rol PM.
@@ -133,7 +127,7 @@ la aplica `/dev-cycle` al cerrar el desarrollo.
 
 ## Reglas del orquestador
 - **Invoca al `evaluator` por nombre**; no dependas de la auto-delegación.
-- **Cierra en la evaluación.** pm-cycle **no** invoca a `planner`, `implementer`, `qa` ni `documenter` (el trabajo de desarrollo es de `/dev-cycle`). Las únicas salidas extra son el diseño opt-in de Fase 2-bis (`architect`, que tampoco planifica) y las de Fase 3 (brief PDF con la skill `to-pdf`, handoff a Jira), siempre opt-in y sin crear plan.
+- **Cierra en la evaluación.** pm-cycle **no** invoca a `planner`, `implementer`, `qa` ni `documenter` (el trabajo de desarrollo es de `/dev-cycle`). Las únicas salidas extra son el diseño opt-in de Fase 2-bis (`architect`, que tampoco planifica) y las de Fase 3 (brief PDF con la skill `to-pdf`, handoff a la integración elegida), siempre opt-in y sin crear plan.
 - **Handoff = puente, no ejecución.** En go, ofreces el comando siguiente en una línea; el usuario decide cuándo lanzarlo.
 - **Misma carpeta y mismo slug** que usará `/dev-cycle`, para que la cadena `spec → evaluación → plan` sea trazable.
-- **Confluence (opt-in):** la sincronización de `docs/` la hace el propio `evaluator` vía la skill `confluence-publish` al escribir; no la fuerces aquí.
+- **Documentación externa:** la proyección opt-in se resuelve por `project-integrations.md`; no fuerces publicaciones.

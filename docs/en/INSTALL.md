@@ -2,6 +2,14 @@
 
 **English** · [Español](../INSTALL.md)
 
+## Modular architecture and project integrations
+
+Core works with local `tasks.md` and `docs/`. Functions are bound in project `.claude/integrations.json`; Jira and Confluence are optional adapters. Projects can add Redmine, a wiki or other providers without changing core. A declaration neither connects accounts nor authorizes external effects.
+
+The versioned `agent-kits/shared/modules.json` catalog resolves profiles and dependencies. Portable export and profiled Claude copies filter files; native plugins remain complete bundles. Shared caches are not modified to simulate per-project installation.
+
+The [complete handbook](CUSTOMIZATION.md) details workflows, agents, commands, skills, tools, settings, artifacts, gates, Atlassian/Redmine examples and recovery. Provider-specific sections below describe optional adapters rather than core requirements. This update includes contract changes for the next major version; see [migration and limits](guides/operations.md).
+
 > **How you type the commands.** In Claude Code, installed as a plugin, the real name carries the
 > namespace: **`/custom-agents:setup`**, `/custom-agents:dev-cycle`, `/custom-agents:doctor`…
 > In Codex, use the native adapter **`$custom-agents:custom-agents-setup`**, followed by its

@@ -1,5 +1,8 @@
 # CLAUDE.md
 
+
+**Manual de uso y personalización:** [workflows detallados del core, integraciones opcionales, Atlassian/Redmine y extensiones del proyecto](docs/CUSTOMIZATION.md). Los bundles nativos son completos; configurado no significa conectado ni autorizado.
+
 Contexto para Claude Code al trabajar en este repositorio.
 
 > Si existe `CONTINUE-HERE.md` en la raíz, léelo ANTES de nada: recoge el

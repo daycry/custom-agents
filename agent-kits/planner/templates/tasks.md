@@ -63,7 +63,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase N — {{nombre}} | 0 | {{N}} | 0% | 0 / {{X}}h | 0 / {{X}}h | 0 / {{X}}h | 0 / {{X}} |
 | **TOTAL** | **0** | **{{N}}** | **0%** | **0 / {{X}}h** | **0 / {{X}}h** | **0 / {{X}}h** | **0 / {{X}}** |
 
-> **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
+> **Imputación externa opcional.** El adaptador elegido recibe las mediciones disponibles y aplica su contrato de jornada, supervisión e idempotencia. No inventes tiempo real ni recalcules horas fuera de su dueño; sin integración los datos permanecen locales.
 
 ---
 

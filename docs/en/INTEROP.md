@@ -2,6 +2,14 @@
 
 **English** · [Español](../INTEROP.md)
 
+## Modular architecture and project integrations
+
+Core works with local `tasks.md` and `docs/`. Functions are bound in project `.claude/integrations.json`; Jira and Confluence are optional adapters. Projects can add Redmine, a wiki or other providers without changing core. A declaration neither connects accounts nor authorizes external effects.
+
+The versioned `agent-kits/shared/modules.json` catalog resolves profiles and dependencies. Portable export and profiled Claude copies filter files; native plugins remain complete bundles. Shared caches are not modified to simulate per-project installation.
+
+The [complete handbook](CUSTOMIZATION.md) details workflows, agents, commands, skills, tools, settings, artifacts, gates, Atlassian/Redmine examples and recovery. Provider-specific sections below describe optional adapters rather than core requirements. This update includes contract changes for the next major version; see [migration and limits](guides/operations.md).
+
 This plugin was born for Claude Code and today it also installs into **Codex** (OpenAI) and
 **OpenCode** (SST). This document covers **how** (installation), **what gets translated** (and into
 which format) and — most importantly — **what does NOT work the same** in each runtime.

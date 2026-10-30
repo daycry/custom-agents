@@ -152,17 +152,7 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente 
   **no** promueve estados de memoria ni aprueba candidatos. Con gaps tras el 3.º intento,
   conserva la evidencia y las propuestas pendientes sin alterar el legado.
   Abre la cabecera con el contrato `agent-kits/shared/ledger-write.md` (preferente, obligatorio en lite); `ledger-lint.py` exit 0 tras completar la tabla.
-- **Jira — lo publica ESTA skill, POR CADA intento (dueño único; solo si `.claude/jira.json`
-  `enabled` Y el plan se volcó).** Nada más escribir la sección del intento en `tasks.md`, ejecuta
-  `python3 "$JF" plan --ledger <tasks.md> --event revision|gaps --actor reviewer --task T-XX[,T-YY]
-  --intento N --json` (`JF` = `jira-flow.py` de `jira-sync`, Paso 7; `--batch` en granularidad fase)
-  y aplica sus `ops` (etiqueta → transición → comentario) con las tools del conector, en orden. El
-  script elige entre `revision` (sin gaps) y `gaps` (tabla de ESE intento), comenta YA FIRMADO por el
-  `reviewer` (`ca-reviewer`) y con gaps **reabre** el issue. Sin `jira.json`/issue → `ops: []` con aviso:
-  anótalo y sigue. No lo delegues «al orquestador» ni «para el cierre»: sin este paso el ciclo acaba sin
-  rastro del veredicto de cada intento. La cabecera de la sección debe ser `## Revisión de dos lentes —
-  intento N: <Fase X (T-…)> — <resumen>` (es lo que casa `REVISION_HDR_PATTERN`; paréntesis tras `N` la ocultan).
-  Fuera quedan el **worklog** `[revisión]` (orquestador) y Done (`aprobado`, `--actor orquestador` + `--qa-verde`): nunca aquí, nunca `qa`.
+- **Proyección externa POR CADA intento (dueño: esta skill).** Después de registrar el veredicto en `tasks.md`, resuelve `review.completed` o `review.gaps` por `agent-kits/shared/project-integrations.md`, incluyendo intento, tareas, grados, evidencia y actor reviewer. El adaptador prepara comentarios firmados y, si su contrato y autorización lo permiten, reapertura por gaps. No publiques dos veces el mismo intento. Sin integración, la traza local basta; un fallo externo no bloquea la revisión. La cabecera local conserva `## Revisión de dos lentes — intento N: <Fase X (T-…)> — <resumen>` (es lo que casa `REVISION_HDR_PATTERN`). El worklog de revisión pertenece al orquestador; `task.done` solo al orquestador tras revisión sin gaps y QA verde.
 - **Mensaje final al orquestador:** disciplina de `"$SHAREDKIT/output-discipline.md"` (≤ ~12
   líneas: veredicto, nº de gaps por grado, lentes que corrieron, ruta del ledger actualizado,
   siguiente paso). El detalle vive en el ledger.
@@ -195,6 +185,6 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente 
 Sin `scope-check.py` o sin git → puerta saltada con aviso. Sin `review-lens-select.py` → solo A+B (dilo).
 Sin `skills/cybersecurity/references/` → la Lente C corre con criterio propio y lo anota. Sin `personas/` →
 Lente B genérica. Sin agente `reviewer` → subagente genérico con el mismo prompt (dilo). Sin `model-tier.py` →
-frontmatter. Sin Jira activo (cuando hay ledger; a demanda sin ledger no aplica) → nada se publica. Nada de esto bloquea; lo obligatorio es el bucle acotado y la traza en el ledger.
+frontmatter. Sin integración externa activa (cuando hay ledger; a demanda sin ledger no aplica) → nada se publica. Nada de esto bloquea; lo obligatorio es el bucle acotado y la traza en el ledger.
 
 > **Lente C — tercer disparador (T-18, hueco E4).** Además de los patrones de código peligroso y los stems de ruta, `review-lens-select.py` dispara la Lente C cuando el diff abre un canal de **texto controlado por el consumidor** (`.claude/**`, `dev.json`, `personas/`, `CONTINUE-HERE*`, `docs/knowledge/**`) hacia un fichero que **compone un prompt o un brief**: motivo `tipo: flujo` con fichero y línea. Detalle y límites en `references/lens-c-heuristics.md`.

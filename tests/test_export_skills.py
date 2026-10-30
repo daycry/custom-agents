@@ -194,6 +194,8 @@ def test_check_detecta_referencia_ausente_y_find_colgando(plugin, tmp_path):
     problemas = ES.check(str(out))
     assert any("references/detalle.md" in p and "no existe" in p for p in problemas)
     assert any("hash" in p for p in problemas)                      # el árbol cambió
+    # Modified exports are preserved; use another directory for the independent case.
+    out = tmp_path / "out-find"
     # find colgando
     ES.exportar(str(plugin), str(out), "all", quiet=True)
     p = out / "skills" / "beta" / "SKILL.md"

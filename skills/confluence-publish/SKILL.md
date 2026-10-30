@@ -10,6 +10,13 @@ user-invocable: true
 
 # confluence-publish — publicar en Confluence con asistente guiado
 
+
+## Adaptador opcional de proyecto
+
+Aplica `agent-kits/shared/project-integrations.md` desde la raíz explícita del proyecto.
+Antes de usar tools, lee `agent-kits/shared/atlassian-transport.md`: versión real del conector,
+permisos, settings, recibos y resultado incierto. Sin capacidad, continúa localmente.
+
 ## Alcance y activación
 
 Publica la documentación de un proyecto en Confluence Cloud con un ASISTENTE GUIADO pensado para personas NO técnicas, reutilizando el conector oficial de Atlassian (Rovo MCP) — no reimplementa la integración. Acompaña al usuario paso a paso: elige el espacio y el punto de anclaje (raíz del espacio o bajo una página existente) mostrando nombres y árbol reales (nunca IDs), previsualiza qué se va a publicar, pide confirmación antes de tocar nada y espeja el árbol de docs/ de forma idempotente (crea o actualiza, sin duplicar). Guarda las preferencias en .claude/confluence.json para que la próxima vez sea de un clic. Úsala cuando el usuario diga "publica en Confluence", "sube la doc a Confluence", "sincroniza con Confluence", "crea el espacio/árbol del proyecto en Confluence".
@@ -25,21 +32,15 @@ en lenguaje natural, ofreces opciones por su **nombre**, previsualizas y **confi
 de escribir nada**. Los tecnicismos (cloudId, spaceId, parentId, pageId) se resuelven y se
 guardan **por debajo**, sin exponerlos.
 
-## Principios de interacción (obligatorios)
+## Interacción
 
-- **Una pregunta a la vez**, en lenguaje llano. Nunca sueltes un cuestionario largo.
-- **Opciones numeradas por nombre.** Muestra "1) Marketing  2) Ingeniería  3) …", no claves ni UUIDs.
-- **Nada de jerga.** Di "dónde quieres que aparezca", no "introduce el parentId". Evita cloudId/spaceKey/pageId en lo que ve el usuario.
-- **Valores por defecto sensatos** y recomendados: propón la opción más común y deja cambiarla ("Por defecto lo pongo como página nueva dentro de 'Proyectos'. ¿Te vale? [Sí / elegir otro sitio]").
-- **Previsualiza y confirma** antes de crear/actualizar: enseña un resumen de qué páginas se crearán y dónde, y espera un "sí" explícito.
-- **Sin callejones sin salida:** si algo falla (sin conexión, sin permisos), explícalo en una frase clara y di el siguiente paso, sin volcar errores técnicos crudos.
-- **Recuerda las decisiones:** guarda todo en `.claude/confluence.json` para que la próxima vez no haya que preguntar (solo confirmar).
+Antes del Paso 0, lee `references/interaction.md`: preguntas de una en una, nombres legibles, vista previa, confirmación y recuperación sin jerga.
 
 ## Requisitos
 
-- **Conector Atlassian (Rovo MCP) conectado** en Claude (Jira & Confluence). Si no lo está,
+- **Conector Atlassian (Rovo MCP) conectado** en la sesión del runtime elegido (Jira & Confluence). Si no lo está,
   díselo al usuario con naturalidad ("Necesito permiso para conectarme a vuestro Confluence;
-  actívalo en los conectores y volvemos") y **detente**; no intentes otra vía.
+  actívalo en los conectores y volvemos") y detén solo la publicación; otra herramienta requiere contrato compatible verificado y elección expresa del proyecto.
 - Permiso de escritura del usuario en el espacio de destino.
 - Herramientas del conector (por su función; el prefijo `mcp__…__` puede variar):
   `getAccessibleAtlassianResources`, `getConfluenceSpaces`, `getPagesInConfluenceSpace`,
@@ -52,7 +53,7 @@ La sincronización con Confluence es **opcional** y se decide **una vez por proy
 nada, localiza la config y mira el flag `enabled` de `.claude/confluence.json`:
 
 ```bash
-CFG="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*confluence.json' 2>/dev/null | head -1)"
+CFG="${PROJECT_ROOT}/.claude/confluence.json"
 ```
 
 - **`enabled: true`** → sincronización activada; sigue el flujo normal (conexión → espacio → árbol → subir).

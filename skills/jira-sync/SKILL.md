@@ -9,6 +9,13 @@ user-invocable: true
 
 # jira-sync — volcar el plan a Jira (con artefacto o conversacional)
 
+
+## Adaptador opcional de proyecto
+
+Aplica `agent-kits/shared/project-integrations.md` desde la raíz explícita del proyecto.
+Antes de usar tools, lee `references/transport-contract.md`: versión real del conector,
+permisos, settings, recibos y resultado incierto. Sin capacidad, continúa localmente.
+
 ## Alcance y activación
 
 Vuelca un plan (tasks.md de docs/roadmap/<fecha>-<slug>/) a Jira creando issues, vía el conector oficial de Atlassian (Rovo MCP). Se ofrece al CREAR el plan (opt-in). Asistente guiado para elegir destino: en Cowork/escritorio abre un ARTEFACTO interactivo (buscar proyecto / buscar issue padre por clave, texto o JQL); en CLI o VS Code hace lo mismo de forma CONVERSACIONAL (por texto, eligiendo por número). Determina el tipo de issue según la jerarquía del padre (no lo hardcodea), comprueba campos obligatorios, PREVISUALIZA y pide confirmación antes de crear nada, es idempotente (no duplica) y escribe las claves Jira de vuelta en tasks.md. Úsala cuando el usuario diga "vuelca el plan a Jira", "crea las tareas en Jira", "sincroniza el plan con Jira", "pásame esto a Jira".
@@ -38,7 +45,7 @@ antes de crear**. Nada se escribe en Jira sin un "sí" explícito.
 
 1. Localiza la config y respeta el flag `enabled`:
    ```bash
-   JCFG="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*jira.json' 2>/dev/null | head -1)"
+   JCFG="${PROJECT_ROOT}/.claude/jira.json"
    ```
    - `enabled: false` → no hagas nada. Sin config (primera vez) → pregunta **una vez**: "¿Quieres volcar los planes a Jira?"; guarda la decisión en `.claude/jira.json`.
 2. Comprueba conexión con `getAccessibleAtlassianResources`; si no está, guía a conectarla y detente. Resuelve el `cloudId` (uno solo → úsalo; varios → pregunta por nombre) y persístelo.
@@ -96,13 +103,23 @@ manifiesto y cierra en llano con recuento y enlaces. → `references/create-and-
 
 ## Paso 7 — ciclo de eventos firmado (comentarios + horas + Done)
 
+Traducción del puerto al contrato existente: `task.started` → `arrancar`,
+`task.implemented` → `implementado`, `review.completed` → `revision`, `review.gaps` → `gaps`,
+`task.qa-passed` → `qa-verde`, `task.qa-failed` → `qa-rojo`, `task.done` → `aprobado`.
+`plan.export` usa los pasos 0–6. `review.worklog` usa el plan de imputación de revisión.
+Los scripts Jira actuales usan `.claude/jira.json` y `.claude/jira-state.json` en esa raíz;
+si un binding solicita otras rutas, no lo ejecutes con estos scripts: usa un adaptador de
+proyecto compatible o corrige el binding de forma explícita. No cambies de estado por nombre
+sin consultar las transiciones disponibles del issue. Las reglas de QA y actor siguen vigentes.
+
+
 Cada evento (`arrancar` · `implementado` · `revision` · `gaps` · `aprobado` · `qa-verde` · `qa-rojo`) lo
 ejecuta una pieza fija: `implementer` (`arrancar`/`implementado`) · la skill `adversarial-review` (su
 paso 6, para `revision`/`gaps`) · `qa` · **`orquestador`** para `aprobado`. `--actor` es la FIRMA del
 comentario (`implementer` · `reviewer` · `qa` · `orquestador`), NO el ejecutor: `--actor reviewer` lo
 firma la skill `adversarial-review`, nunca el agente `reviewer` (solo lectura, sin tools de Jira). Se
 ejecuta con
-`scripts/jira-flow.py plan --event <evento> --actor <actor> --task T-XX --ledger tasks.md --json`: el script **lee el ledger** y devuelve el plan de operaciones
+`scripts/jira-flow.py plan --root "$PROJECT_ROOT" --event <evento> --actor <actor> --task T-XX --ledger tasks.md --json`: el script **lee el ledger** y devuelve el plan de operaciones
 (transición · etiqueta `ca-<agente>` · comentario YA FIRMADO — `> 🤖 **[custom-agents · <agente>]** ·
 <rol> · <fecha>` — · comando de `worklog.py`); el agente solo **ejecuta** ese plan vía el conector, nunca
 redacta el comentario a mano. **El cálculo NO se hace a mano:** la aritmética de horas sigue siendo de

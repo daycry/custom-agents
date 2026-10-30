@@ -1439,6 +1439,27 @@ def _optin(project, fichero, etiqueta, obligatorios, arreglo_alta):
 
 def bloque_configs(plugin_root, project, runtime="claude"):
     ls = _rates(project) + _dev(plugin_root, project, **({"runtime": runtime} if runtime != "claude" else {}))
+    try:
+        spec = importlib.util.spec_from_file_location('doctor_integration_route', os.path.join(HERE, 'integration-route.py'))
+        router = importlib.util.module_from_spec(spec)
+        previous_bytecode = sys.dont_write_bytecode
+        try:
+            sys.dont_write_bytecode = True
+            spec.loader.exec_module(router)
+            integration = router.route(project)
+        finally:
+            sys.dont_write_bytecode = previous_bytecode
+        state = integration['status']
+        severity = AVISO if state in ('invalid', 'partial', 'unavailable') else INFO
+        ls.append(linea(severity, 'integrations.json',
+                        f"{state} · {len(integration['bindings'])} binding(s) · conexión y permisos sin verificar",
+                        'revisa /setup y project-integrations.md; no se han ejecutado operaciones externas' if severity == AVISO else ''))
+        if integration['source'] == '.claude/integrations.json':
+            return {"clave": "configs", "titulo": "Configs del proyecto (`.claude/`)", "lineas": ls}
+    except Exception:  # noqa: BLE001 — optional diagnosis never exposes private exception data
+        ls.append(linea(AVISO, 'integrations.json', 'diagnóstico no disponible; conexión sin verificar',
+                        'restaura integration-route.py y sus dependencias del mismo bundle'))
+        return {"clave": "configs", "titulo": "Configs del proyecto (`.claude/`)", "lineas": ls}
     ls += _optin(project, "jira.json", "volcado a Jira", JIRA_OBLIGATORIOS,
                  "`/setup` paso 3 o la skill `jira-sync`")
     ls += _optin(project, "confluence.json", "espejo en Confluence", CONFLUENCE_OBLIGATORIOS,

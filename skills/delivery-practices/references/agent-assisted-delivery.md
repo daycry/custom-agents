@@ -67,7 +67,7 @@ pierde la evidencia de descartes y el siguiente intento repite los mismos.
   (`agent-kits/shared/usage-meter.py`); sin medición compatible, el coste queda
   `null`, nunca estimado como si fuera medido.
 - Un cambio de modelo, prompt o guía que pretenda generalizarse se compara con
-  el protocolo de `skills/outcome-evals/references/protocol.md` (mismos casos,
+  el protocolo de la skill opcional `outcome-evals` (su protocolo, si está instalada) (mismos casos,
   condiciones y repeticiones). Un éxito tras escalar en una tarea no demuestra
   que el modelo más caro sea mejor en general.
 
@@ -88,3 +88,5 @@ delegar en un agente o en quien lo supervisa:
 Son indicios para una decisión humana, no una puntuación automática ni un
 criterio de evaluación de personas. Sin evidencia, se registran los criterios y
 lo pendiente; no se infiere eficacia de un agente ni de un equipo.
+
+Sin el módulo opcional de evaluación, conserva un informe local de los mismos casos, condiciones, repeticiones y métricas observadas; no inventes resultados ni prometas un informe agregado automático.

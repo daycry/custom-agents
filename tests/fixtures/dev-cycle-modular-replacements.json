@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "authorized_by": "modular-integrations T-05: project-selected optional providers; major breaking changes authorized",
+  "replacements": [
+    {
+      "before_sha256": "0cb54a3904a6584fbda161ccc7c9f4af1e86c0837818bad258d0b5f0d88b794c",
+      "before_file": "commands/dev-cycle.md",
+      "after_sha256": "19029b43ac6547200fcbc40662059fa8e6c53e50965cec5cf1b03d63ecb1beef",
+      "after_file": "commands/dev-cycle.md",
+      "reason": "Neutral measurement handoff; retains start/close, measured/estimated distinction, fix windows and reviewer allocation."
+    },
+    {
+      "before_sha256": "35918c8063f7a49bfec19df53fc6644fa3fccb6f806bdaffd2c8ab96658c9a6c",
+      "before_file": "agent-kits/dev-cycle/references/phase2-planning.md",
+      "after_sha256": "062a51eee7dc2dd7ca8a0d817ac1c08a33225b75fd99c0e0e57db08099ec2517",
+      "after_file": "agent-kits/dev-cycle/references/phase2-planning.md",
+      "reason": "Planner projects approved plan through an optional provider-neutral port; preserves preview/authorization and Done gates."
+    },
+    {
+      "before_sha256": "91bd3371105209d7719c83213ab4afca86369a83ce0ec743c93d1b68d6469658",
+      "before_file": "commands/dev-cycle.md",
+      "after_sha256": "1be066f56cdfd70db4077d4a928adbe051f266876a7623245adfaf28e0e47791",
+      "after_file": "commands/dev-cycle.md",
+      "reason": "Archive still preserves SHA and canonical semantics; names adapters instead of a provider script."
+    },
+    {
+      "before_sha256": "b30f4ec711db248b9d44bd90fce87c24f281089c1cb40bc9e1269065a517d368",
+      "before_file": "commands/dev-cycle.md",
+      "after_sha256": "2ece9f0938f5d896af474da002c8a58e3c02f23c9327f70fcddab89ffb6a0a66",
+      "after_file": "commands/dev-cycle.md",
+      "reason": "Full/quick paths and mandatory review/QA unchanged; external projection described without a Jira dependency."
+    },
+    {
+      "before_sha256": "ec7f72535e0c8c84027d5e33407cb6e6ef63dcee1c5894f6e6a650fcd7435c8c",
+      "before_file": "commands/dev-cycle.md",
+      "after_sha256": "813731f244f86dffd04acc9089a965281bcb2b8ee75aa1ac3469217a63d1279a",
+      "after_file": "commands/dev-cycle.md",
+      "reason": "Publication follows the optional documentation binding; summary, retrospective and final state gates preserved."
+    }
+  ]
+}

@@ -673,8 +673,8 @@ def _jira_activo(root):
     `{"enabled": false}` seguía devolviendo 3 ops y el agente las ejecutaba en el Jira del equipo.
     Falla CERRADO a propósito (config ausente = no activado): la skill dice que el volcado es
     opt-in y quien llama ya ha pasado por el Paso 0."""
-    path = _find_up("jira.json", root)
-    if not path:
+    path = os.path.join(os.path.abspath(root), '.claude', 'jira.json')
+    if not os.path.isfile(path):
         return False, None, "sin `.claude/jira.json` (Jira no activado para este proyecto)"
     try:
         with open(path, encoding="utf-8") as f:
@@ -973,7 +973,7 @@ def construir_plan(args):
 
 def _resolver_estado(args, cfg_path):
     """`--state`, o `jira-state.json` hacia arriba desde el ledger, o hermano de `jira.json`."""
-    state_path = args.state or _find_up("jira-state.json", os.path.dirname(os.path.abspath(args.ledger)))
+    state_path = args.state
     if not state_path and cfg_path:   # por defecto, hermano de jira.json (donde vive el manifiesto)
         state_path = os.path.join(os.path.dirname(cfg_path), "jira-state.json")
     return state_path

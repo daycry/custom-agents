@@ -46,18 +46,18 @@ esquema a clonar. Guía completa en `agent-kits/documenter/taxonomy.md`.
 
 Antes de documentar (siempre activa, sin opt-in), si existe `docs/knowledge/` lee su `README.md` y abre **todo lo que liste** (`adr/`, `gotchas/`, `lessons/` — paso compartido `agent-kits/shared/knowledge-check.md`). `documenter` es el único agente que la lee entera: la **indexa** en la categoría "arquitectura y decisiones" de la taxonomía sin volver a derivar las decisiones leyendo el código; la memoria técnica es la fuente, `documenter` la organiza.
 
-## Sincronización con Confluence (opt-in)
+## Integraciones de documentación
 
-Tras escribir en `docs/`, invoca la skill compartida `confluence-publish` para reflejar los
-cambios en Confluence. Es **opcional**: la primera vez se pregunta si se quiere sincronizar y la
-decisión se guarda en `.claude/confluence.json` (`enabled: true/false`). Nunca sincroniza
-`docs/security-scan/`. Candidatos y journal no se publican como conocimiento curado;
-la exclusión de Confluence fuerza ambos árboles, incluso con include explícito y mayúsculas,
-también en staging. La fuente está en revisión; no acredita publicación externa ni aceptación global.
+Al escribir documentos, resuelve `docs.changed` mediante `project-integrations.md`.
+La configuración de este proyecto elige el adaptador y su destino; no se ofrece
+Confluence por defecto. Sin binding o tool disponible se conserva la documentación
+local y se informa del pendiente. El adaptador controla alcance, conflictos,
+permisos y recibos; no se publican por defecto evidencias sensibles ni conocimiento
+sin aprobar. La publicación no aprueba memoria ni cambia el ledger.
 
 ## Dependencias
 
-- Skill compartida: `confluence-publish` (sincronización de la doc generada).
+- Fragmento compartido: `project-integrations.md`; adaptador opcional elegido por el proyecto.
 - Kit privado: `agent-kits/documenter` (`taxonomy.md` + plantillas de formato).
 
 ## Uso
@@ -73,7 +73,7 @@ también en staging. La fuente está en revisión; no acredita publicación exte
 `documenter` cubre la **documentación de referencia** del proyecto (arquitectura, stack, unidades,
 guías, producto), que vive directamente bajo `docs/`. La **cadena de iniciativas** (spec →
 evaluación → plan → testing) la gestionan `evaluator`, `planner` y `qa` en `docs/roadmap/`.
-Ambos mundos se sincronizan con Confluence mediante la misma skill `confluence-publish`.
+Ambos mundos pueden proyectar documentación mediante el binding opcional del proyecto, sin cambiar sus dueños locales.
 
 ## Contexto técnico común
 
@@ -86,3 +86,7 @@ la tarea; no confundas selección con ejecución, tools o permisos.
 
 Conflictos con approved o legado aceptado y alto impacto requieren resolución humana trazada;
 fecha, revisión/QA/Gold no aprueban memoria. [Contrato de curación](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).
+
+## Integraciones opcionales por proyecto
+
+El rol usa `project-integrations.md` para sus eventos, sin exigir Jira ni Confluence. Consulta el [workflow detallado](../guides/core-workflows.md) y los [adaptadores del proyecto](../CUSTOMIZATION.md). Destino remoto, recibos y permisos pertenecen al adaptador; los gates locales mantienen su dueño.

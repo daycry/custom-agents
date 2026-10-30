@@ -1,5 +1,8 @@
 # custom-agents — índice de documentación
 
+
+**Manual de uso y personalización:** [workflows detallados del core, integraciones opcionales, Atlassian/Redmine y extensiones del proyecto](CUSTOMIZATION.md). Los bundles nativos son completos; configurado no significa conectado ni autorizado.
+
 [English](en/README.md) · **Español**
 
 Guía de Graphiti: [publicación, versiones y recuperación](knowledge-services-graphiti.md).

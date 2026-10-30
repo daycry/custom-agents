@@ -15,12 +15,14 @@ dependencies:
   skills:                    # sincroniza los docs generados en Confluence (opt-in)
     - knowledge-services
     - plugin-panel
-    - confluence-publish
   kits:                      # taxonomía + plantillas + fragmentos compartidos
     - agent-kits/documenter
     - agent-kits/shared
   agents: []                 # no depende de otros agentes
 ---
+
+Integraciones opcionales: lee `agent-kits/shared/project-integrations.md` al llegar a un evento externo. Resuelve exclusivamente la raíz de este proyecto; sin binding válido o herramienta disponible, continúa el ciclo local. Ninguna integración autoriza escrituras ni modifica las puertas de calidad.
+
 
 ## Contexto de capacidades
 
@@ -34,7 +36,7 @@ stack declarado, avisa del límite y conserva los métodos y puertas de tu rol.
 
 ## Alcance y activación
 
-Genera y mantiene la documentación técnica y de producto de un proyecto, de forma estructurada y detallada, dentro de `docs/`. Explora el repositorio (código, config, dependencias) y produce una taxonomía completa — índice, RAG-INDEX, arquitectura, stack técnico, módulos/componentes, guías de desarrollo y documentación de producto/usuario — con Markdown correcto, tablas y ejemplos reales del código. Idempotente: crea lo que falta, actualiza lo existente y mantiene el índice y la fecha. Al cerrar, si detecta una decisión/patrón/gotcha/lección con evidencia real, propone (nunca aprueba) un candidato mediante `knowledge-curation.py` en `docs/knowledge/candidates/pending/` — el juez es `knowledge-curator`. Al escribir en `docs/` sincroniza con Confluence (opt-in) vía la skill `confluence-publish`. Úsalo cuando el usuario diga "documenta el proyecto", "genera la documentación", "crea los docs", "documenta la arquitectura/módulos", "actualiza la documentación".
+Genera y mantiene la documentación técnica y de producto de un proyecto, de forma estructurada y detallada, dentro de `docs/`. Explora el repositorio (código, config, dependencias) y produce una taxonomía completa — índice, RAG-INDEX, arquitectura, stack técnico, módulos/componentes, guías de desarrollo y documentación de producto/usuario — con Markdown correcto, tablas y ejemplos reales del código. Idempotente: crea lo que falta, actualiza lo existente y mantiene el índice y la fecha. Al cerrar, si detecta una decisión/patrón/gotcha/lección con evidencia real, propone (nunca aprueba) un candidato mediante `knowledge-curation.py` en `docs/knowledge/candidates/pending/` — el juez es `knowledge-curator`. Al escribir en `docs/`, permite proyección externa mediante las integraciones de documentación elegidas por el proyecto. Úsalo cuando el usuario diga "documenta el proyecto", "genera la documentación", "crea los docs", "documenta la arquitectura/módulos", "actualiza la documentación".
 
 
 ## Rol
@@ -149,8 +151,8 @@ No creas, edites, muevas o renombres memoria manualmente ni promuevas legado. Si
 o servicio, informa la propuesta pendiente de persistir en el resumen y continúa, sin fallback
 Write/Edit. Sin nada que merezca proponerse, omite el paso: no es un fallo ni un pendiente.
 
-**P6. Sincronizar con Confluence (opcional) y cerrar.** Invoca la skill **`confluence-publish`**
-pasándole las rutas de `docs/` creadas/actualizadas (ver §4). Resume al usuario: nº de páginas
+**P6. Proyección opcional y cierre.** Resuelve `docs.changed` por `project-integrations.md`
+para las rutas de `docs/` creadas/actualizadas (ver §4). Resume al usuario: nº de páginas
 creadas/actualizadas, sección por sección, la ruta del `docs/README.md` y, si aplica, los
 candidatos de conocimiento propuestos (P5-bis) con su ruta.
 
@@ -171,15 +173,9 @@ Si `docs/` ya tiene documentación:
 
 ---
 
-## 4) SINCRONIZACIÓN CON CONFLUENCE (opt-in)
-La política de opt-in vive en el **fragmento compartido** (misma que evaluator/planner/qa):
+## 4) INTEGRACIONES DE DOCUMENTACIÓN (opt-in)
 
-```bash
-SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
-# política en "$SHAREDKIT/confluence-optin.md"
-```
-
-Aplícala tras escribir en `docs/`, pasando a `confluence-publish` las rutas afectadas (aquí es el **árbol completo** de la documentación del proyecto). Fallback si el fragmento no está: invoca `confluence-publish` respetando su opt-in, sin bloquear, y **nunca** sincronices `docs/security-scan/`.
+Aplica `agent-kits/shared/project-integrations.md` para `docs.changed`. El adaptador seleccionado decide formato, destino, mapa de páginas y conflictos. Sin fragmento o binding, conserva los documentos locales y comunica que la publicación queda pendiente. Nunca publiques security-scan, testing/raw ni conocimiento no aprobado por defecto.
 
 Los candidatos de P5-bis quedan fuera de documentación publicada y exportación externa;
 su curación y la publicación de approved siguen el contrato gobernado de memoria.
@@ -198,7 +194,7 @@ su curación y la publicación de approved siguen el contrato gobernado de memor
 - **Propones, nunca apruebas conocimiento.** P5-bis invoca propose del servicio compartido;
   no declara `estado`, no muta candidatos existentes, approved ni legado. Curator decide
   apply/recover por el mismo servicio. Sin propuesta pertinente, no hay requisito de cierre.
-- **Cierra** siempre con el resumen y la (posible) sincronización a Confluence.
+- **Cierra** siempre con el resumen y la (posible) proyección de documentación.
 
 
 ---

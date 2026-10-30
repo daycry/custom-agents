@@ -23,13 +23,14 @@ dependencies:
     - api-contract
     - dependency-upgrade
     - code-health
-    - confluence-publish
-    - jira-sync
   kits:                      # plantillas en .claude/agent-kits/ + fragmentos compartidos
     - agent-kits/planner
     - agent-kits/shared
   agents: []                 # otros agentes de los que depende (ninguno)
 ---
+
+Integraciones opcionales: lee `agent-kits/shared/project-integrations.md` al llegar a un evento externo. Resuelve exclusivamente la raíz de este proyecto; sin binding válido o herramienta disponible, continúa el ciclo local. Ninguna integración autoriza escrituras ni modifica las puertas de calidad.
+
 
 ## Contexto de capacidades
 
@@ -118,9 +119,9 @@ Sustituye TODOS los `{{PLACEHOLDER}}` y borra los comentarios guía `<!-- ... --
 
 **P6. Cierre.** Cierra el medidor (`python3 "$SHAREDKIT/usage-meter.py" close --artefacto "docs/roadmap/<fecha>-<slug>/improvement-plan.md"`) y vuelca su JSON al bloque `generacion:` del frontmatter de **ambos** ficheros del plan (misma medición; re-cerrar **sustituye**, no acumula; si degrada a `fuente: estimado`, estima a juicio, márcalo y **continúa** — nunca bloquea). Escribe ambos ficheros, actualiza `docs/roadmap/README.md` y resume al usuario: ruta del plan, tiempo total, coste total (€), tokens previstos y nº de tareas. Duraciones del resumen en formato humano `XhYm` (`usage-meter.py fmt`). Ofrece abrir el `improvement-plan.md`.
 
-**P7. Volcado a Jira (opcional, opt-in).** Recién creado el plan, **ofrece** volcar las tareas a Jira con la skill **`jira-sync`** (crear un issue por tarea bajo el proyecto/épica que el usuario elija; selector visual en Cowork o conversacional en CLI/VS Code). Aplica el opt-in de `.claude/jira.json` igual que Confluence: aunque el conector esté conectado, si Jira no está activado para el proyecto, pregunta una vez y respeta la decisión. No crees nada sin confirmación; no bloquees el cierre por esto.
+**P7. Proyección externa opcional.** Tras aprobar el plan local, resuelve el evento `plan.created` mediante `project-integrations.md` y la operación `plan.export`. El adaptador presenta la granularidad (tarea o fase), jerarquía y objetos concretos antes de crear nada; conserva un mapa local de IDs y evita duplicados. Sin integración, cierra localmente.
 
-**P8. Sincronizar con Confluence (opcional).** Aplica el paso compartido `"$SHAREDKIT/confluence-optin.md"` (skill `confluence-publish` con opt-in) sobre las rutas de `docs/` que hayas tocado. Fallback si el fragmento no está: invoca `confluence-publish` respetando su opt-in y sin bloquear el cierre; nunca sincronices `docs/security-scan/`.
+**P8. Documentación opcional.** Resuelve `docs.changed` por `project-integrations.md` para las rutas afectadas; sin binding o permiso, continúa localmente. Excluye evidencias sensibles y candidatos no aprobados.
 
 ---
 

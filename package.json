@@ -1,7 +1,7 @@
 {
   "name": "@daycry/custom-agents",
   "version": "2.3.0",
-  "description": "Ciclo SDD presupuestado (requisitos → presupuesto → plan → implementación → pruebas → documentación) para Claude Code, Codex y OpenCode, con agentes, comandos y skills, panel de capacidades, memoria técnica y trazabilidad en Jira/Confluence.",
+  "description": "Ciclo SDD presupuestado (requisitos → presupuesto → plan → implementación → pruebas → documentación) para Claude Code, Codex y OpenCode, con agentes, comandos y skills, panel de capacidades, memoria técnica y integraciones opcionales configuradas por proyecto.",
   "keywords": [
     "claude-code",
     "codex",
@@ -54,6 +54,11 @@
     "!**/__pycache__/**",
     "!**/*.pyc",
     "!**/test_*.py",
-    "!**/.pytest_cache/**"
+    "!**/.pytest_cache/**",
+    "docs/CUSTOMIZATION.md",
+    "docs/en/CUSTOMIZATION.md",
+    "docs/guides/",
+    "docs/en/guides/",
+    "docs/examples/integrations/"
   ]
 }
