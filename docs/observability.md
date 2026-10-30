@@ -423,3 +423,21 @@ comparación inconcluyente no acredita ahorro global; un fallo no es una muestra
 No atribuir al cambio el ruido de la máquina. Los temporales están en el directorio temporal del sistema, no en
 OneDrive. La CI comprueba el contrato con relojes y procesos controlados, sin
 umbrales absolutos de latencia. La línea base local no se extrapola a otros equipos.
+
+### Lecturas condicionales y procesos en F2
+
+`tokens_bajo_demanda` es un inventario de los ficheros indicados, no el coste de
+una ejecución completa. Los núcleos de dev-cycle y knowledge-check cargan detalle
+bajo condiciones: el flujo completo, Jira/subagentes/candidatos o la presencia de
+memoria local cambian el readset. Las comparaciones por escenario de T-11/T-13 en
+`docs/roadmap/2026-10-27-plugin-optimization/testing/` conservan esos costes,
+incluidos los escenarios que añaden texto. No sumes un núcleo y su versión antigua
+ni atribuyas el ahorro de la vía rápida a todas las configuraciones.
+
+El hook combinado del ledger comparte lectura/análisis y conserva lint en cada
+llamada. MultiEdit admite una ruta superior con ediciones de contenido, o rutas
+por edición; el progreso elige el primer ledger que no esté repetido. SessionStart
+compone el contexto en un Python de negocio y mantiene su timeout de 30 s.
+En Windows sigue habiendo supervisión y confirmación de limpieza mediante un
+helper: «un Python de negocio» no significa «un proceso total». El spike de T-15
+no acreditó una alternativa equivalente; no se reduce ese margen de limpieza.

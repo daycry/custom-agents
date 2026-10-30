@@ -425,3 +425,21 @@ savings; a failure is not a successful sample. Do not attribute machine noise to
 Temporary projects live in the system temporary directory rather than OneDrive. CI checks
 the contract with controlled clocks and processes, without absolute latency thresholds.
 The local baseline does not generalize to other machines.
+
+### Conditional reads and processes in F2
+
+`tokens_bajo_demanda` inventories the named files; it does not measure a complete
+execution. The dev-cycle and knowledge-check cores load detail conditionally:
+full flow, Jira/subagents/candidates and local memory change the readset. The
+T-11/T-13 scenario comparisons under
+`docs/roadmap/2026-10-27-plugin-optimization/testing/` retain these costs,
+including cases that add text. Do not add a core to its old version or apply
+the default fast-path saving to every configuration.
+
+The combined ledger hook shares reading/parsing and retains lint on every call.
+MultiEdit accepts a top-level path with content edits or individual edit paths;
+progress selects the first ledger whose message is not repeated. SessionStart
+composes context in one business Python interpreter and keeps its 30 s timeout.
+Windows still uses containment and a cleanup-confirmation helper: one business
+Python does not mean one process in total. The T-15 spike did not establish an
+equivalent alternative, so the cleanup margin remains in place.

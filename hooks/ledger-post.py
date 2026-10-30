@@ -117,7 +117,12 @@ def _paths(payload):
         if not isinstance(value['edits'], list):
             return []
         for edit in value['edits']:
-            paths.append(edit.get('file_path') if isinstance(edit, dict) else None)
+            if not isinstance(edit, dict):
+                return []
+            if 'file_path' in edit:
+                paths.append(edit['file_path'])
+            elif 'file_path' not in value:
+                return []
     if any(not isinstance(p, str) or not p or any(c in p for c in '\r\n\0') for p in paths):
         return []
     return list(dict.fromkeys(p.replace('\\', '/') for p in paths))
@@ -136,7 +141,7 @@ def process_payload(payload, root):
         _warn('ledger services unavailable; hook skipped')
         return ''
     root = Path(os.path.abspath(root))
-    messages, progress = [], None
+    messages, progress_candidates = [], []
     for raw in _paths(payload):
         if 'docs/roadmap/' not in raw or not raw.endswith('tasks.md'):
             continue
@@ -149,13 +154,14 @@ def process_payload(payload, root):
             text = row['text'].removeprefix('\ufeff')
             parsed = lint_module.parse_ledger(text)
             messages.append(_lint_message(path, text, parsed))
-            if progress is None:
-                with contextlib.suppress(ValueError):
-                    progress = redact_module.redactar(progress_module.linea(
-                        progress_module.resumir(str(path), text=text, parsed=parsed)))
+            with contextlib.suppress(ValueError):
+                progress_candidates.append(redact_module.redactar(progress_module.linea(
+                    progress_module.resumir(str(path), text=text, parsed=parsed))))
         except (OSError, ValueError, UnicodeError):
             _warn('ledger path unavailable; hook skipped')
-    if progress:
+    for progress in progress_candidates:
+        if not progress:
+            continue
         try:
             repeated = _repeated(root, progress)
         except (OSError, ValueError, UnicodeError):
@@ -165,6 +171,7 @@ def process_payload(payload, root):
             repeated = False
         if not repeated:
             messages.append(progress)
+            break
     return redact_module.redactar('\n'.join(messages))
 
 

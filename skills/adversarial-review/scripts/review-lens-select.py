@@ -393,20 +393,27 @@ def _leer_fichero(path, entero=False):
                 return "", []
             decoder = io.IncrementalNewlineDecoder(
                 codecs.getincrementaldecoder("utf-8")(errors="replace"), translate=True)
-            cabecera, pendiente, lineas = "", "", []
+            cabecera, pendiente, lineas = "", [], []
             while True:
                 texto = decoder.decode(bloque, final=not bloque)
                 cabecera += texto[:8192 - len(cabecera)]
                 if entero:
-                    partes = (pendiente + texto).split("\n")
-                    pendiente = partes.pop()
-                    inicio = len(lineas)
-                    lineas.extend((inicio + i, l) for i, l in enumerate(partes, 1))
+                    partes = texto.split("\n")
+                    if len(partes) > 1:
+                        pendiente.append(partes[0])
+                        lineas.append((len(lineas) + 1, "".join(pendiente)))
+                        inicio = len(lineas)
+                        lineas.extend((inicio + i, l) for i, l in enumerate(partes[1:-1], 1))
+                        pendiente = [partes[-1]]
+                    elif texto:
+                        pendiente.append(texto)
                 if not bloque or (not entero and len(cabecera) == 8192):
                     break
                 bloque = f.read(8192)
             if entero and pendiente:
-                lineas.append((len(lineas) + 1, pendiente))
+                ultima = "".join(pendiente)
+                if ultima:
+                    lineas.append((len(lineas) + 1, ultima))
             return cabecera, lineas
     except OSError:
         return "", []

@@ -14,6 +14,7 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 ### Changed
 
 - Share one content read per file across review-lens selection, preserving C/D decisions, reasons, exclusions, binary detection and bounded UTF-8 reads.
+- Preserve standard MultiEdit paths in documentation and ledger hooks, show the next ledger when the first progress message is repeated, and scan long minified lines in linear time.
 - Load dev-cycle phase details on demand from its private kit, retaining common quality gates, visual-review recipes and Jira/knowledge ownership across native adapters.
 - Compose SessionStart context in one Python interpreter across all three runtimes, retaining journal recovery, context order and limits, with the direct shell entry still available.
 - Load governed-memory reading instructions only when the consumer has `docs/knowledge/`, retaining role queries, plugin estimation doctrine, journal and code-context rules.

@@ -1,0 +1,212 @@
+{
+  "schema_version": 1,
+  "task": "T-14",
+  "date": "2026-10-30",
+  "platform": "Windows-11-10.0.26100-SP0",
+  "python": "3.13.0",
+  "baseline_ref": "8e8bcb4219afbeae4e9f8cbe29a23a843e660cca",
+  "after_review_gap": "F2-D01",
+  "source_lf_sha256": {
+    "before": "d31a1746ab6f479d894dab3a3da90fc655e2a56291cb5568872dcbf9937bcc08",
+    "after": "e5b1afc9cb921a002bc35dfb9612e3ce20219b3d2bafcf279bb7e9790403e4e9"
+  },
+  "fixture": {
+    "files": 1081,
+    "bytes": 481127,
+    "binary_files": 38,
+    "location": "Windows temporary filesystem, outside OneDrive",
+    "description": "UTF-8 prompt header, consumer read, loop/await and sleep; every 29th file binary; one explicit exclusion"
+  },
+  "method": "Same disposable root and script path; replace source per run; 1 discarded warmup and 10 samples per variant/mode; rotate before/after/empty-python control order; compare complete JSON and stderr for each before/after pair.",
+  "limits": [
+    "Not the original 38-second host measurement",
+    "No native client activation or OneDrive claim",
+    "Temporary fixture retained for reproducibility; no production configuration touched"
+  ],
+  "modes": {
+    "files": {
+      "samples_ms": {
+        "before": [
+          4373.7044,
+          3288.2732,
+          4409.7241,
+          3062.4621,
+          3170.7652,
+          3306.702,
+          2498.015,
+          5479.2317,
+          4954.4219,
+          4355.9057
+        ],
+        "after": [
+          1898.8801,
+          1929.6931,
+          1767.1492,
+          1798.019,
+          1296.0232,
+          1752.2394,
+          1277.6877,
+          1849.5752,
+          1930.4109,
+          2120.1498
+        ],
+        "control": [
+          102.1283,
+          147.8388,
+          141.3641,
+          116.3538,
+          77.5804,
+          127.631,
+          95.1497,
+          91.1576,
+          143.7529,
+          195.5965
+        ]
+      },
+      "discarded_warmup_ms": {
+        "before": 7263.5924,
+        "after": 1380.3175,
+        "control": 132.6479
+      },
+      "median_ms": {
+        "before": 3831.3038500000002,
+        "after": 1823.7971,
+        "control": 121.9924
+      },
+      "reduction_percent": 52.39748212609137,
+      "complete_json_equal_pairs": 11,
+      "stderr_equal_pairs": 11,
+      "errors": [],
+      "result_sha256": "52eb972d6677541dff40d8b43a11f219cfd78cb1445f1e8ad87ed70f6062d4fe",
+      "result_summary": {
+        "lente_c": true,
+        "lente_d": true,
+        "ficheros": 1081,
+        "avisos": []
+      }
+    },
+    "untracked": {
+      "samples_ms": {
+        "before": [
+          5173.4206,
+          8013.9885,
+          7113.6263,
+          9357.6582,
+          5360.2308,
+          5644.0519,
+          4925.9781,
+          6864.5493,
+          4796.6888,
+          5584.1451
+        ],
+        "after": [
+          3382.6974,
+          4285.5332,
+          5777.8499,
+          3665.1529,
+          3442.9318,
+          2691.6472,
+          2631.0639,
+          3710.418,
+          2714.4106,
+          4286.6611
+        ],
+        "control": [
+          184.5647,
+          231.3132,
+          97.3854,
+          110.182,
+          107.0767,
+          95.5352,
+          119.2884,
+          121.9701,
+          154.6207,
+          127.1636
+        ]
+      },
+      "discarded_warmup_ms": {
+        "before": 7244.0435,
+        "after": 4049.6018,
+        "control": 132.6808
+      },
+      "median_ms": {
+        "before": 5614.0985,
+        "after": 3554.0423499999997,
+        "control": 120.62925
+      },
+      "reduction_percent": 36.694335697886316,
+      "complete_json_equal_pairs": 11,
+      "stderr_equal_pairs": 11,
+      "errors": [],
+      "result_sha256": "ea0af91c3500d9586ac2308df66db0ef244f1d704fb29b628d473e900833494e",
+      "result_summary": {
+        "lente_c": true,
+        "lente_d": true,
+        "ficheros": 1081,
+        "avisos": []
+      }
+    },
+    "tracked": {
+      "samples_ms": {
+        "before": [
+          9564.2127,
+          7431.1102,
+          8558.7481,
+          9324.4999,
+          5285.378,
+          5122.8218,
+          9493.1233,
+          6273.7461,
+          7289.8317,
+          8140.832
+        ],
+        "after": [
+          5188.402,
+          6784.2108,
+          5759.9966,
+          4598.0602,
+          5560.7903,
+          5606.8963,
+          6924.3154,
+          7338.2122,
+          6545.9902,
+          5732.7699
+        ],
+        "control": [
+          104.1373,
+          129.3463,
+          105.9362,
+          116.4229,
+          219.1818,
+          84.7192,
+          225.3535,
+          131.6341,
+          156.7948,
+          115.7362
+        ]
+      },
+      "discarded_warmup_ms": {
+        "before": 4861.506,
+        "after": 4417.4657,
+        "control": 114.268
+      },
+      "median_ms": {
+        "before": 7785.971100000001,
+        "after": 5746.383250000001,
+        "control": 122.8846
+      },
+      "reduction_percent": 26.19567711983929,
+      "complete_json_equal_pairs": 11,
+      "stderr_equal_pairs": 11,
+      "errors": [],
+      "result_sha256": "edc196b5eea97c0d5dde6f98f2bb84b3d3f9a3fa37ee9fe5fcd1a794646f48cc",
+      "result_summary": {
+        "lente_c": true,
+        "lente_d": true,
+        "ficheros": 1081,
+        "avisos": []
+      }
+    }
+  },
+  "reproducer_source": "from pathlib import Path\nimport hashlib\nimport json\nimport os\nimport platform\nimport statistics\nimport subprocess\nimport sys\nimport tempfile\nimport time\n\nsys.stdout.reconfigure(encoding='utf-8', errors='replace')\nrepo = Path.cwd()\nrelative = 'skills/adversarial-review/scripts/review-lens-select.py'\nbaseline = subprocess.check_output(['git', 'show', '8e8bcb4:' + relative])\nafter = (repo / relative).read_bytes().replace(b'\\r\\n', b'\\n')\nroot = Path(tempfile.mkdtemp(prefix='custom-agents-t14-')).resolve()\ndriver = root / '.bench' / 'review-lens-select.py'\ndriver.parent.mkdir()\nenv = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', PYTHONIOENCODING='utf-8:replace')\n\ndef git(*args):\n    subprocess.run(['git', *args], cwd=root, env=env, check=True, capture_output=True)\n\ngit('init', '-q', '-b', 'master')\ngit('config', 'user.email', 'fixture@example.invalid')\ngit('config', 'user.name', 'Fixture')\n(root / '.git' / 'info' / 'exclude').write_text('.bench/\\n.claude/\\n', encoding='utf-8')\n(root / 'README.md').write_text('fixture\\n', encoding='utf-8')\ngit('add', 'README.md')\ngit('commit', '-qm', 'fixture base')\n(root / '.claude').mkdir()\n(root / '.claude' / 'dev.json').write_text(json.dumps({'revision': {'excluir': ['src/f0008.py']}}), encoding='utf-8')\nfiles = []\nfor i in range(1081):\n    rel = f'src/f{i:04}.py'\n    path = root / rel\n    path.parent.mkdir(exist_ok=True)\n    source = ('\"\"\"Monta el prompt para el modelo.\"\"\"\\n'\n              'profile = open(\".claude/personas/backend.md\").read()\\n'\n              'for item in items:\\n    await fetch(item)\\n'\n              'sleep(1)\\n' + '# UTF-8: \\u00e1\\U0001f680\\n' * 20)\n    content = source.encode('utf-8') if i % 29 else b'\\x00binary\\n'\n    path.write_bytes(content)\n    files.append(rel)\n\nreceipt = {'schema_version': 1, 'task': 'T-14', 'date': '2026-10-30',\n    'platform': platform.platform(), 'python': platform.python_version(),\n    'baseline_ref': '8e8bcb4219afbeae4e9f8cbe29a23a843e660cca',\n    'after_review_gap': 'F2-D01', 'source_lf_sha256': {k: hashlib.sha256(v).hexdigest() for k, v in [('before', baseline), ('after', after)]},\n    'fixture': {'files': 1081, 'bytes': sum((root / p).stat().st_size for p in files),\n                'binary_files': sum(i % 29 == 0 for i in range(1081)), 'location': 'Windows temporary filesystem, outside OneDrive',\n                'description': 'UTF-8 prompt header, consumer read, loop/await and sleep; every 29th file binary; one explicit exclusion'},\n    'method': 'Same disposable root and script path; replace source per run; 1 discarded warmup and 10 samples per variant/mode; rotate before/after/empty-python control order; compare complete JSON and stderr for each before/after pair.',\n    'limits': ['Not the original 38-second host measurement', 'No native client activation or OneDrive claim', 'Temporary fixture retained for reproducibility; no production configuration touched'], 'modes': {}}\n\nfor mode in ['files', 'untracked', 'tracked']:\n    if mode == 'tracked':\n        git('add', 'src')\n        git('commit', '-qm', 'fixture changes')\n    args = ['--files', *files] if mode == 'files' else ['--base', 'HEAD~1' if mode == 'tracked' else 'HEAD']\n    samples = {'before': [], 'after': [], 'control': []}\n    warmups = {}\n    expected = None\n    for iteration in range(-1, 10):\n        order = ['before', 'after', 'control']\n        turn = max(0, iteration) % 3\n        order = order[turn:] + order[:turn]\n        pair = {}\n        for variant in order:\n            if variant != 'control':\n                driver.write_bytes(baseline if variant == 'before' else after)\n            command = ([sys.executable, '-c', 'pass'] if variant == 'control' else\n                       [sys.executable, str(driver), '--root', str(root), '--json', *args])\n            start = time.perf_counter_ns()\n            run = subprocess.run(command, cwd=root, env=env, capture_output=True, timeout=60)\n            elapsed = (time.perf_counter_ns() - start) / 1e6\n            assert run.returncode == 0, (mode, variant, run.stderr.decode('utf-8', 'replace'))\n            if variant != 'control':\n                pair[variant] = (json.loads(run.stdout), run.stderr.decode('utf-8', 'replace'))\n            (warmups if iteration < 0 else samples)[variant] = elapsed if iteration < 0 else samples[variant] + [elapsed]\n        assert pair['before'] == pair['after'], (mode, iteration, 'behavior mismatch')\n        expected = pair['after'][0]\n    medians = {k: statistics.median(v) for k, v in samples.items()}\n    receipt['modes'][mode] = {'samples_ms': samples, 'discarded_warmup_ms': warmups,\n        'median_ms': medians, 'reduction_percent': (1 - medians['after'] / medians['before']) * 100,\n        'complete_json_equal_pairs': 11, 'stderr_equal_pairs': 11, 'errors': [],\n        'result_sha256': hashlib.sha256(json.dumps(expected, sort_keys=True, ensure_ascii=False).encode('utf-8')).hexdigest(),\n        'result_summary': {k: expected[k] for k in ['lente_c', 'lente_d', 'ficheros', 'avisos']}}\n    print(mode, json.dumps(receipt['modes'][mode]['median_ms']), flush=True)\n    destination = repo / 'docs/roadmap/2026-10-27-plugin-optimization/testing/t14-paired-control-final-2026-10-30.json'\n    destination.write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + '\\n', encoding='utf-8')\n(repo / '.pytest_cache/t14-benchmark-final-state.json').write_text(json.dumps({'fixture_root': str(root)}, indent=2), encoding='utf-8')\nprint('complete', flush=True)\n"
+}

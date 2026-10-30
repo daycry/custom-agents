@@ -123,7 +123,7 @@ _BOOTSTRAP_NODE_HASHES = {
 # prompt capture; same local executables/imports, no network path (review 2026-10-29).
 # F2 T-09/T-10: fixed local marker and combined local parser only; self-audit in
 # testing/t10-egress-boundary-review-2026-10-29.json. Independent phase review remains T-19.
-_LAUNCHER_NODE_HASH = "54292fd7352c960ec2ef7b995c3939e080c7d438788a8a40de7bb6df80474e0b"
+_LAUNCHER_NODE_HASH = "701a88823d6fcf1afc8d3444eecfb31c9703200d7e587d80d58732bb592a236b"
 _EXT_RE = "|".join(_EXT_ESCANEABLES + _EXT_NO_ESCANEABLES)
 # Gap #155 (Important, fix1 Fase 4): el lookahead final quita los falsos positivos del escaneo de
 # CODIGO (`hashlib.sha256` casaba como `hashlib.sh`). Hace falta porque a partir de este fix una
@@ -178,7 +178,7 @@ _CARGAS_LOCALES_REVISADAS = {
                          "agent-kits/shared/progress-report.py", "agent-kits/shared/knowledge-find.py"),
     },
     "hooks/ledger-post.py": {
-        "sha256_lf": "1d453c46d8954ba0e34223bde5e4150eb79252c6378974302ab184e5328f6ed4",
+        "sha256_lf": "116d105306af39b2357cef3d597496c3f00c42d938e39bd572c24c6e606aedbc",
         "dependencies": ("agent-kits/shared/ledger-lint.py", "agent-kits/shared/progress-report.py",
                          "agent-kits/shared/local-read.py", "agent-kits/shared/local-state.py",
                          "agent-kits/shared/redact.py"),

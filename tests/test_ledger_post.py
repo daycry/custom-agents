@@ -138,6 +138,45 @@ def test_edit_list_deduplicates_paths_but_checks_each_ledger_once(tmp_path):
     assert message.count('📋') == 1
 
 
+def test_f2_b01_standard_multiedit_keeps_the_top_level_ledger(tmp_path):
+    """Content edits share the top-level path; they do not each repeat it."""
+    root, ledger = project(tmp_path)
+    hook = service()
+    value = {'tool_name': 'MultiEdit', 'tool_input': {'file_path': str(ledger), 'edits': [
+        {'old_string': 'First', 'new_string': 'Updated'},
+        {'old_string': 'Second', 'new_string': 'Next'}]}}
+    with patch.object(hook.lint_module, 'parse_ledger', wraps=hook.lint_module.parse_ledger) as parse:
+        message = hook.process_payload(value, root)
+    assert message.count('ledger-lint:') == 1
+    assert message.count('📋 demo') == 1
+    assert parse.call_count == 1
+
+
+def test_f2_b02_repeated_first_ledger_does_not_hide_second_progress(tmp_path):
+    root, first = project(tmp_path)
+    second = root / 'docs/roadmap/other/tasks.md'
+    second.parent.mkdir(parents=True)
+    second.write_text(TEXT.replace('T-02 — Second', 'T-02 — Different second'), encoding='utf-8')
+    hook = service()
+    assert '📋 demo' in hook.process_payload(payload(first), root)
+    value = {'tool_name': 'MultiEdit', 'tool_input': {'edits': [
+        {'file_path': str(first)}, {'file_path': str(second)}]}}
+    with patch.object(hook.lint_module, 'parse_ledger', wraps=hook.lint_module.parse_ledger) as parse:
+        message = hook.process_payload(value, root)
+    assert message.count('ledger-lint:') == 2
+    assert parse.call_count == 2
+    assert message.count('📋') == 1
+    assert '📋 other' in message and 'Different second' in message
+    assert (root / '.claude/.progress-last').read_text(encoding='utf-8').startswith('📋 other')
+
+
+@pytest.mark.parametrize('edits', [None, [None], [[]], [{'file_path': None}]])
+def test_f2_b01_keeps_explicit_invalid_edit_paths_rejected(tmp_path, edits):
+    root, ledger = project(tmp_path)
+    assert service().process_payload({'tool_input': {'file_path': str(ledger), 'edits': edits}}, root) == ''
+    assert not (root / '.claude').exists()
+
+
 @pytest.mark.parametrize('value', [None, [], {}, {'tool_input': {'file_path': None}}, {'tool_input': {'edits': [{}]}}])
 def test_unrecognized_payload_is_informative_and_never_creates_state(tmp_path, value):
     root, _ = project(tmp_path)

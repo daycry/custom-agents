@@ -31,7 +31,7 @@ for (const runtime of ['claude', 'codex', 'opencode']) {
       assert.ok(existsSync(join(dir, '.claude', '.skill-index.cache')));
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
-  test(`${runtime}: combined ledger hook runs without Bash and retains lint plus debounced progress`, () => {
+  test(`${runtime}: combined ledger hook runs without Bash for standard MultiEdit and retains lint plus debounced Edit`, () => {
     const dir = mkdtempSync(join(tmpdir(), 'custom-agents-ledger-native-'));
     try {
       const ledger = join(dir, 'docs', 'roadmap', 'native', 'tasks.md');
@@ -41,10 +41,10 @@ for (const runtime of ['claude', 'codex', 'opencode']) {
       assert.equal(located.status, 0, located.stderr);
       const absent = join(dir, 'no-binaries');
       const env = { ...process.env, CLAUDE_PROJECT_DIR: dir, CUSTOM_AGENTS_PYTHON: located.stdout.trim(), PATH: absent, Path: absent };
-      const invokeLedger = () => spawnSync(process.execPath, [runner, 'ledger-post.py', `--runtime=${runtime}`], {
-        cwd: dir, input: JSON.stringify({ tool_input: { file_path: ledger } }), encoding: 'utf8', timeout: 15000, env,
+      const invokeLedger = (tool_input = { file_path: ledger }) => spawnSync(process.execPath, [runner, 'ledger-post.py', `--runtime=${runtime}`], {
+        cwd: dir, input: JSON.stringify({ tool_input }), encoding: 'utf8', timeout: 15000, env,
       });
-      const first = invokeLedger();
+      const first = invokeLedger({ file_path: ledger, edits: [{ old_string: 'old', new_string: 'new' }] });
       assert.ifError(first.error);
       assert.equal(first.status, 0, first.stderr);
       assert.equal(first.stderr, '');

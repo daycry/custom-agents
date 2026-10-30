@@ -1,0 +1,81 @@
+{
+  "phase": "F2",
+  "review_attempt": 1,
+  "fix_iteration": 1,
+  "base_candidate": "71968b0f4c2281081de4fc5a8aba9310e2bd2001",
+  "status": "AUTHOR_VERIFIED_INDEPENDENT_REVIEW_PENDING",
+  "resolved_by_author": [
+    "F2-B01",
+    "F2-B02",
+    "F2-D01"
+  ],
+  "red": {
+    "python_B_failed": 2,
+    "python_D_failed": 1,
+    "native_marker_failed": 3,
+    "D_split_characters_observed": 1080033289,
+    "D_fixture_bytes": 4194310,
+    "all_observed_before_production_fix": true
+  },
+  "green": [
+    {
+      "command": "python -m pytest -q tests/test_ledger_post.py skills/adversarial-review/scripts/test_review_lens_select.py tests/test_graphiti_security.py tests/test_copias_declaradas.py",
+      "passed": 234,
+      "skipped": 1,
+      "seconds": 326.33
+    },
+    {
+      "command": "node --test tests/hook-docs-marker.test.mjs tests/hook-post-preflight.test.mjs",
+      "passed": 103,
+      "skipped": 1,
+      "failed": 0,
+      "milliseconds": 93237.0167
+    },
+    {
+      "command": "node --test --test-name-pattern=\"combined ledger hook runs without Bash\" tests/hook-runtime.test.mjs",
+      "exact_pattern": "combined ledger hook runs without Bash",
+      "passed": 3,
+      "failed": 0,
+      "milliseconds": 17815.4105
+    },
+    {
+      "command": "python -m pytest -q tests/test_ledger_post.py tests/test_ledger_lint.py agent-kits/shared/test_progress_report.py",
+      "passed": 68,
+      "skipped": 1,
+      "seconds": 38.32
+    },
+    {
+      "command": "python -m pytest -q tests/test_console_encoding.py -k ledger-post",
+      "passed": 8,
+      "deselected": 656,
+      "seconds": 7.57
+    }
+  ],
+  "lint": {
+    "errors": 0,
+    "existing_warnings": 3
+  },
+  "interop_current_files": 88,
+  "evals": {
+    "cases": 192,
+    "errors": 0
+  },
+  "boundary_review": "Author traced fixed path/lock readers and imports. Only nominal source pins updated to exact changed owners; no dependency/egress exception or rule removed. Fresh C review remains required.",
+  "historical_artifacts": "Original T09/T10/T14 source-pinned measurements are preserved; new source controls recorded separately.",
+  "not_claimed": [
+    "Independent approval",
+    "Coverage percentage",
+    "Full final CI",
+    "Release authorization"
+  ],
+  "source_lf_sha256": {
+    "hooks/ledger-post.py": "116d105306af39b2357cef3d597496c3f00c42d938e39bd572c24c6e606aedbc",
+    "hooks/run-hook.mjs": "701a88823d6fcf1afc8d3444eecfb31c9703200d7e587d80d58732bb592a236b",
+    "skills/adversarial-review/scripts/review-lens-select.py": "e5b1afc9cb921a002bc35dfb9612e3ce20219b3d2bafcf279bb7e9790403e4e9"
+  },
+  "counts_are_per_invocation_not_unique_total": true,
+  "performance_controls": [
+    "t14-paired-control-final-2026-10-30.json",
+    "t10-final-paired-control-2026-10-30.json"
+  ]
+}

@@ -190,6 +190,43 @@ def test_lector_degrada_sin_reintentar_y_cache_no_sobrevive_main(tmp_path, monke
     assert mod._leer_fichero(tmp_path) == ("", [])
 
 
+def test_f2_d01_minified_bundle_scans_text_linearly(tmp_path, monkeypatch):
+    """Count scanned characters instead of imposing a host-dependent deadline."""
+    body = 'x' * (4 * 1024 * 1024)
+    path = tmp_path / 'sdk.js'
+    path.write_text(body + '\ntail', encoding='utf-8')
+    spec = importlib.util.spec_from_file_location('lens_linear_test', SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    scanned = []
+
+    class Counted(str):
+        def __add__(self, other):
+            return Counted(str.__add__(self, other))
+
+        def __radd__(self, other):
+            return Counted(str.__add__(other, self))
+
+        def split(self, sep=None, maxsplit=-1):
+            scanned.append(len(self))
+            return [Counted(s) for s in str.split(self, sep, maxsplit)]
+
+    original = mod.io.IncrementalNewlineDecoder
+
+    class Decoder:
+        def __init__(self, *args, **kwargs):
+            self.inner = original(*args, **kwargs)
+
+        def decode(self, *args, **kwargs):
+            return Counted(self.inner.decode(*args, **kwargs))
+
+    monkeypatch.setattr(mod.io, 'IncrementalNewlineDecoder', Decoder)
+    header, lines = mod._leer_fichero(path, entero=True)
+    assert header == body[:8192]
+    assert lines == [(1, body), (2, 'tail')]
+    assert sum(scanned) <= 2 * path.stat().st_size, sum(scanned)
+
+
 # ------------------------------------------------------------------ tests ----
 
 def test_ruta_auth_activa_la_lente_c():

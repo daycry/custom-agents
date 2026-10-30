@@ -14,6 +14,7 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 ### Cambiado
 
 - Comparte una lectura de contenido por fichero en el selector de lentes, conservando decisiones C/D, motivos, exclusiones, detección binaria y lecturas UTF-8 acotadas.
+- Conserva las rutas del MultiEdit estándar en los hooks de documentación y ledger, muestra el siguiente ledger cuando el primer progreso está repetido y recorre las líneas minificadas largas en tiempo lineal.
 - Carga el detalle de fases de dev-cycle bajo demanda desde su kit privado, conservando puertas de calidad, recetas de revisión visual y dueños de Jira/conocimiento en los adaptadores nativos.
 - Compone el contexto de SessionStart con un intérprete Python en los tres runtimes, conservando recuperación del journal, orden y topes del contexto, y la entrada shell directa.
 - Carga el detalle de consulta de memoria gobernada solo cuando el consumidor tiene `docs/knowledge/`, conservando consultas por rol, doctrina de estimación, journal y contexto de código.

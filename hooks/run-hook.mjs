@@ -205,7 +205,12 @@ function postPaths(payload) {
   if ('edits' in value) {
     if (!Array.isArray(value.edits)) return null;
     for (const edit of value.edits) {
-      if (!edit || typeof edit.file_path !== 'string' || !edit.file_path || /[\r\n]/.test(edit.file_path)) return null;
+      if (!edit || typeof edit !== 'object' || Array.isArray(edit)) return null;
+      if (!('file_path' in edit)) {
+        if (!('file_path' in value)) return null;
+        continue; // Standard MultiEdit content changes share the top-level path.
+      }
+      if (typeof edit.file_path !== 'string' || !edit.file_path || /[\r\n]/.test(edit.file_path)) return null;
       paths.push(edit.file_path);
     }
   }

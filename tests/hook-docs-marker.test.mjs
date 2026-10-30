@@ -38,6 +38,9 @@ for (const runtime of ['claude', 'codex', 'opencode']) {
   for (const [name, payload] of [
     ['native backslashes', { tool_name: 'Edit', tool_input: { file_path: 'C:\\project\\docs\\page.md' } }],
     ['multiple edits', { tool_name: 'MultiEdit', tool_input: { edits: [{ file_path: 'src/app.py' }, { file_path: 'docs/page.md' }] } }],
+    ['F2-B01 standard MultiEdit with a top-level path', { tool_name: 'MultiEdit', tool_input: {
+      file_path: 'docs/page.md', edits: [{ old_string: 'old', new_string: 'new' }],
+    } }],
     ['patch move', { tool_name: 'apply_patch', tool_input: { command: '*** Begin Patch\n*** Update File: src/page.md\n*** Move to: docs/page.md\n@@\n-a\n+b\n*** End Patch' } }],
     ['non-ASCII path', { tool_input: { file_path: 'docs/guía/日本語.md' } }],
   ]) test(`${runtime}: marker accepts ${name}`, t => {
@@ -52,7 +55,10 @@ for (const runtime of ['claude', 'codex', 'opencode']) {
       assert.equal(existsSync(join(root, '.claude')), false);
     });
   }
-  for (const payload of ['{invalid', { tool_input: { file_path: null } }, { tool_input: { edits: [{}] } }]) {
+  for (const payload of ['{invalid', { tool_input: { file_path: null } }, { tool_input: { edits: [{}] } },
+    { tool_input: { file_path: 'docs/page.md', edits: [null] } },
+    { tool_input: { file_path: 'docs/page.md', edits: [{ file_path: null }] } },
+  ]) {
     test(`${runtime}: marker degrades for unknown input ${JSON.stringify(payload)}`, t => {
       const root = fixture(t);
       const result = invoke(root, runtime, payload);
