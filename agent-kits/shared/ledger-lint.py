@@ -727,18 +727,21 @@ def _parse_horas(campo):
     return est, real
 
 
-def lint(path):
+def lint(path, *, text=None, parsed=None):
+    """Validate a ledger; a composing caller may supply matching text and its shared parse."""
     errors, warnings = [], []
-    try:
-        text = open(path, encoding="utf-8").read()
-    except UnicodeDecodeError:
-        text = open(path, encoding="utf-8", errors="replace").read()
-        warnings.append("el fichero no es UTF-8 limpio (leído con reemplazos)")
+    if text is None:
+        try:
+            text = open(path, encoding="utf-8").read()
+        except UnicodeDecodeError:
+            text = open(path, encoding="utf-8", errors="replace").read()
+            warnings.append("el fichero no es UTF-8 limpio (leído con reemplazos)")
 
     if "edger canónico" not in text and "edger can" not in text:
         warnings.append("falta el banner de «ledger canónico» (formato legacy)")
 
-    parsed = parse_ledger(text)
+    if parsed is None:
+        parsed = parse_ledger(text)
     fases = [(f["nombre"], f["tareas"]) for f in parsed["fases"]]
     all_tasks = parsed["tareas"]
 

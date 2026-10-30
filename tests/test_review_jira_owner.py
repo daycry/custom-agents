@@ -28,7 +28,15 @@ FLOWS_EN = os.path.join(ROOT, "docs", "en", "FLOWS.md")
 
 def _leer(p):
     with open(p, encoding="utf-8") as f:
-        return f.read()
+        text = f.read()
+    if p == DEVCYCLE:
+        # The command owns a lazy phase map; inspect its exact canonical closure,
+        # retaining the existing owner/signature assertions on the moved table.
+        names = ('phase1-evaluation.md', 'phase2-planning.md', 'phase3-subagents.md',
+                 'phase3-jira.md', 'phase4-knowledge-gate.md')
+        text += '\n\n' + '\n\n'.join(_leer(os.path.join(ROOT, 'agent-kits', 'dev-cycle', 'references', name))
+                                      for name in names)
+    return text
 
 
 def _seccion(texto, cabecera_regex, hasta_regex=r"^#{1,3} "):
@@ -145,7 +153,7 @@ def test_paso_9_no_aparece_en_ningun_md_vivo_del_repo(): # gap #19
         # `scratchpad/`, `_to_delete/` y `.venv/` son locales y no versionados (notas de trabajo en
         # cualquier codificación, p. ej. UTF-16): no son docs vivos del repo y en CI no existen.
         dirnames[:] = [d for d in dirnames if d not in (".git", "node_modules", "__pycache__",
-                                                        "scratchpad", "_to_delete", ".venv")]
+                                                        "scratchpad", "_to_delete", ".venv", ".pytest_cache")]
         if any(dirpath == d or dirpath.startswith(d + os.sep) for d in excluidos_dir):
             continue
         for fn in filenames:

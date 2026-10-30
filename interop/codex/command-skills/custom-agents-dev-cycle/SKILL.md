@@ -17,6 +17,10 @@ Argumentos esperados: `<objetivo de la iniciativa> [rapido | completo]`.
    No hay sustitución del compositor de prompts; conserva literalmente los dólares
    de las recetas y resuelve sus variables sólo al ejecutar la shell correspondiente.
 
+`references/command.md` contiene el núcleo. Lee las referencias de fase sólo
+cuando lo indique; resuélvelas en `agent-kits/dev-cycle/references/` del mismo
+bundle canónico, siguiendo su búsqueda. No precargues el kit entero.
+
 | Referencia | Cuándo leerla |
 |---|---|
-| [Comando completo](references/command.md) | Siempre, antes de ejecutar el comando |
+| [Núcleo y mapa de fases](references/command.md) | Siempre, antes de ejecutar el comando |

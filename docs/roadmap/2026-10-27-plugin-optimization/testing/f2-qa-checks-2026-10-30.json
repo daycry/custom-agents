@@ -1,0 +1,58 @@
+{
+  "source": "e8a59ee8f2f57ed77ed23480b730802bd43fd240",
+  "checks": [
+    {
+      "command": [
+        "python",
+        "agent-kits/shared/ledger-lint.py",
+        "docs/roadmap/2026-10-27-plugin-optimization/tasks.md"
+      ],
+      "exit": 0,
+      "stdout": "⚠️  T-19: campo **Changelog** VACÍO — escribe una frase (qué cambia para quien USA el proyecto) o quita el campo\r\n⚠️  T-20: campo **Changelog** VACÍO — escribe una frase (qué cambia para quien USA el proyecto) o quita el campo\r\n⚠️  T-21: campo **Changelog** VACÍO — escribe una frase (qué cambia para quien USA el proyecto) o quita el campo\r\n⚠️  T-22: campo **Changelog** VACÍO — escribe una frase (qué cambia para quien USA el proyecto) o quita el campo\r\n⚠️  T-23: campo **Changelog** VACÍO — escribe una frase (qué cambia para quien USA el proyecto) o quita el campo\r\n⚠️  T-24: campo **Changelog** VACÍO — escribe una frase (qué cambia para quien USA el proyecto) o quita el campo\r\n⚠️  T-25: campo **Changelog** VACÍO — escribe una frase (qué cambia para quien USA el proyecto) o quita el campo\r\n⚠️  T-26: campo **Changelog** VACÍO — escribe una frase (qué cambia para quien USA el proyecto) o quita el campo\r\nledger-lint: 0 incoherencias · 8 avisos (tasks.md)\r\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "scripts/lint_plugin.py"
+      ],
+      "exit": 0,
+      "stdout": "⚠️  command `retro`: nombre genérico — sin instalar como plugin (namespace `custom-agents:`) puede chocar con otro `.claude/`. Ok si se usa como plugin.\r\n⚠️  command `roadmap-status`: nombre genérico — sin instalar como plugin (namespace `custom-agents:`) puede chocar con otro `.claude/`. Ok si se usa como plugin.\r\n⚠️  command `setup`: nombre genérico — sin instalar como plugin (namespace `custom-agents:`) puede chocar con otro `.claude/`. Ok si se usa como plugin.\r\n\r\nlint_plugin: 10 agentes · 0 errores · 3 avisos\r\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "evals/check.py"
+      ],
+      "exit": 0,
+      "stdout": "evals/check: 52 ficheros · 192 casos (120 positivos, 72 negativos, 1 en contra) · 52 piezas del repo · 0 errores\r\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "scripts/export-interop.py",
+        "--check"
+      ],
+      "exit": 0,
+      "stdout": "export-interop --check: 88 ficheros al día\r\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "agent-kits/qa/coverage-check.py",
+        "docs/roadmap/2026-10-27-plugin-optimization/tasks.md",
+        "docs/roadmap/2026-10-27-plugin-optimization/test-plan.md",
+        "docs/roadmap/2026-10-27-plugin-optimization/spec.md"
+      ],
+      "exit": 0,
+      "stdout": "ℹ️  test-plan: n/a (sin UI) declarado en improvement-plan.md: iniciativa sin UI por diseño, la puerta de cobertura NO se ha ejecutado (no es «cobertura OK»)\r\nℹ️  se eximen 10 criterio(s) [GWT] de la spec (CA-01, CA-02, CA-03, CA-04, CA-05, CA-06, CA-07, CA-08, CA-09, CA-10): su evidencia es el campo `Verificación` de la tarea que los cierra en tasks.md (ejecutado y pegado por implementer), no un E2E\r\n{\"applies\": false, \"gwt_sin_id\": 0, \"test_plan_na\": true, \"marcador_no_canonico\": null, \"eximidos\": [\"CA-01\", \"CA-02\", \"CA-03\", \"CA-04\", \"CA-05\", \"CA-06\", \"CA-07\", \"CA-08\", \"CA-09\", \"CA-10\"], \"eximidos_exigidos\": true, \"rutas_ui\": [], \"rutas_ui_origen\": {}, \"rutas_ui_degradado\": null}\r\n",
+      "stderr": ""
+    }
+  ],
+  "ui": "test-plan: n/a (sin UI)",
+  "ui_gate": "Declared plan exemption, not an executed Playwright suite or claimed UI coverage",
+  "release_authorized": false
+}

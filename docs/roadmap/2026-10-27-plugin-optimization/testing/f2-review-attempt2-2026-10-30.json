@@ -1,0 +1,350 @@
+{
+  "phase": "F2",
+  "attempt": 2,
+  "maximum_attempts": 3,
+  "date": "2026-10-30",
+  "base": "a157679afd27743b1dd1e1a7fa76444cca6aba2a",
+  "reviewed_head": "e8a59ee8f2f57ed77ed23480b730802bd43fd240",
+  "fix_range": "71968b0..e8a59ee8",
+  "previous_verdict": "f2-review-attempt1-2026-10-30.json; full criteria and all three gaps transferred",
+  "fallback": "Fresh generic read-only reviewers; native reviewer type unavailable; no implementation delegation or model override",
+  "scope": {
+    "base": "31cd57d (approved T08 revalidation)",
+    "exit": 0,
+    "outside": [],
+    "criteria_altered": [],
+    "warnings": [],
+    "info": []
+  },
+  "selectors": {
+    "C": true,
+    "D": true,
+    "mode": "auto",
+    "warnings": []
+  },
+  "source_sha256_lf": {
+    "agent-kits/shared/ledger-lint.py": "6cd9898c42b4d09d72b6dc829d2ce47cf76aaf76fbb43db33ae71ef579ec8748",
+    "agent-kits/shared/progress-report.py": "79c14bf3635b4eb4c24123404474dffd41995ddc26aab6d924022e0329330a7c",
+    "agent-kits/shared/usage-meter.py": "2a7f75bcc2717e495434f74ee6b2749d3ba9357dd0abbf9680b032d3a067ed68",
+    "hooks/ledger-post.py": "116d105306af39b2357cef3d597496c3f00c42d938e39bd572c24c6e606aedbc",
+    "hooks/session-context.py": "ef68ca4c03ac360b8b1609aab84f58b350a8cb5a5fa37321ed3a288a4da3630c",
+    "scripts/export-interop.py": "b1533f0ef356d525b822ff2381270be3852b49e4e4f30dc1fc5cf19ce7ee7e34",
+    "skills/adversarial-review/scripts/review-lens-select.py": "e5b1afc9cb921a002bc35dfb9612e3ce20219b3d2bafcf279bb7e9790403e4e9",
+    "skills/plugin-panel/scripts/build_panel.py": "b52d0fdb2bf4efd123b979f85b7c38eb4f5d26f8f6d5df0a7e392d64ee97084b",
+    "hooks/run-hook.mjs": "701a88823d6fcf1afc8d3444eecfb31c9703200d7e587d80d58732bb592a236b"
+  },
+  "lenses": {
+    "A": {
+      "critical": 0,
+      "important": 0,
+      "minor": 0,
+      "status": "complete",
+      "criteria": [
+        {
+          "id": "T08.1",
+          "criterion": "Archivos/verificaciones vigentes",
+          "verdict": "pass",
+          "evidence": "tasks.md:340; testing/t08-revalidation-2026-10-29.md:3",
+          "state": "P"
+        },
+        {
+          "id": "T08.2",
+          "criterion": "Decisiones C15/C17/C18",
+          "verdict": "pass",
+          "evidence": "testing/t08-revalidation-2026-10-29.md:15",
+          "state": "P"
+        },
+        {
+          "id": "T08.3",
+          "criterion": "Estimaciones sin inventar real F1",
+          "verdict": "pass",
+          "evidence": "testing/t08-revalidation-2026-10-29.md:23",
+          "state": "P"
+        },
+        {
+          "id": "T09.1",
+          "criterion": "Marcador/filtros/tres runtimes",
+          "verdict": "pass",
+          "evidence": "hooks/run-hook.mjs:197,208; tests/hook-docs-marker.test.mjs:28,41,58,71",
+          "state": "R"
+        },
+        {
+          "id": "T09.2",
+          "criterion": "Entradas invalidas/enlaces/propiedad",
+          "verdict": "pass",
+          "evidence": "hooks/run-hook.mjs:197,208; standard MultiEdit and invalid nested path regressions",
+          "state": "R"
+        },
+        {
+          "id": "T09.3",
+          "criterion": "Diez muestras y control",
+          "verdict": "pass",
+          "evidence": "testing/t09-paired-control-2026-10-29.json",
+          "state": "P"
+        },
+        {
+          "id": "T10.1",
+          "criterion": "Parse compartido/un Python de negocio",
+          "verdict": "pass",
+          "evidence": "hooks/ledger-post.py:145,155; tests/test_ledger_post.py:141,155",
+          "state": "R"
+        },
+        {
+          "id": "T10.2",
+          "criterion": "Lock/atomico/concurrencia",
+          "verdict": "pass",
+          "evidence": "hooks/ledger-post.py:54; tests/test_ledger_post.py:109",
+          "state": "P"
+        },
+        {
+          "id": "T10.3",
+          "criterion": "Compatibilidad/registro/redactor",
+          "verdict": "pass",
+          "evidence": "hooks/ledger-post.py:109,158,162; testing/t10-final-paired-control-2026-10-30.json",
+          "state": "R"
+        },
+        {
+          "id": "T11.1",
+          "criterion": "Condicion local determinista",
+          "verdict": "pass",
+          "evidence": "agent-kits/shared/knowledge-check.md:26; tests/test_knowledge_prompt_split.py:17",
+          "state": "P"
+        },
+        {
+          "id": "T11.2",
+          "criterion": "Legacy/approved/journal/doctrina/contexto",
+          "verdict": "pass",
+          "evidence": "agent-kits/shared/knowledge-check-governed.md:34; tests/test_knowledge_prompt_split.py:27; 15/15 parrafos base",
+          "state": "P"
+        },
+        {
+          "id": "T11.3",
+          "criterion": "Estimacion por escenario",
+          "verdict": "pass",
+          "evidence": "testing/t11-conditional-memory-2026-10-29.json",
+          "state": "P"
+        },
+        {
+          "id": "T12.1",
+          "criterion": "Salida y efectos equivalentes",
+          "verdict": "pass",
+          "evidence": "tests/test_session_context.py:128; 30 combinaciones",
+          "state": "P"
+        },
+        {
+          "id": "T12.2",
+          "criterion": "Un Python sin contaminacion/transitivos",
+          "verdict": "pass",
+          "evidence": "hooks/session-context.py:179; tests/test_session_context.py:41; agent-kits/shared/usage-meter.py:699",
+          "state": "P"
+        },
+        {
+          "id": "T12.3",
+          "criterion": "Shell compatible y timeout medido",
+          "verdict": "pass",
+          "evidence": "hooks/run-hook.mjs:307; testing/t12-functional-2026-10-29.json:60; mantiene30s",
+          "state": "P"
+        },
+        {
+          "id": "T13.1",
+          "criterion": "Nucleo/referencias/regla5",
+          "verdict": "pass",
+          "evidence": "commands/dev-cycle.md:17; tests/test_dev_cycle_split.py:31",
+          "state": "P"
+        },
+        {
+          "id": "T13.2",
+          "criterion": "Cero parrafos perdidos/puertas/dueños",
+          "verdict": "pass",
+          "evidence": "tests/test_dev_cycle_split.py:42; 81/81 parrafos base y8recetas",
+          "state": "P"
+        },
+        {
+          "id": "T13.3",
+          "criterion": "Ahorro rapido por defecto",
+          "verdict": "pass",
+          "evidence": "tests/test_dev_cycle_split.py:71; testing/t13-prompt-split-2026-10-29.json:33; 6327estimados",
+          "state": "P"
+        },
+        {
+          "id": "T13.4",
+          "criterion": "Adaptadores/instalador",
+          "verdict": "pass",
+          "evidence": "scripts/export-interop.py:483; tests/installer.test.mjs:682",
+          "state": "P"
+        },
+        {
+          "id": "T14.1",
+          "criterion": "Una apertura/mismos motivos",
+          "verdict": "pass",
+          "evidence": "skills/adversarial-review/scripts/review-lens-select.py:390,391,394,401,422; reader tests:193,224",
+          "state": "R"
+        },
+        {
+          "id": "T14.2",
+          "criterion": "Binario/UTF8/acotado/cache",
+          "verdict": "pass",
+          "evidence": "skills/adversarial-review/scripts/review-lens-select.py:401; F2-D01 linear-work regression",
+          "state": "R"
+        },
+        {
+          "id": "T14.3",
+          "criterion": "Comparacion grande intercalada",
+          "verdict": "pass",
+          "evidence": "testing/t14-paired-control-final-2026-10-30.json",
+          "state": "R"
+        },
+        {
+          "id": "T15.1",
+          "criterion": "Spike acotado con terminales/arbol",
+          "verdict": "pass",
+          "evidence": "testing/spike-c15.md:6; testing/t15-windows-experiment.json",
+          "state": "P"
+        },
+        {
+          "id": "T15.2",
+          "criterion": "Go equivalente/no-go motivado",
+          "verdict": "pass",
+          "evidence": "testing/spike-c15.md:14; hashes produccion iguales",
+          "state": "P"
+        },
+        {
+          "id": "T16.1",
+          "criterion": "Cancelacion condicionada",
+          "verdict": "pass",
+          "evidence": "tasks.md:560",
+          "state": "P"
+        },
+        {
+          "id": "T17.1",
+          "criterion": "Cancelar sin ahorro/resolucion segura",
+          "verdict": "pass",
+          "evidence": "testing/t17-resolution-decision.md:13",
+          "state": "P"
+        },
+        {
+          "id": "T18.1",
+          "criterion": "Conservar indice sin prueba activacion",
+          "verdict": "pass",
+          "evidence": "testing/t18-activation-decision.md:6",
+          "state": "P"
+        },
+        {
+          "id": "T19.1",
+          "criterion": "No declarar cierre sin puertas",
+          "verdict": "pass",
+          "evidence": "tasks.md:644,656; coverage, full CI and release still pending at review time",
+          "state": "R"
+        }
+      ],
+      "state_legend": {
+        "P": "Prior verdict preserved",
+        "R": "Revalidated on corrected source"
+      },
+      "interop": {
+        "exit": 0,
+        "current_files": 88
+      },
+      "transverse": "Constitution complied; RED/GREEN/source hashes checked; pins-only changes preserve transitive security checks; no unjustified gate relaxation; coverage pending at review time"
+    },
+    "B": {
+      "critical": 0,
+      "important": 0,
+      "minor": 0,
+      "status": "complete",
+      "python": {
+        "passed": 79,
+        "skipped": 1,
+        "seconds": 332.78
+      },
+      "native_ledger": {
+        "runtimes": 3,
+        "passed": 3
+      },
+      "reader_equivalence": {
+        "fixtures": 111,
+        "modes": 2,
+        "includes": "CR/LF/CRLF, 8192 boundary, Unicode and invalid UTF-8"
+      },
+      "exploratory_windows_marker_runs": [
+        {
+          "passed": 46,
+          "skipped": 1,
+          "failed": 3,
+          "failure": "spawnSync ETIMEDOUT, unchanged 5s timeout"
+        },
+        {
+          "passed": 4,
+          "failed": 1,
+          "failure": "same timeout on backslash exclusion case"
+        }
+      ],
+      "subsequent_isolated_check": {
+        "case": "claude: marker excludes docs\\security-scan\\report.md",
+        "passed": 1,
+        "failed": 0,
+        "case_ms": 868.7953,
+        "suite_ms": 1829.856,
+        "stderr": "",
+        "timeout_changed": false,
+        "limitation": "Single isolated pass does not uniquely reconstruct earlier timeout causes. Earlier failed runs remain failed; author full same-source marker/preflight run passed 103 with one skip."
+      }
+    },
+    "C": {
+      "critical": 0,
+      "important": 0,
+      "minor": 0,
+      "status": "complete",
+      "directed": {
+        "passed": 14,
+        "skipped": 1,
+        "deselected": 131,
+        "seconds": 115.75
+      },
+      "boundary": "No new imports, dependencies, egress or dynamic argv; -I -S, local-read/state and redaction retained; nominal owner pins match source while closure rules remain intact"
+    },
+    "D": {
+      "critical": 0,
+      "important": 0,
+      "minor": 0,
+      "status": "complete",
+      "directed_runs": [
+        {
+          "passed": 8,
+          "scope": "D01/B01/B02/dedupe"
+        },
+        {
+          "passed": 15,
+          "scope": "reader/open/UTF8/binary/cache"
+        }
+      ],
+      "assessment": "Long-line work linear: split current chunk and join fragments once. Shared ledger parsing stays once per distinct ledger. Final T10/T14 controls have ten samples plus discarded warmup, exact source pins and zero diagnostics; historical inconclusive T10 retained."
+    }
+  },
+  "gap_closure": [
+    {
+      "id": "F2-B01",
+      "prior": "Important",
+      "disposition": "fixed; independently revalidated"
+    },
+    {
+      "id": "F2-B02",
+      "prior": "Important",
+      "disposition": "fixed; independently revalidated"
+    },
+    {
+      "id": "F2-D01",
+      "prior": "Important",
+      "disposition": "fixed; independently revalidated"
+    }
+  ],
+  "fusion": {
+    "critical": 0,
+    "important": 0,
+    "minor": 0,
+    "verdict": "IMPLEMENTATION_REVIEW_APPROVED",
+    "attempts_used": 2,
+    "release_authorized": false,
+    "qa_or_coverage_approval_claimed": false
+  }
+}

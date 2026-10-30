@@ -92,7 +92,7 @@ def nombre_fase(nombre):
     return (m.group(1) if m else nombre).strip()
 
 
-def resumir(path, *, text=None):
+def resumir(path, *, text=None, parsed=None):
     """Resume un ledger; con texto suministrado no accede al sistema de archivos."""
     if text is None:
         try:
@@ -100,7 +100,8 @@ def resumir(path, *, text=None):
                 text = source.read()   # tolera BOM para los consumidores históricos
         except OSError as e:
             raise ValueError(f"no se puede leer: {e}") from e
-    parsed = parse_ledger(text)
+    if parsed is None:
+        parsed = parse_ledger(text)
     tareas = parsed["tareas"]
     if not tareas:
         raise ValueError("sin tareas `### T-XX` reconocibles")
@@ -239,7 +240,7 @@ def _leer_usage_state(root):
     return data if isinstance(data, dict) else {}
 
 
-def marcadores_huerfanos(root="."):
+def marcadores_huerfanos(root=".", *, in_process=False):
     """Marcadores abiertos (sin cierre) de usage-meter.py status sobre el estado del PROYECTO
     (`<root>/.claude/usage-state.json`, no el cwd); None si el meter no está o falla."""
     meter = os.path.join(HERE, "usage-meter.py")
@@ -247,9 +248,13 @@ def marcadores_huerfanos(root="."):
         return None
     try:
         state = os.path.join(root, ".claude", "usage-state.json")
-        res = subprocess.run([sys.executable, meter, "status", "--state", state],
-                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, check=False)
-        data = json.loads(res.stdout or "{}")
+        if in_process:
+            meter_module = _load_module('progress_usage_meter', 'usage-meter.py')
+            data = meter_module.status(state)
+        else:
+            res = subprocess.run([sys.executable, meter, "status", "--state", state],
+                                 capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, check=False)
+            data = json.loads(res.stdout or "{}")
         return [m.get("artefacto", "?") for m in data.get("marcadores", []) if not m.get("cerrado")]
     except Exception:  # noqa: BLE001 — cualquier fallo del meter = no disponible
         return None
@@ -705,7 +710,7 @@ def cmd_session(args):
         out.append("- " + linea(r))
         for t in r["en_progreso"]:
             out.append(f"  · en-progreso: {t['id']} {t['titulo']}".rstrip())
-    huerf = marcadores_huerfanos(args.root)
+    huerf = marcadores_huerfanos(args.root, in_process=getattr(args, 'in_process', False))
     if huerf is None:
         out.append("usage-meter: no disponible")
     elif huerf:
@@ -749,7 +754,7 @@ def cmd_resume(args):
     return 0
 
 
-def main(argv=None):
+def main(argv=None, *, in_process=False):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[1].strip())
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -779,6 +784,7 @@ def main(argv=None):
     sp.set_defaults(fn=cmd_resume)
 
     args = p.parse_args(argv)
+    args.in_process = in_process
     return args.fn(args)
 
 

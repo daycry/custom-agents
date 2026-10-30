@@ -696,8 +696,9 @@ def cmd_close(args):
     return 0
 
 
-def cmd_status(args):
-    state = _load_state(args.state)
+def status(path):
+    """Return the same read-only status used by the CLI without another interpreter."""
+    state = _load_state(path)
     ahora = datetime.now(timezone.utc)
     out = []
     for clave, m in state.items():
@@ -709,7 +710,11 @@ def cmd_status(args):
             pass
         out.append({"artefacto": clave, "inicio": m.get("inicio"),
                     "cerrado": "ultimoCierre" in m, "horas_desde_inicio": edad_h})
-    print(json.dumps({"marcadores": out}, ensure_ascii=False, indent=2))
+    return {"marcadores": out}
+
+
+def cmd_status(args):
+    print(json.dumps(status(args.state), ensure_ascii=False, indent=2))
     return 0
 
 

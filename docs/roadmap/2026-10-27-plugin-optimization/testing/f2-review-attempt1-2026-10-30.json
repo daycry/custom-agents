@@ -1,0 +1,416 @@
+{
+  "phase": "F2",
+  "attempt": 1,
+  "maximum_attempts": 3,
+  "base": "a157679afd27743b1dd1e1a7fa76444cca6aba2a",
+  "reviewed_head": "71968b0f4c2281081de4fc5a8aba9310e2bd2001",
+  "fallback": "Fresh generic read-only reviewers; native reviewer type unavailable",
+  "scope": {
+    "base": "31cd57d (approved T08 revalidation)",
+    "exit": 0,
+    "outside": [],
+    "criteria_altered": [],
+    "warnings": [],
+    "info": []
+  },
+  "lenses": {
+    "A": {
+      "status": "complete",
+      "critical": 0,
+      "important": 0,
+      "minor": 0,
+      "files_read": 79,
+      "criteria": [
+        {
+          "id": "T08.1",
+          "criterion": "Archivos/verificaciones vigentes",
+          "verdict": "pass",
+          "evidence": "tasks.md:340; testing/t08-revalidation-2026-10-29.md:3"
+        },
+        {
+          "id": "T08.2",
+          "criterion": "Decisiones C15/C17/C18",
+          "verdict": "pass",
+          "evidence": "testing/t08-revalidation-2026-10-29.md:15"
+        },
+        {
+          "id": "T08.3",
+          "criterion": "Estimaciones sin inventar real F1",
+          "verdict": "pass",
+          "evidence": "testing/t08-revalidation-2026-10-29.md:23"
+        },
+        {
+          "id": "T09.1",
+          "criterion": "Marcador/filtros/tres runtimes",
+          "verdict": "pass",
+          "evidence": "hooks/run-hook.mjs:224; tests/hook-docs-marker.test.mjs:27"
+        },
+        {
+          "id": "T09.2",
+          "criterion": "Entradas invalidas/enlaces/propiedad",
+          "verdict": "pass",
+          "evidence": "hooks/run-hook.mjs:229; tests/hook-docs-marker.test.mjs:70"
+        },
+        {
+          "id": "T09.3",
+          "criterion": "Diez muestras y control",
+          "verdict": "pass",
+          "evidence": "testing/t09-paired-control-2026-10-29.json"
+        },
+        {
+          "id": "T10.1",
+          "criterion": "Parse compartido/un Python de negocio",
+          "verdict": "pass",
+          "evidence": "hooks/ledger-post.py:134; tests/test_ledger_post.py:90"
+        },
+        {
+          "id": "T10.2",
+          "criterion": "Lock/atomico/concurrencia",
+          "verdict": "pass",
+          "evidence": "hooks/ledger-post.py:54; tests/test_ledger_post.py:109"
+        },
+        {
+          "id": "T10.3",
+          "criterion": "Compatibilidad/registro/redactor",
+          "verdict": "pass",
+          "evidence": "hooks/hooks.json:25; hooks/opencode-plugin.js:30; tests/test_ledger_post.py:167"
+        },
+        {
+          "id": "T11.1",
+          "criterion": "Condicion local determinista",
+          "verdict": "pass",
+          "evidence": "agent-kits/shared/knowledge-check.md:26; tests/test_knowledge_prompt_split.py:17"
+        },
+        {
+          "id": "T11.2",
+          "criterion": "Legacy/approved/journal/doctrina/contexto",
+          "verdict": "pass",
+          "evidence": "agent-kits/shared/knowledge-check-governed.md:34; tests/test_knowledge_prompt_split.py:27; 15/15 parrafos base"
+        },
+        {
+          "id": "T11.3",
+          "criterion": "Estimacion por escenario",
+          "verdict": "pass",
+          "evidence": "testing/t11-conditional-memory-2026-10-29.json"
+        },
+        {
+          "id": "T12.1",
+          "criterion": "Salida y efectos equivalentes",
+          "verdict": "pass",
+          "evidence": "tests/test_session_context.py:128; 30 combinaciones"
+        },
+        {
+          "id": "T12.2",
+          "criterion": "Un Python sin contaminacion/transitivos",
+          "verdict": "pass",
+          "evidence": "hooks/session-context.py:179; tests/test_session_context.py:41; agent-kits/shared/usage-meter.py:699"
+        },
+        {
+          "id": "T12.3",
+          "criterion": "Shell compatible y timeout medido",
+          "verdict": "pass",
+          "evidence": "hooks/run-hook.mjs:307; testing/t12-functional-2026-10-29.json:60; mantiene30s"
+        },
+        {
+          "id": "T13.1",
+          "criterion": "Nucleo/referencias/regla5",
+          "verdict": "pass",
+          "evidence": "commands/dev-cycle.md:17; tests/test_dev_cycle_split.py:31"
+        },
+        {
+          "id": "T13.2",
+          "criterion": "Cero parrafos perdidos/puertas/dueños",
+          "verdict": "pass",
+          "evidence": "tests/test_dev_cycle_split.py:42; 81/81 parrafos base y8recetas"
+        },
+        {
+          "id": "T13.3",
+          "criterion": "Ahorro rapido por defecto",
+          "verdict": "pass",
+          "evidence": "tests/test_dev_cycle_split.py:71; testing/t13-prompt-split-2026-10-29.json:33; 6327estimados"
+        },
+        {
+          "id": "T13.4",
+          "criterion": "Adaptadores/instalador",
+          "verdict": "pass",
+          "evidence": "scripts/export-interop.py:483; tests/installer.test.mjs:682"
+        },
+        {
+          "id": "T14.1",
+          "criterion": "Una apertura/mismos motivos",
+          "verdict": "pass",
+          "evidence": "skills/adversarial-review/scripts/test_review_lens_select.py:74"
+        },
+        {
+          "id": "T14.2",
+          "criterion": "Binario/UTF8/acotado/cache",
+          "verdict": "pass",
+          "evidence": "skills/adversarial-review/scripts/test_review_lens_select.py:124"
+        },
+        {
+          "id": "T14.3",
+          "criterion": "Comparacion grande intercalada",
+          "verdict": "pass",
+          "evidence": "testing/t14-paired-control-2026-10-30.json"
+        },
+        {
+          "id": "T15.1",
+          "criterion": "Spike acotado con terminales/arbol",
+          "verdict": "pass",
+          "evidence": "testing/spike-c15.md:6; testing/t15-windows-experiment.json"
+        },
+        {
+          "id": "T15.2",
+          "criterion": "Go equivalente/no-go motivado",
+          "verdict": "pass",
+          "evidence": "testing/spike-c15.md:14; hashes produccion iguales"
+        },
+        {
+          "id": "T16.1",
+          "criterion": "Cancelacion condicionada",
+          "verdict": "pass",
+          "evidence": "tasks.md:560"
+        },
+        {
+          "id": "T17.1",
+          "criterion": "Cancelar sin ahorro/resolucion segura",
+          "verdict": "pass",
+          "evidence": "testing/t17-resolution-decision.md:13"
+        },
+        {
+          "id": "T18.1",
+          "criterion": "Conservar indice sin prueba activacion",
+          "verdict": "pass",
+          "evidence": "testing/t18-activation-decision.md:6"
+        },
+        {
+          "id": "T19.1",
+          "criterion": "No declarar cierre sin puertas",
+          "verdict": "pass",
+          "evidence": "tasks.md:640; cobertura/release pendientes"
+        }
+      ],
+      "transverse": {
+        "constitution": "no introduced violation found",
+        "verification": "receipts checked; not executed to replace missing evidence",
+        "interop": {
+          "command": "python scripts/export-interop.py --check",
+          "exit": 0,
+          "current_files": 88
+        },
+        "gate_relaxations": "no unjustified weakening found",
+        "openapi": "not applicable",
+        "coverage": "pending T19, no percentage"
+      }
+    },
+    "B": {
+      "status": "complete",
+      "critical": 0,
+      "important": 2,
+      "minor": 0,
+      "directed_tests": {
+        "passed": 87,
+        "skipped": 1
+      }
+    },
+    "C": {
+      "status": "complete",
+      "critical": 0,
+      "important": 0,
+      "minor": 0,
+      "directed_tests": {
+        "passed": 15,
+        "skipped": 1
+      },
+      "credential_candidate_count": 0,
+      "added_lines_scanned": 8788,
+      "scope": "Introduced/reopened vulnerabilities in diff; not a full audit, QA or coverage"
+    },
+    "D": {
+      "status": "complete",
+      "critical": 0,
+      "important": 1,
+      "minor": 0
+    }
+  },
+  "triage": [
+    {
+      "id": "F2-B01",
+      "severity": "Important",
+      "status": "accepted; correction requires independent re-review",
+      "files": [
+        "hooks/ledger-post.py:119",
+        "hooks/run-hook.mjs:290"
+      ],
+      "scenario": "Standard MultiEdit has top-level file_path and old/new edits without nested paths; new code drops lint/progress and doc marker; unchanged legacy wrappers retain them",
+      "dedicated_tests": [
+        "tests/test_ledger_post.py::test_f2_b01_standard_multiedit_keeps_the_top_level_ledger",
+        "tests/hook-docs-marker.test.mjs F2-B01 standard MultiEdit"
+      ],
+      "red_observed": "Python expected1lint got0; three runtimes warn documentation paths unavailable and skip marker before fix"
+    },
+    {
+      "id": "F2-B02",
+      "severity": "Important",
+      "status": "accepted; correction requires independent re-review",
+      "files": [
+        "hooks/ledger-post.py:152"
+      ],
+      "scenario": "After demo progress already emitted, MultiEdit[demo,other] must emit other; choosing first before debounce loses it",
+      "dedicated_tests": [
+        "tests/test_ledger_post.py::test_f2_b02_repeated_first_ledger_does_not_hide_second_progress"
+      ],
+      "red_observed": "Two lint summaries but0progress, expected1other progress; parsecount2already matched"
+    },
+    {
+      "id": "F2-D01",
+      "severity": "Important",
+      "status": "accepted; correction requires independent re-review",
+      "files": [
+        "skills/adversarial-review/scripts/review-lens-select.py:400"
+      ],
+      "scenario": "4MiB one-line untracked/minified SDK repeatedly rescanned per8KiB chunk; quadratic work introduced",
+      "dedicated_tests": [
+        "skills/adversarial-review/scripts/test_review_lens_select.py::test_f2_d01_minified_bundle_scans_text_linearly"
+      ],
+      "red_observed": "1080033289 split characters for4194310byte fixture, greater than2xinput bound"
+    }
+  ],
+  "fusion": {
+    "critical": 0,
+    "important": 3,
+    "minor": 0,
+    "status": "BLOCKED_ON_CORRECTIONS",
+    "A_verdict_qualification": "A original criterion passes are retained; B/D concrete counterexamples override compatibility/performance acceptance for T09/T10/T14 in the merged verdict",
+    "rebutted": [],
+    "review_attempt_not_reset": true
+  },
+  "coverage_before_correction": {
+    "source": "71968b0f4c2281081de4fc5a8aba9310e2bd2001",
+    "status": "ABORTED_INCOMPLETE_NO_COVERAGE_VERDICT",
+    "reason": "Independent review reproduced a functional MultiEdit regression; candidate needs correction before final coverage. Preserve partial logs; no test count or green gate inferred.",
+    "container_id": "f59cfb1d6368905748111ab4d1d47183190671378e7679fe9cd094bee9f7cbc1",
+    "stop_exit": 0
+  },
+  "reviewer_experiments": {
+    "f2-lens-b-attempt1-multiedit": {
+      "result": {
+        "production_head": "71968b0f4c2281081de4fc5a8aba9310e2bd2001",
+        "legacy_wrapper_matches_base": true,
+        "base_wrapper_sha256_lf": "428a094b04954f18f13dacd6a3fd68de59a3f6adfcb80b3e93aca753433d70e5",
+        "scenario": "Emit demo once, then MultiEdit [demo, other] where other has different progress",
+        "first_output": "ledger-lint: 0 incoherencias · 0 avisos (tasks.md)\n📋 demo · T-01/2 completadas (50%) · fase 1/1 «Fixture» · en curso: T-02 Second",
+        "native_multi_output": "ledger-lint: 0 incoherencias · 0 avisos (tasks.md)\nledger-lint: 0 incoherencias · 0 avisos (tasks.md)",
+        "base_progress_output": "📋 other · T-01/2 completadas (50%) · fase 1/1 «Fixture» · en curso: T-02 Different second",
+        "regression_reproduced": true
+      },
+      "source": "\"\"\"Read-only production regression comparison; all consumer state is temporary.\"\"\"\nimport hashlib\nimport json\nimport os\nfrom pathlib import Path\nimport subprocess\nimport sys\nimport tempfile\n\nROOT = Path(__file__).resolve().parents[1]\nsys.path.insert(0, str(ROOT / 'tests'))\nimport test_ledger_post as fixture\nimport test_hooks_shell as legacy\n\nscript = ROOT / 'hooks/progress-line.sh'\nbase = subprocess.run(['git', 'show', 'a157679afd27743b1dd1e1a7fa76444cca6aba2a:hooks/progress-line.sh'],\n                      cwd=ROOT, capture_output=True, check=True).stdout.replace(b'\\r\\n', b'\\n')\nassert script.read_bytes().replace(b'\\r\\n', b'\\n') == base\nwith tempfile.TemporaryDirectory(prefix='f2-lens-b-') as temporary:\n    root, first = fixture.project(Path(temporary))\n    second = root / 'docs/roadmap/other/tasks.md'\n    second.parent.mkdir(parents=True)\n    second.write_text(fixture.TEXT.replace('Second', 'Different second'), encoding='utf-8')\n    hook = fixture.service()\n    first_output = hook.process_payload(fixture.payload(first), root)\n    assert '\\U0001f4cb demo' in first_output\n    edits = {'tool_name': 'MultiEdit', 'tool_input': {'edits': [\n        {'file_path': str(first)}, {'file_path': str(second)}]}}\n    native_output = hook.process_payload(edits, root)\n    assert '\\U0001f4cb' not in native_output\n    previous = subprocess.run([legacy.BASH, str(script)], input=json.dumps(edits),\n        cwd=root, env={**os.environ, 'CLAUDE_PROJECT_DIR': str(root), 'CLAUDE_PLUGIN_ROOT': str(ROOT)},\n        capture_output=True, text=True, encoding='utf-8', check=True)\n    assert not previous.stderr\n    old_output = json.loads(previous.stdout)['systemMessage']\n    assert '\\U0001f4cb other' in old_output\n    result = {'production_head': '71968b0f4c2281081de4fc5a8aba9310e2bd2001',\n        'legacy_wrapper_matches_base': True, 'base_wrapper_sha256_lf': hashlib.sha256(base).hexdigest(),\n        'scenario': 'Emit demo once, then MultiEdit [demo, other] where other has different progress',\n        'first_output': first_output, 'native_multi_output': native_output, 'base_progress_output': old_output,\n        'regression_reproduced': True}\n    print(json.dumps(result, ensure_ascii=True, indent=2))\n",
+      "source_sha256": "42b91028f9ea7b39a611d6a9a5f7e78fbad808a2f6a0c8c318e612029f55deeb"
+    },
+    "f2-lens-b-attempt1-top-level-multiedit": {
+      "result": {
+        "production_head": "71968b0f4c2281081de4fc5a8aba9310e2bd2001",
+        "legacy_wrappers_match_base": true,
+        "scenario": "MultiEdit top-level file_path and edits[] old_string/new_string with no nested file_path",
+        "native_lint_output": "",
+        "base_lint_output": "ledger-lint: 0 incoherencias · 0 avisos (tasks.md)\n",
+        "native_marker_created": false,
+        "native_marker_diagnostic": "custom-agents hooks: documentation paths unavailable; hook skipped\n",
+        "base_marker_created": true,
+        "base_marker_exit": 0,
+        "regression_reproduced": true
+      },
+      "source": "\"\"\"Compare top-level MultiEdit file_path with base wrappers; temp consumers only.\"\"\"\nimport json\nimport os\nfrom pathlib import Path\nimport shutil\nimport subprocess\nimport sys\nimport tempfile\n\nROOT = Path(__file__).resolve().parents[1]\nsys.path.insert(0, str(ROOT / 'tests'))\nimport test_ledger_post as fixture\nimport test_hooks_shell as legacy\n\nfor name in ('ledger-lint-warn.sh', 'mark-docs-pending.sh'):\n    base = subprocess.run(['git', 'show', 'a157679afd27743b1dd1e1a7fa76444cca6aba2a:hooks/' + name],\n        cwd=ROOT, capture_output=True, check=True).stdout.replace(b'\\r\\n', b'\\n')\n    assert (ROOT / 'hooks' / name).read_bytes().replace(b'\\r\\n', b'\\n') == base\nwith tempfile.TemporaryDirectory(prefix='f2-lens-b-top-level-') as temporary:\n    root, ledger = fixture.project(Path(temporary))\n    value = {'tool_name': 'MultiEdit', 'tool_input': {'file_path': str(ledger),\n        'edits': [{'old_string': 'old', 'new_string': 'new'}]}}\n    env = legacy.env_de(root, Path(temporary))\n    native_lint = fixture.service().process_payload(value, root)\n    old_lint = legacy.hook('ledger-lint-warn.sh', value, env)\n    assert native_lint == '' and 'ledger-lint:' in old_lint[1]\n    marker = root / '.claude/.confluence-pending'\n    native = subprocess.run([shutil.which('node'), str(ROOT / 'hooks/run-hook.mjs'),\n        'mark-docs-pending.sh', '--runtime=claude'], input=json.dumps(value), env=env,\n        cwd=root, capture_output=True, text=True, encoding='utf-8', check=True)\n    native_created = marker.exists()\n    old_marker = legacy.hook('mark-docs-pending.sh', value, env)\n    assert not native_created and marker.exists()\n    result = {'production_head': '71968b0f4c2281081de4fc5a8aba9310e2bd2001',\n        'legacy_wrappers_match_base': True,\n        'scenario': 'MultiEdit top-level file_path and edits[] old_string/new_string with no nested file_path',\n        'native_lint_output': native_lint, 'base_lint_output': old_lint[1],\n        'native_marker_created': native_created, 'native_marker_diagnostic': native.stderr,\n        'base_marker_created': marker.exists(), 'base_marker_exit': old_marker[0],\n        'regression_reproduced': True}\n    print(json.dumps(result, ensure_ascii=True, indent=2))\n",
+      "source_sha256": "3a79d6cfbf4ba6951a04c0a5e308ae18bce1cf29f76816a0c84d306aef176071"
+    },
+    "f2-lens-d-attempt1": {
+      "result": {
+        "revisions": {
+          "before": "a157679afd27743b1dd1e1a7fa76444cca6aba2a",
+          "after": "71968b0f4c2281081de4fc5a8aba9310e2bd2001"
+        },
+        "source_sha256": {
+          "before": "d31a1746ab6f479d894dab3a3da90fc655e2a56291cb5568872dcbf9937bcc08",
+          "after": "40e164e49ca50e5575709eb622866502f8dc3c9847ee457d2344619cb473ee7e"
+        },
+        "python": "3.13.0",
+        "platform": "Windows-11-10.0.26100-SP0",
+        "method": "Same temporary ASCII one-line source; alternate before/after order; two samples each. Invoke the full-file reader used by --files and untracked paths. Assert exact output equality.",
+        "limitations": [
+          "Local wall times include host interference; no native client or OneDrive latency claim.",
+          "Measures reader only; no full-selector end-to-end timing claim.",
+          "Accumulated split scan is a deterministic work count, independent of timing."
+        ],
+        "results": [
+          {
+            "mib": 1,
+            "samples_ms": {
+              "before": [
+                50.23319995962083,
+                5.355700035579503
+              ],
+              "after": [
+                96.91860002931207,
+                85.72309999726713
+              ]
+            },
+            "median_ms": {
+              "before": 27.794449997600168,
+              "after": 91.3208500132896
+            },
+            "repeated_split_scan_lower_bound_bytes": 67633152,
+            "baseline_input_bytes": 1048577,
+            "equal_output": true
+          },
+          {
+            "mib": 2,
+            "samples_ms": {
+              "before": [
+                107.41919989231974,
+                9.713900042697787
+              ],
+              "after": [
+                447.6984000066295,
+                406.1718999873847
+              ]
+            },
+            "median_ms": {
+              "before": 58.56654996750876,
+              "after": 426.9351499970071
+            },
+            "repeated_split_scan_lower_bound_bytes": 269484032,
+            "baseline_input_bytes": 2097153,
+            "equal_output": true
+          },
+          {
+            "mib": 4,
+            "samples_ms": {
+              "before": [
+                220.65820009447634,
+                111.07289989013225
+              ],
+              "after": [
+                5417.008699965663,
+                5113.822599989362
+              ]
+            },
+            "median_ms": {
+              "before": 165.8655499923043,
+              "after": 5265.415649977513
+            },
+            "repeated_split_scan_lower_bound_bytes": 1075838976,
+            "baseline_input_bytes": 4194305,
+            "equal_output": true
+          }
+        ]
+      },
+      "source": "import hashlib\nimport json\nimport pathlib\nimport platform\nimport statistics\nimport subprocess\nimport tempfile\nimport time\nimport types\n\nREL = 'skills/adversarial-review/scripts/review-lens-select.py'\nREVISIONS = {'before': 'a157679afd27743b1dd1e1a7fa76444cca6aba2a',\n             'after': '71968b0f4c2281081de4fc5a8aba9310e2bd2001'}\nmodules, hashes = {}, {}\nfor label, revision in REVISIONS.items():\n    source = subprocess.check_output(['git', 'show', f'{revision}:{REL}'])\n    module = types.ModuleType('perf_' + label)\n    module.__file__ = str(pathlib.Path(REL).resolve())\n    exec(compile(source.decode('utf-8'), module.__file__, 'exec'), module.__dict__)\n    modules[label] = module\n    hashes[label] = hashlib.sha256(source).hexdigest()\n\nreport = {'revisions': REVISIONS, 'source_sha256': hashes,\n          'python': platform.python_version(), 'platform': platform.platform(),\n          'method': 'Same temporary ASCII one-line source; alternate before/after order; two samples each. Invoke the full-file reader used by --files and untracked paths. Assert exact output equality.',\n          'limitations': ['Local wall times include host interference; no native client or OneDrive latency claim.',\n                         'Measures reader only; no full-selector end-to-end timing claim.',\n                         'Accumulated split scan is a deterministic work count, independent of timing.'],\n          'results': []}\nwith tempfile.TemporaryDirectory(prefix='review-lens-d-receipt-') as folder:\n    path = pathlib.Path(folder) / 'sdk.min.js'\n    for mib in [1, 2, 4]:\n        size = mib * 1024 * 1024\n        path.write_bytes(b'x' * size + b'\\n')\n        samples = {'before': [], 'after': []}\n        for iteration in range(2):\n            order = ['before', 'after'] if iteration == 0 else ['after', 'before']\n            for label in order:\n                start = time.perf_counter()\n                lines = modules[label].lineas_fichero_entero(str(path))\n                samples[label].append((time.perf_counter() - start) * 1000)\n                assert len(lines) == 1 and lines[0] == (1, 'x' * size)\n        blocks = size // 8192\n        row = {'mib': mib, 'samples_ms': samples,\n               'median_ms': {label: statistics.median(values) for label, values in samples.items()},\n               'repeated_split_scan_lower_bound_bytes': 8192 * blocks * (blocks + 1) // 2,\n               'baseline_input_bytes': size + 1, 'equal_output': True}\n        report['results'].append(row)\n        print(json.dumps(row), flush=True)\npathlib.Path('.pytest_cache/f2-lens-d-attempt1.json').write_text(\n    json.dumps(report, indent=2) + '\\n', encoding='utf-8')\n",
+      "source_sha256": "b0044f383fab4122f1f5f7c97635ce13e79b88be36a8f145ed962e6d533c9ce2"
+    }
+  },
+  "limits": [
+    "No final QA/coverage/release approval",
+    "Original T10 seven cleanup diagnostics remain inconclusive"
+  ],
+  "reproduction_scope": "B experiments assert the regression on reviewed_head71968b0; run them in a disposable clone/checkout of that exact revision, not in the corrected branch. D experiment reads exact historical blobs using git show. Source fixes are checked by the dedicated regression tests in the current branch."
+}

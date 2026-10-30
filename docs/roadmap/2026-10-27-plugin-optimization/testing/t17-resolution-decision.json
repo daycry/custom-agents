@@ -1,0 +1,224 @@
+{
+  "task": "T-17",
+  "date": "2026-10-30",
+  "baseline": "fbbf181",
+  "estimate": "ceil(characters/4), not API/tokenizer consumption",
+  "candidate": {
+    "policy": "Resuelve shared una vez por pieza y conserva su procedencia. Reasigna la ruta absoluta observada a SHAREDKIT en cada bloque shell nuevo; no presupongas variables persistentes. Sin kit conserva los fallbacks; no cambies de bundle durante la ejecución.\n\n",
+    "reassignment": "SHAREDKIT='<ruta-shared-observada>'",
+    "construction": "Prepend one full six-root original resolution and policy; replace each original assignment with an explicit observed-route assignment. Preserve each original first lookup, including setup jobs exclusion; all other prompt text unchanged."
+  },
+  "rows": [
+    {
+      "path": "agent-kits/dev-cycle/references/phase3-subagents.md",
+      "occurrences": 1,
+      "source_lf_sha256": "e690b31a2d7ceef63333a587ca8e22bcfee05fdec0a655045ef9449c870476ce",
+      "before_estimate": 1464,
+      "candidate_estimate": 1540,
+      "candidate_delta": 76
+    },
+    {
+      "path": "agent-kits/shared/capability-check.md",
+      "occurrences": 1,
+      "source_lf_sha256": "4f35d7cb7934fdc4cbdb2bc150d9dc9ae009e86684e87f1f8300bb3c4efff933",
+      "before_estimate": 1203,
+      "candidate_estimate": 1278,
+      "candidate_delta": 75
+    },
+    {
+      "path": "agent-kits/shared/knowledge-check-governed.md",
+      "occurrences": 1,
+      "source_lf_sha256": "71e8001e8932f9b2aca5c7491f8f1b0178c1345b480f056d8632b383882a526b",
+      "before_estimate": 1570,
+      "candidate_estimate": 1645,
+      "candidate_delta": 75
+    },
+    {
+      "path": "agent-kits/shared/README.md",
+      "occurrences": 1,
+      "source_lf_sha256": "f03e45a49d48c54eb487f28d407a6965d55d8e204a46ba13a660f271182e5a94",
+      "before_estimate": 9132,
+      "candidate_estimate": 9207,
+      "candidate_delta": 75
+    },
+    {
+      "path": "agents/analyst.md",
+      "occurrences": 1,
+      "source_lf_sha256": "a9fd8f0fc645b37a193e40039e8cd4898e9be052a7654e71c78a8e08c29fafc2",
+      "before_estimate": 3160,
+      "candidate_estimate": 3236,
+      "candidate_delta": 76
+    },
+    {
+      "path": "agents/architect.md",
+      "occurrences": 1,
+      "source_lf_sha256": "6509cea3fd571d29652af025ccae5cc445ee1db5f85e2d730136ab0d93092497",
+      "before_estimate": 4042,
+      "candidate_estimate": 4117,
+      "candidate_delta": 75
+    },
+    {
+      "path": "agents/documenter.md",
+      "occurrences": 2,
+      "source_lf_sha256": "886e4cbf0cd22cdf8efb1bac49e16188e753c064661754c32a4aaf80a276d7cc",
+      "before_estimate": 4411,
+      "candidate_estimate": 4451,
+      "candidate_delta": 40
+    },
+    {
+      "path": "agents/evaluator.md",
+      "occurrences": 1,
+      "source_lf_sha256": "237dd8974503367972ff9a6f7edeea0cfc125d4f6c1fd992a489071554ea7cc6",
+      "before_estimate": 3760,
+      "candidate_estimate": 3835,
+      "candidate_delta": 75
+    },
+    {
+      "path": "agents/implementer.md",
+      "occurrences": 3,
+      "source_lf_sha256": "7fcd73bda62eed0fc17ffc2a0f61a59516f25f74a6053f00550ec2f4c5453ff4",
+      "before_estimate": 7057,
+      "candidate_estimate": 7061,
+      "candidate_delta": 4
+    },
+    {
+      "path": "agents/knowledge-curator.md",
+      "occurrences": 1,
+      "source_lf_sha256": "db14dc09a975b00ff717d810dbd6fedcacfcad532ffa95c4d602c284f6fb9658",
+      "before_estimate": 3050,
+      "candidate_estimate": 3125,
+      "candidate_delta": 75
+    },
+    {
+      "path": "agents/nemesis.md",
+      "occurrences": 1,
+      "source_lf_sha256": "cccd596cfce2b11b65cfc7a0b5cd0300436ce6f2e1f4a5affe0bef8752ddb1b3",
+      "before_estimate": 3634,
+      "candidate_estimate": 3709,
+      "candidate_delta": 75
+    },
+    {
+      "path": "agents/planner.md",
+      "occurrences": 1,
+      "source_lf_sha256": "2e6cc9a036c22c3efa552352932850460c4df04c5d4737d17d5f216657340279",
+      "before_estimate": 5919,
+      "candidate_estimate": 5994,
+      "candidate_delta": 75
+    },
+    {
+      "path": "agents/qa.md",
+      "occurrences": 1,
+      "source_lf_sha256": "4e2a545764ce588c28165247f1ce124f7d0153467d0616f859f9168327b9ac56",
+      "before_estimate": 4762,
+      "candidate_estimate": 4838,
+      "candidate_delta": 76
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "occurrences": 1,
+      "source_lf_sha256": "59640392e86d806bfe80eac9dab7b5abe7f639669e17552b17fd94a208619c4a",
+      "before_estimate": 7014,
+      "candidate_estimate": 7089,
+      "candidate_delta": 75
+    },
+    {
+      "path": "commands/pm-cycle.md",
+      "occurrences": 1,
+      "source_lf_sha256": "a4f842b0d9111d898c85ea8a8b62b5c5ebbd9ae55d885c2862bb0578add1b3cf",
+      "before_estimate": 2501,
+      "candidate_estimate": 2576,
+      "candidate_delta": 75
+    },
+    {
+      "path": "commands/retro.md",
+      "occurrences": 1,
+      "source_lf_sha256": "46330c05f9497ff98d2f5835509875fe4d6f95732f449a68d3b488d829c7bd76",
+      "before_estimate": 2095,
+      "candidate_estimate": 2170,
+      "candidate_delta": 75
+    },
+    {
+      "path": "commands/roadmap-brief.md",
+      "occurrences": 1,
+      "source_lf_sha256": "4517b6fed34c1506028f917b881b711e89c04820179e97cff09177ed9bcb68bb",
+      "before_estimate": 858,
+      "candidate_estimate": 933,
+      "candidate_delta": 75
+    },
+    {
+      "path": "commands/setup.md",
+      "occurrences": 2,
+      "source_lf_sha256": "b529688159cfa32dcdda86af2452c72d22cc7a8670c68e06a27e30e07267c147",
+      "before_estimate": 5357,
+      "candidate_estimate": 5390,
+      "candidate_delta": 33
+    },
+    {
+      "path": "commands/spec-drift.md",
+      "occurrences": 1,
+      "source_lf_sha256": "a6232c6091bf1f8df31a28192ce43639230b4bc967b8ed0435bcf7b4fb061fa7",
+      "before_estimate": 988,
+      "candidate_estimate": 1063,
+      "candidate_delta": 75
+    },
+    {
+      "path": "commands/work-resume.md",
+      "occurrences": 1,
+      "source_lf_sha256": "5fce415a137bafcdacf9549bcac20bfb0f2b6a8f1f28dd23cd0ccf52b72fc530",
+      "before_estimate": 1217,
+      "candidate_estimate": 1292,
+      "candidate_delta": 75
+    }
+  ],
+  "total_occurrences": 24,
+  "pieces": 20,
+  "duplicate_pieces": 3,
+  "scenarios": {
+    "quick-default-known-fragments": {
+      "readset": [
+        "commands/dev-cycle.md",
+        "agents/implementer.md",
+        "agents/qa.md",
+        "agents/documenter.md",
+        "agent-kits/shared/capability-check.md"
+      ],
+      "added_estimate": 270
+    },
+    "full-flow-known-fragments": {
+      "readset": [
+        "commands/dev-cycle.md",
+        "agents/evaluator.md",
+        "agents/planner.md",
+        "agents/implementer.md",
+        "agents/qa.md",
+        "agents/documenter.md",
+        "agent-kits/shared/capability-check.md"
+      ],
+      "added_estimate": 420
+    },
+    "only-pieces-with-local-duplicates": {
+      "readset": [
+        "agents/documenter.md",
+        "agents/implementer.md",
+        "commands/setup.md"
+      ],
+      "added_estimate": 77
+    }
+  },
+  "limits": [
+    "Scenario deltas, not absolute complete dev-cycle token consumption",
+    "All unchanged fragments cancel out of comparison",
+    "A shared fragment could change this cost but requires explicit cross-piece provenance/partial-install handling and a new validated readset",
+    "No claim that every shorter future design is impossible"
+  ],
+  "production_changes": false,
+  "decision": "no-go: measured candidate has no positive saving; conditional task cancelled, no production changes",
+  "reproducer_source": "from pathlib import Path\nimport hashlib\nimport json\nimport math\nimport re\n\nrepo = Path.cwd()\npaths = sorted([*repo.glob('agents/*.md'), *repo.glob('commands/*.md'),\n                *repo.glob('agent-kits/shared/*.md'), *repo.glob('agent-kits/dev-cycle/references/*.md')])\npattern = re.compile(r'SHAREDKIT=(?:\"\\$\\(find [^\\n]*?-path \\'\\*agent-kits/shared\\'[^\\n]*?head -1\\)\"|\\$\\(find [^\\n]*?-path \\'\\*agent-kits/shared\\'[^\\n]*?head -1\\))')\npolicy = ('Resuelve shared una vez por pieza y conserva su procedencia. Reasigna la ruta absoluta '\n          'observada a SHAREDKIT en cada bloque shell nuevo; no presupongas variables persistentes. '\n          'Sin kit conserva los fallbacks; no cambies de bundle durante la ejecuci\\u00f3n.\\n\\n')\nreassign = \"SHAREDKIT='<ruta-shared-observada>'\"\nrows = []\nest = lambda t: math.ceil(len(t) / 4)\nfor p in paths:\n    text = p.read_text(encoding='utf-8')\n    matches = list(pattern.finditer(text))\n    if not matches:\n        continue\n    # One safe standalone resolution per piece; each former call remains runnable\n    # in a fresh shell after the agent substitutes its actual observed route.\n    candidate = policy + '```bash\\n' + matches[0].group() + '\\n```\\n\\n' + pattern.sub(reassign, text)\n    rows.append({'path': p.relative_to(repo).as_posix(), 'occurrences': len(matches),\n        'source_lf_sha256': hashlib.sha256(text.encode('utf-8')).hexdigest(),\n        'before_estimate': est(text), 'candidate_estimate': est(candidate),\n        'candidate_delta': est(candidate) - est(text)})\nby = {r['path']: r for r in rows}\nscenarios = {\n    'quick-default-known-fragments': ['commands/dev-cycle.md', 'agents/implementer.md', 'agents/qa.md', 'agents/documenter.md', 'agent-kits/shared/capability-check.md'],\n    'full-flow-known-fragments': ['commands/dev-cycle.md', 'agents/evaluator.md', 'agents/planner.md', 'agents/implementer.md', 'agents/qa.md', 'agents/documenter.md', 'agent-kits/shared/capability-check.md'],\n    'only-pieces-with-local-duplicates': [r['path'] for r in rows if r['occurrences'] > 1],\n}\nreport = {'task': 'T-17', 'date': '2026-10-30', 'baseline': 'fbbf181',\n    'estimate': 'ceil(characters/4), not API/tokenizer consumption',\n    'candidate': {'policy': policy, 'reassignment': reassign,\n        'construction': 'Prepend one full six-root original resolution and policy; replace each original assignment with an explicit observed-route assignment. Preserve each original first lookup, including setup jobs exclusion; all other prompt text unchanged.'},\n    'rows': rows, 'total_occurrences': sum(r['occurrences'] for r in rows),\n    'pieces': len(rows), 'duplicate_pieces': sum(r['occurrences'] > 1 for r in rows),\n    'scenarios': {name: {'readset': readset, 'added_estimate': sum(by[p]['candidate_delta'] for p in readset if p in by)} for name, readset in scenarios.items()},\n    'limits': ['Scenario deltas, not absolute complete dev-cycle token consumption', 'All unchanged fragments cancel out of comparison', 'A shared fragment could change this cost but requires explicit cross-piece provenance/partial-install handling and a new validated readset', 'No claim that every shorter future design is impossible'],\n    'production_changes': False}\np = repo / 'docs/roadmap/2026-10-27-plugin-optimization/testing/t17-resolution-decision.json'\np.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\\n', encoding='utf-8')\nprint(json.dumps({k:report[k] for k in ['total_occurrences','pieces','duplicate_pieces','scenarios']}, indent=2))\nprint([(r['path'],r['candidate_delta']) for r in rows if r['occurrences'] > 1])\n",
+  "existing_private_kit_lookup_tests": {
+    "command": "python -m pytest -q tests/test_dev_cycle_split.py -k lookup",
+    "passed": 4,
+    "deselected": 6,
+    "seconds": 7.97,
+    "scope": "Unchanged private dev-cycle lookup, not shared resolution implementation"
+  }
+}

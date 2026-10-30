@@ -9,6 +9,58 @@ import { opencodeContext, until } from './helpers/opencode-context.mjs';
 
 const root = resolve('.');
 const runner = join(root, 'hooks', 'run-hook.mjs');
+
+for (const runtime of ['claude', 'codex', 'opencode']) {
+  test(`${runtime}: session context runs without Bash`, () => {
+    const dir = mkdtempSync(join(tmpdir(), 'custom-agents-context-native-'));
+    try {
+      const located = spawnSync(process.env.TEST_PYTHON || 'python', ['-c', 'import sys;print(sys.executable)'], { encoding: 'utf8' });
+      assert.equal(located.status, 0, located.stderr);
+      const absent = join(dir, 'no-binaries');
+      const result = spawnSync(process.execPath, [runner, 'session-context.sh', `--runtime=${runtime}`], {
+        cwd: dir, input: JSON.stringify({ source: 'startup', session_id: 'native-context' }),
+        encoding: 'utf8', timeout: 25000,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: dir, CUSTOM_AGENTS_PYTHON: located.stdout.trim(), PATH: absent, Path: absent },
+      });
+      assert.ifError(result.error);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stderr, '');
+      const output = JSON.parse(result.stdout).hookSpecificOutput;
+      assert.equal(output.hookEventName, 'SessionStart');
+      assert.match(output.additionalContext, /Plugin custom-agents/);
+      assert.ok(existsSync(join(dir, '.claude', '.skill-index.cache')));
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  test(`${runtime}: combined ledger hook runs without Bash for standard MultiEdit and retains lint plus debounced Edit`, () => {
+    const dir = mkdtempSync(join(tmpdir(), 'custom-agents-ledger-native-'));
+    try {
+      const ledger = join(dir, 'docs', 'roadmap', 'native', 'tasks.md');
+      mkdirSync(dirname(ledger), { recursive: true });
+      writeFileSync(ledger, '# Native fixture\n\n## Fase 1\n\n### T-01 — Native\n- **Estado**: en-progreso\n');
+      const located = spawnSync(process.env.TEST_PYTHON || 'python', ['-c', 'import sys;print(sys.executable)'], { encoding: 'utf8' });
+      assert.equal(located.status, 0, located.stderr);
+      const absent = join(dir, 'no-binaries');
+      const env = { ...process.env, CLAUDE_PROJECT_DIR: dir, CUSTOM_AGENTS_PYTHON: located.stdout.trim(), PATH: absent, Path: absent };
+      const invokeLedger = (tool_input = { file_path: ledger }) => spawnSync(process.execPath, [runner, 'ledger-post.py', `--runtime=${runtime}`], {
+        cwd: dir, input: JSON.stringify({ tool_input }), encoding: 'utf8', timeout: 15000, env,
+      });
+      const first = invokeLedger({ file_path: ledger, edits: [{ old_string: 'old', new_string: 'new' }] });
+      assert.ifError(first.error);
+      assert.equal(first.status, 0, first.stderr);
+      assert.equal(first.stderr, '');
+      const message = JSON.parse(first.stdout).systemMessage;
+      assert.match(message, /ledger-lint:/);
+      assert.match(message, /📋 native/);
+      const second = invokeLedger();
+      assert.ifError(second.error);
+      assert.equal(second.status, 0, second.stderr);
+      assert.equal(second.stderr, '');
+      assert.match(JSON.parse(second.stdout).systemMessage, /ledger-lint:/);
+      assert.doesNotMatch(JSON.parse(second.stdout).systemMessage, /📋/);
+      assert.equal(existsSync(join(dir, '.claude', '.confluence-pending')), false);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+}
 // The SessionEnd child budget follows this variable (hook-budget.test.mjs covers it). A developer
 // who raised it in their Claude Code settings would stretch every timeout case here past the
 // fixtures' sleeps; these cases measure the default budget, as CI does.
@@ -20,7 +72,7 @@ function invoke(hook, payload, cwd) {
   });
 }
 
-test('SessionStart injects JSON context through Git Bash and native Python', () => {
+test('SessionStart injects JSON context through native Python', () => {
   const dir = mkdtempSync(join(tmpdir(), 'custom-agents-start-'));
   try {
     const result = spawnSync(process.execPath, [runner, 'session-context.sh'], {

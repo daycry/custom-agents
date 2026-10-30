@@ -1,0 +1,69 @@
+{
+  "task": "T-14",
+  "date": "2026-10-30",
+  "source": "skills/adversarial-review/scripts/review-lens-select.py",
+  "source_lf_sha256": "40e164e49ca50e5575709eb622866502f8dc3c9847ee457d2344619cb473ee7e",
+  "red": {
+    "test": "test_una_apertura_comparte_lineas_y_cabecera",
+    "reason": "Expected one open, observed 4 for files/untracked and 2 for tracked; exact C/D motives already matched",
+    "cases_failed": 3,
+    "observed_before_production_edit": true
+  },
+  "checks": [
+    {
+      "command": "python -m pytest -q skills/adversarial-review/scripts/test_review_lens_select.py tests/test_copias_declaradas.py",
+      "passed": 88,
+      "seconds": 166.36
+    },
+    {
+      "command": "python -m pytest -q tests/test_console_encoding.py -k review-lens-select",
+      "passed": 8,
+      "deselected": 656,
+      "seconds": 2.02
+    },
+    {
+      "command": "python scripts/lint_plugin.py",
+      "errors": 0,
+      "warnings": 3
+    },
+    {
+      "command": "python scripts/export-interop.py --check",
+      "current_files": 88
+    },
+    {
+      "command": "python evals/check.py",
+      "cases": 192,
+      "errors": 0
+    }
+  ],
+  "reader_contract": [
+    "one open per nominal input path",
+    "8192-byte binary probe before analysis",
+    "8192-character header",
+    "sequential reads at most 8192 bytes, no seek or byte reread",
+    "incremental UTF-8 replacement and universal newline handling",
+    "full lines retained only for files/untracked as before",
+    "missing/directory/permission failure remains empty",
+    "execution-local header cache, no reuse across main invocations",
+    "existing exclusions and modes unchanged"
+  ],
+  "intermediate_failures": [
+    "Initial instrumentation missed git paths due to Windows temporary 8.3 alias; realpath normalization fixed test before production edit",
+    "First production draft incremented line numbers while extending generator; exact C/D expectation caught it; fixed offset before GREEN",
+    "Large bytes parameter IDs caused Windows temporary fixture path setup errors; explicit short IDs fixed fixtures, not runtime hooks"
+  ],
+  "performance_receipt": "t14-paired-control-2026-10-30.json",
+  "deferred": [
+    "Independent phase review",
+    "Official changed-code coverage gate",
+    "Full CI and phase release at T-19"
+  ],
+  "usage": {
+    "inicio": "2026-10-30T07:46:51Z",
+    "fin": "2026-10-30T07:58:49Z",
+    "tokens_reales": null,
+    "eur": null,
+    "horas_ia": null,
+    "provenance": "sin_medida; clock duration is not IA effort"
+  }
+}

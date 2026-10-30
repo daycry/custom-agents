@@ -512,12 +512,18 @@ def test_all_groups_by_runtime_event_without_collapsing_handlers(panel, bundle):
     assert 'Registros de hook' in output
 
 
-def test_opencode_reads_only_literal_data_and_exposes_adapter_budget(panel, bundle):
+@pytest.mark.parametrize('legacy', [False, True])
+def test_opencode_reads_only_literal_data_and_exposes_adapter_budget(panel, bundle, legacy):
     source = Path(__file__).resolve().parents[1] / 'hooks/opencode-plugin.js'
     raw = source.read_text(encoding='utf-8')
+    if legacy:
+        raw = raw.replace('"ledger-post.py"', '"ledger-lint-warn.sh","progress-line.sh"')
     write(bundle, 'hooks/opencode-plugin.js', 'throw new Error("FOREIGN CODE");\n' + raw)
     data = panel.build_inventory(bundle, runtime='opencode')
-    assert len(data['hooks']) == 9
+    assert len(data['hooks']) == (9 if legacy else 8)
+    post = {item['handler'] for item in data['hooks'] if item['event'] == 'PostToolUse' and item['handler'] != 'agent-activity'}
+    assert post == ({'mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh'} if legacy else
+                    {'mark-docs-pending.sh', 'ledger-post.py'})
     guard = next(item for item in data['hooks'] if item['behavior'] == 'guard')
     assert guard['native_event'] == 'tool.execute.before' and guard['timeout'] == 10500
     assert guard['timeout_unit'] == 'ms' and guard['timeout_provenance'] == 'adapter-supervision'
@@ -549,7 +555,7 @@ def test_opencode_adapter_without_tool_activity_still_declares_its_hooks(panel, 
     assert '"tool-activity"' not in raw
     write(bundle, 'hooks/opencode-plugin.js', raw)
     data = panel.build_inventory(bundle, runtime='opencode')
-    assert data['hook_sources']['opencode']['status'] == 'declared' and len(data['hooks']) == 8
+    assert data['hook_sources']['opencode']['status'] == 'declared' and len(data['hooks']) == 7
     assert not any('tool-activity' in item['locator'] for item in data['hooks'])
 
 
@@ -557,7 +563,7 @@ def test_opencode_adapter_without_tool_activity_still_declares_its_hooks(panel, 
 def test_opencode_optional_binding_never_replaces_a_required_one(panel, bundle, extra):
     raw = (Path(__file__).resolve().parents[1] / 'hooks/opencode-plugin.js').read_text(encoding='utf-8')
     if extra == 'duplicate-optional':
-        raw = raw.replace('{"id":"post",', '{"id":"tool-activity",', 1).replace('"event":"PostToolUse","handlers":["mark-docs-pending.sh","ledger-lint-warn.sh","progress-line.sh"]', '"event":"PostToolUse","handlers":["agent-activity"]', 1)
+        raw = raw.replace('{"id":"post",', '{"id":"tool-activity",', 1).replace('"event":"PostToolUse","handlers":["mark-docs-pending.sh","ledger-post.py"]', '"event":"PostToolUse","handlers":["agent-activity"]', 1)
     else:
         raw = re.sub(r'\n\s*\{"id":"prompt"[^\n]*', '', raw)
     write(bundle, 'hooks/opencode-plugin.js', raw)

@@ -1,0 +1,85 @@
+{
+  "task": "T-10",
+  "status": "functional implementation verified; phase review/CI remain T-19",
+  "platform": "Windows",
+  "red": [
+    "lint(text=..., parsed=...) keyword absent",
+    "resumir(parsed=...) keyword absent",
+    "combined hook absent",
+    "native combined registration absent",
+    "Codex/OpenCode fixtures still expected legacy handlers",
+    "synthetic credential leaked before canonical redaction",
+    "new loader dependency/owner mutations not admitted to no-egress closure"
+  ],
+  "green": [
+    {
+      "command": "python -m pytest -q tests/test_ledger_post.py",
+      "passed": 14,
+      "skipped": 1,
+      "failed": 0,
+      "seconds": 1.51
+    },
+    {
+      "command": "python -m pytest -q tests/test_console_encoding.py tests/test_export_interop.py",
+      "passed": 696,
+      "failed": 0,
+      "seconds": 161.22
+    },
+    {
+      "command": "python -m pytest -q agent-kits/shared/test_doctor.py -k hook",
+      "passed": 9,
+      "skipped": 1,
+      "deselected": 220,
+      "failed": 0,
+      "seconds": 5.64
+    },
+    {
+      "command": "python -m pytest -q tests/test_graphiti_security.py -k \"egress or recorrido or cita or t10_\"",
+      "passed": 11,
+      "deselected": 112,
+      "failed": 0,
+      "seconds": 11.2
+    },
+    {
+      "command": "node --test --test-concurrency=1 --test-name-pattern=\"combined ledger hook runs without Bash|patch metadata carries diagnostics|tool activity\" tests/hook-runtime.test.mjs tests/opencode-plugin.test.mjs",
+      "passed": 9,
+      "failed": 0,
+      "seconds": 19.8385931
+    },
+    {
+      "command": "python -m pytest -q tests/test_ledger_post.py tests/test_ledger_lint.py agent-kits/shared/test_progress_report.py",
+      "passed": 62,
+      "failed": 0,
+      "skipped": 1,
+      "seconds": 21.67
+    }
+  ],
+  "real_onedrive_project_smoke": {
+    "exit": 0,
+    "stderr": "",
+    "lint_message_present": true,
+    "progress_present": true,
+    "progress_state_persisted": true,
+    "output_sha256": "a28cb0fd095d461da84aecae59d28ad31432761ac02622b67e8acc146db62c46"
+  },
+  "comparison": {
+    "artifact": "t10-paired-control-2026-10-29.json",
+    "status": "FAILED_COMPARISON_INCONCLUSIVE",
+    "cleanup_confirmation_diagnostics": 7,
+    "latency_saving_established": false,
+    "reason": "500ms cleanup-helper confirmation failed in before and after variants; retain all data and distinguish valid counts. No budget increased."
+  },
+  "contract": [
+    "One bounded ledger read and one structural parse shared by lint/progress",
+    "One business Python process through native launcher, no shell; Windows supervisor retained",
+    "Lint every call, atomic locked progress debounce across six concurrent Python processes",
+    "Canonical redaction before emitted messages and saved progress state",
+    "Project-bound reads, observed symlink rejection, preservation of unverified state files",
+    "Legacy wrappers retained; Codex runtime argument and OpenCode catalog adapted"
+  ],
+  "limits": [
+    "Partial raw comparisons are not a green performance result",
+    "Initial full Node run remains 99 pass/3 fail; follow-up group 8 pass/1 fail; corrected targeted group passes after causal oracle and fixture fixes",
+    "Source fingerprint admission is author self-audit, with final independent phase review still required"
+  ]
+}

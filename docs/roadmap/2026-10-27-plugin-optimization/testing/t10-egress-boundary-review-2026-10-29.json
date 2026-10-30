@@ -1,0 +1,29 @@
+{
+  "review_type": "author self-audit of changed egress boundary; not independent phase review",
+  "base": "a157679afd27743b1dd1e1a7fa76444cca6aba2a",
+  "hashes_sha256_lf": {
+    "hooks/run-hook.mjs": "37543c964dca5a1c9fd8132d1800dce9051364632a46b8a8a4957ce55d8f081b",
+    "hooks/ledger-post.py": "1d453c46d8954ba0e34223bde5e4150eb79252c6378974302ab184e5328f6ed4"
+  },
+  "findings": [],
+  "checks": [
+    "Launcher imports remain exactly child_process/fs/path/url; marker adds only fixed local file IO, no child or network calls",
+    "New Python route is a fixed ledger-post.py target, not derived from payload; existing role-map guard behavior and contained supervisor route retained",
+    "New hook imports argparse/contextlib/importlib.util/json/os/pathlib/sys/time and POSIX fcntl; no network imports or executable dispatch",
+    "Dynamic loader has five literal callsites rooted in the same plugin shared kit, independent of project root/payload",
+    "Explicit dependency closure includes ledger-lint.py, progress-report.py, local-read.py, local-state.py, redact.py; no egress exception added",
+    "Project-bound read and observed redirect checks, cooperative lock/atomic replacement, redacted emitted and persisted summaries; no claim of a sandbox against concurrent directory replacement"
+  ],
+  "regression_results": {
+    "new_network_dependency_mutant": "RED: injected socket in a dependency was invisible before closure declaration; GREEN now rejected",
+    "owner_change_mutant": "RED: changed dynamic owner lacked fail-closed attestation; GREEN now unresolved until reviewed",
+    "directed_security_tests": 5,
+    "passed": 5,
+    "failed": 0,
+    "seconds": 14.62
+  },
+  "limits": [
+    "Full independent A/B/C/D phase review remains T-19",
+    "Fingerprint changes admit only the reviewed bytes and their declared local closure; detector rules and nominal journal exception remain unchanged"
+  ]
+}

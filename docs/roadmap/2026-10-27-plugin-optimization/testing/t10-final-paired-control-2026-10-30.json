@@ -1,0 +1,1220 @@
+{
+  "kind": "same_path_interleaved_ledger_edit_control",
+  "base": "a0f3c50492baf2d6cd55be6a4a9a78d8949f44a0",
+  "platform": "Windows",
+  "runs": 10,
+  "warmup": 1,
+  "method": "Before sums two sequential legacy ledger launchers; after invokes the corrected ledger-post.py once. Same disposable bundle path, fresh consumer per variant, versioned payloads and rotated empty-Node control. Single-ledger line-summary workload; not session/meter/activation measurement. No other owned local runtime tests or benchmarks run concurrently.",
+  "source_sha256_lf": {
+    "before": {
+      "hooks/run-hook.mjs": "90b1caafaccfd48fb5745d805187ed91cbd6c15a3c0f02e404aa43b3069176bf",
+      "agent-kits/shared/ledger-lint.py": "24fdc210e50fa47dc9e490262b797f955138b02a1f64ef66a6bdbcef4e93ad9b",
+      "agent-kits/shared/progress-report.py": "20aac2a2504d09b56ed69978e3e79f37da3d8b8e6ec9084f70d7974024f6b5fc",
+      "agent-kits/shared/usage-meter.py": "f4d248f7bbec52e6dc48955a5968cbfc30e82f564d4b2fc40ea4f441e5481f98"
+    },
+    "after": {
+      "hooks/run-hook.mjs": "701a88823d6fcf1afc8d3444eecfb31c9703200d7e587d80d58732bb592a236b",
+      "agent-kits/shared/ledger-lint.py": "6cd9898c42b4d09d72b6dc829d2ce47cf76aaf76fbb43db33ae71ef579ec8748",
+      "agent-kits/shared/progress-report.py": "79c14bf3635b4eb4c24123404474dffd41995ddc26aab6d924022e0329330a7c",
+      "agent-kits/shared/usage-meter.py": "2a7f75bcc2717e495434f74ee6b2749d3ba9357dd0abbf9680b032d3a067ed68"
+    },
+    "new_service": "116d105306af39b2357cef3d597496c3f00c42d938e39bd572c24c6e606aedbc"
+  },
+  "rows": [
+    {
+      "runtime": "claude",
+      "samples": {
+        "before": [
+          {
+            "ms": 8192.961,
+            "error": null,
+            "components": [
+              {
+                "ms": 3631.085,
+                "error": null
+              },
+              {
+                "ms": 4561.876,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 9248.967,
+            "error": null,
+            "components": [
+              {
+                "ms": 3979.889,
+                "error": null
+              },
+              {
+                "ms": 5269.078,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 8760.411,
+            "error": null,
+            "components": [
+              {
+                "ms": 3778.003,
+                "error": null
+              },
+              {
+                "ms": 4982.408,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 8636.182,
+            "error": null,
+            "components": [
+              {
+                "ms": 4099.344,
+                "error": null
+              },
+              {
+                "ms": 4536.838,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 9348.689,
+            "error": null,
+            "components": [
+              {
+                "ms": 3959.816,
+                "error": null
+              },
+              {
+                "ms": 5388.873,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 8464.133,
+            "error": null,
+            "components": [
+              {
+                "ms": 3971.003,
+                "error": null
+              },
+              {
+                "ms": 4493.13,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 8046.159,
+            "error": null,
+            "components": [
+              {
+                "ms": 3519.804,
+                "error": null
+              },
+              {
+                "ms": 4526.355,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 9769.303,
+            "error": null,
+            "components": [
+              {
+                "ms": 4116.169,
+                "error": null
+              },
+              {
+                "ms": 5653.134,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 11558.761,
+            "error": null,
+            "components": [
+              {
+                "ms": 4997.168,
+                "error": null
+              },
+              {
+                "ms": 6561.593,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 11746.867,
+            "error": null,
+            "components": [
+              {
+                "ms": 4826.814,
+                "error": null
+              },
+              {
+                "ms": 6920.053,
+                "error": null
+              }
+            ]
+          }
+        ],
+        "after": [
+          {
+            "ms": 1821.241,
+            "error": null,
+            "components": [
+              {
+                "ms": 1821.241,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 3056.578,
+            "error": null,
+            "components": [
+              {
+                "ms": 3056.578,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2724.377,
+            "error": null,
+            "components": [
+              {
+                "ms": 2724.377,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2154.215,
+            "error": null,
+            "components": [
+              {
+                "ms": 2154.215,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2714.014,
+            "error": null,
+            "components": [
+              {
+                "ms": 2714.014,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2588.481,
+            "error": null,
+            "components": [
+              {
+                "ms": 2588.481,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2456.518,
+            "error": null,
+            "components": [
+              {
+                "ms": 2456.518,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2673.184,
+            "error": null,
+            "components": [
+              {
+                "ms": 2673.184,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 3136.225,
+            "error": null,
+            "components": [
+              {
+                "ms": 3136.225,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 3162.155,
+            "error": null,
+            "components": [
+              {
+                "ms": 3162.155,
+                "error": null
+              }
+            ]
+          }
+        ],
+        "empty_node": [
+          {
+            "ms": 1220.872,
+            "error": null
+          },
+          {
+            "ms": 1132.678,
+            "error": null
+          },
+          {
+            "ms": 2032.656,
+            "error": null
+          },
+          {
+            "ms": 1339.657,
+            "error": null
+          },
+          {
+            "ms": 1076.918,
+            "error": null
+          },
+          {
+            "ms": 1623.664,
+            "error": null
+          },
+          {
+            "ms": 998.624,
+            "error": null
+          },
+          {
+            "ms": 1254.431,
+            "error": null
+          },
+          {
+            "ms": 1758.183,
+            "error": null
+          },
+          {
+            "ms": 3705.901,
+            "error": null
+          }
+        ]
+      },
+      "warmups": [
+        {
+          "variant": "before",
+          "ms": 8177.474,
+          "error": null,
+          "components": [
+            {
+              "ms": 3322.371,
+              "error": null
+            },
+            {
+              "ms": 4855.103,
+              "error": null
+            }
+          ]
+        },
+        {
+          "variant": "after",
+          "ms": 2897.359,
+          "error": null,
+          "components": [
+            {
+              "ms": 2897.359,
+              "error": null
+            }
+          ]
+        },
+        {
+          "variant": "empty_node",
+          "ms": 1059.002,
+          "error": null
+        }
+      ],
+      "order": [
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ]
+      ],
+      "errors": [],
+      "valid_counts": {
+        "before": 10,
+        "after": 10,
+        "empty_node": 10
+      },
+      "median_ms": {
+        "before": 9004.689,
+        "after": 2693.599,
+        "empty_node": 1297.044
+      },
+      "reduction_percent": 70.087
+    },
+    {
+      "runtime": "codex",
+      "samples": {
+        "before": [
+          {
+            "ms": 9370.988,
+            "error": null,
+            "components": [
+              {
+                "ms": 3628.767,
+                "error": null
+              },
+              {
+                "ms": 5742.221,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 9022.118,
+            "error": null,
+            "components": [
+              {
+                "ms": 3502.208,
+                "error": null
+              },
+              {
+                "ms": 5519.91,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 10011.926,
+            "error": null,
+            "components": [
+              {
+                "ms": 4658.717,
+                "error": null
+              },
+              {
+                "ms": 5353.209,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 8119.292,
+            "error": null,
+            "components": [
+              {
+                "ms": 2926.523,
+                "error": null
+              },
+              {
+                "ms": 5192.769,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 9812.316,
+            "error": null,
+            "components": [
+              {
+                "ms": 3401.617,
+                "error": null
+              },
+              {
+                "ms": 6410.699,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 7797.556,
+            "error": null,
+            "components": [
+              {
+                "ms": 3253.947,
+                "error": null
+              },
+              {
+                "ms": 4543.609,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 8281.883,
+            "error": null,
+            "components": [
+              {
+                "ms": 4207.022,
+                "error": null
+              },
+              {
+                "ms": 4074.861,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 8237.508,
+            "error": null,
+            "components": [
+              {
+                "ms": 3826.813,
+                "error": null
+              },
+              {
+                "ms": 4410.695,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 8539.642,
+            "error": null,
+            "components": [
+              {
+                "ms": 3506.756,
+                "error": null
+              },
+              {
+                "ms": 5032.886,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 9216.013,
+            "error": null,
+            "components": [
+              {
+                "ms": 3829.454,
+                "error": null
+              },
+              {
+                "ms": 5386.559,
+                "error": null
+              }
+            ]
+          }
+        ],
+        "after": [
+          {
+            "ms": 3423.998,
+            "error": null,
+            "components": [
+              {
+                "ms": 3423.998,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2046.09,
+            "error": null,
+            "components": [
+              {
+                "ms": 2046.09,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 3078.732,
+            "error": null,
+            "components": [
+              {
+                "ms": 3078.732,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1887.08,
+            "error": null,
+            "components": [
+              {
+                "ms": 1887.08,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 3729.84,
+            "error": null,
+            "components": [
+              {
+                "ms": 3729.84,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1986.227,
+            "error": null,
+            "components": [
+              {
+                "ms": 1986.227,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2322.861,
+            "error": null,
+            "components": [
+              {
+                "ms": 2322.861,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2034.46,
+            "error": null,
+            "components": [
+              {
+                "ms": 2034.46,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 3335.53,
+            "error": null,
+            "components": [
+              {
+                "ms": 3335.53,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2590.548,
+            "error": null,
+            "components": [
+              {
+                "ms": 2590.548,
+                "error": null
+              }
+            ]
+          }
+        ],
+        "empty_node": [
+          {
+            "ms": 1769.889,
+            "error": null
+          },
+          {
+            "ms": 1239.365,
+            "error": null
+          },
+          {
+            "ms": 1054.798,
+            "error": null
+          },
+          {
+            "ms": 1281.413,
+            "error": null
+          },
+          {
+            "ms": 1700.818,
+            "error": null
+          },
+          {
+            "ms": 1169.279,
+            "error": null
+          },
+          {
+            "ms": 1387.435,
+            "error": null
+          },
+          {
+            "ms": 1018.457,
+            "error": null
+          },
+          {
+            "ms": 1252.725,
+            "error": null
+          },
+          {
+            "ms": 2164.942,
+            "error": null
+          }
+        ]
+      },
+      "warmups": [
+        {
+          "variant": "before",
+          "ms": 9853.899,
+          "error": null,
+          "components": [
+            {
+              "ms": 3812.617,
+              "error": null
+            },
+            {
+              "ms": 6041.282,
+              "error": null
+            }
+          ]
+        },
+        {
+          "variant": "after",
+          "ms": 2304.457,
+          "error": null,
+          "components": [
+            {
+              "ms": 2304.457,
+              "error": null
+            }
+          ]
+        },
+        {
+          "variant": "empty_node",
+          "ms": 1639.669,
+          "error": null
+        }
+      ],
+      "order": [
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ]
+      ],
+      "errors": [],
+      "valid_counts": {
+        "before": 10,
+        "after": 10,
+        "empty_node": 10
+      },
+      "median_ms": {
+        "before": 8780.88,
+        "after": 2456.704,
+        "empty_node": 1267.069
+      },
+      "reduction_percent": 72.022
+    },
+    {
+      "runtime": "opencode",
+      "samples": {
+        "before": [
+          {
+            "ms": 8772.69,
+            "error": null,
+            "components": [
+              {
+                "ms": 3585.031,
+                "error": null
+              },
+              {
+                "ms": 5187.659,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 7311.54,
+            "error": null,
+            "components": [
+              {
+                "ms": 3207.953,
+                "error": null
+              },
+              {
+                "ms": 4103.587,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 7871.566,
+            "error": null,
+            "components": [
+              {
+                "ms": 2846.66,
+                "error": null
+              },
+              {
+                "ms": 5024.906,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 8931.536,
+            "error": null,
+            "components": [
+              {
+                "ms": 3753.814,
+                "error": null
+              },
+              {
+                "ms": 5177.722,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 7940.318,
+            "error": null,
+            "components": [
+              {
+                "ms": 3890.74,
+                "error": null
+              },
+              {
+                "ms": 4049.578,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 12107.386,
+            "error": null,
+            "components": [
+              {
+                "ms": 4562.72,
+                "error": null
+              },
+              {
+                "ms": 7544.666,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 7098.081,
+            "error": null,
+            "components": [
+              {
+                "ms": 3029.461,
+                "error": null
+              },
+              {
+                "ms": 4068.62,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 7418.682,
+            "error": null,
+            "components": [
+              {
+                "ms": 3167.988,
+                "error": null
+              },
+              {
+                "ms": 4250.694,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 9276.1,
+            "error": null,
+            "components": [
+              {
+                "ms": 3583.645,
+                "error": null
+              },
+              {
+                "ms": 5692.455,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 8150.018,
+            "error": null,
+            "components": [
+              {
+                "ms": 3435.076,
+                "error": null
+              },
+              {
+                "ms": 4714.942,
+                "error": null
+              }
+            ]
+          }
+        ],
+        "after": [
+          {
+            "ms": 1925.355,
+            "error": null,
+            "components": [
+              {
+                "ms": 1925.355,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1903.458,
+            "error": null,
+            "components": [
+              {
+                "ms": 1903.458,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1939.221,
+            "error": null,
+            "components": [
+              {
+                "ms": 1939.221,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2694.957,
+            "error": null,
+            "components": [
+              {
+                "ms": 2694.957,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 1514.209,
+            "error": null,
+            "components": [
+              {
+                "ms": 1514.209,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2775.461,
+            "error": null,
+            "components": [
+              {
+                "ms": 2775.461,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2118.942,
+            "error": null,
+            "components": [
+              {
+                "ms": 2118.942,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2100.197,
+            "error": null,
+            "components": [
+              {
+                "ms": 2100.197,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2662.687,
+            "error": null,
+            "components": [
+              {
+                "ms": 2662.687,
+                "error": null
+              }
+            ]
+          },
+          {
+            "ms": 2097.458,
+            "error": null,
+            "components": [
+              {
+                "ms": 2097.458,
+                "error": null
+              }
+            ]
+          }
+        ],
+        "empty_node": [
+          {
+            "ms": 1208.576,
+            "error": null
+          },
+          {
+            "ms": 1154.826,
+            "error": null
+          },
+          {
+            "ms": 1276.112,
+            "error": null
+          },
+          {
+            "ms": 1566.881,
+            "error": null
+          },
+          {
+            "ms": 1686.117,
+            "error": null
+          },
+          {
+            "ms": 970.599,
+            "error": null
+          },
+          {
+            "ms": 850.683,
+            "error": null
+          },
+          {
+            "ms": 1286.693,
+            "error": null
+          },
+          {
+            "ms": 1185.102,
+            "error": null
+          },
+          {
+            "ms": 1156.145,
+            "error": null
+          }
+        ]
+      },
+      "warmups": [
+        {
+          "variant": "before",
+          "ms": 8424.244,
+          "error": null,
+          "components": [
+            {
+              "ms": 4350.127,
+              "error": null
+            },
+            {
+              "ms": 4074.117,
+              "error": null
+            }
+          ]
+        },
+        {
+          "variant": "after",
+          "ms": 2090.089,
+          "error": null,
+          "components": [
+            {
+              "ms": 2090.089,
+              "error": null
+            }
+          ]
+        },
+        {
+          "variant": "empty_node",
+          "ms": 1729.853,
+          "error": null
+        }
+      ],
+      "order": [
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ]
+      ],
+      "errors": [],
+      "valid_counts": {
+        "before": 10,
+        "after": 10,
+        "empty_node": 10
+      },
+      "median_ms": {
+        "before": 8045.168,
+        "after": 2098.828,
+        "empty_node": 1196.839
+      },
+      "reduction_percent": 73.912
+    }
+  ],
+  "limitations": [
+    "Summed old launcher wall time, not native client event delivery.",
+    "Temporary filesystem, not OneDrive; host scheduling/antivirus not uniquely characterized.",
+    "No supervision/cleanup deadlines lowered; any diagnostic invalidates a clean latency comparison.",
+    "Original T10 comparison with seven cleanup diagnostics remains retained and inconclusive."
+  ],
+  "unchanged_dependency_sha256_lf": {
+    "hooks/runtime-supervisor.py": "8c4a4c568a0ec71f885420e99eb9c6e406429e6f2c994a2bdeb20d279d68a04a",
+    "hooks/runtime-entry.sh": "67a55841ab9350d519bd8e1eab6c42e567e56c841a9868c11e72499fe61aa649",
+    "agent-kits/shared/local-read.py": "14fd786992636d3ff9c490ccb7383f0c44dd735565fef9abef0f3627c6b0175a",
+    "agent-kits/shared/local-state.py": "7a235d5cb817c4bbb3085febf42238a4fdbaeee07a563e8f4843690ac04da27f",
+    "agent-kits/shared/redact.py": "42e2d332de62d4c451d697129c271787c12ca2390290c6746be51fed604dca63",
+    "agent-kits/shared/ledger-view.py": "be51d1571268cd9e22f07c57a34a5d296b45fed7263ec571d9a13d943f8b7b71"
+  },
+  "status": "CLEAN_PAIRED_COMPARISON",
+  "reproducer_source": "from pathlib import Path\nimport hashlib\nimport importlib.util\nimport json\nimport shutil\nimport statistics\nimport subprocess\nimport sys\nimport tempfile\nimport time\n\nsys.stdout.reconfigure(encoding='utf-8',errors='replace')\nroot=Path.cwd()\nspec=importlib.util.spec_from_file_location('t10_final_bench',root/'scripts/bench-hooks.py')\nbench=importlib.util.module_from_spec(spec);spec.loader.exec_module(bench)\nfiles=['hooks/run-hook.mjs','agent-kits/shared/ledger-lint.py','agent-kits/shared/progress-report.py','agent-kits/shared/usage-meter.py']\nbefore={p:subprocess.check_output(['git','show','a0f3c50:'+p]) for p in files}\nafter={p:(root/p).read_bytes() for p in files}\ndigest=lambda raw:hashlib.sha256(raw.replace(b'\\r\\n',b'\\n')).hexdigest()\nout=root/'docs/roadmap/2026-10-27-plugin-optimization/testing/t10-final-paired-control-2026-10-30.json'\nreceipt={'kind':'same_path_interleaved_ledger_edit_control','base':'a0f3c50492baf2d6cd55be6a4a9a78d8949f44a0',\n         'platform':'Windows','runs':10,'warmup':1,\n         'method':'Before sums two sequential legacy ledger launchers; after invokes the corrected ledger-post.py once. Same disposable bundle path, fresh consumer per variant, versioned payloads and rotated empty-Node control. Single-ledger line-summary workload; not session/meter/activation measurement. No other owned local runtime tests or benchmarks run concurrently.',\n         'source_sha256_lf':{'before':{p:digest(v) for p,v in before.items()},'after':{p:digest(v) for p,v in after.items()},'new_service':digest((root/'hooks/ledger-post.py').read_bytes())},\n         'rows':[],'limitations':['Summed old launcher wall time, not native client event delivery.','Temporary filesystem, not OneDrive; host scheduling/antivirus not uniquely characterized.','No supervision/cleanup deadlines lowered; any diagnostic invalidates a clean latency comparison.','Original T10 comparison with seven cleanup diagnostics remains retained and inconclusive.']}\nsandbox=Path(tempfile.mkdtemp(prefix='custom-agents-t10-final-')).resolve()\nbundle=sandbox/'bundle';bundle.mkdir()\nfor rel in ['hooks','agent-kits/shared','tests/fixtures/bench-hooks']:\n    shutil.copytree(root/rel,bundle/rel,ignore=shutil.ignore_patterns('__pycache__'))\nunchanged=['hooks/runtime-supervisor.py','hooks/runtime-entry.sh',\n           'agent-kits/shared/local-read.py','agent-kits/shared/local-state.py','agent-kits/shared/redact.py','agent-kits/shared/ledger-view.py']\nreceipt['unchanged_dependency_sha256_lf']={}\nfor p in unchanged:\n    raw=subprocess.check_output(['git','show','a0f3c50:'+p])\n    assert digest(raw)==digest((root/p).read_bytes()),p\n    receipt['unchanged_dependency_sha256_lf'][p]=digest(raw)\nfor runtime in bench.RUNTIMES:\n    row={'runtime':runtime,'samples':{v:[] for v in ['before','after','empty_node']},'warmups':[],'order':[],'errors':[]}\n    for iteration in range(11):\n        order=['before','after','empty_node'];order=order[iteration%3:]+order[:iteration%3];row['order'].append(order)\n        for variant in order:\n            project=sandbox/f'{runtime}-{iteration}-{variant}';project.mkdir();bench.prepare_project(project)\n            if variant=='empty_node':\n                started=time.perf_counter();result=subprocess.run([shutil.which('node'),'-e',''],cwd=project,capture_output=True,timeout=30)\n                sample={'ms':round((time.perf_counter()-started)*1000,3),'error':None if result.returncode==0 and not result.stderr else 'empty Node failed'}\n            else:\n                for p,raw in (before if variant=='before' else after).items():(bundle/p).write_bytes(raw)\n                payload=bench.load_payload(bundle,runtime,'PostToolUse',project)\n                hooks=['ledger-lint-warn.sh','progress-line.sh'] if variant=='before' else ['ledger-post.py']\n                components=[bench.invoke(bundle,{'hook':hook,'runtime':runtime},payload,project,30) for hook in hooks]\n                errors=[s['error'] for s in components if s['error']]\n                sample={'ms':round(sum(s['ms'] for s in components),3),'error':'; '.join(errors) if errors else None,'components':components}\n                state=project/'.claude/.progress-last'\n                if sample['error'] is None and (not state.is_file() or not state.read_text(encoding='utf-8').startswith('\\U0001f4cb bench')):\n                    sample['error']='progress state missing or invalid'\n            if sample['error']:row['errors'].append({'iteration':iteration,'variant':variant,**sample})\n            if iteration==0:row['warmups'].append({'variant':variant,**sample})\n            else:row['samples'][variant].append(sample)\n    row['valid_counts']={v:sum(not s['error'] for s in samples) for v,samples in row['samples'].items()}\n    row['median_ms']=None if row['errors'] else {v:round(statistics.median(s['ms'] for s in samples),3) for v,samples in row['samples'].items()}\n    row['reduction_percent']=None if row['errors'] else round(100*(1-row['median_ms']['after']/row['median_ms']['before']),3)\n    receipt['rows'].append(row)\n    receipt['status']='FAILED_COMPARISON_INCONCLUSIVE' if any(r['errors'] for r in receipt['rows']) else 'RUNNING'\n    out.write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\\n',encoding='utf-8')\n    print(runtime,json.dumps(row['median_ms']), 'errors',len(row['errors']),flush=True)\nreceipt['status']='FAILED_COMPARISON_INCONCLUSIVE' if any(r['errors'] for r in receipt['rows']) else 'CLEAN_PAIRED_COMPARISON'\nreceipt['reproducer_source']=Path(__file__).read_text(encoding='utf-8')\nout.write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\\n',encoding='utf-8')\n(root/'.pytest_cache/t10-final-state.json').write_text(json.dumps({'fixture_root':str(sandbox)},indent=2)+'\\n',encoding='utf-8')\nassert all(digest((root/p).read_bytes())==digest(raw) for p,raw in after.items())\nassert digest((root/'hooks/ledger-post.py').read_bytes())==receipt['source_sha256_lf']['new_service']\nraise SystemExit(1 if any(row['errors'] for row in receipt['rows']) else 0)\n"
+}

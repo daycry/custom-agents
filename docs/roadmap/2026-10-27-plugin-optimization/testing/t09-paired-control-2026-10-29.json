@@ -1,0 +1,683 @@
+{
+  "kind": "same_path_interleaved_control",
+  "base": "v2.1.0",
+  "runtime_platform": "Windows",
+  "runs": 10,
+  "warmup": 1,
+  "method": "Before and after launcher bytes are alternated at the same disposable path; same payload fixture, dependencies and fresh project per sample. Empty Node is interleaved. No other owned local test workload runs concurrently.",
+  "hashes_sha256_lf": {
+    "before": "f8a3af68dd02b3b0ca746c2d347e5c2df5276ea610811d94b0dd2f5f7c212e4e",
+    "after": "90b1caafaccfd48fb5745d805187ed91cbd6c15a3c0f02e404aa43b3069176bf"
+  },
+  "rows": [
+    {
+      "runtime": "claude",
+      "samples": {
+        "before": [
+          {
+            "ms": 1627.828,
+            "error": null
+          },
+          {
+            "ms": 1499.564,
+            "error": null
+          },
+          {
+            "ms": 1908.324,
+            "error": null
+          },
+          {
+            "ms": 1425.783,
+            "error": null
+          },
+          {
+            "ms": 1502.693,
+            "error": null
+          },
+          {
+            "ms": 1636.298,
+            "error": null
+          },
+          {
+            "ms": 1551.346,
+            "error": null
+          },
+          {
+            "ms": 1715.368,
+            "error": null
+          },
+          {
+            "ms": 1610.277,
+            "error": null
+          },
+          {
+            "ms": 1623.714,
+            "error": null
+          }
+        ],
+        "after": [
+          {
+            "ms": 592.093,
+            "error": null
+          },
+          {
+            "ms": 593.348,
+            "error": null
+          },
+          {
+            "ms": 588.536,
+            "error": null
+          },
+          {
+            "ms": 603.334,
+            "error": null
+          },
+          {
+            "ms": 574.556,
+            "error": null
+          },
+          {
+            "ms": 564.803,
+            "error": null
+          },
+          {
+            "ms": 577.702,
+            "error": null
+          },
+          {
+            "ms": 547.952,
+            "error": null
+          },
+          {
+            "ms": 576.9,
+            "error": null
+          },
+          {
+            "ms": 549.48,
+            "error": null
+          }
+        ],
+        "empty_node": [
+          {
+            "ms": 451.377,
+            "error": null
+          },
+          {
+            "ms": 501.844,
+            "error": null
+          },
+          {
+            "ms": 506.39,
+            "error": null
+          },
+          {
+            "ms": 500.792,
+            "error": null
+          },
+          {
+            "ms": 493.25,
+            "error": null
+          },
+          {
+            "ms": 428.161,
+            "error": null
+          },
+          {
+            "ms": 492.569,
+            "error": null
+          },
+          {
+            "ms": 539.61,
+            "error": null
+          },
+          {
+            "ms": 444.402,
+            "error": null
+          },
+          {
+            "ms": 465.676,
+            "error": null
+          }
+        ]
+      },
+      "warmups": [
+        {
+          "variant": "before",
+          "ms": 1770.357,
+          "error": null
+        },
+        {
+          "variant": "after",
+          "ms": 565.066,
+          "error": null
+        },
+        {
+          "variant": "empty_node",
+          "ms": 498.235,
+          "error": null
+        }
+      ],
+      "order": [
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ]
+      ],
+      "errors": [],
+      "median_ms": {
+        "before": 1616.995,
+        "after": 577.301,
+        "empty_node": 492.909
+      },
+      "p95_ms": {
+        "before": 1821.494,
+        "after": 598.84,
+        "empty_node": 524.661
+      },
+      "max_ms": {
+        "before": 1908.324,
+        "after": 603.334,
+        "empty_node": 539.61
+      },
+      "observed_reduction_pct": 64.298
+    },
+    {
+      "runtime": "codex",
+      "samples": {
+        "before": [
+          {
+            "ms": 1523.16,
+            "error": null
+          },
+          {
+            "ms": 1587.563,
+            "error": null
+          },
+          {
+            "ms": 1548.256,
+            "error": null
+          },
+          {
+            "ms": 1570.344,
+            "error": null
+          },
+          {
+            "ms": 1664.034,
+            "error": null
+          },
+          {
+            "ms": 2088.477,
+            "error": null
+          },
+          {
+            "ms": 1911.188,
+            "error": null
+          },
+          {
+            "ms": 1919.991,
+            "error": null
+          },
+          {
+            "ms": 1886.744,
+            "error": null
+          },
+          {
+            "ms": 2059.147,
+            "error": null
+          }
+        ],
+        "after": [
+          {
+            "ms": 605.355,
+            "error": null
+          },
+          {
+            "ms": 525.318,
+            "error": null
+          },
+          {
+            "ms": 554.366,
+            "error": null
+          },
+          {
+            "ms": 643.123,
+            "error": null
+          },
+          {
+            "ms": 611.515,
+            "error": null
+          },
+          {
+            "ms": 550.627,
+            "error": null
+          },
+          {
+            "ms": 588.287,
+            "error": null
+          },
+          {
+            "ms": 672.493,
+            "error": null
+          },
+          {
+            "ms": 558.175,
+            "error": null
+          },
+          {
+            "ms": 726.643,
+            "error": null
+          }
+        ],
+        "empty_node": [
+          {
+            "ms": 492.754,
+            "error": null
+          },
+          {
+            "ms": 473.595,
+            "error": null
+          },
+          {
+            "ms": 504.103,
+            "error": null
+          },
+          {
+            "ms": 505.433,
+            "error": null
+          },
+          {
+            "ms": 526.648,
+            "error": null
+          },
+          {
+            "ms": 452.656,
+            "error": null
+          },
+          {
+            "ms": 515.353,
+            "error": null
+          },
+          {
+            "ms": 501.117,
+            "error": null
+          },
+          {
+            "ms": 676.525,
+            "error": null
+          },
+          {
+            "ms": 599.437,
+            "error": null
+          }
+        ]
+      },
+      "warmups": [
+        {
+          "variant": "before",
+          "ms": 1463.156,
+          "error": null
+        },
+        {
+          "variant": "after",
+          "ms": 674.329,
+          "error": null
+        },
+        {
+          "variant": "empty_node",
+          "ms": 528.523,
+          "error": null
+        }
+      ],
+      "order": [
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ]
+      ],
+      "errors": [],
+      "median_ms": {
+        "before": 1775.389,
+        "after": 596.821,
+        "empty_node": 504.768
+      },
+      "p95_ms": {
+        "before": 2075.278,
+        "after": 702.276,
+        "empty_node": 641.835
+      },
+      "max_ms": {
+        "before": 2088.477,
+        "after": 726.643,
+        "empty_node": 676.525
+      },
+      "observed_reduction_pct": 66.384
+    },
+    {
+      "runtime": "opencode",
+      "samples": {
+        "before": [
+          {
+            "ms": 2179.845,
+            "error": null
+          },
+          {
+            "ms": 2167.82,
+            "error": null
+          },
+          {
+            "ms": 1795.549,
+            "error": null
+          },
+          {
+            "ms": 2775.281,
+            "error": null
+          },
+          {
+            "ms": 1887.223,
+            "error": null
+          },
+          {
+            "ms": 2492.966,
+            "error": null
+          },
+          {
+            "ms": 1728.131,
+            "error": null
+          },
+          {
+            "ms": 2240.0,
+            "error": null
+          },
+          {
+            "ms": 1829.307,
+            "error": null
+          },
+          {
+            "ms": 2078.248,
+            "error": null
+          }
+        ],
+        "after": [
+          {
+            "ms": 754.053,
+            "error": null
+          },
+          {
+            "ms": 619.684,
+            "error": null
+          },
+          {
+            "ms": 656.781,
+            "error": null
+          },
+          {
+            "ms": 791.39,
+            "error": null
+          },
+          {
+            "ms": 682.921,
+            "error": null
+          },
+          {
+            "ms": 889.257,
+            "error": null
+          },
+          {
+            "ms": 584.719,
+            "error": null
+          },
+          {
+            "ms": 595.362,
+            "error": null
+          },
+          {
+            "ms": 631.656,
+            "error": null
+          },
+          {
+            "ms": 610.709,
+            "error": null
+          }
+        ],
+        "empty_node": [
+          {
+            "ms": 443.891,
+            "error": null
+          },
+          {
+            "ms": 587.858,
+            "error": null
+          },
+          {
+            "ms": 578.402,
+            "error": null
+          },
+          {
+            "ms": 901.538,
+            "error": null
+          },
+          {
+            "ms": 635.72,
+            "error": null
+          },
+          {
+            "ms": 760.097,
+            "error": null
+          },
+          {
+            "ms": 491.662,
+            "error": null
+          },
+          {
+            "ms": 524.66,
+            "error": null
+          },
+          {
+            "ms": 586.061,
+            "error": null
+          },
+          {
+            "ms": 415.04,
+            "error": null
+          }
+        ]
+      },
+      "warmups": [
+        {
+          "variant": "before",
+          "ms": 2121.5,
+          "error": null
+        },
+        {
+          "variant": "after",
+          "ms": 568.048,
+          "error": null
+        },
+        {
+          "variant": "empty_node",
+          "ms": 481.931,
+          "error": null
+        }
+      ],
+      "order": [
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ],
+        [
+          "empty_node",
+          "before",
+          "after"
+        ],
+        [
+          "before",
+          "after",
+          "empty_node"
+        ],
+        [
+          "after",
+          "empty_node",
+          "before"
+        ]
+      ],
+      "errors": [],
+      "median_ms": {
+        "before": 2123.034,
+        "after": 644.218,
+        "empty_node": 582.232
+      },
+      "p95_ms": {
+        "before": 2648.239,
+        "after": 845.217,
+        "empty_node": 837.89
+      },
+      "max_ms": {
+        "before": 2775.281,
+        "after": 889.257,
+        "empty_node": 901.538
+      },
+      "observed_reduction_pct": 69.656
+    }
+  ],
+  "limitations": [
+    "Launcher wall-clock measurement, not native client event delivery. Temporary local filesystem, not a measurement of the OneDrive project path. Unknown host/antivirus scheduling is not reconstructed."
+  ]
+}

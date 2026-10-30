@@ -1,0 +1,215 @@
+{
+  "task": "T-18",
+  "date": "2026-10-30",
+  "decision": "no-go; conditional task cancelled, complete index retained",
+  "native_evidence": {
+    "file": "t06-native-visibility-authenticated-2026-10-29.json",
+    "sha256": "808709630f4114622ef21f5df233496e738297f1f35c722d37f503207c20a97d",
+    "expected_skill_count": 27,
+    "tool_uses": [],
+    "scope_limitation": "Local plugin in a fresh project-only CLI session, default model/context budget. All 27 skill capabilities have descriptions here (26 source skills, confluence-pull command wrapper). Does not reconstruct the historical session configuration, prove causality for its 13 omissions, guarantee every command description, or measure activation quality. work-resume command absent from model self-report although present in native init.",
+    "limitation": "Model self-report plus native init inventory; not a direct dump of the rendered Skill tool schema. Does not reconstruct the exact 13 historical omissions or establish activation quality. Any truncated description is reported, not inferred.",
+    "comparison": [
+      {
+        "name": "adversarial-review",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "api-contract",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "backend-practices",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "capability-audit",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "changelog-sync",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "code-health",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "confluence-publish",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "confluence-pull",
+        "visible": true,
+        "exact_skill_description": false,
+        "exact_command_description": true,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "cybersecurity",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "debug-root-cause",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "delivery-practices",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "dependency-upgrade",
+        "visible": true,
+        "exact_skill_description": false,
+        "exact_command_description": false,
+        "html_entity_only_difference": true
+      },
+      {
+        "name": "frontend-quality",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "jira-sync",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "knowledge-services",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "outcome-evals",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "plugin-dev",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "plugin-panel",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "quick-implement",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "rates-verify",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "research-first",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "roadmap-dashboard",
+        "visible": true,
+        "exact_skill_description": false,
+        "exact_command_description": false,
+        "html_entity_only_difference": true
+      },
+      {
+        "name": "stack-practices",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "tdd",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "to-pdf",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "training-data-services",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      },
+      {
+        "name": "unit-tests",
+        "visible": true,
+        "exact_skill_description": true,
+        "exact_command_description": false,
+        "html_entity_only_difference": false
+      }
+    ]
+  },
+  "test": {
+    "command": "python -m pytest -q agent-kits/shared/test_skill_index.py",
+    "passed": 23,
+    "seconds": 34.75
+  },
+  "production_changes": false,
+  "not_claimed": [
+    "Activation non-degradation",
+    "650 token saving",
+    "Product implementation of a reduced index"
+  ]
+}

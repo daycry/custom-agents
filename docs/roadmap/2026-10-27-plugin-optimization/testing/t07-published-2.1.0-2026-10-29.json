@@ -1,0 +1,50 @@
+{
+  "user_authorization": "2026-10-29: Si, publicar F1 y continuar",
+  "merge_pr": 19,
+  "merge_sha": "e7de118b017c9af0fe2157699e52d9f8a4d487f6",
+  "release_sha": "a157679afd27743b1dd1e1a7fa76444cca6aba2a",
+  "release": {
+    "assets": [
+      {
+        "apiUrl": "https://api.github.com/repos/daycry/custom-agents/releases/assets/688815763",
+        "contentType": "application/zip",
+        "createdAt": "2026-10-29T14:26:57Z",
+        "digest": "sha256:a837380c22e43ee15da331bb522da92b304ae515c93d0595047f226d333b1874",
+        "downloadCount": 0,
+        "id": "RA_kwDOTRhzfs4pDn6T",
+        "label": "",
+        "name": "custom-agents-2.1.0.zip",
+        "size": 4466473,
+        "state": "uploaded",
+        "updatedAt": "2026-10-29T14:26:57Z",
+        "url": "https://github.com/daycry/custom-agents/releases/download/v2.1.0/custom-agents-2.1.0.zip"
+      },
+      {
+        "apiUrl": "https://api.github.com/repos/daycry/custom-agents/releases/assets/688815765",
+        "contentType": "application/zip",
+        "createdAt": "2026-10-29T14:26:57Z",
+        "digest": "sha256:51ff37593f235ed7e8c9cdee80c7490e0f08687947d0502e428395d388fadcca",
+        "downloadCount": 0,
+        "id": "RA_kwDOTRhzfs4pDn6V",
+        "label": "",
+        "name": "custom-agents-skills-portable-2.1.0.zip",
+        "size": 1505718,
+        "state": "uploaded",
+        "updatedAt": "2026-10-29T14:26:57Z",
+        "url": "https://github.com/daycry/custom-agents/releases/download/v2.1.0/custom-agents-skills-portable-2.1.0.zip"
+      }
+    ],
+    "isDraft": false,
+    "publishedAt": "2026-10-29T14:26:58Z",
+    "tagName": "v2.1.0",
+    "url": "https://github.com/daycry/custom-agents/releases/tag/v2.1.0"
+  },
+  "workflow": 40891518461,
+  "workflow_conclusion": "success",
+  "release_check_exit": 0,
+  "interop_current_files": 88,
+  "publication_method": "scripts/release.py 2.1.0 after successful dry-run, then atomic push of master and tag",
+  "no_npm_publish_in_workflow": true,
+  "global_installed_plugin_changed": false,
+  "wrapper_note": "Initial caller printing failed under cp1252 after dry-run succeeded. UTF-8 caller resumed the verified clean worktree. No release source change or skipped check."
+}

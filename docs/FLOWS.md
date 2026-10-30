@@ -243,6 +243,18 @@ flowchart TD
 >
 > **Dos puertas de entrada al mismo gate:** el command `/dev-cycle` (explícito, con la barra) y la skill `quick-implement`, que se auto-invoca por lenguaje natural («implementa X rápido») y entra por la rama de vía rápida tras su filtro de idoneidad. La skill no define método propio: delega en esta misma Fase 0-bis.
 
+El núcleo de `commands/dev-cycle.md` conserva las puertas comunes y dirige a
+`agent-kits/dev-cycle/references/` al llegar a cada condición: evaluación/plan
+en flujo completo, subagentes o Jira habilitados, y curación con propuestas
+pendientes. `quick-implement` lee ese núcleo y las referencias que correspondan.
+Los adaptadores de Codex/OpenCode conservan esta lectura bajo demanda y usan el
+kit del mismo bundle; el instalador transporta sus referencias junto a los kits.
+
+El selector C/D comparte una lectura de cada fichero entre contenido y cabecera:
+en `--files` y untracked conserva las líneas completas; para ficheros versionados
+analiza las líneas añadidas de Git y solo necesita la cabecera local para el flujo
+de prompts. El sondeo binario y las exclusiones mantienen sus reglas.
+
 ```mermaid
 flowchart TD
     NL(["petición en lenguaje natural<br/>«implementa X rápido»"]) -.->|"skill quick-implement<br/>(filtro de idoneidad)"| Z
@@ -358,7 +370,8 @@ flowchart TD
 Los 7 eventos los genera `skills/jira-sync/scripts/jira-flow.py` (`ops` deterministas: etiqueta →
 transición → comentario firmado → worklog); el agente solo las **ejecuta** vía el conector. El
 `--actor` de cada evento es fijo: si no casa, exit 2. Detalle operativo en la tabla «Ciclo Jira de la
-Fase 3» de `commands/dev-cycle.md` (fuente única).
+Fase 3» de `agent-kits/dev-cycle/references/phase3-jira.md`, dirigida desde el
+núcleo de `commands/dev-cycle.md` (fuente única).
 
 | Evento | Quién lo dispara | Transición del issue | Comentario (etiqueta) |
 |---|---|---|---|

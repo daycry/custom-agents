@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "review_kind": "author static boundary self-review; independent phase review remains T-19",
+  "source_sha256_lf": {
+    "hooks/run-hook.mjs": "54292fd7352c960ec2ef7b995c3939e080c7d438788a8a40de7bb6df80474e0b",
+    "hooks/session-context.py": "ef68ca4c03ac360b8b1609aab84f58b350a8cb5a5fa37321ed3a288a4da3630c",
+    "agent-kits/shared/progress-report.py": "79c14bf3635b4eb4c24123404474dffd41995ddc26aab6d924022e0329330a7c",
+    "agent-kits/shared/usage-meter.py": "2a7f75bcc2717e495434f74ee6b2749d3ba9357dd0abbf9680b032d3a067ed68"
+  },
+  "imports": [
+    "argparse",
+    "contextlib",
+    "importlib.util",
+    "io",
+    "json",
+    "os",
+    "pathlib",
+    "re",
+    "sys"
+  ],
+  "fixed_local_loads": [
+    "agent-kits/shared/journal.py",
+    "agent-kits/shared/skill-index.py",
+    "agent-kits/shared/progress-report.py",
+    "agent-kits/shared/knowledge-find.py"
+  ],
+  "boundary": [
+    "Node selects fixed plugin-owned session-context.py for existing session-context.sh identity and passes a validated runtime; payload supplies data only.",
+    "Compositor imports four fixed local service modules and calls their CLI main(argv) in process. No executable path derives from consumer data.",
+    "Journal replay always receives --ia no, bounded replay max/budget, source and current session identity. Existing opt-in journal egress exception is unchanged.",
+    "Knowledge lookup receives fixed local --json --root --limit 0 --contexto --iniciativa flags; no --intent or backend selectors.",
+    "Captured service output and project environment restored; no Python subprocess is added. Legacy direct shell remains unchanged.",
+    "Existing detector rules, Node builtin allowance and journal exception unchanged; exact owner hash and nominal dependency closure added.",
+    "Native composition passes in_process=True to progress-report.main; its marker lookup loads the existing usage-meter module and calls the canonical read-only status API. Default standalone progress CLI retains its subprocess and 10-second timeout. No mutable module override is used."
+  ],
+  "regression_red": {
+    "missing_dependency_scan": true,
+    "unreviewed_owner_not_rejected": true
+  },
+  "validation": {
+    "final_security_boundary": {
+      "passed": 4,
+      "failed": 0,
+      "seconds": 10.4
+    },
+    "shared_and_compositor": {
+      "passed": 156,
+      "failed": 0
+    },
+    "affected_console_and_due_replay": {
+      "passed": 26,
+      "failed": 0
+    },
+    "prior_full_suites": {
+      "passed": 821,
+      "qualification": "before final in-process marker fix; retained as historical evidence"
+    }
+  },
+  "final_source_adjustment": "Removed whitespace-only blank lines; tokens unchanged; owner pin revalidated.",
+  "transitive_python_red": {
+    "failed": 3,
+    "cause": "progress-report session spawned usage-meter status in another interpreter; Popen prohibition failed in all three runtime fixtures.",
+    "directed_green": 5,
+    "shared_suites_green": 117,
+    "default_timeout_red": "Global replacement initially changed standalone progress behavior; a new default-mode regression failed. Explicit in_process keyword confines the change to the compositor."
+  },
+  "comment_only_source_delta": {
+    "path": "hooks/session-context.py",
+    "measured_sha256_lf": "28ee8ef85239b428b3acab2408079e64bd3d7b0a5066489ad22f66dd4c55df9f",
+    "final_sha256_lf": "ef68ca4c03ac360b8b1609aab84f58b350a8cb5a5fa37321ed3a288a4da3630c",
+    "replacement_before": "(un subproceso cada una)",
+    "replacement_after": "(una consulta en proceso por iniciativa)",
+    "ast_sha256_before": "6c9c511994046080951a8bcdd5c70c5d590fd2e610a07e7456c8e600da2f12b9",
+    "ast_sha256_after": "6c9c511994046080951a8bcdd5c70c5d590fd2e610a07e7456c8e600da2f12b9",
+    "reason": "Correct inherited shell comment after measurements; executable AST identical. Original measured source hash remains preserved."
+  }
+}

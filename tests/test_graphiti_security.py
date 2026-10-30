@@ -121,7 +121,9 @@ _BOOTSTRAP_NODE_HASHES = {
 # Normalize only line endings; a code change must update this fingerprint after review.
 # F1 T-02/T-03: bounded local role-map/input prefilter, monotonic deadline and isolated
 # prompt capture; same local executables/imports, no network path (review 2026-10-29).
-_LAUNCHER_NODE_HASH = "f8a3af68dd02b3b0ca746c2d347e5c2df5276ea610811d94b0dd2f5f7c212e4e"
+# F2 T-09/T-10: fixed local marker and combined local parser only; self-audit in
+# testing/t10-egress-boundary-review-2026-10-29.json. Independent phase review remains T-19.
+_LAUNCHER_NODE_HASH = "701a88823d6fcf1afc8d3444eecfb31c9703200d7e587d80d58732bb592a236b"
 _EXT_RE = "|".join(_EXT_ESCANEABLES + _EXT_NO_ESCANEABLES)
 # Gap #155 (Important, fix1 Fase 4): el lookahead final quita los falsos positivos del escaneo de
 # CODIGO (`hashlib.sha256` casaba como `hashlib.sh`). Hace falta porque a partir de este fix una
@@ -149,6 +151,17 @@ _CITAS_POR_NOMBRE = {
     ("hooks/run-hook.mjs", "journal-capture.py"): "agent-kits/shared/journal-capture.py",
     ("hooks/run-hook.mjs", "native-guardrail.py"): "agent-kits/shared/native-guardrail.py",
     ("hooks/run-hook.mjs", "agent-activity-store.py"): "agent-kits/shared/agent-activity-store.py",
+    ("hooks/run-hook.mjs", "ledger-post.py"): "hooks/ledger-post.py",
+    ("hooks/run-hook.mjs", "session-context.py"): "hooks/session-context.py",
+    ("hooks/session-context.py", "journal.py"): "agent-kits/shared/journal.py",
+    ("hooks/session-context.py", "skill-index.py"): "agent-kits/shared/skill-index.py",
+    ("hooks/session-context.py", "progress-report.py"): "agent-kits/shared/progress-report.py",
+    ("hooks/session-context.py", "knowledge-find.py"): "agent-kits/shared/knowledge-find.py",
+    ("hooks/ledger-post.py", "ledger-lint.py"): "agent-kits/shared/ledger-lint.py",
+    ("hooks/ledger-post.py", "progress-report.py"): "agent-kits/shared/progress-report.py",
+    ("hooks/ledger-post.py", "local-read.py"): "agent-kits/shared/local-read.py",
+    ("hooks/ledger-post.py", "local-state.py"): "agent-kits/shared/local-state.py",
+    ("hooks/ledger-post.py", "redact.py"): "agent-kits/shared/redact.py",
     ("hooks/session-context.sh", "knowledge-find.py"): "agent-kits/shared/knowledge-find.py",
     ("hooks/session-context.sh", "progress-report.py"): "agent-kits/shared/progress-report.py",
     ("agent-kits/shared/knowledge-find.py", "__init__.py"):
@@ -159,6 +172,17 @@ _CITAS_POR_NOMBRE = {
 # prove those edges. Pin the entire owner, then traverse its three real local modules.
 # This is a closure declaration, never an egress exception. Any owner change needs review.
 _CARGAS_LOCALES_REVISADAS = {
+    "hooks/session-context.py": {
+        "sha256_lf": "ef68ca4c03ac360b8b1609aab84f58b350a8cb5a5fa37321ed3a288a4da3630c",
+        "dependencies": ("agent-kits/shared/journal.py", "agent-kits/shared/skill-index.py",
+                         "agent-kits/shared/progress-report.py", "agent-kits/shared/knowledge-find.py"),
+    },
+    "hooks/ledger-post.py": {
+        "sha256_lf": "116d105306af39b2357cef3d597496c3f00c42d938e39bd572c24c6e606aedbc",
+        "dependencies": ("agent-kits/shared/ledger-lint.py", "agent-kits/shared/progress-report.py",
+                         "agent-kits/shared/local-read.py", "agent-kits/shared/local-state.py",
+                         "agent-kits/shared/redact.py"),
+    },
     "agent-kits/shared/agent-activity-store.py": {
         "sha256_lf": "7e13711f797135bc60310112d4a38813fecc481cb81454ffeb0753377e6957bc",
         "dependencies": ("agent-kits/shared/local-read.py", "agent-kits/shared/local-state.py",
@@ -873,6 +897,42 @@ def test_toda_cita_de_script_desde_un_hook_resuelve_a_un_fichero_real():
     la seccion. Ahora es un fallo: o la cita se puede verificar, o esta en la lista blanca."""
     _alcanzables, sin_resolver = _recorrido_hooks()
     assert sin_resolver == [], sin_resolver
+
+
+def test_t10_combined_hook_dependencies_are_scanned_for_egress(tmp_path):
+    files = {"hooks/ledger-post.py": _texto(os.path.join(ROOT, "hooks", "ledger-post.py"))}
+    for name in ("ledger-lint.py", "progress-report.py", "local-read.py", "local-state.py", "redact.py"):
+        files["agent-kits/shared/" + name] = "pass\n"
+    files["agent-kits/shared/redact.py"] = "import socket\n"
+    root = _repo_minimo(tmp_path, hooks_json=_hook_que_lanza("hooks/ledger-post.py"), ficheros=files)
+    assert ("agent-kits/shared/redact.py", "import socket") in _ofensores_de_red(root)
+
+
+def test_t10_unreviewed_combined_loader_change_fails_closed(tmp_path):
+    files = {"hooks/ledger-post.py": _texto(os.path.join(ROOT, "hooks", "ledger-post.py")) + "\n# Unreviewed owner change\n"}
+    for name in ("ledger-lint.py", "progress-report.py", "local-read.py", "local-state.py", "redact.py"):
+        files["agent-kits/shared/" + name] = "pass\n"
+    root = _repo_minimo(tmp_path, hooks_json=_hook_que_lanza("hooks/ledger-post.py"), ficheros=files)
+    _reachable, unresolved = _recorrido_hooks(root)
+    assert ("hooks/ledger-post.py", "cargas locales no revisadas") in unresolved
+
+
+def test_t12_context_dependencies_are_scanned_for_egress(tmp_path):
+    files = {"hooks/session-context.py": _texto(os.path.join(ROOT, "hooks", "session-context.py"))}
+    for name in ("journal.py", "skill-index.py", "progress-report.py", "knowledge-find.py"):
+        files["agent-kits/shared/" + name] = "pass\n"
+    files["agent-kits/shared/knowledge-find.py"] = "import socket\n"
+    root = _repo_minimo(tmp_path, hooks_json=_hook_que_lanza("hooks/session-context.py"), ficheros=files)
+    assert ("agent-kits/shared/knowledge-find.py", "import socket") in _ofensores_de_red(root)
+
+
+def test_t12_unreviewed_context_loader_change_fails_closed(tmp_path):
+    files = {"hooks/session-context.py": _texto(os.path.join(ROOT, "hooks", "session-context.py")) + "\n# Unreviewed owner change\n"}
+    for name in ("journal.py", "skill-index.py", "progress-report.py", "knowledge-find.py"):
+        files["agent-kits/shared/" + name] = "pass\n"
+    root = _repo_minimo(tmp_path, hooks_json=_hook_que_lanza("hooks/session-context.py"), ficheros=files)
+    _reachable, unresolved = _recorrido_hooks(root)
+    assert ("hooks/session-context.py", "cargas locales no revisadas") in unresolved
 
 
 def test_ningun_script_alcanzable_desde_hooks_toca_la_red():

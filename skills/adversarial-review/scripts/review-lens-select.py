@@ -62,7 +62,9 @@ patrón, línea).
 Exit: 0 SIEMPRE (nunca bloquea la revisión; ante error, aviso en stderr y ambas `false`).
 """
 import argparse
+import codecs
 import importlib.util
+import io
 import json
 import os
 import re
@@ -372,13 +374,67 @@ def es_binario(path):
 
 
 def lineas_fichero_entero(path):
-    if not os.path.isfile(path) or es_binario(path):
-        return []
+    return _leer_fichero(path, entero=True)[1]
+
+
+def _leer_fichero(path, entero=False):
+    """Una apertura, sin releer bytes: sondeo binario y UTF-8 incremental compartidos.
+
+    Mantiene el sondeo de 8192 bytes, la cabecera de 8192 caracteres y las
+    nuevas lineas universales del lector anterior. Las lecturas son acotadas;
+    solo los modos de fichero entero conservan todas las lineas, como antes.
+    """
+    if not os.path.isfile(path):
+        return "", []
     try:
-        with open(path, encoding="utf-8", errors="replace") as f:
-            return [(i, l.rstrip("\n")) for i, l in enumerate(f, 1)]
+        with open(path, "rb") as f:
+            bloque = f.read(8192)
+            if b"\x00" in bloque:
+                return "", []
+            decoder = io.IncrementalNewlineDecoder(
+                codecs.getincrementaldecoder("utf-8")(errors="replace"), translate=True)
+            cabecera, pendiente, lineas = "", [], []
+            while True:
+                texto = decoder.decode(bloque, final=not bloque)
+                cabecera += texto[:8192 - len(cabecera)]
+                if entero:
+                    partes = texto.split("\n")
+                    if len(partes) > 1:
+                        pendiente.append(partes[0])
+                        lineas.append((len(lineas) + 1, "".join(pendiente)))
+                        inicio = len(lineas)
+                        lineas.extend((inicio + i, l) for i, l in enumerate(partes[1:-1], 1))
+                        pendiente = [partes[-1]]
+                    elif texto:
+                        pendiente.append(texto)
+                if not bloque or (not entero and len(cabecera) == 8192):
+                    break
+                bloque = f.read(8192)
+            if entero and pendiente:
+                ultima = "".join(pendiente)
+                if ultima:
+                    lineas.append((len(lineas) + 1, ultima))
+            return cabecera, lineas
     except OSError:
-        return []
+        return "", []
+
+
+class _Lecturas:
+    """Cabeceras por ejecucion; ningun contenido sobrevive a una llamada a main."""
+
+    def __init__(self, root):
+        self.root = root
+        self.cabeceras = {}
+
+    def lineas(self, rel):
+        cabecera, lineas = _leer_fichero(os.path.join(self.root, rel), entero=True)
+        self.cabeceras[rel] = cabecera
+        return lineas
+
+    def cabecera(self, rel):
+        if rel not in self.cabeceras:
+            self.cabeceras[rel] = _leer_fichero(os.path.join(self.root, rel))[0]
+        return self.cabeceras[rel]
 
 
 def es_prosa(rel):
@@ -487,7 +543,7 @@ def _cabecera_modulo(texto):
     return "\n".join(lineas[:40])
 
 
-def _compone_prompt(rel, root=None):
+def _compone_prompt(rel, root=None, lecturas=None):
     """¿Este fichero compone texto que acabará en un modelo? Por su NOMBRE o por su CABECERA
     (docstring de módulo, o frontmatter + intro si es un `.md` de pieza), nunca por el cuerpo: ver
     auto-inmunidad arriba. Si el fichero no se puede leer, decide solo con el nombre — degradar a
@@ -496,14 +552,9 @@ def _compone_prompt(rel, root=None):
         return False          # un fichero de datos no compone: lo compone quien lo lee
     if NOMBRE_PROMPT_RE.search(os.path.basename(rel)):
         return True
-    path = os.path.join(root, rel) if root else rel
-    if not os.path.isfile(path) or es_binario(path):
-        return False
-    try:
-        with open(path, encoding="utf-8", errors="replace") as f:
-            cabecera = _cabecera_modulo(f.read(8192))
-    except OSError:
-        return False
+    texto = (lecturas.cabecera(rel) if lecturas is not None else
+             _leer_fichero(os.path.join(root, rel) if root else rel)[0])
+    cabecera = _cabecera_modulo(texto)
     return bool(CABECERA_PROMPT_RE.search(cabecera))
 
 
@@ -523,7 +574,7 @@ def escanear_flujo(rel):
     return escanear_contenido(rel) or es_pieza_de_prompt(rel)
 
 
-def motivos_de_flujo(ficheros, lineas_por_fichero, excluir=(), root=None):
+def motivos_de_flujo(ficheros, lineas_por_fichero, excluir=(), root=None, lecturas=None):
     """Motivos `tipo: flujo`: el diff abre un canal de texto del CONSUMIDOR hacia un prompt o brief.
 
     Devuelve la MISMA forma de motivo que `motivos_de` (dict con `tipo`, `fichero`, `patron`,
@@ -533,7 +584,7 @@ def motivos_de_flujo(ficheros, lineas_por_fichero, excluir=(), root=None):
     for f in ficheros:
         if excluido_de_ruta(f, excluir) or not escanear_flujo(f):
             continue
-        if not _compone_prompt(f, root):
+        if not _compone_prompt(f, root, lecturas=lecturas):
             continue
         # en un `.md` de pieza la lectura se escribe con un verbo; en código, con una llamada
         lee = LECTURA_MD_RE if es_pieza_de_prompt(f) else LECTURA_RE
@@ -640,11 +691,12 @@ def main():
 
     base_desc, ficheros, lineas = "—", [], {}
     root_evaluacion = root      # raiz desde la que `motivos_de_flujo` abre los ficheros del diff
+    lecturas = _Lecturas(root)
     try:
         if args.files is not None:
             base_desc = "--files"
             ficheros = sorted({re.sub(r"^(\./)+", "", f.replace("\\", "/")) for f in args.files if f.strip()})
-            lineas = {f: lineas_fichero_entero(os.path.join(root, f)) for f in ficheros}
+            lineas = {f: lecturas.lineas(f) for f in ficheros}
         else:
             groot = repo_root(root)
             if not groot:
@@ -652,13 +704,14 @@ def main():
             else:
                 root_git = groot
                 root_evaluacion = root_git
+                lecturas = _Lecturas(root_git)
                 base, base_desc, av = resolver_base(root_git, args.base)
                 if av:
                     avisos.append(av)
                 ficheros, unt = cambiados_git(root_git, base)
                 lineas = lineas_anadidas_git(root_git, base)
                 for f in unt:
-                    lineas[f] = lineas_fichero_entero(os.path.join(root_git, f))
+                    lineas[f] = lecturas.lineas(f)
     except Exception as e:  # noqa: BLE001 — nunca bloquea
         avisos.append(f"error evaluando el diff ({e.__class__.__name__}: {e}); lente_c/lente_d: false")
         ficheros, lineas = [], {}
@@ -667,7 +720,8 @@ def main():
     # FLUJO (T-18). Se concatenan ANTES de `decidir`, asi que `revision.lenteSeguridad: nunca` y
     # `revision.excluir` apagan las dos por igual -- la valvula no se duplica.
     motivos_c = (motivos_de(ficheros, lineas, excluir)
-                 + motivos_de_flujo(ficheros, lineas, excluir, root=root_evaluacion)) if ficheros else []
+                 + motivos_de_flujo(ficheros, lineas, excluir, root=root_evaluacion,
+                                    lecturas=lecturas)) if ficheros else []
     lente_c, motivos_c = decidir(modo_c, motivos_c)
     motivos_d = motivos_de_d(ficheros, lineas, excluir) if ficheros else []
     lente_d, motivos_d = decidir_d(modo_d, motivos_d)

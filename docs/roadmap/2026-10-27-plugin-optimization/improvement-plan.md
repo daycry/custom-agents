@@ -33,7 +33,7 @@ generacion:
 | **Evaluación** | [`evaluation.md`](evaluation.md) — go por tramos, decisión de la puerta del 2026-10-27 |
 | **Diseño** | n/a (paso `architect` previsto solo antes de F3, tarea T-21) |
 
-> **Alcance de ejecución hoy:** solo **F1** (T-01..T-07). **F2** (T-08..T-19) y **F3** (T-20..T-26) quedan en `borrador` y **diferidas**: su primera tarea es revalidar este plan contra `master`; hasta entonces su detalle es un esqueleto («se concreta al revalidar»). Una release por fase (`scripts/release.py`).
+> **Alcance autorizado 2026-10-29:** F1 publicada como **v2.1.0**. El usuario autoriza continuar F2 y F3; **F2** se revalida en T-08 contra ese `master` y sus verificaciones concretas viven en `tasks.md`. **F3** conserva revalidación T-20 tras publicar F2 y diseño aprobado T-21. Una release por fase (`scripts/release.py`).
 
 ---
 
@@ -265,9 +265,18 @@ Los ficheros exactos de cada tarea están en su campo `Archivos` de `tasks.md` (
 | 2026-10-27 | Creación del plan: F1 completa (T-01..T-07) y F2/F3 diferidas (T-08..T-26) según la decisión de la puerta | planner |
 | 2026-10-29 | Usuario aprueba el ajuste de CA-01: cero Python y medición transparente sin mínimo porcentual en F1; 80 % reservado a investigación posterior sin presupuesto nuevo. T-01 estabilidad y T-07 revisión/entrega siguen abiertas. Evidencia: `testing/f1-performance-adjustment-proposal.md`. | usuario («adelante», «adelante con el plan») |
 | 2026-10-29 | El usuario delega la decisión sobre T-01; se elige la opción 2: línea base caracterizada con dispersión y controles intercalados por mejora, sin afirmar estabilidad uniforme ni aceptar comparaciones inconcluyentes. Presupuesto y puertas T-07 intactos. | usuario («lo que consideres mejor»); elección motivada por el agente |
+| 2026-10-29 | Usuario confirma publicar F1 y continuar F2/F3. T-08 revalida contra v2.1.0: C-15 spike acotado; C-17 condicionado a ahorro seguro tras C-09; C-18 no-go productivo sin evidencia de activación. Rutas y verificaciones concretas en ledger. Presupuesto F2/F3 conservado, delta 0 h, sin inventar real F1. | usuario; revalidación del orquestador |
 
 ---
 
+
 ## Siguiente paso
 
-Con el **OK del plan** del usuario (puerta de control), el agente **`implementer`** ejecuta **F1** sobre `feat/plugin-optimization`, marcando `tasks.md` como **ledger canónico**. Al cerrar F1: handoff a `qa` (puertas deterministas; `test-plan: n/a (sin UI)`), cierre con `documenter`, retro y release de la fase. F2 y F3 no arrancan sin revalidar el plan (T-08, T-20) y, en F3, sin el paso `architect` (T-21).
+F1 está publicada como v2.1.0 y el usuario autoriza continuar. La ejecución sigue en `feat/plugin-optimization-f2`, con `tasks.md` como ledger canónico y T-08 revalidada contra `a157679`. Se implementa T-09 y el resto de F2 con sus verificaciones concretas. F3 conserva la dependencia de la release de F2, revalidación T-20 y diseño aprobado T-21. La iniciativa completa permanece abierta.
+
+
+## Apertura de F2 y F3 autorizada — 2026-10-29
+
+El usuario confirma «Sí, publicar F1 y continuar». F1 se publica como v2.1.0, commit `a157679`, PR #19 fusionada y workflow de release verde con ambos ZIP. F2 se revalida en T-08 contra ese master antes de implementar; F3 sigue dependiendo de la release de F2, revalidación T-20 y diseño aprobado T-21. No se cambia el requisito de prueba manual Ollama ni se rebajan revisión, QA, cobertura o timeout.
+
+Decisiones de revalidación: C-15 entra como spike acotado, no como implementación aprobada sin resultado; C-17 entra condicionado a ahorro medido y resolución segura tras C-09; C-18 no se recorta en producción sin evidencia de no-degradación de activación. La visibilidad nativa de F1 no acredita esa propiedad. Detalle de verificaciones y rutas en T-09..T-19.

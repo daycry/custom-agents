@@ -1,0 +1,1335 @@
+{
+  "task": "T-15",
+  "started": "2026-10-30T08:05:27.160282+00:00",
+  "platform": "Windows-11-10.0.26100-SP0",
+  "python": "3.13.0",
+  "node": "v23.8.0",
+  "source_before": {
+    "hooks/run-hook.mjs": "54292fd7352c960ec2ef7b995c3939e080c7d438788a8a40de7bb6df80474e0b",
+    "hooks/runtime-supervisor.py": "8c4a4c568a0ec71f885420e99eb9c6e406429e6f2c994a2bdeb20d279d68a04a"
+  },
+  "runs": [
+    {
+      "strategy": "baseline",
+      "terminal": "clean",
+      "iteration": 0,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": true,
+          "confirmed": true,
+          "code": 0,
+          "elapsedMs": 148.97360000000003
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.0447999918833375,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "baseline",
+      "terminal": "clean",
+      "iteration": 1,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": true,
+          "confirmed": true,
+          "code": 0,
+          "elapsedMs": 152.3745
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.04309997893869877,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "baseline",
+      "terminal": "clean",
+      "iteration": 2,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": true,
+          "confirmed": true,
+          "code": 0,
+          "elapsedMs": 156.8324
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.14979997649788857,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "baseline",
+      "terminal": "timeout",
+      "iteration": 0,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": true,
+          "confirmed": true,
+          "code": 0,
+          "elapsedMs": 165.37480000000005
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.044500106014311314,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "baseline",
+      "terminal": "timeout",
+      "iteration": 1,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": true,
+          "confirmed": true,
+          "code": 0,
+          "elapsedMs": 141.2699
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.050999922677874565,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "baseline",
+      "terminal": "timeout",
+      "iteration": 2,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": true,
+          "confirmed": true,
+          "code": 0,
+          "elapsedMs": 166.98249999999996
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.037499936297535896,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "owner-exit",
+      "terminal": "clean",
+      "iteration": 0,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": false,
+          "confirmed": false,
+          "strategy": "owner-exit",
+          "errors": ""
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.06059999577701092,
+          "active_owned_positions": [
+            1,
+            2
+          ]
+        },
+        {
+          "after_owner_return_ms": 5.289599997922778,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "owner-exit",
+      "terminal": "clean",
+      "iteration": 1,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": false,
+          "confirmed": false,
+          "strategy": "owner-exit",
+          "errors": ""
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.05819997750222683,
+          "active_owned_positions": [
+            1,
+            2
+          ]
+        },
+        {
+          "after_owner_return_ms": 5.314499954693019,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "owner-exit",
+      "terminal": "clean",
+      "iteration": 2,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": false,
+          "confirmed": false,
+          "strategy": "owner-exit",
+          "errors": ""
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.04270009230822325,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "owner-exit",
+      "terminal": "timeout",
+      "iteration": 0,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": false,
+          "confirmed": false,
+          "strategy": "owner-exit",
+          "errors": ""
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.04139996599406004,
+          "active_owned_positions": [
+            0
+          ]
+        },
+        {
+          "after_owner_return_ms": 5.793599993921816,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "owner-exit",
+      "terminal": "timeout",
+      "iteration": 1,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": false,
+          "confirmed": false,
+          "strategy": "owner-exit",
+          "errors": ""
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.07800001185387373,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "owner-exit",
+      "terminal": "timeout",
+      "iteration": 2,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": false,
+          "confirmed": false,
+          "strategy": "owner-exit",
+          "errors": ""
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.043199979700148106,
+          "active_owned_positions": [
+            0
+          ]
+        },
+        {
+          "after_owner_return_ms": 5.45820000115782,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "owner-exit",
+      "terminal": "cancel",
+      "iteration": 0,
+      "owner_exit": 1,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.2530000638216734,
+          "active_owned_positions": [
+            0
+          ]
+        },
+        {
+          "after_owner_return_ms": 5.6833999697119,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "owner-exit",
+      "terminal": "cancel",
+      "iteration": 1,
+      "owner_exit": 1,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.04339998122304678,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "owner-exit",
+      "terminal": "cancel",
+      "iteration": 2,
+      "owner_exit": 1,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.040599959902465343,
+          "active_owned_positions": [
+            0,
+            2
+          ]
+        },
+        {
+          "after_owner_return_ms": 5.61390002258122,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "self-close",
+      "terminal": "clean",
+      "iteration": 0,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": false,
+          "confirmed": false,
+          "strategy": "self-close",
+          "errors": ""
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.037499936297535896,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": true,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "self-close",
+      "terminal": "clean",
+      "iteration": 1,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": false,
+          "confirmed": false,
+          "strategy": "self-close",
+          "errors": ""
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.04369998350739479,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": true,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "self-close",
+      "terminal": "clean",
+      "iteration": 2,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": false,
+          "confirmed": false,
+          "strategy": "self-close",
+          "errors": ""
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.04739989526569843,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": true,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "crt-close",
+      "terminal": "clean",
+      "iteration": 0,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": false,
+          "confirmed": false,
+          "fsCloseError": "EBADF"
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.04239997360855341,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "crt-close",
+      "terminal": "clean",
+      "iteration": 1,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": false,
+          "confirmed": false,
+          "fsCloseError": "EBADF"
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.04430010449141264,
+          "active_owned_positions": [
+            1
+          ]
+        },
+        {
+          "after_owner_return_ms": 5.728200078010559,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    },
+    {
+      "strategy": "crt-close",
+      "terminal": "clean",
+      "iteration": 2,
+      "owner_exit": 0,
+      "owned_roles": [
+        "business-supervisor",
+        "child",
+        "grandchild"
+      ],
+      "all_three_alive_at_observation_barrier": true,
+      "owner_report": [
+        {
+          "helper": false,
+          "confirmed": false,
+          "fsCloseError": "EBADF"
+        }
+      ],
+      "stderr": "",
+      "states": [
+        {
+          "after_owner_return_ms": 0.04469999112188816,
+          "active_owned_positions": [
+            2
+          ]
+        },
+        {
+          "after_owner_return_ms": 6.724799983203411,
+          "active_owned_positions": []
+        }
+      ],
+      "before_self_close_marker": false,
+      "after_self_close_marker": false,
+      "all_owned_terminated": true
+    }
+  ],
+  "method": "Disposable Node owner invokes unmodified runtime-supervisor run/python; fixture business spawns child and grandchild. External observer holds SYNCHRONIZE process handles before owner termination, then checks signaled state, not PID existence.",
+  "scope": "Three samples per strategy/terminal; this is a feasibility spike, not the 100-run T-16 acceptance.",
+  "node_public_api_probe": {
+    "ffiBuiltin": false,
+    "matchingPublicExports": {
+      "process": [],
+      "fs": [],
+      "cp": []
+    },
+    "fsCloseSyncType": "function"
+  },
+  "finished": "2026-10-30T08:06:00.562301+00:00",
+  "source_after": {
+    "hooks/run-hook.mjs": "54292fd7352c960ec2ef7b995c3939e080c7d438788a8a40de7bb6df80474e0b",
+    "hooks/runtime-supervisor.py": "8c4a4c568a0ec71f885420e99eb9c6e406429e6f2c994a2bdeb20d279d68a04a"
+  },
+  "production_unchanged": true,
+  "initial_diagnostic": {
+    "scope": "Initial fixture lacked external observation barrier; not final acceptance evidence",
+    "runs": [
+      {
+        "strategy": "baseline",
+        "terminal": "clean",
+        "iteration": 0,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": true,
+            "confirmed": true,
+            "code": 0,
+            "elapsedMs": 392.78020000000015
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.06400002166628838,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "baseline",
+        "terminal": "clean",
+        "iteration": 1,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": true,
+            "confirmed": true,
+            "code": 0,
+            "elapsedMs": 235.10390000000007
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.05889998283237219,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "baseline",
+        "terminal": "clean",
+        "iteration": 2,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": true,
+            "confirmed": true,
+            "code": 0,
+            "elapsedMs": 181.6562
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.055299955420196056,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "baseline",
+        "terminal": "timeout",
+        "iteration": 0,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": true,
+            "confirmed": true,
+            "code": 0,
+            "elapsedMs": 176.93720000000008
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.03870006185024977,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "baseline",
+        "terminal": "timeout",
+        "iteration": 1,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": true,
+            "confirmed": true,
+            "code": 0,
+            "elapsedMs": 169.2808
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.051600043661892414,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "baseline",
+        "terminal": "timeout",
+        "iteration": 2,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": true,
+            "confirmed": true,
+            "code": 0,
+            "elapsedMs": 167.9699
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.0323000131174922,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "owner-exit",
+        "terminal": "clean",
+        "iteration": 0,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": false,
+            "confirmed": false,
+            "strategy": "owner-exit",
+            "errors": ""
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.00870006624609232,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "owner-exit",
+        "terminal": "clean",
+        "iteration": 1,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": false,
+            "confirmed": false,
+            "strategy": "owner-exit",
+            "errors": ""
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.005300040356814861,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "owner-exit",
+        "terminal": "clean",
+        "iteration": 2,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": false,
+            "confirmed": false,
+            "strategy": "owner-exit",
+            "errors": ""
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.005600042641162872,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "owner-exit",
+        "terminal": "timeout",
+        "iteration": 0,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": false,
+            "confirmed": false,
+            "strategy": "owner-exit",
+            "errors": ""
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.04099996294826269,
+            "active_owned_positions": [
+              0
+            ]
+          },
+          {
+            "after_owner_return_ms": 5.491600022651255,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "owner-exit",
+        "terminal": "timeout",
+        "iteration": 1,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": false,
+            "confirmed": false,
+            "strategy": "owner-exit",
+            "errors": ""
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.0521000474691391,
+            "active_owned_positions": [
+              0
+            ]
+          },
+          {
+            "after_owner_return_ms": 5.655099987052381,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "owner-exit",
+        "terminal": "timeout",
+        "iteration": 2,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": false,
+            "confirmed": false,
+            "strategy": "owner-exit",
+            "errors": ""
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.04079996142536402,
+            "active_owned_positions": [
+              0,
+              1
+            ]
+          },
+          {
+            "after_owner_return_ms": 5.484999972395599,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "owner-exit",
+        "terminal": "cancel",
+        "iteration": 0,
+        "owner_exit": 1,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.04529999569058418,
+            "active_owned_positions": [
+              0,
+              1
+            ]
+          },
+          {
+            "after_owner_return_ms": 5.627800012007356,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "owner-exit",
+        "terminal": "cancel",
+        "iteration": 1,
+        "owner_exit": 1,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.04239997360855341,
+            "active_owned_positions": [
+              0
+            ]
+          },
+          {
+            "after_owner_return_ms": 5.255799973383546,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "owner-exit",
+        "terminal": "cancel",
+        "iteration": 2,
+        "owner_exit": 1,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.04109996370971203,
+            "active_owned_positions": [
+              0,
+              1
+            ]
+          },
+          {
+            "after_owner_return_ms": 5.661800038069487,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "self-close",
+        "terminal": "clean",
+        "iteration": 0,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": false,
+            "confirmed": false,
+            "strategy": "self-close",
+            "errors": ""
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.007100054062902927,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": true,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "self-close",
+        "terminal": "clean",
+        "iteration": 1,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": false,
+            "confirmed": false,
+            "strategy": "self-close",
+            "errors": ""
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.005900044925510883,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": true,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "self-close",
+        "terminal": "clean",
+        "iteration": 2,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": false,
+            "confirmed": false,
+            "strategy": "self-close",
+            "errors": ""
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.006200047209858894,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": true,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "crt-close",
+        "terminal": "clean",
+        "iteration": 0,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": false,
+            "confirmed": false,
+            "fsCloseError": "EBADF"
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.008200062438845634,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "crt-close",
+        "terminal": "clean",
+        "iteration": 1,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": false,
+            "confirmed": false,
+            "fsCloseError": "EBADF"
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.007999944500625134,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      },
+      {
+        "strategy": "crt-close",
+        "terminal": "clean",
+        "iteration": 2,
+        "owner_exit": 0,
+        "owned_roles": [
+          "business-supervisor",
+          "child",
+          "grandchild"
+        ],
+        "owner_report": [
+          {
+            "helper": false,
+            "confirmed": false,
+            "fsCloseError": "EBADF"
+          }
+        ],
+        "stderr": "",
+        "states": [
+          {
+            "after_owner_return_ms": 0.03599992487579584,
+            "active_owned_positions": []
+          }
+        ],
+        "before_self_close_marker": false,
+        "after_self_close_marker": false,
+        "all_owned_terminated": true
+      }
+    ]
+  },
+  "reproducer_sources": {
+    "t15-worker.py": "from pathlib import Path\nimport importlib.util\nimport json\nimport os\nimport subprocess\nimport sys\nimport time\n\nsupervisor, folder, strategy, terminal = sys.argv[1:]\nfolder = Path(folder)\nspec = importlib.util.spec_from_file_location('spike_supervisor', supervisor)\nmodule = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(module)\nchild_code = '''\nfrom pathlib import Path\nimport json,os,subprocess,sys,time\ngrand = subprocess.Popen([sys.executable, '-I', '-S', '-c', 'import time;time.sleep(60)'],\n    stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,\n    creationflags=subprocess.CREATE_NO_WINDOW)\nPath(sys.argv[1]).write_text(json.dumps([os.getppid(),os.getpid(),grand.pid]),encoding='utf-8')\ntime.sleep(60)\n'''\nchild = subprocess.Popen([sys.executable, '-I', '-S', '-c', child_code, str(folder / 'tree.json')],\n    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,\n    creationflags=subprocess.CREATE_NO_WINDOW)\ndeadline = time.monotonic() + 10\nwhile not (folder / 'tree.json').exists() or not (folder / 'control.json').exists():\n    if time.monotonic() > deadline:\n        raise RuntimeError('fixture tree/control not ready')\n    time.sleep(.005)\nprint(json.dumps({'ready': True}), flush=True)\nwhile not (folder / 'observer-ready').exists():\n    if time.monotonic() > deadline:\n        raise RuntimeError('observer barrier not released')\n    time.sleep(.005)\nif terminal != 'clean':\n    time.sleep(60)\nelif strategy == 'self-close':\n    control = json.loads((folder / 'control.json').read_text(encoding='utf-8'))\n    (folder / 'before-self-close').write_text('attempt', encoding='utf-8')\n    module.close_job(control['owner'], int(control['customAgentsJob']))\n    (folder / 'after-self-close').write_text('confirmed', encoding='utf-8')\n",
+    "t15-owner.mjs": "import { spawn } from 'node:child_process';\nimport { closeSync, existsSync, writeFileSync } from 'node:fs';\nimport { join } from 'node:path';\nconst [python, supervisor, worker, folder, strategy, terminal] = process.argv.slice(2);\nlet handle, started = false, stopping = false;\nconst child = spawn(python, ['-I', '-S', supervisor, 'run', String(process.pid), 'python',\n  python, worker, supervisor, folder, strategy, terminal],\n  { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });\nlet header = '', output = '', errors = '';\nconst watchdog = setTimeout(() => {\n  console.log(JSON.stringify({ error: 'owner watchdog', handleReceived: Boolean(handle) }));\n  process.exit(91);\n}, 15000);\nfunction done(data) {\n  clearTimeout(watchdog);\n  console.log(JSON.stringify(data));\n  process.exit(0);\n}\nfunction cleanup() {\n  if (stopping) return;\n  stopping = true;\n  if (strategy === 'baseline') {\n    const start = performance.now();\n    const helper = spawn(python, ['-I', '-S', supervisor, 'close', String(process.pid), handle],\n      { windowsHide: true, stdio: 'ignore' });\n    const timer = setTimeout(() => {\n      helper.kill('SIGKILL');\n      done({ helper: true, confirmed: false, timeout500ms: true, elapsedMs: performance.now() - start });\n    }, 500);\n    helper.on('error', error => done({helper: true, confirmed: false, error: error.code}));\n    helper.on('close', code => {\n      clearTimeout(timer);\n      done({ helper: true, confirmed: code === 0, code, elapsedMs: performance.now() - start });\n    });\n  } else if (strategy === 'crt-close') {\n    let closeError = null;\n    try { closeSync(Number(handle)); } catch (error) { closeError = error.code; }\n    done({ helper: false, confirmed: false, fsCloseError: closeError });\n  } else {\n    done({ helper: false, confirmed: false, strategy, errors });\n  }\n}\nchild.stderr.setEncoding('utf8');\nchild.stderr.on('data', chunk => {\n  if (handle) { errors += chunk; return; }\n  header += chunk;\n  const end = header.indexOf('\\n');\n  if (end < 0) return;\n  const control = JSON.parse(header.slice(0, end));\n  if (control.owner !== process.pid) throw Error('foreign owner');\n  handle = control.customAgentsJob;\n  writeFileSync(join(folder, 'control.json'), JSON.stringify(control));\n  errors += header.slice(end + 1);\n});\nchild.stdout.setEncoding('utf8');\nchild.stdout.on('data', chunk => {\n  output += chunk;\n  if (started || !output.includes('\\n')) return;\n  if (!JSON.parse(output.split('\\n')[0]).ready) throw Error('invalid ready');\n  started = true;\n  writeFileSync(join(folder, 'node-ready'), 'ready');\n  if (terminal === 'timeout') {\n    const barrier = setInterval(() => {\n      if (existsSync(join(folder, 'observer-ready'))) {\n        clearInterval(barrier);\n        setTimeout(cleanup, 50);\n      }\n    }, 5);\n  }\n});\nchild.on('error', error => done({ error: error.code }));\nchild.on('exit', code => {\n  if (terminal === 'clean') cleanup();\n});\n",
+    "t15-experiment.py": "from pathlib import Path\nimport ctypes\nfrom ctypes import wintypes as wt\nfrom datetime import datetime, timezone\nimport hashlib\nimport json\nimport os\nimport platform\nimport shutil\nimport subprocess\nimport sys\nimport tempfile\nimport time\n\nsys.stdout.reconfigure(encoding='utf-8', errors='replace')\nassert os.name == 'nt'\nrepo = Path.cwd()\nsupervisor = repo / 'hooks/runtime-supervisor.py'\nworker = (repo / '.pytest_cache/t15-worker.py').resolve()\nowner = (repo / '.pytest_cache/t15-owner.mjs').resolve()\nnode = shutil.which('node')\nroot = Path(tempfile.mkdtemp(prefix='custom-agents-t15-')).resolve()\napi = ctypes.WinDLL('kernel32', use_last_error=True)\napi.OpenProcess.argtypes, api.OpenProcess.restype = [wt.DWORD, wt.BOOL, wt.DWORD], wt.HANDLE\napi.WaitForSingleObject.argtypes, api.WaitForSingleObject.restype = [wt.HANDLE, wt.DWORD], wt.DWORD\napi.CloseHandle.argtypes, api.CloseHandle.restype = [wt.HANDLE], wt.BOOL\n\ndef source_hashes():\n    return {p: hashlib.sha256((repo / p).read_bytes().replace(b'\\r\\n', b'\\n')).hexdigest()\n            for p in ['hooks/run-hook.mjs', 'hooks/runtime-supervisor.py']}\n\nreport = {'task': 'T-15', 'started': datetime.now(timezone.utc).isoformat(),\n    'platform': platform.platform(), 'python': platform.python_version(),\n    'node': subprocess.check_output([node, '--version'], text=True).strip(),\n    'source_before': source_hashes(), 'runs': [],\n    'method': 'Disposable Node owner invokes unmodified runtime-supervisor run/python; fixture business spawns child and grandchild. External observer holds SYNCHRONIZE process handles before owner termination, then checks signaled state, not PID existence.',\n    'scope': 'Three samples per strategy/terminal; this is a feasibility spike, not the 100-run T-16 acceptance.'}\ncapabilities = subprocess.check_output([node, '--input-type=module', '-e', '''\nimport process from 'node:process';import fs from 'node:fs';import cp from 'node:child_process';import {builtinModules} from 'node:module';\nconsole.log(JSON.stringify({ffiBuiltin: builtinModules.includes('ffi'),\n  matchingPublicExports: Object.fromEntries(Object.entries({process,fs,cp}).map(([k,v])=>[k,Object.keys(v).filter(n=>/CloseHandle|JobObject|ffi/i.test(n))])),\n  fsCloseSyncType: typeof fs.closeSync}));'''], text=True)\nreport['node_public_api_probe'] = json.loads(capabilities)\nscenarios = [('baseline', 'clean'), ('baseline', 'timeout'),\n             ('owner-exit', 'clean'), ('owner-exit', 'timeout'), ('owner-exit', 'cancel'),\n             ('self-close', 'clean'), ('crt-close', 'clean')]\ntry:\n    for strategy, terminal in scenarios:\n        for iteration in range(3):\n            folder = root / f'{strategy}-{terminal}-{iteration}'\n            folder.mkdir()\n            command = [node, str(owner), sys.executable, str(supervisor), str(worker), str(folder), strategy, terminal]\n            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,\n                creationflags=subprocess.CREATE_NO_WINDOW)\n            handles = []\n            try:\n                deadline = time.monotonic() + 12\n                while not (folder / 'node-ready').exists() and process.poll() is None:\n                    if time.monotonic() > deadline:\n                        raise TimeoutError('readiness')\n                    time.sleep(.005)\n                if not (folder / 'tree.json').exists():\n                    raise RuntimeError('no owned process inventory')\n                pids = json.loads((folder / 'tree.json').read_text(encoding='utf-8'))\n                for pid in pids:\n                    handles.append(api.OpenProcess(0x100000, False, pid))\n                assert all(handles), 'all owned processes must still be alive at observation barrier'\n                assert all(api.WaitForSingleObject(h, 0) == 258 for h in handles)\n                if terminal == 'cancel':\n                    process.terminate()  # only the exact Popen-owned Node process\n                else:\n                    (folder / 'observer-ready').write_text('observed', encoding='utf-8')\n                out, err = process.communicate(timeout=20)\n                owner_return = time.monotonic()\n                states = []\n                while True:\n                    active = [i for i, h in enumerate(handles) if h and api.WaitForSingleObject(h, 0) == 258]\n                    states.append({'after_owner_return_ms': (time.monotonic() - owner_return) * 1000, 'active_owned_positions': active})\n                    if not active or time.monotonic() - owner_return > 5:\n                        break\n                    time.sleep(.005)\n                result = {'strategy': strategy, 'terminal': terminal, 'iteration': iteration,\n                    'owner_exit': process.returncode, 'owned_roles': ['business-supervisor', 'child', 'grandchild'],\n                    'all_three_alive_at_observation_barrier': True,\n                    'owner_report': [json.loads(l) for l in out.decode('utf-8', 'replace').splitlines() if l],\n                    'stderr': err.decode('utf-8', 'replace'), 'states': states,\n                    'before_self_close_marker': (folder / 'before-self-close').exists(),\n                    'after_self_close_marker': (folder / 'after-self-close').exists(),\n                    'all_owned_terminated': not states[-1]['active_owned_positions']}\n                report['runs'].append(result)\n                print(strategy, terminal, iteration, 'terminated', result['all_owned_terminated'], result['owner_report'], flush=True)\n            finally:\n                if process.poll() is None:\n                    process.kill()\n                    process.communicate(timeout=5)\n                for handle in handles:\n                    if handle:\n                        api.CloseHandle(handle)\nfinally:\n    report['finished'] = datetime.now(timezone.utc).isoformat()\n    report['source_after'] = source_hashes()\n    report['production_unchanged'] = report['source_before'] == report['source_after']\n    report['initial_diagnostic'] = json.loads((repo / '.pytest_cache/t15-initial-diagnostic.json').read_text(encoding='utf-8'))\n    report['reproducer_sources'] = {p.name: p.read_text(encoding='utf-8') for p in [worker, owner, Path(__file__)]}\n    target = repo / 'docs/roadmap/2026-10-27-plugin-optimization/testing/t15-windows-experiment.json'\n    target.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\\n', encoding='utf-8')\n    (repo / '.pytest_cache/t15-state.json').write_text(json.dumps({'fixture_root': str(root)}, indent=2), encoding='utf-8')\n"
+  },
+  "decision": "no-go within approved scope; preserve confirmed external cleanup",
+  "t16": "cancelled, not implemented",
+  "summary": {
+    "final_samples": 21,
+    "all_owned_terminated": true,
+    "owner_exit_first_observation_still_active": 6,
+    "self_close_after_marker_count": 0,
+    "supervisor_regression": {
+      "passed": 15,
+      "seconds": 0.6
+    },
+    "production_unchanged": true
+  },
+  "reproduction": "Extract reproducer_sources to .pytest_cache/; write initial_diagnostic to .pytest_cache/t15-initial-diagnostic.json; run python .pytest_cache/t15-experiment.py from the repo. This only creates disposable processes and a temporary fixture; runtime source files are loaded read-only."
+}

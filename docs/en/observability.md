@@ -2,6 +2,38 @@
 
 **English** · [Español](../observability.md)
 
+The `SessionStart` launcher retains the `session-context.sh` identity and runs
+`session-context.py` without Bash. It imports journal, index, progress and memory
+services in the same interpreter, preserves context order and limits, and forces
+`--ia no` during replay. Windows still uses the supervisor and process cleanup.
+Direct invocation of the previous shell remains available. The timeout is retained
+until its measured validation is complete.
+
+The pending documentation marker (`.claude/.confluence-pending`) is created
+directly by the Node launcher for all three runtimes, without Python or a shell.
+It retains the `docs/` filter and excludes `docs/security-scan/` and `docs/confluence/`.
+The marker is an empty file; invalid inputs, observed links and write failures
+produce a diagnostic without blocking the edit. Existing nonempty files are
+preserved with a warning. Direct invocation of the legacy shell wrapper remains
+available for compatibility.
+
+Ledger edits use one combined lint/progress hook. It reads and parses each ledger
+once and runs one business Python process (plus the Windows supervisor). Lint
+reports on every call; identical progress is emitted once under the cooperative
+`.claude/.progress-last.lock`, with an atomic `.claude/.progress-last` update.
+The separate wrappers remain available. The hook only reads project ledgers and
+rejects observed links; if saving debounce state fails, it warns and emits
+progress, which may be duplicated.
+Emitted messages and the saved progress line pass through the canonical
+redactor, including when a ledger title contains a credential.
+
+The memory reader loads its governed detail when the consumer project has
+`docs/knowledge/`; that condition covers legacy and approved memory and does not
+depend on a remote backend. The journal, code context and plugin estimation
+doctrine retain their own rules. Projects without that directory read only the
+router; projects with it read both files, so no text saving is claimed for the
+latter case.
+
 Two different questions need two different tools:
 
 | Question | Tool | What you get |
@@ -393,3 +425,21 @@ savings; a failure is not a successful sample. Do not attribute machine noise to
 Temporary projects live in the system temporary directory rather than OneDrive. CI checks
 the contract with controlled clocks and processes, without absolute latency thresholds.
 The local baseline does not generalize to other machines.
+
+### Conditional reads and processes in F2
+
+`tokens_bajo_demanda` inventories the named files; it does not measure a complete
+execution. The dev-cycle and knowledge-check cores load detail conditionally:
+full flow, Jira/subagents/candidates and local memory change the readset. The
+T-11/T-13 scenario comparisons under
+`docs/roadmap/2026-10-27-plugin-optimization/testing/` retain these costs,
+including cases that add text. Do not add a core to its old version or apply
+the default fast-path saving to every configuration.
+
+The combined ledger hook shares reading/parsing and retains lint on every call.
+MultiEdit accepts a top-level path with content edits or individual edit paths;
+progress selects the first ledger whose message is not repeated. SessionStart
+composes context in one business Python interpreter and keeps its 30 s timeout.
+Windows still uses containment and a cleanup-confirmation helper: one business
+Python does not mean one process in total. The T-15 spike did not establish an
+equivalent alternative, so the cleanup margin remains in place.

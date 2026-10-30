@@ -5,6 +5,11 @@ import os
 import subprocess
 import sys
 import tempfile
+import builtins
+import importlib.util
+import io
+
+import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "review-lens-select.py")
@@ -63,6 +68,163 @@ def write(d, rel, text):
 def dev_json(d, text):
     os.makedirs(os.path.join(d, ".claude"), exist_ok=True)
     open(os.path.join(d, ".claude", "dev.json"), "w").write(text)
+
+
+@pytest.mark.parametrize("modo", ["files", "untracked", "tracked"])
+def test_una_apertura_comparte_lineas_y_cabecera(modo, monkeypatch, capsys):
+    """C/D y flujo conservan sus motivos usando una sola apertura del contenido."""
+    d = repo_git()
+    rel = "src/generator.py"
+    text = ('"""Monta el prompt para el modelo."""\n'
+            'profile = open(".claude/personas/backend.md").read()\n'
+            + EVAL + "\n" + SLEEP + "\n")
+    write(d, rel, text)
+    if modo == "tracked":
+        sh(d, "git", "add", rel)
+        sh(d, "git", "commit", "-q", "-m", "generator")
+    spec = importlib.util.spec_from_file_location("lens_io_test", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    target = os.path.normcase(os.path.realpath(os.path.join(d, rel)))
+    original_open, aperturas = builtins.open, []
+
+    def contado(path, *args, **kwargs):
+        if isinstance(path, (str, os.PathLike)) and os.path.normcase(os.path.realpath(path)) == target:
+            aperturas.append((args, kwargs))
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", contado)
+    argv = [SCRIPT, "--json", "--root", d]
+    if modo == "files":
+        argv += ["--files", rel, "./" + rel]  # la misma ruta no se abre dos veces
+    monkeypatch.setattr(sys, "argv", argv)
+    assert mod.main() == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["lente_c"] is True and data["lente_d"] is True
+    assert data["avisos"] == []
+    assert data["motivos"] == [
+        {"tipo": "contenido", "fichero": rel, "linea": 3, "patron": "eval"},
+        {"tipo": "flujo", "fichero": rel, "linea": 2,
+         "patron": 'texto del consumidor (.claude/) le\u00eddo hacia un prompt/brief'},
+    ]
+    assert data["motivos_d"] == [
+        {"tipo": "contenido", "fichero": rel, "linea": 4, "patron": "sleep-bloqueante"},
+    ]
+    assert len(aperturas) == 1, aperturas
+
+
+@pytest.mark.parametrize("payload", [
+    b"", b"a\r\nb\rc\nlast", b"\xef\xbb\xbfhead\n", b"bad\xff\nend",
+    b"x" * 8191 + b"\r\nnext\r",  # CR/LF repartido entre bloques
+    b"x" * 8191 + "\U0001f680\nend".encode("utf-8"),
+    ("\U0001f680" * 9000 + "\nlast").encode("utf-8"),
+    b"a" * 8191 + b"\x00ignored", b"a" * 8192 + b"\x00late\n",
+], ids=["empty", "newlines", "bom", "invalid-utf8", "split-crlf",
+        "split-utf8", "long-utf8", "binary-header", "nul-after-header"])
+def test_lector_conserva_utf8_lineas_y_sondeo_binario(payload, tmp_path, monkeypatch):
+    """Oraculo del lector anterior, con lectura secuencial acotada instrumentada."""
+    path = tmp_path / "source.py"
+    path.write_bytes(payload)
+    spec = importlib.util.spec_from_file_location("lens_reader_test", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    binary = b"\x00" in payload[:8192]
+    with io.TextIOWrapper(io.BytesIO(payload), encoding="utf-8", errors="replace") as f:
+        header = "" if binary else f.read(8192)
+    with io.TextIOWrapper(io.BytesIO(payload), encoding="utf-8", errors="replace") as f:
+        lines = [] if binary else [(i, l.rstrip("\n")) for i, l in enumerate(f, 1)]
+    original_open = builtins.open
+    reads = []
+
+    class Secuencial:
+        def __init__(self, f):
+            self.f = f
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.f.close()
+
+        def read(self, n):
+            assert 0 < n <= 8192
+            assert self.f.tell() == sum(reads), "ningun byte se relee"
+            data = self.f.read(n)
+            reads.append(len(data))
+            return data
+
+    monkeypatch.setattr(mod, "open", lambda *a, **kw: Secuencial(original_open(*a, **kw)), raising=False)
+    assert mod._leer_fichero(path, entero=True) == (header, lines)
+    assert sum(reads) == (min(8192, len(payload)) if binary else len(payload))
+    reads.clear()
+    assert mod._leer_fichero(path) == (header, [])
+    assert sum(reads) <= 32768  # cabecera UTF-8, nunca todo un fichero grande
+
+
+def test_lector_degrada_sin_reintentar_y_cache_no_sobrevive_main(tmp_path, monkeypatch, capsys):
+    path = tmp_path / "generator.py"
+    path.write_text('"""Monta el prompt para el modelo."""\n', encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("lens_error_test", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    calls = []
+
+    def denegado(*args, **kwargs):
+        calls.append(args)
+        raise PermissionError("fixture")
+
+    with monkeypatch.context() as m:
+        m.setattr(mod, "open", denegado, raising=False)
+        lector = mod._Lecturas(str(tmp_path))
+        assert lector.lineas("generator.py") == []
+        assert lector.cabecera("generator.py") == ""
+        assert len(calls) == 1
+    monkeypatch.setattr(sys, "argv", [SCRIPT, "--json", "--root", str(tmp_path), "--files", "generator.py"])
+    assert mod.main() == 0
+    assert json.loads(capsys.readouterr().out)["motivos"] == []
+    path.write_text('"""Monta el prompt para el modelo."""\n'
+                    'open(".claude/personas/backend.md").read()\n', encoding="utf-8")
+    assert mod.main() == 0
+    assert any(m["tipo"] == "flujo" for m in json.loads(capsys.readouterr().out)["motivos"])
+    assert mod._leer_fichero(tmp_path / "missing") == ("", [])
+    assert mod._leer_fichero(tmp_path) == ("", [])
+
+
+def test_f2_d01_minified_bundle_scans_text_linearly(tmp_path, monkeypatch):
+    """Count scanned characters instead of imposing a host-dependent deadline."""
+    body = 'x' * (4 * 1024 * 1024)
+    path = tmp_path / 'sdk.js'
+    path.write_text(body + '\ntail', encoding='utf-8')
+    spec = importlib.util.spec_from_file_location('lens_linear_test', SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    scanned = []
+
+    class Counted(str):
+        def __add__(self, other):
+            return Counted(str.__add__(self, other))
+
+        def __radd__(self, other):
+            return Counted(str.__add__(other, self))
+
+        def split(self, sep=None, maxsplit=-1):
+            scanned.append(len(self))
+            return [Counted(s) for s in str.split(self, sep, maxsplit)]
+
+    original = mod.io.IncrementalNewlineDecoder
+
+    class Decoder:
+        def __init__(self, *args, **kwargs):
+            self.inner = original(*args, **kwargs)
+
+        def decode(self, *args, **kwargs):
+            return Counted(self.inner.decode(*args, **kwargs))
+
+    monkeypatch.setattr(mod.io, 'IncrementalNewlineDecoder', Decoder)
+    header, lines = mod._leer_fichero(path, entero=True)
+    assert header == body[:8192]
+    assert lines == [(1, body), (2, 'tail')]
+    assert sum(scanned) <= 2 * path.stat().st_size, sum(scanned)
 
 
 # ------------------------------------------------------------------ tests ----

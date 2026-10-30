@@ -388,7 +388,7 @@ test('patch metadata carries diagnostics while malformed and oversized context s
     await ctx.hooks.get('tool.execute.after')(event);
     assert.equal(event.result.content[0].text, 'own result');
     assert.equal(event.result.metadata.own, true);
-    assert.deepEqual(event.result.metadata.customAgentsMessages, ['Own diagnostic', 'Own diagnostic', 'Own diagnostic']);
+    assert.deepEqual(event.result.metadata.customAgentsMessages, ['Own diagnostic', 'Own diagnostic']);
     await cleanup(); cleanup = null;
     for (const source of ["process.stdout.write('invalid JSON');", "process.stdout.write('x'.repeat(70000));"]) {
       writeFileSync(join(dir, 'hooks', 'run-hook.mjs'), source);
@@ -446,27 +446,51 @@ test('catalog declares tool activity apart from the post and session activity bi
   assert.deepEqual([tool.domain, tool.native_event, tool.event, tool.behavior, tool.handlers, tool.timeout_ms],
     ['tool', 'execute.after', 'PostToolUse', 'informative', ['agent-activity'], 2500]);
   assert.deepEqual(catalog.bindings.find(item => item.id === 'post').handlers,
-    ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh']);
+    ['mark-docs-pending.sh', 'ledger-post.py']);
   assert.equal(catalog.bindings.find(item => item.id === 'activity').domain, 'event');
 });
 
 test('tool activity resolves before its child ends and sends only summary arguments', async () => {
   const dir = project(); let cleanup;
+  const heldLookups = [];
+  const releaseLookups = () => { for (const release of heldLookups.splice(0)) release(); };
   try {
     const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
       let input=''; process.stdin.setEncoding('utf8'); process.stdin.on('data',chunk=>input+=chunk);
       process.stdin.on('end',()=>{ if(process.argv[2]!=='agent-activity') return;
-        setTimeout(()=>fs.appendFileSync('tool-activity.jsonl',JSON.stringify({argv:process.argv.slice(2),payload:JSON.parse(input)})+'\\n'),1200); });`);
+        fs.appendFileSync('tool-activity.jsonl',JSON.stringify({argv:process.argv.slice(2),payload:JSON.parse(input)})+'\\n'); });`);
     const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    // Hold the background lookup, so no child can start until the events return.
+    // This proves non-awaiting causally instead of charging synchronous OS spawn
+    // startup to a test of awaiting child completion. The 1s event bound remains.
+    const ownLookup = ctx.session.get;
+    let holdNext = false;
+    ctx.session.get = (...args) => {
+      if (!holdNext) return ownLookup(...args);
+      holdNext = false;
+      return new Promise(resolve => heldLookups.push(() => resolve(ownLookup(...args))));
+    };
     const events = [
       { sessionID: 'tool-s', tool: 'read', status: 'completed', agent: 'build', input: { filePath: 'docs/x.md', content: 'RAW-CONTENT-FORBIDDEN' },
         result: { output: 'RAW-OUTPUT-FORBIDDEN' } },
       { sessionID: 'tool-s', tool: 'patch', status: 'error', input: { patchText: '  *** Update File: docs/a.md\n+RAW-PATCH-LINE' } },
     ];
     const started = Date.now();
-    for (const event of events) await ctx.hooks.get('tool.execute.after')(event);
-    assert.ok(Date.now() - started < 1000, 'the event must not wait for the activity child');
+    for (const event of events) {
+      holdNext = true;
+      let timer;
+      try {
+        await Promise.race([
+          ctx.hooks.get('tool.execute.after')(event),
+          new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('event awaited background activity lookup')), 1000); }),
+        ]);
+      } finally { clearTimeout(timer); }
+    }
+    const elapsed = Date.now() - started;
+    assert.ok(elapsed < 1000, `the event must not wait for the activity child (observed ${elapsed} ms)`);
+    assert.equal(heldLookups.length, events.length, 'every activity lookup must remain pending after event completion');
     assert.equal(existsSync(join(dir, 'tool-activity.jsonl')), false);
+    releaseLookups();
     const trace = join(dir, 'tool-activity.jsonl');
     await until(() => existsSync(trace) && readFileSync(trace, 'utf8').trim().split('\n').length === 2);
     const text = readFileSync(trace, 'utf8');
@@ -477,7 +501,7 @@ test('tool activity resolves before its child ends and sends only summary argume
       data: { sessionID: 'tool-s', tool: 'patch', status: 'error', args: { command: '*** Update File: docs/a.md' } } });
     assert.deepEqual(rows[1].payload, { type: 'tool.execute.after', cwd: dir,
       data: { sessionID: 'tool-s', tool: 'read', status: 'completed', agent: 'build', args: { filePath: 'docs/x.md' } } });
-  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+  } finally { releaseLookups(); await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('tool activity child is tracked and cleanup terminates it', async () => {
@@ -517,7 +541,7 @@ test('tool activity ignores foreign sessions and keeps the post notifications', 
     ctx.session.get = own;
     const event = { sessionID: 'own', tool: 'write', status: 'completed', input: { filePath: 'docs/own.md' }, result: { metadata: {} } };
     await ctx.hooks.get('tool.execute.after')(event);
-    assert.deepEqual(event.result.metadata.customAgentsMessages, ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh']);
+    assert.deepEqual(event.result.metadata.customAgentsMessages, ['mark-docs-pending.sh', 'ledger-post.py']);
     await until(() => existsSync(join(dir, 'tool-activity.jsonl')));
   } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
 });
@@ -535,8 +559,9 @@ test('tool activity is dispatched before the awaited post handlers of the same e
     await ctx.hooks.get('tool.execute.after')({ sessionID: 'order', tool: 'write', status: 'completed',
       input: { filePath: 'docs/order.md' }, result: { metadata: {} } });
     const trace = join(dir, 'starts.jsonl');
-    await until(() => existsSync(trace) && readFileSync(trace, 'utf8').trim().split('\n').length === 4);
+    await until(() => existsSync(trace) && readFileSync(trace, 'utf8').trim().split('\n').length === 3);
     const rows = readFileSync(trace, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+    assert.deepEqual(rows.map(row => row.handler).sort(), ['agent-activity', 'ledger-post.py', 'mark-docs-pending.sh']);
     const activity = rows.find(row => row.handler === 'agent-activity');
     const firstPost = rows.filter(row => row.handler !== 'agent-activity').sort((a, b) => a.at - b.at)[0];
     assert.ok(activity.at < firstPost.at + 300,

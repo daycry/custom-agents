@@ -2,6 +2,38 @@
 
 [English](en/observability.md) · **Español**
 
+El launcher de `SessionStart` conserva la identidad `session-context.sh`, pero
+ejecuta `session-context.py` sin Bash. Importa los servicios de journal, índice,
+progreso y memoria en el mismo intérprete, conserva el orden y los topes del
+contexto y fuerza `--ia no` durante replay. En Windows sigue usando el supervisor
+y su cierre de procesos. La invocación directa del shell anterior permanece
+disponible. El timeout se mantiene hasta completar su validación medida.
+
+El marcador de documentación pendiente (`.claude/.confluence-pending`) se crea
+directamente en el launcher Node para los tres runtimes, sin Python ni shell.
+Conserva los filtros de `docs/` y excluye `docs/security-scan/` y `docs/confluence/`.
+El marcador es un fichero vacío; entradas inválidas, enlaces observados y fallos
+de escritura producen un diagnóstico sin bloquear la edición. Un fichero existente
+con contenido se conserva y se avisa. La invocación directa del wrapper shell
+antiguo sigue disponible como compatibilidad.
+
+Los edits de un ledger usan un solo hook de validación y progreso. Lee y analiza
+el ledger una vez y ejecuta un Python de negocio (más el supervisor en Windows).
+Lint informa en cada llamada; el progreso idéntico se emite una sola vez bajo
+cerrojo sobre `.claude/.progress-last.lock`, con actualización atómica de
+`.claude/.progress-last`. Los wrappers separados siguen disponibles. El hook
+solo consulta ledgers del proyecto y rechaza enlaces observados; si no puede
+guardar el debounce, avisa y emite el progreso, que puede repetirse.
+Los mensajes emitidos y la línea de progreso guardada pasan por el redactor
+canónico, también cuando un título del ledger contiene una credencial.
+
+El lector de memoria carga su detalle gobernado cuando el proyecto consumidor
+tiene `docs/knowledge/`; la condición incluye tanto legado como approved y no
+depende de un backend remoto. El journal, el contexto de código y la doctrina
+de estimación del plugin conservan sus reglas propias. Sin esa carpeta se lee
+solo el núcleo; con ella se leen núcleo y referencia, por lo que no se atribuye
+ahorro de texto a ese segundo caso.
+
 Dos preguntas distintas necesitan herramientas distintas:
 
 | Pregunta | Herramienta | Qué obtienes |
@@ -391,3 +423,21 @@ comparación inconcluyente no acredita ahorro global; un fallo no es una muestra
 No atribuir al cambio el ruido de la máquina. Los temporales están en el directorio temporal del sistema, no en
 OneDrive. La CI comprueba el contrato con relojes y procesos controlados, sin
 umbrales absolutos de latencia. La línea base local no se extrapola a otros equipos.
+
+### Lecturas condicionales y procesos en F2
+
+`tokens_bajo_demanda` es un inventario de los ficheros indicados, no el coste de
+una ejecución completa. Los núcleos de dev-cycle y knowledge-check cargan detalle
+bajo condiciones: el flujo completo, Jira/subagentes/candidatos o la presencia de
+memoria local cambian el readset. Las comparaciones por escenario de T-11/T-13 en
+`docs/roadmap/2026-10-27-plugin-optimization/testing/` conservan esos costes,
+incluidos los escenarios que añaden texto. No sumes un núcleo y su versión antigua
+ni atribuyas el ahorro de la vía rápida a todas las configuraciones.
+
+El hook combinado del ledger comparte lectura/análisis y conserva lint en cada
+llamada. MultiEdit admite una ruta superior con ediciones de contenido, o rutas
+por edición; el progreso elige el primer ledger que no esté repetido. SessionStart
+compone el contexto en un Python de negocio y mantiene su timeout de 30 s.
+En Windows sigue habiendo supervisión y confirmación de limpieza mediante un
+helper: «un Python de negocio» no significa «un proceso total». El spike de T-15
+no acreditó una alternativa equivalente; no se reduce ese margen de limpieza.

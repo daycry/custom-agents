@@ -37,6 +37,12 @@ natural que redirige a `/pm-cycle` o al flujo completo cuando el cambio NO es pe
 > Si no lo encuentras (instalación parcial), **dilo y para**: ofrece implementar el cambio a mano,
 > avisando de que no habrá ledger ni puertas. Nunca improvises un método paralelo.
 
+Lee el **núcleo** de ese comando; sus referencias de
+`agent-kits/dev-cycle/references/` se abren sólo al llegar a la condición que
+indica. Conserva la Fase 3 completa y el Knowledge Gate: comprueba candidatos
+tras QA, aunque no se haya pedido documenter. No precargues Fases 1/2, Jira
+deshabilitado, subagentes deshabilitados ni detalles de curación sin pendientes.
+
 ## Paso 1 — Filtro de idoneidad (OBLIGATORIO, antes de tocar nada)
 
 La vía rápida es para cambios que se describen en **una o dos frases** y tocan **pocos ficheros**.

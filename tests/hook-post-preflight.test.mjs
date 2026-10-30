@@ -22,6 +22,7 @@ for (const runtime of ['claude', 'codex', 'opencode']) {
     ['mark-docs-pending.sh', edit('docs/confluence/page.md')],
     ['ledger-lint-warn.sh', edit('docs/roadmap/first/spec.md')],
     ['progress-line.sh', edit('docs/roadmap/first/design.md')],
+    ['ledger-post.py', edit('docs/roadmap/first/design.md')],
     ['ledger-lint-warn.sh', { tool_input: { edits: [{ file_path: 'src/app.py' }, { file_path: 'docs/README.md' }] } }],
     ['progress-line.sh', { tool_name: 'apply_patch', tool_input: { command: '*** Begin Patch\n*** Add File: src/app.py\n+x\n*** End Patch' } }],
   ]) test(`${runtime}: ${hook} skips Python for an inapplicable edit ${JSON.stringify(payload)}`, () => {
@@ -32,8 +33,8 @@ for (const runtime of ['claude', 'codex', 'opencode']) {
   });
 
   for (const [hook, payload] of [
-    ['mark-docs-pending.sh', edit('docs/README.md')],
     ['ledger-lint-warn.sh', edit('docs\\roadmap\\first\\tasks.md')],
+    ['ledger-post.py', edit('docs\\roadmap\\first\\tasks.md')],
     ['progress-line.sh', { tool_input: { edits: [{ file_path: 'src/app.py' }, { file_path: 'docs/roadmap/first/tasks.md' }] } }],
     ['progress-line.sh', { tool_name: 'apply_patch', tool_input: { command: '*** Begin Patch\n*** Update File: docs/roadmap/first/tasks.md\n@@\n-old\n+new\n*** End Patch' } }],
     ['ledger-lint-warn.sh', '{invalid'],
@@ -42,7 +43,7 @@ for (const runtime of ['claude', 'codex', 'opencode']) {
     ['ledger-lint-warn.sh', edit('docs/roadmap/first/tasks.md\nsrc/app.py')],
     ['ledger-lint-warn.sh', edit('docs/roadmap/first\u2028/tasks.md')],
     ['progress-line.sh', edit('docs/roadmap/first\u2029/tasks.md')],
-  ]) test(`${runtime}: ${hook} keeps execution for an applicable or unknown edit ${JSON.stringify(payload)}`, () => {
+  ]) test(`${runtime}: ${hook} keeps diagnostics for an applicable or unknown edit ${JSON.stringify(payload)}`, () => {
     const result = invoke(hook, runtime, payload);
     assert.equal(result.status, 0);
     assert.match(result.stderr, /custom-agents hooks:/);

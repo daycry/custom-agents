@@ -1,6 +1,6 @@
 // Shared launcher for Claude Code, Codex and OpenCode. No shell interprets the payload.
 import { spawn, spawnSync } from 'node:child_process';
-import { constants, closeSync, existsSync, fstatSync, openSync, readSync } from 'node:fs';
+import { constants, closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readSync } from 'node:fs';
 import { dirname, delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -127,7 +127,7 @@ const fs = { constants, closeSync, fstatSync, openSync, readSync };
 const here = dirname(fileURLToPath(import.meta.url));
 const root = dirname(here);
 const known = new Set(['session-journal.sh', 'user-prompt-capture.sh', 'session-context.sh',
-  'subagent-progress.sh', 'mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh',
+  'subagent-progress.sh', 'mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh', 'ledger-post.py',
   'implementer-guardrail.sh', 'architect-guardrail.sh', 'native-guardrail', 'agent-activity']);
 const hook = process.argv[2];
 const runtime = process.argv[3] || '--runtime=claude';
@@ -205,7 +205,12 @@ function postPaths(payload) {
   if ('edits' in value) {
     if (!Array.isArray(value.edits)) return null;
     for (const edit of value.edits) {
-      if (!edit || typeof edit.file_path !== 'string' || !edit.file_path || /[\r\n]/.test(edit.file_path)) return null;
+      if (!edit || typeof edit !== 'object' || Array.isArray(edit)) return null;
+      if (!('file_path' in edit)) {
+        if (!('file_path' in value)) return null;
+        continue; // Standard MultiEdit content changes share the top-level path.
+      }
+      if (typeof edit.file_path !== 'string' || !edit.file_path || /[\r\n]/.test(edit.file_path)) return null;
       paths.push(edit.file_path);
     }
   }
@@ -221,6 +226,28 @@ function postApplies(paths) {
   });
 }
 
+function markDocumentation() {
+  const directory = join(env.CLAUDE_PROJECT_DIR || process.cwd(), '.claude');
+  let fd;
+  try {
+    try { mkdirSync(directory); }
+    catch (error) { if (error.code !== 'EEXIST') throw error; }
+    const info = lstatSync(directory);
+    if (!info.isDirectory() || info.isSymbolicLink()) throw new Error('unsafe state directory');
+    const marker = join(directory, '.confluence-pending');
+    try {
+      // Never truncate an existing file or follow a marker link. An already empty
+      // regular marker is the complete state; no interpreter or child is needed.
+      fd = openSync(marker, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, 0o600);
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      const previous = lstatSync(marker);
+      if (!previous.isFile() || previous.isSymbolicLink() || previous.size !== 0) throw error;
+    }
+  } catch { warn('documentation marker unavailable; hook skipped'); }
+  finally { if (fd !== undefined) try { closeSync(fd); } catch { /* Best-effort informative hook. */ } }
+}
+
 async function main() {
   if (!known.has(hook)) { warn('unknown hook'); return; }
   if (!['--runtime=claude', '--runtime=codex', '--runtime=opencode'].includes(runtime)) {
@@ -233,7 +260,7 @@ async function main() {
     setTimeout(() => process.exit(0), 1000).unref();
     return;
   }
-  const post = ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh'].includes(hook);
+  const post = ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh', 'ledger-post.py'].includes(hook);
   let input, guardDeadline;
   if (guard) {
     guardDeadline = performance.now() + childBudgetMs(hook, runtime, process.env);
@@ -265,17 +292,32 @@ async function main() {
         paths = normalized.length ? normalized : null;
       } else paths = postPaths(payload);
       if (paths && !postApplies(paths)) return;
-    } catch { /* Unknown input keeps the shell hook's existing degradation. */ }
+      if (hook === 'mark-docs-pending.sh') {
+        if (paths) markDocumentation();
+        else warn('documentation paths unavailable; hook skipped');
+        return;
+      }
+    } catch {
+      if (hook === 'mark-docs-pending.sh') {
+        warn('documentation input unavailable; hook skipped');
+        return;
+      }
+      // Other hooks retain their existing conservative shell fallback.
+    }
   }
   const py = python();
   if (!py) { warn('Python unavailable; hook skipped'); if (guard) emitGuard(); return; }
   let command, args;
   // Capture and native guards use contained Python without shell startup.
-  if (guard || activity || hook === 'session-journal.sh' || hook === 'user-prompt-capture.sh') {
+  if (guard || activity || hook === 'session-journal.sh' || hook === 'user-prompt-capture.sh' || hook === 'ledger-post.py' || hook === 'session-context.sh') {
     command = py.command;
     args = activity
       ? [...py.args, '-I', '-S', ...(!windows ? ['-X', 'utf8', '-B'] : []), join(root, 'agent-kits', 'shared', 'agent-activity-store.py'),
         '--runtime', runtime.slice('--runtime='.length), '--root', env.CLAUDE_PROJECT_DIR || process.cwd()]
+      : hook === 'ledger-post.py'
+      ? [...py.args, '-I', '-S', join(here, 'ledger-post.py')]
+      : hook === 'session-context.sh'
+      ? [...py.args, '-I', '-S', join(here, 'session-context.py'), runtime]
       : guard
       ? [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'native-guardrail.py'),
         '--runtime', runtime.slice('--runtime='.length), '--output', 'structured']
@@ -297,7 +339,7 @@ async function main() {
     if (hook === 'session-context.sh') args.push(runtime);
   }
   if (windows) {
-    const mode = guard || activity || ['session-journal.sh', 'user-prompt-capture.sh'].includes(hook) ? 'python' : 'exec';
+    const mode = guard || activity || ['session-journal.sh', 'user-prompt-capture.sh', 'ledger-post.py', 'session-context.sh'].includes(hook) ? 'python' : 'exec';
     args = [...py.args, '-I', '-S', ...(activity ? ['-X', 'utf8', '-B'] : []), join(here, 'runtime-supervisor.py'), 'run', String(process.pid), mode, command, ...args];
     command = py.command;
   }

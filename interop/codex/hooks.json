@@ -82,11 +82,7 @@
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" ledger-lint-warn.sh --runtime=codex"
-          },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" progress-line.sh --runtime=codex"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" ledger-post.py --runtime=codex"
           }
         ]
       },

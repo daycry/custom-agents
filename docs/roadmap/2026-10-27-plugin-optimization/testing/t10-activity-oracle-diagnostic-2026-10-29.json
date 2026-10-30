@@ -1,0 +1,81 @@
+{
+  "kind": "test_oracle_root_cause",
+  "production_adapter_change": "Only post-handler catalog consolidation; activity dispatch and budgets unchanged",
+  "initial_windows_run": {
+    "command": "node --test --test-concurrency=1 tests/hook-post-preflight.test.mjs tests/hook-runtime.test.mjs tests/opencode-plugin.test.mjs",
+    "passed": 99,
+    "failed": 3,
+    "seconds": 209.4369217,
+    "failures": [
+      "metadata fixture still expected three handlers",
+      "activity assertion measured synchronous spawn wall time under an uncontrolled schedule",
+      "ordering fixture still waited for four starts instead of three"
+    ]
+  },
+  "repeat_group": {
+    "passed": 8,
+    "failed": 1,
+    "observed_event_ms": 1380,
+    "event_ceiling_ms": 1000
+  },
+  "isolation_trials": {
+    "runs": 3,
+    "passed": 3,
+    "limitations": "Passing isolated trials do not uniquely reconstruct either original failure"
+  },
+  "controlled_probe_before": {
+    "injected_synchronous_delay_ms_per_spawn": 700,
+    "exit": 1,
+    "synchronous_spawn_ms": [
+      1119.2076000000002,
+      1173.9575000000002
+    ],
+    "observed_event_ms": 2301,
+    "failure": "event must not wait for the activity child"
+  },
+  "proven_cause": "The wall-clock oracle can report awaiting a child when synchronous OS process creation alone consumes the measured window. Production activity lookup/child work is detached; the old test did not isolate that dependency.",
+  "test_fix": "Hold each activity session lookup until both SDK event promises return, retain the 1000ms event ceiling, assert both lookups remain pending and no child output exists; release them and validate real child argv/payload. A per-event 1000ms watchdog prevents an awaited-activity mutation hanging the fixture. Cleanup always releases owned gates.",
+  "controlled_probe_after": {
+    "same_injected_delay_ms_per_spawn": 700,
+    "exit": 0,
+    "synchronous_spawn_ms": [
+      1108.3071,
+      1095.822
+    ]
+  },
+  "mutant_results": [
+    {
+      "variant": "baseline",
+      "exit": 0,
+      "expected_failure_observed": false
+    },
+    {
+      "variant": "await-activity-mutant",
+      "exit": 1,
+      "expected_failure_observed": true
+    }
+  ],
+  "corrected_directed_group": {
+    "passed": 9,
+    "failed": 0,
+    "seconds": 19.8385931
+  },
+  "preserved": [
+    "1000ms event assertion",
+    "2500ms production activity adapter budget",
+    "activity child/payload integration",
+    "group ordering assertion and 300ms margin",
+    "real process teardown tests"
+  ],
+  "limits": [
+    "Does not uniquely establish the original host/OS/antivirus scheduling cause",
+    "No native activity dispatch latency improvement is claimed",
+    "Full corrected Linux CI and independent F2 review remain T-19"
+  ],
+  "local_raw_artifacts_sha256": {
+    ".pytest_cache/t10-activity-timing-isolation.json": "475464c73cc37fa0424cf9c6c0e60d32fd4185fb23ac3a640c2ed6dd50c79e4e",
+    ".pytest_cache/t10-slow-spawn-control.json": "789c0c3c1f2f0099efb353af88d56f6639270616c7b019b8231e266bbaee3c64",
+    ".pytest_cache/t10-slow-spawn-after-control.json": "8046d6c876d26c714593ca83fce54ff2bd5506cff4605a2e8cfd67973512700b",
+    ".pytest_cache/t10-await-mutation.json": "d3afca1a16dbb8c0cc434df5366daf137a532916c3d3a0b667358dc60dfcce3d"
+  }
+}
