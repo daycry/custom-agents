@@ -109,3 +109,26 @@ def test_sensitive_looking_adapter_identifiers_are_not_exported(tmp_path):
     write(tmp_path,{'version':1,'bindings':[binding(adapter={'kind':'tool','origin':'session','name':secret})]})
     result=router().route(tmp_path)
     assert result['status']=='invalid' and secret not in json.dumps(result)
+
+
+@pytest.mark.parametrize('encoding',['cp1252','ascii'])
+@pytest.mark.parametrize('case',['absent','disabled','declared','invalid','partial','no_match'])
+def test_cli_preserves_status_and_never_claims_execution(tmp_path,encoding,case):
+    import os
+    import subprocess
+    import sys
+    options=[]
+    if case=='disabled':write(tmp_path,{'version':1,'bindings':[]})
+    elif case in ('declared','no_match'):write(tmp_path,{'version':1,'bindings':[binding()]})
+    elif case=='invalid':write(tmp_path,{'private-note':'do-not-disclose'})
+    elif case=='partial':write(tmp_path,{'version':1,'bindings':[binding(),{'id':'invalid'}]})
+    if case=='no_match':options=['--operation','another.operation']
+    run=subprocess.run([sys.executable,str(SCRIPT),
+                        '--project',str(tmp_path),'--check',*options],capture_output=True,
+                       env={**os.environ,'PYTHONIOENCODING':encoding})
+    assert run.returncode==(2 if case in ('invalid','partial') else 0)
+    assert run.stderr==b'' and run.stdout.isascii()
+    result=json.loads(run.stdout)
+    assert result['status']==case
+    assert result['availability']==result['permissions']=='unverified'
+    assert result['execution']=='not_run' and b'do-not-disclose' not in run.stdout

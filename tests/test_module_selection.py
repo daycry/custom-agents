@@ -54,3 +54,39 @@ def test_selection_reader_ships_with_copied_shared_kit(tmp_path):
 
 def test_empty_selection_is_not_a_silent_install():
     with pytest.raises(ValueError):api().resolve_selection(profile='core',exclude=['core'])
+
+
+@pytest.mark.parametrize('defect',[
+    'version','identifier','fields','list','duplicate','unknown-dependency','duplicate-owner','unknown-profile-module',
+])
+def test_malformed_catalogs_cannot_be_delivered_by_either_reader(defect):
+    catalog={'version':1,'modules':{'core':{'skills':['tdd'],'commands':[],'requires':[]}},'profiles':{'core':['core']}}
+    if defect=='version':catalog['version']=True
+    elif defect=='identifier':catalog['profiles']['../outside']=[]
+    elif defect=='fields':catalog['modules']['core']['extra']=True
+    elif defect=='list':catalog['modules']['core']['skills']='tdd'
+    elif defect=='duplicate':catalog['modules']['core']['skills']=['tdd','tdd']
+    elif defect=='unknown-dependency':catalog['modules']['core']['requires']=['absent']
+    elif defect=='duplicate-owner':catalog['modules']['other']={'skills':['tdd'],'commands':[],'requires':[]}
+    elif defect=='unknown-profile-module':catalog['profiles']['core']=['absent']
+    with pytest.raises(ValueError):api().resolve_selection(catalog=catalog)
+    code="import {resolveSelection} from './install/modules.mjs'; try {resolveSelection({catalog:JSON.parse(process.argv[1])}); process.exit(3)} catch {process.exit(0)}"
+    run=subprocess.run(['node','--input-type=module','-e',code,json.dumps(catalog)],cwd=ROOT,capture_output=True)
+    assert run.returncode==0, run.stderr
+
+
+@pytest.mark.parametrize('options',[
+    ['--profile','missing'], ['--with','missing'], ['--with','jira','--without','jira'],
+    ['--with','content','--without','voice'], ['--without','core'],
+])
+def test_selection_cli_rejects_invalid_requests_without_partial_json(options):
+    import sys
+    run=subprocess.run([sys.executable,str(PATH),*options],capture_output=True)
+    assert run.returncode==2 and run.stdout==b''
+    assert b'module selection unavailable' in run.stderr and b'Traceback' not in run.stderr
+
+
+def test_bounded_catalog_read_does_not_accept_truncated_metadata(tmp_path,monkeypatch):
+    path=tmp_path/'modules.json';path.write_bytes(b' '*65537)
+    module=api();monkeypatch.setattr(module,'CATALOG',path)
+    with pytest.raises(ValueError,match='exceeds limit'):module.resolve_selection()
