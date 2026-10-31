@@ -3,7 +3,7 @@
 
 **Usage and customization handbook:** [Detailed core workflows, optional integrations, Atlassian/Redmine and project extensions](docs/en/CUSTOMIZATION.md). Native bundles are complete; configured does not mean connected or authorized.
 
-[PDF handbook for department leads (Spanish, 39 pages)](output/pdf/custom-agents-manual-operativo.pdf).
+[Illustrated PDF handbook for department leads (Spanish)](output/pdf/custom-agents-manual-operativo.pdf).
 
 **English** · [Español](README.es.md)
 
@@ -263,7 +263,7 @@ flowchart LR
 | `/spec-drift` | Does the code still honor the implemented specs? |
 | `/retro` | Closes the loop: deviations + causes → `CALIBRATION.md`. |
 | `/confluence-pull` | Confluence → local `docs/` (PM without git). |
-| `/plugin-catalog` | Search bundle capabilities and your project/user extensions, with sources and conflicts. |
+| `/plugin-catalog` | Open the shared project console for native sessions/chat, plans and kanban, or export a capability inventory. |
 | `/work-context` | Relevant guides and explicitly selected extensions for the task. |
 | `/work-resume` | Current ledger and selected session history in a bounded read-only dossier. [Selection and limits](docs/en/WORK-RESUME.md). |
 | `/doctor` | Deterministic install diagnosis: tools, plugin/hooks, statusline, `.claude/` configs, work state — ✅/⚠️/❌ verdict with the fix per line, read-only, no network. |

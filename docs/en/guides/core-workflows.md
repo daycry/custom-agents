@@ -1,151 +1,310 @@
-# 2. Detailed core workflows
+# 2. From a request to a delivery: the core workflows
 
-Skills listed below are selected when relevant, not all preloaded. Agent invocation
-uses the runtime's actual native IDs. Each workflow retains local artifact ownership.
+Core organizes work without requiring Jira, Redmine or a wiki. Our portal example
+continues here. Every initiative has its own records and verifiable tasks. Commands
+start or consult the process in the supported runtime; they are not a substitute
+for understanding and agreeing on the goal.
 
-## W-01. Set up a project
+## W-01. Prepare a project for work
 
-**Trigger:** a team starts using the product in a repository. **Commands:** `/setup`
-and `/doctor`. **Actor:** the command's current thread; no extra onboarding agent.
-**Skills:** `rates-verify` and `unit-tests` when selected. **Tools:** local file access,
-plus official pricing reads when requested.
+### When to use it and what you need
 
-| Step | Actor/action | Input | Output/gate |
+Use this workflow when a team first starts in a project. You need an administrator
+or technical contact, the right project folder, an installed plugin or supported
+copy, and someone who can decide the team’s working rules. Installation and accounts
+must already be prepared by their respective owners.
+
+You can ask:
+
+```text
+Prepare this project for our team. We want to organize work locally,
+use tests before changes and share documentation only when we agree.
+Explain the available options and check what still needs setup.
+```
+
+```mermaid
+flowchart TD
+    A[Choose the right project] --> B[Review available capabilities]
+    B --> C[Team chooses its rules]
+    C --> D[Save and check configuration]
+    D --> E[Explain ready and pending items]
+```
+
+1. **Identify the project.** The coordinator checks which folder and initiative you
+   mean. With multiple open projects, it clarifies the target rather than guessing
+   from a nearby folder or a preference from another team.
+2. **Check installation.** `/doctor` explains what it could verify and which
+   capabilities are absent or unconfirmed. A historical diagnostic report is not
+   evidence of a currently working connection.
+3. **Agree on rules.** `/setup` guides development rules, review and test preferences,
+   memory choices and external services. Ask for a sensible proposal; you do not
+   have to understand every internal identifier to make an informed decision.
+4. **Record the choices.** The project configuration captures the agreed preferences.
+   A setting that requires permission does not create that permission in the runtime.
+   An unavailable requested function remains visibly unavailable.
+5. **Check each external service separately, if chosen.** Its administrator validates
+   the account and destination. Saving a Jira preference does not prove that an issue
+   was created. Core remains usable without an external service.
+6. **Receive a readiness summary.** It should say what is ready, what was tested,
+   what remains and who needs to act. The presence of a file is not a passing check.
+
+**Participants and components:** the team makes the process decisions; the coordinator
+uses `/setup`, `/doctor` and configuration readers, involving an administrator when
+needed. `plugin-panel` and `/work-context` can inventory declared capabilities.
+No mandatory MCP or external account is needed for a local pilot.
+
+If something is missing, ask which step failed and what evidence is available.
+Correct installation or access at its owner; do not widen permissions blindly.
+
+## W-02. Turn an idea into a proposal you can approve
+
+### The portal example
+
+The department wants approval and rejection. The product still needs to clarify who
+may decide, whether a reason is mandatory and what happens if someone clicks twice.
+The product workflow `/pm-cycle` helps define the need and decide whether to proceed.
+Its output is a proposal, not an implementation that has already been authorized.
+
+```text
+We want a portal for approving and rejecting internal requests.
+Help me define the expected behavior, risks and scope before building it.
+```
+
+```mermaid
+flowchart TD
+    A[Explain the problem] --> B[Clarify expected behavior]
+    B --> C[Evaluate effort and risks]
+    C --> D{Owner decides}
+    D -->|Proceed| E[Approved proposal for planning]
+    D -->|Change| B
+    D -->|Stop| F[Record the decision]
+```
+
+1. **The analyst makes the request concrete.** `analyst` asks about real cases:
+   who can approve, whether a rejection may be empty, and whether the same request
+   may receive two decisions. It turns the answers into observable acceptance
+   conditions, not merely descriptions of buttons.
+2. **The evaluator explains uncertainty.** `evaluator` estimates effort, cost and
+   risks from available evidence. Ask what is measured, estimated or unknown. A
+   missing number should remain missing, rather than being invented for a table.
+3. **Compare approaches when needed.** `architect` can explain alternatives and
+   their implications. Its recommendation supports the owner’s decision rather
+   than replacing it. `research-first` may compare existing tools or solutions;
+   `code-health` may provide evidence about the repository’s condition.
+4. **The owner decides.** Approve, request changes or stop. A clear approval might
+   allow the three agreed behaviors while leaving automatic notifications out.
+   The specification retains that scope and the reasoning behind it.
+5. **Prepare the next stage.** The coordinator explains how to plan and execute an
+   approved initiative. A proposal on disk is not permission to implement every
+   idea mentioned during the discussion.
+
+**Check the result:** the specification explains desired behavior and boundaries;
+its evaluation states assumptions. You can identify the decision and what the
+team is now authorized to do. If answers or evidence are missing, clarify them
+rather than treating silence as approval.
+
+## W-03. Divide the proposal into understandable phases and tasks
+
+### What a plan does
+
+A phase groups related work that produces a reviewable result. Our portal might
+have a Foundation phase and a Delivery phase. The tasks below are illustrative:
+`planner` adapts them to the real project and its dependencies.
+
+```text
+Plan the approved portal proposal. Show phases, each task’s outcome,
+its dependencies and the checks we will use to accept it.
+```
+
+```mermaid
+flowchart TD
+    A[Approved proposal] --> B[Planner organizes phases]
+    B --> C[Define tasks and criteria]
+    C --> D[Review dependencies and checks]
+    D --> E{Owner agrees with the plan?}
+    E -->|Change| B
+    E -->|Yes| F[Plan ready to execute]
+```
+
+| Phase | Example task | Observable result | Example check |
 |---|---|---|---|
-| 1 | Orchestrator identifies root, runtime and installation | Explicit project | Correct scope, without cross-project settings |
-| 2 | Doctor reviews existing setup | Bundle and project config | Read-only diagnostic and fixes |
-| 3 | User confirms financial parameters | Rate, working day, supervision | `rates.json`, with unverified prices labeled |
-| 4 | User chooses external functions or none | Tracking/documentation/other | `integrations.json` bindings or empty list |
-| 5 | Adapter defines preferences | Destination, granularity, permission, states | Provider settings; credentials outside Git |
-| 6 | User chooses discipline and principles | TDD, worktrees, delegation, constitution | `dev.json` and optional constitution |
-| 7 | Orchestrator presents observability/model options | Setup/runtime options | Only accepted changes |
-| 8 | Router and doctor validate configuration | Written declarations | Valid config; connectivity remains separately unverified |
+| Foundation | T-01: responsible-person permission | Only an authorized person can decide | Another person is denied |
+| Foundation | T-02: record a decision | Approval or rejection and its reason are retained | An empty rejection remains pending |
+| Experience | T-03: show progress | People can understand the current result | Pending and rejected requests are distinguishable |
+| Delivery | T-04: verify and document | The team can use and recover the change | Review, tests and usable instructions |
 
-Example: “Configure local work, TDD and coverage; do not connect external services yet.”
-This does not create accounts, issues, pages or MCP servers. Invalid existing settings
-are reviewed, not discarded to restart onboarding.
+1. Read the proposed phases in `improvement-plan.md`. Ask what each phase delivers,
+   why it comes first and which dependencies constrain it.
+2. Inspect representative tasks in `tasks.md`. Each needs a purpose and acceptance
+   criteria, not just a name such as “backend.” Checks must address behavior that
+   the department recognizes.
+3. `work-context` and `capability-check` help choose available agents and skills.
+   For example, `stack-practices` contributes language/framework guidance,
+   `api-contract` checks an API specification, and `frontend-quality` helps assess
+   keyboard use and interaction. They are included when relevant.
+4. Compare scope, order and estimates. If the project needs an external task mirror,
+   it can be prepared from the approved plan without creating a second authoritative
+   list. The Atlassian and Redmine chapters explain task-versus-phase choices.
+5. Agree on the plan before execution. A new request that expands scope must be
+   assessed rather than quietly folded into an unrelated task.
 
-## W-02. Turn an idea into a product decision
+**Check the result:** you can explain what every task achieves and how the team
+will verify it. The plan and task register agree. Unresolved decisions remain
+explicit; they are not disguised as ready implementation work.
 
-**Command:** `/pm-cycle <objective>`. **Agents:** optional analyst, evaluator, optional
-architect after go. **Skills:** research-first for alternatives, code-health for debt
-evidence, rates-verify as needed, stack/memory context on demand. **Tools:** repository
-reads, estimation/meter scripts, document writes and official research when relevant.
+## W-04. Implement a task, review it and verify that it works
 
-| Step | Owner | Work/artifact | Decision/handoff |
-|---|---|---|---|
-| 1 | Orchestrator | Reuse/create initiative folder | Avoid duplicate initiatives |
-| 2 | Analyst if ambiguous | Clarify users, permissions, scope, exclusions, acceptance | Verifiable spec reviewed with user |
-| 3 | Evaluator | Inspect code and estimate effort, cost, tokens, complexity, risks | Evaluation in review, estimates labeled |
-| 4 | User | Go, revise or no-go | Approved spec/completed evaluation, iteration or traced cancellation |
-| 5 | Architect if requested | Compare options; user chooses | Approved design and linked decision |
-| 6 | Orchestrator | Summarize and offer dev-cycle on the same folder | PM cycle ends without automatic implementation |
+### What starts this workflow
 
-For request approval, clarify who may approve, repeat decisions, audit retention and
-rejection validation. A vague “approval screen” is not sufficient acceptance.
-An external container is optional and needs a compatible `plan.container` adapter;
-this stage does not bulk-create development tasks. Documentation projection does
-not replace go/no-go.
+An approved plan identifies a permitted next task. `/dev-cycle` coordinates the
+execution. You do not have to direct every specialist, but you should be able to
+see results, evidence, pending decisions and the next action.
 
-## W-03. Select capabilities and plan
+```text
+Continue the approved portal plan using the next permitted task.
+Show the change, review and verification. Ask about any scope decision
+that the current agreement does not already cover.
+```
 
-**Commands:** `/work-context` and `/dev-cycle <initiative>`. **Agent:** planner, using
-the chosen design. **Skills:** relevant stack-practices, backend-practices,
-frontend-quality, delivery-practices, api-contract, dependency-upgrade, research-first;
-roadmap-dashboard for portfolio data. **Tools:** manifests, inventory and ledger scripts.
+```mermaid
+flowchart TD
+    A[Task ready to start] --> B[Implementer records evidence]
+    B --> C[Review the change]
+    C --> D{Review gaps?}
+    D -->|Yes| B
+    D -->|No| E[Execute checks]
+    E --> F{Checks pass?}
+    F -->|No| B
+    F -->|Yes| G[Coordinator prepares closure]
+```
 
-| Step | Component | Work | Output/check |
-|---|---|---|---|
-| 1 | Shared context | Inspect manifests, versions and task area | Applicable capability IDs and provenance |
-| 2 | Project-pieces | Inventory declared agents, skills, personas, tools, MCP | Extension references, not availability proof |
-| 3 | Planner | Split acceptance into phases/tasks | Plan and canonical ledger in the initiative folder |
-| 4 | Planner | Set description, type, files, criteria and verification | Concrete testable scope and labeled estimates |
-| 5 | Planner | Record selected capability/extension IDs and scenarios | Shared contract for implementation, review and QA |
-| 6 | Ledger scripts | Validate structure | Ledger-lint without errors |
-| 7 | User/orchestrator | Review the execution plan | Approved scope/dependencies |
-| 8 | Optional adapter | Handle plan.created/plan.export | Preview of remote task/phase objects before authorized creation |
+1. **Implement.** `implementer` starts the selected task and performs the change.
+   When the project enables TDD, the `tdd` skill requires an observed failing test
+   before the implementation, followed by a passing check and refactoring. It
+   does not add a test after the fact and claim that the earlier RED occurred.
+2. **Review.** `adversarial-review` coordinates the required fresh review lenses.
+   `reviewer` checks the agreement and correctness, adding security/performance
+   perspectives when selected. Findings have evidence and a disposition. The
+   implementer corrects valid gaps and records why a mistaken finding is rebutted.
+3. **Verify.** `qa` runs the relevant checks and reports what passed, failed or could
+   not run. `unit-tests` handles the project’s configured coverage rule. A run that
+   cannot execute the required checks cannot be described as verified success.
+4. **Revisit failures.** Failed checks return to correction. Repeated failures can
+   require `debug-root-cause` to reproduce and isolate the cause before another fix.
+   A failed test is not solved by changing its reported result.
+5. **Prepare closure.** The coordinator combines criteria, review and QA. If external
+   tracking is configured, the project adapter can mirror the authorized events.
+   An implementation comment is still different from an accepted delivery.
 
-The example can split foundation, experience and verification phases. Every task keeps
-its acceptance even if the remote board has only one card per phase.
+For the portal, the implementer saves a rejection reason. Review may find that an
+unauthorized person can still reject. QA may show that an empty reason is accepted.
+Either issue sends the task back. A final “done” needs evidence of the agreed
+permission, valid/invalid reason and duplicate-decision behavior.
 
-## W-04. Implement, review and verify a task
+**If something is uncertain:** ask for the exact failed case, available evidence
+and what cannot be verified. A timeout while preparing a test does not demonstrate
+that the application’s business rule failed. Preserve that distinction.
 
-**Command:** dev-cycle. **Agents:** implementer, independent reviewers and QA.
-**Skills:** selected stack methods, TDD when enabled, adversarial-review, unit-tests,
-debug-root-cause when needed. **Tools:** editor, shell, official test runner, ledger,
-meter/gate scripts and Playwright where UI E2E applies.
+## W-05. Close a phase and deliver its result to the department
 
-| Step | Owner | Action | Evidence/optional event |
-|---|---|---|---|
-| 1 | Orchestrator | Select task and bounded brief; apply normal/lite and delegation choices | Scope, persona, capabilities and extensions |
-| 2 | Implementer | Set in-progress and start measurement | Ledger; task.started |
-| 3 | Implementer/TDD | Observe a real failing test before code when applicable | Case, failure and date; fixture errors do not count |
-| 4 | Implementer | Implement and run declared verification | Observed command/result, files and measurement; task.implemented |
-| 5 | Review skill | Scope gate and lens selection | A conformance, B defects, conditional C security/D performance |
-| 6 | Fresh reviewers | Inspect and report concrete evidence/scenarios | Graded findings; no edits to reviewed code |
-| 7 | Review skill | Arbitrate findings/rebuttals and record attempt | Per-criterion verdict; review.completed or review.gaps |
-| 8 | Implementer | Fix validated findings with dedicated regressions | New reviewable patch; no blind fixes/dismissals |
-| 9 | QA | Execute applicable official checks | Testing artifacts, counts, applicable captures and qa-gate result |
-| 10 | QA | Return actual verdict | task.qa-passed/failed; no independent remote Done |
-| 11 | Orchestrator | Require review without gaps and green QA | Final closure permitted; task.done with evidence |
+### Closure requires more than a promise
 
-Implementation completion is not delivery acceptance. The orchestrator checks both
-verdicts before projecting Done, without inventing ledger states to match board columns.
+When a phase’s tasks satisfy their required checks, the coordinator can prepare
+closure and handover. It explains implemented behavior, verification, documentation
+and anything still pending. This is part of the development cycle.
 
-Correction is bounded. After three red QA attempts, run one root-cause pass with
-reproduction, isolation, tested hypothesis and proposal, then decide whether to continue,
-replan or cancel. Never lower coverage or falsify a gate to close.
+```text
+Prepare the portal delivery for our department.
+Show what is complete, its checks, operating instructions and limitations.
+```
 
-External failure preserves local results and reports pending projection. Reconcile an
-uncertain write before retrying. Board trouble does not change QA or require repeating
-already valid checks without a reason.
+```mermaid
+flowchart TD
+    A[Phase tasks verified] --> B[Gather results and remaining items]
+    B --> C[Update instructions]
+    C --> D[Prepare authorized delivery]
+    D --> E[Explain what the department receives]
+    E --> F[Record useful learning]
+```
 
-## W-05. Close a phase and deliver
+1. `implementer` checks the phase result; `documenter` explains use and recovery.
+   `changelog-sync` helps maintain the change notes. A release note states what
+   changed, not a claim that a new public version already exists.
+2. If the agreed delivery includes Confluence, a wiki, a PR or another publication,
+   verify that effect separately. A phase can have a verified local result and a
+   publication still pending because of access or an unresolved conflict.
+3. Ask for links and confirmed receipts when something was published. A provider
+   response lost in transit requires reconciliation before retrying.
+4. The department receives instructions that match the actual product and its
+   limits. The coordinator says which acceptance decision or next task remains.
+5. `/retro` can record useful learning. `documenter` may propose knowledge;
+   `knowledge-curator` alone decides whether a candidate becomes approved local
+   knowledge. `knowledge-services` publishes only selected, approved content through
+   an optional integration; it does not approve a candidate or publish by default.
 
-**Entry:** phase criteria and gates satisfied. **Command:** dev-cycle closure and retro.
-**Agents:** implementer, documenter and knowledge-curator for actual candidates.
-**Skills:** changelog-sync, roadmap-dashboard, opted-in knowledge-services and optional
-to-pdf when requested/available. **Tools:** ledger checks, documentation and approved Git flow.
+## W-06. Make a small change without inventing a large initiative
 
-| Step | Owner | Work | Output/gate |
-|---|---|---|---|
-| 1 | Implementer/orchestrator | Verify phase and progress | Coherent ledger, no hidden unfinished task |
-| 2 | Implementer | Emit phase.completed | Publishable documents once per revision |
-| 3 | Documenter | Update owning documentation and indexes | Examples match the product |
-| 4 | Changelog-sync | Generate user-facing notes from closed tasks | No invented release scope/version |
-| 5 | Producers/curator | Propose/judge knowledge with evidence | Candidates remain distinct from approved |
-| 6 | Orchestrator | Check branch, own diff and tests | Commits/PR under the approved repository flow |
-| 7 | User/CI | Required delivery review/checks | Push is not CI green or deployment |
-| 8 | Retro | Compare estimate/actual and lessons | Retro/calibration; absent measurements explicit |
-| 9 | Orchestrator | Close only after the ritual | Completed plan/implemented spec under their contracts |
+### When the shorter path fits
 
-Release/deployment has its own authorization and workflow. A PDF request or task closure
-does not authorize a release. Publishing docs does not implicitly attach every PDF.
+A small change has a clear objective, boundaries and a sensible check. For example,
+“the Reject button must stay disabled while its request is in flight.”
+`quick-implement` is a shorter route through the same discipline, not a way to skip
+review or QA. Ambiguous or multi-phase work needs a fuller plan.
 
-## W-06. Make a small, defined change
+```text
+Make this specific change: disable Reject while submission is pending.
+Keep the agreed review and verification steps.
+```
 
-**Entry:** quick-implement or dev-cycle quick path. **Agents:** implementer, review and
-QA; documenter when needed. **Skills/tools:** the same implementation/quality checks as
-W-04, retaining the selected TDD policy.
+```mermaid
+flowchart TD
+    A[Small concrete request] --> B{Is the change clear?}
+    B -->|No| C[Clarify scope]
+    B -->|Yes| D[Record and implement]
+    D --> E[Review and verify]
+    E --> F[Explain result]
+```
 
-The orchestrator creates a lightweight ledger with one phase, minimal tasks, acceptance
-and verification. It skips extensive PM paperwork, not review or QA. The same evidence
-and optional events apply. Ambiguous or structurally complex work returns to the normal
-cycle rather than using the quick path to avoid required tests.
+The coordinator checks that the assignment is contained. `implementer` records
+and performs it with the selected skills; `reviewer` and `qa` retain their roles.
+If the actual work expands into authorization changes or a new service, pause
+that expansion for a scope decision rather than treating it as part of the button.
+At the end, distinguish completed changes, checks and authorized publications.
 
-## W-07. Portfolio, drift and resumption
+## W-07. Consult status and resume work with its current context
 
-| Command | Owner/skill | Inputs/output | Limit |
-|---|---|---|---|
-| pm-backlog | PM role, roadmap-dashboard | Evaluations and portfolio priority | Does not silently implement/cancel |
-| roadmap-status | Roadmap-dashboard; optional plugin-panel | Local ledgers, summary/panel | Snapshot, not live process evidence |
-| roadmap-brief | Roadmap-dashboard; optional PDF | Executive summary/budget | Source/date shown; no fabricated metrics |
-| roadmap-metrics | Roadmap-dashboard | Estimate versus actual | Wall time is not measured AI effort |
-| roadmap-live | Tracking adapter, task.read | Remote state at query time | No ledger mutation or constant polling claim |
-| spec-drift | Comparison command | Spec, plan, code, evidence | Reports drift, does not silently rewrite approved scope |
-| work-resume | Progress/history compositor | Current ledger, reviews, selected session | History does not override current state |
-| plugin-catalog | Optional plugin-panel/catalog module | Bundle/extensions, conflicts/provenance | Declared is not loaded or connected |
+### Useful everyday requests
 
-Supply the initiative folder or slug when resuming. Recover the current ledger and
-associated decisions, identify unfinished work and continue there. Historical “continue”
-messages do not reactivate cancelled initiatives or create a duplicate plan.
+You do not need to open every file to know what remains. Ask a focused question
+and distinguish a historical snapshot from the currently read register.
+
+```text
+Resume the portal initiative. Before continuing, explain what is complete,
+what remains, any blockers and the next permitted action.
+```
+
+```mermaid
+flowchart TD
+    A[Identify project and initiative] --> B[Read the current register]
+    B --> C[Explain completed and pending work]
+    C --> D{Decision or blocker?}
+    D -->|Yes| E[Explain and resolve it]
+    D -->|No| F[Continue the permitted task]
+```
+
+| Everyday question | Useful component | Expected result |
+|---|---|---|
+| What should we prioritize? | `/pm-backlog` | Comparable proposals and priorities |
+| How are the plans progressing? | `/roadmap-status`, `roadmap-dashboard` | Portfolio from current records |
+| Where is the work of one initiative? | `/roadmap-brief` | A concrete brief with evidence |
+| Estimated versus observed? | `/roadmap-metrics` | Figures with sources and gaps |
+| Can I use a board? | `plugin-panel`, `/roadmap-live` where supported | A view of the same canonical records |
+| Did work drift from the agreement? | `/spec-drift` | Differences with evidence |
+| Continue where we stopped | `/work-resume` | Initiative selection and a permitted next step |
+
+These consultations need no external account unless the chosen question requires
+one. Ask for the source and observation time if a view is partial or old. A task
+in progress does not prove that a worker is alive. A missing figure is not zero.
+The canonical sources are project records, events and verified tool outputs,
+not these fictional example identifiers. The [advanced lifecycle reference](../reference/core-workflows.md)
+provides detailed contracts for administrators.

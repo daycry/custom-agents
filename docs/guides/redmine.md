@@ -1,142 +1,200 @@
-# 4. Redmine, wiki y proveedores de proyecto
+# 4. Trabajar con Redmine y con una wiki del equipo
 
-Redmine se incorpora como adaptador del proyecto. No hace falta añadir otra marca
-al core ni publicar una versión del plugin para cada organización. El mismo patrón
-sirve para una wiki propia: función, contrato, herramienta, configuración y recibos.
+El método del capítulo 2 se mantiene aunque tu organización use Redmine. Cambia el
+lugar donde se muestran las tarjetas y la forma de comunicarse con él. **No tienes
+que cambiar el plugin entero para que un proyecto utilice otra herramienta.**
 
-Este ejemplo incluye una skill de referencia para implementar/adaptar, no un
-conector Redmine instalado ni una conexión real certificada. El administrador debe
-elegir un transporte de confianza y verificarlo en su instancia y versión.
+Redmine llama *issue* a una tarjeta y *tracker* a su clase de trabajo: por ejemplo,
+petición o incidencia. Cada instalación decide los nombres, campos y estados que
+permite. Una wiki es una colección de páginas enlazadas; puede estar en Redmine o
+ser un servicio distinto. Tener acceso al tablero no demuestra acceso a la wiki.
 
-## Qué corresponde a Redmine y qué corresponde al plugin
+Este manual aporta una receta llamada `project-redmine`. Explica qué debe hacer una
+integración de proyecto. **No instala un conector ni acredita una conexión real.**
+El equipo técnico tiene que adaptarla al servicio y a las herramientas disponibles.
 
-La API documentada de Redmine permite tratar issues y notas, consultar estados
-permitidos y gestionar páginas de wiki. Las posibilidades efectivas dependen de
-versión, rol y configuración de la instancia. Consulta la [API de issues](https://www.redmine.org/projects/redmine/wiki/Rest_Issues)
-y la [API de wiki](https://www.redmine.org/projects/redmine/wiki/Rest_WikiPages).
+## W-13. Preparar Redmine para tu proyecto
 
-El plugin aporta el ledger y los eventos. El adaptador aporta traducción de campos,
-identidades, tracker, proyecto, estados y formato de la wiki. Ni `T-01` ni una fase
-del plugin equivalen automáticamente a un tracker, versión o proyecto Redmine.
+### Cuándo y qué necesitas
 
-## W-13. Añadir el adaptador Redmine del proyecto
+Úsalo antes de enviar el primer plan a Redmine. El responsable decide qué equipo y
+proyecto recibirán el trabajo. El administrador aporta una cuenta con los permisos
+necesarios. El equipo técnico comprueba cómo hablar con esa instancia de Redmine.
+No hace falta que el responsable escriba archivos de configuración.
 
-**Participantes:** responsable de área y equipo administrador/técnico.
-**Comandos:** `/setup` y `/work-context`; no hay comando obligatorio `/redmine`.
-**Skill de proyecto:** `project-redmine`. **Tools:** las que exponga el conector
-seleccionado, descubiertas en la sesión. **Core:** no se modifica.
-
-| Paso | Actor | Acción | Resultado y criterio |
-|---|---|---|---|
-| 1 | Responsable | Decide tarea/fase y qué información necesita el equipo | Política de colaboración y asignación |
-| 2 | Administrador | Selecciona transporte/servidor y cuenta | Acceso mínimo y destino de prueba |
-| 3 | Equipo | Añade skill de proyecto con su contrato | Nombre propio, instrucciones y pruebas del adaptador |
-| 4 | Equipo | Define mapa de operaciones y estados | Cada capacidad declarada tiene una tool real o queda desactivada |
-| 5 | Setup | Añade binding basado en `docs/examples/integrations/project.json` | `.claude/integrations.json` de este proyecto |
-| 6 | Equipo | Añade preferencias no secretas | `.claude/integration-settings/redmine.json` |
-| 7 | Router y lector de piezas | Validan declaraciones e inventarían skill/MCP | Disponible todavía sin verificar hasta contrastar sesión |
-| 8 | Equipo + usuario | Ensaya lecturas y un cambio autorizado en destino piloto | Recibos reales; no se promociona un contrato vacío a «conectado» |
-
-Ejemplo de preferencias del adaptador **del proyecto**, cuyo esquema no interpreta
-el router del core:
-
-```json
-{
-  "version": 1,
-  "project_identifier": "solicitudes",
-  "granularity": "task",
-  "tracker": "se-descubre-en-la-instancia",
-  "assignee_policy": "unassigned",
-  "state_policy": {
-    "started": "in-progress",
-    "review_failed": "reopen",
-    "accepted": "closed"
-  },
-  "map_file": ".claude/integration-state/redmine.json"
-}
-```
-
-Los valores de estado son objetivos lógicos del adaptador de ejemplo. No son IDs
-de Redmine. El implementador debe resolverlos con la configuración real y rechazar
-ambigüedades. No copies estas cadenas directamente a `status_id`.
-
-## Contrato mínimo de project-redmine
-
-| Capacidad | Entrada desde el core | Traducción del adaptador | Evidencia exigida |
-|---|---|---|---|
-| `plan.export` | Ledger aprobado, tarea/fase y destino | Issue con asunto, descripción, proyecto y tracker válidos | ID devuelto/confirmado y mapa local |
-| `task.read` | Referencia de issue y campos necesarios | Lectura acotada de ese proyecto | ID, campos y fecha de consulta |
-| `task.progress` | Evento, tarea, actor y evidencia | Nota/comentario y estado permitido según política | Recibo de nota y estado observado |
-| `worklog.write` | Medición y unidad explícitas | Imputación según contrato de la instancia | Registro real y prevención de repetición |
-| `docs.publish` | Documento aprobado y revisión | Otra skill/binding de wiki, si existe | Título/ID y versión real de página |
-
-No declares todas las capacidades por aspiración. Si el conector solo permite
-leer issues, declara `task.read` y no suscribas eventos de escritura. Si una tool
-combina nota y cambio de estado en una operación, documenta su resultado parcial
-y cómo se reconcilia; no asumas que cualquier error revierte ambos efectos.
-
-## W-14. Ejecutar una iniciativa con Redmine
-
-El workflow local es W-02 a W-05: analyst/evaluator definen y evalúan; architect
-puede diseñar; planner crea fases/tareas; implementer, revisión y QA trabajan.
-La skill de proyecto complementa sus eventos, sin reemplazar a los agentes.
-
-| Momento | Agente/componente emisor | Acción del adaptador | Evidencia y control |
-|---|---|---|---|
-| Plan aprobado | Planner, `plan.created` | Presenta issues por tarea o fase y solicita autorización | Cuenta, proyecto, tracker y asignación visibles |
-| Creación | Project-redmine | Busca mapa/clave de correlación y crea lo ausente | ID por cada objeto confirmado; no lote ficticiamente atómico |
-| Inicio | Implementer, `task.started` | Resuelve estado de trabajo permitido | Si no puede transicionar, deja aviso sin cambiar el ledger |
-| Implementado | Implementer, `task.implemented` | Publica nota con resumen y verificación | Firma de rol, evento y tarea; no cierra el issue |
-| Revisión | Adversarial-review, `review.completed`/`review.gaps` | Nota por intento y reapertura cuando procede | No duplica el comentario del reviewer ni suplanta su identidad |
-| QA | QA, `task.qa-passed`/`task.qa-failed` | Nota con resultado y referencia de evidencia | No interpreta una nota como ejecución del gate |
-| Aceptación | Orquestador, `task.done` | Transición final solo con ambos veredictos | Estado permitido y recibo real; si es por fase, todas sus tareas deben cumplir |
-| Cierre de fase | Implementer, `phase.completed` | Handoff al binding de documentación | No publica evidencias crudas por defecto |
-
-### Ejemplo de nota de implementación
+Puedes pedir:
 
 ```text
-[custom-agents · implementer] · task.implemented · T-02
-Cambio: endpoint de aprobación con autorización por recurso.
-Verificación: comando real y resultado observado del proyecto.
-Evidencia: ruta local del informe o enlace aprobado accesible al equipo.
-Revisión y QA pendientes. Este evento no cierra el issue.
+Nuestro equipo usa Redmine. Prepara la integración para el portal de solicitudes.
+Quiero una tarjeta por tarea, sin asignar personas automáticamente. Antes de
+publicar, enséñame el proyecto, la clase de tarjeta, los estados y la vista previa.
 ```
 
-Esta plantilla ilustra el contrato. La skill del proyecto debe añadir la clave de
-correlación elegida y usar el formato que admita su instancia. No adjuntes raw,
-secretos o conversaciones para dar contexto a un comentario.
+```mermaid
+flowchart TD
+    A[Elegir proyecto y política] --> B[Administrador prepara el acceso]
+    B --> C[Equipo adapta las operaciones]
+    C --> D[Comprobar una lectura]
+    D --> E[Revisar un cambio piloto]
+    E --> F[Confirmar el resultado en Redmine]
+```
 
-### Cómo evitar duplicados
+### Qué ocurre paso a paso
 
-La correlación relaciona iniciativa, tarea/fase, evento e intento. El mapa local
-registra el objeto remoto y el recibo confirmado, nunca credenciales. Antes de
-repetir una nota se consulta el registro remoto correlacionado. Un timeout
-después de enviar se marca incierto y exige reconciliación; no se interpreta como
-«no llegó». Si se pierde el mapa, no se recrean todos los issues automáticamente.
+1. **Acordáis la organización del trabajo.** Elegís tarjetas por tarea o por fase.
+   Con tareas, T-01 permisos y T-02 decisión tendrán tarjetas separadas. Con fases,
+   la tarjeta representa un grupo de tareas y no se termina al cerrar solo una.
+   Decidís también quién puede asignarlas y si se publicarán tiempos medidos.
+2. **El administrador elige el acceso.** Puede ser un conector o servidor MCP: el
+   puente que ofrece operaciones concretas al asistente. Revisa la instancia,
+   versión, cuenta y permisos. La contraseña o clave se guarda por el mecanismo
+   seguro de ese entorno; nunca se pega en el plan ni en los comentarios.
+3. **El equipo técnico prepara el adaptador.** La skill `project-redmine` contiene
+   las instrucciones; el binding, una declaración de configuración, indica cuándo
+   usarla. `/setup` ayuda a preparar el proyecto y `/work-context` muestra las
+   piezas encontradas. Encontrar la declaración todavía no prueba la conexión.
+4. **Se comprueban las operaciones reales.** El adaptador relaciona crear tarjeta,
+   leerla, comentar y cambiar de estado con herramientas existentes. Resuelve los
+   identificadores de proyecto, tracker y estados desde vuestra instancia. Si solo
+   puede leer, se deja en lectura y no se anuncian escrituras disponibles.
+5. **Se ensaya una lectura acotada.** El administrador comprueba que devuelve el
+   proyecto esperado y que no muestra información de otros proyectos. Se prueban
+   también permiso insuficiente y estado de destino inexistente.
+6. **Revisas un cambio piloto.** Ves cuenta, destino, tarjeta y efecto antes de
+   autorizar la publicación. Tras ejecutarlo abres el enlace y contrastas los
+   campos. Solo entonces podéis afirmar que esa operación está comprobada.
 
-## W-15. Publicar en una wiki del proyecto
+### Quién interviene y qué recibes
 
-**Binding:** `purpose: documentation`; skill `project-wiki` u otra elegida.
-**Evento:** `phase.completed`; lectura bajo petición si se implementa `docs.pull`.
-**Entrada:** documentos aprobados y alcance explícito. **Tools:** lectura de página,
-escritura/versionado y, solo si se necesita, adjuntos con operación separada.
+El responsable decide la política; el administrador controla el acceso; el equipo
+técnico prepara y prueba la skill. Los agentes del ciclo no se sustituyen por
+Redmine: `planner` sigue planificando y `qa` sigue comprobando. Las herramientas
+dependen del conector elegido, no de una lista cerrada del plugin.
 
-El adaptador establece la conversión de Markdown al formato admitido, el árbol de
-páginas, la clave estable de cada documento y la política de conflictos. Consulta
-la página/revisión actual, muestra la vista previa, obtiene autorización aplicable
-y publica. Registra versión y hash local tras comprobar el recibo. Si el proveedor
-no ofrece escritura condicional, declara ese límite y revalida antes de actualizar;
-no promete atomicidad que no existe.
+Como resultado necesitas el destino probado, una relación de operaciones admitidas
+y sus límites, y el enlace del piloto. Técnicamente se guardan el binding en
+`.claude/integrations.json`, preferencias no secretas en
+`.claude/integration-settings/redmine.json` y recibos propios en un mapa local.
+El equipo técnico encontrará el contrato y un ejemplo completo en la referencia.
 
-Los permisos, conflicto de ediciones, borrados y adjuntos son casos separados.
-Un documento retirado localmente no se borra de la wiki sin una política y una
-operación autorizada. El pull, si se añade, compara ambos lados y conserva el
-frontmatter local y los conflictos, igual que cualquier adaptador de documentación.
+Si el acceso falla, el trabajo local puede continuar. No marques una tarjeta como
+creada porque exista una configuración. Pide revisar cuenta, permisos y proyecto.
+Si el conector no ofrece una operación, se desactiva hasta implementarla y probarla.
 
-## Si se usa otra plataforma
+## W-14. Ejecutar el portal y mantener las tarjetas al día
 
-GitHub/GitLab para issues, Linear para seguimiento, Notion para documentos o una
-wiki corporativa pueden implementar los mismos puertos. No son adaptadores listos
-por figurar aquí. El proyecto elige y prueba su transporte y sus capacidades reales.
-Un sistema de mensajería requiere otro propósito y contrato de notificación:
-no se usa `docs.publish` como atajo para enviar mensajes a personas.
+### Qué pides y qué vas a ver
+
+Parte de un plan aprobado y de W-13 comprobado. Puedes decir:
+
+```text
+Publica el plan aprobado en Redmine según la política acordada. Enséñame antes
+las tarjetas. Durante la ejecución añade comentarios de implementación,
+revisión y pruebas; termina una tarjeta solo cuando cumpla las condiciones.
+```
+
+```mermaid
+flowchart TD
+    A[Plan aprobado] --> B[Vista previa y autorización]
+    B --> C[Crear o recuperar tarjetas]
+    C --> D[Implementar y comentar]
+    D --> E{Revisión y pruebas superadas}
+    E -- No --> D
+    E -- Sí --> F[Registrar aceptación y estado final]
+```
+
+1. **El plan se traduce a tarjetas.** `planner` entrega el listado aprobado. El
+   adaptador muestra título, descripción, clase, proyecto y asignación de cada
+   tarjeta. Una tarjeta de fase debe explicar qué tareas contiene. Tú revisas la
+   organización antes de que se creen objetos externos.
+2. **La creación deja vínculos reales.** El adaptador comprueba si cada tarjeta
+   ya existe y conserva su identificador confirmado. Por ejemplo, una tarjeta
+   ficticia `#481` puede corresponder a T-02. Ese vínculo permite continuar sin
+   volver a crearla. Un lote puede completarse solo en parte.
+3. **Al empezar se refleja el trabajo.** `implementer` inicia T-02 y la integración
+   solicita un estado de trabajo permitido. Si la instancia no permite el cambio,
+   informa del problema. Ese error no cambia por su cuenta el estado local.
+4. **La implementación deja una nota.** Debe explicar qué cambió, dónde está la
+   evidencia y qué falta. No cierra la tarjeta. En el portal: «Añadida la decisión
+   de aprobación; falta revisión y comprobar que rechazar exige un motivo».
+5. **La revisión y las pruebas dejan resultados separados.** `adversarial-review`
+   coordina la revisión; `reviewer` examina los criterios. `qa` ejecuta las
+   comprobaciones del proyecto. Si rechazar sin motivo todavía funciona, la nota
+   dice fallo y la tarjeta vuelve al estado de corrección que permita Redmine.
+6. **El cierre requiere ambos resultados.** El orquestador acepta la tarea cuando
+   supera revisión y QA. La integración confirma el estado observado. Si la tarjeta
+   representa una fase, todas sus tareas deben cumplir antes de cerrarla.
+
+Un comentario útil, a modo de ejemplo ficticio, sería:
+
+```text
+[custom-agents · qa] · T-02 · intento 2
+Resultado: superado. Rechazar sin motivo devuelve el error esperado y mantiene
+la solicitud pendiente. La segunda decisión no altera una ya resuelta.
+Evidencia: informe de pruebas aprobado para compartir.
+Pendiente: aceptación del cierre por el flujo del proyecto.
+```
+
+La publicación la firma la cuenta real conectada; la etiqueta `qa` explica el rol
+que produjo el resultado. No crea un usuario robot ni suplanta a un compañero.
+Una imputación de tiempo necesita medición y unidad explícitas: una estimación no
+se convierte en horas realizadas por añadirla a una tarjeta.
+
+### Qué compruebas y cómo se recupera
+
+Abre una tarjeta y contrasta tarea, comentarios, estado y evidencia. Si una revisión
+falla, debe verse la corrección pendiente. Una nota que dice «probado» necesita un
+resultado verificable, no solo un texto generado.
+
+Si una escritura agota el tiempo de espera después de enviar, su resultado es
+**incierto**: quizá llegó. El adaptador consulta la tarjeta y su referencia de
+operación antes de repetir. Si el mapa local se pierde, se reconstruyen los
+vínculos contrastando Redmine; no se crean todas las tarjetas de nuevo. Un fallo
+de comentario y un fallo de estado pueden ser independientes y deben distinguirse.
+
+## W-15. Compartir instrucciones en una wiki
+
+Úsalo cuando el equipo quiera leer la guía del portal desde su wiki. Necesitas
+los documentos aprobados, un destino y una integración de documentación comprobada.
+No basta con tener la integración de tarjetas.
+
+```text
+Publica la guía de aprobación del portal en nuestra wiki. Muéstrame las páginas
+que crearás o actualizarás y sus diferencias. No publiques capturas privadas
+ni elimines páginas existentes sin una decisión aparte.
+```
+
+```mermaid
+flowchart TD
+    A[Elegir documentos aprobados] --> B[Leer páginas actuales]
+    B --> C[Mostrar árbol y diferencias]
+    C --> D{Hay conflicto de ediciones}
+    D -- Sí --> E[Resolver con la persona responsable]
+    E --> C
+    D -- No --> F[Autorizar y publicar]
+    F --> G[Comprobar página y versión]
+```
+
+1. `documenter` prepara la guía comprensible y revisa su índice. El cierre de una
+   fase puede entregar documentos al adaptador; eso no autoriza cualquier contenido.
+2. La skill de documentación del proyecto, por ejemplo `project-wiki`, consulta
+   las páginas de destino. El administrador ha tenido que verificar las operaciones
+   de lectura, actualización y versionado que ofrezca su herramienta.
+3. La vista previa muestra la estructura y qué cambia. El adaptador convierte el
+   Markdown al formato de la wiki. Si la página cambió desde la lectura, se resuelve
+   el conflicto antes de sobrescribirla. Una plataforma sin control condicional
+   de versiones conserva ese límite; no se promete una actualización indivisible.
+4. Tras la autorización aplicable se publica y se comprueba título, enlace y
+   revisión real. Los recibos permiten una siguiente actualización sin duplicados.
+5. Si se desea traer cambios de vuelta al proyecto, hay que implementar y comprobar
+   esa capacidad por separado. Se comparan ambos lados y se conservan conflictos
+   y metadatos locales; no se sustituye silenciosamente la copia local.
+
+Comprueba la página con la cuenta de un lector del equipo. Si un documento se
+retira localmente, su página no se borra automáticamente. Los adjuntos, borrados
+y cambios de permisos necesitan decisiones específicas.
+
+El mismo método permite una wiki corporativa, Notion u otro proveedor. Son
+posibilidades de integración, no conectores instalados por aparecer en este texto.
+La [referencia de Redmine](../reference/redmine.md) conserva los contratos y fuentes
+oficiales para quien prepare el adaptador.

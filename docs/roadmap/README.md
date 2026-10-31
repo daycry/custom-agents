@@ -60,5 +60,8 @@ Estados: borrador · en-progreso · en-revision · completado · cancelado (spec
 | 2026-10-30 | pending-skills-integration — **implementada**: etiquetas de hooks Codex, seis skills transversales y guías de stacks solicitados | Sin medida IA | Sin coste medido | [tasks](2026-10-30-pending-skills-integration/tasks.md) · [decisiones](2026-10-30-pending-skills-integration/integration-decisions.md) |
 | 2026-10-30 | modular-integrations — **completado**: núcleo local, módulos/perfiles e integraciones abiertas por proyecto; manual detallado ES/EN y PDF para responsables | Sin medida IA compatible | Sin coste medido | [tasks](2026-10-30-modular-integrations/tasks.md) · [diseño](2026-10-30-modular-integrations/design.md) · [admisión](2026-10-30-modular-integrations/admission.json) |
 | 2026-10-31 | go-stack — **completado**: guía Go por versión, concurrencia y pruebas; selección explícita en stack-practices | Sin medida IA completa | Sin coste medido | [tasks](2026-10-31-go-stack/tasks.md) |
+| 2026-10-31 | handbook-readability — **en-progreso**: manual para personas no técnicas, workflows explicados y diagramas Mermaid en Markdown/PDF | Sin presupuesto solicitado | Sin coste medido | [tasks](2026-10-31-handbook-readability/tasks.md) |
+| 2026-10-31 | [Memoria local y servicios opcionales](2026-10-31-memory-integrations/tasks.md) | en-progreso | — | — | — | — |
+| 2026-10-31 | [Consola operativa de sesiones y planes](2026-10-31-control-center/tasks.md) | en-progreso | — | — | — | — |
 
 **Calibración:** las iniciativas con `retro.md` alimentan [`CALIBRATION.md`](CALIBRATION.md), de donde `evaluator` toma el histórico y `usage-meter.py` la mediana `tokens/hora` para convertir tokens medidos en horas-IA.

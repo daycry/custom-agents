@@ -3,7 +3,7 @@
 
 **Usage and customization handbook:** [Detailed core workflows, optional integrations, Atlassian/Redmine and project extensions](CUSTOMIZATION.md). Native bundles are complete; configured does not mean connected or authorized.
 
-[PDF handbook for department leads (Spanish, 39 pages)](../../output/pdf/custom-agents-manual-operativo.pdf).
+[Illustrated PDF handbook for department leads (Spanish)](../../output/pdf/custom-agents-manual-operativo.pdf).
 
 **English** · [Español](../README.md)
 
@@ -101,7 +101,7 @@ They drive the chain by invoking agents **by name** and with control gates, over
 | **`/pm-cycle <goal>`** | Product / PM | `spec → evaluation` (agent `evaluator`) | Closes at the go/no-go gate. On *go*, it leaves the spec `aprobada` (approved) + evaluation `completado` (completed) and **offers** the handoff to `/dev-cycle` (without running it). Opt-in closing outputs: PDF brief (skill `to-pdf`) and handoff to the project-selected tracking adapter. It does not plan or implement. |
 | **`/dev-cycle <goal>`** | Development | Full cycle `evaluation → plan → implementation → tests → documentation` | **The plugin's native chain is the only engine** (opt-in discipline in `.claude/dev.json`: TDD, worktrees, fresh subagents). If started on a folder holding a spec+evaluation from `/pm-cycle`, it continues straight into planning. |
 | **`/pm-backlog [criterion]`** | Product / portfolio | Reads every `evaluation.md` and **prioritizes** (read-only) | Writes `docs/roadmap/BACKLOG.md` with a recommended order (quick wins vs. big bets). It does not plan; it defers to `/dev-cycle` for execution. |
-| **`/plugin-catalog`** | Capabilities | Reads bundle and project/user extensions | Local HTML with sources/conflicts and --serve mode for ledger progress. |
+| **`/plugin-catalog`** | Console and capabilities | Selects a registered project in one shared local console | Native sessions/chat, plans/kanban, notes, activity and memory; HTML/JSON inventory remains a separate mode. |
 | `/work-context` | Context | Select relevant guides and task extensions with IDs, local manifests and explicit provenance | Shared cycle context; does not start another chain. |
 | `/work-resume` | Continuity | Reads the current ledger and selects journal history by initiative, session, runtime or exact filename | [Read-only dossier](WORK-RESUME.md): current state first, quotations next; retains ambiguity and limits without starting a cycle. |
 | **`/roadmap-status`** | Visibility | Scans `docs/roadmap/*/` (read-only) | Writes `dashboard.md` (published to Confluence for PMs without git) via `roadmap-dashboard` and exports the multi-page panel to `docs/roadmap/panel/` (local) via `plugin-panel`. |
@@ -131,7 +131,7 @@ This is how roles are separated: **`/pm-cycle`** decides *what* and *how much it
 | **llm-pipeline** | LLM application guidance: budget reservation, retries, caching and evaluation. | On demand; project roles retain their permissions |
 | **data-collection** | HTML/RSS/JSON collector guidance with optional enrichment and recovery. | On demand; project roles retain their permissions |
 | **research-first** | Compare existing solutions before integrations or new tooling; original sources and explicit access limits. | analyst, architect |
-| **plugin-panel** | Local bundle and extension panel; hooks by runtime/event, purpose, source and budget. Deterministic JSON and served canonical progress; unverified loading/execution. | `/plugin-catalog` |
+| **plugin-panel** | Shared local console with project workspaces, native chat/decisions, portfolio/kanban, versioned notes and sourced activity. Retains static inventory and distinguishes declaration, connection and execution. | `/plugin-catalog` |
 | **stack-practices** | Version-aware guidance for CodeIgniter 4, Laravel, Symfony, Next.js, React, Python, .NET/C#, C and Go. | architect, planner, implementer, reviewer, qa |
 | **backend-practices** | API contracts, resource authorization, errors, idempotency and compatible migrations. | analyst, architect, planner, implementer, reviewer, qa |
 | **frontend-quality** | Keyboard, focus, forms, remote states and measured UI performance. | architect, planner, implementer, reviewer, qa |

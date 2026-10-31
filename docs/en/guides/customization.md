@@ -1,156 +1,181 @@
-# 5. Customize without changing core
+# 5. Adapt the product to your people and work
 
-## W-16. Choose the right extension
+Different projects can use different tools and specialties without filling the
+plugin with components nobody needs. Start with a concrete need, reuse the smallest
+suitable component and verify it with a real case. This chapter describes choices
+for process owners and administrators; you do not need to edit configuration to
+request a useful improvement.
 
-**Entry:** a new domain criterion, specialist, system or operation is needed.
-**Commands:** work-context; optional plugin-catalog. **Owners:** domain lead and
-technical team; planner records selected references in tasks. **Readers:** project-pieces
-and capability-route, without executing project code.
+## W-16. Choose and add the right extension
 
-| Need | Piece | Owner/location | Required check |
-|---|---|---|---|
-| Billing/legal/business criteria | Short persona | Project | Task type and brief limits |
-| Specialist objective/tools | Agent | Project runtime | Actual ID, instructions and allowed tools |
-| Reusable method | Skill | Project/user/bundle module | Triggers, references and positive/negative cases |
-| User-started sequence | Command | Supported runtime | Inputs, decisions, outputs, handoffs |
-| Permanent principle | Instructions/constitution | Project | Native scope/precedence |
-| Programmatic operation | Tool/script | Project/runtime | Schema, exit codes, permission and tests |
-| Service access | MCP/connector | Runtime/administrator | Trust, authentication and actual operations |
-| Provider participation in core | Adapter plus binding | Project | Events, capabilities, destination and receipts |
+### Start with a working example
 
-Do not add an agent just to wrap a skill, or confuse an MCP declaration with a workflow.
-Extensions complement existing lifecycle owners rather than replacing their gates.
+Suppose the portal must follow billing-area rules:
 
-## Domain personas and team members
+```text
+We need billing criteria when reviewing this portal.
+Propose how to include those criteria without repeating the whole plan.
+Explain what the domain owner decides and what the assistant will check.
+```
 
-A domain persona can live in `.claude/personas/billing.md`, a plugin convention,
-with short rules for currency, taxes, rounding, billing period and audit examples.
-Label the task with `Tipo: billing`. The brief prefers the project persona, then
-the catalog; absent personas yield a warning and ordinary operation. The profile
-does not create a native agent or impersonate a real person.
+```mermaid
+flowchart TD
+    A[Describe need and example] --> B[Review existing capabilities]
+    B --> C[Choose the smallest suitable extension]
+    C --> D[Prepare it in the project]
+    D --> E[Test success and failure cases]
+    E --> F[Use it and review its value]
+```
 
-Human team members have real service/runtime accounts. Administrators invite them
-using provider mechanisms. Agree who approves scope, who publishes and who owns
-tasks. The plugin does not create those identities. Assignment can notify a person,
-so preview and authorize it as an external effect.
+### Choose by purpose, not by unfamiliar folder names
 
-## Project agents, skills, commands and rules
-
-A Claude project agent can be a Markdown file under `.claude/agents/` with a unique
-name such as project-billing-reviewer, description, minimal read tools and selected
-model. Its body requires file/line/business-case evidence, forbids editing and
-publication and leaves QA to its owner. Codex has TOML agents/role configuration;
-OpenCode has its native Markdown/configuration surfaces. Do not copy fields across
-runtimes as if their loaders were interchangeable.
-
-A minimal standalone Codex declaration recognized by the inventory uses name,
-description and developer_instructions. Inventory recognition does not certify the
-runtime's effective loading or restrictions. A model choice grants no tools or permission.
-[Exact locations and inventory contracts](../PROJECT-EXTENSIONS.md).
-
-Copy the project-redmine reference skill from docs/examples/integrations into the
-runtime's skill root, rather than the plugin cache. A professional skill has a
-unique name, useful triggers, scope, inputs, steps, limits, errors and demand-loaded
-references. Deterministic parsing/calculation/verdicts belong to tested scripts.
-External dependencies and explicit degradation must be described.
-
-Test missing configuration, read-only permission, wrong project, unavailable state,
-partial batch and timeout-after-create. The supplied skill is a starting contract,
-not a tested transport implementation.
-
-Project commands coordinate existing owners and retain one publisher per effect.
-Claude uses its commands directory, OpenCode its supported command surfaces.
-The inventory does not invent a Codex project-command loader; use supported native
-capabilities such as an invocable skill. Permanent rules belong to project native
-instructions and an optional constitution, without pasting the entire handbook
-into every prompt or relaxing mandatory authorization/review/QA.
-
-## W-17. Add a tool or MCP server
-
-**Owner:** project administrator/developer. **Inventory commands:** work-context,
-doctor and runtime-native MCP management. **Skills:** delivery-practices plus the
-business adapter. **Tools:** declared server, then the operations actually discovered.
-
-| Step | Action | Evidence |
+| Need | Likely component | Example |
 |---|---|---|
-| 1 | Define the missing operation | Input, output, effect and bounded need |
-| 2 | Assess official/maintained connectors | Ownership, license, maintenance, compatibility |
-| 3 | Choose scope and authentication | Correct account/project; secure credentials |
-| 4 | Declare server in the runtime | Valid configuration, not connection proof |
-| 5 | Connect and authorize natively | Session's actual operation list |
-| 6 | Pilot a bounded read | Expected destination and failure handling |
-| 7 | Add adapter/binding for lifecycle use | Capabilities match what was verified |
-| 8 | Preview/authorize one pilot write | Actual receipt and reconciliation |
-| 9 | Revalidate after version/permission changes | No inference from stale inventory |
+| A useful perspective | Domain persona | Review invoicing implications |
+| A specialist with responsibility and limits | Agent | Analyze permissions and report evidence |
+| A reusable method | Skill | Check a framework’s implementation patterns |
+| A sequence of coordinated stages | Command | Prepare a requested delivery |
+| An enduring rule | Project instructions | Every decision needs an attributable reason |
+| A concrete executable operation | Tool | Read an issue using an available connector |
+| Access to a service | Connector or MCP server | Query a verified team wiki |
+| Provider participation in the lifecycle | Adapter and integration binding | Mirror a review event to Redmine |
 
-A local script does not become a native tool by existing in an arbitrary directory.
-The inventory never imports scripts, executes exports or installs dependencies to
-discover tools. OpenCode custom tool sources and Claude/Codex MCP tools follow their
-own runtime contracts.
+1. **The owner defines the result.** Give typical inputs, expected results and
+   failures. “Detect an unauthorized billing decision” is a more useful example
+   than “add another expert.”
+2. **Review what already exists.** `/work-context` and `/plugin-catalog` inventory
+   declared components; `research-first` compares suitable maintained solutions
+   before adding a dependency or tool. Do not duplicate an existing owner merely
+   because a different name sounds attractive.
+3. **Prepare a project extension.** One project may use Redmine and another Jira.
+   Keep project-specific tools, connectors and guidance with their project. A shared
+   organizational extension can use a supported user scope, with visible origin.
+4. **Set inputs, outputs, limits and failures.** An agent needs clear authority,
+   tools and expected evidence. A tool needs a contract, permission boundary and
+   error behavior. A skill should identify when its method is useful.
+5. **Test before adoption.** Include missing input, service unavailability and
+   repeated invocations. Confirm that the new component does not duplicate review,
+   QA or publication ownership or publish by surprise.
+6. **Record why it belongs.** `planner` incorporates useful capabilities into the
+   initiative. A core addition needs reusable value, a maintenance owner and checks
+   that justify its continuing cost. A project adapter need not become core.
 
-Examples use a nonfunctional `.invalid` endpoint and need an approved real destination:
+### Real people and domain personas
 
-```json
-{"mcpServers":{"corporate-wiki":{"type":"http","url":"https://wiki.example.invalid/mcp"}}}
+A person joins through your organization’s real account, permissions and work
+assignment process. custom-agents does not create that identity.
+
+A domain persona is a set of review criteria. For example:
+
+```text
+Billing perspective: check currency, tax, rounding and period boundaries.
+Ask the business owner when the applicable rule is not established.
 ```
 
-The JSON above is Claude project `.mcp.json`. A Codex configuration block is:
+The technical team stores it in the supported persona location, such as
+`.claude/personas/facturacion.md`, and selects it for relevant tasks. It does not
+replace the department’s owner or gain authority to approve knowledge or spending.
 
-```toml
-[mcp_servers.corporate_wiki]
-url = "https://wiki.example.invalid/mcp"
+To add an actual colleague, an administrator grants suitable access to the project
+and connected services. Documentation may explain responsibilities and profiles;
+it must not invent company accounts. Different domain teams can provide criteria
+without duplicating every agent.
+
+### Agents, skills, commands and rules
+
+A developer can prepare an agent with a mission, allowed tools and evidence-backed
+output, such as a billing reviewer. Use project pieces first, follow native formats
+and avoid names that collide with bundled owners.
+
+A skill contains an activation description and a reusable method. Some skills are
+selected automatically; a task can also request one explicitly. A name alone does
+not prove that the runtime loaded the file or that its tools are available.
+
+A command organizes a workflow rather than replacing a specialist. A rule applies
+when its project instructions are in scope. Placing files in an arbitrary folder
+does not make them active. Native Claude, Codex and OpenCode formats differ; the
+[advanced customization reference](../reference/customization.md) and
+[project extensions guide](../PROJECT-EXTENSIONS.md) provide concrete formats.
+
+### Languages and frameworks
+
+`stack-practices` selects relevant implementation/review guidance. Its Go reference
+covers versions, modules, concurrency, cancellation and tests. Rust currently has
+security and testing references; that does not claim a complete general Rust
+specialty. Do not install a compiler merely to read guidance.
+
+Broader team requests include CodeIgniter 4, Laravel, Symfony, Next.js, React,
+Python, .NET, C and C#. Check the installed catalog for the actual coverage and
+applicable versions rather than promising an equally complete specialist for
+every language. Add depth where a real project and maintenance owner justify it.
+
+### Outcome and recovery
+
+The team should know what was added, where it lives, who maintains it and which
+cases were verified. A general-purpose extension belongs in the plugin only when
+it adds reusable value without duplicate ownership. If it fails a pilot, disable
+the selected capability, keep evidence and correct it before wider adoption.
+
+## W-17. Connect a tool or an MCP server
+
+### A connection makes operations available
+
+A tool is an operation the assistant can invoke. An MCP server can expose operations
+from another system. A declared name is not a working connection: the environment
+must support, authenticate and expose the operation with suitable permissions.
+
+```text
+We need to read the portal approval page from the team wiki.
+Prepare that connection and prove a read. Do not enable publication
+until we agree on its destination, permissions and pilot.
 ```
 
-An OpenCode server-per-key example is:
-
-```json
-{"mcp":{"corporate-wiki":{"type":"remote","url":"https://wiki.example.invalid/mcp","enabled":true}}}
+```mermaid
+flowchart TD
+    A[Define a useful operation] --> B[Choose connector and permissions]
+    B --> C[Configure and authenticate]
+    C --> D[Verify destination with a read]
+    D --> E{Writing needed?}
+    E -->|No| F[Use read-only access]
+    E -->|Yes| G[Review and execute a pilot]
+    G --> H[Confirm receipt and recovery]
 ```
 
-Use the installed version's schema. The inventory also recognizes OpenCode V2
-surfaces such as mcp.servers without claiming native precedence. Official sources:
-[Claude MCP](https://code.claude.com/docs/en/mcp), [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp?surface=cli),
-[OpenCode MCP](https://opencode.ai/docs/mcp-servers/). Authentication/trust remain native.
+1. **Explain the missing operation.** Start with reading the approval page; add
+   updating only when useful. `research-first` compares official or maintained
+   connectors, compatibility, licenses, maintenance and available alternatives.
+2. **The administrator limits access.** Choose the real account and destination.
+   Keep secrets outside documents. Decide project versus user scope according to
+   the environment’s supported rules rather than granting all service permissions.
+3. **Configure and authenticate natively.** Claude, Codex and OpenCode have different
+   formats. Examples using `.invalid` are deliberately non-operational. Replace
+   them with an approved endpoint and validate the installed version’s schema.
+4. **Verify the current session.** Inventory actual operations and perform a bounded
+   read. Confirm the returned title and space belong to the selected destination.
+   `/doctor` and `/work-context` support diagnosis and inventory, not automatic trust.
+5. **Bind lifecycle operations when needed.** An adapter explains how to use tools;
+   the integration binding selects when and for which purpose. Connecting a wiki
+   does not decide what to publish or when to close a task.
+6. **Test writes separately.** Preview a selected pilot page, check authorization,
+   execute it and compare the real result. Test reconciliation after a lost response
+   so retries do not duplicate or overwrite unrelated content.
+7. **Recheck after changes.** Yesterday’s permissions or version do not prove today’s
+   connection. `delivery-practices` helps assess configuration, recovery and MCP
+   boundaries when they form part of a project delivery.
 
-Direct tool bindings use kind=tool, origin=session and an actual tool name. They
-still require schema, purpose, destination, authorization and receipt checks.
-For a multistep provider workflow, a skill adapter usually makes the contract clearer.
+There is no closed vendor list preventing a project from adding another tool.
+A new integration needs a contract and meaningful checks. If a function is absent,
+state the limit rather than simulating it. To diagnose failures, identify operation,
+destination and account role without sharing credentials or whole conversations.
 
-## Profiles and selective delivery
+## What the dashboard can do
 
-Read-only logical selection:
+The operating console brings registered, independent projects to one local address.
+It supports compatible native sessions/chat, portfolios and kanbans, task notes,
+preparation of the next work and received operations. [Chapter 8](dashboard.md)
+explains the full workflows.
 
-```powershell
-python agent-kits/shared/module-selection.py --profile core --with jira
-```
-
-Portable skills export/check from the plugin checkout:
-
-```powershell
-python scripts/export-skills.py --profile core --with jira --out dist/team-skills --format all
-python scripts/export-skills.py --check dist/team-skills
-```
-
-Claude copy plan:
-
-```powershell
-node install/install.mjs install -p claude-code --mode copy --profile core --with jira --dir <project> --dry-run
-```
-
-After review, run without dry-run. Copy mode does not register plugin hooks,
-statusline or namespace. Existing foreign/modified targets are rejected before
-copying. Profile changes retire only unchanged owned files; reinstall without
-flags preserves the selection. Native plugins remain complete. Unsupported partial
-native/OpenCode installer requests fail before registration/writes; choose the
-complete bundle or portable skills as appropriate. Portable skills are not the full cycle.
-
-## Conflicts and ownership
-
-Use unique project names. Inventory preserves source IDs and duplicate warnings,
-without universal runtime precedence. Planner records Extensiones and Procedencia
-de extensiones; the brief revalidates references. A pieces.json inventory can compare
-hash ownership/modification, but never adopts/executes/overwrites pieces.
-
-Version project contracts, examples and tests. Keep secrets and runtime state out
-of Git. Before retiring an extension, check task references and provide an explicit
-alternative/warning. Previously cancelled adoption/generation work stays cancelled.
+Static HTML remains a capability snapshot without chat. The console reports native
+limits and does not promise universal Desktop window control. Declared integrations,
+connected runtimes and historical activity retain their different sources and
+levels of verification.

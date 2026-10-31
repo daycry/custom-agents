@@ -17,6 +17,33 @@ Visión visual de cómo encajan agentes, comandos y skills. Los diagramas son Me
 
 ## 0 · Mapa general — quién usa qué
 
+### Consola común: elegir proyecto y trabajar con su contexto
+
+El operador registra las raíces autorizadas y abre una sola consola. El selector
+mantiene sesiones, planes, notas y memoria en su proyecto; no asigna permisos a
+personas distintas. Las acciones conservan la revisión y QA del ciclo nativo.
+La memoria local sigue en core; `memory-integrations` entrega los adaptadores
+externos opcionales. Configurarlos no demuestra conexión ni autoriza publicar.
+
+```mermaid
+flowchart TD
+    R[Registro explícito de proyectos] --> C[Una consola y un puerto]
+    C --> P[Elegir proyecto]
+    P --> S[Sesión y chat nativos]
+    P --> L[Planes, kanban y notas locales]
+    P --> M[Memoria local y fuentes]
+    L --> V[Revisar mensaje y versión del plan]
+    V --> S
+    S --> D{Decisión nativa pendiente}
+    D -->|Sí| H[Respuesta explícita de la persona]
+    H --> E[Confirmar resultado y evidencia]
+    D -->|No| E
+    M -.-> O[Integración externa elegida y autorizada]
+```
+
+El [workflow completo W-23 a W-27](guides/dashboard.md) explica el arranque,
+la conversación, la recuperación y las comprobaciones entre proyectos.
+
 ```mermaid
 flowchart TD
     PM(["👤 PM / producto"]) --> S0["/setup"]

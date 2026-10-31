@@ -11,7 +11,16 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Changed — `memory-integrations` initiative (2026-10-31)
+
+- **T-01 — Separate service delivery and selection** External memory services move to memory-integrations; local curation and recovery remain in core without a backend dependency.
+- **T-02 — Use the common integration port** Backends use common bindings without duplicating taxonomy, routing, curation or outbox ownership.
+- **T-03 — Explain and verify each workflow** ES/EN workflows and the PDF cover Kwipu, Graphify and Graphiti, including authorization, recovery and publication/read limits.
+
 ### Changed
+
+- One local control center serves explicitly registered projects on a common port, with isolated native sessions/chat, human decisions, plans, task kanbans, notes, activity and local memory. Native capabilities and Desktop limits are explicit. (`control-center`)
+- Rebuild the bilingual handbook around 27 explained workflows and real Mermaid diagrams, preserving advanced references and complete examples. Ship a navigable 126-page Spanish PDF and a source verification manifest. (`handbook-readability`)
 
 - Added version-aware Go implementation and testing guidance to stack-practices, with explicit project selection and shared criteria for all delivery roles.
 

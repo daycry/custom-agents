@@ -47,6 +47,10 @@
     ".codex-plugin/",
     "docs/INTEROP.md",
     "docs/en/INTEROP.md",
+    "docs/*.md",
+    "docs/en/*.md",
+    "docs/agents/",
+    "docs/en/agents/",
     "README.md",
     "README.es.md",
     "CHANGELOG.md",
@@ -59,6 +63,12 @@
     "docs/en/CUSTOMIZATION.md",
     "docs/guides/",
     "docs/en/guides/",
-    "docs/examples/integrations/"
+    "docs/examples/integrations/",
+    "docs/examples/memory/",
+    "docs/examples/dashboard/",
+    "docs/reference/",
+    "docs/en/reference/",
+    "output/pdf/custom-agents-manual-operativo.pdf",
+    "output/pdf/custom-agents-manual-operativo.manifest.json"
   ]
 }

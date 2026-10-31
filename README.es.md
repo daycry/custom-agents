@@ -3,7 +3,7 @@
 
 **Manual de uso y personalización:** [workflows detallados del core, integraciones opcionales, Atlassian/Redmine y extensiones del proyecto](docs/CUSTOMIZATION.md). Los bundles nativos son completos; configurado no significa conectado ni autorizado.
 
-[Manual PDF para responsables (español, 39 páginas)](output/pdf/custom-agents-manual-operativo.pdf).
+[Manual PDF ilustrado para responsables (español)](output/pdf/custom-agents-manual-operativo.pdf).
 
 [English](README.md) · **Español**
 
@@ -244,7 +244,7 @@ flowchart LR
 | `/spec-drift` | ¿El código sigue cumpliendo las specs implementadas? |
 | `/retro` | Cierra el bucle: desviaciones + causas → `CALIBRATION.md`. |
 | `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
-| `/plugin-catalog` | Busca capacidades del bundle y extensiones de proyecto/usuario, con fuentes y conflictos. |
+| `/plugin-catalog` | Abre la consola común de proyectos con sesiones/chat nativos, planes y kanban, o exporta un inventario de capacidades. |
 | `/work-context` | Guías pertinentes y extensiones seleccionadas explícitamente para la tarea. |
 | `/work-resume` | Ledger actual e historial de sesión seleccionado en un dossier acotado de solo lectura. [Selección y límites](docs/WORK-RESUME.md). |
 | `/doctor` | Diagnóstico determinista de la instalación: herramientas, plugin/hooks, statusline, configs de `.claude/`, estado del trabajo — veredicto ✅/⚠️/❌ con el arreglo por línea, solo lectura, sin red. |

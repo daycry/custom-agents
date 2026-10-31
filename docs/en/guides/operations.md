@@ -1,107 +1,161 @@
-# 6. Operations, adoption and failure handling
+# 6. Introduce the product to a team and handle everyday problems
 
-Start with a small pilot, a process owner, connector administrator and technical
-owner. Agree accounts, destinations, publication scope and write authorizations.
-Run the local lifecycle first, then one tracking/documentation integration. Test
-a controlled write, a rejection and reconciliation before broad rollout. An MCP
-inventory is not business or technical acceptance.
+Start with one initiative whose result the team can recognize. Our portal must
+require a rejection reason and prevent a second decision. The pilot should check
+both the product result and whether the team can use, understand and recover the
+working method.
 
-## W-18. Validate and operate an integration
+## W-18. Run a pilot and adopt the product
 
-**Commands:** doctor, work-context, read-only router. **Actors:** user, administrator,
-adapter owner. **Tools:** local checks and requested bounded remote reads.
+### People, prerequisites and a useful request
 
-| Step | Owner/action | Correct interpretation |
-|---|---|---|
-| 1 | User fixes project root/runtime | Another root's diagnostic proves nothing here |
-| 2 | Router validates/filters declarations | Declared is not connected |
-| 3 | Doctor checks installation/config | Does not certify past dispatch or remote permissions |
-| 4 | Runtime/admin checks account/tools/access | Authentication differs from destination permission |
-| 5 | Adapter pilots bounded read | Correct object/project; pagination accounted for |
-| 6 | User reviews concrete write | Authorization for actual effects |
-| 7 | Adapter executes/classifies | Confirmed, skipped, failed or uncertain |
-| 8 | Owner records receipt/reconciles | No blind retry after uncertain writes |
+Choose a process owner, a technical contact and an administrator. A small team can
+share roles, but the decisions and responsibilities should remain explicit. Start
+with a prepared project, suitable access and a concrete case rather than a large
+configuration rollout.
 
-```powershell
-python agent-kits/shared/integration-route.py --project <project> --check
-python agent-kits/shared/integration-route.py --project <project> --event task.started
-python agent-kits/shared/project-pieces.py --project <project> --runtime codex --project-only --json
+```text
+Prepare a pilot for the portal. We want to define each stage, review the
+plan before implementation, verify behavior and share clear instructions.
+At the end, show result, limits and recovery steps.
 ```
 
-Locate scripts in the installed bundle; checkout paths above are examples.
-Check returns 2 for invalid, partial or unavailable configuration. Ordinary optional
-projection reports these conditions and continues the local lifecycle with gates intact.
+```mermaid
+flowchart TD
+    A[Choose a case and owners] --> B[Prepare and verify access]
+    B --> C[Agree on scope and plan]
+    C --> D[Execute review and checks]
+    D --> E[Verify delivery and integrations]
+    E --> F{Team can use and recover it?}
+    F -->|No| G[Correct and repeat the pending case]
+    F -->|Yes| H[Adopt instructions and owners]
+```
 
-## Router states
+1. **Prepare.** Use W-01: the administrator checks installation and available tools;
+   `/setup` records the agreed choices; `/doctor` explains its checks and gaps. The
+   owner chooses the local method and any external service worth testing. There is
+   no need to enable every capability merely to try the product.
+2. **Agree on the work.** W-02 and W-03 define requirements, evaluation and plan.
+   `analyst`, `evaluator` and `planner` make the proposal understandable. The owner
+   reviews examples and acceptance conditions rather than approving a board title.
+3. **Execute and observe.** W-04 brings `implementer`, `reviewer` and `qa` together.
+   `tdd`, `adversarial-review`, stack guidance and relevant tools are selected by
+   the project. A short feedback loop is more useful than many unverified changes.
+4. **Test collaboration where it will be used.** For Jira or Redmine, verify at least
+   one real creation, review comment and permitted final transition. For a wiki,
+   check publication, update and a conflicting edit. A service mentioned in setup
+   is not a verified part of the pilot.
+5. **Close the pilot with usable guidance.** W-05 combines evidence and documentation.
+   The department should be able to resume the initiative after a handoff. Ask for
+   an explanation of limits and anything still pending.
+6. **Introduce it to more teams deliberately.** Keep owners, examples, maintenance
+   and access clear. Another area may use different integrations. Adoption does
+   not authorize silently expanding every project’s permissions or publications.
 
-| Status | Meaning | Action |
+### Check before extending the rollout
+
+| Owner’s question | Evidence to expect |
+|---|---|
+| Was the agreed result delivered? | Plan, criteria and actual behavior |
+| Who reviewed and checked it? | Separate review and verification results |
+| Were remote issues created correctly? | Confirmed links and field mappings |
+| Is the publication current? | Real page content/version and resolved conflicts |
+| Can someone continue tomorrow? | Current state, next step and unresolved items |
+| What was not verified? | An explicit limit and a way to address it |
+
+If the pilot stops, keep its progress and exact remaining work. Do not repeat issue
+creation or publication just because the summary was interrupted. The technical
+contact isolates failures; the process owner decides scope changes. A service
+permission belongs to its administrator, not to an assistant inventing a new account.
+
+## A simple daily routine
+
+At the start, ask for the current portal state, the previous result and the next
+step. `/roadmap-status` helps consult the portfolio; `/work-resume` prepares continuation. A historical board snapshot is not live state.
+
+During the task, explain the change you need and ask for its review and checks.
+If new scope appears, decide explicitly rather than hiding it in the existing task.
+At closure, request the phase summary, updated instructions and any remaining
+publication. `/retro` helps capture learning. Current source files and receipts
+are more useful for a handoff than a copy of an entire conversation.
+
+## When something goes wrong
+
+| What you see | What to clarify | Useful next action |
 |---|---|---|
-| absent | No declarations/recognized opt-ins | Local work or explicit configuration |
-| disabled | No active bindings | Respect choice; detecting MCP does not enable it |
-| declared | Valid matching bindings | Verify session, contract, destination, permission |
-| no_match | Active bindings do not match filter | Do not substitute another provider |
-| partial | Valid matches plus rejected declarations | Report diagnostics, use independent valid entries only |
-| invalid | Requested declaration cannot be used | Review schema/duplicates without resetting/fallback |
-| unavailable | Safe read/dependency unavailable | Repair bundle/access; continue locally |
+| A skill is missing | Installation, selected module or runtime availability | Administrator checks inventory and delivery mode |
+| Configured but disconnected | A declaration without an established connection | Test a bounded read in the actual destination |
+| External publication pending | Permission, conflict or effect still unconfirmed | Reconcile versions/receipts before retrying |
+| Review or QA gaps | A required condition has not passed | Read the evidence, correct and rerun the case |
+| Preparation timeout | The test or process was not ready within its budget | Separate preparation from the intended semantic check |
+| Board state differs | Mirroring may be stale or unsupported | Compare both sources and confirmed operations |
+| A memory query returns an old answer | A derived service may be stale or unauthorized | Verify local authority, versions, bindings and read policy |
 
-Router availability/permissions remain unverified and execution not_run. Actual
-execution evidence belongs to the adapter, not this read-only component.
+### Hooks, notifications and approvals
 
-## Common incidents
+A hook is an automatic action associated with a runtime event, such as starting a
+session. A message does not always identify which process actually failed. The
+team should distinguish process execution from how a desktop interface displays
+its notifications.
 
-| Symptom | Check | Response |
-|---|---|---|
-| Valid config, absent tool | Runtime, connection, version, actual catalog | Repair connector; never invent a tool name |
-| Connected account, write denied | Account/destination/role/admin policy | Administrator reviews permission; no automatic escalation |
-| Missing target status | Allowed transitions for this object | Pending projection and explicit mapping, no example ID |
-| Timeout after send | Remote ID/correlation | Reconcile before replay |
-| Both document sides changed | Base hash and revisions | Preview conflict and ask for resolution |
-| Duplicate comments | Event owner/attempt key | One publisher, per-operation receipts |
-| Phase closes early | Every task's gates | Reconcile/repair adapter under authorization |
-| Partial extension inventory | Format, limits, links, conflicts | Repair declaration; omission grants no permission |
-| Plugin contents changed approval error | Installed version and changed bundle | Review/approve through native UI, never bypass trust hashes |
-| Unnamed hook/unverified execution | Installed labels and process result | Supported update; distinguish UI routing from process failure |
+“Plugin contents changed; hook approval required” means the runtime needs approval
+for changed plugin content. Review the origin and change before using the runtime’s
+approval interface. In the Codex CLI interface reported during this work, selecting
+an entry and pressing `t` worked. Available keys and labels depend on the installed
+version; the plugin should provide meaningful names where that schema supports it.
+A trust entry alone does not certify current execution or the validity of every hash.
 
-An unknown-conversation notification is not a failed-process receipt. An approved
-hash does not prove hook execution. Keep diagnostics bounded and avoid dumping
-conversations or full private configurations.
+“The system cannot find the file specified” requires checking the actual launcher
+path and arguments. A private script pointing to an obsolete cache version does
+not prove a failure of the plugin’s native hook definitions.
 
-## Major-version migration
+The observed Windows error 206 concerned `legacy_notify` configured for
+`codex-computer-use.exe`. It does not establish a custom-agents execution failure.
+Likewise, Desktop’s unknown-conversation messages for hook notifications describe
+a notification-routing problem without proving the hook process result. Ask for a
+bounded diagnostic with source, date, runtime and actual process evidence.
 
-The user authorized breaking changes where appropriate. The explicit integration
-contract is version-1 project integrations.json. Back up preferences/maps privately,
-identify actual destinations and existing effects, then prepare/validate new bindings.
-An explicit empty list disables selection. A present new config takes precedence
-even if empty/invalid; it is not ignored to silently use an older account.
+## Ask for help without exporting a whole conversation
 
-Only when the new file is absent are local Jira/Confluence enabled booleans recognized.
-This transitional read neither migrates nor certifies connectivity. No other project
-or HOME is used. Jira scripts now require the actual project root instead of inheriting
-a parent opt-in.
+Explain the attempted action, expected result, environment/version and exact visible
+message. Identify the initiative or relevant artifact. A technical contact can gather
+bounded logs and a reproduction without credentials, raw transcripts or reasoning.
 
-Modified portable packages must be exported to a different destination and reconciled.
-Profile copies do not adopt historical files by name. Choose a clean destination or
-resolve ownership/modifications explicitly. Never delete remote maps to avoid migration
-conflicts and accidentally recreate everything.
+Repeated failures warrant systematic debugging: `debug-root-cause` separates
+reproduction, isolation, a tested hypothesis and a regression check. For memory,
+`knowledge-curator` owns knowledge judgment, while the optional service’s administrator
+owns its connectivity, indexing and recovery. State which layer is uncertain.
 
-## Maintain documentation and PDF
+## Glossary for everyday use
 
-Markdown chapters are the delivery source. Workflow changes update steps, owners,
-commands, skills, tools, settings, events, gates and recovery in both languages.
-Examples retain router/adapter checks. Regenerate and visually inspect the PDF
-before distribution. Leads should be able to ask for a spec, a task preview, a
-phase's documents or pending synchronization, and get results/evidence without
-needing internal IDs or raw logs.
+| Term | Meaning |
+|---|---|
+| Core | The common local lifecycle and its governance |
+| CLI | A text interface in a terminal |
+| Desktop | A desktop application that may expose different interfaces from a CLI |
+| Runtime | The environment that loads the plugin and provides execution/tools |
+| Workflow | An ordered process with roles, decisions and an outcome |
+| Skill | Instructions reused by an assistant for a particular method |
+| Tool | An operation currently available to the session |
+| MCP | A protocol through which a server exposes tools or resources |
+| Adapter | A component mapping the common method to a service |
+| Binding | A project declaration selecting adapter, purpose and capabilities |
+| Event | A notice that a lifecycle moment occurred, such as a task starting |
+| Ledger | The authoritative local plan/task record |
+| Kanban | A view grouping tasks by recorded state |
+| Gate | A condition that must be satisfied before continuing |
+| QA | Verification through relevant checks and evidence |
+| Receipt | A record linking an operation to its observed result |
+| Reconciliation | Checking what actually happened before retrying or repairing a link |
+| Idempotence | A retry does not create another copy of the same intended effect |
+| Outbox | Pending operations retained for controlled recovery |
+| Routing | Rules selecting which source is allowed for a declared purpose |
+| Hash | A fingerprint used to detect content changes |
+| Frontmatter | Structured metadata at the beginning of a document |
+| Snapshot | A bounded observation at a particular time |
+| Evidence | A source or result supporting a verifiable claim |
+| Opt-in | A capability activated through explicit configuration and authorization |
 
-## Recover an interrupted copy installation
-
-A profile update is not a transaction over the whole tree. Failure/cancellation
-can leave some files applied. An incomplete manifest retains both previous and
-planned owned hashes, recognizing unchanged old files without adopting consumer
-edits. After reconciling the conflict, reinstall preserves selection and resumes;
-uninstall can also remove owned files that still have their previous version.
-
-Every file is revalidated before replacement. Persistent Windows locks fail rather
-than falling back to truncating an in-use file. This detects observed changes;
-it is neither a universal lock against external writers nor multi-file atomicity.
-Retain error evidence and review the manifest before retrying or uninstalling.
+[Advanced operations](../reference/operations.md) documents packaging, migration and
+technical checks. [The dashboard workflows](dashboard.md) explain normal use and
+recovery of the shared local console.

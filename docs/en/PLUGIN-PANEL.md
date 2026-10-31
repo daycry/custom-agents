@@ -1,5 +1,8 @@
 # Plugin capability panel
 
+The v3 operating console uses one server for registered projects: native sessions/chat, plans/kanban, notes, activity and memory. Read [the team workflows](guides/dashboard.md) and [the startup contract](../../skills/plugin-panel/references/control-center.md). This page retains the static generator and its informational `build_panel.py` server; `/plugin-catalog --serve` now opens `control_center.py`.
+
+
 Hooks appear in one card per **runtime and event**. `PostToolUse` retains three
 handlers in each runtime. HTML counts groups; JSON retains one entry per handler,
 `counts.hooks` counts actions and `hook_group_count` counts groups. `--runtime`

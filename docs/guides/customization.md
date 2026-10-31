@@ -1,242 +1,192 @@
-# 5. Personalizar el producto sin modificar el core
+# 5. Adaptar el producto a las personas y al trabajo del equipo
 
-## W-16. Decidir dónde vive una ampliación
+Puedes elegir herramientas diferentes en cada proyecto y añadir especialidades
+sin llenar el plugin de piezas que nadie necesita. Primero se concreta una necesidad,
+después se elige la pieza más pequeña que la resuelve y se comprueba con un caso real.
 
-**Disparador:** el equipo necesita otro criterio, rol, sistema externo o herramienta.
-**Comando de contexto:** `/work-context`; catálogo opcional con `/plugin-catalog`.
-**Actores:** responsable de dominio y equipo técnico; planner registra la selección
-en las tareas que la usan. **Lectores:** `project-pieces.py` y capability-route.
+Este capítulo separa las decisiones del responsable y las tareas de administración.
+No necesitas escribir configuración para decidir qué comportamiento quieres.
 
-| Necesidad | Pieza apropiada | Ubicación/dueño | Comprobación antes de usar |
-|---|---|---|---|
-| Criterios de facturación, legal o negocio | Persona breve | Proyecto | Tipo de tarea y límites del brief |
-| Especialista con objetivo y herramientas propias | Agente | Runtime del proyecto | ID real, contrato y herramientas permitidas |
-| Método que reutilizan varios roles | Skill | Proyecto, usuario o módulo del bundle | Disparadores, referencias y casos positivos/negativos |
-| Secuencia que inicia el usuario | Comando | Runtime que soporte comandos propios | Entradas, decisiones, salidas y handoffs |
-| Regla permanente del proyecto | Instrucciones/constitución | Proyecto | Alcance y precedencia nativos, sin duplicar manuales |
-| Operación programática | Tool o script con contrato | Proyecto/runtime | Esquema, exit codes, permisos y pruebas |
-| Acceso a un servicio | Servidor MCP o conector | Runtime/administrador | Confianza, autenticación, permisos y operaciones reales |
-| Uso de un proveedor en el ciclo | Adaptador + binding | Proyecto | Capacidades/eventos, destino, recibos y reconciliación |
+## W-16. Elegir y añadir la ampliación adecuada
 
-No se añade un agente solo para envolver una skill ni una skill para enumerar
-herramientas disponibles. Una configuración MCP no es un workflow. Una persona no
-es una cuenta de usuario. Las extensiones complementan a los dueños del core.
+### Empieza por un ejemplo de trabajo
 
-## Personas de dominio y personas del equipo
+Imagina que el portal debe cumplir normas de facturación. Puedes pedir:
 
-Las **personas de dominio** son perfiles cortos de criterio. Para facturación:
-
-```markdown
-# Persona de facturación
-Comprueba moneda, impuestos, redondeos y periodo de facturación.
-Exige ejemplos de rectificación y conservación del rastro de auditoría.
-No decide políticas fiscales por su cuenta ni sustituye al responsable del área.
+```text
+Necesitamos comprobar moneda, impuestos y redondeos en las solicitudes de gasto.
+Propón cómo incorporar esos criterios al proyecto sin crear roles duplicados.
+Explica qué decidirá la persona de facturación y qué podrá comprobar el asistente.
 ```
 
-Se guarda en `.claude/personas/facturacion.md`, convención propia del plugin,
-y se etiqueta la tarea con `- **Tipo**: facturacion`. El brief prioriza la persona
-del proyecto, luego la del catálogo; si no hay ninguna, avisa y continúa. No se
-instalan agentes nativos por crear este perfil. No se copia un dossier privado de
-una persona real para simular su identidad.
-
-Las **personas del equipo** son usuarios reales con cuentas, roles y permisos en
-el runtime y los servicios. El administrador las invita mediante los mecanismos
-del proveedor. El equipo acuerda quién aprueba alcance, quién puede publicar y
-quién es responsable de cada tarea. El plugin no crea esas identidades. Asignar
-un issue a alguien puede notificarle: se previsualiza y autoriza ese efecto.
-
-## Añadir un agente del proyecto
-
-En Claude Code, ejemplo de especialista de lectura:
-
-```markdown
----
-name: project-billing-reviewer
-description: Revisa reglas de facturación y redondeo; úsalo al revisar cambios de importes.
-tools: Read, Grep, Glob
-model: sonnet
----
-Revisa solo el alcance recibido. Devuelve hallazgos con archivo, línea,
-caso de negocio y evidencia. No edites código, no apruebes QA y no publiques.
+```mermaid
+flowchart TD
+    A[Describir la necesidad y un ejemplo] --> B[Revisar piezas existentes]
+    B --> C[Elegir la ampliación mínima]
+    C --> D[Prepararla en el proyecto]
+    D --> E[Probar aciertos y errores]
+    E --> F[Usarla y revisar su utilidad]
 ```
 
-Ubicación: `.claude/agents/project-billing-reviewer.md`. En Codex se declara un
-agente TOML en `.codex/agents/` o un rol en su configuración; en OpenCode se usa
-su formato de agentes en `.opencode/agents/` o configuración correspondiente.
-No copies frontmatter de un runtime a otro como si sus campos fueran universales.
-[Carpetas, formatos e inventario](../PROJECT-EXTENSIONS.md).
+### Cómo elegir sin conocer la estructura interna
 
-Ejemplo mínimo del formato independiente que reconoce el lector de Codex:
-
-```toml
-name = "project-billing-reviewer"
-description = "Revisa importes y redondeo con evidencia del proyecto."
-developer_instructions = "Revisa el alcance recibido; devuelve hallazgos citados. No publiques ni cambies estados."
-```
-
-Que el inventario reconozca el archivo no certifica que el runtime admita todos
-los campos/opciones de la versión instalada. Comprueba el agente nativo y sus
-restricciones efectivas. El modelo elegido no concede herramientas ni permisos.
-
-## Añadir una skill de proyecto
-
-El ejemplo Redmine del manual se acompaña de
-`docs/examples/integrations/project-redmine/SKILL.md`. Se copia a la raíz de
-skills del runtime: `.claude/skills/`, `.agents/skills/` para Codex o la carpeta
-admitida por OpenCode. No se coloca en la caché de custom-agents.
-
-Una skill profesional contiene nombre único, descripción con disparadores,
-objetivo, entradas, pasos, límites, errores y referencias bajo demanda. Las
-instrucciones dicen qué hace la capacidad; el cálculo, parsing y veredicto
-determinista pertenecen a scripts probados. Si depende de una herramienta externa,
-declara esa dependencia y su degradación explícita.
-
-Para `project-redmine`, los casos mínimos incluyen configuración ausente, permisos
-solo lectura, proyecto incorrecto, transición inexistente, un lote parcial y un
-timeout tras crear. El ejemplo aportado es un contrato inicial para adaptar, no
-una implementación de transporte que se pueda declarar probada sin esos ensayos.
-
-## Añadir comandos y reglas
-
-Un comando de proyecto puede coordinar la skill anterior para publicar un plan,
-pero debe mantener un único dueño por operación. En Claude los comandos viven en
-`.claude/commands/`; en OpenCode, en su carpeta/configuración de comandos. Codex
-no recibe comandos de proyecto por el mero hecho de crear esa misma carpeta:
-usa las capacidades nativas que soporte la versión instalada, por ejemplo una
-skill invocable. El inventario del plugin no inventa un cargador de comandos.
-
-Las reglas permanentes van en las instrucciones nativas del proyecto y, para
-principios del producto, en `docs/CONSTITUTION.md` si se elige usarla. Evita pegar
-todo el manual en el archivo de instrucciones: enlaza el detalle y carga lo
-pertinente. Una instrucción local no debe relajar revisión, autorización o gates
-que el proyecto haya fijado como obligatorios.
-
-## W-17. Añadir una tool o servidor MCP
-
-**Actor principal:** administrador o desarrollador del proyecto.
-**Comandos de inventario:** `/work-context`, `/doctor`; los comandos nativos MCP
-dependen del runtime. **Skill:** `delivery-practices` para revisar límites de entrega
-y permisos; adaptador del proyecto para las operaciones de negocio.
-
-| Paso | Acción | Evidencia que se necesita |
+| Lo que necesitas | Qué pieza lo resuelve | Ejemplo cotidiano |
 |---|---|---|
-| 1 | Define la operación que falta | Ejemplo de entrada, salida y efecto; no «conectar todo» |
-| 2 | Busca conector oficial o mantenido y revisa su contrato | Dueño, licencia, mantenimiento y compatibilidad |
-| 3 | Elige scope y autenticación | Cuenta y proyecto correctos; secretos en almacén seguro |
-| 4 | Declara servidor en el runtime | Config válida; no es todavía prueba de conexión |
-| 5 | Conecta/autoriza con mecanismos del runtime | Sesión y lista de operaciones disponibles |
-| 6 | Ejecuta una lectura acotada de prueba | Resultado del destino esperado y manejo de errores |
-| 7 | Añade adaptador y binding si participa en el ciclo | Capacidades/eventos coinciden con lo probado |
-| 8 | Previsualiza una escritura piloto y autorízala | Recibo confirmado y reconciliación probada |
-| 9 | Repite pruebas al cambiar versión/permisos | No se deduce disponibilidad de un inventario antiguo |
+| Criterios de un área | Persona de dominio: un perfil de criterios | Qué debe revisar facturación en una solicitud |
+| Un especialista con una misión separada | Agente: un asistente con objetivo y límites | Revisar importes y devolver hallazgos sin modificar nada |
+| Un método reutilizable | Skill: instrucciones de trabajo | Cómo comprobar redondeos con ejemplos |
+| Iniciar una secuencia repetida | Comando o skill invocable | Preparar una revisión de cierre mensual |
+| Una regla permanente | Instrucciones del proyecto | Toda denegación debe explicar su motivo |
+| Ejecutar una operación concreta | Tool: una función o script disponible | Consultar el estado de una tarjeta |
+| Acceder a un servicio | Conector o servidor MCP | Dar acceso controlado a la wiki |
+| Usar ese servicio dentro del ciclo | Adaptador y binding | Comentar en Redmine cuando QA termina |
 
-Un script local no se convierte en tool nativa por estar en una carpeta cualquiera.
-OpenCode reconoce fuentes de custom tools; Claude y Codex exponen herramientas
-según sus contratos de runtime/MCP. El lector de extensiones no importa scripts,
-no ejecuta exports ni instala paquetes para descubrir qué contienen.
+1. **El responsable describe el resultado.** Aporta ejemplos correctos e incorrectos
+   y dice qué decisiones requieren a una persona. «Revisar facturación» es demasiado
+   amplio; «detectar un redondeo incorrecto con estos dos importes» permite comprobarlo.
+2. **Se revisa lo que ya existe.** `/work-context` ayuda a seleccionar piezas y
+   `/plugin-catalog` permite explorarlas. `research-first` compara soluciones antes
+   de construir. Un nombre parecido no acredita que resuelva el caso.
+3. **Se prepara en el proyecto.** Así el portal puede usar Redmine y otro proyecto
+   usar Jira. Las ampliaciones personales pueden vivir en el espacio del usuario;
+   las compartidas por el equipo deben tener dueño, documentación y versión acordada.
+   La caché instalada del plugin no es el lugar donde guardar cambios del proyecto.
+4. **Se describen entradas, pasos, límites y fallos.** Un agente necesita saber qué
+   puede editar y qué debe devolver. Una skill necesita explicar cuándo se usa.
+   Una herramienta necesita un contrato de entrada y salida, permisos y errores.
+5. **Se ensaya antes de adoptarla.** Además del caso correcto, se prueban información
+   ausente, permiso insuficiente y resultado incierto. Se comprueba que no duplica
+   al dueño de revisión o QA y que no publica nada por sorpresa.
+6. **Se registra su uso en las tareas pertinentes.** `planner` incluye la selección
+   y `implementer` usa el contexto elegido. El equipo revisa después si la pieza
+   ayuda realmente. Solo se propone para el core si existe utilidad compartida y
+   un responsable de mantenimiento; no se añade por acumular opciones.
 
-### Ejemplos de declaraciones MCP
+### Personas reales y perfiles de criterio
 
-Estos endpoints usan `.invalid`: son ejemplos seguros que deben sustituirse por
-el endpoint real aprobado. No son servidores instalables ni conexiones verificadas.
+Una **persona de dominio** es un documento breve, no una cuenta. Por ejemplo:
 
-Claude Code, `.mcp.json` de proyecto:
-
-```json
-{
-  "mcpServers": {
-    "corporate-wiki": {
-      "type": "http",
-      "url": "https://wiki.example.invalid/mcp"
-    }
-  }
-}
+```text
+Perfil de facturación: comprobar moneda, impuestos, redondeos y periodo.
+Pedir ejemplos de rectificación. Ante una política fiscal ambigua, consultar
+al responsable del área; no decidirla automáticamente.
 ```
 
-Codex, bloque de configuración MCP:
+El equipo técnico puede guardarlo en `.claude/personas/facturacion.md` y etiquetar
+la tarea con el tipo `facturacion`. Es una convención del plugin para aportar
+criterios. No instala un agente ni reproduce la identidad de una persona real.
 
-```toml
-[mcp_servers.corporate_wiki]
-url = "https://wiki.example.invalid/mcp"
+Para **añadir un compañero**, el administrador lo invita en la herramienta de
+trabajo y los servicios mediante sus mecanismos habituales. Acordáis quién aprueba
+alcance, publica documentos, ve datos y recibe asignaciones. No se dan permisos por
+escribir su nombre en un plan. Asignarle una tarjeta puede enviarle una notificación;
+ese efecto se debe conocer y autorizar cuando corresponda.
+
+### Añadir agentes, skills, comandos y reglas
+
+El desarrollador crea un agente de proyecto cuando hace falta una misión autónoma.
+Por ejemplo, `project-billing-reviewer` recibe un cambio, revisa importes y devuelve
+hallazgos con evidencia; sus límites pueden prohibir editar, publicar y dar el verde
+final. Elegir un modelo no concede herramientas ni permisos por sí solo.
+
+Una skill de proyecto puede enseñar el método de redondeo a varios agentes. Debe
+incluir ejemplos de activación y casos en los que no se usa. El ejemplo
+`project-redmine` del capítulo 4 incluye un contrato inicial; todavía necesita
+transporte real y pruebas en el proyecto.
+
+Un comando reúne una secuencia que inicia el usuario, manteniendo un único dueño
+por operación. Cada entorno admite sus formatos: una carpeta de comandos de Claude
+no crea comandos automáticamente en Codex. Las reglas permanentes se ponen en las
+instrucciones nativas del proyecto y se enlaza el detalle, en vez de pegar el manual
+completo en cada conversación.
+
+Para equipos técnicos, los formatos y carpetas de Claude, Codex y OpenCode están
+en [Extensiones propias](../PROJECT-EXTENSIONS.md). La
+[referencia de personalización](../reference/customization.md) contiene ejemplos
+Markdown, TOML y JSON. Se comprueba el formato admitido por la versión instalada.
+
+### Lenguajes y frameworks
+
+`stack-practices` aporta criterios seleccionados según el trabajo. Incluye una guía
+Go para errores, concurrencia, cancelación y pruebas; se selecciona explícitamente
+con `--stack go` en el lector técnico. Eso no instala Go ni certifica compilación.
+Rust tiene referencias de seguridad y pruebas; una guía general equivalente sigue
+pendiente. No se presupone una especialidad completa por encontrar el nombre de
+un lenguaje en el catálogo.
+
+### Resultado y recuperación
+
+Al terminar necesitas saber qué pieza se añadió, dónde vive, quién la mantiene y
+qué casos se probaron. Pide un ejemplo de uso y uno en el que deba abstenerse.
+Si dos piezas compiten por la misma función, se resuelve el conflicto antes de
+usarlas. Si una pieza no se carga, se revisa su ubicación y compatibilidad nativa;
+no se interpreta el inventario como prueba de ejecución.
+
+## W-17. Conectar una herramienta o un servidor MCP
+
+### Qué significa conectar
+
+Una tool es una operación que el asistente puede pedir que se ejecute. Un servidor
+MCP es un puente que expone operaciones de otro sistema con un protocolo común.
+Ni el nombre de una tool ni la presencia de un servidor prueban que estén conectados
+o tengan permiso. La cuenta, el destino y la operación se comprueban por separado.
+
+```text
+Queremos consultar nuestra wiki desde este proyecto. Busca un conector adecuado,
+prepara acceso de lectura al espacio del equipo y comprueba una página de prueba.
+No habilites publicación hasta que revisemos cómo se realizará y verificará.
 ```
 
-OpenCode, ejemplo de formato con bloque `mcp` por servidor:
-
-```json
-{
-  "mcp": {
-    "corporate-wiki": {
-      "type": "remote",
-      "url": "https://wiki.example.invalid/mcp",
-      "enabled": true
-    }
-  }
-}
+```mermaid
+flowchart TD
+    A[Definir una operación útil] --> B[Elegir conector y permisos]
+    B --> C[Configurar y autenticar]
+    C --> D[Comprobar lectura del destino]
+    D --> E{Necesitamos escribir}
+    E -- No --> F[Usar solo lectura]
+    E -- Sí --> G[Revisar y ejecutar un piloto]
+    G --> H[Confirmar recibo y recuperación]
 ```
 
-Usa el esquema de la versión instalada. El inventario también reconoce superficies
-OpenCode V2 como `mcp.servers`; reconocer ambas no establece una precedencia nativa.
-No cambies el formato solo para eliminar un aviso del inventario.
+1. **Concretáis qué falta.** Por ejemplo, leer la página de aprobación; después,
+   quizá actualizarla. `research-first` ayuda a comparar un conector oficial o
+   mantenido con otras opciones. Se revisan compatibilidad, mantenimiento y licencia.
+2. **El administrador limita el acceso.** Elige cuenta y espacio correctos y guarda
+   los secretos fuera de los documentos. Decide si la configuración afecta a este
+   proyecto o al usuario. No se concede todo el servicio por comodidad.
+3. **Configura y autentica en el entorno.** Claude, Codex y OpenCode tienen formatos
+   y mecanismos propios. El manual avanzado muestra ejemplos con `.invalid`, una
+   dirección deliberadamente no operativa. Hay que sustituirla por un servicio
+   aprobado y comprobar el esquema de la versión instalada.
+4. **Se verifica la sesión real.** Se listan operaciones disponibles y se ejecuta
+   una lectura concreta. Se comprueba que el título y espacio devueltos corresponden
+   al destino elegido. `/doctor` ayuda al diagnóstico; `/work-context`, al inventario.
+5. **Si participa en el ciclo, se añade la integración.** El adaptador explica cómo
+   usar las operaciones y el binding indica cuándo. Una conexión por sí sola no
+   decide qué documentos publicar ni cuándo cambiar de estado una tarea.
+6. **La escritura se prueba aparte.** Ves la vista previa de una página piloto,
+   autorizas el efecto y contrastas el resultado real. Se ensaya el caso de respuesta
+   perdida: consultar antes de repetir evita duplicados o sobrescrituras.
+7. **Se revisa al cambiar permisos o versión.** La evidencia de ayer no acredita
+   una conexión actual. `delivery-practices` ayuda a revisar configuración, permisos
+   y recuperación cuando forma parte de la entrega del proyecto.
 
-Fuentes de configuración verificadas: [MCP de Claude Code](https://code.claude.com/docs/en/mcp),
-[MCP de Codex](https://learn.chatgpt.com/docs/extend/mcp?surface=cli) y
-[MCP de OpenCode](https://opencode.ai/docs/mcp-servers/). Cada runtime conserva
-su autenticación, política de confianza y permisos efectivos.
+No hay una lista cerrada que impida herramientas distintas. El proyecto puede
+incorporar otra con un contrato y pruebas. Tampoco todo archivo se vuelve una tool
+por estar en una carpeta: el entorno tiene que admitirlo y exponerlo realmente.
 
-## Binding directo a una tool
+Si la conexión falla, pide qué operación falló, contra qué destino y con qué cuenta
+sin publicar credenciales. Mantén las operaciones no verificadas desactivadas. Si el
+proveedor no ofrece una función, se presenta esa limitación y se evita simularla.
 
-Un binding puede usar `adapter: {"kind":"tool","name":"nombre-real","origin":"session"}`.
-Solo es adecuado si el workflow puede comprobar el contrato de esa operación:
-esquema, propósito, destino, autorizaciones y recibos. Un nombre descubierto no
-demuestra que una tool sirva para todas las capacidades de un proveedor.
-Para un proceso de varios pasos, un adaptador skill es normalmente más claro.
+## Qué puedes hacer desde el dashboard actual
 
-## Perfiles y entrega selectiva
+La consola operativa reúne proyectos independientes en una sola dirección local.
+Puedes abrir sesiones y conversar con entornos nativos compatibles, consultar
+planes y kanbans, añadir notas de tarea, preparar el siguiente trabajo y observar
+operaciones recibidas. El [capítulo 8](dashboard.md) explica los recorridos completos.
 
-Vista lógica, sin instalar ni escribir configuración:
-
-```powershell
-node --input-type=module -e "import {resolveSelection} from './install/modules.mjs'; console.log(JSON.stringify(resolveSelection({profile:'core',include:['jira']}),null,2))"
-python agent-kits/shared/module-selection.py --profile core --with jira
-```
-
-Export portable de skills, desde el checkout del plugin:
-
-```powershell
-python scripts/export-skills.py --profile core --with jira --out dist/area-skills --format all
-python scripts/export-skills.py --check dist/area-skills
-```
-
-Entrega por copia Claude, con limitaciones explícitas de ese modo:
-
-```powershell
-node install/install.mjs install -p claude-code --mode copy --profile core --with jira --dir <proyecto> --dry-run
-```
-
-Tras revisar el plan, se ejecuta sin `--dry-run`. El modo copia no registra por sí
-solo hooks, statusline ni namespace de plugin. Los destinos con archivos ajenos o
-modificados se rechazan antes de copiar; los cambios de perfil retiran únicamente
-archivos propios intactos. Se conserva la selección al reinstalar sin flags.
-
-Los plugins nativos son bundles completos. Una petición parcial incompatible se
-rechaza antes de registrar o escribir; no se personaliza la caché compartida.
-La selección parcial del instalador OpenCode no está soportada en esta versión;
-usa el bundle completo o el paquete portable de skills según lo que necesites.
-Un paquete portable no equivale al ciclo completo instalado.
-
-## Conflictos, selección y mantenimiento
-
-Usa nombres propios como `project-redmine` para evitar colisiones. El lector
-conserva fuentes e IDs y muestra duplicados; no decide una precedencia universal
-entre runtimes. Planner registra IDs de extensiones en `Extensiones` y su fuente
-en `Procedencia de extensiones`. El brief revalida la selección antes de usarla.
-
-Si existe `.claude/pieces.json`, el inventario compara sus hashes y declara
-propiedad/modificación, sin adoptar ni sobrescribir archivos. No es un ejecutor
-de extensiones. Los procesos de adopción/generación cancelados anteriormente no
-se reactivan por instalar este diseño modular.
-
-Versiona los contratos, ejemplos y pruebas del proyecto. Mantén estado operativo
-y credenciales fuera del repositorio. Al retirar una extensión, comprueba qué
-tareas la referencian y deja una alternativa o un aviso; no sustituyas silenciosamente
-su nombre por otra capacidad de comportamiento diferente.
+La exportación HTML del catálogo sigue siendo una fotografía para consulta; no
+incluye chat. La consola presenta los límites de cada entorno y no promete control
+universal de aplicaciones Desktop. Las declaraciones de una integración y las
+señales históricas de actividad conservan su procedencia y sus límites.

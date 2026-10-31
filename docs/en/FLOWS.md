@@ -17,6 +17,33 @@ Visual overview of how agents, commands and skills fit together. The diagrams ar
 
 ## 0 · General map — who uses what
 
+### Shared console: choose a project and work in its context
+
+The operator registers authorized roots and opens one console. The selector keeps
+sessions, plans, notes and memory within their project; it does not assign access
+rights to different people. Actions retain the native review and QA workflow.
+Local memory remains in core; `memory-integrations` delivers optional external
+adapters. Configuration neither proves a connection nor authorizes publication.
+
+```mermaid
+flowchart TD
+    R[Explicit project registry] --> C[One console and one port]
+    C --> P[Choose project]
+    P --> S[Native session and chat]
+    P --> L[Plans, kanban and local notes]
+    P --> M[Local memory and sources]
+    L --> V[Review message and plan version]
+    V --> S
+    S --> D{Native decision pending}
+    D -->|Yes| H[Explicit human response]
+    H --> E[Confirm result and evidence]
+    D -->|No| E
+    M -.-> O[Selected and authorized external integration]
+```
+
+[Workflows W-23 through W-27](guides/dashboard.md) explain startup, chat,
+recovery and checks when switching projects.
+
 ```mermaid
 flowchart TD
     PM(["👤 PM / product"]) --> S0["/setup"]

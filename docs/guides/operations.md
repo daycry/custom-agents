@@ -1,133 +1,163 @@
-# 6. Operación, adopción y resolución de incidencias
+# 6. Empezar con el equipo y resolver problemas cotidianos
 
-## Puesta en marcha de un área
+La mejor primera prueba es una iniciativa pequeña con un resultado que todos
+puedan reconocer. En nuestro ejemplo: resolver una solicitud con un motivo de
+rechazo y evitar una segunda decisión. El objetivo del piloto es comprobar el
+recorrido, las responsabilidades y la capacidad de recuperarse de un fallo.
 
-El responsable elige un proyecto piloto, un objetivo pequeño y las funciones
-externas necesarias. Se asignan un dueño del proceso, un administrador de conectores
-y un responsable técnico. Se acuerda qué operaciones puede realizar cada cuenta,
-qué documentos son publicables y quién aprueba cambios con efectos externos.
+## W-18. Hacer un piloto y adoptar el producto
 
-Primero se ejecuta un ciclo local completo. Después se añade una integración de
-seguimiento y, si hace falta, la de documentación. Se prueba con una tarea/página
-de destino controlado, incluyendo una operación rechazada y una reconciliación.
-Solo entonces se amplía a más iniciativas. Un inventario de MCP conectado no
-sustituye esta aceptación de negocio y técnica.
+### Qué necesitas y qué pides
 
-## W-18. Validar y operar una integración
+Elige un responsable de negocio, un contacto técnico y un administrador. Pueden ser
+menos personas si alguien asume varios papeles, pero las decisiones deben estar
+claras. Necesitáis un proyecto de prueba, un caso correcto y uno incorrecto, y un
+destino piloto si vais a publicar tarjetas o documentación.
 
-**Comandos:** `/doctor`, `/work-context` y el router de solo lectura.
-**Actores:** usuario del proyecto, administrador y dueño del adaptador.
-**Tools:** diagnóstico local y lecturas del proveedor cuando se solicitan.
-
-| Paso | Actor | Acción | Interpretación correcta |
-|---|---|---|---|
-| 1 | Usuario | Fija raíz de proyecto y runtime | Un diagnóstico de otra raíz no acredita esta instalación |
-| 2 | Router | Valida bindings y filtra por evento/operación | `declared` solo significa declaración válida |
-| 3 | Doctor | Revisa instalación, configuración y avisos | No certifica despachos anteriores ni permisos remotos |
-| 4 | Runtime/administrador | Comprueba conexión, cuenta y tools | Se separa autenticación de permiso sobre el destino |
-| 5 | Adaptador | Hace una lectura acotada | Comprueba el objeto/proyecto real y la paginación |
-| 6 | Usuario | Revisa una operación concreta | Autorización aplicable al efecto previsto |
-| 7 | Adaptador | Ejecuta y clasifica el resultado | Confirmado, omitido, fallido o incierto |
-| 8 | Dueño | Conserva recibo mínimo o reconcilia | No reintenta a ciegas una escritura incierta |
-
-Ejemplo de validación sin llamadas remotas:
-
-```powershell
-python agent-kits/shared/integration-route.py --project <proyecto> --check
-python agent-kits/shared/integration-route.py --project <proyecto> --event task.started
-python agent-kits/shared/project-pieces.py --project <proyecto> --runtime codex --project-only --json
+```text
+Preparemos un piloto del portal. Quiero entender cada etapa, revisar el plan
+antes de implementarlo y comprobar una solicitud aprobada, un rechazo sin motivo
+y una segunda decisión. Al terminar, enséñame resultados, límites y pendientes.
 ```
 
-Los scripts se localizan en el bundle instalado; estos ejemplos desde el checkout
-no fijan una ruta de usuario. `--check` usa exit 2 para configuración inválida,
-parcial o no disponible. En el workflow ordinario esos problemas se comunican y
-se omite la proyección inválida, conservando las puertas del trabajo local.
+```mermaid
+flowchart TD
+    A[Elegir caso y responsables] --> B[Preparar y comprobar acceso]
+    B --> C[Acordar alcance y plan]
+    C --> D[Ejecutar revisión y pruebas]
+    D --> E[Contrastar entrega e integraciones]
+    E --> F{El equipo puede usarlo y recuperarse}
+    F -- No --> G[Corregir y repetir el caso pendiente]
+    G --> D
+    F -- Sí --> H[Adoptar con instrucciones y responsables]
+```
 
-## Estados del router
+1. **Preparar.** Con W-01, el administrador revisa instalación y herramientas.
+   `/setup` configura lo elegido y `/doctor` diagnostica. No es necesario activar
+   todas las capacidades para usar el core. El responsable puede pedir el resultado
+   en lenguaje corriente: qué está listo y qué necesita intervención.
+2. **Acordar el trabajo.** Con W-02 y W-03 se definen requisitos, evaluación y plan.
+   El responsable revisa ejemplos y decide si continuar. No basta con aprobar un
+   título: debe entender qué condiciones permitirán aceptar cada tarea.
+3. **Ejecutar y observar.** Con W-04 el equipo implementa, revisa y prueba. El
+   responsable pide una demostración de los tres casos elegidos. Un fallo conocido
+   debe verse como pendiente de corrección y conservar su evidencia.
+4. **Probar la colaboración externa si se utiliza.** En Jira o Redmine se contrasta
+   al menos una creación, una nota, una transición y una respuesta incierta. En la
+   wiki se comprueba publicación, actualización y conflicto. No se ensayan efectos
+   en un proyecto de producción por defecto.
+5. **Aceptar la entrega.** Con W-05 se revisan documentación, pruebas, pendientes y
+   condiciones de publicación. El equipo puede explicar cómo retomar la iniciativa
+   después de cerrar la sesión. Un commit no significa que esté desplegado.
+6. **Dejar una guía del equipo.** Anotad quién mantiene accesos, quién aprueba
+   publicaciones, dónde están los planes y cómo escalar incidencias. Repetid el
+   caso que haya fallado antes de extender el uso a otras áreas. La adopción no
+   depende solo de que los tests sean verdes: la persona destinataria debe poder
+   entender el resultado y usar el recorrido.
 
-| Estado | Significado | Acción |
+### Comprobación antes de extenderlo
+
+| Pregunta del responsable | Qué evidencia debería poder ver |
+|---|---|
+| ¿Se ha hecho lo que acordamos? | Plan, criterios y resultado de cada caso |
+| ¿Quién revisó y quién probó? | Veredictos separados y referencias al informe |
+| ¿Se creó la tarjeta correcta? | Enlace real al proyecto piloto y campos contrastados |
+| ¿Qué ocurre si se corta una publicación? | Diagnóstico y recuperación sin duplicados |
+| ¿Podemos continuar mañana? | Estado actual, próxima tarea y bloqueos claros |
+| ¿Qué no está validado todavía? | Lista explícita de límites, sin convertir ausencia en éxito |
+
+Si el piloto se bloquea, conservad el punto alcanzado y el efecto externo conocido.
+No repitáis una creación o publicación cuyo resultado sea incierto. El contacto
+técnico aísla el caso y el responsable decide si el alcance debe cambiar. La falta
+de permiso se resuelve con el administrador, no relajando controles del proyecto.
+
+## Una rutina diaria sencilla
+
+Al empezar, pide «Resume el plan del portal: terminado, en curso, bloqueado y próximo
+paso; contrástalo con las evidencias». `/roadmap-status` ayuda con la cartera y
+`/work-resume` prepara la retoma. No tomes una vista antigua del tablero como estado vivo.
+
+Durante el trabajo, pide «Muéstrame el estado de T-02, su última revisión y qué queda
+por probar». Para una decisión, exige opciones y consecuencias comprensibles. Si
+aparece una ampliación, decide si pertenece al alcance antes de añadir trabajo.
+
+Al cerrar, pide «Guarda el punto de retoma, resume cambios y verificaciones y señala
+lo pendiente». `/retro` ayuda a aprender de una iniciativa cerrada. La documentación
+actualizada permite que otra persona continúe sin leer toda la conversación.
+
+## Si aparece un problema
+
+| Lo que ves | Qué significa o qué falta saber | Qué hacer |
 |---|---|---|
-| `absent` | No hay declaración ni opt-in reconocido | Trabajar localmente o configurar una función |
-| `disabled` | No hay bindings activos | Respetar la elección; no volver a activar por detectar un MCP |
-| `declared` | Hay bindings válidos que coinciden | Comprobar disponibilidad, contrato, destino y permisos |
-| `no_match` | Hay bindings activos, pero no para ese filtro | No usar otra integración por aproximación |
-| `partial` | Coinciden bindings válidos y hay declaraciones rechazadas | Mostrar diagnóstico; usar solo las independientes válidas |
-| `invalid` | No se puede usar la declaración solicitada | Revisar esquema/duplicados; no resetear ni buscar otra cuenta |
-| `unavailable` | No se pudo obtener una lectura segura o dependencia | Restaurar el bundle o corregir acceso; seguir localmente |
+| Una skill no aparece | Puede faltar instalación, ubicación o compatibilidad | Administrador: revisar inventario y entorno con `/doctor` |
+| Configurado, pero no conectado | Hay una declaración; falta demostrar la operación | Probar lectura concreta con cuenta y destino correctos |
+| Publicación incierta | Se perdió la respuesta; quizá el efecto ya ocurrió | Consultar y reconciliar antes de repetir |
+| Revisión o QA fallidos | Un criterio o una prueba no pasó | Leer evidencia, corregir el caso y repetir la comprobación |
+| Tiempo de espera agotado antes de probar | No se alcanzó la comprobación de negocio | Separar preparación y ejecución; no culpar al producto sin evidencia |
+| Estado del tablero distinto del plan | Puede faltar sincronización o haber cambios externos | Comparar ambos, resolver diferencias y conservar recibos |
+| Una búsqueda de memoria no usa un servicio externo | Puede estar apagado, no autorizado o desactualizado | Revisar el motivo; la búsqueda local sigue siendo válida |
 
-Disponibilidad y permisos permanecen `unverified`, y ejecución `not_run`, en la
-salida del router. Son límites deliberados de ese lector, no una prueba de fallo
-del proveedor. La ejecución real debe quedar evidenciada por su adaptador.
+### Hooks: avisos automáticos y aprobación
 
-## Incidencias habituales
+Un hook es una acción automática asociada a un momento, por ejemplo al comenzar
+una sesión. Un fallo de hook no demuestra que haya fallado toda la implementación;
+hay que identificar qué acción falló y su efecto.
 
-| Síntoma | Comprobar | Resolución |
-|---|---|---|
-| Configuración válida, tool ausente | Runtime, conexión, versión y catálogo real | Activar/corregir el conector; no inventar un nombre de tool |
-| Usuario conectado, escritura rechazada | Cuenta, destino, rol y política administrativa | Administrador revisa permisos; no se escala automáticamente |
-| Estado remoto no disponible | Transiciones permitidas del objeto concreto | Dejar pendiente y acordar mapeo; no forzar un ID de ejemplo |
-| Timeout tras crear/comentar | ID/correlación y datos del proveedor | Reconciliar antes de repetir; mantener resultado incierto |
-| Cambiaron documento local y remoto | Hash base y revisión de ambas partes | Vista previa de conflicto y elección del usuario |
-| Se duplican comentarios | Dueño del evento y clave de intento | Un único publicador; recibos por operación, no booleano global |
-| Plan por fase cierra demasiado pronto | Tareas del lote y gates de todas | Reabrir/reconciliar según autorización y corregir adaptador |
-| Inventario parcial de extensiones | Formato, límites, enlaces y conflictos | Corregir la declaración; no interpretar omisión como permiso |
-| `plugin contents changed; hook approval required` | Versión instalada y cambios del bundle | Revisar/aprobar con la interfaz nativa; no modificar hashes de confianza para saltarla |
-| Hook sin nombre o sin ejecución acreditada | Etiqueta en versión instalada y resultado del proceso | Actualizar por el flujo admitido; separar problema de UI y fallo de ejecución |
+«Plugin contents changed; hook approval required» indica que el entorno necesita
+aprobar el contenido actual del plugin. El administrador revisa el origen y cambios
+y usa la interfaz de confianza del entorno. En la CLI de Codex, la pantalla `/hooks`
+puede permitir seleccionar una entrada y aprobarla con `t`; hay que comprobar la
+ayuda de la versión instalada. Que una entrada diga «Unnamed hook» es un problema
+de identificación en esa vista; no es una prueba de ejecución fallida. No se
+corrige aceptando ciegamente todo ni alterando hashes de confianza a mano.
 
-Un mensaje de UI sobre una conversación desconocida no es recibo de fallo de un
-proceso. Del mismo modo, tener un hash aprobado no demuestra que un hook se haya
-ejecutado. El diagnóstico se basa en el resultado y los registros pertinentes,
-acotados y sin volcar conversaciones ni configuración privada completa.
+«El sistema no puede encontrar el archivo» exige revisar la ruta real del lanzador,
+la versión instalada y el ejecutable. El error Windows 206 señala una longitud
+excesiva de nombre o argumentos, pero hay que reconstruir el caso antes de atribuirlo
+al plugin. Un aviso de «conversación desconocida» en Desktop puede ser un problema
+de notificaciones; por sí solo no contiene el resultado del proceso del hook.
 
-## Migrar al contrato modular
+## Cómo pedir ayuda sin enviar toda una conversación
 
-El usuario ha permitido cambios de versión mayor. Este manual no promete que
-cualquier configuración histórica funcione sin revisión. El contrato explícito
-es `.claude/integrations.json`, versión 1, con bindings por función.
+Explica qué intentabas hacer, qué esperabas, qué ocurrió, en qué entorno y versión,
+y si pudo haber un efecto externo. Añade la tarea o enlace pertinente y el mensaje
+de error acotado. El contacto técnico puede pedir registros concretos y redactados.
+No pegues contraseñas, claves ni conversaciones privadas completas.
 
-Antes de cambiar, guarda una copia privada de preferencias y mapas. Identifica
-destinos reales y operaciones ya publicadas. Prepara los bindings con el esquema
-nuevo; una lista explícita vacía desactiva la selección externa. Si el archivo
-nuevo existe, prevalece sobre opt-ins anteriores incluso si está vacío o inválido;
-no se ignora para usar una configuración antigua sin avisar.
+Para problemas repetidos de código, `debug-root-cause` organiza reproducción,
+aislamiento, prueba de la causa y corrección. Para configuración, empieza por
+`/doctor`. Para memoria y servicios, continúa con el capítulo 7.
 
-Solo en ausencia del archivo nuevo se reconocen los opt-ins locales Jira y
-Confluence con `enabled` booleano. Esa lectura se conserva como transición
-explícita, sin migración automática. Los archivos de otro proyecto o HOME no se
-usan como sustitutos. Los scripts Jira requieren la raíz del proyecto; ya no
-heredan el opt-in de un directorio padre.
+## Glosario para consultar durante el uso
 
-Los paquetes portable modificados no se regeneran encima: exporta a otro destino,
-compara cambios e integra lo que proceda. Las instalaciones por copia con perfil
-no adoptan archivos históricos por su nombre. Usa un destino limpio o reconcilia
-los archivos y su propiedad antes de cambiar perfil. No borres mapas remotos para
-eludir un conflicto de migración.
+| Término | Explicación sencilla |
+|---|---|
+| Core | El método común que organiza y verifica el trabajo |
+| CLI | Aplicación que se usa escribiendo en una terminal |
+| Desktop | Aplicación de escritorio; no implica las mismas interfaces que una CLI |
+| Runtime o entorno | La aplicación que carga y ejecuta agentes y herramientas |
+| Workflow | Recorrido con pasos, decisiones y un resultado |
+| Skill | Instrucciones reutilizables para realizar un trabajo |
+| Tool | Operación concreta que la sesión puede ejecutar |
+| MCP | Protocolo para ofrecer operaciones de un sistema al asistente |
+| Adaptador | Pieza que traduce el método del plugin a un servicio |
+| Binding | Configuración que elige adaptador, capacidades y momentos de uso |
+| Evento | Aviso de que ocurrió algo: por ejemplo, empezó una tarea |
+| Ledger | Registro local principal de tareas y estados, `tasks.md` |
+| Kanban | Tablero de tarjetas agrupadas por estado |
+| Gate o puerta | Comprobación obligatoria antes de continuar |
+| QA | Verificación ejecutada con pruebas y evidencias |
+| Recibo | Referencia que confirma una operación concreta y su resultado observado |
+| Correlación | Referencia para relacionar una tarea y una operación sin duplicarlas |
+| Reconciliar | Consultar lo que ocurrió y resolver diferencias antes de repetir |
+| Idempotencia | Repetir una operación sin duplicar su efecto, cuando su contrato lo permite |
+| Outbox | Cola local de operaciones que deben enviarse o recuperarse |
+| Routing o enrutado | Regla que decide qué contenido puede ir a qué servicio |
+| Hash | Huella del contenido usada para detectar cambios |
+| Frontmatter | Datos de cabecera que describen un documento |
+| Snapshot | Fotografía del estado observado en un momento |
+| Evidencia | Resultado o fuente que permite contrastar una afirmación |
+| Opt-in | Capacidad que solo se activa si se elige expresamente |
 
-## Mantener el manual y el PDF
-
-Los capítulos Markdown son la fuente de la edición de entrega. Al cambiar un
-workflow se actualizan pasos, dueños, comandos, skills, tools, configuraciones,
-eventos y errores en ambos idiomas. Los ejemplos deben seguir pasando la validación
-del router y las pruebas del adaptador correspondiente. El PDF se regenera desde
-esa misma fuente y se revisa visualmente antes de distribuirlo.
-
-Un responsable puede pedir: «Prepara la spec de esta iniciativa», «Muéstrame el
-plan antes de crear tareas», «Publica solo los documentos de esta fase» o «Dime
-qué quedó pendiente de sincronizar». El producto debe responder con resultados,
-evidencias y decisiones pendientes, sin obligarle a aprender IDs internos ni a
-leer logs crudos para entender qué pasó.
-
-## Recuperar una instalación por copia interrumpida
-
-Una actualización de perfil no es una transacción de todo el árbol. Si se cancela
-o falla, pueden haberse aplicado algunos archivos. El manifiesto incompleto conserva
-los hashes propios anteriores y los planificados, para reconocer archivos intactos
-sin adoptar una modificación del consumidor. Tras reconciliar el conflicto, repetir
-la instalación conserva la selección y retoma el cambio; la desinstalación también
-puede retirar los archivos propios que se mantuvieron en su versión anterior.
-
-Cada archivo se revalida antes de reemplazarlo. En perfiles protegidos, un bloqueo
-persistente de Windows termina con error: no se recurre a truncar el archivo en uso.
-Esta protección detecta cambios observados; no es un bloqueo universal frente a
-escritores externos ni una garantía de atomicidad multiarchivo. Conserva la evidencia
-del error y revisa el manifiesto antes de decidir repetir o desinstalar.
+Los procedimientos avanzados de empaquetado, migración y diagnóstico permanecen
+en la [referencia de operación](../reference/operations.md).

@@ -1,206 +1,305 @@
-# 3. Atlassian: Jira y Confluence
+# 3. Trabajar con Jira y Confluence sin perder el control del proyecto
 
-Este capítulo desarrolla una configuración de proyecto con los módulos opcionales
-`jira` y `confluence`. Los workflows del core siguen siendo los del capítulo 2.
-La integración añade proyecciones externas; no cambia quién aprueba el alcance,
-quién revisa el código o quién verifica las pruebas.
+Jira sirve para organizar tarjetas de trabajo en un tablero. Confluence sirve para
+compartir documentos en páginas. Son dos productos distintos de Atlassian: puedes
+usar uno, los dos o ninguno. Tener acceso a Jira no implica tener acceso a Confluence.
 
-## Contrato y preparación
+custom-agents puede preparar y mantener una representación del trabajo en estas
+herramientas cuando el proyecto lo configura y la sesión dispone de un conector
+compatible. Los documentos y verificaciones del proyecto siguen siendo necesarios.
+En este capítulo, las claves `AREA-101` y similares son ejemplos ficticios.
 
-El servidor oficial Rovo MCP para Cloud tiene disponibilidad dinámica de tools:
-la sesión puede exponer operaciones directamente o mediante descubrimiento. El
-catálogo consultado el 30-10-2026 incluye el endpoint v2 y la separación de lectura,
-escritura y operaciones destructivas. Verifica las herramientas y su esquema real;
-los ejemplos históricos del plugin no son una lista obligatoria de nombres actuales.
-[Documentación oficial de Rovo MCP](https://developer.atlassian.com/cloud/rovo-mcp/)
-y [catálogo de herramientas](https://developer.atlassian.com/cloud/rovo-mcp/guides/supported-tools/).
+## W-08. Preparar Atlassian para un equipo
 
-Cloud y Data Center requieren contratos distintos. Un servidor compatible de otro
-proveedor se puede elegir por proyecto, pero se debe revisar su autenticación,
-operaciones y formato de contenidos. El plugin no configura uno automáticamente.
+### Qué tienes que decidir
 
-## W-08. Configurar Atlassian para un equipo
+Antes de conectar nada, responde con el equipo: ¿en qué proyecto de Jira se crearán
+las tarjetas?, ¿quién podrá verlas y modificarlas?, ¿dónde estarán las instrucciones
+en Confluence?, ¿quién autoriza las publicaciones? Un proyecto de Jira es un espacio
+de trabajo para tarjetas; un espacio de Confluence agrupa páginas de documentación.
 
-**Participantes:** responsable de área, administrador Atlassian y usuario del runtime.
-**Comando:** `/setup`. **Skills:** `jira-sync`, `confluence-publish` y
-`confluence-pull` solo para las funciones elegidas. **Tools:** conector real de la
-sesión, al principio con lecturas de identidad/destinos.
-
-| Paso | Quién y qué hace | Comprobación | Salida |
-|---|---|---|---|
-| 1 | Administrador autoriza el conector y sus permisos | Tenant correcto y acceso mínimo necesario | Cuenta conectada en el runtime, fuera del JSON del proyecto |
-| 2 | Equipo decide módulos y funciones | Jira para seguimiento; Confluence para documentos; ambos o uno | Selección explícita, sin dependencia del core |
-| 3 | Setup prepara bindings | Copia adaptada de `docs/examples/integrations/atlassian.json` | `.claude/integrations.json` |
-| 4 | Adaptador consulta destinos visibles | Site/proyecto/espacio reales; no IDs inventados | Preferencias de destino |
-| 5 | Usuario elige granularidad y asignación | Tarea/fase; asignar a sí mismo o dejar sin asignar | `.claude/jira.json` |
-| 6 | Usuario elige árbol de documentos | Espacio y página raíz o anclaje existente | `.claude/confluence.json` |
-| 7 | Router valida declaración | `--check` sin errores; no prueba conexión | Binding válido |
-| 8 | Equipo prepara una operación piloto | Vista previa de una tarea/página en destino de prueba | Escritura solo después de autorización concreta |
-
-El ejemplo de bindings declara seguimiento y publicación al cierre de fase. El
-binding de pull tiene `events: []`: se invoca a petición, sin descargar cambios
-automáticamente cada vez que se modifica un documento.
-
-Configuración de Jira de ejemplo, sin credenciales:
-
-```json
-{
-  "enabled": true,
-  "cloudId": "site-elegido-en-la-sesion",
-  "granularidad": "tarea",
-  "assignee": "none",
-  "alCubrirJornada": "preguntar",
-  "defaults": {"projectKey": "AREA", "parentKey": null}
-}
+```text
+Queremos usar Jira para seguir las tareas del portal y Confluence para
+sus instrucciones. Ayúdame a elegir los destinos visibles para mi cuenta.
+Muéstrame una operación de prueba antes de publicar el plan completo.
 ```
 
-El site debe resolverse mediante el conector. Esta cadena es un ejemplo de
-configuración, no un identificador listo para publicar. Jornada, tarifas y ratio
-de supervisión proceden de la configuración económica; no se duplican como cifras
-arbitrarias en cada tarea. Los scripts Jira del bundle usan los archivos canónicos
-de esa raíz: `.claude/jira.json` y `.claude/jira-state.json`.
+```mermaid
+flowchart TD
+    A[El equipo elige dónde colaborar] --> B[Administrador conecta la cuenta]
+    B --> C[Comprobar destinos y permisos]
+    C --> D[Guardar preferencias del proyecto]
+    D --> E[Revisar una operación piloto]
+    E --> F{¿El resultado es el esperado?}
+    F -->|Sí| G[Preparado para el uso acordado]
+    F -->|No| C
+```
 
-## Elegir tarjeta por tarea o tarjeta por fase
+### Pasos que debe seguir la preparación
 
-| Política | Qué se crea | Cuándo conviene | Qué se mantiene en el ledger |
-|---|---|---|---|
-| `granularidad: tarea` | Un issue por `T-XX` | Responsables o prioridades distintas por unidad de trabajo | Criterios, verificación y mediciones de cada tarea |
-| `granularidad: fase` | Un issue por fase y checklist de sus tareas | Tablero ejecutivo con menos tarjetas | Todas las tareas y su estado, sin simplificar QA |
+1. El administrador autoriza el conector en el entorno que utilizará el equipo.
+   La cuenta y sus credenciales pertenecen a ese entorno; no se pegan en una petición
+   ni se guardan dentro de los ejemplos del manual.
+2. El configurador `/setup` recoge qué funciones queréis utilizar. Seguimiento de
+   tareas y publicación de documentos se eligen por separado.
+3. El adaptador consulta los destinos realmente accesibles. Elige el proyecto o
+   espacio por su nombre y comprueba que corresponde al área correcta. No reutilices
+   una clave de ejemplo como si fuera un identificador válido.
+4. Se decide la organización de las tarjetas, la asignación inicial y el destino
+   de las páginas. La siguiente sección explica «por tarea» y «por fase».
+5. Se guardan las preferencias del proyecto. El diagnóstico comprueba que tienen
+   una forma válida; eso todavía no demuestra que la cuenta pueda escribir.
+6. Se prepara una operación piloto: una tarjeta o una página claramente identificada
+   como prueba en el destino acordado. Revisa qué se va a crear y con qué cuenta.
+7. Después de la autorización correspondiente, comprueba el enlace del resultado.
+   Si aparece donde esperabais y con el contenido correcto, el equipo puede aceptar
+   esa configuración para su uso previsto.
 
-Para «Aprobación de solicitudes», modo tarea puede crear `T-01 Permisos`, `T-02 API`,
-`T-03 Interfaz` y `T-04 Regresión`. En modo fase puede crear «Fase 1 · Base»,
-«Fase 2 · Experiencia» y «Fase 3 · Verificación», manteniendo las cuatro tareas en
-el ledger y su checklist correspondiente.
+### Qué piezas intervienen
 
-Un issue por fase no pasa a Done porque una sola tarea haya terminado. Se evalúa
-el conjunto de tareas de esa fase con sus evidencias y gates. Cambiar la
-granularidad después de publicar requiere un plan explícito de reconciliación;
-no borres el mapa para que «parezca la primera vez», pues duplicaría objetos.
+`/setup` coordina la preparación. `jira-sync` es la skill que adapta el plan a Jira;
+`confluence-publish` publica documentación y `confluence-pull` trae cambios de vuelta.
+Las herramientas reales del conector deben existir y disponer de los permisos
+necesarios. Sus nombres y disponibilidad pueden variar según la integración instalada.
 
-## W-09. Crear el plan en Jira sin duplicarlo
+La respuesta final debe distinguir «preferencias guardadas», «lectura comprobada» y
+«escritura piloto comprobada». Si falta acceso, pide al administrador el permiso
+concreto; el asistente no debe intentar concedérselo a sí mismo.
 
-**Disparador:** planner terminó un plan local aprobado; `plan.created` selecciona
-el binding `task-tracking` con `plan.export`, o el usuario invoca `jira-sync`.
-**Agente:** planner prepara el handoff; la skill/adaptador Jira realiza la proyección.
-**Tools:** lectura de destinos, metadatos y campos; creación tras la confirmación.
+## Elegir una tarjeta por tarea o una tarjeta por fase
 
-| Paso | Actor | Acción exacta | Resultado verificable |
-|---|---|---|---|
-| 1 | Router | Selecciona binding por evento/operación | No ejecuta ni concede permiso |
-| 2 | Jira-sync | Lee plan y config de esta raíz | Tareas/fases válidas; `ledger-lint` cuando corresponde |
-| 3 | Jira-sync + usuario | Elige proyecto y padre opcional | Destino legible por nombre y clave |
-| 4 | Adaptador | Descubre jerarquía y tipos permitidos | No asume que cualquier proyecto tenga una épica o subtarea concreta |
-| 5 | Adaptador | Consulta campos obligatorios y permisos | Valores faltantes resueltos antes de crear |
-| 6 | Usuario | Revisa número de issues, títulos, asignación y padre | Aprobación del lote concreto |
-| 7 | Adaptador | Consulta mapa previo y crea solo lo ausente | ID/clave real por respuesta confirmada |
-| 8 | Adaptador | Guarda mapa y anota referencias en ledger | `.claude/jira-state.json` y claves junto a tarea/fase |
-| 9 | Orquestador | Resume creados, existentes, fallidos e inciertos | Enlaces reales y siguiente acción; el plan local conserva su autoridad |
+Esta elección afecta a lo que el equipo verá en el tablero. No reduce los criterios
+que cada tarea debe cumplir en el registro local.
 
-Una confirmación parcial del lote se conserva como parcial. Si tres issues se
-crearon y el cuarto agotó el tiempo, no se vuelven a crear los tres primeros.
-Se consulta el cuarto por clave correlacionable antes de intentar otra creación.
-Si el conector no permite demostrar su resultado, se solicita reconciliación.
+**Una tarjeta por tarea** facilita responsables distintos, prioridades individuales y
+seguimiento detallado. En el portal, podrías tener `AREA-101 Permisos`, `AREA-102 Registrar
+decisión`, `AREA-103 Pantalla` y `AREA-104 Verificación`. Cada tarjeta representa su tarea.
 
-## W-10. De inicio de tarea a Done, con comentarios y revisión
+**Una tarjeta por fase** ofrece un tablero más resumido. Podrías tener «Base», «Uso» y
+«Entrega». La tarjeta «Base» contiene o referencia T-01 y T-02. No está terminada cuando
+solo se completó T-01: la fase se evalúa sobre el conjunto de tareas que le corresponden.
 
-El core emite eventos neutrales. Jira-sync traduce estos eventos al plan de
-operaciones de `jira-flow.py`, que no llama por sí mismo a Jira. La ejecución
-remota se realiza con las tools de la sesión; `confirmar` se usa después del
-recibo real, no después de generar un JSON.
+| Pregunta del responsable | Por tarea | Por fase |
+|---|---|---|
+| ¿Necesito asignar cada parte a una persona distinta? | Suele resultar más claro | Debe explicarse cómo se conserva ese detalle |
+| ¿Busco una vista ejecutiva con pocas tarjetas? | Habrá más tarjetas | Agrupa el trabajo sin borrar las tareas del plan |
+| ¿Dónde veo los criterios completos? | En la tarea local y su referencia externa | En las tareas locales y el desglose de la fase |
+| ¿Qué pasa si una parte está pendiente? | Su tarjeta permanece pendiente | La fase permanece abierta hasta cumplir sus condiciones |
 
-| Evento y dueño | Evento interno Jira | Efecto previsto | Condición |
-|---|---|---|---|
-| `task.started`, implementer | `arrancar` | Objetivo lógico En curso | Tarea/issue mapeado; transición disponible |
-| `task.implemented`, implementer | `implementado` | Comentario de implementación y plan de worklog | Evidencia del ledger; nunca Done |
-| `review.completed`, skill de revisión | `revision` | Comentario firmado de ese intento | Veredicto y tareas del intento local |
-| `review.gaps`, skill de revisión | `gaps` | Comentario de hallazgos y reapertura prevista | Evidencia de gaps y transición permitida |
-| `task.qa-passed`, QA | `qa-verde` | Comentario de verificación | Resultado real de qa-gate; sin cierre propio |
-| `task.qa-failed`, QA | `qa-rojo` | Comentario de fallo y retorno al ciclo | No permite Done |
-| `task.done`, orquestador | `aprobado` | Comentario de aceptación y objetivo lógico Done | Revisión sin gaps, QA verde y evidencia local |
-| `review.worklog`, orquestador | Plan de worklog de revisión | Imputación separada por intento | Tiempo correspondiente, política y autorización |
+Puedes decir «prefiero una tarjeta por tarea porque los responsables cambian» o
+«prefiero por fase para dirección, conservando el desglose local». Si ya se publicaron
+tarjetas, cambiar esta decisión requiere reconciliar las existentes. Borrar el mapa
+para volver a empezar puede crear duplicados y perder la relación con el plan.
 
-Los objetivos lógicos no son nombres ni IDs fijos de transición. El adaptador
-consulta el workflow/las transiciones accesibles del issue y resuelve el objetivo.
-Si no existe una transición permitida, explica la incompatibilidad y deja la
-proyección pendiente. No cambia la configuración del workflow de Jira para forzarla.
+## W-09. Crear las tarjetas del plan en Jira
+
+### Qué debe estar preparado
+
+Necesitas un plan local aprobado, el destino elegido, una cuenta con permisos y la
+organización por tareas o fases. El planificador prepara el trabajo; la skill
+`jira-sync` realiza su adaptación al tablero mediante las herramientas disponibles.
+
+```text
+Prepara la publicación del plan del portal en el proyecto de Jira elegido.
+Usa una tarjeta por tarea. Antes de crear, enséñame cuántas tarjetas habrá,
+sus títulos, la asignación y cualquier elemento padre.
+```
+
+```mermaid
+flowchart TD
+    A[Plan aprobado y destino elegido] --> B[Consultar campos y tarjetas existentes]
+    B --> C[Mostrar la propuesta de creación]
+    C --> D[Comprobar autorización del lote]
+    D --> E[Crear solo lo que falta]
+    E --> F[Guardar claves y enlaces confirmados]
+    F --> G[Resumen de creadas y pendientes]
+```
+
+### Qué ocurre con el ejemplo del portal
+
+El adaptador lee T-01 a T-04 y consulta los tipos de tarjeta y campos que exige el
+proyecto de Jira. Algunos proyectos usan épicas o subtareas; otros tienen estructuras
+distintas. Un **elemento padre** es una tarjeta que agrupa otras. La integración debe
+comprobar qué relaciones admite el proyecto en lugar de asumir que son universales.
+
+La vista previa muestra cuatro tarjetas, sus títulos y su asignación. Si el equipo
+quiere agruparlas bajo una épica existente, se comprueba cuál es y si la relación
+está permitida. Si Jira exige un campo que falta, se resuelve antes de crear.
+
+Cuando el lote esté autorizado, se consulta el mapa de publicaciones anteriores.
+Ese mapa recuerda qué tarjeta corresponde a cada tarea o fase. Se crean las que
+faltan y se guardan los identificadores que Jira confirme. Al retomar el trabajo,
+el sistema puede reconocer esas tarjetas y evitar crearlas de nuevo.
+
+### Qué debes recibir y qué hacer con un resultado parcial
+
+Pide una lista separada de tarjetas nuevas, ya existentes, fallidas e inciertas,
+con enlaces cuando estén confirmados. Abre una tarjeta y comprueba título, proyecto,
+contenido y responsable. «He preparado el JSON» no significa «he creado las tarjetas».
+
+Imagina que Jira confirma tres tarjetas y la cuarta se interrumpe por un timeout:
+el tiempo de espera termina antes de saber el resultado. No se deben repetir las
+cuatro. Se conservan las tres confirmadas y se busca si la cuarta llegó a crearse.
+Si no puede demostrarse, queda pendiente de reconciliación. Puedes pedir: «Comprueba
+el resultado de la cuarta antes de volver a enviarla».
+
+## W-10. Entender los comentarios y los cambios de estado
+
+### Qué representa cada momento
+
+Una tarjeta cuenta una historia del trabajo. El comentario de implementación explica
+qué se cambió; el de revisión, qué se encontró; el de QA, qué se probó. Ninguno debe
+publicarse dos veces por reanudar la conversación.
+
+Los nombres de columna dependen de vuestro Jira. En este manual «En curso» y «Done»
+son objetivos de trabajo, no identificadores que funcionen en cualquier proyecto.
+El adaptador consulta qué cambios de estado están permitidos para esa tarjeta.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pendiente
+    Pendiente --> EnCurso: Empieza la tarea
+    EnCurso --> Revision: Implementación preparada
+    Revision --> EnCurso: Problemas confirmados
+    Revision --> Pruebas: Revisión satisfecha
+    Pruebas --> EnCurso: Prueba fallida
+    Pruebas --> Cierre: Pruebas satisfactorias y cierre del coordinador
+    Cierre --> [*]
+```
+
+Este dibujo explica el método. **No promete que vuestro tablero tenga esas seis
+columnas.** Puede representar revisión y pruebas con comentarios y mantener menos
+estados. Lo que se conserva es la condición que permite dar por terminado el trabajo.
+
+### Un ejemplo de principio a fin
+
+1. Se empieza T-02. El implementador comunica el inicio; el adaptador puede solicitar
+   el estado que vuestro workflow utilice para «trabajo en curso».
+2. Se implementa el guardado de la decisión. El comentario explica cambios y
+   comprobaciones realizadas, enlazando la evidencia. La tarjeta no pasa a Done solo
+   porque el implementador haya terminado su parte.
+3. La revisión detecta que se permite un rechazo sin motivo. Se añade un comentario
+   de ese intento y se solicita la reapertura o continuidad necesaria.
+4. Se corrige y se registra el siguiente intento. El historial conserva el problema
+   anterior y su resolución; no se borra para hacer parecer que nunca existió.
+5. QA ejecuta los casos y añade su resultado. Si falla un caso, el trabajo vuelve al
+   ciclo de corrección. Si pasa, aporta evidencia al coordinador.
+6. El coordinador verifica los controles requeridos y puede solicitar el cierre de
+   la tarjeta. Si el workflow de Jira no permite esa transición, se explica la
+   limitación y queda pendiente su proyección externa.
 
 ### Qué contienen los comentarios
 
-La firma indica rol y fecha, por ejemplo `[custom-agents · implementer]`. El
-comentario de implementación enlaza la tarea, cambios, archivos, verificación y
-medición disponible. El de revisión indica intento, tareas, lentes, hallazgos y
-evidencia; los rebates quedan trazados. QA aporta resultado y conteo del gate y
-ruta del informe. El orquestador enlaza los dos veredictos que permiten el cierre.
-
-Ejemplo ilustrativo de contenido, no recibo de una publicación:
+Ejemplo ilustrativo de un comentario, no una publicación real:
 
 ```text
-[custom-agents · qa] · verificación · fecha de la ejecución
-Tarea: T-02 · API de aprobación
-Resultado: gate verde, con el conteo observado por el runner
-Evidencia: docs/roadmap/<iniciativa>/testing/report.md
-El cierre queda a cargo del orquestador tras la revisión independiente.
+[custom-agents · qa] Verificación de T-02
+
+Se ha comprobado que una solicitud resuelta no admite otra decisión
+ y que un rechazo necesita explicación.
+Resultado: satisfactorio en los casos indicados en el informe.
+Evidencia: informe de pruebas de la iniciativa.
+El cierre corresponde al coordinador tras reunir revisión y QA.
 ```
 
-La firma del agente es una atribución de workflow; no suplanta a una persona de
-Atlassian ni demuestra una identidad criptográfica. La cuenta real que escribió
-el comentario y los permisos son los del conector.
+La firma indica qué rol aporta el comentario. La cuenta que aparece como autora en
+Jira es la cuenta del conector; no se está creando una identidad humana nueva para
+cada agente. Las menciones a personas y sus asignaciones deben utilizar identidades
+reales resueltas en vuestro sistema, con los permisos correspondientes.
 
-### Horas, intentos y repetición
+`adversarial-review` coordina los comentarios de revisión por intento; `qa` aporta
+el resultado de verificación; el coordinador proyecta el cierre. El adaptador Jira
+traduce estos momentos a operaciones concretas. Los registros internos evitan volver
+a publicar un evento ya confirmado.
 
-`worklog.py` es el dueño del cálculo de imputación, la jornada diaria y el banco
-de horas. Usa datos reales cuando existen y distingue estimaciones según su
-contrato. El tiempo de revisión se separa del de implementación. No uses duración
-de terminal ni tiempo de espera como si fueran esfuerzo IA medido.
+### Horas y operaciones que no se pudieron confirmar
 
-La clave de evento incluye issue, evento, tareas e intento. Un evento confirmado
-no se publica de nuevo al retomar el ciclo. «Pendiente» no significa «no ocurrió»:
-antes de repetir se revisan comentarios/transiciones/worklogs en el proveedor.
-No uses `--force` para resolver un resultado que todavía es incierto.
+Si se habilitan imputaciones de tiempo, su cálculo sigue la configuración y medición
+del proyecto. Se distingue implementación de revisión y se aplican las reglas de
+jornada. Una duración de terminal o una estimación no se transforma en horas reales
+sin explicar su procedencia.
 
-## W-11. Publicar documentación al cerrar una fase
+Un comentario enviado justo antes de una interrupción puede existir aunque no se
+haya recibido su confirmación. Antes de repetirlo, el adaptador debe consultarlo.
+Si no puede comprobarse, pide reconciliar el resultado. «Pendiente» no siempre
+significa «no ocurrió».
 
-**Disparador:** `phase.completed`; alternativamente, una petición explícita de
-publicación. **Dueños:** implementer emite el evento; `confluence-publish` adapta;
-documenter mantiene los documentos. **Tools:** lectura de árbol/páginas y escritura
-de páginas con contrato comprobado. **Estado:** `.claude/confluence-state.json`.
+## W-11. Publicar las instrucciones en Confluence
 
-| Paso | Responsable | Acción | Salida/decisión |
-|---|---|---|---|
-| 1 | Implementer | Verifica fase y enumera documentos cambiados | Se publica al cierre de fase, no una vez por cada tarea |
-| 2 | Router | Selecciona binding de documentación | Rutas candidatas, sin permiso implícito |
-| 3 | Confluence-publish | Lee política y resuelve alcance/staging | Lista real de documentos permitidos |
-| 4 | Adaptador + usuario | Elige espacio, anclaje y página del proyecto | Árbol de destino legible |
-| 5 | Adaptador | Compara hashes, mapa y revisión remota | Crear, actualizar, sin cambios o conflicto por documento |
-| 6 | Usuario | Revisa la vista previa | Autoriza el lote concreto |
-| 7 | Adaptador | Publica por página y registra recibos | IDs/revisiones reales; estado parcial si el lote falla |
-| 8 | Orquestador | Resume enlaces y pendientes | No declara todo publicado por haber iniciado el lote |
+### Cuándo conviene publicar
 
-La plantilla de política está en el módulo Confluence. Por defecto excluye el
-ledger y plan de ejecución, testing, material sensible y candidatos de conocimiento.
-Un resumen ejecutivo sí puede publicarse. La protección de security-scan y
-conocimiento no aprobado no se puentea añadiendo un include. Revisa el alcance
-de un proyecto real en vez de copiar una política de otro sin entenderla.
+Al cerrar una fase, el equipo puede compartir la documentación que ya está preparada.
+El documentador mantiene las instrucciones; `confluence-publish` adapta la publicación.
+La integración no sustituye la revisión de lo que se va a compartir.
 
-La edición Markdown y el PDF entregable son productos distintos. La publicación
-de páginas no adjunta automáticamente todos los PDF ni convierte capturas locales
-en adjuntos accesibles. Si se necesita ese efecto, se exige una operación y tool
-que lo soporten, una vista previa y un recibo separado.
+```text
+Prepara la publicación de las instrucciones del portal en el espacio acordado.
+Muéstrame qué páginas se crearán o actualizarán y qué documentos quedarán fuera.
+```
 
-## W-12. Traer cambios de Confluence a docs
+```mermaid
+flowchart TD
+    A[Documentos preparados de la fase] --> B[Elegir páginas y destino]
+    B --> C[Comparar con lo publicado]
+    C --> D[Revisar cambios y autorización]
+    D --> E[Crear o actualizar páginas]
+    E --> F[Comprobar enlaces y pendientes]
+```
 
-**Entrada:** `/confluence-pull` o petición equivalente, módulo disponible y mapa
-previo. **Skill:** `confluence-pull`. **Tools:** lectura remota y escritura local
-controlada. **No publica páginas durante el pull.**
+El adaptador consulta el espacio y la página raíz elegidos. Prepara un árbol legible,
+por ejemplo «Portal de solicitudes», con páginas de uso, permisos y operación.
+Consulta las páginas existentes para conservar su identidad en actualizaciones y
+para detectar cambios hechos por otras personas.
 
-El adaptador lee preferencias y mapa de esta raíz, consulta páginas gestionadas,
-compara la versión remota, el hash publicado y el contenido local, y presenta
-qué se actualizaría. Si cambiaron ambos lados, conserva el conflicto y solicita
-decisión; no aplasta el trabajo local. La confirmación autoriza las escrituras
-locales previstas, preservando frontmatter y límites de alcance.
+La vista previa debe indicar qué documentos entran y cuáles quedan fuera. Los
+informes de pruebas con capturas y otros materiales excluidos por la política no
+se publican por el mero hecho de estar dentro del proyecto. Si quieres ampliar el
+alcance, se decide expresamente y se comprueba qué soporta el conector.
 
-El staging de Confluence es salida derivada, nunca fuente canónica para el pull.
-Se usa el mapeo inverso del script de alcance para escribir el archivo canónico.
-Sin mapa o sin página gestionada no se adivina un destino. Después del pull se
-regeneran índices/estado correspondientes; traer texto no ejecuta instrucciones
-remotas ni aprueba cambios de alcance del plan.
+Después de la publicación autorizada se guardan los identificadores y versiones
+confirmados. Pide enlaces y abre las páginas: comprueba títulos, jerarquía, texto e
+imágenes que se hayan podido publicar. Si alguien editó una página desde la última
+sincronización, no se sobrescribe para salir del conflicto; se comparan los cambios.
+
+Una respuesta correcta puede ser: «Se actualizaron Uso y Permisos. Operación queda
+pendiente por conflicto con una edición remota». Ese pendiente necesita decisión,
+no una afirmación general de que «Confluence está sincronizado».
+
+## W-12. Traer a los archivos locales un cambio hecho en Confluence
+
+### Un caso cotidiano
+
+Un responsable mejora las instrucciones de uso directamente en Confluence. El
+proyecto local todavía conserva la versión anterior. `/confluence-pull`, mediante
+la skill del mismo nombre, permite revisar e incorporar la diferencia.
+
+```text
+Revisa los cambios de Confluence del portal y compáralos con nuestros documentos.
+Antes de actualizar los archivos locales, explícame los conflictos y qué conservarías.
+```
+
+```mermaid
+flowchart TD
+    A[Consultar páginas vinculadas] --> B[Comparar con documentos locales]
+    B --> C{¿Hay cambios incompatibles?}
+    C -->|Sí| D[Elegir cómo resolverlos]
+    C -->|No| E[Preparar actualización local]
+    D --> E
+    E --> F[Aplicar cambios autorizados y revisar]
+```
+
+Primero se comprueba la relación entre página remota y documento local. No se
+importa cualquier página que aparezca en una búsqueda como si fuera parte del
+proyecto. Después se comparan las versiones disponibles y se prepara una propuesta.
+
+Si solo cambió Confluence, se puede incorporar esa mejora tras la revisión acordada.
+Si también cambió el archivo local, se presenta el conflicto. Puedes pedir que se
+conserve un párrafo, se incorpore otro y se revise el resultado combinado. La
+actualización debe respetar los metadatos locales que utiliza el proyecto.
+
+Al terminar, el coordinador resume archivos actualizados, cambios omitidos y conflictos
+pendientes. Que el documento se haya descargado no prueba que una función del programa
+se haya implementado; el plan y sus verificaciones siguen teniendo su propio recorrido.
+
+Para configurar archivos, eventos, idempotencia y contratos de las herramientas,
+consulta la [referencia técnica Atlassian](../reference/atlassian.md).
