@@ -52,7 +52,6 @@
         "delivery-practices",
         "dependency-upgrade",
         "frontend-quality",
-        "knowledge-services",
         "quick-implement",
         "rates-verify",
         "research-first",
@@ -88,6 +87,13 @@
     "jira": {
       "skills": [
         "jira-sync"
+      ],
+      "commands": [],
+      "requires": []
+    },
+    "memory-integrations": {
+      "skills": [
+        "knowledge-services"
       ],
       "commands": [],
       "requires": []
@@ -144,6 +150,7 @@
       "core",
       "documents",
       "jira",
+      "memory-integrations",
       "relationships",
       "security",
       "training",

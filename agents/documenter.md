@@ -13,7 +13,6 @@ tools: Read, Grep, Glob, Bash, Write, Edit
 # Campos informativos: Claude Code ignora claves extra del frontmatter.
 dependencies:
   skills:                    # capacidades locales; las integraciones externas son opcionales
-    - knowledge-services
     - plugin-panel
   kits:                      # taxonomía + plantillas + fragmentos compartidos
     - agent-kits/documenter

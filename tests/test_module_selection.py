@@ -22,6 +22,15 @@ def test_core_is_not_the_complete_catalog():
     assert 'tdd' in result['skills']
     assert not set(result['skills']) & {'jira-sync','confluence-publish','confluence-pull','voice-profile'}
 
+def test_memory_services_are_opt_in_without_removing_local_memory_roles():
+    core=api().resolve_selection(profile='core')
+    assert 'knowledge-services' not in core['skills']
+    selected=api().resolve_selection(profile='core',include=['memory-integrations'])
+    assert selected['modules']==['core','memory-integrations']
+    assert set(selected['skills'])==set(core['skills'])|{'knowledge-services'}
+    assert selected['selected_by']['memory-integrations']==['explicit']
+    assert 'knowledge-services' in api().resolve_selection(profile='full')['skills']
+
 @pytest.mark.parametrize('options',[
     {'profile':'core'}, {'profile':'full'},
     {'profile':'core','include':['content','jira']},

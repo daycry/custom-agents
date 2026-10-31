@@ -28,7 +28,6 @@ dependencies:
     - delivery-practices
     - capability-audit
     - api-contract
-    - knowledge-services
     - research-first
   kits:                      # plantilla design.md + fragmentos compartidos (knowledge-write, docs-style, constitution)
     - agent-kits/architect

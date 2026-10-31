@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "bindings": [
+    {
+      "id": "kwipu",
+      "purpose": "knowledge",
+      "enabled": true,
+      "contract_version": 1,
+      "adapter": {
+        "kind": "skill",
+        "name": "knowledge-services",
+        "origin": "bundle"
+      },
+      "events": [],
+      "capabilities": [
+        "knowledge.check",
+        "knowledge.publish",
+        "knowledge.read",
+        "knowledge.rebuild"
+      ],
+      "settings": ".claude/knowledge-services/taxonomy.json"
+    },
+    {
+      "id": "graphiti",
+      "purpose": "knowledge",
+      "enabled": true,
+      "contract_version": 1,
+      "adapter": {
+        "kind": "skill",
+        "name": "knowledge-services",
+        "origin": "bundle"
+      },
+      "events": [],
+      "capabilities": [
+        "knowledge.check",
+        "knowledge.publish",
+        "knowledge.read",
+        "knowledge.rebuild"
+      ],
+      "settings": ".claude/knowledge-services/taxonomy.json"
+    }
+  ]
+}

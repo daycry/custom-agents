@@ -9,9 +9,7 @@ model: sonnet
 effort: medium
 tools: Read, Grep, Glob, Bash
 dependencies:
-  skills:
-    - knowledge-services
-    - training-data-services
+  skills: []
   kits:
     - agent-kits/knowledge-curator
     - agent-kits/shared
