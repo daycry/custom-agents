@@ -2,7 +2,7 @@
   "version": 1,
   "capabilities": [
     {"id":"research-first","roles":["analyst","architect","evaluator"],"stacks":[],"areas":["research"]},
-    {"id":"stack-practices","roles":["architect","planner","implementer","reviewer","qa"],"stacks":["codeigniter4","php","python","react","laravel","symfony","nextjs","dotnet","c"],"areas":[]},
+    {"id":"stack-practices","roles":["architect","planner","implementer","reviewer","qa"],"stacks":["codeigniter4","php","python","react","laravel","symfony","nextjs","dotnet","c","go"],"areas":[]},
     {"id":"backend-practices","roles":["analyst","architect","planner","implementer","reviewer","qa"],"stacks":["codeigniter4","php"],"areas":["api","data"]},
     {"id":"frontend-quality","roles":["architect","planner","implementer","reviewer","qa"],"stacks":["react","nextjs"],"areas":["frontend","accessibility"]},
     {"id":"delivery-practices","roles":["architect","planner","implementer","reviewer","qa"],"stacks":[],"areas":["delivery","mcp"]},

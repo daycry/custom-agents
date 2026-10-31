@@ -2,10 +2,10 @@
 name: stack-practices
 description: >
   Criterios de implementación, revisión y pruebas para CodeIgniter 4, Laravel,
-  Symfony, Next.js, React, Python, .NET/C# y C, según el proyecto y su versión mínima.
+  Symfony, Next.js, React, Python, .NET/C#, C y Go, según el proyecto y su versión mínima.
   Úsala cuando el usuario diga "guías de stack", "patrones CodeIgniter",
   "patrones Python", "patrones React", "patrones Laravel", "patrones Symfony",
-  "patrones Next.js", "patrones .NET", "patrones C" o "revisa cancelación asyncio".
+  "patrones Next.js", "patrones .NET", "patrones C", "patrones Go" o "revisa cancelación asyncio".
 ---
 
 # Guías por stack
@@ -17,6 +17,8 @@ sin detección se registran como declarados, no como dependencias comprobadas.
 Laravel/Symfony/Next.js se detectan por dependencias exactas; para C o .NET usa
 `--stack c` o `--stack dotnet` tras confirmar el alcance de la tarea. El selector
 no interpreta MSBuild ni CMake y no ejecuta código del proyecto.
+Para Go declarado, usa `--stack go`: esta selección es explícita y no valida
+go.mod ni go.work. Lee la referencia Go solo cuando la tarea afecte ese lenguaje.
 
 | Referencia | Cuándo leerla |
 |---|---|
@@ -28,6 +30,7 @@ no interpreta MSBuild ni CMake y no ejecuta código del proyecto.
 | [Next.js](references/nextjs.md) | App/Pages Router, fronteras servidor/cliente, datos y caché Next.js |
 | [.NET y C#](references/dotnet-csharp.md) | SDK, tipos, ASP.NET Core, EF Core, cancelación o pruebas .NET |
 | [C](references/c.md) | Estándar/ABI, propiedad de memoria, límites, compilación o tests nativos C |
+| [Go](references/go.md) | Módulos, errores, interfaces, goroutines, contextos, pruebas, race detector o benchmarks Go |
 | [Mínimo común y TypeScript](references/coding-baseline.md) | Al revisar nombres, cohesión, comentarios o tipos TypeScript sin guía propia del proyecto |
 
 Architect decide fronteras; planner convierte riesgos en casos; implementer

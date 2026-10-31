@@ -102,7 +102,7 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
 | `confluence-publish` / `confluence-pull` | Espejo `docs/` ↔ Confluence, opt-in, idempotente por manifiesto; nunca `docs/security-scan/`. (evaluator, planner, qa, documenter / comando) |
 | `research-first` | Compara soluciones existentes antes de integraciones o nuevas herramientas; fuentes originales y límites explícitos. (analyst, architect) |
 | `plugin-panel` | Panel local del bundle y extensiones de proyecto/usuario; JSON determinista, metadatos redactados y modo servido de progreso; disponibilidad sin verificar. (/plugin-catalog) |
-| `stack-practices` | Guías por versión para CodeIgniter 4, Laravel, Symfony, Next.js, React, Python, .NET/C# y C; estado, persistencia, concurrencia y pruebas. (architect, planner, implementer, reviewer, qa) |
+| `stack-practices` | Guías por versión para CodeIgniter 4, Laravel, Symfony, Next.js, React, Python, .NET/C#, C y Go; estado, persistencia, concurrencia y pruebas. (architect, planner, implementer, reviewer, qa) |
 | `backend-practices` | APIs, autorización por recurso, errores, idempotencia y migraciones compatibles. (analyst, architect, planner, implementer, reviewer, qa) |
 | `frontend-quality` | Teclado, foco, formularios, estados remotos y rendimiento medido. (architect, planner, implementer, reviewer, qa) |
 | `delivery-practices` | Contenedores, readiness, recuperación y límites de acceso MCP. (architect, planner, implementer, reviewer, qa) |

@@ -13,6 +13,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ### Cambiado
 
+- Añadidas guías de implementación y pruebas Go a stack-practices, con selección explícita por proyecto y criterios compartidos por los roles de entrega.
+
 - Selección de módulos/perfiles, entrega selectiva protegida y puertos de integración locales al proyecto. Jira/Confluence son adaptadores opcionales; los proveedores de proyecto son abiertos.
 - Ciclo del core desacoplado de llamadas de proveedor y manual detallado bilingüe de workflows del core, Atlassian, Redmine y personalización.
 - Preparación de cambio mayor: raíz explícita para opt-ins Jira y conservación de paquetes portable modificados al regenerar.

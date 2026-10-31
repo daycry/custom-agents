@@ -13,6 +13,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ### Changed
 
+- Added version-aware Go implementation and testing guidance to stack-practices, with explicit project selection and shared criteria for all delivery roles.
+
 - Added module/profile selection, protected selective delivery and project-local integration ports. Jira/Confluence are optional adapters; project providers remain open.
 - Decoupled core lifecycle events from provider calls and added a detailed bilingual handbook with core, Atlassian, Redmine and customization workflows.
 - Breaking change preparation: explicit project roots for Jira opt-ins; modified portable packages are preserved instead of regenerated in place.

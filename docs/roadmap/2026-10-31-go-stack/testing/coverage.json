@@ -1,0 +1,9 @@
+{
+  "tool": "coverage.py",
+  "file": "agent-kits/shared/capability-route.py",
+  "covered_lines": 168,
+  "statements": 177,
+  "line_percent": 94.92,
+  "minimum": 90,
+  "meets_minimum": true
+}
