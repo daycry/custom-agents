@@ -300,6 +300,8 @@ SCRIPTS = descubrir()
 # no-ASCII en el fuente. `test_los_exentos_de_simbolos_lo_estan_por_medicion` comprueba que la
 # exención sigue siendo cierta ejecutando el modo declarado.
 SIN_SIMBOLOS_EN_LA_SALIDA = {
+    'skills/plugin-panel/scripts/console_service.py':
+        'module without CLI or stdout output; localized messages travel as explicitly UTF-8 HTTP JSON',
     'agent-kits/shared/integration-route.py':
         'project metadata CLI: JSON uses ensure_ascii=True; declared status never executes an adapter',
     'agent-kits/shared/agent-activity-store.py':
@@ -398,6 +400,10 @@ def _modos():
         'session_id': 'consola-🐛', 'agent_id': 'agente-👍',
         'agent_type': 'custom-agents:implementer'}, ensure_ascii=False)
     return {
+        'skills/plugin-panel/scripts/console_service.py':
+            [('import module without CLI', lambda w: [], (0,), None)],
+        'tests/console_fixture_server.py':
+            [('describe real fixture labels without starting a server', lambda w: ['--describe'], (0,), None)],
         'hooks/session-context.py':
             [('contexto UTF-8', lambda w: ['--root', os.path.join(w, 'session-context')], (0,),
               '{"source":"startup","session_id":"console-context"}')],

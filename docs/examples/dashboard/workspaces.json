@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "workspaces": [
+    {
+      "id": "portal",
+      "name": "Portal de solicitudes",
+      "root": "C:/proyectos/portal",
+      "runtimes": ["claude-code", "codex", "opencode"]
+    },
+    {
+      "id": "facturacion",
+      "name": "Facturación",
+      "root": "C:/proyectos/facturacion",
+      "runtimes": ["codex"]
+    }
+  ]
+}
