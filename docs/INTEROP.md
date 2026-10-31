@@ -2,6 +2,14 @@
 
 [English](en/INTEROP.md) · **Español**
 
+## Arquitectura modular e integraciones por proyecto
+
+El núcleo funciona con `tasks.md` y `docs/` locales. Las integraciones se eligen por función en `.claude/integrations.json`; Jira y Confluence son adaptadores opcionales, y un proyecto puede añadir Redmine, una wiki u otro proveedor sin modificar el core. Declarar una integración no conecta cuentas ni autoriza efectos externos.
+
+El catálogo `agent-kits/shared/modules.json` resuelve perfiles y dependencias. El export portable y la copia Claude con perfil filtran archivos; los plugins nativos siguen siendo bundles completos. No se personaliza una caché compartida para simular selección por proyecto.
+
+El [manual completo](CUSTOMIZATION.md) detalla workflows, agentes, comandos, skills, herramientas, configuración, artefactos, gates, ejemplos Atlassian/Redmine y recuperación. Las secciones históricas de proveedor de este documento describen adaptadores opcionales, no requisitos del core. Esta actualización contiene cambios de contrato para la próxima versión mayor; [migración y límites](guides/operations.md).
+
 Este plugin nació para Claude Code y hoy se instala también en **Codex** (OpenAI) y **OpenCode**
 (SST). Este documento explica **cómo** (instalación), **qué se traduce** (y con qué formato) y
 —lo más importante— **qué NO funciona igual** en cada runtime.
@@ -396,6 +404,32 @@ usuario se conservan. El índice estático queda consultable; V2 no lo carga por
 Contrato: [plugins V2](https://opencode.ai/v2/docs/build/plugins/) y
 [migración V1](https://opencode.ai/v2/docs/build/plugins/migrate-v1), verificados el 2026-10-08.
 La validación de guardias nativas de los tres runtimes sigue abierta en el roadmap.
+
+### Revisar hooks de Codex tras una actualización
+
+`plugin contents changed; hook approval required` indica que Codex ha omitido el
+hook porque el contenido instalado difiere del aprobado. La aprobación considera
+la definición del hook y el bundle del plugin; incluso una actualización sin
+cambios en ese comando puede requerir otra revisión. Instalar o habilitar el
+plugin no aprueba sus hooks.
+
+En la CLI 0.166.0, abre `/hooks`, entra con Enter en el evento y selecciona el
+handler. Revisa el origen y el comando; `t` confía en la entrada seleccionada.
+Enter o Espacio solo alternan hooks ya revisados: no habilitan uno pendiente.
+En la lista de eventos, `t` afecta a todas las entradas pendientes, no solo a
+custom-agents; revisa el alcance antes de usar esa acción.
+
+Codex muestra `statusMessage` como nombre. El exportador añade etiquetas a los
+launchers propios y conserva una etiqueta explícita. Una instalación anterior
+puede mostrar «Unnamed hook» hasta actualizar el bundle e iniciar una sesión
+nueva. Cambiar esas etiquetas también cambia la definición que debe revisarse.
+Las etiquetas no conceden confianza ni cambian comandos, permisos o plazos.
+
+Comprobado con `hooks/list` nativo: nombres, origen y estado de revisión; no
+acredita interacción con la interfaz Desktop. Si Desktop no permite revisar una
+entrada, la CLI ofrece el navegador anterior con el mismo usuario y configuración.
+No edites los hashes de confianza para silenciar el aviso.
+Contrato consultado el 2026-10-30: [revisión de hooks](https://learn.chatgpt.com/docs/hooks#review-and-trust-hooks).
 
 ### Arranque portable de los hooks
 

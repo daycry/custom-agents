@@ -32,6 +32,7 @@ import { createInterface, emitKeypressEvents } from "node:readline"
 import { execFileSync } from "node:child_process"
 import { tmpdir } from "node:os"
 import { queryCodexPlugin } from "../agent-kits/shared/codex-plugin-state.mjs"
+import {validateDelivery,planProfileCopies,resolveSelection,verifyProfileTarget} from './modules.mjs'
 import {
   PROVIDERS, IDS, getProvider, buildPlan, MANIFEST, MANIFEST_PLUGIN, MANIFIESTOS,
   enPath, rutaDe, estadoCli, manifiestoDe, sitiosManifiesto, PRECEDENCIA_SETTINGS, codexHome, MKT, PLUGIN, PLUGIN_ID,
@@ -149,6 +150,9 @@ function parseArgs(argv) {
     else if (a === "--mode" || a === "--modo") o.modo = val()
     else if (a === "--source" || a === "--fuente") o.source = val()
     else if (a === "--models-config") o.modelsConfig = val()
+    else if (a === "--profile") o.profile = val() || '__missing__'
+    else if (a === "--with") (o.include ||= []).push(val() || '__missing__')
+    else if (a === "--without") (o.exclude ||= []).push(val() || '__missing__')
     else if (a === "--force-marketplace") o.forceMarketplace = true
     else if (a === "--dry-run") o.dryRun = true
     else if (a === "-y" || a === "--yes") o.yes = true
@@ -210,7 +214,7 @@ export function leerJsonEstricto(p) {
  * un Ctrl-C, un disco lleno o un antivirus a medias dejaban el `settings.json` del usuario en 0
  * bytes. Con `rename`, o está el contenido viejo o está el nuevo, nunca nada a medias.
  */
-export function escribirAtomico(p, contenido) {
+export function escribirAtomico(p, contenido, options = {}) {
   mkdirSync(dirname(p), { recursive: true })
   const modo = (() => {
     try { return existsSync(p) ? statSync(p).mode & 0o7777 : null } catch { return null }
@@ -220,6 +224,7 @@ export function escribirAtomico(p, contenido) {
   for (let intento = 0; intento < 3; intento++) {
     try {
       writeFileSync(tmp, contenido, "utf8")
+      if(options.guard)options.guard()
       renameSync(tmp, p)
       // El `rename` sustituye el inodo: el fichero se queda con los permisos del temporal (0644).
       // Un `settings.json` que el usuario tenía en 0600 no puede acabar siendo legible por todos.
@@ -235,6 +240,8 @@ export function escribirAtomico(p, contenido) {
   // En Windows, `rename` sobre un destino que otro proceso tiene ABIERTO da EPERM donde un
   // `writeFileSync` directo sí funciona. Antes que fallar la instalación, se escribe encima y se
   // DICE que esa escritura no fue atómica (un corte a mitad puede dejar el fichero incompleto).
+  if(options.allowInplace===false)throw ultimo
+  if(options.guard)options.guard()
   writeFileSync(p, contenido, "utf8")
   if (modo !== null) { try { chmodSync(p, modo) } catch { /* idem */ } }
   AVISOS_ESCRITURA.push(`${p}: otro proceso lo tiene abierto (${ultimo.code}); lo he escrito ` +
@@ -286,7 +293,7 @@ export function retirarArtefacto(paso, destino, dryRun = false) {
     if (!original.isFile() || original.isSymbolicLink() || original.nlink > 1) {
       throw new Error(`artefacto no regular en el destino: ${paso.to}`)
     }
-    const texto = readFileSync(paso.to, "utf8").replace(/\r\n/g, "\n")
+    const texto = paso.hashBytes ? readFileSync(paso.to) : readFileSync(paso.to, "utf8").replace(/\r\n/g, "\n")
     const hash = createHash("sha256").update(texto).digest("hex")
     if (!(paso.sha256 || []).includes(hash)) return false
   }
@@ -1661,11 +1668,23 @@ export function cargarModelosNativos(provider, opts, previous = null) {
 
 function ejecutar(provider, opts, selectedModels) {
   const manPrevio = leerJson(join(provider.destino(opts.scope, opts.dir, opts.modo),manifiestoDe(provider, opts.modo)))
+  const selected=opts.profile!==undefined || opts.include?.length || opts.exclude?.length || manPrevio?.moduleSelection
+  const moduleOptions=selected ? (opts.profile!==undefined || opts.include?.length || opts.exclude?.length
+      ? {profile:opts.profile || 'core',include:opts.include || [],exclude:opts.exclude || []}
+      : manPrevio.moduleOptions || {profile:'full',include:manPrevio.moduleSelection.modules,
+          exclude:resolveSelection({profile:'full'}).modules.filter(id=>!manPrevio.moduleSelection.modules.includes(id))}) : null
+  const selection=selected ? validateDelivery(provider.id,opts.modo,moduleOptions) : null
   const models = selectedModels === undefined ? cargarModelosNativos(provider,opts,manPrevio) : selectedModels
-  const plan = buildPlan(provider, {
+  let plan = buildPlan(provider, {
     root: ROOT, dir: opts.dir, scope: opts.scope, version: VERSION,
     modo: opts.modo, source: opts.source,
   })
+  let profileHashes=null,profileBeforeHashes=null
+  if(selection && provider.id==='claude-code' && opts.modo==='copy') {
+    const projected=planProfileCopies({root:ROOT,dest:provider.destino(opts.scope,opts.dir,opts.modo),
+      plan,selection,previous:manPrevio})
+    plan=projected.plan;profileHashes=projected.hashes;profileBeforeHashes=projected.beforeHashes
+  }
   if (models) for(const step of plan) if(step.nativeAgents) step.nativeAgents.projection=models.projection
   const escritos = []
   const retirados = new Set()
@@ -1712,6 +1731,11 @@ function ejecutar(provider, opts, selectedModels) {
       modo: opts.modo,
       installedAt: new Date().toISOString(),
       ...(models ? {modelsConfig:models.modelsConfig} : {}),
+      ...(selection ? {moduleSelection:selection,moduleOptions} : {}),
+      ...(profileHashes ? {profileHashes:estado==='completo' ? profileHashes : Object.fromEntries(
+        Object.entries({...manPrevio?.profileHashes,...profileHashes}).filter(([path])=>!retirados.has(path)))} : {}),
+      ...(profileBeforeHashes && estado!=='completo' ? {profileBeforeHashes:Object.fromEntries(
+        Object.entries({...manPrevio?.profileBeforeHashes,...profileBeforeHashes}).filter(([path])=>!retirados.has(path)))} : {}),
       ...(estado === "completo" ? {} : { estado, error: String(error?.message || error) }),
       files: [...new Set([...(manPrevio?.files || []).filter(f => !retirados.has(f)), ...escritos.map((f) => f.split(sep).join("/"))])].sort(),
       ...(Object.keys(nativeAgents).length ? {nativeAgents} : {}),
@@ -1760,8 +1784,23 @@ function ejecutar(provider, opts, selectedModels) {
         retirados.add(paso.to.split(sep).join("/"))
         say(`  ${ARROW} ${rel(paso.to)} ${dim("(retirada de copia conocida)")}`)
       } else {
+        if(profileHashes)throw new Error('profile retirement changed after preflight; pending ownership preserved')
         avisos.push(`${rel(paso.to)} tiene cambios locales: conservado; migración pendiente de revisión`)
       }
+    } else if (paso.type === 'profile-copy') {
+      const destination=provider.destino(opts.scope,opts.dir,opts.modo)
+      say(`  ${ARROW} ${rel(paso.to)} ${dim(`(${paso.files.length} fichero(s), perfil ${selection.profile})`)}`)
+      escritos.push(...paso.files.map(file=>file.to))
+      if(!opts.dryRun) {
+        guardar('incompleto',new Error('copiando grupo del perfil'))
+        for(const file of paso.files) {
+          const content=file.type==='write' ? Buffer.from(file.content) : readFileSync(join(ROOT,file.from))
+          if(createHash('sha256').update(content).digest('hex')!==file.contentHash)throw new Error('profile source changed after preflight')
+          escribirAtomico(file.to,content,{guard:()=>verifyProfileTarget(file,destination),allowInplace:false})
+          if(file.type==='copy')chmodSync(file.to,statSync(join(ROOT,file.from)).mode & 0o777)
+        }
+      }
+      n+=paso.files.length
     } else if (paso.type === "copy") {
       if (paso.nativeAgents) {
         const migration = planificarAgentesNativos(paso,manPrevio)
@@ -2214,6 +2253,15 @@ function deshacerInstalacion(p, dest, file, man, opts) {
   let n = 0
   for (const f of files) {
     const abs = f.split("/").join(sep)
+    if(man.profileHashes) {
+      try {
+        const allowed=[man.profileHashes[f],...(man.estado==='incompleto' ? [man.profileBeforeHashes?.[f]] : [])]
+          .filter(hash=>typeof hash==='string' && /^[0-9a-f]{64}$/.test(hash))
+        if(Object.hasOwn(man.profileHashes,f) && retirarArtefacto({to:abs,sha256:allowed,hashBytes:true},dest)) n++
+        else say(`  ${WARN} ${dim(`${rel(abs)}: archivo modificado o sin propiedad verificable, conservado`)}`)
+      } catch {say(`  ${WARN} ${dim(`${rel(abs)}: ruta no verificable, conservado`)}`)}
+      continue
+    }
     if (man.nativeAgents && Object.hasOwn(man.nativeAgents,f)) {
       const agentRoot = p.id === 'codex' ? join(dirname(dirname(dest)),'agents') : join(dest,'agents')
       try {

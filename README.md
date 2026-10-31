@@ -1,8 +1,13 @@
 # custom-agents
 
+
+**Usage and customization handbook:** [Detailed core workflows, optional integrations, Atlassian/Redmine and project extensions](docs/en/CUSTOMIZATION.md). Native bundles are complete; configured does not mean connected or authorized.
+
+[Illustrated PDF handbook for department leads (Spanish)](output/pdf/custom-agents-manual-operativo.pdf).
+
 **English** · [Español](README.es.md)
 
-**The complete lifecycle of a software initiative — with budgeting, real cost measurement and Jira/Confluence traceability — in Claude Code, Codex and OpenCode.**
+**The complete lifecycle of a software initiative — with budgeting, real cost measurement and project-selected integrations — in Claude Code, Codex and OpenCode.**
 
 [![CI](https://github.com/daycry/custom-agents/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/daycry/custom-agents/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/github/v/tag/daycry/custom-agents?label=version&color=informational)](CHANGELOG.md)
@@ -21,7 +26,7 @@
 [![npx](https://img.shields.io/badge/install-npx-cb3837.svg?logo=npm&logoColor=white)](docs/en/INTEROP.md)
 [![SDD](https://img.shields.io/badge/methodology-Spec--Driven-2ea44f.svg)](docs/en/FLOWS.md)
 [![Agents](https://img.shields.io/badge/agents-10-0ea5e9.svg)](docs/en/README.md)
-[![Skills](https://img.shields.io/badge/skills-27-0ea5e9.svg)](docs/en/README.md)
+[![Skills](https://img.shields.io/badge/skills-33-0ea5e9.svg)](docs/en/README.md)
 [![Commands](https://img.shields.io/badge/commands-15-0ea5e9.svg)](docs/en/README.md)
 [![Portable skills](https://img.shields.io/badge/portable%20skills-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/en/INSTALL.md#using-the-skills-outside-claude-code-portable-package)
 
@@ -128,7 +133,7 @@ npx @daycry/custom-agents            # interactive menu; marks the runtimes it d
 
 | Runtime | Install | What you get |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 15 commands, 27 skills, hooks, status line |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 15 commands, 33 skills, hooks, status line |
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, generated command adapters (`$custom-agents:custom-agents-<name>`), session hooks |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agents, commands, hook adapter |
 
@@ -238,7 +243,7 @@ flowchart LR
 | **planner** | Executable plan: phases and `T-XX` tasks with verifiable acceptance criteria and a per-phase budget. |
 | **implementer** | Writes the code phase by phase on a branch/worktree, with `tasks.md` as the canonical ledger and per-task measured cost. |
 | **reviewer** | One review lens (A/B/C) on fresh context, reviews without modifying code; structured output that `adversarial-review` merges. |
-| **qa** | E2E with Playwright (local hosts only), verdict via `qa-gate.py`, md+pdf report with evidence. |
+| **qa** | E2E with Playwright (local hosts only), verdict via `qa-gate.py`, Markdown report with evidence; optional PDF when the documents module and renderer are available. |
 | **documenter** | Technical and product documentation derived from the project itself, once at cycle close. |
 | **knowledge-curator** | Reviews and approves/rejects candidates in `docs/knowledge/candidates/`; only writer of `approved/` and `rejected/` (`curator-gate.py`). |
 | **nemesis** | Cybersecurity audit: 8-dimension SAST + active pentest **local only** (non-negotiable guardrail). |
@@ -254,11 +259,11 @@ flowchart LR
 | `/roadmap-status` | Roadmap dashboard (HTML + md for Confluence). |
 | `/roadmap-metrics` | Actual vs estimated + measured **process cost**. |
 | `/roadmap-live` | Live status reading from Jira. |
-| `/roadmap-brief` | One-pager PDF for leadership. |
+| `/roadmap-brief` | Executive one-pager in Markdown; optional PDF. |
 | `/spec-drift` | Does the code still honor the implemented specs? |
 | `/retro` | Closes the loop: deviations + causes → `CALIBRATION.md`. |
 | `/confluence-pull` | Confluence → local `docs/` (PM without git). |
-| `/plugin-catalog` | Search bundle capabilities and your project/user extensions, with sources and conflicts. |
+| `/plugin-catalog` | Open the shared project console for native sessions/chat, plans and kanban, or export a capability inventory. |
 | `/work-context` | Relevant guides and explicitly selected extensions for the task. |
 | `/work-resume` | Current ledger and selected session history in a bounded read-only dossier. [Selection and limits](docs/en/WORK-RESUME.md). |
 | `/doctor` | Deterministic install diagnosis: tools, plugin/hooks, statusline, `.claude/` configs, work state — ✅/⚠️/❌ verdict with the fix per line, read-only, no network. |
@@ -267,7 +272,7 @@ Your agents, skills, personas, tool sources and MCP remain in native project/use
 folders. Discovery preserves your files and distinguishes declarations from
 session availability. [Extension guide](docs/en/PROJECT-EXTENSIONS.md).
 
-Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services` · `research-first` · `plugin-panel` · `stack-practices` · `backend-practices` · `frontend-quality` · `delivery-practices` · `capability-audit` · `outcome-evals`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
+Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services` · `research-first` · `plugin-panel` · `stack-practices` · `backend-practices` · `frontend-quality` · `delivery-practices` · `capability-audit` · `outcome-evals` · `voice-profile` · `content-production` · `relationship-planning` · `competitive-analysis` · `llm-pipeline` · `data-collection`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
 
 </details>
 

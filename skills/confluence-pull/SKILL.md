@@ -10,6 +10,13 @@ user-invocable: true
 
 # confluence-pull — traer la doc desde Confluence (sentido inverso)
 
+
+## Adaptador opcional de proyecto
+
+Aplica `agent-kits/shared/project-integrations.md` desde la raíz explícita del proyecto.
+Antes de usar tools, lee `agent-kits/shared/atlassian-transport.md`: versión real del conector,
+permisos, settings, recibos y resultado incierto. Sin capacidad, continúa localmente.
+
 ## Alcance y activación
 
 Trae a local (docs/) el estado actual de Confluence — el sentido INVERSO de confluence-publish — para que una persona NO técnica (p. ej. un PM sin git) tenga su copia al día sin clonar ni hacer pull de git. Reutiliza el conector oficial de Atlassian (Rovo MCP) y el mismo mapeo página↔fichero del manifiesto .claude/confluence-state.json. Es un asistente guiado: comprueba conexión, previsualiza qué se va a crear/actualizar, avisa de conflictos y pide confirmación antes de escribir nada en local. Preserva el frontmatter local. Úsala cuando el usuario diga "actualiza mis docs desde Confluence", "baja/trae la doc de Confluence", "sincroniza desde Confluence", "ponme al día el roadmap".
@@ -47,8 +54,8 @@ publicado.
 ### Paso 0 — opt-in y conexión
 1. Igual que `confluence-publish`: localiza la config y respeta el flag `enabled`.
    ```bash
-   CFG="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*confluence.json' 2>/dev/null | head -1)"
-   STATE="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*confluence-state.json' 2>/dev/null | head -1)"
+   CFG="${PROJECT_ROOT}/.claude/confluence.json"
+   STATE="${PROJECT_ROOT}/.claude/confluence-state.json"
    ```
    - `enabled: false` → no hagas nada. Sin config → remite a `confluence-publish` (alta) y termina.
 2. Comprueba la conexión con `getAccessibleAtlassianResources`; si no está, guía a conectarla y detente. Resuelve `cloudId`/espacio/anclaje desde `confluence.json`.

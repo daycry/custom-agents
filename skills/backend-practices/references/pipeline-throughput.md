@@ -4,7 +4,7 @@ Léela solo cuando el cambio acelere o reestructure una ingestión, exportación
 ETL o backfill. No aplica a endpoints ni a pantallas. La reanudación y la
 idempotencia del backfill están en [contratos y datos](contracts-data.md); la
 comparación reproducible de variantes (corpus, condiciones, repeticiones,
-métricas ausentes) es de `skills/outcome-evals/references/protocol.md`. Esto
+métricas ausentes) es de la skill opcional `outcome-evals` (su protocolo, si está instalada). Esto
 añade lo propio de mover datos: dónde se va el tiempo y cómo demostrar que la
 variante rápida conserva los datos.
 
@@ -79,8 +79,10 @@ tampoco conserva la cardinalidad. Por dominio, define antes de comparar:
 | Dos variantes medidas en ventanas distintas | La comparación se invalida hasta medir sobre el mismo snapshot |
 | Variante más rápida con más coste o más fallos | El informe lo muestra; la velocidad sola no la promueve |
 
-Para el informe, `skills/outcome-evals/scripts/report_outcomes.py` agrega
+Para el informe, el agregador de la skill opcional `outcome-evals`, si está instalada, agrega
 ejecuciones ya hechas con sus mediciones; las métricas de dominio (aceptados,
 rechazados, invariantes) las calcula el job del proyecto y se adjuntan como
 evidencia. Ejecutar el backfill en un entorno real requiere autorización del
 proyecto.
+
+Sin el módulo opcional de evaluación, conserva un informe local de los mismos casos, condiciones, repeticiones y métricas observadas; no inventes resultados ni prometas un informe agregado automático.

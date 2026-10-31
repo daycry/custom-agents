@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "method": "adversarial-review; generic fresh-context reviewers because named reviewer dispatch is unavailable",
+  "attempts": [
+    {
+      "attempt": 1,
+      "lenses": {
+        "A": {
+          "critical": 0,
+          "important": 0,
+          "minor": 0
+        },
+        "B": {
+          "critical": 0,
+          "important": 0,
+          "minor": 0
+        },
+        "D": {
+          "critical": 0,
+          "important": 0,
+          "minor": 0
+        }
+      },
+      "security_lens": "not selected by canonical selector",
+      "subsequent_qa_finding": {
+        "severity": "Important",
+        "task": "T-06",
+        "scenario": "Catalog growth omits quick-implement from startup index",
+        "regression": "tests/test_hooks_shell.py::test_session_context_startup_indice_mas_roadmap_bajo_el_tope",
+        "state": "resolved by 3333e0c"
+      }
+    },
+    {
+      "attempt": 2,
+      "scope": "T-06 correction only; earlier approved work preserved",
+      "A": {
+        "open_gaps": 0,
+        "resolved_finding": "Regenerate derived OpenCode index after skill-index change"
+      },
+      "B": {
+        "open_gaps": 0
+      },
+      "D": {
+        "open_gaps": 0
+      },
+      "generation_check": {
+        "exit": 0,
+        "files_current": 88
+      }
+    }
+  ],
+  "literal_commit_review": {
+    "feature_commit": "bd89999",
+    "paths": 51,
+    "patch_characters": 117627,
+    "patch_sha256": "745c999cbc8cefe055c82251f2ce97192ba82867ecf778e00cbc1b37856a0da0",
+    "complete_literal_read": true,
+    "foreign_staged_adopted": false,
+    "personal_settings_included": false
+  },
+  "limitation": "Review does not replace QA; final test results are recorded separately."
+}

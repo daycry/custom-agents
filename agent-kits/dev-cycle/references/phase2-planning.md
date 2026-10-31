@@ -289,11 +289,4 @@ receive/ack/relectura ni sustituye ledger, QA o curación de memoria.
 
 Detalles de vista y persistencia: consulta `docs/PLUGIN-PANEL.md` en la documentación del plugin.
 
-> **Jira (opcional, opt-in).** Recién creado el plan, `planner` **ofrece** volcar las tareas a Jira
-> con la skill `jira-sync` (un issue por tarea bajo el proyecto/épica elegidos; selector visual en
-> Cowork o conversacional en CLI/VS Code). Luego, durante la implementación, al completar cada tarea
-> `implementer` imputa horas (Tiempo IA + Supervisión, tope jornada) con `implementado`; el issue
-> sigue En curso. El orquestador dispara `aprobado` para pasar a *Done* sólo con revisión sin gaps
-> y qa verde, según el ciclo de eventos de la Fase 3. Todo
-> sujeto al opt-in de `.claude/jira.json`: aunque el conector esté conectado, si Jira no se activó
-> para el proyecto, no se toca nada.
+> **Proyección externa opcional.** Tras aprobar el plan, planner resuelve `plan.created`/`plan.export` por `agent-kits/shared/project-integrations.md`. El adaptador del proyecto elige granularidad, jerarquía y destino, prepara la vista previa y exige autorización aplicable antes de crear. Durante la ejecución cada dueño emite sus eventos; solo el orquestador puede proyectar `task.done` con revisión sin gaps y QA verde. Sin integración se completa el ciclo local.

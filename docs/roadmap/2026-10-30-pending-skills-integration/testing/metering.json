@@ -1,0 +1,57 @@
+{
+  "scope": "Recorded partial windows; not a complete activity inventory. T03 window includes stack/index work, review and QA preparation.",
+  "tokens": null,
+  "cost": null,
+  "ai_hours": null,
+  "reason": "No compatible transcript measurement; wall clock is not AI effort.",
+  "windows": [
+    {
+      "artefacto": "pending-skills/T-01-hooks",
+      "inicio": "2026-10-30T18:49:36Z",
+      "fin": "2026-10-30T19:04:26Z",
+      "fuente": "estimado",
+      "tokens_reales": null,
+      "eur": null,
+      "horas_ia": null,
+      "duracion_reloj": "15m",
+      "tokens_procedencia": "sin_medida",
+      "coste_procedencia": "sin_coste"
+    },
+    {
+      "artefacto": "pending-skills/T-02-audit",
+      "inicio": "2026-10-30T19:04:26Z",
+      "fin": "2026-10-30T19:13:15Z",
+      "fuente": "estimado",
+      "tokens_reales": null,
+      "eur": null,
+      "horas_ia": null,
+      "duracion_reloj": "9m",
+      "tokens_procedencia": "sin_medida",
+      "coste_procedencia": "sin_coste"
+    },
+    {
+      "artefacto": "pending-skills/T-03-integration",
+      "inicio": "2026-10-30T19:13:16Z",
+      "fin": "2026-10-30T19:48:12Z",
+      "fuente": "estimado",
+      "tokens_reales": null,
+      "eur": null,
+      "horas_ia": null,
+      "duracion_reloj": "35m",
+      "tokens_procedencia": "sin_medida",
+      "coste_procedencia": "sin_coste"
+    },
+    {
+      "artefacto": "pending-skills/T-05-final-qa",
+      "inicio": "2026-10-30T19:48:13Z",
+      "fin": "2026-10-30T20:05:10Z",
+      "fuente": "estimado",
+      "tokens_reales": null,
+      "eur": null,
+      "horas_ia": null,
+      "duracion_reloj": "17m",
+      "tokens_procedencia": "sin_medida",
+      "coste_procedencia": "sin_coste"
+    }
+  ]
+}

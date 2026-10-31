@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "exit": 0,
+  "stack": "pytest",
+  "detalle": {
+    "stack": "pytest",
+    "informe": "coverage.json",
+    "global": 94.78,
+    "modo": "changed-only",
+    "base": "6ef2a19cfd20b0a5f1a55ced7c2981b45cec1102",
+    "ficheros": {
+      "agent-kits/shared/doctor.py": 93.36,
+      "agent-kits/shared/integration-route.py": 93.88,
+      "agent-kits/shared/module-selection.py": 98.84,
+      "scripts/export-skills.py": 94.61,
+      "skills/jira-sync/scripts/jira-flow.py": 77.05
+    },
+    "porcentaje": 91.55,
+    "minimo": 90.0
+  },
+  "avisos": []
+}

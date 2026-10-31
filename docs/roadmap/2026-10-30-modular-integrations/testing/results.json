@@ -1,0 +1,151 @@
+{
+  "reporter": "command-projection",
+  "note": "One result per observed validation command/check; not Playwright executions or deduplicated native test counts.",
+  "suites": [
+    {
+      "title": "Required delivery checks",
+      "specs": [
+        {
+          "file": "linux-affected",
+          "title": "983 passed, 2 skipped",
+          "tests": [
+            {
+              "expectedStatus": "passed",
+              "results": [
+                {
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "node-linux",
+          "title": "451 passed, 16 skipped",
+          "tests": [
+            {
+              "expectedStatus": "passed",
+              "results": [
+                {
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "node-windows",
+          "title": "464 passed, 2 skipped, 1 existing TODO",
+          "tests": [
+            {
+              "expectedStatus": "passed",
+              "results": [
+                {
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "python-coverage",
+          "title": "91.55% changed-only, min 90%",
+          "tests": [
+            {
+              "expectedStatus": "passed",
+              "results": [
+                {
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "node-coverage",
+          "title": "96.59% lines, min 90%",
+          "tests": [
+            {
+              "expectedStatus": "passed",
+              "results": [
+                {
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "tls-time-budget",
+          "title": "passed without instrumentation",
+          "tests": [
+            {
+              "expectedStatus": "passed",
+              "results": [
+                {
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "redactor-time-budget",
+          "title": "passed after verified own descendant cleanup; unchanged 1.5s limit",
+          "tests": [
+            {
+              "expectedStatus": "passed",
+              "results": [
+                {
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "pdf",
+          "title": "all 39 pages reviewed, 18 workflows, source and artifact hashes checked",
+          "tests": [
+            {
+              "expectedStatus": "passed",
+              "results": [
+                {
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "static",
+          "title": "lint, evals, interop, release coherence and ledger/index checks passed",
+          "tests": [
+            {
+              "expectedStatus": "passed",
+              "results": [
+                {
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "file": "ci-code",
+          "title": "https://github.com/daycry/custom-agents/actions/runs/41144112195",
+          "tests": [
+            {
+              "expectedStatus": "passed",
+              "results": [
+                {
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

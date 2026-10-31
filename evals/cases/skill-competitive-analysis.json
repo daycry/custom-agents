@@ -1,0 +1,29 @@
+{
+  "target": "skill:competitive-analysis",
+  "cases": [
+    {
+      "id": "competitive-analysis-literal",
+      "prompt": "analiza la competencia",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "competitive-analysis-parafrasis",
+      "prompt": "Compara el posicionamiento de estas ofertas en nuestro mercado.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "competitive-analysis-negativo",
+      "prompt": "Compara librerías de base de datos antes de adoptar una dependencia.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:research-first"
+      }
+    }
+  ]
+}

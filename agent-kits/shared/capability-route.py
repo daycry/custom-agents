@@ -21,7 +21,7 @@ MAX_DEPTH = 32
 BUNDLE = Path(__file__).resolve().parents[2]
 CATALOG = Path(__file__).with_name('capability-catalog.json')
 ROLES = ('analyst', 'evaluator', 'architect', 'planner', 'implementer', 'reviewer', 'qa', 'documenter', 'knowledge-curator', 'nemesis')
-STACKS = ('codeigniter4', 'php', 'python', 'react')
+STACKS = ('codeigniter4', 'php', 'python', 'react', 'laravel', 'symfony', 'nextjs', 'dotnet', 'c', 'go')
 AREAS = ('research', 'api', 'data', 'frontend', 'accessibility', 'performance', 'delivery', 'mcp', 'security', 'testing', 'memory', 'catalog', 'evaluation', 'dependencies', 'documentation')
 PHASE_ROLES = {'analysis': 'analyst', 'estimate': 'evaluator', 'design': 'architect', 'plan': 'planner', 'implement': 'implementer', 'review': 'reviewer', 'test': 'qa', 'document': 'documenter', 'curate': 'knowledge-curator', 'security': 'nemesis'}
 
@@ -91,9 +91,15 @@ def detect(project):
                 stacks.add('php')
                 if 'codeigniter4/framework' in dependencies:
                     stacks.add('codeigniter4')
+                if 'laravel/framework' in dependencies:
+                    stacks.add('laravel')
+                if 'symfony/framework-bundle' in dependencies:
+                    stacks.add('symfony')
             elif filename == 'package.json':
                 if 'react' in dependencies:
                     stacks.add('react')
+                if 'next' in dependencies:
+                    stacks.add('nextjs')
             else:
                 stacks.add('python')
             sources.append(filename)

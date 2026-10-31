@@ -2,12 +2,47 @@
 
 [English](en/FLOWS.md) · **Español**
 
+## Arquitectura modular e integraciones por proyecto
+
+El núcleo funciona con `tasks.md` y `docs/` locales. Las integraciones se eligen por función en `.claude/integrations.json`; Jira y Confluence son adaptadores opcionales, y un proyecto puede añadir Redmine, una wiki u otro proveedor sin modificar el core. Declarar una integración no conecta cuentas ni autoriza efectos externos.
+
+El catálogo `agent-kits/shared/modules.json` resuelve perfiles y dependencias. El export portable y la copia Claude con perfil filtran archivos; los plugins nativos siguen siendo bundles completos. No se personaliza una caché compartida para simular selección por proyecto.
+
+El [manual completo](CUSTOMIZATION.md) detalla workflows, agentes, comandos, skills, herramientas, configuración, artefactos, gates, ejemplos Atlassian/Redmine y recuperación. Las secciones históricas de proveedor de este documento describen adaptadores opcionales, no requisitos del core. Esta actualización contiene cambios de contrato para la próxima versión mayor; [migración y límites](guides/operations.md).
+
 Visión visual de cómo encajan agentes, comandos y skills. Los diagramas son Mermaid
 (se renderizan en GitHub y editores compatibles).
 
 **Leyenda:** flecha **continua** = flujo principal · flecha **punteada** = opcional, retorno o feedback · rombo = decisión/puerta · verde = camino de avance (*go*/verde) · rojo = rechazo o vuelta atrás (*no-go*/rojo).
 
 ## 0 · Mapa general — quién usa qué
+
+### Consola común: elegir proyecto y trabajar con su contexto
+
+El operador registra las raíces autorizadas y abre una sola consola. El selector
+mantiene sesiones, planes, notas y memoria en su proyecto; no asigna permisos a
+personas distintas. Las acciones conservan la revisión y QA del ciclo nativo.
+La memoria local sigue en core; `memory-integrations` entrega los adaptadores
+externos opcionales. Configurarlos no demuestra conexión ni autoriza publicar.
+
+```mermaid
+flowchart TD
+    R[Registro explícito de proyectos] --> C[Una consola y un puerto]
+    C --> P[Elegir proyecto]
+    P --> S[Sesión y chat nativos]
+    P --> L[Planes, kanban y notas locales]
+    P --> M[Memoria local y fuentes]
+    L --> V[Revisar mensaje y versión del plan]
+    V --> S
+    S --> D{Decisión nativa pendiente}
+    D -->|Sí| H[Respuesta explícita de la persona]
+    H --> E[Confirmar resultado y evidencia]
+    D -->|No| E
+    M -.-> O[Integración externa elegida y autorizada]
+```
+
+El [workflow completo W-23 a W-27](guides/dashboard.md) explica el arranque,
+la conversación, la recuperación y las comprobaciones entre proyectos.
 
 ```mermaid
 flowchart TD
@@ -23,7 +58,7 @@ flowchart TD
     TODOS --> V2["/roadmap-status<br/>dashboard"]
     TODOS --> V5["/plugin-catalog<br/>capacidades del plugin"]
     TODOS --> V3["/roadmap-metrics<br/>real vs estimado"]
-    TODOS --> V4["/roadmap-live<br/>Jira en vivo"]
+    TODOS --> V4["/roadmap-live<br/>seguimiento remoto"]
     P1 -->|go| D1
     D1 --> V3
     D2 -.->|CALIBRATION.md| P1
@@ -245,7 +280,7 @@ flowchart TD
 
 El núcleo de `commands/dev-cycle.md` conserva las puertas comunes y dirige a
 `agent-kits/dev-cycle/references/` al llegar a cada condición: evaluación/plan
-en flujo completo, subagentes o Jira habilitados, y curación con propuestas
+en flujo completo, subagentes habilitados, y curación con propuestas
 pendientes. `quick-implement` lee ese núcleo y las referencias que correspondan.
 Los adaptadores de Codex/OpenCode conservan esta lectura bajo demanda y usan el
 kit del mismo bundle; el instalador transporta sus referencias junto a los kits.
@@ -369,9 +404,9 @@ flowchart TD
 
 Los 7 eventos los genera `skills/jira-sync/scripts/jira-flow.py` (`ops` deterministas: etiqueta →
 transición → comentario firmado → worklog); el agente solo las **ejecuta** vía el conector. El
-`--actor` de cada evento es fijo: si no casa, exit 2. Detalle operativo en la tabla «Ciclo Jira de la
-Fase 3» de `agent-kits/dev-cycle/references/phase3-jira.md`, dirigida desde el
-núcleo de `commands/dev-cycle.md` (fuente única).
+`--actor` de cada evento es fijo: si no casa, exit 2. El routing del core está en
+`agent-kits/shared/project-integrations.md`; el adaptador Jira opcional traduce los eventos
+neutrales a estos planes semánticos. La referencia de proveedor no es un paso obligatorio del core.
 
 | Evento | Quién lo dispara | Transición del issue | Comentario (etiqueta) |
 |---|---|---|---|

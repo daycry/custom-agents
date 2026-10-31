@@ -11,6 +11,37 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Changed — `memory-integrations` initiative (2026-10-31)
+
+- **T-01 — Separate service delivery and selection** External memory services move to memory-integrations; local curation and recovery remain in core without a backend dependency.
+- **T-02 — Use the common integration port** Backends use common bindings without duplicating taxonomy, routing, curation or outbox ownership.
+- **T-03 — Explain and verify each workflow** ES/EN workflows and the PDF cover Kwipu, Graphify and Graphiti, including authorization, recovery and publication/read limits.
+
+### Changed
+
+- One local control center serves explicitly registered projects on a common port, with isolated native sessions/chat, human decisions, plans, task kanbans, notes, activity and local memory. Native capabilities and Desktop limits are explicit. (`control-center`)
+- Rebuild the bilingual handbook around 27 explained workflows and real Mermaid diagrams, preserving advanced references and complete examples. Ship a navigable 126-page Spanish PDF and a source verification manifest. (`handbook-readability`)
+
+- Added version-aware Go implementation and testing guidance to stack-practices, with explicit project selection and shared criteria for all delivery roles.
+
+- Added module/profile selection, protected selective delivery and project-local integration ports. Jira/Confluence are optional adapters; project providers remain open.
+- Decoupled core lifecycle events from provider calls and added a detailed bilingual handbook with core, Atlassian, Redmine and customization workflows.
+- Breaking change preparation: explicit project roots for Jira opt-ins; modified portable packages are preserved instead of regenerated in place.
+
+
+### Fixed
+
+- Keep the core workflow entrypoints visible when a larger catalog is truncated in the startup index, without raising context limits.
+
+- Give owned Codex hooks descriptive names in the hook browser and document how to review changed plugin contents; preserve commands, timeouts and native trust requirements.
+
+### Added
+
+- Version-aware guidance for Laravel, Symfony, Next.js, .NET/C# and C; exact dependency detection for the three web frameworks and explicit C/.NET selection.
+
+- Six optional skills for voice profiles, editorial production, relationship planning, competitive analysis, LLM pipelines and data collection, with a shared external communication contract.
+
+
 ## [2.3.0] - 2026-10-30
 
 ### Added

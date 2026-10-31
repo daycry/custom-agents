@@ -1,0 +1,13 @@
+{
+  "verdict": "VERDE",
+  "counts": {
+    "passed": 10,
+    "failed": 0,
+    "flaky": 0,
+    "skipped": 0,
+    "interrupted": 0
+  },
+  "flaky_sin_justificar": [],
+  "flaky_justificados": {},
+  "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+}

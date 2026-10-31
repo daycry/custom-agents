@@ -18,19 +18,24 @@ una) y de `/pm-backlog` (que prioriza).
 
 ## Pasos
 1. Fija la raíz: `docs/roadmap` por defecto, o la que pase **$ARGUMENTS**.
-2. Localiza los dos generadores sin depender del scope (regla 5 de `docs/CONVENTIONS.md`) y ejecútalos:
+2. Localiza el generador de datos y el panel opcional sin depender del scope. Si el panel no está disponible, entrega `dashboard.md` y avisa sin bloquear el estado local:
 
    ```bash
    DASH="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
    PANEL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/plugin-panel/scripts/build_panel.py' 2>/dev/null | head -1)"
-   [ -d docs/roadmap ] && python3 "$DASH" --root docs/roadmap --md docs/roadmap/dashboard.md &&      python3 "$PANEL" --export docs/roadmap/panel --project "$PWD"
+   if [ -d docs/roadmap ] && [ -f "$DASH" ]; then
+     python3 "$DASH" --root docs/roadmap --md docs/roadmap/dashboard.md
+     if [ "$?" -eq 0 ] && [ -f "$PANEL" ]; then
+       python3 "$PANEL" --export docs/roadmap/panel --project "$PWD"
+     fi
+   fi
    ```
 
 3. Si `docs/roadmap/` no existe todavía, el bloque anterior no ejecuta nada: dilo y sugiere crear la primera iniciativa con `/pm-cycle <objetivo>`. No crees carpetas vacías. Si `build_dashboard.py` falla, tampoco se exporta el panel: informa del error en vez de dejar una exportación a medias.
-4. Entrega `docs/roadmap/panel/iniciativas.html` al usuario (en Cowork, con la tarjeta de fichero; el panel exportado aterriza en la página Iniciativas y se abre desde `index.html`) y resume en una línea: nº de iniciativas y reparto por estado de spec.
+4. Entrega el resultado generado en esta ejecución: `dashboard.md` y, solo si el módulo opcional pudo exportarlo, `panel/iniciativas.html`. Un HTML antiguo no acredita exportación actual. Resume nº de iniciativas y reparto por estado de spec.
 5. Si existe un `docs/roadmap/dashboard.html` de una versión anterior, avisa **una vez** de que ya no se regenera y de que la vista nueva es `docs/roadmap/panel/`. Nunca lo borres.
 
 ## Notas
-- Genera `dashboard.md` (para Confluence) y la carpeta `docs/roadmap/panel/` (HTML local, sin servidor, siete páginas). El `.md` lo espeja `confluence-publish` como una página, para que un **PM sin git** vea el estado real; el panel se queda local.
+- Genera `dashboard.md` y, con el módulo de catálogo disponible, un panel HTML local. La documentación puede proyectarse mediante `project-integrations.md`, sin exigir un proveedor.
 - La carpeta `panel/` es una exportación estática: para progreso en vivo usa `/plugin-catalog --serve`. No hay refresco automático: vuelve a ejecutar `/roadmap-status` para actualizarla. En Confluence, la página se refresca cuando se sincroniza `docs/` (la skill regenera el `.md` antes de publicar).
-- La sincronización a Confluence es la del proyecto (opt-in en `.claude/confluence.json`); este comando no fuerza publicación.
+- Las integraciones se eligen en este proyecto; este comando no fuerza publicación ni conexión.

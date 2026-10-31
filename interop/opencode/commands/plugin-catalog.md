@@ -1,5 +1,5 @@
 ---
-description: "Explora el catálogo del plugin en un control panel HTML local: agentes, skills, comandos, herramientas declaradas y hooks; incluye extensiones de proyecto y usuario, personas y MCP con fuentes y conflictos. Usa plugin-panel; no configura servicios ni ejecuta hooks. El modo --serve abre un dashboard local con progreso actualizado desde el ledger y consulta local de memoria bajo demanda, sin dirigir agentes ni conectar backends."
+description: "Abre la consola local común de custom-agents: proyectos independientes en un puerto, sesiones/chat nativos, planes/kanban, notas, actividad, memoria e integraciones. Usa plugin-panel. Explora el catálogo del plugin e incluye extensiones de proyecto y usuario en el inventario HTML/JSON, sin iniciar servicios."
 ---
 <!-- GENERADO por scripts/export-interop.py desde commands/plugin-catalog.md — no lo edites a mano.
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
@@ -9,61 +9,58 @@ description: "Explora el catálogo del plugin en un control panel HTML local: ag
 > En el cuerpo, los roles propios se resuelven con este mapa: analyst → `custom-agents-analyst`; architect → `custom-agents-architect`; documenter → `custom-agents-documenter`; evaluator → `custom-agents-evaluator`; implementer → `custom-agents-implementer`; knowledge-curator → `custom-agents-knowledge-curator`; nemesis → `custom-agents-nemesis`; planner → `custom-agents-planner`; qa → `custom-agents-qa`; reviewer → `custom-agents-reviewer`. Conserva nombres y rutas de agentes del consumidor.
 > Las skills se invocan con la herramienta `skill` (`skill({ id: "nombre" })`). Todo lo demás (puertas, artefactos, ledger) no cambia.
 
-# /plugin-catalog — control panel de capacidades
+# /plugin-catalog — consola común y catálogo
 
-Usa la skill **plugin-panel**. La ruta de salida es **$ARGUMENTS** o una ruta
-local acordada para el artefacto. El script no reemplaza archivos ajenos.
-Si los argumentos incluyen `--diagnostics-report`, separa esa opción de la ruta
-de salida y pásala al generador con la raíz explícita del mismo proyecto. Usa
-una lista de argumentos, sin interpolar texto del usuario en shell ni eval.
-No ejecutes doctor ni busques informes automáticamente para completar la vista.
+Usa la skill **plugin-panel** y sus referencias según el modo solicitado.
+Interpreta **$ARGUMENTS** como argumentos estructurados; nunca eval ni shell libre.
+Un pedido de inventario produce un artefacto, sin abrir servicios. Un pedido de
+trabajar desde el dashboard o `--serve` abre la consola operativa.
 
-Si el usuario solicita el panel con actualización automática, usa `--serve`
-en vez de exportar HTML/JSON, con la raíz explícita del proyecto. No abras
-servicios por una petición de inventario estático. El servidor solo escucha
-en 127.0.0.1 y entrega una URL de acceso propia de ese proceso; no la guardes
-en Git, documentación, memoria ni registros. Conserva el handle del proceso
-para detenerlo a petición del usuario. En Windows, si lo lanzas en segundo
-plano con Start-Process, usa WindowStyle Hidden; no abras otra consola visible.
+## Consola operativa
 
-Puerto efímero por defecto; `--port` permite uno local disponible. Este modo
-excluye `--export`, `--json`, `--home` y `--user-root`, y omite fuentes personales.
-Entrega la URL solo al usuario. Catálogo y diagnóstico quedan fijados al
-arranque; Progreso relee ledgers con límites cada cinco segundos. La UI permite
-filtrar y actualizar, e identifica lecturas parciales y datos anteriores tras
-un fallo. Una tarea en progreso no demuestra que un agente esté ejecutándose.
-Memoria permite Buscar, Ver y Relaciones mediante acciones explícitas. Conserva
-ID completo, estado, versión, evidencia y fuente; las lecturas parciales y
-colisiones permanecen visibles. No hay consultas de memoria automáticas.
-Este modo no escribe tareas ni consulta journal, cachés o backends de memoria.
+1. Localiza `skills/plugin-panel/scripts/control_center.py` en el bundle activo.
+   Lee `skills/plugin-panel/references/control-center.md` antes del arranque.
+2. Usa el registro explícito `--workspaces <registro.json>` elegido por el operador.
+   Es un archivo común fuera de Git, con IDs, nombres, raíces absolutas y runtimes
+   permitidos. No escanees carpetas personales ni registres proyectos cercanos.
+   Un piloto puede usar `--project <raíz>` en lugar del registro.
+3. Reutiliza una instancia y enlace previamente abiertos en esta sesión. Si no
+   existe, ejecuta Python nativo con el script y el registro. Un proceso escucha
+   en 127.0.0.1:8769 por defecto. Un conflicto no autoriza a elegir otro puerto ni
+   a parar un proceso ajeno. `--port` se usa sólo cuando el operador lo indica.
+4. Entrega la URL privada sólo al usuario; no la persistáis en Git, documentos,
+   memoria ni logs. Conserva el handle del proceso propio. En Windows, si se
+   lanza en segundo plano con Start-Process, utiliza WindowStyle Hidden.
 
-```bash
-PANEL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/plugin-panel/scripts/build_panel.py' 2>/dev/null | head -1)"
-# En el checkout, el script está también en skills/plugin-panel/scripts/.
-python3 "$PANEL" --project "<raíz-proyecto>" --runtime <claude-code|codex|opencode> --export "<carpeta-de-salida>"
-```
+El selector cambia el contexto; cada proyecto conserva sus sesiones, planes,
+notas, memoria, integraciones y eventos. El registro se modifica por el operador
+fuera del navegador y se relee al reiniciar. El enlace da acceso a todos los
+proyectos de esa consola local; no hay identidad ni permisos de otros usuarios.
 
-Una vez localizado PANEL, para el modo servido ejecuta esta alternativa:
+La conexión usa interfaces nativas admitidas, autenticación y políticas existentes.
+No instala CLI, no amplía permisos ni garantiza control de aplicaciones Desktop.
+Crear una sesión no envía trabajo. Continuar un plan presenta el mensaje y exige
+una sesión del mismo proyecto. Las aprobaciones nativas son explícitas y de un
+solo uso. Nunca confundas envío admitido, ejecución y resultado confirmado.
 
-```bash
-python3 "$PANEL" --project "<raíz-proyecto>" --runtime <claude-code|codex|opencode> --serve
-```
+Las notas son locales y el ledger canónico conserva los estados. La UI no aprueba
+QA ni publica automáticamente comentarios externos. La memoria se consulta
+localmente; encontrar un backend no acredita conexión. Actividad identifica
+fuente y frescura; una tarea en marcha no demuestra un agente vivo.
 
-En Windows usa el Python nativo disponible. El script identifica el bundle
-por su ubicación; `--root` sirve para inspeccionar otro bundle sin importar su
-código. Si falta el script o su redactor, informa y sigue la tarea del usuario.
-Para un paquete anidado pasa `--cwd`; para excluir piezas personales,
-`--project-only`. Raíces personalizadas requieren `--user-root <runtime>=<ruta>`.
-Elige el runtime real de la sesión; `all` sirve para comparar declaraciones
-entre entornos. El panel separa el bundle y las extensiones. Un fallo del lector
-de extensiones conserva el catálogo del bundle con aviso. No modifica, adopta
-ni ejecuta las piezas encontradas; contrasta disponibilidad antes de invocarlas.
-Entrega el fichero generado y distingue catálogo, presencia de fuente y
-ejecución real. Explica los grupos de hooks por runtime/evento, sus handlers,
-fuentes y presupuestos; el timeout de registro y la supervisión del adapter
-son contratos distintos. Una declaración no acredita carga ni ejecución.
-Para cartera, evaluaciones y presupuestos usa roadmap-dashboard; el modo
-servido añade una vista local de progreso desde los mismos ledgers canónicos.
-El diagnóstico importado es una instantánea histórica: explica fecha, alcance,
-formato rechazado, antigüedad o recorte. No cambia los estados de los hooks.
-Para el detalle y los arreglos conserva /doctor como dueño de la comprobación.
+## Inventario estático
+
+Localiza `skills/plugin-panel/scripts/build_panel.py`. Pasa `--project <raíz>` y
+el runtime real (`claude-code`, `codex` u `opencode`) cuando corresponda. Usa
+`--export <carpeta>` o `--json`; lee la referencia `static-panel.md` de la skill.
+La exportación tiene siete páginas y un manifiesto de propiedad; no reemplaza
+archivos ajenos y no incluye chat ni control de sesiones. Entrega su carpeta y
+avisos. Para un diagnóstico existente y elegido explícitamente, admite
+`--diagnostics-report <informe.json>` del mismo proyecto; no ejecuta doctor.
+
+`build_panel.py --serve` conserva el servidor informativo anterior para sus
+consumidores explícitos; este comando usa `control_center.py` para el dashboard
+operativo. No pases `--serve` al script nuevo: ejecutarlo ya inicia el servicio.
+Si faltan helpers o un runtime, informa de la capacidad indisponible y continúa
+con las vistas y el trabajo posibles. Nunca marques comprobado lo que sólo está
+declarado. Para diagnosticar hooks y configuración, `/doctor` conserva su función.

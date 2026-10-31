@@ -1,0 +1,29 @@
+{
+  "target": "skill:voice-profile",
+  "cases": [
+    {
+      "id": "voice-profile-literal",
+      "prompt": "extrae mi estilo",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "voice-profile-parafrasis",
+      "prompt": "Obtén reglas de voz a partir de estas muestras mías, separadas por canal.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "voice-profile-negativo",
+      "prompt": "Redacta una newsletter con el tono que ya acordamos.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:content-production"
+      }
+    }
+  ]
+}

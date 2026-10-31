@@ -16,6 +16,8 @@ COMMAND = ROOT / 'commands/dev-cycle.md'
 KIT = ROOT / 'agent-kits/dev-cycle/references'
 REFERENCES = ('phase1-evaluation.md', 'phase2-planning.md', 'phase3-subagents.md',
               'phase3-jira.md', 'phase4-knowledge-gate.md')
+CORE_REFERENCES = tuple(name for name in REFERENCES if name != 'phase3-jira.md')
+REPLACEMENTS = ROOT / 'tests/fixtures/dev-cycle-modular-replacements.json'
 BASELINE = ROOT / 'tests/fixtures/dev-cycle-paragraphs.json'
 
 
@@ -32,17 +34,23 @@ def test_phase_details_have_a_private_owner_and_lazy_routes():
     core = COMMAND.read_text(encoding='utf-8')
     for name in REFERENCES:
         assert (KIT / name).is_file(), f'missing private phase detail: {name}'
-        assert name in core
+        if name in CORE_REFERENCES:
+            assert name in core
     assert 'agent-kits/dev-cycle' in core and 'solo cuando' in core
     assert 'plan-review:prepare:bash' not in core
     assert 'plan-review:prepare:bash' in (KIT / 'phase2-planning.md').read_text(encoding='utf-8')
-    assert 'subagentes: true' in core and 'jira.json' in core
+    assert 'subagentes: true' in core and 'project-integrations.md' in core
+    assert 'phase3-jira.md' not in core
 
 
 def test_no_original_paragraph_is_lost():
     original = json.loads(BASELINE.read_text(encoding='utf-8'))
     current = {hashlib.sha256(p.encode('utf-8')).hexdigest() for p in paragraphs(corpus())}
-    assert not set(original['paragraph_sha256']) - current
+    replacements = json.loads(REPLACEMENTS.read_text(encoding='utf-8'))['replacements']
+    assert set(original['paragraph_sha256']) - current == {row['before_sha256'] for row in replacements}
+    for row in replacements:
+        own = {hashlib.sha256(p.encode('utf-8')).hexdigest() for p in paragraphs((ROOT/row['after_file']).read_text(encoding='utf-8'))}
+        assert row['after_sha256'] in own and row['reason']
     quick = (ROOT / 'skills/quick-implement/SKILL.md').read_text(encoding='utf-8')
     quick_hashes = {hashlib.sha256(p.encode('utf-8')).hexdigest() for p in paragraphs(quick)}
     assert not set(original['quick_paragraph_sha256']) - quick_hashes
@@ -61,7 +69,9 @@ def test_common_review_qa_and_commit_gates_stay_in_the_core():
     original = json.loads(BASELINE.read_text(encoding='utf-8'))
     hashes = {hashlib.sha256(p.encode('utf-8')).hexdigest()
               for p in paragraphs(COMMAND.read_text(encoding='utf-8'))}
-    assert set(original['unconditional_core_paragraph_sha256']) <= hashes
+    replacements = {row['before_sha256']: row for row in json.loads(REPLACEMENTS.read_text(encoding='utf-8'))['replacements']}
+    required = {replacements[old]['after_sha256'] if old in replacements else old for old in original['unconditional_core_paragraph_sha256']}
+    assert required <= hashes
     core = COMMAND.read_text(encoding='utf-8')
     assert '## Fase 4-bis — Knowledge Gate (siempre' in core
     assert 'docs/knowledge/candidates/{pending,needs_changes}/' in core
@@ -87,7 +97,8 @@ def test_native_adapters_keep_core_and_references_deferred():
     codex = generated['interop/codex/command-skills/custom-agents-dev-cycle/references/command.md']
     opencode = generated['interop/opencode/commands/dev-cycle.md']
     for text in (codex, opencode):
-        assert all(name in text for name in REFERENCES)
+        assert all(name in text for name in CORE_REFERENCES)
+        assert "project-integrations.md" in text and "phase3-jira.md" not in text
         assert 'plan-review:prepare:bash' not in text
     assert 'Núcleo' in generated['interop/codex/command-skills/custom-agents-dev-cycle/SKILL.md']
 

@@ -1,0 +1,29 @@
+{
+  "target": "skill:data-collection",
+  "cases": [
+    {
+      "id": "data-collection-literal",
+      "prompt": "diseña un recolector de datos",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "data-collection-parafrasis",
+      "prompt": "Define la normalización de fuentes RSS y su enriquecimiento opcional.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "data-collection-negativo",
+      "prompt": "Compara herramientas existentes antes de construir un crawler.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:research-first"
+      }
+    }
+  ]
+}

@@ -38,6 +38,7 @@ import argparse
 import ast
 import hashlib
 import importlib.util
+import json
 import os
 import re
 import shutil
@@ -406,15 +407,42 @@ def preparar_salida(out):
         if os.listdir(out) and not es_paquete_nuestro(out):
             sys.exit(f"ERROR: {out} existe y no es un paquete generado por export-skills.py "
                      f"(falta README con marca o {MARCADOR_FICHERO}); elige otra carpeta o vacíala")
+        if os.listdir(out) and check(out):
+            sys.exit("ERROR: el paquete tiene cambios o referencias inválidas; exporta a una carpeta nueva")
+        if os.listdir(out):
+            marker=read_bytes(os.path.join(out,MARCADOR_FICHERO)).decode('utf-8','replace')
+            expected=re.search(r'^readme_sha256: ([0-9a-f]{64})$',marker,re.M)
+            actual=hashlib.sha256(read_bytes(os.path.join(out,'README.md'))).hexdigest()
+            if not expected or expected.group(1)!=actual:
+                sys.exit('ERROR: README modificado o propiedad antigua no verificable; exporta a otra carpeta')
         shutil.rmtree(out)
     os.makedirs(out)
 
 
-def exportar(root, out, formato, quiet=False):
+def exportar(root, out, formato, quiet=False, *, profile=None, include=None, exclude=None):
     si = _skill_index()
+    selection = None
+    viajan = skills_que_viajan(root)
+    if profile is not None or include or exclude:
+        # Execute only this checkout's implementation; --root supplies data, never Python code.
+        path = os.path.join(ROOT_DEFAULT, 'agent-kits', 'shared', 'module-selection.py')
+        spec = importlib.util.spec_from_file_location('portable_module_selection', path)
+        selector = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(selector)
+        with open(os.path.join(root, 'agent-kits', 'shared', 'modules.json'), 'rb') as handle:
+            raw = handle.read(65537)
+        if len(raw) > 65536:
+            raise ValueError('catalog exceeds limit')
+        selection = selector.resolve_selection(profile=profile or 'core', include=include,
+                                                exclude=exclude, catalog=json.loads(raw))
+        missing = set(selection['skills']) - set(viajan) - set(EXCLUIR_SKILLS)
+        if missing:
+            raise ValueError('selected skill is absent from source')
+        viajan = sorted(set(viajan) & set(selection['skills']))
+        if not viajan:
+            raise ValueError('selection contains no portable skills')
     formatos = ("claude", "agents-md", "cursor") if formato == "all" else (formato,)
     preparar_salida(out)
-    viajan = skills_que_viajan(root)
     textos_md, n_reescritos = [], 0
     for skill in viajan:
         for rel in ficheros_skill(root, skill):
@@ -438,6 +466,11 @@ def exportar(root, out, formato, quiet=False):
             write_bytes(dst, read_bytes(src))
     version = version_plugin(root)
     idx = indice_skills(out, si)
+    if selection is not None:
+        selection['delivered_skills'] = viajan
+        selection['delivery'] = 'portable-skills-only'
+        write_text(os.path.join(out, 'module-selection.json'),
+                   json.dumps(selection, ensure_ascii=False, indent=2, sort_keys=True)+'\n')
     if "agents-md" in formatos:
         write_text(os.path.join(out, "AGENTS.md"), texto_agents_md(idx, version))
     if "cursor" in formatos:
@@ -447,6 +480,7 @@ def exportar(root, out, formato, quiet=False):
                texto_readme(idx, viajan, shared_rel, formatos, version, n_reescritos, h))
     write_text(os.path.join(out, MARCADOR_FICHERO),
                f"{MARCADOR}\nversion: {version}\nformato: {formato}\nhash: {h}\n"
+               f"readme_sha256: {hashlib.sha256(read_bytes(os.path.join(out,'README.md'))).hexdigest()}\n"
                f"(fichero-marcador: export-skills.py solo regenera carpetas que lo tienen; no lo borres)\n")
     if not quiet:
         print(f"export-skills: {len(viajan)} skills · {len(shared_rel)} fragmentos shared · "
@@ -553,6 +587,9 @@ def main(argv=None):
     ap.add_argument("--root", default=ROOT_DEFAULT, help="raíz del plugin (default: padre de scripts/)")
     ap.add_argument("--check", metavar="DIR", help="valida un paquete generado en DIR y sale")
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--profile", help="module profile (omitted: all portable skills)")
+    ap.add_argument("--with", dest="include", action="append", default=[], help="include module; repeatable")
+    ap.add_argument("--without", dest="exclude", action="append", default=[], help="exclude module; repeatable")
     args = ap.parse_args(argv)
 
     if args.check:
@@ -566,7 +603,11 @@ def main(argv=None):
     root = os.path.abspath(args.root)
     if not os.path.isdir(os.path.join(root, "skills")):
         sys.exit(f"ERROR: {root} no tiene skills/")
-    exportar(root, os.path.abspath(args.out), args.format, quiet=args.quiet)
+    try:
+        exportar(root, os.path.abspath(args.out), args.format, quiet=args.quiet,
+                 profile=args.profile, include=args.include, exclude=args.exclude)
+    except (OSError, ValueError, RecursionError) as error:
+        sys.exit(f"ERROR: invalid source or module selection ({type(error).__name__})")
     return 0
 
 

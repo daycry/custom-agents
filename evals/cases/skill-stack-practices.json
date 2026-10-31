@@ -30,6 +30,78 @@
         "activates": false,
         "redirect": "skill:dependency-upgrade"
       }
+    },
+    {
+      "id": "stack-practices-laravel",
+      "prompt": "patrones Laravel",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "stack-practices-symfony",
+      "prompt": "patrones Symfony",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "stack-practices-nextjs",
+      "prompt": "patrones Next.js",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "stack-practices-dotnet",
+      "prompt": "patrones .NET",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "stack-practices-c",
+      "prompt": "patrones C",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "stack-practices-csharp",
+      "prompt": "Revisa el ciclo de vida y la cancelación de este servicio C#.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "stack-practices-go-literal",
+      "prompt": "patrones Go",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "stack-practices-go-concurrency",
+      "prompt": "Revisa las goroutines de este servicio Go: al cancelar la petición quedan workers esperando en un canal.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "stack-practices-go-upgrade-negative",
+      "prompt": "Actualiza las versiones de dependencias de este módulo Go.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:dependency-upgrade"
+      }
     }
   ]
 }

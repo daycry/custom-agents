@@ -300,6 +300,10 @@ SCRIPTS = descubrir()
 # no-ASCII en el fuente. `test_los_exentos_de_simbolos_lo_estan_por_medicion` comprueba que la
 # exención sigue siendo cierta ejecutando el modo declarado.
 SIN_SIMBOLOS_EN_LA_SALIDA = {
+    'skills/plugin-panel/scripts/console_service.py':
+        'module without CLI or stdout output; localized messages travel as explicitly UTF-8 HTTP JSON',
+    'agent-kits/shared/integration-route.py':
+        'project metadata CLI: JSON uses ensure_ascii=True; declared status never executes an adapter',
     'agent-kits/shared/agent-activity-store.py':
         'hook informativo: consume JSON UTF-8 y persiste metadatos, nunca emite contexto ni salida',
     'agent-kits/shared/commit-selection.py':
@@ -396,6 +400,10 @@ def _modos():
         'session_id': 'consola-🐛', 'agent_id': 'agente-👍',
         'agent_type': 'custom-agents:implementer'}, ensure_ascii=False)
     return {
+        'skills/plugin-panel/scripts/console_service.py':
+            [('import module without CLI', lambda w: [], (0,), None)],
+        'tests/console_fixture_server.py':
+            [('describe real fixture labels without starting a server', lambda w: ['--describe'], (0,), None)],
         'hooks/session-context.py':
             [('contexto UTF-8', lambda w: ['--root', os.path.join(w, 'session-context')], (0,),
               '{"source":"startup","session_id":"console-context"}')],
@@ -457,6 +465,8 @@ def _modos():
             [("sin test-plan", lambda w: [L, os.path.join(w, "no-hay-test-plan.md")], (0, 1), None)],
         "agent-kits/qa/qa-gate.py":
             [("veredicto", lambda w: [os.path.join(w, "results.json")], (0, 1), None)],
+        "agent-kits/shared/integration-route.py":
+            [("project declarations", lambda w: ["--project", w, "--check"], (0, 2), None)],
         "agent-kits/shared/doctor.py":
             [("informe", lambda w: ["--root", "."], (0, 1), None),
              ("json", lambda w: ["--root", ".", "--json"], (0, 1), None),

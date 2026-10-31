@@ -1,0 +1,21 @@
+{
+  "edition": "2026-10-30",
+  "language": "es",
+  "pdf": "output/pdf/custom-agents-manual-operativo.pdf",
+  "workflows": 18,
+  "sources": {
+    "docs/CUSTOMIZATION.md": "15063a9485a29ccc6c48cd6332fcd88cdc317d87d1bc365837496bb00a407eec",
+    "docs/guides/product.md": "8acd066568eac6a506709b1610256180cdd64d7a869dd710834f732a40d2df7e",
+    "docs/guides/core-workflows.md": "10b147dc623d904e397335daaf1d130a6431f74a61e6806f84de72a127cbe7c4",
+    "docs/guides/atlassian.md": "0cf4705a824ee76b43e80a7571efc86d7f37108f01f44ecd79f74aea7c0d6c5d",
+    "docs/guides/redmine.md": "9fe00cc2f3914da8a1d2c33a7688407c8869eff5cc8ee358dc6253aaf58a4dce",
+    "docs/guides/customization.md": "6faf0e6c294256d08f04429d27cd3f948e94f702d428c9d00c24e259ce758450",
+    "docs/guides/operations.md": "73c5a5b686b9463b3365bb3b7750393370b9acb6d49aa427f8fafd6e37994a4a",
+    "docs/examples/integrations/atlassian.json": "e078db5372915b4b340c2f8c272eca529e8421cbf8200f7f9bf33886cc380bde",
+    "docs/examples/integrations/project.json": "ae6b42350c074c552336643079f9cce7122bae2725f443f4e29bd1423c3380ee",
+    "docs/examples/integrations/project-redmine/SKILL.md": "827782cb2a48faff25fddc13074531c404500c1da8c460fdc59b6778937762a3",
+    "agent-kits/shared/modules.json": "1f24df6505a2a50e75670346b51c6c4c4d41f8e761838b28caaaa0806caa86e5"
+  },
+  "pdf_sha256": "9fd179986feeff8c8c2fcd395fc13a8d9f81fef6ec27624843b1f7452f95cf42",
+  "source_hash_encoding": "UTF-8 with LF, as published in Git"
+}

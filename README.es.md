@@ -1,8 +1,13 @@
 # custom-agents
 
+
+**Manual de uso y personalización:** [workflows detallados del core, integraciones opcionales, Atlassian/Redmine y extensiones del proyecto](docs/CUSTOMIZATION.md). Los bundles nativos son completos; configurado no significa conectado ni autorizado.
+
+[Manual PDF ilustrado para responsables (español)](output/pdf/custom-agents-manual-operativo.pdf).
+
 [English](README.md) · **Español**
 
-**El ciclo de vida completo de una iniciativa de software — con presupuesto, medición de coste real y trazabilidad en Jira/Confluence — en Claude Code, Codex y OpenCode.**
+**El ciclo de vida completo de una iniciativa de software — con presupuesto, medición de coste real e integraciones elegidas por proyecto — en Claude Code, Codex y OpenCode.**
 
 [![CI](https://github.com/daycry/custom-agents/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/daycry/custom-agents/actions/workflows/ci.yml)
 [![Versión](https://img.shields.io/github/v/tag/daycry/custom-agents?label=versi%C3%B3n&color=informational)](CHANGELOG.es.md)
@@ -21,7 +26,7 @@
 [![npx](https://img.shields.io/badge/instalaci%C3%B3n-npx-cb3837.svg?logo=npm&logoColor=white)](docs/INTEROP.md)
 [![SDD](https://img.shields.io/badge/metodolog%C3%ADa-Spec--Driven-2ea44f.svg)](docs/FLOWS.md)
 [![Agentes](https://img.shields.io/badge/agentes-10-0ea5e9.svg)](docs/README.md)
-[![Skills](https://img.shields.io/badge/skills-27-0ea5e9.svg)](docs/README.md)
+[![Skills](https://img.shields.io/badge/skills-33-0ea5e9.svg)](docs/README.md)
 [![Comandos](https://img.shields.io/badge/comandos-15-0ea5e9.svg)](docs/README.md)
 [![Skills portables](https://img.shields.io/badge/skills%20portables-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/INSTALL.md#usar-las-skills-fuera-de-claude-code-paquete-portable)
 
@@ -109,7 +114,7 @@ npx @daycry/custom-agents            # menú interactivo; marca los runtimes que
 
 | Runtime | Instalación | Qué obtienes |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 10 agentes, 15 comandos, 27 skills, hooks y statusline |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 10 agentes, 15 comandos, 33 skills, hooks y statusline |
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (o el instalador) | Skills, agentes como `.toml`, adaptadores de comandos generados (`$custom-agents:custom-agents-<nombre>`), hooks de sesión |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agentes, comandos y adaptador de hooks |
 
@@ -219,7 +224,7 @@ flowchart LR
 | **planner** | Plan ejecutable: fases y tareas `T-XX` con criterios de aceptación verificables y presupuesto por fase. |
 | **implementer** | Escribe el código fase a fase sobre rama/worktree, con `tasks.md` como ledger canónico y coste medido por tarea. |
 | **reviewer** | Una lente de revisión (A/B/C) en contexto fresco, revisa sin modificar el código; salida estructurada que `adversarial-review` fusiona. |
-| **qa** | E2E con Playwright (solo hosts locales), veredicto por `qa-gate.py`, informe md+pdf con evidencias. |
+| **qa** | E2E con Playwright (solo hosts locales), veredicto por `qa-gate.py`, informe Markdown con evidencias; PDF opcional con el módulo documents y motor disponibles. |
 | **documenter** | Documentación técnica y de producto derivada del propio proyecto, una vez al cierre del ciclo. |
 | **knowledge-curator** | Revisa y aprueba/rechaza candidatos en `docs/knowledge/candidates/`; único escritor de `approved/` y `rejected/` (`curator-gate.py`). |
 | **nemesis** | Auditoría de ciberseguridad: SAST 8 dimensiones + pentest activo **solo local** (guardrail no negociable). |
@@ -235,11 +240,11 @@ flowchart LR
 | `/roadmap-status` | Dashboard del roadmap (HTML + md para Confluence). |
 | `/roadmap-metrics` | Real vs estimado + **coste de proceso** medido. |
 | `/roadmap-live` | Estado en vivo leyendo Jira. |
-| `/roadmap-brief` | One-pager PDF para dirección. |
+| `/roadmap-brief` | Resumen ejecutivo en Markdown; PDF opcional. |
 | `/spec-drift` | ¿El código sigue cumpliendo las specs implementadas? |
 | `/retro` | Cierra el bucle: desviaciones + causas → `CALIBRATION.md`. |
 | `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
-| `/plugin-catalog` | Busca capacidades del bundle y extensiones de proyecto/usuario, con fuentes y conflictos. |
+| `/plugin-catalog` | Abre la consola común de proyectos con sesiones/chat nativos, planes y kanban, o exporta un inventario de capacidades. |
 | `/work-context` | Guías pertinentes y extensiones seleccionadas explícitamente para la tarea. |
 | `/work-resume` | Ledger actual e historial de sesión seleccionado en un dossier acotado de solo lectura. [Selección y límites](docs/WORK-RESUME.md). |
 | `/doctor` | Diagnóstico determinista de la instalación: herramientas, plugin/hooks, statusline, configs de `.claude/`, estado del trabajo — veredicto ✅/⚠️/❌ con el arreglo por línea, solo lectura, sin red. |
@@ -248,7 +253,7 @@ Tus agentes, skills, personas, fuentes de tools y MCP permanecen en las carpetas
 nativas del proyecto/usuario. El descubrimiento conserva tus archivos y distingue
 declaraciones de disponibilidad en sesión. [Guía de extensiones](docs/PROJECT-EXTENSIONS.md).
 
-Skills compartidas: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services` · `research-first` · `plugin-panel` · `stack-practices` · `backend-practices` · `frontend-quality` · `delivery-practices` · `capability-audit` · `outcome-evals`. Scripts deterministas (todos con tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
+Skills compartidas: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services` · `research-first` · `plugin-panel` · `stack-practices` · `backend-practices` · `frontend-quality` · `delivery-practices` · `capability-audit` · `outcome-evals` · `voice-profile` · `content-production` · `relationship-planning` · `competitive-analysis` · `llm-pipeline` · `data-collection`. Scripts deterministas (todos con tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
 
 </details>
 

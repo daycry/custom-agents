@@ -72,3 +72,12 @@ los criterios explícitos de la tarea y consulta la guía disponible pertinente.
 La selección opcional no detiene el ciclo ni oculta un gate de calidad fallido.
 No instala paquetes, crea agentes de proyecto, cambia permisos ni ejecuta red.
 Instalar, mover de ámbito o retirar piezas sigue `installation-lifecycle.md`.
+
+## Stacks y detección
+
+Composer identifica PHP y las dependencias exactas codeigniter4/framework,
+laravel/framework y symfony/framework-bundle. package.json identifica react y next;
+pyproject.toml identifica Python. C, .NET y Go se seleccionan con `--stack c`,
+`--stack dotnet` o `--stack go` al estar declarados en la tarea: no hay parser
+de CMake/MSBuild ni de módulos/workspaces Go, ni detección recursiva.
+Cada guía comprueba luego versión, lockfile y target.

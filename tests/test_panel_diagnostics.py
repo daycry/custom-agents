@@ -17,7 +17,9 @@ def test_plugin_catalog_index_retains_optional_diagnostic_flag():
     index = load('diagnostic_hint_index', 'agent-kits/shared/skill-index.py')
     command = (ROOT/'commands/plugin-catalog.md').read_text(encoding='utf8')
     hint = re.search(r'^argument-hint: (.*)$', command, re.M).group(1)
-    assert index.hint_corto(hint) == '[carpeta de exportación] [--diagnostics-report informe.json] [--serve] [--port PUERTO]'
+    assert index.hint_corto(hint) == ('[--serve] [--workspaces registro.json | --project raíz] '
+                                    '[--port PUERTO] [--export carpeta | --json] '
+                                    '[--diagnostics-report informe.json]')
 
 
 def load(name, relative):

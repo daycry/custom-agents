@@ -2,6 +2,18 @@
   "target": "command:plugin-catalog",
   "cases": [
     {
+      "id": "plugin-catalog-shared-console",
+      "prompt": "Quiero un dashboard común para mis proyectos, con un solo puerto y sesiones y planes separados al elegir cada proyecto.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "control_center.py",
+          "workspaces"
+        ]
+      }
+    },
+    {
       "id": "catalog-extensions-literal",
       "prompt": "incluye extensiones de proyecto y usuario",
       "trigger": "literal",

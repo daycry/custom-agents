@@ -1,7 +1,6 @@
 <!--
   PLANTILLA FIJA: informe de revisión para el LEDGER y/o para mostrar al usuario. El
-  comentario que SÍ se publica en Jira lo renderiza `jira-flow.py` (jira-sync Paso 7,
-  con su propia plantilla en `skills/jira-sync/assets/comment-revision-*.md`) — esta
+  comentario externo lo renderiza el adaptador elegido por project-integrations.md; esta
   NO es esa plantilla. Formato IDÉNTICO siempre: el revisor emite su resultado
   ESTRUCTURADO por criterio y se renderiza contra esta plantilla.
   Sustituye los {{PLACEHOLDER}} y borra los comentarios guía.

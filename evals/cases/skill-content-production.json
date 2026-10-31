@@ -1,0 +1,29 @@
+{
+  "target": "skill:content-production",
+  "cases": [
+    {
+      "id": "content-production-literal",
+      "prompt": "redacta una newsletter",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "content-production-parafrasis",
+      "prompt": "Prepara versiones de esta nota para varios canales manteniendo sus hechos.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "content-production-negativo",
+      "prompt": "Extrae un perfil de voz de estas muestras sin redactar artículos.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:voice-profile"
+      }
+    }
+  ]
+}

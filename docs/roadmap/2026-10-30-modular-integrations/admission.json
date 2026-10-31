@@ -1,0 +1,507 @@
+{
+  "version": 1,
+  "principle": "A candidate is not a missing core feature. Reuse the narrowest existing owner; require need, unique value, contract, validation and maintenance scope.",
+  "catalog_now": 33,
+  "core_skills": 17,
+  "optional_skills": 16,
+  "remaining_candidates": [
+    {
+      "id": "D-111",
+      "historical_sources": [
+        "S062",
+        "S064",
+        "S067",
+        "S149",
+        "S150",
+        "S151",
+        "S152",
+        "S153",
+        "S204",
+        "S241",
+        "S262"
+      ],
+      "proposal": "Parsers de cobertura de Kover, JaCoCo, CTest, .NET, Dart LCOV, Devel::Cover y cargo-llvm-cov: solo cuando un consumidor declare el stack.",
+      "decision": "core-candidate",
+      "reason": "Coverage is owned by unit-tests. Consider additional formats when a consumer needs them; no new skill or tool installation.",
+      "implemented_by_this_change": false,
+      "owner": "unit-tests",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-112",
+      "historical_sources": [
+        "S103",
+        "S241"
+      ],
+      "proposal": "Detección de `.flox/env/manifest.toml` (y línea en `/doctor`) y de `Cargo.toml`: sin consumidor declarado; Flox además no tiene soporte nativo de Windows.",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-113",
+      "historical_sources": [
+        "S001",
+        "S162"
+      ],
+      "proposal": "Correspondencias de accesibilidad iOS/Android (incluidas transparencia y movimiento reducidos del sistema): sin consumidor nativo.",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-114",
+      "historical_sources": [
+        "S291"
+      ],
+      "proposal": "E2E de escritorio Windows como referencia de `qa` (no agente nuevo) cuando un consumidor lo declare.",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-115",
+      "historical_sources": [
+        "S199"
+      ],
+      "proposal": "Fila «contrato público o zona sensible ⇒ nivel mínimo medio» en la tabla de rigor de ADR-022 cuando se implemente `risk-profile.py`.",
+      "decision": "core-design-pending",
+      "reason": "Risk guidance already has an accepted owner/ADR. No new classifier, relaxed gates or reopened cancelled optimizations in this change.",
+      "implemented_by_this_change": false,
+      "owner": "planner / adversarial-review",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-117",
+      "historical_sources": [
+        "S054"
+      ],
+      "proposal": "Observador automático de sesión por modelo (observer loop, `learning.py`, scheduler propio): fuera hasta que exista contrato de lote, permisos de tools restringidos y curación (ADR-018).",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-118",
+      "historical_sources": [
+        "S059"
+      ],
+      "proposal": "Crítica externa opcional y transporte `external-review.py`: hasta que haya adaptador por runtime verificado.",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-119",
+      "historical_sources": [
+        "S036"
+      ],
+      "proposal": "Adaptador opt-in de despacho externo de misiones (identidad, base SHA, resultado tipado, sin auto-merge): T-12, sin servidor ni cuenta por defecto.",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-120",
+      "historical_sources": [
+        "S039"
+      ],
+      "proposal": "Recorridos guiados CodeTour con `validate-tour.py`: sin consumidor del formato.",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-121",
+      "historical_sources": [
+        "S014"
+      ],
+      "proposal": "Angular (nueve referencias de S014 y aviso de que `run_target` del MCP CLI puede desplegar).",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-122",
+      "historical_sources": [
+        "S013",
+        "S045",
+        "S149",
+        "S150",
+        "S151",
+        "S152",
+        "S153"
+      ],
+      "proposal": "Kotlin/Android/KMP/Compose, Exposed, Ktor, Kotest (tablas de correcciones de las fichas).",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-124",
+      "historical_sources": [
+        "S061",
+        "S062"
+      ],
+      "proposal": "C++ moderno y pruebas CMake/CTest con instrumentación (fila de rojo C++ en `by-stack.md` incluida).",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-125",
+      "historical_sources": [
+        "S116",
+        "S117"
+      ],
+      "proposal": "Go: correcciones de versión 1.22 (variable de bucle) y 1.24 (`b.Loop()`) para `by-stack.md` y la especialidad.",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-126",
+      "historical_sources": [
+        "S145",
+        "S147",
+        "S222",
+        "S223",
+        "S224",
+        "S225",
+        "S260",
+        "S261",
+        "S262",
+        "S263",
+        "S278"
+      ],
+      "proposal": "Java/Spring Boot/Quarkus/JPA/tinystruct en una sola `java.md`; comandos Maven/Gradle como entradas de los dueños; JaCoCo en `coverage-gate.py`.",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-128",
+      "historical_sources": [
+        "S078",
+        "S079",
+        "S080",
+        "S081",
+        "S082"
+      ],
+      "proposal": "Django/DRF/Celery: distributed-tasks, architecture-orm, api-cache, security-settings, testing y verification, más su fila en `by-stack.md`.",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-129",
+      "historical_sources": [
+        "S101",
+        "S219"
+      ],
+      "proposal": "FastAPI y SQLAlchemy dentro de `python.md`: framework no declarado (misma regla que Laravel).",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-130",
+      "historical_sources": [
+        "S226"
+      ],
+      "proposal": "Ruby on Rails.",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-131",
+      "historical_sources": [
+        "S241",
+        "S242"
+      ],
+      "proposal": "Rust (`cargo-llvm-cov`, `Cargo.toml`).",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-132",
+      "historical_sources": [
+        "S202",
+        "S203",
+        "S204"
+      ],
+      "proposal": "Perl moderno, seguridad y pruebas (fila `prove -lv` en `by-stack.md`, Devel::Cover).",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-133",
+      "historical_sources": [
+        "S265",
+        "S266",
+        "S267",
+        "S268"
+      ],
+      "proposal": "Swift/SwiftUI (fila `swift test --filter` en `by-stack.md`).",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-134",
+      "historical_sources": [
+        "S067",
+        "S104"
+      ],
+      "proposal": "Dart/Flutter (seis referencias de S067 y checklist de revisión S104).",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-135",
+      "historical_sources": [
+        "S191",
+        "S290"
+      ],
+      "proposal": "Vue 3/Nuxt (salvo la línea de render determinista ya llevada a `react.md`).",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-136",
+      "historical_sources": [
+        "S183",
+        "S211"
+      ],
+      "proposal": "Backend TypeScript con NestJS/Prisma.",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-137",
+      "historical_sources": [
+        "S228"
+      ],
+      "proposal": "React Native/Expo.",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-138",
+      "historical_sources": [
+        "S175",
+        "S176",
+        "S220"
+      ],
+      "proposal": "ML/PyTorch: contrato de predicción y de datos, fuga en la partición y equivalencia entrenamiento/servicio.",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-139",
+      "historical_sources": [
+        "S031",
+        "S273"
+      ],
+      "proposal": "Bun como runtime/toolchain y su fila `bun test` ≠ `bun run test` en `by-stack.md`.",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-140",
+      "historical_sources": [
+        "S038"
+      ],
+      "proposal": "ClickHouse/OLAP (ReplacingMergeTree, vistas incrementales, cohortes y funnel corregidos).",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-141",
+      "historical_sources": [
+        "S180"
+      ],
+      "proposal": "Guía MySQL/MariaDB (se lee junto a `php-codeigniter.md` si un consumidor CI4 la declara).",
+      "decision": "optional-stack-candidate",
+      "reason": "Existing stack-practices is the owner. Add a focused reference when a real project declares the stack, not a new global role per framework.",
+      "implemented_by_this_change": false,
+      "owner": "stack-practices",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-142",
+      "historical_sources": [
+        "S073",
+        "S098",
+        "S164"
+      ],
+      "proposal": "Solidity: token-accounting, oracle-swap-controls (slippage y plazos de S164) y audit-toolchain; decimales sin fallback silencioso (S098).",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-143",
+      "historical_sources": [
+        "S034",
+        "S184",
+        "S185",
+        "S186",
+        "S187"
+      ],
+      "proposal": "Red: ios-review, diagnostics, config-preflight y automation, solo con inventario y alcance del usuario.",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-144",
+      "historical_sources": [
+        "S006"
+      ],
+      "proposal": "Pagos de APIs por agentes (unidades exactas, reserva atómica, estados terminales).",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-145",
+      "historical_sources": [
+        "S026"
+      ],
+      "proposal": "Inspección de movimiento en Blender con collector T-12.",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-146",
+      "historical_sources": [
+        "S028"
+      ],
+      "proposal": "Descubrimiento de marca con checkpoint por respuesta y ocho plantillas.",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-152",
+      "historical_sources": [
+        "S065"
+      ],
+      "proposal": "Incidentes de facturación de cliente con el conector del proveedor.",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-155",
+      "historical_sources": [
+        "S033"
+      ],
+      "proposal": "Cartera de transportistas, licitación y seguimiento.",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-156",
+      "historical_sources": [
+        "S066"
+      ],
+      "proposal": "Comercio exterior: clasificación, origen, valoración y screening.",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    },
+    {
+      "id": "D-157",
+      "historical_sources": [
+        "S068"
+      ],
+      "proposal": "Dashboards Grafana/SigNoz de observabilidad del consumidor.",
+      "decision": "project-extension-candidate",
+      "reason": "Specific external service, tool or business workflow; requires demonstrated use, a bounded contract and a project-selected adapter. Not a mandatory core dependency.",
+      "implemented_by_this_change": false,
+      "owner": "project extension maintainer; shared integration port",
+      "evidence": "docs/roadmap/2026-10-30-pending-skills-integration/ + historical_sources; no consumer demonstrated in this change"
+    }
+  ],
+  "previous_six_skills": "Preserved as optional voice/content/relationships/application-data modules, not core requirements."
+}

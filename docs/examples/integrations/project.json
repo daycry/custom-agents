@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "bindings": [
+    {
+      "id": "project-issues",
+      "purpose": "task-tracking",
+      "enabled": true,
+      "contract_version": 1,
+      "adapter": {
+        "kind": "skill",
+        "name": "project-redmine",
+        "origin": "project"
+      },
+      "events": [
+        "plan.created",
+        "review.completed",
+        "review.gaps",
+        "review.worklog",
+        "task.done",
+        "task.implemented",
+        "task.qa-failed",
+        "task.qa-passed",
+        "task.started"
+      ],
+      "capabilities": [
+        "plan.export",
+        "task.comment",
+        "task.progress",
+        "task.read",
+        "worklog.write"
+      ],
+      "settings": ".claude/integration-settings/redmine.json"
+    },
+    {
+      "id": "project-wiki",
+      "purpose": "documentation",
+      "enabled": true,
+      "contract_version": 1,
+      "adapter": {
+        "kind": "skill",
+        "name": "project-wiki",
+        "origin": "project"
+      },
+      "events": [
+        "phase.completed"
+      ],
+      "capabilities": [
+        "docs.publish"
+      ],
+      "settings": ".claude/integration-settings/wiki.json"
+    }
+  ]
+}

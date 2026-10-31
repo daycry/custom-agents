@@ -32,6 +32,51 @@ def test_node_and_typescript_do_not_imply_react(tmp_path):
     assert route.detect(tmp_path)['stacks'] == []
 
 
+@pytest.mark.parametrize('filename,package,expected', [
+    ('composer.json', 'laravel/framework', ['laravel', 'php']),
+    ('composer.json', 'symfony/framework-bundle', ['php', 'symfony']),
+    ('package.json', 'next', ['nextjs']),
+])
+def test_requested_frameworks_select_guidance_from_exact_dependencies(tmp_path, filename, package, expected):
+    field = 'require' if filename == 'composer.json' else 'dependencies'
+    write_json(tmp_path, filename, {field: {package: '*'}})
+    detected = route.detect(tmp_path)
+    assert detected['stacks'] == expected
+    assert detected['sources'] == [filename]
+    selected = route.select(route.load_catalog(), 'implementer', detected['stacks'], [])
+    assert 'stack-practices' in {item['id'] for item in selected}
+
+
+def test_framework_components_do_not_imply_full_framework(tmp_path):
+    write_json(tmp_path, 'composer.json', {'require': {'symfony/console': '*', 'illuminate/support': '*'}})
+    write_json(tmp_path, 'package.json', {'dependencies': {'next-themes': '*'}})
+    assert route.detect(tmp_path)['stacks'] == ['php']
+
+
+@pytest.mark.parametrize('stack', ['c', 'dotnet', 'go'])
+def test_native_and_dotnet_guidance_support_explicit_task_scope(tmp_path, capsys, stack):
+    assert route.main(['--project', str(tmp_path), '--stack', stack, '--json']) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result['stacks'] == result['explicit_stacks'] == [stack]
+    assert result['sources'] == []
+    assert 'stack-practices' in {item['id'] for item in result['capabilities']}
+
+
+@pytest.mark.parametrize('role', ['architect', 'planner', 'implementer', 'reviewer', 'qa'])
+def test_go_guidance_is_shared_across_delivery_roles(tmp_path, capsys, role):
+    manifest = tmp_path / 'go.mod'
+    original = b'module example.test/service\n\ngo 1.22\n'
+    manifest.write_bytes(original)
+    assert route.main(['--project', str(tmp_path), '--role', role, '--stack', 'go', '--json']) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result['explicit_stacks'] == result['stacks'] == ['go']
+    assert result['sources'] == []  # This selector does not validate Go module/workspace syntax.
+    assert result['selection_only'] is True and result['warnings'] == []
+    assert result['capabilities'] == [{'id': 'stack-practices', 'source': 'skills/stack-practices/SKILL.md',
+                                       'stacks': ['go'], 'areas': []}]
+    assert manifest.read_bytes() == original
+
+
 @pytest.mark.parametrize('name,body', [('composer.json', '{bad'), ('package.json', '[]'), ('pyproject.toml', '=bad')])
 def test_corrupt_manifests_are_visible_without_raw_contents(tmp_path, name, body):
     (tmp_path / name).write_text(body + ' private-data', encoding='utf-8')

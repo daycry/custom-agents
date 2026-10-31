@@ -11,6 +11,37 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Changed — iniciativa `memory-integrations` (2026-10-31)
+
+- **T-01 — Separar entrega y selección de servicios** Los servicios externos pasan a memory-integrations; la curación y recuperación locales siguen en core sin depender de un backend.
+- **T-02 — Unificar el puerto de integraciones** Los backends usan bindings del puerto común sin duplicar taxonomía, routing, curación ni outbox.
+- **T-03 — Documentar y verificar cada recorrido** Workflows ES/EN y PDF explican Kwipu, Graphify y Graphiti, con autorización, recuperación y límites de publicación y lectura.
+
+### Cambiado
+
+- Una consola local sirve proyectos registrados explícitamente en un puerto común, con sesiones/chat nativos, decisiones humanas, planes, kanbans, notas, actividad y memoria local aislados por proyecto. Las capacidades nativas y límites Desktop quedan explícitos. (`control-center`)
+- Manual bilingüe rehecho con 27 workflows explicados y diagramas Mermaid reales, conservando referencias avanzadas y ejemplos completos. Incluye PDF español navegable de 126 páginas y manifiesto para verificar sus fuentes. (`handbook-readability`)
+
+- Añadidas guías de implementación y pruebas Go a stack-practices, con selección explícita por proyecto y criterios compartidos por los roles de entrega.
+
+- Selección de módulos/perfiles, entrega selectiva protegida y puertos de integración locales al proyecto. Jira/Confluence son adaptadores opcionales; los proveedores de proyecto son abiertos.
+- Ciclo del core desacoplado de llamadas de proveedor y manual detallado bilingüe de workflows del core, Atlassian, Redmine y personalización.
+- Preparación de cambio mayor: raíz explícita para opt-ins Jira y conservación de paquetes portable modificados al regenerar.
+
+
+### Corregido
+
+- Conservar las entradas centrales del ciclo cuando se recorta un catálogo mayor en el índice de inicio, sin elevar los límites de contexto.
+
+- Identifica los hooks propios de Codex con nombres descriptivos y documenta su revisión tras cambiar el plugin; conserva comandos, plazos y aprobación nativa.
+
+### Añadido
+
+- Guías por versión para Laravel, Symfony, Next.js, .NET/C# y C; detección por dependencia exacta de los tres frameworks web y selección explícita de C/.NET.
+
+- Seis skills opcionales para perfiles de voz, producción editorial, relaciones, análisis competitivo, pipelines LLM y recolección de datos, con contrato compartido de comunicación externa.
+
+
 ## [2.3.0] - 2026-10-30
 
 ### Añadido

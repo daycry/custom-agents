@@ -1,5 +1,8 @@
 # Panel de capacidades del plugin
 
+La consola operativa v3 usa un único servidor para proyectos registrados: sesiones/chat nativos, planes y kanban, notas, actividad y memoria. Lee [el recorrido para equipos](guides/dashboard.md) y [el contrato de arranque](../skills/plugin-panel/references/control-center.md). Esta página conserva el generador estático y su servidor informativo `build_panel.py`; el `--serve` de `/plugin-catalog` abre ahora `control_center.py`.
+
+
 [English](en/PLUGIN-PANEL.md) · **Español**
 
 El comando `/plugin-catalog` usa plugin-panel para mostrar agentes, skills,

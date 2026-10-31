@@ -163,3 +163,7 @@ solo mapas/referencias pertinentes. Stack-practices consolida PHP/CodeIgniter,
 Python y React. Los métodos, artefactos y puertas del rol conservan su dueño.
 Sin selector o guía disponible, avisa del límite y continúa con el contrato de
 la tarea; no confundas selección con ejecución, tools o permisos.
+
+## Integraciones opcionales por proyecto
+
+El rol usa `project-integrations.md` para sus eventos, sin exigir Jira ni Confluence. Consulta el [workflow detallado](../guides/core-workflows.md) y los [adaptadores del proyecto](../CUSTOMIZATION.md). Destino remoto, recibos y permisos pertenecen al adaptador; los gates locales mantienen su dueño.

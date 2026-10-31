@@ -237,7 +237,9 @@ def test_roadmap_status_no_exporta_sin_roadmap_ni_si_el_dashboard_falla():
     texto = (RAIZ / 'commands/roadmap-status.md').read_text(encoding='utf8')
     bloque = re.search(r'```bash\n(.*?)```', texto, re.S).group(1)
     assert '[ -d docs/roadmap ]' in bloque
-    assert re.search(r'--md docs/roadmap/dashboard\.md\s*&&\s*\\?\s*python3 "\$PANEL"', bloque)
+    # The optional panel must remain behind both a successful dashboard and an available renderer.
+    assert re.search(r'--md docs/roadmap/dashboard\.md\s*\n\s*if \[ "\$\?" -eq 0 \] '
+                     r'&& \[ -f "\$PANEL" \]; then\s*python3 "\$PANEL"', bloque)
 
 
 # --- Gap 10: la description dice lo que escribe ---------------------------------------------------------

@@ -18,13 +18,13 @@ flowchart LR
 ## 1. Entrada y salida
 
 - **Entrada:** una iniciativa en `docs/roadmap/<fecha>-<slug>/` con su `test-plan.md` (bloques `E2E-xx` automáticos y `M-xx` manuales, que genera `planner`), más la **URL local** de la app en ejecución.
-- **Salida:** `docs/roadmap/<fecha>-<slug>/testing/` con `report.md` + `report.pdf`, `screenshots/` y `raw/` (results.json + trazas).
+- **Salida:** `docs/roadmap/<fecha>-<slug>/testing/` con `report.md` y PDF opcional, `screenshots/` y `raw/` (results.json + trazas).
 
 ---
 
 ## 2. Cómo funciona
 
-`planner` define los tests en `test-plan.md`; `qa` los ejecuta. Antes de nada corre dos **puertas deterministas**: `ledger-lint.py` (ledger coherente) y `coverage-check.py` (cobertura criterios↔tests — incluye los **criterios `[GWT]`** de la spec: cada `- [ ] [GWT] CA-XX — Dado…, Cuando…, Entonces…` debe tener su bloque E2E; un GWT sin cubrir es rojo). Luego traduce cada escenario `E2E-xx` a un test Playwright (los `[GWT]` se traducen 1:1: Dado→setup, Cuando→acciones, Entonces→aserciones), los corre contra la URL local, captura screenshots y recoge resultados en JSON. El **veredicto verde/rojo lo emite `qa-gate.py`** sobre ese JSON (verde ⟺ 0 fallos, 0 flaky sin justificar, 0 interrumpidos, ≥1 test ejecutado). El informe incluye estado global, resultado por escenario con capturas, checklist manual `M-xx` y trazabilidad tarea→resultado; el PDF se genera con **`to-pdf`**.
+`planner` define los tests en `test-plan.md`; `qa` los ejecuta. Antes de nada corre dos **puertas deterministas**: `ledger-lint.py` (ledger coherente) y `coverage-check.py` (cobertura criterios↔tests — incluye los **criterios `[GWT]`** de la spec: cada `- [ ] [GWT] CA-XX — Dado…, Cuando…, Entonces…` debe tener su bloque E2E; un GWT sin cubrir es rojo). Luego traduce cada escenario `E2E-xx` a un test Playwright (los `[GWT]` se traducen 1:1: Dado→setup, Cuando→acciones, Entonces→aserciones), los corre contra la URL local, captura screenshots y recoge resultados en JSON. El **veredicto verde/rojo lo emite `qa-gate.py`** sobre ese JSON (verde ⟺ 0 fallos, 0 flaky sin justificar, 0 interrumpidos, ≥1 test ejecutado). El informe incluye estado global, resultado por escenario con capturas, checklist manual `M-xx` y trazabilidad tarea→resultado; el PDF es opcional: se genera con `to-pdf` disponible y solicitado; sin el módulo/motor, entrega Markdown sin bloquear los gates.
 
 QA entrega al orquestador el veredicto, los exits de las puertas y las rutas de evidencia, y hace handoff a `documenter` con verde. El orquestador controla las transiciones: plan/tasks a `completado` en Fase 6 y spec a `implementada` sólo después de documentación y `retro-gate.py` en exit 0. Una invocación suelta de QA informa de ese cierre pendiente. Con rojo, identifica las tareas afectadas para que el orquestador las devuelva a `en-progreso`.
 
@@ -86,3 +86,7 @@ solo mapas/referencias pertinentes. Stack-practices consolida PHP/CodeIgniter,
 Python y React. Los métodos, artefactos y puertas del rol conservan su dueño.
 Sin selector o guía disponible, avisa del límite y continúa con el contrato de
 la tarea; no confundas selección con ejecución, tools o permisos.
+
+## Integraciones opcionales por proyecto
+
+El rol usa `project-integrations.md` para sus eventos, sin exigir Jira ni Confluence. Consulta el [workflow detallado](../guides/core-workflows.md) y los [adaptadores del proyecto](../CUSTOMIZATION.md). Destino remoto, recibos y permisos pertenecen al adaptador; los gates locales mantienen su dueño.

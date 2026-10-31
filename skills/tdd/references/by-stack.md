@@ -13,7 +13,7 @@ del repo (columna «señal»), no preguntes si es evidente.
 | **mocha** | `.mocharc.*` | `npx mocha test/x.spec.js --grep "criterio"` | `1 failing` |
 | **phpunit** (PHP) | `phpunit.xml(.dist)` | `vendor/bin/phpunit --filter 'testCriterio' tests/XTest.php` | `FAILURES! Tests: 1, Failures: 1` |
 | **pest** (PHP) | `tests/Pest.php` | `vendor/bin/pest --filter 'criterio'` | `FAILED … 1 failed` |
-| **go test** | `go.mod` · `*_test.go` | `go test ./paquete -run '^TestCriterio$' -v` | `--- FAIL: TestCriterio` · `FAIL` |
+| **go test** | `go.mod` · `*_test.go` | `go test ./paquete -run '^TestCriterio$' -count=1 -v` | `--- FAIL: TestCriterio` · `FAIL` |
 | **cargo** (Rust) | `Cargo.toml` | `cargo test criterio -- --exact --nocapture` | `test criterio ... FAILED` · `1 failed` |
 | **dotnet** (C#) | `*.csproj` · `*.sln` | `dotnet test --filter "FullyQualifiedName~Criterio"` | `Failed! - Failed: 1` |
 | **JUnit/Gradle** (Java/Kotlin) | `build.gradle(.kts)` | `./gradlew test --tests 'paquete.XTest.criterio'` | `FAILED` · `1 test completed, 1 failed` |
@@ -21,6 +21,23 @@ del repo (columna «señal»), no preguntes si es evidente.
 | **rspec** (Ruby) | `.rspec` · `spec/` | `bundle exec rspec spec/x_spec.rb:LINEA` | `1 example, 1 failure` |
 | **Playwright E2E** | `playwright.config.*` | `npx playwright test tests/x.spec.ts -g "criterio"` | `1 failed` — pero ojo: E2E es territorio de `qa`; el rojo TDD suele ser unitario |
 | **bash** (scripts del plugin) | `hooks/*.sh` · `tests/test_hooks_shell.py` | `python3 -m pytest -q tests/test_hooks_shell.py -k criterio` (pytest lanza el `.sh`) | `1 failed` |
+
+## Go: versión, paralelismo y caché
+
+Ejecuta el rojo desde el módulo de la tarea; un workspace puede contener varios.
+`-count=1` evita reutilizar un resultado de test en caché. Comprueba que el filtro
+seleccionó el test: `PASS` sin casos no es evidencia de GREEN.
+
+La semántica Go 1.22 crea variables por iteración cuando el bucle las declara;
+no añadas `tt := tt` automáticamente. Una variable externa reutilizada con `=`
+sigue compartida. `t.Parallel()` exige además aislar fixtures y estado mutable.
+En benchmarks, `b.Loop()` requiere Go 1.24 o posterior compatible con el proyecto;
+no subas la versión mínima para introducirlo. Los detalles del stack se leen en
+`stack-practices` solo cuando la tarea los necesita.
+
+Fuentes oficiales, 2026-10-31: [flags de test](https://pkg.go.dev/cmd/go#hdr-Testing_flags),
+[bucles](https://go.dev/doc/go1.22#language) y
+[benchmarks](https://go.dev/doc/go1.24#new-benchmark-function).
 
 ## Qué mirar en la salida (rojo válido vs rojo inválido)
 

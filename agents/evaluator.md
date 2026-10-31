@@ -18,13 +18,15 @@ dependencies:
     - outcome-evals
     - dependency-upgrade
     - code-health
-    - confluence-publish
   kits:                      # plantilla en .claude/agent-kits/ + fragmentos compartidos
     - agent-kits/evaluator
     - agent-kits/shared
   agents:                    # handoff: lo aprobado se ejecuta con planner
     - planner
 ---
+
+Integraciones opcionales: lee `agent-kits/shared/project-integrations.md` al llegar a un evento externo. Resuelve exclusivamente la raíz de este proyecto; sin binding válido o herramienta disponible, continúa el ciclo local. Ninguna integración autoriza escrituras ni modifica las puertas de calidad.
+
 
 ## Contexto de capacidades
 
@@ -66,7 +68,7 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, checkboxes 
 
 ## 1) PARÁMETROS DE ESTIMACIÓN (fragmento compartido, confírmalos)
 
-Los parámetros (tarifa, precio de tokens, supervisión, margen, FTE…) y la regla de la config compartida `.claude/rates.json` viven en el **fragmento compartido** — única fuente de verdad para `evaluator`, `planner` y `jira-sync`. Léelo y aplícalo:
+Los parámetros (tarifa, precio de tokens, supervisión, margen, FTE…) y la regla de la config compartida `.claude/rates.json` viven en el **fragmento compartido** — única fuente de verdad para `evaluator`, `planner` y los adaptadores de seguimiento. Léelo y aplícalo:
 
 ```bash
 SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
@@ -103,7 +105,7 @@ Si hay **2+ características**, rellena la **tabla comparativa** y la **recomend
 
 **P6. Enlazar y cerrar.** Cierra el medidor: `python3 "$SHAREDKIT/usage-meter.py" close --artefacto "docs/roadmap/<fecha>-<slug>/evaluation.md"` y vuelca su JSON al bloque `generacion:` del frontmatter de la evaluación (campos tal cual; re-cerrar **sustituye**, no acumula; si degrada a `fuente: estimado`, estima a juicio, márcalo y **continúa** — nunca bloquea). Si creaste tú la spec en P1, mide también su ventana (marcador propio) o marca su bloque `estimado`. Escribe la evaluación y **actualiza la spec** para que apunte a ella (`evaluacion:` en el frontmatter de la spec + su callout). Actualiza `docs/roadmap/README.md`. Resume al usuario: spec de origen, coste total (€), esfuerzo (h), tokens, nº de características y veredicto. Recuerda el handoff: lo aprobado se ejecuta con el agente **`planner`** (que rellenará el campo `Plan` de la evaluación y el `plan:` de la spec al crearse).
 
-**P7. Sincronizar con Confluence (opcional).** Aplica el paso compartido `"$SHAREDKIT/confluence-optin.md"` (skill `confluence-publish` con opt-in) sobre las rutas de `docs/` que hayas tocado. Fallback si el fragmento no está: invoca `confluence-publish` respetando su opt-in y sin bloquear el cierre; nunca sincronices `docs/security-scan/`.
+**P7. Documentación opcional.** Resuelve `docs.changed` por `project-integrations.md`, pasando solo las rutas de documentación listas para publicar. Sin integración, cierre local.
 
 ---
 

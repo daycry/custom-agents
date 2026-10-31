@@ -1,5 +1,5 @@
 ---
-description: "Genera un brief ejecutivo de la cartera (one-pager para dirección) combinando estado del roadmap, priorización y métricas real vs estimado, y lo exporta a PDF con aspecto moderno. Solo lee docs/roadmap/. Usa las skills roadmap-dashboard y to-pdf."
+description: "Genera un brief ejecutivo de la cartera (one-pager para dirección) combinando estado del roadmap, priorización y métricas real vs estimado, y permite exportarlo a PDF si el módulo está disponible. Solo lee docs/roadmap/. Usa las skills roadmap-dashboard y to-pdf."
 ---
 <!-- GENERADO por scripts/export-interop.py desde commands/roadmap-brief.md — no lo edites a mano.
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
@@ -30,9 +30,9 @@ y lo deja en un PDF presentable. Solo lectura del roadmap. Foco opcional: **$ARG
    - **Estado por iniciativa**: una línea cada una (título, estado, fase, coste, y real vs est si aplica).
    - **Salud del código** (opcional, una fila): si el usuario la pide o ya existe un `code-health.json` reciente en `docs/roadmap/`, pega la cabecera del informe de la skill `code-health` (`% duplicado · funciones largas · hotspots · TODO viejos`) — números del script, nunca estimados.
    - **Nota de método** al pie: cifras estimadas vs reales, y qué se imputa.
-3. **Exporta a PDF** con la skill **`to-pdf`**: `docs/roadmap/brief.pdf`.
+3. **PDF opcional:** si `to-pdf` está disponible y se solicita, exporta `docs/roadmap/brief.pdf`. Sin módulo o motor, entrega `brief.md` y avisa sin bloquear el brief; no inventes el PDF.
 4. Presenta el PDF y resume en 2-3 líneas lo esencial (inversión, eficiencia, próximas apuestas).
-5. **Sincronizar con Confluence (opcional).** Aplica el paso compartido `"$SHAREDKIT/confluence-optin.md"` (skill `confluence-publish` con opt-in) sobre `docs/roadmap/brief.md` (el `.pdf` no entra en el espejo, no es `.md`). Localízalo con `SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`. Fallback si no está: invoca `confluence-publish` respetando su opt-in, sin bloquear el cierre; nunca sincronices `docs/security-scan/`.
+5. **Documentación externa opcional.** Aplica `agent-kits/shared/project-integrations.md` con `docs.changed` para los documentos generados. Sin binding o permiso, conserva el resultado local. No publiques evidencias sensibles ni PDFs automáticamente.
 
 ## Reglas
 - **Solo lectura del roadmap**; los únicos ficheros que creas son `brief.md`/`brief.pdf` (y los temporales).

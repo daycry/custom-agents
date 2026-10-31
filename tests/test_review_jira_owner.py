@@ -35,7 +35,7 @@ def _leer(p):
         names = ('phase1-evaluation.md', 'phase2-planning.md', 'phase3-subagents.md',
                  'phase3-jira.md', 'phase4-knowledge-gate.md')
         text += '\n\n' + '\n\n'.join(_leer(os.path.join(ROOT, 'agent-kits', 'dev-cycle', 'references', name))
-                                      for name in names)
+                                      for name in names if name in text)
     return text
 
 
@@ -52,12 +52,14 @@ def _seccion(texto, cabecera_regex, hasta_regex=r"^#{1,3} "):
 
 def test_la_skill_ejecuta_el_evento_de_cada_intento_con_el_comando_completo():
     s6 = _seccion(_leer(SKILL), r"^### 6\. Salida y traza")
-    assert "jira-flow.py" in s6 or '"$JF"' in s6, "la skill no nombra el script que publica el intento"
-    assert re.search(r"--event\s+revision\|gaps", s6), "falta el evento revision|gaps en el comando"
-    assert "--actor reviewer" in s6, "el comentario va firmado por el reviewer (--actor reviewer)"
-    assert re.search(r"--intento\s+N", s6), "--intento N es obligatorio en revision/gaps"
-    assert re.search(r"POR CADA intento", s6), "el evento es por intento, no al cierre"
-    assert re.search(r"lo publica ESTA skill", s6), "la skill debe declararse dueña única del evento"
+    assert "project-integrations.md" in s6, "la skill debe seleccionar el puerto de proyecto"
+    assert "jira-flow.py" not in s6, "el core no ejecuta un proveedor directamente"
+    for event in ("review.completed", "review.gaps"):
+        assert event in s6, f"falta el evento de revisión {event}"
+    assert "POR CADA intento" in s6
+    assert "dueño: esta skill" in s6
+    assert "reviewer" in s6
+
 
 
 def test_la_skill_no_delega_el_evento_en_el_orquestador():
@@ -70,12 +72,11 @@ def test_la_skill_no_delega_el_evento_en_el_orquestador():
 
 def test_dev_cycle_tabla_de_eventos_nombra_a_la_skill_en_revision_y_gaps():
     t = _leer(DEVCYCLE)
-    for evento in ("revision", "gaps"):
-        fila = next((l for l in t.splitlines() if l.startswith(f"| `{evento}` |")), None)
-        assert fila, f"falta la fila `{evento}` en la tabla de eventos de dev-cycle.md"
-        celdas = [c.strip() for c in fila.strip("|").split("|")]
-        assert "adversarial-review" in celdas[2], f"fila `{evento}`: el dueño debe ser adversarial-review, no {celdas[2]!r}"
-        assert "no" in celdas[2] and "orquestador" in celdas[2], f"fila `{evento}`: debe excluir explícitamente al orquestador"
+    for evento in ("review.completed", "review.gaps"):
+        assert evento in t, f"falta evento neutral {evento}"
+    assert "la skill de revisión emite" in t
+    assert "Solo el orquestador emite `task.done`" in t
+
 
 
 def test_dev_cycle_no_cita_un_paso_9_ni_un_comentario_final():
@@ -99,10 +100,10 @@ def test_review_publish_nombra_a_la_skill_como_ejecutor_unico():
 def test_roles_no_atribuye_la_publicacion_al_orquestador_ni_al_implementer():
     t = _leer(ROLES)
     fila_reviewer = next(l for l in t.splitlines() if l.startswith("| **reviewer** |"))
-    assert "lo publica la skill `adversarial-review`" in fila_reviewer, fila_reviewer[-200:]
+    assert "no publica comentarios externos" in fila_reviewer and "`adversarial-review`" in fila_reviewer, fila_reviewer[-300:]
     assert "lo publica el orquestador/implementer" not in fila_reviewer
     fila_skill = next(l for l in t.splitlines() if l.startswith("| **adversarial-review** |"))
-    assert "publica en Jira el evento `revision`/`gaps`" in fila_skill, fila_skill[:300]
+    assert "`review.completed`/`review.gaps`" in fila_skill and "project-integrations.md" in fila_skill, fila_skill[:300]
 
 
 # --- 5. jira-sync SKILL.md: --actor es la FIRMA, no el ejecutor (gap #7) --------------------------

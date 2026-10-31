@@ -58,10 +58,136 @@ const cli = (args, opts = {}) => {
     ['XDG_CONFIG_HOME',join(ownedHome,'.config')],['CLAUDE_CONFIG_DIR',join(ownedHome,'.claude')]]) {
     if(!requested[key] || requested[key]===process.env[key]) env[key]=fallback
   }
-  return execFileSync(process.execPath,[CLI,...args],{encoding:"utf8",...opts,env})
+  const {beforeImport,...execOpts}=opts
+  const runner=beforeImport ? ['--input-type=module','-e',beforeImport,CLI,...args] : [CLI,...args]
+  return execFileSync(process.execPath,runner,{encoding:"utf8",...execOpts,env})
 }
 
 const VERSION = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version
+
+test('module profiles deliver a partial Claude copy and preserve modified files on uninstall',()=>{
+  const proj=tmpProj()
+  try {
+    cli(['install','-p','claude-code','--mode','copy','--profile','core','--dir',proj,'-y','-q'])
+    const base=join(proj,'.claude')
+    assert.ok(existsSync(join(base,'skills/tdd/SKILL.md')))
+    assert.equal(existsSync(join(base,'skills/jira-sync/SKILL.md')),false)
+    const man=JSON.parse(readFileSync(join(base,MANIFEST),'utf8'))
+    assert.deepEqual(man.moduleSelection.modules,['core'])
+    const custom=join(base,'skills/tdd/SKILL.md');writeFileSync(custom,'consumer changes')
+    assert.throws(()=>cli(['install','-p','claude-code','--mode','copy','--profile','full','--dir',proj,'-y','-q']))
+    assert.equal(readFileSync(custom,'utf8'),'consumer changes')
+    cli(['uninstall','-p','claude-code','--dir',proj,'-y','-q'])
+    assert.equal(readFileSync(custom,'utf8'),'consumer changes')
+  } finally {rmSync(proj,{recursive:true,force:true})}
+})
+
+test('module profile changes remove only owned unchanged files and keep selection on reinstall',()=>{
+  const proj=tmpProj()
+  try {
+    const args=['install','-p','claude-code','--mode','copy','--dir',proj,'-y','-q']
+    cli([...args,'--profile','core','--with','jira'])
+    assert.ok(existsSync(join(proj,'.claude/skills/jira-sync/SKILL.md')))
+    cli([...args,'--profile','core'])
+    assert.equal(existsSync(join(proj,'.claude/skills/jira-sync/SKILL.md')),false)
+    cli(args)
+    assert.equal(existsSync(join(proj,'.claude/skills/jira-sync/SKILL.md')),false)
+  } finally {rmSync(proj,{recursive:true,force:true})}
+})
+
+test('reinstall preserves exclusions of a named profile',()=>{
+  const proj=tmpProj()
+  try {
+    const args=['install','-p','claude-code','--mode','copy','--dir',proj,'-y','-q']
+    cli([...args,'--profile','developer','--without','application-data'])
+    cli(args)
+    assert.equal(existsSync(join(proj,'.claude/skills/llm-pipeline/SKILL.md')),false)
+  } finally {rmSync(proj,{recursive:true,force:true})}
+})
+
+test('unsupported native partial profile fails before registering or writing',()=>{
+  const proj=tmpProj()
+  try {
+    assert.throws(()=>cli(['install','-p','codex','--profile','core','--dir',proj,'-y','-q']))
+    assert.equal(existsSync(join(proj,'.codex')),false)
+  } finally {rmSync(proj,{recursive:true,force:true})}
+})
+
+test('gap B: concurrent edits after the first profile checkpoint survive reinstall',()=>{
+  const proj=tmpProj()
+  try {
+    const args=['install','-p','claude-code','--mode','copy','--profile','core','--dir',proj,'-y','-q']
+    cli(args)
+    const manifest=join(proj,'.claude',MANIFEST), victim=join(proj,'.claude/statusline/roadmap-statusline.sh')
+    const wrapper=`import fs from 'node:fs';import {syncBuiltinESMExports} from 'node:module';import {pathToFileURL} from 'node:url';
+      const original=fs.renameSync;let changed=false;
+      fs.renameSync=(from,to)=>{const result=original(from,to);if(!changed && to===${JSON.stringify(manifest)}){changed=true;fs.writeFileSync(${JSON.stringify(victim)},'CONSUMER EDIT DURING REINSTALL');}return result;};
+      syncBuiltinESMExports();await import(pathToFileURL(process.argv[1]).href);`
+    assert.throws(()=>cli(args,{beforeImport:wrapper}),/changed|modified/)
+    assert.equal(readFileSync(victim,'utf8'),'CONSUMER EDIT DURING REINSTALL')
+  } finally {rmSync(proj,{recursive:true,force:true})}
+})
+
+test('gap D: a complete profile writes bounded manifest checkpoints',()=>{
+  const proj=tmpProj()
+  try {
+    const manifest=join(proj,'.claude',MANIFEST), metrics=join(proj,'metrics.json')
+    const wrapper=`import fs from 'node:fs';import {syncBuiltinESMExports} from 'node:module';import {pathToFileURL} from 'node:url';
+      const original=fs.renameSync;let writes=0;let bytes=0;
+      fs.renameSync=(from,to)=>{const result=original(from,to);if(to===${JSON.stringify(manifest)}){writes++;bytes+=fs.statSync(to).size;}return result;};
+      process.on('exit',()=>fs.writeFileSync(${JSON.stringify(metrics)},JSON.stringify({writes,bytes})));
+      syncBuiltinESMExports();await import(pathToFileURL(process.argv[1]).href);`
+    cli(['install','-p','claude-code','--mode','copy','--profile','full','--dir',proj,'-y','-q'],{beforeImport:wrapper})
+    const result=JSON.parse(readFileSync(metrics,'utf8'))
+    const installed=JSON.parse(readFileSync(manifest,'utf8'))
+    assert.ok(installed.files.length>400)
+    assert.ok(result.writes<=PAYLOAD_CLAUDE.length+1,JSON.stringify(result))
+  } finally {rmSync(proj,{recursive:true,force:true})}
+})
+
+test('gap B02: an aborted upgrade can retry without adopting or orphaning unchanged old files',()=>{
+  const proj=tmpProj()
+  try {
+    const args=['install','-p','claude-code','--mode','copy','--profile','core','--dir',proj,'-y','-q']
+    cli(args)
+    const manifest=join(proj,'.claude',MANIFEST), victim=join(proj,'.claude/agents/analyst.md')
+    const pluginFile=join(proj,'.claude/.claude-plugin/plugin.json')
+    const originalVictim=readFileSync(victim), originalPlugin=readFileSync(pluginFile)
+    const patchSource=`import fs from 'node:fs';import {syncBuiltinESMExports} from 'node:module';import {pathToFileURL} from 'node:url';
+      const originalRead=fs.readFileSync;
+      fs.readFileSync=(path,...args)=>{const value=originalRead(path,...args);if(path===${JSON.stringify(join(ROOT,'.claude-plugin/plugin.json'))})return Buffer.isBuffer(value)?Buffer.concat([value,Buffer.from('\\n')]):value+'\\n';return value;};`
+    const changeAfterCheckpoint=`const originalRename=fs.renameSync;let changed=false;
+      fs.renameSync=(from,to)=>{const result=originalRename(from,to);if(!changed && to===${JSON.stringify(manifest)}){changed=true;fs.writeFileSync(${JSON.stringify(victim)},'CONSUMER EDIT DURING UPGRADE');}return result;};`
+    const finish=`syncBuiltinESMExports();await import(pathToFileURL(process.argv[1]).href);`
+    assert.throws(()=>cli(args,{beforeImport:patchSource+changeAfterCheckpoint+finish}),/changed|modified/)
+    assert.equal(readFileSync(victim,'utf8'),'CONSUMER EDIT DURING UPGRADE')
+    assert.deepEqual(readFileSync(pluginFile),originalPlugin)
+    writeFileSync(victim,originalVictim)
+    cli(args,{beforeImport:patchSource+finish})
+    assert.deepEqual(readFileSync(pluginFile),Buffer.concat([originalPlugin,Buffer.from('\n')]))
+    cli(['uninstall','-p','claude-code','--dir',proj,'-y','-q'])
+    assert.equal(existsSync(pluginFile),false)
+  } finally {rmSync(proj,{recursive:true,force:true})}
+})
+
+test('gap B02: SIGTERM during module retirement keeps ownership and resumes the selected profile',()=>{
+  const proj=tmpProj()
+  try {
+    const args=['install','-p','claude-code','--mode','copy','--dir',proj,'-y','-q']
+    cli([...args,'--profile','core','--with','jira'])
+    const jiraRoot=join(proj,'.claude/skills/jira-sync')
+    const wrapper=`import fs from 'node:fs';import {syncBuiltinESMExports} from 'node:module';import {pathToFileURL} from 'node:url';import {resolve,sep} from 'node:path';
+      const original=fs.unlinkSync;let stopped=false;
+      fs.unlinkSync=(path)=>{const result=original(path);if(!stopped && resolve(path).startsWith(${JSON.stringify(jiraRoot)}+sep)){stopped=true;process.emit('SIGTERM');}return result;};
+      syncBuiltinESMExports();await import(pathToFileURL(process.argv[1]).href);`
+    assert.throws(()=>cli([...args,'--profile','core'],{beforeImport:wrapper}),error=>error.status===143)
+    cli(args)
+    assert.equal(existsSync(join(jiraRoot,'references/config.md')),false)
+    const manifest=JSON.parse(readFileSync(join(proj,'.claude',MANIFEST),'utf8'))
+    assert.deepEqual(manifest.moduleSelection.modules,['core'])
+    assert.equal(manifest.profileBeforeHashes,undefined)
+  } finally {rmSync(proj,{recursive:true,force:true})}
+})
 
 test("native role migration preserves consumer agents and explicit bindings", () => {
   const proj = tmpProj()

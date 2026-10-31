@@ -1,5 +1,8 @@
 # CLAUDE.md
 
+
+**Manual de uso y personalización:** [workflows detallados del core, integraciones opcionales, Atlassian/Redmine y extensiones del proyecto](docs/CUSTOMIZATION.md). Los bundles nativos son completos; configurado no significa conectado ni autorizado.
+
 Contexto para Claude Code al trabajar en este repositorio.
 
 > Si existe `CONTINUE-HERE.md` en la raíz, léelo ANTES de nada: recoge el
@@ -99,10 +102,16 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
 | `confluence-publish` / `confluence-pull` | Espejo `docs/` ↔ Confluence, opt-in, idempotente por manifiesto; nunca `docs/security-scan/`. (evaluator, planner, qa, documenter / comando) |
 | `research-first` | Compara soluciones existentes antes de integraciones o nuevas herramientas; fuentes originales y límites explícitos. (analyst, architect) |
 | `plugin-panel` | Panel local del bundle y extensiones de proyecto/usuario; JSON determinista, metadatos redactados y modo servido de progreso; disponibilidad sin verificar. (/plugin-catalog) |
-| `stack-practices` | Guías por versión para PHP/CodeIgniter, Python y React; estado, persistencia, concurrencia y pruebas. (architect, planner, implementer, reviewer, qa) |
+| `stack-practices` | Guías por versión para CodeIgniter 4, Laravel, Symfony, Next.js, React, Python, .NET/C#, C y Go; estado, persistencia, concurrencia y pruebas. (architect, planner, implementer, reviewer, qa) |
 | `backend-practices` | APIs, autorización por recurso, errores, idempotencia y migraciones compatibles. (analyst, architect, planner, implementer, reviewer, qa) |
 | `frontend-quality` | Teclado, foco, formularios, estados remotos y rendimiento medido. (architect, planner, implementer, reviewer, qa) |
 | `delivery-practices` | Contenedores, readiness, recuperación y límites de acceso MCP. (architect, planner, implementer, reviewer, qa) |
+| `voice-profile` | Perfil de voz desde muestras autorizadas, con procedencia y variantes por canal. A demanda; no amplía permisos del rol. |
+| `content-production` | Artículos, newsletters y variantes por canal con hechos trazables y voz acordada. A demanda; no amplía permisos del rol. |
+| `relationship-planning` | Revisión de red y preparación de contactos; propuestas y acciones diferenciadas. A demanda; no amplía permisos del rol. |
+| `competitive-analysis` | Alcance, perfiles y mapas competitivos con fuentes y criterios explícitos. A demanda; no amplía permisos del rol. |
+| `llm-pipeline` | Guía de aplicaciones LLM: reserva previa, reintentos, caché y evaluación. A demanda; no amplía permisos del rol. |
+| `data-collection` | Guía de recolectores HTML/RSS/JSON con enriquecimiento opcional y recuperación. A demanda; no amplía permisos del rol. |
 | `capability-audit` | Auditoría semántica de utilidad, vigencia, solapes y coste de carga. (analyst, evaluator, architect, reviewer) |
 | `outcome-evals` | Corpus, checks y comparación reproducible de resultados; mediciones ausentes explícitas. (evaluator, planner, reviewer, qa) |
 | `roadmap-dashboard` | Escaneo de `docs/roadmap/` → HTML/md/JSON + métricas real-vs-estimado y coste de proceso (`build_dashboard.py`). (/roadmap-status, /pm-backlog, /roadmap-metrics) |

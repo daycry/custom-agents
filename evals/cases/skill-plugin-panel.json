@@ -2,6 +2,18 @@
   "target": "skill:plugin-panel",
   "cases": [
     {
+      "id": "plugin-panel-shared-console",
+      "prompt": "Quiero un dashboard común para mis proyectos, con un solo puerto y sesiones y planes separados al elegir cada proyecto.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "control_center.py",
+          "workspaces"
+        ]
+      }
+    },
+    {
       "id": "plugin-panel-extensions-literal",
       "prompt": "incluye extensiones propias de proyecto y usuario",
       "trigger": "literal",
@@ -41,7 +53,7 @@
       "expect": {
         "activates": true,
         "mentions": [
-          "--serve"
+          "control_center.py"
         ]
       }
     },

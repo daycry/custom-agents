@@ -20,6 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verificar manual PDF de la release
+        run: python3 scripts/check-handbook.py
+
       - name: Empaquetar el plugin
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -61,3 +64,5 @@ jobs:
           files: |
             custom-agents-[0-9]*.zip
             custom-agents-skills-portable-*.zip
+            output/pdf/custom-agents-manual-operativo.pdf
+            output/pdf/custom-agents-manual-operativo.manifest.json

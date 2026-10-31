@@ -8,6 +8,8 @@ arranque (`hooks/session-context.sh`, SessionStart `startup|resume|compact`) a c
 medido: ≤ LIMITE_LINEAS líneas · ≤ LIMITE_CHARS caracteres · ≤ LIMITE_LINEA por línea (los tests
 lo afirman). Si hay más piezas de las que caben, cada grupo cede proporcionalmente y cierra con
 «… y N piezas más (ver `skills/`)»; si el total de caracteres excede, el ancho por línea baja.
+Cada grupo conserva su entrada central si existe (dev-cycle, quick-implement,
+implementer), sustituyendo una entrada de su cuota sin ampliar el presupuesto.
 
 Lee SOLO los frontmatters (nunca los cuerpos): `commands/*.md` (description + argument-hint),
 `skills/*/SKILL.md` (name + description) y `agents/*.md` (name + description). Resumen por pieza =
@@ -40,7 +42,7 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-VERSION = "2"                      # entra en el hash: cambiar el formato invalida la caché
+VERSION = "3"                      # entra en el hash: cambiar el formato invalida la caché
 LIMITE_LINEAS = 45
 LIMITE_CHARS = 3500
 LIMITE_LINEA = 110
@@ -60,6 +62,7 @@ CABECERAS_RUNTIME = {
                  "Comandos por `/`; delega con subagent y agent igual al ID nativo disponible."],
 }
 GRUPOS = (("command", "Comandos:"), ("skill", "Skills:"), ("agent", "Agentes:"))
+ENTRADA_CENTRAL = {"command": "dev-cycle", "skill": "quick-implement", "agent": "implementer"}
 _GATILLO_RE = re.compile(r"\b(Úsal[oa]|Usal[oa]|Use (?:this |it )?when|Invócal[oa])\b", re.I)
 
 
@@ -245,6 +248,9 @@ def _lineas(ps, ancho, runtime=None, mapping=None):
             continue
         lineas.append(titulo)
         visibles = items[:cupos[kind]]
+        central = next((item for item in items if item[1] == ENTRADA_CENTRAL[kind]), None)
+        if central is not None and central not in visibles:
+            visibles = [central, *visibles[:-1]]
         if len(visibles) < len(items):
             lineas_extra = [f"… y {len(items) - len(visibles)} piezas más (ver `{CARPETA[kind]}`)"]
         else:

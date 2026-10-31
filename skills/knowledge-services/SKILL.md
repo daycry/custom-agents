@@ -22,6 +22,15 @@ Esta skill lo **proyecta** hacia fuera mediante los adaptadores Kwipu y Graphiti
 pueden declarar su propio `type` sin cambiar el núcleo (`knowledge-sync.py`). Instalar la skill
 no habilita ni configura ningún servicio externo.
 
+## Módulo y puerto opcionales
+
+Esta skill pertenece a `memory-integrations`, fuera del perfil core. Curación y
+recuperación local conservan sus dueños en el shared kit y no la requieren.
+Para usar un proveedor desde el workflow común, lee
+[Integración de proyecto](references/project-integration.md): bindings del propósito
+`knowledge`, backend exacto, autorización, routing y recibos existentes. Instalar el
+módulo, declarar el binding y verificar una operación son estados diferentes.
+
 ## Cuándo NO usarla
 
 - Para curar o aprobar conocimiento: productores proponen por `agent-kits/shared/knowledge-curation.py`;

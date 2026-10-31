@@ -1,0 +1,29 @@
+{
+  "target": "skill:llm-pipeline",
+  "cases": [
+    {
+      "id": "llm-pipeline-literal",
+      "prompt": "diseña un pipeline LLM",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "llm-pipeline-parafrasis",
+      "prompt": "Revisa cómo reservar presupuesto y acotar reintentos de nuestras llamadas al modelo.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "llm-pipeline-negativo",
+      "prompt": "Verifica las tarifas de tokens de Claude y actualiza rates.json.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:rates-verify"
+      }
+    }
+  ]
+}
