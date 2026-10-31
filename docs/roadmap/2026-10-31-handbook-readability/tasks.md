@@ -1,6 +1,6 @@
 ---
 tasks: handbook-readability
-estado: en-progreso
+estado: completado
 creado: 2026-10-31
 verificacion: obligatoria
 changelog: Changed
@@ -23,8 +23,8 @@ reflejar únicamente capacidades implementadas de la consola operativa v3.0.0.
 |---|---|---|---|
 | Fase 1 — Comprensión | 1 | 1 | 100.0% |
 | Fase 2 — Diagramas y edición | 2 | 2 | 100.0% |
-| Fase 3 — Verificación | 0 | 1 | 0.0% |
-| **TOTAL** | **3** | **4** | **75.0%** |
+| Fase 3 — Verificación | 1 | 1 | 100.0% |
+| **TOTAL** | **4** | **4** | **100.0%** |
 
 ## Fase 1 — Comprensión
 
@@ -70,7 +70,7 @@ reflejar únicamente capacidades implementadas de la consola operativa v3.0.0.
 
 ### T-04 — Revisar, validar y publicar la rama
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tipo**: docs
 - **Descripción**: Contrastar comprensión y fidelidad funcional, enlaces, empaquetado, ES/EN y artefactos; commits literales, push y CI. La publicación v3.0.0 autorizada se coordina en T-06 del ledger control-center.
 - **Changelog**: Verificación de manual y diagramas antes de la entrega.
@@ -78,7 +78,7 @@ reflejar únicamente capacidades implementadas de la consola operativa v3.0.0.
 - **Verificación**: linter, evals, suites afectadas, revisión de contenido y visual, CI del commit publicado.
 
 **Criterios de aceptación**
-- [ ] Resultados y límites documentados; métricas ausentes explícitas; todos los cambios propios en commits y push; CI verificada antes de entregar.
+- [x] Resultados y límites documentados; métricas ausentes explícitas; todos los cambios propios en commits y push; CI verificada antes de entregar.
 
 Ampliación de alcance autorizada por las peticiones posteriores del usuario:
 W-19 a W-22 detallan memoria local y sus integraciones; W-23 a W-27 explican la
@@ -95,3 +95,7 @@ T-04 amplía archivos a `scripts/check-handbook.py`, `tests/test_handbook_integr
 y entrega del PDF como asset independiente. RED observado:4 failed por verificador
 ausente. Comprueba cambios de fuente/PDF, diferencias CRLF y recibos de diagramas
 sin permitir que un manifiesto seleccione archivos ajenos. Sólo stdlib.
+
+Entrega de la rama verificada: commits653a139/281664d/c4016cf publicados, PR22
+fusionada en dc9e98c, CI41168370837 success sobre c4016cf. Publicación v3.0.0
+coordinada en control-center/T-06. Las fuentes y el PDF conservan sus hashes.

@@ -240,3 +240,9 @@ Primera suite Linux amplia finalizada:2failed/10095passed/58skipped/82subtests,
 no fue modificado por esta iniciativa; se ejecuta aislado con el mismo umbral,
 seguido de suites afectadas y Node. Se exige después CI completa del commit
 publicado; no se presenta la pasada amplia roja como una suite verde.
+
+Entrega de rama: commits653a139/281664d/c4016cf publicados. CI41168370837 success
+sobre c4016cf:10140passed/39skipped/82subtests,577,28s en la batería principal.
+PR22 fusionada en dc9e98c el2026-10-31. Los16casos Windows omitidos en Linux
+se contrastaron por nombre contra ejecuciones Windows verdes. Publicación
+v3.0.0 en curso desde checkout limpio; T-06 permanece abierta hasta confirmarla.

@@ -22,9 +22,9 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - One local control center serves explicitly registered projects on a common port, with isolated native sessions/chat, human decisions, plans, task kanbans, notes, activity and local memory. Native capabilities and Desktop limits are explicit. (`control-center`)
 - Rebuild the bilingual handbook around 27 explained workflows and real Mermaid diagrams, preserving advanced references and complete examples. Ship a navigable 126-page Spanish PDF and a source verification manifest. (`handbook-readability`)
 
-- Added version-aware Go implementation and testing guidance to stack-practices, with explicit project selection and shared criteria for all delivery roles.
+- Added version-aware Go implementation and testing guidance to stack-practices, with explicit project selection and shared criteria for all delivery roles. (`go-stack`)
 
-- Added module/profile selection, protected selective delivery and project-local integration ports. Jira/Confluence are optional adapters; project providers remain open.
+- Added module/profile selection, protected selective delivery and project-local integration ports. Jira/Confluence are optional adapters; project providers remain open. (`modular-integrations`)
 - Decoupled core lifecycle events from provider calls and added a detailed bilingual handbook with core, Atlassian, Redmine and customization workflows.
 - Breaking change preparation: explicit project roots for Jira opt-ins; modified portable packages are preserved instead of regenerated in place.
 
@@ -39,7 +39,7 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 - Version-aware guidance for Laravel, Symfony, Next.js, .NET/C# and C; exact dependency detection for the three web frameworks and explicit C/.NET selection.
 
-- Six optional skills for voice profiles, editorial production, relationship planning, competitive analysis, LLM pipelines and data collection, with a shared external communication contract.
+- Six optional skills for voice profiles, editorial production, relationship planning, competitive analysis, LLM pipelines and data collection, with a shared external communication contract. (`pending-skills-integration`)
 
 
 ## [2.3.0] - 2026-10-30

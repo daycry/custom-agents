@@ -1,6 +1,6 @@
 # Verificación de la consola común
 
-Estado: validación en curso. Este informe no acredita todavía CI ni publicación.
+Estado: implementación, revisión y QA verificadas; publicación v3.0.0 en curso.
 Las correcciones de revisión conservan su traza RED/GREEN en `../tasks.md`.
 
 La revisión independiente se ha superado en el intento3: A/B/C/D sin defectos
@@ -97,7 +97,8 @@ incluye arranque y tiene mediana170,11ms. No se intercambian ambas métricas.
 No hubo inferencia ni red en ese contenedor. Los resultados no sustituyen la
 CI completa del commit que se va a integrar.
 
-Quedan revisión literal de los commits, push,
-CI del HEAD, fusión de PR22 y release3.0.0 mediante `scripts/release.py`.
+Commits y push verificados:653a139/281664d/c4016cf. [CI41168370837](https://github.com/daycry/custom-agents/actions/runs/41168370837) success sobre c4016cf:10140passed/39skipped/82subtests,577,28s en pytest principal. [PR22](https://github.com/daycry/custom-agents/pull/22) fusionada en dc9e98c. Queda publicar v3.0.0 mediante `scripts/release.py`.
+
+Los16casos específicos omitidos en Linux se contrastaron por nombre contra pruebas Windows verdes (Node23.8.0). El runner seleccionado declara32nodos verdes, incluidos contenedores de fichero sin casos coincidentes; no se presenta como32regresiones específicas.
 No hay medición completa de tokens/coste/horas de esta iniciativa; no se estima
 retroactivamente un consumo como si fuese observado.

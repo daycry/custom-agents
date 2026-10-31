@@ -22,9 +22,9 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - Una consola local sirve proyectos registrados explícitamente en un puerto común, con sesiones/chat nativos, decisiones humanas, planes, kanbans, notas, actividad y memoria local aislados por proyecto. Las capacidades nativas y límites Desktop quedan explícitos. (`control-center`)
 - Manual bilingüe rehecho con 27 workflows explicados y diagramas Mermaid reales, conservando referencias avanzadas y ejemplos completos. Incluye PDF español navegable de 126 páginas y manifiesto para verificar sus fuentes. (`handbook-readability`)
 
-- Añadidas guías de implementación y pruebas Go a stack-practices, con selección explícita por proyecto y criterios compartidos por los roles de entrega.
+- Añadidas guías de implementación y pruebas Go a stack-practices, con selección explícita por proyecto y criterios compartidos por los roles de entrega. (`go-stack`)
 
-- Selección de módulos/perfiles, entrega selectiva protegida y puertos de integración locales al proyecto. Jira/Confluence son adaptadores opcionales; los proveedores de proyecto son abiertos.
+- Selección de módulos/perfiles, entrega selectiva protegida y puertos de integración locales al proyecto. Jira/Confluence son adaptadores opcionales; los proveedores de proyecto son abiertos. (`modular-integrations`)
 - Ciclo del core desacoplado de llamadas de proveedor y manual detallado bilingüe de workflows del core, Atlassian, Redmine y personalización.
 - Preparación de cambio mayor: raíz explícita para opt-ins Jira y conservación de paquetes portable modificados al regenerar.
 
@@ -39,7 +39,7 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 - Guías por versión para Laravel, Symfony, Next.js, .NET/C# y C; detección por dependencia exacta de los tres frameworks web y selección explícita de C/.NET.
 
-- Seis skills opcionales para perfiles de voz, producción editorial, relaciones, análisis competitivo, pipelines LLM y recolección de datos, con contrato compartido de comunicación externa.
+- Seis skills opcionales para perfiles de voz, producción editorial, relaciones, análisis competitivo, pipelines LLM y recolección de datos, con contrato compartido de comunicación externa. (`pending-skills-integration`)
 
 
 ## [2.3.0] - 2026-10-30

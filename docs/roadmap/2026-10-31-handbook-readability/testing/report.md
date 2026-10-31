@@ -27,3 +27,5 @@ npm incluye también contratos avanzados enlazados, sin añadir journals ni road
 Las pruebas de navegador y nativas, revisión final, CI y publicación se coordinan
 en [el informe de consola](../../2026-10-31-control-center/testing/report.md).
 No se declara la publicación antes de que ocurra; tokens/coste total no medidos.
+
+Entrega de rama confirmada por [CI41168370837](https://github.com/daycry/custom-agents/actions/runs/41168370837), success sobre c4016cf, y [PR22](https://github.com/daycry/custom-agents/pull/22) fusionada en dc9e98c. La release se sigue en control-center/T-06.
