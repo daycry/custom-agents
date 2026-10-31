@@ -1,6 +1,6 @@
 # Verificación de la consola común
 
-Estado: implementación, revisión y QA verificadas; publicación v3.0.0 en curso.
+Estado: entrega v3.0.0 completada, con revisión, QA, CI y assets verificados.
 Las correcciones de revisión conservan su traza RED/GREEN en `../tasks.md`.
 
 La revisión independiente se ha superado en el intento3: A/B/C/D sin defectos
@@ -97,8 +97,17 @@ incluye arranque y tiene mediana170,11ms. No se intercambian ambas métricas.
 No hubo inferencia ni red en ese contenedor. Los resultados no sustituyen la
 CI completa del commit que se va a integrar.
 
-Commits y push verificados:653a139/281664d/c4016cf. [CI41168370837](https://github.com/daycry/custom-agents/actions/runs/41168370837) success sobre c4016cf:10140passed/39skipped/82subtests,577,28s en pytest principal. [PR22](https://github.com/daycry/custom-agents/pull/22) fusionada en dc9e98c. Queda publicar v3.0.0 mediante `scripts/release.py`.
+Commits y push verificados:653a139/281664d/c4016cf. [CI41168370837](https://github.com/daycry/custom-agents/actions/runs/41168370837) success sobre c4016cf:10140passed/39skipped/82subtests,577,28s en pytest principal. [PR22](https://github.com/daycry/custom-agents/pull/22) fusionada en dc9e98c. Publicación completada mediante `scripts/release.py`: [a3470f7](https://github.com/daycry/custom-agents/releases/tag/v3.0.0).
 
 Los16casos específicos omitidos en Linux se contrastaron por nombre contra pruebas Windows verdes (Node23.8.0). El runner seleccionado declara32nodos verdes, incluidos contenedores de fichero sin casos coincidentes; no se presenta como32regresiones específicas.
 No hay medición completa de tokens/coste/horas de esta iniciativa; no se estima
 retroactivamente un consumo como si fuese observado.
+
+## Confirmación de publicación
+
+[Release v3.0.0](https://github.com/daycry/custom-agents/releases/tag/v3.0.0), publicada el 2026-10-31T04:41:38Z. [CI del commit de versión](https://github.com/daycry/custom-agents/actions/runs/41169576551) success. El workflow Release41169584603 terminó en success. Los cuatro assets se descargaron y comprobaron contra el digest de GitHub; ambos ZIP son íntegros y contienen consola y helpers compartidos, sin configuración personal ni roadmap. PDF y manifiesto coinciden con los blobs del tag, evitando confundir CRLF del checkout Windows con un cambio de contenido.
+
+- `custom-agents-3.0.0.zip`: 10611057 bytes; SHA256 `26e396a7a9a9a48a3c456bf5f0c76266b2e47b732db85cb5c7d781894f0b0666`.
+- `custom-agents-manual-operativo.manifest.json`: 10531 bytes; SHA256 `11134ee82d8bd1370352320aec0261c97f08bec7f320e599413575fd4876cfb8`.
+- `custom-agents-manual-operativo.pdf`: 7401853 bytes; SHA256 `e528548bd49eb10ac1edd5450fc3281c5b87779348d84d2efd9a6f796a6e49c5`.
+- `custom-agents-skills-portable-3.0.0.zip`: 1665656 bytes; SHA256 `6ec6c188c2555b54634106f596186e720633e3677f866c5124c3f7647f9624d0`.

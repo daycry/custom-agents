@@ -28,3 +28,5 @@ ejecuta inferencia Ollama. La vista de memoria del navegador usa fuentes locales
 de fixture y no llama a los servicios externos. La suite conjunta y publicación
 se coordinan en [control-center](../../2026-10-31-control-center/testing/report.md).
 Consumo total de tokens/coste/horas no medido; sin datos de aceptación inventados.
+
+Publicación confirmada: [v3.0.0](https://github.com/daycry/custom-agents/releases/tag/v3.0.0), commit a3470f7, [CI41169576551](https://github.com/daycry/custom-agents/actions/runs/41169576551) success y cuatro assets verificados. No se ejecutó inferencia Ollama ni un despliegue nuevo de servicios externos.

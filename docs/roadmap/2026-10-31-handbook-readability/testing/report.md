@@ -29,3 +29,5 @@ en [el informe de consola](../../2026-10-31-control-center/testing/report.md).
 No se declara la publicación antes de que ocurra; tokens/coste total no medidos.
 
 Entrega de rama confirmada por [CI41168370837](https://github.com/daycry/custom-agents/actions/runs/41168370837), success sobre c4016cf, y [PR22](https://github.com/daycry/custom-agents/pull/22) fusionada en dc9e98c. La release se sigue en control-center/T-06.
+
+Publicación confirmada: [v3.0.0](https://github.com/daycry/custom-agents/releases/tag/v3.0.0), commit a3470f7, [CI41169576551](https://github.com/daycry/custom-agents/actions/runs/41169576551) success y cuatro assets verificados. No se ejecutó inferencia Ollama ni un despliegue nuevo de servicios externos.

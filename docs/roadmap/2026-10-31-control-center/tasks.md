@@ -1,6 +1,6 @@
 ---
 tasks: control-center
-estado: en-progreso
+estado: completado
 creado: 2026-10-31
 verificacion: obligatoria
 changelog: Changed
@@ -21,8 +21,8 @@ compartir por red requiere identidad y autorización, no un simple filtro visual
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 — Entrega | 5 | 6 | 83.3% |
-| **TOTAL** | **5** | **6** | **83.3%** |
+| Fase 1 — Entrega | 6 | 6 | 100.0% |
+| **TOTAL** | **6** | **6** | **100.0%** |
 
 ## Fase 1 — Entrega
 
@@ -88,7 +88,7 @@ compartir por red requiere identidad y autorización, no un simple filtro visual
 
 ### T-06 — Publicar v3.0.0
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tipo**: backend
 - **Descripción**: Revisar literalmente, commits y push, PR con CI verde, fusión y release mediante scripts/release.py. Autorización expresa del usuario para v3.0.0; no omitir limitaciones de interfaces nativas.
 - **Changelog**: Publicar v3.0.0.
@@ -96,7 +96,7 @@ compartir por red requiere identidad y autorización, no un simple filtro visual
 - **Verificación**: criterios del plan y evidencia en testing/report.md.
 
 **Criterios de aceptación**
-- [ ] Comportamiento observado y límites contrastados; pruebas pertinentes y documentación coherentes. No confundir configuración, conexión, envío y confirmación.
+- [x] Comportamiento observado y límites contrastados; pruebas pertinentes y documentación coherentes. No confundir configuración, conexión, envío y confirmación.
 
 
 RED: test_console_workspaces.py::test_one_registry_contains_independent_workspaces_without_exposing_paths falló por registro de workspaces no implementado · 2026-10-31.
@@ -243,6 +243,8 @@ publicado; no se presenta la pasada amplia roja como una suite verde.
 
 Entrega de rama: commits653a139/281664d/c4016cf publicados. CI41168370837 success
 sobre c4016cf:10140passed/39skipped/82subtests,577,28s en la batería principal.
-PR22 fusionada en dc9e98c el2026-10-31. Los16casos Windows omitidos en Linux
+PR22 fusionada en dc9e98c el 2026-10-31. Los16casos Windows omitidos en Linux
 se contrastaron por nombre contra ejecuciones Windows verdes. Publicación
 v3.0.0 en curso desde checkout limpio; T-06 permanece abierta hasta confirmarla.
+
+Entrega completada: [v3.0.0](https://github.com/daycry/custom-agents/releases/tag/v3.0.0) publicada el 2026-10-31T04:41:38Z desde a3470f7. Script release.py sin omitir checks; [Release41169584603](https://github.com/daycry/custom-agents/actions/runs/41169584603) y [CI41169576551](https://github.com/daycry/custom-agents/actions/runs/41169576551) success. Cuatro assets descargados, hashes GitHub contrastados y ZIP íntegros; PDF/manifiesto coinciden byte a byte con el tag. Configuración personal ajena preservada.
