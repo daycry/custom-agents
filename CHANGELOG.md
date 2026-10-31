@@ -11,6 +11,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-31
+
 ### Changed — `memory-integrations` initiative (2026-10-31)
 
 - **T-01 — Separate service delivery and selection** External memory services move to memory-integrations; local curation and recovery remain in core without a backend dependency.
@@ -40,7 +42,6 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - Version-aware guidance for Laravel, Symfony, Next.js, .NET/C# and C; exact dependency detection for the three web frameworks and explicit C/.NET selection.
 
 - Six optional skills for voice profiles, editorial production, relationship planning, competitive analysis, LLM pipelines and data collection, with a shared external communication contract. (`pending-skills-integration`)
-
 
 ## [2.3.0] - 2026-10-30
 
@@ -1288,6 +1289,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[3.0.0]: https://github.com/daycry/custom-agents/releases/tag/v3.0.0
 [2.3.0]: https://github.com/daycry/custom-agents/releases/tag/v2.3.0
 [2.2.0]: https://github.com/daycry/custom-agents/releases/tag/v2.2.0
 [2.1.0]: https://github.com/daycry/custom-agents/releases/tag/v2.1.0
