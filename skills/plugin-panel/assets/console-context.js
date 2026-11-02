@@ -1,9 +1,11 @@
-import {$,el,icon,button,badge,provider,providers,busy,relative,time,empty,loading,panel,progress,markdown} from './console-dom.js'
+import {$,el,icon,button,badge,provider,providers,busy,relative,time,empty,loading,panel,progress,markdown,observedSessionCount} from './console-dom.js'
 
 export function createContext(app){
  const state=app.state
  let overviewSignature='',activitySignature='',memorySignature='',integrationSignature='',catalogSignature='',catalogData=null,memoryResult=null
+ let detailHost=null,selectedRun=null,detailSequence=0,detailSignature=''
  function clear(){
+  detailHost=null;selectedRun=null;detailSignature='';detailSequence++
   overviewSignature='';activitySignature='';memorySignature='';integrationSignature='';catalogSignature='';catalogData=null;memoryResult=null
   for(const id of ['overview-content','activity-content','memory-content','integrations-content','catalog-content'])$(id).replaceChildren()
   $('memory-search').value='';$('catalog-search').value=''
@@ -14,19 +16,21 @@ export function createContext(app){
  }
  async function overview(){
   const epoch=state.epoch
-  const results=await Promise.allSettled([app.plans.portfolio(),app.api('sessions'),app.api('runtimes')])
+  const results=await Promise.allSettled([app.plans.portfolio(),app.api('sessions'),app.api('runtimes'),app.api('native-sessions')])
   if(epoch!==state.epoch||state.view!=='overview')return
   const portfolio=results[0].status==='fulfilled'?results[0].value:null
   const sessions=results[1].status==='fulfilled'?results[1].value.sessions:null
   const runtimes=results[2].status==='fulfilled'?results[2].value.runtimes:[]
+  const inventory=results[3].status==='fulfilled'?results[3].value:null
+  const sessionCount=observedSessionCount(inventory,sessions)
   if(sessions)state.sessions=sessions;if(runtimes)state.runtimes=runtimes
-  $('nav-sessions-count').textContent=sessions?sessions.length:'—'
+  $('nav-sessions-count').textContent=sessionCount??'—'
   if(portfolio?.freshness?.state==='refresh_failed')app.notice('La actualización de la cartera falló. Se conserva la lectura anterior con su fecha original.','warning')
   else if(results.some(r=>r.status==='rejected'))app.notice('Algunas fuentes no se han podido actualizar. Los datos ausentes se muestran sin cifra.','warning')
   else if(portfolio&&!portfolio.complete&&portfolio.status!=='not_found')app.notice('La cartera es parcial; se indican únicamente los datos observados.','warning')
   else app.notice('')
   const signature=JSON.stringify([portfolio?.iniciativas,portfolio?.totales,portfolio?.status,portfolio?.complete,
-   portfolio?.freshness?.state==='refresh_failed',results.map(r=>r.status),sessions?.map(s=>[s.id,s.title,s.status]),runtimes])
+   portfolio?.freshness?.state==='refresh_failed',results.map(r=>r.status),sessions?.map(s=>[s.id,s.title,s.status]),runtimes,sessionCount])
   if(signature===overviewSignature)return;overviewSignature=signature
   const root=$('overview-content');root.replaceChildren()
   const rows=portfolio?.iniciativas||[],totals=portfolio?.totales?.tareas
@@ -35,7 +39,7 @@ export function createContext(app){
   const metrics=el('div',undefined,'metric-grid')
   metrics.append(metric('Planes con tareas',measured?prefix+rows.filter(r=>r.tareas).length:null,'Registro del proyecto','board'),
    metric('Tareas pendientes',totals?prefix+Math.max(0,totals.total-totals.completadas):null,totals?totals.total+' tareas observadas':'Sin registro medible','clock'),
-   metric('Sesiones abiertas',sessions?sessions.filter(s=>busy.has(s.status)).length:null,'En esta consola · estado observado','chat'),
+   metric('Sesiones del proyecto',sessionCount,'Sesiones observadas · incluidas externas','chat'),
    metric('Entrega completada',totals?totals.pct+'%':null,totals?totals.completadas+' de '+totals.total+' tareas':'Sin datos de progreso','check'))
   root.append(metrics)
   const grid=el('div',undefined,'overview-grid'),left=el('div'),right=el('div')
@@ -80,8 +84,78 @@ export function createContext(app){
   for(const event of events.slice(0,50)){
    const item=el('div',undefined,'timeline-item'),mark=el('div',undefined,'timeline-mark'),copy=el('div',undefined,'timeline-copy')
    mark.append(icon(event.state==='failed'?'close':event.state==='started'?'clock':'check'))
-   copy.append(el('strong',event.name||event.tool||'Operación'),el('small',(event.actor||event.role||'Rol no informado')+(event.session?' · '+event.session:'')))
+   const actor=event.actor||event.role
+   copy.append(el('strong','Herramienta: '+(event.name||event.tool||'Operación sin nombre')),
+    el('small',(actor?'Agente: '+actor:'Agente no identificado por el runtime')+(event.session?' · Origen: '+event.session:'')))
    item.append(mark,copy,el('time',time(event.at??event.observed_at)));root.append(item)
+  }
+ }
+ function duration(value){
+  if(!Number.isFinite(value)||value<0)return 'No disponible'
+  const seconds=Math.round(value)
+  return seconds<60?seconds+' s':Math.floor(seconds/60)+' min '+seconds%60+' s'
+ }
+ function fullTime(value){
+  if(value===null||value===undefined)return 'No comunicado'
+  const date=new Date(typeof value==='number'&&value<1e12?value*1000:value)
+  return Number.isNaN(date.getTime())?'No comunicado':new Intl.DateTimeFormat('es',{dateStyle:'medium',timeStyle:'medium'}).format(date)
+ }
+ function runState(run){
+  if(run.estado==='respuesta_terminada')return badge('completado','Terminado')
+  if(run.estado==='en_curso')return badge('running',run.scope==='subagent'?'En curso':'Actividad reciente')
+  return badge('uncertain','Sin actualizar')
+ }
+ function executionHost(){
+  if(!detailHost){detailHost=el('div');detailHost.id='activity-run-detail';detailHost.hidden=true}
+  return detailHost
+ }
+ async function openRun(key){
+  selectedRun=key;detailSignature='';const host=executionHost();host.hidden=false
+  loading(host,'Leyendo el detalle de la ejecución…')
+  await refreshRun()
+  if(selectedRun===key&&host.isConnected)host.scrollIntoView({behavior:'auto',block:'nearest'})
+ }
+ async function refreshRun(){
+  if(!selectedRun)return
+  const key=selectedRun,epoch=state.epoch,sequence=++detailSequence,host=executionHost()
+  try{
+   const value=await app.api('activity/runs/'+key)
+   if(epoch!==state.epoch||sequence!==detailSequence||selectedRun!==key||state.view!=='activity')return
+   const signature=JSON.stringify(value)
+   if(signature===detailSignature)return;detailSignature=signature
+   const focused=document.activeElement,restore=host.contains(focused)
+   const run=value.run||{},metrics=value.metrics||{},box=panel('Detalle de ejecución',
+    (run.role?'Agente '+run.role:'Actividad de sesión')+' · '+(providers[run.runtime]||run.runtime||'Runtime'),
+    button('Cerrar detalle',()=>{selectedRun=null;detailSequence++;host.hidden=true;document.querySelector('button[data-run="'+key+'"]')?.focus()},'quiet','close'))
+   const body=el('div',undefined,'panel-body'),numbers=el('div',undefined,'execution-metrics')
+   numbers.append(metric('Tiempo observado',duration(metrics.duration_seconds),'Desde el inicio comunicado; puede incluir esperas','clock'),
+    metric('Tokens',Number.isSafeInteger(metrics.tokens)&&metrics.tokens>=0?metrics.tokens.toLocaleString('es'):'No disponible','Sólo consumo comunicado por el runtime','code'),
+    metric('Coste',metrics.cost&&Number.isFinite(metrics.cost.amount)&&/^[A-Z]{3}$/.test(metrics.cost.currency)?new Intl.NumberFormat('es',{style:'currency',currency:metrics.cost.currency}).format(metrics.cost.amount):'No disponible','Moneda y origen de la medición; sin conversión','board'))
+   body.append(runState(run),numbers,el('p','Inicio: '+fullTime(run.iniciado_at)+' · Última señal: '+fullTime(run.ultima_senal_at),'small-muted'),
+    el('p','Identificador local: '+key+' · Origen: hooks del proyecto','small-muted'))
+   if(metrics.usage_reason==='not_reported_by_hook')body.append(el('p','Los hooks de esta ejecución no proporcionan tokens ni coste. No disponible significa que falta la medición; no equivale a consumo cero.','notice'))
+   body.append(el('p','Último estado comunicado. La ventana de captura es parcial y no certifica que el proceso siga vivo.','small-muted'))
+   const operations=el('div',undefined,'execution-operations')
+   for(const event of value.eventos||[]){
+    const row=el('article',undefined,'execution-operation')
+    row.append(el('strong','Herramienta: '+event.tool),el('p',event.resumen||'Sin resumen comunicado'),
+     el('small',fullTime(event.observed_at)+' · '+(event.resultado==='ok'?'Correcto':event.resultado==='error'?'Error':'Resultado no comunicado')+' · '+(Number.isFinite(event.duracion_ms)?event.duracion_ms+' ms':'Duración no comunicada'),'small-muted'))
+    if(event.tarea)row.append(el('p','Tarea: '+event.tarea,'small-muted'));operations.append(row)
+   }
+   if(!operations.childElementCount)operations.append(el('p','No hay operaciones capturadas para esta ejecución.','small-muted'))
+   body.append(el('h3','Operaciones de esta ejecución'),operations)
+   if(value.recortado||value.recortado_historial)body.append(el('p','Hay operaciones anteriores fuera de esta ventana de lectura.','notice warning'))
+   box.append(body);host.replaceChildren(box)
+   if(restore&&focused.tagName==='BUTTON')host.querySelector('button')?.focus({preventScroll:true})
+  }catch(error){
+   if(error instanceof app.Stale||epoch!==state.epoch||sequence!==detailSequence||selectedRun!==key)return
+   detailSignature=''
+   const focused=document.activeElement,focusLabel=host.contains(focused)&&focused.tagName==='BUTTON'?focused.textContent:null
+   const box=panel('No se pudo leer esta ejecución','La captura puede estar desactivada, haber caducado o no estar disponible.')
+   const body=el('div',undefined,'panel-body')
+   body.append(button('Reintentar',app.safe(refreshRun),'secondary'),button('Cerrar detalle',()=>{selectedRun=null;detailSequence++;host.hidden=true},'quiet'))
+   box.append(body);host.replaceChildren(box)
+   if(focusLabel)[...host.querySelectorAll('button')].find(node=>node.textContent===focusLabel)?.focus({preventScroll:true})
   }
  }
  async function activity(){
@@ -105,35 +179,50 @@ export function createContext(app){
   else if(history.status==='partial')warnings.push('El historial de actividad es parcial.')
   if(failed)warnings.push('No se pudo leer la actividad de '+failed+' conexión'+(failed===1?'':'es')+'; su estado no se interpreta como vacío.')
   if(warnings.length)app.notice(warnings.join(' '),'warning')
-  else if(history.reason==='disabled')app.notice('La captura de hooks está desactivada. Se muestran únicamente las señales recibidas de las conexiones disponibles.')
+  else if(history.reason==='disabled')app.notice('La captura de hooks está desactivada. Para observar sesiones externas, añade sesion.actividad: true al objeto existente de .claude/dev.json y verifica que sus hooks estén cargados. La captura comienza con los siguientes eventos reales.')
   else if(bounded||history.collection_complete===false)app.notice('Ventana de actividad acotada; no representa todo el historial ni todas las operaciones.')
   else app.notice('')
   const signature=JSON.stringify([live.map(s=>[s.id,s.status,s.events]),history.runs,history.recientes,
    history.status,history.reason,history.collection_complete,failed,bounded])
-  if(signature===activitySignature)return;activitySignature=signature
+  if(signature===activitySignature){await refreshRun();return}activitySignature=signature
+  const previousFocus=document.activeElement,restoreDetail=detailHost?.contains(previousFocus),focusedRun=previousFocus?.dataset?.run
   const root=$('activity-content');root.replaceChildren()
   const stage=el('div',undefined,'agent-stage'),head=el('div',undefined,'agent-stage-title')
-  head.append(el('h2','El trabajo, con su contexto.'),el('span','Observación · sin razonamiento interno','small-muted'));stage.append(head)
+  head.append(el('h2','Sesiones y agentes observados'),el('span','Señales recibidas · no certifican procesos vivos','small-muted'));stage.append(head)
   const nodes=el('div',undefined,'agent-nodes')
   for(const session of live){
    const node=el('article',undefined,'agent-node'+(busy.has(session.status)?' observed-active':''))
    node.append(provider(session.runtime),el('h3',session.title),el('p',providers[session.runtime]+' · sesión de esta consola'),badge(session.status))
    node.append(button('Abrir conversación',app.safe(()=>app.navigate('sessions',{session:session.id})),'quiet','arrow'));nodes.append(node)
   }
-  for(const run of (history.runs||[]).slice(0,12)){
+  const hookRuns=history.runs||[],counts=el('div',undefined,'metric-grid')
+  const agents=hookRuns.filter(r=>r.scope==='subagent'),measured=['ok','partial'].includes(history.status)
+  counts.append(metric('Agentes en curso',measured?agents.filter(r=>r.estado==='en_curso').length:null,'Último estado comunicado','activity'),
+   metric('Agentes terminados',measured?agents.filter(r=>r.estado==='respuesta_terminada').length:null,'Final recibido por hook','check'),
+   metric('Sin actualizar',measured?agents.filter(r=>r.estado==='sin_senal_reciente').length:null,'Requieren comprobar su última señal','clock'),
+   metric('Sesiones sin atribución',measured?hookRuns.filter(r=>r.scope!=='subagent').length:null,'Operaciones sin identidad de agente','chat'))
+  stage.append(counts)
+  for(const run of hookRuns){
    const node=el('article',undefined,'agent-node'),avatar=el('span',(run.role||'SE').slice(0,2).toUpperCase(),'agent-avatar')
-   node.append(avatar,el('h3',run.role||'Sesión sin rol informado'),el('p',(run.runtime||'Entorno')+' · captura de hooks'),
-    badge(run.estado==='en_curso'?'running':'disconnected',run.estado==='en_curso'?'Señal reciente':'Sin señal reciente'))
-   if(run.ultima_herramienta)node.append(el('p','Última operación: '+run.ultima_herramienta,'small-muted'));nodes.append(node)
+   node.append(avatar,el('h3',run.role||(run.scope==='subagent'?'Subagente sin rol informado':'Actividad de sesión')),el('p',(run.runtime||'Entorno')+' · '+(run.scope==='subagent'?'subagente':'señales de sesión')+' · captura de hooks'),
+    runState(run))
+   if(run.ultima_senal_at)node.append(el('p','Última señal: '+time(run.ultima_senal_at),'small-muted'))
+   if(run.ultima_herramienta)node.append(el('p','Última herramienta: '+run.ultima_herramienta,'small-muted'))
+   node.append(el('p','Tiempo observado: '+duration(run.duracion_s),'small-muted'),el('p','Tokens: No disponible · Coste: No disponible','small-muted'))
+   if(run.key16){const open=button('Ver ejecución',app.safe(()=>openRun(run.key16)),'quiet','arrow');open.dataset.run=run.key16;node.append(open)}
+   nodes.append(node)
   }
   if(!nodes.childElementCount)empty(nodes,'La actividad aparecerá aquí.','Abre una sesión para observar sus operaciones. La captura de hooks es una opción adicional del proyecto.','activity',
    [button('Abrir sesión',app.safe(()=>app.newSession()),'primary','plus')])
-  stage.append(nodes);root.append(stage)
+  stage.append(nodes);root.append(stage,executionHost())
+  if(restoreDetail&&previousFocus.isConnected)previousFocus.focus({preventScroll:true})
   const feed=panel('Línea de actividad','Operaciones informadas por las conexiones y la captura local')
   const body=el('div',undefined,'activity-feed')
   if(events.length)timeline(body,events);else empty(body,'Todavía no hay operaciones.','Una señal ausente no demuestra que todo esté parado. Solo se muestran operaciones recibidas.','clock',[],true)
   feed.append(body);feed.style.marginTop='20px';root.append(feed)
   root.append(el('p','Las conexiones pueden omitir subagentes, skills o herramientas. La actividad es informativa y puede tener huecos; el estado del plan se consulta por separado.','native-limits'))
+  if(focusedRun)root.querySelector('button[data-run="'+focusedRun+'"]')?.focus({preventScroll:true})
+  await refreshRun()
  }
  async function memory(){
   const value=await app.api('memory')

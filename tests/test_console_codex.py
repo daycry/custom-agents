@@ -31,6 +31,113 @@ def driver(tmp_path):
     out=[];d=api().Driver(SimpleNamespace(root=tmp_path,id='one'),out.append,peer_factory=Peer,command=['fake-native'])
     return d,out
 
+
+def test_discovery_lists_only_project_metadata_without_resuming_or_reading_turns(tmp_path):
+    module=api();discover=getattr(module,'discover',None)
+    assert callable(discover), 'Native project session discovery is missing'
+    peers=[]
+    class InventoryPeer(Peer):
+        def __init__(self,*args,**kwargs):super().__init__(*args,**kwargs);peers.append(self)
+        def call(self,method,params,timeout=15):
+            self.calls.append((method,params))
+            if method=='thread/list':
+                return {'data':[{'id':'a'*36,'cwd':str(tmp_path),'name':'Named conversation','createdAt':10,'updatedAt':20,
+                    'status':{'type':'active'},'preview':'PRIVATE PROMPT','turns':[{'text':'PRIVATE TURN'}]},
+                    {'id':'b'*36,'cwd':str(tmp_path.parent),'name':'FOREIGN'}], 'nextCursor':None}
+            return {}
+    value=discover(SimpleNamespace(root=tmp_path),peer_factory=InventoryPeer,command=['fake-native'])
+    assert len(value['sessions'])==1
+    row=value['sessions'][0]
+    assert row['title']=='Named conversation' and row['status']=='unconfirmed'
+    assert row['source']=='native' and row['read_only'] is True
+    assert not any(word in str(value) for word in ('PRIVATE','FOREIGN','turns','preview'))
+    assert peers[0].closed
+    calls=peers[0].calls
+    assert {method for method,_ in calls}=={'initialize','thread/list'}
+    assert all(p['cwd']==str(tmp_path) and p['useStateDbOnly'] is True for m,p in calls if m=='thread/list')
+
+
+def test_discovery_is_paginated_bounded_and_closes_on_native_failure(tmp_path):
+    module=api();discover=getattr(module,'discover',None)
+    assert callable(discover), 'Native project session discovery is missing'
+    peers=[]
+    class Pages(Peer):
+        def __init__(self,*a,**kw):super().__init__(*a,**kw);peers.append(self)
+        def call(self,method,params,timeout=15):
+            self.calls.append((method,params))
+            if method=='initialize':return {}
+            if len(self.calls)==2:
+                return {'data':[{'id':'a'*36,'cwd':str(tmp_path),'createdAt':1,'updatedAt':2}], 'nextCursor':'page2'}
+            assert params['cursor']=='page2'
+            raise ValueError('DO NOT EXPOSE NATIVE ERROR')
+    value=discover(SimpleNamespace(root=tmp_path),peer_factory=Pages,command=['fake-native'])
+    assert value['status']=='partial' and value['complete'] is False and len(value['sessions'])==1
+    assert peers[0].closed and 'DO NOT EXPOSE' not in str(value)
+
+
+def test_discovery_pages_roles_and_parents_without_duplicates_or_active_claims(tmp_path):
+    module=api();peers=[]
+    class Pages(Peer):
+        def __init__(self,*a):super().__init__(*a);peers.append(self)
+        def call(self,method,params,timeout=15):
+            self.calls.append((method,params))
+            if method=='initialize':return {}
+            if 'cursor' not in params:
+                return {'data':[{'id':'parent','cwd':str(tmp_path),'name':None,'createdAt':1,'updatedAt':2}], 'nextCursor':'two'}
+            return {'data':[{'id':'parent','cwd':str(tmp_path),'createdAt':1,'updatedAt':2},
+                {'id':'child','cwd':str(tmp_path),'createdAt':2,'updatedAt':3,'agentRole':'reviewer','parentThreadId':'parent'}], 'nextCursor':None}
+    value=module.discover(SimpleNamespace(root=tmp_path),peer_factory=Pages,command=['fake'])
+    assert value['complete'] is True and len(value['sessions'])==2
+    assert value['sessions'][0]['title']=='Codex / parent'
+    assert value['sessions'][1]['parent_id']=='parent' and value['sessions'][1]['role']=='reviewer'
+    assert all(s['status']=='unconfirmed' for s in value['sessions'])
+    assert peers[0].calls[-1][1]['cursor']=='two'
+
+
+@pytest.mark.parametrize('invalid',[
+    None,{'data':{}},{'data':[{'cwd':'/foreign'}],'nextCursor':None},
+    {'data':[],'nextCursor':0},{'data':[],'nextCursor':'repeated'},
+    {'data':[{'id':'bad/id','createdAt':1,'updatedAt':2}],'nextCursor':None},
+    {'data':[{'id':'valid','createdAt':float('nan'),'updatedAt':2}],'nextCursor':None},
+])
+def test_discovery_rejects_malformed_native_inventory_and_closes(tmp_path,invalid):
+    module=api();peers=[]
+    class Broken(Peer):
+        def __init__(self,*a):super().__init__(*a);peers.append(self)
+        def call(self,method,params,timeout=15):
+            if method=='initialize':return {}
+            if isinstance(invalid,dict) and isinstance(invalid.get('data'),list):
+                for row in invalid['data']:
+                    if isinstance(row,dict):row.setdefault('cwd',str(tmp_path))
+            return invalid
+    value=module.discover(SimpleNamespace(root=tmp_path),peer_factory=Broken,command=['fake'])
+    assert not value['complete'] and value['status']=='unavailable' and value['sessions']==[]
+    assert peers[0].closed
+
+
+def test_discovery_stops_at_page_budget_and_reports_incomplete_inventory(tmp_path):
+    module=api();peers=[]
+    class Many(Peer):
+        def __init__(self,*a):super().__init__(*a);peers.append(self);self.page=0
+        def call(self,method,params,timeout=15):
+            if method=='initialize':return {}
+            self.page+=1
+            return {'data':[{'id':str(self.page),'cwd':str(tmp_path),'createdAt':1,'updatedAt':2}], 'nextCursor':str(self.page)}
+    value=module.discover(SimpleNamespace(root=tmp_path),peer_factory=Many,command=['fake'])
+    assert len(value['sessions'])==4 and peers[0].page==4 and value['reason']=='native_inventory_limit'
+    assert not value['complete']
+
+
+def test_discovery_runtime_failure_and_cleanup_failure_are_explicit(tmp_path,monkeypatch):
+    module=api()
+    monkeypatch.setattr(module.TRANSPORT,'executable',lambda *a:(_ for _ in ()).throw(ValueError('PRIVATE PATH')))
+    value=module.discover(SimpleNamespace(root=tmp_path))
+    assert value['reason']=='native_inventory_unavailable' and 'PRIVATE PATH' not in str(value)
+    class BadClose(Peer):
+        def close(self):raise ValueError('PRIVATE PROCESS ERROR')
+    value=module.discover(SimpleNamespace(root=tmp_path),peer_factory=BadClose,command=['fake'])
+    assert value['reason']=='native_inventory_cleanup_failed' and 'PRIVATE PROCESS' not in str(value)
+
 def test_start_and_chat_use_project_scoped_rpc_without_permission_overrides(tmp_path):
     d,out=driver(tmp_path)
     assert d.start()=='thread-one'

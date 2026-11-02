@@ -58,6 +58,30 @@ def test_api_requires_capability_and_cookie_is_http_only(server):
     assert server.token.encode() not in body and str(server.workspaces['one'].root).encode() not in body
     assert headers['Cache-Control']=='no-store' and 'Access-Control-Allow-Origin' not in headers
 
+
+def test_native_inventory_route_obeys_workspace_authentication(server):
+    path='/api/workspaces/one/native-sessions'
+    assert request(server,path)[0]==401
+    cookie=login(server)
+    for _ in range(10):
+        status,_,body=request(server,path,cookie=cookie)
+        assert status==200, 'Native inventory route is missing'
+        value=json.loads(body)
+        if value['status']!='calculating':break
+    assert value['sessions']==[] and value['providers']==[]
+    assert request(server,'/api/workspaces/foreign/native-sessions',cookie=cookie)[0]==404
+
+
+def test_activity_execution_route_remains_authenticated_and_workspace_bound(server):
+    key='a'*16;path='/api/workspaces/one/activity/runs/'+key
+    server.service.activity_run=lambda workspace,ident:{'workspace':workspace,'key16':ident}
+    assert request(server,path)[0]==401
+    cookie=login(server)
+    status,_,body=request(server,path,cookie=cookie)
+    assert status==200 and json.loads(body)=={'workspace':'one','key16':key}
+    assert request(server,'/api/workspaces/foreign/activity/runs/'+key,cookie=cookie)[0]==404
+    assert request(server,'/api/workspaces/one/activity/runs/invalid',cookie=cookie)[0]==404
+
 def test_workspace_plans_and_comments_are_independent_on_one_port(server):
     cookie=login(server);plan=hashlib.sha256(b'2026-10-31-pilot').hexdigest()[:16]
     one=request(server,'/api/workspaces/one/plans/'+plan,cookie=cookie)

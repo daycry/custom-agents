@@ -42,7 +42,7 @@
 <button type="button" data-view="overview" aria-current="page"><svg class="icon"><use href="#i-grid"/></svg>Vista general</button>
 <button type="button" data-view="sessions"><svg class="icon"><use href="#i-chat"/></svg>Sesiones<span id="nav-sessions-count" class="nav-count">—</span></button>
 <button type="button" data-view="plans"><svg class="icon"><use href="#i-board"/></svg>Planes y tareas</button>
-<button type="button" data-view="activity"><svg class="icon"><use href="#i-activity"/></svg>Agentes en vivo<span class="live-label">LIVE</span></button>
+<button type="button" data-view="activity"><svg class="icon"><use href="#i-activity"/></svg>Actividad</button>
 <span class="nav-label">CONTEXTO</span>
 <button type="button" data-view="memory"><svg class="icon"><use href="#i-memory"/></svg>Memoria</button>
 <button type="button" data-view="integrations"><svg class="icon"><use href="#i-plug"/></svg>Integraciones</button>
@@ -57,6 +57,7 @@
 <div id="view-banner" class="notice" role="status" hidden></div>
 <section id="view-overview" class="view" aria-label="Vista general"><div id="overview-content"></div></section>
 <section id="view-sessions" class="view" aria-label="Sesiones" hidden>
+<div id="native-session-inventory" aria-label="Sesiones externas del proyecto"></div>
 <div class="session-layout"><aside class="session-browser"><div class="section-bar"><h2>Conversaciones</h2><button type="button" class="icon-button" id="session-add" aria-label="Nueva sesión"><svg class="icon"><use href="#i-plus"/></svg></button></div><label class="search-field"><svg class="icon"><use href="#i-search"/></svg><input id="session-search" type="search" placeholder="Buscar una sesión" aria-label="Buscar sesión"></label><div id="session-list" class="session-list"></div></aside>
 <div class="conversation"><header class="conversation-header"><div><span id="chat-provider" class="provider-label">SESIÓN</span><h2 id="chat-title">Tu próxima conversación</h2><span id="chat-state" class="muted">Elige una sesión para continuar.</span></div><div class="conversation-actions"><button type="button" class="button small secondary" id="resume-session" hidden>Retomar</button><button type="button" class="icon-button" id="disconnect-session" aria-label="Cerrar la conexión nativa de esta sesión" title="Cerrar la conexión propia; conserva la conversación nativa" disabled><svg class="icon"><use href="#i-plug"/></svg></button><button type="button" class="icon-button" id="chat-inspector-toggle" aria-label="Mostrar herramientas de la sesión" aria-expanded="true"><svg class="icon"><use href="#i-code"/></svg></button></div></header>
 <div id="chat-messages" class="chat-messages" aria-label="Mensajes de la sesión" aria-live="off"></div><div id="chat-requests" class="chat-requests"></div>

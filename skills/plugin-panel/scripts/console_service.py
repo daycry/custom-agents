@@ -4,6 +4,7 @@ import importlib.util
 from pathlib import Path
 import re
 import sys
+import threading
 import time
 
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -22,6 +23,8 @@ class Service:
     def __init__(self,workspaces,sessions=None):
         self.workspaces=workspaces;self.sessions=sessions or SESSIONS.SessionManager(workspaces)
         self.reads=SNAPSHOTS.Snapshots()
+        self.discovery_reads=SNAPSHOTS.Snapshots()
+        self.discovery_lock=threading.RLock();self.discovery_peers=set();self.closing=False
     def workspace(self,ident):
         C.need(ident in self.workspaces,'workspace_not_found',404)
         workspace=self.workspaces[ident];workspace.validate();return workspace
@@ -113,6 +116,44 @@ class Service:
         history,reason=LEGACY.activity_history(workspace.root)
         value=DATA.actividad_runs(history,now=time.time()) if history is not None else LEGACY._unavailable_history(reason)
         return LEGACY._scrub_history(value,lambda text:C.scrub(text,workspace.root))
+    def activity_run(self,ident,key16):
+        workspace=self.workspace(ident)
+        C.need(type(key16) is str and re.fullmatch('[a-f0-9]{16}',key16),'activity_run_not_found',404)
+        history,reason=LEGACY.activity_history(workspace.root)
+        C.need(history is not None,'activity_history_unavailable',503)
+        value=DATA.actividad_run(history,key16,now=time.time())
+        C.need(value is not None,'activity_run_not_found',404)
+        value['metrics']={'duration_seconds':value['run'].get('duracion_s'),'tokens':None,'cost':None,
+                          'source':'project_hooks','usage_reason':'not_reported_by_hook'}
+        return LEGACY._scrub_history(value,lambda text:C.scrub(text,workspace.root))
+    def native_peer(self,*args):
+        owner=self;transport=C.sibling('console_transport.py')
+        class OwnedPeer(transport.JsonPeer):
+            def start(self):
+                with owner.discovery_lock:
+                    C.need(not owner.closing,'console_closed',503)
+                    super().start();owner.discovery_peers.add(self)
+            def close(self):
+                try:super().close()
+                finally:
+                    with owner.discovery_lock:owner.discovery_peers.discard(self)
+        return OwnedPeer(*args)
+    def native_sessions(self,ident):
+        workspace=self.workspace(ident)
+        def compute():
+            workspace.validate();providers=[];rows=[];complete=True
+            for runtime in workspace.runtimes:
+                if runtime=='codex':
+                    value=C.sibling('console_codex.py').discover(workspace,peer_factory=self.native_peer)
+                    rows.extend(value['sessions']);complete=complete and value['complete']
+                    providers.append({k:v for k,v in dict(value,runtime=runtime).items() if k!='sessions'})
+                else:
+                    complete=False
+                    providers.append({'runtime':runtime,'status':'unsupported','complete':False,'reason':'external_discovery_not_supported'})
+            workspace.validate()
+            return {'status':'ok' if complete else 'partial','complete':complete,'sessions':rows,'providers':providers}
+        return self.discovery_reads.get((ident,'native'),compute,
+            {'status':'calculating','complete':False,'sessions':[],'providers':[]},max_age=15)
     def integrations(self,ident):
         workspace=self.workspace(ident);route=C.bundled('integration-route.py').route(workspace.root)
         config=C.bundled('local-read.py').read_bytes(workspace.root,'.claude/knowledge-services/taxonomy.json',max_bytes=65536)
@@ -147,7 +188,7 @@ class Service:
                 except ValueError:pass
             rows.append({'id':runtime,'enabled':runtime in workspace.runtimes,'installed':found,'connection':'not_checked',
                          'capabilities':{'chat':True,'resume_known':True,'interrupt':True,'approval':True,'desktop_window_control':False,
-                                         'external_session_discovery':False,'attachments':False},
+                                         'external_session_discovery':runtime=='codex','external_session_control':False,'attachments':False},
                          'limits':['Native policies apply','Advanced forms may require the native application']})
         return {'runtimes':rows,'session_state_error':self.sessions.errors.get(ident)}
     def catalog(self,ident):
@@ -160,4 +201,7 @@ class Service:
                                            scrub=lambda text:C.scrub(text,workspace.root))
         return self.snapshot(workspace,'catalog',compute,{'status':'calculating','complete':False,
                              'agents':[],'skills':[],'commands':[]},60)
-    def close(self):self.reads.close();self.sessions.close()
+    def close(self):
+        with self.discovery_lock:self.closing=True;peers=list(self.discovery_peers)
+        for peer in peers:peer.close()
+        self.discovery_reads.close();self.reads.close();self.sessions.close()

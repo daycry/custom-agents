@@ -110,10 +110,12 @@ class Handler(BaseHTTPRequestHandler):
         workspace,tail=match.groups();service=self.server.service;service.workspace(workspace)
         if tail=='plans':value=service.plans(workspace)
         elif tail=='sessions':value={'sessions':service.sessions.list(workspace)}
+        elif tail=='native-sessions':value=service.native_sessions(workspace)
         elif tail=='runtimes':value=service.runtimes(workspace)
         elif tail=='memory':value=service.memory(workspace)
         elif tail=='integrations':value=service.integrations(workspace)
         elif tail=='activity':value=service.activity(workspace)
+        elif (part:=re.fullmatch('activity/runs/([a-f0-9]{16})',tail)):value=service.activity_run(workspace,part[1])
         elif tail=='catalog':value=service.catalog(workspace)
         elif (part:=re.fullmatch('sessions/'+SESSION,tail)):value=service.sessions.get(workspace,part[1])
         elif (part:=re.fullmatch('plans/'+PLAN,tail)):value=service.plan(workspace,part[1])

@@ -1,11 +1,12 @@
-import {$,el,icon,button,badge,provider,providers,busy,relative,time,empty,markdown} from './console-dom.js'
+import {$,el,icon,button,badge,provider,providers,busy,relative,time,empty,markdown,panel,externalSessions,observedSessionCount} from './console-dom.js'
 
 export function createSessions(app){
  const state=app.state,drafts=new Map()
- let activeKey=null,current=null,messageSignature='',requestSignature='',listSignature='',refreshSequence=0,pendingSend=null
+ let activeKey=null,current=null,messageSignature='',requestSignature='',listSignature='',inventorySignature='',nativeInventory=null,refreshSequence=0,pendingSend=null
  function saveDraft(){if(activeKey)drafts.set(activeKey,$('chat-input').value)}
  function clear(){
   saveDraft();activeKey=null;current=null;messageSignature='';requestSignature='';listSignature='';pendingSend=null;refreshSequence++
+  inventorySignature='';nativeInventory=null;$('native-session-inventory').replaceChildren()
   $('chat-input').value='';$('chat-messages').replaceChildren();$('chat-requests').replaceChildren();$('session-context').replaceChildren();$('session-tools').replaceChildren();$('session-list').replaceChildren()
   $('chat-title').textContent='Tu próxima conversación';$('chat-state').textContent='Elige una sesión de este proyecto.';$('chat-provider').textContent='SESIÓN'
   $('send-button').disabled=true;$('interrupt-button').disabled=true;$('resume-session').hidden=true
@@ -17,6 +18,44 @@ export function createSessions(app){
   renderList(true);await snapshot()
  }
  function draft(text){$('chat-input').value=text||'';saveDraft();updateComposer()}
+ function renderInventory(value){
+  nativeInventory=value
+  const query=$('session-search').value.trim().toLowerCase()
+  const rows=externalSessions(value,state.sessions).filter(s=>s.title.toLowerCase().includes(query))
+  const signature=JSON.stringify([rows,value.status,value.complete,value.providers,value.freshness?.state,query])
+  if(signature===inventorySignature)return;inventorySignature=signature
+  const root=$('native-session-inventory'),box=panel('Sesiones externas del proyecto','Conversaciones encontradas fuera de esta consola · Solo lectura')
+  const body=el('div',undefined,'panel-body')
+  body.append(el('p','Encontrada no significa conectada ni en ejecución. Para conversar o interrumpir estas sesiones, usa su aplicación nativa.','small-muted'))
+  if(value.status==='calculating')body.append(el('p','Consultando el inventario nativo del proyecto…','small-muted'))
+  else if(value.status==='unavailable'||value.freshness?.state==='refresh_failed')body.append(el('p','No se pudo actualizar el inventario. Una lectura fallida no significa que no existan sesiones.','notice warning'))
+  const sources=el('div',undefined,'native-inventory-sources')
+  for(const source of value.providers||[]){
+   const name=providers[source.runtime]||source.runtime
+   const label=source.status==='unsupported'?'sin descubrimiento externo':source.status==='ok'?'inventario leído':source.status==='partial'?'lectura parcial':'inventario no disponible'
+   sources.append(el('span',name+' · '+label,'pill'))
+   if(source.observed_at)sources.append(el('small','Leído: '+time(source.observed_at),'small-muted'))
+   if(source.reason==='native_inventory_limit')sources.append(el('p','Se ha alcanzado el límite de 200 sesiones; el listado es parcial.','small-muted'))
+  }
+  body.append(sources)
+  const grid=el('div',undefined,'native-session-grid')
+  for(const row of rows){
+   const card=el('article',undefined,'native-session-card')
+   card.append(provider(row.runtime),el('h3',row.title),el('span','Estado no confirmado','pill'),
+    el('p','Última actualización: '+time(row.updated_at),'small-muted'),el('code',row.id))
+   if(row.role)card.append(el('p','Rol informado: '+row.role,'small-muted'))
+   if(row.parent_id)card.append(el('p','Subagente de '+row.parent_id,'small-muted'))
+   grid.append(card)
+  }
+  if(rows.length)body.append(grid)
+  else if(value.status!=='calculating'){
+   const read=(value.providers||[]).some(p=>['ok','partial'].includes(p.status))&&value.status!=='unavailable'
+   body.append(el('p',read?(query?'Ninguna sesión externa coincide con la búsqueda.':'No hay sesiones externas en esta lectura. Las conexiones conocidas siguen debajo.'):'No se dispone de un inventario externo confirmado. Revisa el estado de cada proveedor.','small-muted'))
+  }
+  body.append(el('p','Codex: metadatos indexados, no archivados y del directorio exacto del proyecto. La consulta no carga turnos. Los subagentes solo aparecen si su runtime informa su identidad.','native-limits'),
+   button('Ver actividad capturada del proyecto',app.safe(()=>app.navigate('activity')),'quiet','activity'))
+  box.append(body);root.replaceChildren(box)
+ }
  function renderList(force=false){
   const query=$('session-search').value.trim().toLowerCase()
   const sessions=state.sessions.filter(s=>s.title.toLowerCase().includes(query))
@@ -170,8 +209,14 @@ export function createSessions(app){
   await app.sessionReady(result)
  }
  async function refresh(){
-  const result=await app.api('sessions');state.sessions=Array.isArray(result.sessions)?result.sessions:[]
-  $('nav-sessions-count').textContent=state.sessions.length
+  const epoch=state.epoch
+  const [managed,native]=await Promise.allSettled([app.api('sessions'),app.api('native-sessions')])
+  if(epoch!==state.epoch||state.view!=='sessions')return
+  if(managed.status==='rejected')throw managed.reason
+  const result=managed.value;state.sessions=Array.isArray(result.sessions)?result.sessions:[]
+  const inventory=native.status==='fulfilled'?native.value:{status:'unavailable',sessions:[],providers:[]}
+  renderInventory(inventory)
+  $('nav-sessions-count').textContent=observedSessionCount(inventory,state.sessions)??(inventory.status==='calculating'?'…':'—')
   renderList()
   if(!state.selectedSession&&state.sessions.length)await select(state.sessions[0].id)
   else if(state.selectedSession&&activeKey!==state.workspace+':'+state.selectedSession)await select(state.selectedSession)
@@ -182,7 +227,7 @@ export function createSessions(app){
    updateComposer()
   }
  }
- $('session-search').addEventListener('input',()=>renderList(true))
+ $('session-search').addEventListener('input',()=>{renderList(true);if(nativeInventory)renderInventory(nativeInventory)})
  $('chat-input').addEventListener('input',()=>{saveDraft();updateComposer()})
  $('chat-input').addEventListener('keydown',event=>{
   if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();if(!$('send-button').disabled)$('chat-form').requestSubmit()}

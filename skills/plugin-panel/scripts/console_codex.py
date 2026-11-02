@@ -3,11 +3,66 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import threading
+import time
 
 _spec=importlib.util.spec_from_file_location('console_codex_common',Path(__file__).with_name('console_common.py'))
 C=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(C)
 TRANSPORT=C.sibling('console_transport.py')
+
+def discover(workspace,peer_factory=None,command=None):
+    """List indexed, non-archived project metadata. Never attach to external work."""
+    rows=[];peer=None;complete=False;reason=None;seen=set();cursors=set()
+    deadline=time.monotonic()+12
+    def call(method,params):
+        C.deadline_guard(deadline)
+        return peer.call(method,params,timeout=max(.01,min(4,deadline-time.monotonic())))
+    try:
+        factory=peer_factory or TRANSPORT.JsonPeer
+        peer=factory((command or TRANSPORT.executable('codex',workspace.root))+['app-server'],workspace.root,lambda _:None)
+        peer.start()
+        call('initialize',{'clientInfo':{'name':'custom_agents_inventory','title':'custom-agents project inventory','version':'1.0.0'}})
+        peer.send({'method':'initialized','params':{}})
+        cursor=None
+        for _ in range(4):
+            params={'cwd':str(workspace.root),'useStateDbOnly':True,'archived':False,'limit':50,'sortKey':'updated_at',
+                    'sourceKinds':['cli','vscode','exec','appServer','subAgent','subAgentReview','subAgentCompact',
+                                   'subAgentThreadSpawn','subAgentOther','unknown']}
+            if cursor is not None:params['cursor']=cursor
+            value=call('thread/list',params)
+            C.need(type(value) is dict and type(value.get('data')) is list and len(value['data'])<=50,'native_inventory_invalid',503)
+            for thread in value['data']:
+                if type(thread) is not dict or not C.same_root(thread.get('cwd'),workspace.root):
+                    reason='native_inventory_partial';continue
+                ident=thread.get('id')
+                if type(ident) is not str or re.fullmatch(r'[A-Za-z0-9_-]{1,128}',ident) is None:
+                    reason='native_inventory_partial';continue
+                if ident in seen:continue
+                created,updated=thread.get('createdAt'),thread.get('updatedAt')
+                if any(type(stamp) not in (int,float) or not 0<=stamp<=time.time()+86400 for stamp in (created,updated)):
+                    reason='native_inventory_partial';continue
+                title=thread.get('name');role=thread.get('agentRole');parent=thread.get('parentThreadId')
+                rows.append({'id':ident,'runtime':'codex','title':C.scrub(title,workspace.root,160) if type(title) is str and title.strip() else 'Codex / '+ident[-8:],
+                             'created_at':created,'updated_at':updated,'status':'unconfirmed','source':'native','read_only':True,
+                             'role':C.scrub(role,workspace.root,80) if type(role) is str else None,
+                             'parent_id':parent if type(parent) is str else None})
+                seen.add(ident)
+            cursor=value.get('nextCursor')
+            if cursor is None:complete=reason is None;break
+            C.need(type(cursor) is str and 0<len(cursor)<=4096 and cursor not in cursors,'native_inventory_invalid',503)
+            cursors.add(cursor)
+        if cursor is not None:reason='native_inventory_limit'
+    except Exception:
+        reason='native_inventory_unavailable';complete=False
+    finally:
+        if peer is not None:
+            try:peer.close()
+            except Exception:reason='native_inventory_cleanup_failed';complete=False
+    for row in rows:
+        if row['parent_id'] not in seen:row['parent_id']=None
+    return {'status':'ok' if complete else 'partial' if rows else 'unavailable','complete':complete,
+            'reason':reason,'sessions':rows,'observed_at':time.time(),'scope':'indexed_non_archived_exact_cwd'}
 
 def command_choices(params):
     available=params.get('availableDecisions')

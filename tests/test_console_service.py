@@ -13,6 +13,71 @@ def load(name):
     spec=importlib.util.spec_from_file_location('service_test_'+name.replace('.','_'),SCRIPTS/name)
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
 
+
+def test_native_inventory_is_scoped_cached_and_explicit_about_unsupported_runtimes(tmp_path,monkeypatch):
+    registry=load('console_workspaces.py');module=load('console_service.py')
+    project=registry.Workspace('one','One',tmp_path,('codex','claude-code'))
+    service=module.Service({'one':project},sessions=SimpleNamespace(close=lambda:None))
+    method=getattr(service,'native_sessions',None)
+    assert callable(method), 'Native inventory endpoint is missing'
+    calls=[];original=module.C.sibling
+    def discover(workspace,**kwargs):
+        calls.append(workspace.root)
+        return {'status':'ok','complete':True,'sessions':[{'id':'external','title':'Scoped metadata'}],'observed_at':1}
+    monkeypatch.setattr(module.C,'sibling',lambda name:SimpleNamespace(discover=discover) if name=='console_codex.py' else original(name))
+    try:
+        deadline=time.monotonic()+2
+        while time.monotonic()<deadline:
+            value=method('one')
+            if value['status']!='calculating':break
+            time.sleep(.01)
+        assert value['sessions'][0]['title']=='Scoped metadata'
+        assert value['complete'] is False
+        assert {p['runtime']:p['status'] for p in value['providers']}=={'codex':'ok','claude-code':'unsupported'}
+        method('one');assert calls==[tmp_path]
+        try:method('foreign')
+        except ValueError:pass
+        else:assert False,'Unregistered project accepted'
+    finally:service.close()
+
+
+def test_shutdown_closes_owned_inventory_peers_and_prevents_late_start(tmp_path,monkeypatch):
+    module=load('console_service.py');service=module.Service({},sessions=SimpleNamespace(close=lambda:None))
+    factory=getattr(service,'native_peer',None)
+    assert callable(factory), 'Inventory process ownership is missing'
+    closed=[]
+    class FakePeer:
+        def __init__(self,*args):pass
+        def start(self):pass
+        def close(self):closed.append(self)
+    original=module.C.sibling
+    monkeypatch.setattr(module.C,'sibling',lambda n:SimpleNamespace(JsonPeer=FakePeer) if n=='console_transport.py' else original(n))
+    peer=factory([],tmp_path,lambda _:None);peer.start()
+    service.close()
+    assert peer in closed and not service.discovery_peers
+    late=factory([],tmp_path,lambda _:None)
+    try:late.start()
+    except ValueError:pass
+    else:assert False,'Process started after console shutdown'
+
+
+def test_activity_execution_detail_uses_project_history_and_rejects_unknown_identity(tmp_path,monkeypatch):
+    registry=load('console_workspaces.py');module=load('console_service.py')
+    service=module.Service({'one':registry.Workspace('one','One',tmp_path,())},sessions=SimpleNamespace(close=lambda:None))
+    method=getattr(service,'activity_run',None)
+    assert callable(method), 'Activity execution details are missing'
+    reads=[]
+    monkeypatch.setattr(module.LEGACY,'activity_history',lambda root:(reads.append(root) or {'test':True},None))
+    monkeypatch.setattr(module.DATA,'actividad_run',lambda history,key16,now: {'status':'ok','key16':key16,'run':{'role':'reviewer'},'eventos':[]} if key16=='a'*16 else None)
+    try:
+        assert method('one','a'*16)['run']['role']=='reviewer'
+        for invalid in ('../outside','b'*16):
+            try:method('one',invalid)
+            except ValueError:pass
+            else:assert False,'Unknown execution accepted'
+        assert all(root==tmp_path for root in reads)
+    finally:service.close()
+
 def test_a_slow_catalog_cannot_reserve_all_readers_while_other_projects_wait(tmp_path,monkeypatch):
     registry=load('console_workspaces.py');module=load('console_service.py');workspaces={}
     for name in ['slow','fast-one','fast-two','fast-three','plan']:
