@@ -51,6 +51,11 @@ Usa autenticación y políticas nativas existentes, sin opciones para saltar per
 Expón las capacidades y límites observados. No prometas controlar ventanas Desktop
 ni importar todas las sesiones de un runtime si su adaptador no lo acredita.
 
+El inventario externo Codex usa metadatos indexados del cwd registrado, sin turnos
+ni control de esas sesiones. Distingue ausencia, lectura parcial y proveedor sin
+soporte. Para diagnosticar captura o sesiones ausentes, consulta la
+[guía de visibilidad](../../docs/guides/session-visibility.md).
+
 Crear una sesión no envía un objetivo. Escribir un mensaje y pulsar Enviar inicia
 un turno; las decisiones nativas requieren respuesta explícita y de un solo uso.
 Un envío admitido, un turno iniciado y un resultado confirmado son estados distintos.
@@ -74,6 +79,9 @@ duplicados. No representan por sí solos comentarios publicados en Jira o Redmin
 Actividad distingue eventos recibidos de la sesión y capturas históricas opt-in;
 un estado del ledger no demuestra que un agente esté vivo. Muestra origen,
 antigüedad, lectura parcial y datos no confirmados. No inventes métricas.
+Agrupa por identidad de agente o sesión recibida; las herramientas son operaciones.
+Ver ejecución abre el detalle acotado del grupo. El tiempo observado puede incluir
+esperas; los hooks actuales no proporcionan tokens ni coste. Ausencia no es cero.
 
 Memoria usa lecturas locales explícitas con `agent-kits/shared/knowledge-view.py`;
 la vista no conecta Kwipu ni Graphiti. Los backends son opcionales por proyecto.

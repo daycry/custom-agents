@@ -93,6 +93,7 @@ revalidar el registro al reiniciar; no conserva la autoridad de la carpeta anter
 | Interrumpir | Solicita cancelación y espera confirmación; puede quedar sin confirmar |
 | Desconectar | Cierra únicamente el puente/procesos propios, si no hay un turno activo |
 | Retomar | Reabre una sesión conocida por la consola, comprobando su proyecto nativo |
+| Sesiones externas | Metadatos Codex del proyecto, en solo lectura; no adjunta la consola a esas sesiones |
 | Continuar/revisar plan | Prepara y muestra el mensaje; verifica que las fuentes no cambiaron antes de enviarlo |
 | Añadir nota | Comentario local versionado e idempotente; no cambia estados ni publica en otro sistema |
 | Consultar memoria | Lectura local; no inicia exportación ni red hacia un backend |
@@ -110,6 +111,53 @@ nativos complejos requieren su interfaz original. Una vista previa recortada
 no permite aprobar; sólo ofrece rechazar/cancelar si el runtime lo permite.
 No se muestra razonamiento interno. Las herramientas declaradas se distinguen
 de las operaciones realmente observadas.
+
+El inventario externo usa `thread/list` con cwd exacto y `useStateDbOnly`: metadatos
+indexados no archivados, hasta cuatro páginas de 50 entradas. Se actualiza en
+segundo plano cada quince segundos, con hasta cuatro consultas simultáneas en un
+pool separado de las lecturas de planes, memoria y catálogo. Un RPC tiene hasta
+cuatro segundos, con doce segundos acumulados por consulta más el cierre propio.
+No inicia inferencia, no solicita turnos ni reanuda conversaciones externas.
+El proceso auxiliar se cierra al terminar o detener la consola. El estado de otro
+proceso no se puede confirmar desde esta consulta. Un error o límite se muestra
+como lectura parcial/indisponible, nunca como ausencia demostrada.
+Captura y diagnóstico: [visibilidad de sesiones y agentes](../../../docs/guides/session-visibility.md).
+
+## Actividad y ficha de ejecución
+
+La navegación operativa se llama **Actividad**. Las tarjetas de hooks se agrupan
+por identidad reportada: runtime y sesión, más agente cuando está identificado.
+Las herramientas aparecen como operaciones, por ejemplo **Herramienta: apply_patch**;
+su nombre nunca acredita un agente. Los contadores de agentes cuentan grupos de
+subagentes; las señales sin esa identidad cuentan como sesiones sin atribución.
+
+**Ver ejecución** abre la ficha del grupo capturado. Expone inicio, última señal,
+estado, identificador local y origen, con hasta 150 operaciones recientes en orden
+de recepción. Un nuevo inicio puede reutilizar el grupo y actualizar su inicio;
+no representa una ficha independiente ni una historia exhaustiva por cada turno.
+
+| Campo o estado | Contrato |
+|---|---|
+| En curso | Subagente sin cierre comunicado y señal de hace menos de 60 s |
+| Actividad reciente | Señal reciente de un grupo de sesión sin cierre comunicado |
+| Terminado | Fin de respuesta o ejecución recibido; no acredita destrucción del agente |
+| Sin actualizar | Señal sin actualidad confirmada; no demuestra que el proceso se detuviera |
+| Tiempo observado | Desde el inicio comunicado hasta ahora, el cierre o la última señal, según estado; incluye posibles esperas |
+| Tokens / Coste | No disponible en la captura de hooks actual; ausencia de medición, nunca cero ni dinero derivado del tiempo |
+| Operación | Herramienta, resumen y fecha; resultado, duración y tarea sólo cuando se comunicaron o atribuyeron |
+
+Sin inicio comunicado, la duración queda no disponible. Sin actualizar, se congela
+en la última señal. La ficha indica recortes y ofrece Reintentar ante un fallo.
+Las señales no certifican procesos vivos ni sustituyen el estado canónico del plan.
+La captura externa requiere `sesion.actividad: true` y hooks cargados; comienza con
+los siguientes eventos reales, sin reconstruir el pasado.
+
+En Sesiones, el contador combina conexiones propias e inventario externo observado,
+deduplicando por runtime e identidad nativa. Una consulta fallida sin observaciones
+no se convierte en un cero confirmado. Las conexiones propias conservan su chat;
+las externas continúan en su aplicación nativa. El recorrido de uso y los límites
+se mantienen en la [guía ES](../../../docs/guides/session-visibility.md) y su
+[espejo EN](../../../docs/en/guides/session-visibility.md).
 
 ## Estado y recuperación
 

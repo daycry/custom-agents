@@ -1,0 +1,832 @@
+{
+  "config": {
+    "argv": [
+      "<ABS_PATH>/Program Files\\nodejs\\node.exe",
+      "<USER_HOME>\\.claude\\tool-cache\\qa\\node_modules\\@playwright\\test\\cli.js",
+      "test",
+      "--config",
+      "<QA_CACHE>/playwright.config.mjs",
+      "--repeat-each=3"
+    ],
+    "configFile": "<QA_CACHE>\\playwright.config.mjs",
+    "rootDir": "<QA_CACHE>/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": true,
+    "fullyParallel": false,
+    "globalSetup": "<QA_CACHE>\\fixture.mjs",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "<QA_CACHE>/private/artifacts",
+        "repeatEach": 3,
+        "retries": 2,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "msedge",
+        "name": "msedge",
+        "testDir": "<QA_CACHE>/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "<QA_CACHE>\\private\\results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "E2E-01.spec.mjs",
+      "file": "E2E-01.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "E2E-01 externa de sólo lectura, contador observado y título escapado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1388,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:50:32.649Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-01-E2E-01-externa-de-s-9b6ed-observado-y-título-escapado-msedge\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "850d34ca78f1821e70ad-89e1e463553ee8cbbfdf",
+          "file": "E2E-01.spec.mjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "E2E-01 contador deduplica conexión propia y no convierte fallo en cero",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1203,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:50:34.489Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-01-E2E-01-contador-ded-8b116--no-convierte-fallo-en-cero-msedge\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "850d34ca78f1821e70ad-2b23c2572c81ceaf17b9",
+          "file": "E2E-01.spec.mjs",
+          "line": 20,
+          "column": 1
+        },
+        {
+          "title": "E2E-01 externa de sólo lectura, contador observado y título escapado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1706,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:50:46.194Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-01-E2E-01-externa-de-s-9b6ed-observado-y-título-escapado-msedge-repeat1\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "850d34ca78f1821e70ad-cee72757bd8b0476b078",
+          "file": "E2E-01.spec.mjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "E2E-01 contador deduplica conexión propia y no convierte fallo en cero",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1306,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:50:48.292Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-01-E2E-01-contador-ded-8b116--no-convierte-fallo-en-cero-msedge-repeat1\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "850d34ca78f1821e70ad-653066b4267b60b001ea",
+          "file": "E2E-01.spec.mjs",
+          "line": 20,
+          "column": 1
+        },
+        {
+          "title": "E2E-01 externa de sólo lectura, contador observado y título escapado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1659,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:51:03.071Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-01-E2E-01-externa-de-s-9b6ed-observado-y-título-escapado-msedge-repeat2\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "850d34ca78f1821e70ad-b6c58f637dfd7770bd59",
+          "file": "E2E-01.spec.mjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "E2E-01 contador deduplica conexión propia y no convierte fallo en cero",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1140,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:51:05.237Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-01-E2E-01-contador-ded-8b116--no-convierte-fallo-en-cero-msedge-repeat2\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "850d34ca78f1821e70ad-548f7747371cdd237b98",
+          "file": "E2E-01.spec.mjs",
+          "line": 20,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "E2E-02.spec.mjs",
+      "file": "E2E-02.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "E2E-02 estado de agente y detalle con métricas ausentes y operaciones",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1494,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:50:35.729Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-02-E2E-02-estado-de-ag-2ea71-icas-ausentes-y-operaciones-msedge\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "962b13692dcf20b9a278-ad65f07c1ccc00db3430",
+          "file": "E2E-02.spec.mjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "E2E-02 estado de agente y detalle con métricas ausentes y operaciones",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1526,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:50:49.625Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-02-E2E-02-estado-de-ag-2ea71-icas-ausentes-y-operaciones-msedge-repeat1\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "962b13692dcf20b9a278-01743f7d3a893f2a44cb",
+          "file": "E2E-02.spec.mjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "E2E-02 estado de agente y detalle con métricas ausentes y operaciones",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1561,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:51:06.412Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-02-E2E-02-estado-de-ag-2ea71-icas-ausentes-y-operaciones-msedge-repeat2\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "962b13692dcf20b9a278-e28cf9739588d755abd0",
+          "file": "E2E-02.spec.mjs",
+          "line": 3,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "E2E-03.spec.mjs",
+      "file": "E2E-03.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "E2E-03 respuestas tardías de inventario y detalle no cruzan proyectos",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1841,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:50:37.259Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-respuestas-t-5a719-detalle-no-cruzan-proyectos-msedge\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "45b40a1284a09d4eecaf-6f68c72be537f2ed018c",
+          "file": "E2E-03.spec.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "title": "E2E-03 servidor rechaza sesión fixture conocida en otro workspace",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 905,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:50:39.122Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "45b40a1284a09d4eecaf-8f166c9439588a8db42c",
+          "file": "E2E-03.spec.mjs",
+          "line": 32,
+          "column": 1
+        },
+        {
+          "title": "E2E-03 respuestas tardías de inventario y detalle no cruzan proyectos",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1734,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:50:51.194Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-respuestas-t-5a719-detalle-no-cruzan-proyectos-msedge-repeat1\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "45b40a1284a09d4eecaf-5208980d3b0012ff2c35",
+          "file": "E2E-03.spec.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "title": "E2E-03 servidor rechaza sesión fixture conocida en otro workspace",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 993,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:50:52.944Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-repeat1\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "45b40a1284a09d4eecaf-99e6e892e47f154810a1",
+          "file": "E2E-03.spec.mjs",
+          "line": 32,
+          "column": 1
+        },
+        {
+          "title": "E2E-03 respuestas tardías de inventario y detalle no cruzan proyectos",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1890,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:51:08.016Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-respuestas-t-5a719-detalle-no-cruzan-proyectos-msedge-repeat2\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "45b40a1284a09d4eecaf-0778868151caf3b7c1f5",
+          "file": "E2E-03.spec.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "title": "E2E-03 servidor rechaza sesión fixture conocida en otro workspace",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 907,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:51:09.924Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-repeat2\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "45b40a1284a09d4eecaf-d2251af9618cb9ea6f42",
+          "file": "E2E-03.spec.mjs",
+          "line": 32,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "E2E-04.spec.mjs",
+      "file": "E2E-04.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "E2E-04 teclado, foco tras refrescos, fallo repetido y recuperación idéntica",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4241,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:50:40.056Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-04-E2E-04-teclado-foco-c2dfd-ido-y-recuperación-idéntica-msedge\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "93d53e0c0db4ec70a683-4c111f43fc99887cb614",
+          "file": "E2E-04.spec.mjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "E2E-04 teclado, foco tras refrescos, fallo repetido y recuperación idéntica",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4063,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:50:53.959Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-04-E2E-04-teclado-foco-c2dfd-ido-y-recuperación-idéntica-msedge-repeat1\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "93d53e0c0db4ec70a683-66e7dffc5b77fbe58d02",
+          "file": "E2E-04.spec.mjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "E2E-04 teclado, foco tras refrescos, fallo repetido y recuperación idéntica",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4251,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:51:10.859Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-04-E2E-04-teclado-foco-c2dfd-ido-y-recuperación-idéntica-msedge-repeat2\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "93d53e0c0db4ec70a683-edfd5f63ff330f499828",
+          "file": "E2E-04.spec.mjs",
+          "line": 3,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-02T14:50:30.378Z",
+    "duration": 45303.774000000005,
+    "expected": 18,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

@@ -11,6 +11,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed
+
+- Mostrar sesiones Codex externas del proyecto como metadatos de solo lectura, con alcance, resultados parciales y contador de sesiones deduplicado. Renombrar la navegación a Actividad y agrupar señales por identidad reportada de agente/sesión, conservando las herramientas como operaciones. Añadir la ficha con tiempo observado, hasta 150 operaciones recientes y ausencia explícita de tokens/coste en hooks; explicar el opt-in y los límites de los estados en las guías ES/EN de visibilidad.
+
 ## [3.0.0] - 2026-10-31
 
 ### Changed — iniciativa `memory-integrations` (2026-10-31)

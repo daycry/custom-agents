@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "exit": 0,
+  "stack": "pytest",
+  "detalle": {
+    "stack": "pytest",
+    "informe": "coverage.json",
+    "global": 50.61,
+    "modo": "changed-only",
+    "base": "HEAD",
+    "ficheros": {
+      "skills/plugin-panel/scripts/console_codex.py": 99.47,
+      "skills/plugin-panel/scripts/console_service.py": 95.72,
+      "skills/plugin-panel/scripts/control_center.py": 82.54
+    },
+    "porcentaje": 92.58,
+    "minimo": 90.0
+  },
+  "avisos": []
+}
