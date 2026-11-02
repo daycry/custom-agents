@@ -5,6 +5,7 @@ not duplicated. Retrieval includes source snapshots; the full wrapper retains
 its original result and complete service taxonomy validation.
 """
 import importlib.util
+import json
 import os
 import re
 import sys
@@ -73,12 +74,25 @@ def _recortar_comentario_inline(contenido):
     return contenido
 
 
+def _metadato_texto(valor):
+    """Decode the supported one-line quoted title/tag scalars without YAML execution."""
+    if len(valor) >= 2 and valor.startswith('"') and valor.endswith('"'):
+        try:
+            return json.loads(valor)
+        except ValueError:
+            return valor[1:-1]
+    if len(valor) >= 2 and valor.startswith("'") and valor.endswith("'"):
+        return valor[1:-1].replace("''", "'")
+    return valor
+
+
 def _frontmatter(texto):
     """Owner del frontmatter YAML-simple compartido con el índice y la lectura local.
 
     Admite escalares, listas inline separadas por coma y listas en bloque. Los items
     de ambas listas normalizan un par de comillas simples o dobles emparejadas;
-    no interpreta escapes ni comas dentro de escalares entrecomillados. No es YAML completo.
+    title/tags admiten escapes JSON y apóstrofos YAML duplicados; tags admite listas
+    JSON inline. Los otros campos conservan YAML-simple. No es YAML completo.
     """
     m = _FRONTMATTER_RE.match(texto)
     if not m:
@@ -99,9 +113,21 @@ def _frontmatter(texto):
         if valor:
             ml = _LISTA_RE.match(valor)
             if ml:
-                datos[clave] = [_normalizar_item_lista(v) for v in ml.group(1).split(",") if v.strip()]
+                if clave == "tags":
+                    try:
+                        datos[clave] = json.loads(valor)
+                    except ValueError:
+                        datos[clave] = [_metadato_texto(v.strip()) for v in
+                                        ml.group(1).split(",") if v.strip()]
+                else:
+                    datos[clave] = [_normalizar_item_lista(v) for v in ml.group(1).split(",") if v.strip()]
             else:
-                datos[clave] = valor.strip('"').strip("'")
+                # title is optional publishing metadata. Preserve embedded quotes in
+                # plain scalars; decode JSON-style double quotes and YAML single quotes.
+                if clave == "title":
+                    datos[clave] = _metadato_texto(valor)
+                else:
+                    datos[clave] = valor.strip('"').strip("'")
             i += 1
             continue
         # Clave sin valor en la misma línea: puede ser una lista en bloque (líneas siguientes con
@@ -156,7 +182,8 @@ def _frontmatter(texto):
             # un `#` pegado al valor sin espacio delante (`https://a#frag`, `C#`, `ADR-001#sec`)
             # tampoco se recorta.
             valor_item = _recortar_comentario_inline(contenido_item)
-            items.append(_normalizar_item_lista(valor_item))
+            items.append(_metadato_texto(valor_item.strip()) if clave == "tags"
+                         else _normalizar_item_lista(valor_item))
             j += 1
         if items:
             datos[clave] = items
@@ -418,6 +445,8 @@ def index_snapshot(sources, config, include_source=False, root="."):
             # porque ni el indice ni `knowledge-sync.py` lo extraian.
             "resumen": fm.get("resumen"),
         }
+        if "title" in fm:
+            indice[id_]["title"] = fm["title"]
         if include_source:
             indice[id_].update(frontmatter=fm, texto=texto,
                               ruta_rel=os.path.relpath(ruta, os.path.join(root, "docs", "knowledge")).replace("\\", "/"))

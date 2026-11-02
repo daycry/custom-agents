@@ -610,16 +610,46 @@ def _cuerpo_segun_modo(entry):
     return _resumen_de(cuerpo)
 
 
-def _hash_contenido(knowledge_id, version, category, cuerpo):
+def _metadatos_exportados(entry):
+    """Optional approved metadata, with no inferred title or tag normalization."""
+    title, tags = entry.get("title"), entry.get("tags")
+    if title is not None and not isinstance(title, str):
+        raise ConfigInvalida("`title` debe ser una cadena")
+    if tags is not None and (not isinstance(tags, list) or
+                             not all(isinstance(tag, str) for tag in tags)):
+        raise ConfigInvalida("`tags` debe ser una lista de cadenas")
+    result = {}
+    if title:
+        result["title"] = title
+    if tags:
+        result["tags"] = list(tags)
+    return result
+
+
+def _hash_contenido(knowledge_id, version, category, cuerpo, title=None, tags=None):
     """sha256 del contenido SEMÁNTICO (no de los bytes finales del fichero, que ya incluyen este
     mismo hash en su frontmatter — evita la circularidad). Estable entre corridas: mismo
-    `knowledge_id`+`version`+`category`+`cuerpo` -> mismo hash."""
-    base = f"{knowledge_id}\n{version}\n{category}\n{cuerpo}".encode("utf-8")
-    return hashlib.sha256(base).hexdigest()
+    Incluye title/tags presentes como JSON canónico; sin ambos conserva el hash histórico.
+    El orden y los valores de las etiquetas se conservan."""
+    base = f"{knowledge_id}\n{version}\n{category}\n{cuerpo}"
+    metadata = _metadatos_exportados({"title": title, "tags": tags})
+    if metadata:
+        base += "\nmetadata:" + json.dumps(metadata, ensure_ascii=True, sort_keys=True,
+                                           separators=(",", ":"))
+    return hashlib.sha256(base.encode("utf-8")).hexdigest()
+
+
+def _yaml_text(value):
+    # Literal non-BMP Unicode avoids JSON surrogate pairs, which YAML doesn't join.
+    # YAML also treats these three characters as line breaks inside quoted scalars.
+    return (json.dumps(value, ensure_ascii=False).replace("\x85", "\\u0085")
+            .replace("\u2028", "\\u2028").replace("\u2029", "\\u2029"))
 
 
 def _render_markdown(op):
-    hash_ = _hash_contenido(op["knowledge_id"], op["version"], op["category"], op["cuerpo"])
+    metadata = _metadatos_exportados(op)
+    hash_ = _hash_contenido(op["knowledge_id"], op["version"], op["category"], op["cuerpo"],
+                           **metadata)
     frontmatter = (
         "---\n"
         f"knowledge_id: {op['knowledge_id']}\n"
@@ -630,8 +660,15 @@ def _render_markdown(op):
         f"confidence: {op['confidence']}\n"
         f"version: {op['version']}\n"
         f"hash: {hash_}\n"
-        "---\n\n"
     )
+    # JSON quoted strings are YAML scalars too. Keep hash before the variable-length list
+    # so the bounded recovery reader finds it even with hundreds of tags.
+    if "title" in metadata:
+        frontmatter += "title: " + _yaml_text(metadata["title"]) + "\n"
+    if "tags" in metadata:
+        frontmatter += "tags:\n" + "".join(
+            "  - " + _yaml_text(tag) + "\n" for tag in metadata["tags"])
+    frontmatter += "---\n\n"
     return frontmatter + op["cuerpo"].rstrip() + "\n", hash_
 
 
@@ -907,7 +944,8 @@ def plan(entries, cfg, force=False):
         category = e.get("category")
         version = e.get("version")
         cuerpo = _cuerpo_segun_modo(e)
-        hash_ = _hash_contenido(e["id"], version, category, cuerpo)
+        metadata = _metadatos_exportados(e)
+        hash_ = _hash_contenido(e["id"], version, category, cuerpo, **metadata)
         entrada_previa = manifest["entries"].get(e["id"])
         ruta_relativa_previa = (entrada_previa or {}).get("ruta_relativa")
         publicado_existe = bool(ruta_relativa_previa) and _hash_publicado_en(
@@ -927,6 +965,7 @@ def plan(entries, cfg, force=False):
             op["ruta_relativa"] = ruta_relativa_previa
         else:
             op["cuerpo"] = cuerpo  # solo los upsert cargan el cuerpo (gap 125)
+            op.update(metadata)
         ops.append(op)
     for id_antiguo in sorted(manifest["entries"]):
         if id_antiguo not in ids_actuales:
@@ -1492,7 +1531,7 @@ def _read_local(cfg, query=None, context=None):
         body = _cuerpo_segun_modo(entry)
         projected, projection_hash = _render_markdown({"knowledge_id": id_, "version": version,
             "category": category, "cuerpo": body, "project": _proyecto_de(id_),
-            "confidence": _confianza_de(evidence)})
+            "confidence": _confianza_de(evidence), **_metadatos_exportados(entry)})
         filename = _slug_fichero(id_)
         expected = {"ruta_relativa": filename, "hash": projection_hash,
                     "version": version, "category": category}

@@ -57,7 +57,8 @@ def graph(adapter, cfg):
     nodes = []
     for entry in cfg["_read_context"]["entries"]:
         hash_ = adapter._hash_contenido(entry["id"], entry["version"], entry["category"],
-                                       adapter._cuerpo_segun_modo(entry))
+                                       adapter._cuerpo_segun_modo(entry),
+                                       title=entry.get("title"), tags=entry.get("tags"))
         nodes.append({"id": "chunk-" + entry["id"], "type": "chunk",
                       "file_name": entry["id"] + ".md", "file_path": entry["id"] + ".md",
                       "fm": {"knowledge_id": entry["id"], "version": str(entry["version"]),
@@ -399,6 +400,7 @@ def test_direct_read_redacts_local_display_metadata(adapter, corpus):
     entry = corpus["_read_context"]["entries"][0]
     entry["titulo"] = "Owned token=Abcd12345678\x1b[31m\u202e"
     entry["tags"] = ["owned", "token=Abcd12345678\u202e"]
+    adapter.apply(adapter.plan(corpus['_read_context']['entries'], corpus), corpus)
     snap = graph(adapter, corpus)
     with bridge(corpus, [snap], answer(snap)):
         result = read(adapter, corpus)
@@ -467,6 +469,16 @@ def test_permission_gate_accepts_verified_bindings_without_sending_a_query(adapt
     with bridge(corpus, [snap]) as calls:
         assert permission(adapter, corpus) == {'puede': True}
     assert len(calls) == 2 and all(call[0] == 'GET' for call in calls)
+
+
+def test_permission_gate_accepts_optional_title_and_tags(adapter, corpus):
+    entries = corpus['_read_context']['entries']
+    for entry in entries:
+        entry['title'] = 'Título: "aprobado"'
+        entry['tags'] = ['area:despliegue', 'plataforma:azure-app-service']
+    adapter.apply(adapter.plan(entries, corpus), corpus)
+    with bridge(corpus, [graph(adapter, corpus)]):
+        assert permission(adapter, corpus) == {'puede': True}
 
 
 @pytest.mark.parametrize('health', [{'schema_version': '1.0', 'status': 'degraded'},
