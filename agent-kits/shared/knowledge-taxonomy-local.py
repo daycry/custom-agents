@@ -129,6 +129,51 @@ def _folder_seguro(folder):
     return all(p not in ("", ".", "..") for p in partes)
 
 
+def category_path_valid(value, *, template=False, inbox=False):
+    """Project-relative declarations; runtime readers also reject redirects."""
+    if (not _folder_seguro(value) or value != value.strip() or len(value) > 1024
+            or any(ord(c) < 32 or ord(c) == 127 for c in value) or ':' in value
+            or any(part.casefold() == '.git' for part in value.split('/'))):
+        return False
+    if any(part.endswith((' ', '.')) or re.fullmatch(r'(?i:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?', part)
+           for part in value.split('/')):
+        return False
+    if template and not value.lower().endswith('.md'):
+        return False
+    if inbox:
+        folded = value.casefold().rstrip('/')
+        for reserved in ('docs/knowledge/approved', 'docs/knowledge/candidates'):
+            if folded == reserved or folded.startswith(reserved + '/'):
+                return False
+    return True
+
+
+def _category_contract_errors(category, field, filename):
+    errors = []
+    for key in ('template', 'inbox'):
+        if key in category and not category_path_valid(category[key], **{key: True}):
+            errors.append(_error(f'{field}.{key}: ruta relativa de proyecto no valida', filename, field + '.' + key))
+    for key in ('allowed_producers', 'required_metadata', 'required_sections'):
+        if key not in category:
+            continue
+        values = category[key]
+        valid = (isinstance(values, list) and len(values) <= 64
+                 and all(isinstance(v, str) and v.strip() == v and v
+                         and len(v) <= 160 and not any(ord(c) < 32 or ord(c) == 127 for c in v)
+                         for v in values))
+        if valid:
+            valid = len(set(values)) == len(values)
+            if key == 'allowed_producers':
+                valid = valid and bool(values) and set(values) <= {'human', 'agent'}
+            elif key == 'required_metadata':
+                valid = valid and all(re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', v) for v in values)
+            else:
+                valid = len({v.casefold() for v in values}) == len(values) and all(not v.startswith('#') for v in values)
+        if not valid:
+            errors.append(_error(f'{field}.{key}: contrato de categoria no valido', filename, field + '.' + key))
+    return errors
+
+
 def default_taxonomy(template_path=None):
     """La plantilla por defecto del plugin, leída del disco si está disponible; si no, el
     respaldo embebido (mismo contenido). Nunca lanza (gap 14: una plantilla con encoding
@@ -251,6 +296,7 @@ def validar(config, fichero="taxonomy.json", backend_validator=None):
             if not isinstance(cat, dict):
                 errores.append(_error(f"{campo} debe ser un objeto", fichero, campo))
                 continue
+            errores.extend(_category_contract_errors(cat, campo, fichero))
             key = cat.get("key")
             if not key or not isinstance(key, str):
                 errores.append(_error(f"{campo} no declara `key`", fichero, f"{campo}.key"))

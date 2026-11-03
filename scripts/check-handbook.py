@@ -13,13 +13,15 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 
 PDF='output/pdf/custom-agents-manual-operativo.pdf'
 MANIFEST='output/pdf/custom-agents-manual-operativo.manifest.json'
-CHAPTERS=('product','core-workflows','atlassian','redmine','customization','operations','memory','dashboard')
+CHAPTERS=('product','core-workflows','atlassian','redmine','customization','operations','memory','dashboard','knowledge-categories')
 REFERENCES=('product','core-workflows','atlassian','redmine','customization','operations')
 SOURCES=('docs/CUSTOMIZATION.md',)+tuple('docs/guides/'+name+'.md' for name in CHAPTERS)+tuple(
     'docs/reference/'+name+'.md' for name in REFERENCES)+(
     'docs/examples/integrations/atlassian.json','docs/examples/integrations/project.json',
     'docs/examples/integrations/project-redmine/SKILL.md','docs/examples/integrations/memory.json',
-    'docs/examples/memory/taxonomy.json','docs/examples/dashboard/workspaces.json','agent-kits/shared/modules.json')
+    'docs/examples/memory/taxonomy.json','docs/examples/dashboard/workspaces.json','agent-kits/shared/modules.json',
+    'docs/examples/memory/categories/meetings.json','docs/examples/memory/categories/faq.json',
+    'docs/examples/memory/categories/mixed.json')
 SHA=re.compile('[a-f0-9]{64}')
 
 def read(root,name,maximum):

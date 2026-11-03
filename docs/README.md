@@ -115,6 +115,11 @@ Así se separan los roles: **`/pm-cycle`** decide *qué* y *cuánto cuesta* (una
 
 ## Skills compartidas
 
+| Pieza | Uso |
+|---|---|
+| `knowledge-category-template` | [Crear categorías y plantillas del proyecto](guides/knowledge-categories.md), con formato y productores configurables. |
+| `/knowledge-category-check` | [Revisar carpetas de entrada y proponer candidatos](guides/knowledge-categories.md#w-29-añadir-actas-y-revisar-la-carpeta), conservando los originales. |
+
 | Skill | Qué hace | Usada por |
 |-------|----------|-----------|
 | **cybersecurity** | Análisis estático de seguridad en 8 dimensiones (OWASP, CWE, secretos, deps, IaC, threat intel, authz, compliance). `SKILL.md` corto (mapa de fases); los 8 prompts de especialistas, recon, agregación/informe y estrategia de codebase grande viven en `references/` (lectura bajo demanda). | nemesis |

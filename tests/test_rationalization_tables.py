@@ -30,6 +30,8 @@ PIEZAS = {
     "capability-audit": ("skills/capability-audit/SKILL.md", "## Salida y evidencia"),
     "outcome-evals": ("skills/outcome-evals/SKILL.md", "## Salida y evidencia"),
     "research-first": ("skills/research-first/SKILL.md", "## Salida de la comparación"),
+    "knowledge-category-template": ("skills/knowledge-category-template/SKILL.md", "## Salida y evidencia"),
+    "knowledge-category-check": ("commands/knowledge-category-check.md", "## Resultado"),
     "implementer": ("agents/implementer.md", "## ANTES DE CERRAR (DoD)"),
     "adversarial-review": ("skills/adversarial-review/SKILL.md", "### 6. Salida y traza"),
     "qa": ("agents/qa.md", "## ANTES DE CERRAR (DoD)"),

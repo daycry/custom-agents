@@ -31,6 +31,17 @@ indicio de umbral mal calibrado: se registra en la retro, no se ignora.
 
 ## Propuesta y persistencia
 
+Antes de redactar, consulta el contrato de la categoría del proyecto. Si declara
+`template`, usa su plantilla como datos de formato; `required_metadata` y
+`required_sections` determinan lo que se exige al aprobar. La skill
+`knowledge-category-template` ayuda a crear ese contrato y el comando
+`/knowledge-category-check` revisa carpetas originales sin editarlas.
+Con `allowed_producers`, declara `--origin human` para contenido aportado por una
+persona o `--origin agent` para contenido generado; conserva `content_origin` y
+`proposed_by` al entregar una corrección. Son declaraciones, no autenticación.
+Una revisión humana no cambia el origen del contenido. El servicio sigue siendo
+el único dueño de la propuesta y de la posterior persistencia aprobada.
+
 Localiza `$SHAREDKIT` con las raíces del runtime (regla 5 de CONVENTIONS). Prepara
 la propuesta al descubrirla, cuando su evidencia está disponible, sin reconstruirla después.
 Usa Markdown UTF-8 con frontmatter simple y cuerpo: `category` como propuesta según

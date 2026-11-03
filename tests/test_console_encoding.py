@@ -491,6 +491,11 @@ def _modos():
         # knowledge-services T-07: reutiliza la misma taxonomia INVALIDA del taller (`kc-taxonomia-invalida`,
         # `evidence_levels: []`) para que `cargar_taxonomia()` reenvie el mensaje con tilde
         # ("no puede estar vacía") en vez de necesitar un fixture propio.
+        "skills/knowledge-category-template/scripts/category-template.py":
+            [("category preview", lambda w: ["configure", "--root", w], (0,),
+              json.dumps({"category": {"key": "console-notes", "folder": "console-notes",
+                  "min_evidence": "single_case", "template": "templates/console-notes.md"},
+                  "template_text": "---\ncategory: console-notes\n---\n# Reuni\u00f3n\n"}, ensure_ascii=False))],
         "skills/knowledge-services/scripts/knowledge-sync.py":
             [("taxonomia invalida", lambda w: [
                 "--backend", "kwipu", "--root", os.path.join(w, "kc-taxonomia-invalida"), "--check"], (2,), None)],

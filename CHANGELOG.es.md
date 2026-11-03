@@ -11,6 +11,14 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+## [3.1.0] - 2026-11-03
+
+### Added — iniciativa `second-brain-foundation` (2026-11-03)
+
+- **T-01 — Configuración, formato y origen de las propuestas** Los proyectos pueden exigir formato y declarar quién aporta contenido a cada categoría de conocimiento. (`agent-kits/shared/knowledge-taxonomy-local.py`, `agent-kits/shared/knowledge-curation-rules.py`, `agent-kits/shared/knowledge-curation.py`)
+- **T-02 — Plantillas externas y revisión de carpetas** Una skill guía la creación de categorías y plantillas del proyecto; un comando revisa sus carpetas de entrada y prepara candidatos con fuentes. (`skills/knowledge-category-template/**`, `commands/knowledge-category-check.md`, `agent-kits/shared/knowledge-write.md`)
+- **T-03 — Ejemplos, documentación, catálogo y regresiones** Documentación y ejemplos explican categorías humanas, de agentes y mixtas, con plantillas propias y destinos configurables.
+
 ## [3.0.2] - 2026-11-03
 
 ### Fixed
@@ -1317,6 +1325,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[3.1.0]: https://github.com/daycry/custom-agents/releases/tag/v3.1.0
 [3.0.2]: https://github.com/daycry/custom-agents/releases/tag/v3.0.2
 [3.0.1]: https://github.com/daycry/custom-agents/releases/tag/v3.0.1
 [3.0.0]: https://github.com/daycry/custom-agents/releases/tag/v3.0.0

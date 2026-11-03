@@ -819,6 +819,27 @@ flowchart LR
 The hook inventory validates distinct exact event vocabularies: ActivityObserved includes execution.started; SessionEnd does not. The reviewed local owner retains dependency closure and network mutation checks. [Evidence](../roadmap/2026-10-07-catalog-capabilities/testing/activity-catalog-closure114-status.md).
 
 
+## Project categories and templates
+
+[Workflows W-28 to W-30](guides/knowledge-categories.md) cover human, agent and
+mixed categories. `knowledge-category-template` prepares the project template
+and contract; `/knowledge-category-check` checks originals without editing them.
+An explicit proposal uses `knowledge-curation.py` to create pending candidates.
+
+```mermaid
+flowchart LR
+  Purpose --> Template[Project template and contract]
+  Template --> Original[Document in the configured inbox]
+  Original --> Check[knowledge-category-check]
+  Check -->|explicit proposal| Pending[Pending candidate]
+  Pending --> Curator[knowledge-curator]
+  Curator --> Approved[Approved knowledge]
+  Approved -->|authorized publication| Backend[Kwipu or Graphiti]
+```
+
+Review preserves declared origin. This declaration does not authenticate a person
+or grant permissions. Each category selects destinations through existing routing.
+
 ## Lite profile
 
 Resolve the effective profile before dispatch. Lite loads the core and only

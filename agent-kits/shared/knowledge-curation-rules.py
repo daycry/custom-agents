@@ -129,11 +129,65 @@ def validar_categoria(config, clave, fichero):
     return cat, []
 
 
+def validar_productor(fm, categoria, fichero):
+    """Declared provenance, not authentication of the person or process."""
+    origin = fm.get('content_origin')
+    allowed = categoria.get('allowed_producers')
+    if (origin is not None and origin not in ('human', 'agent')) or (allowed is not None and origin not in allowed):
+        return [_error('content_origin ausente o no permitido para esta categoria', fichero, 'content_origin')]
+    return []
+
+
+def _section_content(body):
+    """ATX headings outside code/comments; nested content counts for its parent."""
+    body = re.sub(r'<!--.*?(?:-->|\Z)', '', body, flags=re.DOTALL)
+    found, active, fence = {}, [], None
+    for line in body.splitlines():
+        mark = re.match(r'^ {0,3}(`{3,}|~{3,})', line)
+        if mark:
+            token = mark.group(1)
+            if fence is None:
+                fence = token
+            elif token[0] == fence[0] and len(token) >= len(fence) and not line[mark.end():].strip():
+                fence = None
+            continue
+        heading = None if fence or line.startswith(('    ', '\t')) else re.match(r'^ {0,3}(#{1,6})[ \t]+(.*)$', line)
+        if heading:
+            level = len(heading.group(1))
+            name = heading.group(2).strip()
+            before_close = name.rstrip('#')
+            if before_close and before_close[-1] in ' \t':
+                name = before_close.rstrip()
+            name = name.casefold()
+            active = [(depth, previous) for depth, previous in active if depth < level] + [(level, name)]
+            found.setdefault(name, False)
+        elif line.strip():
+            for _, name in active:
+                found[name] = True
+    return found
+
+
+def validar_contrato(fm, cuerpo, categoria, fichero):
+    errors = validar_productor(fm, categoria, fichero)
+    for key in categoria.get('required_metadata', []):
+        value = fm.get(key)
+        present = ((isinstance(value, str) and bool(value.strip())) or
+                   (isinstance(value, list) and bool(value) and
+                    all(isinstance(v, str) and bool(v.strip()) for v in value)))
+        if not present:
+            errors.append(_error(f'falta contenido en el metadato obligatorio `{key}`', fichero, key))
+    sections = _section_content(cuerpo) if categoria.get('required_sections') else {}
+    for name in categoria.get('required_sections', []):
+        if not sections.get(name.casefold(), False):
+            errors.append(_error(f'falta contenido en la seccion obligatoria `{name}`', fichero, 'required_sections'))
+    return errors
+
+
 def validar_aprobacion(fm, cuerpo, categoria, config, fichero, niveles_por_defecto, ruta_taxonomia):
     """Errores que bloquean `approve` (gaps 3 y 34): evidencia obligatoria y suficiente para la
     categoria EXACTA, fuentes y tags obligatorios, lista negra, y el token de `estado` reservado
     para cuando la entrada ya viva bajo `approved/`."""
-    errores = []
+    errores = validar_contrato(fm, cuerpo, categoria, fichero)
 
     evidencia = fm.get("evidencia")
     if not evidencia:

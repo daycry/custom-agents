@@ -52,6 +52,7 @@
         "delivery-practices",
         "dependency-upgrade",
         "frontend-quality",
+        "knowledge-category-template",
         "quick-implement",
         "rates-verify",
         "research-first",
@@ -63,6 +64,7 @@
       "commands": [
         "dev-cycle",
         "doctor",
+        "knowledge-category-check",
         "pm-backlog",
         "pm-cycle",
         "retro",

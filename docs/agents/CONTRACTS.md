@@ -62,7 +62,7 @@ o que la decisión fue no ponerla.
 
 ---
 
-## 1. Las sesenta y dos aristas E1–E62
+## 1. Las sesenta y tres aristas E1–E63
 
 Columnas fijas y parseables (`scripts/lint_plugin.py` las lee — ver §3): **Arista · Invocador · Invocado ·
 Flags/entrada · Exit codes/salida · Ficheros · Marcadores · Puerta · Piezas que describen**.
@@ -133,6 +133,7 @@ Flags/entrada · Exit codes/salida · Ficheros · Marcadores · Puerta · Piezas
 | E60 · panel lee lo publicado por backend sin red (`panel-redesign` T-34) | `skills/plugin-panel/scripts/panel_data.py` (`_backends`) | `.claude/knowledge-services/taxonomy.json`, `kwipu-export/manifest.json`, `graphiti-manifest.json` y `_sync-outbox/<backend>/done/*.manifest.json` (de `knowledge-services`) | proyecto fijo; `local-read.py` acotado (64 KiB la taxonomía, 16 KiB por manifiesto de la outbox) | por backend: `entradas`, `ultima` (`completado_en`), `interrumpida` (`.pending.json`), `ui_url` declarada; sin fuente → `null` («sin datos»); backend ausente → «no configurado» | solo ficheros locales; ninguna conexión ni `health`; `mtime` nunca es fecha | un export en curso se dice «publicación interrumpida»; no replica la vista del backend ni inventa enlace | `python3 -m pytest -q tests/test_panel_data.py tests/test_panel_memoria_ui.py` | `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `skills/plugin-panel/SKILL.md` |
 | E61 · hook de actividad escribe el historial de herramientas (`panel-redesign` T-44..T-47) | `hooks/hooks.json` (`PostToolUse`/`PostToolUseFailure` `async`), `interop/codex/hooks.json` y `hooks/opencode-plugin.js` (binding `tool-activity`), vía `hooks/run-hook.mjs agent-activity` | `agent-kits/shared/agent-activity-store.py` (`capture` → `record`) | `--runtime <claude\|codex\|opencode> --root <proyecto>`; payload por stdin (≤ 2 MiB; mayor → solo `descartados_por_tamano`); el launcher sale antes de Python sin `sesion.actividad: true` | exit 0 siempre, sin stdout (ADR-007); evento perdido sin reintento ni red | `.claude/agent-activity/events.json` (runs ≤ 64, ventanas ≤ 64, anillo 500 / 256 KiB / 24 h), `.lock`, `.gitignore` propio | opt-in comprobado en Node y en el almacén; resumen por lista blanca redactado y anonimizado; `T-XX` solo por la gramática exacta de `usage-meter.py start\|close`; nunca `tool_response` ni rutas absolutas | `python3 -m pytest -q tests/test_agent_activity_store.py tests/test_export_interop.py tests/test_panel_privacy.py` · `node --test tests/hook-budget.test.mjs tests/opencode-plugin.test.mjs` | `docs/observability.md`, `docs/en/observability.md`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md` |
 | E62 · panel lee el historial de actividad con su dueño (`panel-redesign` T-48..T-50) | `skills/plugin-panel/scripts/serve_panel.py` (`api/actividad-runs`, `api/actividad-run-<key16>`) y `panel_data.py` (`actividad_runs`, `actividad_run`) | `agent-kits/shared/agent-activity-store.py` (`history`) y `agent-kits/shared/agent-activity.py` (`project_runs`, `project_events`) | GET; `key16` por regex exacta (`[a-f0-9]{16}`), sin `?`; el navegador nunca envía rutas | JSON ≤ 64 KiB (suelta los eventos más antiguos y los suma a `recortado`); `key16` desconocido o ambiguo → 404; captura desactivada → `status: unavailable` con `reason` y `activar` | `.claude/agent-activity/` solo lectura (sin cerrojo, sin inicializar ni reparar) | forma cerrada de la lectura (fuera de forma → `invalid_history`, nada parcial); saneador único del panel; `api/activity` intacta; el panel nunca borra | `python3 -m pytest -q tests/test_panel_activity_server.py tests/test_panel_activity_ui.py tests/test_panel_inicio_ui.py tests/test_panel_privacy.py` | `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md` |
+| E63: category capture contract | `knowledge-category-template`, `/knowledge-category-check` | `knowledge-taxonomy-local.py`, `knowledge-curation-rules.py`, `knowledge-curation.py` | Project category, external template, inbox and declared origin | Read-only preview or explicit pending proposal with source SHA | Project template and taxonomy; candidates only through shared service | Bounded reads, expected SHA, no foreign overwrite; origin is not authentication | `test_knowledge_category_contract.py`, `test_category_template.py` | `docs/guides/knowledge-categories.md`, `docs/en/guides/knowledge-categories.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md` |
 
 
 **Cómo leer el estado de una fila.** «CERRADO en T-XX» = la puerta existe hoy y se puede ejecutar.
@@ -168,7 +169,7 @@ las aristas de arriba: sin puerta, son prosa que se olvida. Una fila por regla, 
 
 ## 3. Cómo se lee y cómo se mantiene
 
-**Cómo se lee.** Busca la arista por su identificador (`E1`…`E62`) o por la pieza que vas a tocar en
+**Cómo se lee.** Busca la arista por su identificador (`E1`…`E63`) o por la pieza que vas a tocar en
 la columna «Invocador»/«Invocado». La columna **«Piezas que describen»** es la lista que hay que
 meter en el campo `- **Archivos**:` de la tarea que toque esa pieza: es exactamente lo que faltaba
 en el hueco E3, y lo que `planner` copia de aquí al planificar.

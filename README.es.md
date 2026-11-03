@@ -1,5 +1,7 @@
 # custom-agents
 
+Conocimiento del proyecto: [categorías propias, plantillas, aportaciones humanas/de agentes y revisión de carpetas](docs/guides/knowledge-categories.md).
+
 
 **Manual de uso y personalización:** [workflows detallados del core, integraciones opcionales, Atlassian/Redmine y extensiones del proyecto](docs/CUSTOMIZATION.md). Los bundles nativos son completos; configurado no significa conectado ni autorizado.
 
@@ -26,11 +28,11 @@
 [![npx](https://img.shields.io/badge/instalaci%C3%B3n-npx-cb3837.svg?logo=npm&logoColor=white)](docs/INTEROP.md)
 [![SDD](https://img.shields.io/badge/metodolog%C3%ADa-Spec--Driven-2ea44f.svg)](docs/FLOWS.md)
 [![Agentes](https://img.shields.io/badge/agentes-10-0ea5e9.svg)](docs/README.md)
-[![Skills](https://img.shields.io/badge/skills-33-0ea5e9.svg)](docs/README.md)
-[![Comandos](https://img.shields.io/badge/comandos-15-0ea5e9.svg)](docs/README.md)
+[![Skills](https://img.shields.io/badge/skills-34-0ea5e9.svg)](docs/README.md)
+[![Comandos](https://img.shields.io/badge/comandos-16-0ea5e9.svg)](docs/README.md)
 [![Skills portables](https://img.shields.io/badge/skills%20portables-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/INSTALL.md#usar-las-skills-fuera-de-claude-code-paquete-portable)
 
-De la idea al código probado y documentado: `requisitos → presupuesto → plan → implementación → revisión adversarial → E2E → docs`, con **puertas de control** en cada paso, **coste real medido en tokens** y aprendizaje que calibra las siguientes estimaciones. Diez agentes, quince comandos, autosuficiente (sin dependencias de otros plugins) — y funciona en **tres runtimes**: Claude Code, Codex y OpenCode.
+De la idea al código probado y documentado: `requisitos → presupuesto → plan → implementación → revisión adversarial → E2E → docs`, con **puertas de control** en cada paso, **coste real medido en tokens** y aprendizaje que calibra las siguientes estimaciones. Diez agentes, dieciséis comandos, autosuficiente (sin dependencias de otros plugins) — y funciona en **tres runtimes**: Claude Code, Codex y OpenCode.
 
 > **Cómo se teclean los comandos.** En Claude Code instalado como plugin, el nombre real lleva el
 > espacio de nombres del plugin: **`/custom-agents:dev-cycle`**, `/custom-agents:retro`,
@@ -114,7 +116,7 @@ npx @daycry/custom-agents            # menú interactivo; marca los runtimes que
 
 | Runtime | Instalación | Qué obtienes |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 10 agentes, 15 comandos, 33 skills, hooks y statusline |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 10 agentes, 16 comandos, 34 skills, hooks y statusline |
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (o el instalador) | Skills, agentes como `.toml`, adaptadores de comandos generados (`$custom-agents:custom-agents-<nombre>`), hooks de sesión |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agentes, comandos y adaptador de hooks |
 

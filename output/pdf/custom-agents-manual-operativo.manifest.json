@@ -1,18 +1,19 @@
 {
-  "edition": "2026-10-31",
+  "edition": "2026-11-03",
   "language": "es",
   "pdf": "output/pdf/custom-agents-manual-operativo.pdf",
-  "workflows": 27,
+  "workflows": 30,
   "sources": {
-    "docs/CUSTOMIZATION.md": "a10fe152cb752811488c58e6faaec59c1b02227678f90b5de038ccc055805dee",
+    "docs/CUSTOMIZATION.md": "3388d83806d0b3f428b376499f117be28e354588132b51ade08371303ddea90d",
     "docs/guides/product.md": "e79e74e409d28d560aee948b1189ec607877d56a5852f096bccb5441319fa9b0",
     "docs/guides/core-workflows.md": "8d9e6180883e5cac193f7b635e71e88dd931b6a528e5a82f82e3c6bc409dafef",
     "docs/guides/atlassian.md": "9a2254994cc833ed64d14a42953d016da3096afac7f179f1eebc5126bcbbd24f",
     "docs/guides/redmine.md": "becc6f4a77ee095909081a62e409df337e861c70bf274b5df8ff740beac32580",
     "docs/guides/customization.md": "cbcdfd40642f3db953f1fcfa19ed7693361c8c52c0405b902c8e527abaaaef94",
     "docs/guides/operations.md": "f7809b98b6f89359e5a30244a51a12a16b48d96132b1211b53e580c2edc6ea23",
-    "docs/guides/memory.md": "7b62b733980b31c0c41f2d659c514e215677f0dfec2ac41ab516cff01d3c709b",
+    "docs/guides/memory.md": "d538072b2a1a13e52bc5769a7ca6de17278cdb43aea448cb25f015ca2c18ccb8",
     "docs/guides/dashboard.md": "5326daf35f02b969a7dd8e11706698970daa55853445994bded98dfc42ea9793",
+    "docs/guides/knowledge-categories.md": "c023508e1d7ddbeab2c7f05ce7357831ae54e343e96ad28c22453e0acd9d2383",
     "docs/reference/product.md": "1e0bcec98c685b5e24731562c03db4f442da6d6571a8a2ee58c85ed280c06902",
     "docs/reference/core-workflows.md": "6e7d13259e6a157077fe68c6b6707cb9541f13c3c3eeb81b22af104a6bf4798c",
     "docs/reference/atlassian.md": "23127c9a1b76bc81e8aed77c36c7afc281ef3692b9eff5bc65744aa9457cf4a5",
@@ -25,7 +26,10 @@
     "docs/examples/integrations/memory.json": "4ca23f192ee3e9b15cdd139169cdbe88fdc468ffbaeaf2f1e3e431fe41441a17",
     "docs/examples/memory/taxonomy.json": "2ad8e3d6a220acd4347218f6d5935b365129d38838047a4a21d6bea439e291a3",
     "docs/examples/dashboard/workspaces.json": "7c382c6dbfbbca76e8878ce93100c061e6660c01a56f23531aacf4c1d30c1ecf",
-    "agent-kits/shared/modules.json": "61335fc99045cd16481a6635a53b7fdac562bba90d085cac11bcd17faacb6d5e"
+    "docs/examples/memory/categories/meetings.json": "ca1ded473ae54863d31700c110ee0d1a32f0ac26a9f86091de7b6f44aa89ba33",
+    "docs/examples/memory/categories/faq.json": "67c3cb03a72271aec2ea09457a516273fed63b01f31ff3f16008a61c0e018721",
+    "docs/examples/memory/categories/mixed.json": "42e51ab0d7e44e749ac89dce9daebf48cab0fffc7d67d65a69ab3c5b36ae9067",
+    "agent-kits/shared/modules.json": "676a5b5b72078d5a3c8e361a3678164e61a54a22377df8868299d4560f52df49"
   },
   "schema_version": 1,
   "source_hash_method": "sha256-utf8-lf",
@@ -221,7 +225,19 @@
       "index": 6,
       "sha256": "f73704c8a364e3b77d6d85c05244a785178701bd03e5c8f012f88d177990dd27",
       "png_sha256": "b9728154aa50ab7542804ab1a59bbb00d52db90beee09ce7f5e91f60fc239905"
+    },
+    {
+      "source": "docs/guides/knowledge-categories.md",
+      "index": 1,
+      "sha256": "96127334af5182baefa53cd2582961d6b539b4c7e77ee7a8546154898695c65b",
+      "png_sha256": "d64f2ae08c732d472a92cca7452a5500488b895ef42e5f4f0f0c771fd89f62cb"
+    },
+    {
+      "source": "docs/guides/knowledge-categories.md",
+      "index": 2,
+      "sha256": "3a02a9ddd71376e325ed7feab74902a087866247a8c7be6ed11e712b4e6903d9",
+      "png_sha256": "bd45cf598776d82b2f8e215f19474c3b06b03c624bf9a18e80c5e8ec41c9fe34"
     }
   ],
-  "pdf_sha256": "e528548bd49eb10ac1edd5450fc3281c5b87779348d84d2efd9a6f796a6e49c5"
+  "pdf_sha256": "ebc272d4461afcf23be71b3a0aac722dedc93c55d38d59804d832a5c3bc47412"
 }

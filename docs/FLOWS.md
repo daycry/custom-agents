@@ -819,6 +819,27 @@ flowchart LR
 El inventario de hooks valida vocabularios exactos distintos: ActivityObserved incluye execution.started y SessionEnd no. La revisión del dueño local mantiene cerradas sus dependencias; una mutación de red sigue detectándose. [Evidencia](roadmap/2026-10-07-catalog-capabilities/testing/activity-catalog-closure114-status.md).
 
 
+## Categorías y plantillas del proyecto
+
+Los workflows [W-28 a W-30](guides/knowledge-categories.md) explican cómo crear
+categorías humanas, de agentes o mixtas. `knowledge-category-template` prepara
+plantilla y contrato; `/knowledge-category-check` revisa originales sin cambios.
+Solo una propuesta explícita crea candidatos mediante `knowledge-curation.py`.
+
+```mermaid
+flowchart LR
+  Finalidad --> Plantilla[Plantilla y contrato del proyecto]
+  Plantilla --> Original[Documento en la carpeta de entrada]
+  Original --> Check[knowledge-category-check]
+  Check -->|propuesta explícita| Pending[Candidato pendiente]
+  Pending --> Curator[knowledge-curator]
+  Curator --> Approved[Conocimiento aprobado]
+  Approved -->|publicación autorizada| Backend[Kwipu o Graphiti]
+```
+
+El origen declarado se conserva durante la revisión; no autentica a la persona
+ni concede permisos. Cada categoría decide sus destinos con el routing existente.
+
 ## Perfil lite
 
 El perfil efectivo se resuelve antes de despachar. Lite carga el núcleo y solo
