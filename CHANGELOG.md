@@ -11,6 +11,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-11-03
+
 ### Fixed
 
 - Verify Kwipu's native frontmatter hashes and declared identity metadata without collapsing conflicting chunks by filename; missing hashes are incomplete rather than success. Explicitly warn when Graphiti has no local publication evidence while preserving authorized external-group reads. Require explicit external index regeneration in the Kwipu remedy.
@@ -1297,6 +1299,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[3.0.1]: https://github.com/daycry/custom-agents/releases/tag/v3.0.1
 [3.0.0]: https://github.com/daycry/custom-agents/releases/tag/v3.0.0
 [2.3.0]: https://github.com/daycry/custom-agents/releases/tag/v2.3.0
 [2.2.0]: https://github.com/daycry/custom-agents/releases/tag/v2.2.0

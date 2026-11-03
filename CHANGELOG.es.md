@@ -11,6 +11,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+## [3.0.1] - 2026-11-03
+
 ### Fixed
 
 - Verificar los hashes nativos y metadatos de identidad de Kwipu sin ocultar chunks discrepantes por nombre de fichero; sin hashes se declara incompleto. Advertir expresamente de Graphiti sin evidencia de publicación local conservando la lectura autorizada de grupos externos. El remedio de Kwipu exige regeneración explícita del índice externo.
@@ -1309,6 +1311,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[3.0.1]: https://github.com/daycry/custom-agents/releases/tag/v3.0.1
 [3.0.0]: https://github.com/daycry/custom-agents/releases/tag/v3.0.0
 [2.3.0]: https://github.com/daycry/custom-agents/releases/tag/v2.3.0
 [2.2.0]: https://github.com/daycry/custom-agents/releases/tag/v2.2.0
