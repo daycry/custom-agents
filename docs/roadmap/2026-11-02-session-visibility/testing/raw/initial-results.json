@@ -1,0 +1,1252 @@
+{
+  "config": {
+    "argv": [
+      "<ABS_PATH>/Program Files\\nodejs\\node.exe",
+      "<USER_HOME>\\.claude\\tool-cache\\qa\\node_modules\\@playwright\\test\\cli.js",
+      "test",
+      "--config",
+      "<QA_CACHE>/playwright.config.mjs",
+      "--repeat-each=3"
+    ],
+    "configFile": "<QA_CACHE>\\playwright.config.mjs",
+    "rootDir": "<QA_CACHE>/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": true,
+    "fullyParallel": false,
+    "globalSetup": "<QA_CACHE>\\fixture.mjs",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "<QA_CACHE>/private/artifacts",
+        "repeatEach": 3,
+        "retries": 2,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "msedge",
+        "name": "msedge",
+        "testDir": "<QA_CACHE>/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "<QA_CACHE>\\private\\results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "E2E-01.spec.mjs",
+      "file": "E2E-01.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "E2E-01 externa de sólo lectura, contador observado y título escapado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1797,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:47:36.186Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-01-E2E-01-externa-de-s-9b6ed-observado-y-título-escapado-msedge\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "850d34ca78f1821e70ad-89e1e463553ee8cbbfdf",
+          "file": "E2E-01.spec.mjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "E2E-01 contador deduplica conexión propia y no convierte fallo en cero",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1358,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:47:38.420Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-01-E2E-01-contador-ded-8b116--no-convierte-fallo-en-cero-msedge\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "850d34ca78f1821e70ad-2b23c2572c81ceaf17b9",
+          "file": "E2E-01.spec.mjs",
+          "line": 20,
+          "column": 1
+        },
+        {
+          "title": "E2E-01 externa de sólo lectura, contador observado y título escapado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1419,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:48:00.515Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-01-E2E-01-externa-de-s-9b6ed-observado-y-título-escapado-msedge-repeat1\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "850d34ca78f1821e70ad-cee72757bd8b0476b078",
+          "file": "E2E-01.spec.mjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "E2E-01 contador deduplica conexión propia y no convierte fallo en cero",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1098,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:48:02.368Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-01-E2E-01-contador-ded-8b116--no-convierte-fallo-en-cero-msedge-repeat1\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "850d34ca78f1821e70ad-653066b4267b60b001ea",
+          "file": "E2E-01.spec.mjs",
+          "line": 20,
+          "column": 1
+        },
+        {
+          "title": "E2E-01 externa de sólo lectura, contador observado y título escapado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1716,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:48:26.457Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-01-E2E-01-externa-de-s-9b6ed-observado-y-título-escapado-msedge-repeat2\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "850d34ca78f1821e70ad-b6c58f637dfd7770bd59",
+          "file": "E2E-01.spec.mjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "E2E-01 contador deduplica conexión propia y no convierte fallo en cero",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1164,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:48:28.647Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-01-E2E-01-contador-ded-8b116--no-convierte-fallo-en-cero-msedge-repeat2\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "850d34ca78f1821e70ad-548f7747371cdd237b98",
+          "file": "E2E-01.spec.mjs",
+          "line": 20,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "E2E-02.spec.mjs",
+      "file": "E2E-02.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "E2E-02 estado de agente y detalle con métricas ausentes y operaciones",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1488,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:47:39.819Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-02-E2E-02-estado-de-ag-2ea71-icas-ausentes-y-operaciones-msedge\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "962b13692dcf20b9a278-ad65f07c1ccc00db3430",
+          "file": "E2E-02.spec.mjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "E2E-02 estado de agente y detalle con métricas ausentes y operaciones",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1343,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:48:03.491Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-02-E2E-02-estado-de-ag-2ea71-icas-ausentes-y-operaciones-msedge-repeat1\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "962b13692dcf20b9a278-01743f7d3a893f2a44cb",
+          "file": "E2E-02.spec.mjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "E2E-02 estado de agente y detalle con métricas ausentes y operaciones",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1376,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:48:29.864Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-02-E2E-02-estado-de-ag-2ea71-icas-ausentes-y-operaciones-msedge-repeat2\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "962b13692dcf20b9a278-e28cf9739588d755abd0",
+          "file": "E2E-02.spec.mjs",
+          "line": 3,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "E2E-03.spec.mjs",
+      "file": "E2E-03.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "E2E-03 respuestas tardías de inventario y detalle no cruzan proyectos",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1601,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:47:41.350Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-respuestas-t-5a719-detalle-no-cruzan-proyectos-msedge\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "45b40a1284a09d4eecaf-6f68c72be537f2ed018c",
+          "file": "E2E-03.spec.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "title": "E2E-03 servidor rechaza sesión fixture conocida en otro workspace",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 1025,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27",
+                    "location": {
+                      "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                      "column": 27,
+                      "line": 38
+                    },
+                    "snippet": "  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                        "column": 27,
+                        "line": 38
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n\n  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:47:42.967Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                    "column": 27,
+                    "line": 38
+                  }
+                },
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 1473,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27",
+                    "location": {
+                      "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                      "column": 27,
+                      "line": 38
+                    },
+                    "snippet": "  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                        "column": 27,
+                        "line": 38
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n\n  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 1,
+                  "startTime": "2026-11-02T14:47:46.040Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry1\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry1\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry1\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                    "column": 27,
+                    "line": 38
+                  }
+                },
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 1281,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27",
+                    "location": {
+                      "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                      "column": 27,
+                      "line": 38
+                    },
+                    "snippet": "  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                        "column": 27,
+                        "line": 38
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n\n  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 2,
+                  "startTime": "2026-11-02T14:47:50.106Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry2\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry2\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry2\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                    "column": 27,
+                    "line": 38
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "45b40a1284a09d4eecaf-8f166c9439588a8db42c",
+          "file": "E2E-03.spec.mjs",
+          "line": 32,
+          "column": 1
+        },
+        {
+          "title": "E2E-03 respuestas tardías de inventario y detalle no cruzan proyectos",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1654,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:48:04.864Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-respuestas-t-5a719-detalle-no-cruzan-proyectos-msedge-repeat1\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "45b40a1284a09d4eecaf-5208980d3b0012ff2c35",
+          "file": "E2E-03.spec.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "title": "E2E-03 servidor rechaza sesión fixture conocida en otro workspace",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 1244,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27",
+                    "location": {
+                      "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                      "column": 27,
+                      "line": 38
+                    },
+                    "snippet": "  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                        "column": 27,
+                        "line": 38
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n\n  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:48:06.532Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-repeat1\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-repeat1\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-repeat1\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                    "column": 27,
+                    "line": 38
+                  }
+                },
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 1356,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27",
+                    "location": {
+                      "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                      "column": 27,
+                      "line": 38
+                    },
+                    "snippet": "  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                        "column": 27,
+                        "line": 38
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n\n  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 1,
+                  "startTime": "2026-11-02T14:48:11.140Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry1-repeat1\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry1-repeat1\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry1-repeat1\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                    "column": 27,
+                    "line": 38
+                  }
+                },
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 1682,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27",
+                    "location": {
+                      "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                      "column": 27,
+                      "line": 38
+                    },
+                    "snippet": "  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                        "column": 27,
+                        "line": 38
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n\n  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 2,
+                  "startTime": "2026-11-02T14:48:15.085Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry2-repeat1\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry2-repeat1\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry2-repeat1\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                    "column": 27,
+                    "line": 38
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "45b40a1284a09d4eecaf-99e6e892e47f154810a1",
+          "file": "E2E-03.spec.mjs",
+          "line": 32,
+          "column": 1
+        },
+        {
+          "title": "E2E-03 respuestas tardías de inventario y detalle no cruzan proyectos",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1797,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:48:31.266Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-respuestas-t-5a719-detalle-no-cruzan-proyectos-msedge-repeat2\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "45b40a1284a09d4eecaf-0778868151caf3b7c1f5",
+          "file": "E2E-03.spec.mjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "title": "E2E-03 servidor rechaza sesión fixture conocida en otro workspace",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 1183,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27",
+                    "location": {
+                      "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                      "column": 27,
+                      "line": 38
+                    },
+                    "snippet": "  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                        "column": 27,
+                        "line": 38
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n\n  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:48:33.080Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-repeat2\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-repeat2\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-repeat2\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                    "column": 27,
+                    "line": 38
+                  }
+                },
+                {
+                  "workerIndex": 9,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 1584,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27",
+                    "location": {
+                      "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                      "column": 27,
+                      "line": 38
+                    },
+                    "snippet": "  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                        "column": 27,
+                        "line": 38
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n\n  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 1,
+                  "startTime": "2026-11-02T14:48:36.262Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry1-repeat2\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry1-repeat2\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry1-repeat2\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                    "column": 27,
+                    "line": 38
+                  }
+                },
+                {
+                  "workerIndex": 10,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 1362,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27",
+                    "location": {
+                      "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                      "column": 27,
+                      "line": 38
+                    },
+                    "snippet": "  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                        "column": 27,
+                        "line": 38
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n\n  36 |  const headers={Authorization:'[capability redactada]\n  37 |  const created=await request.post(url.origin+'/api/workspaces/portal/sessions',{headers,data:{runtime:'codex',title:'Sesión aislada de prueba',request_id:crypto.randomUUID().replaceAll('-','')}});\n> 38 |  expect(created.status()).toBe(200);const value=await created.json();const id=value.id||value.session?.id;\n     |                           ^\n  39 |  expect(typeof id).toBe('string');\n  40 |  const foreign=await request.get(url.origin+'/api/workspaces/billing/sessions/'+id,{headers});expect(foreign.status()).toBe(404);\n  41 |  const own=await request.get(url.origin+'/api/workspaces/portal/sessions/'+id,{headers});expect(own.status()).toBe(200);\n    at <QA_CACHE>\\tests\\E2E-03.spec.mjs:38:27"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 2,
+                  "startTime": "2026-11-02T14:48:40.553Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry2-repeat2\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry2-repeat2\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-03-E2E-03-servidor-rec-62366--conocida-en-otro-workspace-msedge-retry2-repeat2\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "<QA_CACHE>\\tests\\E2E-03.spec.mjs",
+                    "column": 27,
+                    "line": 38
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "45b40a1284a09d4eecaf-d2251af9618cb9ea6f42",
+          "file": "E2E-03.spec.mjs",
+          "line": 32,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "E2E-04.spec.mjs",
+      "file": "E2E-04.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "E2E-04 teclado, foco tras refrescos, fallo repetido y recuperación idéntica",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4154,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:47:54.217Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-04-E2E-04-teclado-foco-c2dfd-ido-y-recuperación-idéntica-msedge\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "93d53e0c0db4ec70a683-4c111f43fc99887cb614",
+          "file": "E2E-04.spec.mjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "E2E-04 teclado, foco tras refrescos, fallo repetido y recuperación idéntica",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 7,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4201,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:48:20.074Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-04-E2E-04-teclado-foco-c2dfd-ido-y-recuperación-idéntica-msedge-repeat1\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "93d53e0c0db4ec70a683-66e7dffc5b77fbe58d02",
+          "file": "E2E-04.spec.mjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "E2E-04 teclado, foco tras refrescos, fallo repetido y recuperación idéntica",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "msedge",
+              "projectName": "msedge",
+              "results": [
+                {
+                  "workerIndex": 11,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4115,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-02T14:48:44.414Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "<QA_CACHE>\\private\\artifacts\\E2E-04-E2E-04-teclado-foco-c2dfd-ido-y-recuperación-idéntica-msedge-repeat2\\test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "93d53e0c0db4ec70a683-edfd5f63ff330f499828",
+          "file": "E2E-04.spec.mjs",
+          "line": 3,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-02T14:47:33.407Z",
+    "duration": 76037.791,
+    "expected": 15,
+    "skipped": 0,
+    "unexpected": 3,
+    "flaky": 0
+  }
+}

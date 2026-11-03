@@ -6,6 +6,7 @@ Estados: borrador · en-progreso · en-revision · completado · cancelado (spec
 
 | Fecha | Iniciativa | Tiempo | Coste | Artefactos |
 |-------|-----------|--------|-------|-----------|
+| 2026-11-02 | session-visibility ? sesiones Codex externas y captura de actividad | No estimado (correcci?n) | No medido | [spec](2026-11-02-session-visibility/spec.md) ? [plan](2026-11-02-session-visibility/improvement-plan.md) ? [tasks](2026-11-02-session-visibility/tasks.md) |
 | 2026-07-09 | qa-agent — agente qa (E2E Playwright + informe) | 21,6 h | ~1.087 € | [spec](2026-07-09-qa-agent/spec.md) · [eval](2026-07-09-qa-agent/evaluation.md) · [plan](2026-07-09-qa-agent/improvement-plan.md) · [tasks](2026-07-09-qa-agent/tasks.md) |
 | 2026-07-09 | nemesis-sca-iac — trivy (SCA) + hadolint (IaC) | 12 h | ~605 € | [spec](2026-07-09-nemesis-sca-iac/spec.md) · [eval](2026-07-09-nemesis-sca-iac/evaluation.md) · [plan](2026-07-09-nemesis-sca-iac/improvement-plan.md) · [tasks](2026-07-09-nemesis-sca-iac/tasks.md) |
 | 2026-08-10 | agent-best-practices — best practices de agentes top (tiering, tools mínimos, DoD, DRY, revisión adversarial, linter CI) | 20,7 h | ~1.069 € | [spec](2026-08-10-agent-best-practices/spec.md) · [eval](2026-08-10-agent-best-practices/evaluation.md) · [plan](2026-08-10-agent-best-practices/improvement-plan.md) · [tasks](2026-08-10-agent-best-practices/tasks.md) |

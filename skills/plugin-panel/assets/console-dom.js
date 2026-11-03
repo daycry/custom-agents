@@ -45,6 +45,16 @@ export function relative(value){
  return 'hace '+Math.floor(seconds/86400)+' días'
 }
 export function key(){return crypto.randomUUID().replaceAll('-','')}
+export function externalSessions(inventory,managed){
+ const known=new Set(managed.map(s=>s.runtime+':'+s.native_id))
+ return (inventory?.sessions||[]).filter(s=>!known.has(s.runtime+':'+s.id))
+}
+export function observedSessionCount(inventory,managed){
+ if(!Array.isArray(managed))return null
+ const count=managed.length+externalSessions(inventory,managed).length
+ if(count)return count
+ return inventory?.status==='ok'&&inventory.complete===true||(inventory?.providers||[]).some(p=>['ok','partial'].includes(p.status))?0:null
+}
 export function loading(root,text='Preparando esta vista…'){root.replaceChildren(el('div',text,'loading'))}
 export function empty(root,title,description,symbol='box',actions=[],compact=false){
  const box=el('div',undefined,'empty-state'+(compact?' compact':''))

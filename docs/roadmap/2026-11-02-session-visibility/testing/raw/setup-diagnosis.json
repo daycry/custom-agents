@@ -1,0 +1,11 @@
+{
+  "isolated_cookie_count": 0,
+  "browser_cookie_present": true,
+  "without_cookie_status": 401,
+  "without_cookie_error": "authentication_required",
+  "with_cookie_status": 200,
+  "created_schema_has_id": true,
+  "own_status": 200,
+  "foreign_status": 404,
+  "foreign_error": "session_not_found"
+}

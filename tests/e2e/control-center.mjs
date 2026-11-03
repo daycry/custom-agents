@@ -4,6 +4,93 @@ import {mkdir,writeFile} from 'node:fs/promises'
 import {pathToFileURL} from 'node:url'
 import {resolve} from 'node:path'
 
+test('hook activity explains opt-in and distinguishes recent signals from completed agents',
+ {skip:!process.env.CONSOLE_TEST_URL || !process.env.CONSOLE_BROWSER_MODULE,timeout:45000},async()=>{
+  const {default:puppeteer}=await import(pathToFileURL(resolve(process.env.CONSOLE_BROWSER_MODULE)))
+  const browser=await puppeteer.launch({executablePath:process.env.CONSOLE_BROWSER_EXECUTABLE,headless:true})
+  const page=await browser.newPage();let enabled=false,detailFailed=false,historyRevision=0
+  try{
+   await page.setRequestInterception(true)
+   page.on('request',request=>{
+    if(new URL(request.url()).pathname.endsWith('/activity'))request.respond({status:200,contentType:'application/json',body:JSON.stringify({
+     status:enabled?'ok':'unavailable',reason:enabled?null:'disabled',collection_complete:false,
+     recientes:enabled?[{tool:historyRevision?'Read':'apply_patch',role:null,observed_at:1700000000+historyRevision}]:[],
+     runs:enabled?[{key16:'aaaaaaaaaaaaaaaa',role:'reviewer',scope:'subagent',runtime:'codex',estado:'respuesta_terminada',ultima_senal_at:1700000000,duracion_s:4,eventos:1}]:[]})})
+    else if(new URL(request.url()).pathname.endsWith('/activity/runs/aaaaaaaaaaaaaaaa'))request.respond({status:detailFailed?503:200,contentType:'application/json',body:JSON.stringify(detailFailed?{error:'fixture_detail_failure'}:{status:'ok',collection_complete:false,
+     run:{key16:'aaaaaaaaaaaaaaaa',role:'reviewer',scope:'subagent',runtime:'codex',estado:'respuesta_terminada',iniciado_at:1699999996,ultima_senal_at:1700000000,duracion_s:4,eventos:1},
+     metrics:{duration_seconds:4,tokens:null,cost:null,source:'project_hooks',usage_reason:'not_reported_by_hook'},
+     eventos:[{tool:'apply_patch',resumen:'Editar documento del proyecto',resultado:null,duracion_ms:null,observed_at:1700000000}]})})
+    else request.continue()
+   })
+   await page.goto(process.env.CONSOLE_TEST_URL,{waitUntil:'networkidle0'})
+   await page.waitForFunction(()=>document.querySelector('#workspace-select')?.options.length===2)
+   await page.click('[data-view="activity"]')
+   await page.waitForFunction(()=>document.body.textContent.includes('sesion.actividad'))
+   enabled=true
+   await page.waitForFunction(()=>document.querySelector('#activity-content')?.textContent.includes('Terminado'))
+   const node=await page.$eval('#activity-content .agent-node',e=>e.textContent)
+   assert.match(node,/Última señal:/);assert.ok(!node.includes('Señal reciente'))
+   const feed=await page.$eval('#activity-content .activity-feed',e=>e.textContent)
+   assert.match(feed,/Herramienta: apply_patch/);assert.match(feed,/Agente no identificado por el runtime/)
+   assert.equal(await page.$eval('[data-view="activity"]',e=>e.textContent.trim()),'Actividad')
+   await page.focus('button[data-run="aaaaaaaaaaaaaaaa"]');historyRevision++
+   await page.waitForFunction(()=>document.querySelector('#activity-content .timeline-item')?.textContent.includes('Herramienta: Read'))
+   assert.equal(await page.evaluate(()=>document.activeElement?.dataset.run),'aaaaaaaaaaaaaaaa')
+   await page.click('button[data-run="aaaaaaaaaaaaaaaa"]')
+   await page.waitForFunction(()=>document.querySelector('#activity-run-detail')?.textContent.includes('Editar documento del proyecto'))
+   const detail=await page.$eval('#activity-run-detail',e=>e.textContent)
+   assert.match(detail,/4 s/);assert.match(detail,/Tokens/);assert.match(detail,/Coste/);assert.match(detail,/No disponible/)
+   detailFailed=true
+   await page.waitForFunction(()=>document.querySelector('#activity-run-detail')?.textContent.includes('No se pudo leer'))
+   await page.focus('#activity-run-detail button')
+   for(let index=0;index<2;index++)await page.waitForResponse(response=>new URL(response.url()).pathname.endsWith('/activity/runs/aaaaaaaaaaaaaaaa')&&response.status()===503)
+   assert.equal(await page.evaluate(()=>document.activeElement?.textContent),'Reintentar')
+   detailFailed=false
+   await page.waitForFunction(()=>document.querySelector('#activity-run-detail')?.textContent.includes('Editar documento del proyecto'))
+  }finally{await browser.close()}
+ })
+
+test('external project sessions: metadata, honest status and workspace isolation',
+ {skip:!process.env.CONSOLE_TEST_URL || !process.env.CONSOLE_BROWSER_MODULE,timeout:45000},async()=>{
+  const {default:puppeteer}=await import(pathToFileURL(resolve(process.env.CONSOLE_BROWSER_MODULE)))
+  const browser=await puppeteer.launch({executablePath:process.env.CONSOLE_BROWSER_EXECUTABLE,headless:true})
+  const page=await browser.newPage();const requests=[]
+  try{
+   await page.setRequestInterception(true)
+   page.on('request',request=>{
+    const path=new URL(request.url()).pathname;requests.push(path)
+    if(path.endsWith('/native-sessions')){
+     const portal=path.includes('/portal/')
+     request.respond({status:200,contentType:'application/json',body:JSON.stringify({status:'partial',complete:false,
+      sessions:portal?[{id:'native-fixture',runtime:'codex',title:'Sesión externa <img src=x onerror="window.__nativeXss=1">',
+       updated_at:1700000000,source:'native',read_only:true,status:'unconfirmed',role:null,parent_id:null}]:[],
+      providers:[{runtime:'codex',status:portal?'ok':'unavailable',complete:portal,observed_at:1700000000},{runtime:'claude-code',status:'unsupported'}]})})
+    }else request.continue()
+   })
+   await page.goto(process.env.CONSOLE_TEST_URL,{waitUntil:'networkidle0'})
+   await page.waitForFunction(()=>document.querySelector('#workspace-select')?.options.length===2)
+   await page.click('[data-view="sessions"]')
+   await page.waitForSelector('#native-session-inventory .native-session-card',{timeout:7000})
+   const text=await page.$eval('#native-session-inventory',e=>e.textContent)
+   assert.match(text,/Sesión externa/);assert.match(text,/Estado no confirmado/);assert.match(text,/Solo lectura/)
+   assert.match(text,/Claude Code.*sin descubrimiento/i)
+   assert.equal(await page.$$eval('#native-session-inventory img',nodes=>nodes.length),0)
+   assert.equal(await page.evaluate(()=>window.__nativeXss),undefined)
+   assert.ok(!requests.some(p=>p.endsWith('/sessions/native-fixture')))
+   assert.equal(await page.$eval('#send-button',e=>e.disabled),true)
+   assert.equal(await page.$eval('#nav-sessions-count',e=>e.textContent),'1')
+   if(process.env.CONSOLE_SCREENSHOTS){
+    await mkdir(process.env.CONSOLE_SCREENSHOTS,{recursive:true})
+    await page.screenshot({path:resolve(process.env.CONSOLE_SCREENSHOTS,'external-sessions.png'),fullPage:true})
+   }
+   await page.select('#workspace-select','billing')
+   await page.click('[data-view="sessions"]')
+   await page.waitForFunction(()=>document.querySelector('#native-session-inventory')?.textContent.includes('No se dispone de un inventario'))
+   assert.equal(await page.$eval('#nav-sessions-count',e=>e.textContent),'—')
+   assert.ok(!(await page.$eval('#native-session-inventory',e=>e.textContent)).includes('Sesión externa <img'))
+  }finally{await browser.close()}
+ })
+
 test('shared console: session, chat, task notes, permissions and workspace isolation',
  {skip:!process.env.CONSOLE_TEST_URL || !process.env.CONSOLE_BROWSER_MODULE,timeout:120000},async()=>{
   const {default:puppeteer}=await import(pathToFileURL(resolve(process.env.CONSOLE_BROWSER_MODULE)))

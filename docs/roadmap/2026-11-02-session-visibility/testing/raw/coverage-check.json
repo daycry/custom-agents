@@ -1,0 +1,1 @@
+{"applies": true, "defined": ["E2E-01", "E2E-02", "E2E-03", "E2E-04", "E2E-05", "M-01"], "referenced": ["E2E-01", "E2E-02", "E2E-03", "E2E-04", "E2E-05", "M-01"], "broken_refs": 0, "tasks_sin_cobertura": [], "tests_sin_referencia": [], "gwt_cubiertos": [], "gwt_sin_cubrir": [], "gwt_sin_id": 0, "test_plan_na": false, "marcador_no_canonico": null}

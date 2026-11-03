@@ -8,7 +8,7 @@ const titles={
  sessions:['CONVERSACIONES CON TU EQUIPO','Del objetivo a la acción.','Trabaja con tu entorno nativo y conserva el hilo de cada iniciativa.','Sesiones'],
  plans:['CARTERA DEL PROYECTO','Una visión clara del trabajo.','Planes, fases y tareas con estados contrastados en el proyecto.','Planes y tareas'],
  plan:['PLAN DE TRABAJO','Cada paso, con contexto.','Criterios, revisión, pruebas y notas para saber qué falta.','Detalle de plan'],
- activity:['ACTIVIDAD OBSERVADA','Mira cómo avanza el trabajo.','Sesiones, agentes y operaciones con su procedencia y última señal.','Agentes en vivo'],
+ activity:['ACTIVIDAD OBSERVADA','Mira cómo avanza el trabajo.','Sesiones, agentes y operaciones con su procedencia y última señal.','Actividad'],
  memory:['CONOCIMIENTO DEL PROYECTO','Lo aprendido sigue contigo.','Decisiones, reglas y aprendizajes; memoria local e integraciones opcionales.','Memoria'],
  integrations:['HERRAMIENTAS DEL EQUIPO','Conecta lo que tu proyecto necesita.','Entornos de ejecución, seguimiento y memoria, con sus límites visibles.','Integraciones'],
  catalog:['CAPACIDADES A TU ALCANCE','El especialista adecuado, a mano.','Explora agentes, skills, comandos y las ampliaciones de este proyecto.','Capacidades']}
