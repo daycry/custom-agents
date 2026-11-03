@@ -17,8 +17,8 @@ import stat
 import sys
 import uuid
 
-for _stream in (sys.stdin, sys.stdout, sys.stderr):
-    try: _stream.reconfigure(encoding='utf-8', errors='replace')
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass
 
 SHARED = Path(__file__).resolve().parents[3] / 'agent-kits/shared'

@@ -90,7 +90,7 @@ RED: `test_D2_proposals_reuse_the_original_policy_bytes_snapshot` falló con SHA
 - **Estado**: completado
 - **Tipo**: documentation
 - **Descripción**: Integrar skill/comando, ejemplos meetings/FAQ/mixto y workflows legibles; validar superficies generadas, revisión adversarial y regresiones.
-- **Archivos**: `agent-kits/shared/modules.json`, `.claude-plugin/**`, `ci.yml.MANUAL-COPY`, `.github/workflows/ci.yml`, `evals/cases/skill-knowledge-category-template.json`, `evals/cases/command-knowledge-category-check.json`, `interop/**`, `.agents/plugins/marketplace.json`, `.codex-plugin/plugin.json`, `docs/**`, `README.md`, `README.es.md`, `CLAUDE.md`, `CHANGELOG.md`, `CHANGELOG.es.md`, `tests/test_rationalization_tables.py`, `tests/test_knowledge_category_documentation.py`, `scripts/check-handbook.py`, `output/pdf/custom-agents-manual-operativo*`.
+- **Archivos**: `agent-kits/shared/modules.json`, `.claude-plugin/**`, `ci.yml.MANUAL-COPY`, `.github/workflows/ci.yml`, `evals/cases/skill-knowledge-category-template.json`, `evals/cases/command-knowledge-category-check.json`, `interop/**`, `.agents/plugins/marketplace.json`, `.codex-plugin/plugin.json`, `docs/**`, `README.md`, `README.es.md`, `CLAUDE.md`, `CHANGELOG.md`, `CHANGELOG.es.md`, `tests/test_rationalization_tables.py`, `tests/test_knowledge_category_documentation.py`, `tests/test_console_encoding.py`, `scripts/check-handbook.py`, `output/pdf/custom-agents-manual-operativo*`.
 - **Nota de alcance**: Los manifiestos son proyecciones del exportador. El manual incorpora W-28–W-30 y sus ejemplos; su verificador conserva las comprobaciones de fuentes, PDF y diagramas.
 - **Descripción de piezas**: `CLAUDE.md` (archivo adicional de T-03) se actualiza como índice de la skill y del comando, conforme a plugin-dev.
 - **Regresión de consumidores**: `tests/test_knowledge_category_documentation.py` (archivo adicional de T-03) verifica que los contratos nuevos lleguen a las instrucciones del curator y que los enlaces de los índices resuelvan a workflows reales.
@@ -164,3 +164,5 @@ finales en [testing/verification.md](testing/verification.md).
 ## Publication preparation for v3.1.0
 
 The full CI script gate caught missing category entries in the canonical manifest descriptions. Existing manifest and README count tests also covered the catalog update: 34 skills and 16 commands. Both Claude manifests and their generated Codex projections now agree; README counters and prose are synchronized in ES/EN. CI now runs the category tool suite explicitly. Existing tests were retained, without threshold changes.
+
+Publication CI run 41670717610: 10303 Python tests passed; six console-integration tests rejected a non-literal UTF-8 snippet and an unregistered launch mode for the new tool. The canonical snippet and a read-only Unicode preview mode were added. Targeted console validation: 8 passed; existing assertions and encoding checks are unchanged.

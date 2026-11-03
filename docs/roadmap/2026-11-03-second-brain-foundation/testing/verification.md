@@ -65,3 +65,5 @@ los siete avisos existentes del linter siguen visibles.
 ## Publication catalog checks
 
 CI run 41669934558 rejected the missing skill/command in the manifest descriptions. Before correction, the README count gate also reported 33 skills instead of 34. After correction: manifests 4/4, README counts and prose 10/10, manual copies 7/7; interop 92 up to date and handbook verification exit 0. Both canonical Claude manifests and generated Codex projections are updated; the CI workflow includes the category tool suite.
+
+Publication console checks: CI run 41670717610 reported 6 failed, 10303 passed, 39 skipped. All failures concerned the new tool console registration/literal snippet. The fix preserves the existing gate, adds a Unicode configure-preview fixture under cp1252/ascii, and passes all 8 targeted cases.
