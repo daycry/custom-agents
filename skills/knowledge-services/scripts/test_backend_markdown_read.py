@@ -506,3 +506,27 @@ def test_permission_denial_is_read_only_and_never_exposes_filesystem_error(adapt
     assert result['aciertos'] == [] and result['motivo'] == 'lectura_local_inestable'
     assert 'PRIVATE_' not in json.dumps(result)
     assert {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob('*') if p.is_file()} == before
+
+
+@pytest.mark.parametrize("line_ending", ["\r\n", "\r"])
+def test_native_newline_body_matches_universal_newline_export(adapter, corpus, line_ending):
+    # The exporter uses universal-newline file reads. The canonical descriptor
+    # reader preserves original bytes and must keep that SHA binding intact.
+    entry = corpus["_read_context"]["entries"][0]
+    raw = entry["canonical_text"].replace("Synthetic document 1.\n", "First line." + line_ending + "Second line.\n")
+    (Path(corpus["_root"]) / entry["canonical_path"]).write_bytes(raw.encode())
+    entry.update(canonical_text=raw, canonical_sha256=hashlib.sha256(raw.encode()).hexdigest(),
+                 cuerpo=raw.split("---", 2)[2].strip())
+    exported = copy.deepcopy(corpus["_read_context"]["entries"])
+    for item in exported:
+        item["cuerpo"] = item["cuerpo"].replace("\r\n", "\n").replace("\r", "\n")
+    adapter.apply(adapter.plan(exported, corpus), corpus)
+    graph_cfg = {"_read_context": {"entries": exported}}
+    snap = graph(adapter, graph_cfg)
+    before = (Path(corpus["_root"]) / entry["canonical_path"]).read_bytes()
+    with bridge(corpus, [snap], answer(snap)):
+        assert permission(adapter, corpus) == {"puede": True}
+        result = read(adapter, corpus)
+    assert result["motivo"] == ""
+    assert result.get("respuesta_generada")
+    assert (Path(corpus["_root"]) / entry["canonical_path"]).read_bytes() == before

@@ -11,6 +11,12 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+## [3.0.2] - 2026-11-03
+
+### Fixed
+
+- Normalize CRLF/CR in documentary read projections exactly as the exporter does, while preserving raw canonical file SHA bindings; mixed-newline approved documents no longer fail with a false manifest mismatch.
+
 ## [3.0.1] - 2026-11-03
 
 ### Fixed
@@ -1299,6 +1305,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[3.0.2]: https://github.com/daycry/custom-agents/releases/tag/v3.0.2
 [3.0.1]: https://github.com/daycry/custom-agents/releases/tag/v3.0.1
 [3.0.0]: https://github.com/daycry/custom-agents/releases/tag/v3.0.0
 [2.3.0]: https://github.com/daycry/custom-agents/releases/tag/v2.3.0
