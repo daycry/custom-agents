@@ -61,3 +61,7 @@ hooks, supervisores, tests ni sus umbrales para conseguir ese resultado. Los
 La exportaci?n portable final core se volvi? a generar despu?s del arreglo:
 103 archivos, 0 problemas. Interop, lint, evals y verificador del PDF pasan;
 los siete avisos existentes del linter siguen visibles.
+
+## Publication catalog checks
+
+CI run 41669934558 rejected the missing skill/command in the manifest descriptions. Before correction, the README count gate also reported 33 skills instead of 34. After correction: manifests 4/4, README counts and prose 10/10, manual copies 7/7; interop 92 up to date and handbook verification exit 0. Both canonical Claude manifests and generated Codex projections are updated; the CI workflow includes the category tool suite.
