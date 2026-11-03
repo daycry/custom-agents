@@ -11,6 +11,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-11-03
+
 ### Added — `second-brain-foundation` initiative (2026-11-03)
 
 - **T-01 — Configuración, formato y origen de las propuestas** Los proyectos pueden exigir formato y declarar quién aporta contenido a cada categoría de conocimiento. (`agent-kits/shared/knowledge-taxonomy-local.py`, `agent-kits/shared/knowledge-curation-rules.py`, `agent-kits/shared/knowledge-curation.py`)
@@ -1311,6 +1313,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[3.1.0]: https://github.com/daycry/custom-agents/releases/tag/v3.1.0
 [3.0.2]: https://github.com/daycry/custom-agents/releases/tag/v3.0.2
 [3.0.1]: https://github.com/daycry/custom-agents/releases/tag/v3.0.1
 [3.0.0]: https://github.com/daycry/custom-agents/releases/tag/v3.0.0
