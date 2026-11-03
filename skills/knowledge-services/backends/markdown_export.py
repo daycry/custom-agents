@@ -1559,7 +1559,8 @@ def _read_local(cfg, query=None, context=None):
             raise _ReadRejected("canon_cambiado")
         if not isinstance(entry.get("cuerpo"), str):
             raise _ReadRejected("binding_incompleto")
-        body = _cuerpo_segun_modo(entry)
+        # Match export file reads without changing the raw canonical SHA binding.
+        body = _cuerpo_segun_modo(entry).replace("\r\n", "\n").replace("\r", "\n")
         projected, projection_hash = _render_markdown({"knowledge_id": id_, "version": version,
             "category": category, "cuerpo": body, "project": _proyecto_de(id_),
             "confidence": _confianza_de(evidence), **_metadatos_exportados(entry)})

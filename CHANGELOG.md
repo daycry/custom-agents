@@ -11,6 +11,10 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed
+
+- Normalize CRLF/CR in documentary read projections exactly as the exporter does, while preserving raw canonical file SHA bindings; mixed-newline approved documents no longer fail with a false manifest mismatch.
+
 ## [3.0.1] - 2026-11-03
 
 ### Fixed

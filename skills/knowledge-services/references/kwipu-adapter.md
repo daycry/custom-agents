@@ -473,3 +473,7 @@ cd <stack>
 python -m source_manager.build_view --config kwipu/config/projects.yaml --output kwipu/runtime/knowledge-view-v2
 docker compose restart kwipu kwipu-bridge kwipu-mcp
 ```
+
+### Saltos de linea de la fuente canonica
+
+La lectura documental conserva el SHA y los bytes originales de la fuente aprobada. Al reconstruir su proyeccion semantica normaliza CRLF y CR a LF, igual que la lectura universal de saltos del exportador. Esa equivalencia no permite aceptar un cambio de contenido, identidad, version o metadatos.

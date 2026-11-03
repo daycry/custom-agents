@@ -11,6 +11,10 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed
+
+- Normalizar CRLF/CR en la proyeccion de lectura documental igual que el exportador, conservando el SHA de los bytes canonicos: los documentos aprobados con saltos mixtos ya no producen un falso desfase de manifiesto.
+
 ## [3.0.1] - 2026-11-03
 
 ### Fixed
