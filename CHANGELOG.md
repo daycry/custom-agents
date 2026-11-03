@@ -13,6 +13,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ### Fixed
 
+- Preserve approved `title` and `tags` in Kwipu Markdown frontmatter, including quoted YAML values and Unicode. Include present metadata in the semantic hash and documentary read projection: existing exports with metadata are rewritten once, then remain idempotent. Rebuild the external index to expose the new fields; entries without either field keep their historical hash.
+
 - Discover external Codex project sessions as read-only metadata with explicit scope, partial results and a deduplicated session count. Rename navigation to Activity and group received signals by reported agent/session identity, keeping tools as operations. Add execution details with observed time, up to 150 recent operations and explicit missing hook token/cost data; explain opt-in capture and status limits in the ES/EN visibility guides.
 
 ## [3.0.0] - 2026-10-31

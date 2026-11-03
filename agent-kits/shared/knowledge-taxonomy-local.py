@@ -446,6 +446,8 @@ def entradas_enrutadas(config, backend_id, indice):
             "tags": meta.get("tags") or [], "modo": "resumen" if valor == "summary" else "completo",
             "cuerpo": meta.get("cuerpo") or "", "resumen": meta.get("resumen"), "ruta": meta["ruta"],
         })
+        if "title" in meta:
+            entradas[-1]["title"] = meta["title"]
     return entradas, [], omitidas
 
 

@@ -176,6 +176,10 @@ source: agent
 confidence: medium
 version: 1
 hash: <sha256 hex>
+title: "Despliegue: \"rápido\" y seguro"
+tags:
+  - "plataforma:azure-app-service"
+  - "area:despliegue"
 ---
 
 <cuerpo de la entrada>
@@ -187,6 +191,20 @@ proyectos con entradas anteriores a ese cambio) — el adaptador nunca la infier
 
 Derivaciones (ningún campo se inventa, CA-17):
 
+- **`title`** = `entry["title"]` tal cual, cuando es una cadena no vacía.
+  Ausente, `null` o vacío se omite; no se deriva del nombre de fichero, heading ni `titulo`.
+- **`tags`** = `entry["tags"]` como lista YAML de cadenas, conservando valores,
+  orden y duplicados. Ausente, `null` o lista vacía se omite. Un tipo incompatible
+  en cualquiera de estos campos devuelve error de configuración antes de publicar.
+  Los escalares se escriben entre comillas dobles con escape de comillas, barras
+  y caracteres de control; dos puntos, acentos y Unicode conservan su valor.
+  El índice local y el routing propagan `title` sin reabrir los ficheros aprobados.
+  Esta ampliación entrega `fm.title` y `fm.tags` al bridge: la presentación de
+  `name` y los filtros de la interfaz son responsabilidad de Kwipu.
+  En la versión del stack comprobada el 2026-11-02, `enrich_documents()` conserva
+  el título pero transforma las listas en texto separado por comas antes de
+  almacenarlas. El export sí contiene una lista YAML; que el snapshot conserve
+  el tipo lista requiere un cambio en Kwipu, especialmente si un tag contiene comas.
 - **`knowledge_id`** = `entry["id"]` tal cual — el Curator ya lo escribe con `id_prefix.` delante
   (`agents/knowledge-curator.md`), así que no hace falta recalcularlo.
 - **`project`** = primer segmento de `knowledge_id` antes del primer `.` (el `id_prefix` del
@@ -208,10 +226,22 @@ Derivaciones (ningún campo se inventa, CA-17):
   | `human_confirmed_rule` | `high` |
   | (cualquier otro valor — proyecto con `evidence_levels` propio) | `medium` (fallback documentado, no un extremo inventado) |
 
-- **`hash`** = sha256 de `f"{knowledge_id}\n{version}\n{category}\n{cuerpo}"` — NO de los bytes
-  finales del fichero (que ya incluyen este mismo hash en su frontmatter; hacerlo así evitaría la
-  circularidad calculando sobre el fichero completo, así que se calcula sobre el contenido
-  semántico). Estable entre corridas con la misma entrada.
+- **`hash`** = SHA256 UTF-8 de la base histórica
+  `f"{knowledge_id}\n{version}\n{category}\n{cuerpo}"`. Si hay título o etiquetas
+  exportables, se añade `"\nmetadata:"` seguido de su objeto JSON con
+  `ensure_ascii=True`, `sort_keys=True`, `separators=(",", ":")`.
+  El hash no incluye su propio campo ni los bytes de formato YAML.
+  Cambiar o retirar título/etiquetas fuerza un `upsert` aunque la versión no cambie.
+  Las entradas antiguas con estos metadatos se reexportan una vez; sin ambos,
+  conservan el hash histórico. Una segunda sincronización no escribe cambios.
+  La validación de lectura documental reconstruye exactamente la misma proyección.
+
+Después de actualizar el plugin, ejecuta la sincronización habitual y solicita al
+stack externo reconstruir la vista y **regenerar el índice**. Reiniciar un lector
+puede limitarse a cargar el índice anterior. Comprueba después `--backend kwipu
+--check` y los valores `fm.title`/`fm.tags` en el snapshot. El `verify()` histórico
+puede comparar solo nombres si el snapshot no expone hash de primer nivel;
+`verify: ok` por sí solo no acredita que el índice haya incorporado estos campos.
 
 ## `manifest.json`
 
