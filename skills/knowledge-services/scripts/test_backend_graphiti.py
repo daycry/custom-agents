@@ -287,9 +287,13 @@ class TestGraphitiVerifyRebuildRevoke(unittest.TestCase):
         cfg.update(extra)
         return cfg
 
-    def test_verify_nunca_sincronizado_es_ok(self):
+    def test_verify_sin_publicacion_advierte_sin_romper_lectura_externa(self):
         cfg = self._cfg("http://127.0.0.1:1")
-        self.assertEqual(self.mod.verify(cfg), {"ok": True, "estado": "ok", "desfase": []})
+        veredicto = self.mod.verify(cfg)
+        self.assertTrue(veredicto["ok"])
+        self.assertEqual(veredicto["publicacion"], "sin_publicacion_local")
+        self.assertEqual(veredicto["verificados"], 0)
+        self.assertTrue(veredicto["aviso"])
 
     def test_verify_publicacion_incompleta_nombra_remedio_sin_ejecutarlo(self):
         cfg = self._cfg("http://127.0.0.1:1")
