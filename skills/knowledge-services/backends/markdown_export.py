@@ -159,7 +159,9 @@ _ERROR_MAX_BYTES = 64 * 1024
 _JSON_MAX_DEPTH = 64
 _HTTP_READ_CHUNK = 16 * 1024
 
-REMEDIO = "reindexar: `build_view` + reiniciar `kwipu`, `kwipu-bridge`, `kwipu-mcp`"
+REMEDIO = ("reindexar en el stack: publicar fuentes (`build_view`), regenerar explícitamente "
+           "el índice y refrescar `kwipu`, `kwipu-bridge`, `kwipu-mcp`; "
+           "reiniciar lectores por sí solo puede cargar el índice anterior")
 
 _MAPA_CONFIANZA = {
     "observation": "low",
@@ -1218,6 +1220,50 @@ def _base_url_snapshot(health_url):
     return urllib.parse.urlunsplit((partes.scheme, partes.netloc, ruta, "", ""))
 
 
+def _estado_chunk(nodo, knowledge_id, entrada):
+    fm = nodo.get("fm") or {}
+    expected = {"knowledge_id": knowledge_id, "project": _proyecto_de(knowledge_id),
+                "scope": "project", "category": entrada.get("category"),
+                "version": entrada.get("version")}
+    if any(key in fm and str(fm[key]) != str(value) for key, value in expected.items()):
+        return "desfase"
+    hashes = [value for value in (nodo.get("hash"), fm.get("hash")) if value]
+    if not hashes:
+        return "incompleto"
+    return "ok" if all(value == entrada.get("hash") for value in hashes) else "desfase"
+
+
+def _verificar_chunks(manifest, nodos):
+    por_id, por_nombre = {}, {}
+    for nodo in nodos:
+        if nodo.get("type") != "chunk":
+            continue
+        id_ = (nodo.get("fm") or {}).get("knowledge_id")
+        target, key = (por_id, id_) if id_ else (por_nombre, nodo.get("file_name"))
+        target.setdefault(key, []).append(nodo)
+    desfase, no_verificado, hash_observado = [], 0, False
+    for id_, entrada in sorted(manifest["entries"].items()):
+        nombre = os.path.basename(entrada.get("ruta_relativa") or "")
+        matches = por_id.get(id_, []) + por_nombre.get(nombre, [])
+        estados = {_estado_chunk(nodo, id_, entrada) for nodo in matches}
+        hash_observado |= any(nodo.get("hash") or (nodo.get("fm") or {}).get("hash") for nodo in matches)
+        if not matches or "desfase" in estados:
+            motivo = (f"`{nombre}` publicado pero no aparece con su identidad en `/graph/snapshot`"
+                      if not matches else f"`{nombre}` indexado con hash o metadatos distintos")
+            desfase.append({"knowledge_id": id_, "motivo": motivo, "remedio": REMEDIO})
+        elif "incompleto" in estados:
+            no_verificado += 1
+    estado = "desfase" if desfase else ("incompleto" if no_verificado else "ok")
+    salida = {"ok": estado == "ok", "estado": estado, "desfase": desfase,
+              "comparacion": "mixta" if hash_observado and no_verificado else
+                             ("hash" if hash_observado else "nombre")}
+    if no_verificado:
+        salida.update(no_verificado=no_verificado, total=len(manifest["entries"]),
+                      razon="hash_no_disponible", remedio=REMEDIO,
+                      aviso="Entradas visibles sin hash verificable; el nombre no acredita contenido actualizado")
+    return salida
+
+
 def verify(cfg):
     """Compara `manifest.json` (local) contra `GET <base>/graph/snapshot` (Kwipu). Un export
     publicado cuyo fichero no aparece entre los nodos `chunk` del snapshot es desfase: Kwipu aún
@@ -1226,8 +1272,8 @@ def verify(cfg):
 
     Gap 87: manifiesto vacío/ausente ya NO es `ok: True` trivial — nunca se sincronizó nada, así
     que se declara `ok: False` con `razon: "nunca_sincronizado"` (doctor.py lo muestra como aviso,
-    no como desfase real). Gap 101: si el snapshot trae `hash` por nodo, se compara también el
-    contenido, no solo el nombre; si no lo trae, se declara `comparacion: "nombre"`. Gap 112: la
+    no como desfase real). Se compara el hash nativo `fm.hash` o el histórico `hash`.
+    Sin hash verificable se declara incompleto, nunca verde por nombre. Gap 112: la
     petición al snapshot revalida el host de cualquier redirección antes de seguirla. Gap 126/136
     (fix3): un `manifest.pending.json` presente significa una publicación interrumpida a medio
     completar — se declara ANTES que cualquier otra comprobación (`razon: "publicacion_incompleta"`
@@ -1269,10 +1315,19 @@ def verify(cfg):
         for node in snapshot["nodes"]:
             if not isinstance(node, dict):
                 raise ValueError("invalid JSON snapshot node")
-            if node.get("type") == "chunk" and (
-                    not isinstance(node.get("file_name"), str) or not node["file_name"] or
-                    ("hash" in node and not isinstance(node["hash"], str))):
-                raise ValueError("invalid JSON snapshot chunk")
+            if node.get("type") == "chunk":
+                fm = node.get("fm")
+                if fm is not None and not isinstance(fm, dict):
+                    raise ValueError("invalid JSON snapshot frontmatter")
+                fm = fm or {}
+                if ((node.get("file_name") is not None and
+                     (not isinstance(node["file_name"], str) or not node["file_name"])) or
+                    (not node.get("file_name") and not fm.get("knowledge_id")) or
+                    ("knowledge_id" in fm and
+                     (not isinstance(fm["knowledge_id"], str) or not fm["knowledge_id"])) or
+                    any(value is not None and not isinstance(value, str)
+                        for value in (node.get("hash"), fm.get("hash")))):
+                    raise ValueError("invalid JSON snapshot chunk")
         _remaining(deadline)
     except _RedireccionNoPermitida as e:
         # gap 180: `e.url` viene de un cabecera `Location` no confiable — se sanea antes del
@@ -1294,34 +1349,10 @@ def verify(cfg):
                 "motivo": f"no se pudo conectar a {snapshot_url}: {type(e).__name__}: "
                           f"{_sanear_detalle(e)}",
                 "remedio": REMEDIO}]}
-    nodos_por_nombre = {
-        n.get("file_name"): n for n in (snapshot.get("nodes") or [])
-        if isinstance(n, dict) and n.get("type") == "chunk" and n.get("file_name")
-    }
-    comparacion_hash_disponible = any("hash" in n for n in nodos_por_nombre.values())
-    desfase = []
-    for knowledge_id, entrada in sorted(manifest["entries"].items()):
-        nombre = os.path.basename(entrada.get("ruta_relativa") or "")
-        nodo = nodos_por_nombre.get(nombre)
-        if nodo is None:
-            desfase.append({
-                "knowledge_id": knowledge_id,
-                "motivo": f"`{nombre}` publicado pero no aparece en `/graph/snapshot`",
-                "remedio": REMEDIO,
-            })
-        elif comparacion_hash_disponible and nodo.get("hash") and nodo["hash"] != entrada.get("hash"):
-            desfase.append({
-                "knowledge_id": knowledge_id,
-                "motivo": f"`{nombre}` indexado pero con contenido distinto (hash no coincide)",
-                "remedio": REMEDIO,
-            })
-    return {
-        "ok": not desfase, "desfase": desfase,
-        "comparacion": "hash" if comparacion_hash_disponible else "nombre",
-    }
+    return _verificar_chunks(manifest, snapshot["nodes"])
 
 
-# Strong read authorization deliberately does not reuse historical verify().
+# Read authorization additionally binds the full canonical allowlist and snapshot.
 _READ_LIMITS = {
     "timeout_ms": (5000, 30000), "max_request_bytes": (8192, 65536),
     "max_answer_chars": (4096, 65536), "max_source_nodes": (64, 1024),

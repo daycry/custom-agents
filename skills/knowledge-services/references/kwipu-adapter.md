@@ -69,8 +69,8 @@ Las carpetas/rutas canónicas deben cumplir los guardrails locales del adaptador
 una proyección no compatible conserva fallback local.
 
 `puede_leer` exige salud sana y bindings del snapshot completo.
-Esta puerta no reutiliza el `verify()` histórico por nombre: presencia de un basename
-o salud sana por sí solas no acreditan identidad ni contenido.
+Esta puerta añade al `verify()` de publicación el binding del canon y el conjunto
+completo autorizado: salud sana y presencia por sí solas no autorizan consultas.
 
 Solicita `/graph/snapshot?include_chunks=true&min_degree=0&drop_noisy=false`.
 Las estadísticas deben confirmar que no faltan nodos, arcos o registros descartados.
@@ -239,9 +239,9 @@ Derivaciones (ningún campo se inventa, CA-17):
 Después de actualizar el plugin, ejecuta la sincronización habitual y solicita al
 stack externo reconstruir la vista y **regenerar el índice**. Reiniciar un lector
 puede limitarse a cargar el índice anterior. Comprueba después `--backend kwipu
---check` y los valores `fm.title`/`fm.tags` en el snapshot. El `verify()` histórico
-puede comparar solo nombres si el snapshot no expone hash de primer nivel;
-`verify: ok` por sí solo no acredita que el índice haya incorporado estos campos.
+--check` y los valores `fm.title`/`fm.tags` en el snapshot. La verificación usa
+`fm.hash` nativo o el `hash` histórico de primer nivel. Si sólo hay nombres,
+devuelve incompleto; la salud del servicio por sí sola no verifica contenido.
 
 ## `manifest.json`
 
@@ -374,8 +374,24 @@ Nunca lanza: cualquier excepción de red/parseo se captura y degrada al `estado`
 
 `verify(cfg)` deriva la URL del snapshot quitando el sufijo "/health" de `config.health.url` y
 añadiendo `/graph/snapshot`. Compara el `ruta_relativa` (basename) de cada entrada del
-`manifest.json` local contra los nodos `type == "chunk"` del snapshot (los únicos que llevan
-`file_name`; los nodos `type == "entity"` no identifican un fichero exportado).
+`manifest.json` local contra los nodos `type == "chunk"` del snapshot.
+Prioriza `fm.knowledge_id`; sólo los chunks sin ese ID utilizan el basename
+histórico como alternativa. Un ID ajeno con el mismo fichero no acredita nuestra
+entrada. Las entidades no identifican un fichero exportado.
+
+Contrasta `fm.hash` nativo o `hash` histórico contra el manifiesto. Si ambos
+están presentes, ambos deben coincidir. También comprueba ID, proyecto, scope,
+categoría y versión cuando el chunk los declara. Conserva todos los chunks de
+cada entrada: uno discrepante no queda oculto por otro posterior con el mismo nombre.
+Hashes con tipos inválidos rechazan la respuesta.
+
+Sin hash verificable, la presencia del nombre devuelve `ok: false`,
+`estado: incompleto`, `razon: hash_no_disponible` y `no_verificado`/`total`.
+`comparacion` distingue `nombre`, `mixta` y `hash` según lo observado.
+Este resultado no prueba desfase de contenido, pero tampoco permite verde.
+Ausencia de identidad, hash distinto o metadatos incompatibles producen `desfase`.
+La comprobación observa la proyección publicada: no sustituye la autorización
+canónica completa de lectura ni garantiza un snapshot atómico.
 
 Una entrada publicada cuyo nombre de fichero NO aparece entre los `file_name` de los nodos `chunk`
 es un desfase: Kwipu aún no la indexó (o el `build_view` no se ha vuelto a correr). Cada desfase
@@ -383,7 +399,7 @@ lleva:
 
 ```json
 {"knowledge_id": "mr.pattern.x", "motivo": "`mr.pattern.x.md` publicado pero no aparece en `/graph/snapshot`",
- "remedio": "reindexar: `build_view` + reiniciar `kwipu`, `kwipu-bridge`, `kwipu-mcp`"}
+ "remedio": "publicar fuentes, regenerar explícitamente el índice y refrescar los lectores del stack"}
 ```
 
 `verify` **nunca ejecuta** el remedio (CA-16): solo lo nombra. Sin red, o con el snapshot
@@ -414,8 +430,11 @@ python3 "$KSSKILL" --backend kwipu --root <proyecto>
 python3 "$KSSKILL" --backend kwipu --root <proyecto> --check
 ```
 
-El último `--check` debería reportar `verify: ok` una vez Kwipu haya corrido su `build_view` sobre
-`export_dir` — si sigue en desfase, el mensaje ya nombra el remedio exacto. Un `verify` con
+El último `--check` debería reportar `verify: ok` después de publicar la vista,
+regenerar explícitamente el índice desde `export_dir` y refrescar sus lectores.
+`build_view` y un reinicio por sí solos pueden conservar el índice anterior.
+El plugin sólo nombra estas operaciones: su ejecución corresponde al stack externo.
+Un `verify` con
 `razon: "nunca_sincronizado"` (manifest vacío/ausente) significa que todavía no se ha corrido ni
 un `apply` real — no es un desfase, es que nunca se publicó nada.
 

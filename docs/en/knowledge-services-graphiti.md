@@ -149,6 +149,14 @@ A manifest without current entries still verifies its history; emptiness does no
 authorize reading. `historico_verificado` counts confirmed historical episodes,
 including withdrawn versions.
 
+Without published entries or history, verification adds
+`publicacion: sin_publicacion_local`, `verificados: 0` and an explicit warning,
+without network access or state writes. `ok: true` means the empty local manifest
+has no inconsistencies; it establishes neither publication nor remote content.
+CA-04 preserves authorized reads of groups populated by other clients. Pending
+receipts still take priority and keep reading closed; the warning neither bypasses
+them nor permits resubmission.
+
 Before network access, marker intent is validated and its body reconstructed to check
 the declared hash. A current version cannot contradict a recorded invalidation. In
 `triplet` representation, scoped searches also verify the edge and both endpoint UUIDs

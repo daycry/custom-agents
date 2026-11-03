@@ -156,6 +156,13 @@ UUID y hash exacto del contenido. Un manifiesto sin entradas vigentes sigue veri
 su historial; no autoriza lectura por estar vacío. `historico_verificado` cuenta los
 episodios históricos confirmados, incluyendo versiones retiradas.
 
+Sin entradas ni historial publicados, añade `publicacion: sin_publicacion_local`,
+`verificados: 0` y un aviso explícito, sin abrir red ni escribir estado. `ok: true`
+significa que no hay inconsistencias en el manifiesto local vacío; no acredita
+publicación ni contenido remoto. CA-04 conserva las lecturas autorizadas de grupos
+poblados por otros clientes. Los recibos pendientes siguen teniendo prioridad y
+mantienen la lectura cerrada; el aviso no los omite ni permite reenviarlos.
+
 Antes de abrir red, se valida la intención del marcador y se reconstruye su cuerpo
 para comprobar el hash declarado. Una versión vigente no puede contradecir una
 invalidación ya registrada. En representación `triplet`, se verifica además la arista

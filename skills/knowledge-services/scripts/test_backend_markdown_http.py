@@ -177,7 +177,10 @@ def test_complete_small_response_preserves_health_and_verification(adapter, tmp_
                  "/graph/snapshot": response(snapshot())}) as base:
         cfg = published(adapter, tmp_path, base)
         assert adapter.health(cfg)["estado"] == "sano"
-        assert adapter.verify(cfg)["ok"] is True
+        verified = adapter.verify(cfg)
+        assert verified["ok"] is False
+        assert verified["estado"] == "incompleto"
+        assert verified["razon"] == "hash_no_disponible"
 
 
 def test_http_error_keeps_status_and_useful_small_detail(adapter, tmp_path):

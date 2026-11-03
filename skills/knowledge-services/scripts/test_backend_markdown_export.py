@@ -257,7 +257,7 @@ class TestMarkdownExportVerify(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def test_verify_ok_cuando_el_export_esta_en_el_snapshot(self):
+    def test_verify_incompleto_si_el_export_solo_aparece_por_nombre(self):
         entradas = [_entrada(id_="mr.pattern.readme", cuerpo="x")]
         cfg = {"export_dir": self.export_dir,
                 "health": {"url": "http://127.0.0.1:1/health", "timeout_ms": 100}}
@@ -275,7 +275,9 @@ class TestMarkdownExportVerify(unittest.TestCase):
         with _ServidorFixturasContext({"/graph/snapshot": (200, cuerpo)}) as srv:
             cfg["health"]["url"] = f"{srv.base_url}/health"
             resultado = self.mod.verify(cfg)
-        self.assertTrue(resultado["ok"], resultado)
+        self.assertFalse(resultado["ok"], resultado)
+        self.assertEqual(resultado["estado"], "incompleto")
+        self.assertEqual(resultado["no_verificado"], 1)
         self.assertEqual(resultado["desfase"], [])
 
     def test_verify_detecta_desfase_y_nombra_el_remedio_sin_ejecutarlo(self):

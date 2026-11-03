@@ -2208,7 +2208,11 @@ def verify(cfg):
     except Exception as error:
         return {'ok':False,'estado':'no_verificable','razon':f'manifiesto invalido: {_sanear_detalle(error)}','desfase':[]}
     if not bindings:
-        return {"ok": True, "estado": "ok", "desfase": []}
+        # CA-04 permits explicitly authorized reads from externally populated groups.
+        # An empty local comparison establishes no publication/content evidence.
+        return {"ok": True, "estado": "ok", "desfase": [],
+                "publicacion": "sin_publicacion_local", "verificados": 0,
+                "aviso": "Sin publicaciones locales: no se ha verificado contenido remoto"}
     group_id = cfg.get("group_id") or manifest.get("group_id")
     if not group_id:
         return {"ok": False, "estado": "no_verificable", "razon": "sin group_id", "desfase": []}

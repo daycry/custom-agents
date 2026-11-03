@@ -6,6 +6,7 @@ Estados: borrador · en-progreso · en-revision · completado · cancelado (spec
 
 | Fecha | Iniciativa | Tiempo | Coste | Artefactos |
 |-------|-----------|--------|-------|-----------|
+| 2026-11-03 | knowledge-verification — diagnóstico por contenido y publicación confirmada | No estimado (corrección) | No medido | [tasks](2026-11-03-knowledge-verification/tasks.md) |
 | 2026-11-02 | kwipu-metadata — title y tags aprobados en la exportación CA-17 | No estimado (corrección) | No medido | [tasks](2026-11-02-kwipu-metadata/tasks.md) |
 | 2026-11-02 | session-visibility ? sesiones Codex externas y captura de actividad | No estimado (correcci?n) | No medido | [spec](2026-11-02-session-visibility/spec.md) ? [plan](2026-11-02-session-visibility/improvement-plan.md) ? [tasks](2026-11-02-session-visibility/tasks.md) |
 | 2026-07-09 | qa-agent — agente qa (E2E Playwright + informe) | 21,6 h | ~1.087 € | [spec](2026-07-09-qa-agent/spec.md) · [eval](2026-07-09-qa-agent/evaluation.md) · [plan](2026-07-09-qa-agent/improvement-plan.md) · [tasks](2026-07-09-qa-agent/tasks.md) |
