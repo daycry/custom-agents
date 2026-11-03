@@ -1,0 +1,14 @@
+{
+  "category": {
+    "key": "meetings",
+    "folder": "meetings",
+    "min_evidence": "single_case",
+    "template": ".claude/knowledge-templates/meetings.md",
+    "inbox": "docs/meetings",
+    "allowed_producers": ["human"],
+    "required_metadata": ["fecha", "participantes"],
+    "required_sections": ["Objetivo", "Acuerdos", "Referencias"],
+    "routing": {}
+  },
+  "template_text": "---\ncategory: meetings\nevidencia:\nfuentes:\ntags:\nfecha:\nparticipantes:\n---\n\n# Acta de reunión\n\n## Objetivo\n\n## Acuerdos\n\n## Referencias\n"
+}

@@ -1,5 +1,7 @@
 # custom-agents
 
+Project knowledge: [custom categories, project-owned templates, human/agent contributions and inbox checks](docs/en/guides/knowledge-categories.md).
+
 
 **Usage and customization handbook:** [Detailed core workflows, optional integrations, Atlassian/Redmine and project extensions](docs/en/CUSTOMIZATION.md). Native bundles are complete; configured does not mean connected or authorized.
 

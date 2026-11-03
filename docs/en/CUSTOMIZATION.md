@@ -42,6 +42,7 @@ Jira/Confluence and Redmine/a wiki. The process does not depend on either vendor
 | Introduce it to a team | [6. Daily operation](guides/operations.md) | A pilot, common problems and a glossary |
 | Understand and connect memory | [7. Memory and optional integrations](guides/memory.md) | Local curation, Kwipu, Graphify and Graphiti with recovery |
 | Use one working console | [8. Shared dashboard](guides/dashboard.md) | Independent projects, sessions/chat, plans/kanban and activity |
+| Structure team knowledge | [9. Categories and templates](guides/knowledge-categories.md) | Human meeting notes, agent FAQs, inbox checks and proposals with sources |
 
 Read chapters 1 and 2 first, then choose the integration your department uses.
 Every workflow explains a recognizable situation, its prerequisites, the steps,

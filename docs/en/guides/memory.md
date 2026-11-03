@@ -399,6 +399,13 @@ global acceptance still require testing.** The installed 0.30.1 revision had a
 cross-group reading problem; the temporary compatible fixture did not update that
 service. Green health or synthetic tests do not establish complete acceptance.
 
+## Capture knowledge in the team's format
+
+[Workflows W-28 to W-30](knowledge-categories.md) cover project categories and
+templates: human meeting notes, agent FAQs and mixed procedures. Checking an
+inbox preserves originals. Proposing candidates, approving them and publishing
+them remain separate steps.
+
 ## Choose and retire integrations without losing memory
 
 Start from the need: local continuity, document retrieval, temporal relationships

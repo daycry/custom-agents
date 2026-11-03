@@ -108,6 +108,40 @@
             "type": "string",
             "description": "Nivel minimo exigido de `evidence_levels` para que un candidato de esta categoria pueda aprobarse."
           },
+          "template": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Optional project-relative Markdown template, outside the installed plugin. No execution or interpolation. Runtime readers reject redirects."
+          },
+          "inbox": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Optional project-relative input directory; cannot be Git metadata, approved knowledge or candidate storage. Originals are not modified by category checks."
+          },
+          "allowed_producers": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 2,
+            "uniqueItems": true,
+            "items": {"enum": ["human", "agent"]},
+            "description": "Allowed declared content origins. Not authentication or filesystem access control. Approval is a separate decision."
+          },
+          "required_metadata": {
+            "type": "array",
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {"type": "string", "maxLength": 160, "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+            "description": "Frontmatter keys required to have nonempty scalar or string-list values before approval."
+          },
+          "required_sections": {
+            "type": "array",
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 1, "maxLength": 160},
+            "description": "Markdown ATX section titles without #, compared case-insensitively. Each needs content; headings inside code/comments do not count."
+          },
           "routing": {
             "type": "object",
             "description": "Por backend declarado en `backends`: `true` (exporta entero), `false` (no exporta) o `\"summary\"` (solo el resumen). Sin `routing` declarado, la categoria NO exporta a ningun backend (fail-closed, CA-09/CA-11).",

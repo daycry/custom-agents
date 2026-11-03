@@ -41,6 +41,7 @@ flowchart LR
 | Adaptarlo a tu equipo | [5. Personas, agentes, skills y herramientas](guides/customization.md) | Qué puedes personalizar y a quién corresponde hacerlo |
 | Ponerlo en marcha y resolver problemas | [6. Uso diario y adopción](guides/operations.md) | Un piloto de equipo, ejemplos de incidencias y un glosario para consultar |
 | Trabajar desde una sola consola | [8. Dashboard común](guides/dashboard.md) | Proyectos independientes, sesiones/chat, planes y kanban, notas, actividad y recuperación |
+| Dar formato al conocimiento del equipo | [9. Categorías y plantillas](guides/knowledge-categories.md) | Actas humanas, FAQ de agentes, carpetas de entrada y propuestas con fuentes |
 
 Lee primero los capítulos 1 y 2. Después elige la integración que vaya a utilizar tu
 área. El capítulo 5 sirve cuando quieres adaptar el producto; el 6 ayuda en el uso

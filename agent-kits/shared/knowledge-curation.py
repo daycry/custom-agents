@@ -31,6 +31,7 @@ STATES = ('pending', 'needs_changes', 'rejected')
 OPERATIONS = BASE + '/.curation/operations'
 RECEIPTS = BASE + '/.curation/receipts'
 _MODULES = {}
+_POLICY_UNSET = object()
 
 
 def _mkdir_private(path, **kwargs):
@@ -436,8 +437,14 @@ def _final(root, candidate, original, config, metadata, replacement):
     final_version = metadata.get('version', fm.get('version', 1))
     if (type(final_version) is not int and final_version != '1') or str(final_version) != '1':
         raise _Failure('invalid_initial_version')
-    original_id = _module('knowledge-local.py')._frontmatter(_text(original)).get('id')
+    original_metadata = _module('knowledge-local.py')._frontmatter(_text(original))
+    original_id = original_metadata.get('id')
     fm.update(metadata)
+    for field in ('content_origin', 'proposed_by'):
+        if original_metadata.get(field) is not None:
+            if field in fm and fm[field] != original_metadata[field]:
+                raise _Failure('changed_' + field)
+            fm[field] = original_metadata[field]
     if original_id and fm.get('id') != original_id:
         raise _Failure('changed_declared_id')
     fm.update(version=1, estado='aprobado')
@@ -473,7 +480,8 @@ def _checkpoint(stage, operation):
     """No-op boundary used by interruption drills; never a model/tool callback."""
 
 
-def propose(root, filename, text, *, producer, reserved_aliases=()):
+def propose(root, filename, text, *, producer, reserved_aliases=(), origin=None,
+            expected_policy_sha256=_POLICY_UNSET, expected_source=None):
     try:
         _name(filename)
         if not isinstance(reserved_aliases, (list, tuple)) or len(reserved_aliases) > 8:
@@ -489,10 +497,43 @@ def propose(root, filename, text, *, producer, reserved_aliases=()):
             raise _Failure('conflicting_producer_label')
         if 'proposed_by' not in fm:
             text = text.replace('---', '---\nproposed_by: ' + producer, 1)
-        _policy(root)
+        policy, policy_hash = _policy(root)
+        if (expected_policy_sha256 is not _POLICY_UNSET and expected_policy_sha256 is not None
+                and (not isinstance(expected_policy_sha256, str)
+                     or not re.fullmatch('[a-f0-9]{64}', expected_policy_sha256))):
+            raise _Failure('invalid_policy_snapshot', 2)
+        if expected_source is not None:
+            if (not isinstance(expected_source, (list, tuple)) or len(expected_source) != 2
+                    or not isinstance(expected_source[1], str)
+                    or not re.fullmatch('[a-f0-9]{64}', expected_source[1])):
+                raise _Failure('invalid_source_snapshot', 2)
+            _parts(expected_source[0])
+        cat = next((c for c in policy['categories'] if c['key'] == fm.get('category')), {})
+        if origin is not None or 'content_origin' in fm or 'allowed_producers' in cat:
+            declared = origin if origin is not None else ('human' if producer == 'human' else 'agent')
+            if declared not in ('human', 'agent'):
+                raise _Failure('invalid_content_origin', 2)
+            if 'content_origin' in fm and fm['content_origin'] != declared:
+                raise _Failure('conflicting_content_origin')
+            fm['content_origin'] = declared
+            errors = _module('knowledge-curation-rules.py').validar_productor(fm, cat, filename)
+            if errors:
+                raise _Failure('producer_not_allowed', 1, errors)
+            if 'content_origin' not in _module('knowledge-local.py')._frontmatter(text):
+                text = text.replace('---', '---\ncontent_origin: ' + declared, 1)
         _reserved(root, filename, reserved_aliases)
         relative = BASE + '/pending/' + filename
         with _locked(root):
+            if _policy(root)[1] != policy_hash:
+                raise _Failure('changed_policy', 2)
+            if expected_policy_sha256 is not _POLICY_UNSET:
+                current = _module('local-read.py').read_bytes(root,
+                    '.claude/knowledge-services/taxonomy.json', include_digest=True)
+                if (current['status'] not in ('ok', 'not_found')
+                        or current.get('sha256') != expected_policy_sha256):
+                    raise _Failure('changed_policy', 2)
+            if expected_source is not None and _read(root, expected_source[0])['sha256'] != expected_source[1]:
+                raise _Failure('changed_source', 2)
             _reserved(root, filename, reserved_aliases)
             _create(root, relative, text.encode('utf-8'))
         return _result('proposed', ruta=relative, sha256=_hash(text.encode('utf-8')))
@@ -1124,6 +1165,7 @@ def main(argv=None):
     proposal = commands.add_parser('propose')
     proposal.add_argument('--filename', required=True)
     proposal.add_argument('--producer', required=True)
+    proposal.add_argument('--origin', choices=('human', 'agent'))
     proposal.add_argument('--reserved-alias', action='append', default=[])
     apply = commands.add_parser('apply')
     apply.add_argument('candidate')
@@ -1151,7 +1193,7 @@ def main(argv=None):
     try:
         if args.command == 'propose':
             result, code = propose(args.root, args.filename, _stdin_text(), producer=args.producer,
-                                   reserved_aliases=args.reserved_alias)
+                                   reserved_aliases=args.reserved_alias, origin=args.origin)
         elif args.command == 'apply':
             result, code = apply_decision(args.root, args.candidate, args.decision,
                 expected_sha256=args.expected_sha256, metadata=json.loads(args.metadata_json), reason=args.reason,

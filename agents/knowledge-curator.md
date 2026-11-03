@@ -146,6 +146,11 @@ mantén la operación pendiente, aunque el destino ya sea visible.
 ---
 
 ## 2) REGLAS
+- **Contrato de categoría y origen.** Comprueba `required_metadata`, `required_sections`
+  y `allowed_producers` cuando estén declarados. Conserva `content_origin` y
+  `proposed_by`: revisar una propuesta de un agente no la convierte en autoría humana.
+  Son declaraciones de trazabilidad, no identidades autenticadas. La plantilla del
+  proyecto orienta la redacción; su ausencia no invalida aprobados históricos.
 - **Único juicio, servicio compartido para bytes.** Los productores sólo invocan propose;
   tú invocas apply/recover. Ningún agente muta estos árboles manualmente ni crea/promueve
   ADR/GOT/LES nuevos en el legado. El legado conserva bytes, IDs, estados y autoridad original.

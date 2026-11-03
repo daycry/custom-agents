@@ -416,6 +416,13 @@ y aceptación global siguen necesitando pruebas.** La revisión instalada 0.30.1
 un problema de lectura entre grupos; la prueba temporal compatible no actualizó el
 servicio existente. No presentes salud verde o tests sintéticos como aceptación total.
 
+## Aportar conocimiento con el formato del equipo
+
+Los [workflows W-28 a W-30](knowledge-categories.md) explican cómo crear categorías
+y plantillas del proyecto. Distinguen actas aportadas por personas, FAQ redactadas
+por agentes y procedimientos mixtos. La revisión de una carpeta conserva los
+originales; proponer candidatos, aprobarlos y publicarlos son pasos separados.
+
 ## Elegir y retirar integraciones sin perder la memoria
 
 Empieza por el problema: continuidad local, consulta documental, relaciones temporales

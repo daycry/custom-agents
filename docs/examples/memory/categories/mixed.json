@@ -1,0 +1,14 @@
+{
+  "category": {
+    "key": "procedures",
+    "folder": "procedures",
+    "min_evidence": "validated_case",
+    "template": ".claude/knowledge-templates/procedure.md",
+    "inbox": "docs/procedure-drafts",
+    "allowed_producers": ["human", "agent"],
+    "required_metadata": ["title", "fecha_revision"],
+    "required_sections": ["Cuándo usarlo", "Pasos", "Verificación", "Referencias"],
+    "routing": {}
+  },
+  "template_text": "---\ncategory: procedures\ntitle:\nfecha_revision:\nevidencia:\nfuentes:\ntags:\n---\n\n# Procedimiento\n\n## Cuándo usarlo\n\n## Pasos\n\n## Verificación\n\n## Referencias\n"
+}

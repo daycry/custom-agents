@@ -1,0 +1,14 @@
+{
+  "category": {
+    "key": "faq",
+    "folder": "faq",
+    "min_evidence": "validated_case",
+    "template": ".claude/knowledge-templates/faq.md",
+    "inbox": "docs/faq-drafts",
+    "allowed_producers": ["agent"],
+    "required_metadata": ["title"],
+    "required_sections": ["Pregunta", "Respuesta", "Referencias"],
+    "routing": {}
+  },
+  "template_text": "---\ncategory: faq\ncontent_origin: agent\ntitle:\nevidencia:\nfuentes:\ntags:\n---\n\n# Pregunta frecuente\n\n## Pregunta\n\n## Respuesta\n\n## Referencias\n"
+}

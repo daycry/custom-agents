@@ -89,6 +89,24 @@ agent-kits/knowledge-curator/test_curator_gate.py`).
 
 ## Servicio compartido y recuperación
 
+Las categorías pueden declarar `allowed_producers`, `required_metadata` y
+`required_sections`. El gate y `apply` comparten su validación; encabezados dentro
+de código o comentarios no cuentan. Una plantilla ausente no invalida aprobados
+históricos. `content_origin` declara origen humano o de agente; `proposed_by`
+identifica al productor declarado. No autentican identidades. `apply` conserva
+ambos campos, incluso si una representación corregida los omite, y rechaza
+intentos de cambiarlos. Véanse los workflows W-28 a W-30 en
+[`knowledge-categories.md`](../../docs/guides/knowledge-categories.md).
+
+La API de `propose` admite `origin`, `expected_policy_sha256` y `expected_source`
+(tupla ruta relativa/SHA). La revisión de carpetas usa estos últimos para
+comprobar bajo el lock cooperativo que siguen vigentes la política y la fuente
+de la vista previa. `expected_policy_sha256` es el SHA de los bytes originales de
+taxonomy.json, no de su representación con valores derivados. Omitir el argumento
+conserva el comportamiento anterior; pasar `None` exige que el archivo siga ausente.
+La CLI expone `--origin human|agent`; los snapshots se pasan
+mediante la API, no son opciones de esa CLI. No sustituyen el juicio del Curator.
+
 `propose --filename <nombre.md> --producer <rol>` lee Markdown por stdin, redacta y crea
 pending sin estado; `apply <ruta-relativa> --decision <decisión> --expected-sha256 <sha>
 --reason <motivo> [--metadata-json <objeto>] [--replacement-stdin]` persiste juicio del Curator; `recover

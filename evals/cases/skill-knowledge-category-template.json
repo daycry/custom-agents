@@ -1,0 +1,9 @@
+{
+  "target": "skill:knowledge-category-template",
+  "cases": [
+    {"id": "category-template-literal", "prompt": "Crea una categoría de conocimiento para guardar actas humanas con fecha, participantes y acuerdos.", "trigger": "literal", "expect": {"activates": true, "mentions": ["category-template.py", "taxonomy.json"]}},
+    {"id": "category-template-paraphrase", "prompt": "Necesito que las FAQ generadas por agentes compartan un formato propio del proyecto y que actualizar el plugin no lo sobrescriba.", "trigger": "parafrasis", "expect": {"activates": true, "mentions": ["allowed_producers"]}},
+    {"id": "category-template-negative-check", "prompt": "Revisa los documentos existentes de meetings y señala cuáles incumplen sus secciones obligatorias.", "expect": {"activates": false, "redirect": "command:knowledge-category-check"}},
+    {"id": "category-template-negative-publish", "prompt": "Sincroniza el conocimiento aprobado con Kwipu.", "expect": {"activates": false, "redirect": "skill:knowledge-services"}}
+  ]
+}

@@ -1,5 +1,7 @@
 # custom-agents
 
+Conocimiento del proyecto: [categorías propias, plantillas, aportaciones humanas/de agentes y revisión de carpetas](docs/guides/knowledge-categories.md).
+
 
 **Manual de uso y personalización:** [workflows detallados del core, integraciones opcionales, Atlassian/Redmine y extensiones del proyecto](docs/CUSTOMIZATION.md). Los bundles nativos son completos; configurado no significa conectado ni autorizado.
 

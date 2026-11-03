@@ -114,6 +114,15 @@ Ver `agent-kits/knowledge-curator/README.md` para el detalle del contrato y
 
 ## 5. Guardrails
 
+Los contratos opcionales de categoría exigen `required_metadata`,
+`required_sections` con contenido y un origen declarado compatible con
+`allowed_producers`. La plantilla del
+proyecto ayuda a redactar; no sustituye esta comprobación ni la aprobación.
+`content_origin` y `proposed_by` son declaraciones, no identidades autenticadas.
+La corrección final conserva sus valores originales aunque los omita; no puede
+cambiarlos. Los workflows [W-28 a W-30](../guides/knowledge-categories.md) explican
+la preparación y revisión de categorías humanas, de agentes y mixtas.
+
 - **Propuesta, juicio y persistencia separados.** Productores solicitan `propose`; Curator
   decide y solicita `apply_decision` ligado al SHA. Sólo el servicio persiste/transiciona.
   No hay fallback Write/Edit si falta el bundle. El gate sigue de solo lectura.

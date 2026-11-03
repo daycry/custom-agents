@@ -118,6 +118,11 @@ This is how roles are separated: **`/pm-cycle`** decides *what* and *how much it
 
 ## Shared skills
 
+| Piece | Use |
+|---|---|
+| `knowledge-category-template` | [Create project categories and templates](guides/knowledge-categories.md), with configurable format and contributors. |
+| `/knowledge-category-check` | [Check inbox documents and propose candidates](guides/knowledge-categories.md#w-29-check-documents-and-propose-candidates), preserving originals. |
+
 | Skill | What it does | Used by |
 |-------|----------|-----------|
 | **cybersecurity** | Static security analysis across 8 dimensions (OWASP, CWE, secrets, deps, IaC, threat intel, authz, compliance). Short `SKILL.md` (phase map); the 8 specialist prompts, recon, aggregation/report and large-codebase strategy live in `references/` (read on demand). | nemesis |

@@ -1,0 +1,9 @@
+{
+  "target": "command:knowledge-category-check",
+  "cases": [
+    {"id": "category-check-literal", "prompt": "Revisa la categoría meetings y muestra los campos que faltan en los documentos de entrada.", "trigger": "literal", "expect": {"activates": true, "mentions": ["category-template.py"]}},
+    {"id": "category-check-paraphrase", "prompt": "He dejado tres actas en la carpeta configurada. Comprueba su formato y prepara las válidas como candidatos, conservando los originales.", "trigger": "parafrasis", "expect": {"activates": true, "mentions": ["--propose"]}},
+    {"id": "category-check-negative-template", "prompt": "Crea una plantilla de categoría para nuestras actas.", "expect": {"activates": false, "redirect": "skill:knowledge-category-template"}},
+    {"id": "category-check-negative-curate", "prompt": "Decide cuáles de los candidatos pendientes deben aprobarse.", "expect": {"activates": false, "redirect": "agent:knowledge-curator"}}
+  ]
+}
