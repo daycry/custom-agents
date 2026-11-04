@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "edition": "2026-11-04",
+  "language": "es",
+  "pdf": "output/pdf/guia-resultados-calidad-custom-agents.pdf",
+  "source_hash_method": "sha256-utf8-lf",
+  "sources": {
+    "docs/guides/quality-playbook.md": "95b4641b8ad678bf891aecf777458c2618476e2beb19a0a1de29a78d991ac08e"
+  },
+  "diagrams": [
+    {
+      "source": "docs/guides/quality-playbook.md",
+      "index": 1,
+      "sha256": "29263d91cc8bf167ee249b64b30ddcd0e0548ede190431b498f398e5f9e3d63d",
+      "png_sha256": "b7b0952727ad7f269a695ff481b180dda1cf9d493e2d3edf10b91afd5365c470"
+    },
+    {
+      "source": "docs/guides/quality-playbook.md",
+      "index": 2,
+      "sha256": "2045145ee8f7e24dc8dcd3dfc466b0e8f7ca72fb49e374af9d3217c3071894a1",
+      "png_sha256": "d8cc97bbcc81d16e27c588d95d3a34cbb70f54054a12e4d2bdc8bea2cfd3feac"
+    },
+    {
+      "source": "docs/guides/quality-playbook.md",
+      "index": 3,
+      "sha256": "ac09b53b09df89a4958fb0a547214b1a2aa54d5204203bf109b55e601c14ab22",
+      "png_sha256": "f3ce9ad6bb90b2d2956e399c06e85acb13523ea01dc8b6e6ea2d288b90323ac8"
+    },
+    {
+      "source": "docs/guides/quality-playbook.md",
+      "index": 4,
+      "sha256": "c210643bfc7b09e3148d7db4cb1ecc6ee98669b7ef3ccebc3bd594e957e7846d",
+      "png_sha256": "233e09fcee8121f91f7cd7c285a41f223a0cb7b3f67bdbd80fddaf7fe8d08558"
+    },
+    {
+      "source": "docs/guides/quality-playbook.md",
+      "index": 5,
+      "sha256": "e244a7b85d4a04e7b35ac66fbd7cf04f33d5eb52e0531db32e5b8f609dc1ceda",
+      "png_sha256": "24b904ea24966730329d51545b51dd7f0c759c6e18b674e1d068e8ec54056af9"
+    }
+  ],
+  "pdf_sha256": "46670d6afc37a2076c0696d6503e732c3ba499003c7010108401173fddf79a6c"
+}

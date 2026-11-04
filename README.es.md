@@ -1,5 +1,7 @@
 # custom-agents
 
+**Manuales prácticos para usuarios:** [Uso eficiente de Claude y Codex](docs/guides/subscription-efficiency.md) / [PDF](output/pdf/guia-uso-eficiente-claude-codex.pdf) · [Resultados de calidad con custom-agents](docs/guides/quality-playbook.md) / [PDF](output/pdf/guia-resultados-calidad-custom-agents.pdf).
+
 Eficiencia de contexto: [lecturas selectivas, recibos de fuentes vigentes y mediciones de tamaño](docs/TOKEN-EFFICIENCY.md).
 
 Conocimiento del proyecto: [categorías propias, plantillas, aportaciones humanas/de agentes y revisión de carpetas](docs/guides/knowledge-categories.md).

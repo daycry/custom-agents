@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "edition": "2026-11-04",
+  "language": "es",
+  "pdf": "output/pdf/guia-uso-eficiente-claude-codex.pdf",
+  "source_hash_method": "sha256-utf8-lf",
+  "sources": {
+    "docs/guides/subscription-efficiency.md": "c99c31d95454d244187426282eefc0237b548971a2a6f05d61f7d05d345cc754"
+  },
+  "diagrams": [
+    {
+      "source": "docs/guides/subscription-efficiency.md",
+      "index": 1,
+      "sha256": "54c8c57b635fcecf07d6d226040441527b9183e218bc195da23da7f17728ca1a",
+      "png_sha256": "5b59e76c4124062387a3eada8de745bc7528231da157ad5b19f31692fc53fdcd"
+    },
+    {
+      "source": "docs/guides/subscription-efficiency.md",
+      "index": 2,
+      "sha256": "a4a10499700b930d3f1bbc2e5c28d250470e33ae3821f157886e59338b9314e0",
+      "png_sha256": "bc1ea82daaa8396c6cc4c797caa7ffca82b3574cf89031b7dd34971e5b96e192"
+    },
+    {
+      "source": "docs/guides/subscription-efficiency.md",
+      "index": 3,
+      "sha256": "2f8d51ea294c092619ea35083ad71bac949eec093d51c031c377a4334ec4b001",
+      "png_sha256": "59ee10500d9625be952a9d0171f57d67a99e8c7217566e6c7ef5d5ebcf88fb6d"
+    }
+  ],
+  "pdf_sha256": "5035e15a440d4a45d165bd0aca4a1157899f3577112ba68720ef33a7f8e0c43c"
+}

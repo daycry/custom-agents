@@ -1,5 +1,7 @@
 # custom-agents — documentation index
 
+**Practical user manuals (Spanish):** [Subscription efficiency](../guides/subscription-efficiency.md) / [PDF](../../output/pdf/guia-uso-eficiente-claude-codex.pdf) · [Quality workflows](../guides/quality-playbook.md) / [PDF](../../output/pdf/guia-resultados-calidad-custom-agents.pdf).
+
 
 **Usage and customization handbook:** [Detailed core workflows, optional integrations, Atlassian/Redmine and project extensions](CUSTOMIZATION.md). Native bundles are complete; configured does not mean connected or authorized.
 

@@ -1,5 +1,7 @@
 # custom-agents
 
+**Practical user manuals (Spanish):** [Subscription efficiency](docs/guides/subscription-efficiency.md) / [PDF](output/pdf/guia-uso-eficiente-claude-codex.pdf) · [Quality workflows](docs/guides/quality-playbook.md) / [PDF](output/pdf/guia-resultados-calidad-custom-agents.pdf).
+
 Context efficiency: [selective reads, current source receipts and honest source-size measurements](docs/en/TOKEN-EFFICIENCY.md).
 
 Project knowledge: [custom categories, project-owned templates, human/agent contributions and inbox checks](docs/en/guides/knowledge-categories.md).
