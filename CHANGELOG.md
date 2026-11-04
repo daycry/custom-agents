@@ -11,6 +11,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-11-04
+
 ### Added — `user-handbooks` initiative (2026-11-04)
 
 - **T-01 — Redacción y fuentes verificadas** Detailed Spanish handbooks for subscription efficiency and evidence-based workflows. (`docs/guides/subscription-efficiency.md`, `docs/guides/quality-playbook.md`)
@@ -1327,6 +1329,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[3.2.0]: https://github.com/daycry/custom-agents/releases/tag/v3.2.0
 [3.1.0]: https://github.com/daycry/custom-agents/releases/tag/v3.1.0
 [3.0.2]: https://github.com/daycry/custom-agents/releases/tag/v3.0.2
 [3.0.1]: https://github.com/daycry/custom-agents/releases/tag/v3.0.1
