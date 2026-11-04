@@ -163,7 +163,7 @@
           "links": 2
         }
       ],
-      "visual_review": "All pages rendered and contact sheet inspected; detailed checks on diagrams, CLI tables, glossary and closing pages."
+      "visual_review": "All pages rendered and contact sheet inspected; detailed checks on diagrams, CLI tables, glossary and closing pages. Final cover/introduction accents re-rendered and inspected."
     },
     {
       "pdf": "output/pdf/guia-uso-eficiente-claude-codex.pdf",
@@ -290,7 +290,7 @@
           "links": 4
         }
       ],
-      "visual_review": "All pages rendered and contact sheet inspected; detailed checks on diagrams, CLI tables, glossary and closing pages."
+      "visual_review": "All pages rendered and contact sheet inspected; detailed checks on diagrams, CLI tables, glossary and closing pages. Final cover/introduction accents re-rendered and inspected."
     }
   ]
 }

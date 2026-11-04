@@ -11,6 +11,12 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Added — iniciativa `user-handbooks` (2026-11-04)
+
+- **T-01 — Redacción y fuentes verificadas** Detailed Spanish handbooks for subscription efficiency and evidence-based workflows. (`docs/guides/subscription-efficiency.md`, `docs/guides/quality-playbook.md`)
+- **T-02 — PDF e integridad editorial** Modern standalone PDF editions with rendered workflows and navigable contents. (`output/pdf/guia-uso-eficiente-claude-codex.pdf`, `output/pdf/guia-resultados-calidad-custom-agents.pdf`, `output/pdf/guia-*.manifest.json`)
+- **T-03 — Distribución y cierre** Indexed and verified user handbooks alongside the token efficiency implementation.
+
 ### Changed — iniciativa `token-efficiency` (2026-11-04)
 
 - **T-01 — Verified source receipts** Fresh and stale source bytes distinguished without project writes. (`agent-kits/shared/source-snapshot.py`, `agent-kits/shared/test_source_snapshot.py`)

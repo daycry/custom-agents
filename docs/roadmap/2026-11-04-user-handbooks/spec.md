@@ -1,6 +1,6 @@
 ---
 spec: user-handbooks
-estado: aprobada
+estado: implementada
 creado: 2026-11-04
 ---
 
