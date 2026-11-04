@@ -1,0 +1,49 @@
+{
+  "method": "characters/4, not native tokenizer or billed usage",
+  "baseline": "9c109c592e5a152a7ad311ad6c13080764fd00f1",
+  "scenario": "One fresh context per PM role. Entire role map plus each directly referenced shared read/output policy, once. No new conditional reference. Excludes unchanged native wrappers and other existing resources, project reads, tool results, outputs and retries.",
+  "roles": [
+    {
+      "role": "analyst",
+      "map_before_characters": 12667,
+      "map_after_characters": 11201,
+      "before_policy_characters": 0,
+      "after_policy_characters": 1108,
+      "estimated_input_tokens_saved": 89.5
+    },
+    {
+      "role": "evaluator",
+      "map_before_characters": 15172,
+      "map_after_characters": 14799,
+      "before_policy_characters": 3108,
+      "after_policy_characters": 2034,
+      "estimated_input_tokens_saved": 361.75
+    },
+    {
+      "role": "architect",
+      "map_before_characters": 16141,
+      "map_after_characters": 15356,
+      "before_policy_characters": 3108,
+      "after_policy_characters": 2034,
+      "estimated_input_tokens_saved": 464.75
+    },
+    {
+      "role": "planner",
+      "map_before_characters": 23655,
+      "map_after_characters": 20986,
+      "before_policy_characters": 1427,
+      "after_policy_characters": 2034,
+      "estimated_input_tokens_saved": 515.5
+    }
+  ],
+  "estimated_input_tokens_saved_total": 1431.5,
+  "conditional_reference_estimated_tokens": {
+    "agent-kits/evaluator/references/code-health.md": 223.25,
+    "agent-kits/planner/references/plan-maintenance.md": 402.5,
+    "agent-kits/planner/references/task-types.md": 524.25,
+    "agent-kits/shared/references/source-reuse.md": 934.0
+  },
+  "native_usage": null,
+  "output_token_savings": null,
+  "quality_or_billing_guarantee": false
+}

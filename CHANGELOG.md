@@ -17,6 +17,7 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - **T-02 — Compact PM instructions and conditional procedures** Role boundaries, approval gates, canonical formats and original moved procedures preserved.
 - **T-03 — Context source measurements** Comparable source footprint reports distinguish eager content, references and estimated tokens. (`agent-kits/shared/context-footprint.py`, `agent-kits/shared/test_context_footprint.py`)
 - **T-04 — Documentation distribution and validation** ES/EN docs, portable closure, console checks, review and regressions verified.
+- **T-05 — Quantified token scenarios and concise shared policies** Quantified PM input estimates include shared policy loading; detailed receipt guidance stays conditional with an executable portable closure.
 
 ## [3.1.0] - 2026-11-03
 

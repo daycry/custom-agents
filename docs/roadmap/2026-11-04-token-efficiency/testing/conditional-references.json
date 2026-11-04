@@ -34,14 +34,23 @@
       "lines": 10,
       "estimated_tokens": 524.25,
       "scope": "reference"
+    },
+    {
+      "path": "agent-kits/shared/references/source-reuse.md",
+      "sha256": "067be3825c15bc814e6092c2756586bc0977d88faeb69cc43099f18ae5be74f1",
+      "bytes": 3776,
+      "characters": 3736,
+      "lines": 55,
+      "estimated_tokens": 934.0,
+      "scope": "reference"
     }
   ],
   "issues": [],
   "totals": {
-    "characters": 4600,
-    "bytes": 4664,
+    "characters": 8336,
+    "bytes": 8440,
     "entry_characters": 0,
-    "reference_characters": 4600
+    "reference_characters": 8336
   },
   "comparison": null
 }

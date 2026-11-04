@@ -578,6 +578,8 @@ def _modos():
             [("snapshot UTF-8", lambda w: ["snapshot", "--project", w, "--file", "src/señal.py"], (0,), None)],
         "agent-kits/shared/context-footprint.py":
             [("huella UTF-8", lambda w: ["--project", w, "--file", "src/señal.py"], (0,), None)],
+        "docs/roadmap/2026-11-04-token-efficiency/testing/audit-token-estimates.py":
+            [("estimacion Markdown", lambda w: ["--generate", "--markdown"], (0,), None)],
         "agent-kits/shared/usage-meter.py":
             [("close", lambda w: ["close", "--artefacto", "x", "--state", os.path.join(w, "u.json")], (0,), None)],
         "scripts/bench-session-end.py":

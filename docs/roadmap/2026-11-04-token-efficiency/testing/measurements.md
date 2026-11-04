@@ -6,11 +6,11 @@ Caracteres UTF-8 normalizados a LF; no tokens observados ni facturados.
 
 | Selección | Antes | Después | Diferencia |
 |---|---:|---:|---:|
-| Cuatro roles PM: analyst, evaluator, architect y planner | 67.635 | 62.342 | -5.293 (-7,83 %) |
-| Los mismos 60 mapas | 521.490 | 514.256 | -7.234 (-1,39 %) |
-| Referencias condicionales añadidas | 0 | 4.600 | +4.600 |
-| Políticas compartidas de lectura y salida | 3.108 | 5.882 | +2.774 |
-| Mapas + todas las referencias nuevas + políticas una vez | 524.598 | 524.738 | +140 (+0,027 %) |
+| Cuatro roles PM: analyst, evaluator, architect y planner | 67.635 | 62.342 | -5.293 (7,83 %) |
+| Los mismos 60 mapas | 521.490 | 514.256 | -7.234 (1,39 %) |
+| Referencias condicionales añadidas | 0 | 8.336 | +8.336 |
+| Políticas compartidas de lectura y salida | 3.108 | 2.034 | -1.074 |
+| Mapas + todas las referencias nuevas + políticas una vez | 524.598 | 524.626 | +28 |
 
 Los mapas contienen instrucciones generales y referencias que el cliente puede
 cargar de distintas maneras. La clasificación por rutas no observa esa carga.
@@ -36,3 +36,5 @@ Fuentes: `context-before.json`, `context-after.json`,
 nuevas preservan los procedimientos originales; cargar todo puede aumentar el
 contexto. Los helpers stdout-only no leen conversaciones ni realizan llamadas
 a modelos o servicios externos.
+
+La ampliación T-05 compacta las políticas compartidas y hace condicional su protocolo detallado. [Estimación por rol y escenarios](token-estimates.md). Las cifras de los informes de revisión anteriores describen sus snapshots históricos.

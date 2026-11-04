@@ -16,8 +16,8 @@ Alcance aprobado por el usuario; [spec](spec.md).
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 4 | 4 | 100.0% |
-| **TOTAL** | **4** | **4** | **100.0%** |
+| Fase 1 | 5 | 5 | 100.0% |
+| **TOTAL** | **5** | **5** | **100.0%** |
 
 ## Fase 1
 
@@ -96,6 +96,30 @@ Verificación ejecutada: linter → 10 agentes, 0 errores, 7 avisos previos; eva
 
 TDD n/a: prose, instructions, configuration and documentation; executable helpers require observed RED before implementation.
 
+### T-05 - Quantified token scenarios and concise shared policies
+
+- **Estado**: completado
+- **Tipo**: docs
+- **Archivos**: `agent-kits/shared/read-discipline.md`, `agent-kits/shared/output-discipline.md`, `agent-kits/shared/references/**`, `agent-kits/shared/README.md`, `tests/test_token_efficiency_distribution.py`, `tests/test_token_estimates.py`, `tests/test_console_encoding.py`, `docs/TOKEN-EFFICIENCY.md`, `docs/en/TOKEN-EFFICIENCY.md`, `docs/roadmap/2026-11-04-token-efficiency/**`, `CHANGELOG.md`, `CHANGELOG.es.md`.
+- **Verificación**: `python -m pytest tests/test_token_efficiency_distribution.py tests/test_token_estimates.py -q`; `python -m pytest tests/test_console_encoding.py -q -k audit`; `python docs/roadmap/2026-11-04-token-efficiency/testing/audit-token-estimates.py --current`; `python docs/roadmap/2026-11-04-token-efficiency/testing/audit-token-estimates.py --inventory --current`; `python scripts/export-interop.py --check`.
+- **Changelog**: Quantified PM input estimates include shared policy loading; detailed receipt guidance stays conditional with an executable portable closure.
+
+**Criterios de aceptación**
+- [x] Report per-role estimates and conditional costs without claiming observed billing savings; retain original shared procedures and a working portable receipt helper.
+
+**Notas**: Added after the user explicitly requested a token-saving quantity. Completed T-01..T-04 stay closed. Common policy shrinks; original receipt protocol and five full read rules remain in references/source-reuse.md. Runtime helpers, models, permissions and gates stay unchanged; the analysis-only verifier is versioned with tests and exit codes. Prose/config TDD n/a; portable closure regression observed RED before its reference fix.
+
+
+RED: `test_lazy_source_receipt_has_all_portable_dependencies` falló con RED observado: al mover protocolo el cierre portable omitia source-snapshot/local-read/redact; referencia directa al helper lo corrige sin tocar exportador · 2026-11-04.
+
+
+RED: `tests/test_token_estimates.py` falló con RED observado: 7 fallos del verificador inicial sin calculo, suma/CLI y rechazo de entradas incompletas; dos errores adicionales por IDs pytest enormes se corrigieron con IDs cortos, sin quitar casos · 2026-11-04.
+
+
+RED: `test_A1_delegation_transmits_read_rules_and_returns_findings` falló con RED observado al reproducir omision original de transmitir reglas; GREEN con obligacion explicita y parrafo completo preservado · 2026-11-04.
+
+Verificación ejecutada: 15 tests del verificador/distribución y 8 de consola aprobados en Windows; auditoría actual e inventario exit 0, interop 92 ficheros al día. Linux: 99 tests del incremento antes del test A-1 dedicado, cobertura del verificador 97,39 % (mínimo 90), pytest y gate exit 0. Después se añade A-1: GREEN, dos mutaciones detectadas por A/B. Revisión T-05 intento 3 sin gaps pendientes; tablas en testing/quantity-review-1.md, quantity-review-2.md y quantity-review-3.md. El verificador conserva snapshots históricos y detecta deriva actual sin llamadas a modelos.
+
 ## Revisión de dos lentes — intento 1: A conforme; B detecta dos Important: B-1 baseline JSON profundo (T-03), B-2 recibo Unicode mayor que stdin (T-01). Ambos reproducidos en RED y corregidos con regresiones; pendiente intento 2. (T-01, T-02, T-03, T-04)
 
 | Tarea | Veredicto fusionado | Gaps |
@@ -128,3 +152,32 @@ TDD n/a: prose, instructions, configuration and documentation; executable helper
 | T-04 | ✓ conformidad documental | QA global aparte |
 
 [Tabla completa, CLI Windows y seguimiento QA](testing/review-3.md). Sin gaps Critical/Important pendientes. Sin rebates.
+
+## Revisión de dos lentes — intento 1: ampliación T-05 (T-05)
+
+| Criterio | Veredicto | Gaps |
+|---|---|---|
+| Preservación de delegación | ✗ | A-1 Important |
+| Cálculo ejecutable versionado | ✗ | A-2 Important |
+| Costes, límites y portable | ✓ | Ninguno |
+
+[Tabla completa](testing/quantity-review-1.md). Confirmados, sin rebates.
+
+## Revisión de dos lentes — intento 2: ampliación T-05 (T-05)
+
+| Criterio | Veredicto | Gaps |
+|---|---|---|
+| Delegación y verificador | ✓ | A-1/A-2 corregidos |
+| Regresión dedicada | ✗ | A-1.1 Important |
+| Aritmética, deriva y portable | ✓ | Ninguno |
+
+[Tabla completa](testing/quantity-review-2.md). Confirmado, sin rebates.
+
+## Revisión de dos lentes — intento 3: ampliación T-05 (T-05)
+
+| Criterio | Veredicto | Gaps |
+|---|---|---|
+| Regresión dedicada, dos mutaciones | ✓ | A-1.1 corregido |
+| Consola UTF-8 y criterios previos | ✓ | Ninguno |
+
+[Tabla completa](testing/quantity-review-3.md). A/B sin gaps Critical/Important pendientes.

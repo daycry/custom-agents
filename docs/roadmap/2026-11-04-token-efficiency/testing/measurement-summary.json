@@ -10,9 +10,9 @@
     "before": 67635,
     "after": 62342
   },
-  "added_conditional_reference_characters": 4600,
+  "added_conditional_reference_characters": 8336,
   "shared_policy_before": 3108,
-  "shared_policy_after": 5882,
-  "all_references_and_shared_loaded_delta": 140,
+  "shared_policy_after": 2034,
+  "all_references_and_shared_loaded_delta": 28,
   "runtime_usage": null
 }

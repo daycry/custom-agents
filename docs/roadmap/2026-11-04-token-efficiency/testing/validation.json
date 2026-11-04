@@ -70,5 +70,44 @@
     "passed": 452,
     "skipped": 16,
     "failed": 0
+  },
+  "ci_core_final": {
+    "run": "https://github.com/daycry/custom-agents/actions/runs/41812157754",
+    "head": "173556d940a263e25a354222c49436481a48f59b",
+    "status": "success",
+    "pytest_passed": 10368,
+    "pytest_skipped": 39,
+    "node_passed": 452,
+    "node_skipped": 16
+  },
+  "local_full_previous_snapshot": {
+    "passed": 10338,
+    "skipped": 58,
+    "failed": 2,
+    "failures": [
+      "Missing initiative index row (fixed, targeted65 passed, fullCI core success)",
+      "Existing20ms benchmark observed21.63ms under local suite load; isolated11 passed, fullCI core success"
+    ],
+    "node_passed": 452,
+    "node_skipped": 16
+  },
+  "quantity_increment": {
+    "linux_before_A1_dedicated": {
+      "passed": 99,
+      "pytest_exit": 0,
+      "coverage_gate_exit": 0,
+      "coverage_percent": 97.39,
+      "coverage_minimum": 90,
+      "source_sha256": "c7b3ad3f6899366db1c4f703d081532c879427df18d4d241431c96f015995045"
+    },
+    "windows_latest": {
+      "verifier_and_distribution_passed": 15,
+      "console_passed": 8
+    },
+    "review_attempts": 3,
+    "pending_critical_or_important": 0,
+    "scenario_input_tokens_saved_estimate": 1431.5,
+    "method": "characters/4; observed usage unknown",
+    "final_check": "https://github.com/daycry/custom-agents/pull/28/checks"
   }
 }

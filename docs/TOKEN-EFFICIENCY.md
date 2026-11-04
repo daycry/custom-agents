@@ -27,6 +27,12 @@ OpenAPI, tipos/personas o mantenimiento de planes cuando corresponden; evaluator
 carga la guía de salud del código si la solicita el usuario o se cumple su umbral.
 Los originales permanecen en las referencias del kit, dentro del mismo paquete.
 
+La política compartida también tiene una entrada breve. El protocolo completo
+de recibos se consulta en `agent-kits/shared/references/source-reuse.md` solo al
+compartir exploraciones extensas; una lectura corta evita ese coste. La estimación
+[por rol y escenario](roadmap/2026-11-04-token-efficiency/testing/token-estimates.md)
+cuenta las políticas que cada rol referencia y declara los detalles condicionales.
+
 ## Compartir navegación sobre fuentes concretas
 
 Si una exploración extensa servirá a varias fases, el productor puede guardar un

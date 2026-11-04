@@ -26,6 +26,11 @@ types/personas and existing-plan maintenance. Evaluator loads code-health
 instructions on request or when the existing repository-size threshold applies.
 All original procedures ship in the same bundle.
 
+The shared policy is concise too. The full receipt protocol in
+`agent-kits/shared/references/source-reuse.md` loads only for substantial shared
+exploration. [Per-role estimates](../roadmap/2026-11-04-token-efficiency/testing/token-estimates.md)
+count directly referenced policies and disclose conditional loading separately.
+
 ## Reuse navigation with explicit source receipts
 
 For substantial exploration shared across phases, a producer may embed a receipt
