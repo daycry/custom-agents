@@ -179,3 +179,5 @@ custom-agents/               (se despliega como .claude/)
 ```
 
 **Integración por fases:** [INTEGRATION-ROADMAP.md](INTEGRATION-ROADMAP.md) fija el orden de entregas y los límites actuales de reconocimiento de extensiones propias.
+
+**Eficiencia de contexto:** [TOKEN-EFFICIENCY.md](TOKEN-EFFICIENCY.md)

@@ -1,12 +1,12 @@
 {
-  "edition": "2026-11-03",
+  "edition": "2026-11-04",
   "language": "es",
   "pdf": "output/pdf/custom-agents-manual-operativo.pdf",
   "workflows": 30,
   "sources": {
     "docs/CUSTOMIZATION.md": "3388d83806d0b3f428b376499f117be28e354588132b51ade08371303ddea90d",
     "docs/guides/product.md": "e79e74e409d28d560aee948b1189ec607877d56a5852f096bccb5441319fa9b0",
-    "docs/guides/core-workflows.md": "8d9e6180883e5cac193f7b635e71e88dd931b6a528e5a82f82e3c6bc409dafef",
+    "docs/guides/core-workflows.md": "2bf2562636f43b3456d500b622e2f82763d6e5ee49c30a2b8e54ffbab77629ef",
     "docs/guides/atlassian.md": "9a2254994cc833ed64d14a42953d016da3096afac7f179f1eebc5126bcbbd24f",
     "docs/guides/redmine.md": "becc6f4a77ee095909081a62e409df337e861c70bf274b5df8ff740beac32580",
     "docs/guides/customization.md": "cbcdfd40642f3db953f1fcfa19ed7693361c8c52c0405b902c8e527abaaaef94",
@@ -15,7 +15,7 @@
     "docs/guides/dashboard.md": "5326daf35f02b969a7dd8e11706698970daa55853445994bded98dfc42ea9793",
     "docs/guides/knowledge-categories.md": "c023508e1d7ddbeab2c7f05ce7357831ae54e343e96ad28c22453e0acd9d2383",
     "docs/reference/product.md": "1e0bcec98c685b5e24731562c03db4f442da6d6571a8a2ee58c85ed280c06902",
-    "docs/reference/core-workflows.md": "6e7d13259e6a157077fe68c6b6707cb9541f13c3c3eeb81b22af104a6bf4798c",
+    "docs/reference/core-workflows.md": "dd3e638d838a1c785d8bf25ab00862c252b3e892f5d3c55b56426bc1649f391c",
     "docs/reference/atlassian.md": "23127c9a1b76bc81e8aed77c36c7afc281ef3692b9eff5bc65744aa9457cf4a5",
     "docs/reference/redmine.md": "f26d53b7ea562429b28f68f9fc80e0b8a8ab29807344e012d1c5e91deef75fa2",
     "docs/reference/customization.md": "fd584a00b52a880539cead8e07a738442e54018eee63cafb727e4c2c88f760f2",
@@ -239,5 +239,5 @@
       "png_sha256": "bd45cf598776d82b2f8e215f19474c3b06b03c624bf9a18e80c5e8ec41c9fe34"
     }
   ],
-  "pdf_sha256": "ebc272d4461afcf23be71b3a0aac722dedc93c55d38d59804d832a5c3bc47412"
+  "pdf_sha256": "f5c5a29f4e9d51569bacf0b42ae74e75d09a8513910787dbf730c191617bcb12"
 }

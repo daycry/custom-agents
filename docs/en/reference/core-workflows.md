@@ -151,3 +151,23 @@ cycle rather than using the quick path to avoid required tests.
 Supply the initiative folder or slug when resuming. Recover the current ledger and
 associated decisions, identify unfinished work and continue there. Historical “continue”
 messages do not reactivate cancelled initiatives or create a duplicate plan.
+# Context and consumption across phases
+
+`read-discipline.md` owns source exploration and reuse; `output-discipline.md`
+owns handoff responses and waits. Commands and roles retain complete criteria,
+permissions and gates. Conditional kit references preserve original procedures.
+
+`agent-kits/shared/source-snapshot.py snapshot --project <root> --file <path>`
+emits JSON on stdout; `verify --project <root>` accepts that JSON on stdin.
+`fresh` verifies local project identity and source bytes, not interpretation,
+coverage or approval. Partial, stale, invalid or unavailable receipts require
+relevant sources to be inspected. Producers embed receipts and findings only
+in already permitted artifacts; write guards remain unchanged.
+
+`context-footprint.py --project <root> [--file <path>] [--baseline <relative-path>]`
+compares complete reports with identical path sets. It separates physical bytes,
+LF-normalized characters and a `characters/4` estimate. References are classified
+by path. It does not observe native loading, caching or billing. Actual usage
+remains unknown here and is owned by `usage-meter.py`. Static reductions do not
+establish end-to-end savings. See [TOKEN-EFFICIENCY](../TOKEN-EFFICIENCY.md)
+for limits, statuses and examples.

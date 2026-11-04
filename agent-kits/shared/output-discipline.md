@@ -18,3 +18,10 @@ Formato: **≤ ~12 líneas**, con:
 Evita: recap de los pasos que has dado, re-explicar el contenido del artefacto, prosa de relleno, felicitaciones. Si algo necesita decisión del usuario, dilo en una línea señalada, no en tres párrafos.
 
 Esto no aplica a la **conversación directa con el usuario** (p. ej. analyst tomando requisitos, o cuando el usuario te invoca suelto y espera una respuesta legible): ahí responde con naturalidad. Aplica cuando eres un eslabón de la cadena y tu salida alimenta a otro agente.
+# Esperas y salidas de herramientas
+
+Usa la espera de la CLI o integración existente para procesos y CI. Conserva el
+exit code y el registro completo; al modelo llega el cambio de fase, el resultado
+final o el fallo que requiere una decisión. Evita volver a cargar el plan y las
+instrucciones en cada consulta de estado. Mantén informado al usuario durante
+la espera; una consulta pendiente no es un resultado correcto.

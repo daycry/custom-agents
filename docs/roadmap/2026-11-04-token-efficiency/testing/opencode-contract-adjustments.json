@@ -1,0 +1,26 @@
+[
+  {
+    "agent": "custom-agents-analyst",
+    "old_sha256": "6ae1a0ed71a77d9cdb0a2251c78eb32c2bd35435921eff0214e733142f5c05d4",
+    "new_sha256": "3ddb09c053ef51c12f86ee0851ee78ee8e2643c1a94c7731954b7dba07f16b9e",
+    "reason": "Approved T-02 compact scope and removal of duplicated activation; native description/mode/permissions unchanged"
+  },
+  {
+    "agent": "custom-agents-architect",
+    "old_sha256": "0a07ecbdff4d985048b5fd6a13e10a12b00d4bcba85b583475ee5bdea45174c2",
+    "new_sha256": "a8588c078f7761f68573895fe513cf967dfb777a0d3b4b60e5c8558c41508dc3",
+    "reason": "Approved T-02 compact scope and removal of duplicated activation; native description/mode/permissions unchanged"
+  },
+  {
+    "agent": "custom-agents-documenter",
+    "old_sha256": "50a3e2e236605c3e93a710c769362e194ba5ffe982857e703b08fb3c2d1aa491",
+    "new_sha256": "399c581de1528825ef2988b1f46ba383046f9e4993270011c67c8e1b586a549e",
+    "reason": "Approved T-02 compact scope and removal of duplicated activation; native description/mode/permissions unchanged"
+  },
+  {
+    "agent": "custom-agents-knowledge-curator",
+    "old_sha256": "90a7d0617a18873b54d43eeb9dcaef0c4a853abe9e3d3331aa07ba3249017292",
+    "new_sha256": "c4f91c5a4bb8c51f27195fe06642ad8cc5bc1944626a358a8319bf3ae4260d34",
+    "reason": "Approved T-02 compact scope and removal of duplicated activation; native description/mode/permissions unchanged"
+  }
+]

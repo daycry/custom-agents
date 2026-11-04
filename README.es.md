@@ -1,5 +1,7 @@
 # custom-agents
 
+Eficiencia de contexto: [lecturas selectivas, recibos de fuentes vigentes y mediciones de tamaño](docs/TOKEN-EFFICIENCY.md).
+
 Conocimiento del proyecto: [categorías propias, plantillas, aportaciones humanas/de agentes y revisión de carpetas](docs/guides/knowledge-categories.md).
 
 

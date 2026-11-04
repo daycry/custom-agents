@@ -63,3 +63,10 @@ Sin servicio informa pendiente, sin Write/Edit alternativo. Curator evalúa tamb
 aceptado, resuelve conflictos/alto impacto con usuario y persiste por `apply` ligado al SHA.
 La política histórica de rutas no demuestra confinamiento de esta nueva vía; aceptación
 nativa pendiente. [Contrato de curación](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).
+
+## Contexto y lecturas
+
+Aplica la [disciplina compartida](../../agent-kits/shared/read-discipline.md):
+reutiliza navegación vigente, consulta fuentes pertinentes y conserva todos los
+criterios y gates del rol. Los recibos no sustituyen análisis, aprobación o tests.
+[Medición y ejemplos](../TOKEN-EFFICIENCY.md).

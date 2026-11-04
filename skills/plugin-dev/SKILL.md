@@ -11,7 +11,7 @@ description: >
 
 ## Alcance y activación
 
-Meta-skill para DESARROLLAR este plugin — crear o modificar agentes, skills, comandos, kits y hooks de custom-agents siguiendo sus convenciones, con checklist de validación y plantillas. Garantiza que cada pieza nueva nazca con frontmatter correcto, model tiering, dependencias declaradas, doc en docs/, determinismo en scripts (tests + exit codes) y degradación sin bloquear. Úsala cuando el usuario diga "crea un agente/skill/comando nuevo", "añade una skill al plugin", "modifica el agente X", "extiende el plugin", o cuando cualquier tarea toque agents/, skills/, commands/, agent-kits/ o hooks/ de este repo.
+Meta-skill para DESARROLLAR este plugin — crear o modificar agentes, skills, comandos, kits y hooks de custom-agents siguiendo sus convenciones, con checklist de validación y plantillas. Garantiza que cada pieza nueva nazca con frontmatter correcto, model tiering, dependencias declaradas, doc en docs/, determinismo en scripts (tests + exit codes) y degradación sin bloquear.
 
 
 Meta-skill de desarrollo del propio plugin: cubre **todas** sus piezas, no solo

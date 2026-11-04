@@ -47,3 +47,10 @@ solo mapas/referencias pertinentes. Stack-practices consolida PHP/CodeIgniter,
 Python y React. Los métodos, artefactos y puertas del rol conservan su dueño.
 Sin selector o guía disponible, avisa del límite y continúa con el contrato de
 la tarea; no confundas selección con ejecución, tools o permisos.
+
+## Contexto y lecturas
+
+Aplica la [disciplina compartida](../../agent-kits/shared/read-discipline.md):
+reutiliza navegación vigente, consulta fuentes pertinentes y conserva todos los
+criterios y gates del rol. Los recibos no sustituyen análisis, aprobación o tests.
+[Medición y ejemplos](../TOKEN-EFFICIENCY.md).

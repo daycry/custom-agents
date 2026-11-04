@@ -146,3 +146,7 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
 4. `python scripts/lint_plugin.py` y suites en verde.
 
 Detalle completo en `docs/CONVENTIONS.md`.
+Al cambiar la disciplina de contexto o procedimientos PM, conserva criterios y
+gates completos, actualiza `docs/TOKEN-EFFICIENCY.md` y su espejo EN, regenera
+interop y ejecuta `test_source_snapshot.py`, `test_context_footprint.py` y las
+pruebas de consola. Separa mediciones de tamaño y consumo observado.

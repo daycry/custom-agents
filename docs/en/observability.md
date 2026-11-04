@@ -443,3 +443,5 @@ composes context in one business Python interpreter and keeps its 30 s timeout.
 Windows still uses containment and a cleanup-confirmation helper: one business
 Python does not mean one process in total. The T-15 spike did not establish an
 equivalent alternative, so the cleanup margin remains in place.
+
+[Source context measurements](TOKEN-EFFICIENCY.md) compare normalized instructions; they do not replace usage observations or establish billing. `usage-meter.py` remains the artifact usage owner.

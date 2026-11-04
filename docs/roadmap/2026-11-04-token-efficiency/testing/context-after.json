@@ -1,0 +1,566 @@
+{
+  "schema_version": 1,
+  "kind": "source_footprint",
+  "method": "characters/4",
+  "normalization": "utf8-lf",
+  "status": "ok",
+  "complete": true,
+  "native_observation": null,
+  "billed_tokens": null,
+  "files": [
+    {
+      "path": "agents/analyst.md",
+      "sha256": "483b8d888ad7fa1ed847a50098c9941567ab4940d213a676d7c1eca61efe06cf",
+      "bytes": 11411,
+      "characters": 11201,
+      "lines": 134,
+      "estimated_tokens": 2800.25,
+      "scope": "entry"
+    },
+    {
+      "path": "agents/architect.md",
+      "sha256": "ea9aff8e2bec8025c2de9c188aeb6e5e518a25d92684d298c8eec5abdbe4c94c",
+      "bytes": 15633,
+      "characters": 15356,
+      "lines": 199,
+      "estimated_tokens": 3839.0,
+      "scope": "entry"
+    },
+    {
+      "path": "agents/documenter.md",
+      "sha256": "5ca54b42c696fbce2b35767b2a89ba1a1c96df45c25117576c3e2d807d391497",
+      "bytes": 17921,
+      "characters": 17598,
+      "lines": 215,
+      "estimated_tokens": 4399.5,
+      "scope": "entry"
+    },
+    {
+      "path": "agents/evaluator.md",
+      "sha256": "2287f14230931ee43476e583b2545d1676354cbda60ba4301fcd872b204b3c79",
+      "bytes": 15093,
+      "characters": 14799,
+      "lines": 140,
+      "estimated_tokens": 3699.75,
+      "scope": "entry"
+    },
+    {
+      "path": "agents/implementer.md",
+      "sha256": "caf165566681632bf77b02cfa0462e5e3d50219a3bf226dd8ad1ff462bd94d49",
+      "bytes": 27445,
+      "characters": 27023,
+      "lines": 166,
+      "estimated_tokens": 6755.75,
+      "scope": "entry"
+    },
+    {
+      "path": "agents/knowledge-curator.md",
+      "sha256": "1c188c133d1ddc4e0808336a9771c2a8dd222e2a56fb313207aba4aa976e542c",
+      "bytes": 12634,
+      "characters": 12486,
+      "lines": 192,
+      "estimated_tokens": 3121.5,
+      "scope": "entry"
+    },
+    {
+      "path": "agents/nemesis.md",
+      "sha256": "07896dd7f5dfa5b57a153084b371c93f1d1d742e7ac2977029650fd18c860c6b",
+      "bytes": 14940,
+      "characters": 14659,
+      "lines": 204,
+      "estimated_tokens": 3664.75,
+      "scope": "entry"
+    },
+    {
+      "path": "agents/planner.md",
+      "sha256": "4d1eac8313c18be4474ff2a02ab2d2c7bd8ed20a36ace55e3459847ce95802ad",
+      "bytes": 21346,
+      "characters": 20986,
+      "lines": 160,
+      "estimated_tokens": 5246.5,
+      "scope": "entry"
+    },
+    {
+      "path": "agents/qa.md",
+      "sha256": "92eeef8e7fe8a8cd24393e1e16a21d9a946a7cef06d25d9015a478b33c2afa81",
+      "bytes": 18695,
+      "characters": 18465,
+      "lines": 143,
+      "estimated_tokens": 4616.25,
+      "scope": "entry"
+    },
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "80303996efdb9aace959de8833ee8b2a9b80de0da483eb18e6c00dc056716e9a",
+      "bytes": 8618,
+      "characters": 8495,
+      "lines": 115,
+      "estimated_tokens": 2123.75,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/confluence-pull.md",
+      "sha256": "34be828cf0202a9e2c86a99bb089758b716c764c0fdab58aa62a166b7d685832",
+      "bytes": 1779,
+      "characters": 1736,
+      "lines": 24,
+      "estimated_tokens": 434.0,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/dev-cycle.md",
+      "sha256": "f94a81c1e5e4c65ef4e0f31c30408d9552a7346f7acfa8e2aa1edb6dd6740296",
+      "bytes": 30080,
+      "characters": 29316,
+      "lines": 250,
+      "estimated_tokens": 7329.0,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/doctor.md",
+      "sha256": "9a1f4c90ba9d38ce1d68cb8e47582506e97760cab2af4f27107b6c607e32241b",
+      "bytes": 17003,
+      "characters": 16409,
+      "lines": 164,
+      "estimated_tokens": 4102.25,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/knowledge-category-check.md",
+      "sha256": "b7d344a3cbf93de9571178c0c22db68bcfcad4187ae9a6de4488e3bb215362ff",
+      "bytes": 3456,
+      "characters": 3347,
+      "lines": 60,
+      "estimated_tokens": 836.75,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/plugin-catalog.md",
+      "sha256": "f6139d85583fbfc8e3f3d8e0e1b2b2d05e51dae2810dfa5b078498862db3b160",
+      "bytes": 4072,
+      "characters": 3967,
+      "lines": 64,
+      "estimated_tokens": 991.75,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/pm-backlog.md",
+      "sha256": "c4b2f8d4aa101011aa12d4a0f0d2eed4ef3a215b999052b2077030ce4c1f899e",
+      "bytes": 3040,
+      "characters": 2968,
+      "lines": 36,
+      "estimated_tokens": 742.0,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/pm-cycle.md",
+      "sha256": "5bcb612eacb52804f04d90bdf7793844d0985563441e4317b455cb37f4a34ade",
+      "bytes": 10501,
+      "characters": 10185,
+      "lines": 135,
+      "estimated_tokens": 2546.25,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/retro.md",
+      "sha256": "837edbd82650a3bdaf89013b59f8cf163b72407301431c90c9dabbbd770975a1",
+      "bytes": 8295,
+      "characters": 8112,
+      "lines": 41,
+      "estimated_tokens": 2028.0,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/roadmap-brief.md",
+      "sha256": "4be7658a14770fae1785bf9cc65343ed6f2c6c454ff3b0bf4811bd0bc3a5bd15",
+      "bytes": 3333,
+      "characters": 3253,
+      "lines": 35,
+      "estimated_tokens": 813.25,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/roadmap-live.md",
+      "sha256": "2c363ac3d881c848a70b1c435f83f0778ba19e150c1a6381d46664897c1154bc",
+      "bytes": 1423,
+      "characters": 1393,
+      "lines": 21,
+      "estimated_tokens": 348.25,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/roadmap-metrics.md",
+      "sha256": "2385d74c1a1c84ae8989a28d9a077ae654be4228132ec8bed64eab3d2774c717",
+      "bytes": 3312,
+      "characters": 3232,
+      "lines": 32,
+      "estimated_tokens": 808.0,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/roadmap-status.md",
+      "sha256": "df8beccd218b6eae56ab953db2e2efd0ac369b54b2b3bf918d911d93c54935dc",
+      "bytes": 3164,
+      "characters": 3103,
+      "lines": 35,
+      "estimated_tokens": 775.75,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/setup.md",
+      "sha256": "fd068a6cb037f81703d5014a2117827671b726bbc8a389378875d743930c305d",
+      "bytes": 23202,
+      "characters": 22812,
+      "lines": 107,
+      "estimated_tokens": 5703.0,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/spec-drift.md",
+      "sha256": "bd60df3a2bfe4caed9067a3a9d1b17857e5513399cc49b377a95af255b84f1cc",
+      "bytes": 3830,
+      "characters": 3689,
+      "lines": 53,
+      "estimated_tokens": 922.25,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/work-context.md",
+      "sha256": "d24f87b950a33060556e9aa865a2eec2a08e8e77107bc16ef67ea4fd2c448963",
+      "bytes": 1967,
+      "characters": 1903,
+      "lines": 30,
+      "estimated_tokens": 475.75,
+      "scope": "entry"
+    },
+    {
+      "path": "commands/work-resume.md",
+      "sha256": "eb76843d25fff78adf915aad203f4e008cd90d0fd1b0c2bc198a09a7934b474f",
+      "bytes": 5002,
+      "characters": 4867,
+      "lines": 76,
+      "estimated_tokens": 1216.75,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "793d709e4ae5496b19bdaedf279a15863d3799a86bf997b18e0e97fe8b46e2b9",
+      "bytes": 18704,
+      "characters": 18317,
+      "lines": 190,
+      "estimated_tokens": 4579.25,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/api-contract/SKILL.md",
+      "sha256": "f306afa93e23150d1f1f312db200984d1f3456441212a2e44da988bafaeec2b7",
+      "bytes": 9601,
+      "characters": 9488,
+      "lines": 124,
+      "estimated_tokens": 2372.0,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/backend-practices/SKILL.md",
+      "sha256": "0d4e123229373cd1da0efe5689743618e49db651a53d66631209e22e0a6b10c5",
+      "bytes": 2234,
+      "characters": 2177,
+      "lines": 30,
+      "estimated_tokens": 544.25,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/capability-audit/SKILL.md",
+      "sha256": "5cd892a97b3c78b3afd0bb3dd71011602e500915f28cfda5b7fc365649958dea",
+      "bytes": 2148,
+      "characters": 2072,
+      "lines": 39,
+      "estimated_tokens": 518.0,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/changelog-sync/SKILL.md",
+      "sha256": "41233fb8fa0b9aa31542cfad4e7eaddb2147c13049f3b7fa29b3099a7af6ae82",
+      "bytes": 10588,
+      "characters": 10399,
+      "lines": 147,
+      "estimated_tokens": 2599.75,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/code-health/SKILL.md",
+      "sha256": "fe4e05b0269a5a7cfcf00f22d01ea931e7713dce1b8bfad5155378d17be9e4a7",
+      "bytes": 9335,
+      "characters": 9135,
+      "lines": 115,
+      "estimated_tokens": 2283.75,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/competitive-analysis/SKILL.md",
+      "sha256": "96f6c62332e7fdb1f1b3e613659cd307b46ee3b713fad19360ff0b4fc4fd2222",
+      "bytes": 2876,
+      "characters": 2785,
+      "lines": 45,
+      "estimated_tokens": 696.25,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/confluence-publish/SKILL.md",
+      "sha256": "cf4dafedfe316176081b68a5f0d558720b3a7cd8866f15d876b72c8737f14359",
+      "bytes": 13251,
+      "characters": 12953,
+      "lines": 200,
+      "estimated_tokens": 3238.25,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/confluence-pull/SKILL.md",
+      "sha256": "e73b9236379dd89f1e3294c4a8901bb9fac4b50bc9ee721499bb0accfb1ff133",
+      "bytes": 11553,
+      "characters": 11329,
+      "lines": 146,
+      "estimated_tokens": 2832.25,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/content-production/SKILL.md",
+      "sha256": "1ae725e525e3edb49aca0353ed85f68d459d3dfe34ba57cdd1fd4364d18c75a8",
+      "bytes": 3011,
+      "characters": 2921,
+      "lines": 46,
+      "estimated_tokens": 730.25,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/cybersecurity/SKILL.md",
+      "sha256": "bf85cb4a2e21b9b55c7149c519864f484679f63c0ad830fe66b653b00018f2da",
+      "bytes": 12032,
+      "characters": 11756,
+      "lines": 166,
+      "estimated_tokens": 2939.0,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/data-collection/SKILL.md",
+      "sha256": "1ba9b29f7a320cf5ccc39d728d283de47449b10a7648018f35621ba3133fef55",
+      "bytes": 3068,
+      "characters": 2966,
+      "lines": 48,
+      "estimated_tokens": 741.5,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/debug-root-cause/SKILL.md",
+      "sha256": "9ab8ec6b373d97b9e162815db58038c5b68476beb2654ebda573638ec3378120",
+      "bytes": 8443,
+      "characters": 8151,
+      "lines": 118,
+      "estimated_tokens": 2037.75,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "9ba35505fce4ddea85f9f82c65a275a5f77d6232e3ebaf31aa640ce3916c7a9b",
+      "bytes": 2070,
+      "characters": 2017,
+      "lines": 28,
+      "estimated_tokens": 504.25,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/dependency-upgrade/SKILL.md",
+      "sha256": "f6bc723c2297f37aa919475ef509f144560b1c8dae2a4dd82bc4633247be0920",
+      "bytes": 7192,
+      "characters": 7066,
+      "lines": 98,
+      "estimated_tokens": 1766.5,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/frontend-quality/SKILL.md",
+      "sha256": "648ba3f055a12ec8cafc26cfa27af5c4c17673edffea7e0af9d140be77f70a5c",
+      "bytes": 1653,
+      "characters": 1614,
+      "lines": 27,
+      "estimated_tokens": 403.5,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/jira-sync/SKILL.md",
+      "sha256": "4f385ed59cff3112d53782d0cfd84601c36d367ea903a120494b1f3d21d0669c",
+      "bytes": 13931,
+      "characters": 13678,
+      "lines": 183,
+      "estimated_tokens": 3419.5,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/knowledge-category-template/SKILL.md",
+      "sha256": "679015a29050a5af3e20489a309dc4951276cb057b6189df4daea5b1be8d1768",
+      "bytes": 5430,
+      "characters": 5252,
+      "lines": 99,
+      "estimated_tokens": 1313.0,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/knowledge-services/SKILL.md",
+      "sha256": "818cef66eb8bf43c64e98db14038449bdd2046f2c2be4438c4ac76c306713941",
+      "bytes": 12198,
+      "characters": 12075,
+      "lines": 146,
+      "estimated_tokens": 3018.75,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/llm-pipeline/SKILL.md",
+      "sha256": "f77eb5c09a06c1f837035233fc1222a3dcfeac4d723d16d26fa68666a0cd68f4",
+      "bytes": 3232,
+      "characters": 3122,
+      "lines": 49,
+      "estimated_tokens": 780.5,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/outcome-evals/SKILL.md",
+      "sha256": "6f7486eddcdb66cdd86754319298a9013ceb76bd61cce124501a1fd201e2beb9",
+      "bytes": 2911,
+      "characters": 2824,
+      "lines": 44,
+      "estimated_tokens": 706.0,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/plugin-dev/SKILL.md",
+      "sha256": "5e1214e48026e30ba7fc8ef7e72ff5b1eb53469389aafd9c119054adfdd5dccd",
+      "bytes": 16115,
+      "characters": 15844,
+      "lines": 199,
+      "estimated_tokens": 3961.0,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/plugin-panel/SKILL.md",
+      "sha256": "3958191ce6519381dec1b17bff6fc280c932679a15634ebd271dc67e64f24096",
+      "bytes": 6767,
+      "characters": 6590,
+      "lines": 111,
+      "estimated_tokens": 1647.5,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/quick-implement/SKILL.md",
+      "sha256": "9ae0239c57dd1bb7943c8384ceecb446d2794f8fb9e5c19d17dffed561abfb40",
+      "bytes": 7153,
+      "characters": 6897,
+      "lines": 94,
+      "estimated_tokens": 1724.25,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/rates-verify/SKILL.md",
+      "sha256": "b67d7e6395b8d48092bce53afcbba9463f9b575e86ff9ccb9b7e4e7c20919b61",
+      "bytes": 4860,
+      "characters": 4805,
+      "lines": 51,
+      "estimated_tokens": 1201.25,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/relationship-planning/SKILL.md",
+      "sha256": "6be8bd9eafe1ea951369c2b2bc0aa22c958c4438296972676f5a68447bebd1fa",
+      "bytes": 2982,
+      "characters": 2891,
+      "lines": 44,
+      "estimated_tokens": 722.75,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/research-first/SKILL.md",
+      "sha256": "b9f0df7b8e9297d09baac881adce6bba4e78717b279a0581a9d31ca4c844749c",
+      "bytes": 3820,
+      "characters": 3690,
+      "lines": 60,
+      "estimated_tokens": 922.5,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/roadmap-dashboard/SKILL.md",
+      "sha256": "2738d6b91e5f0eb50088d9386d61152c86cfab03847c8374d14f92aead0e8ef2",
+      "bytes": 5172,
+      "characters": 5037,
+      "lines": 63,
+      "estimated_tokens": 1259.25,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/stack-practices/SKILL.md",
+      "sha256": "b06b427e7ef1e680d962cbbf6eea05ff8c3db7b307484389f40e7b76fd0fd9a4",
+      "bytes": 3121,
+      "characters": 3043,
+      "lines": 44,
+      "estimated_tokens": 760.75,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "e2d98c0ee361c20b245fc3408d976799ec0aa52eeae741cdb7ac618ca676efb5",
+      "bytes": 9733,
+      "characters": 9557,
+      "lines": 122,
+      "estimated_tokens": 2389.25,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/to-pdf/SKILL.md",
+      "sha256": "1b8d18836d725988a23ab9ae99760b96df6227ff0d33906789a2e59324cc04fa",
+      "bytes": 3105,
+      "characters": 3015,
+      "lines": 62,
+      "estimated_tokens": 753.75,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/training-data-services/SKILL.md",
+      "sha256": "d1aa76a4c20686e4935248b9cb5e81afbcbd12c797e212b8fb1e3f27ee517c30",
+      "bytes": 9640,
+      "characters": 9528,
+      "lines": 109,
+      "estimated_tokens": 2382.0,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "679da67f7e601537cea64f657cacafec9c9bc8814aed0865c2ac4be49e4cf238",
+      "bytes": 7228,
+      "characters": 7097,
+      "lines": 111,
+      "estimated_tokens": 1774.25,
+      "scope": "entry"
+    },
+    {
+      "path": "skills/voice-profile/SKILL.md",
+      "sha256": "87873057c6bd8e31de94ca332268905798c7e2e59cc651f236fec0e1b47df3e0",
+      "bytes": 2883,
+      "characters": 2805,
+      "lines": 45,
+      "estimated_tokens": 701.25,
+      "scope": "entry"
+    }
+  ],
+  "issues": [],
+  "totals": {
+    "characters": 514256,
+    "bytes": 525235,
+    "entry_characters": 514256,
+    "reference_characters": 0
+  },
+  "comparison": {
+    "comparable": true,
+    "before_characters": 521490,
+    "after_characters": 514256,
+    "delta_characters": -7234,
+    "reduction_percent": 1.39
+  }
+}

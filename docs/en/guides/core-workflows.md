@@ -308,3 +308,26 @@ in progress does not prove that a worker is alive. A missing figure is not zero.
 The canonical sources are project records, events and verified tool outputs,
 not these fictional example identifiers. The [advanced lifecycle reference](../reference/core-workflows.md)
 provides detailed contracts for administrators.
+
+## Avoid repeated exploration
+
+No additional service is required. When the analyst has located request
+validation, the evaluator and planner can start with that location and check
+that it is still current. Each role investigates what its decision requires.
+
+| Stage | Useful reuse | Control you retain |
+|---|---|---|
+| Clarify | `analyst` asks only about missing parts of an existing spec | Scope, unknowns and requirements approval |
+| Budget | `evaluator` uses the spec and current sources | Risks, assumptions and go/no-go decision |
+| Design and plan | `architect` and `planner` load applicable details | Approved architecture and verifiable tasks |
+| Build | `/dev-cycle` passes tasks and necessary references to `implementer` | Independent review, tests and evidence |
+| Follow progress | Concise status, available figures and next step | Complete reports in their canonical files |
+
+For example: “Continue this spec, reuse current findings, and ask only about
+missing information. Keep every criterion and verification.” Changed sources
+require the affected findings to be revisited. A technical receipt can verify
+unchanged bytes; it cannot approve conclusions or replace tests.
+
+Source-size reports compare instructions rather than guarantee session savings.
+Actual consumption requires observations; missing data must remain unknown.
+The [efficiency guide](../TOKEN-EFFICIENCY.md) gives administrators the details.

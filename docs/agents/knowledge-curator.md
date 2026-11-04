@@ -175,3 +175,10 @@ ni garantiza sandbox. Legado mantiene bytes/estados/autoridad sin migración/rea
 Fecha/score/ranking no resuelven contradicción; Constitución prima y conflicto/alto impacto
 requieren resolución humana trazada. Sin servicio, informa pendiente. Aceptación nativa y de
 implementación pendientes. [Contrato](../roadmap/2026-10-07-catalog-capabilities/comparisons/memory-curation-contract.md).
+
+## Contexto y lecturas
+
+Aplica la [disciplina compartida](../../agent-kits/shared/read-discipline.md):
+reutiliza navegación vigente, consulta fuentes pertinentes y conserva todos los
+criterios y gates del rol. Los recibos no sustituyen análisis, aprobación o tests.
+[Medición y ejemplos](../TOKEN-EFFICIENCY.md).

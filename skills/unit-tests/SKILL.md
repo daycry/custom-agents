@@ -12,7 +12,7 @@ description: >
 
 ## Alcance y activación
 
-Pirámide de pruebas y GATE de cobertura determinista, agnóstico de stack — `coverage-gate.py` detecta pytest/jest/vitest/phpunit/go, ejecuta su cobertura OFICIAL solo si la herramienta está en PATH y mide el % global o, con `--changed-only`, SOLO los ficheros de código del diff. Nunca inventa un porcentaje: sin herramienta/stack/parseo, avisa y sale con 2. Skill COMPARTIDA, no un agente nuevo (decisión: evitar roles duplicados — LES-013): la usan `implementer` (gate opt-in por fase) y `qa` (pirámide en el informe). NO es el método de escribir el test (eso es `tdd`) ni las pruebas E2E (`qa`). Úsala cuando el usuario diga "sube la cobertura de tests", "qué % de cobertura tenemos", "pon un gate de cobertura", "pirámide de pruebas", "cuántos tests unitarios faltan", o cuando `dev.json` traiga `tests.coberturaMinima`.
+Pirámide de pruebas y GATE de cobertura determinista, agnóstico de stack — `coverage-gate.py` detecta pytest/jest/vitest/phpunit/go, ejecuta su cobertura OFICIAL solo si la herramienta está en PATH y mide el % global o, con `--changed-only`, SOLO los ficheros de código del diff. Nunca inventa un porcentaje: sin herramienta/stack/parseo, avisa y sale con 2. Skill COMPARTIDA, no un agente nuevo (decisión: evitar roles duplicados — LES-013): la usan `implementer` (gate opt-in por fase) y `qa` (pirámide en el informe). NO es el método de escribir el test (eso es `tdd`) ni las pruebas E2E (`qa`).
 
 
 Un ciclo con `tdd` bien seguido y un `qa` en verde no dicen cuánto del código NUEVO queda sin

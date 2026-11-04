@@ -355,3 +355,29 @@ pide qué fecha y qué fuente utiliza. Si no hay medición de coste, «sin dato�
 La [referencia técnica del ciclo](../reference/core-workflows.md) describe los archivos,
 eventos y herramientas internas que sostienen estos recorridos. No necesitas esos
 identificadores para seguir las decisiones de este capítulo.
+
+## Trabajar con menos lecturas repetidas
+
+No necesitas activar otro servicio para aprovechar esta disciplina. Por ejemplo,
+si el analista ya identificó dónde se validan las solicitudes, el evaluador y el
+planificador parten de esa ubicación y comprueban que sigue vigente. Investigan
+lo que necesitan para su decisión, sin volver a recorrer todo el proyecto.
+
+| Momento | Qué sucede | Qué sigues controlando |
+|---|---|---|
+| Aclarar la idea | `analyst` afina solo lo pendiente en la spec existente | Alcance, incógnitas y aprobación de requisitos |
+| Presupuestar | `evaluator` usa la spec y fuentes actuales | Riesgos, supuestos y decisión de continuar |
+| Diseñar y planificar | `architect` y `planner` consultan los detalles aplicables | Arquitectura aprobada, tareas y criterios comprobables |
+| Construir | `/dev-cycle` pasa a `implementer` la tarea y referencias necesarias | Revisión independiente, pruebas y evidencia |
+| Consultar progreso | Recibes el estado, cifras disponibles y siguiente paso | Los informes completos permanecen en sus archivos |
+
+Puedes pedirlo así: «Retoma esta spec y reutiliza los hallazgos que sigan
+vigentes. Pregunta solo por lo que falta; conserva todos los criterios y
+verificaciones». Si cambian los archivos, se revisan los hallazgos afectados.
+Un recibo técnico puede comprobar que las fuentes conservan sus bytes; no
+aprueba las conclusiones ni sustituye pruebas.
+
+Menos texto no garantiza un porcentaje de ahorro. Los informes de tamaño sirven
+para comparar instrucciones; el consumo real necesita medidas de la sesión.
+Sin una medida, debe decir «desconocido». La [guía de eficiencia](../TOKEN-EFFICIENCY.md)
+explica las opciones para quien administre el producto.

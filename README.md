@@ -1,5 +1,7 @@
 # custom-agents
 
+Context efficiency: [selective reads, current source receipts and honest source-size measurements](docs/en/TOKEN-EFFICIENCY.md).
+
 Project knowledge: [custom categories, project-owned templates, human/agent contributions and inbox checks](docs/en/guides/knowledge-categories.md).
 
 

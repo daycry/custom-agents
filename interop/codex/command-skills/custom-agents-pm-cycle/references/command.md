@@ -20,6 +20,12 @@ para que, cuando se decida ejecutar, `/dev-cycle` recoja el testigo sin repetir 
 
 ## Contexto técnico compartido
 
+Aplica `agent-kits/shared/read-discipline.md` y `output-discipline.md` del mismo
+directorio. Cada rol recibe el objetivo, los criterios y restricciones completos,
+las decisiones aprobadas y las rutas de artefactos vigentes; evita copiar el
+historial o informes enteros. Reutiliza navegación verificada entre fases y deja
+visibles las incógnitas. Cada rol conserva su análisis, permisos y gates propios.
+
 Antes de despachar roles, aplica `agent-kits/shared/capability-check.md` sobre
 el paquete y áreas del objetivo. Comparte selección/procedencia con los roles;
 planner registra los IDs y escenarios por tarea. Implementer, reviewer y qa

@@ -79,3 +79,10 @@ la tarea; no confundas selección con ejecución, tools o permisos.
 ## Integraciones opcionales por proyecto
 
 El rol usa `project-integrations.md` para sus eventos, sin exigir Jira ni Confluence. Consulta el [workflow detallado](../guides/core-workflows.md) y los [adaptadores del proyecto](../CUSTOMIZATION.md). Destino remoto, recibos y permisos pertenecen al adaptador; los gates locales mantienen su dueño.
+
+## Contexto y lecturas
+
+Aplica la [disciplina compartida](../../agent-kits/shared/read-discipline.md):
+reutiliza navegación vigente, consulta fuentes pertinentes y conserva todos los
+criterios y gates del rol. Los recibos no sustituyen análisis, aprobación o tests.
+[Medición y ejemplos](../TOKEN-EFFICIENCY.md).
