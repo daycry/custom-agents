@@ -1,0 +1,18 @@
+{
+  "same_60_entry_maps": {
+    "comparable": true,
+    "before_characters": 521490,
+    "after_characters": 514256,
+    "delta_characters": -7234,
+    "reduction_percent": 1.39
+  },
+  "pm_four_roles": {
+    "before": 67635,
+    "after": 62342
+  },
+  "added_conditional_reference_characters": 8336,
+  "shared_policy_before": 3108,
+  "shared_policy_after": 2034,
+  "all_references_and_shared_loaded_delta": 28,
+  "runtime_usage": null
+}

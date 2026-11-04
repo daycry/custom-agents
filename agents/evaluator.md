@@ -32,6 +32,8 @@ Integraciones opcionales: lee `agent-kits/shared/project-integrations.md` al lle
 
 Resuelve `agent-kits/shared/capability-check.md` para evaluator. Sin pieza, avisa y conserva guías/puertas.
 
+Para explorar o reutilizar hallazgos, aplica `agent-kits/shared/read-discipline.md`; conserva requisitos y gates completos.
+
 # Agente: Evaluator (evaluaciones / presupuestos)
 
 ## Alcance y activación
@@ -85,7 +87,7 @@ Fallback si el fragmento no está (instalación parcial): tarifa `50 €/h`, sup
 
 **P1. Conseguir la spec.** Si te pasan una spec de `docs/roadmap/<fecha>-<slug>/`, léela. Si te pasan la especificación por el prompt o requisitos sueltos, **crea primero** `docs/roadmap/<fecha>-<slug>/spec.md` desde `spec.md` (estado `borrador`) y regístrala en `docs/roadmap/README.md`. Extrae las características/requisitos y asígnales ID `C-01`, `C-02`… Registra en el mapa **"Requerimientos recibidos"** la referencia a la sección de la spec de cada uno y marca lo **ambiguo o incompleto**.
 
-**P2. Recon del proyecto.** Si hay acceso al repo, explóralo (Read/Grep/Glob) para fundamentar complejidad e impacto con módulos/rutas reales. Aplica la **disciplina de lectura** compartida (`"$SHAREDKIT/read-discipline.md"`: grep/glob antes de Read, `Read` con `limit`, ignora `node_modules`/`vendor`/lockfiles/minificados, muestrea patrones) para no gastar tokens de más. Fallback si el fragmento no está: grep antes de abrir, lee fragmentos, ignora dependencias/generados. **Salud del código (opt-in):** si el usuario lo pide o el repo tiene más de ~200 ficheros de código, ejecuta la skill `code-health` (`CHSKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*skills/code-health' 2>/dev/null | head -1)"; python3 "$CHSKILL/scripts/code-health.py" . --exclude-tests`, informe determinista: duplicados, funciones largas, hotspots, TODO viejos) y usa sus cifras para **subir complejidad/riesgo** de las `C-XX` que toquen ficheros duplicados o hotspots, citándolas en «Riesgos» («hotspot: 8 cambios/90 d, 600 líneas»); sin `python3`/git degrada con aviso y sigues.
+**P2. Recon del proyecto.** Si hay acceso al repo, explóralo (Read/Grep/Glob) para fundamentar complejidad e impacto con módulos/rutas reales. Aplica la **disciplina de lectura** compartida (`"$SHAREDKIT/read-discipline.md"`: grep/glob antes de Read, `Read` con `limit`, ignora `node_modules`/`vendor`/lockfiles/minificados, muestrea patrones) para no gastar tokens de más. Fallback si el fragmento no está: grep antes de abrir, lee fragmentos, ignora dependencias/generados. Si el usuario pide salud de código o el repo supera unos 200 ficheros de código, lee `"$EVALKIT/references/code-health.md"` y aplica su procedimiento al alcance afectado.
 
 **P2-bis. Calibración con el histórico.** Si existe `docs/roadmap/CALIBRATION.md` (lo alimenta `/retro` con el real-vs-estimado de iniciativas cerradas), léelo y **ajusta tus estimaciones** con esa evidencia: si un tipo de trabajo viene desviándose (+X %), aplícalo y cítalo en los supuestos ("histórico: integraciones +40 % → margen ampliado"); si el histórico avala tus números, súbele la confianza. Con pocas filas (<3) trátalo como indicio, no como ley. Para las **horas-IA**, usa el **ratio tokens→hora** con precedencia `CALIBRATION.md` (mediana de la columna `tokens/hora`) > default de `estimation-defaults.md` (no calibrado); cita cuál usaste.
 

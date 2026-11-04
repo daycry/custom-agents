@@ -1,0 +1,296 @@
+{
+  "edition": "2026-11-04",
+  "method": "source paragraphs/cells/code lines vs extracted body text; bounds; every page rendered; source/PDF hashes",
+  "reports": [
+    {
+      "pdf": "output/pdf/guia-resultados-calidad-custom-agents.pdf",
+      "pages": 25,
+      "diagrams": 5,
+      "outline_entries": 19,
+      "links": 53,
+      "source_blocks_checked": 494,
+      "missing_blocks": [],
+      "overflow": [],
+      "page_info": [
+        {
+          "page": 1,
+          "words": 43,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 2,
+          "words": 156,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 3,
+          "words": 760,
+          "images": 0,
+          "links": 38
+        },
+        {
+          "page": 4,
+          "words": 357,
+          "images": 0,
+          "links": 3
+        },
+        {
+          "page": 5,
+          "words": 326,
+          "images": 0,
+          "links": 1
+        },
+        {
+          "page": 6,
+          "words": 237,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 7,
+          "words": 97,
+          "images": 1,
+          "links": 0
+        },
+        {
+          "page": 8,
+          "words": 300,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 9,
+          "words": 267,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 10,
+          "words": 148,
+          "images": 1,
+          "links": 0
+        },
+        {
+          "page": 11,
+          "words": 389,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 12,
+          "words": 417,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 13,
+          "words": 365,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 14,
+          "words": 155,
+          "images": 1,
+          "links": 0
+        },
+        {
+          "page": 15,
+          "words": 379,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 16,
+          "words": 350,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 17,
+          "words": 143,
+          "images": 1,
+          "links": 0
+        },
+        {
+          "page": 18,
+          "words": 267,
+          "images": 0,
+          "links": 3
+        },
+        {
+          "page": 19,
+          "words": 107,
+          "images": 1,
+          "links": 0
+        },
+        {
+          "page": 20,
+          "words": 371,
+          "images": 0,
+          "links": 3
+        },
+        {
+          "page": 21,
+          "words": 389,
+          "images": 0,
+          "links": 3
+        },
+        {
+          "page": 22,
+          "words": 319,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 23,
+          "words": 299,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 24,
+          "words": 236,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 25,
+          "words": 182,
+          "images": 0,
+          "links": 2
+        }
+      ],
+      "visual_review": "All pages rendered and contact sheet inspected; detailed checks on diagrams, CLI tables, glossary and closing pages. Final cover/introduction accents re-rendered and inspected."
+    },
+    {
+      "pdf": "output/pdf/guia-uso-eficiente-claude-codex.pdf",
+      "pages": 19,
+      "diagrams": 3,
+      "outline_entries": 18,
+      "links": 66,
+      "source_blocks_checked": 317,
+      "missing_blocks": [],
+      "overflow": [],
+      "page_info": [
+        {
+          "page": 1,
+          "words": 46,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 2,
+          "words": 155,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 3,
+          "words": 727,
+          "images": 0,
+          "links": 36
+        },
+        {
+          "page": 4,
+          "words": 368,
+          "images": 0,
+          "links": 4
+        },
+        {
+          "page": 5,
+          "words": 310,
+          "images": 0,
+          "links": 2
+        },
+        {
+          "page": 6,
+          "words": 236,
+          "images": 1,
+          "links": 0
+        },
+        {
+          "page": 7,
+          "words": 338,
+          "images": 0,
+          "links": 4
+        },
+        {
+          "page": 8,
+          "words": 329,
+          "images": 0,
+          "links": 1
+        },
+        {
+          "page": 9,
+          "words": 409,
+          "images": 0,
+          "links": 6
+        },
+        {
+          "page": 10,
+          "words": 201,
+          "images": 0,
+          "links": 2
+        },
+        {
+          "page": 11,
+          "words": 136,
+          "images": 1,
+          "links": 0
+        },
+        {
+          "page": 12,
+          "words": 423,
+          "images": 0,
+          "links": 3
+        },
+        {
+          "page": 13,
+          "words": 374,
+          "images": 0,
+          "links": 3
+        },
+        {
+          "page": 14,
+          "words": 104,
+          "images": 1,
+          "links": 0
+        },
+        {
+          "page": 15,
+          "words": 308,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 16,
+          "words": 298,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 17,
+          "words": 156,
+          "images": 0,
+          "links": 1
+        },
+        {
+          "page": 18,
+          "words": 249,
+          "images": 0,
+          "links": 0
+        },
+        {
+          "page": 19,
+          "words": 177,
+          "images": 0,
+          "links": 4
+        }
+      ],
+      "visual_review": "All pages rendered and contact sheet inspected; detailed checks on diagrams, CLI tables, glossary and closing pages. Final cover/introduction accents re-rendered and inspected."
+    }
+  ]
+}

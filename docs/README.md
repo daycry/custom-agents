@@ -1,5 +1,7 @@
 # custom-agents — índice de documentación
 
+**Manuales prácticos para usuarios:** [Uso eficiente de Claude y Codex](guides/subscription-efficiency.md) / [PDF](../output/pdf/guia-uso-eficiente-claude-codex.pdf) · [Resultados de calidad con custom-agents](guides/quality-playbook.md) / [PDF](../output/pdf/guia-resultados-calidad-custom-agents.pdf).
+
 
 **Manual de uso y personalización:** [workflows detallados del core, integraciones opcionales, Atlassian/Redmine y extensiones del proyecto](CUSTOMIZATION.md). Los bundles nativos son completos; configurado no significa conectado ni autorizado.
 
@@ -179,3 +181,5 @@ custom-agents/               (se despliega como .claude/)
 ```
 
 **Integración por fases:** [INTEGRATION-ROADMAP.md](INTEGRATION-ROADMAP.md) fija el orden de entregas y los límites actuales de reconocimiento de extensiones propias.
+
+**Eficiencia de contexto:** [TOKEN-EFFICIENCY.md](TOKEN-EFFICIENCY.md)

@@ -574,6 +574,12 @@ def _modos():
             [("indice", lambda w: ["--no-cache"], (0,), None)],
         "agent-kits/shared/task-brief.py":
             [("brief", lambda w: [INI, "T-01"], (0,), None)],
+        "agent-kits/shared/source-snapshot.py":
+            [("snapshot UTF-8", lambda w: ["snapshot", "--project", w, "--file", "src/señal.py"], (0,), None)],
+        "agent-kits/shared/context-footprint.py":
+            [("huella UTF-8", lambda w: ["--project", w, "--file", "src/señal.py"], (0,), None)],
+        "docs/roadmap/2026-11-04-token-efficiency/testing/audit-token-estimates.py":
+            [("estimacion Markdown", lambda w: ["--generate", "--markdown"], (0,), None)],
         "agent-kits/shared/usage-meter.py":
             [("close", lambda w: ["close", "--artefacto", "x", "--state", os.path.join(w, "u.json")], (0,), None)],
         "scripts/bench-session-end.py":
@@ -649,6 +655,7 @@ def taller(tmp_path_factory):
     (w / "src").mkdir()
     (w / "native-capture" / "docs" / "roadmap").mkdir(parents=True)
     (w / "src" / "a.py").write_text("def f():\n    return 1\n" * 3, encoding="utf-8")
+    (w / "src" / "señal.py").write_text("value = 1\n", encoding="utf-8")
     # El error sin grafo es ASCII legítimo. Ejercita el payload real que imprime ensure_ascii=False.
     code = w / "code-context"
     code.mkdir()

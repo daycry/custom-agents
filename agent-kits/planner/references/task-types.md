@@ -1,0 +1,10 @@
+# Procedimientos por tipo de tarea
+
+Lee esta referencia en P3 si la tarea incluye deuda medida, borrado de código/dependencias o un contrato OpenAPI.
+
+**Deuda técnica medida (opcional):** si la evaluación cita un informe de la skill `code-health` (o el usuario lo pide), abre tareas de deuda SOLO dentro del alcance de la spec, cada una con el `fichero:línea` del informe y `Verificación` = volver a ejecutar `code-health.py --baseline <informe>` → «↓ mejora» en la métrica tocada; lo que quede fuera del alcance se propone como iniciativa aparte, no se cuela. **Borrado de código o dependencias sin uso:** la tarea declara en sus criterios cómo se descartaron las referencias dinámicas (importación o registro por cadena, reflexión, plantillas) y el uso como API pública; la detección la hace la herramienta que el proyecto ya tenga, y su `Verificación` incluye build y tests. **Tareas de contrato (opcional, si la spec toca una API):** cuando el alcance crea o cambia endpoints con una spec OpenAPI, añade una tarea de verificación de contrato con `Verificación` = `python3 <ruta>/openapi-lint.py <spec.yaml|json>` (exit 0 obligatorio) y, si ya existía una versión previa de la spec, además `--diff <version-anterior> <version-nueva>` (skill `api-contract`) para que los cambios rompedores sean explícitos ANTES de implementar, no un gap que encuentre la revisión; sin OpenAPI en el proyecto, no la fuerces.
+
+
+## Tipo y persona de dominio
+
+El campo **Tipo** es OPCIONAL y **libre** (no hay lista cerrada de tipos): asígnalo solo cuando la tarea tenga un dominio claro — el despacho por subagentes de `/dev-cycle` lo usa para inyectar la **persona de dominio** en el brief, en cascada de tres escalones (`project-specialization` T-01): `.claude/personas/<tipo>.md` DEL PROYECTO primero si existe, si no el catálogo del plugin (`agent-kits/shared/personas/`, hoy `frontend`/`backend`/`db`/`devops`/`test`/`docs`); sin tipo, subagente genérico. No lo fuerces: una tarea mixta o de pegamento va mejor sin etiqueta, y un tipo nuevo funciona sin tocar código si el proyecto escribe su propia persona.

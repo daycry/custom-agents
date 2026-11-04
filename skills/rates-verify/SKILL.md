@@ -11,7 +11,7 @@ description: >
 
 ## Alcance y activación
 
-Verifica y actualiza el PRECIO DE TOKENS vigente de la API de Claude en la config compartida .claude/rates.json, para que las evaluaciones y planes dejen de arrastrar el "⚠️ verificar" y el coste de IA sea real. Consulta la documentación oficial de precios (WebFetch), extrae input/output del modelo asumido y escribe los valores con la fecha de verificación. Nunca inventa un precio: si no puede leer la doc, deja el marcador y avisa. Úsala cuando el usuario diga "verifica las tarifas", "actualiza el precio de tokens", "pon los precios al día", o cuando una evaluación detecte el precio sin verificar. También se ofrece en /setup.
+Verifica y actualiza el PRECIO DE TOKENS vigente de la API de Claude en la config compartida .claude/rates.json, para que las evaluaciones y planes dejen de arrastrar el "⚠️ verificar" y el coste de IA sea real. Consulta la documentación oficial de precios (WebFetch), extrae input/output del modelo asumido y escribe los valores con la fecha de verificación. Nunca inventa un precio: si no puede leer la doc, deja el marcador y avisa.
 
 
 Objetivo: que `evaluator`/`planner` calculen el **coste de IA con precios reales** en vez de marcar `⚠️ verificar`. Esta skill consulta la doc oficial de precios, extrae el precio por millón de tokens (input/output) del modelo asumido y lo escribe en la config compartida con la fecha en que se verificó.

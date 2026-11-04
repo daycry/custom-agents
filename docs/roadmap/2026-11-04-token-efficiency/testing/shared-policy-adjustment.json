@@ -1,0 +1,8 @@
+{
+  "reference": "agent-kits/shared/references/source-reuse.md",
+  "moved_section_sha256": "0b41f2350ab9866b33e95025cfd5e4940106b7fef4d6434e218dc8aa5792561c",
+  "original_five_read_rules_sha256": "1d1ca1873df4383f7ace58120024dc7901cc104358a723476d43d3941e368d35",
+  "reason": "Keep the default shared policy short; load the original detailed receipt protocol only when sharing extensive exploration.",
+  "preserved_in_reference": true,
+  "original_delegation_sha256": "c5c072065724e4a35a8ec4bb5bee2fd015a012d910d31110fcf37973dda5b1ec"
+}

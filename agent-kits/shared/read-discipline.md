@@ -1,17 +1,20 @@
-<!--
-  FRAGMENTO COMPARTIDO: disciplina de lectura del recon.
-  Lo referencian los agentes que EXPLORAN un repo (documenter, nemesis, evaluator, qa).
-  Objetivo: leer lo justo — el recon es lo más caro en tokens del plugin.
--->
+# Disciplina de lectura
 
-# Disciplina de lectura (recon)
+1. Localiza ficheros y símbolos con `grep`/`glob` antes de `Read`.
+2. Lee fragmentos con `limit`/`offset`; divide fuentes grandes.
+3. Excluye dependencias, `.git/`, generados, lockfiles, minificados, binarios,
+   imágenes y mapas; restringe los globs.
+4. Para patrones, muestra 1-3 ejemplos y declara el muestreo.
+5. Si el archivo es el objeto del trabajo, léelo completo; la exclusión no aplica.
 
-Cuando explores un repositorio o proyecto para fundamentar tu trabajo, **lee lo justo**. El recon es la fase más cara en tokens; estas reglas la abaratan sin perder rigor.
+Reutiliza hallazgos vigentes de spec/evaluación/diseño; conserva requisitos,
+código necesario y juicio independiente. Lee una vez por contexto vigente;
+si cambia o se pierde, vuelve a la fuente. Al delegar, transmite estas reglas
+y pide rutas, líneas y hallazgos, sin volcados.
+Adapta solo secciones opcionales con motivo; conserva campos, estados y enlaces.
+Si no cabe, divide sin recortar criterios, restricciones, evidencia ni errores.
 
-1. **`grep`/`glob` antes de `Read`.** Localiza primero (qué ficheros, qué símbolos, dónde está lo relevante) y solo entonces abre. No abras un fichero "por si acaso".
-2. **`Read` con `limit`/`offset`.** Cuando ya sabes qué parte necesitas, lee ese fragmento, no el fichero entero. Un fichero grande se lee por tramos guiados por el `grep`, no de una vez.
-3. **Ignora lo que no aporta señal:** `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`, `coverage/`, lockfiles (`package-lock.json`, `composer.lock`, `poetry.lock`, `yarn.lock`), minificados (`*.min.js`, `*.min.css`), binarios, imágenes, `*.map`, y datos generados. Restríngelo con globs en `grep`/`glob`.
-4. **Muestra representativa, no exhaustiva.** Para entender un patrón (cómo son los controladores, los tests, los componentes) basta leer 1-3 ejemplos, no todos. Declara que has muestreado en vez de leerlo todo.
-5. **Excepción explícita:** si el fichero **es el objeto de trabajo** (el documento a documentar, el fichero a auditar línea a línea, el artefacto a reescribir), léelo completo — la regla es "no leas de más", no "no leas".
-
-Si delegas exploración a un subagente, pásale estas mismas reglas: que devuelva hallazgos (rutas + líneas + resumen), no volcados de ficheros.
+Para fuentes extensas compartidas entre fases, lee
+`agent-kits/shared/references/source-reuse.md` antes de usar
+`agent-kits/shared/source-snapshot.py`. Evita ese
+coste para lecturas breves. Un recibo no sustituye requisitos, aprobación o tests.

@@ -441,3 +441,5 @@ compone el contexto en un Python de negocio y mantiene su timeout de 30 s.
 En Windows sigue habiendo supervisión y confirmación de limpieza mediante un
 helper: «un Python de negocio» no significa «un proceso total». El spike de T-15
 no acreditó una alternativa equivalente; no se reduce ese margen de limpieza.
+
+La [medición de tamaño de contexto](TOKEN-EFFICIENCY.md) compara fuentes normalizadas; no sustituye las observaciones de uso ni acredita facturación. `usage-meter.py` conserva la medida por artefacto.

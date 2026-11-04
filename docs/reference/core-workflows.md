@@ -178,3 +178,25 @@ Al retomar, indica la carpeta o slug de la iniciativa. El orquestador recupera
 el ledger vigente y las decisiones asociadas, comprueba qué sigue abierto y
 continúa desde ahí. No crea otra iniciativa ni reactiva tareas canceladas por
 el mero hecho de encontrar un mensaje histórico que decía «continúa».
+# Contexto entre fases y consumo
+
+`read-discipline.md` gobierna exploración y reutilización; `output-discipline.md`
+gobierna las respuestas de handoff y las esperas. Roles y comandos mantienen
+criterios completos, permisos y gates. Las referencias condicionales de los kits
+conservan los procedimientos originales y se leen al cumplir su condición.
+
+`agent-kits/shared/source-snapshot.py snapshot --project <raíz> --file <ruta>`
+emite un recibo JSON por stdout. `verify --project <raíz>` lo recibe por stdin.
+`fresh` verifica bytes e identidad local del proyecto, no el significado del
+hallazgo, su cobertura ni una aprobación. `stale`, parcial, inválido o ausente
+obliga a volver a las fuentes pertinentes. El productor inserta recibo y
+hallazgos solo en artefactos ya permitidos; no cambia las guardias de escritura.
+
+`context-footprint.py --project <raíz> [--file <ruta>] [--baseline <ruta-relativa>]`
+compara exactamente las mismas rutas completas. Separa bytes físicos,
+caracteres normalizados a LF y estimación `characters/4`. Las referencias se
+contabilizan aparte por su ruta. El resultado no observa carga nativa, caché o
+facturación: ambos campos de consumo real son desconocidos. El dueño de medidas
+de sesión sigue siendo `usage-meter.py`. Una reducción estática no acredita
+ahorro de extremo a extremo. Límites, estados y ejemplos en
+[TOKEN-EFFICIENCY](../TOKEN-EFFICIENCY.md).

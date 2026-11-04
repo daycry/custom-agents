@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "kind": "source_footprint",
+  "method": "characters/4",
+  "normalization": "utf8-lf",
+  "status": "ok",
+  "complete": true,
+  "native_observation": null,
+  "billed_tokens": null,
+  "files": [
+    {
+      "path": "agent-kits/evaluator/references/code-health.md",
+      "sha256": "efb092c278bdec5c346adddd5d4290df7e8a43ce561a99259037dfd6af6d3bdd",
+      "bytes": 906,
+      "characters": 893,
+      "lines": 5,
+      "estimated_tokens": 223.25,
+      "scope": "reference"
+    },
+    {
+      "path": "agent-kits/planner/references/plan-maintenance.md",
+      "sha256": "ec47181aa13423cc7f98c41a769e02d9a4cc528f7a8a061a42f4f01d8816437b",
+      "bytes": 1627,
+      "characters": 1610,
+      "lines": 10,
+      "estimated_tokens": 402.5,
+      "scope": "reference"
+    },
+    {
+      "path": "agent-kits/planner/references/task-types.md",
+      "sha256": "eccf50f593c30d48aa05504603dc7b5b52582aed11bfd759d86a2291dcd8bd71",
+      "bytes": 2131,
+      "characters": 2097,
+      "lines": 10,
+      "estimated_tokens": 524.25,
+      "scope": "reference"
+    },
+    {
+      "path": "agent-kits/shared/references/source-reuse.md",
+      "sha256": "067be3825c15bc814e6092c2756586bc0977d88faeb69cc43099f18ae5be74f1",
+      "bytes": 3776,
+      "characters": 3736,
+      "lines": 55,
+      "estimated_tokens": 934.0,
+      "scope": "reference"
+    }
+  ],
+  "issues": [],
+  "totals": {
+    "characters": 8336,
+    "bytes": 8440,
+    "entry_characters": 0,
+    "reference_characters": 8336
+  },
+  "comparison": null
+}

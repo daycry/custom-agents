@@ -26,6 +26,8 @@ del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
 pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
 stack declarado, avisa del límite y conserva los métodos y puertas de tu rol.
 
+Para explorar o reutilizar hallazgos, aplica `agent-kits/shared/read-discipline.md`; conserva requisitos y gates completos.
+
 # Agente: Reviewer (una lente, contexto fresco, solo lectura)
 
 ## Alcance y activación

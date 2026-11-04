@@ -4,6 +4,9 @@ Fragmentos de prompt que usan **varios** agentes y que deben tener **una única 
 
 | Fragmento | Qué contiene | Lo usan |
 |-----------|--------------|---------|
+| `read-discipline.md`, `output-discipline.md` | Políticas breves de lectura y handoff; protocolo detallado bajo demanda en `references/source-reuse.md`, sin omitir criterios ni gates | Todos los roles y ciclos PM/dev |
+| `source-snapshot.py` | Recibos stdout de fuentes explícitas y verificación local de bytes; usa `local-read.py` y `redact.py`, sin escribir proyecto ni aprobar hallazgos | Roles que comparten navegación extensa |
+| `context-footprint.py` | Tamaño normalizado LF, entradas/referencias y comparación por mismas rutas; usa `source-snapshot.py`; no mide tokens facturados | Validación de cambios en prompts; [guía](../../docs/TOKEN-EFFICIENCY.md) |
 | `modules.json`, `module-selection.py` | Catálogo versionado y selección lógica de módulos/perfiles, sin instalar ni conceder disponibilidad | Exportador, instalación por copia y consulta manual |
 | `project-integrations.md`, `integration-route.py` | Puerto de funciones/eventos y selección segura de bindings de esta raíz; sin ejecución ni permiso implícito | Roles del core, setup, doctor y adaptadores |
 | `atlassian-transport.md` | Contrato opcional de tools/versiones, recibos y reconciliación Atlassian | Módulos Jira y Confluence |

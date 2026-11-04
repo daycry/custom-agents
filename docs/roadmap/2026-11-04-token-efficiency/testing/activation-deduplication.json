@@ -1,0 +1,92 @@
+[
+  {
+    "path": "agents/analyst.md",
+    "removed_activation_tail": "Úsalo cuando el usuario diga \"toma de requisitos\", \"ayúdame a definir esto\", \"no sé bien lo que necesito\", \"prepara los requerimientos\", \"afinar la idea\", \"discovery\", \"prepara la spec\", \"define bien esto antes de presupuestar\", o cuando /pm-cycle reciba un objetivo poco definido.",
+    "description_sha256": "c2bf295d220e78762d288e83e7499df03a457cd6ee5c4b729ca0253b5f2cb5b4"
+  },
+  {
+    "path": "agents/architect.md",
+    "removed_activation_tail": "Úsalo cuando el usuario diga \"diseña la arquitectura\", \"explora las opciones de diseño\", \"qué alternativas técnicas hay\", \"compara enfoques antes de planificar\", o cuando /pm-cycle o /dev-cycle ofrezcan el paso de diseño tras el go.",
+    "description_sha256": "074330257dd421bf36fc398937a6fe6a7036fa0db2fc7f277544fa9259edf103"
+  },
+  {
+    "path": "agents/documenter.md",
+    "removed_activation_tail": "Úsalo cuando el usuario diga \"documenta el proyecto\", \"genera la documentación\", \"crea los docs\", \"documenta la arquitectura/módulos\", \"actualiza la documentación\".",
+    "description_sha256": "683da1cdd5f9886e5520be80295addd2d40114e273d3c21feb04325c5eb81520"
+  },
+  {
+    "path": "agents/knowledge-curator.md",
+    "removed_activation_tail": "Úsalo cuando el usuario diga \"cura este conocimiento\", \"revisa los candidatos de docs/knowledge\", \"aprueba/rechaza esta propuesta de memoria\", \"promociona esta lección/patrón a conocimiento aprobado\".",
+    "description_sha256": "f0703fa7694683fcbbd824b6412acc288a1671f309f4f41e53c6c6f76bce09f1"
+  },
+  {
+    "path": "skills/adversarial-review/SKILL.md",
+    "removed_activation_tail": "Úsala cuando el usuario diga \"revisa este diff\", \"revisión adversarial\", \"pasa las dos lentes\", \"revisión de dos lentes\", \"busca gaps en la rama\", \"revisa el rendimiento del diff\", \"problemas de seguridad en esta rama\", o cuando /dev-cycle o quick-implement lleguen a la puerta de revisión.",
+    "description_sha256": "c9f81f0045f922ab55e92d97491614ffdfa60285ff0017bb2366fc9636c7af10"
+  },
+  {
+    "path": "skills/api-contract/SKILL.md",
+    "removed_activation_tail": "Úsala cuando el usuario diga \"valida este OpenAPI\", \"¿esta spec es válida?\", \"¿qué cambios rompen el contrato de la API?\", \"compara estas dos versiones del OpenAPI\", o antes de implementar un endpoint con spec.",
+    "description_sha256": "0fd67cbf7d69fa204c317e55edbed64ee0071230bb8063e99cfcac01f4a694d7"
+  },
+  {
+    "path": "skills/changelog-sync/SKILL.md",
+    "removed_activation_tail": "Úsala cuando el usuario diga \"escribe el changelog\", \"sincroniza el CHANGELOG\", \"genera las notas de la release\", \"actualiza [Unreleased]\", o al cerrar una iniciativa.",
+    "description_sha256": "82eb2e20ba7161cabf4564b70d28e8bbaa5de9311b7050424e082c647443d192"
+  },
+  {
+    "path": "skills/code-health/SKILL.md",
+    "removed_activation_tail": "Úsala cuando el usuario diga \"salud del código\", \"informe de deuda técnica\", \"dónde hay código duplicado\", \"qué ficheros son hotspots\", \"cuántos TODO viejos hay\", \"mide la complejidad del repo\", o cuando `evaluator` necesite fundamentar el riesgo de una spec sobre un repo grande.",
+    "description_sha256": "74695c4b7d9dc87c87e1b465946a563b853519c2f11a3b57f836d4f46165a440"
+  },
+  {
+    "path": "skills/confluence-publish/SKILL.md",
+    "removed_activation_tail": "Úsala cuando el usuario diga \"publica en Confluence\", \"sube la doc a Confluence\", \"sincroniza con Confluence\", \"crea el espacio/árbol del proyecto en Confluence\".",
+    "description_sha256": "17c55ae5e8e6175bff477c73d60beddd42cd5fbb697ed22042d5018a82aacc37"
+  },
+  {
+    "path": "skills/confluence-pull/SKILL.md",
+    "removed_activation_tail": "Úsala cuando el usuario diga \"actualiza mis docs desde Confluence\", \"baja/trae la doc de Confluence\", \"sincroniza desde Confluence\", \"ponme al día el roadmap\".",
+    "description_sha256": "191b9fc450a39161bee486414bdddf00c1a5ffefc55211aff54d2ef84cafa1d3"
+  },
+  {
+    "path": "skills/dependency-upgrade/SKILL.md",
+    "removed_activation_tail": "Úsala cuando el usuario diga \"actualiza las dependencias\", \"qué dependencias están desactualizadas\", \"prepara el upgrade de <paquete>\", \"inventario de dependencias\", \"qué breaking changes tiene subir a la versión X\", \"plan para subir de major\".",
+    "description_sha256": "b5fe32173729bb1aa44fe590a2125b5edf99c22a25c93766345c062e3238ff26"
+  },
+  {
+    "path": "skills/jira-sync/SKILL.md",
+    "removed_activation_tail": "Úsala cuando el usuario diga \"vuelca el plan a Jira\", \"crea las tareas en Jira\", \"sincroniza el plan con Jira\", \"pásame esto a Jira\".",
+    "description_sha256": "579a12699ca7b3789e4095795504d593b3f785b59592b68f2c8eff8da55065fd"
+  },
+  {
+    "path": "skills/knowledge-services/SKILL.md",
+    "removed_activation_tail": "Úsala cuando el usuario diga \"sincroniza el conocimiento con Kwipu\", \"publica docs/knowledge en el grafo\", \"exporta approved a Kwipu\", \"por qué Kwipu no ve esta entrada\", \"añade un backend de knowledge-services\", o al activar la capacidad `kwipu` desde `/setup`.",
+    "description_sha256": "d2361412a60a1b204c2f297e47ba2a85f4e134e50fea428fba00b143eb9e6559"
+  },
+  {
+    "path": "skills/plugin-dev/SKILL.md",
+    "removed_activation_tail": "Úsala cuando el usuario diga \"crea un agente/skill/comando nuevo\", \"añade una skill al plugin\", \"modifica el agente X\", \"extiende el plugin\", o cuando cualquier tarea toque agents/, skills/, commands/, agent-kits/ o hooks/ de este repo.",
+    "description_sha256": "6ac0f723d47165bdf00be9bf503c2cc5f4b953bf58d04bdb3a0bb3078cd5f869"
+  },
+  {
+    "path": "skills/rates-verify/SKILL.md",
+    "removed_activation_tail": "Úsala cuando el usuario diga \"verifica las tarifas\", \"actualiza el precio de tokens\", \"pon los precios al día\", o cuando una evaluación detecte el precio sin verificar. También se ofrece en /setup.",
+    "description_sha256": "5a5582cdfed64e5ef136d8b6783b2c39cdbd758d4d677ab63f4f7c0e86ff3de8"
+  },
+  {
+    "path": "skills/tdd/SKILL.md",
+    "removed_activation_tail": "Úsala cuando el usuario diga \"hazlo con TDD\", \"escribe primero el test\", \"test antes del código\", \"RED-GREEN-REFACTOR\", \"quiero evidencia del rojo\", o cuando dev.json active `tdd`. También si el repo trabaja con TDD y piden saltarse el test por prisa: la prisa no desactiva el método.",
+    "description_sha256": "08fbcfa882e13d92e99a8bc238c1510a587b073f4bdbac103b3880fd7cad5ed7"
+  },
+  {
+    "path": "skills/training-data-services/SKILL.md",
+    "removed_activation_tail": "Úsala cuando el usuario diga \"guarda este intento como caso\", \"captura casos para entrenar un modelo local\", \"valida el esquema del caso\", \"prepara un dataset con los casos aprobados\", \"activa training-data-services\", o al activar la capacidad `training` desde `/setup`.",
+    "description_sha256": "105252ed696df51fb085e2c35aa50a662917202643ee2313aba18e3a3f0c92e9"
+  },
+  {
+    "path": "skills/unit-tests/SKILL.md",
+    "removed_activation_tail": "Úsala cuando el usuario diga \"sube la cobertura de tests\", \"qué % de cobertura tenemos\", \"pon un gate de cobertura\", \"pirámide de pruebas\", \"cuántos tests unitarios faltan\", o cuando `dev.json` traiga `tests.coberturaMinima`.",
+    "description_sha256": "837070dffd01b97673978226660f202702c9c67a04d05bbf42889a4249408ac5"
+  }
+]
