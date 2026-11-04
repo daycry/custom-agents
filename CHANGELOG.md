@@ -11,6 +11,13 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Changed — `token-efficiency` initiative (2026-11-04)
+
+- **T-01 — Verified source receipts** Fresh and stale source bytes distinguished without project writes. (`agent-kits/shared/source-snapshot.py`, `agent-kits/shared/test_source_snapshot.py`)
+- **T-02 — Compact PM instructions and conditional procedures** Role boundaries, approval gates, canonical formats and original moved procedures preserved.
+- **T-03 — Context source measurements** Comparable source footprint reports distinguish eager content, references and estimated tokens. (`agent-kits/shared/context-footprint.py`, `agent-kits/shared/test_context_footprint.py`)
+- **T-04 — Documentation distribution and validation** ES/EN docs, portable closure, console checks, review and regressions verified.
+
 ## [3.1.0] - 2026-11-03
 
 ### Added — `second-brain-foundation` initiative (2026-11-03)

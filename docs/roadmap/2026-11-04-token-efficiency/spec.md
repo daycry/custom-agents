@@ -1,6 +1,6 @@
 ---
 spec: token-efficiency
-estado: aprobada
+estado: implementada
 creado: 2026-11-04
 plan: tasks.md
 ---

@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "status": "implementation-verified",
+  "windows": {
+    "focused_before_review_fixes": {
+      "passed": 763,
+      "skipped": 1
+    },
+    "helpers_after_fixes": {
+      "passed": 48,
+      "skipped": 1,
+      "skip_reason": "symlink privilege unavailable"
+    }
+  },
+  "linux_helpers_after_fixes": {
+    "passed": 49,
+    "skipped": 0,
+    "coverage_percent_by_file": {
+      "agent-kits/shared/context-footprint.py": 91.23,
+      "agent-kits/shared/source-snapshot.py": 94.12
+    },
+    "coverage_gate_percent": 92.68,
+    "coverage_gate_minimum": 90,
+    "pytest_exit": 0,
+    "coverage_gate_exit": 0,
+    "source_sha256": {
+      "agent-kits/shared/source-snapshot.py": "a1ac9f59775ce5532937fe87694aff6ff0cec3d31655aef04545b81094853853",
+      "agent-kits/shared/context-footprint.py": "094c362805a17564101723cdc1fbf3e3a3be5f86d2218c32587aec77a2b260ab"
+    }
+  },
+  "interop": {
+    "exit": 0,
+    "files_current": 92
+  },
+  "activation_static": {
+    "exit": 0,
+    "pieces": 60,
+    "cases": 229
+  },
+  "handbook": {
+    "exit": 0,
+    "pages": 133,
+    "diagrams": 34,
+    "workflows": 30,
+    "layout_bounds_issues": 0,
+    "visual_review_pages": [
+      29,
+      30,
+      112,
+      113
+    ]
+  },
+  "runtime_token_savings": null,
+  "review": {
+    "attempts": 3,
+    "pending_critical_or_important": 0
+  },
+  "ci": {
+    "initial_run": "https://github.com/daycry/custom-agents/actions/runs/41809726228",
+    "initial_passed": 10367,
+    "initial_skipped": 39,
+    "initial_failure": "Missing initiative row in roadmap index",
+    "index_fix": {
+      "passed": 65,
+      "failed": 0
+    },
+    "required_final_check": "https://github.com/daycry/custom-agents/pull/28/checks"
+  },
+  "node_previous_same_runtime_sources": {
+    "passed": 452,
+    "skipped": 16,
+    "failed": 0
+  }
+}
