@@ -1,0 +1,303 @@
+{
+  "source_commit": "234fa9bcf3c96de4a6c5c37e1e03698e33bd3236",
+  "findings": [
+    {
+      "id": "R1",
+      "severity": "alta",
+      "title": "El manifiesto del proyecto controla comandos y borrados de uninstall",
+      "locations": [
+        "install/install.mjs:2229",
+        "install/install.mjs:2273",
+        "install/install.mjs:2349"
+      ],
+      "reproduced": "Archivo señuelo fuera del destino eliminado y comando inocuo ejecutado; ambos procesos finalizaron con 0.",
+      "recommendation": "Tratar el manifiesto como entrada no confiable. Reconstruir destinos y operaciones permitidas desde el proveedor; comprobar contención, tipo y propiedad de cada artefacto. Rechazar comandos y mutaciones ajenos. Conservar inventario legado cuya propiedad no pueda acreditarse."
+    },
+    {
+      "id": "R2",
+      "severity": "media",
+      "title": "La copia sin perfil sobrescribe y reclama archivos personalizados",
+      "locations": [
+        "install/install.mjs:1671",
+        "install/install.mjs:1848",
+        "install/install.mjs:2273"
+      ],
+      "reproduced": "Install 0, contenido original sustituido; uninstall 0, archivo eliminado.",
+      "recommendation": "Aplicar comprobación de conflictos, propiedad y hashes también a la entrega completa por defecto; no adquirir propiedad de archivos preexistentes."
+    },
+    {
+      "id": "R3",
+      "severity": "baja",
+      "title": "Un scope inválido en uninstall se interpreta como proyecto",
+      "locations": [
+        "install/install.mjs:2286",
+        "install/providers.mjs:300"
+      ],
+      "reproduced": "--scope uesr eliminó el señuelo dentro del destino de proyecto y devolvió 0.",
+      "recommendation": "Validar el enum de scope antes de despachar cualquier subcomando."
+    },
+    {
+      "id": "R4",
+      "severity": "baja",
+      "title": "El hook documental confunde mydocs/ con docs/",
+      "locations": [
+        "hooks/run-hook.mjs:220"
+      ],
+      "reproduced": "El hook devolvió 0 y creó el marcador para mydocs/note.md.",
+      "recommendation": "Normalizar la ruta relativa al proyecto y comparar segmentos completos con el prefijo docs/."
+    },
+    {
+      "id": "R5",
+      "severity": "media",
+      "title": "El brief pierde criterios con encabezados válidos del ledger",
+      "locations": [
+        "agent-kits/shared/task-brief.py:367",
+        "agent-kits/shared/ledger-lint.py:676"
+      ],
+      "reproduced": "Ledger-lint exit 0, criterios presentes en su parser, brief exit 0 sin el criterio.",
+      "recommendation": "Usar el parser canónico del ledger para límites de tarea y criterios."
+    },
+    {
+      "id": "R6",
+      "severity": "media",
+      "title": "El filtro de diseño omite decisiones aplicables a directorios o rutas ./",
+      "locations": [
+        "agent-kits/shared/task-brief.py:1240",
+        "agent-kits/shared/task-brief.py:1281"
+      ],
+      "reproduced": "Dos casos reproducidos: src/adapter/ frente a su archivo hijo y src/adapter.py frente a ./src/adapter.py. Ambos dicen sin impacto y omiten la decisión.",
+      "recommendation": "Normalizar rutas y evaluar contención/globs; ante incertidumbre conservar la decisión aprobada."
+    },
+    {
+      "id": "R7",
+      "severity": "media",
+      "title": "El scope interpreta mal las rutas Unicode entrecomilladas por Git",
+      "locations": [
+        "agent-kits/shared/scope-check.py:292"
+      ],
+      "reproduced": "Repositorio temporal con core.quotePath=true: docs/guía.md declarado aparece escapado y fuera de alcance.",
+      "recommendation": "Consumir registros Git terminados por NUL y decodificar sus rutas sin heurísticas de comillas."
+    },
+    {
+      "id": "R8",
+      "severity": "baja",
+      "title": "La puerta de retro acepta una calibraci?n anterior de otra iniciativa con el mismo slug",
+      "locations": [
+        "agent-kits/shared/retro-gate.py:109"
+      ],
+      "reproduced": "La iniciativa 2026-06-01-auth abre con una fila de auth del 2026-02-01. Ambas iniciativas son del mismo repositorio; se ha reutilizado el slug.",
+      "recommendation": "Vincular la fila a la identidad completa de la iniciativa, incluida su fecha."
+    },
+    {
+      "id": "R9",
+      "severity": "alta",
+      "title": "La outbox reenvía entradas retiradas sin validar el canon actual",
+      "locations": [
+        "skills/knowledge-services/scripts/knowledge-sync.py:208",
+        "skills/knowledge-services/scripts/knowledge-sync.py:515"
+      ],
+      "reproduced": "Tras retirar el archivo aprobado, el drenaje llamó add_memory con su cuerpo al MCP falso: 1 completado, 0 fallidos.",
+      "recommendation": "Revalidar cada publicación pendiente contra aprobación, routing, versión y contenido actuales antes de cualquier envío; no confundir reconciliación final con ausencia de exposición."
+    },
+    {
+      "id": "R10",
+      "severity": "media",
+      "title": "Graphiti ignora la minimización summary en dos casos",
+      "locations": [
+        "skills/knowledge-services/backends/graphiti.py:1006",
+        "skills/knowledge-services/backends/graphiti.py:1138"
+      ],
+      "reproduced": "Sin resumen viaja el cuerpo completo. Tras publicar el cuerpo completo en MCP falso, cambiar modo y resumen genera cero operaciones.",
+      "recommendation": "No ampliar silenciosamente summary al cuerpo completo; incluir el contenido realmente autorizado y el modo en la identidad de publicación."
+    },
+    {
+      "id": "R11",
+      "severity": "media",
+      "title": "El staging de Confluence incluye informes de seguridad pese a la exclusión obligatoria",
+      "locations": [
+        "skills/confluence-publish/scripts/confluence-scope.py:469"
+      ],
+      "reproduced": "--stage exit 0 con política include **/*.md/exclude [] copió docs/security-scan/STATE.md al staging. Solo se probó staging local; no se publicó nada.",
+      "recommendation": "Aplicar siempre las exclusiones no negociables y comprobar invariantes antes de generar staging."
+    },
+    {
+      "id": "R12",
+      "severity": "baja",
+      "title": "Una propuesta de agente sin categoría puede aprobarse como autoría humana",
+      "locations": [
+        "agent-kits/shared/knowledge-curation.py:442",
+        "agent-kits/shared/knowledge-curation.py:511"
+      ],
+      "reproduced": "Propuesta de documenter sin category/content_origin; aprobación en meetings human-only exit 0 con proposed_by documenter y content_origin human.",
+      "recommendation": "Fijar el origen declarado desde propose aun sin categoría; impedir su sustitución al clasificar o aprobar. Son etiquetas declaradas, no identidad autenticada."
+    },
+    {
+      "id": "R13",
+      "severity": "media",
+      "title": "Estados de sesión no recuperados bloquean chat y ocupan conexiones",
+      "locations": [
+        "skills/plugin-panel/scripts/console_opencode.py:146",
+        "skills/plugin-panel/scripts/console_sessions.py:176",
+        "skills/plugin-panel/scripts/console_sessions.py:243"
+      ],
+      "reproduced": "Sondeo fallido seguido de éxito deja uncertain y send falla session_busy. failed también bloquea send; disconnected conserva un driver contado y can_resume false.",
+      "recommendation": "Reconciliar estados tras sondeo exitoso, separar fallo de turno de caída del proceso y liberar/reanudar drivers terminados. Mantener controles contra reenvíos inciertos."
+    },
+    {
+      "id": "R14",
+      "severity": "baja",
+      "title": "El slug de presentación recortado se utiliza como ruta real del plan",
+      "locations": [
+        "skills/plugin-panel/scripts/panel_data.py:565",
+        "skills/plugin-panel/scripts/console_service.py:100"
+      ],
+      "reproduced": "Carpeta válida de 115 caracteres: el slug se recorta a 80 y document() devuelve document_unavailable pese a existir el archivo.",
+      "recommendation": "Resolver por identificador estable hasta la carpeta canónica; no construir rutas a partir de etiquetas saneadas para mostrar."
+    },
+    {
+      "id": "R15",
+      "severity": "media",
+      "title": "Instrucciones de agentes incompatibles con autoridad y puertas canónicas",
+      "locations": [
+        "agents/implementer.md:77",
+        "scripts/export-interop.py:117",
+        "docs/agents/ROLES.md:29",
+        "docs/CONVENTIONS.md:147"
+      ],
+      "reproduced": "Implementer recibe la orden de cambiar plan/spec incluso trabajando suelto, mientras ROLES asigna las transiciones al orquestador y la regla 7 exige retro. El preámbulo nativo de architect anuncia permiso sobre docs/knowledge/adr/** que la guardia real deniega. Nemesis declara exclusividad de security-scan y también ordena escrituras fuera: requiere aclarar excepciones. No se ejecutaron agentes para provocar esas escrituras.",
+      "recommendation": "Unificar prompts y exports con los dueños y gates canónicos; corregir texto del generador y regenerar derivados. La frase genérica de pm-cycle «escribe el ADR propuesta» no prueba por sí sola una escritura legacy."
+    },
+    {
+      "id": "R16",
+      "severity": "media",
+      "title": "ledger-write puede sustituir la descripción en vez del estado por índices Unicode desalineados",
+      "locations": [
+        "agent-kits/shared/ledger-write.py:72",
+        "agent-kits/shared/ledger-write.py:120",
+        "agent-kits/shared/ledger-write.py:129"
+      ],
+      "reproduced": "Separador U+2028 dentro de un fence previo: state T-02 en-progreso devuelve status ok/changed true/exit 0, sustituye Descripción por en-progreso y deja el estado real en borrador.",
+      "recommendation": "Usar una partición de líneas única que conserve posiciones entre fuente y vista sin fences; validar la postcondición del cambio de estado."
+    },
+    {
+      "id": "R17",
+      "severity": "media",
+      "title": "El archivado del ledger pisa una actualización posterior ya publicada",
+      "locations": [
+        "agent-kits/shared/ledger-archive.py:411",
+        "agent-kits/shared/ledger-archive.py:451"
+      ],
+      "reproduced": "Planificar archivado, cambiar T-01 a en-revision con ledger-write exit 0 y aplicar el plan viejo: se restaura en-progreso y se pierde la actualización. Interleaving determinista en fixture.",
+      "recommendation": "Cooperar con el lock canónico y comprobar identidad/hash de ambos archivos antes de publicar; preservar permisos y rechazar enlaces. La variante POSIX de permisos no se ejecutó en este host."
+    },
+    {
+      "id": "R18",
+      "severity": "baja",
+      "title": "Al paquete portable le falta capability-catalog.json",
+      "locations": [
+        "scripts/export-skills.py:170",
+        "agent-kits/shared/capability-route.py:111"
+      ],
+      "reproduced": "Exportación portable completa real: el catálogo no existe; ejecutar su capability-route.py devuelve exit 2 con capabilities unavailable.",
+      "recommendation": "Incluir y validar dependencias de datos del cierre portable; probar el selector desde el artefacto generado."
+    },
+    {
+      "id": "R19",
+      "severity": "baja",
+      "title": "El exportador interop escribe a través de enlaces a archivos ajenos",
+      "locations": [
+        "scripts/export-interop.py:808"
+      ],
+      "reproduced": "Un setup.md generado enlazado por hardlink a un señuelo fuera del destino hace que escribir() sustituya también el contenido externo. Se usó contenido generado auténtico y únicamente archivos temporales.",
+      "recommendation": "Aplicar a escrituras la comprobación de rutas regulares, ancestros y número de enlaces ya usada en la retirada. Hardlink reproducido; symlink se deduce del open sin protección."
+    },
+    {
+      "id": "R20",
+      "severity": "media",
+      "title": "Jira genera comentarios con secretos reconocibles sin redacción canónica",
+      "locations": [
+        "skills/jira-sync/scripts/jira-flow.py:596",
+        "skills/jira-sync/scripts/jira-flow.py:959"
+      ],
+      "reproduced": "Asignación token=<valor ficticio> en la primera frase de Descripción: el comentario planificado conserva el valor y redact.redactar lo elimina. Solo se generó el plan; ningún comentario fue enviado a Jira.",
+      "recommendation": "Redactar los cuerpos finales antes de persistirlos o devolverlos al publicador; añadir casos de credenciales en descripción, verificación y gaps."
+    },
+    {
+      "id": "R21",
+      "severity": "baja",
+      "title": "Graphiti identifica su propia generación reconstruida como otro origen",
+      "locations": [
+        "skills/knowledge-services/backends/graphiti.py:2318"
+      ],
+      "reproduced": "Rebuild exitoso contra MCP falso crea grupo físico *_gen_*; estado_grupo con la configuración lógica devuelve otro_origen.",
+      "recommendation": "Resolver la misma identidad lógica/física en estado_grupo que en plan/apply/verify."
+    },
+    {
+      "id": "R22",
+      "severity": "baja",
+      "title": "Jira pierde el contexto de proyecto al descubrir configuración y generar worklogs",
+      "locations": [
+        "skills/jira-sync/scripts/jira-flow.py:676",
+        "skills/jira-sync/scripts/jira-flow.py:1034",
+        "skills/jira-sync/scripts/worklog.py:89"
+      ],
+      "reproduced": "El comando worklog generado omite state/jira/rates: ejecutado en otro cwd crea su estado allí, usa jornada 8 en lugar de la configuración 1 y deja el estado elegido sin imputación. Desde una subcarpeta, jira-flow declara Jira desactivado aunque exista la configuración en el padre. Todo se ejecutó en fixtures, sin Jira real.",
+      "recommendation": "Resolver una vez raíz, configuración y estado; propagar rutas explícitas al worklog y cumplir la búsqueda ascendente documentada."
+    },
+    {
+      "id": "R23",
+      "severity": "baja",
+      "title": "El lector standalone de capacidades puede escribir bytecode y cambia una bandera global",
+      "locations": [
+        "agent-kits/shared/capabilities.py:363",
+        "skills/knowledge-services/backends/graphiti_publication.py:19",
+        "commands/setup.md:71"
+      ],
+      "reproduced": "enumerar() con Graphiti shadow válido, en un proceso aislado: antes no había pyc y dont_write_bytecode era False; después existe graphiti.pyc y la bandera queda True. La ruta standalone usada por setup está expuesta. doctor.py establece la protección global y NO está afectado por la escritura descrita.",
+      "recommendation": "Usar el cargador protegido del registro y restaurar el estado del intérprete; mantener la protección del llamador. No se ha demostrado relación con aprobaciones de hooks."
+    },
+    {
+      "id": "R24",
+      "severity": "media",
+      "title": "El journal sigue enlaces y escribe o modifica archivos fuera de sus destinos",
+      "locations": [
+        "agent-kits/shared/journal-capture.py:121",
+        "agent-kits/shared/journal-capture.py:244",
+        "agent-kits/shared/journal.py:1368",
+        "agent-kits/shared/journal.py:2077",
+        "agent-kits/shared/journal.py:2015"
+      ],
+      "reproduced": "Con junctions de Windows en .claude/journal y docs/knowledge/journal, capture_end creó un envelope fuera del destino y write creó una entrada y sobrescribió un README ajeno. Un hardlink en .claude/.gitignore hizo que capture añadiera texto a un archivo externo. Todas las rutas fueron señuelos dentro del fixture de auditoría. Instrumentar parse_entry confirmó read(-1), sin ejecutar una lectura infinita.",
+      "recommendation": "Validar tipos, ancestros, enlaces y contención de la cola por defecto y sus fallbacks antes de crear, chmod o escribir. Reutilizar E/S canónica para el journal materializado, proteger README y .gitignore ajenos y acotar las lecturas de entradas."
+    }
+  ],
+  "observations": [
+    {
+      "id": "P1",
+      "origin": "console H3",
+      "title": "Redacción de previews grandes bajo el lock global",
+      "locations": [
+        "skills/plugin-panel/scripts/console_sessions.py:191"
+      ],
+      "evidence": [
+        "independent-console-repro.json"
+      ],
+      "verified": "Preview de 500.000 caracteres: emit tardó 0,2475 s en este host, manteniendo el lock global durante la redacción.",
+      "limit": "No se demostró una caída ni se midió el rendimiento de runtimes reales; mejora de latencia, separada de fallos funcionales."
+    },
+    {
+      "id": "P2",
+      "origin": "console H4",
+      "title": "readline sobre FileIO sin buffer realiza una lectura por byte",
+      "locations": [
+        "skills/plugin-panel/scripts/console_transport.py:97",
+        "skills/plugin-panel/scripts/console_transport.py:122"
+      ],
+      "evidence": [
+        "independent-console-repro.json"
+      ],
+      "verified": "Línea de 65.537 bytes: 65.537 llamadas read sin buffer frente a 9 readinto con BufferedReader.",
+      "limit": "Prueba de mecanismo sobre archivo local con instrumentación. No equivale a un benchmark del chat real ni permite prometer una aceleración porcentual."
+    }
+  ]
+}
