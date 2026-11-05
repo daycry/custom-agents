@@ -6,6 +6,7 @@ Estados: borrador · en-progreso · en-revision · completado · cancelado (spec
 
 | Fecha | Iniciativa | Tiempo | Coste | Artefactos |
 |-------|-----------|--------|-------|-----------|
+| 2026-11-05 | npm-payload: cierre del artefacto npm y publicación verificable | No estimado | No medido | [spec](2026-11-05-npm-payload/spec.md) / [tasks](2026-11-05-npm-payload/tasks.md) |
 | 2026-11-04 | user-handbooks: uso eficiente de suscripciones y resultados verificables | No estimado | No medido | [spec](2026-11-04-user-handbooks/spec.md) / [tasks](2026-11-04-user-handbooks/tasks.md) |
 | 2026-11-04 | token-efficiency: lecturas selectivas y contexto reutilizable entre fases | No estimado | No medido | [spec](2026-11-04-token-efficiency/spec.md) / [tasks](2026-11-04-token-efficiency/tasks.md) |
 | 2026-11-03 | second-brain-foundation: project-owned categories and templates | No estimado | No medido | [spec](2026-11-03-second-brain-foundation/spec.md) / [tasks](2026-11-03-second-brain-foundation/tasks.md) |
