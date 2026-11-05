@@ -11,6 +11,19 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed — iniciativa `audit-remediation` (2026-11-05)
+
+- **T-01 — Instalador y propiedad** El instalador autentica la propiedad, separa las cachés compartidas y recupera copias interrumpidas mediante staging firmado. (`install/**`, `tests/installer.test.mjs`, `tests/install-auth.test.mjs`)
+- **T-02 — Hooks y briefs** Los hooks limitan los marcadores a docs y los briefs conservan criterios anidados y diseño relacionado. (`hooks/run-hook.mjs`, `agent-kits/shared/task-brief.py`, `tests/test_audit_briefs.py`)
+- **T-03 — Ledger, alcance y retro** El ledger conserva rutas Unicode y permisos, detecta conflictos y admite continuidad acotada del histórico.
+- **T-04 — Publicación y curación** La publicación revalida la cola y las proyecciones; protege exclusiones obligatorias y conserva el origen del conocimiento. (`skills/knowledge-services/**`, `skills/confluence-publish/scripts/confluence-scope.py`, `agent-kits/shared/knowledge-curation.py`)
+- **T-05 — Sesiones y consola** Las sesiones recuperan turnos fallidos y controlan envíos concurrentes, limpieza de procesos y buffers. (`skills/plugin-panel/**`, `tests/test_console_*.py`, `tests/test_audit_console.py`)
+- **T-06 — Exportación portable e interop** Las exportaciones portables incluyen el catálogo correcto y rechazan destinos enlazados antes de escribir. (`scripts/export-skills.py`, `scripts/export-interop.py`, `tests/test_audit_exports.py`)
+- **T-07 — Jira y worklogs** Jira redacta comentarios y mantiene la raíz y la configuración del proyecto al generar worklogs. (`skills/jira-sync/**`, `tests/test_audit_jira.py`)
+- **T-08 — Lecturas de capacidades y journal** El journal valida sus puntos de E/S y conserva reintentos ante bloqueos temporales de Windows.
+- **T-09 — Contratos y documentación** Los contratos de agentes y las guías ES/EN reflejan las correcciones; npm declara sus capacidades de doble uso.
+- **T-10 — Regresiones, revisión y entrega** Regresiones reproducidas, revisión con Claude y lentes independientes documentadas con sus límites de plataforma.
+
 ## [3.2.1] - 2026-11-05
 
 ### Fixed — iniciativa `npm-payload` (2026-11-05)

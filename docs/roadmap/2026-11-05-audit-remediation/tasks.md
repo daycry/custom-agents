@@ -1,6 +1,6 @@
 ---
 tasks: audit-remediation
-estado: en-progreso
+estado: completado
 creado: 2026-11-05
 verificacion: obligatoria
 changelog: Fixed
@@ -16,17 +16,17 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 8 | 10 | 80.0% |
-| **TOTAL** | **8** | **10** | **80.0%** |
+| Fase 1 | 10 | 10 | 100.0% |
+| **TOTAL** | **10** | **10** | **100.0%** |
 
 ## Fase 1
 
-**Estado**: en-progreso
+**Estado**: completado
 
 ### T-01 — Instalador y propiedad
 
-- **Changelog**: El instalador verifica la propiedad antes de modificar archivos y separa la caché compartida de las instancias de proyecto.
-- **Estado**: en-progreso
+- **Changelog**: El instalador autentica la propiedad, separa las cachés compartidas y recupera copias interrumpidas mediante staging firmado.
+- **Estado**: completado
 - **Descripción**: Resolver R1, R2, R3; conservar las puertas y los datos ajenos.
 - **Archivos**: `install/**`, `tests/installer.test.mjs`, `tests/install-auth.test.mjs`.
 - **Verificación**: tests dirigidos del área y regresiones vecinas; evidencia en testing/validation.md.
@@ -36,7 +36,7 @@ changelog: Fixed
 
 RED: `tests/installer.test.mjs` (R1/R2/R3, 7 casos) falló con 7 failed: comandos/borrados no rechazados, edición perdida y scope inválido aceptado · 2026-11-05.
 
-GREEN: R1/R2/R3 → 7 passed. Regresión completa del instalador pendiente de la validación combinada.
+GREEN inicial: R1/R2/R3 → 7 passed. Cierre: Node final Linux 470 passed/16 skipped/cero failed; cinco B12 Windows, upgrade/selección y presupuesto verificados; A7/B7/C7/D7 sin gaps pendientes.
 
 
 RED: `tests/installer.test.mjs:B12` falló con RED determinista: SIGKILL antes de rename deja el temporal de entrega y conserva agents tras uninstall · 2026-11-05.
@@ -160,13 +160,13 @@ RED: R25 → test_npm_payload security_tooling falló por ausencia de contentPol
 ### T-10 — Regresiones, revisión y entrega
 
 - **Changelog**: Regresiones reproducidas, revisión con Claude y lentes independientes documentadas con sus límites de plataforma.
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: Resolver Todos los hallazgos, sin Critical/Important pendientes; conservar las puertas y los datos ajenos.
 - **Archivos**: `docs/roadmap/README.md`, `docs/roadmap/2026-11-05-audit-remediation/**`, `CHANGELOG.md`, `CHANGELOG.es.md`, `interop/**`, `.codex-plugin/**`, `.agents/plugins/**`, `tests/**`, `skills/unit-tests/scripts/coverage-gate.py`, `agent-kits/shared/execution-profile.py`, `agent-kits/shared/local-read.py`, `agent-kits/shared/doctor.py`, `skills/training-data-services/scripts/case_schema.py`, `skills/training-data-services/scripts/test_case_schema.py`.
 - **Verificación**: tests dirigidos del área y regresiones vecinas; evidencia en testing/validation.md.
 
 **Criterios de aceptación**
-- [ ] Todos los hallazgos, sin Critical/Important pendientes: escenarios de auditoría cubiertos, corregidos y sin regresiones conocidas.
+- [x] Todos los hallazgos, sin Critical/Important pendientes: escenarios de auditoría cubiertos, corregidos y sin regresiones conocidas.
 
 Regresión adicional T-10: rutas físicas de Git y cobertura unificadas para aliases 8.3 de Windows; 31 tests de coverage-gate pasan sin modificar umbrales. Fixtures de publicación y recuperación instrumentan ahora StateIO (link + retirada del temporal), preservan barreras, canarios, bytes y aserciones. La caché compartida tiene propiedad de usuario separada y se conserva tras desinstalar una instancia; contrato documentado ES/EN.
 
@@ -238,3 +238,18 @@ Run 42078982134: Python 10.469 passed/41 skipped; Node 464 passed/16 skipped/1 f
 ### Continuación explícita 7 — presupuesto de checkpoints
 
 B12 recupera correctamente, pero S6 excedió la cota existente (9 frente a 8), reproducido en Linux y Windows. Corrección sin relajar el test: registro único de rutas preflightadas y snapshots iniciales/final. Test de presupuesto y recuperación de upgrade verdes en Windows. T-01/T-10 abiertas hasta revisión y validación final. [Evidencia](testing/validation.md#continuación-7--presupuesto-de-checkpoints).
+
+### Dictamen de la continuación 7
+
+| Lente | Resultado | Evidencia |
+|---|---|---|
+| A | Sin gaps nuevos; A6-1 corregido | Test de presupuesto correcto; interop 92 al día |
+| B | Sin defectos nuevos | 12 passed, cero fallos/omisiones |
+| C | Sin vulnerabilidades nuevas | 29 passed; preflight, autenticidad y recuperación preservados |
+| D | Sin nuevos hallazgos | Tres checkpoints en cargas de 100/1.000/5.000 archivos; umbral inalterado |
+
+Regresión final Linux: Node 470 passed/16 skipped/cero failed; tgz 5 passed. T-01 verificada, T-10 conserva CI de referencia pendiente. [Detalle](testing/validation.md#dictamen-final-del-código--s7--aa25dda).
+
+## Cierre verificado
+
+CI de referencia [42085116173](https://github.com/daycry/custom-agents/actions/runs/42085116173), código aa25dda: success en todas las puertas. Python 10.469 passed/41 skipped/82 subtests; Node 470 passed/16 skipped/cero failed. Benchmark p95 2,65 ms/p99 2,94 ms frente a 100/300 ms. A7+B7+C7+D7 sin Critical/Important pendientes, sin relajar puertas. T-10 cumplida. No se publica versión ni paquete npm.

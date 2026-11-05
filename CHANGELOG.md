@@ -11,6 +11,19 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed — `audit-remediation` initiative (2026-11-05)
+
+- **T-01 — Installer ownership.** Verify ownership before modifying files, separate shared caches from project instances, and recover interrupted profile copies through authenticated private staging.
+- **T-02 — Hooks and task briefs.** Confine documentation markers to docs and retain nested acceptance criteria and related design context.
+- **T-03 — Ledger, scope and retrospectives.** Preserve Unicode paths and permissions, detect concurrent changes, and provide bounded history continuation.
+- **T-04 — Publication and curation.** Revalidate queued publications and projections, enforce mandatory exclusions, and preserve declared knowledge origin.
+- **T-05 — Native sessions and console.** Recover failed turns and control concurrent sends, process cleanup and buffer sizes.
+- **T-06 — Portable exports and interoperability.** Ship the matching capability catalog and reject linked destinations before writing.
+- **T-07 — Jira and worklogs.** Redact comments and bind generated worklogs to the project's root and configuration.
+- **T-08 — Capabilities and journal.** Guard journal I/O and preserve retries for temporary Windows file locks.
+- **T-09 — Contracts and documentation.** Align agent contracts and bilingual guidance, and declare npm dual-use functionality.
+- **T-10 — Regression verification and delivery.** Document reproduced regressions, Claude-assisted and independent reviews, and reference CI results with platform limits.
+
 ## [3.2.1] - 2026-11-05
 
 ### Fixed — `npm-payload` initiative (2026-11-05)

@@ -1,6 +1,6 @@
 ---
 plan: audit-remediation
-estado: en-progreso
+estado: completado
 ---
 
 # Implementación de correcciones

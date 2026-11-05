@@ -1,8 +1,21 @@
-# Validación en curso — 2026-11-05
+# Validación final — 2026-11-05
 
-La implementación y la revisión siguen abiertas. No hay autorización ni intento de publicación npm durante esta corrección. La ausencia de hallazgos pendientes sólo se podrá declarar después de contrastar los nuevos señalamientos y terminar las regresiones.
+El código final aa25dda supera la CI de referencia y las cuatro lentes finales no dejan Critical/Important pendientes. Las diez tareas están completadas. No se publica una versión ni un paquete npm.
 
-## Ejecuciones observadas
+| Puerta final | Resultado |
+|---|---|
+| CI GitHub 42085116173, Python 3.11/Node 22 | success |
+| Python completo | 10.469 passed, 41 skipped, 82 subtests passed, 794,16 s |
+| Node completo | 470 passed, 16 skipped, cero failed, 486 casos |
+| Captura SessionEnd, 30 iteraciones | p95 2,65 ms / p99 2,94 ms; límites 100/300 ms |
+| Interop / manual / evals / sintaxis / versiones | exit 0 |
+| Revisión final A+B+C+D | sin gaps pendientes; A6-1 corregido |
+
+[CI verificable](https://github.com/daycry/custom-agents/actions/runs/42085116173). Las omisiones de plataforma no acreditan ejecución. No se ejecutó macOS real ni se llamaron servicios reales de conocimiento. Los fallos de tiempo locales y todas las pasadas rojas se conservan debajo; no contradicen ni sustituyen la referencia ejecutada.
+
+## Ejecuciones iniciales (histórico)
+
+Esta tabla conserva las primeras pasadas; los estados pendientes de sus filas son históricos. El dictamen vigente es el resumen final anterior.
 
 | Área | Resultado observado | Límites |
 |---|---|---|
@@ -147,3 +160,17 @@ S6 Linux completo Node: **469 passed, 16 skipped, 1 failed**, 252,14 s; cinco pr
 El orquestador decide corregir la puerta y revisar el delta reducido como continuación 7, sin reiniciar el contador ni elevar el umbral. Se registra una sola vez el conjunto completo de rutas de perfil, todas preflightadas, antes de crear payloads. Dos snapshots iniciales (intención e identidad del staging) y el final sustituyen los checkpoints por grupo. Se mantiene la autenticación, recuperación de temporales parciales y guardas por archivo. El test de presupuesto ha pasado en Windows tras el cambio, al igual que perfiles y reanudación de upgrades; la batería y revisión finales siguen abiertas.
 
 S7 Windows/Node 23.8: **11 passed, cero failed/skipped**, 136,92 s. Incluye presupuesto de checkpoints, perfil parcial, reanudación de upgrade/retirada, SIGKILL antes de publicación y las cinco variantes B12. El umbral original se conserva. Linux completo y lentes del delta reducido siguen en curso.
+
+## Dictamen final del código — S7 / aa25dda
+
+Las cuatro lentes A7/B7/C7/D7 no dejan nuevos gaps ni Critical/Important pendientes en el código: A6-1 corregido, presupuesto existente intacto. A ejecutó interop (92 al día) y el test del presupuesto; B ejecutó 12 casos correctos; C 29; D ejecutó el test y cargas instrumentadas de 100/1.000/5.000 archivos con tres checkpoints constantes y crecimiento proporcional al inventario.
+
+Linux final congelado S7, Node 22: **470 passed, 16 skipped, cero failed**, 486 casos, 331,66 s. Pruebas del tgz: **5 passed**, 5,53 s. Runner completo de esta batería: exit 0. Las omisiones son de plataforma, no se transforman en aprobaciones.
+
+T-01 vuelve a completado tras la recuperación, la puerta de rendimiento original y la revisión del delta. T-10 permanece abierta: CI de referencia run 42085116173, commit aa25ddac5a37288baf5ed67a64acd3840fd75d63, todavía en ejecución. No se ha cambiado código tras este candidato; sólo se incorporan dictámenes y estados del ledger.
+
+## Cierre
+
+Run 42085116173 sobre aa25dda terminó success en todas las puertas: Python 10.469/41, Node 470/16/cero failed, interop 92 al día, checks de manual, evals, sintaxis y versiones correctos. El redactor pasó en referencia sin cambiar su código ni su umbral. Se cierra T-10 y el plan; el commit posterior sólo incorpora evidencia, estados y changelog ES/EN. No hay publicación npm, tag ni merge en esta entrega.
+
+Verificación del cierre documental: 550 tests de índice de roadmap, ledger-lint, cifras y changelog correctos (38,74 s); un aviso histórico conservado. Lint: cero errores y 16 avisos existentes. Handbook, coherencia de versiones, changelog --check y scope-check correctos (82 archivos, sin fuera de alcance ni criterios alterados).
