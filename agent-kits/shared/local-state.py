@@ -4,12 +4,29 @@ Callers validate ownership and schemas. Identity checks observe boundaries;
 they do not provide a sandbox against concurrent directory replacement.
 """
 import contextlib
+import errno
 import os
 from pathlib import Path
 import stat
+import sys
 import tempfile
 import threading
 import time
+
+
+def physical_system_path(path, *, platform=None, resolve_link=None):
+    """Resolve only known OS aliases, leaving project-owned links for rejection."""
+    if (platform or sys.platform) != 'darwin':return Path(path)
+    value = str(path).replace(os.sep, '/')
+    resolver = resolve_link or os.path.realpath
+    for alias in ('/tmp', '/var', '/etc'):
+        if value != alias and not value.startswith(alias + '/'):
+            continue
+        target = resolver(alias)
+        if target == alias:return Path(value)
+        if target != '/private' + alias:raise ValueError('unsafe_system_alias')
+        return Path(target + value[len(alias):])
+    return Path(value)
 
 
 def sync_dir(path):
@@ -26,41 +43,45 @@ def sync_dir(path):
 class StateIO:
     """Reuse the canonical local reader and caller's errors/deadline policy."""
 
-    def __init__(self, reader, need, guard, *, maximum, sync=None):
+    def __init__(self, reader, need, guard, *, maximum, sync=None, io_errors=False):
         self.reader, self.need, self.guard, self.maximum = reader, need, guard, maximum
         self.sync = sync_dir if sync is None else sync
+        self.io_errors = io_errors
 
     def dirs(self, path):
-        path = Path(path)
+        path = physical_system_path(path)
         for entry in [*reversed(path.parents), path]:
             info = entry.lstat()
             self.need(stat.S_ISDIR(info.st_mode) and not self.reader._redirected(info), 'unsafe_state')
 
     def file(self, path):
-        info = Path(path).lstat()
+        info = physical_system_path(path).lstat()
         self.need(stat.S_ISREG(info.st_mode) and info.st_nlink == 1
             and not self.reader._redirected(info), 'unsafe_state')
         return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
 
     def read(self, path, maximum, *, changed_status=None):
-        path = Path(path)
+        path = physical_system_path(path)
         self.dirs(path.parent)
         before = self.file(path)
         row = self.reader.read_bytes(path.parent, path.name, max_bytes=maximum)
+        if self.io_errors and row['status'] == 'unreadable':
+            raise OSError(errno.EIO, 'state_read_unavailable')
         if changed_status is not None:
             self.need(row['status'] != 'changed_path', changed_status)
         self.need(row['status'] == 'ok', 'invalid_state')
         self.need(self.file(path) == before, changed_status or 'unsafe_state')
         return row['data'], before
 
-    def write(self, path, raw, deadline, expected=None, retry=True, mode=None):
+    def write(self, path, raw, deadline, expected=None, retry=True, mode=None, allow_degraded_sync=False):
         """Exclusive creation or observed owned-leaf replacement; no overwrite fallback.
         `retry=False` makes a single `os.replace` attempt (no sharing-violation backoff)."""
-        path = Path(path)
+        path = physical_system_path(path)
         self.need(type(raw) is bytes and len(raw) <= self.maximum, 'state_budget')
         self.guard(deadline)
         self.dirs(path.parent)
         fd, name = tempfile.mkstemp(prefix='.tmp-', dir=path.parent)
+        degraded = False
         temporary = Path(name)
         try:
             with os.fdopen(fd, 'wb') as handle:
@@ -71,7 +92,8 @@ class StateIO:
                 try:
                     os.fsync(handle.fileno())
                 except OSError:
-                    self.need(False, 'durability_degraded')
+                    self.need(allow_degraded_sync, 'durability_degraded')
+                    degraded = True
             self.guard(deadline)
             self.dirs(path.parent)
             if expected is None:
@@ -96,6 +118,10 @@ class StateIO:
                 self.sync(path.parent)
             except OSError:
                 self.need(False, 'durability_degraded')
+            if degraded:
+                # The opt-in producer can report reduced durability only after
+                # the envelope exists. Other metadata writers remain strict.
+                self.need(False, 'durability_degraded')
         finally:
             if temporary.exists():
                 temporary.unlink()  # Only this invocation's exact private temporary.
@@ -104,7 +130,7 @@ class StateIO:
     def intent(self, state):
         """Announce a priority writer (byte 1 of an existing `.lock`) before its unlocked preparation,
         so `priority='yield'` writers stop entering; one attempt, never waits. Yields whether it is held."""
-        path = Path(state) / '.lock'
+        path = physical_system_path(state) / '.lock'
         fd = release = None
         try:
             with contextlib.suppress(OSError):

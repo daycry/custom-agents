@@ -57,7 +57,7 @@ class Service:
         workspace=self.workspace(ident)
         C.need(action in ('continue','review','plan') and (task is None or type(task) is str and STATE.TASK.fullmatch(task)),'invalid_plan_action')
         value=DATA.plan(workspace.root,plan);C.need(value is not None,'plan_not_found',404)
-        slug=value.get('slug')
+        slug=DATA._carpeta(workspace.root,plan,C.bundled('local-read.py'))
         C.need(type(slug) is str and re.fullmatch('[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*',slug),'plan_unavailable',503)
         C.need(value.get('status') in ('ok','partial') and type(value.get('tareas')) is list,'plan_unavailable',503)
         if task:self.task(ident,plan,task)
@@ -97,7 +97,9 @@ class Service:
         C.need(value is not None,'plan_not_found',404)
         filenames={'plan':'improvement-plan.md','spec':'spec.md','evaluation':'evaluation.md','design':'design.md','tasks':'tasks.md'}
         C.need(kind in filenames and type(value.get('slug')) is str,'document_not_found',404)
-        relative='docs/roadmap/'+value['slug']+'/'+filenames[kind]
+        folder=DATA._carpeta(workspace.root,plan,C.bundled('local-read.py'))
+        C.need(folder is not None,'document_not_found',404)
+        relative='docs/roadmap/'+folder+'/'+filenames[kind]
         row=C.bundled('local-read.py').read_text(workspace.root,relative,max_bytes=128*1024)
         C.need(row['status']=='ok','document_unavailable',404 if row['status']=='not_found' else 503)
         return {'kind':kind,'text':C.scrub(row['text'],workspace.root,60000),'truncated':len(row['text'])>60000,'source':relative}

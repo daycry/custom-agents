@@ -45,7 +45,9 @@ for (const runtime of ['claude', 'codex', 'opencode']) {
     ['non-ASCII path', { tool_input: { file_path: 'docs/guía/日本語.md' } }],
   ]) test(`${runtime}: marker accepts ${name}`, t => {
     const root = fixture(t);
-    assert.equal(invoke(root, runtime, payload).stderr, '');
+    const localPayload=name==='native backslashes'
+      ? {...payload,tool_input:{...payload.tool_input,file_path:join(root,'docs','page.md').replaceAll('/','\\')}} : payload;
+    assert.equal(invoke(root, runtime, localPayload).stderr, '');
     assert.equal(existsSync(join(root, '.claude', '.confluence-pending')), true);
   });
   for (const path of ['src/app.py', 'docs/security-scan/report.md', 'docs/confluence/staged.md', 'docs\\security-scan\\report.md']) {

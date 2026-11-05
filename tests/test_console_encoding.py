@@ -860,7 +860,7 @@ def test_knowledge_curation_preserva_payload_utf8_y_sha(encoding, tmp_path):
     assert payload['errores'] == [] and payload['avisos'] == []
     assert payload['ruta'] == 'docs/knowledge/candidates/pending/console.md'
     persisted = (project / payload['ruta']).read_bytes()
-    expected = stdin.replace('---', '---\nproposed_by: documenter', 1).encode('utf-8')
+    expected = stdin.replace('---', '---\ncontent_origin: agent\nproposed_by: documenter', 1).encode('utf-8')
     assert persisted == expected
     assert payload['sha256'] == hashlib.sha256(persisted).hexdigest()
     assert not (project / 'docs' / 'knowledge' / 'approved').exists()

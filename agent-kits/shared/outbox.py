@@ -113,10 +113,84 @@ import sys
 import tempfile
 import time
 
+import builtins
+import contextvars
+import io
+
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
+_IO = contextvars.ContextVar('outbox_local_io', default=None)
+
+
+@contextlib.contextmanager
+def with_io(owner):
+    """Optional bounded I/O supplied by the local producer, never persisted as authority."""
+    token = _IO.set(owner)
+    try:
+        yield
+    finally:
+        _IO.reset(token)
+
+
+def _guard_path(path, directory=False):
+    owner = _IO.get()
+    if owner is None:return
+    try:
+        if directory:
+            owner.IO.dirs(path)
+        else:
+            if not owner.directory(os.path.dirname(os.path.abspath(path))):return
+            if os.path.lexists(path):owner.IO.file(path)
+    except (ValueError, OSError) as error:
+        raise OSError('unsafe outbox path') from error
+
+
+def _open(path, mode='r', *args, **kwargs):
+    owner = _IO.get()
+    if owner is None:return builtins.open(path, mode, *args, **kwargs)
+    try:
+        if mode in ('r', 'rb'):
+            raw = owner.read(path)
+            if raw is None:raise FileNotFoundError(path)
+            return io.BytesIO(raw) if mode == 'rb' else io.StringIO(raw.decode(kwargs.get('encoding') or 'utf8'))
+        if mode == 'a':return owner.append(path)
+        if mode == 'w':
+            _guard_path(path)
+            class AtomicText(io.StringIO):
+                def close(self):
+                    if not self.closed:
+                        try:
+                            owner.write(path, self.getvalue().encode('utf8'))
+                        except ValueError as error:
+                            raise OSError('unsafe outbox publication') from error
+                        finally:
+                            super().close()
+                def __exit__(self, kind, value, traceback):
+                    if kind is None:self.close()
+                    else:super().close()
+            return AtomicText()
+        raise ValueError('unsupported outbox I/O mode')
+    except ValueError as error:
+        raise OSError('unsafe outbox file') from error
+
+
+def _replace(source, target):
+    _guard_path(source);_guard_path(target)
+    return os.replace(source, target)
+
+
+def _remove(path):
+    _guard_path(path)
+    return os.remove(path)
+
+
+def _utime(path, times):
+    _guard_path(path)
+    return os.utime(path, times)
+
 
 SUBDIRS = ("outbox", "processing", "done", "dead-letter")
 _CLAVE_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
@@ -158,7 +232,7 @@ def _marcar_degradado(dir_):
     """Sentinela best-effort: `estado()` lo lee para avisar «durabilidad: degradada» (gap 21)."""
     try:
         os.makedirs(dir_, exist_ok=True)
-        open(os.path.join(dir_, _DEGRADADO_MARKER), "a", encoding="utf-8").close()
+        _open(os.path.join(dir_, _DEGRADADO_MARKER), "a", encoding="utf-8").close()
     except OSError:
         pass
 
@@ -168,7 +242,7 @@ def _marcar_permisos_degradados(dir_):
     `chmod` que falla hoy se traga en silencio sin ninguna señal)."""
     try:
         os.makedirs(dir_, exist_ok=True)
-        open(os.path.join(dir_, _PERMISOS_MARKER), "a", encoding="utf-8").close()
+        _open(os.path.join(dir_, _PERMISOS_MARKER), "a", encoding="utf-8").close()
     except OSError:
         pass
 
@@ -179,7 +253,7 @@ def _marcar_reclamacion_degradada(dir_):
     eso no debe quedar en silencio)."""
     try:
         os.makedirs(dir_, exist_ok=True)
-        open(os.path.join(dir_, _RECLAMACION_MARKER), "a", encoding="utf-8").close()
+        _open(os.path.join(dir_, _RECLAMACION_MARKER), "a", encoding="utf-8").close()
     except OSError:
         pass
 
@@ -192,17 +266,17 @@ def _incrementar_recuperados_claiming(dir_):
     path = os.path.join(dir_, _RECUPERADOS_CLAIMING_MARKER)
     n = 0
     with contextlib.suppress(OSError, ValueError):
-        with open(path, encoding="utf-8") as fh:
+        with _open(path, encoding="utf-8") as fh:
             n = int((fh.read() or "0").strip())
     with contextlib.suppress(OSError):
         os.makedirs(dir_, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as fh:
+        with _open(path, "w", encoding="utf-8") as fh:
             fh.write(str(n + 1))
 
 
 def _leer_recuperados_claiming(dir_):
     try:
-        with open(os.path.join(dir_, _RECUPERADOS_CLAIMING_MARKER), encoding="utf-8") as fh:
+        with _open(os.path.join(dir_, _RECUPERADOS_CLAIMING_MARKER), encoding="utf-8") as fh:
             return int((fh.read() or "0").strip())
     except (OSError, ValueError):
         return 0
@@ -212,8 +286,11 @@ def _mkdir_privado(path, dir_raiz=None):
     """`makedirs` + `chmod 0700`: la cola puede llevar rutas de disco y `session_id` (gap 9). Si el
     `chmod` falla, se marca `permisos: degradados` en `dir_raiz` (o `path` si no se da) en vez de
     tragarse el fallo en silencio (gap 46)."""
-    os.makedirs(path, exist_ok=True)
+    owner = _IO.get()
+    if owner is not None:owner.directory(path, create=True)
+    else:os.makedirs(path, exist_ok=True)
     try:
+        _guard_path(path, directory=True)
         os.chmod(path, 0o700)
     except OSError:
         _marcar_permisos_degradados(dir_raiz or path)
@@ -248,6 +325,14 @@ def _escribir_atomico(destino, contenido, dir_raiz=None):
     mitad de la escritura (CA-04 de la spec). `fsync` del fichero y del directorio; si cualquiera
     de los dos degrada, se marca en `dir_raiz` (o en el padre de `destino` si no se da) para que
     `estado()` lo reporte."""
+    owner = _IO.get()
+    if owner is not None:
+        try:
+            owner.write(destino, contenido.encode('utf8'), allow_degraded_sync=True)
+        except ValueError as error:
+            if str(error) != 'durability_degraded':raise OSError('unsafe outbox publication') from error
+            _marcar_degradado(dir_raiz or os.path.dirname(destino))
+        return
     carpeta = os.path.dirname(destino) or "."
     fd, tmp = tempfile.mkstemp(dir=carpeta, prefix=".tmp-", suffix=".json")
     ok = True
@@ -259,10 +344,10 @@ def _escribir_atomico(destino, contenido, dir_raiz=None):
                 os.fsync(fh.fileno())
             except OSError:
                 ok = False           # fsync no disponible (algunos FS de red): degradación, no bloqueo
-        os.replace(tmp, destino)
+        _replace(tmp, destino)
     except BaseException:
         with contextlib.suppress(OSError):
-            os.remove(tmp)
+            _remove(tmp)
         raise
     if not _fsync_dir(carpeta):
         ok = False
@@ -278,9 +363,11 @@ def _localizar(dir_, clave):
     un corte) crea un segundo envelope en `outbox/`, rompiendo CA-03."""
     for sub in SUBDIRS:
         p = os.path.join(dir_, sub, f"{clave}.json")
+        _guard_path(p)
         if os.path.isfile(p):
             return p
     p_claiming = os.path.join(dir_, "processing", f"{clave}.json{CLAIMING_SUFFIX}")
+    _guard_path(p_claiming)
     if os.path.isfile(p_claiming):
         return p_claiming
     return None
@@ -308,7 +395,7 @@ def _leer_sidecar(path):
     entero plano a JSON para llevar también el backoff); defaults a ceros si no existe o no
     parsea."""
     try:
-        with open(path, encoding="utf-8") as fh:
+        with _open(path, encoding="utf-8") as fh:
             data = json.loads(fh.read() or "{}")
         if isinstance(data, dict):
             return {"intentos": int(data.get("intentos", 0)), "no_antes_de": float(data.get("no_antes_de", 0) or 0)}
@@ -341,7 +428,7 @@ def _leer_claimed_at(path):
     """Instante (epoch, `float`) del sidecar `<clave>.json.claimed_at`, o `None` si no existe o no
     parsea (gap 50: respaldo del mtime para medir el TTL de huérfanos si `os.utime` degradara)."""
     try:
-        with open(path, encoding="utf-8") as fh:
+        with _open(path, encoding="utf-8") as fh:
             return float(fh.read().strip())
     except (OSError, ValueError):
         return None
@@ -400,14 +487,14 @@ def _mover_a_outbox_con_intentos(src, intentos, no_antes_de=0.0):
     _mkdir_privado(outbox_dir, dir_raiz=dir_)
     dst = os.path.join(outbox_dir, os.path.basename(src))
     try:
-        os.replace(src, dst)
+        _replace(src, dst)
     except OSError:
         return False
     _escribir_sidecar(dst + INTENTOS_SUFFIX, intentos, no_antes_de, dir_raiz=dir_)
     with contextlib.suppress(OSError):
-        os.remove(src + INTENTOS_SUFFIX)
+        _remove(src + INTENTOS_SUFFIX)
     with contextlib.suppress(OSError):
-        os.remove(src + CLAIMED_AT_SUFFIX)     # gap 50: reencolado a outbox/ ya no está "reclamado"
+        _remove(src + CLAIMED_AT_SUFFIX)     # gap 50: reencolado a outbox/ ya no está "reclamado"
     return True
 
 
@@ -421,7 +508,7 @@ def dead_letter(item, causa, intentos=None):
     if intentos is None:
         intentos = 1
         try:
-            with open(causa_path, encoding="utf-8") as fh:      # cerrado explícitamente (gap 23: fugaba el fd)
+            with _open(causa_path, encoding="utf-8") as fh:      # cerrado explícitamente (gap 23: fugaba el fd)
                 prev = json.load(fh)
             intentos = int(prev.get("intentos", 0)) + 1
         except (OSError, ValueError, TypeError):
@@ -499,13 +586,13 @@ def reintentar_dead_letter(dir_):
         src = os.path.join(dl_dir, nombre)
         dst = os.path.join(outbox_dir, nombre)
         try:
-            os.replace(src, dst)
+            _replace(src, dst)
         except OSError:
             continue
         with contextlib.suppress(OSError):
-            os.remove(src + ".causa.json")
+            _remove(src + ".causa.json")
         with contextlib.suppress(OSError):
-            os.remove(src + INTENTOS_SUFFIX)
+            _remove(src + INTENTOS_SUFFIX)
         movidos += 1
     return movidos
 
@@ -525,6 +612,7 @@ def _recuperar_claiming_huerfanos(dir_, proc_dir, nombres_todos, claiming_ttl_s,
     for nombre in claimings:
         src = os.path.join(proc_dir, nombre)
         try:
+            _guard_path(src)
             edad = ahora - os.stat(src).st_mtime
         except OSError:
             continue
@@ -535,9 +623,9 @@ def _recuperar_claiming_huerfanos(dir_, proc_dir, nombres_todos, claiming_ttl_s,
         try:
             _mkdir_privado(outbox_dir, dir_raiz=dir_)
             if os.path.exists(dst):
-                os.remove(src)                                 # ya hay uno en outbox/: el claiming sobra
+                _remove(src)                                 # ya hay uno en outbox/: el claiming sobra
             else:
-                os.replace(src, dst)
+                _replace(src, dst)
             _incrementar_recuperados_claiming(dir_)
         except OSError as e:
             errores.append({"clave": clave_json[:-len(".json")], "causa": f"claiming huérfano: {e}"})
@@ -555,6 +643,7 @@ def _reclamar_huerfanos(dir_, ttl_s, claiming_ttl_s=CLAIMING_TTL_S):
     proc_dir = os.path.join(dir_, "processing")
     errores = []
     try:
+        _guard_path(proc_dir, directory=True)
         nombres_todos = os.listdir(proc_dir)
     except OSError:
         return errores
@@ -569,6 +658,7 @@ def _reclamar_huerfanos(dir_, ttl_s, claiming_ttl_s=CLAIMING_TTL_S):
             edad = ahora - claimed
         else:
             try:
+                _guard_path(src)
                 edad = ahora - os.stat(src).st_mtime
             except OSError:
                 continue
@@ -661,6 +751,7 @@ def _reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S, errores=None, claiming_tt
     outbox_dir = os.path.join(dir_, "outbox")
     proc_dir = os.path.join(dir_, "processing")
     try:
+        _guard_path(outbox_dir, directory=True)
         nombres = sorted(f for f in os.listdir(outbox_dir) if f.endswith(".json") and not f.startswith(".tmp-")
                           and not f.endswith((".manifest.json", ".causa.json")))
     except OSError:
@@ -677,20 +768,20 @@ def _reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S, errores=None, claiming_tt
         claiming = os.path.join(proc_dir, nombre + CLAIMING_SUFFIX)
         dst = os.path.join(proc_dir, nombre)
         try:
-            os.replace(src, claiming)
+            _replace(src, claiming)
         except OSError:
             continue                # ya reclamado por otro proceso: siguiente candidato
         try:
-            os.utime(claiming, None)   # gap 25: TTL de huérfanos medido desde AHORA, no desde la creación
+            _utime(claiming, None)   # gap 25: TTL de huérfanos medido desde AHORA, no desde la creación
         except OSError:
             # gap 50: sin mtime fiable, el item NO se reclama — vuelve a outbox/ tal cual estaba,
             # en vez de quedar visible en processing/ con un mtime que arriesgaría doble entrega.
             with contextlib.suppress(OSError):
-                os.replace(claiming, src)
+                _replace(claiming, src)
             _marcar_reclamacion_degradada(dir_)
             continue
         try:
-            os.replace(claiming, dst)
+            _replace(claiming, dst)
         except OSError:
             # N-1 (d): deshacer el paso en vez de un `continue` a secas — sin esto, el `.claiming`
             # queda varado en `processing/` donde NINGÚN barrido lo veía antes de esta corrección.
@@ -698,18 +789,18 @@ def _reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S, errores=None, claiming_tt
             # proceso que lo repuso), el `.claiming` sobrante se descarta en vez de pisarlo.
             with contextlib.suppress(OSError):
                 if os.path.exists(src):
-                    os.remove(claiming)
+                    _remove(claiming)
                 else:
-                    os.replace(claiming, src)
+                    _replace(claiming, src)
             continue
         with contextlib.suppress(OSError):
             _escribir_atomico(dst + CLAIMED_AT_SUFFIX, str(time.time()), dir_raiz=dir_)
         intentos_src = src + INTENTOS_SUFFIX
         if os.path.isfile(intentos_src):
             with contextlib.suppress(OSError):
-                os.replace(intentos_src, dst + INTENTOS_SUFFIX)
+                _replace(intentos_src, dst + INTENTOS_SUFFIX)
         try:
-            with open(dst, encoding="utf-8") as fh:
+            with _open(dst, encoding="utf-8") as fh:
                 payload = json.load(fh)
         except (OSError, ValueError):
             payload = None          # envelope venenoso: el llamador decide (normalmente dead_letter)
@@ -723,11 +814,11 @@ def _mover_desde_processing(item, subdir_destino):
     dst_dir = os.path.join(dir_, subdir_destino)
     _mkdir_privado(dst_dir, dir_raiz=dir_)
     dst = os.path.join(dst_dir, os.path.basename(src))
-    os.replace(src, dst)
+    _replace(src, dst)
     with contextlib.suppress(OSError):
-        os.remove(src + INTENTOS_SUFFIX)
+        _remove(src + INTENTOS_SUFFIX)
     with contextlib.suppress(OSError):
-        os.remove(src + CLAIMED_AT_SUFFIX)
+        _remove(src + CLAIMED_AT_SUFFIX)
     return dst
 
 
@@ -756,7 +847,7 @@ def completar(item, manifiesto=None):
     src = item["path"] if isinstance(item, dict) else str(item)
     dir_ = os.path.dirname(os.path.dirname(src))          # .../processing/<clave>.json -> dir_
     try:
-        with open(src, "rb") as fh:
+        with _open(src, "rb") as fh:
             contenido = fh.read()
     except OSError:
         contenido = b""
@@ -798,7 +889,7 @@ def estado(dir_):
 
 def _leer_completado_en(manifest_path):
     try:
-        with open(manifest_path, encoding="utf-8") as fh:
+        with _open(manifest_path, encoding="utf-8") as fh:
             return json.load(fh).get("completado_en")
     except (OSError, ValueError):
         return None
@@ -834,7 +925,7 @@ def purgar_antiguos(dir_, sub, dias):
             continue                # sin `completado_en` legible, o aún dentro de la retención
         for cand in (fp, manifest_path, fp + ".causa.json"):
             with contextlib.suppress(OSError):
-                os.remove(cand)
+                _remove(cand)
         borrados += 1
     huerfanos = [f for f in todos if f.endswith(".manifest.json")
                  and f[:-len(".manifest.json")] not in procesados]
@@ -844,7 +935,7 @@ def purgar_antiguos(dir_, sub, dias):
         if epoch is None or epoch >= limite:
             continue
         with contextlib.suppress(OSError):
-            os.remove(manifest_path)
+            _remove(manifest_path)
         borrados += 1
     return borrados
 
@@ -868,7 +959,7 @@ def limpiar_tmp_huerfanos(dir_, ttl_s=PROCESSING_TTL_S):
             fp = os.path.join(p, fn)
             try:
                 if os.stat(fp).st_mtime < limite:
-                    os.remove(fp)
+                    _remove(fp)
                     borrados += 1
             except OSError:
                 continue

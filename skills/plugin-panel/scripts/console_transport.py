@@ -1,6 +1,7 @@
 """Owned JSON pipe transport with bounded frames, queues and request deadlines."""
 import ctypes
 import importlib.util
+import io
 import os
 from pathlib import Path
 import queue
@@ -118,8 +119,10 @@ class LineProcess:
         self._notify(code);self.close()
     def _read(self):
         try:
+            stream=self.process.stdout
+            if not isinstance(stream,io.BufferedIOBase):stream=io.BufferedReader(stream)
             while not self.closing:
-                raw=self.process.stdout.readline(MAX_LINE+1)
+                raw=stream.readline(MAX_LINE+1)
                 if not raw:break
                 if len(raw)>MAX_LINE or not raw.endswith(b'\n'):
                     self._fail('native_output_budget');return
@@ -134,8 +137,10 @@ class LineProcess:
             if not self.closing:self._fail('native_closed')
     def _stderr(self):
         try:
+            stream=self.process.stderr
+            if not isinstance(stream,io.BufferedIOBase):stream=io.BufferedReader(stream)
             while not self.closing:
-                raw=self.process.stderr.readline(4096)
+                raw=stream.readline(4096)
                 if not raw:return
                 self.last_error=C.scrub(raw.decode('utf-8',errors='replace'),self.cwd,500)
         except (OSError,ValueError):pass

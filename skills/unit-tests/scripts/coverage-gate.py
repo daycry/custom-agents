@@ -432,7 +432,7 @@ def evaluar(ruta, minimo, changed_only, base_ref, runner, root_arg=None):
             if av:
                 avisos.append(av)
             detalle["base"] = base
-            cambiados = [os.path.relpath(os.path.join(groot, f), ruta).replace("\\", "/")
+            cambiados = [os.path.relpath(os.path.join(groot, f), os.path.realpath(ruta)).replace("\\", "/")
                         for f in ficheros_cambiados(groot, base)]
             codigo = sorted({f for f in cambiados if es_codigo(f, stack)})
             porfichero, sin_datos = {}, []

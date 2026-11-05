@@ -363,19 +363,20 @@ def _es_parametro_proveedor(clave):
     return isinstance(clave, str) and clave.casefold().replace("-", "_") in CLAVES_PARAMETRO_PROVEEDOR
 
 
-def _buscar_cot(valor, campo, errores, profundidad=0, ruta=()):
+def _buscar_cot(valor, campo, errores, profundidad=0, ruta=(), json_root=None):
     """Recorre `valor` (dicts, listas y `arguments` en texto JSON) y anota cada clave de CoT.
     `ruta` es la ruta ESTRUCTURAL desde el turno (claves/indices reales, no el texto de `campo`,
     que una clave podria imitar): decide si se esta dentro de `tool_calls[<j>].arguments`."""
     if profundidad > PROFUNDIDAD_MAX:
         # gap #21: fail closed — lo que no se puede recorrer no se puede garantizar libre de CoT
-        errores.append(_err(campo, f"anidamiento > {PROFUNDIDAD_MAX} niveles: no se puede comprobar que no haya chain-of-thought"))
+        errores.append(_err(json_root or campo, f"anidamiento > {PROFUNDIDAD_MAX} niveles: no se puede comprobar que no haya chain-of-thought"))
         return
     if isinstance(valor, str) and ruta and ruta[-1] == "arguments":
         try:
             valor = json.loads(valor)
+            json_root = json_root or campo
         except RecursionError:
-            errores.append(_err(campo, f"anidamiento > {PROFUNDIDAD_MAX} niveles: no se puede comprobar que no haya chain-of-thought"))
+            errores.append(_err(json_root or campo, f"anidamiento > {PROFUNDIDAD_MAX} niveles: no se puede comprobar que no haya chain-of-thought"))
             return
         except ValueError:
             return
@@ -385,10 +386,10 @@ def _buscar_cot(valor, campo, errores, profundidad=0, ruta=()):
             if _es_clave_cot(clave) and not (en_arguments and _es_parametro_proveedor(clave)):
                 errores.append(_err(f"{campo}.{clave}", "prohibido: la trayectoria nunca guarda chain-of-thought"))
             else:
-                _buscar_cot(sub, f"{campo}.{clave}", errores, profundidad + 1, ruta + (clave,))
+                _buscar_cot(sub, f"{campo}.{clave}", errores, profundidad + 1, ruta + (clave,), json_root)
     elif isinstance(valor, list):
         for j, sub in enumerate(valor):
-            _buscar_cot(sub, f"{campo}[{j}]", errores, profundidad + 1, ruta + (j,))
+            _buscar_cot(sub, f"{campo}[{j}]", errores, profundidad + 1, ruta + (j,), json_root)
 
 
 def _validar_turno(i, turno, errores):

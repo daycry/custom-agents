@@ -75,6 +75,7 @@ class Driver:
         return self.native_id
     def send(self,text):
         with self.lock:
+            C.need(not self.inflight,'native_busy',409)
             current=self.client.call('GET','/api/session/'+self.native_id).get('data');self._scope(current)
             self.last_idle=(current.get('time') or {}).get('idle') or 0
             ident='msg_'+uuid.uuid4().hex;self.own_prompts.add(ident);self.last_prompt=ident;self.inflight=True
@@ -143,10 +144,12 @@ class Driver:
             for key in list(self.pending):
                 if key not in live:self.pending.pop(key,None);self.emit({'type':'resolved','id':key})
             idle=(session.get('time') or {}).get('idle') or 0
-            if self.native_id in active:self.emit({'type':'status','status':'waiting' if self.pending else 'running'})
+            if self.native_id in active:self.emit({'type':'status','status':'waiting' if self.pending else 'running','source':'poll'})
             elif self.inflight and type(idle) in (int,float) and idle>self.last_idle:
                 self.inflight=False;self.last_idle=idle
-                self.emit({'type':'status','status':{'succeeded':'idle','failed':'failed','interrupted':'interrupted'}.get(session.get('outcome'),'uncertain')})
+                self.emit({'type':'status','status':{'succeeded':'idle','failed':'failed','interrupted':'interrupted'}.get(session.get('outcome'),'uncertain'),'source':'poll'})
+            elif not self.inflight:
+                self.emit({'type':'status','status':'waiting' if self.pending else {'failed':'failed','interrupted':'interrupted'}.get(session.get('outcome'),'idle'),'source':'poll'})
     def _monitor(self):
         while not self.stopped.is_set():
             try:self.refresh()

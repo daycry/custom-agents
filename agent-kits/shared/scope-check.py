@@ -290,18 +290,17 @@ def resolver_base(root, base):
 
 
 def ficheros_cambiados(root, base):
+    # NUL framing preserves Git paths verbatim, including quotes, arrows and UTF-8.
     out = set()
     if base != "HEAD":
-        out.update(l.strip() for l in git(root, "diff", "--name-only", base, "HEAD").splitlines() if l.strip())
-    for ln in git(root, "status", "--porcelain", "--untracked-files=all").splitlines():
-        if len(ln) < 4:
+        out.update(path for path in git(root, "diff", "--name-only", "-z", base, "HEAD").split("\0") if path)
+    records = iter(git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all").split("\0"))
+    for record in records:
+        if len(record) < 4:
             continue
-        p = ln[3:]
-        if " -> " in p:
-            p = p.split(" -> ", 1)[1]
-        p = p.strip().strip('"')
-        if p:
-            out.add(p.rstrip("/"))
+        out.add(record[3:])
+        if 'R' in record[:2] or 'C' in record[:2]:
+            next(records, None)  # -z supplies the old name as a separate record.
     return sorted(out)
 
 
@@ -586,6 +585,7 @@ def _commit_records(raw, tree=False):
 
 def _commit_digest(snapshot):
     body = {k: v for k, v in snapshot.items() if k != "snapshot_id"}
+    _commit_reader().check_json_depth(body)
     return hashlib.sha256(json.dumps(body, sort_keys=True, ensure_ascii=True,
                                     separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest()
 

@@ -35,7 +35,7 @@ _DIR_DEFAULT = os.path.join(".claude", "journal")
 _QUEUE_MARKER = ".custom-agents-journal"
 _CONTENIDO_DE_LA_COLA = frozenset(
     {"outbox", "processing", "done", "dead-letter", ".gitignore", ".replay.lock", ".claim.lock", _QUEUE_MARKER,
-     ".durabilidad-degradada", ".permisos-degradados", ".reclamacion-degradada"})
+     ".durabilidad-degradada", ".permisos-degradados", ".reclamacion-degradada", ".claiming-recuperados"})
 
 def _load_module(name, filename):
     path = os.path.join(HERE, filename)
@@ -49,6 +49,8 @@ def _load_module(name, filename):
     except Exception:  # noqa: BLE001 — degradación: sin el módulo, sin esa medida
         return None
 
+JIO = _load_module('journal_capture_io', 'journal-io.py')
+
 def proyecto_con_plugin(root):
     """¿Hay rastro del plugin en el proyecto? Solo entonces se escribe la bitácora (T-fix1)."""
     return any(os.path.exists(os.path.join(root, *p)) for p in
@@ -57,7 +59,8 @@ def proyecto_con_plugin(root):
 def _dev_sesion(root):
     """Bloque `sesion` de `.claude/dev.json` ({} si no hay fichero, está corrupto o no es un objeto)."""
     try:
-        d = json.load(open(os.path.join(root, ".claude", "dev.json"), encoding="utf-8"))
+        raw = JIO.read(os.path.join(root, '.claude', 'dev.json'), maximum=64*1024)
+        d = json.loads(raw) if raw is not None else {}
     except (OSError, ValueError):
         return {}
     s = d.get("sesion") if isinstance(d, dict) else None
@@ -73,7 +76,9 @@ def _outbox_mod():
     """`agent-kits/shared/outbox.py` cargado una vez (o `None` si no viaja junto a journal.py:
     entonces capture-end/replay degradan en silencio, nunca bloquean SessionEnd/SessionStart)."""
     if not _OB["cargado"]:
-        _OB["cargado"], _OB["mod"] = True, _load_module("outbox", "outbox.py")
+        raw = _load_module("outbox", "outbox.py")
+        guarded = JIO.GuardedOutbox(raw) if raw is not None else None
+        _OB["mod"], _OB["cargado"] = guarded, True
     return _OB["mod"]
 
 def _dir_es_de_la_cola_o_vacio(dirpath):
@@ -100,6 +105,14 @@ def _dir_es_de_la_cola_o_vacio(dirpath):
         return False        # tiene contenido y ni siquiera lleva el marcador: no es (ni puede ser) nuestro
     return all(nombre in _CONTENIDO_DE_LA_COLA for nombre in contenido)
 
+def _safe_queue_default(root):
+    candidate = os.path.join(root, _DIR_DEFAULT)
+    JIO.queue(candidate)
+    if os.path.isdir(candidate) and any(name not in _CONTENIDO_DE_LA_COLA and not name.startswith('.tmp-') for name in os.listdir(candidate)):
+        raise ValueError('unowned_journal_queue')
+    return candidate
+
+
 def _journal_queue_dir(root):
     """Carpeta de la cola de outbox: `.claude/journal` por defecto; `dev.json` →
     `{"sesion": {"journal": {"dir": "..."}}}` la puede mover (el booleano `sesion.journal` sigue
@@ -118,12 +131,12 @@ def _journal_queue_dir(root):
     jr = _dev_sesion(root).get("journal")
     d = jr.get("dir") if isinstance(jr, dict) else None
     if not (isinstance(d, str) and d.strip()):
-        return os.path.join(root, _DIR_DEFAULT)
+        return _safe_queue_default(root)
     d = d.strip()
     if os.path.isabs(d) or ntpath.splitdrive(d)[0]:
         print(f"journal: sesion.journal.dir {d!r} es absoluto o relativo a una unidad; se usa el "
               f"default {_DIR_DEFAULT}", file=sys.stderr)
-        return os.path.join(root, _DIR_DEFAULT)
+        return _safe_queue_default(root)
     candidato = os.path.join(root, d)
     real_root, real_cand = os.path.realpath(root), os.path.realpath(candidato)
     try:
@@ -133,11 +146,15 @@ def _journal_queue_dir(root):
     if not contenido:
         print(f"journal: sesion.journal.dir {d!r} sale de la raíz del proyecto (symlink u otra "
               f"ruta); se usa el default {_DIR_DEFAULT}", file=sys.stderr)
-        return os.path.join(root, _DIR_DEFAULT)
+        return _safe_queue_default(root)
+    try:
+        JIO.queue(candidato)
+    except (OSError, ValueError):
+        return _safe_queue_default(root)
     if not _dir_es_de_la_cola_o_vacio(candidato):
         print(f"journal: sesion.journal.dir {d!r} ya existe con contenido ajeno a la cola; se usa "
               f"el default {_DIR_DEFAULT} (gap 34)", file=sys.stderr)
-        return os.path.join(root, _DIR_DEFAULT)
+        return _safe_queue_default(root)
     return candidato
 
 def _journal_activo(root):
@@ -181,9 +198,8 @@ def _log_snapshot(root, session_id):
     JSONL records use LF; Unicode separators inside a prompt are not records.
     """
     try:
-        with open(log_path(root, session_id), "rb") as fh:
-            data = fh.read()
-    except OSError:
+        data = JIO.read(log_path(root, session_id)) or b''
+    except (OSError, ValueError):
         data = b""
     sequence = data.count(b"\n") + int(bool(data) and not data.endswith(b"\n"))
     return hashlib.sha256(data).hexdigest(), sequence
@@ -205,7 +221,7 @@ def _contar_lineas_log(root, session_id):
     depende de este número (ver `_hash_log_prompts`), porque no es monótono cuando el log rota."""
     return _log_snapshot(root, session_id)[1]
 
-def capture_end(root, payload):
+def _capture_end(root, payload):
     """Lo que corre en el teardown de SessionEnd (CA-01 de la spec): escribe un envelope atómico en
     la outbox y NADA MÁS — no abre `transcript_path` (referencia no confiable), no ejecuta git, no
     llama a IA, no usa red. Devuelve la ruta escrita, o `None` si no se escribe (payload sin
@@ -242,31 +258,17 @@ def capture_end(root, payload):
     return ob.escribir(dir_, envelope["event_id"], envelope)
 
 def _asegurar_gitignore_local(dirpath):
-    """`.gitignore` + marcador de la cola (`_QUEUE_MARKER`, gap 34) DENTRO de la propia carpeta:
-    funciona aunque `sesion.journal.dir` mueva la cola fuera de `.claude/` (gap 9 de la revisión:
-    sin esto, los envelopes se cuelan en `git status` y en `ficheros_tocados`, y se pueden
-    commitear). `_journal_queue_dir` ya garantiza que `dirpath` es seguro (contenido en la raíz,
-    sin symlinks de escape, y de la cola o vacío) antes de llegar aquí, así que esta función no
-    vuelve a comprobarlo: solo crea/marca. La llama también `replay()` (gap 41: creaba la carpeta y
-    el cerrojo sin sembrar `.gitignore`)."""
-    try:
-        os.makedirs(dirpath, exist_ok=True)
-        with contextlib.suppress(OSError):
-            os.chmod(dirpath, 0o700)
-        marker = os.path.join(dirpath, _QUEUE_MARKER)
-        if not os.path.isfile(marker):
-            open(marker, "w", encoding="utf-8").close()
-        gi = os.path.join(dirpath, ".gitignore")
-        if not os.path.isfile(gi):
-            # Gap 61 de la revisión intento 3 (B-55): `!.gitignore` deshacía la ignorancia del PROPIO
-            # `.gitignore`, así que `git status -uall` seguía viéndolo como `??` — el único fichero de
-            # la cola que se colaba. Con solo `*` (sin excepción), la cola entera —incluido su propio
-            # `.gitignore`— queda ignorada; no hace falta versionarlo para que git lo respete, porque
-            # `_asegurar_gitignore_local` se encarga de recrearlo si faltara.
-            with open(gi, "w", encoding="utf-8") as fh:
-                fh.write("# custom-agents: outbox del journal, nunca versionar (session-end-durable-capture)\n*\n")
-    except OSError:
-        pass
+    JIO.queue(dirpath)
+    JIO.directory(dirpath, create=True)
+    for name, raw in ((_QUEUE_MARKER, b''), ('.gitignore', b'# custom-agents: journal outbox, never commit\n*\n')):
+        path = os.path.join(dirpath, name)
+        if not os.path.lexists(path):
+            try:
+                JIO.write(path, raw)
+            except FileExistsError:
+                JIO.read(path)  # Another cooperating initializer won; never overwrite.
+        else:
+            JIO.read(path)
 
 def _sid_seguro(session_id):
     """`session_id` como trozo de nombre de fichero: nunca sale de `.claude/` (sin separadores)."""
@@ -276,6 +278,14 @@ def log_path(root, session_id):
     return os.path.join(root, LOG_DIR_REL, f"{LOG_PREFIX}{_sid_seguro(session_id)}.log")
 
 SCHEMA_ACEPTADOS = _schema_aceptados(SCHEMA_VERSION)
+
+
+def capture_end(root, payload):
+    try:
+        return _capture_end(root, payload)
+    except (OSError, ValueError, AttributeError):
+        print('journal: captura omitida por almacenamiento inseguro o no disponible', file=sys.stderr)
+        return None
 
 
 def main(argv=None):

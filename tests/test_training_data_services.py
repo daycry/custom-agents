@@ -277,7 +277,15 @@ def _doctor_sin_training(proj):
     return inf["exit"], lineas
 
 
-def test_ca01_sin_training_json_o_desactivado_el_ciclo_es_identico(tmp_path):
+def test_ca01_sin_training_json_o_desactivado_el_ciclo_es_identico(tmp_path, monkeypatch):
+    # Compare training states in one stable synthetic user environment, rather
+    # than comparing two live CLI queries with independent timeout outcomes.
+    home = tmp_path / 'isolated-user'; home.mkdir()
+    for name in ('HOME', 'USERPROFILE'):
+        monkeypatch.setenv(name, str(home))
+    monkeypatch.setenv('CODEX_HOME', str(home / '.codex'))
+    monkeypatch.setenv('CLAUDE_CONFIG_DIR', str(home / '.claude'))
+    monkeypatch.setenv('XDG_CONFIG_HOME', str(home / '.config'))
     base = tmp_path / "a" / "proj"
     base.mkdir(parents=True)
     (base / ".claude").mkdir()

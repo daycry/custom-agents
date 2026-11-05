@@ -61,6 +61,8 @@ import os
 import re
 import sys
 import tempfile
+import time
+from pathlib import Path
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -90,6 +92,33 @@ def _cargar_ledger_lint():
 
 
 LL = _cargar_ledger_lint()
+MAX_ARCHIVE_BYTES = 8 * 1024 * 1024
+MAX_HISTORY_BUDGET = 128 * 1024 * 1024
+
+
+def _load_io(name):
+    spec = importlib.util.spec_from_file_location('archive_' + name.replace('-', '_'), os.path.join(HERE, name + '.py'))
+    module = importlib.util.module_from_spec(spec)
+    previous = sys.dont_write_bytecode
+    try:
+        sys.dont_write_bytecode = True
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
+    return module
+
+
+def _need(condition, reason, *_args):
+    if not condition:
+        raise ValueError(reason)
+
+
+def _deadline(deadline):
+    _need(time.monotonic() < deadline, 'archive_timeout')
+
+
+IO = _load_io('local-state').StateIO(_load_io('local-read'), _need, _deadline, maximum=MAX_ARCHIVE_BYTES)
+
 
 
 def sha256(texto):
@@ -364,35 +393,25 @@ def newline_dominante(texto, defecto="\n"):
 BOM = chr(0xFEFF)           # BOM UTF-8
 
 
-def leer_texto(path):
-    """(texto LF sin BOM, bom, newline dominante) o lanza UnicodeDecodeError/OSError."""
-    with open(path, "rb") as fh:
-        texto = fh.read().decode("utf-8")
+def _decode_texto(raw):
+    texto = raw.decode("utf-8")
     bom = texto.startswith(BOM)
     if bom:
         texto = texto[1:]
     return texto.replace("\r\n", "\n"), bom, newline_dominante(texto)
 
 
+def leer_texto(path):
+    raw, _identity = IO.read(path, MAX_ARCHIVE_BYTES)
+    return _decode_texto(raw)
+
+
 def a_bytes(texto, bom, nl):
     return ((BOM if bom else "") + texto.replace("\n", nl)).encode("utf-8")
 
 
-def escribir_atomico(path, data):
-    fd, tmp = tempfile.mkstemp(prefix="." + os.path.basename(path) + ".", suffix=".tmp",
-                               dir=os.path.dirname(path) or ".")
-    try:
-        with os.fdopen(fd, "wb") as fh:
-            fh.write(data)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+def escribir_atomico(path, data, *, expected=None, deadline=None, mode=None):
+    IO.write(path, data, deadline or time.monotonic() + 5, expected=expected, mode=mode)
 
 
 def errores_lint(data):
@@ -411,7 +430,8 @@ def slug_de(carpeta):
 def planificar(carpeta, maximo, fecha, notas_max=NOTAS_MAX):
     """Calcula todo sin escribir. Devuelve un dict con el plan y los bytes resultantes."""
     tasks = os.path.join(carpeta, "tasks.md")
-    texto, bom, nl = leer_texto(tasks)
+    source_raw, source_identity = IO.read(tasks, MAX_ARCHIVE_BYTES)
+    texto, bom, nl = _decode_texto(source_raw)
     base = invariantes(texto)
     tras_a, archivadas, omitidas = seleccionar_revisiones(texto, base)
     tras_b, recortes = recortar_verificaciones(tras_a, maximo)
@@ -427,7 +447,7 @@ def planificar(carpeta, maximo, fecha, notas_max=NOTAS_MAX):
                    for r in recortes]
                 + [{"titulo": f"{r['tarea']} · Notas", "bloque": r["bloque"], "sha": r["sha"]}
                    for r in notas])
-    return {"tasks": tasks, "texto": texto, "final": final, "nl": nl, "base": base,
+    return {"source_raw": source_raw, "source_identity": source_identity, "tasks": tasks, "texto": texto, "final": final, "nl": nl, "base": base,
             "antes": antes, "despues": despues, "archivadas": archivadas, "recortes": recortes,
             "notas": notas,
             "omitidas": omitidas, "entradas": entradas}
@@ -448,26 +468,58 @@ def verificar(plan):
     return None
 
 
-def aplicar(plan, carpeta, fecha):
-    """Escribe el histórico y DESPUÉS el ledger; devuelve cuántos bloques se añadieron al histórico.
-    El histórico es de SOLO AÑADIR: sus bytes previos no se re-codifican nunca (el real mezcla CRLF
-    y LF); lo añadido usa su final de línea dominante (uno nuevo, el del ledger)."""
-    hist_path = os.path.join(carpeta, HISTORICO)
-    if os.path.exists(hist_path):
-        with open(hist_path, "rb") as fh:
-            raw = fh.read()
-        previo = raw.decode("utf-8")                      # ilegible → UnicodeDecodeError, nada escrito
-        nl = newline_dominante(previo, plan["nl"])
-        previo_lf = previo.replace("\r\n", "\n")
-        nuevo, anadidas = componer_historico(previo_lf, slug_de(carpeta), plan["entradas"], fecha)
-        datos = raw + nuevo[len(previo_lf):].replace("\n", nl).encode("utf-8")
-    else:
-        nuevo, anadidas = componer_historico(None, slug_de(carpeta), plan["entradas"], fecha)
-        datos = a_bytes(nuevo, False, plan["nl"])
-    if anadidas:
-        escribir_atomico(hist_path, datos)
-    escribir_atomico(plan["tasks"], plan["despues"])
-    return anadidas
+def aplicar(plan, carpeta, fecha, *, history_max_bytes=MAX_ARCHIVE_BYTES):
+    """Cooperate with ledger-write; publish append-only history before the ledger.
+
+    A changed source is rejected before either publication. Noncooperating edits
+    observed between the two writes can leave history appended, never erase their
+    newer ledger; the history's block hashes make that partial state recoverable.
+    """
+    _need(type(history_max_bytes) is int and 1 <= history_max_bytes <= MAX_HISTORY_BUDGET,
+          '--history-max-bytes must be between 1 and 134217728')
+    history_io = _load_io('local-state').StateIO(_load_io('local-read'), _need, _deadline, maximum=history_max_bytes)
+    folder = Path(carpeta).absolute()
+    _need(Path(plan['tasks']).absolute() == folder / 'tasks.md', 'invalid_archive_target')
+    IO.dirs(folder)
+    state = folder / '.ledger-write'
+    state.mkdir(exist_ok=True)
+    IO.dirs(state)
+    try:
+        try:
+            with (state / '.gitignore').open('xb') as stream:
+                stream.write(b'*\n')
+        except FileExistsError:
+            pass
+    except OSError:
+        pass
+    deadline = time.monotonic() + 10
+    with IO.locked(state, deadline, True, wait=2):
+        current, identity = IO.read(plan['tasks'], MAX_ARCHIVE_BYTES)
+        _need(current == plan['source_raw'] and identity == plan['source_identity'], 'ledger_changed_since_planning')
+        mode = (folder / 'tasks.md').lstat().st_mode & 0o777 if os.name != 'nt' else None
+        hist_path = folder / HISTORICO
+        history_identity = None
+        history_mode = 0o600 if os.name != 'nt' else None
+        if os.path.lexists(hist_path):
+            _need(history_io.file(hist_path)[2] <= history_max_bytes,
+                  'history budget exceeded; retry with a larger explicit --history-max-bytes (maximum 134217728)')
+            raw, history_identity = history_io.read(hist_path, history_max_bytes)
+            history_mode = hist_path.lstat().st_mode & 0o777 if os.name != 'nt' else None
+            previo = raw.decode('utf-8')
+            nl = newline_dominante(previo, plan['nl'])
+            previo_lf = previo.replace('\r\n', '\n')
+            nuevo, anadidas = componer_historico(previo_lf, slug_de(carpeta), plan['entradas'], fecha)
+            datos = raw + nuevo[len(previo_lf):].replace('\n', nl).encode('utf-8')
+        else:
+            nuevo, anadidas = componer_historico(None, slug_de(carpeta), plan['entradas'], fecha)
+            datos = a_bytes(nuevo, False, plan['nl'])
+        if anadidas:
+            _need(len(datos) <= history_max_bytes,
+                  'history budget exceeded; retry with a larger explicit --history-max-bytes (maximum 134217728)')
+            history_io.write(hist_path, datos, deadline, expected=history_identity, mode=history_mode)
+        escribir_atomico(plan['tasks'], plan['despues'], expected=identity, deadline=deadline, mode=mode)
+        return anadidas
+
 
 
 def bloque_en_fichero(bloque, nl):
@@ -527,8 +579,12 @@ def main(argv=None):
                     help=f"caracteres de `Notas` (tareas completado) a partir de los que se recorta "
                          f"(por defecto {NOTAS_MAX})")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--history-max-bytes", type=int, default=MAX_ARCHIVE_BYTES,
+                    help="explicit history I/O budget in bytes (default 8388608, maximum 134217728)")
     ap.add_argument("--fecha", default=None, help="fecha de las entradas (AAAA-MM-DD; hoy por defecto)")
     args = ap.parse_args(argv)
+    if not 1 <= args.history_max_bytes <= MAX_HISTORY_BUDGET:
+        ap.error('--history-max-bytes must be between 1 and 134217728')
 
     fecha = args.fecha or datetime.date.today().isoformat()
     if not _FECHA_RE.match(fecha):
@@ -546,7 +602,7 @@ def main(argv=None):
         return 2
     try:
         plan = planificar(carpeta, args.verificacion_max, fecha, args.notas_max)
-    except (OSError, UnicodeDecodeError) as e:
+    except (OSError, ValueError) as e:
         print(f"ledger-archive: ledger ilegible ({e})", file=sys.stderr)
         return 2
 
@@ -557,8 +613,8 @@ def main(argv=None):
     aplicado = False
     if args.apply and plan["despues"] != plan["antes"]:
         try:
-            aplicar(plan, carpeta, fecha)
-        except UnicodeDecodeError as e:
+            aplicar(plan, carpeta, fecha, history_max_bytes=args.history_max_bytes)
+        except (OSError, ValueError) as e:
             print(f"ledger-archive: histórico ilegible ({e}); no se escribe nada", file=sys.stderr)
             return 2
         aplicado = True                            # «aplicado» = se escribió algo

@@ -106,12 +106,24 @@ def fila_calibracion(root, carpeta):
     if not os.path.isfile(cal):
         return False, "docs/roadmap/CALIBRATION.md no existe"
     nombre = os.path.basename(os.path.normpath(carpeta))
-    objetivo = {nombre, slug_de(nombre)}
+    slug = slug_de(nombre)
+    peers = None
     try:
         for ln in open(cal, encoding="utf-8-sig", errors="replace"):
             m = _FILA_RE.match(ln)
-            if m and m.group(2).strip().strip("`").strip() in objetivo:
-                return True, f"fila del {m.group(1)} para `{slug_de(nombre)}` en CALIBRATION.md"
+            if not m:
+                continue
+            identity = m.group(2).strip().strip("`").strip()
+            if identity == nombre:
+                return True, f"fila del {m.group(1)} para `{nombre}` en CALIBRATION.md"
+            # Only a relevant legacy row needs an ambiguity scan, at most once.
+            if identity != slug or m.group(1) < nombre[:10]:
+                continue
+            if peers is None:
+                peers = [entry for entry in os.listdir(os.path.dirname(carpeta))
+                         if slug_de(entry) == slug and os.path.isdir(os.path.join(os.path.dirname(carpeta), entry))]
+            if len(peers) == 1:
+                return True, f"fila del {m.group(1)} para `{nombre}` en CALIBRATION.md"
     except OSError as e:
         return False, f"CALIBRATION.md ilegible ({e.__class__.__name__})"
     return False, f"sin fila para `{slug_de(nombre)}` en docs/roadmap/CALIBRATION.md"

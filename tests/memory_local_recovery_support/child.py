@@ -124,8 +124,10 @@ def main():
     sys.addaudithook(audit)
 
     original_replace = os.replace
+    original_link, original_unlink = os.link, os.unlink
+    pending_links = {}
     reached = False
-    def observed_replace(old, new, *args, **kwargs):
+    def observed_publication(publisher, old, new, args, kwargs, *, linked=False):
         nonlocal reached
         target = Path(new).resolve()
         inside = root in target.parents
@@ -144,15 +146,35 @@ def main():
                              'reached_utc_ns': time.time_ns(), 'injected_errno': errno.ENOSPC})
                 raise OSError(errno.ENOSPC, 'OWN synthetic manifest failure')
             pause(spec, frontier, target)
-        result = original_replace(old, new, *args, **kwargs)
+        result = publisher(old, new, *args, **kwargs)
         if not reached and (after_claim or after_entry):
+            if linked:
+                # Exclusive StateIO creation publishes by link + removal of its
+                # private temporary. Pause once the final leaf has a single link,
+                # equivalent to the old replace frontier, not during preparation.
+                pending_links[str(Path(old).resolve())] = (frontier, target)
+            else:
+                reached = True
+                pause(spec, frontier, target)
+        return result
+    def observed_replace(old, new, *args, **kwargs):
+        return observed_publication(original_replace, old, new, args, kwargs)
+    def observed_link(old, new, *args, **kwargs):
+        return observed_publication(original_link, old, new, args, kwargs, linked=True)
+    def observed_unlink(path, *args, **kwargs):
+        nonlocal reached
+        key = str(Path(path).resolve())
+        result = original_unlink(path, *args, **kwargs)
+        if not reached and key in pending_links:
             reached = True
+            frontier, target = pending_links.pop(key)
             pause(spec, frontier, target)
         return result
     if spec.get('frontier'):
         # Runtime timing/fault instrumentation confined to one owned child. Source
         # bytes remain exact. This is not an independent implementation of a writer.
         os.replace = observed_replace
+        os.link, os.unlink = observed_link, observed_unlink
     sys.argv = [str(script), *spec['arguments']]
     exit_code = 0
     try:
@@ -161,6 +183,7 @@ def main():
         exit_code = exc.code if isinstance(exc.code, int) else int(bool(exc.code))
     finally:
         os.replace = original_replace
+        os.link, os.unlink = original_link, original_unlink
         record_audit()
     atomic_record(control / 'finished.json', {'nonce': spec['nonce'], 'exit': exit_code,
                   'frontier_reached': reached, 'finished_utc_ns': time.time_ns()})

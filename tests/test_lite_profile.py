@@ -165,6 +165,16 @@ def test_bad_json_warns_without_claiming_lite(tmp_path, raw):
     assert row["perfil"] == "normal" and row["warnings"] and not row["blocked"]
 
 
+@pytest.mark.parametrize('depth', [31, 32, 33])
+def test_config_depth_budget_does_not_depend_on_json_decoder(tmp_path, depth):
+    nested = 0
+    for _ in range(depth): nested = {'nested': nested}
+    config(tmp_path, {'perfil': 'lite', 'extra': nested})
+    data, warnings = profile_module().read_config(tmp_path)
+    assert bool(warnings) is (depth > 32)
+    assert data == {} if depth > 32 else data['perfil'] == 'lite'
+
+
 def test_brief_missing_profile_resolver_preserves_only_undeclared_normal_fallback(tmp_path):
     folder = brief_fixture(tmp_path)
     bundle = tmp_path / "bundle"

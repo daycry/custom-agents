@@ -358,8 +358,13 @@ def _graphiti_modo(cfg):
     try:
         spec = importlib.util.spec_from_file_location("capabilities_graphiti_adaptador", ruta)
         mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod.modo(cfg)
+        previous = sys.dont_write_bytecode
+        try:
+            sys.dont_write_bytecode = True
+            spec.loader.exec_module(mod)
+            return mod.modo(cfg)
+        finally:
+            sys.dont_write_bytecode = previous
     except Exception:  # noqa: BLE001 — sin adaptador instalado, el respaldo declarado
         return modo(cfg)
 

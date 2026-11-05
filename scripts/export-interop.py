@@ -114,8 +114,8 @@ GUARDRAIL_CON_HOOK = {
                     "Conserva el opt-out de proyecto y no impone un sandbox universal. "
                     "La política canónica es `guardrail-check.py pre-tool --agent implementer`."),
     "architect": ("la distribución registra control previo para el ID exacto "
-                  "`{native_id}`: restringe edición a `design.md`, `docs/knowledge/adr/**` "
-                  "y enlaces `design:` en spec/plan. Requiere plugin cargado, hooks confiados y Python. "
+                  "`{native_id}`: restringe edición a `design.md` "
+                  "y enlaces `design:` en spec/plan; la memoria se propone mediante knowledge-curation. Requiere plugin cargado, hooks confiados y Python. "
                   "Solo cubre herramientas y payloads soportados; entradas desconocidas o errores "
                   "degradan con diagnóstico. Conserva el opt-out y no impone un sandbox universal. "
                   "La política canónica es `guardrail-check.py pre-tool --agent architect`."),
@@ -806,15 +806,58 @@ def _regular_export_path(root, path, directory=False):
 
 
 def escribir(root, plan, quiet=False):
-    for rel, contenido in plan.items():
-        p = os.path.join(root, rel.replace("/", os.sep))
-        os.makedirs(os.path.dirname(p), exist_ok=True)
-        with open(p, "w", encoding="utf-8", newline="\n") as f:
-            f.write(contenido)
+    # Preflight every destination before writing any output. The owning helpers
+    # come from this script's checkout, never from a consumer-supplied --root.
+    from pathlib import Path
+    import time
+    def need(ok, reason):
+        if not ok:
+            raise ValueError(reason)
+    def guard(deadline):
+        need(time.monotonic() < deadline, 'export_deadline')
+    def helper(name):
+        path = os.path.join(ROOT_DEFAULT, 'agent-kits', 'shared', name + '.py')
+        spec = importlib.util.spec_from_file_location('interop_' + name.replace('-', '_'), path)
+        module = importlib.util.module_from_spec(spec)
+        previous = sys.dont_write_bytecode
+        try:
+            sys.dont_write_bytecode = True
+            spec.loader.exec_module(module)
+        finally:
+            sys.dont_write_bytecode = previous
+        return module
+    io = helper('local-state').StateIO(helper('local-read'), need, guard, maximum=2*1024*1024)
+    base = Path(root).absolute();io.dirs(base)
+    prepared = []
+    for rel, content in plan.items():
+        need(type(rel) is str and rel and not rel.startswith('/') and '\\' not in rel
+             and all(p not in ('', '.', '..') for p in rel.split('/')), 'unsafe_export_path')
+        path = base / rel
+        need(path.is_relative_to(base), 'unsafe_export_path')
+        for parent in reversed(path.parent.parents):
+            if os.path.lexists(parent):io.dirs(parent)
+        if os.path.lexists(path.parent):io.dirs(path.parent)
+        identity = None;mode = None
+        if os.path.lexists(path):
+            _, identity = io.read(path, 2*1024*1024)
+            mode = stat.S_IMODE(path.stat().st_mode)
+        raw = content.encode('utf8')
+        need(len(raw) <= 2*1024*1024, 'export_budget')
+        prepared.append((path, raw, identity, mode))
+    for path, raw, identity, mode in prepared:
+        missing = [];parent = path.parent
+        while not os.path.lexists(parent):
+            missing.append(parent);parent = parent.parent
+        io.dirs(parent)
+        for directory in reversed(missing):
+            directory.mkdir(exist_ok=True);io.dirs(directory)
+        io.write(path, raw, time.monotonic()+10, expected=identity, mode=mode)
     for relative in obsoletos(root, plan):
-        os.unlink(os.path.join(root, relative.replace("/", os.sep)))
+        path = os.path.join(root, relative.replace('/', os.sep))
+        need(_regular_export_path(root, path), 'unsafe_obsolete_export')
+        os.unlink(path)
     if not quiet:
-        print("export-interop: %d ficheros escritos (codex + opencode)" % len(plan))
+        print('export-interop: %d ficheros escritos (codex + opencode)' % len(plan))
     return 0
 
 

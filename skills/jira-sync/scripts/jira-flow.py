@@ -665,16 +665,16 @@ def _find_up(name, start="."):
 
 # ------------------------------------------------------- opt-in: `.claude/jira.json` (T-fix1 #4)
 
-def _jira_activo(root):
-    """(activo, ruta, motivo) leyendo `.claude/jira.json` hacia arriba desde `root` (misma
-    resolución que `worklog.py`: `find_up` desde cwd, o desde `--root` si se pasa).
+def _jira_activo(root, *, search_parents=False):
+    """(activo, ruta, motivo): explicit roots are exact opt-in boundaries.
+    Only implicit cwd invocation searches parents, like worklog.py.
 
     **`enabled: true` o no se publica NADA.** Antes este script no miraba la config: con
     `{"enabled": false}` seguía devolviendo 3 ops y el agente las ejecutaba en el Jira del equipo.
     Falla CERRADO a propósito (config ausente = no activado): la skill dice que el volcado es
     opt-in y quien llama ya ha pasado por el Paso 0."""
-    path = os.path.join(os.path.abspath(root), '.claude', 'jira.json')
-    if not os.path.isfile(path):
+    path = _find_up('jira.json', root) if search_parents else os.path.join(root, '.claude', 'jira.json')
+    if not path or not os.path.isfile(path):
         return False, None, "sin `.claude/jira.json` (Jira no activado para este proyecto)"
     try:
         with open(path, encoding="utf-8") as f:
@@ -836,7 +836,7 @@ def construir_plan(args):
 
     # --- opt-in: con Jira apagado el ciclo es idéntico, simplemente no publica nada
     root = args.root or os.getcwd()
-    activo, cfg_path, motivo = _jira_activo(root)
+    activo, cfg_path, motivo = _jira_activo(root, search_parents=args.root is None)
     if not activo:
         plan = {"evento": args.event, "actor": args.actor, "rol": ROL[args.actor], "fecha": fecha,
                "tareas": tareas, "issueKey": None, "jira": "desactivado", "ops": [],
@@ -954,6 +954,26 @@ def construir_plan(args):
         ops.append({"tipo": "etiqueta", "issueKey": issue_principal, "add": [f"ca-{args.actor}"]})
         ops.append({"tipo": "comentario", "issueKey": issue_principal, "cuerpo": comentario})
 
+    try:
+        path = os.path.join(REPO_ROOT_DESDE_SKILL, 'agent-kits', 'shared', 'redact.py')
+        spec = importlib.util.spec_from_file_location('jira_flow_redactor', path)
+        redactor = importlib.util.module_from_spec(spec)
+        previous = sys.dont_write_bytecode
+        try:
+            sys.dont_write_bytecode = True
+            spec.loader.exec_module(redactor)
+        finally:
+            sys.dont_write_bytecode = previous
+    except Exception:
+        return None, ['redactor no disponible: no se genera una publicacion externa'], 2
+    project_root = os.path.dirname(os.path.dirname(cfg_path))
+    rates_path = _find_up('rates.json', project_root) or os.path.join(project_root, '.claude', 'rates.json')
+    for op in ops:
+        if op['tipo'] == 'worklog' and 'comando' in op:
+            op['comando'] += ['--state', os.path.abspath(state_path), '--jira', cfg_path,
+                              '--rates', rates_path, '--fecha', fecha]
+        if op['tipo'] == 'comentario':
+            op['cuerpo'] = redactor.redactar(op['cuerpo'])
     for op in ops:   # la referencia permite comprobar en Jira si un envío ambiguo llegó
         if op["tipo"] == "comentario":
             op["cuerpo"] = op["cuerpo"].rstrip("\n") + f"\n\n_Ref. custom-agents: `{clave}`_\n"
@@ -966,14 +986,15 @@ def construir_plan(args):
            "tareas": tareas, "issueKey": issue_principal, "jira": "activado",
            "yaRealizado": False, "reintento": reintento, "claveIdempotencia": clave,
            "confirmar": [sys.executable, os.path.join(HERE, "jira-flow.py"), "confirmar",
-                         "--ledger", args.ledger, "--clave", clave] if ops else None,
+                         "--ledger", os.path.abspath(args.ledger), "--clave", clave,
+                         "--root", project_root, "--state", os.path.abspath(state_path)] if ops else None,
            "ops": ops, "avisos": avisos}
     return plan, avisos, 0
 
 
 def _resolver_estado(args, cfg_path):
     """`--state`, o `jira-state.json` hacia arriba desde el ledger, o hermano de `jira.json`."""
-    state_path = args.state
+    state_path = os.path.abspath(args.state) if args.state else None
     if not state_path and cfg_path:   # por defecto, hermano de jira.json (donde vive el manifiesto)
         state_path = os.path.join(os.path.dirname(cfg_path), "jira-state.json")
     return state_path
@@ -983,7 +1004,7 @@ def confirmar(args):
     """Recibo tras publicar: `flow[clave]` pasa de `pendiente` a `publicado` (con el id del
     comentario si lo hay). Una clave que nunca se planificó es un error de uso: confirmar a ciegas
     escondería un evento que no se publicó."""
-    _activo, cfg_path, _motivo = _jira_activo(args.root or os.getcwd())
+    _activo, cfg_path, _motivo = _jira_activo(args.root or os.getcwd(), search_parents=args.root is None)
     state_path = _resolver_estado(args, cfg_path)
     estado, aviso = _leer_estado(state_path)
     if aviso:
@@ -1063,8 +1084,7 @@ def main():
     ap.add_argument("--intento", type=int)
     ap.add_argument("--issue")
     ap.add_argument("--state")
-    ap.add_argument("--root", help="desde dónde resolver `.claude/jira.json` (defecto: cwd, hacia "
-                                   "arriba — misma resolución que worklog.py)")
+    ap.add_argument("--root", help="raíz exacta de `.claude/jira.json`; sin --root se busca desde cwd hacia arriba")
     ap.add_argument("--force", action="store_true",
                     help="repite un evento ya publicado (salta la idempotencia)")
     ap.add_argument("--qa-verde", action="store_true", dest="qa_verde",

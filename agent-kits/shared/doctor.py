@@ -2753,6 +2753,13 @@ def _acciones_prioritarias(bloques):
     return {"total": len(acciones), "limite": 3, "acciones": acciones[:3]}
 
 
+def _model_local_reader():
+    spec = importlib.util.spec_from_file_location("doctor_model_local_read", os.path.join(HERE, "local-read.py"))
+    reader = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(reader)
+    return reader
+
+
 def _modelo_local_leer(project, relative_path):
     """Read consumer data through the bounded, read-only owner; never import it."""
     path = os.path.join(project, relative_path)
@@ -2762,9 +2769,7 @@ def _modelo_local_leer(project, relative_path):
         return None
     if initial.st_nlink != 1:
         raise ValueError("shared native config")
-    spec = importlib.util.spec_from_file_location("doctor_model_local_read", os.path.join(HERE, "local-read.py"))
-    reader = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(reader)
+    reader = _model_local_reader()
     row = reader.read_bytes(project, relative_path, max_bytes=256 * 1024)
     if row["status"] == "not_found":
         return None
@@ -2850,6 +2855,7 @@ def _ollama_running(endpoint):
             raise ValueError("incomplete body")
     try:
         data = json.loads(body.decode("utf-8"))
+        _model_local_reader().check_json_depth(data)
     except RecursionError:
         raise ValueError("JSON nesting budget") from None
     if not isinstance(data, dict) or not isinstance(data.get("models"), list) or len(data["models"]) > 256:
@@ -2944,6 +2950,7 @@ def bloque_modelos_locales(project, runtime, probe_ollama=None):
             data = json.loads(raw)
         if not isinstance(data, dict):
             raise ValueError("native config is not an object")
+        _model_local_reader().check_json_depth(data)
         # Consumer strings are never echoed without the canonical redactor.
         spec = importlib.util.spec_from_file_location("doctor_model_redact", os.path.join(HERE, "redact.py"))
         redactor = importlib.util.module_from_spec(spec)

@@ -175,10 +175,27 @@ class SessionManager:
                     s.messages.append({'id':key,'role':role,'text':combined,'created_at':now()})
             elif kind=='status':
                 if event.get('status') not in STATES:return
+                if event.get('source')=='poll' and event['status']=='idle' and s.status in ('sending','interrupting','disconnecting'):return
                 s.status=event['status']
                 if s.status in ('idle','failed','interrupted'):
                     s.pending.clear()
                 if event.get('error'):s.error=C.scrub(str(event['error']),root,200)
+                elif s.status == 'idle':s.error=None
+                if s.status == 'disconnected' and s.driver is not None:
+                    # Keep capacity reserved until owned cleanup has completed.
+                    driver=s.driver;current_generation=s.generation
+                    s.status='disconnecting';s.pending.clear()
+                    def detach():
+                        try:driver.close()
+                        except Exception:
+                            with self.lock:
+                                if s.driver is driver and s.generation==current_generation:
+                                    s.status='uncertain';s.error='cleanup_incomplete';s.seq+=1
+                            return
+                        with self.lock:
+                            if s.driver is driver and s.generation==current_generation:
+                                s.driver=None;s.generation+=1;s.status='disconnected';s.seq+=1
+                    self._background(detach)
             elif kind=='tool':
                 if event.get('state') not in ('started','completed','failed'):return
                 if len(s.events)==s.events.maxlen:s.truncated=True
@@ -188,11 +205,15 @@ class SessionManager:
                 key=event.get('id')
                 if type(key) is not str or len(key)>160 or len(s.pending)>=8:return
                 preview=event.get('preview','');preview=preview if type(preview) is str else ''
-                clean_preview=C.scrub(preview,root,maximum=None)
-                clean_title=C.scrub(str(event.get('title','Solicitud')),root,maximum=None)
+                title=event.get('title','Solicitud');title=title if type(title) is str else 'Solicitud'
+                oversized=len(preview)>2000 or len(title)>300
+                # Never truncate before redaction: an incomplete token could leak.
+                # Oversized requests disclose no partial content and allow denial only.
+                clean_preview=C.scrub(preview if len(preview)<=2000 else '[Solicitud demasiado extensa; consulta la interfaz nativa.]',root,maximum=None)
+                clean_title=C.scrub(title if len(title)<=300 else 'Solicitud demasiado extensa',root,maximum=None)
                 raw_choices=event.get('choices',[])
                 choices=[x for x in raw_choices if x in ('allow','deny','cancel','submit')] if type(raw_choices) is list else []
-                truncated=len(preview)>2000 or len(clean_preview)>2000 or len(clean_title)>300
+                truncated=oversized or len(clean_preview)>2000 or len(clean_title)>300
                 if truncated:choices=[x for x in choices if x in ('deny','cancel')]
                 request={'id':key,'type':kind,'title':clean_title[:300],
                          'preview':clean_preview[:2000],'choices':choices,'truncated':truncated}
@@ -240,7 +261,7 @@ class SessionManager:
             clean=C.scrub(text,maximum=16000);signature=hashlib.sha256(clean.encode('utf-8')).hexdigest()
             if request_id in s.sent:
                 C.need(s.sent[request_id]==signature,'request_conflict',409);return s.summary()
-            C.need(not s.closed and s.status in ('idle','interrupted') and s.driver is not None,'session_busy',409)
+            C.need(not s.closed and s.status in ('idle','interrupted','failed') and s.driver is not None,'session_busy',409)
             C.need(len(s.sent)<256,'turn_budget',429)
             s.sent[request_id]=signature;s.status='sending';s.seq+=1
             self.emit(ident,{'type':'message','id':request_id,'role':'user','text':clean})

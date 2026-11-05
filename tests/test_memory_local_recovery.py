@@ -54,6 +54,10 @@ def test_barrier_real_sharing_conflict_does_not_bypass_identity(lab, monkeypatch
     kernel.CloseHandle.argtypes = [wintypes.HANDLE]
     kernel.CloseHandle.restype = wintypes.BOOL
     handle = kernel.CreateFileW(str(ready_path), 0x80000000, 0, None, 3, 0x80, None)
+    deadline = time.monotonic() + 2
+    while handle in (None, ctypes.c_void_p(-1).value) and ctypes.get_last_error() in (32, 33) and time.monotonic() < deadline:
+        time.sleep(0.01)
+        handle = kernel.CreateFileW(str(ready_path), 0x80000000, 0, None, 3, 0x80, None)
     assert handle not in (None, ctypes.c_void_p(-1).value), ctypes.get_last_error()
     held = [handle]
     faults = []
@@ -113,6 +117,8 @@ def run_budget():
 SOURCE_FILES = (
     'agent-kits/shared/journal.py',
     'agent-kits/shared/journal-capture.py',
+    'agent-kits/shared/journal-io.py',
+    'agent-kits/shared/local-state.py',
     'agent-kits/shared/outbox.py',
     'agent-kits/shared/local-read.py',
     'agent-kits/shared/knowledge-find.py',
@@ -637,7 +643,7 @@ def test_N03_cut_before_capture_publish_is_unconfirmed_and_log_recoverable(lab):
                        frontier='capture_before_publish')
     assert lab.barrier(child)['frontier'] == 'capture_before_publish'
     outbox = root / '.claude/journal/outbox'
-    temporaries = [p for p in outbox.glob('*.json') if p.name.startswith('.tmp-')]
+    temporaries = list(outbox.glob('.tmp-*'))
     assert len(temporaries) == 1
     temporary = temporaries[0]; temporary_bytes = temporary.read_bytes()
     assert json.loads(temporary_bytes)['session_id'] == 'uncaptured'
@@ -758,6 +764,7 @@ def test_N08_view_status_are_readonly_offline_and_missing_outbox_is_degraded(lab
         assert json.loads((child['control'] / 'audit.json').read_text(encoding='utf-8'))['attempts'] == []
     partial = lab.work / 'partial-source'
     for relative in ('agent-kits/shared/journal.py', 'agent-kits/shared/journal-capture.py',
+                     'agent-kits/shared/journal-io.py', 'agent-kits/shared/local-state.py',
                      'agent-kits/shared/redact.py', 'agent-kits/shared/local-read.py', 'package.json'):
         target = partial / relative; target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes((lab.source / relative).read_bytes())

@@ -67,6 +67,8 @@ Salida: el brief en Markdown por stdout. Exit: 0 ok · 1 tarea/ficheros no encon
 2 ledger inválido.
 """
 import argparse
+import fnmatch
+import posixpath
 import json
 import os
 import re
@@ -364,7 +366,7 @@ def _seccion_tarea(tasks_text, tid):
     fin = len(lineas)
     for j in range(ini + 1, len(lineas)):
         ln, fenced = lineas[j]
-        if not fenced and re.match(r"^##{1,2}\s", ln):
+        if not fenced and re.match(r"^##\s|^###\s+(?:T-\d+\b|Fase\b)", ln):
             fin = j
             break
     chunk = "\n".join(ln for ln, _ in lineas[ini:fin]).rstrip() + "\n"
@@ -1278,7 +1280,19 @@ def _tarea_toca_diseno(carpeta, chunk):
         else:
             collecting = False
     refs = "\n".join(fields).replace("\\", "/")
-    return any(re.search(r"(?<![\w/.-])" + re.escape(p) + r"(?![\w/.-])", refs) for p in paths)
+    candidates = [a or b for a,b in re.findall(r"`([^`]+)`|([^\s,;()]+)", refs)]
+    def normalize(value):
+        value = posixpath.normpath(value.replace("\\", "/").strip("`\"'"))
+        return value.casefold() if os.name == 'nt' else value
+    for declared in paths:
+        path = normalize(declared)
+        for candidate in candidates:
+            target = normalize(candidate)
+            if (target in ('.', '') or path == '.' or target == path
+                    or target.startswith(path.rstrip('/') + '/') or path.startswith(target.rstrip('/') + '/')
+                    or fnmatch.fnmatchcase(target, path) or fnmatch.fnmatchcase(path, target)):
+                return True
+    return False
 
 
 def _seccion_constitucion(args):
