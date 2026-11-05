@@ -19,6 +19,8 @@ flowchart TD
   D -->|Yes| F[Apply permitted change]
 ```
 
+Profile copies prepare each file in a private directory whose identity is recorded in the signed inventory before payload writes. After an abrupt interruption, uninstall can remove complete or partial scratch files. A replaced directory, unknown contents, or a linked scratch file is preserved with a warning; cleanup never recursively deletes the staging tree.
+
 ## Publish only what remains authorized
 
 The outbox retains the need to retry, not permission to resend old bodies. Recovery replans against entries that remain approved and routed. Withdrawn content is not sent simply because it remains queued. Adapter partial receipts still participate in recovery.

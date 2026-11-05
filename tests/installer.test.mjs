@@ -9,10 +9,10 @@
 
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, chmodSync, symlinkSync, linkSync, truncateSync, copyFileSync } from "node:fs"
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, chmodSync, symlinkSync, linkSync, truncateSync, copyFileSync, renameSync } from "node:fs"
 import { tmpdir, homedir } from "node:os"
 import { join, dirname, resolve, delimiter } from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import { execFileSync } from "node:child_process"
 import { createHash } from 'node:crypto'
 import * as installerModule from '../install/install.mjs'
@@ -2392,6 +2392,81 @@ test("gap B-4: matar el instalador a mitad de la copia deja manifiesto; uninstal
     }
   } finally {
     rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+
+for(const variant of ['complete','partial','foreign','hardlink','replaced'])
+test(`B12: ${variant} hard kill at atomic profile publication preserves ownership`, async () => {
+  const tmp=tmpProj()
+  let child
+  try {
+    const project=join(tmp,'project'),home=join(tmp,'home'),barrier=join(tmp,'barrier.json'),preload=join(tmp,'pause.mjs')
+    for(const dir of [project,home])mkdirSync(dir,{recursive:true})
+    const agents=join(project,'.claude','agents')
+    writeFileSync(preload,`
+      import fs from 'node:fs'
+      import {syncBuiltinESMExports} from 'node:module'
+      import {dirname,basename} from 'node:path'
+      const original=fs.renameSync,write=fs.writeFileSync,open=fs.openSync,opened=new Map()
+      const signal=(from,to)=>{
+        write(${JSON.stringify(barrier)}+'.ready',JSON.stringify({from,to}))
+        original(${JSON.stringify(barrier)}+'.ready',${JSON.stringify(barrier)})
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,30000)
+      }
+      fs.openSync=(path,...rest)=>{
+        const fd=open(path,...rest);opened.set(fd,String(path));return fd
+      }
+      fs.writeFileSync=(path,content,...rest)=>{
+        const target=typeof path==='number'?opened.get(path):String(path)
+        if(${JSON.stringify(variant)}==='partial' && target &&
+          (target.endsWith('payload.tmp') || basename(dirname(target))==='agents' && target.includes('.tmp-'))) {
+          write(path,Buffer.from(content).subarray(0,3),...rest)
+          signal(target,'partial payload')
+        }
+        return write(path,content,...rest)
+      }
+      fs.renameSync=(from,to,...rest)=>{
+        if(basename(dirname(String(to)))==='agents' && String(to).endsWith('.md'))signal(from,to)
+        return original(from,to,...rest)
+      }
+      syncBuiltinESMExports()
+    `)
+    const env=conPath(SIN_CLI,{HOME:home,USERPROFILE:home,CLAUDE_CONFIG_DIR:join(home,'.claude')})
+    child=spawn(process.execPath,['--import',pathToFileURL(preload).href,CLI,'install','-p','claude-code','--mode','copy','--dir',project,'-y','-q'],{env,stdio:'ignore'})
+    const exited=new Promise(resolve=>child.once('exit',resolve))
+    const deadline=Date.now()+30000
+    while(!existsSync(barrier) && Date.now()<deadline && child.exitCode===null)
+      await new Promise(resolve=>setTimeout(resolve,5))
+    assert.ok(existsSync(barrier),'child must reach the real atomic publication')
+    const paused=JSON.parse(readFileSync(barrier,'utf8'))
+    assert.ok(existsSync(paused.from),'a real temporary file is present')
+    child.kill('SIGKILL');await exited
+    const stage=dirname(paused.from),canary=join(tmp,'canary.txt')
+    if(variant==='foreign')writeFileSync(join(stage,'consumer.txt'),'consumer data')
+    if(variant==='hardlink') {
+      writeFileSync(canary,'consumer data');rmSync(paused.from);linkSync(canary,paused.from)
+    }
+    if(variant==='replaced') {
+      renameSync(stage,stage+'-saved');mkdirSync(stage)
+      writeFileSync(paused.from,'consumer data')
+    }
+    cli(['uninstall','-p','claude-code','--dir',project,'-q'],{env})
+    assert.equal(existsSync(agents),false,'temporary delivery must be cleaned with its authenticated interrupted installation')
+    if(variant==='complete' || variant==='partial') {
+      assert.equal(existsSync(paused.from),false,'the interrupted temporary itself must be removed')
+      assert.equal(existsSync(stage),false,'its owned staging directory must also be removed')
+    } else {
+      assert.equal(existsSync(stage),true,'unverified staging must be preserved')
+      const preserved=variant==='foreign'?join(stage,'consumer.txt'):paused.from
+      assert.equal(readFileSync(preserved,'utf8'),'consumer data')
+      if(variant==='hardlink')assert.equal(readFileSync(canary,'utf8'),'consumer data')
+      if(variant==='replaced')assert.equal(existsSync(stage+'-saved'),true)
+    }
+  } finally {
+    if(child && child.exitCode===null)child.kill('SIGKILL')
+    assert.equal(dirname(resolve(tmp)),resolve(tmpdir()))
+    rmSync(tmp,{recursive:true,force:true})
   }
 })
 

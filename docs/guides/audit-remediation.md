@@ -19,6 +19,8 @@ flowchart TD
   D -->|Sí| F[Aplicar cambio permitido]
 ```
 
+Las copias de perfil preparan cada archivo en un directorio privado cuya identidad se registra en el inventario firmado antes de escribir contenido. Tras una interrupción abrupta, la desinstalación puede retirar temporales completos o parciales. Si el directorio fue sustituido, contiene archivos desconocidos o el temporal es un enlace, se conserva y se informa; no se borra de forma recursiva.
+
 ## Publicar únicamente lo que sigue autorizado
 
 La outbox conserva la necesidad de reintentar, no el permiso para reenviar un cuerpo antiguo. Cada recuperación vuelve a planificar con las entradas que siguen aprobadas y enrutadas. Un contenido retirado no vuelve a enviarse por permanecer en una cola. Los recibos parciales del adaptador siguen participando en la recuperación.

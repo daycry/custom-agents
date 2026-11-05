@@ -123,3 +123,27 @@ Nuevos tests de límites JSON 31/32/33 observaron RED; después 68 casos de perf
 S5: 2.000 archivos públicos, patch SHA-256 `e6b7ee7280179406ccce4c56bad810529a5aa5cfb3e74adcde36c22d460c91c6`. B5 leyó los 14 archivos/338 líneas del delta S4→S5, contrastó sus hashes y ejecutó 221 casos correctos con 3 omisiones (Windows/Python 3.13). Sin defectos nuevos; B11 corregido en lectura y publicación con handles reales. C5 y D5 siguen en curso. Un ajuste posterior elimina únicamente una línea en blanco al final de journal-capture.py.
 
 La repetición dirigida Linux de S5 sigue en curso. La prueba de tiempo del redactor vuelve a fallar (1.975 s para un caso de 1.000.000 caracteres, límite 1.5 s). Se mantiene el test y su umbral sin cambios; no se atribuye una causa sin prueba. La integración continua de referencia (Python 3.11/Node 22) debe contrastar el candidato antes de cerrar T-10.
+
+B5: sin defectos nuevos, 221 passed/3 skipped. C5: sin vulnerabilidades introducidas o reabiertas, 196 passed/8 skipped; ambas variantes CreateFileW reales ejecutadas. D5: sin nuevos hallazgos, 10 passed; recorrido JSON lineal en cargas sintéticas de hasta 80.000 contenedores. No sustituyen QA global ni acreditan macOS. Repetición Linux S5 de perfil, doctor, scope, lectura local y schema: **295 passed, 10 skipped**, 75,03 s. Recuperación sigue en curso.
+
+CI de referencia activada en PR #30, run 42078982134, commit 7d61e40: pendiente. T-01–T-09 cerradas tras sus pruebas y revisión; T-10 conserva revisión de conformidad final y CI pendientes.
+
+A5: sin gaps nuevos de conformidad; cierres T-01–T-09 contrastados con tests y evidencia. Interop ejecutado por el revisor: exit 0, 92 ficheros al día. Ledger-lint del overlay: exit 0, cero incoherencias/avisos. T-10 sigue abierta hasta CI de referencia. La batería final Linux S5 de journal/outbox/ledger/recuperación terminó con **352 passed, 4 skipped**, 153,05 s; junto al grupo JSON suma 647 passed y 14 skipped, sin incluir el test de tiempo fallido. El runner dirigido terminó exit 1 por ese fallo; no se presenta como verde global.
+
+## CI de referencia y B12 — continuación 6
+
+Run 42078982134, commit 7d61e40, Python 3.11/Node 22: **10.469 passed, 41 skipped, 82 subtests passed**, 754,47 s. El redactor pasa en esta referencia; sus fallos locales se conservan como límite del host. Benchmark: p50 2,26 ms, p95 2,45 ms, p99 2,92 ms, límites 100/300 ms correctos. Node: **464 passed, 16 skipped, 1 failed**. No verde global.
+
+Fase 1 debug-root-cause: el test existente gap B-4 falló al matar el instalador durante copia, con carpeta agents restante. Fases 2/3: una barrera justo antes del rename atómico confirmó que el temporal existía fuera de files del inventario. SIGKILL no ejecuta finally; el desinstalador conserva correctamente el archivo sin propiedad. No es un fallo de firma ni de hashes de los archivos finales.
+
+Hipótesis probada: publicar con temporales hermanos dentro de las carpetas de entrega introduce una ventana de corte no recuperable por su inventario. RED determinista B12: carpeta agents todavía presente tras uninstall (1 failed). Fase 4: temporales en staging privado de un solo scratch name, con identidad de directorio firmada antes de cualquier payload y apertura exclusiva; recuperación limpia bytes completos o parciales, conserva directorios sustituidos, hardlinks y archivos desconocidos. GREEN Windows: cinco variantes B12 correctas; tres casos de interrupción/señales también correctos.
+
+Se reabre T-01 y T-10 permanece abierta. El orquestador decide la continuación adicional 6, limitada a este nuevo fallo descubierto por CI, sin reiniciar el contador ni aceptar deuda. Revisión del delta y regresión Node completas pendientes. Propuesta de gotcha sobre SIGKILL/temporales pendiente de persistir: el alcance de esta auditoría excluye consultar o modificar la memoria privada del consumidor.
+
+## Continuación 7 — presupuesto de checkpoints
+
+S6 Linux completo Node: **469 passed, 16 skipped, 1 failed**, 252,14 s; cinco pruebas del tgz correctas. El único fallo fue la cota existente de checkpoints: 9 frente a máximo 8. B6 reprodujo el mismo fallo en Windows (15/16 dirigidos correctos); C6 ejecutó 19 casos correctos sin nuevos hallazgos de seguridad, D6 verificó crecimiento lineal sin medir latencia real.
+
+El orquestador decide corregir la puerta y revisar el delta reducido como continuación 7, sin reiniciar el contador ni elevar el umbral. Se registra una sola vez el conjunto completo de rutas de perfil, todas preflightadas, antes de crear payloads. Dos snapshots iniciales (intención e identidad del staging) y el final sustituyen los checkpoints por grupo. Se mantiene la autenticación, recuperación de temporales parciales y guardas por archivo. El test de presupuesto ha pasado en Windows tras el cambio, al igual que perfiles y reanudación de upgrades; la batería y revisión finales siguen abiertas.
+
+S7 Windows/Node 23.8: **11 passed, cero failed/skipped**, 136,92 s. Incluye presupuesto de checkpoints, perfil parcial, reanudación de upgrade/retirada, SIGKILL antes de publicación y las cinco variantes B12. El umbral original se conserva. Linux completo y lentes del delta reducido siguen en curso.

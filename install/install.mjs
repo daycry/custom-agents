@@ -24,9 +24,9 @@
 import {manifestContext,signManifest,readManifest,regularPath} from './manifest-auth.mjs'
 import {
   readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, statSync, rmSync, readdirSync, rmdirSync,
-  renameSync, chmodSync, realpathSync, lstatSync, unlinkSync, mkdtempSync, symlinkSync,
+  renameSync, chmodSync, realpathSync, lstatSync, unlinkSync, mkdtempSync, symlinkSync, openSync, closeSync,
 } from "node:fs"
-import { createHash } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import { dirname, join, resolve, relative, sep, isAbsolute } from "node:path"
 import { fileURLToPath } from "node:url"
 import { createInterface, emitKeypressEvents } from "node:readline"
@@ -220,12 +220,22 @@ export function escribirAtomico(p, contenido, options = {}) {
   const modo = (() => {
     try { return existsSync(p) ? statSync(p).mode & 0o7777 : null } catch { return null }
   })()
-  const tmp = `${p}.tmp-${process.pid}-${Math.random().toString(36).slice(2, 8)}`
+  const tmp = options.temporaryDir ? join(options.temporaryDir,'payload.tmp') : `${p}.tmp-${process.pid}-${Math.random().toString(36).slice(2, 8)}`
   let ultimo = null
   for (let intento = 0; intento < 3; intento++) {
+    let created=false
     try {
-      writeFileSync(tmp, contenido, "utf8")
+      if(options.temporaryDir) {
+        options.guardTemporary()
+        const fd=openSync(tmp,'wx',0o600)
+        created=true
+        try {writeFileSync(fd,contenido,"utf8")} finally {closeSync(fd)}
+      } else {
+        created=true
+        writeFileSync(tmp, contenido, "utf8")
+      }
       if(options.guard)options.guard()
+      if(options.temporaryDir)options.guardTemporary()
       renameSync(tmp, p)
       // El `rename` sustituye el inodo: el fichero se queda con los permisos del temporal (0644).
       // Un `settings.json` que el usuario tenía en 0600 no puede acabar siendo legible por todos.
@@ -233,7 +243,12 @@ export function escribirAtomico(p, contenido, options = {}) {
       return
     } catch (e) {
       ultimo = e
-      try { rmSync(tmp, { force: true }) } catch { /* el temporal es nuestro: si no se va, da igual */ }
+      try {
+        if(created) {
+          if(options.temporaryDir)options.guardTemporary()
+          rmSync(tmp, { force: true })
+        }
+      } catch { /* preserve an unavailable or redirected staging area */ }
       if (!BLOQUEO.includes(e.code)) throw e
       if (intento < 2) dormir(60 * (intento + 1))
     }
@@ -1738,6 +1753,36 @@ function writeOwnedFile(path,files) {
   if(record.source)chmodSync(path,statSync(record.source).mode & 0o777)
 }
 
+// A signed directory identity is persisted before any partial payload can be created.
+// Cleanup is confined to its one private scratch name; unknown data and links survive.
+function profileStagingDirectory(stage,destination,{emptyOnly=false}={}) {
+  if(!stage || typeof stage.path!=='string' || dirname(stage.path)!==resolve(destination)
+      || !/^\.custom-agents-stage-[0-9a-f-]{36}$/.test(stage.path.slice(dirname(stage.path).length+1)))
+    throw new Error('invalid profile staging location')
+  regularPath(stage.path)
+  if(!existsSync(stage.path))return false
+  const state=lstatSync(stage.path)
+  if(!state.isDirectory())throw new Error('non-directory profile staging preserved')
+  if(stage.dev===null && stage.ino===null) {
+    if(!emptyOnly || readdirSync(stage.path).length)throw new Error('unverified profile staging preserved')
+  } else if(state.dev!==stage.dev || state.ino!==stage.ino)
+    throw new Error('profile staging identity changed; preserved')
+  return true
+}
+function cleanProfileStaging(stage,destination) {
+  if(!profileStagingDirectory(stage,destination,{emptyOnly:true}))return
+  const names=readdirSync(stage.path)
+  if(names.some(name=>name!=='payload.tmp'))throw new Error('unknown profile staging data preserved')
+  if(names.length) {
+    const payload=join(stage.path,'payload.tmp')
+    regularPath(payload,{file:true})
+    profileStagingDirectory(stage,destination)
+    rmSync(payload)
+  }
+  profileStagingDirectory(stage,destination,{emptyOnly:true})
+  rmdirSync(stage.path)
+}
+
 function ejecutar(provider, opts, selectedModels) {
   const manPrevio = installedManifest(provider,opts)
   const selected=provider.id==='claude-code' && opts.modo==='copy' || opts.profile!==undefined || opts.include?.length || opts.exclude?.length || manPrevio?.moduleSelection
@@ -1764,6 +1809,9 @@ function ejecutar(provider, opts, selectedModels) {
   if(!opts.dryRun)signManifest({plugin:'custom-agents',provider:provider.id,scope:opts.scope},
     manifestContext(provider.id,opts.scope,opts.dir,join(provider.destino(opts.scope,opts.dir,opts.modo),manifiestoDe(provider,opts.modo))))
   if(!opts.dryRun)saveSharedCaches(ownedFiles,provider)
+  const profileStages=[...(manPrevio?.profileStaging || [])]
+  let activeProfileStage=null
+  let profileFilesRecorded=false
   const escritos = []
   const retirados = new Set()
   const nativeAgents = {...(manPrevio?.nativeAgents || {})}
@@ -1810,6 +1858,7 @@ function ejecutar(provider, opts, selectedModels) {
       modo: opts.modo,
       installedAt: new Date().toISOString(),
       ...(models ? {modelsConfig:models.modelsConfig} : {}),
+      ...(profileStages.length ? {profileStaging:profileStages} : {}),
       ...(selection ? {moduleSelection:selection,moduleOptions} : {}),
       ...(profileHashes ? {profileHashes:estado==='completo' ? profileHashes : Object.fromEntries(
         Object.entries({...manPrevio?.profileHashes,...profileHashes}).filter(([path])=>!retirados.has(path)))} : {}),
@@ -1871,13 +1920,26 @@ function ejecutar(provider, opts, selectedModels) {
     } else if (paso.type === 'profile-copy') {
       const destination=provider.destino(opts.scope,opts.dir,opts.modo)
       say(`  ${ARROW} ${rel(paso.to)} ${dim(`(${paso.files.length} fichero(s), perfil ${selection.profile})`)}`)
-      escritos.push(...paso.files.map(file=>file.to))
+      if(!profileFilesRecorded) {
+        escritos.push(...plan.filter(step=>step.type==='profile-copy').flatMap(step=>step.files.map(file=>file.to)))
+        profileFilesRecorded=true
+      }
       if(!opts.dryRun) {
-        guardar('incompleto',new Error('copiando grupo del perfil'))
+        if(!activeProfileStage) {
+          activeProfileStage={path:join(resolve(destination),'.custom-agents-stage-'+randomUUID()),dev:null,ino:null}
+          profileStages.push(activeProfileStage)
+          guardar('incompleto',new Error('preparando staging del perfil'))
+          regularPath(activeProfileStage.path)
+          mkdirSync(activeProfileStage.path,{mode:0o700})
+          const state=lstatSync(activeProfileStage.path)
+          activeProfileStage.dev=state.dev;activeProfileStage.ino=state.ino
+          guardar('incompleto',new Error('copiando perfil'))
+        }
         for(const file of paso.files) {
           const content=file.type==='write' ? Buffer.from(file.content) : readFileSync(join(ROOT,file.from))
           if(createHash('sha256').update(content).digest('hex')!==file.contentHash)throw new Error('profile source changed after preflight')
-          escribirAtomico(file.to,content,{guard:()=>verifyProfileTarget(file,destination),allowInplace:false})
+          escribirAtomico(file.to,content,{guard:()=>verifyProfileTarget(file,destination),allowInplace:false,
+            temporaryDir:activeProfileStage.path,guardTemporary:()=>profileStagingDirectory(activeProfileStage,destination)})
           if(file.type==='copy')chmodSync(file.to,statSync(join(ROOT,file.from)).mode & 0o777)
         }
       }
@@ -2166,6 +2228,10 @@ function ejecutar(provider, opts, selectedModels) {
   }
 
   const pending = nativePending || roleMigrationPending
+  if(!opts.dryRun) {
+    for(const stage of profileStages)cleanProfileStaging(stage,provider.destino(opts.scope,opts.dir,opts.modo))
+    profileStages.length=0
+  }
   if(!opts.dryRun)saveSharedCaches(ownedFiles,provider,true)
   guardar(pending ? "incompleto" : "completo",pending
     ? [nativePending ? 'registro/caché nativa pendientes' : '',roleMigrationPending ? 'migración de agentes pendiente; conflictos conservados' : ''].filter(Boolean).join('; ')
@@ -2379,6 +2445,10 @@ function deshacerInstalacion(p, dest, file, man, opts) {
       if(hashes.length && retirarArtefacto({to:abs,sha256:hashes,hashBytes:true},dirname(abs)))n++
       else if(existsSync(abs))say(`  ${WARN} modified or unverified delivery file preserved: ${rel(abs)}`)
     } catch {say(`  ${WARN} unverifiable delivery path preserved: ${rel(abs)}`)}
+  }
+  for(const stage of man.profileStaging || []) {
+    try {cleanProfileStaging(stage,dest)}
+    catch {say(`  ${WARN} unverifiable or modified profile staging preserved`)}
   }
   for (const a of deshacerRegistro(man.registro || [])) say(`  ${WARN} ${dim(a)}`)
   try { rmSync(join(dest, file), { force: true }) } catch { /* sigue */ }
