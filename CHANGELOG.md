@@ -11,6 +11,11 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed — `npm-payload` initiative (2026-11-05)
+
+- **T-01 — Corregir la allowlist con regresiones sobre el tgz** The npm artifact includes the model projection exporter and all PDF editions linked from its README. (`package.json`, `tests/test_npm_payload.py`)
+- **T-02 — Documentar y validar la entrega** Bilingual publishing guidance distinguishes GitHub releases from npm publication and verifies the actual tarball before publishing. (`docs/INSTALL.md`, `docs/en/INSTALL.md`, `docs/roadmap/README.md`)
+
 ## [3.2.0] - 2026-11-04
 
 ### Added — `user-handbooks` initiative (2026-11-04)

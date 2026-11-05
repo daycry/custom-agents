@@ -1,12 +1,12 @@
 ---
 spec: npm-payload
-estado: aprobada
+estado: implementada
 creado: 2026-11-05
 ---
 
 # Completar el artefacto npm antes de publicar
 
-El usuario solicita publicar el paquete que permite usar `npx @daycry/custom-agents`. npm sigue en 1.20.1; la release GitHub es 3.2.0. La autenticación actual devuelve E401 y requiere intervención del usuario; no se cambian ni leen credenciales.
+El usuario solicita publicar el paquete que permite usar `npx @daycry/custom-agents`. npm sigue en 1.20.1; la release GitHub es 3.2.0. La consulta inicial de autenticación devolvió E401 y se solicitó al usuario renovarla; no se leen ni guardan credenciales.
 
 La prueba del `.tgz` real de 3.2.0 detecta dos omisiones: `scripts/export-interop.py`, ejecutado por la opción `--models-config`, y los dos nuevos PDF con sus manifiestos, enlazados desde el README. El checkout tiene esos archivos, pero `package.json.files` no los distribuye.
 
