@@ -28,7 +28,7 @@ La idea central: `nemesis` es el director de orquesta. Llama a la skill para lee
 
 ### Reglas invariantes (no negociables)
 
-El guardrail de autorización es el pilar del sistema. El componente activo (DAST) solo se dispara contra hosts locales o privados: `localhost`, `127.0.0.1`, `::1`, `*.test`, `*.local`, `*.internal`, y rangos privados (`10.x`, `172.16-31.x`, `192.168.x`, `169.254.x`, `host.docker.internal`). Cualquier objetivo externo se rechaza a nivel de script vía `lib-guardrail.sh`. La explotación SQLi activa con `sqlmap` requiere opt-in explícito del usuario sobre un parámetro concreto. Toda evidencia con secretos se redacta (`first4****last4`). Además, el agente nunca instala herramientas en silencio ni modifica el código del proyecto auditado: solo escribe en la carpeta `docs/security-scan/`.
+El guardrail de autorización es el pilar del sistema. El componente activo (DAST) solo se dispara contra hosts locales o privados: `localhost`, `127.0.0.1`, `::1`, `*.test`, `*.local`, `*.internal`, y rangos privados (`10.x`, `172.16-31.x`, `192.168.x`, `169.254.x`, `host.docker.internal`). Cualquier objetivo externo se rechaza a nivel de script vía `lib-guardrail.sh`. La explotación SQLi activa con `sqlmap` requiere opt-in explícito del usuario sobre un parámetro concreto. Toda evidencia con secretos se redacta (`first4****last4`). Además, el agente nunca instala herramientas en silencio ni modifica el código del proyecto auditado: escribe artefactos en `docs/security-scan/`, con la única excepción de añadir su exclusión exacta al `.gitignore` raíz.
 
 ---
 
@@ -164,3 +164,7 @@ Aplica la [disciplina compartida](../../agent-kits/shared/read-discipline.md):
 reutiliza navegación vigente, consulta fuentes pertinentes y conserva todos los
 criterios y gates del rol. Los recibos no sustituyen análisis, aprobación o tests.
 [Medición y ejemplos](../TOKEN-EFFICIENCY.md).
+
+### Límites de escritura y remediación
+
+Nemesis escribe sus artefactos en `docs/security-scan/**`. Puede añadir únicamente la línea `docs/security-scan/` al `.gitignore` raíz, conservando las reglas existentes. Si hay que crear una spec de remediación, hace handoff a `analyst` con información saneada; no crea la spec ni copia evidencias sensibles al roadmap.

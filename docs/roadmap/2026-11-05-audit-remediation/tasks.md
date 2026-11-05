@@ -113,19 +113,25 @@ RED: exportación → 3 failed: catálogo ausente en portable completo/core; har
 
 RED: Jira → 3 failed: secreto reconocido viajó en comentario, invocación anidada desactivó Jira y comando worklog usó jornada 99 del cwd ajeno.
 
+GREEN: Jira → 76 passed; el test de posición de argumento verifica su significado (`--clave`). Regresión final pendiente.
+
 ### T-08 — Lecturas de capacidades y journal
 
 - **Estado**: en-progreso
 - **Descripción**: Resolver R23, R24; conservar las puertas y los datos ajenos.
-- **Archivos**: `agent-kits/shared/capabilities.py`, `agent-kits/shared/journal.py`, `agent-kits/shared/journal-io.py`, `agent-kits/shared/journal-capture.py`, `tests/test_audit_journal.py`, `agent-kits/shared/test_journal.py`.
+- **Archivos**: `agent-kits/shared/capabilities.py`, `agent-kits/shared/journal.py`, `agent-kits/shared/journal-io.py`, `agent-kits/shared/outbox.py`, `agent-kits/shared/local-state.py`, `agent-kits/shared/journal-capture.py`, `tests/test_audit_journal.py`, `agent-kits/shared/test_journal.py`.
 - **Verificación**: tests dirigidos del área y regresiones vecinas; evidencia en testing/validation.md.
 
 **Criterios de aceptación**
 - [ ] R23, R24: escenarios de auditoría cubiertos, corregidos y sin regresiones conocidas.
 
-GREEN: Jira ? 76 passed; un test de posici?n del argumento actualizado a su significado (`--clave`); repetici?n final pendiente.
-
 RED: journal/capacidades → 6 failed: sondeo mutó bandera bytecode, cola siguió junction, gitignore hardlink modificado, materialización escapó, README ajeno sobrescrito y lectura aceptó hardlink.
+
+RED adicional R24/B1: la CLI directa devolvió exit 0 sin crear envelope (test_journal_capture_cli_materializes_a_durable_envelope); wrapper movido antes de main.
+
+RED B2/R6: 3 failed adicionales: dos primeras capturas concurrentes perdieron un prompt; diseño omitido para tarea por directorio padre o raíz. Correcciones con CAS/reintento acotado e intersección de rutas en ambos sentidos.
+
+GREEN: journal/capacidades → 269 passed, 10 skipped tras conservar los contratos de concurrencia e indexado; ampliaciones y revisión final en testing/validation.md.
 
 ### T-09 — Contratos y documentación
 
@@ -137,16 +143,18 @@ RED: journal/capacidades → 6 failed: sondeo mutó bandera bytecode, cola sigui
 **Criterios de aceptación**
 - [ ] R15 y contratos de las correcciones: escenarios de auditoría cubiertos, corregidos y sin regresiones conocidas.
 
-GREEN: journal/capacidades ? 269 passed, 10 skipped tras conservar los contratos de concurrencia e indexado.
-
 RED: R25 → test_npm_payload security_tooling falló por ausencia de contentPolicy; luego 5 passed sobre el tgz. TDD no aplica a prosa; se valida mediante contratos, lint, interop y revisión.
 
 ### T-10 — Regresiones, revisión y entrega
 
 - **Estado**: en-progreso
 - **Descripción**: Resolver Todos los hallazgos, sin Critical/Important pendientes; conservar las puertas y los datos ajenos.
-- **Archivos**: `docs/roadmap/README.md`, `docs/roadmap/2026-11-05-audit-remediation/**`, `CHANGELOG.md`, `CHANGELOG.es.md`, `interop/**`, `.codex-plugin/**`, `.agents/plugins/**`, `tests/**`.
+- **Archivos**: `docs/roadmap/README.md`, `docs/roadmap/2026-11-05-audit-remediation/**`, `CHANGELOG.md`, `CHANGELOG.es.md`, `interop/**`, `.codex-plugin/**`, `.agents/plugins/**`, `tests/**`, `skills/unit-tests/scripts/coverage-gate.py`, `agent-kits/shared/execution-profile.py`, `agent-kits/shared/local-read.py`, `agent-kits/shared/doctor.py`, `skills/training-data-services/scripts/case_schema.py`, `skills/training-data-services/scripts/test_case_schema.py`.
 - **Verificación**: tests dirigidos del área y regresiones vecinas; evidencia en testing/validation.md.
 
 **Criterios de aceptación**
 - [ ] Todos los hallazgos, sin Critical/Important pendientes: escenarios de auditoría cubiertos, corregidos y sin regresiones conocidas.
+
+Regresión adicional T-10: rutas físicas de Git y cobertura unificadas para aliases 8.3 de Windows; 31 tests de coverage-gate pasan sin modificar umbrales. Fixtures de publicación y recuperación instrumentan ahora StateIO (link + retirada del temporal), preservan barreras, canarios, bytes y aserciones. La caché compartida tiene propiedad de usuario separada y se conserva tras desinstalar una instancia; contrato documentado ES/EN.
+
+Regresión de compatibilidad T-10: presupuestos explícitos de anidamiento JSON para perfil, snapshots de commit y respuestas del diagnóstico; no depender de RecursionError implícito del intérprete. El diagnóstico de arguments JSON textual conserva el campo de origen y el límite CoT de 50 niveles. Casos existentes rojos en Python 3.14 y nuevos límites 31/32/33; 68 + 82 casos dirigidos pasan en Windows.

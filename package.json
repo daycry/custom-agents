@@ -74,6 +74,10 @@
     "output/pdf/guia-uso-eficiente-claude-codex.pdf",
     "output/pdf/guia-uso-eficiente-claude-codex.manifest.json",
     "output/pdf/guia-resultados-calidad-custom-agents.pdf",
-    "output/pdf/guia-resultados-calidad-custom-agents.manifest.json"
-  ]
+    "output/pdf/guia-resultados-calidad-custom-agents.manifest.json",
+    "DISCLOSURE"
+  ],
+  "contentPolicy": {
+    "class": "dual-use"
+  }
 }

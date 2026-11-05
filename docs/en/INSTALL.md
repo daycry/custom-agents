@@ -179,6 +179,8 @@ npm publish ./dist/daycry-custom-agents-X.Y.Z.tgz --access public --tag latest -
 npm view @daycry/custom-agents@X.Y.Z version dist.integrity --json --registry=https://registry.npmjs.org
 ```
 
+This package declares dual-use content: direct publishing requires an interactive 2FA session. Automation and OIDC require staging and promotion with 2FA. See [npm’s specific policy](https://docs.npmjs.com/policies/dual-use/).
+
 Replace `X.Y.Z` with the exact `package.json` version. Before publishing, run `python -m pytest tests/test_npm_payload.py -q`: it exercises the extracted tarball, model projection, and linked PDFs. Compare `dist.integrity` with the `npm pack` result and check that `npm view @daycry/custom-agents dist-tags --json` points `latest` to the intended version. Running `--version` or `--help` from that tarball provides an additional check without installing the plugin into real profiles.
 
 If `whoami` returns E401, renew authentication with `npm login --registry=https://registry.npmjs.org`. Complete login and any 2FA challenge through npm; keep credentials and codes out of the repository. Successful packing or a dry run does not establish publication. If the version already exists, check its integrity instead of trying to overwrite it. References: [npm publish](https://docs.npmjs.com/cli/v11/commands/npm-publish/) and [scoped public package publishing](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/).
@@ -328,3 +330,8 @@ The plugin measures **cost** (tokens/€/hours per artifact and task — `usage-
 **live session activity** (tools, subagents, kanban) you can install an external monitor
 alongside it, such as Claude-Code-Agent-Monitor: both sets of hooks coexist without interfering.
 Details and a cheat sheet of "where to look for what": [`observability.md`](observability.md).
+
+
+### Ownership, recovery and npm review
+
+See [the security and recovery guide](guides/audit-remediation.md) for signed inventories, legacy reconciliation, dual-use disclosure, 2FA publication and npm appeals. Packing is not publication approval.

@@ -174,3 +174,7 @@ Aplica la [disciplina compartida](../../agent-kits/shared/read-discipline.md):
 reutiliza navegación vigente, consulta fuentes pertinentes y conserva todos los
 criterios y gates del rol. Los recibos no sustituyen análisis, aprobación o tests.
 [Medición y ejemplos](../TOKEN-EFFICIENCY.md).
+
+### Autoridad de cierre
+
+El implementador actualiza tareas y fases en `tasks.md`. `/dev-cycle` coordina los estados del plan y la spec; también cuando la implementación se invoca por separado se entrega un handoff. QA aporta evidencia, y la spec sólo pasa a `implementada` con la puerta de retro en verde.

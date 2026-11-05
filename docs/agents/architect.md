@@ -16,8 +16,7 @@ tareas (`planner`), no implementa (`implementer`).
 
 ## Alcance de escritura (hook de guardia, como el `implementer`)
 `hooks/architect-guardrail.sh` → `guardrail-check.py --agent architect` (PreToolUse solo de este agente,
-ADR-007 + enmienda parity-core): la política de rutas existente permite **solo** `docs/roadmap/<inic>/design.md`, `docs/knowledge/adr/**`
-y `docs/knowledge/README.md`; `spec.md`/`improvement-plan.md` únicamente con **Edit** y si el Edit contiene
+ADR-007 + enmienda parity-core): la política de rutas permite **solo** `docs/roadmap/<inic>/design.md`; `spec.md`/`improvement-plan.md` únicamente con **Edit** y si el Edit contiene
 `design:`/`design.md` (el enlace de la regla 7; un Write completo se deniega). Todo lo demás —código,
 `tasks.md`, `evaluation.md`, gotchas/lessons— se deniega con la razón; git destructivo también. **Riesgo
 asumido:** un Edit que incluya `design:` junto a otros cambios pasa (el hook no diffea el fichero) — lo caza
@@ -70,3 +69,5 @@ Aplica la [disciplina compartida](../../agent-kits/shared/read-discipline.md):
 reutiliza navegación vigente, consulta fuentes pertinentes y conserva todos los
 criterios y gates del rol. Los recibos no sustituyen análisis, aprobación o tests.
 [Medición y ejemplos](../TOKEN-EFFICIENCY.md).
+
+La política deniega escrituras directas en `docs/knowledge/**`, incluidos ADR e índices. Las decisiones se proponen mediante `knowledge-curation.py propose`; sólo Curator puede resolver su promoción.
