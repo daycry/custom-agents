@@ -11,6 +11,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+## [3.2.1] - 2026-11-05
+
 ### Fixed — iniciativa `npm-payload` (2026-11-05)
 
 - **T-01 — Corregir la allowlist con regresiones sobre el tgz** The npm artifact includes the model projection exporter and all PDF editions linked from its README. (`package.json`, `tests/test_npm_payload.py`)
@@ -1346,6 +1348,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[3.2.1]: https://github.com/daycry/custom-agents/releases/tag/v3.2.1
 [3.2.0]: https://github.com/daycry/custom-agents/releases/tag/v3.2.0
 [3.1.0]: https://github.com/daycry/custom-agents/releases/tag/v3.1.0
 [3.0.2]: https://github.com/daycry/custom-agents/releases/tag/v3.0.2
