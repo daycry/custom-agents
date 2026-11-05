@@ -9,13 +9,14 @@
 
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, chmodSync, symlinkSync, linkSync, truncateSync } from "node:fs"
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, chmodSync, symlinkSync, linkSync, truncateSync, copyFileSync } from "node:fs"
 import { tmpdir, homedir } from "node:os"
 import { join, dirname, resolve, delimiter } from "node:path"
 import { fileURLToPath } from "node:url"
 import { execFileSync } from "node:child_process"
 import { createHash } from 'node:crypto'
 import * as installerModule from '../install/install.mjs'
+import {signManifest,manifestContext} from '../install/manifest-auth.mjs'
 
 import {
   parseArgs, fusionar, ficherosDe, leerRegistro, mismaRuta,
@@ -29,9 +30,54 @@ import {
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const CLI = join(ROOT, "install", "install.mjs")
 
+test('B5 shared fallback cache supports two independent projects', () => {
+  const fixture=mkdtempSync(join(tmpdir(),'ca-shared-cache-'))
+  const bundle=join(fixture,'bundle'), home=join(fixture,'home')
+  mkdirSync(join(bundle,'install'),{recursive:true})
+  for(const name of ['install.mjs','providers.mjs','modules.mjs','manifest-auth.mjs'])
+    copyFileSync(join(ROOT,'install',name),join(bundle,'install',name))
+  mkdirSync(join(bundle,'agent-kits','shared'),{recursive:true})
+  for(const name of ['modules.json','codex-plugin-state.mjs'])copyFileSync(join(ROOT,'agent-kits','shared',name),join(bundle,'agent-kits','shared',name))
+  mkdirSync(join(bundle,'.claude-plugin'));copyFileSync(join(ROOT,'.claude-plugin','plugin.json'),join(bundle,'.claude-plugin','plugin.json'))
+  copyFileSync(join(ROOT,'package.json'),join(bundle,'package.json'))
+  const env={...process.env,HOME:home,USERPROFILE:home,CLAUDE_CONFIG_DIR:join(home,'.claude'),PATH:process.platform==='win32'?join(process.env.SystemRoot,'System32'):'/usr/bin:/bin'}
+  try {
+    for(const name of ['one','two']) {
+      const project=join(fixture,name);mkdirSync(project)
+      execFileSync(process.execPath,[join(bundle,'install','install.mjs'),'install','-p','claude-code','--mode','plugin','--dir',project,'-y','-q'],{env,encoding:'utf8',timeout:30000})
+    }
+    const registry=join(home,'.claude','plugins','installed_plugins.json')
+    assert.equal(JSON.parse(readFileSync(registry,'utf8')).plugins['custom-agents@daycry'].length,2)
+    execFileSync(process.execPath,[join(bundle,'install','install.mjs'),'uninstall','-p','claude-code','--dir',join(fixture,'one'),'-q'],{env,encoding:'utf8',timeout:30000})
+    const remaining=JSON.parse(readFileSync(registry,'utf8')).plugins['custom-agents@daycry']
+    assert.equal(remaining.length,1);assert.equal(remaining[0].projectPath,join(fixture,'two'))
+    assert.ok(existsSync(join(home,'.claude','plugins','known_marketplaces.json')))
+    assert.ok(existsSync(join(remaining[0].installPath,'package.json')))
+    const unsafeProject=join(fixture,'unsafe-home-project'),unsafeHome=join(unsafeProject,'home')
+    mkdirSync(unsafeProject)
+    const unsafeEnv={...env,HOME:unsafeHome,USERPROFILE:unsafeHome,CLAUDE_CONFIG_DIR:join(unsafeHome,'.claude')}
+    assert.throws(()=>execFileSync(process.execPath,[join(bundle,'install','install.mjs'),'install','-p','claude-code','--dir',unsafeProject,'-y','-q'],{env:unsafeEnv,encoding:'utf8',timeout:30000}))
+    assert.equal(existsSync(join(unsafeHome,'.custom-agents')),false,'An authenticated cache must not create its private key inside the consumer project.')
+  } finally {assert.equal(dirname(resolve(fixture)),resolve(tmpdir()));rmSync(fixture,{recursive:true,force:true})}
+})
+
 const tmpProj = () => mkdtempSync(join(tmpdir(), "ca-install-"))
 // Even old tests with no env override must never register marketplaces in a real Codex home.
 const SUITE_HOME = tmpProj()
+// Emulate an authenticated historical receipt using only this test's private home.
+// This helper is not shipped and does not authorize unsigned inventories in production.
+function fixtureManifest(path,body,{project,home=SUITE_HOME}) {
+  const beforeHome=process.env.HOME,beforeProfile=process.env.USERPROFILE
+  try {
+    process.env.HOME=home;process.env.USERPROFILE=home
+    const receipt=signManifest(body,manifestContext(body.provider,body.scope,project,path))
+    writeFileSync(path,JSON.stringify(receipt))
+    return receipt
+  } finally {
+    if(beforeHome===undefined)delete process.env.HOME;else process.env.HOME=beforeHome
+    if(beforeProfile===undefined)delete process.env.USERPROFILE;else process.env.USERPROFILE=beforeProfile
+  }
+}
 const SUITE_BIN=join(SUITE_HOME,'stub-bin')
 mkdirSync(SUITE_BIN)
 for(const name of ['codex','claude','opencode']) {
@@ -216,8 +262,8 @@ test("native role uninstall preserves edits made after installation", () => {
     const dest = join(proj,'.opencode'), role = join(dest,'agents','custom-agents-reviewer.md')
     mkdirSync(dirname(role),{recursive:true}); writeFileSync(role,'consumer edit\n')
     const path = role.split('\\').join('/')
-    writeFileSync(join(dest,MANIFEST),JSON.stringify({plugin:'custom-agents',provider:'opencode',scope:'project',
-      files:[path],nativeAgents:{[path]:createHash('sha256').update('owned original\n').digest('hex')}}))
+    fixtureManifest(join(dest,MANIFEST),{plugin:'custom-agents',provider:'opencode',scope:'project',
+      files:[path],nativeAgents:{[path]:createHash('sha256').update('owned original\n').digest('hex')}},{project:proj})
     cli(['uninstall','-p','opencode','--dir',proj])
     assert.equal(readFileSync(role,'utf8'),'consumer edit\n')
   } finally { rmSync(proj,{recursive:true,force:true}) }
@@ -799,7 +845,8 @@ test("Codex command adapters: upgrade preserves legacy and personal bytes while 
     for (const [path,body] of bytes) {mkdirSync(dirname(path),{recursive:true});writeFileSync(path,body)}
     const norm = path=>path.split('\\').join('/')
     const manPath = join(dest,MANIFEST)
-    writeFileSync(manPath,JSON.stringify({plugin:'custom-agents',provider:'codex',scope:'project',files:[owned,edited,otherOwned].map(norm),registro:[]}))
+    fixtureManifest(manPath,{plugin:'custom-agents',provider:'codex',scope:'project',files:[owned,edited,otherOwned].map(norm),registro:[],
+      artifactHashes:{[norm(otherOwned)]:createHash('sha256').update(bytes.get(otherOwned)).digest('hex')}},{project,home})
     const env = conPath([bin,SIN_CLI].join(delimiter),{HOME:home,USERPROFILE:home,CODEX_HOME:codex})
     const recipe = ['install','-p','codex','--dir',project,'-y']
     const output = cli(recipe,{env,cwd:project})
@@ -842,7 +889,8 @@ test("Codex command adapters: B01 home A to B upgrade and uninstall preserve his
     const norm = path=>path.split('\\').join('/')
     const previous = JSON.parse(readFileSync(manPath,'utf8'))
     previous.files.push(...[oldGenerated,oldEdited,bundleOwned].map(norm))
-    writeFileSync(manPath,JSON.stringify(previous))
+    previous.artifactHashes[norm(bundleOwned)]=createHash('sha256').update(bodies.get(bundleOwned)).digest('hex')
+    fixtureManifest(manPath,previous,{project,home})
     cli(recipe,{env:envFor(homeB),cwd:project})
     const upgraded = JSON.parse(readFileSync(manPath,'utf8'))
     for (const [path,body] of bodies) assert.equal(readFileSync(path,'utf8'),body,'home switch upgrade must preserve every existing byte')
@@ -875,9 +923,10 @@ test("Codex command adapters: B22-2 direct legacy uninstall preserves external e
         [path,Buffer.from(`consumer edits ${index}: ñ, literal $ARGUMENTS and $$\r\n`,'utf8')]))
       for (const [path,body] of bodies) {mkdirSync(dirname(path),{recursive:true});writeFileSync(path,body)}
       const norm = path=>path.split('\\').join('/')
-      const manifestBytes = Buffer.from(JSON.stringify({plugin:'custom-agents',provider:'codex',scope,version:'0.0.legacy',
-        files:[...historical,...current,internal].map(norm),registro:[]}),'utf8')
-      writeFileSync(manPath,manifestBytes)
+      fixtureManifest(manPath,{plugin:'custom-agents',provider:'codex',scope,version:'0.0.legacy',
+        files:[...historical,...current,internal].map(norm),registro:[],
+        artifactHashes:{[norm(internal)]:createHash('sha256').update(bodies.get(internal)).digest('hex')}},{project,home})
+      const manifestBytes=readFileSync(manPath)
       const env = conPath([bin,SIN_CLI].join(delimiter),{HOME:home,USERPROFILE:home,CODEX_HOME:homeB})
       const recipe = ['uninstall','-p','codex','--scope',scope,'--dir',project]
       const dryOutput = cli([...recipe,'--dry-run'],{env,cwd:project})
@@ -1190,7 +1239,7 @@ test("status: Codex y OpenCode también dicen si el runtime los tiene dados de a
     const proj2 = tmpProj()
     try {
       const bin=join(proj2,'bin');mkdirSync(bin);codexFalso(bin)
-      const env=conPath([bin,SIN_CLI].join(delimiter),{HOME:join(proj2,'home'),USERPROFILE:join(proj2,'home')})
+      const env=conPath([bin,SIN_CLI].join(delimiter),{HOME:SUITE_HOME,USERPROFILE:SUITE_HOME})
       cli(["install", "-p", "codex", "--dir", proj2, "-q"],{env})
       const s = cli(["status", "--dir", proj2],{env})
       assert.match(s, /project: registrado: sí/, "Codex: `enabled = true` en config.toml")
@@ -1398,8 +1447,9 @@ test("Claude Code sin CLI: registro real, idempotente y desinstalable sin tocar 
     // para el caso contrario (fichero preexistente → `version` se respeta).
     assert.ok(!existsSync(join(cfg, "plugins", "installed_plugins.json")),
       "el registro lo creó el instalador y se ha quedado vacío: no se deja")
-    assert.ok(!existsSync(join(cfg, "plugins", "known_marketplaces.json")))
-    assert.ok(!existsSync(join(cfg, "plugins", "cache", "daycry", "custom-agents", VERSION, "hooks", "hooks.json")))
+    assert.ok(JSON.parse(readFileSync(join(cfg,'plugins','known_marketplaces.json'),'utf8')).daycry)
+    assert.ok(existsSync(join(cfg, "plugins", "cache", "daycry", "custom-agents", VERSION, "hooks", "hooks.json")),
+      'The authenticated user cache is shared and survives instance uninstall.')
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -1726,11 +1776,16 @@ test("gap 5: si un paso revienta, queda un manifiesto `incompleto` que uninstall
     const man = JSON.parse(readFileSync(join(cfg, "plugins", MANIFEST_PLUGIN), "utf8"))
     assert.equal(man.estado, "incompleto", "sin manifiesto, lo ya aplicado no se puede limpiar")
     assert.match(man.error, /settings\.json/)
-    assert.ok(man.files.length > 100, "los ficheros ya copiados tienen que estar apuntados")
+    assert.deepEqual(man.files, [], 'Shared cache files must not acquire project/instance ownership.')
+    const cacheRoot=join(cfg,'plugins','cache','daycry','custom-agents',VERSION)
+    const cacheReceipt=JSON.parse(readFileSync(join(cacheRoot,'.custom-agents-cache.json'),'utf8'))
+    assert.ok(Object.keys(cacheReceipt.artifactHashes).length > 100, 'Copied bytes retain a separate authenticated cache inventory.')
+    assert.equal(cacheReceipt.scope,'user');assert.ok(cacheReceipt.ownership.mac)
     assert.match(cli(["status", "--dir", tmp], { env }), /incompleta/)
 
     cli(["uninstall", "-p", "claude-code", "--scope", "user", "-q"], { env })
-    assert.ok(!existsSync(join(cfg, "plugins", "cache", "daycry")), "uninstall tiene que aceptar el parcial")
+    assert.ok(!existsSync(join(cfg,'plugins',MANIFEST_PLUGIN)), 'Uninstall must accept and retire the partial instance.')
+    assert.ok(existsSync(join(cacheRoot,'hooks','hooks.json')), 'Shared cache survives partial instance uninstall.')
     assert.equal(readFileSync(join(cfg, "settings.json"), "utf8"), "{,}", "y no tocar el fichero roto")
   } finally {
     rmSync(tmp, { recursive: true, force: true })
@@ -1755,7 +1810,8 @@ test("gap 6: desinstalar no borra directorios vacíos que no son nuestros", () =
 
     cli(["uninstall", "-p", "claude-code", "--scope", "user", "-q"], { env })
     for (const d of ajenos) assert.ok(existsSync(d), `podarVacios borró un directorio ajeno: ${d}`)
-    assert.ok(!existsSync(join(cfg, "plugins", "marketplaces", "daycry")), "el nuestro sí se va")
+    assert.ok(!existsSync(join(cfg,'plugins',MANIFEST_PLUGIN)), 'The instance is removed.')
+    assert.ok(existsSync(join(cfg,'plugins','marketplaces','daycry','.custom-agents-cache.json')), 'Shared cache remains inventoried.')
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -2077,7 +2133,8 @@ test("gap 19: un fichero del registro que YA existía se conserva (con su `versi
     assert.equal(ip.version, 2, "`version` es del fichero del usuario: no se quita")
     assert.deepEqual(Object.keys(ip.plugins), ["otro@mkt"], "y su plugin sigue ahí")
     const km = JSON.parse(readFileSync(join(cfg, "plugins", "known_marketplaces.json"), "utf8"))
-    assert.deepEqual(Object.keys(km), ["otro"])
+    assert.deepEqual(km.otro,{autoUpdate:true})
+    assert.deepEqual(Object.keys(km).sort(), ["daycry","otro"], 'Shared marketplace registration survives instance uninstall.')
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -2226,14 +2283,14 @@ test("gap B-1: partirAsignacion lee claves con `@`, puntos y comillas", () => {
 // ------------------------------------------------------------------ gaps B-2 y B-13: un manifiesto
 // de copy roto no puede tumbar el run entero
 
-test("gap B-2/B-13: un manifiesto de copy sin `files` avisa y NO impide instalar los demás", () => {
+test("gap B-2/B-13: un manifiesto autenticado de copy sin `files` avisa y NO impide instalar los demás", () => {
   const tmp = tmpProj()
   try {
     const proj = join(tmp, "proy"), cfg = join(tmp, "claude"), hogar = join(tmp, "home")
     for (const d of [join(proj, ".claude"), cfg, hogar]) mkdirSync(d, { recursive: true })
-    // Manifiesto de un instalador viejo (o a medio escribir): sin `files`
-    writeFileSync(join(proj, ".claude", MANIFEST),
-      JSON.stringify({ plugin: "custom-agents", modo: "copy" }), "utf8")
+    // Authenticated unsupported schema: preserve unknown copied files, never trust an unsigned record.
+    fixtureManifest(join(proj,'.claude',MANIFEST),{plugin:'custom-agents',provider:'claude-code',scope:'project',modo:'copy'},
+      {project:proj,home:hogar})
     const env = conPath(SIN_CLI, { CLAUDE_CONFIG_DIR: cfg, HOME: hogar, USERPROFILE: hogar })
     const out = cli(["install", "-p", "claude-code,opencode", "--dir", proj, "-y"], { env })
 
@@ -2255,9 +2312,13 @@ test("gap B-13: un manifiesto de copy ILEGIBLE se avisa con su ruta, no se ignor
     for (const d of [join(proj, ".claude"), cfg, hogar]) mkdirSync(d, { recursive: true })
     writeFileSync(join(proj, ".claude", MANIFEST), "{ esto no es json", "utf8")
     const env = conPath(SIN_CLI, { CLAUDE_CONFIG_DIR: cfg, HOME: hogar, USERPROFILE: hogar })
-    const out = cli(["install", "-p", "claude-code", "--dir", proj, "-y"], { env })
-    assert.match(out, /no es JSON válido/)
-    assert.match(out, /custom-agents-install\.json/, "con la ruta del fichero que hay que limpiar")
+    assert.throws(()=>cli(['install','-p','claude-code','--dir',proj,'-y'],{env}), error=>{
+      assert.equal(error.status,1)
+      assert.match(String(error.stderr),/unverified installation manifest/)
+      return true
+    })
+    assert.equal(readFileSync(join(proj,'.claude',MANIFEST),'utf8'),'{ esto no es json')
+    assert.equal(existsSync(join(proj,'.claude',MANIFEST_PLUGIN)),false)
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -2475,7 +2536,7 @@ test("gap B-8: al migrar de copy a plugin, un fichero EDITADO por el usuario no 
 
 // ------------------------------------------------------------------ gap A-1/B-10: poda por raíz
 
-test("gap A-1/B-10: en scope project + plugin, uninstall no deja directorios vacíos en <cfg>/plugins", () => {
+test("gap A-1/B-10: uninstall retires the project instance and preserves populated shared caches", () => {
   const tmp = tmpProj()
   try {
     const proj = join(tmp, "proy"), cfg = join(tmp, "claude"), hogar = join(tmp, "home")
@@ -2487,8 +2548,9 @@ test("gap A-1/B-10: en scope project + plugin, uninstall no deja directorios vac
     mkdirSync(ajeno, { recursive: true })
 
     cli(["uninstall", "-p", "claude-code", "--dir", proj, "-q"], { env })
-    assert.ok(!existsSync(join(cfg, "plugins", "cache")), "…y la poda tiene que llegar hasta allí")
-    assert.ok(!existsSync(join(cfg, "plugins", "marketplaces", "daycry")))
+    assert.ok(!existsSync(join(proj,'.claude',MANIFEST_PLUGIN)), 'The project receipt is removed.')
+    assert.ok(existsSync(join(cfg,'plugins','cache','daycry','custom-agents',VERSION,'hooks','hooks.json')))
+    assert.ok(existsSync(join(cfg,'plugins','marketplaces','daycry','.custom-agents-cache.json')))
     assert.ok(existsSync(ajeno), "pero sin tocar un directorio ajeno")
   } finally {
     rmSync(tmp, { recursive: true, force: true })
@@ -3289,4 +3351,57 @@ test('F3 Codex clears local selection and uninstalls its unchanged explicit bind
     assert.doesNotMatch(readFileSync(join(project,'.codex/config.toml'),'utf8'),/agents.custom-agents-reviewer/)
     assert.ok(existsSync(models))
   } finally {rmSync(temp,{recursive:true,force:true})}
+})
+
+// Audit R1-R3: adversarial manifests are data, never authority to mutate the host.
+test('R1 unverified manifest cannot delete external files or execute inverse commands',()=>{
+  const project=tmpProj(), outside=join(project,'external.txt'), executed=join(project,'executed.txt')
+  mkdirSync(join(project,'.claude'));writeFileSync(outside,'consumer bytes')
+  const path=join(project,'.claude',MANIFEST)
+  writeFileSync(path,JSON.stringify({plugin:'custom-agents',provider:'claude-code',scope:'project',modo:'copy',version:VERSION,
+    files:[outside],registro:[{deshacer:[process.execPath,'-e',`require('fs').writeFileSync(${JSON.stringify(executed)},'unsafe')`]}]}))
+  assert.throws(()=>cli(['uninstall','-p','claude-code','--dir',project,'-q']),error=>{
+    assert.match(String(error.stderr),/unverified installation manifest/)
+    assert.doesNotMatch(String(error.stderr),/\n\s+at /)
+    return true
+  })
+  assert.equal(readFileSync(outside,'utf8'),'consumer bytes');assert.equal(existsSync(executed),false)
+  assert.ok(existsSync(path),'rejected inventory must remain available for reconciliation')
+})
+test('R1 install rejects an unverified copy inventory before migration effects',()=>{
+  const project=tmpProj(), outside=join(project,'external.txt');mkdirSync(join(project,'.claude'));writeFileSync(outside,'consumer bytes')
+  writeFileSync(join(project,'.claude',MANIFEST),JSON.stringify({plugin:'custom-agents',provider:'claude-code',scope:'project',modo:'copy',version:VERSION,files:[outside],registro:[]}))
+  assert.throws(()=>cli(['install','-p','claude-code','--dir',project,'-y','-q']))
+  assert.equal(readFileSync(outside,'utf8'),'consumer bytes')
+})
+test('R1 a modified authentic manifest is rejected before touching genuine installed files',()=>{
+  const project=tmpProj();cli(['install','-p','claude-code','--mode','copy','--profile','core','--dir',project,'-q'])
+  const path=join(project,'.claude',MANIFEST), man=JSON.parse(readFileSync(path,'utf8'))
+  const genuine=join(project,'.claude','skills','tdd','SKILL.md');const original=readFileSync(genuine)
+  const outside=join(project,'external.txt');writeFileSync(outside,'consumer bytes');man.files.push(outside)
+  writeFileSync(path,JSON.stringify(man))
+  assert.throws(()=>cli(['uninstall','-p','claude-code','--dir',project,'-q']))
+  assert.deepEqual(readFileSync(genuine),original);assert.equal(readFileSync(outside,'utf8'),'consumer bytes')
+})
+test('R1 authentic receipts cannot be replayed into a different project',()=>{
+  const a=tmpProj(), b=tmpProj();cli(['install','-p','claude-code','--mode','copy','--profile','core','--dir',a,'-q'])
+  mkdirSync(join(b,'.claude'));writeFileSync(join(b,'.claude',MANIFEST),readFileSync(join(a,'.claude',MANIFEST)))
+  const owned=join(a,'.claude','skills','tdd','SKILL.md');assert.throws(()=>cli(['uninstall','-p','claude-code','--dir',b,'-q']))
+  assert.ok(existsSync(owned))
+})
+test('R2 default complete copy does not acquire or overwrite a consumer agent',()=>{
+  const project=tmpProj(), target=join(project,'.claude','agents','planner.md');mkdirSync(dirname(target),{recursive:true});writeFileSync(target,'consumer planner')
+  assert.throws(()=>cli(['install','-p','claude-code','--mode','copy','--dir',project,'-q']))
+  assert.equal(readFileSync(target,'utf8'),'consumer planner')
+})
+test('R2 default complete copy uninstall preserves edited installed files',()=>{
+  const project=tmpProj();cli(['install','-p','claude-code','--mode','copy','--dir',project,'-q'])
+  const target=join(project,'.claude','agents','planner.md');writeFileSync(target,'consumer edit')
+  cli(['uninstall','-p','claude-code','--dir',project,'-q']);assert.equal(readFileSync(target,'utf8'),'consumer edit')
+})
+test('R3 invalid uninstall scope fails before selecting any delivery',()=>{
+  const project=tmpProj();cli(['install','-p','claude-code','--mode','copy','--profile','core','--dir',project,'-q'])
+  const target=join(project,'.claude','skills','tdd','SKILL.md')
+  assert.throws(()=>cli(['uninstall','-p','claude-code','--scope','uesr','--dir',project,'-q']),error=>error.status===2)
+  assert.ok(existsSync(target))
 })
