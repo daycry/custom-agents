@@ -167,6 +167,22 @@ Tras instalar, los agentes quedan disponibles en **todos los proyectos** de la m
 
 > Confirma antes de publicar con `python scripts/release.py --check` (versiones coherentes en ambos manifiestos y sección de la versión en ambos CHANGELOG).
 
+### Publicar también el instalador en npm
+
+La release de GitHub no publica automáticamente `@daycry/custom-agents` en npm. Desde un checkout limpio del tag que se entrega, comprueba la cuenta autorizada y prepara el artefacto real:
+
+```bash
+npm whoami --registry=https://registry.npmjs.org
+node -e "require('node:fs').mkdirSync('dist',{recursive:true})"
+npm pack --ignore-scripts --json --pack-destination ./dist
+npm publish ./dist/daycry-custom-agents-X.Y.Z.tgz --access public --tag latest --registry=https://registry.npmjs.org
+npm view @daycry/custom-agents@X.Y.Z version dist.integrity --json --registry=https://registry.npmjs.org
+```
+
+Sustituye `X.Y.Z` por la versión exacta de `package.json`. Antes de publicar, ejecuta `python -m pytest tests/test_npm_payload.py -q`: prueba el tgz extraído, la proyección de modelos y los PDF enlazados. Compara `dist.integrity` con el valor del `npm pack` y verifica que `npm view @daycry/custom-agents dist-tags --json` anuncia la versión deseada como `latest`. `--version` o `--help` sobre ese tgz permiten una comprobación adicional sin instalar el plugin en perfiles reales.
+
+Si `whoami` devuelve E401, renueva la sesión con `npm login --registry=https://registry.npmjs.org`. Completa la autenticación y cualquier comprobación de 2FA en npm; no guardes credenciales ni códigos en el repositorio. Un pack o dry-run correcto no acredita publicación. Si una versión ya existe, comprueba su integridad; no intentes sobrescribirla. Referencias: [npm publish](https://docs.npmjs.com/cli/v11/commands/npm-publish/) y [publicación de paquetes públicos con scope](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/).
+
 ### Al actualizar — CLI de Claude Code
 En una sesión `claude`:
 

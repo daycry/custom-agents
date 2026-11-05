@@ -69,6 +69,11 @@
     "docs/reference/",
     "docs/en/reference/",
     "output/pdf/custom-agents-manual-operativo.pdf",
-    "output/pdf/custom-agents-manual-operativo.manifest.json"
+    "output/pdf/custom-agents-manual-operativo.manifest.json",
+    "scripts/export-interop.py",
+    "output/pdf/guia-uso-eficiente-claude-codex.pdf",
+    "output/pdf/guia-uso-eficiente-claude-codex.manifest.json",
+    "output/pdf/guia-resultados-calidad-custom-agents.pdf",
+    "output/pdf/guia-resultados-calidad-custom-agents.manifest.json"
   ]
 }
