@@ -11,6 +11,8 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+## [3.2.2] - 2026-11-06
+
 ### Fixed — `external-session-discovery` initiative (2026-11-06)
 
 - **T-01 — Bounded native JSON capture.** Enforce output size, deadlines and successful exit while closing only transport-owned helpers.
@@ -1364,6 +1366,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[3.2.2]: https://github.com/daycry/custom-agents/releases/tag/v3.2.2
 [3.2.1]: https://github.com/daycry/custom-agents/releases/tag/v3.2.1
 [3.2.0]: https://github.com/daycry/custom-agents/releases/tag/v3.2.0
 [3.1.0]: https://github.com/daycry/custom-agents/releases/tag/v3.1.0

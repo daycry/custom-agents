@@ -11,6 +11,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+## [3.2.2] - 2026-11-06
+
 ### Fixed — iniciativa `external-session-discovery` (2026-11-06)
 
 - **T-01 — Transporte JSON acotado y propio** Captura JSON nativa con tamaño, plazo y exit0 comprobados; cierre de auxiliares mediante propiedad del transporte existente. (`skills/plugin-panel/scripts/console_transport.py`, `tests/test_console_transport.py`)
@@ -1376,6 +1378,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[3.2.2]: https://github.com/daycry/custom-agents/releases/tag/v3.2.2
 [3.2.1]: https://github.com/daycry/custom-agents/releases/tag/v3.2.1
 [3.2.0]: https://github.com/daycry/custom-agents/releases/tag/v3.2.0
 [3.1.0]: https://github.com/daycry/custom-agents/releases/tag/v3.1.0
