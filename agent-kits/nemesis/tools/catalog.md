@@ -1,46 +1,42 @@
-# Catálogo de herramientas (la "biblioteca" instalable)
+# Catálogo de herramientas opcionales de Nemesis
 
-`install-tools.sh` instala este set en `~/.claude/security-tools/` (override con `SECURITY_TOOLS_DIR`).
-Todo es open-source, de repos oficiales, y de uso **defensivo / pentest autorizado**. Ningún binario se versiona
-(ver `.gitignore` de esta carpeta y de la carpeta de instalación).
+La fuente ejecutable del catálogo es `tools-lock.json`. `install-tools.sh` sólo localiza Python 3.10+ y llama a `install-tools.py`. No instala nada al cargar el plugin. El agente solicita autorización antes de instalar; los binarios quedan fuera de los repositorios, bajo `~/.claude/security-tools/` o `SECURITY_TOOLS_DIR`.
 
-## A. Binarios precompilados (Go) — se bajan del release por OS/arch
-| Tool | Uso | Fuente | Plataformas |
-|------|-----|--------|-------------|
-| **nuclei** | Escáner por plantillas (misconfig, exposiciones, CVEs, default-login) | projectdiscovery/nuclei | linux/darwin/windows · amd64/arm64 |
-| **httpx** | Sondeo/fingerprint HTTP (tech, título, server, status) | projectdiscovery/httpx | idem |
-| **ffuf** | Descubrimiento de contenido / fuzzing de rutas y params | ffuf/ffuf | idem |
-| **gitleaks** | Detección de secretos en árbol/repo | gitleaks/gitleaks | idem |
-| **trivy** | SCA: vulnerabilidades de dependencias contra BD de CVEs (`trivy fs`) → area `deps` | aquasecurity/trivy | idem (asset `.tar.gz`/`.zip`, naming `64bit`) |
-| **hadolint** | Lint de Dockerfile (buenas prácticas/seguridad) → area `iac` | hadolint/hadolint | idem (asset = **binario raw**, sin archivo) |
+## Binarios fijados por plataforma
 
-`pick_asset.py` elige el asset correcto tolerando las distintas convenciones de nombre
-(`amd64`/`x64`/`x86_64`/`64bit`, `darwin`/`macOS`/`osx`, `.zip`/`.tar.gz`, y binarios **raw** con `--raw`).
+| Herramienta | Uso | Release fijada | Plataformas fijadas |
+|---|---|---|---|
+| nuclei | Plantillas de vulnerabilidades y exposición | v3.11.1 | Linux/macOS amd64 y arm64; Windows amd64 |
+| httpx | Sondeo HTTP | v1.12.0 | Linux/macOS amd64 y arm64; Windows amd64 |
+| ffuf | Descubrimiento y fuzzing autorizado | v2.3.0 | Linux/macOS/Windows amd64 y arm64 |
+| gitleaks | Detección de secretos | v8.30.1 | Linux/macOS/Windows amd64 y arm64 |
+| trivy | Dependencias y configuración | v0.76.2 | Linux/macOS amd64 y arm64; Windows amd64 |
+| hadolint | Dockerfiles | v2.15.1 | Linux/macOS amd64 y arm64; Windows amd64 |
 
-**Estáticos vs. DAST:** `trivy fs` y `hadolint` escanean el **árbol del proyecto** (no un host), así que corren desde `run-static.sh` (sin guardrail), no desde `run-external.sh`. trivy descarga su BD de CVEs en el primer uso (red una vez).
+No hay selección dinámica de releases ni fallback entre arquitecturas. `pick_asset.py` se conserva como utilidad de mantenimiento; el instalador utiliza exclusivamente las URLs y SHA-256 revisadas del lock. trivy y hadolint corren en `run-static.sh`, sobre archivos del proyecto. Sus datos posteriores, como la base CVE de trivy o las plantillas de nuclei, no forman parte de estos pins.
 
-## B. Herramientas de script (git clone + runtime presente)
-| Tool | Uso | Fuente | Requiere |
-|------|-----|--------|----------|
-| **testssl.sh** | Auditoría TLS/SSL (protocolos, ciphers, cert, vulns) | drwetter/testssl.sh | bash + openssl |
-| **sqlmap** | Detección/explotación SQLi (**opt-in**, activo) | sqlmapproject/sqlmap | python |
-| **nikto** | Escáner de servidor web (misconfig, ficheros peligrosos) | sullo/nikto | perl |
+## Scripts de commits concretos
 
-Cada una recibe un *shim* en `bin/` (p. ej. `bin/sqlmap` → `python vendor/sqlmap/sqlmap.py`).
+| Herramienta | Fuente actual | Versión | Runtime |
+|---|---|---|---|
+| testssl | testssl/testssl.sh | v3.2.5 | Bash y OpenSSL |
+| sqlmap | sqlmapproject/sqlmap | 1.10 | Python; ejecución activa con opt-in |
+| nikto | sullo/nikto | 2.6.1 | Perl |
 
-## C. Paquetes Python (pip)
-| Tool | Uso | Paquete |
-|------|-----|---------|
-| **wafw00f** | Detección de WAF | `wafw00f` |
+El lock fija también el commit completo y el SHA-256 del archivo de código. El instalador valida archivos y crea un lanzador en `bin/` hacia una carpeta de versión propia. No ejecuta git clone ni git pull. El lanzador Python conserva `-I -B` y añade únicamente el árbol verificado a la búsqueda de módulos para que SQLmap cargue sus módulos hermanos.
 
-## Cómo añadir una herramienta a la biblioteca
-Edita la sección **CATALOG** de `install-tools.sh`:
-- Binario Go de release → `install_go_bin <owner/repo> <nombre-binario>`
-- Script tool → `install_git_tool <url> <dir> <shim> "<runner>"`
-- pip → `install_pip_tool <paquete> <nombre>`
-Y documenta la fila aquí. Reejecuta `install-tools.sh` (idempotente) o `--force` para reinstalar.
+## Paquetes Python
 
-## Notas
-- **Antivirus/Defender** puede marcar nuclei/sqlmap; si los pone en cuarentena, excluye `~/.claude/security-tools/`.
-- **nuclei** descarga su librería de plantillas en el primer uso (`nuclei -update-templates`).
-- Todo el uso activo pasa por `lib-guardrail.sh` → solo hosts locales/privados.
+wafw00f 2.4.2 y sus seis dependencias usan wheels universales de PyPI, fijados en `wafw00f-requirements.txt`. pip usa hashes obligatorios, no resuelve dependencias nuevas, no construye código fuente y escribe en un destino privado. Los requisitos conservan LF para que su hash sea estable en Windows. No se modifican paquetes globales ni se ejecuta la herramienta durante la instalación.
+
+## Mantener o ampliar el catálogo
+
+1. Verifica el proyecto upstream, su licencia, release y runtime; justifica la necesidad de la herramienta.
+2. Actualiza `tools-lock.json`: versión, URL de procedencia, assets por plataforma, commit para scripts y SHA-256 de cada descarga. No uses hashes resueltos durante la instalación.
+3. Para paquetes Python, fija todos los wheels y dependencias en `wafw00f-requirements.txt` y renueva su hash y procedencia en el lock. Un backend Python distinto requiere su implementación y sus pruebas; cambiar el nombre del paquete no basta.
+4. Añade pruebas sintéticas de integridad, plataforma, formato y lanzador; revisa el diff y esta tabla. No ejecutes herramientas externas para verificar su versión durante la instalación.
+5. Consulta `python3 install-tools.py --list`; instala sólo la selección autorizada con `--only nombre1,nombre2`.
+
+`--force` reemplaza únicamente una instalación gestionada intacta. Conserva archivos desconocidos o modificados. Para migrar una instalación anterior usa una carpeta nueva. Los fallos dejan un aviso y código no cero sin impedir el trabajo general del plugin; el agente continúa con cobertura parcial.
+
+[Guía de seguridad, recuperación y límites](../../../docs/guides/nemesis-remediation.md). Si un antivirus pone un archivo en cuarentena, revisa la alerta y su procedencia; no desactives la protección ni añadas una exclusión general por recomendación automática del plugin.

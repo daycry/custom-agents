@@ -270,7 +270,12 @@ class Installer:
                     entry = vendor_path / safe_name(tool["entry"])
                     IO.file(entry)
                     if tool["runner"] == "python":
-                        argv = [shell_path(sys.executable), "-I", "-B", shell_path(entry)]
+                        # Preserve environment isolation while restoring only this verified tree.
+                        code = ("import runpy,sys; sys.path.insert(0," + repr(str(vendor_path))
+                                + "); sys.argv=[" + repr(str(entry))
+                                + ",*sys.argv[1:]]; runpy.run_path(" + repr(str(entry))
+                                + ",run_name='__main__')")
+                        argv = [shell_path(sys.executable), "-I", "-B", "-c", code]
                     else:
                         require(tool["runner"] in ("bash", "perl"), "runner")
                         runner = shutil.which(tool["runner"])

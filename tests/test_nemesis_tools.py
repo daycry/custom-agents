@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 import stat
+import subprocess
+import shlex
 import tarfile
 import tempfile
 import unittest
@@ -47,6 +49,17 @@ class InstallerPolicy(unittest.TestCase):
         argv=["python", "-c", code]
         rendered=module.shim(argv).decode().splitlines()[1]
         self.assertEqual(shlex.split(rendered)[1:-1],argv)
+
+    def test_B2_requirements_checkout_is_explicitly_lf(self):
+        repo=TOOLS.parents[2]
+        result=subprocess.run(["git","check-attr","eol","--","agent-kits/nemesis/tools/wafw00f-requirements.txt"],cwd=repo,capture_output=True,encoding="utf-8",check=True)
+        self.assertTrue(result.stdout.rstrip().endswith(": lf"),result.stdout)
+
+    def test_A01_catalog_describes_current_pinned_installer(self):
+        catalog=(TOOLS/"catalog.md").read_text(encoding="utf-8")
+        self.assertNotIn("Edita la sección **CATALOG**",catalog)
+        self.assertIn("tools-lock.json",catalog)
+        self.assertIn("wafw00f-requirements.txt",catalog)
 
     def test_reviewed_catalog_and_requirements(self):
         module = load()
@@ -170,6 +183,22 @@ class OfflineInstaller(unittest.TestCase):
         source.write_bytes(b"changed")
         with self.assertRaisesRegex(ValueError,"modified"):installer.install("fixture")
         self.assertEqual(self.calls,[])
+    def test_B1_source_python_imports_its_verified_sibling_with_isolation(self):
+        output=io.BytesIO()
+        with tarfile.open(fileobj=output,mode="w:gz") as tar:
+            for name,content in (("repo/tool.py",b"import sibling; print(sibling.VALUE)"),("repo/sibling.py",b"VALUE='verified sibling'")):
+                member=tarfile.TarInfo(name);member.size=len(content);tar.addfile(member,io.BytesIO(content))
+        self.payload=output.getvalue()
+        self.catalog["tools"]["fixture"]={"kind":"source","version":"v1","revision":"a"*40,"url":"https://codeload.github.com/example/tool/tar.gz/"+"a"*40,"sha256":hashlib.sha256(self.payload).hexdigest(),"entry":"tool.py","runner":"python","source":"https://github.com/example/tool"}
+        self.installer().install("fixture")
+        rendered=(self.root/"bin/fixture").read_text(encoding="utf-8").splitlines()[1]
+        argv=shlex.split(rendered)[1:-1]
+        self.assertIn("-I",argv)
+        self.assertIn("-B",argv)
+        result=subprocess.run(argv,capture_output=True,encoding="utf-8",env={**os.environ,"PYTHONPATH":str(self.base/"untrusted")},timeout=15)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(result.stdout.strip(),"verified sibling")
+
     def test_python_install_is_hash_checked_wheel_only_isolated_and_local(self):
         requirements=b"fixture==1 --hash=sha256:"+b"a"*64+b"\n"
         requirements_path=self.base/"requirements.txt"

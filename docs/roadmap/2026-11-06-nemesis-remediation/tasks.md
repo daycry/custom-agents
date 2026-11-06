@@ -58,7 +58,7 @@ RED: `tests/test_ci_security.py` falló con RED previo: 5 contratos fallan por t
 ### T-04 — Herramientas opcionales verificadas
 
 - **Estado**: en-revision
-- **Archivos**: `agent-kits/nemesis/tools/**`, `agent-kits/nemesis/README.md`, `tests/test_nemesis_tools*.py`, `docs/**/guides/nemesis-remediation.md`
+- **Archivos**: `agent-kits/nemesis/tools/**`, `agent-kits/nemesis/README.md`, `agents/nemesis.md`, `docs/agents/nemesis.md`, `docs/agents/nemesis-toolkit.md`, `.gitattributes`, `tests/test_nemesis_tools*.py`, `docs/**/guides/nemesis-remediation.md`
 - **Verificación**: tests dirigidos y regresiones del área; evidencia ejecutada en [testing/validation.md](testing/validation.md).
 
 **Criterios de aceptación**
@@ -79,3 +79,18 @@ GREEN dirigido T-04: 13 pruebas offline. RED adicional del quoting de argumentos
 
 
 Ampliación técnica T-05: los índices ES/EN enlazan la nueva guía para que sea descubrible; no cambia el alcance funcional.
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-01–T-05) — gaps
+
+Lentes A+B+C sobre facad5f..bb5ca20; D no aplica según selector. Las tres lentes entregaron informes estructurados y ejecutaron pruebas dirigidas verdes. No equivalen a una auditoría SAST/DAST completa.
+
+| ID | Lente | Grado | Tarea | Evidencia | Resolución |
+|---|---|---|---|---|---|
+| A-01 | A | Important | T-04 | catalog.md:37 seguía indicando editar CATALOG Bash; docs del agente describían git clone | Corregir catálogo y documentación operativa existente. |
+| B1 | B | Important | T-04 | install-tools.py:273; SQLmap importa lib.utils antes de restaurar rutas, -I excluía el directorio | Lanzador aislado con búsqueda explícita en árbol verificado; fixture de módulos hermanos. |
+| B2 | B | Important | T-04 | install-tools.py:282; requisitos sin atributo eol; LF/CRLF cambian digest | Fijar LF en .gitattributes y contrato dedicado. |
+| C | C | — | todas | Sin hallazgos de seguridad introducidos/reabiertos confirmados | No hay gaps C pendientes. |
+
+RED de correcciones: `test_B1_source_python_imports_its_verified_sibling_with_isolation`, `test_B2_requirements_checkout_is_explicitly_lf`, `test_A01_catalog_describes_current_pinned_installer`: 3 failed antes de modificar código/config/prosa (2026-11-06). B2/A-01: TDD n/a configuración/prosa; contratos de regresión dedicados.
+
+Ampliación técnica T-04: .gitattributes protege el digest literal en Windows; docs/agents actualiza descripciones existentes; agents/nemesis.md limita el ejemplo de instalación a nombres expresamente autorizados. Interop se regenera desde esta fuente canónica (T-05). No se modifican criterios aprobados.
