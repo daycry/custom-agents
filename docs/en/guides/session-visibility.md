@@ -50,6 +50,8 @@ Windows, WSL, containers and different user profiles can have separate stores.
 
 A new Claude session may lack its UUID. The panel can display an observed identity
 based on its native process and start metadata, without attaching chat controls.
+A background job without UUID or live PID can use its reported short job ID as
+a read-only observed identity.
 When no update time exists, it displays the reported start instead. Read time is
 not evidence of agent execution time.
 

@@ -51,7 +51,9 @@ WSL, contenedores o perfiles de usuario pueden tener almacenes diferentes.
 
 Una sesión recién abierta de Claude puede no tener aún UUID. En ese caso, el panel
 utiliza una identidad observada del proceso y su inicio para mostrarla; no la adopta
-para chatear. Si falta la fecha de actualización, muestra el inicio comunicado.
+para chatear. Un trabajo de fondo sin UUID o PID puede conservar el ID corto
+que comunica el runtime, con una identidad observada de sólo lectura. Si falta
+la fecha de actualización, muestra el inicio comunicado.
 Las fechas de lectura describen cuándo se consultó, no cuándo trabajó el agente.
 
 Si una versión antigua de Claude no reconoce agents --json, actualiza el runtime o

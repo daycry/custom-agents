@@ -106,3 +106,11 @@ def test_external_inventory_is_bounded_and_invalid_native_shapes_fail_explicitly
     for invalid in ({'agents':[]},[{'cwd':str(tmp_path),'kind':'interactive','sessionId':'invalid','startedAt':1000}]):
         result=discover(SimpleNamespace(root=tmp_path),capture=lambda *a,**k:invalid,command=['native'])
         assert not result['complete'] and result['sessions']==[]
+
+
+def test_native_background_without_uuid_or_live_pid_keeps_its_native_job_identity(tmp_path):
+    value={'cwd':str(tmp_path),'kind':'background','id':'job-one','startedAt':1000,'state':'blocked','name':'Pending background session'}
+    result=api().discover(SimpleNamespace(root=tmp_path),capture=lambda *a,**k:[value],command=['native'])
+    assert len(result['sessions'])==1,'Valid native background metadata was omitted without UUID/PID'
+    assert result['sessions'][0]['id']=='observed-background-job-one'
+    assert result['sessions'][0]['read_only'] is True

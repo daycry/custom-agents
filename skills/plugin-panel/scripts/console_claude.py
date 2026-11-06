@@ -3,6 +3,7 @@ import importlib.util
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import threading
 import time
@@ -162,6 +163,8 @@ def discover(workspace,*,capture=None,command=None,process_factory=None):
             if ident is not None:
                 try:ident=str(uuid.UUID(ident))
                 except (ValueError,TypeError,AttributeError):reason=reason or 'native_inventory_partial';continue
+            elif value['kind']=='background' and type(value.get('id')) is str and re.fullmatch(r'[A-Za-z0-9_-]{1,128}',value['id']):
+                ident='observed-background-'+value['id']
             else:
                 pid=value.get('pid')
                 if type(pid) is not int or pid<=0:reason=reason or 'native_inventory_partial';continue

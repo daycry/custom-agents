@@ -53,3 +53,11 @@ changelog: Fixed
 RED: pruebas nuevas transporte/proveedores/dispatch: 11 failed por captura/inventarios ausentes y Claude/OpenCode unsupported; Node contador 1 failed/2 passed (cero incorrecto cuando otro proveedor es desconocido), antes de implementar, 2026-11-06.
 
 RED adicional T-03: contador de inventario vacío antiguo con refresh_failed devolvía cero (1 failed/3 passed); corregido para mostrar desconocido, 2026-11-06.
+
+## Revisión de dos lentes — intento 1: T-01–T-04 — verde A+B+C
+
+Diff 1fd0460..ddf6cf3, 18 archivos. Las tres lentes leen el diff completo; A/C ejecutan 87 pruebas Python y B56 dirigidas; Node4 pasan. Sin gaps de conformidad, corrección o seguridad confirmados. D no aplica por selector. T-04 sigue pendiente de CI.
+
+## Contraste final de contratos
+
+Root detecta un caso válido adicional del contrato Claude: background con ID corto, sin UUID/PID vivo, seguía descartado. RED: test_native_background_without_uuid_or_live_pid_keeps_its_native_job_identity, 1 failed antes del fix (2026-11-06). Se conserva ese ID nativo como identidad observada de sólo lectura, sin control ni adopción. Regresión dedicada y guías ES/EN actualizadas. Se revisará el delta en intento2.
