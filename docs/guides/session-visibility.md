@@ -2,7 +2,7 @@
 
 [English](../en/guides/session-visibility.md) · **Español**
 
-**Actualizado: 2026-11-06 · cambio de Sin publicar, posterior a v3.0.0.**
+**Actualizado: 2026-11-06 · disponible en v3.2.2.**
 
 Abre **Sesiones** para encontrar conversaciones del proyecto. Abre **Actividad**
 para consultar agentes identificados, señales de sesión y herramientas recibidas.

@@ -2,7 +2,7 @@
 
 **English** · [Español](../../guides/session-visibility.md)
 
-**Updated: 2026-11-06 · Unreleased change, after v3.0.0.**
+**Updated: 2026-11-06 · available in v3.2.2.**
 
 Open **Sesiones** to find project conversations. Open **Actividad** to inspect
 identified agents, session signals and reported tools. A card does not prove that
