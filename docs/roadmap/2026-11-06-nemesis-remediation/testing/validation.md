@@ -16,12 +16,12 @@ TDD n/a: configuración/prosa; contratos de regresión escritos y observados roj
 
 ## T-04 — herramientas
 
-RED previo del contrato: el instalador seleccionaba /releases/latest al ejecutar. GREEN: 13 pruebas offline; integridad incorrecta, archivo ajeno/modificado, archivos inseguros/enlaces/ambigüedad, plataforma ausente, raíz dentro de Git/enlace cuando el SO lo permite, scripts y pip aislado con hashes. Caso adicional de quoting observado rojo y corregido: los argumentos que no son rutas conservan sus barras literales. Descargas para obtener pins: sólo metadatos/archivos upstream leídos, nunca ejecutados. No se instalaron herramientas reales. Catálogo y requirements son configuración revisada, TDD n/a.
+RED previo del contrato: el instalador seleccionaba /releases/latest al ejecutar. GREEN inicial: 13 pruebas offline; final: 17; integridad incorrecta, archivo ajeno/modificado, archivos inseguros/enlaces/ambigüedad, plataforma ausente, raíz dentro de Git/enlace cuando el SO lo permite, scripts y pip aislado con hashes. Caso adicional de quoting observado rojo y corregido: los argumentos que no son rutas conservan sus barras literales. Descargas para obtener pins: sólo metadatos/archivos upstream leídos, nunca ejecutados. No se instalaron herramientas reales. Catálogo y requirements son configuración revisada, TDD n/a.
 
 ## Puertas locales
 
-- Python: tests/test_nemesis_tools.py, test_artifact_renderer.py, test_ci_security.py, test_ci_manual_copy.py, test_skill_size.py, test_ci_skill_suites.py: 80 passed.
-- Node: artifact-dom-security, to-pdf-security y to-pdf-atomic: 21 passed, 0 failed, 0 skipped.
+- Python: tests/test_nemesis_tools.py, test_artifact_renderer.py, test_ci_security.py, test_ci_manual_copy.py, test_skill_size.py, test_ci_skill_suites.py: 85 passed (final).
+- Node final: artifact-dom-security, to-pdf-security y to-pdf-atomic: 24 passed, 0 failed, 0 skipped (9 Edge + 3 JQL real-script + 12 PDF/atómicos).
 - check-handbook: PDF, fuentes LF, workflows y diagramas coinciden.
 - evals/check: 229 casos, 60 piezas, 0 errores; no llamadas al modelo.
 - export-interop --check: 92 ficheros al día; no se tocaron agentes/comandos/hooks canónicos.
@@ -29,3 +29,15 @@ RED previo del contrato: el instalador seleccionaba /releases/latest al ejecutar
 - review-lens-select --base facad5f: A+B+C; C por workflows e innerHTML; D no aplica.
 
 El verde global requiere la revisión y la CI de referencia de esta revisión exacta.
+
+## Revisión y comprobaciones finales locales
+
+Tres intentos A+B+C: A-01, B1 y B2 corregidos con regresiones dedicadas; tercer intento sin Critical/Important. Minor de referencia CONFIG_FILE corregido después de observar su test ampliado rojo; 27 tests de renderer/tools pasan. Apoyo Claude CLI: revisión recibida, hallazgos verificados, sin ejecución de servicios ni herramientas. Claude-04 ya estaba corregido, Claude-05/06 corregidos tras RED documentado. No hay hallazgos aceptados pendientes; no implica garantía de ausencia de malware.
+
+Pins de source testssl/sqlmap/nikto: los tres archivos leídos coinciden con sus SHA del lock; extracción validada en memoria, 94/643/80 archivos regulares respectivamente, sin instalar ni ejecutar. Conversión PDF real ya documentada arriba, sin excepciones unsafe.
+
+Linter sobre snapshot público bb5ca20 sin informes privados/descargas: 0 errores, 17 avisos existentes. El primer intento sobre checkout con evidencia ignorada recorrió copias históricas del paquete y dio 142 errores; no fue aceptado como verde ni motivó relajar reglas. La CI opera desde el checkout público y es la referencia final para el linter.
+
+Interop final: 92 ficheros al día tras actualizar la instrucción canónica de nemesis. Ledger-lint: 0 incoherencias y 0 avisos; scope final: 44 archivos, ninguno excluido/fuera ni criterios alterados. Sin umbrales relajados ni tests omitidos nuevos.
+
+Referencia CI en progreso: https://github.com/daycry/custom-agents/actions/runs/42194828544 (head 2bbfbc9). No se acredita completa hasta obtener resultado.

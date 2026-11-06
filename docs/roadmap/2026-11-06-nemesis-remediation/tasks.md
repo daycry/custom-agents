@@ -13,56 +13,60 @@ changelog: Fixed
 ## Resumen de progreso
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 0 | 5 | 0.0% |
-| **TOTAL** | **0** | **5** | **0.0%** |
+| Fase 1 | 4 | 5 | 80.0% |
+| **TOTAL** | **4** | **5** | **80.0%** |
 
 ## Fase 1
 **Estado**: en-progreso
 
 ### T-01 — Vistas Atlassian seguras
 
-- **Estado**: en-revision
+- **Estado**: completado
 - **Archivos**: `skills/jira-sync/assets/**`, `skills/roadmap-dashboard/assets/**`, `skills/confluence-publish/assets/**`, `agent-kits/shared/render-artifact.py`, `skills/jira-sync/references/destination-and-types.md`, `skills/confluence-publish/references/wizard.md`, `docs/atlassian-connector-notes.md`, `skills/roadmap-dashboard/**`, `tests/artifact-dom-security.test.mjs`, `tests/test_artifact_renderer.py`
+- **Changelog**: Metadatos Atlassian como texto, configuración JSON segura y etiquetas JQL confinadas al literal; renderer y referencias coherentes.
 - **Verificación**: tests dirigidos y regresiones del área; evidencia ejecutada en [testing/validation.md](testing/validation.md).
 
 **Criterios de aceptación**
-- [ ] F-001: títulos, nombres y errores son texto literal; configuración no rompe HTML/JS; selección conserva identidad y valores.
+- [x] F-001: títulos, nombres y errores son texto literal; configuración no rompe HTML/JS; selección conserva identidad y valores.
 
 
 RED: `tests/artifact-dom-security.test.mjs` falló con RED navegador Edge: tres vistas ejecutan onerror desde metadatos externos; 0 passed y 3 failed · 2026-11-06.
 
 ### T-02 — Conversión PDF segura
 
-- **Estado**: en-revision
+- **Estado**: completado
 - **Archivos**: `skills/to-pdf/**`, `tests/to-pdf*.test.mjs`
+- **Changelog**: PDF con sandbox activo y JS/red desactivados por defecto; excepciones explícitas y salida atómica preservada.
 - **Verificación**: tests dirigidos y regresiones del área; evidencia ejecutada en [testing/validation.md](testing/validation.md).
 
 **Criterios de aceptación**
-- [ ] O-003: sandbox predeterminado, JS/red desactivados, excepciones documentadas, título escapado y salida atómica conservada.
+- [x] O-003: sandbox predeterminado, JS/red desactivados, excepciones documentadas, título escapado y salida atómica conservada.
 
 
 RED: `tests/to-pdf-security.test.mjs` falló con RED: sandbox desactivado por defecto y sin política JS/red; CLI real con navegador sustituido por fixture · 2026-11-06.
 
 ### T-03 — CI con permisos acotados
 
-- **Estado**: en-revision
+- **Estado**: completado
 - **Archivos**: `ci.yml.MANUAL-COPY`, `release.yml.MANUAL-COPY`, `headless.yml.MANUAL-COPY`, `.github/workflows/**`, `tests/test_ci*.py`, `docs/**/guides/nemesis-remediation.md`
+- **Changelog**: Acciones por SHA, secretos por paso, permisos mínimos y build de release separado del publicador.
 - **Verificación**: tests dirigidos y regresiones del área; evidencia ejecutada en [testing/validation.md](testing/validation.md).
 
 **Criterios de aceptación**
-- [ ] O-002: secretos sólo en pasos consumidores; acciones por SHA completo, CLI fijada, permisos mínimos y copias manuales idénticas.
+- [x] O-002: secretos sólo en pasos consumidores; acciones por SHA completo, CLI fijada, permisos mínimos y copias manuales idénticas.
 
 
 RED: `tests/test_ci_security.py` falló con RED previo: 5 contratos fallan por tags mutables, clave en job y build con token write; config/prosa TDD n/a, contratos verificados · 2026-11-06.
 
 ### T-04 — Herramientas opcionales verificadas
 
-- **Estado**: en-revision
+- **Estado**: completado
 - **Archivos**: `agent-kits/nemesis/tools/**`, `agent-kits/nemesis/README.md`, `agents/nemesis.md`, `docs/agents/nemesis.md`, `docs/agents/nemesis-toolkit.md`, `.gitattributes`, `tests/test_nemesis_tools*.py`, `docs/**/guides/nemesis-remediation.md`
+- **Changelog**: Herramientas opcionales con pins y hashes, extracción segura y propiedad verificada; no sobrescribir instalaciones ajenas o modificadas.
 - **Verificación**: tests dirigidos y regresiones del área; evidencia ejecutada en [testing/validation.md](testing/validation.md).
 
 **Criterios de aceptación**
-- [ ] O-001: catálogo con versiones/revisiones/hashes fijados y procedencia verificable; rechazar integridad inválida, archivos inseguros e instalaciones desconocidas sin sobrescribirlas; no instalar herramientas reales durante tests.
+- [x] O-001: catálogo con versiones/revisiones/hashes fijados y procedencia verificable; rechazar integridad inválida, archivos inseguros e instalaciones desconocidas sin sobrescribirlas; no instalar herramientas reales durante tests.
 
 RED: `tests/test_nemesis_tools.py::InstallerPolicy::test_no_mutable_install_sources_or_eval` falló por resolver `/releases/latest` al instalar · 2026-11-06.
 
@@ -72,6 +76,7 @@ GREEN dirigido T-04: 13 pruebas offline. RED adicional del quoting de argumentos
 
 - **Estado**: en-progreso
 - **Archivos**: `docs/roadmap/2026-11-06-nemesis-remediation/**`, `docs/roadmap/README.md`, `docs/guides/nemesis-remediation.md`, `docs/en/guides/nemesis-remediation.md`, `CHANGELOG.md`, `CHANGELOG.es.md`, `interop/**`, `docs/README.md`, `docs/en/README.md`
+- **Changelog**: Regresiones, revisión independiente y documentación bilingüe de la remediación; sin publicación npm ni release.
 - **Verificación**: tests dirigidos y regresiones del área; evidencia ejecutada en [testing/validation.md](testing/validation.md).
 
 **Criterios de aceptación**
