@@ -43,7 +43,9 @@ la lectura, puede mostrar **—** en lugar de un cero que no se ha comprobado.
 | Claude Code | agents --json --cwd | Sesiones activas expuestas por la CLI, interactivas y de fondo; hasta 200, no todo el histórico. |
 | OpenCode V2 | GET /api/session mediante lease privado | No archivadas, directory exacto; una página de 200 y aviso si quedan más. |
 
-No es necesario crear la sesión desde el dashboard para encontrarla. La raíz del
+No es necesario crear la sesión desde el dashboard para encontrarla. El runtime
+debe estar permitido en el registro del proyecto y su CLI compatible debe estar
+instalada en ese entorno. La raíz del
 proyecto debe coincidir y el dashboard debe ejecutarse en el **mismo ordenador y
 entorno de usuario** que guarda el estado nativo. Si abres el dashboard de otro
 ordenador, sólo ves las sesiones que ese servidor puede consultar allí. Windows,

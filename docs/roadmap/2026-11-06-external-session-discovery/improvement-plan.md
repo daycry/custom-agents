@@ -1,6 +1,6 @@
 ---
 plan: external-session-discovery
-estado: en-progreso
+estado: completado
 ---
 # Implementación
 

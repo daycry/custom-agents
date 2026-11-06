@@ -11,6 +11,13 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed — `external-session-discovery` initiative (2026-11-06)
+
+- **T-01 — Bounded native JSON capture.** Enforce output size, deadlines and successful exit while closing only transport-owned helpers.
+- **T-02 — Discovery across all three runtimes.** Find external Claude and OpenCode metadata while preserving Codex exact-cwd discovery; never start turns, adopt sessions or take over external chat.
+- **T-03 — Honest session counts.** Distinguish incomplete empty reads and failed refreshes from confirmed zero, retain native-identity deduplication and document local scope in English and Spanish.
+- **T-04 — Validated delivery.** Record complete regression CI, fresh independent reviews and Claude CLI triage without claiming validation on the user's other computer.
+
 ### Fixed — `nemesis-remediation` initiative (2026-11-06)
 
 - **T-01 — Safe Atlassian views.** Render provider metadata as text, serialize bounded configuration and keep roadmap labels inside one JQL literal.

@@ -43,7 +43,9 @@ has been observed and discovery fails, it may show **—** instead of an unverif
 | Claude Code | agents --json --cwd | Active interactive/background sessions exposed by the CLI; up to 200, not all history. |
 | OpenCode V2 | GET /api/session through a private lease | Non-archived, exact directory; one page of 200, partial if a cursor remains. |
 
-Sessions do not have to originate in the dashboard. The server must run on the
+Sessions do not have to originate in the dashboard. The runtime must be allowed
+in the project registry and its compatible CLI must be installed in that environment.
+The server must run on the
 same computer and user environment as the native state, with the exact registered
 project root. A dashboard on another machine sees that server's local inventory.
 Windows, WSL, containers and different user profiles can have separate stores.

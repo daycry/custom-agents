@@ -11,6 +11,13 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed — iniciativa `external-session-discovery` (2026-11-06)
+
+- **T-01 — Transporte JSON acotado y propio** Captura JSON nativa con tamaño, plazo y exit0 comprobados; cierre de auxiliares mediante propiedad del transporte existente. (`skills/plugin-panel/scripts/console_transport.py`, `tests/test_console_transport.py`)
+- **T-02 — Inventarios de los tres runtimes** Descubrir metadatos externos de Claude/OpenCode y conservar Codex exact-cwd; sin turnos, adopción ni control de sesiones externas.
+- **T-03 — Contadores y guía honesta** Distinguir lectura vacía incompleta de cero confirmado y conservar deduplicación; guías ES/EN de alcance local y versiones compatibles.
+- **T-04 — Validación y entrega** Regresión completa, revisión independiente y contraste con Claude CLI; evidencia local sin atribuir validación al otro ordenador. (`docs/roadmap/2026-11-06-external-session-discovery/**`, `docs/roadmap/README.md`, `CHANGELOG.md`)
+
 ### Fixed — iniciativa `nemesis-remediation` (2026-11-06)
 
 - **T-01 — Vistas Atlassian seguras** Metadatos Atlassian como texto, configuración JSON segura y etiquetas JQL confinadas al literal; renderer y referencias coherentes.

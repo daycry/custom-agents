@@ -1,6 +1,6 @@
 ---
 spec: external-session-discovery
-estado: aprobada
+estado: implementada
 ---
 # Sesiones nativas externas en el dashboard
 
