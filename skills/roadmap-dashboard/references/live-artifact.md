@@ -4,7 +4,7 @@
 
 Resuelve el helper `agent-kits/shared/render-artifact.py` con las raíces proyecto/usuario de Claude, Codex u OpenCode. El modo `jira-live` requiere JSON con `SERVER_SEARCH`, `CLOUD_ID`, `LABEL` y `TITULO`, todos strings. El filtro debe pertenecer a la iniciativa/cartera consultada.
 
-`python3 "$RENDERER" --template jira-live --config "$CONFIG_JSON"` emite HTML por stdout. También admite `--config -` y JSON por stdin. Publica esa salida con el tool de lectura indicado en `mcp_tools`. Los títulos, errores y metadatos se muestran como texto; no sustituyas marcadores ni construyas JavaScript con strings del proveedor.
+Guarda el JSON en un fichero y asigna su **ruta**, nunca el JSON inline, a `CONFIG_FILE`. `python3 "$RENDERER" --template jira-live --config "$CONFIG_FILE"` emite HTML por stdout. También admite `--config -` y JSON por stdin. Publica esa salida con el tool de lectura indicado en `mcp_tools`. Los títulos, errores y metadatos se muestran como texto; no sustituyas marcadores ni construyas JavaScript con strings del proveedor.
 
 Sin helper o soporte de artefactos, presenta un snapshot conversacional usando el adaptador. No improvises HTML ni establezcas polling.
 

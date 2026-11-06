@@ -52,7 +52,7 @@ def test_literal_template_delimiters_in_data_are_preserved():
  assert json.loads(html[start:html.index(';',start)])==data
 
 def test_Claude06_renderer_references_explicitly_pass_a_json_file_path():
- refs=[ROOT/'skills/jira-sync/references/destination-and-types.md',ROOT/'skills/confluence-publish/references/wizard.md']
+ refs=[ROOT/'skills/jira-sync/references/destination-and-types.md',ROOT/'skills/confluence-publish/references/wizard.md',ROOT/'skills/roadmap-dashboard/references/live-artifact.md']
  for ref in refs:
   text=ref.read_text(encoding='utf-8')
   assert '--config "$CONFIG_FILE"' in text

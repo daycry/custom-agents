@@ -112,3 +112,9 @@ Revisión sólo lectura con Claude Code 2.1.311 y Opus; sin Bash, red, MCP ni pe
 RED adicional: Claude-05, 1 passed/2 failed (comillas que amplían filtro y barra que cambia el valor); Claude-06, 1 failed por instrucciones de ruta ambiguas. Antes de las correcciones (2026-11-06). Claude-04/06: TDD n/a prosa; contrato dedicado. Los aspectos no confirmados por Claude (CSS con JS desactivado, compatibilidad de archivos upstream) están cubiertos por conversión real y lectura validada de los tres archivos fuente; no se ejecutaron herramientas externas.
 
 Ampliación técnica T-01: docs/atlassian-connector-notes.md describe la parametrización que este cambio sustituye; se actualiza para evitar reintroducir sustitución insegura. Criterios funcionales sin cambios.
+
+## Revisión de dos lentes — intento 3: Fase 1 (T-01–T-05) — sin Critical/Important
+
+Head 2bbfbc9, 44 archivos, A+B+C; D no aplica. B/C aprueban el literal JQL y conservan cierres previos. A confirma criterios y detecta un Minor residual de Claude-06: live-artifact.md aún usaba CONFIG_JSON ambiguo. Se amplió el mismo test dedicado a las tres referencias, se observó RED (1 failed) y se corrigió la tercera referencia a CONFIG_FILE con ruta explícita. GREEN posterior: 10 tests renderer y 17 tools. Corrección sólo de prosa/test, sin cuarta ronda ni código funcional nuevo; Minor cerrado por evidencia. No quedan gaps de revisión aceptados pendientes.
+
+Los revisores ejecutaron contratos dirigidos (27 Python, 3 JQL) y A comprobó scope/ledger-lint/interop sin incidencias. CI y entrega continúan en T-05.
