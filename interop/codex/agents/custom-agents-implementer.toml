@@ -59,7 +59,7 @@ Lee `agent-kits/shared/ledger-write.md` al escribirlo: writer preferente, obliga
 - Actualiza también la **tabla de resumen de progreso** (completadas/total, %) de `tasks.md`.
 - No lleves un registro paralelo como verdad. Si usas una todo-list interna o un ledger propio, es **espejo** de `tasks.md`, nunca la fuente. (Aplica también si en algún momento interviene un orquestador SDD externo: `tasks.md` manda; ver `docs/CONVENTIONS.md`.)
 
-**Transiciones de estado (no dejar en `borrador`).** Al **arrancar**, pon el plan y la fase activa en `en-progreso`. Por tarea: `en-progreso` al empezarla, `completado` al cumplir sus criterios; marca la fase `completado` al cerrar sus tareas. Cuando termine la implementación del plan y `qa` quede en verde, en el cierre del ciclo el plan pasa a `completado` y la spec a `implementada` (lo coordina `/dev-cycle`; si trabajas suelto, aplícalo igual). Ver regla 7 de `docs/CONVENTIONS.md`.
+**Transiciones de estado y autoridad.** Tú mantienes los estados de tareas y de la fase activa en `tasks.md`. Las transiciones del plan y de la spec pertenecen a `/dev-cycle`: entrega evidencia y el handoff aunque trabajes suelto. El cierre exige revisión válida, QA verde y la puerta de retro; QA por sí sola no permite marcar la spec `implementada`. No cambies esos estados fuera de la autoridad del orquestador. Ver regla 7 de `docs/CONVENTIONS.md` y `docs/agents/ROLES.md`.
 
 ---
 

@@ -172,28 +172,14 @@ def _error(mensaje, fichero, campo):
     return {"mensaje": mensaje, "fichero": fichero, "campo": campo}
 
 
-def _drenar_outbox_propia(ob, adaptador, cfg, dir_outbox, backend_id):
-    """gap 128 (fix3, Critical): antes de escribir/reclamar el envelope FRESCO de esta corrida,
-    drena la cola de envelopes PENDIENTES de este MISMO backend cuyo backoff ya venció —
-    `reclamar()` ya se encarga de saltarse los que siguen en `no_antes_de` futuro. Antes de esta
-    función, un envelope reencolado tras un fallo de `apply()` (gap 116) NUNCA se volvía a aplicar:
-    `main()` solo publicaba los `ops` frescos de la corrida actual, así que un fallo transitorio
-    dejaba el envelope reencolado atascándose en la cola para siempre (o, peor, tratado como
-    "ajeno" en cada corrida futura vía `ceder_paso` — cortesía sin incrementar intentos, sin
-    llegar NUNCA a `MAX_INTENTOS` ni a dead-letter: la deuda declarada en el gap 116/120 que este
-    gap 128 supera).
+def _drenar_outbox_propia(ob, adaptador, cfg, dir_outbox, backend_id, *, current_entries=None, backend_type=None):
+    """Recover our queue using current authorization, never queued publication bodies.
 
-    Reintenta cada envelope propio (`payload.get("backend") == backend_id`) aplicando
-    `item["payload"]["ops"]` (NUNCA los `ops` frescos de esta corrida — sería aplicar la sync
-    incorrecta): éxito -> `completar()`; fallo -> `reencolar_o_dead_letter(..., backoff=True)`, que
-    SÍ incrementa `intentos` y cae a dead-letter con la causa REAL al llegar a `MAX_INTENTOS`
-    (a diferencia de `ceder_paso`, reservado para lo ajeno). Un envelope de OTRO backend/productor
-    (payload sin `backend` o con uno distinto, incluida una `clave` que no seguimos nosotros) NI SE
-    TOCA para aplicar NI CUENTA para el tope de vueltas de este drenaje: se cede el paso con
-    `ob.ceder_paso` (gap 120, ya no reimplementado a mano aquí) y se sigue mirando el siguiente.
-    Acotado a `_MAX_DRENAJE` vueltas totales (propias+ajenas) para no bloquear la corrida si la
-    cola tiene una acumulación patológica; `--outbox-status` sigue disponible para inspeccionarla.
-    Devuelve `(drenados, fallidos, cedidos)`."""
+    Adapter planning reconciles partial receipts against currently approved/routed
+    entries. A queue envelope is a retry signal, not continuing publication consent.
+    Without a current snapshot we refuse to send. Foreign producers retain courtesy
+    backoff; real failures retain the bounded retry/dead-letter policy.
+    """
     drenados = fallidos = cedidos = 0
     for _ in range(_MAX_DRENAJE):
         item = ob.reclamar(dir_outbox)
@@ -205,7 +191,10 @@ def _drenar_outbox_propia(ob, adaptador, cfg, dir_outbox, backend_id):
             cedidos += 1
             continue
         try:
-            resultado = adaptador.apply(payload["ops"], cfg)
+            if current_entries is None:
+                raise ValueError('current approved/routing snapshot required before replay')
+            ops = adaptador.plan(current_entries, cfg)
+            resultado = adaptador.apply(ops, cfg) if ops else {'obsolete_queue': True}
         except Exception as e:  # noqa: BLE001 - un fallo del adaptador se registra, no tumba el CLI
             ob.reencolar_o_dead_letter(item, _causa(e), backoff=True)  # gap #72: saneada
             fallidos += 1
@@ -519,7 +508,7 @@ def main(argv=None):
         # gap 116) — sin esto, un envelope reencolado no se volvía a aplicar NUNCA, solo se le "cedía
         # el paso" indefinidamente sin llegar a `MAX_INTENTOS`.
         if os.path.isdir(dir_outbox):
-            drenados, fallidos_drenaje, _cedidos = _drenar_outbox_propia(ob, adaptador, cfg, dir_outbox, args.backend)
+            drenados, fallidos_drenaje, _cedidos = _drenar_outbox_propia(ob, adaptador, cfg, dir_outbox, args.backend, current_entries=entradas, backend_type=tipo)
             if drenados or fallidos_drenaje:
                 print(f"knowledge-sync: drenaje de la outbox propia — {drenados} completado(s), "
                       f"{fallidos_drenaje} reencolado(s)/dead-letter", file=sys.stderr)

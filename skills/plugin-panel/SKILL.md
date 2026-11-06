@@ -51,8 +51,8 @@ Usa autenticación y políticas nativas existentes, sin opciones para saltar per
 Expón las capacidades y límites observados. No prometas controlar ventanas Desktop
 ni importar todas las sesiones de un runtime si su adaptador no lo acredita.
 
-El inventario externo Codex usa metadatos indexados del cwd registrado, sin turnos
-ni control de esas sesiones. Distingue ausencia, lectura parcial y proveedor sin
+El inventario externo usa metadatos nativos del cwd registrado, sin turnos
+ni control de esas sesiones: Codex indexado, Claude activo y OpenCode V2 no archivado. Distingue ausencia, lectura parcial y proveedor sin
 soporte. Para diagnosticar captura o sesiones ausentes, consulta la
 [guía de visibilidad](../../docs/guides/session-visibility.md).
 

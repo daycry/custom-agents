@@ -1,0 +1,29 @@
+custom-agents: dual-use security functionality
+
+This package is a development assistant plugin and an explicit-command installer
+for Claude Code, Codex and OpenCode. It includes security audit instructions,
+local/private-target pentest helpers, security scanner orchestration, dependency
+and secret scanning guidance, and examples used to verify defensive controls.
+These capabilities can resemble offensive tooling and are declared as dual-use.
+
+The intended legitimate use is authorized assessment and improvement of systems
+owned by the operator or covered by explicit permission. Active testing helpers
+are restricted to local/private targets. Scanner installation and external service
+access follow the documented permission and configuration workflows. These
+restrictions do not replace the operator's responsibility to obtain authorization.
+
+Running the installer explicitly can write provider configuration and plugin
+files and invoke provider CLIs. Installed hooks execute local helper processes.
+The optional local dashboard can start and control native assistant sessions;
+configured integrations can publish approved project knowledge or task updates to
+selected services. These are runtime features, not npm install lifecycle scripts.
+The package defines no preinstall, install or postinstall lifecycle script.
+
+Security artifacts are kept separate from normal documentation publication.
+Session journaling and knowledge publication are documented features with privacy
+controls, bounded data handling and explicit integration configuration. This
+disclosure describes intended functionality; it is not a claim that every defect
+has been eliminated or a substitute for reviewing the source and configuration.
+
+Source and security documentation: https://github.com/daycry/custom-agents
+License: Apache-2.0

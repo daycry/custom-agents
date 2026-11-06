@@ -15,6 +15,20 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_security_tooling_declares_dual_use_content_for_npm_review():
+    manifest = json.loads((ROOT / 'package.json').read_bytes())
+    assert manifest.get('contentPolicy') == {'class': 'dual-use'}
+    assert 'DISCLOSURE' in manifest['files']
+    disclosure = (ROOT / 'DISCLOSURE').read_text(encoding='utf8')
+    assert 'authorized' in disclosure and 'security' in disclosure
+
+
+def test_published_payload_contains_dual_use_disclosure(npm_payload):
+    package, _ = npm_payload
+    assert json.loads((package / 'package.json').read_bytes())['contentPolicy'] == {'class': 'dual-use'}
+    assert (package / 'DISCLOSURE').read_bytes() == (ROOT / 'DISCLOSURE').read_bytes()
+
+
 @pytest.fixture(scope="module")
 def npm_payload(tmp_path_factory):
     sandbox = tmp_path_factory.mktemp("npm-payload")

@@ -1,7 +1,7 @@
 // Shared launcher for Claude Code, Codex and OpenCode. No shell interprets the payload.
 import { spawn, spawnSync } from 'node:child_process';
 import { constants, closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readSync } from 'node:fs';
-import { dirname, delimiter, join } from 'node:path';
+import { dirname, delimiter, join, resolve, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // child-budget:start — child budget per hook; tests/hook-budget.test.mjs evaluates this block.
@@ -218,13 +218,17 @@ function postPaths(payload) {
 }
 
 function postApplies(paths) {
+  const project=resolve(env.CLAUDE_PROJECT_DIR || process.cwd());
   return paths.some(path => {
-    const value = path.replaceAll('\\', '/');
-    if (hook === 'mark-docs-pending.sh') return value.includes('docs/')
-      && !value.includes('docs/security-scan/') && !value.includes('docs/confluence/');
-    return value.includes('docs/roadmap/') && value.endsWith('tasks.md');
+    const local=relative(project,resolve(project,path.replaceAll('\\','/')));
+    if(isAbsolute(local) || local==='..' || local.startsWith('..'+sep))return false;
+    const value=local.split(sep).join('/');
+    if(hook==='mark-docs-pending.sh')return value.startsWith('docs/')
+      && !value.startsWith('docs/security-scan/') && !value.startsWith('docs/confluence/');
+    return value.startsWith('docs/roadmap/') && value.split('/').at(-1)==='tasks.md';
   });
 }
+
 
 function markDocumentation() {
   const directory = join(env.CLAUDE_PROJECT_DIR || process.cwd(), '.claude');

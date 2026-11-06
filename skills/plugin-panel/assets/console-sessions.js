@@ -34,6 +34,7 @@ export function createSessions(app){
    const name=providers[source.runtime]||source.runtime
    const label=source.status==='unsupported'?'sin descubrimiento externo':source.status==='ok'?'inventario leído':source.status==='partial'?'lectura parcial':'inventario no disponible'
    sources.append(el('span',name+' · '+label,'pill'))
+   if(source.scope==='native_active_exact_cwd')sources.append(el('small','Claude: sesiones activas expuestas por su CLI; no es todo el histórico.','small-muted'))
    if(source.observed_at)sources.append(el('small','Leído: '+time(source.observed_at),'small-muted'))
    if(source.reason==='native_inventory_limit')sources.append(el('p','Se ha alcanzado el límite de 200 sesiones; el listado es parcial.','small-muted'))
   }
@@ -42,7 +43,7 @@ export function createSessions(app){
   for(const row of rows){
    const card=el('article',undefined,'native-session-card')
    card.append(provider(row.runtime),el('h3',row.title),el('span','Estado no confirmado','pill'),
-    el('p','Última actualización: '+time(row.updated_at),'small-muted'),el('code',row.id))
+    el('p',row.updated_at?'Última actualización: '+time(row.updated_at):'Inicio: '+time(row.created_at),'small-muted'),el('code',row.id))
    if(row.role)card.append(el('p','Rol informado: '+row.role,'small-muted'))
    if(row.parent_id)card.append(el('p','Subagente de '+row.parent_id,'small-muted'))
    grid.append(card)

@@ -117,7 +117,7 @@ bash "$NEMKIT/tools/check-tools.sh"   # lista Instaladas/Faltan; exit code = nº
 - **Faltan 0** → toolkit completo, continúa.
 - **Faltan algunas** → **para y pide permiso al usuario**: muéstrale la lista exacta de las que faltan (con qué aporta cada una, del output de `check-tools.sh`) y pregunta si quiere que las instale. **No instales hasta que confirme.** Solo si acepta:
   ```bash
-  bash "$NEMKIT/tools/install-tools.sh"   # idempotente: instala SOLO las que faltan
+  bash "$NEMKIT/tools/install-tools.sh" --only "<nombres-autorizados-separados-por-coma>"
   ```
   Tras instalar, vuelve a correr `check-tools.sh` para confirmar.
 - **El usuario declina** → continúa con lo disponible. El harness propio `active-scan.sh` funciona **solo con curl**; declara en el informe (`tools_used`) qué tools no se ejecutaron y marca esas áreas como cobertura parcial.
@@ -165,7 +165,7 @@ Si no hay `php`, usa el fallback: `node`/`python` para inyectar el JSON en `__AU
 
 **F7. Cierre** — actualiza `STATE.md` + `MEMORY.md` (fase 1). `Estado: actualizado`.
 
-**F8. Handoff a remediación (opcional) — conecta con la cadena.** Si hay hallazgos **High/Critical**, ofrece (sin imponer) convertir la remediación en trabajo del roadmap: proponer una iniciativa por hallazgo o grupo, tomando requisitos con **`analyst`** (o creando la `spec.md` directamente en `docs/roadmap/<fecha>-<slug>/` con la plantilla del `evaluator`), para que siga la cadena normal `evaluator → planner → implementer → qa`. Es un puente, no una obligación: tú auditas y señalas; la remediación la decide el usuario. **Nunca** vuelques hallazgos con evidencia sensible fuera de `docs/security-scan/` (en la spec va la descripción del problema y la corrección, no los secretos redactados).
+**F8. Handoff a remediación (opcional) — conecta con la cadena.** Si hay hallazgos **High/Critical**, ofrece (sin imponer) convertir la remediación en trabajo del roadmap: proponer una iniciativa por hallazgo o grupo, tomando requisitos con **`analyst`**; `analyst` es quien crea la spec saneada del roadmap, para que siga la cadena normal `evaluator → planner → implementer → qa`. Es un puente, no una obligación: tú auditas y señalas; la remediación la decide el usuario. **Nunca** vuelques hallazgos con evidencia sensible fuera de `docs/security-scan/` (en la spec va la descripción del problema y la corrección, no los secretos redactados).
 
 ---
 
@@ -182,7 +182,7 @@ Regla general que sí aplicas siempre: cada match de una tool → un finding nor
 
 ## 6) REGLAS
 - No inventes hallazgos: si una tool no corrió (no instalada), decláralo en el informe (`tools_used`) y marca el área como parcialmente cubierta.
-- No toques código del proyecto auditado (solo lees). Los únicos ficheros que escribes son los de `docs/security-scan/`.
+- No toques código del proyecto auditado (solo lees). Escribe los artefactos únicamente en `docs/security-scan/`; la única excepción es añadir la línea exacta `docs/security-scan/` al `.gitignore` raíz, conservando todas sus otras reglas. No crees specs directamente: deriva la remediación a `analyst`.
 - Un solo formato de informe: siempre `template.html`. No improvises HTML por scan.
 - Cierra SIEMPRE con bookends. Si el usuario no dio target local, entrega solo-SAST y anótalo.
 

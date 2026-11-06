@@ -1,12 +1,14 @@
 """Owned JSON pipe transport with bounded frames, queues and request deadlines."""
 import ctypes
 import importlib.util
+import io
 import os
 from pathlib import Path
 import queue
 import signal
 import subprocess
 import threading
+import time
 
 _spec=importlib.util.spec_from_file_location('console_transport_common',Path(__file__).with_name('console_common.py'))
 C=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(C)
@@ -118,8 +120,10 @@ class LineProcess:
         self._notify(code);self.close()
     def _read(self):
         try:
+            stream=self.process.stdout
+            if not isinstance(stream,io.BufferedIOBase):stream=io.BufferedReader(stream)
             while not self.closing:
-                raw=self.process.stdout.readline(MAX_LINE+1)
+                raw=stream.readline(MAX_LINE+1)
                 if not raw:break
                 if len(raw)>MAX_LINE or not raw.endswith(b'\n'):
                     self._fail('native_output_budget');return
@@ -134,8 +138,10 @@ class LineProcess:
             if not self.closing:self._fail('native_closed')
     def _stderr(self):
         try:
+            stream=self.process.stderr
+            if not isinstance(stream,io.BufferedIOBase):stream=io.BufferedReader(stream)
             while not self.closing:
-                raw=self.process.stderr.readline(4096)
+                raw=stream.readline(4096)
                 if not raw:return
                 self.last_error=C.scrub(raw.decode('utf-8',errors='replace'),self.cwd,500)
         except (OSError,ValueError):pass
@@ -226,3 +232,33 @@ class JsonPeer:
             with self.lock:self.pending.pop(key,None)
     def close(self):
         self._exit('native_closed');self.process.close()
+
+
+class JsonCommand(LineProcess):
+    """Finite native metadata command; same process-tree ownership as RPC pipes."""
+    def _read(self):
+        try:
+            stream=self.process.stdout
+            if not isinstance(stream,io.BufferedIOBase):stream=io.BufferedReader(stream)
+            raw=stream.read(1024*1024+1)
+            C.need(len(raw)<=1024*1024,'native_output_budget',503)
+            self.on_message(C.json_load(raw))
+        except Exception:self._notify('native_inventory_invalid')
+
+
+def capture_json(argv,cwd,*,timeout=4,process_factory=None):
+    """Capture bounded JSON only from an owned, successful, noninteractive process."""
+    C.need(type(timeout) in (int,float) and 0<timeout<=12,'invalid_native_timeout')
+    event=threading.Event();result={};deadline=time.monotonic()+timeout
+    def receive(value):result['value']=value;event.set()
+    def failed(code):result['error']=code;event.set()
+    process=(process_factory or JsonCommand)(argv,cwd,receive,failed)
+    try:
+        process.start()
+        C.need(event.wait(max(.01,deadline-time.monotonic())) and 'error' not in result
+               and 'value' in result,'native_inventory_unavailable',503)
+        try:code=process.process.wait(timeout=max(.01,deadline-time.monotonic()))
+        except subprocess.TimeoutExpired:raise C.ConsoleError('native_request_timeout',503) from None
+        C.need(code==0,'native_request_failed',503)
+        return result['value']
+    finally:process.close()

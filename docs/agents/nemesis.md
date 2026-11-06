@@ -28,7 +28,7 @@ La idea central: `nemesis` es el director de orquesta. Llama a la skill para lee
 
 ### Reglas invariantes (no negociables)
 
-El guardrail de autorización es el pilar del sistema. El componente activo (DAST) solo se dispara contra hosts locales o privados: `localhost`, `127.0.0.1`, `::1`, `*.test`, `*.local`, `*.internal`, y rangos privados (`10.x`, `172.16-31.x`, `192.168.x`, `169.254.x`, `host.docker.internal`). Cualquier objetivo externo se rechaza a nivel de script vía `lib-guardrail.sh`. La explotación SQLi activa con `sqlmap` requiere opt-in explícito del usuario sobre un parámetro concreto. Toda evidencia con secretos se redacta (`first4****last4`). Además, el agente nunca instala herramientas en silencio ni modifica el código del proyecto auditado: solo escribe en la carpeta `docs/security-scan/`.
+El guardrail de autorización es el pilar del sistema. El componente activo (DAST) solo se dispara contra hosts locales o privados: `localhost`, `127.0.0.1`, `::1`, `*.test`, `*.local`, `*.internal`, y rangos privados (`10.x`, `172.16-31.x`, `192.168.x`, `169.254.x`, `host.docker.internal`). Cualquier objetivo externo se rechaza a nivel de script vía `lib-guardrail.sh`. La explotación SQLi activa con `sqlmap` requiere opt-in explícito del usuario sobre un parámetro concreto. Toda evidencia con secretos se redacta (`first4****last4`). Además, el agente nunca instala herramientas en silencio ni modifica el código del proyecto auditado: escribe artefactos en `docs/security-scan/`, con la única excepción de añadir su exclusión exacta al `.gitignore` raíz.
 
 ---
 
@@ -98,8 +98,8 @@ La skill se apoya en una amplia biblioteca de referencias en `skills/cybersecuri
 | Archivo | Función |
 |---------|---------|
 | `check-tools.sh` | Comprueba qué herramientas están instaladas (exit code = nº que faltan). |
-| `install-tools.sh` | Instalador cross-platform e idempotente; instala solo lo que falta. |
-| `pick_asset.py` | Selecciona el binario de release correcto según OS/arquitectura. |
+| `install-tools.sh` | Wrapper Python 3.10+; instala sólo nombres autorizados de un catálogo con hashes. |
+| `pick_asset.py` | Utilidad de mantenimiento de assets; el instalador usa exclusivamente el lock revisado. |
 | `lib-guardrail.sh` | Gate de autorización: solo permite hosts locales/privados. |
 | `active-scan.sh` | Harness DAST propio, sin dependencias (solo curl). |
 | `run-external.sh` | Wrappers guardrailed de nuclei, httpx, testssl, nikto, wafw00f, sqlmap (DAST). |
@@ -109,12 +109,12 @@ La skill se apoya en una amplia biblioteca de referencias en `skills/cybersecuri
 **Biblioteca de herramientas** (todas open-source, uso defensivo):
 
 - **Binarios de release** (por OS/arch): `nuclei` (plantillas), `httpx` (fingerprint), `ffuf` (contenido), `gitleaks` (secretos), `trivy` (SCA de dependencias → `deps`), `hadolint` (lint de Dockerfile → `iac`).
-- **Herramientas de script** (git clone + runtime): `testssl.sh` (TLS), `sqlmap` (SQLi, opt-in), `nikto` (servidor).
-- **Paquetes pip**: `wafw00f` (detección de WAF).
+- **Herramientas de script** (archivo del commit fijado, SHA-256 y runtime): `testssl.sh` (TLS), `sqlmap` (SQLi, opt-in), `nikto` (servidor).
+- **Wheels Python con hashes**, en destino privado: `wafw00f` (detección de WAF).
 
 `trivy` y `hadolint` son **estáticos** (escanean el árbol del proyecto): corren en la fase SAST vía `run-static.sh`, no contra un host, y sus hallazgos se funden en las áreas ya existentes `deps` e `iac` (sin cambios de esquema ni de informe). `trivy` descarga su BD de CVEs en el primer uso.
 
-Los binarios viven en `~/.claude/security-tools/`, fuera del repo y gitignored.
+Los binarios viven en `~/.claude/security-tools/`, fuera del repo y gitignored. El catálogo es `tools-lock.json`; versiones, migración y mantenimiento están en [la guía de remediación](../guides/nemesis-remediation.md). `--force` no sobrescribe archivos ajenos o modificados.
 
 ### `report/` — generación del informe
 
@@ -164,3 +164,7 @@ Aplica la [disciplina compartida](../../agent-kits/shared/read-discipline.md):
 reutiliza navegación vigente, consulta fuentes pertinentes y conserva todos los
 criterios y gates del rol. Los recibos no sustituyen análisis, aprobación o tests.
 [Medición y ejemplos](../TOKEN-EFFICIENCY.md).
+
+### Límites de escritura y remediación
+
+Nemesis escribe sus artefactos en `docs/security-scan/**`. Puede añadir únicamente la línea `docs/security-scan/` al `.gitignore` raíz, conservando las reglas existentes. Si hay que crear una spec de remediación, hace handoff a `analyst` con información saneada; no crea la spec ni copia evidencias sensibles al roadmap.

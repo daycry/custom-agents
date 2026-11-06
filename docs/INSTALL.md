@@ -179,6 +179,8 @@ npm publish ./dist/daycry-custom-agents-X.Y.Z.tgz --access public --tag latest -
 npm view @daycry/custom-agents@X.Y.Z version dist.integrity --json --registry=https://registry.npmjs.org
 ```
 
+Este paquete declara contenido dual-use: la publicación directa exige sesión interactiva con 2FA. Automatización y OIDC requieren staging y promoción con 2FA. Consulta la [política específica de npm](https://docs.npmjs.com/policies/dual-use/).
+
 Sustituye `X.Y.Z` por la versión exacta de `package.json`. Antes de publicar, ejecuta `python -m pytest tests/test_npm_payload.py -q`: prueba el tgz extraído, la proyección de modelos y los PDF enlazados. Compara `dist.integrity` con el valor del `npm pack` y verifica que `npm view @daycry/custom-agents dist-tags --json` anuncia la versión deseada como `latest`. `--version` o `--help` sobre ese tgz permiten una comprobación adicional sin instalar el plugin en perfiles reales.
 
 Si `whoami` devuelve E401, renueva la sesión con `npm login --registry=https://registry.npmjs.org`. Completa la autenticación y cualquier comprobación de 2FA en npm; no guardes credenciales ni códigos en el repositorio. Un pack o dry-run correcto no acredita publicación. Si una versión ya existe, comprueba su integridad; no intentes sobrescribirla. Referencias: [npm publish](https://docs.npmjs.com/cli/v11/commands/npm-publish/) y [publicación de paquetes públicos con scope](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/).
@@ -330,3 +332,8 @@ El plugin mide el **coste** (tokens/€/horas por artefacto y tarea — `usage-m
 **actividad de sesión en vivo** (herramientas, subagentes, kanban) puedes instalar al lado un
 monitor externo como Claude-Code-Agent-Monitor: los hooks de ambos conviven sin interferirse.
 Detalle y chuleta de "dónde mirar cada cosa": [`observability.md`](observability.md).
+
+
+### Propiedad, recuperación y revisión npm
+
+Consulta la [guía de seguridad y recuperación](guides/audit-remediation.md): inventarios firmados, conciliación de instalaciones antiguas, declaración de doble uso, publicación con 2FA y apelaciones de npm. Empaquetar no acredita aprobación del registro.

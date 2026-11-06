@@ -10,6 +10,17 @@ MAX_BYTES = 256 * 1024
 _WINDOWS_READ = os.name == 'nt'
 
 
+def check_json_depth(data, maximum=32):
+    """Enforce a structural budget independently of JSON parser/encoder recursion."""
+    pending = [(data, 0)]
+    while pending:
+        value, depth = pending.pop()
+        if depth > maximum:
+            raise RecursionError('JSON nesting budget exceeded')
+        children = value.values() if isinstance(value, dict) else value if isinstance(value, list) else ()
+        pending.extend((child, depth + 1) for child in children if isinstance(child, (dict, list)))
+
+
 class _ReadStatus(ValueError):
     """Only deliberately assigned status codes may leave this module."""
 

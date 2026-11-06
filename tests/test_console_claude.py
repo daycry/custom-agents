@@ -61,3 +61,56 @@ def test_user_question_returns_answers_without_running_a_tool_automatically(tmp_
     assert out[-1]['type']=='question' and out[-1]['fields'][0]['id']=='q-0'
     d.answer('r2',{'answers':{'q-0':'One'}})
     assert d.process.sent[-1]['response']['response']['updatedInput']['answers']=={'Which option?':'One'}
+
+
+def test_external_terminal_metadata_is_scoped_without_prompt_or_transcript_access(tmp_path):
+    module=api();discover=getattr(module,'discover',None)
+    assert callable(discover),'Claude external session discovery is missing'
+    calls=[];ident=str(uuid.uuid4())
+    def capture(argv,root,**kwargs):
+        calls.append((argv,root))
+        return [{'cwd':str(tmp_path),'kind':'interactive','sessionId':ident,'startedAt':1000,'pid':123,'name':'Terminal session','prompt':'PRIVATE-CANARY'},
+                {'cwd':str(tmp_path/'foreign'),'kind':'interactive','sessionId':str(uuid.uuid4()),'startedAt':1000,'name':'FOREIGN-CANARY'}]
+    result=discover(SimpleNamespace(root=tmp_path),capture=capture,command=['native-claude'])
+    assert [s['id'] for s in result['sessions']]==[ident]
+    assert result['sessions'][0]['read_only'] is True
+    assert 'PRIVATE-CANARY' not in str(result) and 'FOREIGN-CANARY' not in str(result)
+    argv,root=calls[0]
+    assert argv[:3]==['native-claude','agents','--json'] and '--cwd' in argv
+    assert '--resume' not in argv and '--print' not in argv and '--all' not in argv
+    assert root==tmp_path
+
+def test_external_unnamed_terminal_uses_observed_process_identity_without_claiming_chat_control(tmp_path):
+    module=api();discover=getattr(module,'discover',None)
+    assert callable(discover),'Claude external session discovery is missing'
+    row={'cwd':str(tmp_path),'kind':'interactive','startedAt':1000,'pid':123}
+    result=discover(SimpleNamespace(root=tmp_path),capture=lambda *a,**k:[row],command=['native'])
+    assert len(result['sessions'])==1
+    assert result['sessions'][0]['id'].startswith('observed-')
+    assert result['sessions'][0]['status']=='unconfirmed'
+
+def test_external_discovery_failure_never_reports_complete_empty_inventory(tmp_path):
+    module=api();discover=getattr(module,'discover',None)
+    assert callable(discover),'Claude external session discovery is missing'
+    def broken(*args,**kwargs):raise ValueError('PRIVATE-CANARY')
+    result=discover(SimpleNamespace(root=tmp_path),capture=broken,command=['native'])
+    assert result['status']=='unavailable' and result['complete'] is False
+    assert 'PRIVATE-CANARY' not in str(result)
+
+
+def test_external_inventory_is_bounded_and_invalid_native_shapes_fail_explicitly(tmp_path):
+    discover=api().discover
+    rows=[{'cwd':str(tmp_path),'kind':'interactive','sessionId':str(uuid.uuid4()),'startedAt':1000} for _ in range(201)]
+    result=discover(SimpleNamespace(root=tmp_path),capture=lambda *a,**k:rows,command=['native'])
+    assert len(result['sessions'])==200 and result['reason']=='native_inventory_limit' and not result['complete']
+    for invalid in ({'agents':[]},[{'cwd':str(tmp_path),'kind':'interactive','sessionId':'invalid','startedAt':1000}]):
+        result=discover(SimpleNamespace(root=tmp_path),capture=lambda *a,**k:invalid,command=['native'])
+        assert not result['complete'] and result['sessions']==[]
+
+
+def test_native_background_without_uuid_or_live_pid_keeps_its_native_job_identity(tmp_path):
+    value={'cwd':str(tmp_path),'kind':'background','id':'job-one','startedAt':1000,'state':'blocked','name':'Pending background session'}
+    result=api().discover(SimpleNamespace(root=tmp_path),capture=lambda *a,**k:[value],command=['native'])
+    assert len(result['sessions'])==1,'Valid native background metadata was omitted without UUID/PID'
+    assert result['sessions'][0]['id']=='observed-background-job-one'
+    assert result['sessions'][0]['read_only'] is True

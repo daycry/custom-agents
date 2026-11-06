@@ -5,7 +5,7 @@ Referencia **única** de los comportamientos del conector que las skills (`confl
 real (2026-07). Si el conector cambia, actualiza AQUÍ y revisa las skills que lo citan.
 
 ## Generales
-- Los nombres de herramienta llevan prefijo `mcp__<uuid>__…`; el uuid varía por instalación. Resuélvelos en runtime, no los persistas en plantillas (usa marcadores `{{SERVER_*}}`).
+- Los nombres de herramienta llevan prefijo `mcp__<uuid>__…`; el uuid varía por instalación. Resuélvelos en runtime, no los persistas en plantillas (pasa la configuración JSON al helper `agent-kits/shared/render-artifact.py`; no sustituyas marcadores en HTML).
 - `cloudId` se obtiene de `getAccessibleAtlassianResources` (acepta también el hostname del site).
 
 ## Jira
@@ -25,3 +25,5 @@ real (2026-07). Si el conector cambia, actualiza AQUÍ y revisa las skills que l
 ## Artefactos (Cowork)
 - `window.cowork.callMcpTool(name, args)` devuelve `{content, structuredContent, isError}`; lee `structuredContent ?? JSON.parse(content[0].text)`.
 - Solo en Cowork/escritorio hay host de artefactos; en CLI/VS Code las skills usan su modo conversacional.
+
+Serialización local de artefactos actualizada el 2026-11-06; no supone una nueva prueba contra el servicio Atlassian.

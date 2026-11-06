@@ -2,13 +2,13 @@
 
 [English](../en/guides/session-visibility.md) · **Español**
 
-**Actualizado: 2026-11-02 · cambio de Sin publicar, posterior a v3.0.0.**
+**Actualizado: 2026-11-06 · cambio de Sin publicar, posterior a v3.0.0.**
 
 Abre **Sesiones** para encontrar conversaciones del proyecto. Abre **Actividad**
 para consultar agentes identificados, señales de sesión y herramientas recibidas.
 El dashboard muestra lo observado; una tarjeta no demuestra que un proceso siga vivo.
 
-## Encontrar la conversación abierta en Codex
+## Encontrar una sesión abierta en otro terminal
 
 1. Selecciona el proyecto cuya raíz coincide con el directorio de trabajo de la conversación.
 2. Entra en **Sesiones** y espera a que termine la consulta del inventario nativo.
@@ -23,7 +23,7 @@ El dashboard muestra lo observado; una tarjeta no demuestra que un proceso siga 
 | Conversación de la consola | La consola creó o conoce la conexión nativa | Abre su conversación y usa los controles disponibles |
 | Lectura parcial | Un límite o error impidió completar la consulta | Interpreta el listado como una muestra, no como el total |
 | Inventario no disponible | No se pudo confirmar la lectura | Consulta el diagnóstico; no equivale a cero sesiones |
-| Sin descubrimiento externo | Claude Code/OpenCode no ofrecen este inventario en esta versión | Sus conexiones propias y hooks pueden seguir mostrando actividad |
+| Sin descubrimiento externo | El runtime instalado no ofrece una interfaz compatible o no pudo leerse | Sus conexiones propias y hooks pueden seguir mostrando actividad |
 
 El inventario Codex consulta metadatos indexados y no archivados del **directorio
 exacto** registrado, con un máximo de 200 resultados. No incluye automáticamente
@@ -34,6 +34,52 @@ El contador **Sesiones** combina conexiones propias y sesiones externas observad
 Deduplica por proveedor e identidad nativa: una conversación conocida por ambas
 vías cuenta una vez. No cuenta procesos activos. Si no hay observaciones y falla
 la lectura, puede mostrar **—** en lugar de un cero que no se ha comprobado.
+
+## Qué sesiones puede encontrar cada runtime
+
+| Runtime | Interfaz de metadatos | Alcance |
+|---|---|---|
+| Codex | app-server, thread/list | Indexadas, no archivadas, cwd exacto, hasta 200 y cuatro páginas. |
+| Claude Code | agents --json --cwd | Sesiones activas expuestas por la CLI, interactivas y de fondo; hasta 200, no todo el histórico. |
+| OpenCode V2 | GET /api/session mediante lease privado | No archivadas, directory exacto; una página de 200 y aviso si quedan más. |
+
+No es necesario crear la sesión desde el dashboard para encontrarla. El runtime
+debe estar permitido en el registro del proyecto y su CLI compatible debe estar
+instalada en ese entorno. La raíz del
+proyecto debe coincidir y el dashboard debe ejecutarse en el **mismo ordenador y
+entorno de usuario** que guarda el estado nativo. Si abres el dashboard de otro
+ordenador, sólo ves las sesiones que ese servidor puede consultar allí. Windows,
+WSL, contenedores o perfiles de usuario pueden tener almacenes diferentes.
+
+Una sesión recién abierta de Claude puede no tener aún UUID. En ese caso, el panel
+utiliza una identidad observada del proceso y su inicio para mostrarla; no la adopta
+para chatear. Un trabajo de fondo sin UUID o PID puede conservar el ID corto
+que comunica el runtime, con una identidad observada de sólo lectura. Si falta
+la fecha de actualización, muestra el inicio comunicado.
+Las fechas de lectura describen cuándo se consultó, no cuándo trabajó el agente.
+
+Si una versión antigua de Claude no reconoce agents --json, actualiza el runtime o
+continúa en el terminal; no se intenta leer transcripts como alternativa. Si hay
+fallos, el contador vacío es **—**. Cero sólo se muestra después de una lectura
+completa. Si ya hay sesiones observadas, el número es lo encontrado, no un total
+certificado mientras la lectura sea parcial. El filtrado y la deduplicación conservan
+las conexiones propias de la consola sin duplicarlas.
+
+Comprobación manual en el equipo del dashboard, desde la raíz del proyecto:
+
+```bash
+claude agents --json --cwd "/ruta/al/proyecto"
+opencode session list --format json --max-count 20
+```
+
+En Windows sustituye la ruta por la del proyecto, entre comillas. Estos comandos
+muestran metadatos privados: no pegues nombres o IDs en tickets públicos. Un listado
+correcto en otro equipo no demuestra que el servidor actual pueda consultarlo.
+
+Contratos verificados el 2026-11-06: [Claude agent view](https://code.claude.com/docs/en/agent-view)
+y [OpenCode V2 API](https://dev.opencode.ai/v2/docs/api). El código local se comprobó
+con Claude CLI; el problema del equipo remoto se valida allí tras actualizar el plugin
+y reiniciar el dashboard, sin copiar conversaciones ni editar permisos.
 
 ## Leer Actividad sin confundir una herramienta con un agente
 

@@ -286,7 +286,7 @@ def test_index_regenera_y_no_lista_readme(tmp_path):
     proj, _ = proyecto(tmp_path, con_git=False)
     run("write", "--session-id", "a", root=proj)
     d = proj / "docs" / "knowledge" / "journal"
-    (d / "README.md").write_text("basura", encoding="utf-8")
+    (d / "README.md").write_text("# `docs/knowledge/journal/`\nStale generated index.\n", encoding="utf-8")
     (d / "suelto.md").write_text("# sin frontmatter\n", encoding="utf-8")
     rc, out, _ = run("index", root=proj)
     assert rc == 0 and out.strip() == "docs/knowledge/journal/README.md"
@@ -453,22 +453,20 @@ def test_rotar_lee_solo_cola_y_conserva_json_privado(tmp_path, monkeypatch):
     original = b"".join((json.dumps({"prompt": f"turno {i} 🐍 " + "x" * 700}, ensure_ascii=False) + "\n").encode("utf-8") for i in range(500))
     log.write_bytes(original)
     log.chmod(0o600)
-    real_open = builtins.open
+    real_fdopen = os.fdopen
     reads = []
     class Reader:
-        def __enter__(self):
-            self.fh = real_open(log, "rb")
-            return self
-        def __exit__(self, *args):
-            self.fh.close()
-        def seek(self, *args):
-            return self.fh.seek(*args)
+        def __init__(self, handle):self.fh = handle
+        def __enter__(self):return self
+        def __exit__(self, *args):self.fh.close()
+        def __getattr__(self, name):return getattr(self.fh, name)
         def read(self, size=-1):
             reads.append(size)
             return self.fh.read(size)
-    def tracked_open(path, mode="r", *args, **kwargs):
-        return Reader() if str(path) == str(log) and mode == "rb" else real_open(path, mode, *args, **kwargs)
-    monkeypatch.setattr(journal, "open", tracked_open, raising=False)
+    def tracked_fdopen(fd, mode='r', *args, **kwargs):
+        handle = real_fdopen(fd, mode, *args, **kwargs)
+        return Reader(handle) if mode == 'rb' else handle
+    monkeypatch.setattr(journal.JIO.os, 'fdopen', tracked_fdopen)
     journal._rotar(str(log))
     assert reads and all(0 < size <= journal.LOG_MAX_BYTES // 2 for size in reads)
     assert log.stat().st_size <= journal.LOG_MAX_BYTES // 2
@@ -1155,20 +1153,16 @@ def test_capture_end_hash_y_sequence_comparten_snapshot_fisico(tmp_path, monkeyp
         fh.write(original)
     reads = []
 
-    @contextlib.contextmanager
-    def changing_log(name, *args, **kwargs):
-        with builtins.open(name, *args, **kwargs) as fh:
-            if str(name) == path:
-                reads.append(name)
-            yield fh
-        if str(name) == path and len(reads) == 1:
-            with builtins.open(path, "ab") as fh:
-                fh.write(b'{"prompt":"new"}\n')
-
-    def changing_open(name, *args, **kwargs):
-        return changing_log(name, *args, **kwargs) if str(name) == path else builtins.open(name, *args, **kwargs)
-
-    monkeypatch.setattr(journal._capture_mod, "open", changing_open, raising=False)
+    real_read = journal._capture_mod.JIO.read
+    def changing_read(name, *args, **kwargs):
+        raw = real_read(name, *args, **kwargs)
+        if str(name) == path:
+            reads.append(name)
+            if len(reads) == 1:
+                with builtins.open(path, 'ab') as fh:
+                    fh.write(b'{"prompt":"new"}\n')
+        return raw
+    monkeypatch.setattr(journal._capture_mod.JIO, 'read', changing_read)
     envelope = json.loads(open(journal.capture_end(str(proj), session_end_payload(proj)), encoding="utf-8").read())
     assert envelope["sequence"] == 1
     assert envelope["event_id"] == journal._event_id("s1", "other", journal.SCHEMA_VERSION, hashlib.sha256(original).hexdigest())
@@ -1550,10 +1544,10 @@ def test_replay_dos_procesos_concurrentes_no_pierden_entradas(tmp_path, monkeypa
     barrera = threading.Barrier(2, timeout=1.0)
     real_entradas = journal.entradas
 
-    def entradas_con_barrera(root):
+    def entradas_con_barrera(root, **kwargs):
         with contextlib.suppress(threading.BrokenBarrierError):
             barrera.wait()
-        return real_entradas(root)
+        return real_entradas(root, **kwargs)
 
     monkeypatch.setattr(journal, "entradas", entradas_con_barrera)
     with ThreadPoolExecutor(max_workers=4) as ex:
@@ -2462,17 +2456,14 @@ def test_recover_directo_deadline_pequeno_con_huerfanas_costosas_da_cero_y_aviso
     for i in range(3):
         _log_prompts(proj, f"costosa{i}", mtime_hace_min=1500)
     real_monotonic = time.monotonic
-    llamadas = {"n": 0}
-
-    def _reloj():
-        llamadas["n"] += 1
-        # Las dos primeras llamadas (inicio en `recover()` e inicio en `_cerrojo_presupuestado`)
-        # devuelven el reloj real; a partir de la 3.ª (el primer chequeo de deadline dentro del
-        # bucle de `_recover_impl`) el reloj salta muy por delante — el presupuesto ya está
-        # agotado antes de procesar ninguna candidata, sea cual sea `budget_ms`.
-        return real_monotonic() if llamadas["n"] <= 2 else real_monotonic() + 999
-
-    monkeypatch.setattr(journal.time, "monotonic", _reloj)
+    original_impl = journal._recover_impl
+    def expired_impl(*args, **kwargs):
+        # Expire the work budget at entry to candidate processing, independently
+        # of bounded I/O initialization's own monotonic deadline checks.
+        with monkeypatch.context() as patch:
+            patch.setattr(journal.time, 'monotonic', lambda: real_monotonic() + 999)
+            return original_impl(*args, **kwargs)
+    monkeypatch.setattr(journal, '_recover_impl', expired_impl)
     r = journal.recover(str(proj), current_session_id="viva", budget_ms=5000)
     assert r["recuperadas"] == 0
     assert any("sin recuperar" in a and "--max" in a for a in r["avisos"]), r["avisos"]

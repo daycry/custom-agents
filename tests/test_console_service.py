@@ -14,9 +14,9 @@ def load(name):
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
 
 
-def test_native_inventory_is_scoped_cached_and_explicit_about_unsupported_runtimes(tmp_path,monkeypatch):
+def test_native_inventory_is_scoped_cached_for_all_three_runtimes(tmp_path,monkeypatch):
     registry=load('console_workspaces.py');module=load('console_service.py')
-    project=registry.Workspace('one','One',tmp_path,('codex','claude-code'))
+    project=registry.Workspace('one','One',tmp_path,('codex','claude-code','opencode'))
     service=module.Service({'one':project},sessions=SimpleNamespace(close=lambda:None))
     method=getattr(service,'native_sessions',None)
     assert callable(method), 'Native inventory endpoint is missing'
@@ -24,7 +24,7 @@ def test_native_inventory_is_scoped_cached_and_explicit_about_unsupported_runtim
     def discover(workspace,**kwargs):
         calls.append(workspace.root)
         return {'status':'ok','complete':True,'sessions':[{'id':'external','title':'Scoped metadata'}],'observed_at':1}
-    monkeypatch.setattr(module.C,'sibling',lambda name:SimpleNamespace(discover=discover) if name=='console_codex.py' else original(name))
+    monkeypatch.setattr(module.C,'sibling',lambda name:SimpleNamespace(discover=discover) if name in ('console_codex.py','console_claude.py','console_opencode.py') else original(name))
     try:
         deadline=time.monotonic()+2
         while time.monotonic()<deadline:
@@ -32,9 +32,9 @@ def test_native_inventory_is_scoped_cached_and_explicit_about_unsupported_runtim
             if value['status']!='calculating':break
             time.sleep(.01)
         assert value['sessions'][0]['title']=='Scoped metadata'
-        assert value['complete'] is False
-        assert {p['runtime']:p['status'] for p in value['providers']}=={'codex':'ok','claude-code':'unsupported'}
-        method('one');assert calls==[tmp_path]
+        assert value['complete'] is True
+        assert {p['runtime']:p['status'] for p in value['providers']}=={'codex':'ok','claude-code':'ok','opencode':'ok'}
+        method('one');assert calls==[tmp_path,tmp_path,tmp_path]
         try:method('foreign')
         except ValueError:pass
         else:assert False,'Unregistered project accepted'

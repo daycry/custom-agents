@@ -249,8 +249,8 @@ function planClaude(o) {
   if (scope === "project") enSettings[`extraKnownMarketplaces.${MKT}`] = { source: origen }
 
   const copias = [
-    ...paquete.map((p) => ({ type: "copy", from: p, to: join(mkt, p) })),
-    ...paquete.map((p) => ({ type: "copy", from: p, to: join(cache, p) })),
+    ...paquete.map((p) => ({ type: "copy", from: p, to: join(mkt, p), sharedCacheRoot: mkt })),
+    ...paquete.map((p) => ({ type: "copy", from: p, to: join(cache, p), sharedCacheRoot: cache })),
   ]
   copias[0].aviso = (cli === "no-ejecutable"
     ? "`claude` encontrado pero no ejecutable desde Node (shim de npm sin extensión, `.ps1`, `.vbs`…): "
@@ -265,9 +265,11 @@ function planClaude(o) {
       to: join(cfg, "plugins", "known_marketplaces.json"),
       set: { [MKT]: { source: origen, installLocation: mkt, lastUpdated: ahora, autoUpdate: true } },
       volatiles: ["lastUpdated"],
+      sharedRegistration: true,  // Native marketplace registration is user-shared and retained.
     },
     {
       type: "json-set",
+      scopedPlugin: true,
       to: join(cfg, "plugins", "installed_plugins.json"),
       set: {
         version: 2,

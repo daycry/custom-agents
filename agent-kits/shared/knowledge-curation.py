@@ -439,6 +439,8 @@ def _final(root, candidate, original, config, metadata, replacement):
         raise _Failure('invalid_initial_version')
     original_metadata = _module('knowledge-local.py')._frontmatter(_text(original))
     original_id = original_metadata.get('id')
+    if not original_metadata.get('content_origin') and original_metadata.get('proposed_by'):
+        original_metadata['content_origin'] = ('human' if original_metadata['proposed_by'] == 'human' else 'agent')
     fm.update(metadata)
     for field in ('content_origin', 'proposed_by'):
         if original_metadata.get(field) is not None:
@@ -509,18 +511,17 @@ def propose(root, filename, text, *, producer, reserved_aliases=(), origin=None,
                 raise _Failure('invalid_source_snapshot', 2)
             _parts(expected_source[0])
         cat = next((c for c in policy['categories'] if c['key'] == fm.get('category')), {})
-        if origin is not None or 'content_origin' in fm or 'allowed_producers' in cat:
-            declared = origin if origin is not None else ('human' if producer == 'human' else 'agent')
-            if declared not in ('human', 'agent'):
-                raise _Failure('invalid_content_origin', 2)
-            if 'content_origin' in fm and fm['content_origin'] != declared:
-                raise _Failure('conflicting_content_origin')
-            fm['content_origin'] = declared
-            errors = _module('knowledge-curation-rules.py').validar_productor(fm, cat, filename)
-            if errors:
-                raise _Failure('producer_not_allowed', 1, errors)
-            if 'content_origin' not in _module('knowledge-local.py')._frontmatter(text):
-                text = text.replace('---', '---\ncontent_origin: ' + declared, 1)
+        declared = origin if origin is not None else ('human' if producer == 'human' else 'agent')
+        if declared not in ('human', 'agent'):
+            raise _Failure('invalid_content_origin', 2)
+        if 'content_origin' in fm and fm['content_origin'] != declared:
+            raise _Failure('conflicting_content_origin')
+        fm['content_origin'] = declared
+        errors = _module('knowledge-curation-rules.py').validar_productor(fm, cat, filename)
+        if errors:
+            raise _Failure('producer_not_allowed', 1, errors)
+        if 'content_origin' not in _module('knowledge-local.py')._frontmatter(text):
+            text = text.replace('---', '---\ncontent_origin: ' + declared, 1)
         _reserved(root, filename, reserved_aliases)
         relative = BASE + '/pending/' + filename
         with _locked(root):

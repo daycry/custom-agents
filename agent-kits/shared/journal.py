@@ -262,6 +262,8 @@ def _load_module(name, filename):
         return None
 
 
+JIO = _load_module('journal_io', 'journal-io.py')
+
 # --8<-- redact (redactar + constantes) — REPLICADO LITERAL en agent-kits/shared/redact.py (canónico) y en agent-kits/shared/journal.py (respaldo local, ADR-016)
 REDACTADO = "[secreto redactado]"
 _CLAVES_SENSIBLES = r"api[_-]?key|secret[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|pwd|clave|contrase[ñn]a"
@@ -1098,8 +1100,9 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
     ventana_inactividad = _ventana_inactividad_min(root)
     d = os.path.join(root, LOG_DIR_REL)
     try:
+        if not JIO.directory(d):return
         nombres = os.listdir(d)
-    except OSError:
+    except (OSError, ValueError):
         return
     ahora = time.time()
     capturados, reabribles = _indice_sids_capturados(root, ob, dir_)
@@ -1111,6 +1114,10 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
             continue
         forzada = session_id is not None and sid == session_id
         log_path_ = os.path.join(d, fn)
+        try:
+            JIO.IO.file(log_path_)
+        except (OSError, ValueError):
+            continue
         if session_id is not None and not forzada:
             continue
         if not forzada:
@@ -1288,8 +1295,8 @@ def _ultimo_dead_letter(dir_):
         pass
     ultimo = causas[-1]
     try:
-        with open(os.path.join(p, ultimo), encoding="utf-8") as fh:
-            d = json.load(fh)
+        raw = JIO.read(os.path.join(p, ultimo))
+        d = json.loads(raw) if raw is not None else {}
     except (OSError, ValueError):
         return None
     if not isinstance(d, dict):
@@ -1366,19 +1373,14 @@ def render_status(st):
 # ------------------------------------------------------------------ log crudo (capture / capturas)
 
 def _asegurar_gitignore(dirpath):
-    """`.claude/.gitignore` con LOG_GITIGNORE: el log lleva prosa del usuario y `*.log` solo está en el .gitignore
-    de ESTE repo, no en el del proyecto consumidor. Idempotente; respeta lo que ya hubiera; nunca lanza."""
-    gi = os.path.join(dirpath, ".gitignore")
-    try:
-        actual = open(gi, encoding="utf-8", errors="replace").read() if os.path.isfile(gi) else ""
-        if LOG_GITIGNORE in actual.splitlines():
-            return
-        with open(gi, "a", encoding="utf-8") as fh:
-            if actual and not actual.endswith("\n"):
-                fh.write("\n")
-            fh.write("# log crudo de turnos del usuario (custom-agents, journal.py capture): nunca versionar\n" + LOG_GITIGNORE + "\n")
-    except OSError:
-        pass
+    path = os.path.join(dirpath, '.gitignore')
+    def add_rule(raw):
+        actual = raw.decode('utf8', errors='replace')
+        if LOG_GITIGNORE in actual.splitlines():return raw
+        suffix = ('\n' if actual and not actual.endswith('\n') else '')
+        suffix += '# custom-agents: raw session log, never commit\n' + LOG_GITIGNORE + '\n'
+        return raw + suffix.encode('utf8')
+    JIO.update(path, add_rule)
 
 
 def _bloquear(fd):
@@ -1473,7 +1475,12 @@ def _cerrojo(path):
     y la rotación leer-reescribir perdían un turno en silencio — Lente B gap 5) con `<log>.lock`. Nunca lanza."""
     fd = None
     try:
-        fd = os.open(path + ".lock", os.O_RDWR | os.O_CREAT, 0o600)
+        lockpath = path + '.lock'
+        JIO.directory(os.path.dirname(os.path.abspath(lockpath)))
+        if os.path.lexists(lockpath):JIO.IO.file(lockpath)
+        fd = os.open(lockpath, os.O_RDWR | os.O_CREAT | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+        info = os.fstat(fd)
+        JIO.need(info.st_nlink == 1 and JIO.IO.file(lockpath)[:2] == (info.st_dev, info.st_ino), 'unsafe_journal_lock')
         _bloquear(fd)
     except OSError:
         pass
@@ -1489,9 +1496,7 @@ def _cerrojo(path):
 
 
 def _abrir_log(path):
-    """Append con 0600 al crear (POSIX): el log es el sumidero de la prosa del usuario (Lente C gap 4)."""
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
-    return os.fdopen(fd, "a", encoding="utf-8")
+    return JIO.append(path)
 
 
 
@@ -1512,39 +1517,25 @@ def _msg_seguro(ex):
 
 
 def _rotar(path):
-    """Conserva la cola por líneas mediante reemplazo atómico; un fallo deja el original intacto."""
-    temporal = None
+    """Rotate only a guarded regular snapshot; preserve concurrent modifications."""
     try:
-        if os.path.getsize(path) <= LOG_MAX_BYTES:
-            return
-        tope = LOG_MAX_BYTES // 2
-        with open(path, "rb") as fh:
-            fh.seek(-tope, os.SEEK_END)
-            cola = fh.read(tope)
-        salto = cola.find(b"\n")
-        if salto == -1:
-            return
-        cola = cola[salto + 1:]
-        fd, temporal = tempfile.mkstemp(prefix=os.path.basename(path) + ".tmp-",
-                                       dir=os.path.dirname(os.path.abspath(path)))
-        with os.fdopen(fd, "wb") as fh:
-            fh.write(cola)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(temporal, path)
-    except OSError:
+        JIO.IO.dirs(os.path.dirname(os.path.abspath(path)))
+        if JIO.IO.file(path)[2] <= LOG_MAX_BYTES:return
+        tail, identity = JIO.tail(path, LOG_MAX_BYTES // 2)
+        newline = tail.find(b'\n')
+        if newline == -1:return
+        JIO.IO.write(path, tail[newline+1:], time.monotonic()+5, expected=identity,
+                     mode=__import__('stat').S_IMODE(os.stat(path).st_mode))
+    except (OSError, ValueError):
         pass
-    finally:
-        if temporal:
-            with contextlib.suppress(OSError):
-                os.remove(temporal)
 
 
 def _purgar_logs(dirpath, excepto=None, ahora=None):
     ahora = ahora or time.time()
     try:
+        if not JIO.directory(dirpath):return
         nombres = os.listdir(dirpath)
-    except OSError:
+    except (OSError, ValueError):
         return
     for fn in nombres:
         if not (fn.startswith(LOG_PREFIX) and fn.endswith((".log", ".lock"))):
@@ -1553,9 +1544,11 @@ def _purgar_logs(dirpath, excepto=None, ahora=None):
         if excepto and os.path.abspath(p) in (os.path.abspath(excepto), os.path.abspath(excepto) + ".lock"):
             continue
         try:
+            JIO.IO.dirs(os.path.dirname(os.path.abspath(p)))
+            JIO.IO.file(p)
             if ahora - os.stat(p).st_mtime > LOG_RETENCION_DIAS * 86400:
                 os.remove(p)
-        except OSError:
+        except (OSError, ValueError):
             pass
 
 
@@ -1579,7 +1572,7 @@ def capture(root, payload):
     if len(texto) > CAPTURA_MAX_CHARS:
         texto = texto[:CAPTURA_MAX_CHARS].rstrip() + " …[recortado]"
     d = os.path.join(root, LOG_DIR_REL)
-    os.makedirs(d, exist_ok=True)
+    JIO.directory(d, create=True)
     _asegurar_gitignore(d)
     path = log_path(root, sid)
     rec = {"ts": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "prompt": texto}
@@ -1597,26 +1590,24 @@ def capture(root, payload):
 
 
 def capturas(root, session_id):
-    """Turnos capturados de la sesión, en orden ([] sin log, sin session_id o ilegible; las líneas
-    rotas se saltan)."""
+    """Bounded prompt records from this session's regular, unshared log only."""
     if not session_id:
         return []
-    out = []
     try:
-        with open(log_path(root, session_id), encoding="utf-8", errors="replace") as fh:
-            for raw in fh:
-                try:
-                    rec = json.loads(raw)
-                except ValueError:
-                    continue
-                if isinstance(rec, dict) and isinstance(rec.get("prompt"), str) and rec["prompt"].strip():
-                    out.append(rec["prompt"])
-    except OSError:
+        data = JIO.read(log_path(root, session_id))
+        if data is None:return []
+    except (OSError, ValueError):
         return []
+    out = []
+    for raw in data.decode('utf8', errors='replace').split('\n'):
+        try:
+            rec = json.loads(raw)
+        except ValueError:
+            continue
+        if isinstance(rec, dict) and isinstance(rec.get('prompt'), str) and rec['prompt'].strip():
+            out.append(rec['prompt'])
     return out
 
-
-# ------------------------------------------------------------------ extracción determinista (T-12)
 
 def _frases(turnos):
     for t in turnos:
@@ -1920,12 +1911,7 @@ def _entero(v):
 
 
 def _escribir_atomico(destino, contenido):
-    """Temporal en la misma carpeta + `os.replace`: la entrada previa nunca queda a medias ni a 0 bytes aunque el
-    proceso muera a mitad (el hook SessionEnd tiene techo de 45 s y la IA gasta hasta 25) — Lente B gap 2."""
-    tmp = f"{destino}.tmp-{os.getpid()}"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        fh.write(contenido)
-    os.replace(tmp, destino)
+    JIO.write(destino, contenido.encode('utf8'))
 
 
 def render(e, fuente):
@@ -2008,12 +1994,20 @@ def render(e, fuente):
     return "---\n" + "\n".join(fm) + "\n---\n\n" + "\n".join(body).rstrip() + "\n"
 
 
-def parse_entry(path, *, text=None):
+def parse_entry(path, *, text=None, strict=False):
     """Frontmatter mínimo de una entrada → dict (escalares + listas). None si no es entrada."""
     if text is None:
         try:
-            text = open(path, encoding="utf-8-sig", errors="replace").read()
+            raw = JIO.read(path)
+            if raw is None:return None
+            text = raw.decode('utf-8-sig', errors='replace')
         except OSError:
+            if strict:
+                raise  # Replay owns transient I/O backoff; do not turn it into schema failure.
+            return None
+        except ValueError as error:
+            if strict:
+                raise ValueError('journal: entrada fuera de su árbol o almacenamiento no seguro') from error
             return None
     if not text.startswith("---"):
         return None
@@ -2053,17 +2047,19 @@ def journal_dir(root):
     return os.path.join(root, JOURNAL_REL)
 
 
-def entradas(root):
+def entradas(root, *, strict=False):
     """Entradas ordenadas por (fecha, mtime): la última es la más reciente."""
     d = journal_dir(root)
-    if not os.path.isdir(d):
+    try:
+        if not JIO.directory(d):return []
+    except (OSError, ValueError):
         return []
     out = []
     for fn in os.listdir(d):
         if not fn.endswith(".md") or fn == "README.md":
             continue
         p = os.path.join(d, fn)
-        e = parse_entry(p)
+        e = parse_entry(p, strict=True) if strict else parse_entry(p)
         if e:
             try:
                 e["_mtime"] = os.stat(p).st_mtime
@@ -2079,9 +2075,10 @@ def write(root, e, fuente="hook"):
     if not proyecto_con_plugin(root):
         return None
     d = journal_dir(root)
-    os.makedirs(d, exist_ok=True)
+    JIO.directory(d, create=True)
+    _check_index(d)
     destino, previa = None, None
-    for prev in entradas(root):
+    for prev in entradas(root, strict=True):
         if prev.get("session_id") == e["session_id"]:
             destino, previa = prev["_path"], prev
             break
@@ -2118,10 +2115,18 @@ def write(root, e, fuente="hook"):
 
 # ------------------------------------------------------------------ índice y latest
 
+_INDEX_PREFIX = '# `docs/knowledge/journal/`'.encode('utf8')
+
+
+def _check_index(folder):
+    previous = JIO.read(os.path.join(folder, 'README.md'))
+    JIO.need(previous is None or previous.startswith(_INDEX_PREFIX), 'unowned_journal_index')
+
+
 def index(root):
     d = journal_dir(root)
-    if not os.path.isdir(d):
-        return None
+    if not JIO.directory(d):return None
+    _check_index(d)
     es = entradas(root)
     lines = ["# `docs/knowledge/journal/` — bitácora de sesión (memoria episódica)", "",
              "Una entrada por sesión, **generada** por `agent-kits/shared/journal.py` (hook `SessionEnd`; la",
@@ -2151,7 +2156,7 @@ def index(root):
     if not es:
         lines.append("| — | — | _sin entradas todavía_ | — |")
     p = os.path.join(d, "README.md")
-    _escribir_atomico(p, "\n".join(lines) + "\n")
+    JIO.write(p, ("\n".join(lines) + "\n").encode('utf8'), owned_prefix=_INDEX_PREFIX)
     return p
 
 

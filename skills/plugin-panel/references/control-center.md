@@ -93,7 +93,7 @@ revalidar el registro al reiniciar; no conserva la autoridad de la carpeta anter
 | Interrumpir | Solicita cancelación y espera confirmación; puede quedar sin confirmar |
 | Desconectar | Cierra únicamente el puente/procesos propios, si no hay un turno activo |
 | Retomar | Reabre una sesión conocida por la consola, comprobando su proyecto nativo |
-| Sesiones externas | Metadatos Codex del proyecto, en solo lectura; no adjunta la consola a esas sesiones |
+| Sesiones externas | Metadatos nativos Claude/Codex/OpenCode del proyecto, en solo lectura; no adjunta la consola a esas sesiones |
 | Continuar/revisar plan | Prepara y muestra el mensaje; verifica que las fuentes no cambiaron antes de enviarlo |
 | Añadir nota | Comentario local versionado e idempotente; no cambia estados ni publica en otro sistema |
 | Consultar memoria | Lectura local; no inicia exportación ni red hacia un backend |
@@ -112,7 +112,7 @@ no permite aprobar; sólo ofrece rechazar/cancelar si el runtime lo permite.
 No se muestra razonamiento interno. Las herramientas declaradas se distinguen
 de las operaciones realmente observadas.
 
-El inventario externo usa `thread/list` con cwd exacto y `useStateDbOnly`: metadatos
+El inventario externo Codex usa `thread/list` con cwd exacto y `useStateDbOnly`: metadatos
 indexados no archivados, hasta cuatro páginas de 50 entradas. Se actualiza en
 segundo plano cada quince segundos, con hasta cuatro consultas simultáneas en un
 pool separado de las lecturas de planes, memoria y catálogo. Un RPC tiene hasta
@@ -121,6 +121,18 @@ No inicia inferencia, no solicita turnos ni reanuda conversaciones externas.
 El proceso auxiliar se cierra al terminar o detener la consola. El estado de otro
 proceso no se puede confirmar desde esta consulta. Un error o límite se muestra
 como lectura parcial/indisponible, nunca como ausencia demostrada.
+Claude usa `agents --json --cwd <raíz>` para sesiones activas interactivas/background;
+no es un catálogo histórico. El comando tiene cuatro segundos más cierre propio,
+JSON de hasta 1 MiB y hasta 200 registros; una versión sin esta interfaz informa
+indisponibilidad. No se leen archivos internos de sesiones ni se carga un turno.
+OpenCode V2 abre un lease privado como el puente existente y realiza sólo GET de
+versión y `/api/session`, con filtro directory y no archivadas. Lee una página de
+hasta 200; cursor pendiente implica lectura parcial. Cada etapa tiene cuatro
+segundos más cierre. No crea sesiones ni utiliza el servidor de otra aplicación.
+Los tres proveedores se consultan secuencialmente dentro de cada lectura en segundo
+plano; se conserva el pool separado de cuatro lecturas y el refresco de 15 segundos.
+Sólo los auxiliares propios se cierran. Las sesiones encontradas no se interrumpen.
+El inventario pertenece al equipo que ejecuta el dashboard; no conecta otros equipos.
 Captura y diagnóstico: [visibilidad de sesiones y agentes](../../../docs/guides/session-visibility.md).
 
 ## Actividad y ficha de ejecución

@@ -1170,7 +1170,7 @@ def test_pendiente_que_si_llego_se_reconcilia_con_confirmar_sin_republicar(ledge
     clave = primero["claveIdempotencia"]
     reintento = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
                            "--task", "T-01", "--issue", "PROJ-59")
-    assert reintento["reintento"] is True and reintento["confirmar"][-1] == clave
+    assert reintento["reintento"] is True and reintento["confirmar"][reintento["confirmar"].index("--clave")+1] == clave
     assert _confirmar(ledger, clave, "--comentario-id", "10077")[0] == 0
     despues = _plan_json("--ledger", ledger, "--event", "implementado", "--actor", "implementer",
                          "--task", "T-01", "--issue", "PROJ-59")

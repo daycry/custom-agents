@@ -4,23 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Confluence · elegir destino</title>
-<!--
-  PLANTILLA del navegador de árbol de Confluence para la skill confluence-publish.
-  El asistente COPIA este fichero, sustituye los marcadores {{...}} y lo publica con
-  create_artifact (mcp_tools = [el getConfluencePageDescendants del conector Atlassian]).
-  Marcadores a sustituir:
-    {{SERVER}}        -> nombre completo mcp__<uuid>__getConfluencePageDescendants del conector conectado
-    {{CLOUD_ID}}      -> cloudId del site (getAccessibleAtlassianResources)
-    {{HOME_ID}}       -> homepageId del espacio elegido (getConfluenceSpaces -> homepageId)
-    {{SPACE_KEY}}     -> clave del espacio (p.ej. DOCS)
-    {{SPACE_NAME}}    -> nombre legible del espacio (p.ej. Documentacion Tecnica)
-    {{SPACE_INITIALS}}-> 2 letras para el avatar (p.ej. DT)
-    {{DEFAULT_NAME}}  -> nombre por defecto de la página del proyecto (p.ej. la carpeta del repo)
-  El destino elegido queda en window.__dest = {mode, parentPageId, parentPath, name}:
-    mode 'existing'    -> publicar dentro de una página existente (parentPageId), sin crear home nueva
-    mode 'child'       -> crear página hija «name» bajo parentPageId y colgar de ella
-    mode 'root-child'  -> crear página «name» en la raíz del espacio y colgar de ella
--->
+<!-- Render with agent-kits/shared/render-artifact.py; configuration is JSON data. -->
 <style>
 :root{color-scheme:light}
 *{box-sizing:border-box}
@@ -71,10 +55,10 @@ button.sel{color:#185fa5;border-color:#b5d4f4}
 <body>
 <div class="wrap">
   <div class="head">
-    <div class="badge">{{SPACE_INITIALS}}</div>
+    <div class="badge" id="space-initials"></div>
     <div>
       <h1>Elegir dónde publicar</h1>
-      <p>{{SPACE_NAME}} ({{SPACE_KEY}}) · navega el árbol y elige un destino</p>
+      <p id="space-heading"></p>
     </div>
   </div>
 
@@ -95,11 +79,14 @@ button.sel{color:#185fa5;border-color:#b5d4f4}
 </div>
 
 <script>
-const SERVER="{{SERVER}}";
-const CLOUD="{{CLOUD_ID}}";
-const HOME="{{HOME_ID}}";
-const SPACE_KEY="{{SPACE_KEY}}";
-const DEFAULT_NAME="{{DEFAULT_NAME}}";
+const CONFIG = {{CONFIG_JSON}};
+const SERVER=CONFIG.SERVER;
+const CLOUD=CONFIG.CLOUD_ID;
+const HOME=CONFIG.HOME_ID;
+const SPACE_KEY=CONFIG.SPACE_KEY;
+const DEFAULT_NAME=CONFIG.DEFAULT_NAME;
+document.getElementById("space-initials").textContent=CONFIG.SPACE_INITIALS;
+document.getElementById("space-heading").textContent=CONFIG.SPACE_NAME+" ("+SPACE_KEY+") · navega el árbol y elige un destino";
 const cache={};
 
 async function descendants(pageId){
@@ -115,13 +102,15 @@ function askBox(parentTitle, onConfirm){
   const box=document.createElement("div"); box.className="ask";
   const isRoot = parentTitle===null;
   box.innerHTML=
-    '<div class="q">¿Cómo publico'+(isRoot?' en la raíz del espacio?':' en «'+parentTitle+'»?')+'</div>'+
+    '<div class="q"></div>'+
     '<div class="opts">'+
-      (isRoot?'':'<div class="opt"><input type="radio" name="m" value="here" id="o1"><label for="o1"><b>Usar esta página como destino</b><small>El contenido cuelga directamente de «'+parentTitle+'».</small></label></div>')+
+      (isRoot?'':'<div class="opt"><input type="radio" name="m" value="here" id="o1"><label for="o1"><b>Usar esta página como destino</b><small id="parent-hint"></small></label></div>')+
       '<div class="opt"><input type="radio" name="m" value="child" id="o2"'+(isRoot?' checked':'')+'><label for="o2"><b>Crear una página hija nueva</b><small>Se crea una página con el nombre que indiques y el contenido cuelga de ella.</small></label></div>'+
     '</div>'+
     '<div class="namebox" id="nb"><input type="text" id="cname" placeholder="Nombre de la página"></div>'+
     '<div class="actions"><button class="pri" id="ok">Confirmar destino</button><button id="cancel">Cancelar</button></div>';
+  box.querySelector(".q").textContent=isRoot?"¿Cómo publico en la raíz del espacio?":"¿Cómo publico en «"+parentTitle+"»?";
+  if(!isRoot)box.querySelector("#parent-hint").textContent="El contenido cuelga directamente de «"+parentTitle+"».";
   const nb=box.querySelector("#nb"), cname=box.querySelector("#cname");
   cname.value=DEFAULT_NAME;
   box.querySelectorAll('input[name=m]').forEach(function(r){
@@ -163,7 +152,7 @@ function rowEl(node,path){
         kids.innerHTML="";
         if(!ch.length){kids.innerHTML='<div class="muted" style="padding-left:26px">Sin subpáginas</div>';ico.textContent="📄";chev.classList.add("leaf");}
         ch.forEach(c=>kids.appendChild(rowEl(c,myPath)));
-      }catch(e){kids.innerHTML='<div class="err" style="padding-left:26px">No se pudo cargar: '+e.message+'</div>';}
+      }catch(e){const error=document.createElement("div");error.className="err";error.textContent="No se pudo cargar: "+String(e.message||e);kids.replaceChildren(error);}
     }
   };
   pick.onclick=()=>{
@@ -206,7 +195,7 @@ let TOP=[];
 async function init(){
   const tree=document.getElementById("tree");
   try{ TOP=await descendants(HOME); render(TOP); }
-  catch(e){ tree.innerHTML='<div class="err">No se pudo cargar el espacio: '+e.message+'</div>'; }
+  catch(e){ const error=document.createElement("div");error.className="err";error.textContent="No se pudo cargar el espacio: "+String(e.message||e);tree.replaceChildren(error); }
 }
 function render(list){
   const tree=document.getElementById("tree"); tree.innerHTML="";

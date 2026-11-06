@@ -57,7 +57,7 @@ class Service:
         workspace=self.workspace(ident)
         C.need(action in ('continue','review','plan') and (task is None or type(task) is str and STATE.TASK.fullmatch(task)),'invalid_plan_action')
         value=DATA.plan(workspace.root,plan);C.need(value is not None,'plan_not_found',404)
-        slug=value.get('slug')
+        slug=DATA._carpeta(workspace.root,plan,C.bundled('local-read.py'))
         C.need(type(slug) is str and re.fullmatch('[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(?:-[a-z0-9]+)*',slug),'plan_unavailable',503)
         C.need(value.get('status') in ('ok','partial') and type(value.get('tareas')) is list,'plan_unavailable',503)
         if task:self.task(ident,plan,task)
@@ -97,7 +97,9 @@ class Service:
         C.need(value is not None,'plan_not_found',404)
         filenames={'plan':'improvement-plan.md','spec':'spec.md','evaluation':'evaluation.md','design':'design.md','tasks':'tasks.md'}
         C.need(kind in filenames and type(value.get('slug')) is str,'document_not_found',404)
-        relative='docs/roadmap/'+value['slug']+'/'+filenames[kind]
+        folder=DATA._carpeta(workspace.root,plan,C.bundled('local-read.py'))
+        C.need(folder is not None,'document_not_found',404)
+        relative='docs/roadmap/'+folder+'/'+filenames[kind]
         row=C.bundled('local-read.py').read_text(workspace.root,relative,max_bytes=128*1024)
         C.need(row['status']=='ok','document_unavailable',404 if row['status']=='not_found' else 503)
         return {'kind':kind,'text':C.scrub(row['text'],workspace.root,60000),'truncated':len(row['text'])>60000,'source':relative}
@@ -127,8 +129,14 @@ class Service:
                           'source':'project_hooks','usage_reason':'not_reported_by_hook'}
         return LEGACY._scrub_history(value,lambda text:C.scrub(text,workspace.root))
     def native_peer(self,*args):
-        owner=self;transport=C.sibling('console_transport.py')
-        class OwnedPeer(transport.JsonPeer):
+        return self._owned_native(C.sibling('console_transport.py').JsonPeer,args,{})
+    def native_command(self,*args,**kwargs):
+        return self._owned_native(C.sibling('console_transport.py').JsonCommand,args,kwargs)
+    def native_process(self,*args,**kwargs):
+        return self._owned_native(C.sibling('console_transport.py').LineProcess,args,kwargs)
+    def _owned_native(self,base,args,kwargs):
+        owner=self
+        class OwnedPeer(base):
             def start(self):
                 with owner.discovery_lock:
                     C.need(not owner.closing,'console_closed',503)
@@ -137,7 +145,7 @@ class Service:
                 try:super().close()
                 finally:
                     with owner.discovery_lock:owner.discovery_peers.discard(self)
-        return OwnedPeer(*args)
+        return OwnedPeer(*args,**kwargs)
     def native_sessions(self,ident):
         workspace=self.workspace(ident)
         def compute():
@@ -145,6 +153,11 @@ class Service:
             for runtime in workspace.runtimes:
                 if runtime=='codex':
                     value=C.sibling('console_codex.py').discover(workspace,peer_factory=self.native_peer)
+                    rows.extend(value['sessions']);complete=complete and value['complete']
+                    providers.append({k:v for k,v in dict(value,runtime=runtime).items() if k!='sessions'})
+                elif runtime in ('claude-code','opencode'):
+                    module=C.sibling('console_claude.py' if runtime=='claude-code' else 'console_opencode.py')
+                    value=module.discover(workspace,process_factory=self.native_command if runtime=='claude-code' else self.native_process)
                     rows.extend(value['sessions']);complete=complete and value['complete']
                     providers.append({k:v for k,v in dict(value,runtime=runtime).items() if k!='sessions'})
                 else:
@@ -188,7 +201,7 @@ class Service:
                 except ValueError:pass
             rows.append({'id':runtime,'enabled':runtime in workspace.runtimes,'installed':found,'connection':'not_checked',
                          'capabilities':{'chat':True,'resume_known':True,'interrupt':True,'approval':True,'desktop_window_control':False,
-                                         'external_session_discovery':runtime=='codex','external_session_control':False,'attachments':False},
+                                         'external_session_discovery':runtime in ('codex','claude-code','opencode'),'external_session_control':False,'attachments':False},
                          'limits':['Native policies apply','Advanced forms may require the native application']})
         return {'runtimes':rows,'session_state_error':self.sessions.errors.get(ident)}
     def catalog(self,ident):

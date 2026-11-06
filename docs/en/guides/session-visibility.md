@@ -2,13 +2,13 @@
 
 **English** · [Español](../../guides/session-visibility.md)
 
-**Updated: 2026-11-02 · Unreleased change, after v3.0.0.**
+**Updated: 2026-11-06 · Unreleased change, after v3.0.0.**
 
 Open **Sesiones** to find project conversations. Open **Actividad** to inspect
 identified agents, session signals and reported tools. A card does not prove that
 a process is alive. Control names below match the current Spanish interface.
 
-## Find the conversation already open in Codex
+## Find a session opened in another terminal
 
 1. Select the project whose registered root matches the conversation's working directory.
 2. Open **Sesiones** and wait for the native inventory query to finish.
@@ -23,7 +23,7 @@ a process is alive. Control names below match the current Spanish interface.
 | Console conversation | The console created or knows the native connection | Open its conversation and use the available controls |
 | Lectura parcial | A limit or error prevented a complete query | Treat the list as a sample rather than a total |
 | Inventario no disponible | The inventory could not be confirmed | Check diagnostics; this does not mean zero sessions |
-| Sin descubrimiento externo | Claude Code/OpenCode do not provide this inventory in this version | Their console connections and hooks can still report activity |
+| Sin descubrimiento externo | The installed runtime lacks a compatible interface or its metadata could not be read | Their console connections and hooks can still report activity |
 
 Codex discovery reads indexed, non-archived metadata for the registered project's
 **exact working directory**, up to 200 results. Subdirectories and worktrees with
@@ -34,6 +34,49 @@ The **Sesiones** counter combines known console connections and observed externa
 sessions. It deduplicates by provider and native identity: a conversation found
 through both paths counts once. This is not a count of active processes. If nothing
 has been observed and discovery fails, it may show **—** instead of an unverified zero.
+
+## Which external sessions can be discovered
+
+| Runtime | Native metadata interface | Scope |
+|---|---|---|
+| Codex | app-server thread/list | Indexed, non-archived, exact cwd; four pages, up to 200. |
+| Claude Code | agents --json --cwd | Active interactive/background sessions exposed by the CLI; up to 200, not all history. |
+| OpenCode V2 | GET /api/session through a private lease | Non-archived, exact directory; one page of 200, partial if a cursor remains. |
+
+Sessions do not have to originate in the dashboard. The runtime must be allowed
+in the project registry and its compatible CLI must be installed in that environment.
+The server must run on the
+same computer and user environment as the native state, with the exact registered
+project root. A dashboard on another machine sees that server's local inventory.
+Windows, WSL, containers and different user profiles can have separate stores.
+
+A new Claude session may lack its UUID. The panel can display an observed identity
+based on its native process and start metadata, without attaching chat controls.
+A background job without UUID or live PID can use its reported short job ID as
+a read-only observed identity.
+When no update time exists, it displays the reported start instead. Read time is
+not evidence of agent execution time.
+
+A missing or older CLI interface is reported as unavailable; there is no transcript
+parser fallback. Empty incomplete inventory shows **—**, not zero. Observed entries
+still count as a lower bound during partial reads, and native identities deduplicate
+against managed connections. External sessions remain read-only and unconfirmed.
+
+On the dashboard's computer, from the project root:
+
+```bash
+claude agents --json --cwd "/path/to/project"
+opencode session list --format json --max-count 20
+```
+
+On Windows use the actual project path in quotes. These commands expose private
+metadata: do not post session names or IDs publicly. Success on another computer
+does not establish access from this server.
+
+Contracts checked November 6, 2026: [Claude agent view](https://code.claude.com/docs/en/agent-view)
+and [OpenCode V2 API](https://dev.opencode.ai/v2/docs/api). Claude CLI assisted the
+local source review; the remote symptom must be checked there after updating the
+plugin and restarting the dashboard, without copying conversations or permissions.
 
 ## Read Activity without mistaking a tool for an agent
 

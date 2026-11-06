@@ -975,6 +975,29 @@ def _escribir_manifest(cfg, datos, sufijo=""):
     return ruta
 
 
+def _publication_text(entry):
+    body = entry.get('cuerpo') or ''
+    if entry.get('modo') != 'resumen':
+        return body
+    summary = entry.get('resumen')
+    if isinstance(summary, str) and summary.strip():
+        return summary.strip()
+    # Same deterministic fallback as Markdown export: first paragraph, never full body.
+    paragraph = []
+    for line in body.splitlines():
+        if not line.strip():
+            if paragraph:
+                break
+        else:
+            paragraph.append(line)
+    return '\n'.join(paragraph).strip()
+
+
+def _projection_hash(entry):
+    return hashlib.sha256(json.dumps([entry.get('modo') == 'resumen', _publication_text(entry)],
+                                    ensure_ascii=False, separators=(',', ':')).encode('utf8')).hexdigest()
+
+
 def plan(entries, cfg, force=False):
     """Puro/idempotente: mismas `entries` -> mismos `ops`. Compara contra el manifiesto OBJETIVO
     (pendiente si hay una publicacion interrumpida, publicado si no) para decidir que entradas
@@ -1002,6 +1025,20 @@ def plan(entries, cfg, force=False):
         hash_ = hashlib.sha256(cuerpo.encode("utf-8")).hexdigest()
         previo = objetivo.get(id_)
         if not force and previo and previo.get("version") == version and previo.get("hash") == hash_:
+            projection = previo.get('projection_hash')
+            if projection is not None:
+                changed = projection != _projection_hash(entrada)
+            elif previo.get('hash_enviado'):
+                episode, _ = _episodio_upsert(group_id, {**entrada, "hash": hash_}, cfg)
+                changed = previo['hash_enviado'] != episode['hash_enviado']
+            elif previo.get('episode_body_sha256'):
+                episode, _ = _episodio_upsert(group_id, {**entrada, 'hash': hash_}, cfg)
+                changed = previo['episode_body_sha256'] != hashlib.sha256(episode['episode_body'].encode('utf8')).hexdigest()
+            else:
+                # Older receipts without a published-body binding cannot prove a summary.
+                changed = entrada.get('modo') == 'resumen'
+            if changed:
+                raise ErrorMCP('proyeccion modificada para una identidad inmutable: incrementa la version aprobada; el historial remoto no se elimina')
             continue
         ops.append({
             "tipo": "upsert", "id": id_, "version": version, "hash": hash_, "group_id": group_id,
@@ -1131,7 +1168,7 @@ def _episodio_upsert(group_id, op, cfg=None):
     de texto para que el llamador lo recoja -nunca se lanza una excepcion por esto, es un aviso,
     no un fallo de la operacion."""
     cfg = cfg or {}
-    cuerpo_texto = op.get("resumen") if op.get("modo") == "resumen" and op.get("resumen") else op["cuerpo"]
+    cuerpo_texto = _publication_text(op)
     categoria = op.get("category")
     entity_type = _gm.tipo_entidad(categoria, cfg)
     # Gap #42: bloque de procedencia DELIMITADO (nunca texto plano concatenado sin marca), con el
@@ -1657,6 +1694,7 @@ def _apply_locked(ops, cfg, publication_session):
                 confirmed_receipt = _gpub.receipt(publication_session, f"{op['id']}@{op['version']}", uuid_devuelto)
                 progreso[op["id"]] = {
                     "version": op["version"], "hash": op["hash"], "category": op.get("category"),
+                    "projection_hash": _projection_hash(op),
                     "uuid": uuid_devuelto, "binding": "verified_readback",
                     "episode_body_sha256": confirmed_receipt["body_sha256"],
                 }
@@ -2896,3 +2934,5 @@ revoke = _with_project_scope(revoke,1)
 verify = _with_project_scope(verify,0,lambda reason:{'ok':False,'estado':'no_verificable','razon':reason,'desfase':[]})
 puede_leer = _with_project_scope(puede_leer,0,lambda reason:{'puede':False,'razon':reason})
 consultar = _with_project_scope(consultar,0,lambda reason:{'aciertos':[],'motivo':reason,'degradado':True})
+
+estado_grupo = _with_project_scope(estado_grupo,0,lambda reason:_resultado_grupo('no_verificado','local',reason))

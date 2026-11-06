@@ -11,6 +11,34 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed — iniciativa `external-session-discovery` (2026-11-06)
+
+- **T-01 — Transporte JSON acotado y propio** Captura JSON nativa con tamaño, plazo y exit0 comprobados; cierre de auxiliares mediante propiedad del transporte existente. (`skills/plugin-panel/scripts/console_transport.py`, `tests/test_console_transport.py`)
+- **T-02 — Inventarios de los tres runtimes** Descubrir metadatos externos de Claude/OpenCode y conservar Codex exact-cwd; sin turnos, adopción ni control de sesiones externas.
+- **T-03 — Contadores y guía honesta** Distinguir lectura vacía incompleta de cero confirmado y conservar deduplicación; guías ES/EN de alcance local y versiones compatibles.
+- **T-04 — Validación y entrega** Regresión completa, revisión independiente y contraste con Claude CLI; evidencia local sin atribuir validación al otro ordenador. (`docs/roadmap/2026-11-06-external-session-discovery/**`, `docs/roadmap/README.md`, `CHANGELOG.md`)
+
+### Fixed — iniciativa `nemesis-remediation` (2026-11-06)
+
+- **T-01 — Vistas Atlassian seguras** Metadatos Atlassian como texto, configuración JSON segura y etiquetas JQL confinadas al literal; renderer y referencias coherentes.
+- **T-02 — Conversión PDF segura** PDF con sandbox activo y JS/red desactivados por defecto; excepciones explícitas y salida atómica preservada. (`skills/to-pdf/**`, `tests/to-pdf*.test.mjs`)
+- **T-03 — CI con permisos acotados** Acciones por SHA, secretos por paso, permisos mínimos y build de release separado del publicador. (`ci.yml.MANUAL-COPY`, `release.yml.MANUAL-COPY`, `headless.yml.MANUAL-COPY`)
+- **T-04 — Herramientas opcionales verificadas** Herramientas opcionales con pins y hashes, extracción segura y propiedad verificada; no sobrescribir instalaciones ajenas o modificadas.
+- **T-05 — Regresión, revisión y entrega** Regresiones, revisión independiente y documentación bilingüe de la remediación; sin publicación npm ni release.
+
+### Fixed — iniciativa `audit-remediation` (2026-11-05)
+
+- **T-01 — Instalador y propiedad** El instalador autentica la propiedad, separa las cachés compartidas y recupera copias interrumpidas mediante staging firmado. (`install/**`, `tests/installer.test.mjs`, `tests/install-auth.test.mjs`)
+- **T-02 — Hooks y briefs** Los hooks limitan los marcadores a docs y los briefs conservan criterios anidados y diseño relacionado. (`hooks/run-hook.mjs`, `agent-kits/shared/task-brief.py`, `tests/test_audit_briefs.py`)
+- **T-03 — Ledger, alcance y retro** El ledger conserva rutas Unicode y permisos, detecta conflictos y admite continuidad acotada del histórico.
+- **T-04 — Publicación y curación** La publicación revalida la cola y las proyecciones; protege exclusiones obligatorias y conserva el origen del conocimiento. (`skills/knowledge-services/**`, `skills/confluence-publish/scripts/confluence-scope.py`, `agent-kits/shared/knowledge-curation.py`)
+- **T-05 — Sesiones y consola** Las sesiones recuperan turnos fallidos y controlan envíos concurrentes, limpieza de procesos y buffers. (`skills/plugin-panel/**`, `tests/test_console_*.py`, `tests/test_audit_console.py`)
+- **T-06 — Exportación portable e interop** Las exportaciones portables incluyen el catálogo correcto y rechazan destinos enlazados antes de escribir. (`scripts/export-skills.py`, `scripts/export-interop.py`, `tests/test_audit_exports.py`)
+- **T-07 — Jira y worklogs** Jira redacta comentarios y mantiene la raíz y la configuración del proyecto al generar worklogs. (`skills/jira-sync/**`, `tests/test_audit_jira.py`)
+- **T-08 — Lecturas de capacidades y journal** El journal valida sus puntos de E/S y conserva reintentos ante bloqueos temporales de Windows.
+- **T-09 — Contratos y documentación** Los contratos de agentes y las guías ES/EN reflejan las correcciones; npm declara sus capacidades de doble uso.
+- **T-10 — Regresiones, revisión y entrega** Regresiones reproducidas, revisión con Claude y lentes independientes documentadas con sus límites de plataforma.
+
 ## [3.2.1] - 2026-11-05
 
 ### Fixed — iniciativa `npm-payload` (2026-11-05)

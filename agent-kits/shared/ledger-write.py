@@ -67,9 +67,15 @@ def single_line(value, maximum):
     return value
 
 
+def _source_lines(text):
+    # Markdown and the fence masker use LF, not Python's extra Unicode line separators.
+    pieces = text.split("\n")
+    return [line + "\n" for line in pieces[:-1]] + ([pieces[-1]] if pieces[-1] else [])
+
+
 def task_range(text, task):
     """Locate editable lines only; task identity/meaning is validated by LINT."""
-    clean = LINT.sin_vallas(text).splitlines()
+    clean = LINT.sin_vallas(text).split("\n")
     starts = [i for i, line in enumerate(clean) if re.match(r"^###\s+" + re.escape(task) + r"\b", line)]
     need(len(starts) == 1, "ambiguous_task", 1)
     start = starts[0]
@@ -88,8 +94,8 @@ def summarize(text, previous):
     done = sum(task["estado"] == "completado" for task in parsed["tareas"])
     total = len(parsed["tareas"])
     prior_total = (sum(task["estado"] == "completado" for task in previous["tareas"]), len(previous["tareas"]))
-    lines = text.splitlines(keepends=True)
-    clean = LINT.sin_vallas(text).splitlines()
+    lines = _source_lines(text)
+    clean = LINT.sin_vallas(text).split("\n")
     for i, line in enumerate(clean):
         match = re.match(r"^\|(?P<label>[^|]+)\|(?P<done>[^|]+)\|(?P<total>[^|]+)\|(?P<pct>[^|]+)\|", line)
         if not match:
@@ -117,7 +123,7 @@ def transform(text, args):
     if args.operation in ("state", "red"):
         need(args.task in known, "unknown_task", 2)
         start, stop, clean = task_range(text, args.task)
-        lines = text.splitlines(keepends=True)
+        lines = _source_lines(text)
         if args.operation == "state":
             need(args.state != "completado" or (known[args.task]["tiene_criterios"]
                  and known[args.task]["checked"] > 0 and known[args.task]["unchecked"] == 0), "unchecked_criteria", 1)

@@ -12,3 +12,6 @@ skills/plugin-panel/assets/vendor/** -text
 
 # Delivery PDFs: preserve bytes, disable CRLF conversion and stream diffs.
 *.pdf binary
+
+# Pinned requirements are hashed as reviewed bytes on every checkout.
+agent-kits/nemesis/tools/wafw00f-requirements.txt text eol=lf

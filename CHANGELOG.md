@@ -11,6 +11,34 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed — `external-session-discovery` initiative (2026-11-06)
+
+- **T-01 — Bounded native JSON capture.** Enforce output size, deadlines and successful exit while closing only transport-owned helpers.
+- **T-02 — Discovery across all three runtimes.** Find external Claude and OpenCode metadata while preserving Codex exact-cwd discovery; never start turns, adopt sessions or take over external chat.
+- **T-03 — Honest session counts.** Distinguish incomplete empty reads and failed refreshes from confirmed zero, retain native-identity deduplication and document local scope in English and Spanish.
+- **T-04 — Validated delivery.** Record complete regression CI, fresh independent reviews and Claude CLI triage without claiming validation on the user's other computer.
+
+### Fixed — `nemesis-remediation` initiative (2026-11-06)
+
+- **T-01 — Safe Atlassian views.** Render provider metadata as text, serialize bounded configuration and keep roadmap labels inside one JQL literal.
+- **T-02 — Secure PDF defaults.** Keep Chromium sandboxed, disable JavaScript and network resources by default, document explicit exceptions and preserve atomic output.
+- **T-03 — Scoped CI privileges.** Pin actions to complete SHAs, limit model secrets to consuming steps and separate read-only release builds from publication.
+- **T-04 — Verified optional tools.** Install reviewed versions and commit archives with hashes and safe extraction; preserve unmanaged or modified installations, including under force.
+- **T-05 — Regression and delivery evidence.** Record independent review, complete reference CI and bilingual migration guidance; no npm publication or release.
+
+### Fixed — `audit-remediation` initiative (2026-11-05)
+
+- **T-01 — Installer ownership.** Verify ownership before modifying files, separate shared caches from project instances, and recover interrupted profile copies through authenticated private staging.
+- **T-02 — Hooks and task briefs.** Confine documentation markers to docs and retain nested acceptance criteria and related design context.
+- **T-03 — Ledger, scope and retrospectives.** Preserve Unicode paths and permissions, detect concurrent changes, and provide bounded history continuation.
+- **T-04 — Publication and curation.** Revalidate queued publications and projections, enforce mandatory exclusions, and preserve declared knowledge origin.
+- **T-05 — Native sessions and console.** Recover failed turns and control concurrent sends, process cleanup and buffer sizes.
+- **T-06 — Portable exports and interoperability.** Ship the matching capability catalog and reject linked destinations before writing.
+- **T-07 — Jira and worklogs.** Redact comments and bind generated worklogs to the project's root and configuration.
+- **T-08 — Capabilities and journal.** Guard journal I/O and preserve retries for temporary Windows file locks.
+- **T-09 — Contracts and documentation.** Align agent contracts and bilingual guidance, and declare npm dual-use functionality.
+- **T-10 — Regression verification and delivery.** Document reproduced regressions, Claude-assisted and independent reviews, and reference CI results with platform limits.
+
 ## [3.2.1] - 2026-11-05
 
 ### Fixed — `npm-payload` initiative (2026-11-05)

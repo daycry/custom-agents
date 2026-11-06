@@ -186,3 +186,5 @@ custom-agents/               (deployed as .claude/)
 **Phased integration:** [INTEGRATION-ROADMAP.md](INTEGRATION-ROADMAP.md) defines delivery order and current limits for recognizing user extensions.
 
 **Context efficiency:** [TOKEN-EFFICIENCY.md](TOKEN-EFFICIENCY.md)
+
+Security hardening: [views, PDF, CI and optional tools](guides/nemesis-remediation.md).

@@ -461,6 +461,9 @@ def _modos():
             [("menu", lambda w: ["--list"], (0,), None)],
         "agent-kits/nemesis/tools/pick_asset.py":
             [("release con emoji", lambda w: ["linux", "amd64"], (0,), release)],
+        "agent-kits/shared/render-artifact.py":
+            [("HTML UTF-8 desde JSON stdin", lambda w: ["--template", "jira-live", "--config", "-"], (0,),
+              json.dumps({"SERVER_SEARCH":"search", "CLOUD_ID":"cloud", "LABEL":"demo", "TITULO":"Revisión 🐛 👍"}, ensure_ascii=False))],
         "agent-kits/qa/coverage-check.py":
             [("sin test-plan", lambda w: [L, os.path.join(w, "no-hay-test-plan.md")], (0, 1), None)],
         "agent-kits/qa/qa-gate.py":
@@ -860,7 +863,7 @@ def test_knowledge_curation_preserva_payload_utf8_y_sha(encoding, tmp_path):
     assert payload['errores'] == [] and payload['avisos'] == []
     assert payload['ruta'] == 'docs/knowledge/candidates/pending/console.md'
     persisted = (project / payload['ruta']).read_bytes()
-    expected = stdin.replace('---', '---\nproposed_by: documenter', 1).encode('utf-8')
+    expected = stdin.replace('---', '---\ncontent_origin: agent\nproposed_by: documenter', 1).encode('utf-8')
     assert persisted == expected
     assert payload['sha256'] == hashlib.sha256(persisted).hexdigest()
     assert not (project / 'docs' / 'knowledge' / 'approved').exists()

@@ -175,7 +175,7 @@ def _python_dependencies(src):
         return set()
     return {node.value for node in ast.walk(tree)
             if isinstance(node, ast.Constant) and isinstance(node.value, str)
-            and PY_NAME_RE.fullmatch(node.value)}
+            and (PY_NAME_RE.fullmatch(node.value) or node.value == 'capability-catalog.json')}
 
 
 def fragmentos_shared(root, textos):
@@ -462,6 +462,10 @@ def exportar(root, out, formato, quiet=False, *, profile=None, include=None, exc
             t, n = reescribir(read_bytes(src).decode("utf-8"))
             n_reescritos += n
             write_text(dst, t)
+        elif rel == 'agent-kits/shared/capability-catalog.json':
+            catalog = json.loads(read_bytes(src))
+            catalog['capabilities'] = [row for row in catalog['capabilities'] if row['id'] in viajan]
+            write_text(dst, json.dumps(catalog, ensure_ascii=False, indent=2, sort_keys=True) + '\n')
         else:
             write_bytes(dst, read_bytes(src))
     version = version_plugin(root)

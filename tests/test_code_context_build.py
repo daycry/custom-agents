@@ -22,7 +22,9 @@ class ProducerTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name)
+        # Match the producer's physical paths (including Windows 8.3 aliases)
+        # so injected publication/read failures reach their intended target.
+        self.root = Path(self.tmp.name).resolve()
         self.project = self.root / "project"
         self.project.mkdir()
         (self.project / "a.py").write_bytes(b"def first(): return 1\n")

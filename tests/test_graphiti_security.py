@@ -123,7 +123,7 @@ _BOOTSTRAP_NODE_HASHES = {
 # prompt capture; same local executables/imports, no network path (review 2026-10-29).
 # F2 T-09/T-10: fixed local marker and combined local parser only; self-audit in
 # testing/t10-egress-boundary-review-2026-10-29.json. Independent phase review remains T-19.
-_LAUNCHER_NODE_HASH = "701a88823d6fcf1afc8d3444eecfb31c9703200d7e587d80d58732bb592a236b"
+_LAUNCHER_NODE_HASH = "40a908fa54d78bc802b7212f57ba879f234b526fd9966e258d5db29d5c562ee1"
 _EXT_RE = "|".join(_EXT_ESCANEABLES + _EXT_NO_ESCANEABLES)
 # Gap #155 (Important, fix1 Fase 4): el lookahead final quita los falsos positivos del escaneo de
 # CODIGO (`hashlib.sha256` casaba como `hashlib.sh`). Hace falta porque a partir de este fix una

@@ -82,7 +82,7 @@ DEFAULT_ASSET = SCRIPT_DIR.parent / "assets" / "confluence.example.json"
 # Exclusión NO negociable, SIEMPRE activa aunque falte de la config del
 # proyecto: staging no se anida; candidates y journal no se publican.
 ALWAYS_EXCLUDE = ["docs/confluence/**", "docs/knowledge/candidates/**",
-                  "docs/knowledge/journal/**"]
+                  "docs/knowledge/journal/**", "docs/security-scan/**"]
 
 # Nombre RESERVADO del fichero de aviso del staging. Nunca es un fichero
 # canónico real: se excluye del alcance en CUALQUIER carpeta bajo docs/ (no
@@ -197,12 +197,14 @@ def load_policy(root, config_path=None):
 
 
 def check_invariants(publish):
-    excludes = list(publish.get("exclude", [])) + ALWAYS_EXCLUDE
+    # Diagnose the declared policy independently from the runtime's mandatory
+    # exclusions; --check must not silently validate an unsafe declaration.
+    excludes = list(publish.get("exclude", []))
     violations = []
     if not any(glob_match(p, SECURITY_SCAN_PROBE) for p in excludes):
         violations.append(
             "INVARIANTE VIOLADA: docs/security-scan/** no está cubierto por "
-            "`exclude` — el escáner de nemesis quedaría publicable en Confluence.")
+            "`exclude` en la política declarada; la exclusión obligatoria del runtime sigue activa.")
     return violations
 
 

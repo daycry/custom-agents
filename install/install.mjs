@@ -21,11 +21,12 @@
 //   · DEGRADA, NO BLOQUEA — un proveedor que falla no impide instalar los demás; el exit code
 //     lo refleja al final.
 
+import {manifestContext,signManifest,readManifest,regularPath} from './manifest-auth.mjs'
 import {
   readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, statSync, rmSync, readdirSync, rmdirSync,
-  renameSync, chmodSync, realpathSync, lstatSync, unlinkSync, mkdtempSync, symlinkSync,
+  renameSync, chmodSync, realpathSync, lstatSync, unlinkSync, mkdtempSync, symlinkSync, openSync, closeSync,
 } from "node:fs"
-import { createHash } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import { dirname, join, resolve, relative, sep, isAbsolute } from "node:path"
 import { fileURLToPath } from "node:url"
 import { createInterface, emitKeypressEvents } from "node:readline"
@@ -219,12 +220,22 @@ export function escribirAtomico(p, contenido, options = {}) {
   const modo = (() => {
     try { return existsSync(p) ? statSync(p).mode & 0o7777 : null } catch { return null }
   })()
-  const tmp = `${p}.tmp-${process.pid}-${Math.random().toString(36).slice(2, 8)}`
+  const tmp = options.temporaryDir ? join(options.temporaryDir,'payload.tmp') : `${p}.tmp-${process.pid}-${Math.random().toString(36).slice(2, 8)}`
   let ultimo = null
   for (let intento = 0; intento < 3; intento++) {
+    let created=false
     try {
-      writeFileSync(tmp, contenido, "utf8")
+      if(options.temporaryDir) {
+        options.guardTemporary()
+        const fd=openSync(tmp,'wx',0o600)
+        created=true
+        try {writeFileSync(fd,contenido,"utf8")} finally {closeSync(fd)}
+      } else {
+        created=true
+        writeFileSync(tmp, contenido, "utf8")
+      }
       if(options.guard)options.guard()
+      if(options.temporaryDir)options.guardTemporary()
       renameSync(tmp, p)
       // El `rename` sustituye el inodo: el fichero se queda con los permisos del temporal (0644).
       // Un `settings.json` que el usuario tenía en 0600 no puede acabar siendo legible por todos.
@@ -232,7 +243,12 @@ export function escribirAtomico(p, contenido, options = {}) {
       return
     } catch (e) {
       ultimo = e
-      try { rmSync(tmp, { force: true }) } catch { /* el temporal es nuestro: si no se va, da igual */ }
+      try {
+        if(created) {
+          if(options.temporaryDir)options.guardTemporary()
+          rmSync(tmp, { force: true })
+        }
+      } catch { /* preserve an unavailable or redirected staging area */ }
       if (!BLOQUEO.includes(e.code)) throw e
       if (intento < 2) dormir(60 * (intento + 1))
     }
@@ -1666,13 +1682,114 @@ export function cargarModelosNativos(provider, opts, previous = null) {
   return {modelsConfig:local.split(sep).join('/'),projection}
 }
 
+function installedManifest(provider,opts,mode=opts.modo) {
+  const path=join(provider.destino(opts.scope,opts.dir,mode),manifiestoDe(provider,mode))
+  return readManifest(path,manifestContext(provider.id,opts.scope,opts.dir,path))
+}
+function prepareOwnedFiles(plan,previous,provider,opts) {
+  const files=new Map(),caches=new Map()
+  files.sharedCaches=caches
+  for(const step of plan) {
+    if(step.type!=='write' && (step.type!=='copy' || step.nativeAgents))continue
+    let cache=null
+    if(step.sharedCacheRoot) {
+      const root=resolve(step.sharedCacheRoot),path=join(root,'.custom-agents-cache.json')
+      if(!caches.has(root)) {
+        const context=manifestContext(provider.id,'user',opts.dir,path)
+        const receipt=readManifest(path,context)
+        caches.set(root,{root,path,context,receipt,hashes:{},before:{}})
+      }
+      cache=caches.get(root)
+    }
+    const old=(cache?.receipt || previous)?.artifactHashes || {}
+    const targets=step.type==='write' ? [step.to] : ficherosDe(step.from,step.to)
+    for(const target of targets) {
+      regularPath(target,{file:true})
+      const path=target.split(sep).join('/')
+      const before=existsSync(target) ? createHash('sha256').update(readFileSync(target)).digest('hex') : null
+      const source=step.type==='write' ? null : join(ROOT,step.from,relative(step.to,target))
+      if(source)regularPath(source,{file:true})
+      const bytes=step.type==='write' ? Buffer.from(step.content) : readFileSync(source)
+      const hash=createHash('sha256').update(bytes).digest('hex')
+      const owner=cache?.receipt || previous
+      const accepted=[old[path],...(owner?.estado==='incompleto' ? [owner.artifactBeforeHashes?.[path]] : [])]
+      // Dedicated provider caches may reuse byte-identical trusted package data.
+      // Consumer project files still require authenticated prior ownership.
+      const reuse=!!cache && before===hash
+      if(before!==null && !reuse && !accepted.includes(before))throw new Error('existing or modified delivery file: back up and reconcile local changes before reinstalling')
+      files.set(target,{bytes,source,before,hash,shared:!!cache,reuse})
+      if(cache) {cache.hashes[path]=hash;cache.before[path]=before}
+    }
+  }
+  return files
+}
+
+function saveSharedCaches(files,provider,complete=false) {
+  for(const cache of files.sharedCaches.values()) {
+    regularPath(cache.root);mkdirSync(cache.root,{recursive:true});regularPath(cache.root)
+    regularPath(cache.path,{file:true})
+    const receipt=signManifest({plugin:'custom-agents',provider:provider.id,scope:'user',modo:'shared-cache',version:VERSION,
+      artifactHashes:cache.hashes,files:Object.keys(cache.hashes),
+      ...(complete?{}:{estado:'incompleto',artifactBeforeHashes:cache.before})},cache.context)
+    escribirAtomico(cache.path,JSON.stringify(receipt,null,2)+'\n',{allowInplace:false,
+      guard:()=>regularPath(cache.path,{file:true})})
+  }
+}
+
+function writeOwnedFile(path,files) {
+  const record=files.get(path)
+  if(!record)throw new Error('delivery file was not preflighted')
+  const guard=()=>{
+    regularPath(path,{file:true})
+    const now=existsSync(path)?createHash('sha256').update(readFileSync(path)).digest('hex'):null
+    if(now!==record.before)throw new Error('delivery target changed after preflight')
+  }
+  if(record.reuse) {guard();return}
+  escribirAtomico(path,record.bytes,{allowInplace:false,guard:()=>{
+    regularPath(path,{file:true})
+    const now=existsSync(path)?createHash('sha256').update(readFileSync(path)).digest('hex'):null
+    if(now!==record.before)throw new Error('delivery target changed after preflight')
+  }})
+  if(record.source)chmodSync(path,statSync(record.source).mode & 0o777)
+}
+
+// A signed directory identity is persisted before any partial payload can be created.
+// Cleanup is confined to its one private scratch name; unknown data and links survive.
+function profileStagingDirectory(stage,destination,{emptyOnly=false}={}) {
+  if(!stage || typeof stage.path!=='string' || dirname(stage.path)!==resolve(destination)
+      || !/^\.custom-agents-stage-[0-9a-f-]{36}$/.test(stage.path.slice(dirname(stage.path).length+1)))
+    throw new Error('invalid profile staging location')
+  regularPath(stage.path)
+  if(!existsSync(stage.path))return false
+  const state=lstatSync(stage.path)
+  if(!state.isDirectory())throw new Error('non-directory profile staging preserved')
+  if(stage.dev===null && stage.ino===null) {
+    if(!emptyOnly || readdirSync(stage.path).length)throw new Error('unverified profile staging preserved')
+  } else if(state.dev!==stage.dev || state.ino!==stage.ino)
+    throw new Error('profile staging identity changed; preserved')
+  return true
+}
+function cleanProfileStaging(stage,destination) {
+  if(!profileStagingDirectory(stage,destination,{emptyOnly:true}))return
+  const names=readdirSync(stage.path)
+  if(names.some(name=>name!=='payload.tmp'))throw new Error('unknown profile staging data preserved')
+  if(names.length) {
+    const payload=join(stage.path,'payload.tmp')
+    regularPath(payload,{file:true})
+    profileStagingDirectory(stage,destination)
+    rmSync(payload)
+  }
+  profileStagingDirectory(stage,destination,{emptyOnly:true})
+  rmdirSync(stage.path)
+}
+
 function ejecutar(provider, opts, selectedModels) {
-  const manPrevio = leerJson(join(provider.destino(opts.scope, opts.dir, opts.modo),manifiestoDe(provider, opts.modo)))
-  const selected=opts.profile!==undefined || opts.include?.length || opts.exclude?.length || manPrevio?.moduleSelection
+  const manPrevio = installedManifest(provider,opts)
+  const selected=provider.id==='claude-code' && opts.modo==='copy' || opts.profile!==undefined || opts.include?.length || opts.exclude?.length || manPrevio?.moduleSelection
   const moduleOptions=selected ? (opts.profile!==undefined || opts.include?.length || opts.exclude?.length
       ? {profile:opts.profile || 'core',include:opts.include || [],exclude:opts.exclude || []}
-      : manPrevio.moduleOptions || {profile:'full',include:manPrevio.moduleSelection.modules,
-          exclude:resolveSelection({profile:'full'}).modules.filter(id=>!manPrevio.moduleSelection.modules.includes(id))}) : null
+      : manPrevio?.moduleOptions || (manPrevio?.moduleSelection ? {profile:'full',include:manPrevio.moduleSelection.modules,
+          exclude:resolveSelection({profile:'full'}).modules.filter(id=>!manPrevio.moduleSelection.modules.includes(id))} : {profile:'full'})) : null
   const selection=selected ? validateDelivery(provider.id,opts.modo,moduleOptions) : null
   const models = selectedModels === undefined ? cargarModelosNativos(provider,opts,manPrevio) : selectedModels
   let plan = buildPlan(provider, {
@@ -1686,9 +1803,18 @@ function ejecutar(provider, opts, selectedModels) {
     plan=projected.plan;profileHashes=projected.hashes;profileBeforeHashes=projected.beforeHashes
   }
   if (models) for(const step of plan) if(step.nativeAgents) step.nativeAgents.projection=models.projection
+  const ownedFiles=prepareOwnedFiles(plan,manPrevio,provider,opts)
+  // Validate the consuming scope before a user-scoped cache can create the key.
+  // In particular HOME must never put our private signing key inside the project.
+  if(!opts.dryRun)signManifest({plugin:'custom-agents',provider:provider.id,scope:opts.scope},
+    manifestContext(provider.id,opts.scope,opts.dir,join(provider.destino(opts.scope,opts.dir,opts.modo),manifiestoDe(provider,opts.modo))))
+  if(!opts.dryRun)saveSharedCaches(ownedFiles,provider)
+  const profileStages=[...(manPrevio?.profileStaging || [])]
+  let activeProfileStage=null
+  let profileFilesRecorded=false
   const escritos = []
   const retirados = new Set()
-  const nativeAgents = {...(leerJson(join(provider.destino(opts.scope,opts.dir,opts.modo),manifiestoDe(provider,opts.modo)))?.nativeAgents || {})}
+  const nativeAgents = {...(manPrevio?.nativeAgents || {})}
   const registro = []   // lo que no es un fichero nuestro: comandos y claves de configuración
   const avisos = models ? [...models.projection.warnings,
     ...(provider.id==='codex' && models.projection.agents.length ? ['Los agentes seleccionados requieren una sesión padre con el proveedor Ollama; el instalador no configura proveedores.'] : [])] : []
@@ -1723,7 +1849,8 @@ function ejecutar(provider, opts, selectedModels) {
     // FUSIÓN con lo que hubiera: si una pasada anterior se quedó a medias, su `registro` es la
     // única pista de las claves que llegó a poner. Reescribirlo dejaba un plugin FANTASMA en
     // `installed_plugins.json` apuntando a un `installPath` ya borrado.
-    escribirJson(join(destino, manifiestoDe(provider, opts.modo)), {
+    const manifestPath=join(destino,manifiestoDe(provider,opts.modo))
+    escribirJson(manifestPath,signManifest({
       plugin: "custom-agents",
       version: VERSION,
       provider: provider.id,
@@ -1731,16 +1858,19 @@ function ejecutar(provider, opts, selectedModels) {
       modo: opts.modo,
       installedAt: new Date().toISOString(),
       ...(models ? {modelsConfig:models.modelsConfig} : {}),
+      ...(profileStages.length ? {profileStaging:profileStages} : {}),
       ...(selection ? {moduleSelection:selection,moduleOptions} : {}),
       ...(profileHashes ? {profileHashes:estado==='completo' ? profileHashes : Object.fromEntries(
         Object.entries({...manPrevio?.profileHashes,...profileHashes}).filter(([path])=>!retirados.has(path)))} : {}),
       ...(profileBeforeHashes && estado!=='completo' ? {profileBeforeHashes:Object.fromEntries(
         Object.entries({...manPrevio?.profileBeforeHashes,...profileBeforeHashes}).filter(([path])=>!retirados.has(path)))} : {}),
       ...(estado === "completo" ? {} : { estado, error: String(error?.message || error) }),
+      artifactHashes:Object.fromEntries(Object.entries({...manPrevio?.artifactHashes,...Object.fromEntries([...ownedFiles].filter(([,row])=>!row.shared).map(([path,row])=>[path.split(sep).join('/'),row.hash]))}).filter(([path])=>!retirados.has(path))),
+      ...(estado==='completo'?{}:{artifactBeforeHashes:Object.fromEntries([...ownedFiles].filter(([,row])=>!row.shared).map(([path,row])=>[path.split(sep).join('/'),row.before]))}),
       files: [...new Set([...(manPrevio?.files || []).filter(f => !retirados.has(f)), ...escritos.map((f) => f.split(sep).join("/"))])].sort(),
       ...(Object.keys(nativeAgents).length ? {nativeAgents} : {}),
       registro: fusionarRegistro(manPrevio?.registro || [], registro),
-    })
+    },manifestContext(provider.id,opts.scope,opts.dir,manifestPath)))
   }
 
   // Señales: un Ctrl-C (o un `taskkill`) a mitad de 444 ficheros dejaba lo copiado SIN manifiesto y
@@ -1790,13 +1920,26 @@ function ejecutar(provider, opts, selectedModels) {
     } else if (paso.type === 'profile-copy') {
       const destination=provider.destino(opts.scope,opts.dir,opts.modo)
       say(`  ${ARROW} ${rel(paso.to)} ${dim(`(${paso.files.length} fichero(s), perfil ${selection.profile})`)}`)
-      escritos.push(...paso.files.map(file=>file.to))
+      if(!profileFilesRecorded) {
+        escritos.push(...plan.filter(step=>step.type==='profile-copy').flatMap(step=>step.files.map(file=>file.to)))
+        profileFilesRecorded=true
+      }
       if(!opts.dryRun) {
-        guardar('incompleto',new Error('copiando grupo del perfil'))
+        if(!activeProfileStage) {
+          activeProfileStage={path:join(resolve(destination),'.custom-agents-stage-'+randomUUID()),dev:null,ino:null}
+          profileStages.push(activeProfileStage)
+          guardar('incompleto',new Error('preparando staging del perfil'))
+          regularPath(activeProfileStage.path)
+          mkdirSync(activeProfileStage.path,{mode:0o700})
+          const state=lstatSync(activeProfileStage.path)
+          activeProfileStage.dev=state.dev;activeProfileStage.ino=state.ino
+          guardar('incompleto',new Error('copiando perfil'))
+        }
         for(const file of paso.files) {
           const content=file.type==='write' ? Buffer.from(file.content) : readFileSync(join(ROOT,file.from))
           if(createHash('sha256').update(content).digest('hex')!==file.contentHash)throw new Error('profile source changed after preflight')
-          escribirAtomico(file.to,content,{guard:()=>verifyProfileTarget(file,destination),allowInplace:false})
+          escribirAtomico(file.to,content,{guard:()=>verifyProfileTarget(file,destination),allowInplace:false,
+            temporaryDir:activeProfileStage.path,guardTemporary:()=>profileStagingDirectory(activeProfileStage,destination)})
           if(file.type==='copy')chmodSync(file.to,statSync(join(ROOT,file.from)).mode & 0o777)
         }
       }
@@ -1842,16 +1985,12 @@ function ejecutar(provider, opts, selectedModels) {
         // El manifiesto se apunta ANTES de copiar: un `taskkill /F` a mitad de la copia no deja
         // ejecutar ningún manejador de señal, así que la única forma de que lo copiado se pueda
         // deshacer es que ya esté inventariado. Cuesta un JSON pequeño por paso.
-        escritos.push(...destinos)
+        escritos.push(...destinos.filter(path=>!ownedFiles.get(path)?.shared))
         try { guardar("incompleto", new Error(`copiando ${paso.from}`)) } catch { /* mejor esfuerzo */ }
         mkdirSync(dirname(paso.to), { recursive: true })
-        cpSync(abs, paso.to, {
-          recursive: true,
-          force: true,
-          filter: (src) => !src.includes(`${sep}__pycache__`) && !src.endsWith(".pyc"),
-        })
+        for(const target of destinos)writeOwnedFile(target,ownedFiles)
       }
-      if (opts.dryRun) escritos.push(...destinos)   // en disco ya se apuntaron antes de copiar
+      if (opts.dryRun) escritos.push(...destinos.filter(path=>!ownedFiles.get(path)?.shared))   // en disco ya se apuntaron antes de copiar
       n += destinos.length
     } else if (paso.type === "merge") {
       const actual = leerJson(paso.to)
@@ -1884,7 +2023,7 @@ function ejecutar(provider, opts, selectedModels) {
       n += cambia ? 1 : 0
     } else if (paso.type === "write") {
       if (opts.dryRun) say(`  ${ARROW} ${rel(paso.to)}`)
-      else { mkdirSync(dirname(paso.to), { recursive: true }); writeFileSync(paso.to, paso.content, "utf8") }
+      else {writeOwnedFile(paso.to,ownedFiles)}
       escritos.push(paso.to)
       n++
     } else if (paso.type === "codex-native-add") {
@@ -2004,6 +2143,22 @@ function ejecutar(provider, opts, selectedModels) {
       // Lectura ESTRICTA: un JSON ilegible es un error, no una excusa para empezar de cero.
       const { existe, bom, valor: actual } = leerJsonEstricto(paso.to)
       const vol = paso.volatiles || []
+      const scopedEntries={}
+      if(paso.scopedPlugin) {
+        paso.set={...paso.set}
+        for(const [key,value] of Object.entries(paso.set)) {
+          if(!key.startsWith('plugins.'))continue
+          const desired=value[0],old=leerRuta(actual,key)
+          if(old!==undefined && !Array.isArray(old))throw new Error('invalid native plugin registration array')
+          const rows=[...(old || [])],matches=(row)=>row?.scope===desired.scope
+            && (desired.scope==='user' || mismaRuta(row.projectPath,desired.projectPath))
+          const index=rows.findIndex(matches)
+          const merged=rows.filter((row,i)=>!matches(row) || i===index)
+          if(index<0)merged.push(desired)
+          else merged[merged.findIndex(matches)]=desired
+          paso.set[key]=merged;scopedEntries[key]={entry:desired,volatiles:vol}
+        }
+      }
       const claves = Object.keys(paso.set)
       const cambia = claves.some((r) => !igualSalvo(leerRuta(actual, r), paso.set[r], vol))
       const out = structuredClone(actual)
@@ -2025,9 +2180,10 @@ function ejecutar(provider, opts, selectedModels) {
       } else if (cambia) {
         escribirJson(paso.to, out, bom)
       }
-      registro.push({
+      if(!paso.sharedRegistration)registro.push({
         "json-set": paso.to,
         claves: claves.filter((k) => !(paso.noQuitar || []).includes(k)),
+        ...(Object.keys(scopedEntries).length ? {scopedEntries} : {}),
         ...((paso.noQuitar || []).length ? { noQuitar: paso.noQuitar } : {}),
         ...(padresCreados.length ? { padresCreados } : {}),
         // Si el fichero NO existía, lo creó el instalador: al desinstalar, si se queda sin nada
@@ -2072,6 +2228,11 @@ function ejecutar(provider, opts, selectedModels) {
   }
 
   const pending = nativePending || roleMigrationPending
+  if(!opts.dryRun) {
+    for(const stage of profileStages)cleanProfileStaging(stage,provider.destino(opts.scope,opts.dir,opts.modo))
+    profileStages.length=0
+  }
+  if(!opts.dryRun)saveSharedCaches(ownedFiles,provider,true)
   guardar(pending ? "incompleto" : "completo",pending
     ? [nativePending ? 'registro/caché nativa pendientes' : '',roleMigrationPending ? 'migración de agentes pendiente; conflictos conservados' : ''].filter(Boolean).join('; ')
     : undefined)
@@ -2142,7 +2303,7 @@ async function cmdInstall(opts) {
     try {
       // DENTRO del try: un manifiesto de copy viejo o ilegible no puede tumbar el run entero
       // (y con él la instalación de los demás proveedores) con un stack crudo.
-      const previous=leerJson(join(p.destino(opts.scope,opts.dir,opts.modo),manifiestoDe(p,opts.modo)))
+      const previous=installedManifest(p,opts)
       const models=cargarModelosNativos(p,opts,previous)
       migrarDeCopy(p, opts)
       const { n, avisos } = ejecutar(p, opts, models)
@@ -2181,7 +2342,7 @@ function migrarDeCopy(p, opts) {
   if (file === manifiestoDe(p, "plugin")) return
   const ruta = join(dest, file)
   if (!existsSync(ruta)) return
-  const man = leerJson(ruta)
+  const man = installedManifest(p,opts,"copy")
   // Un manifiesto ilegible (o sin `files`: instalador viejo, escritura a medias) NO es una excusa
   // para reventar el run entero. Se dice lo que pasa y DÓNDE, y se sigue: lo que haya en `.claude/`
   // se queda, pero el usuario sabe que está ahí y que lo tiene que limpiar él.
@@ -2200,7 +2361,14 @@ function migrarDeCopy(p, opts) {
   }
   // `-y` no es «bórrame lo que quieras»: un fichero del bundle que el usuario haya EDITADO no se
   // toca (el modo plugin no lo repone y el cambio se perdería sin que se entere).
-  const tocados = man.files.filter((f) => modificado(dest, f))
+  const tocados = man.files.filter(f=>{
+    const expected=man.profileHashes?.[f] || man.artifactHashes?.[f]
+    if(!expected)return modificado(dest,f)
+    try {
+      regularPath(f,{file:true})
+      return createHash('sha256').update(readFileSync(f)).digest('hex')!==expected
+    } catch {return true}
+  })
   const limpiables = man.files.filter((f) => !tocados.includes(f))
   say(`  ${WARN} ${dim(`había un bundle copiado (v${man.version}): lo quito antes de instalar el plugin`)}`)
   if (tocados.length) {
@@ -2226,10 +2394,11 @@ function modificado(dest, fichero) {
 const sha1 = (p) => createHash("sha1").update(readFileSync(p)).digest("hex")
 
 /** Manifiestos de este proveedor que existen de verdad: `{ dest, file, man }`. */
-function manifiestosVivos(p, scope, dir) {
+function manifiestosVivos(p, scope, dir, trusted=false) {
   const out = []
   for (const { dest, file } of sitiosManifiesto(p, scope, dir)) {
-    const man = leerJson(join(dest, file))
+    const path=join(dest,file)
+    const man = trusted ? readManifest(path,manifestContext(p.id,scope,dir,path)) : leerJson(path)
     if (man) out.push({ dest, file, man })
   }
   return out
@@ -2270,7 +2439,16 @@ function deshacerInstalacion(p, dest, file, man, opts) {
       } catch { say(`  ${WARN} ${dim(`${rel(abs)}: propiedad/ruta no verificable, conservado`)}`) }
       continue
     }
-    try { if (existsSync(abs)) { rmSync(abs, { force: true }); n++ } } catch { /* sigue */ }
+    try {
+      const hashes=[man.artifactHashes?.[f],...(man.estado==='incompleto'?[man.artifactBeforeHashes?.[f]]:[])].filter(value=>typeof value==='string' && /^[a-f0-9]{64}$/.test(value))
+      regularPath(abs,{file:true})
+      if(hashes.length && retirarArtefacto({to:abs,sha256:hashes,hashBytes:true},dirname(abs)))n++
+      else if(existsSync(abs))say(`  ${WARN} modified or unverified delivery file preserved: ${rel(abs)}`)
+    } catch {say(`  ${WARN} unverifiable delivery path preserved: ${rel(abs)}`)}
+  }
+  for(const stage of man.profileStaging || []) {
+    try {cleanProfileStaging(stage,dest)}
+    catch {say(`  ${WARN} unverifiable or modified profile staging preserved`)}
   }
   for (const a of deshacerRegistro(man.registro || [])) say(`  ${WARN} ${dim(a)}`)
   try { rmSync(join(dest, file), { force: true }) } catch { /* sigue */ }
@@ -2289,7 +2467,7 @@ function cmdUninstall(opts) {
   for (const id of ids) {
     const p = getProvider(id)
     if (!p) continue
-    for (const { dest, file, man } of manifiestosVivos(p, opts.scope, opts.dir)) {
+    for (const { dest, file, man } of manifiestosVivos(p, opts.scope, opts.dir,true)) {
       tocados++
       deshacerInstalacion(p, dest, file, man, opts)
     }
@@ -2319,7 +2497,15 @@ function deshacerRegistro(registro) {
       }
       if (!leido.existe) continue
       const actual = leido.valor
-      for (const k of e.claves || []) quitarRuta(actual, k)
+      for (const k of e.claves || []) {
+        const scoped=e.scopedEntries?.[k]
+        if(!scoped) {quitarRuta(actual,k);continue}
+        const rows=leerRuta(actual,k)
+        if(!Array.isArray(rows)) {avisos.push(`${rel(e['json-set'])}: registro cambiado; conservado`);continue}
+        const remaining=rows.filter(row=>!igualSalvo(row,scoped.entry,scoped.volatiles || []))
+        if(remaining.length)ponerRutaEstricta(actual,k,remaining)
+        else quitarRuta(actual,k)
+      }
       // Los objetos que creó ESTE paso y se han quedado vacíos se van con él (de dentro afuera).
       for (const ruta of [...(e.padresCreados || [])].sort((a, b) => b.split(".").length - a.split(".").length)) {
         const v = leerRuta(actual, ruta)
@@ -2752,6 +2938,9 @@ export function resultadoSeleccion(fin) {
 async function main() {
   const opts = parseArgs(process.argv.slice(2))
   QUIET = Boolean(opts.quiet)   // `parseArgs` es puro: el efecto se aplica aquí
+  if(['install','uninstall','remove','status'].includes(opts.cmd) && !['project','user'].includes(opts.scope)) {
+    console.error('--scope must be project or user');return 2
+  }
   switch (opts.cmd) {
     case "help": ayuda(); return 0
     case "version": console.log(VERSION); return 0
@@ -2769,7 +2958,7 @@ async function main() {
 // Importado por los tests → no ejecuta nada. Ejecutado como CLI → corre.
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
   main().then((code) => process.exit(code)).catch((e) => {
-    console.error(`${ERR} ${e?.stack || e}`)
+    console.error(`${ERR} ${e?.code==='UNVERIFIED_MANIFEST' ? e.message : e?.stack || e}`)
     process.exit(1)
   })
 }

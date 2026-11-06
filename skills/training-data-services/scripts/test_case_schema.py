@@ -792,11 +792,12 @@ def test_f1fix3_gap27_cargar_config_con_json_anidado_es_error_de_fichero(tmp_pat
     assert any("anidamiento" in e["mensaje"] for e in errores), errores
 
 
-def test_f1fix3_gap29a_arguments_texto_anidado_en_exceso_no_revienta():
+@pytest.mark.parametrize('depth', [60, 5000])
+def test_f1fix3_gap29a_arguments_texto_anidado_en_exceso_no_revienta(depth):
     """gap #29 (a): `arguments` en texto JSON con 5000 niveles -> RecursionError al parsear ->
     error de anidamiento (fail closed), nunca una excepcion."""
     tr = copy.deepcopy(CASO_OK["trajectory"])
-    tr[2]["tool_calls"][0]["arguments"] = "[" * 5000 + "]" * 5000
+    tr[2]["tool_calls"][0]["arguments"] = "[" * depth + "]" * depth
     errores = cs.validar_caso(_caso(trajectory=tr))
     assert any(e["campo"] == "trajectory[2].tool_calls[0].arguments" and "anidamiento" in e["mensaje"]
                for e in errores), errores

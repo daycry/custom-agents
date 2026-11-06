@@ -14,6 +14,7 @@ import sys
 
 sys.dont_write_bytecode = True
 HERE = Path(__file__).resolve().parent
+MAX_CONFIG_DEPTH = 32
 
 
 def read_config(project, dev_json=None):
@@ -31,6 +32,7 @@ def read_config(project, dev_json=None):
         data = json.loads(row["data"].decode("utf-8-sig"))
         if not isinstance(data, dict):
             raise ValueError("non-object config")
+        reader.check_json_depth(data, maximum=MAX_CONFIG_DEPTH)
         return data, []
     except (OSError, ValueError, UnicodeError, RecursionError):
         return {}, ["dev.json unavailable or invalid; normal defaults, lite not verified"]
