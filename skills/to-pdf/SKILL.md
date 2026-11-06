@@ -35,7 +35,7 @@ El motor vive en una carpeta escribible fuera del repo/plugin (los plugins se in
 ```bash
 CACHE="$HOME/.claude/tool-cache/to-pdf"
 mkdir -p "$CACHE"
-cp "$PDFSKILL/scripts/to-pdf.mjs" "$PDFSKILL/scripts/package.json" "$PDFSKILL/assets/theme.css" "$CACHE/"
+cp "$PDFSKILL/scripts/"*.mjs "$PDFSKILL/scripts/package.json" "$PDFSKILL/assets/theme.css" "$CACHE/"
 ```
 Si `"$CACHE/node_modules"` no existe, **detente y pide permiso** al usuario (avisa: instala
 `puppeteer` + `markdown-it` + `mammoth` y descarga Chromium, ~150 MB). Solo si acepta:
@@ -60,3 +60,13 @@ Confirma la(s) ruta(s) del PDF generado. Si alguna conversión falla, muestra el
 - **HTML de entrada:** si trae `<body>`, se usa su contenido; si es un fragmento, se usa tal cual.
 - **DOCX:** `mammoth` extrae HTML semántico (títulos, listas, tablas, negritas); imágenes embebidas se incrustan. El maquetado exacto de Word no se reproduce al 100 %: prioriza estructura + el tema moderno.
 - **Personalizar estilo:** edita/duplica `theme.css` y pásalo con `--theme`.
+
+## Política de ejecución y recursos
+
+Por defecto Chromium conserva su sandbox, JavaScript está desactivado y el render no carga recursos web ni archivos locales referenciados por el documento. Los recursos data/blob embebidos siguen disponibles. Un recurso bloqueado produce un aviso; revisa el PDF antes de entregarlo.
+
+- `--allow-js`: permite scripts sólo para documentos de confianza, por ejemplo gráficos HTML.
+- `--allow-origin https://assets.example.com`: permite recursos de ese origen HTTPS exacto; repite el flag para otros orígenes. Rutas, credenciales y parámetros no se admiten.
+- `--unsafe-no-sandbox`: excepción explícita para un entorno aislado donde Chromium no pueda iniciar con sandbox; se muestra un aviso. No se usa automáticamente al fallar.
+
+La política de recursos del render no sustituye el aislamiento del sistema al ejecutar JavaScript autorizado. El tema CSS se inserta como texto de estilo, el título se escapa y la salida atómica sigue conservando el PDF anterior si falla la conversión.

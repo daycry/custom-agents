@@ -24,20 +24,9 @@ import mammoth from 'mammoth';
 import puppeteer from 'puppeteer';
 
 import { writeAtomically } from './atomic-out.mjs';
+import { parseArgs, escapeHtml, browserOptions, applyPolicy } from './render-policy.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-function parseArgs(argv) {
-  const args = { _: [] };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (a === '--out') args.out = argv[++i];
-    else if (a === '--theme') args.theme = argv[++i];
-    else if (a === '--title') args.title = argv[++i];
-    else args._.push(a);
-  }
-  return args;
-}
 
 async function toBodyHtml(input) {
   const ext = extname(input).toLowerCase();
@@ -77,15 +66,21 @@ async function main() {
   const body = await toBodyHtml(input);
   const doc = `<!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><title>${title}</title><style>${theme}</style></head>
+<head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head>
 <body><main class="doc">${body}</main></body>
 </html>`;
 
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--font-render-hinting=none'] });
+  if(args.unsafeNoSandbox)console.error('Aviso: sandbox de Chromium desactivado explícitamente; usa sólo documentos de confianza.');
+  let browser;
+  try {browser=await puppeteer.launch(browserOptions(args));}
+  catch(error){throw new Error('No se pudo iniciar Chromium con la política seleccionada. No se desactiva el sandbox automáticamente. '+error.message);}
   try {
     const page = await browser.newPage();
+    const policy=await applyPolicy(page,args);
     await page.setContent(doc, { waitUntil: 'networkidle0' });
-    await writeAtomically(out, (tmp) => page.pdf({
+    if(theme)await page.addStyleTag({content:theme});
+    policy.check();
+    await writeAtomically(out, async (tmp) => {await page.pdf({
       path: tmp,
       format: 'A4',
       printBackground: true,
@@ -95,7 +90,8 @@ async function main() {
       footerTemplate:
         '<div style="width:100%;font-size:8px;color:#9aa0a6;padding:0 16mm;text-align:right;">' +
         '<span class="pageNumber"></span> / <span class="totalPages"></span></div>',
-    }));
+    });policy.check();});
+    if(policy.blocked)console.error('Aviso: '+policy.blocked+' recurso(s) bloqueado(s); habilita sólo orígenes HTTPS necesarios con --allow-origin.');
     console.log(`OK -> ${out}`);
   } finally {
     await browser.close();

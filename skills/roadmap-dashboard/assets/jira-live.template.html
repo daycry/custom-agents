@@ -4,19 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Roadmap · estado en vivo (Jira)</title>
-<!--
-  PLANTILLA del dashboard VIVO desde Jira (skill roadmap-dashboard, comando /roadmap-live).
-  El asistente COPIA este fichero, sustituye {{...}} y lo publica con create_artifact
-  (mcp_tools = [ {{SERVER_SEARCH}} ]). Lee en vivo del conector al abrirse; el host ya
-  ofrece botón de recarga (no añadir uno propio).
-  Marcadores:
-    {{SERVER_SEARCH}} -> mcp__<uuid>__searchJiraIssuesUsingJql
-    {{CLOUD_ID}}      -> cloudId del site
-    {{LABEL}}         -> label a filtrar (p. ej. el <slug> de una iniciativa, o 'roadmap' para toda la cartera)
-    {{TITULO}}        -> texto de cabecera (nombre de la iniciativa o 'Cartera')
-  Requiere que jira-sync haya creado los issues con labels 'roadmap' y '<slug>' (Paso 5).
-  searchJiraIssuesUsingJql: searchResultMode:"issues", JQL acotada (labels = ...); issues en issues.nodes.
--->
+<!-- Render with agent-kits/shared/render-artifact.py; configuration is JSON data. -->
 <style>
 :root{color-scheme:light}
 *{box-sizing:border-box}
@@ -47,14 +35,17 @@ th{color:#6b6b66;font-weight:600}
 </head>
 <body>
 <div class="wrap">
-  <h1>🗺️ Roadmap en vivo — {{TITULO}}</h1>
-  <div class="sub">Estado real desde Jira (label <code>{{LABEL}}</code>). Usa el botón de recarga para refrescar.</div>
+  <h1 id="view-title"></h1>
+  <div class="sub">Estado real desde Jira (label <code id="label-text"></code>). Usa el botón de recarga para refrescar.</div>
   <div id="body"><div class="muted"><span class="spin"></span> Cargando issues de Jira…</div></div>
 </div>
 <script>
-const SERVER_SEARCH="{{SERVER_SEARCH}}";
-const CLOUD="{{CLOUD_ID}}";
-const LABEL="{{LABEL}}";
+const CONFIG = {{CONFIG_JSON}};
+const SERVER_SEARCH=CONFIG.SERVER_SEARCH;
+const CLOUD=CONFIG.CLOUD_ID;
+const LABEL=CONFIG.LABEL;
+document.getElementById("view-title").textContent="🗺️ Roadmap en vivo — "+CONFIG.TITULO;
+document.getElementById("label-text").textContent=LABEL;
 
 function parse(r){
   if(r.isError) throw new Error((r.content&&r.content[0]&&r.content[0].text)||"error");
@@ -79,16 +70,20 @@ async function load(){
     const jql='labels = "'+LABEL+'" ORDER BY status ASC, updated DESC';
     const r=await window.cowork.callMcpTool(SERVER_SEARCH,{cloudId:CLOUD,jql:jql,searchResultMode:"issues",maxResults:100,fields:["summary","status","issuetype","timetracking","aggregatetimespent","parent"]});
     const items=issuesOf(parse(r));
-    if(!items.length){ body.innerHTML='<div class="muted">No hay issues con el label <code>'+LABEL+'</code>. ¿Se ha volcado el plan a Jira con jira-sync?</div>'; return; }
+    if(!items.length){const empty=document.createElement("div");empty.className="muted";empty.textContent="No hay issues con el label "+LABEL+". ¿Se ha volcado el plan a Jira con jira-sync?";body.replaceChildren(empty);return;}
     let done=0,prog=0,todo=0,tsec=0;
     items.forEach(it=>{ const f=it.fields||{}; const c=cat(f); if(c==="done")done++;else if(c==="prog")prog++;else todo++; tsec+=secs(f); });
     const tot=items.length, pd=Math.round(done/tot*100);
-    let rows="";
+    const rows=document.createDocumentFragment();
     items.forEach(it=>{ const f=it.fields||{}; const c=cat(f);
       const cls=c==="done"?"st-done":c==="prog"?"st-prog":"st-todo";
-      rows+='<tr><td class="k">'+it.key+'</td><td>'+(f.summary||"")+'</td>'+
-            '<td><span class="pill '+cls+'">'+((f.status&&f.status.name)||"")+'</span></td>'+
-            '<td>'+(secs(f)?hrs(secs(f))+'h':'—')+'</td></tr>';
+      const row=document.createElement("tr");
+      const key=document.createElement("td");key.className="k";key.textContent=it.key;
+      const summary=document.createElement("td");summary.textContent=f.summary||"";
+      const status=document.createElement("td"),pill=document.createElement("span");
+      pill.className="pill "+cls;pill.textContent=(f.status&&f.status.name)||"";status.appendChild(pill);
+      const time=document.createElement("td");time.textContent=secs(f)?hrs(secs(f))+"h":"—";
+      row.append(key,summary,status,time);rows.appendChild(row);
     });
     body.innerHTML=
       '<div class="cards">'+
@@ -104,8 +99,9 @@ async function load(){
       '<div class="legend"><span class="dot seg-done"></span>Done '+done+
         '<span class="dot seg-prog"></span>En curso '+prog+
         '<span class="dot seg-todo"></span>Pendiente '+todo+'</div>'+
-      '<table><thead><tr><th>Issue</th><th>Resumen</th><th>Estado</th><th>Imputado</th></tr></thead><tbody>'+rows+'</tbody></table>';
-  }catch(e){ body.innerHTML='<div class="err">No se pudo cargar de Jira: '+e.message+'</div>'; }
+      '<table><thead><tr><th>Issue</th><th>Resumen</th><th>Estado</th><th>Imputado</th></tr></thead><tbody></tbody></table>';
+    body.querySelector("tbody").appendChild(rows);
+  }catch(e){ const error=document.createElement("div");error.className="err";error.textContent="No se pudo cargar de Jira: "+String(e.message||e);body.replaceChildren(error); }
 }
 load();
 </script>

@@ -37,7 +37,7 @@ Si la herramienta de crear artefactos está disponible:
    ```bash
    TPL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/jira-sync/assets/jira-picker.template.html' 2>/dev/null | head -1)"
    ```
-2. Copia la plantilla y sustituye `{{SERVER_PROJECTS}}` (nombre completo `mcp__<uuid>__getVisibleJiraProjects`), `{{SERVER_SEARCH}}` (`mcp__<uuid>__searchJiraIssuesUsingJql`) y `{{CLOUD_ID}}`.
+2. Resuelve también el helper con las raíces de runtime: `agent-kits/shared/render-artifact.py`. Pasa por JSON únicamente las claves `SERVER_PROJECTS` (nombre completo del tool), `SERVER_SEARCH` y `CLOUD_ID`: `python3 "$RENDERER" --template jira-picker --config "$CONFIG_JSON"` emite el HTML seguro por stdout. No sustituyas marcadores ni concatentes valores dentro de HTML/JavaScript. Si falta el helper, usa el Paso 1-B.
 3. Publícala con `create_artifact` (con `mcp_tools=[getVisibleJiraProjects, searchJiraIssuesUsingJql]`). El artefacto busca proyectos, resuelve claves/URLs de issue directas y busca padre por clave/texto/JQL en vivo.
 4. Cuando el usuario elija, lee `window.__dest = {projectKey, projectName, parentKey, parentSummary}` y continúa.
 
