@@ -53,7 +53,7 @@ export function observedSessionCount(inventory,managed){
  if(!Array.isArray(managed))return null
  const count=managed.length+externalSessions(inventory,managed).length
  if(count)return count
- return inventory?.status==='ok'&&inventory.complete===true||(inventory?.providers||[]).some(p=>['ok','partial'].includes(p.status))?0:null
+ return inventory?.status==='ok'&&inventory.complete===true&&inventory.freshness?.state!=='refresh_failed'?0:null
 }
 export function loading(root,text='Preparando esta vista…'){root.replaceChildren(el('div',text,'loading'))}
 export function empty(root,title,description,symbol='box',actions=[],compact=false){

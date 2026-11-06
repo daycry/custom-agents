@@ -1,9 +1,11 @@
 """Claude Code bidirectional stream-json adapter, without permission bypass flags."""
 import importlib.util
+import hashlib
 import json
 import os
 from pathlib import Path
 import threading
+import time
 import uuid
 
 _spec=importlib.util.spec_from_file_location('console_claude_common',Path(__file__).with_name('console_common.py'))
@@ -136,3 +138,41 @@ class Driver:
     def close(self):
         self.closing=True
         if self.process:self.process.close()
+
+
+def discover(workspace,*,capture=None,command=None,process_factory=None):
+    """Read active local session metadata through the supported native CLI only."""
+    rows=[];reason=None;seen=set()
+    try:
+        argv=(command or TRANSPORT.executable('claude-code',workspace.root))+[
+            'agents','--json','--cwd',str(workspace.root),'--setting-sources','',
+            '--strict-mcp-config','--settings','{"disableAllHooks":true}']
+        values=(capture or TRANSPORT.capture_json)(argv,workspace.root,timeout=4,process_factory=process_factory)
+        C.need(type(values) is list,'native_inventory_invalid',503)
+        if len(values)>200:reason='native_inventory_limit'
+        for value in values[:200]:
+            if type(value) is not dict or not C.same_root(value.get('cwd'),workspace.root):
+                reason=reason or 'native_inventory_partial';continue
+            if value.get('kind') not in ('interactive','background'):
+                reason=reason or 'native_inventory_partial';continue
+            started=value.get('startedAt')
+            if type(started) not in (int,float) or not 0<=started/1000<=time.time()+86400:
+                reason=reason or 'native_inventory_partial';continue
+            ident=value.get('sessionId')
+            if ident is not None:
+                try:ident=str(uuid.UUID(ident))
+                except (ValueError,TypeError,AttributeError):reason=reason or 'native_inventory_partial';continue
+            else:
+                pid=value.get('pid')
+                if type(pid) is not int or pid<=0:reason=reason or 'native_inventory_partial';continue
+                ident='observed-'+hashlib.sha256((str(workspace.root)+':'+str(pid)+':'+str(started)).encode()).hexdigest()[:24]
+            if ident in seen:continue
+            seen.add(ident);title=value.get('name')
+            rows.append({'id':ident,'runtime':'claude-code','title':C.scrub(title,workspace.root,160) if type(title) is str and title.strip() else 'Claude Code / '+ident[-8:],
+                         'created_at':started/1000,'updated_at':None,'status':'unconfirmed',
+                         'source':'native','read_only':True,'role':None,'parent_id':None})
+    except Exception:reason='native_inventory_unavailable'
+    complete=reason is None
+    return {'status':'ok' if complete else 'partial' if rows else 'unavailable',
+            'complete':complete,'reason':reason,'sessions':rows,'observed_at':time.time(),
+            'scope':'native_active_exact_cwd'}

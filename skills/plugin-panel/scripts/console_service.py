@@ -129,8 +129,14 @@ class Service:
                           'source':'project_hooks','usage_reason':'not_reported_by_hook'}
         return LEGACY._scrub_history(value,lambda text:C.scrub(text,workspace.root))
     def native_peer(self,*args):
-        owner=self;transport=C.sibling('console_transport.py')
-        class OwnedPeer(transport.JsonPeer):
+        return self._owned_native(C.sibling('console_transport.py').JsonPeer,args,{})
+    def native_command(self,*args,**kwargs):
+        return self._owned_native(C.sibling('console_transport.py').JsonCommand,args,kwargs)
+    def native_process(self,*args,**kwargs):
+        return self._owned_native(C.sibling('console_transport.py').LineProcess,args,kwargs)
+    def _owned_native(self,base,args,kwargs):
+        owner=self
+        class OwnedPeer(base):
             def start(self):
                 with owner.discovery_lock:
                     C.need(not owner.closing,'console_closed',503)
@@ -139,7 +145,7 @@ class Service:
                 try:super().close()
                 finally:
                     with owner.discovery_lock:owner.discovery_peers.discard(self)
-        return OwnedPeer(*args)
+        return OwnedPeer(*args,**kwargs)
     def native_sessions(self,ident):
         workspace=self.workspace(ident)
         def compute():
@@ -147,6 +153,11 @@ class Service:
             for runtime in workspace.runtimes:
                 if runtime=='codex':
                     value=C.sibling('console_codex.py').discover(workspace,peer_factory=self.native_peer)
+                    rows.extend(value['sessions']);complete=complete and value['complete']
+                    providers.append({k:v for k,v in dict(value,runtime=runtime).items() if k!='sessions'})
+                elif runtime in ('claude-code','opencode'):
+                    module=C.sibling('console_claude.py' if runtime=='claude-code' else 'console_opencode.py')
+                    value=module.discover(workspace,process_factory=self.native_command if runtime=='claude-code' else self.native_process)
                     rows.extend(value['sessions']);complete=complete and value['complete']
                     providers.append({k:v for k,v in dict(value,runtime=runtime).items() if k!='sessions'})
                 else:
@@ -190,7 +201,7 @@ class Service:
                 except ValueError:pass
             rows.append({'id':runtime,'enabled':runtime in workspace.runtimes,'installed':found,'connection':'not_checked',
                          'capabilities':{'chat':True,'resume_known':True,'interrupt':True,'approval':True,'desktop_window_control':False,
-                                         'external_session_discovery':runtime=='codex','external_session_control':False,'attachments':False},
+                                         'external_session_discovery':runtime in ('codex','claude-code','opencode'),'external_session_control':False,'attachments':False},
                          'limits':['Native policies apply','Advanced forms may require the native application']})
         return {'runtimes':rows,'session_state_error':self.sessions.errors.get(ident)}
     def catalog(self,ident):

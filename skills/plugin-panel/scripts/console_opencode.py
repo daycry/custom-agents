@@ -8,8 +8,9 @@ from pathlib import Path
 import re
 import secrets
 import threading
+import time
 import uuid
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlencode
 
 _spec=importlib.util.spec_from_file_location('console_opencode_common',Path(__file__).with_name('console_common.py'))
 C=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(C)
@@ -39,9 +40,10 @@ class Client:
         finally:connection.close()
 
 class Driver:
-    def __init__(self,workspace,emit,client=None,monitor=True):
+    def __init__(self,workspace,emit,client=None,monitor=True,process_factory=None):
         self.workspace,self.emit,self.client=workspace,emit,client
         self.monitor=monitor;self.native_id=None;self.process=None
+        self.process_factory=process_factory or TRANSPORT.LineProcess
         self.ready=threading.Event();self.stopped=threading.Event();self.wake=threading.Event()
         self.lock=threading.RLock();self.pending={};self.messages={};self.tool_states={}
         self.password=secrets.token_urlsafe(32);self.inflight=False;self.last_idle=0;self.last_prompt=None;self.own_prompts=set()
@@ -55,14 +57,16 @@ class Driver:
     def _scope(self,session):
         C.need(type(session) is dict and C.same_root((session.get('location') or {}).get('directory'),self.workspace.root),'native_scope_mismatch',403)
         C.need(type(session.get('id')) is str and SESSION.fullmatch(session['id']),'native_identity_missing',503)
-    def start(self,resume_id=None):
+    def _connect(self,timeout=30):
         if self.client is None:
             env=dict(os.environ);env['OPENCODE_PASSWORD']=self.password;env['OPENCODE_SERVER_PASSWORD']=self.password
             argv=TRANSPORT.executable('opencode',self.workspace.root)+['serve','--stdio','--hostname','127.0.0.1','--port','0']
-            self.process=TRANSPORT.LineProcess(argv,self.workspace.root,self._lease,self._exit,env=env)
-            self.process.start();C.need(self.ready.wait(30) and self.client is not None and self.start_error is None,'native_start_timeout',503)
-        info=self.client.call('GET','/api/info')
+            self.process=self.process_factory(argv,self.workspace.root,self._lease,self._exit,env=env)
+            self.process.start();C.need(self.ready.wait(timeout) and self.client is not None and self.start_error is None,'native_start_timeout',503)
+        info=self.client.call('GET','/api/info',timeout=timeout)
         C.need(type(info.get('version')) is str and re.match('^v?2[.]',info['version']),'native_v2_required',503)
+    def start(self,resume_id=None):
+        self._connect()
         if resume_id:
             C.need(type(resume_id) is str and SESSION.fullmatch(resume_id),'invalid_native_identity')
             result=self.client.call('GET','/api/session/'+resume_id)
@@ -185,3 +189,40 @@ class Driver:
         self.stopped.set();self.wake.set()
         if self.process:self.process.close()
         if self.monitor_thread and self.monitor_thread is not threading.current_thread():self.monitor_thread.join(timeout=2)
+
+
+def discover(workspace,*,client=None,process_factory=None):
+    """Read one bounded metadata page through a private V2 lease; never create a session."""
+    rows=[];reason=None;driver=None;seen=set()
+    try:
+        driver=Driver(workspace,lambda _:None,client=client,monitor=False,process_factory=process_factory)
+        driver._connect(timeout=4)
+        path='/api/session?'+urlencode({'directory':str(workspace.root),'archived':'false','limit':'200','order':'desc'})
+        value=driver.client.call('GET',path,timeout=4)
+        C.need(type(value) is dict and type(value.get('data')) is list and len(value['data'])<=200,'native_inventory_invalid',503)
+        cursor=value.get('cursor')
+        C.need(cursor is None or type(cursor) is dict,'native_inventory_invalid',503)
+        if cursor and cursor.get('next') is not None:reason='native_inventory_limit'
+        for item in value['data']:
+            if type(item) is not dict or not C.same_root((item.get('location') or {}).get('directory'),workspace.root):
+                reason=reason or 'native_inventory_partial';continue
+            ident=item.get('id')
+            if type(ident) is not str or SESSION.fullmatch(ident) is None:
+                reason=reason or 'native_inventory_partial';continue
+            if ident in seen:continue
+            seen.add(ident);title=item.get('title');stamps=item.get('time') or {}
+            def stamp(key):
+                value=stamps.get(key) if type(stamps) is dict else None
+                return value/1000 if type(value) in (int,float) and 0<=value/1000<=time.time()+86400 else None
+            rows.append({'id':ident,'runtime':'opencode','title':C.scrub(title,workspace.root,160) if type(title) is str and title.strip() else 'OpenCode / '+ident[-8:],
+                         'created_at':stamp('created'),'updated_at':stamp('updated'),'status':'unconfirmed',
+                         'source':'native','read_only':True,'role':None,'parent_id':None})
+    except Exception:reason='native_inventory_unavailable'
+    finally:
+        if driver is not None:
+            try:driver.close()
+            except Exception:reason='native_inventory_cleanup_failed'
+    complete=reason is None
+    return {'status':'ok' if complete else 'partial' if rows else 'unavailable',
+            'complete':complete,'reason':reason,'sessions':rows,'observed_at':time.time(),
+            'scope':'native_non_archived_exact_cwd'}

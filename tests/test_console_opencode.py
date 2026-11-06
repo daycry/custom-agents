@@ -66,3 +66,58 @@ def test_interrupt_uses_v2_result_without_fabricating_success(tmp_path):
     assert c.calls[-1][1]=='/api/session/ses_one/interrupt'
     assert out[-1]['status']=='interrupted'
     d.close()
+
+
+def test_external_inventory_uses_get_metadata_only_with_exact_project_scope_and_cleanup(tmp_path):
+    module=api();discover=getattr(module,'discover',None)
+    assert callable(discover),'OpenCode external session discovery is missing'
+    class InventoryClient(Client):
+        def call(self,method,path,data=None,timeout=15):
+            if path.startswith('/api/session?'):
+                self.calls.append((method,path,data))
+                return {'data':[{'id':'ses_one','title':'Native terminal','location':{'directory':str(tmp_path)},'time':{'created':1000,'updated':2000},'messages':['PRIVATE-CANARY']}], 'cursor':{}}
+            return super().call(method,path,data,timeout)
+    client=InventoryClient(tmp_path)
+    result=discover(SimpleNamespace(root=tmp_path),client=client)
+    assert [row['id'] for row in result['sessions']]==['ses_one']
+    assert result['complete'] is True and result['sessions'][0]['read_only'] is True
+    assert all(method=='GET' for method,_,_ in client.calls)
+    assert not any('/message' in path for _,path,_ in client.calls)
+    from urllib.parse import urlsplit,parse_qs
+    query=parse_qs(urlsplit(client.calls[-1][1]).query)
+    assert query['directory']==[str(tmp_path)] and query['archived']==['false']
+    assert 'PRIVATE-CANARY' not in str(result)
+
+def test_external_inventory_cursor_or_wrong_scope_reports_partial_and_never_adopts(tmp_path):
+    module=api();discover=getattr(module,'discover',None)
+    assert callable(discover),'OpenCode external session discovery is missing'
+    class InventoryClient(Client):
+        def call(self,method,path,data=None,timeout=15):
+            if path.startswith('/api/session?'):
+                return {'data':[{'id':'ses_foreign','title':'FOREIGN-CANARY','location':{'directory':str(tmp_path/'foreign')}}], 'cursor':{'next':'more'}}
+            return super().call(method,path,data,timeout)
+    result=discover(SimpleNamespace(root=tmp_path),client=InventoryClient(tmp_path))
+    assert result['sessions']==[] and result['complete'] is False and result['status']!='ok'
+    assert 'FOREIGN-CANARY' not in str(result)
+
+
+def test_external_inventory_owns_and_closes_lease_without_creating_session(tmp_path,monkeypatch):
+    module=api();client=Client(tmp_path);processes=[]
+    original=client.call
+    def call(method,path,data=None,timeout=15):
+        if path.startswith('/api/session?'):
+            client.calls.append((method,path,data));return {'data':[],'cursor':{}}
+        return original(method,path,data,timeout)
+    client.call=call
+    monkeypatch.setattr(module,'Client',lambda url,password:client)
+    class Process:
+        def __init__(self,argv,cwd,message,exit,env=None):
+            self.argv=argv;self.message=message;self.closed=False;processes.append(self)
+        def start(self):self.message({'url':'http://127.0.0.1:12345'})
+        def close(self):self.closed=True
+    monkeypatch.setattr(module.TRANSPORT,'executable',lambda *a:['native-opencode'])
+    result=module.discover(SimpleNamespace(root=tmp_path),process_factory=Process)
+    assert result['complete'] and result['sessions']==[]
+    assert len(processes)==1 and processes[0].closed
+    assert processes[0].argv[1:]==['serve','--stdio','--hostname','127.0.0.1','--port','0']
+    assert all(method=='GET' for method,_,_ in client.calls)

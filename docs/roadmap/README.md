@@ -7,7 +7,7 @@ Estados: borrador · en-progreso · en-revision · completado · cancelado (spec
 | Fecha | Iniciativa | Tiempo | Coste | Artefactos |
 |-------|-----------|--------|-------|-----------|
 | 2026-11-06 | nemesis-remediation: vistas seguras y endurecimiento | No estimado | No medido | [spec](2026-11-06-nemesis-remediation/spec.md) / [plan](2026-11-06-nemesis-remediation/improvement-plan.md) / [tasks](2026-11-06-nemesis-remediation/tasks.md) |
-| 2026-11-06 | [external-session-discovery](2026-11-06-external-session-discovery/spec.md) | En progreso | Sesiones externas Claude, Codex y OpenCode |
+| 2026-11-06 | external-session-discovery: sesiones externas de los tres runtimes | No estimado | No medido | [spec](2026-11-06-external-session-discovery/spec.md) / [plan](2026-11-06-external-session-discovery/improvement-plan.md) / [tasks](2026-11-06-external-session-discovery/tasks.md) |
 | 2026-11-05 | audit-remediation: correcciones verificadas de R1–R24 | No estimado | No medido | [spec](2026-11-05-audit-remediation/spec.md) / [plan](2026-11-05-audit-remediation/improvement-plan.md) / [tasks](2026-11-05-audit-remediation/tasks.md) |
 | 2026-11-05 | npm-payload: cierre del artefacto npm y publicación verificable | No estimado | No medido | [spec](2026-11-05-npm-payload/spec.md) / [tasks](2026-11-05-npm-payload/tasks.md) |
 | 2026-11-04 | user-handbooks: uso eficiente de suscripciones y resultados verificables | No estimado | No medido | [spec](2026-11-04-user-handbooks/spec.md) / [tasks](2026-11-04-user-handbooks/tasks.md) |

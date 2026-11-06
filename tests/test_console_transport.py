@@ -98,3 +98,30 @@ def test_explicit_user_bin_is_usable_when_dashboard_starts_from_home(tmp_path,mo
     binary.write_text('test executable metadata only');binary.chmod(0o755)
     monkeypatch.chdir(home);monkeypatch.setenv('PATH',str(binary_dir))
     assert api().executable('codex',project)[0]==str(binary)
+
+
+def test_inventory_command_captures_multiline_json_without_shell_or_input(tmp_path):
+    module=api();capture=getattr(module,'capture_json',None)
+    assert callable(capture),'Bounded native metadata command capture is missing'
+    child=tmp_path/'inventory.py'
+    child.write_text('import json; print(json.dumps([{"id":"one"}], indent=2))',encoding='utf-8')
+    assert capture([sys.executable,str(child)],tmp_path,timeout=2)==[{"id":"one"}]
+
+@pytest.mark.parametrize('body',["print('not json')", "print('[]'); raise SystemExit(2)", "print('x'*1100000)", "import time; time.sleep(20)"])
+def test_inventory_command_rejects_invalid_nonzero_large_or_stalled_output(tmp_path,body):
+    module=api();capture=getattr(module,'capture_json',None)
+    assert callable(capture),'Bounded native metadata command capture is missing'
+    child=tmp_path/'inventory.py';child.write_text(body,encoding='utf-8')
+    started=time.monotonic()
+    with pytest.raises(ValueError):capture([sys.executable,str(child)],tmp_path,timeout=.25)
+    assert time.monotonic()-started<6
+
+
+def test_inventory_timeout_closes_the_actual_owned_command(tmp_path):
+    module=api();owned=[]
+    class Owned(module.JsonCommand):
+        def start(self):
+            super().start();owned.append(self)
+    child=tmp_path/'metadata.py';child.write_text('import time;time.sleep(20)',encoding='utf-8')
+    with pytest.raises(ValueError):module.capture_json([sys.executable,str(child)],tmp_path,timeout=.2,process_factory=Owned)
+    assert owned and all(not process.alive and process.closed.is_set() for process in owned)
