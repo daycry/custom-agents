@@ -11,6 +11,14 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed — `nemesis-remediation` initiative (2026-11-06)
+
+- **T-01 — Safe Atlassian views.** Render provider metadata as text, serialize bounded configuration and keep roadmap labels inside one JQL literal.
+- **T-02 — Secure PDF defaults.** Keep Chromium sandboxed, disable JavaScript and network resources by default, document explicit exceptions and preserve atomic output.
+- **T-03 — Scoped CI privileges.** Pin actions to complete SHAs, limit model secrets to consuming steps and separate read-only release builds from publication.
+- **T-04 — Verified optional tools.** Install reviewed versions and commit archives with hashes and safe extraction; preserve unmanaged or modified installations, including under force.
+- **T-05 — Regression and delivery evidence.** Record independent review, complete reference CI and bilingual migration guidance; no npm publication or release.
+
 ### Fixed — `audit-remediation` initiative (2026-11-05)
 
 - **T-01 — Installer ownership.** Verify ownership before modifying files, separate shared caches from project instances, and recover interrupted profile copies through authenticated private staging.

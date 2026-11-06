@@ -1,6 +1,6 @@
 ---
 plan: nemesis-remediation
-estado: en-progreso
+estado: completado
 ---
 # Implementación
 [Spec](spec.md) · [Ledger](tasks.md)

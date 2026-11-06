@@ -1,6 +1,6 @@
 ---
 tasks: nemesis-remediation
-estado: en-progreso
+estado: completado
 creado: 2026-11-06
 verificacion: obligatoria
 changelog: Fixed
@@ -13,11 +13,11 @@ changelog: Fixed
 ## Resumen de progreso
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 4 | 5 | 80.0% |
-| **TOTAL** | **4** | **5** | **80.0%** |
+| Fase 1 | 5 | 5 | 100.0% |
+| **TOTAL** | **5** | **5** | **100.0%** |
 
 ## Fase 1
-**Estado**: en-progreso
+**Estado**: completado
 
 ### T-01 — Vistas Atlassian seguras
 
@@ -74,13 +74,13 @@ GREEN dirigido T-04: 13 pruebas offline. RED adicional del quoting de argumentos
 
 ### T-05 — Regresión, revisión y entrega
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Archivos**: `docs/roadmap/2026-11-06-nemesis-remediation/**`, `docs/roadmap/README.md`, `docs/guides/nemesis-remediation.md`, `docs/en/guides/nemesis-remediation.md`, `CHANGELOG.md`, `CHANGELOG.es.md`, `tests/test_console_encoding.py`, `interop/**`, `docs/README.md`, `docs/en/README.md`
 - **Changelog**: Regresiones, revisión independiente y documentación bilingüe de la remediación; sin publicación npm ni release.
 - **Verificación**: tests dirigidos y regresiones del área; evidencia ejecutada en [testing/validation.md](testing/validation.md).
 
 **Criterios de aceptación**
-- [ ] Verificaciones dirigidas, revisión A/B/C/D según selector, CI y documentación bilingüe; commits/push y PR actualizada, sin publicación npm/release.
+- [x] Verificaciones dirigidas, revisión A/B/C/D según selector, CI y documentación bilingüe; commits/push y PR actualizada, sin publicación npm/release.
 
 
 Ampliación técnica T-05: los índices ES/EN enlazan la nueva guía para que sea descubrible; no cambia el alcance funcional.
@@ -129,3 +129,5 @@ Los revisores ejecutaron contratos dirigidos (27 Python, 3 JQL) y A comprobó sc
 CI 42194293340 (e351d2c) falló: 10504 passed, 41 skipped, 87 subtests, cuatro fallos por ausencia del modo render-artifact en el inventario general de consola y uno del test previo de benchmark adaptativo. El renderer ya tenía el snippet UTF-8, pero la suite exige registrar un modo que emita HTML Unicode real; se añade stdin JSON válido para jira-live, con los mismos asserts ASCII/cp1252. RED: cuatro fallos de la suite general observados en CI antes del registro. TDD n/a inventario de pruebas/configuración; no se modifica código ni se relajan puertas.
 
 Ampliación técnica T-05: tests/test_console_encoding.py registra la nueva pieza bajo el contrato de consola existente. El test de benchmark y los umbrales de rendimiento permanecen sin cambios; su variación se valida de nuevo de forma dirigida y en CI.
+
+Cierre T-05: CI42196374258 correcta en de0ad8f, 10511 Python +87 subtests, Node y gates verdes; evidencia enlazada en testing/validation.md. PR30 y push realizados. No se publica ni fusiona.

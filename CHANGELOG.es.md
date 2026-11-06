@@ -11,6 +11,14 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed — iniciativa `nemesis-remediation` (2026-11-06)
+
+- **T-01 — Vistas Atlassian seguras** Metadatos Atlassian como texto, configuración JSON segura y etiquetas JQL confinadas al literal; renderer y referencias coherentes.
+- **T-02 — Conversión PDF segura** PDF con sandbox activo y JS/red desactivados por defecto; excepciones explícitas y salida atómica preservada. (`skills/to-pdf/**`, `tests/to-pdf*.test.mjs`)
+- **T-03 — CI con permisos acotados** Acciones por SHA, secretos por paso, permisos mínimos y build de release separado del publicador. (`ci.yml.MANUAL-COPY`, `release.yml.MANUAL-COPY`, `headless.yml.MANUAL-COPY`)
+- **T-04 — Herramientas opcionales verificadas** Herramientas opcionales con pins y hashes, extracción segura y propiedad verificada; no sobrescribir instalaciones ajenas o modificadas.
+- **T-05 — Regresión, revisión y entrega** Regresiones, revisión independiente y documentación bilingüe de la remediación; sin publicación npm ni release.
+
 ### Fixed — iniciativa `audit-remediation` (2026-11-05)
 
 - **T-01 — Instalador y propiedad** El instalador autentica la propiedad, separa las cachés compartidas y recupera copias interrumpidas mediante staging firmado. (`install/**`, `tests/installer.test.mjs`, `tests/install-auth.test.mjs`)

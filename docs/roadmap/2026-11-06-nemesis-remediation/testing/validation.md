@@ -1,6 +1,6 @@
 # Evidencia de remediación
 
-Estado: pruebas dirigidas verdes; revisión y CI pendientes. Sin publicación npm/release.
+Estado: completado; revisión, pruebas dirigidas y CI de referencia correctas. Sin publicación npm/release.
 
 ## T-01 — vistas
 
@@ -40,4 +40,14 @@ Linter sobre snapshot público bb5ca20 sin informes privados/descargas: 0 errore
 
 Interop final: 92 ficheros al día tras actualizar la instrucción canónica de nemesis. Ledger-lint: 0 incoherencias y 0 avisos; scope final: 44 archivos, ninguno excluido/fuera ni criterios alterados. Sin umbrales relajados ni tests omitidos nuevos.
 
-Referencia CI en progreso: https://github.com/daycry/custom-agents/actions/runs/42194828544 (head 2bbfbc9). No se acredita completa hasta obtener resultado.
+Referencia CI de código anterior (fallida por inventario de consola): https://github.com/daycry/custom-agents/actions/runs/42194828544 (head 2bbfbc9). No se acredita completa hasta obtener resultado.
+
+## CI de referencia y cierre
+
+CI https://github.com/daycry/custom-agents/actions/runs/42196374258 — éxito en de0ad8fc65c8710b8be6f3795e3f8b2829248bdd. Python3.11: 10511 passed, 41 skipped, 87 subtests; los skips de plataforma se conservan. Node22: 489 passed, 16 skipped, 0 failed (505 casos); todas las puertas restantes finalizaron correctamente. Benchmark real 30 iteraciones: p95 2.43ms, p99 3.55ms, dentro de 100/300ms sin cambios de umbral. Linter, manual, evals, interop, sintaxis y versiones correctos.
+
+La corrección de consola se verificó localmente con 8 casos; benchmark unitario11 y medición local30 verdes sin alterar código/umbrales. El segundo run previo (2bbfbc9) falló únicamente por los cuatro casos de registro de consola. Esos fallos previos se conservan como evidencia, no como verde.
+
+Paquete local generado sin scripts ni publicación: 669 miembros, helpers/locks/guías nuevos presentes y cero rutas de informes privados, caches de ejecución o node_modules; SHA256 33ef87540c96f8de029f3c23ae34868c53eb599b515fd5b1f21a38b9d088dbe1 (snapshot anterior a las notas finales, no artefacto publicado).
+
+Commits y push en fix/audit-remediation; PR30 actualizada. No merge, release, publicación npm ni apelación. La iniciativa adicional external-session-discovery se valida por separado; este verde cubre las correcciones de Nemesis.

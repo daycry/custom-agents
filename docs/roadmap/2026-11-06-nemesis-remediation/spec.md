@@ -1,6 +1,6 @@
 ---
 spec: nemesis-remediation
-estado: aprobada
+estado: implementada
 evaluacion: no-aplica
 plan: improvement-plan.md
 ---
