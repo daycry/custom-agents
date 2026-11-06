@@ -461,6 +461,9 @@ def _modos():
             [("menu", lambda w: ["--list"], (0,), None)],
         "agent-kits/nemesis/tools/pick_asset.py":
             [("release con emoji", lambda w: ["linux", "amd64"], (0,), release)],
+        "agent-kits/shared/render-artifact.py":
+            [("HTML UTF-8 desde JSON stdin", lambda w: ["--template", "jira-live", "--config", "-"], (0,),
+              json.dumps({"SERVER_SEARCH":"search", "CLOUD_ID":"cloud", "LABEL":"demo", "TITULO":"Revisión 🐛 👍"}, ensure_ascii=False))],
         "agent-kits/qa/coverage-check.py":
             [("sin test-plan", lambda w: [L, os.path.join(w, "no-hay-test-plan.md")], (0, 1), None)],
         "agent-kits/qa/qa-gate.py":

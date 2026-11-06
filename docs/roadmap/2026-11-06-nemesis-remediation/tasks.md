@@ -75,7 +75,7 @@ GREEN dirigido T-04: 13 pruebas offline. RED adicional del quoting de argumentos
 ### T-05 — Regresión, revisión y entrega
 
 - **Estado**: en-progreso
-- **Archivos**: `docs/roadmap/2026-11-06-nemesis-remediation/**`, `docs/roadmap/README.md`, `docs/guides/nemesis-remediation.md`, `docs/en/guides/nemesis-remediation.md`, `CHANGELOG.md`, `CHANGELOG.es.md`, `interop/**`, `docs/README.md`, `docs/en/README.md`
+- **Archivos**: `docs/roadmap/2026-11-06-nemesis-remediation/**`, `docs/roadmap/README.md`, `docs/guides/nemesis-remediation.md`, `docs/en/guides/nemesis-remediation.md`, `CHANGELOG.md`, `CHANGELOG.es.md`, `tests/test_console_encoding.py`, `interop/**`, `docs/README.md`, `docs/en/README.md`
 - **Changelog**: Regresiones, revisión independiente y documentación bilingüe de la remediación; sin publicación npm ni release.
 - **Verificación**: tests dirigidos y regresiones del área; evidencia ejecutada en [testing/validation.md](testing/validation.md).
 
@@ -123,3 +123,9 @@ Ampliación técnica T-01: docs/atlassian-connector-notes.md describe la paramet
 Head 2bbfbc9, 44 archivos, A+B+C; D no aplica. B/C aprueban el literal JQL y conservan cierres previos. A confirma criterios y detecta un Minor residual de Claude-06: live-artifact.md aún usaba CONFIG_JSON ambiguo. Se amplió el mismo test dedicado a las tres referencias, se observó RED (1 failed) y se corrigió la tercera referencia a CONFIG_FILE con ruta explícita. GREEN posterior: 10 tests renderer y 17 tools. Corrección sólo de prosa/test, sin cuarta ronda ni código funcional nuevo; Minor cerrado por evidencia. No quedan gaps de revisión aceptados pendientes.
 
 Los revisores ejecutaron contratos dirigidos (27 Python, 3 JQL) y A comprobó scope/ledger-lint/interop sin incidencias. CI y entrega continúan en T-05.
+
+## Regresión completa — integración de consola
+
+CI 42194293340 (e351d2c) falló: 10504 passed, 41 skipped, 87 subtests, cuatro fallos por ausencia del modo render-artifact en el inventario general de consola y uno del test previo de benchmark adaptativo. El renderer ya tenía el snippet UTF-8, pero la suite exige registrar un modo que emita HTML Unicode real; se añade stdin JSON válido para jira-live, con los mismos asserts ASCII/cp1252. RED: cuatro fallos de la suite general observados en CI antes del registro. TDD n/a inventario de pruebas/configuración; no se modifica código ni se relajan puertas.
+
+Ampliación técnica T-05: tests/test_console_encoding.py registra la nueva pieza bajo el contrato de consola existente. El test de benchmark y los umbrales de rendimiento permanecen sin cambios; su variación se valida de nuevo de forma dirigida y en CI.
