@@ -53,7 +53,7 @@ artefacto (así todos usan el mismo).
    TPL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/confluence-publish/assets/tree-browser.template.html' 2>/dev/null | head -1)"
    ```
 2. Resuelve los datos: `cloudId` (de `getAccessibleAtlassianResources`), `homepageId` del espacio elegido (viene en `getConfluenceSpaces`), la clave y el nombre del espacio, y el `DEFAULT_NAME` (nombre de la carpeta del proyecto).
-3. Resuelve `agent-kits/shared/render-artifact.py` con las mismas raíces de runtime. Prepara JSON con `SERVER`, `CLOUD_ID`, `HOME_ID`, `SPACE_KEY`, `SPACE_NAME`, `SPACE_INITIALS` y `DEFAULT_NAME`, y llama `python3 "$RENDERER" --template confluence-tree --config "$CONFIG_JSON"`. Publica el HTML de stdout; no sustituyas valores en el código. Si falta el helper, sigue el Paso 3-B.
+3. Resuelve `agent-kits/shared/render-artifact.py` con las mismas raíces de runtime. Guarda un fichero JSON y asigna su **ruta**, nunca el JSON inline, a `CONFIG_FILE`. Incluye `SERVER`, `CLOUD_ID`, `HOME_ID`, `SPACE_KEY`, `SPACE_NAME`, `SPACE_INITIALS` y `DEFAULT_NAME`, y llama `python3 "$RENDERER" --template confluence-tree --config "$CONFIG_FILE"`. Publica el HTML de stdout; no sustituyas valores en el código. Si falta el helper, sigue el Paso 3-B.
 4. Publica el resultado con `create_artifact` (con `mcp_tools=[el getConfluencePageDescendants del conector]`). El artefacto **navega el árbol en vivo**: al expandir un nodo llama a `getConfluencePageDescendants`, sin volcar nada al chat.
 5. **Al pulsar "Elegir aquí"** el propio artefacto pregunta al usuario:
    - **Usar esa página como destino** → el contenido colgará directamente de ella (no se crea página nueva).

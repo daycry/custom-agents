@@ -22,7 +22,7 @@ changelog: Fixed
 ### T-01 — Vistas Atlassian seguras
 
 - **Estado**: en-revision
-- **Archivos**: `skills/jira-sync/assets/**`, `skills/roadmap-dashboard/assets/**`, `skills/confluence-publish/assets/**`, `agent-kits/shared/render-artifact.py`, `skills/jira-sync/references/destination-and-types.md`, `skills/confluence-publish/references/wizard.md`, `skills/roadmap-dashboard/**`, `tests/artifact-dom-security.test.mjs`, `tests/test_artifact_renderer.py`
+- **Archivos**: `skills/jira-sync/assets/**`, `skills/roadmap-dashboard/assets/**`, `skills/confluence-publish/assets/**`, `agent-kits/shared/render-artifact.py`, `skills/jira-sync/references/destination-and-types.md`, `skills/confluence-publish/references/wizard.md`, `docs/atlassian-connector-notes.md`, `skills/roadmap-dashboard/**`, `tests/artifact-dom-security.test.mjs`, `tests/test_artifact_renderer.py`
 - **Verificación**: tests dirigidos y regresiones del área; evidencia ejecutada en [testing/validation.md](testing/validation.md).
 
 **Criterios de aceptación**
@@ -94,3 +94,21 @@ Lentes A+B+C sobre facad5f..bb5ca20; D no aplica según selector. Las tres lente
 RED de correcciones: `test_B1_source_python_imports_its_verified_sibling_with_isolation`, `test_B2_requirements_checkout_is_explicitly_lf`, `test_A01_catalog_describes_current_pinned_installer`: 3 failed antes de modificar código/config/prosa (2026-11-06). B2/A-01: TDD n/a configuración/prosa; contratos de regresión dedicados.
 
 Ampliación técnica T-04: .gitattributes protege el digest literal en Windows; docs/agents actualiza descripciones existentes; agents/nemesis.md limita el ejemplo de instalación a nombres expresamente autorizados. Interop se regenera desde esta fuente canónica (T-05). No se modifican criterios aprobados.
+
+## Revisión de dos lentes — intento 2: Fase 1 (T-01–T-05) — verde A+B+C
+
+Head e351d2c, 43 archivos. A confirma A-01 y E2/E3; B confirma B1/B2; C no encuentra vulnerabilidades introducidas/reabiertas. Cada lente ejecutó 16 tests de herramientas; A/C verificaron interop (92 al día), A scope/ledger-lint sin incoherencias. D no aplica por selector. Sin gaps nuevos en esas lentes.
+
+## Apoyo de Claude CLI — snapshot bb5ca20
+
+Revisión sólo lectura con Claude Code 2.1.311 y Opus; sin Bash, red, MCP ni persistencia de sesión. Salida final recibida, no fue una ejecución cancelada. Confirma B1, B2 y A-01, e identifica:
+
+| ID | Grado adjudicado | Evidencia | Acción |
+|---|---|---|---|
+| Claude-04 | Important | agents/nemesis.md invocaba catálogo completo tras aprobar sólo faltantes | Ya corregido en e351d2c con --only nombres autorizados; se añade contrato dedicado. |
+| Claude-05 | Important | jira-live:70 concatena LABEL sin escapar y permite operadores fuera del literal | Confirmado mediante fixture JS; serializar un único literal JQL. |
+| Claude-06 | Minor | Referencias usan CONFIG_JSON ambiguo aunque --config espera una ruta; nota central aún menciona marcadores antiguos | Explicitar fichero/ruta CONFIG_FILE y actualizar nota central; contrato dedicado. |
+
+RED adicional: Claude-05, 1 passed/2 failed (comillas que amplían filtro y barra que cambia el valor); Claude-06, 1 failed por instrucciones de ruta ambiguas. Antes de las correcciones (2026-11-06). Claude-04/06: TDD n/a prosa; contrato dedicado. Los aspectos no confirmados por Claude (CSS con JS desactivado, compatibilidad de archivos upstream) están cubiertos por conversión real y lectura validada de los tres archivos fuente; no se ejecutaron herramientas externas.
+
+Ampliación técnica T-01: docs/atlassian-connector-notes.md describe la parametrización que este cambio sustituye; se actualiza para evitar reintroducir sustitución insegura. Criterios funcionales sin cambios.

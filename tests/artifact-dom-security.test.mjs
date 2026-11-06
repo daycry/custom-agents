@@ -1,4 +1,5 @@
 import {test} from 'node:test'
+import vm from 'node:vm'
 import assert from 'node:assert/strict'
 import {mkdtempSync,readFileSync,writeFileSync,existsSync,rmSync} from 'node:fs'
 import {tmpdir} from 'node:os'
@@ -78,3 +79,17 @@ for(const view of definitions)test('F001 '+view.id+' '+(view.mode||'metadata')+'
   rmSync(temp,{recursive:true,force:true})
  }
 })
+
+for(const label of ['normal-label','x" OR project is not EMPTY OR labels = "y',String.raw`a\b`])
+ test('Claude-05 Jira JQL keeps label as one quoted literal: '+label,async()=>{
+  const template=readFileSync(join(root,'skills/roadmap-dashboard/assets/jira-live.template.html'),'utf8')
+  const script=template.match(/<script>([\s\S]*?)<\/script>/)[1].replace('{{CONFIG_JSON}}',JSON.stringify({SERVER_SEARCH:'search',CLOUD_ID:'cloud',LABEL:label,TITULO:'Fixture'}))
+  let query
+  const element=()=>({textContent:'',replaceChildren(){}})
+  const context={document:{getElementById:element,createElement:element},window:{cowork:{callMcpTool:async(name,args)=>{query=args.jql;return {structuredContent:{issues:[]}}}}}}
+  vm.runInNewContext(script,context,{timeout:1000})
+  await new Promise(resolve=>setImmediate(resolve))
+  const prefix='labels = ',suffix=' ORDER BY status ASC, updated DESC'
+  assert.ok(query.startsWith(prefix)&&query.endsWith(suffix))
+  assert.equal(JSON.parse(query.slice(prefix.length,-suffix.length)),label,'JQL value must stay a single escaped literal')
+ })

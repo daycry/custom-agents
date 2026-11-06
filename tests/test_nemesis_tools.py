@@ -61,6 +61,11 @@ class InstallerPolicy(unittest.TestCase):
         self.assertIn("tools-lock.json",catalog)
         self.assertIn("wafw00f-requirements.txt",catalog)
 
+    def test_Claude04_agent_passes_only_explicitly_authorized_tool_names(self):
+        agent=(TOOLS.parents[2]/"agents/nemesis.md").read_text(encoding="utf-8")
+        command=next(row for row in agent.splitlines() if 'bash "$NEMKIT/tools/install-tools.sh"' in row)
+        self.assertIn('--only "<nombres-autorizados-separados-por-coma>"',command)
+
     def test_reviewed_catalog_and_requirements(self):
         module = load()
         catalog = module.read_catalog()

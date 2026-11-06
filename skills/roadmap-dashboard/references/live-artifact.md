@@ -7,3 +7,5 @@ Resuelve el helper `agent-kits/shared/render-artifact.py` con las raíces proyec
 `python3 "$RENDERER" --template jira-live --config "$CONFIG_JSON"` emite HTML por stdout. También admite `--config -` y JSON por stdin. Publica esa salida con el tool de lectura indicado en `mcp_tools`. Los títulos, errores y metadatos se muestran como texto; no sustituyas marcadores ni construyas JavaScript con strings del proveedor.
 
 Sin helper o soporte de artefactos, presenta un snapshot conversacional usando el adaptador. No improvises HTML ni establezcas polling.
+
+El valor de la etiqueta se serializa como un único literal JQL entre comillas, escapando comillas y barras para que no añada operadores. Referencia de sintaxis: [búsqueda avanzada de Atlassian](https://support.atlassian.com/jira-service-management-cloud/docs/what-is-advanced-search-in-jira-cloud/), consultada el 2026-11-06. Las pruebas son sintéticas; no consultan Jira real.

@@ -50,3 +50,13 @@ def test_literal_template_delimiters_in_data_are_preserved():
  html=module().render('jira-live',data)
  start=html.index('const CONFIG = ')+len('const CONFIG = ')
  assert json.loads(html[start:html.index(';',start)])==data
+
+def test_Claude06_renderer_references_explicitly_pass_a_json_file_path():
+ refs=[ROOT/'skills/jira-sync/references/destination-and-types.md',ROOT/'skills/confluence-publish/references/wizard.md']
+ for ref in refs:
+  text=ref.read_text(encoding='utf-8')
+  assert '--config "$CONFIG_FILE"' in text
+  assert 'ruta' in text
+ notes=(ROOT/'docs/atlassian-connector-notes.md').read_text(encoding='utf-8')
+ assert '{{SERVER_*}}' not in notes
+ assert 'render-artifact.py' in notes

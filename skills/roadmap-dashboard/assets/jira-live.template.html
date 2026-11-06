@@ -67,7 +67,7 @@ function hrs(s){ return Math.round((s/3600)*10)/10; }
 async function load(){
   const body=document.getElementById("body");
   try{
-    const jql='labels = "'+LABEL+'" ORDER BY status ASC, updated DESC';
+    const jql="labels = "+JSON.stringify(LABEL)+" ORDER BY status ASC, updated DESC";
     const r=await window.cowork.callMcpTool(SERVER_SEARCH,{cloudId:CLOUD,jql:jql,searchResultMode:"issues",maxResults:100,fields:["summary","status","issuetype","timetracking","aggregatetimespent","parent"]});
     const items=issuesOf(parse(r));
     if(!items.length){const empty=document.createElement("div");empty.className="muted";empty.textContent="No hay issues con el label "+LABEL+". ¿Se ha volcado el plan a Jira con jira-sync?";body.replaceChildren(empty);return;}
