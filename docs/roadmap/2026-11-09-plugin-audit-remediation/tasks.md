@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 1 | 6 | 16.7% |
+| Fase 1 | 2 | 6 | 33.3% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **1** | **21** | **4.8%** |
+| **TOTAL** | **2** | **21** | **9.5%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -47,14 +47,21 @@ GREEN: `python -m pytest -q tests/test_worklog.py` → `8 passed in 6.18s` (BOM,
 
 ### T-02 — qa-gate sin falso verde
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-3 y menor C4. Un test con `expectedStatus: "skipped"` no cuenta como pasado; BOM y raíz no objeto dan veredicto, no traceback.
 - **Archivos**: `agent-kits/qa/qa-gate.py`, `tests/test_qa_gate.py`.
 - **Verificación**: `python -m pytest -q tests/test_qa_gate.py` → todos pasan, con los casos nuevos.
+- **Changelog**: La puerta de QA ya no da verde con todo saltado: un test marcado como saltado cuenta como saltado, y un results.json con BOM o con forma inesperada da un veredicto claro.
+- **Cerrada**: 2026-11-09
 
 **Criterios de aceptación**
-- [ ] Sin bloque `stats`, un test saltado se cuenta como `skipped` y 0 ejecutados no es VERDE.
-- [ ] `results.json` con BOM se lee; raíz lista → ROJO con motivo.
+- [x] Sin bloque `stats`, un test saltado se cuenta como `skipped` y 0 ejecutados no es VERDE.
+- [x] `results.json` con BOM se lee; raíz lista → ROJO con motivo.
+
+
+RED: `tests/test_qa_gate.py (5 casos nuevos)` falló con 5 failed: skipped sin stats contado passed con VERDE, BOM da malformado, raiz lista y estructuras inesperadas dan Traceback · 2026-11-09.
+
+GREEN: `python -m pytest -q tests/test_qa_gate.py` → `6 passed in 4.63s` (skipped sin stats, skipped+passed, BOM, raíz lista, 4 estructuras inesperadas sin traceback); `python tests/test_qa_gate.py` → `13/13 OK` · 2026-11-09.
 
 ### T-03 — Instalador robusto en Windows y con configuración ajena
 
