@@ -1280,27 +1280,30 @@ def test_statusline_find_jobs_temporal_no_gana_al_plugin_instalado(tmp_path):
 def test_setup_5bis_find_jobs_temporal_no_gana_al_plugin_instalado(tmp_path):
     """El `find` de /setup 5-bis (el que escribe la ruta ABSOLUTA en settings.json) ignora `~/.claude/jobs`."""
     md = open(os.path.join(ROOT, "commands", "setup.md"), encoding="utf-8").read()
-    linea = next(l.strip() for l in md.splitlines() if l.strip().startswith('SL="$(find') and "roadmap-statusline.sh" in l)
+    linea = next(l.strip() for l in md.splitlines() if 'SL="${R:+$R/' in l and "roadmap-statusline.sh" in l)
     home = tmp_path / "home"
-    for donde in (home / ".claude" / "jobs" / "x" / "statusline", home / ".claude" / "plugins" / "cache" / "p" / "statusline"):
-        donde.mkdir(parents=True)
-        (donde / "roadmap-statusline.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+    for bundle in (home / ".claude" / "jobs" / "x",
+                   home / ".claude" / "plugins" / "cache" / "daycry" / "custom-agents" / "1.0.0"):
+        (bundle / "statusline").mkdir(parents=True)
+        (bundle / "statusline" / "roadmap-statusline.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+        (bundle / "agent-kits" / "shared").mkdir(parents=True)   # marcador de bundle real (regla 5)
+        (bundle / "agent-kits" / "shared" / "ledger-lint.py").write_text("#\n", encoding="utf-8")
     proj = tmp_path / "proj"
     proj.mkdir()
     r = subprocess.run([BASH, "-c", linea + '\nprintf "%s" "$SL"'], capture_output=True, text=True, encoding="utf-8",
                        errors="replace", cwd=str(proj), timeout=60,
                        env={**os.environ, "HOME": str(home)})
     ruta = r.stdout.replace("\\", "/")
-    assert "/plugins/cache/p/" in ruta and "/jobs/" not in ruta, (r.stdout, r.stderr)
+    assert "/plugins/cache/daycry/custom-agents/1.0.0/" in ruta and "/jobs/" not in ruta, (r.stdout, r.stderr)
 
 
 def test_fix1_12_todo_find_de_setup_excluye_los_temporales_de_jobs():
     """setup-statusline-polish fix1 #12: cada `find` de seis raíces de `/setup` excluye
     `~/.claude/jobs` (el de `KPA` en 5-sexies reintroducía el patrón que corrige T-06)."""
     md = open(os.path.join(ROOT, "commands", "setup.md"), encoding="utf-8").read()
-    finds = [l.strip() for l in md.splitlines() if 'find "$PWD/.claude"' in l]
+    finds = [l.strip() for l in md.splitlines() if 'find "$PWD/.claude"' in l or 'for r in "$PWD"/.{claude,' in l]
     assert len(finds) >= 4, finds
-    sin = [l for l in finds if "! -path '*/.claude/jobs/*'" not in l]
+    sin = [l for l in finds if "! -path '*/.claude/jobs/*'" not in l and '! -path "$r/jobs/*"' not in l]
     assert not sin, sin
 
 

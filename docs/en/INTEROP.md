@@ -279,25 +279,28 @@ OpenAI's identifiers, so the agent inherits the session's model and only the rea
 
 Each translated body is prefixed with a four-line **preamble** that translates the only things that
 change per runtime: how a skill is invoked, how another agent is delegated to, which guardrail is not
-enforced, and where kits are resolved. The original body is untouched.
+enforced, and where kits are resolved. The only change to the original body is the order of the resolution roots (§3).
 
 ---
 
 ## 3. Path resolution (rule 5 of CONVENTIONS)
 
-Agents and skills locate their kits at runtime with a `find` over **six roots**, two per runtime,
-project before user:
+Agents and skills locate the **bundle root** at runtime. In Claude Code, `${CLAUDE_PLUGIN_ROOT}` is
+substituted when commands, skills and agents are loaded. Without substitution (Codex, OpenCode, a bundle copy, or a
+`references/*.md` read with Read), the marker `agent-kits/shared/ledger-lint.py` is searched root by root: project
+first, then the install caches, then the user roots:
 
 ```bash
-find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" \
-     "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" \
-     -type d -path '*agent-kits/shared' 2>/dev/null | head -1
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"
+SHAREDKIT="${R:+$R/agent-kits/shared}"
 ```
 
 Neither Codex nor OpenCode looks for kits under `.claude/`, so without their roots a plugin installed
 in them would find its skills but **not** its toolkit. OpenCode's global directory is
-`~/.config/opencode`, **not** `~/.opencode`. If you add a runtime, its root is added to **every**
-piece (today 88 occurrences across 56 files) — the `find` is not a styling detail.
+`~/.config/opencode`, **not** `~/.opencode`. Generated agents and commands put their runtime's roots
+first (`raices_de_runtime` in `scripts/export-interop.py`); skills ship untranslated and keep the
+Claude Code order. The details (marker, depth, version, stop) are in rule 5 of `docs/en/CONVENTIONS.md`;
+if you add a runtime, its root is added to **every** piece.
 
 ---
 

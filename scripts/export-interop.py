@@ -462,7 +462,34 @@ def codex_hooks_json(root):
     return json_txt({"hooks": out})
 
 
+# Resolución de la raíz del plugin (regla 5 de docs/CONVENTIONS.md): fuera de Claude Code
+# `${CLAUDE_PLUGIN_ROOT}` no se sustituye y decide el `find` de respaldo, cuyo ORDEN de raíces manda.
+# Las piezas canónicas llevan el orden de Claude Code; la copia de cada runtime antepone sus raíces
+# para ejecutar SU instalación (y no la de otro runtime) cuando conviven varias.
+# Raíces del respaldo, en el orden canónico (Claude Code) y en el de cada runtime: bash con llaves
+# (`for r in …; do find …`) y la lista de la receta PowerShell de /dev-cycle.
+_RAICES = {
+    "claude": ('"$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}',
+               '"$PWD/.claude", "$PWD/.codex", "$PWD/.opencode", "$HOME/.claude/plugins/cache/daycry", "$HOME/.codex/plugins/cache/daycry", '
+               '"$HOME/.claude", "$HOME/.codex", "$HOME/.config/opencode"'),
+    "codex": ('"$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}',
+              '"$PWD/.codex", "$PWD/.claude", "$PWD/.opencode", "$HOME/.codex/plugins/cache/daycry", "$HOME/.claude/plugins/cache/daycry", '
+              '"$HOME/.codex", "$HOME/.claude", "$HOME/.config/opencode"'),
+    "opencode": ('"$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}',
+                 '"$PWD/.opencode", "$PWD/.claude", "$PWD/.codex", "$HOME/.config/opencode", "$HOME/.claude/plugins/cache/daycry", '
+                 '"$HOME/.codex/plugins/cache/daycry", "$HOME/.claude", "$HOME/.codex"'),
+}
+
+
+def raices_de_runtime(cuerpo, runtime):
+    """El cuerpo con las raíces de respaldo en la prioridad de `runtime` (solo las formas exactas)."""
+    for canon, propio in zip(_RAICES["claude"], _RAICES[runtime]):
+        cuerpo = cuerpo.replace(canon, propio)
+    return cuerpo
+
+
 def codex_agente(nombre, bloque, cuerpo, mapping=None, model_override=None):
+    cuerpo = raices_de_runtime(cuerpo, "codex")
     tools = tools_de(bloque)
     mapping = mapping or native_roles(ROOT_DEFAULT)
     pre = PRE_AGENTE_CODEX.format(nombre=nombre, guardrail=guardrail_de(nombre, tools, "Codex", mapping),
@@ -484,6 +511,7 @@ def codex_agente(nombre, bloque, cuerpo, mapping=None, model_override=None):
 
 def codex_command_skill(nombre, bloque, cuerpo, mapping=None):
     """Explicit native map and canonical entry; phase references remain lazy."""
+    cuerpo = raices_de_runtime(cuerpo, "codex")
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", nombre) or len(nombre) > 50:
         raise ValueError("invalid command name: %r" % nombre)
     name = "custom-agents-" + nombre
@@ -557,6 +585,7 @@ def permisos_opencode(tools):
 
 
 def opencode_agente(nombre, bloque, cuerpo, mapping=None, model_override=None):
+    cuerpo = raices_de_runtime(cuerpo, "opencode")
     tools = tools_de(bloque)
     pre = PRE_AGENTE_OPENCODE.format(nombre=nombre, guardrail=guardrail_de(nombre, tools, "OpenCode", mapping),
                                     delegaciones=delegaciones("opencode", mapping))
@@ -574,6 +603,7 @@ def opencode_agente(nombre, bloque, cuerpo, mapping=None, model_override=None):
 
 
 def opencode_comando(nombre, bloque, cuerpo, mapping=None):
+    cuerpo = raices_de_runtime(cuerpo, "opencode")
     pre = PRE_COMANDO.format(runtime="OpenCode", nombre=nombre,
                              delegar=DELEGAR["OpenCode"], skills=SKILLS_EN["OpenCode"],
                              delegaciones=delegaciones("opencode", mapping))

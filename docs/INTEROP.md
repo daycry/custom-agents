@@ -283,25 +283,28 @@ el esfuerzo de razonamiento (que sí es portable). El tiering completo sigue sie
 
 A cada cuerpo traducido se le antepone un **preámbulo** de cuatro líneas que traduce lo único que
 cambia de runtime: cómo se invoca una skill, cómo se delega en otro agente, qué guardrail no está
-impuesto y dónde se resuelven los kits. El cuerpo original no se toca.
+impuesto y dónde se resuelven los kits. Del cuerpo original solo cambia el orden de las raíces de resolución (§3).
 
 ---
 
 ## 3. Resolución de rutas (regla 5 de CONVENTIONS)
 
-Los agentes y skills localizan sus kits en tiempo de ejecución con un `find` sobre **seis raíces**,
-dos por runtime, proyecto antes que usuario:
+Los agentes y skills localizan la **raíz del bundle** en tiempo de ejecución. En Claude Code, `${CLAUDE_PLUGIN_ROOT}`
+se sustituye al cargar comandos, skills y agentes. Si no hay sustitución (Codex, OpenCode, una copia del bundle o un
+`references/*.md` leído con Read), se busca el marcador `agent-kits/shared/ledger-lint.py` raíz a raíz, primero el
+proyecto, luego las cachés de instalación y luego el usuario:
 
 ```bash
-find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" \
-     "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" \
-     -type d -path '*agent-kits/shared' 2>/dev/null | head -1
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"
+SHAREDKIT="${R:+$R/agent-kits/shared}"
 ```
 
 Ni Codex ni OpenCode buscan kits bajo `.claude/`, así que sin sus raíces un plugin instalado en
 ellos encontraría sus skills pero **no** su toolkit. El directorio global de OpenCode es
-`~/.config/opencode`, **no** `~/.opencode`. Si añades un runtime, la raíz se añade en **todas** las
-piezas (hoy 88 ocurrencias en 56 ficheros) — el `find` no es un detalle de estilo.
+`~/.config/opencode`, **no** `~/.opencode`. Los agentes y comandos generados anteponen las raíces de
+su runtime (`raices_de_runtime` en `scripts/export-interop.py`); las skills viajan sin traducir y
+conservan el orden de Claude Code. El detalle (marcador, profundidad, versión, corte) está en la regla 5
+de `docs/CONVENTIONS.md`; si añades un runtime, su raíz se añade en **todas** las piezas.
 
 ---
 

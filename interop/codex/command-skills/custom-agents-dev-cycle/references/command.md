@@ -26,32 +26,24 @@ entero ni las fases que esta ejecución omite. Una referencia necesaria ilegible
 se informa; no se improvisan puertas ni se sustituye por otra instalación.
 
 Resuelve `DEVKIT` (Bash) o `$DevCycleKit` (PowerShell) en el **mismo bundle que el
-núcleo**. Si ya conoces su origen, usa esa ruta observada. Sin ella, busca proyecto
-antes que usuario en las seis raíces de la regla 5; el propio repo es el fallback
-explícito de desarrollo. Contrasta la procedencia con el núcleo antes de leer.
-No supongas que las variables sobreviven entre bloques de shell: conserva la
-ruta observada y asígnala de nuevo en cada bloque que la necesite.
+núcleo** (regla 5; el propio repo gana). Si ya conoces su origen, usa esa ruta.
+Contrasta la procedencia con el núcleo antes de leer. Las variables no sobreviven
+entre bloques de shell: reasigna la ruta observada en cada uno.
 
 ```bash
-if [ -f "$PWD/agent-kits/dev-cycle/references/phase2-planning.md" ]; then
-  DEVKIT="$PWD/agent-kits/dev-cycle"
-else
-  DEVKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/dev-cycle' 2>/dev/null | head -1)"
-fi
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$PWD/$M" ] && R="$PWD"; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DEVKIT="${R:+$R/agent-kits/dev-cycle}"
 ```
 
 ```powershell
-$DevCycleKit = Join-Path (Get-Location) 'agent-kits/dev-cycle'
-if (!(Test-Path -LiteralPath "$DevCycleKit/references/phase2-planning.md" -PathType Leaf)) {
-  $DevCycleKit = $null
-  foreach ($DevCycleRoot in @("$PWD/.claude", "$PWD/.codex", "$PWD/.opencode", "$HOME/.claude", "$HOME/.codex", "$HOME/.config/opencode")) {
-    if (Test-Path -LiteralPath $DevCycleRoot -PathType Container) {
-      $DevCycleOwner = Get-ChildItem -LiteralPath $DevCycleRoot -Filter phase2-planning.md -File -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName.Replace('\', '/').EndsWith('/agent-kits/dev-cycle/references/phase2-planning.md') } | Select-Object -First 1
-      if ($DevCycleOwner) { $DevCycleKit = $DevCycleOwner.Directory.Parent.FullName; break }
-    }
-  }
+$M = 'agent-kits/shared/ledger-lint.py'; $R = "${CLAUDE_PLUGIN_ROOT}"; if (Test-Path -LiteralPath "$PWD/$M") { $R = "$PWD" }
+if (!(Test-Path -LiteralPath "$R/$M")) { $R = $null }
+foreach ($d in $(if (!$R) { "$PWD/.codex", "$PWD/.claude", "$PWD/.opencode", "$HOME/.codex/plugins/cache/daycry", "$HOME/.claude/plugins/cache/daycry", "$HOME/.codex", "$HOME/.claude", "$HOME/.config/opencode" })) {
+  $o = Get-ChildItem -LiteralPath $d -Filter ledger-lint.py -File -Recurse -Depth 4 -ea 0 |
+    Where-Object { ($_.FullName -replace '\\', '/') -like "*/$M" -and $_.FullName.Substring($d.Length) -notmatch '^[\\/](jobs|worktrees)[\\/]' } |
+    Sort-Object { [regex]::Replace($_.FullName, '\d+', { $args[0].Value.PadLeft(9, '0') }) } | select -Last 1
+  if ($o) { $R = $o.Directory.Parent.Parent.FullName; break }
 }
+$DevCycleKit = if ($R) { "$R/agent-kits/dev-cycle" }
 ```
 
 | Referencia en `agent-kits/dev-cycle/references/` | Cuándo leerla |
@@ -130,7 +122,7 @@ una contradicción nueva se comunica y resuelve antes del trabajo afectado.
 > **Modelo del agente (tiering configurable, capa 2).** Antes de despachar CUALQUIER agente por nombre (`evaluator`, `architect`, `planner`, `implementer`, `qa`, `documenter`, `nemesis`), resuelve su tier efectivo y pasa `model` en el parámetro `model` del Agent tool (contrato oficial sub-agents.md, verificado 2026-09-03: el parámetro por invocación tiene prioridad sobre el frontmatter):
 >
 > ```bash
-> SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+> SHAREDKIT="${R:+$R/agent-kits/shared}"   # R: la raíz observada al resolver DEVKIT, reasignada aquí
 > python3 "$SHAREDKIT/model-tier.py" <agente> --json     # {"model": "...", "effort": "...", "fuente": {"model": "frontmatter|dev.json", ...}}
 > ```
 >

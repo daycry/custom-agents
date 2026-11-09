@@ -29,7 +29,14 @@ def test_no_original_paragraph_is_lost():
     corpus = (SHARED / 'knowledge-check.md').read_text(encoding='utf-8')
     corpus += '\n\n' + (SHARED / 'knowledge-check-governed.md').read_text(encoding='utf-8')
     hashes = {hashlib.sha256(p.encode('utf-8')).hexdigest() for p in paragraphs(corpus)}
-    assert not set(baseline['paragraph_sha256']) - hashes
+    # A paragraph may change only through a recorded replacement whose new text is present,
+    # with its reason (same contract as tests/fixtures/dev-cycle-modular-replacements.json).
+    replacements = baseline.get('replacements', [])
+    for row in replacements:
+        own = {hashlib.sha256(p.encode('utf-8')).hexdigest()
+               for p in paragraphs((ROOT / row['after_file']).read_text(encoding='utf-8'))}
+        assert row['after_sha256'] in own and row['reason']
+    assert not set(baseline['paragraph_sha256']) - hashes - {row['before_sha256'] for row in replacements}
 
 
 def test_journal_code_context_and_plugin_doctrine_remain_available_without_governed_detail():

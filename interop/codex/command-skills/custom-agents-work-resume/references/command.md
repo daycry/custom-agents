@@ -19,7 +19,7 @@ Fija el directorio de trabajo de las herramientas en la raíz del proyecto autor
 antes de resolver el kit. Resuélvelo en las seis raíces, proyecto antes que usuario:
 
 ```bash
-SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"
 ```
 
 Ejecuta Python con una lista de argumentos: script, `resume`, `--root`, raíz

@@ -11,7 +11,7 @@ Resuelto el destino, ejecuta sin más preguntas:
    comparar con el manifiesto: es la política materializada en disco, y siempre tiene que reflejar
    el `docs/` de HOY.
    ```bash
-   SCOPE="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' 2>/dev/null | head -1)"
+   R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SCOPE="${R:+$R/skills/confluence-publish/scripts/confluence-scope.py}"
    [ -n "$SCOPE" ] && python3 "$SCOPE" --stage --root "$PWD"
    ```
    Si el script falla o no se encuentra, **degrada sin bloquear**: usa `publish.source = "docs"` y
@@ -64,7 +64,7 @@ cambiado respecto al manifiesto), **regenera el markdown del dashboard** con la 
 `roadmap-dashboard`, de modo que la página refleje el último estado:
 
 ```bash
-DASH="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DASH="${R:+$R/skills/roadmap-dashboard/scripts/build_dashboard.py}"
 [ -d docs/roadmap ] && python3 "$DASH" --root docs/roadmap --md docs/roadmap/dashboard.md
 ```
 
@@ -84,7 +84,7 @@ Con `publish.staging: true`, tras regenerar `dashboard.md` (si tocaba) pero **an
 qué se crea/actualiza, regenera `docs/confluence/`:
 
 ```bash
-SCOPE="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' 2>/dev/null | head -1)"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SCOPE="${R:+$R/skills/confluence-publish/scripts/confluence-scope.py}"
 [ -n "$SCOPE" ] && python3 "$SCOPE" --stage --root "$PWD"
 ```
 

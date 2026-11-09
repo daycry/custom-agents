@@ -11,6 +11,12 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 
 ## [Unreleased]
 
+### Fixed — plugin root resolution and doctor (2026-11-09)
+
+- Commands, skills and agents no longer run scripts from an old plugin version, a test fixture or a temporary copy. Every lookup first tries `${CLAUDE_PLUGIN_ROOT}`, which Claude Code substitutes with the running version in command, skill and agent content. Without it, the lookup finds the bundle root by its marker `agent-kits/shared/ledger-lint.py`, which only exists in a real bundle. It walks the roots one at a time (project, then this plugin's marketplace caches, then the user roots), each bounded to the real install layout, and stops at the first hit. Within a cache it picks the highest version; the marketplace clone, `synced/`, `.staging/`, `plugin-install-*` and `temp_git_*` copies are left out by depth or root, and Claude Code jobs and worktrees under each root are excluded. With no hit the variable stays empty, so existing empty checks keep warning, and the pieces used to develop the plugin itself prefer the working copy. Before, a bare `head -1` returned the first match on disk: on this kind of machine the oldest cached version, a synced 1.21.0 copy or a review mutant.
+- The PowerShell recipe of `/dev-cycle` (Codex on Windows) follows the same rule. The agents and commands generated for Codex and OpenCode put their own runtime's roots first; skills ship untranslated and keep the Claude Code order. The portable package from `scripts/export-skills.py` resolves its own kits. `tests/test_plugin_root_resolution.py` runs every case in bash and PowerShell over a realistic three-runtime install. The quick `/dev-cycle` path still saves 6,012 estimated tokens, as before (minimum 6,000).
+- `/doctor` no longer reports `alcance` in `.claude/dev.json` as an unknown key, and it validates `alcance.excluir` the same way `scope-check.py` does.
+
 ## [3.2.2] - 2026-11-06
 
 ### Fixed — `external-session-discovery` initiative (2026-11-06)

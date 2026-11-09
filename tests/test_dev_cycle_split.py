@@ -47,13 +47,16 @@ def test_no_original_paragraph_is_lost():
     original = json.loads(BASELINE.read_text(encoding='utf-8'))
     current = {hashlib.sha256(p.encode('utf-8')).hexdigest() for p in paragraphs(corpus())}
     replacements = json.loads(REPLACEMENTS.read_text(encoding='utf-8'))['replacements']
-    assert set(original['paragraph_sha256']) - current == {row['before_sha256'] for row in replacements}
+    quick_file = 'skills/quick-implement/SKILL.md'
+    assert set(original['paragraph_sha256']) - current == {row['before_sha256'] for row in replacements
+                                                           if row['before_file'] != quick_file}
     for row in replacements:
         own = {hashlib.sha256(p.encode('utf-8')).hexdigest() for p in paragraphs((ROOT/row['after_file']).read_text(encoding='utf-8'))}
         assert row['after_sha256'] in own and row['reason']
     quick = (ROOT / 'skills/quick-implement/SKILL.md').read_text(encoding='utf-8')
     quick_hashes = {hashlib.sha256(p.encode('utf-8')).hexdigest() for p in paragraphs(quick)}
-    assert not set(original['quick_paragraph_sha256']) - quick_hashes
+    replaced = {row['before_sha256'] for row in replacements if row['before_file'] == quick_file}
+    assert not set(original['quick_paragraph_sha256']) - quick_hashes - replaced
 
 
 def test_visual_review_recipes_are_byte_identical():
@@ -117,6 +120,8 @@ def test_private_kit_lookup_executes_in_real_shell(tmp_path, shell, layout):
     kit = bundle / 'agent-kits/dev-cycle'
     (kit / 'references').mkdir(parents=True)
     (kit / 'references/phase2-planning.md').write_text('canonical-phase-owner\n', encoding='utf-8')
+    (bundle / 'agent-kits/shared').mkdir(parents=True)   # marcador de bundle real (regla 5)
+    (bundle / 'agent-kits/shared/ledger-lint.py').write_text('#\n', encoding='utf-8')
     core = COMMAND.read_text(encoding='utf-8')
     section = core.split('## Detalle por fase:', 1)[1].split('## Contexto técnico compartido', 1)[0]
     recipe = re.search(r'```' + shell + r'\n(.*?)\n```', section, re.S)[1]

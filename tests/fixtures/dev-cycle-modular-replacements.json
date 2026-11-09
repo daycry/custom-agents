@@ -36,6 +36,34 @@
       "after_sha256": "813731f244f86dffd04acc9089a965281bcb2b8ee75aa1ac3469217a63d1279a",
       "after_file": "commands/dev-cycle.md",
       "reason": "Publication follows the optional documentation binding; summary, retrospective and final state gates preserved."
+    },
+    {
+      "before_sha256": "3e536f113782a604a9ee984eb92eb9a561de5fe28f69616b53b13dbe61aca6fb",
+      "before_file": "commands/dev-cycle.md",
+      "after_sha256": "426870b8e78f34b4623785c4dd524e6de277c49a30b106ed7ba97e0b14b96437",
+      "after_file": "commands/dev-cycle.md",
+      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first (own repo first where master preferred it), then the real-bundle marker agent-kits/shared/ledger-lint.py root by root (project, this plugin's marketplace caches, user) bounded to the install layout (-maxdepth 5, jobs/ and worktrees/ excluded per root), highest version within a cache, stop at the first hit, empty when nothing matches; same lookup target and gate."
+    },
+    {
+      "before_sha256": "cf0c8bae43b2fde085b10c67e8ed1407c07aa31c899e6733a4202353ce55286f",
+      "before_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
+      "after_sha256": "6a4dd4a17ae409bf09ec53219ebf07ed537e2fb21e66e0398ecfa28bd0143a89",
+      "after_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
+      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first (own repo first where master preferred it), then the real-bundle marker agent-kits/shared/ledger-lint.py root by root (project, this plugin's marketplace caches, user) bounded to the install layout (-maxdepth 5, jobs/ and worktrees/ excluded per root), highest version within a cache, stop at the first hit, empty when nothing matches; same lookup target and gate."
+    },
+    {
+      "before_sha256": "8e15bf0f237208675ea4ee570e0cdff09091b50d58b0fde63b3dd7122d297621",
+      "before_file": "skills/quick-implement/SKILL.md",
+      "after_sha256": "fe5e71125437b089717a7746c3a17d8c8921d8ce17144896714934ab6fc8b914",
+      "after_file": "skills/quick-implement/SKILL.md",
+      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first (own repo first where master preferred it), then the real-bundle marker agent-kits/shared/ledger-lint.py root by root (project, this plugin's marketplace caches, user) bounded to the install layout (-maxdepth 5, jobs/ and worktrees/ excluded per root), highest version within a cache, stop at the first hit, empty when nothing matches; same lookup target and gate."
+    },
+    {
+      "before_sha256": "144a3a36420a1b4aae1dd64ab85f89ee7d07c720009177ea7fd40b3b29931d78",
+      "before_file": "skills/quick-implement/SKILL.md",
+      "after_sha256": "db76536e9e4dc7c48defcf424ed75c0e1c7f4b8719f7b70b3b0138f49fb306cd",
+      "after_file": "skills/quick-implement/SKILL.md",
+      "reason": "Plugin-root resolution fix: step 3 builds SHAREDKIT from the plugin root R already resolved for DEVCYCLE instead of a second lookup; same model-tier gate."
     }
   ]
 }

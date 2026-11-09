@@ -11,6 +11,12 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed — resolución de la raíz del plugin y doctor (2026-11-09)
+
+- Los comandos, skills y agentes ya no ejecutan scripts de una versión antigua del plugin, de un fixture de tests ni de una copia temporal. Cada búsqueda prueba primero `${CLAUDE_PLUGIN_ROOT}`, que Claude Code sustituye por la versión que está corriendo en el contenido de comandos, skills y agentes. Si no está, busca la raíz del bundle por su marcador `agent-kits/shared/ledger-lint.py`, que solo existe en un bundle real. Recorre las raíces de una en una (proyecto, después las cachés del marketplace de este plugin y por último las de usuario), cada una acotada a la disposición real de una instalación, y se detiene en la primera con resultado. Dentro de una caché elige la versión más alta; el clon del marketplace y las copias `synced/`, `.staging/`, `plugin-install-*` y `temp_git_*` quedan fuera por profundidad o por raíz, y se excluyen los temporales y worktrees de Claude Code bajo cada raíz. Sin resultado la variable queda vacía, así que las comprobaciones de vacío existentes siguen avisando, y las piezas con las que se desarrolla el propio plugin prefieren la copia de trabajo. Antes, un `head -1` a secas devolvía la primera coincidencia del disco: en una máquina como esta, la versión más antigua de la caché, una copia sincronizada 1.21.0 o un mutante de revisión.
+- La receta PowerShell de `/dev-cycle` (Codex en Windows) sigue el mismo criterio. Los agentes y comandos generados para Codex y OpenCode anteponen las raíces de su runtime; las skills viajan sin traducir y conservan el orden de Claude Code. El paquete portable de `scripts/export-skills.py` resuelve sus propios kits. `tests/test_plugin_root_resolution.py` ejecuta cada caso en bash y PowerShell sobre una instalación realista de los tres runtimes. La vía rápida de `/dev-cycle` sigue ahorrando 6.012 tokens estimados, como antes (mínimo 6.000).
+- `/doctor` ya no marca `alcance` de `.claude/dev.json` como clave desconocida, y valida `alcance.excluir` igual que `scope-check.py`.
+
 ## [3.2.2] - 2026-11-06
 
 ### Fixed — iniciativa `external-session-discovery` (2026-11-06)

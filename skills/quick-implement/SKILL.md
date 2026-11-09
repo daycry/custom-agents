@@ -25,8 +25,7 @@ natural que redirige a `/pm-cycle` o al flujo completo cuando el cambio NO es pe
 > automáticamente.
 >
 > ```bash
-> # $PWD/commands cubre el caso de trabajar SOBRE el propio repo del plugin (si no, ganaría la copia instalada)
-> DEVCYCLE="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/commands" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*commands/dev-cycle.md' 2>/dev/null | head -1)"
+> R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$PWD/$M" ] && R="$PWD"; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DEVCYCLE="${R:+$R/commands/dev-cycle.md}"
 > ```
 >
 > Qué seguir de ese fichero, en este orden: **Fase 0** (preparación: carpeta de la iniciativa) → **Fase
@@ -73,7 +72,7 @@ solo van los nombres, para no mantener una copia que se desincronice:
    tareas: contaría los mismos tokens dos veces.
 3. **Implementación** por `implementer`, con la disciplina de `.claude/dev.json` si está activa
    (si `tdd: true`, el implementer sigue la skill **`tdd`**). Antes de despacharlo, resuelve su tier
-   con `python3 "$SHAREDKIT/model-tier.py" implementer --json` (`SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`) y pasa `model` al Agent tool solo si
+   con `python3 "$SHAREDKIT/model-tier.py" implementer --json` (`SHAREDKIT="${R:+$R/agent-kits/shared}"`, con la raíz `R` observada al resolver `DEVCYCLE`) y pasa `model` al Agent tool solo si
    `fuente.model` es `dev.json` (el `effort` de `dev.json` es informativo; sin script → frontmatter).
 4. **Las puertas NO se saltan**: la revisión adversarial es la skill **`adversarial-review`** (fuente
    única del método: puerta `scope-check.py` antes de gastar revisores, lentes A/B + lente C de
