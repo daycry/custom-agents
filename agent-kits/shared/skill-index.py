@@ -6,10 +6,11 @@ Cierra la brecha de fiabilidad de activación: la `description` de una skill sol
 Claude la busca; este índice pone TODAS las piezas y las reglas de enrutado delante en cada
 arranque (`hooks/session-context.sh`, SessionStart `startup|resume|clear|compact`) a coste fijo y
 medido: ≤ LIMITE_LINEAS líneas · ≤ LIMITE_CHARS caracteres · ≤ LIMITE_LINEA por línea (los tests
-lo afirman). Si hay más piezas de las que caben, cada grupo cede proporcionalmente y cierra con
-«… y N piezas más (ver `skills/`)»; si el total de caracteres excede, el ancho por línea baja.
-Cada grupo conserva su entrada central si existe (dev-cycle, quick-implement,
-implementer), sustituyendo una entrada de su cuota sin ampliar el presupuesto.
+lo afirman). Dentro de cada grupo van primero las piezas del ciclo (`PRIORIDAD`). Si hay más
+piezas de las que caben, los agentes y los comandos del ciclo se muestran SIEMPRE y las skills
+opcionales (y los comandos fuera del ciclo) se resumen con «… y N piezas más (ver `skills/`)»; solo
+si ni eso cabe se reparte en proporción, sin bajar nunca de los agentes y comandos de `PRIORIDAD`.
+Si el total de caracteres excede, el ancho por línea baja.
 
 Lee SOLO los frontmatters (nunca los cuerpos): `commands/*.md` (description + argument-hint),
 `skills/*/SKILL.md` (name + description) y `agents/*.md` (name + description). Resumen por pieza =
@@ -229,8 +230,9 @@ CARPETA = {"command": "commands/", "skill": "skills/", "agent": "agents/"}
 
 
 def _cupos(ps):
-    """Piezas por grupo que caben en LIMITE_LINEAS: si sobran, cada grupo cede proporcionalmente
-    (floor) y la última línea del grupo recortado pasa a ser «… y N piezas más»."""
+    """Piezas por grupo que caben en LIMITE_LINEAS. Agentes y comandos del ciclo son fijos y las
+    skills se resumen («… y N piezas más»); con demasiados agentes, reparto por proporción con un
+    mínimo de las piezas de `PRIORIDAD` en agentes y comandos (fix2, A-M3)."""
     n = {k: sum(1 for p in ps if p[0] == k) for k, _t in GRUPOS}
     grupos = sum(1 for k in n if n[k])
     presupuesto = LIMITE_LINEAS - len(CABECERA) - grupos
@@ -254,11 +256,17 @@ def _cupos(ps):
         # cada grupo recortado gasta una línea en «… y N más»; el resto proporcional
         c = max(1, (presupuesto * n[k]) // total)
         cupo[k] = n[k] if c >= n[k] else max(1, c - 1)
-    # ajuste determinista: si aún sobra, quita del grupo mayor; si falta, no se añade nada
+    # mínimo garantizado: los agentes y comandos de PRIORIDAD (los visibles van primero por prioridad)
+    minimo = {"agent": min(n["agent"], sum(1 for p in ps if p[0] == "agent" and p[1] in PRIORIDAD["agent"])),
+              "command": min(n["command"], max(1, ciclo) if n["command"] else 0), "skill": 1 if n["skill"] else 0}
+    for k in cupo:
+        cupo[k] = max(cupo[k], minimo[k])
+    # ajuste determinista: si aún sobra, quita primero de skills, luego del grupo mayor sin bajar del mínimo
     while sum(cupo[k] + (1 if cupo[k] < n[k] else 0) for k in cupo) > presupuesto:
-        k = max(cupo, key=lambda x: (cupo[x], x))
-        if cupo[k] <= 1:
+        candidatos = [k for k in ("skill", "agent", "command") if cupo[k] > max(1, minimo[k])]
+        if not candidatos:
             break
+        k = candidatos[0] if "skill" in candidatos else max(candidatos, key=lambda x: (cupo[x], x))
         cupo[k] -= 1
     return cupo
 

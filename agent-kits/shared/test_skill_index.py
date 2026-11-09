@@ -379,3 +379,27 @@ def test_fix1_a1_todos_los_agentes_y_los_comandos_del_ciclo_siempre_visibles():
     for cmd in ("/setup", "/dev-cycle", "/pm-cycle", "/work-resume"):
         assert any(l.startswith(cmd + " ") or l.startswith(cmd + " —") for l in lineas), cmd
     assert idx["chars"] <= si.LIMITE_CHARS and idx["n_lineas"] <= si.LIMITE_LINEAS
+
+
+
+def test_fix2_a_m3_rama_proporcional_conserva_agentes_y_comandos_del_ciclo():
+    """A-M3 (revisión fase 2 intento 2): con tantos agentes que la cuota fija no cabe, el reparto
+    proporcional sigue mostrando los 10 agentes del plugin y los comandos clave."""
+    reales = list(si.PRIORIDAD["agent"])
+    ps = [("agent", n, "Rol del plugin.", "", "") for n in reales]
+    ps += [("agent", f"zz-extra-{i:02d}", "Agente extra.", "", "") for i in range(40)]
+    ps += [("command", n, "Comando.", "", "") for n in ("dev-cycle", "pm-cycle", "setup", "work-resume", "zz-otro")]
+    ps += [("skill", f"skill-{i:02d}", "Skill.", "", "") for i in range(30)]
+    idx = si.construir(ps)
+    lineas = idx["lineas"]
+    nombres = {l.split(" — ", 1)[0].split(" ", 1)[0] for l in lineas if " — " in l}
+    assert set(reales) <= nombres, set(reales) - nombres
+    assert {"/dev-cycle", "/pm-cycle", "/setup", "/work-resume"} <= nombres
+    assert idx["n_lineas"] <= si.LIMITE_LINEAS and idx["chars"] <= si.LIMITE_CHARS
+
+
+def test_fix2_a_m4_docstrings_sin_cesion_proporcional_del_ciclo():
+    fuente = (REPO / "agent-kits/shared/skill-index.py").read_text(encoding="utf-8")
+    cupos = fuente[fuente.index("def _cupos"):][:900]
+    assert "cede proporcionalmente" not in cupos
+    assert "agentes" in fuente[:1200] and "PRIORIDAD" in fuente[:1500]

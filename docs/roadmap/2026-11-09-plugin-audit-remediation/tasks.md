@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 3 | 6 | 50.0% |
+| Fase 2 | 4 | 6 | 66.7% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **9** | **21** | **42.9%** |
+| **TOTAL** | **10** | **21** | **47.6%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -311,7 +311,7 @@ RED: `tests/test_panel_large_roadmaps.py -k fix2` falló con fix2: 4 failed: rev
 
 ### T-10 — Índice de sesión por prioridad
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-21 y menor de BOM. El índice ordena por prioridad de ciclo y lee `dev.json` con `utf-8-sig`.
 - **Archivos**: `agent-kits/shared/skill-index.py`, `agent-kits/shared/test_skill_index.py`, `agent-kits/shared/README.md` (E3: describía el recorte; añadido por el implementer), `interop/**` (el índice de OpenCode se deriva de `skill-index.py`; faltó regenerarlo en el commit de T-10 y se corrigió en c078d2d), `tests/test_native_role_context.py` (CI de c078d2d: su muestra `architect` queda recortada con el nuevo orden; pasa a `planner`, siempre visible; el test sigue comprobando el prefijo nativo por runtime).
 - **Tiempo IA (ejec.)**: real 0,01h (medido)
@@ -337,6 +337,8 @@ GREEN fix1: `pytest agent-kits/shared/test_skill_index.py tests/test_native_role
 
 
 RED: `agent-kits/shared/test_skill_index.py -k fix2` falló con fix2: 2 failed: la rama proporcional oculta agentes del plugin y comandos clave; docstrings hablan de cesion proporcional · 2026-11-09.
+
+GREEN fix2: `pytest agent-kits/shared/test_skill_index.py` → `33 passed` (A-M3: con 50 agentes el reparto proporcional conserva los 10 agentes de `PRIORIDAD` y `/dev-cycle`, `/pm-cycle`, `/setup`, `/work-resume` dentro de 45 líneas y 3.500 caracteres; A-M4: docstrings sin «cesión proporcional» de agentes y comandos del ciclo) · 2026-11-09.
 
 ### T-11 — Un solo troceo del ledger
 
