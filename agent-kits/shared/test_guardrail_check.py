@@ -527,3 +527,56 @@ def test_fix1_formas_equivalentes_destructivas_se_deniegan(cmd):
 ])
 def test_fix1_formas_no_destructivas_siguen_permitidas(cmd):
     assert decide(bash(cmd)) is None, cmd
+
+
+# --- Revisión de dos lentes, intento 2: guardarraíl git cerrado por diseño ---
+@pytest.mark.parametrize("cmd", [
+    # gap 1 — cualquier prefijo único de una opción larga destructiva
+    "git reset --h", "git reset --hard", "git push --m origin", "git push --mi origin",
+    "git push --force-w origin x", "git push --force-if origin x", "git push --forc origin x",
+    "git push --pr origin", "git push --d origin x", "git push --force=x origin",
+    "git commit --no-v -m x", "git commit --no-ver -m x",
+    # gap 2 — `n` en un clúster o `--no-dry-run` no es simulación
+    "git clean -fn", "git clean -fen", "git clean -fn --no-dry-run", "git clean -f -n --no-dry-run",
+    "git clean -f --dry-run --no-d", "git clean -nf",
+    # gap 3 — opciones globales con valor y desconocidas
+    "git --attr-source HEAD reset --hard", "git --super-prefix x/ reset --hard",
+    "git --namespace ns push --delete origin x", "git --opcion-que-no-existe reset --hard",
+    "git --opcion-que-no-existe status",
+    # gap 4 — inyección de configuración
+    "git -c include.path=/tmp/x status", "git -c includeIf.gitdir:/x.path=/y status",
+    "git -c clean.requireForce=false clean", "git -c clean.requireforce=no clean -d",
+    "git -c clean.requireForce= clean", "git --config-env=clean.requireForce=V clean",
+    "git -c ALIAS.x=status x",
+    "git_config_count=1 git_config_key_0=alias.x git_config_value_0=status git x",
+    "GIT_CONFIG_GLOBAL=/tmp/g git status", "GIT_CONFIG_SYSTEM=/tmp/s git status",
+    "GIT_CONFIG_NOSYSTEM=1 git status", "Git_Config_Parameters=\"'a.b'='c'\" git status",
+    "export GIT_CONFIG_GLOBAL=/tmp/g", "export GIT_CONFIG_COUNT=1 && git x",
+    "set GIT_CONFIG_PARAMETERS='a.b=c'", "env GIT_CONFIG_SYSTEM=/tmp/s git status",
+    "git config alias.wipe 'reset --hard'", "git config --global alias.x status",
+    "git config set alias.x status", "git config --local include.path /tmp/x",
+    "git config --file .git/config includeIf.onbranch:x.path y", "git config clean.requireForce false",
+    "git config --unset alias.x",
+    # gap 5 — branch -D y equivalentes
+    "git branch -D x", "git branch -df x", "git branch -fd x", "git branch -d -f x",
+    "git branch --delete --force x", "git branch --del --forc x", "git branch -d --force x",
+])
+def test_fix2_guardarrail_cerrado_por_diseno_deniega(cmd):
+    assert decide(bash(cmd)), cmd
+
+
+@pytest.mark.parametrize("cmd", [
+    "git reset --soft HEAD~1", "git reset --mixed", "git reset --merge", "git reset --keep",
+    "git reset HEAD src/a.py", "git push origin feature/x", "git push -u origin feature/x",
+    "git push --set-upstream origin feature/x", "git push --porcelain origin x",
+    "git push --no-prune origin x", "git push --push-option=ci.skip origin x",
+    "git clean -n", "git clean --dry-run", "git clean --dry", "git clean -n -f", "git clean -f -n",
+    "git clean -f --dry-run", "git stash list", "git branch -d x", "git branch --delete x",
+    "git -c clean.requireForce=true clean -d", "git -c core.quotepath=false status",
+    "git config --get alias.x", "git config --list", "git config -l", "git config get alias.x",
+    "git config --get-regexp alias", "git config list", "git config user.name x",
+    "git --no-pager log --oneline", "git -P status", "git --git-dir=.git status",
+    "git --literal-pathspecs status", "git --exec-path",
+])
+def test_fix2_formas_legitimas_siguen_permitidas(cmd):
+    assert decide(bash(cmd)) is None, cmd
