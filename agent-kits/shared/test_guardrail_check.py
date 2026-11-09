@@ -619,7 +619,7 @@ def test_fix3_guardarrail_lista_blanca_y_analisis_real_deniega(cmd):
     # lista blanca
     "git -c user.name=x commit -m y", "git -c user.email=x@example.org commit -m y",
     "git -c core.quotepath=false status", "git -c color.ui=never log", "git -c advice.detachedHead=false status",
-    "git -c init.defaultBranch=main init", "git -c commit.gpgsign=false commit -m x",
+    "git -c init.defaultBranch=main init", "git -c commit.gpgsign=true commit -m x",   # fix3b: solo verdadero
     # git config: lecturas y escrituras de la lista blanca
     "git config --get core.editor", "git config --list", "git config -l", "git config get alias.x",
     "git config list", "git config --get-regexp alias", "git config user.name", "git config user.name x",
@@ -653,3 +653,30 @@ def test_fix3_gap8_docs_describen_lista_blanca_y_que_no_es_sandbox():
         assert "sandbox" in texto, rel
         for clave in claves:
             assert clave.lower() in texto, (rel, clave)
+
+
+@pytest.mark.parametrize("cmd", [
+    "git -c commit.gpgsign=false commit -m x", "git -c commit.gpgSign=no commit -m x",
+    "git -c commit.gpgsign=0 commit -m x", "git -c commit.gpgsign= commit -m x",
+    "git -c commit.gpgsign commit -m x", "git -ccommit.gpgsign=off commit -m x",
+    "git --config-env=commit.gpgsign=SIGN commit -m x",
+    "git config commit.gpgsign false", "git config --global commit.gpgsign no",
+    "git config set commit.gpgsign 0", "git config commit.gpgsign", "git config --unset commit.gpgsign",
+])
+def test_fix3b_commit_gpgsign_solo_con_valor_verdadero(cmd):
+    """Revisión fix3b: `commit.gpgsign` falso, vacío, sin valor o desde el entorno desactiva
+    (o no garantiza) la firma: se deniega como `--no-verify`. Lecturas permitidas aparte."""
+    if cmd == "git config commit.gpgsign":
+        assert decide(bash(cmd)) is None      # lectura
+        return
+    assert decide(bash(cmd)), cmd
+
+
+@pytest.mark.parametrize("cmd", [
+    "git -c commit.gpgsign=true commit -m x", "git -c commit.gpgsign=YES commit -m x",
+    "git -c commit.gpgsign=on commit -m x", "git -c commit.gpgsign=1 commit -m x",
+    "git config commit.gpgsign true", "git config set commit.gpgsign on", "git config --get commit.gpgsign",
+])
+def test_fix3b_commit_gpgsign_verdadero_permitido(cmd):
+    assert decide(bash(cmd)) is None, cmd
+

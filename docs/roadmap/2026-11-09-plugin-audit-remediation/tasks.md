@@ -216,6 +216,11 @@ GREEN fix3: `pytest agent-kits/shared/test_guardrail_check.py` → `372 passed` 
 
 GREEN fix3 (changelog): `pytest tests/test_native_guardrail_dispatch.py` → `12 passed` (`test_fix3_changelog_describe_la_lista_blanca_y_el_limite`; en HEAD la sección no nombraba `commit.gpgsign` ni `sandbox`: 0 coincidencias) · 2026-11-09.
 
+
+RED: `agent-kits/shared/test_guardrail_check.py::test_fix3b_commit_gpgsign_solo_con_valor_verdadero` falló con fix3b: 11 failed: commit.gpgsign falso, vacio, sin valor o por --config-env (y git config que lo escribe a falso) permitido, desactiva la firma de commits · 2026-11-09.
+
+GREEN fix3b: `.venv/Scripts/python -m pytest -q agent-kits/shared/test_guardrail_check.py` → `391 passed in 7.53s` (`commit.gpgsign` solo con valor verdadero; falso, vacío, sin valor, `--config-env` y escrituras de `git config` a falso → deny); `test_git_verification.py` → `357 passed` (su caso permitido pasa a `commit.gpgsign=true`); `tests/test_native_guardrail_dispatch.py` → `13 passed` (docs y CHANGELOG lo aclaran; en HEAD 0 coincidencias) · 2026-11-09.
+
 ## Fase 2 — Funciones documentadas que no funcionan
 
 **Estado**: borrador
@@ -450,5 +455,6 @@ Lentes: A + B + C. Corrección en `fix3` por el implementer; cada gap con test d
 | 10 | Minor | qa-gate: flaky exigía el literal `passed`, no `expectedStatus` | T-02 | corregido | flaky = resultado esperado tras un fallo (un salto no cuenta); `test_fix3_flaky_es_el_resultado_esperado_tras_un_fallo` (1893cf5) |
 | 11 | Minor | `candidates()` de `run-hook.mjs` aceptaba entradas relativas del PATH | T-03 | corregido | `absolutePathEntry`; `run-hook candidates ignore relative PATH entries` (5a683b1) |
 | 12 | Minor | Evidencia de T-03 con 1 fallo y TDD de los gaps 13-14 del intento 2 | T-03, T-06 | corregido | nota en T-03: `installer.test.mjs:1909`, tope 30000 ms, dependiente de la carga, aislado ✔ 17336 ms (tope sin relajar); `TDD n/a` en T-06 para los tests escritos sobre texto ya corregido; CHANGELOG ES/EN con la lista blanca (c0264f3) |
+| 13 | Important | `commit.gpgsign` en la lista blanca dejaba desactivar la firma (`-c commit.gpgsign=false`, `git config commit.gpgsign false`) — detectado en la verificación dirigida del orquestador | T-06 | corregido | solo con valor verdadero; falso, vacío, sin valor o `--config-env` → deny; `test_fix3b_commit_gpgsign_solo_con_valor_verdadero`, `test_fix3b_changelog_y_docs_dicen_que_commit_gpgsign_solo_vale_verdadero` (T-06 fix3b) |
 
 **Decisión del orquestador:** al 3.er intento con gaps, el orquestador decide seguir con un ciclo final acotado (autorización del usuario «con todo»); se verifica con tests dirigidos y CI, sin 4.º intento de lentes.

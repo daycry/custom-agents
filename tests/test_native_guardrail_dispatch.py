@@ -140,3 +140,12 @@ def test_fix3_changelog_describe_la_lista_blanca_y_el_limite():
         texto = (ROOT / rel).read_text(encoding="utf-8")
         seccion = texto[texto.index("`plugin-audit-remediation`"):texto.index("## [3.2.3]")]
         assert marca in seccion and "sandbox" in seccion and "`commit.gpgsign`" in seccion, rel
+
+
+def test_fix3b_changelog_y_docs_dicen_que_commit_gpgsign_solo_vale_verdadero():
+    """Revisión fix3b: la lista blanca publicada aclara que `commit.gpgsign` solo se permite a verdadero."""
+    for rel, marca in (("CHANGELOG.md", "only set to true"), ("CHANGELOG.es.md", "solo a verdadero"),
+                       ("agents/implementer.md", "solo a verdadero"), ("docs/agents/implementer.md", "solo a verdadero"),
+                       ("docs/FLOWS.md", "solo a verdadero"), ("docs/en/FLOWS.md", "only set to true")):
+        assert "`commit.gpgsign` (" + marca + ")" in (ROOT / rel).read_text(encoding="utf-8"), rel
+

@@ -622,7 +622,7 @@ La gramática reconoce asignaciones literales y wrappers `env -i` o
 `--ignore-environment`; `-u NAME`, `-uNAME` o `--unset=NAME`; `-C DIR` o
 `--chdir=DIR`; `command -p`; `exec -a NAME`, `-c` o `-l`. Analiza opciones
 Git `-c` y `--config-env` contra una LISTA BLANCA (`user.name`, `user.email`,
-`core.quotepath`, `commit.gpgsign`, `init.defaultBranch`, `color.*`, `advice.*`;
+`core.quotepath`, `commit.gpgsign` (solo a verdadero), `init.defaultBranch`, `color.*`, `advice.*`;
 cualquier otra clave se deniega), clasifica `git config` en lectura o escritura
 (solo escribe claves de la lista blanca, sin `--file`/`--blob`, sin renombrar ni
 borrar secciones) y deniega las variables `GIT_*`, `HOME` y `XDG_CONFIG_HOME`

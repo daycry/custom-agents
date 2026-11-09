@@ -59,7 +59,8 @@ ALLOWED = (
     'git commit --amend --no-edit',
     'git commit --no-verify --verify -m x',
     'git commit -- --no-verify',
-    'git -c commit.gpgsign=false commit -m x',
+    # Revisión fix3b: desactivar la firma es saltarse una puerta; solo se permite el valor verdadero.
+    'git -c commit.gpgsign=true commit -m x',
     'env X=1 git commit -m x',
     'echo "git commit --no-verify"',
     'bash -lc \'echo "git commit --no-verify"\'',

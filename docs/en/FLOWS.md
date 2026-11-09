@@ -622,7 +622,7 @@ The grammar recognizes literal assignments and wrappers `env -i` or
 `--ignore-environment`; `-u NAME`, `-uNAME` or `--unset=NAME`; `-C DIR` or
 `--chdir=DIR`; `command -p`; `exec -a NAME`, `-c` or `-l`. It parses Git
 options `-c` and `--config-env` against an ALLOWLIST (`user.name`, `user.email`,
-`core.quotepath`, `commit.gpgsign`, `init.defaultBranch`, `color.*`, `advice.*`;
+`core.quotepath`, `commit.gpgsign` (only set to true), `init.defaultBranch`, `color.*`, `advice.*`;
 any other key is denied), classifies `git config` as read or write (it only
 writes allowlisted keys, never with `--file`/`--blob`, and never renames or
 removes sections) and denies `GIT_*`, `HOME` and `XDG_CONFIG_HOME` variables

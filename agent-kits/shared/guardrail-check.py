@@ -546,7 +546,7 @@ def _cluster(token, letra):
 # (safe.directory), cargar otra config (include*) o cambiar qué borra un push (remote.*).
 #   user.name / user.email   identidad del commit; no ejecutan nada
 #   core.quotepath           solo cómo se escriben las rutas en la salida
-#   commit.gpgsign           firmar o no; no ejecuta ni salta hooks
+#   commit.gpgsign           SOLO con valor verdadero (fix3b): activar la firma; desactivarla se deniega
 #   init.defaultbranch       nombre de la rama inicial de `git init`
 #   color.* / advice.*       presentación y mensajes de ayuda
 _CONFIG_PERMITIDA = frozenset(("user.name", "user.email", "core.quotepath", "commit.gpgsign",
@@ -554,9 +554,20 @@ _CONFIG_PERMITIDA = frozenset(("user.name", "user.email", "core.quotepath", "com
 _CONFIG_PERMITIDA_PREFIJOS = ("color.", "advice.")
 
 
-def _config_permitida(clave):
+# Claves de la lista blanca que solo valen con valor VERDADERO (revisión fix3b): desactivar la firma
+# de commits es saltarse una puerta, como `--no-verify`.
+_CONFIG_SOLO_VERDADERO = frozenset(("commit.gpgsign",))
+_VERDADERO = ("true", "yes", "on", "1")
+
+
+def _config_permitida(clave, valor="true"):
+    """¿Clave de la lista blanca y, si exige verdadero, con un valor verdadero conocido?"""
     clave = clave.lower()
-    return clave in _CONFIG_PERMITIDA or clave.startswith(_CONFIG_PERMITIDA_PREFIJOS)
+    if not (clave in _CONFIG_PERMITIDA or clave.startswith(_CONFIG_PERMITIDA_PREFIJOS)):
+        return False
+    if clave in _CONFIG_SOLO_VERDADERO:
+        return valor is not None and valor.strip().lower() in _VERDADERO
+    return True
 
 
 def _env_sensible(nombre):
@@ -596,7 +607,9 @@ def _globales(toks):
         if config is not None:
             clave, igual, valor = config.partition("=")
             # `--config-env=k=VAR`: el valor está en el entorno → desconocido (None).
-            pares.append((clave.lower(), None if por_env else (valor if igual else "true")))
+            # Sin `=` git lo toma como verdadero, pero aquí «sin valor» es desconocido (None), igual
+            # que `--config-env` (el valor está en el entorno): ninguno cuenta como verdadero.
+            pares.append((clave.lower(), valor if igual and not por_env else None))
     return pares, desconocida
 
 
@@ -672,9 +685,11 @@ def _razon_git_config(args):
     if fichero:
         return "`git config --file/--blob` de escritura bloqueado: escribe una configuración que el guardarraíl no controla."
     clave = posicionales[0] if posicionales else ""
-    if not _config_permitida(clave):
+    valor = posicionales[1] if len(posicionales) > 1 and not acciones & {"--unset", "--unset-all"} \
+        and sub != "unset" else None
+    if not _config_permitida(clave, valor if clave.lower() in _CONFIG_SOLO_VERDADERO else "true"):
         return (f"`git config` que escribe `{clave or '?'}` bloqueado: solo se escriben claves de la lista "
-                "blanca (user.name, user.email, core.quotepath, commit.gpgsign, init.defaultBranch, color.*, "
+                "blanca (user.name, user.email, core.quotepath, commit.gpgsign solo a verdadero, init.defaultBranch, color.*, "
                 "advice.*) — si hace falta otra, que la ponga el usuario.")
     return None
 
@@ -691,8 +706,8 @@ def _razon_config(toks, bindings, exportados=()):
     if desconocida:
         return (f"opción global de git no reconocida (`{desconocida}`) bloqueada: el guardarraíl no puede "
                 "saber si consume un valor y desplazaría el subcomando — escribe la orden sin ella.")
-    for clave, _valor in pares:
-        if not _config_permitida(clave):
+    for clave, valor in pares:
+        if not _config_permitida(clave, valor):
             return (f"configuración de git en línea bloqueada (`{clave}`): fuera de la lista blanca puede ejecutar "
                     "órdenes, saltar hooks o cambiar qué se borra.")
     i = _es_git(toks, "config")
