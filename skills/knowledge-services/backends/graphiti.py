@@ -408,7 +408,8 @@ def _post_json(url, payload, cabeceras, timeout_s, allow_remote, solo_loopback=F
     `_MAX_REDIRECCIONES` saltos, revalidando `_validar_host` en CADA salto y sin reenviar
     `Mcp-Session-Id` si el salto cambia de host (gap #34e/M3/M4). Comparte un único presupuesto de
     tiempo total (`deadline`, no por salto)."""
-    opener = urllib.request.build_opener(_SinRedireccionAutomatica)
+    # H-5: ProxyHandler({}) — el tráfico solo local no sale por HTTP(S)_PROXY ni el del sistema.
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _SinRedireccionAutomatica)
     cuerpo = json.dumps(payload).encode("utf-8")
     url_actual = url
     cabeceras_actuales = dict(cabeceras)
@@ -747,7 +748,8 @@ def _get_health_endpoint(url, timeout_s, allow_remote, _saltos=0, _deadline=None
     direcciones = _validar_host(url, allow_remote)
     if direcciones is None:
         return {"estado": "error", "detalle": f"host no local/privado, rechazado: {_sanear_url_para_mensaje(url)}"}
-    opener = urllib.request.build_opener(_SinRedireccionAutomatica)
+    # H-5: ProxyHandler({}) — el tráfico solo local no sale por HTTP(S)_PROXY ni el del sistema.
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _SinRedireccionAutomatica)
     candidatos = _conectar_por_ip_si_http(url, direcciones)
     cuerpo = None
     error_final = None

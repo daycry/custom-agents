@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 2 | 6 | 33.3% |
+| Fase 1 | 3 | 6 | 50.0% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **2** | **21** | **9.5%** |
+| **TOTAL** | **3** | **21** | **14.3%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -79,13 +79,20 @@ GREEN: `python -m pytest -q tests/test_qa_gate.py` → `6 passed in 4.63s` (skip
 
 ### T-04 — Graphiti sin proxy
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-5. El tráfico a Graphiti (solo local o privado) no pasa por `HTTP(S)_PROXY` ni por el proxy del sistema.
 - **Archivos**: `skills/knowledge-services/backends/graphiti.py`, `skills/knowledge-services/scripts/test_graphiti_backend.py`, `tests/test_graphiti_security.py`.
 - **Verificación**: test que comprueba que los openers no llevan proxy con `HTTP_PROXY` definido → pasa.
+- **Changelog**: Las conexiones a Graphiti, que solo van a hosts locales o privados, ya no pasan por el proxy del entorno ni por el del sistema.
+- **Cerrada**: 2026-11-09
 
 **Criterios de aceptación**
-- [ ] Los dos openers usan `ProxyHandler({})`.
+- [x] Los dos openers usan `ProxyHandler({})`.
+
+
+RED: `tests/test_graphiti_security.py::test_openers_de_graphiti_ignoran_proxy_del_entorno` falló con URLError getaddrinfo failed: con HTTP_PROXY definido _post_json resolvio el host del proxy en vez de 127.0.0.1 · 2026-11-09.
+
+GREEN: `pytest tests/test_graphiti_security.py -k ignoran_proxy` → `1 passed` (sin el fix: `1 failed`); fichero completo → `126 passed in 79.13s`; `skills/knowledge-services/scripts/test_backend_graphiti.py` → `209 passed`; `tests/test_copias_declaradas.py` → `30 passed`. Nota: `test_graphiti_backend.py` del campo Archivos no existe; el test va en `tests/test_graphiti_security.py` (declarado); `graphiti.py` no tiene huella `sha256_lf` · 2026-11-09.
 
 ### T-05 — Guardarraíles en perfil lite y en subagentes
 

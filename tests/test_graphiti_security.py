@@ -2915,3 +2915,37 @@ def test_activity_unrelated_namespace_declaration_keeps_local_quiet_data(tmp_pat
         '    parser = QuietParser()\n'
         '    parser.add_argument("--runtime", choices=("claude", "codex", "opencode"))\n', encoding="utf8")
     assert _egress_por_ast(str(script)) == []
+
+
+# ====================================================================== auditoría 2026-11-09 (H-5)
+
+def test_openers_de_graphiti_ignoran_proxy_del_entorno(monkeypatch):
+    """El tráfico a Graphiti es solo local/privado: con HTTP(S)_PROXY definido (o proxy del
+    registro de Windows) el opener NO puede llevar un ProxyHandler con proxies; debe ser
+    `ProxyHandler({})`, como ya hace `markdown_export.py`."""
+    import urllib.request
+    for var in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):
+        monkeypatch.setenv(var, "http://proxy.example.invalid:3128")
+    for var in ("NO_PROXY", "no_proxy"):
+        monkeypatch.delenv(var, raising=False)
+    construidos = []
+    real = urllib.request.build_opener
+
+    def espia(*handlers):
+        opener = real(*handlers)
+        construidos.append((handlers, opener))
+        return opener
+
+    monkeypatch.setattr(urllib.request, "build_opener", espia)
+    try:  # el puerto 9 está cerrado: el error de conexión es lo esperado, no el resultado
+        gr._post_json("http://127.0.0.1:9/mcp", {"jsonrpc": "2.0"}, {}, 0.3, False)
+    except (OSError, gr.ErrorMCP) as e:
+        assert "proxy.example.invalid" not in str(e) and "getaddrinfo" not in str(e), e
+    gr._get_health_endpoint("http://127.0.0.1:9/health", 0.3, False)
+    assert len(construidos) >= 2, "los dos caminos de red deben construir su opener"
+    for handlers, opener in construidos:
+        # build_opener añade ProxyHandler() (lee el entorno) salvo que se le pase uno explícito.
+        explicitos = [h for h in handlers if isinstance(h, urllib.request.ProxyHandler)]
+        assert explicitos and all(h.proxies == {} for h in explicitos), handlers
+        activos = [h.proxies for h in opener.handlers if isinstance(h, urllib.request.ProxyHandler)]
+        assert all(p == {} for p in activos), f"opener con proxy del entorno: {activos}"
