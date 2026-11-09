@@ -331,7 +331,7 @@ flowchart TD
     J --> KG{"¿hay candidatos en<br/>pending o needs_changes?"}
     KG -->|sí| KC["knowledge-curator<br/>juicio + gate solo lectura<br/>servicio apply · SHA original"]
     KG -.->|"no: omisión honesta<br/>(una línea, sin fallo)"| CP
-    KC --> CP["Fase 6: selección literal por tarea<br/>commit-selection.py preview<br/>selección · patch · staging ajeno"]
+    KC --> CP["Fase 6: verifica la selección literal por tarea<br/>(commits del implementer, P4: commit-selection.py)<br/>selección · patch · staging ajeno"]
     CP --> CV{"validate por stdin<br/>snapshot vigente · exit 0?"}
     CV -->|sí| GC["Git nativo commit --only<br/>lista UTF-8/NUL revisada<br/>verificar árbol y staging ajeno"]
     CV -.->|no| CH["commit pendiente<br/>motivo visible · nuevo preview"]

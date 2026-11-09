@@ -20,6 +20,15 @@ Historical ADR/LES/GOT identifiers remain as references; their documents are not
 - Implementation is always dispatched to the native `implementer` identity, also in the `lite` profile and with fresh subagents, so its native guardrail applies.
 - The gates fail closed: when the diff cannot be evaluated in `auto` mode the security and performance lenses are enabled, and the implementer guardrail now denies `git reset --hard`, forced `git clean`, deleting remote branches, `git branch -D` forms and `git stash drop|clear` (long options by any prefix), plus git configuration outside a short allowlist (inline `-c`/`--config-env` and `git config` writes only for `user.name`, `user.email`, `core.quotepath`, `commit.gpgsign` (only set to true), `init.defaultBranch`, `color.*`, `advice.*`, so `alias.*`, `include.*`, `core.editor` and the like are denied) and `GIT_*` (including `GIT_CONFIG_*`), `HOME` or `XDG_CONFIG_HOME` variables on commands that run git. It prevents accidents and known forms; it is not a sandbox.
 
+### Fixed — `plugin-audit-remediation` initiative, phase 2: documented features that did not work (2026-11-09)
+
+- Session start quotes the latest journal entry again even with several active initiatives or more than 1 MiB of ledgers, groups the initiatives at 100 % that only await `/retro`, drops opaque status lines and absolute paths from the block, and Claude Code also reinjects context after `/clear`.
+- The `/dev-cycle` quick path can close QA: the light ledger declares the no-UI marker and `qa`/`coverage-check` accept it, the implementer works without `improvement-plan.md`, Lens A requires the RED evidence when TDD is on, and quick-implement finds the method in Codex too.
+- The dashboards list the newest initiatives first and say how many old ones were left out; progress of large ledgers comes from their summary table instead of a false `too_large`; the console can continue or review plans with large ledgers or without `improvement-plan.md`; a plan created while the panel runs gets its page.
+- The session index shows the cycle pieces first (planner, qa, reviewer, tdd, `/setup`, `/work-resume`…) instead of trimming alphabetically, and honours `sesion.indice: false` when `dev.json` has a BOM.
+- Scope check, QA coverage and the Jira export split the ledger like ledger-lint: an example inside a code block or a notes section no longer widens the scope or creates phantom tasks, and the whole Verificación sub-list reaches Jira; ledger-lint ignores a quoted summary and rejects a ledger state outside the vocabulary.
+- "Continue" after the third review attempt is now an executable path: `ledger-write.py review --attempt 4 --new-cycle-ok "<quote>"` opens a new bounded cycle with the user's OK quoted in the header; task commits have a single owner and procedure (implementer P4), which phase 6 only verifies.
+
 ## [3.2.3] - 2026-11-09
 
 ### Fixed — plugin root resolution and doctor (2026-11-09)

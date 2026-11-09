@@ -20,6 +20,15 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 - La implementación se despacha siempre a la identidad nativa `implementer`, también en el perfil `lite` y con subagentes frescos, para que su guardia nativa aplique.
 - Las puertas fallan cerradas: si en modo `auto` no se puede evaluar el diff se activan las lentes de seguridad y rendimiento, y la guardia del implementer deniega `git reset --hard`, `git clean` forzado, borrar ramas remotas, las formas de `git branch -D` y `git stash drop|clear` (opciones largas por cualquier prefijo), además de la configuración git fuera de una lista blanca corta (`-c`/`--config-env` en línea y escrituras de `git config` solo para `user.name`, `user.email`, `core.quotepath`, `commit.gpgsign` (solo a verdadero), `init.defaultBranch`, `color.*`, `advice.*`, así que `alias.*`, `include.*`, `core.editor` y similares se deniegan) y de las variables `GIT_*` (incluidas `GIT_CONFIG_*`), `HOME` o `XDG_CONFIG_HOME` en órdenes que ejecutan git. Evita accidentes y formas conocidas; no es un sandbox.
 
+### Fixed — iniciativa `plugin-audit-remediation`, fase 2: funciones documentadas que no funcionaban (2026-11-09)
+
+- Al arrancar se vuelve a citar la última entrada del journal aunque haya varias iniciativas activas o más de 1 MiB de ledgers; el bloque de sesión agrupa las iniciativas al 100 % pendientes de `/retro`, sin líneas opacas ni rutas absolutas, y Claude Code también reinyecta el contexto tras `/clear`.
+- La vía rápida de `/dev-cycle` ya puede cerrar QA: el ledger ligero declara el marcador «sin UI» y `qa`/`coverage-check` lo aceptan, el implementer trabaja sin `improvement-plan.md`, la Lente A exige la evidencia del rojo con TDD activo y quick-implement encuentra el método también en Codex.
+- Los paneles muestran primero las iniciativas más recientes y dicen cuántas antiguas quedan fuera; el progreso de los ledgers grandes sale de su resumen en vez de un `too_large` falso; la consola puede continuar o revisar planes grandes o sin `improvement-plan.md`, y un plan creado con el panel abierto ya tiene página.
+- El índice de sesión muestra primero las piezas del ciclo (planner, qa, reviewer, tdd, `/setup`, `/work-resume`…) en vez de recortar por orden alfabético, y respeta `sesion.indice: false` aunque `dev.json` tenga BOM.
+- La puerta de alcance, la cobertura de QA y el volcado a Jira trocean el ledger como ledger-lint: un ejemplo dentro de un bloque de código o una sección de notas ya no amplía el alcance ni crea tareas fantasma, y la Verificación en sub-lista llega entera a Jira; ledger-lint ignora un resumen citado y rechaza un estado de ledger fuera del vocabulario.
+- «Seguir» tras el 3.er intento de revisión es un camino ejecutable: `ledger-write.py review --attempt 4 --new-cycle-ok "<cita>"` abre un ciclo nuevo acotado con el OK del usuario citado en la cabecera; los commits de tarea tienen un único dueño y procedimiento (P4 del implementer), que la Fase 6 solo verifica.
+
 ## [3.2.3] - 2026-11-09
 
 ### Fixed — resolución de la raíz del plugin y doctor (2026-11-09)

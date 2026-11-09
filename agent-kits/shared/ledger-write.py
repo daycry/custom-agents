@@ -151,6 +151,17 @@ def transform(text, args):
     tasks = args.tasks.split(",")
     need(tasks and len(set(tasks)) == len(tasks) and all(task in known for task in tasks), "unknown_task")
     summary = single_line(args.summary, 512)
+    # H-24: each review CYCLE has three attempts. «Seguir» after the third opens the next cycle
+    # (attempts 4-6, then 7-9) only with the user's OK quoted in the header; inside a cycle the
+    # sequence goes on without repeating it, and an OK anywhere else is rejected.
+    opens_cycle = args.attempt > 3 and args.attempt % 3 == 1
+    if args.new_cycle_ok is not None:
+        need(opens_cycle, "new_cycle_ok_unexpected")
+        quote = single_line(args.new_cycle_ok, 200)
+        need(bool(quote.strip()) and not any(c in quote for c in "«»()"), "invalid_new_cycle_ok")
+        summary += f" — ciclo {(args.attempt - 1) // 3 + 1}, abierto con OK del usuario: «{quote.strip()}»"
+    else:
+        need(not opens_cycle, "new_cycle_ok_required", 1)
     header = f"## Revisión de dos lentes — intento {args.attempt}: {summary} ({', '.join(tasks)})"
     sections = LINT.secciones_revision(text)
     if any(section["cabecera"] == header for section in sections):
@@ -214,7 +225,8 @@ def main(argv=None):
         sub.add_argument("--dry-run", action="store_true")
         sub.add_argument("--json", action="store_true")
         if name == "review":
-            sub.add_argument("--attempt", type=int, choices=(1, 2, 3), required=True)
+            sub.add_argument("--attempt", type=int, choices=range(1, 10), metavar="1-9", required=True)
+            sub.add_argument("--new-cycle-ok", help="user's OK quoted when attempt 4 or 7 opens a new cycle")
             sub.add_argument("--tasks", required=True, help="comma-separated task ids")
             sub.add_argument("--summary", required=True)
         else:

@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 5 | 6 | 83.3% |
+| Fase 2 | 6 | 6 | 100.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **11** | **21** | **52.4%** |
+| **TOTAL** | **12** | **21** | **57.1%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -224,7 +224,7 @@ GREEN fix3b: `.venv/Scripts/python -m pytest -q agent-kits/shared/test_guardrail
 
 ## Fase 2 — Funciones documentadas que no funcionan
 
-**Estado**: en-progreso
+**Estado**: en-revision
 
 ### T-07 — Retoma de sesión: journal y bloque útil
 
@@ -287,7 +287,7 @@ GREEN: `pytest tests/test_panel_large_roadmaps.py` → `8 passed` (70 iniciativa
 
 - **Estado**: completado
 - **Descripción**: H-21 y menor de BOM. El índice ordena por prioridad de ciclo y lee `dev.json` con `utf-8-sig`.
-- **Archivos**: `agent-kits/shared/skill-index.py`, `agent-kits/shared/test_skill_index.py`, `agent-kits/shared/README.md` (E3: describía el recorte; añadido por el implementer).
+- **Archivos**: `agent-kits/shared/skill-index.py`, `agent-kits/shared/test_skill_index.py`, `agent-kits/shared/README.md` (E3: describía el recorte; añadido por el implementer), `interop/**` (el índice de OpenCode se deriva de `skill-index.py`; faltó regenerarlo en el commit de T-10 y se corrigió en c078d2d).
 - **Tiempo IA (ejec.)**: real 0,01h (medido)
 - **Verificación**: el índice de este repo muestra planner, qa, reviewer, tdd y `/setup` dentro del tope de 3.500 caracteres.
 - **Changelog**: El índice de piezas que se inyecta al arrancar muestra primero las del ciclo (planner, qa, reviewer, tdd, `/setup`, `/work-resume`…) en vez de recortar por orden alfabético, y respeta `sesion.indice: false` aunque `dev.json` tenga BOM.
@@ -323,14 +323,22 @@ GREEN: `pytest tests/test_ledger_single_parser.py` → `7 passed` (scope-check s
 
 ### T-12 — Bucle de revisión y dueño del commit
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-24 y H-25. «Seguir» tras el 3.er intento abre un ciclo nuevo con OK del usuario; un solo dueño del commit.
-- **Archivos**: `commands/dev-cycle.md`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `agent-kits/shared/ledger-write.py`, `agent-kits/shared/test_ledger_write.py`, `interop/**`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/test_ledger_write.py` (la suite real del writer está en `tests/`, no en `agent-kits/shared/`; nota del implementer).
+- **Archivos**: `commands/dev-cycle.md`, `agents/implementer.md`, `skills/adversarial-review/SKILL.md`, `agent-kits/shared/ledger-write.py`, `agent-kits/shared/test_ledger_write.py`, `interop/**`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/test_ledger_write.py` (la suite real del writer está en `tests/`, no en `agent-kits/shared/`; nota del implementer), `tests/test_review_cycle_owner.py`, `agent-kits/shared/ledger-write.md`, `docs/COMMIT-SELECTION.md`, `docs/en/COMMIT-SELECTION.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/agents/implementer.md` (E3: describían el límite de intentos o el dueño del commit), `CHANGELOG.md`, `CHANGELOG.es.md` (entrada `### Fixed` de toda la Fase 2) (añadidos por el implementer).
+- **Tiempo IA (ejec.)**: real 0,07h (medido)
 - **Verificación**: test del writer con ciclo nuevo → pasa; interop al día.
+- **Changelog**: «Seguir» tras el tercer intento de revisión abre un ciclo nuevo acotado con el OK del usuario citado en la cabecera (`ledger-write.py review --attempt 4 --new-cycle-ok`), y los commits de tarea tienen un único dueño y procedimiento, el del implementer.
+- **Cerrada**: 2026-11-09
 
 **Criterios de aceptación**
-- [ ] El camino de «seguir» es ejecutable con el writer.
-- [ ] El commit tiene un único dueño y procedimiento.
+- [x] El camino de «seguir» es ejecutable con el writer.
+- [x] El commit tiene un único dueño y procedimiento.
+
+
+RED: `tests/test_ledger_write.py -k h24 + tests/test_review_cycle_owner.py` falló con 4 failed: ledger-write review rechaza --attempt 4 (choices 1-3) aunque dev-cycle ofrece seguir; sin --new-cycle-ok en dev-cycle, adversarial-review ni ledger-write.md; implementer P4 y la Fase 6 describen dos procedimientos de commit · 2026-11-09.
+
+GREEN: `pytest tests/test_ledger_write.py` → `32 passed, 2 skipped` (intento 4 sin `--new-cycle-ok` → `new_cycle_ok_required` sin escribir; con el OK → cabecera `intento 4: … — ciclo 2, abierto con OK del usuario: «…» (T-01, T-02)` que ledger-lint acepta; 5 y 6 sin repetir el OK, el 7 vuelve a pedirlo; OK fuera de lugar, vacío, multilínea o de más de 200 caracteres → rechazado; el test histórico «1, 2, 4 tras tres intentos → rechazado» sigue igual); `pytest tests/test_review_cycle_owner.py` → `2 passed` (dev-cycle, adversarial-review y ledger-write.md describen el ciclo nuevo; el procedimiento de commit vive en P4 del implementer y la Fase 6 solo lo verifica); `tests/test_dev_cycle_split.py` → `10 passed`, ahorro de la vía rápida 6080 → 6231 (el procedimiento de `commit-selection.py` pasa de la Fase 6 al implementer; 2 filas de reemplazo); `test_skill_size.py` 37, `test_context_footprint.py` 15, `test_source_snapshot.py` 33 + 1 skipped, `test_native_guardrail_dispatch.py` 14, `test_doctrina_viaja.py` 11, `test_lite_profile.py` 30, `test_commit_selection_cli.py` 10, `test_user_handbooks.py` 4, `test_npm_payload.py` 5, `test_roadmap_index.py` 71 passed; `lint_plugin.py` 0 errores; `evals/check.py` 0 errores; `export-interop.py --check` → `92 ficheros al día`. Decisión: cada ciclo de revisión tiene 3 intentos; «seguir» abre el siguiente (4-6, 7-9) solo con el OK citado y el writer no admite más de 9 · 2026-11-09.
 
 ## Fase 3 — Rendimiento de procesos
 

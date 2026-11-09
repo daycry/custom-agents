@@ -119,7 +119,8 @@ Si quedan gaps Critical/Important: las tareas afectadas vuelven a `en-progreso`,
 corrige (ese tiempo es **implementación**, medido con clave `"<slug>/T-XX-fix<N>"`) y se
 **relanza la revisión sobre el nuevo diff** con contador explícito ("revisión, intento 2 de 3").
 **Máximo 3 intentos**; al 3.º con gaps, PARA y devuelve la decisión al orquestador/usuario (seguir /
-re-planificar / aceptar como deuda). Los subagentes son de un solo uso, así que la memoria del
+re-planificar / aceptar como deuda). «Seguir» abre un ciclo nuevo de hasta 3 intentos con el OK del
+usuario citado en la cabecera (`ledger-write.py review --attempt 4 --new-cycle-ok "<cita>"`). Los subagentes son de un solo uso, así que la memoria del
 revisor se consigue **por traspaso**: al lanzar las lentes del intento N+1, pásales la **tabla
 completa de veredictos y gaps del intento N — incluidos los `descartado (rebatido)` con su
 evidencia** — con la instrucción "esto ya lo juzgaste así; re-evalúa SOLO lo corregido; no reabras

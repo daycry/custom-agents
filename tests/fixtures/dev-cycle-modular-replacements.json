@@ -5,9 +5,9 @@
     {
       "before_sha256": "0cb54a3904a6584fbda161ccc7c9f4af1e86c0837818bad258d0b5f0d88b794c",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "7e904d1e9b68bcf77bc5cb5172e29eaf4cb5bce4cbcc65e3e5537d4eb15e667e",
+      "after_sha256": "8f916f5588e4ebe9a9272c767fe83517f91af8125b75e364005e8e3e64b5767d",
       "after_file": "commands/dev-cycle.md",
-      "reason": "Neutral measurement handoff; retains start/close, measured/estimated distinction, fix windows and reviewer allocation. Audit H-15: the light ledger declares `test-plan: n/a (sin UI)` when there is no UI and qa reads that marker from tasks.md in the quick path (no improvement-plan.md), so the quick path has an executable QA gate; the equivalent ledger and ADR remarks are condensed to keep the quick-path saving."
+      "reason": "Neutral measurement handoff; retains start/close, measured/estimated distinction, fix windows and reviewer allocation. Audit H-15: the light ledger declares `test-plan: n/a (sin UI)` when there is no UI and qa reads that marker from tasks.md in the quick path (no improvement-plan.md), so the quick path has an executable QA gate; the equivalent ledger and ADR remarks are condensed to keep the quick-path saving. Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts."
     },
     {
       "before_sha256": "35918c8063f7a49bfec19df53fc6644fa3fccb6f806bdaffd2c8ab96658c9a6c",
@@ -92,6 +92,13 @@
       "after_sha256": "50a69c9711ec4a709d8fb332109f8b19e3b6e4d261a74408dff16fedb0afd70c",
       "after_file": "skills/quick-implement/SKILL.md",
       "reason": "Audit H-15 (Codex): the Codex plugin ships no commands/, so DEVCYCLE falls back to the generated copy interop/codex/command-skills/custom-agents-dev-cycle/references/command.md; the historical preamble is condensed to its conclusion to keep the quick-path saving."
+    },
+    {
+      "before_sha256": "b39c0df4ccb4417476d468e4eede13a85fc2fb62f5d13525b8c5a3e1413e8039",
+      "before_file": "commands/dev-cycle.md",
+      "after_sha256": "9781a471a3598ef35bd4fa8c559f45eaa777ffefe033d370f2c2f2c51f21802e",
+      "after_file": "commands/dev-cycle.md",
+      "reason": "Audit H-24/H-25: «seguir» after the 3rd attempt opens a new bounded cycle with the user's OK quoted by ledger-write.py --new-cycle-ok; the commit procedure has a single owner (implementer P4, where commit-selection.py now lives) and Phase 6 only verifies it and reuses it for the orchestrator's own artefacts."
     }
   ]
 }

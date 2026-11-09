@@ -19,8 +19,10 @@ python3 "$SHAREDKIT/ledger-write.py" review docs/roadmap/<iniciativa>/tasks.md -
   fecha `AAAA-MM-DD`; rechaza secretos y caracteres que creen líneas nuevas.
   Registra el fallo observado antes del código; el script no ejecuta el test.
 - `review` abre la cabecera canónica y deja «sin veredicto». No escribe gaps ni
-  aprueba una revisión. Conserva el máximo de tres intentos y la secuencia por
-  tareas; no cambies sus IDs para reiniciar el contador. El responsable completa
+  aprueba una revisión. Conserva el máximo de tres intentos por ciclo y la secuencia
+  por tareas; no cambies sus IDs para reiniciar el contador. Tras el 3.º con gaps,
+  «seguir» abre un ciclo nuevo solo con el OK del usuario citado:
+  `review --attempt 4 --new-cycle-ok "<cita>"` (intentos 4-6; el 7 abre el último). El responsable completa
   la tabla de veredictos según `adversarial-review` y valida después el ledger.
 - `--dry-run` calcula la salida y sus hashes sin crear estado ni escribir.
   `--expected-sha256 <hash>` rechaza una lectura obsoleta con exit3; tras ese
