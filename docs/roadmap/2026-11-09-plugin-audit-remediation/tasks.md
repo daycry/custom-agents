@@ -287,7 +287,7 @@ GREEN: `pytest tests/test_panel_large_roadmaps.py` → `8 passed` (70 iniciativa
 
 - **Estado**: completado
 - **Descripción**: H-21 y menor de BOM. El índice ordena por prioridad de ciclo y lee `dev.json` con `utf-8-sig`.
-- **Archivos**: `agent-kits/shared/skill-index.py`, `agent-kits/shared/test_skill_index.py`, `agent-kits/shared/README.md` (E3: describía el recorte; añadido por el implementer), `interop/**` (el índice de OpenCode se deriva de `skill-index.py`; faltó regenerarlo en el commit de T-10 y se corrigió en c078d2d).
+- **Archivos**: `agent-kits/shared/skill-index.py`, `agent-kits/shared/test_skill_index.py`, `agent-kits/shared/README.md` (E3: describía el recorte; añadido por el implementer), `interop/**` (el índice de OpenCode se deriva de `skill-index.py`; faltó regenerarlo en el commit de T-10 y se corrigió en c078d2d), `tests/test_native_role_context.py` (CI de c078d2d: su muestra `architect` queda recortada con el nuevo orden; pasa a `planner`, siempre visible; el test sigue comprobando el prefijo nativo por runtime).
 - **Tiempo IA (ejec.)**: real 0,01h (medido)
 - **Verificación**: el índice de este repo muestra planner, qa, reviewer, tdd y `/setup` dentro del tope de 3.500 caracteres.
 - **Changelog**: El índice de piezas que se inyecta al arrancar muestra primero las del ciclo (planner, qa, reviewer, tdd, `/setup`, `/work-resume`…) en vez de recortar por orden alfabético, y respeta `sesion.indice: false` aunque `dev.json` tenga BOM.
@@ -301,6 +301,8 @@ GREEN: `pytest tests/test_panel_large_roadmaps.py` → `8 passed` (70 iniciativa
 RED: `agent-kits/shared/test_skill_index.py -k h21` falló con 3 failed: el indice del repo oculta /setup (y planner, qa, reviewer, tdd) por orden alfabetico; sin orden de prioridad; dev.json con BOM ignora sesion.indice false e imprime el indice · 2026-11-09.
 
 GREEN: `pytest agent-kits/shared/test_skill_index.py` → `30 passed` (casos H-21: en este repo `/setup`, `/work-resume`, tdd, unit-tests, planner, qa y reviewer visibles y llm-pipeline fuera; orden de prioridad y después alfabético; BOM con `indice: false` → sin salida); `skill-index.py --no-cache --json` sobre el repo → `3427` caracteres, `44` líneas (topes 3.500/45); `tests/test_hooks_shell.py -k "indice or index"` 4 passed, `tests/test_session_context.py -k "off or startup"` 6 passed, `test_context_footprint.py` + `test_source_snapshot.py` 48 passed + 1 skipped. `VERSION` del índice 3 → 4 para invalidar las cachés con el orden viejo · 2026-11-09.
+
+GREEN (seguimiento CI): `pytest tests/test_native_role_context.py` → `3 passed` (muestra `planner` en vez de `architect`, recortado por el orden del ciclo); `export-interop.py --check` → `92 ficheros al día` tras c078d2d (la CI de 742a6b4 falló en `test_arbol_generado_al_dia` por el índice de OpenCode sin regenerar) · 2026-11-09.
 
 ### T-11 — Un solo troceo del ledger
 
