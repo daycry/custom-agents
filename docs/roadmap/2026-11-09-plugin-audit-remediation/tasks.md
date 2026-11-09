@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 5 | 6 | 83.3% |
+| Fase 1 | 6 | 6 | 100.0% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **5** | **21** | **23.8%** |
+| **TOTAL** | **6** | **21** | **28.6%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -161,7 +161,7 @@ GREEN fix2: `pytest tests/test_native_guardrail_dispatch.py` → `10 passed` (`c
 
 ### T-06 — Puertas que fallan cerradas
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-8 y H-12. `review-lens-select` en `auto` activa C y D ante error; `guardrail-check` deniega `reset --hard`, `clean -f*`, borrar ramas remotas y `stash drop|clear`.
 - **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py`, `skills/adversarial-review/scripts/test_review_lens_select.py`, `agent-kits/shared/guardrail-check.py`, `agent-kits/shared/test_guardrail_check.py`, `skills/adversarial-review/SKILL.md`, `tests/test_graphiti_security.py`, `CHANGELOG.md`, `CHANGELOG.es.md` (añadidos por el implementer: entrada `### Fixed` de toda la Fase 1, commit aparte pedido por el orquestador), `skills/adversarial-review/references/lens-c-heuristics.md`, `agents/implementer.md`, `docs/agents/implementer.md`, `interop/**` (revisión intento 1, gaps 5 y 6), `agent-kits/shared/test_git_verification.py` (revisión intento 2: sus casos «permitidos» de `GIT_CONFIG_*` y de `--no-v` ambiguo pasan a denegados por el cierre por diseño).
 - **Verificación**: tests de los dos scripts → pasan con los casos nuevos.
@@ -383,3 +383,24 @@ Lentes: A + B + C (C por `review-lens-select.py`: guardarraíles, instalador y r
 | 14 | Minor | envoltorios `nice/timeout/sudo/xargs/find -exec/$G` saltan todas las reglas git | T-06 | descartado (limitación previa del parser, fuera del diff) | decisión del orquestador |
 | 15 | Minor | `guardrail-check.py:709-711` deja pasar ante excepción interna | T-06 | descartado (diseño previo, ADR-007: un guardrail roto no bloquea) | decisión del orquestador |
 | 16 | Minor | `setTrustAnchors` con `--dir` dentro de `~/.claude/plugins` en `--scope user` | T-03 | descartado (escenario no reproducido; queda como propuesta) | decisión del orquestador |
+
+## Revisión de dos lentes — intento 2: Fase 1 (T-01…T-06) — 14 gaps corregidos (10 Important, 4 Minor), guardarraíl git cerrado por diseño (T-01, T-02, T-03, T-04, T-05, T-06)
+
+Lentes: A + B + C (C por guardarraíles, instalador y lanzamiento de procesos). Corrección en `fix2` por el implementer; cada gap corregido tiene un test dedicado que lo nombra.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Guardarraíl: prefijos cortos de opciones destructivas (`reset --h`, `push --m`, `--force-w`) | T-06 | corregido | `_prefijo` sin mínimos por opción; `test_fix2_guardarrail_cerrado_por_diseno_deniega` (bde0370) |
+| 2 | Important | `clean -fn`, `-fen`, `-n --no-dry-run` contaban como simulación | T-06 | corregido | simulación solo con `-n` exacto o prefijo de `--dry-run` sin `--no-dry-run`; mismo test (bde0370) |
+| 3 | Important | Opciones globales con valor (`--attr-source`, `--super-prefix`, `--list-cmds`) y desconocidas desincronizaban el subcomando | T-06 | corregido | lista completa de git 2.4x; una global desconocida se deniega; mismo test (bde0370) |
+| 4 | Important | Inyección de configuración: `include.*`/`includeif.*`, `GIT_CONFIG_*` sin distinguir mayúsculas y por `export`/`set`/`env`, `git config` persistente; `requireForce=true` era falso positivo | T-06 | corregido | `_razon_config`; `_env_hooks_override` sin distinguir mayúsculas; `requireForce=true` permitido; `test_fix2_*` en `test_guardrail_check.py` y `test_git_verification.py` (los casos «permitidos» de `GIT_CONFIG_*` y `--no-v` pasan a denegados por diseño) (bde0370) |
+| 5 | Important | `branch -df`, `-fd`, `-d -f`, `--del --forc` | T-06 | corregido | borrar + forzar en cualquier forma → deny; `-d` sigue permitido; mismo test (bde0370) |
+| 6 | Important | Docstring y listas del implementer con el contrato final | T-06 | corregido | `guardrail-check.py`, `agents/implementer.md`, `docs/agents/implementer.md`; `test_fix2_gap6_implementer_lists_name_every_denied_family` (bde0370, b70a16e) |
+| 7 | Minor | qa-gate: `[failed, skipped]` como flaky justificable → VERDE | T-02 | corregido | flaky exige al menos un `passed`; `test_fix2_sin_ningun_passed_no_es_flaky_ni_se_justifica` (16abc50) |
+| 8 | Important | `CONTRACTS.md` E7 prometía exit 0 siempre en usage-meter | T-01 | corregido | fila con exit 3 y JSON real; `test_fix2_contracts_describe_exit_real_de_usage_meter` (f7025ca) |
+| 9 | Minor | `/doctor` ignoraba los avisos de `usage-meter.py status` | T-01 | corregido | ⚠️ con respaldo `.bak` y borrado; `test_fix2_doctor_avisa_de_usage_state_ilegible_con_arreglo` (f7025ca) |
+| 10 | Minor | worklog: campos internos de `tasks` y números de config sin validar | T-01 | corregido | exit 2 con JSON; `test_fix2_campos_internos_de_tasks_invalidos_exit2`, `test_fix2_numeros_de_config_invalidos_exit2` (f7025ca) |
+| 11 | Important | `cmd.exe` resolvía `node` en el cwd del proyecto al lanzar shims `.cmd` | T-03 | corregido | `NoDefaultCurrentDirectoryInExePath=1` en `correr`, `runCodexQuery` y `hooks/run-hook.mjs`; tests C8 en `installer.test.mjs` y `codex-plugin-state.test.mjs` con `node.bat` plantado (ce2bf32) |
+| 12 | Important | `commands/setup.md` decía «lite en el hilo actual» | T-05 | corregido | texto actualizado, interop regenerado, `commands/setup.md` en `DOCS` (b70a16e) |
+| 13 | Important | Faltaban tests dedicados de los gaps 5, 6 y 12 del intento 1 | T-06 | corregido | `test_fix2_gap5_*`, `test_fix2_gap6_*`, `test_fix2_gap12_*` en `tests/test_native_guardrail_dispatch.py` (b70a16e) |
+| 14 | Minor | CHANGELOG ES/EN y campo `Changelog` de T-01 sin los cambios nuevos | T-06 | corregido | entrada completada; `test_fix2_changelog_de_fase_1_recoge_los_cambios_del_intento_2` (RED: en HEAD faltaban las marcas) (aacea76) |
