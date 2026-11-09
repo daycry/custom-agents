@@ -333,3 +333,34 @@ def test_exit_0_siempre_con_root_inexistente_y_cache_no_escribible(tmp_path):
     (tmp_path / "plano").write_text("x", encoding="utf-8")
     rc, out, _ = run(["--root", str(root), "--cache", str(tmp_path / "plano" / "cache")])
     assert rc == 0 and "Comandos:" in out
+
+
+# ------------------------------------------------------------------ H-21 (auditoría 2026-11-09)
+
+def test_h21_indice_del_repo_prioriza_las_piezas_del_ciclo_dentro_del_tope():
+    idx = si.construir(si.piezas(str(REPO)))
+    lineas = idx["lineas"]
+    for nombre in ("/setup", "/work-resume", "tdd", "unit-tests", "planner",
+                   "qa", "reviewer"):
+        assert any(l.split(" ", 1)[0] == nombre or l.startswith(nombre + " — ") for l in lineas), nombre
+    assert idx["chars"] <= si.LIMITE_CHARS and idx["n_lineas"] <= si.LIMITE_LINEAS
+    skills = lineas[lineas.index("Skills:") + 1:lineas.index("Agentes:")]
+    nombres = [l.split(" — ", 1)[0] for l in skills if " — " in l]
+    assert nombres.index("tdd") < nombres.index("adversarial-review") + 3
+    assert "llm-pipeline" not in nombres, "una skill opcional no desplaza a las del ciclo"
+
+
+def test_h21_orden_de_prioridad_y_despues_alfabetico(tmp_path):
+    ps = [("skill", nombre, "Algo concreto.", "", "") for nombre in ("zeta", "tdd", "alfa", "quick-implement")]
+    lineas = si.construir(ps)["lineas"]
+    skills = [l.split(" — ", 1)[0] for l in lineas[lineas.index("Skills:") + 1:]]
+    assert skills == ["quick-implement", "tdd", "alfa", "zeta"]
+
+
+def test_h21_dev_json_con_bom_respeta_indice_false(tmp_path):
+    root = plugin(tmp_path)
+    proj = tmp_path / "proj"
+    (proj / ".claude").mkdir(parents=True)
+    env = {"CLAUDE_PROJECT_DIR": str(proj), "CLAUDE_PLUGIN_ROOT": str(root)}
+    (proj / ".claude" / "dev.json").write_bytes(b"\xef\xbb\xbf" + b'{"sesion": {"indice": false}}')
+    assert run([], env) == (0, "", "")

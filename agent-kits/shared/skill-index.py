@@ -42,7 +42,7 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-VERSION = "3"                      # entra en el hash: cambiar el formato invalida la caché
+VERSION = "4"                      # entra en el hash: cambiar el formato invalida la caché
 LIMITE_LINEAS = 45
 LIMITE_CHARS = 3500
 LIMITE_LINEA = 110
@@ -63,6 +63,22 @@ CABECERAS_RUNTIME = {
 }
 GRUPOS = (("command", "Comandos:"), ("skill", "Skills:"), ("agent", "Agentes:"))
 ENTRADA_CENTRAL = {"command": "dev-cycle", "skill": "quick-implement", "agent": "implementer"}
+# H-21: dentro de cada grupo, primero las piezas del ciclo (en este orden) y después el resto en orden
+# alfabético. Con el tope de 3.500 caracteres el recorte se come las opcionales, no planner, qa, tdd o /setup.
+PRIORIDAD = {
+    "command": ("dev-cycle", "pm-cycle", "setup", "work-resume", "doctor", "retro", "work-context",
+                "roadmap-status", "plugin-catalog"),
+    "skill": ("quick-implement", "adversarial-review", "tdd", "unit-tests", "debug-root-cause",
+              "changelog-sync", "stack-practices", "backend-practices", "frontend-quality",
+              "code-health", "dependency-upgrade", "api-contract", "cybersecurity", "plugin-dev"),
+    "agent": ("implementer", "planner", "qa", "reviewer", "evaluator", "analyst", "architect",
+              "documenter", "nemesis", "knowledge-curator"),
+}
+
+
+def _por_prioridad(kind, items):
+    orden = {nombre: i for i, nombre in enumerate(PRIORIDAD.get(kind, ()))}
+    return sorted(items, key=lambda p: (orden.get(p[1], len(orden)), p[1]))
 _GATILLO_RE = re.compile(r"\b(Úsal[oa]|Usal[oa]|Use (?:this |it )?when|Invócal[oa])\b", re.I)
 
 
@@ -243,7 +259,7 @@ def _lineas(ps, ancho, runtime=None, mapping=None):
     roles = (mapping or {}).get("runtimes", {}).get(runtime, {})
     cupos = _cupos(ps)
     for kind, titulo in GRUPOS:
-        items = [p for p in ps if p[0] == kind]
+        items = _por_prioridad(kind, [p for p in ps if p[0] == kind])
         if not items:
             continue
         lineas.append(titulo)
@@ -303,7 +319,8 @@ def indice_desactivado(proj):
     if not proj:
         return False
     try:
-        with open(os.path.join(proj, ".claude", "dev.json"), encoding="utf-8") as f:
+        # utf-8-sig: con BOM, `sesion.indice: false` se ignoraba (auditoría 2026-11-09)
+        with open(os.path.join(proj, ".claude", "dev.json"), encoding="utf-8-sig") as f:
             cfg = json.load(f)
         sesion = cfg.get("sesion") if isinstance(cfg, dict) else None
         return isinstance(sesion, dict) and sesion.get("indice") is False

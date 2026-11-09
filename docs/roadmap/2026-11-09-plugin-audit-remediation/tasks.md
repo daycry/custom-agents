@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 3 | 6 | 50.0% |
+| Fase 2 | 4 | 6 | 66.7% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **9** | **21** | **42.9%** |
+| **TOTAL** | **10** | **21** | **47.6%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -285,14 +285,22 @@ GREEN: `pytest tests/test_panel_large_roadmaps.py` → `8 passed` (70 iniciativa
 
 ### T-10 — Índice de sesión por prioridad
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: H-21 y menor de BOM. El índice ordena por prioridad de ciclo y lee `dev.json` con `utf-8-sig`.
-- **Archivos**: `agent-kits/shared/skill-index.py`, `agent-kits/shared/test_skill_index.py`.
+- **Archivos**: `agent-kits/shared/skill-index.py`, `agent-kits/shared/test_skill_index.py`, `agent-kits/shared/README.md` (E3: describía el recorte; añadido por el implementer).
+- **Tiempo IA (ejec.)**: real 0,01h (medido)
 - **Verificación**: el índice de este repo muestra planner, qa, reviewer, tdd y `/setup` dentro del tope de 3.500 caracteres.
+- **Changelog**: El índice de piezas que se inyecta al arrancar muestra primero las del ciclo (planner, qa, reviewer, tdd, `/setup`, `/work-resume`…) en vez de recortar por orden alfabético, y respeta `sesion.indice: false` aunque `dev.json` tenga BOM.
+- **Cerrada**: 2026-11-09
 
 **Criterios de aceptación**
-- [ ] Las piezas del ciclo aparecen antes que las opcionales.
-- [ ] `dev.json` con BOM respeta `sesion.indice: false`.
+- [x] Las piezas del ciclo aparecen antes que las opcionales.
+- [x] `dev.json` con BOM respeta `sesion.indice: false`.
+
+
+RED: `agent-kits/shared/test_skill_index.py -k h21` falló con 3 failed: el indice del repo oculta /setup (y planner, qa, reviewer, tdd) por orden alfabetico; sin orden de prioridad; dev.json con BOM ignora sesion.indice false e imprime el indice · 2026-11-09.
+
+GREEN: `pytest agent-kits/shared/test_skill_index.py` → `30 passed` (casos H-21: en este repo `/setup`, `/work-resume`, tdd, unit-tests, planner, qa y reviewer visibles y llm-pipeline fuera; orden de prioridad y después alfabético; BOM con `indice: false` → sin salida); `skill-index.py --no-cache --json` sobre el repo → `3427` caracteres, `44` líneas (topes 3.500/45); `tests/test_hooks_shell.py -k "indice or index"` 4 passed, `tests/test_session_context.py -k "off or startup"` 6 passed, `test_context_footprint.py` + `test_source_snapshot.py` 48 passed + 1 skipped. `VERSION` del índice 3 → 4 para invalidar las cachés con el orden viejo · 2026-11-09.
 
 ### T-11 — Un solo troceo del ledger
 
