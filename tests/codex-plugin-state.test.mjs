@@ -2,7 +2,7 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync,chmodSync,copyFileSync,symlinkSync} from 'node:fs'
 import {tmpdir} from 'node:os'
-import {join,resolve,delimiter} from 'node:path'
+import {join,resolve,delimiter,dirname} from 'node:path'
 import {execFileSync,spawn} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
 import {queryCodexPlugin,runCodexQuery,terminateProcessTree} from '../agent-kits/shared/codex-plugin-state.mjs'
@@ -169,4 +169,29 @@ test('relative PATH entries never resolve a codex planted in the current directo
     }
     assert.equal(existsSync(marker),false,'the planted launcher must not run')
   } finally {process.chdir(previous);rmSync(dir,{recursive:true,force:true})}
+})
+
+// Revisión intento 2 (C8): la consulta nativa lanza el shim con NoDefaultCurrentDirectoryInExePath=1,
+// así un `node.bat` plantado en el proyecto (cwd) no sustituye al `node` real del shim de npm.
+test('native query children never resolve node from the project directory',()=>{
+  const owned=fixture()
+  try {
+    const marker=join(owned.root,'planted.txt')
+    owned.create(`console.log(JSON.stringify({ndcd:process.env.NoDefaultCurrentDirectoryInExePath||null}))`)
+    const raw=runCodexQuery(['plugin','list','--marketplace','daycry','--available','--json'],{cwd:owned.root,env:owned.env})
+    assert.equal(JSON.parse(raw).ndcd,'1')
+    if(process.platform==='win32') {
+      writeFileSync(join(owned.root,'node.bat'),`@echo off\r\necho planted> "${marker}"\r\n`)
+      writeFileSync(join(owned.bin,'codex.cmd'),`@echo off\r\nnode "${join(owned.root,'native-owned.mjs')}" %*\r\n`)
+      const env={...owned.env,PATH:[owned.bin,dirname(process.execPath),join(process.env.SystemRoot,'System32')].join(delimiter)}
+      const out=runCodexQuery(['plugin','list','--marketplace','daycry','--available','--json'],{cwd:owned.root,env})
+      assert.equal(JSON.parse(out).ndcd,'1')
+      assert.equal(existsSync(marker),false,'the planted node.bat must not run')
+    }
+  } finally {owned.close()}
+})
+
+test('run-hook launches hook children with NoDefaultCurrentDirectoryInExePath set',()=>{
+  const source=readFileSync(fileURLToPath(new URL('../hooks/run-hook.mjs',import.meta.url)),'utf8')
+  assert.match(source,/NoDefaultCurrentDirectoryInExePath:\s*'1'/)
 })

@@ -134,7 +134,8 @@ const runtime = process.argv[3] || '--runtime=claude';
 const activity = hook === 'agent-activity';
 const warn = message => { if (!activity) process.stderr.write(`custom-agents hooks: ${message}\n`); };
 const windows = process.platform === 'win32';
-const env = { ...process.env, CLAUDE_PLUGIN_ROOT: root, PYTHONIOENCODING: 'utf-8:replace' };
+// NoDefaultCurrentDirectoryInExePath: hook children never resolve commands from the project cwd (Windows).
+const env = { ...process.env, CLAUDE_PLUGIN_ROOT: root, PYTHONIOENCODING: 'utf-8:replace', NoDefaultCurrentDirectoryInExePath: '1' };
 const guard = hook === 'native-guardrail';
 const guardMessage = 'custom-agents: role guard unavailable; normal permissions continue';
 const guardDiagnostics = new Set(['input-unrecognized', 'role-map-unavailable', 'guardrails-disabled',

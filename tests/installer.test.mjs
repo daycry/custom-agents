@@ -3641,3 +3641,33 @@ test("revisión intento 1 (gap 10): correr no lanza el nombre pelado si la CLI n
     })
   } finally { process.env.PATH = previoPath }
 })
+
+// ---------------------------------------------------------------- revisión intento 2 (T-03 fix2)
+
+test("revisión intento 2 (C8): correr lanza las CLIs con NoDefaultCurrentDirectoryInExePath=1", () => {
+  const win = process.platform === "win32"
+  const proj = tmpProj(), bin = tmpProj(), previoPath = process.env.PATH
+  const previoNdcd = process.env.NoDefaultCurrentDirectoryInExePath
+  delete process.env.NoDefaultCurrentDirectoryInExePath   // el entorno del usuario no la trae
+  try {
+    const probe = join(bin, win ? "ca-ndcd-probe.cmd" : "ca-ndcd-probe")
+    writeFileSync(probe, win ? "@echo off\r\necho NDCD=%NoDefaultCurrentDirectoryInExePath%\r\n"
+      : "#!/bin/sh\necho \"NDCD=$NoDefaultCurrentDirectoryInExePath\"\n")
+    if (!win) chmodSync(probe, 0o755)
+    process.env.PATH = [bin, SAFE_SYSTEM_PATH].join(delimiter)
+    assert.match(installerModule.correr("ca-ndcd-probe", [], proj), /NDCD=1/)
+    if (win) {
+      // Shim de npm que llama a `node` pelado: cmd.exe miraría primero el cwd (el proyecto).
+      const marker = join(proj, "planted.txt")
+      writeFileSync(join(proj, "node.bat"), `@echo off\r\necho planted> "${marker}"\r\n`)
+      writeFileSync(join(bin, "ca-ndcd-shim.cmd"), "@echo off\r\nnode -e \"console.log('real-node')\"\r\n")
+      process.env.PATH = [bin, dirname(process.execPath), SAFE_SYSTEM_PATH].join(delimiter)
+      assert.match(installerModule.correr("ca-ndcd-shim", [], proj), /real-node/)
+      assert.equal(existsSync(marker), false, "el node.bat plantado en el proyecto no debe ejecutarse")
+    }
+  } finally {
+    process.env.PATH = previoPath
+    if (previoNdcd !== undefined) process.env.NoDefaultCurrentDirectoryInExePath = previoNdcd
+    rmSync(proj, { recursive: true, force: true }); rmSync(bin, { recursive: true, force: true })
+  }
+})

@@ -1306,7 +1306,9 @@ function matarArbol(pid) {
 function correr(cmd, args, cwd, env = process.env) {
   if (TIMEOUT.aviso && !avisadoTimeout) { avisadoTimeout = true; say(`  ${WARN} ${dim(TIMEOUT.aviso)}`) }
   const opciones = {
-    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], cwd, env,
+    // NoDefaultCurrentDirectoryInExePath (revisión intento 2): un shim `.cmd` de npm llama a `node`
+    // pelado y cmd.exe lo buscaría PRIMERO en el cwd (el proyecto, quizá no confiable).
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], cwd, env: { ...env, NoDefaultCurrentDirectoryInExePath: "1" },
     // Sin timeout, una CLI que se queda pensando (o pidiendo algo por stdin) cuelga el `npx`
     // para siempre y sin una línea en pantalla. 120 s de sobra; `CUSTOM_AGENTS_EXEC_TIMEOUT_MS`
     // para quien tenga una máquina lenta o quiera apretarlo en CI.

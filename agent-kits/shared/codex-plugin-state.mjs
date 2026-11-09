@@ -53,8 +53,10 @@ export function runCodexQuery(args, {cwd,timeout=CODEX_QUERY_TIMEOUT_MS,env=proc
   if(JSON.stringify(args)!==JSON.stringify(QUERY_ARGS)) throw new Error('unsupported native query arguments')
   const limit=Number.isFinite(timeout) && timeout>0 ? Math.min(timeout,CODEX_QUERY_TIMEOUT_MS) : CODEX_QUERY_TIMEOUT_MS
   try {
+    // NoDefaultCurrentDirectoryInExePath: the worker and the npm shim it starts never resolve
+    // `node` (or any command) from the project directory, where it could be planted.
     return execFileSync(process.execPath,[HELPER,'--query-worker',String(Date.now()+limit)],
-      {cwd,env,timeout:limit+4000,killSignal:'SIGKILL',encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:4*1024*1024})
+      {cwd,env:{...env,NoDefaultCurrentDirectoryInExePath:'1'},timeout:limit+4000,killSignal:'SIGKILL',encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:4*1024*1024})
   } catch(error) {
     if(error.status===124) error.code='ETIMEDOUT'
     throw error

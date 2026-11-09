@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 4 | 6 | 66.7% |
+| Fase 1 | 5 | 6 | 83.3% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **4** | **21** | **19.0%** |
+| **TOTAL** | **5** | **21** | **23.8%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -85,9 +85,9 @@ GREEN fix2: `pytest tests/test_qa_gate.py` → `8 passed` (flaky exige al menos 
 
 ### T-03 — Instalador robusto en Windows y con configuración ajena
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-4, H-9, H-10, H-11, H-13 y menores del instalador. Buscar las CLI sin el directorio actual; `merge` con lectura estricta; `uninstall` aislado por proveedor; enlaces solo prohibidos en lo que crea el instalador; aviso de rutas absolutas en configuración compartida; misma exclusión de tests desde un clon que en npm.
-- **Archivos**: `install/install.mjs`, `install/providers.mjs`, `install/manifest-auth.mjs`, `tests/installer.test.mjs`, `tests/install-auth.test.mjs`, `docs/INSTALL.md`, `docs/en/INSTALL.md`, `agent-kits/shared/codex-plugin-state.mjs`, `tests/codex-plugin-state.test.mjs` (revisión intento 1, gap 10: resolvedor de `codex` de `install status`).
+- **Archivos**: `install/install.mjs`, `install/providers.mjs`, `install/manifest-auth.mjs`, `tests/installer.test.mjs`, `tests/install-auth.test.mjs`, `docs/INSTALL.md`, `docs/en/INSTALL.md`, `agent-kits/shared/codex-plugin-state.mjs`, `tests/codex-plugin-state.test.mjs` (revisión intento 1, gap 10: resolvedor de `codex` de `install status`), `hooks/run-hook.mjs` (revisión intento 2, C8: `NoDefaultCurrentDirectoryInExePath`).
 - **Verificación**: `node --test tests/installer.test.mjs tests/install-auth.test.mjs` → 0 fail, con casos nuevos para `.cmd` plantado, JSON ilegible en `merge`, manifiesto no verificable en `uninstall` y HOME bajo un enlace.
 - **Changelog**: El instalador ya no ejecuta lanzadores plantados en el directorio actual, no reescribe JSON ilegibles, desinstala cada proveedor por separado, acepta HOME o dotfiles enlazados y avisa de rutas absolutas en configuración compartida.
 - **Cerrada**: 2026-11-09
@@ -111,6 +111,8 @@ GREEN fix1: `node --test tests/installer.test.mjs` → `pass 184 · fail 0` (uni
 
 
 RED: `installer.test.mjs C8 + codex-plugin-state.test.mjs NoDefaultCurrentDirectoryInExePath` falló con fix2: 3 fail: correr y runCodexQuery lanzan sin NoDefaultCurrentDirectoryInExePath (con el entorno limpio cmd.exe resolveria node.bat del proyecto); run-hook no lo fija · 2026-11-09.
+
+GREEN fix2: `node --test tests/codex-plugin-state.test.mjs` → `pass 9 · fail 0` (con `node.bat` plantado en el cwd del proyecto y el shim llamando a `node` pelado, se ejecuta el node real); `node --test tests/installer.test.mjs` → `pass 184 · fail 1`: el que falla es «gap 8: una CLI colgada…» por tiempo (30906 ms frente al tope de 30000 ms con la máquina cargada); solo pasa en 15393 ms; el test C8 nuevo pasa. `node --test tests/hook-runtime.test.mjs` → `pass 25`; `export-interop.py` → sin cambios de contenido · 2026-11-09.
 
 ### T-04 — Graphiti sin proxy
 
@@ -184,6 +186,8 @@ GREEN fix1: `pytest agent-kits/shared/test_guardrail_check.py` → `190 passed` 
 RED: `agent-kits/shared/test_guardrail_check.py -k fix2` falló con fix2: 42 failed: prefijos cortos (--h, --m, --force-w), clean -fn/-fen y --no-dry-run, --attr-source y globales desconocidas, include.*, GIT_CONFIG_* sin distinguir mayusculas y por export/set, git config de alias, branch -df/-d -f, requireForce=true denegado · 2026-11-09.
 
 GREEN fix2: `pytest agent-kits/shared/test_guardrail_check.py` → `277 passed` (cualquier prefijo de opción destructiva, clean con `-n` exacto o `--dry-run` sin `--no-dry-run`, globales `--attr-source`/`--super-prefix`/`--list-cmds` y desconocidas, `-c`/`--config-env` con alias/include/includeif o requireForce falso, `GIT_CONFIG_*` sin distinguir mayúsculas en prefijo/env/export/set, `git config` que escribe esas claves, `branch -df/-d -f/--del --forc`; legítimas permitidas); `test_git_verification.py` → `357 passed`; `test_native_guardrail.py` → `227 passed` · 2026-11-09.
+
+GREEN fix2 (changelog): `pytest tests/test_native_guardrail_dispatch.py` → `11 passed` (`test_fix2_changelog_de_fase_1_recoge_los_cambios_del_intento_2`; en HEAD las marcas `exit 3`/`NoDefaultCurrentDirectoryInExePath` daban 0 coincidencias) · 2026-11-09.
 
 ## Fase 2 — Funciones documentadas que no funcionan
 
