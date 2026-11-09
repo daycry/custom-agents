@@ -11,6 +11,8 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+## [3.2.3] - 2026-11-09
+
 ### Fixed — resolución de la raíz del plugin y doctor (2026-11-09)
 
 - Los comandos, skills y agentes ya no ejecutan scripts de una versión antigua del plugin, de un fixture de tests ni de una copia temporal. Cada búsqueda prueba primero `${CLAUDE_PLUGIN_ROOT}`, que Claude Code sustituye por la versión que está corriendo en el contenido de comandos, skills y agentes. Si no está, busca la raíz del bundle por su marcador `agent-kits/shared/ledger-lint.py`, que solo existe en un bundle real. Recorre las raíces de una en una (proyecto, después las cachés del marketplace de este plugin y por último las de usuario), cada una acotada a la disposición real de una instalación, y se detiene en la primera con resultado. Dentro de una caché elige la versión más alta; el clon del marketplace y las copias `synced/`, `.staging/`, `plugin-install-*` y `temp_git_*` quedan fuera por profundidad o por raíz, y se excluyen los temporales y worktrees de Claude Code bajo cada raíz. Sin resultado la variable queda vacía, así que las comprobaciones de vacío existentes siguen avisando, y las piezas con las que se desarrolla el propio plugin prefieren la copia de trabajo. Antes, un `head -1` a secas devolvía la primera coincidencia del disco: en una máquina como esta, la versión más antigua de la caché, una copia sincronizada 1.21.0 o un mutante de revisión.
@@ -1384,6 +1386,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[3.2.3]: https://github.com/daycry/custom-agents/releases/tag/v3.2.3
 [3.2.2]: https://github.com/daycry/custom-agents/releases/tag/v3.2.2
 [3.2.1]: https://github.com/daycry/custom-agents/releases/tag/v3.2.1
 [3.2.0]: https://github.com/daycry/custom-agents/releases/tag/v3.2.0
