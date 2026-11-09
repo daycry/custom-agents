@@ -366,6 +366,20 @@ def test_dev_json_lente_rendimiento_es_vocabulario_conocido(tmp_path):
     assert [l for l in lineas(inf2, doctor.ERROR) if l["que"] == "dev.json `revision.lenteRendimiento`"]
 
 
+def test_dev_json_alcance_excluir_es_vocabulario_conocido(tmp_path):
+    """`alcance.excluir` (globs aditivos de `scope-check.py`, regla 9) NO debe salir como clave
+    desconocida; mal formado es ❌ como lo trataría scope-check, y una subclave ajena es ⚠️."""
+    inf = diag(proyecto(tmp_path, dev__json={"alcance": {"excluir": ["dist/**", "*.lock"]}}))
+    assert not lineas(inf, doctor.ERROR) and not lineas(inf, doctor.AVISO)
+    inf2 = diag(proyecto(tmp_path / "b", dev__json={"alcance": {"excluir": "dist/**"}}))
+    assert [l for l in lineas(inf2, doctor.ERROR) if l["que"] == "dev.json `alcance.excluir`"]
+    inf3 = diag(proyecto(tmp_path / "c", dev__json={"alcance": ["dist/**"]}))
+    assert [l for l in lineas(inf3, doctor.ERROR) if l["que"] == "dev.json `alcance`"]
+    inf4 = diag(proyecto(tmp_path / "d", dev__json={"alcance": {"incluir": ["x"]}}))
+    assert [l for l in lineas(inf4, doctor.AVISO) if l["que"] == "dev.json `alcance.incluir`"]
+    assert not lineas(inf4, doctor.ERROR)
+
+
 def test_dev_json_sesion_memoria_es_vocabulario_conocido(tmp_path):
     """`sesion.memoria` (opt-out del bloque de memoria de `session-context.sh`, memory-retrieval T-06) NO
     debe salir como clave desconocida; un valor no booleano sí es ❌."""

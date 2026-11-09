@@ -11,6 +11,12 @@ Los identificadores históricos ADR/LES/GOT se conservan como referencia; sus do
 
 ## [Sin publicar]
 
+### Fixed — resolución de la raíz del plugin y doctor (2026-11-09)
+
+- Los comandos, skills y agentes ya no ejecutan scripts de una versión antigua del plugin ni de una copia temporal. Cada resolución prueba primero `${CLAUDE_PLUGIN_ROOT}`, que Claude Code sustituye por la versión que está corriendo. El `find` de respaldo mantiene primero la copia del proyecto, ignora `~/.claude/jobs/` y elige la versión más alta dentro de cada raíz de usuario sin mezclar raíces. Antes, un `head -1` a secas devolvía la primera coincidencia del disco: en Windows la versión más antigua de la caché, o un mutante de revisión bajo `jobs/`.
+- Las copias para Codex y OpenCode que genera `scripts/export-interop.py` anteponen las raíces de su runtime, así que cada uno ejecuta su propia instalación cuando conviven varias. `tests/test_plugin_root_resolution.py` ejecuta la resolución en bash para los tres runtimes y comprueba todas las piezas.
+- `/doctor` ya no marca `alcance` de `.claude/dev.json` como clave desconocida. Ahora valida `alcance.excluir` con el mismo criterio que aplica `scope-check.py`.
+
 ## [3.2.2] - 2026-11-06
 
 ### Fixed — iniciativa `external-session-discovery` (2026-11-06)

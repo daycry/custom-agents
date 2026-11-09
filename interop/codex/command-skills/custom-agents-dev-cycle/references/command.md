@@ -36,7 +36,7 @@ ruta observada y asígnala de nuevo en cada bloque que la necesite.
 if [ -f "$PWD/agent-kits/dev-cycle/references/phase2-planning.md" ]; then
   DEVKIT="$PWD/agent-kits/dev-cycle"
 else
-  DEVKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/dev-cycle' 2>/dev/null | head -1)"
+  DEVKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/dev-cycle"; [ -d "$DEVKIT" ] || DEVKIT="$({ find "$PWD/.codex" "$PWD/.claude" "$PWD/.opencode" -type d -path '*agent-kits/dev-cycle' 2>/dev/null; for r in "$HOME/.codex" "$HOME/.claude" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/dev-cycle' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
 fi
 ```
 
@@ -130,7 +130,7 @@ una contradicción nueva se comunica y resuelve antes del trabajo afectado.
 > **Modelo del agente (tiering configurable, capa 2).** Antes de despachar CUALQUIER agente por nombre (`evaluator`, `architect`, `planner`, `implementer`, `qa`, `documenter`, `nemesis`), resuelve su tier efectivo y pasa `model` en el parámetro `model` del Agent tool (contrato oficial sub-agents.md, verificado 2026-09-03: el parámetro por invocación tiene prioridad sobre el frontmatter):
 >
 > ```bash
-> SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+> SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$({ find "$PWD/.codex" "$PWD/.claude" "$PWD/.opencode" -type d -path '*agent-kits/shared' 2>/dev/null; for r in "$HOME/.codex" "$HOME/.claude" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
 > python3 "$SHAREDKIT/model-tier.py" <agente> --json     # {"model": "...", "effort": "...", "fuente": {"model": "frontmatter|dev.json", ...}}
 > ```
 >

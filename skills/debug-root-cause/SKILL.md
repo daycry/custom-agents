@@ -56,7 +56,7 @@ cosa.
 *Evidencia:* diff del fix + test de regresión en verde + suite en verde.
 
 **Cierre de Fase 4 — memoria técnica (siempre activa, D3).** Localiza el kit compartido:
-`SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`.
+`SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/shared' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"`.
 Con la Fase 4 completa (fix aplicado, no propuesto), comprueba el umbral de
 `"$SHAREDKIT/knowledge-write.md"`: si esta causa raíz
 costó **≥1 ciclo de depuración** (llegaste a esta skill) o **rompió/casi rompió una garantía del

@@ -25,7 +25,7 @@
 
 1. **`arrancar`** (al empezar `T-XX`, transición de estado, **sin comentario**):
    ```bash
-   JF="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/jira-sync/scripts/jira-flow.py' 2>/dev/null | head -1)"
+   JF="${CLAUDE_PLUGIN_ROOT}/skills/jira-sync/scripts/jira-flow.py"; [ -f "$JF" ] || JF="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type f -path '*skills/jira-sync/scripts/jira-flow.py' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*skills/jira-sync/scripts/jira-flow.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
    python3 "$JF" plan --ledger tasks.md --event arrancar --actor implementer --task T-08 --json
    ```
    El plan trae la etiqueta `ca-implementer` y una transición a la categoría **`indeterminate`**

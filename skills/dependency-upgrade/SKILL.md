@@ -27,8 +27,8 @@ El upgrade en sí lo hace `implementer` dentro de la iniciativa, con suites y sm
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 
 ```bash
-DUSKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/skills" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*skills/dependency-upgrade' 2>/dev/null | head -1)"
-EVALKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/evaluator' 2>/dev/null | head -1)"
+DUSKILL="${CLAUDE_PLUGIN_ROOT}/skills/dependency-upgrade"; [ -d "$DUSKILL" ] || DUSKILL="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/skills" -type d -path '*skills/dependency-upgrade' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*skills/dependency-upgrade' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+EVALKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/evaluator"; [ -d "$EVALKIT" ] || EVALKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/evaluator' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/evaluator' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
 python3 "$DUSKILL/scripts/deps-inventory.py" <ruta> [--json] [--no-outdated] [--timeout 60]
 ```
 

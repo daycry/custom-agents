@@ -26,7 +26,7 @@ natural que redirige a `/pm-cycle` o al flujo completo cuando el cambio NO es pe
 >
 > ```bash
 > # $PWD/commands cubre el caso de trabajar SOBRE el propio repo del plugin (si no, ganaría la copia instalada)
-> DEVCYCLE="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/commands" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*commands/dev-cycle.md' 2>/dev/null | head -1)"
+> DEVCYCLE="${CLAUDE_PLUGIN_ROOT}/commands/dev-cycle.md"; [ -f "$DEVCYCLE" ] || DEVCYCLE="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/commands" -type f -path '*commands/dev-cycle.md' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*commands/dev-cycle.md' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
 > ```
 >
 > Qué seguir de ese fichero, en este orden: **Fase 0** (preparación: carpeta de la iniciativa) → **Fase
@@ -73,7 +73,7 @@ solo van los nombres, para no mantener una copia que se desincronice:
    tareas: contaría los mismos tokens dos veces.
 3. **Implementación** por `implementer`, con la disciplina de `.claude/dev.json` si está activa
    (si `tdd: true`, el implementer sigue la skill **`tdd`**). Antes de despacharlo, resuelve su tier
-   con `python3 "$SHAREDKIT/model-tier.py" implementer --json` (`SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`) y pasa `model` al Agent tool solo si
+   con `python3 "$SHAREDKIT/model-tier.py" implementer --json` (`SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/shared' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"`) y pasa `model` al Agent tool solo si
    `fuente.model` es `dev.json` (el `effort` de `dev.json` es informativo; sin script → frontmatter).
 4. **Las puertas NO se saltan**: la revisión adversarial es la skill **`adversarial-review`** (fuente
    única del método: puerta `scope-check.py` antes de gastar revisores, lentes A/B + lente C de

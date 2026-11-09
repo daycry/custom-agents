@@ -65,7 +65,7 @@ publicado.
 2. Cruza con el **manifiesto**: cada `pageId` conocido → su **fichero local**. Las páginas del árbol que **no** estén en el manifiesto son "**nuevas en Confluence**" (creadas allí directamente): propón una ruta local coherente con el árbol (carpeta por página con hijos, `.md` por hoja), pero **márcalas aparte** para que el usuario confirme dónde van.
 3. **Simetría con `confluence-publish` (misma política, mismo alcance).** El pull aplica el **mismo** `include`/`exclude` de `.claude/confluence.json` que usa `confluence-publish` para decidir qué se sube (fuente de la lista vigente: `assets/confluence.example.json` — no la dupliques aquí). Una página remota cuyo destino local caería **fuera** del alcance actual (p. ej. porque la política cambió después de publicarla) se trata como "**no gestionada por el circuito**": no se recrea ni se sobrescribe sin más — se lista aparte y se pregunta antes de tocar nada. Con el **staging activo** (D5), el destino de escritura de cada página se resuelve con el **mapeo inverso staged → canónico** de `confluence-scope.py` — nunca lo reimplementes con tus propios cálculos de ruta:
    ```bash
-   SCOPE="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' 2>/dev/null | head -1)"
+   SCOPE="${CLAUDE_PLUGIN_ROOT}/skills/confluence-publish/scripts/confluence-scope.py"; [ -f "$SCOPE" ] || SCOPE="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
    python3 "$SCOPE" --map "docs/confluence/<ruta-de-la-pagina>.md" --root "$PWD"
    ```
    Exit 0 + la ruta canónica por stdout → escribe **ahí** (nunca bajo `docs/confluence/`). Exit 1 (página huérfana, sin fichero canónico correspondiente) → avisa y **no escribas nada**. Si el script no está disponible, degrada a `docs/` directamente (staging desactivado) sin bloquear el pull.
@@ -108,7 +108,7 @@ Con el "sí": escribe los ficheros (creando carpetas si hace falta), **actualiza
 `.claude/confluence-state.json`** con el nuevo hash y `pageId` de cada uno, y **regenera el
 `dashboard.md`** si existe roadmap (el panel HTML local lo exporta `/roadmap-status`):
 ```bash
-DASH="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
+DASH="${CLAUDE_PLUGIN_ROOT}/skills/roadmap-dashboard/scripts/build_dashboard.py"; [ -f "$DASH" ] || DASH="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
 [ -d docs/roadmap ] && python3 "$DASH" --root docs/roadmap --md docs/roadmap/dashboard.md
 ```
 Cierra en llano: "Listo ✅ Actualicé 3 y creé 1. Tienes conflicto en 1, te lo enseño para que decidas."

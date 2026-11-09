@@ -128,7 +128,8 @@ DEV_LENTES = ("auto", "siempre", "nunca")
 DEV_GUARDRAIL_REGLAS = ("alcance", "ramaPrincipal", "git")
 DEV_SESION_CLAVES = ("indice", "journal", "memoria", "captura", "resumen", "actividad")   # memoria: bloque (4) de session-context.sh (T-06);
                                                                               # captura/resumen: log crudo del turno y resumen por IA opt-in (memory-retrieval T-11/T-13)
-DEV_CLAVES = set(DEV_BOOLES) | {"guardrails", "revision", "sesion", "modelos", "tests", "perfil"}
+DEV_CLAVES = set(DEV_BOOLES) | {"guardrails", "revision", "sesion", "modelos", "tests", "perfil",
+                                "alcance"}   # alcance.excluir: globs aditivos de scope-check.py (regla 9)
 
 JIRA_OBLIGATORIOS = ("cloudId", "granularidad", "assignee", "alCubrirJornada")
 CONFLUENCE_OBLIGATORIOS = ("cloudId", "spaceKey", "anchor", "home")
@@ -1287,6 +1288,28 @@ def _dev_valida_sesion(ses):
     return ls
 
 
+def _dev_valida_alcance(alc):
+    """Líneas de `alcance` (exclusiones aditivas de `scope-check.py`), con su mismo criterio de forma."""
+    ls = []
+    if alc is None:
+        return ls
+    if not isinstance(alc, dict):
+        ls.append(linea(ERROR, "dev.json `alcance`", f"{alc!r} no es un objeto",
+                        "usa `{\"excluir\": [\"dist/**\"]}`: scope-check lo ignora y aplica solo sus "
+                        "exclusiones por defecto"))
+        return ls
+    for sk in sorted(alc):
+        sv = alc[sk]
+        if sk != "excluir":
+            ls.append(linea(AVISO, f"dev.json `alcance.{sk}`", "clave desconocida (se ignora)",
+                            "clave válida: excluir"))
+        elif not isinstance(sv, list) or not all(isinstance(x, str) for x in sv):
+            ls.append(linea(ERROR, "dev.json `alcance.excluir`", f"{sv!r} no es una lista de globs",
+                            "usa `[\"dist/**\"]`: globs que se suman a las exclusiones por defecto "
+                            "de scope-check (mal formado, se ignora)"))
+    return ls
+
+
 def _dev_valida_tests(tests):
     """Líneas de `tests` (gate de cobertura)."""
     ls = []
@@ -1328,6 +1351,7 @@ def _dev_valida(datos):
     ls.extend(_dev_valida_revision(datos.get("revision")))
     ls.extend(_dev_valida_sesion(datos.get("sesion")))
     ls.extend(_dev_valida_tests(datos.get("tests")))
+    ls.extend(_dev_valida_alcance(datos.get("alcance")))
     return ls
 
 

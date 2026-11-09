@@ -59,8 +59,8 @@ Graphiti directamente (`graphiti-memory` T-03, `docs/agents/CONTRACTS.md` E18).
   antes de retirar su fuente exacta verificada. No prometas atomicidad de varios archivos.
 - Resuelve tu kit y el compartido sin rutas fijas:
   ```bash
-  MIKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/knowledge-curator' 2>/dev/null | head -1)"
-  SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+  MIKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/knowledge-curator"; [ -d "$MIKIT" ] || MIKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/knowledge-curator' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/knowledge-curator' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
+  SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/shared' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
   # gate readonly: "$MIKIT/curator-gate.py" · persistencia: "$SHAREDKIT/knowledge-curation.py"
   # taxonomia/indice: "$SHAREDKIT/knowledge-schema.py" / "$SHAREDKIT/knowledge-index.py"
   ```

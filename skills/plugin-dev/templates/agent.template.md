@@ -23,7 +23,7 @@ agente se salga de su rol).>
 ## Resolución del kit (si tiene agent-kits/<nombre>/)
 
 ```bash
-MIKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/<nombre-kebab>' 2>/dev/null | head -1)"
+MIKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/<nombre-kebab>"; [ -d "$MIKIT" ] || MIKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/<nombre-kebab>' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/<nombre-kebab>' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
 # sin kit (instalación parcial): <fallback de una línea> y avisa — NUNCA bloquees
 ```
 

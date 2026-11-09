@@ -1280,7 +1280,7 @@ def test_statusline_find_jobs_temporal_no_gana_al_plugin_instalado(tmp_path):
 def test_setup_5bis_find_jobs_temporal_no_gana_al_plugin_instalado(tmp_path):
     """El `find` de /setup 5-bis (el que escribe la ruta ABSOLUTA en settings.json) ignora `~/.claude/jobs`."""
     md = open(os.path.join(ROOT, "commands", "setup.md"), encoding="utf-8").read()
-    linea = next(l.strip() for l in md.splitlines() if l.strip().startswith('SL="$(find') and "roadmap-statusline.sh" in l)
+    linea = next(l.strip() for l in md.splitlines() if l.strip().startswith('SL=') and "$(" in l and "roadmap-statusline.sh" in l)
     home = tmp_path / "home"
     for donde in (home / ".claude" / "jobs" / "x" / "statusline", home / ".claude" / "plugins" / "cache" / "p" / "statusline"):
         donde.mkdir(parents=True)

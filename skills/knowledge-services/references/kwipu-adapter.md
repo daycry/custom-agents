@@ -44,7 +44,7 @@ Ni configurar ni consultar inicia contenedores, ingesta o reindexación.
 Localiza `knowledge-find.py` con las seis raíces de instalación:
 
 ```bash
-SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/shared' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
 python3 "$SHAREDKIT/knowledge-find.py" --root . --intent evidencia --json "regla de diseño"
 ```
 
@@ -423,7 +423,7 @@ Con Kwipu corriendo en `http://127.0.0.1:8765` y un `taxonomy.json` con `backend
 (localiza el script con el patrón de seis raíces, ver `SKILL.md` § Uso):
 
 ```bash
-KSSKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/knowledge-services/scripts/knowledge-sync.py' 2>/dev/null | head -1)"
+KSSKILL="${CLAUDE_PLUGIN_ROOT}/skills/knowledge-services/scripts/knowledge-sync.py"; [ -f "$KSSKILL" ] || KSSKILL="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type f -path '*skills/knowledge-services/scripts/knowledge-sync.py' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*skills/knowledge-services/scripts/knowledge-sync.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
 python3 "$KSSKILL" --backend kwipu --root <proyecto> --check
 python3 "$KSSKILL" --backend kwipu --root <proyecto> --dry-run
 python3 "$KSSKILL" --backend kwipu --root <proyecto>
@@ -444,7 +444,7 @@ Diseño O1 de `setup-statusline-polish` (C-07). El script **solo añade**: nunca
 previo y el fichero conserva su identidad. Ejemplos con `<stack>/…` (la ruta del stack no se persiste).
 
 ```bash
-KPA="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/knowledge-services/scripts/kwipu-project-add.py' 2>/dev/null | head -1)"
+KPA="${CLAUDE_PLUGIN_ROOT}/skills/knowledge-services/scripts/kwipu-project-add.py"; [ -f "$KPA" ] || KPA="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type f -path '*skills/knowledge-services/scripts/kwipu-project-add.py' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*skills/knowledge-services/scripts/kwipu-project-add.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
 python3 "$KPA" --stack <stack> --root .                            # vista previa: estado, bloque, sha256
 python3 "$KPA" --stack <stack> --root . --apply --esperado <sha256> # escribe (tras confirmar)
 ```

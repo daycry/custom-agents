@@ -26,7 +26,7 @@
   (regla 5 de `CONVENTIONS`):
 
   ```bash
-  SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+  SHAREDKIT="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; [ -d "$SHAREDKIT" ] || SHAREDKIT="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type d -path '*agent-kits/shared' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
   python3 "$SHAREDKIT/knowledge-find.py" --area estimacion --tipo lesson          # capa 1: aciertos compactos de un área (normalizada, sin acentos)
   python3 "$SHAREDKIT/knowledge-find.py" --tipo-tarea devops --contexto "<título de la tarea>" --iniciativa <slug>   # capa 1 ENRUTADA por área (la del brief)
   python3 "$SHAREDKIT/knowledge-find.py" --related ADR-010                        # capa 2: grafo curado (sucesión · misma iniciativa · misma área)

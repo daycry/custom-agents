@@ -31,7 +31,7 @@ como nota de release (por eso las notas de la v1.16.0 se escribieron a mano). El
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 
 ```bash
-CLS="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/changelog-sync/scripts/changelog-sync.py' 2>/dev/null | head -1)"
+CLS="${CLAUDE_PLUGIN_ROOT}/skills/changelog-sync/scripts/changelog-sync.py"; [ -f "$CLS" ] || CLS="$({ find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" -type f -path '*skills/changelog-sync/scripts/changelog-sync.py' 2>/dev/null; for r in "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"; do find "$r" -type f -path '*skills/changelog-sync/scripts/changelog-sync.py' ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1; done; } | head -1)"
 ```
 
 ## Cuándo usarla
