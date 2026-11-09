@@ -19,7 +19,9 @@ DOCS = [ROOT / p for p in ("docs/CONVENTIONS.md", "docs/en/CONVENTIONS.md",
                            # revisión intento 1 (gap 4): también describían «lite en el hilo actual»
                            "docs/agents/implementer.md", "agent-kits/shared/README.md",
                            "docs/agents/CONTRACTS.md", "docs/guides/quality-playbook.md",
-                           "docs/guides/subscription-efficiency.md")]
+                           "docs/guides/subscription-efficiency.md",
+                           # revisión intento 2 (A1): /setup también describía lite
+                           "commands/setup.md")]
 
 
 def _section(text, start, end_re=r"\n## "):
@@ -87,3 +89,35 @@ def test_adaptadores_generados_conservan_el_despacho_nativo():
     for text in (codex, opencode):
         plano = " ".join(text.split())
         assert "hilo actual" not in plano and "native-roles.json" in plano
+
+
+# --- Revisión intento 2: tests dedicados de los gaps de texto del intento 1 ---
+
+def test_fix2_gap5_lens_select_doc_says_error_enables_c_and_d_in_auto():
+    """Intento 1, gap 5: el docstring de review-lens-select y lens-c-heuristics ya no dicen «error → false»."""
+    script = " ".join((ROOT / "skills/adversarial-review/scripts/review-lens-select.py").read_text(encoding="utf-8").split())
+    heur = " ".join((ROOT / "skills/adversarial-review/references/lens-c-heuristics.md").read_text(encoding="utf-8").split())
+    assert "ante error, aviso en stderr y ambas `false`" not in script
+    assert "en modo `auto`, ambas `true`" in script
+    assert "ante error avisa por stderr y devuelve `false`" not in heur
+    assert "devuelve `true` en las Lentes C y D" in heur
+
+
+def test_fix2_gap6_implementer_lists_name_every_denied_family():
+    """Intento 1, gap 6 (y intento 2): las listas del implementer nombran todas las familias denegadas."""
+    for rel in ("agents/implementer.md", "docs/agents/implementer.md"):
+        texto = " ".join((ROOT / rel).read_text(encoding="utf-8").split())
+        for familia in ("git reset --hard", "git clean -f", "--mirror", "--prune", "git stash drop|clear",
+                        "alias.*", "include.*", "includeif.*", "clean.requireForce", "GIT_CONFIG_",
+                        "git config"):
+            assert familia in texto, (rel, familia)
+
+
+def test_fix2_gap12_changelog_headers_carry_slug_for_changelog_sync():
+    """Intento 1, gap 12: la cabecera de la fase lleva el slug entre acentos graves (idempotencia de changelog-sync)."""
+    en = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    es = (ROOT / "CHANGELOG.es.md").read_text(encoding="utf-8")
+    assert "### Fixed — `plugin-audit-remediation` initiative, phase 1" in en
+    assert "### Fixed — iniciativa `plugin-audit-remediation`, fase 1" in es
+    for texto in (en, es):
+        assert texto.index("`plugin-audit-remediation`") < texto.index("## [3.2.3]")

@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 1 | 6 | 16.7% |
+| Fase 1 | 2 | 6 | 33.3% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **1** | **21** | **4.8%** |
+| **TOTAL** | **2** | **21** | **9.5%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -118,9 +118,9 @@ GREEN: `pytest tests/test_graphiti_security.py -k ignoran_proxy` → `1 passed` 
 
 ### T-05 — Guardarraíles en perfil lite y en subagentes
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-6 y H-7. La implementación siempre se despacha a la identidad nativa `implementer` (también en `lite` y con subagentes), para que la guardia nativa aplique.
-- **Archivos**: `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/phase3-subagents.md`, `skills/quick-implement/SKILL.md`, `agent-kits/shared/task-brief.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `interop/**`, `tests/test_dev_cycle_split.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/fixtures/dev-cycle-paragraphs.json`, `tests/test_native_guardrail_dispatch.py`, `docs/agents/CONTRACTS.md`, `docs/guides/quality-playbook.md`, `docs/guides/subscription-efficiency.md` (añadidos por el implementer: E3, también describían «lite en el hilo actual»), `docs/agents/implementer.md`, `agent-kits/shared/README.md` (revisión intento 1, gap 4).
+- **Archivos**: `commands/dev-cycle.md`, `agent-kits/dev-cycle/references/phase3-subagents.md`, `skills/quick-implement/SKILL.md`, `agent-kits/shared/task-brief.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `interop/**`, `tests/test_dev_cycle_split.py`, `tests/fixtures/dev-cycle-modular-replacements.json`, `tests/fixtures/dev-cycle-paragraphs.json`, `tests/test_native_guardrail_dispatch.py`, `docs/agents/CONTRACTS.md`, `docs/guides/quality-playbook.md`, `docs/guides/subscription-efficiency.md` (añadidos por el implementer: E3, también describían «lite en el hilo actual»), `docs/agents/implementer.md`, `agent-kits/shared/README.md` (revisión intento 1, gap 4), `commands/setup.md` (revisión intento 2, A1).
 - **Verificación**: test que exige el despacho a `implementer` en lite y subagentes → pasa; `export-interop.py --check` al día; ahorro de la vía rápida ≥ 6000.
 - **Changelog**: La implementación se entrega siempre a la identidad nativa del implementer, también en el perfil lite y con subagentes, para que su guardia de rama, alcance y git aplique.
 - **Cerrada**: 2026-11-09
@@ -141,6 +141,8 @@ GREEN fix1: `pytest tests/test_native_guardrail_dispatch.py` → `7 passed` (DOC
 
 
 RED: `tests/test_native_guardrail_dispatch.py::test_docs_describen_lite_con_implementer_nativo (DOCS + commands/setup.md)` falló con fix2: 1 failed: commands/setup.md dice que lite ejecuta implementacion en el hilo actual · 2026-11-09.
+
+GREEN fix2: `pytest tests/test_native_guardrail_dispatch.py` → `10 passed` (`commands/setup.md` en `DOCS`; tests dedicados de los gaps 5, 6 y 12 del intento 1); interop regenerado (`setup` en Codex y OpenCode) · 2026-11-09.
 
 ### T-06 — Puertas que fallan cerradas
 
