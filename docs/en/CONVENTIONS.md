@@ -467,8 +467,9 @@ another process for the same event and must not share its assertion output file.
 
 `dev.json` accepts `perfil: normal|lite` (absent = normal) and `paralelismo`
 (boolean, normal default true). The shared `execution-profile.py` resolves effective
-flags as JSON without changing configuration. Lite forces implementation in the
-current thread without parallelism, preserves requested toggles for switching back
+flags as JSON without changing configuration. Lite dispatches each task
+sequentially, without parallelism, to the native `implementer` (its guardrail does not
+apply to the main thread or to a generic subagent), preserves requested toggles for switching back
 to normal, and requires an operational `ledger-write.py`. Selected TDD, sequential
 fresh reviewers, qa-gate, coverage and Knowledge Gate remain mandatory. It does not
 certify model quality or context. Lite briefs have a 6,000-character ceiling: task,

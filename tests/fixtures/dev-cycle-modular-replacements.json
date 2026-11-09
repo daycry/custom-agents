@@ -26,9 +26,9 @@
     {
       "before_sha256": "b30f4ec711db248b9d44bd90fce87c24f281089c1cb40bc9e1269065a517d368",
       "before_file": "commands/dev-cycle.md",
-      "after_sha256": "2ece9f0938f5d896af474da002c8a58e3c02f23c9327f70fcddab89ffb6a0a66",
+      "after_sha256": "de41fee3fb67c0d19af510c5f2b45aff3a211d577556b745b4e6e7e6eb3cb44a",
       "after_file": "commands/dev-cycle.md",
-      "reason": "Full/quick paths and mandatory review/QA unchanged; external projection described without a Jira dependency."
+      "reason": "Full/quick paths and mandatory review/QA unchanged; external projection described without a Jira dependency. Audit H-6/H-7 token compensation: the fast-track rationale (cheap two-lens review and qa-gate versus expensive PM paperwork) is condensed to its conclusion; both gates stay in the same paragraph."
     },
     {
       "before_sha256": "ec7f72535e0c8c84027d5e33407cb6e6ef63dcee1c5894f6e6a650fcd7435c8c",
@@ -64,6 +64,27 @@
       "after_sha256": "db76536e9e4dc7c48defcf424ed75c0e1c7f4b8719f7b70b3b0138f49fb306cd",
       "after_file": "skills/quick-implement/SKILL.md",
       "reason": "Plugin-root resolution fix: step 3 builds SHAREDKIT from the plugin root R already resolved for DEVCYCLE instead of a second lookup; same model-tier gate."
+    },
+    {
+      "before_sha256": "f86c9ae830bdd207ddae88c7bfe3c0122b3d4654afca1308ac9b54255f103cca",
+      "before_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
+      "after_sha256": "ea00d98e07709dae35edec0bbc8f97b9953ec25266922cfc6d10fc3a4b213d94",
+      "after_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
+      "reason": "Audit H-6/H-7: each T-XX runs in a fresh subagent of the native implementer identity, so the native guardrail applies; same brief-only contract."
+    },
+    {
+      "before_sha256": "923c698871ad7b7813676294d820e585e39795b6bf2516d8f5f4e78d6559a229",
+      "before_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
+      "after_sha256": "16a06c53dd6ad71363fcb3200ef4e5d6536e2248ab9e57189c38a03dcd5c16ac",
+      "after_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
+      "reason": "Audit H-6/H-7: a missing persona yields a brief without persona (not a generic subagent); the dispatch identity is always the native implementer; same three-tier cascade."
+    },
+    {
+      "before_sha256": "7c1d9803defe78ddcac981606263451619922a2c072121f82ee5d9263ced2d8a",
+      "before_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
+      "after_sha256": "8279edb09dc3c5b5f8811016c8d170b3a4c75fc4983d9efeeebcdf31a33dafe8",
+      "after_file": "agent-kits/dev-cycle/references/phase3-subagents.md",
+      "reason": "Audit H-6/H-7: brief-only dispatch uses subagent_type = native implementer ID from native-roles.json with the brief as prompt, never a generic subagent (native-guardrail.py only protects that identity); the fallback after the second attempt is a direct dispatch to the native implementer instead of the main context; return states, gates and parallel batch unchanged."
     }
   ]
 }

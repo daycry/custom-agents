@@ -1517,7 +1517,7 @@ def main(argv=None):
         if persona_insert_idx is not None:
             out[persona_insert_idx:persona_insert_idx] = ["", f"## Persona de dominio (tipo: {tipo})", "",
                     _PERSONA_INICIO, _neutraliza_encabezados(persona_contenido), _PERSONA_FIN, ""]
-        out += ["## Perfil lite", "", "Implementa en el hilo actual, sin paralelismo ni subagentes de implementación. "
+        out += ["## Perfil lite", "", "Lo ejecuta la identidad nativa `implementer` (su guardia aplica), en secuencia y sin paralelismo. "
                 "Usa ledger-write.py; revisión con contexto fresco secuencial y qa-gate obligatorios.", ""]
         texto = "\n".join(out) + "\n"
         if len(texto) > profile["brief_max_chars"]:

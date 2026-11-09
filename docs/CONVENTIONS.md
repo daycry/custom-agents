@@ -471,8 +471,9 @@ resultado. [Evidencia](roadmap/2026-10-07-catalog-capabilities/testing/opencode-
 
 `dev.json` admite `perfil: normal|lite` (ausente = normal) y `paralelismo`
 (booleano, normal por defecto true). `execution-profile.py` del shared resuelve
-los flags efectivos en JSON sin escribir configuración. Lite fuerza implementación
-en el hilo actual y sin paralelismo, conserva los toggles pedidos para volver a
+los flags efectivos en JSON sin escribir configuración. Lite despacha cada tarea
+en secuencia y sin paralelismo al `implementer` nativo (su guardia no aplica al hilo
+principal ni a un subagente genérico), conserva los toggles pedidos para volver a
 normal y exige `ledger-write.py` operativo. Mantiene TDD elegido, revisores frescos
 secuenciales, qa-gate, cobertura y Knowledge Gate. No certifica calidad ni contexto
 del modelo. El brief lite tiene techo de 6.000 caracteres: tarea, verificación,

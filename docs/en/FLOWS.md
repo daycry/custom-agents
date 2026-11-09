@@ -844,14 +844,15 @@ or grant permissions. Each category selects destinations through existing routin
 
 Resolve the effective profile before dispatch. Lite loads the core and only
 references whose conditions remain active; it skips implementation subagent
-details. Each reviewer retains a separate fresh context.
+details. Each task is dispatched sequentially to the native `implementer`, whose
+guardrail does not apply to the main thread. Each reviewer retains a separate fresh context.
 
 ```mermaid
 flowchart LR
   Config[dev.json perfil lite] --> Resolver[execution-profile.py]
   Resolver --> Brief[Complete brief up to 6000]
   Resolver --> Writer[Required writer]
-  Brief --> Implement[Implementation in current thread]
+  Brief --> Implement[Native implementer in sequence]
   Implement --> A[Fresh reviewer A]
   A --> B[Fresh reviewer B and sequential conditional lenses]
   B --> QA[qa-gate and coverage]

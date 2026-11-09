@@ -213,7 +213,7 @@ Si ya existe un plan aprobado, indica su ruta y la tarea pendiente. No pidas al 
 
 ### Perfil lite
 
-Solicita al comando `setup` que configure únicamente el perfil `lite`, conservando las demás preferencias. Este perfil limita el contexto del despacho y realiza la implementación en el hilo actual. Mantiene revisores frescos secuenciales, el TDD elegido, revisión, QA y cobertura; no cambia por sí mismo tu plan comercial ni garantiza un modelo o un número de tokens.
+Solicita al comando `setup` que configure únicamente el perfil `lite`, conservando las demás preferencias. Este perfil limita el contexto del despacho y entrega cada tarea, en secuencia, al `implementer` nativo con su guardia. Mantiene revisores frescos secuenciales, el TDD elegido, revisión, QA y cobertura; no cambia por sí mismo tu plan comercial ni garantiza un modelo o un número de tokens.
 
 ```text
 Configura únicamente el perfil lite de custom-agents para

@@ -31,7 +31,7 @@ Escribe la necesidad o ruta después del comando. En Codex, selecciona el adapta
 
 Indica el stack y sus versiones mínimas, los comandos de prueba existentes y las restricciones relevantes. Configura únicamente las integraciones que el proyecto utilizará. Puedes pedir «conserva las demás preferencias» para evitar que una configuración parcial se convierta en una reconfiguración completa.
 
-Decide si quieres el perfil normal o el perfil lite. Lite reduce contexto y concentra la implementación en el hilo actual; conserva las puertas que le corresponden al proyecto. No equivale a desactivar TDD, revisión o QA. Consulta la [guía de uso eficiente](subscription-efficiency.md) para elegirlo con criterio.
+Decide si quieres el perfil normal o el perfil lite. Lite reduce contexto y despacha la implementación en secuencia al `implementer` nativo, con su guardia; conserva las puertas que le corresponden al proyecto. No equivale a desactivar TDD, revisión o QA. Consulta la [guía de uso eficiente](subscription-efficiency.md) para elegirlo con criterio.
 
 ### Qué autorizas y qué necesitas decidir
 

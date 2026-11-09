@@ -844,14 +844,15 @@ ni concede permisos. Cada categoría decide sus destinos con el routing existent
 
 El perfil efectivo se resuelve antes de despachar. Lite carga el núcleo y solo
 las referencias cuyas condiciones siguen activas; omite el detalle de subagentes
-de implementación. Cada revisor mantiene un contexto fresco propio.
+de implementación. Cada tarea se despacha en secuencia al `implementer` nativo, cuya
+guardia no aplica al hilo principal. Cada revisor mantiene un contexto fresco propio.
 
 ```mermaid
 flowchart LR
   Config[dev.json perfil lite] --> Resolver[execution-profile.py]
   Resolver --> Brief[Brief completo hasta 6000]
   Resolver --> Writer[Writer obligatorio]
-  Brief --> Implementar[Implementación en hilo actual]
+  Brief --> Implementar[implementer nativo en secuencia]
   Implementar --> A[Revisor A fresco]
   A --> B[Revisor B fresco y lentes condicionales secuenciales]
   B --> QA[qa-gate y cobertura]
