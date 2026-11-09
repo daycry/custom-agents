@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 5 | 6 | 83.3% |
+| Fase 1 | 6 | 6 | 100.0% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **5** | **21** | **23.8%** |
+| **TOTAL** | **6** | **21** | **28.6%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -176,7 +176,7 @@ GREEN fix2: `pytest tests/test_native_guardrail_dispatch.py` → `10 passed` (`c
 
 ### T-06 — Puertas que fallan cerradas
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-8 y H-12. `review-lens-select` en `auto` activa C y D ante error; `guardrail-check` deniega `reset --hard`, `clean -f*`, borrar ramas remotas y `stash drop|clear`.
 - **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py`, `skills/adversarial-review/scripts/test_review_lens_select.py`, `agent-kits/shared/guardrail-check.py`, `agent-kits/shared/test_guardrail_check.py`, `skills/adversarial-review/SKILL.md`, `tests/test_graphiti_security.py`, `CHANGELOG.md`, `CHANGELOG.es.md` (añadidos por el implementer: entrada `### Fixed` de toda la Fase 1, commit aparte pedido por el orquestador), `skills/adversarial-review/references/lens-c-heuristics.md`, `agents/implementer.md`, `docs/agents/implementer.md`, `interop/**` (revisión intento 1, gaps 5 y 6), `agent-kits/shared/test_git_verification.py` (revisión intento 2: sus casos «permitidos» de `GIT_CONFIG_*` y de `--no-v` ambiguo pasan a denegados por el cierre por diseño)), `docs/FLOWS.md`, `docs/en/FLOWS.md`, `tests/test_native_guardrail_dispatch.py` (revisión intento 3: contrato final de la regla git y límite «no es un sandbox».
 - **Verificación**: tests de los dos scripts → pasan con los casos nuevos.
@@ -213,6 +213,8 @@ RED: `agent-kits/shared/test_guardrail_check.py::test_fix3_gap8_docs_describen_l
 TDD n/a (intento 2, gaps 13 y 14): `test_fix2_gap5_*`, `test_fix2_gap6_*`, `test_fix2_gap12_*` y `test_fix2_changelog_de_fase_1_recoge_los_cambios_del_intento_2` se escribieron sobre texto ya corregido; son tests de regresión del texto, sin rojo observado en el momento (solo el contraste con HEAD del CHANGELOG) · 2026-11-09.
 
 GREEN fix3: `pytest agent-kits/shared/test_guardrail_check.py` → `372 passed` (lista blanca de `-c`/`--config-env`/`git config`, clasificación lectura/escritura con `--comment`/`--file`/secciones, `GIT_*`/`HOME`/`XDG_CONFIG_HOME` solo con git, `clean` analizado de verdad con `-fn`/`-nf` como simulación y `-fen`/`-e -n -f`/`-f -- -n` denegados, `push -4f`, `branch -f|-M|-C`, `update-ref -d|--stdin`, globales legítimas permitidas, test de documentación gap 8); `test_git_verification.py` → `357 passed`; `test_native_guardrail.py` → `227 passed`; `tests/test_native_guardrail_dispatch.py` → `11 passed` (gap6 alineado con la lista blanca); `_env_hooks_override` eliminado (subsumido por la regla de entorno) · 2026-11-09.
+
+GREEN fix3 (changelog): `pytest tests/test_native_guardrail_dispatch.py` → `12 passed` (`test_fix3_changelog_describe_la_lista_blanca_y_el_limite`; en HEAD la sección no nombraba `commit.gpgsign` ni `sandbox`: 0 coincidencias) · 2026-11-09.
 
 ## Fase 2 — Funciones documentadas que no funcionan
 

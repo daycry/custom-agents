@@ -132,3 +132,11 @@ def test_fix2_changelog_de_fase_1_recoge_los_cambios_del_intento_2():
         for marca in ("exit 3", "`/doctor`", "⚠️", "`GIT_CONFIG_*`", "`include.*`",
                       "NoDefaultCurrentDirectoryInExePath"):
             assert marca in seccion, (rel, marca)
+
+
+def test_fix3_changelog_describe_la_lista_blanca_y_el_limite():
+    """Revisión intento 3: la entrada de la Fase 1 describe la lista blanca de configuración git."""
+    for rel, marca in (("CHANGELOG.md", "allowlist"), ("CHANGELOG.es.md", "lista blanca")):
+        texto = (ROOT / rel).read_text(encoding="utf-8")
+        seccion = texto[texto.index("`plugin-audit-remediation`"):texto.index("## [3.2.3]")]
+        assert marca in seccion and "sandbox" in seccion and "`commit.gpgsign`" in seccion, rel
