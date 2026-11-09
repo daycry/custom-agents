@@ -105,3 +105,12 @@ def test_fix1_a2_el_aviso_de_ledger_lint_sin_red_queda_como_deuda_en_t21():
     ledger = ' '.join(text('docs/roadmap/2026-11-09-plugin-audit-remediation/tasks.md').split())
     t21 = ledger[ledger.index('### T-21'):]
     assert 'aviso de ledger-lint' in t21 and 'RED:' in t21
+
+
+
+def test_fix2_a_m2_modo_rapido_explicito_y_recomendacion_excluyen_la_interfaz():
+    core = text('commands/dev-cycle.md')
+    explicito = next(line for line in core.splitlines() if line.startswith('- **Vía rápida explícita:**'))
+    recomendacion = next(line for line in core.splitlines() if line.startswith('**Recomendación por defecto'))
+    assert 'interfaz' in explicito and 'flujo completo' in explicito
+    assert 'interfaz' in recomendacion

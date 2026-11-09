@@ -106,6 +106,20 @@
       "after_sha256": "29e62396c02a94307ca7d0503e8f27caadba9decb7f7206663631f626fec719a",
       "after_file": "skills/quick-implement/SKILL.md",
       "reason": "Review phase 2 attempt 1, A3: the quick path has no QA route for a change with UI (qa needs the test-plan.md that planner writes and the quick path skips), so a UI change goes to the full flow."
+    },
+    {
+      "before_sha256": "6570cc08df1f79aaf1edec9dc6dc3b917d794a0f9450290a1651257c89eef40a",
+      "before_file": "commands/dev-cycle.md",
+      "after_sha256": "bf79aa04e1aa3d65325ba7b5503b2953d486058b12dfb8d7c6dd8dbc101a89b2",
+      "after_file": "commands/dev-cycle.md",
+      "reason": "Review phase 2 attempt 2, A-M2: the explicit quick mode and the default recommendation also send a change with UI to the full flow (with a notice), as the quick-path bullet does."
+    },
+    {
+      "before_sha256": "c6aaef748d2a0ed6c1796e22064313ff9d7ee9c44e7b948d8808306f41e890d2",
+      "before_file": "commands/dev-cycle.md",
+      "after_sha256": "2197be522d4fb6f1bd9fe018cb5fae58ee9c17a7c08dc620db45646ee8f58781",
+      "after_file": "commands/dev-cycle.md",
+      "reason": "Review phase 2 attempt 2, A-M2: the explicit quick mode and the default recommendation also send a change with UI to the full flow (with a notice), as the quick-path bullet does."
     }
   ]
 }

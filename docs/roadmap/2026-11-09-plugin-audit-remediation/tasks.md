@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 6 | 6 | 100.0% |
+| Fase 2 | 3 | 6 | 50.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **12** | **21** | **57.1%** |
+| **TOTAL** | **9** | **21** | **42.9%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -228,7 +228,7 @@ GREEN fix3b: `.venv/Scripts/python -m pytest -q agent-kits/shared/test_guardrail
 
 ### T-07 — Retoma de sesión: journal y bloque útil
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-14, H-27 y H-48. Reinyectar la última entrada del journal sin depender de la selección global de ledgers; iniciativa en curso primero en memoria; líneas opacas fuera; iniciativas al 100 % compactadas; pie sin ruta absoluta; `clear` también en Claude.
 - **Archivos**: `agent-kits/shared/progress-report.py`, `hooks/session-context.py`, `hooks/hooks.json`, `agent-kits/shared/test_progress_report.py`, `tests/test_session_context.py`, `tests/test_hooks_shell.py`, `interop/**`, `docs/observability.md`, `docs/en/observability.md`, `hooks/session-context.sh` (oráculo de bytes del compositor nativo: mismo pie y mismo orden de memoria), `agent-kits/shared/test_work_resume.py` (casos H-14/H-48 del historial del arranque), `tests/test_graphiti_security.py` (huella `sha256_lf` de `hooks/session-context.py`), `docs/WORK-RESUME.md`, `docs/en/WORK-RESUME.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md` (E3: describían la selección del historial al arrancar) (añadidos por el implementer), `agent-kits/shared/journal.py` (revisión intento 1, B1: el escritor usa la misma regla que el lector), `agent-kits/shared/README.md`, `skills/plugin-dev/references/claude-code-contracts.md` (revisión intento 1, A5: matcher con `clear`).
 - **Tiempo IA (ejec.)**: real 0,77h (medido)
@@ -249,6 +249,9 @@ GREEN: `pytest agent-kits/shared/test_progress_report.py agent-kits/shared/test_
 RED: `test_work_resume.py + test_progress_report.py + tests/test_session_context.py -k fix1` falló con fix1: 9 failed: el escritor del journal etiqueta otra iniciativa que el lector (B1, sin iniciativa_vigente comun); seleccion por escaneo completo sin tope (C2) y usage-state releido (D1); Ledger canonico apunta a la de 100 % (B4) y memoria agrupa por pct redondeado; revisiones omitidas sin aviso con ledger grande (B5); memoria vacia si la en curso no tiene aciertos; matcher sin clear en 5 documentos (A5) · 2026-11-09.
 
 GREEN fix1: `pytest agent-kits/shared/test_work_resume.py` → `59 passed` (B1: el escritor real `journal.py write` etiqueta `gamma`, la en curso pendiente, y el lector la cita; con marcador abierto ambos eligen `beta`; C2: `iniciativa_vigente` no llama a `activas()` y resuelve un ledger de ~330 KiB por su cabecera acotada; D1: `usage-state.json` se lee una vez por proceso si no cambia); `agent-kits/shared/test_progress_report.py` → `43 passed` (B4: «Ledger canónico» y la vigente son la pendiente aunque la de 100 % sea más reciente; B5: «Revisiones omitidas: ledger > 256 KiB; /work-resume --initiative …»); `tests/test_session_context.py` → `46 passed` + la equivalencia `replay-codex` falló una vez por tiempos y pasó al repetirla (`-k "matches_shell_bytes and replay"` → 3 passed); casos fix1: memoria por `completadas == total`, memoria que consulta más iniciativas si las primeras no traen aciertos, ningún documento con el matcher sin `clear`; `test_journal.py` 192 passed + 10 skipped, `test_review_resume.py` 18, `test_resume_curation.py` 25, `tests/test_graphiti_security.py` 126 passed (huella nueva de `session-context.py`). En este repo la vigente es `plugin-audit-remediation` y el bloque de memoria sale con 2 aciertos; el historial no sale porque las entradas existentes se etiquetaron con la regla vieja (primera alfabética), no por un fallo de selección · 2026-11-09.
+
+
+RED: `agent-kits/shared/test_work_resume.py -k fix2` falló con fix2: 6 failed: estado solo en la tabla de cabecera ignorado y fuera del prefijo dado por inactivo (B-I1); la de 100 % con marcador abierto pierde frente a la pendiente (B-I2); session y active hacen lecturas completas con activas() (B-M3); entradas sin regla vigente reinyectadas y sin campo regla_iniciativa (B-M4); tope de 128 sin documentar · 2026-11-09.
 
 ### T-08 — Vía rápida con qa-gate y TDD verificados
 
@@ -274,9 +277,14 @@ RED: `tests/test_quick_path_gates.py -k fix1` falló con fix1: 3 failed: la via 
 
 GREEN fix1: `pytest tests/test_quick_path_gates.py` → `9 passed` (A3: un cambio con interfaz va al flujo completo, en el filtro de quick-implement y en la vía rápida de `/dev-cycle`; A4: CONTRACTS E1, `docs/agents/qa.md`, P1 de qa y del implementer nombran el `tasks.md` ligero; A2: el aviso de ledger-lint sin `RED:` queda como deuda en T-21); `tests/test_dev_cycle_split.py` → `10 passed`, ahorro de la vía rápida 6231 → 6189 (2 filas de reemplazo); `test_skill_size.py` 37, `test_context_footprint.py` 15, `test_source_snapshot.py` 33 + 1 skipped; `export-interop.py --check` → `92 ficheros al día` · 2026-11-09.
 
+
+RED: `tests/test_quick_path_gates.py::test_fix2_a_m2_modo_rapido_explicito_y_recomendacion_excluyen_la_interfaz` falló con fix2: 1 failed: el modo rapido explicito y la recomendacion por defecto no excluyen un cambio con interfaz · 2026-11-09.
+
+GREEN fix2: `pytest tests/test_quick_path_gates.py tests/test_dev_cycle_split.py` → `20 passed` (A-M2: el modo rápido explícito avisa y usa el flujo completo si el cambio toca interfaz, y la recomendación por defecto propone vía rápida solo sin interfaz); ahorro de la vía rápida 6158 (2 filas de reemplazo); `export-interop.py --check` → `92 ficheros al día` · 2026-11-09.
+
 ### T-09 — Dashboards completos con roadmaps grandes
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-17 a H-20. Cartera y progreso de la más nueva a la más antigua y con aviso honesto; progreso por cabecera, sin leer el ledger entero; planes con ledger > 256 KiB operables desde la consola; un plan nuevo no da 404; errores mapeados en la UI.
 - **Archivos**: `skills/plugin-panel/scripts/panel_data.py`, `skills/plugin-panel/scripts/serve_panel.py`, `skills/plugin-panel/scripts/console_service.py`, `skills/plugin-panel/assets/control-center.js`, `skills/plugin-panel/assets/page-iniciativas.js`, `tests/test_panel_*.py`, `tests/test_console_*.py`, `agent-kits/shared/local-read.py` (lectura acotada de un prefijo para la cabecera de un ledger grande), `skills/plugin-panel/assets/panel-live.js` (valida y rotula `fuente: resumen`), `tests/test_control_center_http.py` (su contrato «sin improvement-plan.md → 503» pasa a la vía rápida operable) (añadidos por el implementer).
 - **Tiempo IA (ejec.)**: real 0,28h (medido)
@@ -298,9 +306,12 @@ RED: `tests/test_panel_large_roadmaps.py -k fix1` falló con fix1: con 140 carpe
 
 GREEN fix1: `pytest tests/test_panel_large_roadmaps.py` → `11 passed` (B2: con 140 carpetas la cartera conserva las 10 más nuevas, `recorte.omitidas` = 140 − mostradas sin contar una carpeta con fecha que no es iniciativa, y el progreso empieza por la 139; `list_names(newest_first=True)` lee hasta 4.096 nombres, ordena y después corta; C1: una fila de resumen con 20.000 espacios se procesa en menos de 5 s —antes el `timeout` de 600 s cortó la ejecución— porque `_header_summary` delega en `progress-report.resumir_cabecera`, que separa celdas con `split`); `test_local_read.py` 70 + 6 skipped, `test_local_read_stability.py` 24, `tests/test_panel_server.py` 137 + 2 skipped, `test_panel_data.py` 17, `test_panel_contract_golden.py` 6, `test_control_center_http.py` 21, `test_console_service.py` 5, `test_panel_plan_ui.py` 124, `test_progress_report.py` 43, `test_work_resume.py` 59 passed · 2026-11-09.
 
+
+RED: `tests/test_panel_large_roadmaps.py -k fix2` falló con fix2: 4 failed: review_initiatives pierde las 12 mas nuevas con 140 carpetas (A-I1); 600 carpetas sin ledger se recorren todas (D-1); el recuento de omitidas llama a exists (C-1); topes de 4096 nombres sin documentar · 2026-11-09.
+
 ### T-10 — Índice de sesión por prioridad
 
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Descripción**: H-21 y menor de BOM. El índice ordena por prioridad de ciclo y lee `dev.json` con `utf-8-sig`.
 - **Archivos**: `agent-kits/shared/skill-index.py`, `agent-kits/shared/test_skill_index.py`, `agent-kits/shared/README.md` (E3: describía el recorte; añadido por el implementer), `interop/**` (el índice de OpenCode se deriva de `skill-index.py`; faltó regenerarlo en el commit de T-10 y se corrigió en c078d2d), `tests/test_native_role_context.py` (CI de c078d2d: su muestra `architect` queda recortada con el nuevo orden; pasa a `planner`, siempre visible; el test sigue comprobando el prefijo nativo por runtime).
 - **Tiempo IA (ejec.)**: real 0,01h (medido)
@@ -323,6 +334,9 @@ GREEN (seguimiento CI): `pytest tests/test_native_role_context.py` → `3 passed
 RED: `agent-kits/shared/test_skill_index.py::test_fix1_a1_todos_los_agentes_y_los_comandos_del_ciclo_siempre_visibles` falló con fix1: 1 failed: solo 5 agentes visibles (faltan analyst, architect, documenter, knowledge-curator, nemesis) por la cuota fija por grupo · 2026-11-09.
 
 GREEN fix1: `pytest agent-kits/shared/test_skill_index.py tests/test_native_role_context.py` → `34 passed` (A1: los 10 agentes y `/setup`, `/dev-cycle`, `/pm-cycle`, `/work-resume` siempre visibles; las skills opcionales se resumen; el test histórico del reparto proporcional pasa a exigir los 8 agentes visibles); índice del repo 3383 caracteres, 45 líneas; `export-interop.py` → índice de OpenCode regenerado, `--check` → `92 ficheros al día`. `skill-index.py` también corrige su docstring (matcher con `clear`, A5) · 2026-11-09.
+
+
+RED: `agent-kits/shared/test_skill_index.py -k fix2` falló con fix2: 2 failed: la rama proporcional oculta agentes del plugin y comandos clave; docstrings hablan de cesion proporcional · 2026-11-09.
 
 ### T-11 — Un solo troceo del ledger
 
@@ -566,3 +580,7 @@ Lentes: A + B + C + D. Corrección en `fix1` por el implementer; cada gap con un
 Notas: (a) en el arranque de este repo el historial no sale porque las entradas existentes se etiquetaron con la regla vieja; las nuevas usan la regla única. (b) la equivalencia de bytes `replay-codex` de `tests/test_session_context.py` falló una vez por tiempos y pasó al repetirla. (c) el ahorro de la vía rápida queda en 6189 (≥ 6000).
 
 **fix1b (T-07):** la CI de Linux falló en los dos `test_fix1_b1_*`: leían `next(glob("*.md"))` del journal y en Linux el orden de `glob` devolvía el `README.md` del directorio. Ahora leen la única entrada que no es el README (`_entrada_journal`). Sin RED nuevo: el test dependía del orden del sistema de ficheros, no el código. Los demás `next(...glob(...))` de la fase casan un único fichero. `pytest agent-kits/shared/test_work_resume.py -k fix1_b1` → `2 passed`.
+
+## Revisión de dos lentes — intento 2: Fase 2 (T-07…T-12) (T-07, T-08, T-09, T-10, T-11, T-12)
+
+Pendiente de revisión; sin veredicto.
