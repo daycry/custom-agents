@@ -172,9 +172,16 @@ function guardResult(output) {
   } catch { return null; }
 }
 
+// Only absolute PATH entries: empty or relative ones (`.`, `bin`, `C:bin`) resolve against the
+// project cwd, where an untrusted repository could plant an interpreter (review attempt 3, C6).
+function absolutePathEntry(dir) {
+  return windows ? /^(?:[A-Za-z]:[\\/]|[\\/]{2})/.test(dir) : isAbsolute(dir);
+}
+
 function candidates(names) {
-  return (env.PATH || env.Path || '').split(delimiter).filter(Boolean).flatMap(dir =>
-    names.map(name => join(dir.replace(/^"|"$/g, ''), name))).filter(path =>
+  return (env.PATH || env.Path || '').split(delimiter).map(dir => dir.trim().replace(/^"|"$/g, ''))
+    .filter(dir => dir && absolutePathEntry(dir)).flatMap(dir =>
+    names.map(name => join(dir, name))).filter(path =>
       existsSync(path) && (!windows || !/[/\\](WindowsApps|System32)[/\\]/i.test(path)));
 }
 

@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 4 | 6 | 66.7% |
+| Fase 1 | 5 | 6 | 83.3% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **4** | **21** | **19.0%** |
+| **TOTAL** | **5** | **21** | **23.8%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -95,7 +95,7 @@ GREEN fix3: `pytest tests/test_qa_gate.py` → `9 passed` (flaky = resultado esp
 
 ### T-03 — Instalador robusto en Windows y con configuración ajena
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-4, H-9, H-10, H-11, H-13 y menores del instalador. Buscar las CLI sin el directorio actual; `merge` con lectura estricta; `uninstall` aislado por proveedor; enlaces solo prohibidos en lo que crea el instalador; aviso de rutas absolutas en configuración compartida; misma exclusión de tests desde un clon que en npm.
 - **Archivos**: `install/install.mjs`, `install/providers.mjs`, `install/manifest-auth.mjs`, `tests/installer.test.mjs`, `tests/install-auth.test.mjs`, `docs/INSTALL.md`, `docs/en/INSTALL.md`, `agent-kits/shared/codex-plugin-state.mjs`, `tests/codex-plugin-state.test.mjs` (revisión intento 1, gap 10: resolvedor de `codex` de `install status`), `hooks/run-hook.mjs` (revisión intento 2, C8: `NoDefaultCurrentDirectoryInExePath`).
 - **Verificación**: `node --test tests/installer.test.mjs tests/install-auth.test.mjs` → 0 fail, con casos nuevos para `.cmd` plantado, JSON ilegible en `merge`, manifiesto no verificable en `uninstall` y HOME bajo un enlace.
@@ -126,6 +126,8 @@ GREEN fix2: `node --test tests/codex-plugin-state.test.mjs` → `pass 9 · fail 
 
 
 RED: `tests/codex-plugin-state.test.mjs: run-hook candidates ignore relative PATH entries` falló con fix3: 1 fail: candidates() de run-hook acepta entradas relativas del PATH (sin filtro de absolutas) · 2026-11-09.
+
+GREEN fix3: `node --test tests/codex-plugin-state.test.mjs` → `pass 10 · fail 0` (`candidates()` de `hooks/run-hook.mjs` ignora entradas vacías o relativas del PATH); `node --test tests/hook-runtime.test.mjs` → `pass 25 · fail 0`. Nota de evidencia (A2): `tests/installer.test.mjs:1909` «gap 8: una CLI colgada…» tiene tope 30000 ms y depende de la carga de la máquina (30906 ms en la pasada completa con la máquina cargada); aislado pasa en 17336 ms (`node --test --test-name-pattern="gap 8: una CLI colgada" tests/installer.test.mjs` → `✔`). El tope no se ha relajado; el resto de `installer.test.mjs` (184) pasó en la pasada de fix2 · 2026-11-09.
 
 ### T-04 — Graphiti sin proxy
 

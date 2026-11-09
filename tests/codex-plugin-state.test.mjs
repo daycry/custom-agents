@@ -2,7 +2,7 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync,chmodSync,copyFileSync,symlinkSync} from 'node:fs'
 import {tmpdir} from 'node:os'
-import {join,resolve,delimiter,dirname} from 'node:path'
+import {join,resolve,delimiter,dirname,isAbsolute} from 'node:path'
 import {execFileSync,spawn} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
 import {queryCodexPlugin,runCodexQuery,terminateProcessTree} from '../agent-kits/shared/codex-plugin-state.mjs'
@@ -194,4 +194,18 @@ test('native query children never resolve node from the project directory',()=>{
 test('run-hook launches hook children with NoDefaultCurrentDirectoryInExePath set',()=>{
   const source=readFileSync(fileURLToPath(new URL('../hooks/run-hook.mjs',import.meta.url)),'utf8')
   assert.match(source,/NoDefaultCurrentDirectoryInExePath:\s*'1'/)
+})
+
+// Revisión intento 3 (C6): `candidates()` de run-hook descarta entradas vacías o relativas del PATH.
+test('run-hook candidates ignore relative PATH entries',()=>{
+  const source=readFileSync(fileURLToPath(new URL('../hooks/run-hook.mjs',import.meta.url)),'utf8')
+  const helper=source.match(/function absolutePathEntry\([\s\S]*?\n}\n/)
+  const fn=source.match(/function candidates\(names\) \{[\s\S]*?\n}\n/)
+  assert.ok(helper && fn,'candidates() must use absolutePathEntry()')
+  const make=new Function('env','windows','existsSync','join','delimiter','isAbsolute',
+    `${helper[0]}\n${fn[0]}\nreturn candidates`)
+  const win=process.platform==='win32',abs=win?'C:\\py':'/py'
+  const PATH=['.','',' rel ','bin',abs].join(delimiter)
+  const found=make({PATH},win,()=>true,join,delimiter,isAbsolute)(['python3'])
+  assert.deepEqual(found,[join(abs,'python3')])
 })
