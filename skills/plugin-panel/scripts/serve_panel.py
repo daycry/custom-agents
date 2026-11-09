@@ -445,7 +445,7 @@ def progress_snapshot(project, scrub=None):
             issue('text_budget')
         return value[:limit]
 
-    listing = reader.list_names(project, 'docs/roadmap', max_entries=MAX_SCAN)
+    listing = reader.list_names(project, 'docs/roadmap', max_entries=4096, newest_first=True)  # fix1 (B2)
     if listing['status'] not in ('ok', 'incomplete'):
         issue(listing['status']); result['status'] = 'not_found' if listing['status'] == 'not_found' else 'unavailable'
         return result
@@ -516,63 +516,18 @@ def progress_snapshot(project, scrub=None):
     return result
 
 
-_FENCE = re.compile(r'^\s{0,3}(`{3,}|~{3,})')
-_SUMMARY_ROW = re.compile(r'^\|\s*(?P<name>[^|]+?)\s*\|\s*\**(?P<done>\d+)\**\s*\|\s*\**(?P<total>\d+)\**\s*\|')
-
-
 def _header_summary(relative, text, progress):
     """Progress of a large ledger from its frontmatter and "Resumen de progreso" table only (H-18).
 
-    Rows inside code fences do not count. `en_progreso` is unknown from a header, so it stays
-    empty and the row says `fuente: resumen`. `None` when the prefix has no usable table."""
-    lines, fence = [], None
-    for line in text.splitlines():
-        mark = _FENCE.match(line)
-        if fence is None and mark:
-            fence = mark.group(1)[0]
-            continue
-        if fence is not None:
-            if mark and mark.group(1)[0] == fence:
-                fence = None
-            continue
-        lines.append(line)
-    estado = None
-    if lines and lines[0].strip() == '---':
-        for line in lines[1:]:
-            if line.strip() == '---':
-                break
-            match = re.match(r'^estado\s*:\s*(.*)$', line)
-            if match:
-                estado = progress.norm_estado(match.group(1).split('#', 1)[0].strip())
-    try:
-        start = next(i for i, line in enumerate(lines) if re.match(r'^##\s+Resumen de progreso', line))
-    except StopIteration:
+    Delegates to `progress-report.resumir_cabecera` (fix1, C1/B6): one header parser, cell split by
+    `|` with no competing regex quantifiers (a row of thousands of spaces is linear, not cubic).
+    `en_progreso` is unknown from a header, so it stays empty. `None` without a usable table."""
+    summary = progress.resumir_cabecera(relative, text)
+    if summary is None:
         return None
-    phases, total_row = [], None
-    for line in lines[start + 1:]:
-        if re.match(r'^##\s', line):
-            break
-        match = _SUMMARY_ROW.match(line)
-        if not match:
-            continue
-        name = match['name'].strip().strip('*').strip()
-        row = (name, int(match['done']), int(match['total']))
-        if name.upper() == 'TOTAL':
-            total_row = row
-        elif name.lower().startswith('fase'):
-            phases.append(row)
-    if not phases and total_row is None:
-        return None
-    done = total_row[1] if total_row else sum(row[1] for row in phases)
-    total = total_row[2] if total_row else sum(row[2] for row in phases)
-    if total <= 0 or done > total:
-        return None
-    phase = None
-    if phases:
-        index = next((i for i, row in enumerate(phases) if row[1] < row[2]), len(phases) - 1)
-        phase = {'indice': index + 1, 'total': len(phases), 'nombre': progress.nombre_fase(phases[index][0])}
-    return {'slug': progress.slug_de(relative, {}), 'estado': estado or 'unknown', 'completadas': done,
-            'total': total, 'pct': round(100 * done / total), 'fase': phase, 'en_progreso': []}
+    summary['estado'] = summary['estado'] or 'unknown'
+    summary['slug'] = progress.slug_de(relative, {})
+    return summary
 
 
 ACTIVITY_REASONS = frozenset(('disabled', 'invalid_config', 'state_missing',

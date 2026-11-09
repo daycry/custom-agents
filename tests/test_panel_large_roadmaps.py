@@ -145,3 +145,39 @@ def test_h20_http_un_plan_creado_tras_arrancar_se_sirve_y_su_api_responde(tmp_pa
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+# ------------------------------------------------- revisión intento 1 (fase 2): B2, C1
+
+def test_fix1_b2_con_140_carpetas_no_desaparecen_las_mas_nuevas(tmp_path):
+    for n in range(140):
+        initiative(tmp_path, dated(n))
+    (tmp_path / 'docs/roadmap/2026-12-31-solo-notas').mkdir()     # carpeta con fecha que no es iniciativa
+    result = load('panel_data.py').cartera(tmp_path)
+    slugs = {row['slug'] for row in result['iniciativas']}
+    assert {dated(n) for n in range(130, 140)} <= slugs
+    assert result['recorte']['omitidas'] == 140 - len(result['iniciativas']), result['recorte']
+    progress = load('serve_panel.py').progress_snapshot(tmp_path)
+    assert progress['initiatives'][0]['title'] == 'iniciativa-139'
+
+
+def test_fix1_b2_list_names_ordena_antes_de_cortar(tmp_path):
+    reader_spec = importlib.util.spec_from_file_location('fix1_local_read', ROOT / 'agent-kits/shared/local-read.py')
+    reader = importlib.util.module_from_spec(reader_spec)
+    reader_spec.loader.exec_module(reader)
+    for n in range(140):
+        (tmp_path / 'docs/roadmap' / dated(n)).mkdir(parents=True)
+    listing = reader.list_names(tmp_path, 'docs/roadmap', max_entries=128, newest_first=True)
+    assert listing['complete'] is False and len(listing['names']) == 128
+    assert listing['names'][0] == dated(139) and listing['names'][-1] == dated(12)
+
+
+def test_fix1_c1_resumen_con_miles_de_espacios_no_bloquea(tmp_path):
+    import time
+    path = initiative(tmp_path, '2026-11-05-lenta', padding=700)
+    text = path.read_text(encoding='utf-8').replace('## Fase 1 — Trabajo', '|' + ' ' * 20000 + '\n\n## Fase 1 — Trabajo', 1)
+    path.write_text(text, encoding='utf-8')
+    started = time.monotonic()
+    result = load('serve_panel.py').progress_snapshot(tmp_path)
+    assert time.monotonic() - started < 5
+    assert result['initiatives'][0]['fuente'] == 'resumen'

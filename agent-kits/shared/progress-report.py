@@ -323,7 +323,8 @@ def activas_acotadas(root):
     `_CABECERA_BYTES` de los ledgers grandes, resueltos por su cabecera). Para elegir la iniciativa
     vigente sin un escaneo completo sin tope (C2)."""
     reader = _load_module("vigente_local_read", "local-read.py")
-    listing = reader.list_names(root, "docs/roadmap", max_entries=_RESUME_SCAN)
+    listing = reader.list_names(root, "docs/roadmap", max_entries=_RESUME_SCAN, scan_limit=4096,
+                                newest_first=True)
     if listing["status"] not in ("ok", "incomplete"):
         return []
     out = []

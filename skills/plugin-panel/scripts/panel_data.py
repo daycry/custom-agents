@@ -31,6 +31,7 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 MAX_SCAN = 128                      # carpetas de docs/roadmap que se listan
+MAX_NOMBRES = 4096                  # nombres que se leen para ordenar ANTES de cortar (fix1, B2: baratos)
 MAX_INITIATIVES = 64                # filas de la respuesta
 MAX_FILE_BYTES = 256 * 1024         # tope de lectura de un ledger (local-read.py)
 MAX_ARTIFACT_BYTES = 1024 * 1024    # un artefacto mayor no se abre
@@ -230,9 +231,6 @@ def _totales(filas, issues):
             'procedencia': {k: sum(f['procedencia'][k] for f in filas) for k in ('medidos', 'estimados', 'desconocidos')}}
 
 
-_ID_CARPETA = re.compile(r'\d{4}-\d{2}-\d{2}-')   # carpeta de iniciativa con fecha (no un índice del roadmap)
-
-
 def _vacia(status, issue=None):
     resultado = {'version': 1, 'source': 'roadmap_cartera',
                  'observed_at': datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z'),
@@ -325,7 +323,7 @@ def cartera(project):
         if len(issues) < 16 and {'status': status} not in issues:
             issues.append({'status': status})
 
-    listado = reader.list_names(project, 'docs/roadmap', max_entries=MAX_SCAN)
+    listado = reader.list_names(project, 'docs/roadmap', max_entries=MAX_NOMBRES, newest_first=True)
     if listado['status'] not in ('ok', 'incomplete'):
         resultado = _vacia('not_found' if listado['status'] == 'not_found' else 'unavailable', listado['status'])
         resultado['complete'] = False
@@ -361,7 +359,9 @@ def cartera(project):
         candidatas += 1
         if len(filas) == MAX_INITIATIVES:
             issue('row_budget')
-            candidatas += sum(1 for resto in carpetas[indice + 1:] if _ID_CARPETA.match(resto))
+            # fix1 (B2): solo cuentan las carpetas que SON iniciativas (spec, evaluación o ledger)
+            candidatas += sum(1 for resto in carpetas[indice + 1:] if any(
+                os.path.exists(os.path.join(raiz, resto, n)) for n in ('spec.md', 'evaluation.md', 'tasks.md')))
             break
         fila = _fila_base(carpeta, rec)
         if tamano is None and rec is None:
@@ -414,7 +414,7 @@ def _carpeta(project, ident, reader):
     carpeta que no es un directorio). Solo se resuelve el id contra los nombres que lista `local-read.py`."""
     if not isinstance(ident, str) or not ID16_RE.fullmatch(ident):
         return None
-    listado = reader.list_names(project, 'docs/roadmap', max_entries=MAX_SCAN)
+    listado = reader.list_names(project, 'docs/roadmap', max_entries=MAX_NOMBRES)
     if listado['status'] not in ('ok', 'incomplete'):
         return None
     for nombre in listado['names']:

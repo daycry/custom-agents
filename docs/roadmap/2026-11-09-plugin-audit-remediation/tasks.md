@@ -17,10 +17,10 @@ changelog: Fixed
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
 | Fase 1 | 6 | 6 | 100.0% |
-| Fase 2 | 5 | 6 | 83.3% |
+| Fase 2 | 6 | 6 | 100.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **11** | **21** | **52.4%** |
+| **TOTAL** | **12** | **21** | **57.1%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -276,7 +276,7 @@ GREEN fix1: `pytest tests/test_quick_path_gates.py` → `9 passed` (A3: un cambi
 
 ### T-09 — Dashboards completos con roadmaps grandes
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-17 a H-20. Cartera y progreso de la más nueva a la más antigua y con aviso honesto; progreso por cabecera, sin leer el ledger entero; planes con ledger > 256 KiB operables desde la consola; un plan nuevo no da 404; errores mapeados en la UI.
 - **Archivos**: `skills/plugin-panel/scripts/panel_data.py`, `skills/plugin-panel/scripts/serve_panel.py`, `skills/plugin-panel/scripts/console_service.py`, `skills/plugin-panel/assets/control-center.js`, `skills/plugin-panel/assets/page-iniciativas.js`, `tests/test_panel_*.py`, `tests/test_console_*.py`, `agent-kits/shared/local-read.py` (lectura acotada de un prefijo para la cabecera de un ledger grande), `skills/plugin-panel/assets/panel-live.js` (valida y rotula `fuente: resumen`), `tests/test_control_center_http.py` (su contrato «sin improvement-plan.md → 503» pasa a la vía rápida operable) (añadidos por el implementer).
 - **Tiempo IA (ejec.)**: real 0,28h (medido)
@@ -295,6 +295,8 @@ GREEN: `pytest tests/test_panel_large_roadmaps.py` → `8 passed` (70 iniciativa
 
 
 RED: `tests/test_panel_large_roadmaps.py -k fix1` falló con fix1: con 140 carpetas list_names corta en orden de scandir y la cartera pierde las mas nuevas (B2); list_names sin newest_first; una linea de resumen con 20000 espacios bloquea progress_snapshot mas de 600 s y la ejecucion la corta el timeout (C1) · 2026-11-09.
+
+GREEN fix1: `pytest tests/test_panel_large_roadmaps.py` → `11 passed` (B2: con 140 carpetas la cartera conserva las 10 más nuevas, `recorte.omitidas` = 140 − mostradas sin contar una carpeta con fecha que no es iniciativa, y el progreso empieza por la 139; `list_names(newest_first=True)` lee hasta 4.096 nombres, ordena y después corta; C1: una fila de resumen con 20.000 espacios se procesa en menos de 5 s —antes el `timeout` de 600 s cortó la ejecución— porque `_header_summary` delega en `progress-report.resumir_cabecera`, que separa celdas con `split`); `test_local_read.py` 70 + 6 skipped, `test_local_read_stability.py` 24, `tests/test_panel_server.py` 137 + 2 skipped, `test_panel_data.py` 17, `test_panel_contract_golden.py` 6, `test_control_center_http.py` 21, `test_console_service.py` 5, `test_panel_plan_ui.py` 124, `test_progress_report.py` 43, `test_work_resume.py` 59 passed · 2026-11-09.
 
 ### T-10 — Índice de sesión por prioridad
 

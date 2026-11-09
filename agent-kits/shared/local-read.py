@@ -7,6 +7,7 @@ from pathlib import Path
 import stat
 
 MAX_BYTES = 256 * 1024
+MAX_SORTED_NAMES = 4096   # names read before an ordered cut (`newest_first`)
 _WINDOWS_READ = os.name == 'nt'
 
 
@@ -222,17 +223,25 @@ def read_text(root, relative, *, max_bytes=MAX_BYTES, include_digest=False, pref
     return result
 
 
-def list_names(root, relative, *, max_entries=128):
+def list_names(root, relative, *, max_entries=128, scan_limit=None, newest_first=False):
     """List at most max_entries names, counting every directory entry.
 
     An incomplete scan is deliberately not a complete sorted inventory: its names
     are the sorted bounded prefix supplied by the filesystem. Identity checks run
     before iteration and after it; this is not an atomic filesystem snapshot.
+    With `scan_limit` (>= max_entries) up to that many names are read, sorted
+    (descending with `newest_first`, for dated folders) and only THEN cut to
+    max_entries, so the cut never depends on the filesystem order (fix1, B2).
     """
     def result(status, names=None, complete=False):
         return {'status': status, 'names': [] if names is None else names, 'complete': complete}
 
     if type(max_entries) is not int or max_entries <= 0:
+        return result('invalid_limit')
+    if scan_limit is None:
+        # An explicit order needs the names first: read up to MAX_SORTED_NAMES, then cut.
+        scan_limit = max(max_entries, MAX_SORTED_NAMES) if newest_first is True else max_entries
+    if type(scan_limit) is not int or scan_limit < max_entries or type(newest_first) is not bool:
         return result('invalid_limit')
     try:
         root, target = _paths(root, relative)
@@ -258,14 +267,17 @@ def list_names(root, relative, *, max_entries=128):
                     or _generation(os.lstat(target)) != _generation(info)):
                 return result('changed_path')
             for entry in entries:
-                if len(names) == max_entries:
+                if len(names) == scan_limit:
                     complete = False
                     break
                 names.append(entry.name)
             if (not _unchanged(snapshots)
                     or _generation(os.lstat(target)) != _generation(info)):
                 return result('changed_path')
-        return result('ok' if complete else 'incomplete', sorted(names), complete)
+        names = sorted(names, reverse=newest_first)
+        if len(names) > max_entries:
+            names, complete = names[:max_entries], False
+        return result('ok' if complete else 'incomplete', names, complete)
     except FileNotFoundError:
         return result('not_found')
     except _ReadStatus as exc:
