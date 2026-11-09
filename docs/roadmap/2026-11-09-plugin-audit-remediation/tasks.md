@@ -431,3 +431,24 @@ Lentes: A + B + C (C por guardarraíles, instalador y lanzamiento de procesos). 
 | 12 | Important | `commands/setup.md` decía «lite en el hilo actual» | T-05 | corregido | texto actualizado, interop regenerado, `commands/setup.md` en `DOCS` (b70a16e) |
 | 13 | Important | Faltaban tests dedicados de los gaps 5, 6 y 12 del intento 1 | T-06 | corregido | `test_fix2_gap5_*`, `test_fix2_gap6_*`, `test_fix2_gap12_*` en `tests/test_native_guardrail_dispatch.py` (b70a16e) |
 | 14 | Minor | CHANGELOG ES/EN y campo `Changelog` de T-01 sin los cambios nuevos | T-06 | corregido | entrada completada; `test_fix2_changelog_de_fase_1_recoge_los_cambios_del_intento_2` (RED: en HEAD faltaban las marcas) (aacea76) |
+
+## Revisión de dos lentes — intento 3: Fase 1 (T-01…T-06) — 12 gaps corregidos (6 Important, 6 Minor) en un ciclo final acotado; guardarraíl por lista blanca (T-01, T-02, T-03, T-04, T-05, T-06)
+
+Lentes: A + B + C. Corrección en `fix3` por el implementer; cada gap con test dedicado que lo nombra (`test_fix3_*`).
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | `-c`/`--config-env` por lista negra: `core.editor`, `core.sshCommand`, `core.pager`, `diff.external`, `remote.*`… pasaban | T-06 | corregido | LISTA BLANCA `_CONFIG_PERMITIDA`: user.name, user.email, core.quotepath, commit.gpgsign, init.defaultbranch, color.*, advice.* (justificadas en el código); `test_fix3_guardarrail_lista_blanca_y_analisis_real_deniega` (d29e940) |
+| 2 | Important | `git config` mal clasificado (`--comment --get alias.x v`, `--rename-section`, `--file`, subcomandos nuevos) | T-06 | corregido | `_razon_git_config`: lectura/escritura reales, opciones que consumen valor, prefijos resueltos o denegados; escrituras solo de la lista blanca sin `--file`/`--blob` (d29e940) |
+| 3 | Important | Entorno: `GIT_EDITOR`, `GIT_SSH*`, `GIT_DIR`, `HOME`, `XDG_CONFIG_HOME` con git permitidos; falso positivo `GIT_CONFIG_NOSYSTEM=1 pytest` | T-06 | corregido | `GIT_*`/`HOME`/`XDG_CONFIG_HOME` denegados solo cuando la orden ejecuta git (mismo segmento o exportados antes); `env -i git` permitido; `_env_hooks_override` eliminado por subsumido (d29e940) |
+| 4 | Important | `clean`: `--`, `-e`/`--exclude` sin analizar; falso positivo `-fn`/`-nf` | T-06 | corregido | `_razon_clean`: `--` separa rutas, `e` consume valor, gana el último de `n`/`--dry-run` frente a `--no-dry-run`; `-fen`, `-e -n -f`, `-f -- -n .` → deny; `-fn`, `-fdn`, `-nf` → allow (d29e940) |
+| 5 | Minor | `_cluster` sin dígitos (`push -4f`, `-6d`) | T-06 | corregido | `-[a-zA-Z0-9]+` (d29e940) |
+| 6 | Important | `branch -f <rama>`, `-M`, `-C` y `update-ref -d` | T-06 | corregido | denegados (también `update-ref --stdin`); `-d`, `-m`, `--list` permitidos (d29e940) |
+| 7 | Minor | Opciones globales legítimas | T-06 | corregido | `-C`, `-P`, `--no-pager`, `--no-optional-locks`, `--paginate`, `--literal-pathspecs`, `--bare` permitidas en `test_fix3_formas_legitimas_permitidas` (d29e940) |
+| 8 | Minor | Docstring, prompt, doc del implementer y FLOWS ES/EN sin el contrato final ni el límite | T-06 | corregido | contrato de lista blanca y «no es un sandbox» (envoltorios, scripts propios y configs a mano fuera; ADR-023/ADR-007); `test_fix3_gap8_docs_describen_lista_blanca_y_que_no_es_sandbox` (d29e940) |
+| 9 | Important | `/doctor` trataba cualquier aviso de `status` como estado ilegible y proponía borrar | T-01 | corregido | `status` publica `estado_ilegible`; marcador corrupto → respaldar y reparar, huérfanos siguen; `test_fix3_doctor_distingue_estado_ilegible_de_marcador_corrupto`, `test_fix3_status_marca_solo_el_estado_ilegible_como_fatal` (5505327) |
+| 10 | Minor | qa-gate: flaky exigía el literal `passed`, no `expectedStatus` | T-02 | corregido | flaky = resultado esperado tras un fallo (un salto no cuenta); `test_fix3_flaky_es_el_resultado_esperado_tras_un_fallo` (1893cf5) |
+| 11 | Minor | `candidates()` de `run-hook.mjs` aceptaba entradas relativas del PATH | T-03 | corregido | `absolutePathEntry`; `run-hook candidates ignore relative PATH entries` (5a683b1) |
+| 12 | Minor | Evidencia de T-03 con 1 fallo y TDD de los gaps 13-14 del intento 2 | T-03, T-06 | corregido | nota en T-03: `installer.test.mjs:1909`, tope 30000 ms, dependiente de la carga, aislado ✔ 17336 ms (tope sin relajar); `TDD n/a` en T-06 para los tests escritos sobre texto ya corregido; CHANGELOG ES/EN con la lista blanca (c0264f3) |
+
+**Decisión del orquestador:** al 3.er intento con gaps, el orquestador decide seguir con un ciclo final acotado (autorización del usuario «con todo»); se verifica con tests dirigidos y CI, sin 4.º intento de lentes.
