@@ -24,7 +24,7 @@ changelog: Fixed
 
 ## Fase 1 — Seguridad y pérdida de datos
 
-**Estado**: en-progreso
+**Estado**: completado
 
 ### T-01 — worklog sin pérdida de datos
 
