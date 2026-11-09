@@ -224,7 +224,7 @@ GREEN fix3b: `.venv/Scripts/python -m pytest -q agent-kits/shared/test_guardrail
 
 ## Fase 2 — Funciones documentadas que no funcionan
 
-**Estado**: en-revision
+**Estado**: completado
 
 ### T-07 — Retoma de sesión: journal y bloque útil
 
@@ -620,6 +620,23 @@ Ahorro de la vía rápida: 6158 (≥ 6000).
 
 Nota: los comentarios de `serve_panel.py` de fix2 volvieron a ASCII (el linter y `tests/test_console_encoding.py` exigen ASCII en un script sin reconfiguración de streams); `lint_plugin.py` 0 errores.
 
-## Revisión de dos lentes — intento 3: Fase 2 (T-07…T-12) (T-07, T-08, T-09, T-10, T-11, T-12)
+## Revisión de dos lentes — intento 3: Fase 2 (T-07…T-12) — 2 Important y 10 Minor corregidos en un ciclo final acotado (T-07, T-08, T-09, T-10, T-11, T-12)
 
-Pendiente de revisión; sin veredicto.
+Lentes: A + B + C + D. Corrección en `fix3` por el implementer; cada gap con un test dedicado que lo nombra (`test_fix3_*`).
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | A: «Ledger canónico» del bloque `session` elegía la pendiente única, no `vigente_entre` | T-07 | corregido | misma regla que journal, memoria y statusline; cola según el estado («retoma…», «al 100 %: /retro …», «sin tarea en-progreso»); `test_fix3_a_*` (c36e488) |
+| 2 | Important | B: `local-read` rechazaba enlaces en todos los ancestros hasta la raíz del disco: un proyecto bajo un enlace o una junction perdía el bloque de roadmap y `/doctor` | T-07 | corregido | la raíz se resuelve una vez con `realpath` (ancla) y solo se comprueban los componentes por debajo; panel y consola conservan el rechazo bajo la raíz; `test_fix3_b_*`, `test_fix3_root_behind_a_link_*` (c36e488) |
+| 3 | Minor | B2: omitidas contadas solo por fecha (ficheros y carpetas no-iniciativa) | T-09 | corregido | nombre de carpeta de iniciativa sin extensión, sin disco; 76 exactas; `test_fix3_b2_*` (51e361f) |
+| 4 | Minor | `progress_snapshot` cortaba en 128 carpetas sin mirar si tenían ledger | T-09 | corregido | filtro por nombre y recorrido hasta `MAX_WALK` = 1.024, parando a las 64 filas; `test_fix3_b_progreso_*` (51e361f) |
+| 5 | Minor | B3: activa > 256 KiB sin tabla con `total: None` y, con tabla, sin tareas en curso | T-07 | corregido | las activas se leen enteras hasta 16 MiB; `test_fix3_b3_*` (c36e488) |
+| 6 | Minor | B4: listado recortado a 128 sin aviso | T-07 | corregido | «Roadmap recortado: N carpetas más antiguas sin revisar» en `session`, `active --json` y `/doctor`; `test_fix3_b4_*` (c36e488) |
+| 7 | Minor | B5: un ledger con `invalid_encoding` desaparecía sin aviso | T-07 | corregido | aviso en el bloque y en `/doctor`; `test_fix3_b5_*` (c36e488) |
+| 8 | Minor | C1 (CWE-59): la firma de la memo hacía `lstat` dentro de una carpeta enlazada | T-07 | corregido | se comprueba la carpeta antes y una enlazada se avisa sin mirar dentro; `test_fix3_c1_*` (c36e488) |
+| 9 | Minor | A2: el test de C-1 vigilaba 70 carpetas y la 65.ª se leía antes del corte | T-09 | corregido | corte antes de leer; el test cubre las 76; `test_fix3_a2_*` (51e361f) |
+| 10 | Minor | A3: faltaba proteger que la retoma explícita cite entradas sin `regla_iniciativa` | T-07 | corregido | `test_fix3_a3_*` (c36e488) |
+| 11 | Minor | A4: observability ES/EN y shared README sin la regla real ni el campo del journal | T-07 | corregido | textos actualizados; `test_fix3_a4_*` (TDD n/a: test de texto sobre el texto corregido) (c36e488) |
+| 12 | Minor | `recover` marca `regla_iniciativa: vigente` con la iniciativa del momento de recuperar | T-07 | deuda | registrada en T-21; `test_fix3_deuda_de_recover_*` (c36e488) |
+
+**Decisión del orquestador:** al 3.er intento con gaps, el orquestador decide un ciclo final acotado (autorización del usuario «con todo»); se verifica con tests dirigidos y CI, sin 4.º intento de lentes.
