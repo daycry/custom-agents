@@ -151,3 +151,22 @@ test('Codex state: missing CLI, failure, malformed and unsupported JSON remain u
   assert.deepEqual(queryCodexPlugin({runner:()=>{const e=new Error('private raw failure');e.code='ENOENT';throw e}}),{state:'unknown',enabled:null,version:null,reason:'cli-unavailable'})
   assert.equal(queryCodexPlugin({runner:()=>{throw new Error('private raw failure')}}).reason,'cli-failed')
 })
+
+// Revisión intento 1 (gap 10): el resolvedor de `codex` ignora entradas vacías o relativas del
+// PATH (`.`, `bin`): un `codex.cmd` plantado en el directorio actual no se ejecuta.
+test('relative PATH entries never resolve a codex planted in the current directory',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'ca-codex-planted-')),previous=process.cwd()
+  const win=process.platform==='win32',marker=join(dir,'executed.txt')
+  const system=win ? join(process.env.SystemRoot || 'C:\\Windows','System32') : '/usr/bin:/bin'
+  try {
+    const exe=join(dir,win?'codex.cmd':'codex')
+    writeFileSync(exe,win?`@echo off\r\necho x> "${marker}"\r\n`:`#!/bin/sh\necho x > "${marker}"\n`)
+    if(!win)chmodSync(exe,0o755)
+    process.chdir(dir)
+    for(const PATH of ['.'+delimiter+system,''+delimiter+system,'rel'+delimiter+system]) {
+      assert.throws(()=>runCodexQuery(['--version'],{cwd:dir,env:{...process.env,PATH,Path:PATH},timeout:2000}),
+        error=>error.code==='ENOENT',PATH)
+    }
+    assert.equal(existsSync(marker),false,'the planted launcher must not run')
+  } finally {process.chdir(previous);rmSync(dir,{recursive:true,force:true})}
+})

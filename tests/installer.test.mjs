@@ -3607,3 +3607,37 @@ test("auditoría menor: avisa al escribir una ruta absoluta en configuración de
     } finally { rmSync(proj, { recursive: true, force: true }) }
   } finally { rmSync(local, { recursive: true, force: true }) }
 })
+
+// ---------------------------------------------------------------- revisión intento 1 (T-03 fix1)
+
+test("revisión intento 1 (gap 9): un manifiesto plugin no verificable no impide desinstalar la copy del mismo proveedor", () => {
+  const proj = tmpProj()
+  try {
+    cli(["install", "-p", "claude-code", "--mode", "copy", "--profile", "core", "--dir", proj, "-q"])
+    const copia = join(proj, ".claude", MANIFEST), plugin = join(proj, ".claude", MANIFEST_PLUGIN)
+    const owned = join(proj, ".claude", "skills", "tdd", "SKILL.md")
+    assert.ok(existsSync(copia) && existsSync(owned))
+    writeFileSync(plugin, "{ no verificable", "utf8")
+    assert.throws(() => cli(["uninstall", "-p", "claude-code", "--dir", proj, "-q"]), (error) => {
+      assert.equal(error.status, 1)
+      assert.match(String(error.stderr), /unverified installation manifest/)
+      return true
+    })
+    assert.equal(existsSync(copia), false, "la copy válida debe desinstalarse")
+    assert.equal(existsSync(owned), false)
+    assert.equal(readFileSync(plugin, "utf8"), "{ no verificable")
+  } finally { rmSync(proj, { recursive: true, force: true }) }
+})
+
+test("revisión intento 1 (gap 10): correr no lanza el nombre pelado si la CLI no está en el PATH absoluto", () => {
+  assert.equal(typeof installerModule.correr, "function")
+  const previoPath = process.env.PATH
+  try {
+    process.env.PATH = SAFE_SYSTEM_PATH
+    assert.throws(() => installerModule.correr("ca-audit-no-existe", ["--version"]), (error) => {
+      assert.equal(error.code, "ENOENT")
+      assert.match(error.message, /PATH/)
+      return true
+    })
+  } finally { process.env.PATH = previoPath }
+})

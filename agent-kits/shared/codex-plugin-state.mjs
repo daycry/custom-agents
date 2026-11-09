@@ -2,7 +2,7 @@
 // Read native local plugin state. No config edits, credentials, source paths or raw errors in output.
 import {execFileSync,spawn} from 'node:child_process'
 import {statSync} from 'node:fs'
-import {delimiter, join, resolve} from 'node:path'
+import {delimiter, isAbsolute, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
 export const CODEX_PLUGIN_ID = 'custom-agents@daycry'
@@ -31,7 +31,12 @@ export function terminateProcessTree(pid) {
 function executable(env) {
   const extensions=process.platform==='win32'
     ? (env.PATHEXT || '.COM;.EXE;.BAT;.CMD').split(';').filter(e=>/^\.(com|exe|bat|cmd)$/i.test(e)) : ['']
-  for(const dir of String(env.PATH || env.Path || '').split(delimiter).filter(Boolean)) {
+  // Only absolute PATH entries: empty or relative ones (`.`, `bin`, `C:bin`) depend on the
+  // current directory, where an untrusted repository could plant a launcher.
+  const absolute=dir=>process.platform==='win32' ? /^(?:[A-Za-z]:[\\/]|[\\/]{2})/.test(dir) : isAbsolute(dir)
+  for(const raw of String(env.PATH || env.Path || '').split(delimiter)) {
+    const dir=raw.trim().replace(/^"(.*)"$/,'$1')
+    if(!dir || !absolute(dir))continue
     for(const ext of extensions) {
       const candidate=join(dir,`codex${ext.toLowerCase()}`)
       try {if(statSync(candidate).isFile()) return candidate} catch {/* next candidate */}

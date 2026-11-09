@@ -1313,13 +1313,20 @@ function correr(cmd, args, cwd, env = process.env) {
     timeout: TIMEOUT_EXEC,
   }
   const real = rutaDe(cmd)
+  if (!real) {
+    // Revisión intento 1: sin ruta REAL no se lanza el nombre pelado (el sistema lo buscaría en
+    // el directorio actual, que es justo lo que `buscarEnPath` evita).
+    const err = new Error(`\`${cmd}\` no está en el PATH (solo cuentan sus entradas absolutas) o no se puede ejecutar desde Node`)
+    err.code = "ENOENT"
+    throw err
+  }
   try {
     if (process.platform === "win32" && real && /\.(cmd|bat)$/i.test(real)) {
       const linea = [real, ...args].map(argCmd).join(" ")
       return execFileSync(process.env.COMSPEC || "cmd.exe", ["/d", "/s", "/c", `"${linea}"`],
         { ...opciones, windowsVerbatimArguments: true })
     }
-    return execFileSync(real || cmd, args, opciones)
+    return execFileSync(real, args, opciones)
   } catch (e) {
     if (expiro(e)) {
       matarArbol(e.pid)
@@ -2485,16 +2492,20 @@ function cmdUninstall(opts) {
   for (const id of ids) {
     const p = getProvider(id)
     if (!p) continue
-    // Aislado por proveedor, como `cmdInstall` (auditoría H-10): un manifiesto no verificable de
-    // uno no deja sin desinstalar a los demás; el exit code lo refleja al final.
-    try {
-      for (const { dest, file, man } of manifiestosVivos(p, opts.scope, opts.dir,true)) {
+    // Aislado por proveedor Y por manifiesto (auditoría H-10, revisión intento 1): un manifiesto
+    // no verificable no deja sin desinstalar a los demás proveedores ni al otro modo (plugin/copy)
+    // del mismo; el exit code lo refleja al final.
+    for (const { dest, file } of sitiosManifiesto(p, opts.scope, opts.dir)) {
+      try {
+        const path = join(dest, file)
+        const man = readManifest(path, manifestContext(p.id, opts.scope, opts.dir, path))
+        if (!man) continue
         tocados++
         deshacerInstalacion(p, dest, file, man, opts)
+      } catch (e) {
+        fallos++
+        console.error(`  ${ERR} ${p.label} (${file}): ${e?.message || e}`)
       }
-    } catch (e) {
-      fallos++
-      console.error(`  ${ERR} ${p.label}: ${e?.code==='UNVERIFIED_MANIFEST' || e?.code==='LINKED_PATH' ? e.message : e?.message || e}`)
     }
   }
   if (fallos) { say(""); return 1 }
@@ -2994,4 +3005,4 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import
   })
 }
 
-export { parseArgs, ficherosDe, ejecutar, main, banner, multiselect }
+export { parseArgs, ficherosDe, ejecutar, main, banner, multiselect, correr }

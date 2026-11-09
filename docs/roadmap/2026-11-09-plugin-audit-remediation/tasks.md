@@ -16,11 +16,11 @@ changelog: Fixed
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 4 | 6 | 66.7% |
+| Fase 1 | 5 | 6 | 83.3% |
 | Fase 2 | 0 | 6 | 0.0% |
 | Fase 3 | 0 | 4 | 0.0% |
 | Fase 4 | 0 | 5 | 0.0% |
-| **TOTAL** | **4** | **21** | **19.0%** |
+| **TOTAL** | **5** | **21** | **23.8%** |
 
 ## Fase 1 — Seguridad y pérdida de datos
 
@@ -75,9 +75,9 @@ GREEN fix1: `pytest tests/test_qa_gate.py` → `7 passed in 4.83s` (la rama skip
 
 ### T-03 — Instalador robusto en Windows y con configuración ajena
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: H-4, H-9, H-10, H-11, H-13 y menores del instalador. Buscar las CLI sin el directorio actual; `merge` con lectura estricta; `uninstall` aislado por proveedor; enlaces solo prohibidos en lo que crea el instalador; aviso de rutas absolutas en configuración compartida; misma exclusión de tests desde un clon que en npm.
-- **Archivos**: `install/install.mjs`, `install/providers.mjs`, `install/manifest-auth.mjs`, `tests/installer.test.mjs`, `tests/install-auth.test.mjs`, `docs/INSTALL.md`, `docs/en/INSTALL.md`.
+- **Archivos**: `install/install.mjs`, `install/providers.mjs`, `install/manifest-auth.mjs`, `tests/installer.test.mjs`, `tests/install-auth.test.mjs`, `docs/INSTALL.md`, `docs/en/INSTALL.md`, `agent-kits/shared/codex-plugin-state.mjs`, `tests/codex-plugin-state.test.mjs` (revisión intento 1, gap 10: resolvedor de `codex` de `install status`).
 - **Verificación**: `node --test tests/installer.test.mjs tests/install-auth.test.mjs` → 0 fail, con casos nuevos para `.cmd` plantado, JSON ilegible en `merge`, manifiesto no verificable en `uninstall` y HOME bajo un enlace.
 - **Changelog**: El instalador ya no ejecuta lanzadores plantados en el directorio actual, no reescribe JSON ilegibles, desinstala cada proveedor por separado, acepta HOME o dotfiles enlazados y avisa de rutas absolutas en configuración compartida.
 - **Cerrada**: 2026-11-09
@@ -93,6 +93,11 @@ GREEN fix1: `pytest tests/test_qa_gate.py` → `7 passed in 4.83s` (la rama skip
 RED: `tests/installer.test.mjs --test-name-pattern=auditor (7 casos) + tests/install-auth.test.mjs (2 casos H-11)` falló con 7 fail: .cmd del cwd resuelto por where.exe, merge reescribe marketplace.json ilegible con exit 0, uninstall aborta OpenCode por manifiesto de Claude, HOME/dotfile enlazado da unverified manifest, enlace en proyecto sin error propio, ficherosDe copia test_*.py, sin aviso de ruta absoluta · 2026-11-09.
 
 GREEN: `node --test tests/installer.test.mjs` → `tests 182 · pass 182 · fail 0` (7 casos nuevos de auditoría incl. `.cmd` plantado, merge sobre marketplace.json ilegible, uninstall aislado, HOME y dotfile enlazados, enlace en proyecto → `linked path`, exclusión de tests/cachés, aviso de ruta absoluta); `node --test tests/install-auth.test.mjs` → `pass 7 · fail 0`; `node --test tests/codex-native-install.test.mjs` → `pass 11 · fail 0`. Decisión: anclas de confianza (HOME, raíces de config de cada runtime, paquete y `--dir`); por debajo del ancla más profunda un enlace da `LINKED_PATH` · 2026-11-09.
+
+
+RED: `tests/installer.test.mjs --test-name-pattern=revision intento 1 + tests/codex-plugin-state.test.mjs relative PATH` falló con fix1: 3 fail: plugin no verificable bloquea la copy del mismo proveedor, correr exportado/sin error propio si la CLI falta, codex.cmd plantado resuelto via entrada relativa del PATH · 2026-11-09.
+
+GREEN fix1: `node --test tests/installer.test.mjs` → `pass 184 · fail 0` (uninstall aislado por manifiesto; `correr` sin ruta real → ENOENT propio); `node --test tests/codex-plugin-state.test.mjs` → `pass 7 · fail 0` (entradas relativas del PATH ignoradas, el `codex.cmd` plantado no se ejecuta); `tests/install-auth.test.mjs` → `pass 7`; `tests/codex-native-install.test.mjs` → `pass 11`. `codex-plugin-state.mjs` sin huella `sha256_lf` · 2026-11-09.
 
 ### T-04 — Graphiti sin proxy
 
