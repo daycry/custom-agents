@@ -26,27 +26,23 @@ entero ni las fases que esta ejecución omite. Una referencia necesaria ilegible
 se informa; no se improvisan puertas ni se sustituye por otra instalación.
 
 Resuelve `DEVKIT` (Bash) o `$DevCycleKit` (PowerShell) en el **mismo bundle que el
-núcleo**. Si ya conoces su origen, usa esa ruta observada. Sin ella, busca proyecto
-antes que usuario en las seis raíces de la regla 5; el propio repo es el fallback
-explícito de desarrollo. Contrasta la procedencia con el núcleo antes de leer.
-No supongas que las variables sobreviven entre bloques de shell: conserva la
-ruta observada y asígnala de nuevo en cada bloque que la necesite.
+núcleo** (regla 5; el propio repo gana). Si ya conoces su origen, usa esa ruta. Las
+variables no sobreviven entre bloques de shell: reasigna la ruta observada en cada uno.
 
 ```bash
-if [ -f "$PWD/agent-kits/shared/ledger-lint.py" ]; then R="$PWD"; else
-  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"
-fi; DEVKIT="$R/agent-kits/dev-cycle"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$PWD/$M" ] && R="$PWD"; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DEVKIT="${R:+$R/agent-kits/dev-cycle}"
 ```
 
 ```powershell
 $M = 'agent-kits/shared/ledger-lint.py'; $R = "${CLAUDE_PLUGIN_ROOT}"; if (Test-Path -LiteralPath "$PWD/$M") { $R = "$PWD" }
-foreach ($r in $(if (!(Test-Path -LiteralPath "$R/$M")) { "$PWD/.codex", "$PWD/.claude", "$PWD/.opencode", "$HOME/.codex/plugins/cache", "$HOME/.claude/plugins/cache", "$HOME/.codex", "$HOME/.claude", "$HOME/.config/opencode" })) {
-  $o = Get-ChildItem -LiteralPath $r -Filter ledger-lint.py -File -Recurse -Depth 5 -ea 0 |
-    Where-Object { ($_.FullName -replace '\\', '/') -like "*/$M" -and $_.FullName -notmatch '[\\/]\.claude[\\/]jobs[\\/]' } |
+if (!(Test-Path -LiteralPath "$R/$M")) { $R = $null }
+foreach ($d in $(if (!$R) { "$PWD/.codex", "$PWD/.claude", "$PWD/.opencode", "$HOME/.codex/plugins/cache/daycry", "$HOME/.claude/plugins/cache/daycry", "$HOME/.codex", "$HOME/.claude", "$HOME/.config/opencode" })) {
+  $o = Get-ChildItem -LiteralPath $d -Filter ledger-lint.py -File -Recurse -Depth 4 -ea 0 |
+    Where-Object { ($_.FullName -replace '\\', '/') -like "*/$M" -and $_.FullName.Substring($d.Length) -notmatch '^[\\/](jobs|worktrees)[\\/]' } |
     Sort-Object { [regex]::Replace($_.FullName, '\d+', { $args[0].Value.PadLeft(9, '0') }) } | select -Last 1
   if ($o) { $R = $o.Directory.Parent.Parent.FullName; break }
 }
-$DevCycleKit = "$R/agent-kits/dev-cycle"
+$DevCycleKit = if ($R) { "$R/agent-kits/dev-cycle" }
 ```
 
 | Referencia en `agent-kits/dev-cycle/references/` | Cuándo leerla |

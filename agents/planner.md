@@ -59,7 +59,7 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, emojis de s
 - El plan aporta **dos ficheros** a esa carpeta: `improvement-plan.md` y `tasks.md`. **Si la iniciativa implica UI**, añade también **`test-plan.md`** (plantilla del kit): bloques **E2E-xx** (automáticos, los ejecuta el agente `qa` con Playwright) y **M-xx** (manuales, para una persona), derivados de los criterios de aceptación; y en cada tarea de UI de `tasks.md` rellena el campo **Cubre (tests)** con los escenarios que la cubren (trazabilidad — lo valida mecánicamente `coverage-check.py` del kit de qa). Bloques **opcionales**: si la iniciativa expone o toca **endpoints**, propón añadir **API-xx** (smoke con curl); si el usuario pide **accesibilidad**, añade **A11Y-xx** (axe-core, instalación opt-in). No los incluyas por defecto: ofrécelos cuando apliquen. El `test-plan.md` lo consume el agente `qa`. **Si la iniciativa NO tiene UI, no omitas el fichero en silencio: declara `test-plan: n/a (sin UI)` en el frontmatter de `improvement-plan.md`** (literal exacto, junto a `design:`). Ese marcador es lo que leen `/dev-cycle` (Fase 3) y `qa` para terminar limpios en vez de pedirte un test-plan que no existe; sin él, `qa` avisa una vez con el comando que lo fija (`ADR-017`; era la contradicción E1 de `docs/agents/CONTRACTS.md`).
 - Plantillas base (formato FIJO): localiza el kit sin depender del scope (proyecto/usuario/plugin) y lee de ahí:
   ```bash
-  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; PLANKIT="$R/agent-kits/planner"
+  R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; PLANKIT="${R:+$R/agent-kits/planner}"
   # plantillas en "$PLANKIT/templates/improvement-plan.md" y "$PLANKIT/templates/tasks.md"
   ```
   Cópialas y rellénalas; no improvises otro formato.
@@ -72,7 +72,7 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, emojis de s
 Los parámetros (tarifa, precio de tokens, supervisión, margen, FTE…) y la regla de `.claude/rates.json` viven en el **fragmento compartido** — misma fuente de verdad que `evaluator`. Léelo y aplícalo:
 
 ```bash
-R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="$R/agent-kits/shared"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; SHAREDKIT="${R:+$R/agent-kits/shared}"
 # parámetros en "$SHAREDKIT/estimation-defaults.md"
 ```
 

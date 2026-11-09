@@ -469,15 +469,15 @@ def codex_hooks_json(root):
 # Raíces del respaldo, en el orden canónico (Claude Code) y en el de cada runtime: bash con llaves
 # (`for r in …; do find …`) y la lista de la receta PowerShell de /dev-cycle.
 _RAICES = {
-    "claude": ('"$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache ~/.{claude,codex,config/opencode}',
-               '"$PWD/.claude", "$PWD/.codex", "$PWD/.opencode", "$HOME/.claude/plugins/cache", "$HOME/.codex/plugins/cache", '
+    "claude": ('"$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}',
+               '"$PWD/.claude", "$PWD/.codex", "$PWD/.opencode", "$HOME/.claude/plugins/cache/daycry", "$HOME/.codex/plugins/cache/daycry", '
                '"$HOME/.claude", "$HOME/.codex", "$HOME/.config/opencode"'),
-    "codex": ('"$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache ~/.{codex,claude,config/opencode}',
-              '"$PWD/.codex", "$PWD/.claude", "$PWD/.opencode", "$HOME/.codex/plugins/cache", "$HOME/.claude/plugins/cache", '
+    "codex": ('"$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}',
+              '"$PWD/.codex", "$PWD/.claude", "$PWD/.opencode", "$HOME/.codex/plugins/cache/daycry", "$HOME/.claude/plugins/cache/daycry", '
               '"$HOME/.codex", "$HOME/.claude", "$HOME/.config/opencode"'),
-    "opencode": ('"$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache ~/.{claude,codex}',
-                 '"$PWD/.opencode", "$PWD/.claude", "$PWD/.codex", "$HOME/.config/opencode", "$HOME/.claude/plugins/cache", '
-                 '"$HOME/.codex/plugins/cache", "$HOME/.claude", "$HOME/.codex"'),
+    "opencode": ('"$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}',
+                 '"$PWD/.opencode", "$PWD/.claude", "$PWD/.codex", "$HOME/.config/opencode", "$HOME/.claude/plugins/cache/daycry", '
+                 '"$HOME/.codex/plugins/cache/daycry", "$HOME/.claude", "$HOME/.codex"'),
 }
 
 

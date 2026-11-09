@@ -5,9 +5,11 @@ Bug: `find … "$HOME/.claude" … | head -1` devolvía la primera coincidencia 
 (`tests/fixtures/…/bundle/agent-kits/shared`), el clon del marketplace o una copia `synced` vieja.
 Ahora cada resolución usa primero `${CLAUDE_PLUGIN_ROOT}` (Claude Code lo sustituye en el contenido
 de comandos, skills y agentes) y, si no existe, busca el MARCADOR `agent-kits/shared/ledger-lint.py`
-—solo existe en un bundle real— raíz a raíz (proyecto, cachés de instalación, usuario), con
-`-maxdepth 6` (deja fuera `synced/`, `.staging/` y `plugin-install-*`), la versión más alta dentro
-de cada raíz y corte en la primera raíz con resultado.
+—solo existe en un bundle real— raíz a raíz (proyecto, cachés del marketplace `daycry`, usuario),
+cada raíz acotada a la disposición real con `-maxdepth 5` (deja fuera el clon del marketplace,
+`synced/`, `.staging/`, `plugin-install-*`, `temp_git_*` y otros marketplaces), `jobs/` y
+`worktrees/` excluidos bajo cada raíz, la versión más alta dentro de una caché y corte en la primera
+raíz con resultado. Sin resultado, la ruta queda vacía.
 
 Las instalaciones simuladas reproducen las de una máquina real con las tres CLIs.
 """
@@ -54,6 +56,8 @@ def maquina(home, runtimes=("claude",), versiones=("2.0.0", "10.1.0", "3.2.2")):
             fx.mkdir(parents=True)
             (fx / "native-roles.json").write_text("{}", encoding="utf-8")   # fixture sin marcador
         bundle(home / ".claude" / "plugins" / "marketplaces" / "daycry")   # clon del marketplace
+        bundle(home / ".claude" / "plugins" / "cache" / "local" / "custom-agents" / "99.0.0")   # otro marketplace
+        bundle(home / ".claude" / "plugins" / "cache" / "temp_git_17_x")   # clon temporal sobrante
         sync = home / ".claude" / "plugins" / "synced" / "a1_b2"
         bundle(sync / "custom-agents")                                     # copia sincronizada vieja
         bundle(sync / ".staging" / "1" / "custom-agents" / "unzip-x")
@@ -72,13 +76,17 @@ def _env(home):
     return env
 
 
-def _bash(runtime, tmp_path, *, plugin_root=None, proyecto=None):
+def _bash(runtime, tmp_path, *, plugin_root=None, proyecto=None, worktree=False):
     home, proj = tmp_path / "home", tmp_path / "proj"
     proj.mkdir(exist_ok=True)
     if proyecto:
         bundle(proj / proyecto)
+    if worktree:   # worktree de Claude Code con su propia copia del bundle (otra rama)
+        bundle(proj / ".claude" / "worktrees" / "feat" / ".claude")
+        bundle(proj / ".claude" / "worktrees" / "feat")
     md = ROOT.joinpath(*GENERADO[runtime][0]).read_text(encoding="utf-8")
-    linea = next(l.strip() for l in md.splitlines() if 'DOC="$R/' in l or l.strip().startswith("DOC="))
+    linea = next(l.strip() for l in md.splitlines()
+                 if 'DOC="$R/' in l or 'DOC="${R:+' in l or l.strip().startswith("DOC="))
     if plugin_root is not None:   # lo que hace Claude Code al cargar el comando
         linea = linea.replace("${CLAUDE_PLUGIN_ROOT}", str(plugin_root).replace("\\", "/"))
     r = subprocess.run([BASH, "-c", linea + '\nprintf "%s" "$DOC"'], capture_output=True, text=True,
@@ -114,15 +122,59 @@ def test_sin_raiz_la_copia_del_proyecto_sigue_ganando(tmp_path):
 
 
 @pytest.mark.skipif(not BASH, reason="sin bash")
-def test_sin_cache_no_gana_un_fixture_ni_una_copia_synced(tmp_path):
-    """Solo marketplace + synced + fixture: gana el clon del marketplace (bundle real a profundidad ≤ 6)."""
+def test_sin_instalacion_la_ruta_queda_vacia(tmp_path):
+    """Sin raíz sustituida ni instalación válida (solo clon del marketplace, synced y fixture), la ruta
+    queda VACÍA: las comprobaciones de vacío de cada pieza (`/setup` 5-bis…) siguen avisando."""
     home = tmp_path / "home"
     bundle(home / ".claude" / "plugins" / "marketplaces" / "daycry")
     bundle(home / ".claude" / "plugins" / "synced" / "a1_b2" / "custom-agents")
     fx = home / ".claude" / "tests" / "fixtures" / "x" / "bundle" / "agent-kits" / "shared"
     fx.mkdir(parents=True)
-    ruta, _ = _bash("claude", tmp_path)
-    assert ruta.endswith("/plugins/marketplaces/daycry/agent-kits/shared/doctor.py"), ruta
+    ruta, err = _bash("claude", tmp_path)
+    assert ruta == "" and err == "", (ruta, err)
+
+
+@pytest.mark.skipif(not BASH, reason="sin bash")
+def test_un_worktree_bajo_el_proyecto_no_gana_a_su_copia(tmp_path):
+    maquina(tmp_path / "home")
+    ruta, _ = _bash("claude", tmp_path, proyecto=".claude", worktree=True)
+    assert ruta.endswith("/proj/.claude/agent-kits/shared/doctor.py"), ruta
+
+
+@pytest.mark.skipif(not BASH, reason="sin bash")
+def test_proyecto_bajo_jobs_conserva_su_copia(tmp_path):
+    """La exclusión de `jobs/` es relativa a cada raíz: un proyecto que vive bajo `~/.claude/jobs/` usa su copia."""
+    home = tmp_path / "home"
+    maquina(home)
+    proj = home / ".claude" / "jobs" / "e2" / "proj"
+    bundle(proj / ".claude")
+    md = (ROOT / "commands" / "doctor.md").read_text(encoding="utf-8")
+    linea = next(l.strip() for l in md.splitlines() if 'DOC="${R:+' in l)
+    r = subprocess.run([BASH, "-c", linea + '\nprintf "%s" "$DOC"'], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", cwd=str(proj), env=_env(home), timeout=120)
+    assert r.stdout.replace("\\", "/").endswith("/jobs/e2/proj/.claude/agent-kits/shared/doctor.py"), r.stdout
+
+
+PROPIO = ("skills/quick-implement/SKILL.md", "skills/adversarial-review/SKILL.md", "skills/tdd/SKILL.md",
+          "skills/unit-tests/SKILL.md", "skills/api-contract/SKILL.md", "skills/code-health/SKILL.md",
+          "skills/dependency-upgrade/SKILL.md", "commands/dev-cycle.md")
+
+
+@pytest.mark.skipif(not BASH, reason="sin bash")
+def test_en_el_propio_repo_gana_la_copia_de_trabajo(tmp_path):
+    """Las piezas que se usan al desarrollar el plugin prefieren el repo propio (como `"$PWD/commands"` en master)."""
+    home, proj = tmp_path / "home", tmp_path / "repo"
+    maquina(home)
+    bundle(proj)
+    (proj / "commands").mkdir()
+    (proj / "commands" / "dev-cycle.md").write_text("#\n", encoding="utf-8")
+    md = (ROOT / "skills" / "quick-implement" / "SKILL.md").read_text(encoding="utf-8")
+    linea = next(l.strip().lstrip("> ") for l in md.splitlines() if "DEVCYCLE=" in l and "M=agent-kits" in l)
+    r = subprocess.run([BASH, "-c", linea + '\nprintf "%s" "$DEVCYCLE"'], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", cwd=str(proj), env=_env(home), timeout=120)
+    assert r.stdout.replace("\\", "/").endswith("/repo/commands/dev-cycle.md"), r.stdout
+    for rel in PROPIO:
+        assert '[ -f "$PWD/$M" ] && R="$PWD"' in (ROOT / rel).read_text(encoding="utf-8"), rel
 
 
 @pytest.mark.skipif(not BASH, reason="sin bash")
@@ -170,9 +222,9 @@ def test_receta_powershell_de_dev_cycle_usa_la_instalacion_de_su_runtime(tmp_pat
 # o el bucle actual (`for r in "$PWD"/.{claude,…} …; do find "$r" …`).
 VIEJA_RE = re.compile(r"\$\(find \"\$PWD/\.claude\"[^\n]*?-path '\*((?:agent-kits|skills|statusline|hooks|commands)/[^']+)'")
 BUCLE = 'for r in "$PWD"/.{claude,'
-CONTRATO = ('R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] ||',
-            '-maxdepth 6 -path "*/$M"', "! -path '*/.claude/jobs/*'", "| sort -V | tail -1 | grep . && break",
-            'R="${R%/$M}"')
+CONTRATO = ('R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py;', '[ -f "$R/$M" ] ||',
+            "/plugins/cache/daycry", '-maxdepth 5 -path "*/$M"', '! -path "$r/jobs/*"', '! -path "$r/worktrees/*"',
+            "| sort -V | tail -1 | grep . && break", 'R="${R%/$M}"')
 
 
 def test_toda_resolucion_del_plugin_usa_la_raiz_por_marcador():
@@ -203,10 +255,26 @@ def test_paquete_portable_resuelve_sus_propios_kits(tmp_path):
                          encoding="utf-8", errors="replace", timeout=300)
     assert chk.returncode == 0, chk.stdout + chk.stderr
     md = (out / "skills" / "adversarial-review" / "SKILL.md").read_text(encoding="utf-8")
-    linea = next(l.strip() for l in md.splitlines() if 'SHAREDKIT="$R/' in l)
+    linea = next(l.strip() for l in md.splitlines() if 'SHAREDKIT="${R:+$R/' in l)
     assert 'for r in "${PORTABLE_ROOT:-.}"; do' in linea, linea
     env = _env(tmp_path / "home")
     env["PORTABLE_ROOT"] = str(out)
     res = subprocess.run([BASH, "-c", linea + '\nprintf "%s" "$SHAREDKIT"'], capture_output=True, text=True,
                          encoding="utf-8", errors="replace", cwd=str(tmp_path), env=env, timeout=60)
     assert res.stdout.replace("\\", "/").endswith("/pkg/agent-kits/shared"), (res.stdout, res.stderr)
+
+
+@pytest.mark.skipif(not PWSH, reason="sin PowerShell")
+def test_receta_powershell_sin_instalacion_deja_la_ruta_vacia(tmp_path):
+    """Sin coincidencias, `$DevCycleKit` queda vacío (antes `$r` del bucle pisaba `$R`: PowerShell no
+    distingue mayúsculas y salía una ruta con aspecto válido)."""
+    home, proj = tmp_path / "home", tmp_path / "proj"
+    proj.mkdir()
+    bundle(home / ".claude" / "plugins" / "marketplaces" / "daycry")
+    md = (ROOT / "commands" / "dev-cycle.md").read_text(encoding="utf-8")
+    receta = re.search(r"```powershell\n(.*?)\n```", md, re.S)[1]
+    r = subprocess.run([PWSH, "-NoProfile", "-NonInteractive", "-Command", receta + '\nWrite-Output "[$DevCycleKit]"'],
+                       cwd=str(proj), capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       timeout=180, env=_env(home))
+    assert r.returncode == 0 and r.stderr == "", r.stderr
+    assert r.stdout.strip() == "[]", r.stdout

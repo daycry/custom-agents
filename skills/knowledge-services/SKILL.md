@@ -70,7 +70,7 @@ Plugin instalable (regla 5 de `docs/CONVENTIONS.md`): localiza el script en runt
 patrón de seis raíces, nunca una ruta relativa fija.
 
 ```bash
-R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; KSSKILL="$R/skills/knowledge-services/scripts/knowledge-sync.py"
+R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{claude,codex,opencode} ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; KSSKILL="${R:+$R/skills/knowledge-services/scripts/knowledge-sync.py}"
 python3 "$KSSKILL" --backend kwipu --root . --check
 python3 "$KSSKILL" --backend kwipu --root . --dry-run
 python3 "$KSSKILL" --backend kwipu --root .

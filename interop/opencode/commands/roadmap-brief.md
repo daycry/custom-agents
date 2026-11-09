@@ -18,7 +18,7 @@ y lo deja en un PDF presentable. Solo lectura del roadmap. Foco opcional: **$ARG
 ## Pasos
 1. **Reúne los datos** (solo lectura) con la skill `roadmap-dashboard`:
    ```bash
-   R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache ~/.{claude,codex}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DASH="$R/skills/roadmap-dashboard/scripts/build_dashboard.py"
+   R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{opencode,claude,codex} ~/.config/opencode ~/.{claude,codex}/plugins/cache/daycry ~/.{claude,codex}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DASH="${R:+$R/skills/roadmap-dashboard/scripts/build_dashboard.py}"
    python3 "$DASH" --root docs/roadmap --json > /tmp/roadmap.json      # estado/presupuesto por iniciativa
    python3 "$DASH" --root docs/roadmap --metrics-md /tmp/metrics.md    # real vs estimado
    ```

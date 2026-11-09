@@ -23,9 +23,9 @@
     {
       "before_sha256": "1c61cd2c92b0b6722551c0b0fb7b64fbdf3a772f431ab287c00b338768ff6a0c",
       "before_file": "agent-kits/shared/knowledge-check-governed.md",
-      "after_sha256": "c200bd45a90743e8ad92ddd40e9a0ee64c2f53ade14388b7bb0c0e3f22a315b8",
+      "after_sha256": "91476bd0a219d370fa43c337b5a55aef575b779c27f86740f61ee99e5f902fec",
       "after_file": "agent-kits/shared/knowledge-check-governed.md",
-      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first, then the real-bundle marker agent-kits/shared/ledger-lint.py searched root by root (project, install caches, user) with -maxdepth 6, highest version within a root and stop at the first hit; same lookup target and gate."
+      "reason": "Plugin-root resolution fix: ${CLAUDE_PLUGIN_ROOT} first (own repo first where master preferred it), then the real-bundle marker agent-kits/shared/ledger-lint.py root by root (project, this plugin's marketplace caches, user) bounded to the install layout (-maxdepth 5, jobs/ and worktrees/ excluded per root), highest version within a cache, stop at the first hit, empty when nothing matches; same lookup target and gate."
     }
   ]
 }

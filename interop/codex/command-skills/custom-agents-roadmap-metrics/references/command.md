@@ -18,7 +18,7 @@ tokens), este comando muestra lo que **de verdad ha costado**, leyendo las horas
 2. Localiza el generador de la skill **`roadmap-dashboard`** y ejecútalo en modo métricas:
 
    ```bash
-   R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 6 -path "*/$M" ! -path '*/.claude/jobs/*' 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DASH="$R/skills/roadmap-dashboard/scripts/build_dashboard.py"
+   R="${CLAUDE_PLUGIN_ROOT}"; M=agent-kits/shared/ledger-lint.py; [ -f "$R/$M" ] || R="$(for r in "$PWD"/.{codex,claude,opencode} ~/.{codex,claude}/plugins/cache/daycry ~/.{codex,claude,config/opencode}; do find "$r" -maxdepth 5 -path "*/$M" ! -path "$r/jobs/*" ! -path "$r/worktrees/*" 2>/dev/null | sort -V | tail -1 | grep . && break; done)"; R="${R%/$M}"; DASH="${R:+$R/skills/roadmap-dashboard/scripts/build_dashboard.py}"
    python3 "$DASH" --root docs/roadmap --metrics-md docs/roadmap/metrics.md
    ```
 
