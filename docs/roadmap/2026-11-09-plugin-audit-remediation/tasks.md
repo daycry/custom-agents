@@ -587,6 +587,25 @@ Notas: (a) en el arranque de este repo el historial no sale porque las entradas 
 
 **fix1b (T-07):** la CI de Linux falló en los dos `test_fix1_b1_*`: leían `next(glob("*.md"))` del journal y en Linux el orden de `glob` devolvía el `README.md` del directorio. Ahora leen la única entrada que no es el README (`_entrada_journal`). Sin RED nuevo: el test dependía del orden del sistema de ficheros, no el código. Los demás `next(...glob(...))` de la fase casan un único fichero. `pytest agent-kits/shared/test_work_resume.py -k fix1_b1` → `2 passed`.
 
-## Revisión de dos lentes — intento 2: Fase 2 (T-07…T-12) (T-07, T-08, T-09, T-10, T-11, T-12)
+## Revisión de dos lentes — intento 2: Fase 2 (T-07…T-12) — 3 Important y 9 Minor corregidos en fix2, ninguno descartado (T-07, T-08, T-09, T-10, T-11, T-12)
 
-Pendiente de revisión; sin veredicto.
+Lentes: A + B + C + D. Corrección en `fix2` por el implementer; cada gap con un test dedicado que lo nombra (`test_fix2_*`).
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | B-I1: `activas_acotadas` tomaba el estado solo del frontmatter de 16 KiB: un ledger de plantilla (estado en la tabla de cabecera) o con el estado fuera del prefijo dejaba de contar | T-07 | corregido | estado del frontmatter o de la tabla; si no aparece, relectura acotada de 256 KiB; `test_fix2_bi1_*` (e59bc28) |
+| 2 | Important | B-I2: `vigente_entre` descartaba las de 100 % antes de mirar el marcador abierto | T-07 | corregido | orden: marcador abierto (aunque esté al 100 %), pendiente más reciente, más reciente; empate por nombre; `test_fix2_bi2_*` (e59bc28) |
+| 3 | Important | A-I1: `review_initiatives` listaba sin `newest_first`: con 140 carpetas las 12 más nuevas no se podían revisar | T-09 | corregido | `list_names(newest_first=True)`; `test_fix2_ai1_*` (639c754) |
+| 4 | Minor | B-M3/D-2: `session` y `active --json` usaban `activas()` con lecturas completas y otro orden | T-07 | corregido | todos usan `activas_acotadas` (instantánea memoizada); arranque 68 carpetas 4,89-11,93 s → 1,80-1,95 s y 345 carpetas 15-16 s → 2,2-3,3 s (pasadas 2.ª y 3.ª; detalle en T-07); `test_fix2_bm3_*` (e59bc28) |
+| 5 | Minor | B-M4: las entradas viejas del journal se atribuían con la regla vieja | T-07 | corregido | campo `regla_iniciativa: "vigente"` en las nuevas; `--history-only` solo cita esas; `test_fix2_bm4_*` (e59bc28) |
+| 6 | Minor | C+D: la regla solo mira las 128 carpetas más nuevas | T-07 | documentado | tope descrito en WORK-RESUME ES/EN y en el docstring; `test_fix2_cd_el_tope_de_la_regla_esta_documentado` (e59bc28) |
+| 7 | Minor | D-1: con miles de carpetas sin ledger, cartera y progreso las recorrían todas | T-09 | corregido | como mucho `MAX_SCAN` carpetas tras ordenar; las demás se cuentan por nombre; `test_fix2_d1_*` (639c754) |
+| 8 | Minor | C-1 (CWE-59): el recuento de omitidas usaba `os.path.exists`, que sigue enlaces | T-09 | corregido | recuento por nombre y comprobación de iniciativa por el listado acotado; en HEAD, 70 `exists` sobre carpetas omitidas; `test_fix2_c1_*` (639c754) |
+| 9 | Minor | C+D: con ≥ 4.096 nombres se ordena el prefijo de `scandir` | T-09 | documentado | tope en `local-read.py`, PLUGIN-PANEL ES/EN y CONTRACTS E35; `test_fix2_cd_los_topes_reales_estan_documentados` (639c754) |
+| 10 | Minor | A-M2: el modo rápido explícito y la recomendación por defecto no excluían la interfaz | T-08 | corregido | avisa y usa el flujo completo; `test_fix2_a_m2_*` (7216813) |
+| 11 | Minor | A-M3: la rama proporcional de `_cupos` no tenía test | T-10 | corregido | mínimo garantizado de agentes y comandos de `PRIORIDAD` en el reparto proporcional; `test_fix2_a_m3_*` con 50 agentes (83fc520) |
+| 12 | Minor | A-M4: docstrings de `skill-index.py`, PLUGIN-PANEL ES/EN y CONTRACTS E35 con topes viejos | T-10, T-09 | corregido | textos alineados; `test_fix2_a_m4_*` y `test_fix2_cd_los_topes_reales_*` (83fc520, 639c754) |
+
+Ahorro de la vía rápida: 6158 (≥ 6000).
+
+Nota: los comentarios de `serve_panel.py` de fix2 volvieron a ASCII (el linter y `tests/test_console_encoding.py` exigen ASCII en un script sin reconfiguración de streams); `lint_plugin.py` 0 errores.

@@ -138,7 +138,7 @@ def review_initiatives(project):
     read) or collide in id16 (both leave) are out. Never loads the review owner."""
     try:
         reader = _load_shared('local-read.py')
-        # fix2 (A-I1): las MAX_SCAN más recientes por nombre, no las primeras que dé el sistema de ficheros
+        # fix2 (A-I1): the MAX_SCAN newest folders by name, not the first ones the file system returns
         listing = reader.list_names(project, 'docs/roadmap', max_entries=MAX_SCAN, newest_first=True)
         if listing['status'] not in ('ok', 'incomplete'):
             return {}
@@ -460,7 +460,7 @@ def progress_snapshot(project, scrub=None):
     # read as a bounded prefix: never a false `too_large` because the budget ran out.
     names = sorted(listing['names'], reverse=True)
     if len(names) > MAX_SCAN:
-        issue('scan_budget')   # fix2 (D-1): como mucho MAX_SCAN carpetas recorridas por petición
+        issue('scan_budget')   # fix2 (D-1): at most MAX_SCAN folders walked per request
     for folder in names[:MAX_SCAN]:
         directory = reader.list_names(project, 'docs/roadmap/' + folder, max_entries=1)
         if directory['status'] in ('not_found', 'not_regular'):
