@@ -207,7 +207,9 @@ def test_limite_de_lineas_recorta_grupos_proporcionalmente(tmp_path):
     idx = si.construir(si.piezas(str(root)))
     assert idx["n_lineas"] <= si.LIMITE_LINEAS and idx["chars"] <= si.LIMITE_CHARS
     extras = [l for l in idx["lineas"] if l.startswith("… y ")]
-    assert len(extras) == 3 and any("`skills/`" in l for l in extras)
+    # fix1 (A1, revisión fase 2): los agentes ya no se recortan; se resumen comandos fuera del ciclo y skills
+    assert len(extras) == 2 and any("`skills/`" in l for l in extras) and not any("`agents/`" in l for l in extras)
+    assert sum(1 for l in idx["lineas"] if l.startswith("agent-")) == 8
     n_skill_lineas = sum(1 for l in idx["lineas"] if l.startswith("skill-"))
     n_extra_skills = int([l for l in extras if "`skills/`" in l][0].split()[2])
     assert n_skill_lineas + n_extra_skills == 60                 # nada se pierde: visibles + «N más»
@@ -364,3 +366,16 @@ def test_h21_dev_json_con_bom_respeta_indice_false(tmp_path):
     env = {"CLAUDE_PROJECT_DIR": str(proj), "CLAUDE_PLUGIN_ROOT": str(root)}
     (proj / ".claude" / "dev.json").write_bytes(b"\xef\xbb\xbf" + b'{"sesion": {"indice": false}}')
     assert run([], env) == (0, "", "")
+
+
+def test_fix1_a1_todos_los_agentes_y_los_comandos_del_ciclo_siempre_visibles():
+    """A1 (revisión fase 2): la cuota fija por grupo dejaba 5 agentes; se resumen las skills opcionales."""
+    idx = si.construir(si.piezas(str(REPO)))
+    lineas = idx["lineas"]
+    agentes = lineas[lineas.index("Agentes:") + 1:]
+    nombres = {l.split(" — ", 1)[0] for l in agentes if " — " in l}
+    esperados = {f[:-3] for f in os.listdir(REPO / "agents") if f.endswith(".md")}
+    assert len(esperados) == 10 and nombres == esperados, (nombres, esperados)
+    for cmd in ("/setup", "/dev-cycle", "/pm-cycle", "/work-resume"):
+        assert any(l.startswith(cmd + " ") or l.startswith(cmd + " —") for l in lineas), cmd
+    assert idx["chars"] <= si.LIMITE_CHARS and idx["n_lineas"] <= si.LIMITE_LINEAS

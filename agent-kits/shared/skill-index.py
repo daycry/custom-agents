@@ -4,7 +4,7 @@ skill-index.py — índice COMPACTO y DETERMINISTA de las piezas del plugin (com
 agentes) para inyectarlo como contexto al arrancar la sesión.
 Cierra la brecha de fiabilidad de activación: la `description` de una skill solo se ve cuando
 Claude la busca; este índice pone TODAS las piezas y las reglas de enrutado delante en cada
-arranque (`hooks/session-context.sh`, SessionStart `startup|resume|compact`) a coste fijo y
+arranque (`hooks/session-context.sh`, SessionStart `startup|resume|clear|compact`) a coste fijo y
 medido: ≤ LIMITE_LINEAS líneas · ≤ LIMITE_CHARS caracteres · ≤ LIMITE_LINEA por línea (los tests
 lo afirman). Si hay más piezas de las que caben, cada grupo cede proporcionalmente y cierra con
 «… y N piezas más (ver `skills/`)»; si el total de caracteres excede, el ancho por línea baja.
@@ -237,6 +237,15 @@ def _cupos(ps):
     total = sum(n.values())
     if total <= presupuesto:
         return n
+    # fix1 (A1): TODOS los agentes y los comandos del ciclo (`PRIORIDAD`) son fijos; las skills
+    # opcionales se resumen con lo que queda. Solo si ni eso cabe se cae al reparto proporcional.
+    ciclo = sum(1 for p in ps if p[0] == "command" and p[1] in PRIORIDAD["command"])
+    fijo = {"agent": n["agent"], "command": max(1, ciclo) if n["command"] else 0}
+    extra_cmd = 1 if fijo["command"] < n["command"] else 0
+    resto = presupuesto - fijo["agent"] - fijo["command"] - extra_cmd
+    if n["skill"] and resto >= 2 or not n["skill"] and resto >= 0:
+        skills = n["skill"] if resto >= n["skill"] else resto - 1
+        return {**fijo, "skill": skills}
     cupo = {}
     for k in n:
         if not n[k]:
